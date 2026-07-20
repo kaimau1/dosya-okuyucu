@@ -53,6 +53,15 @@ jobs:
             sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$manifest"
           sed -i 's#android:label="[^"]*"#android:label="Dosya Okuyucu"#' "$manifest"
 
+      - name: minSdk 23 (Firebase için)
+        run: |
+          set -e
+          for f in android/app/build.gradle.kts android/app/build.gradle; do
+            [ -f "$f" ] || continue
+            sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 23/' "$f"
+          done
+          echo "--- minSdk sonrası ---"; grep -R "minSdk" android/app/build.gradle* || true
+
       - name: Bağımlılıklar
         run: flutter pub get
 
@@ -83,6 +92,7 @@ jobs:
             - Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel)
             - Metin düzenleme + PDF/Slayt dönüştürme + paylaşım
             - Gemini AI sohbet (açık dosya bağlamı + kalıcı hafıza)
+            - Firebase giriş + bulut senkron (yapılandırıldığında; bkz. FIREBASE_SETUP.md)
 
             APK'yı aşağıdaki **Assets** bölümünden indirin.
           files: dist/dosya-okuyucu.apk
