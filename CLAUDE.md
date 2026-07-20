@@ -72,13 +72,13 @@ android iskeleti → AndroidManifest'e INTERNET izni + app adı → minSdk 23 pa
 - build-2 ✅ Flutter 3.29.3'e yükseltildi
 - build-3 ✅ Firebase (guard'lı) eklendi, minSdk 23
 - build-4 ✅ Office biçimli editörler (Excel/Word/Slayt)
-- build-5 🔄 Sabit imza (apksigner + secret bootstrap) — bu oturum kapanırken derleniyordu
+- build-5 ✅ Sabit imza (apksigner + secret bootstrap) — imzalama adımı yeşil, imzalı release üretildi
 
 ## 6) Açık Durum / Bekleyenler
-- **build-5 doğrulaması:** Actions'ta son çalışmanın "APK'yı imzala ve doğrula"
-  adımının yeşil olduğunu ve imza sertifikası (SHA-1/256) bastığını teyit et.
-- **Kalıcı imza:** İlk imzalı build'in logundaki base64'ü `ANDROID_KEYSTORE_B64`
-  secret'ı olarak ekle (SIGNING.md). Eklenmeden sürümler arası imza değişebilir.
+- **build-5 ✅ doğrulandı:** İmzalama adımı yeşil; imzalı release üretildi.
+- **Kalıcı imza (kullanıcı aksiyonu bekliyor):** build-5 logundaki base64'ü
+  `ANDROID_KEYSTORE_B64` secret'ı olarak ekle (SIGNING.md). Eklenene kadar her build
+  kendi geçici anahtarını üretir; gerçek dağıtımdan önce bu yapılmalı.
 - **PR:** Depoda `main` dalı yok (ilk push feature dalına yapıldı) → PR açılamadı.
   main oluşturulursa PR açılabilir (kullanıcı izni gerekir; feature dalına push yapılıyor).
 - **Firebase config:** Gerçek senkron için kullanıcı `flutterfire configure` yapmalı.
