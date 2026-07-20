@@ -7,6 +7,9 @@ import '../models/recent_file.dart';
 import '../services/file_service.dart';
 import '../widgets/file_type_icon.dart';
 import 'chat_screen.dart';
+import 'editors/slides_editor_screen.dart';
+import 'editors/spreadsheet_editor_screen.dart';
+import 'editors/word_editor_screen.dart';
 import 'settings_screen.dart';
 import 'viewer_screen.dart';
 
@@ -44,9 +47,22 @@ class _HomeScreenState extends State<HomeScreen> {
       openedAtMs: DateTime.now().millisecondsSinceEpoch,
     ));
     if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ViewerScreen(doc: doc)),
-    );
+    final route = MaterialPageRoute(builder: (_) {
+      switch (doc.kind) {
+        case DocKind.spreadsheet:
+          return SpreadsheetEditorScreen(
+              path: doc.path, name: doc.name, plainText: doc.plainText);
+        case DocKind.word:
+          return WordEditorScreen(
+              path: doc.path, name: doc.name, plainText: doc.plainText);
+        case DocKind.slides:
+          return SlidesEditorScreen(
+              path: doc.path, name: doc.name, plainText: doc.plainText);
+        default:
+          return ViewerScreen(doc: doc);
+      }
+    });
+    Navigator.of(context).push(route);
   }
 
   void _showError(String msg) {
