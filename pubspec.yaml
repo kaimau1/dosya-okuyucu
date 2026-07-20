@@ -1,0 +1,47 @@
+name: dosya_okuyucu
+description: "Sade, hızlı ve efektif çok formatlı dosya okuyucu/düzenleyici (PDF, Word, Excel, Slayt) + Gemini AI."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # Dosya seçme / yol
+  file_picker: ^8.1.2
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Görüntüleyiciler
+  pdfx: ^2.6.0
+
+  # Office (Open XML) okuma/yazma
+  excel: ^4.0.6
+  archive: ^3.6.1
+  xml: ^6.5.0
+
+  # AI (Gemini REST) & ağ
+  http: ^1.2.2
+
+  # Depolama / ayarlar
+  shared_preferences: ^2.3.2
+
+  # Dönüştürme (PDF üretimi) & paylaşım / yazdırma
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  share_plus: ^10.0.2
+
+  # Durum yönetimi (hafif)
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

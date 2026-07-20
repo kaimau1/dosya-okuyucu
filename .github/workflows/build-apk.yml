@@ -1,0 +1,91 @@
+name: APK Derle & Release
+
+on:
+  push:
+    branches:
+      - main
+      - claude/multi-format-file-reader-c9gh78
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java kurulumu
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Flutter kurulumu
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.5'
+
+      - name: Platform iskeletini üret (android)
+        run: |
+          set -e
+          mkdir -p .backup
+          cp -r lib pubspec.yaml .backup/
+          [ -d assets ] && cp -r assets .backup/ || true
+          [ -f analysis_options.yaml ] && cp analysis_options.yaml .backup/ || true
+          flutter create --org com.dosyaokuyucu --project-name dosya_okuyucu --platforms=android .
+          cp -r .backup/lib .
+          cp .backup/pubspec.yaml .
+          [ -d .backup/assets ] && cp -r .backup/assets . || true
+          [ -f .backup/analysis_options.yaml ] && cp .backup/analysis_options.yaml . || true
+
+      - name: INTERNET izni ve uygulama adını ayarla
+        run: |
+          set -e
+          manifest=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' "$manifest" || \
+            sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$manifest"
+          sed -i 's#android:label="[^"]*"#android:label="Dosya Okuyucu"#' "$manifest"
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: APK derle (release)
+        run: flutter build apk --release
+
+      - name: APK'yı adlandır
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/dosya-okuyucu.apk
+
+      - name: Artifact yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dosya-okuyucu-apk
+          path: dist/dosya-okuyucu.apk
+          if-no-files-found: error
+
+      - name: GitHub Release oluştur
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/claude/multi-format-file-reader-c9gh78'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-build-${{ github.run_number }}
+          name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          body: |
+            Otomatik derlenen Android APK.
+
+            - Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel)
+            - Metin düzenleme + PDF/Slayt dönüştürme + paylaşım
+            - Gemini AI sohbet (açık dosya bağlamı + kalıcı hafıza)
+
+            APK'yı aşağıdaki **Assets** bölümünden indirin.
+          files: dist/dosya-okuyucu.apk
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

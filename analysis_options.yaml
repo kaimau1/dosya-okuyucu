@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    avoid_print: false
+
+analyzer:
+  errors:
+    # Derlemeyi engellememesi için bilgi/uyarıları yumuşat.
+    deprecated_member_use: warning
+    use_build_context_synchronously: warning

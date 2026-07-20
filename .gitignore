@@ -1,0 +1,31 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Platform scaffolding (CI'da `flutter create` ile üretilir)
+/android/
+/ios/
+/linux/
+/macos/
+/windows/
+/web/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# CI geçici
+.backup/
+
+# Firebase (build-2)
+google-services.json
+GoogleService-Info.plist
+
+# Yerel
+local.properties
+*.log
