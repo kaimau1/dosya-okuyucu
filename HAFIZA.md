@@ -68,9 +68,13 @@
 
 ## Açık Durum / Bekleyenler
 
-- **Kalıcı imza — kullanıcı aksiyonu bekliyor:** build-5 logundaki base64'ü
-  `ANDROID_KEYSTORE_B64` secret'ı olarak ekle (SIGNING.md). Eklenene kadar her build kendi
-  geçici anahtarını üretir → gerçek dağıtımdan önce şart.
+- ~~Kalıcı imza — kullanıcı aksiyonu bekliyor~~ → **ÇÖZÜLDÜ 2026-07-21:** kalıcı keystore
+  üretildi ve `ANDROID_KEYSTORE_B64` secret'ı olarak eklendi. Artık her CI derlemesi AYNI
+  anahtarla imzalanır → yeni APK eskisinin üstüne kurulur.
+  - Anahtar dosyası: `C:\Users\sena\Desktop\dosya-okuyucu-imza\release.jks` (repo DIŞINDA).
+    Parmak izi SHA-256 `9E:EF:67:04:C8:6F:74:76:...:4C:57:37:18`, alias `dosyaokuyucu`.
+  - **Bu dosyayı kaybetmek = bir daha güncelleme yayınlayamamak.** Yedekle (repoya değil).
+  - Parola workflow'da açık yazıyor ama repo PRIVATE; anahtar dosyası olmadan parola işe yaramaz.
 - **main dalı yok:** ilk push feature dalına yapıldı, o yüzden PR açılamadı.
   main oluşturulursa PR açılabilir (kullanıcı izni gerekir).
 - **Firebase config:** gerçek senkron için kullanıcı `flutterfire configure` yapmalı.
@@ -87,6 +91,10 @@
 - **Platform klasörleri (`android/`, `ios/`) repoda yok**, CI'da `flutter create` ile üretilir.
   Yerelde de aynı adım gerekir (README).
 - **Gizli anahtar / keystore repoya COMMIT EDİLMEZ** — güvenlik sınıflandırıcısı da engeller.
+- **İmza değişirse telefona kurulmaz:** `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Android, imzası
+  farklı APK'yı mevcut verinin üstüne kurdurmaz → tek yol eskisini kaldırmak (uygulama verisi,
+  yani kayıtlı Gemini anahtarı ve son dosyalar silinir). 2026-07-21'deki sabit anahtardan sonra
+  bu bir daha yaşanmamalı. Kurulum: `adb install -r <apk>`; adb `%LOCALAPPDATA%\Android\Sdk\platform-tools`.
 - `**.md` değişiklikleri CI'ı tetiklemez (workflow `paths-ignore`).
 - **2026-07-21 TUZAK — graphify sandbox'ta çalışmaz:** ajan sandbox'ı DNS'i kesiyor,
   hata "Connection error" diye görünüyor → kota sanılıp boşuna key/model değiştiriliyor.
