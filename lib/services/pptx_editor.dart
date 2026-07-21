@@ -383,7 +383,8 @@ class PptxEditor {
 
   String _nextRelId() {
     var max = 0;
-    for (final r in _presRels?.findAllElements('Relationship') ?? const []) {
+    for (final r
+        in _presRels?.findAllElements('Relationship') ?? const <XmlElement>[]) {
       final m = RegExp(r'^rId(\d+)$').firstMatch(r.getAttribute('Id') ?? '');
       if (m != null) {
         final v = int.parse(m.group(1)!);
@@ -395,7 +396,7 @@ class PptxEditor {
 
   int _nextSldId() {
     var max = 255; // OOXML: slayt kimlikleri 256'dan başlar
-    for (final e in _sldIdLst?.findElements('p:sldId') ?? const []) {
+    for (final e in _sldIdLst?.findElements('p:sldId') ?? const <XmlElement>[]) {
       final v = int.tryParse(e.getAttribute('id') ?? '');
       if (v != null && v > max) max = v;
     }

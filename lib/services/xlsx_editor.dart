@@ -132,13 +132,11 @@ class XlsxEditor {
     return sheets;
   }
 
-  /// Yapısal bir değişiklikten (satır/sütun ekle/sil) sonra modeli excel
-  /// nesnesinden yeniden kurar. Sayfa sırası ve adları korunur.
-  void _refresh() {
-    final rebuilt = _buildSheets(_excel);
-    sheets
-      ..clear()
-      ..addAll(rebuilt);
+  XlsxSheet? _modelSheet(String name) {
+    for (final s in sheets) {
+      if (s.name == name) return s;
+    }
+    return null;
   }
 
   /// Hücre değerini Excel'de göründüğü gibi metne çevirir.
@@ -241,40 +239,109 @@ class XlsxEditor {
     return false;
   }
 
+  // Yapısal işlemler hücreleri (değer + stil) elle kaydırarak yapılır ve model
+  // doğrudan güncellenir. *Niye:* excel 4.0.6'nın Excel-seviye insertRow/
+  // insertColumn'u bu dosyada no-op çıktı (sayaç değişmedi, bkz. HAFIZA); Sheet
+  // hücre API'si (cell/value/cellStyle) ise güvenilir çalışıyor.
+
   /// [rowIndex] konumuna boş bir satır ekler (sonrakiler aşağı kayar).
   void insertRow(String sheetName, int rowIndex) {
     final table = _excel.tables[sheetName];
-    if (table == null) return;
-    final at = rowIndex.clamp(0, table.maxRows);
-    _excel.insertRow(sheetName, at);
-    _refresh();
+    final model = _modelSheet(sheetName);
+    if (table == null || model == null) return;
+    final at = rowIndex.clamp(0, model.rows.length);
+    final maxR = table.maxRows;
+    final maxC = table.maxColumns;
+    for (var r = maxR; r > at; r--) {
+      for (var c = 0; c < maxC; c++) {
+        _copyCell(table, r - 1, c, r, c);
+      }
+    }
+    for (var c = 0; c < maxC; c++) {
+      _clearCell(table, at, c);
+    }
+    model.rows.insert(at, List<String>.filled(model.maxCols, '', growable: true));
   }
 
-  /// [rowIndex] satırını siler.
+  /// [rowIndex] satırını siler (sonrakiler yukarı kayar).
   void deleteRow(String sheetName, int rowIndex) {
     final table = _excel.tables[sheetName];
-    if (table == null || table.maxRows <= 0) return;
-    if (rowIndex < 0 || rowIndex >= table.maxRows) return;
-    _excel.removeRow(sheetName, rowIndex);
-    _refresh();
+    final model = _modelSheet(sheetName);
+    if (table == null || model == null) return;
+    if (rowIndex < 0 || rowIndex >= model.rows.length) return;
+    final maxR = table.maxRows;
+    final maxC = table.maxColumns;
+    for (var r = rowIndex; r < maxR - 1; r++) {
+      for (var c = 0; c < maxC; c++) {
+        _copyCell(table, r + 1, c, r, c);
+      }
+    }
+    if (maxR > 0) {
+      for (var c = 0; c < maxC; c++) {
+        _clearCell(table, maxR - 1, c);
+      }
+    }
+    model.rows.removeAt(rowIndex);
   }
 
   /// [colIndex] konumuna boş bir sütun ekler (sonrakiler sağa kayar).
   void insertColumn(String sheetName, int colIndex) {
     final table = _excel.tables[sheetName];
-    if (table == null) return;
-    final at = colIndex.clamp(0, table.maxColumns);
-    _excel.insertColumn(sheetName, at);
-    _refresh();
+    final model = _modelSheet(sheetName);
+    if (table == null || model == null) return;
+    final at = colIndex.clamp(0, model.maxCols);
+    final maxR = table.maxRows;
+    final maxC = table.maxColumns;
+    for (var c = maxC; c > at; c--) {
+      for (var r = 0; r < maxR; r++) {
+        _copyCell(table, r, c - 1, r, c);
+      }
+    }
+    for (var r = 0; r < maxR; r++) {
+      _clearCell(table, r, at);
+    }
+    for (final row in model.rows) {
+      if (at <= row.length) row.insert(at, '');
+    }
   }
 
-  /// [colIndex] sütununu siler.
+  /// [colIndex] sütununu siler (sonrakiler sola kayar).
   void deleteColumn(String sheetName, int colIndex) {
     final table = _excel.tables[sheetName];
-    if (table == null || table.maxColumns <= 0) return;
-    if (colIndex < 0 || colIndex >= table.maxColumns) return;
-    _excel.removeColumn(sheetName, colIndex);
-    _refresh();
+    final model = _modelSheet(sheetName);
+    if (table == null || model == null) return;
+    if (colIndex < 0 || colIndex >= model.maxCols) return;
+    final maxR = table.maxRows;
+    final maxC = table.maxColumns;
+    for (var c = colIndex; c < maxC - 1; c++) {
+      for (var r = 0; r < maxR; r++) {
+        _copyCell(table, r, c + 1, r, c);
+      }
+    }
+    if (maxC > 0) {
+      for (var r = 0; r < maxR; r++) {
+        _clearCell(table, r, maxC - 1);
+      }
+    }
+    for (final row in model.rows) {
+      if (colIndex < row.length) row.removeAt(colIndex);
+    }
+  }
+
+  /// Bir hücrenin değerini ve stilini başka bir konuma kopyalar.
+  static void _copyCell(Sheet t, int sr, int sc, int dr, int dc) {
+    final src =
+        t.cell(CellIndex.indexByColumnRow(columnIndex: sc, rowIndex: sr));
+    final dst =
+        t.cell(CellIndex.indexByColumnRow(columnIndex: dc, rowIndex: dr));
+    dst.value = src.value;
+    dst.cellStyle = src.cellStyle;
+  }
+
+  /// Bir hücrenin değerini boşaltır (stil el değmeden kalır).
+  static void _clearCell(Sheet t, int r, int c) {
+    t.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r)).value =
+        null;
   }
 
   Uint8List save() {

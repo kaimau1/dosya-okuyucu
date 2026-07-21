@@ -104,30 +104,31 @@ void main() {
     expect(again.sheets.first.rows[4][1], '007');
   });
 
-  test('satır ekleme sonrakileri aşağı kaydırır, silme geri alır', () {
+  test('satır ekleme/silme veriyi doğru taşır ve kaydeder', () {
     final e = XlsxEditor.parse(_sampleXlsx());
     final name = e.sheets.first.name;
-    final before = e.sheets.first.rows.length;
+    final before = e.sheets.first.rows.length; // 2
 
     // 1. indekse (2. satır) boş satır ekle → eski 42'li satır aşağı kayar.
     e.insertRow(name, 1);
     expect(e.sheets.first.rows.length, before + 1);
     expect(e.sheets.first.rows[2][0], '42');
 
-    // Aynı satırı sil → eski duruma dön.
+    // Kalıcı: kaydedilip yeniden okununca 42 hâlâ 3. satırda (elle kaydırma
+    // excel nesnesine de yazıldı).
+    final afterInsert = XlsxEditor.parse(e.save());
+    expect(afterInsert.sheets.first.rows[2][0], '42');
+
+    // Aynı satırı sil → veri geri gelir.
     e.deleteRow(name, 1);
     expect(e.sheets.first.rows.length, before);
     expect(e.sheets.first.rows[1][0], '42');
-
-    // Kalıcı: kaydedilen dosyada da satır sayısı doğru.
-    final again = XlsxEditor.parse(e.save());
-    expect(again.sheets.first.rows.length, before);
   });
 
-  test('sütun ekleme/silme model ile senkron', () {
+  test('sütun ekleme/silme veriyi doğru taşır', () {
     final e = XlsxEditor.parse(_sampleXlsx());
     final name = e.sheets.first.name;
-    final cols = e.sheets.first.maxCols;
+    final cols = e.sheets.first.maxCols; // 3
 
     e.insertColumn(name, 0); // en başa sütun → 42 bir sağa kayar
     expect(e.sheets.first.maxCols, cols + 1);
