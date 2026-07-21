@@ -226,3 +226,12 @@
 - Çözüm: mesaj-işareti tamamen kaldırıldı. APK derleme yalnızca `workflow_dispatch`
   (elle/`actions_run_trigger`) veya `main`'de. Kullanıcı "APK ver" deyince dispatch et.
 - Ders: CI koşullarını commit metnine bağlama; niyet/dispatch kullan.
+
+## 2026-07-21 — APK derleme tetikleyicisi (dispatch API yasak!)
+- `actions_run_trigger` (workflow_dispatch) API'si 403 "not accessible by
+  integration" veriyor → ajan dispatch EDEMİYOR. main'e push da yok.
+- Bu yüzden APK derlemenin TEK yolu: commit mesajına özel işaret koymak:
+  `[release-apk]` (köşeli parantezli). Bu işareti YALNIZCA gerçekten APK
+  istendiğinde commit mesajına yaz; açıklama/normal metinde asla kullanma.
+- Kullanıcı "APK ver" deyince: `git commit --allow-empty -m "build: APK [release-apk]"`
+  (veya bir özellik commit'inin mesajına ekle) → push → test sonra apk+release.
