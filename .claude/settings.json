@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git pull --rebase --autostash 2>&1",
+            "timeout": 30,
+            "statusMessage": "GitHub'dan en son değişiklikler çekiliyor..."
+          }
+        ]
+      }
+    ]
+  }
+}
