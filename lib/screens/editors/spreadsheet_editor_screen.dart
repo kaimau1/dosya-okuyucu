@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../services/formula_engine.dart';
 import '../../services/xlsx_editor.dart';
 import '../chat_screen.dart';
 
@@ -479,7 +480,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         child: forceEmpty
             ? null
             : Text(
-                _valueAt(r, c),
+                // Formülse hesaplanmış sonucu göster (çubuk ham formülü tutar).
+                FormulaEngine(sheet.rows).displayValue(r, c),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: style?.align ?? TextAlign.left,
