@@ -28,6 +28,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
   TextEditingController? _textController;
   bool _dirty = false;
 
+  // Görüntüleme durumu (okuma konforu).
+  int _pdfPage = 1;
+  int _pdfCount = 0;
+  int _imgQuarterTurns = 0;
+  double _fontSize = 15;
+  final TransformationController _imgTx = TransformationController();
+  TapDownDetails? _doubleTapDetails;
+
   @override
   void initState() {
     super.initState();
@@ -49,7 +57,23 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void dispose() {
     _pdfController?.dispose();
     _textController?.dispose();
+    _imgTx.dispose();
     super.dispose();
+  }
+
+  void _handleImgDoubleTap() {
+    if (_imgTx.value != Matrix4.identity()) {
+      _imgTx.value = Matrix4.identity();
+    } else {
+      final pos = _doubleTapDetails?.localPosition ?? Offset.zero;
+      _imgTx.value = Matrix4.identity()
+        ..translate(-pos.dx * 2, -pos.dy * 2)
+        ..scale(3.0);
+    }
+  }
+
+  void _changeFont(double delta) {
+    setState(() => _fontSize = (_fontSize + delta).clamp(10.0, 32.0));
   }
 
   Future<void> _save() async {
@@ -134,6 +158,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
       appBar: AppBar(
         title: Text(doc.name, overflow: TextOverflow.ellipsis),
         actions: [
+          if (doc.kind == DocKind.image)
+            IconButton(
+              tooltip: 'Döndür',
+              icon: const Icon(Icons.rotate_right),
+              onPressed: () =>
+                  setState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
+            ),
+          if (_textController != null) ...[
+            IconButton(
+              tooltip: 'Yazıyı küçült',
+              icon: const Icon(Icons.text_decrease),
+              onPressed: () => _changeFont(-2),
+            ),
+            IconButton(
+              tooltip: 'Yazıyı büyüt',
+              icon: const Icon(Icons.text_increase),
+              onPressed: () => _changeFont(2),
+            ),
+          ],
           if (doc.isEditableText)
             IconButton(
               tooltip: 'Kaydet / Dışa aktar',
@@ -175,18 +218,67 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  /// PDF sayfa numarası rozeti (yarı saydam koyu pill).
+  Widget _pageBadge(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(text,
+          style: const TextStyle(color: Colors.white, fontSize: 13)),
+    );
+  }
+
   Widget _buildBody(LoadedDoc doc) {
     switch (doc.kind) {
       case DocKind.pdf:
-        return PdfViewPinch(controller: _pdfController!);
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: PdfViewPinch(
+                controller: _pdfController!,
+                onDocumentLoaded: (d) {
+                  if (mounted) setState(() => _pdfCount = d.pagesCount);
+                },
+                onPageChanged: (p) {
+                  if (mounted) setState(() => _pdfPage = p);
+                },
+              ),
+            ),
+            if (_pdfCount > 0)
+              Positioned(
+                bottom: 16,
+                left: 0,
+                right: 0,
+                child: Center(child: _pageBadge('$_pdfPage / $_pdfCount')),
+              ),
+          ],
+        );
 
       case DocKind.image:
-        return InteractiveViewer(
-          child: Center(
-            child: Image.file(
-              File(doc.path),
-              errorBuilder: (_, __, ___) =>
-                  const Text('Görsel görüntülenemedi.'),
+        return Container(
+          color: Colors.black,
+          child: GestureDetector(
+            onDoubleTapDown: (d) => _doubleTapDetails = d,
+            onDoubleTap: _handleImgDoubleTap,
+            child: InteractiveViewer(
+              transformationController: _imgTx,
+              minScale: 1,
+              maxScale: 6,
+              child: Center(
+                child: RotatedBox(
+                  quarterTurns: _imgQuarterTurns,
+                  child: Image.file(
+                    File(doc.path),
+                    errorBuilder: (_, __, ___) => const Text(
+                      'Görsel görüntülenemedi.',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -200,6 +292,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         return _TextEditor(
           controller: _textController!,
           editable: doc.isEditableText,
+          fontSize: _fontSize,
           onChanged: () {
             if (!_dirty) setState(() => _dirty = true);
           },
@@ -223,17 +316,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
 class _TextEditor extends StatelessWidget {
   final TextEditingController controller;
   final bool editable;
+  final double fontSize;
   final VoidCallback onChanged;
   const _TextEditor({
     required this.controller,
     required this.editable,
+    required this.fontSize,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: TextField(
         controller: controller,
         readOnly: !editable,
@@ -246,7 +341,7 @@ class _TextEditor extends StatelessWidget {
           hintText: editable ? 'Belge içeriği…' : null,
           filled: false,
         ),
-        style: const TextStyle(fontSize: 15, height: 1.4),
+        style: TextStyle(fontSize: fontSize, height: 1.5),
       ),
     );
   }

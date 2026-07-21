@@ -23,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _fileService = FileService();
   bool _loading = false;
+  String _query = '';
 
   Future<void> _openNew() async {
     setState(() => _loading = true);
@@ -70,15 +71,40 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _cycleTheme(AppState appState) {
+    final next = switch (appState.themeMode) {
+      ThemeMode.system => ThemeMode.light,
+      ThemeMode.light => ThemeMode.dark,
+      ThemeMode.dark => ThemeMode.system,
+    };
+    appState.setThemeMode(next);
+  }
+
+  (IconData, String) _themeIcon(ThemeMode mode) => switch (mode) {
+        ThemeMode.system => (Icons.brightness_auto_outlined, 'Tema: Sistem'),
+        ThemeMode.light => (Icons.light_mode_outlined, 'Tema: Açık'),
+        ThemeMode.dark => (Icons.dark_mode_outlined, 'Tema: Koyu'),
+      };
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final recents = appState.recents;
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? recents
+        : recents.where((r) => r.name.toLowerCase().contains(q)).toList();
+    final (themeIc, themeTip) = _themeIcon(appState.themeMode);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dosya Okuyucu'),
         actions: [
+          IconButton(
+            tooltip: themeTip,
+            icon: Icon(themeIc),
+            onPressed: () => _cycleTheme(appState),
+          ),
           IconButton(
             tooltip: 'AI Sohbet',
             icon: const Icon(Icons.smart_toy_outlined),
@@ -99,10 +125,19 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator())
           : recents.isEmpty
               ? _EmptyState(onOpen: _openNew, hasApiKey: appState.hasApiKey)
-              : _RecentList(
-                  recents: recents,
-                  onTap: (r) => _openPath(r.path),
-                  onRemove: (r) => appState.removeRecent(r.path),
+              : Column(
+                  children: [
+                    if (recents.length > 4) _searchBar(),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const _NoMatch()
+                          : _RecentList(
+                              recents: filtered,
+                              onTap: (r) => _openSafely(r),
+                              onRemove: (r) => appState.removeRecent(r.path),
+                            ),
+                    ),
+                  ],
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openNew,
@@ -111,6 +146,45 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  /// Son dosya açılırken hata olursa (ör. dosya taşınmış) kullanıcıyı bilgilendir.
+  Future<void> _openSafely(RecentFile r) async {
+    try {
+      await _openPath(r.path);
+    } catch (e) {
+      _showError('Dosya açılamadı (taşınmış olabilir): ${r.name}');
+    }
+  }
+
+  Widget _searchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: TextField(
+        onChanged: (v) => setState(() => _query = v),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: 'Son dosyalarda ara…',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => setState(() => _query = ''),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoMatch extends StatelessWidget {
+  const _NoMatch();
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Text('Eşleşen dosya yok',
+            style: Theme.of(context).textTheme.bodyMedium),
+      );
 }
 
 class _EmptyState extends StatelessWidget {
@@ -133,8 +207,9 @@ class _EmptyState extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             const Text(
-              'PDF, Word, Excel, Slayt ve metin dosyalarını açıp okuyabilir, '
-              'düzenleyebilir ve yapay zeka ile üzerinde çalışabilirsiniz.',
+              'PDF, Word, Excel, Slayt, görsel ve metin dosyalarını açıp '
+              'inceleyebilir, düzenleyebilir ve yapay zeka ile üzerinde '
+              'çalışabilirsiniz.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -172,7 +247,7 @@ class _RecentList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
       itemCount: recents.length,
       separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, i) {
@@ -184,21 +259,44 @@ class _RecentList extends StatelessWidget {
           background: Container(
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 20),
-            color: Theme.of(context).colorScheme.errorContainer,
-            child: const Icon(Icons.delete_outline),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.delete_outline,
+                color: Theme.of(context).colorScheme.onErrorContainer),
           ),
           onDismissed: (_) => onRemove(r),
           child: Card(
+            margin: EdgeInsets.zero,
             child: ListTile(
               leading: FileTypeIcon(kind: kind),
               title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text('${kind.label} • ${_size(r.sizeBytes)}'),
+              subtitle: Text(
+                '${kind.label} • ${_size(r.sizeBytes)} • ${_relTime(r.openedAtMs)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(Icons.chevron_right),
               onTap: () => onTap(r),
             ),
           ),
         );
       },
     );
+  }
+
+  String _relTime(int ms) {
+    if (ms <= 0) return '';
+    final d = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(ms));
+    if (d.inMinutes < 1) return 'az önce';
+    if (d.inMinutes < 60) return '${d.inMinutes} dk önce';
+    if (d.inHours < 24) return '${d.inHours} saat önce';
+    if (d.inDays < 7) return '${d.inDays} gün önce';
+    if (d.inDays < 30) return '${(d.inDays / 7).floor()} hafta önce';
+    if (d.inDays < 365) return '${(d.inDays / 30).floor()} ay önce';
+    return '${(d.inDays / 365).floor()} yıl önce';
   }
 
   String _size(int bytes) {
