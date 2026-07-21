@@ -187,3 +187,21 @@
 3. Format dönüştürme zenginleştirme (PDF ↔ Word ↔ Slayt).
 4. AI: PDF'den otomatik slayt üretimi (genişletilmiş), kaynakları bağlama alma.
 5. Masaüstü (Windows/macOS/Linux) build hedefleri + iOS.
+
+## 2026-07-21 — Excel sayı biçimleri (görüntüleme sadakati)
+- **Karar:** Excel hücrelerinde yüzde/para/binlik/ondalık biçimler artık Office'teki
+  gibi görünüyor (ör. `0.15`→`%15`, `1234.5`→`₺1.234,50`, `1234567`→`1.234.567`).
+  Türkçe gösterim: binlik `.`, ondalık `,`.
+- **Kök neden / tuzak:** `excel` paketi (4.0.6) hücre sayı biçim kodunu (numFmt)
+  vermiyor — sadece tarih/saat'i çözüyor. Çözüm: ham `.xlsx`'ten (ZipDecoder+xml)
+  `xl/styles.xml` (numFmts + cellXfs) ve her `sheetN.xml`'deki `<c r s>` okunarak
+  hücre→biçim kodu tablosu çıkarıldı (`XlsxEditor._readNumberFormats`).
+- **Önemli tasarım kararı:** `XlsxSheet.rows` HEM ekran HEM `FormulaEngine` girdisi.
+  Bu yüzden biçimlenmiş metin `rows`'a YAZILMAZ (yoksa `=A1*2` gibi formüller
+  "%15"i sayı sanıp bozulur). Biçim yalnızca GÖSTERİM katmanında
+  (`XlsxSheet.displayText`) uygulanır: önce FormulaEngine ham sonucu, sonra numFmt.
+- Tarih biçimleri (numFmtId 14-22, 45-47) bilinçli dışarıda — excel paketi zaten
+  DateCellValue'ya çeviriyor, üstüne biçim uygulanmaz.
+- Test: `test/xlsx_number_format_test.dart` + fixture `test/fixtures/number_formats.xlsx`
+  (elle üretilmiş minimal xlsx; LibreOffice bu sandbox'ta profil açamadığı için
+  fixture Python zipfile ile yazıldı).

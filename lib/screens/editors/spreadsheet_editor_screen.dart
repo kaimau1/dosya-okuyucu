@@ -480,8 +480,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         child: forceEmpty
             ? null
             : Text(
-                // Formülse hesaplanmış sonucu göster (çubuk ham formülü tutar).
-                FormulaEngine(sheet.rows).displayValue(r, c),
+                // Formülse hesaplanmış sonucu göster (çubuk ham formülü tutar);
+                // ardından hücrenin Excel sayı biçimini (yüzde/para/binlik) uygula.
+                sheet.displayText(
+                    r, c, FormulaEngine(sheet.rows).displayValue(r, c)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: style?.align ?? TextAlign.left,
