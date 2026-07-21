@@ -6,7 +6,9 @@ import 'package:share_plus/share_plus.dart';
 import '../../services/xlsx_editor.dart';
 import '../chat_screen.dart';
 
-/// Excel benzeri, hücre hücre düzenlenebilir tablo görünümü.
+/// Excel görünümü: gerçek sütun genişlikleri, satır yükseklikleri, hücre
+/// renkleri/yazı tipleri, birleştirilmiş hücreler. Hücreye dokun → üstteki
+/// düzenleme çubuğundan değiştir (Excel'in formül çubuğu gibi).
 class SpreadsheetEditorScreen extends StatefulWidget {
   final String path;
   final String name;
@@ -24,15 +26,21 @@ class SpreadsheetEditorScreen extends StatefulWidget {
 }
 
 class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
-  static const _cellW = 96.0;
-  static const _cellH = 38.0;
-  static const _maxRows = 300;
-  static const _maxCols = 40;
+  static const _rowHeaderW = 46.0;
+  // Satırlar tembel çizildiği için sınır yok (15 bin satırlık dosyada denendi);
+  // sütunlar her satırda çizildiğinden 64 ile sınırlı.
+  static const _maxCols = 64;
 
   XlsxEditor? _editor;
   int _sheetIndex = 0;
   String? _error;
+
+  /// Kaydedilmemiş değişiklik var mı (başlıkta • ile gösterilir).
   bool _dirty = false;
+
+  int _selRow = 0;
+  int _selCol = 0;
+  final _cellField = TextEditingController();
 
   @override
   void initState() {
@@ -40,14 +48,53 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _cellField.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
       _editor = XlsxEditor.parse(bytes);
+      _syncField();
     } catch (e) {
       _error = '$e';
     }
     if (mounted) setState(() {});
+  }
+
+  XlsxSheet? get _sheet {
+    final e = _editor;
+    if (e == null || e.sheets.isEmpty) return null;
+    return e.sheets[_sheetIndex];
+  }
+
+  String _valueAt(int r, int c) {
+    final rows = _sheet?.rows;
+    if (rows == null || r >= rows.length) return '';
+    final row = rows[r];
+    return c < row.length ? row[c] : '';
+  }
+
+  void _syncField() => _cellField.text = _valueAt(_selRow, _selCol);
+
+  void _select(int r, int c) {
+    setState(() {
+      _selRow = r;
+      _selCol = c;
+    });
+    _syncField();
+  }
+
+  void _applyCell(String value) {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    editor.setCell(sheet.name, _selRow, _selCol, value);
+    _dirty = true;
+    setState(() {});
   }
 
   Future<void> _save() async {
@@ -59,7 +106,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       _dirty = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.')));
+            content:
+                Text('Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.')));
         setState(() {});
       }
     } catch (e) {
@@ -70,8 +118,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   Future<void> _export() async {
     final editor = _editor;
     if (editor == null) return;
-    final dir = Directory.systemTemp;
-    final f = File('${dir.path}/${widget.name}');
+    final f = File('${Directory.systemTemp.path}/${widget.name}');
     await f.writeAsBytes(editor.save());
     await Share.shareXFiles([XFile(f.path)], text: widget.name);
   }
@@ -96,7 +143,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final editor = _editor;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.name, overflow: TextOverflow.ellipsis),
+        title: Text('${widget.name}${_dirty ? ' •' : ''}',
+            overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             tooltip: 'Kaydet',
@@ -117,7 +165,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           ? Center(child: Text('Açılamadı: $_error'))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
-              : _buildSheet(editor),
+              : Column(
+                  children: [
+                    _cellBar(),
+                    Expanded(child: _grid()),
+                  ],
+                ),
       bottomNavigationBar: editor == null || editor.sheets.length < 2
           ? null
           : _sheetTabs(editor),
@@ -134,6 +187,46 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     );
   }
 
+  /// Excel'in formül çubuğu: seçili hücrenin adı + içeriği.
+  Widget _cellBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.surfaceContainerHighest,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            alignment: Alignment.center,
+            child: Text('${_colLabel(_selCol)}${_selRow + 1}',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: TextField(
+              controller: _cellField,
+              onSubmitted: _applyCell,
+              textInputAction: TextInputAction.done,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(),
+                hintText: 'Hücre içeriği',
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Uygula',
+            icon: const Icon(Icons.check),
+            onPressed: () => _applyCell(_cellField.text),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _sheetTabs(XlsxEditor editor) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -145,7 +238,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               child: ChoiceChip(
                 label: Text(editor.sheets[i].name),
                 selected: _sheetIndex == i,
-                onSelected: (_) => setState(() => _sheetIndex = i),
+                onSelected: (_) {
+                  setState(() {
+                    _sheetIndex = i;
+                    _selRow = 0;
+                    _selCol = 0;
+                  });
+                  _syncField();
+                },
               ),
             ),
         ],
@@ -153,77 +253,131 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     );
   }
 
-  Widget _buildSheet(XlsxEditor editor) {
-    final sheet = editor.sheets[_sheetIndex];
-    final rowCount = sheet.rows.length.clamp(0, _maxRows);
+  Widget _grid() {
+    final sheet = _sheet;
+    if (sheet == null) return const Center(child: Text('Sayfa yok.'));
+
+    final rowCount = sheet.rows.length;
     final colCount = sheet.maxCols.clamp(1, _maxCols);
-    final scheme = Theme.of(context).colorScheme;
+    var total = _rowHeaderW;
+    for (var c = 0; c < colCount; c++) {
+      total += sheet.colWidth(c);
+    }
 
     return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: total,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Başlık satırı (sütun harfleri)
             Row(
               children: [
-                _headerCell('', width: 44),
+                _header('', _rowHeaderW),
                 for (var c = 0; c < colCount; c++)
-                  _headerCell(_colLabel(c)),
+                  _header(_colLabel(c), sheet.colWidth(c),
+                      highlight: c == _selCol),
               ],
             ),
-            for (var r = 0; r < rowCount; r++)
-              Row(
-                children: [
-                  _headerCell('${r + 1}', width: 44),
-                  for (var c = 0; c < colCount; c++)
-                    _cell(editor, sheet.name, r, c, scheme),
-                ],
+            Expanded(
+              // Satırlar tembel çizilir; 2000 satırlık dosyalarda da akıcı kalır.
+              child: ListView.builder(
+                itemCount: rowCount,
+                itemBuilder: (_, r) => _row(sheet, r, colCount),
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _headerCell(String text, {double width = _cellW}) {
+  Widget _row(XlsxSheet sheet, int r, int colCount) {
+    final h = sheet.rowHeight(r);
+    final cells = <Widget>[
+      _header('${r + 1}', _rowHeaderW, height: h, highlight: r == _selRow),
+    ];
+
+    for (var c = 0; c < colCount; c++) {
+      final merge = _mergeAt(sheet, r, c);
+      if (merge != null && !merge.isAnchor(r, c)) {
+        // Birleştirmenin devamı: çapa hücre yerini zaten kapladı.
+        if (merge.rowStart == r) continue;
+        // Dikey birleştirmenin alt satırları: boş ama aynı zeminde.
+        cells.add(_cell(sheet, r, c, sheet.colWidth(c), h, forceEmpty: true));
+        continue;
+      }
+      var w = sheet.colWidth(c);
+      if (merge != null) {
+        for (var k = merge.colStart + 1; k <= merge.colEnd && k < colCount; k++) {
+          w += sheet.colWidth(k);
+        }
+      }
+      cells.add(_cell(sheet, r, c, w, h));
+    }
+    return Row(children: cells);
+  }
+
+  XlsxMerge? _mergeAt(XlsxSheet sheet, int r, int c) {
+    for (final m in sheet.merges) {
+      if (m.covers(r, c)) return m;
+    }
+    return null;
+  }
+
+  Widget _header(String text, double width,
+      {double height = 30, bool highlight = false}) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: width,
-      height: _cellH,
+      height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: highlight
+            ? scheme.primaryContainer
+            : scheme.surfaceContainerHighest,
         border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
       ),
       child: Text(text,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
     );
   }
 
-  Widget _cell(
-      XlsxEditor editor, String sheetName, int r, int c, ColorScheme scheme) {
-    final row = editor.sheets[_sheetIndex].rows[r];
-    final value = c < row.length ? row[c] : '';
-    return Container(
-      width: _cellW,
-      height: _cellH,
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
-      ),
-      child: TextFormField(
-        initialValue: value,
-        onChanged: (v) {
-          editor.setCell(sheetName, r, c, v);
-          if (!_dirty) setState(() => _dirty = true);
-        },
-        style: const TextStyle(fontSize: 12),
-        decoration: const InputDecoration(
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          border: InputBorder.none,
+  Widget _cell(XlsxSheet sheet, int r, int c, double w, double h,
+      {bool forceEmpty = false}) {
+    final style = sheet.styleAt(r, c);
+    final selected = r == _selRow && c == _selCol;
+    final scheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: () => _select(r, c),
+      child: Container(
+        width: w,
+        height: h,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: style?.background,
+          border: Border.all(
+            color: selected ? scheme.primary : Theme.of(context).dividerColor,
+            width: selected ? 2 : 0.5,
+          ),
         ),
+        child: forceEmpty
+            ? null
+            : Text(
+                _valueAt(r, c),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: style?.align ?? TextAlign.left,
+                style: TextStyle(
+                  fontSize: style?.fontSize ?? 12,
+                  fontWeight:
+                      (style?.bold ?? false) ? FontWeight.bold : FontWeight.normal,
+                  fontStyle:
+                      (style?.italic ?? false) ? FontStyle.italic : FontStyle.normal,
+                  color: style?.fontColor,
+                ),
+              ),
       ),
     );
   }
