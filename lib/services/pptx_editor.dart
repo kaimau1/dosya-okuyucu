@@ -54,6 +54,11 @@ class PptxEditor {
   final XmlDocument? _presentation;
   final XmlDocument? _presRels;
 
+  /// Silinen parça adları — `Archive.files` değiştirilemez olduğundan (removeWhere
+  /// "unmodifiable list" atar) silme, kaydetme sırasında bu kümedeki dosyaların
+  /// atlanmasıyla yapılır.
+  final Set<String> _removed = {};
+
   PptxEditor._(
     this._archive,
     this._render,
@@ -196,8 +201,8 @@ class PptxEditor {
       _removePresRel(rid);
     }
     _removeContentOverride(slide.fileName);
-    _archive.files.removeWhere(
-        (f) => f.name == slide.fileName || f.name == _relsPathOf(slide.fileName));
+    _removed.add(slide.fileName);
+    _removed.add(_relsPathOf(slide.fileName));
     slides.remove(slide);
     _reindex();
     return true;
@@ -284,6 +289,7 @@ class PptxEditor {
 
     final out = Archive();
     for (final f in _archive.files) {
+      if (_removed.contains(f.name)) continue; // silinen slayt/parça atlanır
       if (updated.containsKey(f.name)) {
         _addTo(out, f.name, updated[f.name]!);
       } else {
@@ -297,6 +303,7 @@ class PptxEditor {
   // ── Yardımcılar ─────────────────────────────────────────────────────────
 
   void _addFile(String name, String xml) {
+    _removed.remove(name); // yeniden eklenen ad artık "silinmiş" sayılmaz
     final data = utf8.encode(xml);
     _archive.addFile(ArchiveFile(name, data.length, data));
   }
