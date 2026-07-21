@@ -29,3 +29,7 @@ GoogleService-Info.plist
 # Yerel
 local.properties
 *.log
+
+# graphify: rapor+graf commitlenir, cache ve tarihli yedekler commitlenmez
+graphify-out/cache/
+graphify-out/20*/

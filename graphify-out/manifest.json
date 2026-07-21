@@ -1,0 +1,112 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1784617460.607587,
+    "ast_hash": "6a61d5cefcc2ddb228afb1401eee3597",
+    "semantic_hash": "6a61d5cefcc2ddb228afb1401eee3597"
+  },
+  "lib/core/app_state.dart": {
+    "mtime": 1784617100.6116586,
+    "ast_hash": "5aa7f7e5c11f26262afdedd1aa3934c1",
+    "semantic_hash": "5aa7f7e5c11f26262afdedd1aa3934c1"
+  },
+  "lib/core/theme.dart": {
+    "mtime": 1784617100.6116586,
+    "ast_hash": "b3dc09021d645247e18e940841dbd16c",
+    "semantic_hash": "b3dc09021d645247e18e940841dbd16c"
+  },
+  "lib/main.dart": {
+    "mtime": 1784617100.6116586,
+    "ast_hash": "203219f556a3db1d01bed696a03af5fd",
+    "semantic_hash": "203219f556a3db1d01bed696a03af5fd"
+  },
+  "lib/models/document.dart": {
+    "mtime": 1784617100.6128728,
+    "ast_hash": "881533cf58c05b904772eba9fcc4e715",
+    "semantic_hash": "881533cf58c05b904772eba9fcc4e715"
+  },
+  "lib/models/recent_file.dart": {
+    "mtime": 1784617100.6128728,
+    "ast_hash": "ea9b92414bb7a40f05298a30b376b4a2",
+    "semantic_hash": "ea9b92414bb7a40f05298a30b376b4a2"
+  },
+  "lib/screens/chat_screen.dart": {
+    "mtime": 1784617100.6128728,
+    "ast_hash": "970d010efa591584d45ed03123197875",
+    "semantic_hash": "970d010efa591584d45ed03123197875"
+  },
+  "lib/screens/editors/slides_editor_screen.dart": {
+    "mtime": 1784617100.6142347,
+    "ast_hash": "f1715bf5207f7818a3fb3033185d01bd",
+    "semantic_hash": "f1715bf5207f7818a3fb3033185d01bd"
+  },
+  "lib/screens/editors/spreadsheet_editor_screen.dart": {
+    "mtime": 1784617100.6142347,
+    "ast_hash": "938b8e7b3580498b4e0019cc8170a2ea",
+    "semantic_hash": "938b8e7b3580498b4e0019cc8170a2ea"
+  },
+  "lib/screens/editors/word_editor_screen.dart": {
+    "mtime": 1784617100.6142347,
+    "ast_hash": "dabddf38a6d3c3b6f4a935ea2d3226c9",
+    "semantic_hash": "dabddf38a6d3c3b6f4a935ea2d3226c9"
+  },
+  "lib/screens/home_screen.dart": {
+    "mtime": 1784617100.615637,
+    "ast_hash": "c663af6a87fd9c7c4e943b38a5c16b5e",
+    "semantic_hash": "c663af6a87fd9c7c4e943b38a5c16b5e"
+  },
+  "lib/screens/settings_screen.dart": {
+    "mtime": 1784617100.615637,
+    "ast_hash": "1f52792faa0c5a5532fbd448eb57780d",
+    "semantic_hash": "1f52792faa0c5a5532fbd448eb57780d"
+  },
+  "lib/screens/viewer_screen.dart": {
+    "mtime": 1784617100.615637,
+    "ast_hash": "a16eeea2ccfe85b4e5dc71a79fe69d1a",
+    "semantic_hash": "a16eeea2ccfe85b4e5dc71a79fe69d1a"
+  },
+  "lib/services/conversion_service.dart": {
+    "mtime": 1784617100.615637,
+    "ast_hash": "1c003e96a3f0601db4cca08b087dbb73",
+    "semantic_hash": "1c003e96a3f0601db4cca08b087dbb73"
+  },
+  "lib/services/docx_editor.dart": {
+    "mtime": 1784617100.615637,
+    "ast_hash": "c9a3b85bec09f75e9727731ac4f30e0c",
+    "semantic_hash": "c9a3b85bec09f75e9727731ac4f30e0c"
+  },
+  "lib/services/file_service.dart": {
+    "mtime": 1784617100.61781,
+    "ast_hash": "2c16b17540945f794e88510bc3c595d8",
+    "semantic_hash": "2c16b17540945f794e88510bc3c595d8"
+  },
+  "lib/services/firebase_service.dart": {
+    "mtime": 1784617100.61781,
+    "ast_hash": "b0e666b7b73aba6d44898f4e6a81ac97",
+    "semantic_hash": "b0e666b7b73aba6d44898f4e6a81ac97"
+  },
+  "lib/services/gemini_service.dart": {
+    "mtime": 1784617100.61781,
+    "ast_hash": "5b081c1eb921bc434585c0ca88d91d77",
+    "semantic_hash": "5b081c1eb921bc434585c0ca88d91d77"
+  },
+  "lib/services/office_reader.dart": {
+    "mtime": 1784617100.61781,
+    "ast_hash": "8f8b2173c28a5318da1c1faf0c58a6cc",
+    "semantic_hash": "8f8b2173c28a5318da1c1faf0c58a6cc"
+  },
+  "lib/services/pptx_editor.dart": {
+    "mtime": 1784617100.61781,
+    "ast_hash": "6fd951374bd30e7445ae66ae92025641",
+    "semantic_hash": "6fd951374bd30e7445ae66ae92025641"
+  },
+  "lib/services/xlsx_editor.dart": {
+    "mtime": 1784617100.6193228,
+    "ast_hash": "1a178f68889350a00e80eff9e34e31a6",
+    "semantic_hash": "1a178f68889350a00e80eff9e34e31a6"
+  },
+  "lib/widgets/file_type_icon.dart": {
+    "mtime": 1784617100.6193228,
+    "ast_hash": "492f811615481dabee208d730da5bd3e",
+    "semantic_hash": "492f811615481dabee208d730da5bd3e"
+  }
+}
