@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
 import '../models/document.dart';
@@ -24,6 +27,52 @@ class _HomeScreenState extends State<HomeScreen> {
   final _fileService = FileService();
   bool _loading = false;
   String _query = '';
+  StreamSubscription<List<SharedMediaFile>>? _intentSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _initShareIntake();
+  }
+
+  @override
+  void dispose() {
+    _intentSub?.cancel();
+    super.dispose();
+  }
+
+  /// "Birlikte aç" / paylaş ile başka uygulamalardan gelen dosyaları yakalar:
+  /// uygulama kapalıyken açıldıysa (initial) ve açıkken paylaşıldıysa (stream).
+  void _initShareIntake() {
+    // Uygulama bir dosyayla açıldıysa.
+    ReceiveSharingIntent.instance.getInitialMedia().then((files) {
+      if (files.isNotEmpty) _openShared(files);
+      ReceiveSharingIntent.instance.reset();
+    }).catchError((_) {});
+
+    // Uygulama açıkken yeni dosya paylaşılırsa.
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen(
+      (files) {
+        if (files.isNotEmpty) _openShared(files);
+      },
+      onError: (_) {},
+    );
+  }
+
+  /// Gelen paylaşımdaki ilk açılabilir dosyayı açar.
+  Future<void> _openShared(List<SharedMediaFile> files) async {
+    if (!mounted) return;
+    final path = files.first.path;
+    if (path.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      await _openPath(path);
+    } catch (e) {
+      _showError('Paylaşılan dosya açılamadı: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Future<void> _openNew() async {
     setState(() => _loading = true);

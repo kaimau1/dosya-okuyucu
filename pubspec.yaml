@@ -16,6 +16,10 @@ dependencies:
   path_provider: ^2.1.4
   path: ^1.9.0
 
+  # Başka uygulamalardan "Birlikte aç" / paylaş ile gelen dosyaları yakalama
+  # (WhatsApp/Gmail'den atılan dosya doğrudan uygulamada açılır).
+  receive_sharing_intent: ^1.8.1
+
   # Görüntüleyiciler
   pdfx: ^2.6.0
   # Word'ü gerçek sayfa düzeniyle çizmek için (assets/word içindeki docx-preview

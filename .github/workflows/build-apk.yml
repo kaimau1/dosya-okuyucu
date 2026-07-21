@@ -49,13 +49,16 @@ jobs:
           [ -f .backup/analysis_options.yaml ] && cp .backup/analysis_options.yaml . || true
           rm -f test/widget_test.dart   # flutter create'in ürettiği örnek test projeyle uyumsuz
 
-      - name: INTERNET izni ve uygulama adını ayarla
+      - name: AndroidManifest'i değiştir (izin + ad + "Birlikte aç"/paylaş)
         run: |
           set -e
-          manifest=android/app/src/main/AndroidManifest.xml
-          grep -q 'android.permission.INTERNET' "$manifest" || \
-            sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$manifest"
-          sed -i 's#android:label="[^"]*"#android:label="Dosya Okuyucu"#' "$manifest"
+          # Elle bakımlı tam manifest'i kopyala: INTERNET izni, uygulama adı,
+          # singleTask ve VIEW/SEND intent-filter'ları (başka uygulamalardan
+          # gelen dosyaları açmak için). Kırılgan sed yerine tek kaynak.
+          cp ci/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          echo "--- Kullanılan AndroidManifest ---"
+          grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
+            android/app/src/main/AndroidManifest.xml || true
 
       - name: minSdk 23 (Firebase için)
         run: |
