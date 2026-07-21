@@ -67,6 +67,34 @@
   OKUNMAZ — beliriş jenerik (fade + hafif kayma). *Niye:* PowerPoint'te 100+ efekt var, akış
   önemli, efektin kendisi değil. Sunum modu tam ekran + yatay + zoom (InteractiveViewer).
 
+- **2026-07-21 — Office ileri düzenleme (yol haritası #1) eklendi.** Cihaz-içi/offline/
+  ücretsiz ilkesi korunarak:
+  - **Excel:** satır/sütun ekle-sil (`Excel.insertRow/removeRow/insertColumn/removeColumn`,
+    ardından modeli `_refresh` ile yeniden kur), formül girişi (`=` ile başlayan hücre
+    `FormulaCellValue` olur → dosyayı Excel açınca hesaplar, biz hesaplamayız), akıllı tip
+    (sayı→IntCell/DoubleCell, baştaki sıfırlı "007"→metin). Formül çubuğu altına satır/sütun
+    araç çubuğu.
+  - **Word:** paragraf kalın/italik/altı çizili + hizalama (rPr `<w:b>/<w:i>/<w:u>`,
+    pPr `<w:jc>`), paragraf ekle/sil (`<w:sectPr>` daima en sonda tutulur). Biçim araç çubuğu
+    seçili paragraf üzerinde çalışır.
+  - **PowerPoint:** slayt çoğalt/sil/taşı. `[Content_Types].xml` + `presentation.xml`
+    (`sldIdLst`) + `presentation.xml.rels` üçlüsü güncellenir; yoksa `canEditStructure=false`
+    (sentetik/eksik dosyada yapısal düzenleme kapalı, metin düzenleme açık kalır). Slayt
+    sırası artık mümkünse `sldIdLst`'e göre (yoksa dosya numarası yedeği).
+  *Niye/karar:* orijinal XML korunur, sadece hedef düğümler güncellenir (mevcut orta-sadakat
+  ilkesiyle uyumlu). **REDDEDİLEN:** formülü cihazda hesaplama (offline motor şişkinliği);
+  karakter-bazlı Word biçimi (mobilde paragraf-bazı daha kullanışlı + risk düşük).
+
+- **2026-07-21 TUZAK — xml paketinde `XmlNodeList.removeWhere` üst-düğüm çakışması riski:**
+  jenerik `ListMixin.removeWhere` compaction sırasında `[]=` ile düğümü yeniden atayınca
+  "node already has a parent" atabilir. Çözüm: eşleşenleri `.toList()` ile toplayıp tek tek
+  `children.remove(node)` ile sil (`_removeElems` yardımcısı, docx+pptx editörlerinde).
+
+- **2026-07-21 — CI feature dallarında da çalışır.** `build-apk.yml` push tetikleyicisine
+  `claude/**` eklendi → dal main'e girmeden test+build ile doğrulanır. **Release adımı
+  yalnızca main**'de (if guard). *Niye:* yerelde Flutter yok; tek doğrulama CI'ın `flutter
+  test` + `flutter build apk` adımları, o yüzden feature dalı da derlenmeli.
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |
@@ -140,8 +168,9 @@
 
 ## Yol Haritası (öncelik kullanıcıyla netleşecek)
 
-1. Office ileri düzenleme: Excel formül + satır/sütun ekleme; Word biçim araç çubuğu
-   (kalın/italik/liste); slayta yeni slayt/görsel ekleme.
+1. ~~Office ileri düzenleme: Excel formül + satır/sütun; Word biçim araç çubuğu; slayt
+   çoğalt/sil/taşı~~ → **YAPILDI 2026-07-21** (bkz. Sabit Kararlar). Kalan uçlar: Word'de
+   liste (madde/numara) düğmesi, slayta görsel ekleme, Excel formül sonucunu önizleme.
 2. Firebase config ile gerçek senkron + Google Sign-In SHA ekleme.
 3. Format dönüştürme zenginleştirme (PDF ↔ Word ↔ Slayt).
 4. AI: PDF'den otomatik slayt üretimi (genişletilmiş), kaynakları bağlama alma.

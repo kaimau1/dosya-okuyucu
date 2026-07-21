@@ -111,6 +111,11 @@ class XlsxEditor {
 
   static XlsxEditor parse(Uint8List bytes) {
     final excel = Excel.decodeBytes(bytes);
+    return XlsxEditor._(excel, _buildSheets(excel));
+  }
+
+  /// excel nesnesindeki tüm sayfaları okunabilir modele çevirir.
+  static List<XlsxSheet> _buildSheets(Excel excel) {
     final sheets = <XlsxSheet>[];
     for (final entry in excel.tables.entries) {
       final rows = <List<String>>[];
@@ -124,7 +129,16 @@ class XlsxEditor {
         _merges(entry.value.spannedItems),
       ));
     }
-    return XlsxEditor._(excel, sheets);
+    return sheets;
+  }
+
+  /// Yapısal bir değişiklikten (satır/sütun ekle/sil) sonra modeli excel
+  /// nesnesinden yeniden kurar. Sayfa sırası ve adları korunur.
+  void _refresh() {
+    final rebuilt = _buildSheets(_excel);
+    sheets
+      ..clear()
+      ..addAll(rebuilt);
   }
 
   /// Hücre değerini Excel'de göründüğü gibi metne çevirir.
@@ -140,7 +154,9 @@ class XlsxEditor {
       TimeCellValue() => '${_pad2(v.hour)}:${_pad2(v.minute)}',
       DateTimeCellValue() =>
         '${_pad2(v.day)}.${_pad2(v.month)}.${v.year} ${_pad2(v.hour)}:${_pad2(v.minute)}',
-      FormulaCellValue() => v.formula,
+      // Formül çubuğunda Excel gibi baştaki '=' ile gösterilir. Sonuç cihazda
+      // hesaplanmaz (offline, ücretsiz); PowerPoint/Excel dosyayı açınca hesaplar.
+      FormulaCellValue() => '=${v.formula}',
     };
   }
 
@@ -177,6 +193,11 @@ class XlsxEditor {
   }
 
   /// Bir hücreyi günceller (hem model hem excel nesnesi).
+  ///
+  /// `=` ile başlayan değer **formül** olarak kaydedilir (ör. `=SUM(A1:A9)`);
+  /// böyle bir hücreyi Excel/PowerPoint açtığında sonucu kendisi hesaplar.
+  /// Sayı gibi görünen değer sayı olarak, gerisi metin olarak yazılır → dosyayı
+  /// başka programda açınca doğru tipte görünür.
   void setCell(String sheetName, int rowIndex, int colIndex, String value) {
     final sheet = sheets.firstWhere((s) => s.name == sheetName);
     while (sheet.rows.length <= rowIndex) {
@@ -191,8 +212,69 @@ class XlsxEditor {
     _excel.updateCell(
       sheetName,
       CellIndex.indexByColumnRow(columnIndex: colIndex, rowIndex: rowIndex),
-      TextCellValue(value),
+      _cellValueFor(value),
     );
+  }
+
+  /// Kullanıcının yazdığı metni uygun Excel hücre tipine çevirir.
+  static CellValue _cellValueFor(String value) {
+    if (value.isEmpty) return TextCellValue('');
+    if (value.length > 1 && value.startsWith('=')) {
+      return FormulaCellValue(value.substring(1));
+    }
+    // Türkçe ondalık ayıracı (virgül) ve nokta ikisini de dener; ama başında
+    // sıfır olan (ör. "007", telefon) veya çok uzun sayıları metin bırakır.
+    final intVal = int.tryParse(value);
+    if (intVal != null && !_looksLikeCode(value)) return IntCellValue(intVal);
+    final dbl = double.tryParse(value);
+    if (dbl != null && dbl.isFinite && !_looksLikeCode(value)) {
+      return DoubleCellValue(dbl);
+    }
+    return TextCellValue(value);
+  }
+
+  /// "007", "0123", "+90..." gibi baştaki sıfır/işaret önemli olan diziler sayı
+  /// değil metin sayılır (aksi halde anlam kaybolur).
+  static bool _looksLikeCode(String v) {
+    if (v.length > 1 && v.startsWith('0') && !v.startsWith('0.')) return true;
+    if (v.length > 15) return true; // int precision sınırı
+    return false;
+  }
+
+  /// [rowIndex] konumuna boş bir satır ekler (sonrakiler aşağı kayar).
+  void insertRow(String sheetName, int rowIndex) {
+    final table = _excel.tables[sheetName];
+    if (table == null) return;
+    final at = rowIndex.clamp(0, table.maxRows);
+    _excel.insertRow(sheetName, at);
+    _refresh();
+  }
+
+  /// [rowIndex] satırını siler.
+  void deleteRow(String sheetName, int rowIndex) {
+    final table = _excel.tables[sheetName];
+    if (table == null || table.maxRows <= 0) return;
+    if (rowIndex < 0 || rowIndex >= table.maxRows) return;
+    _excel.removeRow(sheetName, rowIndex);
+    _refresh();
+  }
+
+  /// [colIndex] konumuna boş bir sütun ekler (sonrakiler sağa kayar).
+  void insertColumn(String sheetName, int colIndex) {
+    final table = _excel.tables[sheetName];
+    if (table == null) return;
+    final at = colIndex.clamp(0, table.maxColumns);
+    _excel.insertColumn(sheetName, at);
+    _refresh();
+  }
+
+  /// [colIndex] sütununu siler.
+  void deleteColumn(String sheetName, int colIndex) {
+    final table = _excel.tables[sheetName];
+    if (table == null || table.maxColumns <= 0) return;
+    if (colIndex < 0 || colIndex >= table.maxColumns) return;
+    _excel.removeColumn(sheetName, colIndex);
+    _refresh();
   }
 
   Uint8List save() {

@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - claude/multi-format-file-reader-c9gh78
+      # Geliştirme (feature) dalları da derlenip test edilir → dal main'e girmeden
+      # doğrulanır. Release adımı yalnızca main'de çalışır (aşağıdaki if guard'ı).
+      - 'claude/**'
     paths-ignore:
       - '**.md'
   workflow_dispatch:
