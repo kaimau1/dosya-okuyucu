@@ -76,6 +76,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
     setState(() => _fontSize = (_fontSize + delta).clamp(10.0, 32.0));
   }
 
+  /// Görseli düğmeyle yakınlaştırır/uzaklaştırır (pinch ve çift-dokunmaya ek).
+  void _zoomImg(double factor) {
+    final current = _imgTx.value.getMaxScaleOnAxis();
+    final target = (current * factor).clamp(1.0, 6.0);
+    if (target == current) return;
+    _imgTx.value = _imgTx.value.clone()..scale(target / current);
+  }
+
   Future<void> _save() async {
     final doc = widget.doc;
     final text = _textController?.text ?? '';
@@ -158,13 +166,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
       appBar: AppBar(
         title: Text(doc.name, overflow: TextOverflow.ellipsis),
         actions: [
-          if (doc.kind == DocKind.image)
+          if (doc.kind == DocKind.image) ...[
+            IconButton(
+              tooltip: 'Uzaklaştır',
+              icon: const Icon(Icons.zoom_out),
+              onPressed: () => _zoomImg(1 / 1.4),
+            ),
+            IconButton(
+              tooltip: 'Yakınlaştır',
+              icon: const Icon(Icons.zoom_in),
+              onPressed: () => _zoomImg(1.4),
+            ),
             IconButton(
               tooltip: 'Döndür',
               icon: const Icon(Icons.rotate_right),
               onPressed: () =>
                   setState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
             ),
+          ],
           if (_textController != null) ...[
             IconButton(
               tooltip: 'Yazıyı küçült',
@@ -299,13 +318,28 @@ class _ViewerScreenState extends State<ViewerScreen> {
         );
 
       case DocKind.unknown:
-        return const Center(
+        return Center(
           child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Bu dosya türü için görüntüleyici henüz yok. '
-              'Yine de paylaşabilir veya AI’a içeriğini sorabilirsiniz.',
-              textAlign: TextAlign.center,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.insert_drive_file_outlined,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.outline),
+                const SizedBox(height: 12),
+                const Text(
+                  'Bu dosya türü için yerleşik görüntüleyici yok.\n'
+                  'Başka bir uygulamayla açabilir veya AI’a sorabilirsiniz.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
+                  onPressed: _share,
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Başka uygulamayla aç'),
+                ),
+              ],
             ),
           ),
         );

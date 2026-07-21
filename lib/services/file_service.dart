@@ -12,11 +12,23 @@ import 'office_reader.dart';
 /// Dosya seçme, tür tespiti ve içerik yükleme.
 class FileService {
   static const _textExts = {
-    'txt', 'md', 'markdown', 'json', 'xml', 'csv', 'tsv', 'html', 'htm',
-    'yaml', 'yml', 'log', 'dart', 'py', 'js', 'ts', 'java', 'kt', 'c',
-    'cpp', 'h', 'cs', 'go', 'rs', 'rb', 'php', 'sh', 'sql', 'ini', 'toml',
+    // düz metin / işaretleme
+    'txt', 'text', 'md', 'markdown', 'rst', 'adoc', 'asciidoc', 'tex',
+    'log', 'nfo', 'srt', 'vtt', 'diff', 'patch',
+    // veri / yapılandırma
+    'json', 'xml', 'csv', 'tsv', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg',
+    'properties', 'env', 'plist', 'svg', 'gpx', 'kml',
+    // web
+    'html', 'htm', 'css', 'scss', 'less',
+    // kod
+    'dart', 'py', 'js', 'jsx', 'ts', 'tsx', 'java', 'kt', 'kts', 'c', 'cc',
+    'cpp', 'cxx', 'h', 'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'sh', 'bash',
+    'zsh', 'bat', 'ps1', 'sql', 'swift', 'scala', 'lua', 'pl', 'r', 'm',
+    'gradle', 'cmake', 'dockerfile', 'makefile', 'gitignore',
   };
-  static const _imageExts = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'};
+  static const _imageExts = {
+    'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'heic', 'heif',
+  };
 
   static DocKind kindForExtension(String ext) {
     ext = ext.toLowerCase();
@@ -43,7 +55,17 @@ class FileService {
     final file = File(path);
     final name = p.basename(path);
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
-    final kind = kindForExtension(ext);
+    var kind = kindForExtension(ext);
+
+    // Uzantı bilinmiyorsa içeriğe bak: metin gibiyse metin olarak aç.
+    // (Geniş dosya türü desteği — atılan her dosyayı elden geldiğince göster.)
+    if (kind == DocKind.unknown) {
+      final sniffed = await _sniffText(file);
+      if (sniffed != null) {
+        return LoadedDoc(
+            path: path, name: name, kind: DocKind.text, plainText: sniffed);
+      }
+    }
 
     switch (kind) {
       case DocKind.text:
@@ -106,6 +128,32 @@ class FileService {
       plainText: buffer.toString().trimRight(),
       table: table,
     );
+  }
+
+  /// Dosyanın ilk ~8 KB'ına bakıp metin olup olmadığını tahmin eder. Metinse
+  /// tüm içeriği döndürür, ikili (binary) ise null.
+  Future<String?> _sniffText(File file) async {
+    try {
+      final len = await file.length();
+      if (len == 0) return '';
+      final raf = await file.open();
+      final sample = await raf.read(len < 8192 ? len : 8192);
+      await raf.close();
+      // NUL bayt neredeyse kesin ikili demektir.
+      if (sample.contains(0)) return null;
+      final decoded = utf8.decode(sample, allowMalformed: true);
+      if (decoded.isEmpty) return null;
+      final runes = decoded.runes.toList();
+      var bad = 0;
+      for (final r in runes) {
+        // U+FFFD (bozuk) veya yazdırılamayan kontrol karakteri.
+        if (r == 0xFFFD || r < 9 || (r > 13 && r < 32)) bad++;
+      }
+      if (bad / runes.length > 0.1) return null; // çok bozuk → ikili
+      return await _readTextSafely(file);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<String> _readTextSafely(File file) async {
