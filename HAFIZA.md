@@ -64,6 +64,7 @@
 | build-3 | ✅ | Firebase (guard'lı) eklendi, minSdk 23 |
 | build-4 | ✅ | Office biçimli editörler (Excel / Word / Slayt) |
 | build-5 | ✅ | Sabit imza (apksigner + secret bootstrap) — imzalı release üretildi |
+| build-8 | ✅ | PPTX gerçek tasarım renderer'ı + CI'ya `flutter test` adımı (4/4 yeşil) |
 
 ## Açık Durum / Bekleyenler
 
