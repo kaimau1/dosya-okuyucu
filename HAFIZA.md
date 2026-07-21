@@ -69,6 +69,12 @@
   Yerelde de aynı adım gerekir (README).
 - **Gizli anahtar / keystore repoya COMMIT EDİLMEZ** — güvenlik sınıflandırıcısı da engeller.
 - `**.md` değişiklikleri CI'ı tetiklemez (workflow `paths-ignore`).
+- **2026-07-21 TUZAK — graphify sandbox'ta çalışmaz:** ajan sandbox'ı DNS'i kesiyor,
+  hata "Connection error" diye görünüyor → kota sanılıp boşuna key/model değiştiriliyor.
+  Kök neden: `generativelanguage.googleapis.com` çözülemiyor. graphify'ı ağ erişimiyle çalıştır.
+- **2026-07-21 TUZAK — repoda oturum başı otomatik `git pull` hook'u var**
+  (`.claude/settings.json`, commit `d58fa94`). Oturum ortasında sessizce yeni commit
+  getirebilir; beklenmedik bir üst commit görürsen sebebi budur, panik yapma.
 
 ## Yol Haritası (öncelik kullanıcıyla netleşecek)
 
