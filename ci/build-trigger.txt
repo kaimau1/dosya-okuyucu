@@ -1,2 +1,3 @@
-Tam surum tetikleyici — zoom + gradient + Excel sayi bicimleri + eski .doc/.xls/.ppt salt-okunur.
-build: 2026-07-21
+Tam surum tetikleyici (yeniden deneme — #45 runner takildi).
+zoom + gradient + Excel sayi bicimleri + eski .doc/.xls/.ppt salt-okunur.
+retry: 1
