@@ -31,10 +31,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   PptxEditor? _editor;
   String? _error;
   bool _dirty = false;
-  double _zoom = 1.0;
-
-  void _zoomBy(double f) =>
-      setState(() => _zoom = (_zoom * f).clamp(1.0, 3.0));
 
   @override
   void initState() {
@@ -95,16 +91,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
             tooltip: 'Sunumu oynat',
             icon: const Icon(Icons.play_arrow),
             onPressed: editor == null ? null : () => _play(0),
-          ),
-          IconButton(
-            tooltip: 'Uzaklaştır',
-            icon: const Icon(Icons.zoom_out),
-            onPressed: editor == null ? null : () => _zoomBy(1 / 1.25),
-          ),
-          IconButton(
-            tooltip: 'Yakınlaştır',
-            icon: const Icon(Icons.zoom_in),
-            onPressed: editor == null ? null : () => _zoomBy(1.25),
           ),
           IconButton(
             tooltip: 'Kaydet',
@@ -175,40 +161,36 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
               ],
             ),
           ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final w = constraints.maxWidth * _zoom;
-              final card = AspectRatio(
-                aspectRatio:
-                    view == null ? 16 / 9 : view.widthPt / view.heightPt,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: scheme.surface,
-                    border: Border.all(color: scheme.outlineVariant),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.10),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+          // İki parmakla yakınlaştır (pinch): InteractiveViewer kart içinde
+          // ölçekler; tek parmak listeyi kaydırır (panEnabled: false), tek
+          // dokunuş metin kutusunu düzenler. Daha büyük zoom için tam ekran (⛶).
+          AspectRatio(
+            aspectRatio: view == null ? 16 / 9 : view.widthPt / view.heightPt,
+            child: Container(
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                border: Border.all(color: scheme.outlineVariant),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  child: view == null
-                      ? _fallbackText(slide)
-                      : SlideCanvas(
-                          slide: view,
-                          onEditShape: (shape) => _editShape(slide, shape),
-                        ),
-                ),
-              );
-              // Zoom yoksa tam genişlik; zoom'da yatay kaydırmalı büyük slayt.
-              return _zoom == 1.0
-                  ? card
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(width: w, child: card),
-                    );
-            },
+                ],
+              ),
+              child: view == null
+                  ? _fallbackText(slide)
+                  : InteractiveViewer(
+                      panEnabled: false,
+                      minScale: 1,
+                      maxScale: 4,
+                      child: SlideCanvas(
+                        slide: view,
+                        onEditShape: (shape) => _editShape(slide, shape),
+                      ),
+                    ),
+            ),
           ),
         ],
       ),

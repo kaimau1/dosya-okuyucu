@@ -233,7 +233,17 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                   children: [
                     _cellBar(),
                     _rowColBar(),
-                    Expanded(child: _grid()),
+                    // İki parmakla yakınlaştır (pinch): InteractiveViewer tabloyu
+                    // ölçekler; tek parmak normal kaydırır (panEnabled: false).
+                    // Üstteki +/- düğmeleri de ayrıca hücreleri büyütür.
+                    Expanded(
+                      child: InteractiveViewer(
+                        panEnabled: false,
+                        minScale: 1,
+                        maxScale: 5,
+                        child: _grid(),
+                      ),
+                    ),
                   ],
                 ),
       bottomNavigationBar: editor == null || editor.sheets.length < 2
