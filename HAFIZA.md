@@ -91,8 +91,9 @@
     Parmak izi SHA-256 `9E:EF:67:04:C8:6F:74:76:...:4C:57:37:18`, alias `dosyaokuyucu`.
   - **Bu dosyayı kaybetmek = bir daha güncelleme yayınlayamamak.** Yedekle (repoya değil).
   - Parola workflow'da açık yazıyor ama repo PRIVATE; anahtar dosyası olmadan parola işe yaramaz.
-- **main dalı yok:** ilk push feature dalına yapıldı, o yüzden PR açılamadı.
-  main oluşturulursa PR açılabilir (kullanıcı izni gerekir).
+- ~~main dalı yok~~ → **ÇÖZÜLDÜ 2026-07-21:** `main` oluşturuldu ve reponun varsayılan dalı
+  yapıldı; yerel çalışma da `main`e alındı. Eski `claude/multi-format-file-reader-c9gh78` dalı
+  aynı commit'te duruyor (silinmedi). Artık PR açılabilir.
 - **Firebase config:** gerçek senkron için kullanıcı `flutterfire configure` yapmalı.
 
 ## Bilinen Riskler / Tuzaklar
