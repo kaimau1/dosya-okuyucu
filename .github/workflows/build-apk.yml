@@ -156,7 +156,7 @@ jobs:
         with:
           tag_name: v0.1.0-build-${{ github.run_number }}
           name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
-          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          make_latest: true
           body: |
             Otomatik derlenen, imzalı Android APK.
 
