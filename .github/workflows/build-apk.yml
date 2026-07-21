@@ -148,20 +148,32 @@ jobs:
           if-no-files-found: error
 
       - name: GitHub Release oluştur
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/claude/multi-format-file-reader-c9gh78'
+        if: >-
+          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/claude/multi-format-file-reader-c9gh78' ||
+          github.ref == 'refs/heads/claude/office-programs-development-vbnq1x'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-build-${{ github.run_number }}
           name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
           body: |
-            Otomatik derlenen Android APK.
+            Otomatik derlenen, imzalı Android APK.
 
-            - Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel)
-            - Metin düzenleme + PDF/Slayt dönüştürme + paylaşım
-            - Gemini AI sohbet (açık dosya bağlamı + kalıcı hafıza)
-            - Firebase giriş + bulut senkron (yapılandırıldığında; bkz. FIREBASE_SETUP.md)
+            **Yenilikler (bu sürümde):**
+            - “Birlikte aç” / paylaş: WhatsApp/Gmail/Dosyalar’dan gelen dosyayı doğrudan açar
+            - Geniş dosya türü desteği + içerik tanıma (uzantısız metin dosyaları dahil)
+            - Her yerde yakınlaştır/uzaklaştır (görsel: pinch + çift-dokun + düğme), döndürme
+            - Belge içi arama (Bul), metinde yazı boyutu, PDF sayfa göstergesi
+            - Office düzenleme: Word biçim, Excel satır/sütun + formül, PowerPoint slayt işlemleri
+            - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
+            - Özel uygulama ikonu
 
-            APK'yı aşağıdaki **Assets** bölümünden indirin.
+            Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
+            dönüştürme, paylaşım, Gemini AI sohbet, Firebase senkron (yapılandırıldığında).
+
+            APK'yı aşağıdaki **Assets** bölümünden indirin (dosya-okuyucu.apk).
+            Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir.
           files: dist/dosya-okuyucu.apk
           generate_release_notes: false
         env:
