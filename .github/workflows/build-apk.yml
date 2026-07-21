@@ -60,14 +60,45 @@ jobs:
           grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
             android/app/src/main/AndroidManifest.xml || true
 
-      - name: minSdk 23 (Firebase için)
+      - name: minSdk 23 (Firebase için) + NDK sürümü
         run: |
           set -e
           for f in android/app/build.gradle.kts android/app/build.gradle; do
             [ -f "$f" ] || continue
             sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 23/' "$f"
+            # Eklentiler NDK 27 istiyor (uyarı); en yükseğe sabitle (geriye uyumlu).
+            grep -q 'ndkVersion' "$f" || \
+              sed -i '0,/android {/s//android {\n    ndkVersion = "27.0.12077973"/' "$f"
           done
-          echo "--- minSdk sonrası ---"; grep -R "minSdk" android/app/build.gradle* || true
+          echo "--- minSdk/ndk sonrası ---"; grep -R -E "minSdk|ndkVersion" android/app/build.gradle* || true
+
+      - name: Gradle JVM hedef uyumu (Kotlin 17 == Java 17)
+        run: |
+          set -e
+          # receive_sharing_intent gibi eklentiler Kotlin'i JVM 17'ye derliyor ama
+          # modül Java görevi 1.8 kalınca "jvm target compatibility" hatası veriyor.
+          # Tüm alt projelerde Java + Kotlin hedefini 17'ye eşitle.
+          if [ ! -f android/build.gradle.kts ]; then
+            echo "::error::android/build.gradle.kts yok — JVM hedef düzeltmesi uygulanamadı"; exit 1
+          fi
+          cat >> android/build.gradle.kts <<'GRADLE'
+
+// --- CI: alt projelerde JVM hedefini 17'ye eşitle (eklenti uyumu) ---
+subprojects {
+    afterEvaluate {
+        extensions.findByName("android")?.let { ext ->
+            (ext as com.android.build.gradle.BaseExtension).compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        }
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            kotlinOptions.jvmTarget = "17"
+        }
+    }
+}
+GRADLE
+          echo "--- build.gradle.kts sonu ---"; tail -20 android/build.gradle.kts
 
       - name: Bağımlılıklar
         run: flutter pub get
