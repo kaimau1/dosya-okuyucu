@@ -36,6 +36,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final TransformationController _imgTx = TransformationController();
   TapDownDetails? _doubleTapDetails;
 
+  // Belge içi arama (metin görüntüleyici).
+  bool _findOpen = false;
+  final _findCtl = TextEditingController();
+  final FocusNode _textFocus = FocusNode();
+  List<int> _matchStarts = const [];
+  int _matchPos = -1;
+  int _matchLen = 0;
+
   @override
   void initState() {
     super.initState();
@@ -58,7 +66,113 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pdfController?.dispose();
     _textController?.dispose();
     _imgTx.dispose();
+    _findCtl.dispose();
+    _textFocus.dispose();
     super.dispose();
+  }
+
+  // ── Belge içi arama ───────────────────────────────────────────────────────
+
+  void _toggleFind() {
+    setState(() {
+      _findOpen = !_findOpen;
+      if (!_findOpen) {
+        _findCtl.clear();
+        _matchStarts = const [];
+        _matchPos = -1;
+      }
+    });
+  }
+
+  void _runFind(String query) {
+    final text = _textController?.text ?? '';
+    final q = query.trim();
+    final starts = <int>[];
+    if (q.isNotEmpty) {
+      final hay = text.toLowerCase();
+      final needle = q.toLowerCase();
+      var i = hay.indexOf(needle);
+      while (i != -1 && starts.length < 5000) {
+        starts.add(i);
+        i = hay.indexOf(needle, i + needle.length);
+      }
+    }
+    setState(() {
+      _matchStarts = starts;
+      _matchLen = q.length;
+      _matchPos = starts.isEmpty ? -1 : 0;
+    });
+    // Yazarken odağı çalma (arama kutusunda kal); sadece seçimi ayarla.
+    if (_matchPos >= 0) _selectMatch(focus: false);
+  }
+
+  void _jumpMatch(int delta) {
+    if (_matchStarts.isEmpty) return;
+    setState(() {
+      _matchPos = (_matchPos + delta) % _matchStarts.length;
+      if (_matchPos < 0) _matchPos += _matchStarts.length;
+    });
+    _selectMatch(focus: true); // ileri/geri: belgeye kaydır
+  }
+
+  /// Geçerli eşleşmeyi metin alanında seçer; [focus] ise oraya kaydırır.
+  void _selectMatch({required bool focus}) {
+    final ctl = _textController;
+    if (ctl == null || _matchPos < 0 || _matchPos >= _matchStarts.length) return;
+    final start = _matchStarts[_matchPos];
+    ctl.selection = TextSelection(
+      baseOffset: start,
+      extentOffset: (start + _matchLen).clamp(0, ctl.text.length),
+    );
+    if (focus) _textFocus.requestFocus();
+  }
+
+  /// Belge içi arama çubuğu (app bar altında).
+  PreferredSizeWidget _findBar() {
+    final count = _matchStarts.length;
+    final label = count == 0
+        ? (_findCtl.text.trim().isEmpty ? '' : 'yok')
+        : '${_matchPos + 1}/$count';
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(52),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _findCtl,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                onChanged: _runFind,
+                onSubmitted: (_) => _jumpMatch(1),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Belgede ara…',
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            IconButton(
+              tooltip: 'Önceki',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.keyboard_arrow_up),
+              onPressed: count == 0 ? null : () => _jumpMatch(-1),
+            ),
+            IconButton(
+              tooltip: 'Sonraki',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.keyboard_arrow_down),
+              onPressed: count == 0 ? null : () => _jumpMatch(1),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _handleImgDoubleTap() {
@@ -165,7 +279,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(doc.name, overflow: TextOverflow.ellipsis),
+        bottom: _findOpen ? _findBar() : null,
         actions: [
+          if (_textController != null)
+            IconButton(
+              tooltip: 'Belgede ara',
+              icon: Icon(_findOpen ? Icons.search_off : Icons.search),
+              onPressed: _toggleFind,
+            ),
           if (doc.kind == DocKind.image) ...[
             IconButton(
               tooltip: 'Uzaklaştır',
@@ -310,6 +431,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       case DocKind.slides:
         return _TextEditor(
           controller: _textController!,
+          focusNode: _textFocus,
           editable: doc.isEditableText,
           fontSize: _fontSize,
           onChanged: () {
@@ -349,11 +471,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
 class _TextEditor extends StatelessWidget {
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool editable;
   final double fontSize;
   final VoidCallback onChanged;
   const _TextEditor({
     required this.controller,
+    required this.focusNode,
     required this.editable,
     required this.fontSize,
     required this.onChanged,
@@ -365,6 +489,7 @@ class _TextEditor extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         readOnly: !editable,
         onChanged: (_) => onChanged(),
         maxLines: null,
