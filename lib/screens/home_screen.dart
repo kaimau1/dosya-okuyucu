@@ -7,6 +7,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import '../core/app_state.dart';
 import '../models/document.dart';
 import '../models/recent_file.dart';
+import '../services/blank_docs.dart';
 import '../services/file_service.dart';
 import '../widgets/file_type_icon.dart';
 import 'chat_screen.dart';
@@ -120,6 +121,58 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// "Yeni belge" seçim sayfası (Word / Excel / Metin oluşturur).
+  void _newDocument() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Yeni belge oluştur',
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ),
+            ),
+            _newTile(ctx, DocKind.word, 'Word belgesi', '.docx', 'docx'),
+            _newTile(ctx, DocKind.spreadsheet, 'Excel tablosu', '.xlsx', 'xlsx'),
+            _newTile(ctx, DocKind.text, 'Metin dosyası', '.txt', 'txt'),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _newTile(BuildContext ctx, DocKind kind, String title, String sub,
+      String type) {
+    return ListTile(
+      leading: FileTypeIcon(kind: kind),
+      title: Text(title),
+      subtitle: Text(sub),
+      onTap: () {
+        Navigator.pop(ctx);
+        _createAndOpen(type);
+      },
+    );
+  }
+
+  Future<void> _createAndOpen(String type) async {
+    setState(() => _loading = true);
+    try {
+      final path = await BlankDocs.create(type);
+      await _openPath(path);
+    } catch (e) {
+      _showError('Yeni belge oluşturulamadı: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _cycleTheme(AppState appState) {
     final next = switch (appState.themeMode) {
       ThemeMode.system => ThemeMode.light,
@@ -149,6 +202,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Dosya Okuyucu'),
         actions: [
+          IconButton(
+            tooltip: 'Yeni belge',
+            icon: const Icon(Icons.note_add_outlined),
+            onPressed: _newDocument,
+          ),
           IconButton(
             tooltip: themeTip,
             icon: Icon(themeIc),
