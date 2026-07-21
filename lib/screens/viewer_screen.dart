@@ -53,8 +53,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         document: PdfDocument.openFile(doc.path),
       );
     }
-    if (doc.plainText.isNotEmpty ||
-        doc.kind == DocKind.text ||
+    if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
         doc.kind == DocKind.slides) {
       _textController = TextEditingController(text: doc.plainText);
@@ -450,9 +449,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     size: 64,
                     color: Theme.of(context).colorScheme.outline),
                 const SizedBox(height: 12),
-                const Text(
-                  'Bu dosya türü için yerleşik görüntüleyici yok.\n'
-                  'Başka bir uygulamayla açabilir veya AI’a sorabilirsiniz.',
+                Text(
+                  doc.plainText.isNotEmpty
+                      ? doc.plainText
+                      : 'Bu dosya türü için yerleşik görüntüleyici yok.\n'
+                          'Başka bir uygulamayla açabilir veya AI’a sorabilirsiniz.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),

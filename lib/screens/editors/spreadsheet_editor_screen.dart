@@ -40,7 +40,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   int _selRow = 0;
   int _selCol = 0;
+  double _zoom = 1.0;
   final _cellField = TextEditingController();
+
+  void _zoomBy(double f) =>
+      setState(() => _zoom = (_zoom * f).clamp(0.5, 3.0));
 
   @override
   void initState() {
@@ -195,6 +199,16 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         title: Text('${widget.name}${_dirty ? ' •' : ''}',
             overflow: TextOverflow.ellipsis),
         actions: [
+          IconButton(
+            tooltip: 'Uzaklaştır',
+            icon: const Icon(Icons.zoom_out),
+            onPressed: editor == null ? null : () => _zoomBy(1 / 1.25),
+          ),
+          IconButton(
+            tooltip: 'Yakınlaştır',
+            icon: const Icon(Icons.zoom_in),
+            onPressed: editor == null ? null : () => _zoomBy(1.25),
+          ),
           IconButton(
             tooltip: 'Kaydet',
             icon: const Icon(Icons.save_outlined),
@@ -357,9 +371,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
     final rowCount = sheet.rows.length;
     final colCount = sheet.maxCols.clamp(1, _maxCols);
-    var total = _rowHeaderW;
+    var total = _rowHeaderW * _zoom;
     for (var c = 0; c < colCount; c++) {
-      total += sheet.colWidth(c);
+      total += sheet.colWidth(c) * _zoom;
     }
 
     return SingleChildScrollView(
@@ -370,9 +384,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           children: [
             Row(
               children: [
-                _header('', _rowHeaderW),
+                _header('', _rowHeaderW * _zoom),
                 for (var c = 0; c < colCount; c++)
-                  _header(_colLabel(c), sheet.colWidth(c),
+                  _header(_colLabel(c), sheet.colWidth(c) * _zoom,
                       highlight: c == _selCol),
               ],
             ),
@@ -390,9 +404,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   }
 
   Widget _row(XlsxSheet sheet, int r, int colCount) {
-    final h = sheet.rowHeight(r);
+    final h = sheet.rowHeight(r) * _zoom;
     final cells = <Widget>[
-      _header('${r + 1}', _rowHeaderW, height: h, highlight: r == _selRow),
+      _header('${r + 1}', _rowHeaderW * _zoom,
+          height: h, highlight: r == _selRow),
     ];
 
     for (var c = 0; c < colCount; c++) {
@@ -401,13 +416,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         // Birleştirmenin devamı: çapa hücre yerini zaten kapladı.
         if (merge.rowStart == r) continue;
         // Dikey birleştirmenin alt satırları: boş ama aynı zeminde.
-        cells.add(_cell(sheet, r, c, sheet.colWidth(c), h, forceEmpty: true));
+        cells.add(
+            _cell(sheet, r, c, sheet.colWidth(c) * _zoom, h, forceEmpty: true));
         continue;
       }
-      var w = sheet.colWidth(c);
+      var w = sheet.colWidth(c) * _zoom;
       if (merge != null) {
         for (var k = merge.colStart + 1; k <= merge.colEnd && k < colCount; k++) {
-          w += sheet.colWidth(k);
+          w += sheet.colWidth(k) * _zoom;
         }
       }
       cells.add(_cell(sheet, r, c, w, h));
@@ -436,7 +452,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
       ),
       child: Text(text,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11 * _zoom)),
     );
   }
 
@@ -468,7 +484,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: style?.align ?? TextAlign.left,
                 style: TextStyle(
-                  fontSize: style?.fontSize ?? 12,
+                  fontSize: (style?.fontSize ?? 12) * _zoom,
                   fontWeight:
                       (style?.bold ?? false) ? FontWeight.bold : FontWeight.normal,
                   fontStyle:

@@ -30,14 +30,23 @@ class FileService {
     'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'heic', 'heif',
   };
 
+  /// Cihazda doğrudan açılamayan eski/ikili veya farklı ofis biçimleri.
+  /// (Bunlar OOXML/zip değil; kendi ayrıştırıcılarımız çöker → harici uygulama.)
+  static const _legacyOffice = {
+    'doc', 'dot', 'xls', 'xlt', 'ppt', 'pot', 'pps',
+    'odt', 'ods', 'odp', 'rtf', 'pages', 'numbers', 'key',
+  };
+
+  static bool isLegacyOffice(String ext) =>
+      _legacyOffice.contains(ext.toLowerCase());
+
   static DocKind kindForExtension(String ext) {
     ext = ext.toLowerCase();
     if (ext == 'pdf') return DocKind.pdf;
-    if (ext == 'xlsx' || ext == 'xls' || ext == 'xlsm') {
-      return DocKind.spreadsheet;
-    }
-    if (ext == 'docx' || ext == 'doc') return DocKind.word;
-    if (ext == 'pptx' || ext == 'ppt') return DocKind.slides;
+    // Yalnızca modern OOXML biçimleri kendi editörlerimize gider.
+    if (ext == 'xlsx' || ext == 'xlsm') return DocKind.spreadsheet;
+    if (ext == 'docx') return DocKind.word;
+    if (ext == 'pptx') return DocKind.slides;
     if (_textExts.contains(ext)) return DocKind.text;
     if (_imageExts.contains(ext)) return DocKind.image;
     return DocKind.unknown;
@@ -55,6 +64,22 @@ class FileService {
     final file = File(path);
     final name = p.basename(path);
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+
+    // Eski/farklı ofis biçimleri: cihazda açılamıyor → net yönlendirme.
+    if (isLegacyOffice(ext)) {
+      return LoadedDoc(
+        path: path,
+        name: name,
+        kind: DocKind.unknown,
+        plainText:
+            'Bu biçim (.$ext) eski/farklı bir ofis biçimi ve cihazda doğrudan '
+            'görüntülenemiyor. “Başka uygulamayla aç” ile Google Dokümanlar, '
+            'WPS Office gibi bir uygulamada açabilirsiniz.\n\n'
+            'İpucu: dosyayı .docx / .xlsx / .pptx olarak kaydederseniz burada '
+            'tam düzenlenebilir.',
+      );
+    }
+
     var kind = kindForExtension(ext);
 
     // Uzantı bilinmiyorsa içeriğe bak: metin gibiyse metin olarak aç.
