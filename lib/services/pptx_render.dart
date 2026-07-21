@@ -24,16 +24,56 @@ class SlideVM {
   final Color? background;
   final Uint8List? backgroundImage;
   final List<ShapeVM> shapes;
+
+  /// Tıklama adımları (`p:timing`): her adım o tıklamada beliren hedeflerin listesi.
+  /// Boşsa slaytta animasyon yoktur, her şey baştan görünür.
+  final List<List<AnimTarget>> steps;
+
   const SlideVM({
     required this.widthPt,
     required this.heightPt,
     required this.shapes,
     this.background,
     this.backgroundImage,
+    this.steps = const [],
   });
+
+  /// Verilen şekil/paragraf hangi tıklamada belirir? 0 = baştan görünür.
+  int stepFor(int shapeId, int paragraphIndex) {
+    for (var i = 0; i < steps.length; i++) {
+      for (final t in steps[i]) {
+        if (t.shapeId != shapeId) continue;
+        if (t.paraFrom == null) return i + 1;
+        if (paragraphIndex >= t.paraFrom! && paragraphIndex <= t.paraTo!) {
+          return i + 1;
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+/// Bir animasyon adımının hedefi: şekil (ve istenirse paragraf aralığı).
+class AnimTarget {
+  final int shapeId;
+  final int? paraFrom;
+  final int? paraTo;
+  const AnimTarget(this.shapeId, [this.paraFrom, this.paraTo]);
+
+  @override
+  bool operator ==(Object other) =>
+      other is AnimTarget &&
+      other.shapeId == shapeId &&
+      other.paraFrom == paraFrom &&
+      other.paraTo == paraTo;
+
+  @override
+  int get hashCode => Object.hash(shapeId, paraFrom, paraTo);
 }
 
 class ShapeVM {
+  /// Slayt içindeki şekil kimliği (`p:cNvPr@id`) — animasyon hedefleri buna bağlanır.
+  final int id;
   final double x, y, w, h;
   final double rotationDeg;
   final Color? fill;
@@ -52,6 +92,7 @@ class ShapeVM {
     required this.y,
     required this.w,
     required this.h,
+    this.id = 0,
     this.rotationDeg = 0,
     this.fill,
     this.stroke,
@@ -209,7 +250,47 @@ class PptxRender {
       background: bg,
       backgroundImage: bgImage,
       shapes: shapes,
+      steps: _timing(doc),
     );
+  }
+
+  /// `p:timing` içindeki ana diziden tıklama adımlarını çıkarır.
+  // ponytail: efekt türü/süresi okunmaz — sadece "hangi tıklamada ne belirir".
+  // Çıkış (transition="out") animasyonları da giriş sayılır; nadir ve zararsız.
+  List<List<AnimTarget>> _timing(XmlDocument doc) {
+    final timing = _first(doc.rootElement, 'p:timing');
+    if (timing == null) return const [];
+
+    XmlElement? mainSeq;
+    for (final el in timing.descendantElements) {
+      if (el.name.qualified == 'p:cTn' &&
+          el.getAttribute('nodeType') == 'mainSeq') {
+        mainSeq = el;
+        break;
+      }
+    }
+    final childList = _first(mainSeq, 'p:childTnLst');
+    if (childList == null) return const [];
+
+    final steps = <List<AnimTarget>>[];
+    for (final par in childList.childElements) {
+      if (par.name.qualified != 'p:par') continue;
+      final targets = <AnimTarget>[];
+      for (final tgt in par.descendantElements) {
+        if (tgt.name.qualified != 'p:spTgt') continue;
+        final spid = int.tryParse(tgt.getAttribute('spid') ?? '');
+        if (spid == null) continue;
+        final rg = _firstDeep(tgt, 'p:pRg') ?? _firstDeep(tgt, 'a:pRg');
+        final from = int.tryParse(rg?.getAttribute('st') ?? '');
+        final to = int.tryParse(rg?.getAttribute('end') ?? '') ?? from;
+        final t = from == null
+            ? AnimTarget(spid)
+            : AnimTarget(spid, from, to);
+        if (!targets.contains(t)) targets.add(t);
+      }
+      if (targets.isNotEmpty) steps.add(targets);
+    }
+    return steps;
   }
 
   // --------------------------------------------------------------- toplama
@@ -310,6 +391,11 @@ class PptxRender {
     if (off == null) return;
     final x0 = xf.px(_pt(off.getAttribute('x')) ?? 0);
     final y0 = xf.py(_pt(off.getAttribute('y')) ?? 0);
+    final frameId = int.tryParse(
+            _first(_first(frame, 'p:nvGraphicFramePr'), 'p:cNvPr')
+                    ?.getAttribute('id') ??
+                '') ??
+        0;
 
     final widths = <double>[];
     final grid = _first(tbl, 'a:tblGrid');
@@ -341,6 +427,7 @@ class PptxRender {
               ? null
               : (_first(tcPr, 'a:lnB') ?? _first(tcPr, 'a:lnT'));
           out.add(ShapeVM(
+            id: frameId,
             x: x,
             y: y,
             w: w,
@@ -396,6 +483,8 @@ class PptxRender {
     if (w <= 0 || h <= 0) return null;
 
     final rot = (int.tryParse(xfrm.getAttribute('rot') ?? '') ?? 0) / 60000.0;
+    final nv = _first(el, 'p:nvSpPr') ?? _first(el, 'p:nvPicPr');
+    final id = int.tryParse(_first(nv, 'p:cNvPr')?.getAttribute('id') ?? '') ?? 0;
 
     final prst = _first(spPr, 'a:prstGeom')?.getAttribute('prst') ?? 'rect';
     final isEllipse = prst == 'ellipse' || prst == 'chord' || prst == 'pie';
@@ -432,6 +521,7 @@ class PptxRender {
         : _paragraphs(txBody, theme, clrMap, defaults, ph, editable);
 
     return ShapeVM(
+      id: id,
       x: x,
       y: y,
       w: w,

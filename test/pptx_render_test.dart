@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
+import 'package:dosya_okuyucu/services/pptx_render.dart';
 import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +27,7 @@ Uint8List _samplePptx() {
 <p:sld xmlns:p="ppt" xmlns:a="draw">
  <p:cSld><p:spTree>
   <p:sp>
+   <p:nvSpPr><p:cNvPr id="2" name="Baslik"/><p:nvPr/></p:nvSpPr>
    <p:spPr>
     <a:xfrm><a:off x="914400" y="457200"/><a:ext cx="4572000" cy="1143000"/></a:xfrm>
     <a:prstGeom prst="rect"/>
@@ -50,6 +52,13 @@ Uint8List _samplePptx() {
    </p:sp>
   </p:grpSp>
  </p:spTree></p:cSld>
+ <p:timing><p:tnLst><p:par><p:cTn id="1" nodeType="tmRoot"><p:childTnLst>
+  <p:seq><p:cTn id="2" nodeType="mainSeq"><p:childTnLst>
+   <p:par><p:cTn id="3" nodeType="clickEffect"><p:childTnLst>
+    <p:set><p:cBhvr><p:tgtEl><p:spTgt spid="2"/></p:tgtEl></p:cBhvr></p:set>
+   </p:childTnLst></p:cTn></p:par>
+  </p:childTnLst></p:cTn></p:seq>
+ </p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>
 </p:sld>
 ''');
 
@@ -104,6 +113,37 @@ void main() {
     // Kaydedilen dosya yeniden okunduğunda da yeni metni içerir.
     final again = PptxEditor.parse(editor.save());
     expect(again.slides.single.paragraphs.first.text, 'Selam');
+  });
+
+  test('animasyon adımları p:timing içinden çıkarılır', () {
+    final view = PptxEditor.parse(_samplePptx()).slides.single.view!;
+
+    expect(view.steps.length, 1);
+    expect(view.steps.single, contains(const AnimTarget(2)));
+    expect(view.stepFor(2, -1), 1); // 2 numaralı şekil 1. tıklamada belirir
+    expect(view.stepFor(99, 0), 0); // animasyonu olmayan şekil baştan görünür
+  });
+
+  testWidgets('sunumda adımı gelmemiş içerik saydamdır', (t) async {
+    final view = PptxEditor.parse(_samplePptx()).slides.single.view!;
+
+    Future<double> opacityOf(int step) async {
+      await t.pumpWidget(MaterialApp(
+        home: Scaffold(body: SlideCanvas(slide: view, step: step)),
+      ));
+      await t.pumpAndSettle();
+      return t
+          .widget<AnimatedOpacity>(find
+              .ancestor(
+                of: find.text('Merhaba'),
+                matching: find.byType(AnimatedOpacity),
+              )
+              .first)
+          .opacity;
+    }
+
+    expect(await opacityOf(0), 0); // henüz tıklanmadı -> görünmez
+    expect(await opacityOf(1), 1); // tıklandı -> belirir
   });
 
   testWidgets('SlideCanvas slaytı hatasız çizer ve dokunuşu iletir', (t) async {

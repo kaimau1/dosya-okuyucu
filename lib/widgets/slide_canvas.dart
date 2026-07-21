@@ -14,7 +14,16 @@ class SlideCanvas extends StatelessWidget {
   /// Metin kutusuna dokunulduğunda çağrılır (düzenleme için). null ise salt okunur.
   final void Function(ShapeVM shape)? onEditShape;
 
-  const SlideCanvas({super.key, required this.slide, this.onEditShape});
+  /// Kaçıncı animasyon adımına kadar görünsün. null = her şey görünür
+  /// (düzenleme görünümü). Sunum modunda 0'dan başlar, her tıklamada artar.
+  final int? step;
+
+  const SlideCanvas({
+    super.key,
+    required this.slide,
+    this.onEditShape,
+    this.step,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +56,22 @@ class SlideCanvas extends StatelessWidget {
   }
 
   Widget _positioned(ShapeVM s) {
-    Widget child = _ShapeBody(shape: s);
+    // Animasyonlu içerik: adımı gelmemiş şekil/paragraf saydamdır (yer tutar,
+    // böylece belirdiğinde yerleşim oynamaz — PowerPoint de böyle yapar).
+    final animated = step != null && slide.steps.isNotEmpty;
+    List<bool>? paraVisible;
+    var shapeVisible = true;
+    if (animated) {
+      final shapeStep = slide.stepFor(s.id, -1);
+      shapeVisible = shapeStep == 0 || step! >= shapeStep;
+      paraVisible = [
+        for (var i = 0; i < s.paragraphs.length; i++)
+          slide.stepFor(s.id, i) == 0 || step! >= slide.stepFor(s.id, i),
+      ];
+    }
+
+    Widget child = _ShapeBody(shape: s, paraVisible: paraVisible);
+    if (animated) child = _Reveal(visible: shapeVisible, child: child);
     if (s.rotationDeg != 0) {
       child = Transform.rotate(angle: s.rotationDeg * math.pi / 180, child: child);
     }
@@ -68,9 +92,36 @@ class SlideCanvas extends StatelessWidget {
   }
 }
 
+/// Adımı gelen içeriği hafifçe yukarı kayarak belirtir — jenerik ama
+/// PowerPoint'teki "beliriş" hissini verir.
+class _Reveal extends StatelessWidget {
+  final bool visible;
+  final Widget child;
+  const _Reveal({required this.visible, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    // Yapı iki durumda da aynı kalmalı, yoksa geçiş animasyonu oynamaz.
+    return AnimatedOpacity(
+      opacity: visible ? 1 : 0,
+      duration: const Duration(milliseconds: 260),
+      child: AnimatedSlide(
+        offset: visible ? Offset.zero : const Offset(0, 0.06),
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+        child: child,
+      ),
+    );
+  }
+}
+
 class _ShapeBody extends StatelessWidget {
   final ShapeVM shape;
-  const _ShapeBody({required this.shape});
+
+  /// Paragraf bazlı görünürlük (animasyon adımları). null = hepsi görünür.
+  final List<bool>? paraVisible;
+
+  const _ShapeBody({required this.shape, this.paraVisible});
 
   @override
   Widget build(BuildContext context) {
@@ -130,8 +181,14 @@ class _ShapeBody extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final p in s.paragraphs)
-              if (p.plainText.isNotEmpty) _paragraph(p, s.fontScale),
+            for (var i = 0; i < s.paragraphs.length; i++)
+              if (s.paragraphs[i].plainText.isNotEmpty)
+                paraVisible == null
+                    ? _paragraph(s.paragraphs[i], s.fontScale)
+                    : _Reveal(
+                        visible: paraVisible![i],
+                        child: _paragraph(s.paragraphs[i], s.fontScale),
+                      ),
           ],
         ),
       ),

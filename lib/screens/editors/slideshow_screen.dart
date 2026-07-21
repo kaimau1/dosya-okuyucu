@@ -27,6 +27,28 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
   late int _index = widget.initialIndex;
   bool _zoomed = false;
 
+  /// Geçerli slaytta kaçıncı animasyon adımındayız (0 = sadece sabit içerik).
+  int _step = 0;
+
+  int get _maxStep => widget.slides[_index].steps.length;
+
+  /// İleri: önce slaydın animasyon adımları biter, sonra sonraki slayda geçilir.
+  void _forward() {
+    if (_step < _maxStep) {
+      setState(() => _step++);
+    } else {
+      _go(1);
+    }
+  }
+
+  void _backward() {
+    if (_step > 0) {
+      setState(() => _step--);
+    } else {
+      _go(-1);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -89,7 +111,10 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                 : const PageScrollPhysics(),
             onPageChanged: (i) {
               _resetZoom();
-              setState(() => _index = i);
+              setState(() {
+                _index = i;
+                _step = 0;
+              });
             },
             itemBuilder: (_, i) => _page(widget.slides[i], i),
           ),
@@ -104,9 +129,9 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                 if (_zoomed) return;
                 final w = context.size?.width ?? 0;
                 if (d.localPosition.dx > w * 0.6) {
-                  _go(1);
+                  _forward();
                 } else if (d.localPosition.dx < w * 0.4) {
-                  _go(-1);
+                  _backward();
                 }
               },
             ),
@@ -135,7 +160,9 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${_index + 1} / ${widget.slides.length}',
+                  _maxStep == 0
+                      ? '${_index + 1} / ${widget.slides.length}'
+                      : '${_index + 1} / ${widget.slides.length}  ·  adım $_step/$_maxStep',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ),
@@ -155,7 +182,9 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
         final scale = _zoom.value.getMaxScaleOnAxis();
         if ((scale > 1.02) != _zoomed) setState(() => _zoomed = scale > 1.02);
       },
-      child: Center(child: SlideCanvas(slide: slide)),
+      child: Center(
+        child: SlideCanvas(slide: slide, step: i == _index ? _step : 0),
+      ),
     );
   }
 }
