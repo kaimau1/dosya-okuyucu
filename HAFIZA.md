@@ -235,3 +235,18 @@
   istendiğinde commit mesajına yaz; açıklama/normal metinde asla kullanma.
 - Kullanıcı "APK ver" deyince: `git commit --allow-empty -m "build: APK [release-apk]"`
   (veya bir özellik commit'inin mesajına ekle) → push → test sonra apk+release.
+
+## 2026-07-21 — Eski Office (.doc/.xls/.ppt) SALT-OKUNUR görüntüleme
+- **Karar:** eski ikili formatlar artık "harici aç" yerine cihazda gösteriliyor.
+  - OLE2 CFB okuyucu (`ole_cfb.dart`) — kabın stream'lerini çıkarır (test #42 ✓).
+  - `.xls` BIFF8 (`xls_legacy.dart`) — SST+BOUNDSHEET+LABELSST/RK/MULRK/NUMBER/
+    FORMULA → hücreler → Excel ızgarası (salt-okunur) (test #43 ✓).
+  - `.doc/.ppt` (`legacy_text.dart`) — stream'den en iyi çaba metin (UTF-16/CP1252
+    tarama; biçim yok). Yetersizse "harici aç"a düşer (regresyon yok).
+- **readOnly bayrağı** (LoadedDoc): legacy içerik OOXML editörlerine GİTMEZ,
+  ViewerScreen'de gösterilir (home_screen yönlendirmesi).
+- **Test edilemeyenler:** LibreOffice bu sandbox'ta profil açamıyor + olefile yok
+  → gerçek .doc/.xls/.ppt fixture ÜRETİLEMEDİ. CFB ve BIFF sentetik (Python zipfile/
+  struct ile elle) fixture'larla test edildi. .doc/.ppt metin çıkarımı gerçek dosyada
+  kusurlu olabilir (sıra/boşluk) — dürüst "basit metin görünümü" etiketiyle sunulur.
+- odt/ods/odp/rtf/pages/numbers/key hâlâ "harici aç" (kapsam dışı).
