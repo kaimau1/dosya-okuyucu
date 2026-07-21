@@ -51,7 +51,19 @@ class _DocxViewState extends State<DocxView> {
       ..loadFlutterAsset('assets/word/viewer.html');
   }
 
+  /// Belge WebView'a base64 metin olarak aktarılır; çok büyük dosyalarda bu
+  /// aktarım cihazı zorlar, o yüzden sınır var.
+  static const _maxBytes = 12 * 1024 * 1024;
+
   Future<void> _render() async {
+    if (widget.bytes.length > _maxBytes) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'belge çok büyük (${(widget.bytes.length / 1048576).round()} MB)';
+      });
+      return;
+    }
     final b64 = base64Encode(widget.bytes);
     await _controller.runJavaScript("renderDocx('$b64')");
   }
