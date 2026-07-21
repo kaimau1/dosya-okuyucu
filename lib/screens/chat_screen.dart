@@ -28,6 +28,13 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  /// Dosya açıkken hazır komut çipleri (Özetle vb.) buradan gönderilir.
+  void _quickAsk(String prompt) {
+    if (_busy) return;
+    _input.text = prompt;
+    _send();
+  }
+
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty || _busy) return;
@@ -131,7 +138,11 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: _turns.isEmpty
-                ? const _ChatHint()
+                ? _ChatHint(
+                    hasContext:
+                        widget.fileContext?.trim().isNotEmpty ?? false,
+                    onQuick: _quickAsk,
+                  )
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.all(12),
@@ -155,11 +166,20 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _ChatHint extends StatelessWidget {
-  const _ChatHint();
+  final bool hasContext;
+  final void Function(String)? onQuick;
+  const _ChatHint({this.hasContext = false, this.onQuick});
+
+  static const _quick = <(String, String)>[
+    ('Özetle', 'Bu dosyayı kısa ve öz biçimde özetle.'),
+    ('Ana noktalar', 'Bu dosyanın ana noktalarını madde madde çıkar.'),
+    ('Basit anlat', 'Bu dosyayı sade, teknik olmayan bir dille açıkla.'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -167,12 +187,30 @@ class _ChatHint extends StatelessWidget {
             Icon(Icons.smart_toy_outlined,
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 12),
-            const Text(
-              'Dosyalarını özetlet, sorular sor, düzenleme öner, '
-              'PDF’den slayt planı çıkart. Yanıtları kalıcı hafızaya '
-              'kaydedebilirsin.',
+            Text(
+              hasContext
+                  ? 'Bu dosya hakkında soru sor ya da aşağıdan hızlı bir '
+                      'komut seç. Yanıtları kalıcı hafızaya kaydedebilirsin.'
+                  : 'Dosyalarını özetlet, sorular sor, düzenleme öner, '
+                      'PDF’den slayt planı çıkart. Yanıtları kalıcı hafızaya '
+                      'kaydedebilirsin.',
               textAlign: TextAlign.center,
             ),
+            if (hasContext) ...[
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final q in _quick)
+                    ActionChip(
+                      label: Text(q.$1),
+                      onPressed: onQuick == null ? null : () => onQuick!(q.$2),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
