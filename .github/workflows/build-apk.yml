@@ -85,6 +85,13 @@ jobs:
       - name: Bağımlılıklar
         run: flutter pub get
 
+      - name: Uygulama ikonunu üret (launcher + adaptive)
+        run: |
+          set -e
+          dart run flutter_launcher_icons
+          echo "--- üretilen mipmap'ler ---"
+          ls -R android/app/src/main/res/mipmap-* 2>/dev/null | head -40 || true
+
       - name: Testler (pptx render)
         run: flutter test
 
