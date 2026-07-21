@@ -16,8 +16,8 @@ paylaşım, Firebase ile senkron. Piyasadaki yavaş/pahalı programlara alternat
 > Sabit kararlar, build geçmişi, açık durum ve reddedilen yollar → **HAFIZA.md**
 
 ## 2) Mimari / Dosya Haritası
-`graphify-out/GRAPH_REPORT.md` — 390 düğüm, 522 kenar, 22 topluluk (App State Management,
-Gemini AI Service, Firebase Authentication Service, Word/Slides/Spreadsheet Editor …).
+`graphify-out/GRAPH_REPORT.md` — 953 düğüm, 1740 kenar, 49 topluluk (App State Management,
+Gemini AI Service, Firebase Auth, PPTX Render/Slide Canvas/Slideshow, Word DocxView, Excel Grid …).
 Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 
 ## 3) CI/CD (.github/workflows/build-apk.yml)
