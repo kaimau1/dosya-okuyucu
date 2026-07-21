@@ -1,12 +1,17 @@
 name: APK Derle & Release
 
+# LİMİT POLİTİKASI (2026-07-21): Her push'ta APK derlemek GitHub Actions
+# dakikasını ve depolamayı (release/artifact) dolduruyordu. Artık:
+#   • test  → her push'ta çalışır (yalnızca `flutter test`; hızlı, APK üretmez).
+#   • apk   → SADECE şu durumlarda: commit mesajı `[apk]` içeriyorsa,
+#             elle (workflow_dispatch) tetiklenirse ya da main dalına girerse.
+# Yani geliştirme push'ları ucuza doğrulanır; imzalı APK + Release yalnızca
+# istendiğinde üretilir ("en son ver").
+
 on:
   push:
     branches:
       - main
-      - claude/multi-format-file-reader-c9gh78
-      # Geliştirme (feature) dalları da derlenip test edilir → dal main'e girmeden
-      # doğrulanır. Release adımı yalnızca main'de çalışır (aşağıdaki if guard'ı).
       - 'claude/**'
     paths-ignore:
       - '**.md'
@@ -16,9 +21,35 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  # ── Ucuz doğrulama: her push'ta yalnızca testler (APK yok) ──────────────────
+  test:
+    name: Testler (hızlı doğrulama)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flutter kurulumu
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.29.3'
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: Testler
+        run: flutter test
+
+  # ── Pahalı: imzalı APK + Release. Yalnızca istendiğinde çalışır. ────────────
+  apk:
     name: Android APK
     runs-on: ubuntu-latest
+    needs: test
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      contains(github.event.head_commit.message, '[apk]')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -148,10 +179,6 @@ jobs:
           if-no-files-found: error
 
       - name: GitHub Release oluştur
-        if: >-
-          github.ref == 'refs/heads/main' ||
-          github.ref == 'refs/heads/claude/multi-format-file-reader-c9gh78' ||
-          github.ref == 'refs/heads/claude/office-programs-development-vbnq1x'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-build-${{ github.run_number }}
@@ -165,7 +192,7 @@ jobs:
             - Geniş dosya türü desteği + içerik tanıma (uzantısız metin dosyaları dahil)
             - Her yerde yakınlaştır/uzaklaştır (görsel: pinch + çift-dokun + düğme), döndürme
             - Belge içi arama (Bul), metinde yazı boyutu, PDF sayfa göstergesi
-            - Office düzenleme: Word biçim, Excel satır/sütun + formül, PowerPoint slayt işlemleri
+            - Office düzenleme: Word biçim, Excel satır/sütun + formül + sayı biçimleri, PowerPoint slayt işlemleri
             - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
             - Özel uygulama ikonu
 

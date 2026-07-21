@@ -205,3 +205,15 @@
 - Test: `test/xlsx_number_format_test.dart` + fixture `test/fixtures/number_formats.xlsx`
   (elle üretilmiş minimal xlsx; LibreOffice bu sandbox'ta profil açamadığı için
   fixture Python zipfile ile yazıldı).
+
+## 2026-07-21 — CI politikası: APK yalnızca istendiğinde (limit tasarrufu)
+- **Sorun (kullanıcı):** her push'ta APK derleyip Release yapmak GitHub Actions
+  dakikasını + depolamayı dolduruyor.
+- **Karar:** `build-apk.yml` iki job'a bölündü:
+  - `test` → HER push'ta (yalnızca `flutter test`; hızlı, APK/Release yok).
+  - `apk`  → SADECE: commit mesajı `[apk]` içeriyor **veya** workflow_dispatch
+    **veya** `main` dalı. İmzalı APK + Release burada.
+- **APK istendiğinde nasıl üretilir:** commit mesajına `[apk]` ekle ve push et
+  (ör. "release hazır [apk]"), ya da Actions'tan "Run workflow" (dispatch).
+- Not: `test` job'ı `flutter create` yapmadan çalışır (saf Dart testleri platform
+  klasörü istemez) → daha da ucuz.
