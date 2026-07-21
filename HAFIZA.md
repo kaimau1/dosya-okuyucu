@@ -85,6 +85,18 @@
   ilkesiyle uyumlu). **REDDEDİLEN:** formülü cihazda hesaplama (offline motor şişkinliği);
   karakter-bazlı Word biçimi (mobilde paragraf-bazı daha kullanışlı + risk düşük).
 
+- **2026-07-21 TUZAK — `excel` 4.0.6 Excel-seviye `insertRow/insertColumn` NO-OP:**
+  `_excel.insertRow(sheetName, i)` / `insertColumn` çağrısı derleniyor ama satır/sütun
+  sayısını DEĞİŞTİRMİYOR (CI run #17: beklenen 3, gelen 2; sütunda 1). Çözüm: yapısal
+  işlemleri Sheet hücre API'siyle (`cell/value/cellStyle` — bunlar güvenilir) elle kaydır
+  ve model listesini doğrudan güncelle (`xlsx_editor.dart` insert/deleteRow/Column). Not:
+  Sheet-seviye `table.insertRow(i)` denenmedi; elle kaydırma paketten bağımsız çalışıyor.
+
+- **2026-07-21 TUZAK — Dart: bağlamsız `?? const []` for-loop'ta 'Object'e düşer:**
+  `for (final x in nullable?.iter() ?? const [])` CFE hatası verir ("must implement
+  Iterable"). Çözüm: açık tip — `?? const <XmlElement>[]`. (Fonksiyon argümanı gibi bağlam
+  tipi olan yerlerde sorun yok; yalnızca for-loop gibi bağlamsız yerlerde.)
+
 - **2026-07-21 TUZAK — xml paketinde `XmlNodeList.removeWhere` üst-düğüm çakışması riski:**
   jenerik `ListMixin.removeWhere` compaction sırasında `[]=` ile düğümü yeniden atayınca
   "node already has a parent" atabilir. Çözüm: eşleşenleri `.toList()` ile toplayıp tek tek
