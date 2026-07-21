@@ -1,13 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../services/docx_editor.dart';
+import '../../widgets/docx_view.dart';
 import '../chat_screen.dart';
 
-/// Word benzeri "sayfa" görünümü: beyaz sayfa, kenar boşlukları, başlık/paragraf
-/// stilleri. Metin düzenlenir, biçim korunarak .docx olarak kaydedilir.
+/// İki sekme: **Görünüm** belgeyi Word'deki sayfa düzeniyle çizer (docx-preview),
+/// **Düzenle** metni değiştirir. Kaydederken biçim korunur, sadece metin güncellenir.
 class WordEditorScreen extends StatefulWidget {
   final String path;
   final String name;
@@ -25,8 +27,12 @@ class WordEditorScreen extends StatefulWidget {
 
 class _WordEditorScreenState extends State<WordEditorScreen> {
   DocxEditor? _editor;
+  Uint8List? _bytes;
   String? _error;
   bool _dirty = false;
+
+  /// Kaydettikçe artar; sayfa görünümünün yeniden çizilmesini tetikler.
+  int _version = 0;
 
   @override
   void initState() {
@@ -37,6 +43,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
+      _bytes = bytes;
       _editor = DocxEditor.parse(bytes);
     } catch (e) {
       _error = '$e';
@@ -50,6 +57,8 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     try {
       final bytes = editor.save();
       await File(widget.path).writeAsBytes(bytes);
+      _bytes = bytes;
+      _version++;
       _dirty = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -77,40 +86,54 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-      appBar: AppBar(
-        title: Text(widget.name, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            tooltip: 'Kaydet',
-            icon: const Icon(Icons.save_outlined),
-            onPressed: editor == null ? null : _save,
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'export') _export();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
-            ],
-          ),
-        ],
-      ),
-      body: _error != null
-          ? Center(child: Text('Açılamadı: $_error'))
-          : editor == null
-              ? const Center(child: CircularProgressIndicator())
-              : _buildPage(editor),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            fileContext: widget.plainText,
-            fileName: widget.name,
-          ),
-        )),
-        icon: const Icon(Icons.smart_toy_outlined),
-        label: const Text('AI'),
+    final bytes = _bytes;
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        appBar: AppBar(
+          title: Text(widget.name, overflow: TextOverflow.ellipsis),
+          actions: [
+            IconButton(
+              tooltip: 'Kaydet',
+              icon: const Icon(Icons.save_outlined),
+              onPressed: editor == null ? null : _save,
+            ),
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'export') _export();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                    value: 'export', child: Text('Paylaş / Dışa aktar')),
+              ],
+            ),
+          ],
+          bottom: const TabBar(tabs: [
+            Tab(icon: Icon(Icons.description_outlined), text: 'Görünüm'),
+            Tab(icon: Icon(Icons.edit_outlined), text: 'Düzenle'),
+          ]),
+        ),
+        body: _error != null
+            ? Center(child: Text('Açılamadı: $_error'))
+            : editor == null || bytes == null
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    children: [
+                      DocxView(key: ValueKey(_version), bytes: bytes),
+                      _buildPage(editor),
+                    ],
+                  ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              fileContext: widget.plainText,
+              fileName: widget.name,
+            ),
+          )),
+          icon: const Icon(Icons.smart_toy_outlined),
+          label: const Text('AI'),
+        ),
       ),
     );
   }

@@ -18,6 +18,9 @@ dependencies:
 
   # Görüntüleyiciler
   pdfx: ^2.6.0
+  # Word'ü gerçek sayfa düzeniyle çizmek için (assets/word içindeki docx-preview
+  # motoru gömülü çalışır — internet gerekmez)
+  webview_flutter: ^4.10.0
 
   # Office (Open XML) okuma/yazma
   excel: ^4.0.6
@@ -53,3 +56,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/word/

@@ -1,0 +1,55 @@
+<!--
+  Word görüntüleyici kabuğu. İnternet YOK: jszip + docx-preview aynı klasörden,
+  APK içine gömülü olarak yüklenir. Flutter tarafı renderDocx(base64) çağırır.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
+<style>
+  html, body { margin: 0; padding: 0; background: #eceff1; }
+  #container { padding: 8px 0 24px; }
+  /* docx-preview sayfayı beyaz bir "kağıt" olarak çizer; gölge ekleyip
+     PowerPoint/Word hissini tamamlıyoruz. */
+  .docx-wrapper { background: #eceff1 !important; padding: 8px !important; }
+  .docx-wrapper > section.docx {
+    box-shadow: 0 1px 6px rgba(0,0,0,.25);
+    margin-bottom: 12px !important;
+  }
+  #err { font: 14px sans-serif; color: #b00020; padding: 16px; display: none; }
+</style>
+<div id="container"></div>
+<div id="err"></div>
+<script src="jszip.min.js"></script>
+<script src="docx-preview.min.js"></script>
+<script>
+  function report(msg) {
+    if (window.Durum) window.Durum.postMessage(msg);
+  }
+
+  window.renderDocx = function (b64) {
+    try {
+      var bin = atob(b64);
+      var buf = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      docx.renderAsync(buf.buffer, document.getElementById('container'), null, {
+        inWrapper: true,
+        ignoreWidth: false,
+        ignoreHeight: true,
+        breakPages: true,
+        experimental: true,
+        useBase64URL: true
+      }).then(function () {
+        report('ok');
+      }).catch(function (e) {
+        showError(e);
+      });
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  function showError(e) {
+    var el = document.getElementById('err');
+    el.style.display = 'block';
+    el.textContent = 'Belge görüntülenemedi: ' + e;
+    report('hata: ' + e);
+  }
+</script>

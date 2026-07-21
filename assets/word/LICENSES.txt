@@ -1,0 +1,9 @@
+Bu klasördeki üçüncü taraf JavaScript dosyaları uygulamaya gömülüdür (offline çalışsın diye):
+
+- jszip.min.js — JSZip 3.10.1, MIT License, (c) Stuart Knightley
+  https://github.com/Stuk/jszip
+
+- docx-preview.min.js — docx-preview 0.3.7, Apache License 2.0, (c) Volodymyr Baydalka
+  https://github.com/VolodymyrBaydalka/docxjs
+
+Her iki lisans da dağıtıma izin verir; telif/lisans başlıkları dosyaların içinde korunmuştur.
