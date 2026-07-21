@@ -78,7 +78,8 @@ jobs:
         run: |
           set -e
           if [ -n "$KS_B64" ]; then
-            echo "$KS_B64" | base64 -d > release.jks
+            # tr: secret'a yapışan CR/boşluk/satır sonu base64'ü bozar ("invalid input")
+            printf '%s' "$KS_B64" | tr -d '\r\n \t' | base64 -d > release.jks
             echo "İmza anahtarı repo secret'ından yüklendi (kalıcı)."
           else
             keytool -genkeypair -v -keystore release.jks -storetype PKCS12 \
