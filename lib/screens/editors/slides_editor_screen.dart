@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../services/pptx_editor.dart';
+import '../../services/pptx_render.dart';
+import '../../widgets/slide_canvas.dart';
 import '../chat_screen.dart';
 
-/// Slayt benzeri görünüm: her slayt 16:9 kart olarak gösterilir, metin kutuları
-/// düzenlenebilir. Kaydederken orijinal tasarım korunur (yalnızca metin güncellenir).
+/// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir; bir metin
+/// kutusuna dokunmak o kutunun yazılarını düzenlemeyi açar. Kaydederken orijinal
+/// tasarım korunur (yalnızca metin güncellenir).
 class SlidesEditorScreen extends StatefulWidget {
   final String path;
   final String name;
@@ -128,6 +131,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   Widget _slideCard(PptxSlide slide) {
     final scheme = Theme.of(context).colorScheme;
+    final view = slide.view;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -139,11 +143,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                 style: Theme.of(context).textTheme.labelMedium),
           ),
           AspectRatio(
-            aspectRatio: 16 / 9,
+            aspectRatio: view == null
+                ? 16 / 9
+                : view.widthPt / view.heightPt,
             child: Container(
               decoration: BoxDecoration(
                 color: scheme.surface,
-                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: scheme.outlineVariant),
                 boxShadow: [
                   BoxShadow(
@@ -153,19 +158,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                   ),
                 ],
               ),
-              padding: const EdgeInsets.all(20),
-              child: slide.paragraphs.isEmpty
-                  ? Center(
-                      child: Text('(Metin yok)',
-                          style: TextStyle(color: scheme.outline)))
-                  : SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (var j = 0; j < slide.paragraphs.length; j++)
-                            _paraField(slide.paragraphs[j], j == 0),
-                        ],
-                      ),
+              child: view == null
+                  ? _fallbackText(slide)
+                  : SlideCanvas(
+                      slide: view,
+                      onEditShape: (shape) => _editShape(slide, shape),
                     ),
             ),
           ),
@@ -174,27 +171,111 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     );
   }
 
-  Widget _paraField(PptxParagraph para, bool isTitle) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: TextFormField(
-        initialValue: para.text,
-        onChanged: (v) {
-          para.text = v;
-          if (!_dirty) setState(() => _dirty = true);
-        },
-        maxLines: null,
-        style: TextStyle(
-          fontSize: isTitle ? 22 : 15,
-          fontWeight: isTitle ? FontWeight.bold : FontWeight.normal,
-          height: 1.3,
+  /// Çizim yapılamadıysa (bozuk/desteklenmeyen slayt) düz metin listesi.
+  Widget _fallbackText(PptxSlide slide) {
+    if (slide.paragraphs.isEmpty) {
+      return const Center(child: Text('(Metin yok)'));
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final para in slide.paragraphs)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: TextFormField(
+                initialValue: para.text,
+                onChanged: (v) {
+                  para.text = v;
+                  if (!_dirty) setState(() => _dirty = true);
+                },
+                maxLines: null,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Bir metin kutusunun paragraflarını düzenler; kaydedince slayt yeniden çizilir.
+  Future<void> _editShape(PptxSlide slide, ShapeVM shape) async {
+    final editor = _editor;
+    if (editor == null) return;
+
+    final targets = <PptxParagraph>[];
+    final controllers = <TextEditingController>[];
+    for (final p in shape.paragraphs) {
+      final para = slide.paragraphOf(p.source);
+      if (para == null) continue;
+      targets.add(para);
+      controllers.add(TextEditingController(text: para.text));
+    }
+    if (targets.isEmpty) return;
+
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
         ),
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Metni düzenle',
+                  style: Theme.of(ctx).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              for (final c in controllers)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: TextField(
+                    controller: c,
+                    maxLines: null,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Vazgeç'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Uygula'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+
+    if (ok == true) {
+      for (var i = 0; i < targets.length; i++) {
+        editor.updateParagraph(slide, targets[i], controllers[i].text);
+      }
+      _dirty = true;
+      if (mounted) setState(() {});
+    }
+    for (final c in controllers) {
+      c.dispose();
+    }
   }
 }

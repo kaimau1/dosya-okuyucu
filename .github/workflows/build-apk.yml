@@ -44,6 +44,7 @@ jobs:
           cp .backup/pubspec.yaml .
           [ -d .backup/assets ] && cp -r .backup/assets . || true
           [ -f .backup/analysis_options.yaml ] && cp .backup/analysis_options.yaml . || true
+          rm -f test/widget_test.dart   # flutter create'in ürettiği örnek test projeyle uyumsuz
 
       - name: INTERNET izni ve uygulama adını ayarla
         run: |
@@ -64,6 +65,9 @@ jobs:
 
       - name: Bağımlılıklar
         run: flutter pub get
+
+      - name: Testler (pptx render)
+        run: flutter test
 
       - name: APK derle (release)
         run: flutter build apk --release

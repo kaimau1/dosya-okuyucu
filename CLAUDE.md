@@ -28,8 +28,9 @@ android iskeleti → AndroidManifest'e INTERNET izni + app adı → minSdk 23 pa
 
 ## 4) Çalışma Kuralları
 - **Dal:** `claude/multi-format-file-reader-c9gh78`. Push: `git push -u origin <dal>`.
-- **Doğrulama döngüsü:** Yerelde Flutter YOK → CI derlemesi doğrulamadır. Push et,
-  Actions logunu izle, kırmızıysa sormadan düzelt.
+- **Doğrulama döngüsü:** önce yerelde `C:\src\flutter\bin\flutter.bat test` + `analyze`
+  (sürüm 3.44 — uyarılar CI'nin 3.29.3'üyle farklı, bkz. HAFIZA), sonra push → Actions
+  logunu izle, kırmızıysa sormadan düzelt. APK derlemesi yalnızca CI'da doğrulanır.
 - **Commit mesajı sonu:** `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
   ve `Claude-Session:` satırı.
 - Bilinen derleme tuzakları (CardThemeData, platform klasörleri, keystore) → **HAFIZA.md**
