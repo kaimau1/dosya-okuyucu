@@ -1,0 +1,2 @@
+Tam surum tetikleyici — zoom + gradient + Excel sayi bicimleri + eski .doc/.xls/.ppt salt-okunur.
+build: 2026-07-21
