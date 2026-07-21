@@ -7,6 +7,7 @@ import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/slide_canvas.dart';
 import '../chat_screen.dart';
+import 'slideshow_screen.dart';
 
 /// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir; bir metin
 /// kutusuna dokunmak o kutunun yazılarını düzenlemeyi açar. Kaydederken orijinal
@@ -86,6 +87,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         title: Text(widget.name, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
+            tooltip: 'Sunumu oynat',
+            icon: const Icon(Icons.play_arrow),
+            onPressed: editor == null ? null : () => _play(0),
+          ),
+          IconButton(
             tooltip: 'Kaydet',
             icon: const Icon(Icons.save_outlined),
             onPressed: editor == null ? null : _save,
@@ -138,9 +144,20 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 6),
-            child: Text('Slayt ${slide.index}',
-                style: Theme.of(context).textTheme.labelMedium),
+            padding: const EdgeInsets.only(left: 4, bottom: 2),
+            child: Row(
+              children: [
+                Text('Slayt ${slide.index}',
+                    style: Theme.of(context).textTheme.labelMedium),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Tam ekran / yakınlaştır',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.fullscreen, size: 20),
+                  onPressed: () => _play(slide.index - 1),
+                ),
+              ],
+            ),
           ),
           AspectRatio(
             aspectRatio: view == null
@@ -169,6 +186,25 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         ],
       ),
     );
+  }
+
+  /// Tam ekran sunum modunu [index]. slayttan başlatır.
+  void _play(int index) {
+    final views = <SlideVM>[];
+    var start = 0;
+    for (var i = 0; i < (_editor?.slides.length ?? 0); i++) {
+      final v = _editor!.slides[i].view;
+      if (v == null) continue;
+      if (i <= index) start = views.length;
+      views.add(v);
+    }
+    if (views.isEmpty) {
+      _snack('Bu dosyada gösterilecek slayt yok.');
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SlideshowScreen(slides: views, initialIndex: start),
+    ));
   }
 
   /// Çizim yapılamadıysa (bozuk/desteklenmeyen slayt) düz metin listesi.
