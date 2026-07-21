@@ -217,3 +217,12 @@
   (ör. "release hazır [apk]"), ya da Actions'tan "Run workflow" (dispatch).
 - Not: `test` job'ı `flutter create` yapmadan çalışır (saf Dart testleri platform
   klasörü istemez) → daha da ucuz.
+
+## 2026-07-21 — TUZAK: commit mesajı işaretiyle CI tetikleme kırılgan
+- Kök neden: apk job'ı `contains(head_commit.message, '[apk]')` ile tetikleniyordu.
+  Politikayı ANLATAN commit'in gövdesinde geçen düz metin "[apk]" kelimesi bile
+  eşleşip ~20 dk'lık ağır bir APK derlemesini yanlışlıkla başlattı (sonra runner
+  shutdown sinyaliyle exit 143 iptal oldu — kod hatası DEĞİL).
+- Çözüm: mesaj-işareti tamamen kaldırıldı. APK derleme yalnızca `workflow_dispatch`
+  (elle/`actions_run_trigger`) veya `main`'de. Kullanıcı "APK ver" deyince dispatch et.
+- Ders: CI koşullarını commit metnine bağlama; niyet/dispatch kullan.

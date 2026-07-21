@@ -3,10 +3,12 @@ name: APK Derle & Release
 # LİMİT POLİTİKASI (2026-07-21): Her push'ta APK derlemek GitHub Actions
 # dakikasını ve depolamayı (release/artifact) dolduruyordu. Artık:
 #   • test  → her push'ta çalışır (yalnızca `flutter test`; hızlı, APK üretmez).
-#   • apk   → SADECE şu durumlarda: commit mesajı `[apk]` içeriyorsa,
-#             elle (workflow_dispatch) tetiklenirse ya da main dalına girerse.
+#   • apk   → SADECE elle tetiklenince (workflow_dispatch) ya da main dalında.
 # Yani geliştirme push'ları ucuza doğrulanır; imzalı APK + Release yalnızca
-# istendiğinde üretilir ("en son ver").
+# BİLİNÇLİ olarak istendiğinde üretilir ("en son ver").
+# NOT: Eskiden commit mesajında `[apk]` işareti de tetikliyordu; ama açıklama
+# metninde geçen "[apk]" kelimesi bile yanlışlıkla ağır bir derlemeyi başlattı
+# (bkz. HAFIZA 2026-07-21). Bu yüzden mesaj-işareti KALDIRILDI; tek yol dispatch.
 
 on:
   push:
@@ -48,8 +50,7 @@ jobs:
     needs: test
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.ref == 'refs/heads/main' ||
-      contains(github.event.head_commit.message, '[apk]')
+      github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
