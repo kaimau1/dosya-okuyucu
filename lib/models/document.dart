@@ -34,13 +34,20 @@ class LoadedDoc {
   /// Elektronik tablolar için satır/sütun verisi (opsiyonel).
   final List<List<String>>? table;
 
+  /// Salt-okunur mu? Eski ikili biçimlerden (.doc/.xls/.ppt) çıkarılan içerik
+  /// düzenlenip geri yazılamaz — görüntüleyici (ViewerScreen) ile gösterilir,
+  /// OOXML editörlerine yönlendirilmez.
+  final bool readOnly;
+
   const LoadedDoc({
     required this.path,
     required this.name,
     required this.kind,
     this.plainText = '',
     this.table,
+    this.readOnly = false,
   });
 
-  bool get isEditableText => kind == DocKind.text || kind == DocKind.word;
+  bool get isEditableText =>
+      !readOnly && (kind == DocKind.text || kind == DocKind.word);
 }

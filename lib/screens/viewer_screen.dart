@@ -507,34 +507,89 @@ class _TextEditor extends StatelessWidget {
   }
 }
 
+/// Salt-okunur Excel ızgarası (eski .xls görüntüleme). A/B/C sütun başlıkları,
+/// satır numaraları; iki parmakla yakınlaştırılabilir.
 class _SpreadsheetView extends StatelessWidget {
   final List<List<String>> table;
   const _SpreadsheetView({required this.table});
+
+  static String _colLabel(int i) {
+    var n = i;
+    final sb = StringBuffer();
+    do {
+      sb.write(String.fromCharCode(65 + (n % 26)));
+      n = (n ~/ 26) - 1;
+    } while (n >= 0);
+    return String.fromCharCodes(sb.toString().codeUnits.reversed);
+  }
 
   @override
   Widget build(BuildContext context) {
     if (table.isEmpty) {
       return const Center(child: Text('Tablo boş veya okunamadı.'));
     }
+    final scheme = Theme.of(context).colorScheme;
+    final divider = Theme.of(context).dividerColor;
     final maxCols =
-        table.fold<int>(0, (m, row) => row.length > m ? row.length : m);
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
+        table.fold<int>(0, (m, row) => row.length > m ? row.length : m).clamp(1, 64);
+    const rowHeaderW = 46.0;
+    const colW = 120.0;
+    const cellH = 34.0;
+
+    Widget headerCell(String text, double w) => Container(
+          width: w,
+          height: cellH,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            border: Border.all(color: divider, width: 0.5),
+          ),
+          child: Text(text,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        );
+
+    Widget dataCell(String text, double w) => Container(
+          width: w,
+          height: cellH,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(border: Border.all(color: divider, width: 0.5)),
+          child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+        );
+
+    final rows = table.length > 2000 ? table.sublist(0, 2000) : table;
+
+    return InteractiveViewer(
+      panEnabled: false,
+      minScale: 1,
+      maxScale: 5,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: List.generate(
-            maxCols == 0 ? 1 : maxCols,
-            (i) => DataColumn(label: Text('${i + 1}')),
+        child: SizedBox(
+          width: rowHeaderW + maxCols * colW,
+          child: Column(
+            children: [
+              Row(children: [
+                headerCell('', rowHeaderW),
+                for (var c = 0; c < maxCols; c++)
+                  headerCell(_colLabel(c), colW),
+              ]),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: rows.length,
+                  itemBuilder: (_, r) {
+                    final row = rows[r];
+                    return Row(children: [
+                      headerCell('${r + 1}', rowHeaderW),
+                      for (var c = 0; c < maxCols; c++)
+                        dataCell(c < row.length ? row[c] : '', colW),
+                    ]);
+                  },
+                ),
+              ),
+            ],
           ),
-          rows: table.take(500).map((row) {
-            return DataRow(
-              cells: List.generate(maxCols, (i) {
-                final v = i < row.length ? row[i] : '';
-                return DataCell(Text(v));
-              }),
-            );
-          }).toList(),
         ),
       ),
     );

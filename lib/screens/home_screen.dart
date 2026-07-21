@@ -99,6 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
     if (!mounted) return;
     final route = MaterialPageRoute(builder: (_) {
+      // Salt-okunur (eski .doc/.xls/.ppt'den çıkarılan) içerik OOXML editörlerine
+      // gidemez → görüntüleyicide gösterilir.
+      if (doc.readOnly) return ViewerScreen(doc: doc);
       switch (doc.kind) {
         case DocKind.spreadsheet:
           return SpreadsheetEditorScreen(

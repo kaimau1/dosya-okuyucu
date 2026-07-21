@@ -7,7 +7,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/document.dart';
+import 'legacy_text.dart';
 import 'office_reader.dart';
+import 'xls_legacy.dart';
 
 /// Dosya seçme, tür tespiti ve içerik yükleme.
 class FileService {
@@ -65,16 +67,19 @@ class FileService {
     final name = p.basename(path);
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
 
-    // Eski/farklı ofis biçimleri: cihazda açılamıyor → net yönlendirme.
+    // Eski ikili Office biçimleri (.doc/.xls/.ppt): OLE2 kabından en iyi çaba
+    // içerik çıkarılır ve SALT-OKUNUR görüntülenir. Çıkarılamazsa harici aç.
     if (isLegacyOffice(ext)) {
+      final legacy = await _loadLegacy(file, path, name, ext);
+      if (legacy != null) return legacy;
       return LoadedDoc(
         path: path,
         name: name,
         kind: DocKind.unknown,
         plainText:
-            'Bu biçim (.$ext) eski/farklı bir ofis biçimi ve cihazda doğrudan '
-            'görüntülenemiyor. “Başka uygulamayla aç” ile Google Dokümanlar, '
-            'WPS Office gibi bir uygulamada açabilirsiniz.\n\n'
+            'Bu biçim (.$ext) eski/farklı bir ofis biçimi ve içeriği cihazda '
+            'okunamadı. “Başka uygulamayla aç” ile Google Dokümanlar, WPS Office '
+            'gibi bir uygulamada açabilirsiniz.\n\n'
             'İpucu: dosyayı .docx / .xlsx / .pptx olarak kaydederseniz burada '
             'tam düzenlenebilir.',
       );
@@ -119,6 +124,51 @@ class FileService {
       case DocKind.unknown:
         return LoadedDoc(path: path, name: name, kind: kind);
     }
+  }
+
+  /// Eski ikili Office dosyasından (.doc/.xls/.ppt) en iyi çaba içerik çıkarır.
+  /// Başarısızsa null (çağıran "harici aç"a düşer). Sonuç daima salt-okunur.
+  Future<LoadedDoc?> _loadLegacy(
+      File file, String path, String name, String ext) async {
+    Uint8List bytes;
+    try {
+      bytes = await file.readAsBytes();
+    } catch (_) {
+      return null;
+    }
+
+    // .xls / .xlt → Excel ızgarası (BIFF).
+    if (ext == 'xls' || ext == 'xlt') {
+      final xlsDoc = XlsLegacy.tryParse(bytes);
+      if (xlsDoc == null) return null;
+      final first = xlsDoc.sheets.isEmpty ? null : xlsDoc.sheets.first;
+      return LoadedDoc(
+        path: path,
+        name: name,
+        kind: DocKind.spreadsheet,
+        plainText: xlsDoc.plainText,
+        table: first?.rows,
+        readOnly: true,
+      );
+    }
+
+    // .doc / .dot → metin; .ppt / .pot / .pps → metin (en iyi çaba).
+    String? text;
+    if (ext == 'doc' || ext == 'dot') {
+      text = LegacyText.fromDoc(bytes);
+    } else if (ext == 'ppt' || ext == 'pot' || ext == 'pps') {
+      text = LegacyText.fromPpt(bytes);
+    }
+    if (text == null || text.trim().isEmpty) return null;
+
+    return LoadedDoc(
+      path: path,
+      name: name,
+      kind: DocKind.text,
+      plainText: 'Eski $ext dosyası — basit metin görünümü (biçim korunmaz):\n\n'
+          '$text',
+      readOnly: true,
+    );
   }
 
   Future<LoadedDoc> _loadSpreadsheet(
