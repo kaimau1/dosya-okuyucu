@@ -75,29 +75,11 @@ jobs:
       - name: Gradle JVM hedef uyumu (Kotlin 17 == Java 17)
         run: |
           set -e
-          # receive_sharing_intent gibi eklentiler Kotlin'i JVM 17'ye derliyor ama
-          # modül Java görevi 1.8 kalınca "jvm target compatibility" hatası veriyor.
-          # Tüm alt projelerde Java + Kotlin hedefini 17'ye eşitle.
+          # Heredoc YAML'ı bozduğu için parça ci/'de dosya; sonuna ekle.
           if [ ! -f android/build.gradle.kts ]; then
             echo "::error::android/build.gradle.kts yok — JVM hedef düzeltmesi uygulanamadı"; exit 1
           fi
-          cat >> android/build.gradle.kts <<'GRADLE'
-
-// --- CI: alt projelerde JVM hedefini 17'ye eşitle (eklenti uyumu) ---
-subprojects {
-    afterEvaluate {
-        extensions.findByName("android")?.let { ext ->
-            (ext as com.android.build.gradle.BaseExtension).compileOptions {
-                sourceCompatibility = JavaVersion.VERSION_17
-                targetCompatibility = JavaVersion.VERSION_17
-            }
-        }
-        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-            kotlinOptions.jvmTarget = "17"
-        }
-    }
-}
-GRADLE
+          cat ci/gradle_jvm17.gradle.kts >> android/build.gradle.kts
           echo "--- build.gradle.kts sonu ---"; tail -20 android/build.gradle.kts
 
       - name: Bağımlılıklar
