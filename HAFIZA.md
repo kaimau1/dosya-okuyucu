@@ -226,6 +226,19 @@
   *Test:* `http.runWithClient` + `MockClient` (paket zon-tabanlı override sağlıyor,
   GeminiService'e Client enjekte etmeye gerek kalmadı — düz REST sarmalayıcı ilkesi korundu).
 
+- **2026-07-22 DÜZELTME — "runner atanamadan 3 sn'de düşme" GERÇEK KÖK NEDENİ: Actions
+  DAKİKA KOTASI bitmiş.** build #63/#64 için "GitHub Actions altyapı arızası" diye
+  yorumlanmıştı (job hiç loglanmadan saniyeler içinde failure oldu) — YANLIŞ teşhis.
+  Kullanıcı doğruladı: hesabın aylık Actions dakikası tükenmişti; GitHub kotasız job'ı
+  hiç kuyruğa almadan/runner atamadan anında reddediyor, bu da "altyapı arızası"yla
+  AYIRT EDİLEMEZ şekilde görünüyor (ikisi de: 2-3 sn, log yok, `output.text` boş).
+  **Ders:** bu belirtiyi görünce ARKA ARKAYA boş commit'le yeniden tetiklemek (yaptığımız
+  hata) kotayı daha da tüketir/işe yaramaz — önce kullanıcıya sor ya da GitHub'ın
+  Settings > Billing > Actions sayfasından kota durumunu kontrol et. Kota bitmişse tek
+  çözüm: sonraki fatura döngüsünü beklemek ya da kullanıcının harcama limitini artırması
+  (ajan bunu yapamaz). Bu proje ücretsiz/limitli kullanım hedeflediği için (bkz. CLAUDE.md
+  §1) APK'yı yalnızca gerçekten istendiğinde derlemeye devam et (zaten mevcut politika).
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |
