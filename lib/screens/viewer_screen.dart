@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:pdfx/pdfx.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,7 +11,9 @@ import '../core/app_state.dart';
 import '../models/document.dart';
 import '../services/conversion_service.dart';
 import '../services/file_service.dart';
+import '../services/ocr_service.dart';
 import '../widgets/office_shell.dart';
+import '../widgets/pdf_select_layer.dart';
 import 'chat_screen.dart';
 
 class ViewerScreen extends StatefulWidget {
@@ -25,13 +28,30 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final _fileService = FileService();
   final _conversion = ConversionService();
 
-  PdfControllerPinch? _pdfController;
   TextEditingController? _textController;
   bool _dirty = false;
 
   // Görüntüleme durumu (okuma konforu).
   int _pdfPage = 1;
   int _pdfCount = 0;
+
+  /// PDF'ten çıkarılan metin (AI sohbetine bağlam olarak gider). pdfium metin
+  /// katmanı sayesinde artık PDF içeriği de AI'a verilebiliyor; sayfa üzerinde
+  /// seçme/kopyalama "Metin seç" modundaki kendi katmanımızda.
+  String _pdfText = '';
+
+  /// "Metin seç" modu: tek parmak sürükleme sayfayı kaydırmak yerine yazı
+  /// seçer (PdfSelectLayer). Kaydırmaya dönmek için mod kapatılır.
+  bool _pdfSelectMode = false;
+
+  /// Seçim katmanının bildirdiği güncel seçili metin (kopyalama çubuğu için).
+  String _pdfSelection = '';
+
+  /// OCR için açık PDF belgesi (onViewerReady'de gelir).
+  PdfDocument? _pdfDoc;
+
+  /// Görselden OCR ile tanınan metin (AI sohbet bağlamı olarak da kullanılır).
+  String _ocrImageText = '';
   int _imgQuarterTurns = 0;
   double _fontSize = 15;
   final TransformationController _imgTx = TransformationController();
@@ -49,11 +69,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void initState() {
     super.initState();
     final doc = widget.doc;
-    if (doc.kind == DocKind.pdf) {
-      _pdfController = PdfControllerPinch(
-        document: PdfDocument.openFile(doc.path),
-      );
-    }
     if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
         doc.kind == DocKind.slides) {
@@ -63,7 +78,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   @override
   void dispose() {
-    _pdfController?.dispose();
     _textController?.dispose();
     _imgTx.dispose();
     _findCtl.dispose();
@@ -253,10 +267,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
+  /// PDF sayfalarının metnini arka planda çıkarır (AI sohbet bağlamı için).
+  /// Taranmış/metinsiz PDF'te sessizce boş kalır — görüntüleme etkilenmez.
+  Future<void> _extractPdfText(PdfDocument document) async {
+    if (_pdfText.isNotEmpty) return;
+    try {
+      final sb = StringBuffer();
+      for (final page in document.pages) {
+        // dynamic: loadText dönüşü sürümler arasında nullable/nonnull değişti;
+        // her iki imzayla da derlensin.
+        final dynamic t = await page.loadText();
+        final full = t == null ? '' : (t.fullText as String? ?? '');
+        if (full.trim().isNotEmpty) sb.writeln(full);
+        if (sb.length > 100000) break; // AI bağlamı için fazlası gereksiz
+      }
+      _pdfText = sb.toString().trim();
+    } catch (_) {}
+  }
+
   void _openChat() {
+    // PDF'te metin katmanı, görselde OCR sonucu AI'ın bağlamı olur.
+    var ctxText = widget.doc.plainText;
+    if (widget.doc.kind == DocKind.pdf && _pdfText.isNotEmpty) {
+      ctxText = _pdfText;
+    } else if (widget.doc.kind == DocKind.image && _ocrImageText.isNotEmpty) {
+      ctxText = _ocrImageText;
+    }
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ChatScreen(
-        fileContext: widget.doc.plainText,
+        fileContext: ctxText,
         fileName: widget.doc.name,
       ),
     ));
@@ -282,6 +321,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
       dirty: _dirty,
       tabBar: _findOpen ? _findBar() : null,
       actions: [
+        if (doc.kind == DocKind.pdf)
+          IconButton(
+            tooltip: _pdfSelectMode
+                ? 'Seçim modunu kapat (kaydırmaya dön)'
+                : 'Metin seç',
+            isSelected: _pdfSelectMode,
+            icon: Icon(
+                _pdfSelectMode ? Icons.pan_tool_alt_outlined : Icons.text_fields),
+            onPressed: () => setState(() {
+              _pdfSelectMode = !_pdfSelectMode;
+              _pdfSelection = '';
+            }),
+          ),
         if (_textController != null)
           IconButton(
             tooltip: 'Belgede ara',
@@ -327,6 +379,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
         PopupMenuButton<String>(
           onSelected: (v) {
             switch (v) {
+              case 'ocr':
+                _runOcr();
+                break;
               case 'pdf':
                 _exportPdf();
                 break;
@@ -341,11 +396,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 break;
             }
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
-            PopupMenuItem(value: 'slides', child: Text('Slayta dönüştür')),
-            PopupMenuItem(value: 'share', child: Text('Paylaş')),
-            PopupMenuItem(value: 'print', child: Text('Yazdır')),
+          itemBuilder: (_) => [
+            if (doc.kind == DocKind.pdf || doc.kind == DocKind.image)
+              const PopupMenuItem(
+                  value: 'ocr', child: Text('Metni tanı (OCR)')),
+            const PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
+            const PopupMenuItem(
+                value: 'slides', child: Text('Slayta dönüştür')),
+            const PopupMenuItem(value: 'share', child: Text('Paylaş')),
+            const PopupMenuItem(value: 'print', child: Text('Yazdır')),
           ],
         ),
       ],
@@ -354,6 +413,165 @@ class _ViewerScreenState extends State<ViewerScreen> {
         onPressed: _openChat,
         icon: const Icon(Icons.smart_toy_outlined),
         label: Text(hasApiKey ? 'AI ile çalış' : 'AI (anahtar gerekli)'),
+      ),
+    );
+  }
+
+  /// Seçim modu çubuğu: ipucu ya da Kopyala düğmesi (yarı saydam koyu pill).
+  Widget _selectionBar() {
+    return Material(
+      color: Colors.black.withOpacity(0.75),
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        child: _pdfSelection.trim().isEmpty
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  'Parmağınızı yazının üzerinde sürükleyin',
+                  style: TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _shorten(_pdfSelection, 24),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  TextButton.icon(
+                    onPressed: _copyPdfSelection,
+                    icon: const Icon(Icons.copy, color: Colors.white, size: 18),
+                    label: const Text('Kopyala',
+                        style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  static String _shorten(String s, int max) {
+    final t = s.replaceAll('\n', ' ').trim();
+    return t.length <= max ? '“$t”' : '“${t.substring(0, max)}…”';
+  }
+
+  Future<void> _copyPdfSelection() async {
+    final text = _pdfSelection.trim();
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    _snack('Kopyalandı (${text.length} karakter)');
+  }
+
+  // ── OCR ───────────────────────────────────────────────────────────────────
+
+  /// Görselde veya (taranmış) PDF'te cihaz-içi OCR koşturur; sonucu seçilebilir
+  /// bir sayfada gösterir ve AI sohbet bağlamına işler.
+  Future<void> _runOcr() async {
+    final doc = widget.doc;
+    if (doc.kind == DocKind.pdf && _pdfDoc == null) {
+      _snack('PDF henüz yükleniyor, birazdan tekrar deneyin.');
+      return;
+    }
+    final progress = ValueNotifier<String>('Hazırlanıyor…');
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+                width: 24, height: 24, child: CircularProgressIndicator()),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ValueListenableBuilder<String>(
+                valueListenable: progress,
+                builder: (_, v, __) => Text(v),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    String text = '';
+    String? error;
+    try {
+      if (doc.kind == DocKind.image) {
+        progress.value = 'Metin tanınıyor…';
+        text = await OcrService.recognizeImageFile(doc.path);
+      } else if (doc.kind == DocKind.pdf) {
+        text = await OcrService.recognizePdf(
+          _pdfDoc!,
+          onProgress: (done, total) => progress.value = done >= total
+              ? 'Bitiriliyor…'
+              : 'Sayfa ${done + 1} / $total taranıyor…',
+        );
+      }
+    } catch (e) {
+      error = '$e';
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(); // ilerleme penceresi
+
+    if (error != null) {
+      _snack('OCR başarısız: $error');
+      return;
+    }
+    if (text.isEmpty) {
+      _snack('Metin bulunamadı (OCR).');
+      return;
+    }
+    setState(() {
+      if (doc.kind == DocKind.image) _ocrImageText = text;
+      // Taranmış PDF'te metin katmanı boştur → OCR sonucu AI bağlamı olur.
+      if (doc.kind == DocKind.pdf && _pdfText.isEmpty) _pdfText = text;
+    });
+    _showOcrSheet(text);
+  }
+
+  void _showOcrSheet(String text) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (ctx, scroll) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text('Tanınan metin',
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: text));
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _snack('Tümü kopyalandı');
+                    },
+                    icon: const Icon(Icons.copy, size: 18),
+                    label: const Text('Tümünü kopyala'),
+                  ),
+                ],
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scroll,
+                  padding: const EdgeInsets.only(top: 12),
+                  child: SelectableText(text,
+                      style: const TextStyle(fontSize: 14, height: 1.4)),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -377,14 +595,42 @@ class _ViewerScreenState extends State<ViewerScreen> {
         return Stack(
           children: [
             Positioned.fill(
-              child: PdfViewPinch(
-                controller: _pdfController!,
-                onDocumentLoaded: (d) {
-                  if (mounted) setState(() => _pdfCount = d.pagesCount);
-                },
-                onPageChanged: (p) {
-                  if (mounted) setState(() => _pdfPage = p);
-                },
+              // pdfrx (pdfium). Metin seçimi: paketin SelectionArea'sı Android'de
+              // güvenilir çalışmadığı için "Metin seç" modunda sayfa üzerine
+              // kendi seçim katmanımız (PdfSelectLayer) biner; tek parmak
+              // sürükleme o modda kaydırma yerine seçim yapar (panEnabled=false).
+              child: PdfViewer.file(
+                doc.path,
+                params: PdfViewerParams(
+                  panEnabled: !_pdfSelectMode,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  onViewerReady: (document, controller) {
+                    _pdfDoc = document;
+                    if (mounted) {
+                      setState(() => _pdfCount = document.pages.length);
+                    }
+                    _extractPdfText(document);
+                  },
+                  onPageChanged: (page) {
+                    if (mounted && page != null) {
+                      setState(() => _pdfPage = page);
+                    }
+                  },
+                  pageOverlaysBuilder: !_pdfSelectMode
+                      ? null
+                      : (context, pageRect, page) => [
+                            PdfSelectLayer(
+                              page: page,
+                              pageSize: pageRect.size,
+                              onSelected: (t) {
+                                if (mounted) {
+                                  setState(() => _pdfSelection = t);
+                                }
+                              },
+                            ),
+                          ],
+                ),
               ),
             ),
             if (_pdfCount > 0)
@@ -393,6 +639,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 left: 0,
                 right: 0,
                 child: Center(child: _pageBadge('$_pdfPage / $_pdfCount')),
+              ),
+            if (_pdfSelectMode)
+              Positioned(
+                bottom: 64,
+                left: 0,
+                right: 0,
+                child: Center(child: _selectionBar()),
               ),
           ],
         );

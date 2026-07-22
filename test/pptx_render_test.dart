@@ -67,7 +67,9 @@ Uint8List _samplePptx() {
 
 /// Autofit örneği: küçük kutuda (360x45pt) taşacak kadar uzun 32pt metin +
 /// `a:normAutofit` — PowerPoint bu durumda yazıyı kutuya sığdırır.
-Uint8List _autofitPptx() {
+/// [withAutofit] false ise normAutofit yazılmaz: düz şekil örneği (sığdırma
+/// artık TÜM metin kutularına uygulanır — yazı-taşması kök nedeni #3).
+Uint8List _autofitPptx({bool withAutofit = true}) {
   final archive = Archive();
   void add(String name, String xml) {
     final data = utf8.encode(xml);
@@ -88,7 +90,7 @@ Uint8List _autofitPptx() {
     <a:xfrm><a:off x="914400" y="457200"/><a:ext cx="4572000" cy="571500"/></a:xfrm>
     <a:prstGeom prst="rect"/>
    </p:spPr>
-   <p:txBody><a:bodyPr><a:normAutofit lnSpcReduction="10000"/></a:bodyPr>
+   <p:txBody>${withAutofit ? '<a:bodyPr><a:normAutofit lnSpcReduction="10000"/></a:bodyPr>' : '<a:bodyPr/>'}
     <a:p><a:r><a:rPr sz="3200"/><a:t>Uzun bir başlık metni kutuya sığmayacak kadar uzun yazılırsa PowerPoint yazıyı otomatik küçültür</a:t></a:r></a:p>
    </p:txBody>
   </p:sp>
@@ -147,6 +149,30 @@ void main() {
     // Kaydedilen dosya yeniden okunduğunda da yeni metni içerir.
     final again = PptxEditor.parse(editor.save());
     expect(again.slides.single.paragraphs.first.text, 'Selam');
+  });
+
+  test('formatParagraph B/I/U + puntoyu yazar; görünüme ve kayda yansır', () {
+    final editor = PptxEditor.parse(_samplePptx());
+    final slide = editor.slides.single;
+    final shape = slide.view!.shapes.first; // "Merhaba": 32pt, kalın
+    final para = slide.paragraphOf(shape.paragraphs.single.source)!;
+
+    editor.formatParagraph(slide, para,
+        bold: false, italic: true, underline: true, sizePt: 20);
+
+    final run = slide.view!.shapes.first.paragraphs.single.runs.single;
+    expect(run.bold, isFalse);
+    expect(run.italic, isTrue);
+    expect(run.underline, isTrue);
+    expect(run.sizePt, 20);
+
+    // Kaydedilen dosya yeniden okununca da biçim durur.
+    final again = PptxEditor.parse(editor.save());
+    final run2 =
+        again.slides.single.view!.shapes.first.paragraphs.single.runs.single;
+    expect(run2.sizePt, 20);
+    expect(run2.italic, isTrue);
+    expect(run2.bold, isFalse);
   });
 
   test('animasyon adımları p:timing içinden çıkarılır', () {
@@ -222,6 +248,42 @@ void main() {
     ));
 
     // Çizilen span'in efektif punto boyutu, bildirilen 32pt'nin altına inmeli.
+    final rich = t.widget<RichText>(find
+        .byWidgetPredicate(
+            (w) => w is RichText && w.text.toPlainText().contains('Uzun'))
+        .first);
+    double? found;
+    rich.text.visitChildren((span) {
+      if (span is TextSpan &&
+          (span.text ?? '').contains('Uzun') &&
+          span.style?.fontSize != null) {
+        found = span.style!.fontSize;
+        return false;
+      }
+      return true;
+    });
+    expect(found, isNotNull);
+    expect(found!, lessThan(32));
+  });
+
+  testWidgets('autofit OLMAYAN düz kutuda da taşan yazı sığdırılır (kök #3)',
+      (t) async {
+    final view =
+        PptxEditor.parse(_autofitPptx(withAutofit: false)).slides.single.view!;
+    final shape = view.shapes.single;
+    expect(shape.autofit, isFalse);
+    expect(shape.isPlaceholder, isFalse);
+
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 400,
+          height: 225,
+          child: SlideCanvas(slide: view),
+        ),
+      ),
+    ));
+
     final rich = t.widget<RichText>(find
         .byWidgetPredicate(
             (w) => w is RichText && w.text.toPlainText().contains('Uzun'))

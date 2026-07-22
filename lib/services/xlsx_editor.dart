@@ -95,6 +95,23 @@ class XlsxSheet {
     return (c >= 0 && c < row.length) ? row[c] : null;
   }
 
+  /// Tek hücrenin görünüm stilini önbellekte günceller — biçim düğmesine
+  /// basıldığında koca sayfayı ([rebuildCaches]) yeniden taramamak için.
+  void patchStyle(int r, int c, XlsxCellStyle? style) {
+    if (r < 0 || c < 0) return;
+    // İlk atama `const []` olabilir (constructor rebuildCaches'i çağırdığı için
+    // pratikte büyüyebilir liste olur; yine de güvenli tarafta kal).
+    if (_styleCache.isEmpty) _styleCache = <List<XlsxCellStyle?>>[];
+    while (_styleCache.length <= r) {
+      _styleCache.add(<XlsxCellStyle?>[]);
+    }
+    final row = _styleCache[r];
+    while (row.length <= c) {
+      row.add(null);
+    }
+    row[c] = style;
+  }
+
   static const double _defaultColWidth = 8.43 * 7.2 + 10; // Excel varsayılanı → px
   static const double _defaultRowHeight = 22; // 15pt * 1.34, clamp alt sınırı
 
@@ -412,6 +429,33 @@ class XlsxEditor {
       if (colIndex < row.length) row.removeAt(colIndex);
     }
     model.rebuildCaches();
+  }
+
+  /// Seçili hücrenin yazı biçimini değiştirir. Verilmeyen alanlar korunur.
+  /// Hem excel nesnesine (kaydetmede kalıcı) hem görünüm önbelleğine
+  /// (anında çizim) işlenir.
+  void setCellStyle(String sheetName, int r, int c,
+      {bool? bold, bool? italic, TextAlign? align}) {
+    final table = _excel.tables[sheetName];
+    final model = _modelSheet(sheetName);
+    if (table == null || model == null || r < 0 || c < 0) return;
+    final cell =
+        table.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r));
+    final base = cell.cellStyle ?? CellStyle();
+    HorizontalAlign? ha;
+    if (align != null) {
+      ha = switch (align) {
+        TextAlign.center => HorizontalAlign.Center,
+        TextAlign.right => HorizontalAlign.Right,
+        _ => HorizontalAlign.Left,
+      };
+    }
+    cell.cellStyle = base.copyWith(
+      boldVal: bold,
+      italicVal: italic,
+      horizontalAlignVal: ha,
+    );
+    model.patchStyle(r, c, XlsxSheet._styleOf(cell));
   }
 
   /// Bir hücrenin değerini ve stilini başka bir konuma kopyalar.

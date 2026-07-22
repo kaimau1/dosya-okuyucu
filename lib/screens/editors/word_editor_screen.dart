@@ -115,6 +115,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     if (!_dirty) setState(() => _dirty = true);
   }
 
+  /// Canlı görünümdeki hizalama düğmesinden gelir; kaydetmede `w:jc` yazılır.
+  void _onAlignChanged(int i, String align) {
+    final paras = _editor?.paragraphs;
+    if (paras == null || i < 0 || i >= paras.length) return;
+    paras[i].align = align;
+    if (!_dirty) setState(() => _dirty = true);
+  }
+
   void _onSelection(bool b, bool i, bool u) {
     if (b == _selB && i == _selI && u == _selU) return;
     setState(() {
@@ -185,6 +193,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                       bytes: bytes,
                       onEdited: _onEdited,
                       onSelection: _onSelection,
+                      onAlign: _onAlignChanged,
                       onParagraphCount: _onParagraphCount,
                       onStatus: (ok) {
                         if (!ok && mounted) {
@@ -239,6 +248,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
             btn('bold', Icons.format_bold, _selB, 'Kalın'),
             btn('italic', Icons.format_italic, _selI, 'İtalik'),
             btn('underline', Icons.format_underlined, _selU, 'Altı çizili'),
+            Container(
+                width: 1,
+                height: 22,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                color: Colors.white38),
+            btn('justifyLeft', Icons.format_align_left, false, 'Sola yasla'),
+            btn('justifyCenter', Icons.format_align_center, false, 'Ortala'),
+            btn('justifyRight', Icons.format_align_right, false, 'Sağa yasla'),
             const Spacer(),
             TextButton.icon(
               onPressed: _toggleEdit,

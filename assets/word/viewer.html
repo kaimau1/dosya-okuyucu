@@ -178,9 +178,36 @@
     }, 150);
   });
 
-  function fmt(cmd) { // bold | italic | underline
+  function fmt(cmd) { // bold | italic | underline | justifyLeft/Center/Right/Full
     document.execCommand(cmd, false, null);
+    if (cmd.indexOf('justify') === 0) { sendAligns(); return; }
     syncSelection();
+  }
+
+  // Hizalama paragrafın <p> stiline yazılır (yapı değişmez, eşleme bozulmaz);
+  // seçimdeki her paragrafın yeni hizası Flutter'a {a:{i,v}} olarak bildirilir,
+  // kaydetmede w:jc olur.
+  function sendAligns() {
+    var s = window.getSelection();
+    if (!s || !s.anchorNode || !window.Kalem) return;
+    var list = paraList();
+    function idxOf(node) {
+      while (node && node.nodeType !== 1) node = node.parentNode;
+      var p = node && node.closest ? node.closest('p') : null;
+      return p ? list.indexOf(p) : -1;
+    }
+    var a = idxOf(s.anchorNode), f = idxOf(s.focusNode);
+    if (a < 0 && f < 0) return;
+    if (a < 0) a = f;
+    if (f < 0) f = a;
+    var from = Math.min(a, f), to = Math.max(a, f);
+    for (var k = from; k <= to; k++) {
+      var ta = window.getComputedStyle(list[k]).textAlign;
+      var v = ta === 'center' ? 'center'
+        : (ta === 'right' || ta === 'end') ? 'right'
+        : ta === 'justify' ? 'both' : 'left';
+      window.Kalem.postMessage(JSON.stringify({ a: { i: k, v: v } }));
+    }
   }
 
   function syncSelection() {

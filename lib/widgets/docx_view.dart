@@ -23,6 +23,10 @@ class DocxView extends StatefulWidget {
   /// Seçimin kalın/italik/altçizgi durumu değiştiğinde (araç çubuğu için).
   final void Function(bool bold, bool italic, bool underline)? onSelection;
 
+  /// Canlı görünümde bir paragrafın hizalaması değiştiğinde
+  /// (indeks + 'left'|'center'|'right'|'both') — kaydetmede `w:jc` olur.
+  final void Function(int index, String align)? onAlign;
+
   /// Sayfa görünümü başarıyla açıldı mı (false → çağıran yedek editöre geçer).
   final void Function(bool ok)? onStatus;
 
@@ -34,6 +38,7 @@ class DocxView extends StatefulWidget {
     required this.bytes,
     this.onEdited,
     this.onSelection,
+    this.onAlign,
     this.onStatus,
     this.onParagraphCount,
   });
@@ -102,6 +107,13 @@ class DocxViewState extends State<DocxView> {
       final s = data['sel'] as Map;
       widget.onSelection?.call(
           s['b'] == true, s['i'] == true, s['u'] == true);
+      return;
+    }
+    if (data['a'] is Map) {
+      final a = data['a'] as Map;
+      if (a['i'] is int && a['v'] is String) {
+        widget.onAlign?.call(a['i'] as int, a['v'] as String);
+      }
       return;
     }
     if (data['i'] is int && data['segs'] is List) {
