@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:excel/excel.dart' as xls;
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
 
 import '../models/document.dart';
@@ -185,6 +186,29 @@ class FileService {
     DocKind kind,
   ) async {
     final bytes = await file.readAsBytes();
+    // Excel.decodeBytes çok hücreli dosyalarda onlarca saniye sürebiliyor
+    // (excel paketi, hücre başına stil çözümlemesi yapar). Ana izlekte koşarsa
+    // uygulama donar → ANR → sistem öldürür (996×26 gerçek dosyada görüldü,
+    // bkz. HAFIZA 2026-07-22). Bu yüzden arka plan isolate'inde çözümlenir.
+    (String, List<List<String>>) result;
+    try {
+      result = await compute(_decodeSpreadsheet, bytes);
+    } catch (_) {
+      // isolate açılamazsa (test/kısıtlı ortam) ana izlekte çöz — işlev aynı.
+      result = _decodeSpreadsheet(bytes);
+    }
+    return LoadedDoc(
+      path: path,
+      name: name,
+      kind: kind,
+      plainText: result.$1,
+      table: result.$2,
+    );
+  }
+
+  /// Ham .xlsx baytlarını (düz metin, tablo) çiftine çözer. `compute` ile arka
+  /// plan isolate'inde çağrılabilmesi için üst-düzey durumsuz bir yardımcı.
+  static (String, List<List<String>>) _decodeSpreadsheet(Uint8List bytes) {
     final table = <List<String>>[];
     final buffer = StringBuffer();
     try {
@@ -203,13 +227,7 @@ class FileService {
     } catch (e) {
       buffer.writeln('(Elektronik tablo okunamadı: $e)');
     }
-    return LoadedDoc(
-      path: path,
-      name: name,
-      kind: kind,
-      plainText: buffer.toString().trimRight(),
-      table: table,
-    );
+    return (buffer.toString().trimRight(), table);
   }
 
   /// Dosyanın imza baytlarına (magic bytes) bakarak türünü belirler. Uzantı

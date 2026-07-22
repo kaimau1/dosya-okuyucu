@@ -372,3 +372,23 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   dönüşümüyle birebir örtüşür. PinchZoomArea'ya `ClipRect` (zoom'da taşma
   rozetin/çubukların üstüne binmesin). NOT: editör önizlemesi kasıtlı olarak
   yeniden-yerleşimle NET tutulur (InteractiveViewer değil — o bulanıklaştırırdı).
+
+## 2026-07-22 — 2. TUR (build-56 sonrası kullanıcı testi): XLSX hâlâ çöküyor, slayt zoom hâlâ sorunlu
+- PDF imza tespiti kullanıcıda DOĞRULANDI ✓ (WhatsApp PDF artık açılıyor).
+- **XLSX çökmesinin ASIL kök nedeni açılış:** stil önbelleği (1. tur) kaydırma
+  render'ını düzeltti ama `Excel.decodeBytes` 25.896 stilli hücrede onlarca
+  saniye sürüyor ve ANA İZLEKTE, üstelik İKİ KEZ koşuyordu (FileService.load
+  plainText için + editörün kendi parse'ı) → açılışta donma → ANR → sistem
+  öldürüyor. Çözüm: her iki çözümleme de `compute` ile arka plan isolate'ine
+  taşındı (başarısız olursa ana izleğe düşer — işlev aynı, testler etkilenmez).
+- Kullanıcının dosyasında **dondurulmuş bölme** var (`pane xSplit=5 ySplit=2
+  state=frozen` — Excel'de sol 5 sütun + üst 2 satır sabit; kullanıcının
+  "sağ/sol ayrı oynuyor" dediği bu). Bölme çökme nedeni DEĞİL; biz yok sayarız
+  (tek parça kaydırma). Bölme desteği istenirse ayrı özellik.
+- **Slayt zoom (kalan):** kart genişliği doğrusaldı (1. tur) ama BAŞLIK şeridi
+  ("Slayt N" + düğmeler) sabit yükseklikteydi → yerleşim yine doğrusal değil →
+  commit'te kayma sürdü. Çözüm: başlık `SizedBox(40*zoom)+FittedBox` ile
+  ölçeklenir; liste kenar boşlukları da (`16/8/32*zoom`) doğrusallaştırıldı.
+  Artık layout(zoom) = zoom·layout(1) her bileşende geçerli.
+- KVKK notu: kullanıcının SAHU dosyası hasta bilgi formu — fixture olarak
+  repoya ASLA konmaz; sentetik üretim gerekirse Python zipfile ile.

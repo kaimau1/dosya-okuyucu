@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -84,7 +85,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
-      _editor = XlsxEditor.parse(bytes);
+      // Çözümleme arka plan isolate'inde: excel paketinin decodeBytes'ı çok
+      // hücreli dosyada onlarca saniye sürüyor; ana izlekte koşarsa açılışta
+      // donma → ANR → çökme (996×26 gerçek dosyada görüldü, bkz. HAFIZA).
+      try {
+        _editor = await compute(XlsxEditor.parse, bytes);
+      } catch (_) {
+        // Sonuç isolate'ten taşınamazsa/spawn edilemezse ana izlekte çöz.
+        _editor = XlsxEditor.parse(bytes);
+      }
       _syncField();
     } catch (e) {
       _error = '$e';
