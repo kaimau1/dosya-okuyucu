@@ -393,6 +393,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
     final rowCount = sheet.rows.length;
     final colCount = sheet.maxCols.clamp(1, _maxCols);
+    // Formül motoru kare başına BİR kez kurulur (eskiden her hücrede yeniden
+    // kuruluyordu — 25 bin hücrelik dosyada gereksiz yük).
+    final engine = FormulaEngine(sheet.rows);
     var total = _rowHeaderW * _zoom;
     for (var c = 0; c < colCount; c++) {
       total += sheet.colWidth(c) * _zoom;
@@ -422,7 +425,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                 padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).padding.bottom + 88),
                 itemCount: rowCount,
-                itemBuilder: (_, r) => _row(sheet, r, colCount),
+                itemBuilder: (_, r) => _row(sheet, engine, r, colCount),
               ),
             ),
           ],
@@ -431,7 +434,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     );
   }
 
-  Widget _row(XlsxSheet sheet, int r, int colCount) {
+  Widget _row(XlsxSheet sheet, FormulaEngine engine, int r, int colCount) {
     final h = sheet.rowHeight(r) * _zoom;
     final cells = <Widget>[
       _header('${r + 1}', _rowHeaderW * _zoom,
@@ -444,7 +447,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         // Birleştirmenin devamı: çapa hücre yerini zaten kapladı.
         if (merge.rowStart == r) continue;
         // Dikey birleştirmenin alt satırları: boş ama aynı zeminde.
-        cells.add(_cell(sheet, r, c, sheet.colWidth(c) * _zoom, h,
+        cells.add(_cell(sheet, engine, r, c, sheet.colWidth(c) * _zoom, h,
             forceEmpty: true));
         continue;
       }
@@ -454,7 +457,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           w += sheet.colWidth(k) * _zoom;
         }
       }
-      cells.add(_cell(sheet, r, c, w, h));
+      cells.add(_cell(sheet, engine, r, c, w, h));
     }
     return Row(children: cells);
   }
@@ -485,7 +488,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     );
   }
 
-  Widget _cell(XlsxSheet sheet, int r, int c, double w, double h,
+  Widget _cell(XlsxSheet sheet, FormulaEngine engine, int r, int c, double w,
+      double h,
       {bool forceEmpty = false}) {
     final style = sheet.styleAt(r, c);
     final selected = r == _selRow && c == _selCol;
@@ -512,8 +516,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             : Text(
                 // Formülse hesaplanmış sonucu göster (çubuk ham formülü tutar);
                 // ardından hücrenin Excel sayı biçimini (yüzde/para/binlik) uygula.
-                sheet.displayText(
-                    r, c, FormulaEngine(sheet.rows).displayValue(r, c)),
+                sheet.displayText(r, c, engine.displayValue(r, c)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: style?.align ?? TextAlign.left,

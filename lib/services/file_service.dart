@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:excel/excel.dart' as xls;
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -87,7 +88,15 @@ class FileService {
 
     var kind = kindForExtension(ext);
 
-    // Uzantı bilinmiyorsa içeriğe bak: metin gibiyse metin olarak aç.
+    // Uzantı güvenilmezse içeriğin imza baytlarına bak. Paylaşım/URI ile gelen
+    // dosyalarda ad/uzantı sıklıkla kaybolur (ör. WhatsApp'tan PDF uzantısız bir
+    // önbellek yoluyla gelir) → uzantıya göre "unknown" çıkar. İmza (magic byte)
+    // ile PDF/görsel/OOXML gerçek türü belirlenir. (Bug: WhatsApp PDF tanınmıyordu.)
+    if (kind == DocKind.unknown) {
+      kind = await _sniffKind(file);
+    }
+
+    // Hâlâ bilinmiyorsa içeriğe bak: metin gibiyse metin olarak aç.
     // (Geniş dosya türü desteği — atılan her dosyayı elden geldiğince göster.)
     if (kind == DocKind.unknown) {
       final sniffed = await _sniffText(file);
@@ -103,17 +112,15 @@ class FileService {
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.word:
+        // Eski .doc bu noktaya gelmez (yukarıda isLegacyOffice ile ayrılır);
+        // kind==word ise içerik daima OOXML .docx'tir (uzantı boş olsa bile).
         final bytes = await file.readAsBytes();
-        final text = ext == 'docx'
-            ? OfficeReader.extractDocxText(bytes)
-            : '(.doc eski formatı için metin çıkarımı sınırlıdır)';
+        final text = OfficeReader.extractDocxText(bytes);
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.slides:
         final bytes = await file.readAsBytes();
-        final text = ext == 'pptx'
-            ? OfficeReader.extractPptxText(bytes)
-            : '(.ppt eski formatı için metin çıkarımı sınırlıdır)';
+        final text = OfficeReader.extractPptxText(bytes);
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.spreadsheet:
@@ -203,6 +210,64 @@ class FileService {
       plainText: buffer.toString().trimRight(),
       table: table,
     );
+  }
+
+  /// Dosyanın imza baytlarına (magic bytes) bakarak türünü belirler. Uzantı
+  /// yoksa/güvenilmezse kullanılır (paylaşım/URI ile gelen dosyalar). Tanınmazsa
+  /// [DocKind.unknown].
+  Future<DocKind> _sniffKind(File file) async {
+    Uint8List head;
+    try {
+      final raf = await file.open();
+      head = await raf.read(16);
+      await raf.close();
+    } catch (_) {
+      return DocKind.unknown;
+    }
+    if (head.length < 4) return DocKind.unknown;
+    bool at(int i, List<int> sig) {
+      if (i + sig.length > head.length) return false;
+      for (var k = 0; k < sig.length; k++) {
+        if (head[i + k] != sig[k]) return false;
+      }
+      return true;
+    }
+
+    // PDF: "%PDF"
+    if (at(0, [0x25, 0x50, 0x44, 0x46])) return DocKind.pdf;
+    // Görseller
+    if (at(0, [0x89, 0x50, 0x4E, 0x47])) return DocKind.image; // PNG
+    if (at(0, [0xFF, 0xD8, 0xFF])) return DocKind.image; // JPEG
+    if (at(0, [0x47, 0x49, 0x46, 0x38])) return DocKind.image; // GIF8
+    if (at(0, [0x42, 0x4D])) return DocKind.image; // BMP
+    if (at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) {
+      return DocKind.image; // WEBP (RIFF....WEBP)
+    }
+    // HEIC/HEIF: ftyp + heic/heix/mif1/heif markası (yalnızca bu markalar; mp4
+    // gibi diğer ftyp'ler görsel değil, dışarıda bırakılır).
+    if (at(4, [0x66, 0x74, 0x79, 0x70]) &&
+        (at(8, [0x68, 0x65, 0x69, 0x63]) ||
+            at(8, [0x68, 0x65, 0x69, 0x78]) ||
+            at(8, [0x6D, 0x69, 0x66, 0x31]) ||
+            at(8, [0x68, 0x65, 0x69, 0x66]))) {
+      return DocKind.image;
+    }
+    // ZIP (PK\x03\x04) → OOXML: içine bakıp docx/xlsx/pptx ayır.
+    if (at(0, [0x50, 0x4B, 0x03, 0x04])) return await _sniffZipKind(file);
+    return DocKind.unknown;
+  }
+
+  /// Bir zip'in (PK) içindeki bölüm adlarına bakarak OOXML türünü belirler.
+  Future<DocKind> _sniffZipKind(File file) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final names = archive.files.map((f) => f.name).toList();
+      if (names.any((n) => n.startsWith('word/'))) return DocKind.word;
+      if (names.any((n) => n.startsWith('xl/'))) return DocKind.spreadsheet;
+      if (names.any((n) => n.startsWith('ppt/'))) return DocKind.slides;
+    } catch (_) {}
+    return DocKind.unknown;
   }
 
   /// Dosyanın ilk ~8 KB'ına bakıp metin olup olmadığını tahmin eder. Metinse

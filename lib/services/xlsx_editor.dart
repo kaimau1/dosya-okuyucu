@@ -45,8 +45,20 @@ class XlsxSheet {
   /// excel paketinin verdiği gösterimle bırakılır. Boşsa biçimleme yapılmaz.
   final Map<int, String> numFmts;
 
+  // Excel paketinin `rows`/`getColumnWidth`/`getRowHeight` erişimleri her çağrıda
+  // iç haritalardan yeniden üretiliyor (O(hücre)). Bunları her karede her görünür
+  // hücre için çağırmak büyük sayfada O(hücre²) → donma/ANR/çökme (bkz. HAFIZA
+  // 2026-07-22: 996×26 hücrelik dosya açılıp kaydırılınca çöküyordu). Bu yüzden
+  // stil, sütun genişliği ve satır yüksekliği yükleme anında BİR KEZ önbelleğe
+  // alınır; çizim yalnızca bu düz listelere O(1) bakar, excel paketine dokunmaz.
+  List<List<XlsxCellStyle?>> _styleCache = const [];
+  List<double> _colWCache = const [];
+  List<double> _rowHCache = const [];
+
   XlsxSheet(this.name, this.rows, this._sheet, this.merges,
-      [this.numFmts = const {}]);
+      [this.numFmts = const {}]) {
+    rebuildCaches();
+  }
 
   int get maxCols => rows.fold<int>(0, (m, r) => r.length > m ? r.length : m);
 
@@ -67,10 +79,46 @@ class XlsxSheet {
     return applyNumberFormat(code, v) ?? computed;
   }
 
+  /// Önbellekten O(1). Excel'in getColumnWidth'i her çağrıda iç haritayı gezdiği
+  /// için render'da doğrudan çağrılmaz — [rebuildCaches] ile bir kez hesaplanır.
+  double colWidth(int c) =>
+      (c >= 0 && c < _colWCache.length) ? _colWCache[c] : _defaultColWidth;
+
+  /// Önbellekten O(1). Bkz. [colWidth].
+  double rowHeight(int r) =>
+      (r >= 0 && r < _rowHCache.length) ? _rowHCache[r] : _defaultRowHeight;
+
+  /// Önbellekten O(1). Bkz. [colWidth].
+  XlsxCellStyle? styleAt(int r, int c) {
+    if (r < 0 || r >= _styleCache.length) return null;
+    final row = _styleCache[r];
+    return (c >= 0 && c < row.length) ? row[c] : null;
+  }
+
+  static const double _defaultColWidth = 8.43 * 7.2 + 10; // Excel varsayılanı → px
+  static const double _defaultRowHeight = 22; // 15pt * 1.34, clamp alt sınırı
+
+  /// Stil/genişlik/yükseklik önbelleklerini excel nesnesinden BİR KEZ kurar.
+  /// Excel paketinin `rows` getter'ı iç haritalardan her seferinde yeniden liste
+  /// ürettiği için burada TEK erişimle okunur; render sırasında bir daha
+  /// çağrılmaz. Yapısal işlemlerden (satır/sütun ekle-sil) sonra tekrar çağrılır.
+  void rebuildCaches() {
+    final excelRows = _sheet.rows; // pahalı getter'a tek erişim
+    _styleCache = [
+      for (final row in excelRows) [for (final cell in row) _styleOf(cell)],
+    ];
+    _rowHCache = [
+      for (var r = 0; r < excelRows.length; r++) _computeRowHeight(r),
+    ];
+    // Render en çok 64 sütun çizer (bkz. ekran _maxCols); fazlasını hesaplama.
+    final cols = maxCols;
+    final capped = cols < 64 ? cols : 64;
+    _colWCache = [for (var c = 0; c < capped; c++) _computeColWidth(c)];
+  }
+
   /// Excel sütun genişliği "karakter" birimindedir; ekran pikseline çevrilir.
-  /// Dosyada `defaultColWidth` yoksa excel paketi null hatası fırlatır — o yüzden
-  /// korumalı (gerçek dosyalarda görüldü, bkz. HAFIZA).
-  double colWidth(int c) {
+  /// Dosyada `defaultColWidth` yoksa excel paketi null hatası fırlatır — korumalı.
+  double _computeColWidth(int c) {
     double w;
     try {
       w = _sheet.getColumnWidth(c);
@@ -81,7 +129,7 @@ class XlsxSheet {
   }
 
   /// Satır yüksekliği puntodur (varsayılan 15 pt).
-  double rowHeight(int r) {
+  double _computeRowHeight(int r) {
     double h;
     try {
       h = _sheet.getRowHeight(r);
@@ -91,11 +139,9 @@ class XlsxSheet {
     return (h * 1.34).clamp(22, 240);
   }
 
-  XlsxCellStyle? styleAt(int r, int c) {
-    if (r >= _sheet.rows.length) return null;
-    final row = _sheet.rows[r];
-    if (c >= row.length) return null;
-    final cell = row[c];
+  /// Bir excel `Data?` hücresinden görünüm stilini çıkarır (saf; excel `rows`
+  /// getter'ına dokunmaz — çağıran tek listeyi zaten elde etmiştir).
+  static XlsxCellStyle? _styleOf(Data? cell) {
     final style = cell?.cellStyle;
     if (style == null) return null;
 
@@ -297,6 +343,7 @@ class XlsxEditor {
       _clearCell(table, at, c);
     }
     model.rows.insert(at, List<String>.filled(model.maxCols, '', growable: true));
+    model.rebuildCaches(); // stil/yükseklik önbellekleri kaymış olabilir
   }
 
   /// [rowIndex] satırını siler (sonrakiler yukarı kayar).
@@ -318,6 +365,7 @@ class XlsxEditor {
       }
     }
     model.rows.removeAt(rowIndex);
+    model.rebuildCaches();
   }
 
   /// [colIndex] konumuna boş bir sütun ekler (sonrakiler sağa kayar).
@@ -339,6 +387,7 @@ class XlsxEditor {
     for (final row in model.rows) {
       if (at <= row.length) row.insert(at, '');
     }
+    model.rebuildCaches();
   }
 
   /// [colIndex] sütununu siler (sonrakiler sola kayar).
@@ -362,6 +411,7 @@ class XlsxEditor {
     for (final row in model.rows) {
       if (colIndex < row.length) row.removeAt(colIndex);
     }
+    model.rebuildCaches();
   }
 
   /// Bir hücrenin değerini ve stilini başka bir konuma kopyalar.

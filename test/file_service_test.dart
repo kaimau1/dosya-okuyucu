@@ -71,4 +71,37 @@ void main() {
       await dir.delete(recursive: true);
     }
   });
+
+  test('uzantısız PDF imza baytından tanınır (WhatsApp paylaşımı)', () async {
+    // Paylaşım (receive_sharing_intent) dosyayı çoğu zaman uzantısız bir önbellek
+    // yoluna kopyalar; tür yalnızca içerik imzasından anlaşılabilir.
+    final dir = await Directory.systemTemp.createTemp('fs_test');
+    try {
+      final f = File('${dir.path}/shared_doc'); // uzantı yok
+      // Minimal PDF: "%PDF-1.4\n" + ikili gövde (NUL/ikili baytlar içerir).
+      await f.writeAsBytes(Uint8List.fromList([
+        0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A, // %PDF-1.4\n
+        0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A, 0x00, 0x01,
+      ]));
+      final doc = await svc.load(f.path);
+      expect(doc.kind, DocKind.pdf);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+
+  test('uzantısız PNG imza baytından görsel olarak tanınır', () async {
+    final dir = await Directory.systemTemp.createTemp('fs_test');
+    try {
+      final f = File('${dir.path}/gorsel'); // uzantı yok
+      await f.writeAsBytes(Uint8List.fromList([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG imzası
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+      ]));
+      final doc = await svc.load(f.path);
+      expect(doc.kind, DocKind.image);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
 }

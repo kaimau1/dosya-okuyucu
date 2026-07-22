@@ -331,3 +331,44 @@
      indirme 120 sn'de zaman aşımına uğrar, Gradle yeniden dener (sonsuz asılma yok).
 - **Ders:** ağır CI job'larına HER ZAMAN `timeout-minutes` koy; Gradle ağ zaman
   aşımlarını sabitle. Geçmişte de benzer takılmalar oldu (#45 iptal, commit 409add6).
+
+## 2026-07-22 — 3 KULLANICI HATASI: XLSX çökme, WhatsApp PDF tanınmama, slayt zoom zıplama
+Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_sunumu .pptx).
+
+### 1) Büyük XLSX açılıp kaydırınca donup çöküyor (ANR)
+- **Kök neden:** `SpreadsheetEditorScreen._cell` her görünür hücrede
+  `sheet.styleAt` (→ excel paketi `_sheet.rows[r]`), `colWidth`, `rowHeight`
+  çağırıyordu. excel 4.0.6'nın `rows`/`getColumnWidth`/`getRowHeight` getter'ları
+  her çağrıda iç haritalardan yeniden üretilir (O(hücre)). Kare başına yüzlerce
+  hücre × 25.896 hücre ⇒ O(hücre²) ⇒ ana izlek kilitlenir ⇒ ANR/çökme. Ayrıca
+  her hücrede yeni `FormulaEngine` kuruluyordu.
+- **Çözüm:** `XlsxSheet.rebuildCaches()` — stil/sütun-genişliği/satır-yüksekliği
+  YÜKLEMEDE bir kez (excel `rows`'a tek erişimle) önbelleğe alınır; `styleAt/
+  colWidth/rowHeight` artık O(1) düz-liste bakışı, excel paketine render'da hiç
+  dokunulmaz. Yapısal işlemlerden (satır/sütun ekle-sil) sonra `rebuildCaches`
+  tekrar çağrılır. `FormulaEngine` ekranda kare başına bir kez kurulur.
+- **Ders:** excel paketinin getter'larını sıcak yolda (render) çağırma; yükleme
+  anında düz veri yapısına çıkar.
+
+### 2) WhatsApp'tan PDF açınca "dosya türü tanınmadı"
+- **Kök neden:** `FileService.kindForExtension` yalnızca UZANTIYA bakıyor. Paylaşım
+  (`receive_sharing_intent`) gelen dosyayı uzantısız/rastgele adlı bir önbellek
+  yoluna kopyalıyor → `ext` boş → `unknown`. PDF'te NUL bayt olduğu için metin
+  sniff'i de null döndürüp "unknown" bırakıyordu.
+- **Çözüm:** `_sniffKind` — uzantı bilinmiyorsa İMZA BAYTLARINA bakar: `%PDF`→pdf,
+  PNG/JPEG/GIF/BMP/WEBP/HEIC→image, `PK\x03\x04`→zip içine bakıp docx/xlsx/pptx.
+  `load()` içinde metin sniff'inden ÖNCE çağrılır. word/slides artık uzantıdan
+  bağımsız daima OOXML olarak çıkarılır (eski .doc/.ppt zaten yukarıda ayrılıyor).
+- **Ders:** paylaşımla gelen dosyada uzantıya güvenme; içerik imzasıyla doğrula.
+
+### 3) Slaytlarda pinch-zoom "zıplıyor" (önizleme)
+- **Kök neden:** `SlidesEditorScreen._buildSlides` kart genişliğini
+  `maxWidth*zoom - 32` ile ölçeklerken PinchZoomArea canlı önizlemeyi tek-tip
+  (odaktan) GPU dönüşümüyle büyütüyordu. Sabit `-32` ve ölçeklenmeyen slayt-arası
+  boşluk yüzünden yerleşim doğrusal değildi ⇒ parmak kalkınca commit edilen düzen
+  canlı önizlemeyle örtüşmüyor ⇒ zıplama (aşağı slaytlarda daha belirgin).
+- **Çözüm:** kart genişliği `(maxWidth-32)*zoom` ve slayt-arası boşluk `20*zoom`
+  — yerleşim zoom'da DOĞRUSAL, böylece `layout(zoom)=zoom·layout(1)` ve GPU
+  dönüşümüyle birebir örtüşür. PinchZoomArea'ya `ClipRect` (zoom'da taşma
+  rozetin/çubukların üstüne binmesin). NOT: editör önizlemesi kasıtlı olarak
+  yeniden-yerleşimle NET tutulur (InteractiveViewer değil — o bulanıklaştırırdı).

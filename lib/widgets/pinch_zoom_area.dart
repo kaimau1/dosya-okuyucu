@@ -108,12 +108,16 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
             onPointerMove: _move,
             onPointerUp: (e) => _end(e.pointer),
             onPointerCancel: (e) => _end(e.pointer),
-            child: Transform.scale(
-              scale: _gestureZoom,
-              // Zoom parmakların ortasından büyür — sol üstten değil; içerik
-              // parmakların altında kalır, "sayfa kayboluyor" hissi olmaz.
-              origin: _focal,
-              child: widget.builder(context, _zoom, physics),
+            // Pinch sırasında büyüyen içerik alanın dışına (rozet/komşu çubuklar)
+            // taşmasın diye kırpılır; commit sonrası içerik zaten görünür alanda.
+            child: ClipRect(
+              child: Transform.scale(
+                scale: _gestureZoom,
+                // Zoom parmakların ortasından büyür — sol üstten değil; içerik
+                // parmakların altında kalır, "sayfa kayboluyor" hissi olmaz.
+                origin: _focal,
+                child: widget.builder(context, _zoom, physics),
+              ),
             ),
           ),
         ),

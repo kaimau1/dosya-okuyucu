@@ -164,7 +164,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         onCommitted: _fixScroll,
         builder: (context, zoom, physics) {
           _zoom = zoom;
-          final cardW = math.max(120.0, box.maxWidth * _zoom - 32);
+          // Kart genişliği ve boşluklar zoom ile DOĞRUSAL ölçeklenir. PinchZoomArea
+          // canlı önizlemeyi tek tip (odaktan) GPU dönüşümüyle büyütür; yerleşim de
+          // doğrusal olursa parmak kalkınca commit edilen düzen canlı önizlemeyle
+          // birebir örtüşür ve "slaytlar zıplıyor" hissi kalkar (bkz. HAFIZA).
+          final cardW = math.max(120.0, (box.maxWidth - 32) * _zoom);
           final totalW = math.max(box.maxWidth, cardW + 32);
           return SingleChildScrollView(
             controller: _hCtrl,
@@ -196,7 +200,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     final scheme = Theme.of(context).colorScheme;
     final view = slide.view;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      // Slaytlar arası boşluk da zoom ile ölçeklenir → dikey yerleşim doğrusal
+      // kalır, commit'te zıplama olmaz (bkz. _buildSlides).
+      padding: EdgeInsets.only(bottom: 20 * _zoom),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
