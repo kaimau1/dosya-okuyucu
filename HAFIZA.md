@@ -191,6 +191,24 @@
   - **Slayt kutu biçimi:** metin düzenleme sayfasında B/I/U + punto
     (`PptxEditor.formatParagraph`; yalnız DOKUNULAN özellik yazılır, rPr ilk çocuk).
 
+- **2026-07-22 — PDF seçim düzeltmesi (kendi katmanımız) + OCR.**
+  - **TUZAK / pdfrx 2.x bu projede KULLANILAMAZ:** pdfrx 2.x'in kendi sürüm kısıtı
+    ">=3.7" dese de motoru `pdfrx_engine` TÜM sürümlerde Dart **>=3.8.1** ve
+    `archive ^4` istiyor; CI (3.29.3 = Dart 3.7) + `excel`in `archive ^3` kısıtı
+    ile pub çözümlemesi imkânsız. Yani "metin seçimi 2.0'da yeniden yazıldı"
+    düzeltmesi paket yükseltmeyle alınamıyor.
+  - **Karar:** seçim arayüzü bizim: `widgets/pdf_select_layer.dart` —
+    pdfium karakter kutuları (`loadText().fragments[].charRects`) ekran
+    koordinatına çevrilir; sürükleme/uzun basış karakter aralığına eşlenir,
+    vurgu CustomPainter, kopyalama alt çubuktan. "Metin seç" modu açıkken
+    `panEnabled=false` (jest çekişmesi kökten yok). 1.3.5'in SelectionArea
+    yolu Android'de "tepki var, seçim yok" veriyordu → tamamen kaldırıldı.
+  - **OCR:** `google_mlkit_text_recognition` **0.15.0 SABİT** (0.15.1+ Dart
+    >=3.8). Cihaz-içi, Latin (Türkçe dahil), internet yok. Görsel → doğrudan;
+    PDF → sayfa pdfium'la ~1600px PNG'ye çizilip tanınır (en çok 25 sayfa).
+    Sonuç seçilebilir sayfada + panoya; taranmış PDF'te/görselde AI sohbet
+    bağlamına da girer. ⋮ menüsünde "Metni tanı (OCR)".
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |
