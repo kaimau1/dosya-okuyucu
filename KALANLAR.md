@@ -1,8 +1,8 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
-- [ ] Faz 0 cihaz doğrulaması: 120Hz his, pinch akıcılığı, alt sistem çubuğu
-      çakışması, Word açılış ölçeği — telefonda kullanıcı deneyecek (2026-07-22)
+- [ ] Build 48 cihaz doğrulaması: slayt yazı sığdırma (autofit), Word açılış
+      ölçeği/görseller, ikon geri geldi mi, zoom-out serbestliği (2026-07-22)
 
 ## Sonra yapılacak
 - [ ] Faz 1 — Word canlı düzenleme: WebView contenteditable + JS köprüsü → `w:t`

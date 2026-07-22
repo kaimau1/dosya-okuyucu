@@ -49,7 +49,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   // Jest arenasına girmeden ham pointer'lardan hesaplanır: iki parmak inince
   // kaydırma kilitlenir, aradaki mesafe oranı canlı GPU ölçeği olur; parmak
   // kalkınca ölçek hücre metriklerine işlenir (yazı yeniden net çizilir).
-  static const _minZoom = 0.5;
+  static const _minZoom = 0.3; // geniş tablolara kuşbakışı için serbest zoom-out
   static const _maxZoom = 3.0;
   double _zoom = 1; // işlenmiş ölçek (hücre boyutları/yazılar bununla çarpılır)
   double _gestureZoom = 1; // pinch sırasında geçici Transform ölçeği

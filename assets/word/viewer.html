@@ -2,9 +2,10 @@
   Word görüntüleyici kabuğu. İnternet YOK: jszip + docx-preview aynı klasörden,
   APK içine gömülü olarak yüklenir. Flutter tarafı renderDocx(base64) çağırır.
 -->
-<!-- Sabit sayfa genişliği (A4 ~794px + kenar payı): WebView açılışta tam sayfayı
-     ekrana sığdırır, pinch ile Word'deki gibi yakınlaşılır/uzaklaşılır. -->
-<meta name="viewport" content="width=820, user-scalable=yes">
+<!-- Başlangıç tahmini A4; gerçek sayfa genişliği çizimden sonra ölçülüp
+     viewport güncellenir (fitViewport) — yatay/letter sayfalar da tam sığar.
+     minimum-scale: kullanıcı sığdırmanın da altına serbestçe uzaklaşabilsin. -->
+<meta name="viewport" content="width=820, minimum-scale=0.2, maximum-scale=6, user-scalable=yes">
 <style>
   html, body { margin: 0; padding: 0; background: #f3f2f1; }
   #container { padding: 8px 0 24px; }
@@ -39,6 +40,7 @@
         experimental: true,
         useBase64URL: true
       }).then(function () {
+        fitViewport();
         report('ok');
       }).catch(function (e) {
         showError(e);
@@ -47,6 +49,18 @@
       showError(e);
     }
   };
+
+  // Çizilen ilk sayfanın gerçek genişliğine göre viewport'u ayarlar:
+  // açılışta tam sayfa ekrana sığar (görseller "çok yakın" görünmez).
+  function fitViewport() {
+    var sec = document.querySelector('.docx-wrapper > section.docx');
+    var w = sec ? Math.ceil(sec.getBoundingClientRect().width) + 16 : 820;
+    var mv = document.querySelector('meta[name="viewport"]');
+    if (mv && w > 0) {
+      mv.setAttribute('content', 'width=' + w +
+        ', minimum-scale=0.2, maximum-scale=6, user-scalable=yes');
+    }
+  }
 
   function showError(e) {
     var el = document.getElementById('err');

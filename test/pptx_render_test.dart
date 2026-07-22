@@ -65,6 +65,40 @@ Uint8List _samplePptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// Autofit örneği: küçük kutuda (360x45pt) taşacak kadar uzun 32pt metin +
+/// `a:normAutofit` — PowerPoint bu durumda yazıyı kutuya sığdırır.
+Uint8List _autofitPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="2" name="Baslik"/><p:nvPr/></p:nvSpPr>
+   <p:spPr>
+    <a:xfrm><a:off x="914400" y="457200"/><a:ext cx="4572000" cy="571500"/></a:xfrm>
+    <a:prstGeom prst="rect"/>
+   </p:spPr>
+   <p:txBody><a:bodyPr><a:normAutofit lnSpcReduction="10000"/></a:bodyPr>
+    <a:p><a:r><a:rPr sz="3200"/><a:t>Uzun bir başlık metni kutuya sığmayacak kadar uzun yazılırsa PowerPoint yazıyı otomatik küçültür</a:t></a:r></a:p>
+   </p:txBody>
+  </p:sp>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 void main() {
   test('slayt geometrisi, rengi ve metni EMU -> punto olarak çözümlenir', () {
     final editor = PptxEditor.parse(_samplePptx());
@@ -168,6 +202,42 @@ void main() {
 
     await t.tap(find.text('Merhaba'));
     expect(tapped?.text, 'Merhaba');
+  });
+
+  testWidgets('normAutofit taşan yazıyı kutuya sığacak şekilde küçültür',
+      (t) async {
+    final view = PptxEditor.parse(_autofitPptx()).slides.single.view!;
+    final shape = view.shapes.single;
+    expect(shape.autofit, isTrue);
+    expect(shape.lnSpcReduction, closeTo(0.1, 0.001));
+
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 400,
+          height: 225,
+          child: SlideCanvas(slide: view),
+        ),
+      ),
+    ));
+
+    // Çizilen span'in efektif punto boyutu, bildirilen 32pt'nin altına inmeli.
+    final rich = t.widget<RichText>(find
+        .byWidgetPredicate(
+            (w) => w is RichText && w.text.toPlainText().contains('Uzun'))
+        .first);
+    double? found;
+    rich.text.visitChildren((span) {
+      if (span is TextSpan &&
+          (span.text ?? '').contains('Uzun') &&
+          span.style?.fontSize != null) {
+        found = span.style!.fontSize;
+        return false;
+      }
+      return true;
+    });
+    expect(found, isNotNull);
+    expect(found!, lessThan(32));
   });
 }
 

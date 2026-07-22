@@ -157,7 +157,9 @@ class _ShapeBody extends StatelessWidget {
 
   /// Metin kutusu: PowerPoint'te olduğu gibi sığmayan yazı kutunun dışına taşar
   /// (kırpılmaz). [OverflowBox] hem taşmayı serbest bırakır hem de dikey
-  /// hizalamayı (üst/orta/alt) uygular.
+  /// hizalamayı (üst/orta/alt) uygular. `normAutofit` olan kutularda PowerPoint
+  /// yazıyı SIĞDIRDIĞI için biz de ölçüp gereken ek küçültmeyi uygularız —
+  /// font metriği farkından (Calibri ≠ Roboto) doğan taşmayı da bu kapatır.
   Widget _text(ShapeVM s) {
     Alignment alignment;
     switch (s.vAnchor) {
@@ -170,6 +172,9 @@ class _ShapeBody extends StatelessWidget {
       default:
         alignment = Alignment.topCenter;
     }
+
+    var scale = s.fontScale;
+    if (s.autofit) scale *= _fitScale(s, scale);
 
     return OverflowBox(
       alignment: alignment,
@@ -184,10 +189,11 @@ class _ShapeBody extends StatelessWidget {
             for (var i = 0; i < s.paragraphs.length; i++)
               if (s.paragraphs[i].plainText.isNotEmpty)
                 paraVisible == null
-                    ? _paragraph(s.paragraphs[i], s.fontScale)
+                    ? _paragraph(s.paragraphs[i], scale, s.lnSpcReduction)
                     : _Reveal(
                         visible: paraVisible![i],
-                        child: _paragraph(s.paragraphs[i], s.fontScale),
+                        child:
+                            _paragraph(s.paragraphs[i], scale, s.lnSpcReduction),
                       ),
           ],
         ),
@@ -195,8 +201,33 @@ class _ShapeBody extends StatelessWidget {
     );
   }
 
-  Widget _paragraph(ParaVM p, double fontScale) {
-    final span = TextSpan(
+  /// Kutuya sığması için gereken ek ölçek (1 = küçültme gerekmez).
+  /// Font küçülünce satır sayısı da azalacağı için oran güvenli üst sınırdır.
+  double _fitScale(ShapeVM s, double baseScale) {
+    final availW = s.w - s.inset.horizontal;
+    final availH = s.h - s.inset.vertical;
+    if (availW <= 0 || availH <= 0) return 1;
+
+    var total = 0.0;
+    for (final p in s.paragraphs) {
+      if (p.plainText.isEmpty) continue;
+      final tp = TextPainter(
+        text: _span(p, baseScale, s.lnSpcReduction),
+        textAlign: p.align,
+        textDirection: TextDirection.ltr,
+      )..layout(
+          maxWidth: math.max(
+              1, availW - p.indentPt - (p.bullet.isEmpty ? 0 : 14)));
+      total += tp.height + p.spaceBeforePt;
+      tp.dispose();
+    }
+    if (total <= 0 || total <= availH) return 1;
+    // ponytail: tek geçişli oran; yetmediği görülürse ikinci ölçüm turu eklenir
+    return math.max(0.4, availH / total);
+  }
+
+  TextSpan _span(ParaVM p, double fontScale, double lnSpcReduction) {
+    return TextSpan(
       children: [
         for (final r in p.runs)
           TextSpan(
@@ -208,13 +239,15 @@ class _ShapeBody extends StatelessWidget {
               decoration:
                   r.underline ? TextDecoration.underline : TextDecoration.none,
               color: r.color,
-              height: p.lineHeight,
+              height: p.lineHeight * (1 - lnSpcReduction),
             ),
           ),
       ],
     );
+  }
 
-    final body = Text.rich(span, textAlign: p.align);
+  Widget _paragraph(ParaVM p, double fontScale, double lnSpcReduction) {
+    final body = Text.rich(_span(p, fontScale, lnSpcReduction), textAlign: p.align);
     final first = p.runs.isEmpty ? null : p.runs.first;
 
     return Padding(
@@ -231,7 +264,7 @@ class _ShapeBody extends StatelessWidget {
                     style: TextStyle(
                       fontSize: (first?.sizePt ?? 18) * fontScale,
                       color: first?.color,
-                      height: p.lineHeight,
+                      height: p.lineHeight * (1 - lnSpcReduction),
                     ),
                   ),
                 ),

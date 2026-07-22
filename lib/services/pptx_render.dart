@@ -87,6 +87,13 @@ class ShapeVM {
   final EdgeInsets inset;
   final double fontScale;
 
+  /// `a:normAutofit` var mı: PowerPoint bu kutuda yazıyı KUTUYA SIĞDIRIR.
+  /// Canvas bunu görünce kendi ölçümüyle ek küçültme uygular (font farkını da kapatır).
+  final bool autofit;
+
+  /// `a:normAutofit@lnSpcReduction` (0-1): satır aralığı küçültmesi.
+  final double lnSpcReduction;
+
   const ShapeVM({
     required this.x,
     required this.y,
@@ -104,6 +111,8 @@ class ShapeVM {
     this.vAnchor = 't',
     this.inset = const EdgeInsets.fromLTRB(7.2, 3.6, 7.2, 3.6),
     this.fontScale = 1,
+    this.autofit = false,
+    this.lnSpcReduction = 0,
   });
 
   bool get hasText => paragraphs.any((p) => p.plainText.isNotEmpty);
@@ -542,6 +551,8 @@ class PptxRender {
         _pt(bodyPr?.getAttribute('bIns')) ?? 3.6,
       ),
       fontScale: _fontScale(bodyPr),
+      autofit: bodyPr != null && _first(bodyPr, 'a:normAutofit') != null,
+      lnSpcReduction: _lnSpcReduction(bodyPr),
     );
   }
 
@@ -549,6 +560,12 @@ class PptxRender {
     final fit = bodyPr == null ? null : _first(bodyPr, 'a:normAutofit');
     final v = int.tryParse(fit?.getAttribute('fontScale') ?? '');
     return v == null ? 1 : v / 100000.0;
+  }
+
+  double _lnSpcReduction(XmlElement? bodyPr) {
+    final fit = bodyPr == null ? null : _first(bodyPr, 'a:normAutofit');
+    final v = int.tryParse(fit?.getAttribute('lnSpcReduction') ?? '');
+    return v == null ? 0 : (v / 100000.0).clamp(0.0, 0.5);
   }
 
   // ---------------------------------------------------------------- metin

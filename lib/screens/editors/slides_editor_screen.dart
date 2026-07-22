@@ -198,8 +198,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
             child: Center(
               child: InteractiveViewer(
                 transformationController: _tc,
-                minScale: 1,
+                // Serbest zoom-out istendi: %50'ye kadar uzaklaşılabilir,
+                // sonsuz kenar payı küçültülmüş slaydın gezdirilmesine izin verir.
+                minScale: 0.5,
                 maxScale: 5,
+                boundaryMargin: const EdgeInsets.all(double.infinity),
                 onInteractionUpdate: (d) {
                   if (d.pointerCount >= 2) {
                     _badge.bump(_tc.value.getMaxScaleOnAxis());
