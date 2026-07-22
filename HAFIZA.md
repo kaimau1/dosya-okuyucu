@@ -216,6 +216,16 @@
   CI'da `android/app/proguard-rules.pro`'ya kopyalanır; Flutter'ın Gradle
   eklentisi bu dosyayı otomatik dahil eder, build.gradle patch'i GEREKMEZ.
 
+- **2026-07-22 — Gemini model listesi API'den otomatik çekilir.**
+  Ayarlar'da API anahtarı girilince (600ms debounce) `GeminiService.listModels`
+  (ListModels REST uç noktası) çağrılır; yalnızca `generateContent` destekleyen
+  modeller döner, sürüm+yetenek sıralamasıyla (2.5 pro gibi en yeniler önde)
+  dropdown'a dolar. Kayıtlı model bu hesapta yoksa listenin ilkine geçilir.
+  Anahtar boş/geçersiz/ağ hatasında sessizce statik yedek listeye (`_fallbackModels`)
+  düşülür — kullanıcı hiçbir zaman boş dropdown'la kalmaz. Elle "yenile" düğmesi var.
+  *Test:* `http.runWithClient` + `MockClient` (paket zon-tabanlı override sağlıyor,
+  GeminiService'e Client enjekte etmeye gerek kalmadı — düz REST sarmalayıcı ilkesi korundu).
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |
