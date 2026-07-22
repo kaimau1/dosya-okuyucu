@@ -116,7 +116,6 @@ void main() {
   });
 
   group('LegacyText — ikili stream\'den en iyi çaba metin', () {
-  group('LegacyText — ikili stream\'den en iyi çaba metin', () {
     test('gömülü UTF-16LE metni çıkarır (Türkçe dahil)', () {
       final text = _utf16le('Merhaba Dünya bu bir test belgesidir');
       final bytes = Uint8List.fromList([
