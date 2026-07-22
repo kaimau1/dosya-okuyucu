@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
@@ -71,5 +73,68 @@ void main() {
 
     final again = XlsxEditor.parse(e.save());
     expect(again.sheets.first.rows[1][0], 'yeni değer');
+  });
+
+  test('formül girişi kaydedilen dosyaya <f> olarak yazılır', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+
+    e.setCell(name, 3, 0, '=SUM(A2:A3)');
+    // Kaydedilen çalışma sayfası XML'i formülü içermeli → Excel açınca hesaplar.
+    final saved = e.save();
+    final archive = ZipDecoder().decodeBytes(saved);
+    final sheetXml = archive.files
+        .where((f) =>
+            f.name.startsWith('xl/worksheets/') && f.name.endsWith('.xml'))
+        .map((f) => utf8.decode(f.content as List<int>, allowMalformed: true))
+        .join();
+    expect(sheetXml, contains('SUM(A2:A3)'));
+  });
+
+  test('sayı sayı tipinde, baştaki sıfırlı kod metin olarak saklanır', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+
+    e.setCell(name, 4, 0, '1250');
+    e.setCell(name, 4, 1, '007'); // kod/telefon: metin kalmalı
+    final again = XlsxEditor.parse(e.save());
+    // 1250 sayı olarak yazıldıysa yeniden okununca da 1250 döner.
+    expect(again.sheets.first.rows[4][0], '1250');
+    // "007" sayıya çevrilseydi "7" olurdu; metin kaldığı için sıfırlar korunur.
+    expect(again.sheets.first.rows[4][1], '007');
+  });
+
+  test('satır ekleme/silme veriyi doğru taşır ve kaydeder', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+    final before = e.sheets.first.rows.length; // 2
+
+    // 1. indekse (2. satır) boş satır ekle → eski 42'li satır aşağı kayar.
+    e.insertRow(name, 1);
+    expect(e.sheets.first.rows.length, before + 1);
+    expect(e.sheets.first.rows[2][0], '42');
+
+    // Kalıcı: kaydedilip yeniden okununca 42 hâlâ 3. satırda (elle kaydırma
+    // excel nesnesine de yazıldı).
+    final afterInsert = XlsxEditor.parse(e.save());
+    expect(afterInsert.sheets.first.rows[2][0], '42');
+
+    // Aynı satırı sil → veri geri gelir.
+    e.deleteRow(name, 1);
+    expect(e.sheets.first.rows.length, before);
+    expect(e.sheets.first.rows[1][0], '42');
+  });
+
+  test('sütun ekleme/silme veriyi doğru taşır', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+    final cols = e.sheets.first.maxCols; // 3
+
+    e.insertColumn(name, 0); // en başa sütun → 42 bir sağa kayar
+    expect(e.sheets.first.maxCols, cols + 1);
+    expect(e.sheets.first.rows[1][1], '42');
+
+    e.deleteColumn(name, 0);
+    expect(e.sheets.first.rows[1][0], '42');
   });
 }

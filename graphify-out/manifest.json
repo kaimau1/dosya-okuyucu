@@ -20,9 +20,9 @@
     "semantic_hash": ""
   },
   "lib/models/document.dart": {
-    "mtime": 1784617100.6128728,
-    "ast_hash": "881533cf58c05b904772eba9fcc4e715",
-    "semantic_hash": "881533cf58c05b904772eba9fcc4e715"
+    "mtime": 1784722555.910653,
+    "ast_hash": "681ee2febccffb387fe064a4b3254f5f",
+    "semantic_hash": ""
   },
   "lib/models/recent_file.dart": {
     "mtime": 1784617100.6128728,
@@ -30,29 +30,29 @@
     "semantic_hash": "ea9b92414bb7a40f05298a30b376b4a2"
   },
   "lib/screens/chat_screen.dart": {
-    "mtime": 1784617100.6128728,
-    "ast_hash": "970d010efa591584d45ed03123197875",
-    "semantic_hash": "970d010efa591584d45ed03123197875"
+    "mtime": 1784722555.9116518,
+    "ast_hash": "a0a3e67dbc3a66288f7822700bfcadc8",
+    "semantic_hash": ""
   },
   "lib/screens/editors/slides_editor_screen.dart": {
-    "mtime": 1784718717.253081,
-    "ast_hash": "f35f1dbf2bb3fd9fdaaac76cece17439",
+    "mtime": 1784722685.7033744,
+    "ast_hash": "dfebf9485a50a0675f4f7b7f3ceb6161",
     "semantic_hash": ""
   },
   "lib/screens/editors/spreadsheet_editor_screen.dart": {
-    "mtime": 1784718720.7154374,
-    "ast_hash": "3477ae11fb5de4196d2620e07f7d5740",
+    "mtime": 1784722649.7573936,
+    "ast_hash": "f0dceade4f61b46b197bcbcbc78ae673",
     "semantic_hash": ""
   },
   "lib/screens/editors/word_editor_screen.dart": {
-    "mtime": 1784719198.9914804,
-    "ast_hash": "8a045754e9ed04574b40ec39fbbfab9f",
+    "mtime": 1784723029.104406,
+    "ast_hash": "86028a5d8c2f693fd69f5fd40f4dc30b",
     "semantic_hash": ""
   },
   "lib/screens/home_screen.dart": {
-    "mtime": 1784617100.615637,
-    "ast_hash": "c663af6a87fd9c7c4e943b38a5c16b5e",
-    "semantic_hash": "c663af6a87fd9c7c4e943b38a5c16b5e"
+    "mtime": 1784722555.914603,
+    "ast_hash": "188999a69a8a28a433e7348fdb983c8f",
+    "semantic_hash": ""
   },
   "lib/screens/settings_screen.dart": {
     "mtime": 1784617100.615637,
@@ -60,8 +60,8 @@
     "semantic_hash": "1f52792faa0c5a5532fbd448eb57780d"
   },
   "lib/screens/viewer_screen.dart": {
-    "mtime": 1784716848.0340974,
-    "ast_hash": "18b6d27fbfbfc1f182ad387e07333498",
+    "mtime": 1784722905.70762,
+    "ast_hash": "75148e7c2693cba6e8d8605403d69ea2",
     "semantic_hash": ""
   },
   "lib/services/conversion_service.dart": {
@@ -70,14 +70,14 @@
     "semantic_hash": "1c003e96a3f0601db4cca08b087dbb73"
   },
   "lib/services/docx_editor.dart": {
-    "mtime": 1784719078.000833,
-    "ast_hash": "d33b4f35d080f1ada0eb3a6074317044",
+    "mtime": 1784722871.4899273,
+    "ast_hash": "e22f199f07283878996c67ce97824074",
     "semantic_hash": ""
   },
   "lib/services/file_service.dart": {
-    "mtime": 1784617100.61781,
-    "ast_hash": "2c16b17540945f794e88510bc3c595d8",
-    "semantic_hash": "2c16b17540945f794e88510bc3c595d8"
+    "mtime": 1784722555.9184527,
+    "ast_hash": "4cbf4dbaa0c6b898aac4546adb0e4480",
+    "semantic_hash": ""
   },
   "lib/services/firebase_service.dart": {
     "mtime": 1784617100.61781,
@@ -95,13 +95,13 @@
     "semantic_hash": "8f8b2173c28a5318da1c1faf0c58a6cc"
   },
   "lib/services/pptx_editor.dart": {
-    "mtime": 1784619473.815523,
-    "ast_hash": "e45478aebbd165c72c6c3860f188a3c3",
+    "mtime": 1784722555.920395,
+    "ast_hash": "1010253c3560a82b7051378cc4b3a171",
     "semantic_hash": ""
   },
   "lib/services/xlsx_editor.dart": {
-    "mtime": 1784625573.165029,
-    "ast_hash": "2a674a0fc47f75c08ae07736f83967e5",
+    "mtime": 1784722555.9226525,
+    "ast_hash": "55b8c72538a26d470c53fd718dd48a07",
     "semantic_hash": ""
   },
   "lib/widgets/file_type_icon.dart": {
@@ -125,18 +125,18 @@
     "semantic_hash": ""
   },
   "lib/services/pptx_render.dart": {
-    "mtime": 1784718680.0253856,
-    "ast_hash": "f73bbd6171e7c58ea70b9a42c22669be",
+    "mtime": 1784722555.920395,
+    "ast_hash": "79ed969456861e46e0e2b1f5369a189b",
     "semantic_hash": ""
   },
   "lib/widgets/docx_view.dart": {
-    "mtime": 1784719133.8133512,
-    "ast_hash": "d0b8fa282a6df0166f2dd611af4e0c2e",
+    "mtime": 1784722555.9236467,
+    "ast_hash": "0dba284fc27f936ad7601f44515dc058",
     "semantic_hash": ""
   },
   "lib/widgets/slide_canvas.dart": {
-    "mtime": 1784718708.7397106,
-    "ast_hash": "854167eb2b452e48d05489d050747987",
+    "mtime": 1784722555.9246466,
+    "ast_hash": "aedb765e0d3acb8ba8f0f1be070f9b26",
     "semantic_hash": ""
   },
   "test/pptx_render_test.dart": {
@@ -155,13 +155,13 @@
     "semantic_hash": ""
   },
   "test/xlsx_editor_test.dart": {
-    "mtime": 1784625432.8129387,
-    "ast_hash": "6c29d1f7a8819a17853f6975242053d8",
+    "mtime": 1784722555.9319265,
+    "ast_hash": "76519e1d0bd1cab93be842a64f25ff8d",
     "semantic_hash": ""
   },
   ".github/workflows/build-apk.yml": {
-    "mtime": 1784718647.1482239,
-    "ast_hash": "2bb7a88ed139607771e3004c647b3884",
+    "mtime": 1784722555.908089,
+    "ast_hash": "00519275a29fb94eda503efdf63677ca",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "HAFIZA.md": {
-    "mtime": 1784719298.6594088,
-    "ast_hash": "f95367b1ad7f9fe536f6e86f9b25082a",
+    "mtime": 1784722977.738708,
+    "ast_hash": "58dbba3c7c11609372d4adf0266e7271",
     "semantic_hash": ""
   },
   "README.md": {
@@ -200,13 +200,13 @@
     "semantic_hash": ""
   },
   "assets/word/viewer.html": {
-    "mtime": 1784719105.399762,
-    "ast_hash": "1af6098c119a887766f99b971757d472",
+    "mtime": 1784720568.4557924,
+    "ast_hash": "b61d3e3d75d49def9d12894e2acc9c95",
     "semantic_hash": ""
   },
   "pubspec.yaml": {
-    "mtime": 1784718651.6786385,
-    "ast_hash": "589f440ba17ff23bf70ba81d1fbcc3ce",
+    "mtime": 1784722555.9246466,
+    "ast_hash": "0e078caebc2e22262e0420e477e40361",
     "semantic_hash": ""
   },
   "lib/widgets/office_shell.dart": {
@@ -215,13 +215,13 @@
     "semantic_hash": ""
   },
   "KALANLAR.md": {
-    "mtime": 1784719289.7991014,
-    "ast_hash": "b805002163548cb0bf0e1cbe23f259f1",
+    "mtime": 1784723102.9650276,
+    "ast_hash": "1f58bf85c28542b77ef2474d38c01f70",
     "semantic_hash": ""
   },
   "test/docx_editor_test.dart": {
-    "mtime": 1784719220.987221,
-    "ast_hash": "c619de4269637d120ae1498302f42d29",
+    "mtime": 1784722944.2179556,
+    "ast_hash": "b321968c33790c1307ffaf2df9a82e11",
     "semantic_hash": ""
   },
   "tool/gen_icon.py": {
@@ -237,6 +237,91 @@
   "assets/icon/icon.png": {
     "mtime": 1784718639.518683,
     "ast_hash": "710ce6b15e7f10f621964892008924be",
+    "semantic_hash": ""
+  },
+  "lib/services/blank_docs.dart": {
+    "mtime": 1784723042.680521,
+    "ast_hash": "b18cea00fab2f40ebdfcd05328ad6523",
+    "semantic_hash": ""
+  },
+  "lib/services/formula_engine.dart": {
+    "mtime": 1784722555.9184527,
+    "ast_hash": "aaed5646b1c9c03ab5240ecb303d0bb8",
+    "semantic_hash": ""
+  },
+  "lib/services/legacy_text.dart": {
+    "mtime": 1784722555.9184527,
+    "ast_hash": "763648c4444655d0627f32745b504876",
+    "semantic_hash": ""
+  },
+  "lib/services/ole_cfb.dart": {
+    "mtime": 1784722555.9198785,
+    "ast_hash": "4780947d2b66c0391e71545aa7a7e63d",
+    "semantic_hash": ""
+  },
+  "lib/services/xls_legacy.dart": {
+    "mtime": 1784722555.9216497,
+    "ast_hash": "0e59a965297ef11fa5287031e721c7c6",
+    "semantic_hash": ""
+  },
+  "lib/widgets/pinch_zoom_area.dart": {
+    "mtime": 1784720947.3907077,
+    "ast_hash": "4e9f5ed23b3d887293c5ce3d7d9f7d9b",
+    "semantic_hash": ""
+  },
+  "test/blank_docs_test.dart": {
+    "mtime": 1784722555.9246466,
+    "ast_hash": "86adf7b7759bd5aa165ee406e4e1dc3f",
+    "semantic_hash": ""
+  },
+  "test/file_service_test.dart": {
+    "mtime": 1784722555.9262722,
+    "ast_hash": "f4e89565c7504c6a2cb95371630e6ee3",
+    "semantic_hash": ""
+  },
+  "test/formula_engine_test.dart": {
+    "mtime": 1784722555.9294024,
+    "ast_hash": "9b9d9e86423cfcdd69a3b78b18e333e9",
+    "semantic_hash": ""
+  },
+  "test/legacy_text_test.dart": {
+    "mtime": 1784722555.9300506,
+    "ast_hash": "64d7add6982780e3c4730e844e7648bf",
+    "semantic_hash": ""
+  },
+  "test/ole_cfb_test.dart": {
+    "mtime": 1784722555.9300506,
+    "ast_hash": "f40d739015650b737b1838db41c8d521",
+    "semantic_hash": ""
+  },
+  "test/pptx_gradient_test.dart": {
+    "mtime": 1784722555.9300506,
+    "ast_hash": "6141d8dd0a295ff651cfdd3fc761e84d",
+    "semantic_hash": ""
+  },
+  "test/pptx_structure_test.dart": {
+    "mtime": 1784722555.9300506,
+    "ast_hash": "5001208f812ea96f29e53d77f60b5bfb",
+    "semantic_hash": ""
+  },
+  "test/xls_legacy_test.dart": {
+    "mtime": 1784722555.9319265,
+    "ast_hash": "42767bd409ce1acebdf54ee47021104e",
+    "semantic_hash": ""
+  },
+  "test/xlsx_number_format_test.dart": {
+    "mtime": 1784722555.9331093,
+    "ast_hash": "2531fab318422d06b344d5ca92f1b403",
+    "semantic_hash": ""
+  },
+  "ci/build-trigger.txt": {
+    "mtime": 1784722555.909624,
+    "ast_hash": "75810351aa048b079868f7286a0c7537",
+    "semantic_hash": ""
+  },
+  "graphify-out/converted/number_formats_512de8d6.md": {
+    "mtime": 1784723118.2842047,
+    "ast_hash": "62bf78b863d9ef17f16b1113d42c3ada",
     "semantic_hash": ""
   }
 }

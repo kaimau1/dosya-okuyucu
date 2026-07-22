@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
 import '../models/document.dart';
 import '../models/recent_file.dart';
+import '../services/blank_docs.dart';
 import '../services/file_service.dart';
 import '../widgets/file_type_icon.dart';
 import 'chat_screen.dart';
@@ -23,6 +27,53 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _fileService = FileService();
   bool _loading = false;
+  String _query = '';
+  StreamSubscription<List<SharedMediaFile>>? _intentSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _initShareIntake();
+  }
+
+  @override
+  void dispose() {
+    _intentSub?.cancel();
+    super.dispose();
+  }
+
+  /// "Birlikte aç" / paylaş ile başka uygulamalardan gelen dosyaları yakalar:
+  /// uygulama kapalıyken açıldıysa (initial) ve açıkken paylaşıldıysa (stream).
+  void _initShareIntake() {
+    // Uygulama bir dosyayla açıldıysa.
+    ReceiveSharingIntent.instance.getInitialMedia().then((files) {
+      if (files.isNotEmpty) _openShared(files);
+      ReceiveSharingIntent.instance.reset();
+    }).catchError((_) {});
+
+    // Uygulama açıkken yeni dosya paylaşılırsa.
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen(
+      (files) {
+        if (files.isNotEmpty) _openShared(files);
+      },
+      onError: (_) {},
+    );
+  }
+
+  /// Gelen paylaşımdaki ilk açılabilir dosyayı açar.
+  Future<void> _openShared(List<SharedMediaFile> files) async {
+    if (!mounted) return;
+    final path = files.first.path;
+    if (path.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      await _openPath(path);
+    } catch (e) {
+      _showError('Paylaşılan dosya açılamadı: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Future<void> _openNew() async {
     setState(() => _loading = true);
@@ -48,6 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
     if (!mounted) return;
     final route = MaterialPageRoute(builder: (_) {
+      // Salt-okunur (eski .doc/.xls/.ppt'den çıkarılan) içerik OOXML editörlerine
+      // gidemez → görüntüleyicide gösterilir.
+      if (doc.readOnly) return ViewerScreen(doc: doc);
       switch (doc.kind) {
         case DocKind.spreadsheet:
           return SpreadsheetEditorScreen(
@@ -70,15 +124,97 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// "Yeni belge" seçim sayfası (Word / Excel / Metin oluşturur).
+  void _newDocument() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Yeni belge oluştur',
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ),
+            ),
+            _newTile(ctx, DocKind.word, 'Word belgesi', '.docx', 'docx'),
+            _newTile(ctx, DocKind.spreadsheet, 'Excel tablosu', '.xlsx', 'xlsx'),
+            _newTile(ctx, DocKind.text, 'Metin dosyası', '.txt', 'txt'),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _newTile(BuildContext ctx, DocKind kind, String title, String sub,
+      String type) {
+    return ListTile(
+      leading: FileTypeIcon(kind: kind),
+      title: Text(title),
+      subtitle: Text(sub),
+      onTap: () {
+        Navigator.pop(ctx);
+        _createAndOpen(type);
+      },
+    );
+  }
+
+  Future<void> _createAndOpen(String type) async {
+    setState(() => _loading = true);
+    try {
+      final path = await BlankDocs.create(type);
+      await _openPath(path);
+    } catch (e) {
+      _showError('Yeni belge oluşturulamadı: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _cycleTheme(AppState appState) {
+    final next = switch (appState.themeMode) {
+      ThemeMode.system => ThemeMode.light,
+      ThemeMode.light => ThemeMode.dark,
+      ThemeMode.dark => ThemeMode.system,
+    };
+    appState.setThemeMode(next);
+  }
+
+  (IconData, String) _themeIcon(ThemeMode mode) => switch (mode) {
+        ThemeMode.system => (Icons.brightness_auto_outlined, 'Tema: Sistem'),
+        ThemeMode.light => (Icons.light_mode_outlined, 'Tema: Açık'),
+        ThemeMode.dark => (Icons.dark_mode_outlined, 'Tema: Koyu'),
+      };
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final recents = appState.recents;
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? recents
+        : recents.where((r) => r.name.toLowerCase().contains(q)).toList();
+    final (themeIc, themeTip) = _themeIcon(appState.themeMode);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dosya Okuyucu'),
         actions: [
+          IconButton(
+            tooltip: 'Yeni belge',
+            icon: const Icon(Icons.note_add_outlined),
+            onPressed: _newDocument,
+          ),
+          IconButton(
+            tooltip: themeTip,
+            icon: Icon(themeIc),
+            onPressed: () => _cycleTheme(appState),
+          ),
           IconButton(
             tooltip: 'AI Sohbet',
             icon: const Icon(Icons.smart_toy_outlined),
@@ -99,10 +235,19 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator())
           : recents.isEmpty
               ? _EmptyState(onOpen: _openNew, hasApiKey: appState.hasApiKey)
-              : _RecentList(
-                  recents: recents,
-                  onTap: (r) => _openPath(r.path),
-                  onRemove: (r) => appState.removeRecent(r.path),
+              : Column(
+                  children: [
+                    if (recents.length > 4) _searchBar(),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const _NoMatch()
+                          : _RecentList(
+                              recents: filtered,
+                              onTap: (r) => _openSafely(r),
+                              onRemove: (r) => appState.removeRecent(r.path),
+                            ),
+                    ),
+                  ],
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openNew,
@@ -111,6 +256,45 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  /// Son dosya açılırken hata olursa (ör. dosya taşınmış) kullanıcıyı bilgilendir.
+  Future<void> _openSafely(RecentFile r) async {
+    try {
+      await _openPath(r.path);
+    } catch (e) {
+      _showError('Dosya açılamadı (taşınmış olabilir): ${r.name}');
+    }
+  }
+
+  Widget _searchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: TextField(
+        onChanged: (v) => setState(() => _query = v),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: 'Son dosyalarda ara…',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => setState(() => _query = ''),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoMatch extends StatelessWidget {
+  const _NoMatch();
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Text('Eşleşen dosya yok',
+            style: Theme.of(context).textTheme.bodyMedium),
+      );
 }
 
 class _EmptyState extends StatelessWidget {
@@ -133,8 +317,9 @@ class _EmptyState extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             const Text(
-              'PDF, Word, Excel, Slayt ve metin dosyalarını açıp okuyabilir, '
-              'düzenleyebilir ve yapay zeka ile üzerinde çalışabilirsiniz.',
+              'PDF, Word, Excel, Slayt, görsel ve metin dosyalarını açıp '
+              'inceleyebilir, düzenleyebilir ve yapay zeka ile üzerinde '
+              'çalışabilirsiniz.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -172,7 +357,7 @@ class _RecentList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
       itemCount: recents.length,
       separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, i) {
@@ -184,21 +369,44 @@ class _RecentList extends StatelessWidget {
           background: Container(
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 20),
-            color: Theme.of(context).colorScheme.errorContainer,
-            child: const Icon(Icons.delete_outline),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.delete_outline,
+                color: Theme.of(context).colorScheme.onErrorContainer),
           ),
           onDismissed: (_) => onRemove(r),
           child: Card(
+            margin: EdgeInsets.zero,
             child: ListTile(
               leading: FileTypeIcon(kind: kind),
               title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text('${kind.label} • ${_size(r.sizeBytes)}'),
+              subtitle: Text(
+                '${kind.label} • ${_size(r.sizeBytes)} • ${_relTime(r.openedAtMs)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(Icons.chevron_right),
               onTap: () => onTap(r),
             ),
           ),
         );
       },
     );
+  }
+
+  String _relTime(int ms) {
+    if (ms <= 0) return '';
+    final d = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(ms));
+    if (d.inMinutes < 1) return 'az önce';
+    if (d.inMinutes < 60) return '${d.inMinutes} dk önce';
+    if (d.inHours < 24) return '${d.inHours} saat önce';
+    if (d.inDays < 7) return '${d.inDays} gün önce';
+    if (d.inDays < 30) return '${(d.inDays / 7).floor()} hafta önce';
+    if (d.inDays < 365) return '${(d.inDays / 30).floor()} ay önce';
+    return '${(d.inDays / 365).floor()} yıl önce';
   }
 
   String _size(int bytes) {

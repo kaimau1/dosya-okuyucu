@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -22,6 +23,10 @@ class SlideVM {
   final double widthPt;
   final double heightPt;
   final Color? background;
+
+  /// Slayt arka planı gradient dolgu ise (düz renk yerine). Varsa çizimde
+  /// [background]'ın yerine kullanılır.
+  final Gradient? backgroundGradient;
   final Uint8List? backgroundImage;
   final List<ShapeVM> shapes;
 
@@ -34,6 +39,7 @@ class SlideVM {
     required this.heightPt,
     required this.shapes,
     this.background,
+    this.backgroundGradient,
     this.backgroundImage,
     this.steps = const [],
   });
@@ -77,6 +83,9 @@ class ShapeVM {
   final double x, y, w, h;
   final double rotationDeg;
   final Color? fill;
+
+  /// Şekil dolgusu gradient ise (düz [fill] yerine). Varsa çizimde öncelikli.
+  final Gradient? gradient;
   final Color? stroke;
   final double strokeWidth;
   final bool isEllipse;
@@ -108,6 +117,7 @@ class ShapeVM {
     this.id = 0,
     this.rotationDeg = 0,
     this.fill,
+    this.gradient,
     this.stroke,
     this.strokeWidth = 0,
     this.isEllipse = false,
@@ -228,6 +238,7 @@ class PptxRender {
     final defaults = _textDefaults(masterDoc, theme, clrMap);
 
     Color? bg;
+    Gradient? bgGradient;
     Uint8List? bgImage;
     // Arka plan: slayt -> düzen -> asıl slayt sırasıyla ilk bulunan kazanır.
     final bgSources = <(XmlDocument?, String?)>[
@@ -240,8 +251,10 @@ class PptxRender {
       final bgEl = _first(_first(d.rootElement, 'p:cSld'), 'p:bg');
       if (bgEl == null) continue;
       bg = _bgColor(bgEl, theme, clrMap);
+      final pr = _first(bgEl, 'p:bgPr');
+      bgGradient ??= pr == null ? null : _gradFill(pr, theme, clrMap);
       bgImage ??= _bgImage(bgEl, file);
-      if (bg != null || bgImage != null) break;
+      if (bg != null || bgGradient != null || bgImage != null) break;
     }
 
     final shapes = <ShapeVM>[];
@@ -264,6 +277,7 @@ class PptxRender {
       widthPt: slideW,
       heightPt: slideH,
       background: bg,
+      backgroundGradient: bgGradient,
       backgroundImage: bgImage,
       shapes: shapes,
       steps: _timing(doc),
@@ -506,8 +520,10 @@ class PptxRender {
     final isEllipse = prst == 'ellipse' || prst == 'chord' || prst == 'pie';
 
     Color? fill;
+    Gradient? gradient;
     if (spPr != null && _first(spPr, 'a:noFill') == null) {
       fill = _solidFill(spPr, theme, clrMap);
+      gradient = _gradFill(spPr, theme, clrMap);
     }
 
     Color? stroke;
@@ -544,6 +560,7 @@ class PptxRender {
       h: h,
       rotationDeg: rot,
       fill: fill,
+      gradient: gradient,
       stroke: stroke,
       strokeWidth: strokeW,
       isEllipse: isEllipse,
@@ -703,6 +720,56 @@ class PptxRender {
     final fill = _first(parent, 'a:solidFill');
     if (fill == null) return null;
     return _colorOf(fill, theme, clrMap);
+  }
+
+  /// `a:gradFill` → Flutter [Gradient]. Doğrusal (`a:lin`, açı 60000'de bir
+  /// derece) veya radyal (`a:path`) desteklenir. En az iki durak gerekir;
+  /// yoksa null (düz dolguya düşülür).
+  // ponytail: açı yaklaşık uygulanır (ekran y-ekseni aşağı → PowerPoint saat yönü
+  // ile uyumlu); durak konumları pos/100000. Renk lumMod/tint _colorOf ile.
+  Gradient? _gradFill(
+      XmlElement parent, Map<String, Color> theme, Map<String, String> clrMap) {
+    final grad = _first(parent, 'a:gradFill');
+    if (grad == null) return null;
+    final gsLst = _first(grad, 'a:gsLst');
+    if (gsLst == null) return null;
+
+    final entries = <(double, Color)>[];
+    for (final gs in gsLst.childElements) {
+      if (gs.name.qualified != 'a:gs') continue;
+      final pos = (double.tryParse(gs.getAttribute('pos') ?? '') ?? 0) / 100000.0;
+      final c = _colorOf(gs, theme, clrMap);
+      if (c != null) entries.add((pos.clamp(0.0, 1.0), c));
+    }
+    if (entries.length < 2) return null;
+    entries.sort((a, b) => a.$1.compareTo(b.$1));
+    final stops = [for (final e in entries) e.$1];
+    final colors = [for (final e in entries) e.$2];
+
+    // Radyal (path="circle"/"rect"/"shape") → merkezden dışa.
+    if (_first(grad, 'a:path') != null) {
+      return RadialGradient(colors: colors, stops: stops, radius: 0.75);
+    }
+
+    // Doğrusal: açıyı yön vektörüne çevir (y aşağı pozitif → saat yönü).
+    final lin = _first(grad, 'a:lin');
+    final ang = (double.tryParse(lin?.getAttribute('ang') ?? '') ?? 0) / 60000.0;
+    final rad = ang * math.pi / 180.0;
+    final dx = math.cos(rad);
+    final dy = math.sin(rad);
+    return LinearGradient(
+      begin: Alignment(-dx, -dy),
+      end: Alignment(dx, dy),
+      colors: colors,
+      stops: stops,
+    );
+  }
+
+  /// Testler için: bir `a:gradFill` içeren XML parçasını gradient'e çevirir.
+  static Gradient? debugParseGradient(String xmlFragment) {
+    final doc = XmlDocument.parse(xmlFragment);
+    final render = PptxRender(Archive());
+    return render._gradFill(doc.rootElement, const {}, const {});
   }
 
   Color? _colorOf(

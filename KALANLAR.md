@@ -3,6 +3,9 @@
 ## Yarım kalan
 - [ ] Build 51 cihaz doğrulaması: slayt dikey akış + pinch his + yazı sığdırma
       (yer tutucu), Word tam sayfa açılış + yazma akıcılığı, ikon (2026-07-22)
+- [ ] Dal birleştirme (build 52) cihaz doğrulaması: eski .doc/.xls/.ppt açma,
+      Excel formül sonucu + satır/sütun çubuğu, belge içi arama, "birlikte aç",
+      yeni belge oluşturma, slayt çoğalt/sil/taşı (2026-07-22)
 
 ## Sonra yapılacak
 - [ ] Faz 2 — Excel canlı hücre: hücrenin içinde yazma + üstte formül çubuğu (fx)

@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
 import '../../models/document.dart';
+import '../../services/formula_engine.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
@@ -123,6 +124,55 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     setState(() {});
   }
 
+  /// Yapısal işlem sonrası (satır/sütun ekle-sil) seçimi geçerli sınırlarda
+  /// tutup formül çubuğunu tazeler.
+  void _afterStructural() {
+    final sheet = _sheet;
+    if (sheet != null) {
+      final maxRow = sheet.rows.isEmpty ? 0 : sheet.rows.length - 1;
+      final maxCol = sheet.maxCols <= 0 ? 0 : sheet.maxCols - 1;
+      _selRow = _selRow.clamp(0, maxRow);
+      _selCol = _selCol.clamp(0, maxCol);
+    }
+    _dirty = true;
+    setState(() {});
+    _syncField();
+  }
+
+  void _insertRow({required bool below}) {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    editor.insertRow(sheet.name, below ? _selRow + 1 : _selRow);
+    if (below) _selRow += 1;
+    _afterStructural();
+  }
+
+  void _deleteRow() {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    editor.deleteRow(sheet.name, _selRow);
+    _afterStructural();
+  }
+
+  void _insertColumn({required bool right}) {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    editor.insertColumn(sheet.name, right ? _selCol + 1 : _selCol);
+    if (right) _selCol += 1;
+    _afterStructural();
+  }
+
+  void _deleteColumn() {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    editor.deleteColumn(sheet.name, _selCol);
+    _afterStructural();
+  }
+
   Future<void> _save() async {
     final editor = _editor;
     if (editor == null) return;
@@ -193,6 +243,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               : Column(
                   children: [
                     _cellBar(),
+                    _rowColBar(),
                     Expanded(
                       child: PinchZoomArea(
                         minZoom: 0.3,
@@ -258,6 +309,54 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             onPressed: () => _applyCell(_cellField.text),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Seçili satır/sütun üzerinde ekle-sil işlemleri (Excel'in sağ tık menüsü gibi).
+  Widget _rowColBar() {
+    final scheme = Theme.of(context).colorScheme;
+    Widget btn(IconData icon, String tip, VoidCallback onTap) => IconButton(
+          tooltip: tip,
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          icon: Icon(icon),
+          onPressed: onTap,
+        );
+    return Container(
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text('Satır',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            ),
+            btn(Icons.keyboard_arrow_up, 'Üste satır ekle',
+                () => _insertRow(below: false)),
+            btn(Icons.keyboard_arrow_down, 'Alta satır ekle',
+                () => _insertRow(below: true)),
+            btn(Icons.remove, 'Satırı sil', _deleteRow),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Container(
+                  width: 1, height: 22, color: scheme.outlineVariant),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text('Sütun',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            ),
+            btn(Icons.keyboard_arrow_left, 'Sola sütun ekle',
+                () => _insertColumn(right: false)),
+            btn(Icons.keyboard_arrow_right, 'Sağa sütun ekle',
+                () => _insertColumn(right: true)),
+            btn(Icons.remove, 'Sütunu sil', _deleteColumn),
+          ],
+        ),
       ),
     );
   }
@@ -349,13 +448,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             forceEmpty: true));
         continue;
       }
-      var w = sheet.colWidth(c);
+      var w = sheet.colWidth(c) * _zoom;
       if (merge != null) {
         for (var k = merge.colStart + 1; k <= merge.colEnd && k < colCount; k++) {
-          w += sheet.colWidth(k);
+          w += sheet.colWidth(k) * _zoom;
         }
       }
-      cells.add(_cell(sheet, r, c, w * _zoom, h));
+      cells.add(_cell(sheet, r, c, w, h));
     }
     return Row(children: cells);
   }
@@ -411,7 +510,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         child: forceEmpty
             ? null
             : Text(
-                _valueAt(r, c),
+                // Formülse hesaplanmış sonucu göster (çubuk ham formülü tutar);
+                // ardından hücrenin Excel sayı biçimini (yüzde/para/binlik) uygula.
+                sheet.displayText(
+                    r, c, FormulaEngine(sheet.rows).displayValue(r, c)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: style?.align ?? TextAlign.left,

@@ -212,13 +212,16 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                   icon: const Icon(Icons.fullscreen, size: 20),
                   onPressed: () => _play(i),
                 ),
+                _slideMenu(slide),
               ],
             ),
           ),
+          // Zoom liste seviyesindeki PinchZoomArea'dan gelir (kart içinde ayrı
+          // InteractiveViewer YOK — ikisi birden çift zoom yapardı).
           AspectRatio(
-            aspectRatio:
-                view == null ? 16 / 9 : view.widthPt / view.heightPt,
+            aspectRatio: view == null ? 16 / 9 : view.widthPt / view.heightPt,
             child: Container(
+              clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
                 color: scheme.surface,
                 border: Border.all(color: scheme.outlineVariant),
@@ -241,6 +244,119 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         ],
       ),
     );
+  }
+
+  /// Slayt işlemleri menüsü (çoğalt / sil / yukarı-aşağı taşı).
+  Widget _slideMenu(PptxSlide slide) {
+    final editor = _editor;
+    final structural = editor?.canEditStructure ?? false;
+    return PopupMenuButton<String>(
+      tooltip: 'Slayt işlemleri',
+      icon: const Icon(Icons.more_vert, size: 20),
+      onSelected: (v) => _onSlideAction(slide, v),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'dup',
+          enabled: structural,
+          child: const ListTile(
+            dense: true,
+            leading: Icon(Icons.copy_all_outlined),
+            title: Text('Slaytı çoğalt'),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem(
+          value: 'up',
+          enabled: structural && slide.index > 1,
+          child: const ListTile(
+            dense: true,
+            leading: Icon(Icons.arrow_upward),
+            title: Text('Yukarı taşı'),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem(
+          value: 'down',
+          enabled:
+              structural && slide.index < (editor?.slides.length ?? 0),
+          child: const ListTile(
+            dense: true,
+            leading: Icon(Icons.arrow_downward),
+            title: Text('Aşağı taşı'),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem(
+          value: 'del',
+          enabled: structural && (editor?.slides.length ?? 0) > 1,
+          child: const ListTile(
+            dense: true,
+            leading: Icon(Icons.delete_outline),
+            title: Text('Slaytı sil'),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onSlideAction(PptxSlide slide, String action) {
+    final editor = _editor;
+    if (editor == null) return;
+    if (!editor.canEditStructure) {
+      _snack('Bu dosyada slayt yapısı düzenlenemiyor (eksik sunum bilgisi).');
+      return;
+    }
+    switch (action) {
+      case 'dup':
+        final added = editor.duplicateSlide(slide);
+        if (added != null) {
+          _dirty = true;
+          setState(() {});
+          _snack('Slayt çoğaltıldı.');
+        }
+        break;
+      case 'up':
+        if (editor.moveSlide(slide, -1)) {
+          _dirty = true;
+          setState(() {});
+        }
+        break;
+      case 'down':
+        if (editor.moveSlide(slide, 1)) {
+          _dirty = true;
+          setState(() {});
+        }
+        break;
+      case 'del':
+        _confirmDeleteSlide(slide);
+        break;
+    }
+  }
+
+  Future<void> _confirmDeleteSlide(PptxSlide slide) async {
+    final editor = _editor;
+    if (editor == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Slaytı sil'),
+        content: Text('Slayt ${slide.index} silinsin mi? Bu işlem geri alınamaz '
+            '(kaydedene kadar dosya değişmez).'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sil')),
+        ],
+      ),
+    );
+    if (ok == true && editor.deleteSlide(slide)) {
+      _dirty = true;
+      if (mounted) setState(() {});
+    }
   }
 
   /// Tam ekran sunum modunu [index]. slayttan başlatır.

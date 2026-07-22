@@ -46,6 +46,13 @@ class DocxViewState extends State<DocxView> {
   late final WebViewController _controller;
   bool _loading = true;
   String? _error;
+  double _zoom = 1.0;
+
+  void _zoomBy(double f) {
+    setState(() => _zoom = (_zoom * f).clamp(0.5, 3.0));
+    // Pinch'e ek olarak düğmeyle de: sayfayı JS ile ölçekle.
+    _controller.runJavaScript("document.body.style.zoom='$_zoom'");
+  }
 
   @override
   void initState() {
@@ -155,7 +162,46 @@ class DocxViewState extends State<DocxView> {
               ),
             ),
           ),
+        // Yakınlaştır/uzaklaştır (pinch'e ek, garanti kontrol).
+        if (_error == null)
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ZoomBtn(icon: Icons.zoom_in, onTap: () => _zoomBy(1.25)),
+                const SizedBox(height: 8),
+                _ZoomBtn(icon: Icons.zoom_out, onTap: () => _zoomBy(1 / 1.25)),
+              ],
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// Yarı saydam yuvarlak zoom düğmesi (WebView üstünde yüzer).
+class _ZoomBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _ZoomBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface.withOpacity(0.92),
+      shape: const CircleBorder(),
+      elevation: 2,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, size: 22, color: scheme.onSurface),
+        ),
+      ),
     );
   }
 }

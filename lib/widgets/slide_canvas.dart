@@ -37,7 +37,12 @@ class SlideCanvas extends StatelessWidget {
             children: [
               Positioned.fill(
                 child: Container(
-                  color: slide.background ?? Colors.white,
+                  decoration: BoxDecoration(
+                    color: slide.backgroundGradient == null
+                        ? (slide.background ?? Colors.white)
+                        : null,
+                    gradient: slide.backgroundGradient,
+                  ),
                   child: slide.backgroundImage == null
                       ? null
                       : Image.memory(
@@ -126,7 +131,8 @@ class _ShapeBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      color: shape.fill,
+      color: shape.gradient == null ? shape.fill : null,
+      gradient: shape.gradient,
       shape: shape.isEllipse ? BoxShape.circle : BoxShape.rectangle,
       borderRadius: shape.isEllipse || shape.cornerRadius == 0
           ? null

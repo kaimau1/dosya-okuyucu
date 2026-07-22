@@ -1,10 +1,18 @@
 name: APK Derle & Release
 
+# LİMİT POLİTİKASI (2026-07-21): Her push'ta APK derlemek GitHub Actions
+# dakikasını ve depolamayı (release/artifact) dolduruyordu. Artık:
+#   • test  → her push'ta çalışır (yalnızca `flutter test`; hızlı, APK üretmez).
+#   • apk   → SADECE commit mesajı özel işareti içerince, elle dispatch ile ya
+#             da main dalında. İşaret bilinçli: normal/açıklama metninde ASLA
+#             yazma (bkz. HAFIZA 2026-07-21 — düz "apk" kelimesi kazara tetikledi).
+#             İşaret için HAFIZA'daki nota bak (prompt'ta açıkça yazılmaz).
+
 on:
   push:
     branches:
       - main
-      - claude/multi-format-file-reader-c9gh78
+      - 'claude/**'
     paths-ignore:
       - '**.md'
   workflow_dispatch:
@@ -13,9 +21,35 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  # ── Ucuz doğrulama: her push'ta yalnızca testler (APK yok) ──────────────────
+  test:
+    name: Testler (hızlı doğrulama)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flutter kurulumu
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.29.3'
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: Testler
+        run: flutter test
+
+  # ── Pahalı: imzalı APK + Release. Yalnızca istendiğinde çalışır. ────────────
+  apk:
     name: Android APK
     runs-on: ubuntu-latest
+    needs: test
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      contains(github.event.head_commit.message, '[release-apk]')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,22 +80,38 @@ jobs:
           [ -f .backup/analysis_options.yaml ] && cp .backup/analysis_options.yaml . || true
           rm -f test/widget_test.dart   # flutter create'in ürettiği örnek test projeyle uyumsuz
 
-      - name: INTERNET izni ve uygulama adını ayarla
+      - name: AndroidManifest'i değiştir (izin + ad + "Birlikte aç"/paylaş)
         run: |
           set -e
-          manifest=android/app/src/main/AndroidManifest.xml
-          grep -q 'android.permission.INTERNET' "$manifest" || \
-            sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$manifest"
-          sed -i 's#android:label="[^"]*"#android:label="Dosya Okuyucu"#' "$manifest"
+          # Elle bakımlı tam manifest'i kopyala: INTERNET izni, uygulama adı,
+          # singleTask ve VIEW/SEND intent-filter'ları (başka uygulamalardan
+          # gelen dosyaları açmak için). Kırılgan sed yerine tek kaynak.
+          cp ci/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          echo "--- Kullanılan AndroidManifest ---"
+          grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
+            android/app/src/main/AndroidManifest.xml || true
 
-      - name: minSdk 23 (Firebase için)
+      - name: minSdk 23 (Firebase için) + NDK sürümü
         run: |
           set -e
           for f in android/app/build.gradle.kts android/app/build.gradle; do
             [ -f "$f" ] || continue
             sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 23/' "$f"
+            # Eklentiler NDK 27 istiyor (uyarı); en yükseğe sabitle (geriye uyumlu).
+            grep -q 'ndkVersion' "$f" || \
+              sed -i '0,/android {/s//android {\n    ndkVersion = "27.0.12077973"/' "$f"
           done
-          echo "--- minSdk sonrası ---"; grep -R "minSdk" android/app/build.gradle* || true
+          echo "--- minSdk/ndk sonrası ---"; grep -R -E "minSdk|ndkVersion" android/app/build.gradle* || true
+
+      - name: Kotlin/Java JVM hedef uyum kontrolünü yumuşat
+        run: |
+          set -e
+          # Eklentiler Kotlin'i 17'ye, Java'yı 8/11'e derliyor (modül-içi uyumsuzluk).
+          # Hedefleri DSL/görev ile zorla hizalamak AGP finalization'ıyla çakışıyor
+          # ve zaten tutarlı modülleri bozuyor. En sağlam yol: uyum kontrolünü ERROR
+          # yerine WARNING yapmak — karışık JVM bytecode Android'de sorun değil.
+          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
+          echo "--- gradle.properties ---"; tail -6 android/gradle.properties
 
       - name: Bağımlılıklar
         run: flutter pub get
@@ -129,20 +179,28 @@ jobs:
           if-no-files-found: error
 
       - name: GitHub Release oluştur
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/claude/multi-format-file-reader-c9gh78'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-build-${{ github.run_number }}
           name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          make_latest: true
           body: |
-            Otomatik derlenen Android APK.
+            Otomatik derlenen, imzalı Android APK.
 
-            - Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel)
-            - Metin düzenleme + PDF/Slayt dönüştürme + paylaşım
-            - Gemini AI sohbet (açık dosya bağlamı + kalıcı hafıza)
-            - Firebase giriş + bulut senkron (yapılandırıldığında; bkz. FIREBASE_SETUP.md)
+            **Yenilikler (bu sürümde):**
+            - “Birlikte aç” / paylaş: WhatsApp/Gmail/Dosyalar’dan gelen dosyayı doğrudan açar
+            - Geniş dosya türü desteği + içerik tanıma (uzantısız metin dosyaları dahil)
+            - Her yerde yakınlaştır/uzaklaştır (görsel: pinch + çift-dokun + düğme), döndürme
+            - Belge içi arama (Bul), metinde yazı boyutu, PDF sayfa göstergesi
+            - Office düzenleme: Word biçim, Excel satır/sütun + formül + sayı biçimleri, PowerPoint slayt işlemleri
+            - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
+            - Özel uygulama ikonu
 
-            APK'yı aşağıdaki **Assets** bölümünden indirin.
+            Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
+            dönüştürme, paylaşım, Gemini AI sohbet, Firebase senkron (yapılandırıldığında).
+
+            APK'yı aşağıdaki **Assets** bölümünden indirin (dosya-okuyucu.apk).
+            Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir.
           files: dist/dosya-okuyucu.apk
           generate_release_notes: false
         env:

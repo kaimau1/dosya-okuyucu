@@ -29,6 +29,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
   TextEditingController? _textController;
   bool _dirty = false;
 
+  // Görüntüleme durumu (okuma konforu).
+  int _pdfPage = 1;
+  int _pdfCount = 0;
+  int _imgQuarterTurns = 0;
+  double _fontSize = 15;
+  final TransformationController _imgTx = TransformationController();
+  TapDownDetails? _doubleTapDetails;
+
+  // Belge içi arama (metin görüntüleyici).
+  bool _findOpen = false;
+  final _findCtl = TextEditingController();
+  final FocusNode _textFocus = FocusNode();
+  List<int> _matchStarts = const [];
+  int _matchPos = -1;
+  int _matchLen = 0;
+
   @override
   void initState() {
     super.initState();
@@ -38,8 +54,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         document: PdfDocument.openFile(doc.path),
       );
     }
-    if (doc.plainText.isNotEmpty ||
-        doc.kind == DocKind.text ||
+    if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
         doc.kind == DocKind.slides) {
       _textController = TextEditingController(text: doc.plainText);
@@ -50,7 +65,137 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void dispose() {
     _pdfController?.dispose();
     _textController?.dispose();
+    _imgTx.dispose();
+    _findCtl.dispose();
+    _textFocus.dispose();
     super.dispose();
+  }
+
+  // ── Belge içi arama ───────────────────────────────────────────────────────
+
+  void _toggleFind() {
+    setState(() {
+      _findOpen = !_findOpen;
+      if (!_findOpen) {
+        _findCtl.clear();
+        _matchStarts = const [];
+        _matchPos = -1;
+      }
+    });
+  }
+
+  void _runFind(String query) {
+    final text = _textController?.text ?? '';
+    final q = query.trim();
+    final starts = <int>[];
+    if (q.isNotEmpty) {
+      final hay = text.toLowerCase();
+      final needle = q.toLowerCase();
+      var i = hay.indexOf(needle);
+      while (i != -1 && starts.length < 5000) {
+        starts.add(i);
+        i = hay.indexOf(needle, i + needle.length);
+      }
+    }
+    setState(() {
+      _matchStarts = starts;
+      _matchLen = q.length;
+      _matchPos = starts.isEmpty ? -1 : 0;
+    });
+    // Yazarken odağı çalma (arama kutusunda kal); sadece seçimi ayarla.
+    if (_matchPos >= 0) _selectMatch(focus: false);
+  }
+
+  void _jumpMatch(int delta) {
+    if (_matchStarts.isEmpty) return;
+    setState(() {
+      _matchPos = (_matchPos + delta) % _matchStarts.length;
+      if (_matchPos < 0) _matchPos += _matchStarts.length;
+    });
+    _selectMatch(focus: true); // ileri/geri: belgeye kaydır
+  }
+
+  /// Geçerli eşleşmeyi metin alanında seçer; [focus] ise oraya kaydırır.
+  void _selectMatch({required bool focus}) {
+    final ctl = _textController;
+    if (ctl == null || _matchPos < 0 || _matchPos >= _matchStarts.length) return;
+    final start = _matchStarts[_matchPos];
+    ctl.selection = TextSelection(
+      baseOffset: start,
+      extentOffset: (start + _matchLen).clamp(0, ctl.text.length),
+    );
+    if (focus) _textFocus.requestFocus();
+  }
+
+  /// Belge içi arama çubuğu (app bar altında).
+  PreferredSizeWidget _findBar() {
+    final count = _matchStarts.length;
+    final label = count == 0
+        ? (_findCtl.text.trim().isEmpty ? '' : 'yok')
+        : '${_matchPos + 1}/$count';
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(52),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _findCtl,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                onChanged: _runFind,
+                onSubmitted: (_) => _jumpMatch(1),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Belgede ara…',
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            IconButton(
+              tooltip: 'Önceki',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.keyboard_arrow_up),
+              onPressed: count == 0 ? null : () => _jumpMatch(-1),
+            ),
+            IconButton(
+              tooltip: 'Sonraki',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.keyboard_arrow_down),
+              onPressed: count == 0 ? null : () => _jumpMatch(1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleImgDoubleTap() {
+    if (_imgTx.value != Matrix4.identity()) {
+      _imgTx.value = Matrix4.identity();
+    } else {
+      final pos = _doubleTapDetails?.localPosition ?? Offset.zero;
+      _imgTx.value = Matrix4.identity()
+        ..translate(-pos.dx * 2, -pos.dy * 2)
+        ..scale(3.0);
+    }
+  }
+
+  void _changeFont(double delta) {
+    setState(() => _fontSize = (_fontSize + delta).clamp(10.0, 32.0));
+  }
+
+  /// Görseli düğmeyle yakınlaştırır/uzaklaştırır (pinch ve çift-dokunmaya ek).
+  void _zoomImg(double factor) {
+    final current = _imgTx.value.getMaxScaleOnAxis();
+    final target = (current * factor).clamp(1.0, 6.0);
+    if (target == current) return;
+    _imgTx.value = _imgTx.value.clone()..scale(target / current);
   }
 
   Future<void> _save() async {
@@ -135,7 +280,44 @@ class _ViewerScreenState extends State<ViewerScreen> {
       kind: doc.kind,
       title: doc.name,
       dirty: _dirty,
+      tabBar: _findOpen ? _findBar() : null,
       actions: [
+        if (_textController != null)
+          IconButton(
+            tooltip: 'Belgede ara',
+            icon: Icon(_findOpen ? Icons.search_off : Icons.search),
+            onPressed: _toggleFind,
+          ),
+        if (doc.kind == DocKind.image) ...[
+          IconButton(
+            tooltip: 'Uzaklaştır',
+            icon: const Icon(Icons.zoom_out),
+            onPressed: () => _zoomImg(1 / 1.4),
+          ),
+          IconButton(
+            tooltip: 'Yakınlaştır',
+            icon: const Icon(Icons.zoom_in),
+            onPressed: () => _zoomImg(1.4),
+          ),
+          IconButton(
+            tooltip: 'Döndür',
+            icon: const Icon(Icons.rotate_right),
+            onPressed: () =>
+                setState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
+          ),
+        ],
+        if (_textController != null) ...[
+          IconButton(
+            tooltip: 'Yazıyı küçült',
+            icon: const Icon(Icons.text_decrease),
+            onPressed: () => _changeFont(-2),
+          ),
+          IconButton(
+            tooltip: 'Yazıyı büyüt',
+            icon: const Icon(Icons.text_increase),
+            onPressed: () => _changeFont(2),
+          ),
+        ],
         if (doc.isEditableText)
           IconButton(
             tooltip: 'Kaydet / Dışa aktar',
@@ -176,18 +358,67 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  /// PDF sayfa numarası rozeti (yarı saydam koyu pill).
+  Widget _pageBadge(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(text,
+          style: const TextStyle(color: Colors.white, fontSize: 13)),
+    );
+  }
+
   Widget _buildBody(LoadedDoc doc) {
     switch (doc.kind) {
       case DocKind.pdf:
-        return PdfViewPinch(controller: _pdfController!);
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: PdfViewPinch(
+                controller: _pdfController!,
+                onDocumentLoaded: (d) {
+                  if (mounted) setState(() => _pdfCount = d.pagesCount);
+                },
+                onPageChanged: (p) {
+                  if (mounted) setState(() => _pdfPage = p);
+                },
+              ),
+            ),
+            if (_pdfCount > 0)
+              Positioned(
+                bottom: 16,
+                left: 0,
+                right: 0,
+                child: Center(child: _pageBadge('$_pdfPage / $_pdfCount')),
+              ),
+          ],
+        );
 
       case DocKind.image:
-        return InteractiveViewer(
-          child: Center(
-            child: Image.file(
-              File(doc.path),
-              errorBuilder: (_, __, ___) =>
-                  const Text('Görsel görüntülenemedi.'),
+        return Container(
+          color: Colors.black,
+          child: GestureDetector(
+            onDoubleTapDown: (d) => _doubleTapDetails = d,
+            onDoubleTap: _handleImgDoubleTap,
+            child: InteractiveViewer(
+              transformationController: _imgTx,
+              minScale: 1,
+              maxScale: 6,
+              child: Center(
+                child: RotatedBox(
+                  quarterTurns: _imgQuarterTurns,
+                  child: Image.file(
+                    File(doc.path),
+                    errorBuilder: (_, __, ___) => const Text(
+                      'Görsel görüntülenemedi.',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -200,20 +431,39 @@ class _ViewerScreenState extends State<ViewerScreen> {
       case DocKind.slides:
         return _TextEditor(
           controller: _textController!,
+          focusNode: _textFocus,
           editable: doc.isEditableText,
+          fontSize: _fontSize,
           onChanged: () {
             if (!_dirty) setState(() => _dirty = true);
           },
         );
 
       case DocKind.unknown:
-        return const Center(
+        return Center(
           child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Bu dosya türü için görüntüleyici henüz yok. '
-              'Yine de paylaşabilir veya AI’a içeriğini sorabilirsiniz.',
-              textAlign: TextAlign.center,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.insert_drive_file_outlined,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.outline),
+                const SizedBox(height: 12),
+                Text(
+                  doc.plainText.isNotEmpty
+                      ? doc.plainText
+                      : 'Bu dosya türü için yerleşik görüntüleyici yok.\n'
+                          'Başka bir uygulamayla açabilir veya AI’a sorabilirsiniz.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
+                  onPressed: _share,
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Başka uygulamayla aç'),
+                ),
+              ],
             ),
           ),
         );
@@ -223,20 +473,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
 class _TextEditor extends StatelessWidget {
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool editable;
+  final double fontSize;
   final VoidCallback onChanged;
   const _TextEditor({
     required this.controller,
+    required this.focusNode,
     required this.editable,
+    required this.fontSize,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         readOnly: !editable,
         onChanged: (_) => onChanged(),
         maxLines: null,
@@ -247,40 +502,95 @@ class _TextEditor extends StatelessWidget {
           hintText: editable ? 'Belge içeriği…' : null,
           filled: false,
         ),
-        style: const TextStyle(fontSize: 15, height: 1.4),
+        style: TextStyle(fontSize: fontSize, height: 1.5),
       ),
     );
   }
 }
 
+/// Salt-okunur Excel ızgarası (eski .xls görüntüleme). A/B/C sütun başlıkları,
+/// satır numaraları; iki parmakla yakınlaştırılabilir.
 class _SpreadsheetView extends StatelessWidget {
   final List<List<String>> table;
   const _SpreadsheetView({required this.table});
+
+  static String _colLabel(int i) {
+    var n = i;
+    final sb = StringBuffer();
+    do {
+      sb.write(String.fromCharCode(65 + (n % 26)));
+      n = (n ~/ 26) - 1;
+    } while (n >= 0);
+    return String.fromCharCodes(sb.toString().codeUnits.reversed);
+  }
 
   @override
   Widget build(BuildContext context) {
     if (table.isEmpty) {
       return const Center(child: Text('Tablo boş veya okunamadı.'));
     }
+    final scheme = Theme.of(context).colorScheme;
+    final divider = Theme.of(context).dividerColor;
     final maxCols =
-        table.fold<int>(0, (m, row) => row.length > m ? row.length : m);
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
+        table.fold<int>(0, (m, row) => row.length > m ? row.length : m).clamp(1, 64);
+    const rowHeaderW = 46.0;
+    const colW = 120.0;
+    const cellH = 34.0;
+
+    Widget headerCell(String text, double w) => Container(
+          width: w,
+          height: cellH,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            border: Border.all(color: divider, width: 0.5),
+          ),
+          child: Text(text,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        );
+
+    Widget dataCell(String text, double w) => Container(
+          width: w,
+          height: cellH,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(border: Border.all(color: divider, width: 0.5)),
+          child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+        );
+
+    final rows = table.length > 2000 ? table.sublist(0, 2000) : table;
+
+    return InteractiveViewer(
+      panEnabled: false,
+      minScale: 1,
+      maxScale: 5,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: List.generate(
-            maxCols == 0 ? 1 : maxCols,
-            (i) => DataColumn(label: Text('${i + 1}')),
+        child: SizedBox(
+          width: rowHeaderW + maxCols * colW,
+          child: Column(
+            children: [
+              Row(children: [
+                headerCell('', rowHeaderW),
+                for (var c = 0; c < maxCols; c++)
+                  headerCell(_colLabel(c), colW),
+              ]),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: rows.length,
+                  itemBuilder: (_, r) {
+                    final row = rows[r];
+                    return Row(children: [
+                      headerCell('${r + 1}', rowHeaderW),
+                      for (var c = 0; c < maxCols; c++)
+                        dataCell(c < row.length ? row[c] : '', colW),
+                    ]);
+                  },
+                ),
+              ),
+            ],
           ),
-          rows: table.take(500).map((row) {
-            return DataRow(
-              cells: List.generate(maxCols, (i) {
-                final v = i < row.length ? row[i] : '';
-                return DataCell(Text(v));
-              }),
-            );
-          }).toList(),
         ),
       ),
     );

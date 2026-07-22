@@ -105,6 +105,53 @@
   ŞABLONDA durur → yer tutucu (`ph` olan) şekillere de sığdırma uygulanır
   (`ShapeVM.isPlaceholder`). #1 lnSpcReduction/ölçüm 48'de gelmişti.
 
+- **2026-07-22 — DAL BİRLEŞTİRME:** `claude/office-programs-development-vbnq1x` dalındaki
+  34 commit (aşağıdaki 2026-07-21 kararları) main'e merge edildi — dal main varsayılan
+  olduktan SONRA da aktif kalmış, bugünkü Faz 0/1 işi main'de ayrı ilerlemişti.
+  Çakışma politikası: kabuk/zoom/canlı-düzenleme UX'i main'den (kullanıcı onaylı),
+  tüm dal özellikleri korunarak port edildi. Kural: tek aktif geliştirme hattı = main.
+
+- **2026-07-21 — Office ileri düzenleme (yol haritası #1) eklendi.** Cihaz-içi/offline/
+  ücretsiz ilkesi korunarak:
+  - **Excel:** satır/sütun ekle-sil (`Excel.insertRow/removeRow/insertColumn/removeColumn`,
+    ardından modeli `_refresh` ile yeniden kur), formül girişi (`=` ile başlayan hücre
+    `FormulaCellValue` olur → dosyayı Excel açınca hesaplar, biz hesaplamayız), akıllı tip
+    (sayı→IntCell/DoubleCell, baştaki sıfırlı "007"→metin). Formül çubuğu altına satır/sütun
+    araç çubuğu.
+  - **Word:** paragraf kalın/italik/altı çizili + hizalama (rPr `<w:b>/<w:i>/<w:u>`,
+    pPr `<w:jc>`), paragraf ekle/sil (`<w:sectPr>` daima en sonda tutulur). Biçim araç çubuğu
+    seçili paragraf üzerinde çalışır.
+  - **PowerPoint:** slayt çoğalt/sil/taşı. `[Content_Types].xml` + `presentation.xml`
+    (`sldIdLst`) + `presentation.xml.rels` üçlüsü güncellenir; yoksa `canEditStructure=false`
+    (sentetik/eksik dosyada yapısal düzenleme kapalı, metin düzenleme açık kalır). Slayt
+    sırası artık mümkünse `sldIdLst`'e göre (yoksa dosya numarası yedeği).
+  *Niye/karar:* orijinal XML korunur, sadece hedef düğümler güncellenir (mevcut orta-sadakat
+  ilkesiyle uyumlu). **REDDEDİLEN:** formülü cihazda hesaplama (offline motor şişkinliği);
+  karakter-bazlı Word biçimi (mobilde paragraf-bazı daha kullanışlı + risk düşük).
+
+- **2026-07-21 TUZAK — `excel` 4.0.6 Excel-seviye `insertRow/insertColumn` NO-OP:**
+  `_excel.insertRow(sheetName, i)` / `insertColumn` çağrısı derleniyor ama satır/sütun
+  sayısını DEĞİŞTİRMİYOR (CI run #17: beklenen 3, gelen 2; sütunda 1). Çözüm: yapısal
+  işlemleri Sheet hücre API'siyle (`cell/value/cellStyle` — bunlar güvenilir) elle kaydır
+  ve model listesini doğrudan güncelle (`xlsx_editor.dart` insert/deleteRow/Column). Not:
+  Sheet-seviye `table.insertRow(i)` denenmedi; elle kaydırma paketten bağımsız çalışıyor.
+
+- **2026-07-21 TUZAK — Dart: bağlamsız `?? const []` for-loop'ta 'Object'e düşer:**
+  `for (final x in nullable?.iter() ?? const [])` CFE hatası verir ("must implement
+  Iterable"). Çözüm: açık tip — `?? const <XmlElement>[]`. (Fonksiyon argümanı gibi bağlam
+  tipi olan yerlerde sorun yok; yalnızca for-loop gibi bağlamsız yerlerde.)
+
+- **2026-07-21 TUZAK — xml paketinde `XmlNodeList.removeWhere` üst-düğüm çakışması riski:**
+  jenerik `ListMixin.removeWhere` compaction sırasında `[]=` ile düğümü yeniden atayınca
+  "node already has a parent" atabilir. Çözüm: eşleşenleri `.toList()` ile toplayıp tek tek
+  `children.remove(node)` ile sil (`_removeElems` yardımcısı, docx+pptx editörlerinde).
+
+- **2026-07-21 — CI feature dallarında da çalışır.** `build-apk.yml` push tetikleyicisine
+  `claude/**` eklendi → dal main'e girmeden test+build ile doğrulanır. **Release adımı
+  yalnızca main**'de (if guard). *Niye:* yerelde Flutter yok; tek doğrulama CI'ın `flutter
+  test` + `flutter build apk` adımları, o yüzden feature dalı da derlenmeli.
+  → *güncelleme 2026-07-22:* yerelde Flutter var; doğrulama önce yerel test+analyze.
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |
@@ -185,9 +232,73 @@
 
 ## Yol Haritası (öncelik kullanıcıyla netleşecek)
 
-1. Office ileri düzenleme: Excel formül + satır/sütun ekleme; Word biçim araç çubuğu
-   (kalın/italik/liste); slayta yeni slayt/görsel ekleme.
+1. ~~Office ileri düzenleme: Excel formül + satır/sütun; Word biçim araç çubuğu; slayt
+   çoğalt/sil/taşı~~ → **YAPILDI 2026-07-21** (bkz. Sabit Kararlar). Kalan uçlar: Word'de
+   liste (madde/numara) düğmesi, slayta görsel ekleme, Excel formül sonucunu önizleme.
 2. Firebase config ile gerçek senkron + Google Sign-In SHA ekleme.
 3. Format dönüştürme zenginleştirme (PDF ↔ Word ↔ Slayt).
 4. AI: PDF'den otomatik slayt üretimi (genişletilmiş), kaynakları bağlama alma.
 5. Masaüstü (Windows/macOS/Linux) build hedefleri + iOS.
+
+## 2026-07-21 — Excel sayı biçimleri (görüntüleme sadakati)
+- **Karar:** Excel hücrelerinde yüzde/para/binlik/ondalık biçimler artık Office'teki
+  gibi görünüyor (ör. `0.15`→`%15`, `1234.5`→`₺1.234,50`, `1234567`→`1.234.567`).
+  Türkçe gösterim: binlik `.`, ondalık `,`.
+- **Kök neden / tuzak:** `excel` paketi (4.0.6) hücre sayı biçim kodunu (numFmt)
+  vermiyor — sadece tarih/saat'i çözüyor. Çözüm: ham `.xlsx`'ten (ZipDecoder+xml)
+  `xl/styles.xml` (numFmts + cellXfs) ve her `sheetN.xml`'deki `<c r s>` okunarak
+  hücre→biçim kodu tablosu çıkarıldı (`XlsxEditor._readNumberFormats`).
+- **Önemli tasarım kararı:** `XlsxSheet.rows` HEM ekran HEM `FormulaEngine` girdisi.
+  Bu yüzden biçimlenmiş metin `rows`'a YAZILMAZ (yoksa `=A1*2` gibi formüller
+  "%15"i sayı sanıp bozulur). Biçim yalnızca GÖSTERİM katmanında
+  (`XlsxSheet.displayText`) uygulanır: önce FormulaEngine ham sonucu, sonra numFmt.
+- Tarih biçimleri (numFmtId 14-22, 45-47) bilinçli dışarıda — excel paketi zaten
+  DateCellValue'ya çeviriyor, üstüne biçim uygulanmaz.
+- Test: `test/xlsx_number_format_test.dart` + fixture `test/fixtures/number_formats.xlsx`
+  (elle üretilmiş minimal xlsx; LibreOffice bu sandbox'ta profil açamadığı için
+  fixture Python zipfile ile yazıldı).
+
+## 2026-07-21 — CI politikası: APK yalnızca istendiğinde (limit tasarrufu)
+- **Sorun (kullanıcı):** her push'ta APK derleyip Release yapmak GitHub Actions
+  dakikasını + depolamayı dolduruyor.
+- **Karar:** `build-apk.yml` iki job'a bölündü:
+  - `test` → HER push'ta (yalnızca `flutter test`; hızlı, APK/Release yok).
+  - `apk`  → SADECE: commit mesajı `[apk]` içeriyor **veya** workflow_dispatch
+    **veya** `main` dalı. İmzalı APK + Release burada.
+- **APK istendiğinde nasıl üretilir:** commit mesajına `[apk]` ekle ve push et
+  (ör. "release hazır [apk]"), ya da Actions'tan "Run workflow" (dispatch).
+- Not: `test` job'ı `flutter create` yapmadan çalışır (saf Dart testleri platform
+  klasörü istemez) → daha da ucuz.
+
+## 2026-07-21 — TUZAK: commit mesajı işaretiyle CI tetikleme kırılgan
+- Kök neden: apk job'ı `contains(head_commit.message, '[apk]')` ile tetikleniyordu.
+  Politikayı ANLATAN commit'in gövdesinde geçen düz metin "[apk]" kelimesi bile
+  eşleşip ~20 dk'lık ağır bir APK derlemesini yanlışlıkla başlattı (sonra runner
+  shutdown sinyaliyle exit 143 iptal oldu — kod hatası DEĞİL).
+- Çözüm: mesaj-işareti tamamen kaldırıldı. APK derleme yalnızca `workflow_dispatch`
+  (elle/`actions_run_trigger`) veya `main`'de. Kullanıcı "APK ver" deyince dispatch et.
+- Ders: CI koşullarını commit metnine bağlama; niyet/dispatch kullan.
+
+## 2026-07-21 — APK derleme tetikleyicisi (dispatch API yasak!)
+- `actions_run_trigger` (workflow_dispatch) API'si 403 "not accessible by
+  integration" veriyor → ajan dispatch EDEMİYOR. main'e push da yok.
+- Bu yüzden APK derlemenin TEK yolu: commit mesajına özel işaret koymak:
+  `[release-apk]` (köşeli parantezli). Bu işareti YALNIZCA gerçekten APK
+  istendiğinde commit mesajına yaz; açıklama/normal metinde asla kullanma.
+- Kullanıcı "APK ver" deyince: `git commit --allow-empty -m "build: APK [release-apk]"`
+  (veya bir özellik commit'inin mesajına ekle) → push → test sonra apk+release.
+
+## 2026-07-21 — Eski Office (.doc/.xls/.ppt) SALT-OKUNUR görüntüleme
+- **Karar:** eski ikili formatlar artık "harici aç" yerine cihazda gösteriliyor.
+  - OLE2 CFB okuyucu (`ole_cfb.dart`) — kabın stream'lerini çıkarır (test #42 ✓).
+  - `.xls` BIFF8 (`xls_legacy.dart`) — SST+BOUNDSHEET+LABELSST/RK/MULRK/NUMBER/
+    FORMULA → hücreler → Excel ızgarası (salt-okunur) (test #43 ✓).
+  - `.doc/.ppt` (`legacy_text.dart`) — stream'den en iyi çaba metin (UTF-16/CP1252
+    tarama; biçim yok). Yetersizse "harici aç"a düşer (regresyon yok).
+- **readOnly bayrağı** (LoadedDoc): legacy içerik OOXML editörlerine GİTMEZ,
+  ViewerScreen'de gösterilir (home_screen yönlendirmesi).
+- **Test edilemeyenler:** LibreOffice bu sandbox'ta profil açamıyor + olefile yok
+  → gerçek .doc/.xls/.ppt fixture ÜRETİLEMEDİ. CFB ve BIFF sentetik (Python zipfile/
+  struct ile elle) fixture'larla test edildi. .doc/.ppt metin çıkarımı gerçek dosyada
+  kusurlu olabilir (sıra/boşluk) — dürüst "basit metin görünümü" etiketiyle sunulur.
+- odt/ods/odp/rtf/pages/numbers/key hâlâ "harici aç" (kapsam dışı).
