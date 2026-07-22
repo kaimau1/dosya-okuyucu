@@ -47,6 +47,10 @@ jobs:
   apk:
     name: Android APK
     runs-on: ubuntu-latest
+    # Takılma koruması: build #53'te `flutter build apk` bir Gradle/ağ stall'ında
+    # 55 dk asılı kalıp job'ı çökertti (aynı kod bir sonraki koşuda 12 dk'da derlendi).
+    # Bu sınır, olası bir takılmanın bir daha ~1 saat CI dakikası yakmasını önler.
+    timeout-minutes: 30
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.ref == 'refs/heads/main' ||
@@ -66,6 +70,20 @@ jobs:
         with:
           channel: stable
           flutter-version: '3.29.3'
+
+      # Gradle/pub bağımlılıklarını koşular arası önbelleğe al: ilk build sonrası
+      # indirmeler diskten gelir → hem ~2-4 dk hızlanır hem de ağ stall'ına (build
+      # #53'ün 55 dk takılmasının olası kök nedeni) daha az maruz kalınır.
+      - name: Gradle & pub önbelleği
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.pub-cache
+          key: gradle-pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: |
+            gradle-pub-${{ runner.os }}-
 
       - name: Platform iskeletini üret (android)
         run: |
@@ -112,7 +130,12 @@ jobs:
           # ve zaten tutarlı modülleri bozuyor. En sağlam yol: uyum kontrolünü ERROR
           # yerine WARNING yapmak — karışık JVM bytecode Android'de sorun değil.
           echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-          echo "--- gradle.properties ---"; tail -6 android/gradle.properties
+          # Ağ dayanıklılığı: bir bağımlılık indirmesi asılırsa Gradle sonsuza kadar
+          # beklemesin — 120 sn'de zaman aşımına uğrayıp yeniden denesin. Böylece
+          # geçici bir stall dakikalarca (build #53'te ~55 dk) asılı kalmaz.
+          echo "systemProp.org.gradle.internal.http.connectionTimeout=120000" >> android/gradle.properties
+          echo "systemProp.org.gradle.internal.http.socketTimeout=120000" >> android/gradle.properties
+          echo "--- gradle.properties ---"; tail -8 android/gradle.properties
 
       - name: Bağımlılıklar
         run: flutter pub get

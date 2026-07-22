@@ -313,3 +313,82 @@
   struct ile elle) fixture'larla test edildi. .doc/.ppt metin çıkarımı gerçek dosyada
   kusurlu olabilir (sıra/boşluk) — dürüst "basit metin görünümü" etiketiyle sunulur.
 - odt/ods/odp/rtf/pages/numbers/key hâlâ "harici aç" (kapsam dışı).
+
+## 2026-07-22 — TUZAK+ÇÖZÜM: APK derlemesi geçici Gradle stall'ında 55 dk takılıp çöktü
+- **Belirti (kullanıcı):** "derleme başarısız oldu ve çok uzun sürdü." Build #53
+  (`f2fdd81`) `flutter build apk --release` adımında 12:36→13:31 = ~55 dk asılı
+  kalıp job'ı çökertti. Aynı uygulama kodu bir sonraki koşuda (#54, `59bde00`)
+  12 dk'da SORUNSUZ derlendi.
+- **Kök neden:** kod hatası DEĞİL. #53 ile #54 arası fark yalnızca CI (`621ca97`)
+  ve HAFIZA.md (`59bde00`) — `lib/` aynı. Yani geçici bir Gradle/ağ bağımlılık
+  indirme stall'ı. Job'da `timeout-minutes` olmadığı için takılma uzun sürüp
+  ~1 saat CI dakikası yaktı.
+- **Çözüm (build-apk.yml, apk job):**
+  1. `timeout-minutes: 30` — takılma bir daha ~1 saat yakamaz, hızlı başarısız olur.
+  2. `actions/cache@v4` ile `~/.gradle/{caches,wrapper}` + `~/.pub-cache` önbelleği
+     (anahtar: `pubspec.yaml` hash) — indirme diskten gelir, ağ stall'ına maruziyet düşer.
+  3. `gradle.properties`'e `http.connectionTimeout/socketTimeout=120000` — asılan
+     indirme 120 sn'de zaman aşımına uğrar, Gradle yeniden dener (sonsuz asılma yok).
+- **Ders:** ağır CI job'larına HER ZAMAN `timeout-minutes` koy; Gradle ağ zaman
+  aşımlarını sabitle. Geçmişte de benzer takılmalar oldu (#45 iptal, commit 409add6).
+
+## 2026-07-22 — 3 KULLANICI HATASI: XLSX çökme, WhatsApp PDF tanınmama, slayt zoom zıplama
+Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_sunumu .pptx).
+
+### 1) Büyük XLSX açılıp kaydırınca donup çöküyor (ANR)
+- **Kök neden:** `SpreadsheetEditorScreen._cell` her görünür hücrede
+  `sheet.styleAt` (→ excel paketi `_sheet.rows[r]`), `colWidth`, `rowHeight`
+  çağırıyordu. excel 4.0.6'nın `rows`/`getColumnWidth`/`getRowHeight` getter'ları
+  her çağrıda iç haritalardan yeniden üretilir (O(hücre)). Kare başına yüzlerce
+  hücre × 25.896 hücre ⇒ O(hücre²) ⇒ ana izlek kilitlenir ⇒ ANR/çökme. Ayrıca
+  her hücrede yeni `FormulaEngine` kuruluyordu.
+- **Çözüm:** `XlsxSheet.rebuildCaches()` — stil/sütun-genişliği/satır-yüksekliği
+  YÜKLEMEDE bir kez (excel `rows`'a tek erişimle) önbelleğe alınır; `styleAt/
+  colWidth/rowHeight` artık O(1) düz-liste bakışı, excel paketine render'da hiç
+  dokunulmaz. Yapısal işlemlerden (satır/sütun ekle-sil) sonra `rebuildCaches`
+  tekrar çağrılır. `FormulaEngine` ekranda kare başına bir kez kurulur.
+- **Ders:** excel paketinin getter'larını sıcak yolda (render) çağırma; yükleme
+  anında düz veri yapısına çıkar.
+
+### 2) WhatsApp'tan PDF açınca "dosya türü tanınmadı"
+- **Kök neden:** `FileService.kindForExtension` yalnızca UZANTIYA bakıyor. Paylaşım
+  (`receive_sharing_intent`) gelen dosyayı uzantısız/rastgele adlı bir önbellek
+  yoluna kopyalıyor → `ext` boş → `unknown`. PDF'te NUL bayt olduğu için metin
+  sniff'i de null döndürüp "unknown" bırakıyordu.
+- **Çözüm:** `_sniffKind` — uzantı bilinmiyorsa İMZA BAYTLARINA bakar: `%PDF`→pdf,
+  PNG/JPEG/GIF/BMP/WEBP/HEIC→image, `PK\x03\x04`→zip içine bakıp docx/xlsx/pptx.
+  `load()` içinde metin sniff'inden ÖNCE çağrılır. word/slides artık uzantıdan
+  bağımsız daima OOXML olarak çıkarılır (eski .doc/.ppt zaten yukarıda ayrılıyor).
+- **Ders:** paylaşımla gelen dosyada uzantıya güvenme; içerik imzasıyla doğrula.
+
+### 3) Slaytlarda pinch-zoom "zıplıyor" (önizleme)
+- **Kök neden:** `SlidesEditorScreen._buildSlides` kart genişliğini
+  `maxWidth*zoom - 32` ile ölçeklerken PinchZoomArea canlı önizlemeyi tek-tip
+  (odaktan) GPU dönüşümüyle büyütüyordu. Sabit `-32` ve ölçeklenmeyen slayt-arası
+  boşluk yüzünden yerleşim doğrusal değildi ⇒ parmak kalkınca commit edilen düzen
+  canlı önizlemeyle örtüşmüyor ⇒ zıplama (aşağı slaytlarda daha belirgin).
+- **Çözüm:** kart genişliği `(maxWidth-32)*zoom` ve slayt-arası boşluk `20*zoom`
+  — yerleşim zoom'da DOĞRUSAL, böylece `layout(zoom)=zoom·layout(1)` ve GPU
+  dönüşümüyle birebir örtüşür. PinchZoomArea'ya `ClipRect` (zoom'da taşma
+  rozetin/çubukların üstüne binmesin). NOT: editör önizlemesi kasıtlı olarak
+  yeniden-yerleşimle NET tutulur (InteractiveViewer değil — o bulanıklaştırırdı).
+
+## 2026-07-22 — 2. TUR (build-56 sonrası kullanıcı testi): XLSX hâlâ çöküyor, slayt zoom hâlâ sorunlu
+- PDF imza tespiti kullanıcıda DOĞRULANDI ✓ (WhatsApp PDF artık açılıyor).
+- **XLSX çökmesinin ASIL kök nedeni açılış:** stil önbelleği (1. tur) kaydırma
+  render'ını düzeltti ama `Excel.decodeBytes` 25.896 stilli hücrede onlarca
+  saniye sürüyor ve ANA İZLEKTE, üstelik İKİ KEZ koşuyordu (FileService.load
+  plainText için + editörün kendi parse'ı) → açılışta donma → ANR → sistem
+  öldürüyor. Çözüm: her iki çözümleme de `compute` ile arka plan isolate'ine
+  taşındı (başarısız olursa ana izleğe düşer — işlev aynı, testler etkilenmez).
+- Kullanıcının dosyasında **dondurulmuş bölme** var (`pane xSplit=5 ySplit=2
+  state=frozen` — Excel'de sol 5 sütun + üst 2 satır sabit; kullanıcının
+  "sağ/sol ayrı oynuyor" dediği bu). Bölme çökme nedeni DEĞİL; biz yok sayarız
+  (tek parça kaydırma). Bölme desteği istenirse ayrı özellik.
+- **Slayt zoom (kalan):** kart genişliği doğrusaldı (1. tur) ama BAŞLIK şeridi
+  ("Slayt N" + düğmeler) sabit yükseklikteydi → yerleşim yine doğrusal değil →
+  commit'te kayma sürdü. Çözüm: başlık `SizedBox(40*zoom)+FittedBox` ile
+  ölçeklenir; liste kenar boşlukları da (`16/8/32*zoom`) doğrusallaştırıldı.
+  Artık layout(zoom) = zoom·layout(1) her bileşende geçerli.
+- KVKK notu: kullanıcının SAHU dosyası hasta bilgi formu — fixture olarak
+  repoya ASLA konmaz; sentetik üretim gerekirse Python zipfile ile.

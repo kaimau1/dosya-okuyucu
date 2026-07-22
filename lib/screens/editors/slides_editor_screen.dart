@@ -164,24 +164,31 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         onCommitted: _fixScroll,
         builder: (context, zoom, physics) {
           _zoom = zoom;
-          final cardW = math.max(120.0, box.maxWidth * _zoom - 32);
-          final totalW = math.max(box.maxWidth, cardW + 32);
+          // Kart genişliği ve boşluklar zoom ile DOĞRUSAL ölçeklenir. PinchZoomArea
+          // canlı önizlemeyi tek tip (odaktan) GPU dönüşümüyle büyütür; yerleşim de
+          // doğrusal olursa parmak kalkınca commit edilen düzen canlı önizlemeyle
+          // birebir örtüşür ve "slaytlar zıplıyor" hissi kalkar (bkz. HAFIZA).
+          final baseW = math.max(120.0, box.maxWidth - 32);
+          final cardW = baseW * _zoom;
+          final totalW = math.max(box.maxWidth, cardW + 32 * _zoom);
           return SingleChildScrollView(
             controller: _hCtrl,
             physics: physics,
             scrollDirection: Axis.horizontal,
             child: SizedBox(
               width: totalW,
+              // Kenar boşlukları da zoom ile ölçeklenir — tüm dikey/yatay
+              // yerleşim doğrusal kalır (bkz. yukarıdaki doğrusallık notu).
               child: ListView.builder(
                 controller: _vCtrl,
                 physics: physics,
-                padding: EdgeInsets.fromLTRB(
-                    16, 8, 16, MediaQuery.of(context).padding.bottom + 88),
+                padding: EdgeInsets.fromLTRB(16 * _zoom, 8 * _zoom, 16 * _zoom,
+                    MediaQuery.of(context).padding.bottom + 88),
                 itemCount: editor.slides.length,
                 itemBuilder: (context, i) => Center(
                   child: SizedBox(
                     width: cardW,
-                    child: _slideCard(editor.slides[i], i),
+                    child: _slideCard(editor.slides[i], i, baseW),
                   ),
                 ),
               ),
@@ -192,29 +199,46 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     });
   }
 
-  Widget _slideCard(PptxSlide slide, int i) {
+  Widget _slideCard(PptxSlide slide, int i, double baseW) {
     final scheme = Theme.of(context).colorScheme;
     final view = slide.view;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      // Slaytlar arası boşluk da zoom ile ölçeklenir → dikey yerleşim doğrusal
+      // kalır, commit'te zıplama olmaz (bkz. _buildSlides).
+      padding: EdgeInsets.only(bottom: 20 * _zoom),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 2),
-            child: Row(
-              children: [
-                Text('Slayt ${slide.index}',
-                    style: Theme.of(context).textTheme.labelMedium),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Tam ekran sunum',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.fullscreen, size: 20),
-                  onPressed: () => _play(i),
+          // Başlık şeridi ("Slayt N" + düğmeler) zoom ile birlikte ölçeklenir:
+          // sabit yükseklikte kalsaydı yerleşim doğrusal olmaz, pinch bırakılınca
+          // slaytlar zıplardı (kalan zoom sorununun kök nedeni). FittedBox,
+          // doğal (zoom=1) yerleşimi kurup bütün şeridi oranla büyütür/küçültür.
+          SizedBox(
+            height: 40 * _zoom,
+            child: FittedBox(
+              fit: BoxFit.fitHeight,
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                width: baseW,
+                height: 40,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 2),
+                  child: Row(
+                    children: [
+                      Text('Slayt ${slide.index}',
+                          style: Theme.of(context).textTheme.labelMedium),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: 'Tam ekran sunum',
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.fullscreen, size: 20),
+                        onPressed: () => _play(i),
+                      ),
+                      _slideMenu(slide),
+                    ],
+                  ),
                 ),
-                _slideMenu(slide),
-              ],
+              ),
             ),
           ),
           // Zoom liste seviyesindeki PinchZoomArea'dan gelir (kart içinde ayrı
