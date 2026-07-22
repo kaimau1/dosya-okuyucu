@@ -110,6 +110,14 @@ jobs:
           grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
             android/app/src/main/AndroidManifest.xml || true
 
+      - name: Proguard kuralları (ML Kit R8 "missing class" düzeltmesi)
+        run: |
+          set -e
+          # Flutter'ın Gradle eklentisi app/proguard-rules.pro'yu release
+          # küçültmede otomatik dahil eder — build.gradle patch'i gerekmez.
+          cp ci/proguard-rules.pro android/app/proguard-rules.pro
+          echo "--- proguard-rules.pro ---"; cat android/app/proguard-rules.pro
+
       - name: minSdk 23 (Firebase için) + NDK sürümü
         run: |
           set -e

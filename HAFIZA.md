@@ -209,6 +209,13 @@
     Sonuç seçilebilir sayfada + panoya; taranmış PDF'te/görselde AI sohbet
     bağlamına da girer. ⋮ menüsünde "Metni tanı (OCR)".
 
+- **2026-07-22 TUZAK — ML Kit + R8: "Missing class …text.chinese/japanese/korean/devanagari".**
+  google_mlkit_text_recognition yalnız Latin AAR'ını getirir ama Java köprüsü
+  dört dilin sınıflarına da referans verir → release küçültmede (R8) derleme
+  KESİLİR (build #61). Çözüm: `ci/proguard-rules.pro` (4 satır `-dontwarn`) →
+  CI'da `android/app/proguard-rules.pro`'ya kopyalanır; Flutter'ın Gradle
+  eklentisi bu dosyayı otomatik dahil eder, build.gradle patch'i GEREKMEZ.
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |
