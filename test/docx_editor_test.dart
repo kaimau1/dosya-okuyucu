@@ -55,6 +55,22 @@ void main() {
     expect(xml, contains('Heading1'));
   });
 
+  test('segment içindeki satır sonu w:br olarak yazılır', () {
+    final editor = DocxEditor.parse(_sampleDocx());
+    editor.setRuns(0, [('üst\nalt', false, false, false)]);
+
+    final saved = editor.save();
+    final xml = utf8.decode(
+      (ZipDecoder()
+              .decodeBytes(saved)
+              .files
+              .firstWhere((f) => f.name == 'word/document.xml')
+              .content as List<int>),
+    );
+    expect(xml, contains('<w:br/>'));
+    expect(DocxEditor.parse(saved).paragraphs.first.text, 'üstalt');
+  });
+
   test('rich olmayan paragraf save() ile eski yoldan güncellenir', () {
     final editor = DocxEditor.parse(_sampleDocx());
     editor.setRuns(0, [('Zengin', true, false, false)]);

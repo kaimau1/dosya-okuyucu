@@ -95,10 +95,16 @@ class DocxEditor {
       _setFlag(rPr, 'w:i', italic);
       _setUnderline(rPr, underline);
       run.children.add(rPr);
-      final t = XmlElement(XmlName('w:t'));
-      t.setAttribute('xml:space', 'preserve');
-      t.children.add(XmlText(text));
-      run.children.add(t);
+      // '\n' canlı düzenlemedeki satır sonudur (Enter → <br>) → w:br yazılır.
+      final parts = text.split('\n');
+      for (var k = 0; k < parts.length; k++) {
+        if (k > 0) run.children.add(XmlElement(XmlName('w:br')));
+        if (parts[k].isEmpty) continue;
+        final t = XmlElement(XmlName('w:t'));
+        t.setAttribute('xml:space', 'preserve');
+        t.children.add(XmlText(parts[k]));
+        run.children.add(t);
+      }
       el.children.add(run);
     }
 

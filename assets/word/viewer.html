@@ -2,10 +2,11 @@
   Word görüntüleyici kabuğu. İnternet YOK: jszip + docx-preview aynı klasörden,
   APK içine gömülü olarak yüklenir. Flutter tarafı renderDocx(base64) çağırır.
 -->
-<!-- Başlangıç tahmini A4; gerçek sayfa genişliği çizimden sonra ölçülüp
-     viewport güncellenir (fitViewport) — yatay/letter sayfalar da tam sığar.
-     minimum-scale: kullanıcı sığdırmanın da altına serbestçe uzaklaşabilsin. -->
-<meta name="viewport" content="width=820, minimum-scale=0.2, maximum-scale=6, user-scalable=yes">
+<!-- TUZAK: meta viewport'u JS ile değiştirmek Android WebView'da yeniden
+     sığdırma YAPMAZ. Bu yüzden sayfa CSS zoom ile ekrana sığdırılır (fitPage);
+     viewport doğal ölçekte kalır, pinch bunun üzerine çarpan olarak biner.
+     minimum-scale 0.5: sığdırılmış halin de altına uzaklaşılabilir. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.5, maximum-scale=6, user-scalable=yes">
 <style>
   html, body { margin: 0; padding: 0; background: #f3f2f1; }
   #container { padding: 8px 0 24px; }
@@ -40,7 +41,7 @@
         experimental: true,
         useBase64URL: true
       }).then(function () {
-        fitViewport();
+        fitPage();
         report('ok');
       }).catch(function (e) {
         showError(e);
@@ -71,16 +72,32 @@
     return out;
   }
 
+  // Paragraf listesi düzenleme boyunca önbellekte tutulur: her tuş vuruşunda
+  // tüm belgeyi taramak büyük dosyalarda yazmayı kastırıyordu.
+  var cachedParas = null;
+
   function setEditable(on) {
     EDIT = !!on;
     articles().forEach(function (a) {
       a.contentEditable = EDIT ? 'true' : 'false';
+      a.spellcheck = false; // kırmızı dalgalı çizgi + denetim maliyeti olmasın
+      a.setAttribute('autocorrect', 'off');
+      a.setAttribute('autocapitalize', 'off');
     });
+    cachedParas = EDIT ? paraList() : null;
     if (!EDIT && document.activeElement) document.activeElement.blur();
     // Flutter, paragraf sayısını kendi listesiyle karşılaştırıp eşleşmezse
     // düzenlemeyi kapatır (yanlış paragrafa yazma sigortası).
     if (EDIT && window.Kalem) {
-      window.Kalem.postMessage(JSON.stringify({ n: paraList().length }));
+      window.Kalem.postMessage(JSON.stringify({ n: cachedParas.length }));
+    }
+  }
+
+  // Yapı beklenmedik şekilde değiştiyse (sigorta): sayıyı yeniden bildir.
+  function structureChanged() {
+    cachedParas = paraList();
+    if (window.Kalem) {
+      window.Kalem.postMessage(JSON.stringify({ n: cachedParas.length }));
     }
   }
 
@@ -92,6 +109,7 @@
         return;
       }
       if (node.nodeType !== 1) return;
+      if (node.nodeName === 'BR') { out.push(['\n', b, i, u]); return; }
       var cs = window.getComputedStyle(node);
       var nb = b || parseInt(cs.fontWeight, 10) >= 600 || cs.fontWeight === 'bold';
       var ni = i || cs.fontStyle === 'italic';
@@ -104,22 +122,43 @@
   }
 
   function sendPara(idx, p) {
+    // Debounce'lu gönderimde ucuz yapı kontrolü: sayı değiştiyse eşleme
+    // güvensiz → Flutter'a bildir, bu paragrafı gönderme.
+    if (cachedParas && paraList().length !== cachedParas.length) {
+      structureChanged();
+      return;
+    }
     if (window.Kalem) {
       window.Kalem.postMessage(JSON.stringify({ i: idx, segs: segsOf(p) }));
     }
   }
 
   document.addEventListener('input', function (e) {
-    if (!EDIT) return;
+    if (!EDIT || !cachedParas) return;
     var n = e.target;
     while (n && n.nodeType !== 1) n = n.parentNode;
     var p = n && n.closest ? n.closest('p') : null;
     if (!p) return;
-    var list = paraList();
-    var idx = list.indexOf(p);
-    if (idx < 0) return;
+    var idx = cachedParas.indexOf(p);
+    if (idx < 0) { structureChanged(); return; }
     clearTimeout(pending[idx]);
     pending[idx] = setTimeout(function () { sendPara(idx, p); }, 250);
+  });
+
+  // Enter yeni <p> üretip paragraf eşlemesini bozardı → satır sonuna çevrilir
+  // (kaydta w:br olur). Yapıştırma da düz metin olarak eklenir.
+  document.addEventListener('keydown', function (e) {
+    if (!EDIT) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+    }
+  });
+  document.addEventListener('paste', function (e) {
+    if (!EDIT) return;
+    e.preventDefault();
+    var t = (e.clipboardData || window.clipboardData).getData('text/plain');
+    if (t) document.execCommand('insertText', false, t.replace(/\r/g, ''));
   });
 
   // Seçimin B/I/U durumu araç çubuğuna yansır (150ms kısıtlı).
@@ -160,17 +199,21 @@
     for (var k = from; k <= to; k++) sendPara(k, list[k]);
   }
 
-  // Çizilen ilk sayfanın gerçek genişliğine göre viewport'u ayarlar:
-  // açılışta tam sayfa ekrana sığar (görseller "çok yakın" görünmez).
-  function fitViewport() {
+  // Sayfayı CSS zoom ile ekran genişliğine sığdırır: açılışta TÜM sayfa
+  // görünür. pageW bir kez, zoom uygulanmadan ölçülür (zoom altında offsetWidth
+  // ölçekli döner); döndürme/yeniden boyutta aynı değerle yeniden sığdırılır.
+  var pageW = 0;
+  function fitPage() {
+    var wrap = document.querySelector('.docx-wrapper');
     var sec = document.querySelector('.docx-wrapper > section.docx');
-    var w = sec ? Math.ceil(sec.getBoundingClientRect().width) + 16 : 820;
-    var mv = document.querySelector('meta[name="viewport"]');
-    if (mv && w > 0) {
-      mv.setAttribute('content', 'width=' + w +
-        ', minimum-scale=0.2, maximum-scale=6, user-scalable=yes');
+    if (!wrap || !sec) return;
+    if (!pageW) {
+      wrap.style.zoom = '';
+      pageW = sec.offsetWidth + 16;
     }
+    if (pageW > 0) wrap.style.zoom = Math.min(1, window.innerWidth / pageW);
   }
+  window.addEventListener('resize', fitPage);
 
   function showError(e) {
     var el = document.getElementById('err');
