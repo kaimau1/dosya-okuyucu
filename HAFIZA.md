@@ -82,6 +82,20 @@
   **Bilinçli yok:** editör görünümlerinde çift-dokunuş zoom — kDoubleTapTimeout tuzağı gereği
   hücre/kutu dokunuşlarını 300 ms geciktirirdi; düzenleme hissi zoom kısayolundan önemli.
 
+- **2026-07-22 — İkon kurtarma dersi + Faz 1 Word canlı düzenleme mimarisi.**
+  *İkon:* launcher ikonu commit'i (69213bf) hiçbir dalda değildi (dangling) — bulut oturum
+  dalı silinince kaybolmuş; `git checkout <sha> -- <paths>` ile nesne veritabanından kurtarıldı.
+  *Ders:* dal silmeden önce main'e merge edildiğini doğrula.
+  *Faz 1 kararları:* Sayfa görünümü contenteditable yapılır (docx-preview DOM'u);
+  paragraf eşleme **indeks tabanlı** — DOM `section.docx article p` sırası = `document.xml`
+  `w:p` sırası (başlık/altbilgi article dışında). Sigorta: düzenleme açılırken JS paragraf
+  sayısı gönderir, uyuşmazsa canlı düzenleme kapanır (yanlış paragrafa yazma engellenir).
+  B/I/U: `document.execCommand` + DOM'dan segman çıkarımı (computed style ile b/i/u) →
+  `DocxEditor.setRuns` ilk run'ın rPr'ini şablon kopyalayıp `w:b/w:i/w:u` ayarlar.
+  `DocxParagraph.rich` bayrağı: setRuns yazan paragrafa save() bir daha dokunmaz (ezme tuzağı).
+  Kaydetme canlı görünümü YENİDEN ÇİZMEZ (imleç kaybolmasın). Eski "Düzenle" sekmesi silindi;
+  düz metin editörü yalnız yedek yol (⋮ menüsü / sayfa görünümü açılamazsa).
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |

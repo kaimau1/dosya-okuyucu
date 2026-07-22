@@ -50,6 +50,116 @@
     }
   };
 
+  // ---- Canlı düzenleme köprüsü -------------------------------------------
+  // Sayfa contenteditable yapılır; değişen paragraf 250ms sonra Flutter'a
+  // {i: paragrafIndeksi, segs: [[metin,b,i,u],...]} olarak gönderilir (Kalem
+  // kanalı). Paragraf sırası document.xml'deki w:p sırasıyla birebirdir
+  // (başlık/altbilgi article dışında kaldığı için sayılmaz).
+  var EDIT = false;
+  var pending = {};
+
+  function articles() {
+    var a = document.querySelectorAll('.docx-wrapper section.docx article');
+    return a.length ? a : document.querySelectorAll('.docx-wrapper section.docx');
+  }
+
+  function paraList() {
+    var out = [];
+    articles().forEach(function (a) {
+      a.querySelectorAll('p').forEach(function (p) { out.push(p); });
+    });
+    return out;
+  }
+
+  function setEditable(on) {
+    EDIT = !!on;
+    articles().forEach(function (a) {
+      a.contentEditable = EDIT ? 'true' : 'false';
+    });
+    if (!EDIT && document.activeElement) document.activeElement.blur();
+    // Flutter, paragraf sayısını kendi listesiyle karşılaştırıp eşleşmezse
+    // düzenlemeyi kapatır (yanlış paragrafa yazma sigortası).
+    if (EDIT && window.Kalem) {
+      window.Kalem.postMessage(JSON.stringify({ n: paraList().length }));
+    }
+  }
+
+  function segsOf(p) {
+    var out = [];
+    function walk(node, b, i, u) {
+      if (node.nodeType === 3) {
+        if (node.textContent) out.push([node.textContent, b, i, u]);
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      var cs = window.getComputedStyle(node);
+      var nb = b || parseInt(cs.fontWeight, 10) >= 600 || cs.fontWeight === 'bold';
+      var ni = i || cs.fontStyle === 'italic';
+      var nu = u || ((cs.textDecorationLine || cs.textDecoration || '')
+                       .indexOf('underline') >= 0);
+      for (var c = node.firstChild; c; c = c.nextSibling) walk(c, nb, ni, nu);
+    }
+    walk(p, false, false, false);
+    return out;
+  }
+
+  function sendPara(idx, p) {
+    if (window.Kalem) {
+      window.Kalem.postMessage(JSON.stringify({ i: idx, segs: segsOf(p) }));
+    }
+  }
+
+  document.addEventListener('input', function (e) {
+    if (!EDIT) return;
+    var n = e.target;
+    while (n && n.nodeType !== 1) n = n.parentNode;
+    var p = n && n.closest ? n.closest('p') : null;
+    if (!p) return;
+    var list = paraList();
+    var idx = list.indexOf(p);
+    if (idx < 0) return;
+    clearTimeout(pending[idx]);
+    pending[idx] = setTimeout(function () { sendPara(idx, p); }, 250);
+  });
+
+  // Seçimin B/I/U durumu araç çubuğuna yansır (150ms kısıtlı).
+  var selTimer = null;
+  document.addEventListener('selectionchange', function () {
+    if (!EDIT || !window.Kalem) return;
+    clearTimeout(selTimer);
+    selTimer = setTimeout(function () {
+      window.Kalem.postMessage(JSON.stringify({
+        sel: {
+          b: document.queryCommandState('bold'),
+          i: document.queryCommandState('italic'),
+          u: document.queryCommandState('underline')
+        }
+      }));
+    }, 150);
+  });
+
+  function fmt(cmd) { // bold | italic | underline
+    document.execCommand(cmd, false, null);
+    syncSelection();
+  }
+
+  function syncSelection() {
+    var s = window.getSelection();
+    if (!s || !s.anchorNode) return;
+    var list = paraList();
+    function idxOf(node) {
+      while (node && node.nodeType !== 1) node = node.parentNode;
+      var p = node && node.closest ? node.closest('p') : null;
+      return p ? list.indexOf(p) : -1;
+    }
+    var a = idxOf(s.anchorNode), f = idxOf(s.focusNode);
+    if (a < 0 && f < 0) return;
+    if (a < 0) a = f;
+    if (f < 0) f = a;
+    var from = Math.min(a, f), to = Math.max(a, f);
+    for (var k = from; k <= to; k++) sendPara(k, list[k]);
+  }
+
   // Çizilen ilk sayfanın gerçek genişliğine göre viewport'u ayarlar:
   // açılışta tam sayfa ekrana sığar (görseller "çok yakın" görünmez).
   function fitViewport() {

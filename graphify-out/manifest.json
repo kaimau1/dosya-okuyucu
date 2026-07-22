@@ -35,18 +35,18 @@
     "semantic_hash": "970d010efa591584d45ed03123197875"
   },
   "lib/screens/editors/slides_editor_screen.dart": {
-    "mtime": 1784716796.2252574,
-    "ast_hash": "24db2f66248473a5823427dba322ada0",
+    "mtime": 1784718717.253081,
+    "ast_hash": "f35f1dbf2bb3fd9fdaaac76cece17439",
     "semantic_hash": ""
   },
   "lib/screens/editors/spreadsheet_editor_screen.dart": {
-    "mtime": 1784716730.857337,
-    "ast_hash": "e3b253b053433848029949a57bf73636",
+    "mtime": 1784718720.7154374,
+    "ast_hash": "3477ae11fb5de4196d2620e07f7d5740",
     "semantic_hash": ""
   },
   "lib/screens/editors/word_editor_screen.dart": {
-    "mtime": 1784716819.849051,
-    "ast_hash": "eb8e9fc73efcdf1b199c7f416172f325",
+    "mtime": 1784719198.9914804,
+    "ast_hash": "8a045754e9ed04574b40ec39fbbfab9f",
     "semantic_hash": ""
   },
   "lib/screens/home_screen.dart": {
@@ -70,9 +70,9 @@
     "semantic_hash": "1c003e96a3f0601db4cca08b087dbb73"
   },
   "lib/services/docx_editor.dart": {
-    "mtime": 1784617100.615637,
-    "ast_hash": "c9a3b85bec09f75e9727731ac4f30e0c",
-    "semantic_hash": "c9a3b85bec09f75e9727731ac4f30e0c"
+    "mtime": 1784719078.000833,
+    "ast_hash": "d33b4f35d080f1ada0eb3a6074317044",
+    "semantic_hash": ""
   },
   "lib/services/file_service.dart": {
     "mtime": 1784617100.61781,
@@ -125,23 +125,23 @@
     "semantic_hash": ""
   },
   "lib/services/pptx_render.dart": {
-    "mtime": 1784624600.3625207,
-    "ast_hash": "a092800cfce78aad41caebbe729a0a8c",
+    "mtime": 1784718680.0253856,
+    "ast_hash": "f73bbd6171e7c58ea70b9a42c22669be",
     "semantic_hash": ""
   },
   "lib/widgets/docx_view.dart": {
-    "mtime": 1784716825.0567198,
-    "ast_hash": "306d88ed475103ca4745950d1d877c40",
+    "mtime": 1784719133.8133512,
+    "ast_hash": "d0b8fa282a6df0166f2dd611af4e0c2e",
     "semantic_hash": ""
   },
   "lib/widgets/slide_canvas.dart": {
-    "mtime": 1784624662.580883,
-    "ast_hash": "8da41c5ac287f604447e22a703db7937",
+    "mtime": 1784718708.7397106,
+    "ast_hash": "854167eb2b452e48d05489d050747987",
     "semantic_hash": ""
   },
   "test/pptx_render_test.dart": {
-    "mtime": 1784624768.3080287,
-    "ast_hash": "4efc9571908b6b9039212c9213166660",
+    "mtime": 1784718774.6752734,
+    "ast_hash": "500511cc1a71cd61994583ebd5a54481",
     "semantic_hash": ""
   },
   "test/slideshow_test.dart": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/build-apk.yml": {
-    "mtime": 1784621845.9929101,
-    "ast_hash": "624327b8b92e9381cb89af0be0660c02",
+    "mtime": 1784718647.1482239,
+    "ast_hash": "2bb7a88ed139607771e3004c647b3884",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "HAFIZA.md": {
-    "mtime": 1784717096.6416545,
-    "ast_hash": "dc6b4ea2b951f2460a8a2154646c9381",
+    "mtime": 1784719298.6594088,
+    "ast_hash": "f95367b1ad7f9fe536f6e86f9b25082a",
     "semantic_hash": ""
   },
   "README.md": {
@@ -200,13 +200,13 @@
     "semantic_hash": ""
   },
   "assets/word/viewer.html": {
-    "mtime": 1784716831.022688,
-    "ast_hash": "0d67b1d2820f76a5a4ccf910d4c3889e",
+    "mtime": 1784719105.399762,
+    "ast_hash": "1af6098c119a887766f99b971757d472",
     "semantic_hash": ""
   },
   "pubspec.yaml": {
-    "mtime": 1784716571.7910044,
-    "ast_hash": "5deb4fba0347c3db8b2430bbf7609311",
+    "mtime": 1784718651.6786385,
+    "ast_hash": "589f440ba17ff23bf70ba81d1fbcc3ce",
     "semantic_hash": ""
   },
   "lib/widgets/office_shell.dart": {
@@ -215,8 +215,28 @@
     "semantic_hash": ""
   },
   "KALANLAR.md": {
-    "mtime": 1784717087.4258816,
-    "ast_hash": "7ffb572d1b54e9c539c7355c437f2e0d",
+    "mtime": 1784719289.7991014,
+    "ast_hash": "b805002163548cb0bf0e1cbe23f259f1",
+    "semantic_hash": ""
+  },
+  "test/docx_editor_test.dart": {
+    "mtime": 1784719220.987221,
+    "ast_hash": "c619de4269637d120ae1498302f42d29",
+    "semantic_hash": ""
+  },
+  "tool/gen_icon.py": {
+    "mtime": 1784718639.519682,
+    "ast_hash": "856dc83d9cf3be5a29610f623ce5f43a",
+    "semantic_hash": ""
+  },
+  "assets/icon/foreground.png": {
+    "mtime": 1784718639.5176811,
+    "ast_hash": "e2e9ecb65ac111a7e7e987bdb4254d37",
+    "semantic_hash": ""
+  },
+  "assets/icon/icon.png": {
+    "mtime": 1784718639.518683,
+    "ast_hash": "710ce6b15e7f10f621964892008924be",
     "semantic_hash": ""
   }
 }

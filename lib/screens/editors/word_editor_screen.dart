@@ -10,8 +10,10 @@ import '../../widgets/docx_view.dart';
 import '../../widgets/office_shell.dart';
 import '../chat_screen.dart';
 
-/// İki sekme: **Görünüm** belgeyi Word'deki sayfa düzeniyle çizer (docx-preview),
-/// **Düzenle** metni değiştirir. Kaydederken biçim korunur, sadece metin güncellenir.
+/// Word ekranı: belge **gerçek sayfa düzeniyle** açılır (docx-preview) ve
+/// kalem moduna geçince **sayfanın üzerinde** düzenlenir — popup/sekme yok.
+/// Değişen paragraflar JS köprüsünden gelir, `w:t`/`w:r` düğümlerine yazılır;
+/// B/I/U seçime uygulanır. Sayfa görünümü açılamazsa yedek metin editörü devreye girer.
 class WordEditorScreen extends StatefulWidget {
   final String path;
   final String name;
@@ -33,8 +35,11 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   String? _error;
   bool _dirty = false;
 
-  /// Kaydettikçe artar; sayfa görünümünün yeniden çizilmesini tetikler.
-  int _version = 0;
+  /// true → yedek düz metin editörü (sayfa görünümü açılamadı veya kullanıcı seçti).
+  bool _plainMode = false;
+  bool _editing = false;
+  bool _selB = false, _selI = false, _selU = false;
+  final _viewKey = GlobalKey<DocxViewState>();
 
   @override
   void initState() {
@@ -60,8 +65,8 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       final bytes = editor.save();
       await File(widget.path).writeAsBytes(bytes);
       _bytes = bytes;
-      _version++;
       _dirty = false;
+      // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.')));
@@ -85,65 +90,166 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
+  void _toggleEdit() {
+    final on = !_editing;
+    _viewKey.currentState?.setEditing(on);
+    setState(() => _editing = on);
+  }
+
+  /// Eşleme sigortası: WebView'daki paragraf sayısı bizimkiyle uyuşmuyorsa
+  /// canlı düzenleme yanlış paragrafa yazabilir → kapat, yedek editöre yönlendir.
+  void _onParagraphCount(int webCount) {
+    final ours = _editor?.paragraphs.length ?? -1;
+    if (webCount == ours) return;
+    _viewKey.currentState?.setEditing(false);
+    setState(() => _editing = false);
+    _snack('Bu belgede canlı düzenleme güvenli değil '
+        '(paragraf eşleşmedi: $webCount/$ours). ⋮ > Metin düzenleyici kullanın.');
+  }
+
+  void _onEdited(int i, List<(String, bool, bool, bool)> segs) {
+    _editor?.setRuns(i, segs);
+    if (!_dirty) setState(() => _dirty = true);
+  }
+
+  void _onSelection(bool b, bool i, bool u) {
+    if (b == _selB && i == _selI && u == _selU) return;
+    setState(() {
+      _selB = b;
+      _selI = i;
+      _selU = u;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
     final bytes = _bytes;
-    return DefaultTabController(
-      length: 2,
-      child: OfficeShell(
-        kind: DocKind.word,
-        title: widget.name,
-        dirty: _dirty,
-        actions: [
+    return OfficeShell(
+      kind: DocKind.word,
+      title: widget.name,
+      dirty: _dirty,
+      actions: [
+        if (!_plainMode)
           IconButton(
-            tooltip: 'Kaydet',
-            icon: const Icon(Icons.save_outlined),
-            onPressed: editor == null ? null : _save,
+            tooltip: _editing ? 'Düzenlemeyi bitir' : 'Sayfada düzenle',
+            icon: Icon(_editing ? Icons.check : Icons.edit_outlined),
+            onPressed: editor == null ? null : _toggleEdit,
           ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'export') _export();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                  value: 'export', child: Text('Paylaş / Dışa aktar')),
-            ],
-          ),
-        ],
-        tabBar: const TabBar(
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: [
-            Tab(icon: Icon(Icons.description_outlined), text: 'Görünüm'),
-            Tab(icon: Icon(Icons.edit_outlined), text: 'Düzenle'),
+        IconButton(
+          tooltip: 'Kaydet',
+          icon: const Icon(Icons.save_outlined),
+          onPressed: editor == null ? null : _save,
+        ),
+        PopupMenuButton<String>(
+          onSelected: (v) async {
+            switch (v) {
+              case 'export':
+                _export();
+                break;
+              case 'plain':
+                setState(() {
+                  _plainMode = true;
+                  _editing = false;
+                });
+                break;
+              case 'page':
+                if (_dirty) await _save();
+                setState(() => _plainMode = false);
+                break;
+            }
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem(
+                value: 'export', child: Text('Paylaş / Dışa aktar')),
+            _plainMode
+                ? const PopupMenuItem(
+                    value: 'page', child: Text('Sayfa görünümü'))
+                : const PopupMenuItem(
+                    value: 'plain', child: Text('Metin düzenleyici')),
           ],
         ),
-        body: _error != null
-            ? Center(child: Text('Açılamadı: $_error'))
-            : editor == null || bytes == null
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    children: [
-                      DocxView(key: ValueKey(_version), bytes: bytes),
-                      _buildPage(editor),
-                    ],
-                  ),
-        fab: FloatingActionButton.extended(
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              fileContext: widget.plainText,
-              fileName: widget.name,
+      ],
+      tabBar: _editing ? _formatBar() : null,
+      body: _error != null
+          ? Center(child: Text('Açılamadı: $_error'))
+          : editor == null || bytes == null
+              ? const Center(child: CircularProgressIndicator())
+              : _plainMode
+                  ? _buildPage(editor)
+                  : DocxView(
+                      key: _viewKey,
+                      bytes: bytes,
+                      onEdited: _onEdited,
+                      onSelection: _onSelection,
+                      onParagraphCount: _onParagraphCount,
+                      onStatus: (ok) {
+                        if (!ok && mounted) {
+                          setState(() {
+                            _plainMode = true;
+                            _editing = false;
+                          });
+                        }
+                      },
+                    ),
+      // Klavye/biçim çubuğu varken FAB araya girmesin.
+      fab: _editing
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  fileContext: widget.plainText,
+                  fileName: widget.name,
+                ),
+              )),
+              icon: const Icon(Icons.smart_toy_outlined),
+              label: const Text('AI'),
             ),
-          )),
-          icon: const Icon(Icons.smart_toy_outlined),
-          label: const Text('AI'),
+    );
+  }
+
+  /// M365 mobil tarzı biçim çubuğu: B / I / U + bitti.
+  PreferredSizeWidget _formatBar() {
+    Widget btn(String cmd, IconData icon, bool active, String tip) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? Colors.white24 : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          tooltip: tip,
+          icon: Icon(icon, color: Colors.white),
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _viewKey.currentState?.format(cmd),
+        ),
+      );
+    }
+
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(48),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          children: [
+            const SizedBox(width: 8),
+            btn('bold', Icons.format_bold, _selB, 'Kalın'),
+            btn('italic', Icons.format_italic, _selI, 'İtalik'),
+            btn('underline', Icons.format_underlined, _selU, 'Altı çizili'),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _toggleEdit,
+              icon: const Icon(Icons.keyboard_hide, color: Colors.white, size: 18),
+              label: const Text('Bitti', style: TextStyle(color: Colors.white)),
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
       ),
     );
   }
 
+  /// Yedek düz metin editörü (sayfa görünümü açılamadığında).
   Widget _buildPage(DocxEditor editor) {
     return Center(
       child: SingleChildScrollView(
