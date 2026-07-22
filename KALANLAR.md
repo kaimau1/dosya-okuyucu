@@ -1,11 +1,12 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
-- [ ] Build 51 cihaz doğrulaması: slayt dikey akış + pinch his + yazı sığdırma
-      (yer tutucu), Word tam sayfa açılış + yazma akıcılığı, ikon (2026-07-22)
-- [ ] Dal birleştirme (build 52) cihaz doğrulaması: eski .doc/.xls/.ppt açma,
-      Excel formül sonucu + satır/sütun çubuğu, belge içi arama, "birlikte aç",
-      yeni belge oluşturma, slayt çoğalt/sil/taşı (2026-07-22)
+- [ ] Build 53 cihaz doğrulaması (kullanıcı): WhatsApp/"birlikte aç" listesinde
+      görünme, odak-noktalı pinch (sayfa kaybolmamalı), Word tam sayfa sığdırma,
+      eski .doc/.xls/.ppt açma, Excel formül+satır/sütun, arama, yeni belge,
+      slayt çoğalt/sil/taşı, slayt yazı sığdırma (2026-07-22)
+- [ ] Build 54 (yalnız CI hızlandırma) sonucu kontrol edilecek — kapanıştan
+      sonra push'landı, izlenmedi (2026-07-22)
 
 ## Sonra yapılacak
 - [ ] Faz 2 — Excel canlı hücre: hücrenin içinde yazma + üstte formül çubuğu (fx)
