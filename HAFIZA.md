@@ -313,3 +313,21 @@
   struct ile elle) fixture'larla test edildi. .doc/.ppt metin çıkarımı gerçek dosyada
   kusurlu olabilir (sıra/boşluk) — dürüst "basit metin görünümü" etiketiyle sunulur.
 - odt/ods/odp/rtf/pages/numbers/key hâlâ "harici aç" (kapsam dışı).
+
+## 2026-07-22 — TUZAK+ÇÖZÜM: APK derlemesi geçici Gradle stall'ında 55 dk takılıp çöktü
+- **Belirti (kullanıcı):** "derleme başarısız oldu ve çok uzun sürdü." Build #53
+  (`f2fdd81`) `flutter build apk --release` adımında 12:36→13:31 = ~55 dk asılı
+  kalıp job'ı çökertti. Aynı uygulama kodu bir sonraki koşuda (#54, `59bde00`)
+  12 dk'da SORUNSUZ derlendi.
+- **Kök neden:** kod hatası DEĞİL. #53 ile #54 arası fark yalnızca CI (`621ca97`)
+  ve HAFIZA.md (`59bde00`) — `lib/` aynı. Yani geçici bir Gradle/ağ bağımlılık
+  indirme stall'ı. Job'da `timeout-minutes` olmadığı için takılma uzun sürüp
+  ~1 saat CI dakikası yaktı.
+- **Çözüm (build-apk.yml, apk job):**
+  1. `timeout-minutes: 30` — takılma bir daha ~1 saat yakamaz, hızlı başarısız olur.
+  2. `actions/cache@v4` ile `~/.gradle/{caches,wrapper}` + `~/.pub-cache` önbelleği
+     (anahtar: `pubspec.yaml` hash) — indirme diskten gelir, ağ stall'ına maruziyet düşer.
+  3. `gradle.properties`'e `http.connectionTimeout/socketTimeout=120000` — asılan
+     indirme 120 sn'de zaman aşımına uğrar, Gradle yeniden dener (sonsuz asılma yok).
+- **Ders:** ağır CI job'larına HER ZAMAN `timeout-minutes` koy; Gradle ağ zaman
+  aşımlarını sabitle. Geçmişte de benzer takılmalar oldu (#45 iptal, commit 409add6).
