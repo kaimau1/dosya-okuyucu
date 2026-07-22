@@ -173,8 +173,10 @@ class _ShapeBody extends StatelessWidget {
         alignment = Alignment.topCenter;
     }
 
+    // Yer tutucular da sığdırılır: PowerPoint autofit'i çoğu dosyada şablonda
+    // saklar, şeklin kendi bodyPr'inde görünmez (yazı-taşması kök nedeni #2).
     var scale = s.fontScale;
-    if (s.autofit) scale *= _fitScale(s, scale);
+    if (s.autofit || s.isPlaceholder) scale *= _fitScale(s, scale);
 
     return OverflowBox(
       alignment: alignment,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -7,6 +8,7 @@ import '../../models/document.dart';
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/office_shell.dart';
+import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_canvas.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
@@ -34,14 +36,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   String? _error;
   bool _dirty = false;
 
-  // PowerPoint mobil hissi: yatay sayfa geçişi + seçili slaytta pinch zoom.
-  final _pageCtrl = PageController();
-  final _tc = TransformationController();
-  bool _zoomed = false; // zoom > 1 iken sayfa kaydırma kilitlenir, pan IV'ye kalır
-  int _page = 0;
-  late final _badge = ZoomBadgeController((fn) {
-    if (mounted) setState(fn);
-  });
+  // Tüm slaytlar alt alta akar (kullanıcı kararı 2026-07-22: sayfa sayfa değil);
+  // pinch zoom ortak PinchZoomArea'dan (Excel'le aynı his). Zoom > 1'de yatay
+  // kaydırma açılır, ofsetler commit'te oranla düzeltilir.
+  double _zoom = 1;
+  final _hCtrl = ScrollController();
+  final _vCtrl = ScrollController();
 
   @override
   void initState() {
@@ -51,10 +51,20 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   @override
   void dispose() {
-    _pageCtrl.dispose();
-    _tc.dispose();
-    _badge.dispose();
+    _hCtrl.dispose();
+    _vCtrl.dispose();
     super.dispose();
+  }
+
+  void _fixScroll(double f) {
+    if (_hCtrl.hasClients) {
+      _hCtrl.jumpTo(
+          (_hCtrl.offset * f).clamp(0.0, _hCtrl.position.maxScrollExtent));
+    }
+    if (_vCtrl.hasClients) {
+      _vCtrl.jumpTo(
+          (_vCtrl.offset * f).clamp(0.0, _vCtrl.position.maxScrollExtent));
+    }
   }
 
   Future<void> _load() async {
@@ -108,7 +118,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         IconButton(
           tooltip: 'Sunumu oynat',
           icon: const Icon(Icons.play_arrow),
-          onPressed: editor == null ? null : () => _play(_page),
+          onPressed: editor == null ? null : () => _play(0),
         ),
         IconButton(
           tooltip: 'Kaydet',
@@ -146,96 +156,86 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     if (editor.slides.isEmpty) {
       return const Center(child: Text('Slayt bulunamadı.'));
     }
-    final n = editor.slides.length;
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _pageCtrl,
-          // Zoom'dayken yatay sürükleme slaydı gezdirir, sayfa değiştirmez.
-          physics: _zoomed ? const NeverScrollableScrollPhysics() : null,
-          itemCount: n,
-          onPageChanged: (i) {
-            setState(() {
-              _page = i;
-              _zoomed = false;
-            });
-            _tc.value = Matrix4.identity();
-          },
-          itemBuilder: (context, i) => _slidePage(editor.slides[i], i, n),
-        ),
-        Positioned(
-          left: 12,
-          bottom: MediaQuery.of(context).padding.bottom + 12,
-          child: ZoomBadge(zoom: _badge.zoom, visible: _badge.visible),
-        ),
-      ],
-    );
-  }
-
-  Widget _slidePage(PptxSlide slide, int i, int total) {
-    final scheme = Theme.of(context).colorScheme;
-    final view = slide.view;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          16, 4, 16, MediaQuery.of(context).padding.bottom + 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('Slayt ${i + 1} / $total',
-                  style: Theme.of(context).textTheme.labelMedium),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Tam ekran sunum',
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.fullscreen, size: 20),
-                onPressed: () => _play(i),
-              ),
-            ],
-          ),
-          Expanded(
-            child: Center(
-              child: InteractiveViewer(
-                transformationController: _tc,
-                // Serbest zoom-out istendi: %50'ye kadar uzaklaşılabilir,
-                // sonsuz kenar payı küçültülmüş slaydın gezdirilmesine izin verir.
-                minScale: 0.5,
-                maxScale: 5,
-                boundaryMargin: const EdgeInsets.all(double.infinity),
-                onInteractionUpdate: (d) {
-                  if (d.pointerCount >= 2) {
-                    _badge.bump(_tc.value.getMaxScaleOnAxis());
-                  }
-                },
-                onInteractionEnd: (_) {
-                  final z = _tc.value.getMaxScaleOnAxis() > 1.02;
-                  if (z != _zoomed) setState(() => _zoomed = z);
-                },
-                child: AspectRatio(
-                  aspectRatio:
-                      view == null ? 16 / 9 : view.widthPt / view.heightPt,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      border: Border.all(color: scheme.outlineVariant),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.10),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: view == null
-                        ? _fallbackText(slide)
-                        : SlideCanvas(
-                            slide: view,
-                            onEditShape: (shape) => _editShape(slide, shape),
-                          ),
+    return LayoutBuilder(builder: (context, box) {
+      return PinchZoomArea(
+        minZoom: 0.5,
+        maxZoom: 3,
+        onCommitted: _fixScroll,
+        builder: (context, zoom, physics) {
+          _zoom = zoom;
+          final cardW = math.max(120.0, box.maxWidth * _zoom - 32);
+          final totalW = math.max(box.maxWidth, cardW + 32);
+          return SingleChildScrollView(
+            controller: _hCtrl,
+            physics: physics,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: totalW,
+              child: ListView.builder(
+                controller: _vCtrl,
+                physics: physics,
+                padding: EdgeInsets.fromLTRB(
+                    16, 8, 16, MediaQuery.of(context).padding.bottom + 88),
+                itemCount: editor.slides.length,
+                itemBuilder: (context, i) => Center(
+                  child: SizedBox(
+                    width: cardW,
+                    child: _slideCard(editor.slides[i], i),
                   ),
                 ),
               ),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  Widget _slideCard(PptxSlide slide, int i) {
+    final scheme = Theme.of(context).colorScheme;
+    final view = slide.view;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 2),
+            child: Row(
+              children: [
+                Text('Slayt ${slide.index}',
+                    style: Theme.of(context).textTheme.labelMedium),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Tam ekran sunum',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.fullscreen, size: 20),
+                  onPressed: () => _play(i),
+                ),
+              ],
+            ),
+          ),
+          AspectRatio(
+            aspectRatio:
+                view == null ? 16 / 9 : view.widthPt / view.heightPt,
+            child: Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                border: Border.all(color: scheme.outlineVariant),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: view == null
+                  ? _fallbackText(slide)
+                  : SlideCanvas(
+                      slide: view,
+                      onEditShape: (shape) => _editShape(slide, shape),
+                    ),
             ),
           ),
         ],

@@ -1,8 +1,8 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
-- [ ] Build 48 cihaz doğrulaması: slayt yazı sığdırma (autofit), Word açılış
-      ölçeği/görseller, ikon geri geldi mi, zoom-out serbestliği (2026-07-22)
+- [ ] Build 51 cihaz doğrulaması: slayt dikey akış + pinch his + yazı sığdırma
+      (yer tutucu), Word tam sayfa açılış + yazma akıcılığı, ikon (2026-07-22)
 
 ## Sonra yapılacak
 - [ ] Faz 2 — Excel canlı hücre: hücrenin içinde yazma + üstte formül çubuğu (fx)

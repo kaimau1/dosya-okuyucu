@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/office_shell.dart';
+import '../../widgets/pinch_zoom_area.dart';
 import '../chat_screen.dart';
 
 /// Excel görünümü: gerçek sütun genişlikleri, satır yükseklikleri, hücre
@@ -45,21 +46,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   int _selCol = 0;
   final _cellField = TextEditingController();
 
-  // --- Pinch zoom (Excel mobil hissi) ---------------------------------------
-  // Jest arenasına girmeden ham pointer'lardan hesaplanır: iki parmak inince
-  // kaydırma kilitlenir, aradaki mesafe oranı canlı GPU ölçeği olur; parmak
-  // kalkınca ölçek hücre metriklerine işlenir (yazı yeniden net çizilir).
-  static const _minZoom = 0.3; // geniş tablolara kuşbakışı için serbest zoom-out
-  static const _maxZoom = 3.0;
-  double _zoom = 1; // işlenmiş ölçek (hücre boyutları/yazılar bununla çarpılır)
-  double _gestureZoom = 1; // pinch sırasında geçici Transform ölçeği
-  final Map<int, Offset> _touches = {};
-  double? _pinchStartDist;
+  // Pinch zoom ortak PinchZoomArea'dan gelir; ölçek burada tutulur ki hücre
+  // metrikleri/yazılar bununla çizilsin (bırakınca net yeniden çizim).
+  double _zoom = 1;
   final _hCtrl = ScrollController();
   final _vCtrl = ScrollController();
-  late final _badge = ZoomBadgeController((fn) {
-    if (mounted) setState(fn);
-  });
 
   @override
   void initState() {
@@ -72,63 +63,21 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     _cellField.dispose();
     _hCtrl.dispose();
     _vCtrl.dispose();
-    _badge.dispose();
     super.dispose();
   }
 
   double get _headerH => 30 * _zoom;
 
-  double _touchDist() {
-    final pts = _touches.values.toList();
-    return (pts[0] - pts[1]).distance;
-  }
-
-  void _onPointerDown(PointerDownEvent e) {
-    _touches[e.pointer] = e.position;
-    if (_touches.length == 2) {
-      _pinchStartDist = _touchDist();
-      setState(() {}); // kaydırma kilidi (physics) devreye girsin
+  /// Bakılan bölge yerinde kalsın: kaydırma konumu ölçek oranıyla çarpılır.
+  void _fixScroll(double f) {
+    if (_hCtrl.hasClients) {
+      _hCtrl.jumpTo(
+          (_hCtrl.offset * f).clamp(0.0, _hCtrl.position.maxScrollExtent));
     }
-  }
-
-  void _onPointerMove(PointerMoveEvent e) {
-    if (!_touches.containsKey(e.pointer)) return;
-    _touches[e.pointer] = e.position;
-    final start = _pinchStartDist;
-    if (start != null && start > 0 && _touches.length == 2) {
-      final f =
-          (_touchDist() / start).clamp(_minZoom / _zoom, _maxZoom / _zoom);
-      setState(() => _gestureZoom = f);
-      _badge.bump(_zoom * f);
+    if (_vCtrl.hasClients) {
+      _vCtrl.jumpTo(
+          (_vCtrl.offset * f).clamp(0.0, _vCtrl.position.maxScrollExtent));
     }
-  }
-
-  void _onPointerEnd(int pointer) {
-    _touches.remove(pointer);
-    if (_pinchStartDist != null && _touches.length < 2) {
-      _pinchStartDist = null;
-      _commitZoom();
-    }
-  }
-
-  void _commitZoom() {
-    final f = _gestureZoom;
-    setState(() {
-      _zoom = (_zoom * f).clamp(_minZoom, _maxZoom);
-      _gestureZoom = 1;
-    });
-    if ((f - 1).abs() < 0.001) return;
-    // Bakılan bölge yerinde kalsın: kaydırma konumu ölçek oranıyla çarpılır.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_hCtrl.hasClients) {
-        _hCtrl.jumpTo(
-            (_hCtrl.offset * f).clamp(0.0, _hCtrl.position.maxScrollExtent));
-      }
-      if (_vCtrl.hasClients) {
-        _vCtrl.jumpTo(
-            (_vCtrl.offset * f).clamp(0.0, _vCtrl.position.maxScrollExtent));
-      }
-    });
   }
 
   Future<void> _load() async {
@@ -241,19 +190,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           ? Center(child: Text('Açılamadı: $_error'))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
-              : Stack(
+              : Column(
                   children: [
-                    Column(
-                      children: [
-                        _cellBar(),
-                        Expanded(child: _grid()),
-                      ],
-                    ),
-                    Positioned(
-                      left: 12,
-                      bottom: MediaQuery.of(context).padding.bottom + 12,
-                      child:
-                          ZoomBadge(zoom: _badge.zoom, visible: _badge.visible),
+                    _cellBar(),
+                    Expanded(
+                      child: PinchZoomArea(
+                        minZoom: 0.3,
+                        maxZoom: 3,
+                        onCommitted: _fixScroll,
+                        builder: (context, zoom, physics) {
+                          _zoom = zoom;
+                          return _grid(physics);
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -339,7 +288,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     );
   }
 
-  Widget _grid() {
+  Widget _grid(ScrollPhysics? physics) {
     final sheet = _sheet;
     if (sheet == null) return const Center(child: Text('Sayfa yok.'));
 
@@ -350,11 +299,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       total += sheet.colWidth(c) * _zoom;
     }
 
-    // Pinch sürerken kaydırma kilitlenir ki iki parmak jesti ızgarayı sürüklemesin.
-    final ScrollPhysics? physics =
-        _pinchStartDist != null ? const NeverScrollableScrollPhysics() : null;
-
-    final grid = SingleChildScrollView(
+    return SingleChildScrollView(
       controller: _hCtrl,
       physics: physics,
       scrollDirection: Axis.horizontal,
@@ -383,18 +328,6 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             ),
           ],
         ),
-      ),
-    );
-
-    return Listener(
-      onPointerDown: _onPointerDown,
-      onPointerMove: _onPointerMove,
-      onPointerUp: (e) => _onPointerEnd(e.pointer),
-      onPointerCancel: (e) => _onPointerEnd(e.pointer),
-      child: Transform.scale(
-        scale: _gestureZoom,
-        alignment: Alignment.topLeft,
-        child: grid,
       ),
     );
   }

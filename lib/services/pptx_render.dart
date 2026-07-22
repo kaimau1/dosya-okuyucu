@@ -94,6 +94,12 @@ class ShapeVM {
   /// `a:normAutofit@lnSpcReduction` (0-1): satır aralığı küçültmesi.
   final double lnSpcReduction;
 
+  /// Şekil bir yer tutucu mu (başlık/gövde/altbaşlık)? PowerPoint yer tutucu
+  /// metnini varsayılan olarak kutuya sığdırır ("shrink on overflow") ama
+  /// autofit ayarı çoğu dosyada slayt yerine ŞABLONDA durur — bu yüzden
+  /// canvas yer tutucularda da sığdırma uygular.
+  final bool isPlaceholder;
+
   const ShapeVM({
     required this.x,
     required this.y,
@@ -113,6 +119,7 @@ class ShapeVM {
     this.fontScale = 1,
     this.autofit = false,
     this.lnSpcReduction = 0,
+    this.isPlaceholder = false,
   });
 
   bool get hasText => paragraphs.any((p) => p.plainText.isNotEmpty);
@@ -553,6 +560,7 @@ class PptxRender {
       fontScale: _fontScale(bodyPr),
       autofit: bodyPr != null && _first(bodyPr, 'a:normAutofit') != null,
       lnSpcReduction: _lnSpcReduction(bodyPr),
+      isPlaceholder: ph != null,
     );
   }
 

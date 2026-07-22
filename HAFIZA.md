@@ -96,6 +96,15 @@
   Kaydetme canlı görünümü YENİDEN ÇİZMEZ (imleç kaybolmasın). Eski "Düzenle" sekmesi silindi;
   düz metin editörü yalnız yedek yol (⋮ menüsü / sayfa görünümü açılamazsa).
 
+- **2026-07-22 — Slayt görünümü kararı (kullanıcı, build 49 denemesi sonrası):**
+  PageView (sayfa sayfa yatay) REDDEDİLDİ → tüm slaytlar alt alta dikey akış.
+  InteractiveViewer + sonsuz boundaryMargin da reddedildi ("slayt kayboluyor",
+  zoom zor) → Excel'deki ham-pointer pinch modeli ortaklaştırıldı:
+  `widgets/pinch_zoom_area.dart` (Excel + slayt listesi aynı widget'ı kullanır).
+  *Yazı taşması kök nedeni #2:* autofit çoğu dosyada şeklin bodyPr'inde değil
+  ŞABLONDA durur → yer tutucu (`ph` olan) şekillere de sığdırma uygulanır
+  (`ShapeVM.isPlaceholder`). #1 lnSpcReduction/ölçüm 48'de gelmişti.
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |
