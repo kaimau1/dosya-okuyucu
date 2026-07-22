@@ -137,4 +137,29 @@ void main() {
     e.deleteColumn(name, 0);
     expect(e.sheets.first.rows[1][0], '42');
   });
+
+  test('setCellStyle kalın/italik/hizalamayı anında ve kalıcı uygular', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final s = e.sheets.first;
+
+    e.setCellStyle(s.name, 1, 0, bold: true, align: TextAlign.center);
+    var st = s.styleAt(1, 0)!;
+    expect(st.bold, isTrue); // görünüm önbelleği anında güncellendi
+    expect(st.align, TextAlign.center);
+
+    // Dokunulmayan özellik korunur: italic hâlâ kapalı.
+    expect(st.italic, isFalse);
+    e.setCellStyle(s.name, 1, 0, italic: true);
+    st = s.styleAt(1, 0)!;
+    expect(st.bold, isTrue); // bold silinmedi
+    expect(st.italic, isTrue);
+
+    // Kaydet → yeniden aç: kalın/italik dosyada kalıcı. (Hizalama dosyaya
+    // yazılır ama excel paketinin okuma hatası yüzünden geri OKUNAMAZ —
+    // bkz. yukarıdaki stil testi notu; burada o yüzden doğrulanmıyor.)
+    final again = XlsxEditor.parse(e.save());
+    final st2 = again.sheets.first.styleAt(1, 0)!;
+    expect(st2.bold, isTrue);
+    expect(st2.italic, isTrue);
+  });
 }

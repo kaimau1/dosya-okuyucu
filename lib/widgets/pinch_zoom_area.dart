@@ -115,6 +115,10 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
                 scale: _gestureZoom,
                 // Zoom parmakların ortasından büyür — sol üstten değil; içerik
                 // parmakların altında kalır, "sayfa kayboluyor" hissi olmaz.
+                // alignment varsayılanı (center) origin'e EKLENİR; topLeft
+                // verilmezse etkin merkez odak+viewport/2 olur ve içerik
+                // yaklaştırırken sağa/aşağı kayar (commit matematiğiyle uyumsuz).
+                alignment: Alignment.topLeft,
                 origin: _focal,
                 child: widget.builder(context, _zoom, physics),
               ),

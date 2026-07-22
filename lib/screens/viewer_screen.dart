@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:pdfx/pdfx.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -25,13 +25,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final _fileService = FileService();
   final _conversion = ConversionService();
 
-  PdfControllerPinch? _pdfController;
   TextEditingController? _textController;
   bool _dirty = false;
 
   // Görüntüleme durumu (okuma konforu).
   int _pdfPage = 1;
   int _pdfCount = 0;
+
+  /// PDF'ten çıkarılan metin (AI sohbetine bağlam olarak gider). pdfium metin
+  /// katmanı sayesinde artık PDF içeriği de AI'a verilebiliyor; sayfa üzerinde
+  /// seçme/kopyalama zaten görüntüleyicinin kendisinde.
+  String _pdfText = '';
   int _imgQuarterTurns = 0;
   double _fontSize = 15;
   final TransformationController _imgTx = TransformationController();
@@ -49,11 +53,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void initState() {
     super.initState();
     final doc = widget.doc;
-    if (doc.kind == DocKind.pdf) {
-      _pdfController = PdfControllerPinch(
-        document: PdfDocument.openFile(doc.path),
-      );
-    }
     if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
         doc.kind == DocKind.slides) {
@@ -63,7 +62,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   @override
   void dispose() {
-    _pdfController?.dispose();
     _textController?.dispose();
     _imgTx.dispose();
     _findCtl.dispose();
@@ -253,10 +251,30 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
+  /// PDF sayfalarının metnini arka planda çıkarır (AI sohbet bağlamı için).
+  /// Taranmış/metinsiz PDF'te sessizce boş kalır — görüntüleme etkilenmez.
+  Future<void> _extractPdfText(PdfDocument document) async {
+    if (_pdfText.isNotEmpty) return;
+    try {
+      final sb = StringBuffer();
+      for (final page in document.pages) {
+        // dynamic: loadText dönüşü sürümler arasında nullable/nonnull değişti;
+        // her iki imzayla da derlensin.
+        final dynamic t = await page.loadText();
+        final full = t == null ? '' : (t.fullText as String? ?? '');
+        if (full.trim().isNotEmpty) sb.writeln(full);
+        if (sb.length > 100000) break; // AI bağlamı için fazlası gereksiz
+      }
+      _pdfText = sb.toString().trim();
+    } catch (_) {}
+  }
+
   void _openChat() {
+    final isPdf = widget.doc.kind == DocKind.pdf;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ChatScreen(
-        fileContext: widget.doc.plainText,
+        fileContext:
+            isPdf && _pdfText.isNotEmpty ? _pdfText : widget.doc.plainText,
         fileName: widget.doc.name,
       ),
     ));
@@ -377,14 +395,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
         return Stack(
           children: [
             Positioned.fill(
-              child: PdfViewPinch(
-                controller: _pdfController!,
-                onDocumentLoaded: (d) {
-                  if (mounted) setState(() => _pdfCount = d.pagesCount);
-                },
-                onPageChanged: (p) {
-                  if (mounted) setState(() => _pdfPage = p);
-                },
+              // pdfrx (pdfium): metin katmanı gerçek olduğu için sayfa
+              // ÜZERİNDE uzun basarak kelime/paragraf seçilip kopyalanabilir.
+              child: PdfViewer.file(
+                doc.path,
+                params: PdfViewerParams(
+                  enableTextSelection: true,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  onViewerReady: (document, controller) {
+                    if (mounted) {
+                      setState(() => _pdfCount = document.pages.length);
+                    }
+                    _extractPdfText(document);
+                  },
+                  onPageChanged: (page) {
+                    if (mounted && page != null) {
+                      setState(() => _pdfPage = page);
+                    }
+                  },
+                ),
               ),
             ),
             if (_pdfCount > 0)

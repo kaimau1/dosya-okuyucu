@@ -256,6 +256,36 @@ class PptxEditor {
     slide.view = _tryRender(_render, slide.fileName, slide.doc) ?? slide.view;
   }
 
+  /// Paragrafın tüm çalıştırmalarına (a:r → a:rPr) biçim uygular; verilmeyen
+  /// özellik el değmeden kalır. Punto `sz` yüzde-punto (pt × 100) yazılır.
+  /// rPr yoksa oluşturulur — şema gereği `a:t`'den ÖNCE (ilk çocuk) durmalı.
+  void formatParagraph(
+    PptxSlide slide,
+    PptxParagraph para, {
+    bool? bold,
+    bool? italic,
+    bool? underline,
+    double? sizePt,
+  }) {
+    if (bold == null && italic == null && underline == null && sizePt == null) {
+      return;
+    }
+    for (final r in para.element.findElements('a:r')) {
+      var rPr = _firstOrNull(r.findElements('a:rPr'));
+      if (rPr == null) {
+        rPr = XmlElement(XmlName('a:rPr'));
+        r.children.insert(0, rPr);
+      }
+      if (bold != null) rPr.setAttribute('b', bold ? '1' : '0');
+      if (italic != null) rPr.setAttribute('i', italic ? '1' : '0');
+      if (underline != null) rPr.setAttribute('u', underline ? 'sng' : 'none');
+      if (sizePt != null) {
+        rPr.setAttribute('sz', '${(sizePt * 100).round()}');
+      }
+    }
+    slide.view = _tryRender(_render, slide.fileName, slide.doc) ?? slide.view;
+  }
+
   void _writeText(PptxParagraph para) {
     final tNodes = para.element.findAllElements('a:t').toList();
     if (tNodes.isEmpty) return;

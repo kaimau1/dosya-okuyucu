@@ -158,6 +158,27 @@ void main() {
     expect(again.paragraphs[1].bold, isTrue); // kalınlık korunur
   });
 
+  test('yalnız hizalama değişince run biçimleri (karma B/I/U) ezilmez', () {
+    final e = DocxEditor.parse(_sampleDocx());
+    e.paragraphs[2].align = 'center'; // 'Normal' paragrafı — sadece hizalama
+
+    final again = DocxEditor.parse(e.save());
+    expect(again.paragraphs[2].align, 'center');
+    expect(again.paragraphs[2].bold, isFalse); // b/i/u eklenmedi
+    expect(again.paragraphs[1].bold, isTrue); // komşu paragraf el değmedi
+  });
+
+  test('rich (canlı yazılmış) paragrafta hizalama da kaydedilir', () {
+    final e = DocxEditor.parse(_richSampleDocx());
+    e.setRuns(0, [('Merhaba', true, false, false)]);
+    e.paragraphs[0].align = 'right'; // canlı hizalama düğmesinin yolu
+
+    final again = DocxEditor.parse(e.save());
+    expect(again.paragraphs[0].text, 'Merhaba');
+    expect(again.paragraphs[0].align, 'right');
+    expect(again.paragraphs[0].bold, isTrue); // setRuns'ın B'si korunur
+  });
+
   test('el değmeyen paragrafın run yapısı save sonrası aynı kalır', () {
     final e = DocxEditor.parse(_richSampleDocx());
     e.paragraphs[1].text = 'Sadece bu değişti';

@@ -322,13 +322,38 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     );
   }
 
+  /// Seçili hücreye yazı biçimi uygular (kalın/italik/hizalama) — Excel'in
+  /// giriş sekmesindeki temel biçim düğmeleri.
+  void _applyStyle({bool? bold, bool? italic, TextAlign? align}) {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    editor.setCellStyle(sheet.name, _selRow, _selCol,
+        bold: bold, italic: italic, align: align);
+    _dirty = true;
+    setState(() {});
+  }
+
   /// Seçili satır/sütun üzerinde ekle-sil işlemleri (Excel'in sağ tık menüsü gibi).
   Widget _rowColBar() {
     final scheme = Theme.of(context).colorScheme;
+    final selStyle = _sheet?.styleAt(_selRow, _selCol);
     Widget btn(IconData icon, String tip, VoidCallback onTap) => IconButton(
           tooltip: tip,
           visualDensity: VisualDensity.compact,
           iconSize: 20,
+          icon: Icon(icon),
+          onPressed: onTap,
+        );
+    Widget toggle(IconData icon, String tip, bool active, VoidCallback onTap) =>
+        IconButton(
+          tooltip: tip,
+          isSelected: active,
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          style: active
+              ? IconButton.styleFrom(backgroundColor: scheme.primaryContainer)
+              : null,
           icon: Icon(icon),
           onPressed: onTap,
         );
@@ -364,6 +389,25 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             btn(Icons.keyboard_arrow_right, 'Sağa sütun ekle',
                 () => _insertColumn(right: true)),
             btn(Icons.remove, 'Sütunu sil', _deleteColumn),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Container(
+                  width: 1, height: 22, color: scheme.outlineVariant),
+            ),
+            // Hücre biçimi: kalın/italik + hizalama (seçili hücreye uygulanır).
+            toggle(Icons.format_bold, 'Kalın', selStyle?.bold ?? false,
+                () => _applyStyle(bold: !(selStyle?.bold ?? false))),
+            toggle(Icons.format_italic, 'İtalik', selStyle?.italic ?? false,
+                () => _applyStyle(italic: !(selStyle?.italic ?? false))),
+            toggle(Icons.format_align_left, 'Sola yasla',
+                selStyle?.align == TextAlign.left,
+                () => _applyStyle(align: TextAlign.left)),
+            toggle(Icons.format_align_center, 'Ortala',
+                selStyle?.align == TextAlign.center,
+                () => _applyStyle(align: TextAlign.center)),
+            toggle(Icons.format_align_right, 'Sağa yasla',
+                selStyle?.align == TextAlign.right,
+                () => _applyStyle(align: TextAlign.right)),
           ],
         ),
       ),

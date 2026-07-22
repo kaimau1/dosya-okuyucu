@@ -179,10 +179,12 @@ class _ShapeBody extends StatelessWidget {
         alignment = Alignment.topCenter;
     }
 
-    // Yer tutucular da sığdırılır: PowerPoint autofit'i çoğu dosyada şablonda
-    // saklar, şeklin kendi bodyPr'inde görünmez (yazı-taşması kök nedeni #2).
-    var scale = s.fontScale;
-    if (s.autofit || s.isPlaceholder) scale *= _fitScale(s, scale);
+    // Sığdırma TÜM metin kutularına uygulanır (yazı-taşması kök nedeni #3):
+    // autofit/yer tutucu ayrımı yetmedi — düz şekillerde (dolgu kutuları,
+    // başlık şeritleri) Calibri≠Roboto metrik farkı yazıyı kutudan taşırıp
+    // komşu kutuların üstüne bindiriyordu (Slayt 22 örneği). PowerPoint'in
+    // "taşır" davranışından bilinçli sapıyoruz: okunurluk > birebir sadakat.
+    var scale = s.fontScale * _fitScale(s, s.fontScale);
 
     return OverflowBox(
       alignment: alignment,
@@ -210,28 +212,38 @@ class _ShapeBody extends StatelessWidget {
   }
 
   /// Kutuya sığması için gereken ek ölçek (1 = küçültme gerekmez).
-  /// Font küçülünce satır sayısı da azalacağı için oran güvenli üst sınırdır.
   double _fitScale(ShapeVM s, double baseScale) {
     final availW = s.w - s.inset.horizontal;
     final availH = s.h - s.inset.vertical;
     if (availW <= 0 || availH <= 0) return 1;
 
-    var total = 0.0;
-    for (final p in s.paragraphs) {
-      if (p.plainText.isEmpty) continue;
-      final tp = TextPainter(
-        text: _span(p, baseScale, s.lnSpcReduction),
-        textAlign: p.align,
-        textDirection: TextDirection.ltr,
-      )..layout(
-          maxWidth: math.max(
-              1, availW - p.indentPt - (p.bullet.isEmpty ? 0 : 14)));
-      total += tp.height + p.spaceBeforePt;
-      tp.dispose();
+    double measure(double sc) {
+      var total = 0.0;
+      for (final p in s.paragraphs) {
+        if (p.plainText.isEmpty) continue;
+        final tp = TextPainter(
+          text: _span(p, sc, s.lnSpcReduction),
+          textAlign: p.align,
+          textDirection: TextDirection.ltr,
+        )..layout(
+            maxWidth: math.max(
+                1, availW - p.indentPt - (p.bullet.isEmpty ? 0 : 14)));
+        total += tp.height + p.spaceBeforePt;
+        tp.dispose();
+      }
+      return total;
     }
+
+    final total = measure(baseScale);
     if (total <= 0 || total <= availH) return 1;
-    // ponytail: tek geçişli oran; yetmediği görülürse ikinci ölçüm turu eklenir
-    return math.max(0.4, availH / total);
+    // Tek geçişli oran güvenli üst sınır sanılıyordu ama sarma yüzünden
+    // yetmeyebiliyor: font küçülünce satır sayısı her zaman aynı oranda
+    // azalmaz (uzun kelimeler yeniden sarar). İkinci ölçüm turu gerçek
+    // yüksekliği doğrular, hâlâ taşıyorsa oranı bir kez daha sıkar.
+    var fit = availH / total;
+    final second = measure(baseScale * math.max(0.35, fit));
+    if (second > availH) fit *= availH / second;
+    return math.max(0.35, fit);
   }
 
   TextSpan _span(ParaVM p, double fontScale, double lnSpcReduction) {

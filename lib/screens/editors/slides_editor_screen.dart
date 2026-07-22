@@ -435,7 +435,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     );
   }
 
-  /// Bir metin kutusunun paragraflarını düzenler; kaydedince slayt yeniden çizilir.
+  /// Bir metin kutusunun paragraflarını düzenler; kaydedince slayt yeniden
+  /// çizilir. Metnin yanında kutunun biçimi de değiştirilebilir (kalın/italik/
+  /// altı çizili + punto) — yalnız DOKUNULAN özellik yazılır, gerisi korunur.
   Future<void> _editShape(PptxSlide slide, ShapeVM shape) async {
     final editor = _editor;
     if (editor == null) return;
@@ -450,50 +452,118 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     }
     if (targets.isEmpty) return;
 
+    // Başlangıç biçimi: kutudaki ilk çalıştırmadan okunur.
+    RunVM? firstRun;
+    for (final p in shape.paragraphs) {
+      if (p.runs.isNotEmpty) {
+        firstRun = p.runs.first;
+        break;
+      }
+    }
+    var fBold = firstRun?.bold ?? false;
+    var fItalic = firstRun?.italic ?? false;
+    var fUnder = firstRun?.underline ?? false;
+    var fSize = (firstRun?.sizePt ?? 18.0).clamp(6.0, 96.0).roundToDouble();
+    var tBold = false, tItalic = false, tUnder = false, tSize = false;
+
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Metni düzenle',
-                  style: Theme.of(ctx).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              for (final c in controllers)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: TextField(
-                    controller: c,
-                    maxLines: null,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      isDense: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Metni düzenle',
+                    style: Theme.of(ctx).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                // Biçim çubuğu: kutunun tüm yazısına uygulanır (orta sadakat).
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Kalın',
+                      isSelected: fBold,
+                      icon: const Icon(Icons.format_bold),
+                      onPressed: () => setSheet(() {
+                        fBold = !fBold;
+                        tBold = true;
+                      }),
+                    ),
+                    IconButton(
+                      tooltip: 'İtalik',
+                      isSelected: fItalic,
+                      icon: const Icon(Icons.format_italic),
+                      onPressed: () => setSheet(() {
+                        fItalic = !fItalic;
+                        tItalic = true;
+                      }),
+                    ),
+                    IconButton(
+                      tooltip: 'Altı çizili',
+                      isSelected: fUnder,
+                      icon: const Icon(Icons.format_underlined),
+                      onPressed: () => setSheet(() {
+                        fUnder = !fUnder;
+                        tUnder = true;
+                      }),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Yazıyı küçült',
+                      icon: const Icon(Icons.text_decrease),
+                      onPressed: () => setSheet(() {
+                        fSize = (fSize - 2).clamp(6.0, 96.0).toDouble();
+                        tSize = true;
+                      }),
+                    ),
+                    Text('${fSize.round()} pt',
+                        style: Theme.of(ctx).textTheme.labelLarge),
+                    IconButton(
+                      tooltip: 'Yazıyı büyüt',
+                      icon: const Icon(Icons.text_increase),
+                      onPressed: () => setSheet(() {
+                        fSize = (fSize + 2).clamp(6.0, 96.0).toDouble();
+                        tSize = true;
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                for (final c in controllers)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: c,
+                      maxLines: null,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
                     ),
                   ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Vazgeç'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Uygula'),
+                    ),
+                  ],
                 ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Vazgeç'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Uygula'),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -502,6 +572,18 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     if (ok == true) {
       for (var i = 0; i < targets.length; i++) {
         editor.updateParagraph(slide, targets[i], controllers[i].text);
+      }
+      if (tBold || tItalic || tUnder || tSize) {
+        for (final t in targets) {
+          editor.formatParagraph(
+            slide,
+            t,
+            bold: tBold ? fBold : null,
+            italic: tItalic ? fItalic : null,
+            underline: tUnder ? fUnder : null,
+            sizePt: tSize ? fSize : null,
+          );
+        }
       }
       _dirty = true;
       if (mounted) setState(() {});

@@ -56,11 +56,12 @@ class DocxParagraph {
         _align0 = align;
 
   bool get _textChanged => text != _text0;
-  bool get _formatChanged =>
-      bold != _bold0 ||
-      italic != _italic0 ||
-      underline != _underline0 ||
-      align != _align0;
+
+  /// B/I/U ve hizalama ayrı izlenir: yalnız hizalama değiştiyse run'ların
+  /// karma biçimi (tek kelimesi kalın paragraf gibi) EZİLMEZ.
+  bool get _biuChanged =>
+      bold != _bold0 || italic != _italic0 || underline != _underline0;
+  bool get _alignChanged => align != _align0;
 }
 
 /// .docx dosyasını paragraf bazında düzenler ve orijinal biçimi koruyarak kaydeder.
@@ -247,9 +248,14 @@ class DocxEditor {
   /// setRuns ile yazılmış (rich) paragraflar da atlanır.
   Uint8List save() {
     for (final para in paragraphs) {
-      if (para.rich) continue; // çalıştırmalar setRuns ile zaten yazıldı
-      if (para._textChanged) _writeText(para);
-      if (para._formatChanged) _applyFormat(para);
+      if (!para.rich) {
+        // rich: çalıştırmalar setRuns ile zaten yazıldı (metin + B/I/U).
+        if (para._textChanged) _writeText(para);
+        if (para._biuChanged) _applyRunFormat(para);
+      }
+      // Hizalama pPr'de durur; rich paragrafta da ayrıca uygulanmalı
+      // (canlı görünümdeki hizalama düğmesi buradan kalıcılaşır).
+      if (para._alignChanged) _applyAlign(para);
     }
 
     final newXml = _doc.toXmlString();
@@ -287,18 +293,25 @@ class DocxEditor {
     }
   }
 
-  /// Kalın/italik/altı çizili bayraklarını paragraftaki her çalıştırmaya,
-  /// hizalamayı da paragraf özelliklerine (`<w:pPr>/<w:jc>`) uygular.
-  void _applyFormat(DocxParagraph para) {
+  /// Kalın/italik/altı çizili bayraklarını paragraftaki her çalıştırmaya uygular.
+  void _applyRunFormat(DocxParagraph para) {
     for (final run in para._element.findAllElements('w:r')) {
       final rPr = _ensureRPr(run);
       _setToggle(rPr, 'w:b', para.bold);
       _setToggle(rPr, 'w:i', para.italic);
       _setUnderline(rPr, para.underline);
     }
+  }
+
+  /// Hizalamayı paragraf özelliklerine (`<w:pPr>/<w:jc>`) uygular.
+  void _applyAlign(DocxParagraph para) {
     if (para.align != 'left' || para._hadJc) {
       final pPr = _ensurePPr(para._element);
       _setJc(pPr, para.align);
+    } else {
+      // 'left' + açık jc yoktu → varsa (arada eklendiyse) düğümü kaldır.
+      final pPr = _firstOrNull(para._element.findElements('w:pPr'));
+      if (pPr != null) _removeElems(pPr, (e) => e.name.qualified == 'w:jc');
     }
   }
 
