@@ -10,14 +10,14 @@
     "semantic_hash": "5aa7f7e5c11f26262afdedd1aa3934c1"
   },
   "lib/core/theme.dart": {
-    "mtime": 1784617100.6116586,
-    "ast_hash": "b3dc09021d645247e18e940841dbd16c",
-    "semantic_hash": "b3dc09021d645247e18e940841dbd16c"
+    "mtime": 1784716536.903849,
+    "ast_hash": "545c16b9b36bc654816787aebec7dee2",
+    "semantic_hash": ""
   },
   "lib/main.dart": {
-    "mtime": 1784617100.6116586,
-    "ast_hash": "203219f556a3db1d01bed696a03af5fd",
-    "semantic_hash": "203219f556a3db1d01bed696a03af5fd"
+    "mtime": 1784716569.535889,
+    "ast_hash": "96358899fb87179dfc19d9c90071e70a",
+    "semantic_hash": ""
   },
   "lib/models/document.dart": {
     "mtime": 1784617100.6128728,
@@ -35,18 +35,18 @@
     "semantic_hash": "970d010efa591584d45ed03123197875"
   },
   "lib/screens/editors/slides_editor_screen.dart": {
-    "mtime": 1784622950.3736632,
-    "ast_hash": "fa080736cf51943b8e3b1a46e1061a40",
+    "mtime": 1784716796.2252574,
+    "ast_hash": "24db2f66248473a5823427dba322ada0",
     "semantic_hash": ""
   },
   "lib/screens/editors/spreadsheet_editor_screen.dart": {
-    "mtime": 1784625614.776158,
-    "ast_hash": "b0506ba22c9e9f93fd9698ecaf96ff21",
+    "mtime": 1784716730.857337,
+    "ast_hash": "e3b253b053433848029949a57bf73636",
     "semantic_hash": ""
   },
   "lib/screens/editors/word_editor_screen.dart": {
-    "mtime": 1784624958.268253,
-    "ast_hash": "3824c2aa2a3f8ac292f89fd26f724caf",
+    "mtime": 1784716819.849051,
+    "ast_hash": "eb8e9fc73efcdf1b199c7f416172f325",
     "semantic_hash": ""
   },
   "lib/screens/home_screen.dart": {
@@ -60,9 +60,9 @@
     "semantic_hash": "1f52792faa0c5a5532fbd448eb57780d"
   },
   "lib/screens/viewer_screen.dart": {
-    "mtime": 1784617100.615637,
-    "ast_hash": "a16eeea2ccfe85b4e5dc71a79fe69d1a",
-    "semantic_hash": "a16eeea2ccfe85b4e5dc71a79fe69d1a"
+    "mtime": 1784716848.0340974,
+    "ast_hash": "18b6d27fbfbfc1f182ad387e07333498",
+    "semantic_hash": ""
   },
   "lib/services/conversion_service.dart": {
     "mtime": 1784617100.615637,
@@ -130,8 +130,8 @@
     "semantic_hash": ""
   },
   "lib/widgets/docx_view.dart": {
-    "mtime": 1784625733.6258304,
-    "ast_hash": "884f594d98863f3aba8a422625953bac",
+    "mtime": 1784716825.0567198,
+    "ast_hash": "306d88ed475103ca4745950d1d877c40",
     "semantic_hash": ""
   },
   "lib/widgets/slide_canvas.dart": {
@@ -165,8 +165,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1784620043.2534542,
-    "ast_hash": "33264504073fd4582215f0015eb0d069",
+    "mtime": 1784626810.120416,
+    "ast_hash": "9e3484909ed58a43bbbd11aaa40aad0e",
     "semantic_hash": ""
   },
   "FIREBASE_SETUP.md": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "HAFIZA.md": {
-    "mtime": 1784625696.9082053,
-    "ast_hash": "3a875cf69a573798960da6fb464c10ac",
+    "mtime": 1784717096.6416545,
+    "ast_hash": "dc6b4ea2b951f2460a8a2154646c9381",
     "semantic_hash": ""
   },
   "README.md": {
@@ -200,13 +200,23 @@
     "semantic_hash": ""
   },
   "assets/word/viewer.html": {
-    "mtime": 1784624897.9649742,
-    "ast_hash": "6652ec2c41d331233931bd26c76348ed",
+    "mtime": 1784716831.022688,
+    "ast_hash": "0d67b1d2820f76a5a4ccf910d4c3889e",
     "semantic_hash": ""
   },
   "pubspec.yaml": {
-    "mtime": 1784624909.1405036,
-    "ast_hash": "4b2e1a75d2219502d548defa9ea0e3db",
+    "mtime": 1784716571.7910044,
+    "ast_hash": "5deb4fba0347c3db8b2430bbf7609311",
+    "semantic_hash": ""
+  },
+  "lib/widgets/office_shell.dart": {
+    "mtime": 1784716555.2374902,
+    "ast_hash": "49aac41398bea3b00777078917a4e8dd",
+    "semantic_hash": ""
+  },
+  "KALANLAR.md": {
+    "mtime": 1784717087.4258816,
+    "ast_hash": "7ffb572d1b54e9c539c7355c437f2e0d",
     "semantic_hash": ""
   }
 }

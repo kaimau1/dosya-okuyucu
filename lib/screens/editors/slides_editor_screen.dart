@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../models/document.dart';
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
+import '../../widgets/office_shell.dart';
 import '../../widgets/slide_canvas.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
@@ -32,10 +34,27 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   String? _error;
   bool _dirty = false;
 
+  // PowerPoint mobil hissi: yatay sayfa geçişi + seçili slaytta pinch zoom.
+  final _pageCtrl = PageController();
+  final _tc = TransformationController();
+  bool _zoomed = false; // zoom > 1 iken sayfa kaydırma kilitlenir, pan IV'ye kalır
+  int _page = 0;
+  late final _badge = ZoomBadgeController((fn) {
+    if (mounted) setState(fn);
+  });
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    _tc.dispose();
+    _badge.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -81,37 +100,36 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-      appBar: AppBar(
-        title: Text(widget.name, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            tooltip: 'Sunumu oynat',
-            icon: const Icon(Icons.play_arrow),
-            onPressed: editor == null ? null : () => _play(0),
-          ),
-          IconButton(
-            tooltip: 'Kaydet',
-            icon: const Icon(Icons.save_outlined),
-            onPressed: editor == null ? null : _save,
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'export') _export();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
-            ],
-          ),
-        ],
-      ),
+    return OfficeShell(
+      kind: DocKind.slides,
+      title: widget.name,
+      dirty: _dirty,
+      actions: [
+        IconButton(
+          tooltip: 'Sunumu oynat',
+          icon: const Icon(Icons.play_arrow),
+          onPressed: editor == null ? null : () => _play(_page),
+        ),
+        IconButton(
+          tooltip: 'Kaydet',
+          icon: const Icon(Icons.save_outlined),
+          onPressed: editor == null ? null : _save,
+        ),
+        PopupMenuButton<String>(
+          onSelected: (v) {
+            if (v == 'export') _export();
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
+          ],
+        ),
+      ],
       body: _error != null
           ? Center(child: Text('Açılamadı: $_error'))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
               : _buildSlides(editor),
-      floatingActionButton: FloatingActionButton.extended(
+      fab: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(
             fileContext: widget.plainText,
@@ -128,59 +146,93 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     if (editor.slides.isEmpty) {
       return const Center(child: Text('Slayt bulunamadı.'));
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: editor.slides.length,
-      itemBuilder: (context, i) => _slideCard(editor.slides[i]),
+    final n = editor.slides.length;
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageCtrl,
+          // Zoom'dayken yatay sürükleme slaydı gezdirir, sayfa değiştirmez.
+          physics: _zoomed ? const NeverScrollableScrollPhysics() : null,
+          itemCount: n,
+          onPageChanged: (i) {
+            setState(() {
+              _page = i;
+              _zoomed = false;
+            });
+            _tc.value = Matrix4.identity();
+          },
+          itemBuilder: (context, i) => _slidePage(editor.slides[i], i, n),
+        ),
+        Positioned(
+          left: 12,
+          bottom: MediaQuery.of(context).padding.bottom + 12,
+          child: ZoomBadge(zoom: _badge.zoom, visible: _badge.visible),
+        ),
+      ],
     );
   }
 
-  Widget _slideCard(PptxSlide slide) {
+  Widget _slidePage(PptxSlide slide, int i, int total) {
     final scheme = Theme.of(context).colorScheme;
     final view = slide.view;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: EdgeInsets.fromLTRB(
+          16, 4, 16, MediaQuery.of(context).padding.bottom + 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 2),
-            child: Row(
-              children: [
-                Text('Slayt ${slide.index}',
-                    style: Theme.of(context).textTheme.labelMedium),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Tam ekran / yakınlaştır',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.fullscreen, size: 20),
-                  onPressed: () => _play(slide.index - 1),
-                ),
-              ],
-            ),
-          ),
-          AspectRatio(
-            aspectRatio: view == null
-                ? 16 / 9
-                : view.widthPt / view.heightPt,
-            child: Container(
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                border: Border.all(color: scheme.outlineVariant),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.10),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+          Row(
+            children: [
+              Text('Slayt ${i + 1} / $total',
+                  style: Theme.of(context).textTheme.labelMedium),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Tam ekran sunum',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.fullscreen, size: 20),
+                onPressed: () => _play(i),
               ),
-              child: view == null
-                  ? _fallbackText(slide)
-                  : SlideCanvas(
-                      slide: view,
-                      onEditShape: (shape) => _editShape(slide, shape),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: InteractiveViewer(
+                transformationController: _tc,
+                minScale: 1,
+                maxScale: 5,
+                onInteractionUpdate: (d) {
+                  if (d.pointerCount >= 2) {
+                    _badge.bump(_tc.value.getMaxScaleOnAxis());
+                  }
+                },
+                onInteractionEnd: (_) {
+                  final z = _tc.value.getMaxScaleOnAxis() > 1.02;
+                  if (z != _zoomed) setState(() => _zoomed = z);
+                },
+                child: AspectRatio(
+                  aspectRatio:
+                      view == null ? 16 / 9 : view.widthPt / view.heightPt,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      border: Border.all(color: scheme.outlineVariant),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.10),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
+                    child: view == null
+                        ? _fallbackText(slide)
+                        : SlideCanvas(
+                            slide: view,
+                            onEditShape: (shape) => _editShape(slide, shape),
+                          ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

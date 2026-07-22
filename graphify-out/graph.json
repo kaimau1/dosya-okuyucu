@@ -60,7 +60,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_o",
-      "community": 35,
+      "community": 24,
       "norm_label": "o()"
     },
     {
@@ -130,7 +130,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_k_element",
-      "community": 35,
+      "community": 30,
       "norm_label": ".element()"
     },
     {
@@ -150,7 +150,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_k_attrs",
-      "community": 30,
+      "community": 50,
       "norm_label": ".attrs()"
     },
     {
@@ -160,7 +160,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_k_attr",
-      "community": 30,
+      "community": 29,
       "norm_label": ".attr()"
     },
     {
@@ -180,7 +180,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_k_hexattr",
-      "community": 30,
+      "community": 29,
       "norm_label": ".hexattr()"
     },
     {
@@ -620,7 +620,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_te",
-      "community": 24,
+      "community": 53,
       "norm_label": "te"
     },
     {
@@ -630,7 +630,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_te_parsexml",
-      "community": 24,
+      "community": 53,
       "norm_label": ".parsexml()"
     },
     {
@@ -650,7 +650,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ae",
-      "community": 35,
+      "community": 24,
       "norm_label": "ae()"
     },
     {
@@ -680,7 +680,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_le",
-      "community": 35,
+      "community": 30,
       "norm_label": "le"
     },
     {
@@ -690,7 +690,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_le_constructor",
-      "community": 35,
+      "community": 30,
       "norm_label": ".constructor()"
     },
     {
@@ -700,7 +700,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_le_parsexml",
-      "community": 35,
+      "community": 24,
       "norm_label": ".parsexml()"
     },
     {
@@ -740,7 +740,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ce",
-      "community": 30,
+      "community": 50,
       "norm_label": "ce"
     },
     {
@@ -750,7 +750,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ce_constructor",
-      "community": 30,
+      "community": 50,
       "norm_label": ".constructor()"
     },
     {
@@ -760,7 +760,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_he",
-      "community": 29,
+      "community": 24,
       "norm_label": "he"
     },
     {
@@ -770,7 +770,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_he_constructor",
-      "community": 29,
+      "community": 24,
       "norm_label": ".constructor()"
     },
     {
@@ -810,7 +810,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_pe",
-      "community": 30,
+      "community": 50,
       "norm_label": "pe"
     },
     {
@@ -820,7 +820,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_pe_constructor",
-      "community": 30,
+      "community": 50,
       "norm_label": ".constructor()"
     },
     {
@@ -830,7 +830,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_pe_parsexml",
-      "community": 30,
+      "community": 50,
       "norm_label": ".parsexml()"
     },
     {
@@ -880,7 +880,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_fe",
-      "community": 30,
+      "community": 24,
       "norm_label": "fe"
     },
     {
@@ -890,7 +890,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_fe_parsexml",
-      "community": 30,
+      "community": 24,
       "norm_label": ".parsexml()"
     },
     {
@@ -930,7 +930,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_be",
-      "community": 24,
+      "community": 52,
       "norm_label": "be"
     },
     {
@@ -940,7 +940,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_be_constructor",
-      "community": 24,
+      "community": 52,
       "norm_label": ".constructor()"
     },
     {
@@ -950,7 +950,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_be_parsexml",
-      "community": 24,
+      "community": 52,
       "norm_label": ".parsexml()"
     },
     {
@@ -1120,7 +1120,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_xe",
-      "community": 30,
+      "community": 50,
       "norm_label": "xe()"
     },
     {
@@ -1130,7 +1130,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ae_constructor",
-      "community": 35,
+      "community": 24,
       "norm_label": ".constructor()"
     },
     {
@@ -1150,7 +1150,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_te_constructor",
-      "community": 24,
+      "community": 53,
       "norm_label": ".constructor()"
     },
     {
@@ -1360,7 +1360,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parseparagraphproperties",
-      "community": 25,
+      "community": 29,
       "norm_label": ".parseparagraphproperties()"
     },
     {
@@ -1370,7 +1370,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parseframe",
-      "community": 25,
+      "community": 29,
       "norm_label": ".parseframe()"
     },
     {
@@ -1450,7 +1450,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_checkalternatecontent",
-      "community": 35,
+      "community": 30,
       "norm_label": ".checkalternatecontent()"
     },
     {
@@ -1470,7 +1470,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsedrawingwrapper",
-      "community": 35,
+      "community": 30,
       "norm_label": ".parsedrawingwrapper()"
     },
     {
@@ -1480,7 +1480,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsegraphic",
-      "community": 35,
+      "community": 30,
       "norm_label": ".parsegraphic()"
     },
     {
@@ -1490,7 +1490,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsepicture",
-      "community": 35,
+      "community": 30,
       "norm_label": ".parsepicture()"
     },
     {
@@ -1550,7 +1550,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsetablerowproperties",
-      "community": 25,
+      "community": 29,
       "norm_label": ".parsetablerowproperties()"
     },
     {
@@ -1570,7 +1570,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsetablecellproperties",
-      "community": 25,
+      "community": 29,
       "norm_label": ".parsetablecellproperties()"
     },
     {
@@ -1580,7 +1580,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsetablecellverticaltext",
-      "community": 25,
+      "community": 29,
       "norm_label": ".parsetablecellverticaltext()"
     },
     {
@@ -1610,7 +1610,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsefont",
-      "community": 30,
+      "community": 29,
       "norm_label": ".parsefont()"
     },
     {
@@ -1640,7 +1640,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parsemarginproperties",
-      "community": 29,
+      "community": 25,
       "norm_label": ".parsemarginproperties()"
     },
     {
@@ -1660,7 +1660,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_oe_parseborderproperties",
-      "community": 29,
+      "community": 25,
       "norm_label": ".parseborderproperties()"
     },
     {
@@ -1690,7 +1690,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ze_themevalue",
-      "community": 30,
+      "community": 29,
       "norm_label": ".themevalue()"
     },
     {
@@ -1750,7 +1750,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ze_classnameofcnfstyle",
-      "community": 25,
+      "community": 29,
       "norm_label": ".classnameofcnfstyle()"
     },
     {
@@ -1800,7 +1800,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ze_classnameoftbllook",
-      "community": 30,
+      "community": 29,
       "norm_label": ".classnameoftbllook()"
     },
     {
@@ -1810,7 +1810,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_je",
-      "community": 26,
+      "community": 27,
       "norm_label": "je()"
     },
     {
@@ -2640,7 +2640,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_qe",
-      "community": 22,
+      "community": 24,
       "norm_label": "qe()"
     },
     {
@@ -2650,7 +2650,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "assets_word_docx_preview_min_ye",
-      "community": 22,
+      "community": 24,
       "norm_label": "ye()"
     },
     {
@@ -2760,7 +2760,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "assets_word_jszip_min_r",
-      "community": 26,
+      "community": 25,
       "norm_label": "r()"
     },
     {
@@ -2910,7 +2910,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_core_app_state_appstate",
-      "community": 18,
+      "community": 49,
       "norm_label": "appstate"
     },
     {
@@ -2920,7 +2920,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "changenotifier",
-      "community": 18,
+      "community": 49,
       "norm_label": "changenotifier"
     },
     {
@@ -3410,8 +3410,18 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_core_theme",
-      "community": 13,
+      "community": 8,
       "norm_label": "theme.dart"
+    },
+    {
+      "label": "OfficeColors",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_officecolors",
+      "community": 8,
+      "norm_label": "officecolors"
     },
     {
       "label": "AppTheme",
@@ -3420,8 +3430,58 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_core_theme_apptheme",
-      "community": 13,
+      "community": 8,
       "norm_label": "apptheme"
+    },
+    {
+      "label": "word",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_word",
+      "community": 8,
+      "norm_label": "word"
+    },
+    {
+      "label": "excel",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_excel",
+      "community": 8,
+      "norm_label": "excel"
+    },
+    {
+      "label": "slides",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_slides",
+      "community": 8,
+      "norm_label": "slides"
+    },
+    {
+      "label": "pdf",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_pdf",
+      "community": 8,
+      "norm_label": "pdf"
+    },
+    {
+      "label": "neutral",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_neutral",
+      "community": 8,
+      "norm_label": "neutral"
     },
     {
       "label": "_seed",
@@ -3430,7 +3490,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_core_theme_seed",
-      "community": 13,
+      "community": 8,
       "norm_label": "_seed"
     },
     {
@@ -3440,8 +3500,28 @@
       "source_location": null,
       "_origin": "ast",
       "id": "static_const_color",
-      "community": 13,
+      "community": 8,
       "norm_label": "static const color"
+    },
+    {
+      "label": "forKind",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_forkind",
+      "community": 8,
+      "norm_label": "forkind"
+    },
+    {
+      "label": "canvas",
+      "file_type": "code",
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_core_theme_canvas",
+      "community": 8,
+      "norm_label": "canvas"
     },
     {
       "label": "light",
@@ -3450,7 +3530,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_core_theme_light",
-      "community": 13,
+      "community": 8,
       "norm_label": "light"
     },
     {
@@ -3460,7 +3540,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_core_theme_dark",
-      "community": 13,
+      "community": 8,
       "norm_label": "dark"
     },
     {
@@ -3470,8 +3550,18 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_core_theme_base",
-      "community": 13,
+      "community": 8,
       "norm_label": "_base"
+    },
+    {
+      "label": "../models/document.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_document_dart",
+      "community": 41,
+      "norm_label": "../models/document.dart"
     },
     {
       "label": "main.dart",
@@ -3490,7 +3580,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_main_dosyaokuyucuapp",
-      "community": 18,
+      "community": 49,
       "norm_label": "dosyaokuyucuapp"
     },
     {
@@ -3524,6 +3614,26 @@
       "norm_label": "main"
     },
     {
+      "label": "setEnabledSystemUIMode",
+      "file_type": "code",
+      "source_file": "lib/main.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_main_setenabledsystemuimode",
+      "community": 18,
+      "norm_label": "setenabledsystemuimode"
+    },
+    {
+      "label": "_enableHighRefreshRate",
+      "file_type": "code",
+      "source_file": "lib/main.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_main_enablehighrefreshrate",
+      "community": 18,
+      "norm_label": "_enablehighrefreshrate"
+    },
+    {
       "label": "init",
       "file_type": "code",
       "source_file": "lib/main.dart",
@@ -3542,6 +3652,36 @@
       "id": "lib_main_build",
       "community": 18,
       "norm_label": "build"
+    },
+    {
+      "label": "dart:io",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "dart_io",
+      "community": 2,
+      "norm_label": "dart:io"
+    },
+    {
+      "label": "package:flutter/services.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "package_flutter_services_dart",
+      "community": 36,
+      "norm_label": "package:flutter/services.dart"
+    },
+    {
+      "label": "package:flutter_displaymode/flutter_displaymode.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "package_flutter_displaymode_flutter_displaymode_dart",
+      "community": 18,
+      "norm_label": "package:flutter_displaymode/flutter_displaymode.dart"
     },
     {
       "label": "package:provider/provider.dart",
@@ -3564,14 +3704,14 @@
       "norm_label": "../core/app_state.dart"
     },
     {
-      "label": "core/theme.dart",
+      "label": "../core/theme.dart",
       "file_type": "code",
       "source_file": null,
       "source_location": null,
       "_origin": "ast",
       "id": "core_theme_dart",
       "community": 18,
-      "norm_label": "core/theme.dart"
+      "norm_label": "../core/theme.dart"
     },
     {
       "label": "screens/home_screen.dart",
@@ -3600,7 +3740,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_models_document_dockind",
-      "community": 14,
+      "community": 41,
       "norm_label": "dockind"
     },
     {
@@ -3620,7 +3760,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_models_document_dockindlabel",
-      "community": 14,
+      "community": 41,
       "norm_label": "dockindlabel"
     },
     {
@@ -3800,7 +3940,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_chat_screen_chatscreen",
-      "community": 9,
+      "community": 35,
       "norm_label": "chatscreen"
     },
     {
@@ -3810,7 +3950,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "statefulwidget",
-      "community": 9,
+      "community": 35,
       "norm_label": "statefulwidget"
     },
     {
@@ -3820,7 +3960,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_chat_screen_chatscreenstate",
-      "community": 9,
+      "community": 35,
       "norm_label": "_chatscreenstate"
     },
     {
@@ -3830,7 +3970,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "state",
-      "community": 9,
+      "community": 35,
       "norm_label": "state"
     },
     {
@@ -4010,7 +4150,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_chat_screen_send",
-      "community": 18,
+      "community": 49,
       "norm_label": "_send"
     },
     {
@@ -4050,7 +4190,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_chat_screen_savetomemory",
-      "community": 18,
+      "community": 49,
       "norm_label": "_savetomemory"
     },
     {
@@ -4080,7 +4220,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "settings_screen_dart",
-      "community": 7,
+      "community": 10,
       "norm_label": "settings_screen.dart"
     },
     {
@@ -4100,7 +4240,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_editors_slides_editor_screen_slideseditorscreen",
-      "community": 4,
+      "community": 35,
       "norm_label": "slideseditorscreen"
     },
     {
@@ -4110,7 +4250,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_editors_slides_editor_screen_slideseditorscreenstate",
-      "community": 4,
+      "community": 35,
       "norm_label": "_slideseditorscreenstate"
     },
     {
@@ -4174,6 +4314,56 @@
       "norm_label": "_dirty"
     },
     {
+      "label": "_pageCtrl",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_slides_editor_screen_pagectrl",
+      "community": 4,
+      "norm_label": "_pagectrl"
+    },
+    {
+      "label": "_tc",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_slides_editor_screen_tc",
+      "community": 4,
+      "norm_label": "_tc"
+    },
+    {
+      "label": "_zoomed",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_slides_editor_screen_zoomed",
+      "community": 4,
+      "norm_label": "_zoomed"
+    },
+    {
+      "label": "_page",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_slides_editor_screen_page",
+      "community": 4,
+      "norm_label": "_page"
+    },
+    {
+      "label": "_badge",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_slides_editor_screen_badge",
+      "community": 4,
+      "norm_label": "_badge"
+    },
+    {
       "label": "createState",
       "file_type": "code",
       "source_file": "lib/screens/editors/slides_editor_screen.dart",
@@ -4192,6 +4382,16 @@
       "id": "lib_screens_editors_slides_editor_screen_initstate",
       "community": 4,
       "norm_label": "initstate"
+    },
+    {
+      "label": "dispose",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_slides_editor_screen_dispose",
+      "community": 4,
+      "norm_label": "dispose"
     },
     {
       "label": "_load",
@@ -4254,14 +4454,14 @@
       "norm_label": "_buildslides"
     },
     {
-      "label": "_slideCard",
+      "label": "_slidePage",
       "file_type": "code",
       "source_file": "lib/screens/editors/slides_editor_screen.dart",
       "source_location": null,
       "_origin": "ast",
-      "id": "lib_screens_editors_slides_editor_screen_slidecard",
+      "id": "lib_screens_editors_slides_editor_screen_slidepage",
       "community": 4,
-      "norm_label": "_slidecard"
+      "norm_label": "_slidepage"
     },
     {
       "label": "_play",
@@ -4294,23 +4494,13 @@
       "norm_label": "_editshape"
     },
     {
-      "label": "dart:io",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "dart_io",
-      "community": 2,
-      "norm_label": "dart:io"
-    },
-    {
       "label": "package:share_plus/share_plus.dart",
       "file_type": "code",
       "source_file": null,
       "source_location": null,
       "_origin": "ast",
       "id": "package_share_plus_share_plus_dart",
-      "community": 4,
+      "community": 6,
       "norm_label": "package:share_plus/share_plus.dart"
     },
     {
@@ -4334,6 +4524,16 @@
       "norm_label": "../services/pptx_render.dart"
     },
     {
+      "label": "../widgets/office_shell.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "widgets_office_shell_dart",
+      "community": 6,
+      "norm_label": "../widgets/office_shell.dart"
+    },
+    {
       "label": "../../widgets/slide_canvas.dart",
       "file_type": "code",
       "source_file": null,
@@ -4350,7 +4550,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "chat_screen_dart",
-      "community": 6,
+      "community": 7,
       "norm_label": "chat_screen.dart"
     },
     {
@@ -4604,16 +4804,6 @@
       "norm_label": "_page"
     },
     {
-      "label": "package:flutter/services.dart",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "package_flutter_services_dart",
-      "community": 36,
-      "norm_label": "package:flutter/services.dart"
-    },
-    {
       "label": "spreadsheet_editor_screen.dart",
       "file_type": "code",
       "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
@@ -4764,6 +4954,136 @@
       "norm_label": "_cellfield"
     },
     {
+      "label": "_minZoom",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_minzoom",
+      "community": 1,
+      "norm_label": "_minzoom"
+    },
+    {
+      "label": "_maxZoom",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_maxzoom",
+      "community": 1,
+      "norm_label": "_maxzoom"
+    },
+    {
+      "label": "_zoom",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_zoom",
+      "community": 1,
+      "norm_label": "_zoom"
+    },
+    {
+      "label": "_gestureZoom",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_gesturezoom",
+      "community": 1,
+      "norm_label": "_gesturezoom"
+    },
+    {
+      "label": "_touches",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_touches",
+      "community": 1,
+      "norm_label": "_touches"
+    },
+    {
+      "label": "Map",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "map",
+      "community": 1,
+      "norm_label": "map"
+    },
+    {
+      "label": "_pinchStartDist",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_pinchstartdist",
+      "community": 1,
+      "norm_label": "_pinchstartdist"
+    },
+    {
+      "label": "double?",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "double",
+      "community": 23,
+      "norm_label": "double?"
+    },
+    {
+      "label": "_hCtrl",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_hctrl",
+      "community": 1,
+      "norm_label": "_hctrl"
+    },
+    {
+      "label": "_vCtrl",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_vctrl",
+      "community": 1,
+      "norm_label": "_vctrl"
+    },
+    {
+      "label": "_badge",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_badge",
+      "community": 1,
+      "norm_label": "_badge"
+    },
+    {
+      "label": "_headerH",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_headerh",
+      "community": 1,
+      "norm_label": "_headerh"
+    },
+    {
+      "label": "double get",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "double_get",
+      "community": 1,
+      "norm_label": "double get"
+    },
+    {
       "label": "createState",
       "file_type": "code",
       "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
@@ -4792,6 +5112,56 @@
       "id": "lib_screens_editors_spreadsheet_editor_screen_dispose",
       "community": 1,
       "norm_label": "dispose"
+    },
+    {
+      "label": "_touchDist",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_touchdist",
+      "community": 1,
+      "norm_label": "_touchdist"
+    },
+    {
+      "label": "_onPointerDown",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_onpointerdown",
+      "community": 1,
+      "norm_label": "_onpointerdown"
+    },
+    {
+      "label": "_onPointerMove",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_onpointermove",
+      "community": 1,
+      "norm_label": "_onpointermove"
+    },
+    {
+      "label": "_onPointerEnd",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_onpointerend",
+      "community": 1,
+      "norm_label": "_onpointerend"
+    },
+    {
+      "label": "_commitZoom",
+      "file_type": "code",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_screens_editors_spreadsheet_editor_screen_commitzoom",
+      "community": 1,
+      "norm_label": "_commitzoom"
     },
     {
       "label": "_load",
@@ -5230,7 +5600,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_home_screen_homescreen",
-      "community": 7,
+      "community": 35,
       "norm_label": "homescreen"
     },
     {
@@ -5240,7 +5610,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_home_screen_homescreenstate",
-      "community": 7,
+      "community": 35,
       "norm_label": "_homescreenstate"
     },
     {
@@ -5340,7 +5710,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_home_screen_openpath",
-      "community": 18,
+      "community": 49,
       "norm_label": "_openpath"
     },
     {
@@ -5372,16 +5742,6 @@
       "id": "lib_screens_home_screen_size",
       "community": 7,
       "norm_label": "_size"
-    },
-    {
-      "label": "../models/document.dart",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "models_document_dart",
-      "community": 41,
-      "norm_label": "../models/document.dart"
     },
     {
       "label": "../services/file_service.dart",
@@ -5480,7 +5840,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_settings_screen_accountsection",
-      "community": 9,
+      "community": 35,
       "norm_label": "_accountsection"
     },
     {
@@ -5490,7 +5850,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_settings_screen_accountsectionstate",
-      "community": 9,
+      "community": 35,
       "norm_label": "_accountsectionstate"
     },
     {
@@ -5590,7 +5950,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_settings_screen_initstate",
-      "community": 18,
+      "community": 49,
       "norm_label": "initstate"
     },
     {
@@ -5610,7 +5970,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_settings_screen_build",
-      "community": 18,
+      "community": 49,
       "norm_label": "build"
     },
     {
@@ -5640,7 +6000,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_viewer_screen_viewerscreen",
-      "community": 3,
+      "community": 35,
       "norm_label": "viewerscreen"
     },
     {
@@ -5650,7 +6010,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_viewer_screen_viewerscreenstate",
-      "community": 3,
+      "community": 35,
       "norm_label": "_viewerscreenstate"
     },
     {
@@ -5900,7 +6260,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_screens_viewer_screen_build",
-      "community": 18,
+      "community": 49,
       "norm_label": "build"
     },
     {
@@ -7684,16 +8044,6 @@
       "norm_label": "_relscache"
     },
     {
-      "label": "Map",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "map",
-      "community": 20,
-      "norm_label": "map"
-    },
-    {
       "label": "_xmlCache",
       "file_type": "code",
       "source_file": "lib/services/pptx_render.dart",
@@ -8200,7 +8550,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "lib_services_xlsx_editor_xlsxeditor",
-      "community": 1,
+      "community": 23,
       "norm_label": "xlsxeditor"
     },
     {
@@ -8232,16 +8582,6 @@
       "id": "lib_services_xlsx_editor_fontsize",
       "community": 23,
       "norm_label": "fontsize"
-    },
-    {
-      "label": "double?",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "double",
-      "community": 23,
-      "norm_label": "double?"
     },
     {
       "label": "fontColor",
@@ -8744,6 +9084,226 @@
       "norm_label": "_style"
     },
     {
+      "label": "office_shell.dart",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell",
+      "community": 13,
+      "norm_label": "office_shell.dart"
+    },
+    {
+      "label": "OfficeShell",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_officeshell",
+      "community": 17,
+      "norm_label": "officeshell"
+    },
+    {
+      "label": "ZoomBadge",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_zoombadge",
+      "community": 17,
+      "norm_label": "zoombadge"
+    },
+    {
+      "label": "ZoomBadgeController",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_zoombadgecontroller",
+      "community": 13,
+      "norm_label": "zoombadgecontroller"
+    },
+    {
+      "label": "kind",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_kind",
+      "community": 13,
+      "norm_label": "kind"
+    },
+    {
+      "label": "title",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_title",
+      "community": 13,
+      "norm_label": "title"
+    },
+    {
+      "label": "dirty",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_dirty",
+      "community": 13,
+      "norm_label": "dirty"
+    },
+    {
+      "label": "actions",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_actions",
+      "community": 13,
+      "norm_label": "actions"
+    },
+    {
+      "label": "tabBar",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_tabbar",
+      "community": 13,
+      "norm_label": "tabbar"
+    },
+    {
+      "label": "PreferredSizeWidget?",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "preferredsizewidget",
+      "community": 13,
+      "norm_label": "preferredsizewidget?"
+    },
+    {
+      "label": "body",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_body",
+      "community": 13,
+      "norm_label": "body"
+    },
+    {
+      "label": "Widget",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "widget",
+      "community": 31,
+      "norm_label": "widget"
+    },
+    {
+      "label": "bottomBar",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_bottombar",
+      "community": 13,
+      "norm_label": "bottombar"
+    },
+    {
+      "label": "fab",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_fab",
+      "community": 13,
+      "norm_label": "fab"
+    },
+    {
+      "label": "zoom",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_zoom",
+      "community": 13,
+      "norm_label": "zoom"
+    },
+    {
+      "label": "visible",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_visible",
+      "community": 13,
+      "norm_label": "visible"
+    },
+    {
+      "label": "_timer",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_timer",
+      "community": 13,
+      "norm_label": "_timer"
+    },
+    {
+      "label": "Timer?",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "timer",
+      "community": 13,
+      "norm_label": "timer?"
+    },
+    {
+      "label": "build",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_build",
+      "community": 13,
+      "norm_label": "build"
+    },
+    {
+      "label": "bump",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_bump",
+      "community": 13,
+      "norm_label": "bump"
+    },
+    {
+      "label": "dispose",
+      "file_type": "code",
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "lib_widgets_office_shell_dispose",
+      "community": 13,
+      "norm_label": "dispose"
+    },
+    {
+      "label": "dart:async",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "dart_async",
+      "community": 13,
+      "norm_label": "dart:async"
+    },
+    {
       "label": "slide_canvas.dart",
       "file_type": "code",
       "source_file": "lib/widgets/slide_canvas.dart",
@@ -8822,16 +9382,6 @@
       "id": "lib_widgets_slide_canvas_child",
       "community": 31,
       "norm_label": "child"
-    },
-    {
-      "label": "Widget",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "widget",
-      "community": 31,
-      "norm_label": "widget"
     },
     {
       "label": "shape",
@@ -9237,7 +9787,7 @@
       "label": "5) Ba\u011flant\u0131lar",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L38",
+      "source_location": "L39",
       "_origin": "ast",
       "id": "claude_5_ba\u011flant\u0131lar",
       "community": 38,
@@ -9357,7 +9907,7 @@
       "label": "Build Ge\u00e7mi\u015fi",
       "file_type": "document",
       "source_file": "HAFIZA.md",
-      "source_location": "L70",
+      "source_location": "L85",
       "_origin": "ast",
       "id": "hafiza_build_ge\u00e7mi\u015fi",
       "community": 21,
@@ -9367,7 +9917,7 @@
       "label": "A\u00e7\u0131k Durum / Bekleyenler",
       "file_type": "document",
       "source_file": "HAFIZA.md",
-      "source_location": "L83",
+      "source_location": "L100",
       "_origin": "ast",
       "id": "hafiza_a\u00e7\u0131k_durum_bekleyenler",
       "community": 21,
@@ -9377,7 +9927,7 @@
       "label": "Bilinen Riskler / Tuzaklar",
       "file_type": "document",
       "source_file": "HAFIZA.md",
-      "source_location": "L96",
+      "source_location": "L114",
       "_origin": "ast",
       "id": "hafiza_bilinen_riskler_tuzaklar",
       "community": 21,
@@ -9387,11 +9937,61 @@
       "label": "Yol Haritas\u0131 (\u00f6ncelik kullan\u0131c\u0131yla netle\u015fecek)",
       "file_type": "document",
       "source_file": "HAFIZA.md",
-      "source_location": "L138",
+      "source_location": "L156",
       "_origin": "ast",
       "id": "hafiza_yol_haritas\u0131_\u00f6ncelik_kullan\u0131c\u0131yla_netle\u015fecek",
       "community": 21,
       "norm_label": "yol haritas\u0131 (oncelik kullan\u0131c\u0131yla netlesecek)"
+    },
+    {
+      "label": "KALANLAR.md",
+      "file_type": "document",
+      "source_file": "KALANLAR.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "kalanlar",
+      "community": 51,
+      "norm_label": "kalanlar.md"
+    },
+    {
+      "label": "KALANLAR \u2014 canl\u0131 kalan-i\u015f listesi (biten madde silinir)",
+      "file_type": "document",
+      "source_file": "KALANLAR.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "kalanlar_kalanlar_canl\u0131_kalan_i\u015f_listesi_biten_madde_silinir",
+      "community": 51,
+      "norm_label": "kalanlar \u2014 canl\u0131 kalan-is listesi (biten madde silinir)"
+    },
+    {
+      "label": "Yar\u0131m kalan",
+      "file_type": "document",
+      "source_file": "KALANLAR.md",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "kalanlar_yar\u0131m_kalan",
+      "community": 51,
+      "norm_label": "yar\u0131m kalan"
+    },
+    {
+      "label": "Sonra yap\u0131lacak",
+      "file_type": "document",
+      "source_file": "KALANLAR.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "kalanlar_sonra_yap\u0131lacak",
+      "community": 51,
+      "norm_label": "sonra yap\u0131lacak"
+    },
+    {
+      "label": "Bilinen eksik-risk",
+      "file_type": "document",
+      "source_file": "KALANLAR.md",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "kalanlar_bilinen_eksik_risk",
+      "community": 51,
+      "norm_label": "bilinen eksik-risk"
     },
     {
       "label": "README.md",
@@ -19984,6 +20584,17 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_core_theme",
+      "target": "static_const"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
       "source_location": null,
       "weight": 1.0,
@@ -20237,6 +20848,17 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_widgets_office_shell",
+      "target": "list"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "lib/widgets/slide_canvas.dart",
       "source_location": null,
       "weight": 1.0,
@@ -20422,6 +21044,16 @@
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "package_flutter_material_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "lib/widgets/slide_canvas.dart",
       "source_location": null,
       "weight": 1.0,
@@ -20496,7 +21128,37 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_core_theme",
+      "target": "lib_core_theme_canvas"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
       "target": "lib_core_theme_dark"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
+      "target": "lib_core_theme_excel"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
+      "target": "lib_core_theme_forkind"
     },
     {
       "relation": "defines",
@@ -20516,7 +21178,67 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_core_theme",
+      "target": "lib_core_theme_neutral"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
+      "target": "lib_core_theme_officecolors"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
+      "target": "lib_core_theme_pdf"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
       "target": "lib_core_theme_seed"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
+      "target": "lib_core_theme_slides"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
+      "target": "lib_core_theme_word"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/core/theme.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_core_theme",
+      "target": "models_document_dart"
     },
     {
       "relation": "references",
@@ -20528,6 +21250,86 @@
       "context": "variable_type",
       "source": "lib_core_theme",
       "target": "static_const_color"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
+      "target": "models_document_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "models_document_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/word_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_word_editor_screen",
+      "target": "models_document_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/home_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_home_screen",
+      "target": "models_document_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/viewer_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_viewer_screen",
+      "target": "models_document_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/services/file_service.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_services_file_service",
+      "target": "models_document_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/file_type_icon.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_file_type_icon",
+      "target": "models_document_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "models_document_dart"
     },
     {
       "relation": "imports",
@@ -20548,6 +21350,16 @@
       "weight": 1.0,
       "source": "lib_main",
       "target": "core_theme_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/main.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_main",
+      "target": "dart_io"
     },
     {
       "relation": "defines",
@@ -20587,6 +21399,16 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_main",
+      "target": "lib_main_enablehighrefreshrate"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/main.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_main",
       "target": "lib_main_init"
     },
     {
@@ -20598,6 +21420,36 @@
       "weight": 1.0,
       "source": "lib_main",
       "target": "lib_main_main"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/main.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_main",
+      "target": "lib_main_setenabledsystemuimode"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/main.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_main",
+      "target": "package_flutter_displaymode_flutter_displaymode_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/main.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_main",
+      "target": "package_flutter_services_dart"
     },
     {
       "relation": "imports",
@@ -20723,6 +21575,26 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell_officeshell",
+      "target": "statelesswidget"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell_zoombadge",
+      "target": "statelesswidget"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "lib/widgets/slide_canvas.dart",
       "source_location": null,
       "weight": 1.0,
@@ -20753,6 +21625,96 @@
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
+      "target": "dart_io"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "dart_io"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/word_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_word_editor_screen",
+      "target": "dart_io"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/viewer_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_viewer_screen",
+      "target": "dart_io"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/services/conversion_service.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_services_conversion_service",
+      "target": "dart_io"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/services/file_service.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_services_file_service",
+      "target": "dart_io"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slideshow_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slideshow_screen",
+      "target": "package_flutter_services_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "package_flutter_services_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "test/word_assets_test.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "test_word_assets_test",
+      "target": "package_flutter_services_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "lib/screens/chat_screen.dart",
       "source_location": null,
       "weight": 1.0,
@@ -20828,6 +21790,26 @@
       "weight": 1.0,
       "source": "lib_screens_viewer_screen",
       "target": "core_app_state_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "core_theme_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "core_theme_dart"
     },
     {
       "relation": "references",
@@ -20939,6 +21921,17 @@
       "weight": 1.0,
       "context": "variable_type",
       "source": "lib_widgets_file_type_icon",
+      "target": "lib_models_document_dockind"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_widgets_office_shell",
       "target": "lib_models_document_dockind"
     },
     {
@@ -21747,14 +22740,14 @@
       "target": "chat_screen_dart"
     },
     {
-      "relation": "imports",
+      "relation": "defines",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "lib/screens/editors/slides_editor_screen.dart",
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_slides_editor_screen",
-      "target": "dart_io"
+      "target": "lib_screens_editors_slides_editor_screen_badge"
     },
     {
       "relation": "defines",
@@ -21795,6 +22788,16 @@
       "weight": 1.0,
       "source": "lib_screens_editors_slides_editor_screen",
       "target": "lib_screens_editors_slides_editor_screen_dirty"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
+      "target": "lib_screens_editors_slides_editor_screen_dispose"
     },
     {
       "relation": "defines",
@@ -21884,6 +22887,26 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_slides_editor_screen",
+      "target": "lib_screens_editors_slides_editor_screen_page"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
+      "target": "lib_screens_editors_slides_editor_screen_pagectrl"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
       "target": "lib_screens_editors_slides_editor_screen_path"
     },
     {
@@ -21924,7 +22947,7 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_slides_editor_screen",
-      "target": "lib_screens_editors_slides_editor_screen_slidecard"
+      "target": "lib_screens_editors_slides_editor_screen_slidepage"
     },
     {
       "relation": "defines",
@@ -21955,6 +22978,26 @@
       "weight": 1.0,
       "source": "lib_screens_editors_slides_editor_screen",
       "target": "lib_screens_editors_slides_editor_screen_snack"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
+      "target": "lib_screens_editors_slides_editor_screen_tc"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
+      "target": "lib_screens_editors_slides_editor_screen_zoomed"
     },
     {
       "relation": "references",
@@ -22015,6 +23058,16 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_slides_editor_screen",
+      "target": "widgets_office_shell_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/slides_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_slides_editor_screen",
       "target": "widgets_slide_canvas_dart"
     },
     {
@@ -22026,56 +23079,6 @@
       "weight": 1.0,
       "source": "lib_screens_editors_slides_editor_screen_slideseditorscreenstate",
       "target": "lib_screens_editors_slides_editor_screen_slideseditorscreen"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_screens_editors_spreadsheet_editor_screen",
-      "target": "dart_io"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/screens/editors/word_editor_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_screens_editors_word_editor_screen",
-      "target": "dart_io"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/screens/viewer_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_screens_viewer_screen",
-      "target": "dart_io"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/services/conversion_service.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_services_conversion_service",
-      "target": "dart_io"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/services/file_service.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_services_file_service",
-      "target": "dart_io"
     },
     {
       "relation": "imports",
@@ -22126,6 +23129,36 @@
       "weight": 1.0,
       "source": "lib_widgets_slide_canvas",
       "target": "services_pptx_render_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "widgets_office_shell_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/word_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_word_editor_screen",
+      "target": "widgets_office_shell_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/viewer_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_viewer_screen",
+      "target": "widgets_office_shell_dart"
     },
     {
       "relation": "imports",
@@ -22389,16 +23422,6 @@
       "target": "lib_screens_editors_slideshow_screen_zoomed"
     },
     {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/screens/editors/slideshow_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_screens_editors_slideshow_screen",
-      "target": "package_flutter_services_dart"
-    },
-    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -22453,14 +23476,26 @@
       "target": "int_get"
     },
     {
-      "relation": "imports",
+      "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "test/word_assets_test.dart",
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
       "source_location": null,
       "weight": 1.0,
-      "source": "test_word_assets_test",
-      "target": "package_flutter_services_dart"
+      "context": "variable_type",
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "double"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "double_get"
     },
     {
       "relation": "defines",
@@ -22471,6 +23506,16 @@
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_screens_editors_spreadsheet_editor_screen_applycell"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_badge"
     },
     {
       "relation": "defines",
@@ -22521,6 +23566,16 @@
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_screens_editors_spreadsheet_editor_screen_collabel"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_commitzoom"
     },
     {
       "relation": "defines",
@@ -22590,6 +23645,16 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_gesturezoom"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_screens_editors_spreadsheet_editor_screen_grid"
     },
     {
@@ -22600,7 +23665,27 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_hctrl"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_screens_editors_spreadsheet_editor_screen_header"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_headerh"
     },
     {
       "relation": "defines",
@@ -22640,7 +23725,27 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_maxzoom"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_screens_editors_spreadsheet_editor_screen_mergeat"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_minzoom"
     },
     {
       "relation": "defines",
@@ -22660,7 +23765,47 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_onpointerdown"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_onpointerend"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_onpointermove"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_screens_editors_spreadsheet_editor_screen_path"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_pinchstartdist"
     },
     {
       "relation": "defines",
@@ -22800,7 +23945,47 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_touchdist"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_touches"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_screens_editors_spreadsheet_editor_screen_valueat"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_vctrl"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "lib_screens_editors_spreadsheet_editor_screen_zoom"
     },
     {
       "relation": "references",
@@ -22812,6 +23997,17 @@
       "context": "variable_type",
       "source": "lib_screens_editors_spreadsheet_editor_screen",
       "target": "lib_services_xlsx_editor_xlsxeditor"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/editors/spreadsheet_editor_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_screens_editors_spreadsheet_editor_screen",
+      "target": "map"
     },
     {
       "relation": "imports",
@@ -22832,6 +24028,28 @@
       "weight": 1.0,
       "source": "lib_screens_editors_spreadsheet_editor_screen_spreadsheeteditorscreenstate",
       "target": "lib_screens_editors_spreadsheet_editor_screen_spreadsheeteditorscreen"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/services/pptx_render.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_services_pptx_render",
+      "target": "map"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/services/xlsx_editor.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_services_xlsx_editor",
+      "target": "double"
     },
     {
       "relation": "imports",
@@ -23395,16 +24613,6 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_screens_home_screen",
-      "target": "models_document_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/screens/home_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_screens_home_screen",
       "target": "services_file_service_dart"
     },
     {
@@ -23436,36 +24644,6 @@
       "weight": 1.0,
       "source": "lib_screens_home_screen_homescreenstate",
       "target": "lib_screens_home_screen_homescreen"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/screens/viewer_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_screens_viewer_screen",
-      "target": "models_document_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/services/file_service.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_services_file_service",
-      "target": "models_document_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/widgets/file_type_icon.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "lib_widgets_file_type_icon",
-      "target": "models_document_dart"
     },
     {
       "relation": "imports",
@@ -26257,17 +27435,6 @@
       "target": "lib_services_pptx_render_xmlcache"
     },
     {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/services/pptx_render.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "context": "variable_type",
-      "source": "lib_services_pptx_render",
-      "target": "map"
-    },
-    {
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -26395,17 +27562,6 @@
       "weight": 1.0,
       "source": "lib_services_xlsx_editor",
       "target": "dart_ui"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/services/xlsx_editor.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "context": "variable_type",
-      "source": "lib_services_xlsx_editor",
-      "target": "double"
     },
     {
       "relation": "references",
@@ -26965,6 +28121,230 @@
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "dart_async"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_actions"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_body"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_bottombar"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_build"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_bump"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_dirty"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_dispose"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_fab"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_kind"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_officeshell"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_tabbar"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_timer"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_title"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_visible"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_zoom"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_zoombadge"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "lib_widgets_office_shell",
+      "target": "lib_widgets_office_shell_zoombadgecontroller"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_widgets_office_shell",
+      "target": "preferredsizewidget"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_widgets_office_shell",
+      "target": "timer"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/office_shell.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_widgets_office_shell",
+      "target": "widget"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/slide_canvas.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "lib_widgets_slide_canvas",
+      "target": "widget"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "lib/widgets/slide_canvas.dart",
       "source_location": null,
       "weight": 1.0,
@@ -27100,17 +28480,6 @@
       "weight": 1.0,
       "source": "lib_widgets_slide_canvas",
       "target": "lib_widgets_slide_canvas_visible"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "lib/widgets/slide_canvas.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "context": "variable_type",
-      "source": "lib_widgets_slide_canvas",
-      "target": "widget"
     },
     {
       "relation": "references",
@@ -27427,7 +28796,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L38",
+      "source_location": "L39",
       "weight": 1.0,
       "source": "claude_dosya_okuyucu_\u00e7al\u0131\u015fma_kurallar\u0131_claude_md",
       "target": "claude_5_ba\u011flant\u0131lar",
@@ -27527,7 +28896,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "HAFIZA.md",
-      "source_location": "L83",
+      "source_location": "L100",
       "weight": 1.0,
       "source": "hafiza_dosya_okuyucu_proje_haf\u0131zas\u0131",
       "target": "hafiza_a\u00e7\u0131k_durum_bekleyenler",
@@ -27537,7 +28906,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "HAFIZA.md",
-      "source_location": "L96",
+      "source_location": "L114",
       "weight": 1.0,
       "source": "hafiza_dosya_okuyucu_proje_haf\u0131zas\u0131",
       "target": "hafiza_bilinen_riskler_tuzaklar",
@@ -27547,7 +28916,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "HAFIZA.md",
-      "source_location": "L70",
+      "source_location": "L85",
       "weight": 1.0,
       "source": "hafiza_dosya_okuyucu_proje_haf\u0131zas\u0131",
       "target": "hafiza_build_ge\u00e7mi\u015fi",
@@ -27567,10 +28936,50 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "HAFIZA.md",
-      "source_location": "L138",
+      "source_location": "L156",
       "weight": 1.0,
       "source": "hafiza_dosya_okuyucu_proje_haf\u0131zas\u0131",
       "target": "hafiza_yol_haritas\u0131_\u00f6ncelik_kullan\u0131c\u0131yla_netle\u015fecek",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "KALANLAR.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "kalanlar",
+      "target": "kalanlar_kalanlar_canl\u0131_kalan_i\u015f_listesi_biten_madde_silinir",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "KALANLAR.md",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "kalanlar_kalanlar_canl\u0131_kalan_i\u015f_listesi_biten_madde_silinir",
+      "target": "kalanlar_bilinen_eksik_risk",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "KALANLAR.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "kalanlar_kalanlar_canl\u0131_kalan_i\u015f_listesi_biten_madde_silinir",
+      "target": "kalanlar_sonra_yap\u0131lacak",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "KALANLAR.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "kalanlar_kalanlar_canl\u0131_kalan_i\u015f_listesi_biten_madde_silinir",
+      "target": "kalanlar_yar\u0131m_kalan",
       "confidence_score": 1.0
     },
     {
@@ -27685,5 +29094,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "7bf3fd9a75c89bda26401988e1c241c3df82550c"
+  "built_at_commit": "cf47d006a2de4b90963dfe74fc0b8e2269730279"
 }

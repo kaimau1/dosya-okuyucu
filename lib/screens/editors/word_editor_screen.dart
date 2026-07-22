@@ -4,8 +4,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../models/document.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/docx_view.dart';
+import '../../widgets/office_shell.dart';
 import '../chat_screen.dart';
 
 /// İki sekme: **Görünüm** belgeyi Word'deki sayfa düzeniyle çizer (docx-preview),
@@ -89,30 +91,34 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     final bytes = _bytes;
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-        appBar: AppBar(
-          title: Text(widget.name, overflow: TextOverflow.ellipsis),
-          actions: [
-            IconButton(
-              tooltip: 'Kaydet',
-              icon: const Icon(Icons.save_outlined),
-              onPressed: editor == null ? null : _save,
-            ),
-            PopupMenuButton<String>(
-              onSelected: (v) {
-                if (v == 'export') _export();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                    value: 'export', child: Text('Paylaş / Dışa aktar')),
-              ],
-            ),
-          ],
-          bottom: const TabBar(tabs: [
+      child: OfficeShell(
+        kind: DocKind.word,
+        title: widget.name,
+        dirty: _dirty,
+        actions: [
+          IconButton(
+            tooltip: 'Kaydet',
+            icon: const Icon(Icons.save_outlined),
+            onPressed: editor == null ? null : _save,
+          ),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              if (v == 'export') _export();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                  value: 'export', child: Text('Paylaş / Dışa aktar')),
+            ],
+          ),
+        ],
+        tabBar: const TabBar(
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          tabs: [
             Tab(icon: Icon(Icons.description_outlined), text: 'Görünüm'),
             Tab(icon: Icon(Icons.edit_outlined), text: 'Düzenle'),
-          ]),
+          ],
         ),
         body: _error != null
             ? Center(child: Text('Açılamadı: $_error'))
@@ -124,7 +130,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                       _buildPage(editor),
                     ],
                   ),
-        floatingActionButton: FloatingActionButton.extended(
+        fab: FloatingActionButton.extended(
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => ChatScreen(
               fileContext: widget.plainText,
@@ -141,7 +147,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   Widget _buildPage(DocxEditor editor) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+        // Alt sistem çubuğu + FAB için nefes payı (edge-to-edge çakışmasın).
+        padding: EdgeInsets.fromLTRB(
+            12, 20, 12, MediaQuery.of(context).padding.bottom + 88),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 820),
           decoration: BoxDecoration(

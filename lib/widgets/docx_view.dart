@@ -29,7 +29,7 @@ class _DocxViewState extends State<DocxView> {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFECEFF1))
+      ..setBackgroundColor(const Color(0xFFF3F2F1)) // Fluent kanvas (OfficeColors ile aynı)
       ..enableZoom(true)
       ..addJavaScriptChannel('Durum', onMessageReceived: (m) {
         if (!mounted) return;

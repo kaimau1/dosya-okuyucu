@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/theme.dart';
+import '../../models/document.dart';
 import '../../services/xlsx_editor.dart';
+import '../../widgets/office_shell.dart';
 import '../chat_screen.dart';
 
 /// Excel görünümü: gerçek sütun genişlikleri, satır yükseklikleri, hücre
@@ -42,6 +45,22 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   int _selCol = 0;
   final _cellField = TextEditingController();
 
+  // --- Pinch zoom (Excel mobil hissi) ---------------------------------------
+  // Jest arenasına girmeden ham pointer'lardan hesaplanır: iki parmak inince
+  // kaydırma kilitlenir, aradaki mesafe oranı canlı GPU ölçeği olur; parmak
+  // kalkınca ölçek hücre metriklerine işlenir (yazı yeniden net çizilir).
+  static const _minZoom = 0.5;
+  static const _maxZoom = 3.0;
+  double _zoom = 1; // işlenmiş ölçek (hücre boyutları/yazılar bununla çarpılır)
+  double _gestureZoom = 1; // pinch sırasında geçici Transform ölçeği
+  final Map<int, Offset> _touches = {};
+  double? _pinchStartDist;
+  final _hCtrl = ScrollController();
+  final _vCtrl = ScrollController();
+  late final _badge = ZoomBadgeController((fn) {
+    if (mounted) setState(fn);
+  });
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +70,65 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   @override
   void dispose() {
     _cellField.dispose();
+    _hCtrl.dispose();
+    _vCtrl.dispose();
+    _badge.dispose();
     super.dispose();
+  }
+
+  double get _headerH => 30 * _zoom;
+
+  double _touchDist() {
+    final pts = _touches.values.toList();
+    return (pts[0] - pts[1]).distance;
+  }
+
+  void _onPointerDown(PointerDownEvent e) {
+    _touches[e.pointer] = e.position;
+    if (_touches.length == 2) {
+      _pinchStartDist = _touchDist();
+      setState(() {}); // kaydırma kilidi (physics) devreye girsin
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (!_touches.containsKey(e.pointer)) return;
+    _touches[e.pointer] = e.position;
+    final start = _pinchStartDist;
+    if (start != null && start > 0 && _touches.length == 2) {
+      final f =
+          (_touchDist() / start).clamp(_minZoom / _zoom, _maxZoom / _zoom);
+      setState(() => _gestureZoom = f);
+      _badge.bump(_zoom * f);
+    }
+  }
+
+  void _onPointerEnd(int pointer) {
+    _touches.remove(pointer);
+    if (_pinchStartDist != null && _touches.length < 2) {
+      _pinchStartDist = null;
+      _commitZoom();
+    }
+  }
+
+  void _commitZoom() {
+    final f = _gestureZoom;
+    setState(() {
+      _zoom = (_zoom * f).clamp(_minZoom, _maxZoom);
+      _gestureZoom = 1;
+    });
+    if ((f - 1).abs() < 0.001) return;
+    // Bakılan bölge yerinde kalsın: kaydırma konumu ölçek oranıyla çarpılır.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_hCtrl.hasClients) {
+        _hCtrl.jumpTo(
+            (_hCtrl.offset * f).clamp(0.0, _hCtrl.position.maxScrollExtent));
+      }
+      if (_vCtrl.hasClients) {
+        _vCtrl.jumpTo(
+            (_vCtrl.offset * f).clamp(0.0, _vCtrl.position.maxScrollExtent));
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -141,40 +218,49 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.name}${_dirty ? ' •' : ''}',
-            overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            tooltip: 'Kaydet',
-            icon: const Icon(Icons.save_outlined),
-            onPressed: editor == null ? null : _save,
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'export') _export();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
-            ],
-          ),
-        ],
-      ),
+    return OfficeShell(
+      kind: DocKind.spreadsheet,
+      title: widget.name,
+      dirty: _dirty,
+      actions: [
+        IconButton(
+          tooltip: 'Kaydet',
+          icon: const Icon(Icons.save_outlined),
+          onPressed: editor == null ? null : _save,
+        ),
+        PopupMenuButton<String>(
+          onSelected: (v) {
+            if (v == 'export') _export();
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
+          ],
+        ),
+      ],
       body: _error != null
           ? Center(child: Text('Açılamadı: $_error'))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
-              : Column(
+              : Stack(
                   children: [
-                    _cellBar(),
-                    Expanded(child: _grid()),
+                    Column(
+                      children: [
+                        _cellBar(),
+                        Expanded(child: _grid()),
+                      ],
+                    ),
+                    Positioned(
+                      left: 12,
+                      bottom: MediaQuery.of(context).padding.bottom + 12,
+                      child:
+                          ZoomBadge(zoom: _badge.zoom, visible: _badge.visible),
+                    ),
                   ],
                 ),
-      bottomNavigationBar: editor == null || editor.sheets.length < 2
+      bottomBar: editor == null || editor.sheets.length < 2
           ? null
           : _sheetTabs(editor),
-      floatingActionButton: FloatingActionButton.extended(
+      fab: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(
             fileContext: widget.plainText,
@@ -259,12 +345,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
     final rowCount = sheet.rows.length;
     final colCount = sheet.maxCols.clamp(1, _maxCols);
-    var total = _rowHeaderW;
+    var total = _rowHeaderW * _zoom;
     for (var c = 0; c < colCount; c++) {
-      total += sheet.colWidth(c);
+      total += sheet.colWidth(c) * _zoom;
     }
 
-    return SingleChildScrollView(
+    // Pinch sürerken kaydırma kilitlenir ki iki parmak jesti ızgarayı sürüklemesin.
+    final ScrollPhysics? physics =
+        _pinchStartDist != null ? const NeverScrollableScrollPhysics() : null;
+
+    final grid = SingleChildScrollView(
+      controller: _hCtrl,
+      physics: physics,
       scrollDirection: Axis.horizontal,
       child: SizedBox(
         width: total,
@@ -272,15 +364,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           children: [
             Row(
               children: [
-                _header('', _rowHeaderW),
+                _header('', _rowHeaderW * _zoom),
                 for (var c = 0; c < colCount; c++)
-                  _header(_colLabel(c), sheet.colWidth(c),
+                  _header(_colLabel(c), sheet.colWidth(c) * _zoom,
                       highlight: c == _selCol),
               ],
             ),
             Expanded(
               // Satırlar tembel çizilir; 2000 satırlık dosyalarda da akıcı kalır.
               child: ListView.builder(
+                controller: _vCtrl,
+                physics: physics,
+                padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 88),
                 itemCount: rowCount,
                 itemBuilder: (_, r) => _row(sheet, r, colCount),
               ),
@@ -289,12 +385,25 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         ),
       ),
     );
+
+    return Listener(
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: (e) => _onPointerEnd(e.pointer),
+      onPointerCancel: (e) => _onPointerEnd(e.pointer),
+      child: Transform.scale(
+        scale: _gestureZoom,
+        alignment: Alignment.topLeft,
+        child: grid,
+      ),
+    );
   }
 
   Widget _row(XlsxSheet sheet, int r, int colCount) {
-    final h = sheet.rowHeight(r);
+    final h = sheet.rowHeight(r) * _zoom;
     final cells = <Widget>[
-      _header('${r + 1}', _rowHeaderW, height: h, highlight: r == _selRow),
+      _header('${r + 1}', _rowHeaderW * _zoom,
+          height: h, highlight: r == _selRow),
     ];
 
     for (var c = 0; c < colCount; c++) {
@@ -303,7 +412,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         // Birleştirmenin devamı: çapa hücre yerini zaten kapladı.
         if (merge.rowStart == r) continue;
         // Dikey birleştirmenin alt satırları: boş ama aynı zeminde.
-        cells.add(_cell(sheet, r, c, sheet.colWidth(c), h, forceEmpty: true));
+        cells.add(_cell(sheet, r, c, sheet.colWidth(c) * _zoom, h,
+            forceEmpty: true));
         continue;
       }
       var w = sheet.colWidth(c);
@@ -312,7 +422,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           w += sheet.colWidth(k);
         }
       }
-      cells.add(_cell(sheet, r, c, w, h));
+      cells.add(_cell(sheet, r, c, w * _zoom, h));
     }
     return Row(children: cells);
   }
@@ -325,20 +435,21 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   }
 
   Widget _header(String text, double width,
-      {double height = 30, bool highlight = false}) {
+      {double? height, bool highlight = false}) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: width,
-      height: height,
+      height: height ?? _headerH,
       alignment: Alignment.center,
       decoration: BoxDecoration(
+        // Seçili satır/sütun başlığı Excel'deki gibi marka yeşiliyle vurgulanır.
         color: highlight
-            ? scheme.primaryContainer
+            ? OfficeColors.excel.withOpacity(0.18)
             : scheme.surfaceContainerHighest,
         border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
       ),
       child: Text(text,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11 * _zoom)),
     );
   }
 
@@ -346,7 +457,6 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       {bool forceEmpty = false}) {
     final style = sheet.styleAt(r, c);
     final selected = r == _selRow && c == _selCol;
-    final scheme = Theme.of(context).colorScheme;
 
     return GestureDetector(
       onTap: () => _select(r, c),
@@ -354,11 +464,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         width: w,
         height: h,
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: EdgeInsets.symmetric(horizontal: 4 * _zoom),
         decoration: BoxDecoration(
           color: style?.background,
+          // Seçim çerçevesi Excel yeşili — Office kimliği hücrede de hissedilir.
           border: Border.all(
-            color: selected ? scheme.primary : Theme.of(context).dividerColor,
+            color: selected
+                ? OfficeColors.excel
+                : Theme.of(context).dividerColor,
             width: selected ? 2 : 0.5,
           ),
         ),
@@ -370,7 +483,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: style?.align ?? TextAlign.left,
                 style: TextStyle(
-                  fontSize: style?.fontSize ?? 12,
+                  fontSize: (style?.fontSize ?? 12) * _zoom,
                   fontWeight:
                       (style?.bold ?? false) ? FontWeight.bold : FontWeight.normal,
                   fontStyle:

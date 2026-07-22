@@ -10,6 +10,7 @@ import '../core/app_state.dart';
 import '../models/document.dart';
 import '../services/conversion_service.dart';
 import '../services/file_service.dart';
+import '../widgets/office_shell.dart';
 import 'chat_screen.dart';
 
 class ViewerScreen extends StatefulWidget {
@@ -130,44 +131,44 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Widget build(BuildContext context) {
     final doc = widget.doc;
     final hasApiKey = context.watch<AppState>().hasApiKey;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(doc.name, overflow: TextOverflow.ellipsis),
-        actions: [
-          if (doc.isEditableText)
-            IconButton(
-              tooltip: 'Kaydet / Dışa aktar',
-              icon: const Icon(Icons.save_outlined),
-              onPressed: _save,
-            ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              switch (v) {
-                case 'pdf':
-                  _exportPdf();
-                  break;
-                case 'slides':
-                  _exportSlides();
-                  break;
-                case 'share':
-                  _share();
-                  break;
-                case 'print':
-                  _print();
-                  break;
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
-              PopupMenuItem(value: 'slides', child: Text('Slayta dönüştür')),
-              PopupMenuItem(value: 'share', child: Text('Paylaş')),
-              PopupMenuItem(value: 'print', child: Text('Yazdır')),
-            ],
+    return OfficeShell(
+      kind: doc.kind,
+      title: doc.name,
+      dirty: _dirty,
+      actions: [
+        if (doc.isEditableText)
+          IconButton(
+            tooltip: 'Kaydet / Dışa aktar',
+            icon: const Icon(Icons.save_outlined),
+            onPressed: _save,
           ),
-        ],
-      ),
+        PopupMenuButton<String>(
+          onSelected: (v) {
+            switch (v) {
+              case 'pdf':
+                _exportPdf();
+                break;
+              case 'slides':
+                _exportSlides();
+                break;
+              case 'share':
+                _share();
+                break;
+              case 'print':
+                _print();
+                break;
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
+            PopupMenuItem(value: 'slides', child: Text('Slayta dönüştür')),
+            PopupMenuItem(value: 'share', child: Text('Paylaş')),
+            PopupMenuItem(value: 'print', child: Text('Yazdır')),
+          ],
+        ),
+      ],
       body: _buildBody(doc),
-      floatingActionButton: FloatingActionButton.extended(
+      fab: FloatingActionButton.extended(
         onPressed: _openChat,
         icon: const Icon(Icons.smart_toy_outlined),
         label: Text(hasApiKey ? 'AI ile çalış' : 'AI (anahtar gerekli)'),

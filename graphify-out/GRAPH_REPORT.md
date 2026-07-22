@@ -1,16 +1,16 @@
-# Graph Report - dosya okuyucu  (2026-07-21)
+# Graph Report - dosya okuyucu  (2026-07-22)
 
 ## Corpus Check
-- 37 files · ~21,243 words
+- 39 files · ~22,757 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 953 nodes · 1740 edges · 49 communities (41 shown, 8 thin omitted)
+- 1013 nodes · 1820 edges · 54 communities (43 shown, 11 thin omitted)
 - Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 111 edges (avg confidence: 0.63)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7bf3fd9a`
+- Built from commit: `cf47d006`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -64,6 +64,11 @@
 - [[_COMMUNITY_G|G]]
 - [[_COMMUNITY_M|M]]
 - [[_COMMUNITY_CLAUDE.md Rules|CLAUDE.md Rules]]
+- [[_COMMUNITY_AppState|AppState]]
+- [[_COMMUNITY_ce|ce]]
+- [[_COMMUNITY_KALANLAR — canlı kalan-iş listesi (biten madde silinir)|KALANLAR — canlı kalan-iş listesi (biten madde silinir)]]
+- [[_COMMUNITY_.parseXml|.parseXml]]
+- [[_COMMUNITY_te|te]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `ue()` - 87 edges
@@ -92,51 +97,51 @@
 ## Import Cycles
 - None detected.
 
-## Communities (49 total, 8 thin omitted)
+## Communities (54 total, 11 thin omitted)
 
 ### Community 0 - "App State Management"
 Cohesion: 0.05
 Nodes (40): addMemory, addRecent, _apiKey, _encodeMap, firebase, firebaseAvailable, hasApiKey, init (+32 more)
 
 ### Community 1 - "Spreadsheet Editor"
-Cohesion: 0.06
-Nodes (33): _applyCell, _cell, _cellBar, _cellField, _colLabel, createState, _dirty, dispose (+25 more)
+Cohesion: 0.04
+Nodes (49): double get, _applyCell, _badge, _cell, _cellBar, _cellField, _colLabel, _commitZoom (+41 more)
 
 ### Community 2 - "PDF Conversion Service"
 Cohesion: 0.14
 Nodes (13): dart:io, bullets, ConversionService, _Slide, _splitIntoSlides, textToPdf, textToSlidesPdf, title (+5 more)
 
 ### Community 3 - "Document Viewer Screen"
-Cohesion: 0.07
-Nodes (27): _buildBody, controller, _conversion, createState, _dirty, dispose, doc, editable (+19 more)
+Cohesion: 0.08
+Nodes (25): _buildBody, controller, _conversion, createState, _dirty, dispose, doc, editable (+17 more)
 
 ### Community 4 - "Slides Editor Screen"
-Cohesion: 0.10
-Nodes (21): _buildSlides, createState, _dirty, _editor, _editShape, _error, _export, _fallbackText (+13 more)
+Cohesion: 0.08
+Nodes (24): _badge, _buildSlides, createState, _dirty, dispose, _editor, _editShape, _error (+16 more)
 
 ### Community 5 - "Firebase Authentication Service"
 Cohesion: 0.09
 Nodes (21): FirebaseAuth?, FirebaseFirestore?, _auth, authState, _available, currentUser, _db, FirebaseService (+13 more)
 
 ### Community 6 - "Word Editor Screen"
-Cohesion: 0.10
-Nodes (21): chat_screen.dart, _buildPage, _bytes, createState, _dirty, _editor, _error, _export (+13 more)
+Cohesion: 0.09
+Nodes (22): _buildPage, _bytes, createState, _dirty, _editor, _error, _export, initState (+14 more)
 
 ### Community 7 - "Home Screen Navigation"
 Cohesion: 0.11
-Nodes (19): editors/slides_editor_screen.dart, editors/spreadsheet_editor_screen.dart, editors/word_editor_screen.dart, createState, _fileService, hasApiKey, HomeScreen, _HomeScreenState (+11 more)
+Nodes (17): chat_screen.dart, editors/slides_editor_screen.dart, editors/spreadsheet_editor_screen.dart, editors/word_editor_screen.dart, createState, _fileService, hasApiKey, _loading (+9 more)
 
 ### Community 8 - "Gemini AI Service"
-Cohesion: 0.11
-Nodes (17): Exception, apiKey, _base, chat, ChatTurn, _endpoint, fromUser, GeminiException (+9 more)
+Cohesion: 0.06
+Nodes (31): Exception, AppTheme, _base, canvas, dark, excel, forKind, light (+23 more)
 
 ### Community 9 - "Settings and Account"
-Cohesion: 0.12
-Nodes (20): ChatScreen, _ChatScreenState, _AccountSection, _AccountSectionState, _apiKey, _busy, createState, dispose (+12 more)
+Cohesion: 0.14
+Nodes (14): _apiKey, _busy, createState, dispose, _email, _error, _models, _obscure (+6 more)
 
 ### Community 10 - "Chat Interface"
-Cohesion: 0.12
-Nodes (16): build, _busy, controller, createState, dispose, enabled, fileContext, fileName (+8 more)
+Cohesion: 0.11
+Nodes (17): build, _busy, controller, createState, dispose, enabled, fileContext, fileName (+9 more)
 
 ### Community 11 - "PowerPoint Parser"
 Cohesion: 0.09
@@ -147,24 +152,24 @@ Cohesion: 0.12
 Nodes (16): Archive, _appendRun, _archive, _doc, DocxEditor, DocxParagraph, _element, heading (+8 more)
 
 ### Community 13 - "UI Theme and Icons"
-Cohesion: 0.29
-Nodes (6): AppTheme, _base, dark, light, _seed, static const Color
+Cohesion: 0.11
+Nodes (18): dart:async, actions, body, bottomBar, build, bump, dirty, dispose (+10 more)
 
 ### Community 14 - "Document Models"
-Cohesion: 0.18
-Nodes (11): bool get, DocKind, DocKindLabel, isEditableText, kind, LoadedDoc, name, path (+3 more)
+Cohesion: 0.20
+Nodes (9): bool get, isEditableText, kind, LoadedDoc, name, path, plainText, table (+1 more)
 
 ### Community 16 - "Recent Files Data"
 Cohesion: 0.20
 Nodes (9): dart:convert, encode, name, openedAtMs, path, RecentFile, sizeBytes, toMap (+1 more)
 
 ### Community 17 - "UI Components"
-Cohesion: 0.17
-Nodes (12): _Bubble, _ChatHint, _Composer, _EmptyState, _RecentList, _AboutSection, _SpreadsheetView, _TextEditor (+4 more)
+Cohesion: 0.14
+Nodes (14): _Bubble, _ChatHint, _Composer, _EmptyState, _RecentList, _AboutSection, _SpreadsheetView, _TextEditor (+6 more)
 
 ### Community 18 - "App Entry Point"
-Cohesion: 0.12
-Nodes (17): ChangeNotifier, ../core/app_state.dart, core/theme.dart, AppState, appState, build, DosyaOkuyucuApp, init (+9 more)
+Cohesion: 0.17
+Nodes (11): ../core/app_state.dart, ../core/theme.dart, appState, build, _enableHighRefreshRate, init, main, setEnabledSystemUIMode (+3 more)
 
 ### Community 19 - "Office File Extraction"
 Cohesion: 0.25
@@ -172,7 +177,7 @@ Nodes (7): extractDocxText, extractPptxText, _fileByName, OfficeReader, _slideIn
 
 ### Community 20 - "State Change Handlers"
 Cohesion: 0.02
-Nodes (100): double dx, dy, sx,, double x, y, w,, EdgeInsets, align, AnimTarget, _archive, background, backgroundImage (+92 more)
+Nodes (99): double dx, dy, sx,, double x, y, w,, EdgeInsets, align, AnimTarget, _archive, background, backgroundImage (+91 more)
 
 ### Community 21 - "Project Documentation"
 Cohesion: 0.29
@@ -180,31 +185,27 @@ Nodes (6): Açık Durum / Bekleyenler, Bilinen Riskler / Tuzaklar, Build Geçmi�
 
 ### Community 22 - "ue"
 Cohesion: 0.07
-Nodes (6): c(), ge, l(), qe(), ue(), Ye()
+Nodes (4): c(), ge, l(), ue()
 
 ### Community 23 - "xlsx_editor.dart"
 Cohesion: 0.05
-Nodes (41): Color?, dart:ui, double?, Excel, int rowStart, colStart, rowEnd,, align, background, bold (+33 more)
+Nodes (42): Color?, dart:ui, double?, Excel, int rowStart, colStart, rowEnd,, align, background, bold (+34 more)
 
 ### Community 24 - "docx-preview.min.js"
-Cohesion: 0.09
-Nodes (22): a(), b(), be, D(), de, E(), H(), i() (+14 more)
+Cohesion: 0.08
+Nodes (26): a(), ae(), b(), D(), de, E(), fe, H() (+18 more)
 
 ### Community 26 - "r"
 Cohesion: 0.23
-Nodes (24): F(), je(), U, A(), c(), d(), f(), G() (+16 more)
+Nodes (22): F(), U, A(), c(), d(), f(), G(), h() (+14 more)
 
 ### Community 27 - "s"
-Cohesion: 0.13
-Nodes (4): ke, n(), s(), ve()
+Cohesion: 0.12
+Nodes (5): je(), ke, n(), s(), ve()
 
 ### Community 28 - "slideshow_screen.dart"
 Cohesion: 0.08
 Nodes (24): int get, _backward, build, createState, dispose, _forward, _go, _index (+16 more)
-
-### Community 30 - ".attr"
-Cohesion: 0.14
-Nodes (5): ce, fe, k, pe, xe()
 
 ### Community 31 - "slide_canvas.dart"
 Cohesion: 0.12
@@ -223,8 +224,8 @@ Cohesion: 0.18
 Nodes (10): AnimatedOpacity, package:dosya_okuyucu/services/pptx_editor.dart, package:dosya_okuyucu/widgets/slide_canvas.dart, add, archive, fromList, main, _samplePptx (+2 more)
 
 ### Community 35 - ".element"
-Cohesion: 0.27
-Nodes (3): ae(), le, o()
+Cohesion: 0.23
+Nodes (12): ChatScreen, _ChatScreenState, SlidesEditorScreen, _SlidesEditorScreenState, HomeScreen, _HomeScreenState, _AccountSection, _AccountSectionState (+4 more)
 
 ### Community 36 - "package:flutter/material.dart"
 Cohesion: 0.20
@@ -247,8 +248,8 @@ Cohesion: 0.25
 Nodes (8): _promptForKey, build, _play, build, build, build, _openChat, MaterialPageRoute
 
 ### Community 41 - "file_type_icon.dart"
-Cohesion: 0.29
-Nodes (6): build, FileTypeIcon, kind, size, _style, ../models/document.dart
+Cohesion: 0.22
+Nodes (8): DocKind, DocKindLabel, build, FileTypeIcon, kind, size, _style, ../models/document.dart
 
 ### Community 42 - "Dosya Okuyucu"
 Cohesion: 0.29
@@ -258,25 +259,37 @@ Nodes (6): Derleme (CI), Dosya Okuyucu, Yapay zeka anahtarı, Yerel geliştirme,
 Cohesion: 0.33
 Nodes (5): Anahtar parmak izi (fingerprint), APK İmzalama (sabit anahtar = kolay güncelleme), Kalıcı imzayı etkinleştirme (bir kerelik, ~2 dk), Parola, Önemli
 
+### Community 49 - "AppState"
+Cohesion: 0.22
+Nodes (9): ChangeNotifier, AppState, DosyaOkuyucuApp, _saveToMemory, _send, _openPath, build, initState (+1 more)
+
+### Community 50 - "ce"
+Cohesion: 0.29
+Nodes (3): ce, pe, xe()
+
+### Community 51 - "KALANLAR — canlı kalan-iş listesi (biten madde silinir)"
+Cohesion: 0.40
+Nodes (4): Bilinen eksik-risk, KALANLAR — canlı kalan-iş listesi (biten madde silinir), Sonra yapılacak, Yarım kalan
+
 ## Knowledge Gaps
-- **462 isolated node(s):** `_kApiKey`, `_kModel`, `_kThemeMode`, `_kRecents`, `_kMemory` (+457 more)
+- **511 isolated node(s):** `_kApiKey`, `_kModel`, `_kThemeMode`, `_kRecents`, `_kMemory` (+506 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ue()` connect `ue` to `docx-preview.min.js`, `.elements`, `.attr`?**
-  _High betweenness centrality (0.039) - this node is a cross-community bridge._
-- **Why does `AppState` connect `App Entry Point` to `App State Management`, `Document Viewer Screen`, `Home Screen Navigation`, `MaterialPageRoute`, `Settings and Account`, `Chat Interface`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **Why does `oe` connect `.elements` to `docx-preview.min.js`, `.element`, `.parseDefaultProperties`, `.attr`?**
+- **Why does `ue()` connect `ue` to `docx-preview.min.js`, `.elements`, `.parseDefaultProperties`?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **Why does `AppState` connect `AppState` to `App State Management`, `.element`, `Document Viewer Screen`, `Home Screen Navigation`, `MaterialPageRoute`, `Settings and Account`, `Chat Interface`, `App Entry Point`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Why does `n()` connect `s` to `docx-preview.min.js`, `ue`?**
   _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Are the 23 inferred relationships involving `a()` (e.g. with `d()` and `f()`) actually correct?**
   _`a()` has 23 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 24 inferred relationships involving `r()` (e.g. with `.parseXml()` and `je()`) actually correct?**
   _`r()` has 24 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `_kApiKey`, `_kModel`, `_kThemeMode` to the rest of the system?**
-  _462 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _511 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `App State Management` be split into smaller, more focused modules?**
   _Cohesion score 0.04878048780487805 - nodes in this community are weakly interconnected._

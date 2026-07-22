@@ -2,13 +2,15 @@
   Word görüntüleyici kabuğu. İnternet YOK: jszip + docx-preview aynı klasörden,
   APK içine gömülü olarak yüklenir. Flutter tarafı renderDocx(base64) çağırır.
 -->
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
+<!-- Sabit sayfa genişliği (A4 ~794px + kenar payı): WebView açılışta tam sayfayı
+     ekrana sığdırır, pinch ile Word'deki gibi yakınlaşılır/uzaklaşılır. -->
+<meta name="viewport" content="width=820, user-scalable=yes">
 <style>
-  html, body { margin: 0; padding: 0; background: #eceff1; }
+  html, body { margin: 0; padding: 0; background: #f3f2f1; }
   #container { padding: 8px 0 24px; }
   /* docx-preview sayfayı beyaz bir "kağıt" olarak çizer; gölge ekleyip
      PowerPoint/Word hissini tamamlıyoruz. */
-  .docx-wrapper { background: #eceff1 !important; padding: 8px !important; }
+  .docx-wrapper { background: #f3f2f1 !important; padding: 8px !important; }
   .docx-wrapper > section.docx {
     box-shadow: 0 1px 6px rgba(0,0,0,.25);
     margin-bottom: 12px !important;

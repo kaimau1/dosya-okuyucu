@@ -67,6 +67,21 @@
   OKUNMAZ — beliriş jenerik (fade + hafif kayma). *Niye:* PowerPoint'te 100+ efekt var, akış
   önemli, efektin kendisi değil. Sunum modu tam ekran + yatay + zoom (InteractiveViewer).
 
+- **2026-07-22 — Faz 0 "Office hissi" temeli (kullanıcı onaylı plan; sıra: Faz 0 → Word → Excel → PPTX).**
+  Görsel referans **M365 mobil** (kullanıcı seçimi); Word Faz 1 kapsamı **metin + B/I/U birlikte** (kullanıcı seçimi).
+  M365 kimliği: `OfficeColors` token'ları (Word #185ABD / Excel #107C41 / PPT #C43E1C / PDF #C50F1F),
+  Fluent kanvas #F3F2F1 / #201F1E, ortak kabuk `widgets/office_shell.dart` — alt bar SafeArea'sı
+  tek yerden (alt sistem çubuğu çakışma sınıfı burada çözülür, ekran ekran değil).
+  120Hz: `flutter_displaymode.setHighRefreshRate` (Android, try/catch) + `SystemUiMode.edgeToEdge`.
+  Zoom kararları ve *niye*leri:
+  - Excel = **ham pointer pinch** (GestureDetector değil) — jest arenası çekişmesine girmez,
+    2 parmakta scroll `NeverScrollableScrollPhysics` ile kilitlenir, bırakınca ölçek hücre
+    metriklerine işlenir → yazı yeniden net çizilir (canlı faz GPU Transform.scale).
+  - Slayt = PageView (PowerPoint mobil düzeni) + InteractiveViewer; zoom>1'ken sayfa kaydırma kilidi.
+  - Word = native WebView zoom + viewer.html `viewport width=820` → açılışta tam sayfa sığar.
+  **Bilinçli yok:** editör görünümlerinde çift-dokunuş zoom — kDoubleTapTimeout tuzağı gereği
+  hücre/kutu dokunuşlarını 300 ms geciktirirdi; düzenleme hissi zoom kısayolundan önemli.
+
 ## Build Geçmişi
 
 | # | Sonuç | Not |

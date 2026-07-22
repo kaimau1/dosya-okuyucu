@@ -41,6 +41,9 @@ dependencies:
   # Durum yönetimi (hafif)
   provider: ^6.1.2
 
+  # 120Hz+ ekran desteği (Android 60Hz kilidini açar; diğer platformlarda pasif)
+  flutter_displaymode: ^0.6.0
+
   # Firebase (giriş + bulut senkron) — config yoksa uygulama yerel modda çalışır
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.0
