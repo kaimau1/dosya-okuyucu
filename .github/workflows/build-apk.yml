@@ -21,10 +21,12 @@ permissions:
   contents: write
 
 jobs:
-  # ── Ucuz doğrulama: her push'ta yalnızca testler (APK yok) ──────────────────
+  # ── Ucuz doğrulama: yalnızca feature dallarında (main'de apk işi zaten test
+  #    koşuyor; ayrı iş main'de sadece tekrar + APK'yı ~4 dk bekletme demekti). ──
   test:
     name: Testler (hızlı doğrulama)
     runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,7 +47,6 @@ jobs:
   apk:
     name: Android APK
     runs-on: ubuntu-latest
-    needs: test
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.ref == 'refs/heads/main' ||
