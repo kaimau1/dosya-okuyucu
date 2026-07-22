@@ -13,7 +13,11 @@ class PinchZoomArea extends StatefulWidget {
   final double maxZoom;
   final Widget Function(
       BuildContext context, double zoom, ScrollPhysics? physics) builder;
-  final void Function(double factor)? onCommitted;
+
+  /// Ölçek işlendiğinde çağrılır: [factor] uygulanacak çarpan, [focal] pinch'in
+  /// başladığı nokta (bu widget'ın yerel koordinatında) — kaydırma ofseti bu
+  /// noktayı sabit tutacak şekilde düzeltilmeli.
+  final void Function(double factor, Offset focal)? onCommitted;
 
   const PinchZoomArea({
     super.key,
@@ -32,6 +36,7 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
   double _gestureZoom = 1; // pinch sırasında geçici Transform ölçeği
   final Map<int, Offset> _touches = {};
   double? _pinchStartDist;
+  Offset _focal = Offset.zero; // pinch odağı — zoom bu noktadan büyür/küçülür
   late final _badge = ZoomBadgeController((fn) {
     if (mounted) setState(fn);
   });
@@ -48,16 +53,18 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
   }
 
   void _down(PointerDownEvent e) {
-    _touches[e.pointer] = e.position;
+    _touches[e.pointer] = e.localPosition;
     if (_touches.length == 2) {
       _pinchStartDist = _dist();
+      final pts = _touches.values.toList();
+      _focal = (pts[0] + pts[1]) / 2; // parmakların ortası = zoom odağı
       setState(() {}); // kaydırma kilidi devreye girsin
     }
   }
 
   void _move(PointerMoveEvent e) {
     if (!_touches.containsKey(e.pointer)) return;
-    _touches[e.pointer] = e.position;
+    _touches[e.pointer] = e.localPosition;
     final start = _pinchStartDist;
     if (start != null && start > 0 && _touches.length == 2) {
       final f = (_dist() / start)
@@ -83,8 +90,9 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
     });
     if ((f - 1).abs() < 0.001) return;
     // Ofset düzeltmesi yeni yerleşim ölçüldükten sonra yapılmalı.
+    final focal = _focal;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onCommitted?.call(f);
+      if (mounted) widget.onCommitted?.call(f, focal);
     });
   }
 
@@ -102,7 +110,9 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
             onPointerCancel: (e) => _end(e.pointer),
             child: Transform.scale(
               scale: _gestureZoom,
-              alignment: Alignment.topLeft,
+              // Zoom parmakların ortasından büyür — sol üstten değil; içerik
+              // parmakların altında kalır, "sayfa kayboluyor" hissi olmaz.
+              origin: _focal,
               child: widget.builder(context, _zoom, physics),
             ),
           ),

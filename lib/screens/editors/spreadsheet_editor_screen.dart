@@ -69,15 +69,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   double get _headerH => 30 * _zoom;
 
-  /// Bakılan bölge yerinde kalsın: kaydırma konumu ölçek oranıyla çarpılır.
-  void _fixScroll(double f) {
+  /// Pinch odağındaki içerik yerinde kalsın: (ofset+odak)*çarpan-odak.
+  void _fixScroll(double f, Offset focal) {
     if (_hCtrl.hasClients) {
-      _hCtrl.jumpTo(
-          (_hCtrl.offset * f).clamp(0.0, _hCtrl.position.maxScrollExtent));
+      _hCtrl.jumpTo(((_hCtrl.offset + focal.dx) * f - focal.dx)
+          .clamp(0.0, _hCtrl.position.maxScrollExtent));
     }
     if (_vCtrl.hasClients) {
-      _vCtrl.jumpTo(
-          (_vCtrl.offset * f).clamp(0.0, _vCtrl.position.maxScrollExtent));
+      _vCtrl.jumpTo(((_vCtrl.offset + focal.dy) * f - focal.dy)
+          .clamp(0.0, _vCtrl.position.maxScrollExtent));
     }
   }
 

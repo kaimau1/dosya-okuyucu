@@ -42,6 +42,7 @@
         useBase64URL: true
       }).then(function () {
         fitPage();
+        setTimeout(fitPage, 400); // görseller/yerleşim geciken sayfalar için ikinci tur
         report('ok');
       }).catch(function (e) {
         showError(e);
@@ -200,18 +201,31 @@
   }
 
   // Sayfayı CSS zoom ile ekran genişliğine sığdırır: açılışta TÜM sayfa
-  // görünür. pageW bir kez, zoom uygulanmadan ölçülür (zoom altında offsetWidth
-  // ölçekli döner); döndürme/yeniden boyutta aynı değerle yeniden sığdırılır.
+  // görünür. pageW bir kez, zoom uygulanmadan ölçülür; döndürme/yeniden
+  // boyutta aynı değerle yeniden sığdırılır.
+  // Sağlamlaştırma: asenkron çizimde section henüz yerleşmemişse genişlik
+  // 0/çok küçük gelir → ölçek uygulanmazdı ("sayfa sığmıyor" kök nedeni).
+  // Bu durumda kısa aralıklarla yeniden denenir.
   var pageW = 0;
+  var fitTries = 0;
   function fitPage() {
     var wrap = document.querySelector('.docx-wrapper');
     var sec = document.querySelector('.docx-wrapper > section.docx');
-    if (!wrap || !sec) return;
+    if (!wrap || !sec) {
+      if (fitTries++ < 20) setTimeout(fitPage, 150);
+      return;
+    }
     if (!pageW) {
       wrap.style.zoom = '';
-      pageW = sec.offsetWidth + 16;
+      var w = Math.max(sec.offsetWidth, sec.scrollWidth);
+      if (w < 100) {
+        if (fitTries++ < 20) setTimeout(fitPage, 150);
+        return;
+      }
+      pageW = w + 16;
     }
-    if (pageW > 0) wrap.style.zoom = Math.min(1, window.innerWidth / pageW);
+    var vw = document.documentElement.clientWidth || window.innerWidth;
+    if (vw > 0 && pageW > 0) wrap.style.zoom = Math.min(1, vw / pageW);
   }
   window.addEventListener('resize', fitPage);
 
