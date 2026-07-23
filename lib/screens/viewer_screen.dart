@@ -66,6 +66,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
   int _matchPos = -1;
   int _matchLen = 0;
 
+  /// PDF içi arama (Faz 1): pdfrx'in hazır arayıcısı. Eşleşmeleri sayfa sayfa
+  /// bulur, sayfada vurgular (pageTextMatchPaintCallback) ve goToNext/PrevMatch
+  /// ile o sayfaya kaydırır. Yalnız PDF belgesinde kurulur.
+  final PdfViewerController _pdfController = PdfViewerController();
+  PdfTextSearcher? _pdfSearcher;
+
+  bool get _isPdf => widget.doc.kind == DocKind.pdf;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +83,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
         doc.kind == DocKind.slides) {
       _textController = TextEditingController(text: doc.plainText);
     }
+    if (doc.kind == DocKind.pdf) {
+      _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
+    }
+  }
+
+  /// Arayıcı eşleşme bulup ilerledikçe sayaç/konum etiketini güncelle.
+  void _onPdfSearch() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -83,6 +99,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _imgTx.dispose();
     _findCtl.dispose();
     _textFocus.dispose();
+    _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     super.dispose();
   }
 
@@ -95,13 +112,23 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _findCtl.clear();
         _matchStarts = const [];
         _matchPos = -1;
+        _pdfSearcher?.resetTextSearch();
       }
     });
   }
 
   void _runFind(String query) {
-    final text = _textController?.text ?? '';
     final q = query.trim();
+    if (_isPdf) {
+      // pdfrx arayıcısı: sayfa sayfa bulur, vurgular, ilk eşleşmeye kaydırır.
+      if (q.isEmpty) {
+        _pdfSearcher?.resetTextSearch();
+      } else {
+        _pdfSearcher?.startTextSearch(q, caseInsensitive: true);
+      }
+      return;
+    }
+    final text = _textController?.text ?? '';
     // Türkçe-duyarlı, büyük/küçük harf duyarsız arama (İ/I/ı/i doğru eşlenir).
     final starts = findAll(text, q);
     setState(() {
@@ -114,6 +141,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   void _jumpMatch(int delta) {
+    if (_isPdf) {
+      if (delta > 0) {
+        _pdfSearcher?.goToNextMatch();
+      } else {
+        _pdfSearcher?.goToPrevMatch();
+      }
+      return;
+    }
     if (_matchStarts.isEmpty) return;
     setState(() {
       _matchPos = (_matchPos + delta) % _matchStarts.length;
@@ -136,10 +171,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Belge içi arama çubuğu (app bar altında).
   PreferredSizeWidget _findBar() {
-    final count = _matchStarts.length;
-    final label = count == 0
-        ? (_findCtl.text.trim().isEmpty ? '' : 'yok')
-        : '${_matchPos + 1}/$count';
+    final int count;
+    final String label;
+    if (_isPdf) {
+      final s = _pdfSearcher;
+      count = s?.matches.length ?? 0;
+      if (count > 0) {
+        label = '${(s?.currentIndex ?? 0) + 1}/$count';
+      } else if (s != null && s.isSearching) {
+        label = 'aranıyor…';
+      } else {
+        label = _findCtl.text.trim().isEmpty ? '' : 'yok';
+      }
+    } else {
+      count = _matchStarts.length;
+      label = count == 0
+          ? (_findCtl.text.trim().isEmpty ? '' : 'yok')
+          : '${_matchPos + 1}/$count';
+    }
     return PreferredSize(
       preferredSize: const Size.fromHeight(52),
       child: Padding(
@@ -371,7 +420,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               _pdfSelection = '';
             }),
           ),
-        if (_textController != null)
+        if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
             tooltip: 'Belgede ara',
             icon: Icon(_findOpen ? Icons.search_off : Icons.search),
@@ -644,10 +693,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
               // sürükleme o modda kaydırma yerine seçim yapar (panEnabled=false).
               child: PdfViewer.file(
                 doc.path,
+                controller: _pdfController,
                 params: PdfViewerParams(
                   panEnabled: !_pdfSelectMode,
                   backgroundColor:
                       Theme.of(context).colorScheme.surfaceContainerHighest,
+                  // Arama eşleşmelerini sayfada vurgula (Faz 1).
+                  pagePaintCallbacks: [
+                    if (_pdfSearcher != null)
+                      _pdfSearcher!.pageTextMatchPaintCallback,
+                  ],
                   onViewerReady: (document, controller) {
                     _pdfDoc = document;
                     if (mounted) {
