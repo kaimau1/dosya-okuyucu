@@ -679,4 +679,24 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
 - **viewer:** `_runFind` artık `findAll` kullanıyor (İSTANBUL↔istanbul eşleşir,
   dotsuz `I` ile noktalı `i` karışmaz). ⋮ menüsüne "Sözcük sayısı / bilgi"
   diyaloğu (`_showStats`) — metin taşıyan belgelerde görünür.
-- **Doğrulama:** CI test job yeşil (run #78). Sonra main → APK.
+- **Doğrulama:** CI test job yeşil (run #78). Sonra main → APK (#79).
+
+## 2026-07-23 — Üç özellik: Excel formül önizleme + CSV kodlama + Word liste
+- **Excel formül önizleme:** formül çubuğuna `=` yazılırken altında canlı
+  sonuç (`= 42`). `FormulaEngine.preview(formula, r, c)` — grid'e göre hesaplar,
+  (r,c) ziyaret kümesine konarak kendine-referans döngüsü yakalanır.
+  *Tuzak (test):* boş ızgarada `=A1` DÖNGÜ vermez (boş hücre kısa devre) —
+  döngü testi grid'i kendine-referanslı (`[['=A1']]`) olmalı. Önizleme
+  formül çubuğu düzenlemesi içindir; in-cell düzenlemede canlı güncellenmez
+  (aynı controller ama onChanged o alanda tetiklenmez — bilinçli, basit).
+- **CSV kodlama seçeneği:** elektronik tablo CSV dışa aktarımı artık kodlama
+  soruyor — UTF-8 (BOM, modern) / Windows-1254 (eski Türkçe Excel).
+  `TextDecode.encodeCp1254` (decode'un tersi; ters harita _c1+_high'tan;
+  cp1254 dışı karakter → `?`). Round-trip decode↔encode testi.
+- **Word madde/numara listesi:** yedek editör (plain) biçim çubuğuna madde (•)
+  + numaralı liste düğmeleri. **Gerçek `numbering.xml` KULLANILMADI** (araştırma:
+  yerelde Word'de doğrulanamaz, bozulma riski) → `core/list_prefix.dart` düz
+  metin öneki (`• ` / `N. `). Numara üstteki ardışık numaralı paragraflara göre
+  sıralanır. Yalnız non-rich paragrafta save() `.text`'i yazar (rich=WebView
+  canlı düzenleme, orada liste kapsam dışı).
+- **Doğrulama:** CI test job yeşil (run #80). Sonra main → APK.
