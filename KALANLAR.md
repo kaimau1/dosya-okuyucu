@@ -7,10 +7,14 @@
       slayt çoğalt/sil/taşı, slayt yazı sığdırma (2026-07-22)
 - [ ] Build 54 (yalnız CI hızlandırma) sonucu kontrol edilecek — kapanıştan
       sonra push'landı, izlenmedi (2026-07-22)
+- [ ] Cihaz doğrulaması bekleyen 3 özellik (APK alınmadı, Actions kotası):
+      PDF seçim tutamaçları, slaytta yerinde metin düzenleme, Excel hücre içi
+      yazma (2026-07-23)
 
 ## Sonra yapılacak
-- [ ] Faz 2 — Excel canlı hücre: hücrenin içinde yazma + üstte formül çubuğu (fx)
-- [ ] Faz 3 — PPTX yerinde metin: popup/bottom-sheet yerine kutunun üstünde overlay editör
+- [ ] Excel: dondurulmuş bölme (frozen pane) desteği — kullanıcının SAHU dosyasında var,
+      şu an yok sayılıyor (tek parça kaydırma)
+- [ ] Yol haritası #2: Firebase config + gerçek senkron (kullanıcı `flutterfire configure`)
 
 ## Bilinen eksik-risk
 - [ ] Word canlı düzenleme: paragraf eşlemesi indeks tabanlı (DOM `article p` ↔ `w:p`);

@@ -66,18 +66,19 @@ void main() {
     });
 
     test('API hata döndürünce mesajı GeminiException içinde taşır', () {
-      return _withMock(
+      final future = _withMock(
         () => GeminiService.listModels('bad-key'),
         status: 400,
         jsonBody: {
           'error': {'message': 'API key not valid'},
         },
-      ).then(
-        (_) => fail('exception bekleniyordu'),
-        onError: (e) {
-          expect(e, isA<GeminiException>());
-          expect(e.toString(), contains('API key not valid'));
-        },
+      );
+      // `.then(onError:)` KULLANMA: onError da future'ın tipini döndürmek
+      // zorunda, void döndürünce çalışma anında "Invalid argument(s)" atar.
+      return expectLater(
+        future,
+        throwsA(isA<GeminiException>().having(
+            (e) => e.toString(), 'mesaj', contains('API key not valid'))),
       );
     });
 

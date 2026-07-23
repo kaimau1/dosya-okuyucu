@@ -489,6 +489,25 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   CI'nin 3.29.3'ünde sorun yok. Sonuç: APK yalnızca CI'da derlenir; yerel
   `flutter build apk` doğrulama için kullanılmaz (analyze+test yeter).
 
+## 2026-07-23 — Faz 2: Excel hücre içi yazma (canlı hücre)
+- **Karar:** düzenleme artık yalnız formül çubuğundan değil, hücrenin İÇİNDE.
+  Tetikleyici **seçili hücreye ikinci dokunuş** — çift dokunuş DEĞİL
+  (`kDoubleTapTimeout` tek dokunuşu 300 ms geciktirir; aynı gerekçe zoom'da da
+  vardı, bkz. 2026-07-22 Faz 0).
+- **Formül çubuğu ile hücre AYNI `TextEditingController`'ı paylaşır** → yazdıkça
+  ikisi de güncel; ayrı controller + senkron kodu YAZILMADI. Aynı anda tek alan
+  düzenlenebilir durumda mount edildiği için seçim/odak çakışması yok.
+- Kirlilik sigortası: `_endEdit` içerik gerçekten değiştiyse yazar → hücreye
+  girip çıkmak dosyayı "kaydedilmemiş" göstermez. Enter = yaz + bir alt hücre.
+- Açık düzenleme şu üç noktada kapatılır (yanlış hücreye yazma riski):
+  yapısal işlem (`_afterStructural`, satır/sütun kayar), sayfa sekmesi değişimi,
+  kaydetme (`_save` — yazılmakta olan içerik kaydın dışında kalmasın).
+- **TUZAK (test, yerelde yakalandı) — `.then(onError:)` void döndüremez:**
+  `future.then((_) => fail(...), onError: (e) { expect(...); })` çalışma anında
+  "Invalid argument(s) (onError): The error handler of Future.then must return
+  a value of the returned future's type" atar (gemini_service_test kırmızıydı).
+  Doğrusu: `expectLater(future, throwsA(isA<X>().having(...)))`.
+
 ## 2026-07-23 — İkinci GitHub hesabı: GCM kimlik çakışması tuzağı
 - **Karar:** repo `kaimau1/dosya-okuyucu`'da KALIYOR (private). İkinci hesap
   `hekimasistanitr` yalnızca `gh`'ye eklendi; repo transferi/fork yapılmadı.

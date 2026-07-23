@@ -7,6 +7,8 @@ build/
 pubspec.lock
 
 # Platform scaffolding (CI'da `flutter create` ile üretilir)
+.metadata
+dist/
 /android/
 /ios/
 /linux/

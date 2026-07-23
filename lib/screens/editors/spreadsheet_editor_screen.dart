@@ -13,8 +13,9 @@ import '../../widgets/pinch_zoom_area.dart';
 import '../chat_screen.dart';
 
 /// Excel görünümü: gerçek sütun genişlikleri, satır yükseklikleri, hücre
-/// renkleri/yazı tipleri, birleştirilmiş hücreler. Hücreye dokun → üstteki
-/// düzenleme çubuğundan değiştir (Excel'in formül çubuğu gibi).
+/// renkleri/yazı tipleri, birleştirilmiş hücreler. Hücreye dokun → seç;
+/// seçili hücreye tekrar dokun → hücrenin İÇİNDE yaz. Üstteki formül çubuğu
+/// aynı içeriği gösterir (Excel'in fx çubuğu gibi).
 class SpreadsheetEditorScreen extends StatefulWidget {
   final String path;
   final String name;
@@ -46,7 +47,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   int _selRow = 0;
   int _selCol = 0;
+
+  /// Formül çubuğu ile hücre içi düzenleme AYNI controller'ı paylaşır:
+  /// hücrede yazdıkça çubuk (ve tersi) bedavaya güncellenir. Aynı anda tek
+  /// alan düzenlenebilir durumda olduğu için çakışma yok.
   final _cellField = TextEditingController();
+
+  /// Hücrenin içinde yazma açık mı (seçili hücreye ikinci dokunuş).
+  bool _editing = false;
 
   // Pinch zoom ortak PinchZoomArea'dan gelir; ölçek burada tutulur ki hücre
   // metrikleri/yazılar bununla çizilsin (bırakınca net yeniden çizim).
@@ -117,11 +125,41 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   void _syncField() => _cellField.text = _valueAt(_selRow, _selCol);
 
   void _select(int r, int c) {
+    if (r == _selRow && c == _selCol) {
+      // Seçili hücreye ikinci dokunuş = hücre içinde yazma. Çift dokunuş DEĞİL:
+      // kDoubleTapTimeout tek dokunuşu 300 ms geciktirir (bkz. HAFIZA).
+      if (_editing) return;
+      _syncField();
+      _cellField.selection =
+          TextSelection.collapsed(offset: _cellField.text.length);
+      setState(() => _editing = true);
+      return;
+    }
+    _endEdit();
     setState(() {
       _selRow = r;
       _selCol = c;
     });
     _syncField();
+  }
+
+  /// Hücre içi düzenlemeyi kapatır; içerik gerçekten değiştiyse yazar
+  /// (değişmediyse dosya "kirli" işaretlenmez).
+  void _endEdit() {
+    if (!_editing) return;
+    final changed = _cellField.text != _valueAt(_selRow, _selCol);
+    _editing = false;
+    if (changed) {
+      _applyCell(_cellField.text); // kendi setState'i var
+    } else {
+      setState(() {});
+    }
+  }
+
+  /// Enter: yaz ve Excel'deki gibi bir alt hücreye geç.
+  void _commitAndMoveDown(int rowCount) {
+    _endEdit();
+    if (_selRow + 1 < rowCount) _select(_selRow + 1, _selCol);
   }
 
   void _applyCell(String value) {
@@ -136,6 +174,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Yapısal işlem sonrası (satır/sütun ekle-sil) seçimi geçerli sınırlarda
   /// tutup formül çubuğunu tazeler.
   void _afterStructural() {
+    _editing = false; // satır/sütun kayınca açık hücre editörü yanlış yere yazar
     final sheet = _sheet;
     if (sheet != null) {
       final maxRow = sheet.rows.isEmpty ? 0 : sheet.rows.length - 1;
@@ -183,6 +222,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   }
 
   Future<void> _save() async {
+    _endEdit(); // hücrede yazılmakta olan içerik kaydın dışında kalmasın
     final editor = _editor;
     if (editor == null) return;
     try {
@@ -426,6 +466,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                 label: Text(editor.sheets[i].name),
                 selected: _sheetIndex == i,
                 onSelected: (_) {
+                  _endEdit();
                   setState(() {
                     _sheetIndex = i;
                     _selRow = 0;
@@ -566,6 +607,22 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         ),
         child: forceEmpty
             ? null
+            : (selected && _editing)
+            ? TextField(
+                controller: _cellField,
+                autofocus: true,
+                maxLines: 1,
+                onSubmitted: (_) => _commitAndMoveDown(sheet.rows.length),
+                onTapOutside: (_) => _endEdit(),
+                textInputAction: TextInputAction.done,
+                textAlign: style?.align ?? TextAlign.left,
+                style: TextStyle(fontSize: (style?.fontSize ?? 12) * _zoom),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
             : Text(
                 // Formülse hesaplanmış sonucu göster (çubuk ham formülü tutar);
                 // ardından hücrenin Excel sayı biçimini (yüzde/para/binlik) uygula.
