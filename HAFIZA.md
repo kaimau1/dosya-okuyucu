@@ -632,4 +632,36 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   ayrıca sütun 64 / satır 2000 ile sınırlı (mevcut .xls davranışı).
 - **Doğrulama:** CI test job yeşil (run #73): csv_codec_test (RFC uçları +
   round-trip), file_service_test (.csv `;` + .tsv sekme gerçek dosya yükleme),
-  markdown_export_test (toCsv). Sonra main → APK.
+  markdown_export_test (toCsv). Sonra main → APK (#74).
+
+## 2026-07-23 — Açık kaynak araştırması → Markdown + kodlama iyileştirmeleri
+- **Yöntem:** iki arka plan araştırma ajanı (İngilizce/uluslararası kaynaklar):
+  (1) LLM-markdown renderer'ları — gpt_markdown, flutter_markdown (Google
+  2025-05 terk etti → flutter_markdown_plus), markdown_widget, CommonMark/GFM;
+  (2) Dart office/kodlama pratikleri. Düşük riskli + saf-Dart + test edilebilir
+  olanlar seçildi; ağır bağımlılık EKLENMEDİ.
+- **Markdown (core/markdown.dart + widgets/markdown_text.dart):**
+  - **Vurgu flanking (CommonMark)** — en değerli düzeltme: `2 * 3 = 6` artık
+    italik olmuyor. `_canToggle`: açılışta işaretten SONRA, kapanışta ÖNCE
+    boşluk olmamalı. `_` için kelime-sınırı kuralı korundu (snake_case).
+  - Ters bölü kaçışı `\*`, görsel `![alt](url)`→alt, autolink `<url>`,
+    başlıkta kapanış `##`, GFM görev listesi `- [ ]/[x]`→☐/☑.
+  - Kod bloğu: dil etiketi + Kopyala + yatay kaydırma (uzun satır sarmaz).
+  - Tablo hizası `:--:` → widget `TextAlign` + docx `w:jc`; sert satır sonu.
+- **Kodlama (services/text_decode.dart):**
+  - **P1 (bug):** kendi yazdığımız BOM'lu CSV geri açılınca ilk hücreye
+    görünmez `U+FEFF` yapışıyordu (BOM export'un yan etkisi) → içe alımda BOM
+    baytları + kalan U+FEFF temizlenir. Round-trip düzeltmesi.
+  - **P2:** strict UTF-8 başarısızsa **Windows-1254** (Türkçe) — eski `latin1`
+    düşüşü `ğ/ş/İ/ı`'yı bozuyordu (mojibake). cp1254 tek-bayt tablo.
+  - **P4:** AI→CSV'de formül enjeksiyonu önlemi (`=`/`@`/sayı-olmayan `±`
+    başına `'`); kullanıcının kendi formülleri için varsayılan KAPALI.
+  - **P5:** ayraç tespiti `|` eklendi + ilk ~5 satırda tutarlılık puanı.
+- **REDDEDİLEN (araştırma kararı, HIGH-RISK):** sıfırdan `.pptx` üretimi —
+  master/layout/theme zorunlu + döngüsel rel'ler, gerçek PowerPoint'te
+  doğrulanamaz (yerelde Flutter yok) → PDF slaytta kalındı. Gerçek
+  `numbering.xml` liste de gereksiz risk → literal önek (`•`/`1.`) korunur.
+  Syncfusion = ücretli/ağır → kullanılmaz.
+- **TUZAK (kendi test hatam):** backslash testinde beklenen metinde "fiyat "
+  önekini atlayınca run #75 kırmızı; kod doğruydu, beklenti düzeltildi (#76).
+- **Doğrulama:** CI test job yeşil (run #76). Sonra main → APK.
