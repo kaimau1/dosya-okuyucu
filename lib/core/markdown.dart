@@ -379,3 +379,15 @@ String stripMarkdown(String source) {
 }
 
 String _spansText(List<MdSpan> spans) => spans.map((s) => s.text).join();
+
+/// Tek satırdaki satır-içi Markdown işaretlerini (kalın/italik/kod/üstü
+/// çizili/bağlantı) ve baştaki liste/başlık işaretini kaldırıp düz metin
+/// döndürür. Slayt başlığı/maddesi, PDF satırı gibi tek satırlık bağlamlar
+/// için ([stripMarkdown] tüm belge içindir).
+String stripInlineMarkdown(String line) {
+  final s = line.trim().replaceFirst(
+        RegExp(r'^\s{0,3}([-*+]|\d+[.)]|#{1,6})\s+'),
+        '',
+      );
+  return _spansText(_parseInline(s));
+}

@@ -146,4 +146,22 @@ void main() {
       expect(out, contains('iyi'));
     });
   });
+
+  group('stripInlineMarkdown — tek satır', () {
+    test('baştaki madde işareti + kalın kaldırılır', () {
+      expect(stripInlineMarkdown('- **Önemli** nokta'), 'Önemli nokta');
+    });
+
+    test('başlık # kaldırılır', () {
+      expect(stripInlineMarkdown('## Bölüm başlığı'), 'Bölüm başlığı');
+    });
+
+    test('numaralı madde işareti kaldırılır', () {
+      expect(stripInlineMarkdown('3. üçüncü madde'), 'üçüncü madde');
+    });
+
+    test('düz satır değişmeden döner', () {
+      expect(stripInlineMarkdown('sıradan bir cümle'), 'sıradan bir cümle');
+    });
+  });
 }

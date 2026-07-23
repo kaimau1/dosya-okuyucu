@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../core/markdown.dart';
+
 /// Basit format dönüştürme: metin/office içeriğini PDF veya TXT'e çevirir,
 /// AI metninden PDF slayt destesi üretir.
 class ConversionService {
@@ -105,9 +107,14 @@ class ConversionService {
           .where((l) => l.isNotEmpty)
           .toList();
       if (lines.isEmpty) continue;
-      final title = lines.first;
-      final bullets = lines.length > 1 ? lines.sublist(1) : <String>[title];
-      result.add(_Slide(title: title, bullets: bullets));
+      // Markdown işaretlerini temizle: slaytta ham `**`/`- `/`#` görünmesin.
+      final title = stripInlineMarkdown(lines.first);
+      final bullets = (lines.length > 1 ? lines.sublist(1) : <String>[lines.first])
+          .map(stripInlineMarkdown)
+          .where((l) => l.isNotEmpty)
+          .toList();
+      result.add(_Slide(
+          title: title, bullets: bullets.isEmpty ? [title] : bullets));
     }
     if (result.isEmpty) {
       result.add(_Slide(title: 'Slayt', bullets: [content]));
