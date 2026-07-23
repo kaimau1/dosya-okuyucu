@@ -488,3 +488,23 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   zincirleme "compileSdk çok düşük" hatası verir → yerelde APK ÜRETİLEMİYOR.
   CI'nin 3.29.3'ünde sorun yok. Sonuç: APK yalnızca CI'da derlenir; yerel
   `flutter build apk` doğrulama için kullanılmaz (analyze+test yeter).
+
+## 2026-07-23 — İkinci GitHub hesabı: GCM kimlik çakışması tuzağı
+- **Karar:** repo `kaimau1/dosya-okuyucu`'da KALIYOR (private). İkinci hesap
+  `hekimasistanitr` yalnızca `gh`'ye eklendi; repo transferi/fork yapılmadı.
+  Actions dakika kotası derdi varsa gerçek çözümler: repo'yu public yapmak
+  (sınırsız dakika) veya ücretsiz organization açmak — ikinci ücretsiz kişisel
+  hesap GitHub ToS'a aykırı, kota için kullanılmamalı.
+- **KÖK NEDEN / TUZAK:** `gh auth login` ile ikinci hesap eklemek, Windows
+  Credential Manager'daki TEK github kaydını (`git:https://github.com`) yeni
+  hesapla EZDİ → bu repoda `git fetch/push` → `remote: Repository not found`
+  (private repo yetkisiz kullanıcıya 403 değil 404 döner, yanıltıcı).
+- **`gh auth switch` bu makinede git'i ETKİLEMEZ:** credential helper `gh`
+  değil, Git Credential Manager (`credential.helper=manager`). gh ve git ayrı
+  kimlik deposu kullanıyor; switch sadece `gh` komutlarını değiştirir.
+- **ÇÖZÜM (kalıcı, repo başına):** remote URL'e kullanıcı adı gömüldü →
+  `https://kaimau1@github.com/kaimau1/dosya-okuyucu.git`. GCM kimliği
+  `kullanıcı+host` anahtarıyla saklar, her repo kendi hesabını kullanır,
+  hesap değiştirme dansı bitti. Doğrulandı: `git ls-remote origin` → exit 0.
+- Yeni bir makinede/yeni klonda aynı hata görülürse: `git remote set-url` ile
+  kullanıcı adını URL'e ekle, sonra bir kez `git fetch` (GCM penceresi açılır).
