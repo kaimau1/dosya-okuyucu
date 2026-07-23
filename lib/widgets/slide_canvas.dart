@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../services/pptx_render.dart';
+import 'chart_painter.dart';
 
 /// Bir slaytı orijinal tasarımıyla (arka plan, şekiller, görseller, biçimli
 /// metin) çizer. Ölçü birimi punto; [FittedBox] ile kullanılabilir genişliğe
@@ -163,6 +164,12 @@ class _ShapeBody extends StatelessWidget {
     // Bağlayıcı/çizgi: kutu değil, köşe-köşe stroke (ok/kesik dahil).
     if (shape.isLine) {
       return CustomPaint(painter: _LinePainter(shape), size: Size.infinite);
+    }
+
+    // Grafik: veri modelini çizen ChartPainter.
+    if (shape.chart != null) {
+      return CustomPaint(
+          painter: ChartPainter(shape.chart!), size: Size.infinite);
     }
 
     final decoration = BoxDecoration(

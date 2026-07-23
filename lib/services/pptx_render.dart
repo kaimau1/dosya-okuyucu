@@ -109,6 +109,9 @@ class ShapeVM {
 
   /// Dış gölge (`a:effectLst > a:outerShdw`) — kutu şekillere uygulanır.
   final BoxShadow? shadow;
+
+  /// Şekil bir grafikse (graphicFrame > c:chart) çizilecek grafik modeli.
+  final ChartVM? chart;
   final Uint8List? image;
   final List<ParaVM> paragraphs;
   final String vAnchor; // t | ctr | b
@@ -148,6 +151,7 @@ class ShapeVM {
     this.arrowEnd = false,
     this.dashed = false,
     this.shadow,
+    this.chart,
     this.image,
     this.paragraphs = const [],
     this.vAnchor = 't',
@@ -159,6 +163,44 @@ class ShapeVM {
   });
 
   bool get hasText => paragraphs.any((p) => p.plainText.isNotEmpty);
+}
+
+/// Desteklenen grafik türleri. Bar (yatay çubuk), sütun (dikey çubuk), pasta
+/// (halka dahil), çizgi (alan grafiği çizgiyle yaklaşıklanır). Diğerleri
+/// (dağılım/radar/borsa) çizilmez.
+enum ChartType { bar, column, pie, line }
+
+/// Bir grafik serisi: adı, rengi ve değerleri. Pasta grafikte tek seri olur;
+/// dilim renkleri [pointColors] ile (yoksa paletten) verilir.
+class ChartSeries {
+  final String name;
+  final Color color;
+  final List<double> values;
+  final Map<int, Color> pointColors;
+  const ChartSeries({
+    required this.name,
+    required this.color,
+    required this.values,
+    this.pointColors = const {},
+  });
+}
+
+/// Bir grafiği (c:chart) çizilebilir modele indirger. Çizim
+/// `widgets/chart_painter.dart` (ChartPainter). Veri, seri renkleri ve
+/// kategoriler PowerPoint'teki gibi; 3B/gradient/eksen stili yaklaşıktır.
+class ChartVM {
+  final ChartType type;
+  final bool doughnut;
+  final List<String> categories;
+  final List<ChartSeries> series;
+  final bool showLegend;
+  const ChartVM({
+    required this.type,
+    required this.series,
+    this.doughnut = false,
+    this.categories = const [],
+    this.showLegend = false,
+  });
 }
 
 class ParaVM {
@@ -416,7 +458,7 @@ class PptxRender {
               editable: editable);
           break;
         case 'p:graphicFrame':
-          _table(el, xf, out, theme, clrMap, defaults, editable);
+          _graphicFrame(el, xf, file, out, theme, clrMap, defaults, editable);
           break;
         default:
           break; // connector, ole nesnesi vb. atlanır
@@ -444,9 +486,46 @@ class PptxRender {
     return _Xf(dx, dy, sx, sy);
   }
 
+  /// graphicFrame içeriğine göre dallanır: tablo (a:tbl) → [_table]; grafik
+  /// (c:chart) → [_parseChart] + tek grafik ShapeVM. SmartArt/OLE atlanır.
+  void _graphicFrame(
+    XmlElement frame,
+    _Xf xf,
+    String file,
+    List<ShapeVM> out,
+    Map<String, Color> theme,
+    Map<String, String> clrMap,
+    Map<String, _TextDefaults> defaults,
+    bool editable,
+  ) {
+    if (_firstDeep(frame, 'a:tbl') != null) {
+      _table(frame, xf, out, theme, clrMap, defaults, editable);
+      return;
+    }
+    final rid = _firstDeep(frame, 'c:chart')?.getAttribute('r:id');
+    if (rid == null) return;
+    final target = _rels(file)[rid];
+    final chart = target == null ? null : _parseChart(target, theme, clrMap);
+    if (chart == null) return;
+
+    final xfrm = _first(frame, 'p:xfrm');
+    final off = _first(xfrm, 'a:off');
+    final ext = _first(xfrm, 'a:ext');
+    if (off == null || ext == null) return;
+    final w = (_pt(ext.getAttribute('cx')) ?? 0) * xf.sx;
+    final h = (_pt(ext.getAttribute('cy')) ?? 0) * xf.sy;
+    if (w <= 0 || h <= 0) return;
+    out.add(ShapeVM(
+      x: xf.px(_pt(off.getAttribute('x')) ?? 0),
+      y: xf.py(_pt(off.getAttribute('y')) ?? 0),
+      w: w,
+      h: h,
+      chart: chart,
+    ));
+  }
+
   /// Tabloyu (a:tbl) hücre başına bir dikdörtgen şekle açar — çizim katmanı
   /// böylece tablo için ayrı koda ihtiyaç duymaz.
-  // ponytail: grafik/SmartArt içeren graphicFrame'ler atlanır; sadece tablo çizilir.
   void _table(
     XmlElement frame,
     _Xf xf,
@@ -904,6 +983,146 @@ class PptxRender {
       blurRadius: blur,
       offset: Offset(dist * math.cos(rad), dist * math.sin(rad)),
     );
+  }
+
+  // --------------------------------------------------------------- grafik
+
+  /// Bir grafik XML parçasını ([chartFile]) [ChartVM]'e çevirir. Desteklenen
+  /// tür yoksa null. Seri renkleri açık `c:spPr` yoksa tema aksan paletinden.
+  ChartVM? _parseChart(String chartFile, Map<String, Color> theme,
+      Map<String, String> clrMap) {
+    final doc = _xml(chartFile);
+    final root = doc == null ? null : _firstDeep(doc.rootElement, 'c:chart');
+    final plotArea = root == null ? null : _first(root, 'c:plotArea');
+    if (plotArea == null) return null;
+
+    ChartType? type;
+    var doughnut = false;
+    XmlElement? chartEl;
+    for (final child in plotArea.childElements) {
+      switch (child.name.qualified) {
+        case 'c:barChart':
+          type = (_first(child, 'c:barDir')?.getAttribute('val') ?? 'col') ==
+                  'bar'
+              ? ChartType.bar
+              : ChartType.column;
+          break;
+        case 'c:pieChart':
+          type = ChartType.pie;
+          break;
+        case 'c:doughnutChart':
+          type = ChartType.pie;
+          doughnut = true;
+          break;
+        case 'c:lineChart':
+        case 'c:areaChart': // alan → çizgiyle yaklaşıklanır
+          type = ChartType.line;
+          break;
+        default:
+          continue;
+      }
+      chartEl = child;
+      break;
+    }
+    if (chartEl == null || type == null) return null;
+
+    final palette = _chartPalette(theme);
+    final serEls = chartEl.findElements('c:ser').toList();
+    final series = <ChartSeries>[];
+    var categories = const <String>[];
+    for (var i = 0; i < serEls.length; i++) {
+      final ser = serEls[i];
+      final name =
+          _firstDeep(_first(ser, 'c:tx'), 'c:v')?.innerText ?? 'Seri ${i + 1}';
+      final spPr = _first(ser, 'c:spPr');
+      final color = (spPr == null ? null : _solidFill(spPr, theme, clrMap)) ??
+          palette[i % palette.length];
+      final ptColors = <int, Color>{};
+      for (final dPt in ser.findElements('c:dPt')) {
+        final idx = int.tryParse(_first(dPt, 'c:idx')?.getAttribute('val') ?? '');
+        final sp = _first(dPt, 'c:spPr');
+        final c = sp == null ? null : _solidFill(sp, theme, clrMap);
+        if (idx != null && c != null) ptColors[idx] = c;
+      }
+      if (categories.isEmpty) categories = _strValues(_first(ser, 'c:cat'));
+      series.add(ChartSeries(
+        name: name,
+        color: color,
+        values: _numValues(_first(ser, 'c:val')),
+        pointColors: ptColors,
+      ));
+    }
+    if (series.isEmpty || series.every((s) => s.values.isEmpty)) return null;
+
+    // Pasta: her dilim ayrı renk — açık dPt yoksa paletten doldur.
+    if (type == ChartType.pie && series.isNotEmpty) {
+      final s = series.first;
+      final filled = <int, Color>{
+        for (var i = 0; i < s.values.length; i++)
+          i: s.pointColors[i] ?? palette[i % palette.length],
+      };
+      series[0] = ChartSeries(
+          name: s.name, color: s.color, values: s.values, pointColors: filled);
+    }
+
+    return ChartVM(
+      type: type,
+      doughnut: doughnut,
+      categories: categories,
+      series: series,
+      showLegend: _firstDeep(root, 'c:legend') != null,
+    );
+  }
+
+  /// Grafik renk paleti: tema accent1..6 (yoksa Office varsayılan aksanları).
+  List<Color> _chartPalette(Map<String, Color> theme) {
+    final accents = [
+      for (var i = 1; i <= 6; i++)
+        if (theme['accent$i'] != null) theme['accent$i']!,
+    ];
+    if (accents.isNotEmpty) return accents;
+    return const [
+      Color(0xFF4472C4),
+      Color(0xFFED7D31),
+      Color(0xFFA5A5A5),
+      Color(0xFFFFC000),
+      Color(0xFF5B9BD5),
+      Color(0xFF70AD47),
+    ];
+  }
+
+  /// `c:numRef/c:numCache` (veya `c:numLit`) sayısal noktalarını idx sırasıyla
+  /// listeye çevirir (eksik idx = 0).
+  List<double> _numValues(XmlElement? ref) {
+    final cache = _firstDeep(ref, 'c:numCache') ?? _firstDeep(ref, 'c:numLit');
+    if (cache == null) return const [];
+    final map = <int, double>{};
+    var maxIdx = -1;
+    for (final pt in cache.findElements('c:pt')) {
+      final idx = int.tryParse(pt.getAttribute('idx') ?? '') ?? 0;
+      final v = double.tryParse(_first(pt, 'c:v')?.innerText ?? '');
+      if (v != null) {
+        map[idx] = v;
+        if (idx > maxIdx) maxIdx = idx;
+      }
+    }
+    return [for (var i = 0; i <= maxIdx; i++) map[i] ?? 0];
+  }
+
+  /// Kategori etiketleri (`c:cat` → strCache/numCache), idx sırasıyla.
+  List<String> _strValues(XmlElement? ref) {
+    final cache = _firstDeep(ref, 'c:strCache') ??
+        _firstDeep(ref, 'c:numCache') ??
+        _firstDeep(ref, 'c:strLit');
+    if (cache == null) return const [];
+    final map = <int, String>{};
+    var maxIdx = -1;
+    for (final pt in cache.findElements('c:pt')) {
+      final idx = int.tryParse(pt.getAttribute('idx') ?? '') ?? 0;
+      map[idx] = _first(pt, 'c:v')?.innerText ?? '';
+      if (idx > maxIdx) maxIdx = idx;
+    }
+    return [for (var i = 0; i <= maxIdx; i++) map[i] ?? ''];
   }
 
   Color? _bgColor(

@@ -174,6 +174,72 @@ Uint8List _linePptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// Grafikli slayt: graphicFrame → ayrı chart parçası (2 seri, 3 kategori sütun).
+Uint8List _chartPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw" xmlns:c="chart" xmlns:r="rel">
+ <p:cSld><p:spTree>
+  <p:graphicFrame>
+   <p:nvGraphicFramePr><p:cNvPr id="4" name="Grafik"/></p:nvGraphicFramePr>
+   <p:xfrm><a:off x="1000000" y="1000000"/><a:ext cx="6000000" cy="3500000"/></p:xfrm>
+   <a:graphic><a:graphicData uri="chart"><c:chart r:id="rId1"/></a:graphicData></a:graphic>
+  </p:graphicFrame>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+  add('ppt/slides/_rels/slide1.xml.rels', '''
+<Relationships xmlns="rel">
+ <Relationship Id="rId1" Type="http://x/chart" Target="../charts/chart1.xml"/>
+</Relationships>
+''');
+  add('ppt/charts/chart1.xml', '''
+<c:chartSpace xmlns:c="chart" xmlns:a="draw">
+ <c:chart>
+  <c:plotArea>
+   <c:barChart>
+    <c:barDir val="col"/>
+    <c:ser>
+     <c:tx><c:strRef><c:strCache><c:pt idx="0"><c:v>Seri A</c:v></c:pt></c:strCache></c:strRef></c:tx>
+     <c:cat><c:strRef><c:strCache>
+       <c:pt idx="0"><c:v>Oca</c:v></c:pt>
+       <c:pt idx="1"><c:v>Sub</c:v></c:pt>
+       <c:pt idx="2"><c:v>Mar</c:v></c:pt>
+     </c:strCache></c:strRef></c:cat>
+     <c:val><c:numRef><c:numCache>
+       <c:pt idx="0"><c:v>3</c:v></c:pt>
+       <c:pt idx="1"><c:v>5</c:v></c:pt>
+       <c:pt idx="2"><c:v>2</c:v></c:pt>
+     </c:numCache></c:numRef></c:val>
+    </c:ser>
+    <c:ser>
+     <c:tx><c:v>Seri B</c:v></c:tx>
+     <c:val><c:numRef><c:numCache>
+       <c:pt idx="0"><c:v>4</c:v></c:pt>
+       <c:pt idx="1"><c:v>1</c:v></c:pt>
+       <c:pt idx="2"><c:v>6</c:v></c:pt>
+     </c:numCache></c:numRef></c:val>
+    </c:ser>
+   </c:barChart>
+  </c:plotArea>
+  <c:legend/>
+ </c:chart>
+</c:chartSpace>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 void main() {
   test('slayt geometrisi, rengi ve metni EMU -> punto olarak çözümlenir', () {
     final editor = PptxEditor.parse(_samplePptx());
@@ -282,6 +348,32 @@ void main() {
     // Pump hatasız geçtiyse çizim başarılı; şekil metni de görünür.
     expect(find.text('Golge'), findsOneWidget);
     expect(find.byType(CustomPaint), findsWidgets); // çizgi painter'ı var
+  });
+
+  test('grafik parçası çözülür: tür, seri, kategori, değerler', () {
+    final view = PptxEditor.parse(_chartPptx()).slides.single.view!;
+    final ch = view.shapes.firstWhere((s) => s.chart != null).chart!;
+
+    expect(ch.type, ChartType.column);
+    expect(ch.series.length, 2);
+    expect(ch.categories, ['Oca', 'Sub', 'Mar']);
+    expect(ch.series[0].name, 'Seri A');
+    expect(ch.series[0].values, [3, 5, 2]);
+    expect(ch.series[1].name, 'Seri B');
+    expect(ch.series[1].values, [4, 1, 6]);
+    expect(ch.showLegend, isTrue);
+  });
+
+  testWidgets('grafik slaytı hatasız çizilir', (t) async {
+    final view = PptxEditor.parse(_chartPptx()).slides.single.view!;
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+            width: 500, height: 300, child: SlideCanvas(slide: view)),
+      ),
+    ));
+    // Grafik CustomPaint olarak çizilir (pump hatasızsa geometri sağlam).
+    expect(find.byType(CustomPaint), findsWidgets);
   });
 
   test('animasyon adımları p:timing içinden çıkarılır', () {
