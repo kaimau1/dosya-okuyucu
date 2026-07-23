@@ -20,8 +20,11 @@ class PdfSelectLayer extends StatefulWidget {
   /// Sayfanın ekrandaki (ölçekli) boyutu — overlay tam sayfayı kaplar.
   final Size pageSize;
 
-  /// Seçim her değiştiğinde çağrılır (boş metin = seçim temizlendi).
-  final void Function(String text) onSelected;
+  /// Seçim her değiştiğinde çağrılır. [rects] seçili metnin PDF-koordinat
+  /// dikdörtgenleri (satır başına bir; kalıcı vurgu annotation'ı için),
+  /// [pageNumber] bu katmanın sayfası (1-tabanlı). Boş metin = seçim temizlendi.
+  final void Function(String text, List<PdfRect> rects, int pageNumber)
+      onSelected;
 
   /// Seçim üstündeki "Kopyala" balonuna basılınca çağrılır.
   final VoidCallback? onCopy;
@@ -153,10 +156,15 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       _anchor = null;
       _extent = null;
     });
-    widget.onSelected('');
+    widget.onSelected('', const [], widget.page.pageNumber);
   }
 
-  void _report() => widget.onSelected(_selectedText);
+  void _report() {
+    final t = _text;
+    final rects =
+        t == null ? const <PdfRect>[] : selectionPdfRects(t, _selStart, _selEnd);
+    widget.onSelected(_selectedText, rects, widget.page.pageNumber);
+  }
 
   bool get _hasSelection =>
       _anchor != null && _extent != null && _selEnd >= _selStart;
@@ -288,6 +296,30 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   }
 }
 
+/// [text]'in [start]..[end] (dahil) aralığını kaplayan, satır/parça başına bir
+/// `PdfRect` (PDF koordinatı) listesi. Ekran seçim boyaması (`_SelectionPainter`)
+/// ile kalıcı vurgu annotation'ı (`PdfAnnotator`) AYNI geometriyi kullansın diye
+/// ortak. Parça çoğunlukla tek satırdır → aralık kutusu tek dikdörtgen yeter.
+List<PdfRect> selectionPdfRects(PdfPageText text, int start, int end) {
+  final out = <PdfRect>[];
+  if (end < start) return out;
+  for (final f in text.fragments) {
+    final a = start - f.index;
+    final b = end + 1 - f.index; // hariç
+    final s = a < 0 ? 0 : a;
+    final e = b > f.length ? f.length : b;
+    if (s >= e) continue;
+    PdfRect? bounds;
+    try {
+      bounds = f.getBoundsForRange(start: s, end: e);
+    } catch (_) {
+      bounds = f.bounds;
+    }
+    if (bounds != null) out.add(bounds);
+  }
+  return out;
+}
+
 class _SelectionPainter extends CustomPainter {
   final PdfPageText? text;
   final PdfPage page;
@@ -310,20 +342,7 @@ class _SelectionPainter extends CustomPainter {
     final t = text;
     if (t == null || end < start) return;
     final paint = Paint()..color = color;
-    for (final f in t.fragments) {
-      final a = start - f.index;
-      final b = end + 1 - f.index; // hariç
-      final s = a < 0 ? 0 : a;
-      final e = b > f.length ? f.length : b;
-      if (s >= e) continue;
-      // Parça çoğunlukla tek satırdır → aralık kutusu tek dikdörtgen yeter.
-      PdfRect? bounds;
-      try {
-        bounds = f.getBoundsForRange(start: s, end: e);
-      } catch (_) {
-        bounds = f.bounds;
-      }
-      if (bounds == null) continue;
+    for (final bounds in selectionPdfRects(t, start, end)) {
       final r = bounds.toRect(page: page, scaledPageSize: pageSize);
       canvas.drawRRect(
         RRect.fromRectAndRadius(r.inflate(1.5), const Radius.circular(2)),

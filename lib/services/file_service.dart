@@ -357,6 +357,11 @@ class FileService {
 
   Future<Uint8List> readBytes(String path) => File(path).readAsBytes();
 
+  /// İkili içeriği [path]'e yazar (PDF vurgu annotation'ı gibi düzenlenmiş
+  /// baytlar için). flush: yeniden açmadan önce disk güncel olsun.
+  Future<void> writeBytes(String path, List<int> bytes) =>
+      File(path).writeAsBytes(bytes, flush: true);
+
   int sizeOf(String path) {
     try {
       return File(path).lengthSync();

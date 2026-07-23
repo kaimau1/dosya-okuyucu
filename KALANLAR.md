@@ -1,6 +1,13 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **PDF Faz 2 vurgu cihaz doğrulaması (kullanıcı)** — yerel build telefona
+      KURULDU (2026-07-23, adb install başarılı, debug-imzalı). "Metin seç" →
+      renk seç (sarı/yeşil/pembe/mavi) → Vurgula → (a) vurgu SEÇİLEN metnin tam
+      üstüne oturuyor mu (koordinat Y-flip), (b) kaydettikten sonra aynı sayfada
+      yeniden yükleniyor mu (ValueKey), (c) kapatıp açınca vurgu kalıcı mı.
+      **Not:** kaldır+kur ile kuruldu → Gemini API anahtarı ve son dosyalar listesi
+      sıfırlandı, Ayarlar'dan anahtarı tekrar gir. Push yapılmadı, main/CI eski.
 - [ ] **Cihaz doğrulaması (kullanıcı)** — 2026-07-23 14:30'da yerel derleme telefona
       kuruldu, içindekiler test edilmedi: Excel hücre içi yazma (seçili hücreye
       ikinci dokunuş), slaytta yerinde metin düzenleme, PDF seçim tutamaçları,
@@ -17,15 +24,6 @@
       halka/çizgi) gerçek .pptx'te doğru veri+renk+oranla çizilmesi.
 
 ## Sonra yapılacak
-- [ ] **PDF Faz 2 — Annotation (Syncfusion yazma)** — seçili metni vurgula. Notlar:
-      `PdfSelectLayer` seçimi `_selStart/_selEnd` (fullText char indeksi) tutuyor;
-      `_SelectionPainter` her fragment için `f.getBoundsForRange(start,end)` → **PdfRect
-      (PDF puntosu)** üretiyor. Yeni: layer bu PdfRect listesini + sayfa no'yu yukarı
-      raporlasın (onSelected'ı genişlet). Syncfusion helper (`services/pdf_annotator.dart`):
-      `PdfDocument(inputBytes)` → `page.annotations.add(PdfTextMarkupAnnotation/
-      PdfRectangleAnnotation)` → `save()`. **KOORDİNAT TUZAĞI:** pdfium PdfRect Y-up
-      (bottom-left origin), Syncfusion annotation Y-down (top-left) → `top=ph - pdfRect.top`.
-      Syncfusion annotation API'sini önce kontrol et (pub cache). Cihazda doğrula.
 - [ ] **PDF Faz 3 — Sayfa düzenleme** — döndür/sil/sırala. Syncfusion `doc.pages[i].rotation`,
       `doc.pages.remove/reorder` → save → pdfrx'te reload. Küçük resim şeridi UI gerekebilir.
 - [ ] **PDF Faz 4 — Form doldurma** — Syncfusion `PdfLoadedForm` alanları oku (`doc.form.fields`),

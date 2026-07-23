@@ -773,3 +773,53 @@ HAFIZA'daki eski "gradient/tablo kapsam dışı" notunu çoktan geçmişti (grad
   sıralanır. Yalnız non-rich paragrafta save() `.text`'i yazar (rich=WebView
   canlı düzenleme, orada liste kapsam dışı).
 - **Doğrulama:** CI test job yeşil (run #80). Sonra main → APK.
+
+## 2026-07-23 — PDF Faz 2: seçili metni kalıcı vurgulama (Syncfusion annotation)
+- **Yapıldı/karar:** "Metin seç" modunda seçilen metin artık sarı/yeşil/pembe/mavi
+  (kullanıcı seçimi: *birkaç renk*) **kalıcı highlight annotation** olarak PDF'e
+  yazılıyor — kapatıp açınca ve başka PDF okuyucularda da görünür. Mimari
+  değişmedi: görüntüleme pdfrx/pdfium'da, YAZMA Syncfusion'da.
+- **Yeni/değişen dosyalar:** `services/pdf_annotator.dart` (`PdfAnnotator.addHighlight`:
+  `PdfDocument(inputBytes)` → `page.annotations.add(PdfTextMarkupAnnotation(bounds,'',
+  PdfColor, boundsCollection: satır dikdörtgenleri))` → `save()`); `widgets/pdf_select_layer.dart`
+  (`onSelected` artık `(text, List<PdfRect>, pageNo)` raporluyor; ekran boyası +
+  annotation AYNI geometriyi kullansın diye ortak `selectionPdfRects` helper'ı);
+  `viewer_screen` (seçim çubuğunda renk sırası + "Vurgula", `_highlightPdf`);
+  `file_service.writeBytes`.
+- **KOORDİNAT TUZAĞI (çözüldü + testli):** pdfrx `PdfRect` origin sol-alt / Y-yukarı
+  (`top > bottom`, `height = top - bottom`); Syncfusion/Flutter `Rect` sol-üst / Y-aşağı
+  → `Rect.fromLTWH(left, pageHeight - pdfTop, w, h)`, `pageHeight = Syncfusion page.size.height`.
+  `test/pdf_annotator_test.dart` bu çevrimi cihazsız doğrular (Syncfusion PDF I/O'su
+  gerçek dosya/cihaz ister; risk sadece bu matematikte). ponytail: `/Rotate=0` varsayar.
+- **YENİDEN YÜKLEME TUZAĞI:** pdfrx `PdfDocumentRefFile` eşitliği yalnız dosya yoluna
+  bakar (`file == other.file`) → aynı yola tekrar yazınca `PdfViewer` OTOMATİK
+  YENİLEMEZ (vurgu görünmez). Çözüm: `PdfViewer.file`'a `key: ValueKey(_pdfReloadKey)`,
+  vurgudan sonra `key++` → remount → yeni bayt; `initialPageNumber: _pdfPage` ile
+  aynı sayfada açılır.
+- **Syncfusion API (31.1.19 pub cache'ten okundu, kör push yok):** `PdfDocument({inputBytes})`,
+  `pages[i]`, `page.size` (Size, pt), `page.annotations.add()`→int, `save()` **async**
+  (`Future<List<int>>`; `saveSync()` de var), `PdfColor(r,g,b,[a=255])`,
+  `PdfTextMarkupAnnotationType.highlight` (varsayılan). Renk alfası yok sayılır
+  (highlight çarpımsal harman, altındaki metni boyamaz).
+- **ponytail:** annotate+save ana izlekte; büyük PDF'te takılırsa xlsx gibi `compute`'a
+  taşınır (bkz. 2026-07-22 XLSX isolate).
+- **Doğrulama:** yerel `flutter analyze` (yeni kodda 0 sorun; kalan uyarılar önceden
+  var olan `withOpacity` CI-3.29 uyumu) + `flutter test` **208 yeşil**. GÖRSEL/cihaz
+  doğrulaması KALANLAR'da (koordinat gerçekten oturuyor mu, reload, renkler). Push
+  YAPILMADI (kullanıcı "pushla" demedi).
+- **Telefona kuruldu (aynı gün):** yerel `flutter build apk --release` (112.5MB) +
+  `adb install`. → **DÜZELTME (2026-07-23 önceki notu geçersiz kıldı):** telefonda
+  o an CI RELEASE imzalı sürüm kuruluydu (sertifika SHA-256 `9eef6704…` — kalıcı
+  keystore ile eşleşti), "yerel debug-imzalı sürüm var" notu bayatmış (muhtemelen
+  aradan bir main→APK Release indirilip kurulmuş). Yerel derleme debug-imzalı
+  (`build.gradle.kts` release→`signingConfigs.getByName("debug")`) → `INSTALL_
+  FAILED_UPDATE_INCOMPATIBLE`. Kullanıcı kararı: release keystore'la yeniden
+  imzalama (parola gerektirir) yerine **kaldır+kur** seçildi → `adb uninstall`
+  (Gemini API anahtarı + son dosyalar listesi telefonda SİLİNDİ) → `adb install`
+  başarılı. **Şu an telefonda debug-imzalı sürüm var.** Bir sonraki CI Release
+  kurulmak istenirse yine bu imza çakışması yaşanır (kaldır+kur ya da
+  `dosya-okuyucu-imza\release.jks` ile yeniden imzalama).
+- **Ders (apksigner):** `%LOCALAPPDATA%\Android\Sdk\build-tools\37.0.0\apksigner.bat`
+  JAVA_HOME ister; bu makinede JDK yok ama Android Studio'nun JBR'ı var:
+  `C:\Program Files\Android\Android Studio\jbr`. İki APK'nın sertifikasını
+  karşılaştırmak için: `apksigner verify --print-certs <apk>`.

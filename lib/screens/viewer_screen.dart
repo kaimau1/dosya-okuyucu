@@ -13,9 +13,19 @@ import '../models/document.dart';
 import '../services/conversion_service.dart';
 import '../services/file_service.dart';
 import '../services/ocr_service.dart';
+import '../services/pdf_annotator.dart';
 import '../widgets/office_shell.dart';
 import '../widgets/pdf_select_layer.dart';
 import 'chat_screen.dart';
+
+/// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
+/// annotation'ı altındaki metni boyamaz (çarpımsal harman), renk okunurluğu bozmaz.
+const List<int> _highlightColors = [
+  0xFFFFF176, // sarı
+  0xFF81C784, // yeşil
+  0xFFF06292, // pembe
+  0xFF64B5F6, // mavi
+];
 
 class ViewerScreen extends StatefulWidget {
   final LoadedDoc doc;
@@ -47,6 +57,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Seçim katmanının bildirdiği güncel seçili metin (kopyalama çubuğu için).
   String _pdfSelection = '';
+
+  /// Güncel seçimin PDF-koordinat dikdörtgenleri + sayfası (1-tabanlı) — kalıcı
+  /// vurgu annotation'ı bunları Syncfusion'a verir (bkz. PdfSelectLayer.onSelected).
+  List<PdfRect> _pdfSelRects = const [];
+  int _pdfSelPage = 0;
+
+  /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
+  int _highlightColor = _highlightColors.first;
+
+  /// PDF dosyaya yazıldıktan sonra pdfrx'i yeniden yüklemek için: aynı dosya
+  /// yolunu "eşit" saydığından otomatik yenilemez → ValueKey'i artırıp remount
+  /// ederiz (yeni annotation görünsün). Yeniden açılış aynı sayfada kalır.
+  int _pdfReloadKey = 0;
 
   /// OCR için açık PDF belgesi (onViewerReady'de gelir).
   PdfDocument? _pdfDoc;
@@ -509,7 +532,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
-  /// Seçim modu çubuğu: ipucu ya da Kopyala düğmesi (yarı saydam koyu pill).
+  /// Seçim modu çubuğu: ipucu ya da (seçim varken) renk sırası + Vurgula/Kopyala
+  /// (yarı saydam koyu pill). Dar ekranda taşmasın diye kontroller `Wrap`'te.
   Widget _selectionBar() {
     return Material(
       color: Colors.black.withOpacity(0.75),
@@ -524,21 +548,62 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   style: TextStyle(color: Colors.white, fontSize: 13),
                 ),
               )
-            : Row(
+            : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    _shorten(_pdfSelection, 24),
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 2),
+                    child: Text(
+                      _shorten(_pdfSelection, 28),
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12),
+                    ),
                   ),
-                  TextButton.icon(
-                    onPressed: _copyPdfSelection,
-                    icon: const Icon(Icons.copy, color: Colors.white, size: 18),
-                    label: const Text('Kopyala',
-                        style: TextStyle(color: Colors.white)),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      for (final argb in _highlightColors) _colorDot(argb),
+                      const SizedBox(width: 4),
+                      TextButton.icon(
+                        onPressed: _highlightPdf,
+                        icon: const Icon(Icons.border_color,
+                            color: Colors.white, size: 18),
+                        label: const Text('Vurgula',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                      TextButton.icon(
+                        onPressed: _copyPdfSelection,
+                        icon: const Icon(Icons.copy,
+                            color: Colors.white, size: 18),
+                        label: const Text('Kopyala',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  /// Seçilebilir vurgu rengi noktası; seçili olan beyaz halkalı.
+  Widget _colorDot(int argb) {
+    final selected = _highlightColor == argb;
+    return GestureDetector(
+      onTap: () => setState(() => _highlightColor = argb),
+      child: Container(
+        width: 26,
+        height: 26,
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        decoration: BoxDecoration(
+          color: Color(argb),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? Colors.white : Colors.white24,
+            width: selected ? 2.5 : 1,
+          ),
+        ),
       ),
     );
   }
@@ -553,6 +618,37 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
     _snack('Kopyalandı (${text.length} karakter)');
+  }
+
+  /// Seçili metni PDF'e kalıcı highlight annotation olarak yazar (Syncfusion),
+  /// dosyayı günceller ve pdfrx'i yeniden yükler (vurgu görünsün). Seçim modu
+  /// açık kalır → kullanıcı üst üste vurgulayabilir.
+  ///
+  /// ponytail: annotate+save ana izlekte. Büyük PDF'te takılırsa xlsx gibi
+  /// `compute`'a taşınır (bkz. HAFIZA 2026-07-22 XLSX isolate).
+  Future<void> _highlightPdf() async {
+    final rects = _pdfSelRects;
+    final page = _pdfSelPage;
+    if (rects.isEmpty || page < 1) return;
+    try {
+      final bytes = await _fileService.readBytes(widget.doc.path);
+      final out = await PdfAnnotator.addHighlight(
+        bytes: bytes,
+        pageIndex: page - 1,
+        pdfRects: rects,
+        colorArgb: _highlightColor,
+      );
+      await _fileService.writeBytes(widget.doc.path, out);
+      if (!mounted) return;
+      setState(() {
+        _pdfReloadKey++;
+        _pdfSelection = '';
+        _pdfSelRects = const [];
+      });
+      _snack('Vurgulandı');
+    } catch (e) {
+      if (mounted) _snack('Vurgulama başarısız: $e');
+    }
   }
 
   // ── OCR ───────────────────────────────────────────────────────────────────
@@ -693,7 +789,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
               // sürükleme o modda kaydırma yerine seçim yapar (panEnabled=false).
               child: PdfViewer.file(
                 doc.path,
+                // Vurgu yazıldıktan sonra remount → yeni annotation görünsün.
+                key: ValueKey(_pdfReloadKey),
                 controller: _pdfController,
+                initialPageNumber: _pdfPage,
                 params: PdfViewerParams(
                   panEnabled: !_pdfSelectMode,
                   backgroundColor:
@@ -721,9 +820,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                             PdfSelectLayer(
                               page: page,
                               pageSize: pageRect.size,
-                              onSelected: (t) {
+                              onSelected: (t, rects, pageNo) {
                                 if (mounted) {
-                                  setState(() => _pdfSelection = t);
+                                  setState(() {
+                                    _pdfSelection = t;
+                                    _pdfSelRects = rects;
+                                    _pdfSelPage = pageNo;
+                                  });
                                 }
                               },
                               onCopy: _copyPdfSelection,
