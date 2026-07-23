@@ -28,6 +28,16 @@ dependencies:
   # Seçim arayüzü bizim katmanımız: widgets/pdf_select_layer.dart.
   pdfrx: ^1.3.0
 
+  # PDF YAZMA işleri (annotation gömme, sayfa döndür/sil/sırala, form doldurma).
+  # Görüntüleme yine pdfrx/pdfium; Syncfusion yalnız düzenlenmiş PDF ÜRETİR.
+  # 31.1.19'a SABİT: 32+ Flutter >=3.35 ister → CI 3.29.3'ü kırar. Bu sürüm
+  # flutter>=3.29 + Dart 3.7 + xml 6.5.x ister (bizimkiyle birebir), archive'a
+  # bağlı değil (excel'in archive ^3'üyle çakışmaz). Saf Dart (native yok).
+  syncfusion_flutter_pdf: 31.1.19
+  # Core'u da SABİTLE: pdf'in dep'i ^31.1.19 en yükseği (31.2.x) çeker ama
+  # core 31.2.x Flutter >=3.35.1 ister → CI 3.29.3'ü kırar. 31.1.19 flutter>=3.29.
+  syncfusion_flutter_core: 31.1.19
+
   # OCR: cihaz-içi ML Kit metin tanıma (Latin — Türkçe dahil), internet gerekmez.
   # 0.15.0 SABİT: 0.15.1+ Dart >=3.8 istiyor (CI 3.29.3 = Dart 3.7).
   google_mlkit_text_recognition: 0.15.0
