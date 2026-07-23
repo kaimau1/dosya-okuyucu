@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
+import '../core/text_search.dart';
 import '../models/document.dart';
 import '../services/conversion_service.dart';
 import '../services/file_service.dart';
@@ -101,16 +102,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _runFind(String query) {
     final text = _textController?.text ?? '';
     final q = query.trim();
-    final starts = <int>[];
-    if (q.isNotEmpty) {
-      final hay = text.toLowerCase();
-      final needle = q.toLowerCase();
-      var i = hay.indexOf(needle);
-      while (i != -1 && starts.length < 5000) {
-        starts.add(i);
-        i = hay.indexOf(needle, i + needle.length);
-      }
-    }
+    // Türkçe-duyarlı, büyük/küçük harf duyarsız arama (İ/I/ı/i doğru eşlenir).
+    final starts = findAll(text, q);
     setState(() {
       _matchStarts = starts;
       _matchLen = q.length;
@@ -301,6 +294,50 @@ class _ViewerScreenState extends State<ViewerScreen> {
     ));
   }
 
+  bool get _hasText =>
+      (_textController?.text.trim().isNotEmpty ?? false) ||
+      widget.doc.plainText.trim().isNotEmpty;
+
+  /// Sözcük/karakter/satır/paragraf sayısını gösteren bilgi kutusu.
+  void _showStats() {
+    final text = _textController?.text ?? widget.doc.plainText;
+    final s = TextStats.of(text);
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Belge bilgisi'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _statRow('Sözcük', s.words),
+            _statRow('Karakter', s.characters),
+            _statRow('Karakter (boşluksuz)', s.charactersNoSpaces),
+            _statRow('Satır', s.lines),
+            _statRow('Paragraf', s.paragraphs),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Kapat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statRow(String label, int value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label),
+            const SizedBox(width: 24),
+            Text('$value', style: const TextStyle(fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -394,6 +431,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'print':
                 _print();
                 break;
+              case 'stats':
+                _showStats();
+                break;
             }
           },
           itemBuilder: (_) => [
@@ -403,6 +443,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
             const PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
             const PopupMenuItem(
                 value: 'slides', child: Text('Slayta dönüştür')),
+            if (_hasText)
+              const PopupMenuItem(
+                  value: 'stats', child: Text('Sözcük sayısı / bilgi')),
             const PopupMenuItem(value: 'share', child: Text('Paylaş')),
             const PopupMenuItem(value: 'print', child: Text('Yazdır')),
           ],
