@@ -468,3 +468,23 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   Artık layout(zoom) = zoom·layout(1) her bileşende geçerli.
 - KVKK notu: kullanıcının SAHU dosyası hasta bilgi formu — fixture olarak
   repoya ASLA konmaz; sentetik üretim gerekirse Python zipfile ile.
+
+## 2026-07-23 — PDF seçim tutamaçları + slaytta CANLI (yerinde) metin düzenleme
+- **Slayt düzenleme popup'tan yerinde'ye (kullanıcı kararı):** metin kutusuna
+  dokununca artık `showModalBottomSheet` DEĞİL; kutunun paragrafları slaytın
+  üstünde, aynı konum/ölçekte `TextField` olur. Ölçek/konum matematiği YOK —
+  düzenlenebilir alanlar `SlideCanvas` içindeki `FittedBox`'ın (pt) koordinat
+  uzayına konur, ölçek bedavaya gelir. Biçim çubuğu (B/İ/altçizili+punto+Bitti)
+  klavyenin üstünde yüzer. Eşleme: `editControllers` şeklin ParaVM sırasıyla
+  hizalı (düzenlenemeyen paragraf = null); düzenlenen şekil `identical()` ile
+  eşlenir (düzenlerken yeniden çizilmediği için nesne kararlı, id çakışması yok).
+  Sadakat eskisiyle AYNI (biçim tüm kutuya). Tam zengin (run-bazlı) inline
+  düzenleme kapsam dışı bırakıldı.
+- **PDF seçimi (premium):** kendi seçim katmanımıza (pdf_select_layer) uçlarda
+  sürüklenebilir tutamaç + üstte "Kopyala" balonu eklendi. `_selectWordAt` artık
+  `_report()` çağırıp seçimi anında panoya/üst katmana yansıtıyor.
+- **YEREL APK DERLEME TUZAĞI:** yerel Flutter 3.44 + AGP 9.0.1, eski plugin
+  AAR'larıyla (`file_picker` android-34, `receive_sharing_intent` compileSdk 37)
+  zincirleme "compileSdk çok düşük" hatası verir → yerelde APK ÜRETİLEMİYOR.
+  CI'nin 3.29.3'ünde sorun yok. Sonuç: APK yalnızca CI'da derlenir; yerel
+  `flutter build apk` doğrulama için kullanılmaz (analyze+test yeter).
