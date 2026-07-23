@@ -118,7 +118,8 @@ void main() {
     test('ters bölü kaçışı işareti düz metin yapar', () {
       final spans = spansOf(r'fiyat 5 \* 3 = 15');
       expect(spans.every((s) => !s.italic && !s.bold), isTrue);
-      expect(spans.map((s) => s.text).join(), '5 \\* 3 = 15'.replaceAll('\\', ''));
+      // `\*` düz `*` olur, italik başlamaz; önekle birlikte tam metin.
+      expect(spans.map((s) => s.text).join(), 'fiyat 5 * 3 = 15');
     });
 
     test('görsel ![alt](url) yalnız alt metni gösterir', () {
