@@ -120,4 +120,18 @@ void main() {
       expect(() => Excel.decodeBytes(bytes), returnsNormally);
     });
   });
+
+  group('MarkdownExport.toCsv', () {
+    test('Markdown tablosu ; ayraçlı CSV olur', () {
+      const md = '| Ad | Yaş |\n| --- | --- |\n| Ali | 30 |';
+      final csv = MarkdownExport.toCsv(md);
+      expect(csv, 'Ad;Yaş\r\nAli;30');
+    });
+
+    test('ham Markdown işareti kalmaz', () {
+      final csv = MarkdownExport.toCsv('**kalın** metin');
+      expect(csv.contains('*'), isFalse);
+      expect(csv, contains('kalın metin'));
+    });
+  });
 }

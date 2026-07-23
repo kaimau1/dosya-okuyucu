@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:excel/excel.dart' as xls;
 
 import '../core/markdown.dart';
+import 'csv_codec.dart';
 
 /// AI/Markdown metnini gerçek bir Word (.docx) belgesine çevirir.
 ///
@@ -119,50 +120,58 @@ class MarkdownExport {
     // projede kanıtlı API (bkz. xlsx_editor).
     final sheet = excel['Sheet1'];
 
-    var rowIndex = 0;
-    void row(List<String> cells) {
+    final rows = _rows(markdown);
+    for (var r = 0; r < rows.length; r++) {
+      final cells = rows[r];
       for (var c = 0; c < cells.length; c++) {
         sheet
-            .cell(xls.CellIndex.indexByColumnRow(
-                columnIndex: c, rowIndex: rowIndex))
+            .cell(xls.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r))
             .value = _xlsxCell(cells[c]);
       }
-      rowIndex++;
     }
 
+    return excel.encode() ?? const <int>[];
+  }
+
+  /// Markdown → CSV metni (Türkçe Excel uyumu için `;` ayracı). AI tablosu
+  /// gerçek sütunlara açılır; tablo dışı içerik tek sütun.
+  static String toCsv(String markdown) =>
+      CsvCodec.encode(_rows(markdown), delimiter: ';');
+
+  /// Markdown bloklarını satır/sütun tablosuna indirir (toXlsx + toCsv ortak).
+  static List<List<String>> _rows(String markdown) {
+    final rows = <List<String>>[];
     for (final block in parseMarkdown(markdown)) {
       switch (block.type) {
         case MdBlockType.table:
           for (final r in block.rows) {
-            row([for (final cell in r) _spansPlain(cell)]);
+            rows.add([for (final cell in r) _spansPlain(cell)]);
           }
           break;
         case MdBlockType.bullet:
         case MdBlockType.numbered:
           for (final it in block.items) {
-            row([_spansPlain(it)]);
+            rows.add([_spansPlain(it)]);
           }
           break;
         case MdBlockType.code:
           for (final line in block.rawCode.split('\n')) {
-            row([line]);
+            rows.add([line]);
           }
           break;
         case MdBlockType.rule:
-          row(const ['']);
+          rows.add(const ['']);
           break;
         case MdBlockType.heading:
         case MdBlockType.paragraph:
         case MdBlockType.quote:
-          row([_spansPlain(block.spans)]);
+          rows.add([_spansPlain(block.spans)]);
           break;
       }
     }
-
-    // Hiç içerik yoksa en az bir hücre (boş .xlsx çökme riskini önler).
-    if (rowIndex == 0) row(const ['']);
-
-    return excel.encode() ?? const <int>[];
+    // Hiç içerik yoksa en az bir hücre (boş dosya çökme riskini önler).
+    if (rows.isEmpty) rows.add(const ['']);
+    return rows;
   }
 
   static String _spansPlain(List<MdSpan> spans) =>

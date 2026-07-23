@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -140,6 +141,11 @@ class _ChatScreenState extends State<ChatScreen> {
           break;
         case _ExportKind.excel:
           await _shareBytes('AI_Yaniti.xlsx', MarkdownExport.toXlsx(text));
+          break;
+        case _ExportKind.csv:
+          // BOM + UTF-8: Excel Türkçe karakterleri doğru açsın.
+          await _shareBytes(
+              'AI_Yaniti.csv', utf8.encode('﻿${MarkdownExport.toCsv(text)}'));
           break;
         case _ExportKind.slides:
           final bytes = await ConversionService()
@@ -349,6 +355,15 @@ class _Bubble extends StatelessWidget {
                           ),
                         ),
                         PopupMenuItem(
+                          value: _ExportKind.csv,
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.grid_on_outlined),
+                            title: Text('CSV (.csv)'),
+                          ),
+                        ),
+                        PopupMenuItem(
                           value: _ExportKind.slides,
                           child: ListTile(
                             dense: true,
@@ -444,4 +459,4 @@ class _Composer extends StatelessWidget {
 }
 
 /// AI yanıtının dışa aktarılabileceği Office biçimleri.
-enum _ExportKind { word, excel, slides }
+enum _ExportKind { word, excel, csv, slides }

@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
 
 import '../models/document.dart';
+import 'csv_codec.dart';
 import 'legacy_text.dart';
 import 'office_reader.dart';
 import 'xls_legacy.dart';
@@ -19,8 +20,8 @@ class FileService {
     // düz metin / işaretleme
     'txt', 'text', 'md', 'markdown', 'rst', 'adoc', 'asciidoc', 'tex',
     'log', 'nfo', 'srt', 'vtt', 'diff', 'patch',
-    // veri / yapılandırma
-    'json', 'xml', 'csv', 'tsv', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg',
+    // veri / yapılandırma (csv/tsv artık elektronik tablo ızgarasında açılır)
+    'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg',
     'properties', 'env', 'plist', 'svg', 'gpx', 'kml',
     // web
     'html', 'htm', 'css', 'scss', 'less',
@@ -87,6 +88,13 @@ class FileService {
       );
     }
 
+    // CSV/TSV: gerçek satır/sütun tablosuna çözülüp elektronik tablo ızgarasında
+    // (salt-okunur) gösterilir — eski .xls ile aynı `table`+readOnly yolu.
+    if (ext == 'csv' || ext == 'tsv') {
+      final csv = await _loadCsv(file, path, name, ext);
+      if (csv != null) return csv;
+    }
+
     var kind = kindForExtension(ext);
 
     // Uzantı güvenilmezse içeriğin imza baytlarına bak. Paylaşım/URI ile gelen
@@ -131,6 +139,28 @@ class FileService {
       case DocKind.image:
       case DocKind.unknown:
         return LoadedDoc(path: path, name: name, kind: kind);
+    }
+  }
+
+  /// CSV/TSV dosyasını satır/sütun tablosuna çözüp salt-okunur elektronik
+  /// tablo olarak yükler. Okunamazsa null (çağıran normal metin yoluna düşer).
+  Future<LoadedDoc?> _loadCsv(
+      File file, String path, String name, String ext) async {
+    try {
+      final text = await _readTextSafely(file);
+      if (text.trim().isEmpty) return null;
+      final rows = CsvCodec.parse(text);
+      if (rows.isEmpty) return null;
+      return LoadedDoc(
+        path: path,
+        name: name,
+        kind: DocKind.spreadsheet,
+        plainText: text, // AI sohbet bağlamı için ham metin de saklanır
+        table: rows,
+        readOnly: true,
+      );
+    } catch (_) {
+      return null;
     }
   }
 

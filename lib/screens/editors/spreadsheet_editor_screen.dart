@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show compute;
@@ -6,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
 import '../../models/document.dart';
+import '../../services/csv_codec.dart';
 import '../../services/formula_engine.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/office_shell.dart';
@@ -248,6 +250,22 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     await Share.shareXFiles([XFile(f.path)], text: widget.name);
   }
 
+  /// Etkin sayfayı CSV olarak dışa aktarır (Türkçe Excel `;` ayracıyla açsın
+  /// diye noktalı virgül; alan içi ayraç/tırnak CsvCodec'te otomatik kaçırılır).
+  Future<void> _exportCsv() async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    try {
+      final csv = CsvCodec.encode(sheet.rows, delimiter: ';');
+      final base = widget.name.replaceAll(RegExp(r'\.[^.]*$'), '');
+      final f = File('${Directory.systemTemp.path}/$base.csv');
+      await f.writeAsBytes(utf8.encode('﻿$csv')); // BOM: Excel Türkçe/UTF-8
+      await Share.shareXFiles([XFile(f.path)], text: '$base.csv');
+    } catch (e) {
+      _snack('CSV dışa aktarılamadı: $e');
+    }
+  }
+
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -279,9 +297,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         PopupMenuButton<String>(
           onSelected: (v) {
             if (v == 'export') _export();
+            if (v == 'csv') _exportCsv();
           },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
+            PopupMenuItem(value: 'csv', child: Text('CSV olarak dışa aktar')),
           ],
         ),
       ],

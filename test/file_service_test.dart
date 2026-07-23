@@ -104,4 +104,34 @@ void main() {
       await dir.delete(recursive: true);
     }
   });
+
+  test('.csv salt-okunur elektronik tablo olarak yüklenir (; ayracı)', () async {
+    final dir = await Directory.systemTemp.createTemp('fs_csv');
+    try {
+      final f = File('${dir.path}/veri.csv');
+      await f.writeAsString('ad;yas\nAli;30\nAy;25');
+      final doc = await svc.load(f.path);
+      expect(doc.kind, DocKind.spreadsheet);
+      expect(doc.readOnly, isTrue);
+      expect(doc.table, isNotNull);
+      expect(doc.table!.length, 3);
+      expect(doc.table![0], ['ad', 'yas']);
+      expect(doc.table![2], ['Ay', '25']);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+
+  test('.tsv sekme ayracıyla tabloya çözülür', () async {
+    final dir = await Directory.systemTemp.createTemp('fs_tsv');
+    try {
+      final f = File('${dir.path}/veri.tsv');
+      await f.writeAsString('a\tb\tc\n1\t2\t3');
+      final doc = await svc.load(f.path);
+      expect(doc.kind, DocKind.spreadsheet);
+      expect(doc.table![1], ['1', '2', '3']);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
 }
