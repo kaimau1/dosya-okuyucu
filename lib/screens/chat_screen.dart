@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
 import '../core/markdown.dart';
+import '../services/conversion_service.dart';
 import '../services/gemini_service.dart';
 import '../services/markdown_export.dart';
 import '../widgets/markdown_text.dart';
@@ -121,19 +123,46 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// AI yanıtını (Markdown) gerçek bir .docx belgesine çevirip paylaşır.
-  Future<void> _exportToWord(String text) async {
+  /// Üretilen baytları geçici dosyaya yazıp paylaşım sayfasını açar.
+  Future<void> _shareBytes(String fileName, List<int> bytes) async {
+    final f = File('${Directory.systemTemp.path}/$fileName');
+    await f.writeAsBytes(bytes);
+    await Share.shareXFiles([XFile(f.path)], text: fileName);
+  }
+
+  /// AI yanıtını seçilen Office biçiminde dışa aktarır.
+  Future<void> _export(String text, _ExportKind kind) async {
     try {
-      final bytes = MarkdownExport.toDocx(text, title: 'AI Yanıtı');
-      final f = File('${Directory.systemTemp.path}/AI_Yaniti.docx');
-      await f.writeAsBytes(bytes);
-      await Share.shareXFiles([XFile(f.path)], text: 'AI Yanıtı');
+      switch (kind) {
+        case _ExportKind.word:
+          await _shareBytes(
+              'AI_Yaniti.docx', MarkdownExport.toDocx(text, title: 'AI Yanıtı'));
+          break;
+        case _ExportKind.excel:
+          await _shareBytes('AI_Yaniti.xlsx', MarkdownExport.toXlsx(text));
+          break;
+        case _ExportKind.slides:
+          final bytes = await ConversionService()
+              .textToSlidesPdf('AI Sunumu', stripMarkdown(text));
+          await _shareBytes('AI_Sunumu.pdf', bytes);
+          break;
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Word\'e aktarılamadı: $e')),
+          SnackBar(content: Text('Dışa aktarılamadı: $e')),
         );
       }
+    }
+  }
+
+  /// AI yanıtını düz metin olarak panoya kopyalar.
+  Future<void> _copyPlain(String text) async {
+    await Clipboard.setData(ClipboardData(text: stripMarkdown(text)));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Panoya kopyalandı')),
+      );
     }
   }
 
@@ -172,7 +201,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemBuilder: (_, i) => _Bubble(
                       turn: _turns[i],
                       onSaveMemory: _saveToMemory,
-                      onExportWord: _exportToWord,
+                      onExport: _export,
+                      onCopy: _copyPlain,
                     ),
                   ),
           ),
@@ -244,11 +274,13 @@ class _ChatHint extends StatelessWidget {
 class _Bubble extends StatelessWidget {
   final ChatTurn turn;
   final Future<void> Function(String) onSaveMemory;
-  final Future<void> Function(String) onExportWord;
+  final Future<void> Function(String, _ExportKind) onExport;
+  final Future<void> Function(String) onCopy;
   const _Bubble({
     required this.turn,
     required this.onSaveMemory,
-    required this.onExportWord,
+    required this.onExport,
+    required this.onCopy,
   });
 
   static final _actionStyle = TextButton.styleFrom(
@@ -291,13 +323,60 @@ class _Bubble extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: Wrap(
                   spacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    // Office biçimlerine dışa aktarım tek menüde toplandı.
+                    PopupMenuButton<_ExportKind>(
+                      tooltip: 'Dışa aktar',
+                      onSelected: (k) => onExport(turn.text, k),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: _ExportKind.word,
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.description_outlined),
+                            title: Text('Word (.docx)'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: _ExportKind.excel,
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.table_chart_outlined),
+                            title: Text('Excel (.xlsx)'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: _ExportKind.slides,
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.slideshow_outlined),
+                            title: Text('Sunum (PDF)'),
+                          ),
+                        ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.ios_share, size: 16),
+                            SizedBox(width: 4),
+                            Text('Aktar'),
+                            Icon(Icons.arrow_drop_down, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
                     TextButton.icon(
                       style: _actionStyle,
-                      // Word belgesi olarak dışa aktar (düzenlenebilir .docx).
-                      onPressed: () => onExportWord(turn.text),
-                      icon: const Icon(Icons.description_outlined, size: 16),
-                      label: const Text('Word\'e aktar'),
+                      onPressed: () => onCopy(turn.text),
+                      icon: const Icon(Icons.copy_outlined, size: 16),
+                      label: const Text('Kopyala'),
                     ),
                     TextButton.icon(
                       style: _actionStyle,
@@ -363,3 +442,6 @@ class _Composer extends StatelessWidget {
     );
   }
 }
+
+/// AI yanıtının dışa aktarılabileceği Office biçimleri.
+enum _ExportKind { word, excel, slides }

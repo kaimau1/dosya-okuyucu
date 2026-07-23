@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:archive/archive.dart';
+import 'package:excel/excel.dart' as xls;
 
 import '../core/markdown.dart';
 
@@ -103,6 +104,85 @@ class MarkdownExport {
           '</Relationships>',
       'word/document.xml': document,
     });
+  }
+
+  /// Markdown → .xlsx bayt listesi (`excel` paketiyle).
+  ///
+  /// Markdown tabloları gerçek satır/sütunlara açılır; tablo dışı içerik
+  /// (başlık/paragraf/liste) tek sütunlu satırlar olarak yazılır — hiçbir şey
+  /// kaybolmaz. Sayısal hücreler gerçek sayı olur (metin değil), böylece
+  /// Excel'de toplama/formül çalışır.
+  static List<int> toXlsx(String markdown) {
+    final excel = xls.Excel.createExcel();
+    // `Excel.createExcel()` varsayılan olarak "Sheet1" üretir; `[]` operatörü o
+    // sayfayı döndürür (yoksa oluşturur). `cell(...).value =` ve `encode()` bu
+    // projede kanıtlı API (bkz. xlsx_editor).
+    final sheet = excel['Sheet1'];
+
+    var rowIndex = 0;
+    void row(List<String> cells) {
+      for (var c = 0; c < cells.length; c++) {
+        sheet
+            .cell(xls.CellIndex.indexByColumnRow(
+                columnIndex: c, rowIndex: rowIndex))
+            .value = _xlsxCell(cells[c]);
+      }
+      rowIndex++;
+    }
+
+    for (final block in parseMarkdown(markdown)) {
+      switch (block.type) {
+        case MdBlockType.table:
+          for (final r in block.rows) {
+            row([for (final cell in r) _spansPlain(cell)]);
+          }
+          break;
+        case MdBlockType.bullet:
+        case MdBlockType.numbered:
+          for (final it in block.items) {
+            row([_spansPlain(it)]);
+          }
+          break;
+        case MdBlockType.code:
+          for (final line in block.rawCode.split('\n')) {
+            row([line]);
+          }
+          break;
+        case MdBlockType.rule:
+          row(const ['']);
+          break;
+        case MdBlockType.heading:
+        case MdBlockType.paragraph:
+        case MdBlockType.quote:
+          row([_spansPlain(block.spans)]);
+          break;
+      }
+    }
+
+    // Hiç içerik yoksa en az bir hücre (boş .xlsx çökme riskini önler).
+    if (rowIndex == 0) row(const ['']);
+
+    return excel.encode() ?? const <int>[];
+  }
+
+  static String _spansPlain(List<MdSpan> spans) =>
+      spans.map((s) => s.text).join();
+
+  /// Metni uygun hücre tipine çevirir: baştaki sıfır/uzun diziler ve `=` ile
+  /// başlayanlar metin; diğer sayılar gerçek sayı hücresi.
+  static xls.CellValue _xlsxCell(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return xls.TextCellValue('');
+    final code = v.length > 15 ||
+        (v.length > 1 && v.startsWith('0') && !v.startsWith('0.') &&
+            !v.startsWith('0,'));
+    if (!code) {
+      final i = int.tryParse(v);
+      if (i != null) return xls.IntCellValue(i);
+      final d = double.tryParse(v.replaceAll(',', '.'));
+      if (d != null && d.isFinite) return xls.DoubleCellValue(d);
+    }
+    return xls.TextCellValue(value);
   }
 
   /// Bir paragrafı OOXML olarak üretir.
