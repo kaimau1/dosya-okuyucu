@@ -63,4 +63,36 @@ class TextDecode {
     0xFD: 0x0131, // ı
     0xFE: 0x015F, // ş
   };
+
+  // cp1254'te Türkçe harfe ayrılmış bayt konumları — bu baytların latin1
+  // anlamı (Ð/Ý/Þ/ð/ý/þ) cp1254'te YOK, kodlanamaz → '?'.
+  static const Set<int> _overriddenBytes = {
+    0xD0, 0xDD, 0xDE, 0xF0, 0xFD, 0xFE,
+  };
+
+  // Unicode → cp1254 baytı (ters harita); yalnız özel eşlemeler.
+  static final Map<int, int> _reverse = {
+    for (var i = 0; i < _c1.length; i++)
+      if (_c1[i] != 0x80 + i) _c1[i]: 0x80 + i,
+    for (final e in _high.entries) e.value: e.key,
+  };
+
+  /// Metni Windows-1254 baytlarına çevirir (eski Türkçe Excel/Not Defteri
+  /// uyumu). cp1254'te karşılığı olmayan karakter `?` (0x3F) olur.
+  static List<int> encodeCp1254(String s) {
+    final out = <int>[];
+    for (final ch in s.split('')) {
+      final cp = ch.codeUnitAt(0);
+      if (cp < 0x80) {
+        out.add(cp);
+      } else if (_reverse.containsKey(cp)) {
+        out.add(_reverse[cp]!);
+      } else if (cp >= 0xA0 && cp <= 0xFF && !_overriddenBytes.contains(cp)) {
+        out.add(cp); // latin1 ile ortak bölge
+      } else {
+        out.add(0x3F); // '?'
+      }
+    }
+    return out;
+  }
 }

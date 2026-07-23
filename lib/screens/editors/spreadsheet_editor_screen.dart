@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../services/csv_codec.dart';
+import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/office_shell.dart';
@@ -252,14 +253,44 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   /// Etkin sayfayı CSV olarak dışa aktarır (Türkçe Excel `;` ayracıyla açsın
   /// diye noktalı virgül; alan içi ayraç/tırnak CsvCodec'te otomatik kaçırılır).
+  /// Kodlama kullanıcıya sorulur: modern (UTF-8 BOM) ya da eski (Windows-1254).
   Future<void> _exportCsv() async {
     final sheet = _sheet;
     if (sheet == null) return;
+    final enc = await showDialog<String>(
+      context: context,
+      builder: (_) => SimpleDialog(
+        title: const Text('CSV kodlaması'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'utf8'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('UTF-8 (önerilir)'),
+              subtitle: Text('Modern Excel / Google E-Tablolar'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'cp1254'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Windows-1254'),
+              subtitle: Text('Eski Türkçe Excel / Not Defteri'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (enc == null) return; // vazgeçildi
     try {
       final csv = CsvCodec.encode(sheet.rows, delimiter: ';');
       final base = widget.name.replaceAll(RegExp(r'\.[^.]*$'), '');
       final f = File('${Directory.systemTemp.path}/$base.csv');
-      await f.writeAsBytes(utf8.encode('﻿$csv')); // BOM: Excel Türkçe/UTF-8
+      // UTF-8: BOM ekli (Excel Türkçe'yi doğru açar). cp1254: eski sistem uyumu.
+      final bytes = enc == 'cp1254'
+          ? TextDecode.encodeCp1254(csv)
+          : utf8.encode('﻿$csv');
+      await f.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(f.path)], text: '$base.csv');
     } catch (e) {
       _snack('CSV dışa aktarılamadı: $e');
@@ -312,6 +343,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               : Column(
                   children: [
                     _cellBar(),
+                    _formulaPreview(),
                     _rowColBar(),
                     Expanded(
                       child: PinchZoomArea(
@@ -361,6 +393,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             child: TextField(
               controller: _cellField,
               onSubmitted: _applyCell,
+              // Formül yazılırken canlı sonuç önizlemesi için yeniden çiz.
+              onChanged: (_) => setState(() {}),
               textInputAction: TextInputAction.done,
               style: const TextStyle(fontSize: 14),
               decoration: const InputDecoration(
@@ -378,6 +412,34 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             onPressed: () => _applyCell(_cellField.text),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Formül çubuğunun altında, `=` ile başlayan içerik için canlı sonuç
+  /// (`= 42` gibi). Excel'in formül girerken gösterdiği önizlemenin karşılığı.
+  Widget _formulaPreview() {
+    final sheet = _sheet;
+    final text = _cellField.text;
+    if (sheet == null || !text.startsWith('=') || text.length < 2) {
+      return const SizedBox.shrink();
+    }
+    final result = FormulaEngine(sheet.rows).preview(text, _selRow, _selCol);
+    if (result.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      color: scheme.surfaceContainerHighest,
+      padding: const EdgeInsets.fromLTRB(70, 0, 12, 6),
+      child: Text(
+        '= $result',
+        style: TextStyle(
+          fontSize: 13,
+          color: scheme.primary,
+          fontWeight: FontWeight.w600,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

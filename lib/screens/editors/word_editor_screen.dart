@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/list_prefix.dart';
 import '../../models/document.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/docx_view.dart';
@@ -356,6 +357,36 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       });
     }
 
+    // Madde/numara listesi: gerçek numbering.xml riskli (bkz. HAFIZA) → düz
+    // metin öneki (`• ` / `N. `). Numara, üstteki ardışık numaralı paragraflara
+    // göre sıralanır.
+    void applyList({required bool numbered}) {
+      final p = _sel;
+      final ed = _editor;
+      if (p == null || ed == null) return;
+      setState(() {
+        if (numbered) {
+          if (hasNumber(p.text)) {
+            p.text = stripListPrefix(p.text);
+          } else {
+            final idx = ed.paragraphs.indexOf(p);
+            var n = 1;
+            for (var i = idx - 1; i >= 0; i--) {
+              if (hasNumber(ed.paragraphs[i].text)) {
+                n++;
+              } else {
+                break;
+              }
+            }
+            p.text = toggleNumber(p.text, n);
+          }
+        } else {
+          p.text = toggleBullet(p.text);
+        }
+        _dirty = true;
+      });
+    }
+
     return Material(
       color: scheme.surfaceContainerHighest,
       child: SingleChildScrollView(
@@ -379,6 +410,13 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 sel?.align == 'right', () => setAlign('right')),
             toggle(Icons.format_align_justify, 'İki yana yasla',
                 sel?.align == 'both', () => setAlign('both')),
+            _sep(scheme),
+            toggle(Icons.format_list_bulleted, 'Madde işareti',
+                sel != null && hasBullet(sel.text),
+                () => applyList(numbered: false)),
+            toggle(Icons.format_list_numbered, 'Numaralı liste',
+                sel != null && hasNumber(sel.text),
+                () => applyList(numbered: true)),
             _sep(scheme),
             IconButton(
               tooltip: 'Altına paragraf ekle',

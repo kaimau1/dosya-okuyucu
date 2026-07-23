@@ -28,6 +28,21 @@ class FormulaEngine {
     }
   }
 
+  /// Formül çubuğunda YAZILMAKTA olan bir formülün canlı önizleme sonucu
+  /// (henüz hücreye uygulanmadan). [formula] `=` ile başlamalı; değilse boş
+  /// döner. (selfR,selfC) kendine-referans döngüsünü engellemek için ziyaret
+  /// kümesine konur. Izgaradaki diğer hücreler mevcut değerleriyle okunur.
+  String preview(String formula, int selfR, int selfC) {
+    if (formula.length < 2 || !formula.startsWith('=')) return '';
+    try {
+      return _fmt(_eval(formula.substring(1), {_key(selfR, selfC)}));
+    } on _CycleError {
+      return '#DÖNGÜ';
+    } catch (_) {
+      return '#HATA';
+    }
+  }
+
   // ── Değer çözümleme ───────────────────────────────────────────────────────
 
   String _rawAt(int r, int c) {

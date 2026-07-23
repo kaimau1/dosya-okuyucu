@@ -105,4 +105,29 @@ void main() {
     ];
     expect(FormulaEngine(grid).displayValue(1, 0), '#HATA');
   });
+
+  group('preview (formül çubuğu canlı önizleme)', () {
+    test('yazılan formülü ızgaraya göre hesaplar', () {
+      final grid = [
+        ['10', '20'],
+        ['', ''],
+      ];
+      // A1+B1 = 30, henüz hücreye yazılmadan.
+      expect(FormulaEngine(grid).preview('=A1+B1', 1, 0), '30');
+    });
+
+    test('formül olmayan girdi boş önizleme', () {
+      expect(FormulaEngine([['x']]).preview('düz metin', 0, 0), '');
+      expect(FormulaEngine([['x']]).preview('=', 0, 0), '');
+    });
+
+    test('kendine referans → #DÖNGÜ', () {
+      // A1 zaten =A1 içeriyor; A1'e yine =A1 önizlemesi döngüyü yakalar.
+      expect(FormulaEngine([['=A1']]).preview('=A1', 0, 0), '#DÖNGÜ');
+    });
+
+    test('hatalı formül → #HATA', () {
+      expect(FormulaEngine([['']]).preview('=1+', 0, 0), '#HATA');
+    });
+  });
 }

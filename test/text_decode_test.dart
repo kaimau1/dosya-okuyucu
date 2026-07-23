@@ -42,4 +42,25 @@ void main() {
       expect(TextDecode.decodeCp1254(utf8.encode('abc123')), 'abc123');
     });
   });
+
+  group('TextDecode.encodeCp1254', () {
+    test('Türkçe harfler doğru bayta çevrilir', () {
+      expect(TextDecode.encodeCp1254('ĞİŞğış'),
+          [0xD0, 0xDD, 0xDE, 0xF0, 0xFD, 0xFE]);
+    });
+
+    test('ASCII aynen', () {
+      expect(TextDecode.encodeCp1254('abc'), [0x61, 0x62, 0x63]);
+    });
+
+    test('round-trip: encode → decode aynı metni verir', () {
+      const s = 'Işık çöl ĞİŞ ğış test 123';
+      expect(TextDecode.decodeCp1254(TextDecode.encodeCp1254(s)), s);
+    });
+
+    test('cp1254 dışı karakter ? olur', () {
+      // Kiril 'Д' cp1254'te yok.
+      expect(TextDecode.encodeCp1254('Д'), [0x3F]);
+    });
+  });
 }
