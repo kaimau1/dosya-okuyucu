@@ -664,4 +664,19 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   Syncfusion = ücretli/ağır → kullanılmaz.
 - **TUZAK (kendi test hatam):** backslash testinde beklenen metinde "fiyat "
   önekini atlayınca run #75 kırmızı; kod doğruydu, beklenti düzeltildi (#76).
-- **Doğrulama:** CI test job yeşil (run #76). Sonra main → APK.
+- **Doğrulama:** CI test job yeşil (run #76). Sonra main → APK (#77).
+
+## 2026-07-23 — Sözcük sayacı + Türkçe-duyarlı belge içi arama
+- **Bulgu:** find-in-document zaten vardı (durum/sonraki/önceki) ama arama
+  `toLowerCase` ile yapılıyordu → Dart yerel-duyarsız: `İSTANBUL` aranınca
+  `istanbul` bulunmuyor, `I`→`i` (Türkçe'de `ı` olmalı).
+- **core/text_search.dart (saf Dart):**
+  - `turkishFold`: `İ→i`, `I→ı`, kalanı `toLowerCase`; her karakter TEK
+    karaktere iner → kaynak metinle indeks hizalı (eşleşme konumu doğru).
+    (`İ`.toLowerCase() 2 kod birimi verip indeksi kaydırıyordu.)
+  - `findAll`: Türkçe-katlamalı, çakışmasız, `limit`li tüm eşleşme indeksleri.
+  - `TextStats`: sözcük/karakter/karakter-boşluksuz/satır/paragraf.
+- **viewer:** `_runFind` artık `findAll` kullanıyor (İSTANBUL↔istanbul eşleşir,
+  dotsuz `I` ile noktalı `i` karışmaz). ⋮ menüsüne "Sözcük sayısı / bilgi"
+  diyaloğu (`_showStats`) — metin taşıyan belgelerde görünür.
+- **Doğrulama:** CI test job yeşil (run #78). Sonra main → APK.
