@@ -612,3 +612,24 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
 - **Dal notu:** PR #5 merge edildikten sonra bu tur main ucundan devam etti;
   yeni commit'ler yeni değişiklik olarak main'e ff-merge edildi (merged PR'a
   commit yığılmadı — kural gereği).
+
+## 2026-07-23 — CSV/TSV birinci sınıf: ızgarada aç + dışa aktar
+- **Karar:** CSV artık düz metin değil. `.csv/.tsv` gerçek satır/sütun
+  tablosuna çözülüp SALT-OKUNUR elektronik tablo ızgarasında açılıyor —
+  eski `.xls`'in kullandığı `LoadedDoc.table` + `readOnly` yolu yeniden
+  kullanıldı (home_screen readOnly → ViewerScreen → `_SpreadsheetView`).
+  Düşük risk: yükleme/render makinesi zaten vardı.
+- **`services/csv_codec.dart`:** bağımlılıksız RFC 4180 parse/encode +
+  ayraç otomatik saptama (`,` `;` sekme — Türkçe Excel `;` kullanır).
+  Tırnaklı alan, `""` kaçışı, alan içi ayraç/yeni satır. `file_service`
+  csv/tsv'yi `_textExts`'ten çıkardı, `_loadCsv` ile erken dallandı.
+- **Dışa aktarım:** elektronik tablo editörüne "CSV olarak dışa aktar"
+  (`;` + UTF-8 BOM `﻿` → Excel Türkçe karakterleri düzgün açar);
+  AI "Aktar" menüsüne CSV (.csv) — `MarkdownExport.toCsv` + ortak `_rows`
+  (toXlsx/toCsv paylaşımlı satır üretimi).
+- **Not (çökme önlem):** `_SpreadsheetView` düzensiz (farklı uzunlukta)
+  CSV satırlarına karşı zaten korumalı (`c < row.length ? row[c] : ''`),
+  ayrıca sütun 64 / satır 2000 ile sınırlı (mevcut .xls davranışı).
+- **Doğrulama:** CI test job yeşil (run #73): csv_codec_test (RFC uçları +
+  round-trip), file_service_test (.csv `;` + .tsv sekme gerçek dosya yükleme),
+  markdown_export_test (toCsv). Sonra main → APK.
