@@ -555,3 +555,36 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   hesap değiştirme dansı bitti. Doğrulandı: `git ls-remote origin` → exit 0.
 - Yeni bir makinede/yeni klonda aynı hata görülürse: `git remote set-url` ile
   kullanıcı adını URL'e ekle, sonra bir kez `git fetch` (GCM penceresi açılır).
+
+## 2026-07-23 — AI yanıtlarında Markdown temizliği + "Word'e aktar"
+- **Sorun (kullanıcı):** AI yanıtları ekranda ham `**kalın**`, `# başlık`,
+  `- madde`, `| tablo |` işaretleriyle çirkin görünüyordu (chat balonu düz
+  `SelectableText(turn.text)` idi).
+- **Karar / çözüm:** işaretleri SİLMEK yerine GERÇEK BİÇİME çevirmek — hem
+  temizlik hem "Office hissi". Bağımlılıksız saf-Dart ayrıştırıcı
+  `lib/core/markdown.dart`:
+  - `parseMarkdown` → blok listesi (başlık/madde/numaralı/alıntı/kod/çizgi/
+    tablo + satır-içi kalın/italik/kod/üstü-çizili/bağlantı).
+  - `stripMarkdown` → tüm belgeyi düz metne indirir (hafızaya kaydet için).
+  - `stripInlineMarkdown` → tek satırın işaretlerini + baştaki liste/başlık
+    işaretini kaldırır (slayt/PDF dışa aktarımı için).
+  - **REDDEDİLEN yol:** `markdown` paketi — APK şişkinliği + CI 3.29.3/Dart 3.7
+    sürüm hassasiyeti (bkz. genel "düz REST/bağımlılık istenmedi" ilkesi).
+  - `widgets/markdown_text.dart` blokları `SelectableText.rich` ile çizer
+    (seçilebilirlik korunur). **TUZAK:** Flutter `Table` her satırda EŞİT hücre
+    sayısı ister → düzensiz AI tablosu çökebilir; sütun sayısı normalize edilip
+    eksik hücreler boş span'le dolduruluyor (hem widget hem docx üreticisinde).
+- **Yeni özellik — "Word'e aktar" (`services/markdown_export.dart`):** AI
+  yanıtını düzenlenebilir gerçek `.docx`e çevirir. `blankDocx`in ham-OOXML
+  desenini izler (Content_Types + rels + document.xml, `_zip` ZipEncoder).
+  Biçim DOĞRUDAN verilir (rPr/pPr) — `styles.xml` yok, paket hep geçerli.
+  Başlık büyük punto+bold, listeler girintili, Markdown tablosu → Word `w:tbl`
+  (tablo sonrası boş `<w:p/>` şart, yoksa Word onarım uyarısı). XML özel
+  karakterleri kaçırılır (`_esc`), aksi halde bozuk paket.
+- **Doğrulama:** yerelde Flutter YOK (bkz. 2026-07-23 yerel APK tuzağı — bu
+  Linux bulut oturumu, Windows makine değil). Doğrulama tamamen CI `flutter
+  test`. Testler saf-Dart mantığa yazıldı: `test/markdown_test.dart` (parser +
+  strip) ve `test/markdown_export_test.dart` (üretilen .docx geri açılıp
+  `word/document.xml` içerik/biçim doğrulanır). CI run #68/#69 test job yeşil.
+- **APK:** kullanıcı "main'e pushla, APK oluşsun" dedi → iş main'e alındı
+  (apk job yalnız main'de/dispatch'te çalışır).
