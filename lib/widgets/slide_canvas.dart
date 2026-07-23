@@ -14,6 +14,15 @@ class SlideCanvas extends StatelessWidget {
   /// Metin kutusuna dokunulduğunda çağrılır (düzenleme için). null ise salt okunur.
   final void Function(ShapeVM shape)? onEditShape;
 
+  /// Şu an **canlı düzenlenen** şekil. O kutunun paragrafları statik metin
+  /// yerine yerinde `TextField` olarak çizilir. Kimlikle (identical) eşlenir —
+  /// düzenleme sırasında slayt yeniden çizilmediği için nesne kararlıdır.
+  final ShapeVM? editingShape;
+
+  /// Düzenlenen şeklin paragraflarıyla hizalı denetleyiciler (indeks = paragraf
+  /// sırası; düzenlenemeyen paragraf için null). Yalnız [editingShapeId] kutusu için.
+  final List<TextEditingController?>? editControllers;
+
   /// Kaçıncı animasyon adımına kadar görünsün. null = her şey görünür
   /// (düzenleme görünümü). Sunum modunda 0'dan başlar, her tıklamada artar.
   final int? step;
@@ -22,6 +31,8 @@ class SlideCanvas extends StatelessWidget {
     super.key,
     required this.slide,
     this.onEditShape,
+    this.editingShape,
+    this.editControllers,
     this.step,
   });
 
@@ -75,12 +86,26 @@ class SlideCanvas extends StatelessWidget {
       ];
     }
 
-    Widget child = _ShapeBody(shape: s, paraVisible: paraVisible);
+    final editing = editingShape != null && identical(s, editingShape);
+    Widget child = _ShapeBody(
+      shape: s,
+      paraVisible: paraVisible,
+      editControllers: editing ? editControllers : null,
+    );
     if (animated) child = _Reveal(visible: shapeVisible, child: child);
     if (s.rotationDeg != 0) {
       child = Transform.rotate(angle: s.rotationDeg * math.pi / 180, child: child);
     }
-    if (onEditShape != null && s.hasText) {
+    if (editing) {
+      // Aktif kutuyu çerçeveyle belirt; dokunuşlar içteki TextField'lara gitsin
+      // (onTap sarmalamayı atla, yoksa düzenlemeyi yeniden tetikler).
+      child = DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFF2962FF), width: 1.2),
+        ),
+        child: child,
+      );
+    } else if (onEditShape != null && s.hasText) {
       child = GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => onEditShape!(s),
@@ -126,7 +151,10 @@ class _ShapeBody extends StatelessWidget {
   /// Paragraf bazlı görünürlük (animasyon adımları). null = hepsi görünür.
   final List<bool>? paraVisible;
 
-  const _ShapeBody({required this.shape, this.paraVisible});
+  /// Canlı düzenleme denetleyicileri (paragraf indeksiyle hizalı). null = statik.
+  final List<TextEditingController?>? editControllers;
+
+  const _ShapeBody({required this.shape, this.paraVisible, this.editControllers});
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +225,11 @@ class _ShapeBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (var i = 0; i < s.paragraphs.length; i++)
-              if (s.paragraphs[i].plainText.isNotEmpty)
+              if (_editCtrl(i) != null)
+                // Canlı düzenleme: kutunun yerinde, aynı ölçekte TextField.
+                _paragraph(s.paragraphs[i], scale, s.lnSpcReduction,
+                    edit: _editCtrl(i))
+              else if (s.paragraphs[i].plainText.isNotEmpty)
                 paraVisible == null
                     ? _paragraph(s.paragraphs[i], scale, s.lnSpcReduction)
                     : _Reveal(
@@ -266,9 +298,38 @@ class _ShapeBody extends StatelessWidget {
     );
   }
 
-  Widget _paragraph(ParaVM p, double fontScale, double lnSpcReduction) {
-    final body = Text.rich(_span(p, fontScale, lnSpcReduction), textAlign: p.align);
+  TextEditingController? _editCtrl(int i) =>
+      editControllers != null && i < editControllers!.length
+          ? editControllers![i]
+          : null;
+
+  Widget _paragraph(ParaVM p, double fontScale, double lnSpcReduction,
+      {TextEditingController? edit}) {
     final first = p.runs.isEmpty ? null : p.runs.first;
+    final Widget body = edit == null
+        ? Text.rich(_span(p, fontScale, lnSpcReduction), textAlign: p.align)
+        // Yerinde düzenleme kutusu: paragrafın ilk çalıştırma biçiminde, çerçevesiz.
+        : TextField(
+            controller: edit,
+            maxLines: null,
+            textAlign: p.align,
+            cursorColor: const Color(0xFF2962FF),
+            style: TextStyle(
+              fontSize: (first?.sizePt ?? 18) * fontScale,
+              fontWeight: first?.bold == true ? FontWeight.bold : FontWeight.normal,
+              fontStyle: first?.italic == true ? FontStyle.italic : FontStyle.normal,
+              decoration: first?.underline == true
+                  ? TextDecoration.underline
+                  : TextDecoration.none,
+              color: first?.color,
+              height: p.lineHeight * (1 - lnSpcReduction),
+            ),
+            decoration: const InputDecoration(
+              isCollapsed: true,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+          );
 
     return Padding(
       padding: EdgeInsets.only(top: p.spaceBeforePt, left: p.indentPt),

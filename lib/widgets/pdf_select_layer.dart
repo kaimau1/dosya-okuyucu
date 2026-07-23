@@ -23,11 +23,15 @@ class PdfSelectLayer extends StatefulWidget {
   /// Seçim her değiştiğinde çağrılır (boş metin = seçim temizlendi).
   final void Function(String text) onSelected;
 
+  /// Seçim üstündeki "Kopyala" balonuna basılınca çağrılır.
+  final VoidCallback? onCopy;
+
   const PdfSelectLayer({
     super.key,
     required this.page,
     required this.pageSize,
     required this.onSelected,
+    this.onCopy,
   });
 
   @override
@@ -35,6 +39,7 @@ class PdfSelectLayer extends StatefulWidget {
 }
 
 class _PdfSelectLayerState extends State<PdfSelectLayer> {
+  final _overlayKey = GlobalKey(); // global→local çevirisi (tutamaç sürükleme)
   PdfPageText? _text;
   int? _anchor; // seçim çapası (karakter indeksi, fullText üzerinde)
   int? _extent; // seçim ucu (dahil)
@@ -112,6 +117,34 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       _anchor = a;
       _extent = b;
     });
+    _report();
+  }
+
+  /// [index] karakterinin ekran dikdörtgeni (tutamaç/balon konumu için).
+  Rect? _charRect(int index) {
+    final t = _text;
+    if (t == null) return null;
+    for (final f in t.fragments) {
+      final local = index - f.index;
+      if (local < 0 || local >= f.charRects.length) continue;
+      return f.charRects[local]
+          .toRect(page: widget.page, scaledPageSize: widget.pageSize);
+    }
+    return null;
+  }
+
+  /// Tutamaç sürüklendi: [global] parmak noktasını en yakın karaktere eşle,
+  /// seçimin ilgili ucunu (başı ya da sonu) oraya taşı, diğer ucu sabit tut.
+  void _dragHandle(bool isStart, Offset global) {
+    final box = _overlayKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final i = _charIndexAt(box.globalToLocal(global), maxDist: 80);
+    if (i == null) return;
+    final fixed = isStart ? _selEnd : _selStart;
+    setState(() {
+      _anchor = fixed;
+      _extent = i;
+    });
   }
 
   void _clear() {
@@ -125,42 +158,129 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   void _report() => widget.onSelected(_selectedText);
 
+  bool get _hasSelection =>
+      _anchor != null && _extent != null && _selEnd >= _selStart;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Positioned.fill(
+      child: Stack(
+        key: _overlayKey,
+        clipBehavior: Clip.none,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (_) => _clear(),
+            onPanStart: (d) {
+              final i = _charIndexAt(d.localPosition);
+              setState(() {
+                _anchor = i;
+                _extent = i;
+              });
+            },
+            onPanUpdate: (d) {
+              if (_anchor == null) return;
+              final i = _charIndexAt(d.localPosition, maxDist: 64);
+              if (i != null && i != _extent) setState(() => _extent = i);
+            },
+            onPanEnd: (_) => _report(),
+            onLongPressStart: (d) => _selectWordAt(d.localPosition),
+            onLongPressMoveUpdate: (d) {
+              if (_anchor == null) return;
+              final i = _charIndexAt(d.localPosition, maxDist: 64);
+              if (i != null && i != _extent) setState(() => _extent = i);
+            },
+            onLongPressEnd: (_) => _report(),
+            child: CustomPaint(
+              size: widget.pageSize,
+              painter: _SelectionPainter(
+                text: _text,
+                page: widget.page,
+                pageSize: widget.pageSize,
+                start: _selStart,
+                end: _selEnd,
+                color: scheme.primary.withOpacity(0.35),
+              ),
+            ),
+          ),
+          if (_hasSelection) ...[
+            _handle(isStart: true, color: scheme.primary),
+            _handle(isStart: false, color: scheme.primary),
+            if (widget.onCopy != null) _copyBubble(scheme),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Seçim ucundaki sürüklenebilir tutamaç (telefonun yerel seçim hissi).
+  Widget _handle({required bool isStart, required Color color}) {
+    final r = _charRect(isStart ? _selStart : _selEnd);
+    if (r == null) return const SizedBox.shrink();
+    final point = isStart ? Offset(r.left, r.bottom) : Offset(r.right, r.bottom);
+    const touch = 40.0, dot = 18.0;
+    return Positioned(
+      left: point.dx - touch / 2,
+      top: point.dy - touch / 2 + 6,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _clear(),
-        onPanStart: (d) {
-          final i = _charIndexAt(d.localPosition);
-          setState(() {
-            _anchor = i;
-            _extent = i;
-          });
-        },
-        onPanUpdate: (d) {
-          if (_anchor == null) return;
-          final i = _charIndexAt(d.localPosition, maxDist: 64);
-          if (i != null && i != _extent) setState(() => _extent = i);
-        },
+        onPanUpdate: (d) => _dragHandle(isStart, d.globalPosition),
         onPanEnd: (_) => _report(),
-        onLongPressStart: (d) => _selectWordAt(d.localPosition),
-        onLongPressMoveUpdate: (d) {
-          if (_anchor == null) return;
-          final i = _charIndexAt(d.localPosition, maxDist: 64);
-          if (i != null && i != _extent) setState(() => _extent = i);
-        },
-        onLongPressEnd: (_) => _report(),
-        child: CustomPaint(
-          size: widget.pageSize,
-          painter: _SelectionPainter(
-            text: _text,
-            page: widget.page,
-            pageSize: widget.pageSize,
-            start: _selStart,
-            end: _selEnd,
-            color: scheme.primary.withOpacity(0.35),
+        child: SizedBox(
+          width: touch,
+          height: touch,
+          child: Center(
+            child: Container(
+              width: dot,
+              height: dot,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 3),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Seçimin üstünde beliren küçük "Kopyala" balonu.
+  Widget _copyBubble(ColorScheme scheme) {
+    final r = _charRect(_selStart);
+    if (r == null) return const SizedBox.shrink();
+    const w = 108.0, h = 40.0;
+    final above = r.top - h - 6 >= 0;
+    final left =
+        (r.left - 20).clamp(0.0, (widget.pageSize.width - w).clamp(0.0, double.infinity));
+    final top = above ? r.top - h - 6 : r.bottom + 6;
+    return Positioned(
+      left: left,
+      top: top,
+      child: Material(
+        color: Colors.black.withOpacity(0.82),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            _report();
+            widget.onCopy?.call();
+          },
+          child: const SizedBox(
+            width: w,
+            height: h,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.copy, color: Colors.white, size: 18),
+                SizedBox(width: 6),
+                Text('Kopyala', style: TextStyle(color: Colors.white)),
+              ],
+            ),
           ),
         ),
       ),

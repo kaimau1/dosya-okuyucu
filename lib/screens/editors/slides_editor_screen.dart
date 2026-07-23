@@ -43,6 +43,17 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   final _hCtrl = ScrollController();
   final _vCtrl = ScrollController();
 
+  // ── Canlı (yerinde) metin düzenleme durumu ─────────────────────────────────
+  // Popup yerine kutu doğrudan slaytın üstünde TextField olur; biçim çubuğu
+  // klavyenin üstünde yüzer. Denetleyiciler şeklin paragraflarıyla hizalıdır.
+  PptxSlide? _editSlide;
+  ShapeVM? _editShapeVM;
+  final List<TextEditingController?> _editCtrls = [];
+  final List<PptxParagraph?> _editTargets = [];
+  bool _fBold = false, _fItalic = false, _fUnder = false;
+  double _fSize = 18;
+  bool _tBold = false, _tItalic = false, _tUnder = false, _tSize = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +62,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   @override
   void dispose() {
+    for (final c in _editCtrls) {
+      c?.dispose();
+    }
     _hCtrl.dispose();
     _vCtrl.dispose();
     super.dispose();
@@ -139,7 +153,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
           ? Center(child: Text('Açılamadı: $_error'))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
-              : _buildSlides(editor),
+              : Column(
+                  children: [
+                    Expanded(child: _buildSlides(editor)),
+                    if (_editShapeVM != null) _formatBar(),
+                  ],
+                ),
       fab: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(
@@ -262,7 +281,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                   ? _fallbackText(slide)
                   : SlideCanvas(
                       slide: view,
-                      onEditShape: (shape) => _editShape(slide, shape),
+                      onEditShape: (shape) => _beginEdit(slide, shape),
+                      editingShape:
+                          identical(_editSlide, slide) ? _editShapeVM : null,
+                      editControllers:
+                          identical(_editSlide, slide) ? _editCtrls : null,
                     ),
             ),
           ),
@@ -435,22 +458,24 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     );
   }
 
-  /// Bir metin kutusunun paragraflarını düzenler; kaydedince slayt yeniden
-  /// çizilir. Metnin yanında kutunun biçimi de değiştirilebilir (kalın/italik/
-  /// altı çizili + punto) — yalnız DOKUNULAN özellik yazılır, gerisi korunur.
-  Future<void> _editShape(PptxSlide slide, ShapeVM shape) async {
-    final editor = _editor;
-    if (editor == null) return;
-
-    final targets = <PptxParagraph>[];
-    final controllers = <TextEditingController>[];
+  /// Bir metin kutusunda **yerinde** düzenlemeyi başlatır: kutunun paragrafları
+  /// slaytın üstünde TextField olur (popup yok). Önceki düzenleme varsa yazılır.
+  /// Denetleyiciler şeklin paragraf sırasıyla hizalıdır (düzenlenemeyen = null).
+  void _beginEdit(PptxSlide slide, ShapeVM shape) {
+    _commitEdit(); // açık başka kutu varsa değişikliğini yaz
+    _editCtrls.clear();
+    _editTargets.clear();
     for (final p in shape.paragraphs) {
-      final para = slide.paragraphOf(p.source);
-      if (para == null) continue;
-      targets.add(para);
-      controllers.add(TextEditingController(text: para.text));
+      final para = p.source == null ? null : slide.paragraphOf(p.source);
+      if (para == null) {
+        _editCtrls.add(null);
+        _editTargets.add(null);
+      } else {
+        _editCtrls.add(TextEditingController(text: para.text));
+        _editTargets.add(para);
+      }
     }
-    if (targets.isEmpty) return;
+    if (!_editTargets.any((t) => t != null)) return; // düzenlenebilir metin yok
 
     // Başlangıç biçimi: kutudaki ilk çalıştırmadan okunur.
     RunVM? firstRun;
@@ -460,136 +485,128 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         break;
       }
     }
-    var fBold = firstRun?.bold ?? false;
-    var fItalic = firstRun?.italic ?? false;
-    var fUnder = firstRun?.underline ?? false;
-    var fSize = (firstRun?.sizePt ?? 18.0).clamp(6.0, 96.0).roundToDouble();
-    var tBold = false, tItalic = false, tUnder = false, tSize = false;
+    _fBold = firstRun?.bold ?? false;
+    _fItalic = firstRun?.italic ?? false;
+    _fUnder = firstRun?.underline ?? false;
+    _fSize = (firstRun?.sizePt ?? 18.0).clamp(6.0, 96.0).roundToDouble();
+    _tBold = _tItalic = _tUnder = _tSize = false;
 
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Metni düzenle',
-                    style: Theme.of(ctx).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                // Biçim çubuğu: kutunun tüm yazısına uygulanır (orta sadakat).
-                Row(
-                  children: [
-                    IconButton(
-                      tooltip: 'Kalın',
-                      isSelected: fBold,
-                      icon: const Icon(Icons.format_bold),
-                      onPressed: () => setSheet(() {
-                        fBold = !fBold;
-                        tBold = true;
-                      }),
-                    ),
-                    IconButton(
-                      tooltip: 'İtalik',
-                      isSelected: fItalic,
-                      icon: const Icon(Icons.format_italic),
-                      onPressed: () => setSheet(() {
-                        fItalic = !fItalic;
-                        tItalic = true;
-                      }),
-                    ),
-                    IconButton(
-                      tooltip: 'Altı çizili',
-                      isSelected: fUnder,
-                      icon: const Icon(Icons.format_underlined),
-                      onPressed: () => setSheet(() {
-                        fUnder = !fUnder;
-                        tUnder = true;
-                      }),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: 'Yazıyı küçült',
-                      icon: const Icon(Icons.text_decrease),
-                      onPressed: () => setSheet(() {
-                        fSize = (fSize - 2).clamp(6.0, 96.0).toDouble();
-                        tSize = true;
-                      }),
-                    ),
-                    Text('${fSize.round()} pt',
-                        style: Theme.of(ctx).textTheme.labelLarge),
-                    IconButton(
-                      tooltip: 'Yazıyı büyüt',
-                      icon: const Icon(Icons.text_increase),
-                      onPressed: () => setSheet(() {
-                        fSize = (fSize + 2).clamp(6.0, 96.0).toDouble();
-                        tSize = true;
-                      }),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                for (final c in controllers)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TextField(
-                      controller: c,
-                      maxLines: null,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Vazgeç'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Uygula'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+    setState(() {
+      _editSlide = slide;
+      _editShapeVM = shape;
+    });
+  }
+
+  /// Açık düzenlemeyi kalıcılaştırır (metin + dokunulan biçim), slaytı yeniden
+  /// çizer ve durumu temizler. Açık düzenleme yoksa hiçbir şey yapmaz.
+  /// Not: setState çağırmaz — çağıran sarar (build sırasında da güvenli kullanılır).
+  void _commitEdit() {
+    final slide = _editSlide;
+    final editor = _editor;
+    if (slide == null || editor == null) return;
+    for (var i = 0; i < _editTargets.length; i++) {
+      final t = _editTargets[i];
+      final c = _editCtrls[i];
+      if (t != null && c != null) editor.updateParagraph(slide, t, c.text);
+    }
+    if (_tBold || _tItalic || _tUnder || _tSize) {
+      for (final t in _editTargets) {
+        if (t == null) continue;
+        editor.formatParagraph(
+          slide,
+          t,
+          bold: _tBold ? _fBold : null,
+          italic: _tItalic ? _fItalic : null,
+          underline: _tUnder ? _fUnder : null,
+          sizePt: _tSize ? _fSize : null,
+        );
+      }
+    }
+    _dirty = true;
+    for (final c in _editCtrls) {
+      c?.dispose();
+    }
+    _editCtrls.clear();
+    _editTargets.clear();
+    _editSlide = null;
+    _editShapeVM = null;
+  }
+
+  void _finishEdit() {
+    FocusScope.of(context).unfocus();
+    setState(_commitEdit);
+  }
+
+  /// Klavyenin üstünde yüzen biçim çubuğu (yerinde düzenleme aktifken).
+  Widget _formatBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 8,
+      color: scheme.surfaceContainerHighest,
+      // Scaffold.resizeToAvoidBottomInset (varsayılan) body'yi klavyenin üstüne
+      // sıkıştırır → çubuk zaten klavyenin hemen üstünde durur; ek viewInsets
+      // payı çift sayardı. SafeArea klavye kapalıyken alt çentiği korur.
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Kalın',
+                isSelected: _fBold,
+                icon: const Icon(Icons.format_bold),
+                onPressed: () => setState(() {
+                  _fBold = !_fBold;
+                  _tBold = true;
+                }),
+              ),
+              IconButton(
+                tooltip: 'İtalik',
+                isSelected: _fItalic,
+                icon: const Icon(Icons.format_italic),
+                onPressed: () => setState(() {
+                  _fItalic = !_fItalic;
+                  _tItalic = true;
+                }),
+              ),
+              IconButton(
+                tooltip: 'Altı çizili',
+                isSelected: _fUnder,
+                icon: const Icon(Icons.format_underlined),
+                onPressed: () => setState(() {
+                  _fUnder = !_fUnder;
+                  _tUnder = true;
+                }),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Yazıyı küçült',
+                icon: const Icon(Icons.text_decrease),
+                onPressed: () => setState(() {
+                  _fSize = (_fSize - 2).clamp(6.0, 96.0).toDouble();
+                  _tSize = true;
+                }),
+              ),
+              Text('${_fSize.round()} pt',
+                  style: Theme.of(context).textTheme.labelLarge),
+              IconButton(
+                tooltip: 'Yazıyı büyüt',
+                icon: const Icon(Icons.text_increase),
+                onPressed: () => setState(() {
+                  _fSize = (_fSize + 2).clamp(6.0, 96.0).toDouble();
+                  _tSize = true;
+                }),
+              ),
+              const SizedBox(width: 4),
+              FilledButton(
+                onPressed: _finishEdit,
+                child: const Text('Bitti'),
+              ),
+            ],
           ),
         ),
       ),
     );
-
-    if (ok == true) {
-      for (var i = 0; i < targets.length; i++) {
-        editor.updateParagraph(slide, targets[i], controllers[i].text);
-      }
-      if (tBold || tItalic || tUnder || tSize) {
-        for (final t in targets) {
-          editor.formatParagraph(
-            slide,
-            t,
-            bold: tBold ? fBold : null,
-            italic: tItalic ? fItalic : null,
-            underline: tUnder ? fUnder : null,
-            sizePt: tSize ? fSize : null,
-          );
-        }
-      }
-      _dirty = true;
-      if (mounted) setState(() {});
-    }
-    for (final c in controllers) {
-      c.dispose();
-    }
   }
 }

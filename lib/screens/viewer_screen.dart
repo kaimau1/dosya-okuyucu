@@ -628,6 +628,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                                   setState(() => _pdfSelection = t);
                                 }
                               },
+                              onCopy: _copyPdfSelection,
                             ),
                           ],
                 ),
