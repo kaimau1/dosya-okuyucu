@@ -539,6 +539,52 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
 ## 2026-07-23 — İkinci GitHub hesabı: GCM kimlik çakışması tuzağı
 - **Karar:** repo `kaimau1/dosya-okuyucu`'da KALIYOR (private). İkinci hesap
   `hekimasistanitr` yalnızca `gh`'ye eklendi; repo transferi/fork yapılmadı.
+
+## 2026-07-23 — Slayt sadakati %95 hedefi: font + bağlayıcı/gölge + grafik (3 faz)
+Kullanıcı "slayt sadakati %95" istedi; renderer tahminî ~%80-85'teydi. Kod
+HAFIZA'daki eski "gradient/tablo kapsam dışı" notunu çoktan geçmişti (gradient
++ tablo zaten vardı). Kalan gerçek açıklar 3 fazda kapatıldı (hepsi main'de).
+
+- **Faz 1 — Fontlar (en yüksek getiri, her slaytı etkiler):** metin artık Roboto
+  değil, PowerPoint fontlarının **metrik-uyumlu açık kaynak** karşılıklarıyla
+  çiziliyor. `assets/fonts/`: **Carlito**(Calibri) · **Arimo**(Arial) ·
+  **Tinos**(Times) — hepsi OFL, ~6.6MB. `pptx_render._resolveFont`: typeface
+  rPr→defRPr→tema (major/minor, `+mj-lt`/`+mn-lt` çözülür), `_mapFamily` ile
+  aileye eşlenir (serif→Tinos, arial/helvetica→Arimo, kalanı→Carlito). Tema
+  fontları `_themeFonts` (`a:fontScheme`). **TUZAK:** Arimo google/fonts'ta
+  yalnız **değişken (variable) font** olarak var (statik yok) → pubspec'te
+  değişken kayıt, kalın `wght` ekseninden gelir; cihazda kalın-Arial görünümü
+  DOĞRULANMADI. Küçültme hilesinin gerekçesi değişti: artık "Calibri≠Roboto"
+  değil, metrik doğru → `_fitScale` çoğu kutuda 1 döner, yalnız gerçek taşmada
+  güvenlik ağı. **Ayrıca not:** `assets:` altına `assets/fonts/` EKLENMEDİ —
+  fontlar `fonts:` bloğundan gömülüyor, .txt lisanslar repoda kalıyor.
+- **Faz 2 — Bağlayıcı + çizgi/ok + gölge:** `p:cxnSp` ve line/connector
+  geometrileri `_walk`'ta `p:sp` gibi işlenip `ShapeVM.isLine` ile
+  `_LinePainter`e (köşe-köşe, flipH/flipV, `head/tailEnd`→ok, `prstDash`→kesik)
+  çiziliyor. Eğik/kavisli bağlayıcı **düz çizgiyle yaklaşıklanır**. Yatay/dikey
+  çizginin 0 boyutu strokeWidth tabanıyla çizilebilir kılınır (yoksa Positioned
+  0 yükseklikte kırpardı). `a:effectLst/outerShdw`→Flutter `BoxShadow` (kutu
+  şekillere). nv id araması `p:nvCxnSpPr`yi de kapsar.
+- **Faz 3 — Grafik (chart):** graphicFrame içindeki `c:chart` artık boş delik
+  değil. `_graphicFrame` tablo/grafik ayırır; grafik AYRI parçadır (`r:id` →
+  slide rels → `ppt/charts/chartN.xml`), `_parseChart` → `ChartVM`
+  (sütun/çubuk/pasta+halka/çizgi; alan→çizgi). Seri renkleri `c:spPr` yoksa
+  **tema aksan paletinden** (accent1-6), pasta dilimleri kategori başına.
+  Çizim `widgets/chart_painter.dart` (`ChartPainter`): eksen+3 ızgara+lejant+
+  çubuk/dilim/çizgi. **Kapsam dışı:** dağılım/radar/borsa grafiği + SmartArt.
+  Stil sade (3B/gradient/eksen süsü yok) ama veri+oran+renk PowerPoint'le aynı.
+- **TUZAK (Dart):** `(_alan1, _alan2) = kayıt;` pattern assignment **instance
+  alanına yapılamaz** ("Only local variables can be assigned") → önce yerel
+  değişkene al, sonra alanlara ata.
+- **Doğrulama:** bu Windows makinesinde yerel `flutter test` (204 yeşil) +
+  `analyze` (yeni kod temiz; kalan uyarılar önceden var olan kasıtlı
+  `withOpacity` CI-3.29 uyumu). Grafik/font GÖRSEL kalitesi + değişken-Arimo
+  kalını cihazda test EDİLMEDİ (ekran aracı yasak; APK CI'da). → KALANLAR.
+- **Tetiklenen ana kod:** `services/pptx_render.dart` (RunVM.fontFamily,
+  ShapeVM.isLine/flip/arrow/dashed/shadow/chart, ChartVM/ChartSeries/ChartType,
+  `_resolveFont`/`_mapFamily`/`_themeFonts`/`_outerShadow`/`_parseChart`),
+  `widgets/slide_canvas.dart` (`_LinePainter` + fontFamily + chart/line branch),
+  `widgets/chart_painter.dart` (yeni). Grafik ayrıntısı → graphify.
   Actions dakika kotası derdi varsa gerçek çözümler: repo'yu public yapmak
   (sınırsız dakika) veya ücretsiz organization açmak — ikinci ücretsiz kişisel
   hesap GitHub ToS'a aykırı, kota için kullanılmamalı.

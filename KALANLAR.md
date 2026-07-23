@@ -7,10 +7,11 @@
       Gemini model listesinin Ayarlar'da otomatik dolması. Ayrıca eski liste:
       WhatsApp "birlikte aç", odak-noktalı pinch, Word tam sayfa sığdırma,
       eski .doc/.xls/.ppt açma, arama, yeni belge, slayt çoğalt/sil/taşı.
-- [ ] **CI kotası:** Actions dakikası bitti → APK/Release işleri saniyeler içinde
-      log'suz düşüyor (build 62'den beri yeni Release YOK). Karar bekliyor:
-      kotayı bekle / repo'yu public yap (önce keystore parolasını secret'a taşı)
-      / harcama limitini artır. Geliştirme bu arada yerel derlemeyle sürüyor.
+- [ ] **Slayt sadakati cihaz doğrulaması (kullanıcı)** — Faz 1-3 yerelde test
+      yeşil (204) ama GÖRSEL cihazda bakılmadı (2026-07-23): gömülü fontlarla
+      metin görünümü + **değişken-Arimo kalın** (Arial kalın doğru mu?),
+      bağlayıcı okları/kesik çizgi, dış gölge, grafiklerin (sütun/çubuk/pasta/
+      halka/çizgi) gerçek .pptx'te doğru veri+renk+oranla çizilmesi.
 
 ## Sonra yapılacak
 - [ ] Excel: dondurulmuş bölme (frozen pane) desteği — kullanıcının SAHU dosyasında var,
