@@ -191,9 +191,9 @@ class _ShapeBody extends StatelessWidget {
 
   /// Metin kutusu: PowerPoint'te olduğu gibi sığmayan yazı kutunun dışına taşar
   /// (kırpılmaz). [OverflowBox] hem taşmayı serbest bırakır hem de dikey
-  /// hizalamayı (üst/orta/alt) uygular. `normAutofit` olan kutularda PowerPoint
-  /// yazıyı SIĞDIRDIĞI için biz de ölçüp gereken ek küçültmeyi uygularız —
-  /// font metriği farkından (Calibri ≠ Roboto) doğan taşmayı da bu kapatır.
+  /// hizalamayı (üst/orta/alt) uygular. Fontlar artık metrik-uyumlu (Carlito/
+  /// Arimo/Tinos) gömülü olduğu için ölçüm PowerPoint'le hemen hemen aynı;
+  /// `_fitScale` çoğu kutuda 1 döner, yalnız gerçek taşmada devreye girer.
   Widget _text(ShapeVM s) {
     Alignment alignment;
     switch (s.vAnchor) {
@@ -207,11 +207,10 @@ class _ShapeBody extends StatelessWidget {
         alignment = Alignment.topCenter;
     }
 
-    // Sığdırma TÜM metin kutularına uygulanır (yazı-taşması kök nedeni #3):
-    // autofit/yer tutucu ayrımı yetmedi — düz şekillerde (dolgu kutuları,
-    // başlık şeritleri) Calibri≠Roboto metrik farkı yazıyı kutudan taşırıp
-    // komşu kutuların üstüne bindiriyordu (Slayt 22 örneği). PowerPoint'in
-    // "taşır" davranışından bilinçli sapıyoruz: okunurluk > birebir sadakat.
+    // Sığdırma TÜM metin kutularına güvenlik ağı olarak uygulanır: metrik-uyumlu
+    // fontlarla ölçüm artık doğru (gerçekten sığan kutuda 1 döner), ama bir kutu
+    // yine de taşarsa (yazar taşırmış ya da kenar durumu) komşu kutuların üstüne
+    // binmesin diye küçültülür — okunurluk > birebir sadakat (kök neden #3).
     var scale = s.fontScale * _fitScale(s, s.fontScale);
 
     return OverflowBox(
@@ -285,6 +284,7 @@ class _ShapeBody extends StatelessWidget {
           TextSpan(
             text: r.text,
             style: TextStyle(
+              fontFamily: r.fontFamily,
               fontSize: r.sizePt * fontScale,
               fontWeight: r.bold ? FontWeight.bold : FontWeight.normal,
               fontStyle: r.italic ? FontStyle.italic : FontStyle.normal,
@@ -315,6 +315,7 @@ class _ShapeBody extends StatelessWidget {
             textAlign: p.align,
             cursorColor: const Color(0xFF2962FF),
             style: TextStyle(
+              fontFamily: first?.fontFamily,
               fontSize: (first?.sizePt ?? 18) * fontScale,
               fontWeight: first?.bold == true ? FontWeight.bold : FontWeight.normal,
               fontStyle: first?.italic == true ? FontStyle.italic : FontStyle.normal,
@@ -343,6 +344,7 @@ class _ShapeBody extends StatelessWidget {
                   child: Text(
                     p.bullet,
                     style: TextStyle(
+                      fontFamily: first?.fontFamily,
                       fontSize: (first?.sizePt ?? 18) * fontScale,
                       color: first?.color,
                       height: p.lineHeight * (1 - lnSpcReduction),

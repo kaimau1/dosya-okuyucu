@@ -76,6 +76,36 @@ flutter:
     - assets/
     - assets/word/
 
+  # Slayt sadakati: PowerPoint fontlarının (Calibri/Arial/Times) metrik-uyumlu,
+  # dağıtılabilir açık kaynak karşılıkları. Eşleme pptx_render._mapFamily'de.
+  # Lisans: OFL 1.1 (assets/fonts/OFL.txt + FONTS-NOTICE.txt).
+  fonts:
+    - family: Carlito # Calibri karşılığı (+ bilinmeyen sans varsayılanı)
+      fonts:
+        - asset: assets/fonts/Carlito-Regular.ttf
+        - asset: assets/fonts/Carlito-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Carlito-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Carlito-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Tinos # Times New Roman karşılığı (+ serif fontlar)
+      fonts:
+        - asset: assets/fonts/Tinos-Regular.ttf
+        - asset: assets/fonts/Tinos-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Tinos-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Tinos-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Arimo # Arial/Helvetica karşılığı (değişken font; kalın = wght ekseni)
+      fonts:
+        - asset: assets/fonts/Arimo-Variable.ttf
+        - asset: assets/fonts/Arimo-Italic-Variable.ttf
+          style: italic
+
 # Uygulama ikonu: assets/icon/ altındaki PNG'lerden CI'da üretilir
 # (dart run flutter_launcher_icons). Zemin marka mavisi, ön-plan şeffaf belge.
 flutter_launcher_icons:

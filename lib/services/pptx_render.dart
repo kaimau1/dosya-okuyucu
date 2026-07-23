@@ -13,9 +13,9 @@ import 'package:xml/xml.dart';
 /// Kapsam: arka plan, düzen/asıl slayt (master) grafikleri, dikdörtgen/elips
 /// şekiller, dolgu + çerçeve, görseller, gruplar, metin (boyut/kalın/italik/
 /// renk/hizalama/madde işareti).
-// ponytail: SmartArt, tablo, grafik, animasyon, gradient dolgu ve gömülü yazı
-// tipleri çizilmez — düz renk/görsel/metin ile %80 sadakat hedefi. Gerekirse
-// gradient ve a:tbl bir sonraki turda eklenir.
+// Kapsam: düz renk + gradient dolgu, görsel, tablo (a:tbl), metin (Calibri/
+// Arial/Times metrik-uyumlu gömülü fontlarla), bağlayıcı/çizgi, gölge, grafik.
+// ponytail: SmartArt ve animasyon efekt türleri hâlâ kapsam dışı.
 
 const double _emuPerPt = 12700;
 
@@ -166,6 +166,10 @@ class RunVM {
   final bool italic;
   final bool underline;
   final Color color;
+
+  /// Çizimde kullanılacak gömülü yazı ailesi (Carlito/Arimo/Tinos). null =
+  /// varsayılan (Roboto). [PptxRender._mapFamily] typeface'i buna eşler.
+  final String? fontFamily;
   const RunVM({
     required this.text,
     this.sizePt = 18,
@@ -173,6 +177,7 @@ class RunVM {
     this.italic = false,
     this.underline = false,
     this.color = const Color(0xFF000000),
+    this.fontFamily,
   });
 }
 
@@ -207,6 +212,13 @@ class PptxRender {
   final Map<String, Map<String, String>> _relsCache = {};
   final Map<String, XmlDocument?> _xmlCache = {};
   final Map<String, Map<String, Color>> _themeCache = {};
+  final Map<String, (String, String)> _fontCache = {};
+
+  /// Geçerli slaytın tema başlık/gövde latin yazı tipi adı (`a:majorFont`/
+  /// `a:minorFont`). `slide()` başında ayarlanır; `+mj-lt`/`+mn-lt` referansları
+  /// bununla çözülür. Office varsayılanı Calibri.
+  String _majorLatin = 'Calibri';
+  String _minorLatin = 'Calibri';
 
   PptxRender(this._archive) {
     final pres = _xml('ppt/presentation.xml');
@@ -236,6 +248,9 @@ class PptxRender {
     final theme = _themeOf(masterFile);
     final clrMap = _clrMap(masterDoc);
     final defaults = _textDefaults(masterDoc, theme, clrMap);
+    final themeFonts = _themeFonts(masterFile);
+    _majorLatin = themeFonts.$1;
+    _minorLatin = themeFonts.$2;
 
     Color? bg;
     Gradient? bgGradient;
@@ -637,6 +652,7 @@ class PptxRender {
           color: (rPr == null ? null : _solidFill(rPr, theme, clrMap)) ??
               (defRPr == null ? null : _solidFill(defRPr, theme, clrMap)) ??
               def.color,
+          fontFamily: _resolveFont(rPr, defRPr, isTitle),
         ));
       }
       if (runs.isEmpty) {
@@ -865,6 +881,64 @@ class PptxRender {
     }
     _themeCache[masterFile] = out;
     return out;
+  }
+
+  /// Temanın başlık (major) ve gövde (minor) latin yazı tipi adları.
+  (String, String) _themeFonts(String? masterFile) {
+    if (masterFile == null) return ('Calibri', 'Calibri');
+    final cached = _fontCache[masterFile];
+    if (cached != null) return cached;
+    final themeFile = _relOfType(_rels(masterFile), 'theme');
+    final doc = themeFile == null ? null : _xml(themeFile);
+    final scheme =
+        doc == null ? null : _firstDeep(doc.rootElement, 'a:fontScheme');
+    String latin(String group) {
+      final tf = _first(_first(scheme, group), 'a:latin')?.getAttribute('typeface');
+      return (tf == null || tf.isEmpty) ? 'Calibri' : tf;
+    }
+
+    final res = (latin('a:majorFont'), latin('a:minorFont'));
+    _fontCache[masterFile] = res;
+    return res;
+  }
+
+  /// Bir çalıştırmanın (run) yazı ailesini çözer: rPr → defRPr → tema
+  /// (başlık major, gövde minor) sırasıyla `a:latin@typeface`, sonra gömülü
+  /// aileye eşlenir. `+mj-lt`/`+mn-lt` tema referansları çözülür.
+  String _resolveFont(XmlElement? rPr, XmlElement? defRPr, bool isTitle) {
+    var tf = _first(rPr, 'a:latin')?.getAttribute('typeface') ??
+        _first(defRPr, 'a:latin')?.getAttribute('typeface') ??
+        (isTitle ? '+mj-lt' : '+mn-lt');
+    if (tf.startsWith('+mj')) {
+      tf = _majorLatin;
+    } else if (tf.startsWith('+mn')) {
+      tf = _minorLatin;
+    }
+    return _mapFamily(tf);
+  }
+
+  /// PowerPoint yazı tipi adını gömülü metrik-uyumlu aileye eşler. Bilinen
+  /// serif → Tinos, Arial/Helvetica → Arimo, kalanı (Calibri + her sans) →
+  /// Carlito. (bkz. assets/fonts/FONTS-NOTICE.txt)
+  String _mapFamily(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('times') ||
+        n.contains('georgia') ||
+        n.contains('cambria') ||
+        n.contains('garamond') ||
+        n.contains('minion') ||
+        n.contains('palatino') ||
+        n.contains('constantia') ||
+        n.contains('book antiqua') ||
+        n.contains('serif')) {
+      return 'Tinos';
+    }
+    if (n.contains('arial') ||
+        n.contains('helvetica') ||
+        n.contains('liberation sans')) {
+      return 'Arimo';
+    }
+    return 'Carlito';
   }
 
   // --------------------------------------------------------------- arşiv

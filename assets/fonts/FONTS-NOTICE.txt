@@ -1,0 +1,24 @@
+Gömülü yazı tipleri — slayt (PPTX) sadakati için
+==================================================
+
+PowerPoint dosyaları çoğunlukla Microsoft'un tescilli yazı tiplerini kullanır
+(Calibri, Arial, Times New Roman). Bunlar dağıtılamaz. Yerlerine, aynı
+METRİKLERE sahip (harf genişlikleri/satır yükseklikleri birebir aynı) açık
+kaynak karşılıkları gömülür — böylece satır kırılımı ve yerleşim PowerPoint'le
+aynı olur, yazı da yerel görünür:
+
+  Calibri            -> Carlito   (metrik-uyumlu)
+  Arial / Helvetica  -> Arimo     (metrik-uyumlu, Google Croscore)
+  Times New Roman    -> Tinos     (metrik-uyumlu, Google Croscore)
+
+Eşleme services/pptx_render.dart içindeki _mapFamily'de; bilinmeyen sans ->
+Carlito, bilinen serif -> Tinos.
+
+Lisans: hepsi SIL Open Font License 1.1 (tam metin: OFL.txt).
+  - Carlito: Copyright (c) tyPoland Lukasz Dziedzic (Reserved Font Name "Carlito")
+  - Arimo:   Copyright The Arimo Project Authors (github.com/googlefonts/arimo)
+  - Tinos:   Copyright The Tinos Project Authors (github.com/googlefonts/tinos)
+
+Kaynak: github.com/google/fonts (ofl/carlito, ofl/arimo, ofl/tinos).
+Arimo yalnızca değişken (variable) font olarak geliyor; ağırlık (kalın) wght
+ekseninden uygulanır.

@@ -101,6 +101,38 @@ Uint8List _autofitPptx({bool withAutofit = true}) {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// typeface eşlemesi için: 3 paragraf, her biri farklı yazı tipiyle.
+Uint8List _fontPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="2" name="Metin"/><p:nvPr/></p:nvSpPr>
+   <p:spPr><a:xfrm><a:off x="914400" y="457200"/><a:ext cx="4572000" cy="2286000"/></a:xfrm></p:spPr>
+   <p:txBody><a:bodyPr/>
+    <a:p><a:r><a:rPr sz="1800"><a:latin typeface="Arial"/></a:rPr><a:t>Arial</a:t></a:r></a:p>
+    <a:p><a:r><a:rPr sz="1800"><a:latin typeface="Times New Roman"/></a:rPr><a:t>Times</a:t></a:r></a:p>
+    <a:p><a:r><a:rPr sz="1800"/><a:t>Varsayilan</a:t></a:r></a:p>
+   </p:txBody>
+  </p:sp>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 void main() {
   test('slayt geometrisi, rengi ve metni EMU -> punto olarak çözümlenir', () {
     final editor = PptxEditor.parse(_samplePptx());
@@ -173,6 +205,14 @@ void main() {
     expect(run2.sizePt, 20);
     expect(run2.italic, isTrue);
     expect(run2.bold, isFalse);
+  });
+
+  test('yazı tipi typeface\'ten çözülüp gömülü metrik-uyumlu aileye eşlenir', () {
+    final view = PptxEditor.parse(_fontPptx()).slides.single.view!;
+    final paras = view.shapes.single.paragraphs;
+    expect(paras[0].runs.single.fontFamily, 'Arimo'); // Arial
+    expect(paras[1].runs.single.fontFamily, 'Tinos'); // Times New Roman
+    expect(paras[2].runs.single.fontFamily, 'Carlito'); // varsayılan (Calibri)
   });
 
   test('animasyon adımları p:timing içinden çıkarılır', () {
