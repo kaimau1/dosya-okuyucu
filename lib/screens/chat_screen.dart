@@ -1,8 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
+import '../core/markdown.dart';
 import '../services/gemini_service.dart';
+import '../services/markdown_export.dart';
+import '../widgets/markdown_text.dart';
 import 'settings_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -115,6 +121,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  /// AI yanıtını (Markdown) gerçek bir .docx belgesine çevirip paylaşır.
+  Future<void> _exportToWord(String text) async {
+    try {
+      final bytes = MarkdownExport.toDocx(text, title: 'AI Yanıtı');
+      final f = File('${Directory.systemTemp.path}/AI_Yaniti.docx');
+      await f.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(f.path)], text: 'AI Yanıtı');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Word\'e aktarılamadı: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -150,6 +172,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemBuilder: (_, i) => _Bubble(
                       turn: _turns[i],
                       onSaveMemory: _saveToMemory,
+                      onExportWord: _exportToWord,
                     ),
                   ),
           ),
@@ -221,7 +244,18 @@ class _ChatHint extends StatelessWidget {
 class _Bubble extends StatelessWidget {
   final ChatTurn turn;
   final Future<void> Function(String) onSaveMemory;
-  const _Bubble({required this.turn, required this.onSaveMemory});
+  final Future<void> Function(String) onExportWord;
+  const _Bubble({
+    required this.turn,
+    required this.onSaveMemory,
+    required this.onExportWord,
+  });
+
+  static final _actionStyle = TextButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    minimumSize: const Size(0, 30),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -243,19 +277,36 @@ class _Bubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            SelectableText(turn.text),
+            // Kullanıcı mesajı düz; AI yanıtı Markdown biçimli çizilir
+            // (ham `**`/`#`/`-` işaretleri ekranda kalmaz).
+            if (isUser)
+              SelectableText(turn.text)
+            else
+              MarkdownText(
+                turn.text,
+                baseStyle: DefaultTextStyle.of(context).style,
+              ),
             if (!isUser)
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    minimumSize: const Size(0, 30),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () => onSaveMemory(turn.text),
-                  icon: const Icon(Icons.bookmark_add_outlined, size: 16),
-                  label: const Text('Hafızaya kaydet'),
+                child: Wrap(
+                  spacing: 4,
+                  children: [
+                    TextButton.icon(
+                      style: _actionStyle,
+                      // Word belgesi olarak dışa aktar (düzenlenebilir .docx).
+                      onPressed: () => onExportWord(turn.text),
+                      icon: const Icon(Icons.description_outlined, size: 16),
+                      label: const Text('Word\'e aktar'),
+                    ),
+                    TextButton.icon(
+                      style: _actionStyle,
+                      // Hafızaya düz metin yaz (işaretsiz).
+                      onPressed: () => onSaveMemory(stripMarkdown(turn.text)),
+                      icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                      label: const Text('Hafızaya kaydet'),
+                    ),
+                  ],
                 ),
               ),
           ],
