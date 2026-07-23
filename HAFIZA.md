@@ -587,4 +587,28 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   strip) ve `test/markdown_export_test.dart` (üretilen .docx geri açılıp
   `word/document.xml` içerik/biçim doğrulanır). CI run #68/#69 test job yeşil.
 - **APK:** kullanıcı "main'e pushla, APK oluşsun" dedi → iş main'e alındı
-  (apk job yalnız main'de/dispatch'te çalışır).
+  (apk job yalnız main'de/dispatch'te çalışır). build #70 ✅ (imzalı Release
+  v0.1.0-build-70, APK 118 MB).
+
+## 2026-07-23 — AI çıktısını Office'e aktar ekosistemi (Word + Excel + Sunum)
+- **Karar:** AI sohbet yanıtı artık üç Office biçimine dışa aktarılabiliyor;
+  balondaki dağınık düğmeler tek "Aktar" `PopupMenuButton`'ında toplandı:
+  Word (.docx) · Excel (.xlsx) · Sunum (PDF). Ayrıca "Kopyala" (düz metin
+  panoya, `stripMarkdown`) ve mevcut "Hafızaya kaydet".
+- **Excel üretimi (`MarkdownExport.toXlsx`):** `excel` paketiyle gerçek .xlsx.
+  Markdown tablosu → gerçek satır/sütun; tablo dışı içerik tek sütun (kayıp yok);
+  sayısal hücre gerçek sayı (`_xlsxCell`), "007" gibi baştaki sıfırlı diziler
+  metin kalır.
+  - **TUZAK / önlem:** yerelde Flutter/pub-cache YOK → excel API'sini derleyip
+    doğrulayamıyorum. Bu yüzden `appendRow` / `getDefaultSheet` / `maxRows` gibi
+    SÜRÜM-BELİRSİZ çağrılardan kaçınıldı; yalnız kod tabanında KANITLI API
+    kullanıldı: `excel['Sheet1']`, `sheet.cell(CellIndex.indexByColumnRow(...))
+    .value = ...`, `excel.encode()` (bkz. xlsx_editor). Test de kanıtlı
+    `Excel.decodeBytes` + `sheet.rows` + CellValue tipiyle doğruluyor
+    (`TextCellValue.value.toString()` deseni; ham `.toString()` kırılgan).
+- **Sunum PDF:** yeni kod yok — mevcut `ConversionService.textToSlidesPdf`
+  yeniden kullanıldı (girdi `stripMarkdown` ile temizlenir).
+- **Doğrulama:** CI test job yeşil (run #71). Sonra main'e ff-merge (#72 APK).
+- **Dal notu:** PR #5 merge edildikten sonra bu tur main ucundan devam etti;
+  yeni commit'ler yeni değişiklik olarak main'e ff-merge edildi (merged PR'a
+  commit yığılmadı — kural gereği).
