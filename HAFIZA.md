@@ -488,6 +488,14 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   zincirleme "compileSdk çok düşük" hatası verir → yerelde APK ÜRETİLEMİYOR.
   CI'nin 3.29.3'ünde sorun yok. Sonuç: APK yalnızca CI'da derlenir; yerel
   `flutter build apk` doğrulama için kullanılmaz (analyze+test yeter).
+  → **GÜNCELLENDİ (aynı gün, 2026-07-23):** engel aşıldı, yerelde `android/`
+  iskeleti üretildi ve `flutter build apk --release` ÇALIŞIYOR (13:29'da APK
+  üretildi, telefona 13:34'te kuruldu). Actions kotası kapalıyken tek APK yolu
+  budur. **DİKKAT — İMZA:** yerel `android/app/build.gradle.kts` release'i
+  `signingConfigs.getByName("debug")` ile imzalar → CI Release'lerinden FARKLI
+  imza. Telefonda şu an yerel (debug imzalı) sürüm var; CI APK'sına dönmek
+  istenirse önce uygulamayı kaldırmak gerekir (veri gider) ya da yerel derlemeyi
+  `apksigner` ile `dosya-okuyucu-imza\release.jks` anahtarıyla yeniden imzala.
 
 ## 2026-07-23 — Faz 2: Excel hücre içi yazma (canlı hücre)
 - **Karar:** düzenleme artık yalnız formül çubuğundan değil, hücrenin İÇİNDE.

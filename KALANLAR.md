@@ -1,15 +1,16 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
-- [ ] Build 53 cihaz doğrulaması (kullanıcı): WhatsApp/"birlikte aç" listesinde
-      görünme, odak-noktalı pinch (sayfa kaybolmamalı), Word tam sayfa sığdırma,
-      eski .doc/.xls/.ppt açma, Excel formül+satır/sütun, arama, yeni belge,
-      slayt çoğalt/sil/taşı, slayt yazı sığdırma (2026-07-22)
-- [ ] Build 54 (yalnız CI hızlandırma) sonucu kontrol edilecek — kapanıştan
-      sonra push'landı, izlenmedi (2026-07-22)
-- [ ] Cihaz doğrulaması bekleyen 3 özellik (APK alınmadı, Actions kotası):
-      PDF seçim tutamaçları, slaytta yerinde metin düzenleme, Excel hücre içi
-      yazma (2026-07-23)
+- [ ] **Cihaz doğrulaması (kullanıcı)** — 2026-07-23 14:30'da yerel derleme telefona
+      kuruldu, içindekiler test edilmedi: Excel hücre içi yazma (seçili hücreye
+      ikinci dokunuş), slaytta yerinde metin düzenleme, PDF seçim tutamaçları,
+      Gemini model listesinin Ayarlar'da otomatik dolması. Ayrıca eski liste:
+      WhatsApp "birlikte aç", odak-noktalı pinch, Word tam sayfa sığdırma,
+      eski .doc/.xls/.ppt açma, arama, yeni belge, slayt çoğalt/sil/taşı.
+- [ ] **CI kotası:** Actions dakikası bitti → APK/Release işleri saniyeler içinde
+      log'suz düşüyor (build 62'den beri yeni Release YOK). Karar bekliyor:
+      kotayı bekle / repo'yu public yap (önce keystore parolasını secret'a taşı)
+      / harcama limitini artır. Geliştirme bu arada yerel derlemeyle sürüyor.
 
 ## Sonra yapılacak
 - [ ] Excel: dondurulmuş bölme (frozen pane) desteği — kullanıcının SAHU dosyasında var,
