@@ -164,6 +164,9 @@ jobs:
       - name: İmza anahtarını hazırla (secret varsa kalıcı, yoksa üret)
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          # Repo public olduğu için parola artık workflow'da düz metin DEĞİL.
+          # Secret yoksa (fork/ilk kurulum) geçici anahtar bu yedek parolayla üretilir.
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
         run: |
           set -e
           if [ -n "$KS_B64" ]; then
@@ -173,7 +176,7 @@ jobs:
           else
             keytool -genkeypair -v -keystore release.jks -storetype PKCS12 \
               -keyalg RSA -keysize 2048 -validity 10000 -alias dosyaokuyucu \
-              -storepass DosyaOkuyucuKey2026 -keypass DosyaOkuyucuKey2026 \
+              -storepass "$KS_PASS" -keypass "$KS_PASS" \
               -dname "CN=Dosya Okuyucu, O=DosyaOkuyucu, C=TR"
             echo "::warning::Kalıcı (aynı) imza için ANDROID_KEYSTORE_B64 secret'ı ekleyin. Aşağıdaki base64 değerini kopyalayıp bu isimle repo secret'ı olarak kaydedin. Ekledikten sonra tüm sürümler aynı imzayla derlenir."
             echo "========== ANDROID_KEYSTORE_B64 (kopyala) =========="
@@ -183,6 +186,8 @@ jobs:
           fi
 
       - name: APK'yı imzala ve doğrula
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
         run: |
           set -e
           APK=build/app/outputs/flutter-apk/app-release.apk
@@ -192,8 +197,8 @@ jobs:
           "$APKSIGNER" sign \
             --ks release.jks \
             --ks-key-alias dosyaokuyucu \
-            --ks-pass pass:DosyaOkuyucuKey2026 \
-            --key-pass pass:DosyaOkuyucuKey2026 \
+            --ks-pass "pass:$KS_PASS" \
+            --key-pass "pass:$KS_PASS" \
             "$APK"
           echo "--- imza sertifikası ---"
           "$APKSIGNER" verify --print-certs "$APK" | grep -iE "SHA-256|SHA-1|Signer #1 cert" | head -5

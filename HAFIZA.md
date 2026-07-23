@@ -28,8 +28,9 @@
 - **2026-07-20 — İmzalama: tüm APK'lar sabit anahtarla imzalanır.**
   *Niye:* güncelleme uyumu (anahtar değişirse kullanıcı uygulamayı güncelleyemez).
   Anahtar repoda TUTULMAZ; `ANDROID_KEYSTORE_B64` GitHub secret'ından yüklenir. Secret yoksa
-  CI geçici anahtar üretip base64'ünü loglar (SIGNING.md). Parola workflow'da sabit:
-  `DosyaOkuyucuKey2026`, alias `dosyaokuyucu`.
+  CI geçici anahtar üretip base64'ünü loglar (SIGNING.md). Alias `dosyaokuyucu`.
+  → *güncellendi 2026-07-23:* parola workflow'da düz metindi; repo public yapılmadan
+  önce DEĞİŞTİRİLDİ ve `ANDROID_KEYSTORE_PASSWORD` secret'ına taşındı (aşağıya bak).
 
 - **2026-07-20 — Bildirim: başarılı derlemede release linki Gmail *taslağı* olarak hazırlanır**
   (hekimasistanitr@gmail.com). *Niye:* doğrudan gönderme aracı yok, sadece taslak mümkün.
@@ -515,6 +516,25 @@ Kullanıcı gerçek dosyalarla bildirdi (SAHU bilgi formu .xlsx 996×26, Olgu_su
   "Invalid argument(s) (onError): The error handler of Future.then must return
   a value of the returned future's type" atar (gemini_service_test kırmızıydı).
   Doğrusu: `expectLater(future, throwsA(isA<X>().having(...)))`.
+
+## 2026-07-23 — Repo PUBLIC yapıldı (Actions kotası) + keystore parolası döndürüldü
+- **Niye:** Actions dakika kotası bitince APK/Release işleri log üretmeden düşüyordu;
+  public repolarda Actions dakikası sınırsız. Kullanıcı kararı: public.
+- **Public'ten ÖNCE yapılan güvenlik işi (sıra önemli):** keystore parolası
+  workflow'da düz metindi ve git GEÇMİŞİNDE kalıyordu → dosyadan silmek kozmetik
+  olurdu. Bu yüzden parola `keytool -storepasswd` ile değiştirildi:
+  - Sertifika/parmak izi AYNI (`SHA-256 9E:EF:67:04:…:4C:57:37:18`) → telefondaki
+    uygulama güncellenmeye devam eder, kimse uygulamayı kaldırmak zorunda kalmaz.
+  - Yeni parola `ANDROID_KEYSTORE_PASSWORD` secret'ı; yeni `.jks`ın base64'ü
+    `ANDROID_KEYSTORE_B64` secret'ına yeniden yüklendi (ikisi de `gh secret set < dosya`
+    ile — PowerShell borusu CR ekler, bkz. build-9 tuzağı).
+  - Keystore yedeği: `dosya-okuyucu-imza\release.jks.yedek-20260723` (ESKİ parolalı).
+  - Workflow artık `secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici'` kullanır:
+    fork'ta secret yoksa derleme kırılmaz, geçici anahtarla imzalanır.
+- **Public olduğu için bilinçli kabul edilenler:** kaynak kodun tamamı + git geçmişi,
+  HAFIZA/KALANLAR karar notları, commit yazar e-postası. Taramada `.jks`, gerçek API
+  anahtarı, `google-services.json` veya hasta verisi YOK (SAHU/Olgu dosyaları hiç
+  commitlenmemiş — KVKK ilkesi tuttu).
 
 ## 2026-07-23 — İkinci GitHub hesabı: GCM kimlik çakışması tuzağı
 - **Karar:** repo `kaimau1/dosya-okuyucu`'da KALIYOR (private). İkinci hesap

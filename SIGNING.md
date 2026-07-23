@@ -30,9 +30,13 @@ SHA-1/SHA-256 değerini loglar. Google ile giriş (Firebase) için bu SHA-1'i
 Firebase Console → Project settings → Your apps bölümüne ekleyin.
 
 ## Parola
-Keystore parolası iş akışında sabittir (`DosyaOkuyucuKey2026`). Daha yüksek
-güvenlik isterseniz parolayı da secret yapıp workflow'da `${{ secrets.* }}`
-ile okutabilirsiniz.
+Keystore parolası **`ANDROID_KEYSTORE_PASSWORD` secret'ında** tutulur; workflow'da
+düz metin parola yoktur (repo 2026-07-23'te public yapıldı). Secret tanımlı değilse
+CI geçici bir anahtar üretir ve yayınlanan APK kalıcı imzayı taşımaz.
+
+> Geçmiş: 2026-07-23 öncesinde parola workflow'da düz metin sabitti. Repo public
+> yapılmadan önce keystore parolası **değiştirildi** (sertifika/parmak izi aynı
+> kaldı), böylece git geçmişinde görünen eski parola işe yaramaz.
 
 ## Önemli
 `ANDROID_KEYSTORE_B64` secret'ını (ve base64'ün çözümü olan keystore'u) güvenli
