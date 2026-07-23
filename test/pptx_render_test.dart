@@ -133,6 +133,47 @@ Uint8List _fontPptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// Bağlayıcı (ok'lu çizgi) + dış gölgeli dikdörtgen.
+Uint8List _linePptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:cxnSp>
+   <p:nvCxnSpPr><p:cNvPr id="5" name="Baglayici"/><p:nvPr/></p:nvCxnSpPr>
+   <p:spPr>
+    <a:xfrm flipV="1"><a:off x="1000000" y="1000000"/><a:ext cx="2000000" cy="0"/></a:xfrm>
+    <a:prstGeom prst="straightConnector1"/>
+    <a:ln w="19050"><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill><a:tailEnd type="triangle"/></a:ln>
+   </p:spPr>
+  </p:cxnSp>
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="6" name="Golgeli"/><p:nvPr/></p:nvSpPr>
+   <p:spPr>
+    <a:xfrm><a:off x="500000" y="3000000"/><a:ext cx="2000000" cy="1000000"/></a:xfrm>
+    <a:prstGeom prst="rect"/>
+    <a:solidFill><a:srgbClr val="00FF00"/></a:solidFill>
+    <a:effectLst><a:outerShdw blurRad="50800" dist="38100" dir="2700000"><a:srgbClr val="000000"><a:alpha val="40000"/></a:srgbClr></a:outerShdw></a:effectLst>
+   </p:spPr>
+   <p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1800"/><a:t>Golge</a:t></a:r></a:p></p:txBody>
+  </p:sp>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 void main() {
   test('slayt geometrisi, rengi ve metni EMU -> punto olarak çözümlenir', () {
     final editor = PptxEditor.parse(_samplePptx());
@@ -213,6 +254,34 @@ void main() {
     expect(paras[0].runs.single.fontFamily, 'Arimo'); // Arial
     expect(paras[1].runs.single.fontFamily, 'Tinos'); // Times New Roman
     expect(paras[2].runs.single.fontFamily, 'Carlito'); // varsayılan (Calibri)
+  });
+
+  test('bağlayıcı çizgi+ok olarak, şekil dış gölgesiyle çözülür', () {
+    final view = PptxEditor.parse(_linePptx()).slides.single.view!;
+
+    final line = view.shapes.firstWhere((s) => s.isLine);
+    expect(line.flipV, isTrue);
+    expect(line.arrowEnd, isTrue);
+    expect(line.arrowStart, isFalse);
+    expect(line.stroke, const Color(0xFFFF0000));
+    expect(line.strokeWidth, closeTo(1.5, 0.01)); // 19050 EMU / 12700
+
+    final shadowed = view.shapes.firstWhere((s) => s.shadow != null);
+    expect(shadowed.shadow!.blurRadius, closeTo(4, 0.01)); // 50800 / 12700
+    expect(shadowed.shadow!.offset.distance, greaterThan(0));
+  });
+
+  testWidgets('bağlayıcı ve gölgeli şekil hatasız çizilir', (t) async {
+    final view = PptxEditor.parse(_linePptx()).slides.single.view!;
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+            width: 400, height: 225, child: SlideCanvas(slide: view)),
+      ),
+    ));
+    // Pump hatasız geçtiyse çizim başarılı; şekil metni de görünür.
+    expect(find.text('Golge'), findsOneWidget);
+    expect(find.byType(CustomPaint), findsWidgets); // çizgi painter'ı var
   });
 
   test('animasyon adımları p:timing içinden çıkarılır', () {

@@ -112,11 +112,13 @@ class SlideCanvas extends StatelessWidget {
         child: child,
       );
     }
+    // Yatay/dikey çizginin tek boyutu 0 olabilir → çizim için stroke kadar taban ver.
+    final floor = math.max(s.strokeWidth, 1.0);
     return Positioned(
       left: s.x,
       top: s.y,
-      width: s.w,
-      height: s.h,
+      width: s.isLine ? math.max(s.w, floor) : s.w,
+      height: s.isLine ? math.max(s.h, floor) : s.h,
       child: child,
     );
   }
@@ -158,6 +160,11 @@ class _ShapeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Bağlayıcı/çizgi: kutu değil, köşe-köşe stroke (ok/kesik dahil).
+    if (shape.isLine) {
+      return CustomPaint(painter: _LinePainter(shape), size: Size.infinite);
+    }
+
     final decoration = BoxDecoration(
       color: shape.gradient == null ? shape.fill : null,
       gradient: shape.gradient,
@@ -168,6 +175,7 @@ class _ShapeBody extends StatelessWidget {
       border: shape.stroke == null
           ? null
           : Border.all(color: shape.stroke!, width: shape.strokeWidth),
+      boxShadow: shape.shadow == null ? null : [shape.shadow!],
     );
 
     if (shape.image != null) {
@@ -356,4 +364,72 @@ class _ShapeBody extends StatelessWidget {
             ),
     );
   }
+}
+
+/// Bağlayıcı/çizgi çizer: kutunun köşesinden karşı köşesine (flip'e göre) bir
+/// stroke; kesikliyse kesik, uçlarda ok başı. Eğik/kavisli bağlayıcı düz
+/// çizgiyle yaklaşıklanır (uç noktalar aynı kalır).
+class _LinePainter extends CustomPainter {
+  final ShapeVM s;
+  const _LinePainter(this.s);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final color = s.stroke ?? const Color(0xFF000000);
+    final sw = s.strokeWidth <= 0 ? 1.0 : s.strokeWidth;
+    final start = Offset(s.flipH ? size.width : 0, s.flipV ? size.height : 0);
+    final end = Offset(s.flipH ? 0 : size.width, s.flipV ? 0 : size.height);
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = sw
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    if (s.dashed) {
+      _dash(canvas, start, end, paint, sw);
+    } else {
+      canvas.drawLine(start, end, paint);
+    }
+
+    if (s.arrowEnd) _arrow(canvas, start, end, color, sw);
+    if (s.arrowStart) _arrow(canvas, end, start, color, sw);
+  }
+
+  /// [to] ucunda, [from]→[to] yönünde dolu üçgen ok başı.
+  void _arrow(Canvas canvas, Offset from, Offset to, Color color, double sw) {
+    final dir = to - from;
+    final len = dir.distance;
+    if (len < 0.01) return;
+    final u = dir / len;
+    final head = math.max(sw * 3.5, 6.0); // ok boyu çizgi kalınlığıyla ölçekli
+    final perp = Offset(-u.dy, u.dx);
+    final base = to - u * head;
+    final path = Path()
+      ..moveTo(to.dx, to.dy)
+      ..lineTo(base.dx + perp.dx * head * 0.5, base.dy + perp.dy * head * 0.5)
+      ..lineTo(base.dx - perp.dx * head * 0.5, base.dy - perp.dy * head * 0.5)
+      ..close();
+    canvas.drawPath(
+        path,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.fill);
+  }
+
+  void _dash(Canvas canvas, Offset a, Offset b, Paint paint, double sw) {
+    final total = (b - a).distance;
+    if (total < 0.01) return;
+    final u = (b - a) / total;
+    final dash = sw * 4, gap = sw * 3;
+    var d = 0.0;
+    while (d < total) {
+      canvas.drawLine(
+          a + u * d, a + u * math.min(d + dash, total), paint);
+      d += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LinePainter old) => old.s != s;
 }

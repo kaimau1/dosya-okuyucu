@@ -90,6 +90,25 @@ class ShapeVM {
   final double strokeWidth;
   final bool isEllipse;
   final double cornerRadius;
+
+  /// Şekil bir çizgi/bağlayıcı mı (`p:cxnSp` ya da line/connector geometrisi).
+  /// true ise kutu yerine köşe-köşe bir çizgi çizilir (bkz. slide_canvas
+  /// `_LinePainter`). Eğik/kavisli bağlayıcılar düz çizgiyle yaklaşıklanır.
+  final bool isLine;
+
+  /// Çizgi yönü için ayna bayrakları (`a:xfrm@flipH/flipV`).
+  final bool flipH;
+  final bool flipV;
+
+  /// Çizgi uçlarında ok var mı (`a:ln` head/tail End type != none).
+  final bool arrowStart;
+  final bool arrowEnd;
+
+  /// Çizgi kesikli mi (`a:ln > a:prstDash` != solid).
+  final bool dashed;
+
+  /// Dış gölge (`a:effectLst > a:outerShdw`) — kutu şekillere uygulanır.
+  final BoxShadow? shadow;
   final Uint8List? image;
   final List<ParaVM> paragraphs;
   final String vAnchor; // t | ctr | b
@@ -122,6 +141,13 @@ class ShapeVM {
     this.strokeWidth = 0,
     this.isEllipse = false,
     this.cornerRadius = 0,
+    this.isLine = false,
+    this.flipH = false,
+    this.flipV = false,
+    this.arrowStart = false,
+    this.arrowEnd = false,
+    this.dashed = false,
+    this.shadow,
     this.image,
     this.paragraphs = const [],
     this.vAnchor = 't',
@@ -375,6 +401,7 @@ class PptxRender {
       switch (el.name.qualified) {
         case 'p:sp':
         case 'p:pic':
+        case 'p:cxnSp': // bağlayıcı (çizgi/ok) — çizgi şekli olarak çizilir
           final ph = _placeholder(el);
           if (skipPlaceholders && ph != null) continue;
           final shape = _shape(el, xf, file, theme, clrMap, defaults, ph,
@@ -525,30 +552,56 @@ class PptxRender {
     final y = xf.py(_pt(off.getAttribute('y')) ?? 0);
     final w = (_pt(ext.getAttribute('cx')) ?? 0) * xf.sx;
     final h = (_pt(ext.getAttribute('cy')) ?? 0) * xf.sy;
-    if (w <= 0 || h <= 0) return null;
-
-    final rot = (int.tryParse(xfrm.getAttribute('rot') ?? '') ?? 0) / 60000.0;
-    final nv = _first(el, 'p:nvSpPr') ?? _first(el, 'p:nvPicPr');
-    final id = int.tryParse(_first(nv, 'p:cNvPr')?.getAttribute('id') ?? '') ?? 0;
 
     final prst = _first(spPr, 'a:prstGeom')?.getAttribute('prst') ?? 'rect';
+    final isLine = el.name.qualified == 'p:cxnSp' ||
+        prst == 'line' ||
+        prst == 'straightConnector1' ||
+        prst.startsWith('bentConnector') ||
+        prst.startsWith('curvedConnector');
+    // Çizginin tek boyutu 0 olabilir (yatay/dikey bağlayıcı); düz şekilde 0 = atla.
+    if (w < 0 || h < 0) return null;
+    if (isLine ? (w == 0 && h == 0) : (w <= 0 || h <= 0)) return null;
+
+    final rot = (int.tryParse(xfrm.getAttribute('rot') ?? '') ?? 0) / 60000.0;
+    final flipH = xfrm.getAttribute('flipH') == '1';
+    final flipV = xfrm.getAttribute('flipV') == '1';
+    final nv = _first(el, 'p:nvSpPr') ??
+        _first(el, 'p:nvPicPr') ??
+        _first(el, 'p:nvCxnSpPr');
+    final id = int.tryParse(_first(nv, 'p:cNvPr')?.getAttribute('id') ?? '') ?? 0;
+
     final isEllipse = prst == 'ellipse' || prst == 'chord' || prst == 'pie';
 
     Color? fill;
     Gradient? gradient;
-    if (spPr != null && _first(spPr, 'a:noFill') == null) {
+    if (!isLine && spPr != null && _first(spPr, 'a:noFill') == null) {
       fill = _solidFill(spPr, theme, clrMap);
       gradient = _gradFill(spPr, theme, clrMap);
     }
 
     Color? stroke;
     double strokeW = 0;
+    var arrowStart = false, arrowEnd = false, dashed = false;
     final ln = spPr == null ? null : _first(spPr, 'a:ln');
     if (ln != null && _first(ln, 'a:noFill') == null) {
       stroke = _solidFill(ln, theme, clrMap);
       strokeW = (_pt(ln.getAttribute('w')) ?? 1);
       if (stroke != null && strokeW <= 0) strokeW = 1;
+      final head = _first(ln, 'a:headEnd')?.getAttribute('type');
+      final tail = _first(ln, 'a:tailEnd')?.getAttribute('type');
+      arrowStart = head != null && head != 'none';
+      arrowEnd = tail != null && tail != 'none';
+      final dash = _first(ln, 'a:prstDash')?.getAttribute('val');
+      dashed = dash != null && dash != 'solid';
     }
+    if (isLine) {
+      stroke ??= const Color(0xFF595959); // PP varsayılan bağlayıcı ~ koyu gri
+      if (strokeW <= 0) strokeW = 1;
+    }
+
+    final shadow = _outerShadow(
+        spPr == null ? null : _first(spPr, 'a:effectLst'), theme, clrMap);
 
     Uint8List? image;
     if (el.name.qualified == 'p:pic') {
@@ -580,6 +633,13 @@ class PptxRender {
       strokeWidth: strokeW,
       isEllipse: isEllipse,
       cornerRadius: prst == 'roundRect' ? (w < h ? w : h) * 0.12 : 0,
+      isLine: isLine,
+      flipH: flipH,
+      flipV: flipV,
+      arrowStart: arrowStart,
+      arrowEnd: arrowEnd,
+      dashed: dashed,
+      shadow: shadow,
       image: image,
       paragraphs: paras,
       vAnchor: bodyPr?.getAttribute('anchor') ?? 't',
@@ -826,6 +886,24 @@ class PptxRender {
     final alpha = pct('a:alpha');
     final out = hsl.withLightness(l.clamp(0.0, 1.0)).toColor();
     return alpha == null ? out : out.withOpacity(alpha.clamp(0.0, 1.0));
+  }
+
+  /// `a:effectLst > a:outerShdw` → Flutter [BoxShadow]. Yön (`dir`, 60000'de bir
+  /// derece; ekran y aşağı → saat yönü) ve uzaklık (`dist`, EMU) ofsete çevrilir.
+  BoxShadow? _outerShadow(XmlElement? effectLst, Map<String, Color> theme,
+      Map<String, String> clrMap) {
+    final shdw = effectLst == null ? null : _first(effectLst, 'a:outerShdw');
+    if (shdw == null) return null;
+    final color = _colorOf(shdw, theme, clrMap) ?? const Color(0x66000000);
+    final blur = _pt(shdw.getAttribute('blurRad')) ?? 0;
+    final dist = _pt(shdw.getAttribute('dist')) ?? 0;
+    final dir = (double.tryParse(shdw.getAttribute('dir') ?? '') ?? 0) / 60000.0;
+    final rad = dir * math.pi / 180.0;
+    return BoxShadow(
+      color: color,
+      blurRadius: blur,
+      offset: Offset(dist * math.cos(rad), dist * math.sin(rad)),
+    );
   }
 
   Color? _bgColor(
