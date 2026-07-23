@@ -67,8 +67,15 @@ class MdBlock {
   /// Kod bloğunun ham içeriği; yalnız [MdBlockType.code].
   final String rawCode;
 
+  /// Kod bloğunun dil etiketi (```dart → "dart"); yoksa boş.
+  final String codeLang;
+
   /// Tablo satırları (ilk satır başlık); yalnız [MdBlockType.table].
   final List<List<List<MdSpan>>> rows;
+
+  /// Tablo sütun hizaları: 0=sol, 1=orta, 2=sağ (ayraç satırındaki `:`).
+  /// Boşsa hepsi sol. Yalnız [MdBlockType.table].
+  final List<int> aligns;
 
   const MdBlock({
     required this.type,
@@ -77,7 +84,9 @@ class MdBlock {
     this.items = const [],
     this.start = 1,
     this.rawCode = '',
+    this.codeLang = '',
     this.rows = const [],
+    this.aligns = const [],
   });
 }
 
@@ -104,10 +113,11 @@ List<MdBlock> parseMarkdown(String source) {
       continue;
     }
 
-    // Kod bloğu (```): kapanış işaretine kadar ham topla.
+    // Kod bloğu (```): kapanış işaretine kadar ham topla. `​```dart` → dil etiketi.
     final fence = _fenceRe.firstMatch(line);
     if (fence != null) {
       final marker = fence.group(1)![0];
+      final lang = fence.group(2)!.trim().split(RegExp(r'\s')).first;
       final buf = <String>[];
       i++;
       while (i < lines.length) {
@@ -119,7 +129,11 @@ List<MdBlock> parseMarkdown(String source) {
         buf.add(l);
         i++;
       }
-      blocks.add(MdBlock(type: MdBlockType.code, rawCode: buf.join('\n')));
+      blocks.add(MdBlock(
+        type: MdBlockType.code,
+        rawCode: buf.join('\n'),
+        codeLang: lang,
+      ));
       continue;
     }
 
@@ -133,10 +147,13 @@ List<MdBlock> parseMarkdown(String source) {
     // Başlık.
     final heading = _headingRe.firstMatch(line);
     if (heading != null) {
+      // ATX kapanış diyezleri: `## Başlık ##` → sondaki `#`'ler atılır.
+      final content =
+          heading.group(2)!.replaceFirst(RegExp(r'\s+#+\s*$'), '').trim();
       blocks.add(MdBlock(
         type: MdBlockType.heading,
         level: heading.group(1)!.length,
-        spans: _parseInline(heading.group(2)!.trim()),
+        spans: _parseInline(content),
       ));
       i++;
       continue;
@@ -149,6 +166,7 @@ List<MdBlock> parseMarkdown(String source) {
         lines[i + 1].contains('-')) {
       final rows = <List<List<MdSpan>>>[];
       rows.add(_splitTableRow(line));
+      final aligns = _parseAligns(lines[i + 1]);
       i += 2; // başlık + ayraç
       while (i < lines.length &&
           lines[i].contains('|') &&
@@ -156,17 +174,18 @@ List<MdBlock> parseMarkdown(String source) {
         rows.add(_splitTableRow(lines[i]));
         i++;
       }
-      blocks.add(MdBlock(type: MdBlockType.table, rows: rows));
+      blocks.add(MdBlock(type: MdBlockType.table, rows: rows, aligns: aligns));
       continue;
     }
 
-    // Madde işaretli liste (ardışık maddeleri topla).
+    // Madde işaretli liste (ardışık maddeleri topla). GFM görev listesi
+    // `- [ ]` / `- [x]` onay kutusu simgesine çevrilir.
     if (_bulletRe.hasMatch(line)) {
       final items = <List<MdSpan>>[];
       while (i < lines.length) {
         final m = _bulletRe.firstMatch(lines[i]);
         if (m == null) break;
-        items.add(_parseInline(m.group(1)!.trim()));
+        items.add(_parseBulletItem(m.group(1)!.trim()));
         i++;
       }
       blocks.add(MdBlock(type: MdBlockType.bullet, items: items));
@@ -209,7 +228,10 @@ List<MdBlock> parseMarkdown(String source) {
     }
 
     // Paragraf: boş satıra / özel bloğa kadar birleştir (yumuşak sarma).
-    final buf = <String>[];
+    // Sert satır sonu (satır sonunda 2+ boşluk veya `\`) korunur → `\n`.
+    final sb = StringBuffer();
+    var firstLine = true;
+    var pendingHard = false;
     while (i < lines.length) {
       final l = lines[i];
       if (l.trim().isEmpty ||
@@ -221,12 +243,18 @@ List<MdBlock> parseMarkdown(String source) {
           _fenceRe.hasMatch(l)) {
         break;
       }
-      buf.add(l.trim());
+      if (!firstLine) sb.write(pendingHard ? '\n' : ' ');
+      var content = l.trim();
+      final hardBackslash = content.endsWith(r'\');
+      pendingHard = RegExp(r'  +$').hasMatch(l) || hardBackslash;
+      if (hardBackslash) content = content.substring(0, content.length - 1);
+      sb.write(content);
+      firstLine = false;
       i++;
     }
     blocks.add(MdBlock(
       type: MdBlockType.paragraph,
-      spans: _parseInline(buf.join(' ')),
+      spans: _parseInline(sb.toString()),
     ));
   }
 
@@ -238,6 +266,22 @@ List<List<MdSpan>> _splitTableRow(String line) {
   if (s.startsWith('|')) s = s.substring(1);
   if (s.endsWith('|')) s = s.substring(0, s.length - 1);
   return s.split('|').map((c) => _parseInline(c.trim())).toList();
+}
+
+/// Tablo ayraç satırından sütun hizalarını çözer: `:--`→sol, `:-:`→orta,
+/// `--:`→sağ. 0=sol, 1=orta, 2=sağ.
+List<int> _parseAligns(String sep) {
+  var s = sep.trim();
+  if (s.startsWith('|')) s = s.substring(1);
+  if (s.endsWith('|')) s = s.substring(0, s.length - 1);
+  return s.split('|').map((c) {
+    final t = c.trim();
+    final left = t.startsWith(':');
+    final right = t.endsWith(':');
+    if (left && right) return 1;
+    if (right) return 2;
+    return 0;
+  }).toList();
 }
 
 /// Satır-içi biçim ayrıştırma: `**kalın**`, `*italik*`, `` `kod` ``,
@@ -261,6 +305,13 @@ List<MdSpan> _parseInline(String text) {
   while (i < n) {
     final c = text[i];
 
+    // Ters bölü kaçışı: `\*` → düz `*` (işaret olarak yorumlanmaz).
+    if (c == r'\' && i + 1 < n && _isEscapable(text[i + 1])) {
+      buf.write(text[i + 1]);
+      i += 2;
+      continue;
+    }
+
     // Satır-içi kod: `...`
     if (c == '`') {
       final end = text.indexOf('`', i + 1);
@@ -269,6 +320,34 @@ List<MdSpan> _parseInline(String text) {
         spans.add(MdSpan(text.substring(i + 1, end), code: true));
         i = end + 1;
         continue;
+      }
+    }
+
+    // Görsel: ![alt](url) → yalnız alt metni göster (mobilde görsel çizilmez).
+    if (c == '!' && i + 1 < n && text[i + 1] == '[') {
+      final close = text.indexOf(']', i + 2);
+      if (close > i && close + 1 < n && text[close + 1] == '(') {
+        final paren = text.indexOf(')', close + 2);
+        if (paren > close) {
+          flush();
+          spans.addAll(_parseInline(text.substring(i + 2, close)));
+          i = paren + 1;
+          continue;
+        }
+      }
+    }
+
+    // Otomatik bağlantı: <https://...> veya <a@b.com> → içeriği göster.
+    if (c == '<') {
+      final end = text.indexOf('>', i + 1);
+      if (end > i) {
+        final inner = text.substring(i + 1, end);
+        if (RegExp(r'^(https?://|mailto:|[^\s@]+@[^\s@]+\.)').hasMatch(inner)) {
+          flush();
+          spans.add(MdSpan(inner));
+          i = end + 1;
+          continue;
+        }
       }
     }
 
@@ -287,8 +366,8 @@ List<MdSpan> _parseInline(String text) {
       }
     }
 
-    // Kalın+italik: ***...***
-    if (text.startsWith('***', i)) {
+    // Kalın+italik: ***...*** (flanking: boşlukla çevrili `*` işaret değildir).
+    if (text.startsWith('***', i) && _canToggle(text, i, 3, bold && italic)) {
       flush();
       bold = !bold;
       italic = !italic;
@@ -296,24 +375,40 @@ List<MdSpan> _parseInline(String text) {
       continue;
     }
 
-    // Kalın: ** veya __
-    if (text.startsWith('**', i) || text.startsWith('__', i)) {
+    // Kalın: ** (flanking) — `5 ** 2` gibi boşluklu `*` düz metin kalır.
+    if (text.startsWith('**', i) && _canToggle(text, i, 2, bold)) {
       flush();
       bold = !bold;
       i += 2;
       continue;
     }
 
-    // Üstü çizili: ~~
-    if (text.startsWith('~~', i)) {
+    // Kalın: __ (kelime sınırı — `a__b` düz kalır).
+    if (text.startsWith('__', i) && _isUnderscoreEmphasis(text, i)) {
+      flush();
+      bold = !bold;
+      i += 2;
+      continue;
+    }
+
+    // Üstü çizili: ~~ (flanking).
+    if (text.startsWith('~~', i) && _canToggle(text, i, 2, strike)) {
       flush();
       strike = !strike;
       i += 2;
       continue;
     }
 
-    // İtalik: tek * veya _ (kelime içinde _ italik sayılmaz: snake_case).
-    if (c == '*' || (c == '_' && _isUnderscoreEmphasis(text, i))) {
+    // İtalik: tek * (flanking — `2 * 3` italik olmaz).
+    if (c == '*' && _canToggle(text, i, 1, italic)) {
+      flush();
+      italic = !italic;
+      i += 1;
+      continue;
+    }
+
+    // İtalik: tek _ (kelime içinde italik sayılmaz: snake_case).
+    if (c == '_' && _isUnderscoreEmphasis(text, i)) {
       flush();
       italic = !italic;
       i += 1;
@@ -327,6 +422,36 @@ List<MdSpan> _parseInline(String text) {
 
   // Hiç metin yoksa (ör. yalnız işaretlerden oluşan satır) boş span döndür.
   return spans.isEmpty ? const [MdSpan('')] : spans;
+}
+
+/// Ters bölü ile kaçırılabilen noktalama (CommonMark). Harf/rakam kaçmaz
+/// (ör. `\n` metinde ters bölü + n kalır, satır sonu değil).
+bool _isEscapable(String ch) => r'\`*_{}[]()#+-.!>~|'.contains(ch);
+
+bool _isSpaceCh(String ch) => ch == ' ' || ch == '\t' || ch == '\n';
+
+/// CommonMark flanking (sadeleştirilmiş): bir vurgu işareti ancak açılışta
+/// KENDİSİNDEN SONRA, kapanışta KENDİSİNDEN ÖNCE boşluk yoksa geçerlidir.
+/// Böylece `2 * 3 = 6` gibi boşlukla çevrili `*` düz metin kalır ama
+/// `**kalın**` çalışır. [currentlyOn] o biçimin şu an açık olup olmadığı.
+bool _canToggle(String text, int i, int len, bool currentlyOn) {
+  final before = i > 0 ? text[i - 1] : ' ';
+  final after = i + len < text.length ? text[i + len] : ' ';
+  return currentlyOn ? !_isSpaceCh(before) : !_isSpaceCh(after);
+}
+
+/// Madde içeriğini biçimler; GFM görev listesi işaretini (`[ ]`/`[x]`)
+/// onay kutusu simgesine (☐/☑) çevirir.
+List<MdSpan> _parseBulletItem(String content) {
+  final task = RegExp(r'^\[([ xX])\]\s+(.*)$').firstMatch(content);
+  if (task != null) {
+    final checked = task.group(1) != ' ';
+    return [
+      MdSpan(checked ? '☑ ' : '☐ '),
+      ..._parseInline(task.group(2)!.trim()),
+    ];
+  }
+  return _parseInline(content);
 }
 
 /// `_` yalnızca kelime sınırındaysa italik başlatır/bitirir; `snake_case`

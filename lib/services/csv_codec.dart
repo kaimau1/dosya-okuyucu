@@ -6,30 +6,43 @@
 /// gösterilebilir ve dışa aktarılabilir. Türkçe Excel çoğu zaman `;` ayracı
 /// kullandığından ayraç [detectDelimiter] ile otomatik seçilir.
 class CsvCodec {
-  /// İlk dolu satıra bakarak ayracı tahmin eder: `,` `;` veya sekme.
-  /// Tırnak içi ayraçlar sayılmaz. Hiçbiri yoksa `,` döner.
+  /// Ayracı tahmin eder: `,` `;` sekme veya `|`. İlk ~5 satırdaki tırnak-dışı
+  /// ayraç sayısına bakar (tek satır yanıltıcı olabilir — başlıkta tırnaklı
+  /// virgül gibi). Hiçbiri yoksa `,`. Türkçe Excel çoğu zaman `;` kullanır.
   static String detectDelimiter(String source) {
-    // İlk gerçek (tırnak-dışı satır sonuyla biten) satırı al.
-    final line = _firstRecordLine(source);
-    final counts = <String, int>{',': 0, ';': 0, '\t': 0};
+    final lines = _firstRecordLines(source, 5);
+    const cands = [',', ';', '\t', '|'];
+    var best = ',';
+    var bestScore = -1.0;
+    for (final d in cands) {
+      final counts = [for (final l in lines) _countOutsideQuotes(l, d)];
+      final total = counts.fold<int>(0, (a, b) => a + b);
+      if (total == 0) continue;
+      // Tutarlılık: her satırda aynı sayıda ayraç varsa gerçek ayraç odur.
+      final first = counts.first;
+      final consistent =
+          counts.where((n) => n == first).length / counts.length;
+      final score = total + consistent * 10;
+      if (score > bestScore) {
+        bestScore = score;
+        best = d;
+      }
+    }
+    return best;
+  }
+
+  static int _countOutsideQuotes(String line, String delim) {
+    var n = 0;
     var inQuotes = false;
     for (var i = 0; i < line.length; i++) {
       final ch = line[i];
       if (ch == '"') {
         inQuotes = !inQuotes;
-      } else if (!inQuotes && counts.containsKey(ch)) {
-        counts[ch] = counts[ch]! + 1;
+      } else if (!inQuotes && ch == delim) {
+        n++;
       }
     }
-    var best = ',';
-    var bestN = 0;
-    counts.forEach((d, n) {
-      if (n > bestN) {
-        bestN = n;
-        best = d;
-      }
-    });
-    return best;
+    return n;
   }
 
   /// CSV metnini satır/sütun tablosuna çözer. [delimiter] verilmezse otomatik
@@ -118,17 +131,38 @@ class CsvCodec {
 
   /// Tabloyu CSV metnine çevirir. Ayraç/tırnak/yeni satır içeren alanlar
   /// otomatik tırnaklanır (`"` → `""`). Satır sonu `\r\n` (Excel uyumu).
-  static String encode(List<List<String>> rows, {String delimiter = ','}) {
+  ///
+  /// [sanitizeFormulas] açıkken `=`/`@` (ve sayı olmayan `+`/`-`) ile başlayan
+  /// hücreler başına `'` konur → Excel bunu formül sanıp çalıştırmaz (CSV
+  /// enjeksiyonu önlemi). Güvenilmez kaynaktan (ör. AI çıktısı) üretimde açılır;
+  /// kullanıcının kendi formüllerini korumak için varsayılan kapalı.
+  static String encode(
+    List<List<String>> rows, {
+    String delimiter = ',',
+    bool sanitizeFormulas = false,
+  }) {
     final sb = StringBuffer();
     for (var r = 0; r < rows.length; r++) {
       final cells = rows[r];
       for (var c = 0; c < cells.length; c++) {
         if (c > 0) sb.write(delimiter);
-        sb.write(_escape(cells[c], delimiter));
+        final v = sanitizeFormulas ? _sanitize(cells[c]) : cells[c];
+        sb.write(_escape(v, delimiter));
       }
       if (r < rows.length - 1) sb.write('\r\n');
     }
     return sb.toString();
+  }
+
+  static String _sanitize(String v) {
+    if (v.isEmpty) return v;
+    final c = v[0];
+    final risky = c == '=' ||
+        c == '@' ||
+        c == '\t' ||
+        c == '\r' ||
+        ((c == '+' || c == '-') && double.tryParse(v) == null);
+    return risky ? "'$v" : v;
   }
 
   static String _escape(String value, String delimiter) {
@@ -140,18 +174,23 @@ class CsvCodec {
     return '"${value.replaceAll('"', '""')}"';
   }
 
-  static String _firstRecordLine(String source) {
-    final sb = StringBuffer();
+  /// İlk [max] mantıksal satırı (tırnak-dışı satır sonuyla ayrılan) döndürür.
+  static List<String> _firstRecordLines(String source, int max) {
+    final lines = <String>[];
+    var sb = StringBuffer();
     var inQuotes = false;
-    for (var i = 0; i < source.length; i++) {
+    for (var i = 0; i < source.length && lines.length < max; i++) {
       final ch = source[i];
       if (ch == '"') inQuotes = !inQuotes;
       if (!inQuotes && (ch == '\n' || ch == '\r')) {
-        if (sb.isEmpty) continue; // baştaki boş satırları atla
-        break;
+        if (sb.isEmpty) continue; // baştaki/ardışık boş satırları atla
+        lines.add(sb.toString());
+        sb = StringBuffer();
+        continue;
       }
       sb.write(ch);
     }
-    return sb.toString();
+    if (sb.isNotEmpty && lines.length < max) lines.add(sb.toString());
+    return lines.isEmpty ? [''] : lines;
   }
 }

@@ -75,7 +75,7 @@ class MarkdownExport {
           }
           break;
         case MdBlockType.table:
-          body.write(_table(block.rows));
+          body.write(_table(block.rows, block.aligns));
           // Word tablo sonrası bir paragraf ister (aksi halde onarım uyarısı).
           body.write('<w:p/>');
           break;
@@ -134,9 +134,10 @@ class MarkdownExport {
   }
 
   /// Markdown → CSV metni (Türkçe Excel uyumu için `;` ayracı). AI tablosu
-  /// gerçek sütunlara açılır; tablo dışı içerik tek sütun.
+  /// gerçek sütunlara açılır; tablo dışı içerik tek sütun. AI çıktısı
+  /// güvenilmez kaynak → formül enjeksiyonuna karşı hücreler temizlenir.
   static String toCsv(String markdown) =>
-      CsvCodec.encode(_rows(markdown), delimiter: ';');
+      CsvCodec.encode(_rows(markdown), delimiter: ';', sanitizeFormulas: true);
 
   /// Markdown bloklarını satır/sütun tablosuna indirir (toXlsx + toCsv ortak).
   static List<List<String>> _rows(String markdown) {
@@ -250,9 +251,17 @@ class MarkdownExport {
         '<w:t xml:space="preserve">${_esc(s.text)}</w:t></w:r>';
   }
 
-  static String _table(List<List<List<MdSpan>>> rows) {
+  static String _table(List<List<List<MdSpan>>> rows, List<int> aligns) {
     if (rows.isEmpty) return '';
     final cols = rows.fold<int>(0, (m, r) => r.length > m ? r.length : m);
+    // Sütun hizası (Markdown `:---:`): 0=sol,1=orta,2=sağ → Word `w:jc`.
+    String jc(int c) {
+      final a = c < aligns.length ? aligns[c] : 0;
+      if (a == 1) return '<w:pPr><w:jc w:val="center"/></w:pPr>';
+      if (a == 2) return '<w:pPr><w:jc w:val="right"/></w:pPr>';
+      return '';
+    }
+
     final buf = StringBuffer('<w:tbl><w:tblPr>'
         '<w:tblStyle w:val="TableGrid"/>'
         '<w:tblW w:w="0" w:type="auto"/>'
@@ -268,7 +277,7 @@ class MarkdownExport {
         for (final s in cell) {
           runs.write(_run(s, forceBold: r == 0));
         }
-        buf.write('<w:tc><w:tcPr/><w:p>$runs</w:p></w:tc>');
+        buf.write('<w:tc><w:tcPr/><w:p>${jc(c)}$runs</w:p></w:tc>');
       }
       buf.write('</w:tr>');
     }

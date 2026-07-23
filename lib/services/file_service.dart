@@ -12,6 +12,7 @@ import '../models/document.dart';
 import 'csv_codec.dart';
 import 'legacy_text.dart';
 import 'office_reader.dart';
+import 'text_decode.dart';
 import 'xls_legacy.dart';
 
 /// Dosya seçme, tür tespiti ve içerik yükleme.
@@ -346,11 +347,8 @@ class FileService {
 
   Future<String> _readTextSafely(File file) async {
     final bytes = await file.readAsBytes();
-    try {
-      return utf8.decode(bytes);
-    } catch (_) {
-      return latin1.decode(bytes);
-    }
+    // BOM temizleme + UTF-8 → Windows-1254 (Türkçe) düşüşü (bkz. TextDecode).
+    return TextDecode.decode(bytes);
   }
 
   Future<void> saveText(String path, String content) async {

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -130,6 +131,21 @@ void main() {
       final doc = await svc.load(f.path);
       expect(doc.kind, DocKind.spreadsheet);
       expect(doc.table![1], ['1', '2', '3']);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+
+  test('BOM-lu .csv ilk hücreye BOM yapıştırmaz (round-trip)', () async {
+    final dir = await Directory.systemTemp.createTemp('fs_bom');
+    try {
+      final f = File('${dir.path}/bom.csv');
+      // Uygulamanın kendi dışa aktardığı gibi UTF-8 BOM + `;` ayracı.
+      await f.writeAsBytes([0xEF, 0xBB, 0xBF, ...utf8.encode('ad;yaş\nAli;30')]);
+      final doc = await svc.load(f.path);
+      expect(doc.kind, DocKind.spreadsheet);
+      expect(doc.table![0][0], 'ad'); // '﻿ad' değil
+      expect(doc.table![0][1], 'yaş');
     } finally {
       await dir.delete(recursive: true);
     }

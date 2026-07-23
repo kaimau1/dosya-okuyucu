@@ -114,6 +114,96 @@ void main() {
       expect(spans.every((s) => !s.italic), isTrue);
       expect(spans.map((s) => s.text).join(), contains('my_var_name'));
     });
+
+    test('ters bölü kaçışı işareti düz metin yapar', () {
+      final spans = spansOf(r'fiyat 5 \* 3 = 15');
+      expect(spans.every((s) => !s.italic && !s.bold), isTrue);
+      expect(spans.map((s) => s.text).join(), '5 \\* 3 = 15'.replaceAll('\\', ''));
+    });
+
+    test('görsel ![alt](url) yalnız alt metni gösterir', () {
+      final spans = spansOf('bak ![kedi resmi](kedi.png) burada');
+      final joined = spans.map((s) => s.text).join();
+      expect(joined, contains('kedi resmi'));
+      expect(joined, isNot(contains('kedi.png')));
+      expect(joined, isNot(contains('![')));
+    });
+
+    test('otomatik bağlantı <url> içeriği gösterir', () {
+      final spans = spansOf('site <https://ornek.com> adresinde');
+      final joined = spans.map((s) => s.text).join();
+      expect(joined, contains('https://ornek.com'));
+      expect(joined, isNot(contains('<')));
+    });
+
+    test('küçüktür işareti (url değil) düz kalır', () {
+      final spans = spansOf('a < b ve c > d');
+      expect(spans.map((s) => s.text).join(), 'a < b ve c > d');
+    });
+  });
+
+  group('parseMarkdown — GFM eklemeler', () {
+    test('başlıkta kapanış diyezleri atılır', () {
+      final b = parseMarkdown('## Başlık ##').first;
+      expect(b.type, MdBlockType.heading);
+      expect(_text(b), 'Başlık');
+    });
+
+    test('görev listesi onay kutusuna çevrilir', () {
+      final b = parseMarkdown('- [ ] yapılacak\n- [x] bitti').first;
+      expect(b.type, MdBlockType.bullet);
+      expect(b.items[0].map((s) => s.text).join(), startsWith('☐'));
+      expect(b.items[0].map((s) => s.text).join(), contains('yapılacak'));
+      expect(b.items[1].map((s) => s.text).join(), startsWith('☑'));
+      expect(b.items[1].map((s) => s.text).join(), contains('bitti'));
+    });
+  });
+
+  group('vurgu flanking (CommonMark)', () {
+    List<MdSpan> spansOf(String md) => parseMarkdown(md).first.spans;
+
+    test('boşlukla çevrili * çarpım işareti italik yapmaz', () {
+      final spans = spansOf('2 * 3 = 6 ve 4 * 5 = 20');
+      expect(spans.every((s) => !s.italic && !s.bold), isTrue);
+      expect(spans.map((s) => s.text).join(), '2 * 3 = 6 ve 4 * 5 = 20');
+    });
+
+    test('gerçek **kalın** yine biçimlenir', () {
+      final spans = spansOf('bu **kalın** yazı');
+      expect(spans.any((s) => s.bold && s.text == 'kalın'), isTrue);
+    });
+
+    test('gerçek *italik* yine biçimlenir', () {
+      final spans = spansOf('bu *italik* yazı');
+      expect(spans.any((s) => s.italic && s.text == 'italik'), isTrue);
+    });
+  });
+
+  group('kod bloğu + tablo hizalama + sert satır sonu', () {
+    test('kod bloğu dil etiketini yakalar', () {
+      final b = parseMarkdown('```dart\nvoid main() {}\n```').first;
+      expect(b.type, MdBlockType.code);
+      expect(b.codeLang, 'dart');
+      expect(b.rawCode, 'void main() {}');
+    });
+
+    test('tablo sütun hizaları çözülür (:--, :-:, --:)', () {
+      const md = '| a | b | c |\n|:--|:-:|--:|\n| 1 | 2 | 3 |';
+      final b = parseMarkdown(md).first;
+      expect(b.type, MdBlockType.table);
+      expect(b.aligns, [0, 1, 2]); // sol, orta, sağ
+    });
+
+    test('iki boşlukla biten satır sert satır sonu (\\n) üretir', () {
+      final b = parseMarkdown('birinci satır  \nikinci satır').first;
+      expect(b.type, MdBlockType.paragraph);
+      expect(b.spans.map((s) => s.text).join(), contains('\n'));
+    });
+
+    test('normal sarma boşlukla birleşir (satır sonu yok)', () {
+      final b = parseMarkdown('birinci satır\nikinci satır').first;
+      expect(b.spans.map((s) => s.text).join(), 'birinci satır ikinci satır');
+    });
   });
 
   group('stripMarkdown — düz metin', () {

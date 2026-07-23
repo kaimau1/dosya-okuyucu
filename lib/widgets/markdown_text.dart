@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../core/markdown.dart';
 
@@ -87,21 +88,57 @@ class MarkdownText extends StatelessWidget {
         return Divider(height: 12, color: theme.dividerColor);
 
       case MdBlockType.code:
+        // Başlık şeridi: dil etiketi + kopyala; gövde yatay kaydırılabilir
+        // monospace (uzun satırlar sarmasın, taşarsa kaydırılır).
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.dividerColor, width: 0.5),
           ),
-          child: SelectableText(
-            block.rawCode,
-            style: base.copyWith(fontFamily: 'monospace', fontSize: 13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      block.codeLang.isEmpty ? 'kod' : block.codeLang,
+                      style: base.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Kopyala',
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 16,
+                    icon: const Icon(Icons.copy_outlined),
+                    onPressed: () => Clipboard.setData(
+                        ClipboardData(text: block.rawCode)),
+                  ),
+                ],
+              ),
+              Divider(height: 1, color: theme.dividerColor),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(10),
+                child: SelectableText(
+                  block.rawCode,
+                  style: base.copyWith(fontFamily: 'monospace', fontSize: 13),
+                ),
+              ),
+            ],
           ),
         );
 
       case MdBlockType.table:
-        return _table(context, block.rows, base);
+        return _table(context, block.rows, block.aligns, base);
     }
   }
 
@@ -140,7 +177,8 @@ class MarkdownText extends StatelessWidget {
     );
   }
 
-  Widget _table(BuildContext context, List<List<List<MdSpan>>> rows, TextStyle base) {
+  Widget _table(BuildContext context, List<List<List<MdSpan>>> rows,
+      List<int> aligns, TextStyle base) {
     if (rows.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final border = TableBorder.all(color: theme.dividerColor, width: 1);
@@ -151,6 +189,16 @@ class MarkdownText extends StatelessWidget {
           for (var c = 0; c < cols; c++)
             c < row.length ? row[c] : const [MdSpan('')],
         ];
+    // Sütun hizası (ayraç satırındaki `:`): 0=sol,1=orta,2=sağ.
+    TextAlign alignOf(int c) {
+      final a = c < aligns.length ? aligns[c] : 0;
+      return a == 1
+          ? TextAlign.center
+          : a == 2
+              ? TextAlign.right
+              : TextAlign.left;
+    }
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Table(
@@ -165,18 +213,19 @@ class MarkdownText extends StatelessWidget {
                           .withOpacity(0.5))
                   : null,
               children: [
-                for (final cell in pad(rows[r]))
+                for (var c = 0; c < cols; c++)
                   Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     child: SelectableText.rich(
                       _spansToTextSpan(
                         context,
-                        cell,
+                        pad(rows[r])[c],
                         r == 0
                             ? base.copyWith(fontWeight: FontWeight.w700)
                             : base,
                       ),
+                      textAlign: alignOf(c),
                     ),
                   ),
               ],

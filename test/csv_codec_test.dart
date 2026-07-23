@@ -49,6 +49,19 @@ void main() {
       expect(rows[1], ['1', '2']);
     });
 
+    test('boru | ayracı otomatik saptanır', () {
+      final rows = CsvCodec.parse('a|b|c\n1|2|3');
+      expect(rows[0], ['a', 'b', 'c']);
+      expect(rows[1], ['1', '2', '3']);
+    });
+
+    test('çok satırlı tutarlılık tek satır belirsizliğini çözer', () {
+      // Başlıkta hem `,` hem `;` var; ikinci satır gerçek ayracı (`;`) ele verir.
+      final rows = CsvCodec.parse('a;b,c\n1;2');
+      expect(rows[0], ['a', 'b,c']);
+      expect(rows[1], ['1', '2']);
+    });
+
     test('sondaki boş satır atılır', () {
       final rows = CsvCodec.parse('a,b\n1,2\n');
       expect(rows.length, 2);
@@ -79,6 +92,23 @@ void main() {
       expect(CsvCodec.encode([
         ['a', 'b']
       ], delimiter: ';'), 'a;b');
+    });
+
+    test('sanitizeFormulas: formül hücresi başına tırnak konur', () {
+      final out = CsvCodec.encode([
+        ['=1+1', '@cmd', '-5', 'normal']
+      ], sanitizeFormulas: true);
+      expect(out, contains("'=1+1"));
+      expect(out, contains("'@cmd"));
+      expect(out, contains('-5')); // negatif sayı korunur, tırnaklanmaz
+      expect(out, isNot(contains("'-5")));
+    });
+
+    test('sanitize kapalıyken formül hücresi değişmez', () {
+      final out = CsvCodec.encode([
+        ['=1+1']
+      ]);
+      expect(out, '=1+1');
     });
   });
 
