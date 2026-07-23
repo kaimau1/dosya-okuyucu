@@ -585,6 +585,33 @@ HAFIZA'daki eski "gradient/tablo kapsam dışı" notunu çoktan geçmişti (grad
   `_resolveFont`/`_mapFamily`/`_themeFonts`/`_outerShadow`/`_parseChart`),
   `widgets/slide_canvas.dart` (`_LinePainter` + fontFamily + chart/line branch),
   `widgets/chart_painter.dart` (yeni). Grafik ayrıntısı → graphify.
+
+## 2026-07-23 — PDF geliştirme: Syncfusion eklendi (ağır-dep ilkesi geri alındı)
+- **Karar (kullanıcı, itirazım kayıtta):** PDF'e annotation/sayfa-düzenleme/form
+  için `syncfusion_flutter_pdf` eklendi. "Hafif/ücretsiz/ağır-dep-yok" ilkesinden
+  BİLİNÇLİ sapma — kullanıcı 4 özelliği (arama, annotation, sayfa düzenleme, form)
+  istedi; bunların 2-4'ü ancak ağır PDF-yazma kütüphanesiyle olur. pdfrx salt-render,
+  `pdf` paketi mevcut sayfa alamıyor → tek yol Syncfusion.
+- **SÜRÜM SABİT: `syncfusion_flutter_pdf: 31.1.19` + `syncfusion_flutter_core: 31.1.19`.**
+  *Niye pin:* 32+ (ve core 31.2.x) **Flutter >=3.35.1** ister → CI 3.29.3'ü kırar.
+  31.1.x `flutter>=3.29.0` + Dart 3.7 + `xml >=6.5.0 <7.0.0` (bizim `^6.5.0` ile
+  birebir, cascade YOK) + `archive`'a bağlı DEĞİL (excel'in `archive ^3`'üyle
+  çakışmaz). **TUZAK:** pdf'in dep'i `^31.1.19` core'u 31.2.18'e çekiyordu (Flutter
+  3.35) — yerel 3.44 gizledi; core'u da elle 31.1.19'a pinledim. Doğrulama:
+  pub.dev API'sinden sürüm kısıtları tarandı (yerel resolüsyona güvenme, HAFIZA tuzağı).
+- **Mimari:** görüntüleme **pdfrx/pdfium'da KALIR** (yüksek sadakat); Syncfusion
+  yalnız düzenlenmiş PDF ÜRETİR (annotate/düzenle/form → yeni bayt → dosyaya yaz →
+  pdfrx'te yeniden aç). İki PDF yığını yan yana, bilinçli.
+- **Lisans:** Syncfusion Community License (birey/küçük ekip ücretsiz). PDF
+  *kütüphanesi* çalışma-anı banner göstermez (o SfPdfViewer gibi UI widget'larında).
+  Repo public → bağımlılık görünür. Kullanıcı uygunluğu varsayıldı.
+- **YAPILDI:** Faz 0 (dep + duman testi `syncfusion_pdf_smoke_test`, CI 3.29.3'te
+  test-green → Syncfusion derleniyor doğrulandı). Faz 1 (belge içi arama + sayfaya
+  atlama + vurgu; pdfrx'in hazır `PdfTextSearcher`'ı, Syncfusion'sız — `viewer_screen`
+  `_pdfController`/`_pdfSearcher`, find bar PDF için dallandı). İkisi de main'de push'lı.
+- **KALDI (cihaz doğrulaması şart, koordinat/UI kodu):** Faz 2 annotation, Faz 3
+  sayfa düzenleme, Faz 4 form → ayrıntı KALANLAR.md. Faz 1'in aksine bunlar benim
+  koordinat eşlemem; kör push riskli, cihazda test edilmeli.
   Actions dakika kotası derdi varsa gerçek çözümler: repo'yu public yapmak
   (sınırsız dakika) veya ücretsiz organization açmak — ikinci ücretsiz kişisel
   hesap GitHub ToS'a aykırı, kota için kullanılmamalı.

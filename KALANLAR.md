@@ -7,6 +7,9 @@
       Gemini model listesinin Ayarlar'da otomatik dolması. Ayrıca eski liste:
       WhatsApp "birlikte aç", odak-noktalı pinch, Word tam sayfa sığdırma,
       eski .doc/.xls/.ppt açma, arama, yeni belge, slayt çoğalt/sil/taşı.
+- [ ] **PDF arama cihaz doğrulaması (kullanıcı)** — Faz 1 (belge içi arama + sayfaya
+      atlama + sarı vurgu) main'de/build'de: gerçek PDF'te arama sonuçları doğru
+      vurgulanıp sonraki/önceki ile o sayfaya kayıyor mu? (pdfrx PdfTextSearcher).
 - [ ] **Slayt sadakati cihaz doğrulaması (kullanıcı)** — Faz 1-3 yerelde test
       yeşil (204) ama GÖRSEL cihazda bakılmadı (2026-07-23): gömülü fontlarla
       metin görünümü + **değişken-Arimo kalın** (Arial kalın doğru mu?),
@@ -14,6 +17,19 @@
       halka/çizgi) gerçek .pptx'te doğru veri+renk+oranla çizilmesi.
 
 ## Sonra yapılacak
+- [ ] **PDF Faz 2 — Annotation (Syncfusion yazma)** — seçili metni vurgula. Notlar:
+      `PdfSelectLayer` seçimi `_selStart/_selEnd` (fullText char indeksi) tutuyor;
+      `_SelectionPainter` her fragment için `f.getBoundsForRange(start,end)` → **PdfRect
+      (PDF puntosu)** üretiyor. Yeni: layer bu PdfRect listesini + sayfa no'yu yukarı
+      raporlasın (onSelected'ı genişlet). Syncfusion helper (`services/pdf_annotator.dart`):
+      `PdfDocument(inputBytes)` → `page.annotations.add(PdfTextMarkupAnnotation/
+      PdfRectangleAnnotation)` → `save()`. **KOORDİNAT TUZAĞI:** pdfium PdfRect Y-up
+      (bottom-left origin), Syncfusion annotation Y-down (top-left) → `top=ph - pdfRect.top`.
+      Syncfusion annotation API'sini önce kontrol et (pub cache). Cihazda doğrula.
+- [ ] **PDF Faz 3 — Sayfa düzenleme** — döndür/sil/sırala. Syncfusion `doc.pages[i].rotation`,
+      `doc.pages.remove/reorder` → save → pdfrx'te reload. Küçük resim şeridi UI gerekebilir.
+- [ ] **PDF Faz 4 — Form doldurma** — Syncfusion `PdfLoadedForm` alanları oku (`doc.form.fields`),
+      ekranda düzenlenebilir overlay, doldur → save. En belirsiz UX; en son.
 - [ ] Excel: dondurulmuş bölme (frozen pane) desteği — kullanıcının SAHU dosyasında var,
       şu an yok sayılıyor (tek parça kaydırma)
 - [ ] Yol haritası #2: Firebase config + gerçek senkron (kullanıcı `flutterfire configure`)
