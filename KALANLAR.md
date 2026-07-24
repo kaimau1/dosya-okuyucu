@@ -1,6 +1,22 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **Çeviri/resim-PDF/premium cihaz doğrulaması (kullanıcı)** — 2026-07-24,
+      build 89'da: (a) PDF'te metin seç → "Çevir" → dil modeli iniyor mu, çeviri
+      geliyor mu; (b) Word/Excel/Slayt menüsünde "Belgeyi çevir"; (c) bir resim
+      açıp "PDF'e dönüştür" → "Yazıları da tanı" → çıkan PDF'te resim TAM ve
+      içindeki yazı aranabilir mi; (d) .apk dosyasına "birlikte aç" deyince
+      uygulamamız artık listede ÇIKMIYOR mu (asıl şikayet); (e) WhatsApp'tan
+      gelen dosya hâlâ açılıyor mu (octet-stream riski — HAFIZA'da yazılı);
+      (f) premium görünüm: kart/liste/boş durum, koyu tema kontrastı.
+- [ ] **Seçili metin çevirisi Word/Excel/Slayt'ta yok** — şu an yalnız PDF'te
+      (seçim altyapısı orada). Word WebView tabanlı, seçim Flutter'a gelmiyor;
+      istenirse JS köprüsüyle seçili metin okunabilir.
+- [ ] **Çoklu resim → tek PDF** — kullanıcı "resimleri" (çoğul) demişti; mevcut
+      akış tek açık dosya üzerinden çalışıyor, çoklu seçim yok.
+- [ ] **`withOpacity` → `withValues` temizliği** — analyze'da ~8 uyarı
+      (markdown_text, pdf_select_layer, office_shell, viewer_screen, editörler).
+      Yeni kod `withValues` kullanıyor, eskiler kaldı.
 - [ ] **PDF Faz 2 vurgu cihaz doğrulaması (kullanıcı)** — yerel build telefona
       KURULDU (2026-07-23, adb install başarılı, debug-imzalı). "Metin seç" →
       renk seç (sarı/yeşil/pembe/mavi) → Vurgula → (a) vurgu SEÇİLEN metnin tam
