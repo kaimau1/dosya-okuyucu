@@ -9,6 +9,7 @@ import '../../models/document.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/docx_view.dart';
 import '../../widgets/office_shell.dart';
+import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
 
 /// Word ekranı: belge **gerçek sayfa düzeniyle** açılır (docx-preview) ve
@@ -169,6 +170,10 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 if (_dirty) await _save();
                 setState(() => _plainMode = false);
                 break;
+              case 'translate':
+                TranslateFlow.run(context, widget.plainText,
+                    title: widget.name);
+                break;
             }
           },
           itemBuilder: (_) => [
@@ -179,6 +184,8 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                     value: 'page', child: Text('Sayfa görünümü'))
                 : const PopupMenuItem(
                     value: 'plain', child: Text('Metin düzenleyici')),
+            const PopupMenuItem(
+                value: 'translate', child: Text('Belgeyi çevir')),
           ],
         ),
       ],
@@ -208,15 +215,15 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       // Klavye/biçim çubuğu varken FAB araya girmesin.
       fab: _editing
           ? null
-          : FloatingActionButton.extended(
+          : FloatingActionButton(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => ChatScreen(
                   fileContext: widget.plainText,
                   fileName: widget.name,
                 ),
               )),
-              icon: const Icon(Icons.smart_toy_outlined),
-              label: const Text('AI'),
+              tooltip: 'AI ile çalış',
+              child: const Icon(Icons.smart_toy_outlined),
             ),
     );
   }

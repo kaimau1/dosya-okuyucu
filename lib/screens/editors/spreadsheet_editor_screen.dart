@@ -13,6 +13,7 @@ import '../../services/formula_engine.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
+import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
 
 /// Excel görünümü: gerçek sütun genişlikleri, satır yükseklikleri, hücre
@@ -329,10 +330,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           onSelected: (v) {
             if (v == 'export') _export();
             if (v == 'csv') _exportCsv();
+            if (v == 'translate') {
+              TranslateFlow.run(context, widget.plainText,
+                  title: widget.name);
+            }
           },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
             PopupMenuItem(value: 'csv', child: Text('CSV olarak dışa aktar')),
+            PopupMenuItem(value: 'translate', child: Text('Belgeyi çevir')),
           ],
         ),
       ],
@@ -361,15 +367,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       bottomBar: editor == null || editor.sheets.length < 2
           ? null
           : _sheetTabs(editor),
-      fab: FloatingActionButton.extended(
+      fab: FloatingActionButton(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(
             fileContext: widget.plainText,
             fileName: widget.name,
           ),
         )),
-        icon: const Icon(Icons.smart_toy_outlined),
-        label: const Text('AI'),
+        tooltip: 'AI ile çalış',
+        child: const Icon(Icons.smart_toy_outlined),
       ),
     );
   }

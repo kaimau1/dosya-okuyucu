@@ -10,6 +10,13 @@ import 'package:pdfrx/pdfrx.dart';
 /// İnternet gerekmez; model APK ile gelir. Görsel dosyalardan ve taranmış
 /// (metin katmanı olmayan) PDF'lerden metin çıkarır. PDF sayfaları pdfium ile
 /// bitmap'e çizilir, geçici PNG üzerinden ML Kit'e verilir.
+/// OCR'ın bulduğu tek metin satırı ve resmin piksel koordinatındaki kutusu.
+class OcrLine {
+  final String text;
+  final ui.Rect box;
+  const OcrLine(this.text, this.box);
+}
+
 class OcrService {
   /// Tek OCR turunda işlenecek en fazla PDF sayfası (süre/pil koruması).
   static const maxPdfPages = 25;
@@ -21,6 +28,29 @@ class OcrService {
       final result =
           await recognizer.processImage(InputImage.fromFilePath(path));
       return result.text.trim();
+    } finally {
+      await recognizer.close();
+    }
+  }
+
+  /// Bir görselden metni SATIR SATIR, resim piksel koordinatındaki kutusuyla
+  /// birlikte tanır. Aranabilir PDF üretiminde (görünmez metin katmanı) her
+  /// satırı kendi yerine yazmak için gerekir.
+  ///
+  /// ponytail: kutular ML Kit'in EXIF döndürmesi uygulanmış hâline göredir;
+  /// EXIF ile döndürülmüş fotoğraflarda katman kayabilir — şikayet gelirse
+  /// resmi önce normalize edip (döndürmeyi baytlara işleyip) OCR'la.
+  static Future<List<OcrLine>> recognizeImageLines(String path) async {
+    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    try {
+      final result =
+          await recognizer.processImage(InputImage.fromFilePath(path));
+      return [
+        for (final block in result.blocks)
+          for (final line in block.lines)
+            if (line.text.trim().isNotEmpty)
+              OcrLine(line.text, line.boundingBox),
+      ];
     } finally {
       await recognizer.close();
     }

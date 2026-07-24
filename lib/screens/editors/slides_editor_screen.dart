@@ -10,6 +10,7 @@ import '../../services/pptx_render.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_canvas.dart';
+import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
 
@@ -143,9 +144,14 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         PopupMenuButton<String>(
           onSelected: (v) {
             if (v == 'export') _export();
+            if (v == 'translate') {
+              TranslateFlow.run(context, widget.plainText,
+                  title: widget.name);
+            }
           },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
+            PopupMenuItem(value: 'translate', child: Text('Belgeyi çevir')),
           ],
         ),
       ],
@@ -159,15 +165,15 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                     if (_editShapeVM != null) _formatBar(),
                   ],
                 ),
-      fab: FloatingActionButton.extended(
+      fab: FloatingActionButton(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(
             fileContext: widget.plainText,
             fileName: widget.name,
           ),
         )),
-        icon: const Icon(Icons.smart_toy_outlined),
-        label: const Text('AI'),
+        tooltip: 'AI ile çalış',
+        child: const Icon(Icons.smart_toy_outlined),
       ),
     );
   }

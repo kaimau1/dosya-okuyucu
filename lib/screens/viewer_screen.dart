@@ -16,6 +16,7 @@ import '../services/ocr_service.dart';
 import '../services/pdf_annotator.dart';
 import '../widgets/office_shell.dart';
 import '../widgets/pdf_select_layer.dart';
+import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
@@ -296,6 +297,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Future<void> _exportPdf() async {
+    // Görselde plainText boştur: metin yoluna sokulursa PDF'e "(Boş belge)"
+    // yazılıp resim tamamen kaybolurdu — görsel kendi yolundan gider.
+    if (widget.doc.kind == DocKind.image) {
+      await _exportImagePdf();
+      return;
+    }
     final text = _textController?.text ?? widget.doc.plainText;
     final bytes = await _conversion.textToPdf(widget.doc.name, text);
     final path = await _conversion.writeToTemp(
@@ -303,6 +310,82 @@ class _ViewerScreenState extends State<ViewerScreen> {
       bytes,
     );
     await Share.shareXFiles([XFile(path)], text: 'PDF olarak dışa aktarıldı');
+  }
+
+  /// Görseli tam çözünürlükte PDF'e gömer; istenirse OCR ile görünmez metin
+  /// katmanı ekleyip PDF'i aranabilir yapar.
+  Future<void> _exportImagePdf() async {
+    final withOcr = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Resmi PDF yap'),
+        content: const Text(
+          'Resim tam çözünürlükte, kırpılmadan PDF\'e gömülecek.\n\n'
+          'İçindeki yazılar da PDF içinde aranabilir/kopyalanabilir olsun mu? '
+          '(Metin tanıma birkaç saniye sürer, görüntüyü değiştirmez.)',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Sadece resim'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yazıları da tanı'),
+          ),
+        ],
+      ),
+    );
+    if (withOcr == null || !mounted) return;
+
+    final progress = ValueNotifier<String>(
+        withOcr ? 'Yazılar taranıyor…' : 'PDF hazırlanıyor…');
+    _showProgressDialog(progress);
+
+    String? path;
+    String? error;
+    try {
+      final lines = withOcr
+          ? await OcrService.recognizeImageLines(widget.doc.path)
+          : const <OcrLine>[];
+      progress.value = 'PDF hazırlanıyor…';
+      final bytes =
+          await _conversion.imageToPdf(widget.doc.path, ocrLines: lines);
+      path = await _conversion.writeToTemp(
+          '${_stem(widget.doc.name)}.pdf', bytes);
+    } catch (e) {
+      error = '$e';
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(); // ilerleme penceresi
+
+    if (error != null) {
+      _snack('PDF oluşturulamadı: $error');
+      return;
+    }
+    await Share.shareXFiles([XFile(path!)], text: 'PDF olarak dışa aktarıldı');
+  }
+
+  void _showProgressDialog(ValueNotifier<String> progress) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+                width: 24, height: 24, child: CircularProgressIndicator()),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ValueListenableBuilder<String>(
+                valueListenable: progress,
+                builder: (_, v, __) => Text(v),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _exportSlides() async {
@@ -350,20 +433,36 @@ class _ViewerScreenState extends State<ViewerScreen> {
     } catch (_) {}
   }
 
-  void _openChat() {
-    // PDF'te metin katmanı, görselde OCR sonucu AI'ın bağlamı olur.
-    var ctxText = widget.doc.plainText;
-    if (widget.doc.kind == DocKind.pdf && _pdfText.isNotEmpty) {
-      ctxText = _pdfText;
-    } else if (widget.doc.kind == DocKind.image && _ocrImageText.isNotEmpty) {
-      ctxText = _ocrImageText;
+  /// Belgenin okunabilir metni: PDF'te metin katmanı, görselde OCR sonucu,
+  /// diğerlerinde ham içerik. AI bağlamı ve çeviri aynı kaynağı kullanır.
+  String get _documentText {
+    if (widget.doc.kind == DocKind.pdf && _pdfText.isNotEmpty) return _pdfText;
+    if (widget.doc.kind == DocKind.image && _ocrImageText.isNotEmpty) {
+      return _ocrImageText;
     }
+    return _textController?.text ?? widget.doc.plainText;
+  }
+
+  void _openChat() {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ChatScreen(
-        fileContext: ctxText,
+        fileContext: _documentText,
         fileName: widget.doc.name,
       ),
     ));
+  }
+
+  /// Tüm belgeyi cihaz-içi çevirir. Metin katmanı olmayan taranmış PDF'te
+  /// önce OCR gerekir (kullanıcı menüden "Metni tanı" ile çalıştırır).
+  Future<void> _translateDocument() async {
+    final text = _documentText.trim();
+    if (text.isEmpty) {
+      _snack(widget.doc.kind == DocKind.pdf || widget.doc.kind == DocKind.image
+          ? 'Metin bulunamadı. Önce “Metni tanı (OCR)” çalıştırın.'
+          : 'Çevrilecek metin yok.');
+      return;
+    }
+    await TranslateFlow.run(context, text, title: widget.doc.name);
   }
 
   bool get _hasText =>
@@ -506,12 +605,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'stats':
                 _showStats();
                 break;
+              case 'translate':
+                _translateDocument();
+                break;
             }
           },
           itemBuilder: (_) => [
             if (doc.kind == DocKind.pdf || doc.kind == DocKind.image)
               const PopupMenuItem(
                   value: 'ocr', child: Text('Metni tanı (OCR)')),
+            const PopupMenuItem(
+                value: 'translate', child: Text('Belgeyi çevir')),
             const PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
             const PopupMenuItem(
                 value: 'slides', child: Text('Slayta dönüştür')),
@@ -524,10 +628,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
         ),
       ],
       body: _buildBody(doc),
-      fab: FloatingActionButton.extended(
+      // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
+      // kapatıyordu; etiket tooltip'e taşındı.
+      fab: FloatingActionButton(
         onPressed: _openChat,
-        icon: const Icon(Icons.smart_toy_outlined),
-        label: Text(hasApiKey ? 'AI ile çalış' : 'AI (anahtar gerekli)'),
+        tooltip: hasApiKey ? 'AI ile çalış' : 'AI (anahtar gerekli)',
+        child: const Icon(Icons.smart_toy_outlined),
       ),
     );
   }
@@ -577,6 +683,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                         icon: const Icon(Icons.copy,
                             color: Colors.white, size: 18),
                         label: const Text('Kopyala',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => TranslateFlow.run(
+                            context, _pdfSelection,
+                            title: 'Seçili metin'),
+                        icon: const Icon(Icons.translate,
+                            color: Colors.white, size: 18),
+                        label: const Text('Çevir',
                             style: TextStyle(color: Colors.white)),
                       ),
                     ],
@@ -662,25 +777,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       return;
     }
     final progress = ValueNotifier<String>('Hazırlanıyor…');
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        content: Row(
-          children: [
-            const SizedBox(
-                width: 24, height: 24, child: CircularProgressIndicator()),
-            const SizedBox(width: 16),
-            Expanded(
-              child: ValueListenableBuilder<String>(
-                valueListenable: progress,
-                builder: (_, v, __) => Text(v),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    _showProgressDialog(progress);
 
     String text = '';
     String? error;

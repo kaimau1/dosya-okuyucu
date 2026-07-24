@@ -41,6 +41,14 @@ dependencies:
   # OCR: cihaz-içi ML Kit metin tanıma (Latin — Türkçe dahil), internet gerekmez.
   # 0.15.0 SABİT: 0.15.1+ Dart >=3.8 istiyor (CI 3.29.3 = Dart 3.7).
   google_mlkit_text_recognition: 0.15.0
+  # Çeviri: cihaz-içi ML Kit (internet yalnız dil modeli ilk indirilirken gerekir).
+  # 0.13.0 SABİT — son Dart 3.7 uyumlu sürüm (sdk >=2.16.0 <4.0.0, flutter >=2.5.0).
+  # 0.13.1+ sdk >=3.8.0 + flutter >=3.32.0 ister → CI 3.29.3 (Dart 3.7) KIRILIR.
+  # 0.12.0'a da DÜŞÜLEMEZ: commons ^0.9.0 ister, text_recognition 0.15.0 ise
+  # commons ^0.11.0 → çözümleme çakışır. 0.13.0 ikisiyle de uyumlu tek sürüm.
+  # (commons 0.11.1 de Dart >=3.8 ister; CI'da pub otomatik 0.11.0'a düşer —
+  # pubspec.lock gitignore'da olduğu için CI kendi çözümlemesini yapar.)
+  google_mlkit_translation: 0.13.0
   # Word'ü gerçek sayfa düzeniyle çizmek için (assets/word içindeki docx-preview
   # motoru gömülü çalışır — internet gerekmez)
   webview_flutter: ^4.10.0

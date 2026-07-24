@@ -912,3 +912,47 @@ pdfium zaten yüksek raster sadakatli; kazançlar arama-tutarlılığı/deneyim/
 - **Vurgu remount zoom/kaydırma kaybı:** `_pdfReloadKey++` remount'ta zoom sıfırlanır.
 - **Karar:** PDF kazançları çoğunlukla UI/koordinat → reponun "kör push yok" ilkesi
   gereği cihaz doğrulaması ister; net plan KALANLAR'a yazıldı, blind push yok.
+
+## 2026-07-24 — "Birlikte aç" kirliliği, çeviri, resim→PDF veri kaybı
+Kullanıcı 5 madde sıraladı (apk'da çıkma, çeviri, AI butonu, resim→PDF, premium).
+
+### TUZAK/BUG KÖKÜ: resim→PDF'te görsel tamamen kayboluyordu
+`viewer_screen._exportPdf` dosya türüne bakmadan `textToPdf(doc.plainText)`
+çağırıyordu. Görselin `plainText`'i BOŞ → üretilen PDF'te yalnızca **"(Boş belge)"**
+yazıyor, resim hiç gömülmüyordu. Kullanıcının "veri kaçıyor" şikayeti buydu.
+- **Düzeltme:** `ConversionService.imageToPdf` — sayfa oranı = resim oranı (kırpma
+  ve kenar boşluğu yok), piksel verisi kayıpsız (JPEG DCTDecode ile aynen, PNG
+  kayıpsız yeniden kodlanır), yeniden ölçekleme YOK. `_exportPdf` başında
+  `DocKind.image` dalı.
+- **Aranabilir PDF:** `OcrService.recognizeImageLines` (yeni) satır + piksel kutusu
+  döndürür; her satır kendi yerine hem şeffaf renkle hem resmin ALTINDA çizilir
+  (iki kat güvence — alpha'ya tek başına güvenilmedi).
+- **Tuzak:** `pw.MemoryImage.width/height` **nullable** — HEIC/HEIF çözülemez ve
+  null döner. Sessiz bozuk PDF yerine `FormatException` atılıyor.
+- **Tuzak:** görünmez katman Türkçe içerebilir → varsayılan Helvetica ğ/ş/ı çizemez
+  ve pdf paketi hata atar. Gömülü `assets/fonts/Carlito-Regular.ttf` yükleniyor.
+
+### "Birlikte aç"ta her dosyada çıkma (madde 1)
+Kök neden `ci/AndroidManifest.xml`: VIEW ve SEND filtreleri `mimeType="*/*"` idi →
+Android'e "her dosyayı açarım" deniyordu (.apk/.zip/video dahil). Desteklenen
+gerçek MIME listesiyle değiştirildi (pdf, OOXML, legacy office, text/\*, image/\*).
+- **Bilinçli RİSK:** `application/octet-stream` listeye ALINMADI. Bazı dosya
+  yöneticileri/WhatsApp dosyayı bu tiple gönderebilir → o durumda listede
+  çıkmayız. Kullanıcı şikayet ederse ekle, ama .apk sorunu geri gelir (Android'de
+  negatif MIME filtresi yok — ya hep ya hiç).
+- Yeni biçim desteği eklenirse (`FileService.kindForExtension`) manifest'e de eklenmeli.
+
+### Çeviri = cihaz-içi ML Kit (Gemini DEĞİL — kullanıcı seçimi)
+- **Sürüm kilidi:** `google_mlkit_translation: 0.13.1` SABİT. Gerekçe: text_recognition
+  0.15.0 ile aynı `google_mlkit_commons 0.11.1`'i kullanır; 0.14.0+ commons 0.12 +
+  Dart >=3.8 ister → CI Flutter 3.29.3 (Dart 3.7) kırılır. (Aynı tuzak text_recognition'da.)
+- `TranslateService`: satır yapısı korunarak çevirir (boş satır = paragraf); uzun
+  satır cümle sonundan bölünür — tek ML Kit çağrısı uzun metinde sessizce kırpabiliyor.
+- Dil modeli ilk kullanımda indirilir (internet), sonrası çevrimdışı.
+- Seçili metin çevirisi yalnız PDF'te (seçim altyapısı orada). Word/Excel/Slayt'ta
+  "Belgeyi çevir" var — WebView tabanlı Word'de Flutter'a seçim gelmiyor.
+
+### AI FAB (madde 3)
+5 ekranda `FloatingActionButton.extended` (geniş etiket) belgenin sağ alt köşesini
+kapatıyordu → dairesel FAB + tooltip. Ortak `AiFab` widget'ı YAPILMADI (ponytail:
+5 küçük edit, tek satırlık soyutlama kazancı yok).
