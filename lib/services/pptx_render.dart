@@ -110,6 +110,11 @@ class ShapeVM {
   /// Dış gölge (`a:effectLst > a:outerShdw`) — kutu şekillere uygulanır.
   final BoxShadow? shadow;
 
+  /// Tablo hücresi için kenar-başına (sol/sağ/üst/alt) kenarlık. Tek `stroke`
+  /// (tüm kenar) yerine kullanılır: PowerPoint tablo hücreleri yalnız tanımlı
+  /// kenarları çizer (`a:tcPr > a:lnL/lnR/lnT/lnB`). null = tekil stroke kuralı.
+  final Border? cellBorder;
+
   /// Şekil bir grafikse (graphicFrame > c:chart) çizilecek grafik modeli.
   final ChartVM? chart;
   final Uint8List? image;
@@ -151,6 +156,7 @@ class ShapeVM {
     this.arrowEnd = false,
     this.dashed = false,
     this.shadow,
+    this.cellBorder,
     this.chart,
     this.image,
     this.paragraphs = const [],
@@ -209,6 +215,10 @@ class ParaVM {
   final String bullet;
   final double lineHeight;
   final double spaceBeforePt;
+
+  /// Paragraf sonrası boşluk (`a:spcAft > a:spcPts`, punto). PowerPoint
+  /// paragraflar arasına bu boşluğu ekler.
+  final double spaceAfterPt;
   final List<RunVM> runs;
 
   /// Düzenlemeyi orijinal XML'e bağlayan `<a:p>` düğümü (slayt XML'inden).
@@ -221,6 +231,7 @@ class ParaVM {
     this.bullet = '',
     this.lineHeight = 1.2,
     this.spaceBeforePt = 0,
+    this.spaceAfterPt = 0,
     this.source,
   });
 
@@ -574,9 +585,17 @@ class PptxRender {
         final tcPr = _first(cell, 'a:tcPr');
         final body = _first(cell, 'a:txBody');
         if (!merged && w > 0 && rowH > 0) {
-          final ln = tcPr == null
-              ? null
-              : (_first(tcPr, 'a:lnB') ?? _first(tcPr, 'a:lnT'));
+          // Kenar başına (sol/sağ/üst/alt) kenarlık: PowerPoint yalnız tanımlı
+          // kenarları çizer; eskiden yalnız lnB/lnT okunup tüm kenara uygulanıyordu.
+          BorderSide side(String name) {
+            final l = tcPr == null ? null : _first(tcPr, name);
+            if (l == null || _first(l, 'a:noFill') != null) return BorderSide.none;
+            final c = _solidFill(l, theme, clrMap);
+            if (c == null) return BorderSide.none;
+            final bw = _pt(l.getAttribute('w')) ?? 1;
+            return BorderSide(color: c, width: bw <= 0 ? 1 : bw);
+          }
+
           out.add(ShapeVM(
             id: frameId,
             x: x,
@@ -584,8 +603,12 @@ class PptxRender {
             w: w,
             h: rowH,
             fill: tcPr == null ? null : _solidFill(tcPr, theme, clrMap),
-            stroke: ln == null ? null : _solidFill(ln, theme, clrMap),
-            strokeWidth: ln == null ? 0 : ((_pt(ln.getAttribute('w')) ?? 1)),
+            cellBorder: Border(
+              left: side('a:lnL'),
+              right: side('a:lnR'),
+              top: side('a:lnT'),
+              bottom: side('a:lnB'),
+            ),
             vAnchor: tcPr?.getAttribute('anchor') ?? 'ctr',
             paragraphs: body == null
                 ? const []
@@ -652,11 +675,24 @@ class PptxRender {
 
     final isEllipse = prst == 'ellipse' || prst == 'chord' || prst == 'pie';
 
+    // Modern PPTX'te tema temelli şekiller dolgu/çizgiyi `spPr`'de DEĞİL,
+    // `p:style`'daki stil matrisi referanslarında taşır (`a:fillRef`/`a:lnRef`
+    // içindeki schemeClr). Bunlar okunmadığında şekil boş/şeffaf çiziliyordu —
+    // en büyük tekil sadakat kaybı. idx="0" = tema arka planı (dolgusuz) → atla.
+    final style = _first(el, 'p:style');
+
     Color? fill;
     Gradient? gradient;
     if (!isLine && spPr != null && _first(spPr, 'a:noFill') == null) {
       fill = _solidFill(spPr, theme, clrMap);
       gradient = _gradFill(spPr, theme, clrMap);
+      if (fill == null && gradient == null) {
+        final fillRef = style == null ? null : _first(style, 'a:fillRef');
+        if (fillRef != null && (fillRef.getAttribute('idx') ?? '0') != '0') {
+          fill = _colorOf(fillRef, theme, clrMap);
+          gradient = _gradFill(fillRef, theme, clrMap);
+        }
+      }
     }
 
     Color? stroke;
@@ -673,6 +709,16 @@ class PptxRender {
       arrowEnd = tail != null && tail != 'none';
       final dash = _first(ln, 'a:prstDash')?.getAttribute('val');
       dashed = dash != null && dash != 'solid';
+    }
+    // spPr'de çizgi yoksa tema stil referansına düş (p:style > a:lnRef). Gerçek
+    // çizgi kalınlığı tema lnStyleLst'te; onu çözmeden tema minör çizgisi ~0.75pt
+    // varsayılır (görünür ince kenarlık, PowerPoint bu şekilleri kenarlıkla çizer).
+    if (stroke == null && !isLine) {
+      final lnRef = style == null ? null : _first(style, 'a:lnRef');
+      if (lnRef != null && (lnRef.getAttribute('idx') ?? '0') != '0') {
+        stroke = _colorOf(lnRef, theme, clrMap);
+        if (stroke != null) strokeW = 0.75;
+      }
     }
     if (isLine) {
       stroke ??= const Color(0xFF595959); // PP varsayılan bağlayıcı ~ koyu gri
@@ -811,18 +857,34 @@ class PptxRender {
         }
       }
 
-      final lnSpc = _first(_first(pPr, 'a:lnSpc'), 'a:spcPct')?.getAttribute('val');
+      final lnSpcPct =
+          _first(_first(pPr, 'a:lnSpc'), 'a:spcPct')?.getAttribute('val');
+      final lnSpcPts =
+          _first(_first(pPr, 'a:lnSpc'), 'a:spcPts')?.getAttribute('val');
       final spcBef = _first(_first(pPr, 'a:spcBef'), 'a:spcPts')?.getAttribute('val');
+      final spcAft = _first(_first(pPr, 'a:spcAft'), 'a:spcPts')?.getAttribute('val');
+
+      // Satır aralığı: yüzde (spcPct) doğrudan çarpan; mutlak punto (spcPts) ise
+      // font boyutuna bölünüp çarpana çevrilir (Flutter `height` çarpan ister).
+      double lineHeight;
+      if (lnSpcPct != null) {
+        lineHeight = ((double.tryParse(lnSpcPct) ?? 100000) / 100000).clamp(0.5, 3.0);
+      } else if (lnSpcPts != null) {
+        final ptsHeight = (double.tryParse(lnSpcPts) ?? 0) / 100;
+        final refSize = runs.first.sizePt;
+        lineHeight = refSize > 0 ? (ptsHeight / refSize).clamp(0.5, 3.0) : 1.2;
+      } else {
+        lineHeight = 1.2;
+      }
 
       out.add(ParaVM(
         runs: runs,
         align: _align(pPr?.getAttribute('algn')),
         indentPt: (_pt(pPr?.getAttribute('marL')) ?? lvl * 28.8),
         bullet: bullet,
-        lineHeight: lnSpc == null
-            ? 1.2
-            : ((double.tryParse(lnSpc) ?? 100000) / 100000).clamp(0.5, 3.0),
+        lineHeight: lineHeight,
         spaceBeforePt: spcBef == null ? 0 : (double.tryParse(spcBef) ?? 0) / 100,
+        spaceAfterPt: spcAft == null ? 0 : (double.tryParse(spcAft) ?? 0) / 100,
         source: editable ? p : null,
       ));
     }

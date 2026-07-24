@@ -240,6 +240,119 @@ Uint8List _chartPptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// Tema stil referansı: dolgu/çizgi `spPr`'de DEĞİL, `p:style` içinde
+/// (`a:fillRef`/`a:lnRef`). Modern PowerPoint şekillerinin yaygın hâli.
+Uint8List _styleRefPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="2" name="Temali"/><p:nvPr/></p:nvSpPr>
+   <p:spPr>
+    <a:xfrm><a:off x="914400" y="457200"/><a:ext cx="2000000" cy="1000000"/></a:xfrm>
+    <a:prstGeom prst="rect"/>
+   </p:spPr>
+   <p:style>
+    <a:lnRef idx="2"><a:srgbClr val="112233"/></a:lnRef>
+    <a:fillRef idx="3"><a:srgbClr val="00AAFF"/></a:fillRef>
+    <a:effectRef idx="0"><a:srgbClr val="000000"/></a:effectRef>
+    <a:fontRef idx="minor"><a:srgbClr val="FFFFFF"/></a:fontRef>
+   </p:style>
+   <p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1800"/><a:t>Temali</a:t></a:r></a:p></p:txBody>
+  </p:sp>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
+/// Mutlak punto satır aralığı (`a:lnSpc>a:spcPts`) + paragraf sonrası boşluk
+/// (`a:spcAft>a:spcPts`). 15pt yazıda 30pt satır → çarpan 2.0; 6pt son boşluk.
+Uint8List _spacingPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="2" name="Metin"/><p:nvPr/></p:nvSpPr>
+   <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4000000" cy="2000000"/></a:xfrm></p:spPr>
+   <p:txBody><a:bodyPr/>
+    <a:p>
+     <a:pPr><a:lnSpc><a:spcPts val="3000"/></a:lnSpc><a:spcAft><a:spcPts val="600"/></a:spcAft></a:pPr>
+     <a:r><a:rPr sz="1500"/><a:t>Aralik</a:t></a:r>
+    </a:p>
+   </p:txBody>
+  </p:sp>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
+/// Tablo: 1 hücre, yalnız sol (kırmızı 1pt) ve alt (mavi 2pt) kenarlık tanımlı.
+Uint8List _tablePptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:graphicFrame>
+   <p:nvGraphicFramePr><p:cNvPr id="7" name="Tablo"/></p:nvGraphicFramePr>
+   <p:xfrm><a:off x="500000" y="500000"/><a:ext cx="2540000" cy="1270000"/></p:xfrm>
+   <a:graphic><a:graphicData uri="tbl">
+    <a:tbl>
+     <a:tblGrid><a:gridCol w="2540000"/></a:tblGrid>
+     <a:tr h="1270000">
+      <a:tc>
+       <a:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1800"/><a:t>Hucre</a:t></a:r></a:p></a:txBody>
+       <a:tcPr>
+        <a:lnL w="12700"><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill></a:lnL>
+        <a:lnB w="25400"><a:solidFill><a:srgbClr val="0000FF"/></a:solidFill></a:lnB>
+       </a:tcPr>
+      </a:tc>
+     </a:tr>
+    </a:tbl>
+   </a:graphicData></a:graphic>
+  </p:graphicFrame>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 void main() {
   test('slayt geometrisi, rengi ve metni EMU -> punto olarak çözümlenir', () {
     final editor = PptxEditor.parse(_samplePptx());
@@ -348,6 +461,35 @@ void main() {
     // Pump hatasız geçtiyse çizim başarılı; şekil metni de görünür.
     expect(find.text('Golge'), findsOneWidget);
     expect(find.byType(CustomPaint), findsWidgets); // çizgi painter'ı var
+  });
+
+  test('tema stil referansı (p:style) dolgu ve çizgi rengini çözer', () {
+    // spPr boş; renk yalnız p:style>a:fillRef/a:lnRef içinde. Eskiden şekil
+    // dolgusuz/şeffaf çiziliyordu (en büyük tekil sadakat kaybı).
+    final view = PptxEditor.parse(_styleRefPptx()).slides.single.view!;
+    final shape = view.shapes.single;
+    expect(shape.fill, const Color(0xFF00AAFF)); // fillRef
+    expect(shape.stroke, const Color(0xFF112233)); // lnRef
+    expect(shape.strokeWidth, closeTo(0.75, 0.001)); // tema minör çizgi varsayılanı
+  });
+
+  test('mutlak satır aralığı (spcPts) çarpana, spcAft puntoya çözülür', () {
+    final view = PptxEditor.parse(_spacingPptx()).slides.single.view!;
+    final para = view.shapes.single.paragraphs.single;
+    expect(para.lineHeight, closeTo(2.0, 0.001)); // 30pt / 15pt yazı
+    expect(para.spaceAfterPt, closeTo(6.0, 0.001)); // 600 / 100
+  });
+
+  test('tablo hücresi kenar-başına kenarlık taşır (yalnız tanımlı kenarlar)', () {
+    final view = PptxEditor.parse(_tablePptx()).slides.single.view!;
+    final cell = view.shapes.firstWhere((s) => s.cellBorder != null);
+    final b = cell.cellBorder!;
+    expect(b.left.color, const Color(0xFFFF0000));
+    expect(b.left.width, closeTo(1.0, 0.001)); // 12700 EMU
+    expect(b.bottom.color, const Color(0xFF0000FF));
+    expect(b.bottom.width, closeTo(2.0, 0.001)); // 25400 EMU
+    expect(b.right, BorderSide.none); // tanımsız kenar çizilmez
+    expect(b.top, BorderSide.none);
   });
 
   test('grafik parçası çözülür: tür, seri, kategori, değerler', () {

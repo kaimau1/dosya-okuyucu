@@ -179,22 +179,33 @@ class _ShapeBody extends StatelessWidget {
       borderRadius: shape.isEllipse || shape.cornerRadius == 0
           ? null
           : BorderRadius.circular(shape.cornerRadius),
-      border: shape.stroke == null
-          ? null
-          : Border.all(color: shape.stroke!, width: shape.strokeWidth),
+      // Tablo hücresi kenar-başına kenarlık taşır; diğer şekiller tekil stroke.
+      border: shape.cellBorder ??
+          (shape.stroke == null
+              ? null
+              : Border.all(color: shape.stroke!, width: shape.strokeWidth)),
       boxShadow: shape.shadow == null ? null : [shape.shadow!],
     );
 
     if (shape.image != null) {
+      Widget img = Image.memory(
+        shape.image!,
+        fit: BoxFit.fill,
+        errorBuilder: (_, __, ___) => const SizedBox(),
+      );
+      // Yatay/dikey aynalama (`a:xfrm@flipH/flipV`): görsel merkez etrafında
+      // çevrilir. Eskiden flip yalnız çizgilerde uygulanıyordu → aynalanmış
+      // görseller/oklar ters çıkıyordu.
+      if (shape.flipH || shape.flipV) {
+        img = Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.diagonal3Values(
+              shape.flipH ? -1.0 : 1.0, shape.flipV ? -1.0 : 1.0, 1.0),
+          child: img,
+        );
+      }
       return ClipRect(
-        child: Container(
-          decoration: decoration,
-          child: Image.memory(
-            shape.image!,
-            fit: BoxFit.fill,
-            errorBuilder: (_, __, ___) => const SizedBox(),
-          ),
-        ),
+        child: Container(decoration: decoration, child: img),
       );
     }
 
@@ -274,7 +285,7 @@ class _ShapeBody extends StatelessWidget {
         )..layout(
             maxWidth: math.max(
                 1, availW - p.indentPt - (p.bullet.isEmpty ? 0 : 14)));
-        total += tp.height + p.spaceBeforePt;
+        total += tp.height + p.spaceBeforePt + p.spaceAfterPt;
         tp.dispose();
       }
       return total;
@@ -348,7 +359,8 @@ class _ShapeBody extends StatelessWidget {
           );
 
     return Padding(
-      padding: EdgeInsets.only(top: p.spaceBeforePt, left: p.indentPt),
+      padding: EdgeInsets.only(
+          top: p.spaceBeforePt, bottom: p.spaceAfterPt, left: p.indentPt),
       child: p.bullet.isEmpty
           ? body
           : Row(

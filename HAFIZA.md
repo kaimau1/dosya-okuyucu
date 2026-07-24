@@ -862,3 +862,53 @@ büyük sadakat kaybı vardı — düzeltildi (`assets/word/viewer.html`):
 - **KALAN (kullanıcı, cihaz):** gerçek Calibri/Times/Arial'lı .docx'te satır/sayfa
   kırılımı Word'le aynı mı; `../fonts/` file:// erişimi cihazda fontları yüklüyor mu
   (script'ler yükleniyor → beklenen evet ama görsel doğrulanmadı). → KALANLAR.md.
+
+## 2026-07-24 — PPTX + PDF sadakat araştırması ve PPTX iyileştirmeleri
+Kullanıcı Word'den sonra PPTX ve PDF sadakatini de otonom artırmayı istedi. İki
+paralel araştırma ajanı render hatlarını taradı; bulgular ve yapılanlar:
+
+### PPTX — 4 iyileştirme (parser deterministik, birim-testli, düşük risk)
+`pptx_render.dart` + `slide_canvas.dart`:
+- **`p:style` tema stil referansı (en büyük tekil kazanç):** Modern PPTX'te tema
+  temelli şekiller dolgu/çizgiyi `spPr`'de DEĞİL, `p:style`'daki `a:fillRef`/`a:lnRef`
+  (içinde schemeClr/srgbClr) taşır. Okunmadığı için bu şekiller **boş/şeffaf**
+  çiziliyordu. `_shape`: spPr'de dolgu yoksa `fillRef`→dolgu, çizgi yoksa `lnRef`→
+  stroke (idx="0"=tema bg, atla). lnRef kalınlığı tema lnStyleLst'te; çözmeden
+  minör çizgi ~0.75pt varsayıldı.
+- **Görsel `flipH`/`flipV`:** Eskiden flip yalnız `_LinePainter`'da uygulanıyordu;
+  kutu/görseller aynalanmıyordu. `slide_canvas` görsel dalına merkez etrafında
+  `Matrix4.diagonal3Values(±1,±1,1)` eklendi. **Metne UYGULANMAZ** (mirror yazı
+  okunmaz olurdu) — yalnız görsel; ok/simge preset'leri zaten rect çiziliyor.
+- **Mutlak satır aralığı `a:lnSpc>a:spcPts` + paragraf sonrası `a:spcAft`:** Eskiden
+  yalnız `spcPct` okunuyordu, mutlak punto aralık varsayılan 1.2'ye düşüyordu.
+  spcPts→çarpan (pt / font boyutu); spcAft→`ParaVM.spaceAfterPt`, Padding.bottom +
+  `_fitScale` ölçümüne eklendi.
+- **Tablo kenar-başına kenarlık:** Eskiden yalnız `lnB`/`lnT` okunup tüm kenara
+  (`Border.all`) uygulanıyordu → tanımsız kenarlara da çizgi. `_table` artık
+  L/R/T/B ayrı okuyup `ShapeVM.cellBorder` (Flutter `Border`) üretiyor; canvas
+  `cellBorder ?? Border.all(stroke)`.
+- **Test:** `pptx_render_test.dart`'a 3 test (p:style dolgu+çizgi, spcPts→2.0 çarpan
+  + spcAft 6pt, tablo yalnız-tanımlı-kenar). A-E maddelerinin regresyon ağı yoktu.
+- **ERTELENEN (araştırmada tespit, sonra):** `a:srcRect` görsel kırpma (canvas
+  drawImageRect gerekir, orta risk), preset/custGeom (rect dışı hep kutu),
+  glow/innerShdw/reflection efektleri, çok-seviyeli liste stilleri (lvl2-9),
+  strike/superscript run özellikleri. → KALANLAR.
+
+### PDF — araştırma bulguları (UI/koordinat kodu, cihaz doğrulaması gerekli → KALANLAR)
+pdfium zaten yüksek raster sadakatli; kazançlar arama-tutarlılığı/deneyim/annotation:
+- **Türkçe-duyarlı PDF arama (yüksek):** Metin editörü `turkishFold` (İ→i, I→ı)
+  kullanıyor ama PDF yolu (`viewer_screen` `_pdfSearcher.startTextSearch caseInsensitive`)
+  locale-duyarsız → "İstanbul/ışık" PDF'te güvenilmez eşleşir. Altyapı hazır
+  (`findAll` + `selectionPdfRects`); kendi ince arayıcıya bağlanmalı.
+- **Döndürülmüş sayfa (/Rotate≠0) vurgu geometrisi (yüksek):** `pdf_annotator`
+  ham pdfium rect'ini yalnız Y-flip'liyor; ekran seçimi (`bounds.toRect` rotasyonu
+  hesaba katıyor) doğru ama kaydedilen vurgu 90/180/270'te yanlış yere düşer.
+  Rotasyon konvansiyonu Syncfusion'da belirsiz → **kör push YAPILMADI** (yanlış
+  konvansiyonla eşleşen test = yanlış-güven; cihaz doğrulaması şart).
+- **Gece modu invert (düşük risk, yüksek konfor):** `ColorFiltered` invert sarmalayıcı
+  + AppBar toggle. Salt görsel.
+- **Link/köprü tıklama:** `linkWidgetBuilder` (+ `url_launcher` bağımlılığı).
+- **Belge ana hattı (outline/bookmarks):** `document.loadOutline()` + yan çekmece.
+- **Vurgu remount zoom/kaydırma kaybı:** `_pdfReloadKey++` remount'ta zoom sıfırlanır.
+- **Karar:** PDF kazançları çoğunlukla UI/koordinat → reponun "kör push yok" ilkesi
+  gereği cihaz doğrulaması ister; net plan KALANLAR'a yazıldı, blind push yok.

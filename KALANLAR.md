@@ -31,6 +31,27 @@
       (c) `../fonts/` file:// erişimi cihazda fontları gerçekten yüklüyor mu (script'ler
       yükleniyor → beklenen evet). Yerelde flutter yok, CI test+APK yeşil olmalı.
 
+- [ ] **PPTX sadakati cihaz doğrulaması (kullanıcı)** — 2026-07-24: p:style tema
+      dolgu/çizgi referansı, görsel flipH/flipV, spcPts/spcAft satır aralığı, tablo
+      kenar-başına kenarlık eklendi (birim testli, CI yeşil olmalı). Gerçek .pptx'te:
+      (a) tema temelli renkli şekiller artık dolu mu (eskiden boştu), (b) aynalanmış
+      görseller doğru yönde mi, (c) tablo yalnız tanımlı kenarları mı çiziyor.
+
+## PDF sadakat/deneyim — araştırıldı, cihaz doğrulaması gerekli (kör push yok)
+- [ ] **Türkçe-duyarlı PDF arama** — PDF yolu `startTextSearch(caseInsensitive)` locale-
+      duyarsız; İ/ı/ş kaçıyor. `findAll`(turkishFold) + `selectionPdfRects` + kendi
+      paint callback'iyle değiştir (`viewer_screen` PDF arama dalı). Altyapı hazır.
+- [ ] **Döndürülmüş sayfa (/Rotate≠0) vurgu düzeltmesi** — `pdf_annotator.addHighlight`
+      sayfa rotasyonunu okuyup rect'leri görünür koordinata döndürsün; `pdf_annotator_test`e
+      90/180/270. Syncfusion rotasyon konvansiyonu cihazda teyit edilmeli.
+- [ ] **PDF gece modu (invert)** — `PdfViewer`'ı `ColorFiltered` invert matrisiyle sar,
+      AppBar'da toggle (mevcut `_pdfSelectMode` düğmesi kalıbı). Salt görsel, düşük risk.
+- [ ] **PDF link/köprü tıklama** — `PdfViewerParams.linkWidgetBuilder`; dış URL→url_launcher
+      (pubspec'e ekle), iç hedef→`_pdfController.goToPage`.
+- [ ] **PDF belge ana hattı (outline)** — `document.loadOutline()` + yan çekmece navigasyon.
+- [ ] **PDF vurgu remount zoom kaybı** — `_pdfReloadKey++` remount'ta zoom/kaydırma sıfırlanır;
+      `onViewerReady`'de son matris geri uygula.
+
 ## Sonra yapılacak
 - [ ] **PDF Faz 3 — Sayfa düzenleme** — döndür/sil/sırala. Syncfusion `doc.pages[i].rotation`,
       `doc.pages.remove/reorder` → save → pdfrx'te reload. Küçük resim şeridi UI gerekebilir.
