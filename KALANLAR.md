@@ -23,6 +23,14 @@
       bağlayıcı okları/kesik çizgi, dış gölge, grafiklerin (sütun/çubuk/pasta/
       halka/çizgi) gerçek .pptx'te doğru veri+renk+oranla çizilmesi.
 
+- [ ] **Word sadakati cihaz doğrulaması (kullanıcı)** — 2026-07-24 WebView'a MS font
+      ikamesi (Calibri→Carlito, Times→Tinos, Arial→Arimo `@font-face`) + Word sayfa
+      kırma konumları (`ignoreLastRenderedPageBreak:false`) + tam A4 yükseklik
+      (`ignoreHeight:false`) eklendi. Gerçek Calibri/Times/Arial'lı .docx'te: (a)
+      satır/sayfa kırılımı Word ile aynı yerde mi, (b) yazı yerel/doğru görünüyor mu,
+      (c) `../fonts/` file:// erişimi cihazda fontları gerçekten yüklüyor mu (script'ler
+      yükleniyor → beklenen evet). Yerelde flutter yok, CI test+APK yeşil olmalı.
+
 ## Sonra yapılacak
 - [ ] **PDF Faz 3 — Sayfa düzenleme** — döndür/sil/sırala. Syncfusion `doc.pages[i].rotation`,
       `doc.pages.remove/reorder` → save → pdfrx'te reload. Küçük resim şeridi UI gerekebilir.

@@ -823,3 +823,42 @@ HAFIZA'daki eski "gradient/tablo kapsam dışı" notunu çoktan geçmişti (grad
   JAVA_HOME ister; bu makinede JDK yok ama Android Studio'nun JBR'ı var:
   `C:\Program Files\Android\Android Studio\jbr`. İki APK'nın sertifikasını
   karşılaştırmak için: `apksigner verify --print-certs <apk>`.
+
+## 2026-07-24 — Word sadakati %95 hedefi: WebView font ikamesi + Word sayfalama
+Kullanıcı "Word içinde min %95 sadakat" istedi. Word görüntüleme docx-preview
+0.3.7 (gömülü, `assets/word/`) ile yapılıyor; render'ın kendisi olgun ama iki
+büyük sadakat kaybı vardı — düzeltildi (`assets/word/viewer.html`):
+
+- **Kök neden (en büyük): WebView'da MS fontu yok.** Word belgeleri çoğunlukla
+  Calibri/Times New Roman/Arial kullanır; Android WebView bunlara sahip değil →
+  rastgele cihaz fontuna düşüyor, harf genişlikleri değişiyor → **satır ve sayfa
+  kırılımı Word'den sapıyor** (sadakat kaybının asıl kaynağı, sadece "yazı farklı
+  görünüyor" değil). Slaytta zaten gömülü olan metrik-uyumlu açık kaynak
+  karşılıkları (Carlito≈Calibri, Tinos≈Times, Arimo≈Arial — harf genişlikleri
+  birebir) **MS adlarıyla `@font-face`** olarak tanımlandı. Böylece docx-preview
+  "Calibri" yazınca Carlito yükleniyor, metrikler Word'le aynı.
+  - Font dosyaları `assets/fonts/`'ta (pubspec `fonts:`), viewer `assets/word/`'ten
+    yüklendiği için `url('../fonts/X.ttf')`. **Neden çalışır:** `<script src="jszip
+    .min.js">` zaten aynı yerel `file://` alt-kaynak mekanizmasıyla yükleniyor;
+    CSS `url()` de alt-kaynak → `allowFileAccess` (varsayılan açık) kapsamında,
+    `allowFileAccessFromFileURLs` (JS/XHR için, kapalı) ile İLGİSİZ. `../` Chromium'da
+    normalize edilip flutter_assets içinde çözülür, dizin-dışına taşma yok.
+  - `font-display:block`: doğru metrikle ölçülsün (yanlış fontla kısa çakma olmasın).
+  - Arimo yalnız **değişken font** → `font-weight:100 900` aralığı; kalın wght ekseninden.
+  - Ek: Calibri Light→Carlito (modern başlık), Cambria→Tinos (metrik-uyumsuz ama
+    tam Türkçe kapsamlı tutarlı serif > rastgele cihaz serifi), `#container` son-çare
+    fallback Carlito (fontsuz theme metni cihaz fontuna düşmesin).
+- **Sayfalama Word'le hizalandı (`renderAsync` opsiyonları):**
+  - `ignoreLastRenderedPageBreak: false` (eski varsayılan true) → Word'ün kaydederken
+    yazdığı `w:lastRenderedPageBreak` konumları KULLANILIR, sayfa Word'le aynı yerde
+    kırılır. (Word'ün hiç açmadığı üretilmiş belgede işaret yok → eski davranış, risksiz.)
+  - `ignoreHeight: false` (eski true) → sayfa tam A4 yüksekliğinde (docx-preview
+    `min-height` uygular, sabit height DEĞİL → içerik kırpılmaz; kısa belgede altta
+    Word'deki gibi boşluk). fitPage genişlik ölçer, yükseklikten etkilenmez.
+  - Başlık/altbilgi/dipnot/son-not render açık (zaten varsayılan, açıkça yazıldı).
+- **Doğrulama:** `test/word_assets_test.dart`'a font testi eklendi — viewer.html'in
+  `../fonts/`'la gösterdiği her `.ttf` gerçekten pakette mi (pubspec'ten biri düşerse
+  derlemeden yakala). Flutter bu ortamda yok → CI test job + APK'da doğrulanacak.
+- **KALAN (kullanıcı, cihaz):** gerçek Calibri/Times/Arial'lı .docx'te satır/sayfa
+  kırılımı Word'le aynı mı; `../fonts/` file:// erişimi cihazda fontları yüklüyor mu
+  (script'ler yükleniyor → beklenen evet ama görsel doğrulanmadı). → KALANLAR.md.

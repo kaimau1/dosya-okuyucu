@@ -8,8 +8,41 @@
      minimum-scale 0.5: sığdırılmış halin de altına uzaklaşılabilir. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.5, maximum-scale=6, user-scalable=yes">
 <style>
+  /* SADAKAT: Word belgeleri çoğunlukla Microsoft'un tescilli fontlarını
+     (Calibri/Times New Roman/Arial) kullanır; Android WebView'da bunlar YOK →
+     rastgele bir yerel fonta düşülür, harf genişlikleri değişir → satır ve
+     sayfa kırılımı Word'den sapar (sadakat kaybının en büyük kaynağı).
+     Çözüm: uygulamayla gömülü, METRİK-UYUMLU açık kaynak karşılıkları
+     (Carlito≈Calibri, Tinos≈Times, Arimo≈Arial — harf genişlikleri birebir)
+     MS adlarıyla @font-face olarak tanımlanır. Dosyalar assets/fonts/'ta
+     (pubspec fonts:); viewer assets/word/'ten yüklendiği için ../fonts/ ile
+     erişilir (jszip.min.js ile aynı yerel file:// mekanizması). font-display
+     block: doğru metrikle ölçülsün, yanlış fontla kısa bir çakma olmasın. */
+  @font-face { font-family:'Calibri'; src:url('../fonts/Carlito-Regular.ttf'); font-weight:normal; font-style:normal; font-display:block; }
+  @font-face { font-family:'Calibri'; src:url('../fonts/Carlito-Bold.ttf'); font-weight:bold; font-style:normal; font-display:block; }
+  @font-face { font-family:'Calibri'; src:url('../fonts/Carlito-Italic.ttf'); font-weight:normal; font-style:italic; font-display:block; }
+  @font-face { font-family:'Calibri'; src:url('../fonts/Carlito-BoldItalic.ttf'); font-weight:bold; font-style:italic; font-display:block; }
+  /* Modern Word başlık fontu Calibri Light → Carlito (ince ağırlık yok, düzenli) */
+  @font-face { font-family:'Calibri Light'; src:url('../fonts/Carlito-Regular.ttf'); font-weight:normal; font-style:normal; font-display:block; }
+  @font-face { font-family:'Times New Roman'; src:url('../fonts/Tinos-Regular.ttf'); font-weight:normal; font-style:normal; font-display:block; }
+  @font-face { font-family:'Times New Roman'; src:url('../fonts/Tinos-Bold.ttf'); font-weight:bold; font-style:normal; font-display:block; }
+  @font-face { font-family:'Times New Roman'; src:url('../fonts/Tinos-Italic.ttf'); font-weight:normal; font-style:italic; font-display:block; }
+  @font-face { font-family:'Times New Roman'; src:url('../fonts/Tinos-BoldItalic.ttf'); font-weight:bold; font-style:italic; font-display:block; }
+  /* Arimo değişken font: kalınlık wght ekseninden (100–900 aralığı) */
+  @font-face { font-family:'Arial'; src:url('../fonts/Arimo-Variable.ttf'); font-weight:100 900; font-style:normal; font-display:block; }
+  @font-face { font-family:'Arial'; src:url('../fonts/Arimo-Italic-Variable.ttf'); font-weight:100 900; font-style:italic; font-display:block; }
+  @font-face { font-family:'Helvetica'; src:url('../fonts/Arimo-Variable.ttf'); font-weight:100 900; font-style:normal; font-display:block; }
+  @font-face { font-family:'Helvetica'; src:url('../fonts/Arimo-Italic-Variable.ttf'); font-weight:100 900; font-style:italic; font-display:block; }
+  /* Metrik-uyumlu olmasa da, tanımsız serif fontlar (Cambria/Georgia) için
+     rastgele cihaz serifi yerine tam Türkçe kapsamlı Tinos daha tutarlı. */
+  @font-face { font-family:'Cambria'; src:url('../fonts/Tinos-Regular.ttf'); font-weight:normal; font-style:normal; font-display:block; }
+  @font-face { font-family:'Cambria'; src:url('../fonts/Tinos-Bold.ttf'); font-weight:bold; font-style:normal; font-display:block; }
+  @font-face { font-family:'Cambria'; src:url('../fonts/Tinos-Italic.ttf'); font-weight:normal; font-style:italic; font-display:block; }
   html, body { margin: 0; padding: 0; background: #f3f2f1; }
-  #container { padding: 8px 0 24px; }
+  /* Fonta hiç ad vermeyen (theme default) metin de rastgele cihaz fontuna
+     düşmesin: son çare olarak Calibri metrikli Carlito. docx-preview çoğu
+     çalıştırmada fontu açıkça yazar, bu yalnızca boşluğu doldurur. */
+  #container { padding: 8px 0 24px; font-family: 'Calibri', 'Carlito', sans-serif; }
   /* docx-preview sayfayı beyaz bir "kağıt" olarak çizer; gölge ekleyip
      PowerPoint/Word hissini tamamlıyoruz. */
   .docx-wrapper { background: #f3f2f1 !important; padding: 8px !important; }
@@ -36,13 +69,28 @@
       docx.renderAsync(buf.buffer, document.getElementById('container'), null, {
         inWrapper: true,
         ignoreWidth: false,
-        ignoreHeight: true,
+        // SADAKAT: sayfa tam A4 yüksekliğinde çizilsin (kısa belgede altta boşluk
+        // Word'deki gibi) — eski true, sayfayı içeriğe göre kısaltıyordu.
+        ignoreHeight: false,
         breakPages: true,
+        // SADAKAT: Word kaydederken sayfa kırma konumlarını (w:lastRenderedPageBreak)
+        // belgeye yazar; false = onları KULLAN → sayfalama Word'le aynı yerde kırılır.
+        // (Word'ün hiç açmadığı belgede bu işaretler yoktur → eski davranış, risksiz.)
+        ignoreLastRenderedPageBreak: false,
+        renderHeaders: true,
+        renderFooters: true,
+        renderFootnotes: true,
+        renderEndnotes: true,
         experimental: true,
         useBase64URL: true
       }).then(function () {
         fitPage();
         setTimeout(fitPage, 400); // görseller/yerleşim geciken sayfalar için ikinci tur
+        // Aliaslı fontlar yüklenince metrikler değişir → yeniden sığdır (genişlik
+        // sabit ama güvenli). document.fonts yoksa (eski WebView) sessiz geç.
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(fitPage);
+        }
         report('ok');
       }).catch(function (e) {
         showError(e);
