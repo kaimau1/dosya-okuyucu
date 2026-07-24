@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
+import '../core/theme.dart';
 import '../models/document.dart';
 import '../models/recent_file.dart';
 import '../services/blank_docs.dart';
@@ -304,36 +305,68 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        // Büyük sistem yazı tipinde/yatay modda taşmasın diye kaydırılabilir.
+        padding: const EdgeInsets.all(Gap.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.description_outlined,
-                size: 72, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 16),
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(Radii.sheet),
+              ),
+              child: Icon(Icons.folder_copy_outlined,
+                  size: 40, color: scheme.onPrimaryContainer),
+            ),
+            const SizedBox(height: Gap.lg),
             Text('Henüz dosya açmadınız',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            const Text(
+                style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.center),
+            const SizedBox(height: Gap.sm),
+            Text(
               'PDF, Word, Excel, Slayt, görsel ve metin dosyalarını açıp '
               'inceleyebilir, düzenleyebilir ve yapay zeka ile üzerinde '
               'çalışabilirsiniz.',
               textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: Gap.lg),
             FilledButton.icon(
               onPressed: onOpen,
               icon: const Icon(Icons.folder_open),
               label: const Text('İlk dosyanı aç'),
             ),
             if (!hasApiKey) ...[
-              const SizedBox(height: 12),
-              Text(
-                'İpucu: AI özellikleri için Ayarlar’dan Gemini API anahtarı ekleyin.',
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
+              const SizedBox(height: Gap.md),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.md, vertical: Gap.sm),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(Radii.control),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lightbulb_outline,
+                        size: 18, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: Gap.sm),
+                    Flexible(
+                      child: Text(
+                        'AI özellikleri için Ayarlar’dan Gemini API anahtarı ekleyin.',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
@@ -356,10 +389,13 @@ class _RecentList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
+      // Alt boşluk FAB'ın altında kalan son kartı kurtarır (sabit öğe ile
+      // kaydırma içeriği çakışmasın).
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 96),
       itemCount: recents.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 4),
+      separatorBuilder: (_, __) => const SizedBox(height: Gap.sm),
       itemBuilder: (context, i) {
         final r = recents[i];
         final kind = FileService.kindForExtension(r.extension);
@@ -368,26 +404,29 @@ class _RecentList extends StatelessWidget {
           direction: DismissDirection.endToStart,
           background: Container(
             alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
+            padding: const EdgeInsets.only(right: Gap.lg),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer,
-              borderRadius: BorderRadius.circular(12),
+              color: scheme.errorContainer,
+              borderRadius: BorderRadius.circular(Radii.card),
             ),
-            child: Icon(Icons.delete_outline,
-                color: Theme.of(context).colorScheme.onErrorContainer),
+            child: Icon(Icons.delete_outline, color: scheme.onErrorContainer),
           ),
           onDismissed: (_) => onRemove(r),
           child: Card(
-            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
             child: ListTile(
               leading: FileTypeIcon(kind: kind),
               title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(
-                '${kind.label} • ${_size(r.sizeBytes)} • ${_relTime(r.openedAtMs)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${kind.label} · ${_size(r.sizeBytes)} · ${_relTime(r.openedAtMs)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: Icon(Icons.chevron_right,
+                  size: 20, color: scheme.onSurfaceVariant),
               onTap: () => onTap(r),
             ),
           ),

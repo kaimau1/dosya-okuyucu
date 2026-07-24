@@ -956,3 +956,28 @@ gerçek MIME listesiyle değiştirildi (pdf, OOXML, legacy office, text/\*, imag
 5 ekranda `FloatingActionButton.extended` (geniş etiket) belgenin sağ alt köşesini
 kapatıyordu → dairesel FAB + tooltip. Ortak `AiFab` widget'ı YAPILMADI (ponytail:
 5 küçük edit, tek satırlık soyutlama kazancı yok).
+
+### Premium görsel yenileme (madde 5)
+Kullanıcı "tüm uygulama" kapsamını seçti. En yüksek kaldıraç `core/theme.dart`:
+tek dosya değişikliği tüm ekranlara yansıyor (kart, liste, giriş alanı, dialog,
+bottom sheet, snackbar, ayraç, buton, FAB temaları + tipografi ölçeği).
+- **Token'lar eklendi:** `Gap` (4/8dp ritmi) ve `Radii` (control 12 / card 16 /
+  sheet 28). Ekranlara serbest sayı yazmak yerine buradan alınır.
+- **Görsel dil:** gölge yığını yerine yüzey tonu (`surfaceContainerLow`) + saç
+  teli `outlineVariant` kenarlık — koyu temada kenar kaybolmuyor.
+- **TUTARSIZLIK BULGUSU (düzeltildi):** `widgets/file_type_icon.dart` marka
+  renklerini KENDİ hex setiyle tanımlıyordu (PDF #E53935, Word #1E88E5, Excel
+  #43A047, Slides #FB8C00) — `OfficeColors`'taki üst şerit renklerinden (#C50F1F,
+  #185ABD, #107C41, #C43E1C) farklıydı. Aynı dosya listede ve şeritte iki ayrı
+  tonla görünüyordu. Artık ikon Office dördü için `OfficeColors`'tan besleniyor;
+  text/image/unknown listede ayrışsın diye kendi tonlarını korudu (şeritte hepsi
+  tek `neutral`).
+- **REDDEDİLEN (ui-ux-pro-max skill çıktısı):** önerilen teal/turuncu palet
+  (#0D9488) mevcut Office kimliğini bozardı; Playfair Display serif bir ofis
+  uygulamasına yanlış ve Google Fonts internet ister (uygulama çevrimdışı, APK'da
+  zaten Carlito/Tinos/Arimo BELGE fontu olarak var — UI fontu değil); GSAP web
+  kütüphanesi, Flutter'da karşılığı yok. Skill'den yalnız katmanlı yüzey, press
+  geri bildirimi, kontrast/dokunma hedefi kuralları alındı.
+- **Sayfa geçişi:** `CupertinoPageTransitionsBuilder` const map'te çözülmedi
+  (`invalid_constant`); zaten Android'de yabancı duracaktı → Flutter'ın M3
+  varsayılanı (ZoomPageTransitions) bırakıldı.

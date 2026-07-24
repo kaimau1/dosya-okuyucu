@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme.dart';
 import '../models/document.dart';
 
 /// Dosya türüne göre renkli ikon rozeti.
@@ -11,27 +12,39 @@ class FileTypeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, color) = _style(kind);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // Koyu temada marka renkleri koyu zeminde söner → rozet dolgusu ve ikon
+    // biraz açılır (her iki temada da 3:1 glif kontrastı korunur).
+    final tint = dark ? Color.lerp(color, Colors.white, 0.25)! : color;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
+        color: tint.withValues(alpha: dark ? 0.22 : 0.13),
+        borderRadius: BorderRadius.circular(Radii.control),
+        border: Border.all(color: tint.withValues(alpha: 0.28)),
       ),
-      child: Icon(icon, color: color, size: size * 0.55),
+      child: Icon(icon, color: tint, size: size * 0.52),
     );
   }
 
+  /// Dosya türü ikonu + rengi.
+  ///
+  /// Office dörtlüsünün rengi [OfficeColors]'tan gelir — üst şeritle AYNI marka
+  /// tonu olsun diye (eskiden burada ayrı bir hex seti vardı: PDF #E53935 vs
+  /// şeritteki #C50F1F gibi, aynı dosya iki ayrı kırmızıyla görünüyordu).
+  /// Metin/görsel/bilinmeyen şeritte tek nötr renge düşer; listede birbirinden
+  /// ayrılmaları gerektiği için burada kendi ayırt edici tonları var.
   (IconData, Color) _style(DocKind kind) {
     switch (kind) {
       case DocKind.pdf:
-        return (Icons.picture_as_pdf, const Color(0xFFE53935));
+        return (Icons.picture_as_pdf, OfficeColors.pdf);
       case DocKind.word:
-        return (Icons.description, const Color(0xFF1E88E5));
+        return (Icons.description, OfficeColors.word);
       case DocKind.spreadsheet:
-        return (Icons.table_chart, const Color(0xFF43A047));
+        return (Icons.table_chart, OfficeColors.excel);
       case DocKind.slides:
-        return (Icons.slideshow, const Color(0xFFFB8C00));
+        return (Icons.slideshow, OfficeColors.slides);
       case DocKind.text:
         return (Icons.article_outlined, const Color(0xFF6D4C41));
       case DocKind.image:

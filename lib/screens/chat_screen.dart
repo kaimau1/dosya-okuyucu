@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
 import '../core/markdown.dart';
+import '../core/theme.dart';
 import '../services/conversion_service.dart';
 import '../services/gemini_service.dart';
 import '../services/markdown_export.dart';
@@ -302,14 +303,25 @@ class _Bubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
+        margin: const EdgeInsets.symmetric(vertical: Gap.xs),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.82,
         ),
         decoration: BoxDecoration(
-          color: isUser ? scheme.primaryContainer : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
+          color:
+              isUser ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+          // Konuşan tarafa bakan köşe sivri: kimin konuştuğu renkten bağımsız
+          // da okunur (renk tek gösterge olmasın).
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(Radii.card),
+            topRight: const Radius.circular(Radii.card),
+            bottomLeft: Radius.circular(isUser ? Radii.card : Gap.xs),
+            bottomRight: Radius.circular(isUser ? Gap.xs : Radii.card),
+          ),
+          border: isUser
+              ? null
+              : Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
