@@ -1,6 +1,14 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **PDF Araçları cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 1: ana ekran
+      PDF simgesi / görüntüleyici ⋮ "PDF araçları" → (a) sayfa küçük resimleri
+      geliyor mu, (b) seç → döndür/sil/öne-arkaya taşı doğru sayfaya mı uyguluyor,
+      (c) "Çıkar" seçili sayfaları ayrı PDF olarak paylaşıyor mu, (d) "Başka PDF
+      ekle" birleştiriyor mu, (e) parola koy → uygulamayı kapat-aç → parola soruyor
+      mu, parolayı kaldır çalışıyor mu, (f) sıkıştır boyutu düşürüyor mu (taranmış
+      PDF'te kazanç KÜÇÜK olabilir, beklenen), (g) Kaydet sonrası görüntüleyici
+      belgeyi tazeliyor mu.
 - [ ] **Çeviri/resim-PDF/premium cihaz doğrulaması (kullanıcı)** — 2026-07-24,
       build 89'da: (a) PDF'te metin seç → "Çevir" → dil modeli iniyor mu, çeviri
       geliyor mu; (b) Word/Excel/Slayt menüsünde "Belgeyi çevir"; (c) bir resim
@@ -68,10 +76,18 @@
 - [ ] **PDF vurgu remount zoom kaybı** — `_pdfReloadKey++` remount'ta zoom/kaydırma sıfırlanır;
       `onViewerReady`'de son matris geri uygula.
 
+## Play Store atağı — PDF (2026-07-25 kararı, 4 faz)
+- [x] ~~Faz 1: PDF Araçları (birleştir/çıkar/sil/sırala/döndür/parola/sıkıştır)~~ → YAPILDI 2026-07-25
+- [ ] **Faz 2 — İmza** — parmakla imza çiz (`CustomPaint`) → PNG → PDF'e yerleştir
+      (Syncfusion damga). Yerleştirme overlay'i `pdf_select_layer.dart` kalıbından.
+- [ ] **Faz 3 — Belge tarayıcı** — kamera → kenar tespiti/perspektif düzeltme →
+      "taranmış" filtre → çok sayfa → tek PDF + OCR katmanı → paylaş. Motor: Google
+      ML Kit belge tarayıcı (karar 2026-07-25). "Çoklu resim → tek PDF" maddesini kapatır.
+- [ ] **Faz 4 — Okuma deneyimi** — gece modu, link tıklama, outline, sesli okuma (TTS).
+      Ayrıntı: yukarıdaki "PDF sadakat/deneyim" bölümü.
+
 ## Sonra yapılacak
-- [ ] **PDF Faz 3 — Sayfa düzenleme** — döndür/sil/sırala. Syncfusion `doc.pages[i].rotation`,
-      `doc.pages.remove/reorder` → save → pdfrx'te reload. Küçük resim şeridi UI gerekebilir.
-- [ ] **PDF Faz 4 — Form doldurma** — Syncfusion `PdfLoadedForm` alanları oku (`doc.form.fields`),
+- [ ] **PDF form doldurma (en son)** — Syncfusion `PdfLoadedForm` alanları oku (`doc.form.fields`),
       ekranda düzenlenebilir overlay, doldur → save. En belirsiz UX; en son.
 - [ ] Excel: dondurulmuş bölme (frozen pane) desteği — kullanıcının SAHU dosyasında var,
       şu an yok sayılıyor (tek parça kaydırma)

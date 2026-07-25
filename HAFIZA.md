@@ -1688,3 +1688,67 @@ Arama dizini (`search_index.tsv`) zaten her dosya/klasör için
 **Yeni testler** (`fm_search_index_test`): dizinden kurulan indeks tam
 taramayla aynı sayılar/listeler; dizin yok/boşsa `null` (çağıran tam taramaya
 düşer); bozuk satırlar atlanır.
+
+---
+
+## 2026-07-25 — Play Store atağı: PDF Faz 1 (PDF Araçları)
+
+**Neden:** "PDF için bizi Play'de öne çıkaracak ne eklenir" sorusu. Verdikleri
+karar: okuma özellikleri (arama/vurgu/çeviri/AI) tutundurur ama İNDİRTMEZ;
+indirten aramalar *PDF birleştir / sıkıştır / imzala / şifrele / tara*.
+4 fazlı yol haritası kabul edildi (KALANLAR "Play Store atağı" bölümü):
+1 = PDF araçları, 2 = imza, 3 = belge tarayıcı, 4 = okuma deneyimi.
+Teslim ritmi: **faz faz push + APK**, her fazı kullanıcı telefonda doğrular.
+
+**Reddedilen yol — PDF→Word/Excel dönüştürme:** en çok aranan özellik ama
+offline'da düzgün olmuyor; bulut gerektirir = maliyet + "dosyan telefondan
+çıkmıyor" konumlandırmasını bozar. Konumlandırma (tam çevrimdışı, reklamsız)
+özelliğin kendisinden daha değerli görüldü.
+
+**Yapılan (Faz 1):** `lib/services/pdf_tools.dart` (saf Syncfusion, YENİ
+BAĞIMLILIK YOK) + `lib/screens/pdf_tools_screen.dart` (sayfa küçük resim
+ızgarası). Giriş: ana ekran AppBar PDF simgesi **ve** görüntüleyici ⋮ menüsü.
+
+**Syncfusion Flutter ≠ Syncfusion .NET — TUZAK:** .NET'teki
+`importPageRange` / `PdfDocument.merge` Flutter sürümünde **yok**. Sayfa
+kopyalama tek yoldan olur: `srcPage.createTemplate()` → hedefte
+`graphics.drawPdfTemplate(...)`. Birleştir/çıkar/sil/sırala bu yüzden tek
+özel fonksiyona (`PdfTools._compose`) indirildi — dört iş de aynı kod.
+
+**TUZAK — `createTemplate()` `/Rotate`'i taşımaz:** `PdfPage.size` ham kutu
+ölçüsüdür, döndürmeyi yansıtmaz. 90/270° döndürülmüş sayfa kopyalanırken
+hedef sayfanın en/boyu takas edilip grafik `translate+rotate` ile
+çevrilmezse sayfa yan yatar ve taşar. Dönüşüm saf fonksiyona alındı
+(`composedPageTransform`) ve testi yazıldı; ayrıca gerçek PDF üretilip
+çıktı sayfa boyutu ölçülüyor.
+
+**TUZAK — `PdfPage.rotation` setter'ı yalnız YÜKLENMİŞ (loaded) sayfada
+çalışır** (`isLoadedPage` kontrolü kaynak kodunda). Yeni oluşturulan sayfaya
+rotasyon yazılamaz — bu yüzden döndürme, belgeyi yeniden kurmadan doğrudan
+yüklü belge üzerinde yapılıp kaydediliyor (kayıpsız, `/Rotate` girdisi).
+
+**TUZAK — parola/sıkıştırma `incrementalUpdate = false` ister.** Syncfusion
+varsayılanı artımlı güncelleme: şifreleme eski gövdeye EK olarak yazılır,
+şifresiz ilk sürüm dosyada kalır (güvenlik açığı) ve sıkıştırma hiç kazanç
+vermez. `doc.fileStructure.incrementalUpdate = false` şart.
+
+**Sıkıştırmanın sınırı (bilinçli):** yalnız akış (stream) sıkıştırması —
+gömülü görseller yeniden örneklenmiyor, o yüzden TARANMIŞ PDF'te kazanç
+küçük. Agresif mod istenirse yol: sayfaları pdfrx ile bitmap'e render edip
+JPEG kalitesi düşürülmüş yeni PDF kurmak (metin katmanı kaybolur → ayrı
+seçenek olarak sunulmalı, sessizce yapılmamalı).
+
+**pdfrx TUZAĞI — `PdfDocumentRefData` eşitliği yalnız `sourceName`'e bakar.**
+Baytlar değişip ad aynı kalırsa önizleme tazelenmez; `sourceName`'e revizyon
+sayacı eklendi (`'$path#$rev'`). Aynı sorunun dosya yolu sürümü zaten
+biliniyordu (`_pdfReloadKey` remount, Faz 2 vurgu).
+
+**Test:** `test/pdf_tools_test.dart` — 19 test, gerçek PDF üretip yeniden
+açarak doğruluyor (Syncfusion PDF I/O cihazsız koşuyor). Sayfa SIRASI, her
+sayfaya farklı GENİŞLİK verilip çıktının genişlik listesi okunarak
+doğrulanıyor — metin çıkarmaya güvenmeye gerek kalmıyor.
+
+**Not — Windows'ta yerel test paketinde 14 kırmızı var** (`fm_archive_rar`,
+`fm_compress`, `fm_trash`, `fm_scan`, `fm_storage_archive`, `formula_engine`):
+hepsi yol ayracı (`/` vs `\`) ve temp dizin kaynaklı, bu iş ÖNCESİNDE de
+kırmızıydı (stash ile doğrulandı), Linux CI'yı ilgilendirmiyor.

@@ -19,6 +19,7 @@ import '../widgets/office_shell.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
+import 'pdf_tools_screen.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
 /// annotation'ı altındaki metni boyamaz (çarpımsal harman), renk okunurluğu bozmaz.
@@ -606,12 +607,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'stats':
                 _showStats();
                 break;
+              case 'pdftools':
+                _openPdfTools();
+                break;
               case 'translate':
                 _translateDocument();
                 break;
             }
           },
           itemBuilder: (_) => [
+            if (doc.kind == DocKind.pdf)
+              const PopupMenuItem(
+                  value: 'pdftools',
+                  child: Text('PDF araçları (sayfa, birleştir, parola)')),
             if (doc.kind == DocKind.pdf || doc.kind == DocKind.image)
               const PopupMenuItem(
                   value: 'ocr', child: Text('Metni tanı (OCR)')),
@@ -742,6 +750,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
   ///
   /// ponytail: annotate+save ana izlekte. Büyük PDF'te takılırsa xlsx gibi
   /// `compute`'a taşınır (bkz. HAFIZA 2026-07-22 XLSX isolate).
+  /// PDF araçları ekranı; kaydedilerek dönülürse dosya değişmiştir → pdfrx
+  /// aynı yolu "eşit" saydığı için remount ile yeniden okutulur.
+  Future<void> _openPdfTools() async {
+    final saved = await PdfToolsScreen.open(context, path: widget.doc.path);
+    if (saved == true && mounted) {
+      setState(() {
+        _pdfReloadKey++;
+        _pdfText = '';
+      });
+    }
+  }
+
   Future<void> _highlightPdf() async {
     final rects = _pdfSelRects;
     final page = _pdfSelPage;

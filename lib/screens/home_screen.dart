@@ -14,6 +14,7 @@ import '../services/fm/entry_opener.dart';
 import '../widgets/file_type_icon.dart';
 import 'chat_screen.dart';
 import 'fm/dashboard_screen.dart';
+import 'pdf_tools_screen.dart';
 import 'settings_screen.dart';
 
 /// Uygulama kabuğu: alt gezinme çubuğuyla üç bölme —
@@ -220,6 +221,11 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
       appBar: AppBar(
         title: const Text('Son belgeler'),
         actions: [
+          IconButton(
+            tooltip: 'PDF araçları',
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: () => PdfToolsScreen.open(context),
+          ),
           IconButton(
             tooltip: 'Yeni belge',
             icon: const Icon(Icons.note_add_outlined),
