@@ -80,8 +80,15 @@ abstract final class FsScan {
   /// büyük/küçük harf farkı `turkishFold` ile zaten kalkar.
   static String nameKey(String name) {
     const map = {
-      'ı': 'i', 'ş': 's', 'ğ': 'g', 'ü': 'u', 'ö': 'o', 'ç': 'c',
-      'â': 'a', 'î': 'i', 'û': 'u',
+      'ı': 'i',
+      'ş': 's',
+      'ğ': 'g',
+      'ü': 'u',
+      'ö': 'o',
+      'ç': 'c',
+      'â': 'a',
+      'î': 'i',
+      'û': 'u',
     };
     final folded = turkishFold(name);
     final sb = StringBuffer();
@@ -107,11 +114,16 @@ abstract final class FsScan {
   ///
   /// *Niye tek geçiş:* panodaki her kutu ayrı ayrı tararsa aynı 100 bin dosya
   /// defalarca gezilir. Tek yürüyüş hepsini besler.
+  ///
+  /// [searchIndexPath] verilirse **aynı yürüyüşte** arama dizini de yazılır
+  /// (bkz. `SearchIndex`): panonun taraması zaten tüm ağacı geziyor, aramanın
+  /// ikinci kez gezmesi saf israftı.
   static Future<StorageIndex> index(
     List<String> roots, {
     int perCategory = 800,
+    String? searchIndexPath,
   }) =>
-      _run(_indexSync, _IndexArgs(roots, perCategory));
+      _run(_indexSync, _IndexArgs(roots, perCategory, searchIndexPath));
 
   /// [fn]'i mümkünse arka plan isolate'inde çalıştırır; olmazsa ana izlekte.
   static Future<R> _run<A, R>(R Function(A) fn, A arg) async {
@@ -150,6 +162,10 @@ class StorageIndex {
   /// İzin verilmediği için atlanan klasör sayısı (kullanıcıya ipucu).
   final int skipped;
 
+  /// Aynı yürüyüşte yazılan arama dizinindeki satır sayısı;
+  /// -1 = dizin istenmedi ya da yazılamadı.
+  final int searchIndexRows;
+
   const StorageIndex({
     required this.stats,
     required this.byCategory,
@@ -158,6 +174,7 @@ class StorageIndex {
     required this.totalFiles,
     required this.totalBytes,
     required this.skipped,
+    this.searchIndexRows = -1,
   });
 
   static const empty = StorageIndex(
@@ -186,7 +203,10 @@ class _SearchArgs {
 class _IndexArgs {
   final List<String> roots;
   final int perCategory;
-  const _IndexArgs(this.roots, this.perCategory);
+
+  /// Boş değilse arama dizini de bu yola yazılır.
+  final String? searchIndexPath;
+  const _IndexArgs(this.roots, this.perCategory, [this.searchIndexPath]);
 }
 
 int _folderSizeSync(String path) {
@@ -222,10 +242,22 @@ StorageIndex _indexSync(_IndexArgs args) {
   var totalBytes = 0;
   var skipped = 0;
 
+  // Arama dizini: aynı yürüyüşten beslenir. Yazma başarısız olursa (izin/yer)
+  // tarama devam eder, yalnız dizin oluşmaz — pano çalışmaya devam etmeli.
+  final writer = args.searchIndexPath == null
+      ? null
+      : _SearchIndexWriter.tryOpen(args.searchIndexPath!);
+  var indexedRows = 0;
+
   for (final root in args.roots) {
     walkFiles(
       Directory(root),
       (entry) {
+        writer?.add(entry);
+        if (writer != null) indexedRows++;
+        // Klasörler yalnız arama dizinine girer: kategori sayıları ve
+        // "en büyük/en yeni" listeleri DOSYA listeleridir.
+        if (entry.isDir) return;
         final c = entry.category;
         counts[c] = (counts[c] ?? 0) + 1;
         bytes[c] = (bytes[c] ?? 0) + entry.sizeBytes;
@@ -240,8 +272,13 @@ StorageIndex _indexSync(_IndexArgs args) {
         recent.add(entry);
       },
       () => skipped++,
+      // Klasörleri yalnız arama dizini isteniyorsa gez (aksi hâlde gereksiz
+      // geri çağrı maliyeti).
+      includeDirs: writer != null,
     );
   }
+
+  final wrote = writer?.finish() ?? false;
 
   return StorageIndex(
     stats: {
@@ -254,7 +291,58 @@ StorageIndex _indexSync(_IndexArgs args) {
     totalFiles: totalFiles,
     totalBytes: totalBytes,
     skipped: skipped,
+    searchIndexRows: wrote ? indexedRows : -1,
   );
+}
+
+/// Arama dizinini satır satır yazar (isolate içinde). Önce `.tmp`'ye yazar,
+/// sonunda yerine taşır → yarım kalmış dizin okunmaz.
+class _SearchIndexWriter {
+  final File _tmp;
+  final String _target;
+  final RandomAccessFile _raf;
+  final StringBuffer _buffer = StringBuffer();
+
+  _SearchIndexWriter._(this._tmp, this._target, this._raf);
+
+  static _SearchIndexWriter? tryOpen(String target) {
+    try {
+      final tmp = File('$target.tmp');
+      tmp.parent.createSync(recursive: true);
+      return _SearchIndexWriter._(
+          tmp, target, tmp.openSync(mode: FileMode.write));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void add(FsEntry entry) {
+    final path = entry.path.replaceAll('\t', ' ').replaceAll('\n', ' ');
+    _buffer.writeln('$path\t${entry.sizeBytes}\t${entry.modifiedMs}\t'
+        '${entry.isDir ? 1 : 0}');
+    if (_buffer.length >= 64 * 1024) _flush();
+  }
+
+  void _flush() {
+    if (_buffer.isEmpty) return;
+    _raf.writeStringSync(_buffer.toString());
+    _buffer.clear();
+  }
+
+  /// Dosyayı kapatıp yerine taşır; başarılıysa true.
+  bool finish() {
+    try {
+      _flush();
+      _raf.closeSync();
+      _tmp.renameSync(_target);
+      return true;
+    } catch (_) {
+      try {
+        if (_tmp.existsSync()) _tmp.deleteSync();
+      } catch (_) {}
+      return false;
+    }
+  }
 }
 
 /// Bellek-sınırlı "en iyi N" toplayıcı: liste 2N'e ulaşınca sıralayıp N'e
@@ -355,8 +443,18 @@ abstract final class FsPaths {
   static String humanDate(int ms) {
     if (ms <= 0) return '—';
     const months = [
-      'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
-      'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
+      'Oca',
+      'Şub',
+      'Mar',
+      'Nis',
+      'May',
+      'Haz',
+      'Tem',
+      'Ağu',
+      'Eyl',
+      'Eki',
+      'Kas',
+      'Ara',
     ];
     final d = DateTime.fromMillisecondsSinceEpoch(ms);
     String two(int n) => n.toString().padLeft(2, '0');

@@ -5,8 +5,10 @@ import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
+import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_open_with.dart';
 import '../../models/recent_file.dart';
 import '../../screens/editors/slides_editor_screen.dart';
 import '../../screens/editors/spreadsheet_editor_screen.dart';
@@ -57,7 +59,9 @@ abstract final class EntryOpener {
       FmCategory.video => OpenRoute.player,
       FmCategory.audio => OpenRoute.audio,
       FmCategory.document || FmCategory.other => OpenRoute.document,
-      FmCategory.apk || FmCategory.archive || FmCategory.folder =>
+      FmCategory.apk ||
+      FmCategory.archive ||
+      FmCategory.folder =>
         OpenRoute.external,
     };
   }
@@ -88,12 +92,26 @@ abstract final class EntryOpener {
       return;
     }
     final route = routeFor(path);
-    final group = siblings == null ? <String>[path] : siblingsFor(path, siblings);
+    final group =
+        siblings == null ? <String>[path] : siblingsFor(path, siblings);
 
     if (route == OpenRoute.external) {
       await openExternally(context, path);
       return;
     }
+
+    // Medya (video / ses / görsel): kullanıcı kendi oynatıcısını tercih
+    // edebilir. Tercih yoksa İLK açılışta sorulur ve hatırlanır.
+    if (isMediaRoute(route)) {
+      final choice = await _resolveMediaChoice(context, route);
+      if (!context.mounted) return;
+      if (choice == null) return; // kullanıcı vazgeçti
+      if (choice == MediaOpenWith.external) {
+        await openExternally(context, path);
+        return;
+      }
+    }
+
     if (route == OpenRoute.player) {
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => MediaPlayerScreen(path: path, playlist: group),
@@ -159,6 +177,35 @@ abstract final class EntryOpener {
     }
   }
 
+  /// Bu rota "kendi oynatıcım açılsın mı" sorusunun anlamlı olduğu bir medya
+  /// rotası mı? (Video, ses ve görsel — belge/arşiv değil.)
+  static bool isMediaRoute(OpenRoute route) =>
+      route == OpenRoute.player ||
+      route == OpenRoute.audio ||
+      route == OpenRoute.gallery;
+
+  /// Medya tercihini çözer: ayarda seçim varsa onu kullanır, "sor" ise
+  /// kullanıcıya sorar. Kullanıcı pencereyi kapatırsa null döner (dosya
+  /// açılmaz — yanlışlıkla bir uygulamaya atılmasındansa hiçbir şey yapma).
+  static Future<MediaOpenWith?> _resolveMediaChoice(
+    BuildContext context,
+    OpenRoute route,
+  ) async {
+    final appState = context.read<AppState>();
+    final saved = appState.fmMediaOpenWith;
+    if (saved != MediaOpenWith.ask) return saved;
+
+    final kind = switch (route) {
+      OpenRoute.player => 'Video',
+      OpenRoute.audio => 'Ses dosyası',
+      _ => 'Görsel',
+    };
+    return showDialog<MediaOpenWith>(
+      context: context,
+      builder: (ctx) => _MediaChoiceDialog(kind: kind, appState: appState),
+    );
+  }
+
   /// Sistemin varsayılan uygulamasına devreder (video, ses, apk, bilinmeyen).
   static Future<void> openExternally(BuildContext context, String path) async {
     try {
@@ -188,4 +235,70 @@ abstract final class EntryOpener {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
+}
+
+/// "Bu dosyayı neyle açalım?" penceresi.
+///
+/// Kullanıcı isteği (2026-07-25): "kişi videoları veya fotoğrafları kendi
+/// media player'ından oynatmak isteyebilir; hem ayarlarda hem ilk kez
+/// oynatılacağı zaman soralım."
+///
+/// "Bunu hatırla" işaretliyse seçim kalıcı olur (ayarlardan değiştirilebilir);
+/// işaretli değilse yalnız bu açılış için geçerlidir.
+class _MediaChoiceDialog extends StatefulWidget {
+  final String kind;
+  final AppState appState;
+  const _MediaChoiceDialog({required this.kind, required this.appState});
+
+  @override
+  State<_MediaChoiceDialog> createState() => _MediaChoiceDialogState();
+}
+
+class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
+  bool _remember = true;
+
+  Future<void> _pick(MediaOpenWith choice) async {
+    if (_remember) await widget.appState.setFmMediaOpenWith(choice);
+    if (mounted) Navigator.pop(context, choice);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('${widget.kind} neyle açılsın?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.play_circle_outline),
+              title: const Text('Uygulama içi oynatıcı'),
+              subtitle: const Text('Hızlı açılır, uygulamadan çıkmazsın'),
+              onTap: () => _pick(MediaOpenWith.inApp),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Başka uygulama'),
+              subtitle: const Text('Kendi medya oynatıcın / galerin'),
+              onTap: () => _pick(MediaOpenWith.external),
+            ),
+            const SizedBox(height: Gap.sm),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _remember,
+              onChanged: (v) => setState(() => _remember = v ?? false),
+              title: const Text('Bunu hatırla'),
+              subtitle: const Text('Ayarlardan değiştirebilirsin'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Vazgeç'),
+          ),
+        ],
+      );
 }

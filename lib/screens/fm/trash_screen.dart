@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/trash_service.dart';
+import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/fm_search_field.dart';
 
 /// Geri Dönüşüm Kutusu: silinen dosyaları geri yükle ya da kalıcı sil.
 class TrashScreen extends StatefulWidget {
@@ -16,6 +19,21 @@ class TrashScreen extends StatefulWidget {
 class _TrashScreenState extends State<TrashScreen> {
   List<TrashItem> _items = const [];
   bool _loading = true;
+
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  String _query = '';
+
+  /// Çöpteki kayıtlar bellektedir → arama anlıktır, disk okunmaz.
+  List<TrashItem> get _filtered => _query.trim().isEmpty
+      ? _items
+      : _items.where((i) => fmMatches(i.name, _query)).toList();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -63,15 +81,26 @@ class _TrashScreenState extends State<TrashScreen> {
     );
     if (ok != true) return;
     await FmEnv.trash.deleteForever(item);
+    if (!mounted) return;
+    _snack('“${item.name}” kalıcı olarak silindi.');
     _load();
   }
 
+  /// Çöp kutusunu boşaltır — **ilerleme penceresiyle**.
+  ///
+  /// Eskiden bu işlem sessizdi: yüzlerce dosya silinirken ekran donmuş gibi
+  /// görünüyor, bitince de hiçbir şey söylenmiyordu (kullanıcı bulgusu
+  /// 2026-07-25). Artık kaç öğenin silineceği önce yazılır, silme sırasında
+  /// çubuk ve dosya adı görünür, sonunda özet bildirilir.
   Future<void> _empty() async {
+    final count = _items.length;
+    final total = _items.fold<int>(0, (sum, i) => sum + i.sizeBytes);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Çöp kutusu boşaltılsın mı?'),
-        content: const Text('Tüm öğeler kalıcı olarak silinir.'),
+        content: Text('$count öğe (${FsPaths.humanSize(total)}) kalıcı olarak '
+            'silinecek. Bu işlem geri alınamaz.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -82,8 +111,23 @@ class _TrashScreenState extends State<TrashScreen> {
         ],
       ),
     );
-    if (ok != true) return;
-    await FmEnv.trash.empty();
+    if (ok != true || !mounted) return;
+    final result = await showFmProgress<FmOpResult>(
+      context,
+      title: 'Çöp kutusu boşaltılıyor',
+      task: (report, isCancelled) =>
+          FmEnv.trash.empty(onProgress: report, isCancelled: isCancelled),
+    );
+    if (!mounted) return;
+    if (result.hasError) {
+      _snack('${result.succeeded} öğe silindi, '
+          '${result.errors.length} öğe silinemedi: ${result.errors.first}');
+    } else if (result.cancelled) {
+      _snack('Durduruldu — ${result.succeeded} öğe silindi.');
+    } else {
+      _snack('Çöp kutusu boşaltıldı · ${result.succeeded} öğe · '
+          '${FsPaths.humanSize(total)} yer açıldı.');
+    }
     _load();
   }
 
@@ -96,14 +140,37 @@ class _TrashScreenState extends State<TrashScreen> {
   @override
   Widget build(BuildContext context) {
     final total = _items.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+    final shown = _filtered;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Geri Dönüşüm Kutusu'),
-        actions: [
-          if (_items.isNotEmpty)
-            TextButton(onPressed: _empty, child: const Text('Boşalt')),
-        ],
-      ),
+      appBar: _searching
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() {
+                  _searching = false;
+                  _query = '';
+                  _searchController.clear();
+                }),
+              ),
+              title: FmSearchField(
+                controller: _searchController,
+                hint: 'Çöp kutusunda ara…',
+                onChanged: (v) => setState(() => _query = v),
+              ),
+            )
+          : AppBar(
+              title: const Text('Geri Dönüşüm Kutusu'),
+              actions: [
+                if (_items.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Çöp kutusunda ara',
+                    icon: const Icon(Icons.search),
+                    onPressed: () => setState(() => _searching = true),
+                  ),
+                if (_items.isNotEmpty)
+                  TextButton(onPressed: _empty, child: const Text('Boşalt')),
+              ],
+            ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
@@ -116,17 +183,19 @@ class _TrashScreenState extends State<TrashScreen> {
                         children: [
                           const Icon(Icons.delete_sweep_outlined),
                           const SizedBox(width: Gap.sm),
-                          Text('${_items.length} öğe · '
-                              '${FsPaths.humanSize(total)}'),
+                          Text(_query.trim().isEmpty
+                              ? '${_items.length} öğe · '
+                                  '${FsPaths.humanSize(total)}'
+                              : '${shown.length} / ${_items.length} öğe'),
                         ],
                       ),
                     ),
                     const Divider(height: 1),
                     Expanded(
                       child: ListView.builder(
-                        itemCount: _items.length,
+                        itemCount: shown.length,
                         itemBuilder: (context, i) {
-                          final item = _items[i];
+                          final item = shown[i];
                           return ListTile(
                             leading: Icon(item.isDir
                                 ? Icons.folder_outlined

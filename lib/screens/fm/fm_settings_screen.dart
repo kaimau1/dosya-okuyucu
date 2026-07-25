@@ -5,11 +5,18 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
+import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_open_with.dart';
+import '../../models/photo_group.dart';
+import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/installed_apps_service.dart';
+import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
+import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_progress_dialog.dart';
 import '../settings_screen.dart';
 
 /// **Dosya yöneticisine özel** ayarlar (uygulama geneli ayarlar ayrı ekranda:
@@ -37,8 +44,33 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
     _refresh();
   }
 
+  /// Arama dizininin durumu — kullanıcı aramanın neden hızlı/yavaş olduğunu
+  /// görebilsin diye açıkça yazılır.
+  String _indexSubtitle() {
+    if (SearchIndex.isBuilding) return 'Kuruluyor…';
+    if (!SearchIndex.isReady) {
+      return 'Henüz kurulmadı — ilk aramada ya da tarama sonrası kurulur';
+    }
+    final age = SearchIndex.isStale ? ' · dosyalar değişti, tazelenmeli' : '';
+    return '${SearchIndex.entryCount} kayıt · '
+        '${FsPaths.humanDate(SearchIndex.builtAtMs)}$age';
+  }
+
+  Future<void> _rebuildIndex() async {
+    setState(() {});
+    final count = await SearchIndex.rebuild();
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(count == 0
+          ? 'Dizin kurulamadı (depolama izni verilmemiş olabilir).'
+          : 'Arama dizini kuruldu · $count kayıt.'),
+    ));
+  }
+
   Future<void> _refresh() async {
     await FmEnv.ensureInit();
+    await SearchIndex.ensureLoaded();
     final items = await FmEnv.trash.list();
     final access = await StoragePermission.hasFullAccess();
     final usage = await InstalledAppsService.hasUsagePermission();
@@ -51,12 +83,15 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
     });
   }
 
+  /// Boşaltma burada da **ilerleme penceresiyle** yapılır (çöp ekranıyla aynı
+  /// davranış — sessiz silme kullanıcı bulgusuydu, 2026-07-25).
   Future<void> _emptyTrash() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Çöp kutusu boşaltılsın mı?'),
-        content: const Text('Tüm öğeler kalıcı olarak silinir.'),
+        content: Text('$_trashCount öğe (${FsPaths.humanSize(_trashBytes)}) '
+            'kalıcı olarak silinecek. Bu işlem geri alınamaz.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -67,8 +102,24 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
         ],
       ),
     );
-    if (ok != true) return;
-    await FmEnv.trash.empty();
+    if (ok != true || !mounted) return;
+    final freed = _trashBytes;
+    final result = await showFmProgress<FmOpResult>(
+      context,
+      title: 'Çöp kutusu boşaltılıyor',
+      task: (report, isCancelled) =>
+          FmEnv.trash.empty(onProgress: report, isCancelled: isCancelled),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(result.hasError
+          ? '${result.succeeded} öğe silindi, '
+              '${result.errors.length} öğe silinemedi.'
+          : result.cancelled
+              ? 'Durduruldu — ${result.succeeded} öğe silindi.'
+              : 'Çöp kutusu boşaltıldı · ${result.succeeded} öğe · '
+                  '${FsPaths.humanSize(freed)} yer açıldı.'),
+    ));
     await _refresh();
   }
 
@@ -102,17 +153,39 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
         padding: const EdgeInsets.only(bottom: Gap.xl),
         children: [
           _section('Görünüm'),
-          SwitchListTile(
-            secondary: const Icon(Icons.grid_view),
-            title: const Text('Izgara görünümü'),
-            subtitle: const Text('Klasörler ızgara olarak açılsın'),
-            value: appState.fmGrid,
-            onChanged: appState.setFmGrid,
+          ListTile(
+            leading: Icon(fmLayoutIcon(appState.fmLayout)),
+            title: const Text('Dosya listesi görünümü'),
+            subtitle: Text('${appState.fmLayout.label} · '
+                '${appState.fmLayout.description}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              final picked =
+                  await showFmLayoutSheet(context, current: appState.fmLayout);
+              if (picked != null) await appState.setFmLayout(picked);
+            },
+          ),
+          ListTile(
+            leading: Icon(fmLayoutIcon(appState.fmPhotoLayout)),
+            title: const Text('Fotoğraflar ızgarası'),
+            subtitle: Text('${appState.fmPhotoLayout.label} · '
+                'gruplama: ${appState.fmPhotoGroup.label}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              final picked = await showFmLayoutSheet(
+                context,
+                current: appState.fmPhotoLayout,
+                title: 'Izgara yoğunluğu',
+                allowLists: false,
+              );
+              if (picked != null) await appState.setFmPhotoLayout(picked);
+            },
           ),
           SwitchListTile(
             secondary: const Icon(Icons.visibility_outlined),
             title: const Text('Gizli dosyaları göster'),
-            subtitle: const Text('Adı nokta ile başlayanlar (.thumbnails gibi)'),
+            subtitle:
+                const Text('Adı nokta ile başlayanlar (.thumbnails gibi)'),
             value: appState.fmShowHidden,
             onChanged: appState.setFmShowHidden,
           ),
@@ -135,8 +208,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                   appState.setFmSort(appState.fmSort,
                       descending: !appState.fmSortDesc);
                 } else {
-                  appState.setFmSort(
-                      FmSort.values.firstWhere((s) => s.name == v));
+                  appState
+                      .setFmSort(FmSort.values.firstWhere((s) => s.name == v));
                 }
               },
               itemBuilder: (_) => [
@@ -148,7 +221,42 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               ],
             ),
           ),
-
+          ListTile(
+            leading: const Icon(Icons.calendar_month_outlined),
+            title: const Text('Fotoğrafları grupla'),
+            subtitle: Text('${appState.fmPhotoGroup.label}e göre ayrılır'),
+            trailing: PopupMenuButton<PhotoGroup>(
+              onSelected: appState.setFmPhotoGroup,
+              itemBuilder: (_) => [
+                for (final g in PhotoGroup.values)
+                  PopupMenuItem(value: g, child: Text(g.label)),
+              ],
+            ),
+          ),
+          _section('Açma'),
+          ListTile(
+            leading: const Icon(Icons.play_circle_outline),
+            title: const Text('Video, ses ve görselleri neyle aç'),
+            subtitle: Text('${appState.fmMediaOpenWith.label} · '
+                '${appState.fmMediaOpenWith.description}'),
+            trailing: PopupMenuButton<MediaOpenWith>(
+              onSelected: appState.setFmMediaOpenWith,
+              itemBuilder: (_) => [
+                for (final v in MediaOpenWith.values)
+                  PopupMenuItem(value: v, child: Text(v.label)),
+              ],
+            ),
+          ),
+          _section('Arama'),
+          ListTile(
+            leading: const Icon(Icons.manage_search),
+            title: const Text('Arama dizini'),
+            subtitle: Text(_indexSubtitle()),
+            trailing: FilledButton.tonal(
+              onPressed: _rebuildIndex,
+              child: const Text('Yenile'),
+            ),
+          ),
           _section('Silme'),
           SwitchListTile(
             secondary: const Icon(Icons.delete_outline),
@@ -188,7 +296,6 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                 : '$_trashCount öğe · ${FsPaths.humanSize(_trashBytes)}'),
             onTap: _trashCount == 0 ? null : _emptyTrash,
           ),
-
           _section('İzinler'),
           ListTile(
             leading: Icon(_fullAccess ? Icons.lock_open : Icons.lock_outline),
@@ -223,7 +330,6 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                     child: const Text('İzin ver'),
                   ),
           ),
-
           _section('Bakım'),
           ListTile(
             leading: const Icon(Icons.cleaning_services_outlined),
@@ -242,7 +348,6 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               await _refresh();
             },
           ),
-
           _section('Uygulama'),
           ListTile(
             leading: const Icon(Icons.settings_outlined),

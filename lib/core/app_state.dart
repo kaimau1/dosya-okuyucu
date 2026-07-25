@@ -2,7 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/fm_layout.dart';
 import '../models/fs_entry.dart';
+import '../models/media_open_with.dart';
+import '../models/photo_group.dart';
 import '../models/recent_file.dart';
 import '../services/firebase_service.dart';
 
@@ -16,7 +19,10 @@ class AppState extends ChangeNotifier {
   static const _kMemory = 'ai_memory';
   // Dosya yöneticisi tercihleri
   static const _kBookmarks = 'fm_bookmarks';
-  static const _kFmGrid = 'fm_grid';
+  static const _kFmLayout = 'fm_layout';
+  static const _kFmPhotoLayout = 'fm_photo_layout';
+  static const _kFmPhotoGroup = 'fm_photo_group';
+  static const _kFmMediaOpenWith = 'fm_media_open_with';
   static const _kFmSort = 'fm_sort';
   static const _kFmSortDesc = 'fm_sort_desc';
   static const _kFmHidden = 'fm_show_hidden';
@@ -48,7 +54,10 @@ class AppState extends ChangeNotifier {
 
   // ── Dosya yöneticisi durumu ───────────────────────────────────────────────
   List<String> _bookmarks = [];
-  bool _fmGrid = false;
+  FmLayout _fmLayout = FmLayout.list;
+  FmLayout _fmPhotoLayout = FmLayout.grid3;
+  PhotoGroup _fmPhotoGroup = PhotoGroup.day;
+  MediaOpenWith _fmMediaOpenWith = MediaOpenWith.ask;
   FmSort _fmSort = FmSort.name;
   bool _fmSortDesc = false;
   bool _fmShowHidden = false;
@@ -61,7 +70,20 @@ class AppState extends ChangeNotifier {
 
   /// Kullanıcının yıldızladığı klasörler (kalıcı).
   List<String> get bookmarks => List.unmodifiable(_bookmarks);
-  bool get fmGrid => _fmGrid;
+
+  /// Klasör/kategori listelerinin yerleşimi (liste, büyük liste, 2–5 sütun).
+  FmLayout get fmLayout => _fmLayout;
+
+  /// Görsel/video (Fotoğraflar) ekranının yerleşimi — ayrı tutulur: kullanıcı
+  /// dosyalarda listeyi, fotoğraflarda ızgarayı ister.
+  FmLayout get fmPhotoLayout => _fmPhotoLayout;
+
+  /// Fotoğraflar ekranındaki zaman gruplaması (gün/ay/yıl).
+  PhotoGroup get fmPhotoGroup => _fmPhotoGroup;
+
+  /// Video/ses/görsel neyle açılsın (sor / uygulama içi / başka uygulama).
+  MediaOpenWith get fmMediaOpenWith => _fmMediaOpenWith;
+
   FmSort get fmSort => _fmSort;
   bool get fmSortDesc => _fmSortDesc;
   bool get fmShowHidden => _fmShowHidden;
@@ -116,9 +138,27 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setFmGrid(bool value) async {
-    _fmGrid = value;
-    await _prefs.setBool(_kFmGrid, value);
+  Future<void> setFmLayout(FmLayout value) async {
+    _fmLayout = value;
+    await _prefs.setString(_kFmLayout, value.name);
+    notifyListeners();
+  }
+
+  Future<void> setFmPhotoLayout(FmLayout value) async {
+    _fmPhotoLayout = value;
+    await _prefs.setString(_kFmPhotoLayout, value.name);
+    notifyListeners();
+  }
+
+  Future<void> setFmPhotoGroup(PhotoGroup value) async {
+    _fmPhotoGroup = value;
+    await _prefs.setString(_kFmPhotoGroup, value.name);
+    notifyListeners();
+  }
+
+  Future<void> setFmMediaOpenWith(MediaOpenWith value) async {
+    _fmMediaOpenWith = value;
+    await _prefs.setString(_kFmMediaOpenWith, value.name);
     notifyListeners();
   }
 
@@ -164,7 +204,16 @@ class AppState extends ChangeNotifier {
         .toList();
     _memory = _prefs.getStringList(_kMemory) ?? [];
     _bookmarks = _prefs.getStringList(_kBookmarks) ?? [];
-    _fmGrid = _prefs.getBool(_kFmGrid) ?? false;
+    _fmLayout = FmLayoutInfo.byName(_prefs.getString(_kFmLayout),
+        // Eski sürümün iki durumlu tercihi korunur: ızgara açıksa 3 sütun.
+        fallback: (_prefs.getBool('fm_grid') ?? false)
+            ? FmLayout.grid3
+            : FmLayout.list);
+    _fmPhotoLayout = FmLayoutInfo.byName(_prefs.getString(_kFmPhotoLayout),
+        fallback: FmLayout.grid3);
+    _fmPhotoGroup = PhotoGroupLabel.byName(_prefs.getString(_kFmPhotoGroup));
+    _fmMediaOpenWith =
+        MediaOpenWithLabel.byName(_prefs.getString(_kFmMediaOpenWith));
     _fmSort = FmSort.values.firstWhere(
       (s) => s.name == _prefs.getString(_kFmSort),
       orElse: () => FmSort.name,
@@ -233,8 +282,7 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  String _encodeMap(Map m) =>
-      RecentFile(
+  String _encodeMap(Map m) => RecentFile(
         path: (m['path'] ?? '').toString(),
         name: (m['name'] ?? '').toString(),
         sizeBytes: (m['sizeBytes'] as num?)?.toInt() ?? 0,

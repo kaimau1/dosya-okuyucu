@@ -1450,3 +1450,93 @@ kesir, bilimsel gösterim, `@`. Gösterim Türkçe (binlik `.`, ondalık `,`, `%
   `spreadsheet_screen_test` (widget duman testi — yerleşim taşmasını yakalar),
   `fm_drag_select_test`, genişletilmiş `formula_engine_test` ve
   `xlsx_number_format_test`. **335 test yeşil**, `flutter analyze` 0 hata.
+
+## 2026-07-25 — Dosya yöneticisi arayüz turu: yerleşimler, Fotoğraflar, arama dizini
+Kullanıcı bulguları (ekran görüntüleriyle): simgeler küçük ve çerçeveli, çöp
+boşaltma sessiz, yerleşim seçenekleri yetersiz, görsellerde Google Fotoğraflar
+düzeni yok, belgelerde tür süzgeci yok, arama her seferinde baştan tarıyor,
+medya hep uygulama içinde açılıyor.
+
+### A) Çerçevesiz ve büyük simgeler
+`FmEntryIcon._badge` ve `FileTypeIcon` artık **kutu/kenarlık çizmiyor**; glif
+kutunun %92'sini kaplıyor (eskiden dolgu + kenarlık içinde %52-54). Aynı
+`size` değeriyle simge yaklaşık **1,7 kat** büyük görünüyor. `FileTypeIcon`ta
+`framed: true` seçeneği rozet gerekirse duruyor (varsayılan çerçevesiz —
+son belgeler listesi de aynı dili kullanıyor).
+
+### B) `FmLayout` — iki durumlu `fmGrid` yerine altı yerleşim
+`models/fm_layout.dart` (saf Dart, testli): liste · büyük liste · 2/3/4/5
+sütun. Tercih `AppState.fmLayout` (dosyalar) ve `fmPhotoLayout` (fotoğraflar)
+olarak AYRI tutuluyor — kullanıcı dosyalarda listeyi, fotoğraflarda ızgarayı
+istiyor. Eski `fm_grid` bool'u okunmaya devam ediyor (açıksa 3 sütuna göç).
+- **KARAR — `SliverGridDelegateWithFixedCrossAxisCount`:** eski
+  `maxCrossAxisExtent: 120` telefonda 3, tablette 5 sütun üretiyordu;
+  kullanıcı "3 sütun" dediğinde 3 sütun görmeli.
+- **TUZAK — sabit en-boy oranı + sabit ikon boyu = taşma:** hücre yüksekliği
+  orandan, ikon boyu formülden gelirse yazı tipi ölçeği büyütülmüş cihazda
+  `RenderFlex overflowed` çıkıyor. Çözüm: ikon boyu **gerçek kısıtlardan**
+  ölçülüyor (`LayoutBuilder`, hücre yüksekliği eksi 34 dp ad şeridi).
+  Regresyon testi `fm_grid_tile_test` her yerleşimi 1.0 ve 1.6 yazı ölçeğinde
+  çizip taşma olmadığını doğruluyor.
+- Ortak tile'lar `widgets/fm/fm_entry_tiles.dart`e taşındı (gözatıcı ve
+  kategori ekranı aynı öğeyi kullanıyor — eskiden iki ayrı kopyaydı).
+
+### C) Fotoğraflar ekranı (`screens/fm/photos_screen.dart`)
+Google Fotoğraflar tarzı zaman ekseni: **gün / ay / yıl** gruplaması, yapışkan
+(pinned) başlıklar, tam kare önizlemeler (ad yok, 2 px aralık), grup başlığından
+"gruptaki hepsini seç", kaynak çipleri, yerinde arama. Pano artık Görüntüler ve
+Videolar kutularını buraya bağlıyor.
+- Başlık metni `models/photo_group.dart`te saf fonksiyon: bugün/dün, son bir
+  haftada gün adı, farklı yılda yıl. Testli (`fm_layout_test`).
+- **KARAR — düz (flat) seçim indeksi:** sürükleyerek seçim aralığı gruplar
+  boyunca kesintisiz yürümeli; her grup kendi indeksinden başlasaydı grup
+  sınırında aralık koparadı. Her bölüm `startIndex` taşıyor.
+- Sliver ağacı `SliverMainAxisGroup` + pinned `SliverPersistentHeader`.
+  Yanlış kurulmuş sliver yalnız çizimde patladığı için `fm_photos_screen_test`
+  ekranı gerçekten pump ediyor.
+
+### D) Arama dizini (`services/fm/search_index.dart`) — "her seferinde baştan taramasın"
+Eski arama her sorguda tüm depolamayı geziyordu. Artık düz bir dizin dosyası
+(`search_index.tsv`, satır başına `yol \t boyut \t değişiklikMs \t klasörMü`)
+var; sorgular bu dosyada koşuyor.
+- **KARAR — dizin panonun taramasıyla AYNI yürüyüşte yazılıyor**
+  (`FsScan.index(..., searchIndexPath:)`): pano zaten tüm ağacı geziyordu,
+  aramanın ikinci kez gezmesi saf israftı. `StorageIndex.searchIndexRows` ile
+  sayı dönüyor, `SearchIndex.adoptBuilt` yalnız metayı güncelliyor.
+- **KARAR — dizin bellekte TUTULMUYOR:** 100 bin yol RAM'de ~15 MB. Sorgu
+  `compute` isolate'inde dosyayı **64 KB'lık parçalar hâlinde** okuyor
+  (UTF-8'de 0x0A çok baytlı dizinin içinde geçmez → baytları satırsonundan
+  bölmek güvenli).
+- Bayatlık: `FsEvents` sinyalinde dizin "bayat" işaretleniyor; arama yine
+  ANINDA dönüyor, arka planda tazeleniyor, sonuçlar dönerken `exists` ile
+  süzülüyor (silinmiş dosya sonuçta görünmez). Dizin yoksa canlı taramaya
+  düşüyor — kullanıcı ilk taramayı beklemiyor.
+- **TUZAK (testte yakalandı):** dizin dosyası taranan ağacın İÇİNDE olursa
+  `.tmp` kendisi de sayılıyor. Üründe uygulama verisinde durduğu için sorun
+  yok; test kökü ayrı klasöre alındı.
+
+### E) Her alanda ayrı arama
+Kategori, Fotoğraflar, Çöp Kutusu ve İndirilenler ekranlarına AppBar içi arama
+eklendi. Bu listeler zaten bellekte → süzme anlık, disk okunmuyor
+(`widgets/fm/fm_search_field.dart`, `fmMatches` Türkçe-duyarlı). Depolamanın
+tamamında arama `SearchScreen` + dizin üzerinden; debounce 400 → 250 ms.
+
+### F) Belge türü süzgeci
+Belgeler kategorisinde PDF / Word / Excel / Slayt / Metin / Diğer çipleri
+(`CategoryScreen.showDocKinds`). Sıra SABİT (sayıya göre sıralanırsa çipler her
+açılışta yer değiştirir), boş tür gösterilmiyor.
+
+### G) Çöp boşaltma artık sessiz değil
+`TrashService.empty` ilerleme bildiriyor ve `FmOpResult` dönüyor. Onay
+penceresinde kaç öğe/kaç MB silineceği yazıyor, silme sırasında ilerleme
+penceresi (iptal edilebilir), sonunda "N öğe · X yer açıldı" özeti. Aynı
+davranış hem Çöp ekranında hem ayarlardaki "şimdi boşalt"ta.
+
+### H) "Kendi oynatıcımla aç" tercihi
+`models/media_open_with.dart` (sor / uygulama içi / başka uygulama).
+`EntryOpener` video-ses-görsel açarken tercihi soruyor; "Bunu hatırla"
+işaretliyse kalıcı (ayarlardan da değiştirilebilir). Pencere kapatılırsa dosya
+AÇILMIYOR — yanlışlıkla bir uygulamaya atmaktansa hiçbir şey yapmak yeğ.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) ile `flutter analyze` **0 hata**,
+`flutter test` **362 test yeşil**.

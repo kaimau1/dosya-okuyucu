@@ -3,19 +3,39 @@ import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
 
-/// Dosya türüne göre renkli ikon rozeti.
+/// Dosya türüne göre renkli ikon.
+///
+/// [framed] false (varsayılan) → **çerçevesiz**: kutu/kenarlık olmadan doğrudan
+/// glif çizilir ve kutunun neredeyse tamamını kaplar. Kullanıcı isteği
+/// (2026-07-25): "öyle dış çerçeve olmasın direkt simge olsun, daha büyük ve
+/// premium görünür." Çerçeveli hâl yalnız rozet gerektiren yerlerde
+/// ([framed] true) kalır.
 class FileTypeIcon extends StatelessWidget {
   final DocKind kind;
   final double size;
-  const FileTypeIcon({super.key, required this.kind, this.size = 40});
+  final bool framed;
+
+  const FileTypeIcon({
+    super.key,
+    required this.kind,
+    this.size = 40,
+    this.framed = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final (icon, color) = _style(kind);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    // Koyu temada marka renkleri koyu zeminde söner → rozet dolgusu ve ikon
-    // biraz açılır (her iki temada da 3:1 glif kontrastı korunur).
+    // Koyu temada marka renkleri koyu zeminde söner → ikon biraz açılır
+    // (her iki temada da 3:1 glif kontrastı korunur).
     final tint = dark ? Color.lerp(color, Colors.white, 0.25)! : color;
+    if (!framed) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Icon(icon, color: tint, size: size * 0.92),
+      );
+    }
     return Container(
       width: size,
       height: size,
