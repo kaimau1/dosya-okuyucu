@@ -15,6 +15,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import 'archive_screen.dart';
 import 'entry_actions.dart';
 import 'search_screen.dart';
 
@@ -96,38 +97,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
       if (mounted) _load(); // alt klasörde yapılan değişiklikler yansısın
       return;
     }
-    // Arşive dokunmak: kullanıcı çoğunlukla ÇIKARMAK ister; yine de başka
-    // uygulamada açma seçeneği sunulur (RAR/7z için tek yol odur).
+    // Arşive dokunmak: içeriği ÇIKARMADAN listelenir (RAR/7z/zip/tar).
+    // Oradan tümünü ya da tek dosyayı çıkarabilir, önizleyebilir.
     if (ArchiveOps.canExtract(entry.path)) {
-      final choice = await showModalBottomSheet<String>(
-        context: context,
-        showDragHandle: true,
-        builder: (ctx) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.unarchive_outlined),
-                title: const Text('Buraya çıkar'),
-                subtitle: Text('${entry.name} → yeni klasör'),
-                onTap: () => Navigator.pop(ctx, 'extract'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.apps),
-                title: const Text('Başka uygulamayla aç'),
-                onTap: () => Navigator.pop(ctx, 'external'),
-              ),
-              const SizedBox(height: Gap.sm),
-            ],
-          ),
-        ),
-      );
-      if (!mounted || choice == null) return;
-      if (choice == 'extract') {
-        if (await extractArchive(context, entry.path)) _load();
-      } else {
-        await EntryOpener.openExternally(context, entry.path);
-      }
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ArchiveScreen(path: entry.path),
+      ));
+      if (mounted) _load(); // çıkarılan klasör listede görünsün
       return;
     }
     await EntryOpener.open(context, entry.path);

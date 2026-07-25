@@ -1,5 +1,6 @@
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/screens/fm/analysis_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/archive_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/category_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/dashboard_screen.dart';
@@ -22,6 +23,7 @@ void main() {
       const HomeScreen(),
       const DashboardScreen(),
       const BrowserScreen(path: '/tmp'),
+      const ArchiveScreen(path: '/tmp/a.rar'),
       const TrashScreen(),
       const SearchScreen(root: '/tmp'),
       const CategoryScreen(title: 'Görüntüler', files: []),

@@ -104,7 +104,11 @@
       CI Flutter sürümü yükseltilirse uygulama içi oynatıcı + video küçük resmi eklenebilir.
 - [ ] **Küçük resim (thumbnail) yalnız görsellerde** — video/PDF küçük resmi yok
       (video için platform kanalı, PDF için pdfium render gerekir).
-- [ ] **RAR/7z** çıkarma yok (saf Dart çözücü yok) → "başka uygulamayla aç".
+- [x] ~~RAR/7z çıkarma yok~~ → **YAPILDI 2026-07-25:** koni_archive (saf Dart, MIT)
+      ile RAR4/RAR5 + 7z listeleme/çıkarma/önizleme/parola/çok parçalı. Kalan:
+      cihazda büyük ve solid RAR'da hız (saf Dart LZMA/PPMd yavaştır — 100 MB+
+      arşivde çıkarma dakikalar sürebilir, ilerleme çubuğu var ama İPTAL YOK),
+      ve RAR YAZMA kalıcı olarak yok (biçim özel mülk; .zip üretiliyor).
 - [ ] **Yapıştırmada çakışma politikası soruluyor değil**, varsayılan "yeniden adlandır"
       (veri ezilmez). İstenirse yapıştırma öncesi Üzerine yaz/Atla/Yeniden adlandır sorusu.
 - [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*` düğümleri

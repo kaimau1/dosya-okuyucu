@@ -58,6 +58,13 @@ dependencies:
   archive: ^3.6.1
   xml: ^6.5.0
 
+  # Arşiv okuma: RAR4/RAR5 + 7z + zip/tar/gz — SAF DART (MIT), platform kodu yok.
+  # `archive` paketi RAR/7z okumaz; junrar saran Android eklentileri yalnız RAR4
+  # çözer ve CI'da üretilen android/ iskeletine platform kodu ekletirdi.
+  # sdk ^3.7.0 → CI Flutter 3.29.3 (Dart 3.7.2) ile uyumlu; ek bağımlılığı yok
+  # (glob/path/web). Çıkarma isolate'te koşar (LZMA/PPMd CPU-yoğun).
+  koni_archive: ^0.9.0
+
   # AI (Gemini REST) & ağ
   http: ^1.2.2
 

@@ -8,8 +8,11 @@ ve paylaşım özellikleriyle.
 
 - 🗂️ **Dosya yöneticisi:** telefondaki tüm dosyalar — depolama panosu (doluluk,
   kategoriler, bellek analizi), klasör gezgini, çoklu seçim, kopyala/kes/yapıştır,
-  taşı, yeniden adlandır, sil (geri dönüşüm kutusu), paylaş, sıkıştır/çıkar (.zip),
+  taşı, yeniden adlandır, sil (geri dönüşüm kutusu), paylaş, sıkıştır (.zip),
   favoriler, gizli dosyalar, sıralama, ızgara/liste, özyinelemeli arama
+- 🗜️ **Arşivler:** RAR4/RAR5, 7z, ZIP, TAR/GZIP — içeriği çıkarmadan listeleme,
+  arşiv içinde arama, tek dosya önizleme/çıkarma, parola korumalı ve çok parçalı
+  (part2/r00/7z.002) arşivler; hepsi cihazda, saf Dart, internet yok
 - 📄 **Görüntüleme:** PDF, Word (.docx), Excel (.xlsx), Slayt (.pptx), metin ve görsel
 - ✏️ **Düzenleme:** Metin/Word içeriğini düzenleme ve kaydetme
 - 🔄 **Dönüştürme:** İçeriği PDF’e veya slayt destesine (PDF) çevirme

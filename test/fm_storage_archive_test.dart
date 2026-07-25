@@ -43,10 +43,11 @@ Filesystem                          1K-blocks    Used Available Use% Mounted on
     });
     tearDown(() => tmp.deleteSync(recursive: true));
 
-    test('canExtract: zip evet, rar hayır', () {
+    test('canExtract: arşiv biçimleri evet, belge hayır', () {
       expect(ArchiveOps.canExtract('/a/b.zip'), isTrue);
       expect(ArchiveOps.canExtract('/a/b.TGZ'), isTrue);
-      expect(ArchiveOps.canExtract('/a/b.rar'), isFalse);
+      expect(ArchiveOps.canExtract('/a/b.rar'), isTrue);
+      expect(ArchiveOps.canExtract('/a/b.7z'), isTrue);
       expect(ArchiveOps.canExtract('/a/b.pdf'), isFalse);
     });
 
@@ -61,8 +62,8 @@ Filesystem                          1K-blocks    Used Available Use% Mounted on
       expect(p.basename(zipPath), 'yedek.zip');
       expect(File(zipPath).lengthSync(), greaterThan(0));
 
-      final names = await ArchiveOps.peekZip(zipPath);
-      expect(names.any((n) => n.endsWith('not.txt')), isTrue);
+      final listing = await ArchiveOps.list(zipPath);
+      expect(listing.files.any((f) => f.path.endsWith('not.txt')), isTrue);
 
       final hedef = Directory(p.join(tmp.path, 'cikti'))..createSync();
       final target = await ArchiveOps.extract(zipPath, destDir: hedef.path);
@@ -75,11 +76,11 @@ Filesystem                          1K-blocks    Used Available Use% Mounted on
       expect(extracted, containsAll(<String>['not.txt', 'derin.txt']));
     });
 
-    test('desteklenmeyen biçimde açıklayıcı hata', () async {
-      final rar = File(p.join(tmp.path, 'a.rar'))..writeAsStringSync('x');
+    test('bozuk/sahte arşiv sessizce geçmez, tiplenmiş hata verir', () async {
+      final fake = File(p.join(tmp.path, 'a.rar'))..writeAsStringSync('x');
       await expectLater(
-        ArchiveOps.extract(rar.path),
-        throwsA(isA<FileSystemException>()),
+        ArchiveOps.extract(fake.path),
+        throwsA(isA<ArchiveError>()),
       );
     });
   });

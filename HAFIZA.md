@@ -1063,3 +1063,43 @@ dosyaları derler; ekranlar hiçbir testten import edilmediği için bir ekran
 derleme hatası ancak ~20 dk'lık APK işinde görünürdü → `test/fm_screens_smoke_test.dart`
 ekranları import edip kurucularını çağırıyor (pump ETMEZ; eklentiler test
 ortamında yok), böylece hata hızlı koşuda yakalanıyor.
+
+## 2026-07-25 — RAR/7z TAM desteği (kullanıcı: "rar kısmı da detaylı olsun")
+İlk turda RAR/7z bilinçli kapsam dışıydı ("saf Dart çözücü yok" varsayımı).
+Araştırma bu varsayımı ÇÜRÜTTÜ: `koni_archive` 0.9.0 (2026-07-18, MIT) **saf
+Dart** clean-room RAR4/RAR5 + 7z okuyucusu.
+
+- **Karar — okuma motoru `koni_archive`, sıkıştırma yine `archive`.**
+  *Niye bu paket:* (a) saf Dart → platform kodu yok, CI'da `flutter create` ile
+  üretilen `android/` iskeletine dokunmuyor (junrar saran eklentiler Kotlin
+  kodu + Gradle bağımlılığı isterdi ve yalnız RAR4 çözerdi); (b) RAR5'i de
+  kapsıyor (solid, PPMd, delta/x86 filtreleri, şifreli dosya + şifreli başlık,
+  çok parçalı); (c) `sdk ^3.7.0` → CI Flutter 3.29.3 = Dart 3.7.2 ile tam
+  uyumlu; ek bağımlılığı yok (glob/path/web). *Risk:* paket bir haftalık,
+  0 beğeni → hatalarında uygulama çökmesin diye tüm çağrılar tiplenmiş
+  `ArchiveError`'a çevriliyor ve arayüz "başka uygulamayla aç"a düşebiliyor.
+  Gerçek RAR/7z fixture'larıyla CI'da test ediliyor.
+- **Çıkarma `Isolate.run` içinde.** LZMA/PPMd saf Dart'ta CPU-yoğun; ana
+  izlekte 100 MB'lık bir arşiv uygulamayı dondururdu (XLSX dersinin aynısı).
+  İlerleme isolate'ten `SendPort` ile bildiriliyor. **İptal YOK** (Isolate.run
+  öldürülemez) → ilerleme penceresi bu işte `cancellable: false`.
+- **Fixture tuzağı:** RAR sıkıştırıcısı özel mülk; bu sandbox'ta ve CI'da
+  `.rar` ÜRETİLEMEZ (`rar` ikilisi yok, açık kaynak yazıcı yok). Bu yüzden
+  koni_archive'ın MIT fixture'larından 4 tanesi (RAR5 normal, RAR4 solid,
+  şifreli RAR5, 7z LZMA2) `test/fixtures/archive/`'a kopyalandı; kaynak ve
+  gerekçe `KAYNAK.md`'de. **RAR YAZMA kalıcı olarak kapsam dışı** — biçimin
+  sıkıştırıcısı açık değil; kullanıcıya .zip üretiliyor.
+- **Yeni ekran `screens/fm/archive_screen.dart`:** arşivi ÇIKARMADAN listeler
+  (biçim, dosya sayısı, toplam boyut, sıkıştırma oranı, şifreli/çok parçalı
+  rozeti), içinde arama, tek dosyayı önizleme (geçici klasöre çıkarıp
+  görüntüleyicide açar), tek dosya çıkarma, "Tümünü çıkar".
+- **Parola akışı** ortak `widgets/fm/archive_password_dialog.dart`: şifreli
+  arşivde sorar, yanlışsa tekrar sorar (koni `InvalidPasswordException` →
+  `ArchiveFailure.wrongPassword`). RAR5 dosya-şifreli arşivlerde LİSTELEME
+  parolasız çalışır (başlık açık), hata ancak okumada gelir — akış buna göre.
+- **Çok parçalı setler:** `ArchiveOps.volumePath` saf fonksiyonu cilt adını
+  üretir (`ad.part2.rar` / `ad.r00` / `ad.7z.002` / `ad.z01`), koni'nin
+  `nextVolume` geri çağrısına bağlanır. Açılan cilt kaynaklarını koni
+  KAPATMAZ (belgelenmiş) → biz listede tutup `finally`de kapatıyoruz.
+- Zip-slip'e karşı iki kat koruma: koni yolları normalleştirip `pathEscapedRoot`
+  bayrağı koyuyor, biz ayrıca `FsPaths.isInside` ile hedef dışına düşeni atlıyoruz.

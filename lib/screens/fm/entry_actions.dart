@@ -11,8 +11,10 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import 'archive_screen.dart';
 
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
 /// ekranları ve arama sonuçları AYNI davranışı paylaşsın diye tek dosyada.
@@ -26,6 +28,7 @@ enum _EntryAction {
   delete,
   zip,
   extract,
+  openArchive,
   bookmark,
   reveal,
   properties,
@@ -72,6 +75,9 @@ Future<bool> showEntryActions(
             _tile(ctx, Icons.content_cut, 'Kes', _EntryAction.cut),
             _tile(ctx, Icons.drive_file_rename_outline, 'Yeniden adlandır',
                 _EntryAction.rename),
+            if (isArchive)
+              _tile(ctx, Icons.folder_zip_outlined, 'Arşiv içeriğini göster',
+                  _EntryAction.openArchive),
             if (isArchive)
               _tile(ctx, Icons.unarchive_outlined, 'Buraya çıkar',
                   _EntryAction.extract),
@@ -142,6 +148,12 @@ Future<bool> showEntryActions(
 
     case _EntryAction.extract:
       return extractArchive(context, entry.path);
+
+    case _EntryAction.openArchive:
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ArchiveScreen(path: entry.path),
+      ));
+      return true;
 
     case _EntryAction.bookmark:
       await appState.toggleBookmark(entry.path);
@@ -315,27 +327,41 @@ Future<bool> zipEntries(
   }
 }
 
-/// Arşivi bulunduğu klasöre çıkarır.
-Future<bool> extractArchive(BuildContext context, String archivePath) async {
+/// Arşivi bulunduğu klasöre çıkarır. Parola korumalıysa sorar (yanlışsa
+/// tekrar sorar); RAR/7z dahil tüm desteklenen biçimler aynı yoldan geçer.
+Future<bool> extractArchive(
+  BuildContext context,
+  String archivePath, {
+  String? password,
+}) async {
   try {
     final target = await showFmProgress<String>(
       context,
       title: 'Çıkarılıyor',
       cancellable: false,
-      task: (report, _) {
-        report(FmProgress(0, 1, archivePath.split('/').last));
-        return ArchiveOps.extract(archivePath);
-      },
+      task: (report, _) => ArchiveOps.extract(
+        archivePath,
+        password: password,
+        onProgress: report,
+      ),
     );
     if (context.mounted) {
       _snack(context, '${target.split('/').last} klasörüne çıkarıldı.');
     }
     return true;
-  } catch (e) {
-    if (context.mounted) {
-      _snack(context,
-          'Çıkarılamadı: $e. RAR/7z için “Başka uygulamayla aç”ı deneyin.');
+  } on ArchiveError catch (e) {
+    if (!context.mounted) return false;
+    if (e.failure == ArchiveFailure.passwordRequired ||
+        e.failure == ArchiveFailure.wrongPassword) {
+      final pw = await askArchivePassword(context,
+          retry: e.failure == ArchiveFailure.wrongPassword);
+      if (pw == null || !context.mounted) return false;
+      return extractArchive(context, archivePath, password: pw);
     }
+    _snack(context, e.userMessage);
+    return false;
+  } catch (e) {
+    if (context.mounted) _snack(context, 'Çıkarılamadı: $e');
     return false;
   }
 }
