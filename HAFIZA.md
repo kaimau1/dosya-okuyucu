@@ -1205,3 +1205,35 @@ Kullanıcı "ses oynatma özelliği de lazım" dedi. Ses zaten `video_player` il
   parça değiştirme, sıradakiler listesi.
 - `EntryOpener.routeFor` artık **ses ve videoyu ayırıyor** (`OpenRoute.audio`
   vs `player`) → çalma listeleri de ayrı (video listesi müziğe karışmaz).
+
+## 2026-07-25 — Video küçük resmi, medya kaynağı filtresi, yüklü uygulamalar
+Kullanıcı 4 madde istedi (ekran görüntüsü: "Videolar" ızgarasında hep aynı
+film ikonu görünüyordu).
+
+- **Video küçük resmi** — `fc_native_video_thumbnail 2.2.0` (native
+  MediaMetadataRetriever). **TUZAK:** yaygın olan `video_thumbnail` paketi
+  `sdk >=2.16.0 <3.0.0`da kalmış → Dart 3 ile KULLANILAMIYOR; bu paket
+  `sdk >=2.18.6 <4.0.0 + flutter >=3.7` (3.0.0 sürümü flutter >=3.44 ister,
+  o yüzden 2.2.0'a pinli).
+  `services/fm/thumbnail_cache.dart`: küçük resim **diske** önbelleklenir,
+  anahtar = yol + değişiklik zamanı + boy (dosya değişirse kendiliğinden
+  tazelenir), paralel istekler tek işe indirgenir, üretilemeyen dosyalar
+  kara listeye alınır (kaydırmada tekrar tekrar denenmesin), önbellek 600
+  dosyada budanır. Widget üretilene kadar ikon gösterir (boş kutu YOK).
+- **Medya kaynağı sınıflandırma** (`models/media_bucket.dart`, saf Dart):
+  yola bakarak Kamera / Ekran görüntüsü / WhatsApp / Telegram / Instagram /
+  İndirilenler / Bluetooth / Diğer. **Sıra önemli:** ekran görüntüsü DCIM
+  altında da olabilir → kameradan ÖNCE bakılır. Android 11+ düzeni
+  (`Android/media/com.whatsapp/...`) paket adıyla da eşleşir. Görsel ve video
+  kategori ekranlarında sayı rozetli filtre çipleri.
+- **Yüklü uygulamalar ekranı** — `installed_apps 2.1.1` (ad/ikon/sürüm/kurulum
+  tarihi) + `usage_stats 1.3.1` (son açılma). Son kullanım Android'in ÖZEL
+  "Kullanım erişimi" iznini ister (ayar sayfası açılır, normal izin penceresi
+  değil) → izin yoksa liste yine gelir, yalnız tarih bilinmez ve renklendirme
+  kapanır. Renk eşikleri `idleLevelFor` (saf, testli): <7g yeşil, <30g sarı,
+  <90g turuncu, ≥90g / hiç açılmamış kırmızı. Uzun basış: aç / uygulama
+  bilgisi / kaldır. Manifest'e `PACKAGE_USAGE_STATS` (+ `xmlns:tools` ile
+  `tools:ignore="ProtectedPermissions"`); QUERY_ALL_PACKAGES ve
+  REQUEST_DELETE_PACKAGES eklentinin kendi manifest'inden birleşiyor.
+- **APK dosyaları ayrı kutu:** pano "Uygulamalar" kutusu artık YÜKLÜ
+  uygulamaları açıyor; kurulum dosyaları "APK dosyaları" kutusunda.

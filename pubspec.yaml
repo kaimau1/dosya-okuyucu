@@ -103,6 +103,17 @@ dependencies:
   audioplayers: 6.6.0
   audioplayers_android: 5.2.1
 
+  # Video küçük resmi (native MediaMetadataRetriever) — listelerde film karesi.
+  # 2.2.0: sdk >=2.18.6 <4.0.0, flutter >=3.7 → CI 3.29.3 uyumlu (3.0.0 ise
+  # flutter >=3.44 ister). NOT: eski `video_thumbnail` paketi sdk <3.0.0'da
+  # kaldığı için Dart 3 ile KULLANILAMIYOR.
+  fc_native_video_thumbnail: 2.2.0
+
+  # Telefonda yüklü uygulamaların listesi (ad, ikon, sürüm, kurulum tarihi)
+  # ve son kullanım zamanı (UsageStats — kullanıcı "kullanım erişimi" verirse).
+  installed_apps: 2.1.1
+  usage_stats: 1.3.1
+
   # Yerleşik görüntüleyicimiz olmayan dosyaları (apk/rar dışı biçimler…) sistemin
   # varsayılan uygulamasında açar. 4.x: sdk >=2.17 <4.0 → CI Dart 3.7 uyumlu.
   # Kendi FileProvider'ını manifest'ine gömer, ek manifest düzenlemesi gerekmez.

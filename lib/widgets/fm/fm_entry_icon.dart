@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/file_service.dart';
+import '../../services/fm/thumbnail_cache.dart';
 import '../file_type_icon.dart';
 
 /// Dosya yöneticisi ikon paleti. Office dörtlüsü [OfficeColors]'tan gelir
@@ -69,6 +70,15 @@ class FmEntryIcon extends StatelessWidget {
       );
     }
 
+    // Video: native küçük resim (film karesi) — üretilene kadar/olmazsa ikon.
+    if (thumbnails && category == FmCategory.video) {
+      return _VideoThumb(
+        path: entry.path,
+        size: size,
+        fallback: _badge(context, category),
+      );
+    }
+
     if (thumbnails && category == FmCategory.image) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(Radii.control),
@@ -103,6 +113,87 @@ class FmEntryIcon extends StatelessWidget {
         border: Border.all(color: tint.withValues(alpha: 0.28)),
       ),
       child: Icon(FmColors.iconFor(category), color: tint, size: size * 0.54),
+    );
+  }
+}
+
+
+/// Video küçük resmi: önbellekten gelir, yoksa arka planda üretilir.
+/// Üretim bitene kadar (ve üretilemezse) [fallback] ikonu görünür — liste
+/// asla boş kutu göstermez.
+class _VideoThumb extends StatefulWidget {
+  final String path;
+  final double size;
+  final Widget fallback;
+
+  const _VideoThumb({
+    required this.path,
+    required this.size,
+    required this.fallback,
+  });
+
+  @override
+  State<_VideoThumb> createState() => _VideoThumbState();
+}
+
+class _VideoThumbState extends State<_VideoThumb> {
+  String? _thumb;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _VideoThumb old) {
+    super.didUpdateWidget(old);
+    // Liste öğesi geri dönüştürülüp başka videoya bağlanabilir.
+    if (old.path != widget.path) {
+      _thumb = null;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final path = widget.path;
+    final result = await ThumbnailCache.forVideo(path,
+        size: (widget.size * 2).round().clamp(96, 512));
+    if (!mounted || path != widget.path) return;
+    setState(() => _thumb = result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final thumb = _thumb;
+    if (thumb == null) return widget.fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(Radii.control),
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          Image.file(
+            File(thumb),
+            width: widget.size,
+            height: widget.size,
+            fit: BoxFit.cover,
+            cacheWidth: (widget.size * 3).round(),
+            filterQuality: FilterQuality.low,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => widget.fallback,
+          ),
+          // Küçük oynat rozeti: küçük resim videodan geldiğini belli etsin.
+          Positioned.fill(
+            child: Center(
+              child: Icon(
+                Icons.play_circle_fill,
+                size: widget.size * 0.42,
+                color: Colors.white.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

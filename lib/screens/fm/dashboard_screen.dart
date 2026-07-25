@@ -15,6 +15,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import 'analysis_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'installed_apps_screen.dart';
 import 'search_screen.dart';
 import 'trash_screen.dart';
 
@@ -124,6 +125,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       title: category.label,
       files: _index.files(category),
       gridDefault: grid,
+      // Görsel/videoda kaynak (Kamera, WhatsApp, Telegram…) filtresi anlamlı.
+      showSources:
+          category == FmCategory.image || category == FmCategory.video,
     ));
   }
 
@@ -295,9 +299,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       _categoryTile(FmCategory.image, grid: true),
       _categoryTile(FmCategory.audio),
-      _categoryTile(FmCategory.video),
+      _categoryTile(FmCategory.video, grid: true),
       _categoryTile(FmCategory.document),
-      _categoryTile(FmCategory.apk),
+      // Telefonda YÜKLÜ uygulamalar (dosya değil) — son açılma tarihiyle.
+      _TileData(
+        icon: Icons.android,
+        color: FmColors.apk,
+        label: 'Uygulamalar',
+        subtitle: 'Yüklü · son açılma',
+        onTap: () => _push(const InstalledAppsScreen()),
+      ),
+      // Kurulum dosyaları AYRI kutuda (kullanıcı isteği).
+      _TileData(
+        icon: Icons.archive_outlined,
+        color: const Color(0xFF00897B),
+        label: 'APK dosyaları',
+        subtitle: _index.stat(FmCategory.apk).count == 0
+            ? (_scanning ? 'Taranıyor…' : 'Yok')
+            : '${FsPaths.humanSize(_index.stat(FmCategory.apk).bytes)} '
+                '(${_index.stat(FmCategory.apk).count})',
+        onTap: () => _push(CategoryScreen(
+          title: 'APK dosyaları',
+          files: _index.files(FmCategory.apk),
+        )),
+      ),
       _categoryTile(FmCategory.archive),
       _TileData(
         icon: Icons.history,

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -23,11 +24,16 @@ class CategoryScreen extends StatefulWidget {
   /// Kategori ızgarada görsel ise küçük resimli ızgara varsayılan olur.
   final bool gridDefault;
 
+  /// Kaynak filtresi (Kamera / WhatsApp / Telegram / Ekran görüntüsü …)
+  /// gösterilsin mi? Görsel ve video kategorilerinde anlamlı.
+  final bool showSources;
+
   const CategoryScreen({
     super.key,
     required this.title,
     required this.files,
     this.gridDefault = false,
+    this.showSources = false,
   });
 
   @override
@@ -41,10 +47,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
   FmSort _sort = FmSort.date;
   bool _desc = true;
 
+  /// Seçili kaynak (null = tümü).
+  MediaBucket? _bucket;
+
   bool get _selecting => _selected.isNotEmpty;
 
-  List<FsEntry> get _sorted =>
-      FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
+  List<FsEntry> get _sorted {
+    final filtered = _bucket == null
+        ? _files
+        : _files.where((f) => bucketForPath(f.path) == _bucket).toList();
+    return FsScan.sort(filtered, _sort, descending: _desc, foldersFirst: false);
+  }
 
   void _toggle(FsEntry e) => setState(() {
         if (!_selected.remove(e.path)) _selected.add(e.path);
@@ -133,11 +146,56 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
               ],
             ),
-      body: files.isEmpty
-          ? const Center(child: Text('Bu kategoride dosya bulunamadı.'))
-          : _grid
-              ? _gridView(files)
-              : _listView(files),
+      body: Column(
+        children: [
+          if (widget.showSources && !_selecting) _sourceChips(),
+          Expanded(
+            child: files.isEmpty
+                ? const Center(child: Text('Bu kategoride dosya bulunamadı.'))
+                : _grid
+                    ? _gridView(files)
+                    : _listView(files),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Kaynak çipleri: hangi klasörden/uygulamadan geldiğine göre süzme.
+  /// Sayılar gerçek dosya sayısıdır; boş kaynak çipi gösterilmez.
+  Widget _sourceChips() {
+    final counts = bucketCounts(_files.map((f) => f.path));
+    final buckets = MediaBucket.values
+        .where((b) => (counts[b] ?? 0) > 0)
+        .toList()
+      ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
+    if (buckets.length < 2) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: Gap.sm),
+            child: ChoiceChip(
+              label: Text('Tümü (${_files.length})'),
+              selected: _bucket == null,
+              onSelected: (_) => setState(() => _bucket = null),
+            ),
+          ),
+          for (final b in buckets)
+            Padding(
+              padding: const EdgeInsets.only(right: Gap.sm),
+              child: ChoiceChip(
+                label: Text('${b.label} (${counts[b]})'),
+                selected: _bucket == b,
+                onSelected: (_) => setState(() => _bucket = b),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

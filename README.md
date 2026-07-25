@@ -17,6 +17,10 @@ ve paylaşım özellikleriyle.
 - 🗜️ **Arşivler:** RAR4/RAR5, 7z, ZIP, TAR/GZIP — içeriği çıkarmadan listeleme,
   arşiv içinde arama, tek dosya önizleme/çıkarma, parola korumalı ve çok parçalı
   (part2/r00/7z.002) arşivler; hepsi cihazda, saf Dart, internet yok
+- 📱 **Uygulamalar:** telefonda yüklü uygulamalar, son açılma tarihi ve uzun
+  süredir kullanılmayanların renklendirilmesi (aç / bilgi / kaldır)
+- 🎞️ **Video küçük resimleri** ve medya kaynağı filtresi (Kamera, WhatsApp,
+  Telegram, ekran görüntüsü, indirilenler)
 - 🖼️ **Galeri:** görselleri sağa/sola kaydırarak gezme, yakınlaştırma, paylaş/sil
 - 🎬 **Video oynatıcı:** uygulama içinde oynatma, çalma listesi (aynı klasör),
   10 sn ileri/geri, hız (0.5–2x), tam ekran
