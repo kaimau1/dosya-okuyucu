@@ -227,6 +227,163 @@ void main() {
     expect(f('=ISNUMBER(5)'), 'DOĞRU');
   });
 
+  // ── Excel sadakati turu: başvuru / istatistik / tarih / finans ──────────
+
+  test('SATIR ve SÜTUN argümansız kendi hücresini verir', () {
+    final grid = [
+      ['', ''],
+      ['', '=ROW()'],
+      ['', '=COLUMN()'],
+      ['', '=ROW(C7)'],
+      ['', '=SÜTUN(C7)'],
+    ];
+    final e = FormulaEngine(grid);
+    expect(e.displayValue(1, 1), '2');
+    expect(e.displayValue(2, 1), '2');
+    expect(e.displayValue(3, 1), '7');
+    expect(e.displayValue(4, 1), '3');
+  });
+
+  test('KAYDIR (OFFSET) ve DOLAYLI (INDIRECT)', () {
+    final grid = [
+      ['10', '20', '30'],
+      ['40', '50', '60'],
+      ['=OFFSET(A1,1,2)', '=SUM(OFFSET(A1,0,0,2,3))'],
+      ['=INDIRECT("B2")', '=SUM(INDIRECT("A1:C1"))'],
+      ['=KAYDIR(A1,5,0)', '=DOLAYLI("Z")'],
+    ];
+    final e = FormulaEngine(grid);
+    expect(e.displayValue(2, 0), '60');
+    expect(e.displayValue(2, 1), '210');
+    expect(e.displayValue(3, 0), '50');
+    expect(e.displayValue(3, 1), '60');
+    expect(e.displayValue(4, 0), ''); // boş hücreye kaydırma
+    expect(e.displayValue(4, 1), '#BAŞV!');
+  });
+
+  test('ADRES, FORMÜLMETNİ, EFORMÜLSE, EREFSE', () {
+    final grid = [
+      ['5', '=A1*2'],
+      ['=ADDRESS(2,3)', '=ADRES(2,3,4)'],
+      ['=FORMULATEXT(B1)', '=ISFORMULA(B1)'],
+      ['=EFORMÜLSE(A1)', '=ISREF(A1)'],
+    ];
+    final e = FormulaEngine(grid);
+    expect(e.displayValue(1, 0), r'$C$2');
+    expect(e.displayValue(1, 1), 'C2');
+    expect(e.displayValue(2, 0), '=A1*2');
+    expect(e.displayValue(2, 1), 'DOĞRU');
+    expect(e.displayValue(3, 0), 'YANLIŞ');
+    expect(e.displayValue(3, 1), 'DOĞRU');
+  });
+
+  test('ARA (LOOKUP) ve ÇAPRAZARA (XLOOKUP)', () {
+    final grid = [
+      ['10', 'Ucuz'],
+      ['20', 'Orta'],
+      ['30', 'Pahalı'],
+      ['=LOOKUP(25,A1:A3,B1:B3)', '=XLOOKUP(20,A1:A3,B1:B3)'],
+      ['=XLOOKUP(99,A1:A3,B1:B3,"yok")', '=ÇAPRAZARA(25,A1:A3,B1:B3,"-",-1)'],
+    ];
+    final e = FormulaEngine(grid);
+    expect(e.displayValue(3, 0), 'Orta'); // 25 → son küçük eşit (20)
+    expect(e.displayValue(3, 1), 'Orta');
+    expect(e.displayValue(4, 0), 'yok');
+    expect(e.displayValue(4, 1), 'Orta'); // sonraki küçük
+  });
+
+  test('KYUVARLA (MROUND) ve TAVANAYUVARLA Türkçe adlarla', () {
+    expect(f('=MROUND(17,5)'), '15');
+    expect(f('=KYUVARLA(18,5)'), '20');
+    expect(f('=MROUND(-17,5)'), '#SAYI!'); // işaretler farklı
+    expect(f('=TAVANAYUVARLA(4.2,1)'), '5');
+    expect(f('=CEILING.MATH(-4.2)'), '-4');
+    expect(f('=FLOOR.MATH(-4.2)'), '-5');
+    expect(f('=COMBIN(5,2)'), '10');
+    expect(f('=PERMUT(5,2)'), '20');
+  });
+
+  test('istatistik: ORTALAMAA / YÜZDEBİRLİK / DÖRTTEBİRLİK / ORTSAP', () {
+    final grid = [
+      ['1', '2', '3', '4'],
+      ['=PERCENTILE(A1:D1,0.5)', '=QUARTILE(A1:D1,1)'],
+      ['=AVEDEV(A1:D1)', '=DEVSQ(A1:D1)'],
+      ['=GEOMEAN(A1:D1)', '=PERCENTRANK(A1:D1,3)'],
+      ['metin', '=AVERAGEA(A1:D1,A5)', '=AVERAGE(A1:D1,A5)'],
+      ['=STDEV.S(A1:D1)', '=VAR.P(A1:D1)'],
+    ];
+    final e = FormulaEngine(grid);
+    expect(e.displayValue(1, 0), '2.5');
+    expect(e.displayValue(1, 1), '1.75');
+    expect(e.displayValue(2, 0), '1');
+    expect(e.displayValue(2, 1), '5');
+    expect(e.displayValue(3, 1), '0.667');
+    // AVERAGEA metni 0 sayar (10/5), AVERAGE atlar (10/4).
+    expect(e.displayValue(4, 1), '2');
+    expect(e.displayValue(4, 2), '2.5');
+    // Noktalı (Excel 2010+) adlar da tanınır.
+    expect(e.displayValue(5, 0), '1.2909944487');
+    expect(e.displayValue(5, 1), '1.25');
+  });
+
+  test('metin: METİNÖNCE / METİNSONRA / SAYIDEĞERİ / SAYIDÜZENLE', () {
+    expect(f('=TEXTBEFORE("ali@site.com","@")'), 'ali');
+    expect(f('=TEXTAFTER("ali@site.com","@")'), 'site.com');
+    expect(f('=METİNÖNCE("a-b-c","-",2)'), 'a-b');
+    expect(f('=NUMBERVALUE("1.234,50")'), '1234.5');
+    expect(f('=SAYIDEĞERİ("%15")'), '0.15');
+    expect(f('=FIXED(1234.5678,2)'), '1.234,57');
+    expect(f('=UNICHAR(199)'), 'Ç');
+    expect(f('=UNICODE("Ç")'), '199');
+  });
+
+  test('tarih: HAFTASAY / TAMİŞGÜNÜ / İŞGÜNÜ / TARİHSAYISI / YILORAN', () {
+    // 21.07.2026 Salı = 46224
+    expect(f('=DATEVALUE("21.07.2026")'), '46224');
+    expect(f('=TARİHSAYISI("2026-07-21")'), '46224');
+    expect(f('=TIMEVALUE("06:00")'), '0.25');
+    expect(f('=WEEKNUM(46224)'), '30');
+    // 20.07.2026 Pazartesi → 24.07.2026 Cuma = 5 iş günü
+    expect(f('=NETWORKDAYS(46223,46227)'), '5');
+    // Cumadan bir iş günü sonrası pazartesidir.
+    expect(f('=WORKDAY(46227,1)'), '46230');
+    // 01.01.2026 → 01.01.2027 tam yıl; 30/360 tabanında 31 Ocak 30 gün eder.
+    expect(f('=YEARFRAC(46023,46388)'), '1');
+    expect(f('=YILORAN(46023,46053)'), '0.0833333333');
+  });
+
+  test('finans: DEVRESEL_ÖDEME / BD / GD / TAKSİT_SAYISI / FAİZ_ORANI', () {
+    // 12 ay, yıllık %10, 1000 TL kredi → aylık taksit ≈ -87,92
+    expect(f('=ROUND(PMT(0.1/12,12,1000),2)'), '-87.92');
+    expect(f('=ROUND(DEVRESEL_ÖDEME(0,12,1200),2)'), '-100');
+    expect(f('=ROUND(FV(0.05,10,-100,0),2)'), '1257.79');
+    expect(f('=ROUND(PV(0.05,10,-100,0),2)'), '772.17');
+    expect(f('=ROUND(NPER(0.05,-100,772.17),2)'), '10');
+    expect(f('=ROUND(RATE(10,-100,772.17),4)'), '0.05');
+    expect(f('=ROUND(IPMT(0.1/12,1,12,1000),2)'), '-8.33');
+    expect(f('=ROUND(PPMT(0.1/12,1,12,1000),2)'), '-79.58');
+    expect(f('=SLN(10000,1000,5)'), '1800');
+  });
+
+  test('finans: NBD ve İÇ_VERİM_ORANI aralıkla çalışır', () {
+    final grid = [
+      ['-1000', '400', '400', '400'],
+      ['=ROUND(NPV(0.1,B1:D1),2)', '=ROUND(IRR(A1:D1),4)'],
+    ];
+    final e = FormulaEngine(grid);
+    expect(e.displayValue(1, 0), '994.74');
+    expect(e.displayValue(1, 1), '0.097');
+  });
+
+  test('ÇİFTMİ / TEKMİ / HATA.TİPİ', () {
+    expect(f('=ISEVEN(4)'), 'DOĞRU');
+    expect(f('=ISODD(4)'), 'YANLIŞ');
+    expect(f('=ÇİFTMİ(3)'), 'YANLIŞ');
+    expect(f('=ERROR.TYPE(1/0)'), '2');
+    expect(f('=HATA.TİPİ(BILINMEYEN())'), '5');
+    expect(f('=ERROR.TYPE(5)'), '#YOK');
+  });
+
   group('preview (formül çubuğu canlı önizleme)', () {
     test('yazılan formülü ızgaraya göre hesaplar', () {
       final grid = [

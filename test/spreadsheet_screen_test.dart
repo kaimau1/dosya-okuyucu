@@ -92,6 +92,76 @@ void main() {
     expect(find.text('5'), findsWidgets);
   });
 
+  group('ekrandan geniş dondurulmuş bölme (wide_freeze.xlsx)', () {
+    late Directory wideDir;
+    late String widePath;
+
+    setUp(() async {
+      wideDir = await Directory.systemTemp.createTemp('sheet_wide');
+      widePath = '${wideDir.path}/wide_freeze.xlsx';
+      await File(widePath).writeAsBytes(
+          File('test/fixtures/wide_freeze.xlsx').readAsBytesSync());
+    });
+
+    tearDown(() => wideDir.deleteSync(recursive: true));
+
+    Future<void> pumpWide(WidgetTester tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: SpreadsheetEditorScreen(
+          path: widePath,
+          name: 'wide_freeze.xlsx',
+          plainText: '',
+        ),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('sabit bölme ekranı yemez, sağ taraf kaydırılarak görünür',
+        (tester) async {
+      await pumpWide(tester);
+      // Yerleşim taşmamalı: eski kod sabit bölmeye 1075 px verip kaydırılan
+      // bölgeye 0 px bırakıyordu (RenderFlex overflow + "sağı göremiyorum").
+      expect(tester.takeException(), isNull);
+
+      // En sağdaki hücre başta görünmez…
+      expect(find.text('SONSUTUN'), findsNothing);
+
+      // …kaydırılan bölgede gerçekten yer var: C2 hücresi (30) çizilmiş ve
+      // oradan yatay sürükleyince en sağa gidilebiliyor.
+      expect(find.text('30'), findsOneWidget);
+      await tester.drag(find.text('30'), const Offset(-4000, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('SONSUTUN'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('desteklenmeyen fonksiyon Excel\'in sonucunu gösterir',
+        (tester) async {
+      await pumpWide(tester);
+      // TREND() bizde yok → #AD? yerine Excel'in önbelleklediği sonuç.
+      expect(find.text('4242'), findsOneWidget);
+      // Excel'in hata sonucu Türkçe kodla görünür.
+      expect(find.text('#SAYI/0!'), findsOneWidget);
+      // Desteklediğimiz formül kendi motorumuzla hesaplanır (10+20=30… A2
+      // metin değil sayı: 10, B2 20, C2 30 → 60).
+      expect(find.text('60'), findsWidgets);
+    });
+
+    testWidgets('⋮ menüsünden bölmeler çözülebilir', (tester) async {
+      await pumpWide(tester);
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text('Bölmeleri çöz (sabit satır/sütun)'), findsOneWidget);
+      await tester.tap(find.text('Bölmeleri çöz (sabit satır/sütun)'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      // Bölme kalkınca A sütunu artık kaydırılan bölgededir; ızgara çizilmeye
+      // devam eder (S1 hem hücrede hem formül çubuğunda görünür).
+      expect(find.text('S1'), findsWidgets);
+    });
+  });
+
   test('XlsxEditor gerçek dosyada okuma+gösterim zincirini kurar', () {
     final bytes = File('test/fixtures/rich_sheet.xlsx').readAsBytesSync();
     final editor = XlsxEditor.parse(Uint8List.fromList(bytes));
