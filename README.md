@@ -10,6 +10,10 @@ ve paylaşım özellikleriyle.
   kategoriler, bellek analizi), klasör gezgini, çoklu seçim, kopyala/kes/yapıştır,
   taşı, yeniden adlandır, sil (geri dönüşüm kutusu), paylaş, sıkıştır (.zip),
   favoriler, gizli dosyalar, sıralama, ızgara/liste, özyinelemeli arama
+- 🔐 **Şifreli arşiv:** ZIP (AES-256) veya 7z (AES-256 + dosya adlarını gizleme)
+  olarak parolalı sıkıştırma; aynı arşivi uygulama içinde parolayla açma
+- 🧹 **Yinelenen dosya bulucu:** birebir aynı dosyaları bulur (bayt bayt
+  doğrulamalı), bir kopyayı bırakıp kalanları çöpe taşır
 - 🗜️ **Arşivler:** RAR4/RAR5, 7z, ZIP, TAR/GZIP — içeriği çıkarmadan listeleme,
   arşiv içinde arama, tek dosya önizleme/çıkarma, parola korumalı ve çok parçalı
   (part2/r00/7z.002) arşivler; hepsi cihazda, saf Dart, internet yok

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 // Sıkıştırma (.zip üretimi) ve koni'nin kapsamadığı tek-dosya biçimleri
 // (.bz2/.xz) için mevcut `archive` paketi; okuma/çıkarma için koni.
@@ -258,6 +259,56 @@ abstract final class ArchiveOps {
     return target;
   }
 
+  /// Şifreli/7z sıkıştırma için hedef biçim.
+  static Future<String> compress(
+    List<String> paths,
+    String destDir, {
+    String? archiveName,
+    CompressFormat format = CompressFormat.zip,
+    String? password,
+    bool hideNames = false,
+    void Function(FmProgress)? onProgress,
+  }) async {
+    if (paths.isEmpty) throw const FileSystemException('sıkıştırılacak öğe yok');
+    // Parolasız düz .zip: kanıtlanmış hızlı yol (ZipFileEncoder) korunur.
+    if (format == CompressFormat.zip &&
+        (password == null || password.isEmpty)) {
+      return zip(paths, destDir,
+          archiveName: archiveName, onProgress: onProgress);
+    }
+
+    final base = archiveName != null && archiveName.trim().isNotEmpty
+        ? FileOps.sanitizeName(archiveName)
+        : (paths.length == 1
+            ? p.basenameWithoutExtension(paths.first)
+            : 'arsiv');
+    final ext = format == CompressFormat.sevenZip ? '7z' : 'zip';
+    final target = FileOps.uniquePath(p.join(destDir, '$base.$ext'));
+
+    final port = ReceivePort();
+    final sub = port.listen((msg) {
+      if (msg is List && msg.length == 3) {
+        onProgress?.call(FmProgress(msg[0] as int, msg[1] as int, '${msg[2]}'));
+      }
+    });
+    final sendPort = port.sendPort;
+    final formatIndex = format.index;
+    try {
+      _unwrap(await Isolate.run(() => _guard(() => _compressSync(
+            paths,
+            target,
+            formatIndex,
+            password,
+            hideNames,
+            sendPort,
+          ))));
+    } finally {
+      await sub.cancel();
+      port.close();
+    }
+    return target;
+  }
+
   // ── çok parçalı arşivler ──────────────────────────────────────────────────
 
   /// Çok parçalı bir setin [volume]. cildinin dosya yolu (1 = [first]).
@@ -337,6 +388,86 @@ Future<koni.Archive> _open(
   } catch (e) {
     throw _mapError(e);
   }
+}
+
+/// Sıkıştırma biçimi. RAR YOK: biçimin sıkıştırıcısı özel mülk, açık kaynak
+/// yazıcısı yok (okuma tarafı destekleniyor).
+enum CompressFormat {
+  /// Yaygın uyumluluk; parola verilirse WinZip AES-256.
+  zip,
+
+  /// Daha yüksek sıkıştırma; parola verilirse AES-256-CBC + istenirse
+  /// dosya adlarını da gizleyen şifreli başlık.
+  sevenZip,
+}
+
+/// Arşiv yazma (şifreli ya da 7z). Saf Dart LZMA/AES CPU-yoğun olduğu için
+/// isolate içinde koşar; ilerleme dosya bazında bildirilir.
+Future<String> _compressSync(
+  List<String> paths,
+  String target,
+  int formatIndex,
+  String? password,
+  bool hideNames,
+  SendPort? progress,
+) async {
+  // (göreli yol, gerçek yol, klasör mü) üçlüleri
+  final entries = <(String, String, bool)>[];
+  for (final path in paths) {
+    final dir = Directory(path);
+    if (dir.existsSync()) {
+      final base = p.basename(path);
+      entries.add((base, path, true));
+      for (final child in dir.listSync(recursive: true, followLinks: false)) {
+        final rel = p.join(base, p.relative(child.path, from: path));
+        entries.add((rel, child.path, child is Directory));
+      }
+    } else {
+      entries.add((p.basename(path), path, false));
+    }
+  }
+
+  final writer = await koni.createArchiveFile(
+    target,
+    format: formatIndex == CompressFormat.sevenZip.index
+        ? const koni.SevenZWriteFormat()
+        : const koni.ZipWriteFormat(),
+    options: koni.ArchiveWriteOptions(
+      password: (password == null || password.isEmpty) ? null : password,
+      encryptHeader: hideNames,
+    ),
+  );
+  try {
+    final files = entries.where((e) => !e.$3).length;
+    var done = 0;
+    for (final (rel, real, isDir) in entries) {
+      if (isDir) {
+        await writer.addEntry(koni.ArchiveEntrySpec(
+          path: rel,
+          type: koni.ArchiveEntryType.directory,
+        ));
+        continue;
+      }
+      progress?.send([done, files, p.basename(real)]);
+      final file = File(real);
+      final size = file.lengthSync();
+      await writer.addStream(
+        koni.ArchiveEntrySpec(
+          path: rel,
+          modified: file.lastModifiedSync().toUtc(),
+        ),
+        file.openRead().cast<Uint8List>(),
+        size: size,
+      );
+      done++;
+    }
+    progress?.send([done, files, '']);
+  } catch (e) {
+    throw _mapError(e);
+  } finally {
+    await writer.close();
+  }
+  return target;
 }
 
 /// İsolate sınırından hata geçirme.

@@ -12,6 +12,7 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
+import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'archive_screen.dart';
@@ -81,7 +82,7 @@ Future<bool> showEntryActions(
             if (isArchive)
               _tile(ctx, Icons.unarchive_outlined, 'Buraya çıkar',
                   _EntryAction.extract),
-            _tile(ctx, Icons.folder_zip_outlined, 'Sıkıştır (.zip)',
+            _tile(ctx, Icons.archive_outlined, 'Sıkıştır (ZIP / 7z, parolalı)',
                 _EntryAction.zip),
             if (entry.isDir)
               _tile(
@@ -305,17 +306,27 @@ Future<void> shareEntries(List<String> paths) async {
   await Share.shareXFiles(paths.map((p) => XFile(p)).toList());
 }
 
-/// Seçilenleri tek bir .zip yapar.
+/// Seçilenleri sıkıştırır: biçim (ZIP/7z) ve isteğe bağlı parola sorulur.
 Future<bool> zipEntries(
     BuildContext context, List<String> paths, String destDir) async {
   if (paths.isEmpty) return false;
+  final options = await showCompressSheet(context);
+  if (options == null || !context.mounted) return false;
   try {
     final zipPath = await showFmProgress<String>(
       context,
-      title: 'Sıkıştırılıyor',
+      title: options.password == null
+          ? 'Sıkıştırılıyor'
+          : 'Şifreleniyor (AES-256)',
       cancellable: false,
-      task: (report, _) =>
-          ArchiveOps.zip(paths, destDir, onProgress: report),
+      task: (report, _) => ArchiveOps.compress(
+        paths,
+        destDir,
+        format: options.format,
+        password: options.password,
+        hideNames: options.hideNames,
+        onProgress: report,
+      ),
     );
     if (context.mounted) {
       _snack(context, '${zipPath.split('/').last} oluşturuldu.');

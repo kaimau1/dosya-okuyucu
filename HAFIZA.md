@@ -1164,3 +1164,18 @@ katmanlı: (1) `addStream` yerine `await for` + `sink.add` (hata tek yerden),
 (2) `_guard` gövdesi `runZonedGuarded` içinde — sahipsiz async hata da
 sonuca çevriliyor. **Kural:** isolate içinde akış tüketirken `addStream`
 kullanma; ve isolate gövdesini daima zone ile koru.
+
+### Şifreli arşiv ÜRETME (araştırma listesindeki "dosya şifreleme" karşılığı)
+`koni_archive` yalnız okumuyor, **yazıyor** da: ZIP → WinZip AES-256, 7z →
+AES-256-CBC + isteğe bağlı **şifreli başlık** (dosya adları da gizlenir).
+Fossify'ın "file encryption" özelliğinin bizdeki karşılığı bu oldu ve okuma
+tarafı zaten hazırdı → tur kapandı (üret → geri aç, testli).
+- `ArchiveOps.compress(paths, destDir, {format, password, hideNames})`.
+  **Parolasız düz .zip eski hızlı yolda (ZipFileEncoder) KALDI** — kanıtlanmış
+  ve hızlı; koni yolu yalnız parola ya da 7z istenince devreye girer.
+- Sıkıştırma da isolate'te (saf Dart LZMA/AES CPU-yoğun).
+- UI: `widgets/fm/compress_sheet.dart` — biçim seçimi + "Parola koy" + 7z'de
+  "Dosya adlarını da gizle" + "parolayı unutursan açılamaz" uyarısı.
+  *Niye 7z seçeneği:* parolalı ZIP'te dosya ADLARI dizinde açık kalır; gerçek
+  gizlilik için 7z + şifreli başlık gerekir (kullanıcıya açıkça yazıldı).
+- **RAR üretimi yok ve olmayacak** (biçim özel mülk) — okuma tam.
