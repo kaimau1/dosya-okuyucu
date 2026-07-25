@@ -3,3 +3,4 @@ zoom + gradient + Excel sayi bicimleri + eski .doc/.xls/.ppt salt-okunur.
 retry: 1
 dosya yoneticisi surumu: pano/gezgin/cop/analiz, RAR5-RAR4+7z okuma, parolali arsiv uretme, video-ses oynatici, galeri, yinelenen dosya bulucu (2026-07-25)
 muzik calar (audioplayers) dahil surum (2026-07-25)
+video kucuk resmi + medya kaynagi filtresi + yuklu uygulamalar + APK ayri kutu (2026-07-25)
