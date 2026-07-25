@@ -31,14 +31,23 @@ Uint8List _sampleXlsx() {
 }
 
 void main() {
-  test('hücre değerleri Excel\'deki gibi metne çevrilir', () {
+  test('ham değerler modelde HAM durur, gösterimde Excel gibi biçimlenir', () {
     final e = XlsxEditor.parse(_sampleXlsx());
     final s = e.sheets.first;
 
+    // rows = formül motorunun girdisi → sayı ham (`3.5`), tarih seri numara.
     expect(s.rows[0][0], 'Başlık');
     expect(s.rows[1][0], '42');
     expect(s.rows[1][1], '3.5'); // gereksiz sıfır atılır
-    expect(s.rows[1][2], '21.07.2026'); // seri numara değil, tarih
+
+    // Gösterim katmanı hücrenin sayı biçimini uygular → Excel'deki görüntü.
+    // (excel paketinin yazdığı tarih biçim kodu sürüme göre değişebildiği
+    // için gün/ay/yıl parçaları aranıyor, tek bir dizgi değil.)
+    final dateText = s.viewAt(1, 2, s.rows[1][2]).text;
+    expect(dateText, contains('2026'));
+    expect(dateText, contains('21'));
+    expect(dateText, isNot(matches(RegExp(r'^\d{5}(\.\d+)?$'))));
+    expect(s.viewAt(1, 0, s.rows[1][0]).text, '42');
   });
 
   test('stil, sütun genişliği ve birleştirme okunur', () {
@@ -47,12 +56,12 @@ void main() {
     final style = s.styleAt(0, 0)!;
     expect(style.bold, isTrue);
     expect(style.fontColor, isNotNull);
-    // Açık hizalama excel paketinin ayrıştırıcı hatası yüzünden okunamıyor
-    // (parse.dart:445 <alignment> yerine üst düğüme bakıyor). Metin sola,
-    // sayı/tarih sağa yaslanır — Excel'in varsayılanı.
-    expect(style.align, TextAlign.left);
-    expect(s.styleAt(1, 0)?.align, TextAlign.right); // 42 -> sayı
-    expect(s.styleAt(1, 2)?.align, TextAlign.right); // tarih
+    // Açık hizalama artık OKUNUYOR (kendi styles.xml okuyucumuz — excel
+    // paketinin ayrıştırıcı hatası bizi bağlamıyor).
+    expect(style.hAlign, XlsxHAlign.center);
+    // Hizalaması olmayan hücrelerde Excel varsayılanı: sayı sağa, metin sola.
+    expect(s.styleAt(1, 0)?.alignFor(true), TextAlign.right); // 42 -> sayı
+    expect(s.styleAt(1, 0)?.alignFor(false), TextAlign.left);
 
     // 25 karakterlik sütun, varsayılandan (8.43) belirgin geniş olmalı.
     expect(s.colWidth(0), greaterThan(s.colWidth(3)));
@@ -145,7 +154,7 @@ void main() {
     e.setCellStyle(s.name, 1, 0, bold: true, align: TextAlign.center);
     var st = s.styleAt(1, 0)!;
     expect(st.bold, isTrue); // görünüm önbelleği anında güncellendi
-    expect(st.align, TextAlign.center);
+    expect(st.hAlign, XlsxHAlign.center);
 
     // Dokunulmayan özellik korunur: italic hâlâ kapalı.
     expect(st.italic, isFalse);
@@ -154,9 +163,7 @@ void main() {
     expect(st.bold, isTrue); // bold silinmedi
     expect(st.italic, isTrue);
 
-    // Kaydet → yeniden aç: kalın/italik dosyada kalıcı. (Hizalama dosyaya
-    // yazılır ama excel paketinin okuma hatası yüzünden geri OKUNAMAZ —
-    // bkz. yukarıdaki stil testi notu; burada o yüzden doğrulanmıyor.)
+    // Kaydet → yeniden aç: kalın/italik dosyada kalıcı.
     final again = XlsxEditor.parse(e.save());
     final st2 = again.sheets.first.styleAt(1, 0)!;
     expect(st2.bold, isTrue);

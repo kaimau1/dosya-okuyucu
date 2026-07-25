@@ -1310,3 +1310,143 @@ yapılır, yoksa kullanıcı "İzin ver"e basana kadar ayar sayfası fırlamaz.
 **Ders:** bir Android eklentisi eklerken pub sürüm kısıtlarına bakmak YETMEZ;
 `android/build.gradle`ındaki `compileSdk`/`namespace` da bakılmalı (eski
 değerler AGP 8'de derlemeyi keser).
+
+## 2026-07-25 — Dosya seçiminde toplu/sürükleyerek seçim + Excel sadakati %100 turu
+
+### A) Basılı tutup kaydırarak çoklu seçim (`widgets/fm/drag_select.dart`)
+- **Karar:** hazır paket (drag_select_grid_view) KULLANILMADI — yalnız GridView'ı
+  sarıyor ve seçim durumunu kendi tutuyor; bizde seçim ekranların `Set<String>`inde
+  ve hem liste hem ızgara var. `DragSelectArea` durum TUTMAZ, yalnız
+  "şu aralığa seç/kaldır uygula" geri çağrısı verir.
+- **Parmağın altındaki öğe `MetaData` + hit-test ile bulunur** (`DragSelectItem`
+  her öğeyi indeksiyle işaretler; `RenderMetaData` hit-test yoluna eklendiği için
+  GlobalKey/ölçüm gerekmez, O(1)).
+- **TUZAK (jest arenası):** öğelerin kendi `onLongPress`i KALIRSA çocuk arenayı
+  kazanır ve sürükleme hiç başlamaz. Bu yüzden tile'lardan `onLongPress`
+  kaldırıldı, uzun basış tek yerde (alanda) yakalanıyor. Onay kutusu `onCheck`
+  ile ayrı geri çağrıya bağlandı. Regresyon testi: `fm_drag_select_test`
+  (gerçek jest: startGesture → kLongPressTimeout → moveTo).
+- Aralık matematiği saf fonksiyonda (`dragSelectDelta`): parmak GERİ çekilince
+  fazladan seçilenler geri alınır (yoksa "geri çektim ama seçili kaldı" hatası).
+- Kenara gelince otomatik kaydırma (72 px bölge, 16 ms timer) + kaydıktan sonra
+  parmağın altındaki öğe yeniden hesaplanır.
+- **Toplu seçme:** seçim çubuğuna `Tümünü seç / Seçimi kaldır` ikonu (durum
+  duyarlı), ⋮ menüsüne "Seçimi tersine çevir"; başlık artık `N / M seçildi`.
+- Uygulandığı ekranlar: gözatıcı (liste+ızgara), kategori (liste+ızgara),
+  İndirilenler. Izgarada seçim rozeti (✓ daire) eklendi.
+
+### B) Excel sadakati: görünüm tarafı `excel` paketinden AYRILDI
+- **Kök karar:** `excel` 4.0.6 hizalamayı okumuyor (bilinen hata), sayı biçim
+  kodunu vermiyor, tarihi kendi kafasına göre metne çeviriyor, dondurulmuş
+  bölme/koşullu biçim/kenarlık/tema rengi/gizli satır-sütun bilgisini hiç
+  taşımıyor. Sadakati %100'e çıkarmanın tek yolu sayfayı **kendimizin okuması**:
+  yeni `services/xlsx_reader.dart` (styles.xml + theme1.xml + sheetN.xml +
+  sharedStrings.xml). **Yazma/kaydetme yine `excel` paketinde** — dosya bozma
+  riski alınmadı. İki taraf ayrı: okuma sadakati paket hatalarına takılmıyor.
+- Okunanlar: hücre değeri (paylaşılan/satır içi dize, sayı, mantık, hata,
+  formül + **Excel'in önbelleklediği sonuç**), numFmt (yerleşik + özel), yazı
+  tipi/boyut/kalın/italik/altçizili/üstüçizili/renk, dolgu (desen yoğunluğu
+  alfayla yaklaşıklanır), kenar başına kenarlık (stil+renk+kalınlık), yatay/
+  dikey hizalama, metin kaydırma, girinti, döndürme, birleşik hücreler,
+  sütun genişliği/satır yüksekliği, gizli satır/sütun, **dondurulmuş bölme**,
+  ızgara çizgisi anahtarı, sekme rengi, gizli sayfa, koşullu biçimlendirme
+  (cellIs/colorScale/dataBar/containsText…), veri doğrulama listesi, tema
+  renkleri (+tint) ve indeksli palet.
+- **TUZAK — `applyFont/applyFill/applyBorder` bayrakları yok sayılır:** birçok
+  üretici (bizim yazma tarafımız dahil) bayrağı yazmadan stil kimliği veriyor;
+  bayrağa uyulursa kalın/renkli hücreler DÜZ görünüyor. openpyxl/LibreOffice de
+  kimliği doğrudan kullanır.
+- **TUZAK — dxf (koşullu biçim) dolgusunda `patternType` YOKTUR**, yalnız
+  `bgColor` verilir → desensiz ama renkli dolgu demektir (yoksa vurgu görünmez).
+- **Tema indeksi ≠ clrScheme sırası:** dosyada dk1,lt1,dk2,lt2… sırasıyla yazılır
+  ama `theme="0"` = lt1'dir → ilk iki çift yer değiştirilir.
+
+### C) Sayı biçimi motoru (`core/excel_format.dart`, saf Dart)
+Bölümler (`pozitif;negatif;sıfır;metin`), koşullu bölüm (`[>=1000]…`), renk
+etiketi (`[Red]`/`[Kırmızı]`→ARGB), `0 # ?` yer tutucuları, binlik gruplama,
+sondaki virgülle 1000'e bölme, yüzde, tırnaklı/kaçışlı metin, `_x`/`*x`,
+para etiketi `[$₺-41F]`, tarih/saat (Türkçe ay/gün adları), geçen süre `[h]`,
+kesir, bilimsel gösterim, `@`. Gösterim Türkçe (binlik `.`, ondalık `,`, `%15`).
+- **TUZAK — `dd.mm.yyyy`de nokta ondalık ayıracı DEĞİLDİR:** aynı jeton hem
+  tarih ayıracı hem ondalık nokta olabiliyor; ondalık virgülüne çevrilirse tarih
+  "01,01,2024" çıkıyordu. Kesirli saniye (`mm:ss.0`) varsa virgül, yoksa nokta.
+- **TUZAK — `m` hem AY hem DAKİKA:** saatten sonra/saniyeden önce gelirse dakika.
+  `[h]:mm` (geçen süre) de saat sayılmalı, yoksa ay yazılıyordu.
+- **TUZAK — sayı biçiminde tarih harfi:** `#,##0" adet"` içindeki `d` tarih
+  sanılıyordu. Ayraç: tarih biçimlerinde tam sayı yer tutucusu (0/#/?) BULUNMAZ.
+- **TUZAK — yalnız düz metin taşıyan bölüm "General" değildir:** `0;-0;"—"`
+  kodunda sıfır bölümü `—` yazmalı; General sayılırsa `0` yazıyordu.
+
+### D) Formül motoru büyütüldü (`services/formula_engine.dart`)
+- Gerçek Excel **hata değerleri** (`#SAYI/0! #DEĞER! #AD? #YOK #BAŞV! #SAYI!`)
+  artık istisna değil DEĞER → `EĞERHATA/IFERROR`, `EHATALIYSA` çalışıyor.
+  (Argüman değerlendirmesi `_safeParse` ile hatayı değere çeviriyor; ayrıştırma
+  hatası hâlâ istisna.)
+- `&` metin birleştirme, `;` argüman ayıracı (Türkçe Excel), **Türkçe fonksiyon
+  adları** (TOPLA, EĞER, DÜŞEYARA, ETOPLA, METNEÇEVİR… ~100 takma ad),
+  **çapraz sayfa referansı** (`Sayfa2!A1`, `'Ad Soyad'!A1:B2`), hücre önbelleği.
+- Yeni fonksiyonlar: SUMIF(S)/COUNTIF(S)/AVERAGEIF(S)/MAXIFS/MINIFS (joker `*?`
+  ve `">15"` ölçütleriyle), VLOOKUP/HLOOKUP/INDEX/MATCH, MEDIAN/MODE/STDEV/VAR/
+  LARGE/SMALL/RANK/SUMPRODUCT/SUBTOTAL, IFS/SWITCH/CHOOSE/XOR, IS* ailesi,
+  ROUNDUP/DOWN/CEILING/FLOOR/TRUNC/MOD(Excel işareti)/GCD/LCM/FACT, metin
+  ailesi (FIND/SEARCH/SUBSTITUTE/REPLACE/REPT/PROPER/TEXTJOIN/EXACT/VALUE),
+  **TEXT()** (sayı biçim motorunu kullanır) ve tarih ailesi (TODAY/NOW/DATE/
+  YEAR/MONTH/DAY/WEEKDAY/EDATE/EOMONTH/DATEDIF) — Excel seri numarasıyla.
+- **Sonuç HAM kalır** (ondalık `.`); hücrenin sayı biçimi gösterim katmanında
+  uygulanır. Bu ayrım korunmazsa `=A1*2` biçimli metni sayı sanar (eski karar).
+
+### E) Izgara yeniden yazıldı (`screens/editors/spreadsheet_editor_screen.dart`
+    + yeni `widgets/sheet_cell.dart`)
+- **Satır/sütun başlıkları artık SABİT** (eskiden yatay kaydırınca satır
+  numaraları kaçıyordu) ve **dosyadaki dondurulmuş bölme uygulanıyor** —
+  kullanıcının "sağ/sol ayrı oynuyor" dediği SAHU dosyası bu yüzden bölünüyordu.
+  Dört bölge (köşe / donmuş satırlar / donmuş sütunlar / gövde) bağlı
+  kaydırmayla: gövde sürüklenir, başlıklar `jumpTo` ile takip eder. İki liste de
+  `itemExtentBuilder` kullandığı için piksel piksel örtüşür.
+- **Sütunlar yatayda da sanallaştırıldı** (görünen pencere + iki yandan boşluk)
+  → 512 sütunluk dosyada kare başına ~15 sütun çizilir.
+- Hücre çizimi `SheetCell`: dolgu, **kenar başına** kenarlık (CustomPainter —
+  Flutter `BorderSide`ında `double`/kesikli Excel stilleri yok), yazı tipi
+  (Calibri→Carlito, Arial→Arimo, Times→Tinos metrik-uyumlu eşleme), dikey+yatay
+  hizalama, metin kaydırma, girinti, sayı biçimi rengi, koşullu biçim
+  (renk ölçeği/veri çubuğu/hücre kuralı), seçim çerçevesi.
+- **Aralık seçimi**: basılı tut + kaydır (dosya yöneticisiyle aynı MetaData
+  tekniği); başlığa dokunuş tüm satırı/sütunu, köşeye dokunuş tüm sayfayı seçer.
+- **Excel'in durum çubuğu**: seçili aralığın Ortalama · Sayı · Toplam değeri.
+- Veri doğrulama listesi olan hücrede formül çubuğunda **açılır ok**.
+- Gizli satır/sütun çizilmez, ızgara çizgisi anahtarı ve sekme rengi uygulanır,
+  gizli sayfa sekmede görünmez, CSV dışa aktarımı artık **görünen metni** yazar
+  (tarih seri numarası değil).
+- **TUZAK — birleşik hücre bölme sınırında taşıyor:** A1:C1 birleşmesi donmuş
+  sütun bölmesinde tüm genişliğiyle çizilince `RenderFlex overflowed by 153px`.
+  Çözüm: birleşik genişlik YALNIZ o bölgede çizilen sütunları toplar.
+- **TUZAK — dikey birleşme:** satırlar sabit uzantılı tembel listede çizildiği
+  için çapa kendi satır yüksekliğinde kalır (içerik üst satırda görünür).
+
+### F) YENİ VE ÖNEMLİ — bulut oturumunda Flutter SDK'sı İNDİRİLEBİLİYOR
+- Bu Linux oturumunda `dart-sdk` ve **Flutter 3.29.3** (CI ile birebir aynı
+  sürüm) indirilip `flutter pub get / analyze / test` koşturuldu. Yani
+  "yerelde Flutter yok, kör push" varsayımı ARTIK GEÇERSİZ: bulut oturumunda da
+  gerçek doğrulama yapılabilir.
+  - `storage.googleapis.com/flutter_infra_release/releases/stable/linux/
+    flutter_linux_3.29.3-stable.tar.xz` (~733 MB) → `git config --global
+    --add safe.directory <yol>` gerekiyor (dubious ownership).
+  - Bu turda **6 gerçek derleme/mantık hatası** bu sayede yakalandı
+    (aşağıdaki tuzaklar dahil); kör push edilseydi APK derlemesinde ya da
+    kullanıcının telefonunda çıkacaktı.
+- **TUZAK — `flutter_test`te GERÇEK asenkron iş ilerlemez:** `File.readAsBytes()`
+  sahte saat (fakeAsync) zonunda BAŞLATILIRSA hiç tamamlanmaz, `runAsync` de
+  kurtarmaz → ekran sonsuza dek "yükleniyor" kalır. Çözüm hem testi hem ürünü
+  düzeltti: dosya okuma da izolata taşındı (`_readAndParse`), ana izlekte artık
+  disk G/Ç yok. Ayrıca `compute` izolatı flutter_test'te asılı kaldığı için
+  `SpreadsheetEditorScreen.parseInIsolate` test kancası eklendi (üretimde daima
+  true).
+- **TUZAK — `testWidgets` gövdesinde `Directory.systemTemp.createTemp()`**
+  aynı nedenle testi sonsuza kadar askıya alır; geçici dosyalar `setUp` içinde
+  oluşturulmalı. (Bu yüzden "ekran hiç çizilmiyor" sanılıp yarım saat yanlış
+  yerde arandı.)
+- Yeni testler: `xlsx_reader_test` (elle üretilmiş zengin fixture
+  `test/fixtures/rich_sheet.xlsx` + üreteci `make_rich_sheet.py`),
+  `spreadsheet_screen_test` (widget duman testi — yerleşim taşmasını yakalar),
+  `fm_drag_select_test`, genişletilmiş `formula_engine_test` ve
+  `xlsx_number_format_test`. **335 test yeşil**, `flutter analyze` 0 hata.

@@ -1,28 +1,90 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show Color;
 
-import 'package:archive/archive.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/painting.dart' show TextAlign;
-import 'package:xml/xml.dart';
 
-/// Bir hücrenin Excel'deki görünümü (yazı tipi, renk, hizalama).
+import '../core/excel_format.dart';
+import 'xlsx_reader.dart';
+
+// Görünüm modelinin tamamı (aralık, kenarlık, hizalama, koşullu biçim…)
+// ekranlara buradan açılır — ad çakışması yok.
+export 'xlsx_reader.dart';
+
+/// Bir hücrenin Excel'deki görünümü.
+///
+/// Değerler `styles.xml`den BİZİM okuyucumuzla gelir (excel paketi hizalama,
+/// kenarlık, tema rengi ve sayı biçimi vermiyor — bkz. xlsx_reader.dart).
 class XlsxCellStyle {
   final bool bold;
   final bool italic;
+  final bool underline;
+  final bool strike;
   final double? fontSize;
+  final String? fontFamily;
   final Color? fontColor;
   final Color? background;
-  final TextAlign align;
+  final XlsxHAlign hAlign;
+  final XlsxVAlign vAlign;
+  final bool wrap;
+  final int indent;
+  final int rotation;
+  final XlsxBorder border;
+  final String numFmtCode;
+
   const XlsxCellStyle({
     this.bold = false,
     this.italic = false,
+    this.underline = false,
+    this.strike = false,
     this.fontSize,
+    this.fontFamily,
     this.fontColor,
     this.background,
-    this.align = TextAlign.left,
+    this.hAlign = XlsxHAlign.general,
+    this.vAlign = XlsxVAlign.bottom,
+    this.wrap = false,
+    this.indent = 0,
+    this.rotation = 0,
+    this.border = const XlsxBorder(),
+    this.numFmtCode = 'General',
   });
+
+  /// Excel kuralı: açık hizalama yoksa SAYI sağa, metin sola yaslanır.
+  TextAlign alignFor(bool numeric) => switch (hAlign) {
+        XlsxHAlign.left => TextAlign.left,
+        XlsxHAlign.center => TextAlign.center,
+        XlsxHAlign.right => TextAlign.right,
+        XlsxHAlign.justify => TextAlign.justify,
+        XlsxHAlign.general => numeric ? TextAlign.right : TextAlign.left,
+      };
+
+  /// Araç çubuğu düğmelerinin durumu için (açık hizalama).
+  TextAlign get align => alignFor(false);
+
+  XlsxCellStyle copyWith({
+    bool? bold,
+    bool? italic,
+    XlsxHAlign? hAlign,
+    Color? background,
+  }) =>
+      XlsxCellStyle(
+        bold: bold ?? this.bold,
+        italic: italic ?? this.italic,
+        underline: underline,
+        strike: strike,
+        fontSize: fontSize,
+        fontFamily: fontFamily,
+        fontColor: fontColor,
+        background: background ?? this.background,
+        hAlign: hAlign ?? this.hAlign,
+        vAlign: vAlign,
+        wrap: wrap,
+        indent: indent,
+        rotation: rotation,
+        border: border,
+        numFmtCode: numFmtCode,
+      );
 }
 
 /// Birleştirilmiş hücre aralığı (0 tabanlı, uçlar dahil).
@@ -34,202 +96,358 @@ class XlsxMerge {
   bool isAnchor(int r, int c) => r == rowStart && c == colStart;
 }
 
-class XlsxSheet {
-  final String name;
-  final List<List<String>> rows;
-  final Sheet _sheet;
-  final List<XlsxMerge> merges;
+/// Ekranda gösterilecek tek hücrelik sonuç.
+class XlsxCellView {
+  final String text;
 
-  /// Hücre → Excel sayı biçim kodu (ör. "0%", "#,##0.00", "\"₺\"#,##0.00").
-  /// Anahtar: [_key]. Yalnızca sayı/para/yüzde biçimli hücreler; tarihler
-  /// excel paketinin verdiği gösterimle bırakılır. Boşsa biçimleme yapılmaz.
-  final Map<int, String> numFmts;
-
-  // Excel paketinin `rows`/`getColumnWidth`/`getRowHeight` erişimleri her çağrıda
-  // iç haritalardan yeniden üretiliyor (O(hücre)). Bunları her karede her görünür
-  // hücre için çağırmak büyük sayfada O(hücre²) → donma/ANR/çökme (bkz. HAFIZA
-  // 2026-07-22: 996×26 hücrelik dosya açılıp kaydırılınca çöküyordu). Bu yüzden
-  // stil, sütun genişliği ve satır yüksekliği yükleme anında BİR KEZ önbelleğe
-  // alınır; çizim yalnızca bu düz listelere O(1) bakar, excel paketine dokunmaz.
-  List<List<XlsxCellStyle?>> _styleCache = const [];
-  List<double> _colWCache = const [];
-  List<double> _rowHCache = const [];
-
-  XlsxSheet(this.name, this.rows, this._sheet, this.merges,
-      [this.numFmts = const {}]) {
-    rebuildCaches();
-  }
-
-  int get maxCols => rows.fold<int>(0, (m, r) => r.length > m ? r.length : m);
-
-  static int _key(int r, int c) => r * 16384 + c;
-
-  /// Bu hücrenin sayı biçim kodu (varsa). Tarih/genel biçimler için null döner.
-  String? numFmtCode(int r, int c) => numFmts[_key(r, c)];
-
-  /// Hücrede **Excel'de göründüğü gibi** metin. [computed] formül motorunun
-  /// verdiği ham sonuçtur; bu değer sayıysa ve hücrenin bir sayı biçimi varsa
-  /// (yüzde/para/binlik/ondalık) o biçim uygulanır. Aksi halde [computed] aynen
-  /// döner (metin, tarih ve biçimsiz sayılar değişmez).
-  String displayText(int r, int c, String computed) {
-    final code = numFmtCode(r, c);
-    if (code == null || computed.isEmpty) return computed;
-    final v = double.tryParse(computed);
-    if (v == null) return computed;
-    return applyNumberFormat(code, v) ?? computed;
-  }
-
-  /// Önbellekten O(1). Excel'in getColumnWidth'i her çağrıda iç haritayı gezdiği
-  /// için render'da doğrudan çağrılmaz — [rebuildCaches] ile bir kez hesaplanır.
-  double colWidth(int c) =>
-      (c >= 0 && c < _colWCache.length) ? _colWCache[c] : _defaultColWidth;
-
-  /// Önbellekten O(1). Bkz. [colWidth].
-  double rowHeight(int r) =>
-      (r >= 0 && r < _rowHCache.length) ? _rowHCache[r] : _defaultRowHeight;
-
-  /// Önbellekten O(1). Bkz. [colWidth].
-  XlsxCellStyle? styleAt(int r, int c) {
-    if (r < 0 || r >= _styleCache.length) return null;
-    final row = _styleCache[r];
-    return (c >= 0 && c < row.length) ? row[c] : null;
-  }
-
-  /// Tek hücrenin görünüm stilini önbellekte günceller — biçim düğmesine
-  /// basıldığında koca sayfayı ([rebuildCaches]) yeniden taramamak için.
-  void patchStyle(int r, int c, XlsxCellStyle? style) {
-    if (r < 0 || c < 0) return;
-    // İlk atama `const []` olabilir (constructor rebuildCaches'i çağırdığı için
-    // pratikte büyüyebilir liste olur; yine de güvenli tarafta kal).
-    if (_styleCache.isEmpty) _styleCache = <List<XlsxCellStyle?>>[];
-    while (_styleCache.length <= r) {
-      _styleCache.add(<XlsxCellStyle?>[]);
-    }
-    final row = _styleCache[r];
-    while (row.length <= c) {
-      row.add(null);
-    }
-    row[c] = style;
-  }
-
-  static const double _defaultColWidth = 8.43 * 7.2 + 10; // Excel varsayılanı → px
-  static const double _defaultRowHeight = 22; // 15pt * 1.34, clamp alt sınırı
-
-  /// Stil/genişlik/yükseklik önbelleklerini excel nesnesinden BİR KEZ kurar.
-  /// Excel paketinin `rows` getter'ı iç haritalardan her seferinde yeniden liste
-  /// ürettiği için burada TEK erişimle okunur; render sırasında bir daha
-  /// çağrılmaz. Yapısal işlemlerden (satır/sütun ekle-sil) sonra tekrar çağrılır.
-  void rebuildCaches() {
-    final excelRows = _sheet.rows; // pahalı getter'a tek erişim
-    _styleCache = [
-      for (final row in excelRows) [for (final cell in row) _styleOf(cell)],
-    ];
-    _rowHCache = [
-      for (var r = 0; r < excelRows.length; r++) _computeRowHeight(r),
-    ];
-    // Render en çok 64 sütun çizer (bkz. ekran _maxCols); fazlasını hesaplama.
-    final cols = maxCols;
-    final capped = cols < 64 ? cols : 64;
-    _colWCache = [for (var c = 0; c < capped; c++) _computeColWidth(c)];
-  }
-
-  /// Excel sütun genişliği "karakter" birimindedir; ekran pikseline çevrilir.
-  /// Dosyada `defaultColWidth` yoksa excel paketi null hatası fırlatır — korumalı.
-  double _computeColWidth(int c) {
-    double w;
-    try {
-      w = _sheet.getColumnWidth(c);
-    } catch (_) {
-      w = 8.43; // Excel varsayılanı
-    }
-    return (w * 7.2 + 10).clamp(28, 420);
-  }
-
-  /// Satır yüksekliği puntodur (varsayılan 15 pt).
-  double _computeRowHeight(int r) {
-    double h;
-    try {
-      h = _sheet.getRowHeight(r);
-    } catch (_) {
-      h = 15;
-    }
-    return (h * 1.34).clamp(22, 240);
-  }
-
-  /// Bir excel `Data?` hücresinden görünüm stilini çıkarır (saf; excel `rows`
-  /// getter'ına dokunmaz — çağıran tek listeyi zaten elde etmiştir).
-  static XlsxCellStyle? _styleOf(Data? cell) {
-    final style = cell?.cellStyle;
-    if (style == null) return null;
-
-    var align = switch (style.horizontalAlignment) {
-      HorizontalAlign.Center => TextAlign.center,
-      HorizontalAlign.Right => TextAlign.right,
-      HorizontalAlign.Left => TextAlign.left,
-    };
-    // Excel sayıları ve tarihleri varsayılan olarak sağa yaslar. Açık hizalama
-    // okunamıyor (excel paketi hatası, bkz. HAFIZA), en azından varsayılanı doğru yap.
-    if (align == TextAlign.left && _isNumeric(cell?.value)) {
-      align = TextAlign.right;
-    }
-
-    return XlsxCellStyle(
-      bold: style.isBold,
-      italic: style.isItalic,
-      fontSize: style.fontSize?.toDouble(),
-      fontColor: _color(style.fontColor.colorHex),
-      background: _color(style.backgroundColor.colorHex),
-      align: align,
-    );
-  }
-
-  static bool _isNumeric(CellValue? v) =>
-      v is IntCellValue ||
-      v is DoubleCellValue ||
-      v is DateCellValue ||
-      v is TimeCellValue ||
-      v is DateTimeCellValue;
+  /// Sayı biçimindeki `[Red]` gibi renk etiketi (yazı rengini EZER).
+  final Color? formatColor;
+  final bool numeric;
+  const XlsxCellView(this.text, {this.formatColor, this.numeric = false});
 }
 
-/// .xlsx dosyasını hücre bazında düzenler ve kaydeder (excel paketi ile).
+class XlsxSheet {
+  final String name;
+
+  /// Ham hücre metinleri — formül motorunun ve CSV dışa aktarımının girdisi.
+  /// Sayılar burada HAM durur (`1234.5`), biçim yalnız gösterimde uygulanır;
+  /// yoksa `=A1*2` gibi formüller "₺1.234,50"yi sayı sanıp bozulurdu.
+  final List<List<String>> rows;
+
+  final Sheet _sheet;
+  final XlsxSheetLayout layout;
+  final XlsxStyles styles;
+  final bool date1904;
+
+  /// Uygulama içinde değiştirilen hücre biçimleri (dosyadaki paylaşımlı stil
+  /// nesnesini bozmamak için ayrı tutulur).
+  final Map<int, XlsxCellStyle> _overrides = {};
+
+  /// styleIndex → çözümlenmiş görünüm (her karede yeniden hesaplanmasın).
+  final Map<int, XlsxCellStyle> _styleCache = {};
+
+  late final List<XlsxMerge> merges = [
+    for (final m in layout.merges) XlsxMerge(m.r1, m.c1, m.r2, m.c2),
+  ];
+
+  XlsxSheet({
+    required this.name,
+    required this.rows,
+    required Sheet sheet,
+    required this.layout,
+    required this.styles,
+    this.date1904 = false,
+  }) : _sheet = sheet;
+
+  Sheet get excelSheet => _sheet;
+
+  int get maxCols {
+    final fromCells = layout.colCount;
+    final fromRows = rows.fold<int>(0, (m, r) => r.length > m ? r.length : m);
+    return fromCells > fromRows ? fromCells : fromRows;
+  }
+
+  int get maxRows => rows.length > layout.rowCount ? rows.length : layout.rowCount;
+
+  int get frozenRows => layout.frozenRows;
+  int get frozenCols => layout.frozenCols;
+  bool get showGridLines => layout.showGridLines;
+  bool get isHiddenRow0 => false;
+
+  /// Bu hücreyi kapsayan birleştirme (yoksa null).
+  XlsxMerge? mergeAt(int r, int c) {
+    for (final m in merges) {
+      if (m.covers(r, c)) return m;
+    }
+    return null;
+  }
+
+  bool isRowHidden(int r) => layout.hiddenRows.contains(r);
+  bool isColHidden(int c) => layout.hiddenCols.contains(c);
+
+  // ── ölçüler ───────────────────────────────────────────────────────────────
+
+  /// Excel sütun genişliği "karakter" birimindedir; ekran pikseline çevrilir.
+  /// Excel'in kendi formülü: piksel = round(genişlik * 7) + 5 (Calibri 11).
+  double colWidth(int c) {
+    if (layout.hiddenCols.contains(c)) return 0;
+    final chars = layout.colWidthChars(c);
+    return (chars * 7.0 + 5).clamp(6.0, 500.0);
+  }
+
+  /// Satır yüksekliği puntodur; 1 pt ≈ 1.333 px.
+  double rowHeight(int r) {
+    if (layout.hiddenRows.contains(r)) return 0;
+    final pt = layout.rowHeightPt(r);
+    return (pt * 1.34).clamp(8.0, 409.0);
+  }
+
+  // ── stil ──────────────────────────────────────────────────────────────────
+
+  /// Hücrenin stil indeksi: hücrenin kendi `s`si, yoksa satır, yoksa sütun.
+  int styleIndexAt(int r, int c) {
+    final cell = layout.cellAt(r, c);
+    if (cell != null) return cell.styleIndex;
+    return layout.rowStyles[r] ?? layout.colStyles[c] ?? 0;
+  }
+
+  XlsxCellStyle? styleAt(int r, int c) {
+    final ov = _overrides[cellKey(r, c)];
+    if (ov != null) return ov;
+    final idx = styleIndexAt(r, c);
+    final cached = _styleCache[idx];
+    if (cached != null) return cached;
+    final built = _buildStyle(styles.formatAt(idx));
+    _styleCache[idx] = built;
+    return built;
+  }
+
+  XlsxCellStyle _buildStyle(XlsxFormat f) => XlsxCellStyle(
+        bold: f.font.bold,
+        italic: f.font.italic,
+        underline: f.font.underline != null && f.font.underline != 'none',
+        strike: f.font.strike,
+        fontSize: f.font.size,
+        fontFamily: f.font.name,
+        fontColor: _color(f.font.colorArgb),
+        background: _color(f.fill.effectiveArgb),
+        hAlign: f.align.horizontal,
+        vAlign: f.align.vertical,
+        wrap: f.align.wrapText,
+        indent: f.align.indent,
+        rotation: f.align.textRotation,
+        border: f.border,
+        numFmtCode: f.numFmtCode,
+      );
+
+  /// Tek hücrenin görünümünü uygulama içinde değiştirir (dosyadaki paylaşımlı
+  /// stil nesnesi bozulmaz — kaydetmede excel paketi kendi stilini yazar).
+  void patchStyle(int r, int c, XlsxCellStyle? style) {
+    if (r < 0 || c < 0) return;
+    if (style == null) {
+      _overrides.remove(cellKey(r, c));
+    } else {
+      _overrides[cellKey(r, c)] = style;
+    }
+  }
+
+  // ── değer / gösterim ──────────────────────────────────────────────────────
+
+  String rawAt(int r, int c) {
+    if (r < 0 || r >= rows.length) return '';
+    final row = rows[r];
+    return (c >= 0 && c < row.length) ? row[c] : '';
+  }
+
+  bool isNumericAt(int r, int c) {
+    final raw = rawAt(r, c);
+    if (raw.isEmpty) return false;
+    if (raw.startsWith('=')) {
+      final cell = layout.cellAt(r, c);
+      return cell?.number != null;
+    }
+    return double.tryParse(raw) != null;
+  }
+
+  /// Bu hücrenin sayı biçim kodu.
+  String numFmtCode(int r, int c) =>
+      styleAt(r, c)?.numFmtCode ?? 'General';
+
+  /// Formül hücresinde Excel'in dosyaya yazdığı SON SONUÇ (önbellek).
+  /// Kendi motorumuz hesaplayamazsa buna düşeriz — böylece desteklemediğimiz
+  /// bir fonksiyon bile Excel'deki değeriyle görünür.
+  String? cachedResultAt(int r, int c) {
+    final cell = layout.cellAt(r, c);
+    if (cell == null || cell.formula == null) return null;
+    if (cell.number != null) return generalNumberRaw(cell.number!);
+    if (cell.text != null) return cell.text;
+    if (cell.boolean != null) return cell.boolean! ? 'DOĞRU' : 'YANLIŞ';
+    if (cell.error != null) return cell.error;
+    return null;
+  }
+
+  /// Hücrede **Excel'de göründüğü gibi** metin (+ biçim rengi).
+  ///
+  /// [computed] formül motorunun verdiği ham sonuçtur (sayılar `.` ondalıklı).
+  XlsxCellView viewAt(int r, int c, String computed) {
+    final cell = layout.cellAt(r, c);
+    if (cell?.error != null && (cell?.formula == null)) {
+      return XlsxCellView(cell!.error!);
+    }
+    var value = computed;
+    // Motorumuz hata verdiyse Excel'in kendi önbelleğine düş.
+    if ((value == '#HATA' || value == '#DÖNGÜ' || value.isEmpty) &&
+        cell?.formula != null) {
+      value = cachedResultAt(r, c) ?? value;
+    }
+    if (value.isEmpty) return const XlsxCellView('');
+
+    final code = numFmtCode(r, c);
+    final fmt = ExcelNumberFormat.parse(code);
+    final number = double.tryParse(value);
+    if (number == null) {
+      // Metin: biçimde metin bölümü varsa uygulanır (`;;;"—"` gibi).
+      if (fmt.isGeneral) return XlsxCellView(value);
+      final res = fmt.format(value, date1904: date1904);
+      return XlsxCellView(res.text, formatColor: _color(res.colorArgb));
+    }
+    if (fmt.isGeneral) {
+      return XlsxCellView(generalNumber(number), numeric: true);
+    }
+    final res = fmt.format(number, date1904: date1904);
+    return XlsxCellView(res.text,
+        formatColor: _color(res.colorArgb), numeric: true);
+  }
+
+  /// Eski API (testler + CSV): yalnız metin.
+  String displayText(int r, int c, String computed) =>
+      viewAt(r, c, computed).text;
+
+  /// Bu hücrede geçerli koşullu biçim kuralı (en yüksek öncelikli).
+  XlsxCondRule? condRuleAt(int r, int c) {
+    XlsxCondRule? best;
+    for (final rule in layout.condFormats) {
+      if (!rule.covers(r, c)) continue;
+      if (best == null || rule.priority < best.priority) best = rule;
+    }
+    return best;
+  }
+
+  XlsxDataValidation? validationAt(int r, int c) {
+    for (final v in layout.validations) {
+      if (v.covers(r, c)) return v;
+    }
+    return null;
+  }
+
+  static Color? _color(int? argb) => argb == null ? null : Color(argb);
+}
+
+/// .xlsx dosyasını hücre bazında düzenler ve kaydeder.
+///
+/// **Okuma** (görünüm) `XlsxReader` ile ham OOXML'den, **yazma** `excel`
+/// paketiyle yapılır. İkisi ayrı tutulur: okuma sadakati paket hatalarına
+/// takılmaz, yazma tarafı ise kanıtlanmış paket yolunda kalır.
 class XlsxEditor {
   final Excel _excel;
   final List<XlsxSheet> sheets;
+  final XlsxWorkbook workbook;
 
-  XlsxEditor._(this._excel, this.sheets);
+  XlsxEditor._(this._excel, this.sheets, this.workbook);
 
   static XlsxEditor parse(Uint8List bytes) {
     final excel = Excel.decodeBytes(bytes);
-    // Sayı biçimleri (yüzde/para/binlik) excel paketinde okunamıyor; ham XML'den
-    // ayrıca çıkarılır. Bozuk/eksikse sessizce boş kalır (biçimleme yapılmaz).
-    Map<String, Map<int, String>> fmts = const {};
+    XlsxWorkbook wb;
     try {
-      fmts = _readNumberFormats(bytes);
+      wb = XlsxReader.read(bytes);
     } catch (_) {
-      fmts = const {};
+      wb = XlsxWorkbook(
+        sheets: const [],
+        styles: XlsxStyles(
+            numFmts: const {}, formats: [XlsxFormat.fallback()], dxfs: const [], theme: const []),
+        theme: const [],
+        date1904: false,
+      );
     }
-    return XlsxEditor._(excel, _buildSheets(excel, fmts));
+    return XlsxEditor._(excel, _buildSheets(excel, wb), wb);
   }
 
-  /// excel nesnesindeki tüm sayfaları okunabilir modele çevirir.
-  static List<XlsxSheet> _buildSheets(
-      Excel excel, Map<String, Map<int, String>> fmts) {
+  static List<XlsxSheet> _buildSheets(Excel excel, XlsxWorkbook wb) {
     final sheets = <XlsxSheet>[];
     for (final entry in excel.tables.entries) {
-      final rows = <List<String>>[];
-      for (final row in entry.value.rows) {
-        rows.add(row.map(_cellText).toList());
+      XlsxSheetLayout? layout;
+      for (final l in wb.sheets) {
+        if (l.name == entry.key) {
+          layout = l;
+          break;
+        }
       }
+      layout ??= XlsxSheetLayout(name: entry.key);
       sheets.add(XlsxSheet(
-        entry.key,
-        rows,
-        entry.value,
-        _merges(entry.value.spannedItems),
-        fmts[entry.key] ?? const {},
+        name: entry.key,
+        rows: _rowsFrom(layout, entry.value),
+        sheet: entry.value,
+        layout: layout,
+        styles: wb.styles,
+        date1904: wb.date1904,
+      ));
+    }
+    // excel paketinin okuyamadığı sayfa varsa (nadir) modelden ekle.
+    for (final l in wb.sheets) {
+      if (sheets.any((s) => s.name == l.name)) continue;
+      final table = excel[l.name];
+      sheets.add(XlsxSheet(
+        name: l.name,
+        rows: _rowsFrom(l, table),
+        sheet: table,
+        layout: l,
+        styles: wb.styles,
+        date1904: wb.date1904,
       ));
     }
     return sheets;
   }
+
+  /// Ham hücre metinleri: sayı → `1234.5`, formül → `=SUM(A1:A3)`,
+  /// metin → olduğu gibi. (Gösterim biçimi UYGULANMAZ, bkz. XlsxSheet.rows.)
+  static List<List<String>> _rowsFrom(XlsxSheetLayout layout, Sheet fallback) {
+    if (layout.cells.isEmpty) {
+      // Okuyucu bir şey bulamadıysa excel paketinin verisine düş (bozuk dosya).
+      return [
+        for (final row in fallback.rows) [for (final c in row) _legacyText(c)],
+      ];
+    }
+    final rows = <List<String>>[];
+    for (var r = 0; r <= layout.maxRow; r++) {
+      var last = -1;
+      for (var c = layout.maxCol; c >= 0; c--) {
+        if (layout.cells.containsKey(cellKey(r, c))) {
+          last = c;
+          break;
+        }
+      }
+      if (last < 0) {
+        rows.add(<String>[]);
+        continue;
+      }
+      final row = List<String>.filled(last + 1, '', growable: true);
+      for (var c = 0; c <= last; c++) {
+        final cell = layout.cells[cellKey(r, c)];
+        if (cell == null) continue;
+        row[c] = _rawText(cell);
+      }
+      rows.add(row);
+    }
+    return rows;
+  }
+
+  static String _rawText(XlsxCell cell) {
+    if (cell.formula != null && cell.formula!.isNotEmpty) {
+      return '=${cell.formula}';
+    }
+    if (cell.error != null) return cell.error!;
+    if (cell.boolean != null) return cell.boolean! ? 'DOĞRU' : 'YANLIŞ';
+    if (cell.number != null) return generalNumberRaw(cell.number!);
+    return cell.text ?? '';
+  }
+
+  static String _legacyText(Data? cell) {
+    final v = cell?.value;
+    return switch (v) {
+      null => '',
+      TextCellValue() => v.value.toString(),
+      IntCellValue() => '${v.value}',
+      DoubleCellValue() => generalNumberRaw(v.value),
+      BoolCellValue() => v.value ? 'DOĞRU' : 'YANLIŞ',
+      DateCellValue() => '${v.year}-${_p2(v.month)}-${_p2(v.day)}',
+      TimeCellValue() => '${_p2(v.hour)}:${_p2(v.minute)}',
+      DateTimeCellValue() =>
+        '${v.year}-${_p2(v.month)}-${_p2(v.day)} ${_p2(v.hour)}:${_p2(v.minute)}',
+      FormulaCellValue() => '=${v.formula}',
+    };
+  }
+
+  static String _p2(int n) => n.toString().padLeft(2, '0');
 
   XlsxSheet? _modelSheet(String name) {
     for (final s in sheets) {
@@ -238,65 +456,10 @@ class XlsxEditor {
     return null;
   }
 
-  /// Hücre değerini Excel'de göründüğü gibi metne çevirir.
-  static String _cellText(Data? cell) {
-    final v = cell?.value;
-    return switch (v) {
-      null => '',
-      TextCellValue() => v.value.toString(), // zengin metin parçalarını birleştirir
-      IntCellValue() => '${v.value}',
-      DoubleCellValue() => _trimNumber(v.value),
-      BoolCellValue() => v.value ? 'DOĞRU' : 'YANLIŞ',
-      DateCellValue() => '${_pad2(v.day)}.${_pad2(v.month)}.${v.year}',
-      TimeCellValue() => '${_pad2(v.hour)}:${_pad2(v.minute)}',
-      DateTimeCellValue() =>
-        '${_pad2(v.day)}.${_pad2(v.month)}.${v.year} ${_pad2(v.hour)}:${_pad2(v.minute)}',
-      // Formül çubuğunda Excel gibi baştaki '=' ile gösterilir. Sonuç cihazda
-      // hesaplanmaz (offline, ücretsiz); PowerPoint/Excel dosyayı açınca hesaplar.
-      FormulaCellValue() => '=${v.formula}',
-    };
-  }
-
-  static String _pad2(int n) => n.toString().padLeft(2, '0');
-
-  /// 12.0 -> "12", 12.50 -> "12.5" (Excel de gereksiz sıfırı göstermez).
-  static String _trimNumber(double d) {
-    if (d == d.roundToDouble() && d.abs() < 1e15) return d.toStringAsFixed(0);
-    return d.toString();
-  }
-
-  static List<XlsxMerge> _merges(List<String> spans) {
-    final out = <XlsxMerge>[];
-    for (final s in spans) {
-      final parts = s.split(':');
-      if (parts.length != 2) continue;
-      final a = _ref(parts[0]);
-      final b = _ref(parts[1]);
-      if (a == null || b == null) continue;
-      out.add(XlsxMerge(a.$1, a.$2, b.$1, b.$2));
-    }
-    return out;
-  }
-
-  /// "B3" -> (satır 2, sütun 1)
-  static (int, int)? _ref(String ref) {
-    final m = RegExp(r'^([A-Z]+)(\d+)$').firstMatch(ref.toUpperCase());
-    if (m == null) return null;
-    var col = 0;
-    for (final ch in m.group(1)!.codeUnits) {
-      col = col * 26 + (ch - 64);
-    }
-    return (int.parse(m.group(2)!) - 1, col - 1);
-  }
-
-  /// Bir hücreyi günceller (hem model hem excel nesnesi).
-  ///
-  /// `=` ile başlayan değer **formül** olarak kaydedilir (ör. `=SUM(A1:A9)`);
-  /// böyle bir hücreyi Excel/PowerPoint açtığında sonucu kendisi hesaplar.
-  /// Sayı gibi görünen değer sayı olarak, gerisi metin olarak yazılır → dosyayı
-  /// başka programda açınca doğru tipte görünür.
+  /// Bir hücreyi günceller (hem görünüm modeli hem excel nesnesi).
   void setCell(String sheetName, int rowIndex, int colIndex, String value) {
-    final sheet = sheets.firstWhere((s) => s.name == sheetName);
+    final sheet = _modelSheet(sheetName);
+    if (sheet == null) return;
     while (sheet.rows.length <= rowIndex) {
       sheet.rows.add(<String>[]);
     }
@@ -305,6 +468,25 @@ class XlsxEditor {
       row.add('');
     }
     row[colIndex] = value;
+
+    // Görünüm modeli de güncellensin (biçim/hizalama hücrenin kendi stilinden
+    // gelmeye devam eder — yalnız değer değişir).
+    final layout = sheet.layout;
+    final key = cellKey(rowIndex, colIndex);
+    final old = layout.cells[key];
+    final number = double.tryParse(value);
+    layout.cells[key] = XlsxCell(
+      row: rowIndex,
+      col: colIndex,
+      styleIndex: old?.styleIndex ?? 0,
+      number: (value.startsWith('=') || number == null) ? null : number,
+      text: (value.startsWith('=') || number != null) ? null : value,
+      formula: value.length > 1 && value.startsWith('=')
+          ? value.substring(1)
+          : null,
+    );
+    if (rowIndex > layout.maxRow) layout.maxRow = rowIndex;
+    if (colIndex > layout.maxCol) layout.maxCol = colIndex;
 
     _excel.updateCell(
       sheetName,
@@ -319,8 +501,6 @@ class XlsxEditor {
     if (value.length > 1 && value.startsWith('=')) {
       return FormulaCellValue(value.substring(1));
     }
-    // Türkçe ondalık ayıracı (virgül) ve nokta ikisini de dener; ama başında
-    // sıfır olan (ör. "007", telefon) veya çok uzun sayıları metin bırakır.
     final intVal = int.tryParse(value);
     if (intVal != null && !_looksLikeCode(value)) return IntCellValue(intVal);
     final dbl = double.tryParse(value);
@@ -330,20 +510,17 @@ class XlsxEditor {
     return TextCellValue(value);
   }
 
-  /// "007", "0123", "+90..." gibi baştaki sıfır/işaret önemli olan diziler sayı
-  /// değil metin sayılır (aksi halde anlam kaybolur).
+  /// "007", "0123" gibi baştaki sıfırı önemli olan diziler metin kalır.
   static bool _looksLikeCode(String v) {
     if (v.length > 1 && v.startsWith('0') && !v.startsWith('0.')) return true;
-    if (v.length > 15) return true; // int precision sınırı
+    if (v.length > 15) return true;
     return false;
   }
 
-  // Yapısal işlemler hücreleri (değer + stil) elle kaydırarak yapılır ve model
-  // doğrudan güncellenir. *Niye:* excel 4.0.6'nın Excel-seviye insertRow/
-  // insertColumn'u bu dosyada no-op çıktı (sayaç değişmedi, bkz. HAFIZA); Sheet
-  // hücre API'si (cell/value/cellStyle) ise güvenilir çalışıyor.
+  // ── yapısal işlemler ──────────────────────────────────────────────────────
+  // Hücreler (değer + stil) elle kaydırılır. *Niye:* excel 4.0.6'nın
+  // Excel-seviye insertRow/insertColumn'u no-op çıktı (bkz. HAFIZA).
 
-  /// [rowIndex] konumuna boş bir satır ekler (sonrakiler aşağı kayar).
   void insertRow(String sheetName, int rowIndex) {
     final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
@@ -359,11 +536,10 @@ class XlsxEditor {
     for (var c = 0; c < maxC; c++) {
       _clearCell(table, at, c);
     }
-    model.rows.insert(at, List<String>.filled(model.maxCols, '', growable: true));
-    model.rebuildCaches(); // stil/yükseklik önbellekleri kaymış olabilir
+    model.rows.insert(at, <String>[]);
+    _shiftLayoutRows(model.layout, at, 1);
   }
 
-  /// [rowIndex] satırını siler (sonrakiler yukarı kayar).
   void deleteRow(String sheetName, int rowIndex) {
     final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
@@ -382,10 +558,9 @@ class XlsxEditor {
       }
     }
     model.rows.removeAt(rowIndex);
-    model.rebuildCaches();
+    _shiftLayoutRows(model.layout, rowIndex, -1);
   }
 
-  /// [colIndex] konumuna boş bir sütun ekler (sonrakiler sağa kayar).
   void insertColumn(String sheetName, int colIndex) {
     final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
@@ -404,10 +579,9 @@ class XlsxEditor {
     for (final row in model.rows) {
       if (at <= row.length) row.insert(at, '');
     }
-    model.rebuildCaches();
+    _shiftLayoutCols(model.layout, at, 1);
   }
 
-  /// [colIndex] sütununu siler (sonrakiler sola kayar).
   void deleteColumn(String sheetName, int colIndex) {
     final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
@@ -428,12 +602,108 @@ class XlsxEditor {
     for (final row in model.rows) {
       if (colIndex < row.length) row.removeAt(colIndex);
     }
-    model.rebuildCaches();
+    _shiftLayoutCols(model.layout, colIndex, -1);
+  }
+
+  /// Satır ekleme/silme sonrası görünüm modelini (hücre stilleri, yükseklikler)
+  /// kaydırır — yoksa biçimler bir satır yukarıda/aşağıda kalırdı.
+  static void _shiftLayoutRows(XlsxSheetLayout layout, int at, int delta) {
+    final cells = <int, XlsxCell>{};
+    layout.cells.forEach((key, cell) {
+      final r = key ~/ 16384;
+      final c = key % 16384;
+      if (r < at) {
+        cells[key] = cell;
+        return;
+      }
+      final nr = r + delta;
+      if (nr < 0) return;
+      cells[cellKey(nr, c)] = XlsxCell(
+        row: nr,
+        col: c,
+        styleIndex: cell.styleIndex,
+        number: cell.number,
+        text: cell.text,
+        boolean: cell.boolean,
+        error: cell.error,
+        formula: cell.formula,
+        runs: cell.runs,
+      );
+    });
+    layout.cells
+      ..clear()
+      ..addAll(cells);
+    _shiftKeys(layout.rowHeights, at, delta);
+    _shiftKeys(layout.rowStyles, at, delta);
+    _shiftSet(layout.hiddenRows, at, delta);
+    layout.maxRow += delta;
+    if (layout.maxRow < -1) layout.maxRow = -1;
+  }
+
+  static void _shiftLayoutCols(XlsxSheetLayout layout, int at, int delta) {
+    final cells = <int, XlsxCell>{};
+    layout.cells.forEach((key, cell) {
+      final r = key ~/ 16384;
+      final c = key % 16384;
+      if (c < at) {
+        cells[key] = cell;
+        return;
+      }
+      final nc = c + delta;
+      if (nc < 0) return;
+      cells[cellKey(r, nc)] = XlsxCell(
+        row: r,
+        col: nc,
+        styleIndex: cell.styleIndex,
+        number: cell.number,
+        text: cell.text,
+        boolean: cell.boolean,
+        error: cell.error,
+        formula: cell.formula,
+        runs: cell.runs,
+      );
+    });
+    layout.cells
+      ..clear()
+      ..addAll(cells);
+    _shiftKeys(layout.colWidths, at, delta);
+    _shiftKeys(layout.colStyles, at, delta);
+    _shiftSet(layout.hiddenCols, at, delta);
+    layout.maxCol += delta;
+    if (layout.maxCol < -1) layout.maxCol = -1;
+  }
+
+  static void _shiftKeys<T>(Map<int, T> map, int at, int delta) {
+    final copy = <int, T>{};
+    map.forEach((k, v) {
+      if (k < at) {
+        copy[k] = v;
+      } else if (k + delta >= 0) {
+        copy[k + delta] = v;
+      }
+    });
+    map
+      ..clear()
+      ..addAll(copy);
+  }
+
+  static void _shiftSet(Set<int> set, int at, int delta) {
+    final copy = <int>{};
+    for (final k in set) {
+      if (k < at) {
+        copy.add(k);
+      } else if (k + delta >= 0) {
+        copy.add(k + delta);
+      }
+    }
+    set
+      ..clear()
+      ..addAll(copy);
   }
 
   /// Seçili hücrenin yazı biçimini değiştirir. Verilmeyen alanlar korunur.
-  /// Hem excel nesnesine (kaydetmede kalıcı) hem görünüm önbelleğine
-  /// (anında çizim) işlenir.
+  /// (Dolgu rengi bilinçli olarak YOK: excel 4.0.6'nın renk yazma API'si bu
+  /// ortamda derlenip doğrulanamıyor — kanıtlanmamış API kullanılmaz.)
   void setCellStyle(String sheetName, int r, int c,
       {bool? bold, bool? italic, TextAlign? align}) {
     final table = _excel.tables[sheetName];
@@ -443,11 +713,17 @@ class XlsxEditor {
         table.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r));
     final base = cell.cellStyle ?? CellStyle();
     HorizontalAlign? ha;
+    XlsxHAlign? modelAlign;
     if (align != null) {
       ha = switch (align) {
         TextAlign.center => HorizontalAlign.Center,
         TextAlign.right => HorizontalAlign.Right,
         _ => HorizontalAlign.Left,
+      };
+      modelAlign = switch (align) {
+        TextAlign.center => XlsxHAlign.center,
+        TextAlign.right => XlsxHAlign.right,
+        _ => XlsxHAlign.left,
       };
     }
     cell.cellStyle = base.copyWith(
@@ -455,10 +731,14 @@ class XlsxEditor {
       italicVal: italic,
       horizontalAlignVal: ha,
     );
-    model.patchStyle(r, c, XlsxSheet._styleOf(cell));
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    model.patchStyle(
+      r,
+      c,
+      current.copyWith(bold: bold, italic: italic, hAlign: modelAlign),
+    );
   }
 
-  /// Bir hücrenin değerini ve stilini başka bir konuma kopyalar.
   static void _copyCell(Sheet t, int sr, int sc, int dr, int dc) {
     final src =
         t.cell(CellIndex.indexByColumnRow(columnIndex: sc, rowIndex: sr));
@@ -468,231 +748,31 @@ class XlsxEditor {
     dst.cellStyle = src.cellStyle;
   }
 
-  /// Bir hücrenin değerini boşaltır (stil el değmeden kalır).
   static void _clearCell(Sheet t, int r, int c) {
-    t.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r)).value =
-        null;
+    t.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r)).value = null;
   }
 
   Uint8List save() {
     final bytes = _excel.encode();
     return Uint8List.fromList(bytes ?? const []);
   }
-
-  // ------------------------------------------------------- sayı biçimleri
-
-  /// Testler için: ham baytlardan sayfa→hücre→biçim kodu tablosunu okur.
-  static Map<String, Map<int, String>> debugReadNumberFormats(Uint8List bytes) =>
-      _readNumberFormats(bytes);
-
-  /// Testler için hücre anahtarı üretir (satır, sütun; 0 tabanlı).
-  static int debugCellKey(int r, int c) => XlsxSheet._key(r, c);
-
-  /// .xlsx içinden hücre bazlı sayı biçim kodlarını okur.
-  /// Dönüş: sayfa adı → (hücre anahtarı → biçim kodu). Yalnızca sayı/para/
-  /// yüzde/binlik biçimleri saklanır; tarih ve genel biçimler dışarıda bırakılır
-  /// (onları excel paketinin gösterimi karşılar).
-  static Map<String, Map<int, String>> _readNumberFormats(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
-    XmlDocument? xml(String name) {
-      for (final f in archive.files) {
-        if (f.name == name) {
-          try {
-            return XmlDocument.parse(
-                utf8.decode(f.content as List<int>, allowMalformed: true));
-          } catch (_) {
-            return null;
-          }
-        }
-      }
-      return null;
-    }
-
-    // styles.xml: numFmtId → kod, ve xf sırası → numFmtId.
-    final styles = xml('xl/styles.xml');
-    final codeById = <int, String>{..._builtinNumFmt};
-    final xfFmtId = <int>[];
-    if (styles != null) {
-      for (final nf in styles.findAllElements('numFmt')) {
-        final id = int.tryParse(nf.getAttribute('numFmtId') ?? '');
-        final code = nf.getAttribute('formatCode');
-        if (id != null && code != null) codeById[id] = code;
-      }
-      final cellXfsAll = styles.findAllElements('cellXfs');
-      if (cellXfsAll.isNotEmpty) {
-        for (final xf in cellXfsAll.first.findElements('xf')) {
-          xfFmtId.add(int.tryParse(xf.getAttribute('numFmtId') ?? '0') ?? 0);
-        }
-      }
-    }
-
-    // workbook.xml + rels: sayfa adı → worksheet dosyası.
-    final wb = xml('xl/workbook.xml');
-    final rels = xml('xl/_rels/workbook.xml.rels');
-    final relTarget = <String, String>{};
-    if (rels != null) {
-      for (final r in rels.rootElement.childElements) {
-        final id = r.getAttribute('Id');
-        final tgt = r.getAttribute('Target');
-        if (id != null && tgt != null) relTarget[id] = tgt;
-      }
-    }
-
-    final out = <String, Map<int, String>>{};
-    if (wb == null) return out;
-    for (final s in wb.findAllElements('sheet')) {
-      final name = s.getAttribute('name');
-      final rid = s.getAttribute('r:id') ?? s.getAttribute('id');
-      if (name == null || rid == null) continue;
-      var target = relTarget[rid];
-      if (target == null) continue;
-      if (target.startsWith('/')) {
-        target = target.substring(1);
-      } else {
-        target = 'xl/${target.replaceFirst('./', '')}';
-      }
-      final ws = xml(target);
-      if (ws == null) continue;
-
-      final cells = <int, String>{};
-      for (final c in ws.findAllElements('c')) {
-        final ref = c.getAttribute('r');
-        final sAttr = c.getAttribute('s');
-        if (ref == null || sAttr == null) continue;
-        final rc = _ref(ref);
-        if (rc == null) continue;
-        final xfIdx = int.tryParse(sAttr);
-        if (xfIdx == null || xfIdx < 0 || xfIdx >= xfFmtId.length) continue;
-        final code = codeById[xfFmtId[xfIdx]];
-        // Yalnızca uyguladığımız biçimleri sakla (tarih/genel atlanır).
-        if (code == null || !_isNumberFormat(code)) continue;
-        cells[XlsxSheet._key(rc.$1, rc.$2)] = code;
-      }
-      if (cells.isNotEmpty) out[name] = cells;
-    }
-    return out;
-  }
 }
 
-/// Yaygın yerleşik Excel sayı biçim kimlikleri → kod. Tarih/saat kimlikleri
-/// (14-22, 45-47) bilinçli olarak dışarıda: onları excel paketi zaten
-/// tarih/saat metnine çevirir, üstüne biçim uygulamayız.
-const Map<int, String> _builtinNumFmt = {
-  1: '0',
-  2: '0.00',
-  3: '#,##0',
-  4: '#,##0.00',
-  9: '0%',
-  10: '0.00%',
-  37: '#,##0;(#,##0)',
-  38: '#,##0;[Red](#,##0)',
-  39: '#,##0.00;(#,##0.00)',
-  40: '#,##0.00;[Red](#,##0.00)',
-  44: r'"₺"#,##0.00',
-  // 5-8 para (yerel simge); genel karşılık:
-  5: r'"₺"#,##0',
-  6: r'"₺"#,##0',
-  7: r'"₺"#,##0.00',
-  8: r'"₺"#,##0.00',
-};
-
-/// Bir biçim kodunun bizim uyguladığımız türlerden (yüzde/para/binlik/ondalık)
-/// biri olup olmadığını söyler. Tarih/saat/metin/genel için false.
-bool _isNumberFormat(String code) {
-  final c = code.split(';').first.trim();
-  if (c.isEmpty || c == 'General' || c == '@') return false;
-  // Tarih/saat göstergeleri → bizim işimiz değil.
-  if (RegExp(r'[yYmMdDhHsS]').hasMatch(c) &&
-      !RegExp(r'[#0]').hasMatch(c.replaceAll(RegExp(r'[eE]'), ''))) {
-    return false;
-  }
-  // Tarih ayıraçları içeren tipik kodlar (ay/gün) — sayı işareti yoksa tarih say.
-  return RegExp(r'[#0]').hasMatch(c);
+/// Sayıyı HAM metne çevirir (ondalık ayıraç `.`) — formül motoru ve yeniden
+/// çözümleme bunu bekler. Gösterim biçimi ayrı katmanda uygulanır.
+String generalNumberRaw(double d) {
+  if (d == d.roundToDouble() && d.abs() < 1e15) return d.toStringAsFixed(0);
+  var s = d.toString();
+  if (s.contains('e')) return s;
+  return s;
 }
 
-/// Excel sayı biçim kodunu bir sayıya uygular ve **Türkçe gösterimle** (binlik
-/// ayıracı `.`, ondalık `,`) metin döndürür. Uygulanamıyorsa null döner.
-///
-/// Desteklenen: yüzde (`0%`, `0.00%`), para (`"₺"#,##0.00`, `[$$-...]`), binlik
-/// gruplama (`#,##0`), sabit ondalık (`0.00`), tam sayı (`0`). Bilimsel/özel
-/// bölümlü kodlar için ilk bölüm kullanılır.
+/// Eski API — Excel biçim kodunu bir sayıya uygular, Türkçe gösterimle.
+/// Uygulanamıyorsa (General/@) null döner.
 String? applyNumberFormat(String code, double value) {
-  final section = code.split(';').first.trim();
-  if (section.isEmpty || section == 'General' || section == '@') return null;
-
-  final grouping = section.contains(',');
-  final decimals = _decimalsOfFormat(section);
-
-  if (section.contains('%')) {
-    return '%${_trNumber(value * 100, decimals, grouping)}';
-  }
-
-  final symbol = _currencySymbol(section);
-  final number = _trNumber(value, decimals, grouping);
-  return symbol == null ? number : '$symbol$number';
-}
-
-/// Biçimin ondalık basamak sayısı (`.`den sonraki `0`/`#` adedi).
-int _decimalsOfFormat(String section) {
-  final dot = section.indexOf('.');
-  if (dot == -1) return 0;
-  var n = 0;
-  for (var i = dot + 1; i < section.length; i++) {
-    final ch = section[i];
-    if (ch == '0' || ch == '#') {
-      n++;
-    } else {
-      break;
-    }
-  }
-  return n;
-}
-
-/// Biçimdeki para simgesini bulur: `[$₺-41F]`, tırnaklı `"₺"` ya da bilinen
-/// simgelerden biri. Yoksa null (para değil).
-String? _currencySymbol(String section) {
-  final bracket = RegExp(r'\[\$([^\-\]]+)').firstMatch(section);
-  if (bracket != null) return bracket.group(1);
-  final quoted = RegExp(r'"([^"]+)"').firstMatch(section);
-  if (quoted != null) {
-    final q = quoted.group(1)!;
-    for (final s in const ['₺', r'$', '€', '£', '¥', 'TL', 'USD', 'EUR']) {
-      if (q.contains(s)) return q;
-    }
-  }
-  for (final s in const ['₺', r'$', '€', '£', '¥']) {
-    if (section.contains(s)) return s;
-  }
-  return null;
-}
-
-/// Bir sayıyı Türkçe biçimle metne çevirir: binlik `.`, ondalık `,`.
-/// [group] false ise binlik ayıracı konmaz.
-String _trNumber(double value, int decimals, bool group) {
-  final negative = value < 0;
-  final abs = value.abs();
-  final fixed = abs.toStringAsFixed(decimals);
-  final parts = fixed.split('.');
-  var intPart = parts[0];
-  if (group) {
-    final buf = StringBuffer();
-    for (var i = 0; i < intPart.length; i++) {
-      if (i > 0 && (intPart.length - i) % 3 == 0) buf.write('.');
-      buf.write(intPart[i]);
-    }
-    intPart = buf.toString();
-  }
-  var out = intPart;
-  if (decimals > 0) out = '$out,${parts[1]}';
-  return negative ? '-$out' : out;
-}
-
-/// "FFRRGGBB" / "RRGGBB" -> Color. "none" veya bozuksa null.
-Color? _color(String hex) {
-  if (hex.isEmpty || hex.toLowerCase() == 'none') return null;
-  var h = hex.replaceAll('#', '');
-  if (h.length == 6) h = 'FF$h';
-  if (h.length != 8) return null;
-  final v = int.tryParse(h, radix: 16);
-  return v == null ? null : Color(v);
+  final fmt = ExcelNumberFormat.parse(code);
+  if (fmt.isGeneral) return null;
+  final trimmed = code.trim();
+  if (trimmed == '@') return null;
+  return fmt.format(value).text;
 }

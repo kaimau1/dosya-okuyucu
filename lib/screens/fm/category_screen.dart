@@ -9,6 +9,7 @@ import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
@@ -44,6 +45,10 @@ class CategoryScreen extends StatefulWidget {
 class _CategoryScreenState extends State<CategoryScreen> {
   late List<FsEntry> _files = [...widget.files];
   final Set<String> _selected = {};
+
+  /// Sürükleyerek seçimde kenarda otomatik kaydırma için (liste ve ızgara aynı
+  /// anda mount edilmez → tek denetleyici yeter).
+  final ScrollController _scroll = ScrollController();
   late bool _grid = widget.gridDefault;
   FmSort _sort = FmSort.date;
   bool _desc = true;
@@ -63,6 +68,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   void dispose() {
     FsEvents.version.removeListener(_dropMissing);
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -76,6 +82,31 @@ class _CategoryScreenState extends State<CategoryScreen> {
   void _toggle(FsEntry e) => setState(() {
         if (!_selected.remove(e.path)) _selected.add(e.path);
       });
+
+  /// Basılı tutup kaydırma: görünen sıradaki [start]..[end] aralığı.
+  void _selectRange(List<FsEntry> visible, int start, int end, bool select) {
+    setState(() {
+      for (var i = start; i <= end; i++) {
+        if (i < 0 || i >= visible.length) continue;
+        if (select) {
+          _selected.add(visible[i].path);
+        } else {
+          _selected.remove(visible[i].path);
+        }
+      }
+    });
+  }
+
+  /// Toplu seçme: hepsi seçiliyse kaldırır, değilse görünen tümünü seçer.
+  void _toggleSelectAll(List<FsEntry> visible) {
+    setState(() {
+      if (visible.every((e) => _selected.contains(e.path))) {
+        _selected.removeAll(visible.map((e) => e.path));
+      } else {
+        _selected.addAll(visible.map((e) => e.path));
+      }
+    });
+  }
 
   /// Silme/taşıma sonrası: listeyi diskteki gerçekle tazele.
   void _dropMissing() {
@@ -96,8 +127,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(_selected.clear),
               ),
-              title: Text('${_selected.length} seçildi'),
+              title: Text('${_selected.length} / ${files.length} seçildi'),
               actions: [
+                IconButton(
+                  tooltip: files.every((e) => _selected.contains(e.path))
+                      ? 'Seçimi kaldır'
+                      : 'Tümünü seç',
+                  icon: Icon(files.every((e) => _selected.contains(e.path))
+                      ? Icons.deselect
+                      : Icons.select_all),
+                  onPressed: () => _toggleSelectAll(files),
+                ),
                 IconButton(
                   tooltip: 'Paylaş',
                   icon: const Icon(Icons.share_outlined),
@@ -167,9 +207,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Expanded(
             child: files.isEmpty
                 ? const Center(child: Text('Bu kategoride dosya bulunamadı.'))
-                : _grid
-                    ? _gridView(files)
-                    : _listView(files),
+                : DragSelectArea(
+                    scrollController: _scroll,
+                    isSelected: (i) =>
+                        i >= 0 &&
+                        i < files.length &&
+                        _selected.contains(files[i].path),
+                    onSelectRange: (a, b, sel) =>
+                        _selectRange(files, a, b, sel),
+                    child: _grid ? _gridView(files) : _listView(files),
+                  ),
           ),
         ],
       ),
@@ -215,11 +262,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Widget _listView(List<FsEntry> files) => ListView.builder(
+        controller: _scroll,
         itemCount: files.length,
         itemBuilder: (context, i) {
           final e = files[i];
           final selected = _selected.contains(e.path);
-          return ListTile(
+          return DragSelectItem(
+              index: i,
+              child: ListTile(
             selected: selected,
             leading: _selecting
                 ? Checkbox(value: selected, onChanged: (_) => _toggle(e))
@@ -237,7 +287,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 _open(e);
               }
             },
-            onLongPress: () => _toggle(e),
             trailing: _selecting
                 ? null
                 : IconButton(
@@ -248,11 +297,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       _dropMissing();
                     },
                   ),
-          );
+          ));
         },
       );
 
   Widget _gridView(List<FsEntry> files) => GridView.builder(
+        controller: _scroll,
         padding: const EdgeInsets.all(Gap.sm),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 130,
@@ -264,40 +314,56 @@ class _CategoryScreenState extends State<CategoryScreen> {
         itemBuilder: (context, i) {
           final e = files[i];
           final selected = _selected.contains(e.path);
-          return InkWell(
-            onTap: () {
-              if (_selecting) {
-                _toggle(e);
-              } else {
-                _open(e);
-              }
-            },
-            onLongPress: () => _toggle(e),
-            borderRadius: BorderRadius.circular(Radii.card),
-            child: Container(
-              padding: const EdgeInsets.all(Gap.xs),
-              decoration: BoxDecoration(
-                color: selected
-                    ? Theme.of(context)
-                        .colorScheme
-                        .primaryContainer
-                        .withValues(alpha: 0.5)
-                    : null,
-                borderRadius: BorderRadius.circular(Radii.card),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  FmEntryIcon(entry: e, size: 64),
-                  const SizedBox(height: Gap.xs),
-                  Text(
-                    e.name,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+          return DragSelectItem(
+            index: i,
+            child: InkWell(
+              onTap: () {
+                if (_selecting) {
+                  _toggle(e);
+                } else {
+                  _open(e);
+                }
+              },
+              borderRadius: BorderRadius.circular(Radii.card),
+              child: Container(
+                padding: const EdgeInsets.all(Gap.xs),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withValues(alpha: 0.5)
+                      : null,
+                  borderRadius: BorderRadius.circular(Radii.card),
+                ),
+                child: Stack(
+                  children: [
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        FmEntryIcon(entry: e, size: 64),
+                        const SizedBox(height: Gap.xs),
+                        Text(
+                          e.name,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    if (_selecting)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Icon(
+                          selected ? Icons.check_circle : Icons.circle_outlined,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           );

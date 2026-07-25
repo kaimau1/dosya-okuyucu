@@ -9,6 +9,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
@@ -35,6 +36,9 @@ class DownloadsScreen extends StatefulWidget {
 class _DownloadsScreenState extends State<DownloadsScreen> {
   List<FsEntry> _files = const [];
   final Set<String> _selected = {};
+
+  /// Sürükleyerek seçimde kenarda otomatik kaydırma için.
+  final ScrollController _scroll = ScrollController();
   bool _loading = true;
   _DlSort _sort = _DlSort.oldest;
 
@@ -50,6 +54,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   void dispose() {
     FsEvents.version.removeListener(_load);
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -121,8 +126,23 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(_selected.clear),
               ),
-              title: Text('${_selected.length} seçildi'),
+              title: Text('${_selected.length} / ${files.length} seçildi'),
               actions: [
+                IconButton(
+                  tooltip: files.every((e) => _selected.contains(e.path))
+                      ? 'Seçimi kaldır'
+                      : 'Tümünü seç',
+                  icon: Icon(files.every((e) => _selected.contains(e.path))
+                      ? Icons.deselect
+                      : Icons.select_all),
+                  onPressed: () => setState(() {
+                    if (files.every((e) => _selected.contains(e.path))) {
+                      _selected.removeAll(files.map((e) => e.path));
+                    } else {
+                      _selected.addAll(files.map((e) => e.path));
+                    }
+                  }),
+                ),
                 IconButton(
                   tooltip: 'Paylaş',
                   icon: const Icon(Icons.share_outlined),
@@ -174,10 +194,29 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     _summary(total, ancient),
                     const Divider(height: 1),
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 96),
-                        itemCount: files.length,
-                        itemBuilder: (context, i) => _row(files[i]),
+                      child: DragSelectArea(
+                        scrollController: _scroll,
+                        isSelected: (i) =>
+                            i >= 0 &&
+                            i < files.length &&
+                            _selected.contains(files[i].path),
+                        onSelectRange: (a, b, sel) => setState(() {
+                          for (var i = a; i <= b; i++) {
+                            if (i < 0 || i >= files.length) continue;
+                            if (sel) {
+                              _selected.add(files[i].path);
+                            } else {
+                              _selected.remove(files[i].path);
+                            }
+                          }
+                        }),
+                        child: ListView.builder(
+                          controller: _scroll,
+                          padding: const EdgeInsets.only(bottom: 96),
+                          itemCount: files.length,
+                          itemBuilder: (context, i) =>
+                              DragSelectItem(index: i, child: _row(files[i])),
+                        ),
                       ),
                     ),
                   ],
@@ -282,9 +321,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         EntryOpener.open(context, entry.path,
             siblings: _files.map((e) => e.path).toList());
       },
-      onLongPress: () => setState(() {
-        if (!_selected.remove(entry.path)) _selected.add(entry.path);
-      }),
     );
   }
 }
