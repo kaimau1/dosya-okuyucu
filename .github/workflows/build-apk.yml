@@ -134,6 +134,21 @@ jobs:
           done
           echo "--- minSdk/ndk sonrası ---"; grep -R -E "minSdk|ndkVersion" android/app/build.gradle* || true
 
+      - name: Kotlin eklenti sürümünü yükselt (flutter_tts 2.x metadata ister)
+        run: |
+          set -e
+          # flutter_tts 4.2.5 Kotlin 2.x ile derlenmiş kotlin-stdlib çekiyor;
+          # Flutter 3.29.3 şablonunun Kotlin eklentisi 1.8.22 bu metadata'yı
+          # OKUYAMIYOR ("compiled with an incompatible version of Kotlin",
+          # build 119 kırmızı). Yeni derleyici eski metadata'yı okuyabildiği
+          # için sürümü yükseltmek güvenli yön; düşürmek değil.
+          for f in android/settings.gradle android/settings.gradle.kts; do
+            [ -f "$f" ] || continue
+            sed -i -E 's/(id[( ]"org\.jetbrains\.kotlin\.android"\)? version )"[0-9.]+"/\1"2.1.0"/' "$f"
+          done
+          echo "--- kotlin eklenti sürümü ---"
+          grep -R "kotlin.android" android/settings.gradle* || true
+
       - name: Kotlin/Java JVM hedef uyum kontrolünü yumuşat
         run: |
           set -e
