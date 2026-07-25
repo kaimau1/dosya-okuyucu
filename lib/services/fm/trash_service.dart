@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'file_ops.dart';
+import 'fs_events.dart';
 
 /// Çöp kutusundaki tek bir kayıt.
 class TrashItem {
@@ -142,6 +143,21 @@ class TrashService {
           }
         }
 
+        // GÜVENCE (2026-07-25 hatası): kaynak hâlâ yerindeyse çöp kaydı
+        // OLUŞTURMA — yoksa dosya hem klasörde hem çöpte görünür. Böyle bir
+        // durumda çöpe düşen kopyayı da temizleyip hatayı bildiriyoruz.
+        if (File(path).existsSync() || Directory(path).existsSync()) {
+          try {
+            if (isDir) {
+              Directory(stored).deleteSync(recursive: true);
+            } else {
+              File(stored).deleteSync();
+            }
+          } catch (_) {}
+          throw const FileSystemException(
+              'dosya taşınamadı (yerinde kaldı), çöp kaydı oluşturulmadı');
+        }
+
         await _appendIndex(
           trashDir,
           TrashItem(
@@ -161,6 +177,7 @@ class TrashService {
       done++;
     }
     onProgress?.call(FmProgress(done, paths.length, ''));
+    if (ok > 0) FsEvents.changed();
     return FmOpResult(succeeded: ok, errors: errors);
   }
 
@@ -196,6 +213,7 @@ class TrashService {
       if (r.hasError) throw FileSystemException(r.errors.first);
     }
     await _removeFromIndex(item);
+    FsEvents.changed();
     return target;
   }
 
@@ -210,6 +228,7 @@ class TrashService {
       // dosya zaten yoksa kayıt yine de düşsün
     }
     await _removeFromIndex(item);
+    FsEvents.changed();
   }
 
   Future<void> empty() async {

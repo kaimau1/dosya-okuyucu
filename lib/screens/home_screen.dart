@@ -73,10 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: IndexedStack(
         index: _tab,
-        children: const [
-          DashboardScreen(),
-          RecentDocsScreen(),
-          ChatScreen(),
+        children: [
+          // active: pano yalnız görünürken yeniden tarar (bkz. FsEvents).
+          DashboardScreen(active: _tab == 0),
+          const RecentDocsScreen(),
+          const ChatScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(

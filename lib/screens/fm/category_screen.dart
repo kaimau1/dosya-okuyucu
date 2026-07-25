@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
@@ -52,6 +53,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   bool get _selecting => _selected.isNotEmpty;
 
+  @override
+  void initState() {
+    super.initState();
+    // Başka bir ekranda silinen/taşınan dosya burada durmasın.
+    FsEvents.version.addListener(_dropMissing);
+  }
+
+  @override
+  void dispose() {
+    FsEvents.version.removeListener(_dropMissing);
+    super.dispose();
+  }
+
   List<FsEntry> get _sorted {
     final filtered = _bucket == null
         ? _files
@@ -65,6 +79,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   /// Silme/taşıma sonrası: listeyi diskteki gerçekle tazele.
   void _dropMissing() {
+    if (!mounted) return;
     setState(() {
       _files = _files.where((e) => e.exists).toList();
       _selected.removeWhere((s) => !_files.any((e) => e.path == s));

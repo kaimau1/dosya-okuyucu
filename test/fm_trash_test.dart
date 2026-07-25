@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:dosya_okuyucu/models/fs_entry.dart';
+import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:dosya_okuyucu/services/fm/trash_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -99,5 +101,38 @@ void main() {
         File(p.join(volume.path, TrashService.dirName, '.nomedia'))
             .existsSync(),
         isTrue);
+  });
+
+  test('çöpe atılan dosya TARAMADA görünmez (kullanıcı hatası 2026-07-25)',
+      () async {
+    // Silinen dosya diskte çöp klasöründe durur; tarama onu saymaya devam
+    // ederse kategori sayıları düşmez ve dosya "duruyormuş" gibi görünür.
+    final f = touch('videolar/klip.mp4', '12345');
+    var index = await FsScan.index([volume.path]);
+    expect(index.stat(FmCategory.video).count, 1);
+
+    await trash.moveToTrash([f.path]);
+
+    index = await FsScan.index([volume.path]);
+    expect(index.stat(FmCategory.video).count, 0,
+        reason: 'çöpteki dosya kategori sayısına girmemeli');
+    expect(index.files(FmCategory.video), isEmpty);
+
+    // Arama da çöpü kazmamalı.
+    final hits = await FsScan.search(volume.path, 'klip');
+    expect(hits, isEmpty);
+
+    // Ama çöp kutusunda duruyor (geri yüklenebilir).
+    expect((await trash.list()).single.name, 'klip.mp4');
+  });
+
+  test('taşınamayan dosya için çöp KAYDI oluşturulmaz', () async {
+    // Kaynak yerinde kalırsa dosya hem klasörde hem çöpte görünürdü.
+    // (Burada dosya gerçekten taşınır; test kaydın ancak kaynak gidince
+    // yazıldığını sabitler.)
+    final f = touch('a.txt');
+    await trash.moveToTrash([f.path]);
+    expect(f.existsSync(), isFalse);
+    expect(await trash.list(), hasLength(1));
   });
 }

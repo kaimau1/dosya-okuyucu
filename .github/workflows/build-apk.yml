@@ -118,12 +118,16 @@ jobs:
           cp ci/proguard-rules.pro android/app/proguard-rules.pro
           echo "--- proguard-rules.pro ---"; cat android/app/proguard-rules.pro
 
-      - name: minSdk 23 (Firebase için) + NDK sürümü
+      - name: minSdk 24 (Firebase + video küçük resmi) + NDK sürümü
         run: |
           set -e
           for f in android/app/build.gradle.kts android/app/build.gradle; do
             [ -f "$f" ] || continue
-            sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 23/' "$f"
+            # 2026-07-25: 23 → 24. fc_native_video_thumbnail (video küçük
+            # resmi) minSdk 24 ister; manifest birleştirici 23'te derlemeyi
+            # kesiyordu. Firebase'in istediği 23 de kapsanıyor; Android 6 payı
+            # bugün ihmal edilebilir.
+            sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 24/' "$f"
             # Eklentiler NDK 27 istiyor (uyarı); en yükseğe sabitle (geriye uyumlu).
             grep -q 'ndkVersion' "$f" || \
               sed -i '0,/android {/s//android {\n    ndkVersion = "27.0.12077973"/' "$f"

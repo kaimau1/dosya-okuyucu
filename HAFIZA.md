@@ -1237,3 +1237,32 @@ film ikonu görünüyordu).
   REQUEST_DELETE_PACKAGES eklentinin kendi manifest'inden birleşiyor.
 - **APK dosyaları ayrı kutu:** pano "Uygulamalar" kutusu artık YÜKLÜ
   uygulamaları açıyor; kurulum dosyaları "APK dosyaları" kutusunda.
+
+## 2026-07-25 — KULLANICI HATASI: silinen dosya listelerde/sayılarda duruyordu
+Belirti: bir dosya silindikten sonra panoya dönünce klasör/kategori sayısı
+düşmüyor, içine girince dosya hâlâ görünüyor, üstelik çöp kutusunda da var.
+
+- **KÖK NEDEN:** çöp klasörü (`<birim>/.dosya-okuyucu-cop/`) **tarama dışı
+  bırakılmamıştı**. Dosya oraya taşınıyor ama `FsScan` tüm ağacı gezerken
+  çöpteki kopyayı da sayıyordu → kategori sayıları aynı kalıyor, "Videolar/
+  Görüntüler" listelerinde dosya duruyor, arama onu buluyor, yinelenen bulucu
+  onu asıl dosyanın KOPYASI sanıyordu. Yani dosya gerçekten silinmişti; yanlış
+  olan taramaydı. Çözüm: `FsScan.skipDirNames`'e `.dosya-okuyucu-cop`.
+  Regresyon testi: `fm_trash_test` → "çöpe atılan dosya TARAMADA görünmez".
+- **İKİNCİ KUSUR:** pano taraması süreç boyunca önbellekliydi ve hiçbir dosya
+  işlemi onu geçersiz kılmıyordu → kopyalama/taşıma/silme sonrası sayılar
+  bayat kalıyordu. Çözüm: `services/fm/fs_events.dart` (ValueNotifier sayacı);
+  FileOps / TrashService / ArchiveOps her başarılı işlemde `FsEvents.changed()`
+  çağırır. Pano yalnız **görünürken** yeniden tarar (`DashboardScreen.active`,
+  kabuktan `_tab == 0` geçilir) — arka planda gereksiz tarama yok. Kategori
+  ekranı da sinyalde diskte olmayanları listeden düşürür.
+- **ÜÇÜNCÜ (önlem):** `TrashService.moveToTrash` artık taşımadan sonra kaynağın
+  gerçekten gittiğini DOĞRULAR; kaynak yerinde kaldıysa çöpteki kopyayı siler
+  ve hata döner — "hem klasörde hem çöpte" durumu artık imkânsız.
+
+### TUZAK — video küçük resmi eklentisi minSdk'yı yükseltti
+`fc_native_video_thumbnail` minSdk **24** ister; uygulama 23'teydi (Firebase
+gerekçesiyle) → APK derlemesi `processReleaseMainManifest`te "minSdkVersion 23
+cannot be smaller than version 24" ile kırıldı (CI #102). Dart testleri geçtiği
+için hata ancak APK adımında göründü. CI patch'i minSdk 24'e alındı (Android 7+;
+Android 6 payı ihmal edilebilir, Firebase'in 23'ü de kapsanıyor).

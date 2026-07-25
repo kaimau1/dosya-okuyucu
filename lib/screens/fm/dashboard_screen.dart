@@ -8,6 +8,7 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
@@ -25,7 +26,11 @@ import 'trash_screen.dart';
 /// Tarama sonucu ([StorageIndex]) süreç boyunca önbelleklenir; sekmeler arası
 /// geçişte yeniden taranmaz (aşağı çekerek yenilenir).
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  /// Sekme görünür mü? Görünmezken (IndexedStack'te arka planda) yeniden
+  /// tarama yapılmaz; kullanıcı sekmeye dönünce bayat sonuç tazelenir.
+  final bool active;
+
+  const DashboardScreen({super.key, this.active = true});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -42,10 +47,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _trashCount = 0;
   final Map<String, int> _folderSizes = {};
 
+  /// Dosya sistemi değişti mi (sil/kopyala/taşı…) — tarama bayat.
+  bool _stale = false;
+  int _seenFsVersion = FsEvents.version.value;
+
   @override
   void initState() {
     super.initState();
+    FsEvents.version.addListener(_onFsChanged);
     _boot();
+  }
+
+  @override
+  void dispose() {
+    FsEvents.version.removeListener(_onFsChanged);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardScreen old) {
+    super.didUpdateWidget(old);
+    // Sekmeye geri dönüldü ve arada dosya değişmiş → tazele.
+    if (widget.active && !old.active && _stale) _scan();
+  }
+
+  /// Silme/taşıma sonrası sayılar eskimesin (kullanıcı hatası 2026-07-25:
+  /// silinen dosya panoda sayılmaya devam ediyordu).
+  void _onFsChanged() {
+    if (!mounted) return;
+    if (_seenFsVersion == FsEvents.version.value) return;
+    _seenFsVersion = FsEvents.version.value;
+    _stale = true;
+    // Kullanıcı bu sekmedeyse hemen tazele; değilse dönüşte.
+    if (widget.active && !_scanning) _scan();
   }
 
   Future<void> _boot() async {
@@ -92,6 +126,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _index = index;
       _scanning = false;
+      _stale = false;
+      _seenFsVersion = FsEvents.version.value;
     });
     await _loadTrash();
     await _loadFolderSizes();

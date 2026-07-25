@@ -10,6 +10,7 @@ import 'package:koni_archive/io.dart' as koni;
 import 'package:path/path.dart' as p;
 
 import 'file_ops.dart';
+import 'fs_events.dart';
 import 'fs_scan.dart';
 
 /// Arşiv içindeki tek bir öğe (uygulama tarafı modeli).
@@ -184,6 +185,7 @@ abstract final class ArchiveOps {
     if (_legacyExts.contains(_ext(archivePath))) {
       await Directory(target).create(recursive: true);
       await legacy.extractFileToDisk(archivePath, target);
+      FsEvents.changed();
       return target;
     }
 
@@ -202,6 +204,7 @@ abstract final class ArchiveOps {
       await sub.cancel();
       port.close();
     }
+    FsEvents.changed();
     return target;
   }
 
@@ -256,6 +259,7 @@ abstract final class ArchiveOps {
     } finally {
       await encoder.close();
     }
+    FsEvents.changed();
     return target;
   }
 
@@ -306,6 +310,7 @@ abstract final class ArchiveOps {
       await sub.cancel();
       port.close();
     }
+    FsEvents.changed();
     return target;
   }
 

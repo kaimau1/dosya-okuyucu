@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'fs_events.dart';
 import 'fs_scan.dart';
 
 /// Hedefte aynı adlı dosya varsa ne yapılacağı.
@@ -150,6 +151,7 @@ abstract final class FileOps {
         errors.add('$name: ${_msg(e)}');
       }
     }
+    if (succeeded > 0) FsEvents.changed();
     return FmOpResult(
         succeeded: succeeded, skipped: skipped, errors: errors);
   }
@@ -264,6 +266,7 @@ abstract final class FileOps {
       done++;
     }
     onProgress?.call(FmProgress(done, paths.length, ''));
+    if (ok > 0) FsEvents.changed();
     return FmOpResult(succeeded: ok, errors: errors);
   }
 
@@ -279,9 +282,11 @@ abstract final class FileOps {
     final dir = Directory(path);
     if (dir.existsSync()) {
       final renamed = await dir.rename(target);
+      FsEvents.changed();
       return renamed.path;
     }
     final renamed = await File(path).rename(target);
+    FsEvents.changed();
     return renamed.path;
   }
 
@@ -293,6 +298,7 @@ abstract final class FileOps {
       throw const FileSystemException('bu adda bir öğe zaten var');
     }
     await Directory(target).create(recursive: true);
+    FsEvents.changed();
     return target;
   }
 
@@ -305,6 +311,7 @@ abstract final class FileOps {
       throw const FileSystemException('bu adda bir öğe zaten var');
     }
     await File(target).writeAsString(content);
+    FsEvents.changed();
     return target;
   }
 

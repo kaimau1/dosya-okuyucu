@@ -14,10 +14,20 @@ import '../../models/fs_entry.dart';
 /// uzun iş = ANR, bkz. HAFIZA 2026-07-22). İsolate açılamazsa (test/kısıtlı
 /// ortam) aynı fonksiyon ana izlekte çalışır, sonuç birebir aynıdır.
 abstract final class FsScan {
-  /// Özyinelemeli yürüyüşte hiç girilmeyen klasörler. `Android/data` ve
-  /// `Android/obb` Android 11+'da "tüm dosyalara erişim" izniyle bile
-  /// okunamaz (SAF gerekir) — denemek yalnızca yavaşlatır.
-  static const skipDirNames = {'.thumbnails', '.trashed', 'lost+found'};
+  /// Özyinelemeli yürüyüşte hiç girilmeyen klasörler.
+  ///
+  /// **`.dosya-okuyucu-cop` kritik (2026-07-25 hatası):** çöpe atılan dosya
+  /// diskte bu klasörde durur; taramadan çıkarılmazsa kategori sayıları
+  /// düşmez, silinen dosya "Videolar/Görüntüler" listelerinde durmaya devam
+  /// eder ve yinelenen bulucu onu asıl dosyanın kopyası sanar.
+  /// `.thumbnails`/`.trashed`/`lost+found` gürültü; `Android/data` ve
+  /// `Android/obb` zaten okunamaz (SAF gerekir), denemek yalnız yavaşlatır.
+  static const skipDirNames = {
+    '.dosya-okuyucu-cop',
+    '.thumbnails',
+    '.trashed',
+    'lost+found',
+  };
 
   /// Bir klasörün içeriğini listeler. Okunamayan girdi atlanır, klasörün
   /// kendisi okunamıyorsa hata yukarı taşınır (kullanıcıya "izin yok" denir).
