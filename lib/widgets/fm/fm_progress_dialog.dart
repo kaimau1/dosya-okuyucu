@@ -37,10 +37,14 @@ Future<T> showFmProgress<T>(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              LinearProgressIndicator(
-                value: value.total > 0 ? value.fraction : null,
-                minHeight: 6,
+              // ClipRRect ile yuvarlatılır: `LinearProgressIndicator.borderRadius`
+              // Flutter sürümüne duyarlı, CI 3.29.3'te riske girmiyoruz.
+              ClipRRect(
                 borderRadius: BorderRadius.circular(Radii.control),
+                child: LinearProgressIndicator(
+                  value: value.total > 0 ? value.fraction : null,
+                  minHeight: 6,
+                ),
               ),
               const SizedBox(height: Gap.sm),
               Text(
