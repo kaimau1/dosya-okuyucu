@@ -352,7 +352,11 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                   value: value.position.inMilliseconds
                       .clamp(0, value.duration.inMilliseconds)
                       .toDouble(),
-                  max: value.duration.inMilliseconds.toDouble().clamp(1, 1e9),
+                  // clamp'ın karışık int/double argümanı `num` döndürür →
+                  // Slider'ın double alanına atanamaz; sonda toDouble() şart.
+                  max: value.duration.inMilliseconds
+                      .clamp(1, 1 << 40)
+                      .toDouble(),
                   onChanged: (v) =>
                       c.seekTo(Duration(milliseconds: v.round())),
                   onChangeEnd: (_) => _scheduleHide(),
