@@ -86,3 +86,26 @@
 - [ ] Word'de zoom % rozeti yok (native WebView zoom ölçeği Flutter'a bildirmiyor);
       istenirse visualViewport JS köprüsü
 - [ ] Koyu temada Word WebView kanvası açık kalıyor (sayfa zaten beyaz; bilinçli erteleme)
+
+## Dosya yöneticisi (2026-07-25) — cihaz doğrulaması gereken/ertelenen işler
+- [ ] **İzin akışı (kullanıcı, cihaz):** ilk açılışta "Tüm dosyalara erişim" kartı →
+      Android ayar sayfası → geri dönünce tarama otomatik başlıyor mu. Reddedilirse
+      medya izinleriyle en azından Görüntüler/Video/Ses görünüyor mu.
+- [ ] **Depolama doluluğu (`df`) gerçek cihazda:** halka/çubuk doğru dolu mu; bazı
+      ROM'larda `df` kısıtlıysa çubuk gizlenmeli (kod öyle davranıyor, doğrulanmadı).
+- [ ] **Büyük depolama taraması:** 100 bin+ dosyalı telefonda pano taraması ne kadar
+      sürüyor, bellek sorun çıkarıyor mu (`_TopN` sınırı yeterli mi).
+- [ ] **SD kart / OTG:** `/storage/XXXX-XXXX` bulunuyor mu; birimler arası taşımada
+      kopyala+sil yedek yolu çalışıyor mu; SD karta yazma (SAF gerekebilir!) —
+      Android bazı cihazlarda SD karta doğrudan yazmayı engeller, o durumda hata
+      mesajı anlamlı mı.
+- [ ] **Video/ses oynatıcı (ertelendi):** `video_player`ın Android alt paketi Flutter
+      >=3.35 istiyor, CI 3.29.3 → uygulama içi oynatıcı EKLENMEDİ, sisteme devrediliyor.
+      CI Flutter sürümü yükseltilirse uygulama içi oynatıcı + video küçük resmi eklenebilir.
+- [ ] **Küçük resim (thumbnail) yalnız görsellerde** — video/PDF küçük resmi yok
+      (video için platform kanalı, PDF için pdfium render gerekir).
+- [ ] **RAR/7z** çıkarma yok (saf Dart çözücü yok) → "başka uygulamayla aç".
+- [ ] **Yapıştırmada çakışma politikası soruluyor değil**, varsayılan "yeniden adlandır"
+      (veri ezilmez). İstenirse yapıştırma öncesi Üzerine yaz/Atla/Yeniden adlandır sorusu.
+- [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*` düğümleri
+      graf raporunda yok (bu oturumda ağ/API yok) — `graphify update .` çalıştırılmalı.

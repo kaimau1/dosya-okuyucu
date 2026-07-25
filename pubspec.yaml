@@ -72,6 +72,17 @@ dependencies:
   # Durum yönetimi (hafif)
   provider: ^6.1.2
 
+  # ── Dosya yöneticisi ────────────────────────────────────────────────────────
+  # Depolama izni (Android 11+ "tüm dosyalara erişim" = MANAGE_EXTERNAL_STORAGE).
+  # 11.3.1'e SABİT: 11.4.0+/12.x `sdk ^3.5.0 + flutter >=3.24` ister — CI 3.29.3
+  # bunu sağlar ama alt paketi permission_handler_android 13.x compileSdk'yı
+  # yukarı çeker. 11.3.1 (sdk >=2.15 <4.0, flutter >=2.8) en güvenli sürüm.
+  permission_handler: 11.3.1
+  # Yerleşik görüntüleyicimiz olmayan dosyaları (video/ses/apk/zip…) sistemin
+  # varsayılan uygulamasında açar. 4.x: sdk >=2.17 <4.0 → CI Dart 3.7 uyumlu.
+  # Kendi FileProvider'ını manifest'ine gömer, ek manifest düzenlemesi gerekmez.
+  open_filex: ^4.7.0
+
   # 120Hz+ ekran desteği (Android 60Hz kilidini açar; diğer platformlarda pasif)
   flutter_displaymode: ^0.6.0
 

@@ -2,10 +2,29 @@
     <!-- Gemini AI / Firebase için internet. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- ── Dosya yöneticisi izinleri ───────────────────────────────────────
+         Android 11+ (API 30): bir dosya yöneticisinin tüm depolamayı
+         gezebilmesi için MANAGE_EXTERNAL_STORAGE gerekir; klasik READ izni
+         yalnız medyaya yeter, SAF ise her klasörü tek tek seçtirir.
+         Android ≤12 için klasik READ/WRITE (maxSdkVersion ile sınırlı),
+         Android 13+ için bölünmüş medya izinleri yedek yol olarak durur
+         (kullanıcı "tüm dosyalar"ı vermezse en azından medya görünür). -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <!-- APK dosyasına dokununca kurulum ekranını açabilmek için. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
     <application
         android:label="Dosya Okuyucu"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -90,6 +109,16 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Android 11+ paket görünürlüğü: "başka uygulamayla aç" (open_filex)
+             hedef uygulamayı ancak bu sorgu varsa bulabilir; yoksa video/ses/
+             apk dosyalarında "uygulama yok" hatası alınır. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:mimeType="*/*"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.INSTALL_PACKAGE"/>
         </intent>
     </queries>
 </manifest>

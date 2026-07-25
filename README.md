@@ -4,8 +4,12 @@ Sade, hızlı ve efektif **çok formatlı dosya okuyucu/düzenleyici** — hem m
 masaüstünde tek Flutter kod tabanı ile. Gemini yapay zeka entegrasyonu, dönüştürme
 ve paylaşım özellikleriyle.
 
-## Özellikler (MVP – build 1)
+## Özellikler
 
+- 🗂️ **Dosya yöneticisi:** telefondaki tüm dosyalar — depolama panosu (doluluk,
+  kategoriler, bellek analizi), klasör gezgini, çoklu seçim, kopyala/kes/yapıştır,
+  taşı, yeniden adlandır, sil (geri dönüşüm kutusu), paylaş, sıkıştır/çıkar (.zip),
+  favoriler, gizli dosyalar, sıralama, ızgara/liste, özyinelemeli arama
 - 📄 **Görüntüleme:** PDF, Word (.docx), Excel (.xlsx), Slayt (.pptx), metin ve görsel
 - ✏️ **Düzenleme:** Metin/Word içeriğini düzenleme ve kaydetme
 - 🔄 **Dönüştürme:** İçeriği PDF’e veya slayt destesine (PDF) çevirme

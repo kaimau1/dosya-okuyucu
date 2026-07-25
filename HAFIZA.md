@@ -981,3 +981,76 @@ bottom sheet, snackbar, ayraç, buton, FAB temaları + tipografi ölçeği).
 - **Sayfa geçişi:** `CupertinoPageTransitionsBuilder` const map'te çözülmedi
   (`invalid_constant`); zaten Android'de yabancı duracaktı → Flutter'ın M3
   varsayılanı (ZoomPageTransitions) bırakıldı.
+
+## 2026-07-25 — Uygulama artık aynı zamanda TAM DOSYA YÖNETİCİSİ
+Kullanıcı isteği: "uygulamayı basit ama her işi gören, modern, pratik bir dosya
+yöneticisi haline getir" (referans ekran görüntüsü: alphainventor File Manager+
+panosu — depolama, kategoriler, geri dönüşüm kutusu). Git/web araştırması:
+Fossify File Manager (Files/Recent/Storage sekmeleri, medya oynatıcı, çöp),
+Material Files (MD3, yer imleri, arşiv). Bizim panomuz bu kalıbı izliyor.
+
+### Mimari (yeni dosyalar)
+- `models/fs_entry.dart` — saf Dart girdi modeli + `FmCategory` (klasör/görsel/
+  video/ses/belge/arşiv/apk/diğer) + uzantı tabloları + `FmSort`.
+- `services/fm/fs_scan.dart` — listeleme, **Türkçe-duyarlı sıralama**, özyinelemeli
+  arama, klasör boyutu ve **tek geçişli `StorageIndex`** (kategori sayı/boyut,
+  kategori başına en yeni N, en büyük N, son değişen N). Ağır işler `compute`
+  isolate'inde; isolate yoksa ana izleğe düşer (XLSX dersi, HAFIZA 2026-07-22).
+- `services/fm/file_ops.dart` — kopyala/taşı/sil/yeniden adlandır/oluştur,
+  çakışma politikası (varsayılan **rename**, veri ezilmez), ilerleme + iptal.
+- `services/fm/trash_service.dart` — geri dönüşüm kutusu.
+- `services/fm/archive_ops.dart` — zip/çıkar (mevcut `archive` paketi; YENİ
+  bağımlılık yok). RAR/7z bilinçli kapsam dışı → "başka uygulamayla aç".
+- `services/fm/storage_stats.dart` — birimler + doluluk.
+- `services/fm/storage_permission.dart`, `services/fm/fm_env.dart` (ortam/çöp
+  tekil kurulumu), `services/fm/entry_opener.dart` (tek açma kapısı).
+- Ekranlar: `screens/fm/` → dashboard, browser, category, search, trash, analysis
+  + `entry_actions.dart` (ortak işlem sayfası). Widget: `widgets/fm/`.
+- `home_screen.dart` artık **kabuk**: alt gezinme (Dosyalar / Son belgeler / AI).
+  Paylaşım (birlikte aç) yakalama kabuğa taşındı → hangi sekme açıksa çalışır.
+
+### Kararlar ve *niye*leri
+- **Çöp kutusu uygulama verisinde DEĞİL, dosyanın kendi biriminde**
+  (`<birim>/.dosya-okuyucu-cop/`, `.nomedia` ile galeriden gizli). `/data` ile
+  `/storage` ayrı bağlama noktası → aradaki `rename` başarısız olur ve 2 GB'lık
+  video çöpe atılırken KOPYALANIRDI. Aynı birimde silme/geri yükleme anında.
+  Kayıtlar `index.json`; diskten elle silinmiş kayıt listeden düşer.
+- **Depolama doluluğu `df` ile okunuyor, yeni eklenti EKLENMEDİ.** Dart'ta
+  `statfs` yok; `disk_space*` paketleri bakımsız ve platform kanalı eklemek
+  CI'da `flutter create` ile üretilen android/ iskeletini kırılganlaştırırdı.
+  `StorageStats.parseDf` saf fonksiyon → birim testli; okunamazsa doluluk
+  çubuğu gizlenir (zarif düşüş), dosya yöneticisi çalışmaya devam eder.
+- **Tek geçişli tarama:** pano, kategori ekranları, "en büyük dosyalar" ve
+  "yeni dosyalar" AYNI `StorageIndex`ten beslenir; her kutu kendi taramasını
+  yapsa 100 bin dosya defalarca gezilirdi. Sonuç süreç boyunca önbellekli
+  (aşağı çekince yenilenir). Bellek `_TopN` ile sınırlı (liste 2N'e ulaşınca
+  sıralanıp N'e düşer) — 200 bin dosyalı telefonda isolate şişmesin.
+- **Türkçe sıralama tuzağı:** Dart `compareTo` kod birimine bakar, `ı` (U+0131)
+  `z`'den büyüktür → "Işık" listenin en sonuna düşüyordu. `FsScan.nameKey`
+  Türkçe harfleri temel karşılığına indirger (ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c).
+- **İzin: MANAGE_EXTERNAL_STORAGE.** Android 11+'da bir dosya yöneticisinin
+  başka yolu yok (READ yalnız medya; SAF her klasörü tek tek seçtirir). Play
+  Store gerekçe ister ama dağıtım GitHub Releases → engel yok. İzin verilmezse
+  uygulama kilitlenmez: pano bir "İzin ver" kartı gösterir, medya izinleri
+  yedek yol olarak istenir.
+- **Yeni bağımlılıklar (yalnız 2):** `permission_handler: 11.3.1` (SABİT — 11.4/12.x
+  alt paketi compileSdk'yı yukarı çeker) ve `open_filex: ^4.7.0` (video/ses/apk/
+  arşiv sisteme devredilir; kendi FileProvider'ını getirir). Manifest'e Android 11
+  **paket görünürlüğü** sorgusu (`<queries>` ACTION_VIEW `*/*`) eklendi — yoksa
+  open_filex "uygulama yok" der.
+- **Video/ses oynatıcı EKLENMEDİ (bilinçli):** `video_player` 2.10.x'in alt paketi
+  `video_player_android` 2.9+ Flutter >=3.35 istiyor; pub geriye düşse bile CI
+  3.29.3'te kırılgan bir çözümleme olurdu (HAFIZA'daki sürüm cehennemi dersi).
+  Medya sistemin oynatıcısında açılır. → KALANLAR.
+- **Gözatıcı push tabanlı gezinir** (her alt klasör yeni sayfa) → Android geri
+  tuşu doğal olarak üst klasöre çıkar, kaydırma konumu korunur.
+- `viewer_screen`'deki "Başka uygulamayla aç" gerçekten sistemin uygulamasını
+  açıyor (eskiden paylaş sayfasını açıyordu); paylaş ayrı düğme oldu.
+
+### Doğrulama
+Bu Linux bulut oturumunda Flutter YOK → doğrulama CI `flutter test`. Yeni testler:
+`fm_file_ops_test` (çakışma/özyineleme/kendi içine taşıma), `fm_scan_test`
+(kategori, Türkçe sıralama, arama, indeks, klasör boyutu), `fm_trash_test`
+(sil→geri yükle→kalıcı sil, ad çakışması), `fm_storage_archive_test`
+(`df` çözümleme uçları + zip→extract turu). Cihaz doğrulaması (izin akışı,
+gerçek /storage taraması, harici açma) → KALANLAR.
