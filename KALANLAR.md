@@ -86,3 +86,60 @@
 - [ ] Word'de zoom % rozeti yok (native WebView zoom ölçeği Flutter'a bildirmiyor);
       istenirse visualViewport JS köprüsü
 - [ ] Koyu temada Word WebView kanvası açık kalıyor (sayfa zaten beyaz; bilinçli erteleme)
+
+## Dosya yöneticisi (2026-07-25) — cihaz doğrulaması gereken/ertelenen işler
+- [ ] **İzin akışı (kullanıcı, cihaz):** ilk açılışta "Tüm dosyalara erişim" kartı →
+      Android ayar sayfası → geri dönünce tarama otomatik başlıyor mu. Reddedilirse
+      medya izinleriyle en azından Görüntüler/Video/Ses görünüyor mu.
+- [ ] **Depolama doluluğu (`df`) gerçek cihazda:** halka/çubuk doğru dolu mu; bazı
+      ROM'larda `df` kısıtlıysa çubuk gizlenmeli (kod öyle davranıyor, doğrulanmadı).
+- [ ] **Büyük depolama taraması:** 100 bin+ dosyalı telefonda pano taraması ne kadar
+      sürüyor, bellek sorun çıkarıyor mu (`_TopN` sınırı yeterli mi).
+- [ ] **SD kart / OTG:** `/storage/XXXX-XXXX` bulunuyor mu; birimler arası taşımada
+      kopyala+sil yedek yolu çalışıyor mu; SD karta yazma (SAF gerekebilir!) —
+      Android bazı cihazlarda SD karta doğrudan yazmayı engeller, o durumda hata
+      mesajı anlamlı mı.
+- [x] ~~Video/ses oynatıcı ertelendi~~ → **YAPILDI 2026-07-25:** video_player 2.10.1 +
+      video_player_android 2.8.15 (Flutter 3.29 uyumlu son sürüm) ile uygulama içi
+      oynatıcı: çalma listesi, kaydırma, hız, tam ekran. Cihazda doğrulanacak:
+      büyük mkv/HEVC oynatma, tam ekran yatay geçişi, ses dosyasında arka planda
+      çalma (arka plan servisi YOK — ekran kapanınca durur, istenirse audio_service).
+- [ ] **Ses: bildirim/kilit ekranı kontrolleri yok** — audioplayers ekran kapalıyken
+      çalmayı sürdürür ama ön plan servisi olmadığı için sistem bellek baskısında
+      süreci öldürebilir ve bildirimden kontrol edilemez. Çözüm `just_audio_background`
+      (manifest'te activity sınıfı değişir → APK'da sınıf doğrulayan CI adımı şart).
+- [ ] **Ses: ID3 kapak resmi / albüm-sanatçı bilgisi okunmuyor** (dosya adı gösteriliyor).
+- [ ] **Ekranı açık tutma (wakelock) yok:** uzun videoda ekran sönebilir; istenirse
+      `wakelock_plus` eklenir (küçük eklenti, Flutter 3.29 uyumlu sürüm seçilmeli).
+- [ ] **Video küçük resmi (thumbnail) yok** — listelerde video ikonuyla gösteriliyor.
+- [ ] **Küçük resim (thumbnail) yalnız görsellerde** — video/PDF küçük resmi yok
+      (video için platform kanalı, PDF için pdfium render gerekir).
+- [x] ~~RAR/7z çıkarma yok~~ → **YAPILDI 2026-07-25:** koni_archive (saf Dart, MIT)
+      ile RAR4/RAR5 + 7z listeleme/çıkarma/önizleme/parola/çok parçalı. Kalan:
+      cihazda büyük ve solid RAR'da hız (saf Dart LZMA/PPMd yavaştır — 100 MB+
+      arşivde çıkarma dakikalar sürebilir, ilerleme çubuğu var ama İPTAL YOK),
+      ve RAR YAZMA kalıcı olarak yok (biçim özel mülk; .zip üretiliyor).
+- [ ] **Yapıştırmada çakışma politikası soruluyor değil**, varsayılan "yeniden adlandır"
+      (veri ezilmez). İstenirse yapıştırma öncesi Üzerine yaz/Atla/Yeniden adlandır sorusu.
+- [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*` düğümleri
+      graf raporunda yok (bu oturumda ağ/API yok) — `graphify update .` çalıştırılmalı.
+
+## Dosya yöneticisi — araştırma karşılaştırmasından KALAN maddeler (2026-07-25)
+Referanslar: Fossify File Manager, Material Files, AnExplorer, ekran görüntüsündeki
+File Manager+. Bizde artık olanlar: pano/kategoriler, gezgin+çoklu seçim, çöp
+kutusu, bellek analizi, **yinelenen dosya bulucu**, arşiv (RAR5/RAR4/7z okuma +
+parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
+- [ ] **Ağ/bulut (FTP, SMB, WebDAV, Drive)** — Material Files/AnExplorer'da var.
+      Büyük iş: her protokol için sanal dosya sistemi katmanı gerekir; mevcut
+      `FsEntry`/`FileOps` doğrudan `dart:io` üzerine kurulu → önce soyutlama.
+- [ ] **Çift bölme (dual pane)** — tablet/yatay ekranda iki klasör yan yana,
+      sürükle-bırak taşıma. Gezgin push-tabanlı olduğu için orta ölçekli iş.
+- [ ] **Toplu yeniden adlandırma** (desen: "Tatil_###.jpg", bul/değiştir).
+- [ ] **Varsayılan başlangıç klasörü** ayarı (Material Files'ta var) — küçük iş,
+      AppState'e tek tercih.
+- [ ] **Dosya seçici olarak davranma** (başka uygulama dosya isteyince
+      GET_CONTENT/OPEN_DOCUMENT intent'i karşılamak).
+- [ ] **SD karta yazma (SAF)** — Android bazı cihazlarda ikincil birime doğrudan
+      yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli.
+- [ ] **Klasör boyutlarını liste içinde göstermek** (şu an yalnız Özellikler'de,
+      istek üzerine hesaplanıyor — her satırda hesaplamak pahalı).

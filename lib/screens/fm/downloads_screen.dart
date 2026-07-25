@@ -1,0 +1,302 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+
+import '../../core/theme.dart';
+import '../../models/file_age.dart';
+import '../../models/fs_entry.dart';
+import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fs_events.dart';
+import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
+import 'browser_screen.dart';
+import 'entry_actions.dart';
+
+enum _DlSort { oldest, newest, largest, name }
+
+/// İndirilenler: "gereksizleri kolay silmek" için yaş odaklı liste.
+///
+/// Her satırda **indirilme tarihi** ve mümkünse **son açılma** (dosya sisteminin
+/// erişim zamanı) ile renkli yaş rozeti var. Üstte "180+ gündür dokunulmamış"
+/// özeti ve tek dokunuşla hepsini seçme düğmesi.
+///
+/// *Not:* Android'de erişim zamanı (atime) çoğu bağlamada güncellenmez; bu
+/// yüzden erişim zamanı değiştirilme zamanından büyük DEĞİLSE "son açılma"
+/// gösterilmez — uydurma bilgi vermeyiz ([FsEntry.hasAccessInfo]).
+class DownloadsScreen extends StatefulWidget {
+  final String path;
+  const DownloadsScreen({super.key, required this.path});
+
+  @override
+  State<DownloadsScreen> createState() => _DownloadsScreenState();
+}
+
+class _DownloadsScreenState extends State<DownloadsScreen> {
+  List<FsEntry> _files = const [];
+  final Set<String> _selected = {};
+  bool _loading = true;
+  _DlSort _sort = _DlSort.oldest;
+
+  bool get _selecting => _selected.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    FsEvents.version.addListener(_load);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    FsEvents.version.removeListener(_load);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+    final index = await FsScan.index([widget.path], perCategory: 5000);
+    if (!mounted) return;
+    // Kategori ayrımı yok: İndirilenler klasöründeki HER dosya.
+    final all = <FsEntry>[
+      for (final c in FmCategory.values) ...index.files(c),
+    ]..removeWhere((e) => e.isDir);
+    setState(() {
+      _files = all;
+      _selected.removeWhere((s) => !all.any((e) => e.path == s));
+      _loading = false;
+    });
+  }
+
+  int get _now => DateTime.now().millisecondsSinceEpoch;
+
+  int? _ageDays(FsEntry e) => daysBetween(e.lastTouchedMs, _now);
+
+  List<FsEntry> get _sorted {
+    final list = [..._files];
+    switch (_sort) {
+      case _DlSort.oldest:
+        list.sort((a, b) => a.lastTouchedMs.compareTo(b.lastTouchedMs));
+      case _DlSort.newest:
+        list.sort((a, b) => b.lastTouchedMs.compareTo(a.lastTouchedMs));
+      case _DlSort.largest:
+        list.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+      case _DlSort.name:
+        list.sort((a, b) => FsScan.nameKey(a.name).compareTo(
+              FsScan.nameKey(b.name),
+            ));
+    }
+    return list;
+  }
+
+  List<FsEntry> get _ancient => _files
+      .where((e) => ageLevelFor(_ageDays(e)) == AgeLevel.ancient)
+      .toList();
+
+  int get _selectedBytes => _files
+      .where((e) => _selected.contains(e.path))
+      .fold(0, (sum, e) => sum + e.sizeBytes);
+
+  Future<void> _deleteSelected() async {
+    final entries =
+        _files.where((e) => _selected.contains(e.path)).toList();
+    if (entries.isEmpty) return;
+    if (await deleteEntries(context, entries)) {
+      setState(_selected.clear);
+      await _load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final files = _sorted;
+    final total = _files.fold<int>(0, (sum, e) => sum + e.sizeBytes);
+    final ancient = _ancient;
+
+    return Scaffold(
+      appBar: _selecting
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(_selected.clear),
+              ),
+              title: Text('${_selected.length} seçildi'),
+              actions: [
+                IconButton(
+                  tooltip: 'Paylaş',
+                  icon: const Icon(Icons.share_outlined),
+                  onPressed: () => shareEntries(_selected.toList()),
+                ),
+                IconButton(
+                  tooltip: 'Sil',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _deleteSelected,
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('İndirilenler'),
+              actions: [
+                IconButton(
+                  tooltip: 'Klasör olarak aç',
+                  icon: const Icon(Icons.folder_open),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BrowserScreen(
+                          path: widget.path, title: 'İndirilenler'),
+                    ),
+                  ),
+                ),
+                PopupMenuButton<_DlSort>(
+                  tooltip: 'Sırala',
+                  icon: const Icon(Icons.sort),
+                  onSelected: (v) => setState(() => _sort = v),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                        value: _DlSort.oldest,
+                        child: Text('En eski (silme adayları) önce')),
+                    PopupMenuItem(
+                        value: _DlSort.newest, child: Text('En yeni önce')),
+                    PopupMenuItem(
+                        value: _DlSort.largest, child: Text('En büyük önce')),
+                    PopupMenuItem(value: _DlSort.name, child: Text('Ada göre')),
+                  ],
+                ),
+              ],
+            ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : files.isEmpty
+              ? const Center(child: Text('İndirilenler klasörü boş'))
+              : Column(
+                  children: [
+                    _summary(total, ancient),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 96),
+                        itemCount: files.length,
+                        itemBuilder: (context, i) => _row(files[i]),
+                      ),
+                    ),
+                  ],
+                ),
+      bottomNavigationBar: _selecting
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: FilledButton.icon(
+                  onPressed: _deleteSelected,
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text('${_selected.length} dosyayı sil '
+                      '(${FsPaths.humanSize(_selectedBytes)})'),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _summary(int total, List<FsEntry> ancient) {
+    final ancientBytes = ancient.fold<int>(0, (s, e) => s + e.sizeBytes);
+    return Padding(
+      padding: const EdgeInsets.all(Gap.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${_files.length} dosya · ${FsPaths.humanSize(total)}',
+                    style: Theme.of(context).textTheme.titleSmall),
+                if (ancient.isNotEmpty)
+                  Text(
+                    '${ancient.length} dosya 6 aydır dokunulmamış · '
+                    '${FsPaths.humanSize(ancientBytes)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                  ),
+              ],
+            ),
+          ),
+          if (ancient.isNotEmpty)
+            TextButton(
+              onPressed: () => setState(
+                  () => _selected.addAll(ancient.map((e) => e.path))),
+              child: const Text('Eskileri seç'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(FsEntry entry) {
+    final selected = _selected.contains(entry.path);
+    final days = _ageDays(entry);
+    final level = ageLevelFor(days);
+    final color = switch (level) {
+      AgeLevel.fresh => const Color(0xFF2E7D32),
+      AgeLevel.recent => const Color(0xFF827717),
+      AgeLevel.old => const Color(0xFFEF6C00),
+      AgeLevel.ancient => Theme.of(context).colorScheme.error,
+      AgeLevel.unknown => Theme.of(context).colorScheme.onSurfaceVariant,
+    };
+
+    return ListTile(
+      selected: selected,
+      leading: _selecting
+          ? Checkbox(
+              value: selected,
+              onChanged: (_) => setState(() {
+                if (!_selected.remove(entry.path)) _selected.add(entry.path);
+              }),
+            )
+          : FmEntryIcon(entry: entry),
+      title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        [
+          FsPaths.humanSize(entry.sizeBytes),
+          'indirilme: ${FsPaths.humanDate(entry.modifiedMs)}',
+          if (entry.hasAccessInfo)
+            'son açılma: ${relativeDays(daysBetween(entry.accessedMs, _now))}',
+        ].join(' · '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Text(
+        relativeDays(days),
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w600),
+      ),
+      onTap: () {
+        if (_selecting) {
+          setState(() {
+            if (!_selected.remove(entry.path)) _selected.add(entry.path);
+          });
+          return;
+        }
+        EntryOpener.open(context, entry.path,
+            siblings: _files.map((e) => e.path).toList());
+      },
+      onLongPress: () => setState(() {
+        if (!_selected.remove(entry.path)) _selected.add(entry.path);
+      }),
+    );
+  }
+}
+
+/// İndirilenler klasörü diskte var mı?
+bool downloadsExists(String path) => Directory(path).existsSync();
+
+/// Standart İndirilenler yolu (varsa) — `Download`, bazı cihazlarda `Downloads`.
+String? downloadsPathIn(String root) {
+  for (final name in const ['Download', 'Downloads', 'İndirilenler']) {
+    final candidate = p.join(root, name);
+    if (Directory(candidate).existsSync()) return candidate;
+  }
+  return null;
+}

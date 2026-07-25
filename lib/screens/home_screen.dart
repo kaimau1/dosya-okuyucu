@@ -10,14 +10,18 @@ import '../models/document.dart';
 import '../models/recent_file.dart';
 import '../services/blank_docs.dart';
 import '../services/file_service.dart';
+import '../services/fm/entry_opener.dart';
 import '../widgets/file_type_icon.dart';
 import 'chat_screen.dart';
-import 'editors/slides_editor_screen.dart';
-import 'editors/spreadsheet_editor_screen.dart';
-import 'editors/word_editor_screen.dart';
+import 'fm/dashboard_screen.dart';
 import 'settings_screen.dart';
-import 'viewer_screen.dart';
 
+/// Uygulama kabuğu: alt gezinme çubuğuyla üç bölme —
+/// **Dosyalar** (dosya yöneticisi panosu), **Son belgeler**, **AI**.
+///
+/// Kabuk aynı zamanda "birlikte aç"/paylaş ile gelen dosyaları yakalar; bu iş
+/// eskiden son-belgeler ekranındaydı, artık hangi sekme açık olursa olsun
+/// çalışır.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -26,9 +30,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _fileService = FileService();
-  bool _loading = false;
-  String _query = '';
+  int _tab = 0;
   StreamSubscription<List<SharedMediaFile>>? _intentSub;
 
   @override
@@ -46,13 +48,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// "Birlikte aç" / paylaş ile başka uygulamalardan gelen dosyaları yakalar:
   /// uygulama kapalıyken açıldıysa (initial) ve açıkken paylaşıldıysa (stream).
   void _initShareIntake() {
-    // Uygulama bir dosyayla açıldıysa.
     ReceiveSharingIntent.instance.getInitialMedia().then((files) {
       if (files.isNotEmpty) _openShared(files);
       ReceiveSharingIntent.instance.reset();
     }).catchError((_) {});
 
-    // Uygulama açıkken yeni dosya paylaşılırsa.
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen(
       (files) {
         if (files.isNotEmpty) _openShared(files);
@@ -61,63 +61,76 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Gelen paylaşımdaki ilk açılabilir dosyayı açar.
   Future<void> _openShared(List<SharedMediaFile> files) async {
     if (!mounted) return;
     final path = files.first.path;
     if (path.isEmpty) return;
-    setState(() => _loading = true);
-    try {
-      await _openPath(path);
-    } catch (e) {
-      _showError('Paylaşılan dosya açılamadı: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    await EntryOpener.open(context, path);
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _tab,
+        children: [
+          // active: pano yalnız görünürken yeniden tarar (bkz. FsEvents).
+          DashboardScreen(active: _tab == 0),
+          const RecentDocsScreen(),
+          const ChatScreen(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder),
+            label: 'Dosyalar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'Son belgeler',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.smart_toy_outlined),
+            selectedIcon: Icon(Icons.smart_toy),
+            label: 'AI',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Son belgeler" sekmesi: uygulamada açılmış belgeler + hızlı dosya açma ve
+/// yeni belge oluşturma (eski ana ekranın işlevleri).
+class RecentDocsScreen extends StatefulWidget {
+  const RecentDocsScreen({super.key});
+
+  @override
+  State<RecentDocsScreen> createState() => _RecentDocsScreenState();
+}
+
+class _RecentDocsScreenState extends State<RecentDocsScreen> {
+  final _fileService = FileService();
+  bool _loading = false;
+  String _query = '';
 
   Future<void> _openNew() async {
     setState(() => _loading = true);
     try {
       final path = await _fileService.pickFilePath();
       if (path == null) return;
-      await _openPath(path);
+      if (!mounted) return;
+      await EntryOpener.open(context, path);
     } catch (e) {
       _showError('Dosya açılamadı: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _openPath(String path) async {
-    final appState = context.read<AppState>();
-    final doc = await _fileService.load(path);
-    await appState.addRecent(RecentFile(
-      path: path,
-      name: doc.name,
-      sizeBytes: _fileService.sizeOf(path),
-      openedAtMs: DateTime.now().millisecondsSinceEpoch,
-    ));
-    if (!mounted) return;
-    final route = MaterialPageRoute(builder: (_) {
-      // Salt-okunur (eski .doc/.xls/.ppt'den çıkarılan) içerik OOXML editörlerine
-      // gidemez → görüntüleyicide gösterilir.
-      if (doc.readOnly) return ViewerScreen(doc: doc);
-      switch (doc.kind) {
-        case DocKind.spreadsheet:
-          return SpreadsheetEditorScreen(
-              path: doc.path, name: doc.name, plainText: doc.plainText);
-        case DocKind.word:
-          return WordEditorScreen(
-              path: doc.path, name: doc.name, plainText: doc.plainText);
-        case DocKind.slides:
-          return SlidesEditorScreen(
-              path: doc.path, name: doc.name, plainText: doc.plainText);
-        default:
-          return ViewerScreen(doc: doc);
-      }
-    });
-    Navigator.of(context).push(route);
   }
 
   void _showError(String msg) {
@@ -169,7 +182,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _loading = true);
     try {
       final path = await BlankDocs.create(type);
-      await _openPath(path);
+      if (!mounted) return;
+      await EntryOpener.open(context, path);
     } catch (e) {
       _showError('Yeni belge oluşturulamadı: $e');
     } finally {
@@ -204,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dosya Okuyucu'),
+        title: const Text('Son belgeler'),
         actions: [
           IconButton(
             tooltip: 'Yeni belge',
@@ -215,13 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: themeTip,
             icon: Icon(themeIc),
             onPressed: () => _cycleTheme(appState),
-          ),
-          IconButton(
-            tooltip: 'AI Sohbet',
-            icon: const Icon(Icons.smart_toy_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ChatScreen()),
-            ),
           ),
           IconButton(
             tooltip: 'Ayarlar',
@@ -244,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? const _NoMatch()
                           : _RecentList(
                               recents: filtered,
-                              onTap: (r) => _openSafely(r),
+                              onTap: _openSafely,
                               onRemove: (r) => appState.removeRecent(r.path),
                             ),
                     ),
@@ -261,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Son dosya açılırken hata olursa (ör. dosya taşınmış) kullanıcıyı bilgilendir.
   Future<void> _openSafely(RecentFile r) async {
     try {
-      await _openPath(r.path);
+      await EntryOpener.open(context, r.path);
     } catch (e) {
       _showError('Dosya açılamadı (taşınmış olabilir): ${r.name}');
     }
@@ -325,14 +332,15 @@ class _EmptyState extends StatelessWidget {
                   size: 40, color: scheme.onPrimaryContainer),
             ),
             const SizedBox(height: Gap.lg),
-            Text('Henüz dosya açmadınız',
+            Text('Henüz belge açmadınız',
                 style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center),
             const SizedBox(height: Gap.sm),
             Text(
               'PDF, Word, Excel, Slayt, görsel ve metin dosyalarını açıp '
               'inceleyebilir, düzenleyebilir ve yapay zeka ile üzerinde '
-              'çalışabilirsiniz.',
+              'çalışabilirsiniz. Telefonundaki tüm dosyalar için alttaki '
+              '“Dosyalar” sekmesini kullanın.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: scheme.onSurfaceVariant),

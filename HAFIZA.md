@@ -981,3 +981,332 @@ bottom sheet, snackbar, ayraç, buton, FAB temaları + tipografi ölçeği).
 - **Sayfa geçişi:** `CupertinoPageTransitionsBuilder` const map'te çözülmedi
   (`invalid_constant`); zaten Android'de yabancı duracaktı → Flutter'ın M3
   varsayılanı (ZoomPageTransitions) bırakıldı.
+
+## 2026-07-25 — Uygulama artık aynı zamanda TAM DOSYA YÖNETİCİSİ
+Kullanıcı isteği: "uygulamayı basit ama her işi gören, modern, pratik bir dosya
+yöneticisi haline getir" (referans ekran görüntüsü: alphainventor File Manager+
+panosu — depolama, kategoriler, geri dönüşüm kutusu). Git/web araştırması:
+Fossify File Manager (Files/Recent/Storage sekmeleri, medya oynatıcı, çöp),
+Material Files (MD3, yer imleri, arşiv). Bizim panomuz bu kalıbı izliyor.
+
+### Mimari (yeni dosyalar)
+- `models/fs_entry.dart` — saf Dart girdi modeli + `FmCategory` (klasör/görsel/
+  video/ses/belge/arşiv/apk/diğer) + uzantı tabloları + `FmSort`.
+- `services/fm/fs_scan.dart` — listeleme, **Türkçe-duyarlı sıralama**, özyinelemeli
+  arama, klasör boyutu ve **tek geçişli `StorageIndex`** (kategori sayı/boyut,
+  kategori başına en yeni N, en büyük N, son değişen N). Ağır işler `compute`
+  isolate'inde; isolate yoksa ana izleğe düşer (XLSX dersi, HAFIZA 2026-07-22).
+- `services/fm/file_ops.dart` — kopyala/taşı/sil/yeniden adlandır/oluştur,
+  çakışma politikası (varsayılan **rename**, veri ezilmez), ilerleme + iptal.
+- `services/fm/trash_service.dart` — geri dönüşüm kutusu.
+- `services/fm/archive_ops.dart` — zip/çıkar (mevcut `archive` paketi; YENİ
+  bağımlılık yok). RAR/7z bilinçli kapsam dışı → "başka uygulamayla aç".
+- `services/fm/storage_stats.dart` — birimler + doluluk.
+- `services/fm/storage_permission.dart`, `services/fm/fm_env.dart` (ortam/çöp
+  tekil kurulumu), `services/fm/entry_opener.dart` (tek açma kapısı).
+- Ekranlar: `screens/fm/` → dashboard, browser, category, search, trash, analysis
+  + `entry_actions.dart` (ortak işlem sayfası). Widget: `widgets/fm/`.
+- `home_screen.dart` artık **kabuk**: alt gezinme (Dosyalar / Son belgeler / AI).
+  Paylaşım (birlikte aç) yakalama kabuğa taşındı → hangi sekme açıksa çalışır.
+
+### Kararlar ve *niye*leri
+- **Çöp kutusu uygulama verisinde DEĞİL, dosyanın kendi biriminde**
+  (`<birim>/.dosya-okuyucu-cop/`, `.nomedia` ile galeriden gizli). `/data` ile
+  `/storage` ayrı bağlama noktası → aradaki `rename` başarısız olur ve 2 GB'lık
+  video çöpe atılırken KOPYALANIRDI. Aynı birimde silme/geri yükleme anında.
+  Kayıtlar `index.json`; diskten elle silinmiş kayıt listeden düşer.
+- **Depolama doluluğu `df` ile okunuyor, yeni eklenti EKLENMEDİ.** Dart'ta
+  `statfs` yok; `disk_space*` paketleri bakımsız ve platform kanalı eklemek
+  CI'da `flutter create` ile üretilen android/ iskeletini kırılganlaştırırdı.
+  `StorageStats.parseDf` saf fonksiyon → birim testli; okunamazsa doluluk
+  çubuğu gizlenir (zarif düşüş), dosya yöneticisi çalışmaya devam eder.
+- **Tek geçişli tarama:** pano, kategori ekranları, "en büyük dosyalar" ve
+  "yeni dosyalar" AYNI `StorageIndex`ten beslenir; her kutu kendi taramasını
+  yapsa 100 bin dosya defalarca gezilirdi. Sonuç süreç boyunca önbellekli
+  (aşağı çekince yenilenir). Bellek `_TopN` ile sınırlı (liste 2N'e ulaşınca
+  sıralanıp N'e düşer) — 200 bin dosyalı telefonda isolate şişmesin.
+- **Türkçe sıralama tuzağı:** Dart `compareTo` kod birimine bakar, `ı` (U+0131)
+  `z`'den büyüktür → "Işık" listenin en sonuna düşüyordu. `FsScan.nameKey`
+  Türkçe harfleri temel karşılığına indirger (ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c).
+- **İzin: MANAGE_EXTERNAL_STORAGE.** Android 11+'da bir dosya yöneticisinin
+  başka yolu yok (READ yalnız medya; SAF her klasörü tek tek seçtirir). Play
+  Store gerekçe ister ama dağıtım GitHub Releases → engel yok. İzin verilmezse
+  uygulama kilitlenmez: pano bir "İzin ver" kartı gösterir, medya izinleri
+  yedek yol olarak istenir.
+- **Yeni bağımlılıklar (yalnız 2):** `permission_handler: 11.3.1` (SABİT — 11.4/12.x
+  alt paketi compileSdk'yı yukarı çeker) ve `open_filex: ^4.7.0` (video/ses/apk/
+  arşiv sisteme devredilir; kendi FileProvider'ını getirir). Manifest'e Android 11
+  **paket görünürlüğü** sorgusu (`<queries>` ACTION_VIEW `*/*`) eklendi — yoksa
+  open_filex "uygulama yok" der.
+- **Video/ses oynatıcı EKLENMEDİ (bilinçli):** `video_player` 2.10.x'in alt paketi
+  `video_player_android` 2.9+ Flutter >=3.35 istiyor; pub geriye düşse bile CI
+  3.29.3'te kırılgan bir çözümleme olurdu (HAFIZA'daki sürüm cehennemi dersi).
+  Medya sistemin oynatıcısında açılır. → KALANLAR.
+- **Gözatıcı push tabanlı gezinir** (her alt klasör yeni sayfa) → Android geri
+  tuşu doğal olarak üst klasöre çıkar, kaydırma konumu korunur.
+- `viewer_screen`'deki "Başka uygulamayla aç" gerçekten sistemin uygulamasını
+  açıyor (eskiden paylaş sayfasını açıyordu); paylaş ayrı düğme oldu.
+
+### Doğrulama
+Bu Linux bulut oturumunda Flutter YOK → doğrulama CI `flutter test`. Yeni testler:
+`fm_file_ops_test` (çakışma/özyineleme/kendi içine taşıma), `fm_scan_test`
+(kategori, Türkçe sıralama, arama, indeks, klasör boyutu), `fm_trash_test`
+(sil→geri yükle→kalıcı sil, ad çakışması), `fm_storage_archive_test`
+(`df` çözümleme uçları + zip→extract turu). Cihaz doğrulaması (izin akışı,
+gerçek /storage taraması, harici açma) → KALANLAR.
+
+### Doğrulama sonucu (aynı gün)
+CI run #90 test ✅, #91 **APK ✅** (`v0.1.0-build-91`, imzalı, 190,5 MB — bir
+önceki main sürümü #89 zaten 188,9 MB'dı, dosya yöneticisinin maliyeti ~1,6 MB),
+#92 test ✅. **Ders/önlem:** CI'ın ucuz `test` işi yalnız testlerden ERİŞİLEN
+dosyaları derler; ekranlar hiçbir testten import edilmediği için bir ekran
+derleme hatası ancak ~20 dk'lık APK işinde görünürdü → `test/fm_screens_smoke_test.dart`
+ekranları import edip kurucularını çağırıyor (pump ETMEZ; eklentiler test
+ortamında yok), böylece hata hızlı koşuda yakalanıyor.
+
+## 2026-07-25 — RAR/7z TAM desteği (kullanıcı: "rar kısmı da detaylı olsun")
+İlk turda RAR/7z bilinçli kapsam dışıydı ("saf Dart çözücü yok" varsayımı).
+Araştırma bu varsayımı ÇÜRÜTTÜ: `koni_archive` 0.9.0 (2026-07-18, MIT) **saf
+Dart** clean-room RAR4/RAR5 + 7z okuyucusu.
+
+- **Karar — okuma motoru `koni_archive`, sıkıştırma yine `archive`.**
+  *Niye bu paket:* (a) saf Dart → platform kodu yok, CI'da `flutter create` ile
+  üretilen `android/` iskeletine dokunmuyor (junrar saran eklentiler Kotlin
+  kodu + Gradle bağımlılığı isterdi ve yalnız RAR4 çözerdi); (b) RAR5'i de
+  kapsıyor (solid, PPMd, delta/x86 filtreleri, şifreli dosya + şifreli başlık,
+  çok parçalı); (c) `sdk ^3.7.0` → CI Flutter 3.29.3 = Dart 3.7.2 ile tam
+  uyumlu; ek bağımlılığı yok (glob/path/web). *Risk:* paket bir haftalık,
+  0 beğeni → hatalarında uygulama çökmesin diye tüm çağrılar tiplenmiş
+  `ArchiveError`'a çevriliyor ve arayüz "başka uygulamayla aç"a düşebiliyor.
+  Gerçek RAR/7z fixture'larıyla CI'da test ediliyor.
+- **Çıkarma `Isolate.run` içinde.** LZMA/PPMd saf Dart'ta CPU-yoğun; ana
+  izlekte 100 MB'lık bir arşiv uygulamayı dondururdu (XLSX dersinin aynısı).
+  İlerleme isolate'ten `SendPort` ile bildiriliyor. **İptal YOK** (Isolate.run
+  öldürülemez) → ilerleme penceresi bu işte `cancellable: false`.
+- **Fixture tuzağı:** RAR sıkıştırıcısı özel mülk; bu sandbox'ta ve CI'da
+  `.rar` ÜRETİLEMEZ (`rar` ikilisi yok, açık kaynak yazıcı yok). Bu yüzden
+  koni_archive'ın MIT fixture'larından 4 tanesi (RAR5 normal, RAR4 solid,
+  şifreli RAR5, 7z LZMA2) `test/fixtures/archive/`'a kopyalandı; kaynak ve
+  gerekçe `KAYNAK.md`'de. **RAR YAZMA kalıcı olarak kapsam dışı** — biçimin
+  sıkıştırıcısı açık değil; kullanıcıya .zip üretiliyor.
+- **Yeni ekran `screens/fm/archive_screen.dart`:** arşivi ÇIKARMADAN listeler
+  (biçim, dosya sayısı, toplam boyut, sıkıştırma oranı, şifreli/çok parçalı
+  rozeti), içinde arama, tek dosyayı önizleme (geçici klasöre çıkarıp
+  görüntüleyicide açar), tek dosya çıkarma, "Tümünü çıkar".
+- **Parola akışı** ortak `widgets/fm/archive_password_dialog.dart`: şifreli
+  arşivde sorar, yanlışsa tekrar sorar (koni `InvalidPasswordException` →
+  `ArchiveFailure.wrongPassword`). RAR5 dosya-şifreli arşivlerde LİSTELEME
+  parolasız çalışır (başlık açık), hata ancak okumada gelir — akış buna göre.
+- **Çok parçalı setler:** `ArchiveOps.volumePath` saf fonksiyonu cilt adını
+  üretir (`ad.part2.rar` / `ad.r00` / `ad.7z.002` / `ad.z01`), koni'nin
+  `nextVolume` geri çağrısına bağlanır. Açılan cilt kaynaklarını koni
+  KAPATMAZ (belgelenmiş) → biz listede tutup `finally`de kapatıyoruz.
+- Zip-slip'e karşı iki kat koruma: koni yolları normalleştirip `pathEscapedRoot`
+  bayrağı koyuyor, biz ayrıca `FsPaths.isInside` ile hedef dışına düşeni atlıyoruz.
+
+## 2026-07-25 — Uygulama içi video/ses oynatıcı + kaydırmalı görsel galerisi
+Kullanıcı üç madde istedi: (1) video oynatıcı, (2) görsellerde sağa/sola
+kaydırarak ileri-geri, (3) araştırmaları tam analiz edip geliştirmeye devam.
+
+- **ERTELEME GERİ ALINDI — `video_player` EKLENDİ.** Aynı gün önce "CI Flutter
+  3.29.3'te çözümleme kırılgan" diye ertelemiştim; pub.dev sürüm zincirini
+  gerçekten tarayınca çıkan sonuç: **`video_player_android` 2.8.15**, `sdk ^3.7.0
+  + flutter >=3.29.0` ile Flutter 3.29 uyumlu SON sürüm (2.8.16'dan itibaren
+  flutter >=3.35). `video_player: 2.10.1` de flutter >=3.29 istiyor. İkisi de
+  pubspec'te SABİT — `pubspec.lock` gitignore'da olduğu için CI her koşuda
+  yeniden çözümlüyor, alt paket pinlenmezse pub yeni (uyumsuz) sürümü seçer.
+  *Ders:* "sürüm cehennemi" korkusuyla özellik ertelemeden önce zinciri
+  pub.dev API'sinden TARA — tek bir uyumlu sürüm çoğu zaman vardır.
+- **`screens/fm/media_player_screen.dart`** video VE sesi tek ekranda oynatır
+  (ses dosyasında görüntü katmanı yok → kapak alanı). Çalma listesi = aynı
+  klasördeki medya dosyaları; sağa/sola kaydırma ve ileri/geri düğmeleriyle
+  geçiş, dosya bitince sıradakine otomatik geçer. 10 sn ileri/geri, hız
+  (0.5–2x), tam ekran (yatay kilit + immersive), 3 sn sonra kontrollerin
+  gizlenmesi. Codec cihazdan gelir; açamazsa "Başka uygulamayla aç"a düşer.
+- **`screens/fm/image_gallery_screen.dart`**: PageView ile kaydırmalı galeri,
+  sayfa başına yakınlaştırma; **yakınlaştırılmışken sayfa geçişi kilitlenir**
+  (`NeverScrollableScrollPhysics`) — slayt listesindeki zoom/kaydırma çekişmesi
+  dersinin aynısı. OCR/çeviri/PDF gibi ağır işlevler tek-görsel
+  `ViewerScreen`'de KALDI; galeri ⋮ menüsünden oraya geçilir (ViewerScreen'i
+  çok-sayfalıya çevirmek 40 yerde `widget.doc` refactor'ü demekti — risk/
+  kazanç oranı kötü).
+- **Yönlendirme tek yerde: `EntryOpener.routeFor`** (saf fonksiyon, testli) →
+  gallery / player / document / external. `siblingsFor` aynı türdeki kardeş
+  dosyaları toplar; gözatıcı, kategori ekranı ve arama sonuçları listelerini
+  geçirir. Manifest'e `video/*` + `audio/*` VIEW/SEND filtreleri eklendi
+  (artık gerçekten oynatabiliyoruz; `*/*` hâlâ yok — apk/zip kirliliği).
+- **TUZAK (CI run #93) — `Isolate.run` özel istisna tipini KAYBEDEBİLİYOR:**
+  arşiv çıkarmada isolate içinde atılan `ArchiveError` karşı tarafa
+  `ArchiveFailure.other` olarak ulaştı (şifreli RAR testi kırmızı). Çözüm:
+  isolate artık istisna fırlatmıyor; sonucu/hatayı **sade** `['ok', değer]` /
+  `['err', failureIndex, mesaj]` listesiyle döndürüyor, çağıran yeniden kuruyor
+  (`_guard`/`_unwrap`). Kural: isolate sınırından yalnız ilkel tipler geçir.
+- **Ekran duman testi kendini ödedi:** `archive_screen.dart`'ta eksik
+  `file_ops.dart` importunu (FmProgress) hızlı test koşusu yakaladı — eskiden
+  bu hata ancak ~20 dk'lık APK derlemesinde görünürdü.
+
+### Yinelenen dosya bulucu (araştırma listesinden kalan madde)
+Fossify/Material Files karşılaştırmasında bizde olmayan ve en çok işe yarayan
+madde "yer açma" idi → `services/fm/duplicate_finder.dart`: üç aşamalı
+(boyut grubu → baş/son 64 KB FNV-1a parmak izi → **bayt bayt** doğrulama).
+*Niye üç aşama:* yalnız hash'e güvenip kullanıcının dosyasını sildirmek kabul
+edilemez; boyut grubu sayesinde çoğu dosya hiç okunmaz. `Isolate.run` içinde.
+Ekran: Bellek Analizi → "Yinelenen dosyaları bul"; her grupta **en eski dosya
+korunur**, kalanlar seçili gelir, tek dokunuşla çöpe. `crypto` bağımlılığı
+EKLENMEDİ (FNV-1a saf Dart, 20 satır).
+
+### TUZAK (CI #94) — `Isolate.run` + akış hatası = RemoteError
+İlk düzeltme (sonucu sade listeyle döndürmek) yetmedi: `IOSink.addStream`
+kullanılınca akış hatası hem dönen future'a hem sink'in `done` future'ına
+düşüyor, biri SAHİPSİZ kalıp isolate'i düşürüyor → `Isolate.run` hatayı
+`RemoteError`'a çeviriyor, tip bilgisi yine kayboluyordu. Kesin çözüm iki
+katmanlı: (1) `addStream` yerine `await for` + `sink.add` (hata tek yerden),
+(2) `_guard` gövdesi `runZonedGuarded` içinde — sahipsiz async hata da
+sonuca çevriliyor. **Kural:** isolate içinde akış tüketirken `addStream`
+kullanma; ve isolate gövdesini daima zone ile koru.
+
+### Şifreli arşiv ÜRETME (araştırma listesindeki "dosya şifreleme" karşılığı)
+`koni_archive` yalnız okumuyor, **yazıyor** da: ZIP → WinZip AES-256, 7z →
+AES-256-CBC + isteğe bağlı **şifreli başlık** (dosya adları da gizlenir).
+Fossify'ın "file encryption" özelliğinin bizdeki karşılığı bu oldu ve okuma
+tarafı zaten hazırdı → tur kapandı (üret → geri aç, testli).
+- `ArchiveOps.compress(paths, destDir, {format, password, hideNames})`.
+  **Parolasız düz .zip eski hızlı yolda (ZipFileEncoder) KALDI** — kanıtlanmış
+  ve hızlı; koni yolu yalnız parola ya da 7z istenince devreye girer.
+- Sıkıştırma da isolate'te (saf Dart LZMA/AES CPU-yoğun).
+- UI: `widgets/fm/compress_sheet.dart` — biçim seçimi + "Parola koy" + 7z'de
+  "Dosya adlarını da gizle" + "parolayı unutursan açılamaz" uyarısı.
+  *Niye 7z seçeneği:* parolalı ZIP'te dosya ADLARI dizinde açık kalır; gerçek
+  gizlilik için 7z + şifreli başlık gerekir (kullanıcıya açıkça yazıldı).
+- **RAR üretimi yok ve olmayacak** (biçim özel mülk) — okuma tam.
+
+### TUZAK — boş commit CI'ı TETİKLEMEZ
+`[release-apk]` işaretli **boş** commit (`--allow-empty`) hiçbir koşu başlatmadı:
+workflow'un `paths-ignore: '**.md'` filtresi, değişen dosyası olmayan push'u da
+eliyor. APK istendiğinde ya gerçek bir kod değişikliğiyle ya da `ci/build-trigger.txt`
+güncellenerek push edilmeli (dosya zaten bu amaçla duruyor).
+
+## 2026-07-25 — Müzik çalar (ayrı ses motoru)
+Kullanıcı "ses oynatma özelliği de lazım" dedi. Ses zaten `video_player` ile
+çalıyordu ama **ekrandan çıkınca duruyordu** ve çalar işlevleri yoktu.
+- **Karar: ses için AYRI motor — `audioplayers 6.6.0` (+ `audioplayers_android
+  5.2.1` pinli, Flutter 3.29 uyumlu son sürümler).** `video_player` görüntü
+  yüzeyine bağlı; audioplayers native çalıcıyı doğrudan sürer → ekran kapansa
+  da çalar ve manifest'e servis/etkinlik eklemek GEREKMEZ.
+- **REDDEDİLEN yol: `just_audio` + `just_audio_background`.** Bildirim/kilit
+  ekranı kontrolleri verirdi ama manifest'te `<activity>`nin sınıfını
+  `com.ryanheise.audioservice.AudioServiceActivity` yapmayı şart koşuyor;
+  sınıf bulunmazsa uygulama AÇILMAZ (kullanıcının telefonunda en kötü hata
+  sınıfı). Yerelde Flutter olmadığı için doğrulanamazdı → risk alınmadı.
+  Bildirim kontrolleri istenirse ayrı bir turda, APK'da sınıf doğrulaması
+  yapan bir CI adımıyla eklenmeli (KALANLAR).
+- `screens/fm/audio_player_screen.dart`: çalma listesi (klasördeki sesler),
+  tekrar (kapalı/bu parça/tümü), karışık, hız, 10 sn ileri-geri, kaydırarak
+  parça değiştirme, sıradakiler listesi.
+- `EntryOpener.routeFor` artık **ses ve videoyu ayırıyor** (`OpenRoute.audio`
+  vs `player`) → çalma listeleri de ayrı (video listesi müziğe karışmaz).
+
+## 2026-07-25 — Video küçük resmi, medya kaynağı filtresi, yüklü uygulamalar
+Kullanıcı 4 madde istedi (ekran görüntüsü: "Videolar" ızgarasında hep aynı
+film ikonu görünüyordu).
+
+- **Video küçük resmi** — `fc_native_video_thumbnail 2.2.0` (native
+  MediaMetadataRetriever). **TUZAK:** yaygın olan `video_thumbnail` paketi
+  `sdk >=2.16.0 <3.0.0`da kalmış → Dart 3 ile KULLANILAMIYOR; bu paket
+  `sdk >=2.18.6 <4.0.0 + flutter >=3.7` (3.0.0 sürümü flutter >=3.44 ister,
+  o yüzden 2.2.0'a pinli).
+  `services/fm/thumbnail_cache.dart`: küçük resim **diske** önbelleklenir,
+  anahtar = yol + değişiklik zamanı + boy (dosya değişirse kendiliğinden
+  tazelenir), paralel istekler tek işe indirgenir, üretilemeyen dosyalar
+  kara listeye alınır (kaydırmada tekrar tekrar denenmesin), önbellek 600
+  dosyada budanır. Widget üretilene kadar ikon gösterir (boş kutu YOK).
+- **Medya kaynağı sınıflandırma** (`models/media_bucket.dart`, saf Dart):
+  yola bakarak Kamera / Ekran görüntüsü / WhatsApp / Telegram / Instagram /
+  İndirilenler / Bluetooth / Diğer. **Sıra önemli:** ekran görüntüsü DCIM
+  altında da olabilir → kameradan ÖNCE bakılır. Android 11+ düzeni
+  (`Android/media/com.whatsapp/...`) paket adıyla da eşleşir. Görsel ve video
+  kategori ekranlarında sayı rozetli filtre çipleri.
+- **Yüklü uygulamalar ekranı** — `installed_apps 2.1.1` (ad/ikon/sürüm/kurulum
+  tarihi) + `usage_stats 1.3.1` (son açılma). Son kullanım Android'in ÖZEL
+  "Kullanım erişimi" iznini ister (ayar sayfası açılır, normal izin penceresi
+  değil) → izin yoksa liste yine gelir, yalnız tarih bilinmez ve renklendirme
+  kapanır. Renk eşikleri `idleLevelFor` (saf, testli): <7g yeşil, <30g sarı,
+  <90g turuncu, ≥90g / hiç açılmamış kırmızı. Uzun basış: aç / uygulama
+  bilgisi / kaldır. Manifest'e `PACKAGE_USAGE_STATS` (+ `xmlns:tools` ile
+  `tools:ignore="ProtectedPermissions"`); QUERY_ALL_PACKAGES ve
+  REQUEST_DELETE_PACKAGES eklentinin kendi manifest'inden birleşiyor.
+- **APK dosyaları ayrı kutu:** pano "Uygulamalar" kutusu artık YÜKLÜ
+  uygulamaları açıyor; kurulum dosyaları "APK dosyaları" kutusunda.
+
+## 2026-07-25 — KULLANICI HATASI: silinen dosya listelerde/sayılarda duruyordu
+Belirti: bir dosya silindikten sonra panoya dönünce klasör/kategori sayısı
+düşmüyor, içine girince dosya hâlâ görünüyor, üstelik çöp kutusunda da var.
+
+- **KÖK NEDEN:** çöp klasörü (`<birim>/.dosya-okuyucu-cop/`) **tarama dışı
+  bırakılmamıştı**. Dosya oraya taşınıyor ama `FsScan` tüm ağacı gezerken
+  çöpteki kopyayı da sayıyordu → kategori sayıları aynı kalıyor, "Videolar/
+  Görüntüler" listelerinde dosya duruyor, arama onu buluyor, yinelenen bulucu
+  onu asıl dosyanın KOPYASI sanıyordu. Yani dosya gerçekten silinmişti; yanlış
+  olan taramaydı. Çözüm: `FsScan.skipDirNames`'e `.dosya-okuyucu-cop`.
+  Regresyon testi: `fm_trash_test` → "çöpe atılan dosya TARAMADA görünmez".
+- **İKİNCİ KUSUR:** pano taraması süreç boyunca önbellekliydi ve hiçbir dosya
+  işlemi onu geçersiz kılmıyordu → kopyalama/taşıma/silme sonrası sayılar
+  bayat kalıyordu. Çözüm: `services/fm/fs_events.dart` (ValueNotifier sayacı);
+  FileOps / TrashService / ArchiveOps her başarılı işlemde `FsEvents.changed()`
+  çağırır. Pano yalnız **görünürken** yeniden tarar (`DashboardScreen.active`,
+  kabuktan `_tab == 0` geçilir) — arka planda gereksiz tarama yok. Kategori
+  ekranı da sinyalde diskte olmayanları listeden düşürür.
+- **ÜÇÜNCÜ (önlem):** `TrashService.moveToTrash` artık taşımadan sonra kaynağın
+  gerçekten gittiğini DOĞRULAR; kaynak yerinde kaldıysa çöpteki kopyayı siler
+  ve hata döner — "hem klasörde hem çöpte" durumu artık imkânsız.
+
+### TUZAK — video küçük resmi eklentisi minSdk'yı yükseltti
+`fc_native_video_thumbnail` minSdk **24** ister; uygulama 23'teydi (Firebase
+gerekçesiyle) → APK derlemesi `processReleaseMainManifest`te "minSdkVersion 23
+cannot be smaller than version 24" ile kırıldı (CI #102). Dart testleri geçtiği
+için hata ancak APK adımında göründü. CI patch'i minSdk 24'e alındı (Android 7+;
+Android 6 payı ihmal edilebilir, Firebase'in 23'ü de kapsanıyor).
+
+## 2026-07-25 — Dosya yöneticisine özel ayarlar + yaş odaklı İndirilenler
+Kullanıcı: "ayarlar simgesi dosya yöneticisi kısmında da olmalı ve ona özel
+ayarlar içermeli" + "indirilenlerde son kullanım tarihi olsun, gereksizleri
+rahat silmek için".
+
+- **`screens/fm/fm_settings_screen.dart`** — pano AppBar'ına ayar simgesi.
+  Bölümler: Görünüm (ızgara, gizli dosyalar, küçük resimler aç/kapa,
+  varsayılan sıralama), Silme (çöp kutusunu kullan / silmeden önce sor /
+  çöp kutusunu otomatik temizle 7-30-90 gün / şimdi boşalt), İzinler (tüm
+  dosyalara erişim + kullanım erişimi durum ve tek dokunuşla verme), Bakım
+  (küçük resim önbelleğini temizle, birimleri yenile), Uygulama (genel
+  ayarlara kısayol: Gemini/tema/hesap). Tercihler `AppState`te kalıcı:
+  `fmThumbnails`, `fmUseTrash`, `fmConfirmDelete`, `fmTrashAutoDays`.
+  `deleteEntries` artık bu tercihlere uyuyor (çöp kapalıysa KALICI silme —
+  bu durumda onay her zaman sorulur, tercih kapalı olsa bile).
+- **`screens/fm/downloads_screen.dart`** — "İndirilenler" kutusu artık klasör
+  gezgini yerine **yaş odaklı** listeyi açıyor: her satırda indirilme tarihi,
+  (varsa) son açılma ve renkli yaş rozeti; üstte "N dosya 6 aydır
+  dokunulmamış · X GB" özeti + **"Eskileri seç"** ile tek dokunuşta toplu
+  seçim → sil. Sıralama: en eski / en yeni / en büyük / ad.
+- **TUZAK — atime güvenilmez:** Android'de çoğu bağlama `relatime`/`noatime`
+  kullanır; erişim zamanı yazma zamanından büyük DEĞİLSE "son açılma"
+  gösterilmez (`FsEntry.hasAccessInfo`) — uydurma bilgi vermektense
+  göstermemeyi seçtik. Yaş rozeti bu yüzden `lastTouchedMs`
+  (atime anlamlıysa o, değilse mtime) üzerinden hesaplanır.
+- `models/file_age.dart` (saf, testli): `ageLevelFor`, `daysBetween`,
+  `relativeDays`. `TrashService.purgeOlderThan` otomatik temizleme için.
+
+### TUZAK — eklenti compileSdk'sı APK'yı kırar: `usage_stats` → `app_usage`
+`usage_stats 1.3.1` **compileSdkVersion 30** ile yayınlanmış; modern AndroidX
+kaynakları API 31 özniteliği (`android:attr/lStar`) istediği için
+`:usage_stats:verifyReleaseResources` adımında "Android resource linking failed"
+ile APK derlemesi kırıldı (CI #103). Dart testleri geçtiği için hata yalnız APK
+işinde görünür.
+**Karar:** paket değiştirildi → `app_usage 4.0.1` (compileSdk **35**, namespace
+tanımlı). Yan fayda: izin sayfasını (Settings.ACTION_USAGE_ACCESS_SETTINGS)
+kendisi açıyor. Yan maliyet: "izin var mı" sorgusu YOK — izinsiz sorgu ayar
+sayfasını açtığı için izin durumu SharedPreferences bayrağıyla tutuluyor
+(`fm_usage_access_granted`); ekran açılışında sorgu yalnız bayrak açıkken
+yapılır, yoksa kullanıcı "İzin ver"e basana kadar ayar sayfası fırlamaz.
+**Ders:** bir Android eklentisi eklerken pub sürüm kısıtlarına bakmak YETMEZ;
+`android/build.gradle`ındaki `compileSdk`/`namespace` da bakılmalı (eski
+değerler AGP 8'de derlemeyi keser).

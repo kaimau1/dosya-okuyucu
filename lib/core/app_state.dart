@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/fs_entry.dart';
 import '../models/recent_file.dart';
 import '../services/firebase_service.dart';
 
@@ -13,6 +14,16 @@ class AppState extends ChangeNotifier {
   static const _kThemeMode = 'theme_mode';
   static const _kRecents = 'recent_files';
   static const _kMemory = 'ai_memory';
+  // Dosya yöneticisi tercihleri
+  static const _kBookmarks = 'fm_bookmarks';
+  static const _kFmGrid = 'fm_grid';
+  static const _kFmSort = 'fm_sort';
+  static const _kFmSortDesc = 'fm_sort_desc';
+  static const _kFmHidden = 'fm_show_hidden';
+  static const _kFmThumbs = 'fm_thumbnails';
+  static const _kFmUseTrash = 'fm_use_trash';
+  static const _kFmConfirmDelete = 'fm_confirm_delete';
+  static const _kFmTrashAutoDays = 'fm_trash_auto_days';
 
   late SharedPreferences _prefs;
 
@@ -35,6 +46,109 @@ class AppState extends ChangeNotifier {
   /// AI'nın kalıcı hafızası (RAG-lite): kaydedilen bilgi notları.
   List<String> get memory => List.unmodifiable(_memory);
 
+  // ── Dosya yöneticisi durumu ───────────────────────────────────────────────
+  List<String> _bookmarks = [];
+  bool _fmGrid = false;
+  FmSort _fmSort = FmSort.name;
+  bool _fmSortDesc = false;
+  bool _fmShowHidden = false;
+  List<String> _clipboard = [];
+  bool _clipboardCut = false;
+  bool _fmThumbnails = true;
+  bool _fmUseTrash = true;
+  bool _fmConfirmDelete = true;
+  int _fmTrashAutoDays = 0;
+
+  /// Kullanıcının yıldızladığı klasörler (kalıcı).
+  List<String> get bookmarks => List.unmodifiable(_bookmarks);
+  bool get fmGrid => _fmGrid;
+  FmSort get fmSort => _fmSort;
+  bool get fmSortDesc => _fmSortDesc;
+  bool get fmShowHidden => _fmShowHidden;
+
+  /// Küçük resimler (görsel/video) gösterilsin mi? Çok yavaş cihazda kapatılır.
+  bool get fmThumbnails => _fmThumbnails;
+
+  /// Silme çöp kutusuna mı gitsin (kapalıysa doğrudan kalıcı silme)?
+  bool get fmUseTrash => _fmUseTrash;
+
+  /// Silmeden önce onay sorulsun mu?
+  bool get fmConfirmDelete => _fmConfirmDelete;
+
+  /// Çöp kutusu kaç günde bir kendini temizlesin (0 = kapalı).
+  int get fmTrashAutoDays => _fmTrashAutoDays;
+
+  Future<void> setFmThumbnails(bool value) async {
+    _fmThumbnails = value;
+    await _prefs.setBool(_kFmThumbs, value);
+    notifyListeners();
+  }
+
+  Future<void> setFmUseTrash(bool value) async {
+    _fmUseTrash = value;
+    await _prefs.setBool(_kFmUseTrash, value);
+    notifyListeners();
+  }
+
+  Future<void> setFmConfirmDelete(bool value) async {
+    _fmConfirmDelete = value;
+    await _prefs.setBool(_kFmConfirmDelete, value);
+    notifyListeners();
+  }
+
+  Future<void> setFmTrashAutoDays(int days) async {
+    _fmTrashAutoDays = days;
+    await _prefs.setInt(_kFmTrashAutoDays, days);
+    notifyListeners();
+  }
+
+  /// Kopyala/kes panosu — bilinçli olarak KALICI DEĞİL: uygulama yeniden
+  /// açıldığında artık var olmayabilecek yolları yapıştırmayı önler.
+  List<String> get clipboard => List.unmodifiable(_clipboard);
+  bool get clipboardCut => _clipboardCut;
+  bool get hasClipboard => _clipboard.isNotEmpty;
+
+  bool isBookmarked(String path) => _bookmarks.contains(path);
+
+  Future<void> toggleBookmark(String path) async {
+    if (!_bookmarks.remove(path)) _bookmarks.insert(0, path);
+    await _prefs.setStringList(_kBookmarks, _bookmarks);
+    notifyListeners();
+  }
+
+  Future<void> setFmGrid(bool value) async {
+    _fmGrid = value;
+    await _prefs.setBool(_kFmGrid, value);
+    notifyListeners();
+  }
+
+  Future<void> setFmSort(FmSort sort, {bool? descending}) async {
+    _fmSort = sort;
+    if (descending != null) _fmSortDesc = descending;
+    await _prefs.setString(_kFmSort, sort.name);
+    await _prefs.setBool(_kFmSortDesc, _fmSortDesc);
+    notifyListeners();
+  }
+
+  Future<void> setFmShowHidden(bool value) async {
+    _fmShowHidden = value;
+    await _prefs.setBool(_kFmHidden, value);
+    notifyListeners();
+  }
+
+  void setClipboard(List<String> paths, {required bool cut}) {
+    _clipboard = List.of(paths);
+    _clipboardCut = cut;
+    notifyListeners();
+  }
+
+  void clearClipboard() {
+    if (_clipboard.isEmpty) return;
+    _clipboard = [];
+    _clipboardCut = false;
+    notifyListeners();
+  }
+
   bool get firebaseAvailable => firebase.available;
   bool get signedIn => _uid != null;
   String? get userEmail => _userEmail;
@@ -49,6 +163,18 @@ class AppState extends ChangeNotifier {
         .whereType<RecentFile>()
         .toList();
     _memory = _prefs.getStringList(_kMemory) ?? [];
+    _bookmarks = _prefs.getStringList(_kBookmarks) ?? [];
+    _fmGrid = _prefs.getBool(_kFmGrid) ?? false;
+    _fmSort = FmSort.values.firstWhere(
+      (s) => s.name == _prefs.getString(_kFmSort),
+      orElse: () => FmSort.name,
+    );
+    _fmSortDesc = _prefs.getBool(_kFmSortDesc) ?? false;
+    _fmShowHidden = _prefs.getBool(_kFmHidden) ?? false;
+    _fmThumbnails = _prefs.getBool(_kFmThumbs) ?? true;
+    _fmUseTrash = _prefs.getBool(_kFmUseTrash) ?? true;
+    _fmConfirmDelete = _prefs.getBool(_kFmConfirmDelete) ?? true;
+    _fmTrashAutoDays = _prefs.getInt(_kFmTrashAutoDays) ?? 0;
     notifyListeners();
 
     // Firebase'i güvenli başlat; config yoksa yerel modda kalır.

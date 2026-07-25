@@ -58,6 +58,13 @@ dependencies:
   archive: ^3.6.1
   xml: ^6.5.0
 
+  # Arşiv okuma: RAR4/RAR5 + 7z + zip/tar/gz — SAF DART (MIT), platform kodu yok.
+  # `archive` paketi RAR/7z okumaz; junrar saran Android eklentileri yalnız RAR4
+  # çözer ve CI'da üretilen android/ iskeletine platform kodu ekletirdi.
+  # sdk ^3.7.0 → CI Flutter 3.29.3 (Dart 3.7.2) ile uyumlu; ek bağımlılığı yok
+  # (glob/path/web). Çıkarma isolate'te koşar (LZMA/PPMd CPU-yoğun).
+  koni_archive: ^0.9.0
+
   # AI (Gemini REST) & ağ
   http: ^1.2.2
 
@@ -71,6 +78,51 @@ dependencies:
 
   # Durum yönetimi (hafif)
   provider: ^6.1.2
+
+  # ── Dosya yöneticisi ────────────────────────────────────────────────────────
+  # Depolama izni (Android 11+ "tüm dosyalara erişim" = MANAGE_EXTERNAL_STORAGE).
+  # 11.3.1'e SABİT: 11.4.0+/12.x `sdk ^3.5.0 + flutter >=3.24` ister — CI 3.29.3
+  # bunu sağlar ama alt paketi permission_handler_android 13.x compileSdk'yı
+  # yukarı çeker. 11.3.1 (sdk >=2.15 <4.0, flutter >=2.8) en güvenli sürüm.
+  permission_handler: 11.3.1
+  # Uygulama içi video + ses oynatıcı (ExoPlayer/Media3).
+  # SÜRÜM ZİNCİRİ SABİT — CI Flutter 3.29.3 için: video_player 2.10.1
+  # (flutter>=3.29) → alt paket `video_player_android` **2.8.15**, Flutter 3.29
+  # ile uyumlu SON sürüm (2.8.16+ flutter>=3.35 ister → CI kırılır).
+  # pubspec.lock gitignore'da olduğu için CI her koşuda yeniden çözümlüyor;
+  # bu yüzden alt paket de doğrudan pinlendi (yoksa pub yeni sürümü seçer).
+  video_player: 2.10.1
+  video_player_android: 2.8.15
+
+  # Ses çalar (müzik deneyimi): video_player ses dosyasını da açar ama ekrandan
+  # çıkınca durur ve tekrar/karışık gibi çalar işlevleri yoktur. audioplayers
+  # native MediaPlayer/ExoPlayer'ı doğrudan sürer → ekran kapansa da çalmaya
+  # devam eder ve manifest'e servis eklemek gerekmez.
+  # SÜRÜM SABİT: 6.6.0 + audioplayers_android 5.2.1, Flutter 3.29 uyumlu SON
+  # sürümler (6.7.0 / 5.3.0 flutter >=3.35 ister). pubspec.lock gitignore'da.
+  audioplayers: 6.6.0
+  audioplayers_android: 5.2.1
+
+  # Video küçük resmi (native MediaMetadataRetriever) — listelerde film karesi.
+  # 2.2.0: sdk >=2.18.6 <4.0.0, flutter >=3.7 → CI 3.29.3 uyumlu (3.0.0 ise
+  # flutter >=3.44 ister). NOT: eski `video_thumbnail` paketi sdk <3.0.0'da
+  # kaldığı için Dart 3 ile KULLANILAMIYOR.
+  fc_native_video_thumbnail: 2.2.0
+
+  # Telefonda yüklü uygulamaların listesi (ad, ikon, sürüm, kurulum tarihi)
+  # ve son kullanım zamanı (UsageStats — kullanıcı "kullanım erişimi" verirse).
+  installed_apps: 2.1.1
+  # Son kullanım: app_usage (compileSdk 35, namespace'li — modern).
+  # `usage_stats` KULLANILAMADI: compileSdkVersion 30 ile yayınlanmış,
+  # AGP kaynak bağlamada "resource android:attr/lStar not found" ile APK
+  # derlemesini kırıyor (CI #103). app_usage ayrıca izin sayfasını da
+  # kendisi açıyor (Settings.ACTION_USAGE_ACCESS_SETTINGS).
+  app_usage: 4.0.1
+
+  # Yerleşik görüntüleyicimiz olmayan dosyaları (apk/rar dışı biçimler…) sistemin
+  # varsayılan uygulamasında açar. 4.x: sdk >=2.17 <4.0 → CI Dart 3.7 uyumlu.
+  # Kendi FileProvider'ını manifest'ine gömer, ek manifest düzenlemesi gerekmez.
+  open_filex: ^4.7.0
 
   # 120Hz+ ekran desteği (Android 60Hz kilidini açar; diğer platformlarda pasif)
   flutter_displaymode: ^0.6.0

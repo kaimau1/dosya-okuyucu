@@ -12,6 +12,7 @@ import '../core/text_search.dart';
 import '../models/document.dart';
 import '../services/conversion_service.dart';
 import '../services/file_service.dart';
+import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf_annotator.dart';
 import '../widgets/office_shell.dart';
@@ -1011,9 +1012,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 ),
                 const SizedBox(height: 16),
                 FilledButton.tonalIcon(
-                  onPressed: _share,
+                  // Gerçekten sistemin varsayılan uygulamasında açar
+                  // (eskiden "paylaş" sayfasını açıyordu — kullanıcı dosyayı
+                  // açmak isterken paylaşım listesiyle karşılaşıyordu).
+                  onPressed: () =>
+                      EntryOpener.openExternally(context, widget.doc.path),
                   icon: const Icon(Icons.open_in_new),
                   label: const Text('Başka uygulamayla aç'),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _share,
+                  icon: const Icon(Icons.share_outlined),
+                  label: const Text('Paylaş'),
                 ),
               ],
             ),

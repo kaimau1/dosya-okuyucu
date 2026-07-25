@@ -9,7 +9,9 @@ Yaz kuralı: usta rule 12 / YAZ — kalıcı karar, bug kök nedeni veya yanlı�
 iş bitmeden HAFIZA.md'ye yaz. KVKK: hasta verisi / TC / ölçüm / token yazma.
 
 ## 1) Amaç
-Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici**. Hem mobil hem
+Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici + dosya yöneticisi**
+(2026-07-25: telefondaki tüm dosyalar için pano/gezgin/işlemler — `lib/services/fm/`,
+`lib/screens/fm/`; ayrıntı ve kararlar HAFIZA.md). Hem mobil hem
 masaüstü (tek Flutter kod tabanı). Gemini AI entegrasyonu, format dönüştürme,
 paylaşım, Firebase ile senkron. Piyasadaki yavaş/pahalı programlara alternatif.
 

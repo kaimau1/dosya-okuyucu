@@ -4,8 +4,28 @@ Sade, hızlı ve efektif **çok formatlı dosya okuyucu/düzenleyici** — hem m
 masaüstünde tek Flutter kod tabanı ile. Gemini yapay zeka entegrasyonu, dönüştürme
 ve paylaşım özellikleriyle.
 
-## Özellikler (MVP – build 1)
+## Özellikler
 
+- 🗂️ **Dosya yöneticisi:** telefondaki tüm dosyalar — depolama panosu (doluluk,
+  kategoriler, bellek analizi), klasör gezgini, çoklu seçim, kopyala/kes/yapıştır,
+  taşı, yeniden adlandır, sil (geri dönüşüm kutusu), paylaş, sıkıştır (.zip),
+  favoriler, gizli dosyalar, sıralama, ızgara/liste, özyinelemeli arama
+- 🔐 **Şifreli arşiv:** ZIP (AES-256) veya 7z (AES-256 + dosya adlarını gizleme)
+  olarak parolalı sıkıştırma; aynı arşivi uygulama içinde parolayla açma
+- 🧹 **Yinelenen dosya bulucu:** birebir aynı dosyaları bulur (bayt bayt
+  doğrulamalı), bir kopyayı bırakıp kalanları çöpe taşır
+- 🗜️ **Arşivler:** RAR4/RAR5, 7z, ZIP, TAR/GZIP — içeriği çıkarmadan listeleme,
+  arşiv içinde arama, tek dosya önizleme/çıkarma, parola korumalı ve çok parçalı
+  (part2/r00/7z.002) arşivler; hepsi cihazda, saf Dart, internet yok
+- 📱 **Uygulamalar:** telefonda yüklü uygulamalar, son açılma tarihi ve uzun
+  süredir kullanılmayanların renklendirilmesi (aç / bilgi / kaldır)
+- 🎞️ **Video küçük resimleri** ve medya kaynağı filtresi (Kamera, WhatsApp,
+  Telegram, ekran görüntüsü, indirilenler)
+- 🖼️ **Galeri:** görselleri sağa/sola kaydırarak gezme, yakınlaştırma, paylaş/sil
+- 🎬 **Video oynatıcı:** uygulama içinde oynatma, çalma listesi (aynı klasör),
+  10 sn ileri/geri, hız (0.5–2x), tam ekran
+- 🎵 **Müzik çalar:** klasördeki sesleri sırayla çalar (tekrar, karışık, hız,
+  kaydırarak parça değiştirme); ekran kapansa da çalmaya devam eder
 - 📄 **Görüntüleme:** PDF, Word (.docx), Excel (.xlsx), Slayt (.pptx), metin ve görsel
 - ✏️ **Düzenleme:** Metin/Word içeriğini düzenleme ve kaydetme
 - 🔄 **Dönüştürme:** İçeriği PDF’e veya slayt destesine (PDF) çevirme
