@@ -135,7 +135,7 @@ void main() {
     test('dosya türü doğru ekrana gider', () {
       expect(EntryOpener.routeFor('/a/foto.jpg'), OpenRoute.gallery);
       expect(EntryOpener.routeFor('/a/klip.MP4'), OpenRoute.player);
-      expect(EntryOpener.routeFor('/a/sarki.mp3'), OpenRoute.player);
+      expect(EntryOpener.routeFor('/a/sarki.mp3'), OpenRoute.audio);
       expect(EntryOpener.routeFor('/a/rapor.pdf'), OpenRoute.document);
       expect(EntryOpener.routeFor('/a/notlar'), OpenRoute.document); // uzantısız
       expect(EntryOpener.routeFor('/a/uygulama.apk'), OpenRoute.external);
@@ -151,8 +151,9 @@ void main() {
         '/a/ses.mp3',
       ];
       expect(EntryOpener.siblingsFor('/a/1.jpg', all), ['/a/1.jpg', '/a/2.png']);
-      expect(EntryOpener.siblingsFor('/a/klip.mp4', all),
-          ['/a/klip.mp4', '/a/ses.mp3']);
+      // Video ve ses AYRI çalma listeleri (farklı oynatıcı/motor).
+      expect(EntryOpener.siblingsFor('/a/klip.mp4', all), ['/a/klip.mp4']);
+      expect(EntryOpener.siblingsFor('/a/ses.mp3', all), ['/a/ses.mp3']);
       // Listede olmayan dosya başa eklenir (yine de açılabilsin).
       expect(EntryOpener.siblingsFor('/a/9.jpg', const ['/a/1.jpg']),
           ['/a/9.jpg', '/a/1.jpg']);

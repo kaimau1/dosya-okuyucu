@@ -1185,3 +1185,23 @@ tarafı zaten hazırdı → tur kapandı (üret → geri aç, testli).
 workflow'un `paths-ignore: '**.md'` filtresi, değişen dosyası olmayan push'u da
 eliyor. APK istendiğinde ya gerçek bir kod değişikliğiyle ya da `ci/build-trigger.txt`
 güncellenerek push edilmeli (dosya zaten bu amaçla duruyor).
+
+## 2026-07-25 — Müzik çalar (ayrı ses motoru)
+Kullanıcı "ses oynatma özelliği de lazım" dedi. Ses zaten `video_player` ile
+çalıyordu ama **ekrandan çıkınca duruyordu** ve çalar işlevleri yoktu.
+- **Karar: ses için AYRI motor — `audioplayers 6.6.0` (+ `audioplayers_android
+  5.2.1` pinli, Flutter 3.29 uyumlu son sürümler).** `video_player` görüntü
+  yüzeyine bağlı; audioplayers native çalıcıyı doğrudan sürer → ekran kapansa
+  da çalar ve manifest'e servis/etkinlik eklemek GEREKMEZ.
+- **REDDEDİLEN yol: `just_audio` + `just_audio_background`.** Bildirim/kilit
+  ekranı kontrolleri verirdi ama manifest'te `<activity>`nin sınıfını
+  `com.ryanheise.audioservice.AudioServiceActivity` yapmayı şart koşuyor;
+  sınıf bulunmazsa uygulama AÇILMAZ (kullanıcının telefonunda en kötü hata
+  sınıfı). Yerelde Flutter olmadığı için doğrulanamazdı → risk alınmadı.
+  Bildirim kontrolleri istenirse ayrı bir turda, APK'da sınıf doğrulaması
+  yapan bir CI adımıyla eklenmeli (KALANLAR).
+- `screens/fm/audio_player_screen.dart`: çalma listesi (klasördeki sesler),
+  tekrar (kapalı/bu parça/tümü), karışık, hız, 10 sn ileri-geri, kaydırarak
+  parça değiştirme, sıradakiler listesi.
+- `EntryOpener.routeFor` artık **ses ve videoyu ayırıyor** (`OpenRoute.audio`
+  vs `player`) → çalma listeleri de ayrı (video listesi müziğe karışmaz).

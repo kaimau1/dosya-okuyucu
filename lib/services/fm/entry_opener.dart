@@ -11,6 +11,7 @@ import '../../models/recent_file.dart';
 import '../../screens/editors/slides_editor_screen.dart';
 import '../../screens/editors/spreadsheet_editor_screen.dart';
 import '../../screens/editors/word_editor_screen.dart';
+import '../../screens/fm/audio_player_screen.dart';
 import '../../screens/fm/image_gallery_screen.dart';
 import '../../screens/fm/media_player_screen.dart';
 import '../../screens/viewer_screen.dart';
@@ -25,8 +26,11 @@ enum OpenRoute {
   /// Görsel → kaydırmalı galeri (tek görselde görüntüleyici).
   gallery,
 
-  /// Video/ses → uygulama içi oynatıcı.
+  /// Video → uygulama içi video oynatıcı.
   player,
+
+  /// Ses → müzik çalar (ayrı motor: ekran kapansa da çalar).
+  audio,
 
   /// APK/arşiv/bilinmeyen ikili → sistemin uygulaması.
   external,
@@ -50,7 +54,8 @@ abstract final class EntryOpener {
     final cat = FsEntry.categoryForExtension(_ext(path));
     return switch (cat) {
       FmCategory.image => OpenRoute.gallery,
-      FmCategory.video || FmCategory.audio => OpenRoute.player,
+      FmCategory.video => OpenRoute.player,
+      FmCategory.audio => OpenRoute.audio,
       FmCategory.document || FmCategory.other => OpenRoute.document,
       FmCategory.apk || FmCategory.archive || FmCategory.folder =>
         OpenRoute.external,
@@ -92,6 +97,12 @@ abstract final class EntryOpener {
     if (route == OpenRoute.player) {
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => MediaPlayerScreen(path: path, playlist: group),
+      ));
+      return;
+    }
+    if (route == OpenRoute.audio) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => AudioPlayerScreen(path: path, playlist: group),
       ));
       return;
     }

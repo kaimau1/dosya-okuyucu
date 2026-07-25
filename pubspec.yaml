@@ -94,6 +94,15 @@ dependencies:
   video_player: 2.10.1
   video_player_android: 2.8.15
 
+  # Ses çalar (müzik deneyimi): video_player ses dosyasını da açar ama ekrandan
+  # çıkınca durur ve tekrar/karışık gibi çalar işlevleri yoktur. audioplayers
+  # native MediaPlayer/ExoPlayer'ı doğrudan sürer → ekran kapansa da çalmaya
+  # devam eder ve manifest'e servis eklemek gerekmez.
+  # SÜRÜM SABİT: 6.6.0 + audioplayers_android 5.2.1, Flutter 3.29 uyumlu SON
+  # sürümler (6.7.0 / 5.3.0 flutter >=3.35 ister). pubspec.lock gitignore'da.
+  audioplayers: 6.6.0
+  audioplayers_android: 5.2.1
+
   # Yerleşik görüntüleyicimiz olmayan dosyaları (apk/rar dışı biçimler…) sistemin
   # varsayılan uygulamasında açar. 4.x: sdk >=2.17 <4.0 → CI Dart 3.7 uyumlu.
   # Kendi FileProvider'ını manifest'ine gömer, ek manifest düzenlemesi gerekmez.

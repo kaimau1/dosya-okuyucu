@@ -1,6 +1,7 @@
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/screens/fm/analysis_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/archive_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/audio_player_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/category_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/dashboard_screen.dart';
@@ -32,6 +33,7 @@ void main() {
       const CategoryScreen(title: 'Görüntüler', files: []),
       const AnalysisScreen(index: StorageIndex.empty, volumes: []),
       const MediaPlayerScreen(path: '/tmp/a.mp4'),
+      const AudioPlayerScreen(path: '/tmp/a.mp3'),
       const ImageGalleryScreen(paths: ['/tmp/a.jpg']),
       const DuplicatesScreen(roots: ['/tmp']),
     ];

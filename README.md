@@ -18,8 +18,10 @@ ve paylaşım özellikleriyle.
   arşiv içinde arama, tek dosya önizleme/çıkarma, parola korumalı ve çok parçalı
   (part2/r00/7z.002) arşivler; hepsi cihazda, saf Dart, internet yok
 - 🖼️ **Galeri:** görselleri sağa/sola kaydırarak gezme, yakınlaştırma, paylaş/sil
-- 🎬 **Video & ses oynatıcı:** uygulama içinde oynatma, çalma listesi (aynı klasör),
+- 🎬 **Video oynatıcı:** uygulama içinde oynatma, çalma listesi (aynı klasör),
   10 sn ileri/geri, hız (0.5–2x), tam ekran
+- 🎵 **Müzik çalar:** klasördeki sesleri sırayla çalar (tekrar, karışık, hız,
+  kaydırarak parça değiştirme); ekran kapansa da çalmaya devam eder
 - 📄 **Görüntüleme:** PDF, Word (.docx), Excel (.xlsx), Slayt (.pptx), metin ve görsel
 - ✏️ **Düzenleme:** Metin/Word içeriğini düzenleme ve kaydetme
 - 🔄 **Dönüştürme:** İçeriği PDF’e veya slayt destesine (PDF) çevirme
