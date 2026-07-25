@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/excel_format.dart';
+import '../../core/sheet_metrics.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../services/csv_codec.dart';
@@ -57,9 +58,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   static const double _rowHeaderW = 44;
   static const double _headerH = 24;
 
-  /// Sütunlar yatayda da sanallaştırılır (yalnız görünen pencere çizilir), bu
-  /// yüzden sınır yüksek tutulabilir.
-  static const int _maxCols = 512;
+  /// Excel'in kendi sınırı. Sütunlar yatayda sanallaştırıldığı ve ölçüler
+  /// önbelleklendiği için dosyanın kullanılan alanını KISALTMAYA gerek yok
+  /// (eski 512 sınırı 512. sütundan sonraki verileri gizliyordu).
+  static const int _maxCols = 16384;
+
+  /// Boş sayfa da Excel gibi ızgara görünsün diye en az bu kadar satır/sütun
+  /// çizilir (sanallaştırma sayesinde maliyeti yok).
+  static const int _minCols = 26;
+  static const int _minRows = 60;
 
 
   XlsxEditor? _editor;
@@ -89,7 +96,28 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Yatay sanallaştırma penceresi (görünen ilk/son sütun).
   int _firstCol = 0;
   int _lastCol = 0;
+
+  /// Kaydırılan bölgenin (sabit başlıklar/donmuş bölme HARİÇ) ölçüsü.
   double _viewportW = 400;
+  double _viewportH = 400;
+
+  /// Dosyadaki dondurulmuş bölme kullanıcı tarafından açık/kapalı.
+  bool _freeze = true;
+
+  /// Ekrana SIĞAN dondurulmuş satır/sütun sayısı — bölme pencereden genişse
+  /// kalanı kaydırılan bölgeye bırakılır (yoksa sağ taraf hiç görünmezdi).
+  int _frozenColsFit = 0;
+  int _frozenRowsFit = 0;
+  bool _paneTrimmed = false;
+  bool _paneNoticeShown = false;
+
+  /// Ölçü önbelleğini geçersiz kılan imza + önbellek.
+  String _metricsKey = '';
+  SheetAxisMetrics _colMetrics = SheetAxisMetrics.empty;
+  SheetAxisMetrics _rowMetrics = SheetAxisMetrics.empty;
+
+  /// Satır/sütun ekle-sil ve hücre yazma ölçüleri değiştirebilir.
+  int _gridVersion = 0;
 
   @override
   void initState() {
@@ -134,30 +162,56 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Görünen sütun penceresini yeniden hesaplar; DEĞİŞTİYSE yeniden çizer.
   /// (Her kaydırma pikselinde değil, sütun sınırı geçilince.)
   void _updateColWindow() {
-    final sheet = _sheet;
-    if (sheet == null) return;
-    final cols = _scrollCols(sheet);
+    if (_colMetrics.isEmpty) return;
     final offset = _hBody.hasClients ? _hBody.offset : 0.0;
-    var acc = 0.0;
-    var first = 0;
-    while (first < cols.length &&
-        acc + sheet.colWidth(cols[first]) * _zoom < offset) {
-      acc += sheet.colWidth(cols[first]) * _zoom;
-      first++;
-    }
-    var last = first;
-    var width = acc;
-    while (last < cols.length && width < offset + _viewportW) {
-      width += sheet.colWidth(cols[last]) * _zoom;
-      last++;
-    }
-    last = math.min(cols.length - 1, last + 1);
+    final first = _colMetrics.firstAt(offset);
+    final last = _colMetrics.lastAt(offset + _viewportW);
     if (first != _firstCol || last != _lastCol) {
       setState(() {
         _firstCol = first;
         _lastCol = last;
       });
     }
+  }
+
+  /// Seçili hücreyi görünür yapar (Hücreye git, Enter ile aşağı inme,
+  /// pencere dışında kalan seçim). Excel de seçimi kendine doğru kaydırır.
+  void _ensureVisible(int r, int c) {
+    if (_hBody.hasClients && !_colMetrics.isEmpty && _viewportW > 0) {
+      final i = _colMetrics.positionOf(c);
+      if (i >= 0) {
+        final start = _colMetrics.startAt(i);
+        final size = _colMetrics.sizeAt(i);
+        final off = _hBody.offset;
+        double? target;
+        if (start < off) {
+          target = start;
+        } else if (start + size > off + _viewportW) {
+          target = start + size - _viewportW;
+        }
+        if (target != null) {
+          _hBody.jumpTo(target.clamp(0.0, _hBody.position.maxScrollExtent));
+        }
+      }
+    }
+    if (_vBody.hasClients && !_rowMetrics.isEmpty && _viewportH > 0) {
+      final i = _rowMetrics.positionOf(r);
+      if (i >= 0) {
+        final start = _rowMetrics.startAt(i);
+        final size = _rowMetrics.sizeAt(i);
+        final off = _vBody.offset;
+        double? target;
+        if (start < off) {
+          target = start;
+        } else if (start + size > off + _viewportH) {
+          target = start + size - _viewportH;
+        }
+        if (target != null) {
+          _vBody.jumpTo(target.clamp(0.0, _vBody.position.maxScrollExtent));
+        }
+      }
+    }
+    _updateColWindow();
   }
 
   // ── yükleme ───────────────────────────────────────────────────────────────
@@ -207,41 +261,49 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   // ── satır/sütun listeleri ─────────────────────────────────────────────────
 
-  int _rowCount(XlsxSheet sheet) =>
-      math.max(sheet.rows.length, sheet.layout.rowCount);
+  int _rowCount(XlsxSheet sheet) => math.max(
+      math.max(sheet.rows.length, sheet.layout.rowCount), _minRows);
 
-  int _colCount(XlsxSheet sheet) => sheet.maxCols.clamp(1, _maxCols);
+  int _colCount(XlsxSheet sheet) =>
+      math.max(sheet.maxCols, _minCols).clamp(1, _maxCols);
 
-  /// Donmuş bölümden SONRAKİ (kaydırılan) satırlar — gizli satırlar atlanır.
-  List<int> _scrollRows(XlsxSheet sheet) {
-    final out = <int>[];
-    final total = _rowCount(sheet);
-    for (var r = sheet.frozenRows; r < total; r++) {
-      if (sheet.isRowHidden(r)) continue;
-      out.add(r);
-    }
-    return out;
-  }
+  /// Dosyadaki dondurulmuş satır/sütun sayısı (kullanıcı bölmeleri çözdüyse 0).
+  int _frozenColsWanted(XlsxSheet sheet) =>
+      _freeze ? math.min(sheet.frozenCols, _colCount(sheet)) : 0;
 
-  List<int> _scrollCols(XlsxSheet sheet) {
-    final out = <int>[];
-    final total = _colCount(sheet);
-    for (var c = sheet.frozenCols; c < total; c++) {
-      if (sheet.isColHidden(c)) continue;
-      out.add(c);
-    }
-    return out;
-  }
+  int _frozenRowsWanted(XlsxSheet sheet) =>
+      _freeze ? math.min(sheet.frozenRows, _rowCount(sheet)) : 0;
 
   List<int> _frozenRowList(XlsxSheet sheet) => [
-        for (var r = 0; r < sheet.frozenRows && r < _rowCount(sheet); r++)
+        for (var r = 0; r < _frozenRowsFit; r++)
           if (!sheet.isRowHidden(r)) r,
       ];
 
   List<int> _frozenColList(XlsxSheet sheet) => [
-        for (var c = 0; c < sheet.frozenCols && c < _colCount(sheet); c++)
+        for (var c = 0; c < _frozenColsFit; c++)
           if (!sheet.isColHidden(c)) c,
       ];
+
+  /// Kaydırılan bölgenin satır/sütun ölçüleri — imza değişmedikçe yeniden
+  /// hesaplanmaz (zoom, sayfa, bölme ya da yapı değişince yenilenir).
+  void _refreshMetrics(XlsxSheet sheet) {
+    final key = '${sheet.name}|$_zoom|$_frozenRowsFit|$_frozenColsFit|'
+        '${_rowCount(sheet)}|${_colCount(sheet)}|$_gridVersion';
+    if (key == _metricsKey) return;
+    _metricsKey = key;
+    _colMetrics = SheetAxisMetrics.build(
+      from: _frozenColsFit,
+      to: _colCount(sheet),
+      sizeOf: (c) => sheet.colWidth(c) * _zoom,
+      hidden: sheet.isColHidden,
+    );
+    _rowMetrics = SheetAxisMetrics.build(
+      from: _frozenRowsFit,
+      to: _rowCount(sheet),
+      sizeOf: (r) => sheet.rowHeight(r) * _zoom,
+      hidden: sheet.isRowHidden,
+    );
+  }
 
   // ── seçim / düzenleme ─────────────────────────────────────────────────────
 
@@ -273,6 +335,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       _anchorCol = c;
     });
     _syncField();
+    _ensureVisible(r, c);
   }
 
   bool _inSelection(int r, int c) {
@@ -307,6 +370,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     if (sheet == null || editor == null) return;
     editor.setCell(sheet.name, _selRow, _selCol, value);
     _dirty = true;
+    _gridVersion++; // yazma kullanılan alanı büyütebilir → ölçüler yenilenir
     setState(() {});
   }
 
@@ -322,6 +386,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       _anchorCol = _selCol;
     }
     _dirty = true;
+    _gridVersion++;
     setState(() {});
     _syncField();
   }
@@ -440,6 +505,26 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     }
   }
 
+  /// Etkin sayfada dosyadan gelen dondurulmuş bölme var mı?
+  bool get _sheetHasFreeze {
+    final sheet = _sheet;
+    return sheet != null && (sheet.frozenRows > 0 || sheet.frozenCols > 0);
+  }
+
+  /// Sabit satır/sütunları açıp kapatır. Telefonda sabit bölme ekranın
+  /// önemli bir kısmını yiyebiliyor; kullanıcı "sağ/sol ayrı oynamasın"
+  /// diyebilsin.
+  void _toggleFreeze() {
+    setState(() {
+      _freeze = !_freeze;
+      _firstCol = 0;
+      _lastCol = 0;
+    });
+    if (_hBody.hasClients) _hBody.jumpTo(0);
+    if (_vBody.hasClients) _vBody.jumpTo(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+  }
+
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -470,12 +555,23 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               TranslateFlow.run(context, widget.plainText, title: widget.name);
             }
             if (v == 'goto') _showGoTo();
+            if (v == 'freeze') _toggleFreeze();
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'goto', child: Text('Hücreye git…')),
-            PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
-            PopupMenuItem(value: 'csv', child: Text('CSV olarak dışa aktar')),
-            PopupMenuItem(value: 'translate', child: Text('Belgeyi çevir')),
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'goto', child: Text('Hücreye git…')),
+            if (_sheetHasFreeze)
+              PopupMenuItem(
+                value: 'freeze',
+                child: Text(_freeze
+                    ? 'Bölmeleri çöz (sabit satır/sütun)'
+                    : 'Bölmeleri dondur (dosyadaki gibi)'),
+              ),
+            const PopupMenuItem(
+                value: 'export', child: Text('Paylaş / Dışa aktar')),
+            const PopupMenuItem(
+                value: 'csv', child: Text('CSV olarak dışa aktar')),
+            const PopupMenuItem(
+                value: 'translate', child: Text('Belgeyi çevir')),
           ],
         ),
       ],
@@ -739,6 +835,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       final r2 = math.max(_anchorRow, _selRow);
       final c1 = math.min(_anchorCol, _selCol);
       final c2 = math.max(_anchorCol, _selCol);
+      final cellCount = (r2 - r1 + 1) * (c2 - c1 + 1);
+      // Çok büyük seçimde (tümünü seç) hücre hücre hesap ekranı dondurur;
+      // Excel de yalnız sayıyı gösterir.
+      if (cellCount > 200000) {
+        return _statusText('Seçili: $cellCount hücre', scheme);
+      }
       var sum = 0.0;
       var count = 0;
       var filled = 0;
@@ -753,24 +855,25 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           count++;
         }
       }
-      final cells = (r2 - r1 + 1) * (c2 - c1 + 1);
       text = count == 0
-          ? 'Seçili: $cells hücre  ·  Dolu: $filled'
+          ? 'Seçili: $cellCount hücre  ·  Dolu: $filled'
           : 'Ortalama: ${generalNumber(sum / count)}  ·  '
               'Sayı: $count  ·  Toplam: ${generalNumber(sum)}';
     }
-    return Container(
-      width: double.infinity,
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
-      ),
-    );
+    return _statusText(text, scheme);
   }
+
+  Widget _statusText(String text, ColorScheme scheme) => Container(
+        width: double.infinity,
+        color: scheme.surfaceContainerHigh,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+        ),
+      );
 
   Widget _sheetTabs(List<XlsxSheet> sheets) {
     return SingleChildScrollView(
@@ -844,6 +947,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   // ── ızgara ────────────────────────────────────────────────────────────────
 
+  /// Sabit (donmuş) bölgeye ayrılabilecek en büyük ölçü. Kaydırılan bölgeye
+  /// DAİMA yer bırakır — yoksa `Expanded` sıfır ölçü alır ve dosyanın sağ/alt
+  /// tarafı hiç görünmez (kullanıcının bildirdiği hata).
+  static double _paneBudget(double viewport, double headerSize) {
+    final body = math.max(72.0, math.min(viewport * 0.45, 280.0));
+    return math.max(0.0, viewport - headerSize - body);
+  }
+
   Widget _grid(ScrollPhysics? physics) {
     final sheet = _sheet;
     if (sheet == null) return const Center(child: Text('Sayfa yok.'));
@@ -856,155 +967,188 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       condCache: {},
     );
 
-    final scrollRows = _scrollRows(sheet);
-    final scrollCols = _scrollCols(sheet);
-    final frozenRows = _frozenRowList(sheet);
-    final frozenCols = _frozenColList(sheet);
-
-    final leftW = _rowHeaderW * _zoom +
-        frozenCols.fold<double>(0, (a, c) => a + sheet.colWidth(c) * _zoom);
-    final topH = _headerH * _zoom +
-        frozenRows.fold<double>(0, (a, r) => a + sheet.rowHeight(r) * _zoom);
-    final totalW =
-        scrollCols.fold<double>(0, (a, c) => a + sheet.colWidth(c) * _zoom);
-
-    // Görünen sütun penceresi (yatay sanallaştırma).
-    final maxIndex = math.max(0, scrollCols.length - 1);
-    final first = _firstCol.clamp(0, maxIndex).toInt();
-    final last = _lastCol.clamp(first, maxIndex).toInt();
-    final window = scrollCols.isEmpty
-        ? const <int>[]
-        : scrollCols.sublist(first, last + 1);
-    final padLeft = scrollCols
-        .take(first)
-        .fold<double>(0, (a, c) => a + sheet.colWidth(c) * _zoom);
-    final padRight = scrollCols
-        .skip(last + 1)
-        .fold<double>(0, (a, c) => a + sheet.colWidth(c) * _zoom);
-
     return LayoutBuilder(builder: (context, constraints) {
-      _viewportW = constraints.maxWidth;
-      return Column(
-        children: [
-          // ── üst şerit: köşe + sütun başlıkları + donmuş satırlar ──
-          SizedBox(
-            height: topH,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: leftW,
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: _headerH * _zoom,
-                        child: Row(
-                          children: [
-                            _cornerCell(),
-                            for (final c in frozenCols) _colHeader(sheet, c),
-                          ],
-                        ),
-                      ),
-                      for (final r in frozenRows)
+      final headerW = _rowHeaderW * _zoom;
+      final headerH = _headerH * _zoom;
+
+      // Dondurulmuş bölme ekrana sığdırılır; sığmayan satır/sütunlar
+      // kaydırılan bölgeye bırakılır (içerik erişilebilir kalır).
+      final wantCols = _frozenColsWanted(sheet);
+      final wantRows = _frozenRowsWanted(sheet);
+      _frozenColsFit = fitFrozen(
+        count: wantCols,
+        sizeOf: (c) => sheet.colWidth(c) * _zoom,
+        budget: _paneBudget(constraints.maxWidth, headerW),
+      );
+      _frozenRowsFit = fitFrozen(
+        count: wantRows,
+        sizeOf: (r) => sheet.rowHeight(r) * _zoom,
+        budget: _paneBudget(constraints.maxHeight, headerH),
+      );
+      _paneTrimmed = _frozenColsFit < wantCols || _frozenRowsFit < wantRows;
+      if (_paneTrimmed && !_paneNoticeShown) {
+        _paneNoticeShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _snack(
+            'Dosyadaki sabit bölme ekrana sığmadı; o sütunlar kaydırılabilir '
+            'yapıldı. ⋮ > Bölmeleri çöz ile tamamen kapatabilirsiniz.'));
+      }
+
+      _refreshMetrics(sheet);
+      final rows = _rowMetrics;
+      final cols = _colMetrics;
+      final frozenRows = _frozenRowList(sheet);
+      final frozenCols = _frozenColList(sheet);
+
+      final leftW = math.min(
+        headerW + frozenCols.fold<double>(0, (a, c) => a + sheet.colWidth(c) * _zoom),
+        math.max(headerW, constraints.maxWidth - 48),
+      );
+      final topH = headerH +
+          frozenRows.fold<double>(0, (a, r) => a + sheet.rowHeight(r) * _zoom);
+      _viewportW = math.max(0.0, constraints.maxWidth - leftW);
+      _viewportH = math.max(0.0, constraints.maxHeight - topH);
+
+      // Görünen sütun penceresi (yatay sanallaştırma).
+      final maxIndex = math.max(0, cols.length - 1);
+      final first = _firstCol.clamp(0, maxIndex).toInt();
+      final last = _lastCol.clamp(first, maxIndex).toInt();
+      final window = cols.isEmpty ? const <int>[] : cols.indices.sublist(first, last + 1);
+      final padLeft = cols.isEmpty ? 0.0 : cols.startAt(first);
+      final padRight = cols.isEmpty
+          ? 0.0
+          : cols.total - (cols.startAt(last) + cols.sizeAt(last));
+      final bottomInset = MediaQuery.of(context).padding.bottom;
+
+      return Scrollbar(
+        controller: _hBody,
+        scrollbarOrientation: ScrollbarOrientation.bottom,
+        notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+        child: Column(
+          children: [
+            // ── üst şerit: köşe + sütun başlıkları + donmuş satırlar ──
+            SizedBox(
+              height: topH,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: leftW,
+                    child: Column(
+                      children: [
                         SizedBox(
-                          height: sheet.rowHeight(r) * _zoom,
+                          height: headerH,
                           child: Row(
                             children: [
-                              _rowHeader(sheet, r),
-                              ..._rowCells(ctx, r, frozenCols),
+                              _cornerCell(),
+                              for (final c in frozenCols) _colHeader(sheet, c),
                             ],
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: _hTop,
-                    scrollDirection: Axis.horizontal,
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: SizedBox(
-                      width: totalW,
-                      child: Column(
-                        children: [
+                        for (final r in frozenRows)
                           SizedBox(
-                            height: _headerH * _zoom,
-                            child: Row(children: [
-                              SizedBox(width: padLeft),
-                              for (final c in window) _colHeader(sheet, c),
-                              SizedBox(width: padRight),
-                            ]),
+                            height: sheet.rowHeight(r) * _zoom,
+                            child: Row(
+                              children: [
+                                _rowHeader(sheet, r),
+                                ..._rowCells(ctx, r, frozenCols),
+                              ],
+                            ),
                           ),
-                          for (final r in frozenRows)
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _hTop,
+                      scrollDirection: Axis.horizontal,
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: SizedBox(
+                        width: cols.total,
+                        child: Column(
+                          children: [
                             SizedBox(
-                              height: sheet.rowHeight(r) * _zoom,
+                              height: headerH,
                               child: Row(children: [
                                 SizedBox(width: padLeft),
-                                ..._rowCells(ctx, r, window),
+                                for (final c in window) _colHeader(sheet, c),
                                 SizedBox(width: padRight),
                               ]),
                             ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // ── gövde: satır başlıkları + donmuş sütunlar + hücreler ──
-          Expanded(
-            child: Row(
-              children: [
-                SizedBox(
-                  width: leftW,
-                  child: ListView.builder(
-                    controller: _vLeft,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: scrollRows.length,
-                    itemExtentBuilder: (i, _) =>
-                        sheet.rowHeight(scrollRows[i]) * _zoom,
-                    itemBuilder: (_, i) {
-                      final r = scrollRows[i];
-                      return Row(children: [
-                        _rowHeader(sheet, r),
-                        ..._rowCells(ctx, r, frozenCols),
-                      ]);
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: _hBody,
-                    physics: physics,
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: totalW,
-                      child: _dragSelectArea(
-                        ListView.builder(
-                          controller: _vBody,
-                          physics: physics,
-                          padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).padding.bottom),
-                          itemCount: scrollRows.length,
-                          itemExtentBuilder: (i, _) =>
-                              sheet.rowHeight(scrollRows[i]) * _zoom,
-                          itemBuilder: (_, i) {
-                            final r = scrollRows[i];
-                            return Row(children: [
-                              SizedBox(width: padLeft),
-                              ..._rowCells(ctx, r, window),
-                              SizedBox(width: padRight),
-                            ]);
-                          },
+                            for (final r in frozenRows)
+                              SizedBox(
+                                height: sheet.rowHeight(r) * _zoom,
+                                child: Row(children: [
+                                  SizedBox(width: padLeft),
+                                  ..._rowCells(ctx, r, window),
+                                  SizedBox(width: padRight),
+                                ]),
+                              ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            // ── gövde: satır başlıkları + donmuş sütunlar + hücreler ──
+            Expanded(
+              child: Scrollbar(
+                controller: _vBody,
+                notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: leftW,
+                      child: ListView.builder(
+                        controller: _vLeft,
+                        physics: const NeverScrollableScrollPhysics(),
+                        // Alt boşluk İKİ listede de aynı olmalı; yoksa en altta
+                        // satır başlıkları hücrelerden kayıyor.
+                        padding: EdgeInsets.only(bottom: bottomInset),
+                        itemCount: rows.length,
+                        itemExtentBuilder: (i, _) => rows.sizeAt(i),
+                        itemBuilder: (_, i) {
+                          final r = rows.indices[i];
+                          return Row(children: [
+                            _rowHeader(sheet, r),
+                            ..._rowCells(ctx, r, frozenCols),
+                          ]);
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: _hBody,
+                        physics: physics,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: cols.total,
+                          child: _dragSelectArea(
+                            ListView.builder(
+                              controller: _vBody,
+                              physics: physics,
+                              padding: EdgeInsets.only(bottom: bottomInset),
+                              itemCount: rows.length,
+                              itemExtentBuilder: (i, _) => rows.sizeAt(i),
+                              itemBuilder: (_, i) {
+                                final r = rows.indices[i];
+                                return Row(children: [
+                                  SizedBox(width: padLeft),
+                                  ..._rowCells(ctx, r, window),
+                                  SizedBox(width: padRight),
+                                ]);
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     });
   }
@@ -1066,10 +1210,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       onTap: () {
         final sheet = _sheet;
         if (sheet == null) return;
+        // Seçim KULLANILAN alanla sınırlı: ızgara boş satır/sütunlarla
+        // doldurulmuş olsa da "tümünü seç" veri dışına taşmaz.
         setState(() {
           _anchorRow = 0;
           _anchorCol = 0;
-          _selRow = math.max(0, _rowCount(sheet) - 1);
+          _selRow = math.max(0, sheet.maxRows - 1);
           _selCol = math.max(0, sheet.maxCols - 1);
         });
       },
@@ -1095,7 +1241,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         setState(() {
           _anchorRow = 0;
           _anchorCol = c;
-          _selRow = math.max(0, _rowCount(sheet) - 1);
+          _selRow = math.max(0, sheet.maxRows - 1);
           _selCol = c;
         });
       },

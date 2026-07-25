@@ -127,4 +127,31 @@ void main() {
     expect(wb.theme[1], 0xFF000000);
     expect(wb.theme[4], 0xFF4472C4); // accent1
   });
+  group('paylaşılan formül (t="shared")', () {
+    test('göreli başvurular kaydırılarak açılır', () {
+      // Excel formül metnini yalnız ana hücreye yazar; takipçi hücrede
+      // sadece si vardır. Açmazsak o hücre "formülsüz" görünür.
+      final bytes = File('test/fixtures/wide_freeze.xlsx').readAsBytesSync();
+      final book = XlsxReader.read(Uint8List.fromList(bytes));
+      final sheet = book.sheets.firstWhere((s) => s.name == 'Genis');
+      expect(sheet.cellAt(3, 0)?.formula, 'A2*2'); // ana hücre A4
+      expect(sheet.cellAt(3, 1)?.formula, 'B2*2'); // B4: sütun +1 kaydı
+    });
+
+    test('shiftFormulaRefs Excel gibi kaydırır', () {
+      // Göreli kayar, $ ile sabitlenen kalır.
+      expect(XlsxReader.shiftFormulaRefs('A1+\$B\$2', 2, 1), 'B3+\$B\$2');
+      expect(XlsxReader.shiftFormulaRefs('SUM(A1:A5)', 1, 0), 'SUM(A2:A6)');
+      expect(XlsxReader.shiftFormulaRefs('\$A1*B\$2', 1, 1), '\$A2*C\$2');
+      // Fonksiyon adı, dize sabiti, sayı ve sayfa adı korunur.
+      expect(XlsxReader.shiftFormulaRefs('LOG10(A1)', 1, 0), 'LOG10(A2)');
+      expect(XlsxReader.shiftFormulaRefs('"A1"&A1', 1, 0), '"A1"&A2');
+      expect(XlsxReader.shiftFormulaRefs('2e5+A1', 1, 0), '2e5+A2');
+      expect(XlsxReader.shiftFormulaRefs("'Bir Ad'!A1", 0, 1), "'Bir Ad'!B1");
+      // Sayfa dışına kayan başvuru Excel'de #REF! olur.
+      expect(XlsxReader.shiftFormulaRefs('A1', -5, 0), '#REF!');
+      // Kayma yoksa metin hiç dokunulmaz.
+      expect(XlsxReader.shiftFormulaRefs('A1+B2', 0, 0), 'A1+B2');
+    });
+  });
 }

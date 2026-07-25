@@ -34,19 +34,29 @@ class FormulaEngine {
   String displayValue(int r, int c) {
     final raw = _rawAt(grid, r, c);
     if (raw.length < 2 || !raw.startsWith('=')) return raw;
-    return fmt(_evalGuarded(raw.substring(1), {_key(sheetName, r, c)}));
+    return fmt(_evalGuarded(raw.substring(1), {_key(sheetName, r, c)},
+        selfR: r, selfC: c));
   }
 
   /// Formül çubuğunda YAZILMAKTA olan formülün canlı önizlemesi.
   String preview(String formula, int selfR, int selfC) {
     if (formula.length < 2 || !formula.startsWith('=')) return '';
     return fmt(_evalGuarded(
-        formula.substring(1), {_key(sheetName, selfR, selfC)}));
+        formula.substring(1), {_key(sheetName, selfR, selfC)},
+        selfR: selfR, selfC: selfC));
   }
 
-  Object _evalGuarded(String src, Set<String> visiting) {
+  /// Bir hücrenin HAM metni (formül dahil) — `EFORMÜLSE`/`FORMÜLMETNİ` için.
+  String rawTextOf(int r, int c, [String? sheet]) {
+    final g = _gridFor(sheet);
+    if (g == null) return '';
+    return _rawAt(g, r, c);
+  }
+
+  Object _evalGuarded(String src, Set<String> visiting,
+      {int selfR = 0, int selfC = 0}) {
     try {
-      return _eval(src, visiting);
+      return _eval(src, visiting, selfR: selfR, selfC: selfC);
     } on _CycleError {
       return const FormulaError('#DÖNGÜ');
     } on FormulaError catch (e) {
@@ -95,7 +105,7 @@ class FormulaEngine {
     if (cached != null) return cached;
     Object value;
     try {
-      value = _eval(raw.substring(1), {...visiting, k});
+      value = _eval(raw.substring(1), {...visiting, k}, selfR: r, selfC: c);
     } on _CycleError {
       rethrow;
     } on FormulaError catch (e) {
@@ -124,11 +134,14 @@ class FormulaEngine {
         '#NULL!',
       ].contains(s.trim());
 
-  Object _eval(String src, Set<String> visiting) {
-    final p = _Parser(src, this, visiting);
+  Object _eval(String src, Set<String> visiting,
+      {int selfR = 0, int selfC = 0}) {
+    final p = _Parser(src, this, visiting, selfR: selfR, selfC: selfC);
     final v = p.parseExpr();
     p.expectEnd();
-    return v;
+    // Tek hücre referansı da aralık olarak taşınır (SATIR/SÜTUN/KAYDIR gibi
+    // fonksiyonlar referansın KENDİSİNİ ister) → burada değere indirilir.
+    return p.resolve(v);
   }
 
   // ── biçimleme ─────────────────────────────────────────────────────────────
@@ -224,9 +237,17 @@ class _Parser {
   final String s;
   final FormulaEngine eng;
   final Set<String> visiting;
+
+  /// Formülün BULUNDUĞU hücre — `SATIR()`/`SÜTUN()` argümansız çağrıldığında
+  /// Excel bunu döndürür.
+  final int selfR;
+  final int selfC;
   int _i = 0;
 
-  _Parser(this.s, this.eng, this.visiting);
+  _Parser(this.s, this.eng, this.visiting, {this.selfR = 0, this.selfC = 0});
+
+  /// Aralık/referans değerini tek değere indirir (dosya dışına açılan API).
+  Object resolve(Object v) => _single(v);
 
   void expectEnd() {
     _skip();
@@ -281,6 +302,11 @@ class _Parser {
     int cmp;
     if ((a is num || a is bool) && (b is num || b is bool)) {
       cmp = FormulaEngine.toNum(a).compareTo(FormulaEngine.toNum(b));
+    } else if (_asNumber(a) != null && _asNumber(b) != null) {
+      // Hücre değerleri modelde HAM METİN tutulur ('1234.5'), bu yüzden
+      // sayı taşıyan metinle sayı SAYISAL karşılaştırılır — yoksa
+      // `DÜŞEYARA(20; A:B; 2; 0)` gibi sayı aramaları hiç eşleşmiyordu.
+      cmp = _asNumber(a)!.compareTo(_asNumber(b)!);
     } else if (a is String && b is String) {
       // Excel metin karşılaştırması büyük/küçük harf duyarsızdır.
       cmp = a.toLowerCase().compareTo(b.toLowerCase());
@@ -302,6 +328,17 @@ class _Parser {
       '>=' => cmp >= 0,
       _ => throw const FormulaError('#DEĞER!'),
     };
+  }
+
+  /// Sayıya çevrilebiliyorsa değeri, değilse null (boş metin sayı DEĞİLDİR).
+  static double? _asNumber(Object v) {
+    if (v is num) return v.toDouble();
+    if (v is String) {
+      final t = v.trim();
+      if (t.isEmpty) return null;
+      return double.tryParse(t);
+    }
+    return null;
   }
 
   static int _rank(Object v) {
@@ -477,7 +514,7 @@ class _Parser {
       _skip();
     }
     if (_i < s.length) _i++; // kapanış }
-    return values.isEmpty ? '' : values.first;
+    return values.isEmpty ? '' : _single(values.first);
   }
 
   /// `'Sayfa Adı'!A1` biçimindeki referans.
@@ -578,7 +615,9 @@ class _Parser {
         sheet,
       );
     }
-    return eng.cellValue(first.$1, first.$2, visiting, sheet);
+    // Tek hücre de REFERANS olarak taşınır; değere ihtiyaç duyan her yol
+    // `_single` üzerinden geçiyor (bkz. FormulaEngine._eval).
+    return _RangeValue(first.$1, first.$2, first.$1, first.$2, sheet);
   }
 
   /// "A1"/"$A$1" → (satır, sütun) 0 tabanlı; değilse null.
@@ -1192,14 +1231,13 @@ class _Parser {
       case 'MATCH':
         return _matchFn(args);
       case 'ROW':
-        if (args.isEmpty || args.first is! _RangeValue) {
-          return const FormulaError('#DEĞER!');
-        }
+        // Argümansız: formülün kendi satırı (Excel davranışı).
+        if (_isEmptyArgs(args)) return (selfR + 1).toDouble();
+        if (args.first is! _RangeValue) return const FormulaError('#DEĞER!');
         return ((args.first as _RangeValue).r1 + 1).toDouble();
       case 'COLUMN':
-        if (args.isEmpty || args.first is! _RangeValue) {
-          return const FormulaError('#DEĞER!');
-        }
+        if (_isEmptyArgs(args)) return (selfC + 1).toDouble();
+        if (args.first is! _RangeValue) return const FormulaError('#DEĞER!');
         return ((args.first as _RangeValue).c1 + 1).toDouble();
       case 'ROWS':
         if (args.isEmpty || args.first is! _RangeValue) return 1.0;
@@ -1210,10 +1248,332 @@ class _Parser {
         final r = args.first as _RangeValue;
         return (r.c2 - r.c1 + 1).toDouble();
 
+      // ── başvuru (referans) fonksiyonları ───────────────────────────────
+      case 'OFFSET':
+        return _offset(args);
+      case 'INDIRECT':
+        return _indirect(args);
+      case 'ADDRESS':
+        final row = _numArg(args, 0).round();
+        final col = _numArg(args, 1).round();
+        if (row < 1 || col < 1) return const FormulaError('#DEĞER!');
+        final abs = args.length > 2 ? _numArg(args, 2, 1).round() : 1;
+        final letters = _colName(col - 1);
+        final colPart = (abs == 1 || abs == 3) ? '\$$letters' : letters;
+        final rowPart = (abs == 1 || abs == 2) ? '\$$row' : '$row';
+        final sheetPart = args.length > 4 ? _strArg(args, 4) : '';
+        final prefix = sheetPart.isEmpty ? '' : "'$sheetPart'!";
+        return '$prefix$colPart$rowPart';
+      case 'LOOKUP':
+        return _lookupVector(args);
+      case 'XLOOKUP':
+        return _xlookup(args);
+      case 'FORMULATEXT':
+        if (args.isEmpty || args.first is! _RangeValue) {
+          return const FormulaError('#DEĞER!');
+        }
+        final ref = args.first as _RangeValue;
+        final raw = eng.rawTextOf(ref.r1, ref.c1, ref.sheet);
+        return raw.startsWith('=') ? raw : const FormulaError('#YOK');
+      case 'ISFORMULA':
+        if (args.isEmpty || args.first is! _RangeValue) return false;
+        final ref = args.first as _RangeValue;
+        return eng.rawTextOf(ref.r1, ref.c1, ref.sheet).startsWith('=');
+      case 'ISREF':
+        return args.isNotEmpty && args.first is _RangeValue;
+      case 'ISEVEN':
+      case 'ISODD':
+        final v = FormulaEngine.toNum(_arg(args, 0)).truncate();
+        return name == 'ISEVEN' ? v.isEven : v.isOdd;
+      case 'ERROR.TYPE':
+        final v = _safe(() => _arg(args, 0));
+        if (v is! FormulaError) return const FormulaError('#YOK');
+        return switch (v.code) {
+          '#BOŞ!' || '#NULL!' => 1.0,
+          '#SAYI/0!' || '#DIV/0!' => 2.0,
+          '#DEĞER!' || '#VALUE!' => 3.0,
+          '#BAŞV!' || '#REF!' => 4.0,
+          '#AD?' || '#NAME?' => 5.0,
+          '#SAYI!' || '#NUM!' => 6.0,
+          _ => 7.0,
+        };
+
+      // ── matematik (ek) ─────────────────────────────────────────────────
+      case 'MROUND':
+        final x = _numArg(args, 0);
+        final m = _numArg(args, 1);
+        if (m == 0) return 0.0;
+        if (x != 0 && (x < 0) != (m < 0)) return const FormulaError('#SAYI!');
+        final q = x / m;
+        // Excel yarımı SIFIRDAN UZAĞA yuvarlar (Dart round() da öyle).
+        return q.round() * m;
+      case 'CEILING.MATH':
+      case 'FLOOR.MATH':
+        final x = _numArg(args, 0);
+        var sig = args.length > 1 ? _numArg(args, 1, 1) : 1.0;
+        if (sig == 0) return 0.0;
+        sig = sig.abs();
+        final awayFromZero = args.length > 2 && _numArg(args, 2) != 0;
+        final up = name == 'CEILING.MATH';
+        final q = x / sig;
+        double r;
+        if (x < 0 && awayFromZero) {
+          r = up ? q.truncateToDouble() : q.floorToDouble();
+          if (up && r != q) r = q.truncateToDouble();
+        } else {
+          r = up ? q.ceilToDouble() : q.floorToDouble();
+        }
+        return r * sig;
+      case 'COMBIN':
+      case 'PERMUT':
+        final n = _numArg(args, 0).truncate();
+        final k = _numArg(args, 1).truncate();
+        if (n < 0 || k < 0 || k > n) return const FormulaError('#SAYI!');
+        var p = 1.0;
+        for (var i = 0; i < k; i++) {
+          p *= n - i;
+        }
+        if (name == 'PERMUT') return p;
+        var f = 1.0;
+        for (var i = 2; i <= k; i++) {
+          f *= i;
+        }
+        return (p / f).roundToDouble();
+      case 'SINH':
+        final x = _numArg(args, 0);
+        return (math.exp(x) - math.exp(-x)) / 2;
+      case 'COSH':
+        final x = _numArg(args, 0);
+        return (math.exp(x) + math.exp(-x)) / 2;
+      case 'TANH':
+        final x = _numArg(args, 0);
+        final e2 = math.exp(2 * x);
+        return (e2 - 1) / (e2 + 1);
+
+      // ── istatistik (ek) ────────────────────────────────────────────────
+      case 'AVERAGEA':
+      case 'MAXA':
+      case 'MINA':
+        final n = _numbersA(args);
+        if (n.isEmpty) {
+          return name == 'AVERAGEA'
+              ? const FormulaError('#SAYI/0!')
+              : 0.0;
+        }
+        return switch (name) {
+          'AVERAGEA' => n.reduce((a, b) => a + b) / n.length,
+          'MAXA' => n.reduce(math.max),
+          _ => n.reduce(math.min),
+        };
+      case 'GEOMEAN':
+        final n = _numbers(args);
+        if (n.isEmpty || n.any((v) => v <= 0)) {
+          return const FormulaError('#SAYI!');
+        }
+        var logSum = 0.0;
+        for (final v in n) {
+          logSum += math.log(v);
+        }
+        return math.exp(logSum / n.length);
+      case 'HARMEAN':
+        final n = _numbers(args);
+        if (n.isEmpty || n.any((v) => v <= 0)) {
+          return const FormulaError('#SAYI!');
+        }
+        var inv = 0.0;
+        for (final v in n) {
+          inv += 1 / v;
+        }
+        return n.length / inv;
+      case 'AVEDEV':
+      case 'DEVSQ':
+        final n = _numbers(args);
+        if (n.isEmpty) return const FormulaError('#SAYI/0!');
+        final mean = n.reduce((a, b) => a + b) / n.length;
+        if (name == 'DEVSQ') {
+          return n.fold<double>(0, (a, b) => a + (b - mean) * (b - mean));
+        }
+        return n.fold<double>(0, (a, b) => a + (b - mean).abs()) / n.length;
+      case 'PERCENTILE':
+      case 'QUARTILE':
+        if (args.length < 2) return const FormulaError('#DEĞER!');
+        final n = _numbers([args.first])..sort();
+        if (n.isEmpty) return const FormulaError('#SAYI!');
+        final k = name == 'QUARTILE'
+            ? _numArg(args, 1).round() / 4.0
+            : _numArg(args, 1);
+        if (k < 0 || k > 1) return const FormulaError('#SAYI!');
+        return _percentile(n, k);
+      case 'PERCENTRANK':
+        if (args.length < 2) return const FormulaError('#DEĞER!');
+        final n = _numbers([args.first])..sort();
+        if (n.isEmpty) return const FormulaError('#SAYI!');
+        final x = _numArg(args, 1);
+        if (x < n.first || x > n.last) return const FormulaError('#SAYI!');
+        var below = 0;
+        for (final v in n) {
+          if (v < x) below++;
+        }
+        var equal = 0;
+        for (final v in n) {
+          if (v == x) equal++;
+        }
+        final rank = equal > 0
+            ? below / (n.length - 1)
+            : _interpolatedRank(n, x);
+        final digits = args.length > 2 ? _numArg(args, 2, 3).round() : 3;
+        return _round(rank, digits);
+
+      // ── metin (ek) ─────────────────────────────────────────────────────
+      case 'TEXTBEFORE':
+      case 'TEXTAFTER':
+        final text = _strArg(args, 0);
+        final delim = _strArg(args, 1);
+        if (delim.isEmpty) return text;
+        final instance = args.length > 2 ? _numArg(args, 2, 1).round() : 1;
+        final idx = _nthIndex(text, delim, instance);
+        if (idx < 0) return const FormulaError('#YOK');
+        return name == 'TEXTBEFORE'
+            ? text.substring(0, idx)
+            : text.substring(idx + delim.length);
+      case 'NUMBERVALUE':
+        final text = _strArg(args, 0);
+        final dec = args.length > 1 ? _strArg(args, 1) : ',';
+        final group = args.length > 2 ? _strArg(args, 2) : '.';
+        var t = text.trim();
+        if (group.isNotEmpty) t = t.replaceAll(group, '');
+        if (dec.isNotEmpty) t = t.replaceAll(dec, '.');
+        // Yüzde işareti sonda (Excel) ya da başta (Türkçe yazım: %15).
+        var percents = 0;
+        final trailing = RegExp(r'%+$').firstMatch(t);
+        if (trailing != null) {
+          percents += trailing.group(0)!.length;
+          t = t.substring(0, trailing.start);
+        }
+        final leading = RegExp(r'^%+').firstMatch(t);
+        if (leading != null) {
+          percents += leading.group(0)!.length;
+          t = t.substring(leading.end);
+        }
+        final d = double.tryParse(t.trim());
+        if (d == null) return const FormulaError('#DEĞER!');
+        return percents == 0 ? d : d / math.pow(100, percents);
+      case 'FIXED':
+        final v = _numArg(args, 0);
+        final digits = args.length > 1 ? _numArg(args, 1, 2).round() : 2;
+        final noCommas = args.length > 2 && _numArg(args, 2) != 0;
+        final code = noCommas
+            ? (digits > 0 ? '0.${'0' * digits}' : '0')
+            : (digits > 0 ? '#,##0.${'0' * digits}' : '#,##0');
+        return ExcelNumberFormat.parse(code).format(v).text;
+      case 'UNICHAR':
+        final code = _numArg(args, 0).round();
+        if (code < 1) return const FormulaError('#DEĞER!');
+        return String.fromCharCode(code);
+      case 'UNICODE':
+        final t = _strArg(args, 0);
+        if (t.isEmpty) return const FormulaError('#DEĞER!');
+        return t.runes.first.toDouble();
+
+      // ── tarih (ek) ─────────────────────────────────────────────────────
+      case 'WEEKNUM':
+        final dt = excelSerialToDate(_numArg(args, 0));
+        final type = args.length > 1 ? _numArg(args, 1, 1).round() : 1;
+        final startsMonday = type == 2 || type == 11 || type == 21;
+        final jan1 = DateTime.utc(dt.year, 1, 1);
+        // Yılın ilk gününün hafta içindeki sırası (0 = haftanın ilk günü).
+        final offset = startsMonday
+            ? (jan1.weekday - 1)
+            : (jan1.weekday % 7);
+        final dayOfYear = dt.difference(jan1).inDays;
+        return ((dayOfYear + offset) / 7).floor() + 1.0;
+      case 'ISOWEEKNUM':
+        final dt = excelSerialToDate(_numArg(args, 0));
+        final thursday = dt.add(Duration(days: 4 - dt.weekday));
+        final jan1 = DateTime.utc(thursday.year, 1, 1);
+        return (thursday.difference(jan1).inDays / 7).floor() + 1.0;
+      case 'NETWORKDAYS':
+        final a = excelSerialToDate(_numArg(args, 0));
+        final b = excelSerialToDate(_numArg(args, 1));
+        final holidays = _holidaySet(args, 2);
+        final forward = !b.isBefore(a);
+        final from = forward ? a : b;
+        final to = forward ? b : a;
+        var count = 0;
+        for (var d = from;
+            !d.isAfter(to);
+            d = d.add(const Duration(days: 1))) {
+          if (d.weekday == DateTime.saturday ||
+              d.weekday == DateTime.sunday) {
+            continue;
+          }
+          if (holidays.contains(_dayKey(d))) continue;
+          count++;
+        }
+        return (forward ? count : -count).toDouble();
+      case 'WORKDAY':
+        var d = excelSerialToDate(_numArg(args, 0));
+        var left = _numArg(args, 1).round();
+        final holidays = _holidaySet(args, 2);
+        final step = left >= 0 ? 1 : -1;
+        left = left.abs();
+        while (left > 0) {
+          d = d.add(Duration(days: step));
+          if (d.weekday == DateTime.saturday ||
+              d.weekday == DateTime.sunday) {
+            continue;
+          }
+          if (holidays.contains(_dayKey(d))) continue;
+          left--;
+        }
+        return dateToExcelSerial(d);
+      case 'DATEVALUE':
+        final serial = _parseDateText(_strArg(args, 0));
+        return serial ?? const FormulaError('#DEĞER!');
+      case 'TIMEVALUE':
+        final frac = _parseTimeText(_strArg(args, 0));
+        return frac ?? const FormulaError('#DEĞER!');
+      case 'YEARFRAC':
+        return _yearFrac(
+          excelSerialToDate(_numArg(args, 0)),
+          excelSerialToDate(_numArg(args, 1)),
+          args.length > 2 ? _numArg(args, 2).round() : 0,
+        );
+
+      // ── finans (kredi/taksit tabloları) ────────────────────────────────
+      case 'PMT':
+      case 'PV':
+      case 'FV':
+      case 'NPER':
+      case 'RATE':
+      case 'IPMT':
+      case 'PPMT':
+        return _financial(name, args);
+      case 'NPV':
+        final rate = _numArg(args, 0);
+        final flows = _numbers(args.sublist(1));
+        var npv = 0.0;
+        for (var i = 0; i < flows.length; i++) {
+          npv += flows[i] / math.pow(1 + rate, i + 1);
+        }
+        return npv;
+      case 'IRR':
+        final flows = _numbers([args.first]);
+        if (flows.length < 2) return const FormulaError('#SAYI!');
+        return _irr(flows, args.length > 1 ? _numArg(args, 1, 0.1) : 0.1);
+      case 'SLN':
+        final life = _numArg(args, 2);
+        if (life == 0) return const FormulaError('#SAYI/0!');
+        return (_numArg(args, 0) - _numArg(args, 1)) / life;
+
       default:
         return const FormulaError('#AD?'); // bilinmeyen fonksiyon
     }
   }
+
+  static bool _isEmptyArgs(List<Object> args) =>
+      args.isEmpty ||
+      (args.length == 1 && args.first is String && (args.first as String).isEmpty);
 
   Object _safe(Object Function() body) {
     try {
@@ -1516,6 +1876,454 @@ class _Parser {
     return (best + 1).toDouble();
   }
 
+  // ── başvuru fonksiyonları ────────────────────────────────────────────────
+
+  /// Argüman verilmiş mi? (`_parseArgs` atlanan argümanı boş dize yapar.)
+  bool _given(List<Object> args, int i) =>
+      i < args.length && !(args[i] is String && (args[i] as String).isEmpty);
+
+  /// Sütun numarası → "A", "AB" (yalnız bu dosya için; ekran tarafındaki
+  /// `XlsxRange.colName` ile aynı kural).
+  static String _colName(int index) {
+    var i = index;
+    final sb = StringBuffer();
+    while (i >= 0) {
+      sb.write(String.fromCharCode(65 + (i % 26)));
+      i = i ~/ 26 - 1;
+    }
+    return String.fromCharCodes(sb.toString().codeUnits.reversed);
+  }
+
+  Object _offset(List<Object> args) {
+    if (args.isEmpty || args.first is! _RangeValue) {
+      return const FormulaError('#DEĞER!');
+    }
+    final ref = args.first as _RangeValue;
+    final dr = _numArg(args, 1).round();
+    final dc = _numArg(args, 2).round();
+    final h = _given(args, 3) ? _numArg(args, 3).round() : ref.r2 - ref.r1 + 1;
+    final w = _given(args, 4) ? _numArg(args, 4).round() : ref.c2 - ref.c1 + 1;
+    if (h <= 0 || w <= 0) return const FormulaError('#BAŞV!');
+    final r1 = ref.r1 + dr;
+    final c1 = ref.c1 + dc;
+    if (r1 < 0 || c1 < 0) return const FormulaError('#BAŞV!');
+    return _RangeValue(r1, c1, r1 + h - 1, c1 + w - 1, ref.sheet);
+  }
+
+  Object _indirect(List<Object> args) {
+    var body = _strArg(args, 0).trim();
+    if (body.isEmpty) return const FormulaError('#BAŞV!');
+    String? sheet;
+    final bang = body.lastIndexOf('!');
+    if (bang > 0) {
+      sheet = body.substring(0, bang).replaceAll("'", '');
+      body = body.substring(bang + 1);
+    }
+    final parts = body.split(':');
+    final a = _parseRef(parts.first.trim());
+    if (a == null) return const FormulaError('#BAŞV!');
+    if (parts.length == 1) {
+      return _RangeValue(a.$1, a.$2, a.$1, a.$2, sheet);
+    }
+    final b = _parseRef(parts[1].trim());
+    if (b == null) return const FormulaError('#BAŞV!');
+    return _RangeValue(
+      math.min(a.$1, b.$1),
+      math.min(a.$2, b.$2),
+      math.max(a.$1, b.$1),
+      math.max(a.$2, b.$2),
+      sheet,
+    );
+  }
+
+  bool _compareSafe(String op, Object a, Object b) {
+    try {
+      return _compare(op, a, b);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// `ARA` (LOOKUP) — vektör ve dizi biçimi. Sıralı veride son "küçük eşit".
+  Object _lookupVector(List<Object> args) {
+    if (args.length < 2 || args[1] is! _RangeValue) {
+      return const FormulaError('#DEĞER!');
+    }
+    final needle = _single(args[0]);
+    final v = args[1] as _RangeValue;
+    final wide = (v.c2 - v.c1) >= (v.r2 - v.r1);
+    final vector = v.r1 == v.r2 || v.c1 == v.c2;
+    final n = wide ? v.c2 - v.c1 : v.r2 - v.r1;
+
+    int? best;
+    for (var i = 0; i <= n; i++) {
+      final val = eng.cellValue(wide ? v.r1 : v.r1 + i,
+          wide ? v.c1 + i : v.c1, visiting, v.sheet);
+      if (val is String && val.trim().isEmpty) continue;
+      if (_compareSafe('<=', val, needle)) best = i;
+    }
+    if (best == null) return const FormulaError('#YOK');
+
+    if (_given(args, 2) && args[2] is _RangeValue) {
+      final res = args[2] as _RangeValue;
+      final rWide = (res.c2 - res.c1) >= (res.r2 - res.r1);
+      final r = rWide ? res.r1 : res.r1 + best;
+      final c = rWide ? res.c1 + best : res.c1;
+      if (r > res.r2 || c > res.c2) return const FormulaError('#BAŞV!');
+      return eng.cellValue(r, c, visiting, res.sheet);
+    }
+    // Dizi biçimi: son satır/sütundan döner.
+    final r = vector ? (wide ? v.r1 : v.r1 + best) : (wide ? v.r2 : v.r1 + best);
+    final c = vector ? (wide ? v.c1 + best : v.c1) : (wide ? v.c1 + best : v.c2);
+    return eng.cellValue(r, c, visiting, v.sheet);
+  }
+
+  /// `ÇAPRAZARA` (XLOOKUP) — eşleşme kipleri: 0 tam, -1 sonraki küçük,
+  /// 1 sonraki büyük, 2 joker.
+  Object _xlookup(List<Object> args) {
+    if (args.length < 3 || args[1] is! _RangeValue || args[2] is! _RangeValue) {
+      return const FormulaError('#DEĞER!');
+    }
+    final needle = _single(args[0]);
+    final lr = args[1] as _RangeValue;
+    final rr = args[2] as _RangeValue;
+    final mode = _given(args, 4) ? _numArg(args, 4).round() : 0;
+    final wide = (lr.c2 - lr.c1) > (lr.r2 - lr.r1);
+    final n = wide ? lr.c2 - lr.c1 : lr.r2 - lr.r1;
+
+    int? hit;
+    double? bestDelta;
+    for (var i = 0; i <= n; i++) {
+      final val = eng.cellValue(wide ? lr.r1 : lr.r1 + i,
+          wide ? lr.c1 + i : lr.c1, visiting, lr.sheet);
+      if (mode == 2) {
+        if (_wildcardMatch(
+            FormulaEngine.toStr(val), FormulaEngine.toStr(needle))) {
+          hit = i;
+          break;
+        }
+        continue;
+      }
+      if (_compareSafe('=', val, needle)) {
+        hit = i;
+        break;
+      }
+      if (mode == -1 || mode == 1) {
+        final a = double.tryParse(FormulaEngine.toStr(val));
+        final b = double.tryParse(FormulaEngine.toStr(needle));
+        if (a == null || b == null) continue;
+        final delta = mode == -1 ? b - a : a - b;
+        if (delta > 0 && (bestDelta == null || delta < bestDelta)) {
+          bestDelta = delta;
+          hit = i;
+        }
+      }
+    }
+    if (hit == null) {
+      return _given(args, 3) ? _arg(args, 3) : const FormulaError('#YOK');
+    }
+    final rWide = (rr.c2 - rr.c1) > (rr.r2 - rr.r1);
+    final r = rWide ? rr.r1 : rr.r1 + hit;
+    final c = rWide ? rr.c1 + hit : rr.c1;
+    if (r > rr.r2 || c > rr.c2) return const FormulaError('#BAŞV!');
+    return eng.cellValue(r, c, visiting, rr.sheet);
+  }
+
+  // ── istatistik / metin yardımcıları ──────────────────────────────────────
+
+  /// `*A` ailesi: metin 0, mantıksal 1/0 sayılır (boş hücre atlanır).
+  List<double> _numbersA(List<Object> args) {
+    final out = <double>[];
+    for (final v in _flatten(args)) {
+      if (v is FormulaError) throw v;
+      if (v is num) {
+        out.add(v.toDouble());
+      } else if (v is bool) {
+        out.add(v ? 1 : 0);
+      } else if (v is String) {
+        if (v.trim().isEmpty) continue;
+        out.add(double.tryParse(v.trim()) ?? 0);
+      }
+    }
+    return out;
+  }
+
+  static double _percentile(List<double> sorted, double k) {
+    if (sorted.length == 1) return sorted.first;
+    final pos = k * (sorted.length - 1);
+    final lower = pos.floor();
+    final frac = pos - lower;
+    if (lower + 1 >= sorted.length) return sorted.last;
+    return sorted[lower] + frac * (sorted[lower + 1] - sorted[lower]);
+  }
+
+  static double _interpolatedRank(List<double> sorted, double x) {
+    for (var i = 0; i + 1 < sorted.length; i++) {
+      if (x > sorted[i] && x < sorted[i + 1]) {
+        final span = sorted[i + 1] - sorted[i];
+        final frac = span == 0 ? 0.0 : (x - sorted[i]) / span;
+        return (i + frac) / (sorted.length - 1);
+      }
+    }
+    return 0;
+  }
+
+  /// [instance]. geçtiği yerin dizini; negatifse sondan sayar.
+  static int _nthIndex(String text, String delim, int instance) {
+    if (instance == 0) return -1;
+    if (instance > 0) {
+      var from = 0;
+      for (var k = 0; k < instance; k++) {
+        final idx = text.indexOf(delim, from);
+        if (idx < 0) return -1;
+        if (k == instance - 1) return idx;
+        from = idx + delim.length;
+      }
+      return -1;
+    }
+    var from = text.length;
+    for (var k = 0; k < -instance; k++) {
+      final idx = text.lastIndexOf(delim, from - 1);
+      if (idx < 0) return -1;
+      if (k == -instance - 1) return idx;
+      from = idx;
+    }
+    return -1;
+  }
+
+  // ── tarih yardımcıları ───────────────────────────────────────────────────
+
+  static int _dayKey(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
+
+  Set<int> _holidaySet(List<Object> args, int index) {
+    if (!_given(args, index)) return const {};
+    final out = <int>{};
+    for (final v in _rangeValues(args[index])) {
+      final d = v is num ? v.toDouble() : double.tryParse(v.toString());
+      if (d == null) continue;
+      out.add(_dayKey(excelSerialToDate(d)));
+    }
+    return out;
+  }
+
+  /// "12.03.2026", "2026-03-12", "12/03/2026" → Excel seri numarası.
+  static double? _parseDateText(String text) {
+    final t = text.trim();
+    final iso = RegExp(r'^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$').firstMatch(t);
+    if (iso != null) {
+      return dateToExcelSerial(DateTime.utc(int.parse(iso.group(1)!),
+          int.parse(iso.group(2)!), int.parse(iso.group(3)!)));
+    }
+    final dmy =
+        RegExp(r'^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$').firstMatch(t);
+    if (dmy != null) {
+      var year = int.parse(dmy.group(3)!);
+      if (year < 100) year += year < 30 ? 2000 : 1900;
+      return dateToExcelSerial(DateTime.utc(
+          year, int.parse(dmy.group(2)!), int.parse(dmy.group(1)!)));
+    }
+    return null;
+  }
+
+  /// "14:30", "14:30:05" → günün kesri.
+  static double? _parseTimeText(String text) {
+    final m = RegExp(r'^(\d{1,2}):(\d{1,2})(?::(\d{1,2}(?:[.,]\d+)?))?$')
+        .firstMatch(text.trim());
+    if (m == null) return null;
+    final h = int.parse(m.group(1)!);
+    final min = int.parse(m.group(2)!);
+    final sec = double.tryParse((m.group(3) ?? '0').replaceAll(',', '.')) ?? 0;
+    return (h * 3600 + min * 60 + sec) / 86400.0;
+  }
+
+  /// YILORAN — 0/4: 30/360, 1: gerçek/gerçek, 2: gerçek/360, 3: gerçek/365.
+  static Object _yearFrac(DateTime a, DateTime b, int basis) {
+    final start = a.isAfter(b) ? b : a;
+    final end = a.isAfter(b) ? a : b;
+    switch (basis) {
+      case 1:
+        final days = end.difference(start).inDays;
+        final years = end.year - start.year + 1;
+        var totalDays = 0;
+        for (var y = start.year; y <= end.year; y++) {
+          totalDays += _isLeap(y) ? 366 : 365;
+        }
+        return days / (totalDays / years);
+      case 2:
+        return end.difference(start).inDays / 360.0;
+      case 3:
+        return end.difference(start).inDays / 365.0;
+      case 4:
+        final d1 = math.min(start.day, 30);
+        final d2 = math.min(end.day, 30);
+        return (360 * (end.year - start.year) +
+                30 * (end.month - start.month) +
+                (d2 - d1)) /
+            360.0;
+      default:
+        // ABD 30/360: ayın son günleri 30'a çekilir.
+        var d1 = start.day;
+        var d2 = end.day;
+        if (d1 == 31) d1 = 30;
+        if (d2 == 31 && d1 >= 30) d2 = 30;
+        return (360 * (end.year - start.year) +
+                30 * (end.month - start.month) +
+                (d2 - d1)) /
+            360.0;
+    }
+  }
+
+  static bool _isLeap(int y) => (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+
+  // ── finans ───────────────────────────────────────────────────────────────
+
+  /// PMT/PV/FV/NPER/RATE/IPMT/PPMT — Excel'in para akışı işaret kuralıyla
+  /// (ödeme negatif, alınan tutar pozitif).
+  Object _financial(String name, List<Object> args) {
+    switch (name) {
+      case 'PMT':
+        return _pmtRaw(_numArg(args, 0), _numArg(args, 1), _numArg(args, 2),
+            _given(args, 3) ? _numArg(args, 3) : 0,
+            _given(args, 4) ? _numArg(args, 4) : 0);
+      case 'FV':
+        return _fvRaw(_numArg(args, 0), _numArg(args, 1), _numArg(args, 2),
+            _given(args, 3) ? _numArg(args, 3) : 0,
+            _given(args, 4) ? _numArg(args, 4) : 0);
+      case 'PV':
+        final rate = _numArg(args, 0);
+        final n = _numArg(args, 1);
+        final pmt = _numArg(args, 2);
+        final fv = _given(args, 3) ? _numArg(args, 3) : 0.0;
+        final type = _given(args, 4) ? _numArg(args, 4) : 0.0;
+        if (rate == 0) return -(fv + pmt * n);
+        final p = math.pow(1 + rate, n).toDouble();
+        return -(fv + pmt * (1 + rate * type) * (p - 1) / rate) / p;
+      case 'NPER':
+        final rate = _numArg(args, 0);
+        final pmt = _numArg(args, 1);
+        final pv = _numArg(args, 2);
+        final fv = _given(args, 3) ? _numArg(args, 3) : 0.0;
+        final type = _given(args, 4) ? _numArg(args, 4) : 0.0;
+        if (rate == 0) {
+          if (pmt == 0) return const FormulaError('#SAYI!');
+          return -(pv + fv) / pmt;
+        }
+        final adj = pmt * (1 + rate * type);
+        final num = adj - fv * rate;
+        final den = pv * rate + adj;
+        if (den == 0 || num / den <= 0) return const FormulaError('#SAYI!');
+        return math.log(num / den) / math.log(1 + rate);
+      case 'RATE':
+        return _rateSolve(
+          _numArg(args, 0),
+          _numArg(args, 1),
+          _numArg(args, 2),
+          _given(args, 3) ? _numArg(args, 3) : 0,
+          _given(args, 4) ? _numArg(args, 4) : 0,
+          _given(args, 5) ? _numArg(args, 5) : 0.1,
+        );
+      default: // IPMT / PPMT
+        final rate = _numArg(args, 0);
+        final per = _numArg(args, 1);
+        final nper = _numArg(args, 2);
+        final pv = _numArg(args, 3);
+        final fv = _given(args, 4) ? _numArg(args, 4) : 0.0;
+        final type = _given(args, 5) ? _numArg(args, 5) : 0.0;
+        if (per < 1 || per > nper) return const FormulaError('#SAYI!');
+        final pmt = _pmtRaw(rate, nper, pv, fv, type);
+        double ipmt;
+        if (per == 1) {
+          ipmt = type == 1 ? 0 : -pv * rate;
+        } else if (type == 1) {
+          ipmt = (_fvRaw(rate, per - 2, pmt, pv, 1) - pmt) * rate;
+        } else {
+          ipmt = _fvRaw(rate, per - 1, pmt, pv, 0) * rate;
+        }
+        return name == 'IPMT' ? ipmt : pmt - ipmt;
+    }
+  }
+
+  static double _pmtRaw(
+      double rate, double nper, double pv, double fv, double type) {
+    if (nper == 0) return double.nan;
+    if (rate == 0) return -(pv + fv) / nper;
+    final p = math.pow(1 + rate, nper).toDouble();
+    return -(pv * p + fv) * rate / ((1 + rate * type) * (p - 1));
+  }
+
+  static double _fvRaw(
+      double rate, double nper, double pmt, double pv, double type) {
+    if (rate == 0) return -(pv + pmt * nper);
+    final p = math.pow(1 + rate, nper).toDouble();
+    return -(pv * p + pmt * (1 + rate * type) * (p - 1) / rate);
+  }
+
+  /// FAİZ_ORANI — kapalı çözümü yok, Newton ile aranır.
+  static Object _rateSolve(double nper, double pmt, double pv, double fv,
+      double type, double guess) {
+    double f(double r) {
+      if (r == 0) return pv + pmt * nper + fv;
+      final p = math.pow(1 + r, nper).toDouble();
+      return pv * p + pmt * (1 + r * type) * (p - 1) / r + fv;
+    }
+
+    var r = guess == 0 ? 0.1 : guess;
+    for (var i = 0; i < 128; i++) {
+      final y = f(r);
+      if (y.abs() < 1e-10) return r;
+      final h = math.max(1e-7, r.abs() * 1e-6);
+      final slope = (f(r + h) - f(r - h)) / (2 * h);
+      if (slope == 0 || slope.isNaN) break;
+      final next = r - y / slope;
+      if (next.isNaN || next.isInfinite || next <= -1) break;
+      if ((next - r).abs() < 1e-12) return next;
+      r = next;
+    }
+    return const FormulaError('#SAYI!');
+  }
+
+  /// İÇ_VERİM_ORANI — Newton, tutmazsa ikili arama.
+  static Object _irr(List<double> flows, double guess) {
+    double npv(double r) {
+      var total = 0.0;
+      for (var i = 0; i < flows.length; i++) {
+        total += flows[i] / math.pow(1 + r, i);
+      }
+      return total;
+    }
+
+    var r = guess <= -1 ? 0.1 : guess;
+    for (var i = 0; i < 128; i++) {
+      final y = npv(r);
+      if (y.abs() < 1e-9) return r;
+      const h = 1e-6;
+      final slope = (npv(r + h) - npv(r - h)) / (2 * h);
+      if (slope == 0 || slope.isNaN) break;
+      final next = r - y / slope;
+      if (next.isNaN || next.isInfinite || next <= -0.999999) break;
+      r = next;
+    }
+    // İkili arama (işaret değişimi aranır).
+    var lo = -0.9999, hi = 10.0;
+    var flo = npv(lo), fhi = npv(hi);
+    if (flo.isNaN || fhi.isNaN || flo * fhi > 0) {
+      return const FormulaError('#SAYI!');
+    }
+    for (var i = 0; i < 256; i++) {
+      final mid = (lo + hi) / 2;
+      final fm = npv(mid);
+      if (fm.abs() < 1e-9) return mid;
+      if (flo * fm < 0) {
+        hi = mid;
+        fhi = fm;
+      } else {
+        lo = mid;
+        flo = fm;
+      }
+    }
+    return (lo + hi) / 2;
+  }
+
   // ── karakter yardımcıları ────────────────────────────────────────────────
 
   /// Türkçe büyük harf: `i→İ`, `ı→I` (Dart'ın varsayılanı yanlış yapar).
@@ -1580,8 +2388,11 @@ class _Parser {
     'YUVARLA': 'ROUND',
     'YUKARIYUVARLA': 'ROUNDUP',
     'AŞAĞIYUVARLA': 'ROUNDDOWN',
-    'KYUVARLA': 'CEILING',
+    // Türkçe Excel: TAVANAYUVARLA = CEILING, KYUVARLA = MROUND.
+    'TAVANAYUVARLA': 'CEILING',
+    'KYUVARLA': 'MROUND',
     'TABANAYUVARLA': 'FLOOR',
+    'NSAT': 'TRUNC',
     'MUTLAK': 'ABS',
     'İŞARET': 'SIGN',
     'KAREKÖK': 'SQRT',
@@ -1644,5 +2455,88 @@ class _Parser {
     'SÜTUN': 'COLUMN',
     'SATIRSAY': 'ROWS',
     'SÜTUNSAY': 'COLUMNS',
+
+    // ── Excel 2010+ noktalı adlar (dosyalarda BUNLAR yazılı olur) ──
+    'STDEV.S': 'STDEV',
+    'STDEV.P': 'STDEVP',
+    'STDSAPMA.S': 'STDEV',
+    'STDSAPMA.P': 'STDEVP',
+    'VAR.S': 'VAR',
+    'VAR.P': 'VARP',
+    'MODE.SNGL': 'MODE',
+    'ENÇOK_OLAN.TEK': 'MODE',
+    'PERCENTILE.INC': 'PERCENTILE',
+    'YÜZDEBİRLİK.DHL': 'PERCENTILE',
+    'QUARTILE.INC': 'QUARTILE',
+    'DÖRTTEBİRLİK.DHL': 'QUARTILE',
+    'PERCENTRANK.INC': 'PERCENTRANK',
+    'YÜZDERANK.DHL': 'PERCENTRANK',
+    'RANK.EQ': 'RANK',
+    'RANK.AVG': 'RANK',
+    'KÜÇÜK': 'SMALL',
+    'BÜYÜK': 'LARGE',
+    'TAVANAYUVARLA.MATEMATİK': 'CEILING.MATH',
+    'TABANAYUVARLA.MATEMATİK': 'FLOOR.MATH',
+
+    // ── başvuru / bilgi ──
+    'KAYDIR': 'OFFSET',
+    'DOLAYLI': 'INDIRECT',
+    'ADRES': 'ADDRESS',
+    'ARA': 'LOOKUP',
+    'ÇAPRAZARA': 'XLOOKUP',
+    'FORMÜLMETNİ': 'FORMULATEXT',
+    'EFORMÜLSE': 'ISFORMULA',
+    'EREFSE': 'ISREF',
+    'ÇİFTMİ': 'ISEVEN',
+    'TEKMİ': 'ISODD',
+    'EÇİFTSE': 'ISEVEN',
+    'ETEKSE': 'ISODD',
+    'HATA.TİPİ': 'ERROR.TYPE',
+    'EMANTIKSALSA': 'ISLOGICAL',
+
+    // ── istatistik ──
+    'ORTALAMAA': 'AVERAGEA',
+    'MAKA': 'MAXA',
+    'MİNA': 'MINA',
+    'GEOORT': 'GEOMEAN',
+    'HARORT': 'HARMEAN',
+    'ORTSAP': 'AVEDEV',
+    'SAPKARETOPL': 'DEVSQ',
+    'YÜZDEBİRLİK': 'PERCENTILE',
+    'DÖRTTEBİRLİK': 'QUARTILE',
+    'YÜZDERANK': 'PERCENTRANK',
+    'KOMBİNASYON': 'COMBIN',
+    'PERMÜTASYON': 'PERMUT',
+    'SİNH': 'SINH',
+    'TOPKARE': 'SUMSQ',
+
+    // ── metin ──
+    'METİNÖNCE': 'TEXTBEFORE',
+    'METİNSONRA': 'TEXTAFTER',
+    'SAYIDEĞERİ': 'NUMBERVALUE',
+    'SAYIDÜZENLE': 'FIXED',
+    'UNICODEKARAKTERİ': 'UNICHAR',
+
+    // ── tarih ──
+    'HAFTASAY': 'WEEKNUM',
+    'ISOHAFTASAY': 'ISOWEEKNUM',
+    'TAMİŞGÜNÜ': 'NETWORKDAYS',
+    'İŞGÜNÜ': 'WORKDAY',
+    'TARİHSAYISI': 'DATEVALUE',
+    'ZAMANSAYISI': 'TIMEVALUE',
+    'YILORAN': 'YEARFRAC',
+
+    // ── finans (kredi/taksit) ──
+    'DEVRESEL_ÖDEME': 'PMT',
+    'BD': 'PV',
+    'GD': 'FV',
+    'TAKSİT_SAYISI': 'NPER',
+    'FAİZ_ORANI': 'RATE',
+    'NBD': 'NPV',
+    'İÇ_VERİM_ORANI': 'IRR',
+    'AİÇVERİMORANI': 'IRR',
+    'FAİZTUTARI': 'IPMT',
+    'ANA_PARA_ÖDEMESİ': 'PPMT',
+    'DA': 'SLN',
   };
 }

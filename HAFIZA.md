@@ -1540,3 +1540,79 @@ AÇILMIYOR — yanlışlıkla bir uygulamaya atmaktansa hiçbir şey yapmak yeğ
 
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) ile `flutter analyze` **0 hata**,
 `flutter test` **362 test yeşil**.
+
+## 2026-07-25 — Excel: sabit bölme ekranı yiyordu ("sağ tarafı göremiyorum") + hesap sadakati
+
+Kullanıcı bulgusu: *"sağ sol kısımları ayrı oynayan excellerde kaydırdığımda
+sağ kısmı göremiyorum"* + *"hesaplamalar tam görülmeli, Excel fonksiyonları
+bizde de hesaplanmalı"*.
+
+### A) KÖK NEDEN — dondurulmuş bölme pencereden genişse gövde 0 piksel kalıyordu
+Dört bölgeli yerleşimde sol bölme `SizedBox(width: satırBaşlığı + donmuş
+sütunlar)`, kaydırılan bölge ise `Expanded`. Dosyada 5 sabit sütun × 30 karakter
+(≈1075 px) varsa `Row` telefon genişliğini aşıyor, **`Expanded` sıfır genişlik
+alıyor** → sağ taraf hiç çizilmiyor (ayrıca `RenderFlex overflowed by 367px`).
+Excel masaüstünde bölme pencereden geniş olabilir; telefonda bu, içeriğin
+ERİŞİLEMEZ olması demek.
+- **Karar:** `core/sheet_metrics.dart` → `fitFrozen(count, sizeOf, budget)`
+  sabit bölgeye yalnız **bütçe kadar** satır/sütun alır (bütçe = eksen ölçüsü −
+  başlık − en az %45/280 px gövde); sığmayan dondurulmuş sütunlar kaydırılan
+  bölgeye bırakılır. Gizli (0 ölçülü) sütun bütçe yemez ama bölmeye dahildir.
+- Bölme kısaltıldığında kullanıcıya bir kez bilgi (snackbar) + ⋮ menüsünde
+  **"Bölmeleri çöz / dondur"** anahtarı (`_freeze`) — telefonda sabit bölme
+  istemeyen kullanıcı tamamen kapatabiliyor.
+- **Regresyon testi:** `test/fixtures/wide_freeze.xlsx` (üreteci
+  `make_wide_freeze.py`) — 5×30 karakter sabit bölme + 40 sütun. Eski davranış
+  geri getirildiğinde test `RenderFlex overflowed by 367 pixels` ile kırmızı
+  oluyor (bilfiil doğrulandı).
+
+### B) Sanallaştırma ölçüleri önbelleğe alındı, 512 sütun sınırı kalktı
+`SheetAxisMetrics` (birikimli başlangıçlar + ikili arama): toplam genişlik,
+kaydırma penceresi ve "hücreyi görünür yap" artık her karede baştan
+toplanmıyor. Bu sayede **`_maxCols` 512 → 16384** (Excel sınırı) yapılabildi:
+512. sütundan sonraki veriler eskiden HİÇ görünmüyordu. Boş sayfa da ızgara
+görünsün diye en az 26 sütun / 60 satır çizilir (maliyeti yok); "tümünü seç"
+ise KULLANILAN alanla sınırlı (yoksa durum çubuğu 16384 sütunu tarayacaktı —
+200 bin hücre üstünde yalnız hücre sayısı gösteriliyor).
+Yan düzeltmeler: satır başlığı listesi ile gövde listesinin **alt boşluğu
+eşitlendi** (en altta satır numaraları kayıyordu), iki eksene kaydırma çubuğu,
+seçim/`Hücreye git` artık hücreyi görünür yapıyor (`_ensureVisible`).
+
+### C) Hesap sadakati
+- **Motorumuz hesaplayamazsa Excel'in önbelleklediği sonuç gösteriliyor**
+  (eskiden yalnız `#HATA`/`#DÖNGÜ`/boş için): desteklemediğimiz bir fonksiyon
+  (`TREND` gibi) artık `#AD?` yerine Excel'deki değeriyle görünür.
+  Hata kodları Türkçeleştirildi (`#DIV/0!` → `#SAYI/0!`, `isExcelErrorText` /
+  `localizedExcelError`).
+- **TUZAK — paylaşılan formül (`<f t="shared" si="…">`):** Excel aşağı
+  çekilen formülün metnini YALNIZ ana hücreye yazar. Açmadığımız için o
+  hücreler "formülsüz" sayılıyor, formül çubuğu boş kalıyor ve düzenleme
+  sonrası yeniden hesaplanmıyordu. `XlsxReader.shiftFormulaRefs` göreli
+  başvuruları kaydırıyor (`$` sabit kalır; dize sabiti, tırnaklı sayfa adı,
+  fonksiyon adı `LOG10(` ve sayı `2e5` kaydırılmaz; sayfa dışına kayan →
+  `#REF!`).
+- **TUZAK — sayı arayan DÜŞEYARA/ÇAPRAZARA hiç eşleşmiyordu:** hücre değerleri
+  modelde HAM METİN (`'20'`), ölçüt ise sayı (20) olduğu için `_compare` bunları
+  "metin < sayı" sırasına koyuyordu. Artık iki taraf da sayıya çevrilebiliyorsa
+  SAYISAL karşılaştırılıyor.
+- **Yeni fonksiyonlar (~45):** KAYDIR/OFFSET, DOLAYLI/INDIRECT, ADRES,
+  ARA/LOOKUP, ÇAPRAZARA/XLOOKUP, FORMÜLMETNİ, EFORMÜLSE, EREFSE, ÇİFTMİ/TEKMİ,
+  HATA.TİPİ, KYUVARLA(MROUND), TAVANAYUVARLA/TABANAYUVARLA.MATEMATİK,
+  KOMBİNASYON/PERMÜTASYON, SİNH/COSH/TANH, ORTALAMAA/MAKA/MİNA, GEOORT/HARORT,
+  ORTSAP/SAPKARETOPL, YÜZDEBİRLİK/DÖRTTEBİRLİK/YÜZDERANK, METİNÖNCE/METİNSONRA,
+  SAYIDEĞERİ (baştaki `%15` de kabul), SAYIDÜZENLE, UNICHAR/UNICODE, HAFTASAY/
+  ISOHAFTASAY, TAMİŞGÜNÜ/İŞGÜNÜ, TARİHSAYISI/ZAMANSAYISI, YILORAN ve finans
+  ailesi (DEVRESEL_ÖDEME/BD/GD/TAKSİT_SAYISI/FAİZ_ORANI/FAİZTUTARI/
+  ANA_PARA_ÖDEMESİ/NBD/İÇ_VERİM_ORANI/DA) — kredi-taksit tabloları için.
+  `SATIR()`/`SÜTUN()` argümansız kendi hücresini veriyor (bunun için tek hücre
+  başvuruları artık REFERANS olarak taşınıyor, değere `_single` ile indiriliyor).
+- **Noktalı Excel 2010+ adları** eklendi (`STDEV.S`, `VAR.P`, `MODE.SNGL`,
+  `PERCENTILE.INC`…) — dosyalarda bu adlar yazılı olduğu için `#AD?` çıkıyordu.
+- **TUZAK — Türkçe ad eşlemesi yanlıştı:** `KYUVARLA` CEILING'e bağlıydı;
+  doğrusu `TAVANAYUVARLA` = CEILING, `KYUVARLA` = MROUND.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` **0 hata**,
+`flutter test` **390 test yeşil** (32 yeni test: `sheet_metrics_test`,
+genişletilmiş `formula_engine_test`, `spreadsheet_screen_test`,
+`xlsx_reader_test`). `graphify update .` bu bulut oturumunda ÇALIŞTIRILAMADI
+(CLI kurulu değil) — kod haritası bir sonraki yerel turda yenilenmeli.

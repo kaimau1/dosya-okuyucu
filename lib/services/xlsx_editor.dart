@@ -272,15 +272,24 @@ class XlsxSheet {
   XlsxCellView viewAt(int r, int c, String computed) {
     final cell = layout.cellAt(r, c);
     if (cell?.error != null && (cell?.formula == null)) {
-      return XlsxCellView(cell!.error!);
+      return XlsxCellView(localizedExcelError(cell!.error!));
     }
     var value = computed;
-    // Motorumuz hata verdiyse Excel'in kendi önbelleğine düş.
-    if ((value == '#HATA' || value == '#DÖNGÜ' || value.isEmpty) &&
-        cell?.formula != null) {
-      value = cachedResultAt(r, c) ?? value;
+    // Motorumuz hesaplayamadıysa Excel'in dosyaya yazdığı SONUCA düşülür:
+    // desteklemediğimiz bir fonksiyon (#AD?) bile Excel'deki değeriyle
+    // görünür — kullanıcı hesap yerine hata kodu görmemeli.
+    if (cell?.formula != null && (value.isEmpty || isExcelErrorText(value))) {
+      final cached = cachedResultAt(r, c);
+      if (cached != null &&
+          cached.isNotEmpty &&
+          (!isExcelErrorText(cached) || value.isEmpty)) {
+        value = cached;
+      }
     }
     if (value.isEmpty) return const XlsxCellView('');
+    if (isExcelErrorText(value)) {
+      return XlsxCellView(localizedExcelError(value));
+    }
 
     final code = numFmtCode(r, c);
     final fmt = ExcelNumberFormat.parse(code);
@@ -757,6 +766,32 @@ class XlsxEditor {
     return Uint8List.fromList(bytes ?? const []);
   }
 }
+
+/// Excel hata değerlerinin İngilizce → Türkçe karşılığı. Dosyada daima
+/// İngilizce yazılıdır (`#DIV/0!`), Türkçe Excel ekranda `#SAYI/0!` gösterir.
+const Map<String, String> _errorTr = {
+  '#DIV/0!': '#SAYI/0!',
+  '#VALUE!': '#DEĞER!',
+  '#REF!': '#BAŞV!',
+  '#NAME?': '#AD?',
+  '#N/A': '#YOK',
+  '#NUM!': '#SAYI!',
+  '#NULL!': '#BOŞ!',
+  '#SPILL!': '#TAŞMA!',
+  '#CALC!': '#HESAP!',
+  '#GETTING_DATA': '#VERİ_ALINIYOR',
+};
+
+/// Bu metin bir Excel hata değeri mi? (Motorumuz Türkçe kodları döndürür,
+/// dosya İngilizce taşır — iki taraf da tanınmalı.)
+bool isExcelErrorText(String s) {
+  final t = s.trim();
+  if (!t.startsWith('#')) return false;
+  return _errorTr.containsKey(t) || _errorTr.containsValue(t) || t == '#DÖNGÜ';
+}
+
+/// Hata kodunu Türkçe gösterime çevirir (bilinmiyorsa olduğu gibi döner).
+String localizedExcelError(String code) => _errorTr[code.trim()] ?? code;
 
 /// Sayıyı HAM metne çevirir (ondalık ayıraç `.`) — formül motoru ve yeniden
 /// çözümleme bunu bekler. Gösterim biçimi ayrı katmanda uygulanır.

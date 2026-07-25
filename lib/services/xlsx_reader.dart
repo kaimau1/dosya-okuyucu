@@ -587,6 +587,11 @@ class XlsxReader {
 
   static void _readSheetData(XmlElement el, XlsxSheetLayout layout,
       List<XlsxSharedString> shared, XlsxStyles styles) {
+    // Paylaşılan formüller (`<f t="shared" si="0" ref="B2:B9">…`): Excel
+    // aşağı doğru kopyalanan formülü YALNIZ İLK hücreye yazar, kalanlarda
+    // sadece `si` vardır. Bunları çözmezsek o hücrelerde formül yok sayılır
+    // (formül çubuğu boş, düzenleme sonrası yeniden hesap yapılmaz).
+    final sharedFormulas = <String, _SharedFormula>{};
     for (final row in el.childElements) {
       if (row.name.local != 'row') continue;
       final rIdx = (int.tryParse(row.getAttribute('r') ?? '') ?? 0) - 1;
@@ -618,7 +623,7 @@ class XlsxReader {
           }
         }
         if (col < 0 || col >= maxColumns) continue;
-        final cell = _readCell(c, rr, col, shared);
+        final cell = _readCell(c, rr, col, shared, sharedFormulas);
         if (cell == null) continue;
         layout.cells[cellKey(rr, col)] = cell;
         if (col > layout.maxCol) layout.maxCol = col;
@@ -627,8 +632,9 @@ class XlsxReader {
     }
   }
 
-  static XlsxCell? _readCell(
-      XmlElement c, int row, int col, List<XlsxSharedString> shared) {
+  static XlsxCell? _readCell(XmlElement c, int row, int col,
+      List<XlsxSharedString> shared,
+      [Map<String, _SharedFormula>? sharedFormulas]) {
     final styleIndex = int.tryParse(c.getAttribute('s') ?? '') ?? 0;
     final type = c.getAttribute('t') ?? 'n';
     String? formula;
@@ -640,6 +646,21 @@ class XlsxReader {
       switch (child.name.local) {
         case 'f':
           formula = child.innerText;
+          final si = child.getAttribute('si');
+          if (si != null && sharedFormulas != null) {
+            if (formula.isNotEmpty) {
+              // Paylaşılan formülün ANA hücresi.
+              sharedFormulas[si] = _SharedFormula(formula, row, col);
+            } else {
+              // Takipçi hücre: ana formül göreli başvurular kaydırılarak
+              // kopyalanır (Excel'in dosyada yapmadığı işi biz yapıyoruz).
+              final master = sharedFormulas[si];
+              if (master != null) {
+                formula = shiftFormulaRefs(
+                    master.formula, row - master.row, col - master.col);
+              }
+            }
+          }
         case 'v':
           vText = child.innerText;
         case 'is':
@@ -700,6 +721,117 @@ class XlsxReader {
       formula: formula,
       runs: runs,
     );
+  }
+
+  /// Bir formüldeki **göreli** hücre başvurularını [dr] satır / [dc] sütun
+  /// kaydırır (`$` ile sabitlenmişler oynamaz). Paylaşılan formülleri
+  /// (`t="shared"`) açmak için gerekir; Excel'in "aşağı çekince kayan
+  /// başvuru" davranışının aynısı.
+  ///
+  /// Dize sabitleri (`"A1"`), tırnaklı sayfa adları (`'Bir Ad'!`), fonksiyon
+  /// adları (`LOG10(`) ve sayılar (`2e5`) kaydırılmaz.
+  static String shiftFormulaRefs(String src, int dr, int dc) {
+    if (dr == 0 && dc == 0) return src;
+    final out = StringBuffer();
+    var i = 0;
+    while (i < src.length) {
+      final ch = src[i];
+      // Dize sabiti
+      if (ch == '"') {
+        final start = i++;
+        while (i < src.length) {
+          if (src[i] == '"') {
+            if (i + 1 < src.length && src[i + 1] == '"') {
+              i += 2;
+              continue;
+            }
+            i++;
+            break;
+          }
+          i++;
+        }
+        out.write(src.substring(start, i));
+        continue;
+      }
+      // Tırnaklı sayfa adı
+      if (ch == "'") {
+        final start = i++;
+        while (i < src.length && src[i] != "'") {
+          i++;
+        }
+        if (i < src.length) i++;
+        out.write(src.substring(start, i));
+        continue;
+      }
+      // Sayı (2e5 içindeki "e5" başvuru sanılmasın)
+      if (_isDigitChar(ch)) {
+        final start = i;
+        while (i < src.length && (_isDigitChar(src[i]) || src[i] == '.')) {
+          i++;
+        }
+        if (i < src.length && (src[i] == 'e' || src[i] == 'E')) {
+          final save = i;
+          i++;
+          if (i < src.length && (src[i] == '+' || src[i] == '-')) i++;
+          if (i < src.length && _isDigitChar(src[i])) {
+            while (i < src.length && _isDigitChar(src[i])) {
+              i++;
+            }
+          } else {
+            i = save;
+          }
+        }
+        out.write(src.substring(start, i));
+        continue;
+      }
+      // Ad / başvuru
+      if (_isLetterChar(ch) || ch == r'$' || ch == '_') {
+        final start = i;
+        while (i < src.length &&
+            (_isLetterChar(src[i]) ||
+                _isDigitChar(src[i]) ||
+                src[i] == r'$' ||
+                src[i] == '_' ||
+                src[i] == '.')) {
+          i++;
+        }
+        final token = src.substring(start, i);
+        final isCall = i < src.length && src[i] == '(';
+        out.write(isCall ? token : _shiftRef(token, dr, dc));
+        continue;
+      }
+      out.write(ch);
+      i++;
+    }
+    return out.toString();
+  }
+
+  /// "A1"/"$B\$2" başvurusunu kaydırır; başvuru değilse olduğu gibi döner.
+  static String _shiftRef(String token, int dr, int dc) {
+    final m = RegExp(r'^(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7})$').firstMatch(token);
+    if (m == null) return token;
+    final colAbs = m.group(1) == r'$';
+    final rowAbs = m.group(3) == r'$';
+    var col = 0;
+    for (final u in m.group(2)!.toUpperCase().codeUnits) {
+      if (u < 65 || u > 90) return token;
+      col = col * 26 + (u - 64);
+    }
+    var rowNum = int.parse(m.group(4)!);
+    if (!colAbs) col += dc;
+    if (!rowAbs) rowNum += dr;
+    if (col < 1 || rowNum < 1) return '#REF!';
+    return '${colAbs ? '\$' : ''}${XlsxRange.colName(col - 1)}'
+        '${rowAbs ? '\$' : ''}$rowNum';
+  }
+
+  static bool _isDigitChar(String c) =>
+      c.codeUnitAt(0) >= 48 && c.codeUnitAt(0) <= 57;
+
+  static bool _isLetterChar(String c) {
+    final u = c.codeUnitAt(0);
+    if ((u >= 65 && u <= 90) || (u >= 97 && u <= 122)) return true;
+    return u > 127; // Türkçe harfli tanımlı adlar
   }
 
   static void _readCondFormat(
@@ -813,6 +945,13 @@ class XlsxReader {
 int cellKey(int r, int c) => r * 16384 + c;
 
 // ───────────────────────────────────────────────────────────────── modeller
+
+/// Paylaşılan formülün ana hücresi (`<f t="shared" si="…" ref="…">`).
+class _SharedFormula {
+  final String formula;
+  final int row, col;
+  const _SharedFormula(this.formula, this.row, this.col);
+}
 
 class XlsxWorkbook {
   final List<XlsxSheetLayout> sheets;
