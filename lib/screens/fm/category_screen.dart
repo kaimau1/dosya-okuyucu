@@ -4,13 +4,18 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
+import '../../models/document.dart';
+import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
+import '../../services/file_service.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 
@@ -18,7 +23,8 @@ import 'entry_actions.dart';
 /// Arşivler / Yeni dosyalar) tüm depolamadaki dosyaları.
 ///
 /// Liste, panonun tek geçişli taramasından ([StorageIndex]) gelir — bu ekran
-/// yeniden tarama YAPMAZ, anında açılır.
+/// yeniden tarama YAPMAZ, anında açılır. Aynı sebeple buradaki arama da
+/// bellekte süzmedir: yazdıkça anında daralır, disk okunmaz.
 class CategoryScreen extends StatefulWidget {
   final String title;
   final List<FsEntry> files;
@@ -30,12 +36,18 @@ class CategoryScreen extends StatefulWidget {
   /// gösterilsin mi? Görsel ve video kategorilerinde anlamlı.
   final bool showSources;
 
+  /// Belge türü süzgeci (PDF / Word / Excel / Slayt / Metin) gösterilsin mi?
+  /// Kullanıcı isteği: "belgelerde filtre olmalı, PDF slayt text word vs
+  /// ayırt edilebilmeli".
+  final bool showDocKinds;
+
   const CategoryScreen({
     super.key,
     required this.title,
     required this.files,
     this.gridDefault = false,
     this.showSources = false,
+    this.showDocKinds = false,
   });
 
   @override
@@ -49,12 +61,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
   /// Sürükleyerek seçimde kenarda otomatik kaydırma için (liste ve ızgara aynı
   /// anda mount edilmez → tek denetleyici yeter).
   final ScrollController _scroll = ScrollController();
-  late bool _grid = widget.gridDefault;
+  late FmLayout _layout = widget.gridDefault ? FmLayout.grid3 : FmLayout.list;
   FmSort _sort = FmSort.date;
   bool _desc = true;
 
   /// Seçili kaynak (null = tümü).
   MediaBucket? _bucket;
+
+  /// Seçili belge türü (null = tümü).
+  DocKind? _docKind;
+
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  String _query = '';
 
   bool get _selecting => _selected.isNotEmpty;
 
@@ -68,14 +87,25 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   void dispose() {
     FsEvents.version.removeListener(_dropMissing);
+    _searchController.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
   List<FsEntry> get _sorted {
-    final filtered = _bucket == null
-        ? _files
-        : _files.where((f) => bucketForPath(f.path) == _bucket).toList();
+    var filtered = _files;
+    if (_bucket != null) {
+      filtered =
+          filtered.where((f) => bucketForPath(f.path) == _bucket).toList();
+    }
+    if (_docKind != null) {
+      filtered = filtered
+          .where((f) => FileService.kindForExtension(f.extension) == _docKind)
+          .toList();
+    }
+    if (_query.trim().isNotEmpty) {
+      filtered = filtered.where((f) => fmMatches(f.name, _query)).toList();
+    }
     return FsScan.sort(filtered, _sort, descending: _desc, foldersFirst: false);
   }
 
@@ -117,96 +147,32 @@ class _CategoryScreenState extends State<CategoryScreen> {
     });
   }
 
+  void _closeSearch() {
+    setState(() {
+      _searching = false;
+      _query = '';
+      _searchController.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final files = _sorted;
     return Scaffold(
       appBar: _selecting
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => setState(_selected.clear),
-              ),
-              title: Text('${_selected.length} / ${files.length} seçildi'),
-              actions: [
-                IconButton(
-                  tooltip: files.every((e) => _selected.contains(e.path))
-                      ? 'Seçimi kaldır'
-                      : 'Tümünü seç',
-                  icon: Icon(files.every((e) => _selected.contains(e.path))
-                      ? Icons.deselect
-                      : Icons.select_all),
-                  onPressed: () => _toggleSelectAll(files),
-                ),
-                IconButton(
-                  tooltip: 'Paylaş',
-                  icon: const Icon(Icons.share_outlined),
-                  onPressed: () => shareEntries(_selected.toList()),
-                ),
-                IconButton(
-                  tooltip: 'Kopyala',
-                  icon: const Icon(Icons.copy_outlined),
-                  onPressed: () {
-                    context
-                        .read<AppState>()
-                        .setClipboard(_selected.toList(), cut: false);
-                    setState(_selected.clear);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text(
-                            'Kopyalandı. Dosyalar sekmesinde hedef klasörde yapıştırın.')));
-                  },
-                ),
-                IconButton(
-                  tooltip: 'Sil',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () async {
-                    final selected = _files
-                        .where((e) => _selected.contains(e.path))
-                        .toList();
-                    if (await deleteEntries(context, selected)) _dropMissing();
-                  },
-                ),
-              ],
-            )
-          : AppBar(
-              title: Text(widget.title),
-              actions: [
-                IconButton(
-                  tooltip: _grid ? 'Liste görünümü' : 'Izgara görünümü',
-                  icon: Icon(_grid ? Icons.view_list : Icons.grid_view),
-                  onPressed: () => setState(() => _grid = !_grid),
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (v) => setState(() {
-                    switch (v) {
-                      case 'date':
-                        _sort = FmSort.date;
-                        _desc = true;
-                      case 'name':
-                        _sort = FmSort.name;
-                        _desc = false;
-                      case 'size':
-                        _sort = FmSort.size;
-                        _desc = true;
-                      case 'dir':
-                        _desc = !_desc;
-                    }
-                  }),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'date', child: Text('Tarihe göre')),
-                    PopupMenuItem(value: 'name', child: Text('Ada göre')),
-                    PopupMenuItem(value: 'size', child: Text('Boyuta göre')),
-                    PopupMenuItem(value: 'dir', child: Text('Sırayı ters çevir')),
-                  ],
-                ),
-              ],
-            ),
+          ? _selectionBar(files)
+          : (_searching ? _searchBar() : _normalBar()),
       body: Column(
         children: [
           if (widget.showSources && !_selecting) _sourceChips(),
+          if (widget.showDocKinds && !_selecting) _docKindChips(),
           Expanded(
             child: files.isEmpty
-                ? const Center(child: Text('Bu kategoride dosya bulunamadı.'))
+                ? Center(
+                    child: Text(_query.trim().isEmpty
+                        ? 'Bu kategoride dosya bulunamadı.'
+                        : '“$_query” için sonuç yok.'),
+                  )
                 : DragSelectArea(
                     scrollController: _scroll,
                     isSelected: (i) =>
@@ -215,13 +181,123 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         _selected.contains(files[i].path),
                     onSelectRange: (a, b, sel) =>
                         _selectRange(files, a, b, sel),
-                    child: _grid ? _gridView(files) : _listView(files),
+                    child: _layout.isGrid ? _gridView(files) : _listView(files),
                   ),
           ),
         ],
       ),
     );
   }
+
+  PreferredSizeWidget _normalBar() => AppBar(
+        title: Text(widget.title),
+        actions: [
+          IconButton(
+            tooltip: '${widget.title} içinde ara',
+            icon: const Icon(Icons.search),
+            onPressed: () => setState(() => _searching = true),
+          ),
+          IconButton(
+            tooltip: 'Görünüm: ${_layout.label}',
+            icon: Icon(fmLayoutIcon(_layout)),
+            onPressed: () async {
+              final picked = await showFmLayoutSheet(context, current: _layout);
+              if (picked != null) setState(() => _layout = picked);
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (v) => setState(() {
+              switch (v) {
+                case 'date':
+                  _sort = FmSort.date;
+                  _desc = true;
+                case 'name':
+                  _sort = FmSort.name;
+                  _desc = false;
+                case 'size':
+                  _sort = FmSort.size;
+                  _desc = true;
+                case 'dir':
+                  _desc = !_desc;
+              }
+            }),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'date', child: Text('Tarihe göre')),
+              PopupMenuItem(value: 'name', child: Text('Ada göre')),
+              PopupMenuItem(value: 'size', child: Text('Boyuta göre')),
+              PopupMenuItem(value: 'dir', child: Text('Sırayı ters çevir')),
+            ],
+          ),
+        ],
+      );
+
+  PreferredSizeWidget _searchBar() => AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _closeSearch,
+        ),
+        title: FmSearchField(
+          controller: _searchController,
+          hint: '${widget.title} içinde ara…',
+          onChanged: (v) => setState(() => _query = v),
+        ),
+        actions: [
+          if (_query.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () => setState(() {
+                _query = '';
+                _searchController.clear();
+              }),
+            ),
+        ],
+      );
+
+  PreferredSizeWidget _selectionBar(List<FsEntry> files) => AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => setState(_selected.clear),
+        ),
+        title: Text('${_selected.length} / ${files.length} seçildi'),
+        actions: [
+          IconButton(
+            tooltip: files.every((e) => _selected.contains(e.path))
+                ? 'Seçimi kaldır'
+                : 'Tümünü seç',
+            icon: Icon(files.every((e) => _selected.contains(e.path))
+                ? Icons.deselect
+                : Icons.select_all),
+            onPressed: () => _toggleSelectAll(files),
+          ),
+          IconButton(
+            tooltip: 'Paylaş',
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () => shareEntries(_selected.toList()),
+          ),
+          IconButton(
+            tooltip: 'Kopyala',
+            icon: const Icon(Icons.copy_outlined),
+            onPressed: () {
+              context
+                  .read<AppState>()
+                  .setClipboard(_selected.toList(), cut: false);
+              setState(_selected.clear);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text(
+                      'Kopyalandı. Dosyalar sekmesinde hedef klasörde yapıştırın.')));
+            },
+          ),
+          IconButton(
+            tooltip: 'Sil',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () async {
+              final selected =
+                  _files.where((e) => _selected.contains(e.path)).toList();
+              if (await deleteEntries(context, selected)) _dropMissing();
+            },
+          ),
+        ],
+      );
 
   /// Kaynak çipleri: hangi klasörden/uygulamadan geldiğine göre süzme.
   /// Sayılar gerçek dosya sayısıdır; boş kaynak çipi gösterilmez.
@@ -261,62 +337,70 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
+  /// Belge türü çipleri (PDF / Word / Excel / Slayt / Metin / Diğer).
+  /// Boş tür gösterilmez; sayılar gerçek dosya sayısıdır.
+  Widget _docKindChips() {
+    final counts = <DocKind, int>{};
+    for (final f in _files) {
+      final kind = FileService.kindForExtension(f.extension);
+      counts[kind] = (counts[kind] ?? 0) + 1;
+    }
+    // Sabit sıra: kullanıcı çiplerin yerini ezberleyebilsin (sayıya göre
+    // sıralamak her açılışta yer değiştirmesine yol açardı).
+    const order = [
+      DocKind.pdf,
+      DocKind.word,
+      DocKind.spreadsheet,
+      DocKind.slides,
+      DocKind.text,
+      DocKind.unknown,
+    ];
+    final kinds = order.where((k) => (counts[k] ?? 0) > 0).toList();
+    if (kinds.length < 2) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: Gap.sm),
+            child: ChoiceChip(
+              label: Text('Tümü (${_files.length})'),
+              selected: _docKind == null,
+              onSelected: (_) => setState(() => _docKind = null),
+            ),
+          ),
+          for (final k in kinds)
+            Padding(
+              padding: const EdgeInsets.only(right: Gap.sm),
+              child: ChoiceChip(
+                label: Text('${k == DocKind.unknown ? "Diğer" : k.label} '
+                    '(${counts[k]})'),
+                selected: _docKind == k,
+                onSelected: (_) => setState(() => _docKind = k),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _listView(List<FsEntry> files) => ListView.builder(
         controller: _scroll,
         itemCount: files.length,
         itemBuilder: (context, i) {
           final e = files[i];
-          final selected = _selected.contains(e.path);
-          return DragSelectItem(
-              index: i,
-              child: ListTile(
-            selected: selected,
-            leading: _selecting
-                ? Checkbox(value: selected, onChanged: (_) => _toggle(e))
-                : FmEntryIcon(entry: e),
-            title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              '${FsPaths.humanSize(e.sizeBytes)} · ${p.dirname(e.path)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            onTap: () {
-              if (_selecting) {
-                _toggle(e);
-              } else {
-                _open(e);
-              }
-            },
-            trailing: _selecting
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () async {
-                      await showEntryActions(context, e,
-                          allowReveal: true, onReveal: _reveal);
-                      _dropMissing();
-                    },
-                  ),
-          ));
-        },
-      );
-
-  Widget _gridView(List<FsEntry> files) => GridView.builder(
-        controller: _scroll,
-        padding: const EdgeInsets.all(Gap.sm),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 130,
-          childAspectRatio: 0.82,
-          mainAxisSpacing: Gap.sm,
-          crossAxisSpacing: Gap.sm,
-        ),
-        itemCount: files.length,
-        itemBuilder: (context, i) {
-          final e = files[i];
-          final selected = _selected.contains(e.path);
           return DragSelectItem(
             index: i,
-            child: InkWell(
+            child: FmEntryListTile(
+              entry: e,
+              layout: _layout,
+              selected: _selected.contains(e.path),
+              selecting: _selecting,
+              subtitle: '${FsPaths.humanSize(e.sizeBytes)} · '
+                  '${p.dirname(e.path)}',
               onTap: () {
                 if (_selecting) {
                   _toggle(e);
@@ -324,48 +408,47 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   _open(e);
                 }
               },
-              borderRadius: BorderRadius.circular(Radii.card),
-              child: Container(
-                padding: const EdgeInsets.all(Gap.xs),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? Theme.of(context)
-                          .colorScheme
-                          .primaryContainer
-                          .withValues(alpha: 0.5)
-                      : null,
-                  borderRadius: BorderRadius.circular(Radii.card),
-                ),
-                child: Stack(
-                  children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FmEntryIcon(entry: e, size: 64),
-                        const SizedBox(height: Gap.xs),
-                        Text(
-                          e.name,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    if (_selecting)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Icon(
-                          selected ? Icons.check_circle : Icons.circle_outlined,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+              onCheck: () => _toggle(e),
+              onMore: _selecting
+                  ? null
+                  : () async {
+                      await showEntryActions(context, e,
+                          allowReveal: true, onReveal: _reveal);
+                      _dropMissing();
+                    },
             ),
+          );
+        },
+      );
+
+  Widget _gridView(List<FsEntry> files) => LayoutBuilder(
+        builder: (context, constraints) {
+          const pad = Gap.sm;
+          return GridView.builder(
+            controller: _scroll,
+            padding: const EdgeInsets.all(pad),
+            gridDelegate:
+                fmGridDelegate(_layout, constraints.maxWidth - pad * 2),
+            itemCount: files.length,
+            itemBuilder: (context, i) {
+              final e = files[i];
+              return DragSelectItem(
+                index: i,
+                child: FmEntryGridTile(
+                  entry: e,
+                  layout: _layout,
+                  selected: _selected.contains(e.path),
+                  selecting: _selecting,
+                  onTap: () {
+                    if (_selecting) {
+                      _toggle(e);
+                    } else {
+                      _open(e);
+                    }
+                  },
+                ),
+              );
+            },
           );
         },
       );

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
+import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../services/blank_docs.dart';
 import '../../services/fm/archive_ops.dart';
@@ -14,7 +15,8 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'archive_screen.dart';
 import 'entry_actions.dart';
@@ -68,8 +70,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     });
     try {
       final appState = context.read<AppState>();
-      final list = await FsScan.list(widget.path,
-          showHidden: appState.fmShowHidden);
+      final list =
+          await FsScan.list(widget.path, showHidden: appState.fmShowHidden);
       if (!mounted) return;
       setState(() {
         _entries = list;
@@ -206,8 +208,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final name = await _askName('Yeni dosya', 'Dosya adı', suggestion);
     if (name == null) return;
     try {
-      final target = FileOps.uniquePath(
-          p.join(widget.path, FileOps.sanitizeName(name)));
+      final target =
+          FileOps.uniquePath(p.join(widget.path, FileOps.sanitizeName(name)));
       final bytes = switch (kind) {
         'docx' => BlankDocs.blankDocx(),
         'xlsx' => BlankDocs.blankXlsx(),
@@ -309,9 +311,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
           )),
         ),
         IconButton(
-          tooltip: appState.fmGrid ? 'Liste görünümü' : 'Izgara görünümü',
-          icon: Icon(appState.fmGrid ? Icons.view_list : Icons.grid_view),
-          onPressed: () => appState.setFmGrid(!appState.fmGrid),
+          tooltip: 'Görünüm: ${appState.fmLayout.label}',
+          icon: Icon(fmLayoutIcon(appState.fmLayout)),
+          onPressed: () async {
+            final picked =
+                await showFmLayoutSheet(context, current: appState.fmLayout);
+            if (picked != null) await appState.setFmLayout(picked);
+          },
         ),
         PopupMenuButton<String>(
           tooltip: 'Diğer',
@@ -350,7 +356,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 value: 'sort_type', child: Text('Türe göre sırala')),
             PopupMenuItem(
               value: 'sort_dir',
-              child: Text(appState.fmSortDesc ? 'Artan sırala' : 'Azalan sırala'),
+              child:
+                  Text(appState.fmSortDesc ? 'Artan sırala' : 'Azalan sırala'),
             ),
             const PopupMenuDivider(),
             PopupMenuItem(
@@ -363,8 +370,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               value: 'star',
               child: Text(starred ? 'Favorilerden çıkar' : 'Favorilere ekle'),
             ),
-            const PopupMenuItem(
-                value: 'select_all', child: Text('Tümünü seç')),
+            const PopupMenuItem(value: 'select_all', child: Text('Tümünü seç')),
             const PopupMenuItem(value: 'refresh', child: Text('Yenile')),
           ],
         ),
@@ -458,7 +464,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
             if (selected.length == 1)
               const PopupMenuItem(
                   value: 'properties', child: Text('Özellikler')),
-            const PopupMenuItem(value: 'invert', child: Text('Seçimi tersine çevir')),
+            const PopupMenuItem(
+                value: 'invert', child: Text('Seçimi tersine çevir')),
           ],
         ),
       ],
@@ -542,7 +549,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       );
     }
 
-    final grid = context.watch<AppState>().fmGrid;
+    final layout = context.watch<AppState>().fmLayout;
     return RefreshIndicator(
       onRefresh: _load,
       // Uzun basış artık öğelerde değil BURADA yakalanır (çocuk uzun basışı
@@ -553,24 +560,29 @@ class _BrowserScreenState extends State<BrowserScreen> {
         isSelected: (i) =>
             i >= 0 && i < entries.length && _selected.contains(entries[i].path),
         onSelectRange: (a, b, sel) => _selectRange(entries, a, b, sel),
-        child: grid ? _grid(entries) : _list(entries),
+        child: layout.isGrid ? _grid(entries, layout) : _list(entries, layout),
       ),
     );
   }
 
-  Widget _list(List<FsEntry> entries) => ListView.builder(
+  Widget _list(List<FsEntry> entries, FmLayout layout) => ListView.builder(
         controller: _scroll,
         padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 96),
         itemCount: entries.length,
         itemBuilder: (context, i) {
           final e = entries[i];
-          final selected = _selected.contains(e.path);
           return DragSelectItem(
             index: i,
-            child: _EntryListTile(
+            child: FmEntryListTile(
               entry: e,
-              selected: selected,
+              layout: layout,
+              selected: _selected.contains(e.path),
               selecting: _selecting,
+              showChevron: true,
+              subtitle: e.isDir
+                  ? FsPaths.humanDate(e.modifiedMs)
+                  : '${FsPaths.humanSize(e.sizeBytes)} · '
+                      '${FsPaths.humanDate(e.modifiedMs)}',
               onTap: () => _openEntry(e),
               onCheck: () => _toggle(e),
               onMore: () async {
@@ -581,27 +593,28 @@ class _BrowserScreenState extends State<BrowserScreen> {
         },
       );
 
-  Widget _grid(List<FsEntry> entries) => GridView.builder(
-        controller: _scroll,
-        padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, 96),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 120,
-          childAspectRatio: 0.82,
-          mainAxisSpacing: Gap.sm,
-          crossAxisSpacing: Gap.sm,
-        ),
-        itemCount: entries.length,
-        itemBuilder: (context, i) {
-          final e = entries[i];
-          final selected = _selected.contains(e.path);
-          return DragSelectItem(
-            index: i,
-            child: _EntryGridTile(
-              entry: e,
-              selected: selected,
-              selecting: _selecting,
-              onTap: () => _openEntry(e),
-            ),
+  Widget _grid(List<FsEntry> entries, FmLayout layout) => LayoutBuilder(
+        builder: (context, constraints) {
+          const pad = Gap.sm;
+          return GridView.builder(
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(pad, pad, pad, 96),
+            gridDelegate:
+                fmGridDelegate(layout, constraints.maxWidth - pad * 2),
+            itemCount: entries.length,
+            itemBuilder: (context, i) {
+              final e = entries[i];
+              return DragSelectItem(
+                index: i,
+                child: FmEntryGridTile(
+                  entry: e,
+                  layout: layout,
+                  selected: _selected.contains(e.path),
+                  selecting: _selecting,
+                  onTap: () => _openEntry(e),
+                ),
+              );
+            },
           );
         },
       );
@@ -721,117 +734,6 @@ class _Breadcrumb extends StatelessWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _EntryListTile extends StatelessWidget {
-  final FsEntry entry;
-  final bool selected;
-  final bool selecting;
-  final VoidCallback onTap;
-
-  /// Onay kutusuna dokunma (uzun basış artık [DragSelectArea]'da).
-  final VoidCallback onCheck;
-  final VoidCallback onMore;
-
-  const _EntryListTile({
-    required this.entry,
-    required this.selected,
-    required this.selecting,
-    required this.onTap,
-    required this.onCheck,
-    required this.onMore,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      selected: selected,
-      selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
-      leading: selecting
-          ? Checkbox(value: selected, onChanged: (_) => onCheck())
-          : FmEntryIcon(entry: entry),
-      title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        entry.isDir
-            ? FsPaths.humanDate(entry.modifiedMs)
-            : '${FsPaths.humanSize(entry.sizeBytes)} · '
-                '${FsPaths.humanDate(entry.modifiedMs)}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: entry.isDir && !selecting
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                    icon: const Icon(Icons.more_vert), onPressed: onMore),
-                Icon(Icons.chevron_right,
-                    size: 20, color: scheme.onSurfaceVariant),
-              ],
-            )
-          : IconButton(icon: const Icon(Icons.more_vert), onPressed: onMore),
-      onTap: onTap,
-    );
-  }
-}
-
-class _EntryGridTile extends StatelessWidget {
-  final FsEntry entry;
-  final bool selected;
-  final bool selecting;
-  final VoidCallback onTap;
-
-  const _EntryGridTile({
-    required this.entry,
-    required this.selected,
-    required this.selecting,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.card),
-      child: Container(
-        padding: const EdgeInsets.all(Gap.sm),
-        decoration: BoxDecoration(
-          color: selected ? scheme.primaryContainer.withValues(alpha: 0.5) : null,
-          borderRadius: BorderRadius.circular(Radii.card),
-        ),
-        child: Stack(
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FmEntryIcon(entry: entry, size: 56),
-                const SizedBox(height: Gap.sm),
-                Text(
-                  entry.name,
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-            if (selecting)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Icon(
-                  selected ? Icons.check_circle : Icons.circle_outlined,
-                  size: 18,
-                  color: selected ? scheme.primary : scheme.outline,
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }

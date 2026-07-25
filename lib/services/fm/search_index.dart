@@ -1,0 +1,364 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show ValueNotifier, compute;
+import 'package:path/path.dart' as p;
+
+import '../../core/text_search.dart';
+import '../../models/fs_entry.dart';
+import 'fm_env.dart';
+import 'fs_events.dart';
+import 'fs_scan.dart';
+
+/// **Aranabilir dosya dizini** — "her seferinde baştan taranmasın" isteğinin
+/// karşılığı (kullanıcı, 2026-07-25).
+///
+/// ## Neden ve nasıl
+/// Eski arama her sorguda tüm depolamayı gerçek zamanlı geziyordu
+/// (`FsScan.search`): 100 bin dosyalı bir telefonda her harf 3-10 saniye ve
+/// ciddi pil demek. Artık depolama **bir kez derinlemesine** taranıp düz bir
+/// dizin dosyasına yazılıyor; sonraki aramalar bu dosyada yapılıyor.
+///
+/// - Dizin biçimi: satır başına bir kayıt, sekmeyle ayrılmış
+///   `yol \t boyut \t değişiklikMs \t klasörMü`. Metin olması bilinçli —
+///   ayrıştırması ucuz, bozulursa tek satır kaybolur, sürüm geçişi kolay.
+/// - Sorgu **isolate'te** koşar (`compute`): 10 MB'lık dizini okuyup süzmek
+///   ana izlekte kare atlatırdı. Dizin ana izlekte BELLEKTE TUTULMAZ —
+///   100 bin yolu RAM'de tutmak (~15 MB) ucuz telefonlarda pahalı; dosyayı
+///   okumak işletim sistemi önbelleğiyle zaten hızlı.
+/// - Sonuçlar dönerken diskte gerçekten var mı diye süzülür → dizin bayatsa
+///   bile silinmiş dosya sonuçta görünmez.
+/// - Dosya sistemi değişince ([FsEvents]) dizin "bayat" işaretlenir; bir
+///   sonraki aramada sonuç yine anında döner, arka planda sessizce yenilenir.
+abstract final class SearchIndex {
+  static const _indexName = 'search_index.tsv';
+  static const _metaName = 'search_index.json';
+
+  /// Dizin hazır/bayat durumundaki değişiklikler (arama ekranı dinler).
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  static int _builtAtMs = 0;
+  static int _entryCount = 0;
+  static bool _loadedMeta = false;
+  static bool _stale = false;
+  static Future<int>? _building;
+  static int _seenFsVersion = FsEvents.version.value;
+
+  /// Dizin ne zaman kuruldu (0 = hiç kurulmadı).
+  static int get builtAtMs => _builtAtMs;
+
+  /// Dizindeki kayıt sayısı.
+  static int get entryCount => _entryCount;
+
+  /// Dizin var mı?
+  static bool get isReady => _builtAtMs > 0;
+
+  /// Kurulduktan sonra dosya sistemi değişti mi?
+  static bool get isStale => _stale;
+
+  /// Şu anda yeniden kuruluyor mu?
+  static bool get isBuilding => _building != null;
+
+  static String get _dir => FmEnv.appSupportDir;
+  static String get indexPath => p.join(_dir, _indexName);
+  static String get _metaPath => p.join(_dir, _metaName);
+
+  /// Meta bilgisini diskten okur (uygulama açılışında bir kez).
+  static Future<void> ensureLoaded() async {
+    if (_loadedMeta) return;
+    _loadedMeta = true;
+    await FmEnv.ensureInit();
+    FsEvents.version.addListener(_onFsChanged);
+    if (_dir.isEmpty) return;
+    try {
+      final meta = File(_metaPath);
+      if (!meta.existsSync() || !File(indexPath).existsSync()) return;
+      final raw = jsonDecode(await meta.readAsString());
+      if (raw is! Map) return;
+      _builtAtMs = (raw['builtAt'] as num?)?.toInt() ?? 0;
+      _entryCount = (raw['count'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      _builtAtMs = 0;
+    }
+    revision.value++;
+  }
+
+  static void _onFsChanged() {
+    if (_seenFsVersion == FsEvents.version.value) return;
+    _seenFsVersion = FsEvents.version.value;
+    if (!isReady || _stale) return;
+    _stale = true;
+    revision.value++;
+  }
+
+  /// Dizini (yeniden) kurar. Aynı anda ikinci çağrı yeni tarama BAŞLATMAZ,
+  /// süren taramaya bağlanır. Kayıt sayısını döndürür.
+  static Future<int> rebuild({List<String>? roots}) {
+    final existing = _building;
+    if (existing != null) return existing;
+    final future = _rebuild(roots ?? FmEnv.volumeRoots);
+    _building = future;
+    revision.value++;
+    // Bellek sızmasın / bayrak takılı kalmasın.
+    future.whenComplete(() {
+      _building = null;
+      revision.value++;
+    });
+    return future;
+  }
+
+  static Future<int> _rebuild(List<String> roots) async {
+    await ensureLoaded();
+    if (_dir.isEmpty) return 0;
+    try {
+      final count = await compute(
+        _buildSync,
+        _BuildArgs(roots, indexPath),
+      );
+      _builtAtMs = DateTime.now().millisecondsSinceEpoch;
+      _entryCount = count;
+      _stale = false;
+      _seenFsVersion = FsEvents.version.value;
+      await File(_metaPath).writeAsString(
+        jsonEncode({
+          'builtAt': _builtAtMs,
+          'count': count,
+          'roots': roots,
+        }),
+        flush: true,
+      );
+      return count;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Panonun taraması dizini **kendisi yazdıysa** ([FsScan.index]'in
+  /// `searchIndexPath` seçeneği) yalnız meta bilgisi güncellenir — aynı ağacı
+  /// ikinci kez gezmek saf israf olurdu.
+  static Future<void> adoptBuilt(int rows) async {
+    await ensureLoaded();
+    if (_dir.isEmpty || rows < 0) return;
+    _builtAtMs = DateTime.now().millisecondsSinceEpoch;
+    _entryCount = rows;
+    _stale = false;
+    _seenFsVersion = FsEvents.version.value;
+    try {
+      await File(_metaPath).writeAsString(
+        jsonEncode({'builtAt': _builtAtMs, 'count': rows}),
+        flush: true,
+      );
+    } catch (_) {}
+    revision.value++;
+  }
+
+  /// Dizin yoksa kurar; varsa (bayat olsa bile) hemen döner ve gerekiyorsa
+  /// arka planda tazeler. Arama ekranı açılışında çağrılır.
+  static Future<void> ensureBuilt() async {
+    await ensureLoaded();
+    if (!isReady) {
+      await rebuild();
+      return;
+    }
+    if (_stale && !isBuilding) unawaited(rebuild());
+  }
+
+  /// Dizini siler (ayarlardan "dizini temizle").
+  static Future<void> clear() async {
+    await ensureLoaded();
+    if (_dir.isEmpty) return;
+    for (final f in [File(indexPath), File(_metaPath)]) {
+      try {
+        if (f.existsSync()) f.deleteSync();
+      } catch (_) {}
+    }
+    _builtAtMs = 0;
+    _entryCount = 0;
+    _stale = false;
+    revision.value++;
+  }
+
+  /// Dizinde arama. Dizin yoksa canlı taramaya ([FsScan.search]) düşer —
+  /// kullanıcı ilk taramayı beklemek zorunda kalmaz.
+  ///
+  /// [root] verilirse yalnız o klasörün altı, [category] verilirse yalnız o
+  /// kategori döner (süzme isolate'te yapılır, sonuç listesi kısa gelir).
+  static Future<List<FsEntry>> query(
+    String query, {
+    String? root,
+    FmCategory? category,
+    bool includeDirs = true,
+    int limit = 500,
+  }) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+    await ensureLoaded();
+    if (!isReady) {
+      final hits =
+          await FsScan.search(root ?? FmEnv.primaryRoot, q, limit: limit);
+      return _postFilter(hits, category, includeDirs);
+    }
+    try {
+      final rows = await compute(
+        _querySync,
+        _QueryArgs(
+          indexPath: indexPath,
+          query: q,
+          root: root,
+          categoryName: category?.name,
+          includeDirs: includeDirs,
+          limit: limit,
+        ),
+      );
+      // Dizin bayat olabilir: diskte kalmayanları düşür (en çok `limit`
+      // kadar stat çağrısı — göz açıp kapayıncaya kadar).
+      return rows.where((e) => e.exists).toList();
+    } catch (_) {
+      final hits =
+          await FsScan.search(root ?? FmEnv.primaryRoot, q, limit: limit);
+      return _postFilter(hits, category, includeDirs);
+    }
+  }
+
+  static List<FsEntry> _postFilter(
+    List<FsEntry> hits,
+    FmCategory? category,
+    bool includeDirs,
+  ) =>
+      hits
+          .where((e) => includeDirs || !e.isDir)
+          .where((e) => category == null || e.category == category)
+          .toList();
+}
+
+// ── isolate'te koşan saf işler ──────────────────────────────────────────────
+
+class _BuildArgs {
+  final List<String> roots;
+  final String indexPath;
+  const _BuildArgs(this.roots, this.indexPath);
+}
+
+class _QueryArgs {
+  final String indexPath;
+  final String query;
+  final String? root;
+  final String? categoryName;
+  final bool includeDirs;
+  final int limit;
+  const _QueryArgs({
+    required this.indexPath,
+    required this.query,
+    required this.root,
+    required this.categoryName,
+    required this.includeDirs,
+    required this.limit,
+  });
+}
+
+/// Tüm kökleri gezip dizin dosyasını yazar; kayıt sayısını döndürür.
+///
+/// Dosya **akış hâlinde** yazılır (satır satır tampon) — 100 bin satırı tek
+/// String'de biriktirmek isolate'i onlarca MB şişirirdi.
+int _buildSync(_BuildArgs args) {
+  final tmp = File('${args.indexPath}.tmp');
+  tmp.parent.createSync(recursive: true);
+  final raf = tmp.openSync(mode: FileMode.write);
+  final buffer = StringBuffer();
+  var count = 0;
+  try {
+    for (final root in args.roots) {
+      walkFiles(
+        Directory(root),
+        (entry) {
+          buffer.writeln(encodeIndexRow(entry));
+          count++;
+          if (buffer.length >= 64 * 1024) {
+            raf.writeStringSync(buffer.toString());
+            buffer.clear();
+          }
+        },
+        () {},
+        includeDirs: true,
+      );
+    }
+    if (buffer.isNotEmpty) raf.writeStringSync(buffer.toString());
+  } finally {
+    raf.closeSync();
+  }
+  // Atomik değiştirme: yarım kalmış dizin dosyası okunmasın.
+  tmp.renameSync(args.indexPath);
+  return count;
+}
+
+/// Dizin satırını üretir. Yol içinde sekme/satırsonu olamayacağı için ayraç
+/// güvenli; yine de olası kaçık karakterler boşluğa çevrilir.
+String encodeIndexRow(FsEntry entry) {
+  final path = entry.path.replaceAll('\t', ' ').replaceAll('\n', ' ');
+  return '$path\t${entry.sizeBytes}\t${entry.modifiedMs}\t'
+      '${entry.isDir ? 1 : 0}';
+}
+
+/// Dizin satırını çözer; bozuk satırda null.
+FsEntry? decodeIndexRow(String line) {
+  if (line.isEmpty) return null;
+  final parts = line.split('\t');
+  if (parts.length < 4) return null;
+  final path = parts[0];
+  if (path.isEmpty) return null;
+  return FsEntry(
+    path: path,
+    name: p.basename(path),
+    isDir: parts[3] == '1',
+    sizeBytes: int.tryParse(parts[1]) ?? 0,
+    modifiedMs: int.tryParse(parts[2]) ?? 0,
+  );
+}
+
+List<FsEntry> _querySync(_QueryArgs args) {
+  final file = File(args.indexPath);
+  if (!file.existsSync()) return const [];
+  final needle = turkishFold(args.query);
+  FmCategory? category;
+  for (final c in FmCategory.values) {
+    if (c.name == args.categoryName) category = c;
+  }
+  final rootPrefix = args.root == null ? null : p.normalize(args.root!);
+  final hits = <FsEntry>[];
+
+  // **Parça parça okunur** (64 KB): 100 bin satırlık dizini tek String'e
+  // almak isolate'i 10-20 MB şişirirdi. UTF-8'de satırsonu baytı (0x0A) çok
+  // baytlı bir dizinin içinde ASLA geçmez → baytları satırsonundan bölmek
+  // güvenlidir.
+  final raf = file.openSync();
+  try {
+    final pending = <int>[];
+    while (true) {
+      final chunk = raf.readSync(64 * 1024);
+      if (chunk.isEmpty) break;
+      pending.addAll(chunk);
+      var start = 0;
+      for (var i = 0; i < pending.length; i++) {
+        if (pending[i] != 0x0A) continue;
+        final line =
+            utf8.decode(pending.sublist(start, i), allowMalformed: true);
+        start = i + 1;
+        final entry = decodeIndexRow(line);
+        if (entry == null) continue;
+        if (!args.includeDirs && entry.isDir) continue;
+        if (rootPrefix != null && !FsPaths.isInside(rootPrefix, entry.path)) {
+          continue;
+        }
+        if (category != null && entry.category != category) continue;
+        if (!turkishFold(entry.name).contains(needle)) continue;
+        hits.add(entry);
+        if (hits.length >= args.limit) return hits;
+      }
+      pending.removeRange(0, start);
+    }
+  } finally {
+    raf.closeSync();
+  }
+  return hits;
+}

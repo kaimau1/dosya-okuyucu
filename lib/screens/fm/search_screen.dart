@@ -7,14 +7,18 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/search_index.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 
 /// Klasör altında özyinelemeli dosya arama (Türkçe-duyarlı).
 ///
-/// Arama arka plan isolate'inde koşar (`FsScan.search`) — 100 bin dosyalık bir
-/// telefonda ana izlekte gezinmek arayüzü dondururdu.
+/// Arama artık **dizin üzerinden** koşar ([SearchIndex]): depolama bir kez
+/// derinlemesine taranır, sonraki her arama o dizinde yapılır — 100 bin
+/// dosyalı bir telefonda her harfte diski gezmek saniyeler sürüyordu. Dizin
+/// yoksa ilk arama canlı taramaya düşer (kullanıcı beklemez) ve arka planda
+/// dizin kurulur.
 class SearchScreen extends StatefulWidget {
   final String root;
   final String? rootLabel;
@@ -32,17 +36,41 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _searched = false;
   FmCategory? _filter;
 
+  /// Kaçıncı arama olduğunu sayar: geç dönen eski sonuç yenisini ezmesin.
+  int _queryToken = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    SearchIndex.revision.addListener(_onIndexChanged);
+    // Ekran açılırken dizin hazırlanır; kullanıcı yazana kadar çoğu zaman
+    // hazır olur, olmazsa canlı taramaya düşülür.
+    SearchIndex.ensureBuilt();
+  }
+
   @override
   void dispose() {
+    SearchIndex.revision.removeListener(_onIndexChanged);
     _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
+  void _onIndexChanged() {
+    if (!mounted) return;
+    setState(() {});
+    // Dizin yeni kurulduysa açık sorguyu tazele (sonuç eksik kalmasın).
+    if (SearchIndex.isReady &&
+        !SearchIndex.isBuilding &&
+        _controller.text.trim().length >= 2) {
+      _run(_controller.text);
+    }
+  }
+
   void _onChanged(String value) {
     _debounce?.cancel();
-    // 400 ms: her harfte tüm depolamayı taramak cihazı ısıtır.
-    _debounce = Timer(const Duration(milliseconds: 400), () => _run(value));
+    // 250 ms: dizin sayesinde arama ucuzladı, eskisi (400 ms) fazla bekletiyor.
+    _debounce = Timer(const Duration(milliseconds: 250), () => _run(value));
   }
 
   Future<void> _run(String query) async {
@@ -51,12 +79,14 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {
         _results = const [];
         _searched = false;
+        _searching = false;
       });
       return;
     }
+    final token = ++_queryToken;
     setState(() => _searching = true);
-    final hits = await FsScan.search(widget.root, q);
-    if (!mounted) return;
+    final hits = await SearchIndex.query(q, root: widget.root);
+    if (!mounted || token != _queryToken) return;
     setState(() {
       _results = hits;
       _searching = false;
@@ -95,15 +125,51 @@ class _SearchScreenState extends State<SearchScreen> {
                 _run('');
               },
             ),
+          PopupMenuButton<String>(
+            tooltip: 'Arama dizini',
+            onSelected: (v) async {
+              if (v == 'rebuild') {
+                await SearchIndex.rebuild();
+                if (mounted && _controller.text.trim().length >= 2) {
+                  _run(_controller.text);
+                }
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'rebuild',
+                child: Text('Dizini yeniden kur'),
+              ),
+            ],
+          ),
         ],
       ),
       body: Column(
         children: [
           _filterChips(),
-          if (_searching) const LinearProgressIndicator(minHeight: 2),
+          if (_searching || SearchIndex.isBuilding)
+            const LinearProgressIndicator(minHeight: 2),
+          _indexBanner(),
           Expanded(child: _body(results)),
         ],
       ),
+    );
+  }
+
+  /// Dizinin durumu: kuruluyor / bayat. Kullanıcı sonucun neden eksik
+  /// olabileceğini bilsin diye açıkça yazılır.
+  Widget _indexBanner() {
+    String? text;
+    if (SearchIndex.isBuilding) {
+      text = 'Arama dizini kuruluyor — bu ilk sefere özel, sonraki aramalar '
+          'anında olacak.';
+    } else if (SearchIndex.isReady && SearchIndex.isStale) {
+      text = 'Dosyalar değişti — dizin arka planda tazeleniyor.';
+    }
+    if (text == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 
@@ -154,7 +220,9 @@ class _SearchScreenState extends State<SearchScreen> {
           leading: FmEntryIcon(entry: e),
           title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(
-            p.dirname(e.path),
+            e.isDir
+                ? p.dirname(e.path)
+                : '${FsPaths.humanSize(e.sizeBytes)} · ${p.dirname(e.path)}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

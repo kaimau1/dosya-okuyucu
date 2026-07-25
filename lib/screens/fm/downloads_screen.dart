@@ -11,6 +11,7 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 
@@ -42,6 +43,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   bool _loading = true;
   _DlSort _sort = _DlSort.oldest;
 
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  String _query = '';
+
   bool get _selecting => _selected.isNotEmpty;
 
   @override
@@ -54,6 +59,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   void dispose() {
     FsEvents.version.removeListener(_load);
+    _searchController.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -79,7 +85,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   int? _ageDays(FsEntry e) => daysBetween(e.lastTouchedMs, _now);
 
   List<FsEntry> get _sorted {
-    final list = [..._files];
+    // Arama bellekte süzer: bu ekranın listesi zaten yüklü, disk okunmaz.
+    final list = _query.trim().isEmpty
+        ? [..._files]
+        : _files.where((e) => fmMatches(e.name, _query)).toList();
     switch (_sort) {
       case _DlSort.oldest:
         list.sort((a, b) => a.lastTouchedMs.compareTo(b.lastTouchedMs));
@@ -104,8 +113,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       .fold(0, (sum, e) => sum + e.sizeBytes);
 
   Future<void> _deleteSelected() async {
-    final entries =
-        _files.where((e) => _selected.contains(e.path)).toList();
+    final entries = _files.where((e) => _selected.contains(e.path)).toList();
     if (entries.isEmpty) return;
     if (await deleteEntries(context, entries)) {
       setState(_selected.clear);
@@ -155,40 +163,66 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 ),
               ],
             )
-          : AppBar(
-              title: const Text('İndirilenler'),
-              actions: [
-                IconButton(
-                  tooltip: 'Klasör olarak aç',
-                  icon: const Icon(Icons.folder_open),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BrowserScreen(
-                          path: widget.path, title: 'İndirilenler'),
-                    ),
+          : _searching
+              ? AppBar(
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => setState(() {
+                      _searching = false;
+                      _query = '';
+                      _searchController.clear();
+                    }),
                   ),
-                ),
-                PopupMenuButton<_DlSort>(
-                  tooltip: 'Sırala',
-                  icon: const Icon(Icons.sort),
-                  onSelected: (v) => setState(() => _sort = v),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                        value: _DlSort.oldest,
-                        child: Text('En eski (silme adayları) önce')),
-                    PopupMenuItem(
-                        value: _DlSort.newest, child: Text('En yeni önce')),
-                    PopupMenuItem(
-                        value: _DlSort.largest, child: Text('En büyük önce')),
-                    PopupMenuItem(value: _DlSort.name, child: Text('Ada göre')),
+                  title: FmSearchField(
+                    controller: _searchController,
+                    hint: 'İndirilenler içinde ara…',
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
+                )
+              : AppBar(
+                  title: const Text('İndirilenler'),
+                  actions: [
+                    IconButton(
+                      tooltip: 'İndirilenler içinde ara',
+                      icon: const Icon(Icons.search),
+                      onPressed: () => setState(() => _searching = true),
+                    ),
+                    IconButton(
+                      tooltip: 'Klasör olarak aç',
+                      icon: const Icon(Icons.folder_open),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BrowserScreen(
+                              path: widget.path, title: 'İndirilenler'),
+                        ),
+                      ),
+                    ),
+                    PopupMenuButton<_DlSort>(
+                      tooltip: 'Sırala',
+                      icon: const Icon(Icons.sort),
+                      onSelected: (v) => setState(() => _sort = v),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                            value: _DlSort.oldest,
+                            child: Text('En eski (silme adayları) önce')),
+                        PopupMenuItem(
+                            value: _DlSort.newest, child: Text('En yeni önce')),
+                        PopupMenuItem(
+                            value: _DlSort.largest,
+                            child: Text('En büyük önce')),
+                        PopupMenuItem(
+                            value: _DlSort.name, child: Text('Ada göre')),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : files.isEmpty
-              ? const Center(child: Text('İndirilenler klasörü boş'))
+              ? Center(
+                  child: Text(_query.trim().isEmpty
+                      ? 'İndirilenler klasörü boş'
+                      : '“$_query” için sonuç yok.'))
               : Column(
                   children: [
                     _summary(total, ancient),
@@ -262,8 +296,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           ),
           if (ancient.isNotEmpty)
             TextButton(
-              onPressed: () => setState(
-                  () => _selected.addAll(ancient.map((e) => e.path))),
+              onPressed: () =>
+                  setState(() => _selected.addAll(ancient.map((e) => e.path))),
               child: const Text('Eskileri seç'),
             ),
         ],

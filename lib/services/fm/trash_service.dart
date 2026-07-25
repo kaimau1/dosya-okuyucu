@@ -235,9 +235,8 @@ class TrashService {
   /// temizleme). Silinen öğe sayısını döndürür.
   Future<int> purgeOlderThan(int days) async {
     if (days <= 0) return 0;
-    final cutoff = DateTime.now()
-        .subtract(Duration(days: days))
-        .millisecondsSinceEpoch;
+    final cutoff =
+        DateTime.now().subtract(Duration(days: days)).millisecondsSinceEpoch;
     var removed = 0;
     for (final item in await list()) {
       if (item.deletedAtMs > 0 && item.deletedAtMs < cutoff) {
@@ -248,10 +247,35 @@ class TrashService {
     return removed;
   }
 
-  Future<void> empty() async {
-    for (final item in await list()) {
-      await deleteForever(item);
+  /// Çöp kutusunu boşaltır. [onProgress] verilirse her öğede ilerleme
+  /// bildirilir — kullanıcı isteği (2026-07-25): "çöp kutusu boşaltılırken
+  /// sessizlik oluyor, ne olduğu belli değil".
+  ///
+  /// Silinen öğe sayısı ve (varsa) hatalar döner; kısmi başarı sessizce
+  /// yutulmaz.
+  Future<FmOpResult> empty({
+    void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    final items = await list();
+    final errors = <String>[];
+    var ok = 0;
+    var done = 0;
+    for (final item in items) {
+      if (isCancelled?.call() ?? false) {
+        return FmOpResult(succeeded: ok, errors: errors, cancelled: true);
+      }
+      onProgress?.call(FmProgress(done, items.length, item.name));
+      try {
+        await deleteForever(item);
+        ok++;
+      } catch (e) {
+        errors.add('${item.name}: $e');
+      }
+      done++;
     }
+    onProgress?.call(FmProgress(done, items.length, ''));
+    return FmOpResult(succeeded: ok, errors: errors);
   }
 
   /// Çöpteki toplam boyut (kayıtlardan; klasörler 0 sayılır).
@@ -284,8 +308,7 @@ class TrashService {
   Future<void> _writeIndex(String trashDir, List<TrashItem> items) async {
     final file = File(p.join(trashDir, _indexFile));
     await file.parent.create(recursive: true);
-    await file.writeAsString(
-        jsonEncode(items.map((i) => i.toMap()).toList()),
+    await file.writeAsString(jsonEncode(items.map((i) => i.toMap()).toList()),
         flush: true);
   }
 

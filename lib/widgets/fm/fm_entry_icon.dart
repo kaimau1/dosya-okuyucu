@@ -46,7 +46,11 @@ abstract final class FmColors {
 }
 
 /// Bir girdinin ikonu. Görsellerde gerçek küçük resim (thumbnail) gösterilir;
-/// belgelerde mevcut [FileTypeIcon] rozeti (Word mavisi / Excel yeşili …).
+/// belgelerde mevcut [FileTypeIcon] (Word mavisi / Excel yeşili …).
+///
+/// **Çerçeve YOKTUR** (kullanıcı isteği 2026-07-25: "dış çerçeve olmasın direkt
+/// simge olsun"): glif kutunun ~%92'sini kaplar, arkasında dolgu/kenarlık
+/// bulunmaz. Aynı boyutta çok daha büyük ve daha temiz görünür.
 class FmEntryIcon extends StatelessWidget {
   final FsEntry entry;
   final double size;
@@ -54,19 +58,24 @@ class FmEntryIcon extends StatelessWidget {
   /// Küçük resim üretilsin mi? (Hızlı kaydırmada kapatılabilir.)
   final bool thumbnails;
 
+  /// Küçük resmin köşe yarıçapı. Izgarada hücre büyüdükçe büyütülür;
+  /// Google Fotoğraflar tarzı dolu ızgarada 0 verilir.
+  final double radius;
+
   const FmEntryIcon({
     super.key,
     required this.entry,
     this.size = 44,
     this.thumbnails = true,
+    this.radius = Radii.control,
   });
 
   @override
   Widget build(BuildContext context) {
     final category = entry.category;
     // Kullanıcı ayarlardan küçük resimleri kapatabilir (yavaş cihaz).
-    final thumbsOn = thumbnails &&
-        (context.select<AppState, bool>((s) => s.fmThumbnails));
+    final thumbsOn =
+        thumbnails && (context.select<AppState, bool>((s) => s.fmThumbnails));
 
     if (category == FmCategory.document) {
       return FileTypeIcon(
@@ -80,13 +89,14 @@ class FmEntryIcon extends StatelessWidget {
       return _VideoThumb(
         path: entry.path,
         size: size,
+        radius: radius,
         fallback: _badge(context, category),
       );
     }
 
     if (thumbsOn && category == FmCategory.image) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(Radii.control),
+        borderRadius: BorderRadius.circular(radius),
         child: Image.file(
           File(entry.path),
           width: size,
@@ -109,19 +119,13 @@ class FmEntryIcon extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final base = FmColors.forCategory(category);
     final tint = dark ? Color.lerp(base, Colors.white, 0.25)! : base;
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: dark ? 0.22 : 0.13),
-        borderRadius: BorderRadius.circular(Radii.control),
-        border: Border.all(color: tint.withValues(alpha: 0.28)),
-      ),
-      child: Icon(FmColors.iconFor(category), color: tint, size: size * 0.54),
+      child: Icon(FmColors.iconFor(category), color: tint, size: size * 0.92),
     );
   }
 }
-
 
 /// Video küçük resmi: önbellekten gelir, yoksa arka planda üretilir.
 /// Üretim bitene kadar (ve üretilemezse) [fallback] ikonu görünür — liste
@@ -129,12 +133,14 @@ class FmEntryIcon extends StatelessWidget {
 class _VideoThumb extends StatefulWidget {
   final String path;
   final double size;
+  final double radius;
   final Widget fallback;
 
   const _VideoThumb({
     required this.path,
     required this.size,
     required this.fallback,
+    this.radius = Radii.control,
   });
 
   @override
@@ -173,7 +179,7 @@ class _VideoThumbState extends State<_VideoThumb> {
     final thumb = _thumb;
     if (thumb == null) return widget.fallback;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(Radii.control),
+      borderRadius: BorderRadius.circular(widget.radius),
       child: Stack(
         fit: StackFit.passthrough,
         children: [

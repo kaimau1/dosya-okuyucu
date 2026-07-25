@@ -10,6 +10,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -19,6 +20,7 @@ import 'category_screen.dart';
 import 'downloads_screen.dart';
 import 'fm_settings_screen.dart';
 import 'installed_apps_screen.dart';
+import 'photos_screen.dart';
 import 'search_screen.dart';
 import 'trash_screen.dart';
 
@@ -121,7 +123,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_scanning) return;
     setState(() => _scanning = true);
     await FmEnv.ensureInit(force: true);
-    final index = await FsScan.index(FmEnv.volumeRoots);
+    await SearchIndex.ensureLoaded();
+    // Tek yürüyüş hem panoyu hem arama dizinini besler.
+    final index = await FsScan.index(
+      FmEnv.volumeRoots,
+      searchIndexPath:
+          FmEnv.appSupportDir.isEmpty ? null : SearchIndex.indexPath,
+    );
+    await SearchIndex.adoptBuilt(index.searchIndexRows);
     _cachedIndex = index;
     _cachedAtMs = DateTime.now().millisecondsSinceEpoch;
     if (!mounted) return;
@@ -161,13 +170,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
   void _openCategory(FmCategory category, {bool grid = false}) {
+    // Görsel ve video → Google Fotoğraflar tarzı zaman ekseni (gün/ay/yıl).
+    if (category == FmCategory.image || category == FmCategory.video) {
+      _push(PhotosScreen(
+        title: category.label,
+        files: _index.files(category),
+      ));
+      return;
+    }
     _push(CategoryScreen(
       title: category.label,
       files: _index.files(category),
       gridDefault: grid,
-      // Görsel/videoda kaynak (Kamera, WhatsApp, Telegram…) filtresi anlamlı.
-      showSources:
-          category == FmCategory.image || category == FmCategory.video,
+      // Belgelerde PDF/Word/Excel/Slayt/Metin süzgeci.
+      showDocKinds: category == FmCategory.document,
     ));
   }
 
@@ -233,8 +249,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.star, color: FmColors.folder),
                   title: Text(p.basename(path)),
-                  subtitle: Text(path,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle:
+                      Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
                   onTap: () => _push(BrowserScreen(path: path)),
                   trailing: IconButton(
                     icon: const Icon(Icons.close),
@@ -331,8 +347,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: primary != null && primary.hasStats
             ? 'Kullanılan %${(primary.usedFraction * 100).round()}'
             : 'Ayrıntılar',
-        onTap: () => _push(
-            AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+        onTap: () =>
+            _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
       ),
       _TileData(
         icon: Icons.delete_outline,
@@ -342,8 +358,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? 'Boş'
             : '$_trashCount öğe · ${FsPaths.humanSize(_trashBytes)}',
         onTap: () async {
-          await Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const TrashScreen()));
+          await Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
           _loadTrash();
         },
       ),
@@ -426,8 +442,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ActionChip(
             avatar: const Icon(Icons.folder_outlined, size: 18),
             label: Text(f.label),
-            onPressed: () =>
-                _push(BrowserScreen(path: f.path, title: f.label)),
+            onPressed: () => _push(BrowserScreen(path: f.path, title: f.label)),
           ),
       ],
     );
