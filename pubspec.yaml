@@ -132,7 +132,18 @@ dependencies:
   firebase_auth: ^5.3.0
   cloud_firestore: ^5.4.0
   google_sign_in: ^6.2.0
+  # Belge tarayıcı: Google ML Kit Belge Tarayıcı sarmalayıcısı (kenar tespiti,
+  # perspektif düzeltme, "taranmış" filtre — SCANNER_MODE_FULL, sonuç JPEG).
+  # 1.2.x SON uyumlu seri: 2.x Dart >=3.8 ister, biz 3.7'deyiz (CI 3.29.3).
+  # Play Services yoksa paket kendi yedek tarayıcısına düşer.
   cunning_document_scanner: ^1.2.3
+
+  # Sesli okuma (cihazın kendi TTS motoru; internet gerekmez).
+  flutter_tts: ^4.2.5
+
+  # PDF içindeki dış bağlantıları tarayıcıda açmak için. Zaten printing üzerinden
+  # dolaylı geliyordu; doğrudan bağımlılık yapıldı (dolaylıya güvenmek kırılgan).
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

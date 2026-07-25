@@ -1839,3 +1839,42 @@ doğruluyor (4 açı × 4 nokta); yanlış olsa imza başka köşeye yan yatık 
 **İmza ekranı yalnız görüntüleyici ⋮ menüsünden açılıyor**, PDF Araçları'ndan
 DEĞİL: araçlar ekranı bellekteki kaydedilmemiş baytlarla çalışıyor, imza ise
 dosyaya yazıyor — ikisi aynı anda açık olsa biri diğerinin işini ezerdi.
+
+---
+
+## 2026-07-25 — Faz 4: okuma deneyimi (gece modu, köprü, içindekiler, sesli okuma)
+
+Play Store atağının son fazı. Dördü de görüntüleyicide (`viewer_screen`),
+hiçbiri dosyaya yazmıyor.
+
+**Gece modu:** `ColorFiltered` + renk TERSLEME matrisi (R'=255-R …).
+`Colors.white` gibi tek renk yerine matris, çünkü sayfadaki resim/grafikler de
+terslenmeli. Salt boya — seçim/arama koordinatlarına dokunmuyor.
+
+**Köprü (link):** `PdfViewerParams.linkHandlerParams`. İç hedef →
+`controller.goToDest`, dış adres → **önce onay penceresi (tam URL gösterilir)**,
+sonra `url_launcher`. Onay isteğe bağlı bir nezaket değil: belgedeki bağlantı
+METNİ gerçek hedefi gizleyebilir (kimlik avı), kullanıcı nereye gittiğini
+görmeden açmamalı.
+
+**İçindekiler:** `document.loadOutline()` → girintili DÜZ liste (ağaç/açılır
+düğüm yok — aynı işi görüyor, çok daha az kod). Belgede outline yoksa
+kullanıcıya söyleniyor.
+
+**Sesli okuma:** `flutter_tts`, cihazın kendi motoru, internet yok.
+`lib/services/tts_service.dart`. Metin TEK parça verilmiyor: motor uzun metinde
+kesiyor, durdurma gecikiyor ve nerede kalındığı bilinemiyor. `splitForSpeech`
+cümlelerden bölüyor, uzun kalanları kelime sınırından kesiyor; arayüz
+"3 / 128" ilerlemesi gösteriyor. `setCompletionHandler` ile sıradaki parçaya
+geçiliyor, `setErrorHandler` → `stop()` (motor hata verince sıra kilitlenip
+uygulama sessizleşmesin). Ekran kapanınca `dispose` konuşmayı kesiyor.
+Metin kaynağı mevcut `_documentText` — taranmış PDF'te boş çıkar, kullanıcı
+"önce OCR" uyarısı alır.
+
+**Yeni bağımlılıklar:** `flutter_tts ^4.2.5`, `url_launcher ^6.3.2`
+(url_launcher zaten printing üzerinden DOLAYLI geliyordu; doğrudan bağımlılık
+yapıldı — dolaylıya güvenmek, ara paket sürüm değiştirince kırılır).
+
+**Test:** `tts_split_test` — bölme metnin tamamını korur, sınırı aşmaz, kelime
+ortadan bölünmez, boşluksuz dev kelimede sonsuz döngüye girmez. Konuşma motoru
+ve PDF köprüleri cihaz gerektirir → KALANLAR'da doğrulama maddesi.

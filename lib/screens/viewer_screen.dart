@@ -6,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_state.dart';
 import '../core/text_search.dart';
@@ -15,6 +16,7 @@ import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf_annotator.dart';
+import '../services/tts_service.dart';
 import '../widgets/office_shell.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
@@ -101,6 +103,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   bool get _isPdf => widget.doc.kind == DocKind.pdf;
 
+  /// PDF gece modu: sayfayı renk matrisiyle TERSLER (beyaz kağıt → siyah).
+  /// Salt görsel; dosyaya dokunmaz.
+  bool _pdfNight = false;
+
+  /// Sesli okuma. Yalnız kullanıcı başlatınca kurulur (motor uyandırmayalım).
+  TtsService? _tts;
+  int _ttsIndex = 0;
+  int _ttsTotal = 0;
+  bool _ttsPlaying = false;
+
   @override
   void initState() {
     super.initState();
@@ -127,6 +139,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _findCtl.dispose();
     _textFocus.dispose();
     _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
+    _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     super.dispose();
   }
 
@@ -545,6 +558,21 @@ class _ViewerScreenState extends State<ViewerScreen> {
               _pdfSelection = '';
             }),
           ),
+        if (doc.kind == DocKind.pdf) ...[
+          IconButton(
+            tooltip: 'İçindekiler',
+            icon: const Icon(Icons.toc),
+            onPressed: _showOutline,
+          ),
+          IconButton(
+            tooltip: _pdfNight ? 'Gece modunu kapat' : 'Gece modu',
+            isSelected: _pdfNight,
+            icon: Icon(_pdfNight
+                ? Icons.light_mode_outlined
+                : Icons.dark_mode_outlined),
+            onPressed: () => setState(() => _pdfNight = !_pdfNight),
+          ),
+        ],
         if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
             tooltip: 'Belgede ara',
@@ -614,6 +642,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'sign':
                 _signPdf();
                 break;
+              case 'speak':
+                _toggleSpeech();
+                break;
               case 'translate':
                 _translateDocument();
                 break;
@@ -629,6 +660,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
             if (doc.kind == DocKind.pdf || doc.kind == DocKind.image)
               const PopupMenuItem(
                   value: 'ocr', child: Text('Metni tanı (OCR)')),
+            if (_ttsTotal == 0)
+              const PopupMenuItem(
+                  value: 'speak', child: Text('Sesli oku')),
             const PopupMenuItem(
                 value: 'translate', child: Text('Belgeyi çevir')),
             const PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
@@ -642,7 +676,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
           ],
         ),
       ],
-      body: _buildBody(doc),
+      body: _ttsTotal == 0
+          ? _buildBody(doc)
+          : Column(
+              children: [
+                Expanded(child: _buildBody(doc)),
+                _speechBar(),
+              ],
+            ),
       // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
       // kapatıyordu; etiket tooltip'e taşındı.
       fab: FloatingActionButton(
@@ -766,6 +807,162 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _pdfText = '';
       });
     }
+  }
+
+  // ── Faz 4: okuma deneyimi ─────────────────────────────────────────────────
+
+  /// PDF içindeki bağlantıya dokunulunca. Dış adresler ONAY İSTER: belgedeki
+  /// bağlantı metni gerçek hedefi gizleyebilir, kullanıcı tam URL'yi görmeli.
+  Future<void> _onPdfLink(PdfLink link) async {
+    final dest = link.dest;
+    if (dest != null) {
+      await _pdfController.goToDest(dest);
+      return;
+    }
+    final url = link.url;
+    if (url == null) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bağlantıyı aç'),
+        content: Text('Bu belge sizi şu adrese götürmek istiyor:\n\n$url\n\n'
+            'Tanımadığınız adreslere dikkat edin.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Aç')),
+        ],
+      ),
+    );
+    if (go != true) return;
+    try {
+      final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!ok) _snack('Bağlantı açılamadı');
+    } catch (e) {
+      _snack('Bağlantı açılamadı: $e');
+    }
+  }
+
+  /// Belge ana hattı (içindekiler). PDF'te yoksa kullanıcıya söylenir.
+  Future<void> _showOutline() async {
+    final doc = _pdfDoc;
+    if (doc == null) return;
+    final outline = await doc.loadOutline();
+    if (!mounted) return;
+    if (outline.isEmpty) {
+      _snack('Bu belgede içindekiler yok');
+      return;
+    }
+    // ponytail: ağaç yerine girintili düz liste — açılır/kapanır düğüm yönetimi
+    // olmadan aynı işi görür; şikayet gelirse ExpansionTile'a geçilir.
+    final flat = <(PdfOutlineNode, int)>[];
+    void walk(List<PdfOutlineNode> nodes, int depth) {
+      for (final n in nodes) {
+        flat.add((n, depth));
+        walk(n.children, depth + 1);
+      }
+    }
+
+    walk(outline, 0);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        builder: (ctx, scroll) => ListView.builder(
+          controller: scroll,
+          itemCount: flat.length,
+          itemBuilder: (ctx, i) {
+            final (node, depth) = flat[i];
+            return ListTile(
+              dense: true,
+              contentPadding:
+                  EdgeInsets.only(left: 16.0 + depth * 16, right: 16),
+              title: Text(node.title,
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              onTap: node.dest == null
+                  ? null
+                  : () {
+                      Navigator.pop(ctx);
+                      _pdfController.goToDest(node.dest);
+                    },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Sesli okumayı başlatır/duraklatır. Metin belgenin kendi metnidir; taranmış
+  /// PDF'te önce "Metni tanı (OCR)" gerekir (metin katmanı yoksa okunacak şey
+  /// yok — kullanıcıya söylenir).
+  Future<void> _toggleSpeech() async {
+    final tts = _tts;
+    if (tts != null && _ttsPlaying) {
+      await tts.pause();
+      return;
+    }
+    if (tts != null && _ttsTotal > 0) {
+      await tts.resume();
+      return;
+    }
+    final text = _documentText;
+    if (text.trim().isEmpty) {
+      _snack(_isPdf
+          ? 'Okunacak metin bulunamadı. Taranmış belgede önce "Metni tanı (OCR)".'
+          : 'Okunacak metin yok');
+      return;
+    }
+    final service = TtsService()
+      ..onProgress = (i, total, playing) {
+        if (!mounted) return;
+        setState(() {
+          _ttsIndex = i;
+          _ttsTotal = total;
+          _ttsPlaying = playing;
+        });
+      };
+    setState(() => _tts = service);
+    await service.start(text);
+  }
+
+  Future<void> _stopSpeech() async {
+    await _tts?.stop();
+    if (mounted) setState(() => _ttsTotal = 0);
+  }
+
+  /// Sesli okuma çubuğu — okuma sürerken belgenin altında durur.
+  Widget _speechBar() {
+    return Material(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: _ttsPlaying ? 'Duraklat' : 'Devam et',
+              icon: Icon(_ttsPlaying ? Icons.pause : Icons.play_arrow),
+              onPressed: _toggleSpeech,
+            ),
+            Expanded(
+              child: Text('Sesli okuma  ${_ttsIndex + 1} / $_ttsTotal',
+                  style: Theme.of(context).textTheme.bodyMedium),
+            ),
+            IconButton(
+              tooltip: 'Durdur',
+              icon: const Icon(Icons.stop),
+              onPressed: _stopSpeech,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// İmza ekranı; imza basılırsa dosya değişmiştir → görüntüleyici tazelenir.
@@ -894,6 +1091,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  /// Gece modu açıksa çocuğu renk-tersleyen matrisle sarar.
+  ///
+  /// Matris: R'=255-R, G'=255-G, B'=255-B (alfa aynı). Beyaz kağıt siyah,
+  /// siyah yazı beyaz olur — karanlıkta göz yormaz. `Colors.white` yerine
+  /// matris kullanılıyor çünkü sayfadaki resim/grafikler de terslenmeli.
+  Widget _nightFilter({required Widget child}) {
+    if (!_pdfNight) return child;
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix(<double>[
+        -1, 0, 0, 0, 255, //
+        0, -1, 0, 0, 255, //
+        0, 0, -1, 0, 255, //
+        0, 0, 0, 1, 0, //
+      ]),
+      child: child,
+    );
+  }
+
   /// PDF sayfa numarası rozeti (yarı saydam koyu pill).
   Widget _pageBadge(String text) {
     return Container(
@@ -917,7 +1132,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
               // güvenilir çalışmadığı için "Metin seç" modunda sayfa üzerine
               // kendi seçim katmanımız (PdfSelectLayer) biner; tek parmak
               // sürükleme o modda kaydırma yerine seçim yapar (panEnabled=false).
-              child: PdfViewer.file(
+              //
+              // Gece modu: sayfa görüntüsü renk matrisiyle terslenir. Dosyaya
+              // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
+              child: _nightFilter(
+                child: PdfViewer.file(
                 doc.path,
                 // Vurgu yazıldıktan sonra remount → yeni annotation görünsün.
                 key: ValueKey(_pdfReloadKey),
@@ -932,6 +1151,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     if (_pdfSearcher != null)
                       _pdfSearcher!.pageTextMatchPaintCallback,
                   ],
+                  // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
+                  linkHandlerParams: PdfLinkHandlerParams(
+                    onLinkTap: _onPdfLink,
+                    linkColor:
+                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                  ),
                   onViewerReady: (document, controller) {
                     _pdfDoc = document;
                     if (mounted) {
@@ -962,6 +1187,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                               onCopy: _copyPdfSelection,
                             ),
                           ],
+                  ),
                 ),
               ),
             ),

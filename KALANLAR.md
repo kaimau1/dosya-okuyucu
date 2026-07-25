@@ -1,6 +1,14 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **Okuma deneyimi cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 4: PDF aç →
+      (a) ay simgesi gece modunu açıyor mu, sayfa ters renkte okunaklı mı,
+      (b) içindekiler (☰ simgesi) olan bir PDF'te başlığa dokununca o sayfaya
+      gidiyor mu, olmayan belgede "içindekiler yok" diyor mu, (c) içinde köprü
+      olan PDF'te bağlantıya dokununca ONAY penceresi tam adresi gösteriyor mu,
+      "Aç" tarayıcıyı açıyor mu, iç bağlantı sayfaya atlıyor mu, (d) ⋮ "Sesli oku"
+      → Türkçe okuyor mu, duraklat/devam/durdur çalışıyor mu, ekrandan çıkınca
+      susuyor mu (dispose), (e) taranmış PDF'te "önce OCR" uyarısı geliyor mu.
 - [ ] **İmza cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 2: PDF aç → ⋮
       "İmzala" → (a) imza penceresi çiziyor mu, "Tamam" sonrası imza HATIRLANIYOR
       mu (ikinci kez sormamalı), (b) imza kutusu parmakla sürüklenip kaydırıcıyla
@@ -80,11 +88,6 @@
 - [ ] **Döndürülmüş sayfa (/Rotate≠0) vurgu düzeltmesi** — `pdf_annotator.addHighlight`
       sayfa rotasyonunu okuyup rect'leri görünür koordinata döndürsün; `pdf_annotator_test`e
       90/180/270. Syncfusion rotasyon konvansiyonu cihazda teyit edilmeli.
-- [ ] **PDF gece modu (invert)** — `PdfViewer`'ı `ColorFiltered` invert matrisiyle sar,
-      AppBar'da toggle (mevcut `_pdfSelectMode` düğmesi kalıbı). Salt görsel, düşük risk.
-- [ ] **PDF link/köprü tıklama** — `PdfViewerParams.linkWidgetBuilder`; dış URL→url_launcher
-      (pubspec'e ekle), iç hedef→`_pdfController.goToPage`.
-- [ ] **PDF belge ana hattı (outline)** — `document.loadOutline()` + yan çekmece navigasyon.
 - [ ] **PDF vurgu remount zoom kaybı** — `_pdfReloadKey++` remount'ta zoom/kaydırma sıfırlanır;
       `onViewerReady`'de son matris geri uygula.
 
@@ -93,8 +96,8 @@
 - [x] ~~Faz 2: İmza (parmakla çiz → sayfaya vektör olarak bas)~~ → YAPILDI 2026-07-25
 - [x] ~~Faz 3: Belge tarayıcı (ML Kit) → tek PDF + OCR~~ → YAPILDI 2026-07-25
       ("çoklu resim → tek PDF" maddesini de kapattı)
-- [ ] **Faz 4 — Okuma deneyimi** — gece modu, link tıklama, outline, sesli okuma (TTS).
-      Ayrıntı: yukarıdaki "PDF sadakat/deneyim" bölümü.
+- [x] ~~Faz 4: gece modu + link tıklama + içindekiler + sesli okuma~~ → YAPILDI 2026-07-25
+      **4 fazın tamamı bitti.**
 
 ## Sonra yapılacak
 - [ ] **PDF form doldurma (en son)** — Syncfusion `PdfLoadedForm` alanları oku (`doc.form.fields`),
