@@ -4,10 +4,12 @@ import 'package:path/path.dart' as p;
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
+import 'duplicates_screen.dart';
 import 'entry_actions.dart';
 
 /// Bellek Analizi: neyin ne kadar yer kapladığı + en büyük dosyalar.
@@ -47,6 +49,21 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             _VolumeBar(volume: v),
             const SizedBox(height: Gap.md),
           ],
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              leading: const Icon(Icons.cleaning_services_outlined),
+              title: const Text('Yinelenen dosyaları bul'),
+              subtitle: const Text(
+                  'Birebir aynı dosyaları bulur, bir kopyayı bırakıp '
+                  'kalanları çöpe taşır'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => DuplicatesScreen(roots: FmEnv.volumeRoots),
+              )),
+            ),
+          ),
+          const SizedBox(height: Gap.lg),
           Text('Türlere göre', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: Gap.sm),
           Card(

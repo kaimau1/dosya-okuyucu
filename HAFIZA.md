@@ -1144,3 +1144,23 @@ kaydırarak ileri-geri, (3) araştırmaları tam analiz edip geliştirmeye devam
 - **Ekran duman testi kendini ödedi:** `archive_screen.dart`'ta eksik
   `file_ops.dart` importunu (FmProgress) hızlı test koşusu yakaladı — eskiden
   bu hata ancak ~20 dk'lık APK derlemesinde görünürdü.
+
+### Yinelenen dosya bulucu (araştırma listesinden kalan madde)
+Fossify/Material Files karşılaştırmasında bizde olmayan ve en çok işe yarayan
+madde "yer açma" idi → `services/fm/duplicate_finder.dart`: üç aşamalı
+(boyut grubu → baş/son 64 KB FNV-1a parmak izi → **bayt bayt** doğrulama).
+*Niye üç aşama:* yalnız hash'e güvenip kullanıcının dosyasını sildirmek kabul
+edilemez; boyut grubu sayesinde çoğu dosya hiç okunmaz. `Isolate.run` içinde.
+Ekran: Bellek Analizi → "Yinelenen dosyaları bul"; her grupta **en eski dosya
+korunur**, kalanlar seçili gelir, tek dokunuşla çöpe. `crypto` bağımlılığı
+EKLENMEDİ (FNV-1a saf Dart, 20 satır).
+
+### TUZAK (CI #94) — `Isolate.run` + akış hatası = RemoteError
+İlk düzeltme (sonucu sade listeyle döndürmek) yetmedi: `IOSink.addStream`
+kullanılınca akış hatası hem dönen future'a hem sink'in `done` future'ına
+düşüyor, biri SAHİPSİZ kalıp isolate'i düşürüyor → `Isolate.run` hatayı
+`RemoteError`'a çeviriyor, tip bilgisi yine kayboluyordu. Kesin çözüm iki
+katmanlı: (1) `addStream` yerine `await for` + `sink.add` (hata tek yerden),
+(2) `_guard` gövdesi `runZonedGuarded` içinde — sahipsiz async hata da
+sonuca çevriliyor. **Kural:** isolate içinde akış tüketirken `addStream`
+kullanma; ve isolate gövdesini daima zone ile koru.

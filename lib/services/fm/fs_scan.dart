@@ -181,7 +181,7 @@ class _IndexArgs {
 
 int _folderSizeSync(String path) {
   var total = 0;
-  _walk(Directory(path), (entry) => total += entry.sizeBytes, () {});
+  walkFiles(Directory(path), (entry) => total += entry.sizeBytes, () {});
   return total;
 }
 
@@ -189,7 +189,7 @@ List<FsEntry> _searchSync(_SearchArgs args) {
   final needle = turkishFold(args.query.trim());
   if (needle.isEmpty) return const [];
   final hits = <FsEntry>[];
-  _walk(
+  walkFiles(
     Directory(args.root),
     (entry) {
       if (hits.length >= args.limit) return;
@@ -213,7 +213,7 @@ StorageIndex _indexSync(_IndexArgs args) {
   var skipped = 0;
 
   for (final root in args.roots) {
-    _walk(
+    walkFiles(
       Directory(root),
       (entry) {
         final c = entry.category;
@@ -274,7 +274,10 @@ class _TopN {
 
 /// Klasör ağacını gezer. [onFile] her DOSYA için çağrılır; [onDenied] okuma
 /// izni olmayan klasörlerde. Sembolik bağlantılar izlenmez (döngü riski).
-void _walk(
+///
+/// Herkese açık: yinelenen dosya bulucu gibi başka tarayıcılar da aynı
+/// yürüyüşü (aynı atlama kuralları, aynı derinlik sigortası) kullansın.
+void walkFiles(
   Directory dir,
   void Function(FsEntry) onFile,
   void Function() onDenied, {
@@ -297,7 +300,7 @@ void _walk(
     if (entry.isDir) {
       if (FsScan.skipDirNames.contains(entry.name)) continue;
       if (includeDirs) onFile(entry);
-      _walk(
+      walkFiles(
         Directory(child.path),
         onFile,
         onDenied,

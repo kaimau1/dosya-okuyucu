@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -346,13 +347,27 @@ Future<koni.Archive> _open(
 /// `ArchiveFailure` kayboluyor, parola akışı "bilinmeyen hata"ya düşüyordu.
 /// Çözüm: isolate ASLA istisna fırlatmaz; sonucu ya da hatayı **sade**
 /// (String/int) bir listeyle döndürür, çağıran yeniden kurar.
-Future<List<Object?>> _guard<T>(Future<T> Function() body) async {
-  try {
-    return ['ok', await body()];
-  } catch (e) {
+Future<List<Object?>> _guard<T>(Future<T> Function() body) {
+  final completer = Completer<List<Object?>>();
+  List<Object?> asError(Object e) {
     final mapped = _mapError(e);
     return ['err', mapped.failure.index, mapped.message];
   }
+
+  // runZonedGuarded: isolate içinde SAHİPSİZ kalan async hata (akış hatası
+  // gibi) `Isolate.run`'a ulaşıp `RemoteError`'a dönüşmesin — tipini
+  // kaybetmeden sonuca çevrilsin.
+  runZonedGuarded(() async {
+    try {
+      final value = await body();
+      if (!completer.isCompleted) completer.complete(['ok', value]);
+    } catch (e) {
+      if (!completer.isCompleted) completer.complete(asError(e));
+    }
+  }, (e, _) {
+    if (!completer.isCompleted) completer.complete(asError(e));
+  });
+  return completer.future;
 }
 
 Object? _unwrap(List<Object?> result) {
@@ -447,9 +462,16 @@ Future<String> _extractSync(
       }
       final out = File(outPath);
       await out.parent.create(recursive: true);
+      // `sink.addStream` KULLANILMIYOR: akış hata verince hata hem dönen
+      // future'a hem sink'in done future'ına düşüyor, biri SAHİPSİZ kalıp
+      // isolate'i düşürüyordu (CI #94: RemoteError). Elle tüketimde hata tek
+      // yerden gelir ve aşağıdaki catch onu tiplenmiş hataya çevirir.
       final sink = out.openWrite();
       try {
-        await sink.addStream(archive.openRead(entry));
+        await for (final chunk in archive.openRead(entry)) {
+          sink.add(chunk);
+        }
+        await sink.flush();
       } finally {
         await sink.close();
       }
@@ -492,7 +514,10 @@ Future<String> _extractOneSync(
         p.join(destDir, p.basename(entry.path))));
     final sink = out.openWrite();
     try {
-      await sink.addStream(archive.openRead(entry));
+      await for (final chunk in archive.openRead(entry)) {
+        sink.add(chunk);
+      }
+      await sink.flush();
     } finally {
       await sink.close();
     }
