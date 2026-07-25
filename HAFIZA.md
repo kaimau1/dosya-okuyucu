@@ -1179,3 +1179,9 @@ tarafı zaten hazırdı → tur kapandı (üret → geri aç, testli).
   *Niye 7z seçeneği:* parolalı ZIP'te dosya ADLARI dizinde açık kalır; gerçek
   gizlilik için 7z + şifreli başlık gerekir (kullanıcıya açıkça yazıldı).
 - **RAR üretimi yok ve olmayacak** (biçim özel mülk) — okuma tam.
+
+### TUZAK — boş commit CI'ı TETİKLEMEZ
+`[release-apk]` işaretli **boş** commit (`--allow-empty`) hiçbir koşu başlatmadı:
+workflow'un `paths-ignore: '**.md'` filtresi, değişen dosyası olmayan push'u da
+eliyor. APK istendiğinde ya gerçek bir kod değişikliğiyle ya da `ci/build-trigger.txt`
+güncellenerek push edilmeli (dosya zaten bu amaçla duruyor).
