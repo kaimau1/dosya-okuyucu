@@ -139,6 +139,9 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   # Uygulama ikonunu (launcher + adaptive) tek kaynaktan üretir.
   flutter_launcher_icons: ^0.14.1
+  # Testte gerçek ExoPlayer yerine sahte oynatma motoru takmak için
+  # (media_player_layout_test). video_player'ın zaten kilitli alt paketi.
+  video_player_platform_interface: ^6.6.0
 
 flutter:
   uses-material-design: true

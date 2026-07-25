@@ -1616,3 +1616,75 @@ seçim/`Hücreye git` artık hücreyi görünür yapıyor (`_ensureVisible`).
 genişletilmiş `formula_engine_test`, `spreadsheet_screen_test`,
 `xlsx_reader_test`). `graphify update .` bu bulut oturumunda ÇALIŞTIRILAMADI
 (CLI kurulu değil) — kod haritası bir sonraki yerel turda yenilenmeli.
+
+## 2026-07-25 — Video oynatıcı: dokununca görüntü kayıyordu
+
+**Şikâyet (kullanıcı, ekran görüntüsü):** oynatıcıda videoya dokununca görüntü
+küçülüp aşağı kayıyor, kontroller kaybolunca geri sıçrıyor.
+
+### KÖK NEDEN — üst bar `Scaffold.appBar` slotundaydı
+`appBar: _controlsVisible ? AppBar(...) : null` yazılmıştı. `appBar` bir
+Scaffold **yerleşim slotu**: dolu olduğunda `body`'nin yüksekliğinden
+`kToolbarHeight + durum çubuğu` kadarını yer. Video `Center` + `AspectRatio`
+ile ortalandığı için body kısalınca görüntü hem küçülüyor hem yukarı/aşağı
+oynuyordu — yani kayma her dokunuşta **iki kez** (aç/kapa) yaşanıyordu.
+
+**Çözüm:** üst bar da alt kontroller gibi `Stack`'te overlay
+(`Positioned(top:0)` + `SafeArea` + koyu gradyan). Scaffold'un `appBar` slotu
+artık BOŞ → body her zaman tam ekran, görüntü hiç oynamıyor.
+
+- **Kural:** tam ekran medya ekranlarında görünürlüğü değişen hiçbir çubuk
+  Scaffold slotuna (`appBar`/`bottomNavigationBar`) verilmez; overlay yapılır.
+- **Yan düzeltme:** `GestureDetector`'a `behavior: HitTestBehavior.opaque`.
+  Varsayılan `deferToChild` ile videonun yanındaki siyah boşluklarda dokunma
+  hiç yakalanmıyordu (kontroller yalnız görüntünün üstünde açılıyordu).
+- **Yeni test — `media_player_layout_test.dart`:** sahte `VideoPlayerPlatform`
+  (gerçek ExoPlayer yerine) takılıp kontroller açık/kapalı hâlde
+  `find.byType(VideoPlayer)` dikdörtgeni ölçülüyor; birebir aynı olmalı. Bar
+  tekrar Scaffold slotuna taşınırsa test kırmızı yanar.
+  - Sahte motor için `video_player_platform_interface` **dev_dependency**
+    olarak eklendi (zaten kilitli alt paket; `pubspec.lock` değişmedi).
+  - `VideoPlayerPlatform`'u `extends` etmek yeterli — `MockPlatformInterfaceMixin`
+    (plugin_platform_interface) gerekmiyor, token doğrulaması geçiyor.
+  - Testin sonunda `pumpWidget(SizedBox())` şart: controller'ın periyodik
+    konum zamanlayıcısı iptal olmazsa "A Timer is still pending" hatası.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 hata,
+`flutter test` **391 test yeşil**.
+
+## 2026-07-25 — Pano her açılışta tüm depolamayı baştan tarıyordu
+
+**Şikâyet (kullanıcı):** "dosya yöneticisi açılırken de her seferinde tüm
+dosyaları baştan tarıyor."
+
+### KÖK NEDEN — pano indeksi yalnız SÜREÇ İÇİ önbellekteydi
+`_DashboardScreenState._cachedIndex` `static`ti: sekmeler arası geçişte
+korunuyor ama uygulama kapanınca yok oluyordu. Her açılışta `FsScan.index`
+tüm ağacı yeniden yürüyordu (100 bin dosyada dakikalar + pil).
+
+### ÇÖZÜM — pano, arama dizininin kendisinden kuruluyor (disk yürüyüşü YOK)
+Arama dizini (`search_index.tsv`) zaten her dosya/klasör için
+`yol \t boyut \t değişiklikMs \t klasörMü` tutuyor — panonun ihtiyacı olan her
+şey orada. Yeni `FsScan.indexFromRows(indexPath)` bu düz dosyayı okuyup
+`StorageIndex`'i **birebir aynı** kuruyor (saniyenin altı).
+
+- Açılış akışı: dizin varsa anında kur ve göster → çöp/klasör boyutları →
+  yalnız GEREKİRSE arka planda tam tarama (`unawaited(_scan())`).
+  "Gerekiyor" = dizin bayat VEYA 12 saatten eski (`_maxIndexAge`).
+- Sayım/sıralama mantığı `_IndexAccumulator`'a çıkarıldı; canlı yürüyüş ile
+  dizinden kurma **aynı kodu** kullanıyor (iki yerde sapma olamaz).
+- `encodeIndexRow`/`decodeIndexRow` `search_index.dart`'tan `fs_scan.dart`'a
+  taşındı (yazıcı zaten oradaydı, satır biçimi kopyalanmıştı); eski konumdan
+  `export` ile yeniden yayımlanıyor.
+- **TUZAK — bayatlık diske yazılmalı:** `SearchIndex._stale` yalnız bellekteydi.
+  Uygulama kapanınca unutuluyor, bir sonraki açılışta bayat dizin taze
+  sanılıyordu (silinen dosya panoda sayılmaya devam ederdi — 2026-07-25'te bir
+  kez düzeltilen hatanın kalıcı önbellekle geri gelme yolu). Artık meta
+  json'a `stale` alanı yazılıyor; meta yazımı tek yerden (`_writeMeta`).
+- **TUZAK — TSV'yi `String.fromCharCodes` ile okumak Türkçe adları bozar.**
+  Bayt bazlı okuyup `0x0A`'dan bölmek ve `utf8.decode` şart (arama
+  sorgusunun kullandığı yöntemin aynısı).
+
+**Yeni testler** (`fm_search_index_test`): dizinden kurulan indeks tam
+taramayla aynı sayılar/listeler; dizin yok/boşsa `null` (çağıran tam taramaya
+düşer); bozuk satırlar atlanır.

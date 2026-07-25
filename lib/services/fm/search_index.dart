@@ -11,6 +11,11 @@ import 'fm_env.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
 
+// Satır biçimi (`encodeIndexRow`/`decodeIndexRow`) artık `fs_scan.dart`'ta:
+// dizini panonun taraması da yazıyor, pano indeksi de aynı satırlardan
+// kuruluyor (`FsScan.indexFromRows`). Tek tanım, tek biçim.
+export 'fs_scan.dart' show encodeIndexRow, decodeIndexRow;
+
 /// **Aranabilir dosya dizini** — "her seferinde baştan taranmasın" isteğinin
 /// karşılığı (kullanıcı, 2026-07-25).
 ///
@@ -78,6 +83,10 @@ abstract final class SearchIndex {
       if (raw is! Map) return;
       _builtAtMs = (raw['builtAt'] as num?)?.toInt() ?? 0;
       _entryCount = (raw['count'] as num?)?.toInt() ?? 0;
+      // Bayatlık DİSKE yazılır: uygulama kapanınca unutulursa, bir sonraki
+      // açılışta bayat dizin taze sanılır ve silinen dosyalar panoda
+      // sayılmaya devam ederdi.
+      _stale = raw['stale'] == true;
     } catch (_) {
       _builtAtMs = 0;
     }
@@ -89,7 +98,24 @@ abstract final class SearchIndex {
     _seenFsVersion = FsEvents.version.value;
     if (!isReady || _stale) return;
     _stale = true;
+    unawaited(_writeMeta());
     revision.value++;
+  }
+
+  /// Meta dosyası tek yerden yazılır (kurulum, benimseme ve bayatlama).
+  static Future<void> _writeMeta({List<String>? roots}) async {
+    if (_dir.isEmpty) return;
+    try {
+      await File(_metaPath).writeAsString(
+        jsonEncode({
+          'builtAt': _builtAtMs,
+          'count': _entryCount,
+          'stale': _stale,
+          if (roots != null) 'roots': roots,
+        }),
+        flush: true,
+      );
+    } catch (_) {}
   }
 
   /// Dizini (yeniden) kurar. Aynı anda ikinci çağrı yeni tarama BAŞLATMAZ,
@@ -120,14 +146,7 @@ abstract final class SearchIndex {
       _entryCount = count;
       _stale = false;
       _seenFsVersion = FsEvents.version.value;
-      await File(_metaPath).writeAsString(
-        jsonEncode({
-          'builtAt': _builtAtMs,
-          'count': count,
-          'roots': roots,
-        }),
-        flush: true,
-      );
+      await _writeMeta(roots: roots);
       return count;
     } catch (_) {
       return 0;
@@ -144,12 +163,7 @@ abstract final class SearchIndex {
     _entryCount = rows;
     _stale = false;
     _seenFsVersion = FsEvents.version.value;
-    try {
-      await File(_metaPath).writeAsString(
-        jsonEncode({'builtAt': _builtAtMs, 'count': rows}),
-        flush: true,
-      );
-    } catch (_) {}
+    await _writeMeta();
     revision.value++;
   }
 
@@ -290,30 +304,6 @@ int _buildSync(_BuildArgs args) {
   // Atomik değiştirme: yarım kalmış dizin dosyası okunmasın.
   tmp.renameSync(args.indexPath);
   return count;
-}
-
-/// Dizin satırını üretir. Yol içinde sekme/satırsonu olamayacağı için ayraç
-/// güvenli; yine de olası kaçık karakterler boşluğa çevrilir.
-String encodeIndexRow(FsEntry entry) {
-  final path = entry.path.replaceAll('\t', ' ').replaceAll('\n', ' ');
-  return '$path\t${entry.sizeBytes}\t${entry.modifiedMs}\t'
-      '${entry.isDir ? 1 : 0}';
-}
-
-/// Dizin satırını çözer; bozuk satırda null.
-FsEntry? decodeIndexRow(String line) {
-  if (line.isEmpty) return null;
-  final parts = line.split('\t');
-  if (parts.length < 4) return null;
-  final path = parts[0];
-  if (path.isEmpty) return null;
-  return FsEntry(
-    path: path,
-    name: p.basename(path),
-    isDir: parts[3] == '1',
-    sizeBytes: int.tryParse(parts[1]) ?? 0,
-    modifiedMs: int.tryParse(parts[2]) ?? 0,
-  );
 }
 
 List<FsEntry> _querySync(_QueryArgs args) {
