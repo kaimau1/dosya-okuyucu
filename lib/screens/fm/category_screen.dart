@@ -157,7 +157,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            onTap: () => _selecting ? _toggle(e) : _open(e),
+            onTap: () {
+              if (_selecting) {
+                _toggle(e);
+              } else {
+                _open(e);
+              }
+            },
             onLongPress: () => _toggle(e),
             trailing: _selecting
                 ? null
@@ -186,7 +192,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
           final e = files[i];
           final selected = _selected.contains(e.path);
           return InkWell(
-            onTap: () => _selecting ? _toggle(e) : _open(e),
+            onTap: () {
+              if (_selecting) {
+                _toggle(e);
+              } else {
+                _open(e);
+              }
+            },
             onLongPress: () => _toggle(e),
             borderRadius: BorderRadius.circular(Radii.card),
             child: Container(

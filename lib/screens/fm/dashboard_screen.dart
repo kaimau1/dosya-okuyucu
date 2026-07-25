@@ -262,9 +262,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: _folderSizes[download] != null
             ? FsPaths.humanSize(_folderSizes[download]!)
             : 'Klasör',
-        onTap: () => Directory(download).existsSync()
-            ? _push(BrowserScreen(path: download, title: 'İndirilenler'))
-            : _snack('İndirilenler klasörü bulunamadı.'),
+        onTap: () {
+          if (Directory(download).existsSync()) {
+            _push(BrowserScreen(path: download, title: 'İndirilenler'));
+          } else {
+            _snack('İndirilenler klasörü bulunamadı.');
+          }
+        },
       ),
       _TileData(
         icon: Icons.pie_chart_outline,
