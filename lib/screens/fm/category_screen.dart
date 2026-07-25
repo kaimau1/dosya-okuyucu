@@ -231,7 +231,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
         },
       );
 
-  Future<void> _open(FsEntry e) => EntryOpener.open(context, e.path);
+  Future<void> _open(FsEntry e) => EntryOpener.open(
+        context,
+        e.path,
+        siblings: _sorted.map((x) => x.path).toList(),
+      );
 
   void _reveal(String path) {
     Navigator.of(context).push(MaterialPageRoute(

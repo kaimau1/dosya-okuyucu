@@ -161,11 +161,9 @@ abstract final class ArchiveOps {
         ],
       );
     }
-    try {
-      return await Isolate.run(() => _listSync(path, password));
-    } catch (e) {
-      throw _mapError(e);
-    }
+    // Sonuç/hata isolate sınırından SADE bir listeyle geçer — bkz. _guard.
+    return _unwrap(await Isolate.run(() => _guard(() => _listSync(path, password))))
+        as ArchiveListing;
   }
 
   // ── çıkarma ───────────────────────────────────────────────────────────────
@@ -196,10 +194,8 @@ abstract final class ArchiveOps {
     });
     final sendPort = port.sendPort;
     try {
-      await Isolate.run(
-          () => _extractSync(archivePath, target, password, sendPort));
-    } catch (e) {
-      throw _mapError(e);
+      _unwrap(await Isolate.run(() =>
+          _guard(() => _extractSync(archivePath, target, password, sendPort))));
     } finally {
       await sub.cancel();
       port.close();
@@ -215,12 +211,8 @@ abstract final class ArchiveOps {
     String? password,
   }) async {
     await Directory(destDir).create(recursive: true);
-    try {
-      return await Isolate.run(
-          () => _extractOneSync(archivePath, entryPath, destDir, password));
-    } catch (e) {
-      throw _mapError(e);
-    }
+    return _unwrap(await Isolate.run(() => _guard(
+        () => _extractOneSync(archivePath, entryPath, destDir, password)))) as String;
   }
 
   // ── sıkıştırma (.zip) ─────────────────────────────────────────────────────
@@ -344,6 +336,30 @@ Future<koni.Archive> _open(
   } catch (e) {
     throw _mapError(e);
   }
+}
+
+/// İsolate sınırından hata geçirme.
+///
+/// **TUZAK (CI run #93'te yakalandı):** `Isolate.run` içinde atılan özel
+/// istisna nesnesi karşı tarafa AYNI TİPTE ulaşmayabiliyor (sendable olmayan
+/// bir alan/stack taşınırsa `RemoteError`'a dönüşüyor) → tiplenmiş
+/// `ArchiveFailure` kayboluyor, parola akışı "bilinmeyen hata"ya düşüyordu.
+/// Çözüm: isolate ASLA istisna fırlatmaz; sonucu ya da hatayı **sade**
+/// (String/int) bir listeyle döndürür, çağıran yeniden kurar.
+Future<List<Object?>> _guard<T>(Future<T> Function() body) async {
+  try {
+    return ['ok', await body()];
+  } catch (e) {
+    final mapped = _mapError(e);
+    return ['err', mapped.failure.index, mapped.message];
+  }
+}
+
+Object? _unwrap(List<Object?> result) {
+  if (result.isNotEmpty && result.first == 'ok') return result[1];
+  final index = result.length > 1 ? result[1] as int : ArchiveFailure.other.index;
+  final message = result.length > 2 ? '${result[2]}' : 'bilinmeyen hata';
+  throw ArchiveError(ArchiveFailure.values[index], message);
 }
 
 ArchiveError _mapError(Object e) {

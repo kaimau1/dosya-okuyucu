@@ -4,6 +4,8 @@ import 'package:dosya_okuyucu/screens/fm/archive_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/category_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/dashboard_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/image_gallery_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/media_player_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/search_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/trash_screen.dart';
 import 'package:dosya_okuyucu/screens/home_screen.dart';
@@ -28,6 +30,8 @@ void main() {
       const SearchScreen(root: '/tmp'),
       const CategoryScreen(title: 'Görüntüler', files: []),
       const AnalysisScreen(index: StorageIndex.empty, volumes: []),
+      const MediaPlayerScreen(path: '/tmp/a.mp4'),
+      const ImageGalleryScreen(paths: ['/tmp/a.jpg']),
     ];
     expect(widgets, everyElement(isA<Widget>()));
   });

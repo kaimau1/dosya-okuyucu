@@ -178,7 +178,11 @@ class _SearchScreenState extends State<SearchScreen> {
       _reveal(entry.path);
       return;
     }
-    await EntryOpener.open(context, entry.path);
+    await EntryOpener.open(
+      context,
+      entry.path,
+      siblings: _filtered.where((e) => !e.isDir).map((e) => e.path).toList(),
+    );
   }
 
   void _reveal(String path) {

@@ -85,7 +85,16 @@ dependencies:
   # bunu sağlar ama alt paketi permission_handler_android 13.x compileSdk'yı
   # yukarı çeker. 11.3.1 (sdk >=2.15 <4.0, flutter >=2.8) en güvenli sürüm.
   permission_handler: 11.3.1
-  # Yerleşik görüntüleyicimiz olmayan dosyaları (video/ses/apk/zip…) sistemin
+  # Uygulama içi video + ses oynatıcı (ExoPlayer/Media3).
+  # SÜRÜM ZİNCİRİ SABİT — CI Flutter 3.29.3 için: video_player 2.10.1
+  # (flutter>=3.29) → alt paket `video_player_android` **2.8.15**, Flutter 3.29
+  # ile uyumlu SON sürüm (2.8.16+ flutter>=3.35 ister → CI kırılır).
+  # pubspec.lock gitignore'da olduğu için CI her koşuda yeniden çözümlüyor;
+  # bu yüzden alt paket de doğrudan pinlendi (yoksa pub yeni sürümü seçer).
+  video_player: 2.10.1
+  video_player_android: 2.8.15
+
+  # Yerleşik görüntüleyicimiz olmayan dosyaları (apk/rar dışı biçimler…) sistemin
   # varsayılan uygulamasında açar. 4.x: sdk >=2.17 <4.0 → CI Dart 3.7 uyumlu.
   # Kendi FileProvider'ını manifest'ine gömer, ek manifest düzenlemesi gerekmez.
   open_filex: ^4.7.0

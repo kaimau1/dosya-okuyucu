@@ -99,9 +99,14 @@
       kopyala+sil yedek yolu çalışıyor mu; SD karta yazma (SAF gerekebilir!) —
       Android bazı cihazlarda SD karta doğrudan yazmayı engeller, o durumda hata
       mesajı anlamlı mı.
-- [ ] **Video/ses oynatıcı (ertelendi):** `video_player`ın Android alt paketi Flutter
-      >=3.35 istiyor, CI 3.29.3 → uygulama içi oynatıcı EKLENMEDİ, sisteme devrediliyor.
-      CI Flutter sürümü yükseltilirse uygulama içi oynatıcı + video küçük resmi eklenebilir.
+- [x] ~~Video/ses oynatıcı ertelendi~~ → **YAPILDI 2026-07-25:** video_player 2.10.1 +
+      video_player_android 2.8.15 (Flutter 3.29 uyumlu son sürüm) ile uygulama içi
+      oynatıcı: çalma listesi, kaydırma, hız, tam ekran. Cihazda doğrulanacak:
+      büyük mkv/HEVC oynatma, tam ekran yatay geçişi, ses dosyasında arka planda
+      çalma (arka plan servisi YOK — ekran kapanınca durur, istenirse audio_service).
+- [ ] **Ekranı açık tutma (wakelock) yok:** uzun videoda ekran sönebilir; istenirse
+      `wakelock_plus` eklenir (küçük eklenti, Flutter 3.29 uyumlu sürüm seçilmeli).
+- [ ] **Video küçük resmi (thumbnail) yok** — listelerde video ikonuyla gösteriliyor.
 - [ ] **Küçük resim (thumbnail) yalnız görsellerde** — video/PDF küçük resmi yok
       (video için platform kanalı, PDF için pdfium render gerekir).
 - [x] ~~RAR/7z çıkarma yok~~ → **YAPILDI 2026-07-25:** koni_archive (saf Dart, MIT)

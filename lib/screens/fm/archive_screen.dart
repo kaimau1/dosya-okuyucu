@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/archive_ops.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';

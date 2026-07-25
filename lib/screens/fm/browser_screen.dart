@@ -106,7 +106,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
       if (mounted) _load(); // çıkarılan klasör listede görünsün
       return;
     }
-    await EntryOpener.open(context, entry.path);
+    // Kardeş dosyalar: görselde kaydırmalı galeri, medyada çalma listesi.
+    await EntryOpener.open(
+      context,
+      entry.path,
+      siblings: _sorted.where((e) => !e.isDir).map((e) => e.path).toList(),
+    );
   }
 
   void _toggle(FsEntry entry) {

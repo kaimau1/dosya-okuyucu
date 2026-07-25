@@ -11,11 +11,29 @@ import '../../models/recent_file.dart';
 import '../../screens/editors/slides_editor_screen.dart';
 import '../../screens/editors/spreadsheet_editor_screen.dart';
 import '../../screens/editors/word_editor_screen.dart';
+import '../../screens/fm/image_gallery_screen.dart';
+import '../../screens/fm/media_player_screen.dart';
 import '../../screens/viewer_screen.dart';
 import '../file_service.dart';
 
-/// Bir dosyayı "doğru" şekilde açar: bizim görüntüleyici/editörümüz varsa
-/// uygulama içinde, yoksa sistemdeki varsayılan uygulamada.
+/// Bir dosyanın hangi ekranda açılacağı. Saf karar fonksiyonu
+/// ([EntryOpener.routeFor]) olduğu için birim testiyle sabitlenir.
+enum OpenRoute {
+  /// Belge/metin/PDF → mevcut görüntüleyici-editörler.
+  document,
+
+  /// Görsel → kaydırmalı galeri (tek görselde görüntüleyici).
+  gallery,
+
+  /// Video/ses → uygulama içi oynatıcı.
+  player,
+
+  /// APK/arşiv/bilinmeyen ikili → sistemin uygulaması.
+  external,
+}
+
+/// Bir dosyayı "doğru" şekilde açar: görsel → galeri, video/ses → oynatıcı,
+/// belge → görüntüleyici/editör, kalanı → sistemin uygulaması.
 ///
 /// Tek kapı olması önemli: son belgeler listesi, dosya yöneticisi, kategori
 /// ekranları ve arama sonuçları aynı davranışı paylaşır (eskiden açma mantığı
@@ -23,17 +41,28 @@ import '../file_service.dart';
 abstract final class EntryOpener {
   static final _fileService = FileService();
 
-  /// Uygulama içinde açtığımız kategoriler.
+  /// Dosya hangi ekrana gider?
   ///
-  /// `other` de bize gelir: uzantısı tanınmayan dosyanın içeriği metin olabilir
-  /// (`FileService` imza/metin tanıması yapar). Gerçekten açamazsak
-  /// görüntüleyici "Başka uygulamayla aç" düğmesini gösterir — kullanıcı
-  /// uygulamadan atılmaz. Video/ses/apk/arşiv doğrudan sisteme gider.
-  static bool opensInApp(String path) {
+  /// `other` (tanınmayan uzantı) belge yoluna gider: içeriği metin olabilir
+  /// (`FileService` imza/metin tanıması yapar). Açamazsak görüntüleyici
+  /// "Başka uygulamayla aç" düğmesini gösterir — kullanıcı uygulamadan atılmaz.
+  static OpenRoute routeFor(String path) {
     final cat = FsEntry.categoryForExtension(_ext(path));
-    return cat == FmCategory.image ||
-        cat == FmCategory.document ||
-        cat == FmCategory.other;
+    return switch (cat) {
+      FmCategory.image => OpenRoute.gallery,
+      FmCategory.video || FmCategory.audio => OpenRoute.player,
+      FmCategory.document || FmCategory.other => OpenRoute.document,
+      FmCategory.apk || FmCategory.archive || FmCategory.folder =>
+        OpenRoute.external,
+    };
+  }
+
+  /// [paths] içinden [path] ile aynı yola giden dosyalar (galeri/çalma listesi).
+  static List<String> siblingsFor(String path, List<String> paths) {
+    final route = routeFor(path);
+    final same = paths.where((x) => routeFor(x) == route).toList();
+    if (!same.contains(path)) same.insert(0, path);
+    return same;
   }
 
   static String _ext(String path) {
@@ -42,14 +71,37 @@ abstract final class EntryOpener {
     return dot <= 0 ? '' : name.substring(dot + 1).toLowerCase();
   }
 
-  /// [path]'i açar. Uygulama içi görüntüleyici yoksa sisteme devreder.
-  static Future<void> open(BuildContext context, String path) async {
+  /// [path]'i açar. [siblings] verilirse (aynı klasördeki dosyalar) görseller
+  /// kaydırmalı galeride, medya dosyaları çalma listesiyle oynatıcıda açılır.
+  static Future<void> open(
+    BuildContext context,
+    String path, {
+    List<String>? siblings,
+  }) async {
     if (!File(path).existsSync()) {
       _snack(context, 'Dosya bulunamadı (taşınmış ya da silinmiş olabilir).');
       return;
     }
-    if (!opensInApp(path)) {
+    final route = routeFor(path);
+    final group = siblings == null ? <String>[path] : siblingsFor(path, siblings);
+
+    if (route == OpenRoute.external) {
       await openExternally(context, path);
+      return;
+    }
+    if (route == OpenRoute.player) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => MediaPlayerScreen(path: path, playlist: group),
+      ));
+      return;
+    }
+    if (route == OpenRoute.gallery && group.length > 1) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ImageGalleryScreen(
+          paths: group,
+          initialIndex: group.indexOf(path),
+        ),
+      ));
       return;
     }
 

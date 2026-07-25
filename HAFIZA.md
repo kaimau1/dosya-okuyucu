@@ -1103,3 +1103,44 @@ Dart** clean-room RAR4/RAR5 + 7z okuyucusu.
   KAPATMAZ (belgelenmiş) → biz listede tutup `finally`de kapatıyoruz.
 - Zip-slip'e karşı iki kat koruma: koni yolları normalleştirip `pathEscapedRoot`
   bayrağı koyuyor, biz ayrıca `FsPaths.isInside` ile hedef dışına düşeni atlıyoruz.
+
+## 2026-07-25 — Uygulama içi video/ses oynatıcı + kaydırmalı görsel galerisi
+Kullanıcı üç madde istedi: (1) video oynatıcı, (2) görsellerde sağa/sola
+kaydırarak ileri-geri, (3) araştırmaları tam analiz edip geliştirmeye devam.
+
+- **ERTELEME GERİ ALINDI — `video_player` EKLENDİ.** Aynı gün önce "CI Flutter
+  3.29.3'te çözümleme kırılgan" diye ertelemiştim; pub.dev sürüm zincirini
+  gerçekten tarayınca çıkan sonuç: **`video_player_android` 2.8.15**, `sdk ^3.7.0
+  + flutter >=3.29.0` ile Flutter 3.29 uyumlu SON sürüm (2.8.16'dan itibaren
+  flutter >=3.35). `video_player: 2.10.1` de flutter >=3.29 istiyor. İkisi de
+  pubspec'te SABİT — `pubspec.lock` gitignore'da olduğu için CI her koşuda
+  yeniden çözümlüyor, alt paket pinlenmezse pub yeni (uyumsuz) sürümü seçer.
+  *Ders:* "sürüm cehennemi" korkusuyla özellik ertelemeden önce zinciri
+  pub.dev API'sinden TARA — tek bir uyumlu sürüm çoğu zaman vardır.
+- **`screens/fm/media_player_screen.dart`** video VE sesi tek ekranda oynatır
+  (ses dosyasında görüntü katmanı yok → kapak alanı). Çalma listesi = aynı
+  klasördeki medya dosyaları; sağa/sola kaydırma ve ileri/geri düğmeleriyle
+  geçiş, dosya bitince sıradakine otomatik geçer. 10 sn ileri/geri, hız
+  (0.5–2x), tam ekran (yatay kilit + immersive), 3 sn sonra kontrollerin
+  gizlenmesi. Codec cihazdan gelir; açamazsa "Başka uygulamayla aç"a düşer.
+- **`screens/fm/image_gallery_screen.dart`**: PageView ile kaydırmalı galeri,
+  sayfa başına yakınlaştırma; **yakınlaştırılmışken sayfa geçişi kilitlenir**
+  (`NeverScrollableScrollPhysics`) — slayt listesindeki zoom/kaydırma çekişmesi
+  dersinin aynısı. OCR/çeviri/PDF gibi ağır işlevler tek-görsel
+  `ViewerScreen`'de KALDI; galeri ⋮ menüsünden oraya geçilir (ViewerScreen'i
+  çok-sayfalıya çevirmek 40 yerde `widget.doc` refactor'ü demekti — risk/
+  kazanç oranı kötü).
+- **Yönlendirme tek yerde: `EntryOpener.routeFor`** (saf fonksiyon, testli) →
+  gallery / player / document / external. `siblingsFor` aynı türdeki kardeş
+  dosyaları toplar; gözatıcı, kategori ekranı ve arama sonuçları listelerini
+  geçirir. Manifest'e `video/*` + `audio/*` VIEW/SEND filtreleri eklendi
+  (artık gerçekten oynatabiliyoruz; `*/*` hâlâ yok — apk/zip kirliliği).
+- **TUZAK (CI run #93) — `Isolate.run` özel istisna tipini KAYBEDEBİLİYOR:**
+  arşiv çıkarmada isolate içinde atılan `ArchiveError` karşı tarafa
+  `ArchiveFailure.other` olarak ulaştı (şifreli RAR testi kırmızı). Çözüm:
+  isolate artık istisna fırlatmıyor; sonucu/hatayı **sade** `['ok', değer]` /
+  `['err', failureIndex, mesaj]` listesiyle döndürüyor, çağıran yeniden kuruyor
+  (`_guard`/`_unwrap`). Kural: isolate sınırından yalnız ilkel tipler geçir.
+- **Ekran duman testi kendini ödedi:** `archive_screen.dart`'ta eksik
+  `file_ops.dart` importunu (FmProgress) hızlı test koşusu yakaladı — eskiden
+  bu hata ancak ~20 dk'lık APK derlemesinde görünürdü.

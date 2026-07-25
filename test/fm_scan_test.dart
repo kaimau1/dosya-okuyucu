@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dosya_okuyucu/models/fs_entry.dart';
+import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -127,6 +128,34 @@ void main() {
     test('folderSize: alt klasörler dahil toplanır', () async {
       final size = await FsScan.folderSize(tmp.path);
       expect(size, 3 + 1 + 3 + 5); // Rapor.pdf + .gizli + txt + mp4
+    });
+  });
+
+  group('açma yönlendirmesi', () {
+    test('dosya türü doğru ekrana gider', () {
+      expect(EntryOpener.routeFor('/a/foto.jpg'), OpenRoute.gallery);
+      expect(EntryOpener.routeFor('/a/klip.MP4'), OpenRoute.player);
+      expect(EntryOpener.routeFor('/a/sarki.mp3'), OpenRoute.player);
+      expect(EntryOpener.routeFor('/a/rapor.pdf'), OpenRoute.document);
+      expect(EntryOpener.routeFor('/a/notlar'), OpenRoute.document); // uzantısız
+      expect(EntryOpener.routeFor('/a/uygulama.apk'), OpenRoute.external);
+      expect(EntryOpener.routeFor('/a/arsiv.rar'), OpenRoute.external);
+    });
+
+    test('kardeş listesi yalnız aynı türü toplar (galeri/çalma listesi)', () {
+      const all = [
+        '/a/1.jpg',
+        '/a/2.png',
+        '/a/rapor.pdf',
+        '/a/klip.mp4',
+        '/a/ses.mp3',
+      ];
+      expect(EntryOpener.siblingsFor('/a/1.jpg', all), ['/a/1.jpg', '/a/2.png']);
+      expect(EntryOpener.siblingsFor('/a/klip.mp4', all),
+          ['/a/klip.mp4', '/a/ses.mp3']);
+      // Listede olmayan dosya başa eklenir (yine de açılabilsin).
+      expect(EntryOpener.siblingsFor('/a/9.jpg', const ['/a/1.jpg']),
+          ['/a/9.jpg', '/a/1.jpg']);
     });
   });
 }
