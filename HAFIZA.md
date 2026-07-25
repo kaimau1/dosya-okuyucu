@@ -1054,3 +1054,12 @@ Bu Linux bulut oturumunda Flutter YOK → doğrulama CI `flutter test`. Yeni tes
 (sil→geri yükle→kalıcı sil, ad çakışması), `fm_storage_archive_test`
 (`df` çözümleme uçları + zip→extract turu). Cihaz doğrulaması (izin akışı,
 gerçek /storage taraması, harici açma) → KALANLAR.
+
+### Doğrulama sonucu (aynı gün)
+CI run #90 test ✅, #91 **APK ✅** (`v0.1.0-build-91`, imzalı, 190,5 MB — bir
+önceki main sürümü #89 zaten 188,9 MB'dı, dosya yöneticisinin maliyeti ~1,6 MB),
+#92 test ✅. **Ders/önlem:** CI'ın ucuz `test` işi yalnız testlerden ERİŞİLEN
+dosyaları derler; ekranlar hiçbir testten import edilmediği için bir ekran
+derleme hatası ancak ~20 dk'lık APK işinde görünürdü → `test/fm_screens_smoke_test.dart`
+ekranları import edip kurucularını çağırıyor (pump ETMEZ; eklentiler test
+ortamında yok), böylece hata hızlı koşuda yakalanıyor.
