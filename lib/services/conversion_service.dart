@@ -48,57 +48,79 @@ class ConversionService {
   Future<Uint8List> imageToPdf(
     String imagePath, {
     List<OcrLine> ocrLines = const [],
+  }) =>
+      imagesToPdf(
+        [imagePath],
+        ocrLinesPerPage: ocrLines.isEmpty ? const [] : [ocrLines],
+      );
+
+  /// Birden çok görseli **sırayla, her biri kendi sayfası** olacak şekilde tek
+  /// PDF'e gömer (belge tarayıcı: taranan sayfalar → tek belge).
+  ///
+  /// [ocrLinesPerPage] verilirse i. listedeki satırlar i. sayfaya görünmez metin
+  /// olarak yazılır; kısa liste sorun değil, kalan sayfalar metinsiz kalır.
+  /// Tek görsellik hâli [imageToPdf] ile aynı yoldan geçer — davranış tek yerde.
+  Future<Uint8List> imagesToPdf(
+    List<String> imagePaths, {
+    List<List<OcrLine>> ocrLinesPerPage = const [],
   }) async {
-    final bytes = await File(imagePath).readAsBytes();
-    final image = pw.MemoryImage(bytes);
-
-    // Çözülemeyen biçimde (ör. HEIC/HEIF) boyutlar null gelir — sessizce bozuk
-    // PDF üretmek yerine çağıranın gösterebileceği bir hata at.
-    final imgWidth = image.width;
-    final imgHeight = image.height;
-    if (imgWidth == null || imgHeight == null || imgWidth == 0) {
-      throw const FormatException(
-          'Bu görsel biçimi çözülemedi (HEIC/HEIF olabilir). '
-          'JPG veya PNG olarak kaydedip tekrar deneyin.');
-    }
-
-    final pageWidth = PdfPageFormat.a4.width;
-    final pageHeight = pageWidth * imgHeight / imgWidth;
-    final scale = pageWidth / imgWidth;
+    if (imagePaths.isEmpty) throw ArgumentError('PDF için en az bir görsel gerekli');
 
     // Görünmez katman Türkçe karakter içerebilir → gömülü Carlito (varsayılan
     // Helvetica'da ğ/ş/ı çizilemez ve pdf paketi hata atar).
-    final font = ocrLines.isEmpty
-        ? null
-        : pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Regular.ttf'));
+    final hasOcr = ocrLinesPerPage.any((lines) => lines.isNotEmpty);
+    final font = hasOcr
+        ? pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
+        : null;
 
     final doc = pw.Document();
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat(pageWidth, pageHeight),
-        margin: pw.EdgeInsets.zero,
-        build: (context) => pw.Stack(
-          fit: pw.StackFit.expand,
-          children: [
-            // Önce metin → resim üstünü örter; metin PDF'te aranabilir kalır.
-            for (final line in ocrLines)
-              pw.Positioned(
-                left: line.box.left * scale,
-                top: line.box.top * scale,
-                child: pw.Text(
-                  line.text,
-                  style: pw.TextStyle(
-                    font: font,
-                    fontSize: (line.box.height * scale).clamp(4.0, 72.0),
-                    color: const PdfColor(0, 0, 0, 0),
+    for (var i = 0; i < imagePaths.length; i++) {
+      final bytes = await File(imagePaths[i]).readAsBytes();
+      final image = pw.MemoryImage(bytes);
+
+      // Çözülemeyen biçimde (ör. HEIC/HEIF) boyutlar null gelir — sessizce bozuk
+      // PDF üretmek yerine çağıranın gösterebileceği bir hata at.
+      final imgWidth = image.width;
+      final imgHeight = image.height;
+      if (imgWidth == null || imgHeight == null || imgWidth == 0) {
+        throw const FormatException(
+            'Bu görsel biçimi çözülemedi (HEIC/HEIF olabilir). '
+            'JPG veya PNG olarak kaydedip tekrar deneyin.');
+      }
+
+      final pageWidth = PdfPageFormat.a4.width;
+      final pageHeight = pageWidth * imgHeight / imgWidth;
+      final scale = pageWidth / imgWidth;
+      final ocrLines =
+          i < ocrLinesPerPage.length ? ocrLinesPerPage[i] : const <OcrLine>[];
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat(pageWidth, pageHeight),
+          margin: pw.EdgeInsets.zero,
+          build: (context) => pw.Stack(
+            fit: pw.StackFit.expand,
+            children: [
+              // Önce metin → resim üstünü örter; metin PDF'te aranabilir kalır.
+              for (final line in ocrLines)
+                pw.Positioned(
+                  left: line.box.left * scale,
+                  top: line.box.top * scale,
+                  child: pw.Text(
+                    line.text,
+                    style: pw.TextStyle(
+                      font: font,
+                      fontSize: (line.box.height * scale).clamp(4.0, 72.0),
+                      color: const PdfColor(0, 0, 0, 0),
+                    ),
                   ),
                 ),
-              ),
-            pw.Image(image, fit: pw.BoxFit.fill),
-          ],
+              pw.Image(image, fit: pw.BoxFit.fill),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
     return doc.save();
   }
 

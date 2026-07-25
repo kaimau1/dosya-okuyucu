@@ -1,6 +1,13 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **Belge tarayıcı cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 3: ana
+      ekranda "Belge Tara" → (a) Google tarayıcı arayüzü açılıyor mu, kamera izni
+      soruluyor mu, (b) kenar tespiti + kırpma + filtre "tarayıcıdan çıkmış gibi"
+      mi, (c) çok sayfa çekip tek PDF oluyor mu, (d) "Yazıları da tanı" seçilince
+      PDF içinde arama çalışıyor mu, (e) belge Son belgeler'de görünüyor mu,
+      (f) PDF Araçları ⋮ "Sayfa tara ve ekle" mevcut belgeye ekliyor mu.
+      **Play Services olmayan cihazda** paketin yedek tarayıcısına düşmeli.
 - [ ] **PDF Araçları cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 1: ana ekran
       PDF simgesi / görüntüleyici ⋮ "PDF araçları" → (a) sayfa küçük resimleri
       geliyor mu, (b) seç → döndür/sil/öne-arkaya taşı doğru sayfaya mı uyguluyor,
@@ -20,8 +27,6 @@
 - [ ] **Seçili metin çevirisi Word/Excel/Slayt'ta yok** — şu an yalnız PDF'te
       (seçim altyapısı orada). Word WebView tabanlı, seçim Flutter'a gelmiyor;
       istenirse JS köprüsüyle seçili metin okunabilir.
-- [ ] **Çoklu resim → tek PDF** — kullanıcı "resimleri" (çoğul) demişti; mevcut
-      akış tek açık dosya üzerinden çalışıyor, çoklu seçim yok.
 - [ ] **`withOpacity` → `withValues` temizliği** — analyze'da ~8 uyarı
       (markdown_text, pdf_select_layer, office_shell, viewer_screen, editörler).
       Yeni kod `withValues` kullanıyor, eskiler kaldı.
@@ -80,9 +85,8 @@
 - [x] ~~Faz 1: PDF Araçları (birleştir/çıkar/sil/sırala/döndür/parola/sıkıştır)~~ → YAPILDI 2026-07-25
 - [ ] **Faz 2 — İmza** — parmakla imza çiz (`CustomPaint`) → PNG → PDF'e yerleştir
       (Syncfusion damga). Yerleştirme overlay'i `pdf_select_layer.dart` kalıbından.
-- [ ] **Faz 3 — Belge tarayıcı** — kamera → kenar tespiti/perspektif düzeltme →
-      "taranmış" filtre → çok sayfa → tek PDF + OCR katmanı → paylaş. Motor: Google
-      ML Kit belge tarayıcı (karar 2026-07-25). "Çoklu resim → tek PDF" maddesini kapatır.
+- [x] ~~Faz 3: Belge tarayıcı (ML Kit) → tek PDF + OCR~~ → YAPILDI 2026-07-25
+      ("çoklu resim → tek PDF" maddesini de kapattı)
 - [ ] **Faz 4 — Okuma deneyimi** — gece modu, link tıklama, outline, sesli okuma (TTS).
       Ayrıntı: yukarıdaki "PDF sadakat/deneyim" bölümü.
 

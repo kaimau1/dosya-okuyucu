@@ -37,4 +37,27 @@ void main() {
     expect(raw, contains('/Image'));
     expect(raw, isNot(contains('Boş belge')));
   });
+
+  /// Belge tarayıcı: taranan sayfalar TEK PDF'te ve HER BİRİ kendi sayfasında
+  /// olmalı — tek sayfaya üst üste binerse tarama işe yaramaz.
+  test('çok görsel → her biri ayrı sayfa olan tek PDF', () async {
+    final second = File('${image.path}_2.png');
+    await second.writeAsBytes(base64Decode(_png1x1));
+    try {
+      final pdf = await ConversionService()
+          .imagesToPdf([image.path, second.path, image.path]);
+
+      final raw = latin1.decode(pdf, allowInvalid: true);
+      expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
+      // Sayfa nesnesi sayısı: /Page (ama /Pages değil) geçişleri.
+      final pageObjects = RegExp(r'/Type\s*/Page[^s]').allMatches(raw).length;
+      expect(pageObjects, 3);
+    } finally {
+      if (second.existsSync()) second.deleteSync();
+    }
+  });
+
+  test('boş görsel listesi hata verir', () async {
+    expect(() => ConversionService().imagesToPdf([]), throwsArgumentError);
+  });
 }

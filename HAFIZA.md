@@ -1752,3 +1752,43 @@ doğrulanıyor — metin çıkarmaya güvenmeye gerek kalmıyor.
 `fm_compress`, `fm_trash`, `fm_scan`, `fm_storage_archive`, `formula_engine`):
 hepsi yol ayracı (`/` vs `\`) ve temp dizin kaynaklı, bu iş ÖNCESİNDE de
 kırmızıydı (stash ile doğrulandı), Linux CI'yı ilgilendirmiyor.
+
+---
+
+## 2026-07-25 — Faz 3: Belge tarayıcı (kamera → "tarayıcıdan çıkmış gibi" PDF)
+
+**İstek:** "tarayıcı makinesinde taranması gereken belgeleri kolayca kameradan
+tarayıp sanki tarayıcıdan çıkmış gibi yapsın, paylaşıma hazır olsun."
+
+**Karar — motoru kendimiz yazmadık.** Kenar tespiti + perspektif düzeltme +
+kontrast/gri filtre işi **Google ML Kit Belge Tarayıcı**'ya verildi
+(`cunning_document_scanner` 1.2.3 → `play-services-mlkit-document-scanner`,
+`SCANNER_MODE_FULL`, sonuç JPEG). Kendi kamera+kırpma ekranımızı yazmak ~10 kat
+iş ve kenar tespiti modeli bizde bakım yükü olurdu. Paket, Play Services yoksa
+kendi yedek tarayıcı ekranına düşüyor (`fallback/DocumentScannerActivity`).
+Sürüm 1.2.3 seçildi çünkü 2.8.0 Dart >=3.8 istiyor, biz 3.7'deyiz (CI 3.29.3).
+
+**Bizim payımız:** çok sayfa → **tek PDF** + isteğe bağlı OCR görünmez metin
+katmanı (aranabilir PDF) + Belgeler dizinine kaydet + görüntüleyicide aç.
+
+**Refactor (yerine-geçen siler):** `ConversionService.imageToPdf` artık tek
+başına bir yol değil; genel `imagesToPdf(List<String>)` yazıldı ve tek görsellik
+hâl ona delege ediliyor. Tarayıcının çok sayfası ile tek resim aynı koddan
+geçiyor — sayfa/ölçek/OCR mantığı iki yerde ayrışamaz.
+
+**PLAY STORE TUZAĞI — `uses-feature android.hardware.camera required="true"`:**
+tarayıcı eklentisi kendi manifest'inde kamerayı ZORUNLU bildiriyor. Birleşmiş
+manifest'te öyle kalırsa **Play Store uygulamayı kamerasız cihazlarda gizler**
+(bazı tabletler, Chromebook) — dosya okuyucu için ciddi erişim kaybı.
+`ci/AndroidManifest.xml`'e `required="false"` + `tools:replace` eklendi.
+Yeni bir donanım-bağımlı eklenti girerse aynı kontrol yapılmalı.
+
+**Akış tek yerde:** `lib/widgets/scan_flow.dart` (`TranslateFlow` kalıbı) —
+tara → "yazılar da tanınsın mı?" → ilerleme → kaydet → aç. Hem ana ekran
+"Belge Tara" düğmesi hem PDF Araçları ⋮ "Sayfa tara ve ekle" aynı servisi
+çağırıyor; ikincisi taranan sayfaları açık belgeye `PdfTools.merge` ile ekliyor.
+
+**Test:** `image_to_pdf_test`e çok sayfa testi — 3 görselden üretilen PDF'te
+sayfa nesnesi sayısı 3 (tek sayfaya üst üste binme regresyonunu yakalar).
+OCR/kamera cihaz gerektirir, birim testle doğrulanamaz → KALANLAR'da cihaz
+doğrulama maddesi var.

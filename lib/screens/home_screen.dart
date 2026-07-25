@@ -12,6 +12,7 @@ import '../services/blank_docs.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../widgets/file_type_icon.dart';
+import '../widgets/scan_flow.dart';
 import 'chat_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'pdf_tools_screen.dart';
@@ -263,10 +264,26 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
                     ),
                   ],
                 ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openNew,
-        icon: const Icon(Icons.folder_open),
-        label: const Text('Dosya Aç'),
+      // Belge tarama uygulamanın vitrin özelliği: dosya açmanın hemen üstünde,
+      // kendi düğmesiyle duruyor.
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'scan',
+            onPressed: () => ScanFlow.run(context),
+            icon: const Icon(Icons.document_scanner_outlined),
+            label: const Text('Belge Tara'),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'open',
+            onPressed: _openNew,
+            icon: const Icon(Icons.folder_open),
+            label: const Text('Dosya Aç'),
+          ),
+        ],
       ),
     );
   }

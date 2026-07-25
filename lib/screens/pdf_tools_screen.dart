@@ -8,6 +8,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../services/conversion_service.dart';
+import '../services/document_scanner.dart';
 import '../services/pdf_tools.dart';
 
 /// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
@@ -200,6 +201,18 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     if (mounted) _snack('${paths.length} PDF eklendi');
   }
 
+  /// Kameradan yeni sayfa(lar) tarayıp belgenin sonuna ekler — kâğıt eki olan
+  /// sözleşme/rapor için asıl işe yarayan birleşim.
+  Future<void> _scanAndAppend() async {
+    final pages = await DocumentScanner.scanPages();
+    if (pages == null) return;
+    // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada zaten görünür.
+    await _apply('Tarama ekleme', (b) async {
+      final scanned = await _conversion.imagesToPdf(pages);
+      return PdfTools.merge([b, scanned]);
+    });
+  }
+
   Future<void> _compress() async {
     final before = _bytes!.length;
     await _apply('Sıkıştırma',
@@ -365,6 +378,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
             ),
             PopupMenuButton<String>(
               onSelected: (v) => switch (v) {
+                'scan' => _scanAndAppend(),
                 'merge' => _mergeOther(),
                 'compress' => _compress(),
                 'lock' => _setPassword(),
@@ -373,6 +387,8 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 _ => null,
               },
               itemBuilder: (_) => [
+                const PopupMenuItem(
+                    value: 'scan', child: Text('Sayfa tara ve ekle')),
                 const PopupMenuItem(
                     value: 'merge', child: Text('Başka PDF ekle (birleştir)')),
                 const PopupMenuItem(

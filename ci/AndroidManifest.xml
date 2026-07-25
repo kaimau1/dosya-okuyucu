@@ -21,6 +21,16 @@
     <!-- APK dosyasına dokununca kurulum ekranını açabilmek için. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
+    <!-- Belge tarayıcı (kamera). Tarayıcı eklentisi kendi manifest'inde kamerayı
+         ZORUNLU özellik (required="true") olarak bildiriyor; öyle kalırsa Play
+         Store uygulamayı kamerasız cihazlarda (bazı tabletler, Chromebook)
+         GİZLER. Dosya okuyucu kamerasız da tam çalıştığı için zorunluluk
+         kaldırılıyor — tarama, kamerası olan cihazlarda çalışır. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera"
+        android:required="false"
+        tools:replace="android:required"/>
+
     <!-- "Uygulamalar" ekranı: yüklü uygulamaların SON AÇILMA tarihi.
          Bu ÖZEL bir izindir (normal izin penceresi yok): kullanıcı
          Ayarlar > Kullanım erişimi'nden elle verir; verilmezse liste yine
