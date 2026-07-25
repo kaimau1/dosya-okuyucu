@@ -1878,3 +1878,18 @@ yapıldı — dolaylıya güvenmek, ara paket sürüm değiştirince kırılır)
 **Test:** `tts_split_test` — bölme metnin tamamını korur, sınırı aşmaz, kelime
 ortadan bölünmez, boşluksuz dev kelimede sonsuz döngüye girmez. Konuşma motoru
 ve PDF köprüleri cihaz gerektirir → KALANLAR'da doğrulama maddesi.
+
+### Derleme tuzağı — Kotlin eklenti sürümü (build 119 kırmızı)
+`flutter_tts 4.2.5` Kotlin **2.x** ile derlenmiş `kotlin-stdlib` (2.2.20)
+çekiyor; Flutter 3.29.3 şablonunun Kotlin eklentisi **1.8.22** bu metadata'yı
+okuyamıyor → `Class 'kotlin.Unit' was compiled with an incompatible version of
+Kotlin` + `Unresolved reference: let/it`, `:flutter_tts:compileReleaseKotlin`
+patlıyor.
+
+**Çözüm:** CI'da `android/settings.gradle` içindeki
+`org.jetbrains.kotlin.android` sürümü sed ile **2.1.0**'a yükseltiliyor (minSdk/
+NDK yamalarıyla aynı kalıp, `build-apk.yml`). Yeni derleyici ESKİ metadata'yı
+okuyabildiği için yükseltmek güvenli yön. Eklentiyi eski sürüme düşürmek
+denenmedi: hangi sürümün hangi Kotlin'le derlendiğini deneme yanılmayla aramak
+demekti. **Yeni bir eklenti Kotlin 2.x isterse artık sorun çıkmaz;** tersi
+(1.8'e bağlı eski eklenti) gelirse bu satır hatırlansın.
