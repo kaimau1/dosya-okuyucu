@@ -48,9 +48,17 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
   }
 
   Future<void> _grant() async {
-    await InstalledAppsService.requestUsagePermission();
+    // İzin yoksa eklenti Android'in "Kullanım erişimi" sayfasını açar;
+    // kullanıcı verip döndüğünde bu çağrı veriyle döner.
+    final granted = await InstalledAppsService.requestUsagePermission();
     if (!mounted) return;
-    // Kullanıcı ayarlardan dönünce listeyi tazele.
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Açılan ayar sayfasından “Dosya Okuyucu”ya izin verip geri dönün, '
+            'sonra tekrar deneyin.'),
+      ));
+    }
     await _load();
   }
 

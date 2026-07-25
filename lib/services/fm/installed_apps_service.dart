@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:app_usage/app_usage.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
-import 'package:usage_stats/usage_stats.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Yüklü bir uygulama + son kullanım bilgisi.
 class InstalledAppEntry {
@@ -67,24 +68,60 @@ AppIdleLevel idleLevelFor(int? idleDays, {required bool usageKnown}) {
 /// Telefonda yüklü uygulamaları ve son kullanım zamanlarını okur.
 ///
 /// **İki ayrı kaynak:** uygulama listesi `installed_apps` (PackageManager),
-/// son kullanım `usage_stats` (UsageStatsManager). İkincisi Android'in ÖZEL
+/// son kullanım `app_usage` (UsageStatsManager). İkincisi Android'in ÖZEL
 /// "Kullanım erişimi" iznini ister (normal izin penceresi değil, ayar sayfası).
 /// İzin yoksa liste yine gelir, yalnız "son açılma" bilinmez.
+///
+/// **İzin sorgusu yok, bayrak var:** `app_usage` "izin verildi mi" diye
+/// soracak bir API sunmuyor; izin yokken sorgu yapmak ayar sayfasını AÇIYOR.
+/// Ekran her açılışta ayar sayfası fırlatmasın diye izin bir kez alındığında
+/// bayrak kalıcı olarak saklanır; sorgu yalnız bayrak açıkken (ya da kullanıcı
+/// "İzin ver" dediğinde) yapılır.
 abstract final class InstalledAppsService {
-  /// Kullanım erişimi verilmiş mi?
+  static const _kUsageGranted = 'fm_usage_access_granted';
+
+  /// Daha önce kullanım verisi alabildik mi?
   static Future<bool> hasUsagePermission() async {
     try {
-      return await UsageStats.checkUsagePermission() ?? false;
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_kUsageGranted) ?? false;
     } catch (_) {
       return false;
     }
   }
 
-  /// Kullanım erişimi ayar sayfasını açar (kullanıcı elle verir).
-  static Future<void> requestUsagePermission() async {
+  static Future<void> _setGranted(bool value) async {
     try {
-      await UsageStats.grantUsagePermission();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kUsageGranted, value);
     } catch (_) {}
+  }
+
+  /// Kullanım erişimi ister: sorgu denenir, izin yoksa eklenti Android'in
+  /// "Kullanım erişimi" ayar sayfasını açar. Kullanıcı verip döndüğünde
+  /// veri gelirse bayrak açılır.
+  static Future<bool> requestUsagePermission() async {
+    final data = await _lastUsedByPackage();
+    final granted = data.isNotEmpty;
+    if (granted) await _setGranted(true);
+    return granted;
+  }
+
+  /// paket → son ön plana gelme (ms). İzin yoksa boş harita (ve ayar sayfası
+  /// açılır — çağıran bunu bilerek çağırır).
+  static Future<Map<String, int>> _lastUsedByPackage(
+      {int windowDays = 365}) async {
+    try {
+      final now = DateTime.now();
+      final usage = await AppUsage()
+          .getAppUsage(now.subtract(Duration(days: windowDays)), now);
+      return {
+        for (final info in usage)
+          info.packageName: lastUsedMs(info.lastForeground),
+      };
+    } catch (_) {
+      return const {};
+    }
   }
 
   /// Yüklü uygulamalar (varsayılan: sistem uygulamaları hariç), son kullanım
@@ -104,17 +141,15 @@ abstract final class InstalledAppsService {
       return const [];
     }
 
-    final usageKnown = await hasUsagePermission();
-    var usage = <String, UsageInfo>{};
+    // İzin bayrağı kapalıysa sorgu YAPILMAZ (yoksa ayar sayfası açılırdı).
+    var usageKnown = await hasUsagePermission();
+    var usage = const <String, int>{};
     if (usageKnown) {
-      try {
-        final now = DateTime.now();
-        usage = await UsageStats.queryAndAggregateUsageStats(
-          now.subtract(Duration(days: usageWindowDays)),
-          now,
-        );
-      } catch (_) {
-        usage = {};
+      usage = await _lastUsedByPackage(windowDays: usageWindowDays);
+      if (usage.isEmpty) {
+        // İzin geri alınmış olabilir.
+        usageKnown = false;
+        await _setGranted(false);
       }
     }
 
@@ -126,19 +161,18 @@ abstract final class InstalledAppsService {
           versionName: app.versionName,
           icon: app.icon,
           installedAtMs: app.installedTimestamp,
-          lastUsedMs: parseLastUsed(usage[app.packageName]?.lastTimeUsed),
+          lastUsedMs: usage[app.packageName] ?? 0,
           usageKnown: usageKnown,
         ),
     ];
   }
 
-  /// UsageStats zaman damgalarını String olarak verir; saf ayrıştırıcı
-  /// (birim testli) — bozuk/eksik değerde 0.
-  static int parseLastUsed(String? raw) {
-    if (raw == null || raw.isEmpty) return 0;
-    final value = int.tryParse(raw);
-    if (value == null || value <= 0) return 0;
-    return value;
+  /// `lastForeground` → ms. Saf yardımcı (birim testli): veri yokken eklenti
+  /// 1970 civarı bir tarih dönebiliyor; 2000 öncesini "bilinmiyor" sayarız.
+  static int lastUsedMs(DateTime? date) {
+    if (date == null) return 0;
+    final ms = date.millisecondsSinceEpoch;
+    return ms > 946684800000 ? ms : 0; // 2000-01-01
   }
 
   static Future<void> open(String packageName) async {

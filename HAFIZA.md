@@ -1294,3 +1294,19 @@ rahat silmek için".
   (atime anlamlıysa o, değilse mtime) üzerinden hesaplanır.
 - `models/file_age.dart` (saf, testli): `ageLevelFor`, `daysBetween`,
   `relativeDays`. `TrashService.purgeOlderThan` otomatik temizleme için.
+
+### TUZAK — eklenti compileSdk'sı APK'yı kırar: `usage_stats` → `app_usage`
+`usage_stats 1.3.1` **compileSdkVersion 30** ile yayınlanmış; modern AndroidX
+kaynakları API 31 özniteliği (`android:attr/lStar`) istediği için
+`:usage_stats:verifyReleaseResources` adımında "Android resource linking failed"
+ile APK derlemesi kırıldı (CI #103). Dart testleri geçtiği için hata yalnız APK
+işinde görünür.
+**Karar:** paket değiştirildi → `app_usage 4.0.1` (compileSdk **35**, namespace
+tanımlı). Yan fayda: izin sayfasını (Settings.ACTION_USAGE_ACCESS_SETTINGS)
+kendisi açıyor. Yan maliyet: "izin var mı" sorgusu YOK — izinsiz sorgu ayar
+sayfasını açtığı için izin durumu SharedPreferences bayrağıyla tutuluyor
+(`fm_usage_access_granted`); ekran açılışında sorgu yalnız bayrak açıkken
+yapılır, yoksa kullanıcı "İzin ver"e basana kadar ayar sayfası fırlamaz.
+**Ders:** bir Android eklentisi eklerken pub sürüm kısıtlarına bakmak YETMEZ;
+`android/build.gradle`ındaki `compileSdk`/`namespace` da bakılmalı (eski
+değerler AGP 8'de derlemeyi keser).

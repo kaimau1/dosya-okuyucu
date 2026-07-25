@@ -112,7 +112,12 @@ dependencies:
   # Telefonda yüklü uygulamaların listesi (ad, ikon, sürüm, kurulum tarihi)
   # ve son kullanım zamanı (UsageStats — kullanıcı "kullanım erişimi" verirse).
   installed_apps: 2.1.1
-  usage_stats: 1.3.1
+  # Son kullanım: app_usage (compileSdk 35, namespace'li — modern).
+  # `usage_stats` KULLANILAMADI: compileSdkVersion 30 ile yayınlanmış,
+  # AGP kaynak bağlamada "resource android:attr/lStar not found" ile APK
+  # derlemesini kırıyor (CI #103). app_usage ayrıca izin sayfasını da
+  # kendisi açıyor (Settings.ACTION_USAGE_ACCESS_SETTINGS).
+  app_usage: 4.0.1
 
   # Yerleşik görüntüleyicimiz olmayan dosyaları (apk/rar dışı biçimler…) sistemin
   # varsayılan uygulamasında açar. 4.x: sdk >=2.17 <4.0 → CI Dart 3.7 uyumlu.

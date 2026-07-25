@@ -100,13 +100,15 @@ void main() {
       expect(unknown.idleDays(now), isNull);
     });
 
-    test('parseLastUsed: UsageStats metin zaman damgası', () {
-      expect(InstalledAppsService.parseLastUsed('1750000000000'),
-          1750000000000);
-      expect(InstalledAppsService.parseLastUsed(null), 0);
-      expect(InstalledAppsService.parseLastUsed(''), 0);
-      expect(InstalledAppsService.parseLastUsed('abc'), 0);
-      expect(InstalledAppsService.parseLastUsed('0'), 0);
+    test('lastUsedMs: 1970 civarı "veri yok" tarihleri elenir', () {
+      final real = DateTime(2026, 7, 1);
+      expect(InstalledAppsService.lastUsedMs(real), real.millisecondsSinceEpoch);
+      expect(InstalledAppsService.lastUsedMs(null), 0);
+      expect(
+          InstalledAppsService.lastUsedMs(
+              DateTime.fromMillisecondsSinceEpoch(0)),
+          0);
+      expect(InstalledAppsService.lastUsedMs(DateTime(1999, 12, 31)), 0);
     });
   });
 
