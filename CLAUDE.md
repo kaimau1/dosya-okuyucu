@@ -34,6 +34,9 @@ android iskeleti → AndroidManifest'e INTERNET izni + app adı → minSdk 23 pa
 - **Doğrulama döngüsü:** önce yerelde `C:\src\flutter\bin\flutter.bat test` + `analyze`
   (sürüm 3.44 — uyarılar CI'nin 3.29.3'üyle farklı, bkz. HAFIZA), sonra push → Actions
   logunu izle, kırmızıysa sormadan düzelt. APK derlemesi yalnızca CI'da doğrulanır.
+  **Bulut (Linux) oturumunda da doğrulama yapılabilir:** Flutter 3.29.3 (CI ile aynı
+  sürüm) indirilip `pub get / analyze / test` koşturulur — ayrıntı ve tuzaklar
+  HAFIZA 2026-07-25 §F. Kör push etme.
 - **Commit mesajı sonu:** `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
   ve `Claude-Session:` satırı.
 - Bilinen derleme tuzakları (CardThemeData, platform klasörleri, keystore) → **HAFIZA.md**

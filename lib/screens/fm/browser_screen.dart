@@ -13,6 +13,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'archive_screen.dart';
@@ -42,12 +43,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
   String? _error;
   final Set<String> _selected = {};
 
+  /// Liste ve ızgara aynı anda mount edilmediği için tek denetleyici yeterli;
+  /// sürükleyerek seçimde kenara gelince otomatik kaydırma bunu kullanır.
+  final ScrollController _scroll = ScrollController();
+
   bool get _selecting => _selected.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -117,6 +128,32 @@ class _BrowserScreenState extends State<BrowserScreen> {
   void _toggle(FsEntry entry) {
     setState(() {
       if (!_selected.remove(entry.path)) _selected.add(entry.path);
+    });
+  }
+
+  /// Sürükleyerek seçimde çağrılır: görünen sıradaki [start]..[end] aralığı.
+  void _selectRange(List<FsEntry> visible, int start, int end, bool select) {
+    setState(() {
+      for (var i = start; i <= end; i++) {
+        if (i < 0 || i >= visible.length) continue;
+        if (select) {
+          _selected.add(visible[i].path);
+        } else {
+          _selected.remove(visible[i].path);
+        }
+      }
+    });
+  }
+
+  /// Toplu seçme: hepsi seçiliyse seçimi kaldırır, değilse tümünü seçer.
+  void _toggleSelectAll() {
+    final all = _entries.map((e) => e.path).toSet();
+    setState(() {
+      if (_selected.length >= all.length && all.every(_selected.contains)) {
+        _selected.clear();
+      } else {
+        _selected.addAll(all);
+      }
     });
   }
 
@@ -297,7 +334,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               case 'star':
                 appState.toggleBookmark(widget.path);
               case 'select_all':
-                setState(() => _selected.addAll(_entries.map((e) => e.path)));
+                _toggleSelectAll();
               case 'refresh':
                 _load();
             }
@@ -343,8 +380,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
         icon: const Icon(Icons.close),
         onPressed: () => setState(_selected.clear),
       ),
-      title: Text('${_selected.length} seçildi'),
+      title: Text('${_selected.length} / ${_entries.length} seçildi'),
       actions: [
+        IconButton(
+          tooltip: _allSelected ? 'Seçimi kaldır' : 'Tümünü seç',
+          icon: Icon(_allSelected ? Icons.deselect : Icons.select_all),
+          onPressed: _toggleSelectAll,
+        ),
         IconButton(
           tooltip: 'Kopyala',
           icon: const Icon(Icons.copy_outlined),
@@ -398,8 +440,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 if (selected.length == 1 && mounted) {
                   await showProperties(context, selected.first);
                 }
-              case 'all':
-                setState(() => _selected.addAll(_entries.map((e) => e.path)));
+              case 'invert':
+                setState(() {
+                  final all = _entries.map((e) => e.path).toSet();
+                  final inverted = all.difference(_selected);
+                  _selected
+                    ..clear()
+                    ..addAll(inverted);
+                });
             }
           },
           itemBuilder: (ctx) => [
@@ -410,12 +458,16 @@ class _BrowserScreenState extends State<BrowserScreen> {
             if (selected.length == 1)
               const PopupMenuItem(
                   value: 'properties', child: Text('Özellikler')),
-            const PopupMenuItem(value: 'all', child: Text('Tümünü seç')),
+            const PopupMenuItem(value: 'invert', child: Text('Seçimi tersine çevir')),
           ],
         ),
       ],
     );
   }
+
+  /// Görünen tüm öğeler seçili mi (toplu seçme düğmesinin durumu).
+  bool get _allSelected =>
+      _entries.isNotEmpty && _entries.every((e) => _selected.contains(e.path));
 
   Widget _pasteBar(AppState appState) {
     final count = appState.clipboard.length;
@@ -493,30 +545,44 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final grid = context.watch<AppState>().fmGrid;
     return RefreshIndicator(
       onRefresh: _load,
-      child: grid ? _grid(entries) : _list(entries),
+      // Uzun basış artık öğelerde değil BURADA yakalanır (çocuk uzun basışı
+      // jest arenasını kazanıp sürüklemeyi öldürürdü) → basılı tutup kaydırınca
+      // çapa ile parmağın altındaki öğe arasındaki tüm dosyalar seçilir.
+      child: DragSelectArea(
+        scrollController: _scroll,
+        isSelected: (i) =>
+            i >= 0 && i < entries.length && _selected.contains(entries[i].path),
+        onSelectRange: (a, b, sel) => _selectRange(entries, a, b, sel),
+        child: grid ? _grid(entries) : _list(entries),
+      ),
     );
   }
 
   Widget _list(List<FsEntry> entries) => ListView.builder(
+        controller: _scroll,
         padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 96),
         itemCount: entries.length,
         itemBuilder: (context, i) {
           final e = entries[i];
           final selected = _selected.contains(e.path);
-          return _EntryListTile(
-            entry: e,
-            selected: selected,
-            selecting: _selecting,
-            onTap: () => _openEntry(e),
-            onLongPress: () => _toggle(e),
-            onMore: () async {
-              if (await showEntryActions(context, e)) _load();
-            },
+          return DragSelectItem(
+            index: i,
+            child: _EntryListTile(
+              entry: e,
+              selected: selected,
+              selecting: _selecting,
+              onTap: () => _openEntry(e),
+              onCheck: () => _toggle(e),
+              onMore: () async {
+                if (await showEntryActions(context, e)) _load();
+              },
+            ),
           );
         },
       );
 
   Widget _grid(List<FsEntry> entries) => GridView.builder(
+        controller: _scroll,
         padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, 96),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 120,
@@ -528,11 +594,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
         itemBuilder: (context, i) {
           final e = entries[i];
           final selected = _selected.contains(e.path);
-          return _EntryGridTile(
-            entry: e,
-            selected: selected,
-            onTap: () => _openEntry(e),
-            onLongPress: () => _toggle(e),
+          return DragSelectItem(
+            index: i,
+            child: _EntryGridTile(
+              entry: e,
+              selected: selected,
+              selecting: _selecting,
+              onTap: () => _openEntry(e),
+            ),
           );
         },
       );
@@ -662,7 +731,9 @@ class _EntryListTile extends StatelessWidget {
   final bool selected;
   final bool selecting;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
+
+  /// Onay kutusuna dokunma (uzun basış artık [DragSelectArea]'da).
+  final VoidCallback onCheck;
   final VoidCallback onMore;
 
   const _EntryListTile({
@@ -670,7 +741,7 @@ class _EntryListTile extends StatelessWidget {
     required this.selected,
     required this.selecting,
     required this.onTap,
-    required this.onLongPress,
+    required this.onCheck,
     required this.onMore,
   });
 
@@ -681,7 +752,7 @@ class _EntryListTile extends StatelessWidget {
       selected: selected,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
       leading: selecting
-          ? Checkbox(value: selected, onChanged: (_) => onLongPress())
+          ? Checkbox(value: selected, onChanged: (_) => onCheck())
           : FmEntryIcon(entry: entry),
       title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
@@ -704,7 +775,6 @@ class _EntryListTile extends StatelessWidget {
             )
           : IconButton(icon: const Icon(Icons.more_vert), onPressed: onMore),
       onTap: onTap,
-      onLongPress: onLongPress,
     );
   }
 }
@@ -712,14 +782,14 @@ class _EntryListTile extends StatelessWidget {
 class _EntryGridTile extends StatelessWidget {
   final FsEntry entry;
   final bool selected;
+  final bool selecting;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
 
   const _EntryGridTile({
     required this.entry,
     required this.selected,
+    required this.selecting,
     required this.onTap,
-    required this.onLongPress,
   });
 
   @override
@@ -727,7 +797,6 @@ class _EntryGridTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(Radii.card),
       child: Container(
         padding: const EdgeInsets.all(Gap.sm),
@@ -735,18 +804,32 @@ class _EntryGridTile extends StatelessWidget {
           color: selected ? scheme.primaryContainer.withValues(alpha: 0.5) : null,
           borderRadius: BorderRadius.circular(Radii.card),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            FmEntryIcon(entry: entry, size: 56),
-            const SizedBox(height: Gap.sm),
-            Text(
-              entry.name,
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FmEntryIcon(entry: entry, size: 56),
+                const SizedBox(height: Gap.sm),
+                Text(
+                  entry.name,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
+            if (selecting)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Icon(
+                  selected ? Icons.check_circle : Icons.circle_outlined,
+                  size: 18,
+                  color: selected ? scheme.primary : scheme.outline,
+                ),
+              ),
           ],
         ),
       ),
