@@ -136,17 +136,38 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   }
 
   Future<void> _deleteSelected() async {
-    final total = await _pageCount();
-    final keep = [
-      for (var i = 0; i < total; i++)
-        if (!_selected.contains(i)) i,
-    ];
-    if (keep.isEmpty) {
+    if (_selected.length >= await _pageCount()) {
       _snack('Tüm sayfalar silinemez');
       return;
     }
-    await _apply(
-        'Silme', (b) => PdfTools.selectPages(b, keep, password: _password));
+    final pages = _selected.toList();
+    await _apply('Silme',
+        (b) => PdfTools.deletePages(b, pages, password: _password));
+  }
+
+  /// Sayfa kopyalayan işlemler vurguları taşıyamaz — kullanıcı bilmeden
+  /// kaybetmesin diye yalnız belgede vurgu VARSA sorulur.
+  Future<bool> _confirmAnnotationLoss(String action) async {
+    final count = await PdfTools.annotationCount(_bytes!, password: _password);
+    if (count == 0 || !mounted) return count == 0;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Vurgular kaybolacak'),
+        content: Text('Bu belgede $count vurgu/not var. "$action" işlemi '
+            'sayfaları yeniden oluşturduğu için bunlar silinir.\n\n'
+            'Sayfa silmek isterseniz "Sil" düğmesi vurguları korur.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Devam et')),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   /// Seçili sayfaları **yeni bir PDF** olarak paylaşır (böl / sayfa çıkar).
@@ -180,6 +201,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final total = await _pageCount();
     final to = from + delta;
     if (to < 0 || to >= total) return;
+    if (!await _confirmAnnotationLoss('Sayfa taşıma')) return;
     final order = movePageOrder(total, from, to);
     await _apply('Taşıma',
         (b) => PdfTools.selectPages(b, order, password: _password));
@@ -194,6 +216,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     );
     final paths = res?.files.map((f) => f.path).whereType<String>().toList();
     if (paths == null || paths.isEmpty) return;
+    if (!await _confirmAnnotationLoss('Birleştirme')) return;
     final others = [
       for (final path in paths) await File(path).readAsBytes(),
     ];
@@ -206,6 +229,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Future<void> _scanAndAppend() async {
     final pages = await DocumentScanner.scanPages();
     if (pages == null) return;
+    if (!await _confirmAnnotationLoss('Tarama ekleme')) return;
     // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada zaten görünür.
     await _apply('Tarama ekleme', (b) async {
       final scanned = await _conversion.imagesToPdf(pages);

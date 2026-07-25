@@ -1,4 +1,4 @@
-import 'dart:ui' show Offset, Size;
+import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
@@ -41,9 +41,62 @@ class PdfTools {
     }
   }
 
+  /// Belgedeki toplam annotation (vurgu, not, imza damgası değil) sayısı.
+  /// [selectPages] bunları koruyamadığı için çağıran kullanıcıyı uyarabilsin.
+  static Future<int> annotationCount(
+    List<int> bytes, {
+    String? password,
+  }) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      var n = 0;
+      for (var i = 0; i < doc.pages.count; i++) {
+        n += doc.pages[i].annotations.count;
+      }
+      return n;
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// Seçili sayfaları **yerinde** siler (belgenin geri kalanına dokunmadan).
+  ///
+  /// [selectPages] ile "kalanları seç" de aynı sonucu verirdi ama sayfa
+  /// KOPYALAMA yaptığı için vurgular/notlar kaybolurdu (bkz. oradaki uyarı).
+  /// Silme en sık işlem olduğundan kayıpsız yol burada ayrı tutuluyor.
+  static Future<List<int>> deletePages(
+    List<int> bytes,
+    Iterable<int> pageIndexes, {
+    String? password,
+  }) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final targets = pageIndexes.toSet().toList()..sort();
+      if (targets.isEmpty) throw ArgumentError('Silinecek sayfa yok');
+      if (targets.length >= doc.pages.count) {
+        throw ArgumentError('Tüm sayfalar silinemez');
+      }
+      // Sondan başa: baştan silmek kalan indeksleri kaydırır.
+      for (final i in targets.reversed) {
+        if (i < 0 || i >= doc.pages.count) {
+          throw RangeError('Sayfa ${i + 1} yok');
+        }
+        doc.pages.removeAt(i);
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
   /// [pageIndexes] (0-tabanlı) sayfalarını **verilen sırayla** yeni bir PDF'e
-  /// alır. Tek fonksiyon dört işi yapar: sayfa çıkar, böl (aralık ver), sil
-  /// (kalanları ver), sırala (sırayı değiştir). Tekrar eden indeks = çoğaltma.
+  /// alır: sayfa çıkar, böl (aralık ver), sırala (sırayı değiştir). Tekrar eden
+  /// indeks = çoğaltma.
+  ///
+  /// **KAYIP UYARISI:** sayfalar `createTemplate()` ile KOPYALANIR; annotation'lar
+  /// (vurgular, notlar) ayrı nesneler oldukları için yeni belgeye GELMEZ.
+  /// Ölçüldü, varsayım değil (`pdf_tools_test`). Sadece silmek için
+  /// [deletePages] kullan — o yerinde çalışır ve vurguları korur.
   static Future<List<int>> selectPages(
     List<int> bytes,
     List<int> pageIndexes, {
@@ -148,6 +201,73 @@ class PdfTools {
     }
   }
 
+  /// Elle çizilmiş imzayı sayfaya **vektör olarak** basar.
+  ///
+  /// [strokes] her biri 0..1 aralığında normalize edilmiş nokta dizisi (imza
+  /// panosundan gelir); [rect] hedef kutu **görünen** sayfa koordinatında
+  /// (sol-üst orijin) — kullanıcı sayfayı ekranda gördüğü gibi yerleştirir.
+  ///
+  /// Neden resim değil vektör: her yakınlaştırmada keskin kalır, dosya küçük
+  /// olur ve PNG saydamlığının PDF'e doğru gömülüp gömülmediğine bağlı kalmayız.
+  static Future<List<int>> stampStrokes(
+    List<int> bytes, {
+    required int pageIndex,
+    required List<List<Offset>> strokes,
+    required Rect rect,
+    double thickness = 1.5,
+    int colorArgb = 0xFF000000,
+    String? password,
+  }) async {
+    if (strokes.every((s) => s.length < 2)) {
+      throw ArgumentError('İmza boş');
+    }
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final page = doc.pages[pageIndex];
+      final t = stampTransform(page.size, page.rotation.index);
+      final g = page.graphics;
+      final state = g.save();
+      try {
+        if (t.angle != 0) {
+          g.translateTransform(t.translate.dx, t.translate.dy);
+          g.rotateTransform(t.angle);
+        }
+        final pen = PdfPen(
+          PdfColor(
+            (colorArgb >> 16) & 0xFF,
+            (colorArgb >> 8) & 0xFF,
+            colorArgb & 0xFF,
+          ),
+          width: thickness,
+          lineCap: PdfLineCap.round,
+          lineJoin: PdfLineJoin.round,
+        );
+        for (final stroke in strokes) {
+          if (stroke.length < 2) continue;
+          final points = [
+            for (final p in stroke)
+              Offset(
+                rect.left + p.dx * rect.width,
+                rect.top + p.dy * rect.height,
+              ),
+          ];
+          // ponytail: segment segment `addLine`. `addPolygon` şekli KAPATIR
+          // (son noktadan ilkine çizgi çeker) — imzada yanlış olur.
+          final path = PdfPath()..startFigure();
+          for (var i = 0; i + 1 < points.length; i++) {
+            path.addLine(points[i], points[i + 1]);
+          }
+          g.drawPath(path, pen: pen);
+        }
+      } finally {
+        g.restore(state);
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
   /// Kaynak sayfaları (belge, 0-tabanlı indeks) sırasıyla yeni bir belgeye
   /// kopyalar. Birleştir/seç/böl/sırala hepsi buraya iner — tek yerde doğru.
   ///
@@ -174,6 +294,26 @@ class PdfTools {
       out.dispose();
     }
   }
+}
+
+/// **Görünen** sayfa koordinatında verilen bir şeyi (imza) döndürülmüş bir
+/// sayfaya çizerken gereken dönüşüm — [composedPageTransform]'un TERSİ.
+///
+/// [pageSize] sayfanın HAM (döndürülmemiş) ölçüsü: `PdfPage.size`. Kullanıcı
+/// sayfayı `/Rotate` uygulanmış hâliyle görür ve konumu ona göre verir; sayfanın
+/// grafik koordinatı ise ham hâldedir. Bu iki uzay arasındaki köprü burası.
+({Offset translate, double angle}) stampTransform(
+  Size pageSize,
+  int quarterTurns,
+) {
+  final w = pageSize.width;
+  final h = pageSize.height;
+  return switch (quarterTurns % 4) {
+    1 => (translate: Offset(0, h), angle: -90),
+    2 => (translate: Offset(w, h), angle: 180),
+    3 => (translate: Offset(w, 0), angle: 90),
+    _ => (translate: Offset.zero, angle: 0),
+  };
 }
 
 /// [total] sayfalık belgede [from] sayfasını [to] konumuna taşıyan yeni sayfa

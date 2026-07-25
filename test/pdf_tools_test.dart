@@ -1,4 +1,5 @@
-import 'dart:ui' show Rect, Size;
+import 'dart:math' as math;
+import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:dosya_okuyucu/services/pdf_tools.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +52,86 @@ void main() {
 
     test('4 tur başa döner', () {
       expect(composedPageTransform(src, 4).angle, 0);
+    });
+  });
+
+  group('stampTransform — görünen sayfa → ham sayfa (imza)', () {
+    const page = Size(300, 400); // ham ölçü
+
+    /// İmza için kullanılan dönüşüm, sayfa kopyalarken kullanılanın TERSİ
+    /// olmalı: ileri (ham→görünen) sonra geri (görünen→ham) = başlangıç noktası.
+    /// Yanlışsa imza sayfada bambaşka bir köşeye, yan yatık basılır.
+    test('composedPageTransform ile gidiş-dönüş kimlik verir', () {
+      const probes = [Offset(0, 0), Offset(300, 0), Offset(37, 219),
+        Offset(300, 400)];
+      for (var turns = 0; turns < 4; turns++) {
+        final forward = composedPageTransform(page, turns);
+        final back = stampTransform(page, turns);
+        for (final p in probes) {
+          final shown = _applyTransform(
+              (translate: forward.translate, angle: forward.angle), p);
+          final again = _applyTransform(back, shown);
+          expect(again.dx, closeTo(p.dx, 0.001), reason: 'turns=$turns p=$p');
+          expect(again.dy, closeTo(p.dy, 0.001), reason: 'turns=$turns p=$p');
+        }
+      }
+    });
+
+    test('döndürülmemiş sayfada dönüşüm yok', () {
+      final t = stampTransform(page, 0);
+      expect(t.angle, 0);
+      expect(t.translate, Offset.zero);
+    });
+  });
+
+  group('PdfTools.stampStrokes — imza basma', () {
+    test('imza belgeye çizilir, sayfa sayısı değişmez', () async {
+      final src = await _makePdf([300, 300]);
+
+      final out = await PdfTools.stampStrokes(
+        src,
+        pageIndex: 1,
+        strokes: const [
+          [Offset(0, 0.5), Offset(0.3, 0), Offset(0.6, 1), Offset(1, 0.4)],
+        ],
+        rect: const Rect.fromLTWH(50, 300, 150, 60),
+      );
+
+      expect(out.sublist(0, 4), [0x25, 0x50, 0x44, 0x46]);
+      expect(await PdfTools.pageCount(out), 2);
+      expect(out.length, greaterThan(src.length)); // çizim eklendi
+    });
+
+    test('döndürülmüş sayfaya da basılabilir (koordinat çevirisi)', () async {
+      final rotated = await PdfTools.rotatePages(await _makePdf([300]),
+          pageIndexes: [0], quarterTurns: 1);
+
+      final out = await PdfTools.stampStrokes(
+        rotated,
+        pageIndex: 0,
+        strokes: const [
+          [Offset(0, 0), Offset(1, 1)],
+        ],
+        // Görünen sayfa 400x300 → sağ alt bölge.
+        rect: const Rect.fromLTWH(250, 200, 100, 40),
+      );
+
+      expect(await PdfTools.pageCount(out), 1);
+      // /Rotate korunmalı: imza basmak sayfayı düzleştirmemeli.
+      expect(await _rotation(out), PdfPageRotateAngle.rotateAngle90);
+    });
+
+    test('boş imza reddedilir', () async {
+      final src = await _makePdf([300]);
+      expect(
+        () => PdfTools.stampStrokes(src,
+            pageIndex: 0,
+            strokes: const [
+              [Offset(0, 0)]
+            ],
+            rect: const Rect.fromLTWH(0, 0, 10, 10)),
+        throwsArgumentError,
+      );
     });
   });
 
@@ -126,6 +207,50 @@ void main() {
       doc.dispose();
     });
 
+    /// Boyutun takas olması yetmez: İÇERİK de dönmeli. Sol-ÜSTteki yazı, 90°
+    /// saat yönü döndürmeden sonra sağ-ÜSTe gelmeli (yan yatık kalmamalı).
+    test('döndürülmüş sayfada içerik de döner: sol-üst → sağ-üst', () async {
+      final src = await _makePdf([300]); // 300x400, yazı (10,10) civarında
+      final rotated =
+          await PdfTools.rotatePages(src, pageIndexes: [0], quarterTurns: 1);
+
+      final out = await PdfTools.selectPages(rotated, [0]);
+
+      final doc = PdfDocument(inputBytes: out);
+      final line = PdfTextExtractor(doc).extractTextLines().first;
+      doc.dispose();
+      // Hedef sayfa 400x300. Döndürülmüş metnin bounds'u kendi (dönmüş)
+      // çerçevesinde raporlanıyor — kenar konumu anlamlı, kutu şekli değil.
+      // Yazı SAĞ kenarda (x≈373) ve sayfanın ÜST yarısında olmalı.
+      expect(line.bounds.left, greaterThan(350));
+      expect(line.bounds.top, lessThan(150));
+    });
+
+    test('deletePages sayfayı siler ve vurguları KORUR', () async {
+      final src = _withHighlightOnSecondPage(await _makePdf([100, 110, 120]));
+
+      final out = await PdfTools.deletePages(await src, [0]);
+
+      expect(await _widths(out), [110, 120]);
+      expect(await PdfTools.annotationCount(out), 1);
+    });
+
+    /// Ölçülmüş sınır: sayfa KOPYALAYAN yol annotation taşımaz. Kullanıcı
+    /// uyarısı (pdf_tools_screen) bu gerçeğe dayanıyor — sessizce değişirse
+    /// bu test kırmızıya döner.
+    test('selectPages sayfa kopyalar → vurgular gelmez (bilinen sınır)',
+        () async {
+      final src = await _withHighlightOnSecondPage(await _makePdf([100, 110]));
+
+      expect(await PdfTools.annotationCount(src), 1);
+      expect(await PdfTools.annotationCount(await PdfTools.selectPages(src, [0, 1])), 0);
+    });
+
+    test('deletePages: tüm sayfalar silinemez', () async {
+      final src = await _makePdf([100, 110]);
+      expect(() => PdfTools.deletePages(src, [0, 1]), throwsArgumentError);
+    });
+
     test('pageCount', () async {
       expect(await PdfTools.pageCount(await _makePdf([100, 110, 120])), 3);
     });
@@ -167,6 +292,16 @@ void main() {
   });
 }
 
+/// PDF grafik dönüşümü: önce döndür, sonra taşı (Syncfusion'daki çağrı sırası).
+Offset _applyTransform(({Offset translate, double angle}) t, Offset p) {
+  final rad = t.angle * math.pi / 180;
+  final c = math.cos(rad), s = math.sin(rad);
+  return Offset(
+    p.dx * c - p.dy * s + t.translate.dx,
+    p.dx * s + p.dy * c + t.translate.dy,
+  );
+}
+
 /// Her genişlik bir sayfa: sayfa kimliği boyutundan okunur (bkz. dosya başı).
 Future<List<int>> _makePdf(List<int> pageWidths) async {
   final doc = PdfDocument();
@@ -185,6 +320,23 @@ Future<List<int>> _makePdf(List<int> pageWidths) async {
   final bytes = await doc.save();
   doc.dispose();
   return bytes;
+}
+
+/// 2. sayfaya bir vurgu (highlight) annotation'ı ekler — kayıp/koruma testleri.
+Future<List<int>> _withHighlightOnSecondPage(List<int> bytes) async {
+  final doc = PdfDocument(inputBytes: bytes);
+  try {
+    doc.pages[1].annotations.add(
+      PdfTextMarkupAnnotation(
+        const Rect.fromLTWH(10, 10, 80, 20),
+        'not',
+        PdfColor(255, 255, 0),
+      )..textMarkupAnnotationType = PdfTextMarkupAnnotationType.highlight,
+    );
+    return await doc.save();
+  } finally {
+    doc.dispose();
+  }
 }
 
 Future<List<int>> _widths(List<int> bytes) async {

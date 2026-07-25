@@ -1792,3 +1792,50 @@ tara → "yazılar da tanınsın mı?" → ilerleme → kaydet → aç. Hem ana 
 sayfa nesnesi sayısı 3 (tek sayfaya üst üste binme regresyonunu yakalar).
 OCR/kamera cihaz gerektirir, birim testle doğrulanamaz → KALANLAR'da cihaz
 doğrulama maddesi var.
+
+---
+
+## 2026-07-25 — Faz 2: İmza + Faz 1'de bulunan VERİ KAYBI hatası
+
+### Bulunan hata: sayfa kopyalama vurguları siliyordu (Faz 1)
+Faz 2'nin koordinat matematiğini doğrularken ölçüldü: `createTemplate()` sayfa
+İÇERİĞİNİ kopyalar, **annotation'ları (vurgu/not) kopyalamaz**. Yani Faz 1'de
+sayfa silmek, taşımak veya birleştirmek kullanıcının tüm vurgularını sessizce
+siliyordu (deney: 1 vurgu → compose sonrası 0).
+
+**Kök neden düzeltmesi:** silme artık `PdfTools.deletePages` ile **yerinde**
+(`doc.pages.removeAt`) yapılıyor — annotation'lar korunuyor (ölçüldü: 1 → 1).
+Kopyalamak zorunda olan işlemler (taşı/birleştir/tara-ekle) için, belgede vurgu
+VARSA kullanıcıya "$n vurgu silinecek" onayı soruluyor. Sessiz kayıp yok.
+`selectPages` doc'una kalıcı uyarı yazıldı; `pdf_tools_test` bu sınırı
+**test olarak sabitliyor** (Syncfusion bir gün taşımaya başlarsa test kırmızıya
+döner ve uyarıyı kaldırırız).
+
+### Döndürme matematiği artık ÖLÇÜLDÜ (varsayım değil)
+`PdfTextExtractor.extractTextLines()` ile: sol-üstte "Sayfa 300" yazan 300x400
+sayfa 90° döndürülüp kopyalanınca metin 400x300 sayfanın SAĞ ÜST bölgesine
+düşüyor (x≈373, y≈67) — `composedPageTransform` doğru. 180° ve 270° de kontrol
+edildi. **Not:** döndürülmüş metnin `bounds`'u kendi dönmüş çerçevesinde gelir
+(180°de left>right çıkar) — kutu ŞEKLİNE değil, KENAR konumuna bakılmalı.
+
+### İmza — resim değil VEKTÖR
+Karar: imza PNG olarak değil, `PdfPath` + `drawPath` ile **vektör** basılıyor.
+Nedenleri: (a) her yakınlaştırmada keskin, (b) dosya birkaç yüz bayt,
+(c) PNG saydamlığının (RGBA→SMask) Syncfusion'da doğru gömülüp gömülmediğine
+bağımlı kalmıyoruz. İmza noktaları 0..1 normalize + en/boy oranı olarak
+`SharedPreferences`'ta saklanıyor → resim dosyası yönetimi yok, tekrar tekrar
+çizdirmiyoruz.
+
+**TUZAK — `PdfPath.addPolygon` şekli KAPATIR** (son noktadan ilkine çizgi
+çeker): imzada saçma bir kapanış çizgisi oluşur. `startFigure()` + segment
+segment `addLine` kullanıldı. (`addLines` public API'de YOK, sadece helper'da.)
+
+**Koordinat sözleşmesi:** kullanıcı sayfayı `/Rotate` uygulanmış hâliyle görür
+(pdfrx `PdfPage.width/height` zaten döndürülmüş ölçü verir) ve imzayı ona göre
+koyar; sayfanın grafik uzayı ise ham. Köprü `stampTransform` —
+`composedPageTransform`'un TERSİ. Test bunu gidiş-dönüş kimlik olarak
+doğruluyor (4 açı × 4 nokta); yanlış olsa imza başka köşeye yan yatık basılırdı.
+
+**İmza ekranı yalnız görüntüleyici ⋮ menüsünden açılıyor**, PDF Araçları'ndan
+DEĞİL: araçlar ekranı bellekteki kaydedilmemiş baytlarla çalışıyor, imza ise
+dosyaya yazıyor — ikisi aynı anda açık olsa biri diğerinin işini ezerdi.

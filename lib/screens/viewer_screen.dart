@@ -19,6 +19,7 @@ import '../widgets/office_shell.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
+import 'pdf_sign_screen.dart';
 import 'pdf_tools_screen.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
@@ -610,12 +611,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'pdftools':
                 _openPdfTools();
                 break;
+              case 'sign':
+                _signPdf();
+                break;
               case 'translate':
                 _translateDocument();
                 break;
             }
           },
           itemBuilder: (_) => [
+            if (doc.kind == DocKind.pdf)
+              const PopupMenuItem(value: 'sign', child: Text('İmzala')),
             if (doc.kind == DocKind.pdf)
               const PopupMenuItem(
                   value: 'pdftools',
@@ -760,6 +766,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _pdfText = '';
       });
     }
+  }
+
+  /// İmza ekranı; imza basılırsa dosya değişmiştir → görüntüleyici tazelenir.
+  Future<void> _signPdf() async {
+    final signed = await PdfSignScreen.open(context, widget.doc.path);
+    if (signed == true && mounted) setState(() => _pdfReloadKey++);
   }
 
   Future<void> _highlightPdf() async {

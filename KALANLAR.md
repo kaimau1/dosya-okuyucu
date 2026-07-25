@@ -1,6 +1,13 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **İmza cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 2: PDF aç → ⋮
+      "İmzala" → (a) imza penceresi çiziyor mu, "Tamam" sonrası imza HATIRLANIYOR
+      mu (ikinci kez sormamalı), (b) imza kutusu parmakla sürüklenip kaydırıcıyla
+      büyüyor mu, (c) "Bas" sonrası imza sayfada TAM gördüğünüz yerde mi,
+      (d) yakınlaştırınca keskin mi (vektör), (e) **döndürülmüş sayfada** (araçlardan
+      90° döndürüp imzalayın) imza yan yatık ya da başka köşede mi çıkıyor —
+      koordinat çevirisi birim testli ama cihazda görsel teyit edilmedi.
 - [ ] **Belge tarayıcı cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 3: ana
       ekranda "Belge Tara" → (a) Google tarayıcı arayüzü açılıyor mu, kamera izni
       soruluyor mu, (b) kenar tespiti + kırpma + filtre "tarayıcıdan çıkmış gibi"
@@ -83,8 +90,7 @@
 
 ## Play Store atağı — PDF (2026-07-25 kararı, 4 faz)
 - [x] ~~Faz 1: PDF Araçları (birleştir/çıkar/sil/sırala/döndür/parola/sıkıştır)~~ → YAPILDI 2026-07-25
-- [ ] **Faz 2 — İmza** — parmakla imza çiz (`CustomPaint`) → PNG → PDF'e yerleştir
-      (Syncfusion damga). Yerleştirme overlay'i `pdf_select_layer.dart` kalıbından.
+- [x] ~~Faz 2: İmza (parmakla çiz → sayfaya vektör olarak bas)~~ → YAPILDI 2026-07-25
 - [x] ~~Faz 3: Belge tarayıcı (ML Kit) → tek PDF + OCR~~ → YAPILDI 2026-07-25
       ("çoklu resim → tek PDF" maddesini de kapattı)
 - [ ] **Faz 4 — Okuma deneyimi** — gece modu, link tıklama, outline, sesli okuma (TTS).
