@@ -67,6 +67,11 @@ class FsEntry {
   final int sizeBytes;
   final int modifiedMs;
 
+  /// Son ERİŞİM zamanı (atime). Android'de çoğu bağlama `relatime`/`noatime`
+  /// kullandığı için güvenilmez olabilir → değiştirilme zamanından büyük
+  /// değilse "bilinmiyor" sayılır ([lastTouchedMs]).
+  final int accessedMs;
+
   /// Sembolik bağlantı mı? (Döngüye girmemek için özyinelemeli taramada atlanır.)
   final bool isLink;
 
@@ -76,8 +81,17 @@ class FsEntry {
     required this.isDir,
     required this.sizeBytes,
     required this.modifiedMs,
+    this.accessedMs = 0,
     this.isLink = false,
   });
+
+  /// "Son dokunulma": erişim zamanı anlamlıysa o, değilse değiştirilme zamanı.
+  int get lastTouchedMs =>
+      accessedMs > modifiedMs ? accessedMs : modifiedMs;
+
+  /// Erişim zamanı gerçekten bilgi veriyor mu (dosya yazıldıktan SONRA
+  /// açılmış mı)?
+  bool get hasAccessInfo => accessedMs > modifiedMs;
 
   /// Unix geleneği: adı nokta ile başlayan girdi gizlidir.
   bool get isHidden => name.startsWith('.');
@@ -115,11 +129,13 @@ class FsEntry {
     var isDir = entity is Directory;
     var size = 0;
     var modified = 0;
+    var accessed = 0;
     try {
       final stat = entity.statSync();
       isDir = stat.type == FileSystemEntityType.directory;
       size = stat.size;
       modified = stat.modified.millisecondsSinceEpoch;
+      accessed = stat.accessed.millisecondsSinceEpoch;
     } catch (_) {
       // izin verilmeyen /storage alt klasörleri: ad gösterilir, meta boş kalır
     }
@@ -129,6 +145,7 @@ class FsEntry {
       isDir: isDir,
       sizeBytes: isDir ? 0 : size,
       modifiedMs: modified,
+      accessedMs: accessed,
       isLink: entity is Link,
     );
   }

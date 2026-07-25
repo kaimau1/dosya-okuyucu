@@ -1,3 +1,5 @@
+import 'package:dosya_okuyucu/models/file_age.dart';
+import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/models/media_bucket.dart';
 import 'package:dosya_okuyucu/services/fm/installed_apps_service.dart';
 import 'package:dosya_okuyucu/services/fm/thumbnail_cache.dart';
@@ -121,6 +123,60 @@ void main() {
       expect(a, isNot(otherSize));
       expect(a, isNot(otherPath));
       expect(a, endsWith('.jpg'));
+    });
+  });
+
+  group('dosya yaşı (İndirilenler temizliği)', () {
+    test('gün sayısına göre seviye', () {
+      expect(ageLevelFor(0), AgeLevel.fresh);
+      expect(ageLevelFor(6), AgeLevel.fresh);
+      expect(ageLevelFor(7), AgeLevel.recent);
+      expect(ageLevelFor(29), AgeLevel.recent);
+      expect(ageLevelFor(30), AgeLevel.old);
+      expect(ageLevelFor(179), AgeLevel.old);
+      expect(ageLevelFor(180), AgeLevel.ancient);
+      expect(ageLevelFor(null), AgeLevel.unknown);
+      expect(ageLevelFor(-3), AgeLevel.unknown);
+    });
+
+    test('daysBetween: geçersiz değerlerde null', () {
+      const day = 86400000;
+      expect(daysBetween(1000, 1000 + 3 * day), 3);
+      expect(daysBetween(0, 1000), isNull);
+      expect(daysBetween(2000, 1000), isNull); // gelecek tarih
+    });
+
+    test('relativeDays: kısa Türkçe ifade', () {
+      expect(relativeDays(0), 'bugün');
+      expect(relativeDays(1), 'dün');
+      expect(relativeDays(5), '5 gün önce');
+      expect(relativeDays(60), '2 ay önce');
+      expect(relativeDays(400), '1 yıl önce');
+      expect(relativeDays(null), '—');
+    });
+
+    test('FsEntry: erişim zamanı ancak yazmadan SONRAysa bilgi sayılır', () {
+      const written = FsEntry(
+        path: '/a/x.pdf',
+        name: 'x.pdf',
+        isDir: false,
+        sizeBytes: 10,
+        modifiedMs: 5000,
+        accessedMs: 4000, // atime güncellenmemiş (noatime) → güvenilmez
+      );
+      expect(written.hasAccessInfo, isFalse);
+      expect(written.lastTouchedMs, 5000);
+
+      const opened = FsEntry(
+        path: '/a/x.pdf',
+        name: 'x.pdf',
+        isDir: false,
+        sizeBytes: 10,
+        modifiedMs: 5000,
+        accessedMs: 9000,
+      );
+      expect(opened.hasAccessInfo, isTrue);
+      expect(opened.lastTouchedMs, 9000);
     });
   });
 }

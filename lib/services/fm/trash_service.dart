@@ -231,6 +231,23 @@ class TrashService {
     FsEvents.changed();
   }
 
+  /// [days] günden eski kayıtları kalıcı siler (ayarlardaki otomatik
+  /// temizleme). Silinen öğe sayısını döndürür.
+  Future<int> purgeOlderThan(int days) async {
+    if (days <= 0) return 0;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: days))
+        .millisecondsSinceEpoch;
+    var removed = 0;
+    for (final item in await list()) {
+      if (item.deletedAtMs > 0 && item.deletedAtMs < cutoff) {
+        await deleteForever(item);
+        removed++;
+      }
+    }
+    return removed;
+  }
+
   Future<void> empty() async {
     for (final item in await list()) {
       await deleteForever(item);

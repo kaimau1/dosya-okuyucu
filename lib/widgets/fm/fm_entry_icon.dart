@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/file_service.dart';
@@ -62,6 +64,9 @@ class FmEntryIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final category = entry.category;
+    // Kullanıcı ayarlardan küçük resimleri kapatabilir (yavaş cihaz).
+    final thumbsOn = thumbnails &&
+        (context.select<AppState, bool>((s) => s.fmThumbnails));
 
     if (category == FmCategory.document) {
       return FileTypeIcon(
@@ -71,7 +76,7 @@ class FmEntryIcon extends StatelessWidget {
     }
 
     // Video: native küçük resim (film karesi) — üretilene kadar/olmazsa ikon.
-    if (thumbnails && category == FmCategory.video) {
+    if (thumbsOn && category == FmCategory.video) {
       return _VideoThumb(
         path: entry.path,
         size: size,
@@ -79,7 +84,7 @@ class FmEntryIcon extends StatelessWidget {
       );
     }
 
-    if (thumbnails && category == FmCategory.image) {
+    if (thumbsOn && category == FmCategory.image) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(Radii.control),
         child: Image.file(

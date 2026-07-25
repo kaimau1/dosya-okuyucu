@@ -135,4 +135,17 @@ void main() {
     expect(f.existsSync(), isFalse);
     expect(await trash.list(), hasLength(1));
   });
+
+  test('purgeOlderThan: yalnız süresi geçen kayıtları siler', () async {
+    await trash.moveToTrash([touch('yeni.txt').path]);
+    expect(await trash.list(), hasLength(1));
+
+    // 0/negatif gün → hiçbir şey silinmez (ayar kapalı demektir).
+    expect(await trash.purgeOlderThan(0), 0);
+    expect(await trash.list(), hasLength(1));
+
+    // Bugün silinen öğe 7 gün eşiğine takılmaz.
+    expect(await trash.purgeOlderThan(7), 0);
+    expect(await trash.list(), hasLength(1));
+  });
 }

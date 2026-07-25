@@ -16,6 +16,8 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import 'analysis_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'downloads_screen.dart';
+import 'fm_settings_screen.dart';
 import 'installed_apps_screen.dart';
 import 'search_screen.dart';
 import 'trash_screen.dart';
@@ -134,6 +136,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadTrash() async {
+    // Otomatik temizleme tercihi açıksa süresi geçenleri sil.
+    final days = context.read<AppState>().fmTrashAutoDays;
+    if (days > 0) await FmEnv.trash.purgeOlderThan(days);
     final items = await FmEnv.trash.list();
     if (!mounted) return;
     setState(() {
@@ -152,9 +157,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _folderSizes[download] = size);
   }
 
-  void _push(Widget screen) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-  }
+  Future<void> _push(Widget screen) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
   void _openCategory(FmCategory category, {bool grid = false}) {
     _push(CategoryScreen(
@@ -188,6 +192,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tooltip: 'Yeniden tara',
             icon: const Icon(Icons.refresh),
             onPressed: _scanning ? null : _scan,
+          ),
+          IconButton(
+            tooltip: 'Dosya yöneticisi ayarları',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () async {
+              await _push(const FmSettingsScreen());
+              if (mounted) await _loadTrash();
+            },
           ),
         ],
       ),
@@ -303,8 +315,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? FsPaths.humanSize(_folderSizes[download]!)
             : 'Klasör',
         onTap: () {
-          if (Directory(download).existsSync()) {
-            _push(BrowserScreen(path: download, title: 'İndirilenler'));
+          final path = downloadsPathIn(FmEnv.primaryRoot);
+          if (path != null) {
+            // Yaş odaklı liste: son açılma + "eskileri seç" ile hızlı temizlik.
+            _push(DownloadsScreen(path: path));
           } else {
             _snack('İndirilenler klasörü bulunamadı.');
           }

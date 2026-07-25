@@ -1266,3 +1266,31 @@ gerekçesiyle) → APK derlemesi `processReleaseMainManifest`te "minSdkVersion 2
 cannot be smaller than version 24" ile kırıldı (CI #102). Dart testleri geçtiği
 için hata ancak APK adımında göründü. CI patch'i minSdk 24'e alındı (Android 7+;
 Android 6 payı ihmal edilebilir, Firebase'in 23'ü de kapsanıyor).
+
+## 2026-07-25 — Dosya yöneticisine özel ayarlar + yaş odaklı İndirilenler
+Kullanıcı: "ayarlar simgesi dosya yöneticisi kısmında da olmalı ve ona özel
+ayarlar içermeli" + "indirilenlerde son kullanım tarihi olsun, gereksizleri
+rahat silmek için".
+
+- **`screens/fm/fm_settings_screen.dart`** — pano AppBar'ına ayar simgesi.
+  Bölümler: Görünüm (ızgara, gizli dosyalar, küçük resimler aç/kapa,
+  varsayılan sıralama), Silme (çöp kutusunu kullan / silmeden önce sor /
+  çöp kutusunu otomatik temizle 7-30-90 gün / şimdi boşalt), İzinler (tüm
+  dosyalara erişim + kullanım erişimi durum ve tek dokunuşla verme), Bakım
+  (küçük resim önbelleğini temizle, birimleri yenile), Uygulama (genel
+  ayarlara kısayol: Gemini/tema/hesap). Tercihler `AppState`te kalıcı:
+  `fmThumbnails`, `fmUseTrash`, `fmConfirmDelete`, `fmTrashAutoDays`.
+  `deleteEntries` artık bu tercihlere uyuyor (çöp kapalıysa KALICI silme —
+  bu durumda onay her zaman sorulur, tercih kapalı olsa bile).
+- **`screens/fm/downloads_screen.dart`** — "İndirilenler" kutusu artık klasör
+  gezgini yerine **yaş odaklı** listeyi açıyor: her satırda indirilme tarihi,
+  (varsa) son açılma ve renkli yaş rozeti; üstte "N dosya 6 aydır
+  dokunulmamış · X GB" özeti + **"Eskileri seç"** ile tek dokunuşta toplu
+  seçim → sil. Sıralama: en eski / en yeni / en büyük / ad.
+- **TUZAK — atime güvenilmez:** Android'de çoğu bağlama `relatime`/`noatime`
+  kullanır; erişim zamanı yazma zamanından büyük DEĞİLSE "son açılma"
+  gösterilmez (`FsEntry.hasAccessInfo`) — uydurma bilgi vermektense
+  göstermemeyi seçtik. Yaş rozeti bu yüzden `lastTouchedMs`
+  (atime anlamlıysa o, değilse mtime) üzerinden hesaplanır.
+- `models/file_age.dart` (saf, testli): `ageLevelFor`, `daysBetween`,
+  `relativeDays`. `TrashService.purgeOlderThan` otomatik temizleme için.

@@ -229,30 +229,56 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
   }
 }
 
-/// Seçilenleri çöp kutusuna taşır (onay ister). Taşındıysa `true`.
+/// Seçilenleri siler. Ayarlara göre çöp kutusuna taşır ya da kalıcı siler;
+/// "silmeden önce sor" kapalıysa onay penceresi atlanır (ama KALICI silmede
+/// veri geri gelmeyeceği için onay her zaman sorulur).
 Future<bool> deleteEntries(BuildContext context, List<FsEntry> entries) async {
   if (entries.isEmpty) return false;
+  final appState = context.read<AppState>();
+  final useTrash = appState.fmUseTrash;
   final label = entries.length == 1
       ? '“${entries.first.name}”'
       : '${entries.length} öğe';
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Çöp kutusuna taşınsın mı?'),
-      content: Text('$label çöp kutusuna taşınacak. '
-          'Geri Dönüşüm Kutusu’ndan geri yükleyebilirsiniz.'),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Vazgeç')),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Taşı'),
-        ),
-      ],
-    ),
-  );
-  if (confirmed != true || !context.mounted) return false;
+
+  if (appState.fmConfirmDelete || !useTrash) {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(useTrash
+            ? 'Çöp kutusuna taşınsın mı?'
+            : 'Kalıcı olarak silinsin mi?'),
+        content: Text(useTrash
+            ? '$label çöp kutusuna taşınacak. '
+                'Geri Dönüşüm Kutusu’ndan geri yükleyebilirsiniz.'
+            : '$label KALICI olarak silinecek. Bu işlem geri alınamaz. '
+                '(Çöp kutusu ayarlardan kapalı.)'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(useTrash ? 'Taşı' : 'Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return false;
+  }
+
+  final paths = entries.map((e) => e.path).toList();
+  if (!useTrash) {
+    final result = await showFmProgress<FmOpResult>(
+      context,
+      title: 'Siliniyor',
+      cancellable: false,
+      task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
+    );
+    if (context.mounted && result.hasError) {
+      _snack(context, 'Bazı öğeler silinemedi: ${result.errors.first}');
+    }
+    return true;
+  }
 
   await FmEnv.ensureInit();
   if (!context.mounted) return false;
@@ -261,8 +287,7 @@ Future<bool> deleteEntries(BuildContext context, List<FsEntry> entries) async {
     title: 'Çöp kutusuna taşınıyor',
     cancellable: false,
     task: (report, _) =>
-        FmEnv.trash.moveToTrash(entries.map((e) => e.path).toList(),
-            onProgress: report),
+        FmEnv.trash.moveToTrash(paths, onProgress: report),
   );
   if (context.mounted && result.hasError) {
     _snack(context, 'Bazı öğeler taşınamadı: ${result.errors.first}');
