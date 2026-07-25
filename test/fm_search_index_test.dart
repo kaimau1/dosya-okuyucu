@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
-import 'package:dosya_okuyucu/services/fm/search_index.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_search_field.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -97,6 +96,69 @@ void main() {
       final result = await FsScan.index([tmp.path]);
       expect(result.searchIndexRows, -1);
       expect(result.totalFiles, 1);
+    });
+  });
+
+  // Kullanıcı isteği 2026-07-25: "dosya yöneticisi her açılışta tüm dosyaları
+  // baştan tarıyor". Pano artık diski gezmeden yazılmış dizinden kuruluyor —
+  // sonucun tam taramayla BİREBİR aynı olması bu testin konusu.
+  group('dizinden pano indeksi (diski gezmeden)', () {
+    test('tam taramayla aynı sayıları ve listeleri verir', () async {
+      final root = Directory(p.join(tmp.path, 'depo'))..createSync();
+      File(p.join(root.path, 'not.txt')).writeAsStringSync('a');
+      File(p.join(root.path, 'foto.jpg')).writeAsStringSync('bb');
+      File(p.join(root.path, 'klip.mp4')).writeAsStringSync('dddd');
+      Directory(p.join(root.path, 'Klasör')).createSync();
+      File(p.join(root.path, 'Klasör', 'İç Belge.pdf'))
+          .writeAsStringSync('ccc');
+
+      final indexPath = p.join(tmp.path, 'arama.tsv');
+      final walked =
+          await FsScan.index([root.path], searchIndexPath: indexPath);
+      final restored = await FsScan.indexFromRows(indexPath);
+
+      expect(restored, isNotNull);
+      expect(restored!.totalFiles, walked.totalFiles);
+      expect(restored.totalBytes, walked.totalBytes);
+      for (final c in FmCategory.values) {
+        expect(restored.stat(c).count, walked.stat(c).count,
+            reason: '${c.name} sayısı tutmalı');
+        expect(restored.stat(c).bytes, walked.stat(c).bytes);
+        expect(restored.files(c).map((e) => e.path).toSet(),
+            walked.files(c).map((e) => e.path).toSet());
+      }
+      expect(restored.largest.map((e) => e.path).toList(),
+          walked.largest.map((e) => e.path).toList());
+      // Türkçe adlar UTF-8 çözümlemesinden sağ çıkmalı.
+      expect(
+        restored.recent.map((e) => e.name),
+        contains('İç Belge.pdf'),
+      );
+    });
+
+    test('dizin yoksa ya da boşsa null döner (çağıran tam taramaya düşer)',
+        () async {
+      expect(await FsScan.indexFromRows(p.join(tmp.path, 'yok.tsv')), isNull);
+      final bos = p.join(tmp.path, 'bos.tsv');
+      File(bos).writeAsStringSync('');
+      expect(await FsScan.indexFromRows(bos), isNull);
+    });
+
+    test('bozuk satırlar atlanır, sağlamlar sayılır', () async {
+      final path = p.join(tmp.path, 'kirik.tsv');
+      final saglam = FsEntry(
+        path: '/depo/rapor.pdf',
+        name: 'rapor.pdf',
+        isDir: false,
+        sizeBytes: 120,
+        modifiedMs: 5,
+      );
+      File(path).writeAsStringSync(
+        '${encodeIndexRow(saglam)}\nyalnız-yol\n\n\t1\t2\t0\n',
+      );
+      final index = await FsScan.indexFromRows(path);
+      expect(index!.totalFiles, 1);
+      expect(index.stat(FmCategory.document).bytes, 120);
     });
   });
 

@@ -1651,3 +1651,40 @@ artık BOŞ → body her zaman tam ekran, görüntü hiç oynamıyor.
 
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 hata,
 `flutter test` **391 test yeşil**.
+
+## 2026-07-25 — Pano her açılışta tüm depolamayı baştan tarıyordu
+
+**Şikâyet (kullanıcı):** "dosya yöneticisi açılırken de her seferinde tüm
+dosyaları baştan tarıyor."
+
+### KÖK NEDEN — pano indeksi yalnız SÜREÇ İÇİ önbellekteydi
+`_DashboardScreenState._cachedIndex` `static`ti: sekmeler arası geçişte
+korunuyor ama uygulama kapanınca yok oluyordu. Her açılışta `FsScan.index`
+tüm ağacı yeniden yürüyordu (100 bin dosyada dakikalar + pil).
+
+### ÇÖZÜM — pano, arama dizininin kendisinden kuruluyor (disk yürüyüşü YOK)
+Arama dizini (`search_index.tsv`) zaten her dosya/klasör için
+`yol \t boyut \t değişiklikMs \t klasörMü` tutuyor — panonun ihtiyacı olan her
+şey orada. Yeni `FsScan.indexFromRows(indexPath)` bu düz dosyayı okuyup
+`StorageIndex`'i **birebir aynı** kuruyor (saniyenin altı).
+
+- Açılış akışı: dizin varsa anında kur ve göster → çöp/klasör boyutları →
+  yalnız GEREKİRSE arka planda tam tarama (`unawaited(_scan())`).
+  "Gerekiyor" = dizin bayat VEYA 12 saatten eski (`_maxIndexAge`).
+- Sayım/sıralama mantığı `_IndexAccumulator`'a çıkarıldı; canlı yürüyüş ile
+  dizinden kurma **aynı kodu** kullanıyor (iki yerde sapma olamaz).
+- `encodeIndexRow`/`decodeIndexRow` `search_index.dart`'tan `fs_scan.dart`'a
+  taşındı (yazıcı zaten oradaydı, satır biçimi kopyalanmıştı); eski konumdan
+  `export` ile yeniden yayımlanıyor.
+- **TUZAK — bayatlık diske yazılmalı:** `SearchIndex._stale` yalnız bellekteydi.
+  Uygulama kapanınca unutuluyor, bir sonraki açılışta bayat dizin taze
+  sanılıyordu (silinen dosya panoda sayılmaya devam ederdi — 2026-07-25'te bir
+  kez düzeltilen hatanın kalıcı önbellekle geri gelme yolu). Artık meta
+  json'a `stale` alanı yazılıyor; meta yazımı tek yerden (`_writeMeta`).
+- **TUZAK — TSV'yi `String.fromCharCodes` ile okumak Türkçe adları bozar.**
+  Bayt bazlı okuyup `0x0A`'dan bölmek ve `utf8.decode` şart (arama
+  sorgusunun kullandığı yöntemin aynısı).
+
+**Yeni testler** (`fm_search_index_test`): dizinden kurulan indeks tam
+taramayla aynı sayılar/listeler; dizin yok/boşsa `null` (çağıran tam taramaya
+düşer); bozuk satırlar atlanır.

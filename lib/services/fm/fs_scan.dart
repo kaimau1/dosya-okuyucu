@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show compute;
@@ -125,6 +126,22 @@ abstract final class FsScan {
   }) =>
       _run(_indexSync, _IndexArgs(roots, perCategory, searchIndexPath));
 
+  /// Aynı indeksi **diski hiç gezmeden**, daha önce yazılmış arama dizini
+  /// dosyasından kurar (kullanıcı isteği 2026-07-25: "her açılışta baştan
+  /// tarıyor").
+  ///
+  /// *Niye çalışıyor:* arama dizini ([SearchIndex]) zaten her dosya ve klasör
+  /// için yol/boyut/tarih tutuyor — panonun ihtiyacı olan her şey orada.
+  /// Ağacı yürümek 100 bin dosyada dakikalar sürerken düz dosyayı okumak
+  /// saniyenin altında. Dizin yoksa/bozuksa `null` döner, çağıran tam
+  /// taramaya düşer.
+  static Future<StorageIndex?> indexFromRows(
+    String searchIndexPath, {
+    int perCategory = 800,
+  }) =>
+      _run(_indexFromRowsSync, _IndexArgs(const [], perCategory,
+          searchIndexPath));
+
   /// [fn]'i mümkünse arka plan isolate'inde çalıştırır; olmazsa ana izlekte.
   static Future<R> _run<A, R>(R Function(A) fn, A arg) async {
     try {
@@ -233,14 +250,7 @@ List<FsEntry> _searchSync(_SearchArgs args) {
 }
 
 StorageIndex _indexSync(_IndexArgs args) {
-  final counts = <FmCategory, int>{};
-  final bytes = <FmCategory, int>{};
-  final tops = <FmCategory, _TopN>{};
-  final largest = _TopN(200, (a, b) => b.sizeBytes.compareTo(a.sizeBytes));
-  final recent = _TopN(300, (a, b) => b.modifiedMs.compareTo(a.modifiedMs));
-  var totalFiles = 0;
-  var totalBytes = 0;
-  var skipped = 0;
+  final acc = _IndexAccumulator(args.perCategory);
 
   // Arama dizini: aynı yürüyüşten beslenir. Yazma başarısız olursa (izin/yer)
   // tarama devam eder, yalnız dizin oluşmaz — pano çalışmaya devam etmeli.
@@ -255,23 +265,9 @@ StorageIndex _indexSync(_IndexArgs args) {
       (entry) {
         writer?.add(entry);
         if (writer != null) indexedRows++;
-        // Klasörler yalnız arama dizinine girer: kategori sayıları ve
-        // "en büyük/en yeni" listeleri DOSYA listeleridir.
-        if (entry.isDir) return;
-        final c = entry.category;
-        counts[c] = (counts[c] ?? 0) + 1;
-        bytes[c] = (bytes[c] ?? 0) + entry.sizeBytes;
-        totalFiles++;
-        totalBytes += entry.sizeBytes;
-        (tops[c] ??= _TopN(
-          args.perCategory,
-          (a, b) => b.modifiedMs.compareTo(a.modifiedMs),
-        ))
-            .add(entry);
-        largest.add(entry);
-        recent.add(entry);
+        acc.add(entry);
       },
-      () => skipped++,
+      acc.denied,
       // Klasörleri yalnız arama dizini isteniyorsa gez (aksi hâlde gereksiz
       // geri çağrı maliyeti).
       includeDirs: writer != null,
@@ -279,19 +275,132 @@ StorageIndex _indexSync(_IndexArgs args) {
   }
 
   final wrote = writer?.finish() ?? false;
+  return acc.build(searchIndexRows: wrote ? indexedRows : -1);
+}
 
-  return StorageIndex(
-    stats: {
-      for (final c in counts.keys)
-        c: CategoryStat(counts[c] ?? 0, bytes[c] ?? 0),
-    },
-    byCategory: {for (final e in tops.entries) e.key: e.value.result()},
-    largest: largest.result(),
-    recent: recent.result(),
-    totalFiles: totalFiles,
-    totalBytes: totalBytes,
-    skipped: skipped,
-    searchIndexRows: wrote ? indexedRows : -1,
+/// Diski gezmeden, yazılmış arama dizini satırlarından indeks kurar.
+/// Dosya yoksa/okunamıyorsa `null` → çağıran tam taramaya düşer.
+StorageIndex? _indexFromRowsSync(_IndexArgs args) {
+  final path = args.searchIndexPath;
+  if (path == null) return null;
+  final file = File(path);
+  if (!file.existsSync()) return null;
+  final acc = _IndexAccumulator(args.perCategory);
+  var rows = 0;
+  try {
+    // Parça parça okunur (64 KB): 100 bin satırlık dizini tek String'e almak
+    // isolate'i onlarca MB şişirir. UTF-8'de satırsonu baytı (0x0A) çok
+    // baytlı bir dizinin içinde ASLA geçmez → baytları satırsonundan bölmek
+    // güvenlidir (arama sorgusuyla aynı yöntem).
+    final raf = file.openSync();
+    try {
+      final pending = <int>[];
+      while (true) {
+        final chunk = raf.readSync(64 * 1024);
+        if (chunk.isEmpty) break;
+        pending.addAll(chunk);
+        var start = 0;
+        for (var i = 0; i < pending.length; i++) {
+          if (pending[i] != 0x0A) continue;
+          final line =
+              utf8.decode(pending.sublist(start, i), allowMalformed: true);
+          start = i + 1;
+          final entry = decodeIndexRow(line);
+          if (entry == null) continue;
+          acc.add(entry);
+          rows++;
+        }
+        pending.removeRange(0, start);
+      }
+      // Son satır `\n` ile bitmemiş olabilir.
+      final tail = decodeIndexRow(utf8.decode(pending, allowMalformed: true));
+      if (tail != null) {
+        acc.add(tail);
+        rows++;
+      }
+    } finally {
+      raf.closeSync();
+    }
+  } catch (_) {
+    return null;
+  }
+  if (rows == 0) return null;
+  return acc.build(searchIndexRows: rows);
+}
+
+/// [StorageIndex] toplayıcısı: girdiler ister canlı yürüyüşten
+/// ([_indexSync]) ister dizin dosyasından ([_indexFromRowsSync]) gelsin
+/// sayım/sıralama mantığı **tek yerde** dursun diye ayrıldı.
+class _IndexAccumulator {
+  final int perCategory;
+  final Map<FmCategory, int> _counts = {};
+  final Map<FmCategory, int> _bytes = {};
+  final Map<FmCategory, _TopN> _tops = {};
+  final _TopN _largest = _TopN(200, (a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+  final _TopN _recent = _TopN(300, (a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+  int _totalFiles = 0;
+  int _totalBytes = 0;
+  int _skipped = 0;
+
+  _IndexAccumulator(this.perCategory);
+
+  /// Okunamayan klasör sayacı ([walkFiles]'ın `onDenied` geri çağrısı).
+  void denied() => _skipped++;
+
+  void add(FsEntry entry) {
+    // Klasörler yalnız arama dizinine girer: kategori sayıları ve
+    // "en büyük/en yeni" listeleri DOSYA listeleridir.
+    if (entry.isDir) return;
+    final c = entry.category;
+    _counts[c] = (_counts[c] ?? 0) + 1;
+    _bytes[c] = (_bytes[c] ?? 0) + entry.sizeBytes;
+    _totalFiles++;
+    _totalBytes += entry.sizeBytes;
+    (_tops[c] ??= _TopN(
+      perCategory,
+      (a, b) => b.modifiedMs.compareTo(a.modifiedMs),
+    ))
+        .add(entry);
+    _largest.add(entry);
+    _recent.add(entry);
+  }
+
+  StorageIndex build({required int searchIndexRows}) => StorageIndex(
+        stats: {
+          for (final c in _counts.keys)
+            c: CategoryStat(_counts[c] ?? 0, _bytes[c] ?? 0),
+        },
+        byCategory: {for (final e in _tops.entries) e.key: e.value.result()},
+        largest: _largest.result(),
+        recent: _recent.result(),
+        totalFiles: _totalFiles,
+        totalBytes: _totalBytes,
+        skipped: _skipped,
+        searchIndexRows: searchIndexRows,
+      );
+}
+
+/// Dizin satırını üretir. Yol içinde sekme/satırsonu olamayacağı için ayraç
+/// güvenli; yine de olası kaçık karakterler boşluğa çevrilir.
+String encodeIndexRow(FsEntry entry) {
+  final path = entry.path.replaceAll('\t', ' ').replaceAll('\n', ' ');
+  return '$path\t${entry.sizeBytes}\t${entry.modifiedMs}\t'
+      '${entry.isDir ? 1 : 0}';
+}
+
+/// Dizin satırını çözer; bozuk satırda null.
+FsEntry? decodeIndexRow(String line) {
+  if (line.isEmpty) return null;
+  final parts = line.split('\t');
+  if (parts.length < 4) return null;
+  final path = parts[0];
+  if (path.isEmpty) return null;
+  return FsEntry(
+    path: path,
+    name: p.basename(path),
+    isDir: parts[3] == '1',
+    sizeBytes: int.tryParse(parts[1]) ?? 0,
+    modifiedMs: int.tryParse(parts[2]) ?? 0,
   );
 }
 
@@ -317,9 +426,7 @@ class _SearchIndexWriter {
   }
 
   void add(FsEntry entry) {
-    final path = entry.path.replaceAll('\t', ' ').replaceAll('\n', ' ');
-    _buffer.writeln('$path\t${entry.sizeBytes}\t${entry.modifiedMs}\t'
-        '${entry.isDir ? 1 : 0}');
+    _buffer.writeln(encodeIndexRow(entry));
     if (_buffer.length >= 64 * 1024) _flush();
   }
 

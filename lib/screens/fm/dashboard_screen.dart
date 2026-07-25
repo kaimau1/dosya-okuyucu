@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -91,11 +92,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final access = await StoragePermission.hasFullAccess();
     if (!mounted) return;
     setState(() => _hasAccess = access);
-    if (_cachedIndex == null) {
-      await _scan();
-    } else {
+    if (_cachedIndex != null) {
       await _loadTrash();
+      return;
     }
+    // Uygulama yeni açıldı: diskteki arama dizininden panoyu **anında** kur
+    // (kullanıcı isteği 2026-07-25: "her açılışta baştan tarıyor"). Ağacı
+    // yürümek dakikalar, düz dizin dosyasını okumak saniyenin altı sürer.
+    if (await _restoreFromIndex()) {
+      await _loadTrash();
+      await _loadFolderSizes();
+      // Dizin bayatsa (uygulama dışında dosya değişmiş olabilir) sessizce
+      // tazele — kullanıcı bu sırada panoyu kullanmaya devam eder.
+      if (SearchIndex.isStale || _indexTooOld) unawaited(_scan());
+      return;
+    }
+    await _scan();
+  }
+
+  /// Dizin bu süreden eskiyse arka planda tazelenir. Uygulama dışında
+  /// (galeri, WhatsApp…) biriken dosyalar sonsuza dek görünmez kalmasın.
+  static const _maxIndexAge = Duration(hours: 12);
+
+  bool get _indexTooOld =>
+      DateTime.now().millisecondsSinceEpoch - SearchIndex.builtAtMs >
+          _maxIndexAge.inMilliseconds;
+
+  /// Arama dizininden pano indeksini kurar; kurulamazsa false (tam tarama).
+  Future<bool> _restoreFromIndex() async {
+    await SearchIndex.ensureLoaded();
+    if (!SearchIndex.isReady) return false;
+    final index = await FsScan.indexFromRows(SearchIndex.indexPath);
+    if (index == null) return false;
+    _cachedIndex = index;
+    _cachedAtMs = SearchIndex.builtAtMs;
+    if (!mounted) return true;
+    setState(() => _index = index);
+    return true;
   }
 
   Future<void> _requestAccess() async {
