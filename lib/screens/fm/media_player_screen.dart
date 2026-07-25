@@ -194,43 +194,15 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _controlsVisible
-          ? AppBar(
-              backgroundColor: Colors.black.withValues(alpha: 0.6),
-              foregroundColor: Colors.white,
-              title: Text(p.basename(_current),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              actions: [
-                if (_playlist.length > 1)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: Gap.sm),
-                      child: Text('${_index + 1}/${_playlist.length}',
-                          style: const TextStyle(color: Colors.white70)),
-                    ),
-                  ),
-                PopupMenuButton<double>(
-                  tooltip: 'Oynatma hızı',
-                  icon: const Icon(Icons.speed),
-                  onSelected: _setSpeed,
-                  itemBuilder: (_) => [
-                    for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
-                      PopupMenuItem(
-                        value: s,
-                        child: Text('${s}x${s == _speed ? '  ✓' : ''}'),
-                      ),
-                  ],
-                ),
-                IconButton(
-                  tooltip: 'Başka uygulamayla aç',
-                  icon: const Icon(Icons.apps),
-                  onPressed: () =>
-                      EntryOpener.openExternally(context, _current),
-                ),
-              ],
-            )
-          : null,
+      // ÖNEMLİ: üst bar Scaffold'un `appBar` slotuna verilmez. Verilseydi
+      // kontroller açılıp kapandıkça body'nin yüksekliği değişir, ortalanmış
+      // video her dokunuşta küçülüp kayardı. Bar da alt kontroller gibi
+      // Stack'te videonun üstünde yüzer → görüntü hiç oynamaz.
       body: GestureDetector(
+        // Videonun yanındaki siyah boşluklarda da dokunma çalışsın diye
+        // opaque: varsayılan `deferToChild` ile yalnız görüntünün kendisi
+        // dokunmayı yakalıyordu.
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           setState(() => _controlsVisible = !_controlsVisible);
           if (_controlsVisible) _scheduleHide();
@@ -244,6 +216,8 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
         child: Stack(
           children: [
             Positioned.fill(child: _surface(c, value)),
+            if (_controlsVisible)
+              Positioned(left: 0, right: 0, top: 0, child: _topBar()),
             if (_controlsVisible && c != null && value != null)
               Positioned(
                 left: 0,
@@ -251,6 +225,60 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 bottom: 0,
                 child: _controls(c, value),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Videonun üstünde yüzen başlık çubuğu (Scaffold slotu değil — bkz. build).
+  Widget _topBar() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.black.withValues(alpha: 0.75),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          foregroundColor: Colors.white,
+          title: Text(p.basename(_current),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          actions: [
+            if (_playlist.length > 1)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: Gap.sm),
+                  child: Text('${_index + 1}/${_playlist.length}',
+                      style: const TextStyle(color: Colors.white70)),
+                ),
+              ),
+            PopupMenuButton<double>(
+              tooltip: 'Oynatma hızı',
+              icon: const Icon(Icons.speed),
+              onSelected: _setSpeed,
+              itemBuilder: (_) => [
+                for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
+                  PopupMenuItem(
+                    value: s,
+                    child: Text('${s}x${s == _speed ? '  ✓' : ''}'),
+                  ),
+              ],
+            ),
+            IconButton(
+              tooltip: 'Başka uygulamayla aç',
+              icon: const Icon(Icons.apps),
+              onPressed: () => EntryOpener.openExternally(context, _current),
+            ),
           ],
         ),
       ),

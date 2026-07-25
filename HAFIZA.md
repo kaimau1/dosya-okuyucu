@@ -1616,3 +1616,38 @@ seçim/`Hücreye git` artık hücreyi görünür yapıyor (`_ensureVisible`).
 genişletilmiş `formula_engine_test`, `spreadsheet_screen_test`,
 `xlsx_reader_test`). `graphify update .` bu bulut oturumunda ÇALIŞTIRILAMADI
 (CLI kurulu değil) — kod haritası bir sonraki yerel turda yenilenmeli.
+
+## 2026-07-25 — Video oynatıcı: dokununca görüntü kayıyordu
+
+**Şikâyet (kullanıcı, ekran görüntüsü):** oynatıcıda videoya dokununca görüntü
+küçülüp aşağı kayıyor, kontroller kaybolunca geri sıçrıyor.
+
+### KÖK NEDEN — üst bar `Scaffold.appBar` slotundaydı
+`appBar: _controlsVisible ? AppBar(...) : null` yazılmıştı. `appBar` bir
+Scaffold **yerleşim slotu**: dolu olduğunda `body`'nin yüksekliğinden
+`kToolbarHeight + durum çubuğu` kadarını yer. Video `Center` + `AspectRatio`
+ile ortalandığı için body kısalınca görüntü hem küçülüyor hem yukarı/aşağı
+oynuyordu — yani kayma her dokunuşta **iki kez** (aç/kapa) yaşanıyordu.
+
+**Çözüm:** üst bar da alt kontroller gibi `Stack`'te overlay
+(`Positioned(top:0)` + `SafeArea` + koyu gradyan). Scaffold'un `appBar` slotu
+artık BOŞ → body her zaman tam ekran, görüntü hiç oynamıyor.
+
+- **Kural:** tam ekran medya ekranlarında görünürlüğü değişen hiçbir çubuk
+  Scaffold slotuna (`appBar`/`bottomNavigationBar`) verilmez; overlay yapılır.
+- **Yan düzeltme:** `GestureDetector`'a `behavior: HitTestBehavior.opaque`.
+  Varsayılan `deferToChild` ile videonun yanındaki siyah boşluklarda dokunma
+  hiç yakalanmıyordu (kontroller yalnız görüntünün üstünde açılıyordu).
+- **Yeni test — `media_player_layout_test.dart`:** sahte `VideoPlayerPlatform`
+  (gerçek ExoPlayer yerine) takılıp kontroller açık/kapalı hâlde
+  `find.byType(VideoPlayer)` dikdörtgeni ölçülüyor; birebir aynı olmalı. Bar
+  tekrar Scaffold slotuna taşınırsa test kırmızı yanar.
+  - Sahte motor için `video_player_platform_interface` **dev_dependency**
+    olarak eklendi (zaten kilitli alt paket; `pubspec.lock` değişmedi).
+  - `VideoPlayerPlatform`'u `extends` etmek yeterli — `MockPlatformInterfaceMixin`
+    (plugin_platform_interface) gerekmiyor, token doğrulaması geçiyor.
+  - Testin sonunda `pumpWidget(SizedBox())` şart: controller'ın periyodik
+    konum zamanlayıcısı iptal olmazsa "A Timer is still pending" hatası.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 hata,
+`flutter test` **391 test yeşil**.
