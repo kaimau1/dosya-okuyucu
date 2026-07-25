@@ -118,3 +118,23 @@
       (veri ezilmez). İstenirse yapıştırma öncesi Üzerine yaz/Atla/Yeniden adlandır sorusu.
 - [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*` düğümleri
       graf raporunda yok (bu oturumda ağ/API yok) — `graphify update .` çalıştırılmalı.
+
+## Dosya yöneticisi — araştırma karşılaştırmasından KALAN maddeler (2026-07-25)
+Referanslar: Fossify File Manager, Material Files, AnExplorer, ekran görüntüsündeki
+File Manager+. Bizde artık olanlar: pano/kategoriler, gezgin+çoklu seçim, çöp
+kutusu, bellek analizi, **yinelenen dosya bulucu**, arşiv (RAR5/RAR4/7z okuma +
+parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
+- [ ] **Ağ/bulut (FTP, SMB, WebDAV, Drive)** — Material Files/AnExplorer'da var.
+      Büyük iş: her protokol için sanal dosya sistemi katmanı gerekir; mevcut
+      `FsEntry`/`FileOps` doğrudan `dart:io` üzerine kurulu → önce soyutlama.
+- [ ] **Çift bölme (dual pane)** — tablet/yatay ekranda iki klasör yan yana,
+      sürükle-bırak taşıma. Gezgin push-tabanlı olduğu için orta ölçekli iş.
+- [ ] **Toplu yeniden adlandırma** (desen: "Tatil_###.jpg", bul/değiştir).
+- [ ] **Varsayılan başlangıç klasörü** ayarı (Material Files'ta var) — küçük iş,
+      AppState'e tek tercih.
+- [ ] **Dosya seçici olarak davranma** (başka uygulama dosya isteyince
+      GET_CONTENT/OPEN_DOCUMENT intent'i karşılamak).
+- [ ] **SD karta yazma (SAF)** — Android bazı cihazlarda ikincil birime doğrudan
+      yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli.
+- [ ] **Klasör boyutlarını liste içinde göstermek** (şu an yalnız Özellikler'de,
+      istek üzerine hesaplanıyor — her satırda hesaplamak pahalı).
