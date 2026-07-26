@@ -211,12 +211,12 @@ end
     test('2 baytlık glif kodlu belgede metin yerinde değişir', () async {
       final pdf = buildIdentityHPdf('Toplanti 2026 tarihinde');
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         pdf,
         pageIndex: 0,
         oldText: '2026',
         newText: '2027',
-      );
+      )).bytes;
 
       expect(textOf(out), contains('2027'));
       expect(textOf(out), isNot(contains('2026')));
@@ -225,12 +225,12 @@ end
     test('Türkçe harfler özgün fontla yazılabiliyor', () async {
       final pdf = buildIdentityHPdf('Sağlık Bakanlığı Genel Müdürlüğü');
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         pdf,
         pageIndex: 0,
         oldText: 'Genel',
         newText: 'Şube',
-      );
+      )).bytes;
 
       expect(textOf(out), contains('Şube'));
     });
@@ -252,8 +252,8 @@ end
     test('özgün baytlar burada da korunur', () async {
       final pdf = buildIdentityHPdf('Rapor 2026');
 
-      final out = await PdfContentEditor.replaceText(pdf,
-          pageIndex: 0, oldText: '2026', newText: '2027');
+      final out = (await PdfContentEditor.replaceText(pdf,
+          pageIndex: 0, oldText: '2026', newText: '2027')).bytes;
 
       expect(out.sublist(0, pdf.length), pdf);
     });

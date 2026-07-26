@@ -2263,3 +2263,92 @@ Ekran artık yazarken canlı uyarıyor (2 karakterden büyük farkta), yedek yol
 penceresi de "iki yana yaslı metinde satır hizası bozulur" diyor.
 
 **Doğrulama:** analyze 0 hata, 519 test yeşil.
+
+## 2026-07-26 — PDF düzenleme 5. tur: satır yeniden hizalama + sayfa üzerinde yazma
+Kullanıcı: *"PDF düzenleme olayını üst seviyelere taşımalıyız, formatı hiç
+bozmadan sanki o PDF'ye aitmiş gibi düzenleme yapabilmeliyiz; yazılar yeni
+duruma göre yeniden hizalanmalı, Word belgesi düzenler gibi; sayfa üzerinde
+yeni bir alan açılmadan klavyeden değişiklik yapabilmeliyim, sanki orijinali
+oymuş gibi olmalı."*
+
+Üç ayrı eksik vardı ve üçü de bu turda kapandı.
+
+### A) Satır artık yeniden hizalanıyor (asıl istek)
+**Sorun:** yerinde düzenleme metni değiştiriyordu ama PDF'te bir satır çoğu
+zaman ayrı ayrı KONUMLANDIRILMIŞ parçalardan oluşur (`Tm`/`Td` ile). Kelime
+uzayınca sonraki parça yerinde kalıp üstüne biniyor, kısalınca arada boşluk
+kalıyordu. KALANLAR'da "PDF metni yeniden akıtmaz" diye bilinen sınır buydu.
+
+**Çözüm iki parçalı:**
+1. **Ölçü** — `services/pdf/pdf_font_metrics.dart`: belgenin KENDİ glif
+   genişlik tabloları (basit fontta `/FirstChar` + `/Widths`, Type0/CID fontta
+   alt fontun `/W` + `/DW`). Tahmin yok; tablosu olmayan font ölçülmez ve o
+   zaman hiç kaydırma yapılmaz.
+2. **Kaydırma** — `pdf_syntax.dart` artık içerik akışını yalnız metin
+   operatörleri için değil, **tam metin durumu ve matrisiyle** tarıyor
+   (`scanContent`: `Tm/Td/TD/T*/Tf/Tc/Tw/Tz/TL`, her sayının bayt aralığıyla).
+   `pdf_text_replace.dart` genişlik farkını hesaplayıp satırın kalanındaki
+   konumlandırma sayılarını yerinde düzeltiyor.
+
+**Kaydırma kuralı (bu kural yanlış olsaydı kayma iki katına çıkardı):**
+mutlak `Tm` her seferinde kaydırılır (kendi başına konum belirler); göreli
+`Td/TD` yalnız BİR kez — sonrakiler zaten kaymış satır matrisine göre çalışır.
+
+**Kaydırmanın YAPILMADIĞI durumlar (hepsi bilinçli):** döndürülmüş/eğik metin
+matrisi, eşleşmenin ortasında konumlandırma operatörü olması, ölçülemeyen font,
+farklı satır (`|Δy| > 0.34 × satır yüksekliği`), düzenlemenin SOLUNDA kalan
+metin (üreticiler metni sırasız yazabiliyor).
+
+**Taşma uyarısı:** hizalamadan sonra satır sağa taşıyorsa kullanıcı KAYDETMEDEN
+önce uyarılıyor. Sağ sınır ölçülerek tahmin ediliyor (en soldaki metin = kenar
+boşluğu, sayfa simetrik varsayılıyor) — tahmin olduğu için işlemi iptal
+etmiyor, yalnız söylüyor.
+
+### B) Özgün baytlara sadakat arttı — `TJ` kerning'i artık korunuyor
+**Bulunan sessiz hata:** eskiden eşleşen operatörün TÜM operandı yeniden
+yazılıyordu, yani `[(Sağ) -15 (lık Bakanlığı)] TJ` tek bir `[(…)]`'e
+indirgeniyordu. Metin doğruydu ama **harf aralıkları siliniyordu** — "sayfaya
+hiç dokunulmadı" sözü tam doğru değildi. Artık yalnız eşleşmenin dokunduğu
+DİZE yeniden yazılıyor; dizi yapısı, kerning sayıları ve öteki dizeler baytı
+baytına kalıyor. Onaltılık dize onaltılık kalıyor (`writeStringLike`) —
+Identity-H metni belgelerde hep onaltılıktır.
+Yan fayda: `'` ve `"` operatörlerinin sayıları için özel kod gerekmedi, tek
+dizeleri olduğu için kendiliğinden korunuyorlar.
+
+### C) Düzenleme artık sayfa ÜZERİNDE (ayrı ekran kaldırıldı)
+`widgets/pdf_inline_editor.dart`: seçili metnin TAM ÜSTÜNDE, aynı satır
+yüksekliğinde bir kutu açılıyor; metin baştan seçili geliyor, klavye hemen
+çıkıyor, üstündeki küçük çubukta vazgeç / AI ile düzelt / uygula var.
+`screens/pdf_text_replace_screen.dart` **silindi**; uygulama mantığı
+`services/pdf_edit_flow.dart`'a, AI yeniden yazımı
+`widgets/ai_rewrite_sheet.dart`'a taşındı (düzenleme kutusu kaybolmadan açılan
+alt sayfa).
+- Kutu **opak beyaz**: altında sayfanın çizilmiş hâli duruyor, saydam bıraksak
+  eski yazı yenisinin altından okunurdu. Gece modunda sayfayla birlikte
+  terslendiği için uyum bozulmuyor.
+- Yerinde düzenleme açıkken `PdfSelectLayer` HİÇ kurulmuyor — kutunun içindeki
+  dokunuşları yutar, imleç konumlandırılamazdı.
+- Tek satırlık metinde klavyenin "bitti" tuşu doğrudan uyguluyor.
+
+### Yapı: `pdf_dict.dart` ayrıldı
+`pdfName/pdfInt/pdfNum/pdfRef/pdfRefArray/pdfArray` `pdf_objects.dart`'tan
+çıkıp kendi dosyasına taşındı (oradan `export` ediliyor, çağrı yerleri aynı).
+Sebep: `pdf_font_metrics.dart` bunlara ihtiyaç duyuyordu ve `pdf_objects` ↔
+`pdf_font_metrics` çevrimsel import'u istemedik.
+**TUZAK (düzeltildi):** eski `pdfRefArray` `[^\]]*` ile dizi okuyordu; `/W`
+gibi İÇ İÇE dizilerde yarıda kesiyordu. Yeni `pdfArray` köşeli parantez
+derinliği sayıyor.
+
+### Neden ekstra bir "doğrulama" eklenmedi
+Yazdıktan sonraki doğrulama (sayfa sayısı + metin karşılaştırması) duruyor.
+Geometrik bir doğrulama (satır kutularını Syncfusion'la karşılaştırmak) düşünüldü
+ama EKLENMEDİ: hizalama yalnız yatay sayı değiştiriyor, dikey konum hiç
+değişmiyor; buna karşılık metin değişince Syncfusion'ın satır bölmesi farklı
+çıkabilir ve **yanlış yere reddetme** üretirdi. Yatay risk zaten taşma
+uyarısıyla ölçülüyor.
+
+**Doğrulama:** `flutter analyze` 0 hata, **559 test yeşil** (+40).
+Yeni testler: `pdf_font_metrics_test` (her genişlik biçimi + varsayılanlar +
+ölçülemeyen font), `pdf_reflow_test` (kesin sayılarla kaydırma, kaydırılmayan
+durumlar, kerning/onaltılık/`'`/`"` korunması, taşma), `pdf_inplace_edit_test`
+(uçtan uca: elle kurulmuş belge → düzenle → çıkan akıştaki `Tm` sayısını oku).

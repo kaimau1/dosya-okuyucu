@@ -3,7 +3,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
+import 'pdf_dict.dart';
 import 'pdf_font_map.dart';
+import 'pdf_font_metrics.dart';
+
+export 'pdf_dict.dart';
 
 /// PDF **dosya yapısı** katmanı: dolaylı nesneleri bulur, akışları çözer,
 /// sayfa ağacını yürür ve değişikliği **ekleme (incremental update)** olarak
@@ -200,16 +204,9 @@ class PdfFile {
   /// bulunamazsa `/Parent` zinciri yukarı yürünüyor — atlanırsa gerçek
   /// belgelerin çoğunda font hiç bulunamaz.
   Map<String, PdfFontEncoding> fontEncodings(PdfObject page) {
-    final resources = _resourcesOf(page);
-    if (resources == null) return const {};
-    final fontsDict = _subDictionary(resources, 'Font');
-    if (fontsDict == null) return const {};
-
     final out = <String, PdfFontEncoding>{};
-    for (final m
-        in RegExp(r'/([^\s/<>\[\]]+)\s+(\d+)\s+\d+\s+R').allMatches(fontsDict)) {
-      final name = m.group(1)!;
-      final font = objects[int.parse(m.group(2)!)];
+    for (final entry in fontRefs(page).entries) {
+      final font = objects[entry.value];
       if (font == null) continue;
       final toUnicodeRef = pdfRef(font.dict, 'ToUnicode');
       if (toUnicodeRef == null) continue;
@@ -217,12 +214,64 @@ class PdfFile {
       if (cmap == null || !cmap.isStream) continue;
       try {
         final encoding = PdfFontEncoding.parseCMap(decodeStream(cmap));
-        if (!encoding.isEmpty) out[name] = encoding;
+        if (!encoding.isEmpty) out[entry.key] = encoding;
       } catch (_) {
         // Çözülemeyen CMap: o font için eşleme yok, diğerleri etkilenmesin.
       }
     }
     return out;
+  }
+
+  /// [page] sayfasının font kaynakları: kaynak adı → glif genişlik tablosu.
+  ///
+  /// Yeniden hizalama (satırın kalanını kaydırma) bunları kullanır; tablosu
+  /// olmayan font haritaya HİÇ girmez, böylece çağıran o metni ölçmeye
+  /// kalkışmaz (bkz. [PdfFontMetrics]).
+  Map<String, PdfFontMetrics> fontMetrics(PdfObject page) {
+    final out = <String, PdfFontMetrics>{};
+    for (final entry in fontRefs(page).entries) {
+      final font = objects[entry.value];
+      if (font == null) continue;
+      final metrics =
+          PdfFontMetrics.parse(font.dict, (ref) => objects[ref]?.dict);
+      if (metrics != null && !metrics.isEmpty) out[entry.key] = metrics;
+    }
+    return out;
+  }
+
+  /// Sayfanın `/Resources /Font` sözlüğü: kaynak adı → nesne numarası.
+  Map<String, int> fontRefs(PdfObject page) {
+    final resources = _resourcesOf(page);
+    if (resources == null) return const {};
+    final fontsDict = _subDictionary(resources, 'Font');
+    if (fontsDict == null) return const {};
+    return {
+      for (final m
+          in RegExp(r'/([^\s/<>\[\]]+)\s+(\d+)\s+\d+\s+R').allMatches(fontsDict))
+        m.group(1)!: int.parse(m.group(2)!),
+    };
+  }
+
+  /// Sayfanın çizim alanı `[sol, alt, sağ, üst]` (miras izlenir). Bulunamazsa
+  /// null — çağıran taşma denetimini o zaman yapmaz.
+  List<double>? mediaBox(PdfObject page) {
+    var node = page;
+    for (var depth = 0; depth < 32; depth++) {
+      for (final key in const ['CropBox', 'MediaBox']) {
+        final body = pdfArray(node.dict, key);
+        if (body != null) {
+          final numbers = RegExp(r'[+-]?[0-9]*\.?[0-9]+')
+              .allMatches(body)
+              .map((m) => double.tryParse(m.group(0)!) ?? 0)
+              .toList();
+          if (numbers.length >= 4) return numbers.sublist(0, 4);
+        }
+      }
+      final parent = pdfRef(node.dict, 'Parent');
+      if (parent == null || objects[parent] == null) return null;
+      node = objects[parent]!;
+    }
+    return null;
   }
 
   /// Sayfanın `/Resources` sözlüğünün metni (mirası da izleyerek).
@@ -423,30 +472,4 @@ class PdfObject {
       isStream ? bytes.sublist(dataStart!, dataEnd!) : const [];
 }
 
-// ── Sözlükten değer okuma ────────────────────────────────────────────────────
-//
-// Tam bir PDF nesne ayrıştırıcısı yerine hedefli okuma: yalnız ihtiyacımız olan
-// birkaç anahtar okunuyor, anlaşılmayan her durumda null dönüp işlem
-// reddediliyor. "Yarım anlayıp yazmak" bu iş kolunda dosya bozmak demek.
-
-String? pdfName(String dict, String key) =>
-    RegExp('/$key\\s*/([A-Za-z0-9]+)').firstMatch(dict)?.group(1);
-
-int? pdfInt(String dict, String key) {
-  final m = RegExp('/$key\\s+(\\d+)').firstMatch(dict);
-  return m == null ? null : int.parse(m.group(1)!);
-}
-
-int? pdfRef(String dict, String key) {
-  final m = RegExp('/$key\\s+(\\d+)\\s+\\d+\\s+R').firstMatch(dict);
-  return m == null ? null : int.parse(m.group(1)!);
-}
-
-List<int> pdfRefArray(String dict, String key) {
-  final m = RegExp('/$key\\s*\\[([^\\]]*)\\]').firstMatch(dict);
-  if (m == null) return const [];
-  return RegExp(r'(\d+)\s+\d+\s+R')
-      .allMatches(m.group(1)!)
-      .map((r) => int.parse(r.group(1)!))
-      .toList();
-}
+// Sözlükten değer okuma: `pdf_dict.dart` (buradan yeniden dışa aktarılıyor).

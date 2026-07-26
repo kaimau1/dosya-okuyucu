@@ -1,42 +1,167 @@
 /// PDF **içerik akışı** (content stream) sözdizimi: tarayıcı, metin
-/// operatörleri ve tek-baytlık font kodlamaları.
+/// operatörleri, metin durumu/matrisi ve tek-baytlık font kodlamaları.
 ///
 /// Bu katman saf: bayt alır, bayt verir. Dosya yapısıyla (nesne, xref) işi yok
 /// — o `pdf_objects.dart`'ta. Böylece en kırılgan kısım (ayrıştırma) cihazsız
 /// test edilebiliyor.
 library;
 
-/// Metin gösteren bir operatörün (`Tj` `TJ` `'` `"`) içerik akışındaki yeri.
-class PdfTextOp {
-  /// Operatörün adı.
+/// Bir metin operatörü çalışırken geçerli olan **metin durumu**.
+///
+/// Bunları izlemek şart: bir dizenin sayfada kapladığı yatay yer yalnız glif
+/// genişliklerine değil, karakter/kelime aralığına ve yatay ölçeğe de bağlı.
+/// Yeniden hizalama (satırın kalanını kaydırma) bu ölçüyü kullanıyor.
+class PdfTextState {
+  /// `Tf` puntosu.
+  final double fontSize;
+
+  /// `Tc` — her glife eklenen aralık.
+  final double charSpacing;
+
+  /// `Tw` — tek baytlık 32 koduna eklenen aralık (iki yana yaslamada kullanılır).
+  final double wordSpacing;
+
+  /// `Tz`/100 — yatay ölçek çarpanı.
+  final double horizScale;
+
+  /// `TL` — satır aralığı (`T*` ve `'` bunu kullanır).
+  final double leading;
+
+  const PdfTextState({
+    this.fontSize = 0,
+    this.charSpacing = 0,
+    this.wordSpacing = 0,
+    this.horizScale = 1,
+    this.leading = 0,
+  });
+
+  PdfTextState copyWith({
+    double? fontSize,
+    double? charSpacing,
+    double? wordSpacing,
+    double? horizScale,
+    double? leading,
+  }) =>
+      PdfTextState(
+        fontSize: fontSize ?? this.fontSize,
+        charSpacing: charSpacing ?? this.charSpacing,
+        wordSpacing: wordSpacing ?? this.wordSpacing,
+        horizScale: horizScale ?? this.horizScale,
+        leading: leading ?? this.leading,
+      );
+}
+
+/// Bir dizenin ölçüsü: toplam glif genişliği (1/1000 em) ve sayımlar.
+class PdfGlyphRun {
+  final double width1000;
+  final int glyphCount;
+
+  /// Tek baytlık 32 kodu sayısı — `Tw` yalnız bunlara eklenir.
+  final int spaceCount;
+
+  const PdfGlyphRun({
+    required this.width1000,
+    required this.glyphCount,
+    required this.spaceCount,
+  });
+}
+
+/// Bir fontun baytlarını ölçen geri çağırım; ölçemiyorsa null döner.
+typedef PdfMeasure = PdfGlyphRun? Function(String? fontName, List<int> bytes);
+
+/// İçerik akışındaki bir operatör ve o an geçerli olan metin durumu.
+class PdfContentEvent {
+  /// Operatörün adı (`Tj`, `Tm`, `Td`, `BT`, `ET`, `Tf`, …).
   final String op;
 
-  /// Operandların başlangıcı (dizinin `[`'i ya da dizenin `(`'i).
+  /// Operandların başlangıcı ve operatörün kendi başlangıcı/bitişi.
   final int operandStart;
-
-  /// Operatörün kendisinin başlangıcı (operandların bittiği yer).
   final int operatorStart;
-
-  /// Operatörden sonraki ilk bayt.
   final int end;
+
+  /// Sayısal operandlar ve her birinin bayt aralığı (`[başlangıç, bitiş)`).
+  /// Aralıklar yeniden hizalamada ŞART: bir sayıyı yerinde değiştirmek için
+  /// nerede olduğunu bilmek gerekiyor.
+  final List<double> numbers;
+  final List<List<int>> numberRanges;
 
   /// Operandlar içindeki dizeler (sırayla).
   final List<PdfStringToken> strings;
 
   /// O anda geçerli olan font kaynağının adı (`/F1 12 Tf` → `F1`).
-  ///
-  /// Baytları doğru karaktere çevirmek için ŞART: her fontun kendi kodlaması
-  /// vardır ve aynı bayt farklı fontlarda farklı harf demektir.
   final String? fontName;
 
-  const PdfTextOp({
+  /// Operatör çalışmadan ÖNCEki metin matrisi (`Tm`) ve satır matrisi (`Tlm`).
+  /// `'` ve `"` için satır atlaması UYGULANMIŞ hâlleridir (metin oraya çizilir).
+  final List<double> matrix;
+  final List<double> lineMatrix;
+
+  final PdfTextState state;
+
+  /// Matrisin yatay bileşeni güvenilir mi? Ölçülemeyen bir fonttan sonra
+  /// kalem konumu bilinmez olur; o noktadan sonra hizalama yapılmaz.
+  final bool xKnown;
+
+  const PdfContentEvent({
     required this.op,
     required this.operandStart,
     required this.operatorStart,
     required this.end,
+    required this.numbers,
+    required this.numberRanges,
     required this.strings,
-    this.fontName,
+    required this.fontName,
+    required this.matrix,
+    required this.lineMatrix,
+    required this.state,
+    required this.xKnown,
   });
+
+  bool get showsText => op == 'Tj' || op == 'TJ' || op == "'" || op == '"';
+
+  bool get movesText => op == 'Td' || op == 'TD' || op == 'Tm' || op == 'T*';
+
+  /// Matris döndürülmüş/eğilmiş mi? Böyle bir metinde yatay kaydırma
+  /// "sağa" demek değildir — hizalama yapılmaz.
+  bool get isRotated => matrix[1].abs() > 1e-6 || matrix[2].abs() > 1e-6;
+}
+
+/// Metin gösteren bir operatörün (`Tj` `TJ` `'` `"`) içerik akışındaki yeri.
+///
+/// [PdfContentEvent]'i sarar: eski çağrı yerleri (`op.strings`, `op.fontName` …)
+/// olduğu gibi çalışsın diye.
+class PdfTextOp {
+  final PdfContentEvent event;
+
+  /// Olayın tüm olaylar listesindeki sırası — hizalamada "bu operatörden
+  /// SONRAKİ konumlandırmalar" bulunurken kullanılır.
+  final int eventIndex;
+
+  const PdfTextOp(this.event, this.eventIndex);
+
+  String get op => event.op;
+  int get operandStart => event.operandStart;
+  int get operatorStart => event.operatorStart;
+  int get end => event.end;
+  List<PdfStringToken> get strings => event.strings;
+  String? get fontName => event.fontName;
+  List<double> get matrix => event.matrix;
+  PdfTextState get state => event.state;
+  bool get xKnown => event.xKnown;
+
+  /// `TJ` dizisindeki kerning sayılarının toplamı (diğer operatörlerde 0).
+  double get kern =>
+      op == 'TJ' ? event.numbers.fold<double>(0, (a, b) => a + b) : 0;
+
+  /// Operatörün tüm dizelerinin baytları, sırayla.
+  List<int> get allBytes => [for (final s in strings) ...s.bytes];
+}
+
+/// Bir içerik akışının taranmış hâli.
+class PdfContentScan {
+  final List<PdfContentEvent> events;
+  final List<PdfTextOp> textOps;
+  const PdfContentScan(this.events, this.textOps);
 }
 
 /// İçerik akışındaki bir dize belirteci.
@@ -48,20 +173,39 @@ class PdfStringToken {
   /// Kaçış dizileri açılmış hâli.
   final List<int> bytes;
 
-  const PdfStringToken(this.start, this.end, this.bytes);
+  /// Onaltılık biçimde mi yazılmıştı (`<0041>`)? Yeniden yazarken aynı biçim
+  /// korunur — Identity-H metni belgelerde hep onaltılıktır ve biçimi
+  /// değiştirmek gereksiz bir fark üretir.
+  final bool isHex;
+
+  const PdfStringToken(this.start, this.end, this.bytes, {this.isHex = false});
 }
 
-/// İçerik akışını tarar ve metin gösteren operatörleri sırayla döndürür.
+/// İçerik akışını tarar: metin operatörleri + metin matrisi/durumu.
+///
+/// [measure] verilirse gösterilen her dizenin ilerleyişi hesaplanır ve metin
+/// matrisi buna göre ilerletilir; verilmezse (ya da bir fontu ölçemezse)
+/// sonraki olayların [PdfContentEvent.xKnown] alanı false olur.
 ///
 /// Satır içi görsellere (`BI … ID <ikili veri> EI`) dikkat edilir: ikili veri
 /// ayrıştırılmaya çalışılırsa tarayıcı raydan çıkar ve rastgele "dize"ler
 /// uydurur — belge bozulmasının kısa yolu budur.
-List<PdfTextOp> scanTextOps(List<int> content) {
-  final ops = <PdfTextOp>[];
+PdfContentScan scanContent(List<int> content, {PdfMeasure? measure}) {
+  final events = <PdfContentEvent>[];
+  final textOps = <PdfTextOp>[];
+
   final strings = <PdfStringToken>[];
-  final names = <String>[]; // son operatörden beri görülen /Ad'lar
+  final names = <String>[];
+  final numbers = <double>[];
+  final numberRanges = <List<int>>[];
   String? currentFont;
   var operandStart = -1;
+
+  var tm = _identity();
+  var tlm = _identity();
+  var state = const PdfTextState();
+  var xKnown = true;
+
   var i = 0;
   final n = content.length;
 
@@ -75,6 +219,8 @@ List<PdfTextOp> scanTextOps(List<int> content) {
     operandStart = -1;
     strings.clear();
     names.clear();
+    numbers.clear();
+    numberRanges.clear();
   }
 
   while (i < n) {
@@ -137,8 +283,11 @@ List<PdfTextOp> scanTextOps(List<int> content) {
       i++;
       continue;
     }
-    final isNumber = RegExp(r'^[+-]?(\d+\.?\d*|\.\d+)$').hasMatch(word);
-    if (isNumber) continue; // operand olarak biriksin
+    if (_numberPattern.hasMatch(word)) {
+      numbers.add(double.tryParse(word) ?? 0);
+      numberRanges.add([start, i]);
+      continue; // operand olarak biriksin
+    }
 
     // Operatör.
     if (word == 'BI') {
@@ -146,25 +295,139 @@ List<PdfTextOp> scanTextOps(List<int> content) {
       resetOperands();
       continue;
     }
+
+    // Durum değişiklikleri: olay kaydedilmeden ÖNCE uygulanması gerekenler
+    // (`'` ve `"` önce satır atlar, metni yeni satıra çizer).
+    var eventState = state;
     if (word == 'Tf' && names.isNotEmpty) {
       currentFont = names.last;
+      if (numbers.isNotEmpty) {
+        state = state.copyWith(fontSize: numbers.last);
+      }
+      eventState = state;
+    } else if (word == '"' && numbers.length >= 2) {
+      state = state.copyWith(
+          wordSpacing: numbers[numbers.length - 2],
+          charSpacing: numbers[numbers.length - 1]);
+      eventState = state;
     }
-    if (word == 'Tj' || word == 'TJ' || word == "'" || word == '"') {
-      if (strings.isNotEmpty) {
-        ops.add(PdfTextOp(
-          op: word,
-          operandStart: operandStart,
-          operatorStart: start,
-          end: i,
-          strings: List.of(strings),
-          fontName: currentFont,
-        ));
+    if (word == "'" || word == '"') {
+      tlm = _translate(0, -state.leading, tlm);
+      tm = List.of(tlm);
+      xKnown = true;
+    }
+
+    final event = PdfContentEvent(
+      op: word,
+      operandStart: operandStart < 0 ? start : operandStart,
+      operatorStart: start,
+      end: i,
+      numbers: List.of(numbers),
+      numberRanges: [for (final r in numberRanges) List.of(r)],
+      strings: List.of(strings),
+      fontName: currentFont,
+      matrix: List.of(tm),
+      lineMatrix: List.of(tlm),
+      state: eventState,
+      xKnown: xKnown,
+    );
+    events.add(event);
+
+    switch (word) {
+      case 'BT':
+        tm = _identity();
+        tlm = _identity();
+        xKnown = true;
+      case 'Tc':
+        if (numbers.isNotEmpty) {
+          state = state.copyWith(charSpacing: numbers.last);
+        }
+      case 'Tw':
+        if (numbers.isNotEmpty) {
+          state = state.copyWith(wordSpacing: numbers.last);
+        }
+      case 'Tz':
+        if (numbers.isNotEmpty) {
+          state = state.copyWith(horizScale: numbers.last / 100);
+        }
+      case 'TL':
+        if (numbers.isNotEmpty) state = state.copyWith(leading: numbers.last);
+      case 'Tm':
+        if (numbers.length >= 6) {
+          tm = numbers.sublist(numbers.length - 6);
+          tlm = List.of(tm);
+          xKnown = true;
+        }
+      case 'Td':
+        if (numbers.length >= 2) {
+          tlm = _translate(
+              numbers[numbers.length - 2], numbers[numbers.length - 1], tlm);
+          tm = List.of(tlm);
+          xKnown = true;
+        }
+      case 'TD':
+        if (numbers.length >= 2) {
+          state = state.copyWith(leading: -numbers[numbers.length - 1]);
+          tlm = _translate(
+              numbers[numbers.length - 2], numbers[numbers.length - 1], tlm);
+          tm = List.of(tlm);
+          xKnown = true;
+        }
+      case 'T*':
+        tlm = _translate(0, -state.leading, tlm);
+        tm = List.of(tlm);
+        xKnown = true;
+    }
+
+    if (event.showsText && strings.isNotEmpty) {
+      final textOp = PdfTextOp(event, events.length - 1);
+      textOps.add(textOp);
+      final advance = advanceOf(textOp, textOp.allBytes, measure);
+      if (advance == null) {
+        xKnown = false;
+      } else {
+        tm = _translate(advance, 0, tm);
       }
     }
+
     resetOperands();
   }
-  return ops;
+  return PdfContentScan(events, textOps);
 }
+
+/// Yalnız metin gösteren operatörler (eski çağrı yerleri için kısayol).
+List<PdfTextOp> scanTextOps(List<int> content, {PdfMeasure? measure}) =>
+    scanContent(content, measure: measure).textOps;
+
+/// [bytes] baytlarının [op]'un durumuyla ölçeklenmiş yatay ilerleyişi
+/// (metin uzayı birimi). Ölçülemiyorsa null.
+///
+/// `TJ` dizisindeki kerning sayıları da düşülür — ama düzenlemede o sayılar
+/// aynen korunduğu için eski/yeni farkı alınırken birbirini götürürler.
+double? advanceOf(PdfTextOp op, List<int> bytes, PdfMeasure? measure) {
+  final run = measure?.call(op.fontName, bytes);
+  if (run == null) return null;
+  final st = op.state;
+  var tx = run.width1000 / 1000 * st.fontSize +
+      run.glyphCount * st.charSpacing +
+      run.spaceCount * st.wordSpacing;
+  tx -= op.kern / 1000 * st.fontSize;
+  return tx * st.horizScale;
+}
+
+final _numberPattern = RegExp(r'^[+-]?(\d+\.?\d*|\.\d+)$');
+
+List<double> _identity() => [1, 0, 0, 1, 0, 0];
+
+/// `translate(tx, ty) × m` (PDF satır-vektör düzeni).
+List<double> _translate(double tx, double ty, List<double> m) => [
+      m[0],
+      m[1],
+      m[2],
+      m[3],
+      tx * m[0] + ty * m[2] + m[4],
+      tx * m[1] + ty * m[3] + m[5],
+    ];
 
 /// `(` ile başlayan değişmez dizeyi okur; kaçışları açar.
 PdfStringToken _readLiteralString(List<int> content, int start) {
@@ -260,7 +523,7 @@ PdfStringToken _readHexString(List<int> content, int start) {
   }
   if (high >= 0) bytes.add(high * 16); // tek hane → sonuna 0 eklenir
   if (i < n) i++; // kapanış '>'
-  return PdfStringToken(start, i, bytes);
+  return PdfStringToken(start, i, bytes, isHex: true);
 }
 
 int _hexDigit(int c) {
@@ -320,6 +583,37 @@ List<int> writeLiteralString(List<int> bytes) {
   }
   out.add(0x29);
   return out;
+}
+
+/// Metni onaltılık PDF dizesi olarak yazar (`<0041>`).
+List<int> writeHexString(List<int> bytes) {
+  const digits = '0123456789ABCDEF';
+  final out = <int>[0x3C];
+  for (final b in bytes) {
+    out
+      ..add(digits.codeUnitAt((b >> 4) & 0xF))
+      ..add(digits.codeUnitAt(b & 0xF));
+  }
+  out.add(0x3E);
+  return out;
+}
+
+/// Dizeyi ÖZGÜN biçiminde (onaltılık ya da değişmez) yazar.
+List<int> writeStringLike(PdfStringToken original, List<int> bytes) =>
+    original.isHex ? writeHexString(bytes) : writeLiteralString(bytes);
+
+/// Sayıyı içerik akışına yazılabilir biçimde biçimlendirir.
+///
+/// Gereksiz ondalık basamak bırakmaz: `303.0` → `303`, `303.4560` → `303.456`.
+String writePdfNumber(double value) {
+  if (!value.isFinite) return '0';
+  if ((value - value.roundToDouble()).abs() < 1e-6) {
+    return value.round().toString();
+  }
+  var s = value.toStringAsFixed(4);
+  s = s.replaceFirst(RegExp(r'0+$'), '');
+  if (s.endsWith('.')) s = s.substring(0, s.length - 1);
+  return s;
 }
 
 /// PDF'te sık kullanılan **tek baytlık** font kodlamaları.

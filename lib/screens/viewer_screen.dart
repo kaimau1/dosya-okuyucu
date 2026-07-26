@@ -17,15 +17,17 @@ import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf_annotator.dart';
+import '../services/pdf_edit_flow.dart';
 import '../services/pdf_reload.dart';
 import '../services/tts_service.dart';
+import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/office_shell.dart';
+import '../widgets/pdf_inline_editor.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
 import 'pdf_ai_edit_screen.dart';
 import 'pdf_sign_screen.dart';
-import 'pdf_text_replace_screen.dart';
 import 'pdf_tools_screen.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
@@ -78,6 +80,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Seçimden önceki metin — yerinde düzenlemede aynı kelimenin doğru geçişini
   /// bulmak için (bkz. `PdfContentEditor.replaceText`).
   String _pdfSelPreceding = '';
+
+  /// Sayfa üzerinde açık olan yerinde düzenleme kutusu (yoksa null).
+  _InlineEdit? _pdfEdit;
+
+  /// Düzenleme kaydediliyor mu (kutunun düğmeleri kilitlensin).
+  bool _pdfEditBusy = false;
 
   /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
   int _highlightColor = _highlightColors.first;
@@ -784,7 +792,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
                       // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
                       TextButton.icon(
-                        onPressed: _replaceSelectedText,
+                        onPressed: _startInlineEdit,
                         icon: const Icon(Icons.edit_outlined,
                             color: Colors.white, size: 18),
                         label: const Text('Düzenle',
@@ -1049,34 +1057,71 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (signed == true && mounted) await _reloadPdf();
   }
 
-  /// Seçili metni **yerinde** değiştirir (elle ya da AI ile). Sayfanın geri
-  /// kalanına dokunulmaz — belgenin tamamını yeniden yazan "AI ile düzenle"den
-  /// farkı budur.
-  Future<void> _replaceSelectedText() async {
+  /// Seçili metnin **tam üstünde** düzenleme kutusunu açar.
+  ///
+  /// Ayrı bir ekran açılmıyor: kullanıcı sayfayı görmeye devam ediyor, klavye
+  /// geliyor ve yazdığı şey belgenin kendi metni oluyor (bkz. [PdfInlineEditor],
+  /// `PdfContentEditor`). Sayfanın geri kalanına dokunulmaz — belgenin tamamını
+  /// yeniden yazan "AI ile düzenle"den farkı budur.
+  void _startInlineEdit() {
     final rects = _pdfSelRects;
     final page = _pdfSelPage;
     final text = _pdfSelection.trim();
     if (rects.isEmpty || page < 1 || text.isEmpty) return;
-    final overwritten = await PdfTextReplaceScreen.open(
-      context,
-      path: widget.doc.path,
-      pageIndex: page - 1,
-      // PdfRect → düz sayı listesi: servis katmanı pdfrx'i tanımıyor ve bu
-      // biçim isolate sınırından sorunsuz geçiyor.
-      rawRects: [
-        for (final r in rects) [r.left, r.top, r.right, r.bottom],
-      ],
-      originalText: text,
-      precedingText: _pdfSelPreceding,
-    );
-    if (!mounted) return;
     setState(() {
+      _pdfEdit = _InlineEdit(
+        page: page,
+        rects: rects,
+        original: text,
+        preceding: _pdfSelPreceding,
+      );
       _pdfSelection = '';
       _pdfSelRects = const [];
     });
-    if (overwritten == true) {
-      setState(() => _pdfText = '');
-      await _reloadPdf();
+  }
+
+  void _cancelInlineEdit() {
+    FocusScope.of(context).unfocus();
+    setState(() => _pdfEdit = null);
+  }
+
+  /// Kutudaki metni belgeye işler ve kaydeder.
+  Future<void> _applyInlineEdit(String newText) async {
+    final edit = _pdfEdit;
+    if (edit == null || _pdfEditBusy) return;
+    if (newText.trim() == edit.original.trim()) {
+      _cancelInlineEdit();
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _pdfEditBusy = true);
+    try {
+      final outcome = await PdfEditFlow.apply(
+        context,
+        path: widget.doc.path,
+        pageIndex: edit.page - 1,
+        // PdfRect → düz sayı listesi: servis katmanı pdfrx'i tanımıyor ve bu
+        // biçim isolate sınırından sorunsuz geçiyor.
+        rawRects: [
+          for (final r in edit.rects) [r.left, r.top, r.right, r.bottom],
+        ],
+        oldText: edit.original,
+        newText: newText.trim(),
+        precedingText: edit.preceding,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pdfEditBusy = false;
+        if (outcome != null) _pdfEdit = null;
+      });
+      if (outcome != null && outcome.overwritten) {
+        setState(() => _pdfText = '');
+        await _reloadPdf();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _pdfEditBusy = false);
+      _snack('Değiştirilemedi: $e');
     }
   }
 
@@ -1422,22 +1467,38 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       setState(() => _pdfPage = page);
                     }
                   },
+                  // Yerinde düzenleme açıkken seçim katmanı kurulmaz: kutunun
+                  // içindeki dokunuşları yutar, imleç konumlandırılamazdı.
                   pageOverlaysBuilder: (context, pageRect, page) => [
-                    PdfSelectLayer(
-                      page: page,
-                      pageSize: pageRect.size,
-                      enableDragSelect: _pdfSelectMode,
-                      onSelected: (t, rects, pageNo, preceding) {
-                        if (mounted) {
-                          setState(() {
-                            _pdfSelection = t;
-                            _pdfSelRects = rects;
-                            _pdfSelPage = pageNo;
-                            _pdfSelPreceding = preceding;
-                          });
-                        }
-                      },
-                    ),
+                    if (_pdfEdit != null &&
+                        _pdfEdit!.page == page.pageNumber)
+                      PdfInlineEditor(
+                        page: page,
+                        pageSize: pageRect.size,
+                        rects: _pdfEdit!.rects,
+                        original: _pdfEdit!.original,
+                        busy: _pdfEditBusy,
+                        onApply: _applyInlineEdit,
+                        onCancel: _cancelInlineEdit,
+                        onAi: (current) =>
+                            showAiRewriteSheet(context, current),
+                      )
+                    else if (_pdfEdit == null)
+                      PdfSelectLayer(
+                        page: page,
+                        pageSize: pageRect.size,
+                        enableDragSelect: _pdfSelectMode,
+                        onSelected: (t, rects, pageNo, preceding) {
+                          if (mounted) {
+                            setState(() {
+                              _pdfSelection = t;
+                              _pdfSelRects = rects;
+                              _pdfSelPage = pageNo;
+                              _pdfSelPreceding = preceding;
+                            });
+                          }
+                        },
+                      ),
                   ],
                   ),
                 ),
@@ -1456,7 +1517,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   ),
                 ),
               ),
-            if (_pdfSelection.trim().isNotEmpty || _pdfSelectMode)
+            if (_pdfEdit == null &&
+                (_pdfSelection.trim().isNotEmpty || _pdfSelectMode))
               Positioned(
                 bottom: 64,
                 left: 8,
@@ -1674,4 +1736,25 @@ class _SpreadsheetView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Sayfa üzerinde açık olan yerinde düzenleme kutusunun durumu.
+class _InlineEdit {
+  /// 1-tabanlı sayfa numarası.
+  final int page;
+
+  /// Düzenlenen metnin PDF-koordinat dikdörtgenleri.
+  final List<PdfRect> rects;
+
+  final String original;
+
+  /// Seçimden önceki metin — aynı kelimenin doğru geçişini bulmak için.
+  final String preceding;
+
+  const _InlineEdit({
+    required this.page,
+    required this.rects,
+    required this.original,
+    required this.preceding,
+  });
 }

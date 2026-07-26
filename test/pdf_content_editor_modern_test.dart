@@ -165,12 +165,12 @@ void main() {
       () async {
     final pdf = buildModernPdf('Toplanti saat 14:00');
 
-    final out = await PdfContentEditor.replaceText(
+    final out = (await PdfContentEditor.replaceText(
       pdf,
       pageIndex: 0,
       oldText: '14:00',
       newText: '09:15',
-    );
+    )).bytes;
 
     expect(textOf(out), contains('09:15'));
     expect(textOf(out), isNot(contains('14:00')));
@@ -180,12 +180,12 @@ void main() {
       () async {
     final pdf = buildModernPdf('Eski metin');
 
-    final out = await PdfContentEditor.replaceText(
+    final out = (await PdfContentEditor.replaceText(
       pdf,
       pageIndex: 0,
       oldText: 'Eski',
       newText: 'Yeni',
-    );
+    )).bytes;
 
     // Eklenen kısımda klasik "xref" tablosu OLMAMALI.
     final appended = latin1.decode(out.sublist(pdf.length), allowInvalid: true);
@@ -212,12 +212,12 @@ void main() {
   test('özgün baytlar burada da korunur', () async {
     final pdf = buildModernPdf('Dokunulmaz taban');
 
-    final out = await PdfContentEditor.replaceText(
+    final out = (await PdfContentEditor.replaceText(
       pdf,
       pageIndex: 0,
       oldText: 'Dokunulmaz',
       newText: 'Degisti',
-    );
+    )).bytes;
 
     expect(out.sublist(0, pdf.length), pdf);
   });

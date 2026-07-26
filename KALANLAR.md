@@ -194,10 +194,21 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
 - [ ] **`/ToUnicode` taşımayan belgeler** (eski üreticiler, bazı taranmış+OCR
       çıktıları) hâlâ tek baytlık tahmine kalıyor; tutmazsa yedek yola düşer.
       Çözüm: `/Encoding /Differences` + glif adı→Unicode tablosu (AGL).
-- [ ] **Yeni metin uzunsa satırın kalanı sağa kayar** (PDF metni yeniden
-      akıtmaz). Word'deki davranışın aynısı ama sütun/tablo hizasını bozabilir;
-      istenirse `Tz` yatay ölçekle genişlik sabitlenebilir (pdfium'la ölçüp tek
-      adımda düzeltilebilir, doğrusal).
+- [x] ~~Yeni metin uzunsa satırın kalanı sağa kayar (PDF metni yeniden
+      akıtmaz)~~ → **YAPILDI (5. tur):** belgenin kendi glif genişlikleriyle
+      ölçülüp satırın kalanı kaydırılıyor (`pdf_font_metrics` + `scanContent`).
+      Taşarsa kaydetmeden önce uyarı veriliyor.
+- [ ] **İki yana yaslı satır yeniden YASLANMIYOR.** Satırın kalanı doğru kadar
+      kayıyor ama sağ kenar artık düz değil (Word paragrafı yeniden dağıtır,
+      biz tek satıra dokunuyoruz). Çözüm için paragraf sınırlarını ve `Tw`
+      dağıtımını yeniden hesaplamak gerekir — ayrı ve büyük iş.
+- [ ] **Yerinde düzenleme cihaz doğrulaması (kullanıcı)** — 5. tur: PDF aç →
+      yazıya uzun bas → "Düzenle" → (a) kutu metnin TAM ÜSTÜNDE mi açılıyor,
+      punto/konum oturuyor mu, (b) klavye kendiliğinden geliyor ve metin baştan
+      seçili mi, (c) kelimeyi uzatıp uygula → satırın kalanı KAYIYOR mu,
+      kısaltınca boşluk kalmıyor mu, (d) yakınlaştırılmış sayfada kutu doğru
+      yerde mi, (e) "AI ile düzelt" kutuyu kaybetmeden metni değiştiriyor mu,
+      (f) taşma uyarısı çıkan belgede sonuç gerçekten taşıyor mu.
 - [x] ~~Arka plana alınan iş için kalıcı gösterge yok~~ → **YAPILDI:** kalıcı
       alt şerit (iş adı + sayaç + Durdur), sayfa değişse de kalıyor.
 - [x] ~~Taramada döndürme yok~~ → **YAPILDI:** önizlemede 90° çevirme.
@@ -212,7 +223,9 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       köşe konumunu (c0/c1) atıyor; böyle bir dosya elimizde yok, ölçülemedi.
 - [ ] **graphify güncellemesi:** araç bu ortamda kurulu değil; yeni düğümler
       (`pdf_reload`, `pdf_save`, `perspective`, `scan_edit/review`,
-      `pdf_ai_edit`, `pdf_text_replace`) grafta eksik.
+      `pdf_ai_edit`, `pdf_dict`, `pdf_font_metrics`, `pdf_edit_flow`,
+      `pdf_inline_editor`, `ai_rewrite_sheet`) grafta eksik; silinen
+      `pdf_text_replace_screen` hâlâ duruyor.
 - [ ] **APK ~199 MB (build 123).** Bu iş ÖNCESİNDE de böyleydi (build 120:
       196 MB → build 123: 199 MB, artış yalnız yeni kod), yani bu turun
       getirdiği bir şişme değil. Ama "sade/hızlı" konumlandırma ve Play Store
