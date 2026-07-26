@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
@@ -23,6 +24,7 @@ import '../services/tts_service.dart';
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/office_shell.dart';
 import '../widgets/pdf_inline_editor.dart';
+import '../widgets/pdf_save_dialog.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
@@ -63,12 +65,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// seçme/kopyalama "Metin seç" modundaki kendi katmanımızda.
   String _pdfText = '';
 
-  /// "Sürükleyerek seç" modu: tek parmak sürükleme sayfayı kaydırmak yerine
-  /// yazı seçer. **Artık zorunlu değil** — uzun basış her zaman seçer
-  /// (bkz. [PdfSelectLayer]); bu mod yalnız uzun paragrafları tek hamlede
-  /// taramak isteyenler için.
-  bool _pdfSelectMode = false;
-
   /// Seçim katmanının bildirdiği güncel seçili metin (kopyalama çubuğu için).
   String _pdfSelection = '';
 
@@ -86,6 +82,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Düzenleme kaydediliyor mu (kutunun düğmeleri kilitlensin).
   bool _pdfEditBusy = false;
+
+  /// **Kaydedilmemiş düzenlemelerin tutulduğu çalışma kopyası** (geçici dosya).
+  ///
+  /// Kullanıcı isteği (2026-07-26): *"canlı metin düzenlerken her seferinde
+  /// kaydet diye sormasın; en sonda kaydetmek istenirse nasıl kaydedileceği
+  /// sorulsun ve kopyası kaydedilsin, çıkarken de kaydetmek ister misiniz diye
+  /// sorulsun."*
+  ///
+  /// Bu yüzden düzenlemeler ÖZGÜN dosyaya yazılmıyor: geçici bir kopyaya
+  /// yazılıp o gösteriliyor. Özgün belge kullanıcı açıkça "üzerine yaz"
+  /// diyene kadar bayt bayt olduğu gibi kalıyor; uygulama çökse bile bozulmaz.
+  /// null = bekleyen değişiklik yok, özgün dosya gösteriliyor.
+  String? _pdfWorkPath;
+
+  /// Çalışma kopyasında kaydedilmemiş değişiklik var mı?
+  bool _pdfDirty = false;
+
+  /// Görüntülenen PDF: bekleyen değişiklik varsa çalışma kopyası.
+  String get _pdfPath => _pdfWorkPath ?? widget.doc.path;
 
   /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
   int _highlightColor = _highlightColors.first;
@@ -158,7 +173,108 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _textFocus.dispose();
     _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
+    _deleteWorkCopy();
     super.dispose();
+  }
+
+  // ── Bekleyen (kaydedilmemiş) PDF düzenlemeleri ────────────────────────────
+
+  /// Yeni belge baytlarını çalışma kopyasına yazar ve görüntüyü tazeler.
+  ///
+  /// İlk yazışta geçici dosya oluşur ve görüntüleyici oraya geçer (pdfrx
+  /// belgeleri YOLA göre önbelleklediği için yol değişimi gerçek bir yeniden
+  /// yükleme demektir; `initialPageNumber` sayesinde kullanıcı aynı sayfada
+  /// açılır). Sonraki yazışlarda aynı yol kalır, [PdfReload] ile tazelenir —
+  /// kullanıcı yerinden kıpırdamaz.
+  Future<void> _writePending(List<int> bytes) async {
+    final existing = _pdfWorkPath;
+    if (existing != null) {
+      await File(existing).writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      setState(() {
+        _pdfDirty = true;
+        _pdfText = '';
+      });
+      await _reloadPdf();
+      return;
+    }
+    // Ad özgün dosyanın adıyla aynı: kaydetme/paylaşma pencereleri geçici
+    // dosyanın anlamsız adını değil belgenin adını gösterir.
+    final dir = await Directory.systemTemp.createTemp('dosya_okuyucu_edit');
+    final path = p.join(dir.path, p.basename(widget.doc.path));
+    await File(path).writeAsBytes(bytes, flush: true);
+    if (!mounted) return;
+    setState(() {
+      _pdfWorkPath = path;
+      _pdfDirty = true;
+      _pdfText = '';
+    });
+  }
+
+  void _deleteWorkCopy() {
+    final path = _pdfWorkPath;
+    if (path == null) return;
+    _pdfWorkPath = null;
+    try {
+      final file = File(path);
+      if (file.existsSync()) file.deleteSync();
+      final dir = file.parent;
+      if (dir.existsSync() && dir.listSync().isEmpty) dir.deleteSync();
+    } catch (_) {
+      // Geçici dosya silinemedi — işletim sistemi zaten temizler.
+    }
+  }
+
+  /// Bekleyen değişiklikleri kaydeder (nasıl kaydedileceğini SORARAK).
+  /// Kaydedildiyse true, vazgeçildiyse false döner.
+  Future<bool> _savePendingPdf() async {
+    final work = _pdfWorkPath;
+    if (work == null || !_pdfDirty) return true;
+    final bytes = await File(work).readAsBytes();
+    if (!mounted) return false;
+    final outcome = await savePdfWithChoice(
+      context,
+      originalPath: widget.doc.path,
+      bytes: bytes,
+      note: 'Yaptığınız düzenlemeler bu belgeye işlendi.',
+    );
+    if (outcome == null) return false;
+    if (mounted) setState(() => _pdfDirty = false);
+    return true;
+  }
+
+  /// Ekrandan çıkarken / başka bir PDF aracına geçerken sorulan soru.
+  /// Devam edilebilirse true döner.
+  Future<bool> _confirmLeavePending() async {
+    if (!_pdfDirty) return true;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kaydedilmemiş düzenleme var'),
+        content: const Text(
+          'Belgede yaptığınız değişiklikler henüz kaydedilmedi. '
+          'Kaydetmek ister misiniz?',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
+              child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, 'discard'),
+              child: const Text('Kaydetme')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, 'save'),
+              child: const Text('Kaydet')),
+        ],
+      ),
+    );
+    if (choice == 'save') return _savePendingPdf();
+    if (choice == 'discard') {
+      // Özgün dosyaya hiç dokunulmamıştı; çalışma kopyasını atmak yeter.
+      if (mounted) setState(() => _pdfDirty = false);
+      return true;
+    }
+    return false;
   }
 
   // ── Belge içi arama ───────────────────────────────────────────────────────
@@ -253,6 +369,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
         padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
         child: Row(
           children: [
+            // "Sayfaya git" arama çubuğunun içinde (2026-07-26 kullanıcı
+            // isteği): üst çubukta ayrı bir düğme yerine, aramayla aynı
+            // "belgede gezinme" kutusunda.
+            if (_isPdf)
+              IconButton(
+                tooltip: 'Sayfaya git',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.numbers),
+                onPressed: _askGoToPage,
+              ),
             Expanded(
               child: TextField(
                 controller: _findCtl,
@@ -432,13 +558,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
     await Share.shareXFiles([XFile(path)], text: 'Slayt destesi (PDF)');
   }
 
+  /// Paylaş / yazdır: PDF'te GÖRÜLEN hâli gönderilir — bekleyen düzenlemeler
+  /// çalışma kopyasındadır, özgün dosya henüz eski hâlindedir.
   Future<void> _share() async {
-    await Share.shareXFiles([XFile(widget.doc.path)]);
+    await Share.shareXFiles([XFile(_isPdf ? _pdfPath : widget.doc.path)]);
   }
 
   Future<void> _print() async {
     if (widget.doc.kind == DocKind.pdf) {
-      final bytes = await _fileService.readBytes(widget.doc.path);
+      final bytes = await _fileService.readBytes(_pdfPath);
       await Printing.layoutPdf(onLayout: (_) async => bytes);
     } else {
       final bytes = await _conversion.textToPdf(
@@ -557,25 +685,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Widget build(BuildContext context) {
     final doc = widget.doc;
     final hasApiKey = context.watch<AppState>().hasApiKey;
+    // Bekleyen PDF düzenlemesi varken geri tuşu doğrudan çıkmaz: önce
+    // "kaydetmek ister misiniz?" sorulur (2026-07-26 kullanıcı isteği).
+    return PopScope(
+      canPop: !_pdfDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final leave = await _confirmLeavePending();
+        if (leave && context.mounted) Navigator.of(context).pop();
+      },
+      child: _buildShell(doc, hasApiKey),
+    );
+  }
+
+  Widget _buildShell(LoadedDoc doc, bool hasApiKey) {
     return OfficeShell(
       kind: doc.kind,
       title: doc.name,
-      dirty: _dirty,
+      dirty: _dirty || _pdfDirty,
       tabBar: _findOpen ? _findBar() : null,
       actions: [
-        if (doc.kind == DocKind.pdf)
-          IconButton(
-            tooltip: _pdfSelectMode
-                ? 'Sürükleyerek seçmeyi kapat (kaydırmaya dön)'
-                : 'Sürükleyerek seç (uzun basış zaten seçer)',
-            isSelected: _pdfSelectMode,
-            icon: Icon(
-                _pdfSelectMode ? Icons.pan_tool_alt_outlined : Icons.text_fields),
-            onPressed: () => setState(() {
-              _pdfSelectMode = !_pdfSelectMode;
-              _pdfSelection = '';
-            }),
-          ),
         if (doc.kind == DocKind.pdf) ...[
           PopupMenuButton<int>(
             tooltip: 'Sayfa düzeni',
@@ -596,14 +725,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
             icon: const Icon(Icons.toc),
             onPressed: _showOutline,
           ),
-          IconButton(
-            tooltip: _pdfNight ? 'Gece modunu kapat' : 'Gece modu',
-            isSelected: _pdfNight,
-            icon: Icon(_pdfNight
-                ? Icons.light_mode_outlined
-                : Icons.dark_mode_outlined),
-            onPressed: () => setState(() => _pdfNight = !_pdfNight),
-          ),
+          // Gece/gündüz düğmesi üst çubuktan ÜÇ NOKTAYA taşındı
+          // (2026-07-26 kullanıcı isteği) — üst çubuk kalabalıktı.
+          if (_pdfDirty)
+            IconButton(
+              tooltip: 'Düzenlemeleri kaydet',
+              icon: const Icon(Icons.save_outlined),
+              onPressed: _savePendingPdf,
+            ),
         ],
         if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
@@ -677,8 +806,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'aiedit':
                 _aiEditPdf();
                 break;
-              case 'gotopage':
-                _askGoToPage();
+              case 'night':
+                setState(() => _pdfNight = !_pdfNight);
                 break;
               case 'speak':
                 _toggleSpeech();
@@ -690,8 +819,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
           },
           itemBuilder: (_) => [
             if (doc.kind == DocKind.pdf) ...[
-              const PopupMenuItem(
-                  value: 'gotopage', child: Text('Sayfaya git…')),
+              PopupMenuItem(
+                value: 'night',
+                child: Text(_pdfNight ? 'Gece modunu kapat' : 'Gece modu'),
+              ),
               const PopupMenuItem(
                   value: 'aiedit', child: Text('AI ile düzenle')),
               const PopupMenuItem(value: 'sign', child: Text('İmzala')),
@@ -736,81 +867,64 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
-  /// Seçim çubuğu: seçim yokken tek satır ipucu, seçim varken **Kopyala /
-  /// Vurgula / Çevir** ve vurgu renkleri.
-  ///
-  /// 2026-07-26 sadeleştirmesi: eskiden sayfa üzerinde ayrıca bir "Kopyala"
-  /// balonu da vardı (iki ayrı yerde iki ayrı düğme) ve seçim yalnız mod
-  /// açıkken mümkündü. Artık tek çubuk var, seçim uzun basışla her zaman
-  /// yapılabiliyor.
+  /// Seçim çubuğu: **Vurgula / Kopyala / Düzenle / Çevir** ve vurgu renkleri.
+  /// Yalnız seçim varken görünür.
   Widget _selectionBar() {
-    final hasSelection = _pdfSelection.trim().isNotEmpty;
     return Material(
-      color: Colors.black.withOpacity(0.78),
+      color: Colors.black.withValues(alpha: 0.78),
       borderRadius: BorderRadius.circular(24),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        child: !hasSelection
-            ? const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10),
-                child: Text(
-                  'Parmağınızı yazının üzerinde sürükleyin',
-                  style: TextStyle(color: Colors.white, fontSize: 13),
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, bottom: 2),
-                    child: Text(
-                      _shorten(_pdfSelection, 28),
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      for (final argb in _highlightColors) _colorDot(argb),
-                      const SizedBox(width: 4),
-                      TextButton.icon(
-                        onPressed: _highlightPdf,
-                        icon: const Icon(Icons.border_color,
-                            color: Colors.white, size: 18),
-                        label: const Text('Vurgula',
-                            style: TextStyle(color: Colors.white)),
-                      ),
-                      TextButton.icon(
-                        onPressed: _copyPdfSelection,
-                        icon: const Icon(Icons.copy,
-                            color: Colors.white, size: 18),
-                        label: const Text('Kopyala',
-                            style: TextStyle(color: Colors.white)),
-                      ),
-                      // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
-                      // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
-                      TextButton.icon(
-                        onPressed: _startInlineEdit,
-                        icon: const Icon(Icons.edit_outlined,
-                            color: Colors.white, size: 18),
-                        label: const Text('Düzenle',
-                            style: TextStyle(color: Colors.white)),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => TranslateFlow.run(
-                            context, _pdfSelection,
-                            title: 'Seçili metin'),
-                        icon: const Icon(Icons.translate,
-                            color: Colors.white, size: 18),
-                        label: const Text('Çevir',
-                            style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 2),
+              child: Text(
+                _shorten(_pdfSelection, 28),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
+            ),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final argb in _highlightColors) _colorDot(argb),
+                const SizedBox(width: 4),
+                TextButton.icon(
+                  onPressed: _highlightPdf,
+                  icon: const Icon(Icons.border_color,
+                      color: Colors.white, size: 18),
+                  label: const Text('Vurgula',
+                      style: TextStyle(color: Colors.white)),
+                ),
+                TextButton.icon(
+                  onPressed: _copyPdfSelection,
+                  icon: const Icon(Icons.copy, color: Colors.white, size: 18),
+                  label: const Text('Kopyala',
+                      style: TextStyle(color: Colors.white)),
+                ),
+                // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
+                // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
+                TextButton.icon(
+                  onPressed: _startInlineEdit,
+                  icon: const Icon(Icons.edit_outlined,
+                      color: Colors.white, size: 18),
+                  label: const Text('Düzenle',
+                      style: TextStyle(color: Colors.white)),
+                ),
+                TextButton.icon(
+                  onPressed: () => TranslateFlow.run(context, _pdfSelection,
+                      title: 'Seçili metin'),
+                  icon:
+                      const Icon(Icons.translate, color: Colors.white, size: 18),
+                  label:
+                      const Text('Çevir', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -857,6 +971,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF araçları ekranı; kaydedilerek dönülürse dosya değişmiştir → pdfrx
   /// aynı yolu "eşit" saydığı için remount ile yeniden okutulur.
   Future<void> _openPdfTools() async {
+    // Bu araçlar ÖZGÜN dosya üzerinde çalışır; bekleyen düzenlemeler önce
+    // kaydedilmezse sessizce kaybolurdu.
+    if (!await _confirmLeavePending() || !mounted) return;
     final saved = await PdfToolsScreen.open(context, path: widget.doc.path);
     if (saved == true && mounted) {
       setState(() => _pdfText = '');
@@ -876,13 +993,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Yenisi `onViewerReady` ile geri gelir.
     _pdfDoc = null;
     _pdfSearcher?.resetTextSearch(); // eşleşmeler eski belgeye aitti
-    await PdfReload.reloadFile(widget.doc.path);
+    await PdfReload.reloadFile(_pdfPath);
     if (mounted) setState(() {});
   }
 
   /// Belgeyi AI'a düzenletir (metin katmanı üzerinden). Üzerine yazıldıysa
   /// görüntü tazelenir.
   Future<void> _aiEditPdf() async {
+    if (!await _confirmLeavePending() || !mounted) return;
     final overwritten = await PdfAiEditScreen.open(
       context,
       path: widget.doc.path,
@@ -1053,6 +1171,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// İmza ekranı; imza basılırsa dosya değişmiştir → görüntüleyici tazelenir.
   Future<void> _signPdf() async {
+    if (!await _confirmLeavePending() || !mounted) return;
     final signed = await PdfSignScreen.open(context, widget.doc.path);
     if (signed == true && mounted) await _reloadPdf();
   }
@@ -1085,7 +1204,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
     setState(() => _pdfEdit = null);
   }
 
-  /// Kutudaki metni belgeye işler ve kaydeder.
+  /// Kutudaki metni belgeye işler.
+  ///
+  /// **Kaydetmez, sormaz:** sonuç çalışma kopyasına yazılır ve hemen ekranda
+  /// görünür. Kullanıcı arka arkaya düzeltme yapabilsin diye
+  /// (2026-07-26 isteği); nasıl kaydedileceği çıkarken bir kez sorulur.
   Future<void> _applyInlineEdit(String newText) async {
     final edit = _pdfEdit;
     if (edit == null || _pdfEditBusy) return;
@@ -1096,9 +1219,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _pdfEditBusy = true);
     try {
-      final outcome = await PdfEditFlow.apply(
+      final applied = await PdfEditFlow.apply(
         context,
-        path: widget.doc.path,
+        path: _pdfPath,
         pageIndex: edit.page - 1,
         // PdfRect → düz sayı listesi: servis katmanı pdfrx'i tanımıyor ve bu
         // biçim isolate sınırından sorunsuz geçiyor.
@@ -1112,12 +1235,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (!mounted) return;
       setState(() {
         _pdfEditBusy = false;
-        if (outcome != null) _pdfEdit = null;
+        if (applied != null) _pdfEdit = null;
       });
-      if (outcome != null && outcome.overwritten) {
-        setState(() => _pdfText = '');
-        await _reloadPdf();
-      }
+      if (applied == null) return;
+      await _writePending(applied.bytes);
+      if (mounted) _snack(applied.note);
     } catch (e) {
       if (!mounted) return;
       setState(() => _pdfEditBusy = false);
@@ -1130,21 +1252,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final page = _pdfSelPage;
     if (rects.isEmpty || page < 1) return;
     try {
-      final bytes = await _fileService.readBytes(widget.doc.path);
+      final bytes = await _fileService.readBytes(_pdfPath);
       final out = await PdfAnnotator.addHighlight(
         bytes: bytes,
         pageIndex: page - 1,
         pdfRects: rects,
         colorArgb: _highlightColor,
       );
-      await _fileService.writeBytes(widget.doc.path, out);
       if (!mounted) return;
       setState(() {
         _pdfSelection = '';
         _pdfSelRects = const [];
       });
-      await _reloadPdf();
-      _snack('Vurgulandı');
+      // Vurgu da metin düzenlemesi gibi bekleyen değişikliktir: özgün dosyaya
+      // dokunulmaz, çıkarken bir kez kaydedilir.
+      await _writePending(out);
+      if (mounted) _snack('Vurgulandı');
     } catch (e) {
       if (mounted) _snack('Vurgulama başarısız: $e');
     }
@@ -1315,10 +1438,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   /// "Sayfaya git": numara yaz ya da kaydırıcıyı sürükle.
+  ///
+  /// KÖK NEDEN (2026-07-26 kullanıcı bulgusu: *"8 yazıyorum 2'ye gidiyor"*):
+  /// kutu güncel sayfa numarasıyla dolu açılıyordu ve metin SEÇİLİ gelmiyordu.
+  /// Kullanıcı 8'e basınca yazı "28" oluyor, bu da aralık dışında kaldığı için
+  /// `onChanged` hedefi güncellemiyor, "Git" ise kutuyu değil eski hedefi
+  /// okuyordu → 2. sayfa. Şimdi (a) metin seçili açılıyor, (b) "Git" doğrudan
+  /// kutudaki sayıyı okuyup sınırlara kısıyor.
   Future<void> _askGoToPage() async {
     if (_pdfCount <= 0) return;
     var target = _pdfPage.toDouble();
-    final controller = TextEditingController(text: '$_pdfPage');
+    final controller = TextEditingController(text: '$_pdfPage')
+      ..selection = TextSelection(baseOffset: 0, extentOffset: '$_pdfPage'.length);
+
+    int resolve() {
+      final typed = int.tryParse(controller.text.trim());
+      return (typed ?? target.round()).clamp(1, _pdfCount);
+    }
+
     final page = await showDialog<int>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1335,13 +1472,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   labelText: 'Sayfa numarası (1 – $_pdfCount)',
                 ),
                 onChanged: (v) {
-                  final n = int.tryParse(v);
-                  if (n != null && n >= 1 && n <= _pdfCount) {
-                    setLocal(() => target = n.toDouble());
+                  final n = int.tryParse(v.trim());
+                  if (n != null) {
+                    setLocal(() => target = n.clamp(1, _pdfCount).toDouble());
                   }
                 },
-                onSubmitted: (v) =>
-                    Navigator.pop(ctx, int.tryParse(v) ?? _pdfPage),
+                onSubmitted: (_) => Navigator.pop(ctx, resolve()),
               ),
               if (_pdfCount > 1)
                 Slider(
@@ -1362,7 +1498,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Vazgeç')),
             FilledButton(
-              onPressed: () => Navigator.pop(ctx, target.round()),
+              onPressed: () => Navigator.pop(ctx, resolve()),
               child: const Text('Git'),
             ),
           ],
@@ -1371,8 +1507,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
     controller.dispose();
     if (page == null) return;
-    final clamped = page.clamp(1, _pdfCount);
-    await _pdfController.goToPage(pageNumber: clamped);
+    await _pdfController.goToPage(pageNumber: page.clamp(1, _pdfCount));
   }
 
   /// Kaydırma çubuğunun topuzu: üstünde güncel sayfa numarası.
@@ -1398,7 +1533,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(text,
@@ -1414,19 +1549,23 @@ class _ViewerScreenState extends State<ViewerScreen> {
             Positioned.fill(
               // pdfrx (pdfium). Metin seçimi: paketin SelectionArea'sı Android'de
               // güvenilir çalışmadığı için sayfa üzerine kendi seçim katmanımız
-              // (PdfSelectLayer) biner. Katman DAİMA açıktır: uzun basış seçer,
-              // seçim yokken parmağı yutmaz. "Sürükleyerek seç" modunda ayrıca
-              // tek parmak sürüklemesi seçer (o zaman panEnabled=false).
+              // (PdfSelectLayer) biner. Katman DAİMA açıktır ve parmağı ASLA
+              // yutmaz: uzun basış seçer, tek parmak kaydırır, iki parmak
+              // yakınlaştırır. (Eski "sürükleyerek seç" modu kaldırıldı —
+              // açıkken `panEnabled: false` yapıyordu ve kullanıcı sayfayı
+              // kaydıramıyor/yakınlaştıramıyordu; bkz. HAFIZA 2026-07-26.)
+              //
+              // Dosya yolu: bekleyen (kaydedilmemiş) düzenleme varsa çalışma
+              // kopyası gösterilir — özgün belgeye dokunulmaz.
               //
               // Gece modu: sayfa görüntüsü renk matrisiyle terslenir. Dosyaya
               // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
               child: _nightFilter(
                 child: PdfViewer.file(
-                doc.path,
+                _pdfPath,
                 controller: _pdfController,
                 initialPageNumber: _pdfPage,
                 params: PdfViewerParams(
-                  panEnabled: !_pdfSelectMode,
                   backgroundColor:
                       Theme.of(context).colorScheme.surfaceContainerHighest,
                   // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
@@ -1450,11 +1589,23 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     ),
                   ],
                   // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
-                  linkHandlerParams: PdfLinkHandlerParams(
-                    onLinkTap: _onPdfLink,
-                    linkColor:
-                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                  ),
+                  //
+                  // KÖK NEDEN (2026-07-26 kullanıcı bulgusu: *"x, onay, ai
+                  // işaretlerine tıklanmıyor"*): pdfrx köprü katmanı TÜM
+                  // görüntüyü kaplayan bir `GestureDetector` kurar ve sayfa
+                  // katmanlarının ÜSTÜNDE durur. Arenaya bizden önce girdiği
+                  // için her dokunuşu o kazanıyor, düzenleme kutusunun
+                  // düğmelerine basılamıyordu. Düzenleme açıkken köprüye zaten
+                  // gerek yok — kapatıyoruz.
+                  linkHandlerParams: _pdfEdit != null
+                      ? null
+                      : PdfLinkHandlerParams(
+                          onLinkTap: _onPdfLink,
+                          linkColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.15),
+                        ),
                   onViewerReady: (document, controller) {
                     _pdfDoc = document;
                     if (mounted) {
@@ -1487,7 +1638,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       PdfSelectLayer(
                         page: page,
                         pageSize: pageRect.size,
-                        enableDragSelect: _pdfSelectMode,
                         onSelected: (t, rects, pageNo, preceding) {
                           if (mounted) {
                             setState(() {
@@ -1517,8 +1667,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   ),
                 ),
               ),
-            if (_pdfEdit == null &&
-                (_pdfSelection.trim().isNotEmpty || _pdfSelectMode))
+            if (_pdfEdit == null && _pdfSelection.trim().isNotEmpty)
               Positioned(
                 bottom: 64,
                 left: 8,

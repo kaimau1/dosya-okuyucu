@@ -2352,3 +2352,105 @@ Yeni testler: `pdf_font_metrics_test` (her genişlik biçimi + varsayılanlar +
 ölçülemeyen font), `pdf_reflow_test` (kesin sayılarla kaydırma, kaydırılmayan
 durumlar, kerning/onaltılık/`'`/`"` korunması, taşma), `pdf_inplace_edit_test`
 (uçtan uca: elle kurulmuş belge → düzenle → çıkan akıştaki `Tm` sayısını oku).
+
+## 2026-07-26 — PDF düzenleme 6. tur: kaydırma/zoom bugı, dokunulamayan düğmeler, bekleyen kayıt
+
+Kullanıcı bulguları (iki ekran görüntüsüyle): *"sayfayı kaydıramıyorum zoom
+yapamıyorum"*, *"x, onay, ai işaretlerine tıklanmıyor"*, *"sayfaya git 8
+yazıyorum 2'ye gidiyor"*, *"her seferinde kaydet diye sormasın"*, *"kelime
+aralarında çıkan koyuluklar göz yoruyor"*, *"metin düzeltme hâlâ istediğimiz
+seviyede değil — punto sanki o yazıya aitmiş gibi olmalı"*.
+
+### A) KÖK NEDEN — "sayfayı kaydıramıyorum, zoom yapamıyorum"
+Suçlu, üst çubuktaki **"sürükleyerek seç" modu**ydu. Açıkken
+`panEnabled: false` veriliyor ve `PdfSelectLayer` `HitTestBehavior.opaque`
+oluyordu → parmak katmanda kalıyor, sayfa ne kayıyor ne yakınlaşıyordu.
+Kullanıcı modu açıp kapatmayı unutunca uygulama "bozuk" görünüyordu (ekran
+görüntüsündeki el simgesi modun açık olduğunu gösteriyor).
+**Karar: mod TÜMÜYLE kaldırıldı.** Zaten kullanıcı bir tur önce "mod açmak
+kullanışsız" demişti; uzun basış + basılı sürükleme seçim için yetiyor.
+Katman artık DAİMA translucent, `panEnabled` hep true.
+
+**İkinci (gizli) kaynak — pinch'i yiyen uzun basış:** katman sayfanın üstünde
+durduğu için her dokunuşta gesture arenasına giriyor. İki parmak inip yarım
+saniye kıpırdamazsa `LongPressGestureRecognizer` arenayı kazanıyor ve pdfrx'in
+ölçek tanıyıcısı eleniyordu → yakınlaştırma hiç başlamıyor. Çözüm:
+`_PageLongPress` (RawGestureDetector ile kurulan alt sınıf) **ikinci parmak
+inince `resolve(rejected)`** diyor. İki parmak = "yakınlaştırıyorum" demek.
+
+### B) KÖK NEDEN — düzenleme kutusundaki x / AI / onay düğmelerine basılamıyor
+pdfrx'in köprü katmanı (`linkHandlerParams` verilince kurulan
+`_CanvasLinkPainter.linkHandlingOverlay`) **tüm görüntüyü kaplayan** translucent
+bir `GestureDetector`'dır ve Stack'te sayfa katmanlarının ÜSTÜNDEdir. Hit-test
+yolunda bizden ÖNCE geldiği için `TapGestureRecognizer`'ı arenaya önce giriyor;
+kimse erken kazanmayınca `GestureArenaManager.sweep()` **ilk üyeyi** seçiyor →
+her tap köprü katmanına gidiyor, `pageOverlaysBuilder` içindeki hiçbir düğme
+ateşlenmiyordu. (Metin kutusunun kendisi çalışıyordu: metin alanı tanıyıcısı
+erken kazanıyor. Bu yüzden hata "yazabiliyorum ama kaydedemiyorum" gibi
+görünüyordu.)
+Çözüm: **yerinde düzenleme açıkken `linkHandlerParams: null`** — o sırada
+köprüye zaten gerek yok. Aynı sebeple `PdfSelectLayer`'ın "dokununca seçimi
+temizle" davranışı `onTapDown`'dan **`Listener.onPointerDown`**'a taşındı
+(tap arenayı kaybediyordu, pointer olayı kaybetmez).
+
+### C) KÖK NEDEN — "8 yazıyorum 2'ye gidiyor"
+"Sayfaya git" kutusu güncel sayfayla dolu açılıyordu ama metin **seçili
+gelmiyordu**. 2. sayfadayken 8'e basınca yazı `28` oluyor; aralık dışı olduğu
+için `onChanged` hedefi güncellemiyor, "Git" ise kutuyu değil eski hedef
+değişkenini okuyordu → 2. sayfa. Düzeltme: metin seçili açılıyor **ve** "Git"
+doğrudan kutudaki sayıyı okuyup 1..sayfa sayısı arasına kısıyor.
+
+### D) Yerleşim: gece modu üç noktaya, "sayfaya git" aramanın içine
+Kullanıcı isteği. Üst çubuk artık: sayfa düzeni · içindekiler · (bekleyen
+değişiklik varsa kaydet) · ara · üç nokta. "Sayfaya git" arama çubuğunun
+başındaki düğme (alt kenardaki sayfa rozetine dokunmak da hâlâ açıyor).
+
+### E) Kaydetme artık her düzenlemede DEĞİL, en sonda
+Kullanıcı: *"canlı metin düzenlerken her seferinde kaydet diye sormasın; en
+sonda kaydetmek istenirse nasıl kaydedileceği sorulsun ve kopyası
+kaydedilsin, çıkarken de kaydetmek ister misiniz diye sorulsun."*
+- `PdfEditFlow.apply` artık **kaydetmiyor**: yeni baytları (`PdfEditApplied`)
+  döndürüyor.
+- Baytlar geçici bir **çalışma kopyasına** yazılıyor (`_pdfWorkPath`,
+  `Directory.systemTemp` altında, dosya adı özgün adla aynı) ve görüntüleyici
+  o dosyayı gösteriyor. **Özgün belgeye kullanıcı "üzerine yaz" diyene kadar
+  HİÇ dokunulmuyor** — uygulama çökse bile bozulmaz. Vurgulama da aynı yola
+  bağlandı (eskiden sessizce özgün dosyanın üstüne yazıyordu).
+- Çıkışta `PopScope` "Kaydet / Kaydetme / Vazgeç" soruyor; `savePdfWithChoice`
+  (üzerine yaz / kopya / klasör seç) yalnız burada bir kez çalışıyor.
+- İmza, PDF araçları ve AI düzenleme ÖZGÜN dosyada çalıştığı için önce aynı
+  soruyu soruyor (yoksa bekleyen düzenlemeler sessizce kaybolurdu).
+- *Niye ilk düzenlemede sayfa zıplıyor:* pdfrx belgeleri **yola** göre
+  önbellekliyor; yol değişimi gerçek bir yeniden yükleme. `initialPageNumber`
+  güncel sayfayı verdiği için kullanıcı aynı sayfada açılıyor, sonraki
+  düzenlemeler `PdfReload` ile hiç zıplamadan tazeleniyor.
+
+### F) Seçim vurgusundaki koyu şeritler
+PDF üreticileri satırı kelime kelime (bazen harf harf) ayrı parçalara böler.
+Her parça ayrı yarı saydam dikdörtgen olarak boyanıyor, `inflate(1.5)`
+yüzünden komşu parçalar örtüşüyor ve **örtüşen yerler iki kat koyu** çıkıyordu
+— kullanıcının "kelime aralarındaki koyuluklar" dediği şey bu.
+İki katmanlı çözüm: (1) `selectionPdfRects` artık aynı satırdaki parçaları tek
+dikdörtgende **birleştiriyor** (`mergeSameLineRects`, satır yüksekliğinin
+yarısından çok örtüşme = aynı satır); (2) boyama tek `Path` ile yapılıyor, yani
+kalan örtüşmeler bile rengi ikiye katlayamıyor. Alfa 0.35 → 0.28.
+Yan fayda: kalıcı vurgu annotation'ı da satır başına tek dikdörtgen alıyor.
+
+### G) Düzenleme kutusunun puntosu artık ÖLÇÜLÜYOR
+Eskiden punto = karakter kutusu yüksekliği × sabit katsayı (0.82). Katsayı
+belgeden belgeye tutmuyordu (dar/geniş fontlarda gözle görülür kayıyordu) —
+kullanıcının "sanki o yazıya aitmiş gibi olmalı" bulgusu buydu. Artık:
+özgün metin `TextPainter` ile ölçülüp **seçimin ekrandaki genişliğini verecek**
+puntoya oturtuluyor (oran 0.7–1.4 arasına kısılı: tek harflik/çok boşluklu
+seçimde ölçüm yanıltabilir). Ayrıca kutunun çerçevesi kalktı (yalnız ince alt
+çizgi), `contentPadding` sıfırlandı ve `strutStyle` ile satır yüksekliği
+puntoya eşitlendi → yazı özgün satırın tam üstüne oturuyor.
+**Not (açık madde):** yerinde düzenleme reddedilip "üste yaz" yedeğine
+düşülürse yazı tipi hâlâ gömülü Carlito oluyor. Belgenin kendi gömülü fontunu
+çıkarıp yeniden gömmek ayrı bir tur işi.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 hata / yeni
+uyarı yok, **563 test yeşil** (+4). Yeni test: `pdf_selection_rects_test`
+(satır birleştirme: aynı satır tek kutu, ayrı satırlar ayrı, bozuk kutu elenir).
+Zoom/kaydırma ve dokunma sırası düzeltmeleri **gerçek cihazda** doğrulanmalı —
+gesture arenası widget testinde birebir taklit edilemiyor.

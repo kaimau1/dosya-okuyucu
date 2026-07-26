@@ -3,9 +3,26 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
-import '../widgets/pdf_save_dialog.dart';
 import 'pdf_content_editor.dart';
 import 'pdf_tools.dart';
+
+/// Uygulanmış (ama HENÜZ KAYDEDİLMEMİŞ) bir metin değişikliği.
+class PdfEditApplied {
+  /// Değişikliği içeren yeni PDF baytları.
+  final List<int> bytes;
+
+  /// Kullanıcıya kısaca söylenecek şey (ne yapıldı / neye dikkat).
+  final String note;
+
+  /// Satır sayfanın metin alanının dışına taştı mı? (Uyarı; işlem yapıldı.)
+  final bool overflows;
+
+  const PdfEditApplied({
+    required this.bytes,
+    required this.note,
+    this.overflows = false,
+  });
+}
 
 /// **Seçili metni değiştirme akışı** — sayfa üzerindeki yerinde düzenleyiciden
 /// çağrılır.
@@ -25,9 +42,15 @@ import 'pdf_tools.dart';
 class PdfEditFlow {
   const PdfEditFlow._();
 
-  /// Değişikliği uygular ve kaydeder. Kaydedildiyse sonucu, vazgeçildiyse
-  /// null döner.
-  static Future<PdfSaveOutcome?> apply(
+  /// Değişikliği uygular ve **yeni baytları döndürür — kaydetmez.**
+  ///
+  /// Kaydetme SORULMUYOR (2026-07-26 kullanıcı isteği: *"canlı metin
+  /// düzenlerken her seferinde kaydet diye sormasın"*). Kullanıcı arka arkaya
+  /// düzeltme yapar; nasıl kaydedileceği ekrandan çıkarken ya da kaydet
+  /// düğmesiyle bir kez sorulur (bkz. `ViewerScreen._savePendingPdf`).
+  ///
+  /// Vazgeçilirse (yedek yol reddedilirse) null döner.
+  static Future<PdfEditApplied?> apply(
     BuildContext context, {
     required String path,
     required int pageIndex,
@@ -39,6 +62,7 @@ class PdfEditFlow {
     final bytes = await File(path).readAsBytes();
     List<int> out;
     var note = '';
+    var overflows = false;
     try {
       final result = await PdfContentEditor.replaceTextInBackground(
         bytes,
@@ -48,15 +72,13 @@ class PdfEditFlow {
         precedingText: precedingText,
       );
       out = result.bytes;
+      overflows = result.overflows;
       note = result.reflowed
-          ? 'Yalnız seçtiğiniz metin değişti; satırın kalanı yeni genişliğe '
-              'göre hizalandı, sayfanın geri kalanına dokunulmadı.'
-          : 'Yalnız seçtiğiniz metin değişti; sayfanın geri kalanına '
-              'dokunulmadı.';
+          ? 'Değiştirildi — satırın kalanı yeniden hizalandı.'
+          : 'Değiştirildi.';
       if (result.overflows) {
-        note = '⚠ Yeni metin satıra sığmadı: satır sayfanın metin alanının '
-            'dışına taşıyor. Daha kısa bir metin yazabilir ya da kopya olarak '
-            'kaydedip sonucu kontrol edebilirsiniz.\n\n$note';
+        note = '⚠ Yeni metin satıra sığmadı, satır sayfanın metin alanının '
+            'dışına taşıyor.';
       }
     } on PdfEditRefused catch (refusal) {
       if (!context.mounted) return null;
@@ -66,15 +88,7 @@ class PdfEditFlow {
       note = 'Metin ÜSTE yazıldı (yerinde düzenleme yapılamadı).';
     }
 
-    if (!context.mounted) return null;
-    // Kaydetme SORUSU en sona bırakıldı: değişiklik gerçekten üretilmeden
-    // "nasıl kaydedelim?" diye sormak, sonra da başarısız olmak kötü olurdu.
-    return savePdfWithChoice(
-      context,
-      originalPath: path,
-      bytes: out,
-      note: note,
-    );
+    return PdfEditApplied(bytes: out, note: note, overflows: overflows);
   }
 
   /// Yedek yol: eski yazının üstünü kapatıp yenisini çiz.
