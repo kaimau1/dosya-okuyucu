@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:dosya_okuyucu/services/conversion_service.dart';
 
 /// Resim→PDF'te "veri kaçmaması" kontrolü: eskiden görsel metin yoluna girip
@@ -59,5 +60,51 @@ void main() {
 
   test('boş görsel listesi hata verir', () async {
     expect(() => ConversionService().imagesToPdf([]), throwsArgumentError);
+  });
+
+  /// Belge tarayıcı "tarayıcıdan çıkmış gibi" olmalı: her sayfa AYNI kâğıtta.
+  /// Eskiden sayfa boyu görselin oranını alıyordu → arka arkaya çekilen
+  /// sayfalar farklı boyda çıkıyor, PDF'te sayfa sayfa zıplıyordu.
+  group('uniformPage (belge tarayıcı)', () {
+    /// PDF'teki /MediaBox girdilerinin (genişlik, yükseklik) listesi.
+    List<(double, double)> mediaBoxes(List<int> pdf) {
+      final raw = latin1.decode(pdf, allowInvalid: true);
+      return RegExp(r'/MediaBox\s*\[\s*([\d.\-]+)\s+([\d.\-]+)\s+'
+              r'([\d.\-]+)\s+([\d.\-]+)\s*\]')
+          .allMatches(raw)
+          .map((m) => (
+                double.parse(m.group(3)!) - double.parse(m.group(1)!),
+                double.parse(m.group(4)!) - double.parse(m.group(2)!),
+              ))
+          .toList();
+    }
+
+    test('verilmezse sayfa oranı görselin oranını alır (kare görsel → kare sayfa)',
+        () async {
+      final pdf = await ConversionService().imagesToPdf([image.path]);
+      final boxes = mediaBoxes(pdf);
+      expect(boxes, hasLength(1));
+      // 1x1 görsel → kare sayfa.
+      expect(boxes.first.$1, closeTo(boxes.first.$2, 0.5));
+    });
+
+    test('verilirse her sayfa A4 olur', () async {
+      final second = File('${image.path}_3.png');
+      await second.writeAsBytes(base64Decode(_png1x1));
+      try {
+        final pdf = await ConversionService().imagesToPdf(
+          [image.path, second.path],
+          uniformPage: PdfPageFormat.a4,
+        );
+        final boxes = mediaBoxes(pdf);
+        expect(boxes, hasLength(2));
+        for (final box in boxes) {
+          expect(box.$1, closeTo(PdfPageFormat.a4.width, 0.5));
+          expect(box.$2, closeTo(PdfPageFormat.a4.height, 0.5));
+        }
+      } finally {
+        if (second.existsSync()) second.deleteSync();
+      }
+    });
   });
 }

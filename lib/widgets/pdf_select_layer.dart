@@ -11,9 +11,19 @@ import 'package:pdfrx/pdfrx.dart';
 /// excel paketinin `archive ^3` kısıtıyla çözümlenemiyor (bkz. HAFIZA).
 ///
 /// Yöntem: pdfium'un karakter kutuları (`charRects`) sayfa koordinatından
-/// ekran koordinatına çevrilir; parmak sürüklemesi (veya uzun basışla kelime)
-/// karakter aralığına eşlenir, vurgu boyanır, seçilen metin [onSelected] ile
-/// üst katmana bildirilir (oradan panoya kopyalanır).
+/// ekran koordinatına çevrilir; uzun basış kelimeyi seçer, uçlardaki tutamaçlar
+/// seçimi büyütür/küçültür, seçilen metin [onSelected] ile üst katmana bildirilir.
+///
+/// **Kullanım biçimi (2026-07-26 sadeleştirmesi).** Eskiden seçim yapabilmek
+/// için üst çubuktan "Metin seç" modunu açmak ZORUNLUYDU; kullanıcı bunu
+/// "kullanışsız" buldu — telefonda metin seçmek uzun basmaktır, mod açmak değil.
+/// Artık:
+/// * Katman DAİMA sayfanın üzerindedir ve **uzun basış** her zaman seçer.
+/// * Seçim yokken katman parmağı yutmaz ([enableDragSelect] false) → sayfa
+///   normal kaydırılır/yakınlaştırılır, köprüler çalışır.
+/// * Seçim varken tek dokunuş seçimi temizler (telefonun yerel davranışı).
+/// * [enableDragSelect] yalnız açık "sürükleyerek seç" modunda true olur; o
+///   modda sayfa kaydırma zaten kapatılır (`panEnabled: false`).
 class PdfSelectLayer extends StatefulWidget {
   final PdfPage page;
 
@@ -23,18 +33,27 @@ class PdfSelectLayer extends StatefulWidget {
   /// Seçim her değiştiğinde çağrılır. [rects] seçili metnin PDF-koordinat
   /// dikdörtgenleri (satır başına bir; kalıcı vurgu annotation'ı için),
   /// [pageNumber] bu katmanın sayfası (1-tabanlı). Boş metin = seçim temizlendi.
-  final void Function(String text, List<PdfRect> rects, int pageNumber)
-      onSelected;
+  ///
+  /// [precedingText] seçimden hemen ÖNCEKİ metindir: aynı kelime sayfada
+  /// birkaç kez geçtiğinde yerinde düzenlemenin doğru geçişi bulmasını sağlar
+  /// (bkz. `PdfContentEditor.replaceText`).
+  final void Function(
+    String text,
+    List<PdfRect> rects,
+    int pageNumber,
+    String precedingText,
+  ) onSelected;
 
-  /// Seçim üstündeki "Kopyala" balonuna basılınca çağrılır.
-  final VoidCallback? onCopy;
+  /// Tek parmak sürüklemesi seçim yapsın mı? Yalnız açık seçim modunda true;
+  /// false iken sürükleme sayfayı kaydırır (katman parmağı yutmaz).
+  final bool enableDragSelect;
 
   const PdfSelectLayer({
     super.key,
     required this.page,
     required this.pageSize,
     required this.onSelected,
-    this.onCopy,
+    this.enableDragSelect = false,
   });
 
   @override
@@ -55,10 +74,12 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     }).catchError((_) {});
   }
 
-  int get _selStart =>
-      _anchor == null || _extent == null ? 0 : (_anchor! < _extent! ? _anchor! : _extent!);
-  int get _selEnd =>
-      _anchor == null || _extent == null ? -1 : (_anchor! > _extent! ? _anchor! : _extent!);
+  int get _selStart => _anchor == null || _extent == null
+      ? 0
+      : (_anchor! < _extent! ? _anchor! : _extent!);
+  int get _selEnd => _anchor == null || _extent == null
+      ? -1
+      : (_anchor! > _extent! ? _anchor! : _extent!);
 
   String get _selectedText {
     final t = _text;
@@ -105,7 +126,9 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   void _selectWordAt(Offset local) {
     final t = _text;
-    final i = _charIndexAt(local);
+    // Uzun basış boşluğa denk gelirse tolerans büyük tutulur: kullanıcı
+    // "yazının üstüne" bastığını sanır, birkaç piksel ıskalamak sinir bozucu.
+    final i = _charIndexAt(local, maxDist: 44);
     if (t == null || i == null) return;
     final s = t.fullText;
     var a = i, b = i;
@@ -123,7 +146,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     _report();
   }
 
-  /// [index] karakterinin ekran dikdörtgeni (tutamaç/balon konumu için).
+  /// [index] karakterinin ekran dikdörtgeni (tutamaç konumu için).
   Rect? _charRect(int index) {
     final t = _text;
     if (t == null) return null;
@@ -141,9 +164,13 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   void _dragHandle(bool isStart, Offset global) {
     final box = _overlayKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final i = _charIndexAt(box.globalToLocal(global), maxDist: 80);
+    // Parmak tutamacın ORTASINDA değil, ucundadır; hedefi biraz yukarı al ki
+    // kullanıcı gördüğü karakteri seçsin, altındakini değil.
+    final local = box.globalToLocal(global) - const Offset(0, 14);
+    final i = _charIndexAt(local, maxDist: 90);
     if (i == null) return;
     final fixed = isStart ? _selEnd : _selStart;
+    if (fixed < 0) return;
     setState(() {
       _anchor = fixed;
       _extent = i;
@@ -156,14 +183,26 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       _anchor = null;
       _extent = null;
     });
-    widget.onSelected('', const [], widget.page.pageNumber);
+    widget.onSelected('', const [], widget.page.pageNumber, '');
+  }
+
+  /// Seçimden önceki en çok 40 karakter — yerinde düzenlemenin doğru geçişi
+  /// bulması için bağlam.
+  String get _precedingText {
+    final t = _text;
+    if (t == null || !_hasSelection) return '';
+    final start = _selStart;
+    final from = start - 40 < 0 ? 0 : start - 40;
+    if (from >= start) return '';
+    return t.fullText.substring(from, start);
   }
 
   void _report() {
     final t = _text;
     final rects =
         t == null ? const <PdfRect>[] : selectionPdfRects(t, _selStart, _selEnd);
-    widget.onSelected(_selectedText, rects, widget.page.pageNumber);
+    widget.onSelected(
+        _selectedText, rects, widget.page.pageNumber, _precedingText);
   }
 
   bool get _hasSelection =>
@@ -172,27 +211,39 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final dragSelect = widget.enableDragSelect;
     return Positioned.fill(
       child: Stack(
         key: _overlayKey,
         clipBehavior: Clip.none,
         children: [
           GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (_) => _clear(),
-            onPanStart: (d) {
-              final i = _charIndexAt(d.localPosition);
-              setState(() {
-                _anchor = i;
-                _extent = i;
-              });
-            },
-            onPanUpdate: (d) {
-              if (_anchor == null) return;
-              final i = _charIndexAt(d.localPosition, maxDist: 64);
-              if (i != null && i != _extent) setState(() => _extent = i);
-            },
-            onPanEnd: (_) => _report(),
+            // translucent: seçim yokken sayfa kaydırma/köprü dokunuşu üstteki
+            // katmana takılmasın. Sürükleme tanıyıcısı yalnız açık seçim
+            // modunda kuruluyor (aksi hâlde pdfrx'in pan'iyle çekişirdi).
+            behavior: dragSelect
+                ? HitTestBehavior.opaque
+                : HitTestBehavior.translucent,
+            // Seçim varken dokunuş temizler (telefonun yerel davranışı). Seçim
+            // yokken dokunuş tanıyıcısı HİÇ kurulmaz → köprüler çalışmaya devam.
+            onTapDown: _hasSelection ? (_) => _clear() : null,
+            onPanStart: !dragSelect
+                ? null
+                : (d) {
+                    final i = _charIndexAt(d.localPosition);
+                    setState(() {
+                      _anchor = i;
+                      _extent = i;
+                    });
+                  },
+            onPanUpdate: !dragSelect
+                ? null
+                : (d) {
+                    if (_anchor == null) return;
+                    final i = _charIndexAt(d.localPosition, maxDist: 64);
+                    if (i != null && i != _extent) setState(() => _extent = i);
+                  },
+            onPanEnd: !dragSelect ? null : (_) => _report(),
             onLongPressStart: (d) => _selectWordAt(d.localPosition),
             onLongPressMoveUpdate: (d) {
               if (_anchor == null) return;
@@ -215,7 +266,6 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
           if (_hasSelection) ...[
             _handle(isStart: true, color: scheme.primary),
             _handle(isStart: false, color: scheme.primary),
-            if (widget.onCopy != null) _copyBubble(scheme),
           ],
         ],
       ),
@@ -223,14 +273,17 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   }
 
   /// Seçim ucundaki sürüklenebilir tutamaç (telefonun yerel seçim hissi).
+  ///
+  /// Dokunma alanı 48 px: Material'ın en küçük dokunma hedefi. Eskiden 40'tı ve
+  /// nokta 18 px'di — kullanıcı "tutamacı yakalayamıyorum" diyordu.
   Widget _handle({required bool isStart, required Color color}) {
     final r = _charRect(isStart ? _selStart : _selEnd);
     if (r == null) return const SizedBox.shrink();
     final point = isStart ? Offset(r.left, r.bottom) : Offset(r.right, r.bottom);
-    const touch = 40.0, dot = 18.0;
+    const touch = 48.0, dot = 20.0;
     return Positioned(
       left: point.dx - touch / 2,
-      top: point.dy - touch / 2 + 6,
+      top: point.dy - touch / 2 + 10,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onPanUpdate: (d) => _dragHandle(isStart, d.globalPosition),
@@ -250,44 +303,6 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
                   BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 3),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Seçimin üstünde beliren küçük "Kopyala" balonu.
-  Widget _copyBubble(ColorScheme scheme) {
-    final r = _charRect(_selStart);
-    if (r == null) return const SizedBox.shrink();
-    const w = 108.0, h = 40.0;
-    final above = r.top - h - 6 >= 0;
-    final left =
-        (r.left - 20).clamp(0.0, (widget.pageSize.width - w).clamp(0.0, double.infinity));
-    final top = above ? r.top - h - 6 : r.bottom + 6;
-    return Positioned(
-      left: left,
-      top: top,
-      child: Material(
-        color: Colors.black.withOpacity(0.82),
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            _report();
-            widget.onCopy?.call();
-          },
-          child: const SizedBox(
-            width: w,
-            height: h,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.copy, color: Colors.white, size: 18),
-                SizedBox(width: 6),
-                Text('Kopyala', style: TextStyle(color: Colors.white)),
-              ],
             ),
           ),
         ),

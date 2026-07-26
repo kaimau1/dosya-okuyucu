@@ -290,6 +290,80 @@ void main() {
     expect(out.sublist(0, 4), [0x25, 0x50, 0x44, 0x46]); // %PDF
     expect(await PdfTools.pageCount(out), 3);
   });
+
+  /// Arka plan sürümleri ("sıkıştır denince donma" düzeltmesi, 2026-07-26).
+  ///
+  /// Bunlar DERLEME zamanında doğrulanamaz: `Isolate.run`'a verilen kapanış
+  /// gönderilemeyen bir şey yakalarsa hata ancak ÇALIŞMA anında çıkar. Bu
+  /// yüzden her sarmalayıcı gerçekten koşturuluyor.
+  group('arka plan (isolate) sürümleri', () {
+    test('compressInBackground ana sürümle aynı sonucu verir', () async {
+      final src = await _makePdf([100, 110, 120]);
+
+      final out = await PdfTools.compressInBackground(src);
+
+      expect(out.sublist(0, 4), [0x25, 0x50, 0x44, 0x46]);
+      expect(await PdfTools.pageCount(out), 3);
+    });
+
+    test('deletePagesInBackground sayfayı siler', () async {
+      final src = await _makePdf([100, 110, 120]);
+
+      final out = await PdfTools.deletePagesInBackground(src, [1]);
+
+      expect(await PdfTools.pageCount(out), 2);
+    });
+
+    test('selectPagesInBackground sırayı uygular', () async {
+      final src = await _makePdf([100, 110, 120]);
+
+      final out = await PdfTools.selectPagesInBackground(src, [2, 0]);
+
+      expect(await PdfTools.pageCount(out), 2);
+      expect(await _widths(out), [120, 100]);
+    });
+
+    test('rotatePagesInBackground /Rotate yazar', () async {
+      final src = await _makePdf([300]);
+
+      final out = await PdfTools.rotatePagesInBackground(src,
+          pageIndexes: [0], quarterTurns: 1);
+
+      expect(await PdfTools.pageCount(out), 1);
+    });
+
+    test('mergeInBackground iki belgeyi birleştirir', () async {
+      final a = await _makePdf([100, 110]);
+      final b = await _makePdf([200]);
+
+      final out = await PdfTools.mergeInBackground([a, b]);
+
+      expect(await PdfTools.pageCount(out), 3);
+    });
+
+    test('parola koy/kaldır arka planda çalışır', () async {
+      final src = await _makePdf([100]);
+
+      final locked = await PdfTools.setPasswordInBackground(src,
+          password: 'gizli');
+      expect(await PdfTools.pageCount(locked, password: 'gizli'), 1);
+
+      final open = await PdfTools.removePasswordInBackground(locked,
+          currentPassword: 'gizli');
+      expect(await PdfTools.pageCount(open), 1);
+    });
+
+    test('hata isolate sınırından OKUNABİLİR mesajla geçer', () async {
+      final src = await _makePdf([100]);
+
+      // Tüm sayfaları silmek yasak → hata mesajı kullanıcıya gösterilecek.
+      await expectLater(
+        PdfTools.deletePagesInBackground(src, [0]),
+        throwsA(isA<PdfToolsException>()
+            .having((e) => e.message, 'message', contains('sayfa'))),
+      );
+    });
+  });
 }
 
 /// PDF grafik dönüşümü: önce döndür, sonra taşı (Syncfusion'daki çağrı sırası).

@@ -1893,3 +1893,373 @@ okuyabildiği için yükseltmek güvenli yön. Eklentiyi eski sürüme düşürm
 denenmedi: hangi sürümün hangi Kotlin'le derlendiğini deneme yanılmayla aramak
 demekti. **Yeni bir eklenti Kotlin 2.x isterse artık sorun çıkmaz;** tersi
 (1.8'e bağlı eski eklenti) gelirse bu satır hatırlansın.
+
+---
+
+## 2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme
+
+Kullanıcı 11 maddelik bir liste verdi (PDF düzenleme, AI, kaydetme, uzun belge
+gezinme, sıkıştırma donması, vurgulama, metin seçimi, arka plan işlemleri,
+tarama). Hepsi bu turda kapatıldı. Aşağıdakiler **kök neden** kayıtlarıdır.
+
+### 1) TUZAK — pdfrx belgeleri STATİK haritada dosya YOLUNA göre önbelleğe alır
+**Belirti:** "PDF'te vurgulama çalışmıyor." Vurgu Syncfusion'la dosyaya
+gerçekten yazılıyordu (dosya baytları değişiyor) ama ekranda hiç görünmüyordu.
+İmza ve PDF Araçları'ndan kaydetme de aynı derde giriyordu.
+
+**Kök neden:** `PdfDocumentRef._listenables` **statik** bir `Map` ve
+`PdfDocumentRefFile`'ın `==`'i YALNIZ `file` yoluna bakıyor. Bizim çözümümüz
+widget'ı `ValueKey(_pdfReloadKey)` artırıp yeniden bağlamaktı — bu İŞE YARAMIYOR:
+Flutter anahtarı değişince önce YENİ elemanı kurar (`initState` →
+`resolveListenable()`), eskinin `dispose`'u (dolayısıyla `removeListener` ve
+önbellekten düşme) karenin SONUNDA çalışır. Yani yeni widget haritadaki eski
+kaydı bulur, `load()` "zaten yüklendi" deyip erken döner ve ekranda dosyanın
+ESKİ hâli kalır — kalıcı olarak.
+
+**Çözüm:** `lib/services/pdf_reload.dart` — aynı listenable bulunup
+`load(forceReload: true)` çağrılıyor; bu, açık görüntüleyiciye haber verir.
+Yeniden bağlama tamamen kaldırıldı, bonus olarak kullanıcı **aynı sayfada**
+kalıyor. Yükleme sırasında kaydın serbest bırakılmaması için geçici bir
+dinleyici eklenip iş bitince kaldırılıyor (görüntüleyici kapalıysa belge
+bellekte asılı kalmasın).
+
+**Ders:** pdfrx'te "dosyayı değiştirdim, tazele" = `forceReload`. Widget
+anahtarı DEĞİL. Aynı sınıf hata `PdfDocumentRefData`'da `sourceName` ile
+çözülmüştü (2026-07-25 notu) — dosya sürümü atlanmıştı.
+
+**Yan etki yönetimi:** `forceReload` eski `PdfDocument`'ı dispose ediyor →
+elimizdeki `_pdfDoc` bir kare boyunca ölü kalır. Bu yüzden `_reloadPdf` onu
+null'lıyor (OCR/içindekiler ölü belgeye dokunmasın); yenisi `onViewerReady`
+ile geri geliyor.
+
+### 2) TUZAK — PDF Araçları'nda her dokunuş belgeyi DISPOSE edip yeniden yüklüyordu
+**Belirti:** "PDF düzenlemede her sayfa seçtiğinde baştan render oluyor ve
+başa atıyor."
+
+**Kök neden:** ekran `setState` edince `PdfDocumentViewBuilder` yeni bir widget
+ÖRNEĞİ oluyor. pdfrx'in `didUpdateWidget`'i `widget == oldWidget` (kimlik)
+değilse eski listenable'dan dinleyiciyi kaldırıyor → başka dinleyici kalmadığı
+için `_releaseIfNoRefs` belgeyi **dispose ediyor** → hemen ardından yeni kayıt
+kuruluyor ve belge SIFIRDAN yükleniyor. Arada `document == null` döndüğü için
+ızgara ağaçtan düşüyor: kaydırma başa gidiyor, tüm küçük resimler yeniden
+çiziliyor. Yani suçlu "gereksiz rebuild" değil, pdfrx'in kimlik-tabanlı
+karşılaştırması.
+
+**Çözüm iki parçalı:** (a) seçim artık `setState` etmiyor —
+`ValueNotifier<Set<int>>`, yalnız karolar dinliyor; (b) ızgara widget'ı
+`_gridCache` ile önbelleğe alınıp AYNI ÖRNEK döndürülüyor (Flutter aynı örneği
+görünce alt ağacı hiç güncellemiyor). Önbellek yalnız `_rev` (belge baytı)
+değişince tazeleniyor. `PdfPageView` de `ValueListenableBuilder`'ın `child`'ı
+olarak veriliyor → seçim dokunuşunda pdfium render'ı tekrarlanmıyor.
+
+### 3) Donma: ağır iş ana izlekteydi
+- **PDF sıkıştırma:** Syncfusion belgeyi ana izlekte baştan yazıyor →
+  saniyelerce kare yok → "donma"/ANR. `PdfTools.*InBackground` sarmalayıcıları
+  eklendi (`Isolate.run`). **Neden ayrı statik metotlar:** ekran içinden yazılan
+  kapanış `this`i (State + BuildContext) yakalar ve isolate'e GÖNDERİLEMEZ;
+  statik metodun kapanışı yalnız yerel değişkenleri görür. Hata isolate
+  sınırından okunabilir geçsin diye `PdfToolsException`'a çevriliyor.
+  Ayrıca sıkıştırma artık **önce ne yapacağını anlatan bir onay** alıyor
+  (taranmış belgede kazanç küçüktür — beklemeden önce bilinmeli).
+- **Parolasız .zip (dosya yöneticisi):** şifreli/7z yolu zaten isolate'teydi ama
+  EN SIK kullanılan düz `.zip` yolu (`ZipFileEncoder`) ana izlekteydi →
+  `_zipSync` yazılıp `Isolate.run`'a alındı, ilerleme `SendPort` ile.
+- **Test notu:** isolate kapanışlarının gönderilebilirliği DERLEMEDE
+  yakalanmaz, yalnız çalışma anında patlar → `pdf_tools_test`e her arka plan
+  sarmalayıcısını gerçekten koşturan testler eklendi.
+
+### 4) Uzun süren işler artık arka plana alınabiliyor
+"Çöp kutusu boşaltılırken başka işlem yapamıyorum" — sorun işin kendisi değil,
+**modal ilerleme penceresiydi**. `showFmProgress`'e "Arka plana al" düğmesi
+eklendi (pencere kapanır, iş sürer). Pencere kapanışı artık `showDialog`'un
+`.then`'ine değil senkron bir `closed` bayrağına bağlı: geç gelen bir `pop`
+yanlış sayfayı kapatabilirdi. Çöp ekranı sonucu bildirmek için Messenger'ı
+işten ÖNCE yakalıyor (kullanıcı ekrandan çıkmış olabilir; MaterialApp
+seviyesindeki Messenger ekrandan bağımsız yaşar).
+
+### 5) Metin seçimi: mod zorunluluğu kaldırıldı
+Kullanıcı "çok kullanışsız, normal metin seçer gibi olmalı" dedi. Eskiden
+seçim için üst çubuktan "Metin seç" modunu açmak ZORUNLUYDU. Artık seçim
+katmanı DAİMA sayfanın üzerinde: **uzun basış her zaman kelimeyi seçer**,
+tutamaçlar aralığı büyütür, dokunuş temizler. Seçim yokken katman parmağı
+yutmuyor (`HitTestBehavior.translucent` + sürükleme tanıyıcısı KURULMUYOR) →
+sayfa normal kaydırılıyor ve köprüler çalışıyor. `onTapDown` yalnız seçim
+varken bağlanıyor (yoksa köprü dokunuşlarını yerdi). "Sürükleyerek seç" modu
+duruyor ama isteğe bağlı. Sayfa üstündeki ikinci "Kopyala" balonu kaldırıldı —
+tek alt çubuk kaldı, tutamaçlar 48 px dokunma hedefine büyütüldü.
+
+### 6) Uzun belgede gezinme
+- **Sayfaya git:** sayfa rozetine dokun → numara + kaydırıcı.
+- **2/4 sütun:** `PdfViewerParams.layoutPages` devralındı. Sütun genişliği
+  belgenin EN GENİŞ sayfasına sabit, dar sayfalar ortalanır (kayan sütun
+  okumayı zorlaştırır). **NOT:** paket belgesi "değişiklik için
+  `PdfViewerController.relayout()` çağır" diyor ama o API 2.x'te; 1.3.5'te
+  `_updateLayout` her build'de düzeni yeniden hesaplayıp karşılaştırıyor →
+  `setState` yeterli.
+- **Kaydırma çubuğu:** paketin `PdfViewerScrollThumb`'ı `viewerOverlayBuilder`
+  ile eklendi, topuzun üstünde sayfa numarası yazıyor.
+
+### 7) Kaydetme: üzerine yaz / kopyasını kaydet
+`lib/services/pdf_save.dart` + `widgets/pdf_save_dialog.dart` — PDF Araçları,
+imza ve AI düzenleme aynı soruyu soruyor. Kopya hedefi önce özgün klasör
+("… (kopya).pdf", çakışırsa numaralı), oraya yazılamıyorsa Belgeler dizini.
+Yazılabilirlik VARSAYILMIYOR, deneme dosyasıyla ÖLÇÜLÜYOR: paylaşımla gelen
+dosya çoğu zaman başka uygulamanın önbelleğinde durur.
+
+### 8) AI ile düzenleme — dürüst sınırla
+`PdfAiEditScreen`: metin katmanı Gemini'ye gider, yönergeye göre yeniden
+yazılır, sonuç ELLE düzenlenebilir, sonra PDF'e basılır.
+**Bilinçli sınır:** üretilen PDF metin tabanlıdır, özgün sayfa düzeni (sütun,
+tablo, logo, imza) KORUNMAZ — PDF içindeki metni yerinde değiştirmek gömülü
+font alt kümelerini ve satır kırımlarını yeniden kurmayı gerektirir, cihaz-içi
+/ücretsiz ilkesiyle makul sadakatte yapılamıyor. Bu ekranda da, kaydetme
+penceresinde de açıkça yazıyor ve kopya yolu öne çıkarılıyor.
+
+### 9) TUZAK (sessiz bozulma) — metin→PDF'te Türkçe karakterler
+`pdf` paketinin varsayılan fontu Helvetica (base-14, WinAnsi); `ğ ş ı İ` bu
+kodlamada YOK. Paket **hata atmıyor** — PDF üretiliyor ama o karakterler
+yanlış çiziliyor. Görünmez OCR katmanında font zaten gömülüyordu, görünen
+metin yolu atlanmıştı. `textToPdf`/`textToSlidesPdf` artık gömülü Carlito
+temasıyla çalışıyor. Test "çökmedi mi"ye değil `/FontFile2` var mı + Helvetica
+yok mu diye bakıyor (çökmediği için "çalışıyor" sanılabilirdi).
+
+### 10) Tarama: tek boy kâğıt + köşe düzeltme
+- **"Sayfalar tam oturmalı, düm düz olmalı":** her sayfa görselinin oranını
+  alıyordu → arka arkaya çekilen sayfalar birkaç piksel farklı olduğu için
+  PDF'te sayfa boyu zıplıyordu. `imagesToPdf(uniformPage: A4)` eklendi: sabit
+  kâğıt, oran korunarak sığdırma (kırpma/esnetme yok), ortalama; yatay görselde
+  kâğıt da yatay çevriliyor. OCR katmanının konumu da aynı ölçek/kayma ile
+  taşınıyor.
+- **"Köşelerinden tutup ayarlama":** `ScanReviewScreen` (tarama sonrası
+  önizleme, sayfa silme) + `ScanEditScreen` (mavi dörtgen, 4 sürüklenebilir
+  köşe) + `services/perspective.dart`.
+  **Karar — görüntü işleme paketi EKLENMEDİ:** perspektif düzeltme
+  `Canvas.drawVertices` + `ImageShader` ile GPU'da yapılıyor; hedef dikdörtgen
+  24×24'lük bir üçgen ağına bölünüp her köşeye kaynak görseldeki karşılığı
+  doku koordinatı olarak veriliyor (her üçgen içinde afin yaklaşıklık; ağ
+  sıklığında hata gözle görülmez). Homografi çözümü (8×9 Gauss, kısmi
+  pivotlama) SAF ve test edilmiş — çizim GPU gerektirdiği için testler
+  matematiği hedefliyor, hata gerçekten oradadır (yanlışsa sayfa yamuk çıkar).
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) indirilip
+`analyze` (0 error) + `flutter test` (459 test, hepsi yeşil) koşturuldu.
+
+---
+
+## 2026-07-26 (2. tur) — kalan maddeler: yerinde metin düzenleme, döndürme, kalıcı şerit
+
+Birinci turun KALANLAR listesi kapatıldı. İki madde **bilinçli olarak açık
+bırakıldı** (gerekçeleri aşağıda) — gerisi bitti.
+
+### 1) "Vurgu /Rotate=0 varsayıyor" — YANLIŞ ALARM, ölçüldü
+Kodda "döndürülmüş sayfada vurgu kayabilir" diye bir uyarı taşınıyordu. Dört
+açının dördünde de yazılan `/Rect` **birebir aynı** çıkıyor. Sebep: iki taraf da
+HAM (döndürülmemiş) sayfa uzayında konuşuyor — pdfium'un `charRects`'i ham
+koordinat verir (`PdfRect.toRect` döndürmeyi kendisi uygular), Syncfusion'ın
+yüklü sayfadaki `PdfPage.size`'ı ise ham CropBox/MediaBox ölçüsüdür (kaynak
+okundu: `pdf_page.dart` yalnız kutu genişlik/yüksekliğini hesaplıyor).
+Uyarı silindi, davranış `pdf_annotator_test` ile SABİTLENDİ (Syncfusion bir gün
+`/Rotate`'i `size`'a yansıtırsa test kırmızıya döner ve bize haber verir).
+**Ders:** "olabilir" diye taşınan şüpheyi ya ölç ya sil; kodda duran yanlış
+uyarı, gerçek bir hatayı ararken yanlış yere baktırıyor.
+
+### 2) Yerinde metin düzenleme — AI düzenlemenin düzeni koruyan hâli
+`PdfTools.replaceText` + `PdfTextReplaceScreen`: seçili satırların üstü düz
+renkle kapatılıp yerine yeni metin yazılıyor. Sayfanın geri kalanı (tablo, logo,
+sütun, diğer paragraflar) **hiç dokunulmadan** kalıyor. Metin elle ya da
+Gemini'yle düzenlenebiliyor. Giriş: PDF seçim çubuğundaki "Düzenle".
+`PdfAiEditScreen` (tüm belgeyi yeniden yazan, düzeni kaybeden yol) duruyor —
+ikisi farklı işler, ekranlarda hangisinin ne yaptığı yazılı.
+
+**TUZAK (ölçüldü, sessiz veri kaybı) — `drawString`'e DAR bir `bounds`
+verilirse Syncfusion HİÇBİR ŞEY çizmez, hata da atmaz.** Kutu yüksekliği
+satır yüksekliğine tam eşit/az geldiğinde çıktıda ne yazı ne font kalıyor
+(ölçüm: `out=1087 bayt, /FontFile2 yok, Tm operatörü 0`). Kullanıcı için bu
+"düzenledim, yazım kayboldu" demek. Çözüm: `bounds` yüksekliği **0** (sınırsız)
+veriliyor — sarma genişliğe göre yapılıyor, sığmayan metin kaybolmak yerine
+biraz taşıyor. Ayrıca `fitFontSize` toleransı (eski `+0.5pt`) kaldırıldı;
+tam sınırdaki metin bu bollukla kabul edilip sonra çizim aşamasında yok
+oluyordu.
+
+**TUZAK (test yöntemi) — `PdfTextExtractor` yüklü sayfaya SONRADAN eklenen
+içerik akışını okumuyor.** İlk testler bu yüzden "yazı eklenmemiş" diyordu;
+oysa PDF'in içinde duruyordu (sıkıştırılmamış çıktıda `(YENI)'` operatörü
+görüldü). Testler artık içerik akışlarını `ZLibDecoder` ile açıp operatörlere
+bakıyor. **Ders:** bir doğrulama aracının sessizce eksik davranması, kodu
+"bozuk" göstermeye yeter — aracı da doğrula.
+
+**Bilinçli sınırlar (ekranda da yazılı):** yazı tipi belgenin kendi fontu değil
+gömülü Carlito (PDF fontları genelde yalnız kullanılan harfleri içeren alt küme
+olarak gömülür, yeni harf için glif yok); arka plan düz renk varsayılıyor.
+
+### 3) Taramada döndürme + ortak yardımcılar
+`Perspective.rotateToPng` (kanvasla 90° adımlar) ve tarama önizlemesinde çevirme
+düğmesi. Görsel açma/geçici PNG yazma iki ekranda kopyalanmıştı → `decodeImageFile`
+ve `writeTempPng` olarak `perspective.dart`'a alındı.
+Çizim yolu artık **piksel düzeyinde** test ediliyor (`perspective_render_test`):
+sol yarısı kırmızı/sağ yarısı mavi bir görsel warp/rotate edilip çıktının doğru
+pikselleri okunuyor. Matematik testleri "boş görüntü" hatasını yakalayamazdı.
+
+### 4) Arka plana alınan iş için kalıcı şerit
+"Arka plana al" dendiğinde ekranın altında **kalıcı** bir ilerleme şeridi kalıyor
+(süresi 1 gün, iş bitince elle kaldırılıyor) — üzerinde iş adı, "3/128" sayacı ve
+"Durdur". Messenger MaterialApp seviyesinde olduğu için kullanıcı başka sayfaya
+geçse de şerit görünür kalıyor.
+
+### AÇIK BIRAKILANLAR (gerekçeli)
+- **Agresif sıkıştırma (sayfaları resme çevirip küçültme) YAPILMADI.** Yol açık
+  değil: cihazda JPEG **kodlayıcı** yok — `dart:ui` yalnız PNG üretir, PNG ise
+  taranmış sayfada özgün JPEG'den BÜYÜK çıkar, yani "sıkıştır" dosyayı
+  şişirirdi. Yapılabilmesi için `image` paketi (yeni bağımlılık, saf Dart ve
+  yavaş) ya da platform kanalı gerekir. Bilerek yapılmadı; yapılırsa metin
+  katmanı kaybolacağı için ayrı ve açıkça uyaran bir seçenek olmalı.
+- **graphify güncellemesi yapılamadı:** araç bu ortamda kurulu değil
+  (`command -v graphify` boş). Yeni düğümler grafta eksik kalıyor.
+
+---
+
+## 2026-07-26 (3. tur) — PDF metnini GERÇEKTEN yerinde düzenleme
+
+**İstek:** "PDF içindeki yazıları Word'de çalışır gibi silip yeniden
+yazabilmeliyim, PDF'in yapısı hiçbir şekilde bozulmamalı."
+
+2. turdaki `PdfTools.replaceText` bunu KARŞILAMIYORDU: eski yazının üstünü
+boyayıp yenisini üste çiziyordu. Üç kusuru vardı ve üçü de kullanıcının
+farkedeceği türdendi — (a) eski metin belgede kalıyor, kopyalayınca/arayınca
+çıkıyor, (b) desenli zeminde kapatma kutusu görünüyor, (c) yazı tipi değişiyor.
+Bu tur asıl çözüm yazıldı; eski yol yalnız YEDEK olarak duruyor.
+
+### Yaklaşım
+Sayfanın **içerik akışındaki** metin operatörünün (`Tj/TJ/'/"`) dizesi
+değiştiriliyor. Yazı tipi, punto, konum, renk, grafik durumu — hiçbirine
+dokunulmuyor, dolayısıyla korunuyorlar. Eski metin gerçekten siliniyor.
+
+Üç katman (hepsi cihazsız test edilebilir):
+- `services/pdf/pdf_syntax.dart` — içerik akışı tarayıcısı + kodlama tabloları.
+- `services/pdf/pdf_text_replace.dart` — akış içinde bul/değiştir (saf).
+- `services/pdf/pdf_objects.dart` — nesne tarama, ObjStm, sayfa ağacı, yazma.
+- `services/pdf_content_editor.dart` — orkestrasyon + doğrulama.
+
+### KARAR — özgün baytlara asla dokunulmuyor (incremental update)
+Değişiklik dosyanın SONUNA ekleniyor; eski sürüm bayt bayt yerinde kalıyor ve
+yeni bir xref bölümü üstüne yeni nesneyi bindiriyor. Bu PDF'in kendi güncelleme
+mekanizması. *Niye:* belgeyi baştan yazmak çok daha kolaydı ama her yeniden
+yazma, ANLAMADIĞIMIZ her yapıyı (imza, form, gömülü dosya, işaretli içerik)
+kaybetme riski demek. Test bunu bayt karşılaştırmasıyla sabitliyor.
+
+### TUZAK — taban dosya xref AKIŞI kullanıyorsa güncelleme de akış olmalı
+PDF 1.5+ (Word/LibreOffice çıktısı) çapraz başvuruyu akış olarak yazar. Oraya
+klasik `xref` tablosu eklemek "hibrit" bir dosya üretir ve birçok okuyucu
+reddeder. `_appendXref` tabanın biçimine bakıp ikisinden birini yazıyor.
+Elle kurulan modern-yapı PDF'iyle test ediliyor (Syncfusion bu biçimi
+ÜRETMEDİĞİ için başka türlü hiç denenmezdi — oysa kullanıcının düzenleyeceği
+belgelerin çoğu tam olarak bu biçimde).
+
+### TUZAK — sayfa sözlükleri `/ObjStm` içinde olabilir
+Modern üreticiler sayfa sözlüklerini sıkıştırılmış nesne akışına koyar; açmadan
+sayfa ağacı yürünemez ve her yeni belgede pes edilirdi. `_expandObjectStreams`
+bunları açıyor. **Akışlar ObjStm'e KONULAMAZ** (PDF kuralı) → içerik akışı hep
+üst seviyededir, onu doğrudan buluyoruz.
+
+### Arama neden "boşluksuz" ve neden bağlamlı
+- PDF'te bir cümle kerning yüzünden onlarca parçaya bölünür ve kelime araları
+  çoğu zaman boşluk KARAKTERİ değil, kerning SAYISIDIR. Boşluğa takılan bir
+  arama gerçek belgelerde neredeyse hiç eşleşmez → boşluklar yok sayılıyor.
+- Aynı kelime sayfada birkaç kez geçebilir. Seçimden önceki 40 karakter
+  bağlam olarak taşınıyor (`PdfSelectLayer` → ekran → servis); önce
+  `bağlam+kelime` aranıyor, bulunmazsa sade aramaya düşülüyor. Bu olmasa
+  kullanıcı ikinci geçişi seçse bile birincisi değişirdi.
+
+### Güvenlik kapıları — hepsi "yazmadan önce reddet"
+Şifreli belge (dizeler şifreli, düz yazmak bozar) · sayfa ağacı yürünemiyor ·
+metin bulunamıyor (alt küme font / taranmış sayfa) · yeni harf fontun
+kodlamasında yok · **içerik akışı birden çok sayfada ORTAK** (antet
+sayfalarında olur; düzenlemek dokunulmayan sayfayı da değiştirirdi).
+Yazdıktan SONRA belge yeniden açılıp doğrulanıyor: sayfa sayısı, hedef
+sayfanın gerçekten değiştiği, diğer sayfaların değişmediği. Doğrulama düşerse
+sonuç ATILIR.
+
+### Kodlama
+Font sözlüğünü ayrıştırmıyoruz. Aday tek baytlık kodlamalar (WinAnsi/CP1252,
+CP1254, Latin-1) sırayla denenip **kullanıcının seçtiği metni bulabilen**
+kodlama geçerli sayılıyor — eşleşmenin kendisi doğrulama. Yeni metin aynı
+kodlamayla yazılıyor; tek karakter bile karşılanamıyorsa işlem reddediliyor
+(yarım yazmak belgeyi bozar). Özel `/Differences` ya da CID (Identity-H)
+fontlarda eşleşme olmaz → yedek yola düşülür.
+
+### Bilinen sınır (bilinçli)
+Yeni metin uzunsa satırın kalanı sağa kayar — PDF metni yeniden akıtmaz.
+Bu Word'de de olan davranış (yazınca gerisi itilir), o yüzden hata değil;
+ama sütun/tablo hizasını bozabileceği ekranda yazıyor.
+
+**Doğrulama:** analyze 0 hata, 508 test yeşil. Yerinde düzenleme için 37 test:
+uçtan uca (metin değişir, eski metin KALMAZ, özgün baytlar korunur, üst üste
+düzenleme), modern yapı (ObjStm + xref akışı), sözdizimi (kaçışlar, onaltılık
+dize, satır içi görselin ikili verisi, yorum), parçalı metin, kodlama ve tüm
+güvenlik kapıları.
+
+---
+
+## 2026-07-26 (4. tur) — KÖK NEDEN: gerçek belgelerde yerinde düzenleme neden çalışmıyordu
+
+**Bulgu (kullanıcı, ekran görüntüsüyle):** resmî bir belgede (EBYS çıktısı,
+iki yana yaslı, Times benzeri gömülü font) düzenleme sonrası "yazı tipi ve
+form düzeni bozuluyor". Ekran görüntüsündeki alt yazı: **"Metin üste yazıldı"**.
+
+**Teşhis buradan çıktı.** Yerinde düzenleme (3. tur) o belgede REDDEDİLMİŞ ve
+yedek yola (üstünü kapatma) düşülmüştü. Bozulmanın sebebi yedek yolun kendisi:
+farklı font + satırın ortasını kapatıp sola yaslı yeniden yazma → iki yana
+yaslı satırda ortada boşluk. Yani hata "düzenleme bozuyor" değil, **"asıl
+düzenleme hiç çalışmıyor"**du.
+
+### Neden reddediliyordu
+3. turda kodlama, aday **tek baytlık** tablolarla (WinAnsi/CP1252, CP1254,
+Latin-1) tahmin ediliyordu. Gerçek belgelerin yazı tipleri **alt küme gömülü**
+ve çoğu zaman **Type0/Identity-H**: harf başına 2 baytlık, fonta özgü keyfi
+glif numarası. Böyle bir belgede tek baytlık tablo HİÇBİR ZAMAN tutmaz →
+"metni bulamadım" → yedek yol. Yani özellik, en çok düzenlenecek belgelerde
+tam olarak çalışmıyordu.
+
+### Çözüm — fontun kendi `/ToUnicode` tablosu
+`services/pdf/pdf_font_map.dart`: PDF'in içinde taşınan "bu kod şu harftir"
+tablosu okunup **ters çevriliyor**. Metni kopyalanabilen her belgede bulunur
+(pdfium da bunu kullanır). Böylece:
+- alt küme gömülü ve Identity-H fontlar çözülüyor,
+- yeni metin belgenin **ÖZGÜN yazı tipiyle** yazılıyor.
+Sayfanın font kaynakları `PdfFile.fontEncodings` ile bulunuyor; `/Resources`
+sayfada yoksa `/Parent` zinciri yukarı yürünüyor — **miras atlanırsa gerçek
+belgelerin çoğunda font hiç bulunamaz** (üreticiler kaynakları `/Pages`
+düğümüne bir kez yazar).
+
+Tek baytlık tablolar YEDEK olarak duruyor (basit fontlu eski belgeler).
+
+**Sınır (dürüst):** alt küme font yalnız belgede GEÇEN harfleri taşır. Hiç
+geçmemiş bir harf yazılmak istenirse reddediliyor — o glif yok, basılsaydı
+boş/yanlış çıkardı.
+
+**Test:** Syncfusion Type0/Identity-H font üretmediği için böyle bir belge
+elle, bayt bayt kuruldu (`pdf_font_map_test`): 2 baytlık glif kodları,
+`/ToUnicode` CMap'i, kaynakların üst düğümden miras alınması. Ayrıca CMap
+ayrıştırıcısının `bfchar`, `bfrange` (ardışık ve dizi biçimi) ve tek/çift
+baytlık codespace halleri.
+**Test tuzağı:** ilk kurulumda sahte fontun alt kümesi yalnız o cümlenin
+harfleriydi; kod doğru davranıp "harf fontta yok" dedi ve test kırmızı oldu.
+Hata kodda değil kurgudaydı — gerçek belgede alfabenin tamamı bulunur.
+
+### Kaydetme akışı tek yerde toplandı (kullanıcı isteği)
+"Kopyasını kaydettiğinde nereye gittiğini bulmak çok zor, hemen açabilmeliyim
+ve nereye kaydedileceğini seçebilmeliyim."
+`widgets/pdf_save_dialog.dart` → `savePdfWithChoice`: **üzerine yaz / kopyasını
+kaydet / klasör seçerek kaydet**, ardından dosya adı + KLASÖR yolu gösteren ve
+**"AÇ"** düğmesi taşıyan bir bildirim. PDF araçları, imza, AI düzenleme ve
+yerinde metin düzenleme artık aynı yolu kullanıyor — ayrı ayrı yazıldığında
+biri "aç"ı unutuyordu.
+Ayrıca **kaydetme sorusu en sona alındı**: değişiklik üretilmeden "nasıl
+kaydedelim?" diye sorup sonra başarısız olmak kötüydü.
+
+### Düzenleme ekranında uzunluk uyarısı
+PDF metni Word gibi yeniden akıtmaz. Yeni metin uzunsa satırın kalanı kayar.
+Ekran artık yazarken canlı uyarıyor (2 karakterden büyük farkta), yedek yol
+penceresi de "iki yana yaslı metinde satır hizası bozulur" diyor.
+
+**Doğrulama:** analyze 0 hata, 519 test yeşil.

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 
 import 'conversion_service.dart';
 import 'ocr_service.dart';
@@ -53,8 +54,13 @@ class DocumentScanner {
       onProgress?.call(imagePaths.length, imagePaths.length);
     }
 
-    final bytes = await ConversionService()
-        .imagesToPdf(imagePaths, ocrLinesPerPage: ocrLines);
+    // Her sayfa A4: gerçek bir tarayıcı gibi tek boy kâğıt. Görsel oranı
+    // korunarak sayfaya tam oturtulur (kırpılmaz), yatay sayfa yatay basılır.
+    final bytes = await ConversionService().imagesToPdf(
+      imagePaths,
+      ocrLinesPerPage: ocrLines,
+      uniformPage: PdfPageFormat.a4,
+    );
 
     final dir = await _targetDir();
     final path = p.join(dir.path, 'Tarama ${_stamp()}.pdf');

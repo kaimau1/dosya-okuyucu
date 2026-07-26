@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../screens/scan_review_screen.dart';
 import '../services/document_scanner.dart';
 import '../services/fm/entry_opener.dart';
 
@@ -23,6 +24,11 @@ class ScanFlow {
       return null;
     }
     if (pages == null || !context.mounted) return null;
+
+    // Önizleme/köşe düzeltme: sayfa yamuksa PDF'e girmeden düzeltilir.
+    final reviewed = await ScanReviewScreen.open(context, pages);
+    if (reviewed == null || reviewed.isEmpty || !context.mounted) return null;
+    pages = reviewed;
 
     final searchable = await _askSearchable(context, pages.length);
     if (searchable == null || !context.mounted) return null;

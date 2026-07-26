@@ -1,4 +1,3 @@
-import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/screens/fm/analysis_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/archive_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/audio_player_screen.dart';

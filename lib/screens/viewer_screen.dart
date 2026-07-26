@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
@@ -16,12 +17,15 @@ import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf_annotator.dart';
+import '../services/pdf_reload.dart';
 import '../services/tts_service.dart';
 import '../widgets/office_shell.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
+import 'pdf_ai_edit_screen.dart';
 import 'pdf_sign_screen.dart';
+import 'pdf_text_replace_screen.dart';
 import 'pdf_tools_screen.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
@@ -57,8 +61,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// seçme/kopyalama "Metin seç" modundaki kendi katmanımızda.
   String _pdfText = '';
 
-  /// "Metin seç" modu: tek parmak sürükleme sayfayı kaydırmak yerine yazı
-  /// seçer (PdfSelectLayer). Kaydırmaya dönmek için mod kapatılır.
+  /// "Sürükleyerek seç" modu: tek parmak sürükleme sayfayı kaydırmak yerine
+  /// yazı seçer. **Artık zorunlu değil** — uzun basış her zaman seçer
+  /// (bkz. [PdfSelectLayer]); bu mod yalnız uzun paragrafları tek hamlede
+  /// taramak isteyenler için.
   bool _pdfSelectMode = false;
 
   /// Seçim katmanının bildirdiği güncel seçili metin (kopyalama çubuğu için).
@@ -69,13 +75,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   List<PdfRect> _pdfSelRects = const [];
   int _pdfSelPage = 0;
 
+  /// Seçimden önceki metin — yerinde düzenlemede aynı kelimenin doğru geçişini
+  /// bulmak için (bkz. `PdfContentEditor.replaceText`).
+  String _pdfSelPreceding = '';
+
   /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
   int _highlightColor = _highlightColors.first;
 
-  /// PDF dosyaya yazıldıktan sonra pdfrx'i yeniden yüklemek için: aynı dosya
-  /// yolunu "eşit" saydığından otomatik yenilemez → ValueKey'i artırıp remount
-  /// ederiz (yeni annotation görünsün). Yeniden açılış aynı sayfada kalır.
-  int _pdfReloadKey = 0;
+  /// PDF'in kaç sütun hâlinde dizileceği (1 / 2 / 4). Uzun belgelerde sayfaları
+  /// yan yana görmek hem gezinmeyi hızlandırır hem tablet/yatay ekranda boşluğu
+  /// değerlendirir. 1 = pdfrx'in kendi dikey düzeni.
+  int _pdfColumns = 1;
 
   /// OCR için açık PDF belgesi (onViewerReady'de gelir).
   PdfDocument? _pdfDoc;
@@ -548,8 +558,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
         if (doc.kind == DocKind.pdf)
           IconButton(
             tooltip: _pdfSelectMode
-                ? 'Seçim modunu kapat (kaydırmaya dön)'
-                : 'Metin seç',
+                ? 'Sürükleyerek seçmeyi kapat (kaydırmaya dön)'
+                : 'Sürükleyerek seç (uzun basış zaten seçer)',
             isSelected: _pdfSelectMode,
             icon: Icon(
                 _pdfSelectMode ? Icons.pan_tool_alt_outlined : Icons.text_fields),
@@ -559,6 +569,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
             }),
           ),
         if (doc.kind == DocKind.pdf) ...[
+          PopupMenuButton<int>(
+            tooltip: 'Sayfa düzeni',
+            icon: Icon(_pdfColumns == 1
+                ? Icons.view_agenda_outlined
+                : (_pdfColumns == 2
+                    ? Icons.view_column_outlined
+                    : Icons.grid_view_outlined)),
+            onSelected: _setPdfColumns,
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 1, child: Text('Tek sütun')),
+              PopupMenuItem(value: 2, child: Text('2 sütun')),
+              PopupMenuItem(value: 4, child: Text('4 sütun')),
+            ],
+          ),
           IconButton(
             tooltip: 'İçindekiler',
             icon: const Icon(Icons.toc),
@@ -642,6 +666,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'sign':
                 _signPdf();
                 break;
+              case 'aiedit':
+                _aiEditPdf();
+                break;
+              case 'gotopage':
+                _askGoToPage();
+                break;
               case 'speak':
                 _toggleSpeech();
                 break;
@@ -651,12 +681,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
             }
           },
           itemBuilder: (_) => [
-            if (doc.kind == DocKind.pdf)
+            if (doc.kind == DocKind.pdf) ...[
+              const PopupMenuItem(
+                  value: 'gotopage', child: Text('Sayfaya git…')),
+              const PopupMenuItem(
+                  value: 'aiedit', child: Text('AI ile düzenle')),
               const PopupMenuItem(value: 'sign', child: Text('İmzala')),
-            if (doc.kind == DocKind.pdf)
               const PopupMenuItem(
                   value: 'pdftools',
                   child: Text('PDF araçları (sayfa, birleştir, parola)')),
+            ],
             if (doc.kind == DocKind.pdf || doc.kind == DocKind.image)
               const PopupMenuItem(
                   value: 'ocr', child: Text('Metni tanı (OCR)')),
@@ -694,15 +728,21 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
-  /// Seçim modu çubuğu: ipucu ya da (seçim varken) renk sırası + Vurgula/Kopyala
-  /// (yarı saydam koyu pill). Dar ekranda taşmasın diye kontroller `Wrap`'te.
+  /// Seçim çubuğu: seçim yokken tek satır ipucu, seçim varken **Kopyala /
+  /// Vurgula / Çevir** ve vurgu renkleri.
+  ///
+  /// 2026-07-26 sadeleştirmesi: eskiden sayfa üzerinde ayrıca bir "Kopyala"
+  /// balonu da vardı (iki ayrı yerde iki ayrı düğme) ve seçim yalnız mod
+  /// açıkken mümkündü. Artık tek çubuk var, seçim uzun basışla her zaman
+  /// yapılabiliyor.
   Widget _selectionBar() {
+    final hasSelection = _pdfSelection.trim().isNotEmpty;
     return Material(
-      color: Colors.black.withOpacity(0.75),
+      color: Colors.black.withOpacity(0.78),
       borderRadius: BorderRadius.circular(24),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        child: _pdfSelection.trim().isEmpty
+        child: !hasSelection
             ? const Padding(
                 padding: EdgeInsets.symmetric(vertical: 10),
                 child: Text(
@@ -739,6 +779,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                         icon: const Icon(Icons.copy,
                             color: Colors.white, size: 18),
                         label: const Text('Kopyala',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                      // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
+                      // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
+                      TextButton.icon(
+                        onPressed: _replaceSelectedText,
+                        icon: const Icon(Icons.edit_outlined,
+                            color: Colors.white, size: 18),
+                        label: const Text('Düzenle',
                             style: TextStyle(color: Colors.white)),
                       ),
                       TextButton.icon(
@@ -802,10 +851,39 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _openPdfTools() async {
     final saved = await PdfToolsScreen.open(context, path: widget.doc.path);
     if (saved == true && mounted) {
-      setState(() {
-        _pdfReloadKey++;
-        _pdfText = '';
-      });
+      setState(() => _pdfText = '');
+      await _reloadPdf();
+    }
+  }
+
+  /// Dosya diskte değiştikten sonra görüntüyü tazeler.
+  ///
+  /// Eskiden `ValueKey` artırılıp widget yeniden bağlanıyordu; pdfrx belgeleri
+  /// statik bir haritada dosya YOLUNA göre önbelleklediği için bu İŞE YARAMIYOR
+  /// ve vurgu/imza ekranda hiç görünmüyordu (bkz. [PdfReload]). Şimdi belge
+  /// gerçekten yeniden okunuyor ve kullanıcı aynı sayfada kalıyor.
+  Future<void> _reloadPdf() async {
+    // Eski PdfDocument yeniden yükleme sırasında dispose edilir; elimizdeki
+    // referansı hemen bırakıyoruz ki OCR/içindekiler ölü belgeye dokunmasın.
+    // Yenisi `onViewerReady` ile geri gelir.
+    _pdfDoc = null;
+    _pdfSearcher?.resetTextSearch(); // eşleşmeler eski belgeye aitti
+    await PdfReload.reloadFile(widget.doc.path);
+    if (mounted) setState(() {});
+  }
+
+  /// Belgeyi AI'a düzenletir (metin katmanı üzerinden). Üzerine yazıldıysa
+  /// görüntü tazelenir.
+  Future<void> _aiEditPdf() async {
+    final overwritten = await PdfAiEditScreen.open(
+      context,
+      path: widget.doc.path,
+      fileName: widget.doc.name,
+      sourceText: _documentText,
+    );
+    if (overwritten == true && mounted) {
+      setState(() => _pdfText = '');
+      await _reloadPdf();
     }
   }
 
@@ -968,7 +1046,38 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// İmza ekranı; imza basılırsa dosya değişmiştir → görüntüleyici tazelenir.
   Future<void> _signPdf() async {
     final signed = await PdfSignScreen.open(context, widget.doc.path);
-    if (signed == true && mounted) setState(() => _pdfReloadKey++);
+    if (signed == true && mounted) await _reloadPdf();
+  }
+
+  /// Seçili metni **yerinde** değiştirir (elle ya da AI ile). Sayfanın geri
+  /// kalanına dokunulmaz — belgenin tamamını yeniden yazan "AI ile düzenle"den
+  /// farkı budur.
+  Future<void> _replaceSelectedText() async {
+    final rects = _pdfSelRects;
+    final page = _pdfSelPage;
+    final text = _pdfSelection.trim();
+    if (rects.isEmpty || page < 1 || text.isEmpty) return;
+    final overwritten = await PdfTextReplaceScreen.open(
+      context,
+      path: widget.doc.path,
+      pageIndex: page - 1,
+      // PdfRect → düz sayı listesi: servis katmanı pdfrx'i tanımıyor ve bu
+      // biçim isolate sınırından sorunsuz geçiyor.
+      rawRects: [
+        for (final r in rects) [r.left, r.top, r.right, r.bottom],
+      ],
+      originalText: text,
+      precedingText: _pdfSelPreceding,
+    );
+    if (!mounted) return;
+    setState(() {
+      _pdfSelection = '';
+      _pdfSelRects = const [];
+    });
+    if (overwritten == true) {
+      setState(() => _pdfText = '');
+      await _reloadPdf();
+    }
   }
 
   Future<void> _highlightPdf() async {
@@ -986,10 +1095,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
       await _fileService.writeBytes(widget.doc.path, out);
       if (!mounted) return;
       setState(() {
-        _pdfReloadKey++;
         _pdfSelection = '';
         _pdfSelRects = const [];
       });
+      await _reloadPdf();
       _snack('Vurgulandı');
     } catch (e) {
       if (mounted) _snack('Vurgulama başarısız: $e');
@@ -1109,6 +1218,136 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  // ── Uzun belgede gezinme ──────────────────────────────────────────────────
+
+  /// Sayfaları [_pdfColumns] sütun hâlinde dizer.
+  ///
+  /// Sütun genişliği belgenin EN GENİŞ sayfasına göre sabittir; farklı boydaki
+  /// sayfalar sütun içinde ortalanır. Böylece sütunlar sayfa sayfa kaymaz
+  /// (kayan sütun okumayı zorlaştırır ve kaydırma çubuğunu yanıltır).
+  PdfPageLayout _layoutPdfColumns(List<PdfPage> pages, PdfViewerParams params) {
+    final cols = _pdfColumns;
+    final margin = params.margin;
+    var colWidth = 0.0;
+    for (final page in pages) {
+      colWidth = math.max(colWidth, page.width);
+    }
+
+    final layouts = <Rect>[];
+    var y = margin;
+    var rowHeight = 0.0;
+    for (var i = 0; i < pages.length; i++) {
+      final page = pages[i];
+      final col = i % cols;
+      final x = margin + col * (colWidth + margin);
+      layouts.add(Rect.fromLTWH(
+        x + (colWidth - page.width) / 2,
+        y,
+        page.width,
+        page.height,
+      ));
+      rowHeight = math.max(rowHeight, page.height);
+      if (col == cols - 1 || i == pages.length - 1) {
+        y += rowHeight + margin;
+        rowHeight = 0;
+      }
+    }
+    return PdfPageLayout(
+      pageLayouts: layouts,
+      documentSize: Size(margin + cols * (colWidth + margin), y),
+    );
+  }
+
+  /// Sütun sayısını değiştirir.
+  ///
+  /// Ayrıca bir "relayout" çağrısı GEREKMİYOR: pdfrx 1.3.x düzeni her build'de
+  /// `_updateLayout` içinde yeniden hesaplayıp eskisiyle karşılaştırıyor
+  /// (paket belgesindeki `PdfViewerController.relayout` 2.x API'si). setState
+  /// yeterli.
+  void _setPdfColumns(int cols) {
+    if (cols == _pdfColumns) return;
+    setState(() => _pdfColumns = cols);
+  }
+
+  /// "Sayfaya git": numara yaz ya da kaydırıcıyı sürükle.
+  Future<void> _askGoToPage() async {
+    if (_pdfCount <= 0) return;
+    var target = _pdfPage.toDouble();
+    final controller = TextEditingController(text: '$_pdfPage');
+    final page = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Sayfaya git'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Sayfa numarası (1 – $_pdfCount)',
+                ),
+                onChanged: (v) {
+                  final n = int.tryParse(v);
+                  if (n != null && n >= 1 && n <= _pdfCount) {
+                    setLocal(() => target = n.toDouble());
+                  }
+                },
+                onSubmitted: (v) =>
+                    Navigator.pop(ctx, int.tryParse(v) ?? _pdfPage),
+              ),
+              if (_pdfCount > 1)
+                Slider(
+                  value: target.clamp(1, _pdfCount.toDouble()),
+                  min: 1,
+                  max: _pdfCount.toDouble(),
+                  divisions: _pdfCount - 1,
+                  label: '${target.round()}',
+                  onChanged: (v) => setLocal(() {
+                    target = v;
+                    controller.text = '${v.round()}';
+                  }),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Vazgeç')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, target.round()),
+              child: const Text('Git'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (page == null) return;
+    final clamped = page.clamp(1, _pdfCount);
+    await _pdfController.goToPage(pageNumber: clamped);
+  }
+
+  /// Kaydırma çubuğunun topuzu: üstünde güncel sayfa numarası.
+  Widget _scrollThumb(int? pageNumber) {
+    return Material(
+      color: Theme.of(context).colorScheme.primary,
+      borderRadius: BorderRadius.circular(10),
+      elevation: 2,
+      child: Center(
+        child: Text(
+          '${pageNumber ?? _pdfPage}',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// PDF sayfa numarası rozeti (yarı saydam koyu pill).
   Widget _pageBadge(String text) {
     return Container(
@@ -1129,27 +1368,41 @@ class _ViewerScreenState extends State<ViewerScreen> {
           children: [
             Positioned.fill(
               // pdfrx (pdfium). Metin seçimi: paketin SelectionArea'sı Android'de
-              // güvenilir çalışmadığı için "Metin seç" modunda sayfa üzerine
-              // kendi seçim katmanımız (PdfSelectLayer) biner; tek parmak
-              // sürükleme o modda kaydırma yerine seçim yapar (panEnabled=false).
+              // güvenilir çalışmadığı için sayfa üzerine kendi seçim katmanımız
+              // (PdfSelectLayer) biner. Katman DAİMA açıktır: uzun basış seçer,
+              // seçim yokken parmağı yutmaz. "Sürükleyerek seç" modunda ayrıca
+              // tek parmak sürüklemesi seçer (o zaman panEnabled=false).
               //
               // Gece modu: sayfa görüntüsü renk matrisiyle terslenir. Dosyaya
               // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
               child: _nightFilter(
                 child: PdfViewer.file(
                 doc.path,
-                // Vurgu yazıldıktan sonra remount → yeni annotation görünsün.
-                key: ValueKey(_pdfReloadKey),
                 controller: _pdfController,
                 initialPageNumber: _pdfPage,
                 params: PdfViewerParams(
                   panEnabled: !_pdfSelectMode,
                   backgroundColor:
                       Theme.of(context).colorScheme.surfaceContainerHighest,
+                  // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
+                  // düzeni kullanılır — gereksiz yere devralmıyoruz.
+                  layoutPages: _pdfColumns == 1 ? null : _layoutPdfColumns,
                   // Arama eşleşmelerini sayfada vurgula (Faz 1).
                   pagePaintCallbacks: [
                     if (_pdfSearcher != null)
                       _pdfSearcher!.pageTextMatchPaintCallback,
+                  ],
+                  // Sağ kenarda sürüklenebilir kaydırma çubuğu: uzun belgede
+                  // sayfa sayfa kaydırmak yerine tutup atlanır, üstünde de
+                  // güncel sayfa numarası yazar.
+                  viewerOverlayBuilder: (context, size, handleLinkTap) => [
+                    PdfViewerScrollThumb(
+                      controller: _pdfController,
+                      orientation: ScrollbarOrientation.right,
+                      thumbSize: const Size(44, 40),
+                      thumbBuilder: (ctx, thumbSize, pageNumber, controller) =>
+                          _scrollThumb(pageNumber),
+                    ),
                   ],
                   // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
                   linkHandlerParams: PdfLinkHandlerParams(
@@ -1169,24 +1422,23 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       setState(() => _pdfPage = page);
                     }
                   },
-                  pageOverlaysBuilder: !_pdfSelectMode
-                      ? null
-                      : (context, pageRect, page) => [
-                            PdfSelectLayer(
-                              page: page,
-                              pageSize: pageRect.size,
-                              onSelected: (t, rects, pageNo) {
-                                if (mounted) {
-                                  setState(() {
-                                    _pdfSelection = t;
-                                    _pdfSelRects = rects;
-                                    _pdfSelPage = pageNo;
-                                  });
-                                }
-                              },
-                              onCopy: _copyPdfSelection,
-                            ),
-                          ],
+                  pageOverlaysBuilder: (context, pageRect, page) => [
+                    PdfSelectLayer(
+                      page: page,
+                      pageSize: pageRect.size,
+                      enableDragSelect: _pdfSelectMode,
+                      onSelected: (t, rects, pageNo, preceding) {
+                        if (mounted) {
+                          setState(() {
+                            _pdfSelection = t;
+                            _pdfSelRects = rects;
+                            _pdfSelPage = pageNo;
+                            _pdfSelPreceding = preceding;
+                          });
+                        }
+                      },
+                    ),
+                  ],
                   ),
                 ),
               ),
@@ -1196,13 +1448,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 bottom: 16,
                 left: 0,
                 right: 0,
-                child: Center(child: _pageBadge('$_pdfPage / $_pdfCount')),
+                child: Center(
+                  child: InkWell(
+                    onTap: _askGoToPage,
+                    borderRadius: BorderRadius.circular(20),
+                    child: _pageBadge('$_pdfPage / $_pdfCount  ↕'),
+                  ),
+                ),
               ),
-            if (_pdfSelectMode)
+            if (_pdfSelection.trim().isNotEmpty || _pdfSelectMode)
               Positioned(
                 bottom: 64,
-                left: 0,
-                right: 0,
+                left: 8,
+                right: 8,
                 child: Center(child: _selectionBar()),
               ),
           ],

@@ -172,3 +172,52 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli.
 - [ ] **Klasör boyutlarını liste içinde göstermek** (şu an yalnız Özellikler'de,
       istek üzerine hesaplanıyor — her satırda hesaplamak pahalı).
+
+## PDF turu sonrası kalanlar (2026-07-26, 2. tur sonrası güncel)
+- [ ] **Cihaz doğrulaması bekliyor:** vurgulama, uzun basışla metin seçimi,
+      2/4 sütun düzeni, kaydırma çubuğu, taramada köşe ayarı + döndürme,
+      yerinde metin düzenleme. Hiçbiri birim testle doğrulanamaz
+      (pdfium render + dokunma + kamera).
+- [x] ~~Vurgu koordinatı /Rotate=0 varsayıyor~~ → **YANLIŞ ALARM, ölçüldü
+      2026-07-26:** dört açıda da yazılan `/Rect` birebir aynı. İki taraf da ham
+      sayfa uzayında konuşuyor. Uyarı silindi, davranış testle sabitlendi.
+- [x] ~~AI düzenleme sayfa düzenini korumuyor~~ → **YAPILDI (3. tur):**
+      `PdfContentEditor` ile GERÇEK yerinde düzenleme — belgenin kendi metni
+      değişiyor, yazı tipi/punto/konum korunuyor, eski metin siliniyor,
+      değişiklik dosyanın sonuna ekleniyor (özgün baytlara dokunulmuyor).
+      Üstünü kapatan eski yol yalnız yedek (reddedilirse, onay alarak).
+- [x] ~~Yerinde düzenleme özel kodlamalı fontlarda çalışmaz~~ → **ÇÖZÜLDÜ
+      (4. tur):** fontun `/ToUnicode` tablosu okunup ters çevriliyor; alt küme
+      gömülü ve Type0/Identity-H fontlar artık çalışıyor, yeni metin belgenin
+      ÖZGÜN yazı tipiyle yazılıyor. Kalan sınır: alt küme fontta HİÇ geçmemiş
+      bir harf yazılamaz (glif yok) — reddediliyor.
+- [ ] **`/ToUnicode` taşımayan belgeler** (eski üreticiler, bazı taranmış+OCR
+      çıktıları) hâlâ tek baytlık tahmine kalıyor; tutmazsa yedek yola düşer.
+      Çözüm: `/Encoding /Differences` + glif adı→Unicode tablosu (AGL).
+- [ ] **Yeni metin uzunsa satırın kalanı sağa kayar** (PDF metni yeniden
+      akıtmaz). Word'deki davranışın aynısı ama sütun/tablo hizasını bozabilir;
+      istenirse `Tz` yatay ölçekle genişlik sabitlenebilir (pdfium'la ölçüp tek
+      adımda düzeltilebilir, doğrusal).
+- [x] ~~Arka plana alınan iş için kalıcı gösterge yok~~ → **YAPILDI:** kalıcı
+      alt şerit (iş adı + sayaç + Durdur), sayfa değişse de kalıyor.
+- [x] ~~Taramada döndürme yok~~ → **YAPILDI:** önizlemede 90° çevirme.
+- [ ] **Agresif sıkıştırma (resme çevirerek) YAPILMADI — yol kapalı.**
+      Cihazda JPEG kodlayıcı yok (`dart:ui` yalnız PNG üretir) ve PNG taranmış
+      sayfada özgün JPEG'den büyük çıkar → "sıkıştır" dosyayı şişirirdi.
+      Gerekirse `image` paketi (yeni bağımlılık, yavaş) veya platform kanalı.
+      Yapılırsa metin katmanı kaybolacağı için AYRI ve açıkça uyaran bir
+      seçenek olmalı, sessizce değil.
+- [ ] **Kırpılmış (CropBox'ı MediaBox'tan kaydırılmış) PDF'te vurgu/yerinde
+      düzenleme koordinatı doğrulanmadı.** Syncfusion kutu ölçüsünü alırken
+      köşe konumunu (c0/c1) atıyor; böyle bir dosya elimizde yok, ölçülemedi.
+- [ ] **graphify güncellemesi:** araç bu ortamda kurulu değil; yeni düğümler
+      (`pdf_reload`, `pdf_save`, `perspective`, `scan_edit/review`,
+      `pdf_ai_edit`, `pdf_text_replace`) grafta eksik.
+- [ ] **APK ~199 MB (build 123).** Bu iş ÖNCESİNDE de böyleydi (build 120:
+      196 MB → build 123: 199 MB, artış yalnız yeni kod), yani bu turun
+      getirdiği bir şişme değil. Ama "sade/hızlı" konumlandırma ve Play Store
+      için fazla büyük. Muhtemel kaynaklar: tek APK'da tüm ABI'ler (pdfium +
+      ML Kit + video/ses yerel kütüphaneleri), gömülü fontlar, WebView Word
+      motoru. Yol: `--split-per-abi` ya da App Bundle (AAB) — indirilen boyut
+      3-4 kat düşer. Release akışının değişmesi gerekir, ayrı iş.
+

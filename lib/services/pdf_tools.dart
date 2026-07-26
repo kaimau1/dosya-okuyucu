@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -268,6 +269,206 @@ class PdfTools {
     }
   }
 
+  /// Sayfadaki bir metin parçasını **yerinde** yenisiyle değiştirir: eski
+  /// satırların üstü [backgroundArgb] ile kapatılır, yeni metin aynı kutuya
+  /// sığdırılarak yazılır.
+  ///
+  /// [rawRects] pdfium'dan gelen ham dikdörtgenler; her biri
+  /// `[left, top, right, bottom]` (PDF uzayı: Y YUKARI, `top > bottom`).
+  /// Dönüşüm burada yapılır ki çağıran koordinat sistemini bilmek zorunda
+  /// kalmasın (aynı sözleşme [PdfAnnotator.addHighlight]'ta da geçerli).
+  ///
+  /// [fontBytes] gömülecek TrueType font (Carlito) — `PdfTools` saf Dart
+  /// kalsın diye asset okuma çağırana bırakıldı. Standart Helvetica
+  /// KULLANILAMAZ: Türkçe karakterleri çizemez (bkz. HAFIZA 2026-07-26 §9).
+  ///
+  /// **Bilinçli sınırlar (kullanıcıya da söyleniyor):**
+  /// * Özgün yazı tipi değil, gömülü Carlito kullanılır — PDF'in kendi fontu
+  ///   çoğu zaman alt küme olarak gömülüdür ve yeni harfler için glif içermez.
+  /// * Arka plan düz renk varsayılır; desenli/resimli zeminde kapatma kutusu
+  ///   görünür.
+  /// * Yeni metin kutuya sığmazsa punto küçültülür (taşıp komşu içeriğin
+  ///   üstüne binmesindense küçülmesi yeğdir).
+  static Future<List<int>> replaceText(
+    List<int> bytes, {
+    required int pageIndex,
+    required List<List<double>> rawRects,
+    required String newText,
+    required List<int> fontBytes,
+    int backgroundArgb = 0xFFFFFFFF,
+    int colorArgb = 0xFF000000,
+    String? password,
+  }) async {
+    if (rawRects.isEmpty) throw ArgumentError('Değiştirilecek alan yok');
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final page = doc.pages[pageIndex];
+      final pageHeight = page.size.height;
+      final rects = <Rect>[
+        for (final r in rawRects)
+          pdfToSyncfusionRect(
+            left: r[0],
+            pdfTop: r[1],
+            width: r[2] - r[0],
+            height: r[1] - r[3],
+            pageHeight: pageHeight,
+          ),
+      ];
+      var bounds = rects.first;
+      for (final r in rects.skip(1)) {
+        bounds = bounds.expandToInclude(r);
+      }
+
+      final g = page.graphics;
+      // Eski yazıyı kapat. 0.75pt şişirme: gliflerin çıkıntıları (g, y, ğ) ve
+      // kenar yumuşatma artıkları tam kutunun birkaç yüzde birini taşar.
+      final brush = PdfSolidBrush(_color(backgroundArgb));
+      for (final r in rects) {
+        g.drawRectangle(brush: brush, bounds: r.inflate(0.75));
+      }
+
+      final size = fitFontSize(
+        newText,
+        boxSize: bounds.size,
+        startSize: fittedStartSize(rects),
+        measure: (text, fontSize, width) => PdfTrueTypeFont(fontBytes, fontSize)
+            .measureString(text,
+                layoutArea: Size(width, 0),
+                format: PdfStringFormat(wordWrap: PdfWordWrapType.word))
+            .height,
+      );
+
+      g.drawString(
+        newText,
+        PdfTrueTypeFont(fontBytes, size),
+        brush: PdfSolidBrush(_color(colorArgb)),
+        // **TUZAK (ölçüldü 2026-07-26):** `bounds`'a SINIRLI yükseklik verilir
+        // ve metin bir tık taşarsa Syncfusion hiçbir şey çizmez — hata da
+        // atmaz. Kullanıcı açısından "düzenledim, yazı kayboldu" demektir.
+        // Yükseklik 0 = sınırsız: sarma genişliğe göre yapılır, sığmayan metin
+        // kaybolmak yerine biraz taşar. Zaten [fitFontSize] taşmayı önlüyor;
+        // bu yalnız yuvarlama farkına karşı emniyet.
+        bounds: Rect.fromLTWH(bounds.left, bounds.top, bounds.width, 0),
+        format: PdfStringFormat(
+          wordWrap: PdfWordWrapType.word,
+          lineAlignment: PdfVerticalAlignment.top,
+        ),
+      );
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  static PdfColor _color(int argb) =>
+      PdfColor((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
+
+  // ── Arka plan (isolate) sarmalayıcıları ───────────────────────────────────
+  //
+  // KÖK NEDEN (2026-07-26, "sıkıştır denince donma"): Syncfusion belgeyi
+  // TAMAMEN ana izlekte yeniden yazıyor. Birkaç MB'lık bir PDF'te bu saniyeler
+  // sürer, o sırada Flutter kare çizemez → uygulama kilitlenmiş görünür, Android
+  // ANR verebilir. Aşağıdaki `…InBackground` sürümleri işi `Isolate.run` ile
+  // ayrı bir izleğe taşır: arayüz akıcı kalır, ilerleme penceresi dönebilir.
+  //
+  // Neden ayrı statik metotlar: `Isolate.run`'a verilen kapanış (closure)
+  // yalnız gönderilebilir (sendable) değerler yakalayabilir. Ekran sınıfının
+  // içinden yazılan kapanış `this`i (State + BuildContext) yakalar ve
+  // gönderilemez. Burada kapanış yalnız yerel değişkenleri görüyor.
+
+  /// [compress] — arka plan isolate'inde.
+  static Future<List<int>> compressInBackground(
+    List<int> bytes, {
+    String? password,
+  }) =>
+      _bg(() => compress(bytes, password: password));
+
+  /// [merge] — arka plan isolate'inde.
+  static Future<List<int>> mergeInBackground(List<List<int>> sources) =>
+      _bg(() => merge(sources));
+
+  /// [selectPages] — arka plan isolate'inde.
+  static Future<List<int>> selectPagesInBackground(
+    List<int> bytes,
+    List<int> pageIndexes, {
+    String? password,
+  }) =>
+      _bg(() => selectPages(bytes, pageIndexes, password: password));
+
+  /// [deletePages] — arka plan isolate'inde.
+  static Future<List<int>> deletePagesInBackground(
+    List<int> bytes,
+    List<int> pageIndexes, {
+    String? password,
+  }) =>
+      _bg(() => deletePages(bytes, pageIndexes, password: password));
+
+  /// [rotatePages] — arka plan isolate'inde.
+  static Future<List<int>> rotatePagesInBackground(
+    List<int> bytes, {
+    required List<int> pageIndexes,
+    required int quarterTurns,
+    String? password,
+  }) =>
+      _bg(() => rotatePages(bytes,
+          pageIndexes: pageIndexes,
+          quarterTurns: quarterTurns,
+          password: password));
+
+  /// [setPassword] — arka plan isolate'inde (şifreleme CPU-yoğun).
+  static Future<List<int>> setPasswordInBackground(
+    List<int> bytes, {
+    required String password,
+    String? currentPassword,
+  }) =>
+      _bg(() => setPassword(bytes,
+          password: password, currentPassword: currentPassword));
+
+  /// [removePassword] — arka plan isolate'inde.
+  static Future<List<int>> removePasswordInBackground(
+    List<int> bytes, {
+    required String currentPassword,
+  }) =>
+      _bg(() => removePassword(bytes, currentPassword: currentPassword));
+
+  /// [replaceText] — arka plan isolate'inde.
+  static Future<List<int>> replaceTextInBackground(
+    List<int> bytes, {
+    required int pageIndex,
+    required List<List<double>> rawRects,
+    required String newText,
+    required List<int> fontBytes,
+    int backgroundArgb = 0xFFFFFFFF,
+    int colorArgb = 0xFF000000,
+    String? password,
+  }) =>
+      _bg(() => replaceText(
+            bytes,
+            pageIndex: pageIndex,
+            rawRects: rawRects,
+            newText: newText,
+            fontBytes: fontBytes,
+            backgroundArgb: backgroundArgb,
+            colorArgb: colorArgb,
+            password: password,
+          ));
+
+  /// İşi ayrı isolate'te koşturur.
+  ///
+  /// Hata metne çevrilerek yeniden atılır: isolate sınırından yalnız
+  /// gönderilebilir nesneler geçer, Syncfusion'ın iç hata tipleri geçemezse
+  /// Dart bunları anlamsız bir `RemoteError`'a çevirir ve kullanıcı "Instance
+  /// of ..." görürdü.
+  static Future<List<int>> _bg(Future<List<int>> Function() task) {
+    return Isolate.run(() async {
+      try {
+        return await task();
+      } catch (e) {
+        throw PdfToolsException('$e');
+      }
+    });
+  }
+
   /// Kaynak sayfaları (belge, 0-tabanlı indeks) sırasıyla yeni bir belgeye
   /// kopyalar. Birleştir/seç/böl/sırala hepsi buraya iner — tek yerde doğru.
   ///
@@ -294,6 +495,84 @@ class PdfTools {
       out.dispose();
     }
   }
+}
+
+/// pdfium `PdfRect` (origin **sol-alt**, Y **yukarı** → `top` sayfa-alt'tan ölçülür,
+/// `top > bottom`) → Syncfusion/Flutter `Rect` (origin **sol-üst**, Y **aşağı**).
+///
+/// KOORDİNAT TUZAĞI: Syncfusion sol-üst köşe bekler; sayfa üstünden mesafe =
+/// `pageHeight - pdfTop`. Genişlik/yükseklik aynı kalır.
+///
+/// **`/Rotate` sorun DEĞİL — ölçüldü (2026-07-26).** Eskiden "sayfa /Rotate=0
+/// varsayar" uyarısı yazılmıştı; yanlıştı. İki taraf da HAM (döndürülmemiş)
+/// sayfa uzayında çalışıyor: pdfium'un `charRects`'i ham koordinat verir
+/// (pdfrx `PdfRect.toRect` döndürmeyi kendisi uygular) ve Syncfusion'ın
+/// `PdfPage.size`'ı yüklü sayfada ham CropBox/MediaBox ölçüsüdür, `/Rotate`'i
+/// yansıtmaz. Dört açının dördünde de yazılan `/Rect` birebir aynı çıkıyor
+/// (`pdf_annotator_test` bunu sabitliyor).
+Rect pdfToSyncfusionRect({
+  required double left,
+  required double pdfTop,
+  required double width,
+  required double height,
+  required double pageHeight,
+}) =>
+    Rect.fromLTWH(left, pageHeight - pdfTop, width, height);
+
+/// Değiştirilecek satırların yüksekliğinden tahmini başlangıç puntosu.
+///
+/// Satır kutusu yalnız gliflerin kapladığı yüksekliktir; punto (em) bundan
+/// biraz büyüktür. 1.18 çarpanı tipik bir gövde metninde göz kararı doğru
+/// büyüklüğü verir — nasıl olsa [fitFontSize] sığmıyorsa küçültüyor.
+/// Satırlar farklı yükseklikteyse en KÜÇÜĞÜ esas alınır (büyük başlığa göre
+/// ölçekleyip küçük satırları taşırmaktansa).
+double fittedStartSize(List<Rect> rects) {
+  var minHeight = double.infinity;
+  for (final r in rects) {
+    if (r.height > 0.5 && r.height < minHeight) minHeight = r.height;
+  }
+  if (!minHeight.isFinite) return 11;
+  return (minHeight * 1.18).clamp(4.0, 96.0);
+}
+
+/// [text]'i [boxSize] kutusuna sığdıran en büyük punto ([startSize]'ı aşmadan).
+///
+/// [measure] (metin, punto, genişlik) → sarılmış metnin yüksekliği. Ölçüm
+/// enjekte ediliyor ki bu mantık Syncfusion'sız test edilebilsin — sığdırma
+/// mantığı hatanın gerçekten olabileceği yer, ölçüm değil.
+///
+/// Sığdıramazsa en küçük puntoyu ([minSize]) döndürür: metin biraz taşar ama
+/// okunamayacak kadar küçülmez — bilinçli tercih.
+///
+/// Karşılaştırma **tam** (tolerans yok): eskiden 0.5pt bolluk vardı ve tam
+/// sınırda kalan metin çizim aşamasında sessizce kayboluyordu (bkz.
+/// [PdfTools.replaceText] içindeki tuzak notu).
+double fitFontSize(
+  String text,
+  {
+  required Size boxSize,
+  required double startSize,
+  required double Function(String text, double fontSize, double width) measure,
+  double minSize = 4,
+  double step = 0.5,
+}) {
+  if (text.trim().isEmpty || boxSize.width <= 0 || boxSize.height <= 0) {
+    return startSize;
+  }
+  var size = startSize;
+  while (size > minSize) {
+    if (measure(text, size, boxSize.width) <= boxSize.height) return size;
+    size -= step;
+  }
+  return minSize;
+}
+
+/// Arka plan isolate'inden gelen PDF hatası (mesajı kullanıcıya gösterilebilir).
+class PdfToolsException implements Exception {
+  final String message;
+  const PdfToolsException(this.message);
+  @override
+  String toString() => message;
 }
 
 /// **Görünen** sayfa koordinatında verilen bir şeyi (imza) döndürülmüş bir

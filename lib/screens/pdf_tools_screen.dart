@@ -4,12 +4,15 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
 import '../services/pdf_tools.dart';
+import '../widgets/pdf_save_dialog.dart';
+import 'scan_review_screen.dart';
 
 /// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
 /// döndür, ayrıca parola ve sıkıştırma.
@@ -52,22 +55,51 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   String? _error;
 
   /// Seçili sayfalar (0-tabanlı).
-  final _selected = <int>{};
+  ///
+  /// **Neden `ValueNotifier` ve `setState` değil** (2026-07-26 kullanıcı bulgusu
+  /// "her sayfa seçtiğinde baştan render oluyor ve başa atıyor"): ekran
+  /// `setState` ettiğinde `PdfDocumentViewBuilder` YENİ bir widget örneği olarak
+  /// yeniden kurulur; pdfrx'in `didUpdateWidget`'i eski belgenin dinleyicisini
+  /// kaldırır → pdfrx'in statik önbelleğinde başka dinleyici kalmadığı için
+  /// belge **dispose edilir**, sonra sıfırdan yüklenir. Bu arada `document`
+  /// null döner, ızgara ağaçtan düşer → kaydırma başa gider ve tüm küçük
+  /// resimler yeniden çizilir. Çözüm iki parçalı: (1) seçim `setState`
+  /// etmiyor, yalnız bu notifier'ı dinleyen karolar güncelleniyor;
+  /// (2) ızgara widget'ı önbelleğe alınıp AYNI ÖRNEK döndürülüyor (`_gridCache`)
+  /// — Flutter aynı örneği görünce alt ağacı hiç güncellemiyor.
+  final ValueNotifier<Set<int>> _selection = ValueNotifier(<int>{});
+
+  Set<int> get _selected => _selection.value;
 
   /// Geri alma yığını. Sayfa silme geri alınamazsa korkutucu; 5 adım yeter.
   final _undo = <Uint8List>[];
 
   bool _dirty = false;
-  bool _busy = false;
+
+  /// Süren işin etiketi (boşsa iş yok). Kullanıcı ne olduğunu görsün diye
+  /// yazıyla gösteriliyor — eskiden yalnız ince bir çubuk vardı.
+  String _busyLabel = '';
+
+  bool get _busy => _busyLabel.isNotEmpty;
 
   /// pdfrx `PdfDocumentRefData`'yı YALNIZ `sourceName` ile eşit sayar; bayt
   /// değişince aynı ad verilirse önizleme tazelenmez → her işlemde artar.
   int _rev = 0;
 
+  /// Önbelleklenmiş ızgara widget'ı ve hangi revizyona ait olduğu.
+  Widget? _gridCache;
+  int _gridCacheRev = -1;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _selection.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -94,13 +126,16 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
 
   /// Tüm işlemlerin tek kapısı: yeni baytı üretir, geri almayı besler, önizlemeyi
   /// tazeler. Hata olursa belge dokunulmadan kalır.
+  ///
+  /// [op] artık **arka plan isolate'inde** koşan `…InBackground` sürümlerini
+  /// çağırır; ana izlek boş kalır, ekran donmaz ve [_busyLabel] süreci gösterir.
   Future<void> _apply(
     String label,
     Future<List<int>> Function(Uint8List bytes) op,
   ) async {
     final current = _bytes;
     if (current == null || _busy) return;
-    setState(() => _busy = true);
+    setState(() => _busyLabel = '$label…');
     try {
       final out = Uint8List.fromList(await op(current));
       if (!mounted) return;
@@ -108,14 +143,14 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
         _undo.add(current);
         if (_undo.length > 5) _undo.removeAt(0);
         _bytes = out;
-        _selected.clear();
         _dirty = true;
         _rev++;
       });
+      _selection.value = <int>{};
     } catch (e) {
       if (mounted) _snack('$label başarısız: $e');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _busyLabel = '');
     }
   }
 
@@ -128,10 +163,11 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final pages = _selected.isEmpty
         ? List.generate(await _pageCount(), (i) => i)
         : _selected.toList();
+    final pw = _password;
     await _apply(
       'Döndürme',
-      (b) => PdfTools.rotatePages(b,
-          pageIndexes: pages, quarterTurns: 1, password: _password),
+      (b) => PdfTools.rotatePagesInBackground(b,
+          pageIndexes: pages, quarterTurns: 1, password: pw),
     );
   }
 
@@ -141,8 +177,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       return;
     }
     final pages = _selected.toList();
+    final pw = _password;
     await _apply('Silme',
-        (b) => PdfTools.deletePages(b, pages, password: _password));
+        (b) => PdfTools.deletePagesInBackground(b, pages, password: pw));
   }
 
   /// Sayfa kopyalayan işlemler vurguları taşıyamaz — kullanıcı bilmeden
@@ -174,9 +211,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Future<void> _extractSelected() async {
     if (_selected.isEmpty || _bytes == null) return;
     final pages = _selected.toList()..sort();
-    setState(() => _busy = true);
+    setState(() => _busyLabel = 'Sayfalar çıkarılıyor…');
     try {
-      final out = await PdfTools.selectPages(_bytes!, pages,
+      final out = await PdfTools.selectPagesInBackground(_bytes!, pages,
           password: _password);
       final name = '${p.basenameWithoutExtension(widget.path)}'
           '_sayfa${pages.length == 1 ? pages.first + 1 : '${pages.length}'}.pdf';
@@ -187,7 +224,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     } catch (e) {
       if (mounted) _snack('Çıkarma başarısız: $e');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _busyLabel = '');
     }
   }
 
@@ -203,9 +240,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     if (to < 0 || to >= total) return;
     if (!await _confirmAnnotationLoss('Sayfa taşıma')) return;
     final order = movePageOrder(total, from, to);
+    final pw = _password;
     await _apply('Taşıma',
-        (b) => PdfTools.selectPages(b, order, password: _password));
-    if (mounted) setState(() => _selected.add(to));
+        (b) => PdfTools.selectPagesInBackground(b, order, password: pw));
+    if (mounted) _selection.value = {to};
   }
 
   Future<void> _mergeOther() async {
@@ -220,27 +258,62 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final others = [
       for (final path in paths) await File(path).readAsBytes(),
     ];
-    await _apply('Birleştirme', (b) => PdfTools.merge([b, ...others]));
+    await _apply(
+        'Birleştirme', (b) => PdfTools.mergeInBackground([b, ...others]));
     if (mounted) _snack('${paths.length} PDF eklendi');
   }
 
   /// Kameradan yeni sayfa(lar) tarayıp belgenin sonuna ekler — kâğıt eki olan
   /// sözleşme/rapor için asıl işe yarayan birleşim.
   Future<void> _scanAndAppend() async {
-    final pages = await DocumentScanner.scanPages();
-    if (pages == null) return;
+    final scanned = await DocumentScanner.scanPages();
+    if (scanned == null || !mounted) return;
+    // Ana tarama akışıyla aynı önizleme: yamuk sayfa belgeye girmeden düzeltilir.
+    final pages = await ScanReviewScreen.open(context, scanned);
+    if (pages == null || pages.isEmpty || !mounted) return;
     if (!await _confirmAnnotationLoss('Tarama ekleme')) return;
     // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada zaten görünür.
     await _apply('Tarama ekleme', (b) async {
-      final scanned = await _conversion.imagesToPdf(pages);
-      return PdfTools.merge([b, scanned]);
+      final doc = await _conversion.imagesToPdf(pages,
+          uniformPage: PdfPageFormat.a4);
+      return PdfTools.mergeInBackground([b, doc]);
     });
   }
 
+  /// Sıkıştırma: **önce onay, sonra arka planda**.
+  ///
+  /// 2026-07-26 kullanıcı bulgusu: "sıkıştır denince donma". Kök neden
+  /// Syncfusion'ın belgeyi ana izlekte baştan yazmasıydı (bkz.
+  /// [PdfTools.compressInBackground]). Ayrıca ne olacağı önceden söylenmiyordu:
+  /// taranmış belgede kazanç küçüktür, kullanıcı bunu beklemeden bilmeli.
   Future<void> _compress() async {
     final before = _bytes!.length;
-    await _apply('Sıkıştırma',
-        (b) => PdfTools.compress(b, password: _password));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Belgeyi sıkıştır'),
+        content: Text(
+          'Belge (${_kb(before)}) baştan yazılarak küçültülecek: veri akışları '
+          'en yüksek oranda sıkıştırılır, eski sürüm artıkları atılır. '
+          'Görüntü kalitesi DEĞİŞMEZ.\n\n'
+          'Bu yüzden taranmış (resim ağırlıklı) belgelerde kazanç küçük olur. '
+          'İşlem büyük belgelerde bir dakikayı bulabilir; arka planda çalışır, '
+          'ilerlemeyi görürsünüz.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sıkıştır')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final pw = _password;
+    await _apply('Sıkıştırılıyor',
+        (b) => PdfTools.compressInBackground(b, password: pw));
     if (!mounted) return;
     final after = _bytes!.length;
     _snack(after < before
@@ -251,10 +324,11 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Future<void> _setPassword() async {
     final pw = await _askPassword('Parola koy', 'Yeni parola');
     if (pw == null || pw.isEmpty) return;
+    final current = _password;
     await _apply(
       'Parola koyma',
-      (b) => PdfTools.setPassword(b,
-          password: pw, currentPassword: _password),
+      (b) => PdfTools.setPasswordInBackground(b,
+          password: pw, currentPassword: current),
     );
     if (mounted) setState(() => _password = pw);
   }
@@ -262,38 +336,28 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Future<void> _removePassword() async {
     final pw = _password;
     if (pw == null) return;
-    await _apply(
-        'Parola kaldırma', (b) => PdfTools.removePassword(b, currentPassword: pw));
+    await _apply('Parola kaldırma',
+        (b) => PdfTools.removePasswordInBackground(b, currentPassword: pw));
     if (mounted) setState(() => _password = null);
   }
 
+  /// Kaydet — **üzerine yaz** ya da **kopyasını kaydet**.
+  ///
+  /// Kopya kaydedilirse ekran o dosyayı düzenlemeye devam etmez: özgün belge
+  /// açık kalır (çağıran görüntüleyici hâlâ onu gösteriyor), kullanıcıya yeni
+  /// dosyanın adı söylenir.
   Future<void> _save() async {
-    if (_bytes == null || !_dirty) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Kaydet'),
-        content: Text('Değişiklikler ${p.basename(widget.path)} dosyasının '
-            'üzerine yazılacak.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Üzerine yaz')),
-        ],
-      ),
+    final bytes = _bytes;
+    if (bytes == null || !_dirty) return;
+    final outcome = await savePdfWithChoice(
+      context,
+      originalPath: widget.path,
+      bytes: bytes,
     );
-    if (ok != true) return;
-    try {
-      await File(widget.path).writeAsBytes(_bytes!, flush: true);
-      if (!mounted) return;
-      setState(() => _dirty = false);
-      _snack('Kaydedildi');
-    } catch (e) {
-      _snack('Kaydedilemedi: $e');
-    }
+    if (outcome == null || !mounted) return;
+    // Kopya kaydedildiyse ekrandaki belge hâlâ özgün dosya: "kaydedilmemiş
+    // değişiklik" durumu sürüyor demektir.
+    setState(() => _dirty = !outcome.overwritten);
   }
 
   Future<void> _share() async {
@@ -307,10 +371,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     if (_undo.isEmpty) return;
     setState(() {
       _bytes = _undo.removeLast();
-      _selected.clear();
       _dirty = true;
       _rev++;
     });
+    _selection.value = <int>{};
   }
 
   // ── Yardımcılar ───────────────────────────────────────────────────────────
@@ -436,9 +500,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : Stack(
                     children: [
+                      // 0. çocuk DAİMA ızgara: `_busy` değişince çocuk listesi
+                      // uzunluğu değişse bile ızgaranın elemanı yerinde kalır.
                       _pageGrid(bytes),
-                      if (_busy)
-                        const LinearProgressIndicator(minHeight: 3),
+                      if (_busy) _busyOverlay(),
                     ],
                   ),
         bottomNavigationBar: bytes == null ? null : _actionBar(),
@@ -446,102 +511,153 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     );
   }
 
-  Widget _pageGrid(Uint8List bytes) {
-    return PdfDocumentViewBuilder(
-      // sourceName revizyonu taşır: düzenleme sonrası önizleme tazelensin.
-      documentRef: PdfDocumentRefData(
-        bytes,
-        sourceName: '${widget.path}#$_rev',
-        passwordProvider: _password == null ? null : () async => _password,
-      ),
-      builder: (context, document) {
-        if (document == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final count = document.pages.length;
-        return GridView.builder(
-          padding: const EdgeInsets.all(12),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 160,
-            childAspectRatio: 0.7,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: count,
-          itemBuilder: (context, i) => _pageTile(document, i),
-        );
-      },
-    );
-  }
-
-  Widget _pageTile(PdfDocument document, int index) {
-    final scheme = Theme.of(context).colorScheme;
-    final selected = _selected.contains(index);
-    return InkWell(
-      onTap: () => setState(() {
-        if (!_selected.remove(index)) _selected.add(index);
-      }),
-      child: Column(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: selected ? scheme.primary : scheme.outlineVariant,
-                  width: selected ? 3 : 1,
-                ),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                fit: StackFit.expand,
+  /// Süren iş perdesi: ne olduğunu yazar ve dokunuşları yutar (işlem sürerken
+  /// ikinci bir işlem başlatmak belgeyi tutarsız bırakırdı).
+  Widget _busyOverlay() {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withOpacity(0.35),
+        child: Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  PdfPageView(
-                    document: document,
-                    pageNumber: index + 1,
-                    // Küçük resim: 300 DPI gereksiz bellek yer.
-                    maximumDpi: 96,
-                    decoration: const BoxDecoration(color: Colors.white),
-                  ),
-                  if (selected)
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(Icons.check_circle,
-                            color: scheme.primary, size: 22),
-                      ),
-                    ),
+                  const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5)),
+                  const SizedBox(width: 16),
+                  Text(_busyLabel),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text('${index + 1}', style: Theme.of(context).textTheme.labelMedium),
-        ],
+        ),
+      ),
+    );
+  }
+
+  /// Sayfa ızgarası. **Aynı revizyonda AYNI widget örneği** döner — bkz.
+  /// [_selection] açıklaması (yeniden render + başa atma hatasının çözümü).
+  Widget _pageGrid(Uint8List bytes) {
+    if (_gridCache == null || _gridCacheRev != _rev) {
+      _gridCacheRev = _rev;
+      final password = _password;
+      _gridCache = PdfDocumentViewBuilder(
+        // sourceName revizyonu taşır: düzenleme sonrası önizleme tazelensin.
+        documentRef: PdfDocumentRefData(
+          bytes,
+          sourceName: '${widget.path}#$_rev',
+          passwordProvider: password == null ? null : () async => password,
+        ),
+        builder: (context, document) {
+          if (document == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final count = document.pages.length;
+          return GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 160,
+              childAspectRatio: 0.7,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: count,
+            itemBuilder: (context, i) => _pageTile(document, i),
+          );
+        },
+      );
+    }
+    return _gridCache!;
+  }
+
+  Widget _pageTile(PdfDocument document, int index) {
+    return ValueListenableBuilder<Set<int>>(
+      valueListenable: _selection,
+      builder: (context, selection, child) {
+        final scheme = Theme.of(context).colorScheme;
+        final selected = selection.contains(index);
+        return InkWell(
+          onTap: () {
+            final next = Set<int>.from(_selection.value);
+            if (!next.remove(index)) next.add(index);
+            _selection.value = next;
+          },
+          child: Column(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: selected ? scheme.primary : scheme.outlineVariant,
+                      width: selected ? 3 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // child: seçim değişince YENİDEN KURULMAZ — küçük resmin
+                      // pdfium render'ı seçim dokunuşunda tekrarlanmasın.
+                      child!,
+                      if (selected)
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(Icons.check_circle,
+                                color: scheme.primary, size: 22),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text('${index + 1}',
+                  style: Theme.of(context).textTheme.labelMedium),
+            ],
+          ),
+        );
+      },
+      child: PdfPageView(
+        document: document,
+        pageNumber: index + 1,
+        // Küçük resim: 300 DPI gereksiz bellek yer.
+        maximumDpi: 96,
+        decoration: const BoxDecoration(color: Colors.white),
       ),
     );
   }
 
   Widget _actionBar() {
-    final has = _selected.isNotEmpty;
-    final single = _selected.length == 1;
-    return BottomAppBar(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _barButton(Icons.rotate_right, has ? 'Döndür' : 'Tümünü döndür',
-              _busy ? null : _rotate),
-          _barButton(Icons.delete_outline, 'Sil',
-              has && !_busy ? _deleteSelected : null),
-          _barButton(Icons.call_split, 'Çıkar',
-              has && !_busy ? _extractSelected : null),
-          _barButton(Icons.arrow_upward, 'Öne',
-              single && !_busy ? () => _move(-1) : null),
-          _barButton(Icons.arrow_downward, 'Arkaya',
-              single && !_busy ? () => _move(1) : null),
-        ],
-      ),
+    return ValueListenableBuilder<Set<int>>(
+      valueListenable: _selection,
+      builder: (context, selection, _) {
+        final has = selection.isNotEmpty;
+        final single = selection.length == 1;
+        return BottomAppBar(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _barButton(Icons.rotate_right, has ? 'Döndür' : 'Tümünü döndür',
+                  _busy ? null : _rotate),
+              _barButton(Icons.delete_outline, 'Sil',
+                  has && !_busy ? _deleteSelected : null),
+              _barButton(Icons.call_split, 'Çıkar',
+                  has && !_busy ? _extractSelected : null),
+              _barButton(Icons.arrow_upward, 'Öne',
+                  single && !_busy ? () => _move(-1) : null),
+              _barButton(Icons.arrow_downward, 'Arkaya',
+                  single && !_busy ? () => _move(1) : null),
+            ],
+          ),
+        );
+      },
     );
   }
 

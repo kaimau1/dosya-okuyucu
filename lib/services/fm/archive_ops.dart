@@ -227,6 +227,11 @@ abstract final class ArchiveOps {
   /// Akış tabanlı `ZipFileEncoder` (tüm arşivi belleğe almaz). **RAR üretmek
   /// mümkün değildir** — RAR sıkıştırıcısı özel mülk ve açık kaynak karşılığı
   /// yok; kullanıcıya .zip (ve istenirse 7z) sunulur.
+  ///
+  /// **İsolate'te koşar** (2026-07-26 "sıkıştır denince donma" bulgusu): deflate
+  /// saf Dart ve CPU-yoğun; ana izlekte koşarsa büyük dosyada uygulama kilitlenir
+  /// ve ilerleme penceresi bile dönmez. Şifreli/7z yolu (`_compressSync`) zaten
+  /// isolate'teydi; parolasız .zip — yani EN SIK kullanılan yol — atlanmıştı.
   static Future<String> zip(
     List<String> paths,
     String destDir, {
@@ -241,23 +246,19 @@ abstract final class ArchiveOps {
             : 'arsiv');
     final target = FileOps.uniquePath(p.join(destDir, '$base.zip'));
 
-    final encoder = legacy.ZipFileEncoder();
-    encoder.create(target);
-    try {
-      var done = 0;
-      for (final path in paths) {
-        onProgress?.call(FmProgress(done, paths.length, p.basename(path)));
-        final dir = Directory(path);
-        if (dir.existsSync()) {
-          await encoder.addDirectory(dir);
-        } else {
-          await encoder.addFile(File(path));
-        }
-        done++;
+    final port = ReceivePort();
+    final sub = port.listen((msg) {
+      if (msg is List && msg.length == 3) {
+        onProgress?.call(FmProgress(msg[0] as int, msg[1] as int, '${msg[2]}'));
       }
-      onProgress?.call(FmProgress(done, paths.length, ''));
+    });
+    final sendPort = port.sendPort;
+    try {
+      _unwrap(await Isolate.run(
+          () => _guard(() => _zipSync(paths, target, sendPort))));
     } finally {
-      await encoder.close();
+      await sub.cancel();
+      port.close();
     }
     FsEvents.changed();
     return target;
@@ -404,6 +405,36 @@ enum CompressFormat {
   /// Daha yüksek sıkıştırma; parola verilirse AES-256-CBC + istenirse
   /// dosya adlarını da gizleyen şifreli başlık.
   sevenZip,
+}
+
+/// Parolasız .zip yazma — isolate içinde koşar (bkz. [ArchiveOps.zip]).
+///
+/// `FsEvents.changed()` burada ÇAĞRILMAZ: olay veri yolu ana isolate'te yaşar,
+/// buradan tetiklense kimse duymazdı. Çağıran taraf iş bitince tetikliyor.
+Future<String> _zipSync(
+  List<String> paths,
+  String target,
+  SendPort? progress,
+) async {
+  final encoder = legacy.ZipFileEncoder();
+  encoder.create(target);
+  try {
+    var done = 0;
+    for (final path in paths) {
+      progress?.send([done, paths.length, p.basename(path)]);
+      final dir = Directory(path);
+      if (dir.existsSync()) {
+        await encoder.addDirectory(dir);
+      } else {
+        await encoder.addFile(File(path));
+      }
+      done++;
+    }
+    progress?.send([done, paths.length, '']);
+  } finally {
+    await encoder.close();
+  }
+  return target;
 }
 
 /// Arşiv yazma (şifreli ya da 7z). Saf Dart LZMA/AES CPU-yoğun olduğu için

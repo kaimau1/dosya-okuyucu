@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../services/pdf_tools.dart';
+import '../widgets/pdf_save_dialog.dart';
 import '../widgets/signature_pad.dart';
 
 /// **PDF imzalama** — imzayı sayfa üzerinde sürükleyip boyutlandır, bas.
@@ -81,11 +81,19 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
         strokes: sig.strokes,
         rect: rect,
       );
-      await File(widget.path).writeAsBytes(Uint8List.fromList(out), flush: true);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('İmza belgeye eklendi')));
-      Navigator.of(context).pop(true);
+      setState(() => _busy = false);
+      // İmza atmak geri alınamaz bir yazma: özgün belgeyi korumak isteyene
+      // kopya/klasör seçme yolu açık (2026-07-26 isteği).
+      final outcome = await savePdfWithChoice(
+        context,
+        originalPath: widget.path,
+        bytes: out,
+        note: 'İmza belgeye kalıcı olarak basılacak.',
+      );
+      if (outcome == null || !mounted) return;
+      // Yalnız üzerine yazıldıysa açık görüntüleyici tazelenmeli.
+      Navigator.of(context).pop(outcome.overwritten);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
