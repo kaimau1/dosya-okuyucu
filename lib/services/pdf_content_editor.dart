@@ -32,7 +32,7 @@ class PdfContentEditor {
   ///
   /// Başarılıysa yeni PDF baytlarını döndürür. Yapılamıyorsa açıklamalı bir
   /// [PdfEditRefused] atar — çağıran kullanıcıya yedek yolu önerebilir.
-  static Future<List<int>> replaceText(
+  static Future<PdfEditResult> replaceText(
     List<int> bytes, {
     required int pageIndex,
     required String oldText,
@@ -60,8 +60,12 @@ class PdfContentEditor {
     }
 
     // Sayfanın kendi font tabloları: yeni metin belgenin ÖZGÜN yazı tipiyle
-    // yazılsın diye (bkz. PdfFontEncoding).
-    final fontEncodings = file.fontEncodings(file.pages[pageIndex]);
+    // yazılsın diye (bkz. PdfFontEncoding), genişlikleri de satırın kalanını
+    // yeniden hizalayabilmek için (bkz. PdfFontMetrics).
+    final page = file.pages[pageIndex];
+    final fontEncodings = file.fontEncodings(page);
+    final fontMetrics = file.fontMetrics(page);
+    final mediaBox = file.mediaBox(page);
 
     // Metin birden çok içerik akışına bölünmüş olabilir; her birini ayrı dener.
     PdfEditRefused? lastRefusal;
@@ -82,6 +86,8 @@ class PdfContentEditor {
           newText,
           precedingText: precedingText,
           fontEncodings: fontEncodings,
+          fontMetrics: fontMetrics,
+          mediaBox: mediaBox,
         );
       } on PdfReplaceException catch (e) {
         lastRefusal = PdfEditRefused(e.message);
@@ -99,7 +105,11 @@ class PdfContentEditor {
 
       final out = file.writeUpdatedStream(stream, replacement.content);
       _verify(out, bytes, pageIndex);
-      return out;
+      return PdfEditResult(
+        bytes: out,
+        reflowed: replacement.reflowed,
+        overflows: replacement.overflows,
+      );
     }
 
     throw lastRefusal ??
@@ -165,7 +175,7 @@ class PdfContentEditor {
   static String _squash(String s) => s.replaceAll(RegExp(r'\s+'), '');
 
   /// Arka plan isolate'inde — büyük belgede ayrıştırma ana izleği kilitlemesin.
-  static Future<List<int>> replaceTextInBackground(
+  static Future<PdfEditResult> replaceTextInBackground(
     List<int> bytes, {
     required int pageIndex,
     required String oldText,
@@ -187,6 +197,24 @@ class PdfContentEditor {
       }
     });
   }
+}
+
+/// Yerinde düzenlemenin sonucu: yeni belge + kullanıcıya söylenmesi gerekenler.
+class PdfEditResult {
+  /// Yeni PDF baytları.
+  final List<int> bytes;
+
+  /// Satırın kalanı yeni metne göre kaydırıldı mı (Word'deki gibi hizalama)?
+  final bool reflowed;
+
+  /// Satır sayfanın metin alanının dışına taşıyor mu? (Uyarı; işlem yapıldı.)
+  final bool overflows;
+
+  const PdfEditResult({
+    required this.bytes,
+    this.reflowed = false,
+    this.overflows = false,
+  });
 }
 
 /// Yerinde düzenleme yapılamadı — mesaj doğrudan kullanıcıya gösterilebilir.

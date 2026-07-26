@@ -55,12 +55,12 @@ void main() {
     test('metin gerçekten değişir; eski metin belgede KALMAZ', () async {
       final src = await makeDoc(['Toplanti saati 14:00 olarak belirlendi']);
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         src,
         pageIndex: 0,
         oldText: '14:00',
         newText: '16:30',
-      );
+      )).bytes;
 
       expect(textOf(out, 0), contains('16:30'));
       expect(textOf(out, 0), isNot(contains('14:00')),
@@ -72,12 +72,12 @@ void main() {
         () async {
       final src = await makeDoc(['Birinci sayfa', 'Ikinci sayfa', 'Ucuncu sayfa']);
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         src,
         pageIndex: 1,
         oldText: 'Ikinci',
         newText: 'DEGISTI',
-      );
+      )).bytes;
 
       expect(textOf(out, 1), contains('DEGISTI'));
       expect(textOf(out, 0), 'Birinci sayfa');
@@ -88,12 +88,12 @@ void main() {
     test('özgün baytlar korunur — değişiklik dosyanın SONUNA eklenir', () async {
       final src = await makeDoc(['Eski metin burada']);
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         src,
         pageIndex: 0,
         oldText: 'Eski',
         newText: 'Yeni',
-      );
+      )).bytes;
 
       expect(out.length, greaterThan(src.length));
       expect(out.sublist(0, src.length), src,
@@ -104,12 +104,12 @@ void main() {
     test('daha uzun metin yazılabilir', () async {
       final src = await makeDoc(['Kisa metin']);
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         src,
         pageIndex: 0,
         oldText: 'Kisa',
         newText: 'Belirgin bicimde daha uzun',
-      );
+      )).bytes;
 
       expect(textOf(out, 0), contains('Belirgin bicimde daha uzun'));
     });
@@ -117,12 +117,12 @@ void main() {
     test('metin silinebilir (bos ile degistirme)', () async {
       final src = await makeDoc(['Silinecek kelime kalsin']);
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         src,
         pageIndex: 0,
         oldText: 'Silinecek ',
         newText: '',
-      );
+      )).bytes;
 
       final text = textOf(out, 0);
       expect(text, contains('kalsin'));
@@ -133,12 +133,12 @@ void main() {
       final src = await makeDoc(['Sikistirmasiz belge'],
           compression: PdfCompressionLevel.none);
 
-      final out = await PdfContentEditor.replaceText(
+      final out = (await PdfContentEditor.replaceText(
         src,
         pageIndex: 0,
         oldText: 'Sikistirmasiz',
         newText: 'Duzenlendi',
-      );
+      )).bytes;
 
       expect(textOf(out, 0), contains('Duzenlendi'));
     });
@@ -147,10 +147,10 @@ void main() {
         () async {
       final src = await makeDoc(['Bir iki uc']);
 
-      final first = await PdfContentEditor.replaceText(src,
-          pageIndex: 0, oldText: 'Bir', newText: 'BIR');
-      final second = await PdfContentEditor.replaceText(first,
-          pageIndex: 0, oldText: 'uc', newText: 'UC');
+      final first = (await PdfContentEditor.replaceText(src,
+          pageIndex: 0, oldText: 'Bir', newText: 'BIR')).bytes;
+      final second = (await PdfContentEditor.replaceText(first,
+          pageIndex: 0, oldText: 'uc', newText: 'UC')).bytes;
 
       final text = textOf(second, 0);
       expect(text, contains('BIR'));
@@ -160,12 +160,12 @@ void main() {
     test('arka plan sürümü de çalışır (isolate yolu)', () async {
       final src = await makeDoc(['Arka plan denemesi']);
 
-      final out = await PdfContentEditor.replaceTextInBackground(
+      final out = (await PdfContentEditor.replaceTextInBackground(
         src,
         pageIndex: 0,
         oldText: 'denemesi',
         newText: 'calisiyor',
-      );
+      )).bytes;
 
       expect(textOf(out, 0), contains('calisiyor'));
     });
