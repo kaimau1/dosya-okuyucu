@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -60,17 +59,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   // Görüntüleme durumu (okuma konforu).
   int _pdfPage = 1;
 
-  /// Belgenin sayfa sayısı. **Canlı tutulmak ZORUNDA** — bkz. [_watchPageCount].
+  /// Belgenin sayfa sayısı (`onViewerReady`'de okunur).
   int _pdfCount = 0;
-
-  /// Sayfa listesi büyüdükçe haber veren abonelik (aşamalı yükleme).
-  StreamSubscription<PdfDocumentEvent>? _pdfPagesSub;
-
-  /// Sayfalar yüklenmeyi bitirdikten sonra metni çıkarmak için geciktirici.
-  Timer? _pdfTextTimer;
-
-  /// [_pdfText] kaç sayfadan çıkarıldı? (Aşamalı yüklemede yarış önleyici.)
-  int _pdfTextPages = 0;
 
   /// Sayfa sayısının **o anki** değeri: belge elimizdeyse doğrudan ondan
   /// okunur, yoksa son bilinen sayaç. Bir olay ıskalansa bile "sayfaya git"
@@ -203,8 +193,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     _pdfEditCtl?.dispose();
-    _pdfPagesSub?.cancel();
-    _pdfTextTimer?.cancel();
     _restoreOriginal();
     super.dispose();
   }
@@ -230,7 +218,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
     setState(() {
       _pdfDirty = true;
       _pdfText = '';
-      _pdfTextPages = 0;
     });
     await _reloadPdf();
   }
@@ -265,7 +252,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
     setState(() {
       _pdfDirty = false;
       _pdfText = '';
-      _pdfTextPages = 0;
     });
     await _reloadPdf();
   }
@@ -624,52 +610,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
-  /// Sayfa sayısını **canlı** tutar ve son sayfa da yüklenince metni çıkarır.
-  ///
-  /// KÖK NEDEN (2026-07-26 kullanıcı bulgusu: *"sayfaya git ne yazarsam
-  /// yazayım 1 sayfa ilerliyor, nerede olduğum anlaşılmıyor"*): pdfrx
-  /// **aşamalı yükleme** yapıyor (`useProgressiveLoading` varsayılanı true).
-  /// Belge açıldığı an `document.pages` içinde YALNIZCA 1 sayfa var; gerisi
-  /// arka planda ekleniyor ve liste yeniden kuruluyor. Sayfa sayısını
-  /// `onViewerReady` anında bir kez okuyup saklamak, sayacı 1-2 gibi rastgele
-  /// küçük bir değerde donduruyordu. Sonucu:
-  /// * alt rozet "5 / 1" gibi anlamsız bir şey gösteriyordu (kullanıcı nerede
-  ///   olduğunu anlayamıyor),
-  /// * "Sayfaya git" hedefi `clamp(1, sayaç)` ile eziliyordu — kaç yazarsanız
-  ///   yazın belge birkaç sayfa ötesine gidemiyordu,
-  /// * AI/çeviri bağlamı için metin YALNIZ ilk sayfadan çıkarılıyordu.
-  ///
-  /// Bu yüzden sayaç artık belgenin olay akışından güncelleniyor. Metin
-  /// çıkarma da son sayfa olayından ~800 ms sonraya bırakılıyor: yükleme
-  /// sürerken her olayda baştan taramanın anlamı yok.
-  void _watchPageCount(PdfDocument document) {
-    void refresh() {
-      if (!mounted) return;
-      final count = document.pages.length;
-      if (count != _pdfCount) setState(() => _pdfCount = count);
-    }
-
-    refresh();
-    _pdfPagesSub?.cancel();
-    _pdfPagesSub = document.events.listen((_) {
-      refresh();
-      _pdfTextTimer?.cancel();
-      _pdfTextTimer = Timer(const Duration(milliseconds: 800),
-          () => _extractPdfText(document));
-    });
-    // Tek sayfalık belgede hiç olay gelmeyebilir; metni yine de çıkar.
-    _extractPdfText(document);
-  }
-
   /// PDF sayfalarının metnini arka planda çıkarır (AI sohbet bağlamı için).
   /// Taranmış/metinsiz PDF'te sessizce boş kalır — görüntüleme etkilenmez.
   ///
-  /// [_pdfTextPages] kaç sayfanın tarandığını tutar: aşamalı yükleme yüzünden
-  /// bu iş birden çok kez çalışıyor ve ÖNCE başlayan (az sayfalı) tarama SONRA
-  /// bitip tam taramanın üstüne yazabilirdi.
   Future<void> _extractPdfText(PdfDocument document) async {
-    final pageCount = document.pages.length;
-    if (_pdfText.isNotEmpty && pageCount <= _pdfTextPages) return;
+    if (_pdfText.isNotEmpty) return;
     try {
       final sb = StringBuffer();
       for (final page in document.pages) {
@@ -680,10 +625,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         if (full.trim().isNotEmpty) sb.writeln(full);
         if (sb.length > 100000) break; // AI bağlamı için fazlası gereksiz
       }
-      if (pageCount >= _pdfTextPages) {
-        _pdfText = sb.toString().trim();
-        _pdfTextPages = pageCount;
-      }
+      _pdfText = sb.toString().trim();
     } catch (_) {}
   }
 
@@ -1135,10 +1077,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (!await _confirmLeavePending() || !mounted) return;
     final saved = await PdfToolsScreen.open(context, path: widget.doc.path);
     if (saved == true && mounted) {
-      setState(() {
-        _pdfText = '';
-        _pdfTextPages = 0;
-      });
+      setState(() => _pdfText = '');
       await _reloadPdf();
     }
   }
@@ -1154,10 +1093,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // referansı hemen bırakıyoruz ki OCR/içindekiler ölü belgeye dokunmasın.
     // Yenisi `onViewerReady` ile geri gelir.
     _pdfDoc = null;
-    // Abonelik eski belgeye aitti; yenisi onViewerReady'de kurulur.
-    _pdfPagesSub?.cancel();
-    _pdfPagesSub = null;
-    _pdfTextTimer?.cancel();
     _pdfSearcher?.resetTextSearch(); // eşleşmeler eski belgeye aitti
     await PdfReload.reloadFile(widget.doc.path);
     if (mounted) setState(() {});
@@ -1174,10 +1109,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       sourceText: _documentText,
     );
     if (overwritten == true && mounted) {
-      setState(() {
-        _pdfText = '';
-        _pdfTextPages = 0;
-      });
+      setState(() => _pdfText = '');
       await _reloadPdf();
     }
   }
@@ -1707,7 +1639,48 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
     controller.dispose();
     if (page == null) return;
-    await _pdfController.goToPage(pageNumber: page.clamp(1, count));
+    await _goToPdfPage(page.clamp(1, count), count);
+  }
+
+  /// pdfrx'in o an bildirdiği sayfa (bağlı değilse null).
+  int? _livePdfPage() {
+    try {
+      return _pdfController.isReady ? _pdfController.pageNumber : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sayfaya gitmeyi **doğrulayarak** yapar ve sonucu söyler.
+  ///
+  /// Niye tek `goToPage` yetmiyor (2026-07-26 kullanıcı bulgusu: *"ne yazarsam
+  /// yazayım sadece 1 sayfa ilerliyor"*): pdfrx hedefe 200 ms'lik bir
+  /// animasyonla gidiyor ve bu sırada gelen her yeniden yerleşim
+  /// (`_updateLayout` → düzen değiştiyse `_goToPage(o anki sayfa)`) atlayışı
+  /// yarıda kesip bulunulan yere geri çekebiliyor. Sayfa boyutları belge
+  /// açıldıktan sonra da yükleniyor, yani bu tam da "aç, hemen sayfaya git"
+  /// anında oluyor. Bu yüzden varış NOKTASI ölçülüyor ve tutmazsa yeniden
+  /// deneniyor.
+  ///
+  /// Sonuç her hâlükârda kullanıcıya söyleniyor: başarılıysa nereye gidildiği,
+  /// başarısızsa nerede kalındığı. Sessizce yanlış yerde bırakmak, kullanıcının
+  /// "çalışmıyor" deyip nedenini bilememesi demekti.
+  Future<void> _goToPdfPage(int target, int total) async {
+    int? landed;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await _pdfController.goToPage(pageNumber: target);
+      await Future<void>.delayed(const Duration(milliseconds: 240));
+      if (!mounted) return;
+      landed = _livePdfPage() ?? _pdfPage;
+      if (landed == target) break;
+    }
+    if (!mounted) return;
+    if (landed == target) {
+      _snack('$target. sayfa (toplam $total)');
+    } else {
+      _snack('$target. sayfaya gidilemedi; $landed. sayfada kalındı '
+          '(toplam $total).');
+    }
   }
 
   /// Kaydırma çubuğunun topuzu: üstünde güncel sayfa numarası.
@@ -1811,7 +1784,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   ),
                   onViewerReady: (document, controller) {
                     _pdfDoc = document;
-                    _watchPageCount(document);
+                    if (mounted) {
+                      setState(() => _pdfCount = document.pages.length);
+                    }
+                    _extractPdfText(document);
                   },
                   onPageChanged: (page) {
                     if (mounted && page != null) {

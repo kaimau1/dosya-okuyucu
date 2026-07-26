@@ -2750,3 +2750,44 @@ Sayfa sayısına dayanan her şey (sınır kısma, rozet, metin çıkarma, OCR, 
 düzeni) canlı okunmalı.
 
 **Doğrulama:** `flutter analyze` 0 hata, **568 test yeşil**.
+
+## 2026-07-26 (13. tur) — 12. TURUN TANISI YANLIŞTI (düzeltme) + "sayfaya git" doğrulamalı
+
+### DÜZELTME: 12. turdaki "aşamalı yükleme sayfa sayısını bozuyor" iddiası YANLIŞ
+Build 139 (o düzeltmeyi içeriyordu) kullanıcıda **hiçbir şeyi değiştirmedi**.
+Kaynağı yeniden okuyunca iddianın yanlış olduğu görüldü:
+`_loadPagesInLimitedTime`, yüklenen sayfalardan sonra listeyi
+`results.totalPageCount`'a kadar **`isLoaded: false` taslak sayfalarla
+dolduruyor** (satır ~497). Yani `document.pages.length` daha ilk açılışta TAM
+sayfa sayısıdır; `loadPagesProgressively` yalnız sayfa BOYUTLARINI yüklüyor.
+`_pdfCount` hiçbir zaman yanlış değildi.
+→ 12. turun `_watchPageCount` aboneliği, geciktirici ve `_pdfTextPages` yarış
+koruması **geri alındı** (yanlış öncüle dayanıyorlardı; 9. turun dersi:
+görüntüleyicinin etrafına gereksiz hareketli parça koyma). `_pageCount`
+getter'ı ve bulunabilirlik iyileştirmeleri kaldı — onlar bağımsız olarak
+doğruydu.
+
+### Gerçek kalan sorun ve alınan yol
+"Sayfaya git" hedefe gitmiyor, birkaç sayfa ötesinde kalıyor. En akla yatkın
+mekanizma: pdfrx hedefe 200 ms'lik **animasyonla** gidiyor; bu sırada gelen
+her yeniden yerleşim `_updateLayout`'ta
+`if (isLayoutChanged || isViewSizeChanged) → _goToPage(o anki sayfa)`
+tetikliyor ve atlayışı yarıda kesip geri çekiyor. Sayfa boyutları belge
+açıldıktan sonra yüklendiği için düzen tam da "aç, hemen sayfaya git" anında
+değişiyor.
+
+Ama bu da **kanıtlanmış değil** — bu turda üst üste üç yanlış tanı yapıldı.
+Bu yüzden mekanizmayı tahmin etmek yerine SONUÇ ölçülüyor: `_goToPdfPage`
+hedefe gidiyor, 240 ms sonra `PdfViewerController.pageNumber` ile varışı
+**doğruluyor**, tutmazsa en çok 3 kez yeniden deniyor ve sonucu kullanıcıya
+söylüyor ("8. sayfa (toplam 9)" / "8. sayfaya gidilemedi; 3. sayfada
+kalındı"). Böylece hem sorun büyük olasılıkla kapanıyor hem de kapanmazsa
+kullanıcının gördüğü mesaj kök nedeni tek başına ayırt ettiriyor.
+
+**DERS:** Üç kez üst üste yanlış kök neden ilan edildi (jest arenası → belge
+yolu → aşamalı yükleme). Ortak kusur: **doğrulanamayan bir mekanizma
+hikâyesine dayanıp düzeltme göndermek.** Cihazda ölçemediğimiz bir davranış
+için doğru yol, tahmini değil SONUCU ölçen (ve ölçümü kullanıcıya gösteren)
+kod yazmak.
+
+**Doğrulama:** `flutter analyze` 0 hata, **568 test yeşil**.
