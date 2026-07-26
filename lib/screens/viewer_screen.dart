@@ -87,33 +87,29 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// ekranın altında; ikisi de aynı denetleyiciyi okusun diye burada.
   TextEditingController? _pdfEditCtl;
 
-  /// **Kaydedilmemiş düzenlemelerin tutulduğu çalışma kopyası** (geçici dosya).
+  /// **Özgün baytların yedeği** — düzenleme sürerken tutulan geçici dosya.
   ///
   /// Kullanıcı isteği (2026-07-26): *"canlı metin düzenlerken her seferinde
   /// kaydet diye sormasın; en sonda kaydetmek istenirse nasıl kaydedileceği
   /// sorulsun ve kopyası kaydedilsin, çıkarken de kaydetmek ister misiniz diye
   /// sorulsun."*
   ///
-  /// Bu yüzden düzenlemeler ÖZGÜN dosyaya yazılmıyor: geçici bir kopyaya
-  /// yazılıp o gösteriliyor. Özgün belge kullanıcı açıkça "üzerine yaz"
-  /// diyene kadar bayt bayt olduğu gibi kalıyor; uygulama çökse bile bozulmaz.
-  /// null = bekleyen değişiklik yok, özgün dosya gösteriliyor.
-  String? _pdfWorkPath;
+  /// **Niye dosyanın kendisi düzenleniyor da ayrı bir çalışma kopyası
+  /// gösterilmiyor (2026-07-26, 9. tur):** önce düzenlemeler geçici bir
+  /// kopyaya yazılıp görüntüleyici O YOLA çevriliyordu. Yol değişimi pdfrx
+  /// için belgenin baştan yüklenmesi demek (belgeleri statik bir haritada
+  /// YOLA göre tutuyor) ve kullanıcıda "sayfa geçemiyorum, zoom yapamıyorum"
+  /// diye biten kararsızlığa yol açtı. Şimdi görüntüleyici DAİMA aynı yolu
+  /// gösteriyor; tazeleme, 5. turdan beri sorunsuz çalışan [PdfReload] ile
+  /// yapılıyor. Özgün baytlar bu yedekte duruyor ve kullanıcı "üzerine yaz"
+  /// demedikçe ekrandan çıkarken geri yazılıyor.
+  String? _pdfBackupPath;
 
-  /// Çalışma kopyasında kaydedilmemiş değişiklik var mı?
+  /// Kaydedilmemiş değişiklik var mı?
   bool _pdfDirty = false;
 
-  /// Görüntülenen PDF: bekleyen değişiklik varsa çalışma kopyası.
-  String get _pdfPath => _pdfWorkPath ?? widget.doc.path;
-
-  /// Çalışma kopyasına geçilmeden hemen önceki yakınlaştırma oranı.
-  ///
-  /// Niye: yol değişimi pdfrx için GERÇEK bir yeniden yükleme demek ve
-  /// yeniden yüklemede yakınlaştırma "sayfayı kapla"ya sıfırlanıyor. Kullanıcı
-  /// yakınlaştırıp bir kelimeyi düzeltince sayfa birden uzaklaşıyor, bu da
-  /// "sayfa kaydı / kararsızlaştı" hissi veriyordu. Oranı saklayıp
-  /// `calculateInitialZoom` ile geri veriyoruz.
-  double? _pdfZoom;
+  /// Kullanıcı "üzerine yaz" dedi mi? (Dedi ise yedek geri yüklenmez.)
+  bool _pdfKeepEdits = false;
 
   /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
   int _highlightColor = _highlightColors.first;
@@ -187,71 +183,74 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     _pdfEditCtl?.dispose();
-    _deleteWorkCopy();
+    _restoreOriginal();
     super.dispose();
   }
 
   // ── Bekleyen (kaydedilmemiş) PDF düzenlemeleri ────────────────────────────
 
-  /// Yeni belge baytlarını çalışma kopyasına yazar ve görüntüyü tazeler.
+  /// Yeni belge baytlarını dosyaya yazar ve görüntüyü tazeler.
   ///
-  /// İlk yazışta geçici dosya oluşur ve görüntüleyici oraya geçer (pdfrx
-  /// belgeleri YOLA göre önbelleklediği için yol değişimi gerçek bir yeniden
-  /// yükleme demektir; `initialPageNumber` sayesinde kullanıcı aynı sayfada
-  /// açılır). Sonraki yazışlarda aynı yol kalır, [PdfReload] ile tazelenir —
-  /// kullanıcı yerinden kıpırdamaz.
+  /// İlk yazıştan ÖNCE özgün baytlar bir yedeğe kopyalanır; kullanıcı
+  /// "üzerine yaz" demeden çıkarsa ekran kapanırken o yedek geri yazılır.
+  /// Görüntüleyicinin gördüğü yol hiç değişmez — tazeleme [PdfReload] ile,
+  /// yani kullanıcı sayfasında ve ölçeğinde kalır.
   Future<void> _writePending(List<int> bytes) async {
-    final existing = _pdfWorkPath;
-    if (existing != null) {
-      await File(existing).writeAsBytes(bytes, flush: true);
-      if (!mounted) return;
-      setState(() {
-        _pdfDirty = true;
-        _pdfText = '';
-      });
-      await _reloadPdf();
-      return;
+    if (_pdfBackupPath == null) {
+      final dir = await Directory.systemTemp.createTemp('dosya_okuyucu_edit');
+      final backup = p.join(dir.path, p.basename(widget.doc.path));
+      await File(backup)
+          .writeAsBytes(await File(widget.doc.path).readAsBytes(), flush: true);
+      _pdfBackupPath = backup;
     }
-    // İlk geçiş: yakınlaştırmayı sakla ki yeniden yüklemeden sonra kullanıcı
-    // aynı ölçekte kalsın (yoksa sayfa birden uzaklaşıyordu).
-    try {
-      _pdfZoom = _pdfController.currentZoom;
-    } catch (_) {
-      // Görüntüleyici henüz bağlı değil — varsayılan ölçek kullanılır.
-    }
-    // Ad özgün dosyanın adıyla aynı: kaydetme/paylaşma pencereleri geçici
-    // dosyanın anlamsız adını değil belgenin adını gösterir.
-    final dir = await Directory.systemTemp.createTemp('dosya_okuyucu_edit');
-    final path = p.join(dir.path, p.basename(widget.doc.path));
-    await File(path).writeAsBytes(bytes, flush: true);
+    await File(widget.doc.path).writeAsBytes(bytes, flush: true);
     if (!mounted) return;
     setState(() {
-      _pdfWorkPath = path;
       _pdfDirty = true;
       _pdfText = '';
     });
+    await _reloadPdf();
   }
 
-  void _deleteWorkCopy() {
-    final path = _pdfWorkPath;
-    if (path == null) return;
-    _pdfWorkPath = null;
+  /// Yedeği geri yazar (kullanıcı "üzerine yaz" demediyse) ve yedeği siler.
+  ///
+  /// `dispose` içinden de çağrıldığı için eşzamanlı (sync) dosya işlemi:
+  /// ekran kapanırken bekleyecek bir `await` yok.
+  void _restoreOriginal() {
+    final backup = _pdfBackupPath;
+    if (backup == null) return;
+    _pdfBackupPath = null;
     try {
-      final file = File(path);
+      final file = File(backup);
+      if (!_pdfKeepEdits && file.existsSync()) {
+        File(widget.doc.path).writeAsBytesSync(file.readAsBytesSync(),
+            flush: true);
+      }
       if (file.existsSync()) file.deleteSync();
       final dir = file.parent;
       if (dir.existsSync() && dir.listSync().isEmpty) dir.deleteSync();
     } catch (_) {
-      // Geçici dosya silinemedi — işletim sistemi zaten temizler.
+      // Yedek geri yazılamadı — dosya kilitli olabilir; kullanıcıya
+      // gösterilecek bir şey yok, belge zaten ekranda göründüğü gibi.
     }
+  }
+
+  /// Düzenlemeleri atar: özgün baytları geri yazar ve görüntüyü tazeler.
+  Future<void> _discardPending() async {
+    _restoreOriginal();
+    if (!mounted) return;
+    setState(() {
+      _pdfDirty = false;
+      _pdfText = '';
+    });
+    await _reloadPdf();
   }
 
   /// Bekleyen değişiklikleri kaydeder (nasıl kaydedileceğini SORARAK).
   /// Kaydedildiyse true, vazgeçildiyse false döner.
   Future<bool> _savePendingPdf() async {
-    final work = _pdfWorkPath;
-    if (work == null || !_pdfDirty) return true;
-    final bytes = await File(work).readAsBytes();
+    if (!_pdfDirty) return true;
+    final bytes = await File(widget.doc.path).readAsBytes();
     if (!mounted) return false;
     final outcome = await savePdfWithChoice(
       context,
@@ -260,6 +259,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       note: 'Yaptığınız düzenlemeler bu belgeye işlendi.',
     );
     if (outcome == null) return false;
+    // "Üzerine yaz" ise dosya zaten güncel — yedek atılır. Kopya/klasör
+    // seçildiyse özgün belge ekrandan çıkarken eski hâline döndürülür.
+    if (outcome.overwritten) _pdfKeepEdits = true;
     if (mounted) setState(() => _pdfDirty = false);
     return true;
   }
@@ -274,7 +276,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
         title: const Text('Kaydedilmemiş düzenleme var'),
         content: const Text(
           'Belgede yaptığınız değişiklikler henüz kaydedilmedi. '
-          'Kaydetmek ister misiniz?',
+          'Kaydetmek ister misiniz?\n\n'
+          '"Kaydetme" derseniz belge düzenlemeden önceki hâline döner.',
         ),
         actions: [
           TextButton(
@@ -291,8 +294,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
     if (choice == 'save') return _savePendingPdf();
     if (choice == 'discard') {
-      // Özgün dosyaya hiç dokunulmamıştı; çalışma kopyasını atmak yeter.
-      if (mounted) setState(() => _pdfDirty = false);
+      await _discardPending();
       return true;
     }
     return false;
@@ -582,12 +584,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Paylaş / yazdır: PDF'te GÖRÜLEN hâli gönderilir — bekleyen düzenlemeler
   /// çalışma kopyasındadır, özgün dosya henüz eski hâlindedir.
   Future<void> _share() async {
-    await Share.shareXFiles([XFile(_isPdf ? _pdfPath : widget.doc.path)]);
+    await Share.shareXFiles([XFile(widget.doc.path)]);
   }
 
   Future<void> _print() async {
     if (widget.doc.kind == DocKind.pdf) {
-      final bytes = await _fileService.readBytes(_pdfPath);
+      final bytes = await _fileService.readBytes(widget.doc.path);
       await Printing.layoutPdf(onLayout: (_) async => bytes);
     } else {
       final bytes = await _conversion.textToPdf(
@@ -1072,7 +1074,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Yenisi `onViewerReady` ile geri gelir.
     _pdfDoc = null;
     _pdfSearcher?.resetTextSearch(); // eşleşmeler eski belgeye aitti
-    await PdfReload.reloadFile(_pdfPath);
+    await PdfReload.reloadFile(widget.doc.path);
     if (mounted) setState(() {});
   }
 
@@ -1326,7 +1328,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     try {
       final applied = await PdfEditFlow.apply(
         context,
-        path: _pdfPath,
+        path: widget.doc.path,
         pageIndex: edit.page - 1,
         // PdfRect → düz sayı listesi: servis katmanı pdfrx'i tanımıyor ve bu
         // biçim isolate sınırından sorunsuz geçiyor.
@@ -1361,7 +1363,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final page = _pdfSelPage;
     if (rects.isEmpty || page < 1) return;
     try {
-      final bytes = await _fileService.readBytes(_pdfPath);
+      final bytes = await _fileService.readBytes(widget.doc.path);
       final out = await PdfAnnotator.addHighlight(
         bytes: bytes,
         pageIndex: page - 1,
@@ -1664,14 +1666,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
               // açıkken `panEnabled: false` yapıyordu ve kullanıcı sayfayı
               // kaydıramıyor/yakınlaştıramıyordu; bkz. HAFIZA 2026-07-26.)
               //
-              // Dosya yolu: bekleyen (kaydedilmemiş) düzenleme varsa çalışma
-              // kopyası gösterilir — özgün belgeye dokunulmaz.
+              // Dosya yolu HİÇ DEĞİŞMEZ (2026-07-26, 9. tur): düzenlemeler
+              // dosyanın kendisine yazılıp [PdfReload] ile tazeleniyor. Yolu
+              // geçici bir çalışma kopyasına çevirmek pdfrx'e belgeyi baştan
+              // yükletiyor ve görüntüleyiciyi kararsızlaştırıyordu ("sayfa
+              // geçemiyorum, zoom yapamıyorum"). Özgün baytlar yedekte duruyor.
               //
               // Gece modu: sayfa görüntüsü renk matrisiyle terslenir. Dosyaya
               // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
               child: _nightFilter(
                 child: PdfViewer.file(
-                _pdfPath,
+                doc.path,
                 controller: _pdfController,
                 initialPageNumber: _pdfPage,
                 params: PdfViewerParams(
@@ -1680,11 +1685,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                   // düzeni kullanılır — gereksiz yere devralmıyoruz.
                   layoutPages: _pdfColumns == 1 ? null : _layoutPdfColumns,
-                  // Çalışma kopyasına geçerken saklanan ölçek geri verilir;
-                  // ilk açılışta null olduğu için pdfrx'in kendi "sayfayı
-                  // kapla" ölçeği kullanılır.
-                  calculateInitialZoom: (_, __, ___, coverScale) =>
-                      _pdfZoom ?? coverScale,
                   // Arama eşleşmelerini sayfada vurgula (Faz 1).
                   pagePaintCallbacks: [
                     if (_pdfSearcher != null)
