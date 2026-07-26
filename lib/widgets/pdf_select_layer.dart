@@ -17,10 +17,18 @@ import 'package:pdfrx/pdfrx.dart';
 /// ekran koordinatına çevrilir; uzun basış kelimeyi seçer, uçlardaki tutamaçlar
 /// seçimi büyütür/küçültür, seçilen metin [onSelected] ile üst katmana bildirilir.
 ///
-/// **KÖK NEDEN — katman neden hiç `GestureDetector` kullanmıyor
-/// (2026-07-26, 10. tur).** Kullanıcının bu turların EN BAŞINDA bildirdiği
-/// *"sayfayı kaydıramıyorum, zoom yapamıyorum"* hatası, sanılanın aksine üst
-/// çubuktaki seçim modundan değil, bu katmanın kendisinden geliyordu:
+/// **ASIL KÖK NEDEN — `CustomPaint` bütün dokunuşları yutuyordu
+/// (2026-07-26, 11. tur).** Kullanıcının bu turların EN BAŞINDAN beri
+/// bildirdiği *"sayfayı kaydıramıyorum, zoom yapamıyorum"* hatasının sebebi
+/// buydu; ayrıntı ve mekanizma [_SelectionPainter.hitTest] açıklamasında.
+/// Özeti: `painter:` verilen bir `CustomPaint`, `hitTest` geçersiz kılınmazsa
+/// kapladığı alandaki her dokunuşu yutar; bu katmanın boyayıcısı da sayfanın
+/// TAMAMINI kaplıyordu, dolayısıyla pdfrx'in `InteractiveViewer`'ı işaretçiyi
+/// hiç görmüyordu. Kenardaki kaydırma çubuğunun çalışmaya devam etmesi de
+/// bunun kanıtıydı (o ayrı bir katman).
+///
+/// **İKİNCİ neden — katman neden hiç `GestureDetector` kullanmıyor
+/// (10. tur).** Yutma sorunu olmasaydı bile şu tuzak duruyordu:
 ///
 /// Katman sayfanın üstünde durduğu için `GestureDetector`'ın
 /// `LongPressGestureRecognizer`'ı HER dokunuşta jest arenasına giriyordu.
@@ -473,6 +481,30 @@ class _SelectionPainter extends CustomPainter {
     }
     canvas.drawPath(path, Paint()..color = color);
   }
+
+  /// **Bu boyayıcı dokunuşu YUTMAZ.** Silinmesi/atlanması yasak.
+  ///
+  /// KÖK NEDEN (2026-07-26, 11. tur — kullanıcı: *"sadece kenardaki çubuktan
+  /// kayıyor, dokunarak olmuyor, zoom hiç yok"*): Flutter'da arka plan
+  /// boyayıcısı için
+  /// `RenderCustomPaint.hitTestSelf => _painter != null && (_painter!.hitTest(p) ?? true)`
+  /// yazar. `CustomPainter.hitTest` varsayılan olarak **null** döner, `?? true`
+  /// yüzünden sonuç **true** olur: yani `painter:` verilmiş her `CustomPaint`,
+  /// kapladığı alandaki bütün dokunuşları sessizce yutar.
+  ///
+  /// Bu katmanın `CustomPaint`'i sayfanın TAMAMINI kaplıyor. Sarmalayıcıya
+  /// `HitTestBehavior.translucent` vermek hiçbir şeyi değiştirmiyordu, çünkü
+  /// translucent yalnız "çocuk vurmazsa yine de kaydol" demek — çocuk
+  /// (CustomPaint) vuruyordu. Sonuç: pdfrx'in `InteractiveViewer`'ı, Stack'in
+  /// en altında olduğu için işaretçiyi HİÇ görmüyordu. Kaydırma ve
+  /// yakınlaştırma bu yüzden tümüyle ölüydü; kenardaki kaydırma çubuğu ise
+  /// ayrı bir katman olduğu için çalışmaya devam ediyordu — kullanıcının
+  /// tarifiyle birebir aynı.
+  ///
+  /// (`foregroundPainter` tarafında `?? false` yazıyor; tuzak yalnız arka plan
+  /// boyayıcısında.)
+  @override
+  bool hitTest(Offset position) => false;
 
   @override
   bool shouldRepaint(_SelectionPainter old) =>

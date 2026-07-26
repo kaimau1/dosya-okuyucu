@@ -18,13 +18,32 @@ import 'package:flutter_test/flutter_test.dart';
 /// Bu yüzden koruma kaynak düzeyinde: sayfayı kaplayan alanda uzun basış
 /// tanıyıcısı KURULMAMALI.
 void main() {
+  String codeOf(String path) => File(path)
+      .readAsStringSync()
+      .split('\n')
+      // Yorumları ele: açıklama metinlerinde aranan adlar geçiyor.
+      .where((line) =>
+          !line.trimLeft().startsWith('//') && !line.trimLeft().startsWith('///'))
+      .join('\n');
+
+  test('seçim boyayıcısı dokunuşu yutmuyor (hitTest => false)', () {
+    expect(
+      codeOf('lib/widgets/pdf_select_layer.dart')
+          .contains('bool hitTest(Offset position) => false'),
+      isTrue,
+      reason: 'Flutter\'da arka plan boyayıcısı için '
+          'RenderCustomPaint.hitTestSelf, painter.hitTest(p) ?? TRUE yazar; '
+          'CustomPainter.hitTest varsayılanı null olduğu için `painter:` '
+          'verilmiş her CustomPaint kapladığı alandaki dokunuşları YUTAR. '
+          'Bu katmanın boyayıcısı sayfanın tamamını kaplıyor: geçersiz kılma '
+          'kalkarsa pdfrx\'in InteractiveViewer\'ı (Stack\'te en altta) '
+          'işaretçiyi hiç görmez ve kullanıcı sayfayı kaydıramaz / '
+          'yakınlaştıramaz. Sarmalayıcıya translucent vermek YETMEZ.',
+    );
+  });
+
   test('seçim katmanı uzun basış tanıyıcısı kurmuyor', () {
-    final source = File('lib/widgets/pdf_select_layer.dart').readAsStringSync();
-    // Yorumları ele: açıklama metninde "onLongPress" geçebilir.
-    final code = source
-        .split('\n')
-        .where((line) => !line.trimLeft().startsWith('//'))
-        .join('\n');
+    final code = codeOf('lib/widgets/pdf_select_layer.dart');
 
     expect(
       code.contains('onLongPress'),

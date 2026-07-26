@@ -2644,3 +2644,58 @@ Bu katmana bir daha `GestureDetector` konmayacak. Ayrıca: kullanıcıya
 yanlış tanıyı tek cümlede bitirdi — önce bunu sormalıydım.
 
 **Doğrulama:** `flutter analyze` 0 hata, **567 test yeşil** (+1).
+
+## 2026-07-26 (11. tur) — ASIL KÖK NEDEN BULUNDU: `CustomPaint` bütün dokunuşları yutuyordu
+
+Kullanıcının tanıyı bitiren cümlesi: *"sadece kenardaki çubuktan kayıyor,
+dokunarak olmuyor, zoom hiç yok."*
+
+Bu, "jest arenasında yarışma" değil, **"işaretçi hiç ulaşmıyor"** demek:
+kaydırma çubuğu ayrı bir katman olduğu için çalışıyor, sayfaya dokunmak ise
+hiçbir şey yapmıyor. Yani pdfrx'in `InteractiveViewer`'ı (Stack'in EN ALTINDA)
+işaretçiyi görmüyor — üstündeki bir şey yutuyor.
+
+### KÖK NEDEN — Flutter'ın arka plan boyayıcısı tuzağı
+```dart
+// rendering/custom_paint.dart
+bool hitTestSelf(Offset position) =>
+    _painter != null && (_painter!.hitTest(position) ?? true);   // ?? TRUE
+```
+`CustomPainter.hitTest` varsayılan olarak **null** döner; `?? true` yüzünden
+sonuç **true** olur. Yani **`painter:` verilmiş her `CustomPaint`, kapladığı
+alandaki bütün dokunuşları sessizce yutar.** (`foregroundPainter` tarafında
+`?? false` yazıyor — tuzak yalnız arka plan boyayıcısında.)
+
+`PdfSelectLayer`'ın `CustomPaint`'i sayfanın TAMAMINI kaplıyor. Sarmalayıcıya
+`HitTestBehavior.translucent` vermek hiçbir şeyi değiştirmiyordu: translucent
+yalnız "çocuk vurmazsa yine de kaydol" demek, çocuk (CustomPaint) vuruyordu.
+Sonuç: kaydırma ve yakınlaştırma **tümüyle** ölüydü — 5. turda katman
+eklendiğinden beri.
+
+**Düzeltme:** `_SelectionPainter.hitTest => false` (tek satır).
+
+### Niye 6 tur boyunca bulunamadı
+- Hata "bazen" değil "hep" olmasına rağmen, ilk ekran görüntüsünde
+  "sürükleyerek seç" modu AÇIK görünüyordu ve bu çok inandırıcı bir suçluydu
+  (`panEnabled: false` + opaque katman). Mod kaldırıldı, hata sürdü.
+- Sonraki turlarda hep **jest arenası** (uzun basış vs. ölçek tanıyıcısı)
+  incelendi. Arena analizi doğruydu ama YANLIŞ KATMANDAYDI: işaretçi zaten
+  arenaya girmeden yutuluyordu.
+- Yalnız `hitTest` sonucuna bakan bir soru sorulmamıştı. Kullanıcının
+  *"kenardaki çubuktan kayıyor ama dokunarak olmuyor"* ayrımı, sorunun
+  "yarışma" değil "ulaşamama" olduğunu tek cümlede söyledi.
+
+**DERS 1:** `CustomPaint(painter: ...)` bir Stack'te BAŞKA bir katmanın
+üstündeyse `hitTest`'i geçersiz kılmadan koyma. Sarmalayıcının
+`HitTestBehavior`'ı bunu kurtarmaz.
+**DERS 2:** Yutma yalnız **kardeş** katmanları kırar; ata (`Scrollable`,
+`Listener` sarmalayıcıları) zaten olayı alır. Bu yüzden `sheet_cell` gibi
+yerlerdeki aynı desen zararsız — orada kaydırıcı ATA konumunda.
+**DERS 3:** "Ne çalışıyor?" sorusu "ne çalışmıyor?" kadar bilgi taşıyor.
+Kaydırma çubuğunun çalışıyor olması, sorunun yerini doğrudan gösterdi.
+
+**Koruma:** `test/pdf_select_layer_gestures_test.dart` artık iki kuralı da
+bekliyor: (a) boyayıcıda `hitTest => false` geçersiz kılması duruyor,
+(b) katmanda uzun basış tanıyıcısı yok. Hata mesajları nedenleri anlatıyor.
+
+**Doğrulama:** `flutter analyze` 0 hata, **568 test yeşil** (+1).
