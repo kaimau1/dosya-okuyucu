@@ -83,6 +83,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Düzenleme kaydediliyor mu (kutunun düğmeleri kilitlensin).
   bool _pdfEditBusy = false;
 
+  /// Yerinde düzenleme kutusunun metni. Kutu sayfanın üzerinde, düğme çubuğu
+  /// ekranın altında; ikisi de aynı denetleyiciyi okusun diye burada.
+  TextEditingController? _pdfEditCtl;
+
   /// **Kaydedilmemiş düzenlemelerin tutulduğu çalışma kopyası** (geçici dosya).
   ///
   /// Kullanıcı isteği (2026-07-26): *"canlı metin düzenlerken her seferinde
@@ -101,6 +105,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Görüntülenen PDF: bekleyen değişiklik varsa çalışma kopyası.
   String get _pdfPath => _pdfWorkPath ?? widget.doc.path;
+
+  /// Çalışma kopyasına geçilmeden hemen önceki yakınlaştırma oranı.
+  ///
+  /// Niye: yol değişimi pdfrx için GERÇEK bir yeniden yükleme demek ve
+  /// yeniden yüklemede yakınlaştırma "sayfayı kapla"ya sıfırlanıyor. Kullanıcı
+  /// yakınlaştırıp bir kelimeyi düzeltince sayfa birden uzaklaşıyor, bu da
+  /// "sayfa kaydı / kararsızlaştı" hissi veriyordu. Oranı saklayıp
+  /// `calculateInitialZoom` ile geri veriyoruz.
+  double? _pdfZoom;
 
   /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
   int _highlightColor = _highlightColors.first;
@@ -173,6 +186,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _textFocus.dispose();
     _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
+    _pdfEditCtl?.dispose();
     _deleteWorkCopy();
     super.dispose();
   }
@@ -197,6 +211,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
       });
       await _reloadPdf();
       return;
+    }
+    // İlk geçiş: yakınlaştırmayı sakla ki yeniden yüklemeden sonra kullanıcı
+    // aynı ölçekte kalsın (yoksa sayfa birden uzaklaşıyordu).
+    try {
+      _pdfZoom = _pdfController.currentZoom;
+    } catch (_) {
+      // Görüntüleyici henüz bağlı değil — varsayılan ölçek kullanılır.
     }
     // Ad özgün dosyanın adıyla aynı: kaydetme/paylaşma pencereleri geçici
     // dosyanın anlamsız adını değil belgenin adını gösterir.
@@ -929,6 +950,64 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  /// Yerinde düzenleme çubuğu: **Vazgeç / AI ile düzelt / Uygula.**
+  ///
+  /// KÖK NEDEN — niye sayfanın üzerinde değil de ekranın altında
+  /// (2026-07-26 kullanıcı bulgusu: *"x, onay, ai işaretlerine tıklanmıyor"*):
+  /// `linkHandlerParams` verilince pdfrx TÜM görüntüyü kaplayan translucent bir
+  /// `GestureDetector` kurar ve bunu sayfa katmanlarının ÜSTÜNE koyar. Hit-test
+  /// yolunda bizden önce geldiği için tap tanıyıcısı arenaya önce girer;
+  /// kimse erken kazanmayınca `GestureArenaManager.sweep()` **ilk üyeyi**
+  /// seçer → sayfa katmanındaki hiçbir düğme ateşlenmez. (Metin kutusu
+  /// çalışıyordu: metin alanı tanıyıcısı arenayı erken kazanır.)
+  ///
+  /// İlk çözüm "düzenleme açıkken köprüyü kapat" idi; ama bu, düzenleme her
+  /// açılıp kapandığında `PdfViewerParams`'ı değiştiriyordu. Çubuk buraya
+  /// alınınca köprü hiç kapanmıyor: burası pdfrx'in TAMAMEN dışında, üstteki
+  /// Stack'te, dolayısıyla dokunuşu doğal olarak ilk o alıyor. Ek fayda:
+  /// çubuk sayfa kenarına taşıp kırpılmıyor ve klavyenin hemen üstünde duruyor.
+  Widget _editBar() {
+    Widget button(IconData icon, String label, VoidCallback? onPressed) =>
+        TextButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon,
+              color: onPressed == null ? Colors.white38 : Colors.white,
+              size: 20),
+          label: Text(label,
+              style: TextStyle(
+                  color: onPressed == null ? Colors.white38 : Colors.white)),
+        );
+
+    return Material(
+      color: Colors.black.withValues(alpha: 0.82),
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            button(Icons.close, 'Vazgeç',
+                _pdfEditBusy ? null : _cancelInlineEdit),
+            button(Icons.auto_fix_high, 'AI',
+                _pdfEditBusy ? null : _rewriteInlineEdit),
+            if (_pdfEditBusy)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                ),
+              )
+            else
+              button(Icons.check, 'Uygula', _submitInlineEdit),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Seçilebilir vurgu rengi noktası; seçili olan beyaz halkalı.
   Widget _colorDot(int argb) {
     final selected = _highlightColor == argb;
@@ -1187,7 +1266,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final page = _pdfSelPage;
     final text = _pdfSelection.trim();
     if (rects.isEmpty || page < 1 || text.isEmpty) return;
+    _pdfEditCtl?.dispose();
     setState(() {
+      // Metin baştan seçili: kullanıcı doğrudan yazmaya başlayabilir
+      // (Word'de bir kelimeye çift tıklamak gibi).
+      _pdfEditCtl = TextEditingController(text: text)
+        ..selection =
+            TextSelection(baseOffset: 0, extentOffset: text.length);
       _pdfEdit = _InlineEdit(
         page: page,
         rects: rects,
@@ -1201,7 +1286,27 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   void _cancelInlineEdit() {
     FocusScope.of(context).unfocus();
-    setState(() => _pdfEdit = null);
+    _pdfEditCtl?.dispose();
+    setState(() {
+      _pdfEdit = null;
+      _pdfEditCtl = null;
+    });
+  }
+
+  /// Alt çubuktaki ✓ (ve klavyenin "bitti" tuşu).
+  void _submitInlineEdit() {
+    final text = _pdfEditCtl?.text ?? '';
+    if (text.trim().isNotEmpty) _applyInlineEdit(text);
+  }
+
+  /// Kutudaki metni AI'a yeniden yazdırır.
+  Future<void> _rewriteInlineEdit() async {
+    final ctl = _pdfEditCtl;
+    if (ctl == null) return;
+    final result = await showAiRewriteSheet(context, ctl.text);
+    if (result != null && result.isNotEmpty && mounted) {
+      setState(() => ctl.text = result);
+    }
   }
 
   /// Kutudaki metni belgeye işler.
@@ -1233,6 +1338,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
         precedingText: edit.preceding,
       );
       if (!mounted) return;
+      if (applied != null) {
+        _pdfEditCtl?.dispose();
+        _pdfEditCtl = null;
+      }
       setState(() {
         _pdfEditBusy = false;
         if (applied != null) _pdfEdit = null;
@@ -1571,6 +1680,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                   // düzeni kullanılır — gereksiz yere devralmıyoruz.
                   layoutPages: _pdfColumns == 1 ? null : _layoutPdfColumns,
+                  // Çalışma kopyasına geçerken saklanan ölçek geri verilir;
+                  // ilk açılışta null olduğu için pdfrx'in kendi "sayfayı
+                  // kapla" ölçeği kullanılır.
+                  calculateInitialZoom: (_, __, ___, coverScale) =>
+                      _pdfZoom ?? coverScale,
                   // Arama eşleşmelerini sayfada vurgula (Faz 1).
                   pagePaintCallbacks: [
                     if (_pdfSearcher != null)
@@ -1589,23 +1703,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     ),
                   ],
                   // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
-                  //
-                  // KÖK NEDEN (2026-07-26 kullanıcı bulgusu: *"x, onay, ai
-                  // işaretlerine tıklanmıyor"*): pdfrx köprü katmanı TÜM
-                  // görüntüyü kaplayan bir `GestureDetector` kurar ve sayfa
-                  // katmanlarının ÜSTÜNDE durur. Arenaya bizden önce girdiği
-                  // için her dokunuşu o kazanıyor, düzenleme kutusunun
-                  // düğmelerine basılamıyordu. Düzenleme açıkken köprüye zaten
-                  // gerek yok — kapatıyoruz.
-                  linkHandlerParams: _pdfEdit != null
-                      ? null
-                      : PdfLinkHandlerParams(
-                          onLinkTap: _onPdfLink,
-                          linkColor: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.15),
-                        ),
+                  linkHandlerParams: PdfLinkHandlerParams(
+                    onLinkTap: _onPdfLink,
+                    linkColor: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.15),
+                  ),
                   onViewerReady: (document, controller) {
                     _pdfDoc = document;
                     if (mounted) {
@@ -1622,17 +1726,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   // içindeki dokunuşları yutar, imleç konumlandırılamazdı.
                   pageOverlaysBuilder: (context, pageRect, page) => [
                     if (_pdfEdit != null &&
-                        _pdfEdit!.page == page.pageNumber)
+                        _pdfEdit!.page == page.pageNumber &&
+                        _pdfEditCtl != null)
                       PdfInlineEditor(
                         page: page,
                         pageSize: pageRect.size,
                         rects: _pdfEdit!.rects,
                         original: _pdfEdit!.original,
+                        controller: _pdfEditCtl!,
                         busy: _pdfEditBusy,
-                        onApply: _applyInlineEdit,
-                        onCancel: _cancelInlineEdit,
-                        onAi: (current) =>
-                            showAiRewriteSheet(context, current),
+                        onSubmit: _submitInlineEdit,
                       )
                     else if (_pdfEdit == null)
                       PdfSelectLayer(
@@ -1654,7 +1757,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 ),
               ),
             ),
-            if (_pdfCount > 0)
+            if (_pdfCount > 0 && _pdfEdit == null)
               Positioned(
                 bottom: 16,
                 left: 0,
@@ -1673,6 +1776,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 left: 8,
                 right: 8,
                 child: Center(child: _selectionBar()),
+              ),
+            if (_pdfEdit != null)
+              Positioned(
+                bottom: 16,
+                left: 8,
+                right: 8,
+                child: Center(child: _editBar()),
               ),
           ],
         );

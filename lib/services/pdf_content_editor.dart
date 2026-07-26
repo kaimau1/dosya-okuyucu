@@ -46,8 +46,9 @@ class PdfContentEditor {
     final file = PdfFile.parse(bytes);
     if (file.isEncrypted) {
       throw const PdfEditRefused(
-        'Belge parolalı/şifreli. Şifreli belgede metin düzenlemek dosyayı '
-        'bozar; önce PDF araçlarından parolayı kaldırın.',
+        'Belge şifre korumalı. Şifreli belgede dize baytları da şifrelidir; '
+        'düz metin varsayarak yazmak dosyayı bozar.',
+        encrypted: true,
       );
     }
 
@@ -191,7 +192,7 @@ class PdfContentEditor {
             precedingText: precedingText);
       } on PdfEditRefused catch (e) {
         // Isolate sınırından geçebilsin diye sade tipe indirgiyoruz.
-        throw PdfEditRefused(e.message);
+        throw PdfEditRefused(e.message, encrypted: e.encrypted);
       } catch (e) {
         throw PdfEditRefused('$e');
       }
@@ -220,7 +221,15 @@ class PdfEditResult {
 /// Yerinde düzenleme yapılamadı — mesaj doğrudan kullanıcıya gösterilebilir.
 class PdfEditRefused implements Exception {
   final String message;
-  const PdfEditRefused(this.message);
+
+  /// Sebep **şifre koruması** mı? Bu durumda çağıran korumayı kaldırıp
+  /// yeniden deneyebilir (bkz. `PdfEditFlow`): belge parola sorulmadan
+  /// açılıyorsa yalnız izin kilidi vardır, kaldırılınca yerinde düzenleme
+  /// tam sadakatle çalışır. Öteki sebepler için böyle bir kurtarma yok.
+  final bool encrypted;
+
+  const PdfEditRefused(this.message, {this.encrypted = false});
+
   @override
   String toString() => message;
 }
