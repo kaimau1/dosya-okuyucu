@@ -58,7 +58,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   // Görüntüleme durumu (okuma konforu).
   int _pdfPage = 1;
+
+  /// Belgenin sayfa sayısı (`onViewerReady`'de okunur).
   int _pdfCount = 0;
+
+  /// Sayfa sayısının **o anki** değeri: belge elimizdeyse doğrudan ondan
+  /// okunur, yoksa son bilinen sayaç. Bir olay ıskalansa bile "sayfaya git"
+  /// yanlış sınırla çalışmasın diye.
+  int get _pageCount {
+    final live = _pdfDoc?.pages.length ?? 0;
+    return live > _pdfCount ? live : _pdfCount;
+  }
 
   /// PDF'ten çıkarılan metin (AI sohbetine bağlam olarak gider). pdfium metin
   /// katmanı sayesinde artık PDF içeriği de AI'a verilebiliyor; sayfa üzerinde
@@ -602,6 +612,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// PDF sayfalarının metnini arka planda çıkarır (AI sohbet bağlamı için).
   /// Taranmış/metinsiz PDF'te sessizce boş kalır — görüntüleme etkilenmez.
+  ///
   Future<void> _extractPdfText(PdfDocument document) async {
     if (_pdfText.isNotEmpty) return;
     try {
@@ -832,6 +843,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'night':
                 setState(() => _pdfNight = !_pdfNight);
                 break;
+              case 'gotopage':
+                _askGoToPage();
+                break;
               case 'speak':
                 _toggleSpeech();
                 break;
@@ -842,6 +856,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
           },
           itemBuilder: (_) => [
             if (doc.kind == DocKind.pdf) ...[
+              // "Sayfaya git" üç yerde birden: burada (etiketli, bulunabilir),
+              // arama çubuğunda ve alttaki sayfa rozetine dokununca. Kullanıcı
+              // 2026-07-26'da yalnız arama çubuğundakini bulamadığını söyledi
+              // ("nerede olduğu anlaşılmıyor, kişiler bulamaz").
+              const PopupMenuItem(
+                  value: 'gotopage', child: Text('Sayfaya git…')),
               PopupMenuItem(
                 value: 'night',
                 child: Text(_pdfNight ? 'Gece modunu kapat' : 'Gece modu'),
@@ -1557,14 +1577,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// okuyordu → 2. sayfa. Şimdi (a) metin seçili açılıyor, (b) "Git" doğrudan
   /// kutudaki sayıyı okuyup sınırlara kısıyor.
   Future<void> _askGoToPage() async {
-    if (_pdfCount <= 0) return;
+    final count = _pageCount;
+    if (count <= 0) return;
     var target = _pdfPage.toDouble();
     final controller = TextEditingController(text: '$_pdfPage')
       ..selection = TextSelection(baseOffset: 0, extentOffset: '$_pdfPage'.length);
 
     int resolve() {
       final typed = int.tryParse(controller.text.trim());
-      return (typed ?? target.round()).clamp(1, _pdfCount);
+      return (typed ?? target.round()).clamp(1, count);
     }
 
     final page = await showDialog<int>(
@@ -1580,22 +1601,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 autofocus: true,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Sayfa numarası (1 – $_pdfCount)',
+                  labelText: 'Sayfa numarası (1 – $count)',
                 ),
                 onChanged: (v) {
                   final n = int.tryParse(v.trim());
                   if (n != null) {
-                    setLocal(() => target = n.clamp(1, _pdfCount).toDouble());
+                    setLocal(() => target = n.clamp(1, count).toDouble());
                   }
                 },
                 onSubmitted: (_) => Navigator.pop(ctx, resolve()),
               ),
-              if (_pdfCount > 1)
+              if (count > 1)
                 Slider(
-                  value: target.clamp(1, _pdfCount.toDouble()),
+                  value: target.clamp(1, count.toDouble()),
                   min: 1,
-                  max: _pdfCount.toDouble(),
-                  divisions: _pdfCount - 1,
+                  max: count.toDouble(),
+                  divisions: count - 1,
                   label: '${target.round()}',
                   onChanged: (v) => setLocal(() {
                     target = v;
@@ -1618,7 +1639,48 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
     controller.dispose();
     if (page == null) return;
-    await _pdfController.goToPage(pageNumber: page.clamp(1, _pdfCount));
+    await _goToPdfPage(page.clamp(1, count), count);
+  }
+
+  /// pdfrx'in o an bildirdiği sayfa (bağlı değilse null).
+  int? _livePdfPage() {
+    try {
+      return _pdfController.isReady ? _pdfController.pageNumber : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sayfaya gitmeyi **doğrulayarak** yapar ve sonucu söyler.
+  ///
+  /// Niye tek `goToPage` yetmiyor (2026-07-26 kullanıcı bulgusu: *"ne yazarsam
+  /// yazayım sadece 1 sayfa ilerliyor"*): pdfrx hedefe 200 ms'lik bir
+  /// animasyonla gidiyor ve bu sırada gelen her yeniden yerleşim
+  /// (`_updateLayout` → düzen değiştiyse `_goToPage(o anki sayfa)`) atlayışı
+  /// yarıda kesip bulunulan yere geri çekebiliyor. Sayfa boyutları belge
+  /// açıldıktan sonra da yükleniyor, yani bu tam da "aç, hemen sayfaya git"
+  /// anında oluyor. Bu yüzden varış NOKTASI ölçülüyor ve tutmazsa yeniden
+  /// deneniyor.
+  ///
+  /// Sonuç her hâlükârda kullanıcıya söyleniyor: başarılıysa nereye gidildiği,
+  /// başarısızsa nerede kalındığı. Sessizce yanlış yerde bırakmak, kullanıcının
+  /// "çalışmıyor" deyip nedenini bilememesi demekti.
+  Future<void> _goToPdfPage(int target, int total) async {
+    int? landed;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await _pdfController.goToPage(pageNumber: target);
+      await Future<void>.delayed(const Duration(milliseconds: 240));
+      if (!mounted) return;
+      landed = _livePdfPage() ?? _pdfPage;
+      if (landed == target) break;
+    }
+    if (!mounted) return;
+    if (landed == target) {
+      _snack('$target. sayfa (toplam $total)');
+    } else {
+      _snack('$target. sayfaya gidilemedi; $landed. sayfada kalındı '
+          '(toplam $total).');
+    }
   }
 
   /// Kaydırma çubuğunun topuzu: üstünde güncel sayfa numarası.
@@ -1639,16 +1701,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
-  /// PDF sayfa numarası rozeti (yarı saydam koyu pill).
+  /// PDF sayfa numarası rozeti — aynı zamanda "sayfaya git" düğmesi.
+  ///
+  /// Simge ve "git" yazısı bilerek duruyor: rozet eskiden düz metindi ve
+  /// kullanıcı dokunulabilir olduğunu anlamıyordu.
   Widget _pageBadge(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(12, 6, 14, 6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
+        color: Colors.black.withValues(alpha: 0.66),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(text,
-          style: const TextStyle(color: Colors.white, fontSize: 13)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.unfold_more, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Text(text,
+              style: const TextStyle(color: Colors.white, fontSize: 13)),
+        ],
+      ),
     );
   }
 
@@ -1757,7 +1829,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 ),
               ),
             ),
-            if (_pdfCount > 0 && _pdfEdit == null)
+            if (_pageCount > 0 && _pdfEdit == null)
               Positioned(
                 bottom: 16,
                 left: 0,
@@ -1766,7 +1838,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   child: InkWell(
                     onTap: _askGoToPage,
                     borderRadius: BorderRadius.circular(20),
-                    child: _pageBadge('$_pdfPage / $_pdfCount  ↕'),
+                    child: _pageBadge('$_pdfPage / $_pageCount — sayfaya git'),
                   ),
                 ),
               ),
