@@ -2699,3 +2699,54 @@ bekliyor: (a) boyayıcıda `hitTest => false` geçersiz kılması duruyor,
 (b) katmanda uzun basış tanıyıcısı yok. Hata mesajları nedenleri anlatıyor.
 
 **Doğrulama:** `flutter analyze` 0 hata, **568 test yeşil** (+1).
+
+## 2026-07-26 (12. tur) — "sayfaya git 1 sayfa ilerliyor": pdfrx AŞAMALI YÜKLEME yapıyor
+
+Kullanıcı: kaydırma/zoom düzeldi (11. tur onaylandı). Yeni bulgu:
+*"sayfaya git doğru çalışmıyor, ne yazarsam yazayım sadece 1 sayfa ilerliyor,
+ve nerede olduğu anlaşılmıyor."*
+
+### KÖK NEDEN — `document.pages` açılışta TAM DEĞİL
+pdfrx 1.3.5'te `PdfViewer.file/asset/uri` hepsi `useProgressiveLoading = true`
+varsayılanıyla geliyor. `_PdfDocumentPdfium.fromPdfDocument`:
+```dart
+final pages = await pdfDoc._loadPagesInLimitedTime(
+  maxPageCountToLoadAdditionally: useProgressiveLoading ? 1 : null);
+pdfDoc._pages = List.unmodifiable(pages.pages);   // → YALNIZCA 1 sayfa
+```
+Gerisi `loadPagesProgressively` ile arka planda ekleniyor ve `_pages` listesi
+her turda YENİDEN kuruluyor; belge `PdfDocumentPageStatusChangedEvent`
+yayımlıyor.
+
+Biz sayfa sayısını `onViewerReady` anında **bir kez** okuyup saklıyorduk.
+Değer, yükleme yarışına göre 1-2 gibi rastgele küçük bir sayıda donuyordu:
+* alt rozet "5 / 1" gibi anlamsız bir şey gösteriyordu → *"nerede olduğu
+  anlaşılmıyor"*,
+* "Sayfaya git" hedefi `clamp(1, sayaç)` ile eziliyordu → kaç yazarsanız yazın
+  belge birkaç sayfa ötesine gitmiyordu,
+* AI/çeviri bağlamı için metin YALNIZ 1. sayfadan çıkarılıyordu (sessiz hata,
+  kullanıcı henüz fark etmemişti).
+
+Bu, oturumun BAŞINDAKİ *"8 yazıyorum 2'ye gidiyor"* bulgusunun da gerçek
+sebebi. 6. turda "kutu seçili açılmıyor, metin 28 oluyor" diye açıklamıştım;
+o da gerçek bir kusurdu ve düzeltildi ama ASIL sebep bu değildi.
+
+### Çözüm
+`_watchPageCount`: `document.events` akışına abone olunuyor, sayfa sayısı
+canlı güncelleniyor. `_pageCount` getter'ı ayrıca belgeden doğrudan okuyor
+(bir olay ıskalansa bile doğru sınır). Metin çıkarma son olaydan 800 ms sonraya
+bırakılıyor; `_pdfTextPages` ile "önce başlayan az sayfalı tarama, sonra biten
+tam taramanın üstüne yazmasın" yarışı da kapatıldı. Abonelik `dispose` ve
+`_reloadPdf`'te iptal ediliyor.
+
+### Bulunabilirlik
+Kullanıcı *"kişiler bulamaz"* dedi: "Sayfaya git" yalnız arama çubuğundaki
+etiketsiz simgedeydi. Artık üç yerde: üç nokta menüsünde (etiketli), arama
+çubuğunda ve alttaki sayfa rozetine dokununca. Rozet de düz metinken
+dokunulabilir görünmüyordu — simge ve "sayfaya git" yazısı eklendi.
+
+**DERS:** pdfrx'te `document.pages` bir ANLIK GÖRÜNTÜ değil, büyüyen bir liste.
+Sayfa sayısına dayanan her şey (sınır kısma, rozet, metin çıkarma, OCR, sütun
+düzeni) canlı okunmalı.
+
+**Doğrulama:** `flutter analyze` 0 hata, **568 test yeşil**.
