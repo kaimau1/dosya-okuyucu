@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:pdfrx/pdfrx.dart';
@@ -14,16 +17,18 @@ import 'package:pdfrx/pdfrx.dart';
 /// ekran koordinatına çevrilir; uzun basış kelimeyi seçer, uçlardaki tutamaçlar
 /// seçimi büyütür/küçültür, seçilen metin [onSelected] ile üst katmana bildirilir.
 ///
-/// **Kullanım biçimi (2026-07-26 sadeleştirmesi).** Eskiden seçim yapabilmek
-/// için üst çubuktan "Metin seç" modunu açmak ZORUNLUYDU; kullanıcı bunu
-/// "kullanışsız" buldu — telefonda metin seçmek uzun basmaktır, mod açmak değil.
-/// Artık:
-/// * Katman DAİMA sayfanın üzerindedir ve **uzun basış** her zaman seçer.
-/// * Seçim yokken katman parmağı yutmaz ([enableDragSelect] false) → sayfa
-///   normal kaydırılır/yakınlaştırılır, köprüler çalışır.
-/// * Seçim varken tek dokunuş seçimi temizler (telefonun yerel davranışı).
-/// * [enableDragSelect] yalnız açık "sürükleyerek seç" modunda true olur; o
-///   modda sayfa kaydırma zaten kapatılır (`panEnabled: false`).
+/// **Kullanım biçimi (2026-07-26 II. sadeleştirmesi).** Önce seçim için üst
+/// çubuktan bir mod açmak ZORUNLUYDU, sonra bu mod isteğe bağlı bırakıldı —
+/// ama açık kaldığında `panEnabled: false` olduğu ve katman parmağı yuttuğu
+/// için kullanıcı **sayfayı kaydıramıyor, yakınlaştıramıyordu**. Mod tümüyle
+/// kaldırıldı; geriye telefonun yerel davranışı kaldı:
+/// * Katman DAİMA sayfanın üzerindedir ve **uzun basış** seçer, basılı tutup
+///   kaydırmak seçimi büyütür.
+/// * Katman parmağı asla yutmaz (translucent) → sayfa normal kaydırılır,
+///   köprüler çalışır.
+/// * **İki parmak inince uzun basış kendini geri çeker** → yakınlaştırma
+///   her zaman çalışır (bkz. [_PageLongPress]).
+/// * Yeni bir dokunuş önceki seçimi temizler.
 class PdfSelectLayer extends StatefulWidget {
   final PdfPage page;
 
@@ -44,16 +49,11 @@ class PdfSelectLayer extends StatefulWidget {
     String precedingText,
   ) onSelected;
 
-  /// Tek parmak sürüklemesi seçim yapsın mı? Yalnız açık seçim modunda true;
-  /// false iken sürükleme sayfayı kaydırır (katman parmağı yutmaz).
-  final bool enableDragSelect;
-
   const PdfSelectLayer({
     super.key,
     required this.page,
     required this.pageSize,
     required this.onSelected,
-    this.enableDragSelect = false,
   });
 
   @override
@@ -65,6 +65,9 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   PdfPageText? _text;
   int? _anchor; // seçim çapası (karakter indeksi, fullText üzerinde)
   int? _extent; // seçim ucu (dahil)
+
+  /// Uzun basış tanıyıcısı — parmak sayısını bilmesi için elimizde tutuluyor.
+  _PageLongPress? _longPress;
 
   @override
   void initState() {
@@ -211,55 +214,60 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final dragSelect = widget.enableDragSelect;
     return Positioned.fill(
       child: Stack(
         key: _overlayKey,
         clipBehavior: Clip.none,
         children: [
-          GestureDetector(
-            // translucent: seçim yokken sayfa kaydırma/köprü dokunuşu üstteki
-            // katmana takılmasın. Sürükleme tanıyıcısı yalnız açık seçim
-            // modunda kuruluyor (aksi hâlde pdfrx'in pan'iyle çekişirdi).
-            behavior: dragSelect
-                ? HitTestBehavior.opaque
-                : HitTestBehavior.translucent,
-            // Seçim varken dokunuş temizler (telefonun yerel davranışı). Seçim
-            // yokken dokunuş tanıyıcısı HİÇ kurulmaz → köprüler çalışmaya devam.
-            onTapDown: _hasSelection ? (_) => _clear() : null,
-            onPanStart: !dragSelect
-                ? null
-                : (d) {
-                    final i = _charIndexAt(d.localPosition);
-                    setState(() {
-                      _anchor = i;
-                      _extent = i;
-                    });
-                  },
-            onPanUpdate: !dragSelect
-                ? null
-                : (d) {
-                    if (_anchor == null) return;
-                    final i = _charIndexAt(d.localPosition, maxDist: 64);
-                    if (i != null && i != _extent) setState(() => _extent = i);
-                  },
-            onPanEnd: !dragSelect ? null : (_) => _report(),
-            onLongPressStart: (d) => _selectWordAt(d.localPosition),
-            onLongPressMoveUpdate: (d) {
-              if (_anchor == null) return;
-              final i = _charIndexAt(d.localPosition, maxDist: 64);
-              if (i != null && i != _extent) setState(() => _extent = i);
+          // Listener parmak sayısını sayar ve önceki seçimi temizler.
+          //
+          // Niye "dokununca temizle" tap yerine pointer'da: pdfrx köprü
+          // katmanı (linkHandlerParams) tüm görüntüyü kaplayan bir tap
+          // tanıyıcısı kurar ve arenaya BİZDEN ÖNCE girdiği için her tap'ı o
+          // kazanır — buradaki `onTap` hiç ateşlenmezdi.
+          Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) {
+              _longPress?.fingerDown();
+              if (_hasSelection) _clear();
             },
-            onLongPressEnd: (_) => _report(),
-            child: CustomPaint(
-              size: widget.pageSize,
-              painter: _SelectionPainter(
-                text: _text,
-                page: widget.page,
-                pageSize: widget.pageSize,
-                start: _selStart,
-                end: _selEnd,
-                color: scheme.primary.withOpacity(0.35),
+            onPointerUp: (_) => _longPress?.fingerUp(),
+            onPointerCancel: (_) => _longPress?.fingerUp(),
+            child: RawGestureDetector(
+              // translucent: katman parmağı yutmaz → sayfa kaydırma /
+              // yakınlaştırma / köprü dokunuşu alttaki pdfrx'e geçer.
+              behavior: HitTestBehavior.translucent,
+              gestures: {
+                _PageLongPress:
+                    GestureRecognizerFactoryWithHandlers<_PageLongPress>(
+                  _PageLongPress.new,
+                  (instance) {
+                    _longPress = instance;
+                    instance
+                      ..onLongPressStart =
+                          ((d) => _selectWordAt(d.localPosition))
+                      ..onLongPressMoveUpdate = ((d) {
+                        if (_anchor == null) return;
+                        final i =
+                            _charIndexAt(d.localPosition, maxDist: 64);
+                        if (i != null && i != _extent) {
+                          setState(() => _extent = i);
+                        }
+                      })
+                      ..onLongPressEnd = ((_) => _report());
+                  },
+                ),
+              },
+              child: CustomPaint(
+                size: widget.pageSize,
+                painter: _SelectionPainter(
+                  text: _text,
+                  page: widget.page,
+                  pageSize: widget.pageSize,
+                  start: _selStart,
+                  end: _selEnd,
+                  color: scheme.primary.withValues(alpha: 0.28),
+                ),
               ),
             ),
           ),
@@ -300,7 +308,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 3),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 3),
                 ],
               ),
             ),
@@ -311,10 +319,44 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   }
 }
 
-/// [text]'in [start]..[end] (dahil) aralığını kaplayan, satır/parça başına bir
-/// `PdfRect` (PDF koordinatı) listesi. Ekran seçim boyaması (`_SelectionPainter`)
-/// ile kalıcı vurgu annotation'ı (`PdfAnnotator`) AYNI geometriyi kullansın diye
-/// ortak. Parça çoğunlukla tek satırdır → aralık kutusu tek dikdörtgen yeter.
+/// İkinci parmak inince arenadaki hakkından **vazgeçen** uzun basış tanıyıcısı.
+///
+/// KÖK NEDEN (2026-07-26 kullanıcı bulgusu: "zoom yapamıyorum"): seçim katmanı
+/// sayfanın üstünde durduğu için her dokunuşta arenaya girer. İki parmakla
+/// yakınlaştırırken kullanıcı parmaklarını yarım saniye kıpırdatmadan tutarsa
+/// uzun basış süresi dolar, tanıyıcı arenayı kazanır ve pdfrx'in ölçek
+/// tanıyıcısı elenir — yakınlaştırma hiç başlamaz. İkinci parmağın inişi
+/// "kullanıcı seçmiyor, yakınlaştırıyor" demektir; hakkı orada bırakıyoruz.
+class _PageLongPress extends LongPressGestureRecognizer {
+  int _fingers = 0;
+
+  void fingerDown() {
+    _fingers++;
+    if (_fingers > 1) resolve(GestureDisposition.rejected);
+  }
+
+  void fingerUp() {
+    if (_fingers > 0) _fingers--;
+  }
+
+  @override
+  void dispose() {
+    _fingers = 0;
+    super.dispose();
+  }
+}
+
+/// [text]'in [start]..[end] (dahil) aralığını kaplayan, **satır başına bir**
+/// `PdfRect` (PDF koordinatı) listesi. Ekran seçim boyaması
+/// (`_SelectionPainter`) ile kalıcı vurgu annotation'ı (`PdfAnnotator`) AYNI
+/// geometriyi kullansın diye ortak.
+///
+/// Aynı satırdaki parçalar BİRLEŞTİRİLİR. Niye (2026-07-26 kullanıcı bulgusu:
+/// "kelime aralarında çıkan koyuluklar göz yoruyor"): PDF üreticileri bir
+/// satırı kelime kelime (hatta harf harf) ayrı parçalara böler; her parça ayrı
+/// yarı saydam dikdörtgen olarak boyanınca kelime aralarındaki örtüşmeler üst
+/// üste binip koyu şeritler yapıyordu. Satır tek dikdörtgen olunca seçim
+/// telefonun yerel seçimi gibi düz ve tek tonlu görünür.
 List<PdfRect> selectionPdfRects(PdfPageText text, int start, int end) {
   final out = <PdfRect>[];
   if (end < start) return out;
@@ -331,6 +373,34 @@ List<PdfRect> selectionPdfRects(PdfPageText text, int start, int end) {
       bounds = f.bounds;
     }
     if (bounds != null) out.add(bounds);
+  }
+  return mergeSameLineRects(out);
+}
+
+/// Dikey olarak örtüşen (aynı satırdaki) dikdörtgenleri tek dikdörtgende
+/// birleştirir. Sıra korunur: ilk satır listenin başında kalır.
+List<PdfRect> mergeSameLineRects(List<PdfRect> rects) {
+  final out = <PdfRect>[];
+  for (final r in rects) {
+    if (r.top <= r.bottom) continue; // bozuk/boş kutu
+    var merged = false;
+    for (var i = 0; i < out.length; i++) {
+      final o = out[i];
+      final overlap = math.min(o.top, r.top) - math.max(o.bottom, r.bottom);
+      final minHeight = math.min(o.top - o.bottom, r.top - r.bottom);
+      // Satır yüksekliğinin yarısından fazlası örtüşüyorsa aynı satırdır.
+      if (minHeight > 0 && overlap > minHeight * 0.5) {
+        out[i] = PdfRect(
+          math.min(o.left, r.left),
+          math.max(o.top, r.top),
+          math.max(o.right, r.right),
+          math.min(o.bottom, r.bottom),
+        );
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) out.add(r);
   }
   return out;
 }
@@ -356,14 +426,16 @@ class _SelectionPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final t = text;
     if (t == null || end < start) return;
-    final paint = Paint()..color = color;
+    // TEK yol olarak çiziyoruz: iki satır kutusu birbirine değse bile yarı
+    // saydam renk üst üste binmez, seçim her yerde aynı tonda kalır.
+    final path = Path();
     for (final bounds in selectionPdfRects(t, start, end)) {
       final r = bounds.toRect(page: page, scaledPageSize: pageSize);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(r.inflate(1.5), const Radius.circular(2)),
-        paint,
+      path.addRRect(
+        RRect.fromRectAndRadius(r.inflate(0.5), const Radius.circular(2)),
       );
     }
+    canvas.drawPath(path, Paint()..color = color);
   }
 
   @override

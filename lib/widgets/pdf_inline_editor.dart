@@ -13,8 +13,13 @@ import 'package:pdfrx/pdfrx.dart';
 /// değiştiği için sonuç "sanki hep öyleymiş gibi" duruyor
 /// (bkz. `PdfContentEditor`).
 ///
-/// Kutu neden opak: altında sayfanın ÇİZİLMİŞ hâli duruyor; saydam bıraksak
-/// eski yazı yenisinin altından okunur, kullanıcı neyi yazdığını göremezdi.
+/// **Punto nasıl bulunuyor (2026-07-26 II. tur).** Önce karakter kutusunun
+/// yüksekliği sabit bir katsayıyla çarpılıyordu; kullanıcı *"yazı fontu boyutu
+/// vs hepsi korunmalı, sanki o yazıya aitmiş gibi olmalı"* dedi çünkü katsayı
+/// belgeden belgeye tutmuyordu (dar/geniş fontlarda gözle görülür kayıyordu).
+/// Şimdi punto **ölçülerek** bulunuyor: özgün metin, seçimin ekrandaki
+/// genişliğini verecek puntoda çiziliyor. Kutunun kendi çerçevesi de kalktı —
+/// yalnız ince bir alt çizgi kaldı, gerisi sayfanın kendi görüntüsü gibi duruyor.
 class PdfInlineEditor extends StatefulWidget {
   const PdfInlineEditor({
     super.key,
@@ -84,12 +89,42 @@ class _PdfInlineEditorState extends State<PdfInlineEditor> {
     return out;
   }
 
-  /// Tek satırın yüksekliği — punto tahmini buradan gelir.
+  /// Tek satırın yüksekliği — punto tahmininin başlangıcı buradan gelir.
   double get _lineHeight {
     if (widget.rects.isEmpty) return 14;
     final first = widget.rects.first
         .toRect(page: widget.page, scaledPageSize: widget.pageSize);
     return first.height <= 0 ? 14 : first.height;
+  }
+
+  /// Özgün metni seçimin ekrandaki GENİŞLİĞİNE oturtan punto.
+  ///
+  /// pdfium'un karakter kutusu yaklaşık yazı bloğu yüksekliğidir; ondan
+  /// hesaplanan punto başlangıç tahminidir. Sonra özgün metin o puntoda
+  /// ölçülür ve genişlik oranıyla düzeltilir — belgenin fontu dar da olsa
+  /// geniş de olsa yazı aynı yeri kaplar, yani "o yazıya aitmiş gibi" durur.
+  ///
+  /// Oran [0.7, 1.4] arasında kısılıyor: seçim tek harf ya da çok boşluklu
+  /// olduğunda ölçüm yanıltıcı olabilir, saçma bir puntoya savrulmayalım.
+  double _fontSizeFor(Rect box) {
+    final base = (_lineHeight * 0.86).clamp(6.0, 120.0);
+    final text = widget.original;
+    if (text.trim().isEmpty || box.width <= 1 || text.contains('\n')) {
+      return base;
+    }
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(fontSize: base, height: 1.0),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    final measured = painter.width;
+    painter.dispose();
+    if (measured <= 1) return base;
+    final ratio = (box.width / measured).clamp(0.7, 1.4);
+    return (base * ratio).clamp(6.0, 120.0);
   }
 
   Future<void> _runAi() async {
@@ -99,20 +134,24 @@ class _PdfInlineEditorState extends State<PdfInlineEditor> {
     }
   }
 
+  void _apply() {
+    final text = _controller.text;
+    if (text.trim().isNotEmpty) widget.onApply(text);
+  }
+
   @override
   Widget build(BuildContext context) {
     final box = _box;
     if (box == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
-    // pdfium'un karakter kutusu yaklaşık yazı bloğu yüksekliğidir; Flutter'da
-    // aynı görsel boyu yakalamak için biraz küçültülür.
-    final fontSize = (_lineHeight * 0.82).clamp(7.0, 96.0);
+    final fontSize = _fontSizeFor(box);
     final multiline = widget.original.contains('\n');
-    final width =
-        (box.width + 10).clamp(60.0, (widget.pageSize.width - box.left + 4));
+    // Birkaç harf sağa yer bırakılır (yeni metin biraz uzun olabilir) ama
+    // fazlası komşu yazıyı beyaza boyardı; gerisi kutunun içinde kayar.
+    final width = (box.width + 14).clamp(48.0, widget.pageSize.width - box.left);
 
     // Araç çubuğu kutunun üstünde; sayfanın tepesindeyse altına alınır.
-    final toolbarAbove = box.top > 46;
+    final toolbarAbove = box.top > 52;
 
     // Positioned.fill: katman sayfanın tamamını kaplar, içindeki konumlar
     // doğrudan sayfa koordinatı olur (PdfSelectLayer ile aynı düzen).
@@ -121,17 +160,21 @@ class _PdfInlineEditorState extends State<PdfInlineEditor> {
         clipBehavior: Clip.none,
         children: [
           Positioned(
-            left: box.left - 5,
-            top: box.top - 3,
+            left: box.left,
+            top: box.top,
             width: width,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+              // Kağıt beyazı ve TAM eski yazının üstünde: altındaki eski yazı
+              // okunmasın, ama çevresinde kutu/çerçeve görünmesin. Gece modunda
+              // sayfayla birlikte terslendiği için uyum bozulmaz.
+              constraints: BoxConstraints(minHeight: box.height),
               decoration: BoxDecoration(
-                // Kağıt beyazı: altındaki eski yazı görünmesin. Gece modunda
-                // sayfayla birlikte terslendiği için uyum bozulmaz.
                 color: Colors.white,
-                border: Border.all(color: scheme.primary, width: 1.5),
-                borderRadius: BorderRadius.circular(3),
+                border: Border(
+                  // Tek görsel işaret: ince alt çizgi. Çerçeve yerine bu,
+                  // çünkü çerçeve "ayrı bir kutu" hissi veriyordu.
+                  bottom: BorderSide(color: scheme.primary, width: 1.2),
+                ),
               ),
               child: TextField(
                 controller: _controller,
@@ -143,27 +186,36 @@ class _PdfInlineEditorState extends State<PdfInlineEditor> {
                     multiline ? TextInputType.multiline : TextInputType.text,
                 textInputAction:
                     multiline ? TextInputAction.newline : TextInputAction.done,
-                onSubmitted: multiline
-                    ? null
-                    : (value) {
-                        if (value.trim().isNotEmpty) widget.onApply(value);
-                      },
+                onSubmitted: multiline ? null : (_) => _apply(),
                 cursorColor: scheme.primary,
+                cursorWidth: 1.4,
                 style: TextStyle(
                   fontSize: fontSize,
-                  height: 1.15,
+                  // height 1.0: satır kutusu puntoyla aynı kalsın, yazı
+                  // özgün satırın üstünde/altında kaymasın.
+                  height: 1.0,
                   color: Colors.black,
                 ),
-                decoration: const InputDecoration.collapsed(hintText: ''),
+                strutStyle: StrutStyle(
+                  fontSize: fontSize,
+                  height: 1.0,
+                  forceStrutHeight: true,
+                ),
+                decoration: const InputDecoration(
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
               ),
             ),
           ),
           Positioned(
-            left: box.left - 5,
-            top: toolbarAbove ? box.top - 45 : box.bottom + 8,
+            left: box.left,
+            top: toolbarAbove ? box.top - 50 : box.bottom + 10,
             child: Material(
-              color: Colors.black.withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.black.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(22),
+              clipBehavior: Clip.antiAlias,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Row(
@@ -181,7 +233,7 @@ class _PdfInlineEditorState extends State<PdfInlineEditor> {
                     ),
                     if (widget.busy)
                       const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        padding: EdgeInsets.symmetric(horizontal: 14),
                         child: SizedBox(
                           width: 18,
                           height: 18,
@@ -193,10 +245,7 @@ class _PdfInlineEditorState extends State<PdfInlineEditor> {
                       _button(
                         icon: Icons.check,
                         tooltip: 'Uygula',
-                        onPressed: () {
-                          final text = _controller.text;
-                          if (text.trim().isNotEmpty) widget.onApply(text);
-                        },
+                        onPressed: _apply,
                       ),
                   ],
                 ),
@@ -216,7 +265,7 @@ class _PdfInlineEditorState extends State<PdfInlineEditor> {
       IconButton(
         tooltip: tooltip,
         visualDensity: VisualDensity.compact,
-        icon: Icon(icon, size: 20, color: Colors.white),
+        icon: Icon(icon, size: 22, color: Colors.white),
         onPressed: onPressed,
       );
 }
