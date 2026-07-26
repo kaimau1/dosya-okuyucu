@@ -2544,3 +2544,51 @@ Geçişten hemen önce `PdfViewerController.currentZoom` saklanıp
 
 **Doğrulama:** `flutter analyze` 0 hata, **566 test yeşil**. Gesture
 davranışı gerçek cihazda doğrulanmalı (arena widget testinde taklit edilemiyor).
+
+## 2026-07-26 (9. tur) — "hiç sayfa geçemiyorum, zoom yapamıyorum": çalışma kopyası yolu geri alındı
+
+Kullanıcı bulgusu (build 131/132): *"şu an hiç sayfa geçemiyorum, zoom
+yapamıyorum, tamamen bozuldu."*
+
+### Tanı yöntemi: koda değil, DİFFE bakmak
+8. turdaki geri almadan sonra `PdfSelectLayer`'ın jest kurulumu, kullanıcının
+sorunsuz kullandığı sürümle (6b475de) **birebir aynıydı** — dolayısıyla suçlu
+seçim katmanı olamazdı. Bilinen iyi sürümle diff alınınca görüntüleyici
+tarafında geriye tek bir gerçek fark kaldı: **6. turda eklenen çalışma kopyası,
+`PdfViewer.file`'a verilen YOLU değiştiriyordu.**
+
+### KÖK NEDEN — yol değişimi pdfrx için "belgeyi baştan yükle" demek
+pdfrx belgeleri statik bir haritada YOLA göre tutar. Yol değişince
+`_widgetUpdated` eski listenable'ın dinleyicisini kaldırıp yenisini
+`load()` ediyor ve `_onDocumentChanged()` hemen çağrılıyor; o an belge henüz
+null olduğu için `_controller` DETACH ediliyor, `_initialized` false yapılıyor
+ve düzen sıfırlanıyor. Ayrıca eski `PdfDocument` dinleyicisi kalmayınca
+dispose edilebiliyor — oysa `_pdfDoc`, açık sayfa görüntüleri ve
+`PdfSelectLayer.loadText()` hâlâ onu kullanıyor. Bu geçiş sırasında bir şey
+ters giderse görüntüleyici bağsız kalıyor: ne kaydırma, ne yakınlaştırma, ne
+sayfa geçişi.
+
+### Çözüm — yol HİÇ değişmesin
+Düzenlemeler artık dosyanın KENDİSİNE yazılıyor ve görüntü 5. turdan beri
+sorunsuz çalışan [PdfReload] ile (aynı yol, `forceReload`) tazeleniyor.
+Özgün baytlar ilk düzenlemeden önce geçici bir **yedeğe** kopyalanıyor;
+kullanıcı "üzerine yaz" demedikçe ekrandan çıkarken yedek geri yazılıyor.
+Kullanıcıya verilen söz aynı kalıyor (her düzeltmede kaydet sorulmuyor,
+çıkarken bir kez soruluyor, kopya olarak kaydedilebiliyor) ama görüntüleyici
+kanıtlanmış yolda kalıyor.
+- Bedeli açıkça kabul edildi: ekran açıkken belge diskte düzenlenmiş hâlde
+  duruyor. Uygulama o sırada öldürülürse yedek geri yazılamaz. Buna karşılık
+  6. turdan ÖNCE vurgulama zaten sorulmadan özgün dosyanın üstüne yazıyordu;
+  yani bu tasarım eski davranıştan daha güvenli, yeni tasarımdan daha sağlam.
+- "Kaydetme" seçeneği artık gerçekten geri alıyor (yedek geri yazılıp görüntü
+  tazeleniyor); pencerede de böyle yazıyor.
+- `calculateInitialZoom` kaldırıldı — yol değişmediği için gerekmiyor.
+
+**DERS (3. kez aynı ders):** bu turda da, geçen turda da bozan şey ürün
+mantığı değil, **pdfrx'in görüntüleyici durumuna dokunan yeni bir hareketli
+parçaydı**. Görüntüleyici tarafında değişiklik yapmadan önce "bilinen iyi
+sürümle diff" alınmalı; jest ve belge kimliği (yol) o diffte görünmemeli.
+
+**Doğrulama:** `flutter analyze` 0 hata, **566 test yeşil**. Bilinen iyi
+sürümle (6b475de) `PdfViewerParams` diffi artık yalnız `panEnabled` satırının
+KALKMASI (varsayılan true) — başka fark yok.
