@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../services/perspective.dart';
 import 'scan_edit_screen.dart';
 
 /// Tarama sonrası **önizleme/düzeltme** ekranı.
@@ -25,9 +26,10 @@ class ScanReviewScreen extends StatefulWidget {
 }
 
 class _ScanReviewScreenState extends State<ScanReviewScreen> {
-  late List<String> _pages = List.of(widget.pages);
+  late final List<String> _pages = List.of(widget.pages);
   final _controller = PageController();
   int _index = 0;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -42,6 +44,31 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     setState(() => _pages[_index] = edited);
     // Aynı yol farklı içerikle gelirse Flutter'ın görsel önbelleği eski kareyi
     // gösterirdi; düzeltme her zaman YENİ dosyaya yazıldığı için sorun yok.
+  }
+
+  /// Geçerli sayfayı 90° saat yönünde çevirir (yeni dosyaya yazılır).
+  Future<void> _rotate() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final current = _pages[_index];
+    try {
+      final image = await decodeImageFile(current);
+      try {
+        final png = await Perspective.rotateToPng(image, 1);
+        final path = await writeTempPng(current, 'donduruldu', png);
+        if (!mounted) return;
+        setState(() => _pages[_index] = path);
+      } finally {
+        image.dispose();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Döndürülemedi: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _removeCurrent() {
@@ -66,9 +93,14 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         title: Text('Sayfa ${_index + 1} / ${_pages.length}'),
         actions: [
           IconButton(
+            tooltip: 'Sayfayı çevir (90°)',
+            icon: const Icon(Icons.rotate_right),
+            onPressed: _busy ? null : _rotate,
+          ),
+          IconButton(
             tooltip: 'Bu sayfayı sil',
             icon: const Icon(Icons.delete_outline),
-            onPressed: _removeCurrent,
+            onPressed: _busy ? null : _removeCurrent,
           ),
         ],
       ),
@@ -112,7 +144,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _editCorners,
+                  onPressed: _busy ? null : _editCorners,
                   icon: const Icon(Icons.crop_free),
                   label: const Text('Köşeleri ayarla'),
                 ),

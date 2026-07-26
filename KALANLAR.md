@@ -173,23 +173,30 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
 - [ ] **Klasör boyutlarını liste içinde göstermek** (şu an yalnız Özellikler'de,
       istek üzerine hesaplanıyor — her satırda hesaplamak pahalı).
 
-## PDF turu sonrası kalanlar (2026-07-26)
-- [ ] **Cihaz doğrulaması bekliyor:** vurgulama (artık görünmeli), uzun basışla
-      metin seçimi, 2/4 sütun düzeni, kaydırma çubuğu, taramada köşe ayarı.
-      Bunların hiçbiri birim testle doğrulanamaz (pdfium render + dokunma).
-- [ ] **AI düzenleme sayfa düzenini korumuyor** (bilinçli — bkz. HAFIZA
-      2026-07-26 §8). "Yerinde metin düzenleme" istenirse gömülü font alt
-      kümesi + satır kırımı yeniden kurma işi; ayrı ve büyük bir faz.
-- [ ] **Vurgu koordinatı sayfa /Rotate=0 varsayıyor** (`PdfAnnotator`).
-      Döndürülmüş sayfada vurgu kayabilir; `stampTransform` benzeri bir köprü
-      gerekir.
-- [ ] **Sıkıştırma hâlâ yalnız akış sıkıştırması** — taranmış PDF'te kazanç
-      küçük. Agresif mod (sayfaları bitmap'e render + JPEG) ayrı seçenek olarak
-      sunulmalı, sessizce yapılmamalı (metin katmanı kaybolur).
-- [ ] **Arka plana alınan iş için kalıcı gösterge yok** — "Arka plana al"
-      dendikten sonra işin sürdüğü yalnız bitince anlaşılıyor; kalıcı bir
-      alt bilgi çubuğu/bildirim iyi olurdu.
-- [ ] **Taramada döndürme yok** — köşe ayarı var ama 90° çevirme yok
-      (ML Kit çoğu zaman doğru yönlendiriyor).
-- [ ] **graphify güncellemesi:** bu turun yeni düğümleri (`pdf_reload`,
-      `pdf_save`, `perspective`, `scan_edit/review`, `pdf_ai_edit`) grafta yok.
+## PDF turu sonrası kalanlar (2026-07-26, 2. tur sonrası güncel)
+- [ ] **Cihaz doğrulaması bekliyor:** vurgulama, uzun basışla metin seçimi,
+      2/4 sütun düzeni, kaydırma çubuğu, taramada köşe ayarı + döndürme,
+      yerinde metin düzenleme. Hiçbiri birim testle doğrulanamaz
+      (pdfium render + dokunma + kamera).
+- [x] ~~Vurgu koordinatı /Rotate=0 varsayıyor~~ → **YANLIŞ ALARM, ölçüldü
+      2026-07-26:** dört açıda da yazılan `/Rect` birebir aynı. İki taraf da ham
+      sayfa uzayında konuşuyor. Uyarı silindi, davranış testle sabitlendi.
+- [x] ~~AI düzenleme sayfa düzenini korumuyor~~ → **YAPILDI:** seçili metni
+      yerinde değiştirme (`PdfTools.replaceText` + `PdfTextReplaceScreen`).
+      Sayfanın geri kalanı korunuyor. Kalan sınır: yazı tipi belgenin kendi
+      fontu değil gömülü Carlito, arka plan düz renk varsayılıyor.
+- [x] ~~Arka plana alınan iş için kalıcı gösterge yok~~ → **YAPILDI:** kalıcı
+      alt şerit (iş adı + sayaç + Durdur), sayfa değişse de kalıyor.
+- [x] ~~Taramada döndürme yok~~ → **YAPILDI:** önizlemede 90° çevirme.
+- [ ] **Agresif sıkıştırma (resme çevirerek) YAPILMADI — yol kapalı.**
+      Cihazda JPEG kodlayıcı yok (`dart:ui` yalnız PNG üretir) ve PNG taranmış
+      sayfada özgün JPEG'den büyük çıkar → "sıkıştır" dosyayı şişirirdi.
+      Gerekirse `image` paketi (yeni bağımlılık, yavaş) veya platform kanalı.
+      Yapılırsa metin katmanı kaybolacağı için AYRI ve açıkça uyaran bir
+      seçenek olmalı, sessizce değil.
+- [ ] **Kırpılmış (CropBox'ı MediaBox'tan kaydırılmış) PDF'te vurgu/yerinde
+      düzenleme koordinatı doğrulanmadı.** Syncfusion kutu ölçüsünü alırken
+      köşe konumunu (c0/c1) atıyor; böyle bir dosya elimizde yok, ölçülemedi.
+- [ ] **graphify güncellemesi:** araç bu ortamda kurulu değil; yeni düğümler
+      (`pdf_reload`, `pdf_save`, `perspective`, `scan_edit/review`,
+      `pdf_ai_edit`, `pdf_text_replace`) grafta eksik.

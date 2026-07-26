@@ -1,9 +1,6 @@
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../services/perspective.dart';
 
@@ -58,16 +55,14 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
 
   Future<void> _load() async {
     try {
-      final bytes = await File(widget.imagePath).readAsBytes();
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
+      final image = await decodeImageFile(widget.imagePath);
       if (!mounted) {
-        frame.image.dispose();
+        image.dispose();
         return;
       }
       setState(() {
-        _image = frame.image;
-        _corners = _fullFrame(frame.image);
+        _image = image;
+        _corners = _fullFrame(image);
       });
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -109,14 +104,9 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
     setState(() => _busy = true);
     try {
       final png = await Perspective.warpToPng(img, _corners);
-      final dir = await getTemporaryDirectory();
-      final name =
-          '${p.basenameWithoutExtension(widget.imagePath)}_duzeltildi_'
-          '${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File(p.join(dir.path, name));
-      await file.writeAsBytes(png, flush: true);
+      final path = await writeTempPng(widget.imagePath, 'duzeltildi', png);
       if (!mounted) return;
-      Navigator.of(context).pop(file.path);
+      Navigator.of(context).pop(path);
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);

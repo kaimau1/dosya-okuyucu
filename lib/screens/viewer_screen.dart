@@ -25,6 +25,7 @@ import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
 import 'pdf_ai_edit_screen.dart';
 import 'pdf_sign_screen.dart';
+import 'pdf_text_replace_screen.dart';
 import 'pdf_tools_screen.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
@@ -776,6 +777,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                         label: const Text('Kopyala',
                             style: TextStyle(color: Colors.white)),
                       ),
+                      // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
+                      // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
+                      TextButton.icon(
+                        onPressed: _replaceSelectedText,
+                        icon: const Icon(Icons.edit_outlined,
+                            color: Colors.white, size: 18),
+                        label: const Text('Düzenle',
+                            style: TextStyle(color: Colors.white)),
+                      ),
                       TextButton.icon(
                         onPressed: () => TranslateFlow.run(
                             context, _pdfSelection,
@@ -1033,6 +1043,36 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _signPdf() async {
     final signed = await PdfSignScreen.open(context, widget.doc.path);
     if (signed == true && mounted) await _reloadPdf();
+  }
+
+  /// Seçili metni **yerinde** değiştirir (elle ya da AI ile). Sayfanın geri
+  /// kalanına dokunulmaz — belgenin tamamını yeniden yazan "AI ile düzenle"den
+  /// farkı budur.
+  Future<void> _replaceSelectedText() async {
+    final rects = _pdfSelRects;
+    final page = _pdfSelPage;
+    final text = _pdfSelection.trim();
+    if (rects.isEmpty || page < 1 || text.isEmpty) return;
+    final overwritten = await PdfTextReplaceScreen.open(
+      context,
+      path: widget.doc.path,
+      pageIndex: page - 1,
+      // PdfRect → düz sayı listesi: servis katmanı pdfrx'i tanımıyor ve bu
+      // biçim isolate sınırından sorunsuz geçiyor.
+      rawRects: [
+        for (final r in rects) [r.left, r.top, r.right, r.bottom],
+      ],
+      originalText: text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _pdfSelection = '';
+      _pdfSelRects = const [];
+    });
+    if (overwritten == true) {
+      setState(() => _pdfText = '');
+      await _reloadPdf();
+    }
   }
 
   Future<void> _highlightPdf() async {

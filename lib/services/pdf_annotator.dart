@@ -3,6 +3,13 @@ import 'dart:ui' show Rect;
 import 'package:pdfrx/pdfrx.dart' show PdfRect;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import 'pdf_tools.dart' show pdfToSyncfusionRect;
+
+// `pdfToSyncfusionRect` artık `pdf_tools.dart`'ta: yerinde metin değiştirme de
+// aynı çeviriyi kullanıyor, geometri yardımcıları orada toplu duruyor.
+// Buradan yeniden dışa aktarılıyor ki mevcut çağıranlar/testler kırılmasın.
+export 'pdf_tools.dart' show pdfToSyncfusionRect;
+
 /// PDF'e **kalıcı vurgu (highlight) annotation** yazan Syncfusion yardımcısı.
 ///
 /// Mimari (bkz. HAFIZA 2026-07-23 Syncfusion kararı): görüntüleme pdfrx/pdfium'da
@@ -62,19 +69,3 @@ class PdfAnnotator {
   }
 }
 
-/// pdfium `PdfRect` (origin **sol-alt**, Y **yukarı** → `top` sayfa-alt'tan ölçülür,
-/// `top > bottom`) → Syncfusion/Flutter `Rect` (origin **sol-üst**, Y **aşağı**).
-///
-/// KOORDİNAT TUZAĞI (bkz. KALANLAR PDF Faz 2): Syncfusion annotation sol-üst köşe
-/// bekler; sayfa üstünden mesafe = `pageHeight - pdfTop`. Genişlik/yükseklik aynı.
-///
-/// ponytail: sayfa /Rotate=0 varsayar (çoğu PDF). Döndürülmüş sayfada pdfium ve
-/// Syncfusion yükseklikleri ayrışabilir → gerekirse rotasyonu ayrıca ele al.
-Rect pdfToSyncfusionRect({
-  required double left,
-  required double pdfTop,
-  required double width,
-  required double height,
-  required double pageHeight,
-}) =>
-    Rect.fromLTWH(left, pageHeight - pdfTop, width, height);

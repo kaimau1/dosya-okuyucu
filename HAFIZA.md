@@ -2043,3 +2043,75 @@ yok mu diye bakıyor (çökmediği için "çalışıyor" sanılabilirdi).
 
 **Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) indirilip
 `analyze` (0 error) + `flutter test` (459 test, hepsi yeşil) koşturuldu.
+
+---
+
+## 2026-07-26 (2. tur) — kalan maddeler: yerinde metin düzenleme, döndürme, kalıcı şerit
+
+Birinci turun KALANLAR listesi kapatıldı. İki madde **bilinçli olarak açık
+bırakıldı** (gerekçeleri aşağıda) — gerisi bitti.
+
+### 1) "Vurgu /Rotate=0 varsayıyor" — YANLIŞ ALARM, ölçüldü
+Kodda "döndürülmüş sayfada vurgu kayabilir" diye bir uyarı taşınıyordu. Dört
+açının dördünde de yazılan `/Rect` **birebir aynı** çıkıyor. Sebep: iki taraf da
+HAM (döndürülmemiş) sayfa uzayında konuşuyor — pdfium'un `charRects`'i ham
+koordinat verir (`PdfRect.toRect` döndürmeyi kendisi uygular), Syncfusion'ın
+yüklü sayfadaki `PdfPage.size`'ı ise ham CropBox/MediaBox ölçüsüdür (kaynak
+okundu: `pdf_page.dart` yalnız kutu genişlik/yüksekliğini hesaplıyor).
+Uyarı silindi, davranış `pdf_annotator_test` ile SABİTLENDİ (Syncfusion bir gün
+`/Rotate`'i `size`'a yansıtırsa test kırmızıya döner ve bize haber verir).
+**Ders:** "olabilir" diye taşınan şüpheyi ya ölç ya sil; kodda duran yanlış
+uyarı, gerçek bir hatayı ararken yanlış yere baktırıyor.
+
+### 2) Yerinde metin düzenleme — AI düzenlemenin düzeni koruyan hâli
+`PdfTools.replaceText` + `PdfTextReplaceScreen`: seçili satırların üstü düz
+renkle kapatılıp yerine yeni metin yazılıyor. Sayfanın geri kalanı (tablo, logo,
+sütun, diğer paragraflar) **hiç dokunulmadan** kalıyor. Metin elle ya da
+Gemini'yle düzenlenebiliyor. Giriş: PDF seçim çubuğundaki "Düzenle".
+`PdfAiEditScreen` (tüm belgeyi yeniden yazan, düzeni kaybeden yol) duruyor —
+ikisi farklı işler, ekranlarda hangisinin ne yaptığı yazılı.
+
+**TUZAK (ölçüldü, sessiz veri kaybı) — `drawString`'e DAR bir `bounds`
+verilirse Syncfusion HİÇBİR ŞEY çizmez, hata da atmaz.** Kutu yüksekliği
+satır yüksekliğine tam eşit/az geldiğinde çıktıda ne yazı ne font kalıyor
+(ölçüm: `out=1087 bayt, /FontFile2 yok, Tm operatörü 0`). Kullanıcı için bu
+"düzenledim, yazım kayboldu" demek. Çözüm: `bounds` yüksekliği **0** (sınırsız)
+veriliyor — sarma genişliğe göre yapılıyor, sığmayan metin kaybolmak yerine
+biraz taşıyor. Ayrıca `fitFontSize` toleransı (eski `+0.5pt`) kaldırıldı;
+tam sınırdaki metin bu bollukla kabul edilip sonra çizim aşamasında yok
+oluyordu.
+
+**TUZAK (test yöntemi) — `PdfTextExtractor` yüklü sayfaya SONRADAN eklenen
+içerik akışını okumuyor.** İlk testler bu yüzden "yazı eklenmemiş" diyordu;
+oysa PDF'in içinde duruyordu (sıkıştırılmamış çıktıda `(YENI)'` operatörü
+görüldü). Testler artık içerik akışlarını `ZLibDecoder` ile açıp operatörlere
+bakıyor. **Ders:** bir doğrulama aracının sessizce eksik davranması, kodu
+"bozuk" göstermeye yeter — aracı da doğrula.
+
+**Bilinçli sınırlar (ekranda da yazılı):** yazı tipi belgenin kendi fontu değil
+gömülü Carlito (PDF fontları genelde yalnız kullanılan harfleri içeren alt küme
+olarak gömülür, yeni harf için glif yok); arka plan düz renk varsayılıyor.
+
+### 3) Taramada döndürme + ortak yardımcılar
+`Perspective.rotateToPng` (kanvasla 90° adımlar) ve tarama önizlemesinde çevirme
+düğmesi. Görsel açma/geçici PNG yazma iki ekranda kopyalanmıştı → `decodeImageFile`
+ve `writeTempPng` olarak `perspective.dart`'a alındı.
+Çizim yolu artık **piksel düzeyinde** test ediliyor (`perspective_render_test`):
+sol yarısı kırmızı/sağ yarısı mavi bir görsel warp/rotate edilip çıktının doğru
+pikselleri okunuyor. Matematik testleri "boş görüntü" hatasını yakalayamazdı.
+
+### 4) Arka plana alınan iş için kalıcı şerit
+"Arka plana al" dendiğinde ekranın altında **kalıcı** bir ilerleme şeridi kalıyor
+(süresi 1 gün, iş bitince elle kaldırılıyor) — üzerinde iş adı, "3/128" sayacı ve
+"Durdur". Messenger MaterialApp seviyesinde olduğu için kullanıcı başka sayfaya
+geçse de şerit görünür kalıyor.
+
+### AÇIK BIRAKILANLAR (gerekçeli)
+- **Agresif sıkıştırma (sayfaları resme çevirip küçültme) YAPILMADI.** Yol açık
+  değil: cihazda JPEG **kodlayıcı** yok — `dart:ui` yalnız PNG üretir, PNG ise
+  taranmış sayfada özgün JPEG'den BÜYÜK çıkar, yani "sıkıştır" dosyayı
+  şişirirdi. Yapılabilmesi için `image` paketi (yeni bağımlılık, saf Dart ve
+  yavaş) ya da platform kanalı gerekir. Bilerek yapılmadı; yapılırsa metin
+  katmanı kaybolacağı için ayrı ve açıkça uyaran bir seçenek olmalı.
+- **graphify güncellemesi yapılamadı:** araç bu ortamda kurulu değil
+  (`command -v graphify` boş). Yeni düğümler grafta eksik kalıyor.

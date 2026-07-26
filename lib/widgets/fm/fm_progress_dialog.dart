@@ -31,13 +31,55 @@ Future<T> showFmProgress<T>(
   // tarafından senkron olarak işaretlenir; `showDialog`'un `.then`'ine
   // güvenmek yarış yaratırdı (geç gelen `pop` yanlış sayfayı kapatabilirdi).
   var closed = false;
+  var backgrounded = false;
   BuildContext? dialogContext;
+  // Ekrandan bağımsız yaşayan (MaterialApp seviyesindeki) messenger: arka
+  // plana alınan iş için kalıcı şerit burada gösterilir, kullanıcı başka
+  // sayfaya geçse bile görünür kalır.
+  final messenger = ScaffoldMessenger.of(context);
 
   void closeDialog() {
     if (closed) return;
     closed = true;
     final ctx = dialogContext;
     if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
+  }
+
+  /// Arka plana alındığında ekranın altında kalan **kalıcı** ilerleme şeridi.
+  ///
+  /// Süresi bir güne ayarlı: SnackBar'ın kendiliğinden kaybolması istenmiyor,
+  /// iş bitince `finally` içinde elle kaldırılıyor. Böylece "arka plana aldım
+  /// ama iş sürüyor mu, bitti mi?" belirsizliği kalmıyor.
+  void showBackgroundBar() {
+    backgrounded = true;
+    messenger.showSnackBar(SnackBar(
+      duration: const Duration(days: 1),
+      content: ValueListenableBuilder<FmProgress>(
+        valueListenable: progress,
+        builder: (_, value, __) => Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Text(
+                value.total > 0
+                    ? '$title · ${value.done} / ${value.total}'
+                    : '$title…',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+      action: cancellable
+          ? SnackBarAction(label: 'Durdur', onPressed: () => cancelled = true)
+          : null,
+    ));
   }
 
   unawaited(showDialog<void>(
@@ -82,7 +124,10 @@ Future<T> showFmProgress<T>(
           actions: [
             if (backgroundable)
               TextButton(
-                onPressed: closeDialog,
+                onPressed: () {
+                  closeDialog();
+                  showBackgroundBar();
+                },
                 child: const Text('Arka plana al'),
               ),
             if (cancellable)
@@ -103,6 +148,9 @@ Future<T> showFmProgress<T>(
     return await task((p) => progress.value = p, () => cancelled);
   } finally {
     closeDialog();
+    // Kalıcı şerit yalnız bu iş için gösterildiyse kaldırılır; başka bir
+    // bildirimi (ör. kullanıcının okumadığı bir sonuç mesajı) süpürmeyelim.
+    if (backgrounded) messenger.hideCurrentSnackBar();
     progress.dispose();
   }
 }
