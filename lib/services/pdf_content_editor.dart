@@ -59,6 +59,10 @@ class PdfContentEditor {
       );
     }
 
+    // Sayfanın kendi font tabloları: yeni metin belgenin ÖZGÜN yazı tipiyle
+    // yazılsın diye (bkz. PdfFontEncoding).
+    final fontEncodings = file.fontEncodings(file.pages[pageIndex]);
+
     // Metin birden çok içerik akışına bölünmüş olabilir; her birini ayrı dener.
     PdfEditRefused? lastRefusal;
     for (final stream in contents) {
@@ -72,8 +76,13 @@ class PdfContentEditor {
 
       PdfContentReplacement replacement;
       try {
-        replacement = replaceTextInContent(decoded, oldText, newText,
-            precedingText: precedingText);
+        replacement = replaceTextInContent(
+          decoded,
+          oldText,
+          newText,
+          precedingText: precedingText,
+          fontEncodings: fontEncodings,
+        );
       } on PdfReplaceException catch (e) {
         lastRefusal = PdfEditRefused(e.message);
         continue;

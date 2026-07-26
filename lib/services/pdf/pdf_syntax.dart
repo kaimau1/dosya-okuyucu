@@ -23,12 +23,19 @@ class PdfTextOp {
   /// Operandlar içindeki dizeler (sırayla).
   final List<PdfStringToken> strings;
 
+  /// O anda geçerli olan font kaynağının adı (`/F1 12 Tf` → `F1`).
+  ///
+  /// Baytları doğru karaktere çevirmek için ŞART: her fontun kendi kodlaması
+  /// vardır ve aynı bayt farklı fontlarda farklı harf demektir.
+  final String? fontName;
+
   const PdfTextOp({
     required this.op,
     required this.operandStart,
     required this.operatorStart,
     required this.end,
     required this.strings,
+    this.fontName,
   });
 }
 
@@ -52,6 +59,8 @@ class PdfStringToken {
 List<PdfTextOp> scanTextOps(List<int> content) {
   final ops = <PdfTextOp>[];
   final strings = <PdfStringToken>[];
+  final names = <String>[]; // son operatörden beri görülen /Ad'lar
+  String? currentFont;
   var operandStart = -1;
   var i = 0;
   final n = content.length;
@@ -65,6 +74,7 @@ List<PdfTextOp> scanTextOps(List<int> content) {
   void resetOperands() {
     operandStart = -1;
     strings.clear();
+    names.clear();
   }
 
   while (i < n) {
@@ -105,9 +115,11 @@ List<PdfTextOp> scanTextOps(List<int> content) {
     if (c == 0x2F) {
       // /Ad
       i++;
+      final nameStart = i;
       while (i < n && !isWhite(content[i]) && !isDelim(content[i])) {
         i++;
       }
+      names.add(String.fromCharCodes(content.sublist(nameStart, i)));
       continue;
     }
     if (c == 0x5B || c == 0x5D || c == 0x7B || c == 0x7D) {
@@ -134,6 +146,9 @@ List<PdfTextOp> scanTextOps(List<int> content) {
       resetOperands();
       continue;
     }
+    if (word == 'Tf' && names.isNotEmpty) {
+      currentFont = names.last;
+    }
     if (word == 'Tj' || word == 'TJ' || word == "'" || word == '"') {
       if (strings.isNotEmpty) {
         ops.add(PdfTextOp(
@@ -142,6 +157,7 @@ List<PdfTextOp> scanTextOps(List<int> content) {
           operatorStart: start,
           end: i,
           strings: List.of(strings),
+          fontName: currentFont,
         ));
       }
     }

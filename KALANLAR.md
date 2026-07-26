@@ -186,10 +186,14 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       değişiyor, yazı tipi/punto/konum korunuyor, eski metin siliniyor,
       değişiklik dosyanın sonuna ekleniyor (özgün baytlara dokunulmuyor).
       Üstünü kapatan eski yol yalnız yedek (reddedilirse, onay alarak).
-- [ ] **Yerinde düzenleme özel kodlamalı fontlarda çalışmaz:** `/Differences`
-      ya da CID (Identity-H) fontlarda aday tek baytlık kodlamalar tutmaz →
-      yedek yola düşer. Çözüm: font sözlüğünden `/Differences` ve `/ToUnicode`
-      okuyup gerçek eşlemeyi çıkarmak (orta ölçekli iş, ObjStm okuma hazır).
+- [x] ~~Yerinde düzenleme özel kodlamalı fontlarda çalışmaz~~ → **ÇÖZÜLDÜ
+      (4. tur):** fontun `/ToUnicode` tablosu okunup ters çevriliyor; alt küme
+      gömülü ve Type0/Identity-H fontlar artık çalışıyor, yeni metin belgenin
+      ÖZGÜN yazı tipiyle yazılıyor. Kalan sınır: alt küme fontta HİÇ geçmemiş
+      bir harf yazılamaz (glif yok) — reddediliyor.
+- [ ] **`/ToUnicode` taşımayan belgeler** (eski üreticiler, bazı taranmış+OCR
+      çıktıları) hâlâ tek baytlık tahmine kalıyor; tutmazsa yedek yola düşer.
+      Çözüm: `/Encoding /Differences` + glif adı→Unicode tablosu (AGL).
 - [ ] **Yeni metin uzunsa satırın kalanı sağa kayar** (PDF metni yeniden
       akıtmaz). Word'deki davranışın aynısı ama sütun/tablo hizasını bozabilir;
       istenirse `Tz` yatay ölçekle genişlik sabitlenebilir (pdfium'la ölçüp tek

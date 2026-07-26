@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
+import 'pdf_font_map.dart';
+
 /// PDF **dosya yapısı** katmanı: dolaylı nesneleri bulur, akışları çözer,
 /// sayfa ağacını yürür ve değişikliği **ekleme (incremental update)** olarak
 /// yazar.
@@ -189,6 +191,71 @@ class PdfFile {
   List<PdfObject> pageContents(int pageIndex) {
     if (pageIndex < 0 || pageIndex >= pages.length) return const [];
     return contentsOf(pages[pageIndex]);
+  }
+
+  /// [page] sayfasının font kaynakları: kaynak adı → `/ToUnicode` eşlemesi.
+  ///
+  /// `/Resources` sayfada olmayabilir; PDF'te sayfa ağacından MİRAS alınır
+  /// (üreticiler çoğu zaman `/Pages` düğümüne bir kez yazar). Bu yüzden
+  /// bulunamazsa `/Parent` zinciri yukarı yürünüyor — atlanırsa gerçek
+  /// belgelerin çoğunda font hiç bulunamaz.
+  Map<String, PdfFontEncoding> fontEncodings(PdfObject page) {
+    final resources = _resourcesOf(page);
+    if (resources == null) return const {};
+    final fontsDict = _subDictionary(resources, 'Font');
+    if (fontsDict == null) return const {};
+
+    final out = <String, PdfFontEncoding>{};
+    for (final m
+        in RegExp(r'/([^\s/<>\[\]]+)\s+(\d+)\s+\d+\s+R').allMatches(fontsDict)) {
+      final name = m.group(1)!;
+      final font = objects[int.parse(m.group(2)!)];
+      if (font == null) continue;
+      final toUnicodeRef = pdfRef(font.dict, 'ToUnicode');
+      if (toUnicodeRef == null) continue;
+      final cmap = objects[toUnicodeRef];
+      if (cmap == null || !cmap.isStream) continue;
+      try {
+        final encoding = PdfFontEncoding.parseCMap(decodeStream(cmap));
+        if (!encoding.isEmpty) out[name] = encoding;
+      } catch (_) {
+        // Çözülemeyen CMap: o font için eşleme yok, diğerleri etkilenmesin.
+      }
+    }
+    return out;
+  }
+
+  /// Sayfanın `/Resources` sözlüğünün metni (mirası da izleyerek).
+  String? _resourcesOf(PdfObject page) {
+    var node = page;
+    for (var depth = 0; depth < 32; depth++) {
+      final inline = _subDictionary(node.dict, 'Resources');
+      if (inline != null) return inline;
+      final ref = pdfRef(node.dict, 'Resources');
+      if (ref != null && objects[ref] != null) return objects[ref]!.dict;
+      final parent = pdfRef(node.dict, 'Parent');
+      if (parent == null || objects[parent] == null) return null;
+      node = objects[parent]!;
+    }
+    return null;
+  }
+
+  /// `/Anahtar << … >>` içindeki iç sözlüğün metni (iç içe `<<`'leri sayar).
+  static String? _subDictionary(String dict, String key) {
+    final at = RegExp('/$key\\s*<<').firstMatch(dict);
+    if (at == null) return null;
+    var depth = 0;
+    for (var i = at.end - 2; i + 1 < dict.length; i++) {
+      if (dict[i] == '<' && dict[i + 1] == '<') {
+        depth++;
+        i++;
+      } else if (dict[i] == '>' && dict[i + 1] == '>') {
+        depth--;
+        i++;
+        if (depth == 0) return dict.substring(at.end - 2, i + 1);
+      }
+    }
+    return null;
   }
 
   /// [objectNumber] içerik akışını KAÇ sayfa kullanıyor?

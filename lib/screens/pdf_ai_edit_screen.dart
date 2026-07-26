@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../services/conversion_service.dart';
 import '../services/gemini_service.dart';
-import '../services/pdf_save.dart';
 import '../widgets/pdf_save_dialog.dart';
 
 /// **PDF'i AI'a düzenletme.**
@@ -126,24 +125,20 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
   Future<void> _save() async {
     final text = _result.text.trim();
     if (text.isEmpty) return;
-    final mode = await askPdfSaveMode(
-      context,
-      path: widget.path,
-      note: 'Yeni PDF düz metinden üretilir: özgün belgenin sayfa düzeni '
-          '(sütun, tablo, logo, imza) KORUNMAZ.',
-    );
-    if (mode == null || !mounted) return;
     setState(() => _busy = true);
     try {
       final bytes = await _conversion.textToPdf(widget.fileName, text);
-      final written = await PdfSave.writeBytes(widget.path, bytes, mode);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(mode == PdfSaveMode.overwrite
-            ? 'Belge güncellendi'
-            : 'Kopya kaydedildi: ${written.split('/').last}'),
-      ));
-      Navigator.of(context).pop(mode == PdfSaveMode.overwrite);
+      setState(() => _busy = false);
+      final outcome = await savePdfWithChoice(
+        context,
+        originalPath: widget.path,
+        bytes: bytes,
+        note: 'Yeni PDF düz metinden üretilir: özgün belgenin sayfa düzeni '
+            '(sütun, tablo, logo, imza) KORUNMAZ.',
+      );
+      if (outcome == null || !mounted) return;
+      Navigator.of(context).pop(outcome.overwritten);
     } catch (e) {
       if (!mounted) return;
       setState(() {

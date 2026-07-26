@@ -2197,3 +2197,69 @@ uçtan uca (metin değişir, eski metin KALMAZ, özgün baytlar korunur, üst ü
 düzenleme), modern yapı (ObjStm + xref akışı), sözdizimi (kaçışlar, onaltılık
 dize, satır içi görselin ikili verisi, yorum), parçalı metin, kodlama ve tüm
 güvenlik kapıları.
+
+---
+
+## 2026-07-26 (4. tur) — KÖK NEDEN: gerçek belgelerde yerinde düzenleme neden çalışmıyordu
+
+**Bulgu (kullanıcı, ekran görüntüsüyle):** resmî bir belgede (EBYS çıktısı,
+iki yana yaslı, Times benzeri gömülü font) düzenleme sonrası "yazı tipi ve
+form düzeni bozuluyor". Ekran görüntüsündeki alt yazı: **"Metin üste yazıldı"**.
+
+**Teşhis buradan çıktı.** Yerinde düzenleme (3. tur) o belgede REDDEDİLMİŞ ve
+yedek yola (üstünü kapatma) düşülmüştü. Bozulmanın sebebi yedek yolun kendisi:
+farklı font + satırın ortasını kapatıp sola yaslı yeniden yazma → iki yana
+yaslı satırda ortada boşluk. Yani hata "düzenleme bozuyor" değil, **"asıl
+düzenleme hiç çalışmıyor"**du.
+
+### Neden reddediliyordu
+3. turda kodlama, aday **tek baytlık** tablolarla (WinAnsi/CP1252, CP1254,
+Latin-1) tahmin ediliyordu. Gerçek belgelerin yazı tipleri **alt küme gömülü**
+ve çoğu zaman **Type0/Identity-H**: harf başına 2 baytlık, fonta özgü keyfi
+glif numarası. Böyle bir belgede tek baytlık tablo HİÇBİR ZAMAN tutmaz →
+"metni bulamadım" → yedek yol. Yani özellik, en çok düzenlenecek belgelerde
+tam olarak çalışmıyordu.
+
+### Çözüm — fontun kendi `/ToUnicode` tablosu
+`services/pdf/pdf_font_map.dart`: PDF'in içinde taşınan "bu kod şu harftir"
+tablosu okunup **ters çevriliyor**. Metni kopyalanabilen her belgede bulunur
+(pdfium da bunu kullanır). Böylece:
+- alt küme gömülü ve Identity-H fontlar çözülüyor,
+- yeni metin belgenin **ÖZGÜN yazı tipiyle** yazılıyor.
+Sayfanın font kaynakları `PdfFile.fontEncodings` ile bulunuyor; `/Resources`
+sayfada yoksa `/Parent` zinciri yukarı yürünüyor — **miras atlanırsa gerçek
+belgelerin çoğunda font hiç bulunamaz** (üreticiler kaynakları `/Pages`
+düğümüne bir kez yazar).
+
+Tek baytlık tablolar YEDEK olarak duruyor (basit fontlu eski belgeler).
+
+**Sınır (dürüst):** alt küme font yalnız belgede GEÇEN harfleri taşır. Hiç
+geçmemiş bir harf yazılmak istenirse reddediliyor — o glif yok, basılsaydı
+boş/yanlış çıkardı.
+
+**Test:** Syncfusion Type0/Identity-H font üretmediği için böyle bir belge
+elle, bayt bayt kuruldu (`pdf_font_map_test`): 2 baytlık glif kodları,
+`/ToUnicode` CMap'i, kaynakların üst düğümden miras alınması. Ayrıca CMap
+ayrıştırıcısının `bfchar`, `bfrange` (ardışık ve dizi biçimi) ve tek/çift
+baytlık codespace halleri.
+**Test tuzağı:** ilk kurulumda sahte fontun alt kümesi yalnız o cümlenin
+harfleriydi; kod doğru davranıp "harf fontta yok" dedi ve test kırmızı oldu.
+Hata kodda değil kurgudaydı — gerçek belgede alfabenin tamamı bulunur.
+
+### Kaydetme akışı tek yerde toplandı (kullanıcı isteği)
+"Kopyasını kaydettiğinde nereye gittiğini bulmak çok zor, hemen açabilmeliyim
+ve nereye kaydedileceğini seçebilmeliyim."
+`widgets/pdf_save_dialog.dart` → `savePdfWithChoice`: **üzerine yaz / kopyasını
+kaydet / klasör seçerek kaydet**, ardından dosya adı + KLASÖR yolu gösteren ve
+**"AÇ"** düğmesi taşıyan bir bildirim. PDF araçları, imza, AI düzenleme ve
+yerinde metin düzenleme artık aynı yolu kullanıyor — ayrı ayrı yazıldığında
+biri "aç"ı unutuyordu.
+Ayrıca **kaydetme sorusu en sona alındı**: değişiklik üretilmeden "nasıl
+kaydedelim?" diye sorup sonra başarısız olmak kötüydü.
+
+### Düzenleme ekranında uzunluk uyarısı
+PDF metni Word gibi yeniden akıtmaz. Yeni metin uzunsa satırın kalanı kayar.
+Ekran artık yazarken canlı uyarıyor (2 karakterden büyük farkta), yedek yol
+penceresi de "iki yana yaslı metinde satır hizası bozulur" diyor.
+
+**Doğrulama:** analyze 0 hata, 519 test yeşil.

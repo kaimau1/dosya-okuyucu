@@ -1,3 +1,4 @@
+import 'pdf_font_map.dart';
 import 'pdf_syntax.dart';
 
 /// Bir içerik akışında metin değiştirmenin sonucu.
@@ -57,11 +58,17 @@ class PdfReplaceException implements Exception {
 /// `öncesi + aranan` bütünü aranır. Niye: aynı kelime sayfada birkaç kez
 /// geçebilir ve yalnız kelimeye bakan bir arama YANLIŞ yeri değiştirirdi.
 /// Bağlamla bulunamazsa sade aramaya düşülür.
+/// [fontEncodings] sayfanın font kaynaklarının `/ToUnicode` eşlemeleridir
+/// (kaynak adı → eşleme). **Öncelikli yol budur:** belgenin kendi tablosunu
+/// kullandığımız için alt küme gömülü ve Type0/Identity-H fontlar da çalışır,
+/// yani yeni metin belgenin ÖZGÜN yazı tipiyle yazılır. Eşleme yoksa ya da
+/// metni bulamazsa tek baytlık tahmin tablolarına düşülür.
 PdfContentReplacement replaceTextInContent(
   List<int> content,
   String oldText,
   String newText, {
   String precedingText = '',
+  Map<String, PdfFontEncoding> fontEncodings = const {},
   List<PdfSingleByteEncoding>? encodings,
 }) {
   final ops = scanTextOps(content);
@@ -70,6 +77,34 @@ PdfContentReplacement replaceTextInContent(
         PdfReplaceFailure.notFound, 'Bu sayfada düzenlenebilir metin yok.');
   }
 
+  // 1) Fontun kendi /ToUnicode tablosu.
+  if (fontEncodings.isNotEmpty) {
+    final texts = <String>[
+      for (final op in ops)
+        _decodeWithFont(op, fontEncodings) ??
+            PdfSingleByteEncoding.latin1
+                .decode([for (final s in op.strings) ...s.bytes]),
+    ];
+    final match = _findFlexible(texts, oldText, prefix: precedingText) ??
+        _findFlexible(texts, oldText);
+    if (match != null) {
+      final replacement = _rewrite(
+        content,
+        ops,
+        texts,
+        match,
+        newText,
+        encoderFor: (op) => _encoderFor(op, fontEncodings),
+      );
+      return PdfContentReplacement(
+        content: replacement,
+        matchCount: _countFlexible(texts, oldText),
+        encoding: 'ToUnicode',
+      );
+    }
+  }
+
+  // 2) Yedek: yaygın tek baytlık kodlamalar.
   for (final enc in encodings ?? PdfSingleByteEncoding.candidates) {
     final texts = <String>[
       for (final op in ops)
@@ -79,7 +114,8 @@ PdfContentReplacement replaceTextInContent(
         _findFlexible(texts, oldText);
     if (match == null) continue;
 
-    final replacement = _rewrite(content, ops, texts, match, newText, enc);
+    final replacement = _rewrite(content, ops, texts, match, newText,
+        encoderFor: (_) => enc.encode);
     return PdfContentReplacement(
       content: replacement,
       matchCount: _countFlexible(texts, oldText),
@@ -89,9 +125,25 @@ PdfContentReplacement replaceTextInContent(
 
   throw const PdfReplaceException(
     PdfReplaceFailure.notFound,
-    'Bu metin belgenin içinde bulunamadı. Yazı tipi standart olmayan bir '
-    'kodlama kullanıyor olabilir (taranmış ya da alt küme gömülü font).',
+    'Bu metin belgenin içinde bulunamadı. Sayfa taranmış (resim) olabilir ya '
+    'da yazı tipi metin eşlemesi taşımıyor olabilir.',
   );
+}
+
+/// Operatörün baytlarını kendi fontunun tablosuyla çözer (font yoksa null).
+String? _decodeWithFont(
+    PdfTextOp op, Map<String, PdfFontEncoding> fontEncodings) {
+  final enc = fontEncodings[op.fontName];
+  if (enc == null) return null;
+  return enc.decode([for (final s in op.strings) ...s.bytes]);
+}
+
+/// Operatöre yazarken kullanılacak kodlayıcı.
+List<int>? Function(String) _encoderFor(
+    PdfTextOp op, Map<String, PdfFontEncoding> fontEncodings) {
+  final enc = fontEncodings[op.fontName];
+  if (enc != null) return enc.encode;
+  return PdfSingleByteEncoding.latin1.encode;
 }
 
 /// Eşleşmenin operatör/karakter koordinatları.
@@ -175,9 +227,9 @@ List<int> _rewrite(
   List<PdfTextOp> ops,
   List<String> texts,
   _Match match,
-  String newText,
-  PdfSingleByteEncoding enc,
-) {
+  String newText, {
+  required List<int>? Function(String) Function(PdfTextOp) encoderFor,
+}) {
   // Eşleşmenin kapsadığı her operatöre düşen yeni metin.
   final replacements = <int, String>{};
   if (match.firstOp == match.lastOp) {
@@ -199,12 +251,13 @@ List<int> _rewrite(
   final indexes = replacements.keys.toList()..sort();
   for (final o in indexes.reversed) {
     final op = ops[o];
-    final bytes = enc.encode(replacements[o]!);
+    final bytes = encoderFor(op)(replacements[o]!);
     if (bytes == null) {
-      throw PdfReplaceException(
+      throw const PdfReplaceException(
         PdfReplaceFailure.notEncodable,
-        'Yazdığınız karakterlerden biri belgenin yazı tipinde yok '
-        '(${enc.name} kodlaması). Farklı bir sözcük deneyin.',
+        'Yazdığınız karakterlerden biri belgenin yazı tipinde yok. Bu yazı '
+        'tipi belgeye yalnızca kullanılan harfleriyle gömülmüş; olmayan bir '
+        'harfi eklemek yazıyı bozardı. Farklı bir sözcük deneyin.',
       );
     }
     out.replaceRange(

@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../services/gemini_service.dart';
 import '../services/pdf_content_editor.dart';
-import '../services/pdf_save.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
 
@@ -104,6 +103,24 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
 
   bool get _changed => _text.text.trim() != widget.originalText.trim();
 
+  /// Uzunluk farkı uyarısı (yoksa null).
+  ///
+  /// PDF metni Word gibi yeniden AKITMAZ: yeni metin uzunsa satırın kalanı
+  /// sağa kayar, kısaysa boşluk kalır. Kullanıcı bunu kaydetmeden önce bilmeli
+  /// — özellikle iki yana yaslı resmî yazılarda göze çarpar.
+  String? get _lengthWarning {
+    final oldLength = widget.originalText.trim().length;
+    final newLength = _text.text.trim().length;
+    if (oldLength == 0 || newLength == oldLength) return null;
+    final diff = newLength - oldLength;
+    // Birkaç karakterlik fark göze çarpmaz; gürültü yapmayalım.
+    if (diff.abs() <= 2) return null;
+    return diff > 0
+        ? 'Yeni metin $diff karakter daha uzun: satırın kalanı sağa kayar '
+            '(PDF metni yeniden akıtmaz).'
+        : 'Yeni metin ${-diff} karakter daha kısa: satırın sonunda boşluk kalır.';
+  }
+
   Future<void> _runAi() async {
     final state = context.read<AppState>();
     if (!state.hasApiKey) {
@@ -149,13 +166,6 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
       setState(() => _error = 'Yeni metin boş olamaz.');
       return;
     }
-    final mode = await askPdfSaveMode(
-      context,
-      path: widget.path,
-      note: 'Yalnız seçtiğiniz satırlar değişir; sayfanın geri kalanına '
-          'dokunulmaz.',
-    );
-    if (mode == null || !mounted) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -183,14 +193,21 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
         out = await _overlayReplace(bytes, newText);
       }
 
-      final written = await PdfSave.write(widget.path, out, mode);
+      // Kaydetme SORUSU en sona bırakıldı: değişiklik gerçekten üretilmeden
+      // "nasıl kaydedelim?" diye sormak, sonra da başarısız olmak kötü olurdu.
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(mode == PdfSaveMode.overwrite
-            ? (inPlace ? 'Metin değiştirildi' : 'Metin üste yazıldı')
-            : 'Değişiklik kopyaya kaydedildi: ${written.split('/').last}'),
-      ));
-      Navigator.of(context).pop(mode == PdfSaveMode.overwrite);
+      setState(() => _busy = false);
+      final outcome = await savePdfWithChoice(
+        context,
+        originalPath: widget.path,
+        bytes: out,
+        note: inPlace
+            ? 'Yalnız seçtiğiniz metin değişti; sayfanın geri kalanına '
+                'dokunulmadı.'
+            : 'Metin ÜSTE yazıldı (yerinde düzenleme yapılamadı).',
+      );
+      if (outcome == null || !mounted) return;
+      Navigator.of(context).pop(outcome.overwritten);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -235,8 +252,11 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
               'Bunun yerine eski yazının ÜSTÜ kapatılıp yenisi çizilebilir. '
               'Bu durumda:\n'
               '• yazı tipi belgenin kendi fontu olmaz,\n'
+              '• iki yana yaslı metinde satır hizası bozulur,\n'
               '• arka plan düz renk varsayılır (desenli zeminde kutu görünür),\n'
-              '• eski metin belgenin içinde aranabilir hâlde KALIR.',
+              '• eski metin belgenin içinde aranabilir hâlde KALIR.\n\n'
+              'Kısacası görüntü bozulabilir. Belgeyi korumak istiyorsanız '
+              '"Vazgeç" deyip kaydederken "Kopyasını kaydet"i seçin.',
             ),
           ],
         ),
@@ -290,6 +310,22 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(border: OutlineInputBorder()),
           ),
+          // Uzunluk uyarısı: PDF metni yeniden akıtmaz, satırın kalanı kayar.
+          // Kullanıcı bunu KAYDETMEDEN önce bilsin.
+          if (_lengthWarning != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(_lengthWarning!,
+                      style: Theme.of(context).textTheme.bodySmall),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           Text('AI ile düzelt (isteğe bağlı)',
               style: Theme.of(context).textTheme.titleSmall),

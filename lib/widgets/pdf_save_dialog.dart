@@ -1,21 +1,114 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../services/fm/entry_opener.dart';
 import '../services/pdf_save.dart';
 
-/// "Üzerine yaz" mı, "kopyasını kaydet" mi? — PDF'e yazan her akışın ortak
-/// sorusu (PDF araçları, imza, AI düzenleme).
+/// Kaydetme sonucunun çağırana söylediği şey.
+class PdfSaveOutcome {
+  /// Yazılan dosyanın yolu.
+  final String path;
+
+  /// Özgün dosyanın üzerine mi yazıldı?
+  final bool overwritten;
+
+  const PdfSaveOutcome({required this.path, required this.overwritten});
+}
+
+/// Düzenlenmiş PDF'i **sorarak** kaydeder: üzerine yaz / kopyasını kaydet /
+/// klasör seçerek kaydet. Kaydettikten sonra nereye yazıldığını söyler ve
+/// **"AÇ"** düğmesiyle dosyayı hemen açar.
 ///
-/// *Niye seçenek:* üzerine yazmak geri alınamaz. Kullanıcı bazen özgün belgeyi
-/// bozmadan denemek ister; eskiden tek yol üzerine yazmaktı.
+/// *Niye tek yerde:* PDF araçları, imza, AI düzenleme ve yerinde metin
+/// düzenleme aynı soruyu soruyor; ayrı ayrı yazılınca biri "aç" düğmesini
+/// unutuyordu. 2026-07-26 kullanıcı bulgusu: "kopyasını kaydettiğinde nereye
+/// gittiğini bulmak çok zor, hemen açabilmeliyim ve nereye kaydedileceğini
+/// seçebilmeliyim."
+///
 /// Vazgeçilirse `null` döner.
-Future<PdfSaveMode?> askPdfSaveMode(
+Future<PdfSaveOutcome?> savePdfWithChoice(
   BuildContext context, {
-  required String path,
+  required String originalPath,
+  required List<int> bytes,
   String? note,
-}) {
+}) async {
+  final choice = await _askSaveChoice(context, originalPath, note);
+  if (choice == null || !context.mounted) return null;
+
+  String written;
+  try {
+    if (choice == _SaveChoice.chooseFolder) {
+      final dir = await FilePicker.platform.getDirectoryPath();
+      if (dir == null || !context.mounted) return null;
+      written = await _writeInto(dir, originalPath, bytes);
+    } else {
+      written = await PdfSave.write(
+        originalPath,
+        bytes,
+        choice == _SaveChoice.overwrite
+            ? PdfSaveMode.overwrite
+            : PdfSaveMode.copy,
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Kaydedilemedi: $e')));
+    }
+    return null;
+  }
+
+  if (context.mounted) {
+    _announce(context, written, choice == _SaveChoice.overwrite);
+  }
+  return PdfSaveOutcome(
+    path: written,
+    overwritten: choice == _SaveChoice.overwrite,
+  );
+}
+
+/// Seçilen klasöre benzersiz adla yazar.
+Future<String> _writeInto(
+    String dir, String originalPath, List<int> bytes) async {
+  final stem = p.basenameWithoutExtension(originalPath);
+  var target = p.join(dir, '$stem.pdf');
+  var n = 2;
+  while (File(target).existsSync()) {
+    target = p.join(dir, '$stem ($n).pdf');
+    n++;
+  }
+  await File(target).writeAsBytes(bytes, flush: true);
+  return target;
+}
+
+/// Nereye kaydedildiğini söyler; kopyaysa klasörü de yazar ve "AÇ" sunar.
+void _announce(BuildContext context, String written, bool overwritten) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.showSnackBar(SnackBar(
+    duration: const Duration(seconds: 8),
+    content: Text(
+      overwritten
+          ? 'Kaydedildi: ${p.basename(written)}'
+          : '${p.basename(written)}\n${p.dirname(written)}',
+    ),
+    action: SnackBarAction(
+      label: 'AÇ',
+      onPressed: () {
+        if (context.mounted) EntryOpener.open(context, written);
+      },
+    ),
+  ));
+}
+
+enum _SaveChoice { overwrite, copy, chooseFolder }
+
+Future<_SaveChoice?> _askSaveChoice(
+    BuildContext context, String path, String? note) {
   final name = p.basename(path);
-  return showDialog<PdfSaveMode>(
+  return showDialog<_SaveChoice>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Nasıl kaydedilsin?'),
@@ -32,14 +125,21 @@ Future<PdfSaveMode?> askPdfSaveMode(
             leading: const Icon(Icons.save_outlined),
             title: const Text('Üzerine yaz'),
             subtitle: Text('$name değişir — geri alınamaz'),
-            onTap: () => Navigator.pop(ctx, PdfSaveMode.overwrite),
+            onTap: () => Navigator.pop(ctx, _SaveChoice.overwrite),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.copy_all_outlined),
             title: const Text('Kopyasını kaydet'),
-            subtitle: const Text('Özgün dosya olduğu gibi kalır'),
-            onTap: () => Navigator.pop(ctx, PdfSaveMode.copy),
+            subtitle: const Text('Aynı klasöre “… (kopya).pdf” olarak'),
+            onTap: () => Navigator.pop(ctx, _SaveChoice.copy),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.folder_open_outlined),
+            title: const Text('Klasör seçerek kaydet…'),
+            subtitle: const Text('Nereye gideceğine siz karar verin'),
+            onTap: () => Navigator.pop(ctx, _SaveChoice.chooseFolder),
           ),
         ],
       ),
@@ -52,3 +152,4 @@ Future<PdfSaveMode?> askPdfSaveMode(
     ),
   );
 }
+

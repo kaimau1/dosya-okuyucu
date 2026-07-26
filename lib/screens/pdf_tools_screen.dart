@@ -10,7 +10,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
-import '../services/pdf_save.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
 import 'scan_review_screen.dart';
@@ -350,18 +349,15 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Future<void> _save() async {
     final bytes = _bytes;
     if (bytes == null || !_dirty) return;
-    final mode = await askPdfSaveMode(context, path: widget.path);
-    if (mode == null || !mounted) return;
-    try {
-      final written = await PdfSave.write(widget.path, bytes, mode);
-      if (!mounted) return;
-      setState(() => _dirty = mode == PdfSaveMode.copy);
-      _snack(mode == PdfSaveMode.overwrite
-          ? 'Kaydedildi'
-          : 'Kopya kaydedildi: ${p.basename(written)}');
-    } catch (e) {
-      _snack('Kaydedilemedi: $e');
-    }
+    final outcome = await savePdfWithChoice(
+      context,
+      originalPath: widget.path,
+      bytes: bytes,
+    );
+    if (outcome == null || !mounted) return;
+    // Kopya kaydedildiyse ekrandaki belge hâlâ özgün dosya: "kaydedilmemiş
+    // değişiklik" durumu sürüyor demektir.
+    setState(() => _dirty = !outcome.overwritten);
   }
 
   Future<void> _share() async {
