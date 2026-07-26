@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -16,26 +17,40 @@ import 'package:pdfrx/pdfrx.dart';
 /// ekran koordinatına çevrilir; uzun basış kelimeyi seçer, uçlardaki tutamaçlar
 /// seçimi büyütür/küçültür, seçilen metin [onSelected] ile üst katmana bildirilir.
 ///
-/// **Kullanım biçimi (2026-07-26 II. sadeleştirmesi).** Önce seçim için üst
-/// çubuktan bir mod açmak ZORUNLUYDU, sonra bu mod isteğe bağlı bırakıldı —
-/// ama açık kaldığında `panEnabled: false` olduğu ve katman parmağı yuttuğu
-/// için kullanıcı **sayfayı kaydıramıyor, yakınlaştıramıyordu**. Mod tümüyle
-/// kaldırıldı; geriye telefonun yerel davranışı kaldı:
-/// * Katman DAİMA sayfanın üzerindedir ve **uzun basış** seçer, basılı tutup
-///   kaydırmak seçimi büyütür.
-/// * Katman parmağı asla yutmaz (translucent) → sayfa normal kaydırılır,
-///   köprüler çalışır.
-/// * Yeni bir dokunuş önceki seçimi temizler.
+/// **KÖK NEDEN — katman neden hiç `GestureDetector` kullanmıyor
+/// (2026-07-26, 10. tur).** Kullanıcının bu turların EN BAŞINDA bildirdiği
+/// *"sayfayı kaydıramıyorum, zoom yapamıyorum"* hatası, sanılanın aksine üst
+/// çubuktaki seçim modundan değil, bu katmanın kendisinden geliyordu:
 ///
-/// **REDDEDİLEN yol (2026-07-26, denendi ve geri alındı):** "iki parmak inince
-/// uzun basışı reddet" koruması `RawGestureDetector` + parmak sayacıyla
-/// eklenmişti. Sayaç SAYFA BAŞINA tutuluyordu; iki parmak farklı sayfaların
-/// katmanlarına (ya da biri kenar boşluğuna) düşünce koruma çalışmıyor, buna
-/// karşılık katman yeniden kurulduğunda sayaç sıfırlanamayıp takılı kalıyordu.
-/// Takılı sayaç her dokunuşta uzun basışı reddediyor, bu da pdfrx'in kaydırma
-/// tanıyıcısını **kayma toleransı olmadan** anında kazandırıyordu: en ufak
-/// titremede sayfa kayıyordu ("sayfa kaynıyor"). Sade `GestureDetector`'a
-/// dönüldü.
+/// Katman sayfanın üstünde durduğu için `GestureDetector`'ın
+/// `LongPressGestureRecognizer`'ı HER dokunuşta jest arenasına giriyordu.
+/// Arena kuralı gereği uzun basış, süresi (500 ms) dolduğunda kazanır ve
+/// öteki tanıyıcıları eler:
+/// * Parmağını yarım saniye dinlendirip sonra kaydırmaya başlayan kullanıcıda
+///   uzun basış kazanıyor → **sayfa kaymıyor.**
+/// * İki parmağını koyup açmadan önce bir an duraklayan kullanıcıda yine uzun
+///   basış kazanıyor, pdfrx'in ölçek tanıyıcısı eleniyor → **zoom ölü.**
+/// Telefonda ikisi de son derece olağan hareketler; bu yüzden hata "bazen"
+/// değil "sürekli" hissediliyordu.
+///
+/// Çözüm: katman artık **hiçbir jest tanıyıcısı kurmuyor.** Yalnız bir
+/// [Listener] var — `Listener` işaretçi olaylarını dinler ama arenaya HİÇ
+/// girmez, dolayısıyla pdfrx'in kaydırma/yakınlaştırmasıyla yarışması
+/// olanaksız. Uzun basış elle ölçülüyor (zamanlayıcı + kayma toleransı +
+/// ikinci parmak iptali).
+///
+/// Bunun bilinçli bedeli: uzun basıştan sonra parmağı sürükleyerek seçimi
+/// büyütmek yok — o sürükleme sayfayı kaydırır. Seçim, uçlardaki
+/// **tutamaçlardan** büyütülür (Android'in yerel davranışı da budur).
+/// Kazancı: katmanın en kötü arıza biçimi artık "seçim çalışmıyor"; gezinmeyi
+/// kilitlemesi yapısal olarak mümkün değil.
+///
+/// **REDDEDİLEN yol (denendi, geri alındı):** uzun basış tanıyıcısını bırakıp
+/// "iki parmak inince kendini reddet" koruması eklemek. Parmak sayacı SAYFA
+/// BAŞINA tutulduğu için iki parmak ayrı katmanlara düşünce çalışmıyor;
+/// katman yeniden kurulunca da sayaç takılı kalıp her dokunuşta reddediyor,
+/// bu da pdfrx'in kaydırmasını kayma toleransı olmadan kazandırıp "sayfa
+/// kaynıyor" hatasını üretiyordu.
 class PdfSelectLayer extends StatefulWidget {
   final PdfPage page;
 
@@ -73,12 +88,87 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   int? _anchor; // seçim çapası (karakter indeksi, fullText üzerinde)
   int? _extent; // seçim ucu (dahil)
 
+  // ── Elle uzun basış ölçümü (jest arenasına girmeden) ─────────────────────
+  //
+  // Kurallar telefonun yerel davranışıyla aynı: tek parmak, kıpırdamadan
+  // [_longPressDelay] kadar basılı kalırsa kelime seçilir.
+  static const _longPressDelay = Duration(milliseconds: 500);
+
+  /// Parmağın "kıpırdamadı" sayılacağı en büyük kayma (Flutter'ın kTouchSlop'u).
+  static const _slop = 18.0;
+
+  /// Ekranda olan işaretçiler. İkinci parmak inince uzun basış iptal edilir —
+  /// iki parmak "yakınlaştırıyorum" demektir.
+  final _pointers = <int>{};
+
+  Timer? _pressTimer;
+  int? _pressPointer;
+  Offset _pressStart = Offset.zero;
+
+  /// Bu dokunuşta uzun basış ateşlendi mi? (Parmak kalkınca "boş dokunuş"
+  /// sayılıp seçimin temizlenmemesi için.)
+  bool _pressFired = false;
+
   @override
   void initState() {
     super.initState();
     widget.page.loadText().then((t) {
       if (mounted) setState(() => _text = t);
     }).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    _pressTimer?.cancel();
+    super.dispose();
+  }
+
+  void _cancelPress() {
+    _pressTimer?.cancel();
+    _pressTimer = null;
+    _pressPointer = null;
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointers.add(event.pointer);
+    if (_pointers.length > 1) {
+      // Yakınlaştırma başlıyor: uzun basış ölçümünü bırak.
+      _cancelPress();
+      return;
+    }
+    _pressFired = false;
+    _pressPointer = event.pointer;
+    _pressStart = event.localPosition;
+    _pressTimer?.cancel();
+    _pressTimer = Timer(_longPressDelay, () {
+      _pressTimer = null;
+      if (!mounted || _pressPointer == null) return;
+      _pressFired = true;
+      _selectWordAt(_pressStart);
+    });
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _pressPointer || _pressTimer == null) return;
+    if ((event.localPosition - _pressStart).distance > _slop) {
+      // Kaydırma: uzun basış değil. (Sayfa zaten pdfrx tarafından kaydırılıyor;
+      // bizim iptal etmemiz yalnız yanlışlıkla seçim yapılmasını önler.)
+      _cancelPress();
+    }
+  }
+
+  void _onPointerUp(PointerEvent event) {
+    _pointers.remove(event.pointer);
+    final wasMeasuring = _pressPointer == event.pointer;
+    if (wasMeasuring) _cancelPress();
+    // Boş dokunuş (kısa, kıpırdamadan, seçim yapmadan) → seçimi temizle.
+    // Telefonun yerel davranışı. Uzun basış ateşlendiyse ya da parmak
+    // kaydıysa dokunulmaz.
+    if (wasMeasuring && !_pressFired && _hasSelection) {
+      final moved = (event.localPosition - _pressStart).distance;
+      if (moved <= _slop) _clear();
+    }
+    if (_pointers.isEmpty) _pressFired = false;
   }
 
   int get _selStart => _anchor == null || _extent == null
@@ -223,20 +313,15 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
         key: _overlayKey,
         clipBehavior: Clip.none,
         children: [
-          GestureDetector(
-            // translucent: katman parmağı yutmaz → sayfa kaydırma /
-            // yakınlaştırma / köprü dokunuşu alttaki pdfrx'e geçer.
+          // Listener — GestureDetector DEĞİL. Arenaya girmediği için pdfrx'in
+          // kaydırma/yakınlaştırmasıyla yarışamaz (sınıf açıklamasındaki kök
+          // nedene bakın). translucent: parmak alttaki sayfaya da geçer.
+          Listener(
             behavior: HitTestBehavior.translucent,
-            // Seçim varken dokunuş temizler (telefonun yerel davranışı). Seçim
-            // yokken tanıyıcı HİÇ kurulmaz → köprüler çalışmaya devam eder.
-            onTapDown: _hasSelection ? (_) => _clear() : null,
-            onLongPressStart: (d) => _selectWordAt(d.localPosition),
-            onLongPressMoveUpdate: (d) {
-              if (_anchor == null) return;
-              final i = _charIndexAt(d.localPosition, maxDist: 64);
-              if (i != null && i != _extent) setState(() => _extent = i);
-            },
-            onLongPressEnd: (_) => _report(),
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: _onPointerUp,
             child: CustomPaint(
               size: widget.pageSize,
               painter: _SelectionPainter(

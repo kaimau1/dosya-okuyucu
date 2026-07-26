@@ -2592,3 +2592,55 @@ sürümle diff" alınmalı; jest ve belge kimliği (yol) o diffte görünmemeli.
 **Doğrulama:** `flutter analyze` 0 hata, **566 test yeşil**. Bilinen iyi
 sürümle (6b475de) `PdfViewerParams` diffi artık yalnız `panEnabled` satırının
 KALKMASI (varsayılan true) — başka fark yok.
+
+## 2026-07-26 (10. tur) — ASIL KÖK NEDEN: seçim katmanı jest arenasına giriyordu
+
+Kullanıcı düzeltmesi: donma **belge açılır açılmaz** oluyor, düzenlemeden
+sonra değil. Bu tek cümle bütün tanıyı değiştirdi.
+
+### Neden 6/8/9. turlar hedefi ıskaladı
+Açılış anında kurulan ağaç, kullanıcının "bozuk" dediği sürümle 6b475de
+(bu turların başlangıcı) arasında neredeyse aynı — yani suçlu bu turlarda
+eklenen hiçbir şey olamazdı. Demek ki kullanıcının **bu turların EN BAŞINDA**
+bildirdiği *"sayfayı kaydıramıyorum, zoom yapamıyorum"* hatası hiç
+çözülmemişti; 6. turda üst çubuktaki "sürükleyerek seç" modunu suçlamıştım
+(ekran görüntüsünde el simgesi açıktı) — mod gerçekten kötü bir tuzaktı ama
+KULLANICININ HATASI O DEĞİLDİ.
+
+### KÖK NEDEN
+`PdfSelectLayer` sayfanın üstünde duruyor ve `GestureDetector` ile bir
+`LongPressGestureRecognizer` kuruyordu. Bu tanıyıcı HER dokunuşta jest
+arenasına giriyor ve süresi (500 ms) dolduğunda **kazanıp ötekileri eliyor**:
+* Parmağını yarım saniye dinlendirip sonra kaydıran kullanıcıda uzun basış
+  kazanıyor → sayfa kaymıyor.
+* İki parmağını koyup açmadan önce bir an duraklayan kullanıcıda yine uzun
+  basış kazanıyor, pdfrx'in ölçek tanıyıcısı eleniyor → zoom ölü.
+
+İkisi de telefonda son derece olağan hareket; bu yüzden hata "ara sıra" değil
+"sürekli" hissediliyordu. Emülatörde/fare ile fark edilmemesinin sebebi de bu:
+fareyle insan parmağını dinlendirmez.
+
+### Çözüm — katman artık HİÇBİR tanıyıcı kurmuyor
+Sayfayı kaplayan alanda `GestureDetector` yerine **`Listener`** var.
+`Listener` işaretçi olaylarını dinler ama **jest arenasına girmez**, dolayısıyla
+pdfrx'in kaydırma/yakınlaştırmasıyla yarışması yapısal olarak olanaksız.
+Uzun basış elle ölçülüyor: 500 ms zamanlayıcı + 18 px kayma toleransı +
+ikinci parmak inince iptal.
+
+Bilinçli bedel: uzun basıştan sonra parmağı sürükleyerek seçimi büyütmek yok
+(o sürükleme sayfayı kaydırır). Seçim uçlardaki **tutamaçlardan** büyütülüyor —
+Android'in yerel davranışı da bu. Kazanç: katmanın en kötü arıza biçimi artık
+"seçim çalışmıyor"; **gezinmeyi kilitlemesi mümkün değil.**
+
+### Yapısal koruma eklendi
+`test/pdf_select_layer_gestures_test.dart`: kaynakta (yorumlar hariç)
+`onLongPress` geçmemeli. Davranış testi yazılamıyor — `PdfSelectLayer` gerçek
+bir pdfium `PdfPage`'i istiyor. Kural üç turda üç kez bozulduğu için kaynak
+düzeyinde de olsa bir bekçi hak etti; hata mesajı nedeni anlatıyor.
+
+**DERS:** "sayfanın üstüne konan her tanıyıcı, gezinmeyi elinden alabilir."
+Bu katmana bir daha `GestureDetector` konmayacak. Ayrıca: kullanıcıya
+**"ne zaman oluyor"** diye sormak (açılışta mı, işlemden sonra mı) üç turluk
+yanlış tanıyı tek cümlede bitirdi — önce bunu sormalıydım.
+
+**Doğrulama:** `flutter analyze` 0 hata, **567 test yeşil** (+1).
