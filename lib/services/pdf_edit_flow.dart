@@ -27,7 +27,7 @@ class PdfEditApplied {
 /// **Seçili metni değiştirme akışı** — sayfa üzerindeki yerinde düzenleyiciden
 /// çağrılır.
 ///
-/// İki yol var, sırayla denenir:
+/// Üç yol var, sırayla denenir:
 ///
 /// 1. **Yerinde düzenleme** ([PdfContentEditor]) — asıl yol. Sayfanın içerik
 ///    akışındaki metin operatörünün dizesi değiştirilir: yazı tipi, punto,
@@ -35,10 +35,14 @@ class PdfEditApplied {
 ///    korunur (değişiklik dosyanın sonuna ekleme olarak yazılır). Yeni metin
 ///    daha geniş/darsa satırın kalanı belgenin kendi glif genişlikleriyle
 ///    ölçülüp kaydırılır — Word'de yazarken satırın akması budur.
-/// 2. **Üstünü kapatma** ([PdfTools.replaceText]) — yalnız 1. yol reddedilirse
-///    ve kullanıcı onaylarsa. Eski yazının üstü boyanır, yenisi üste çizilir.
-///    Bedeli açıkça söylenir: yazı tipi gömülü Carlito olur, arka plan düz renk
-///    varsayılır ve eski metin belgede aranabilir hâlde kalır.
+/// 2. **Şifre korumasını kaldırıp 1'i yeniden dene** — belge yalnız izin
+///    kilitliyse (parola sorulmadan açılıyorsa) koruma boş parolayla kalkar ve
+///    yerinde düzenleme tam sadakatle çalışır. Kullanıcıya sorulur; özgün
+///    dosya değişmez, koruma yalnız düzenlenen kopyada kalkar.
+/// 3. **Üstünü kapatma** ([PdfTools.replaceText]) — yalnız öncekiler
+///    olmayınca ve kullanıcı onaylarsa. Eski yazının üstü boyanır, yenisi üste
+///    çizilir. Bedeli açıkça söylenir: yazı tipi gömülü Carlito olur, arka plan
+///    düz renk varsayılır ve eski metin belgede aranabilir hâlde kalır.
 class PdfEditFlow {
   const PdfEditFlow._();
 
@@ -59,18 +63,50 @@ class PdfEditFlow {
     required String newText,
     String precedingText = '',
   }) async {
-    final bytes = await File(path).readAsBytes();
+    List<int> bytes = await File(path).readAsBytes();
     List<int> out;
     var note = '';
     var overflows = false;
+    var unlocked = false;
+
+    Future<PdfEditResult> attempt() =>
+        PdfContentEditor.replaceTextInBackground(
+          bytes,
+          pageIndex: pageIndex,
+          oldText: oldText,
+          newText: newText,
+          precedingText: precedingText,
+        );
+
     try {
-      final result = await PdfContentEditor.replaceTextInBackground(
-        bytes,
-        pageIndex: pageIndex,
-        oldText: oldText,
-        newText: newText,
-        precedingText: precedingText,
-      );
+      PdfEditResult result;
+      try {
+        result = await attempt();
+      } on PdfEditRefused catch (refusal) {
+        // Şifre koruması: kurtarılabilir bir engel. Belge parola sorulmadan
+        // açıldığına göre kullanıcı parolası boştur (yalnız izin kilidi var);
+        // korumayı kaldırınca yerinde düzenleme TAM SADAKATLE çalışır. Bunu
+        // kullanıcıya "PDF araçlarına git, parolayı kaldır, geri gel" diye
+        // ödev vermek yerine burada, tek soruyla yapıyoruz.
+        if (!refusal.encrypted) rethrow;
+        if (!context.mounted) return null;
+        if (await _askUnlock(context) != true) rethrow;
+        try {
+          bytes = await PdfTools.removePasswordInBackground(
+            bytes,
+            currentPassword: '',
+          );
+        } catch (e) {
+          // Gerçek bir kullanıcı parolası var (belge boş parolayla açılmıyor)
+          // ya da Syncfusion bu şifrelemeyi çözemedi. Yedek yola düşülür.
+          throw PdfEditRefused(
+            'Belgenin şifre koruması kaldırılamadı: $e\n\n'
+            'Parolayı biliyorsanız PDF araçlarından kaldırıp yeniden deneyin.',
+          );
+        }
+        unlocked = true;
+        result = await attempt();
+      }
       out = result.bytes;
       overflows = result.overflows;
       note = result.reflowed
@@ -80,6 +116,7 @@ class PdfEditFlow {
         note = '⚠ Yeni metin satıra sığmadı, satır sayfanın metin alanının '
             'dışına taşıyor.';
       }
+      if (unlocked) note = '$note Belgenin şifre koruması kaldırıldı.';
     } on PdfEditRefused catch (refusal) {
       if (!context.mounted) return null;
       final useOverlay = await _askOverlayFallback(context, refusal.message);
@@ -104,6 +141,45 @@ class PdfEditFlow {
       rawRects: rawRects,
       newText: newText,
       fontBytes: font,
+    );
+  }
+
+  /// Şifre korumalı belgede: korumayı kaldırıp yerinde düzenlemeyi öner.
+  ///
+  /// Niye ayrı ve niye ÖNCE: sigorta poliçesi, fatura, e-devlet çıktısı gibi
+  /// belgelerin çoğu "parolalı" değil, yalnız **izin kilitli**dir — parola
+  /// sorulmadan açılır, üreticisi sadece yazdırma/kopyalama izinlerini
+  /// kısıtlamıştır. Eski akış bunları da doğrudan "üste yaz" yedeğine
+  /// gönderiyordu; oysa koruma kalkınca yerinde düzenleme sorunsuz çalışıyor
+  /// ve yazı tipi/punto belgenin kendisi kalıyor. (2026-07-26 kullanıcı
+  /// bulgusu: poliçe PDF'inde "Belge parolalı/şifreli" uyarısı.)
+  static Future<bool?> _askUnlock(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Belge şifre korumalı'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'Bu belgede şifre koruması var; açılırken parola sorulmadığına '
+            'göre bu bir izin kilidi (yazdırma/kopyalama kısıtı).\n\n'
+            'Koruma kaldırılırsa metin, belgenin KENDİ yazı tipi ve puntosuyla '
+            'yerinde düzenlenebilir — görüntü hiç bozulmaz.\n\n'
+            '• Özgün dosyanız değişmez: koruma yalnız düzenlenen kopyada '
+            'kalkar, kaydetme biçimini çıkarken siz seçersiniz.\n'
+            '• Belge bu sırada yeniden yazılır (artımlı güncelleme değil).\n\n'
+            'Kaldırılmasın derseniz eski yazının üstüne yazma yolu önerilir; '
+            'orada yazı tipi belgenin fontu OLMAZ.',
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Kaldırma')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Korumayı kaldır')),
+        ],
+      ),
     );
   }
 

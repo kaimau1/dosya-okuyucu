@@ -2454,3 +2454,43 @@ uyarı yok, **563 test yeşil** (+4). Yeni test: `pdf_selection_rects_test`
 (satır birleştirme: aynı satır tek kutu, ayrı satırlar ayrı, bozuk kutu elenir).
 Zoom/kaydırma ve dokunma sırası düzeltmeleri **gerçek cihazda** doğrulanmalı —
 gesture arenası widget testinde birebir taklit edilemiyor.
+
+## 2026-07-26 (7. tur) — "Belge parolalı/şifreli" uyarısı: izin kilitli PDF'ler
+
+Kullanıcı bulgusu (sigorta poliçesi PDF'i, ekran görüntüsü): metni düzenlemeye
+kalkınca **"Yerinde düzenleme yapılamadı — Belge parolalı/şifreli"** çıkıyor ve
+tek seçenek "üste yaz" oluyor (yazı tipi Carlito'ya düşüyor).
+
+**KÖK NEDEN — "şifreli" ile "parolalı" aynı şey değil.** Poliçe, fatura,
+e-devlet çıktısı gibi belgelerin çoğunda `/Encrypt` VARDIR ama **kullanıcı
+parolası boştur**: üretici yalnız yazdırma/kopyalama iznini kısıtlamıştır
+(sahip parolası). Belge parola sorulmadan açılır — pdfium da öyle açıyor, o
+yüzden kullanıcı belgesini "şifreli" saymıyor. `PdfFile.isEncrypted` yalnız
+`/Encrypt` var mı diye baktığı için bu belgeleri de reddediyorduk ve kullanıcı
+en kötü yola (üste yazma) mahkûm oluyordu.
+
+**Çözüm — kurtarma yolu, ödev değil.** Eski mesaj "önce PDF araçlarından
+parolayı kaldırın" diyordu; bu kullanıcıya ekran değiştirtip geri getiriyordu.
+Artık:
+- `PdfEditRefused` bir **`encrypted`** bayrağı taşıyor (isolate sınırından da
+  geçiyor) — akış reddin sebebini ayırt edebiliyor.
+- Sebep şifreyse `PdfEditFlow` tek soruyla korumayı kaldırmayı öneriyor
+  (`PdfTools.removePasswordInBackground(currentPassword: '')`) ve **yerinde
+  düzenlemeyi yeniden deniyor**. Böylece yazı tipi/punto belgenin kendisi
+  kalıyor.
+- Boş parola tutmazsa (gerçek kullanıcı parolası varsa) açıklamalı bir redde
+  düşülüyor, oradan da "üste yaz" yedeği öneriliyor.
+- Özgün dosya değişmiyor: koruma yalnız 6. turda gelen **çalışma kopyasında**
+  kalkıyor, kaydetme biçimini kullanıcı çıkarken seçiyor. İki değişiklik
+  birbirini tamamladı.
+
+**TUZAK:** koruma kaldırma Syncfusion'ın tam yeniden yazımıdır
+(`incrementalUpdate = false`) — artımlı güncelleme sözü o belge için bozulur.
+Kullanıcıya söyleniyor (onay penceresinde madde madde).
+
+**Doğrulama:** `pdf_encrypted_edit_test` — sahip parolalı (kullanıcı parolası
+BOŞ) belge kuruluyor; (a) red gerçekten `encrypted: true` ile geliyor,
+(b) boş parolayla koruma kalkıyor ve yerinde düzenleme metni gerçekten
+değiştiriyor, (c) şifresiz belgedeki başka bir red `encrypted: false` kalıyor
+(kurtarma yanlış yerde tetiklenmesin). `flutter analyze` 0 hata,
+**566 test yeşil** (+3).
