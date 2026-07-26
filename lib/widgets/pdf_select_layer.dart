@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:pdfrx/pdfrx.dart';
@@ -26,9 +25,17 @@ import 'package:pdfrx/pdfrx.dart';
 ///   kaydırmak seçimi büyütür.
 /// * Katman parmağı asla yutmaz (translucent) → sayfa normal kaydırılır,
 ///   köprüler çalışır.
-/// * **İki parmak inince uzun basış kendini geri çeker** → yakınlaştırma
-///   her zaman çalışır (bkz. [_PageLongPress]).
 /// * Yeni bir dokunuş önceki seçimi temizler.
+///
+/// **REDDEDİLEN yol (2026-07-26, denendi ve geri alındı):** "iki parmak inince
+/// uzun basışı reddet" koruması `RawGestureDetector` + parmak sayacıyla
+/// eklenmişti. Sayaç SAYFA BAŞINA tutuluyordu; iki parmak farklı sayfaların
+/// katmanlarına (ya da biri kenar boşluğuna) düşünce koruma çalışmıyor, buna
+/// karşılık katman yeniden kurulduğunda sayaç sıfırlanamayıp takılı kalıyordu.
+/// Takılı sayaç her dokunuşta uzun basışı reddediyor, bu da pdfrx'in kaydırma
+/// tanıyıcısını **kayma toleransı olmadan** anında kazandırıyordu: en ufak
+/// titremede sayfa kayıyordu ("sayfa kaynıyor"). Sade `GestureDetector`'a
+/// dönüldü.
 class PdfSelectLayer extends StatefulWidget {
   final PdfPage page;
 
@@ -65,9 +72,6 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   PdfPageText? _text;
   int? _anchor; // seçim çapası (karakter indeksi, fullText üzerinde)
   int? _extent; // seçim ucu (dahil)
-
-  /// Uzun basış tanıyıcısı — parmak sayısını bilmesi için elimizde tutuluyor.
-  _PageLongPress? _longPress;
 
   @override
   void initState() {
@@ -219,55 +223,29 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
         key: _overlayKey,
         clipBehavior: Clip.none,
         children: [
-          // Listener parmak sayısını sayar ve önceki seçimi temizler.
-          //
-          // Niye "dokununca temizle" tap yerine pointer'da: pdfrx köprü
-          // katmanı (linkHandlerParams) tüm görüntüyü kaplayan bir tap
-          // tanıyıcısı kurar ve arenaya BİZDEN ÖNCE girdiği için her tap'ı o
-          // kazanır — buradaki `onTap` hiç ateşlenmezdi.
-          Listener(
+          GestureDetector(
+            // translucent: katman parmağı yutmaz → sayfa kaydırma /
+            // yakınlaştırma / köprü dokunuşu alttaki pdfrx'e geçer.
             behavior: HitTestBehavior.translucent,
-            onPointerDown: (_) {
-              _longPress?.fingerDown();
-              if (_hasSelection) _clear();
+            // Seçim varken dokunuş temizler (telefonun yerel davranışı). Seçim
+            // yokken tanıyıcı HİÇ kurulmaz → köprüler çalışmaya devam eder.
+            onTapDown: _hasSelection ? (_) => _clear() : null,
+            onLongPressStart: (d) => _selectWordAt(d.localPosition),
+            onLongPressMoveUpdate: (d) {
+              if (_anchor == null) return;
+              final i = _charIndexAt(d.localPosition, maxDist: 64);
+              if (i != null && i != _extent) setState(() => _extent = i);
             },
-            onPointerUp: (_) => _longPress?.fingerUp(),
-            onPointerCancel: (_) => _longPress?.fingerUp(),
-            child: RawGestureDetector(
-              // translucent: katman parmağı yutmaz → sayfa kaydırma /
-              // yakınlaştırma / köprü dokunuşu alttaki pdfrx'e geçer.
-              behavior: HitTestBehavior.translucent,
-              gestures: {
-                _PageLongPress:
-                    GestureRecognizerFactoryWithHandlers<_PageLongPress>(
-                  _PageLongPress.new,
-                  (instance) {
-                    _longPress = instance;
-                    instance
-                      ..onLongPressStart =
-                          ((d) => _selectWordAt(d.localPosition))
-                      ..onLongPressMoveUpdate = ((d) {
-                        if (_anchor == null) return;
-                        final i =
-                            _charIndexAt(d.localPosition, maxDist: 64);
-                        if (i != null && i != _extent) {
-                          setState(() => _extent = i);
-                        }
-                      })
-                      ..onLongPressEnd = ((_) => _report());
-                  },
-                ),
-              },
-              child: CustomPaint(
-                size: widget.pageSize,
-                painter: _SelectionPainter(
-                  text: _text,
-                  page: widget.page,
-                  pageSize: widget.pageSize,
-                  start: _selStart,
-                  end: _selEnd,
-                  color: scheme.primary.withValues(alpha: 0.28),
-                ),
+            onLongPressEnd: (_) => _report(),
+            child: CustomPaint(
+              size: widget.pageSize,
+              painter: _SelectionPainter(
+                text: _text,
+                page: widget.page,
+                pageSize: widget.pageSize,
+                start: _selStart,
+                end: _selEnd,
+                color: scheme.primary.withValues(alpha: 0.28),
               ),
             ),
           ),
@@ -316,33 +294,6 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
         ),
       ),
     );
-  }
-}
-
-/// İkinci parmak inince arenadaki hakkından **vazgeçen** uzun basış tanıyıcısı.
-///
-/// KÖK NEDEN (2026-07-26 kullanıcı bulgusu: "zoom yapamıyorum"): seçim katmanı
-/// sayfanın üstünde durduğu için her dokunuşta arenaya girer. İki parmakla
-/// yakınlaştırırken kullanıcı parmaklarını yarım saniye kıpırdatmadan tutarsa
-/// uzun basış süresi dolar, tanıyıcı arenayı kazanır ve pdfrx'in ölçek
-/// tanıyıcısı elenir — yakınlaştırma hiç başlamaz. İkinci parmağın inişi
-/// "kullanıcı seçmiyor, yakınlaştırıyor" demektir; hakkı orada bırakıyoruz.
-class _PageLongPress extends LongPressGestureRecognizer {
-  int _fingers = 0;
-
-  void fingerDown() {
-    _fingers++;
-    if (_fingers > 1) resolve(GestureDisposition.rejected);
-  }
-
-  void fingerUp() {
-    if (_fingers > 0) _fingers--;
-  }
-
-  @override
-  void dispose() {
-    _fingers = 0;
-    super.dispose();
   }
 }
 

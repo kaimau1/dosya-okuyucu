@@ -2494,3 +2494,53 @@ BOŞ) belge kuruluyor; (a) red gerçekten `encrypted: true` ile geliyor,
 değiştiriyor, (c) şifresiz belgedeki başka bir red `encrypted: false` kalıyor
 (kurtarma yanlış yerde tetiklenmesin). `flutter analyze` 0 hata,
 **566 test yeşil** (+3).
+
+## 2026-07-26 (8. tur) — GERİ ALMA: "sayfa kaynıyor, zoom gidiyor" — kendi eklediğimiz koruma bozmuş
+
+Kullanıcı bulgusu: *"PDF üzerinde değişiklik yapmaya çalıştıktan sonra uygulama
+kararsızlaşıyor, zoom yapamamaya başlıyor, sayfa kaynamaya başlıyor."*
+
+### A) KÖK NEDEN — 6. turda eklenen "iki parmak koruması" ters tepti
+6. turda uzun basışın pinch'i yemesini önlemek için `RawGestureDetector` +
+`_PageLongPress` (parmak sayan uzun basış tanıyıcısı) eklenmişti. İki kusuru
+vardı ve ikisi de üretimde ortaya çıktı:
+
+1. **Sayaç sayfa başına tutuluyordu.** `PdfSelectLayer` her sayfa için ayrı
+   kuruluyor; iki parmak farklı sayfaların katmanlarına (ya da biri kenar
+   boşluğuna) düşünce hiçbir katman "iki parmak" görmüyor, koruma çalışmıyordu.
+2. **Sayaç TAKILI kalabiliyordu.** Parmak yerdeyken belge yeniden yüklenirse
+   (düzenlemeden sonra tam da bu oluyor) katman yok edilir, `onPointerUp` hiç
+   gelmez, sayaç ≥1 kalır. Sonrasında HER dokunuşta `resolve(rejected)`
+   çağrılıyor; arenada tek üye kalınca **pdfrx'in kaydırma tanıyıcısı daha
+   pointer-down anında kazanıyor**, yani kayma toleransı (slop) devre dışı
+   kalıyor: en ufak parmak titremesinde sayfa kayıyor. Kullanıcının "sayfa
+   kaynıyor" dediği şey bu.
+
+**Karar: geri alındı.** Seçim katmanı 5. turdaki sade `GestureDetector`
+biçimine döndü (translucent + uzun basış + seçim varken dokununca temizle).
+Uzun basışın pinch'i yeme riski TEORİK olarak duruyor (kullanıcı iki parmağını
+yarım saniye hiç kıpırdatmazsa) ama ölçülen zarar sıfır; koruma girişiminin
+zararı ise gerçekti. *Ders: gesture arenasına müdahale eden koruma, ancak
+tüm görüntüyü gören TEK bir yerden yapılabilir — sayfa başına kurulan
+katmandan yapılamaz.*
+
+### B) Düzenleme çubuğu artık ekranın altında (köprü katmanı hiç kapanmıyor)
+7. turda "x/onay/AI'ye basılamıyor" sorunu, düzenleme açıkken
+`linkHandlerParams`'ı null yaparak çözülmüştü. Çalışıyordu ama düzenleme her
+açılıp kapandığında `PdfViewerParams` değişiyordu. Çubuk artık pdfrx'in
+TAMAMEN dışında, `_buildBody`'nin kendi Stack'inde (seçim çubuğuyla aynı yer):
+dokunuşu doğal olarak ilk o alıyor, köprü hiç kapatılmıyor, çubuk sayfa
+kenarında kırpılmıyor ve klavyenin üstünde duruyor.
+Metin kutusu sayfa katmanında kaldı — o zaten çalışıyor (metin alanı
+tanıyıcısı arenayı erken kazanıyor). `TextEditingController` `ViewerScreen`'e
+taşındı ki kutu ile alttaki çubuk aynı metni görsün.
+
+### C) Yakınlaştırma yeniden yüklemede sıfırlanıyordu
+Çalışma kopyasına geçiş pdfrx için GERÇEK bir yeniden yükleme; pdfrx yeniden
+yüklemede ölçeği "sayfayı kapla"ya çekiyor. Kullanıcı yakınlaştırıp bir kelime
+düzeltince sayfa birden uzaklaşıyordu — "kararsızlaştı" hissinin bir parçası.
+Geçişten hemen önce `PdfViewerController.currentZoom` saklanıp
+`calculateInitialZoom` ile geri veriliyor.
+
+**Doğrulama:** `flutter analyze` 0 hata, **566 test yeşil**. Gesture
+davranışı gerçek cihazda doğrulanmalı (arena widget testinde taklit edilemiyor).
