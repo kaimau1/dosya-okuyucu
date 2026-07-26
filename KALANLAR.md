@@ -209,3 +209,11 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
 - [ ] **graphify güncellemesi:** araç bu ortamda kurulu değil; yeni düğümler
       (`pdf_reload`, `pdf_save`, `perspective`, `scan_edit/review`,
       `pdf_ai_edit`, `pdf_text_replace`) grafta eksik.
+- [ ] **APK ~199 MB (build 123).** Bu iş ÖNCESİNDE de böyleydi (build 120:
+      196 MB → build 123: 199 MB, artış yalnız yeni kod), yani bu turun
+      getirdiği bir şişme değil. Ama "sade/hızlı" konumlandırma ve Play Store
+      için fazla büyük. Muhtemel kaynaklar: tek APK'da tüm ABI'ler (pdfium +
+      ML Kit + video/ses yerel kütüphaneleri), gömülü fontlar, WebView Word
+      motoru. Yol: `--split-per-abi` ya da App Bundle (AAB) — indirilen boyut
+      3-4 kat düşer. Release akışının değişmesi gerekir, ayrı iş.
+
