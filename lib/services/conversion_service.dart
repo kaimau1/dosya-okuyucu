@@ -13,9 +13,29 @@ import 'ocr_service.dart';
 /// Basit format dönüştürme: metin/office içeriğini PDF veya TXT'e çevirir,
 /// AI metninden PDF slayt destesi üretir.
 class ConversionService {
+  /// Türkçe yazabilen gömülü tema (Carlito).
+  ///
+  /// **TUZAK (sessiz bozulma):** `pdf` paketinin varsayılan fontu Helvetica'dır
+  /// (base-14, WinAnsi) ve `ğ ş ı İ` bu kodlamada YOKTUR. Paket hata ATMAZ —
+  /// PDF üretilir ama bu karakterler yanlış/boş çizilir, yani Türkçe belgede
+  /// "PDF'e dönüştür" çıktıyı sessizce bozuyordu. Görünmez OCR katmanında font
+  /// zaten gömülüyordu; görünen metin yolu atlanmıştı (2026-07-26'da düzeltildi).
+  static pw.ThemeData? _theme;
+
+  static Future<pw.ThemeData> _turkishTheme() async {
+    return _theme ??= pw.ThemeData.withFont(
+      base: pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Regular.ttf')),
+      bold: pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Bold.ttf')),
+      italic:
+          pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Italic.ttf')),
+      boldItalic: pw.Font.ttf(
+          await rootBundle.load('assets/fonts/Carlito-BoldItalic.ttf')),
+    );
+  }
+
   /// Düz metni tek bir PDF belgesine dönüştürür.
   Future<Uint8List> textToPdf(String title, String content) async {
-    final doc = pw.Document();
+    final doc = pw.Document(theme: await _turkishTheme());
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -60,9 +80,20 @@ class ConversionService {
   /// [ocrLinesPerPage] verilirse i. listedeki satırlar i. sayfaya görünmez metin
   /// olarak yazılır; kısa liste sorun değil, kalan sayfalar metinsiz kalır.
   /// Tek görsellik hâli [imageToPdf] ile aynı yoldan geçer — davranış tek yerde.
+  ///
+  /// [uniformPage] verilirse (belge tarayıcı bunu A4 ile çağırır) **her sayfa
+  /// aynı kâğıt boyunda** olur: görsel oranı korunarak sayfaya sığdırılır
+  /// (kırpılmaz, esnetilmez) ve ORTALANIR; yatay görsel için kâğıt yatay
+  /// çevrilir, böylece kenarda dev boşluk kalmaz.
+  ///
+  /// *Niye:* eskiden her sayfa kendi görselinin oranını alıyordu — arka arkaya
+  /// çekilen sayfalar birkaç piksel farklı olduğu için PDF'te sayfa boyu sayfa
+  /// sayfa oynuyordu ("sayfalar tam oturmuyor, düz değil" bulgusu, 2026-07-26).
+  /// Gerçek bir tarayıcı hep aynı kâğıda basar; biz de öyle yapıyoruz.
   Future<Uint8List> imagesToPdf(
     List<String> imagePaths, {
     List<List<OcrLine>> ocrLinesPerPage = const [],
+    PdfPageFormat? uniformPage,
   }) async {
     if (imagePaths.isEmpty) throw ArgumentError('PDF için en az bir görsel gerekli');
 
@@ -88,9 +119,44 @@ class ConversionService {
             'JPG veya PNG olarak kaydedip tekrar deneyin.');
       }
 
-      final pageWidth = PdfPageFormat.a4.width;
-      final pageHeight = pageWidth * imgHeight / imgWidth;
-      final scale = pageWidth / imgWidth;
+      final double pageWidth;
+      final double pageHeight;
+      final double scale;
+      // Görselin sayfadaki sol-üst köşesi (ortalama kayması).
+      double offsetX = 0;
+      double offsetY = 0;
+
+      if (uniformPage == null) {
+        // Eski davranış: sayfa oranı resmin oranına eşitlenir (kenar boşluğu yok).
+        pageWidth = PdfPageFormat.a4.width;
+        pageHeight = pageWidth * imgHeight / imgWidth;
+        scale = pageWidth / imgWidth;
+      } else {
+        // Sabit kâğıt. Yatay görselde kâğıdı da yatay çevir — aynı boy, dolu sayfa.
+        final landscape = imgWidth > imgHeight;
+        pageWidth = landscape
+            ? (uniformPage.width > uniformPage.height
+                ? uniformPage.width
+                : uniformPage.height)
+            : (uniformPage.width < uniformPage.height
+                ? uniformPage.width
+                : uniformPage.height);
+        pageHeight = landscape
+            ? (uniformPage.width > uniformPage.height
+                ? uniformPage.height
+                : uniformPage.width)
+            : (uniformPage.width < uniformPage.height
+                ? uniformPage.height
+                : uniformPage.width);
+        final sx = pageWidth / imgWidth;
+        final sy = pageHeight / imgHeight;
+        scale = sx < sy ? sx : sy; // contain: kırpma yok, esnetme yok
+        offsetX = (pageWidth - imgWidth * scale) / 2;
+        offsetY = (pageHeight - imgHeight * scale) / 2;
+      }
+
+      final drawWidth = imgWidth * scale;
+      final drawHeight = imgHeight * scale;
       final ocrLines =
           i < ocrLinesPerPage.length ? ocrLinesPerPage[i] : const <OcrLine>[];
 
@@ -104,8 +170,8 @@ class ConversionService {
               // Önce metin → resim üstünü örter; metin PDF'te aranabilir kalır.
               for (final line in ocrLines)
                 pw.Positioned(
-                  left: line.box.left * scale,
-                  top: line.box.top * scale,
+                  left: offsetX + line.box.left * scale,
+                  top: offsetY + line.box.top * scale,
                   child: pw.Text(
                     line.text,
                     style: pw.TextStyle(
@@ -115,7 +181,15 @@ class ConversionService {
                     ),
                   ),
                 ),
-              pw.Image(image, fit: pw.BoxFit.fill),
+              pw.Positioned(
+                left: offsetX,
+                top: offsetY,
+                child: pw.SizedBox(
+                  width: drawWidth,
+                  height: drawHeight,
+                  child: pw.Image(image, fit: pw.BoxFit.fill),
+                ),
+              ),
             ],
           ),
         ),
@@ -128,7 +202,7 @@ class ConversionService {
   /// Slaytlar "---" veya "— Slayt" ile ayrılabilir; yoksa paragraflara bölünür.
   Future<Uint8List> textToSlidesPdf(String title, String content) async {
     final slides = _splitIntoSlides(content);
-    final doc = pw.Document();
+    final doc = pw.Document(theme: await _turkishTheme());
 
     doc.addPage(
       pw.Page(

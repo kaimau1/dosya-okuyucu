@@ -172,3 +172,24 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli.
 - [ ] **Klasör boyutlarını liste içinde göstermek** (şu an yalnız Özellikler'de,
       istek üzerine hesaplanıyor — her satırda hesaplamak pahalı).
+
+## PDF turu sonrası kalanlar (2026-07-26)
+- [ ] **Cihaz doğrulaması bekliyor:** vurgulama (artık görünmeli), uzun basışla
+      metin seçimi, 2/4 sütun düzeni, kaydırma çubuğu, taramada köşe ayarı.
+      Bunların hiçbiri birim testle doğrulanamaz (pdfium render + dokunma).
+- [ ] **AI düzenleme sayfa düzenini korumuyor** (bilinçli — bkz. HAFIZA
+      2026-07-26 §8). "Yerinde metin düzenleme" istenirse gömülü font alt
+      kümesi + satır kırımı yeniden kurma işi; ayrı ve büyük bir faz.
+- [ ] **Vurgu koordinatı sayfa /Rotate=0 varsayıyor** (`PdfAnnotator`).
+      Döndürülmüş sayfada vurgu kayabilir; `stampTransform` benzeri bir köprü
+      gerekir.
+- [ ] **Sıkıştırma hâlâ yalnız akış sıkıştırması** — taranmış PDF'te kazanç
+      küçük. Agresif mod (sayfaları bitmap'e render + JPEG) ayrı seçenek olarak
+      sunulmalı, sessizce yapılmamalı (metin katmanı kaybolur).
+- [ ] **Arka plana alınan iş için kalıcı gösterge yok** — "Arka plana al"
+      dendikten sonra işin sürdüğü yalnız bitince anlaşılıyor; kalıcı bir
+      alt bilgi çubuğu/bildirim iyi olurdu.
+- [ ] **Taramada döndürme yok** — köşe ayarı var ama 90° çevirme yok
+      (ML Kit çoğu zaman doğru yönlendiriyor).
+- [ ] **graphify güncellemesi:** bu turun yeni düğümleri (`pdf_reload`,
+      `pdf_save`, `perspective`, `scan_edit/review`, `pdf_ai_edit`) grafta yok.

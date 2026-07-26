@@ -1893,3 +1893,153 @@ okuyabildiği için yükseltmek güvenli yön. Eklentiyi eski sürüme düşürm
 denenmedi: hangi sürümün hangi Kotlin'le derlendiğini deneme yanılmayla aramak
 demekti. **Yeni bir eklenti Kotlin 2.x isterse artık sorun çıkmaz;** tersi
 (1.8'e bağlı eski eklenti) gelirse bu satır hatırlansın.
+
+---
+
+## 2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme
+
+Kullanıcı 11 maddelik bir liste verdi (PDF düzenleme, AI, kaydetme, uzun belge
+gezinme, sıkıştırma donması, vurgulama, metin seçimi, arka plan işlemleri,
+tarama). Hepsi bu turda kapatıldı. Aşağıdakiler **kök neden** kayıtlarıdır.
+
+### 1) TUZAK — pdfrx belgeleri STATİK haritada dosya YOLUNA göre önbelleğe alır
+**Belirti:** "PDF'te vurgulama çalışmıyor." Vurgu Syncfusion'la dosyaya
+gerçekten yazılıyordu (dosya baytları değişiyor) ama ekranda hiç görünmüyordu.
+İmza ve PDF Araçları'ndan kaydetme de aynı derde giriyordu.
+
+**Kök neden:** `PdfDocumentRef._listenables` **statik** bir `Map` ve
+`PdfDocumentRefFile`'ın `==`'i YALNIZ `file` yoluna bakıyor. Bizim çözümümüz
+widget'ı `ValueKey(_pdfReloadKey)` artırıp yeniden bağlamaktı — bu İŞE YARAMIYOR:
+Flutter anahtarı değişince önce YENİ elemanı kurar (`initState` →
+`resolveListenable()`), eskinin `dispose`'u (dolayısıyla `removeListener` ve
+önbellekten düşme) karenin SONUNDA çalışır. Yani yeni widget haritadaki eski
+kaydı bulur, `load()` "zaten yüklendi" deyip erken döner ve ekranda dosyanın
+ESKİ hâli kalır — kalıcı olarak.
+
+**Çözüm:** `lib/services/pdf_reload.dart` — aynı listenable bulunup
+`load(forceReload: true)` çağrılıyor; bu, açık görüntüleyiciye haber verir.
+Yeniden bağlama tamamen kaldırıldı, bonus olarak kullanıcı **aynı sayfada**
+kalıyor. Yükleme sırasında kaydın serbest bırakılmaması için geçici bir
+dinleyici eklenip iş bitince kaldırılıyor (görüntüleyici kapalıysa belge
+bellekte asılı kalmasın).
+
+**Ders:** pdfrx'te "dosyayı değiştirdim, tazele" = `forceReload`. Widget
+anahtarı DEĞİL. Aynı sınıf hata `PdfDocumentRefData`'da `sourceName` ile
+çözülmüştü (2026-07-25 notu) — dosya sürümü atlanmıştı.
+
+**Yan etki yönetimi:** `forceReload` eski `PdfDocument`'ı dispose ediyor →
+elimizdeki `_pdfDoc` bir kare boyunca ölü kalır. Bu yüzden `_reloadPdf` onu
+null'lıyor (OCR/içindekiler ölü belgeye dokunmasın); yenisi `onViewerReady`
+ile geri geliyor.
+
+### 2) TUZAK — PDF Araçları'nda her dokunuş belgeyi DISPOSE edip yeniden yüklüyordu
+**Belirti:** "PDF düzenlemede her sayfa seçtiğinde baştan render oluyor ve
+başa atıyor."
+
+**Kök neden:** ekran `setState` edince `PdfDocumentViewBuilder` yeni bir widget
+ÖRNEĞİ oluyor. pdfrx'in `didUpdateWidget`'i `widget == oldWidget` (kimlik)
+değilse eski listenable'dan dinleyiciyi kaldırıyor → başka dinleyici kalmadığı
+için `_releaseIfNoRefs` belgeyi **dispose ediyor** → hemen ardından yeni kayıt
+kuruluyor ve belge SIFIRDAN yükleniyor. Arada `document == null` döndüğü için
+ızgara ağaçtan düşüyor: kaydırma başa gidiyor, tüm küçük resimler yeniden
+çiziliyor. Yani suçlu "gereksiz rebuild" değil, pdfrx'in kimlik-tabanlı
+karşılaştırması.
+
+**Çözüm iki parçalı:** (a) seçim artık `setState` etmiyor —
+`ValueNotifier<Set<int>>`, yalnız karolar dinliyor; (b) ızgara widget'ı
+`_gridCache` ile önbelleğe alınıp AYNI ÖRNEK döndürülüyor (Flutter aynı örneği
+görünce alt ağacı hiç güncellemiyor). Önbellek yalnız `_rev` (belge baytı)
+değişince tazeleniyor. `PdfPageView` de `ValueListenableBuilder`'ın `child`'ı
+olarak veriliyor → seçim dokunuşunda pdfium render'ı tekrarlanmıyor.
+
+### 3) Donma: ağır iş ana izlekteydi
+- **PDF sıkıştırma:** Syncfusion belgeyi ana izlekte baştan yazıyor →
+  saniyelerce kare yok → "donma"/ANR. `PdfTools.*InBackground` sarmalayıcıları
+  eklendi (`Isolate.run`). **Neden ayrı statik metotlar:** ekran içinden yazılan
+  kapanış `this`i (State + BuildContext) yakalar ve isolate'e GÖNDERİLEMEZ;
+  statik metodun kapanışı yalnız yerel değişkenleri görür. Hata isolate
+  sınırından okunabilir geçsin diye `PdfToolsException`'a çevriliyor.
+  Ayrıca sıkıştırma artık **önce ne yapacağını anlatan bir onay** alıyor
+  (taranmış belgede kazanç küçüktür — beklemeden önce bilinmeli).
+- **Parolasız .zip (dosya yöneticisi):** şifreli/7z yolu zaten isolate'teydi ama
+  EN SIK kullanılan düz `.zip` yolu (`ZipFileEncoder`) ana izlekteydi →
+  `_zipSync` yazılıp `Isolate.run`'a alındı, ilerleme `SendPort` ile.
+- **Test notu:** isolate kapanışlarının gönderilebilirliği DERLEMEDE
+  yakalanmaz, yalnız çalışma anında patlar → `pdf_tools_test`e her arka plan
+  sarmalayıcısını gerçekten koşturan testler eklendi.
+
+### 4) Uzun süren işler artık arka plana alınabiliyor
+"Çöp kutusu boşaltılırken başka işlem yapamıyorum" — sorun işin kendisi değil,
+**modal ilerleme penceresiydi**. `showFmProgress`'e "Arka plana al" düğmesi
+eklendi (pencere kapanır, iş sürer). Pencere kapanışı artık `showDialog`'un
+`.then`'ine değil senkron bir `closed` bayrağına bağlı: geç gelen bir `pop`
+yanlış sayfayı kapatabilirdi. Çöp ekranı sonucu bildirmek için Messenger'ı
+işten ÖNCE yakalıyor (kullanıcı ekrandan çıkmış olabilir; MaterialApp
+seviyesindeki Messenger ekrandan bağımsız yaşar).
+
+### 5) Metin seçimi: mod zorunluluğu kaldırıldı
+Kullanıcı "çok kullanışsız, normal metin seçer gibi olmalı" dedi. Eskiden
+seçim için üst çubuktan "Metin seç" modunu açmak ZORUNLUYDU. Artık seçim
+katmanı DAİMA sayfanın üzerinde: **uzun basış her zaman kelimeyi seçer**,
+tutamaçlar aralığı büyütür, dokunuş temizler. Seçim yokken katman parmağı
+yutmuyor (`HitTestBehavior.translucent` + sürükleme tanıyıcısı KURULMUYOR) →
+sayfa normal kaydırılıyor ve köprüler çalışıyor. `onTapDown` yalnız seçim
+varken bağlanıyor (yoksa köprü dokunuşlarını yerdi). "Sürükleyerek seç" modu
+duruyor ama isteğe bağlı. Sayfa üstündeki ikinci "Kopyala" balonu kaldırıldı —
+tek alt çubuk kaldı, tutamaçlar 48 px dokunma hedefine büyütüldü.
+
+### 6) Uzun belgede gezinme
+- **Sayfaya git:** sayfa rozetine dokun → numara + kaydırıcı.
+- **2/4 sütun:** `PdfViewerParams.layoutPages` devralındı. Sütun genişliği
+  belgenin EN GENİŞ sayfasına sabit, dar sayfalar ortalanır (kayan sütun
+  okumayı zorlaştırır). **NOT:** paket belgesi "değişiklik için
+  `PdfViewerController.relayout()` çağır" diyor ama o API 2.x'te; 1.3.5'te
+  `_updateLayout` her build'de düzeni yeniden hesaplayıp karşılaştırıyor →
+  `setState` yeterli.
+- **Kaydırma çubuğu:** paketin `PdfViewerScrollThumb`'ı `viewerOverlayBuilder`
+  ile eklendi, topuzun üstünde sayfa numarası yazıyor.
+
+### 7) Kaydetme: üzerine yaz / kopyasını kaydet
+`lib/services/pdf_save.dart` + `widgets/pdf_save_dialog.dart` — PDF Araçları,
+imza ve AI düzenleme aynı soruyu soruyor. Kopya hedefi önce özgün klasör
+("… (kopya).pdf", çakışırsa numaralı), oraya yazılamıyorsa Belgeler dizini.
+Yazılabilirlik VARSAYILMIYOR, deneme dosyasıyla ÖLÇÜLÜYOR: paylaşımla gelen
+dosya çoğu zaman başka uygulamanın önbelleğinde durur.
+
+### 8) AI ile düzenleme — dürüst sınırla
+`PdfAiEditScreen`: metin katmanı Gemini'ye gider, yönergeye göre yeniden
+yazılır, sonuç ELLE düzenlenebilir, sonra PDF'e basılır.
+**Bilinçli sınır:** üretilen PDF metin tabanlıdır, özgün sayfa düzeni (sütun,
+tablo, logo, imza) KORUNMAZ — PDF içindeki metni yerinde değiştirmek gömülü
+font alt kümelerini ve satır kırımlarını yeniden kurmayı gerektirir, cihaz-içi
+/ücretsiz ilkesiyle makul sadakatte yapılamıyor. Bu ekranda da, kaydetme
+penceresinde de açıkça yazıyor ve kopya yolu öne çıkarılıyor.
+
+### 9) TUZAK (sessiz bozulma) — metin→PDF'te Türkçe karakterler
+`pdf` paketinin varsayılan fontu Helvetica (base-14, WinAnsi); `ğ ş ı İ` bu
+kodlamada YOK. Paket **hata atmıyor** — PDF üretiliyor ama o karakterler
+yanlış çiziliyor. Görünmez OCR katmanında font zaten gömülüyordu, görünen
+metin yolu atlanmıştı. `textToPdf`/`textToSlidesPdf` artık gömülü Carlito
+temasıyla çalışıyor. Test "çökmedi mi"ye değil `/FontFile2` var mı + Helvetica
+yok mu diye bakıyor (çökmediği için "çalışıyor" sanılabilirdi).
+
+### 10) Tarama: tek boy kâğıt + köşe düzeltme
+- **"Sayfalar tam oturmalı, düm düz olmalı":** her sayfa görselinin oranını
+  alıyordu → arka arkaya çekilen sayfalar birkaç piksel farklı olduğu için
+  PDF'te sayfa boyu zıplıyordu. `imagesToPdf(uniformPage: A4)` eklendi: sabit
+  kâğıt, oran korunarak sığdırma (kırpma/esnetme yok), ortalama; yatay görselde
+  kâğıt da yatay çevriliyor. OCR katmanının konumu da aynı ölçek/kayma ile
+  taşınıyor.
+- **"Köşelerinden tutup ayarlama":** `ScanReviewScreen` (tarama sonrası
+  önizleme, sayfa silme) + `ScanEditScreen` (mavi dörtgen, 4 sürüklenebilir
+  köşe) + `services/perspective.dart`.
+  **Karar — görüntü işleme paketi EKLENMEDİ:** perspektif düzeltme
+  `Canvas.drawVertices` + `ImageShader` ile GPU'da yapılıyor; hedef dikdörtgen
+  24×24'lük bir üçgen ağına bölünüp her köşeye kaynak görseldeki karşılığı
+  doku koordinatı olarak veriliyor (her üçgen içinde afin yaklaşıklık; ağ
+  sıklığında hata gözle görülmez). Homografi çözümü (8×9 Gauss, kısmi
+  pivotlama) SAF ve test edilmiş — çizim GPU gerektirdiği için testler
+  matematiği hedefliyor, hata gerçekten oradadır (yanlışsa sayfa yamuk çıkar).
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) indirilip
+`analyze` (0 error) + `flutter test` (459 test, hepsi yeşil) koşturuldu.

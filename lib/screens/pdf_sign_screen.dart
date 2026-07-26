@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
+import '../services/pdf_save.dart';
 import '../services/pdf_tools.dart';
+import '../widgets/pdf_save_dialog.dart';
 import '../widgets/signature_pad.dart';
 
 /// **PDF imzalama** — imzayı sayfa üzerinde sürükleyip boyutlandır, bas.
@@ -64,6 +66,14 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
   Future<void> _stamp(PdfPage page) async {
     final sig = _signature;
     if (sig == null || _busy) return;
+    // İmza atmak geri alınamaz bir yazma: özgün belgeyi korumak isteyene
+    // "kopyasını kaydet" yolu açık (2026-07-26 isteği).
+    final mode = await askPdfSaveMode(
+      context,
+      path: widget.path,
+      note: 'İmza belgeye kalıcı olarak basılacak.',
+    );
+    if (mode == null || !mounted) return;
     setState(() => _busy = true);
     try {
       final bytes = await File(widget.path).readAsBytes();
@@ -81,11 +91,15 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
         strokes: sig.strokes,
         rect: rect,
       );
-      await File(widget.path).writeAsBytes(Uint8List.fromList(out), flush: true);
+      final written = await PdfSave.write(widget.path, out, mode);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('İmza belgeye eklendi')));
-      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(mode == PdfSaveMode.overwrite
+            ? 'İmza belgeye eklendi'
+            : 'İmzalı kopya kaydedildi: ${written.split('/').last}'),
+      ));
+      // Yalnız üzerine yazıldıysa açık görüntüleyici tazelenmeli.
+      Navigator.of(context).pop(mode == PdfSaveMode.overwrite);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

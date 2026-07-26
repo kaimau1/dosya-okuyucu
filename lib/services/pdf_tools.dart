@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -268,6 +269,90 @@ class PdfTools {
     }
   }
 
+  // ── Arka plan (isolate) sarmalayıcıları ───────────────────────────────────
+  //
+  // KÖK NEDEN (2026-07-26, "sıkıştır denince donma"): Syncfusion belgeyi
+  // TAMAMEN ana izlekte yeniden yazıyor. Birkaç MB'lık bir PDF'te bu saniyeler
+  // sürer, o sırada Flutter kare çizemez → uygulama kilitlenmiş görünür, Android
+  // ANR verebilir. Aşağıdaki `…InBackground` sürümleri işi `Isolate.run` ile
+  // ayrı bir izleğe taşır: arayüz akıcı kalır, ilerleme penceresi dönebilir.
+  //
+  // Neden ayrı statik metotlar: `Isolate.run`'a verilen kapanış (closure)
+  // yalnız gönderilebilir (sendable) değerler yakalayabilir. Ekran sınıfının
+  // içinden yazılan kapanış `this`i (State + BuildContext) yakalar ve
+  // gönderilemez. Burada kapanış yalnız yerel değişkenleri görüyor.
+
+  /// [compress] — arka plan isolate'inde.
+  static Future<List<int>> compressInBackground(
+    List<int> bytes, {
+    String? password,
+  }) =>
+      _bg(() => compress(bytes, password: password));
+
+  /// [merge] — arka plan isolate'inde.
+  static Future<List<int>> mergeInBackground(List<List<int>> sources) =>
+      _bg(() => merge(sources));
+
+  /// [selectPages] — arka plan isolate'inde.
+  static Future<List<int>> selectPagesInBackground(
+    List<int> bytes,
+    List<int> pageIndexes, {
+    String? password,
+  }) =>
+      _bg(() => selectPages(bytes, pageIndexes, password: password));
+
+  /// [deletePages] — arka plan isolate'inde.
+  static Future<List<int>> deletePagesInBackground(
+    List<int> bytes,
+    List<int> pageIndexes, {
+    String? password,
+  }) =>
+      _bg(() => deletePages(bytes, pageIndexes, password: password));
+
+  /// [rotatePages] — arka plan isolate'inde.
+  static Future<List<int>> rotatePagesInBackground(
+    List<int> bytes, {
+    required List<int> pageIndexes,
+    required int quarterTurns,
+    String? password,
+  }) =>
+      _bg(() => rotatePages(bytes,
+          pageIndexes: pageIndexes,
+          quarterTurns: quarterTurns,
+          password: password));
+
+  /// [setPassword] — arka plan isolate'inde (şifreleme CPU-yoğun).
+  static Future<List<int>> setPasswordInBackground(
+    List<int> bytes, {
+    required String password,
+    String? currentPassword,
+  }) =>
+      _bg(() => setPassword(bytes,
+          password: password, currentPassword: currentPassword));
+
+  /// [removePassword] — arka plan isolate'inde.
+  static Future<List<int>> removePasswordInBackground(
+    List<int> bytes, {
+    required String currentPassword,
+  }) =>
+      _bg(() => removePassword(bytes, currentPassword: currentPassword));
+
+  /// İşi ayrı isolate'te koşturur.
+  ///
+  /// Hata metne çevrilerek yeniden atılır: isolate sınırından yalnız
+  /// gönderilebilir nesneler geçer, Syncfusion'ın iç hata tipleri geçemezse
+  /// Dart bunları anlamsız bir `RemoteError`'a çevirir ve kullanıcı "Instance
+  /// of ..." görürdü.
+  static Future<List<int>> _bg(Future<List<int>> Function() task) {
+    return Isolate.run(() async {
+      try {
+        return await task();
+      } catch (e) {
+        throw PdfToolsException('$e');
+      }
+    });
+  }
+
   /// Kaynak sayfaları (belge, 0-tabanlı indeks) sırasıyla yeni bir belgeye
   /// kopyalar. Birleştir/seç/böl/sırala hepsi buraya iner — tek yerde doğru.
   ///
@@ -294,6 +379,14 @@ class PdfTools {
       out.dispose();
     }
   }
+}
+
+/// Arka plan isolate'inden gelen PDF hatası (mesajı kullanıcıya gösterilebilir).
+class PdfToolsException implements Exception {
+  final String message;
+  const PdfToolsException(this.message);
+  @override
+  String toString() => message;
 }
 
 /// **Görünen** sayfa koordinatında verilen bir şeyi (imza) döndürülmüş bir

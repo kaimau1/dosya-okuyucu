@@ -112,23 +112,28 @@ class _TrashScreenState extends State<TrashScreen> {
       ),
     );
     if (ok != true || !mounted) return;
+    // Pencere "Arka plana al" ile kapatılabildiği için kullanıcı bu ekrandan
+    // çıkmış olabilir. Messenger'ı ŞİMDİ yakalıyoruz: MaterialApp seviyesindeki
+    // örnek ekrandan bağımsız yaşar, sonuç mesajı nerede olursa olsun görünür.
+    final messenger = ScaffoldMessenger.of(context);
     final result = await showFmProgress<FmOpResult>(
       context,
       title: 'Çöp kutusu boşaltılıyor',
       task: (report, isCancelled) =>
           FmEnv.trash.empty(onProgress: report, isCancelled: isCancelled),
     );
-    if (!mounted) return;
+    final String message;
     if (result.hasError) {
-      _snack('${result.succeeded} öğe silindi, '
-          '${result.errors.length} öğe silinemedi: ${result.errors.first}');
+      message = '${result.succeeded} öğe silindi, '
+          '${result.errors.length} öğe silinemedi: ${result.errors.first}';
     } else if (result.cancelled) {
-      _snack('Durduruldu — ${result.succeeded} öğe silindi.');
+      message = 'Durduruldu — ${result.succeeded} öğe silindi.';
     } else {
-      _snack('Çöp kutusu boşaltıldı · ${result.succeeded} öğe · '
-          '${FsPaths.humanSize(total)} yer açıldı.');
+      message = 'Çöp kutusu boşaltıldı · ${result.succeeded} öğe · '
+          '${FsPaths.humanSize(total)} yer açıldı.';
     }
-    _load();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) _load();
   }
 
   void _snack(String message) {

@@ -10,6 +10,11 @@ import '../../services/fm/file_ops.dart';
 /// [task] iki şey alır: ilerlemeyi bildireceği bir [ValueNotifier] ve
 /// kullanıcının iptal edip etmediğini soran bir fonksiyon. İş bitince pencere
 /// kendiliğinden kapanır ve sonucu döner.
+///
+/// [backgroundable] ise pencerede **"Arka plana al"** düğmesi çıkar: pencere
+/// kapanır, iş sürmeye devam eder ve kullanıcı bu sırada başka işlem yapabilir
+/// (2026-07-26 bulgusu: "çöp kutusu boşaltılırken başka işlem yapamıyorum").
+/// Sonuç yine çağırana döner — çağıran bildirimi kendi gösterir.
 Future<T> showFmProgress<T>(
   BuildContext context, {
   required String title,
@@ -18,65 +23,86 @@ Future<T> showFmProgress<T>(
     bool Function() isCancelled,
   ) task,
   bool cancellable = true,
+  bool backgroundable = true,
 }) async {
   final progress = ValueNotifier<FmProgress>(const FmProgress(0, 0, ''));
   var cancelled = false;
-  final navigator = Navigator.of(context);
-  var dialogOpen = true;
+  // Pencerenin hâlâ ekranda olup olmadığı. `closed` KULLANICI ya da bitiş
+  // tarafından senkron olarak işaretlenir; `showDialog`'un `.then`'ine
+  // güvenmek yarış yaratırdı (geç gelen `pop` yanlış sayfayı kapatabilirdi).
+  var closed = false;
+  BuildContext? dialogContext;
+
+  void closeDialog() {
+    if (closed) return;
+    closed = true;
+    final ctx = dialogContext;
+    if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
+  }
 
   unawaited(showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => PopScope(
-      canPop: false,
-      child: AlertDialog(
-        title: Text(title),
-        content: ValueListenableBuilder<FmProgress>(
-          valueListenable: progress,
-          builder: (_, value, __) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ClipRRect ile yuvarlatılır: `LinearProgressIndicator.borderRadius`
-              // Flutter sürümüne duyarlı, CI 3.29.3'te riske girmiyoruz.
-              ClipRRect(
-                borderRadius: BorderRadius.circular(Radii.control),
-                child: LinearProgressIndicator(
-                  value: value.total > 0 ? value.fraction : null,
-                  minHeight: 6,
+    builder: (ctx) {
+      dialogContext = ctx;
+      return PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: Text(title),
+          content: ValueListenableBuilder<FmProgress>(
+            valueListenable: progress,
+            builder: (_, value, __) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ClipRRect ile yuvarlatılır: `LinearProgressIndicator.borderRadius`
+                // Flutter sürümüne duyarlı, CI 3.29.3'te riske girmiyoruz.
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  child: LinearProgressIndicator(
+                    value: value.total > 0 ? value.fraction : null,
+                    minHeight: 6,
+                  ),
                 ),
-              ),
-              const SizedBox(height: Gap.sm),
-              Text(
-                value.currentName.isEmpty
-                    ? 'Hazırlanıyor…'
-                    : value.currentName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(ctx).textTheme.bodySmall,
-              ),
-              if (value.total > 0)
-                Text('${value.done} / ${value.total}',
-                    style: Theme.of(ctx).textTheme.bodySmall),
-            ],
+                const SizedBox(height: Gap.sm),
+                Text(
+                  value.currentName.isEmpty
+                      ? 'Hazırlanıyor…'
+                      : value.currentName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+                if (value.total > 0)
+                  Text('${value.done} / ${value.total}',
+                      style: Theme.of(ctx).textTheme.bodySmall),
+              ],
+            ),
           ),
+          actions: [
+            if (backgroundable)
+              TextButton(
+                onPressed: closeDialog,
+                child: const Text('Arka plana al'),
+              ),
+            if (cancellable)
+              TextButton(
+                onPressed: () {
+                  cancelled = true;
+                  closeDialog();
+                },
+                child: const Text('İptal'),
+              ),
+          ],
         ),
-        actions: cancellable
-            ? [
-                TextButton(
-                  onPressed: () => cancelled = true,
-                  child: const Text('İptal'),
-                ),
-              ]
-            : null,
-      ),
-    ),
-  ).then((_) => dialogOpen = false));
+      );
+    },
+  ));
 
   try {
     return await task((p) => progress.value = p, () => cancelled);
   } finally {
-    if (dialogOpen && navigator.canPop()) navigator.pop();
+    closeDialog();
     progress.dispose();
   }
 }
