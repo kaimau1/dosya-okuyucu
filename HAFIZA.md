@@ -2115,3 +2115,85 @@ geçse de şerit görünür kalıyor.
   katmanı kaybolacağı için ayrı ve açıkça uyaran bir seçenek olmalı.
 - **graphify güncellemesi yapılamadı:** araç bu ortamda kurulu değil
   (`command -v graphify` boş). Yeni düğümler grafta eksik kalıyor.
+
+---
+
+## 2026-07-26 (3. tur) — PDF metnini GERÇEKTEN yerinde düzenleme
+
+**İstek:** "PDF içindeki yazıları Word'de çalışır gibi silip yeniden
+yazabilmeliyim, PDF'in yapısı hiçbir şekilde bozulmamalı."
+
+2. turdaki `PdfTools.replaceText` bunu KARŞILAMIYORDU: eski yazının üstünü
+boyayıp yenisini üste çiziyordu. Üç kusuru vardı ve üçü de kullanıcının
+farkedeceği türdendi — (a) eski metin belgede kalıyor, kopyalayınca/arayınca
+çıkıyor, (b) desenli zeminde kapatma kutusu görünüyor, (c) yazı tipi değişiyor.
+Bu tur asıl çözüm yazıldı; eski yol yalnız YEDEK olarak duruyor.
+
+### Yaklaşım
+Sayfanın **içerik akışındaki** metin operatörünün (`Tj/TJ/'/"`) dizesi
+değiştiriliyor. Yazı tipi, punto, konum, renk, grafik durumu — hiçbirine
+dokunulmuyor, dolayısıyla korunuyorlar. Eski metin gerçekten siliniyor.
+
+Üç katman (hepsi cihazsız test edilebilir):
+- `services/pdf/pdf_syntax.dart` — içerik akışı tarayıcısı + kodlama tabloları.
+- `services/pdf/pdf_text_replace.dart` — akış içinde bul/değiştir (saf).
+- `services/pdf/pdf_objects.dart` — nesne tarama, ObjStm, sayfa ağacı, yazma.
+- `services/pdf_content_editor.dart` — orkestrasyon + doğrulama.
+
+### KARAR — özgün baytlara asla dokunulmuyor (incremental update)
+Değişiklik dosyanın SONUNA ekleniyor; eski sürüm bayt bayt yerinde kalıyor ve
+yeni bir xref bölümü üstüne yeni nesneyi bindiriyor. Bu PDF'in kendi güncelleme
+mekanizması. *Niye:* belgeyi baştan yazmak çok daha kolaydı ama her yeniden
+yazma, ANLAMADIĞIMIZ her yapıyı (imza, form, gömülü dosya, işaretli içerik)
+kaybetme riski demek. Test bunu bayt karşılaştırmasıyla sabitliyor.
+
+### TUZAK — taban dosya xref AKIŞI kullanıyorsa güncelleme de akış olmalı
+PDF 1.5+ (Word/LibreOffice çıktısı) çapraz başvuruyu akış olarak yazar. Oraya
+klasik `xref` tablosu eklemek "hibrit" bir dosya üretir ve birçok okuyucu
+reddeder. `_appendXref` tabanın biçimine bakıp ikisinden birini yazıyor.
+Elle kurulan modern-yapı PDF'iyle test ediliyor (Syncfusion bu biçimi
+ÜRETMEDİĞİ için başka türlü hiç denenmezdi — oysa kullanıcının düzenleyeceği
+belgelerin çoğu tam olarak bu biçimde).
+
+### TUZAK — sayfa sözlükleri `/ObjStm` içinde olabilir
+Modern üreticiler sayfa sözlüklerini sıkıştırılmış nesne akışına koyar; açmadan
+sayfa ağacı yürünemez ve her yeni belgede pes edilirdi. `_expandObjectStreams`
+bunları açıyor. **Akışlar ObjStm'e KONULAMAZ** (PDF kuralı) → içerik akışı hep
+üst seviyededir, onu doğrudan buluyoruz.
+
+### Arama neden "boşluksuz" ve neden bağlamlı
+- PDF'te bir cümle kerning yüzünden onlarca parçaya bölünür ve kelime araları
+  çoğu zaman boşluk KARAKTERİ değil, kerning SAYISIDIR. Boşluğa takılan bir
+  arama gerçek belgelerde neredeyse hiç eşleşmez → boşluklar yok sayılıyor.
+- Aynı kelime sayfada birkaç kez geçebilir. Seçimden önceki 40 karakter
+  bağlam olarak taşınıyor (`PdfSelectLayer` → ekran → servis); önce
+  `bağlam+kelime` aranıyor, bulunmazsa sade aramaya düşülüyor. Bu olmasa
+  kullanıcı ikinci geçişi seçse bile birincisi değişirdi.
+
+### Güvenlik kapıları — hepsi "yazmadan önce reddet"
+Şifreli belge (dizeler şifreli, düz yazmak bozar) · sayfa ağacı yürünemiyor ·
+metin bulunamıyor (alt küme font / taranmış sayfa) · yeni harf fontun
+kodlamasında yok · **içerik akışı birden çok sayfada ORTAK** (antet
+sayfalarında olur; düzenlemek dokunulmayan sayfayı da değiştirirdi).
+Yazdıktan SONRA belge yeniden açılıp doğrulanıyor: sayfa sayısı, hedef
+sayfanın gerçekten değiştiği, diğer sayfaların değişmediği. Doğrulama düşerse
+sonuç ATILIR.
+
+### Kodlama
+Font sözlüğünü ayrıştırmıyoruz. Aday tek baytlık kodlamalar (WinAnsi/CP1252,
+CP1254, Latin-1) sırayla denenip **kullanıcının seçtiği metni bulabilen**
+kodlama geçerli sayılıyor — eşleşmenin kendisi doğrulama. Yeni metin aynı
+kodlamayla yazılıyor; tek karakter bile karşılanamıyorsa işlem reddediliyor
+(yarım yazmak belgeyi bozar). Özel `/Differences` ya da CID (Identity-H)
+fontlarda eşleşme olmaz → yedek yola düşülür.
+
+### Bilinen sınır (bilinçli)
+Yeni metin uzunsa satırın kalanı sağa kayar — PDF metni yeniden akıtmaz.
+Bu Word'de de olan davranış (yazınca gerisi itilir), o yüzden hata değil;
+ama sütun/tablo hizasını bozabileceği ekranda yazıyor.
+
+**Doğrulama:** analyze 0 hata, 508 test yeşil. Yerinde düzenleme için 37 test:
+uçtan uca (metin değişir, eski metin KALMAZ, özgün baytlar korunur, üst üste
+düzenleme), modern yapı (ObjStm + xref akışı), sözdizimi (kaçışlar, onaltılık
+dize, satır içi görselin ikili verisi, yorum), parçalı metin, kodlama ve tüm
+güvenlik kapıları.

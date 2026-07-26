@@ -33,8 +33,16 @@ class PdfSelectLayer extends StatefulWidget {
   /// Seçim her değiştiğinde çağrılır. [rects] seçili metnin PDF-koordinat
   /// dikdörtgenleri (satır başına bir; kalıcı vurgu annotation'ı için),
   /// [pageNumber] bu katmanın sayfası (1-tabanlı). Boş metin = seçim temizlendi.
-  final void Function(String text, List<PdfRect> rects, int pageNumber)
-      onSelected;
+  ///
+  /// [precedingText] seçimden hemen ÖNCEKİ metindir: aynı kelime sayfada
+  /// birkaç kez geçtiğinde yerinde düzenlemenin doğru geçişi bulmasını sağlar
+  /// (bkz. `PdfContentEditor.replaceText`).
+  final void Function(
+    String text,
+    List<PdfRect> rects,
+    int pageNumber,
+    String precedingText,
+  ) onSelected;
 
   /// Tek parmak sürüklemesi seçim yapsın mı? Yalnız açık seçim modunda true;
   /// false iken sürükleme sayfayı kaydırır (katman parmağı yutmaz).
@@ -175,14 +183,26 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       _anchor = null;
       _extent = null;
     });
-    widget.onSelected('', const [], widget.page.pageNumber);
+    widget.onSelected('', const [], widget.page.pageNumber, '');
+  }
+
+  /// Seçimden önceki en çok 40 karakter — yerinde düzenlemenin doğru geçişi
+  /// bulması için bağlam.
+  String get _precedingText {
+    final t = _text;
+    if (t == null || !_hasSelection) return '';
+    final start = _selStart;
+    final from = start - 40 < 0 ? 0 : start - 40;
+    if (from >= start) return '';
+    return t.fullText.substring(from, start);
   }
 
   void _report() {
     final t = _text;
     final rects =
         t == null ? const <PdfRect>[] : selectionPdfRects(t, _selStart, _selEnd);
-    widget.onSelected(_selectedText, rects, widget.page.pageNumber);
+    widget.onSelected(
+        _selectedText, rects, widget.page.pageNumber, _precedingText);
   }
 
   bool get _hasSelection =>

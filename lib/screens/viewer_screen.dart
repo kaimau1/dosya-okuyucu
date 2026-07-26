@@ -75,6 +75,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   List<PdfRect> _pdfSelRects = const [];
   int _pdfSelPage = 0;
 
+  /// Seçimden önceki metin — yerinde düzenlemede aynı kelimenin doğru geçişini
+  /// bulmak için (bkz. `PdfContentEditor.replaceText`).
+  String _pdfSelPreceding = '';
+
   /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
   int _highlightColor = _highlightColors.first;
 
@@ -1063,6 +1067,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         for (final r in rects) [r.left, r.top, r.right, r.bottom],
       ],
       originalText: text,
+      precedingText: _pdfSelPreceding,
     );
     if (!mounted) return;
     setState(() {
@@ -1422,12 +1427,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       page: page,
                       pageSize: pageRect.size,
                       enableDragSelect: _pdfSelectMode,
-                      onSelected: (t, rects, pageNo) {
+                      onSelected: (t, rects, pageNo, preceding) {
                         if (mounted) {
                           setState(() {
                             _pdfSelection = t;
                             _pdfSelRects = rects;
                             _pdfSelPage = pageNo;
+                            _pdfSelPreceding = preceding;
                           });
                         }
                       },

@@ -181,10 +181,19 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
 - [x] ~~Vurgu koordinatı /Rotate=0 varsayıyor~~ → **YANLIŞ ALARM, ölçüldü
       2026-07-26:** dört açıda da yazılan `/Rect` birebir aynı. İki taraf da ham
       sayfa uzayında konuşuyor. Uyarı silindi, davranış testle sabitlendi.
-- [x] ~~AI düzenleme sayfa düzenini korumuyor~~ → **YAPILDI:** seçili metni
-      yerinde değiştirme (`PdfTools.replaceText` + `PdfTextReplaceScreen`).
-      Sayfanın geri kalanı korunuyor. Kalan sınır: yazı tipi belgenin kendi
-      fontu değil gömülü Carlito, arka plan düz renk varsayılıyor.
+- [x] ~~AI düzenleme sayfa düzenini korumuyor~~ → **YAPILDI (3. tur):**
+      `PdfContentEditor` ile GERÇEK yerinde düzenleme — belgenin kendi metni
+      değişiyor, yazı tipi/punto/konum korunuyor, eski metin siliniyor,
+      değişiklik dosyanın sonuna ekleniyor (özgün baytlara dokunulmuyor).
+      Üstünü kapatan eski yol yalnız yedek (reddedilirse, onay alarak).
+- [ ] **Yerinde düzenleme özel kodlamalı fontlarda çalışmaz:** `/Differences`
+      ya da CID (Identity-H) fontlarda aday tek baytlık kodlamalar tutmaz →
+      yedek yola düşer. Çözüm: font sözlüğünden `/Differences` ve `/ToUnicode`
+      okuyup gerçek eşlemeyi çıkarmak (orta ölçekli iş, ObjStm okuma hazır).
+- [ ] **Yeni metin uzunsa satırın kalanı sağa kayar** (PDF metni yeniden
+      akıtmaz). Word'deki davranışın aynısı ama sütun/tablo hizasını bozabilir;
+      istenirse `Tz` yatay ölçekle genişlik sabitlenebilir (pdfium'la ölçüp tek
+      adımda düzeltilebilir, doğrusal).
 - [x] ~~Arka plana alınan iş için kalıcı gösterge yok~~ → **YAPILDI:** kalıcı
       alt şerit (iş adı + sayaç + Durdur), sayfa değişse de kalıyor.
 - [x] ~~Taramada döndürme yok~~ → **YAPILDI:** önizlemede 90° çevirme.

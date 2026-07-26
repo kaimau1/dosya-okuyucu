@@ -6,21 +6,28 @@ import 'package:provider/provider.dart';
 
 import '../core/app_state.dart';
 import '../services/gemini_service.dart';
+import '../services/pdf_content_editor.dart';
 import '../services/pdf_save.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
 
-/// **Seçili metni yerinde değiştirme** (elle ya da AI ile).
+/// **Seçili metni değiştirme** (elle ya da AI ile) — Word'deki gibi silip
+/// yeniden yazma.
 ///
-/// `PdfAiEditScreen`'den farkı ve varlık sebebi: orası belgenin TAMAMINI yeniden
-/// yazıp düz metin PDF'i üretir, sayfa düzeni kaybolur. Burada yalnız seçilen
-/// satırların üstü kapatılıp yerine yeni metin yazılır — **sayfanın geri kalanı
-/// (tablo, logo, sütunlar, diğer paragraflar) olduğu gibi kalır.** Kullanıcının
-/// "PDF'i AI'a düzenlettirme" isteğinin düzeni koruyan hâli budur.
+/// İki yol var, sırayla denenir:
 ///
-/// Sınırlar ekranda da yazılı: gömülü Carlito kullanılır (PDF'in kendi fontu
-/// genelde alt küme olarak gömülüdür, yeni harfler için glifi yoktur) ve arka
-/// plan düz renk varsayılır.
+/// 1. **Yerinde düzenleme** ([PdfContentEditor]) — asıl yol. Sayfanın içerik
+///    akışındaki metin operatörünün dizesi değiştirilir: yazı tipi, punto,
+///    konum, renk aynen kalır, eski metin GERÇEKTEN silinir ve belge yapısı
+///    korunur (değişiklik dosyanın sonuna ekleme olarak yazılır).
+/// 2. **Üstünü kapatma** ([PdfTools.replaceText]) — yalnız 1. yol reddedilirse
+///    ve kullanıcı onaylarsa. Eski yazının üstü boyanır, yenisi üste çizilir.
+///    Bedeli açıkça söylenir: yazı tipi gömülü Carlito olur, arka plan düz renk
+///    varsayılır ve eski metin belgede aranabilir hâlde kalır.
+///
+/// `PdfAiEditScreen`'den farkı: orası belgenin TAMAMINI yeniden yazıp düz metin
+/// PDF'i üretir, sayfa düzeni kaybolur. Burada sayfanın geri kalanına hiç
+/// dokunulmaz.
 class PdfTextReplaceScreen extends StatefulWidget {
   const PdfTextReplaceScreen({
     super.key,
@@ -28,6 +35,7 @@ class PdfTextReplaceScreen extends StatefulWidget {
     required this.pageIndex,
     required this.rawRects,
     required this.originalText,
+    this.precedingText = '',
   });
 
   final String path;
@@ -40,6 +48,10 @@ class PdfTextReplaceScreen extends StatefulWidget {
 
   final String originalText;
 
+  /// Seçimden hemen önceki metin — aynı kelime sayfada birkaç kez geçtiğinde
+  /// doğru geçişin bulunmasını sağlar.
+  final String precedingText;
+
   /// Dosyanın üzerine yazıldıysa `true` döner.
   static Future<bool?> open(
     BuildContext context, {
@@ -47,6 +59,7 @@ class PdfTextReplaceScreen extends StatefulWidget {
     required int pageIndex,
     required List<List<double>> rawRects,
     required String originalText,
+    String precedingText = '',
   }) {
     return Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -55,6 +68,7 @@ class PdfTextReplaceScreen extends StatefulWidget {
           pageIndex: pageIndex,
           rawRects: rawRects,
           originalText: originalText,
+          precedingText: precedingText,
         ),
       ),
     );
@@ -147,24 +161,33 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
       _error = null;
     });
     try {
-      // Türkçe çizebilen gömülü font — standart Helvetica ğ/ş/ı çizemez.
-      final font =
-          (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
-              .buffer
-              .asUint8List();
       final bytes = await File(widget.path).readAsBytes();
-      final out = await PdfTools.replaceTextInBackground(
-        bytes,
-        pageIndex: widget.pageIndex,
-        rawRects: widget.rawRects,
-        newText: newText,
-        fontBytes: font,
-      );
+      List<int> out;
+      var inPlace = true;
+      try {
+        // 1. yol: belgenin kendi metnini değiştir (yapı korunur).
+        out = await PdfContentEditor.replaceTextInBackground(
+          bytes,
+          pageIndex: widget.pageIndex,
+          oldText: widget.originalText,
+          newText: newText,
+          precedingText: widget.precedingText,
+        );
+      } on PdfEditRefused catch (refusal) {
+        if (!mounted) return;
+        setState(() => _busy = false);
+        final useOverlay = await _askOverlayFallback(refusal.message);
+        if (useOverlay != true || !mounted) return;
+        setState(() => _busy = true);
+        inPlace = false;
+        out = await _overlayReplace(bytes, newText);
+      }
+
       final written = await PdfSave.write(widget.path, out, mode);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(mode == PdfSaveMode.overwrite
-            ? 'Metin değiştirildi'
+            ? (inPlace ? 'Metin değiştirildi' : 'Metin üste yazıldı')
             : 'Değişiklik kopyaya kaydedildi: ${written.split('/').last}'),
       ));
       Navigator.of(context).pop(mode == PdfSaveMode.overwrite);
@@ -175,6 +198,58 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
         _error = 'Değiştirilemedi: $e';
       });
     }
+  }
+
+  /// Yedek yol: eski yazının üstünü kapatıp yenisini çiz.
+  Future<List<int>> _overlayReplace(List<int> bytes, String newText) async {
+    // Türkçe çizebilen gömülü font — standart Helvetica ğ/ş/ı çizemez.
+    final font = (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
+        .buffer
+        .asUint8List();
+    return PdfTools.replaceTextInBackground(
+      bytes,
+      pageIndex: widget.pageIndex,
+      rawRects: widget.rawRects,
+      newText: newText,
+      fontBytes: font,
+    );
+  }
+
+  /// Yerinde düzenleme reddedilince: bedelini SÖYLEYEREK yedek yolu öner.
+  ///
+  /// Sessizce üste yazmak yanlış olurdu — kullanıcı belgesinin gerçekten
+  /// düzenlendiğini sanır, oysa eski metin içeride kalmış olur (kopyalayınca
+  /// ya da arayınca ortaya çıkar).
+  Future<bool?> _askOverlayFallback(String reason) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yerinde düzenleme yapılamadı'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(reason),
+            const SizedBox(height: 12),
+            const Text(
+              'Bunun yerine eski yazının ÜSTÜ kapatılıp yenisi çizilebilir. '
+              'Bu durumda:\n'
+              '• yazı tipi belgenin kendi fontu olmaz,\n'
+              '• arka plan düz renk varsayılır (desenli zeminde kutu görünür),\n'
+              '• eski metin belgenin içinde aranabilir hâlde KALIR.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Üste yaz')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -259,12 +334,13 @@ class _PdfTextReplaceScreenState extends State<PdfTextReplaceScreen> {
           ],
           const SizedBox(height: 20),
           Text(
-            'Nasıl çalışır: seçtiğiniz satırların üstü beyazla kapatılır ve yeni '
-            'metin aynı kutuya yazılır. Sayfanın geri kalanı değişmez.\n\n'
-            'Sınırlar: yazı tipi belgenin kendi fontu değil, gömülü Carlito '
-            'olur (PDF fontları genelde yalnız kullanılan harfleri içerir). '
-            'Arka plan düz renk varsayılır — desenli/renkli zeminde kapatma '
-            'kutusu görünebilir. Yeni metin uzunsa punto küçültülür.',
+            'Nasıl çalışır: belgenin kendi metni değiştirilir — yazı tipi, '
+            'punto, konum ve sayfa yapısı olduğu gibi kalır, eski yazı gerçekten '
+            'silinir. Değişiklik dosyanın sonuna eklenir, özgün içeriğe '
+            'dokunulmaz.\n\n'
+            'Bazı belgelerde bu mümkün olmaz (taranmış sayfa, alışılmadık '
+            'kodlamayla gömülü yazı tipi, şifreli belge). O zaman sebebi '
+            'söylenir ve isterseniz "üste yazma" yolu önerilir.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
