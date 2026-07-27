@@ -196,10 +196,8 @@ abstract final class ArchiveOps {
         onProgress?.call(FmProgress(msg[0] as int, msg[1] as int, '${msg[2]}'));
       }
     });
-    final sendPort = port.sendPort;
     try {
-      _unwrap(await Isolate.run(() =>
-          _guard(() => _extractSync(archivePath, target, password, sendPort))));
+      await _runExtract(archivePath, target, password, port.sendPort);
     } finally {
       await sub.cancel();
       port.close();
@@ -252,10 +250,8 @@ abstract final class ArchiveOps {
         onProgress?.call(FmProgress(msg[0] as int, msg[1] as int, '${msg[2]}'));
       }
     });
-    final sendPort = port.sendPort;
     try {
-      _unwrap(await Isolate.run(
-          () => _guard(() => _zipSync(paths, target, sendPort))));
+      await _runZip(paths, target, port.sendPort);
     } finally {
       await sub.cancel();
       port.close();
@@ -296,17 +292,15 @@ abstract final class ArchiveOps {
         onProgress?.call(FmProgress(msg[0] as int, msg[1] as int, '${msg[2]}'));
       }
     });
-    final sendPort = port.sendPort;
-    final formatIndex = format.index;
     try {
-      _unwrap(await Isolate.run(() => _guard(() => _compressSync(
-            paths,
-            target,
-            formatIndex,
-            password,
-            hideNames,
-            sendPort,
-          ))));
+      await _runCompress(
+        paths,
+        target,
+        format.index,
+        password,
+        hideNames,
+        port.sendPort,
+      );
     } finally {
       await sub.cancel();
       port.close();
@@ -366,6 +360,54 @@ abstract final class ArchiveOps {
     return part?.group(1) ?? name;
   }
 }
+
+// ── isolate'e geçiş ──────────────────────────────────────────────────────────
+
+// **TUZAK (2026-07-27, telefonda "sıkıştırma hiç başlamıyor"):** `Isolate.run`
+// closure'ı, ilerleme dinleyicisiyle **AYNI fonksiyon gövdesinde**
+// oluşturulmamalı. Dart aynı gövdedeki closure'ları TEK bir context nesnesiyle
+// besler; dinleyici `onProgress`'i yakalar (→ dialog'un ValueNotifier'ı →
+// WidgetsFlutterBinding), isolate closure'ı da aynı context'i taşımaya çalışır
+// ve `Illegal argument in isolate message: object is unsendable` ile patlar.
+// Hata `Isolate.run`'ın future'ına düşmediği için iş ne başlıyor ne bitiyordu:
+// ilerleme penceresi sonsuza kadar "Hazırlanıyor…" gösteriyordu.
+//
+// Bu yüzden her `Isolate.run` çağrısı KENDİ gövdesinde durur — bu gövdelerde
+// başka closure yoktur, context yalnız sendable parametreleri taşır.
+// Aynı dosyada iş yaparken bu ayrımı bozma; testi: fm_compress_test.dart.
+
+Future<void> _runExtract(
+  String archivePath,
+  String target,
+  String? password,
+  SendPort progress,
+) async =>
+    _unwrap(await Isolate.run(
+        () => _guard(() => _extractSync(archivePath, target, password, progress))));
+
+Future<void> _runZip(
+  List<String> paths,
+  String target,
+  SendPort progress,
+) async =>
+    _unwrap(await Isolate.run(() => _guard(() => _zipSync(paths, target, progress))));
+
+Future<void> _runCompress(
+  List<String> paths,
+  String target,
+  int formatIndex,
+  String? password,
+  bool hideNames,
+  SendPort progress,
+) async =>
+    _unwrap(await Isolate.run(() => _guard(() => _compressSync(
+          paths,
+          target,
+          formatIndex,
+          password,
+          hideNames,
+          progress,
+        ))));
 
 // ── isolate'te koşan gerçek iş ───────────────────────────────────────────────
 

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/archive_ops.dart';
+import 'package:dosya_okuyucu/services/fm/file_ops.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -84,6 +86,71 @@ void main() {
       File(p.join(target, 'kaynak', 'alt', 'derin.txt')).readAsStringSync(),
       'derin',
     );
+  });
+
+  // ── ilerleme geri çağrısı ───────────────────────────────────────────────────
+  // 2026-07-27: kullanıcının telefonunda sıkıştırma HİÇ başlamıyordu; ekrana
+  // "isolate message: object is unsendable ... <- WidgetsFlutterBinding"
+  // dökülüyordu. Sebep: Dart aynı fonksiyon gövdesindeki closure'ları TEK bir
+  // context nesnesiyle besler — ilerleme dinleyicisi `onProgress`'i (→ dialog'un
+  // ValueNotifier'ı → binding) yakalayınca, aynı gövdedeki `Isolate.run`
+  // closure'ı da onu taşımaya çalışıp patlıyordu. Eski testler `onProgress`
+  // vermediği için (null = gönderilebilir) hatayı hiç görmemişti.
+  //
+  // Buradaki geri çağrılar bilerek GÖNDERİLEMEZ bir nesne (`Completer`) yakalar:
+  // isolate closure'ı yanlışlıkla aynı context'i taşırsa test kırmızıya döner.
+
+  test('sıkıştırma: onProgress verilince de çalışır', () async {
+    final blocker = Completer<void>(); // isolate'e gönderilemez
+    final seen = <String>[];
+    void report(FmProgress progress) {
+      if (blocker.isCompleted) return; // closure blocker'ı yakalar
+      seen.add(progress.currentName);
+    }
+
+    final path = await ArchiveOps.compress([source.path], tmp.path,
+        archiveName: 'ilerleme', onProgress: report);
+
+    expect(File(path).existsSync(), isTrue);
+    expect(seen, isNotEmpty, reason: 'ilerleme hiç bildirilmedi');
+  });
+
+  test('parolalı sıkıştırma: onProgress verilince de çalışır', () async {
+    final blocker = Completer<void>();
+    void report(FmProgress progress) {
+      if (blocker.isCompleted) return;
+    }
+
+    final path = await ArchiveOps.compress(
+      [source.path],
+      tmp.path,
+      archiveName: 'ilerleme7z',
+      format: CompressFormat.sevenZip,
+      password: 'p4rola',
+      onProgress: report,
+    );
+    expect(File(path).existsSync(), isTrue);
+  });
+
+  test('çıkarma: onProgress verilince de çalışır', () async {
+    final path = await ArchiveOps.compress([source.path], tmp.path,
+        archiveName: 'cikar');
+
+    final blocker = Completer<void>();
+    final seen = <String>[];
+    void report(FmProgress progress) {
+      if (blocker.isCompleted) return;
+      seen.add(progress.currentName);
+    }
+
+    final target = await ArchiveOps.extract(path,
+        destDir: p.join(tmp.path, 'ç'), onProgress: report);
+
+    expect(
+      File(p.join(target, 'kaynak', 'not.txt')).readAsStringSync(),
+      'gizli içerik',
+    );
+    expect(seen, isNotEmpty, reason: 'ilerleme hiç bildirilmedi');
   });
 
   test('yanlış parola içerik yazmaz, hata verir', () async {

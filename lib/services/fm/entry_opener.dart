@@ -13,11 +13,13 @@ import '../../models/recent_file.dart';
 import '../../screens/editors/slides_editor_screen.dart';
 import '../../screens/editors/spreadsheet_editor_screen.dart';
 import '../../screens/editors/word_editor_screen.dart';
+import '../../screens/fm/archive_screen.dart';
 import '../../screens/fm/audio_player_screen.dart';
 import '../../screens/fm/image_gallery_screen.dart';
 import '../../screens/fm/media_player_screen.dart';
 import '../../screens/viewer_screen.dart';
 import '../file_service.dart';
+import 'archive_ops.dart';
 import 'fs_events.dart';
 
 /// Bir dosyanın hangi ekranda açılacağı. Saf karar fonksiyonu
@@ -35,7 +37,10 @@ enum OpenRoute {
   /// Ses → müzik çalar (ayrı motor: ekran kapansa da çalar).
   audio,
 
-  /// APK/arşiv/bilinmeyen ikili → sistemin uygulaması.
+  /// Arşiv (zip/rar/7z/tar…) → uygulama içi arşiv ekranı.
+  archive,
+
+  /// APK/bilinmeyen ikili → sistemin uygulaması.
   external,
 }
 
@@ -60,10 +65,12 @@ abstract final class EntryOpener {
       FmCategory.video => OpenRoute.player,
       FmCategory.audio => OpenRoute.audio,
       FmCategory.document || FmCategory.other => OpenRoute.document,
-      FmCategory.apk ||
-      FmCategory.archive ||
-      FmCategory.folder =>
-        OpenRoute.external,
+      // Açabildiğimiz arşivler kendi ekranımıza gider; okuyamadığımız biçim
+      // (ör. .iso) sisteme düşer.
+      FmCategory.archive => ArchiveOps.canExtract(path)
+          ? OpenRoute.archive
+          : OpenRoute.external,
+      FmCategory.apk || FmCategory.folder => OpenRoute.external,
     };
   }
 
@@ -100,6 +107,13 @@ abstract final class EntryOpener {
 
     if (route == OpenRoute.external) {
       await openExternally(context, path);
+      return;
+    }
+
+    if (route == OpenRoute.archive) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ArchiveScreen(path: path),
+      ));
       return;
     }
 

@@ -139,7 +139,13 @@ void main() {
       expect(EntryOpener.routeFor('/a/rapor.pdf'), OpenRoute.document);
       expect(EntryOpener.routeFor('/a/notlar'), OpenRoute.document); // uzantısız
       expect(EntryOpener.routeFor('/a/uygulama.apk'), OpenRoute.external);
-      expect(EntryOpener.routeFor('/a/arsiv.rar'), OpenRoute.external);
+      // Arşiv artık uygulama içinde açılır — eskiden sistemin uygulamasına
+      // gidiyordu, yani kendi arşiv ekranımız yalnız dosya gezgininden
+      // erişilebiliyordu (2026-07-27).
+      expect(EntryOpener.routeFor('/a/arsiv.rar'), OpenRoute.archive);
+      expect(EntryOpener.routeFor('/a/yedek.zip'), OpenRoute.archive);
+      // Okuyamadığımız arşiv biçimi yine sisteme gider.
+      expect(EntryOpener.routeFor('/a/imaj.iso'), OpenRoute.external);
     });
 
     test('kardeş listesi yalnız aynı türü toplar (galeri/çalma listesi)', () {

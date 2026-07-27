@@ -522,13 +522,14 @@ void walkFiles(
 /// Yol yardımcıları (saf, test edilebilir).
 abstract final class FsPaths {
   /// [child], [parent]'ın altında mı? Klasörü kendi içine kopyalama/taşıma
-  /// tuzağını (sonsuz özyineleme) engellemek için kullanılır.
-  static bool isInside(String parent, String child) {
-    final a = p.normalize(parent);
-    final b = p.normalize(child);
-    if (a == b) return true;
-    return b.startsWith(a.endsWith('/') ? a : '$a/');
-  }
+  /// tuzağını (sonsuz özyineleme) ve arşiv çıkarmada zip-slip'i engeller.
+  ///
+  /// **Elle `startsWith('$parent/')` YAPILMAZ:** ayracı `/` varsaymak Windows'ta
+  /// (`p.normalize` `\` üretir) her karşılaştırmayı false yapıyordu →
+  /// `_safeJoin` null dönüyor, arşiv çıkarma sessizce HİÇBİR dosya yazmıyordu
+  /// (2026-07-27). `path` paketinin kendi karşılaştırması platform-doğrudur.
+  static bool isInside(String parent, String child) =>
+      p.equals(parent, child) || p.isWithin(parent, child);
 
   /// Okunabilir boyut: 1536 → "1,5 KB" (Türkçe ondalık ayracı).
   static String humanSize(int bytes) {

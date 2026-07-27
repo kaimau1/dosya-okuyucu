@@ -38,10 +38,15 @@ Future<T> showFmProgress<T>(
   // sayfaya geçse bile görünür kalır.
   final messenger = ScaffoldMessenger.of(context);
 
+  // Kapatma İSTEĞİ ile kapatma EYLEMİ ayrı tutulur. Eskiden tek bayrak vardı ve
+  // eylemden önce yakılıyordu: iş pencere ilk karesini çizmeden biterse
+  // (`dialogContext` hâlâ null) bayrak yanmış oluyor, pencere sonradan açılıp
+  // bir daha ASLA kapanmıyordu. Sıkıştırma düzeldikten sonra küçük dosyalarda
+  // iş anında bittiği için bu tuzak artık gerçekten tetikleniyordu.
   void closeDialog() {
-    if (closed) return;
     closed = true;
     final ctx = dialogContext;
+    dialogContext = null;
     if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
   }
 
@@ -86,6 +91,13 @@ Future<T> showFmProgress<T>(
     context: context,
     barrierDismissible: false,
     builder: (ctx) {
+      // İş, pencere çizilmeden önce bittiyse hemen kapan.
+      if (closed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (ctx.mounted) Navigator.of(ctx).pop();
+        });
+        return const SizedBox.shrink();
+      }
       dialogContext = ctx;
       return PopScope(
         canPop: false,

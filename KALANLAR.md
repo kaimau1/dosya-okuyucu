@@ -256,3 +256,13 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       motoru. Yol: `--split-per-abi` ya da App Bundle (AAB) — indirilen boyut
       3-4 kat düşer. Release akışının değişmesi gerekir, ayrı iş.
 
+- [ ] **Windows'ta kırık 4 test (yerel doğrulamayı köreltiyor).** CI Linux'ta
+      geçiyorlar, ama yerelde `flutter test` hep kırmızı döndüğü için gerçek
+      regresyonu gürültüden ayırmak zorlaşıyor (2026-07-28 turunda kök nedeni
+      bulmadan önce baseline'ı stash'leyip ölçmek gerekti):
+      `fm_archive_rar_test: volumePath` — test POSIX yol bekliyor, `p.join`
+      Windows'ta `\` üretiyor (ya test platform-duyarlı olmalı ya `volumePath`
+      POSIX ayracı sabitlemeli) · `şifreli arşiv … parolasız çıkarma` —
+      tearDown temp klasörünü silemiyor, Windows dosya kilidi (koni bir kolu
+      geç kapatıyor olabilir) · `fm_trash` iki testi Android birim mantığına
+      dayanıyor.

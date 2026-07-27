@@ -2864,3 +2864,68 @@ hücrenin ayrı tetiklemesi uygulamayı kilitlerdi).
 `flutter analyze lib` → 0 hata. `flutter test` → **577 geçti**; kırık 14 test
 `fm_archive_rar_test.dart` ve DEĞİŞİKLİK ÖNCESİ temiz ağaçta da kırık
 (stash ile doğrulandı) — bu turla ilgisi yok.
+
+## 2026-07-28 — Arşiv (zip/rar/7z): sıkıştırma/çıkarma HİÇ çalışmıyordu — kök neden
+
+Kullanıcı bildirimi (27 Tem gecesi, telefon): "sıkıştır" penceresi sonsuza kadar
+"Hazırlanıyor…" gösteriyor, "Arka plana al" işe yaramıyor, ekrana anlamsız yazı
+dökülüyor, "zip/rar kısmı kararsız".
+
+### A. Kök neden — isolate closure'ı UI'ı da yanına alıyordu
+
+`Isolate.run` closure'ı, ilerleme dinleyicisiyle **AYNI fonksiyon gövdesinde**
+oluşturuluyordu (`ArchiveOps.extract` / `zip` / `compress`). **Dart aynı
+gövdedeki closure'ları TEK bir context nesnesiyle besler:** dinleyici
+`onProgress`'i yakalıyor (→ ilerleme penceresinin `ValueNotifier`'ı →
+`WidgetsFlutterBinding`), isolate closure'ı da aynı context'i taşımaya çalışıp
+
+    Illegal argument in isolate message: object is unsendable
+    Class: _AsyncCompleter  <- Context num_variables: 5  <- Closure (archive_ops)
+
+ile patlıyordu. Hata `Isolate.run`'ın future'ına DÜŞMEDİĞİ için `await` hiç
+tamamlanmıyordu: iş ne başlıyor ne bitiyordu. Kullanıcının dört şikâyeti de
+(donma, "çok uzun sürüyor", ham hata dökümü, kalıcı ilerleme şeridi) tek bu
+nedenden geliyordu.
+
+**Çözüm:** her `Isolate.run` çağrısı kendi top-level gövdesine alındı
+(`_runExtract` / `_runZip` / `_runCompress`) — o gövdelerde başka closure yok,
+context yalnız sendable parametreleri taşır. **Bu ayrımı bozma.**
+
+*Niye testler yakalamamıştı:* `fm_compress_test` çağrıları `onProgress`
+vermiyordu (null = gönderilebilir). Artık testler bilerek gönderilemez bir
+nesne (`Completer`) yakalayan geri çağrı veriyor.
+
+### B. İkinci kök neden — `FsPaths.isInside` Windows'ta hep false
+
+`b.startsWith('$a/')` ayracı `/` varsayıyordu; `p.normalize` Windows'ta `\`
+üretince her karşılaştırma false → `_safeJoin` null → **arşiv çıkarma sessizce
+hiçbir dosya yazmıyordu** (hata da vermiyordu, "yanlış parola" testi bu yüzden
+"başarılı" dönüyordu). Android'de `/` olduğu için orada görünmüyordu; masaüstü
+hedefini ve tüm yerel testleri kırıyordu. Çözüm: `p.equals || p.isWithin`
+(platform-doğru). Elle yol ayracı karşılaştırması YAPMA.
+
+### C. İlerleme penceresi kilitli kalıyordu
+
+`closeDialog` bayrağı pop'tan ÖNCE yakıyordu: iş pencere ilk karesini çizmeden
+biterse (`dialogContext` null) bayrak yanmış oluyor, pencere sonradan açılıp bir
+daha ASLA kapanmıyordu. Sıkıştırma düzeldikten sonra küçük dosyalarda iş anında
+bittiği için bu tuzak gerçekten tetiklenir hale geldi. Bayrak artık istek/eylem
+olarak ayrık; pencere kapatma isteğinden sonra çizilirse ilk karede kapanır.
+
+### D. Arşivler artık uygulama içinde açılıyor
+
+`EntryOpener.routeFor` arşivi `external`'a (sistemin uygulaması) yolluyordu;
+kendi `ArchiveScreen`'imize yalnız dosya gezgininden ve uzun-bas menüsünden
+erişilebiliyordu — ana ekran/arama/paylaşımla gelen zip dışarı çıkıyordu. Yeni
+`OpenRoute.archive`: `ArchiveOps.canExtract` true ise kendi ekranımız, değilse
+(ör. `.iso`) yine sistem.
+
+### E. Doğrulama
+
+`flutter analyze` → dokunulan dosyalarda 0 uyarı (47 issue'nun hepsi önceden
+var olan `withOpacity`/`prefer_const`). `flutter test` → **590 geçti**.
+Kırık 4 test **Windows'a özgü** ve değişiklik öncesi de kırıktı (stash ile
+karşılaştırıldı; bu tur 9 → 4'e indirdi, **regresyon yok**): `volumePath`
+POSIX yol bekliyor ama `p.join` Windows'ta `\` üretiyor · şifreli RAR
+tearDown'ında temp klasörü silinemiyor (Windows dosya kilidi) · iki `fm_trash`
+testi Android birim mantığına dayanıyor. APK ve Linux doğrulaması CI'da.
