@@ -1,6 +1,28 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **PDF editörü cihaz doğrulaması (kullanıcı)** — 2026-07-27: PDF aç → alt
+      çubuk **Düzenleyici** → (a) *Metin* modunda paragraf kutuları çıkıyor mu,
+      dokununca pencere açılıp özgün metni üstte gösteriyor mu, "Uygula" sonrası
+      sonuç sayfada HEMEN görünüyor mu, yazı tipi/punto/hizalama korunuyor mu,
+      (b) kelimeyi uzatınca satır düzgün sarıyor mu, kısaltınca boşluk düzgün mü,
+      (c) *Görsel* modunda logo/QR seçilip sürükleniyor/boyutlanıyor/siliniyor mu,
+      (d) *Filigran* modunda "KOPYADIR" benzeri damga listeleniyor ve
+      kaldırılıyor mu, gerçek içerik listede ÇIKMAMALI, (e) *Sayfa* modunda
+      90° sağa/sola dönüyor mu, (f) **Geri al** işe yarıyor mu, (g) **Kaydet** →
+      "Üzerine yaz / Kopyasını kaydet / Klasör seç" ve "AÇ" düğmesi çalışıyor mu,
+      (h) kaydetmeden çıkınca özgün dosya DEĞİŞMEMİŞ olmalı.
+- [ ] **Eski (kelime bazlı) yerinde düzenleme yolunu SİL** — 2026-07-27: paragraf
+      editörü cihazda doğrulanınca `viewer_screen`'deki seçim-tabanlı düzenleme
+      zinciri (`_startInlineEdit`/`_applyInlineEdit`/`_InlineEdit`/`_editBar`),
+      `services/pdf_edit_flow.dart`, `services/pdf_content_editor.dart`,
+      `services/pdf/pdf_text_replace.dart`, `widgets/pdf_inline_editor.dart` ve
+      testleri (`pdf_content_editor*`, `pdf_inplace_edit`, `pdf_reflow`,
+      `pdf_replace_text`, `pdf_encrypted_edit`) kaldırılacak. **Şimdi
+      silinmemesinin nedeni:** paragraf motoru bazı belgeleri REDDEDİYOR
+      (genişlik tablosu olmayan font, aralıkta metin dışı çizim, sığmama);
+      eski yol o belgelerde hâlâ çalışan tek yedek. Doğrulanmadan silmek
+      yetenek kaybı olurdu. (usta 4b'nin istisnası, gerekçesi burada.)
 - [ ] **Okuma deneyimi cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 4: PDF aç →
       (a) ay simgesi gece modunu açıyor mu, sayfa ters renkte okunaklı mı,
       (b) içindekiler (☰ simgesi) olan bir PDF'te başlığa dokununca o sayfaya

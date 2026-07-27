@@ -18,6 +18,7 @@ import '../../screens/fm/image_gallery_screen.dart';
 import '../../screens/fm/media_player_screen.dart';
 import '../../screens/viewer_screen.dart';
 import '../file_service.dart';
+import 'fs_events.dart';
 
 /// Bir dosyanın hangi ekranda açılacağı. Saf karar fonksiyonu
 /// ([EntryOpener.routeFor]) olduğu için birim testiyle sabitlenir.
@@ -89,6 +90,8 @@ abstract final class EntryOpener {
   }) async {
     if (!File(path).existsSync()) {
       _snack(context, 'Dosya bulunamadı (taşınmış ya da silinmiş olabilir).');
+      // Listede kalan hayalet kaydı düşür — kullanıcı bir daha görmesin.
+      FsEvents.reportUnreadable(path);
       return;
     }
     final route = routeFor(path);

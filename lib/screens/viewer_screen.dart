@@ -20,6 +20,7 @@ import '../services/ocr_service.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_edit_flow.dart';
 import '../services/pdf_reload.dart';
+import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/office_shell.dart';
@@ -30,6 +31,7 @@ import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
 import 'pdf_ai_edit_screen.dart';
 import 'pdf_sign_screen.dart';
+import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
@@ -117,6 +119,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Kaydedilmemiş değişiklik var mı?
   bool _pdfDirty = false;
+
+  /// Sayfa döndürme gibi bir PDF işlemi sürüyor mu? (Düğmeleri kilitler —
+  /// arka arkaya basılırsa aynı dosya iki kez yazılırdı.)
+  bool _pdfBusy = false;
 
   /// Kullanıcı "üzerine yaz" dedi mi? (Dedi ise yedek geri yüklenmez.)
   bool _pdfKeepEdits = false;
@@ -759,6 +765,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
             icon: const Icon(Icons.toc),
             onPressed: _showOutline,
           ),
+          // Sayfa döndürme (2026-07-27 kullanıcı isteği). Kayıpsız: sayfanın
+          // `/Rotate` girdisi değişir, içerik yeniden çizilmez.
+          IconButton(
+            tooltip: '90° sola döndür',
+            icon: const Icon(Icons.rotate_90_degrees_ccw),
+            onPressed: _pdfBusy ? null : () => _rotateCurrentPage(-1),
+          ),
+          IconButton(
+            tooltip: '90° sağa döndür',
+            icon: const Icon(Icons.rotate_90_degrees_cw),
+            onPressed: _pdfBusy ? null : () => _rotateCurrentPage(1),
+          ),
           // Gece/gündüz düğmesi üst çubuktan ÜÇ NOKTAYA taşındı
           // (2026-07-26 kullanıcı isteği) — üst çubuk kalabalıktı.
           if (_pdfDirty)
@@ -900,6 +918,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 _speechBar(),
               ],
             ),
+      // Etiketli eylem çubuğu (2026-07-27 kullanıcı bulgusu: WhatsApp'tan
+      // gelen dosya *"açılıyor ama ne yapacağım belli değil"*). Üst çubuktaki
+      // ikonların tooltip'i telefonda hiç görünmüyor; yapılabilecek işler
+      // artık YAZIYLA duruyor.
+      bottomBar: doc.kind == DocKind.pdf ? _pdfActionBar() : null,
       // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
       // kapatıyordu; etiket tooltip'e taşındı.
       fab: FloatingActionButton(
@@ -908,6 +931,47 @@ class _ViewerScreenState extends State<ViewerScreen> {
         child: const Icon(Icons.smart_toy_outlined),
       ),
     );
+  }
+
+  /// PDF eylem çubuğu: **Düzenleyici · Araçlar · Paylaş · Yazdır.**
+  ///
+  /// Etiketli, çünkü kullanıcı ne yapacağını ekrandan okuyabilmeli. Sığmazsa
+  /// yatay kaydırılır — küçük ekranda düğme kırpılmasın.
+  Widget _pdfActionBar() {
+    Widget item(IconData icon, String label, VoidCallback? onTap) =>
+        TextButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 20),
+          label: Text(label),
+        );
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          item(Icons.edit_document, 'Düzenleyici', _openPdfEditor),
+          item(Icons.construction, 'Araçlar', _openPdfTools),
+          item(Icons.share_outlined, 'Paylaş', _share),
+          item(Icons.print_outlined, 'Yazdır', _print),
+        ],
+      ),
+    );
+  }
+
+  /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
+  Future<void> _openPdfEditor() async {
+    // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
+    // önce kaydedilmezse sessizce kaybolurdu.
+    if (!await _confirmLeavePending() || !mounted) return;
+    final saved = await PdfEditorScreen.open(
+      context,
+      path: widget.doc.path,
+      initialPage: _livePdfPage() ?? _pdfPage,
+    );
+    if (saved && mounted) {
+      setState(() => _pdfText = '');
+      await _reloadPdf();
+    }
   }
 
   /// Seçim çubuğu: **Vurgula / Kopyala / Düzenle / Çevir** ve vurgu renkleri.
@@ -1375,6 +1439,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (!mounted) return;
       setState(() => _pdfEditBusy = false);
       _snack('Değiştirilemedi: $e');
+    }
+  }
+
+  /// Açık sayfayı çeyrek tur döndürür ([quarterTurns] −1 sola, +1 sağa).
+  ///
+  /// Kayıpsız: sayfanın `/Rotate` girdisi değişir, içerik yeniden ÇİZİLMEZ.
+  /// Değişiklik bekleyen düzenleme olarak durur; çıkarken bir kez sorulur —
+  /// metin düzenleme ve vurgulama ile aynı akış.
+  Future<void> _rotateCurrentPage(int quarterTurns) async {
+    if (_pdfBusy) return;
+    final page = _livePdfPage() ?? _pdfPage;
+    if (page < 1) return;
+    setState(() => _pdfBusy = true);
+    try {
+      final bytes = await _fileService.readBytes(widget.doc.path);
+      final out = await PdfTools.rotatePagesInBackground(
+        bytes,
+        pageIndexes: [page - 1],
+        quarterTurns: quarterTurns,
+      );
+      if (!mounted) return;
+      await _writePending(out);
+      if (mounted) {
+        _snack('$page. sayfa ${quarterTurns < 0 ? 'sola' : 'sağa'} döndürüldü');
+      }
+    } catch (e) {
+      if (mounted) _snack('Döndürülemedi: $e');
+    } finally {
+      if (mounted) setState(() => _pdfBusy = false);
     }
   }
 

@@ -240,14 +240,21 @@ class PdfFile {
   }
 
   /// Sayfanın `/Resources /Font` sözlüğü: kaynak adı → nesne numarası.
-  Map<String, int> fontRefs(PdfObject page) {
+  Map<String, int> fontRefs(PdfObject page) => resourceRefs(page, 'Font');
+
+  /// Sayfanın `/Resources /XObject` sözlüğü: kaynak adı → nesne numarası.
+  /// Sayfadaki gömülü görseller (resim, logo, QR, karekod) burada durur.
+  Map<String, int> xobjectRefs(PdfObject page) => resourceRefs(page, 'XObject');
+
+  /// Sayfanın `/Resources /<kategori>` sözlüğü: kaynak adı → nesne numarası.
+  Map<String, int> resourceRefs(PdfObject page, String category) {
     final resources = _resourcesOf(page);
     if (resources == null) return const {};
-    final fontsDict = _subDictionary(resources, 'Font');
-    if (fontsDict == null) return const {};
+    final dict = _subDictionary(resources, category);
+    if (dict == null) return const {};
     return {
       for (final m
-          in RegExp(r'/([^\s/<>\[\]]+)\s+(\d+)\s+\d+\s+R').allMatches(fontsDict))
+          in RegExp(r'/([^\s/<>\[\]]+)\s+(\d+)\s+\d+\s+R').allMatches(dict))
         m.group(1)!: int.parse(m.group(2)!),
     };
   }
@@ -328,20 +335,38 @@ class PdfFile {
   /// [obj] akışının içeriğini [newContent] ile değiştiren **ekleme** üretir.
   ///
   /// Dosyanın kendisi değişmez; sonuna yeni nesne + yeni xref bölümü eklenir.
-  List<int> writeUpdatedStream(PdfObject obj, List<int> newContent) {
-    final compressed = ZLibEncoder().encode(newContent);
-    final dict = _rebuildStreamDict(obj.dict, compressed.length);
+  List<int> writeUpdatedStream(PdfObject obj, List<int> newContent) =>
+      writeUpdatedStreams({obj: newContent});
+
+  /// Birden çok akışı TEK eklemede günceller.
+  ///
+  /// Niye tek ekleme: her akış için ayrı ekleme yazmak dosyayı sayfa sayısı
+  /// kadar büyütür ve her turda yeniden ayrıştırma gerektirir. Filigran
+  /// temizleme gibi işler bütün sayfalara dokunur — orada şart.
+  List<int> writeUpdatedStreams(Map<PdfObject, List<int>> updates) {
+    if (updates.isEmpty) return List<int>.of(bytes);
 
     final out = BytesBuilder()..add(bytes);
     if (bytes.isNotEmpty && bytes.last != 0x0A) out.add([0x0A]);
 
-    final objOffset = out.length;
-    out
-      ..add(latin1.encode('${obj.number} ${obj.generation} obj\n$dict\nstream\n'))
-      ..add(compressed)
-      ..add(latin1.encode('\nendstream\nendobj\n'));
+    // Nesne numarasına göre sırala: xref bölümleri artan sırada olmalı.
+    final entries = updates.entries.toList()
+      ..sort((a, b) => a.key.number.compareTo(b.key.number));
 
-    _appendXref(out, objOffset, obj);
+    final offsets = <PdfObject, int>{};
+    for (final entry in entries) {
+      final obj = entry.key;
+      final compressed = ZLibEncoder().encode(entry.value);
+      final dict = _rebuildStreamDict(obj.dict, compressed.length);
+      offsets[obj] = out.length;
+      out
+        ..add(latin1
+            .encode('${obj.number} ${obj.generation} obj\n$dict\nstream\n'))
+        ..add(compressed)
+        ..add(latin1.encode('\nendstream\nendobj\n'));
+    }
+
+    _appendXref(out, offsets, [for (final e in entries) e.key]);
     return out.takeBytes();
   }
 
@@ -370,7 +395,8 @@ class PdfFile {
   /// TUZAK: taban dosya xref AKIŞI kullanıyorsa (PDF 1.5+, çok yaygın) güncelleme
   /// de akış olmalı. Klasik tablo eklemek "hibrit" bir dosya üretir ve birçok
   /// okuyucu bunu reddeder.
-  void _appendXref(BytesBuilder out, int objOffset, PdfObject obj) {
+  void _appendXref(
+      BytesBuilder out, Map<PdfObject, int> offsets, List<PdfObject> order) {
     final prev = _lastStartXref();
     final rootRef = pdfRef(trailerText, 'Root');
     final infoRef = pdfRef(trailerText, 'Info');
@@ -379,12 +405,14 @@ class PdfFile {
     if (!usesXrefStream) {
       final size = maxObjectNumber + 1;
       final xrefOffset = out.length;
-      final buffer = StringBuffer()
-        ..write('xref\n')
-        ..write('${obj.number} 1\n')
-        ..write('${objOffset.toString().padLeft(10, '0')} '
-            '${obj.generation.toString().padLeft(5, '0')} n \n')
-        ..write('trailer\n<< /Size $size');
+      final buffer = StringBuffer()..write('xref\n');
+      for (final obj in order) {
+        buffer
+          ..write('${obj.number} 1\n')
+          ..write('${offsets[obj]!.toString().padLeft(10, '0')} '
+              '${obj.generation.toString().padLeft(5, '0')} n \n');
+      }
+      buffer.write('trailer\n<< /Size $size');
       if (rootRef != null) buffer.write(' /Root $rootRef 0 R');
       if (infoRef != null) buffer.write(' /Info $infoRef 0 R');
       buffer
@@ -399,14 +427,19 @@ class PdfFile {
     final size = xrefNumber + 1;
     final xrefOffset = out.length;
 
-    final entries = BytesBuilder()
-      ..add(_xrefEntry(objOffset, obj.generation))
-      ..add(_xrefEntry(xrefOffset, 0));
+    final entries = BytesBuilder();
+    final index = StringBuffer();
+    for (final obj in order) {
+      entries.add(_xrefEntry(offsets[obj]!, obj.generation));
+      index.write('${obj.number} 1 ');
+    }
+    entries.add(_xrefEntry(xrefOffset, 0));
+    index.write('$xrefNumber 1');
     final compressed = ZLibEncoder().encode(entries.takeBytes());
 
     final dict = StringBuffer()
       ..write('<< /Type /XRef /Size $size ')
-      ..write('/Index [${obj.number} 1 $xrefNumber 1] /W [1 4 2]');
+      ..write('/Index [$index] /W [1 4 2]');
     if (rootRef != null) dict.write(' /Root $rootRef 0 R');
     if (infoRef != null) dict.write(' /Info $infoRef 0 R');
     dict.write(' /Prev $prev /Filter /FlateDecode /Length ${compressed.length} >>');

@@ -2791,3 +2791,76 @@ için doğru yol, tahmini değil SONUCU ölçen (ve ölçümü kullanıcıya gö
 kod yazmak.
 
 **Doğrulama:** `flutter analyze` 0 hata, **568 test yeşil**.
+
+---
+
+## 2026-07-27 — PDF paragraf editörü, nesne/filigran düzenleme, hayalet dosyalar
+
+### A. Karar: PDF düzenlemenin birimi KELİME değil PARAGRAF (kullanıcı kararı)
+
+Kullanıcı önce "PDF'i Word'e çevir, düzenle, geri çevir" istedi. Reddedildi ve
+gerekçesi söylendi: Dart'ta tam sadakatli PDF→DOCX yok, PDF (mutlak koordinatlı
+sabit sayfa) ile DOCX (akışkan metin) farklı model, round-trip'te kayıp iki kez
+birikiyor, bulut motoru KVKK riski. Kullanıcı asıl istediğini netleştirdi:
+*"pdf üzerindeki yazıları sanki orjinal haliyle düzenleniyor gibi düzenlemek …
+font boyut değişmeyecek ama kelime kısaldığında/uzadığında yine düzgün bir
+paragraf gibi durması"* → yani **yerinde düzenleme + paragraf akışı.**
+
+Sonra ikinci kararı: değiştirme birimi paragraf olsun. **Bu teknik olarak da
+daha iyi çıktı**, sadece kullanışlılık değil: kelime bazlı yol metni içerik
+akışında ARAMAK zorundaydı (üreticiler cümleyi kerning yüzünden onlarca parçaya
+böler, kodlama tahmin edilir) ve gerçek belgelerde sık "bulunamadı" diyordu.
+Paragraf birimi aramayı tamamen kaldırdı: dokunulan noktadan operatörler
+koordinatla bulunuyor, o bayt aralığı komple yeniden yazılıyor.
+
+### B. Yeni katman (saf Dart, cihazsız test edilebilir)
+
+- `pdf/pdf_paragraph.dart` — paragraf bulma: satır gruplama (taban çizgisi),
+  paragraf gruplama (satır aralığı tutarlılığı + yatay örtüşme + sol kenar
+  hizası + aynı punto + aynı `cm`), biçim koşuları (font/punto/renk), `TJ`
+  kerning boşluğunu kelime arası okuma, sayfa uzayında sınırlar.
+- `pdf/pdf_paragraph_layout.dart` — yeniden dizme: ön ek/son ek diff ile biçim
+  koruma, glif genişlikleriyle açgözlü satır sarma, iki yana yaslama, kelime
+  başına mutlak `Tm` ile konumlandırma.
+- `pdf/pdf_xobject.dart` — görseller: `cm` biriktirerek konum/boyut, silme
+  (yalnız `/Im1 Do` baytları), taşıma/boyutlandırma (`Do` öncesine düzeltme
+  `cm` EKLEME — mevcut operatör silinmez, q/Q dengesi bozulmaz).
+- `pdf/pdf_background.dart` — filigran adayları (sayfaların ≥ yarısında
+  yineleniyor VEYA çapraz çiziliyor) ve kaldırma.
+- `pdf/pdf_page_context.dart` + `pdf_page_edit.dart` — dosya seviyesi, artımlı
+  yazma + Syncfusion ile yeniden açıp doğrulama.
+
+### C. TUZAK — `enc?.encode(t) ?? latin1.encode(t)` YAZILAMAZ
+
+Testin yakaladığı gerçek hata: `?.` ile `??` birlikte "font tablosu YOK" ile
+"tablo var ama bu harf içinde yok" durumlarını karıştırır. İkincisinde sessizce
+Latin-1'e düşüp belgeye YANLIŞ GLİF yazıyordu (fontta olmayan `Ç` kabul edildi).
+Doğrusu: tablo varsa cevabı yalnız o verir (`if (enc != null) return enc.encode(t);`).
+Aynı kalıp `decode`/`measure` için de risklidir.
+
+### D. Bilinçli sınırlar (kullanıcıya söylendi)
+
+- Düzenlenen paragrafın satır içi kerning'i yeniden hesaplanır; paragraf DIŞI
+  her şey bayt bayt korunur.
+- Satır sayısı artıyorsa yalnız paragrafın ALTINDAKİ boşluk kadar taşılır;
+  sığmazsa işlem REDDEDİLİR (sayfa kaydırma zinciri yok — kaç satır fazla
+  geldiği mesajda söylenir).
+- Aralıkta metin dışı operatör (`q`/`Q`/`cm`/`Do`/yol) varsa reddedilir:
+  aralığı yeniden yazmak grafik durumu yığınını dengesiz bırakırdı.
+- Form XObject'ler nesne listesine girmez (çizim alanı birim kare değil `/BBox`).
+
+### E. Hayalet dosyalar (mor boş simge) — kök neden
+
+Listeler yalnız UYGULAMA İÇİNDEN silme olunca tazeleniyordu (`FsEvents.version`).
+Dosyayı Galeri/WhatsApp silince kimse haber vermiyor, kayıt listede kalıp
+`Image.file` hata verince mor rozete düşüyordu. Çözüm: `FsEvents.reportUnreadable`
+— küçük resim açılamayınca bildirilir, dosya GERÇEKTEN yoksa (bozuk ama duran
+dosya listede kalmalı) tek sinyalde listeden düşürülür; bildirimler kare sonuna
+kadar biriktirilip tek `changed()`'e indirgenir (800 fotoğraflı ızgarada her
+hücrenin ayrı tetiklemesi uygulamayı kilitlerdi).
+
+### F. Doğrulama
+
+`flutter analyze lib` → 0 hata. `flutter test` → **577 geçti**; kırık 14 test
+`fm_archive_rar_test.dart` ve DEĞİŞİKLİK ÖNCESİ temiz ağaçta da kırık
+(stash ile doğrulandı) — bu turla ilgisi yok.

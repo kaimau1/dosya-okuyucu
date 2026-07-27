@@ -7,6 +7,7 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/file_service.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../file_type_icon.dart';
 
@@ -107,7 +108,13 @@ class FmEntryIcon extends StatelessWidget {
           cacheWidth: (size * 3).round(),
           filterQuality: FilterQuality.low,
           gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => _badge(context, category),
+          // Açılamayan resim: dosya silinmiş olabilir (Galeri/WhatsApp
+          // temizliği). Bildir — gerçekten yoksa listeden düşürülür, duruyorsa
+          // (bozuk dosya) rozet kalır. Bkz. FsEvents.reportUnreadable.
+          errorBuilder: (_, __, ___) {
+            FsEvents.reportUnreadable(entry.path);
+            return _badge(context, category);
+          },
         ),
       );
     }
@@ -171,6 +178,8 @@ class _VideoThumbState extends State<_VideoThumb> {
     final result = await ThumbnailCache.forVideo(path,
         size: (widget.size * 2).round().clamp(96, 512));
     if (!mounted || path != widget.path) return;
+    // Küçük resim üretilemedi: dosya silinmiş olabilir (bkz. FsEvents).
+    if (result == null) FsEvents.reportUnreadable(path);
     setState(() => _thumb = result);
   }
 

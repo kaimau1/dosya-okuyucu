@@ -417,6 +417,34 @@ double? advanceOf(PdfTextOp op, List<int> bytes, PdfMeasure? measure) {
 
 final _numberPattern = RegExp(r'^[+-]?(\d+\.?\d*|\.\d+)$');
 
+/// `m × n` (PDF satır-vektör düzeni, 6 elemanlı afin matris).
+List<double> multiplyMatrix(List<double> m, List<double> n) => [
+      m[0] * n[0] + m[1] * n[2],
+      m[0] * n[1] + m[1] * n[3],
+      m[2] * n[0] + m[3] * n[2],
+      m[2] * n[1] + m[3] * n[3],
+      m[4] * n[0] + m[5] * n[2] + n[4],
+      m[4] * n[1] + m[5] * n[3] + n[5],
+    ];
+
+/// Afin matrisin tersi; tekilse (ölçek 0) null.
+List<double>? invertMatrix(List<double> m) {
+  final det = m[0] * m[3] - m[1] * m[2];
+  if (det.abs() < 1e-12) return null;
+  return [
+    m[3] / det,
+    -m[1] / det,
+    -m[2] / det,
+    m[0] / det,
+    (m[2] * m[5] - m[3] * m[4]) / det,
+    (m[1] * m[4] - m[0] * m[5]) / det,
+  ];
+}
+
+/// Afin matrisi bir noktaya uygular.
+(double, double) applyMatrix(List<double> m, double x, double y) =>
+    (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]);
+
 List<double> _identity() => [1, 0, 0, 1, 0, 0];
 
 /// `translate(tx, ty) × m` (PDF satır-vektör düzeni).
