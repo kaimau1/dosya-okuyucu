@@ -29,8 +29,10 @@ android iskeleti → AndroidManifest'e INTERNET izni + app adı → minSdk 23 pa
 → artifact yükle → **GitHub Release** oluştur (tag `v0.1.0-build-<run_number>`).
 
 ## 4) Çalışma Kuralları
-- **Dal:** `main` (2026-07-21'den beri varsayılan dal; eski `claude/multi-format-file-reader-c9gh78`
-  dalı repoda duruyor ama artık kullanılmıyor). Push: `git push`.
+- **Dal:** **TEK DAL — `main`.** (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi
+  main'in gerisindeydi, hiçbirinde main'de olmayan iş yoktu.) Yeni dal AÇMA;
+  iş doğrudan main'e commit edilir. Push: `git push`.
+  APK yalnız **main**'e push'ta derlenir (feature dalında sadece `flutter test`).
 - **Doğrulama döngüsü:** önce yerelde `C:\src\flutter\bin\flutter.bat test` + `analyze`
   (sürüm 3.44 — uyarılar CI'nin 3.29.3'üyle farklı, bkz. HAFIZA), sonra push → Actions
   logunu izle, kırmızıysa sormadan düzelt. APK derlemesi yalnızca CI'da doğrulanır.
