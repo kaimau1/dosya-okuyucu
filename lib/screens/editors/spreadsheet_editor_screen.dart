@@ -15,6 +15,7 @@ import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
 import '../../services/xlsx_editor.dart';
+import '../../widgets/doc_action_bar.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/sheet_cell.dart';
@@ -598,7 +599,29 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                     _statusBar(),
                   ],
                 ),
-      bottomBar: visibleSheets.length < 2 ? null : _sheetTabs(visibleSheets),
+      // Sayfa sekmeleri + etiketli eylem çubuğu (2026-07-28 kullanıcı isteği —
+      // PDF'teki gibi). Sekmeler üstte kalır: hangi sayfadasınız bilgisi
+      // eylemlerden önce gelir.
+      bottomBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
+          DocActionBar([
+            DocAction(
+                Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
+            DocAction(Icons.share_outlined, 'Paylaş',
+                editor == null ? null : _export),
+            DocAction(Icons.table_view_outlined, 'CSV',
+                editor == null ? null : _exportCsv),
+            DocAction(
+              Icons.translate,
+              'Çevir',
+              () => TranslateFlow.run(context, widget.plainText,
+                  title: widget.name),
+            ),
+          ]),
+        ],
+      ),
       fab: FloatingActionButton(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(

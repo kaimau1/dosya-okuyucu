@@ -41,6 +41,15 @@ class PdfPageObject {
   /// kutusu yanıltıcı olurdu; arayüz yalnız silmeye izin verir.
   final bool rotated;
 
+  /// Çizim anında bir **kırpma yolu** (`W`/`W*`) geçerli miydi?
+  ///
+  /// Antet logoları çoğu belgede `q … W n … Do … Q` içinde çizilir. Böyle bir
+  /// görseli yerinde `cm` ekleyerek taşırsak görsel gider ama kırpma
+  /// dikdörtgeni eski yerinde kalır ve görselin taşan kısmı KESİLİR
+  /// (kullanıcı bildirimi 2026-07-28). [placeObject] bu durumda başka bir yol
+  /// izler.
+  final bool clipped;
+
   const PdfPageObject({
     required this.streamIndex,
     required this.name,
@@ -52,6 +61,7 @@ class PdfPageObject {
     required this.width,
     required this.height,
     required this.rotated,
+    this.clipped = false,
   });
 
   double get right => left + width;
@@ -97,24 +107,33 @@ List<PdfPageObject> _objectsInStream(
   final out = <PdfPageObject>[];
 
   var ctm = <double>[1, 0, 0, 1, 0, 0];
-  final stack = <List<double>>[];
+  // Kırpma da grafik durumunun parçası: `q` ile yığına girer, `Q` ile kalkar.
+  var clipped = false;
+  final stack = <(List<double>, bool)>[];
 
   for (final event in scan.events) {
     switch (event.op) {
       case 'q':
-        stack.add(List.of(ctm));
+        stack.add((List.of(ctm), clipped));
       case 'Q':
-        if (stack.isNotEmpty) ctm = stack.removeLast();
+        if (stack.isNotEmpty) {
+          final restored = stack.removeLast();
+          ctm = restored.$1;
+          clipped = restored.$2;
+        }
       case 'cm':
         if (event.numbers.length >= 6) {
           ctm = multiplyMatrix(
               event.numbers.sublist(event.numbers.length - 6), ctm);
         }
+      case 'W':
+      case 'W*':
+        clipped = true;
       case 'Do':
         final name = _nameOperandOf(content, event);
         if (name == null) continue;
         if (imageNames.isNotEmpty && !imageNames.contains(name)) continue;
-        out.add(_objectAt(streamIndex, name, event, ctm));
+        out.add(_objectAt(streamIndex, name, event, ctm, clipped));
     }
   }
   return out;
@@ -125,6 +144,7 @@ PdfPageObject _objectAt(
   String name,
   PdfContentEvent event,
   List<double> ctm,
+  bool clipped,
 ) {
   // Görsel birim kareyi doldurur; dört köşeyi çevirip kutuyu buluyoruz.
   final corners = [
@@ -151,6 +171,7 @@ PdfPageObject _objectAt(
     width: right - left,
     height: top - bottom,
     rotated: ctm[1].abs() > 1e-6 || ctm[2].abs() > 1e-6,
+    clipped: clipped,
   );
 }
 
@@ -185,8 +206,15 @@ List<int> deleteObjectDraw(List<int> content, PdfPageObject object) =>
 
 /// [object]'i verilen sayfa koordinatlarına oturtur.
 ///
-/// `Do`'dan hemen önce bir düzeltme `cm` eklenir: `T × mevcut = istenen`,
-/// yani `T = istenen × mevcut⁻¹`.
+/// İki yol var, kırpmaya göre seçilir:
+/// * **kırpma yok** → `Do`'dan hemen önce bir düzeltme `cm` eklenir
+///   (`T × mevcut = istenen`, yani `T = istenen × mevcut⁻¹`). Özgün baytlar
+///   yerinde kalır, çizim sırası değişmez.
+/// * **kırpma var** → yerinde `cm` işe yaramaz: görsel taşınır ama kırpma
+///   dikdörtgeni eski yerinde kaldığı için taşan kısım KESİLİR. Çizim
+///   akıştan çıkarılıp akışın **sonuna** temiz bir `q … Q` bloğu olarak
+///   yeniden yazılır — orada kırpma yok. Bedeli: görsel en üstte çizilir
+///   (antet logosu için görünmez bir fark).
 List<int> placeObject(
   List<int> content,
   PdfPageObject object, {
@@ -195,19 +223,57 @@ List<int> placeObject(
   required double width,
   required double height,
 }) {
+  final target = <double>[width, 0, 0, height, left, bottom];
+
+  if (object.clipped) {
+    // Akışın sonundaki dönüşüm kimlik olmayabilir (üst düzeyde dengelenmemiş
+    // bir `cm` kalmış olabilir); istenen sayfa koordinatını tutturmak için
+    // oradaki dönüşümün tersiyle çarpıyoruz.
+    final ambient = invertMatrix(_endTransform(content));
+    if (ambient == null) {
+      throw StateError('Sayfanın dönüşümü tersine çevrilemiyor (sıfır ölçek).');
+    }
+    final draw = 'q ${_matrixText(multiplyMatrix(target, ambient))}'
+        '/${object.name} Do Q\n';
+    return List<int>.of(content)
+      ..replaceRange(object.drawStart, object.drawEnd, const <int>[])
+      ..addAll('\n$draw'.codeUnits);
+  }
+
   final inverse = invertMatrix(object.ctm);
   if (inverse == null) {
     throw StateError('Görselin dönüşümü tersine çevrilemiyor (sıfır ölçek).');
   }
-  final target = <double>[width, 0, 0, height, left, bottom];
-  final delta = multiplyMatrix(target, inverse);
-
-  final text = '${writePdfNumber(delta[0])} ${writePdfNumber(delta[1])} '
-      '${writePdfNumber(delta[2])} ${writePdfNumber(delta[3])} '
-      '${writePdfNumber(delta[4])} ${writePdfNumber(delta[5])} cm\n';
 
   return List<int>.of(content)
-    ..insertAll(object.drawStart, text.codeUnits);
+    ..insertAll(object.drawStart,
+        _matrixText(multiplyMatrix(target, inverse)).codeUnits);
+}
+
+/// Altı elemanlı matrisi `a b c d e f cm ` biçiminde yazar.
+String _matrixText(List<double> m) =>
+    '${writePdfNumber(m[0])} ${writePdfNumber(m[1])} '
+    '${writePdfNumber(m[2])} ${writePdfNumber(m[3])} '
+    '${writePdfNumber(m[4])} ${writePdfNumber(m[5])} cm\n';
+
+/// Akış bittiğinde geçerli olan dönüşüm matrisi.
+List<double> _endTransform(List<int> content) {
+  var ctm = <double>[1, 0, 0, 1, 0, 0];
+  final stack = <List<double>>[];
+  for (final event in scanContent(content).events) {
+    switch (event.op) {
+      case 'q':
+        stack.add(List.of(ctm));
+      case 'Q':
+        if (stack.isNotEmpty) ctm = stack.removeLast();
+      case 'cm':
+        if (event.numbers.length >= 6) {
+          ctm = multiplyMatrix(
+              event.numbers.sublist(event.numbers.length - 6), ctm);
+        }
+    }
+  }
+  return ctm;
 }
 
 // Matris yardımcıları (`multiplyMatrix`, `invertMatrix`, `applyMatrix`)

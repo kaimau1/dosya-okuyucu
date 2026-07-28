@@ -165,6 +165,23 @@ void main() {
       expect(out, contains('1 0 0 rg'));
     });
 
+    test('her satırı ayrı BT/ET bloğunda olan paragraf yeniden dizilir', () {
+      // Resmi yazı üreticileri (EBYS) her SATIRI ayrı metin nesnesine yazar.
+      // Eskiden aralıktaki `ET` yüzünden böyle belgelerde tek bir paragraf
+      // bile düzenlenemiyordu — kullanıcı bildirimi 2026-07-28.
+      const content = 'BT /F1 10 Tf 1 0 0 1 50 700 Tm (AAAA) Tj ET '
+          'BT /F1 10 Tf 1 0 0 1 50 688 Tm (BBBB) Tj ET '
+          'BT /F1 10 Tf 1 0 0 1 50 676 Tm (CC) Tj ET';
+      final paragraph = parse(content).single;
+      expect(paragraph.text, 'AAAA BBBB CC');
+
+      final out = rewrite(content, paragraph, 'AAAA BB CC');
+      expect(out, contains('(BB) Tj'));
+      expect(out, contains('1 0 0 1 50 688 Tm'));
+      // Asıl güvence: silinen `ET` ve `BT` sayısı eşit → yığın dengede.
+      expect('BT '.allMatches(out).length, 'ET'.allMatches(out).length);
+    });
+
     test('metin dışı çizim içeren aralık reddedilir', () {
       // `q`/`Q` yığınının içinden bir şey çıkarmak akışı dengesiz bırakır.
       const content = 'BT /F1 10 Tf 1 0 0 1 50 700 Tm (AAAA) Tj '

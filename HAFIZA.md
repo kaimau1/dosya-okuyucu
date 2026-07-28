@@ -2929,3 +2929,53 @@ karşılaştırıldı; bu tur 9 → 4'e indirdi, **regresyon yok**): `volumePath
 POSIX yol bekliyor ama `p.join` Windows'ta `\` üretiyor · şifreli RAR
 tearDown'ında temp klasörü silinemiyor (Windows dosya kilidi) · iki `fm_trash`
 testi Android birim mantığına dayanıyor. APK ve Linux doğrulaması CI'da.
+
+---
+
+## 2026-07-28 — PDF editörü: 3 kullanıcı bulgusu (paragraf reddi, kesilen arma, alt çubuk)
+
+### A. KÖK NEDEN — "hiçbir PDF'te yazı değiştiremedim"
+Ekranda hep `Bu paragrafın içinde metin dışı çizim var (ET)` çıkıyordu.
+Sebep bizim varsayımımızdı: `pdf_paragraph_layout._checkSpan` paragrafın bayt
+aralığındaki her operatörü bir izin listesinden geçiriyor, `BT`/`ET` listede
+yoktu. Ama resmi yazı üreticileri (EBYS, Ankara İSM yazıları) paragrafın **her
+SATIRINI ayrı `BT … ET` bloğuna** yazıyor → çok satırlı HER paragrafın ortasında
+zorunlu olarak `ET BT` çifti var → istisnasız reddediliyordu. Yani hata belgede
+değil, motorun kendindeydi.
+**Çözüm:** dengeli `ET`/`BT` çiftlerine izin. Güvenli, çünkü aralık bir metin
+nesnesinin İÇİNDE başlayıp İÇİNDE bitiyor → silinen `ET` ve `BT` sayısı eşit,
+dıştaki `BT` açık kalır, dıştaki `ET` kapatır, yığın dengede. Dengesiz dizi
+(aralık `BT` ile başlıyor / eksik kapanıyor) hâlâ reddediliyor; `q`/`cm`/`Do`
+gibi gerçek çizimler de öyle. Kanıt: `pdf_paragraph_test`e çok-`BT` testi,
+düzeltme öncesi KIRMIZI (aynı hata mesajı), sonrası YEŞİL.
+
+### B. KÖK NEDEN — "armanın yerini değiştirince kesiliyor"
+`placeObject` taşımayı `Do`'dan önce düzeltme `cm` ekleyerek yapıyordu: görsel
+yeni yere gidiyor ama o sırada geçerli **kırpma yolu (`W n`) eski yerinde
+kalıyor** → taşan kısım kesiliyor. Antet logoları neredeyse hep
+`q … re W n … cm /Im1 Do Q` içinde çizilir.
+**Çözüm:** `PdfPageObject.clipped` (kırpma da `q`/`Q` yığınında taşınıyor).
+Kırpma varsa yerinde `cm` yerine → çizim akıştan çıkarılıp akışın **sonuna**
+temiz `q <cm> /Im Do Q` olarak yazılıyor; orada kırpma yok. Akış sonundaki
+dönüşüm kimlik olmayabilir diye `_endTransform` ile tersi alınıyor.
+**Bedeli (bilinçli):** kırpmalı görsel taşındığında en üstte çizilir. Kırpma
+yoksa eski yol (yerinde `cm`) aynen duruyor, çizim sırası korunuyor.
+
+### C. Alt eylem çubuğu her belge türünde
+2026-07-27'de yalnız PDF'e eklenmişti; kullanıcı aynısını Word/txt/Excel/slayt
+için istedi. Çubuk `widgets/doc_action_bar.dart`e taşındı (dört ekran ayrışmasın)
+ve dolduruldu: PDF = Düzenleyici·Araçlar·Paylaş·Yazdır · txt/salt-okunur =
+Düzenle·Kaydet·Paylaş·Yazdır · görsel = Metni tanı·PDF'e dönüştür·Paylaş ·
+Word = Düzenle·Kaydet·Paylaş·Çevir · Slayt = Oynat·Kaydet·Paylaş·Çevir ·
+Excel = sayfa sekmeleri + Kaydet·Paylaş·CSV·Çevir.
+İki karar: **görselde "Yazdır" YOK** (`_print` metni PDF'e çevirip basıyor,
+görselin metni olmadığı için boş sayfa çıkardı) · **Word/Slaytta düzenleme
+sırasında çubuk gizleniyor** (klavye + biçim çubuğu zaten ekranın yarısını alıyor).
+Word ve Slaytta "Yazdır" yok çünkü o ekranlarda basma yolu hiç yok — eklemek
+docx/pptx→PDF render'ı gerektirir, ayrı iş.
+
+### D. Doğrulama
+`flutter analyze` → dokunulan dosyalarda 0 hata (kalan uyarılar önceden var olan
+`withOpacity`/deprecated). `flutter test` → **592 geçti, 4 kırmızı**; dördü de
+KALANLAR'da yazılı Windows'a özgü olanlar, bu turdan önce de kırmızıydı.
+APK CI'da.

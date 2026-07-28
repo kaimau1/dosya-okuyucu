@@ -1,6 +1,14 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **2026-07-28 turu cihaz doğrulaması (kullanıcı)** — (a) SAHU yazısı gibi
+      resmi bir PDF'te *Düzenleyici → Metin* → paragrafa dokun → artık "metin
+      dışı çizim var (ET)" uyarısı ÇIKMAMALI, metin değişip sayfa düzeni
+      korunmalı; (b) *Görsel* modunda sol üstteki armayı taşı → artık
+      KESİLMEMELİ (kırpmanın dışına alınıyor, en üstte çiziliyor); (c) Word,
+      txt, Excel ve slayt açınca altta etiketli eylem çubuğu görünüyor mu,
+      düğmeler çalışıyor mu, Word/Slaytta düzenlemeye geçince çubuk gizlenip
+      çıkışta geri geliyor mu.
 - [ ] **PDF editörü cihaz doğrulaması (kullanıcı)** — 2026-07-27: PDF aç → alt
       çubuk **Düzenleyici** → (a) *Metin* modunda paragraf kutuları çıkıyor mu,
       dokununca pencere açılıp özgün metni üstte gösteriyor mu, "Uygula" sonrası
@@ -20,7 +28,8 @@
       testleri (`pdf_content_editor*`, `pdf_inplace_edit`, `pdf_reflow`,
       `pdf_replace_text`, `pdf_encrypted_edit`) kaldırılacak. **Şimdi
       silinmemesinin nedeni:** paragraf motoru bazı belgeleri REDDEDİYOR
-      (genişlik tablosu olmayan font, aralıkta metin dışı çizim, sığmama);
+      (genişlik tablosu olmayan font, aralıkta gerçek çizim `q`/`cm`/`Do`,
+      sığmama — *satır başına ayrı `BT`/`ET` reddi 2026-07-28'de kalktı*);
       eski yol o belgelerde hâlâ çalışan tek yedek. Doğrulanmadan silmek
       yetenek kaybı olurdu. (usta 4b'nin istisnası, gerekçesi burada.)
 - [ ] **Okuma deneyimi cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 4: PDF aç →

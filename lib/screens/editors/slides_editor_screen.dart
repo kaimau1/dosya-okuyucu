@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/document.dart';
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
+import '../../widgets/doc_action_bar.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_canvas.dart';
@@ -165,6 +166,24 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                     if (_editShapeVM != null) _formatBar(),
                   ],
                 ),
+      // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
+      // Metin kutusu düzenlenirken gizli: altta zaten biçim çubuğu var.
+      bottomBar: _editShapeVM != null
+          ? null
+          : DocActionBar([
+              DocAction(Icons.play_arrow, 'Oynat',
+                  editor == null ? null : () => _play(0)),
+              DocAction(
+                  Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
+              DocAction(Icons.share_outlined, 'Paylaş',
+                  editor == null ? null : _export),
+              DocAction(
+                Icons.translate,
+                'Çevir',
+                () => TranslateFlow.run(context, widget.plainText,
+                    title: widget.name),
+              ),
+            ]),
       fab: FloatingActionButton(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(

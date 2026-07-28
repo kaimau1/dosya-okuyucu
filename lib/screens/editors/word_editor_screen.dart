@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/list_prefix.dart';
 import '../../models/document.dart';
 import '../../services/docx_editor.dart';
+import '../../widgets/doc_action_bar.dart';
 import '../../widgets/docx_view.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/translate_flow.dart';
@@ -190,6 +191,26 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         ),
       ],
       tabBar: _editing ? _formatBar() : null,
+      // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
+      // Düzenleme sırasında gizli: o sırada klavye + biçim çubuğu zaten
+      // ekranın yarısını alıyor.
+      bottomBar: _editing
+          ? null
+          : DocActionBar([
+              if (!_plainMode)
+                DocAction(Icons.edit_outlined, 'Düzenle',
+                    editor == null ? null : _toggleEdit),
+              DocAction(
+                  Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
+              DocAction(Icons.share_outlined, 'Paylaş',
+                  editor == null ? null : _export),
+              DocAction(
+                Icons.translate,
+                'Çevir',
+                () => TranslateFlow.run(context, widget.plainText,
+                    title: widget.name),
+              ),
+            ]),
       body: _error != null
           ? Center(child: Text('Açılamadı: $_error'))
           : editor == null || bytes == null

@@ -23,6 +23,7 @@ import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
 import '../widgets/ai_rewrite_sheet.dart';
+import '../widgets/doc_action_bar.dart';
 import '../widgets/office_shell.dart';
 import '../widgets/pdf_inline_editor.dart';
 import '../widgets/pdf_save_dialog.dart';
@@ -918,11 +919,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 _speechBar(),
               ],
             ),
-      // Etiketli eylem çubuğu (2026-07-27 kullanıcı bulgusu: WhatsApp'tan
-      // gelen dosya *"açılıyor ama ne yapacağım belli değil"*). Üst çubuktaki
-      // ikonların tooltip'i telefonda hiç görünmüyor; yapılabilecek işler
-      // artık YAZIYLA duruyor.
-      bottomBar: doc.kind == DocKind.pdf ? _pdfActionBar() : null,
+      // Etiketli eylem çubuğu — artık her belge türünde (2026-07-28 kullanıcı
+      // isteği: "alttaki araç çubuğu güzel, diğer word txt gibi şeylerde de
+      // olsun"). Ayrıntı: `widgets/doc_action_bar.dart`.
+      bottomBar: _actionBar(doc),
       // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
       // kapatıyordu; etiket tooltip'e taşındı.
       fab: FloatingActionButton(
@@ -933,29 +933,29 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
-  /// PDF eylem çubuğu: **Düzenleyici · Araçlar · Paylaş · Yazdır.**
+  /// Türüne göre dolan eylem çubuğu; ortak son iki düğme **Paylaş · Yazdır**.
   ///
-  /// Etiketli, çünkü kullanıcı ne yapacağını ekrandan okuyabilmeli. Sığmazsa
-  /// yatay kaydırılır — küçük ekranda düğme kırpılmasın.
-  Widget _pdfActionBar() {
-    Widget item(IconData icon, String label, VoidCallback? onTap) =>
-        TextButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, size: 20),
-          label: Text(label),
-        );
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          item(Icons.edit_document, 'Düzenleyici', _openPdfEditor),
-          item(Icons.construction, 'Araçlar', _openPdfTools),
-          item(Icons.share_outlined, 'Paylaş', _share),
-          item(Icons.print_outlined, 'Yazdır', _print),
-        ],
-      ),
-    );
+  /// Etiketli, çünkü kullanıcı ne yapacağını ekrandan okuyabilmeli.
+  /// "Yazdır" görselde YOK: `_print` metni PDF'e çevirip basar, görselin metni
+  /// olmadığı için boş sayfa çıkardı — orada iş "PDF'e dönüştür".
+  Widget _actionBar(LoadedDoc doc) {
+    final isImage = doc.kind == DocKind.image;
+    return DocActionBar([
+      if (doc.kind == DocKind.pdf) ...[
+        DocAction(Icons.edit_document, 'Düzenleyici', _openPdfEditor),
+        DocAction(Icons.construction, 'Araçlar', _openPdfTools),
+      ],
+      if (isImage) ...[
+        DocAction(Icons.document_scanner_outlined, 'Metni tanı', _runOcr),
+        DocAction(Icons.picture_as_pdf_outlined, 'PDF’e dönüştür', _exportPdf),
+      ],
+      if (doc.isEditableText) ...[
+        DocAction(Icons.edit_outlined, 'Düzenle', _textFocus.requestFocus),
+        DocAction(Icons.save_outlined, 'Kaydet', _save),
+      ],
+      DocAction(Icons.share_outlined, 'Paylaş', _share),
+      if (!isImage) DocAction(Icons.print_outlined, 'Yazdır', _print),
+    ]);
   }
 
   /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.

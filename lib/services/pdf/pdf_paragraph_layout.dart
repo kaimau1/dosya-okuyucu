@@ -142,11 +142,35 @@ List<int> rewriteParagraph({
 }
 
 /// Aralıkta yalnız metin/durum operatörleri olduğunu doğrular.
+///
+/// `BT`/`ET` ayrı ele alınır: belgelerin çoğu (resmi yazı üreticileri, EBYS)
+/// paragrafın HER SATIRINI ayrı bir metin nesnesine yazar, dolayısıyla aralığın
+/// ortasında zorunlu olarak `ET … BT` çiftleri bulunur. Bunları reddetmek çok
+/// satırlı her paragrafı düzenlenemez yapıyordu. Silmek güvenli: aralık bir
+/// metin nesnesinin İÇİNDE başlayıp İÇİNDE bittiği için kaldırılan `ET` ve `BT`
+/// sayısı eşittir — dıştaki `BT` açık kalır, dıştaki `ET` kapatır, yığın
+/// dengede kalır. Dengesiz bir dizi (aralık `BT` ile başlıyor ya da eksik
+/// kapanıyor) yine reddedilir.
 void _checkSpan(List<int> content, PdfParagraph paragraph) {
+  const unbalanced = PdfParagraphRefused(
+    'Bu paragrafın metin blokları beklenmedik biçimde iç içe. Yeniden dizmek '
+    'sayfayı bozabileceği için yapılmadı.',
+  );
+
   final scan = scanContent(content);
+  // 0 = metin nesnesinin içindeyiz (başlangıç durumu), -1 = iki nesne arası.
+  var depth = 0;
   for (final event in scan.events) {
     if (event.operatorStart < paragraph.spanStart ||
         event.operatorStart >= paragraph.spanEnd) {
+      continue;
+    }
+    if (event.op == 'ET') {
+      if (--depth < -1) throw unbalanced;
+      continue;
+    }
+    if (event.op == 'BT') {
+      if (++depth > 0) throw unbalanced;
       continue;
     }
     if (_allowedInSpan.contains(event.op)) continue;
@@ -155,6 +179,7 @@ void _checkSpan(List<int> content, PdfParagraph paragraph) {
       'dizmek sayfayı bozabileceği için yapılmadı.',
     );
   }
+  if (depth != 0) throw unbalanced;
 }
 
 /// Yeni metnin her harfine bir biçim koşusu atar.

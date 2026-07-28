@@ -73,6 +73,42 @@ void main() {
       expect(after.last.left, closeTo(20, 1e-6));
       expect(after.last.width, closeTo(40, 1e-6));
     });
+
+    test('kırpma yolundaki görsel taşınırken kırpmanın dışına çıkarılır', () {
+      // Antet logoları/armalar böyle çizilir: `q … re W n … Do … Q`. Yerinde
+      // düzeltme `cm` eklemek görseli taşır ama kırpma dikdörtgeni eski
+      // yerinde kalır → görselin taşan kısmı KESİLİR (kullanıcı bildirimi
+      // 2026-07-28: "armanın yerini değiştirince kesiliyor").
+      const clipped = 'q 60 700 80 60 re W n '
+          '80 0 0 60 60 700 cm /Im1 Do Q '
+          'q 40 0 0 40 20 20 cm /Im2 Do Q';
+      final before =
+          findPageObjects([latin1.encode(clipped)], imageNames: {'Im1', 'Im2'});
+      expect(before.first.clipped, isTrue);
+      expect(before.last.clipped, isFalse);
+
+      final moved = latin1.decode(placeObject(
+        latin1.encode(clipped),
+        before.first,
+        left: 300,
+        bottom: 500,
+        width: 80,
+        height: 60,
+      ));
+
+      // Çizim kırpma bloğundan ÇIKTI, akışın sonunda temiz bir blokta.
+      expect(moved.indexOf('/Im1 Do'), greaterThan(moved.indexOf('/Im2 Do')));
+      expect(moved.trimRight().endsWith('/Im1 Do Q'), isTrue);
+      expect('q'.allMatches(moved).length, 'Q'.allMatches(moved).length);
+
+      final after =
+          findPageObjects([latin1.encode(moved)], imageNames: {'Im1'});
+      expect(after.single.left, closeTo(300, 1e-6));
+      expect(after.single.bottom, closeTo(500, 1e-6));
+      expect(after.single.width, closeTo(80, 1e-6));
+      expect(after.single.height, closeTo(60, 1e-6));
+      expect(after.single.clipped, isFalse);
+    });
   });
 
   group('filigran / arka plan', () {
