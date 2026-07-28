@@ -41,6 +41,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   /// true → yedek düz metin editörü (sayfa görünümü açılamadı veya kullanıcı seçti).
   bool _plainMode = false;
   bool _editing = false;
+
+  /// Mobil akış görünümü açık mı? (Sayfa görünümü varsayılan.)
+  bool _flow = false;
   bool _selB = false, _selI = false, _selU = false;
   final _viewKey = GlobalKey<DocxViewState>();
 
@@ -96,6 +99,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
+  /// Mobil akış ↔ sayfa görünümü. Kalıcı değil: belge her açılışta Word'deki
+  /// gibi SAYFA görünümüyle gelir (2026-07-28 kullanıcı kararı).
+  void _toggleFlow() {
+    final on = !_flow;
+    _viewKey.currentState?.setFlow(on);
+    setState(() => _flow = on);
+  }
+
   void _toggleEdit() {
     final on = !_editing;
     _viewKey.currentState?.setEditing(on);
@@ -143,24 +154,19 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       kind: DocKind.word,
       title: widget.name,
       dirty: _dirty,
+      // Üst çubukta yalnız ALTTA KARŞILIĞI OLMAYANLAR kalır (2026-07-28
+      // kullanıcı isteği: "bazı işlevler hem altta hem üstte var, gerek yok").
+      // İstisna: düzenleme sırasında alt çubuk gizlendiği için Kaydet burada.
       actions: [
-        if (!_plainMode)
+        if (_editing)
           IconButton(
-            tooltip: _editing ? 'Düzenlemeyi bitir' : 'Sayfada düzenle',
-            icon: Icon(_editing ? Icons.check : Icons.edit_outlined),
-            onPressed: editor == null ? null : _toggleEdit,
+            tooltip: 'Kaydet',
+            icon: const Icon(Icons.save_outlined),
+            onPressed: editor == null ? null : _save,
           ),
-        IconButton(
-          tooltip: 'Kaydet',
-          icon: const Icon(Icons.save_outlined),
-          onPressed: editor == null ? null : _save,
-        ),
         PopupMenuButton<String>(
           onSelected: (v) async {
             switch (v) {
-              case 'export':
-                _export();
-                break;
               case 'plain':
                 setState(() {
                   _plainMode = true;
@@ -171,22 +177,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 if (_dirty) await _save();
                 setState(() => _plainMode = false);
                 break;
-              case 'translate':
-                TranslateFlow.run(context, widget.plainText,
-                    title: widget.name);
-                break;
             }
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(
-                value: 'export', child: Text('Paylaş / Dışa aktar')),
             _plainMode
                 ? const PopupMenuItem(
                     value: 'page', child: Text('Sayfa görünümü'))
                 : const PopupMenuItem(
                     value: 'plain', child: Text('Metin düzenleyici')),
-            const PopupMenuItem(
-                value: 'translate', child: Text('Belgeyi çevir')),
           ],
         ),
       ],
@@ -200,6 +198,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
               if (!_plainMode)
                 DocAction(Icons.edit_outlined, 'Düzenle',
                     editor == null ? null : _toggleEdit),
+              if (!_plainMode)
+                DocAction(
+                  _flow ? Icons.description_outlined : Icons.smartphone,
+                  _flow ? 'Sayfa' : 'Mobil',
+                  editor == null ? null : _toggleFlow,
+                ),
               DocAction(
                   Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
               DocAction(Icons.share_outlined, 'Paylaş',

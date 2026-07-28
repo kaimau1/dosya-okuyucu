@@ -2979,3 +2979,55 @@ docx/pptx→PDF render'ı gerektirir, ayrı iş.
 `withOpacity`/deprecated). `flutter test` → **592 geçti, 4 kırmızı**; dördü de
 KALANLAR'da yazılı Windows'a özgü olanlar, bu turdan önce de kırmızıydı.
 APK CI'da.
+
+## 2026-07-28 (2. tur) — PDF `Q` reddi, ortalı yazı, Word okunabilirliği, tekrar eden düğmeler
+
+### A. KÖK NEDEN — "hâlâ yeterince serbest değiliz": `Q` reddi
+İlk turda `BT`/`ET` çözülmüştü ama aynı belgeler satırı ayrıca `q … Q` grafik
+durumu bloğuna da sarıyor → aralıkta `ET Q q BT` → `Q` izin listesinde yok.
+Aynı denge argümanıyla açıldı (silinen kapanış/açılış sayısı eşit), **tek ek
+koşulla**: `Q` dönüşümü VE kırpmayı da geri alır. Farklı `cm` sorun değil,
+çünkü `_continuesParagraph` zaten farklı dönüşümlü satırları ayrı paragraf
+sayıyor (tekrar kontrol koymadık, tek doğruluk kaynağı orada). Geriye kırpma
+kaldı → `PdfParagraph.uniformGraphics` = "hiçbir satır kırpma altında değil";
+false ise `q`/`Q` yine reddediliyor (kırpmalı bloğu komşusuyla birleştirmek
+yazının bir kısmını kestirirdi).
+
+### B. KÖK NEDEN — ortalı başlık kısalınca kayıyor
+`_wrap` yalnız iki düzen biliyordu: sola yaslı ve iki yana yaslı. Ortalı bir
+başlık kısalınca sol kenarı sabit kaldığı için sağa büzülüyordu (kullanıcı
+ekran görüntüsünde kutu 360-437, sayfa ortası ~450 — sol kenar eskisi).
+Çözüm: `PdfParagraph.centered` — sayfa uzayında kutunun ortası sayfa ortasıyla
+±%2 çakışıyor VE paragraf sayfa genişliğinin ≤%70'i ise ortalı. Genişlik
+koşulu ŞART: sayfayı dolduran sıradan gövde paragrafının ortası da tanım gereği
+sayfa ortasına denk gelir, onu ortalı sayarsak sol kenarını bozardık.
+Ortalıysa her satır `centerX`'ten yerleştirilir ve sarma genişliği kendi dar
+kutusu değil sayfanın metin sütunu (`columnWidth`) olur.
+Bunun için `findParagraphs` artık `pageBox` alıyor (`PdfPageContext.mediaBox`);
+verilmezse hiçbir paragraf ortalı sayılmaz (eski davranış).
+
+### C. Word "yazı kalitesi çok düşük" — çözünürlük değil BOYUT
+Ölçüldü (kullanıcı: yakınlaştırınca netleşiyor, sadece Word'de, sadece harfler):
+`viewer.html/fitPage` A4 sayfayı (794 px) telefon genişliğine (~411 px)
+sığdırmak için CSS `zoom` ~0.5 uyguluyor → 11 punto yazı 5-6 piksel.
+Piksel kaybı yok, sadece çok küçük çiziliyor. "Daha yüksek çözünürlükte çiz"
+diye bir çözüm YOK — A4'ün tamamı ekrana sığdığı sürece boyut budur.
+Çözüm: **mobil akış görünümü** (`body.flow` sınıfı + `window.setFlow`) —
+sayfanın sabit genişliği kalkar, paragraflar ekrana sarılır, ölçek 1'de kalır.
+`!important` şart: docx-preview genişliği satır içi stille yazıyor.
+**Kullanıcı kararı:** varsayılan SAYFA görünümü kalsın, mobil isteğe bağlı ve
+hatırlanmasın. Canlı düzenleme etkilenmiyor (aynı `<p>` düğümleri).
+
+### D. Tekrar eden düğmeler kalktı
+Alt eylem çubuğu her ekranda olduğu için üstteki ikizleri kaldırıldı:
+görüntüleyici ⋮'den Paylaş/Yazdır/PDF araçları + görselde OCR ve PDF'e
+dönüştür, "Kaydet" simgesi · Word'den Düzenle+Kaydet simgeleri, ⋮ Paylaş/Çevir ·
+Slayt'tan Oynat+Kaydet ve ⋮ menüsünün tamamı · Excel'den Kaydet, ⋮ Paylaş/CSV/
+Çevir. **Kural:** üstte yalnız altta KARŞILIĞI OLMAYAN kalır. Tek istisna —
+Word/Slaytta düzenleme sırasında alt çubuk gizlendiği için Kaydet o anda üste
+çıkar (yoksa yazarken kaydetme yolu kalmaz).
+
+### E. Doğrulama
+`flutter analyze` → dokunulan dosyalarda 0 hata. `flutter test` → **596 geçti,
+4 kırmızı** (KALANLAR'daki Windows'a özgü olanlar, bu turdan önce de kırmızı).
+Ekran testleri kaldırılan düğmelerden hiçbirine takılmadı.

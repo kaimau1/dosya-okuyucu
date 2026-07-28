@@ -26,8 +26,8 @@ void main() {
     metrics: {'F1': halfEm, 'F2': halfEm},
   );
 
-  List<PdfParagraph> parse(String content) =>
-      findParagraphs([latin1.encode(content)], fonts);
+  List<PdfParagraph> parse(String content, {List<double>? pageBox}) =>
+      findParagraphs([latin1.encode(content)], fonts, pageBox: pageBox);
 
   String rewrite(String content, PdfParagraph paragraph, String newText) =>
       latin1.decode(
@@ -180,6 +180,67 @@ void main() {
       expect(out, contains('1 0 0 1 50 688 Tm'));
       // Asıl güvence: silinen `ET` ve `BT` sayısı eşit → yığın dengede.
       expect('BT '.allMatches(out).length, 'ET'.allMatches(out).length);
+    });
+
+    test('her satırı ayrı q…Q bloğunda olan paragraf yeniden dizilir', () {
+      // Aynı belgelerin ikinci kalıbı: satır hem `BT…ET` hem `q…Q` içinde.
+      // Kullanıcı bildirimi 2026-07-28: "hâlâ yeterince serbest değiliz" —
+      // ekranda `Q` operatörü için ret mesajı çıkıyordu.
+      const content = 'q BT /F1 10 Tf 1 0 0 1 50 700 Tm (AAAA) Tj ET Q '
+          'q BT /F1 10 Tf 1 0 0 1 50 688 Tm (BBBB) Tj ET Q '
+          'q BT /F1 10 Tf 1 0 0 1 50 676 Tm (CC) Tj ET Q';
+      final paragraph = parse(content).single;
+      expect(paragraph.text, 'AAAA BBBB CC');
+      expect(paragraph.uniformGraphics, isTrue);
+
+      final out = rewrite(content, paragraph, 'AAAA BB CC');
+      expect(out, contains('(BB) Tj'));
+      expect('q '.allMatches(out).length, 'Q'.allMatches(out).length);
+      expect('BT '.allMatches(out).length, 'ET'.allMatches(out).length);
+    });
+
+    test('kırpma altındaki bloklar birleştirilmez (yazı kesilirdi)', () {
+      // Bir öncekiyle AYNI içerik, tek farkı dışarıda bir kırpma yolu olması.
+      // `Q` kırpmayı da geri alır; blokları birleştirmek yazının bir kısmını
+      // kestirebilir → izin yok, eski ret mesajı geçerli.
+      const content = 'q 40 600 200 200 re W n '
+          'q BT /F1 10 Tf 1 0 0 1 50 700 Tm (AAAA) Tj ET Q '
+          'q BT /F1 10 Tf 1 0 0 1 50 688 Tm (BBBB) Tj ET Q Q';
+      final paragraph = parse(content).single;
+      expect(paragraph.uniformGraphics, isFalse);
+      expect(
+        () => rewrite(content, paragraph, 'AAAA BBB'),
+        throwsA(isA<PdfParagraphRefused>()
+            .having((e) => e.message, 'mesaj', contains('`Q`'))),
+      );
+    });
+
+    test('ortalı başlık kısalınca ORTALI kalır', () {
+      // A4 (595 birim) sayfada ortalanmış tek satırlık başlık: 8 harf × 5 =
+      // 40 birim, 277.5'ten başlıyor → ortası tam 297.5 = sayfa ortası.
+      const content =
+          'BT /F1 10 Tf 1 0 0 1 277.5 700 Tm (AAAABBBB) Tj ET '
+          'BT /F1 10 Tf 1 0 0 1 50 600 Tm (CCCCCCCCCC) Tj ET';
+      final paragraph =
+          parse(content, pageBox: const [0, 0, 595, 842]).first;
+      expect(paragraph.text, 'AAAABBBB');
+      expect(paragraph.centered, isTrue);
+
+      // 4 harfe düşüyor (20 birim) → sol kenar 297.5 − 10 = 287.5 olmalı.
+      final out = rewrite(content, paragraph, 'AABB');
+      expect(out, contains('1 0 0 1 287.5 700 Tm'));
+      expect(out, contains('(AABB) Tj'));
+    });
+
+    test('sayfayı dolduran gövde paragrafı ortalı SAYILMAZ', () {
+      // Ortası tanım gereği sayfa ortasına denk gelir; ortalı sayarsak sol
+      // kenarını bozardık.
+      const content = 'BT /F1 10 Tf '
+          '1 0 0 1 50 700 Tm (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA) Tj '
+          'ET';
+      final paragraph =
+          parse(content, pageBox: const [0, 0, 595, 842]).single;
+      expect(paragraph.centered, isFalse);
     });
 
     test('metin dışı çizim içeren aralık reddedilir', () {

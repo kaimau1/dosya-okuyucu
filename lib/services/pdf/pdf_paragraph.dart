@@ -207,6 +207,30 @@ class PdfParagraph {
   /// İki yana yaslı mı? (Son satır hariç bütün satırlar sağ kenarda bitiyor.)
   final bool justified;
 
+  /// Sayfaya ORTALI mı? (Kutusunun ortası sayfa ortasıyla çakışıyor ve
+  /// paragraf sayfa genişliğinin küçük bir kısmını kaplıyor.)
+  ///
+  /// Niye gerek: yeniden dizerken sola yaslı düzen varsayılırsa ortalı bir
+  /// başlık kısalınca sol kenarı sabit kalıp sağa büzülür — ortası kayar
+  /// (kullanıcı bildirimi 2026-07-28: "yazı sayfaya ortalıydı, değiştirince
+  /// ortalı kalmadı").
+  final bool centered;
+
+  /// Ortalı paragrafın ortalanacağı X (metin uzayı) — özgün kutusunun ortası.
+  final double centerX;
+
+  /// Sayfadaki metin sütununun genişliği (metin uzayı). Ortalı paragraf
+  /// uzarsa buraya kadar sarılır; kendi dar kutusuna sıkıştırılmaz.
+  final double columnWidth;
+
+  /// Paragrafın satırlarını saran `q`/`Q` blokları birleştirilebilir mi?
+  ///
+  /// `Q` grafik durumunu — dönüşüm VE kırpma — geri alır. Farklı `cm`
+  /// altındaki satırlar zaten aynı paragrafa girmiyor; geriye kırpma kalıyor:
+  /// kırpmalı bir bloğu komşusuyla birleştirmek yazının bir kısmını kestirir,
+  /// o yüzden kırpma varsa false ve aralıktaki `q`/`Q` reddedilir.
+  final bool uniformGraphics;
+
   /// Gövde satırlarının sol kenarı ve ilk satırın sol kenarı (girinti/asılı
   /// girinti korunsun diye ayrı tutulur).
   final double bodyLeftX;
@@ -233,6 +257,10 @@ class PdfParagraph {
     required this.bottom,
     required this.leading,
     required this.justified,
+    required this.centered,
+    required this.centerX,
+    required this.columnWidth,
+    required this.uniformGraphics,
     required this.bodyLeftX,
     required this.firstLineX,
     required this.rightX,
@@ -249,13 +277,16 @@ class PdfParagraph {
 /// Bir sayfadaki paragrafları bulur.
 ///
 /// [contents] sayfanın içerik akışlarının ÇÖZÜLMÜŞ baytları (sırayla).
+/// [pageBox] `[sol, alt, sağ, üst]` çizim kutusu — ortalı paragrafı tanımak
+/// için gerekli; verilmezse hiçbir paragraf ortalı sayılmaz (eski davranış).
 List<PdfParagraph> findParagraphs(
   List<List<int>> contents,
-  PdfFontAccess fonts,
-) {
+  PdfFontAccess fonts, {
+  List<double>? pageBox,
+}) {
   final out = <PdfParagraph>[];
   for (var s = 0; s < contents.length; s++) {
-    out.addAll(_paragraphsInStream(contents[s], s, fonts));
+    out.addAll(_paragraphsInStream(contents[s], s, fonts, pageBox));
   }
   return out;
 }
@@ -270,6 +301,7 @@ List<PdfParagraph> _paragraphsInStream(
   List<int> content,
   int streamIndex,
   PdfFontAccess fonts,
+  List<double>? pageBox,
 ) {
   final scan = scanContent(content, measure: fonts.asMeasure);
   if (scan.textOps.isEmpty) return const [];
@@ -296,6 +328,7 @@ List<PdfParagraph> _paragraphsInStream(
       group: group,
       allLines: lines,
       fonts: fonts,
+      pageBox: pageBox,
     );
     if (paragraph != null) out.add(paragraph);
   }
@@ -317,6 +350,10 @@ class _OpInfo {
   /// bunsuz yanlış çalışır (`cm` kullanan belgeler yaygın).
   final List<double> ctm;
 
+  /// Çizim anında bir kırpma yolu (`W`/`W*`) geçerli miydi? Kırpmalı bir
+  /// bloğu başkasıyla birleştirmek yazının bir kısmını kestirir.
+  final bool clipped;
+
   /// Bu operatör güvenle yeniden dizilebilir mi? (Ölçülebilir, döndürülmemiş.)
   final bool usable;
 
@@ -329,6 +366,7 @@ class _OpInfo {
     required this.baselineY,
     required this.colorBytes,
     required this.ctm,
+    required this.clipped,
     required this.usable,
   });
 
@@ -347,26 +385,37 @@ List<_OpInfo> _describeOps(
   // dönüşümü (q/Q yığınıyla birlikte — `cm` yığından geri alınabilir).
   final colorAt = <int, List<int>>{};
   final ctmAt = <int, List<double>>{};
+  final clipAt = <int, bool>{};
   var current = const <int>[];
   var ctm = <double>[1, 0, 0, 1, 0, 0];
-  final stack = <List<double>>[];
+  // Kırpma da grafik durumunun parçası: `q` ile yığına girer, `Q` ile kalkar.
+  var clipped = false;
+  final stack = <(List<double>, bool)>[];
   for (var e = 0; e < scan.events.length; e++) {
     final event = scan.events[e];
     switch (event.op) {
       case 'q':
-        stack.add(List.of(ctm));
+        stack.add((List.of(ctm), clipped));
       case 'Q':
-        if (stack.isNotEmpty) ctm = stack.removeLast();
+        if (stack.isNotEmpty) {
+          final restored = stack.removeLast();
+          ctm = restored.$1;
+          clipped = restored.$2;
+        }
       case 'cm':
         if (event.numbers.length >= 6) {
           ctm = multiplyMatrix(event.numbers.sublist(event.numbers.length - 6), ctm);
         }
+      case 'W':
+      case 'W*':
+        clipped = true;
     }
     if (_colorOps.contains(event.op)) {
       current = content.sublist(event.operandStart, event.end);
     }
     colorAt[e] = current;
     ctmAt[e] = ctm;
+    clipAt[e] = clipped;
   }
 
   final out = <_OpInfo>[];
@@ -390,6 +439,7 @@ List<_OpInfo> _describeOps(
       baselineY: op.matrix[5],
       colorBytes: colorAt[op.eventIndex] ?? const [],
       ctm: ctmAt[op.eventIndex] ?? const [1, 0, 0, 1, 0, 0],
+      clipped: clipAt[op.eventIndex] ?? false,
       usable: usable,
     ));
   }
@@ -551,6 +601,7 @@ PdfParagraph? _buildParagraph({
   required List<List<_OpInfo>> group,
   required List<List<_OpInfo>> allLines,
   required PdfFontAccess fonts,
+  required List<double>? pageBox,
 }) {
   final flat = [for (final line in group) ...line];
   if (flat.isEmpty) return null;
@@ -664,6 +715,12 @@ PdfParagraph? _buildParagraph({
       ? double.infinity
       : (bottomBaseline - fontSize * scaleY * 0.25) - nextTop;
 
+  // Aralıktaki `q`/`Q` çiftlerinin silinebilmesinin ön koşulu. Aynı dönüşüm
+  // koşulunu burada TEKRAR aramıyoruz: farklı `cm` altındaki satırlar zaten
+  // aynı paragrafa girmiyor (`_continuesParagraph`). Geriye kırpma kalıyor —
+  // kırpmalı bir bloğu komşusuyla birleştirmek yazıyı kestirir.
+  final uniformGraphics = flat.every((o) => !o.clipped);
+
   final ascent = fontSize * scaleY * 0.85;
   final descent = fontSize * scaleY * 0.25;
 
@@ -682,6 +739,35 @@ PdfParagraph? _buildParagraph({
   ];
   final xs = corners.map((c) => c.$1);
   final ys = corners.map((c) => c.$2);
+  final pageLeft = xs.reduce((a, b) => a < b ? a : b);
+  final pageRight = xs.reduce((a, b) => a > b ? a : b);
+
+  // ORTALI MI? Sayfa uzayında kutusunun ortası sayfanın ortasıyla çakışıyor
+  // ve paragraf sayfanın küçük bir kısmını kaplıyorsa evet.
+  //
+  // Genişlik koşulu şart: sayfayı baştan sona dolduran sıradan bir gövde
+  // paragrafının ortası da tanım gereği sayfa ortasına denk gelir — onu
+  // ortalı sayarsak sol kenarını bozardık. İki yana yaslı olan zaten hariç.
+  var centered = false;
+  if (pageBox != null && pageBox.length >= 4 && !justified) {
+    final pageW = pageBox[2] - pageBox[0];
+    final pageCenter = (pageBox[0] + pageBox[2]) / 2;
+    centered = pageW > 0 &&
+        (pageRight - pageLeft) <= pageW * 0.7 &&
+        (((pageLeft + pageRight) / 2) - pageCenter).abs() <= pageW * 0.02;
+  }
+
+  // Sayfadaki metin sütunu (metin uzayı): ortalı paragraf uzarsa buraya kadar
+  // sarılır. Kendi dar kutusuna sarsaydık kısa bir başlık uzayınca alt alta
+  // birkaç kelimelik satırlara bölünürdü.
+  var columnLeft = textLeft;
+  var columnRight = rightX;
+  for (final other in allLines) {
+    final s = _minStart(other);
+    final e = _maxEnd(other);
+    if (s < columnLeft) columnLeft = s;
+    if (e > columnRight) columnRight = e;
+  }
 
   return PdfParagraph(
     streamIndex: streamIndex,
@@ -691,12 +777,16 @@ PdfParagraph? _buildParagraph({
     runs: runs,
     text: text,
     runOfChar: runOfChar,
-    left: xs.reduce((a, b) => a < b ? a : b),
-    right: xs.reduce((a, b) => a > b ? a : b),
+    left: pageLeft,
+    right: pageRight,
     top: ys.reduce((a, b) => a > b ? a : b),
     bottom: ys.reduce((a, b) => a < b ? a : b),
     leading: leading,
     justified: justified,
+    centered: centered,
+    centerX: (textLeft + rightX) / 2,
+    columnWidth: columnRight - columnLeft,
+    uniformGraphics: uniformGraphics,
     bodyLeftX: bodyLeftX,
     firstLineX: firstLineX,
     rightX: rightX,

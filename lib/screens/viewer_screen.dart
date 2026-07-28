@@ -823,12 +823,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
             onPressed: () => _changeFont(2),
           ),
         ],
-        if (doc.isEditableText)
-          IconButton(
-            tooltip: 'Kaydet / Dışa aktar',
-            icon: const Icon(Icons.save_outlined),
-            onPressed: _save,
-          ),
+        // "Kaydet", "Paylaş", "Yazdır", "PDF araçları" ve görselde "Metni tanı"
+        // / "PDF'e dönüştür" buradan KALDIRILDI: hepsi alt eylem çubuğunda
+        // etiketli duruyor (2026-07-28 kullanıcı isteği).
         PopupMenuButton<String>(
           onSelected: (v) {
             switch (v) {
@@ -841,17 +838,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'slides':
                 _exportSlides();
                 break;
-              case 'share':
-                _share();
-                break;
-              case 'print':
-                _print();
-                break;
               case 'stats':
                 _showStats();
-                break;
-              case 'pdftools':
-                _openPdfTools();
                 break;
               case 'sign':
                 _signPdf();
@@ -889,25 +877,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   value: 'aiedit', child: Text('AI ile düzenle')),
               const PopupMenuItem(value: 'sign', child: Text('İmzala')),
               const PopupMenuItem(
-                  value: 'pdftools',
-                  child: Text('PDF araçları (sayfa, birleştir, parola)')),
-            ],
-            if (doc.kind == DocKind.pdf || doc.kind == DocKind.image)
-              const PopupMenuItem(
                   value: 'ocr', child: Text('Metni tanı (OCR)')),
+            ],
             if (_ttsTotal == 0)
               const PopupMenuItem(
                   value: 'speak', child: Text('Sesli oku')),
             const PopupMenuItem(
                 value: 'translate', child: Text('Belgeyi çevir')),
-            const PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
+            if (doc.kind != DocKind.image)
+              const PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
             const PopupMenuItem(
                 value: 'slides', child: Text('Slayta dönüştür')),
             if (_hasText)
               const PopupMenuItem(
                   value: 'stats', child: Text('Sözcük sayısı / bilgi')),
-            const PopupMenuItem(value: 'share', child: Text('Paylaş')),
-            const PopupMenuItem(value: 'print', child: Text('Yazdır')),
           ],
         ),
       ],

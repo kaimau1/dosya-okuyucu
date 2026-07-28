@@ -138,6 +138,13 @@ class DocxViewState extends State<DocxView> {
   /// Seçime biçim uygular: 'bold' | 'italic' | 'underline'.
   void format(String cmd) => _controller.runJavaScript("fmt('$cmd')");
 
+  /// Mobil akış görünümü: sayfanın sabit A4 genişliği kalkar, paragraflar
+  /// ekrana sarılır → yazı gerçek boyutunda okunur (bkz. `viewer.html`).
+  void setFlow(bool on) {
+    _zoom = 1.0;
+    _controller.runJavaScript('setFlow($on)');
+  }
+
   /// Belge WebView'a base64 metin olarak aktarılır; çok büyük dosyalarda bu
   /// aktarım cihazı zorlar, o yüzden sınır var.
   static const _maxBytes = 12 * 1024 * 1024;

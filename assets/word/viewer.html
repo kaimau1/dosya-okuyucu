@@ -51,6 +51,28 @@
     margin-bottom: 12px !important;
   }
   #err { font: 14px sans-serif; color: #b00020; padding: 16px; display: none; }
+
+  /* MOBİL AKIŞ GÖRÜNÜMÜ (2026-07-28 kullanıcı bulgusu: "Word'de yazı kalitesi
+     çok düşük"). Kök neden çözünürlük değil BOYUT: A4 sayfa 794 px, telefon
+     ~411 px → fitPage ~0.5 ölçek → 11 punto yazı 5-6 piksele iniyor.
+     Burada sayfanın sabit genişliği kaldırılır, paragraflar ekrana sarılır ve
+     ölçek 1'de kalır → yazı GERÇEK boyutunda, yakınlaştırmadan okunur.
+     Bedeli: Word'ün sayfa kırılımı/kenar boşlukları görünmez (sayfa görünümü
+     tek dokunuşla geri gelir). `!important` şart: docx-preview genişliği
+     satır içi stille yazıyor. */
+  body.flow .docx-wrapper { padding: 0 !important; }
+  body.flow .docx-wrapper > section.docx {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 12px !important;
+    margin: 0 0 8px !important;
+    box-shadow: none;
+  }
+  body.flow .docx-wrapper > section.docx > article { width: auto !important; }
+  /* Sabit genişlikli tablo/görsel ekranı yatay taşırmasın. */
+  body.flow table { max-width: 100% !important; }
+  body.flow img { max-width: 100% !important; height: auto !important; }
 </style>
 <div id="container"></div>
 <div id="err"></div>
@@ -283,7 +305,25 @@
   // Bu durumda kısa aralıklarla yeniden denenir.
   var pageW = 0;
   var fitTries = 0;
+  var FLOW = false;
+
+  // Mobil akış / sayfa görünümü arasında geçiş. Akışta sığdırma ölçeği hiç
+  // uygulanmaz; sayfaya dönerken genişlik yeniden ölçülür (pageW sıfırlanır).
+  window.setFlow = function (on) {
+    FLOW = !!on;
+    document.body.classList.toggle('flow', FLOW);
+    var wrap = document.querySelector('.docx-wrapper');
+    if (FLOW) {
+      if (wrap) wrap.style.zoom = '';
+    } else {
+      pageW = 0;
+      fitTries = 0;
+      fitPage();
+    }
+  };
+
   function fitPage() {
+    if (FLOW) return;
     var wrap = document.querySelector('.docx-wrapper');
     var sec = document.querySelector('.docx-wrapper > section.docx');
     if (!wrap || !sec) {

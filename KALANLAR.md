@@ -1,14 +1,15 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
-- [ ] **2026-07-28 turu cihaz doğrulaması (kullanıcı)** — (a) SAHU yazısı gibi
-      resmi bir PDF'te *Düzenleyici → Metin* → paragrafa dokun → artık "metin
-      dışı çizim var (ET)" uyarısı ÇIKMAMALI, metin değişip sayfa düzeni
-      korunmalı; (b) *Görsel* modunda sol üstteki armayı taşı → artık
-      KESİLMEMELİ (kırpmanın dışına alınıyor, en üstte çiziliyor); (c) Word,
-      txt, Excel ve slayt açınca altta etiketli eylem çubuğu görünüyor mu,
-      düğmeler çalışıyor mu, Word/Slaytta düzenlemeye geçince çubuk gizlenip
-      çıkışta geri geliyor mu.
+- [ ] **2026-07-28 turu cihaz doğrulaması (kullanıcı)** — (a) resmi PDF'te
+      *Düzenleyici → Metin* → paragrafa dokun → artık ne "metin dışı çizim var
+      (ET)" ne de "(Q)" uyarısı ÇIKMAMALI; (b) **ortalı** bir başlığı (DAĞITIM
+      gibi) kısalt/uzat → sayfada ORTALI kalmalı; (c) *Görsel* modunda armayı
+      taşı → KESİLMEMELİ; (d) Word'de alt çubuktaki **Mobil** düğmesi → yazı
+      okunur boyuta gelmeli, **Sayfa** ile geri dönmeli, düzenleme hâlâ
+      çalışmalı; (e) Word/Excel/slayt/görüntüleyicide üstteki ⋮ ve simgelerde
+      artık alttakilerin ikizi OLMAMALI, ama Word/Slaytta düzenlemeye geçince
+      üstte **Kaydet** görünmeli.
 - [ ] **PDF editörü cihaz doğrulaması (kullanıcı)** — 2026-07-27: PDF aç → alt
       çubuk **Düzenleyici** → (a) *Metin* modunda paragraf kutuları çıkıyor mu,
       dokununca pencere açılıp özgün metni üstte gösteriyor mu, "Uygula" sonrası

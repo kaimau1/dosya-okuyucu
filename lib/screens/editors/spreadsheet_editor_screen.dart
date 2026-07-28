@@ -542,19 +542,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       kind: DocKind.spreadsheet,
       title: widget.name,
       dirty: _dirty,
+      // Kaydet/Paylaş/CSV/Çevir ALT çubukta; burada yalnız karşılığı olmayanlar
+      // kalır (2026-07-28 kullanıcı isteği: tekrar eden düğmeler kalksın).
       actions: [
-        IconButton(
-          tooltip: 'Kaydet',
-          icon: const Icon(Icons.save_outlined),
-          onPressed: editor == null ? null : _save,
-        ),
         PopupMenuButton<String>(
           onSelected: (v) {
-            if (v == 'export') _export();
-            if (v == 'csv') _exportCsv();
-            if (v == 'translate') {
-              TranslateFlow.run(context, widget.plainText, title: widget.name);
-            }
             if (v == 'goto') _showGoTo();
             if (v == 'freeze') _toggleFreeze();
           },
@@ -567,12 +559,6 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                     ? 'Bölmeleri çöz (sabit satır/sütun)'
                     : 'Bölmeleri dondur (dosyadaki gibi)'),
               ),
-            const PopupMenuItem(
-                value: 'export', child: Text('Paylaş / Dışa aktar')),
-            const PopupMenuItem(
-                value: 'csv', child: Text('CSV olarak dışa aktar')),
-            const PopupMenuItem(
-                value: 'translate', child: Text('Belgeyi çevir')),
           ],
         ),
       ],

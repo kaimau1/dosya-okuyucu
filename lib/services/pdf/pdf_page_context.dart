@@ -133,7 +133,8 @@ class PdfPageContext {
   }
 
   /// Sayfadaki paragraflar (belgedeki okuma sırasıyla).
-  List<PdfParagraph> paragraphs() => findParagraphs(contents, fonts);
+  List<PdfParagraph> paragraphs() =>
+      findParagraphs(contents, fonts, pageBox: mediaBox);
 
   /// Sayfadaki GÖRÜNTÜ kaynaklarının adları (`Im1` …).
   ///

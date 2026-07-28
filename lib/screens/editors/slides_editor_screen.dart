@@ -131,30 +131,16 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       kind: DocKind.slides,
       title: widget.name,
       dirty: _dirty,
+      // Bütün eylemler ALT çubukta (2026-07-28 kullanıcı isteği: aynı işlev
+      // iki yerde durmasın). İstisna: metin kutusu düzenlenirken alt çubuk
+      // gizlendiği için Kaydet buraya çıkar.
       actions: [
-        IconButton(
-          tooltip: 'Sunumu oynat',
-          icon: const Icon(Icons.play_arrow),
-          onPressed: editor == null ? null : () => _play(0),
-        ),
-        IconButton(
-          tooltip: 'Kaydet',
-          icon: const Icon(Icons.save_outlined),
-          onPressed: editor == null ? null : _save,
-        ),
-        PopupMenuButton<String>(
-          onSelected: (v) {
-            if (v == 'export') _export();
-            if (v == 'translate') {
-              TranslateFlow.run(context, widget.plainText,
-                  title: widget.name);
-            }
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'export', child: Text('Paylaş / Dışa aktar')),
-            PopupMenuItem(value: 'translate', child: Text('Belgeyi çevir')),
-          ],
-        ),
+        if (_editShapeVM != null)
+          IconButton(
+            tooltip: 'Kaydet',
+            icon: const Icon(Icons.save_outlined),
+            onPressed: editor == null ? null : _save,
+          ),
       ],
       body: _error != null
           ? Center(child: Text('Açılamadı: $_error'))

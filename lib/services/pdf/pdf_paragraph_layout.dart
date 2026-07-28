@@ -143,35 +143,53 @@ List<int> rewriteParagraph({
 
 /// Aralıkta yalnız metin/durum operatörleri olduğunu doğrular.
 ///
-/// `BT`/`ET` ayrı ele alınır: belgelerin çoğu (resmi yazı üreticileri, EBYS)
-/// paragrafın HER SATIRINI ayrı bir metin nesnesine yazar, dolayısıyla aralığın
-/// ortasında zorunlu olarak `ET … BT` çiftleri bulunur. Bunları reddetmek çok
-/// satırlı her paragrafı düzenlenemez yapıyordu. Silmek güvenli: aralık bir
-/// metin nesnesinin İÇİNDE başlayıp İÇİNDE bittiği için kaldırılan `ET` ve `BT`
-/// sayısı eşittir — dıştaki `BT` açık kalır, dıştaki `ET` kapatır, yığın
-/// dengede kalır. Dengesiz bir dizi (aralık `BT` ile başlıyor ya da eksik
-/// kapanıyor) yine reddedilir.
+/// `BT`/`ET` ve `q`/`Q` ayrı ele alınır: belgelerin çoğu (resmi yazı
+/// üreticileri, EBYS) paragrafın HER SATIRINI ayrı bir metin nesnesine, çoğu
+/// zaman ayrı bir `q … Q` grafik durumu bloğuna yazar; aralığın ortasında
+/// zorunlu olarak `ET Q q BT` dizileri bulunur. Bunları reddetmek çok satırlı
+/// her paragrafı düzenlenemez yapıyordu.
+///
+/// Silmek güvenli, çünkü aralık bir bloğun İÇİNDE başlayıp İÇİNDE bitiyor →
+/// kaldırılan kapanış ve açılış sayısı eşit; dıştaki açılış açık kalır, dıştaki
+/// kapanış kapatır, yığın dengede. Dengesiz dizi reddedilir.
+///
+/// `q`/`Q` için ek koşul var: `Q` dönüşümü VE kırpmayı da geri alır. Farklı
+/// dönüşümlü ya da kırpmalı blokları birleştirmek yazıyı başka yere koyar veya
+/// kestirir — bu yüzden yalnız [PdfParagraph.uniformGraphics] doğruysa izin
+/// verilir.
 void _checkSpan(List<int> content, PdfParagraph paragraph) {
   const unbalanced = PdfParagraphRefused(
-    'Bu paragrafın metin blokları beklenmedik biçimde iç içe. Yeniden dizmek '
+    'Bu paragrafın blokları beklenmedik biçimde iç içe. Yeniden dizmek '
     'sayfayı bozabileceği için yapılmadı.',
   );
 
   final scan = scanContent(content);
-  // 0 = metin nesnesinin içindeyiz (başlangıç durumu), -1 = iki nesne arası.
-  var depth = 0;
+  // 0 = bloğun içindeyiz (başlangıç durumu), negatif = iki blok arası.
+  var textDepth = 0;
+  var stateDepth = 0;
   for (final event in scan.events) {
     if (event.operatorStart < paragraph.spanStart ||
         event.operatorStart >= paragraph.spanEnd) {
       continue;
     }
-    if (event.op == 'ET') {
-      if (--depth < -1) throw unbalanced;
-      continue;
-    }
-    if (event.op == 'BT') {
-      if (++depth > 0) throw unbalanced;
-      continue;
+    // Kapanış (`ET`/`Q`) derinliği eksiye indirir — serbest. Açılış (`BT`/`q`)
+    // sıfırın ÜSTÜNE çıkamaz: aralık dışına taşan bir blok açılışı, kapanışı
+    // dışarıda kalmış demektir; o zaman silmek dengeyi bozar.
+    switch (event.op) {
+      case 'ET':
+        textDepth--;
+        continue;
+      case 'BT':
+        if (++textDepth > 0) throw unbalanced;
+        continue;
+      case 'Q':
+        if (!paragraph.uniformGraphics) break;
+        stateDepth--;
+        continue;
+      case 'q':
+        if (!paragraph.uniformGraphics) break;
+        if (++stateDepth > 0) throw unbalanced;
+        continue;
     }
     if (_allowedInSpan.contains(event.op)) continue;
     throw PdfParagraphRefused(
@@ -179,7 +197,7 @@ void _checkSpan(List<int> content, PdfParagraph paragraph) {
       'dizmek sayfayı bozabileceği için yapılmadı.',
     );
   }
-  if (depth != 0) throw unbalanced;
+  if (textDepth != 0 || stateDepth != 0) throw unbalanced;
 }
 
 /// Yeni metnin her harfine bir biçim koşusu atar.
@@ -330,7 +348,12 @@ List<_LaidLine> _wrap({
   required double spaceAdvance,
 }) {
   // Kullanılabilir genişlik ilerleyiş birimindedir (matris e-uzayı / scaleX).
+  //
+  // Ortalı paragraf kendi dar kutusuna değil, sayfanın metin SÜTUNUNA sarılır:
+  // "DAĞITIM" gibi kısa bir başlık uzayınca alt alta iki kelimelik satırlara
+  // bölünmesin.
   double availableFor(int lineIndex) {
+    if (paragraph.centered) return paragraph.columnWidth / scaleX;
     final startX =
         lineIndex == 0 ? paragraph.firstLineX : paragraph.bodyLeftX;
     return (paragraph.rightX - startX) / scaleX;
@@ -357,8 +380,17 @@ List<_LaidLine> _wrap({
   final out = <_LaidLine>[];
   for (var i = 0; i < rows.length; i++) {
     final row = rows[i];
-    final startX = i == 0 ? paragraph.firstLineX : paragraph.bodyLeftX;
+    var startX = i == 0 ? paragraph.firstLineX : paragraph.bodyLeftX;
     var space = spaceAdvance;
+
+    // ORTALI: satır sol kenardan değil ORTADAN yerleştirilir. Sola yaslı
+    // varsayım yüzünden ortalı bir başlık kısalınca sağa büzülüyor, uzayınca
+    // sağa taşıyordu (kullanıcı bildirimi 2026-07-28).
+    if (paragraph.centered) {
+      final natural = row.fold<double>(0, (sum, w) => sum + w.advance) +
+          spaceAdvance * (row.length - 1);
+      startX = paragraph.centerX - natural * scaleX / 2;
+    }
 
     // İki yana yaslama: son satır ASLA yaslanmaz (Word de yaslamaz).
     final isLast = i == rows.length - 1;
