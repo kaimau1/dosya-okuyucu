@@ -276,3 +276,17 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       tearDown temp klasörünü silemiyor, Windows dosya kilidi (koni bir kolu
       geç kapatıyor olabilir) · `fm_trash` iki testi Android birim mantığına
       dayanıyor.
+
+- [ ] **Gizli satır/sütun kaydetmede kayboluyor (Excel sadakati).**
+      `excel 4.0.6` yazma API'sinde `hidden` karşılığı yok: `<cols>` ve
+      `sheetData` her kayıtta paketin kendi haritasından baştan üretiliyor
+      (`save_file.dart` `_setColumns` / `_setRows`), `<col hidden="1">` ve
+      `<row hidden="1">` hiç yazılmıyor. Genişlik/yükseklik kaybı
+      `XlsxEditor._seedSizes` ile kapatıldı ama gizlilik kapatılamadı.
+      Yol: `save()` sonrası zip'i açıp `xl/worksheets/*.xml` içindeki
+      `<col>`/`<row>` düğümlerine `hidden` özniteliğini geri yazmak
+      (bizim `layout.hiddenCols/hiddenRows` doğru veriyi tutuyor).
+      Aynı yama satır özel biçimini (`s`+`customFormat`) da kurtarır.
+- [ ] **Tamamen BOŞ satırın yüksekliği kaydedilmiyor.** Paket `<row>`u yalnız
+      hücresi olan satır için yazıyor. Ekranda doğru, dosyada kayıp.
+      Ucuz çözüm: yükseklik verilen boş satıra bir boş hücre yazmak.

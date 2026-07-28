@@ -120,6 +120,16 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Satır/sütun ekle-sil ve hücre yazma ölçüleri değiştirebilir.
   int _gridVersion = 0;
 
+  /// Bul çubuğu açık mı, eşleşmeler ve etkin eşleşme.
+  bool _finding = false;
+  final _findField = TextEditingController();
+  List<(int, int)> _hits = const [];
+  int _hitIndex = -1;
+
+  /// Eşleşme üst sınırı — "a" gibi bir aramada 100 bin hücreyi listelemek
+  /// ekranı dondurur; Excel de sonuç listesini sınırlar.
+  static const int _maxHits = 500;
+
   @override
   void initState() {
     super.initState();
@@ -131,6 +141,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   @override
   void dispose() {
     _cellField.dispose();
+    _findField.dispose();
     _hBody.dispose();
     _hTop.dispose();
     _vBody.dispose();
@@ -328,6 +339,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       setState(() => _editing = true);
       return;
     }
+    _jumpTo(r, c);
+  }
+
+  /// Seçimi taşır — [_select]'in aksine aynı hücreye ikinci kez gelince
+  /// düzenlemeye GEÇMEZ (Hücreye git / Bul bunu istemez).
+  void _jumpTo(int r, int c) {
     _endEdit();
     setState(() {
       _selRow = r;
@@ -545,13 +562,24 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       // Kaydet/Paylaş/CSV/Çevir ALT çubukta; burada yalnız karşılığı olmayanlar
       // kalır (2026-07-28 kullanıcı isteği: tekrar eden düğmeler kalksın).
       actions: [
+        IconButton(
+          tooltip: 'Bul',
+          icon: const Icon(Icons.search),
+          onPressed: editor == null ? null : _toggleFind,
+        ),
         PopupMenuButton<String>(
           onSelected: (v) {
             if (v == 'goto') _showGoTo();
             if (v == 'freeze') _toggleFreeze();
+            if (v == 'colw') _showSizeDialog(col: _selCol);
+            if (v == 'rowh') _showSizeDialog(row: _selRow);
           },
           itemBuilder: (_) => [
             const PopupMenuItem(value: 'goto', child: Text('Hücreye git…')),
+            const PopupMenuItem(
+                value: 'colw', child: Text('Sütun genişliği…')),
+            const PopupMenuItem(
+                value: 'rowh', child: Text('Satır yüksekliği…')),
             if (_sheetHasFreeze)
               PopupMenuItem(
                 value: 'freeze',
@@ -568,6 +596,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: [
+                    if (_finding) _findBar(),
                     _cellBar(),
                     _formulaPreview(),
                     _rowColBar(),
@@ -911,6 +940,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                     _anchorCol = 0;
                     _firstCol = 0;
                     _lastCol = 0;
+                    _hits = const []; // eşleşmeler sayfaya özgü
+                    _hitIndex = -1;
                   });
                   _syncField();
                   WidgetsBinding.instance
@@ -951,7 +982,207 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     controller.dispose();
     final rc = XlsxRange.cellRef(ref?.trim());
     if (rc == null) return;
-    _select(rc.$1, rc.$2);
+    _jumpTo(rc.$1, rc.$2);
+  }
+
+  // ── bul ───────────────────────────────────────────────────────────────────
+
+  /// Etkin sayfada metin arar (büyük/küçük harf duyarsız).
+  ///
+  /// Excel'in "Bul"u varsayılan olarak FORMÜLLERDE arar; biz de ham metni
+  /// tararız. Ek olarak formül hücrelerinde SONUCA da bakarız: kullanıcı
+  /// ekranda gördüğü değeri arıyor olabilir.
+  void _runFind(String query) {
+    final sheet = _sheet;
+    final q = query.trim().toLowerCase();
+    if (sheet == null || q.isEmpty) {
+      setState(() {
+        _hits = const [];
+        _hitIndex = -1;
+      });
+      return;
+    }
+    final engine = _engineFor(sheet);
+    final hits = <(int, int)>[];
+    for (var r = 0; r < sheet.rows.length && hits.length < _maxHits; r++) {
+      final row = sheet.rows[r];
+      for (var c = 0; c < row.length && hits.length < _maxHits; c++) {
+        final raw = row[c];
+        if (raw.isEmpty) continue;
+        if (raw.toLowerCase().contains(q) ||
+            (raw.startsWith('=') &&
+                engine.displayValue(r, c).toLowerCase().contains(q))) {
+          hits.add((r, c));
+        }
+      }
+    }
+    setState(() {
+      _hits = hits;
+      _hitIndex = hits.isEmpty ? -1 : 0;
+    });
+    if (hits.isNotEmpty) _jumpTo(hits.first.$1, hits.first.$2);
+  }
+
+  void _stepHit(int delta) {
+    if (_hits.isEmpty) return;
+    var i = (_hitIndex + delta) % _hits.length;
+    if (i < 0) i += _hits.length;
+    setState(() => _hitIndex = i);
+    _jumpTo(_hits[i].$1, _hits[i].$2);
+  }
+
+  void _toggleFind() {
+    setState(() {
+      _finding = !_finding;
+      if (!_finding) {
+        _findField.clear();
+        _hits = const [];
+        _hitIndex = -1;
+      }
+    });
+  }
+
+  Widget _findBar() {
+    final scheme = Theme.of(context).colorScheme;
+    final typed = _findField.text.trim().isNotEmpty;
+    final counter = !typed
+        ? ''
+        : _hits.isEmpty
+            ? 'yok'
+            : '${_hitIndex + 1}/${_hits.length}'
+                '${_hits.length >= _maxHits ? '+' : ''}';
+    return Container(
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _findField,
+              autofocus: true,
+              onChanged: _runFind,
+              onSubmitted: (_) => _stepHit(1),
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(),
+                hintText: 'Bu sayfada ara',
+                prefixIcon: Icon(Icons.search, size: 18),
+                prefixIconConstraints:
+                    BoxConstraints(minWidth: 32, minHeight: 32),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(counter,
+              style:
+                  TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          IconButton(
+            tooltip: 'Önceki',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.keyboard_arrow_up),
+            onPressed: _hits.isEmpty ? null : () => _stepHit(-1),
+          ),
+          IconButton(
+            tooltip: 'Sonraki',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.keyboard_arrow_down),
+            onPressed: _hits.isEmpty ? null : () => _stepHit(1),
+          ),
+          IconButton(
+            tooltip: 'Kapat',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.close),
+            onPressed: _toggleFind,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── sütun genişliği / satır yüksekliği ────────────────────────────────────
+
+  /// Sütun genişliği (karakter) ya da satır yüksekliği (punto) diyaloğu.
+  /// Excel'de fare ile başlık kenarı sürüklenir; telefonda kenar hedefi
+  /// parmakla vurulamayacak kadar ince, o yüzden başlığa UZUN BASINCA açılır.
+  Future<void> _showSizeDialog({int? col, int? row}) async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    final isCol = col != null;
+    final defaultValue = isCol
+        ? sheet.layout.defaultColWidthChars
+        : sheet.layout.defaultRowHeightPt;
+    final maxValue = isCol ? 255.0 : 409.0;
+    var value = (isCol
+            ? sheet.layout.colWidthChars(col)
+            : sheet.layout.rowHeightPt(row!))
+        .clamp(0.0, maxValue)
+        .toDouble();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(isCol
+              ? '${XlsxRange.colName(col)} sütun genişliği'
+              : '${row! + 1}. satır yüksekliği'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value <= 0
+                    ? 'Gizli'
+                    : '${value.toStringAsFixed(2)} '
+                        '${isCol ? 'karakter' : 'punto'}',
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              Slider(
+                value: value,
+                max: maxValue,
+                divisions: (maxValue * 4).round(),
+                onChanged: (v) => setLocal(() => value = v),
+              ),
+              TextButton(
+                onPressed: () => setLocal(() => value = defaultValue),
+                child: Text(
+                    'Varsayılan (${defaultValue.toStringAsFixed(2)})'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Vazgeç')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Uygula')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    // Aralık seçiliyse tüm seçili sütunlara/satırlara uygulanır (Excel gibi).
+    if (isCol) {
+      final c1 = math.min(_anchorCol, _selCol);
+      final c2 = math.max(_anchorCol, _selCol);
+      final range = (col >= c1 && col <= c2) ? [for (var c = c1; c <= c2; c++) c] : [col];
+      for (final c in range) {
+        sheet.setColWidthChars(c, value);
+      }
+    } else {
+      final r1 = math.min(_anchorRow, _selRow);
+      final r2 = math.max(_anchorRow, _selRow);
+      final range = (row! >= r1 && row <= r2) ? [for (var r = r1; r <= r2; r++) r] : [row];
+      for (final r in range) {
+        sheet.setRowHeightPt(r, value);
+      }
+    }
+    _dirty = true;
+    _gridVersion++;
+    setState(() {});
   }
 
   // ── ızgara ────────────────────────────────────────────────────────────────
@@ -1254,6 +1485,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           _selCol = c;
         });
       },
+      onLongPress: () => _showSizeDialog(col: c),
       child: Container(
         width: sheet.colWidth(c) * _zoom,
         height: _headerH * _zoom,
@@ -1288,6 +1520,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           _selCol = math.max(0, sheet.maxCols - 1);
         });
       },
+      onLongPress: () => _showSizeDialog(row: r),
       child: Container(
         width: _rowHeaderW * _zoom,
         height: sheet.rowHeight(r) * _zoom,

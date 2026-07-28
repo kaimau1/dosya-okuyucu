@@ -3031,3 +3031,58 @@ Word/Slaytta düzenleme sırasında alt çubuk gizlendiği için Kaydet o anda �
 `flutter analyze` → dokunulan dosyalarda 0 hata. `flutter test` → **596 geçti,
 4 kırmızı** (KALANLAR'daki Windows'a özgü olanlar, bu turdan önce de kırmızı).
 Ekran testleri kaldırılan düğmelerden hiçbirine takılmadı.
+
+## 2026-07-28 (3. tur) — Excel: ölçü ayarı, Bul, kaydetme sadakati
+
+### A. Sütun genişliği / satır yüksekliği ayarlanamıyordu
+`XlsxSheet.colWidth/rowHeight` yalnız OKUYORDU; yazma yolu hiç yoktu.
+Eklendi: `setColWidthChars(c, karakter)` / `setRowHeightPt(r, punto)` —
+görünüm modelini (`layout.colWidths/rowHeights`) ve `excel` paketinin
+haritasını BİRLİKTE günceller. 0 = gizle; gizli/görünür kümesi de senkron
+tutulur, yoksa gizli sütuna genişlik verilince `colWidth` 0 döndüğü için
+hiçbir şey olmuyormuş gibi görünürdü.
+Arayüz: sütun/satır **başlığına uzun basma** (fare ile sürüklenecek kenar
+telefonda parmakla vurulamayacak kadar ince) + ⋮ menüsünde aynı giriş.
+Başlıkla seçili aralık örtüşüyorsa tüm aralığa uygulanır (Excel gibi).
+
+### B. KÖK NEDEN — kaydetmede sütun genişlikleri bozuluyordu
+`excel 4.0.6` `parse.dart` bir `<col min="1" max="10" width="20"/>`
+aralığının **yalnız `min`ini** okuyor; `save_file.dart` `_setColumns` ise her
+kayıtta `<cols>`u kendi haritasından **baştan** yazıyor. Sonuç: tek hücre
+düzenlenip kaydedilince B–J sütunları varsayılana (ölçüldü: 14.43) düşüyordu.
+Bizim `xlsx_reader` aralığı doğru açıyor → `XlsxEditor.parse` içinde
+`_seedSizes` ile paketin haritası kendi okuduğumuz ölçülerden dolduruluyor.
+Aynı düzeltme hem sadakati kurtarıyor hem A'daki yazmayı kalıcı yapıyor.
+Kırmızı→yeşil kanıtlandı (`aralıklı <col> genişliği kaydetmeyi SAĞ ÇIKAR`).
+
+**Kapatılamayan:** gizli satır/sütun (`hidden`) ve satır özel biçimi
+kaydetmede hâlâ kayboluyor — paketin yazma API'sinde karşılığı yok
+(`_createNewRow` yalnız `r`/`ht`/`customHeight` yazıyor, `sheetData`
+tamamen temizlenip yeniden kuruluyor). Zip sonrası XML yaması gerekir →
+KALANLAR. Ayrıca TAMAMEN BOŞ satırın yüksekliği yazılmaz (`<row>` yalnız
+hücresi olan satır için üretiliyor) — kodda `ponytail:` notu var.
+
+### C. Bul (metin arama) yoktu
+Yalnız "Hücreye git" vardı. Eklendi: üst çubukta 🔍 → aktif sayfada
+büyük/küçük harf duyarsız arama, ‹ › ile gezinme, `3/12` sayacı, eşleşme
+seçilip görünür yapılıyor. **HAM değerde** arar (Excel'in "Bul"u da varsayılan
+olarak formüllerde arar), formül hücresinde ek olarak sonuca da bakar.
+Sınır: 500 eşleşme (`"a"` aramasında 100 bin hücre listelemek ekranı dondurur).
+`_select` aynı hücreye ikinci gelişte düzenlemeye geçtiği için Bul/Hücreye git
+artık `_jumpTo` kullanıyor.
+
+### D. Görüntü denetimi — koyu temada okunmaz hücre
+Excel'de sayfa DAİMA beyazdır, dosyalar da bunu varsayıp yazıyı siyah bırakır;
+koyu temada o siyah yazı koyu zeminde **kayboluyordu** (tersi de: dosyadan
+gelen beyaz dolgu üstünde açık tema yazı rengi). `sheet_cell.dart/readableOn`
+kontrast oranı 2.5'in altındaysa rengi zemine göre çeviriyor. Eşik bilinçli
+düşük: beyaz üstünde gri (~3.9) gibi KASITLI seçimler bozulmasın diye.
+Ayrıca `_CellBorderPainter.shouldRepaint` `barColor`u karşılaştırmıyordu
+(veri çubuğu rengi değişince yeniden çizmiyordu).
+
+### E. Doğrulama
+`flutter analyze` → dokunulan dosyalarda 0 sorun. `flutter test` → 602 geçti,
+**4 kırmızı** — temiz kopyada (`git stash`) da aynı 4'ü verdi, KALANLAR'daki
+Windows'a özgü olanlar. `excel`/`spreadsheet` testlerinin tamamı yeşil.
+Cihazda görsel karşılaştırma YAPILMADI (gerçek Excel bu ortamda yok);
+denetim çizim yolunun kod okumasıyla yapıldı.

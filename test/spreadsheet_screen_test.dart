@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dosya_okuyucu/screens/editors/spreadsheet_editor_screen.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
+import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -186,5 +187,58 @@ void main() {
 
     expect(sheet.validationAt(2, 0)?.options, ['Kalem', 'Defter', 'Silgi']);
     expect(sheet.condRuleAt(2, 1)?.type, 'cellIs');
+  });
+
+  testWidgets('Bul çubuğu eşleşmeyi bulup seçimi oraya taşır', (tester) async {
+    await pump(tester);
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pump();
+    expect(find.text('Bu sayfada ara'), findsOneWidget);
+
+    // Excel'in "Bul"u gibi HAM değerde arar: ekranda "1.234,50 ₺" yazan
+    // hücrenin ham değeri 1234.5'tir ve B3'tedir.
+    await tester.enterText(find.byType(TextField).first, '1234.5');
+    await tester.pump();
+    expect(find.text('1/1'), findsOneWidget);
+    expect(find.text('B3'), findsOneWidget); // ad kutusu eşleşmeye taşındı
+
+    await tester.enterText(find.byType(TextField).first, 'zzzyok');
+    await tester.pump();
+    expect(find.text('yok'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump();
+    expect(find.text('Bu sayfada ara'), findsNothing);
+  });
+
+  testWidgets('sütun başlığına uzun basınca genişlik diyaloğu açılır',
+      (tester) async {
+    await pump(tester);
+
+    await tester.longPress(find.text('A'));
+    await tester.pumpAndSettle();
+    expect(find.text('A sütun genişliği'), findsOneWidget);
+    expect(find.byType(Slider), findsOneWidget);
+
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pumpAndSettle();
+    expect(find.text('A sütun genişliği'), findsNothing);
+  });
+
+  test('okunmaz yazı rengi zemine göre çevrilir, bilinçli gri korunur', () {
+    const white = Color(0xFFFFFFFF);
+    const black = Color(0xFF000000);
+    const darkSurface = Color(0xFF121212);
+
+    // Koyu temada dosyadan gelen SİYAH yazı kayboluyordu → açık renge döner.
+    expect(readableOn(black, darkSurface), isNot(black));
+    // Dosyadan gelen beyaz dolgu üstünde açık tema yazısı da kurtarılır.
+    expect(readableOn(white, white), isNot(white));
+    // Beyaz üstünde siyah zaten okunur — dokunulmaz.
+    expect(readableOn(black, white), black);
+    // Beyaz üstünde gri BİLİNÇLİ bir seçim (oran ~3.9) — bozulmaz.
+    const gray = Color(0xFF808080);
+    expect(readableOn(gray, white), gray);
   });
 }

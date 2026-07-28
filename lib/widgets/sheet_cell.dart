@@ -1,7 +1,26 @@
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 import '../services/xlsx_editor.dart';
+
+/// Yazı rengini zeminiyle okunur hâle getirir.
+///
+/// Excel'de sayfa DAİMA beyazdır; dosyalar da bunu varsayıp yazıyı siyah
+/// bırakır. Koyu temada o siyah yazı koyu zeminde kayboluyordu (ve tersi:
+/// dosyadan gelen beyaz dolgu üstünde açık tema yazı rengi). Kontrast
+/// oranı okunamayacak kadar düşükse renk zemine göre çevrilir; makul ama
+/// düşük kontrastlı (gri/beyaz gibi BİLİNÇLİ) seçimler korunur.
+@visibleForTesting
+Color readableOn(Color fg, Color bg) {
+  final lf = fg.computeLuminance();
+  final lb = bg.computeLuminance();
+  final ratio = (math.max(lf, lb) + 0.05) / (math.min(lf, lb) + 0.05);
+  if (ratio >= 2.5) return fg;
+  return lb > 0.5 ? const Color(0xFF1A1A1A) : const Color(0xFFF2F2F2);
+}
 
 /// Hit-test ile hücreyi bulmak için (aralık seçiminde parmağın altındaki
 /// hücre — ölçüm/koordinat matematiği yok).
@@ -80,10 +99,10 @@ class SheetCell extends StatelessWidget {
     final background = cond?.background ?? s?.background;
 
     final fontSize = ((s?.fontSize ?? 11) * zoom).clamp(4.0, 96.0);
-    final color = cond?.foreground ??
-        view.formatColor ??
-        s?.fontColor ??
-        scheme.onSurface;
+    final color = readableOn(
+      cond?.foreground ?? view.formatColor ?? s?.fontColor ?? scheme.onSurface,
+      background ?? scheme.surface,
+    );
 
     final textStyle = TextStyle(
       fontSize: fontSize,
@@ -334,6 +353,7 @@ class _CellBorderPainter extends CustomPainter {
       old.selection != selection ||
       old.selectionFill != selectionFill ||
       old.barRatio != barRatio ||
+      old.barColor != barColor ||
       old.gridColor != gridColor ||
       old.border != border;
 }

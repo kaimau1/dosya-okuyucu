@@ -182,6 +182,40 @@ class XlsxSheet {
     return (pt * 1.34).clamp(8.0, 409.0);
   }
 
+  /// Sütun genişliğini karakter biriminde ayarlar (Excel'in kendi birimi,
+  /// varsayılan 8.43). 0 = gizle. Hem görünüm modeline hem `excel` paketinin
+  /// haritasına yazılır — ikincisi olmadan kaydetmede kaybolurdu.
+  void setColWidthChars(int c, double chars) {
+    if (c < 0 || c >= 16384) return;
+    final v = chars.clamp(0.0, 255.0).toDouble();
+    layout.colWidths[c] = v;
+    // Gizli sütunda `colWidth` 0 döndüğü için yeni genişlik görünmezdi.
+    if (v <= 0) {
+      layout.hiddenCols.add(c);
+    } else {
+      layout.hiddenCols.remove(c);
+    }
+    _sheet.setColumnWidth(c, v);
+  }
+
+  /// Satır yüksekliğini punto olarak ayarlar (varsayılan 15). 0 = gizle.
+  ///
+  /// ponytail: TAMAMEN BOŞ bir satırın yüksekliği kaydedilmez — `excel`
+  /// paketi `<row>` etiketini yalnız hücresi olan satırlar için yazıyor
+  /// (`save_file.dart` `_setRows`). Ekranda doğru görünür, dosyada kaybolur.
+  /// Gerekirse çözüm: o satıra boş bir hücre yazmak.
+  void setRowHeightPt(int r, double pt) {
+    if (r < 0 || r >= 1048576) return;
+    final v = pt.clamp(0.0, 409.0).toDouble();
+    layout.rowHeights[r] = v;
+    if (v <= 0) {
+      layout.hiddenRows.add(r);
+    } else {
+      layout.hiddenRows.remove(r);
+    }
+    _sheet.setRowHeight(r, v);
+  }
+
   // ── stil ──────────────────────────────────────────────────────────────────
 
   /// Hücrenin stil indeksi: hücrenin kendi `s`si, yoksa satır, yoksa sütun.
@@ -358,7 +392,24 @@ class XlsxEditor {
         date1904: false,
       );
     }
-    return XlsxEditor._(excel, _buildSheets(excel, wb), wb);
+    final sheets = _buildSheets(excel, wb);
+    _seedSizes(sheets);
+    return XlsxEditor._(excel, sheets, wb);
+  }
+
+  /// Ölçüleri `excel` paketinin haritasına aktarır — SADAKAT için şart.
+  ///
+  /// Paket `<col min="1" max="10" width="20"/>` aralığının YALNIZ `min`ini
+  /// okuyor (excel 4.0.6 `parse.dart`), kaydederken de `<cols>`u kendi
+  /// haritasından baştan yazıyor (`save_file.dart` `_setColumns`). Sonuç:
+  /// tek bir hücre düzenlenip kaydedilince B–J sütunları varsayılan 8.43'e
+  /// düşüyordu. Bizim okuyucumuz aralığı doğru açıyor; paketin haritasını
+  /// ondan doldurunca kaydetme genişlikleri koruyor.
+  static void _seedSizes(List<XlsxSheet> sheets) {
+    for (final s in sheets) {
+      s.layout.colWidths.forEach(s.excelSheet.setColumnWidth);
+      s.layout.rowHeights.forEach(s.excelSheet.setRowHeight);
+    }
   }
 
   static List<XlsxSheet> _buildSheets(Excel excel, XlsxWorkbook wb) {

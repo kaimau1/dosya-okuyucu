@@ -169,4 +169,84 @@ void main() {
     expect(st2.bold, isTrue);
     expect(st2.italic, isTrue);
   });
+
+  // ── ölçü sadakati ─────────────────────────────────────────────────────────
+
+  test('aralıklı <col> genişliği kaydetmeyi SAĞ ÇIKAR', () {
+    final e = XlsxEditor.parse(_rangedColsXlsx());
+    final s = e.sheets.first;
+
+    // Okuma zaten doğruydu: aralık A..J tamamen 20 karakter.
+    for (var c = 0; c < 10; c++) {
+      expect(s.layout.colWidthChars(c), closeTo(20, 0.01), reason: 'sütun $c');
+    }
+
+    // Regresyon: excel paketi aralığın yalnız `min`ini okuyup kaydederken
+    // <cols>u baştan yazıyordu → B..J varsayılan 8.43'e düşüyordu.
+    final again = XlsxEditor.parse(e.save()).sheets.first;
+    for (var c = 0; c < 10; c++) {
+      expect(again.layout.colWidthChars(c), closeTo(20, 0.01),
+          reason: 'kaydetme sonrası sütun $c');
+    }
+  });
+
+  test('setColWidthChars / setRowHeightPt anında ve kalıcı uygulanır', () {
+    final e = XlsxEditor.parse(_rangedColsXlsx());
+    final s = e.sheets.first;
+
+    final before = s.colWidth(2);
+    s.setColWidthChars(2, 30);
+    expect(s.colWidth(2), greaterThan(before)); // ekranda anında geniş
+
+    s.setRowHeightPt(0, 40); // veri olan satır (bkz. setRowHeightPt notu)
+    expect(s.rowHeight(0), closeTo(40 * 1.34, 0.01));
+
+    final again = XlsxEditor.parse(e.save()).sheets.first;
+    expect(again.layout.colWidthChars(2), closeTo(30, 0.01));
+    expect(again.layout.rowHeightPt(0), closeTo(40, 0.01));
+    // Komşu sütunlar bozulmadı.
+    expect(again.layout.colWidthChars(3), closeTo(20, 0.01));
+  });
+
+  test('genişlik 0 sütunu gizler, tekrar büyütmek geri getirir', () {
+    final s = XlsxEditor.parse(_rangedColsXlsx()).sheets.first;
+
+    s.setColWidthChars(1, 0);
+    expect(s.isColHidden(1), isTrue);
+    expect(s.colWidth(1), 0);
+
+    s.setColWidthChars(1, 12);
+    expect(s.isColHidden(1), isFalse);
+    expect(s.colWidth(1), greaterThan(0));
+  });
+}
+
+/// A..J sütunlarını TEK bir `<col min="1" max="10">` aralığıyla genişleten
+/// dosya. `excel` paketinin `setColumnWidth`i sütunları tek tek yazdığı için
+/// bu biçim ancak XML'e elle enjekte edilerek üretilebiliyor — gerçek Excel
+/// dosyaları ise genelde böyle aralıklar taşır.
+Uint8List _rangedColsXlsx() {
+  final excel = Excel.createExcel();
+  final sheet = excel[excel.getDefaultSheet()!];
+  for (var c = 0; c < 10; c++) {
+    sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
+        .value = TextCellValue('h$c');
+  }
+  final archive = ZipDecoder().decodeBytes(Uint8List.fromList(excel.encode()!));
+  final out = Archive();
+  for (final f in archive.files) {
+    if (f.name.startsWith('xl/worksheets/') && f.name.endsWith('.xml')) {
+      final xml = utf8.decode(f.content as List<int>).replaceFirst(
+            '<sheetData',
+            '<cols><col min="1" max="10" width="20" customWidth="1"/></cols>'
+                '<sheetData',
+          );
+      final content = utf8.encode(xml);
+      out.addFile(ArchiveFile(f.name, content.length, content));
+    } else {
+      out.addFile(f);
+    }
+  }
+  return Uint8List.fromList(ZipEncoder().encode(out)!);
 }
