@@ -151,6 +151,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   Future<void> _preview(ArchiveItem item) async {
     try {
       final cache = await getTemporaryDirectory();
+      // Geçici klasörü almak da bir `await`: kullanıcı bu arada geri gitmişse
+      // ölü bir State'in context'iyle pencere açmaya çalışıyorduk.
+      if (!mounted) return;
       final dir = Directory(p.join(cache.path, 'arsiv_onizleme'));
       final out = await showFmProgress<String>(
         context,

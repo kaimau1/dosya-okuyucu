@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
+import 'path_side_index.dart';
 
 /// **"Son açılma tarihi"** — bir dosyanın en son ne zaman açıldığı, TÜM dosya
 /// türleri için (görüntü, video, ses, arşiv, belge…).
@@ -128,12 +129,21 @@ abstract final class OpenHistory {
     await _saveNow();
   }
 
-  /// Dosya uygulama içinden taşındı/adlandırıldı → kaydı yeni yola taşı.
+  /// Dosya **ya da klasör** uygulama içinden taşındı/adlandırıldı → kaydı yeni
+  /// yola taşı. Klasörde alt kayıtlar da taşınır (bkz. [movedPathFor] ve
+  /// `FileTags.movePath`).
   static Future<void> movePath(String from, String to) async {
     await ensureLoaded();
-    final ms = _byPath.remove(from);
-    if (ms == null) return;
-    _byPath[to] = ms;
+    final moves = <String, String>{};
+    for (final key in _byPath.keys) {
+      final next = movedPathFor(path: key, from: from, to: to);
+      if (next != null && next != key) moves[key] = next;
+    }
+    if (moves.isEmpty) return;
+    for (final entry in moves.entries) {
+      final ms = _byPath.remove(entry.key);
+      if (ms != null) _byPath[entry.value] = ms;
+    }
     await _saveNow();
   }
 

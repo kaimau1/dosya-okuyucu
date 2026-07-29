@@ -205,8 +205,21 @@ class MediaResizeOptions {
         height: even((sourceHeight * scale).round()),
       );
     case ResolutionChoice.custom:
-      final w = options.customWidth;
-      final h = options.customHeight;
+      // "Kaynaktan büyütme yapılmaz" kuralı BURADA da geçerli — arayüz bunu
+      // tam bu alanların altında yazıyor, oysa serbest ölçüde hiç
+      // uygulanmıyordu: 1000x750 bir fotoğrafa 2000 yazmak dosyayı büyütüyor,
+      // çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi" diye bitiyordu —
+      // kullanıcı nedenini hiç öğrenmiyordu (2026-07-29 denetimi, 2. tur).
+      final w = options.customWidth == null
+          ? null
+          : (options.customWidth! > sourceWidth
+              ? sourceWidth
+              : options.customWidth!);
+      final h = options.customHeight == null
+          ? null
+          : (options.customHeight! > sourceHeight
+              ? sourceHeight
+              : options.customHeight!);
       if (w != null && h != null) return (width: even(w), height: even(h));
       if (w != null) {
         return (

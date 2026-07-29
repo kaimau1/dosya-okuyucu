@@ -359,4 +359,58 @@ Tabii, işte:
       expect(trimmed.first.summary, '59');
     });
   });
+
+  // ── Temizlik uygulama SIRASI (veri kaybı kilidi) ────────────────────────────
+  // 2026-07-29 sadakat denetimi, CRITICAL 1: `duplicates` önerisi dosyaları çöpe
+  // taşıyor, ardından `trash` önerisi `empty()` ile çöpü KALICI siliyordu —
+  // onay penceresi ise "geri alabilirsiniz" diyordu. Bu grup o sırayı kilitler.
+  group('cleanupApplyOrder', () {
+    CleanupSuggestion sug(String id, {int bytes = 0}) => CleanupSuggestion(
+          id: id,
+          title: id,
+          detail: '',
+          bytes: bytes,
+          files: const [],
+          safeByDefault: true,
+        );
+
+    test('çöp boşaltma, kopyalardan SONRA gelse bile başa alınır', () {
+      final ordered = cleanupApplyOrder([
+        sug('duplicates', bytes: 800 * 1024 * 1024),
+        sug('cache', bytes: 40 * 1024 * 1024),
+        sug('trash', bytes: 10 * 1024 * 1024),
+      ]);
+      expect(ordered.first.id, 'trash',
+          reason: 'çöp sonra boşaltılırsa bu turda çöpe düşenler KALICI silinir');
+      expect(ordered.map((s) => s.id).toList(),
+          ['trash', 'duplicates', 'cache']);
+    });
+
+    test('çöp önerisi seçilmediyse sıra aynen korunur', () {
+      final ordered =
+          cleanupApplyOrder([sug('duplicates'), sug('cache'), sug('bigVideo')]);
+      expect(ordered.map((s) => s.id).toList(),
+          ['duplicates', 'cache', 'bigVideo']);
+    });
+
+    test('yalnız çöp seçildiyse tek eleman döner', () {
+      expect(cleanupApplyOrder([sug('trash')]).single.id, 'trash');
+    });
+
+    test('boş seçim boş liste', () {
+      expect(cleanupApplyOrder(const []), isEmpty);
+    });
+
+    test('hiçbir öneri kaybolmaz / çoğalmaz', () {
+      final input = [
+        sug('trash'),
+        sug('duplicates'),
+        sug('cache'),
+        sug('bigVideo'),
+      ];
+      final ordered = cleanupApplyOrder(input);
+      expect(ordered.length, input.length);
+      expect(ordered.map((s) => s.id).toSet(), input.map((s) => s.id).toSet());
+    });
+  });
 }

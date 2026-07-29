@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
+import 'path_side_index.dart';
 
 /// **Dosya etiketleri** — "Ayşe", "İş grubu", "Fatura" gibi kullanıcı etiketleri.
 ///
@@ -171,12 +172,25 @@ abstract final class FileTags {
     await _save();
   }
 
-  /// Dosya uygulama içinden taşındı/adlandırıldı → etiketi yeni yola taşı.
+  /// Dosya **ya da klasör** uygulama içinden taşındı/adlandırıldı → etiketleri
+  /// yeni yola taşı.
+  ///
+  /// Klasör taşımasında **altındaki tüm kayıtlar** da taşınır ([movedPathFor]):
+  /// yalnız tam anahtara bakmak, `DCIM/Tatil` klasörünün adını değiştiren
+  /// kullanıcının içindeki 40 fotoğrafın etiketini kaybettirmek demekti
+  /// (2026-07-29 sadakat denetimi, 2. tur).
   static Future<void> movePath(String from, String to) async {
     await ensureLoaded();
-    final tags = _byPath.remove(from);
-    if (tags == null) return;
-    _byPath[to] = tags;
+    final moves = <String, String>{};
+    for (final key in _byPath.keys) {
+      final next = movedPathFor(path: key, from: from, to: to);
+      if (next != null && next != key) moves[key] = next;
+    }
+    if (moves.isEmpty) return;
+    for (final entry in moves.entries) {
+      final tags = _byPath.remove(entry.key);
+      if (tags != null) _byPath[entry.value] = tags;
+    }
     await _save();
   }
 

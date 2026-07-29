@@ -101,6 +101,24 @@ abstract final class ImageResizer {
     'tga',
   };
 
+  /// Kaynak **birden çok kare/sayfa/katman** taşıyabilen bir biçim mi?
+  ///
+  /// `image` paketinin `decodeImage`i animasyondan yalnız İLK kareyi çözer,
+  /// `encodeJpg`/`encodePng` de tek kare yazar. Yani hareketli bir GIF'i, çok
+  /// sayfalı bir TIFF'i ya da katmanlı bir PSD'yi "küçültmek" onu tek bir
+  /// duruk kareye indirmek demek — ve çıktı çok küçük olduğu için işlem
+  /// "başarılı" sayılıp **"Özgün dosyayı çöp kutusuna at" açıkken animasyon
+  /// çöpe gidiyordu** (2026-07-29 sadakat denetimi, 2. tur).
+  ///
+  /// Bu yüzden dönüştürme yapılır ama [ResizeAction.replaceOriginal] uygulanmaz
+  /// ve kullanıcıya söylenir: duruk bir `.webp`/`.tif` küçültmek isteyen
+  /// kullanıcının yolu kapanmasın, hareketli olan da kaybolmasın.
+  static bool mayLoseFrames(String path) {
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    return const {'gif', 'apng', 'webp', 'tif', 'tiff', 'psd', 'xcf'}
+        .contains(ext);
+  }
+
   /// Gemini'ye gönderilecek **küçük önizleme** üretir (dosyaya yazmadan).
   ///
   /// Niye: karşılaştırma için 5 MB'lık özgün fotoğrafı yüklemek hem yavaş hem
@@ -179,7 +197,19 @@ abstract final class ImageResizer {
       // ayarının anlamı olan tek yaygın biçim.
       _ => img.encodeJpg(resized, quality: args.options.imageQuality),
     };
-    File(args.outputPath).writeAsBytesSync(encoded, flush: true);
+    // Yazma YARIDA kalırsa (depolama doldu, SAF izni geri alındı) kullanıcının
+    // albümünde 0 baytlık bir "IMG_0031_720p.jpg" kalıyordu: galeride bozuk
+    // küçük resim, iş özetinde yalnız "küçültülemedi" (2026-07-29 sadakat
+    // denetimi, 2. tur). Hata anında yarım dosya silinir.
+    final out = File(args.outputPath);
+    try {
+      out.writeAsBytesSync(encoded, flush: true);
+    } catch (_) {
+      try {
+        if (out.existsSync()) out.deleteSync();
+      } catch (_) {}
+      rethrow;
+    }
     return (width: resized.width, height: resized.height);
   }
 }

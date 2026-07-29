@@ -145,3 +145,27 @@ List<CleanupSuggestion> adviseCleanup({
 /// Seçili önerilerin toplam kazancı.
 int cleanupTotal(Iterable<CleanupSuggestion> selected) =>
     selected.fold(0, (sum, s) => sum + s.bytes);
+
+/// Seçili önerilerin **uygulanma sırası** — çöp kutusu boşaltma her zaman ilk.
+///
+/// ## Niye ayrı bir fonksiyon (ekranda tek satır olabilirdi)
+/// Burada veri kaybı yatıyordu ve bir birim testiyle kilitlenmesi gerekiyor.
+/// [cleanupSuggestions] listeyi "güvenliler önce, sonra kazanca göre" sıralıyor;
+/// `trash` (çöpü boşalt) ve `duplicates` (yinelenenler) **ikisi de** güvenli
+/// sayıldığı için kopyalar çöpten büyük olduğunda sıra `[kopyalar, …, çöp]`
+/// oluyordu. Uygulama döngüsü kopyaları çöpe TAŞIYOR, hemen ardından `empty()`
+/// çağrılıp çöp KALICI siliniyordu — kullanıcının onay penceresinde
+/// "çöp kutusuna taşınır, oradan geri alabilirsiniz" yazdığı hâlde dosyalar
+/// geri alınamaz şekilde yok oluyordu (2026-07-29 sadakat denetimi).
+///
+/// Çöp önce boşaltılınca hem istenen yer kazanılır hem bu turda çöpe düşen her
+/// şey kurtarılabilir kalır. Diğer önerilerin kendi arasındaki sıra korunur
+/// (kararlı): kullanıcı listeyi o sırayla gördü.
+List<CleanupSuggestion> cleanupApplyOrder(
+    Iterable<CleanupSuggestion> chosen) {
+  final list = chosen.toList();
+  return [
+    ...list.where((s) => s.id == 'trash'),
+    ...list.where((s) => s.id != 'trash'),
+  ];
+}

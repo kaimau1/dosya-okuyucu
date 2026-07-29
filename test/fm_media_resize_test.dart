@@ -295,6 +295,103 @@ void main() {
     });
   });
 
+  // ── Serbest ölçüde "büyütme yok" ───────────────────────────────────────────
+  // Arayüz bu kuralı tam serbest ölçü alanlarının ALTINDA yazıyor, oysa kural
+  // yalnız kademelerde uygulanıyordu: 1000 px bir fotoğrafa 2000 yazmak dosyayı
+  // büyütüyor, çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi" diye bitiyor.
+  group('serbest ölçü kaynaktan büyütmez', () {
+    test('genişlik kaynaktan büyükse kaynağa çekilir', () {
+      final r = size(
+          1000,
+          750,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom, customWidth: 2000));
+      expect(r.width, 1000);
+      expect(r.height, 750);
+    });
+
+    test('yükseklik kaynaktan büyükse kaynağa çekilir', () {
+      final r = size(
+          1000,
+          750,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom, customHeight: 3000));
+      expect(r.height, 750);
+      expect(r.width, 1000);
+    });
+
+    test('ikisi de büyükse ikisi de kaynağa çekilir', () {
+      final r = size(
+          1024,
+          768,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom,
+              customWidth: 4000,
+              customHeight: 3000));
+      expect(r.width, 1024);
+      expect(r.height, 768);
+    });
+
+    test('kaynaktan KÜÇÜK istenen ölçü aynen uygulanır (kırpma yok)', () {
+      final r = size(
+          4000,
+          3000,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom,
+              customWidth: 1234,
+              customHeight: 568));
+      expect(r.width, 1234);
+      expect(r.height, 568);
+    });
+  });
+
+  // ── Kare sayısı da büyütülmez ──────────────────────────────────────────────
+  group('cappedFps', () {
+    test('kaynaktan yüksek istek kaynağa çekilir', () {
+      expect(VideoTranscoder.cappedFps(60, 30.0), 30);
+      expect(VideoTranscoder.cappedFps(30, 23.976), 23);
+    });
+
+    test('kaynaktan düşük istek aynen geçer', () {
+      expect(VideoTranscoder.cappedFps(15, 30.0), 15);
+      expect(VideoTranscoder.cappedFps(24, 29.97), 24);
+    });
+
+    test('"Değiştirme" (null) null kalır', () {
+      expect(VideoTranscoder.cappedFps(null, 30.0), isNull);
+    });
+
+    test('kaynağın hızı bilinmiyorsa istek olduğu gibi geçer', () {
+      expect(VideoTranscoder.cappedFps(60, null), 60);
+      expect(VideoTranscoder.cappedFps(60, 0), 60);
+    });
+  });
+
+  // ── Hareketli / çok sayfalı kaynaklar ──────────────────────────────────────
+  // Tek kareye inen çıktı aslın yerini TUTMAZ; bu biçimlerde "özgünü çöpe at"
+  // uygulanmaz (bkz. resize_actions.dart).
+  group('mayLoseFrames', () {
+    test('hareketli/çok kareli olabilen biçimler işaretlenir', () {
+      for (final path in [
+        '/a/meme.gif',
+        '/a/x.APNG',
+        '/a/foto.webp',
+        '/a/tarama.tif',
+        '/a/tarama.tiff',
+        '/a/kapak.psd',
+        '/a/cizim.xcf',
+      ]) {
+        expect(ImageResizer.mayLoseFrames(path), isTrue, reason: path);
+      }
+    });
+
+    test('tek kareli biçimler işaretlenmez', () {
+      for (final path in ['/a/f.jpg', '/a/f.jpeg', '/a/f.png', '/a/f.bmp']) {
+        expect(ImageResizer.mayLoseFrames(path), isFalse, reason: path);
+      }
+    });
+  });
+
   group('benzer tarama kapsam kimliği', () {
     test('kapsamlar ayrı kimlik alır', () {
       expect(SimilarFinder.jobIdFor('Görüntüler'),

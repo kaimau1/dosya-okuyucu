@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/search_index.dart';
@@ -118,7 +119,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final list = [
       for (final e in source)
         if (_category == null || e.category == _category)
-          if (_filter.matches(e)) e,
+          // `tagsOf` her zaman verilir: bu ekranın süzgeç sayfası şu an etiket
+          // çipi göstermiyor (bkz. aşağıdaki `showFmFilterSheet` çağrısı), ama
+          // çözücüyü atlamak sessiz bir tuzak — çip bir gün eklenirse liste
+          // sebepsizce bomboş görünürdü (etiketsiz sayılan her dosya elenir).
+          if (_filter.matches(e, tagsOf: FileTags.forPath)) e,
     ];
     return FsScan.sort(list, _sort, descending: _desc, foldersFirst: false);
   }

@@ -148,9 +148,15 @@ class _JobsSheet extends StatelessWidget {
 
   Widget _row(BuildContext context, FmJob job) {
     final theme = Theme.of(context);
+    // İptalde de `detail` GÖSTERİLİR. Sabit "İptal edildi." yazılıyordu, oysa
+    // durdurulan bir iş yarıda ne yaptığını oraya yazıyor: boyut düşürme
+    // "12,4 MB kazanıldı · 4 özgün çöp kutusunda · durduruldu (4/10)" diyor.
+    // Bunu yutmak, kullanıcının 4 videosunun çöpe gittiğini öğrenmesinin TEK
+    // yolunu kapatmaktı (2026-07-29 sadakat denetimi, 2. tur).
     final subtitle = switch (job.status) {
       JobStatus.failed => job.error ?? 'Bir hata oluştu.',
-      JobStatus.cancelled => 'İptal edildi.',
+      JobStatus.cancelled =>
+        job.detail.isEmpty ? 'İptal edildi.' : 'İptal edildi · ${job.detail}',
       _ => job.detail.isEmpty ? job.status.label : job.detail,
     };
     return ListTile(

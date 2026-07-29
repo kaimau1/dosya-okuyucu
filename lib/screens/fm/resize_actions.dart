@@ -56,7 +56,9 @@ Future<bool> startResizeJob(
   final id = 'resize_${media.length}_'
       '${Object.hashAll([for (final e in media) e.path])}_'
       '${options.signature.hashCode}';
-  JobQueue.instance.enqueue(
+  final before = JobQueue.instance.find(id);
+  final alreadyRunning = before != null && before.status.isActive;
+  final job = JobQueue.instance.enqueue(
     id: id,
     title: media.length == 1
         ? 'Boyut düşürülüyor: ${media.first.name}'
@@ -64,9 +66,17 @@ Future<bool> startResizeJob(
     total: media.length,
     run: (handle) => _run(media, options, handle),
   );
-  messenger.showSnackBar(const SnackBar(
-      content: Text('İşlem arka planda başladı. İlerlemeyi alttaki '
-          'şeritten izleyebilirsin.')));
+  // Metin durumu OKUR. Sabit "arka planda başladı" yazıyordu; oysa aynı iş zaten
+  // sürüyorsa yenisi hiç açılmıyor ve kuyrukta başka bir iş varsa bu iş
+  // BEKLİYOR — ikisinde de "başladı" demek yanlıştı (2026-07-29 denetimi).
+  messenger.showSnackBar(SnackBar(
+      content: Text(alreadyRunning
+          ? 'Bu işlem zaten sürüyor. İlerlemeyi alttaki şeritten '
+              'izleyebilirsin.'
+          : job.status == JobStatus.queued && JobQueue.instance.hasActive
+              ? 'İşlem kuyruğa alındı; süren iş bitince başlayacak.'
+              : 'İşlem arka planda başladı. İlerlemeyi alttaki '
+                  'şeritten izleyebilirsin.')));
   return true;
 }
 
@@ -78,6 +88,12 @@ Future<void> _run(
   var done = 0;
   var savedBytes = 0;
   var failed = 0;
+
+  /// Kaç dosyada "özgünü çöpe at" isteği **bilerek uygulanmadı** (hareketli
+  /// GIF / çok sayfalı TIFF / katmanlı PSD — tek kareye inen çıktı aslın yerini
+  /// tutmaz). Özette yazılır: sessizce farklı davranmak kullanıcıyı dosyalarının
+  /// silindiğini sanır durumda bırakırdı.
+  var keptFrameLosing = 0;
 
   /// "Özgünü çöpe at" seçiliyse: (özgün yol → küçültülmüş çıktı) çiftleri.
   /// Etiket/açılma geçmişi çıktıya taşınsın diye yol da tutuluyor: kullanıcının
@@ -102,6 +118,18 @@ Future<void> _run(
         final result = entry.category == FmCategory.video
             ? await VideoTranscoder.run(entry.path, options, handle: handle)
             : await ImageResizer.run(entry.path, options);
+      // Çıktı KABUL EDİLEBİLİR mi? İki koşul birlikte aranır:
+      //  (a) gerçekten küçüldü mü,
+      //  (b) ortada gerçek bir dosya var mı (`afterBytes > 0`).
+      //
+      // (b) hayat kurtarır: `ResizeResult` çıktı yoksa `afterBytes`ı bilerek 0
+      // yazıyor, oysa eski koşul yalnız `afterBytes >= beforeBytes` idi →
+      // **0 >= 200 MB yanlış** olduğu için BOŞ/BOZUK çıktı en büyük başarı
+      // sayılıyordu: "200 MB kazanıldı" yazıp, "Özgün dosyayı çöp kutusuna at"
+      // açıkken 200 MB'lık aslı çöpe atıyordu. Kaydı yarıda kesilmiş (moov
+      // bozuk) bir videoda ffmpeg 0 dönüş koduyla 3 saniyelik dosya bırakabilir
+      // — bu senaryo cihazda çok sık (2026-07-29 sadakat denetimi, 2. tur).
+      //
       // Küçültme işe yaramadıysa (çıktı daha büyük) çıktıyı BIRAKMA: kullanıcı
       // "boyut düşür" dedi, elinde iki büyük dosya kalmasın.
       //
@@ -109,7 +137,8 @@ Future<void> _run(
       // kullanıcı hiç görmedi ve işe yaramadığını ölçtük. Çöpe atmak kullanıcının
       // hiç bilmediği dosyalarla çöp kutusunu doldurmak olurdu (özgün dosyaya
       // ise dokunulmuyor — o hep yerinde).
-        if (result.afterBytes >= result.beforeBytes) {
+        if (result.afterBytes <= 0 ||
+            result.afterBytes >= result.beforeBytes) {
           try {
             final useless = File(result.outputPath);
             if (useless.existsSync()) useless.deleteSync();
@@ -118,7 +147,13 @@ Future<void> _run(
         } else {
           savedBytes += result.savedBytes;
           if (options.replaceOriginal) {
-            replaced.add((original: entry.path, output: result.outputPath));
+            // Hareketli/çok sayfalı kaynakta özgün ASLA çöpe atılmaz: çıktı tek
+            // kare, yani aslın yerini tutmuyor (bkz. `ImageResizer.mayLoseFrames`).
+            if (ImageResizer.mayLoseFrames(entry.path)) {
+              keptFrameLosing++;
+            } else {
+              replaced.add((original: entry.path, output: result.outputPath));
+            }
           }
         }
       } on JobCancelled {
@@ -151,6 +186,11 @@ Future<void> _run(
       else
         'Kazanç olmadı',
       if (failed > 0) '$failed dosya küçültülemedi',
+      // Kaç özgün dosya GERÇEKTEN çöpe gitti: kullanıcı bunu bilmeli, hele
+      // iptalde (10 dosyanın 4'ü işlendiyse 4 özgün çöpte, 6'sı yerinde).
+      if (replaced.isNotEmpty) '${replaced.length} özgün çöp kutusunda',
+      if (keptFrameLosing > 0)
+        '$keptFrameLosing hareketli/çok sayfalı dosyanın aslı korundu',
       // İptalde sayılar yarımdır; "kaç dosyada kaldı" bilgisi olmadan
       // kullanıcı kalanların işlenip işlenmediğini bilemez.
       if (handle.cancelled) 'durduruldu ($done/${media.length})',

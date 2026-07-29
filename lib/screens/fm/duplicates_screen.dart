@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 
+import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/duplicate_finder.dart';
@@ -143,24 +145,35 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
     setState(() => _selected.clear());
   }
 
-  int get _selectedBytes => _groups
+  /// Şeritteki bayt sayısı da **görünen** gruplardan sayılır: düğmenin yazdığı
+  /// sayı ile sildiği dosya kümesi aynı olmak zorunda ([_selectedFiles]).
+  int get _selectedBytes =>
+      _selectedFiles.fold(0, (sum, f) => sum + f.sizeBytes);
+
+  /// Silinecek dosyalar: **görünen** gruplardan seçili olanlar.
+  ///
+  /// `_groups` DEĞİL `_visibleGroups`: varsayılan seçim tüm gruplara kurulu ve
+  /// arama kutusu yalnız çizimi daraltıyordu → kullanıcı tek bir çifti
+  /// incelemek için "IMG_2024" yazdığında ekran "1 / 47 grup" derken alttaki
+  /// şerit hâlâ 94 dosyayı çöpe atıyordu; hiç görmediği 46 grup dahil
+  /// (2026-07-29 sadakat denetimi, 2. tur).
+  List<FsEntry> get _selectedFiles => _visibleGroups
       .expand((g) => g.files)
       .where((f) => _selected.contains(f.path))
-      .fold(0, (sum, f) => sum + f.sizeBytes);
+      .toList();
 
   Future<void> _deleteSelected() async {
-    final files = _groups
-        .expand((g) => g.files)
-        .where((f) => _selected.contains(f.path))
-        .toList();
+    final files = _selectedFiles;
     if (files.isEmpty) return;
     if (!await deleteEntries(context, files)) return;
+    if (!mounted) return; // "Arka plana al" → ekran kapanmış olabilir.
     _scan();
   }
 
   @override
   Widget build(BuildContext context) {
     final wasted = _groups.fold<int>(0, (sum, g) => sum + g.wastedBytes);
+    final selectedFiles = _selectedFiles;
 
     return Scaffold(
       appBar: AppBar(
@@ -251,7 +264,9 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                     ),
                   ],
                 ),
-      bottomNavigationBar: _selected.isEmpty || _scanning
+      // Şerit sayısı = gerçekten silinecek dosya sayısı ([_selectedFiles]).
+      // Etiket ayarı da okur: çöp kutusu kapalıyken "çöpe taşı" demek yanlış.
+      bottomNavigationBar: selectedFiles.isEmpty || _scanning
           ? null
           : SafeArea(
               child: Padding(
@@ -259,8 +274,10 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                 child: FilledButton.icon(
                   onPressed: _deleteSelected,
                   icon: const Icon(Icons.delete_outline),
-                  label: Text('${_selected.length} kopyayı çöpe taşı '
-                      '(${FsPaths.humanSize(_selectedBytes)})'),
+                  label: Text('${deleteActionText(
+                    useTrash: context.watch<AppState>().fmUseTrash,
+                    what: '${selectedFiles.length} kopyayı',
+                  )} (${FsPaths.humanSize(_selectedBytes)})'),
                 ),
               ),
             ),

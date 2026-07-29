@@ -45,3 +45,34 @@ abstract final class PathSideIndex {
   /// Yalnız testler için: kayıtlı kancaları temizler.
   static void resetForTest() => _hooks.clear();
 }
+
+/// [path], `from` → `to` taşımasından etkileniyorsa **yeni yolunu** döndürür;
+/// etkilenmiyorsa null.
+///
+/// ## Niye ayrı ve saf bir fonksiyon
+/// [PathSideIndex.moved] KLASÖRLER için de çağrılıyor (`FileOps.rename` bir
+/// klasörü yeniden adlandırdığında da haber veriyor), ama yan kayıtlar
+/// yalnızca **tam anahtar** eşleşmesine bakıyordu. Sonuç: `DCIM/Tatil`
+/// klasörünün adını değiştiren kullanıcı, içindeki 40 fotoğrafın "Ayşe"
+/// etiketini bir anda kaybediyordu — üstelik kayıtlar hiç temizlenmiyordu
+/// (`_shouldKeep` eski üst klasörü de göremediği için kaydı "erişilemez" sanıp
+/// sonsuza dek saklıyor) ve süzgeç çipi "Ayşe (40)" yazarken liste boş
+/// dönüyordu (2026-07-29 sadakat denetimi, 2. tur).
+///
+/// Alt yol eşleşmesi **ayırıcı sınırında** yapılır: `Tatil` taşınırken
+/// `Tatil 2025` etkilenmemeli. Her iki ayırıcı da (`/` ve `\`) kabul edilir.
+String? movedPathFor({
+  required String path,
+  required String from,
+  required String to,
+}) {
+  if (path == from) return to;
+  if (!path.startsWith(from)) return null;
+  final rest = path.substring(from.length);
+  if (rest.isEmpty) return to;
+  final first = rest[0];
+  // `from` zaten ayırıcıyla bitiyorsa (ör. "/a/b/") sınır sağlanmış sayılır.
+  final fromEndsWithSeparator = from.endsWith('/') || from.endsWith(r'\');
+  if (!fromEndsWithSeparator && first != '/' && first != r'\') return null;
+  return '$to$rest';
+}

@@ -356,6 +356,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 selected: _selectedEntries,
                 zipDestDir: widget.path,
                 onChanged: () async {
+                  // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
+                  // işini bitirdiğinde bu State artık ölü olabiliyor ve
+                  // `setState` "called after dispose" hatası atıyordu
+                  // (2026-07-29 sadakat denetimi, 2. tur).
+                  if (!mounted) return;
                   setState(_selected.clear);
                   _load();
                 },

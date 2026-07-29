@@ -87,18 +87,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   bool get _selecting => _selected.isNotEmpty;
 
-  /// Seçili girdiler. **Haritayla** bulunur: 20 bin dosyalık listede her
-  /// karede `where(...)` gezmek seçim çubuğunu kastırıyordu.
+  /// Seçili **ve ekranda görünen** girdiler.
+  ///
+  /// `_files` (tüm liste) DEĞİL `_sorted` (süzgeçten geçmiş liste) üzerinden
+  /// çözülür: süzgeç/belge türü çipleri seçim sürerken de canlı ve seçim
+  /// budanmıyordu → "Tümünü seç" sonrası bir çipe dokunmak, ekranda görünmeyen
+  /// dosyaları da silen bir "Sil" düğmesi bırakıyordu (2026-07-29 sadakat
+  /// denetimi, 2. tur). Seçim kümesi korunur, yalnız eylem/sayı görünenle
+  /// sınırlıdır. Ayrıntılı gerekçe: `photos_screen.dart`taki aynı getter.
   List<FsEntry> get _selectedEntries {
-    final key = identityHashCode(_files);
-    if (_byPathKey != key || _byPathCache == null) {
-      _byPathCache = {for (final e in _files) e.path: e};
-      _byPathKey = key;
-    }
-    final map = _byPathCache!;
+    if (_selected.isEmpty) return const [];
     return [
-      for (final path in _selected)
-        if (map[path] != null) map[path]!,
+      for (final e in _sorted)
+        if (_selected.contains(e.path)) e,
     ];
   }
 
@@ -106,8 +107,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
   // dosyada her karede yeniden süzmek uygulamayı kastırıyordu (2026-07-29).
   List<FsEntry>? _sortedCache;
   String? _sortedKey;
-  Map<String, FsEntry>? _byPathCache;
-  int? _byPathKey;
   Map<MediaBucket, int>? _bucketCache;
   Map<String, int>? _extCache;
   Map<ChatMediaKind, int>? _chatKindCache;
@@ -300,6 +299,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
               child: FmSelectionBar(
                 selected: _selectedEntries,
                 onChanged: () async {
+                  // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
+                  // işini bitirdiğinde bu State artık ölü olabiliyor ve
+                  // `setState` "called after dispose" hatası atıyordu
+                  // (2026-07-29 sadakat denetimi, 2. tur).
+                  if (!mounted) return;
                   setState(_selected.clear);
                   await _dropMissing();
                 },
@@ -392,7 +396,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
         ),
-        title: Text('${_selected.length} / ${files.length} seçildi'),
+        // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]).
+        title: Text('${_selectedEntries.length} / ${files.length} seçildi'),
         actions: [
           if (_selected.length == 1) ...[
             IconButton(

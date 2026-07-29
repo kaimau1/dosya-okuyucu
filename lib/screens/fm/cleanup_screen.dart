@@ -55,8 +55,22 @@ class _CleanupScreenState extends State<CleanupScreen> {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
     final job = JobQueue.instance.find(_scanJobId);
+    final hasResult = job?.result is CleanupScanResult;
     // Sonuç varsa yeniden taramıyoruz: kullanıcı geri döndüğünde beklemesin.
-    if (job == null || job.status == JobStatus.failed) _analyze();
+    //
+    // Sonucu OLMAYAN ve artık koşmayan iş (başarısız **ya da iptal edilmiş**)
+    // yeniden taranır: eskiden yalnız `failed` bakılıyordu ve iptalden sonra
+    // ekran "Temizlenecek belirgin bir şey bulunamadı 🎉 / Depolaman düzenli
+    // görünüyor" diye tam ters bir güvence veriyordu — çözümleme hiç bitmemiş
+    // olduğu hâlde (2026-07-29 sadakat denetimi, 2. tur).
+    if (job == null || (!hasResult && !job.status.isActive)) {
+      _analyze();
+    } else if (hasResult) {
+      // Geri dönüşte varsayılan seçim burada kurulur: `_onQueue` yalnız kuyruk
+      // bildiriminde çalışıyor, bitmiş bir iş bir daha bildirim üretmiyor →
+      // "Güvenli öneriler açık gelir" sözü ikinci girişte tutulmuyordu.
+      _seedSelection();
+    }
   }
 
   @override
@@ -173,22 +187,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
       total: chosen.length,
       run: (handle) async {
         var done = 0;
-        // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA.
-        //
-        // KRİTİK (2026-07-29 sadakat denetimi — veri kaybı): öneriler
-        // "güvenliler önce, sonra bayta göre" sıralanıyor ve hem `trash` hem
-        // `duplicates` güvenli sayılıyor. Kopyalar çöpten büyükse sıra
-        // [kopyalar, …, çöp] oluyordu: döngü kopyaları çöpe TAŞIYOR, birkaç
-        // saniye sonra `empty()` çağrılıp çöp KALICI siliniyordu — yani
-        // kullanıcının 800 MB kopyası geri alınamaz şekilde yok oluyordu.
-        // Üstelik onay penceresinde ona "çöp kutusuna taşınır, oradan geri
-        // alabilirsiniz" yazıyordu. Çöp önce boşaltılınca hem istenen yer
-        // kazanılıyor hem bu turda çöpe düşenler kurtarılabilir kalıyor.
-        final ordered = [
-          ...chosen.where((s) => s.id == 'trash'),
-          ...chosen.where((s) => s.id != 'trash'),
-        ];
-        for (final suggestion in ordered) {
+        // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA — gerekçesi ve kök nedeni
+        // (veri kaybı) `cleanupApplyOrder`ın başında yazılı, kilidi
+        // `test/fm_smart_features_test.dart`te.
+        for (final suggestion in cleanupApplyOrder(chosen)) {
           handle.throwIfCancelled();
           handle.report(done: done, detail: suggestion.title);
           if (suggestion.id == 'trash') {

@@ -62,6 +62,16 @@ class _SimilarScreenState extends State<SimilarScreen> {
   final Set<String> _selected = {};
   SimilarityLevel _level = SimilarityLevel.normal;
 
+  /// Kapsam başına **son kullanılan benzerlik kademesi**.
+  ///
+  /// `_level` ekranın kendi durumu ve her girişte "Normal"e dönüyordu; oysa
+  /// kuyruk kimliği kademeyi içermiyor (bilinçli: kademe değiştirmek yeniden
+  /// tarama demek, geri dönmek değil). Sonuç: "Sıkı" ile tarayıp geri dönen
+  /// kullanıcı, çipte "Normal" seçili ve altında Normal'in açıklaması yazarken
+  /// ekranda SIKI sonuçlarını görüyordu — silme kararını kullanılmayan bir
+  /// eşiğe göre veriyordu (2026-07-29 sadakat denetimi, 2. tur).
+  static final Map<String, SimilarityLevel> _levelByScope = {};
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +87,9 @@ class _SimilarScreenState extends State<SimilarScreen> {
         job.status == JobStatus.failed ||
         job.status == JobStatus.cancelled) {
       _start();
+    } else {
+      // Gösterilen sonuç hangi kademeyle üretildiyse çip de onu göstermeli.
+      _level = _levelByScope[widget.scopeId] ?? _level;
     }
   }
 
@@ -101,6 +114,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
 
   void _start() {
     final level = _level;
+    _levelByScope[widget.scopeId] = level;
     final loader = widget.loadAll;
     JobQueue.instance.enqueue(
       id: _jobId,
@@ -312,8 +326,12 @@ class _SimilarScreenState extends State<SimilarScreen> {
                 child: FilledButton.icon(
                   onPressed: _deleteSelected,
                   icon: const Icon(Icons.delete_outline),
-                  label: Text('${_selected.length} dosyayı çöpe taşı '
-                      '(${FsPaths.humanSize(_selectedBytes)})'),
+                  // Etiket ayarı okur: çöp kutusu kapalıyken "çöpe taşı" demek
+                  // kullanıcıya geri alabileceğini söylemek olurdu.
+                  label: Text('${deleteActionText(
+                    useTrash: context.watch<AppState>().fmUseTrash,
+                    what: '${_selected.length} dosyayı',
+                  )} (${FsPaths.humanSize(_selectedBytes)})'),
                 ),
               ),
             ),

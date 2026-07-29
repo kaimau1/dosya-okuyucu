@@ -226,6 +226,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (category == FmCategory.image || category == FmCategory.video) {
       _push(PhotosScreen(
         title: category.label,
+        // Kapsam: TÜM depolama. Önemli Dosyalar ekranı aynı başlıkla ("Görüntüler")
+        // çok daha küçük bir küme açıyor — benzer tarama sonuçları karışmasın.
+        scopeId: 'depolama-${category.name}',
         files: _index.files(category),
         loadAll: loadAll,
       ));

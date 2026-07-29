@@ -4055,3 +4055,170 @@ Yeni kod yazarken bu dört ayrım özellikle sorulmalı.
 Yeni/güncellenen test dosyaları: `fm_file_tags_test.dart` (yeni, 13),
 `fm_media_resize_test.dart` (+9: `keepExtension`, ayar imzası, kapsam kimliği),
 `fm_open_history_test.dart` (11), `fm_path_side_index_test.dart` (7).
+
+## 2026-07-29 (IX) — SADAKAT DENETİMİ, 3. TUR: iki bağımsız hata avı (23 bulgu)
+
+§VIII'deki 12 bulgu kapandıktan sonra **ikinci bir tur** koşuldu: bu kez iki
+bağımsız denetim, "birinci turun KAÇIRDIĞINI bul" göreviyle — biri boyut düşürme
+hattı (model/servis/ekran/pencere), biri dosya yöneticisi ekranları + yol
+anahtarlı yan kayıtlar. Toplam 23 bulgu; ikisi de eklentilerin **kendi native
+kaynağını** okuyarak (video_compress'in Android Kotlin'i, image 4.3.0) doğruladı,
+tahmin etmedi. Bu tur en ciddi veri kayıplarını buldu.
+
+### CRITICAL — "çıktı küçüldü" tek başına başarı ölçütü DEĞİLDİ
+`ResizeResult` çıktı yoksa `afterBytes`ı bilerek 0 yazıyor; kabul koşulu ise
+yalnız `afterBytes >= beforeBytes` idi → **0 >= 200 MB yanlış** olduğu için BOŞ
+ya da BOZUK çıktı "en büyük başarı" sayılıyordu: özet "199 MB kazanıldı" yazıyor,
+"Özgün dosyayı çöp kutusuna at" açıkken 10 dakikalık asıl videoyu çöpe atıyordu.
+Gerçek senaryo: kaydı yarıda kesilmiş video (bozuk `moov` — telefonlarda çok
+yaygın); ffmpeg ilk 3 saniyeyi çözüp **0 dönüş koduyla** çıkıyor.
+**Düzeltmeler:** (a) `afterBytes <= 0` artık başarısızlık; (b) yeni
+`VideoTranscoder._verifyOutput` — çıktı ffprobe ile okunur ve **süresi** kaynağın
+%90'ından kısaysa iş başarısız sayılır, yarım çıktı silinir, özgüne DOKUNULMAZ;
+(c) doğrulama `catch (_)` DIŞINDA: "yarım çıktı" kararı yedek motoru denemek için
+sebep değil (kaynak bozuksa o da yarım üretir, kullanıcı dakikalarca bekler).
+Ders: **"küçüldü" ile "geçerli" aynı şey değil.** Yer kazancı ölçmek, dosyanın
+açılabildiğini ölçmek değildir.
+
+### CRITICAL — yedek motor, "çözünürlüğü değiştirme" derken çözünürlüğü düşürüyordu
+`video_compress` kademeleri eklentinin Android tarafında `DefaultVideoStrategy
+.atMost(n)`e eşleniyor (`LowQuality` → 360, `MediumQuality` → 640; kısa kenarı
+zorla düşürür). Bizim `_presetQuality` "Çözünürlük: Değiştirme" seçiminde
+sıkıştırma sertliğini bu kademelere eşliyordu → kullanıcı *değiştirme* derken
+1080p aslı çöpe gidip elinde 640 piksellik dosya kalıyordu. Üstelik bu yol yalnız
+ffprobe başarısız olunca çalıştığı ve arayüzdeki "yedek motora düşülebilir"
+uyarısı `changesResolution`e bağlı olduğu için **uyarı da görünmüyordu**: söz
+verilmemiş, sorulmamış, geri alınamaz kayıp.
+**Düzeltme:** `!changesResolution` → `HighestQuality` (eklentide ölçü kısıtı
+KOYMAYAN tek kademe). Bedeli dürüstçe kabul edildi ve arayüze yazıldı: yedek
+motorda sıkıştırma sertliği ve kare sayısı seçimi uygulanamaz.
+
+### CRITICAL — "Temizle" çöp kutusu sözü verip KALICI siliyordu
+`deleteEntries(confirm: false)` TÜM onay bloğunu atlıyordu — `!useTrash` dalı
+dahil. Fotoğraflar ekranındaki "Temizle" kendi penceresinde *"çöp kutusuna
+taşınacak"* yazıp bu yolu kullanıyor; Ayarlar > "Çöp kutusunu kullan" kapalıysa
+31 fotoğraf kalıcı siliniyor, çöp kutusu boş kalıyordu.
+**Düzeltme:** onay kararı saf bir fonksiyona çıkarıldı ve kilitlendi
+(`needsDeleteConfirm`, `test/fm_delete_guard_test.dart`): **kalıcı silme onayı
+hiçbir koşulda atlanamaz.** Ayrıca "Temizle" penceresinin metni ayarı okuyor ve
+düğme etiketleri `deleteActionText` ile dürüstleşti (çöp kutusu kapalıyken
+"çöpe taşı" yazmıyor).
+
+### CRITICAL — benzer tarama kapsamı EKRAN BAŞLIĞIYLA anahtarlanıyordu
+§VIII'de eklenen `jobIdFor(scope)` doğru fikirdi ama ona verilen anahtar
+`category.label` ("Görüntüler") idi — bu ad **tek değil**: pano tüm depolamayı,
+Önemli Dosyalar ekranı ise o klasördeki bir düzine dosyayı aynı başlıkla açıyor.
+İkinci ekran "sonuç zaten var" deyip BİRİNCİNİN gruplarını gösteriyor,
+"Fazlaları seç" + kırmızı şerit hiç taranmamış, hiç görülmemiş 40 fotoğrafı çöpe
+atıyordu. **Düzeltme:** `PhotosScreen.scopeId` (pano `depolama-<kategori>`,
+Önemli Dosyalar `onemli-<kategori>`). Ders: **kimlik, ekranın adı değil, işin
+kapsamı olmalı.**
+
+### HIGH — klasörü yeniden adlandırmak İÇİNDEKİ tüm etiketleri öldürüyordu
+`PathSideIndex.moved` klasörler için de çağrılıyor ama `movePath` yalnız TAM
+anahtara bakıyordu. `DCIM/Tatil` → `Tatil 2025`: 40 fotoğrafın "Ayşe" etiketi
+ölü yollarda kalıyor, süzgeç çipi "Ayşe (40)" yazarken liste BOŞ dönüyor ve
+kayıtlar hiç temizlenmiyor (`_shouldKeep` eski üst klasörü de göremediği için
+"erişilemez" sanıp sonsuza dek saklıyor). **Düzeltme:** yeni saf fonksiyon
+`movedPathFor` — alt yollar da yeniden yazılır, eşleşme **ayırıcı sınırında**
+yapılır (`Tatil` taşınırken `Tatil 2025` etkilenmez), `/` ve `\` ikisi de sınır.
+`FileTags.movePath` ve `OpenHistory.movePath` bunu kullanıyor; kilit:
+`fm_path_side_index_test.dart` (klasör adlandırma + 6 saf yol testi).
+
+### HIGH — animasyon/çok sayfa tek kareye iniyor, asıl çöpe gidiyordu
+`image` paketinin `decodeImage`i animasyondan yalnız ilk kareyi çözüyor,
+`encodeJpg` de tek kare yazıyor. 4 MB'lık hareketli bir GIF 200 KB'a "küçülüyor"
+(çok küçük → kabul), asıl GIF çöpe gidiyor ve kullanıcının elinde tek duruk kare
+kalıyordu. 12 sayfalık TIFF'te 11 sayfa, PSD'de katmanlar aynı şekilde.
+**Düzeltme:** `ImageResizer.mayLoseFrames` (gif/apng/webp/tif/tiff/psd/xcf) —
+dönüştürme yapılır (duruk bir `.webp` küçültmek isteyenin yolu kapanmasın) ama
+**"özgünü çöpe at" bu dosyalarda uygulanmaz** ve özette yazar:
+"N hareketli/çok sayfalı dosyanın aslı korundu".
+
+### HIGH — kullanıcının kendi bastığı "Durdur" ona "biçim desteklenmiyor" diyordu
+`video_compress` iptalde de hatada da `null` döndürüyor (Android'de
+`onTranscodeCanceled` ve `onTranscodeFailed` ikisi de `result.success(null)`) →
+`info.isCancel` ölü kod. İptal `VideoTranscodeException`a düşüyor,
+`resize_actions` onu `failed++` sayıyordu. **Düzeltme:** `info == null` +
+iptal isteği → `JobCancelled`.
+
+### HIGH — iptal özeti hiçbir yüzeye ULAŞMIYORDU
+`resize_actions` iptalde dürüst bir özet yazıyor ("12,4 MB kazanıldı · 4 özgün
+çöp kutusunda · durduruldu (4/10)") ama ilerleme şeridi `İptal edildi.` sabitini
+basıyor, bildirim ise iptalde tümden **siliniyordu**. Yani 4 videosunun çöpe
+gittiğini öğrenmenin hiçbir yolu yoktu. **Düzeltme:** şerit `İptal edildi · …`
+yazıyor; ayrıntısı olan iptal bildirimi silinmiyor. Özete "N özgün çöp kutusunda"
+satırı eklendi.
+
+### HIGH — "Yer aç" iptalden sonra "Depolaman düzenli görünüyor 🎉" diyordu
+`cleanup_screen.initState` yalnız `failed` bakıyordu (§VIII'de diğer iki ekranda
+düzeltilen hatanın aynısı, burası atlanmış). İptal edilen çözümlemenin sonucu
+yok → ekran tam ters bir güvence veriyordu. Ayrıca geri dönüşte varsayılan seçim
+kurulmuyordu ("Güvenli öneriler açık gelir" sözü ikinci girişte tutulmuyor,
+düğme "Bir öneri seçin" diye kapalı kalıyordu). İkisi de düzeltildi.
+
+### HIGH — serbest ölçü kaynaktan BÜYÜTÜYORDU (arayüz tersini yazarken)
+"Kaynaktan büyütme yapılmaz" kuralı yalnız kademelerde uygulanıyordu; arayüz bu
+cümleyi tam serbest ölçü alanlarının ALTINDA yazıyor. 1000 px fotoğrafa 2000
+yazmak dosyayı büyütüyor, çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi"
+diye bitiyordu — kullanıcı nedenini hiç öğrenmiyordu. **Düzeltme:** serbest
+ölçüde de kaynağa çekilir (4 test). Ayrıca yardım metni ikinci gerçeği de
+söylüyor: iki alanı da doldurmak oranı bozar.
+
+### MEDIUM (hepsi kapatıldı)
+- **Yinelenenler ekranı GÖRÜNMEYEN grupları siliyordu:** varsayılan seçim tüm
+  gruplara kurulu, arama yalnız çizimi daraltıyordu → "1 / 47 grup" yazarken
+  şerit 94 dosyayı çöpe atıyordu. Artık eylem ve sayılar `_visibleGroups`ten.
+- **Seçim, çip süzgeciyle budanmıyordu:** "Tümünü seç" (8214) sonra "WhatsApp
+  (12)" çipi → başlık "8214 / 12 seçildi", "Sil" 8214 dosyayı götürüyordu.
+  `_selectedEntries` artık GÖRÜNEN listeden çözülür (seçim kümesi korunur, çipi
+  kapatınca geri gelir); sayaçlar eylemle aynı kümeyi sayar.
+- **`setState` after `dispose`:** `showFmProgress`ın "Arka plana al" düğmesi
+  pencereyi kapatıp işi sürdürüyor; kullanıcı geri gidince dört yerde ölü
+  State'e `setState` gidiyordu (photos/category/browser seçim çubuğu,
+  duplicates silme sonrası). `mounted` koruması eklendi.
+- **Kare sayısı büyütülüyordu:** 30 fps videoya "60" seçmek ffmpeg'e kareleri
+  kopyalattırıyor, dosya şişiyor, iş "küçültülemedi" diye bitiyordu →
+  `VideoTranscoder.cappedFps` (çözünürlükteki "büyütme yok" kuralının kare
+  sayısındaki karşılığı, 4 test).
+- **Yeniden kodlama uyarısı yanlış bayrağa bağlıydı:** video yolu çözünürlük
+  değişmese de HER durumda yeniden kodluyor; uyarı `changesResolution`e bağlıydı
+  → "Değiştirme" seçen kullanıcı dakikalar sürecek kodlamayı uyarısız
+  başlatıyordu. Uyarı artık seçimde video varsa her zaman görünüyor.
+- **Yedek motorda iptal yalnız ilerleme geri çağrısında yoklanıyordu** (FFmpeg
+  yolundaki 400 ms'lik yoklama buraya da eklendi).
+- **Yedek motorun geçici çıktısı sızıyordu:** eklenti iptal/hata yolunda dosyanın
+  yolunu söylemiyor → art arda iptallerde uygulama deposunda gigabaytlar
+  kalıyordu. İptal/hata yolunda `deleteAllCache()` çağrılıyor.
+- **Yarım kalan görüntü yazımı** albümde 0 baytlık dosya bırakıyordu → hata
+  anında silinir.
+- **Bit hızı 30 fps varsayıyordu:** "15 fps" seçene gereğinin iki katı bit hızı
+  ayrılıyor, yani kare sayısını yarıya indirmek dosyayı beklendiği kadar
+  küçültmüyordu → `_bitrateFor` artık fps alıyor.
+- **Fotoğraflar "Temizle" etiket süzgeci açıkken hiçbir şey yapmıyordu**
+  (`tagsOf` verilmemiş): ekran "6 kopya gizlendi" derken düğme "kopya çıkmadı"
+  diyordu. `analysis_screen`de de aynı çözücü savunma amaçlı eklendi.
+
+### LOW (kapatıldı)
+- Benzerlik kademesi geri dönüşte "Normal"e dönüyor ama ekranda SIKI sonuçları
+  duruyordu → kademe kapsam başına hatırlanıyor.
+- "İşlem arka planda başladı" metni durumu okumuyordu (aynı iş sürüyorsa yenisi
+  hiç açılmıyor; kuyrukta bekleyen iş "başlamış" değil) → üç ayrı metin.
+- `sourceSize` aynı dosyada ikinci bir ffprobe koşturuyordu → `_sizeViaPlugin`.
+- `archive_screen._preview` `await`ten sonra `context` kullanıyordu (analyzer
+  uyarısı; tek `mounted` koruması).
+
+### Bu turun dersi
+1. tur "kod ne yapıyor?" diye sordu; 2. tur **"eklenti gerçekte ne yapıyor?"**
+diye sordu ve en ciddi iki kaybı orada buldu (`atMost(360)`, `success(null)`).
+Bir paketin Dart API'si sözleşme değil; davranış native tarafta. Bir daha
+eklentiye dayanan bir söz verirken (birebir çözünürlük, iptal, kare sayısı) o
+sözün native karşılığı OKUNARAK doğrulanmalı.
+
+### Doğrulama (3. tur)
+`flutter analyze`: 0 hata, 0 yeni uyarı (kalan 39 info/warning eski koddan;
+`withOpacity` deprecation'ları). `flutter test`: **853 test geçti** (2. tur
+sonunda 829). Yeni: `fm_delete_guard_test.dart` (7),
+`fm_media_resize_test.dart` (+13: serbest ölçü büyütmez, `cappedFps`,
+`mayLoseFrames`), `fm_path_side_index_test.dart` (+7: `movedPathFor` + klasör
+adlandırma), `fm_smart_features_test.dart` (+5: `cleanupApplyOrder`).

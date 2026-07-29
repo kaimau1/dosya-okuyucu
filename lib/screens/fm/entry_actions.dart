@@ -146,7 +146,12 @@ Future<bool> showEntryActions(
               _tile(ctx, Icons.my_location, 'Konumunu aç', _EntryAction.reveal),
             _tile(ctx, Icons.info_outline, 'Özellikler',
                 _EntryAction.properties),
-            _tile(ctx, Icons.delete_outline, 'Sil (çöp kutusuna)',
+            _tile(
+                ctx,
+                Icons.delete_outline,
+                // Etiket ayarı okur: çöp kutusu kapalıyken "çöp kutusuna"
+                // yazmak tutulmayan bir sözdür (bkz. [deleteActionText]).
+                'Sil (${context.read<AppState>().fmUseTrash ? 'çöp kutusuna' : 'KALICI'})',
                 _EntryAction.delete,
                 danger: true),
             const SizedBox(height: Gap.sm),
@@ -309,6 +314,39 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
 /// veri geri gelmeyeceği için onay her zaman sorulur).
 /// [confirm] false ise onay penceresi atlanır — çağıran ZATEN toplu bir onay
 /// almışsa (yer açma asistanı) ikinci kez sormak akışı boğar.
+///
+/// **[confirm] `false` yalnız ÇÖP KUTUSU yolunu atlar.** Kalıcı silme onayı
+/// hiçbir koşulda atlanamaz: 2026-07-29 sadakat denetiminin 2. turunda tam
+/// buradan bir veri kaybı yolu çıktı — Fotoğraflar ekranındaki "Temizle"
+/// kendi penceresinde *"çöp kutusuna taşınacak"* yazıp `confirm: false` ile
+/// buraya geliyordu; Ayarlar > "Çöp kutusunu kullan" kapalıysa `!useTrash`
+/// dalı `confirm` yüzünden hiç sorulmuyor ve dosyalar **kalıcı** siliniyordu.
+/// Yani kullanıcının okuduğu söz ile yapılan iş birbirinin tersiydi.
+/// Silme düğmelerinin **dürüst** metni: "12 dosyayı çöpe taşı" / "…kalıcı sil".
+///
+/// Saf fonksiyon (BuildContext almaz) → birim testli. Ayarlar > "Çöp kutusunu
+/// kullan" kapalıyken "çöpe taşı" yazan bir düğme, kullanıcıya geri
+/// alabileceğini söyleyip dosyayı kalıcı silmek demekti.
+String deleteActionText({required bool useTrash, required String what}) =>
+    useTrash ? '$what çöpe taşı' : '$what kalıcı sil';
+
+/// Silmeden önce onay penceresi gösterilmeli mi?
+///
+/// Saf fonksiyon → birim testli, çünkü burada **veri kaybı** yatıyor:
+/// - [useTrash] `false` (Ayarlar > "Çöp kutusunu kullan" kapalı) ise onay
+///   **HER ZAMAN** sorulur. Kalıcı silme geri alınamaz; "çağıran zaten sordu"
+///   gerekçesi burada geçerli değil, çünkü çağıran genellikle *"çöp kutusuna
+///   taşınacak"* diye söz vermiş oluyor (bkz. [deleteEntries] notu).
+/// - Çöp kutusu açıkken: kullanıcı "silmeden önce sor"u kapatmışsa
+///   ([confirmSetting] `false`) ya da çağıran kendi onayını almışsa
+///   ([askAllowed] `false`) sorulmaz — dosya çöpten geri alınabilir.
+bool needsDeleteConfirm({
+  required bool useTrash,
+  required bool confirmSetting,
+  required bool askAllowed,
+}) =>
+    !useTrash || (askAllowed && confirmSetting);
+
 Future<bool> deleteEntries(
   BuildContext context,
   List<FsEntry> entries, {
@@ -321,7 +359,11 @@ Future<bool> deleteEntries(
       ? '“${entries.first.name}”'
       : '${entries.length} öğe';
 
-  if (confirm && (appState.fmConfirmDelete || !useTrash)) {
+  if (needsDeleteConfirm(
+    useTrash: useTrash,
+    confirmSetting: appState.fmConfirmDelete,
+    askAllowed: confirm,
+  )) {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

@@ -77,7 +77,13 @@ class _ResizeSheetState extends State<_ResizeSheet> {
 
   /// Video yeniden kodlanacak mı? Kullanıcı bunu bilmeli: kodlama uzun sürer
   /// (uzun bir videoda dakikalar) ve kaynaktan bir tur kalite kaybı olur.
-  bool get _videoNotice => widget.hasVideos && _options.changesResolution;
+  ///
+  /// Seçimde video varsa **her zaman** doğru: video yolu (`VideoTranscoder.run`)
+  /// çözünürlük değişmese de yeniden kodluyor — yalnız kalite/kare sayısı/ses
+  /// değişse bile. Eskiden uyarı `changesResolution`e bağlıydı, yani
+  /// "Çözünürlük: Değiştirme" seçen kullanıcı dakikalar sürecek bir kodlamayı
+  /// hiç uyarılmadan başlatıyordu (2026-07-29 sadakat denetimi, 2. tur).
+  bool get _videoNotice => widget.hasVideos;
 
   void _readCustom() {
     final w = int.tryParse(_widthController.text.trim());
@@ -193,7 +199,10 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     const SizedBox(height: Gap.xs),
                     Text(
                       'Yalnız birini yazarsan diğeri en/boy oranından '
-                      'hesaplanır. Kaynaktan büyütme yapılmaz.',
+                      'hesaplanır ve resim bozulmaz. İKİSİNİ de yazarsan '
+                      'verdiğin ölçü aynen uygulanır — oran tutmuyorsa görüntü '
+                      'gerilir. Kaynaktan büyütme yapılmaz: kaynaktan büyük bir '
+                      'değer yazarsan kaynağın ölçüsünde kalır.',
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
@@ -278,13 +287,16 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                           const SizedBox(width: Gap.xs),
                           Expanded(
                             child: Text(
-                              'Video istediğin ölçüye birebir dönüştürülür '
-                              '(FFmpeg). Uzun bir videoda bu dakikalar '
-                              'sürebilir; işlem arka planda koşar, ilerlemeyi '
-                              'alttaki şeritten izleyebilirsin. Cihaz bu '
-                              'videoyu FFmpeg ile çeviremezse en yakın '
-                              'kademeye inilir ve işlem satırında “yedek '
-                              'motor” yazar.',
+                              'Video her durumda yeniden kodlanır (kalite ya da '
+                              'ses değişse de): istediğin ölçüye birebir '
+                              'dönüştürülür (FFmpeg). Uzun bir videoda bu '
+                              'dakikalar sürebilir; işlem arka planda koşar, '
+                              'ilerlemeyi alttaki şeritten izleyebilirsin. '
+                              'Cihaz bu videoyu FFmpeg ile çeviremezse yedek '
+                              'motora düşülür ve işlem satırında “yedek motor” '
+                              'yazar; orada kare sayısı seçimi uygulanamaz ve '
+                              '“Değiştirme” dışındaki çözünürlükler en yakın '
+                              'kademeye yuvarlanır.',
                               style: theme.textTheme.bodySmall,
                             ),
                           ),
