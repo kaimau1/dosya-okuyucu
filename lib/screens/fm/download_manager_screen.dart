@@ -476,14 +476,31 @@ class _HowToCard extends StatelessWidget {
                   'sonra bu ekranı açın: bağlantı üstte çıkar, “İndir”e '
                   'dokunun.',
             ),
+            // Menü adı markaya göre değişiyor; tek bir yol yazmak
+            // "bulamıyorum"a çıkıyor (kullanıcı geri bildirimi 2026-07-29).
+            // Bu yüzden aşağıdaki düğme doğrudan uygulama bilgisi ekranını
+            // açıyor ve metin oradan sonrasını marka marka anlatıyor.
             const _Step(
               icon: Icons.settings_outlined,
               title: '3) Bağlantıya dokununca çıkmamız için',
               body: 'Android 12’den beri bir uygulama, sahibi olmadığı bir '
-                  'sitenin bağlantılarını izinsiz açamıyor. İsterseniz '
-                  'Ayarlar → Dosya Okuyucu → “Varsayılan olarak aç” → '
-                  '“Desteklenen bağlantıları aç” seçeneğini açın; ondan '
-                  'sonra dosya bağlantılarında listede görünürüz.',
+                  'sitenin bağlantılarını izinsiz açamıyor. Elle izin '
+                  'verebilirsiniz: aşağıdaki düğmeyle uygulama bilgisi '
+                  'ekranını açın, sonra:\n'
+                  '• Saf Android / Pixel: “Varsayılan olarak aç” → '
+                  '“Desteklenen bağlantıları aç”\n'
+                  '• Samsung: “Varsayılan olarak ayarla” → '
+                  '“Desteklenen web adresleri”\n'
+                  '• Xiaomi / Redmi: “Varsayılan olarak aç” → '
+                  '“Desteklenen bağlantılar”\n'
+                  'Açılan listede github.com gibi adresleri işaretleyin.',
+            ),
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Bu menü yalnız Android 12 ve üstünde var. Bulamıyorsanız '
+              '1. yolu kullanın — hiçbir ayar gerektirmiyor ve her cihazda '
+              'çalışıyor.',
+              style: text.bodySmall,
             ),
             const SizedBox(height: Gap.sm),
             Align(
@@ -491,7 +508,7 @@ class _HowToCard extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: StoragePermission.openSettings,
                 icon: const Icon(Icons.open_in_new),
-                label: const Text('Uygulama ayarlarını aç'),
+                label: const Text('Uygulama bilgisini aç'),
               ),
             ),
           ],
