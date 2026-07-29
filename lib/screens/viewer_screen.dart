@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_state.dart';
 import '../core/text_search.dart';
 import '../models/document.dart';
+import '../models/fs_entry.dart';
 import '../services/conversion_service.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
@@ -25,6 +26,7 @@ import '../services/tts_service.dart';
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/doc_action_bar.dart';
 import '../widgets/office_shell.dart';
+import 'fm/entry_actions.dart';
 import '../widgets/pdf_inline_editor.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/pdf_select_layer.dart';
@@ -657,6 +659,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Tüm belgeyi cihaz-içi çevirir. Metin katmanı olmayan taranmış PDF'te
   /// önce OCR gerekir (kullanıcı menüden "Metni tanı" ile çalıştırır).
+  /// Belge açıkken dosya işlemleri (taşı / kopyala / paylaş / yeniden
+  /// adlandır / sil) — dosya yöneticisiyle AYNI sayfa kullanılır, iki yerde
+  /// ayrı menü tutmak tutarsızlığa yol açardı.
+  Future<void> _fileActions() async {
+    await showEntryActions(
+      context,
+      FsEntry.fromEntity(File(widget.doc.path)),
+    );
+  }
+
   Future<void> _translateDocument() async {
     final text = _documentText.trim();
     if (text.isEmpty) {
@@ -859,6 +871,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'translate':
                 _translateDocument();
                 break;
+              case 'fileops':
+                _fileActions();
+                break;
             }
           },
           itemBuilder: (_) => [
@@ -891,6 +906,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
             if (_hasText)
               const PopupMenuItem(
                   value: 'stats', child: Text('Sözcük sayısı / bilgi')),
+            // Belgeyi okurken "bunu Önemli Dosyalar'a taşıyayım" demek için
+            // görüntüleyiciyi kapatıp dosyayı listede aramak gerekmesin
+            // (kullanıcı isteği 2026-07-29: "her türlü dosyada bu olmalı").
+            const PopupMenuItem(
+                value: 'fileops',
+                child: Text('Dosya işlemleri (taşı, kopyala…)')),
           ],
         ),
       ],

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -18,6 +19,7 @@ import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'archive_screen.dart';
+import 'folder_picker_screen.dart';
 import 'important_screen.dart';
 
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
@@ -26,6 +28,8 @@ enum _EntryAction {
   open,
   openWith,
   share,
+  moveTo,
+  copyTo,
   copy,
   cut,
   rename,
@@ -76,8 +80,16 @@ Future<bool> showEntryActions(
                   _EntryAction.openWith),
             if (!entry.isDir)
               _tile(ctx, Icons.share_outlined, 'Paylaş', _EntryAction.share),
-            _tile(ctx, Icons.copy_outlined, 'Kopyala', _EntryAction.copy),
-            _tile(ctx, Icons.content_cut, 'Kes', _EntryAction.cut),
+            // Tek adımlı akış EN ÜSTTE (kullanıcı isteği 2026-07-29:
+            // "taşıma/kopyalama şu an çok zor"): hedefi burada seç, iş bitsin.
+            // Pano (kopyala/kes + git + yapıştır) altta, ileri kullanım için.
+            _tile(ctx, Icons.drive_file_move_outline, 'Taşı…  (klasör seç)',
+                _EntryAction.moveTo),
+            _tile(ctx, Icons.folder_copy_outlined, 'Kopyala…  (klasör seç)',
+                _EntryAction.copyTo),
+            _tile(ctx, Icons.copy_outlined, 'Panoya kopyala',
+                _EntryAction.copy),
+            _tile(ctx, Icons.content_cut, 'Panoya kes', _EntryAction.cut),
             _tile(ctx, Icons.drive_file_rename_outline, 'Yeniden adlandır',
                 _EntryAction.rename),
             if (isArchive)
@@ -134,14 +146,22 @@ Future<bool> showEntryActions(
       await shareEntries([entry.path]);
       return false;
 
+    case _EntryAction.moveTo:
+      return moveOrCopyEntries(context, [entry.path], move: true);
+
+    case _EntryAction.copyTo:
+      return moveOrCopyEntries(context, [entry.path], move: false);
+
     case _EntryAction.copy:
       appState.setClipboard([entry.path], cut: false);
-      _snack(context, '“${entry.name}” kopyalandı. Hedef klasörde yapıştırın.');
+      _snack(context, '“${entry.name}” panoya kopyalandı. Hedef klasörde '
+          'yapıştırın.');
       return false;
 
     case _EntryAction.cut:
       appState.setClipboard([entry.path], cut: true);
-      _snack(context, '“${entry.name}” kesildi. Hedef klasörde yapıştırın.');
+      _snack(context, '“${entry.name}” panoya kesildi. Hedef klasörde '
+          'yapıştırın.');
       return false;
 
     case _EntryAction.rename:
@@ -338,6 +358,66 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
 Future<void> shareEntries(List<String> paths) async {
   if (paths.isEmpty) return;
   await Share.shareXFiles(paths.map((p) => XFile(p)).toList());
+}
+
+/// **Taşı/Kopyala akışı:** hedef klasör seçtirir, işi ilerleme penceresiyle
+/// yapar, sonucu bildirir. Taşımada **Geri al** sunulur.
+///
+/// Kullanıcı isteği (2026-07-29): "taşıma kopyalama şu an çok zor · basılı
+/// tuttuğumda çıkan menüde rahatlıkla yapabilmeliyim". Eski yol pano üzerinden
+/// üç adımdı (kopyala → sekme değiştir → klasörü bul → yapıştır).
+///
+/// Dosya sistemi değiştiyse `true` döner (çağıran listesini tazeler).
+Future<bool> moveOrCopyEntries(
+  BuildContext context,
+  List<String> paths, {
+  required bool move,
+}) async {
+  if (paths.isEmpty) return false;
+  final appState = context.read<AppState>();
+  final messenger = ScaffoldMessenger.of(context);
+  final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
+    builder: (_) => FolderPickerScreen(
+      sources: paths,
+      actionLabel: move ? 'Buraya taşı' : 'Buraya kopyala',
+    ),
+  ));
+  if (dest == null || !context.mounted) return false;
+
+  final result = await showFmProgress<FmOpResult>(
+    context,
+    title: move ? 'Taşınıyor' : 'Kopyalanıyor',
+    task: (report, isCancelled) => move
+        ? FileOps.moveAll(paths, dest, onProgress: report,
+            isCancelled: isCancelled)
+        : FileOps.copyAll(paths, dest, onProgress: report,
+            isCancelled: isCancelled),
+  );
+  await appState.rememberDestination(dest);
+
+  final where = p.basename(dest);
+  final count = result.succeeded;
+  messenger.showSnackBar(SnackBar(
+    content: Text(result.hasError
+        ? 'Bazı öğeler aktarılamadı: ${result.errors.first}'
+        : '$count öğe “$where” klasörüne ${move ? "taşındı" : "kopyalandı"}.'),
+    // Geri al YALNIZ taşımada: kopyalamayı geri almak "sil" demektir, yanlış
+    // dokunuşta veri kaybı riski taşır.
+    action: (move && result.transfers.isNotEmpty)
+        ? SnackBarAction(
+            label: 'Geri al',
+            onPressed: () async {
+              final back = await FileOps.undoMove(result.transfers);
+              messenger.showSnackBar(SnackBar(
+                content: Text(back.hasError
+                    ? 'Geri alınamadı: ${back.errors.first}'
+                    : 'Geri alındı.'),
+              ));
+            },
+          )
+        : null,
+  ));
+  return true;
 }
 
 /// Seçilenleri **Önemli Dosyalar** klasörüne kopyalar (klasör yoksa kurulur).

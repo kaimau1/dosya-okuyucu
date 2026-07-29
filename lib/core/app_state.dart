@@ -19,6 +19,7 @@ class AppState extends ChangeNotifier {
   static const _kMemory = 'ai_memory';
   // Dosya yöneticisi tercihleri
   static const _kBookmarks = 'fm_bookmarks';
+  static const _kRecentDests = 'fm_recent_destinations';
   static const _kFmLayout = 'fm_layout';
   static const _kFmPhotoLayout = 'fm_photo_layout';
   static const _kFmPhotoGroup = 'fm_photo_group';
@@ -54,6 +55,7 @@ class AppState extends ChangeNotifier {
 
   // ── Dosya yöneticisi durumu ───────────────────────────────────────────────
   List<String> _bookmarks = [];
+  List<String> _recentDests = [];
   FmLayout _fmLayout = FmLayout.list;
   FmLayout _fmPhotoLayout = FmLayout.grid3;
   PhotoGroup _fmPhotoGroup = PhotoGroup.day;
@@ -70,6 +72,13 @@ class AppState extends ChangeNotifier {
 
   /// Kullanıcının yıldızladığı klasörler (kalıcı).
   List<String> get bookmarks => List.unmodifiable(_bookmarks);
+
+  /// **Son taşıma/kopyalama hedefleri** (en yeni başta, en çok 8).
+  ///
+  /// Kullanıcı isteği (2026-07-29): "taşıma kopyalama şu an çok zor".
+  /// İnsanlar dosyaları hep aynı birkaç klasöre koyar; hedef seçicide bunlar
+  /// tek dokunuşla gelsin diye hatırlanır.
+  List<String> get fmRecentDestinations => List.unmodifiable(_recentDests);
 
   /// Klasör/kategori listelerinin yerleşimi (liste, büyük liste, 2–5 sütun).
   FmLayout get fmLayout => _fmLayout;
@@ -131,6 +140,18 @@ class AppState extends ChangeNotifier {
   bool get hasClipboard => _clipboard.isNotEmpty;
 
   bool isBookmarked(String path) => _bookmarks.contains(path);
+
+  /// Hedef klasörü "son kullanılanlar"ın başına taşır (yinelenmez, en çok 8).
+  Future<void> rememberDestination(String path) async {
+    _recentDests
+      ..remove(path)
+      ..insert(0, path);
+    if (_recentDests.length > 8) {
+      _recentDests = _recentDests.sublist(0, 8);
+    }
+    await _prefs.setStringList(_kRecentDests, _recentDests);
+    notifyListeners();
+  }
 
   Future<void> toggleBookmark(String path) async {
     if (!_bookmarks.remove(path)) _bookmarks.insert(0, path);
@@ -204,6 +225,7 @@ class AppState extends ChangeNotifier {
         .toList();
     _memory = _prefs.getStringList(_kMemory) ?? [];
     _bookmarks = _prefs.getStringList(_kBookmarks) ?? [];
+    _recentDests = _prefs.getStringList(_kRecentDests) ?? [];
     _fmLayout = FmLayoutInfo.byName(_prefs.getString(_kFmLayout),
         // Eski sürümün iki durumlu tercihi korunur: ızgara açıksa 3 sütun.
         fallback: (_prefs.getBool('fm_grid') ?? false)

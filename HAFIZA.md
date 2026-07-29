@@ -3197,3 +3197,60 @@ android-arm,android-arm64`.
 + Play Services bağımlılığı), R8/minify + kaynak kırpma (HAFIZA'da zaten ML Kit
 R8 "missing class" tuzağı var; reflection kullanan eklentiler SESSİZCE kırılır,
 testler yakalamaz), kullanılmayan bağımlılık ayıklama (sürüm cehennemi).
+
+## 2026-07-29 (3. tur) — Taşı/Kopyala tek adıma indi, seçim eylem çubuğu
+
+### A. KÖK NEDEN — "taşıma kopyalama şu an çok zor"
+Tek yol PANOYDU: kopyala → Dosyalar sekmesine geç → hedef klasörü ağaçta bul →
+yapıştır. Dört adım, üstelik "pano" kavramını ve sekme değiştirmeyi hatırlamak
+gerekiyor. Fotoğraf/video ızgarasında ise durum daha kötüydü: seçim çubuğunda
+yalnız Paylaş/Kopyala(pano)/Sil vardı, **taşıma hiç yoktu**.
+**Çözüm — tek adım:** uzun bas → **Taşı/Kopyala** → hedefe dokun → bitti.
+- `FolderPickerScreen`: üstte kısayol çipleri (Önemli Dosyalar · İndirilenler ·
+  Belgeler · Kamera … + favoriler + **son kullanılan hedefler**), altında
+  gezinme (yalnız klasörler listelenir), "yeni klasör" ve "Buraya taşı/kopyala".
+  Kısayola dokunmak **doğrudan** hedefi seçer (gir+onayla iki dokunuş değil).
+  Önemli Dosyalar kısayolu klasör yoksa onu **oluşturur** — akış kesilmesin.
+- Kaynağın kendisi/altı hedef olarak seçilemez (klasörü kendi içine taşıma).
+- Birim kökünün üstüne çıkılamaz: `/storage`, `/` yazılamaz, oraya çıkmak
+  yalnız "izin yok" ekranı gösterirdi.
+
+### B. Seçim eylem çubuğu (alt) — `widgets/fm/fm_selection_bar.dart`
+Uzun basış zaten seçim kipini açıyordu ama eylemler üst çubuktaki küçük
+simgelere sıkışmıştı (başparmakla zor, etiketsiz). Artık **altta**:
+Taşı · Kopyala · Paylaş · Sil · Daha fazla(pano, sıkıştır, önemli dosyalar,
+yeniden adlandır, özellikler). Gözatıcı, kategori, Fotoğraflar ve İndirilenler
+ekranlarının hepsi AYNI çubuğu kullanıyor.
+**Kural (HAFIZA 2026-07-28 D) uygulandı:** altta karşılığı olan üst düğümler
+kaldırıldı; üstte yalnız sayaç, "tümünü seç" ve (gözatıcıda) "seçimi tersine
+çevir" kaldı. **Klasör seçiliyken Paylaş gizli** — Android klasör paylaşamaz,
+gösterilse dokunulup hiçbir şey olmuyor sanılırdı.
+
+### C. "Her türlü dosyada olmalı"
+Girdi menüsü (`showEntryActions`) artık **Taşı…/Kopyala…** ile başlıyor; pano
+girişleri "Panoya kopyala/kes" diye açıkça adlandırıldı. Menü zaten ortak
+olduğu için gözatıcı, kategori, arama, yinelenenler, analiz ve galeri onu
+kendiliğinden aldı. Ek olarak **video oynatıcı, ses çalar ve belge
+görüntüleyiciye** "Dosya işlemleri" girişi eklendi — dosyayı taşımak için
+ekranı kapatıp listede aramak gerekmiyor.
+
+### D. GERİ AL (yeni) — `FileOps.undoMove`
+Taşıma sonrası bildirimde "Geri al" var. Bunun için `FmOpResult.transfers`
+eklendi: **gerçek** varış yolu (ad çakışınca `rapor (1).pdf` olur, tahmin
+edilemez). `_transferOne` artık varış yolunu döndürüyor.
+**Kopyalama geri alınMAZ:** orada geri almak "sil" demektir, yanlış dokunuşta
+veri kaybı riski taşır. Geri alma ad çakışırsa yeni ad verir (veri ezilmez),
+yani dosya eski adıyla dönmeyebilir — ama asla kaybolmaz.
+
+### E. Küçük eklemeler
+`AppState.fmRecentDestinations` (son 8 hedef, kalıcı): insanlar dosyayı hep
+aynı birkaç klasöre koyar. Önemli Dosyalar ekranındaki yönlendirme metni yeni
+akışa göre güncellendi.
+
+### F. Doğrulama
+Flutter 3.29.3 — `analyze` 0 sorun (kalan uyarılar önceden var olan
+`withOpacity`/deprecated), `flutter test` **635 geçti, 0 kırmızı**.
+Yeni `fm_move_copy_test`: gerçek varış yolu bildirimi, ad çakışmasında YENİ
+adın bildirilmesi (geri alma buna dayanır), dosya ve klasör taşımasının geri
+alınması, kopyalamada kaynağın yerinde kalması, seçim çubuğunun etiketleri ve
+klasörde Paylaş'ın gizlenmesi. Cihazda deneme YAPILMADI.

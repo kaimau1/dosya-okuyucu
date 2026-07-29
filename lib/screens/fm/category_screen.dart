@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
 
-import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fm_filter.dart';
@@ -17,6 +15,7 @@ import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
@@ -218,6 +217,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: _selecting
+          ? FmSelectionBar(
+              selected:
+                  _files.where((e) => _selected.contains(e.path)).toList(),
+              onChanged: () async {
+                setState(_selected.clear);
+                await _dropMissing();
+              },
+            )
+          : null,
     );
   }
 
@@ -292,6 +301,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ],
       );
 
+  /// Seçim üst çubuğu **sade**: sayaç + tümünü seç. Eylemler alttaki
+  /// [FmSelectionBar]'da (proje kuralı: üstte yalnız altta karşılığı OLMAYAN).
   PreferredSizeWidget _selectionBar(List<FsEntry> files) => AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -307,33 +318,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ? Icons.deselect
                 : Icons.select_all),
             onPressed: () => _toggleSelectAll(files),
-          ),
-          IconButton(
-            tooltip: 'Paylaş',
-            icon: const Icon(Icons.share_outlined),
-            onPressed: () => shareEntries(_selected.toList()),
-          ),
-          IconButton(
-            tooltip: 'Kopyala',
-            icon: const Icon(Icons.copy_outlined),
-            onPressed: () {
-              context
-                  .read<AppState>()
-                  .setClipboard(_selected.toList(), cut: false);
-              setState(_selected.clear);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text(
-                      'Kopyalandı. Dosyalar sekmesinde hedef klasörde yapıştırın.')));
-            },
-          ),
-          IconButton(
-            tooltip: 'Sil',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () async {
-              final selected =
-                  _files.where((e) => _selected.contains(e.path)).toList();
-              if (await deleteEntries(context, selected)) _dropMissing();
-            },
           ),
         ],
       );

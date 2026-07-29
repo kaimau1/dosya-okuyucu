@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import 'entry_actions.dart';
 
 /// Uygulama içi **video ve ses** oynatıcı.
 ///
@@ -278,6 +279,17 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
               tooltip: 'Başka uygulamayla aç',
               icon: const Icon(Icons.apps),
               onPressed: () => EntryOpener.openExternally(context, _current),
+            ),
+            // İzlerken "bunu Önemli'ye taşıyayım" demek için oynatıcıyı
+            // kapatıp dosyayı listede aramak gerekmesin (istek 2026-07-29:
+            // "her türlü dosyada bu olmalı").
+            IconButton(
+              tooltip: 'Dosya işlemleri (taşı, kopyala, paylaş…)',
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => showEntryActions(
+                context,
+                FsEntry.fromEntity(File(_current)),
+              ),
             ),
           ],
         ),

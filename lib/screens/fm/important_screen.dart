@@ -254,7 +254,9 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   padding: EdgeInsets.symmetric(vertical: Gap.sm),
                   child: Text(
                       'Henüz alt klasör yok. “Yeni” ile konu başlıkları '
-                      '(Faturalar, Kimlik, Sözleşmeler…) açabilirsiniz.'),
+                      '(Faturalar, Kimlik, Sözleşmeler…) açabilirsiniz. '
+                      'Dosya eklemek için herhangi bir dosyaya uzun basıp '
+                      '“Taşı”/“Kopyala” deyin.'),
                 ),
               for (final f in _subFolders)
                 ListTile(
@@ -339,9 +341,9 @@ class _ImportantScreenState extends State<ImportantScreen> {
               const Text(
                 'Kimlik, fatura, sözleşme gibi kaybolmaması gereken '
                 'dosyaları tek yerde toplayın. Klasör ana bellekte '
-                'oluşturulur; herhangi bir listede dosyayı kopyalayıp burada '
-                'yapıştırabilir, konu başlıklarına göre alt klasörler '
-                'açabilirsiniz.',
+                'oluşturulur.\n\nDosya eklemek: herhangi bir dosyaya uzun '
+                'basın → “Taşı” ya da “Kopyala” → “Önemli Dosyalar”. '
+                'Konu başlıklarına göre alt klasörler de açabilirsiniz.',
               ),
               const SizedBox(height: Gap.sm),
               Align(

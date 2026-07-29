@@ -12,8 +12,8 @@ import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_search_field.dart';
+import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
-import 'entry_actions.dart';
 
 enum _DlSort { oldest, newest, largest, name }
 
@@ -112,15 +112,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       .where((e) => _selected.contains(e.path))
       .fold(0, (sum, e) => sum + e.sizeBytes);
 
-  Future<void> _deleteSelected() async {
-    final entries = _files.where((e) => _selected.contains(e.path)).toList();
-    if (entries.isEmpty) return;
-    if (await deleteEntries(context, entries)) {
-      setState(_selected.clear);
-      await _load();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final files = _sorted;
@@ -150,16 +141,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       _selected.addAll(files.map((e) => e.path));
                     }
                   }),
-                ),
-                IconButton(
-                  tooltip: 'Paylaş',
-                  icon: const Icon(Icons.share_outlined),
-                  onPressed: () => shareEntries(_selected.toList()),
-                ),
-                IconButton(
-                  tooltip: 'Sil',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: _deleteSelected,
                 ),
               ],
             )
@@ -255,17 +236,29 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     ),
                   ],
                 ),
+      // Seçim varken: Taşı · Kopyala · Paylaş · Sil (ortak çubuk). Silmenin
+      // toplam boyutu ayrıca yazılıyor — indirilenler ekranının derdi yer açmak.
       bottomNavigationBar: _selecting
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.md),
-                child: FilledButton.icon(
-                  onPressed: _deleteSelected,
-                  icon: const Icon(Icons.delete_outline),
-                  label: Text('${_selected.length} dosyayı sil '
-                      '(${FsPaths.humanSize(_selectedBytes)})'),
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+                  child: Text(
+                    '${_selected.length} dosya seçildi · '
+                    '${FsPaths.humanSize(_selectedBytes)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
-              ),
+                FmSelectionBar(
+                  selected:
+                      _files.where((e) => _selected.contains(e.path)).toList(),
+                  onChanged: () async {
+                    setState(_selected.clear);
+                    await _load();
+                  },
+                ),
+              ],
             )
           : null,
     );

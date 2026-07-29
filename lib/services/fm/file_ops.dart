@@ -34,14 +34,29 @@ class FmOpResult {
   final int skipped;
   final List<String> errors;
   final bool cancelled;
+
+  /// Gerçekleşen aktarımlar (kaynak → **son** hedef yolu).
+  ///
+  /// Hedef yol istenenden farklı olabilir (ad çakışınca `rapor (1).pdf`), bu
+  /// yüzden tahmin edilemez; "Geri al" için gerçek yol gerekir.
+  final List<FmTransfer> transfers;
+
   const FmOpResult({
     this.succeeded = 0,
     this.skipped = 0,
     this.errors = const [],
     this.cancelled = false,
+    this.transfers = const [],
   });
 
   bool get hasError => errors.isNotEmpty;
+}
+
+/// Tek bir aktarımın kaynağı ve varış yolu.
+class FmTransfer {
+  final String source;
+  final String dest;
+  const FmTransfer(this.source, this.dest);
 }
 
 /// Dosya işlemleri: kopyala / taşı / sil / yeniden adlandır / oluştur.
@@ -105,6 +120,7 @@ abstract final class FileOps {
     bool Function()? isCancelled,
   }) async {
     final errors = <String>[];
+    final transfers = <FmTransfer>[];
     var done = 0;
     var skipped = 0;
     var succeeded = 0;
@@ -134,7 +150,7 @@ abstract final class FileOps {
         dest = uniquePath(dest);
       }
       try {
-        await _transferOne(
+        final finalPath = await _transferOne(
           src,
           dest,
           move: move,
@@ -147,16 +163,45 @@ abstract final class FileOps {
           onSkip: () => skipped++,
         );
         succeeded++;
+        if (finalPath != null) transfers.add(FmTransfer(src, finalPath));
       } catch (e) {
         errors.add('$name: ${_msg(e)}');
       }
     }
     if (succeeded > 0) FsEvents.changed();
     return FmOpResult(
-        succeeded: succeeded, skipped: skipped, errors: errors);
+      succeeded: succeeded,
+      skipped: skipped,
+      errors: errors,
+      transfers: transfers,
+    );
   }
 
-  static Future<void> _transferOne(
+  /// Bir taşımayı **geri alır**: her öğeyi eski klasörüne geri taşır.
+  ///
+  /// Ad çakışırsa yeni ad verilir (veri ezilmez), yani dosya eski adıyla
+  /// dönmeyebilir — ama asla kaybolmaz. Kopyalama geri alınmaz: orada geri
+  /// almak "sil" demektir, yanlış dokunuşta veri kaybı riski taşır.
+  static Future<FmOpResult> undoMove(List<FmTransfer> transfers) async {
+    final errors = <String>[];
+    var ok = 0;
+    for (final t in transfers) {
+      try {
+        final back = await moveAll([t.dest], p.dirname(t.source));
+        if (back.hasError) {
+          errors.addAll(back.errors);
+        } else {
+          ok += back.succeeded;
+        }
+      } catch (e) {
+        errors.add('${p.basename(t.dest)}: ${_msg(e)}');
+      }
+    }
+    return FmOpResult(succeeded: ok, errors: errors);
+  }
+
+  /// Aktarımı yapar ve **gerçek** varış yolunu döndürür (atlandıysa null).
+  static Future<String?> _transferOne(
     String src,
     String dest, {
     required bool move,
@@ -175,7 +220,7 @@ abstract final class FileOps {
         try {
           await srcDir.rename(dest);
           onFile(p.basename(src));
-          return;
+          return dest;
         } on FileSystemException {
           // farklı bölüm → aşağıdaki normal yol
         }
@@ -187,7 +232,7 @@ abstract final class FileOps {
           : dest);
       await target.create(recursive: true);
       for (final child in srcDir.listSync(followLinks: false)) {
-        if (isCancelled?.call() ?? false) return;
+        if (isCancelled?.call() ?? false) return target.path;
         await _transferOne(
           child.path,
           p.join(target.path, p.basename(child.path)),
@@ -205,7 +250,7 @@ abstract final class FileOps {
           // içeride kopyalanamayan dosya kaldıysa kaynak durur — veri kaybı yok
         }
       }
-      return;
+      return target.path;
     }
 
     final file = File(src);
@@ -216,7 +261,7 @@ abstract final class FileOps {
       switch (conflict) {
         case FmConflict.skip:
           onSkip();
-          return;
+          return null;
         case FmConflict.rename:
           target = uniquePath(dest);
         case FmConflict.overwrite:
@@ -230,7 +275,7 @@ abstract final class FileOps {
     if (move) {
       try {
         await file.rename(target); // aynı bölümde anında
-        return;
+        return target;
       } on FileSystemException {
         // farklı bölüm (SD kart / OTG): kopyala + sil
       }
@@ -239,6 +284,7 @@ abstract final class FileOps {
     } else {
       await file.copy(target);
     }
+    return target;
   }
 
   /// Kalıcı silme (çöp kutusuna göndermeden). Klasörler özyinelemeli silinir.

@@ -7,8 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
+import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
+import 'entry_actions.dart';
 
 /// Çalma sırası davranışı.
 enum RepeatMode { off, one, all }
@@ -183,6 +185,16 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             tooltip: 'Başka uygulamayla aç',
             icon: const Icon(Icons.apps),
             onPressed: () => EntryOpener.openExternally(context, _current),
+          ),
+          // Dinlerken dosyayı taşımak/kopyalamak için ekranı terk etmek
+          // gerekmesin (istek 2026-07-29: "her türlü dosyada bu olmalı").
+          IconButton(
+            tooltip: 'Dosya işlemleri (taşı, kopyala, paylaş…)',
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => showEntryActions(
+              context,
+              FsEntry.fromEntity(File(_current)),
+            ),
           ),
         ],
       ),

@@ -17,6 +17,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'archive_screen.dart';
 import 'entry_actions.dart';
@@ -50,6 +51,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
   final ScrollController _scroll = ScrollController();
 
   bool get _selecting => _selected.isNotEmpty;
+
+  /// Görünen tüm girdiler seçili mi? ("Tümünü seç" düğmesinin durumu.)
+  bool get _allSelected =>
+      _entries.isNotEmpty && _entries.every((e) => _selected.contains(e.path));
 
   @override
   void initState() {
@@ -286,6 +291,18 @@ class _BrowserScreenState extends State<BrowserScreen> {
           if (appState.hasClipboard && !_selecting) _pasteBar(appState),
         ],
       ),
+      // Seçim varken alt eylem çubuğu: Taşı · Kopyala · Paylaş · Sil.
+      // (Üst çubuktaki küçük simgeler başparmakla zor ve taşıma orada yoktu.)
+      bottomNavigationBar: _selecting
+          ? FmSelectionBar(
+              selected: _selectedEntries,
+              zipDestDir: widget.path,
+              onChanged: () async {
+                setState(_selected.clear);
+                _load();
+              },
+            )
+          : null,
       floatingActionButton: _selecting
           ? null
           : FloatingActionButton(
@@ -378,9 +395,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
+  /// Seçim üst çubuğu **sade**: sayaç + seçme yardımcıları. Eylemler
+  /// (Taşı/Kopyala/Paylaş/Sil/…) alttaki [FmSelectionBar]'da — proje kuralı:
+  /// üstte yalnız altta karşılığı OLMAYAN durur (HAFIZA 2026-07-28 D).
   PreferredSizeWidget _selectionBar(BuildContext context) {
-    final selected = _selectedEntries;
-    final appState = context.read<AppState>();
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.close),
@@ -394,87 +412,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
           onPressed: _toggleSelectAll,
         ),
         IconButton(
-          tooltip: 'Kopyala',
-          icon: const Icon(Icons.copy_outlined),
-          onPressed: () {
-            appState.setClipboard(_selected.toList(), cut: false);
-            setState(_selected.clear);
-            _snack('Kopyalandı. Hedef klasörde “Yapıştır”a dokunun.');
-          },
-        ),
-        IconButton(
-          tooltip: 'Kes',
-          icon: const Icon(Icons.content_cut),
-          onPressed: () {
-            appState.setClipboard(_selected.toList(), cut: true);
-            setState(_selected.clear);
-            _snack('Kesildi. Hedef klasörde “Yapıştır”a dokunun.');
-          },
-        ),
-        IconButton(
-          tooltip: 'Paylaş',
-          icon: const Icon(Icons.share_outlined),
-          onPressed: () => shareEntries(
-              selected.where((e) => !e.isDir).map((e) => e.path).toList()),
-        ),
-        IconButton(
-          tooltip: 'Sil',
-          icon: const Icon(Icons.delete_outline),
-          onPressed: () async {
-            if (await deleteEntries(context, selected)) {
-              setState(_selected.clear);
-              _load();
-            }
-          },
-        ),
-        PopupMenuButton<String>(
-          onSelected: (value) async {
-            switch (value) {
-              case 'zip':
-                if (await zipEntries(
-                    context, _selected.toList(), widget.path)) {
-                  setState(_selected.clear);
-                  _load();
-                }
-              case 'rename':
-                if (selected.length == 1 &&
-                    await renameEntry(context, selected.first)) {
-                  setState(_selected.clear);
-                  _load();
-                }
-              case 'properties':
-                if (selected.length == 1 && mounted) {
-                  await showProperties(context, selected.first);
-                }
-              case 'invert':
-                setState(() {
-                  final all = _entries.map((e) => e.path).toSet();
-                  final inverted = all.difference(_selected);
-                  _selected
-                    ..clear()
-                    ..addAll(inverted);
-                });
-            }
-          },
-          itemBuilder: (ctx) => [
-            const PopupMenuItem(value: 'zip', child: Text('Sıkıştır (.zip)')),
-            if (selected.length == 1)
-              const PopupMenuItem(
-                  value: 'rename', child: Text('Yeniden adlandır')),
-            if (selected.length == 1)
-              const PopupMenuItem(
-                  value: 'properties', child: Text('Özellikler')),
-            const PopupMenuItem(
-                value: 'invert', child: Text('Seçimi tersine çevir')),
-          ],
+          tooltip: 'Seçimi tersine çevir',
+          icon: const Icon(Icons.swap_horiz),
+          onPressed: () => setState(() {
+            final all = _entries.map((e) => e.path).toSet();
+            final inverted = all.difference(_selected);
+            _selected
+              ..clear()
+              ..addAll(inverted);
+          }),
         ),
       ],
     );
   }
-
-  /// Görünen tüm öğeler seçili mi (toplu seçme düğmesinin durumu).
-  bool get _allSelected =>
-      _entries.isNotEmpty && _entries.every((e) => _selected.contains(e.path));
 
   Widget _pasteBar(AppState appState) {
     final count = appState.clipboard.length;
