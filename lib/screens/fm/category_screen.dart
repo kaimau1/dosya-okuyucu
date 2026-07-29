@@ -247,9 +247,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   Widget build(BuildContext context) {
     final files = _sorted;
+    // Seçili+görünen küme build başına BİR kez hesaplanır (bkz.
+    // `photos_screen.dart`taki aynı not — 20 bin dosyada perf).
+    final selectedEntries = _selectedEntries;
     return Scaffold(
       appBar: _selecting
-          ? _selectionBar(files)
+          ? _selectionBar(files, selectedEntries)
           : (_searching ? _searchBar() : _normalBar()),
       // Stack: alt eylem çubuğu görünürken gövde yüksekliği DEĞİŞMESİN
       // (bottomNavigationBar kullanılırsa liste zıplıyor — 2026-07-29 hatası).
@@ -297,7 +300,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               right: 0,
               bottom: 0,
               child: FmSelectionBar(
-                selected: _selectedEntries,
+                selected: selectedEntries,
                 onChanged: () async {
                   // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
                   // işini bitirdiğinde bu State artık ölü olabiliyor ve
@@ -391,13 +394,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   /// Seçim üst çubuğu **sade**: sayaç + tümünü seç. Eylemler alttaki
   /// [FmSelectionBar]'da (proje kuralı: üstte yalnız altta karşılığı OLMAYAN).
-  PreferredSizeWidget _selectionBar(List<FsEntry> files) => AppBar(
+  PreferredSizeWidget _selectionBar(
+          List<FsEntry> files, List<FsEntry> selectedEntries) =>
+      AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
         ),
         // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]).
-        title: Text('${_selectedEntries.length} / ${files.length} seçildi'),
+        title: Text('${selectedEntries.length} / ${files.length} seçildi'),
         actions: [
           if (_selected.length == 1) ...[
             IconButton(

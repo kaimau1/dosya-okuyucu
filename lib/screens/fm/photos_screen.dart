@@ -327,13 +327,17 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final layout = appState.fmPhotoLayout;
     final group = appState.fmPhotoGroup;
     final visible = _visible;
+    // Seçili+görünen küme build başına BİR kez hesaplanır: 20 bin dosyalık
+    // listede her kullanımda yeniden gezmek seçim çubuğunu kastırırdı
+    // (kullanıcı 2026-07-29: "uygulama biraz kasmaya başladı").
+    final selectedEntries = _selectedEntries;
     final sections = _timelineMode
         ? _sections(visible, group)
         : [_Section('${visible.length} dosya · ${_sort.label}', visible, 0)];
 
     return Scaffold(
       appBar: _selecting
-          ? _selectionBar(visible)
+          ? _selectionBar(visible, selectedEntries)
           : (_searching ? _searchBar() : _normalBar(appState)),
       // **Stack**, bottomNavigationBar DEĞİL: alt çubuk görünür/kaybolur
       // olduğunda gövdenin yüksekliği değişirse ızgara yeniden yerleşiyor ve
@@ -387,7 +391,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
               right: 0,
               bottom: 0,
               child: FmSelectionBar(
-                selected: _selectedEntries,
+                selected: selectedEntries,
                 onChanged: () async {
                   // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
                   // işini bitirdiğinde bu State artık ölü olabiliyor ve
@@ -579,7 +583,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   /// Seçim üst çubuğu **sade**: sayaç + tümünü seç. Eylemler alttaki
   /// [FmSelectionBar]'da (proje kuralı: üstte yalnız altta karşılığı OLMAYAN).
-  PreferredSizeWidget _selectionBar(List<FsEntry> visible) => AppBar(
+  PreferredSizeWidget _selectionBar(
+          List<FsEntry> visible, List<FsEntry> selectedEntries) =>
+      AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
@@ -587,7 +593,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
         // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]): görünen
         // listeye daraltıldığında "8214 / 12 seçildi" gibi kendisiyle çelişen
         // bir başlık çıkmaz.
-        title: Text('${_selectedEntries.length} / ${visible.length} seçildi'),
+        title: Text('${selectedEntries.length} / ${visible.length} seçildi'),
         actions: [
           // Tek dosya seçiliyken çıkar: "üstündekileri/altındakileri de seç"
           // (istek 2026-07-29). Birden çok seçiliyken hangi dosya "anchor"
