@@ -3254,3 +3254,58 @@ Yeni `fm_move_copy_test`: gerçek varış yolu bildirimi, ad çakışmasında YE
 adın bildirilmesi (geri alma buna dayanır), dosya ve klasör taşımasının geri
 alınması, kopyalamada kaynağın yerinde kalması, seçim çubuğunun etiketleri ve
 klasörde Paylaş'ın gizlenmesi. Cihazda deneme YAPILMADI.
+
+## 2026-07-29 (4. tur) — Zıplama, WhatsApp kopyaları, çoklu kaynak, kasma
+
+### A. KÖK NEDEN — "seçince sayfa zıplıyor"
+Alt eylem çubuğu `Scaffold.bottomNavigationBar` ile veriliyordu → seçim
+başlayınca gövdenin YÜKSEKLİĞİ küçülüyor, ızgara yeniden yerleşiyor ve
+kaydırma konumu kayıyordu. Çözüm: çubuk `Stack` içinde **bindirmeli**
+(`Positioned(bottom: 0)`); görünüm alanı sabit kaldığı için zıplama yok.
+Listelere/ızgaralara **sürekli** 88-96 px alt boşluk verildi (yalnız seçimdeyken
+verilseydi boşluğun kendisi zıplatırdı).
+
+### B. KÖK NEDEN — "WhatsApp görüntülerinde aynı resimden 3 tane"
+WhatsApp aynı görseli birden çok klasöre yazar: `WhatsApp Images`, aynısının
+`Sent` kopyası ve `Android/media/com.whatsapp/...` altındaki yeni yol. Galeri
+tüm depolamayı taradığı için üçü de ayrı dosya olarak görünüyordu.
+**Çözüm:** `FmFilter.hideDuplicates` — anahtar **ad + boyut** (Türkçe katlamalı).
+Galeride (`PhotosScreen`) varsayılan AÇIK; kategori listelerinde kapalı.
+- İçerik (bayt bayt) karşılaştırması BİLİNÇLİ olarak yapılmıyor: 20 bin dosyayı
+  okumak ızgarayı dondurur. Gerçek içerik doğrulaması **Yinelenen dosyalar**
+  ekranının işi (o zaten bayt bayt karşılaştırıyor).
+- Boyut farklıysa kopya sayılmaz → aynı adlı farklı çekimler kaybolmaz.
+- Gizleme **sessiz değil**: "N yinelenen kopya gizlendi · Göster" satırı ekranda
+  duruyor (sessiz gizleme "dosyam kayboldu" hatasına yol açar).
+- Ayıklama SIRALAMADAN SONRA yapılır: hangi kopyanın kalacağı sıraya bağlıdır.
+
+### C. Çoklu kaynak seçimi
+`FmFilter.bucket` (tek) → `buckets` (küme). Çipler `ChoiceChip` → `FilterChip`.
+"Kamera + WhatsApp" birlikte seçilebiliyor; birden çok kaynak seçili olsa da
+rozet 1 sayar (tek ölçüt).
+
+### D. KÖK NEDEN — "uygulama kasmaya başladı"
+Kategori listeleri artık 800 değil **on binlerce** dosya tutuyor (3. tur) ve
+`build` her seçim dokunuşunda çalışıyor. Her karede yapılanlar:
+süz + sırala (O(n log n)), gruplama, `bucketCounts`/`extensionCounts` (O(n)) ve
+seçili girdiler için `_files.where(...)` (O(n)). 20 bin dosyada bu, kare
+bütçesini fazlasıyla aşıyordu.
+**Çözüm — önbellek:** `FmFilter.signature` + liste kimliği (`identityHashCode`)
+ile anahtar üretilip sonuçlar saklanıyor (`_visibleCache`, `_sectionsCache`,
+sayım önbellekleri) ve seçili girdiler **yol → girdi haritasından** O(1)
+bulunuyor. Girdiler değişmedikçe hiçbiri yeniden hesaplanmıyor.
+
+### E. İndirilenler ekranı ("ilginç, kullanışsız bir klasör")
+Kullanıcı klasör sanmıştı; oysa bu, alt klasörler dahil TÜM dosyaların yaş
+odaklı listesi. Yapılanlar: başlığa "N dosya · alt klasörler dahil" alt satırı,
+klasör düğmesine anlaşılır ad ("Klasör görünümü"), **satır başına ⋮ menüsü**
+(taşı/kopyala/paylaş/yeniden adlandır/sil — daha önce hiç yoktu, sadece açma ve
+toplu silme vardı), alt klasördeki dosyalarda "📁 klasör adı" bilgisi ve
+`index(perCategory: 5000)` yerine `collect` (kategori başına kırpma yok).
+
+### F. Doğrulama
+`analyze` temiz, `flutter test` **640 geçti, 0 kırmızı**. Yeni testler: çoklu
+kaynak seçimi, kopya ayıklamanın ad+boyut kuralı (boyut farklıysa gizlemez),
+önbellek imzasının küme sırasından etkilenmemesi, galeride "2 yinelenen kopya
+gizlendi" satırı ve "Göster" ile geri gelmesi. Cihazda ölçüm YAPILMADI —
+kasma düzeltmesi kod okumasıyla (kare başına yapılan iş) gerekçelendirildi.

@@ -34,6 +34,7 @@ Future<FmFilterResult?> showFmFilterSheet(
   Map<String, int> extensions = const {},
   Map<MediaBucket, int> buckets = const {},
   bool showSort = true,
+  bool showDuplicateSwitch = false,
   List<FmSort> sortOptions = FmSort.values,
 }) =>
     showModalBottomSheet<FmFilterResult>(
@@ -47,6 +48,7 @@ Future<FmFilterResult?> showFmFilterSheet(
         extensions: extensions,
         buckets: buckets,
         showSort: showSort,
+        showDuplicateSwitch: showDuplicateSwitch,
         sortOptions: sortOptions,
       ),
     );
@@ -58,6 +60,7 @@ class _FilterSheet extends StatefulWidget {
   final Map<String, int> extensions;
   final Map<MediaBucket, int> buckets;
   final bool showSort;
+  final bool showDuplicateSwitch;
   final List<FmSort> sortOptions;
 
   const _FilterSheet({
@@ -67,6 +70,7 @@ class _FilterSheet extends StatefulWidget {
     required this.extensions,
     required this.buckets,
     required this.showSort,
+    required this.showDuplicateSwitch,
     required this.sortOptions,
   });
 
@@ -154,7 +158,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                         style: theme.textTheme.titleMedium),
                   ),
                   TextButton(
-                    onPressed: () => setState(() => _filter = FmFilter.none),
+                    onPressed: () => setState(() => _filter = FmFilter.none
+                        .withHideDuplicates(_filter.hideDuplicates)),
                     child: const Text('Temizle'),
                   ),
                 ],
@@ -238,23 +243,24 @@ class _FilterSheetState extends State<_FilterSheet> {
                   ),
                   if (widget.buckets.length > 1) ...[
                     const SizedBox(height: Gap.md),
-                    _label('Kaynak'),
+                    _label('Kaynak (birden çok seçilebilir)'),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
                       children: [
+                        // Boş küme = tümü; "Tümü" çipi seçimi temizler.
                         ChoiceChip(
                           label: const Text('Tümü'),
-                          selected: _filter.bucket == null,
-                          onSelected: (_) =>
-                              setState(() => _filter = _filter.withBucket(null)),
+                          selected: _filter.buckets.isEmpty,
+                          onSelected: (_) => setState(
+                              () => _filter = _filter.withBuckets(const {})),
                         ),
                         for (final e in _sortedBuckets)
-                          ChoiceChip(
+                          FilterChip(
                             label: Text('${e.key.label} (${e.value})'),
-                            selected: _filter.bucket == e.key,
+                            selected: _filter.buckets.contains(e.key),
                             onSelected: (_) => setState(
-                                () => _filter = _filter.withBucket(e.key)),
+                                () => _filter = _filter.toggleBucket(e.key)),
                           ),
                       ],
                     ),
@@ -274,6 +280,19 @@ class _FilterSheetState extends State<_FilterSheet> {
                                 _filter = _filter.toggleExtension(e.key)),
                           ),
                       ],
+                    ),
+                  ],
+                  if (widget.showDuplicateSwitch) ...[
+                    const SizedBox(height: Gap.sm),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _filter.hideDuplicates,
+                      onChanged: (v) => setState(
+                          () => _filter = _filter.withHideDuplicates(v)),
+                      title: const Text('Yinelenen kopyaları gizle'),
+                      subtitle: const Text(
+                          'Aynı ad ve boyuttaki dosya bir kez görünür '
+                          '(WhatsApp aynı görseli birkaç klasöre yazar).'),
                     ),
                   ],
                   const SizedBox(height: Gap.md),

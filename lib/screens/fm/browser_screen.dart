@@ -274,7 +274,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
     return Scaffold(
       appBar: _selecting ? _selectionBar(context) : _normalBar(context),
-      body: Column(
+      // Stack: alt eylem çubuğu gövdenin yüksekliğini DEĞİŞTİRMESİN (aksi
+      // hâlde liste zıplıyor — 2026-07-29 hatası).
+      body: Stack(
+        children: [
+          Column(
         children: [
           _Breadcrumb(
             path: widget.path,
@@ -290,19 +294,25 @@ class _BrowserScreenState extends State<BrowserScreen> {
           Expanded(child: _body(entries)),
           if (appState.hasClipboard && !_selecting) _pasteBar(appState),
         ],
+          ),
+          // Seçim varken alt eylem çubuğu: Taşı · Kopyala · Paylaş · Sil.
+          // (Üst çubuktaki küçük simgeler başparmakla zor ve taşıma orada yoktu.)
+          if (_selecting)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: FmSelectionBar(
+                selected: _selectedEntries,
+                zipDestDir: widget.path,
+                onChanged: () async {
+                  setState(_selected.clear);
+                  _load();
+                },
+              ),
+            ),
+        ],
       ),
-      // Seçim varken alt eylem çubuğu: Taşı · Kopyala · Paylaş · Sil.
-      // (Üst çubuktaki küçük simgeler başparmakla zor ve taşıma orada yoktu.)
-      bottomNavigationBar: _selecting
-          ? FmSelectionBar(
-              selected: _selectedEntries,
-              zipDestDir: widget.path,
-              onChanged: () async {
-                setState(_selected.clear);
-                _load();
-              },
-            )
-          : null,
       floatingActionButton: _selecting
           ? null
           : FloatingActionButton(

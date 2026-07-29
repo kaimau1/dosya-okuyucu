@@ -76,8 +76,12 @@ class FmTimeWindow {
 /// `with*` üreteçleri kullanılır — nullable alanlarda `copyWith` "değeri
 /// null'a çek" ile "dokunma"yı ayırt edemediği için bilinçli tercih.
 class FmFilter {
-  /// Kaynak (Kamera / WhatsApp / Ekran görüntüsü …); null = tümü.
-  final MediaBucket? bucket;
+  /// Kaynaklar (Kamera / WhatsApp / Ekran görüntüsü …). **Boş = tümü.**
+  ///
+  /// Çoklu seçim (kullanıcı isteği 2026-07-29: "kaynak kısmında birden fazla
+  /// kaynak seçilebilmeli"): "Kamera + WhatsApp" gibi birleşimler tek geçişte
+  /// süzülebilsin.
+  final Set<MediaBucket> buckets;
 
   /// Seçili uzantılar (küçük harf, noktasız). Boş = tümü.
   final Set<String> extensions;
@@ -91,33 +95,62 @@ class FmFilter {
 
   final FmSizeRange sizeRange;
 
+  /// Aynı dosyanın kopyaları tek satıra indirilsin mi?
+  ///
+  /// WhatsApp aynı görseli birden çok klasöre yazar (Media/WhatsApp Images,
+  /// .../Sent, eski `/WhatsApp` yolu…) → galeride "aynı resimden 3 tane"
+  /// görünür (kullanıcı hatası 2026-07-29). Ad+boyut aynıysa kopya sayılır;
+  /// içerik karşılaştırması (bayt bayt) **Yinelenen dosyalar** ekranının işi,
+  /// galeride 20 bin dosyayı okumak dondururdu.
+  final bool hideDuplicates;
+
   const FmFilter({
-    this.bucket,
+    this.buckets = const {},
     this.extensions = const {},
     this.dateRange = FmDateRange.any,
     this.customFromMs,
     this.customToMs,
     this.sizeRange = FmSizeRange.any,
+    this.hideDuplicates = false,
   });
 
   static const none = FmFilter();
 
-  FmFilter withBucket(MediaBucket? value) => FmFilter(
-        bucket: value,
+  FmFilter withBuckets(Set<MediaBucket> value) => FmFilter(
+        buckets: value,
         extensions: extensions,
         dateRange: dateRange,
         customFromMs: customFromMs,
         customToMs: customToMs,
         sizeRange: sizeRange,
+        hideDuplicates: hideDuplicates,
+      );
+
+  /// Kaynağı ekler/çıkarır (çip dokunuşu).
+  FmFilter toggleBucket(MediaBucket bucket) {
+    final next = {...buckets};
+    if (!next.remove(bucket)) next.add(bucket);
+    return withBuckets(next);
+  }
+
+  FmFilter withHideDuplicates(bool value) => FmFilter(
+        buckets: buckets,
+        extensions: extensions,
+        dateRange: dateRange,
+        customFromMs: customFromMs,
+        customToMs: customToMs,
+        sizeRange: sizeRange,
+        hideDuplicates: value,
       );
 
   FmFilter withExtensions(Set<String> value) => FmFilter(
-        bucket: bucket,
+        buckets: buckets,
         extensions: {for (final e in value) e.toLowerCase()},
         dateRange: dateRange,
         customFromMs: customFromMs,
         customToMs: customToMs,
         sizeRange: sizeRange,
+        hideDuplicates: hideDuplicates,
       );
 
   /// Uzantıyı ekler/çıkarır (çip dokunuşu).
@@ -130,31 +163,48 @@ class FmFilter {
 
   FmFilter withDateRange(FmDateRange value, {int? fromMs, int? toMs}) =>
       FmFilter(
-        bucket: bucket,
+        buckets: buckets,
         extensions: extensions,
         dateRange: value,
         customFromMs: value == FmDateRange.custom ? fromMs : null,
         customToMs: value == FmDateRange.custom ? toMs : null,
         sizeRange: sizeRange,
+        hideDuplicates: hideDuplicates,
       );
 
   FmFilter withSizeRange(FmSizeRange value) => FmFilter(
-        bucket: bucket,
+        buckets: buckets,
         extensions: extensions,
         dateRange: dateRange,
         customFromMs: customFromMs,
         customToMs: customToMs,
         sizeRange: value,
+        hideDuplicates: hideDuplicates,
       );
 
   /// Kaç ölçüt etkin? (Arayüzde süzgeç düğmesinin rozeti.)
   int get activeCount =>
-      (bucket != null ? 1 : 0) +
+      (buckets.isEmpty ? 0 : 1) +
       (extensions.isEmpty ? 0 : 1) +
       (dateRange == FmDateRange.any ? 0 : 1) +
       (sizeRange == FmSizeRange.any ? 0 : 1);
 
   bool get isActive => activeCount > 0;
+
+  /// Önbellek anahtarı: süzgeç değişmediyse liste yeniden süzülmesin.
+  ///
+  /// 20 bin dosyalı bir kategoride süzme+sıralama her karede yapılırsa
+  /// uygulama gözle görülür şekilde kasar (kullanıcı 2026-07-29:
+  /// "uygulama biraz kasmaya başladı").
+  String get signature => [
+        buckets.map((b) => b.name).toList()..sort(),
+        extensions.toList()..sort(),
+        dateRange.name,
+        customFromMs,
+        customToMs,
+        sizeRange.name,
+        hideDuplicates,
+      ].join('|');
 
   /// Tarih ölçütünün gerçek zaman penceresi.
   ///
@@ -193,7 +243,9 @@ class FmFilter {
   bool matches(FsEntry entry, {String query = '', DateTime? now}) {
     final q = turkishFold(query.trim());
     if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
-    if (bucket != null && bucketForPath(entry.path) != bucket) return false;
+    if (buckets.isNotEmpty && !buckets.contains(bucketForPath(entry.path))) {
+      return false;
+    }
     if (extensions.isNotEmpty && !extensions.contains(entry.extension)) {
       return false;
     }
@@ -209,17 +261,31 @@ class FmFilter {
     return true;
   }
 
-  /// Listeyi süzer (sıra korunur).
+  /// Listeyi süzer (sıra korunur). [hideDuplicates] açıksa aynı ad+boyuttaki
+  /// ikinci ve sonraki kopyalar düşer — **listedeki İLK kopya** kalır, yani
+  /// sıralama neyi öne koyduysa o görünür.
   List<FsEntry> apply(
     Iterable<FsEntry> entries, {
     String query = '',
     DateTime? now,
-  }) =>
-      [
-        for (final e in entries)
-          if (matches(e, query: query, now: now)) e,
-      ];
+  }) {
+    final out = <FsEntry>[];
+    final seen = hideDuplicates ? <String>{} : null;
+    for (final e in entries) {
+      if (!matches(e, query: query, now: now)) continue;
+      if (seen != null && !seen.add(duplicateKey(e))) continue;
+      out.add(e);
+    }
+    return out;
+  }
 }
+
+/// Kopya anahtarı: **ad + boyut**. İçerik okunmaz (galeride 20 bin dosyayı
+/// açmak dondururdu); WhatsApp/Telegram kopyaları adı ve boyutu birebir
+/// koruduğu için bu anahtar pratikte yeterli. Ad karşılaştırması Türkçe
+/// katlamalı ve harf duyarsız.
+String duplicateKey(FsEntry entry) =>
+    '${turkishFold(entry.name)}|${entry.sizeBytes}';
 
 /// Bir listedeki uzantı sayıları (süzgeç sayfasındaki çipler için).
 /// Uzantısız dosyalar sayılmaz — süzülecek bir anahtarları yok.

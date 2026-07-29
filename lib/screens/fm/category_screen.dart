@@ -85,6 +85,31 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   bool get _selecting => _selected.isNotEmpty;
 
+  /// Seçili girdiler. **Haritayla** bulunur: 20 bin dosyalık listede her
+  /// karede `where(...)` gezmek seçim çubuğunu kastırıyordu.
+  List<FsEntry> get _selectedEntries {
+    final key = identityHashCode(_files);
+    if (_byPathKey != key || _byPathCache == null) {
+      _byPathCache = {for (final e in _files) e.path: e};
+      _byPathKey = key;
+    }
+    final map = _byPathCache!;
+    return [
+      for (final path in _selected)
+        if (map[path] != null) map[path]!,
+    ];
+  }
+
+  // Süzme/sıralama önbelleği: `build` her seçim dokunuşunda çalışıyor, 20 bin
+  // dosyada her karede yeniden süzmek uygulamayı kastırıyordu (2026-07-29).
+  List<FsEntry>? _sortedCache;
+  String? _sortedKey;
+  Map<String, FsEntry>? _byPathCache;
+  int? _byPathKey;
+  Map<MediaBucket, int>? _bucketCache;
+  Map<String, int>? _extCache;
+  int? _countsKey;
+
   @override
   void initState() {
     super.initState();
@@ -119,13 +144,30 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   List<FsEntry> get _sorted {
-    var filtered = _filter.apply(_files, query: _query);
+    final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
+        '${_filter.signature}|${_docKind?.name}|${_sort.name}|$_desc';
+    final cached = _sortedCache;
+    if (cached != null && _sortedKey == key) return cached;
+    final sorted =
+        FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
+    var filtered = _filter.apply(sorted, query: _query);
     if (_docKind != null) {
       filtered = filtered
           .where((f) => FileService.kindForExtension(f.extension) == _docKind)
           .toList();
     }
-    return FsScan.sort(filtered, _sort, descending: _desc, foldersFirst: false);
+    _sortedCache = filtered;
+    _sortedKey = key;
+    return filtered;
+  }
+
+  /// Kaynak/uzantı sayıları — liste değişmedikçe yeniden sayılmaz.
+  void _ensureCounts() {
+    final key = identityHashCode(_files);
+    if (_countsKey == key && _bucketCache != null) return;
+    _bucketCache = bucketCounts(_files.map((f) => f.path));
+    _extCache = extensionCounts(_files);
+    _countsKey = key;
   }
 
   void _toggle(FsEntry e) => setState(() {
@@ -184,7 +226,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
       appBar: _selecting
           ? _selectionBar(files)
           : (_searching ? _searchBar() : _normalBar()),
-      body: Column(
+      // Stack: alt eylem çubuğu görünürken gövde yüksekliği DEĞİŞMESİN
+      // (bottomNavigationBar kullanılırsa liste zıplıyor — 2026-07-29 hatası).
+      body: Stack(
+        children: [
+          Column(
         children: [
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
           if (widget.showSources && !_selecting) _sourceChips(),
@@ -216,17 +262,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   ),
           ),
         ],
+          ),
+          if (_selecting)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: FmSelectionBar(
+                selected: _selectedEntries,
+                onChanged: () async {
+                  setState(_selected.clear);
+                  await _dropMissing();
+                },
+              ),
+            ),
+        ],
       ),
-      bottomNavigationBar: _selecting
-          ? FmSelectionBar(
-              selected:
-                  _files.where((e) => _selected.contains(e.path)).toList(),
-              onChanged: () async {
-                setState(_selected.clear);
-                await _dropMissing();
-              },
-            )
-          : null,
     );
   }
 
@@ -260,13 +311,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
   Future<void> _openFilterSheet() async {
+    _ensureCounts();
     final result = await showFmFilterSheet(
       context,
       filter: _filter,
       sort: _sort,
       descending: _desc,
-      extensions: extensionCounts(_files),
-      buckets: bucketCounts(_files.map((f) => f.path)),
+      extensions: _extCache ?? const {},
+      buckets: _bucketCache ?? const {},
+      showDuplicateSwitch: true,
     );
     if (result == null || !mounted) return;
     setState(() {
@@ -325,7 +378,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
   /// Kaynak çipleri: hangi klasörden/uygulamadan geldiğine göre süzme.
   /// Sayılar gerçek dosya sayısıdır; boş kaynak çipi gösterilmez.
   Widget _sourceChips() {
-    final counts = bucketCounts(_files.map((f) => f.path));
+    _ensureCounts();
+    final counts = _bucketCache!;
     final buckets = MediaBucket.values
         .where((b) => (counts[b] ?? 0) > 0)
         .toList()
@@ -342,20 +396,21 @@ class _CategoryScreenState extends State<CategoryScreen> {
             padding: const EdgeInsets.only(right: Gap.sm),
             child: ChoiceChip(
               label: Text('Tümü (${_files.length})'),
-              selected: _filter.bucket == null,
+              selected: _filter.buckets.isEmpty,
               onSelected: (_) =>
-                  setState(() => _filter = _filter.withBucket(null)),
+                  setState(() => _filter = _filter.withBuckets(const {})),
             ),
           ),
           for (final b in buckets)
             Padding(
               padding: const EdgeInsets.only(right: Gap.sm),
-              child: ChoiceChip(
+              // FilterChip = çoklu seçim (istek 2026-07-29). Çip ve süzgeç
+              // sayfası AYNI alanı yazar → ikisi hep tutarlı.
+              child: FilterChip(
                 label: Text('${b.label} (${counts[b]})'),
-                // Çip ve süzgeç sayfası AYNI alanı yazar → ikisi hep tutarlı.
-                selected: _filter.bucket == b,
+                selected: _filter.buckets.contains(b),
                 onSelected: (_) =>
-                    setState(() => _filter = _filter.withBucket(b)),
+                    setState(() => _filter = _filter.toggleBucket(b)),
               ),
             ),
         ],
@@ -415,6 +470,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   Widget _listView(List<FsEntry> files) => ListView.builder(
         controller: _scroll,
+        // Alt eylem çubuğu bindirmeli çizildiği için son satır onun altında
+        // kalmasın diye sabit boşluk (çubuk yokken de aynı → zıplama olmaz).
+        padding: const EdgeInsets.only(bottom: 88),
         itemCount: files.length,
         itemBuilder: (context, i) {
           final e = files[i];
@@ -452,7 +510,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           const pad = Gap.sm;
           return GridView.builder(
             controller: _scroll,
-            padding: const EdgeInsets.all(pad),
+            padding: const EdgeInsets.fromLTRB(pad, pad, pad, 88),
             gridDelegate:
                 fmGridDelegate(_layout, constraints.maxWidth - pad * 2),
             itemCount: files.length,

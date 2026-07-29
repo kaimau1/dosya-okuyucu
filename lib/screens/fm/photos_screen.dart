@@ -77,7 +77,11 @@ class _PhotosScreenState extends State<PhotosScreen> {
   final ScrollController _scroll = ScrollController();
   final _searchController = TextEditingController();
 
-  FmFilter _filter = FmFilter.none;
+  /// Galeride yinelenen kopyalar **varsayılan olarak gizli**: WhatsApp aynı
+  /// görseli 2-3 klasöre yazıyor ve ızgara "aynı resimden 3 tane" gösteriyordu
+  /// (kullanıcı hatası 2026-07-29). Gizleme sessiz değil — kaç kopyanın
+  /// gizlendiği ekranda yazar ve süzgeç sayfasından kapatılabilir.
+  FmFilter _filter = const FmFilter(hideDuplicates: true);
   FmSort _sort = FmSort.date;
   bool _desc = true;
   bool _searching = false;
@@ -85,6 +89,38 @@ class _PhotosScreenState extends State<PhotosScreen> {
   String _query = '';
 
   bool get _selecting => _selected.isNotEmpty;
+
+  /// Seçili girdiler. **Haritayla** bulunur: 20 bin dosyalık listede her
+  /// karede `where(...)` gezmek seçim çubuğunu kastırıyordu.
+  List<FsEntry> get _selectedEntries {
+    final key = identityHashCode(_files);
+    if (_byPathKey != key || _byPathCache == null) {
+      _byPathCache = {for (final e in _files) e.path: e};
+      _byPathKey = key;
+    }
+    final map = _byPathCache!;
+    return [
+      for (final path in _selected)
+        if (map[path] != null) map[path]!,
+    ];
+  }
+
+  // ── Önbellekler ───────────────────────────────────────────────────────────
+  // Süzme/sıralama/gruplama 20 bin dosyada pahalıdır ve `build` her seçim
+  // dokunuşunda çalışır. Girdiler değişmediyse sonuç yeniden hesaplanmaz
+  // (kullanıcı 2026-07-29: "uygulama biraz kasmaya başladı").
+  List<FsEntry>? _visibleCache;
+  String? _visibleKey;
+  List<_Section>? _sectionsCache;
+  String? _sectionsKey;
+  Map<String, FsEntry>? _byPathCache;
+  int? _byPathKey;
+  Map<MediaBucket, int>? _bucketCache;
+  Map<String, int>? _extCache;
+  int? _countsKey;
+
+  /// Süzgeç yüzünden gizlenen kopya sayısı (ekranda yazılır).
+  int _hiddenDuplicates = 0;
 
   /// Zaman ekseni yalnız TARİHE göre sıralamada anlamlıdır: ada göre sıralı
   /// bir listeyi güne bölmek başlıkları rastgele tekrar ettirirdi.
@@ -135,14 +171,35 @@ class _PhotosScreenState extends State<PhotosScreen> {
     });
   }
 
-  /// Süzülmüş ve sıralı dosyalar (düz liste).
+  /// Süzülmüş ve sıralı dosyalar (düz liste). Sonuç önbelleklenir.
   List<FsEntry> get _visible {
-    final list = _filter.apply(_files, query: _query);
-    return FsScan.sort(list, _sort, descending: _desc, foldersFirst: false);
+    final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
+        '${_filter.signature}|${_sort.name}|$_desc';
+    final cached = _visibleCache;
+    if (cached != null && _visibleKey == key) return cached;
+    // Yinelenen ayıklaması SIRALAMADAN SONRA anlamlı olsun diye önce sıralanır:
+    // "en yeni kopya kalsın" gibi bir tercihte hangi kopyanın kaldığı sıraya
+    // bağlıdır (apply listedeki İLK kopyayı tutar).
+    final sorted =
+        FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
+    final list = _filter.apply(sorted, query: _query);
+    // Kaç kopya gizlendi? (Süzgeci kopyasız hâliyle uygulayıp farkı alırız.)
+    _hiddenDuplicates = _filter.hideDuplicates
+        ? _filter.withHideDuplicates(false).apply(sorted, query: _query).length -
+            list.length
+        : 0;
+    _visibleCache = list;
+    _visibleKey = key;
+    return list;
   }
 
   /// Düz listeyi zaman gruplarına böler (sıra korunur → indeksler düz kalır).
+  /// Sonuç önbelleklenir: gruplama listenin tamamını gezer.
   List<_Section> _sections(List<FsEntry> visible, PhotoGroup group) {
+    final cacheKey =
+        '${identityHashCode(visible)}|${visible.length}|${group.name}';
+    final cached = _sectionsCache;
+    if (cached != null && _sectionsKey == cacheKey) return cached;
     final out = <_Section>[];
     String? key;
     var buffer = <FsEntry>[];
@@ -165,6 +222,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
       out.add(_Section(
           photoGroupTitle(buffer.first.modifiedMs, group), buffer, start));
     }
+    _sectionsCache = out;
+    _sectionsKey = cacheKey;
     return out;
   }
 
@@ -226,11 +285,18 @@ class _PhotosScreenState extends State<PhotosScreen> {
       appBar: _selecting
           ? _selectionBar(visible)
           : (_searching ? _searchBar() : _normalBar(appState)),
-      body: Column(
+      // **Stack**, bottomNavigationBar DEĞİL: alt çubuk görünür/kaybolur
+      // olduğunda gövdenin yüksekliği değişirse ızgara yeniden yerleşiyor ve
+      // liste zıplıyordu (kullanıcı hatası 2026-07-29: "seçince sayfa
+      // zıplıyor"). Üste bindirince görünüm alanı sabit kalır.
+      body: Stack(
+        children: [
+          Column(
         children: [
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
           if (!_selecting && _timelineMode) _groupChips(appState, group),
           if (widget.showSources && !_selecting) _sourceChips(),
+          if (_hiddenDuplicates > 0 && !_selecting) _duplicateNotice(),
           Expanded(
             child: visible.isEmpty
                 ? Center(
@@ -258,19 +324,48 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   ),
           ),
         ],
+          ),
+          if (_selecting)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: FmSelectionBar(
+                selected: _selectedEntries,
+                onChanged: () async {
+                  setState(_selected.clear);
+                  await _dropMissing();
+                },
+              ),
+            ),
+        ],
       ),
-      bottomNavigationBar: _selecting
-          ? FmSelectionBar(
-              selected:
-                  _files.where((e) => _selected.contains(e.path)).toList(),
-              onChanged: () async {
-                setState(_selected.clear);
-                await _dropMissing();
-              },
-            )
-          : null,
     );
   }
+
+  /// "N kopya gizlendi" bilgisi + tek dokunuşla göster/gizle.
+  /// Sessiz gizleme "dosyam kayboldu" hatasına yol açar; burada hep görünür.
+  Widget _duplicateNotice() => Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.sm, 0),
+        child: Row(
+          children: [
+            Icon(Icons.copy_all_outlined,
+                size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(width: Gap.xs),
+            Expanded(
+              child: Text(
+                '$_hiddenDuplicates yinelenen kopya gizlendi',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            TextButton(
+              onPressed: () => setState(
+                  () => _filter = _filter.withHideDuplicates(false)),
+              child: const Text('Göster'),
+            ),
+          ],
+        ),
+      );
 
   PreferredSizeWidget _normalBar(AppState appState) => AppBar(
         title: Column(
@@ -378,13 +473,15 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
   Future<void> _openFilterSheet() async {
+    _ensureCounts();
     final result = await showFmFilterSheet(
       context,
       filter: _filter,
       sort: _sort,
       descending: _desc,
-      extensions: extensionCounts(_files),
-      buckets: bucketCounts(_files.map((f) => f.path)),
+      extensions: _extCache ?? const {},
+      buckets: _bucketCache ?? const {},
+      showDuplicateSwitch: true,
       // Fotoğraf ızgarasında "türe göre" sıralamanın karşılığı yok (uzantı
       // süzgeci zaten var); ada/tarihe/boyuta göre yeter.
       sortOptions: const [FmSort.date, FmSort.name, FmSort.size],
@@ -397,8 +494,18 @@ class _PhotosScreenState extends State<PhotosScreen> {
     });
   }
 
+  /// Kaynak ve uzantı sayıları — liste değişmedikçe yeniden sayılmaz.
+  void _ensureCounts() {
+    final key = identityHashCode(_files);
+    if (_countsKey == key && _bucketCache != null) return;
+    _bucketCache = bucketCounts(_files.map((f) => f.path));
+    _extCache = extensionCounts(_files);
+    _countsKey = key;
+  }
+
   Widget _sourceChips() {
-    final counts = bucketCounts(_files.map((f) => f.path));
+    _ensureCounts();
+    final counts = _bucketCache!;
     final buckets = MediaBucket.values
         .where((b) => (counts[b] ?? 0) > 0)
         .toList()
@@ -414,20 +521,21 @@ class _PhotosScreenState extends State<PhotosScreen> {
             padding: const EdgeInsets.only(right: Gap.sm),
             child: ChoiceChip(
               label: Text('Tümü (${_files.length})'),
-              selected: _filter.bucket == null,
+              selected: _filter.buckets.isEmpty,
               onSelected: (_) =>
-                  setState(() => _filter = _filter.withBucket(null)),
+                  setState(() => _filter = _filter.withBuckets(const {})),
             ),
           ),
           for (final b in buckets)
             Padding(
               padding: const EdgeInsets.only(right: Gap.sm),
-              child: ChoiceChip(
+              // FilterChip = çoklu seçim (istek 2026-07-29). Çip ve süzgeç
+              // sayfası AYNI alanı yazar → ikisi hep tutarlı.
+              child: FilterChip(
                 label: Text('${b.label} (${counts[b]})'),
-                // Çip ve süzgeç sayfası AYNI alanı yazar → ikisi hep tutarlı.
-                selected: _filter.bucket == b,
+                selected: _filter.buckets.contains(b),
                 onSelected: (_) =>
-                    setState(() => _filter = _filter.withBucket(b)),
+                    setState(() => _filter = _filter.toggleBucket(b)),
               ),
             ),
         ],
@@ -500,7 +608,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
                     ),
                   ],
                 ),
-              const SliverToBoxAdapter(child: SizedBox(height: Gap.xl)),
+              // Alt eylem çubuğu bindirmeli çizilir; son satır onun altında
+              // kalmasın diye sabit boşluk (çubuk yokken de aynı → zıplamaz).
+              const SliverToBoxAdapter(child: SizedBox(height: 88)),
             ],
           );
         },

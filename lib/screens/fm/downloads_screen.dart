@@ -14,6 +14,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
+import 'entry_actions.dart';
 
 enum _DlSort { oldest, newest, largest, name }
 
@@ -67,12 +68,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Future<void> _load() async {
     if (!mounted) return;
     setState(() => _loading = true);
-    final index = await FsScan.index([widget.path], perCategory: 5000);
+    // `index(perCategory: 5000)` kategori başına kırpıyordu; `collect`
+    // eksiksiz döner (aynı 800 sınırı hatasının küçük kardeşi).
+    final all = await FsScan.collect([widget.path]);
     if (!mounted) return;
-    // Kategori ayrımı yok: İndirilenler klasöründeki HER dosya.
-    final all = <FsEntry>[
-      for (final c in FmCategory.values) ...index.files(c),
-    ]..removeWhere((e) => e.isDir);
     setState(() {
       _files = all;
       _selected.removeWhere((s) => !all.any((e) => e.path == s));
@@ -107,6 +106,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   List<FsEntry> get _ancient => _files
       .where((e) => ageLevelFor(_ageDays(e)) == AgeLevel.ancient)
       .toList();
+
+  /// Seçili girdiler (yol → girdi haritasıyla, liste uzun olabilir).
+  List<FsEntry> get _selectedEntries {
+    final map = {for (final e in _files) e.path: e};
+    return [
+      for (final path in _selected)
+        if (map[path] != null) map[path]!,
+    ];
+  }
 
   int get _selectedBytes => _files
       .where((e) => _selected.contains(e.path))
@@ -161,7 +169,21 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   ),
                 )
               : AppBar(
-                  title: const Text('İndirilenler'),
+                  // Başlıkta ne gösterdiğimiz yazıyor: bu ekran klasörün
+                  // KENDİSİ değil, alt klasörler dahil TÜM dosyaların yaş
+                  // odaklı listesi. Kullanıcı "ilginç, kullanışsız bir klasör"
+                  // dedi (2026-07-29) — çünkü klasör sandı.
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('İndirilenler'),
+                      Text(
+                        '${_files.length} dosya · alt klasörler dahil',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                   actions: [
                     IconButton(
                       tooltip: 'İndirilenler içinde ara',
@@ -169,8 +191,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       onPressed: () => setState(() => _searching = true),
                     ),
                     IconButton(
-                      tooltip: 'Klasör olarak aç',
-                      icon: const Icon(Icons.folder_open),
+                      tooltip: 'Klasör görünümü (alt klasörlerde gez)',
+                      icon: const Icon(Icons.account_tree_outlined),
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => BrowserScreen(
@@ -197,7 +219,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     ),
                   ],
                 ),
-      body: _loading
+      // Stack: alt eylem çubuğu gövdeyi kısaltmasın → liste zıplamaz.
+      body: Stack(children: [
+        _loading
           ? const Center(child: CircularProgressIndicator())
           : files.isEmpty
               ? Center(
@@ -236,31 +260,40 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     ),
                   ],
                 ),
-      // Seçim varken: Taşı · Kopyala · Paylaş · Sil (ortak çubuk). Silmenin
-      // toplam boyutu ayrıca yazılıyor — indirilenler ekranının derdi yer açmak.
-      bottomNavigationBar: _selecting
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
-                  child: Text(
-                    '${_selected.length} dosya seçildi · '
-                    '${FsPaths.humanSize(_selectedBytes)}',
-                    style: Theme.of(context).textTheme.bodySmall,
+        // Seçim varken: Taşı · Kopyala · Paylaş · Sil (ortak çubuk). Seçimin
+        // toplam boyutu da yazılır — bu ekranın derdi yer açmak.
+        if (_selecting)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Material(
+              elevation: 8,
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+                    child: Text(
+                      '${_selected.length} dosya seçildi · '
+                      '${FsPaths.humanSize(_selectedBytes)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
-                ),
-                FmSelectionBar(
-                  selected:
-                      _files.where((e) => _selected.contains(e.path)).toList(),
-                  onChanged: () async {
-                    setState(_selected.clear);
-                    await _load();
-                  },
-                ),
-              ],
-            )
-          : null,
+                  FmSelectionBar(
+                    selected: _selectedEntries,
+                    onChanged: () async {
+                      setState(_selected.clear);
+                      await _load();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ]),
     );
   }
 
@@ -324,6 +357,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       subtitle: Text(
         [
           FsPaths.humanSize(entry.sizeBytes),
+          // Liste alt klasörleri de kapsıyor; dosyanın hangi alt klasörde
+          // olduğu yazılmazsa aynı adlı iki dosya ayırt edilemiyordu.
+          if (p.dirname(entry.path) != widget.path)
+            '📁 ${p.basename(p.dirname(entry.path))}',
           'indirilme: ${FsPaths.humanDate(entry.modifiedMs)}',
           if (entry.hasAccessInfo)
             'son açılma: ${relativeDays(daysBetween(entry.accessedMs, _now))}',
@@ -331,12 +368,34 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(
-        relativeDays(days),
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: color, fontWeight: FontWeight.w600),
+      // Yaş rozeti + ⋮ menü. Menü YOKTU: kullanıcı "içerisinde pek bir şey
+      // yapamıyorum" dedi (2026-07-29) — açma ve toplu silme dışında hiçbir
+      // işleme (taşı/kopyala/yeniden adlandır/paylaş) yol yoktu.
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            relativeDays(days),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: color, fontWeight: FontWeight.w600),
+          ),
+          if (!_selecting)
+            IconButton(
+              tooltip: 'İşlemler',
+              icon: const Icon(Icons.more_vert),
+              onPressed: () async {
+                await showEntryActions(context, entry,
+                    allowReveal: true,
+                    onReveal: (path) => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => BrowserScreen(path: path)),
+                        ));
+                await _load();
+              },
+            ),
+        ],
       ),
       onTap: () {
         if (_selecting) {

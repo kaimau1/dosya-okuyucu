@@ -90,6 +90,37 @@ void main() {
     expect(find.text('2 / 2 dosya'), findsOneWidget);
   });
 
+  /// WhatsApp aynı görseli birkaç klasöre yazıyor; galeride "aynı resimden
+  /// 3 tane" görünüyordu (kullanıcı hatası 2026-07-29).
+  testWidgets('yinelenen kopyalar gizlenir ve kaç tane olduğu yazılır',
+      (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    FsEntry copy(String dir) => FsEntry(
+          path: '/depo/$dir/IMG-WA0001.jpg',
+          name: 'IMG-WA0001.jpg',
+          isDir: false,
+          sizeBytes: 500,
+          modifiedMs: day.millisecondsSinceEpoch,
+        );
+    await tester.pumpWidget(harness([
+      copy('WhatsApp Images'),
+      copy('WhatsApp Images/Sent'),
+      copy('Android/media/com.whatsapp'),
+      photo('tatil.jpg', day),
+    ]));
+    await tester.pump();
+
+    // 4 dosyanın 2'si gösterilir (3 kopya → 1), gizlenen sayısı yazılır.
+    expect(find.text('2 / 4 dosya'), findsOneWidget);
+    expect(find.text('2 yinelenen kopya gizlendi'), findsOneWidget);
+
+    // "Göster" hepsini geri getirir — gizleme kalıcı bir kayıp değil.
+    await tester.tap(find.text('Göster'));
+    await tester.pump();
+    expect(find.text('4 / 4 dosya'), findsOneWidget);
+    expect(find.text('2 yinelenen kopya gizlendi'), findsNothing);
+  });
+
   testWidgets('süzgeç düğmesi var ve tarih/boyut seçenekleri açılır',
       (tester) async {
     await tester.pumpWidget(harness([photo('a.jpg', DateTime(2026, 3, 4))]));
