@@ -3935,3 +3935,123 @@ AAR indirilip (`com.antonkarpenko:ffmpeg-kit-min:2.2.2`) içine bakıldı:
 - **ÖLÇÜLEN boyut** (§V'teki "~12 MB beklenti" tahminini düzeltir): arm64
   `.so`ların toplamı **15 MB**; APK 66.7 MB (build 162, ffmpeg'siz) → 81.7 MB
   (build 166, LGPL ffmpeg) = **+15,0 MB**. Tahmin ve ölçüm birebir örtüştü.
+
+## 2026-07-29 (VIII) — SADAKAT DENETİMİ, 2. TUR: hata avı (12 bulgu, hepsi kapatıldı)
+
+§VII "verilen sözler kodda var mı?" sorusuna bakmıştı. Bu tur farklı bir soru
+soruyor: **"var olan kod hangi durumda kullanıcının verisini bozar?"** Sistematik
+hata avı (kod okuma, çalıştırma değil — cihaz yok) 12 bulgu verdi; hepsi
+doğrulandı ve kapatıldı. Sıra ciddiyete göre.
+
+### CRITICAL 1 — "Yer aç" yinelenenleri KALICI siliyordu (çöp sözü tutulmuyordu)
+`CleanupScreen` seçilen önerileri `CleanupAdvisor`ın sıralamasıyla işliyordu:
+`safeByDefault` önce, sonra bayta göre azalan. `trash` (çöp kutusunu boşalt) ile
+`duplicates` (yinelenenler) İKİSİ de `safeByDefault` → boyuta göre sıralanınca
+`duplicates` çoğu zaman ÖNCE geliyordu: yinelenenler çöpe taşınıyor, hemen
+ardından `trash` önerisi çöpü `empty()` ile **kalıcı siliyordu**. Pencere ise
+"çöp kutusuna taşınacak, geri alabilirsin" diyordu.
+**Düzeltme:** `trash` önerisi her zaman EN BAŞA alınır (`ordered` listesi), yani
+boşaltma kendisinden sonra çöpe gireni asla götürmez.
+Ders: "iki öneri de güvenli" demek "sıraları önemsiz" demek DEĞİL — biri diğerinin
+çıktısını yok eden bir işse sıra sözleşmenin parçasıdır.
+
+### CRITICAL 2/3 — `bool _loaded` bayrağı etiketleri ve açılma geçmişini biçiyordu
+`FileTags` ve `OpenHistory` diskten okumaya BAŞLAMADAN `_loaded = true`
+işaretliyordu. O aralıkta gelen ikinci çağıran "yüklendi" sanıp BOŞ harita
+üzerinde çalışıyor, ilk `add`/`record` tüm dosyanın üstüne yazıyordu.
+`record()` uygulamanın bu kayda dokunduğu İLK yer olduğu için pratikte
+**her oturum geçmişi/etiketleri sıfırlıyordu**.
+**Düzeltme:** paylaşılan `Future` memoizasyonu (`_loadFuture ??= _load()`) +
+`FmEnv.appSupportDir` boşken **kilitlenmeme** (paylaşımla soğuk açılışta
+`ensureInit()` henüz koşmamış olabiliyor; bir kez boş kilitlenmek her şeyi
+kaybettiriyordu).
+Ayrıca `existsSync() == false` olan HER kaydı atmak yanlıştı: depolama izni
+yokken / izin geri alınmışken / SD kart çıkarılmışken her yol "yok" görünür.
+Artık kayıt yalnız **klasörü okunabildiği hâlde** dosya yoksa atılır
+(`_shouldKeep`) ve ölü kayıt yüklemede **diske yazılmaz** (bir sonraki gerçek
+değişiklikte kendiliğinden iner). Kilit: `test/fm_file_tags_test.dart` (13),
+`test/fm_open_history_test.dart` (11).
+
+### CRITICAL 4 — "Aynı kalsın" biçimi `.webp` adlı JPEG dosyaları üretiyordu
+`ImageResizer` yalnız JPEG/PNG/BMP/TGA **yazabiliyor** (`image` paketi WebP
+yazamıyor), ama "Aynı kalsın" seçilince kaynağın uzantısı körü körüne
+korunuyordu. Sonuç: `.webp`/`.gif`/`.heic`/`.tiff` adlı, içi JPEG olan dosyalar —
+galeride açılmaz, paylaşımda bozuk görünür. "Özgün dosyayı çöp kutusuna at"
+açıkken kullanıcı sağlam aslını çöpe atıp bozuk kopyayla kalıyordu.
+**Düzeltme:** `ImageResizer.keepExtension` + `encodableExtensions` kümesi
+(`_resizeSync`teki switch ile birebir aynı olmak zorunda). Yazamadığımız her
+uzantı `jpg`'ye düşer.
+
+### HIGH 5 — benzer tarama kimliği TEK sabitti (kapsamlar birbirine karışıyordu)
+`SimilarFinder.jobId = 'similar_media'`. Görüntüler'den, Videolar'dan ve panonun
+"Benzer görsel" kutucuğundan açılan taramalar aynı kuyruk işini paylaşıyordu:
+ikinci ekran açılışta "sonuç zaten var" deyip **başka kapsamın** gruplarını
+gösteriyor, kullanıcı Videolar'da fotoğraf silebiliyordu.
+**Düzeltme:** `SimilarFinder.jobIdFor(scope)` + `SimilarScreen.scopeId`
+(`Görüntüler` / `Videolar` / `tum-medya`).
+Aynı yerde: `cancelled` iş yeniden taranmıyordu → iptalden sonra ekran
+"Benzer görüntü bulunamadı 🎉" diye **yanlış güvence** veriyordu. Artık
+`failed` gibi `cancelled` de yeniden taranır.
+
+### HIGH 6/8 — yinelenen taramada iptal ve geri dönüş
+- `DuplicateFinder.scan` ortasında durdurulamıyor; `handle.result = groups`
+  iptal yoklamasından SONRA yazılıyordu → tarama biterken "Durdur"a basmak
+  dakikalarca süren işi çöpe atıyordu. Sıra ters çevrildi (sonuç saklanır, iş
+  yine "İptal edildi" damgalanır).
+- Ekrana geri dönüşte varsayılan seçim kurulmuyordu (`_seedSelection` yalnız
+  kuyruk bildiriminde çalışıyor, bitmiş iş bir daha bildirim üretmiyor) →
+  sonuçlar görünüyor ama "N kopyayı çöpe taşı" şeridi hiç çıkmıyordu.
+- Yan bulgu: "Yeniden tara" içerik değişmediyse `_seedSignature` aynı kalıyor ve
+  seçim bir daha hiç kurulmuyordu → `_scan()` imzayı sıfırlıyor.
+
+### HIGH 7 — boyut düşürme kimliği çakışıyordu (ikinci iş SESSİZCE yutuluyordu)
+Kimlik `resize_${adet}_${ilkYolunHashCode}` idi. Aynı 3 fotoğrafı önce 720p sonra
+480p için başlatmak aynı kimliği üretiyor, kuyruk "bu iş zaten sürüyor" deyip
+ikincisini yutuyordu — arayüz "arka planda başladı" diyor, hiçbir şey olmuyordu.
+**Düzeltme:** kimlik = TÜM yolların hash'i + `MediaResizeOptions.signature`
+(tüm ayar alanlarını yansıtan kararlı imza, birim testli).
+
+### HIGH 9 — FFmpeg iptali yalnız istatistik geri çağrısında yoklanıyordu
+İki kusur: (a) istatistik yalnız kare kodlandıkça gelir — ses çözülürken ya da
+uzun dosyanın başında hiç gelmeyebilir, o aralıkta "Durdur" hiçbir şey
+yapmıyordu; (b) ilk kodlayıcı (`h264_mediacodec`) hata verdiği anda kullanıcı
+iptal etmişse İKİNCİ kodlayıcı (`mpeg4`) sıfırdan başlıyor ve dakikalarca
+sürüyordu. **Düzeltme:** 400 ms'lik bağımsız yoklama zamanlayıcısı +
+her kodlayıcı denemesinden önce iptal kontrolü.
+
+### HIGH 12 — iptal edilen boyut düşürme diskte yarım iz bırakıyordu
+`handle.throwIfCancelled()` döngünün başındaydı ve `FsEvents.changed()` ile
+"özgünleri çöpe at" adımının ÜSTÜNDEN atlayıp dışarı fırlıyordu: 10 dosyanın
+4'ü bittikten sonra durdurulunca o 4 yeni dosya hiçbir listede görünmüyor,
+"Özgün dosyayı çöp kutusuna at" açıkken kullanıcının elinde hem özgün hem kopya
+kalıyordu. **Düzeltme:** döngü `try`, kuyruk sonu `finally` — iptalde de
+etiket taşınır, özgünler çöpe gider, listeler tazelenir, ayrıntı satırında
+`durduruldu (4/10)` yazar.
+
+### MEDIUM 10 — `ResizeResult.width/height` yedek motorda YALAN söylüyordu
+Yedek motor (MediaCodec kademesi) istenen ölçüyü değil kendi kademesini uygular
+ama alanlara KAYNAĞIN ölçüsü yazılıyordu ("çıktı 1920x1080" derken dosya
+1280x720 olabiliyordu). Alanlar `int?` yapıldı; yedek yolda ölçü **çıktıdan**
+okunur, okunamazsa `null` ("uydurmak yerine bilmiyorum").
+
+### MEDIUM 11 — `PathSideIndex`: etiket/geçmiş yol değişince kayboluyordu
+(§VII AÇIK 1'in devamı) Kanca `FileOps.rename`, `FileOps._transfer` (**yalnız
+`move`** — kopyalamada etiket kaynakta kalmalı), `TrashService.moveToTrash`
+(hem hızlı hem yedek yol), `TrashService.restore` ve boyut düşürmenin
+"özgünü değiştir" yoluna bağlandı. `FileOps`/`TrashService` saf `dart:io`
+kalsın diye kanca deseni seçildi (bkz. `path_side_index.dart`).
+
+### Denetimin kendi dersi
+Bulguların 4'ü **aynı desenden** çıktı: *"iki durumu birbirine karıştırmak"*.
+- "dosya silinmiş" ↔ "şu an göremiyorum" (izin/SD kart) → CRITICAL 2/3
+- "yüklemeye başladım" ↔ "yüklendi" (bayrak ↔ Future) → CRITICAL 2/3
+- "iki öneri de güvenli" ↔ "sıraları önemsiz" → CRITICAL 1
+- "uzantı" ↔ "gerçekten yazabildiğim biçim" → CRITICAL 4
+Yeni kod yazarken bu dört ayrım özellikle sorulmalı.
+
+### Doğrulama (bu turda)
+`flutter analyze`: 0 hata (40 info/warning, hepsi eski koddan).
+`flutter test`: **824 test geçti** (denetim öncesi 805; +19 yeni kilit).
+Yeni/güncellenen test dosyaları: `fm_file_tags_test.dart` (yeni, 13),
+`fm_media_resize_test.dart` (+9: `keepExtension`, ayar imzası, kapsam kimliği),
+`fm_open_history_test.dart` (11), `fm_path_side_index_test.dart` (7).

@@ -164,13 +164,18 @@ abstract final class VideoTranscoder {
             'Video sıkıştırılamadı (biçim desteklenmiyor olabilir).');
       }
       await File(produced).copy(target);
+      // Ölçü ÇIKTIDAN okunur, kaynaktan değil: yedek motor istenen ölçüyü değil
+      // kendi kademesini uygular (1234x568 istenirken 1280x720 üretebilir).
+      // Okunamazsa null bırakılır — kaynağın ölçüsünü çıktının ölçüsü gibi
+      // yazmak kullanıcıya yanlış bilgi vermekti (2026-07-29 sadakat denetimi).
+      final produce = await sourceSize(target);
       return ResizeResult(
         sourcePath: path,
         outputPath: target,
         beforeBytes: before,
         afterBytes: File(target).lengthSync(),
-        width: size?.width ?? 0,
-        height: size?.height ?? 0,
+        width: produce?.width,
+        height: produce?.height,
       );
     } finally {
       subscription?.unsubscribe();

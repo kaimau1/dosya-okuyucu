@@ -157,8 +157,10 @@ class _TagSheetState extends State<_TagSheet> {
                     const SizedBox(height: Gap.md),
                     Text(
                       'Etiket dosyanın içine yazılmaz, uygulamanın kendi '
-                      'kaydında durur ve dosya yoluna bağlıdır: dosyayı başka '
-                      'bir uygulamayla taşırsan etiket onunla gitmez.',
+                      'kaydında durur. Bu uygulamayla taşıdığında, adını '
+                      'değiştirdiğinde ve çöpten geri aldığında etiket '
+                      'dosyayla birlikte gider; başka bir uygulamayla '
+                      'taşırsan gitmez.',
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: Gap.md),

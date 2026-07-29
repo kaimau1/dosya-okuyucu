@@ -143,6 +143,25 @@ class MediaResizeOptions {
       resolution == ResolutionChoice.custom ||
       resolution == ResolutionChoice.percent;
 
+  /// Ayarların **kararlı özeti** — kuyruk kimliğinin bir parçası.
+  ///
+  /// Niye: kimlik yalnız dosya sayısı + ilk yola bakıyordu; aynı seçimi önce
+  /// 720p sonra 480p için başlatmak aynı kimliği üretiyor, kuyruk "bu iş zaten
+  /// sürüyor" deyip İKİNCİSİNİ SESSİZCE YUTUYORDU — arayüz "arka planda
+  /// başladı" diyor, hiçbir şey olmuyordu (2026-07-29 sadakat denetimi).
+  String get signature => [
+        resolution.name,
+        percent,
+        customWidth ?? '-',
+        customHeight ?? '-',
+        imageQuality,
+        imageFormat.name,
+        videoQuality.name,
+        frameRate ?? '-',
+        removeAudio ? 'sessiz' : 'sesli',
+        replaceOriginal ? 'degistir' : 'kopya',
+      ].join('/');
+
   /// Dosya adına eklenecek ek ("_720p", "_1280x720", "_%50", "_kucuk").
   String get suffix {
     if (resolution == ResolutionChoice.percent) return '%$percent';

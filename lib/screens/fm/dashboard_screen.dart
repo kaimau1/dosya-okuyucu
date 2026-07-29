@@ -547,6 +547,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: () {
           final locked = context.read<AppState>().fmLockedFolders;
           _push(SimilarScreen(
+            // Pano kutucuğu tüm medyayı tarar; kategori ekranlarından açılan
+            // tarama kendi kapsamında durur (bkz. SimilarFinder.jobIdFor).
+            scopeId: 'tum-medya',
             files: [
               ..._index.files(FmCategory.image),
               ..._index.files(FmCategory.video),

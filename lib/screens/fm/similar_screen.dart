@@ -40,11 +40,18 @@ class SimilarScreen extends StatefulWidget {
 
   final String title;
 
+  /// Bu taramanın **kapsam kimliği** — kuyruk kimliği buradan üretilir
+  /// (bkz. [SimilarFinder.jobIdFor]). Aynı kapsamdan tekrar girmek taramayı
+  /// baştan başlatmaz; farklı kapsam (Görüntüler / Videolar / tüm medya) kendi
+  /// sonucunu tutar.
+  final String scopeId;
+
   const SimilarScreen({
     super.key,
     this.files = const [],
     this.loadAll,
     this.title = 'Benzer görüntüler',
+    this.scopeId = 'all',
   });
 
   @override
@@ -60,8 +67,17 @@ class _SimilarScreenState extends State<SimilarScreen> {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
     // Sonuç zaten varsa (kullanıcı geri döndü) yeniden tarama YOK.
-    final job = JobQueue.instance.find(SimilarFinder.jobId);
-    if (job == null || job.status == JobStatus.failed) _start();
+    //
+    // `cancelled` de yeniden taranır: iptal edilmiş bir taramanın sonucu YARIM
+    // (ya da hiç yok) ve ekran bunu "benzer bulunamadı 🎉" diye gösteriyordu —
+    // kullanıcı taramayı kendi durdurduğunu bilse bile ekranın bir daha asla
+    // taramaması, "Yeniden tara"ya basmadan yanlış bir güvence vermekti.
+    final job = _job;
+    if (job == null ||
+        job.status == JobStatus.failed ||
+        job.status == JobStatus.cancelled) {
+      _start();
+    }
   }
 
   @override
@@ -74,7 +90,9 @@ class _SimilarScreenState extends State<SimilarScreen> {
     if (mounted) setState(() {});
   }
 
-  FmJob? get _job => JobQueue.instance.find(SimilarFinder.jobId);
+  String get _jobId => SimilarFinder.jobIdFor(widget.scopeId);
+
+  FmJob? get _job => JobQueue.instance.find(_jobId);
 
   List<SimilarGroup> get _groups {
     final result = _job?.result;
@@ -85,7 +103,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
     final level = _level;
     final loader = widget.loadAll;
     JobQueue.instance.enqueue(
-      id: SimilarFinder.jobId,
+      id: _jobId,
       title: 'Benzer görüntüler aranıyor (${level.label})',
       total: widget.files.length,
       run: (handle) async {

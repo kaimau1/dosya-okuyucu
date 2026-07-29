@@ -281,7 +281,10 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                               'Video istediğin ölçüye birebir dönüştürülür '
                               '(FFmpeg). Uzun bir videoda bu dakikalar '
                               'sürebilir; işlem arka planda koşar, ilerlemeyi '
-                              'alttaki şeritten izleyebilirsin.',
+                              'alttaki şeritten izleyebilirsin. Cihaz bu '
+                              'videoyu FFmpeg ile çeviremezse en yakın '
+                              'kademeye inilir ve işlem satırında “yedek '
+                              'motor” yazar.',
                               style: theme.textTheme.bodySmall,
                             ),
                           ),

@@ -173,7 +173,22 @@ class _CleanupScreenState extends State<CleanupScreen> {
       total: chosen.length,
       run: (handle) async {
         var done = 0;
-        for (final suggestion in chosen) {
+        // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA.
+        //
+        // KRİTİK (2026-07-29 sadakat denetimi — veri kaybı): öneriler
+        // "güvenliler önce, sonra bayta göre" sıralanıyor ve hem `trash` hem
+        // `duplicates` güvenli sayılıyor. Kopyalar çöpten büyükse sıra
+        // [kopyalar, …, çöp] oluyordu: döngü kopyaları çöpe TAŞIYOR, birkaç
+        // saniye sonra `empty()` çağrılıp çöp KALICI siliniyordu — yani
+        // kullanıcının 800 MB kopyası geri alınamaz şekilde yok oluyordu.
+        // Üstelik onay penceresinde ona "çöp kutusuna taşınır, oradan geri
+        // alabilirsiniz" yazıyordu. Çöp önce boşaltılınca hem istenen yer
+        // kazanılıyor hem bu turda çöpe düşenler kurtarılabilir kalıyor.
+        final ordered = [
+          ...chosen.where((s) => s.id == 'trash'),
+          ...chosen.where((s) => s.id != 'trash'),
+        ];
+        for (final suggestion in ordered) {
           handle.throwIfCancelled();
           handle.report(done: done, detail: suggestion.title);
           if (suggestion.id == 'trash') {

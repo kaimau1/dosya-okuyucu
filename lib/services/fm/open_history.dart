@@ -36,31 +36,52 @@ abstract final class OpenHistory {
   static String get _path => p.join(FmEnv.appSupportDir, _fileName);
 
   /// Diskten okur ve **artık var olmayan** dosyaların kayıtlarını atar.
-  static Future<void> ensureLoaded() => _loadFuture ??= _load();
+  ///
+  /// `appSupportDir` henüz hazır değilse **kilitlemez**: `FmEnv.ensureInit()`
+  /// panonun açılışında koşuyor, oysa paylaşımla ("Birlikte aç") soğuk başlayan
+  /// bir açılışta `record()` ondan ÖNCE çalışabiliyor. Boş dizinle bir kez
+  /// kilitlenirse `_byPath` sonsuza dek boş kalır ve bir sonraki yazma tüm
+  /// geçmişin üstüne tek satır yazardı (2026-07-29 denetimi).
+  static Future<void> ensureLoaded() {
+    if (FmEnv.appSupportDir.isEmpty) return Future<void>.value();
+    return _loadFuture ??= _load();
+  }
 
   static Future<void> _load() async {
-    if (FmEnv.appSupportDir.isEmpty) return;
     try {
       final file = File(_path);
       if (!file.existsSync()) return;
       final raw = jsonDecode(await file.readAsString());
       if (raw is! Map) return;
-      var dropped = false;
       for (final entry in raw.entries) {
         final key = '${entry.key}';
         final ms = (entry.value as num?)?.toInt();
         if (ms == null) continue;
-        if (!File(key).existsSync()) {
-          dropped = true;
-          continue;
-        }
+        // Silinmiş dosyaların kaydı BELLEKTE atılır ama diske **yazılmaz**:
+        // bkz. `_shouldKeep` — depolama izni verilmemişken ya da SD kart
+        // takılı değilken her yol "yok" görünür; o an dosyayı yeniden yazmak
+        // kullanıcının tüm geçmişini kalıcı olarak silerdi.
+        if (!_shouldKeep(key)) continue;
         _byPath[key] = ms;
       }
-      if (dropped) await _saveNow();
     } catch (_) {
       // Bozuk dosya sessizce yok sayılır: bu bir kolaylık kaydı, uygulamayı
       // kilitlememeli.
     }
+  }
+
+  /// Bu kayıt korunmalı mı? (Kayıt gerçekten geçersiz mi, yoksa dosya şu an
+  /// yalnızca **erişilemez** mi?)
+  ///
+  /// Ayrım kritik: depolama izni verilmemişken, izin Android tarafından geri
+  /// alınmışken ya da SD kart çıkarılmışken `File.existsSync()` her yol için
+  /// `false` döner. "Yok" ile "şimdi göremiyorum"u karıştırmak kullanıcının
+  /// etiketlerini/geçmişini kalıcı olarak silmek demekti. Bu yüzden kaydı
+  /// yalnız **klasörü okunabildiği hâlde** dosya yoksa geçersiz sayıyoruz.
+  static bool _shouldKeep(String path) {
+    if (File(path).existsSync()) return true;
+    // Klasör de görünmüyorsa erişim sorunu olabilir → kaydı KORU.
+    return !Directory(p.dirname(path)).existsSync();
   }
 
   static Future<void> _saveNow() async {

@@ -8,22 +8,29 @@ import 'package:path/path.dart' as p;
 import '../../models/media_resize.dart';
 import 'file_ops.dart';
 
-/// Boyut düşürme sonucu (önce/sonra ölçüleri kullanıcıya yazılır).
+/// Boyut düşürme sonucu.
 class ResizeResult {
   final String sourcePath;
   final String outputPath;
   final int beforeBytes;
   final int afterBytes;
-  final int width;
-  final int height;
+
+  /// Çıktının **gerçek** ölçüsü; ölçülemediyse null.
+  ///
+  /// Nullable olması bilinçli: yedek video motoru (MediaCodec kademesi) istenen
+  /// ölçüyü değil kendi kademesini uygular ve ne ürettiğini söylemez. Burada
+  /// eskiden KAYNAĞIN ölçüsü yazılıydı — yani alan "çıktı 1920x1080" diyorken
+  /// dosya 1280x720 olabiliyordu. Uydurmak yerine "bilmiyorum" diyoruz.
+  final int? width;
+  final int? height;
 
   const ResizeResult({
     required this.sourcePath,
     required this.outputPath,
     required this.beforeBytes,
     required this.afterBytes,
-    required this.width,
-    required this.height,
+    this.width,
+    this.height,
   });
 
   int get savedBytes => beforeBytes - afterBytes;
@@ -47,11 +54,7 @@ abstract final class ImageResizer {
     MediaResizeOptions options,
   ) async {
     final before = File(path).lengthSync();
-    // Uzantısız kaynakta (ör. WhatsApp'ın bazı geçici dosyaları) boş uzantı
-    // "foto_720p." gibi bir ad üretir ve dosya hiçbir uygulamada açılmaz;
-    // içerik JPEG olarak yazıldığı için ad da jpg olmalı.
-    final ext = options.imageFormat.extension ??
-        _orJpg(p.extension(path).replaceFirst('.', '').toLowerCase());
+    final ext = options.imageFormat.extension ?? keepExtension(path);
     final base = p.basenameWithoutExtension(path);
     final target = FileOps.uniquePath(
       p.join(p.dirname(path), '${base}_${options.suffix}.$ext'),
@@ -73,8 +76,30 @@ abstract final class ImageResizer {
     );
   }
 
-  /// Boş uzantıyı `jpg` yapar (çıktı JPEG olarak kodlanıyor).
-  static String _orJpg(String ext) => ext.isEmpty ? 'jpg' : ext;
+  /// "Aynı kalsın" seçilince çıktının uzantısı ne olmalı?
+  ///
+  /// [encodableExtensions] dışındaki her uzantı `jpg`'ye düşürülür. Sebep
+  /// [_resizeSync]: gerçekten yazabildiğimiz biçimler bunlar; kaynağın
+  /// uzantısını körü körüne korumak `.webp` / `.gif` / `.heic` adlı ama İÇİ
+  /// JPEG olan dosyalar üretiyordu (2026-07-29 sadakat denetimi). Böyle bir
+  /// dosya galeride açılmaz, paylaşımda "bozuk" görünür ve kullanıcı özgününü
+  /// çöpe attıysa (Özgün dosyayı çöp kutusuna at) kaybı geri alması güçtür.
+  /// Uzantısız kaynakta (ör. WhatsApp'ın bazı geçici dosyaları) da `jpg`:
+  /// "foto_720p." adlı bir dosya hiçbir uygulamada açılmaz.
+  static String keepExtension(String path) {
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    return encodableExtensions.contains(ext) ? ext : 'jpg';
+  }
+
+  /// `image` paketiyle **yazabildiğimiz** uzantılar ([_resizeSync]'teki switch
+  /// ile birebir aynı küme olmalı).
+  static const Set<String> encodableExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'bmp',
+    'tga',
+  };
 
   /// Gemini'ye gönderilecek **küçük önizleme** üretir (dosyaya yazmadan).
   ///

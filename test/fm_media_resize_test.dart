@@ -1,4 +1,6 @@
 import 'package:dosya_okuyucu/models/media_resize.dart';
+import 'package:dosya_okuyucu/services/fm/image_resize.dart';
+import 'package:dosya_okuyucu/services/fm/similar_finder.dart';
 import 'package:dosya_okuyucu/services/fm/video_transcode.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_compress/video_compress.dart';
@@ -226,6 +228,84 @@ void main() {
     test('4K kaynak 1080p’nin üstünde kalmaz', () {
       expect(VideoTranscoder.qualityForShortEdge(2160),
           VideoQuality.Res1920x1080Quality);
+    });
+  });
+
+  // ── "Aynı kalsın" biçiminde çıktının UZANTISI ───────────────────────────────
+  // Kök neden (2026-07-29 sadakat denetimi): kaynağın uzantısı körü körüne
+  // korunuyordu ama `ImageResizer` yalnız JPEG/PNG/BMP/TGA yazabiliyor. Sonuç
+  // `.webp` adlı, İÇİ JPEG olan dosyalardı — galeride açılmaz, paylaşımda bozuk
+  // görünür. "Özgün dosyayı çöp kutusuna at" açıkken kaybı geri almak da güç.
+  group('keepExtension (Aynı kalsın)', () {
+    test('yazabildiğimiz biçimler korunur', () {
+      expect(ImageResizer.keepExtension('/a/b/foto.png'), 'png');
+      expect(ImageResizer.keepExtension('/a/b/foto.JPG'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/foto.jpeg'), 'jpeg');
+      expect(ImageResizer.keepExtension('/a/b/tarama.bmp'), 'bmp');
+    });
+
+    test('YAZAMADIĞIMIZ biçimler jpg olur (içerik JPEG çünkü)', () {
+      expect(ImageResizer.keepExtension('/a/b/foto.webp'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/foto.gif'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/IMG_1.heic'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/tarama.tiff'), 'jpg');
+    });
+
+    test('uzantısız kaynak jpg olur ("foto_720p." hiçbir yerde açılmaz)', () {
+      expect(ImageResizer.keepExtension('/a/b/whatsapp-gecici'), 'jpg');
+    });
+
+    test('encodableExtensions kümesi jpg’yi de içerir (tutarlılık)', () {
+      for (final ext in ImageResizer.encodableExtensions) {
+        expect(ImageResizer.keepExtension('/a/b/x.$ext'), ext);
+      }
+    });
+  });
+
+  // ── Kuyruk kimlikleri ──────────────────────────────────────────────────────
+  // İkisi de aynı hatanın iki yüzü: kimlik işi TAM olarak tanımlamazsa kuyruk
+  // farklı işleri aynı iş sanıyor. Boyut düşürmede bu "başlattım ama hiçbir şey
+  // olmadı", benzer taramada "başka kapsamın sonucunu kendi sonucu sanma".
+  group('ayar imzası (kuyruk kimliği)', () {
+    test('aynı ayarlar aynı imzayı verir', () {
+      expect(const MediaResizeOptions().signature,
+          const MediaResizeOptions().signature);
+    });
+
+    test('her ayar alanı imzayı DEĞİŞTİRİR', () {
+      const base = MediaResizeOptions();
+      final others = [
+        base.copyWith(resolution: ResolutionChoice.p480),
+        base.copyWith(percent: 33),
+        base.copyWith(customWidth: 1234),
+        base.copyWith(customHeight: 568),
+        base.copyWith(imageQuality: 55),
+        base.copyWith(imageFormat: ImageOutputFormat.png),
+        base.copyWith(videoQuality: VideoQualityChoice.high),
+        base.copyWith(frameRate: 24),
+        base.copyWith(removeAudio: true),
+        base.copyWith(replaceOriginal: true),
+      ];
+      for (final o in others) {
+        expect(o.signature, isNot(base.signature),
+            reason: 'imza bu ayarı yansıtmıyor → kuyruk işi yutar');
+      }
+      // Hepsi birbirinden de farklı olmalı (çakışma yok).
+      expect(others.map((o) => o.signature).toSet().length, others.length);
+    });
+  });
+
+  group('benzer tarama kapsam kimliği', () {
+    test('kapsamlar ayrı kimlik alır', () {
+      expect(SimilarFinder.jobIdFor('Görüntüler'),
+          isNot(SimilarFinder.jobIdFor('Videolar')));
+      expect(SimilarFinder.jobIdFor('tum-medya'),
+          isNot(SimilarFinder.jobIdFor('Görüntüler')));
+    });
+
+    test('aynı kapsam aynı kimliği alır (geri dönünce sonuç bulunur)', () {
+      expect(SimilarFinder.jobIdFor('Videolar'),
+          SimilarFinder.jobIdFor('Videolar'));
     });
   });
 }

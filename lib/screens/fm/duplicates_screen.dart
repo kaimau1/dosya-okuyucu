@@ -94,8 +94,20 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
     final job = _job;
+    final hasResult = job?.result is List<DuplicateGroup>;
     // Sonuç varsa yeniden taramıyoruz; kullanıcı geri döndüğünde beklemesin.
-    if (job == null || job.status == JobStatus.failed) _scan();
+    // Sonucu OLMAYAN ve artık koşmayan bir iş (başarısız **ya da iptal
+    // edilmiş**) yeniden taranır: eskiden yalnız `failed` bakılıyordu, iptal
+    // edilmiş bir taramadan sonra ekran "Yinelenen dosya bulunamadı 🎉" diye
+    // yanlış bir güvence veriyordu (2026-07-29 sadakat denetimi).
+    if (job == null || (!hasResult && !job.status.isActive)) {
+      _scan();
+    } else if (hasResult) {
+      // Geri dönüşte varsayılan seçim burada kurulur: `_onQueue` yalnız kuyruk
+      // bildiriminde çalışır, bitmiş bir iş bir daha bildirim üretmez — ekran
+      // sonuçları gösteriyor ama "N kopyayı çöpe taşı" şeridi hiç görünmüyordu.
+      _seedSelection();
+    }
   }
 
   /// Taramayı arka plan kuyruğuna verir.
@@ -107,8 +119,14 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
       run: (handle) async {
         handle.report(detail: 'Dosyalar bayt bayt karşılaştırılıyor…');
         final groups = await DuplicateFinder.scan(roots);
-        handle.throwIfCancelled();
+        // Sonuç iptal yoklamasından ÖNCE saklanır: `DuplicateFinder.scan`
+        // ortasında durdurulamıyor, yani buraya gelindiğinde bayt bayt
+        // karşılaştırma bitmiş demektir. Sırası tersken, tarama biterken
+        // "Durdur"a basmak dakikalarca süren işi çöpe atıyordu (2026-07-29
+        // sadakat denetimi). İş yine "İptal edildi" damgalanır — kullanıcı
+        // durdurmayı istedi — ama elimizdeki geçerli sonuç korunur.
         handle.result = groups;
+        handle.throwIfCancelled();
         final wasted = groups.fold<int>(0, (sum, g) => sum + g.wastedBytes);
         handle.report(
           detail: groups.isEmpty
@@ -118,6 +136,10 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
         );
       },
     );
+    // İmza sıfırlanır, yoksa içerik değişmemişse (aynı gruplar) yeni sonuç
+    // geldiğinde [_seedSelection] "değişmedi" deyip çıkar ve varsayılan seçim
+    // bir daha hiç kurulmazdı — "Yeniden tara"dan sonra silme şeridi kaybolur.
+    _seedSignature = null;
     setState(() => _selected.clear());
   }
 

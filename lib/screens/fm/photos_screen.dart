@@ -492,6 +492,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
               builder: (_) => SimilarScreen(
                 files: _files,
                 title: 'Benzer: ${widget.title}',
+                // Kapsam kimliği: Görüntüler ile Videolar'ın taraması aynı
+                // kuyruk işini paylaşmasın (bkz. SimilarFinder.jobIdFor).
+                scopeId: widget.title,
               ),
             )),
           ),
