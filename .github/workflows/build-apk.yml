@@ -121,6 +121,14 @@ jobs:
       - name: minSdk 24 (Firebase + video küçük resmi) + NDK sürümü
         run: |
           set -e
+          # Runner'da kurulu NDK sürümlerinden en yenisini seç.
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          NDK_VERSION=$(ls "$SDK/ndk" 2>/dev/null | sort -V | tail -1)
+          if [ -z "$NDK_VERSION" ]; then
+            NDK_VERSION=27.0.12077973
+            echo "::warning::Runner'da kurulu NDK yok; $NDK_VERSION indirilecek."
+          fi
+          echo "Kullanılacak NDK: $NDK_VERSION"
           for f in android/app/build.gradle.kts android/app/build.gradle; do
             [ -f "$f" ] || continue
             # 2026-07-25: 23 → 24. fc_native_video_thumbnail (video küçük
@@ -128,9 +136,16 @@ jobs:
             # kesiyordu. Firebase'in istediği 23 de kapsanıyor; Android 6 payı
             # bugün ihmal edilebilir.
             sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 24/' "$f"
-            # Eklentiler NDK 27 istiyor (uyarı); en yükseğe sabitle (geriye uyumlu).
+            # NDK sürümü: **runner'da KURULU olan** kullanılır.
+            #
+            # Build 152 kırmızı: sabit "27.0.12077973" runner'da yoktu, Gradle
+            # indirmeye çalıştı ve indirme bozuk geldi
+            # ("java.util.zip.ZipException: Archive is not a ZIP archive").
+            # Kurulu sürümü seçmek hem bu kırılganlığı kaldırıyor hem de her
+            # derlemede ~500 MB indirmeyi atlıyor. Hiç NDK yoksa eski sabit
+            # sürüme düşülür (o zaman indirme kaçınılmaz).
             grep -q 'ndkVersion' "$f" || \
-              sed -i '0,/android {/s//android {\n    ndkVersion = "27.0.12077973"/' "$f"
+              sed -i "0,/android {/s//android {\n    ndkVersion = \"$NDK_VERSION\"/" "$f"
           done
           echo "--- minSdk/ndk sonrası ---"; grep -R -E "minSdk|ndkVersion" android/app/build.gradle* || true
 

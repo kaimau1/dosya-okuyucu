@@ -3387,3 +3387,13 @@ bilgi değil gürültü).
 `analyze` 0 hata, `flutter test` **670 geçti, 0 kırmızı** (30 yeni durum).
 Cihazda deneme YAPILMADI; AI yolları (Gemini) gerçek anahtarla denenmedi —
 hata yolları (anahtar yok / bozuk yanıt / ağ hatası) kodda ele alınıyor.
+
+### L. CI TUZAĞI — build 152 kırmızı: NDK indirmesi bozuk geldi
+Hata kodda değildi: `ndkVersion = "27.0.12077973"` runner'da kurulu değildi,
+Gradle indirmeye çalıştı ve arşiv bozuk indi →
+`java.util.zip.ZipException: Archive is not a ZIP archive` →
+"Failed to install ndk;27.0.12077973" → `:pdfrx` yapılandırması çöktü.
+**Çözüm:** sürüm sabit yazılmıyor; runner'da **kurulu** NDK'ların en yenisi
+(`ls $ANDROID_SDK_ROOT/ndk | sort -V | tail -1`) kullanılıyor. Hem bu
+kırılganlık kalktı hem her derlemede ~500 MB indirme atlandı. Kurulu NDK
+yoksa eski sabit sürüme düşülüyor (uyarı basılarak).
