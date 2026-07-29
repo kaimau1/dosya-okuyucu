@@ -14,6 +14,7 @@ import '../models/download_task.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../widgets/file_type_icon.dart';
+import '../widgets/fm/job_progress_bar.dart';
 import '../widgets/scan_flow.dart';
 import 'chat_screen.dart';
 import 'fm/dashboard_screen.dart';
@@ -102,7 +103,15 @@ class _HomeScreenState extends State<HomeScreen> {
           const ChatScreen(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      // Süren işlerin şeridi gezinme çubuğunun **üstünde**: kullanıcı hangi
+      // sekmede olursa olsun "yer aç / boyut düşür / benzer ara" işinin nerede
+      // olduğunu görür ve iptal edebilir (istek 2026-07-29: işlemler arka
+      // planda çalışabilmeli).
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const JobProgressBar(),
+          NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
@@ -120,6 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.smart_toy_outlined),
             selectedIcon: Icon(Icons.smart_toy),
             label: 'AI',
+          ),
+        ],
           ),
         ],
       ),

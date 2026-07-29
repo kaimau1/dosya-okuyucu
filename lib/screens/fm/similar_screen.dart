@@ -1,0 +1,451 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+
+import '../../core/app_state.dart';
+import '../../core/theme.dart';
+import '../../models/fs_entry.dart';
+import '../../services/fm/entry_opener.dart';
+import '../../services/fm/file_tags.dart';
+import '../../services/fm/fs_scan.dart';
+import '../../services/fm/image_hash.dart';
+import '../../services/fm/image_resize.dart';
+import '../../services/fm/job_queue.dart';
+import '../../services/fm/similar_finder.dart';
+import '../../services/gemini_service.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
+import 'entry_actions.dart';
+
+/// **Benzer fotoğraf/videolar** — algısal parmak iziyle bulunan kümeler.
+///
+/// `DuplicatesScreen`'den ayrımı bilinçli: orada dosyalar **bayt bayt** aynı,
+/// burada yalnız *aynı görünüyor*. Bu yüzden:
+/// - hiçbir şey kendiliğinden silinmez, her grupta **en büyük** (en az
+///   sıkıştırılmış) dosya korunacak diye önceden işaretlenir;
+/// - küçük resimler yan yana çizilir, kullanıcı gözüyle doğrular;
+/// - istenirse grup Gemini'ye sorulur ("aynı sahnenin iki karesi mi?").
+///
+/// Tarama [JobQueue]'da koşar: kullanıcı ekranı kapatıp başka işe geçebilir,
+/// döndüğünde sonuç hazır bekler.
+class SimilarScreen extends StatefulWidget {
+  /// Taranacak dosyalar (kategori ekranının elindeki liste).
+  final List<FsEntry> files;
+
+  /// Liste hazır değilse (ör. panodan girildi) **eksiksiz** listeyi getiren
+  /// yükleyici. Yükleme de işin parçası olur, ilerleme aynı şeritte görünür.
+  final Future<List<FsEntry>> Function()? loadAll;
+
+  final String title;
+
+  const SimilarScreen({
+    super.key,
+    this.files = const [],
+    this.loadAll,
+    this.title = 'Benzer görüntüler',
+  });
+
+  @override
+  State<SimilarScreen> createState() => _SimilarScreenState();
+}
+
+class _SimilarScreenState extends State<SimilarScreen> {
+  final Set<String> _selected = {};
+  SimilarityLevel _level = SimilarityLevel.normal;
+
+  @override
+  void initState() {
+    super.initState();
+    JobQueue.instance.addListener(_onQueue);
+    // Sonuç zaten varsa (kullanıcı geri döndü) yeniden tarama YOK.
+    final job = JobQueue.instance.find(SimilarFinder.jobId);
+    if (job == null || job.status == JobStatus.failed) _start();
+  }
+
+  @override
+  void dispose() {
+    JobQueue.instance.removeListener(_onQueue);
+    super.dispose();
+  }
+
+  void _onQueue() {
+    if (mounted) setState(() {});
+  }
+
+  FmJob? get _job => JobQueue.instance.find(SimilarFinder.jobId);
+
+  List<SimilarGroup> get _groups {
+    final result = _job?.result;
+    return result is List<SimilarGroup> ? result : const [];
+  }
+
+  void _start() {
+    final level = _level;
+    final loader = widget.loadAll;
+    JobQueue.instance.enqueue(
+      id: SimilarFinder.jobId,
+      title: 'Benzer görüntüler aranıyor (${level.label})',
+      total: widget.files.length,
+      run: (handle) async {
+        var files = widget.files;
+        if (loader != null) {
+          handle.report(detail: 'Dosya listesi hazırlanıyor…');
+          final all = await loader();
+          // Kısa liste dönerse elimizdekini koru (bkz. kategori ekranları).
+          if (all.length > files.length) files = all;
+        }
+        final groups = await SimilarFinder.run(
+          files,
+          level: level,
+          handle: handle,
+        );
+        handle.result = groups;
+      },
+    );
+    setState(() => _selected.clear());
+  }
+
+  /// Her gruptan en iyisi (ilk) korunur, kalanlar işaretlenir.
+  void _selectExtras() {
+    setState(() {
+      _selected.clear();
+      for (final g in _groups) {
+        for (final f in g.files.skip(1)) {
+          _selected.add(f.path);
+        }
+      }
+    });
+  }
+
+  int get _selectedBytes => _groups
+      .expand((g) => g.files)
+      .where((f) => _selected.contains(f.path))
+      .fold(0, (sum, f) => sum + f.sizeBytes);
+
+  Future<void> _deleteSelected() async {
+    final files = _groups
+        .expand((g) => g.files)
+        .where((f) => _selected.contains(f.path))
+        .toList();
+    if (files.isEmpty) return;
+    if (!await deleteEntries(context, files)) return;
+    if (!mounted) return;
+    // Silinenler listeden düşsün: yeniden tarama gerekmez, sonuçtaki kayıtları
+    // ayıklamak yeter (parmak izleri önbellekte, tekrar tarama bedava değil).
+    final job = _job;
+    if (job != null) {
+      final gone = files.map((f) => f.path).toSet();
+      final kept = <SimilarGroup>[];
+      for (final g in _groups) {
+        final rest = g.files.where((f) => !gone.contains(f.path)).toList();
+        if (rest.length > 1) kept.add(SimilarGroup(rest));
+      }
+      job.result = kept;
+    }
+    setState(() => _selected.removeAll(files.map((f) => f.path)));
+  }
+
+  /// Grubu Gemini'ye sorar (kullanıcı isteği: cihaz-içi + AI birlikte seçenek).
+  Future<void> _askGemini(SimilarGroup group) async {
+    final appState = context.read<AppState>();
+    final messenger = ScaffoldMessenger.of(context);
+    if (!appState.hasApiKey) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Gemini için Ayarlar > API anahtarı gerekiyor. '
+              'Cihaz-içi benzerlik taraması anahtarsız çalışır.')));
+      return;
+    }
+    // En çok 6 görsel: daha fazlası hem pahalı hem yanıtı bulanıklaştırır.
+    final chosen = group.files.take(6).toList();
+    messenger.showSnackBar(const SnackBar(
+        content: Text('Görseller küçültülüp Gemini’ye gönderiliyor…')));
+    final previews = <({String name, Uint8List bytes})>[];
+    for (final f in chosen) {
+      final bytes = await ImageResizer.previewJpeg(f.path);
+      if (bytes != null) previews.add((name: f.name, bytes: bytes));
+    }
+    if (!mounted) return;
+    if (previews.length < 2) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Görseller okunamadı (video karesi henüz '
+              'desteklenmiyor).')));
+      return;
+    }
+    try {
+      final service =
+          GeminiService(apiKey: appState.apiKey, model: appState.model);
+      final answer = await service.compareImages([
+        for (final preview in previews)
+          (name: preview.name, bytes: preview.bytes),
+      ]);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Gemini’nin görüşü'),
+          content: SingleChildScrollView(child: Text(answer)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Kapat'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('Gemini: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final job = _job;
+    final running = job?.status.isActive ?? false;
+    final groups = _groups;
+    final wasted = groups.fold<int>(0, (sum, g) => sum + g.wastedBytes);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          IconButton(
+            tooltip: 'Yeniden tara',
+            icon: const Icon(Icons.refresh),
+            onPressed: running ? null : _start,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          _levelPicker(running),
+          const Divider(height: 1),
+          if (running) _progress(job!),
+          if (!running && groups.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(Gap.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${groups.length} benzer grup · '
+                      '${FsPaths.humanSize(wasted)} kazanılabilir',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _selectExtras,
+                    child: const Text('Fazlaları seç'),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: running
+                ? const SizedBox.shrink()
+                : groups.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(Gap.lg),
+                          child: Text(
+                            job?.status == JobStatus.failed
+                                ? 'Tarama başarısız: ${job?.error}'
+                                : 'Benzer görüntü bulunamadı 🎉',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 96),
+                        itemCount: groups.length,
+                        itemBuilder: (context, i) => _groupCard(groups[i]),
+                      ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _selected.isEmpty
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: FilledButton.icon(
+                  onPressed: _deleteSelected,
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text('${_selected.length} dosyayı çöpe taşı '
+                      '(${FsPaths.humanSize(_selectedBytes)})'),
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _progress(FmJob job) => Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          children: [
+            LinearProgressIndicator(value: job.progress),
+            const SizedBox(height: Gap.sm),
+            Text(job.detail.isEmpty ? 'Taranıyor…' : job.detail),
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Ekranı kapatabilirsin — tarama arka planda sürer, '
+              'geri döndüğünde sonuç hazır olur.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+
+  Widget _levelPicker(bool running) => Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: Gap.sm,
+              children: [
+                for (final l in SimilarityLevel.values)
+                  ChoiceChip(
+                    label: Text(l.label),
+                    selected: _level == l,
+                    onSelected: running
+                        ? null
+                        : (_) {
+                            setState(() => _level = l);
+                            _start();
+                          },
+                  ),
+              ],
+            ),
+            const SizedBox(height: Gap.xs),
+            Text(_level.description,
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      );
+
+  Widget _groupCard(SimilarGroup group) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, Gap.xs),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${group.files.length} benzer · '
+                      '${FsPaths.humanSize(group.wastedBytes)} kazanılabilir',
+                      style: theme.textTheme.labelLarge,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _askGemini(group),
+                    icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                    label: const Text('Gemini’ye sor'),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 132,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                children: [
+                  for (var i = 0; i < group.files.length; i++)
+                    _thumb(group.files[i], best: i == 0),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _thumb(FsEntry file, {required bool best}) {
+    final selected = _selected.contains(file.path);
+    final scheme = Theme.of(context).colorScheme;
+    final tags = FileTags.forPath(file.path);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+      child: SizedBox(
+        width: 96,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() {
+                  if (!_selected.remove(file.path)) _selected.add(file.path);
+                }),
+                onLongPress: () => EntryOpener.open(context, file.path),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    FmEntryIcon(entry: file, size: 96, radius: 8),
+                    if (selected)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: scheme.error.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    Positioned(
+                      top: 2,
+                      right: 2,
+                      child: Icon(
+                        selected
+                            ? Icons.delete_forever
+                            : Icons.circle_outlined,
+                        size: 18,
+                        color: selected ? scheme.error : Colors.white,
+                        shadows: const [
+                          Shadow(blurRadius: 4, color: Colors.black54)
+                        ],
+                      ),
+                    ),
+                    if (best)
+                      Positioned(
+                        left: 2,
+                        bottom: 2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 1),
+                          color: scheme.primary,
+                          child: Text('en iyi',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: scheme.onPrimary)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              FsPaths.humanSize(file.sizeBytes),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            Text(
+              tags.isNotEmpty ? tags.join(', ') : p.basename(p.dirname(file.path)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

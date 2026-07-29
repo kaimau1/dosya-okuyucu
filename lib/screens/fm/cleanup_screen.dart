@@ -5,9 +5,10 @@ import '../../core/theme.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
-import 'entry_actions.dart';
 import 'trash_screen.dart';
 
 /// **Yer açma asistanı** — "3 GB yer aç" isteğinin karşılığı.
@@ -32,57 +33,108 @@ class CleanupScreen extends StatefulWidget {
   State<CleanupScreen> createState() => _CleanupScreenState();
 }
 
+/// Çözümlemenin sonucu — iş kuyruğunda saklanır ki ekran kapanıp açılsa da
+/// tarama baştan başlamasın (kopya taraması dakikalar sürebilir).
+class CleanupScanResult {
+  final List<CleanupSuggestion> suggestions;
+  const CleanupScanResult(this.suggestions);
+}
+
 class _CleanupScreenState extends State<CleanupScreen> {
-  List<CleanupSuggestion> _suggestions = const [];
+  /// Çözümleme ve temizleme işlerinin kuyruktaki kararlı kimlikleri.
+  static const _scanJobId = 'cleanup_scan';
+  static const _applyJobId = 'cleanup_apply';
+
   final Set<String> _selected = {};
-  bool _loading = true;
-  String _step = '';
-  int _trashBytes = 0;
-  int _trashCount = 0;
+
+  /// Kullanıcı seçimi bir kez kurulur; sonuç tazelenince yeniden kurulmalı.
+  String? _seedSignature;
 
   @override
   void initState() {
     super.initState();
-    _analyze();
+    JobQueue.instance.addListener(_onQueue);
+    final job = JobQueue.instance.find(_scanJobId);
+    // Sonuç varsa yeniden taramıyoruz: kullanıcı geri döndüğünde beklemesin.
+    if (job == null || job.status == JobStatus.failed) _analyze();
   }
 
-  Future<void> _analyze() async {
-    setState(() {
-      _loading = true;
-      _step = 'Çöp kutusu okunuyor…';
-    });
-    final trash = await FmEnv.trash.list();
-    if (!mounted) return;
-    setState(() {
-      _trashCount = trash.length;
-      _trashBytes = trash.fold<int>(0, (sum, i) => sum + i.sizeBytes);
-      _step = 'İndirilenler inceleniyor…';
-    });
+  @override
+  void dispose() {
+    JobQueue.instance.removeListener(_onQueue);
+    super.dispose();
+  }
 
-    final downloadPath = p.join(FmEnv.primaryRoot, 'Download');
-    final downloads = await FsScan.collect([downloadPath]);
-    if (!mounted) return;
-    setState(() => _step = 'Yinelenen dosyalar aranıyor…');
+  void _onQueue() {
+    if (mounted) setState(_seedSelection);
+  }
 
-    // Kopya taraması pahalıdır (bayt bayt); yalnız burada, bir kez.
-    final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
-    if (!mounted) return;
+  FmJob? get _scanJob => JobQueue.instance.find(_scanJobId);
 
-    final list = adviseCleanup(
-      index: widget.index,
-      downloads: downloads,
-      duplicates: duplicates,
-      trashBytes: _trashBytes,
-      trashCount: _trashCount,
+  bool get _loading => _scanJob?.status.isActive ?? false;
+
+  String get _step => _scanJob?.detail ?? '';
+
+  List<CleanupSuggestion> get _suggestions {
+    final result = _scanJob?.result;
+    return result is CleanupScanResult ? result.suggestions : const [];
+  }
+
+  /// Güvenli öneriler açık gelir. Yalnız sonuç DEĞİŞTİĞİNDE kurulur, yoksa
+  /// kullanıcının kaldırdığı işaret her kuyruk bildiriminde geri gelirdi.
+  void _seedSelection() {
+    final list = _suggestions;
+    final signature = list.map((s) => '${s.id}:${s.bytes}').join('|');
+    if (signature == _seedSignature) return;
+    _seedSignature = signature;
+    _selected
+      ..clear()
+      ..addAll(list.where((s) => s.safeByDefault).map((s) => s.id));
+  }
+
+  /// Çözümlemeyi **arka plan kuyruğuna** verir.
+  ///
+  /// Kullanıcı isteği (2026-07-29): *"yer aç ve bunun gibi işlemler arka planda
+  /// çalışabilmeli"*. Eskiden tarama ekranın içinde koşuyordu; kullanıcı geri
+  /// tuşuna basınca (ya da başka bir işe geçince) dakikalar süren kopya
+  /// taraması çöpe gidiyordu.
+  void _analyze() {
+    JobQueue.instance.enqueue(
+      id: _scanJobId,
+      title: 'Yer aç: depolama çözümleniyor',
+      run: (handle) async {
+        handle.report(detail: 'Çöp kutusu okunuyor…');
+        final trash = await FmEnv.trash.list();
+        handle.throwIfCancelled();
+        final trashBytes = trash.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+
+        handle.report(detail: 'İndirilenler inceleniyor…');
+        final downloadPath = p.join(FmEnv.primaryRoot, 'Download');
+        final downloads = await FsScan.collect([downloadPath]);
+        handle.throwIfCancelled();
+
+        handle.report(detail: 'Yinelenen dosyalar aranıyor (bayt bayt)…');
+        // Kopya taraması pahalıdır; yalnız burada, bir kez.
+        final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
+        handle.throwIfCancelled();
+
+        final list = adviseCleanup(
+          index: widget.index,
+          downloads: downloads,
+          duplicates: duplicates,
+          trashBytes: trashBytes,
+          trashCount: trash.length,
+        );
+        handle.result = CleanupScanResult(list);
+        handle.report(
+          detail: list.isEmpty
+              ? 'Temizlenecek belirgin bir şey yok'
+              : '${list.length} öneri · '
+                  '${FsPaths.humanSize(cleanupTotal(list))} kazanılabilir',
+        );
+      },
     );
-    setState(() {
-      _suggestions = list;
-      _selected
-        ..clear()
-        ..addAll(list.where((s) => s.safeByDefault).map((s) => s.id));
-      _loading = false;
-      _step = '';
-    });
+    setState(() {});
   }
 
   List<CleanupSuggestion> get _chosen =>
@@ -113,17 +165,34 @@ class _CleanupScreenState extends State<CleanupScreen> {
     );
     if (ok != true || !mounted) return;
 
-    for (final suggestion in chosen) {
-      if (suggestion.id == 'trash') {
-        await FmEnv.trash.empty();
-        continue;
-      }
-      if (suggestion.files.isEmpty) continue;
-      if (!mounted) return;
-      await deleteEntries(context, suggestion.files, confirm: false);
-    }
-    if (!mounted) return;
-    await _analyze();
+    // Silme de kuyrukta koşar: 8 bin dosyayı çöpe taşımak dakikalar sürebilir
+    // ve kullanıcı bu sürede ekranda tutulmamalı.
+    JobQueue.instance.enqueue(
+      id: _applyJobId,
+      title: 'Yer aç: ${FsPaths.humanSize(total)} temizleniyor',
+      total: chosen.length,
+      run: (handle) async {
+        var done = 0;
+        for (final suggestion in chosen) {
+          handle.throwIfCancelled();
+          handle.report(done: done, detail: suggestion.title);
+          if (suggestion.id == 'trash') {
+            await FmEnv.trash.empty();
+          } else if (suggestion.files.isNotEmpty) {
+            // Onay ekranda alındı; kuyruktaki iş diyalog açamaz.
+            await FmEnv.trash.moveToTrash(
+                suggestion.files.map((f) => f.path).toList());
+          }
+          done++;
+          handle.report(done: done);
+        }
+        FsEvents.changed();
+        handle.report(detail: 'Temizlendi. Yeniden çözümleniyor…');
+      },
+    );
+    // Temizlik bitince öneriler bayat: çözümleme kuyruğa arkasından eklenir
+    // (kuyruk tek tek çalıştığı için sıra doğru).
+    _analyze();
   }
 
   @override

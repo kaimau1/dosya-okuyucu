@@ -5,7 +5,9 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../screens/fm/entry_actions.dart';
+import '../../screens/fm/resize_actions.dart';
 import 'batch_rename_sheet.dart';
+import 'tag_picker_sheet.dart';
 
 /// Çoklu seçim yapılınca ekranın altında beliren **eylem çubuğu**.
 ///
@@ -44,6 +46,10 @@ class FmSelectionBar extends StatelessWidget {
   List<String> get _paths => selected.map((e) => e.path).toList();
 
   bool get _anyDir => selected.any((e) => e.isDir);
+
+  /// Boyut düşürme yalnız fotoğraf/videoda anlamlı.
+  bool get _anyMedia => selected.any((e) =>
+      e.category == FmCategory.image || e.category == FmCategory.video);
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +180,11 @@ class FmSelectionBar extends StatelessWidget {
               if (await showBatchRenameSheet(context, selected)) {
                 await onChanged();
               }
+            case 'resize':
+              // İş kuyruğa gider; liste tazelemeyi FsEvents üstleniyor.
+              await startResizeJob(context, selected);
+            case 'tag':
+              if (await showTagPicker(context, _paths)) await onChanged();
             case 'properties':
               if (selected.length == 1 && context.mounted) {
                 await showProperties(context, selected.first);
@@ -181,6 +192,12 @@ class FmSelectionBar extends StatelessWidget {
           }
         },
         itemBuilder: (_) => [
+          if (_anyMedia)
+            const PopupMenuItem(
+                value: 'resize',
+                child: Text('Boyut düşür (çözünürlük/kare sayısı)')),
+          const PopupMenuItem(
+              value: 'tag', child: Text('Etiketle (kişi/grup)')),
           const PopupMenuItem(
               value: 'important', child: Text('Önemli dosyalara kopyala')),
           const PopupMenuItem(

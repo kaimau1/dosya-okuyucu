@@ -149,6 +149,49 @@ jobs:
           done
           echo "--- minSdk/ndk sonrası ---"; grep -R -E "minSdk|ndkVersion" android/app/build.gradle* || true
 
+      - name: Core library desugaring (flutter_local_notifications java.time ister)
+        run: |
+          set -e
+          # flutter_local_notifications java.time API'lerini kullanıyor; minSdk
+          # 24 (< 26) olduğu için bu sınıflar UYGULAMA modülünde de desugar
+          # edilmeli, yoksa derleme "Cannot find annotation method / missing
+          # java.time" ile kırılır. Kütüphane kendi modülünde açıyor ama
+          # desugaring modül başınadır.
+          #
+          # Eklenti dosyaya sonradan yamalanıyor çünkü `flutter create` her
+          # koşuda android/ klasörünü yeniden üretiyor (elle düzenleme silinir).
+          python3 - <<'PY'
+          import re, pathlib
+          patched = False
+          for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
+              path = pathlib.Path(name)
+              if not path.exists():
+                  continue
+              text = path.read_text()
+              kts = name.endswith('.kts')
+              flag = ('isCoreLibraryDesugaringEnabled = true' if kts
+                      else 'coreLibraryDesugaringEnabled true')
+              if 'oreLibraryDesugaring' not in text:
+                  # compileOptions bloğunun açılışına bayrağı ekle.
+                  new_text, count = re.subn(
+                      r'(compileOptions\s*\{)', r'\1\n        ' + flag, text, count=1)
+                  if count == 0:
+                      raise SystemExit(f'compileOptions bloğu bulunamadı: {name}')
+                  dep = ('dependencies {\n    coreLibraryDesugaring('
+                         '"com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
+                         if kts else
+                         'dependencies {\n    coreLibraryDesugaring '
+                         "'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n")
+                  new_text = new_text.rstrip() + '\n\n' + dep
+                  path.write_text(new_text)
+                  patched = True
+                  print(f'{name}: desugaring açıldı')
+          if not patched:
+              raise SystemExit('Desugaring yamalanamadı — build.gradle bulunamadı')
+          PY
+          echo "--- desugaring sonrası ---"
+          grep -R -A3 -E "compileOptions|coreLibraryDesugaring" android/app/build.gradle* || true
+
       - name: Kotlin eklenti sürümünü yükselt (flutter_tts 2.x metadata ister)
         run: |
           set -e

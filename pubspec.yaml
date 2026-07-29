@@ -127,6 +127,41 @@ dependencies:
   # 120Hz+ ekran desteği (Android 60Hz kilidini açar; diğer platformlarda pasif)
   flutter_displaymode: ^0.6.0
 
+  # ── Uzun işler: bildirim + medya dönüştürme ────────────────────────────────
+  # İş kuyruğunun (services/fm/job_queue.dart) sistem bildirimi. 17.2.4'e
+  # SABİT: sdk >=2.17 / flutter >=3.0 ister (CI 3.29.3 = Dart 3.7 rahat
+  # kapsıyor) ve Android tarafı compileSdk 34 + Java 8 ile derleniyor.
+  # 19.x KULLANILMADI: compileSdk 35 + Java 11 + desugar 2.1.4 dayatıyor,
+  # tek bir bildirim için CI'daki derleme zincirini yukarı çekmeye değmez.
+  # NOT: paket java.time kullandığı için UYGULAMA modülünde de core library
+  # desugaring açık olmalı — CI'da build.gradle'a yamalanıyor (bkz. workflow).
+  # Zamanlanmış bildirim kullanmıyoruz → `timezone` ilklendirmesi ve
+  # SCHEDULE_EXACT_ALARM izni gerekmiyor.
+  flutter_local_notifications: 17.2.4
+
+  # Görüntü boyut düşürme/format çevirme (saf Dart; platform kodu yok).
+  # 4.3.0'a SABİT — `archive ^3.6.1` ile UYUMLU SON sürüm. 4.4.0+ `archive ^4`
+  # istiyor, `excel` paketi ise archive ^3'e bağlı → çözümleme çakışır
+  # (HAFIZA'daki archive sürüm cehennemi). Zaten `pdf` paketi image ^4.1.0
+  # çektiği için APK'ya yeni bir ağırlık GİRMİYOR, yalnız doğrudan
+  # kullanabilmek için bildiriliyor.
+  image: 4.3.0
+
+  # Video sıkıştırma (native MediaCodec — ffmpeg YOK).
+  # ffmpeg_kit_flutter KULLANILAMAZ: paket dağıtımdan kaldırıldı, ikili
+  # dosyaları artık barındırılmıyor → derleme indirme hatasıyla çöker.
+  # video_compress: kalite/çözünürlük kademesi + kare sayısı (fps) + sesi at.
+  video_compress: 3.1.4
+  # `light_compressor` (serbest en×boy) DENENDİ ve EKLENMEDİ — 2026-07-29.
+  # Paketin 2.2.0 Android modülü modern derleme zinciriyle uyumsuz, üç
+  # bağımsız kırıcı var: (1) `namespace` yok, manifestte `package=` duruyor →
+  # AGP 8 hata veriyor; (2) native bağımlılığı JitPack'te ama paket bu deposu
+  # tüketen uygulamaya tanıtmıyor; (3) kendi buildscript'inde AGP 4.2.2
+  # classpath'i bildiriyor. Üçünü yamayla zorlamak "tek paket için tüm
+  # derleme zincirini oynatma" demekti (HAFIZA'da reddedilmiş yol).
+  # Karşılığı: video için hedef ölçü en yakın alt kademeye eşleniyor
+  # (services/fm/video_transcode.dart), fotoğrafta serbest ölçü tam çalışıyor.
+
   # Firebase (giriş + bulut senkron) — config yoksa uygulama yerel modda çalışır
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.0

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'core/app_state.dart';
 import 'core/theme.dart';
 import 'screens/home_screen.dart';
+import 'services/fm/job_notifications.dart';
+import 'services/fm/job_queue.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +18,12 @@ Future<void> main() async {
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await _enableHighRefreshRate();
+  // Uzun işlerin (yer aç, kopya/benzer arama, boyut düşürme) sistem bildirimi
+  // köprüsü. Bildirim izni verilmezse ya da eklenti kurulamazsa sessizce
+  // geçilir — işler yine çalışır, yalnız bildirim görünmez.
+  final jobNotifications = JobNotifications();
+  unawaited(jobNotifications.init());
+  JobQueue.instance.reporter = jobNotifications;
   final appState = AppState();
   await appState.init();
   runApp(
