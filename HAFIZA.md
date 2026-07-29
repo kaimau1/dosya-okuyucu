@@ -3519,3 +3519,53 @@ değil. Flutter yükseltildiği turda 9.x'e geçilebilir.
 büyük dosyalar ön plan servisinde koşacak şekilde ayarlandı
 (`Config.runInForegroundIfFileLargerThan`), görevlerde `allowPause: true`
 olduğu için kesilse bile kendiliğinden duraklayıp sürüyor.
+
+### H. CİHAZDA DOĞRULANDI — listede ÇIKMIYORUZ. Kök neden: Android 12 kuralı
+Kullanıcı ekran görüntüsü gönderdi: DuckDuckGo'da bir bağlantıya basınca açılan
+"Bununla aç" listesinde yalnız DuckDuckGo ve Chrome var; biz yokuz.
+§E'de "cihazda doğrulanmadı" diye bıraktığımız varsayım **yanlış çıktı**.
+
+**Kök neden (Android 12 / API 31 — App Links doğrulaması):** `http`/`https`
+şemalı bir `VIEW` + `BROWSABLE` intent filtresi artık sistem tarafından
+**otomatik olarak gizleniyor**; yalnız o alan adı için *doğrulanmış*
+uygulamalar listede çıkıyor. Doğrulama, alan adının sunucusuna
+`/.well-known/assetlinks.json` koymayı gerektiriyor — `github.com` bizim
+olmadığı için bunu **hiçbir zaman** yapamayız. Yani manifeste ne yazarsak
+yazalım (pathPattern, MIME türü, öncelik) tarayıcının indirme seçiciye
+giremeyiz. Bu bir hata değil, kasıtlı bir platform kısıtı.
+
+**Reddedilen yollar:** (1) `autoVerify="true"` eklemek — doğrulama yine
+sunucudan yapıldığı için hiçbir şey değiştirmez, sadece log'a hata yazar.
+(2) Şemayı `http` yerine özel bir şemaya (`dosyaokuyucu://`) çevirmek —
+tarayıcı böyle bir intent üretmiyor, kimse çağırmaz. (3) Erişilebilirlik
+servisiyle tarayıcıya müdahale — kullanıcı verisine sınırsız erişim isteyen,
+Play politikasının da yasakladığı bir yol; sade bir dosya yöneticisi için
+kabul edilemez.
+
+**Yapılan (dürüst çözüm):** kısıtı gizlemek yerine indirme ekranında
+açıkça anlatan bir yardım kartı (`showDownloadHelp` +
+`_HowToCard`, `download_manager_screen.dart`) ve **gerçekten çalışan üç yol**:
+1. Tarayıcıda **Paylaş → Dosya Okuyucu** (SEND filtresi kısıta tabi değil,
+   bu yol çalışıyor — asıl önerdiğimiz yol bu).
+2. **Bağlantıyı kopyala** → uygulamayı aç; pano şeridi bağlantıyı kendiliğinden
+   öneriyor.
+3. Sistem ayarları → *Varsayılan olarak aç* → *Desteklenen bağlantıları aç*:
+   kullanıcı isterse elle izin verebiliyor. Karttaki düğme doğrudan uygulama
+   ayarlarını açıyor (`StoragePermission.openSettings`).
+
+**Ders:** platform kısıtı bulunca arayüzü sessiz bırakmak en kötüsü —
+kullanıcı "çalışmıyor" diye düşünür. Kısıt yazılıp yanına işleyen yol konur.
+
+### I. "Ana ekranda çok fazla buton olmuş, karışıklık var"
+Ana ekranda 16 kutucuk eşit ağırlıkta yan yanaydı (kategoriler + araçlar
+karışık). Sorun sayıdan çok **hiyerarşisizlik**: "Görüntüler" ile "Çöp" aynı
+boyda görününce göz nereye bakacağını bilmiyor.
+
+**Karar — iki kademe:**
+- **İçerik** (ne var): 8 büyük kart — Önemli Dosyalar, Görüntüler, Videolar,
+  Belgeler, Ses, Arşivler, APK dosyaları, Yeni Dosyalar.
+- **Araçlar** (ne yapılır): "Araçlar" başlığı altında 8 küçük, kartsız,
+  en fazla 110 px'lik kutucuk (`FmToolGrid`, `fm_category_tile.dart`) —
+  İndir, İndirilenler, Yer aç, Düzenle, Analiz, Uygulamalar, Son işlemler, Çöp.
+Hiçbir özellik silinmedi; yalnız görsel ağırlık ayrıldı. Kartsız + küçük ikon
+seçilmesinin nedeni: araçlar günde bir kez, kategoriler her açılışta lazım.

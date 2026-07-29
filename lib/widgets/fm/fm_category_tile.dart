@@ -92,3 +92,74 @@ class FmCategoryGrid extends StatelessWidget {
         itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
       );
 }
+
+/// **Araç satırı** — kategori kutularından görsel olarak DAHA HAFİF.
+///
+/// Kullanıcı geri bildirimi (2026-07-29): *"ana ekranda çok fazla buton olmuş,
+/// karışıklık var"*. Sorun sayı kadar **eşit ağırlıktı**: 16 büyük renkli
+/// kutunun hepsi aynı derecede bağırıyordu, göz nereye bakacağını bilemiyordu.
+///
+/// Çözüm hiyerarşi: **içerik** (Görüntüler, Videolar, Belgeler…) büyük kartlar
+/// olarak kalır — insanlar buraya dosya aramaya gelir; **araçlar** (Yer aç,
+/// Otomatik düzenle, Son işlemler…) küçük, kartsız, tek satırlık simgelerle
+/// altta durur. Hiçbir şey kaldırılmadı, yalnız ağırlıkları ayrıldı.
+class FmToolGrid extends StatelessWidget {
+  final List<FmTileData> tools;
+  const FmToolGrid({super.key, required this.tools});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 110,
+        childAspectRatio: 0.9,
+        mainAxisSpacing: Gap.xs,
+        crossAxisSpacing: Gap.xs,
+      ),
+      itemCount: tools.length,
+      itemBuilder: (context, i) {
+        final tool = tools[i];
+        final tint =
+            dark ? Color.lerp(tool.color, Colors.white, 0.3)! : tool.color;
+        return InkWell(
+          onTap: tool.onTap,
+          borderRadius: BorderRadius.circular(Radii.control),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(tool.icon, color: tint, size: 26),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  tool.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall,
+                ),
+                // Alt yazı yalnız BİLGİ taşıyorsa yazılır ("3 sürüyor",
+                // "12 öğe"); "Ayrıntılar" gibi dolgu metinler gürültüdür.
+                if (tool.subtitle.isNotEmpty)
+                  Text(
+                    tool.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

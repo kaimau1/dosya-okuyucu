@@ -11,6 +11,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/github_release.dart';
+import '../../services/fm/storage_permission.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 import 'folder_picker_screen.dart';
@@ -129,6 +130,11 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
             icon: const Icon(Icons.content_paste_go),
             onPressed: _addFromClipboard,
           ),
+          IconButton(
+            tooltip: 'Tarayıcıdan nasıl indiririm?',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => showDownloadHelp(context),
+          ),
           if (tasks.any((t) => !t.state.isActive))
             IconButton(
               tooltip: 'Biten kayıtları temizle',
@@ -192,18 +198,15 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
   }
 
   Widget _list(List<DownloadTask> tasks) => tasks.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(Gap.lg),
-                child: Text(
-                  'Henüz indirme yok.\n\n'
-                  'Tarayıcıda bir bağlantıya uzun basıp “Paylaş → Dosya '
-                  'Okuyucu” diyebilir, bağlantıyı kopyalayıp buradaki '
-                  'yapıştır düğmesini kullanabilir ya da “+” ile elle '
-                  'yazabilirsiniz.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
+          ? ListView(
+              padding: const EdgeInsets.all(Gap.lg),
+              children: [
+                Text('Henüz indirme yok',
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center),
+                const SizedBox(height: Gap.md),
+                const _HowToCard(),
+              ],
             )
           : ListView.separated(
               itemCount: tasks.length,
@@ -427,3 +430,118 @@ Future<GithubAsset?> _pickAsset(
     ),
   );
 }
+
+
+/// Tarayıcıdan indirme yollarını anlatan kart.
+///
+/// **Niye böyle bir açıklama var (2026-07-29 kullanıcı hatası):** kullanıcı
+/// tarayıcıda bir `.apk` bağlantısına dokundu ve çıkan "birlikte aç"
+/// listesinde yalnız DuckDuckGo/Chrome vardı, biz yoktuk.
+///
+/// **Kök neden Android 12 (API 31) kuralı:** `http/https` şemalı bir
+/// `VIEW` + `BROWSABLE` filtresi artık YALNIZCA o alan adı için **doğrulanmış**
+/// uygulamalara gösteriliyor. Doğrulama, alan adının sunucusuna
+/// `.well-known/assetlinks.json` koymayı gerektirir — `github.com` bizim
+/// olmadığı için bunu yapamayız. Yani "linke dokun → listede biz de çıkalım"
+/// modern Android'de **kullanıcı elle izin vermeden mümkün değil**.
+/// (Filtreler yine duruyor: Android 11 ve öncesinde çalışıyor, ayrıca
+/// "Varsayılan olarak aç" ekranında görünmemizi sağlıyor.)
+///
+/// Bu yüzden ekranda dürüst bir açıklama ve **gerçekten çalışan** iki yol var:
+/// paylaş menüsü ve bağlantıyı kopyalama.
+class _HowToCard extends StatelessWidget {
+  const _HowToCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tarayıcıdan nasıl indiririm?', style: text.titleSmall),
+            const SizedBox(height: Gap.sm),
+            const _Step(
+              icon: Icons.share_outlined,
+              title: '1) Paylaş (en kolayı)',
+              body: 'Bağlantıya uzun basın → “Bağlantıyı paylaş” → '
+                  'Dosya Okuyucu. Sayfadaki paylaş düğmesi de olur.',
+            ),
+            const _Step(
+              icon: Icons.content_paste_go,
+              title: '2) Kopyala-yapıştır',
+              body: 'Bağlantıya uzun basın → “Bağlantı adresini kopyala”, '
+                  'sonra bu ekranı açın: bağlantı üstte çıkar, “İndir”e '
+                  'dokunun.',
+            ),
+            const _Step(
+              icon: Icons.settings_outlined,
+              title: '3) Bağlantıya dokununca çıkmamız için',
+              body: 'Android 12’den beri bir uygulama, sahibi olmadığı bir '
+                  'sitenin bağlantılarını izinsiz açamıyor. İsterseniz '
+                  'Ayarlar → Dosya Okuyucu → “Varsayılan olarak aç” → '
+                  '“Desteklenen bağlantıları aç” seçeneğini açın; ondan '
+                  'sonra dosya bağlantılarında listede görünürüz.',
+            ),
+            const SizedBox(height: Gap.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: StoragePermission.openSettings,
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Uygulama ayarlarını aç'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  const _Step({required this.icon, required this.title, required this.body});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: Gap.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(body, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+/// Yardım sayfasını açar (üst çubuktaki “?” düğmesi).
+Future<void> showDownloadHelp(BuildContext context) => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => const SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(Gap.md),
+          child: _HowToCard(),
+        ),
+      ),
+    );

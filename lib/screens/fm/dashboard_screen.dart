@@ -58,7 +58,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   StorageIndex _index = _cachedIndex ?? StorageIndex.empty;
   bool _scanning = false;
   bool _hasAccess = true;
-  int _trashBytes = 0;
   int _trashCount = 0;
   final Map<String, int> _folderSizes = {};
 
@@ -195,10 +194,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (days > 0) await FmEnv.trash.purgeOlderThan(days);
     final items = await FmEnv.trash.list();
     if (!mounted) return;
-    setState(() {
-      _trashCount = items.length;
-      _trashBytes = items.fold<int>(0, (sum, i) => sum + i.sizeBytes);
-    });
+    setState(() => _trashCount = items.length);
   }
 
   /// Kısayol kutularının (İndirilenler…) boyutu — indeks klasör bazlı toplam
@@ -330,6 +326,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
             const SizedBox(height: Gap.sm),
             _categoryGrid(),
+            const SizedBox(height: Gap.lg),
+            _sectionTitle('Araçlar'),
+            _toolGrid(),
             if (appState.bookmarks.isNotEmpty) ...[
               const SizedBox(height: Gap.lg),
               _sectionTitle('Favoriler'),
@@ -413,14 +412,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
 
+  /// **İçerik kutuları** — insanların dosya aramaya geldiği yer.
+  ///
+  /// Araçlar (Yer aç, Otomatik düzenle, İndir…) buraya KARIŞMAZ; onlar
+  /// aşağıda daha hafif bir satırda ([_toolGrid]). Kullanıcı geri bildirimi
+  /// 2026-07-29: "ana ekranda çok fazla buton olmuş, karışıklık var" — sorun
+  /// sayı değil, 16 kutunun hepsinin aynı ağırlıkta bağırmasıydı.
   Widget _categoryGrid() {
-    final download = p.join(FmEnv.primaryRoot, 'Download');
-    final primary = FmEnv.volumes.firstOrNullVolume;
     final importantPath = ImportantScreen.pathIn(FmEnv.primaryRoot);
     final importantStat = _importantStat(importantPath);
     final tiles = <FmTileData>[
-      // Kullanıcının kendi seçtiği dosyalar — ilk sırada, çünkü en sık
-      // dönülecek yer burası (istek 2026-07-29).
+      // Kullanıcının kendi seçtiği dosyalar — ilk sırada, en sık dönülecek yer.
       FmTileData(
         icon: Icons.star_outline,
         color: FmColors.folder,
@@ -436,96 +438,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (mounted) setState(() {});
         },
       ),
-      FmTileData(
-        icon: Icons.download_outlined,
-        color: const Color(0xFF3B6EF6),
-        label: 'İndirilenler',
-        subtitle: _folderSizes[download] != null
-            ? FsPaths.humanSize(_folderSizes[download]!)
-            : 'Klasör',
-        onTap: () {
-          final path = downloadsPathIn(FmEnv.primaryRoot);
-          if (path != null) {
-            // Yaş odaklı liste: son açılma + "eskileri seç" ile hızlı temizlik.
-            _push(DownloadsScreen(path: path));
-          } else {
-            _snack('İndirilenler klasörü bulunamadı.');
-          }
-        },
-      ),
-      FmTileData(
-        icon: Icons.pie_chart_outline,
-        color: const Color(0xFF546E7A),
-        label: 'Bellek Analizi',
-        subtitle: primary != null && primary.hasStats
-            ? 'Kullanılan %${(primary.usedFraction * 100).round()}'
-            : 'Ayrıntılar',
-        onTap: () =>
-            _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
-      ),
-      // Bağlantıdan indirme (kullanıcı isteği 2026-07-29): tarayıcı yerine
-      // buradan indirilince dosya istenen klasöre iniyor ve kayıp olmuyor.
-      FmTileData(
-        icon: Icons.download_for_offline_outlined,
-        color: const Color(0xFF1565C0),
-        label: 'İndir',
-        subtitle: DownloadService.instance.hasActive
-            ? '${DownloadService.instance.activeTasks.length} sürüyor'
-            : 'Bağlantıdan',
-        onTap: () async {
-          await _push(const DownloadManagerScreen());
-          if (mounted) setState(() {});
-        },
-      ),
-      FmTileData(
-        icon: Icons.cleaning_services_outlined,
-        color: const Color(0xFF00838F),
-        label: 'Yer aç',
-        subtitle: 'Temizlik önerileri',
-        onTap: () => _push(CleanupScreen(index: _index)),
-      ),
-      FmTileData(
-        icon: Icons.auto_awesome_motion,
-        color: const Color(0xFF5E35B1),
-        label: 'Otomatik düzenle',
-        subtitle: 'Klasörlere ayır',
-        onTap: () => _push(OrganizeScreen(
-          path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
-        )),
-      ),
-      FmTileData(
-        icon: Icons.history_toggle_off,
-        color: const Color(0xFF6D4C41),
-        label: 'Son işlemler',
-        subtitle: 'Geri al',
-        onTap: () => _push(const OpHistoryScreen()),
-      ),
-      FmTileData(
-        icon: Icons.delete_outline,
-        color: const Color(0xFF78909C),
-        label: 'Çöp Kutusu',
-        subtitle: _trashCount == 0
-            ? 'Boş'
-            : '$_trashCount öğe · ${FsPaths.humanSize(_trashBytes)}',
-        onTap: () async {
-          await Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
-          _loadTrash();
-        },
-      ),
       _categoryTile(FmCategory.image, grid: true),
-      _categoryTile(FmCategory.audio),
       _categoryTile(FmCategory.video, grid: true),
       _categoryTile(FmCategory.document),
-      // Telefonda YÜKLÜ uygulamalar (dosya değil) — son açılma tarihiyle.
-      FmTileData(
-        icon: Icons.android,
-        color: FmColors.apk,
-        label: 'Uygulamalar',
-        subtitle: 'Yüklü · son açılma',
-        onTap: () => _push(const InstalledAppsScreen()),
-      ),
-      // Kurulum dosyaları AYRI kutuda (kullanıcı isteği).
+      _categoryTile(FmCategory.audio),
+      _categoryTile(FmCategory.archive),
+      // Kurulum dosyaları ayrı kutuda (kullanıcı isteği 2026-07-25).
       FmTileData(
         icon: Icons.archive_outlined,
         color: const Color(0xFF00897B),
@@ -539,7 +457,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           files: _index.files(FmCategory.apk),
         )),
       ),
-      _categoryTile(FmCategory.archive),
       FmTileData(
         icon: Icons.history,
         color: const Color(0xFF8D6E63),
@@ -551,8 +468,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
         )),
       ),
     ];
-
     return FmCategoryGrid(tiles: tiles);
+  }
+
+  /// **Araçlar** — küçük, kartsız simgeler. Alt yazı yalnız gerçek bilgi
+  /// taşıdığında yazılır ("3 sürüyor"), dolgu metin konmaz.
+  Widget _toolGrid() {
+    final download = p.join(FmEnv.primaryRoot, 'Download');
+    final primary = FmEnv.volumes.firstOrNullVolume;
+    final downloading = DownloadService.instance.activeTasks.length;
+    final tools = <FmTileData>[
+      FmTileData(
+        icon: Icons.download_for_offline_outlined,
+        color: const Color(0xFF1565C0),
+        label: 'İndir',
+        subtitle: downloading > 0 ? '$downloading sürüyor' : '',
+        onTap: () async {
+          await _push(const DownloadManagerScreen());
+          if (mounted) setState(() {});
+        },
+      ),
+      FmTileData(
+        icon: Icons.download_outlined,
+        color: const Color(0xFF3B6EF6),
+        label: 'İndirilenler',
+        subtitle: _folderSizes[download] != null
+            ? FsPaths.humanSize(_folderSizes[download]!)
+            : '',
+        onTap: () {
+          final path = downloadsPathIn(FmEnv.primaryRoot);
+          if (path != null) {
+            _push(DownloadsScreen(path: path));
+          } else {
+            _snack('İndirilenler klasörü bulunamadı.');
+          }
+        },
+      ),
+      FmTileData(
+        icon: Icons.cleaning_services_outlined,
+        color: const Color(0xFF00838F),
+        label: 'Yer aç',
+        subtitle: '',
+        onTap: () => _push(CleanupScreen(index: _index)),
+      ),
+      FmTileData(
+        icon: Icons.auto_awesome_motion,
+        color: const Color(0xFF5E35B1),
+        label: 'Düzenle',
+        subtitle: '',
+        onTap: () => _push(OrganizeScreen(
+          path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
+        )),
+      ),
+      FmTileData(
+        icon: Icons.pie_chart_outline,
+        color: const Color(0xFF546E7A),
+        label: 'Analiz',
+        subtitle: primary != null && primary.hasStats
+            ? '%${(primary.usedFraction * 100).round()}'
+            : '',
+        onTap: () =>
+            _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+      ),
+      FmTileData(
+        icon: Icons.android,
+        color: FmColors.apk,
+        label: 'Uygulamalar',
+        subtitle: '',
+        onTap: () => _push(const InstalledAppsScreen()),
+      ),
+      FmTileData(
+        icon: Icons.history_toggle_off,
+        color: const Color(0xFF6D4C41),
+        label: 'Son işlemler',
+        subtitle: '',
+        onTap: () => _push(const OpHistoryScreen()),
+      ),
+      FmTileData(
+        icon: Icons.delete_outline,
+        color: const Color(0xFF78909C),
+        label: 'Çöp',
+        subtitle: _trashCount == 0 ? '' : '$_trashCount öğe',
+        onTap: () async {
+          await Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
+          _loadTrash();
+        },
+      ),
+    ];
+    return FmToolGrid(tools: tools);
   }
 
   FmTileData _categoryTile(FmCategory category, {bool grid = false}) {
