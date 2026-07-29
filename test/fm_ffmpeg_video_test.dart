@@ -18,7 +18,7 @@ void main() {
       fps: 30,
       crf: 24,
       removeAudio: false,
-      encoder: 'libx264',
+      encoder: 'h264_mediacodec',
     );
 
     test('kaynak ve çıktı doğru yerlerde', () {
@@ -45,33 +45,59 @@ void main() {
         height: 480,
         crf: 24,
         removeAudio: false,
-        encoder: 'libx264',
+        encoder: 'h264_mediacodec',
       );
       final vf = noFps[noFps.indexOf('-vf') + 1];
       expect(vf, 'scale=640:480:flags=bicubic');
       expect(vf.contains('fps='), isFalse);
     });
 
-    test('yazılım kodlayıcı CRF + preset alır', () {
-      expect(args, containsAllInOrder(['-crf', '24']));
-      expect(args, containsAllInOrder(['-preset', 'veryfast']));
-      expect(args.contains('-b:v'), isFalse);
+    test('donanım kodlayıcı bit hızıyla sürülür (CRF anlamıyor)', () {
+      expect(args.contains('-crf'), isFalse);
+      final bitrate = args[args.indexOf('-b:v') + 1];
+      expect(bitrate, endsWith('k'));
+      expect(int.parse(bitrate.replaceAll('k', '')), greaterThan(300));
     });
 
-    test('donanım kodlayıcı CRF yerine bit hızı alır (CRF anlamıyor)', () {
-      final hw = FfmpegVideo.buildArgs(
+    test('GPL’li libx264 argümanları HİÇ üretilmiyor', () {
+      // Lisans kararı (kullanıcı isteği: "Google Play'de sorun yaşamayalım"):
+      // x264 dağıtılmıyor, çünkü GPL v3 uygulamanın tamamını kapsardı. Bu test
+      // o kararın kodda sessizce geri gelmesini engelliyor.
+      expect(args.contains('-preset'), isFalse);
+      expect(args.join(' ').contains('libx264'), isFalse);
+    });
+
+    test('mpeg4 yedeği CRF yerine -q:v alır', () {
+      final sw = FfmpegVideo.buildArgs(
         source: 'a.mp4',
         output: 'b.mp4',
         width: 1280,
         height: 720,
         crf: 24,
         removeAudio: false,
-        encoder: 'h264_mediacodec',
+        encoder: 'mpeg4',
       );
-      expect(hw.contains('-crf'), isFalse);
-      final bitrate = hw[hw.indexOf('-b:v') + 1];
-      expect(bitrate, endsWith('k'));
-      expect(int.parse(bitrate.replaceAll('k', '')), greaterThan(300));
+      expect(sw.contains('-crf'), isFalse);
+      expect(sw.contains('-b:v'), isFalse);
+      final q = int.parse(sw[sw.indexOf('-q:v') + 1]);
+      expect(q, inInclusiveRange(2, 31));
+    });
+
+    test('yüksek kalite seçimi mpeg4’te daha küçük -q:v demek', () {
+      int qFor(int crf) {
+        final a = FfmpegVideo.buildArgs(
+          source: 'a.mp4',
+          output: 'b.mp4',
+          width: 640,
+          height: 480,
+          crf: crf,
+          removeAudio: false,
+          encoder: 'mpeg4',
+        );
+        return int.parse(a[a.indexOf('-q:v') + 1]);
+      }
+
+      expect(qFor(20), lessThan(qFor(32)));
     });
 
     test('ses korunurken AAC ile YENİDEN kodlanır (copy değil)', () {
@@ -89,7 +115,7 @@ void main() {
         height: 480,
         crf: 24,
         removeAudio: true,
-        encoder: 'libx264',
+        encoder: 'h264_mediacodec',
       );
       expect(muted.contains('-an'), isTrue);
       expect(muted.contains('-c:a'), isFalse);
@@ -112,7 +138,7 @@ void main() {
         height: 720,
         crf: 24,
         removeAudio: false,
-        encoder: 'libx264',
+        encoder: 'h264_mediacodec',
       );
       expect(spaced, contains('/depo/Tatil 2026/VID 01.mp4'));
       expect(spaced.last, '/depo/Tatil 2026/VID 01_720p.mp4');

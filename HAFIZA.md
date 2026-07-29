@@ -3735,3 +3735,57 @@ Paket kendi buildscript'inde AGP 8.11.1 bildiriyor ama kökteki AGP kazanıyor
   "video hiç dönüşmüyor" olarak görünür ve telefon olmadan başka türlü
   yakalanamaz. `-pix_fmt yuv420p` (eski oynatıcılar), `-map_metadata 0`
   (çekim tarihi korunsun, galeride "bugün" görünmesin), `-movflags +faststart`.
+
+## 2026-07-29 (V) — LİSANS DÜZELTMESİ: GPL → LGPL (Google Play kaygısı)
+
+Kullanıcı: *"lisans kısmını hallet Google Play'de sorun yaşamayalım."*
+§IV'te `min_gpl` varyantı seçilmişti (x264 ile H.264 yazmak için) ve bedeli
+"uygulamanın dağıtımı GPL v3'e girer" diye yazılmıştı. Bu bedel Play için
+kabul edilemez: GPL v3 tüm uygulama kaynağını bu lisansla yayımlama
+zorunluluğu getirir ve "ek kısıtlama koyulamaz" maddesinin mağaza dağıtım
+şartlarıyla çakışması bilinen bir sorundur.
+
+**Karar: `ffmpeg_kit_flutter_new_min` (LGPL v3).** GPL'li kodlayıcılar
+(x264/x265/xvidcore/vid.stab) artık DAĞITILMIYOR.
+
+### Birebir çözünürlük NEDEN kaybolmadı
+`scale` ve `fps` süzgeçleri FFmpeg'in **çekirdeğinde** (libavfilter), GPL
+kütüphanelerde değil. Kaybedilen tek şey x264 ile *yazılım* H.264 kodlaması.
+Onun yerine cihazın **donanım kodlayıcısı** kullanılıyor
+(`h264_mediacodec`) — paket FFmpeg **8.1.2** taşıyor, MediaCodec
+kodlayıcıları 6.1'den beri var. Üç kazanç: lisans temiz, kodlama yazılım
+x264'ten kat kat hızlı ve H.264 patent lisansı cihaz üreticisinde kalıyor.
+
+### Kodlayıcı zinciri (hepsi LGPL kapsamında)
+1. `h264_mediacodec` — cihazın donanımı, birincil yol.
+2. `mpeg4` — FFmpeg'in kendi kodlayıcısı. Kalitesi H.264'ün gerisinde ama
+   istenen **çözünürlük yine birebir** uygulanır. (CRF anlamadığı için
+   `-q:v` 2..31 ile sürülüyor.)
+3. Her ikisi de olmazsa `VideoTranscoder` kademeli MediaCodec motoruna
+   (`video_compress`) düşer — §IV'te kurulan yedek zincir yerinde duruyor.
+
+### LGPL v3 yükümlülükleri nasıl karşılandı
+- `LICENSES.md` (depo kökü): bileşen, sürüm, lisans, **kaynak kodu
+  bağlantıları**, değiştirilmediği notu ve yeniden bağlama (relinking)
+  açıklaması.
+- **Uygulama içinde** Ayarlar → *Açık kaynak bileşenler* ekranı
+  (`showOpenSourceLicenses`). Depodaki dosya tek başına yetmez: mağazadan
+  kuran kullanıcı depoyu görmez, lisans atfın KULLANICIYA ulaşmasını istiyor.
+- FFmpeg dinamik bağlı `.so` olarak dağıtıldığı için relinking hakkı fiilen
+  sağlanıyor (statik bağlasaydık LGPL ek yükümlülükler getirirdi).
+- Kaynakta değişiklik yapılmadı → değişiklik bildirimi gerekmiyor.
+
+### Test kilidi
+`fm_ffmpeg_video_test` içinde **"GPL'li libx264 argümanları HİÇ üretilmiyor"**
+testi var: bu lisans kararının kodda sessizce geri gelmesini engelliyor
+(bir "hızlı düzeltme"de `libx264` eklemek çok kolay olurdu).
+
+### Boyut yan etkisi
+`min` AAR 38.9 MB, `min_gpl` 48.6 MB → APK ~10 MB daha küçük.
+
+### Açık durum
+- **build 164 ve 165 GPL'li ikili içeriyor** (§IV'ün derlemeleri). Yeni
+  derleme bunları geçersiz kılıyor; o iki release'i silmek kullanıcının
+  kararı (silme geri alınamaz, bu yüzden sormadan yapılmadı).
+- `LICENSE` dosyası hâlâ YOK: artık uygulamanın kendi lisansı GPL'e
+  zorlanmıyor, yani lisans seçimi tamamen proje sahibinin tercihi.
