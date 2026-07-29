@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 
+import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
@@ -10,6 +12,8 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/search_index.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../services/fm/smart_query.dart';
+import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
@@ -44,6 +48,14 @@ class _SearchScreenState extends State<SearchScreen> {
   FmFilter _filter = FmFilter.none;
   FmSort _sort = FmSort.date;
   bool _desc = true;
+
+  /// **Akıllı arama:** "geçen ay whatsapp videoları" gibi bir cümle yazıldığında
+  /// tarih/tür/kaynak süzgeçleri cümleden çıkarılır (yerel, çevrimdışı).
+  /// Anlaşılanlar çip olarak gösterilir — sessiz süzme "neden bu sonuç?"
+  /// sorusunu doğurur.
+  SmartQuery? _smart;
+  bool _smartOn = true;
+  bool _aiBusy = false;
 
   /// Kaçıncı arama olduğunu sayar: geç dönen eski sonuç yenisini ezmesin.
   int _queryToken = 0;
@@ -89,14 +101,26 @@ class _SearchScreenState extends State<SearchScreen> {
         _results = const [];
         _searched = false;
         _searching = false;
+        _smart = null;
       });
       return;
     }
     final token = ++_queryToken;
-    setState(() => _searching = true);
+    // Cümleyi çözümle: kalan metin dizinde aranır, ölçütler süzgece geçer.
+    final smart = _smartOn ? parseSmartQuery(q) : null;
+    setState(() {
+      _searching = true;
+      _smart = (smart != null && smart.hasStructure) ? smart : null;
+    });
+    // Ad araması için kalan metin; hepsi ölçüte dönüştüyse (örn. "bu hafta
+    // videolar") ad süzmesi yapılmaz, yalnız süzgeç uygulanır.
+    final needle = _smart?.text.trim() ?? q;
     // Sınır 500 değil 1000: sonuçlar burada ayrıca süzülüyor (tarih/boyut/tür)
     // — dar bir ham liste, süzgeçten sonra haksız yere boş kalırdı.
-    final hits = await SearchIndex.query(q, root: widget.root, limit: 1000);
+    final hits = needle.length >= 2
+        ? await SearchIndex.query(needle, root: widget.root, limit: 1000)
+        : await SearchIndex.query('', root: widget.root, limit: 1000,
+            matchAll: true);
     if (!mounted || token != _queryToken) return;
     setState(() {
       _results = hits;
@@ -106,10 +130,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   List<FsEntry> get _filtered {
+    final smart = _smart;
+    final smartCategory = smart?.category;
     final list = [
       for (final e in _results)
         if (_category == null || e.category == _category)
-          if (_filter.matches(e)) e,
+          if (smartCategory == null || e.category == smartCategory)
+            if (smart == null || smart.filter.matches(e))
+              if (_filter.matches(e)) e,
     ];
     // Klasörler üstte KALMAZ: arama sonucunda kullanıcı ölçüte (tarih/boyut)
     // göre sıralı tek bir liste bekler.
@@ -161,17 +189,35 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           PopupMenuButton<String>(
-            tooltip: 'Arama dizini',
+            tooltip: 'Arama seçenekleri',
             onSelected: (v) async {
-              if (v == 'rebuild') {
-                await SearchIndex.rebuild();
-                if (mounted && _controller.text.trim().length >= 2) {
-                  _run(_controller.text);
-                }
+              switch (v) {
+                case 'rebuild':
+                  await SearchIndex.rebuild();
+                  if (mounted && _controller.text.trim().length >= 2) {
+                    _run(_controller.text);
+                  }
+                case 'smart':
+                  setState(() => _smartOn = !_smartOn);
+                  if (_controller.text.trim().length >= 2) {
+                    _run(_controller.text);
+                  }
+                case 'ai':
+                  await _askAi();
               }
             },
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
+                value: 'smart',
+                child: Text(_smartOn
+                    ? 'Akıllı aramayı kapat'
+                    : 'Akıllı aramayı aç'),
+              ),
+              const PopupMenuItem(
+                value: 'ai',
+                child: Text('AI ile yorumla (Gemini)'),
+              ),
+              const PopupMenuItem(
                 value: 'rebuild',
                 child: Text('Dizini yeniden kur'),
               ),
@@ -181,8 +227,9 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: Column(
         children: [
+          if (_smart != null) _smartChips(),
           _filterChips(),
-          if (_searching || SearchIndex.isBuilding)
+          if (_searching || _aiBusy || SearchIndex.isBuilding)
             const LinearProgressIndicator(minHeight: 2),
           _indexBanner(),
           if (_searched && _results.isNotEmpty) _resultSummary(results.length),
@@ -207,6 +254,74 @@ class _SearchScreenState extends State<SearchScreen> {
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
       child: Text(text, style: Theme.of(context).textTheme.bodySmall),
     );
+  }
+
+  /// Cümleden ANLAŞILANLAR — kullanıcı yanlış yorumu görüp kaldırabilsin.
+  Widget _smartChips() {
+    final smart = _smart!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
+      child: Wrap(
+        spacing: Gap.sm,
+        runSpacing: Gap.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text('Anladım:', style: Theme.of(context).textTheme.bodySmall),
+          for (final label in smart.understood)
+            Chip(
+              label: Text(label),
+              visualDensity: VisualDensity.compact,
+            ),
+          if (smart.text.trim().isNotEmpty)
+            Chip(
+              avatar: const Icon(Icons.abc, size: 18),
+              label: Text('“${smart.text}”'),
+              visualDensity: VisualDensity.compact,
+            ),
+          TextButton(
+            onPressed: () => setState(() => _smart = null),
+            child: const Text('Yoksay'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Sorguyu Gemini'ye yorumlatır. **Yerel çözümleme yine geçerlidir**: AI
+  /// başarısız olursa ya da anlamsız yanıt dönerse arama bozulmaz.
+  Future<void> _askAi() async {
+    final q = _controller.text.trim();
+    if (q.isEmpty) return;
+    final appState = context.read<AppState>();
+    if (!appState.hasApiKey) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Önce Ayarlar > Gemini API anahtarını girin.')));
+      return;
+    }
+    setState(() => _aiBusy = true);
+    try {
+      final gemini =
+          GeminiService(apiKey: appState.apiKey, model: appState.model);
+      final answer = await gemini.chat(history: [
+        ChatTurn(fromUser: true, text: smartQueryPrompt(q, DateTime.now())),
+      ]);
+      final parsed = smartQueryFromJson(answer);
+      if (!mounted) return;
+      setState(() {
+        _aiBusy = false;
+        if (parsed != null) _smart = parsed;
+      });
+      if (parsed == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('AI bu sorguyu yorumlayamadı; '
+                'yerel çözümleme kullanılıyor.')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _aiBusy = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('AI hatası: $e')));
+    }
   }
 
   /// Kaç sonuç gösteriliyor, hangi ölçütle sıralı ve liste sınıra takıldı mı.
@@ -255,7 +370,9 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _body(List<FsEntry> results) {
     if (results.isEmpty) {
       final message = !_searched
-          ? 'Dosya veya klasör adının bir bölümünü yazın.'
+          ? 'Dosya veya klasör adının bir bölümünü yazın.\n\n'
+              'İpucu: “geçen ay whatsapp videoları”, “bu hafta pdf”, '
+              '“2024 fotoğrafları” gibi cümleler de yazabilirsiniz.'
           : (_searching ? 'Aranıyor…' : 'Sonuç bulunamadı.');
       return Center(
         child: Padding(

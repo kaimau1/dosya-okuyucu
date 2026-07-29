@@ -18,9 +18,11 @@ import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
+import '../../widgets/fm/pin_dialog.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'archive_screen.dart';
 import 'entry_actions.dart';
+import 'organize_screen.dart';
 import 'search_screen.dart';
 
 /// Klasör gözatıcısı: listeleme, çoklu seçim, kopyala/kes/yapıştır, yeni
@@ -56,9 +58,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
   bool get _allSelected =>
       _entries.isNotEmpty && _entries.every((e) => _selected.contains(e.path));
 
+  /// Kilitli klasör açıldı ve PIN henüz doğrulanmadı → içerik gizlenir.
+  bool _locked = false;
+
   @override
   void initState() {
     super.initState();
+    // Kilit denetimi ilk kareden sonra (context.read için mount gerekir).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkLock());
     _load();
   }
 
@@ -66,6 +73,21 @@ class _BrowserScreenState extends State<BrowserScreen> {
   void dispose() {
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Kilit denetimi: klasör kilitliyse PIN sorulur, yanlışsa geri çıkılır.
+  Future<void> _checkLock() async {
+    final appState = context.read<AppState>();
+    if (!appState.isFolderLocked(widget.path)) return;
+    setState(() => _locked = true);
+    final ok = await askPin(context, title: 'Kilitli klasör');
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _locked = false);
+      await _load();
+    } else {
+      Navigator.of(context).maybePop();
+    }
   }
 
   Future<void> _load() async {
@@ -291,7 +313,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
             },
           ),
           const Divider(height: 1),
-          Expanded(child: _body(entries)),
+          Expanded(
+            child: _locked
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(Gap.lg),
+                      child: Text(
+                        'Bu klasör kilitli.\nGörmek için PIN girin.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : _body(entries),
+          ),
           if (appState.hasClipboard && !_selecting) _pasteBar(appState),
         ],
           ),
@@ -366,6 +400,21 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 _load();
               case 'star':
                 appState.toggleBookmark(widget.path);
+              case 'lock':
+                if (!appState.fmHasLockPin && !await setupPin(context)) break;
+                if (!context.mounted) break;
+                // Kilidi KALDIRIRKEN de PIN sorulur: telefonu eline alan biri
+                // kilidi tek dokunuşla açabilseydi kilit anlamsız olurdu.
+                if (appState.isFolderLocked(widget.path) &&
+                    !await askPin(context)) {
+                  break;
+                }
+                await appState.toggleLockedFolder(widget.path);
+              case 'organize':
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => OrganizeScreen(path: widget.path),
+                ));
+                _load();
               case 'select_all':
                 _toggleSelectAll();
               case 'refresh':
@@ -397,6 +446,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
               value: 'star',
               child: Text(starred ? 'Favorilerden çıkar' : 'Favorilere ekle'),
             ),
+            PopupMenuItem(
+              value: 'lock',
+              child: Text(appState.isFolderLocked(widget.path)
+                  ? 'Klasör kilidini kaldır'
+                  : 'Klasörü kilitle (PIN)'),
+            ),
+            const PopupMenuItem(
+                value: 'organize', child: Text('Otomatik düzenle…')),
             const PopupMenuItem(value: 'select_all', child: Text('Tümünü seç')),
             const PopupMenuItem(value: 'refresh', child: Text('Yenile')),
           ],

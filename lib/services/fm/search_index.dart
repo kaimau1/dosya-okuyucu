@@ -198,19 +198,24 @@ abstract final class SearchIndex {
   ///
   /// [root] verilirse yalnız o klasörün altı, [category] verilirse yalnız o
   /// kategori döner (süzme isolate'te yapılır, sonuç listesi kısa gelir).
+  /// [matchAll] true ise **boş sorgu** tüm girdileri döndürür — akıllı arama
+  /// cümleyi tamamen ölçüte çevirdiğinde ("bu hafta videolar") ad araması
+  /// kalmaz, süzülecek bir listeye yine de ihtiyaç vardır.
   static Future<List<FsEntry>> query(
     String query, {
     String? root,
     FmCategory? category,
     bool includeDirs = true,
+    bool matchAll = false,
     int limit = 500,
   }) async {
     final q = query.trim();
-    if (q.isEmpty) return const [];
+    if (q.isEmpty && !matchAll) return const [];
     await ensureLoaded();
     if (!isReady) {
-      final hits =
-          await FsScan.search(root ?? FmEnv.primaryRoot, q, limit: limit);
+      final hits = q.isEmpty
+          ? await FsScan.collect([root ?? FmEnv.primaryRoot], limit: limit)
+          : await FsScan.search(root ?? FmEnv.primaryRoot, q, limit: limit);
       return _postFilter(hits, category, includeDirs);
     }
     try {
@@ -218,7 +223,7 @@ abstract final class SearchIndex {
         _querySync,
         _QueryArgs(
           indexPath: indexPath,
-          query: q,
+          query: matchAll && q.isEmpty ? '' : q,
           root: root,
           categoryName: category?.name,
           includeDirs: includeDirs,
@@ -256,6 +261,8 @@ class _BuildArgs {
 
 class _QueryArgs {
   final String indexPath;
+
+  /// Boş ise **tüm** satırlar eşleşir (bkz. `SearchIndex.query` matchAll).
   final String query;
   final String? root;
   final String? categoryName;
@@ -341,7 +348,9 @@ List<FsEntry> _querySync(_QueryArgs args) {
           continue;
         }
         if (category != null && entry.category != category) continue;
-        if (!turkishFold(entry.name).contains(needle)) continue;
+        if (needle.isNotEmpty && !turkishFold(entry.name).contains(needle)) {
+          continue;
+        }
         hits.add(entry);
         if (hits.length >= args.limit) return hits;
       }

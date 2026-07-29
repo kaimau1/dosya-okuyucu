@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -17,6 +18,7 @@ import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/pin_dialog.dart';
 import '../settings_screen.dart';
 
 /// **Dosya yöneticisine özel** ayarlar (uygulama geneli ayarlar ayrı ekranda:
@@ -257,6 +259,50 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               child: const Text('Yenile'),
             ),
           ),
+          _section('Gizlilik'),
+          ListTile(
+            leading: const Icon(Icons.lock_outline),
+            title: Text(appState.fmHasLockPin
+                ? 'Klasör kilidi PIN’i değiştir'
+                : 'Klasör kilidi PIN’i belirle'),
+            subtitle: Text(appState.fmHasLockPin
+                ? '${appState.fmLockedFolders.length} klasör kilitli · '
+                    'kilitlemek için klasörde ⋮ > “Klasörü kilitle”'
+                : 'Kilitli klasörler listelerde ve galeride görünmez. '
+                    'Dosyalar ŞİFRELENMEZ — yalnız bu uygulamada gizlenir.'),
+            isThreeLine: true,
+            onTap: () => setupPin(context),
+          ),
+          if (appState.fmHasLockPin)
+            ListTile(
+              leading: const Icon(Icons.lock_open),
+              title: const Text('Kilidi tamamen kaldır'),
+              subtitle: const Text(
+                  'PIN silinir ve tüm klasörlerin kilidi açılır.'),
+              onTap: () async {
+                if (!await askPin(context)) return;
+                if (!context.mounted) return;
+                await context.read<AppState>().setFmLockPin('');
+              },
+            ),
+          if (appState.fmLockedFolders.isNotEmpty)
+            for (final path in appState.fmLockedFolders)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.folder_off_outlined),
+                title: Text(p.basename(path)),
+                subtitle:
+                    Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: IconButton(
+                  tooltip: 'Kilidi kaldır',
+                  icon: const Icon(Icons.lock_open),
+                  onPressed: () async {
+                    if (!await askPin(context)) return;
+                    if (!context.mounted) return;
+                    await context.read<AppState>().toggleLockedFolder(path);
+                  },
+                ),
+              ),
           _section('Silme'),
           SwitchListTile(
             secondary: const Icon(Icons.delete_outline),

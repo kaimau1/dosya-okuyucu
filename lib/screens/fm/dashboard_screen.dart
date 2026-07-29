@@ -16,15 +16,19 @@ import '../../services/fm/media_library.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
+import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'analysis_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'cleanup_screen.dart';
 import 'downloads_screen.dart';
 import 'fm_settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
+import 'op_history_screen.dart';
+import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
 import 'trash_screen.dart';
@@ -179,6 +183,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     await _loadTrash();
     await _loadFolderSizes();
+    // Depolama takibi: günde bir fotoğraf (tarama zaten yapıldı, ek maliyet yok).
+    unawaited(StorageTrend.record(index));
   }
 
   Future<void> _loadTrash() async {
@@ -211,7 +217,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // ekran açılır açılmaz o gösterilir, EKSİKSİZ liste `loadAll` ile arka
     // planda gelir. Kullanıcı hatası 2026-07-29: "videolarda tüm videolar
     // görünmüyor ama dosyaların içinde bulabiliyorum".
-    Future<List<FsEntry>> loadAll() => MediaLibrary.categoryFiles(category);
+    final locked = context.read<AppState>().fmLockedFolders;
+    Future<List<FsEntry>> loadAll() =>
+        MediaLibrary.categoryFiles(category, lockedFolders: locked);
 
     // Görsel ve video → Google Fotoğraflar tarzı zaman ekseni (gün/ay/yıl).
     if (category == FmCategory.image || category == FmCategory.video) {
@@ -452,6 +460,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : 'Ayrıntılar',
         onTap: () =>
             _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+      ),
+      FmTileData(
+        icon: Icons.cleaning_services_outlined,
+        color: const Color(0xFF00838F),
+        label: 'Yer aç',
+        subtitle: 'Temizlik önerileri',
+        onTap: () => _push(CleanupScreen(index: _index)),
+      ),
+      FmTileData(
+        icon: Icons.auto_awesome_motion,
+        color: const Color(0xFF5E35B1),
+        label: 'Otomatik düzenle',
+        subtitle: 'Klasörlere ayır',
+        onTap: () => _push(OrganizeScreen(
+          path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
+        )),
+      ),
+      FmTileData(
+        icon: Icons.history_toggle_off,
+        color: const Color(0xFF6D4C41),
+        label: 'Son işlemler',
+        subtitle: 'Geri al',
+        onTap: () => _push(const OpHistoryScreen()),
       ),
       FmTileData(
         icon: Icons.delete_outline,

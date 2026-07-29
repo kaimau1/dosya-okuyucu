@@ -11,9 +11,11 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_stats.dart';
+import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import 'browser_screen.dart';
+import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
 import 'entry_actions.dart';
 
@@ -59,6 +61,21 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   /// Kategori süzgeci (Türlere göre çubuklarına dokununca da ayarlanır).
   FmCategory? _category;
+
+  /// Depolama eğilimi ("bu hafta +2,1 GB · en çok Videolar").
+  TrendDelta? _trend;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrend();
+  }
+
+  Future<void> _loadTrend() async {
+    final points = await StorageTrend.load();
+    if (!mounted || points.length < 2) return;
+    setState(() => _trend = computeTrend(points));
+  }
 
   bool get _isSearch => _query.trim().length >= 2;
 
@@ -162,6 +179,25 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               _VolumeBar(volume: v),
               const SizedBox(height: Gap.md),
             ],
+            if (_trend?.hasData ?? false) ...[
+              _trendCard(_trend!),
+              const SizedBox(height: Gap.md),
+            ],
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
+                leading: const Icon(Icons.auto_fix_high),
+                title: const Text('Yer aç (temizlik önerileri)'),
+                subtitle: const Text(
+                    'Çöp kutusu, kopyalar, eski indirilenler ve büyük '
+                    'videolar tek ekranda'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => CleanupScreen(index: widget.index),
+                )),
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
             Card(
               clipBehavior: Clip.antiAlias,
               child: ListTile(
@@ -288,6 +324,44 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  /// Depolama eğilimi kartı. Veri yoksa hiç gösterilmez — "0 B değişti"
+  /// demek bilgi değil gürültüdür.
+  Widget _trendCard(TrendDelta trend) {
+    final grew = trend.deltaBytes > 0;
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Row(
+          children: [
+            Icon(grew ? Icons.trending_up : Icons.trending_down,
+                color: grew ? scheme.error : scheme.primary),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Son ${trend.days} günde '
+                    '${grew ? "+" : "−"}'
+                    '${FsPaths.humanSize(trend.deltaBytes.abs())}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  if (trend.topCategory != null && trend.topCategoryBytes > 0)
+                    Text(
+                      'En çok büyüyen: ${trend.topCategory!.label} '
+                      '(+${FsPaths.humanSize(trend.topCategoryBytes)})',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

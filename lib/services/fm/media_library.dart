@@ -1,5 +1,6 @@
 import '../../models/fs_entry.dart';
 import 'fm_env.dart';
+import 'folder_lock.dart';
 import 'fs_scan.dart';
 import 'search_index.dart';
 
@@ -24,10 +25,14 @@ abstract final class MediaLibrary {
   static const maxItems = 100000;
 
   /// [category] null ise tüm dosyalar döner.
+  /// [lockedFolders] verilirse o klasörlerin altındakiler **listeye hiç
+  /// girmez**: kilitli klasördeki fotoğraf "Görüntüler" ızgarasında görünürse
+  /// kilit hiçbir işe yaramaz.
   static Future<List<FsEntry>> categoryFiles(
     FmCategory? category, {
     String? root,
     int limit = maxItems,
+    Iterable<String> lockedFolders = const [],
   }) async {
     await SearchIndex.ensureLoaded();
     if (SearchIndex.isReady) {
@@ -37,14 +42,17 @@ abstract final class MediaLibrary {
         root: root,
         limit: limit,
       );
-      if (rows.isNotEmpty) return rows;
+      if (rows.isNotEmpty) {
+        return FolderLock.filterOut(rows, lockedFolders, (e) => e.path);
+      }
       // Boş sonuç "dizin bozuk" da olabilir "gerçekten yok" da; diske düşmek
       // ikinci durumda yalnız bir tarama maliyeti, birincisinde doğru cevap.
     }
-    return FsScan.collect(
+    final scanned = await FsScan.collect(
       root != null ? [root] : FmEnv.volumeRoots,
       category: category,
       limit: limit,
     );
+    return FolderLock.filterOut(scanned, lockedFolders, (e) => e.path);
   }
 }

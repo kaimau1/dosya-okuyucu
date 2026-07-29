@@ -3309,3 +3309,81 @@ kaynak seçimi, kopya ayıklamanın ad+boyut kuralı (boyut farklıysa gizlemez)
 önbellek imzasının küme sırasından etkilenmemesi, galeride "2 yinelenen kopya
 gizlendi" satırı ve "Göster" ile geri gelmesi. Cihazda ölçüm YAPILMADI —
 kasma düzeltmesi kod okumasıyla (kare başına yapılan iş) gerekçelendirildi.
+
+## 2026-07-29 (5. tur) — On yeni yetenek: AI arama, sınıflandırma, düzenleme, kilit…
+
+Kullanıcı önerilen listenin **tamamını** istedi. Her yetenek **saf bir çekirdek
++ ince bir ekran** olarak yazıldı; çekirdekler `fm_smart_features_test` ile
+sabitlendi (30 durum). Ekranlar yalnız gösterir/uygular.
+
+### A. Akıllı arama — `services/fm/smart_query.dart`
+"geçen ay whatsapp videoları tatil" → kategori=video, tarih=son 30 gün,
+kaynak=WhatsApp, kalan ad araması="tatil".
+- **Önce YEREL çözümleyici, AI isteğe bağlı.** Sorguların çoğu birkaç kalıptan
+  ibaret; bunun için ağ gecikmesi + API anahtarı zorunluluğu + maliyet ödemek
+  yanlış olurdu. AI (Gemini) yalnız menüden istenince çalışır ve **başarısız
+  olursa arama bozulmaz** (`smartQueryFromJson` null → yerel sonuç kalır).
+- **TUZAK — aksan:** `turkishFold` yalnız harf büyüklüğünü katlar, aksanı
+  KALDIRMAZ; "videoları" → "videolari" DEĞİL. Anahtar listeleri ASCII yazılıp
+  hem sorgu hem anahtarlar `_plain()` (ı→i, ş→s, ğ→g…) ile indirgendi →
+  "geçen ay" da "gecen ay" da çalışıyor. İlk testte 4 kırmızı bunu yakaladı.
+- Anlaşılanlar **çip olarak gösterilir** ve "Yoksay" ile kaldırılabilir:
+  sessiz süzme "neden bu sonuç?" sorusunu doğurur.
+- `SearchIndex.query` `matchAll` aldı: cümle tamamen ölçüte dönüşünce
+  ("bu hafta videolar") ad araması kalmıyor, yine de listeye ihtiyaç var.
+
+### B. Görselde ne var? — `doc_classifier.dart` + `ai_actions.dart`
+OCR metni anahtar sözcüklerle sınıflandırılır (fatura/kimlik/banka/sağlık/
+sözleşme/bilet…) ve "Önemli Dosyalar/Faturalar"a taşıma önerilir.
+**Sınıflandırma çevrimdışı ve ücretsiz** (tek fatura için ağ isteği saçma);
+AI yalnız *özet* için. Sonuç **öneri**dir — taşımaya kullanıcı basar ve
+kararın **kanıtı** (eşleşen sözcükler) gösterilir.
+
+### C. Otomatik düzenle — `auto_organize.dart` + `organize_screen.dart`
+Türe/tarihe/kaynağa göre alt klasörlere ayırma; **önizle → onayla → uygula**.
+Zaten doğru klasördeki dosya taşınmaz, klasörlere dokunulmaz, varsayılan
+yalnız üst düzey (mevcut alt klasör düzeni bozulmasın). Sonuç işlem geçmişine
+yazılır → toplu geri alınabilir.
+
+### D. Yer açma asistanı — `cleanup_advisor.dart` + `cleanup_screen.dart`
+Çöp kutusu · kopyalar · 180+ gün açılmamış indirilenler · APK'lar · 100 MB+
+videolar. **Güvenli öneriler açık, fotoğraf/video içerenler KAPALI gelir**
+(yanlışlıkla silinen anı geri gelmez) ve her şey çöp kutusuna gider.
+
+### E. Belge özeti (AI) — `ai_actions.dart`
+Metin çıkarılır (gerekirse OCR), ilk 12 bin karakter Gemini'ye gider
+(2 MB'lık PDF metnini göndermek pahalı ve gereksiz), özet + yerel sınıflandırma
+birlikte gösterilir.
+
+### F. Galeriden GERÇEK kopya temizliği
+4. turda kopyalar yalnız *gizleniyordu* (ad+boyut tahmini). Artık "Temizle"
+adayları `DuplicateFinder.scanPaths` ile **bayt bayt doğruluyor**, her gruptan
+en eskiyi koruyor, kalanları çöpe atıyor. **Silme asla tahmine dayanamaz.**
+
+### G. Klasör kilidi — `folder_lock.dart` + `pin_dialog.dart`
+PIN tuzlanmış tekrarlı FNV ile saklanır (`crypto` paketi bu tek kullanım için
+APK'ya girmesin). Kilitli klasör: gözatıcıda PIN sorar, **galeri/kategori
+listelerinden de ayıklanır** (yoksa kilit işe yaramaz), kilidi KALDIRIRKEN de
+PIN sorulur. **Dürüstlük kuralı:** arayüzde "şifrelemez, yalnız bu uygulamada
+gizler" yazıyor — kullanıcıya sahte güvenlik satılmaz.
+
+### H. Toplu yeniden adlandırma — `batch_rename.dart`
+`{ad} {n} {n2} {tarih} {uzanti}` kalıpları, bul/değiştir, canlı önizleme.
+**Uzantı otomatik korunur** (silinirse dosya açılamaz hâle gelir = sessiz veri
+kaybı), yol ayracı temizlenir, çakışan adlar kırmızı ve atlanır.
+
+### I. Son işlemler — `op_history.dart` + ekranı
+Son 50 işlem; taşıma/düzenleme geri alınabilir. Bildirimdeki "Geri al" birkaç
+saniyede kayboluyordu; beş dakika sonra fark eden kullanıcının elinde bir şey
+kalmıyordu. Kopyalama/silme geri alınmaz (biri "sil" demek, diğeri çöp
+kutusunun işi).
+
+### J. Depolama takibi — `storage_trend.dart`
+Günde bir fotoğraf (tarama zaten yapılıyor), analiz ekranında "Son 7 günde
++2,1 GB · en çok Videolar". Veri yoksa kart hiç gösterilmez (0 B değişim
+bilgi değil gürültü).
+
+### K. Doğrulama
+`analyze` 0 hata, `flutter test` **670 geçti, 0 kırmızı** (30 yeni durum).
+Cihazda deneme YAPILMADI; AI yolları (Gemini) gerçek anahtarla denenmedi —
+hata yolları (anahtar yok / bozuk yanıt / ağ hatası) kodda ele alınıyor.

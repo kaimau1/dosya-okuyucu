@@ -44,6 +44,23 @@ abstract final class DuplicateFinder {
     }
   }
 
+  /// **Belirli dosyalar** arasında yinelenenleri bulur (tüm depolamayı
+  /// gezmeden). Galeride "gizlenen kopyaları gerçekten temizle" akışı bunu
+  /// kullanır: ad+boyut ile *aday* bulunur, burada bayt bayt DOĞRULANIR —
+  /// silme kararı asla tahmine dayanmamalı.
+  static Future<List<DuplicateGroup>> scanPaths(
+    List<FsEntry> entries, {
+    int minBytes = 1,
+    int maxGroups = 1000,
+  }) async {
+    try {
+      return await Isolate.run(
+          () => groupSync(entries, minBytes, maxGroups));
+    } catch (_) {
+      return groupSync(entries, minBytes, maxGroups);
+    }
+  }
+
   /// [scan]'in isolate'siz hâli (birim testleri bunu çağırır).
   static List<DuplicateGroup> scanSync(
     List<String> roots,
@@ -51,12 +68,24 @@ abstract final class DuplicateFinder {
     int maxGroups,
   ) {
     // 1) boyuta göre grupla
-    final bySize = <int, List<FsEntry>>{};
+    final all = <FsEntry>[];
     for (final root in roots) {
-      walkFiles(Directory(root), (entry) {
-        if (entry.sizeBytes < minBytes) return;
-        (bySize[entry.sizeBytes] ??= []).add(entry);
-      }, () {});
+      walkFiles(Directory(root), all.add, () {});
+    }
+    return groupSync(all, minBytes, maxGroups);
+  }
+
+  /// Verilen girdiler arasında yinelenenleri bulur (üç aşamalı: boyut →
+  /// parmak izi → bayt bayt). [scanSync] ve [scanPaths] ortak gövdesi.
+  static List<DuplicateGroup> groupSync(
+    List<FsEntry> entries,
+    int minBytes,
+    int maxGroups,
+  ) {
+    final bySize = <int, List<FsEntry>>{};
+    for (final entry in entries) {
+      if (entry.isDir || entry.sizeBytes < minBytes) continue;
+      (bySize[entry.sizeBytes] ??= []).add(entry);
     }
 
     final groups = <DuplicateGroup>[];

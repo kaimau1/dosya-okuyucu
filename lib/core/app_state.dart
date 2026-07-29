@@ -8,6 +8,7 @@ import '../models/media_open_with.dart';
 import '../models/photo_group.dart';
 import '../models/recent_file.dart';
 import '../services/firebase_service.dart';
+import '../services/fm/folder_lock.dart';
 
 /// Uygulama genel durumu: tema, AI ayarları, son açılan dosyalar.
 /// SharedPreferences ile kalıcı; Firebase senkronu build-2'de eklenecek.
@@ -20,6 +21,8 @@ class AppState extends ChangeNotifier {
   // Dosya yöneticisi tercihleri
   static const _kBookmarks = 'fm_bookmarks';
   static const _kRecentDests = 'fm_recent_destinations';
+  static const _kLockPin = 'fm_lock_pin';
+  static const _kLockedFolders = 'fm_locked_folders';
   static const _kFmLayout = 'fm_layout';
   static const _kFmPhotoLayout = 'fm_photo_layout';
   static const _kFmPhotoGroup = 'fm_photo_group';
@@ -56,6 +59,8 @@ class AppState extends ChangeNotifier {
   // ── Dosya yöneticisi durumu ───────────────────────────────────────────────
   List<String> _bookmarks = [];
   List<String> _recentDests = [];
+  String _fmLockPinHash = '';
+  List<String> _lockedFolders = [];
   FmLayout _fmLayout = FmLayout.list;
   FmLayout _fmPhotoLayout = FmLayout.grid3;
   PhotoGroup _fmPhotoGroup = PhotoGroup.day;
@@ -72,6 +77,13 @@ class AppState extends ChangeNotifier {
 
   /// Kullanıcının yıldızladığı klasörler (kalıcı).
   List<String> get bookmarks => List.unmodifiable(_bookmarks);
+
+  /// Klasör kilidi PIN özeti (boşsa kilit kurulmamış).
+  String get fmLockPinHash => _fmLockPinHash;
+  bool get fmHasLockPin => _fmLockPinHash.isNotEmpty;
+
+  /// Kilitli klasörler (bunların altındaki her şey gizlenir).
+  List<String> get fmLockedFolders => List.unmodifiable(_lockedFolders);
 
   /// **Son taşıma/kopyalama hedefleri** (en yeni başta, en çok 8).
   ///
@@ -153,6 +165,28 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// PIN'i kurar/değiştirir; boş verilirse kilit tamamen kalkar (kilitli
+  /// klasörler de listeden düşer — PIN'siz kilit kullanıcıyı kendi dosyasından
+  /// kalıcı olarak edemez).
+  Future<void> setFmLockPin(String pin) async {
+    _fmLockPinHash = pin.trim().isEmpty ? '' : FolderLock.hashPin(pin);
+    if (_fmLockPinHash.isEmpty) {
+      _lockedFolders = [];
+      await _prefs.setStringList(_kLockedFolders, _lockedFolders);
+    }
+    await _prefs.setString(_kLockPin, _fmLockPinHash);
+    notifyListeners();
+  }
+
+  Future<void> toggleLockedFolder(String path) async {
+    if (!_lockedFolders.remove(path)) _lockedFolders.add(path);
+    await _prefs.setStringList(_kLockedFolders, _lockedFolders);
+    notifyListeners();
+  }
+
+  bool isFolderLocked(String path) =>
+      FolderLock.isLocked(path, _lockedFolders);
+
   Future<void> toggleBookmark(String path) async {
     if (!_bookmarks.remove(path)) _bookmarks.insert(0, path);
     await _prefs.setStringList(_kBookmarks, _bookmarks);
@@ -226,6 +260,8 @@ class AppState extends ChangeNotifier {
     _memory = _prefs.getStringList(_kMemory) ?? [];
     _bookmarks = _prefs.getStringList(_kBookmarks) ?? [];
     _recentDests = _prefs.getStringList(_kRecentDests) ?? [];
+    _fmLockPinHash = _prefs.getString(_kLockPin) ?? '';
+    _lockedFolders = _prefs.getStringList(_kLockedFolders) ?? [];
     _fmLayout = FmLayoutInfo.byName(_prefs.getString(_kFmLayout),
         // Eski sürümün iki durumlu tercihi korunur: ızgara açıksa 3 sütun.
         fallback: (_prefs.getBool('fm_grid') ?? false)

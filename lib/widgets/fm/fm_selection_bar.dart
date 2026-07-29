@@ -5,6 +5,7 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../screens/fm/entry_actions.dart';
+import 'batch_rename_sheet.dart';
 
 /// Çoklu seçim yapılınca ekranın altında beliren **eylem çubuğu**.
 ///
@@ -169,6 +170,10 @@ class FmSelectionBar extends StatelessWidget {
                   await renameEntry(context, selected.first)) {
                 await onChanged();
               }
+            case 'batch_rename':
+              if (await showBatchRenameSheet(context, selected)) {
+                await onChanged();
+              }
             case 'properties':
               if (selected.length == 1 && context.mounted) {
                 await showProperties(context, selected.first);
@@ -186,6 +191,10 @@ class FmSelectionBar extends StatelessWidget {
           if (selected.length == 1)
             const PopupMenuItem(
                 value: 'rename', child: Text('Yeniden adlandır')),
+          if (selected.length > 1)
+            const PopupMenuItem(
+                value: 'batch_rename',
+                child: Text('Toplu yeniden adlandır')),
           if (selected.length == 1)
             const PopupMenuItem(value: 'properties', child: Text('Özellikler')),
         ],

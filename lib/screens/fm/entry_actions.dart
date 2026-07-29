@@ -18,6 +18,7 @@ import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import 'ai_actions.dart';
 import 'archive_screen.dart';
 import 'folder_picker_screen.dart';
 import 'important_screen.dart';
@@ -39,6 +40,8 @@ enum _EntryAction {
   openArchive,
   bookmark,
   important,
+  aiSummary,
+  imageInsight,
   reveal,
   properties,
 }
@@ -113,6 +116,16 @@ Future<bool> showEntryActions(
               ),
             _tile(ctx, Icons.star_outline, 'Önemli dosyalara kopyala',
                 _EntryAction.important),
+            // AI/tanıma: belgede özet, görselde metin tanıma + sınıflandırma.
+            if (!entry.isDir &&
+                entry.category != FmCategory.image &&
+                entry.category != FmCategory.video &&
+                entry.category != FmCategory.audio)
+              _tile(ctx, Icons.auto_awesome, 'AI ile özetle',
+                  _EntryAction.aiSummary),
+            if (entry.category == FmCategory.image)
+              _tile(ctx, Icons.document_scanner_outlined,
+                  'Bu görselde ne var? (metin tanı)', _EntryAction.imageInsight),
             if (allowReveal)
               _tile(ctx, Icons.my_location, 'Konumunu aç', _EntryAction.reveal),
             _tile(ctx, Icons.info_outline, 'Özellikler',
@@ -189,6 +202,15 @@ Future<bool> showEntryActions(
     case _EntryAction.important:
       return copyToImportant(context, [entry.path]);
 
+    case _EntryAction.aiSummary:
+      await showAiSummary(context, entry);
+      return false;
+
+    case _EntryAction.imageInsight:
+      await showImageInsight(context, entry);
+      // Sınıflandırma sonucu dosya taşınmış olabilir → liste tazelensin.
+      return true;
+
     case _EntryAction.reveal:
       onReveal?.call(_parentOf(entry.path));
       return false;
@@ -261,7 +283,13 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
 /// Seçilenleri siler. Ayarlara göre çöp kutusuna taşır ya da kalıcı siler;
 /// "silmeden önce sor" kapalıysa onay penceresi atlanır (ama KALICI silmede
 /// veri geri gelmeyeceği için onay her zaman sorulur).
-Future<bool> deleteEntries(BuildContext context, List<FsEntry> entries) async {
+/// [confirm] false ise onay penceresi atlanır — çağıran ZATEN toplu bir onay
+/// almışsa (yer açma asistanı) ikinci kez sormak akışı boğar.
+Future<bool> deleteEntries(
+  BuildContext context,
+  List<FsEntry> entries, {
+  bool confirm = true,
+}) async {
   if (entries.isEmpty) return false;
   final appState = context.read<AppState>();
   final useTrash = appState.fmUseTrash;
@@ -269,7 +297,7 @@ Future<bool> deleteEntries(BuildContext context, List<FsEntry> entries) async {
       ? '“${entries.first.name}”'
       : '${entries.length} öğe';
 
-  if (appState.fmConfirmDelete || !useTrash) {
+  if (confirm && (appState.fmConfirmDelete || !useTrash)) {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

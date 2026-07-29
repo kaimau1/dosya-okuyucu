@@ -9,6 +9,7 @@ import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
@@ -343,6 +344,58 @@ class _PhotosScreenState extends State<PhotosScreen> {
     );
   }
 
+  /// Gizlenen kopyaları **gerçekten** siler.
+  ///
+  /// Gizleme ad+boyut tahminine dayanır; SİLME asla tahmine dayanamaz →
+  /// adaylar önce bayt bayt doğrulanır (`DuplicateFinder.scanPaths`) ve her
+  /// gruptan **en eski** dosya korunur. Silinenler çöp kutusuna gider.
+  Future<void> _cleanDuplicates() async {
+    final candidates = _filter
+        .withHideDuplicates(false)
+        .apply(_files, query: _query)
+        .toList();
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+        content: Text('Kopyalar bayt bayt doğrulanıyor…')));
+    final groups = await DuplicateFinder.scanPaths(candidates);
+    if (!mounted) return;
+
+    final extras = <FsEntry>[];
+    for (final group in groups) {
+      final sorted = [...group.files]
+        ..sort((a, b) => a.modifiedMs.compareTo(b.modifiedMs));
+      extras.addAll(sorted.skip(1));
+    }
+    if (extras.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Bayt bayt doğrulamada birebir kopya çıkmadı — '
+              'hiçbir şey silinmedi.')));
+      return;
+    }
+    final bytes = extras.fold<int>(0, (sum, e) => sum + e.sizeBytes);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kopyalar silinsin mi?'),
+        content: Text('${extras.length} fazladan kopya '
+            '(${FsPaths.humanSize(bytes)}) çöp kutusuna taşınacak. '
+            'Her gruptan en eski dosya korunur.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sil')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    if (await deleteEntries(context, extras, confirm: false)) {
+      await _dropMissing();
+    }
+  }
+
   /// "N kopya gizlendi" bilgisi + tek dokunuşla göster/gizle.
   /// Sessiz gizleme "dosyam kayboldu" hatasına yol açar; burada hep görünür.
   Widget _duplicateNotice() => Padding(
@@ -362,6 +415,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
               onPressed: () => setState(
                   () => _filter = _filter.withHideDuplicates(false)),
               child: const Text('Göster'),
+            ),
+            TextButton(
+              onPressed: _cleanDuplicates,
+              child: const Text('Temizle'),
             ),
           ],
         ),
