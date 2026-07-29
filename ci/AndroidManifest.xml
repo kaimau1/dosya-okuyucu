@@ -99,6 +99,18 @@
                 <data android:mimeType="audio/*" />
             </intent-filter>
 
+            <!-- Tarayıcıdan paylaşılan BAĞLANTI: Chrome/DuckDuckGo'da bir
+                 bağlantıya uzun basıp "Paylaş → Dosya Okuyucu" denince adres
+                 buraya text/plain olarak gelir ve indirme akışı açılır
+                 (kullanıcı isteği 2026-07-29). Dosya MIME'lerinden AYRI bir
+                 filtre: text/plain'i aşağıdaki listeye eklemek, düz metin
+                 dosyalarının paylaşımıyla karışırdı. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
             <!-- Paylaş menüsünden tek/çoklu dosya (aynı MIME listesi). -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

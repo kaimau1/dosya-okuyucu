@@ -3397,3 +3397,55 @@ Gradle indirmeye çalıştı ve arşiv bozuk indi →
 (`ls $ANDROID_SDK_ROOT/ndk | sort -V | tail -1`) kullanılıyor. Hem bu
 kırılganlık kalktı hem her derlemede ~500 MB indirme atlandı. Kurulu NDK
 yoksa eski sabit sürüme düşülüyor (uyarı basılarak).
+
+## 2026-07-29 (6. tur) — Uygulama içi indirme (bağlantıdan / GitHub sürümünden)
+
+Kullanıcı isteği: *"internetten bir linkten indireceğim (GitHub release,
+DuckDuckGo, Chrome) — bizim programımızdan indirmek istiyorum, daha organize
+hızlı etkili olalım"*.
+
+### A. Neden kendi indiricimiz
+Tarayıcının indirdiği dosya `Download` klasörüne düşer ve orada kaybolur;
+kullanıcı sonra onu bulup taşımak zorunda. Bizim indiricimizde dosya
+**baştan istenen klasöre** iniyor (örn. Önemli Dosyalar/Faturalar), yarım
+kalırsa sürdürülüyor ve biter bitmez açılabiliyor.
+
+### B. Parçalar
+- `models/download_task.dart` (saf): durum makinesi, **dosya adı çözümleme**
+  (Content-Disposition → `filename*` UTF-8 → URL yolu → içerik türünden
+  uzantı), hız/kalan süre, kuyruk kodlama.
+- `services/fm/download_service.dart`: akış hâlinde yazma (500 MB'lık APK
+  belleğe alınmaz), `Range` ile sürdürme, iptal, en çok 2 eşzamanlı indirme,
+  kuyruğun diskte saklanması.
+- `services/fm/github_release.dart` (saf): `github.com/<sahip>/<depo>[/releases
+  [/latest | /tag/<etiket>]]` → API adresi; sürüm yanıtından dosya listesi.
+- `screens/fm/download_manager_screen.dart`: kuyruk/geçmiş, duraklat-devam-
+  iptal, panodan yapıştır, elle bağlantı, hedef klasör seçimi.
+- Panoda "İndir" kutusu; paylaşımdan gelen metin/bağlantı indirme akışını açar.
+- `ci/AndroidManifest.xml`: **ayrı** `text/plain` SEND filtresi (dosya MIME
+  listesine text/plain eklemek düz metin dosyası paylaşımıyla karışırdı) →
+  Chrome/DuckDuckGo'da bağlantıya uzun bas → Paylaş → Dosya Okuyucu.
+
+### C. Kritik kararlar (ve niye)
+- **GitHub sürüm sayfası indirilmez.** `…/releases/latest` bir HTML sayfasıdır;
+  olduğu gibi indirilse elde işe yaramaz bir `.html` kalırdı. Adres API'ye
+  çevrilip **dosya listesi** gösteriliyor, kullanıcı hangisini indireceğini
+  seçiyor (32-bit/64-bit APK ayrımı gibi). API'ye ulaşılamazsa adres olduğu
+  gibi indiriliyor — kullanıcı hiç değilse bir şey elde etsin.
+- **Sürdürme yalnız 206'da.** Sunucu `Range`'i yok sayıp 200 dönerse dosya
+  BAŞTAN yazılıyor; yarım dosyanın sonuna baştan veri eklemek sessiz veri
+  bozulmasıdır (testle sabitlendi).
+- **Sunucunun verdiği ada güvenilmez:** yol ayracı, kontrol karakterleri ve
+  baştaki noktalar temizleniyor (`../../etc/passwd` tuzağı testte).
+- Dosya `.indiriliyor` uzantısıyla yazılıp bitince asıl adına taşınıyor →
+  yarım dosya galeriye/kategori listelerine düşmüyor.
+- **Arka planda devam ETMEZ** (ön plan servisi gerekir). Uygulama kapanınca
+  koşan indirme kuyruğa "duraklatıldı" olarak yazılıyor; "indiriliyor"
+  göstermek yalan olurdu. Kullanıcı tek dokunuşla devam ettiriyor.
+- Bildirim/ön plan servisi ve paralel parçalı indirme (aria2 tarzı) YAPILMADI —
+  ayrı iş; ikisi de yerel Android kodu ya da ek paket gerektiriyor.
+
+### D. Doğrulama
+`analyze` temiz, `flutter test` **689 geçti, 0 kırmızı** (19 yeni durum: ad
+çözümleme, sürdürme koşulu, kuyruk turu, GitHub adres kalıpları ve bozuk
+yanıtlar). Gerçek indirme cihazda denenMEDİ; ağ yolları CI'da koşturulamıyor.

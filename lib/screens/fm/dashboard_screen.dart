@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/download_service.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
@@ -23,6 +24,7 @@ import 'analysis_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'cleanup_screen.dart';
+import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'fm_settings_screen.dart';
 import 'important_screen.dart';
@@ -460,6 +462,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : 'Ayrıntılar',
         onTap: () =>
             _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+      ),
+      // Bağlantıdan indirme (kullanıcı isteği 2026-07-29): tarayıcı yerine
+      // buradan indirilince dosya istenen klasöre iniyor ve kayıp olmuyor.
+      FmTileData(
+        icon: Icons.download_for_offline_outlined,
+        color: const Color(0xFF1565C0),
+        label: 'İndir',
+        subtitle: DownloadService.instance.hasActive
+            ? '${DownloadService.instance.activeTasks.length} sürüyor'
+            : 'Bağlantıdan',
+        onTap: () async {
+          await _push(const DownloadManagerScreen());
+          if (mounted) setState(() {});
+        },
       ),
       FmTileData(
         icon: Icons.cleaning_services_outlined,

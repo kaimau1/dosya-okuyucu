@@ -9,12 +9,14 @@ import '../core/theme.dart';
 import '../models/document.dart';
 import '../models/recent_file.dart';
 import '../services/blank_docs.dart';
+import '../models/download_task.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../widgets/file_type_icon.dart';
 import '../widgets/scan_flow.dart';
 import 'chat_screen.dart';
 import 'fm/dashboard_screen.dart';
+import 'fm/download_manager_screen.dart';
 import 'pdf_tools_screen.dart';
 import 'settings_screen.dart';
 
@@ -65,8 +67,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openShared(List<SharedMediaFile> files) async {
     if (!mounted) return;
-    final path = files.first.path;
+    final first = files.first;
+    final path = first.path;
     if (path.isEmpty) return;
+
+    // Tarayıcıdan paylaşılan bir BAĞLANTI ise dosya değil, indirme isteğidir
+    // (kullanıcı isteği 2026-07-29: "Chrome/DuckDuckGo'dan bizim programımızla
+    // indirmek istiyorum"). Metin paylaşımında yol alanında metnin kendisi
+    // gelir; içinde http(s) adresi varsa indirme akışına gideriz.
+    if (first.type == SharedMediaType.text || first.type == SharedMediaType.url) {
+      final url = extractUrl(path);
+      if (url != null) {
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => DownloadManagerScreen(initialUrl: url),
+        ));
+        return;
+      }
+    }
     await EntryOpener.open(context, path);
   }
 
