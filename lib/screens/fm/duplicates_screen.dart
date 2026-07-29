@@ -6,6 +6,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
@@ -25,9 +26,17 @@ class DuplicatesScreen extends StatefulWidget {
 }
 
 class _DuplicatesScreenState extends State<DuplicatesScreen> {
-  List<DuplicateGroup> _groups = const [];
+  /// Kuyruktaki kararlı kimlik: ekran kapanıp açılsa da tarama baştan
+  /// başlamaz (bayt bayt karşılaştırma dakikalar sürebilir — istek
+  /// 2026-07-29: "işlemler arka planda çalışabilmeli").
+  static const _jobId = 'duplicate_scan';
+
   final Set<String> _selected = {};
-  bool _scanning = true;
+
+  /// Varsayılan seçim (her gruptan en eskisi hariç) yalnız sonuç
+  /// DEĞİŞTİĞİNDE kurulur; yoksa kullanıcının kaldırdığı işaret her kuyruk
+  /// bildiriminde geri gelirdi.
+  String? _seedSignature;
 
   /// Yerinde arama (kullanıcı isteği 2026-07-29: "arama kısmı her yerde
   /// olmalı"). Grup, dosyalarından herhangi biri eşleşirse görünür.
@@ -37,8 +46,40 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
   @override
   void dispose() {
+    JobQueue.instance.removeListener(_onQueue);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onQueue() {
+    if (mounted) setState(_seedSelection);
+  }
+
+  FmJob? get _job => JobQueue.instance.find(_jobId);
+
+  bool get _scanning => _job?.status.isActive ?? false;
+
+  List<DuplicateGroup> get _groups {
+    final result = _job?.result;
+    return result is List<DuplicateGroup> ? result : const [];
+  }
+
+  void _seedSelection() {
+    final groups = _groups;
+    final signature = groups
+        .map((g) => '${g.sizeBytes}:${g.files.length}:${g.files.first.path}')
+        .join('|');
+    if (signature == _seedSignature) return;
+    _seedSignature = signature;
+    _selected.clear();
+    // Varsayılan: her gruptan EN ESKİ dosya korunur, kalanlar seçilir.
+    for (final g in groups) {
+      final sorted = [...g.files]
+        ..sort((a, b) => a.modifiedMs.compareTo(b.modifiedMs));
+      for (final f in sorted.skip(1)) {
+        _selected.add(f.path);
+      }
+    }
   }
 
   List<DuplicateGroup> get _visibleGroups {
@@ -51,28 +92,33 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
   @override
   void initState() {
     super.initState();
-    _scan();
+    JobQueue.instance.addListener(_onQueue);
+    final job = _job;
+    // Sonuç varsa yeniden taramıyoruz; kullanıcı geri döndüğünde beklemesin.
+    if (job == null || job.status == JobStatus.failed) _scan();
   }
 
-  Future<void> _scan() async {
-    setState(() {
-      _scanning = true;
-      _selected.clear();
-    });
-    final groups = await DuplicateFinder.scan(widget.roots);
-    if (!mounted) return;
-    setState(() {
-      _groups = groups;
-      _scanning = false;
-      // Varsayılan: her gruptan EN ESKİ dosya korunur, kalanlar seçilir.
-      for (final g in groups) {
-        final sorted = [...g.files]
-          ..sort((a, b) => a.modifiedMs.compareTo(b.modifiedMs));
-        for (final f in sorted.skip(1)) {
-          _selected.add(f.path);
-        }
-      }
-    });
+  /// Taramayı arka plan kuyruğuna verir.
+  void _scan() {
+    final roots = widget.roots;
+    JobQueue.instance.enqueue(
+      id: _jobId,
+      title: 'Yinelenen dosyalar aranıyor',
+      run: (handle) async {
+        handle.report(detail: 'Dosyalar bayt bayt karşılaştırılıyor…');
+        final groups = await DuplicateFinder.scan(roots);
+        handle.throwIfCancelled();
+        handle.result = groups;
+        final wasted = groups.fold<int>(0, (sum, g) => sum + g.wastedBytes);
+        handle.report(
+          detail: groups.isEmpty
+              ? 'Yinelenen dosya yok'
+              : '${groups.length} grup · '
+                  '${FsPaths.humanSize(wasted)} kazanılabilir',
+        );
+      },
+    );
+    setState(() => _selected.clear());
   }
 
   int get _selectedBytes => _groups
@@ -87,7 +133,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
         .toList();
     if (files.isEmpty) return;
     if (!await deleteEntries(context, files)) return;
-    await _scan();
+    _scan();
   }
 
   @override
@@ -128,14 +174,25 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
         ],
       ),
       body: _scanning
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: Gap.md),
-                  Text('Dosyalar karşılaştırılıyor…'),
-                ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.lg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LinearProgressIndicator(value: _job?.progress),
+                    const SizedBox(height: Gap.md),
+                    Text(_job?.detail.isNotEmpty ?? false
+                        ? _job!.detail
+                        : 'Dosyalar karşılaştırılıyor…'),
+                    const SizedBox(height: Gap.sm),
+                    const Text(
+                      'Ekranı kapatabilirsin — tarama arka planda sürer, '
+                      'geri döndüğünde sonuç hazır olur.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             )
           : _groups.isEmpty

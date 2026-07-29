@@ -3,12 +3,14 @@ import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
 import '../../models/document.dart';
+import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/file_service.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
@@ -108,6 +110,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   int? _byPathKey;
   Map<MediaBucket, int>? _bucketCache;
   Map<String, int>? _extCache;
+  Map<ChatMediaKind, int>? _chatKindCache;
   int? _countsKey;
 
   @override
@@ -115,6 +118,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
     super.initState();
     // Başka bir ekranda silinen/taşınan dosya burada durmasın.
     FsEvents.version.addListener(_dropMissing);
+    // Etiketler (kişi/grup süzgeci) hazır olunca çipler görünsün.
+    FileTags.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     _loadAll();
   }
 
@@ -150,7 +157,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (cached != null && _sortedKey == key) return cached;
     final sorted =
         FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
-    var filtered = _filter.apply(sorted, query: _query);
+    var filtered =
+        _filter.apply(sorted, query: _query, tagsOf: FileTags.forPath);
     if (_docKind != null) {
       filtered = filtered
           .where((f) => FileService.kindForExtension(f.extension) == _docKind)
@@ -161,12 +169,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
     return filtered;
   }
 
-  /// Kaynak/uzantı sayıları — liste değişmedikçe yeniden sayılmaz.
+  /// Kaynak/uzantı/mesajlaşma türü sayıları — liste değişmedikçe yeniden
+  /// sayılmaz.
   void _ensureCounts() {
     final key = identityHashCode(_files);
     if (_countsKey == key && _bucketCache != null) return;
     _bucketCache = bucketCounts(_files.map((f) => f.path));
     _extCache = extensionCounts(_files);
+    _chatKindCache = chatKindCounts(_files);
     _countsKey = key;
   }
 
@@ -228,13 +238,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
           : (_searching ? _searchBar() : _normalBar()),
       // Stack: alt eylem çubuğu görünürken gövde yüksekliği DEĞİŞMESİN
       // (bottomNavigationBar kullanılırsa liste zıplıyor — 2026-07-29 hatası).
+      // Üstteki çip satırları da seçim sırasında KALIR: gizlenince liste
+      // yukarı kayıyor ve "basılı tutunca zıpladı" oluyordu (aynı gün, ikinci
+      // rapor). Ayrıca seçim yaparken süzmeye devam edilebiliyor.
       body: Stack(
         children: [
           Column(
         children: [
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
-          if (widget.showSources && !_selecting) _sourceChips(),
-          if (widget.showDocKinds && !_selecting) _docKindChips(),
+          if (widget.showSources) _sourceChips(),
+          if (widget.showDocKinds) _docKindChips(),
           Expanded(
             child: files.isEmpty
                 ? Center(
@@ -319,6 +332,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
       descending: _desc,
       extensions: _extCache ?? const {},
       buckets: _bucketCache ?? const {},
+      chatKinds: _chatKindCache ?? const {},
+      tags: FileTags.counts(),
       showDuplicateSwitch: true,
     );
     if (result == null || !mounted) return;

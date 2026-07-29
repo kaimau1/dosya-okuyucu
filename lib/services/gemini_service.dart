@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -110,6 +111,83 @@ class GeminiService {
   /// Yalnızca `generateContent` destekleyenler döner, en yeni/yetenekli
   /// modeller öne gelecek şekilde sıralanır. Anahtar geçersiz/ağ hatasıysa
   /// [GeminiException] fırlatır — çağıran statik yedek listeye düşebilir.
+  /// Birkaç görseli Gemini'ye yükleyip **aynı görüntü mü** diye sorar.
+  ///
+  /// Cihaz-içi parmak izi (dHash) "bunlar birbirine benziyor" der ama "aynı
+  /// sahnenin iki ayrı karesi mi, yoksa aynı fotoğrafın kopyası mı" ayrımını
+  /// yapamaz. Kullanıcı bir grup için açıkça isterse bu soru modele sorulur.
+  ///
+  /// [previews] küçültülmüş JPEG'lerdir (bkz. `ImageResizer.previewJpeg`):
+  /// özgün 5 MB'lık dosyaları yüklemek hem yavaş hem pahalı olurdu. Karar
+  /// **öneri** olarak metin döner; silme yine kullanıcının onayıyla olur.
+  Future<String> compareImages(
+    List<({String name, Uint8List bytes})> previews, {
+    String? question,
+  }) async {
+    if (apiKey.trim().isEmpty) {
+      throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
+          'Gemini API anahtarınızı girin.');
+    }
+    if (previews.length < 2) {
+      throw GeminiException('Karşılaştırmak için en az iki görsel gerekir.');
+    }
+
+    final parts = <Map<String, Object>>[
+      {
+        'text': question ??
+            'Aşağıdaki ${previews.length} görsel sırayla şu dosyalara ait: '
+                '${previews.map((p) => p.name).join(", ")}.\n'
+                'Sorular:\n'
+                '1) Bunlar aynı görüntünün kopyaları mı, aynı sahnenin farklı '
+                'kareleri mi, yoksa alakasız mı?\n'
+                '2) Silinmesi güvenli olanlar hangileri, hangisi saklanmalı '
+                '(netlik, çerçeveleme, gözler açık mı gibi ölçütlere bak)?\n'
+                'Türkçe, kısa ve madde madde yanıtla. Emin olmadığın yerde '
+                '"emin değilim" de; uydurma.',
+      },
+      for (final preview in previews)
+        {
+          'inlineData': {
+            'mimeType': 'image/jpeg',
+            'data': base64Encode(preview.bytes),
+          },
+        },
+    ];
+
+    late http.Response resp;
+    try {
+      resp = await http.post(
+        _endpoint(),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'contents': [
+            {'role': 'user', 'parts': parts}
+          ],
+          'generationConfig': {'temperature': 0.2},
+        }),
+      );
+    } catch (e) {
+      throw GeminiException('Ağ hatası: $e');
+    }
+    if (resp.statusCode != 200) {
+      throw GeminiException(_readErrorStatic(resp));
+    }
+    final data = jsonDecode(utf8.decode(resp.bodyBytes));
+    final candidates = data['candidates'];
+    if (candidates is! List || candidates.isEmpty) {
+      throw GeminiException('Model yanıt vermedi.');
+    }
+    final parts2 = candidates.first['content']?['parts'];
+    if (parts2 is! List || parts2.isEmpty) {
+      throw GeminiException('Model yanıt vermedi.');
+    }
+    return parts2
+        .map((p) => '${p['text'] ?? ''}')
+        .where((t) => t.isNotEmpty)
+        .join('\n')
+        .trim();
+  }
+
   static Future<List<String>> listModels(String apiKey) async {
     final key = apiKey.trim();
     if (key.isEmpty) {

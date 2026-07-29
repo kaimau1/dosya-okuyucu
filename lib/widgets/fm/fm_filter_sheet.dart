@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
@@ -33,6 +34,8 @@ Future<FmFilterResult?> showFmFilterSheet(
   required bool descending,
   Map<String, int> extensions = const {},
   Map<MediaBucket, int> buckets = const {},
+  Map<ChatMediaKind, int> chatKinds = const {},
+  Map<String, int> tags = const {},
   bool showSort = true,
   bool showDuplicateSwitch = false,
   List<FmSort> sortOptions = FmSort.values,
@@ -47,6 +50,8 @@ Future<FmFilterResult?> showFmFilterSheet(
         descending: descending,
         extensions: extensions,
         buckets: buckets,
+        chatKinds: chatKinds,
+        tags: tags,
         showSort: showSort,
         showDuplicateSwitch: showDuplicateSwitch,
         sortOptions: sortOptions,
@@ -59,6 +64,8 @@ class _FilterSheet extends StatefulWidget {
   final bool descending;
   final Map<String, int> extensions;
   final Map<MediaBucket, int> buckets;
+  final Map<ChatMediaKind, int> chatKinds;
+  final Map<String, int> tags;
   final bool showSort;
   final bool showDuplicateSwitch;
   final List<FmSort> sortOptions;
@@ -69,6 +76,8 @@ class _FilterSheet extends StatefulWidget {
     required this.descending,
     required this.extensions,
     required this.buckets,
+    required this.chatKinds,
+    required this.tags,
     required this.showSort,
     required this.showDuplicateSwitch,
     required this.sortOptions,
@@ -265,6 +274,79 @@ class _FilterSheetState extends State<_FilterSheet> {
                       ],
                     ),
                   ],
+                  // ── Mesajlaşma kırılımı ────────────────────────────────
+                  // Yalnız listede WhatsApp/Telegram gibi bir kaynak varsa
+                  // gösterilir: kamera fotoğraflarında "Sesli not" çipi
+                  // anlamsız gürültü olurdu.
+                  if (_showChatSection) ...[
+                    const SizedBox(height: Gap.md),
+                    _label('Mesajlaşma dosyası türü'),
+                    Wrap(
+                      spacing: Gap.sm,
+                      runSpacing: Gap.xs,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Tümü'),
+                          selected: _filter.chatKinds.isEmpty,
+                          onSelected: (_) => setState(() =>
+                              _filter = _filter.withChatKinds(const {})),
+                        ),
+                        for (final e in _sortedChatKinds)
+                          FilterChip(
+                            label: Text('${e.key.label} (${e.value})'),
+                            selected: _filter.chatKinds.contains(e.key),
+                            onSelected: (_) => setState(() =>
+                                _filter = _filter.toggleChatKind(e.key)),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: Gap.md),
+                    _label('Gelen / gönderilen'),
+                    Wrap(
+                      spacing: Gap.sm,
+                      runSpacing: Gap.xs,
+                      children: [
+                        for (final d in ChatDirection.values)
+                          ChoiceChip(
+                            label: Text(d.label),
+                            selected: _filter.direction == d,
+                            onSelected: (_) => setState(
+                                () => _filter = _filter.withDirection(d)),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      'Gönderdiklerin WhatsApp’ın “Sent” klasöründen okunur. '
+                      'Telegram bu ayrımı yapmadığı için oradaki dosyalar '
+                      '“gelen” sayılır.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                  // ── Etiketler (kişi/grup) ──────────────────────────────
+                  if (widget.tags.isNotEmpty) ...[
+                    const SizedBox(height: Gap.md),
+                    _label('Etiket (kişi / grup)'),
+                    Wrap(
+                      spacing: Gap.sm,
+                      runSpacing: Gap.xs,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Tümü'),
+                          selected: _filter.tags.isEmpty,
+                          onSelected: (_) => setState(
+                              () => _filter = _filter.withTags(const {})),
+                        ),
+                        for (final e in _sortedTags)
+                          FilterChip(
+                            label: Text('${e.key} (${e.value})'),
+                            selected: _filter.tags.contains(e.key),
+                            onSelected: (_) => setState(
+                                () => _filter = _filter.toggleTag(e.key)),
+                          ),
+                      ],
+                    ),
+                  ],
                   if (widget.extensions.isNotEmpty) ...[
                     const SizedBox(height: Gap.md),
                     _label('Dosya türü'),
@@ -330,6 +412,38 @@ class _FilterSheetState extends State<_FilterSheet> {
   List<MapEntry<MediaBucket, int>> get _sortedBuckets {
     final list = widget.buckets.entries.where((e) => e.value > 0).toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+    return list;
+  }
+
+  /// Mesajlaşma kırılımı yalnız listede gerçekten mesajlaşma dosyası varsa
+  /// (ya da kullanıcı zaten böyle bir süzgeç seçtiyse) gösterilir.
+  bool get _showChatSection {
+    if (_filter.chatKinds.isNotEmpty ||
+        _filter.direction != ChatDirection.any) {
+      return true;
+    }
+    for (final source in const [
+      MediaBucket.whatsapp,
+      MediaBucket.telegram,
+      MediaBucket.instagram,
+    ]) {
+      if ((widget.buckets[source] ?? 0) > 0) return true;
+    }
+    return false;
+  }
+
+  List<MapEntry<ChatMediaKind, int>> get _sortedChatKinds {
+    final list = widget.chatKinds.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return list;
+  }
+
+  List<MapEntry<String, int>> get _sortedTags {
+    final list = widget.tags.entries.toList()
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        return byCount != 0 ? byCount : a.key.compareTo(b.key);
+      });
     return list;
   }
 

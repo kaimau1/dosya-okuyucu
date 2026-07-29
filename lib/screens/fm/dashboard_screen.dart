@@ -20,6 +20,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/scan_flow.dart';
 import 'analysis_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
@@ -33,6 +34,7 @@ import 'op_history_screen.dart';
 import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
+import 'similar_screen.dart';
 import 'trash_screen.dart';
 
 /// Dosya yöneticisi panosu: depolama doluluğu, kategoriler, favoriler,
@@ -362,10 +364,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _newFolderFlow,
-        tooltip: 'Yeni klasör',
-        child: const Icon(Icons.create_new_folder_outlined),
+      // **Belge Tara ana ekranda sabit yüzen düğme** (kullanıcı isteği
+      // 2026-07-29: "dosya tara ana ekranda olmalı yüzen fix buton olarak").
+      // Daha önce yalnız "Son belgeler" sekmesindeydi — uygulamanın vitrin
+      // özelliği, açılış ekranında görünmüyordu. Kaydırırken kaybolmaz
+      // (FAB gövdenin üstünde durur, listenin içinde değil).
+      //
+      // Sıra bilinçli: taramanın etiketli/geniş düğmesi ALTTA (başparmağa en
+      // yakın), yeni klasör küçük düğme olarak üstte — ikisi de kalsın diye.
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'fm_new_folder',
+            onPressed: _newFolderFlow,
+            tooltip: 'Yeni klasör',
+            child: const Icon(Icons.create_new_folder_outlined),
+          ),
+          const SizedBox(height: Gap.sm),
+          FloatingActionButton.extended(
+            heroTag: 'fm_scan_doc',
+            onPressed: () => ScanFlow.run(context),
+            icon: const Icon(Icons.document_scanner_outlined),
+            label: const Text('Belge Tara'),
+          ),
+        ],
       ),
     );
   }
@@ -510,6 +534,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: 'Yer aç',
         subtitle: '',
         onTap: () => _push(CleanupScreen(index: _index)),
+      ),
+      // Benzer görüntüler: "yer aç"ın yanında duruyor çünkü aynı işi yapıyor
+      // (yer kazandırıyor) ama farklı bir ölçütle — birebir değil, GÖRSEL
+      // olarak aynı olanlar (WhatsApp'ın yeniden sıkıştırdığı kopyalar).
+      FmTileData(
+        icon: Icons.auto_awesome_motion_outlined,
+        color: const Color(0xFF00897B),
+        label: 'Benzer görsel',
+        subtitle: '',
+        onTap: () {
+          final locked = context.read<AppState>().fmLockedFolders;
+          _push(SimilarScreen(
+            files: [
+              ..._index.files(FmCategory.image),
+              ..._index.files(FmCategory.video),
+            ],
+            loadAll: () async => [
+              ...await MediaLibrary.categoryFiles(FmCategory.image,
+                  lockedFolders: locked),
+              ...await MediaLibrary.categoryFiles(FmCategory.video,
+                  lockedFolders: locked),
+            ],
+          ));
+        },
       ),
       FmTileData(
         icon: Icons.auto_awesome_motion,

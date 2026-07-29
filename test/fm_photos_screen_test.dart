@@ -1,6 +1,7 @@
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/screens/fm/photos_screen.dart';
+import 'package:dosya_okuyucu/widgets/fm/fm_entry_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -133,5 +134,55 @@ void main() {
     expect(find.text('Son 7 gün'), findsOneWidget);
     expect(find.text('100 MB üzeri'), findsOneWidget);
     expect(find.text('Ada göre'), findsOneWidget);
+  });
+
+  /// **Kök neden testi (2026-07-29, ikinci rapor):** *"video basılı tutup
+  /// seçtiğimde zıplama oluyor alt panel çıktığı için"*. Alt panel aslında
+  /// bindirmeli çiziliyordu ve zıplatmıyordu; asıl neden ÜSTTEKİ satırların
+  /// (gün/ay/yıl çipleri, kaynak çipleri, "kopya gizlendi" şeridi) seçim
+  /// başlayınca kaybolup ızgarayı yukarı çekmesiydi. Bu test ilk karonun
+  /// ekrandaki yerini seçim öncesi/sonrası karşılaştırır: bir piksel kayarsa
+  /// düşer.
+  testWidgets('uzun basıp seçim başlayınca ızgara ZIPLAMAZ', (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    // Kaynak çiplerinin çıkması için iki farklı kaynak (kamera + WhatsApp)
+    // ve gizlenen kopya şeridi için aynı adlı iki dosya.
+    FsEntry at(String dir, String name) => FsEntry(
+          path: '/depo/$dir/$name',
+          name: name,
+          isDir: false,
+          sizeBytes: 500,
+          modifiedMs: day.millisecondsSinceEpoch,
+        );
+    await tester.pumpWidget(harness([
+      at('DCIM/Camera', 'IMG_0001.jpg'),
+      at('WhatsApp Images', 'IMG-WA0001.jpg'),
+      at('WhatsApp Images/Sent', 'IMG-WA0001.jpg'),
+    ]));
+    await tester.pump();
+
+    // Üst satırların üçü de görünüyor olmalı (yoksa test bir şeyi ölçmez).
+    expect(find.text('Gün'), findsOneWidget);
+    expect(find.textContaining('Kamera'), findsOneWidget);
+    expect(find.text('1 yinelenen kopya gizlendi'), findsOneWidget);
+
+    // Karonun kendisi (özel sınıf) yerine içindeki önizleme aranıyor:
+    // uzun basış DragSelectArea'da yakalanıyor ve basılan NOKTA karonun
+    // üstünde olmalı, yoksa seçim hiç başlamaz.
+    final firstTile = find.byType(FmEntryIcon).first;
+    final before = tester.getTopLeft(firstTile);
+
+    await tester.longPress(firstTile);
+    await tester.pump();
+
+    // Seçim kipi gerçekten açıldı mı?
+    expect(find.textContaining('seçildi'), findsOneWidget);
+    // ...ve karo yerinde mi?
+    expect(tester.getTopLeft(firstTile), before);
+
+    // Üst satırlar seçim sırasında da DURUR (kaybolan satır = zıplama).
+    expect(find.text('Gün'), findsOneWidget);
+    expect(find.textContaining('Kamera'), findsOneWidget);
+    expect(find.text('1 yinelenen kopya gizlendi'), findsOneWidget);
   });
 }

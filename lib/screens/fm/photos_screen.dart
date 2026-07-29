@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
+import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
@@ -10,6 +11,7 @@ import '../../models/media_bucket.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/duplicate_finder.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
@@ -20,6 +22,7 @@ import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
+import 'similar_screen.dart';
 
 /// **Fotoğraflar** — Google Fotoğraflar tarzı zaman ekseni.
 ///
@@ -118,6 +121,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
   int? _byPathKey;
   Map<MediaBucket, int>? _bucketCache;
   Map<String, int>? _extCache;
+  Map<ChatMediaKind, int>? _chatKindCache;
   int? _countsKey;
 
   /// Süzgeç yüzünden gizlenen kopya sayısı (ekranda yazılır).
@@ -131,6 +135,11 @@ class _PhotosScreenState extends State<PhotosScreen> {
   void initState() {
     super.initState();
     FsEvents.version.addListener(_dropMissing);
+    // Etiketler (kişi/grup süzgeci) diskten okunur; hazır olunca çipler
+    // görünsün diye yeniden çizilir.
+    FileTags.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     _loadAll();
   }
 
@@ -183,10 +192,14 @@ class _PhotosScreenState extends State<PhotosScreen> {
     // bağlıdır (apply listedeki İLK kopyayı tutar).
     final sorted =
         FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
-    final list = _filter.apply(sorted, query: _query);
+    final list =
+        _filter.apply(sorted, query: _query, tagsOf: FileTags.forPath);
     // Kaç kopya gizlendi? (Süzgeci kopyasız hâliyle uygulayıp farkı alırız.)
     _hiddenDuplicates = _filter.hideDuplicates
-        ? _filter.withHideDuplicates(false).apply(sorted, query: _query).length -
+        ? _filter
+                .withHideDuplicates(false)
+                .apply(sorted, query: _query, tagsOf: FileTags.forPath)
+                .length -
             list.length
         : 0;
     _visibleCache = list;
@@ -290,14 +303,20 @@ class _PhotosScreenState extends State<PhotosScreen> {
       // olduğunda gövdenin yüksekliği değişirse ızgara yeniden yerleşiyor ve
       // liste zıplıyordu (kullanıcı hatası 2026-07-29: "seçince sayfa
       // zıplıyor"). Üste bindirince görünüm alanı sabit kalır.
+      //
+      // **Üstteki satırlar seçim sırasında da DURUR** (2026-07-29, ikinci
+      // rapor: "video basılı tutup seçtiğimde zıplama oluyor"). Alt panel
+      // bindirmeli çizildiği için zıplatmıyordu; asıl neden bu satırların
+      // `!_selecting` ile kaybolup ızgarayı yukarı çekmesiydi. Kalmaları
+      // ayrıca işe yarıyor: seçim yaparken kaynağa/güne göre daraltılabiliyor.
       body: Stack(
         children: [
           Column(
         children: [
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
-          if (!_selecting && _timelineMode) _groupChips(appState, group),
-          if (widget.showSources && !_selecting) _sourceChips(),
-          if (_hiddenDuplicates > 0 && !_selecting) _duplicateNotice(),
+          if (_timelineMode) _groupChips(appState, group),
+          if (widget.showSources) _sourceChips(),
+          if (_hiddenDuplicates > 0) _duplicateNotice(),
           Expanded(
             child: visible.isEmpty
                 ? Center(
@@ -411,13 +430,17 @@ class _PhotosScreenState extends State<PhotosScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+            // Seçim sırasında düğmeler PASİF ama satır yerinde durur: kaybolsa
+            // ızgara zıplar, etkin kalsa "seçtiklerimi mi siliyor?" sanılır.
             TextButton(
-              onPressed: () => setState(
-                  () => _filter = _filter.withHideDuplicates(false)),
+              onPressed: _selecting
+                  ? null
+                  : () => setState(
+                      () => _filter = _filter.withHideDuplicates(false)),
               child: const Text('Göster'),
             ),
             TextButton(
-              onPressed: _cleanDuplicates,
+              onPressed: _selecting ? null : _cleanDuplicates,
               child: const Text('Temizle'),
             ),
           ],
@@ -441,6 +464,16 @@ class _PhotosScreenState extends State<PhotosScreen> {
             tooltip: '${widget.title} içinde ara',
             icon: const Icon(Icons.search),
             onPressed: () => setState(() => _searching = true),
+          ),
+          IconButton(
+            tooltip: 'Benzer görüntüleri bul (yeniden sıkıştırılmış kopyalar)',
+            icon: const Icon(Icons.auto_awesome_motion_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SimilarScreen(
+                files: _files,
+                title: 'Benzer: ${widget.title}',
+              ),
+            )),
           ),
           FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           IconButton(
@@ -538,6 +571,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
       descending: _desc,
       extensions: _extCache ?? const {},
       buckets: _bucketCache ?? const {},
+      chatKinds: _chatKindCache ?? const {},
+      tags: FileTags.counts(),
       showDuplicateSwitch: true,
       // Fotoğraf ızgarasında "türe göre" sıralamanın karşılığı yok (uzantı
       // süzgeci zaten var); ada/tarihe/boyuta göre yeter.
@@ -551,12 +586,14 @@ class _PhotosScreenState extends State<PhotosScreen> {
     });
   }
 
-  /// Kaynak ve uzantı sayıları — liste değişmedikçe yeniden sayılmaz.
+  /// Kaynak, uzantı ve mesajlaşma türü sayıları — liste değişmedikçe yeniden
+  /// sayılmaz.
   void _ensureCounts() {
     final key = identityHashCode(_files);
     if (_countsKey == key && _bucketCache != null) return;
     _bucketCache = bucketCounts(_files.map((f) => f.path));
     _extCache = extensionCounts(_files);
+    _chatKindCache = chatKindCounts(_files);
     _countsKey = key;
   }
 

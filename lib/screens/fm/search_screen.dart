@@ -6,9 +6,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
+import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/search_index.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -64,6 +67,10 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     SearchIndex.revision.addListener(_onIndexChanged);
+    // Etiket süzgeci çipleri için (kişi/grup).
+    FileTags.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     // Ekran açılırken dizin hazırlanır; kullanıcı yazana kadar çoğu zaman
     // hazır olur, olmazsa canlı taramaya düşülür.
     SearchIndex.ensureBuilt();
@@ -137,7 +144,7 @@ class _SearchScreenState extends State<SearchScreen> {
         if (_category == null || e.category == _category)
           if (smartCategory == null || e.category == smartCategory)
             if (smart == null || smart.filter.matches(e))
-              if (_filter.matches(e)) e,
+              if (_filter.matches(e, tagsOf: FileTags.forPath)) e,
     ];
     // Klasörler üstte KALMAZ: arama sonucunda kullanıcı ölçüte (tarih/boyut)
     // göre sıralı tek bir liste bekler.
@@ -151,6 +158,9 @@ class _SearchScreenState extends State<SearchScreen> {
       sort: _sort,
       descending: _desc,
       extensions: extensionCounts(_results),
+      buckets: bucketCounts(_results.map((e) => e.path)),
+      chatKinds: chatKindCounts(_results),
+      tags: FileTags.counts(),
     );
     if (result == null || !mounted) return;
     setState(() {

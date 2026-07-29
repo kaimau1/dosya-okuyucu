@@ -11,6 +11,7 @@
 library;
 
 import '../core/text_search.dart';
+import 'chat_media.dart';
 import 'fs_entry.dart';
 import 'media_bucket.dart';
 
@@ -104,6 +105,18 @@ class FmFilter {
   /// galeride 20 bin dosyayı okumak dondururdu.
   final bool hideDuplicates;
 
+  /// Mesajlaşma dosyası tür kırılımı (WhatsApp Görüntü/Video/Belge/Sesli not…).
+  /// **Boş = tümü.** Kullanıcı isteği 2026-07-29.
+  final Set<ChatMediaKind> chatKinds;
+
+  /// Gelen / gönderilen (WhatsApp `Sent` klasörü) ayrımı.
+  final ChatDirection direction;
+
+  /// Kullanıcının verdiği etiketler (kişi/grup). **Boş = tümü.**
+  /// Gönderen bilgisi diskte olmadığı için kişi süzmesinin dürüst yolu bu
+  /// (bkz. `models/chat_media.dart` ve `services/fm/file_tags.dart`).
+  final Set<String> tags;
+
   const FmFilter({
     this.buckets = const {},
     this.extensions = const {},
@@ -112,19 +125,45 @@ class FmFilter {
     this.customToMs,
     this.sizeRange = FmSizeRange.any,
     this.hideDuplicates = false,
+    this.chatKinds = const {},
+    this.direction = ChatDirection.any,
+    this.tags = const {},
   });
 
   static const none = FmFilter();
 
-  FmFilter withBuckets(Set<MediaBucket> value) => FmFilter(
-        buckets: value,
-        extensions: extensions,
-        dateRange: dateRange,
-        customFromMs: customFromMs,
-        customToMs: customToMs,
-        sizeRange: sizeRange,
-        hideDuplicates: hideDuplicates,
+  /// Tek noktadan çoğaltma. `with*` üreteçleri bunu kullanır: her alan
+  /// eklendiğinde yedi ayrı üreteci güncellemek (ve birini atlamak) yerine
+  /// tek yer değişir.
+  FmFilter _copy({
+    Set<MediaBucket>? buckets,
+    Set<String>? extensions,
+    FmDateRange? dateRange,
+    int? customFromMs,
+    int? customToMs,
+    bool clearCustomRange = false,
+    FmSizeRange? sizeRange,
+    bool? hideDuplicates,
+    Set<ChatMediaKind>? chatKinds,
+    ChatDirection? direction,
+    Set<String>? tags,
+  }) =>
+      FmFilter(
+        buckets: buckets ?? this.buckets,
+        extensions: extensions ?? this.extensions,
+        dateRange: dateRange ?? this.dateRange,
+        customFromMs:
+            clearCustomRange ? customFromMs : (customFromMs ?? this.customFromMs),
+        customToMs:
+            clearCustomRange ? customToMs : (customToMs ?? this.customToMs),
+        sizeRange: sizeRange ?? this.sizeRange,
+        hideDuplicates: hideDuplicates ?? this.hideDuplicates,
+        chatKinds: chatKinds ?? this.chatKinds,
+        direction: direction ?? this.direction,
+        tags: tags ?? this.tags,
       );
+
+  FmFilter withBuckets(Set<MediaBucket> value) => _copy(buckets: value);
 
   /// Kaynağı ekler/çıkarır (çip dokunuşu).
   FmFilter toggleBucket(MediaBucket bucket) {
@@ -133,25 +172,10 @@ class FmFilter {
     return withBuckets(next);
   }
 
-  FmFilter withHideDuplicates(bool value) => FmFilter(
-        buckets: buckets,
-        extensions: extensions,
-        dateRange: dateRange,
-        customFromMs: customFromMs,
-        customToMs: customToMs,
-        sizeRange: sizeRange,
-        hideDuplicates: value,
-      );
+  FmFilter withHideDuplicates(bool value) => _copy(hideDuplicates: value);
 
-  FmFilter withExtensions(Set<String> value) => FmFilter(
-        buckets: buckets,
-        extensions: {for (final e in value) e.toLowerCase()},
-        dateRange: dateRange,
-        customFromMs: customFromMs,
-        customToMs: customToMs,
-        sizeRange: sizeRange,
-        hideDuplicates: hideDuplicates,
-      );
+  FmFilter withExtensions(Set<String> value) =>
+      _copy(extensions: {for (final e in value) e.toLowerCase()});
 
   /// Uzantıyı ekler/çıkarır (çip dokunuşu).
   FmFilter toggleExtension(String ext) {
@@ -161,33 +185,44 @@ class FmFilter {
     return withExtensions(next);
   }
 
-  FmFilter withDateRange(FmDateRange value, {int? fromMs, int? toMs}) =>
-      FmFilter(
-        buckets: buckets,
-        extensions: extensions,
+  FmFilter withDateRange(FmDateRange value, {int? fromMs, int? toMs}) => _copy(
         dateRange: value,
+        clearCustomRange: true,
         customFromMs: value == FmDateRange.custom ? fromMs : null,
         customToMs: value == FmDateRange.custom ? toMs : null,
-        sizeRange: sizeRange,
-        hideDuplicates: hideDuplicates,
       );
 
-  FmFilter withSizeRange(FmSizeRange value) => FmFilter(
-        buckets: buckets,
-        extensions: extensions,
-        dateRange: dateRange,
-        customFromMs: customFromMs,
-        customToMs: customToMs,
-        sizeRange: value,
-        hideDuplicates: hideDuplicates,
-      );
+  FmFilter withSizeRange(FmSizeRange value) => _copy(sizeRange: value);
+
+  FmFilter withChatKinds(Set<ChatMediaKind> value) => _copy(chatKinds: value);
+
+  /// Mesajlaşma türünü ekler/çıkarır (çoklu seçim).
+  FmFilter toggleChatKind(ChatMediaKind kind) {
+    final next = {...chatKinds};
+    if (!next.remove(kind)) next.add(kind);
+    return withChatKinds(next);
+  }
+
+  FmFilter withDirection(ChatDirection value) => _copy(direction: value);
+
+  FmFilter withTags(Set<String> value) => _copy(tags: value);
+
+  /// Etiketi ekler/çıkarır (çoklu seçim → "Ayşe VEYA İş grubu").
+  FmFilter toggleTag(String tag) {
+    final next = {...tags};
+    if (!next.remove(tag)) next.add(tag);
+    return withTags(next);
+  }
 
   /// Kaç ölçüt etkin? (Arayüzde süzgeç düğmesinin rozeti.)
   int get activeCount =>
       (buckets.isEmpty ? 0 : 1) +
       (extensions.isEmpty ? 0 : 1) +
       (dateRange == FmDateRange.any ? 0 : 1) +
-      (sizeRange == FmSizeRange.any ? 0 : 1);
+      (sizeRange == FmSizeRange.any ? 0 : 1) +
+      (chatKinds.isEmpty ? 0 : 1) +
+      (direction == ChatDirection.any ? 0 : 1) +
+      (tags.isEmpty ? 0 : 1);
 
   bool get isActive => activeCount > 0;
 
@@ -204,6 +239,9 @@ class FmFilter {
         customToMs,
         sizeRange.name,
         hideDuplicates,
+        chatKinds.map((k) => k.name).toList()..sort(),
+        direction.name,
+        tags.toList()..sort(),
       ].join('|');
 
   /// Tarih ölçütünün gerçek zaman penceresi.
@@ -240,11 +278,34 @@ class FmFilter {
 
   /// Girdi süzgeçten geçiyor mu? [query] verilirse ada göre de bakılır
   /// (Türkçe-duyarlı, büyük/küçük harf duyarsız).
-  bool matches(FsEntry entry, {String query = '', DateTime? now}) {
+  ///
+  /// [tagsOf] etiket süzgeci kullanılıyorsa **verilmelidir** (ör.
+  /// `FileTags.forPath`): etiketler diskteki ayrı bir kayıtta durduğu için bu
+  /// saf modelden okunamaz. Verilmezse etiket ölçütü hiçbir dosyayı eşlemez —
+  /// sessizce "tümü" saymak, kullanıcı etiketle süzdüğü hâlde her şeyi görmesi
+  /// demek olurdu.
+  bool matches(
+    FsEntry entry, {
+    String query = '',
+    DateTime? now,
+    Set<String> Function(String path)? tagsOf,
+  }) {
     final q = turkishFold(query.trim());
     if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
     if (buckets.isNotEmpty && !buckets.contains(bucketForPath(entry.path))) {
       return false;
+    }
+    if (chatKinds.isNotEmpty && !chatKinds.contains(chatKindForEntry(entry))) {
+      return false;
+    }
+    if (direction != ChatDirection.any) {
+      final sent = isSentByMe(entry.path);
+      if (direction == ChatDirection.sent && !sent) return false;
+      if (direction == ChatDirection.received && sent) return false;
+    }
+    if (tags.isNotEmpty) {
+      final own = tagsOf?.call(entry.path) ?? const <String>{};
+      if (!tags.any(own.contains)) return false;
     }
     if (extensions.isNotEmpty && !extensions.contains(entry.extension)) {
       return false;
@@ -268,11 +329,12 @@ class FmFilter {
     Iterable<FsEntry> entries, {
     String query = '',
     DateTime? now,
+    Set<String> Function(String path)? tagsOf,
   }) {
     final out = <FsEntry>[];
     final seen = hideDuplicates ? <String>{} : null;
     for (final e in entries) {
-      if (!matches(e, query: query, now: now)) continue;
+      if (!matches(e, query: query, now: now, tagsOf: tagsOf)) continue;
       if (seen != null && !seen.add(duplicateKey(e))) continue;
       out.add(e);
     }

@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/models/chat_media.dart';
 import 'package:dosya_okuyucu/models/fm_filter.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/models/media_bucket.dart';
@@ -246,5 +247,131 @@ void main() {
     expect(counts['mp4'], 2);
     expect(counts['mkv'], 1);
     expect(counts.containsKey(''), isFalse);
+  });
+
+  group('mesajlaşma kırılımı ve etiket (2026-07-29 isteği)', () {
+    const wa = '/depo/Android/media/com.whatsapp/WhatsApp/Media';
+
+    test('tür süzgeci: yalnız WhatsApp belgeleri kalır', () {
+      const filter = FmFilter(chatKinds: {ChatMediaKind.document});
+      final kept = filter.apply([
+        entry('$wa/WhatsApp Documents/fatura.pdf'),
+        entry('$wa/WhatsApp Images/foto.jpg'),
+        entry('$wa/WhatsApp Voice Notes/ptt.opus'),
+      ]);
+      expect(kept.map((e) => e.name), ['fatura.pdf']);
+    });
+
+    test('birden çok tür seçilebilir (görüntü VEYA video)', () {
+      const filter = FmFilter(
+          chatKinds: {ChatMediaKind.image, ChatMediaKind.video});
+      final kept = filter.apply([
+        entry('$wa/WhatsApp Images/foto.jpg'),
+        entry('$wa/WhatsApp Video/klip.mp4'),
+        entry('$wa/WhatsApp Documents/rapor.pdf'),
+      ]);
+      expect(kept.length, 2);
+    });
+
+    test('yön süzgeci: gönderdiklerim yalnız Sent klasöründen gelir', () {
+      const sent = FmFilter(direction: ChatDirection.sent);
+      const received = FmFilter(direction: ChatDirection.received);
+      final files = [
+        entry('$wa/WhatsApp Images/gelen.jpg'),
+        entry('$wa/WhatsApp Images/Sent/giden.jpg'),
+      ];
+      expect(sent.apply(files).map((e) => e.name), ['giden.jpg']);
+      expect(received.apply(files).map((e) => e.name), ['gelen.jpg']);
+    });
+
+    test('etiket süzgeci çözücüyle çalışır', () {
+      const filter = FmFilter(tags: {'Ayşe'});
+      final files = [entry('/depo/a.jpg'), entry('/depo/b.jpg')];
+      final kept = filter.apply(
+        files,
+        tagsOf: (path) => path.endsWith('a.jpg') ? {'Ayşe'} : {'İş grubu'},
+      );
+      expect(kept.map((e) => e.name), ['a.jpg']);
+    });
+
+    test('birden çok etiket VEYA ile birleşir', () {
+      const filter = FmFilter(tags: {'Ayşe', 'İş grubu'});
+      final files = [
+        entry('/depo/a.jpg'),
+        entry('/depo/b.jpg'),
+        entry('/depo/c.jpg'),
+      ];
+      final kept = filter.apply(files, tagsOf: (path) => switch (path) {
+            '/depo/a.jpg' => {'Ayşe'},
+            '/depo/b.jpg' => {'İş grubu'},
+            _ => <String>{},
+          });
+      expect(kept.length, 2);
+    });
+
+    test('çözücü VERİLMEZSE etiket ölçütü hiçbir şeyi eşlemez', () {
+      // Sessizce "tümü" saymak, kullanıcı etiketle süzdüğü hâlde her şeyi
+      // görmesi demek olurdu — sessiz süzgeç "dosyam kayboldu"nun tersi kadar
+      // kötü bir hata sınıfı.
+      const filter = FmFilter(tags: {'Ayşe'});
+      expect(filter.apply([entry('/depo/a.jpg')]), isEmpty);
+    });
+
+    test('yeni ölçütler rozet sayısına ve önbellek anahtarına girer', () {
+      const base = FmFilter();
+      expect(base.activeCount, 0);
+      expect(base.withChatKinds({ChatMediaKind.voice}).activeCount, 1);
+      expect(base.withDirection(ChatDirection.sent).activeCount, 1);
+      expect(base.withTags({'Ayşe'}).activeCount, 1);
+      // İmza değişmezse ekranlar listeyi yeniden süzmez → süzgeç işlemezdi.
+      expect(base.withTags({'Ayşe'}).signature, isNot(base.signature));
+      expect(base.withDirection(ChatDirection.sent).signature,
+          isNot(base.signature));
+    });
+
+    test('çipler eklenip çıkarılabilir', () {
+      const base = FmFilter();
+      final withKind = base.toggleChatKind(ChatMediaKind.gif);
+      expect(withKind.chatKinds, {ChatMediaKind.gif});
+      expect(withKind.toggleChatKind(ChatMediaKind.gif).chatKinds, isEmpty);
+      expect(base.toggleTag('Ayşe').toggleTag('Ayşe').tags, isEmpty);
+    });
+
+    test('with* üreteçleri diğer alanları KAYBETMEZ', () {
+      // Tek noktadan çoğaltmaya (_copy) geçilince en kolay kaçacak hata bu.
+      const filter = FmFilter(
+        buckets: {MediaBucket.whatsapp},
+        extensions: {'jpg'},
+        dateRange: FmDateRange.week,
+        sizeRange: FmSizeRange.small,
+        hideDuplicates: true,
+        chatKinds: {ChatMediaKind.image},
+        direction: ChatDirection.sent,
+        tags: {'Ayşe'},
+      );
+      final next = filter.withSizeRange(FmSizeRange.large);
+      expect(next.buckets, {MediaBucket.whatsapp});
+      expect(next.extensions, {'jpg'});
+      expect(next.dateRange, FmDateRange.week);
+      expect(next.hideDuplicates, isTrue);
+      expect(next.chatKinds, {ChatMediaKind.image});
+      expect(next.direction, ChatDirection.sent);
+      expect(next.tags, {'Ayşe'});
+      expect(next.sizeRange, FmSizeRange.large);
+    });
+
+    test('özel tarih aralığı başka bir ölçüt değişince KORUNUR', () {
+      final filter = const FmFilter().withDateRange(
+        FmDateRange.custom,
+        fromMs: 1000,
+        toMs: 2000,
+      );
+      final next = filter.toggleTag('Ayşe');
+      expect(next.customFromMs, 1000);
+      expect(next.customToMs, 2000);
+      // Hazır aralığa dönülünce özel günler temizlenir.
+      final cleared = next.withDateRange(FmDateRange.week);
+      expect(cleared.customFromMs, isNull);
+    });
   });
 }

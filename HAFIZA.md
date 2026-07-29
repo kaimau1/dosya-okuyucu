@@ -3577,3 +3577,104 @@ Eşleşme açısından gereksizler (`host="*"` zaten hepsini tutuyor); sebep şu
 "Varsayılan olarak aç" ekranı manifestteki alan adlarını **listeler** ve yalnız
 `*` yazılıysa bazı cihazlarda liste boş geliyor → kullanıcının
 işaretleyebileceği hiçbir şey olmuyor, yani izin verme yolu da kapanıyor.
+
+## 2026-07-29 (III) — Video/fotoğraf işlemleri, arka plan kuyruğu, benzer görsel
+
+Kullanıcının 6 maddelik listesi; her madde önce SORULDU, onay alındıktan sonra
+yapıldı (seçimler aşağıda parantez içinde).
+
+### A. "Basılı tutup seçince zıplama" — kök neden alt panel DEĞİLDİ
+Alt eylem çubuğu 2026-07-29 (I)'de `Stack`e alınmıştı, yani zıplatmıyordu.
+Asıl neden: seçim başlayınca ÜSTTEKİ satırlar (`gün/ay/yıl` çipleri, kaynak
+çipleri, "N kopya gizlendi" şeridi) `!_selecting` ile **kayboluyor** ve ızgara
+yukarı kayıyordu. `photos_screen` + `category_screen` düzeltildi: satırlar
+seçim sırasında da durur (kopya şeridinin düğmeleri pasifleşir — kaybolsa
+zıplar, etkin kalsa "seçtiklerimi mi siliyor?" sanılır).
+**Ders:** "panel açılınca zıplıyor" raporunda panel masumsa, aynı karede
+GİZLENEN şeye bak. Regresyon testi: `fm_photos_screen_test` içinde ilk karonun
+`getTopLeft`i seçim öncesi/sonrası karşılaştırılıyor.
+
+### B. Arka plan iş kuyruğu (seçim: "kuyruk + sistem bildirimi")
+`services/fm/job_queue.dart` — tek tek koşan (eşzamanlılık 1), iptal
+edilebilen, **sonucu saklayan** kuyruk. Sonucu saklaması kritik: ekrandan
+çıkıp dönünce dakikalar süren tarama baştan başlamıyor (`job.result` +
+kararlı `id`). Bağlananlar: **Yer aç** (çözümleme + temizleme),
+**Yinelenen dosyalar**, **Benzer görseller**, **Boyut düşürme**.
+- Şerit her sekmenin altında (`widgets/fm/job_progress_bar.dart`), gezinme
+  çubuğunun üstünde; dokununca iş listesi açılır, sağdaki düğme iptal eder.
+- Sistem bildirimi `flutter_local_notifications 17.2.4` ile ve **JobReporter**
+  arayüzünün arkasında: kuyruk eklenti bağımsız kaldı (birim testi bildirim
+  eklentisi olmadan koşuyor), bildirim kurulamazsa iş yine çalışıyor.
+- **CI YAMASI GEREKTİ:** paket `java.time` kullanıyor, minSdk 24 < 26 olduğu
+  için UYGULAMA modülünde de core library desugaring açılmalı. `flutter create`
+  her koşuda `android/`ı yeniden ürettiği için workflow'a python yaması eklendi
+  (`compileOptions` içine bayrak + `coreLibraryDesugaring` bağımlılığı).
+  Yama gerçek 3.29.3 iskeletinde (build.gradle.kts) denenip doğrulandı.
+- **Dürüst sınır (arayüzde de yazılı):** iş uygulama arka plandayken sürer,
+  görev listesinden kapatılırsa durur. Gerçek ön plan servisi Dart'tan
+  yazılamıyor ve CI android/ı ürettiği için Kotlin servisi silinirdi (§F).
+
+### C. "AI ile aynı resimleri tespit" (seçim: cihaz-içi + Gemini, ikisi de)
+İki katman, karıştırılmadı:
+- `DuplicateFinder` = **birebir aynı dosya** (bayt bayt, yanlış pozitif yok).
+- `SimilarFinder` + `image_hash.dart` = **aynı görünen** dosya (dHash).
+  WhatsApp'ın yeniden sıkıştırdığı/boyutu değişmiş kopyayı bu yakalıyor.
+- Parmak izi motoru **dart:ui** (`ImageDescriptor.instantiateCodec` hedef
+  boyutla + `ImmutableBuffer.fromFilePath`): saf Dart `image` paketiyle 12 MP
+  bir JPEG yarım saniye sürüyor (10 bin fotoğraf = bir saat), platformun
+  çözücüsü milisaniye. Bedeli: ana izlekte koşmalı → iş kuyruğundan çağrılıyor.
+  Videoda küçük resim karesi (var olan native `ThumbnailCache`) hash'leniyor.
+- Parmak izleri diskte önbellekli (yol+mtime+boyut) → ikinci tarama anında.
+- Gruplama: union-find ile **geçişli**; 6000'in altında tüm çiftler (kesin),
+  üstünde 8x8-bit blok indeksi (güvercin yuvası: d≤7 için tam).
+- Gemini yalnız kullanıcı bir grup için isteyince ve **küçültülmüş** JPEG'lerle
+  çağrılıyor (`GeminiService.compareImages`); yanıt öneri, silme hep onaylı.
+
+### D. Boyut düşürme — SERBEST ÇÖZÜNÜRLÜK VİDEODA VERİLEMEDİ (kullanıcı istedi)
+Kullanıcı "videoda da serbest çözünürlük denenSin, kırılırsa kademeliye düş"
+dedi. `light_compressor 2.2.0` **denenmeden önce** paket incelendi ve üç
+bağımsız derleme kırıcısı bulundu → eklenmedi (CI turu yakılmadı):
+1. Android modülünde `namespace` yok, manifestte hâlâ `package=` → AGP 8 için
+   hata ("Namespace not specified").
+2. Native bağımlılığı JitPack'te (`com.github.AbedElazizShe:LightCompressor`)
+   ama paket bu deposu tüketen uygulamaya tanıtmıyor → çözümleme çöker.
+3. Kendi `buildscript`inde AGP 4.2.2 classpath'i bildiriyor → kökteki 8.7 ile
+   çakışır.
+Üçünü yamayla zorlamak = "tek paket için tüm derleme zincirini oynatma"
+(HAFIZA'da zaten reddedilmiş yol, bkz. §G).
+**Yapılan:** fotoğrafta serbest ölçü TAM çalışıyor (saf Dart `image 4.3.0` —
+`archive ^3` ile uyumlu SON sürüm, 4.4.0+ archive ^4 istiyor ve `excel` ile
+çakışır). Videoda hangi seçim yapılırsa yapılsın (yüzde/serbest/kademe) hedef
+ölçü hesaplanıp **en yakın ALT kademeye** eşleniyor (1080/720/540/480) ve
+arayüz bunu açıkça yazıyor. Kare sayısı (60/30/24/15) ve "sesi çıkar"
+`video_compress 3.1.4` ile tek geçişte.
+**Açık kalan tek yol:** `ffmpeg_kit_flutter_new` (ikilileri yeniden
+barındıran çatal, 2026-07-29'da yayınlandı) birebir çözünürlük + fps'i tek
+geçişte verir ama APK'ya mimari başına ~25 MB ekler ve bir günlüktür —
+kullanıcıya sorulmadan alınacak bir karar değil.
+**Ayrıca:** çıktı özgün dosyanın yanına yazılır, "özgün dosyayı çöpe at"
+varsayılan KAPALI; çıktı kaynaktan büyük çıkarsa çöpe atılıp "kazanç olmadı"
+denir (kullanıcının elinde iki büyük dosya kalmasın).
+
+### E. Belge Tara panoya taşındı (seçim: kamera taraması)
+Ana ekranda (Dosyalar panosu) sabit yüzen buton; "yeni klasör" küçük düğme
+olarak üstüne alındı. Son belgeler sekmesindeki düğme de kaldı.
+
+### F. WhatsApp/Telegram "kişiye göre filtreleme" — DİSKTEN OKUNAMAZ
+Gönderen/grup bilgisi dosya adında ve klasöründe **yok**; yalnız WhatsApp'ın
+şifreli `msgstore` veritabanında ve root olmadan okunamıyor (Telegram aynı).
+Kullanıcıya bu söylendi, seçim: "uygulama + tür + tarih süzgeçleri + elle
+etiket".
+- `models/chat_media.dart`: klasör düzeninden KESİN okunan kırılım
+  (Görüntü/Video/Belge/Ses/Sesli not/Çıkartma/Animasyon) + `Sent` klasöründen
+  gelen/gönderilen ayrımı. Sıra testle kilitli: "Video Notes" videodur,
+  "Voice Notes" sesten önce sınanır, "Animated Gifs" görüntüden önce.
+  Klasör tanınmazsa dosyanın kendi türüne düşülür.
+- `services/fm/file_tags.dart`: kişi/grup etiketleri (JSON, uygulama dizini).
+  Etiket dosyanın İÇİNE yazılmıyor (EXIF yazmak fotoğrafı yeniden kodlamak
+  demekti) → **yola bağlı**, dışarıdan taşınırsa kopar; arayüzde yazılı.
+- `FmFilter` üç yeni ölçüt aldı (chatKinds/direction/tags) ve `with*`
+  üreteçleri tek `_copy`ye indirildi — yedi ayrı üretecin birinde alan
+  düşürmek en kolay kaçan hata sınıfıydı, test bunu da kilitliyor.
+  Etiket ölçütü **çözücü verilmezse hiçbir şeyi eşlemez**: sessizce "tümü"
+  saymak, kullanıcı süzdüğü hâlde her şeyi görmesi demekti.
