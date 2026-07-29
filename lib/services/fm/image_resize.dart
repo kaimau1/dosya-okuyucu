@@ -47,8 +47,11 @@ abstract final class ImageResizer {
     MediaResizeOptions options,
   ) async {
     final before = File(path).lengthSync();
+    // Uzantısız kaynakta (ör. WhatsApp'ın bazı geçici dosyaları) boş uzantı
+    // "foto_720p." gibi bir ad üretir ve dosya hiçbir uygulamada açılmaz;
+    // içerik JPEG olarak yazıldığı için ad da jpg olmalı.
     final ext = options.imageFormat.extension ??
-        (p.extension(path).replaceFirst('.', '').toLowerCase());
+        _orJpg(p.extension(path).replaceFirst('.', '').toLowerCase());
     final base = p.basenameWithoutExtension(path);
     final target = FileOps.uniquePath(
       p.join(p.dirname(path), '${base}_${options.suffix}.$ext'),
@@ -69,6 +72,9 @@ abstract final class ImageResizer {
       height: result.height,
     );
   }
+
+  /// Boş uzantıyı `jpg` yapar (çıktı JPEG olarak kodlanıyor).
+  static String _orJpg(String ext) => ext.isEmpty ? 'jpg' : ext;
 
   /// Gemini'ye gönderilecek **küçük önizleme** üretir (dosyaya yazmadan).
   ///

@@ -30,6 +30,25 @@ Sonuç olarak H.264 videolar **cihazın kendi donanım kodlayıcısıyla**
 kendi `mpeg4` kodlayıcısına düşülür. Her iki durumda da istenen çözünürlük
 birebir uygulanır.
 
+### Bu iddialar nasıl doğrulandı (2026-07-29)
+
+Aşağıdakiler tahmin değil; dağıtılan ikili dosyanın (`ffmpeg-kit-min:2.2.2`
+AAR'ı) içine bakılarak doğrulandı ve istenirse aynı adımlarla yeniden
+denetlenebilir:
+
+| İddia | Doğrulama | Sonuç |
+|---|---|---|
+| GPL bileşen yok | `strings libavcodec.so` → derleme satırında **`--enable-gpl` yok**; `libx264` kodlayıcı adı **yok** | ✔ |
+| LGPL v3 | Derleme satırında `--enable-version3` | ✔ |
+| Sürüm 8.1.2 | `strings libavutil.so` → `FFmpeg version n8.1.2`; libavcodec `Lavc62.28.102` | ✔ |
+| Dinamik bağlı | AAR içinde her kütüphane ayrı `.so` (avcodec, avfilter, avformat, avutil, swresample, swscale) | ✔ |
+| Donanım kodlayıcı | `--enable-mediacodec` + `AMediaCodec_createEncoderByType` sembolü | ✔ |
+
+> `libavcodec` içinde `x264 - core %d` gibi metinler görülür; bunlar H.264
+> **çözücüsünün** akıştaki SEI verisinden kaynak kodlayıcı sürümünü tahmin
+> etmesi içindir, x264 kütüphanesinin varlığı anlamına **gelmez** (kodlayıcı
+> derlenmiş olsaydı `libx264` adı ve `--enable-gpl` bayrağı görünürdü).
+
 ### LGPL v3 yükümlülüklerinin nasıl karşılandığı
 
 1. **Atıf:** bu dosya ve uygulama içindeki "Açık kaynak bileşenler" ekranı.

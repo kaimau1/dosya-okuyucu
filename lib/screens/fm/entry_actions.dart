@@ -14,14 +14,17 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/open_history.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/tag_picker_sheet.dart';
 import 'ai_actions.dart';
 import 'archive_screen.dart';
 import 'folder_picker_screen.dart';
 import 'important_screen.dart';
+import 'resize_actions.dart';
 
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
 /// ekranları ve arama sonuçları AYNI davranışı paylaşsın diye tek dosyada.
@@ -42,6 +45,8 @@ enum _EntryAction {
   important,
   aiSummary,
   imageInsight,
+  resize,
+  tag,
   reveal,
   properties,
 }
@@ -126,6 +131,17 @@ Future<bool> showEntryActions(
             if (entry.category == FmCategory.image)
               _tile(ctx, Icons.document_scanner_outlined,
                   'Bu görselde ne var? (metin tanı)', _EntryAction.imageInsight),
+            // Boyut düşürme ve etiketleme eskiden YALNIZ çoklu seçim çubuğunda
+            // vardı: kullanıcı tek bir fotoğrafa uzun basınca bulamıyordu
+            // (2026-07-29 sadakat denetimi). Aynı işler burada da duruyor.
+            if (!entry.isDir &&
+                (entry.category == FmCategory.image ||
+                    entry.category == FmCategory.video))
+              _tile(ctx, Icons.photo_size_select_large,
+                  'Boyut düşür (çözünürlük/kare sayısı)', _EntryAction.resize),
+            if (!entry.isDir)
+              _tile(ctx, Icons.sell_outlined, 'Etiketle (kişi/grup)',
+                  _EntryAction.tag),
             if (allowReveal)
               _tile(ctx, Icons.my_location, 'Konumunu aç', _EntryAction.reveal),
             _tile(ctx, Icons.info_outline, 'Özellikler',
@@ -205,6 +221,14 @@ Future<bool> showEntryActions(
     case _EntryAction.aiSummary:
       await showAiSummary(context, entry);
       return false;
+
+    case _EntryAction.resize:
+      // İş kuyruğa gider; liste tazelemeyi FsEvents üstlenir.
+      await startResizeJob(context, [entry]);
+      return false;
+
+    case _EntryAction.tag:
+      return showTagPicker(context, [entry.path]);
 
     case _EntryAction.imageInsight:
       await showImageInsight(context, entry);
@@ -572,6 +596,27 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
   int? _folderSize;
   bool _calculating = false;
 
+  /// Son açılma zamanı (bizim kaydımız). Kullanıcı isteği 2026-07-29:
+  /// *"son açılma tarihi TÜM DOSYALAR içinde yapılabilmeli"* — ayrı ekranın
+  /// yanında dosyanın kendi özelliklerinde de görünmesi gerekiyor, çünkü
+  /// kullanıcı tek bir dosyayı merak ettiğinde listeye değil buraya bakar.
+  /// Dosya sisteminin "erişilme" damgası (`accessedMs`) bunun yerine
+  /// KULLANILAMAZ: Android'de tarama/yedekleme gibi işler de onu güncelliyor,
+  /// yani "kullanıcı ne zaman açtı" sorusunu yanıtlamıyor.
+  int? _openedAtMs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOpenedAt();
+  }
+
+  Future<void> _loadOpenedAt() async {
+    await OpenHistory.ensureLoaded();
+    if (!mounted) return;
+    setState(() => _openedAtMs = OpenHistory.forPath(widget.entry.path));
+  }
+
   Future<void> _calculate() async {
     setState(() => _calculating = true);
     final size = await FsScan.folderSize(widget.entry.path);
@@ -603,6 +648,10 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
                     : (_calculating ? 'Hesaplanıyor…' : 'Hesaplanmadı'),
               ),
             _row('Değiştirilme', FsPaths.humanDate(e.modifiedMs)),
+            // Yalnız gerçekten bir kaydımız varsa yazılır: "—" göstermek
+            // "hiç açılmadı" ile "bilmiyorum"u karıştırırdı.
+            if (_openedAtMs != null)
+              _row('Son açılma', FsPaths.humanDate(_openedAtMs!)),
             _row('Konum', e.path),
           ],
         ),

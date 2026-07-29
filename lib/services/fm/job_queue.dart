@@ -17,8 +17,19 @@ extension JobStatusLabel on JobStatus {
   bool get isActive => this == JobStatus.queued || this == JobStatus.running;
 }
 
-/// Kuyruktaki **uzun süren iş**: yer açma taraması, kopya/benzer arama,
-/// boyut düşürme, arşiv çıkarma…
+/// Kuyruktaki **uzun süren iş**.
+///
+/// Bu kuyruğa giren işler (2026-07-29 sadakat denetiminde doğrulandı):
+/// yer açma çözümlemesi + temizleme, yinelenen dosya taraması, benzer görüntü
+/// taraması, boyut düşürme.
+///
+/// **Kuyrukta OLMAYANLAR:** kopyala/taşı/sil/sıkıştır/arşiv çıkarma. Onlar
+/// `showFmProgress` penceresiyle koşar ve o pencerenin **"Arka plana al"**
+/// düğmesi vardır (kalıcı ilerleme şeridi + "Durdur") — yani onlar da arka
+/// planda sürebilir, yalnız mekanizma farklı. İki mekanizmanın ayrı durmasının
+/// nedeni: `showFmProgress` işin SONUCUNU çağırana döndürür ("arşivi çıkar,
+/// sonra çıkan klasörü aç"), kuyruk ise ateşle-ve-bırak çalışır ve sonucu
+/// ekranların geri dönünce okuduğu `result` alanında tutar.
 class FmJob {
   /// Kararlı kimlik. Aynı kimlikli iş zaten sürüyorsa yenisi açılmaz ve
   /// ekranlar (ör. Yer aç) kendi işini bununla geri bulur.

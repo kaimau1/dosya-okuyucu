@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import 'fs_events.dart';
 import 'fs_scan.dart';
+import 'path_side_index.dart';
 
 /// Hedefte aynı adlı dosya varsa ne yapılacağı.
 enum FmConflict {
@@ -163,7 +164,14 @@ abstract final class FileOps {
           onSkip: () => skipped++,
         );
         succeeded++;
-        if (finalPath != null) transfers.add(FmTransfer(src, finalPath));
+        if (finalPath != null) {
+          transfers.add(FmTransfer(src, finalPath));
+          // TAŞIMADA yan kayıtlar (etiket, açılma geçmişi) yeni yola geçer.
+          // Kopyalamada geçmez: özgün dosya yerinde duruyor, etiketi onda
+          // kalmalı — kopyaya da yapıştırmak "iki dosyada aynı etiket" gibi
+          // kullanıcının vermediği bir karar olurdu.
+          if (move) await PathSideIndex.moved(src, finalPath);
+        }
       } catch (e) {
         errors.add('$name: ${_msg(e)}');
       }
@@ -328,10 +336,13 @@ abstract final class FileOps {
     final dir = Directory(path);
     if (dir.existsSync()) {
       final renamed = await dir.rename(target);
+      // Etiket/açılma geçmişi yolu izler; yoksa yeniden adlandırınca kaybolur.
+      await PathSideIndex.moved(path, renamed.path);
       FsEvents.changed();
       return renamed.path;
     }
     final renamed = await File(path).rename(target);
+    await PathSideIndex.moved(path, renamed.path);
     FsEvents.changed();
     return renamed.path;
   }

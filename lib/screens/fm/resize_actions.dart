@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../models/fs_entry.dart';
@@ -7,6 +9,7 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
+import '../../services/fm/path_side_index.dart';
 import '../../services/fm/video_transcode.dart';
 import '../../widgets/fm/media_resize_sheet.dart';
 
@@ -70,7 +73,12 @@ Future<void> _run(
   var done = 0;
   var savedBytes = 0;
   var failed = 0;
-  final replaced = <String>[];
+
+  /// "Özgünü çöpe at" seçiliyse: (özgün yol → küçültülmüş çıktı) çiftleri.
+  /// Etiket/açılma geçmişi çıktıya taşınsın diye yol da tutuluyor: kullanıcının
+  /// dosyası bundan sonra çıktı olduğu için "Ayşe" etiketi onda olmalı, çöpe
+  /// giden özgünde değil.
+  final replaced = <({String original, String output})>[];
 
   for (final entry in media) {
     handle.throwIfCancelled();
@@ -84,14 +92,22 @@ Future<void> _run(
           : await ImageResizer.run(entry.path, options);
       // Küçültme işe yaramadıysa (çıktı daha büyük) çıktıyı BIRAKMA: kullanıcı
       // "boyut düşür" dedi, elinde iki büyük dosya kalmasın.
+      //
+      // Çöpe DEĞİL, doğrudan siliniyor: bu dosyayı saniyeler önce biz ürettik,
+      // kullanıcı hiç görmedi ve işe yaramadığını ölçtük. Çöpe atmak kullanıcının
+      // hiç bilmediği dosyalarla çöp kutusunu doldurmak olurdu (özgün dosyaya
+      // ise dokunulmuyor — o hep yerinde).
       if (result.afterBytes >= result.beforeBytes) {
         try {
-          await FmEnv.trash.moveToTrash([result.outputPath]);
+          final useless = File(result.outputPath);
+          if (useless.existsSync()) useless.deleteSync();
         } catch (_) {}
         failed++;
       } else {
         savedBytes += result.savedBytes;
-        if (options.replaceOriginal) replaced.add(entry.path);
+        if (options.replaceOriginal) {
+          replaced.add((original: entry.path, output: result.outputPath));
+        }
       }
     } on JobCancelled {
       rethrow;
@@ -105,8 +121,14 @@ Future<void> _run(
   }
 
   if (replaced.isNotEmpty) {
+    // SIRA ÖNEMLİ: etiket/geçmiş ÖNCE çıktıya taşınır, SONRA özgün çöpe gider.
+    // Tersi olursa çöpe atma kaydı özgünle birlikte çöp klasörüne taşır ve
+    // kullanıcının etiketi "silinmiş" bir dosyada kalır.
+    for (final pair in replaced) {
+      await PathSideIndex.moved(pair.original, pair.output);
+    }
     try {
-      await FmEnv.trash.moveToTrash(replaced);
+      await FmEnv.trash.moveToTrash([for (final r in replaced) r.original]);
     } catch (_) {}
   }
   FsEvents.changed();

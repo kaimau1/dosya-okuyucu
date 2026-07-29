@@ -14,6 +14,7 @@ import '../../services/fm/image_hash.dart';
 import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/similar_finder.dart';
+import '../../services/fm/thumbnail_cache.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
@@ -146,6 +147,26 @@ class _SimilarScreenState extends State<SimilarScreen> {
     setState(() => _selected.removeAll(files.map((f) => f.path)));
   }
 
+  /// Gemini'ye gönderilecek küçük önizleme — **video dahil**.
+  ///
+  /// Kullanıcının isteği *"video ve fotoğraflarda ai ile aynı resimleri
+  /// tespit"* idi; cihaz-içi parmak izi videoda zaten çalışıyor (küçük resim
+  /// karesini hash'liyor) ama Gemini yolu "video desteklenmiyor" diyordu —
+  /// yani AI karşılaştırması isteğin yarısını karşılıyordu. Video için aynı
+  /// native küçük resim karesi (`ThumbnailCache`, MediaMetadataRetriever)
+  /// kullanılıp o JPEG küçültülüyor. Kare üretilemezse null döner ve dosya
+  /// karşılaştırmaya girmez.
+  Future<Uint8List?> _previewFor(FsEntry file) async {
+    if (file.category != FmCategory.video) {
+      return ImageResizer.previewJpeg(file.path);
+    }
+    // 512 px: Gemini'ye giden önizleme zaten küçültülüyor, karenin daha
+    // büyük üretilmesinin faydası yok.
+    final frame = await ThumbnailCache.forVideo(file.path, size: 512);
+    if (frame == null) return null;
+    return ImageResizer.previewJpeg(frame);
+  }
+
   /// Grubu Gemini'ye sorar (kullanıcı isteği: cihaz-içi + AI birlikte seçenek).
   Future<void> _askGemini(SimilarGroup group) async {
     final appState = context.read<AppState>();
@@ -162,14 +183,14 @@ class _SimilarScreenState extends State<SimilarScreen> {
         content: Text('Görseller küçültülüp Gemini’ye gönderiliyor…')));
     final previews = <({String name, Uint8List bytes})>[];
     for (final f in chosen) {
-      final bytes = await ImageResizer.previewJpeg(f.path);
+      final bytes = await _previewFor(f);
       if (bytes != null) previews.add((name: f.name, bytes: bytes));
     }
     if (!mounted) return;
     if (previews.length < 2) {
       messenger.showSnackBar(const SnackBar(
-          content: Text('Görseller okunamadı (video karesi henüz '
-              'desteklenmiyor).')));
+          content: Text('Karşılaştırma için en az iki önizleme '
+              'üretilemedi (dosyalar okunamıyor olabilir).')));
       return;
     }
     try {

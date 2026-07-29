@@ -3848,3 +3848,90 @@ ayrı bir ▶ düğmesi (yarı saydam daire + `InkWell`) — kendi dokunuşunu
 yakalar, alttaki `GestureDetector`ın seçim davranışını TETİKLEMEZ (aynı iç-içe
 widget deseni `FmEntryListTile`'daki "⋮" düğmesinde de var, kanıtlanmış
 çalışıyor). Fotoğraf küçük resimlerinde düğme yok (gerek yok, önizleme yeterli).
+
+## 2026-07-29 (VII) — SADAKAT DENETİMİ: verilen sözler kodda tek tek doğrulandı
+
+Kullanıcı gece "tüm alanlarda sadakatimizi %100 yap" dedi. Yöntem: bu oturumda
+kullanıcıya ya da koda YAZDIĞIM her iddiayı bulup gerçekten öyle mi diye
+kontrol etmek. Bulunan açıklar ve düzeltmeleri:
+
+### AÇIK 1 (CİDDİ — veri kaybı): etiketler taşımada sessizce siliniyordu
+`FileTags.movePath` ve `OpenHistory.movePath` yazılmıştı ama **hiçbir yerden
+çağrılmıyordu**. Üstelik `file_tags.dart` başında *"Uygulama içinden taşımada
+yol güncellenir ([movePath])"* yazılıydı ve etiket sayfasında kullanıcıya
+*"dosyayı BAŞKA BİR uygulamayla taşırsan etiket onunla gitmez"* deniyordu —
+yani uygulama içinde korunacağı sözü verilmişti. Gerçekte: kullanıcı "Ayşe"
+diye etiketlediği fotoğrafı bizim gezginimizle başka klasöre taşıyınca kayıt
+eski yolda kalıyor, bir sonraki açılışta "dosya yok" sayılıp **siliniyordu**.
+**Düzeltme:** `path_side_index.dart` — yol anahtarlı yan kayıtları güncelleyen
+kanca. `FileOps.rename`, `FileOps._transfer` (yalnız TAŞIMA; kopyalamada
+etiket kaynakta kalır, kopyaya yapıştırmak kullanıcının vermediği bir karar
+olurdu), `TrashService.moveToTrash` ve `TrashService.restore` bağlandı.
+Kanca `main`de kaydediliyor: böylece `FileOps`/`TrashService` **saf `dart:io`**
+kalıyor (belgelenmiş değişmez), `FileTags` ise `path_provider`a bağlı olduğu
+hâlde katman kirlenmiyor. 7 test: `fm_path_side_index_test.dart`.
+
+### AÇIK 2: "video ve fotoğraflarda AI ile tespit" — AI yalnız fotoğrafta
+Cihaz-içi parmak izi videoda çalışıyordu (küçük resim karesini hash'liyor) ama
+Gemini yolu *"video karesi henüz desteklenmiyor"* diyordu; yani isteğin yarısı.
+**Düzeltme:** `SimilarScreen._previewFor` — video için aynı native kare
+(`ThumbnailCache`) alınıp küçültülüyor. Gemini artık video gruplarını da
+karşılaştırıyor.
+
+### AÇIK 3: erişilemeyen özellikler
+"Boyut düşür" ve "Etiketle" YALNIZ çoklu seçim çubuğundaydı; tek dosyaya uzun
+basan kullanıcı bulamıyordu. İkisi de uzun basış menüsüne eklendi.
+
+### AÇIK 4: yanıltıcı doküman (kuyruk kapsamı)
+`FmJob` dokümanı arşiv çıkarmayı kuyrukta sayıyordu; gerçekte kopyala/taşı/sil/
+sıkıştır/çıkar `showFmProgress` ile koşuyor. **Ama yetenek var:** o pencerenin
+2026-07-26'da eklenmiş "Arka plana al" düğmesi + kalıcı şerit + "Durdur"u
+mevcut. Yani "arka planda çalışabilmeli" isteği o işler için de karşılanıyor,
+yalnız mekanizma farklı. Doğrulanmış kodu birleştirmek için kurcalamak yerine
+**doküman gerçeğe uyduruldu** (iki mekanizmanın niye ayrı durduğu da yazıldı:
+`showFmProgress` işin SONUCUNU döndürüyor — "çıkar, sonra çıkan klasörü aç" —
+kuyruk ise ateşle-bırak).
+
+### AÇIK 5: "son açılma tarihi TÜM DOSYALAR içinde" — özellikler penceresi
+Ayrı ekran vardı ama tek bir dosyayı merak eden kullanıcı listeye değil
+**Özellikler**e bakar. `Son açılma` satırı eklendi (yalnız kaydımız varsa
+yazılıyor: "—" göstermek "hiç açılmadı" ile "bilmiyorum"u karıştırırdı).
+NOT: dosya sisteminin `accessedMs` damgası bu iş için KULLANILAMAZ — Android'de
+tarama/yedekleme de onu güncelliyor, "kullanıcı ne zaman açtı" demiyor.
+
+### AÇIK 6 (var olan hata, denetimde çıktı): çöpten geri yükleme yanlış ad
+`TrashService.restore` çapraz birimde (SD kart ↔ dahili) `rename` yapamayıp
+`FileOps.moveAll`e düşüyor; moveAll dosyayı çöpteki **id'li adıyla**
+("1753…-0-rapor.pdf") indiriyor ama metot çağırana `target`ı (eski adı)
+döndürüyordu → kullanıcıya "eski yerine döndü" denip dosya bambaşka adla
+duruyordu. Son adım (id'li addan gerçek ada rename) eklendi.
+
+### AÇIK 7: boyut düşürmede küçük sadakat kusurları
+- Uzantısız kaynakta çıktı adı `foto_720p.` oluyordu (hiçbir uygulama açmaz) →
+  içerik JPEG yazıldığı için ad da `jpg`.
+- Çıktı kaynaktan BÜYÜK çıkarsa çöpe atılıyordu; kullanıcının hiç görmediği,
+  saniyeler önce bizim ürettiğimiz ve işe yaramadığını ölçtüğümüz dosyayla çöp
+  kutusunu doldurmak yanlış → doğrudan silinir (özgün dosyaya dokunulmuyor).
+- "Özgünü çöpe at" seçilince etiket/geçmiş çöpe giden dosyayla gidiyordu; oysa
+  kullanıcının dosyası artık küçültülmüş çıktı → kayıtlar ÖNCE çıktıya taşınır,
+  SONRA özgün çöpe gider (sıra önemli).
+
+### FFmpeg iddiaları — İKİLİ DOSYADAN doğrulandı (tahmin değil)
+AAR indirilip (`com.antonkarpenko:ffmpeg-kit-min:2.2.2`) içine bakıldı:
+- **`--enable-gpl` YOK**, `libx264` kodlayıcı adı ikilide **yok** → LICENSES.md'
+  deki "GPL bileşen dağıtılmıyor" iddiası **doğru**. (libavcodec'te geçen
+  `x264 - core %d` / `x264_build` metinleri H.264 **ÇÖZÜCÜSÜNÜN** SEI sürüm
+  algılaması; kodlayıcı değil — denetimde bu ayrım özellikle yapıldı.)
+- `--enable-version3` → LGPL v3 doğru.
+- **Sürüm:** libavutil içinde `FFmpeg version n8.1.2`, libavcodec `Lavc62.28.102`
+  → gerçekten 8.1.2. (configure satırındaki `ffmpeg-kit-6.0.LTS` yazarın eski
+  KLASÖR adı, sürüm değil — yanıltıcı, denetimde neredeyse yanlış sonuca
+  götürüyordu.) 8.1.2 ≥ 6.1 olduğu için `h264_mediacodec` **kodlayıcısı** var;
+  `AMediaCodec_createEncoderByType` sembolü de ikilide mevcut → donanım
+  kodlama yolu gerçek.
+- Her FFmpeg kütüphanesi **ayrı `.so`** (libavcodec/avfilter/avformat/avutil/
+  swresample/swscale) → LGPL'in "dinamik bağlı, değiştirilebilir" koşulu fiilen
+  sağlanıyor.
+- **ÖLÇÜLEN boyut** (§V'teki "~12 MB beklenti" tahminini düzeltir): arm64
+  `.so`ların toplamı **15 MB**; APK 66.7 MB (build 162, ffmpeg'siz) → 81.7 MB
+  (build 166, LGPL ffmpeg) = **+15,0 MB**. Tahmin ve ölçüm birebir örtüştü.

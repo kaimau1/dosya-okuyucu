@@ -9,8 +9,11 @@ import 'package:provider/provider.dart';
 import 'core/app_state.dart';
 import 'core/theme.dart';
 import 'screens/home_screen.dart';
+import 'services/fm/file_tags.dart';
 import 'services/fm/job_notifications.dart';
 import 'services/fm/job_queue.dart';
+import 'services/fm/open_history.dart';
+import 'services/fm/path_side_index.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +27,16 @@ Future<void> main() async {
   final jobNotifications = JobNotifications();
   unawaited(jobNotifications.init());
   JobQueue.instance.reporter = jobNotifications;
+  // Dosya taşınınca/adı değişince YOL ANAHTARLI yan kayıtlar da taşınmalı:
+  // etiketler ve açılma geçmişi dosyayı yolundan tanıyor. Bu kanca bağlı
+  // olmazsa kullanıcı bizim uygulamamızla taşıdığı dosyanın etiketini
+  // kaybeder (etiket sayfasında ona bunun KORUNACAĞI yazılı).
+  // Kanca dosya işlemleri katmanının saf `dart:io` kalması için burada
+  // bağlanıyor (bkz. path_side_index.dart).
+  PathSideIndex.register((from, to) async {
+    await FileTags.movePath(from, to);
+    await OpenHistory.movePath(from, to);
+  });
   final appState = AppState();
   await appState.init();
   runApp(

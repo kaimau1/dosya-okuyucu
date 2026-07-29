@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import 'file_ops.dart';
 import 'fs_events.dart';
+import 'path_side_index.dart';
 
 /// Çöp kutusundaki tek bir kayıt.
 class TrashItem {
@@ -128,6 +129,10 @@ class TrashService {
             await File(path).rename(stored);
           }
           moved = true;
+          // Etiket/açılma geçmişi dosyayla birlikte çöpe gider; geri
+          // yüklenince eski yoluna döner (bkz. [restore]). Aksi hâlde
+          // "çöpe at → geri al" turunda etiketler sessizce kaybolurdu.
+          await PathSideIndex.moved(path, stored);
         } on FileSystemException {
           moved = false;
         }
@@ -141,6 +146,9 @@ class TrashService {
           } else if (Directory(landed).existsSync()) {
             await Directory(landed).rename(stored);
           }
+          // `moveAll` yan kayıtları `landed`e taşıdı; son adım ham `rename`
+          // olduğu için oradan `stored`e biz taşıyoruz.
+          await PathSideIndex.moved(landed, stored);
         }
 
         // GÜVENCE (2026-07-25 hatası): kaynak hâlâ yerindeyse çöp kaydı
@@ -209,9 +217,24 @@ class TrashService {
         await File(item.storedPath).rename(target);
       }
     } on FileSystemException {
+      // Çapraz birim (SD kart ↔ dahili): rename olmaz, kopyala+sil'e düşülür.
       final r = await FileOps.moveAll([item.storedPath], p.dirname(target));
       if (r.hasError) throw FileSystemException(r.errors.first);
+      // DÜZELTME (2026-07-29 sadakat denetimi): `moveAll` dosyayı çöpteki
+      // **id'li adıyla** ("1753...-0-rapor.pdf") indiriyor, oysa bu metot
+      // çağırana `target`ı (eski adı) döndürüyordu — kullanıcıya "eski yerine
+      // döndü" denip dosya bambaşka bir adla duruyordu. Son adımı biz atıyoruz.
+      final landed = p.join(p.dirname(target), p.basename(item.storedPath));
+      if (File(landed).existsSync()) {
+        await File(landed).rename(target);
+        await PathSideIndex.moved(landed, target);
+      } else if (Directory(landed).existsSync()) {
+        await Directory(landed).rename(target);
+        await PathSideIndex.moved(landed, target);
+      }
     }
+    // Etiket/açılma geçmişi dosyayla birlikte eski yoluna döner.
+    await PathSideIndex.moved(item.storedPath, target);
     await _removeFromIndex(item);
     FsEvents.changed();
     return target;
