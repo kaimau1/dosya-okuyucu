@@ -177,8 +177,19 @@ jobs:
       - name: Testler (pptx render)
         run: flutter test
 
-      - name: APK derle (release)
-        run: flutter build apk --release
+      # ABI'ye göre BÖLÜNMÜŞ derleme (2026-07-29): tek şişko APK 200 MB'tı
+      # çünkü üç mimarinin yerel kütüphaneleri (ML Kit, PDFium, syncfusion,
+      # video/ses, Firebase) aynı dosyaya giriyordu. Bölme AOT derlemesini
+      # ÇOĞALTMAZ — zaten her mimari için ayrı snapshot üretiliyordu — yalnız
+      # çıktıyı ayırır, yani süre uzamaz. x86_64 bilinçli olarak DIŞARIDA:
+      # yalnız emülatörde işe yarar, gerçek telefonda kimse kullanmaz (ve bir
+      # AOT derlemesi eksildiği için süre biraz kısalır).
+      - name: APK derle (release, ABI'ye göre bölünmüş)
+        run: |
+          flutter build apk --release --split-per-abi \
+            --target-platform android-arm,android-arm64
+          echo "--- üretilen APK'lar ---"
+          ls -lh build/app/outputs/flutter-apk/*.apk
 
       - name: İmza anahtarını hazırla (secret varsa kalıcı, yoksa üret)
         env:
@@ -209,29 +220,70 @@ jobs:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
         run: |
           set -e
-          APK=build/app/outputs/flutter-apk/app-release.apk
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           APKSIGNER=$(ls "$SDK"/build-tools/*/apksigner | sort -V | tail -1)
           echo "apksigner: $APKSIGNER"
-          "$APKSIGNER" sign \
-            --ks release.jks \
-            --ks-key-alias dosyaokuyucu \
-            --ks-pass "pass:$KS_PASS" \
-            --key-pass "pass:$KS_PASS" \
-            "$APK"
-          echo "--- imza sertifikası ---"
-          "$APKSIGNER" verify --print-certs "$APK" | grep -iE "SHA-256|SHA-1|Signer #1 cert" | head -5
+          # Bölünmüş derlemede birden çok APK var; hepsi AYNI anahtarla
+          # imzalanmalı, yoksa kullanıcı mimari değiştirdiğinde "imza uyuşmuyor"
+          # hatasıyla güncelleyemez.
+          shopt -s nullglob
+          APKS=(build/app/outputs/flutter-apk/app-*-release.apk)
+          if [ ${#APKS[@]} -eq 0 ]; then
+            echo "::error::İmzalanacak APK bulunamadı"; exit 1
+          fi
+          for APK in "${APKS[@]}"; do
+            echo "imzalanıyor: $APK"
+            "$APKSIGNER" sign \
+              --ks release.jks \
+              --ks-key-alias dosyaokuyucu \
+              --ks-pass "pass:$KS_PASS" \
+              --key-pass "pass:$KS_PASS" \
+              "$APK"
+          done
+          echo "--- imza sertifikası (arm64) ---"
+          "$APKSIGNER" verify --print-certs \
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+            | grep -iE "SHA-256|SHA-1|Signer #1 cert" | head -5
 
-      - name: APK'yı adlandır
+      # arm64 SADE adı alır (`dosya-okuyucu.apk`): 2016 sonrası pratikte her
+      # telefon arm64-v8a. Kullanıcı her zamanki dosyayı indirmeye devam etsin,
+      # mimari seçmek zorunda kalmasın. 32-bit cihazlar için ayrı dosya durur.
+      - name: APK'ları adlandır
         run: |
+          set -e
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/dosya-okuyucu.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+            dist/dosya-okuyucu.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+          ls -lh dist/
+
+      # Ölçüm (tahmin değil): APK içinde neyin kaç MB tuttuğu. Boyut küçültme
+      # turlarında hangi kalemin uğraşmaya değdiği buradan okunur.
+      - name: Boyut raporu (APK içi en büyük dosyalar)
+        run: |
+          set -e
+          echo "## APK boyutları" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ls -lh dist/ | awk '{print $5, $9}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "## arm64 APK içindeki en büyük 25 dosya (sıkıştırılmamış)" \
+            >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          # NF==4 süzmesi: `unzip -l`in başlık ve "toplam" satırları listeye
+          # karışmasın (toplam satırı en büyük sayı olduğu için başa geçerdi).
+          unzip -l dist/dosya-okuyucu.apk \
+            | awk 'NF==4 && $1 ~ /^[0-9]+$/' \
+            | sort -k1 -n -r | head -25 \
+            | awk '{printf "%8.1f MB  %s\n", $1/1048576, $4}' \
+            >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Artifact yükle
         uses: actions/upload-artifact@v4
         with:
           name: dosya-okuyucu-apk
-          path: dist/dosya-okuyucu.apk
+          path: dist/*.apk
           if-no-files-found: error
 
       - name: GitHub Release oluştur
@@ -255,9 +307,19 @@ jobs:
             Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
             dönüştürme, paylaşım, Gemini AI sohbet, Firebase senkron (yapılandırıldığında).
 
-            APK'yı aşağıdaki **Assets** bölümünden indirin (dosya-okuyucu.apk).
+            **Hangi dosyayı indirmeliyim?** → `dosya-okuyucu.apk`
+            (2016 sonrası tüm telefonlar; 64-bit / arm64-v8a).
+            Yalnızca çok eski 32-bit bir cihazda kurulmuyorsa
+            `dosya-okuyucu-32bit-armeabi-v7a.apk` dosyasını deneyin.
+
+            APK'lar bu sürümden itibaren mimariye göre **ayrı** derleniyor:
+            tek dosyada üç mimarinin kütüphaneleri taşındığı için boyut
+            gereksiz yere ~3 katıydı. İşlev aynı, indirme çok daha küçük.
+
             Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir.
-          files: dist/dosya-okuyucu.apk
+          files: |
+            dist/dosya-okuyucu.apk
+            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

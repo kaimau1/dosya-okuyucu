@@ -3168,3 +3168,32 @@ hatasıydı, düzeltildi). Yeni testler: `fm_filter_test` (16 durum),
 kanıtlayan test (800 sınırı kırmızı→yeşil), `fm_photos_screen_test`'e tam
 liste yer değiştirme + kısa listenin EZMEDİĞİ + süzgeç sayfası testleri.
 Cihazda deneme YAPILMADI; APK CI'da derleniyor.
+
+## 2026-07-29 (2. tur) — APK 200 MB → ABI'ye göre bölme
+
+**Neden 200 MB'tı:** CI `flutter build apk --release` çalıştırıyordu = **fat APK**;
+armeabi-v7a + arm64-v8a + x86_64 yerel kütüphaneleri (ML Kit metin tanıma/çeviri,
+PDFium, syncfusion, video/ses, Firebase) TEK dosyada. Varlıklar toplam 6 MB
+(fontlar 5,8) — yani boyutun neredeyse tamamı ×3 yazılan yerel kod.
+
+**Yapılan (risksiz kısım):** `--split-per-abi --target-platform
+android-arm,android-arm64`.
+- **Süre uzamıyor:** bölme AOT derlemesini ÇOĞALTMAZ — şişko APK zaten her
+  mimari için ayrı snapshot üretiyordu; yalnız paketleme ayrışıyor. x86_64
+  düştüğü için (yalnız emülatörde işe yarar) bir AOT derlemesi eksildi →
+  süre biraz KISALDI.
+- **Dart kodu değişmedi** → süren geliştirmelerle çakışmaz, davranış aynı.
+- İmzalama artık **döngü**: bölünmüş APK'ların hepsi aynı anahtarla
+  imzalanmalı, yoksa kullanıcı mimari değiştirdiğinde "imza uyuşmuyor" ile
+  güncelleyemez.
+- **arm64 sade adı alır** (`dosya-okuyucu.apk`): 2016 sonrası pratikte her
+  telefon arm64-v8a; kullanıcı her zamanki dosyayı indirmeye devam etsin diye.
+  32-bit için ayrı dosya (`dosya-okuyucu-32bit-armeabi-v7a.apk`).
+- CI'ya **boyut raporu** eklendi (job özetinde APK içi en büyük 25 dosya) —
+  bundan sonraki küçültme kararları tahminle değil ölçümle verilsin.
+
+**Ertelenen (riskli, cihazda test ister):** ML Kit gömülü modelleri
+"unbundled"/Play Services sürümüne çevirmek (davranış değişir: model indirme
++ Play Services bağımlılığı), R8/minify + kaynak kırpma (HAFIZA'da zaten ML Kit
+R8 "missing class" tuzağı var; reflection kullanan eklentiler SESSİZCE kırılır,
+testler yakalamaz), kullanılmayan bağımlılık ayıklama (sürüm cehennemi).
