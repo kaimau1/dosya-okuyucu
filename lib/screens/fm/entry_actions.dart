@@ -398,9 +398,14 @@ Future<bool> deleteEntries(
       task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
     );
     if (context.mounted && result.hasError) {
-      _snack(context, 'Bazı öğeler silinemedi: ${result.errors.first}');
+      _snack(
+          context,
+          '${result.succeeded} öğe silindi, ${result.errors.length} öğe '
+          'silinemedi: ${result.errors.first}');
     }
-    return true;
+    // Hiçbiri silinemediyse `false`: çağıranlar bu dönüşle "oldu" varsayıp
+    // seçimi temizliyor ve listeyi tazeliyordu (2026-07-29 denetimi, 4. tur).
+    return result.succeeded > 0;
   }
 
   await FmEnv.ensureInit();
@@ -413,9 +418,12 @@ Future<bool> deleteEntries(
         FmEnv.trash.moveToTrash(paths, onProgress: report),
   );
   if (context.mounted && result.hasError) {
-    _snack(context, 'Bazı öğeler taşınamadı: ${result.errors.first}');
+    _snack(
+        context,
+        '${result.succeeded} öğe çöp kutusuna taşındı, '
+        '${result.errors.length} öğe taşınamadı: ${result.errors.first}');
   }
-  return true;
+  return result.succeeded > 0;
 }
 
 /// Kalıcı silme (çöp kutusunu atlar) — çöp ekranında kullanılır.
@@ -491,10 +499,26 @@ Future<bool> moveOrCopyEntries(
 
   final where = p.basename(dest);
   final count = result.succeeded;
+  final verb = move ? 'taşındı' : 'kopyalandı';
   messenger.showSnackBar(SnackBar(
-    content: Text(result.hasError
-        ? 'Bazı öğeler aktarılamadı: ${result.errors.first}'
-        : '$count öğe “$where” klasörüne ${move ? "taşındı" : "kopyalandı"}.'),
+    // Mesaj GERÇEĞİ söyler: kaç tanesi oldu, kaç tanesi olmadı, iptal edildi mi.
+    //
+    // Eskiden hata varken yalnız ilk hata metni yazılıyordu ("Bazı öğeler
+    // aktarılamadı: …") — başarılı sayısı gizleniyor, kaç dosyanın kaldığı
+    // hiç söylenmiyordu. İptalde ise sonuç "iptal" bilgisini taşımadığı için
+    // kullanıcı "1 öğe taşındı" okuyup işlemin durduğunu sanıyordu. Kopyalama
+    // çekirdekte kesilemiyor (`File.copy` bölünemez); yapamadığımız şeyi
+    // yapıyormuş gibi göstermek yerine olanı yazıyoruz (2026-07-29 sadakat
+    // denetimi, 4. tur).
+    content: Text(
+      result.hasError
+          ? '$count öğe $verb, ${result.errors.length} öğe aktarılamadı: '
+              '${result.errors.first}'
+          : result.cancelled
+              ? 'Durduruldu · $count öğe “$where” klasörüne çoktan $verb '
+                  '(süren aktarma yarıda kesilemiyor).'
+              : '$count öğe “$where” klasörüne $verb.',
+    ),
     // Geri al YALNIZ taşımada: kopyalamayı geri almak "sil" demektir, yanlış
     // dokunuşta veri kaybı riski taşır.
     action: (move && result.transfers.isNotEmpty)

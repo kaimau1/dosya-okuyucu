@@ -44,13 +44,21 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
   Future<void> _undo(OpRecord record) async {
     setState(() => _busy.add(record.whenMs));
     final result = await FileOps.undoMove(record.transfers);
-    if (result.succeeded > 0) await OpHistory.remove(record);
+    // Kayıt yalnız **tamamı** geri alındıysa düşer. Eskiden `succeeded > 0`
+    // yetiyordu: 60 dosyanın 40'ı dönmüşse kayıt siliniyor, kalan 20'nin nereye
+    // gittiğini söyleyen tek bilgi (kaynak→hedef eşlemesi) yok oluyor ve o
+    // dosyalar bir daha ASLA geri alınamıyordu (2026-07-29 denetimi, 4. tur).
+    final complete = !result.hasError &&
+        result.succeeded >= record.transfers.length;
+    if (complete) await OpHistory.remove(record);
     if (!mounted) return;
     setState(() => _busy.remove(record.whenMs));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(result.hasError
-          ? 'Bazıları geri alınamadı: ${result.errors.first}'
-          : '${result.succeeded} öğe eski yerine döndü.'),
+      content: Text(complete
+          ? '${result.succeeded} öğe eski yerine döndü.'
+          : '${result.succeeded}/${record.transfers.length} öğe geri alındı; '
+              '${result.errors.length} hata (${result.errors.first}). '
+              'Kayıt duruyor, yeniden deneyebilirsin.'),
     ));
     await _load();
   }

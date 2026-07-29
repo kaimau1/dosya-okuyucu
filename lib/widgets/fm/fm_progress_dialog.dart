@@ -31,7 +31,10 @@ Future<T> showFmProgress<T>(
   // tarafından senkron olarak işaretlenir; `showDialog`'un `.then`'ine
   // güvenmek yarış yaratırdı (geç gelen `pop` yanlış sayfayı kapatabilirdi).
   var closed = false;
-  var backgrounded = false;
+  /// Arka plan şeridinin denetleyicisi — hem "şerit gösterildi mi?" bilgisi
+  /// hem de onu (ve YALNIZ onu) kapatma yolu. Ayrı bir `backgrounded` bayrağı
+  /// tutulmuyordu: iki gerçeği tek yerde tutmak ikisinin ayrışmasını önler.
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? barController;
   BuildContext? dialogContext;
   // Ekrandan bağımsız yaşayan (MaterialApp seviyesindeki) messenger: arka
   // plana alınan iş için kalıcı şerit burada gösterilir, kullanıcı başka
@@ -56,8 +59,14 @@ Future<T> showFmProgress<T>(
   /// iş bitince `finally` içinde elle kaldırılıyor. Böylece "arka plana aldım
   /// ama iş sürüyor mu, bitti mi?" belirsizliği kalmıyor.
   void showBackgroundBar() {
-    backgrounded = true;
-    messenger.showSnackBar(SnackBar(
+    // Denetleyici SAKLANIR: iş bitince `hideCurrentSnackBar()` çağırmak
+    // "o an ne gösteriliyorsa onu kapat" demekti. SnackBar'lar sırayla
+    // gösterildiği için bizim şerit araya giren bir sonuç mesajının (ör.
+    // "5 öğe taşındı · Geri al") arkasına düşebiliyor ya da kullanıcı bizim
+    // şeridi kaydırıp kapattıysa `finally` BAŞKASININ mesajını süpürüyordu
+    // (2026-07-29 sadakat denetimi, 4. tur). `controller.close()` yalnız bu
+    // şeridi kapatır.
+    barController = messenger.showSnackBar(SnackBar(
       duration: const Duration(days: 1),
       content: ValueListenableBuilder<FmProgress>(
         valueListenable: progress,
@@ -162,7 +171,7 @@ Future<T> showFmProgress<T>(
     closeDialog();
     // Kalıcı şerit yalnız bu iş için gösterildiyse kaldırılır; başka bir
     // bildirimi (ör. kullanıcının okumadığı bir sonuç mesajı) süpürmeyelim.
-    if (backgrounded) messenger.hideCurrentSnackBar();
+    barController?.close();
     progress.dispose();
   }
 }

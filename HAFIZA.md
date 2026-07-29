@@ -4222,3 +4222,148 @@ sonunda 829). Yeni: `fm_delete_guard_test.dart` (7),
 `fm_media_resize_test.dart` (+13: serbest ölçü büyütmez, `cappedFps`,
 `mayLoseFrames`), `fm_path_side_index_test.dart` (+7: `movedPathFor` + klasör
 adlandırma), `fm_smart_features_test.dart` (+5: `cleanupApplyOrder`).
+
+## 2026-07-29 (X) — SADAKAT DENETİMİ, 4. TUR: veri taşıma çekirdeği (17 bulgu)
+
+§VIII ve §IX ekranları ve boyut düşürme hattını taradı. Bu tur **altındaki
+katmanı** denetledi — kullanıcının gerçek dosyalarını taşıyan, silen, geri
+yükleyen kod: `file_ops.dart`, `trash_service.dart`, `job_queue.dart`,
+`op_history.dart`, ilerleme penceresi. Buradaki bir hata geri alınamaz.
+17 bulgu; 15'i kapatıldı, 2'si **bilinçli olarak kapatılmadı** (aşağıda gerekçe).
+Kilit: yeni `test/fm_transfer_safety_test.dart` (10 test).
+
+### CRITICAL — çöp kaydı üzerine yazılıyordu; yarım yazma TÜM çöpü görünmez yapıyordu
+`index.json` doğrudan `writeAsString` ile güncelleniyordu; bu çağrı dosyayı önce
+**kısaltır**. Yazma kesilirse (kart dolu — kullanıcı zaten bu yüzden siliyor;
+kart çıkarıldı; süreç öldü) dosyada yarım JSON kalıyor ve `_readIndex` bozuk
+JSON'u **boş listeye** çeviriyor. Sonuç: çöp kutusu "boş" görünüyor, o turdaki
+dosyalar VE tüm eski kayıtlar birden yok oluyor; baytlar `.dosya-okuyucu-cop`
+içinde `1753…-12-rapor.pdf` gibi adlarla, `FsScan`ın atladığı gizli klasörde
+kalıyor — kullanıcı ne görebiliyor, ne geri alabiliyor, ne "Yer aç" ile
+bulabiliyor. **Düzeltme:** geçici dosya + `rename` (atomik). Aynı sınıf hata
+`op_history.json`de de vardı (tüm geri alma geçmişi) → o da atomik.
+
+### CRITICAL — dosya çöpe taşındı ama KAYDI yazılamadıysa dosya yok sayılıyordu
+`moveToTrash` önce taşıyıp sonra kayıt yazıyor ve aradaki hata için koruma yoktu
+(ters durum için — kaynak yerinde kalmışsa — koruma vardı). İki gerçek tetikleyici
+bulundu: (a) çok uzun ad → id ekiyle 255 baytı aşıyor, yedek yoldaki İKİNCİ
+`rename` korumasız olduğu için hata dışa fırlıyor; (b) kart dolu → kayıt yazımı
+patlıyor. İkisinde de dosya kullanıcının klasöründen gitmiş, çöpte de kayıtsız
+(görünmez) kalıyor. **Düzeltmeler:** ikinci `rename` korundu (ad çevrilemezse
+dosya indiği adda bırakılır ve kayıt **o adı** gösterir) + kayıt yazılamazsa
+dosya **eski yoluna geri alınır** ve hata bildirilir; geri alma da olmazsa yol
+hata metnine yazılır. Kural: **çöpte dosya varsa kaydı da vardır.**
+
+### CRITICAL — `FmConflict.skip` + klasör taşıma: atlanan çocuğun TEK kopyası siliniyordu
+Klasör dalında çocuk sonuçları yok sayılıyor, sonra kaynak
+`delete(recursive: true)` ile siliniyordu. Ad çakışması yüzünden **atlanan**
+çocuk hata atmadığı için silme yine koşuyor: hedefte zaten farklı içerikli bir
+dosya var, kaynaktaki tek kopya yok oluyor. **Düzeltme:** herhangi bir çocuk
+atlandıysa kaynak klasör KORUNUR. (UI şu an `skip`/`overwrite` göndermiyor —
+`FmConflict` genel API ve bir sonraki doğal özellik "çakışma penceresi"; hata
+gelmeden kapatıldı.)
+
+### CRITICAL — `FmConflict.overwrite` hedefi, yerine bir şey koymadan siliyordu
+Önce `deleteSync(dest)`, sonra `copy`. Kopyalama patlarsa (kart doldu, kaynak
+okunamadı) hedefteki veri gitmiş, yerine bir şey konmamış olur. `rename`/`copy`
+POSIX'te var olan yolun üstüne zaten yazıyor. **Düzeltme:** ön silme kaldırıldı.
+
+### HIGH — iptal edilen taşımada "Geri al" KAYBOLUYORDU
+İptal dalı `transfers`ı boş döndürüyordu: 200 fotoğrafın 90'ı taşındıktan sonra
+"İptal"e basan kullanıcı "90 öğe taşındı" okuyor ama geri alma düğmesini
+(koşulu `transfers.isNotEmpty`) hiç görmüyordu. Otomatik düzenlemede daha kötüsü:
+o taşımalar `OpHistory` kaydına hiç yazılmadığı için "Son işlemler"den de geri
+alınamıyorlardı. Ayrıca `FsEvents.changed()` de atlanıyor, açık ekranlar taşınmış
+dosyaları eski yolunda göstermeye devam ediyordu. **Düzeltme:** iptalde de
+`transfers` + `FsEvents.changed()`.
+
+### HIGH — "İptal" tek dosyada hiç iptal etmiyordu ve sonuç bunu SÖYLEMİYORDU
+İptal yalnız döngü başında yoklanıyor; `File.copy`/`rename` bölünemez. 3 GB'lık
+tek bir videoda "İptal" hiçbir şeyi durdurmuyor ve sonuçta `cancelled == false`
+kaldığı için arayüz "1 öğe taşındı" diyordu. Kopyalamayı kesmek elimizde değil,
+ama **olanı doğru söylemek** elimizde: sonuç artık iptal isteğini yansıtıyor ve
+arayüz "Durduruldu · N öğe çoktan taşındı (süren aktarma yarıda kesilemiyor)"
+yazıyor.
+
+### HIGH — kaynak, kopya DOĞRULANMADAN siliniyordu (çapraz birim)
+Sıra doğruydu (kopya önce, silme sonra) ama boyut karşılaştırması yoktu: kısa
+yazmayı hata olarak bildirmeyen bir bağlama noktasında (sdcardfs/FUSE/MTP) tek
+sağlam kopya silinebilirdi. **Düzeltme:** kopya boyutu kaynakla eşit değilse
+yarım hedef silinir, hata atılır, **kaynak yerinde kalır**.
+
+### HIGH — "Çöp kutusu boşaltıldı · N öğe · X yer açıldı" silinemeyenler için de yazılıyordu
+`deleteForever` her hatayı yutup kaydı yine de düşürüyordu: kart salt-okunur
+takılıysa ya da dosya başka uygulamada açıksa baytlar diskte kalıyor, kayıt
+gidiyor → dosya çöp ekranında görünmüyor, `FsScan` çöpü atladığı için "Yer aç"
+da bulamıyor; kullanıcının 4 GB'ı uygulama içinden **asla** geri kazanılamaz
+hâle geliyor, üstelik ekran "4,2 GB yer açıldı" diyordu. **Düzeltme:** gerçek
+hata YUKARI çıkar ve kayıt korunur (dosya zaten yoksa kayıt düşer — o hata
+değil). Böylece var olan "N öğe silinemedi" dalları ilk kez gerçekten çalışıyor.
+Ek: klasörler kayda `0` bayt yazılıyordu ("4 GB klasörü boşalttım, 0 B yer
+açıldı") → çöpe atarken gerçek boyut ölçülüyor (`FsScan.folderSize`).
+
+### HIGH — eşzamanlı çöp işlemleri kayıt düşürüyordu (oku-değiştir-yaz yarışı)
+"Arka plana al" sayesinde kullanıcı uzun bir silmeyi arka plana atıp hemen başka
+bir silme/geri yükleme başlatabiliyor. A okur (42 kayıt) → B okur (42) → B 43
+yazar → A kendi 43'ünü B'nin kaydı olmadan yazar: B'nin dosyası çöpte, kaydı yok
+→ görünmez ve geri alınamaz. **Düzeltme:** kayıt değişiklikleri süreç genelinde
+bir `Future` zinciriyle sıraya alınıyor (`_withIndexLock`, static).
+
+### HIGH — "Geri al" dosyanın ADINI sessizce değiştiriyordu
+`undoMove`, `moveAll` üzerinden gittiği için hedef adı `basename(dest)`ten
+üretiyordu; taşımada çakışma olduysa (`rapor.pdf` → `rapor (1).pdf`) geri alma
+dosyayı `rapor (1).pdf` olarak geri getiriyor, arayüz ise sadece "Geri alındı."
+diyordu. **Düzeltme:** eski ad boşsa dosya o ada döndürülür.
+
+### MEDIUM (kapatıldı)
+- İptal edilen KLASÖR aktarımı "başarılı" sayılıyordu: 5000 fotoğraflık albümün
+  900'ü kopyalanmışken kullanıcıya "kopyalandı" deniyor, geri alma kaydına yarım
+  bir ağaç yazılıyordu → iptalde `null` döner, `succeeded` artmaz.
+- `succeeded` atlanan dosyaları da sayıyordu (hem `skipped` hem `succeeded`).
+- Kısmi hata bildirimi: yalnız ilk hata metni yazılıyor, kaç dosyanın olduğu/
+  olmadığı söylenmiyordu → "N öğe taşındı, M öğe aktarılamadı: …". Ayrıca
+  `deleteEntries` hepsi başarısız olsa bile `true` dönüyordu (çağıranlar seçimi
+  temizleyip listeyi tazeliyor, "oldu" sanılıyordu).
+- **Kısmi geri alma kaydı siliyordu:** 60 dosyanın 40'ı dönmüşse kayıt
+  düşürülüyor, kalan 20'nin nereye gittiğini söyleyen tek bilgi (kaynak→hedef
+  eşlemesi) yok oluyor ve o dosyalar bir daha ASLA geri alınamıyordu → kayıt
+  yalnız tamamı geri alındıysa düşer.
+- Arka plan ilerleme şeridi `hideCurrentSnackBar()` ile kapanıyordu: SnackBar'lar
+  sırayla gösterildiği için bu, araya giren bir sonuç mesajını ("5 öğe taşındı ·
+  Geri al") süpürebiliyordu → şeridin kendi denetleyicisi (`controller.close()`).
+- Yalnız büyük/küçük harf değiştiren yeniden adlandırma SD kartta (FAT32/exFAT)
+  "bu adda bir öğe zaten var" diye reddediliyordu (dahili depolamada çalışıyor —
+  tutarsız) → geçici ada uğrayıp hedefe inen iki adımlı `rename`.
+
+### BİLİNÇLİ KAPATILMAYAN İKİ BULGU (gerekçeli)
+1. **`JobQueue`ta zaman aşımı/gözcü yok.** Gövdesi hiç dönmeyen bir iş kuyruğu
+   kalıcı olarak kilitler (sonraki işler "Sırada"da bekler, bildirim şeritte
+   asılı kalır, çare uygulamayı zorla kapatmak). Zaman aşımı EKLENMEDİ: kuyruğun
+   gerçek sakinleri dakikalarca süren meşru işler (video kodlama, bayt bayt
+   tarama) ve "iptali 30 saniyede uygulamayan işi terk et" kuralı, dosya
+   değiştiren iki işi (ör. "Yer aç: temizleniyor" + yeni bir iş) aynı anda
+   koşturabilirdi — yani gözlemlenmemiş bir kilitlenmeyi önlemek için
+   gözlemlenmiş bir sınıf hatayı (çöp kaydı yarışı) yeniden açmak olurdu.
+   Kuyruk eşzamanlılığının 1 olması bilinçli bir güvenlik kararı; onu iptal
+   yolundan delmek yanlış takas. Gerçek çözüm, işleri tek tek kesilebilir
+   yapmak (her uzun döngüde `throwIfCancelled`) — şu an kuyruğa giren tüm
+   gövdelerde bu var; kesilemeyen tek adım `DuplicateFinder.scan` ve o da
+   sonlu.
+2. **İlerleme sayacı hızlı yollarda atlıyor.** Klasörün tamamı tek `rename` ile
+   taşındığında sayaç 1/5000 gösterip sona atlıyor. Düzeltmek ya ağacı ikinci
+   kez yürümek ya da ilerleme protokolünü değiştirmek demek; sayı hiçbir zaman
+   VERİ hakkında yanlış bir şey söylemiyor (yalnız çubuk kaba). Kozmetik olarak
+   kabul edildi.
+
+### Denetimin bulmadığı, doğrulanan yerler
+Çöpten geri yükleme hedefi ezmiyor (her zaman `uniquePath`), çöp içinde ad
+çakışması olamıyor (ms + süreç sayacı), "çöpü boşalt" çöp klasörü dışına
+çıkamıyor (yol `sanitizeName`den geçmiş bir taban adla kuruluyor), taşımada
+silme sırası her yerde doğru (kopya önce), `_pump` hata yutmuyor, ilerleme
+kısması SON raporu düşürmüyor (`report` alanları kapıdan önce yazıyor,
+`_pump` bitişte `notifyListeners` + `onFinished` çağırıyor).
+
+### Doğrulama (4. tur)
+`flutter analyze`: 0 hata, 0 yeni uyarı (39 info/warning eski koddan).
+`flutter test`: **863 test geçti** (3. tur sonunda 853).
+Yeni: `test/fm_transfer_safety_test.dart` (10).
