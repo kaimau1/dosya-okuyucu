@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
+import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
@@ -14,6 +15,7 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
@@ -41,6 +43,11 @@ class CategoryScreen extends StatefulWidget {
   /// ayırt edilebilmeli".
   final bool showDocKinds;
 
+  /// **Eksiksiz** listeyi getiren yükleyici (bkz. `MediaLibrary`). Pano
+  /// önbelleği kategori başına en yeni 800 dosyayla sınırlıdır; ekran anında
+  /// açılsın diye önce o gösterilir, tam liste gelince yerine geçer.
+  final Future<List<FsEntry>> Function()? loadAll;
+
   const CategoryScreen({
     super.key,
     required this.title,
@@ -48,6 +55,7 @@ class CategoryScreen extends StatefulWidget {
     this.gridDefault = false,
     this.showSources = false,
     this.showDocKinds = false,
+    this.loadAll,
   });
 
   @override
@@ -65,14 +73,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
   FmSort _sort = FmSort.date;
   bool _desc = true;
 
-  /// Seçili kaynak (null = tümü).
-  MediaBucket? _bucket;
+  /// Tarih/boyut/kaynak/tür süzgeci (kaynak çipleriyle aynı alanı yazar).
+  FmFilter _filter = FmFilter.none;
 
   /// Seçili belge türü (null = tümü).
   DocKind? _docKind;
 
   final _searchController = TextEditingController();
   bool _searching = false;
+  bool _loadingAll = false;
   String _query = '';
 
   bool get _selecting => _selected.isNotEmpty;
@@ -82,6 +91,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
     super.initState();
     // Başka bir ekranda silinen/taşınan dosya burada durmasın.
     FsEvents.version.addListener(_dropMissing);
+    _loadAll();
+  }
+
+  /// Tam listeyi arka planda getirir (pano önbelleği kırpılmıştır).
+  Future<void> _loadAll() async {
+    final loader = widget.loadAll;
+    if (loader == null) return;
+    setState(() => _loadingAll = true);
+    try {
+      final all = await loader();
+      if (!mounted) return;
+      setState(() {
+        if (all.length > _files.length) _files = all;
+        _loadingAll = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingAll = false);
+    }
   }
 
   @override
@@ -93,18 +120,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   List<FsEntry> get _sorted {
-    var filtered = _files;
-    if (_bucket != null) {
-      filtered =
-          filtered.where((f) => bucketForPath(f.path) == _bucket).toList();
-    }
+    var filtered = _filter.apply(_files, query: _query);
     if (_docKind != null) {
       filtered = filtered
           .where((f) => FileService.kindForExtension(f.extension) == _docKind)
           .toList();
-    }
-    if (_query.trim().isNotEmpty) {
-      filtered = filtered.where((f) => fmMatches(f.name, _query)).toList();
     }
     return FsScan.sort(filtered, _sort, descending: _desc, foldersFirst: false);
   }
@@ -139,10 +159,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   /// Silme/taşıma sonrası: listeyi diskteki gerçekle tazele.
-  void _dropMissing() {
+  /// Var olma denetimi isolate'te — liste on binlerce girdi olabilir.
+  Future<void> _dropMissing() async {
+    if (!mounted) return;
+    final alive = await FsScan.pruneMissing(_files);
     if (!mounted) return;
     setState(() {
-      _files = _files.where((e) => e.exists).toList();
+      _files = alive;
       _selected.removeWhere((s) => !_files.any((e) => e.path == s));
     });
   }
@@ -164,14 +187,23 @@ class _CategoryScreenState extends State<CategoryScreen> {
           : (_searching ? _searchBar() : _normalBar()),
       body: Column(
         children: [
+          if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
           if (widget.showSources && !_selecting) _sourceChips(),
           if (widget.showDocKinds && !_selecting) _docKindChips(),
           Expanded(
             child: files.isEmpty
                 ? Center(
-                    child: Text(_query.trim().isEmpty
-                        ? 'Bu kategoride dosya bulunamadı.'
-                        : '“$_query” için sonuç yok.'),
+                    child: Padding(
+                      padding: const EdgeInsets.all(Gap.lg),
+                      child: Text(
+                        _loadingAll
+                            ? 'Dosyalar yükleniyor…'
+                            : (_query.trim().isEmpty && !_filter.isActive
+                                ? 'Bu kategoride dosya bulunamadı.'
+                                : 'Aramanıza/filtrenize uyan dosya yok.'),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   )
                 : DragSelectArea(
                     scrollController: _scroll,
@@ -190,13 +222,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   PreferredSizeWidget _normalBar() => AppBar(
-        title: Text(widget.title),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(widget.title),
+            Text('${_sorted.length} / ${_files.length} dosya',
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: '${widget.title} içinde ara',
             icon: const Icon(Icons.search),
             onPressed: () => setState(() => _searching = true),
           ),
+          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           IconButton(
             tooltip: 'Görünüm: ${_layout.label}',
             icon: Icon(fmLayoutIcon(_layout)),
@@ -205,31 +246,26 @@ class _CategoryScreenState extends State<CategoryScreen> {
               if (picked != null) setState(() => _layout = picked);
             },
           ),
-          PopupMenuButton<String>(
-            onSelected: (v) => setState(() {
-              switch (v) {
-                case 'date':
-                  _sort = FmSort.date;
-                  _desc = true;
-                case 'name':
-                  _sort = FmSort.name;
-                  _desc = false;
-                case 'size':
-                  _sort = FmSort.size;
-                  _desc = true;
-                case 'dir':
-                  _desc = !_desc;
-              }
-            }),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'date', child: Text('Tarihe göre')),
-              PopupMenuItem(value: 'name', child: Text('Ada göre')),
-              PopupMenuItem(value: 'size', child: Text('Boyuta göre')),
-              PopupMenuItem(value: 'dir', child: Text('Sırayı ters çevir')),
-            ],
-          ),
         ],
       );
+
+  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
+  Future<void> _openFilterSheet() async {
+    final result = await showFmFilterSheet(
+      context,
+      filter: _filter,
+      sort: _sort,
+      descending: _desc,
+      extensions: extensionCounts(_files),
+      buckets: bucketCounts(_files.map((f) => f.path)),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _filter = result.filter;
+      _sort = result.sort;
+      _desc = result.descending;
+    });
+  }
 
   PreferredSizeWidget _searchBar() => AppBar(
         leading: IconButton(
@@ -250,6 +286,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 _searchController.clear();
               }),
             ),
+          // Arama açıkken de süzgeç erişilebilir: "adında tatil geçen, geçen
+          // ay çekilmiş videolar" tek adımda daralsın.
+          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
         ],
       );
 
@@ -319,8 +358,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
             padding: const EdgeInsets.only(right: Gap.sm),
             child: ChoiceChip(
               label: Text('Tümü (${_files.length})'),
-              selected: _bucket == null,
-              onSelected: (_) => setState(() => _bucket = null),
+              selected: _filter.bucket == null,
+              onSelected: (_) =>
+                  setState(() => _filter = _filter.withBucket(null)),
             ),
           ),
           for (final b in buckets)
@@ -328,8 +368,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
               padding: const EdgeInsets.only(right: Gap.sm),
               child: ChoiceChip(
                 label: Text('${b.label} (${counts[b]})'),
-                selected: _bucket == b,
-                onSelected: (_) => setState(() => _bucket = b),
+                // Çip ve süzgeç sayfası AYNI alanı yazar → ikisi hep tutarlı.
+                selected: _filter.bucket == b,
+                onSelected: (_) =>
+                    setState(() => _filter = _filter.withBucket(b)),
               ),
             ),
         ],

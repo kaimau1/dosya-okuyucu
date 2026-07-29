@@ -7,6 +7,7 @@ import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
 
 /// Yinelenen dosyalar: birebir aynı içerikli dosyaları bulur, her gruptan
@@ -27,6 +28,25 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
   List<DuplicateGroup> _groups = const [];
   final Set<String> _selected = {};
   bool _scanning = true;
+
+  /// Yerinde arama (kullanıcı isteği 2026-07-29: "arama kısmı her yerde
+  /// olmalı"). Grup, dosyalarından herhangi biri eşleşirse görünür.
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<DuplicateGroup> get _visibleGroups {
+    if (_query.trim().isEmpty) return _groups;
+    return _groups
+        .where((g) => g.files.any((f) => fmMatches(f.name, _query)))
+        .toList();
+  }
 
   @override
   void initState() {
@@ -76,8 +96,30 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yinelenen dosyalar'),
+        leading: _searching
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() {
+                  _searching = false;
+                  _query = '';
+                  _searchController.clear();
+                }),
+              )
+            : null,
+        title: _searching
+            ? FmSearchField(
+                controller: _searchController,
+                hint: 'Yinelenenlerde ara…',
+                onChanged: (v) => setState(() => _query = v),
+              )
+            : const Text('Yinelenen dosyalar'),
         actions: [
+          if (!_searching)
+            IconButton(
+              tooltip: 'Ara',
+              icon: const Icon(Icons.search),
+              onPressed: () => setState(() => _searching = true),
+            ),
           IconButton(
             tooltip: 'Yeniden tara',
             icon: const Icon(Icons.refresh),
@@ -108,8 +150,9 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                           const SizedBox(width: Gap.sm),
                           Expanded(
                             child: Text(
-                              '${_groups.length} grup · '
-                              '${FsPaths.humanSize(wasted)} boşa gidiyor',
+                              '${_visibleGroups.length} / ${_groups.length} '
+                              'grup · ${FsPaths.humanSize(wasted)} boşa '
+                              'gidiyor',
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
                           ),
@@ -118,11 +161,14 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                     ),
                     const Divider(height: 1),
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 96),
-                        itemCount: _groups.length,
-                        itemBuilder: (context, i) => _groupTile(_groups[i], i),
-                      ),
+                      child: _visibleGroups.isEmpty
+                          ? Center(child: Text('“$_query” için sonuç yok.'))
+                          : ListView.builder(
+                              padding: const EdgeInsets.only(bottom: 96),
+                              itemCount: _visibleGroups.length,
+                              itemBuilder: (context, i) =>
+                                  _groupTile(_visibleGroups[i], i),
+                            ),
                     ),
                   ],
                 ),

@@ -3086,3 +3086,85 @@ Ayrıca `_CellBorderPainter.shouldRepaint` `barColor`u karşılaştırmıyordu
 Windows'a özgü olanlar. `excel`/`spreadsheet` testlerinin tamamı yeşil.
 Cihazda görsel karşılaştırma YAPILMADI (gerçek Excel bu ortamda yok);
 denetim çizim yolunun kod okumasıyla yapıldı.
+
+## 2026-07-29 — Medyada eksik dosyalar, her yerde arama/filtre, Önemli Dosyalar
+
+### A. KÖK NEDEN — "videolarda tüm videolar görünmüyor, dosyaların içinde var"
+İki ayrı neden vardı, ikisi de sessizce dosya yutuyordu:
+
+1. **800'lük kırpma.** `FsScan.index(perCategory: 800)` kategori başına yalnız
+   **en yeni 800** dosyayı tutuyor; pano kutularının sayıları tüm taramadan
+   (`stats`) geliyordu ama kategoriye GİRİNCE gösterilen liste (`byCategory`)
+   o kırpılmış listeydi. Yani kutuda "1.240 video" yazıp içeride 800 video
+   listeleniyordu. Gezgin gerçeği gösterdiği için kullanıcı haklı olarak
+   "dosyaların içinde bulabiliyorum" dedi.
+   **Çözüm:** kırpma kalmadı ama liste de sürekli bellekte tutulmuyor —
+   `MediaLibrary.categoryFiles()` ile **istendiğinde** kuruluyor:
+   önce arama dizininden (`FsScan.collectFromIndex`, disk gezilmez, isolate'te
+   satır satır okur), dizin yoksa/boşsa diskten (`FsScan.collect`).
+   Ekran anında açılsın diye önce kırpılmış liste çizilir, tam liste gelince
+   yerine geçer (`PhotosScreen.loadAll` / `CategoryScreen.loadAll`).
+   **Kural:** gelen liste elimizdekinden KISAysa yok sayılır — bozuk bir dizin
+   yüzünden kullanıcıya gösterilen dosya sayısı asla azalmamalı.
+2. **Eksik uzantı tabloları.** `FmExtensions` dar tutulmuştu: `m2ts, mpe, vob,
+   3g2, divx, asf, rm, insv, lrv, mjpeg…` video sayılmıyordu; görselde `jp2,
+   jxl, apng, cr3, nef, arw, orf, rw2…` (telefonların "pro"/RAW kipi) yoktu.
+   Kategori dışı kalan dosya `other`'a düşüp galeriye HİÇ girmiyordu.
+   Tablolar cömertleştirildi (ses/arşiv/belge dahil). **Karar:** yanlış
+   kategoriye düşen nadir bir dosya, hiç görünmeyen dosyadan iyidir.
+   Bilinen bedel: `.ts` hem TypeScript hem video akışı — telefonda video
+   sayılıyor (sıra: görsel → video → ses → apk → arşiv → belge).
+
+### B. Süzgeç ve sıralama tek yerde
+`models/fm_filter.dart` (saf Dart) + `widgets/fm/fm_filter_sheet.dart`:
+tarih aralığı (bugün / son 7 / son 30 / son 1 yıl / özel), boyut aralığı,
+kaynak (Kamera/WhatsApp…), uzantı çoklu seçimi ve sıralama (ad/tarih/boyut/tür,
+artan-azalan). Fotoğraflar, kategori listeleri, arama ve bellek analizi AYNI
+sayfayı kullanıyor. Tuzaklar testle sabitlendi (`fm_filter_test`):
+- "Son 7 gün" = **bugün dahil** 7 gün → gün başından 6 gün geriye.
+- Özel aralıkta **bitiş günü tamamen** kapsanır (23:59:59.999); yoksa
+  kullanıcı bitiş gününü seçtiği hâlde o günün dosyaları düşerdi.
+- Boyut ölçütü seçiliyse klasörler elenir (klasör boyutu 0'dır → "100 MB
+  üzeri"nde klasör listelenirdi).
+Süzgeç düğmesi **rozetli** (`FmFilterButton`): görünmez süzgeç = "dosyam
+kayboldu" hatası.
+
+### C. Arama her ekranda
+- **Bellek Analizi'nde arama YOKTU** → eklendi ve tüm depolamada
+  (`SearchIndex.query`) arar; ekran yalnız en büyük 200 dosyayı tuttuğu için
+  listeyi süzmek "aradığım dosya yok" demeye yol açardı. "Türlere göre"
+  çubuğuna dokunmak listeyi o türe daraltıyor.
+- **Arama ekranına** sıralama + süzgeç geldi; ham sonuç sınırı 500 → 1000
+  (süzgeçten sonra haksız yere boşalmasın) ve "kaç sonuç · nasıl sıralı ·
+  ilk 1000" özeti yazılıyor (sessiz kırpma "dosyam yok" sanılıyor).
+- **Yinelenen dosyalar** ekranında hiç arama yoktu → eklendi.
+- Fotoğraflar/kategori ekranlarında arama açıkken de süzgeç düğmesi duruyor.
+- Fotoğraflarda ada/boyuta göre sıralama seçilirse zaman ekseni kapanır
+  (ada göre sıralı listeyi güne bölmek başlıkları rastgele tekrar ettirirdi).
+
+### D. Ana sayfada klasör oluşturma + Önemli Dosyalar
+- Panoda FAB: ad + **konum** (ana bellek, standart klasörler, SD, Önemli
+  Dosyalar) → oluşturup klasörü açıyor.
+- `ImportantScreen`: `<ana bellek>/Önemli Dosyalar`. **Gerçek klasör**, gizli
+  veritabanı değil — telefon bilgisayara takılınca da görünür, uygulama
+  silinse de kalır. Ana sayfadaki kutu formatı ortak widget'a alındı
+  (`widgets/fm/fm_category_tile.dart`); kategori kutuları alt klasörlerin
+  içini de sayar, gezgin görünümü yalnız üst düzeyi. Alt klasör açma, arama,
+  yapıştırma ve girdi menüsünde "Önemli dosyalara kopyala" var.
+  **Kopya, taşıma değil:** "önemli" işareti asıl dosyayı DCIM/Belgeler'den
+  koparmamalı.
+
+### E. Performans tuzağı — `exists` süzmesi
+`_dropMissing` her dosya sistemi olayında listedeki HER girdi için
+`statSync` çağırıyordu; 800'lük listede sorun değildi, 20 binlik tam listede
+ana izleği kilitlerdi. `FsScan.pruneMissing` isolate'e taşındı.
+
+### F. Doğrulama
+Flutter 3.29.3 (CI ile aynı) — `flutter analyze` dokunulan dosyalarda 0 sorun
+(kalan uyarılar önceden var olan `withOpacity`/deprecated), `flutter test`
+**627 geçti, 0 kırmızı** (bu turdan önce 1 kırmızı yeni testin kendi kurulum
+hatasıydı, düzeltildi). Yeni testler: `fm_filter_test` (16 durum),
+`fm_scan_test`'e 1000 satırlık dizinden **1000 videonun hepsinin** döndüğünü
+kanıtlayan test (800 sınırı kırmızı→yeşil), `fm_photos_screen_test`'e tam
+liste yer değiştirme + kısa listenin EZMEDİĞİ + süzgeç sayfası testleri.
+Cihazda deneme YAPILMADI; APK CI'da derleniyor.

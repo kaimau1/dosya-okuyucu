@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
+import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/search_index.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_filter_sheet.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 
@@ -34,7 +36,14 @@ class _SearchScreenState extends State<SearchScreen> {
   List<FsEntry> _results = const [];
   bool _searching = false;
   bool _searched = false;
-  FmCategory? _filter;
+  FmCategory? _category;
+
+  /// Tarih/boyut/kaynak/tür süzgeci ve sıralama (kullanıcı isteği 2026-07-29:
+  /// "aramada sıralama seçenekleri lazım · aranan şeyler arama filtresi de
+  /// olmalı").
+  FmFilter _filter = FmFilter.none;
+  FmSort _sort = FmSort.date;
+  bool _desc = true;
 
   /// Kaçıncı arama olduğunu sayar: geç dönen eski sonuç yenisini ezmesin.
   int _queryToken = 0;
@@ -85,7 +94,9 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     final token = ++_queryToken;
     setState(() => _searching = true);
-    final hits = await SearchIndex.query(q, root: widget.root);
+    // Sınır 500 değil 1000: sonuçlar burada ayrıca süzülüyor (tarih/boyut/tür)
+    // — dar bir ham liste, süzgeçten sonra haksız yere boş kalırdı.
+    final hits = await SearchIndex.query(q, root: widget.root, limit: 1000);
     if (!mounted || token != _queryToken) return;
     setState(() {
       _results = hits;
@@ -94,9 +105,32 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  List<FsEntry> get _filtered => _filter == null
-      ? _results
-      : _results.where((e) => e.category == _filter).toList();
+  List<FsEntry> get _filtered {
+    final list = [
+      for (final e in _results)
+        if (_category == null || e.category == _category)
+          if (_filter.matches(e)) e,
+    ];
+    // Klasörler üstte KALMAZ: arama sonucunda kullanıcı ölçüte (tarih/boyut)
+    // göre sıralı tek bir liste bekler.
+    return FsScan.sort(list, _sort, descending: _desc, foldersFirst: false);
+  }
+
+  Future<void> _openFilterSheet() async {
+    final result = await showFmFilterSheet(
+      context,
+      filter: _filter,
+      sort: _sort,
+      descending: _desc,
+      extensions: extensionCounts(_results),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _filter = result.filter;
+      _sort = result.sort;
+      _desc = result.descending;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +159,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 _run('');
               },
             ),
+          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           PopupMenuButton<String>(
             tooltip: 'Arama dizini',
             onSelected: (v) async {
@@ -150,6 +185,7 @@ class _SearchScreenState extends State<SearchScreen> {
           if (_searching || SearchIndex.isBuilding)
             const LinearProgressIndicator(minHeight: 2),
           _indexBanner(),
+          if (_searched && _results.isNotEmpty) _resultSummary(results.length),
           Expanded(child: _body(results)),
         ],
       ),
@@ -173,6 +209,20 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  /// Kaç sonuç gösteriliyor, hangi ölçütle sıralı ve liste sınıra takıldı mı.
+  /// (Sessizce kırpılmış bir liste "dosyam yok" sanılır.)
+  Widget _resultSummary(int shown) {
+    final capped = _results.length >= 1000;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
+      child: Text(
+        '$shown sonuç · ${_sort.label} (${_desc ? "azalan" : "artan"})'
+        '${capped ? " · ilk 1000 sonuç" : ""}',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+
   Widget _filterChips() => SizedBox(
         height: 48,
         child: ListView(
@@ -187,13 +237,15 @@ class _SearchScreenState extends State<SearchScreen> {
               ('Video', FmCategory.video),
               ('Ses', FmCategory.audio),
               ('Arşiv', FmCategory.archive),
+              ('Uygulama', FmCategory.apk),
+              ('Diğer', FmCategory.other),
             ])
               Padding(
                 padding: const EdgeInsets.only(right: Gap.sm),
                 child: ChoiceChip(
                   label: Text(entry.$1),
-                  selected: _filter == entry.$2,
-                  onSelected: (_) => setState(() => _filter = entry.$2),
+                  selected: _category == entry.$2,
+                  onSelected: (_) => setState(() => _category = entry.$2),
                 ),
               ),
           ],

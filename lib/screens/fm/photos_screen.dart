@@ -3,14 +3,17 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
+import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
+import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
@@ -37,11 +40,20 @@ class PhotosScreen extends StatefulWidget {
   /// Kaynak (Kamera / WhatsApp / Ekran görüntüsü …) çipleri gösterilsin mi?
   final bool showSources;
 
+  /// **Eksiksiz** listeyi getiren yükleyici (bkz. `MediaLibrary`).
+  ///
+  /// [files] panonun önbelleğinden gelir ve kategori başına en yeni 800
+  /// dosyayla sınırlıdır — ekran anında açılsın diye önce o gösterilir, tam
+  /// liste arka planda gelince yerine geçer. Kullanıcı hatası 2026-07-29:
+  /// "videolarda tüm videolar görünmüyor".
+  final Future<List<FsEntry>> Function()? loadAll;
+
   const PhotosScreen({
     super.key,
     required this.title,
     required this.files,
     this.showSources = true,
+    this.loadAll,
   });
 
   @override
@@ -64,16 +76,24 @@ class _PhotosScreenState extends State<PhotosScreen> {
   final ScrollController _scroll = ScrollController();
   final _searchController = TextEditingController();
 
-  MediaBucket? _bucket;
+  FmFilter _filter = FmFilter.none;
+  FmSort _sort = FmSort.date;
+  bool _desc = true;
   bool _searching = false;
+  bool _loadingAll = false;
   String _query = '';
 
   bool get _selecting => _selected.isNotEmpty;
+
+  /// Zaman ekseni yalnız TARİHE göre sıralamada anlamlıdır: ada göre sıralı
+  /// bir listeyi güne bölmek başlıkları rastgele tekrar ettirirdi.
+  bool get _timelineMode => _sort == FmSort.date;
 
   @override
   void initState() {
     super.initState();
     FsEvents.version.addListener(_dropMissing);
+    _loadAll();
   }
 
   @override
@@ -84,26 +104,40 @@ class _PhotosScreenState extends State<PhotosScreen> {
     super.dispose();
   }
 
-  void _dropMissing() {
+  /// Tam listeyi arka planda getirir (pano önbelleği kırpılmıştır).
+  Future<void> _loadAll() async {
+    final loader = widget.loadAll;
+    if (loader == null) return;
+    setState(() => _loadingAll = true);
+    try {
+      final all = await loader();
+      if (!mounted) return;
+      // Kısa liste dönerse (dizin bozuk/boş) elimizdekini KORU: kullanıcıya
+      // gösterilen dosya sayısı azalmamalı.
+      setState(() {
+        if (all.length > _files.length) _files = all;
+        _loadingAll = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingAll = false);
+    }
+  }
+
+  Future<void> _dropMissing() async {
+    if (!mounted) return;
+    // 20 bin girdide ana izlekte `statSync` listeyi kilitler → isolate.
+    final alive = await FsScan.pruneMissing(_files);
     if (!mounted) return;
     setState(() {
-      _files = _files.where((e) => e.exists).toList();
+      _files = alive;
       _selected.removeWhere((s) => !_files.any((e) => e.path == s));
     });
   }
 
-  /// Süzülmüş ve yeniden eskiye sıralı dosyalar (düz liste).
+  /// Süzülmüş ve sıralı dosyalar (düz liste).
   List<FsEntry> get _visible {
-    var list = _files;
-    if (_bucket != null) {
-      list = list.where((f) => bucketForPath(f.path) == _bucket).toList();
-    }
-    if (_query.trim().isNotEmpty) {
-      list = list.where((f) => fmMatches(f.name, _query)).toList();
-    }
-    final sorted = [...list]
-      ..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
-    return sorted;
+    final list = _filter.apply(_files, query: _query);
+    return FsScan.sort(list, _sort, descending: _desc, foldersFirst: false);
   }
 
   /// Düz listeyi zaman gruplarına böler (sıra korunur → indeksler düz kalır).
@@ -183,7 +217,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final layout = appState.fmPhotoLayout;
     final group = appState.fmPhotoGroup;
     final visible = _visible;
-    final sections = _sections(visible, group);
+    final sections = _timelineMode
+        ? _sections(visible, group)
+        : [_Section('${visible.length} dosya · ${_sort.label}', visible, 0)];
 
     return Scaffold(
       appBar: _selecting
@@ -191,14 +227,23 @@ class _PhotosScreenState extends State<PhotosScreen> {
           : (_searching ? _searchBar() : _normalBar(appState)),
       body: Column(
         children: [
-          if (!_selecting) _groupChips(appState, group),
+          if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
+          if (!_selecting && _timelineMode) _groupChips(appState, group),
           if (widget.showSources && !_selecting) _sourceChips(),
           Expanded(
             child: visible.isEmpty
                 ? Center(
-                    child: Text(_query.trim().isEmpty
-                        ? 'Burada gösterilecek dosya yok.'
-                        : '“$_query” için sonuç yok.'),
+                    child: Padding(
+                      padding: const EdgeInsets.all(Gap.lg),
+                      child: Text(
+                        _loadingAll
+                            ? 'Dosyalar yükleniyor…'
+                            : (_query.trim().isEmpty && !_filter.isActive
+                                ? 'Burada gösterilecek dosya yok.'
+                                : 'Aramanıza/filtrenize uyan dosya yok.'),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   )
                 : DragSelectArea(
                     scrollController: _scroll,
@@ -217,13 +262,24 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   PreferredSizeWidget _normalBar(AppState appState) => AppBar(
-        title: Text(widget.title),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(widget.title),
+            Text(
+              '${_visible.length} / ${_files.length} dosya',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: '${widget.title} içinde ara',
             icon: const Icon(Icons.search),
             onPressed: () => setState(() => _searching = true),
           ),
+          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           IconButton(
             tooltip: 'Görünüm: ${appState.fmPhotoLayout.label}',
             icon: Icon(fmLayoutIcon(appState.fmPhotoLayout)),
@@ -264,6 +320,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
                 _searchController.clear();
               }),
             ),
+          // Arama açıkken de süzgeç erişilebilir: "adında tatil geçen, geçen
+          // ay çekilmiş videolar" tek adımda daralsın.
+          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
         ],
       );
 
@@ -331,6 +390,27 @@ class _PhotosScreenState extends State<PhotosScreen> {
         ),
       );
 
+  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
+  Future<void> _openFilterSheet() async {
+    final result = await showFmFilterSheet(
+      context,
+      filter: _filter,
+      sort: _sort,
+      descending: _desc,
+      extensions: extensionCounts(_files),
+      buckets: bucketCounts(_files.map((f) => f.path)),
+      // Fotoğraf ızgarasında "türe göre" sıralamanın karşılığı yok (uzantı
+      // süzgeci zaten var); ada/tarihe/boyuta göre yeter.
+      sortOptions: const [FmSort.date, FmSort.name, FmSort.size],
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _filter = result.filter;
+      _sort = result.sort;
+      _desc = result.descending;
+    });
+  }
+
   Widget _sourceChips() {
     final counts = bucketCounts(_files.map((f) => f.path));
     final buckets = MediaBucket.values
@@ -348,8 +428,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
             padding: const EdgeInsets.only(right: Gap.sm),
             child: ChoiceChip(
               label: Text('Tümü (${_files.length})'),
-              selected: _bucket == null,
-              onSelected: (_) => setState(() => _bucket = null),
+              selected: _filter.bucket == null,
+              onSelected: (_) =>
+                  setState(() => _filter = _filter.withBucket(null)),
             ),
           ),
           for (final b in buckets)
@@ -357,8 +438,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
               padding: const EdgeInsets.only(right: Gap.sm),
               child: ChoiceChip(
                 label: Text('${b.label} (${counts[b]})'),
-                selected: _bucket == b,
-                onSelected: (_) => setState(() => _bucket = b),
+                // Çip ve süzgeç sayfası AYNI alanı yazar → ikisi hep tutarlı.
+                selected: _filter.bucket == b,
+                onSelected: (_) =>
+                    setState(() => _filter = _filter.withBucket(b)),
               ),
             ),
         ],

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +18,7 @@ import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'archive_screen.dart';
+import 'important_screen.dart';
 
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
 /// ekranları ve arama sonuçları AYNI davranışı paylaşsın diye tek dosyada.
@@ -31,6 +34,7 @@ enum _EntryAction {
   extract,
   openArchive,
   bookmark,
+  important,
   reveal,
   properties,
 }
@@ -95,6 +99,8 @@ Future<bool> showEntryActions(
                     : 'Favorilere ekle',
                 _EntryAction.bookmark,
               ),
+            _tile(ctx, Icons.star_outline, 'Önemli dosyalara kopyala',
+                _EntryAction.important),
             if (allowReveal)
               _tile(ctx, Icons.my_location, 'Konumunu aç', _EntryAction.reveal),
             _tile(ctx, Icons.info_outline, 'Özellikler',
@@ -159,6 +165,9 @@ Future<bool> showEntryActions(
     case _EntryAction.bookmark:
       await appState.toggleBookmark(entry.path);
       return false;
+
+    case _EntryAction.important:
+      return copyToImportant(context, [entry.path]);
 
     case _EntryAction.reveal:
       onReveal?.call(_parentOf(entry.path));
@@ -329,6 +338,38 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
 Future<void> shareEntries(List<String> paths) async {
   if (paths.isEmpty) return;
   await Share.shareXFiles(paths.map((p) => XFile(p)).toList());
+}
+
+/// Seçilenleri **Önemli Dosyalar** klasörüne kopyalar (klasör yoksa kurulur).
+///
+/// Kopya bilinçli — taşımak dosyayı kullanıcının bildiği yerden (DCIM, Belgeler)
+/// koparırdı; "önemli" işareti asıl dosyanın yerini değiştirmemeli.
+Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
+  if (paths.isEmpty) return false;
+  final dest = ImportantScreen.pathIn(FmEnv.primaryRoot);
+  try {
+    final dir = Directory(dest);
+    if (!dir.existsSync()) await dir.create(recursive: true);
+  } catch (e) {
+    if (context.mounted) _snack(context, 'Klasör oluşturulamadı: $e');
+    return false;
+  }
+  if (!context.mounted) return false;
+  final result = await showFmProgress<FmOpResult>(
+    context,
+    title: 'Önemli dosyalara kopyalanıyor',
+    task: (report, isCancelled) => FileOps.copyAll(paths, dest,
+        onProgress: report, isCancelled: isCancelled),
+  );
+  if (!context.mounted) return true;
+  _snack(
+    context,
+    result.hasError
+        ? 'Kopyalanamadı: ${result.errors.first}'
+        : '${paths.length} öğe “${ImportantScreen.folderName}” klasörüne '
+            'kopyalandı.',
+  );
+  return true;
 }
 
 /// Seçilenleri sıkıştırır: biçim (ZIP/7z) ve isteğe bağlı parola sorulur.

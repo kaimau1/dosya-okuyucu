@@ -129,6 +129,95 @@ void main() {
       final size = await FsScan.folderSize(tmp.path);
       expect(size, 3 + 1 + 3 + 5); // Rapor.pdf + .gizli + txt + mp4
     });
+
+    test('collect: kategori süzgeciyle diskten eksiksiz liste', () async {
+      final videos = await FsScan.collect([tmp.path], category: FmCategory.video);
+      expect(videos.map((e) => e.name), ['video.mp4']);
+
+      final all = await FsScan.collect([tmp.path]);
+      expect(all.length, 4); // gizli dosya da dosyadır, klasör sayılmaz
+      expect(all.any((e) => e.isDir), isFalse);
+    });
+
+    test('pruneMissing: silinen girdiler listeden düşer', () async {
+      final all = await FsScan.collect([tmp.path]);
+      File(p.join(tmp.path, 'Rapor.pdf')).deleteSync();
+      final alive = await FsScan.pruneMissing(all);
+      expect(alive.length, all.length - 1);
+      expect(alive.map((e) => e.name), isNot(contains('Rapor.pdf')));
+    });
+  });
+
+  group('dizinden eksiksiz kategori listesi', () {
+    late Directory tmp;
+    late String indexPath;
+
+    /// 1000 video + 50 görsel satırlık dizin: pano indeksinin kategori başına
+    /// 800'lük sınırının ötesine geçildiğini kanıtlar (hata 2026-07-29:
+    /// "videolarda tüm videolar görünmüyor").
+    setUp(() {
+      tmp = Directory.systemTemp.createTempSync('fm_collect_test');
+      indexPath = p.join(tmp.path, 'search_index.tsv');
+      final rows = StringBuffer();
+      for (var i = 0; i < 1000; i++) {
+        rows.writeln(encodeIndexRow(FsEntry(
+          path: '/depo/DCIM/klip_$i.mp4',
+          name: 'klip_$i.mp4',
+          isDir: false,
+          sizeBytes: 1000 + i,
+          modifiedMs: 1000 + i,
+        )));
+      }
+      for (var i = 0; i < 50; i++) {
+        rows.writeln(encodeIndexRow(FsEntry(
+          path: '/depo/Pictures/foto_$i.jpg',
+          name: 'foto_$i.jpg',
+          isDir: false,
+          sizeBytes: 10,
+          modifiedMs: 5000 + i,
+        )));
+      }
+      rows.writeln(encodeIndexRow(const FsEntry(
+        path: '/depo/DCIM',
+        name: 'DCIM',
+        isDir: true,
+        sizeBytes: 0,
+        modifiedMs: 1,
+      )));
+      File(indexPath).writeAsStringSync(rows.toString());
+    });
+
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    test('800 sınırı yok: 1000 videonun hepsi döner, yeniden eskiye sıralı',
+        () async {
+      final videos = await FsScan.collectFromIndex(indexPath,
+          category: FmCategory.video);
+      expect(videos.length, 1000);
+      expect(videos.first.name, 'klip_999.mp4'); // en yeni başta
+      expect(videos.last.name, 'klip_0.mp4');
+      expect(videos.any((e) => e.isDir), isFalse);
+    });
+
+    test('kategori ve kök süzgeci', () async {
+      final images = await FsScan.collectFromIndex(indexPath,
+          category: FmCategory.image);
+      expect(images.length, 50);
+
+      final inDcim = await FsScan.collectFromIndex(indexPath,
+          root: '/depo/DCIM');
+      expect(inDcim.length, 1000);
+
+      final limited = await FsScan.collectFromIndex(indexPath,
+          category: FmCategory.video, limit: 10);
+      expect(limited.length, 10);
+    });
+
+    test('dizin yoksa boş liste döner (çağıran diske düşer)', () async {
+      final out =
+          await FsScan.collectFromIndex(p.join(tmp.path, 'yok.tsv'));
+      expect(out, isEmpty);
+    });
   });
 
   group('açma yönlendirmesi', () {

@@ -18,10 +18,15 @@ void main() {
         modifiedMs: when.millisecondsSinceEpoch,
       );
 
-  Widget harness(List<FsEntry> files) => ChangeNotifierProvider<AppState>.value(
+  Widget harness(
+    List<FsEntry> files, {
+    Future<List<FsEntry>> Function()? loadAll,
+  }) =>
+      ChangeNotifierProvider<AppState>.value(
         value: AppState(),
         child: MaterialApp(
-          home: PhotosScreen(title: 'Görüntüler', files: files),
+          home: PhotosScreen(
+              title: 'Görüntüler', files: files, loadAll: loadAll),
         ),
       );
 
@@ -58,5 +63,44 @@ void main() {
     await tester.pumpWidget(harness(const []));
     await tester.pump();
     expect(find.text('Burada gösterilecek dosya yok.'), findsOneWidget);
+  });
+
+  /// Kök neden testi (2026-07-29): pano önbelleği kategori başına 800 dosyayla
+  /// sınırlı; ekran açıldıktan sonra EKSİKSİZ liste gelip yerine geçmeli.
+  testWidgets('tam liste gelince kırpılmış liste değişir', (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    final short = [photo('a.jpg', day)];
+    final full = [
+      for (var i = 0; i < 5; i++) photo('foto_$i.jpg', day),
+    ];
+    await tester.pumpWidget(harness(short, loadAll: () async => full));
+    // Yükleyici tamamlanınca kırpılmış liste yerini tam listeye bırakır.
+    await tester.pump();
+    expect(find.text('5 / 5 dosya'), findsOneWidget);
+    expect(find.text('1 / 1 dosya'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('kısa dönen liste elimizdekini EZMEZ', (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    final short = [photo('a.jpg', day), photo('b.jpg', day)];
+    await tester.pumpWidget(harness(short, loadAll: () async => const []));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('2 / 2 dosya'), findsOneWidget);
+  });
+
+  testWidgets('süzgeç düğmesi var ve tarih/boyut seçenekleri açılır',
+      (tester) async {
+    await tester.pumpWidget(harness([photo('a.jpg', DateTime(2026, 3, 4))]));
+    await tester.pump();
+    expect(find.byIcon(Icons.tune), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pumpAndSettle();
+    expect(find.text('Filtrele ve sırala'), findsOneWidget);
+    expect(find.text('Son 7 gün'), findsOneWidget);
+    expect(find.text('100 MB üzeri'), findsOneWidget);
+    expect(find.text('Ada göre'), findsOneWidget);
   });
 }

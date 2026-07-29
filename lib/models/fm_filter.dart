@@ -1,0 +1,234 @@
+/// Dosya listelerinin **süzgeci**: tarih aralığı, boyut aralığı, kaynak
+/// (kamera/WhatsApp…) ve dosya türü.
+///
+/// Bilinçli olarak **saf Dart** (Flutter importu yok): "son 7 gün" penceresinin
+/// gün sınırına doğru oturması, özel aralığın son gününün de kapsanması gibi
+/// kolay kaçan kurallar birim testiyle sabitlensin diye.
+///
+/// Kullanıcı isteği (2026-07-29): "videolarda arama lazım isimlerine göre
+/// zamana göre aynı şekilde fotolar içinde · daha çok filtreleme seçeneği
+/// lazım video foto için".
+library;
+
+import '../core/text_search.dart';
+import 'fs_entry.dart';
+import 'media_bucket.dart';
+
+/// Hazır tarih aralıkları. [custom] kullanıcıdan gün seçtirir.
+enum FmDateRange { any, today, week, month, year, custom }
+
+extension FmDateRangeLabel on FmDateRange {
+  String get label => switch (this) {
+        FmDateRange.any => 'Her zaman',
+        FmDateRange.today => 'Bugün',
+        FmDateRange.week => 'Son 7 gün',
+        FmDateRange.month => 'Son 30 gün',
+        FmDateRange.year => 'Son 1 yıl',
+        FmDateRange.custom => 'Özel aralık',
+      };
+}
+
+/// Hazır boyut aralıkları (video/görsel ayıklamada en çok işe yarayanlar).
+enum FmSizeRange { any, tiny, small, medium, large }
+
+extension FmSizeRangeLabel on FmSizeRange {
+  String get label => switch (this) {
+        FmSizeRange.any => 'Tümü',
+        FmSizeRange.tiny => '1 MB altı',
+        FmSizeRange.small => '1 – 10 MB',
+        FmSizeRange.medium => '10 – 100 MB',
+        FmSizeRange.large => '100 MB üzeri',
+      };
+
+  /// Alt sınır (dahil).
+  int get minBytes => switch (this) {
+        FmSizeRange.any || FmSizeRange.tiny => 0,
+        FmSizeRange.small => 1024 * 1024,
+        FmSizeRange.medium => 10 * 1024 * 1024,
+        FmSizeRange.large => 100 * 1024 * 1024,
+      };
+
+  /// Üst sınır (hariç); sınırsızsa null.
+  int? get maxBytes => switch (this) {
+        FmSizeRange.any || FmSizeRange.large => null,
+        FmSizeRange.tiny => 1024 * 1024,
+        FmSizeRange.small => 10 * 1024 * 1024,
+        FmSizeRange.medium => 100 * 1024 * 1024,
+      };
+}
+
+/// Çözülmüş zaman penceresi (ms). Sınırlar dahildir; null = sınırsız.
+class FmTimeWindow {
+  final int? fromMs;
+  final int? toMs;
+  const FmTimeWindow(this.fromMs, this.toMs);
+
+  static const unbounded = FmTimeWindow(null, null);
+
+  bool contains(int ms) {
+    if (fromMs != null && ms < fromMs!) return false;
+    if (toMs != null && ms > toMs!) return false;
+    return true;
+  }
+}
+
+/// Bir listeye uygulanan süzgeç. Değişmez (immutable); değiştirmek için
+/// `with*` üreteçleri kullanılır — nullable alanlarda `copyWith` "değeri
+/// null'a çek" ile "dokunma"yı ayırt edemediği için bilinçli tercih.
+class FmFilter {
+  /// Kaynak (Kamera / WhatsApp / Ekran görüntüsü …); null = tümü.
+  final MediaBucket? bucket;
+
+  /// Seçili uzantılar (küçük harf, noktasız). Boş = tümü.
+  final Set<String> extensions;
+
+  final FmDateRange dateRange;
+
+  /// [FmDateRange.custom] için gün seçimleri (günün herhangi bir anı yeter;
+  /// pencere gün sınırlarına yuvarlanır).
+  final int? customFromMs;
+  final int? customToMs;
+
+  final FmSizeRange sizeRange;
+
+  const FmFilter({
+    this.bucket,
+    this.extensions = const {},
+    this.dateRange = FmDateRange.any,
+    this.customFromMs,
+    this.customToMs,
+    this.sizeRange = FmSizeRange.any,
+  });
+
+  static const none = FmFilter();
+
+  FmFilter withBucket(MediaBucket? value) => FmFilter(
+        bucket: value,
+        extensions: extensions,
+        dateRange: dateRange,
+        customFromMs: customFromMs,
+        customToMs: customToMs,
+        sizeRange: sizeRange,
+      );
+
+  FmFilter withExtensions(Set<String> value) => FmFilter(
+        bucket: bucket,
+        extensions: {for (final e in value) e.toLowerCase()},
+        dateRange: dateRange,
+        customFromMs: customFromMs,
+        customToMs: customToMs,
+        sizeRange: sizeRange,
+      );
+
+  /// Uzantıyı ekler/çıkarır (çip dokunuşu).
+  FmFilter toggleExtension(String ext) {
+    final next = {...extensions};
+    final key = ext.toLowerCase();
+    if (!next.remove(key)) next.add(key);
+    return withExtensions(next);
+  }
+
+  FmFilter withDateRange(FmDateRange value, {int? fromMs, int? toMs}) =>
+      FmFilter(
+        bucket: bucket,
+        extensions: extensions,
+        dateRange: value,
+        customFromMs: value == FmDateRange.custom ? fromMs : null,
+        customToMs: value == FmDateRange.custom ? toMs : null,
+        sizeRange: sizeRange,
+      );
+
+  FmFilter withSizeRange(FmSizeRange value) => FmFilter(
+        bucket: bucket,
+        extensions: extensions,
+        dateRange: dateRange,
+        customFromMs: customFromMs,
+        customToMs: customToMs,
+        sizeRange: value,
+      );
+
+  /// Kaç ölçüt etkin? (Arayüzde süzgeç düğmesinin rozeti.)
+  int get activeCount =>
+      (bucket != null ? 1 : 0) +
+      (extensions.isEmpty ? 0 : 1) +
+      (dateRange == FmDateRange.any ? 0 : 1) +
+      (sizeRange == FmSizeRange.any ? 0 : 1);
+
+  bool get isActive => activeCount > 0;
+
+  /// Tarih ölçütünün gerçek zaman penceresi.
+  ///
+  /// "Son 7 gün" = bugün dahil 7 gün → bugünün 00:00'ından 6 gün geriye.
+  /// Özel aralıkta bitiş günü **tamamen** kapsanır (23:59:59.999) — yoksa
+  /// kullanıcı bitiş gününü seçtiği hâlde o günün dosyaları düşerdi.
+  FmTimeWindow window({DateTime? now}) {
+    final today = now ?? DateTime.now();
+    DateTime startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+    int backDays(int days) =>
+        startOfDay(today).subtract(Duration(days: days)).millisecondsSinceEpoch;
+
+    return switch (dateRange) {
+      FmDateRange.any => FmTimeWindow.unbounded,
+      FmDateRange.today => FmTimeWindow(backDays(0), null),
+      FmDateRange.week => FmTimeWindow(backDays(6), null),
+      FmDateRange.month => FmTimeWindow(backDays(29), null),
+      FmDateRange.year => FmTimeWindow(backDays(364), null),
+      FmDateRange.custom => FmTimeWindow(
+          customFromMs == null
+              ? null
+              : startOfDay(DateTime.fromMillisecondsSinceEpoch(customFromMs!))
+                  .millisecondsSinceEpoch,
+          customToMs == null
+              ? null
+              : startOfDay(DateTime.fromMillisecondsSinceEpoch(customToMs!))
+                      .add(const Duration(days: 1))
+                      .millisecondsSinceEpoch -
+                  1,
+        ),
+    };
+  }
+
+  /// Girdi süzgeçten geçiyor mu? [query] verilirse ada göre de bakılır
+  /// (Türkçe-duyarlı, büyük/küçük harf duyarsız).
+  bool matches(FsEntry entry, {String query = '', DateTime? now}) {
+    final q = turkishFold(query.trim());
+    if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
+    if (bucket != null && bucketForPath(entry.path) != bucket) return false;
+    if (extensions.isNotEmpty && !extensions.contains(entry.extension)) {
+      return false;
+    }
+    if (!window(now: now).contains(entry.modifiedMs)) return false;
+    if (sizeRange != FmSizeRange.any) {
+      // Klasörün boyutu 0'dır (özyinelemeli toplam tutulmaz) — boyut ölçütü
+      // seçiliyse klasörler elenir, yoksa "100 MB üzeri"nde klasör listelenirdi.
+      if (entry.isDir) return false;
+      if (entry.sizeBytes < sizeRange.minBytes) return false;
+      final max = sizeRange.maxBytes;
+      if (max != null && entry.sizeBytes >= max) return false;
+    }
+    return true;
+  }
+
+  /// Listeyi süzer (sıra korunur).
+  List<FsEntry> apply(
+    Iterable<FsEntry> entries, {
+    String query = '',
+    DateTime? now,
+  }) =>
+      [
+        for (final e in entries)
+          if (matches(e, query: query, now: now)) e,
+      ];
+}
+
+/// Bir listedeki uzantı sayıları (süzgeç sayfasındaki çipler için).
+/// Uzantısız dosyalar sayılmaz — süzülecek bir anahtarları yok.
+Map<String, int> extensionCounts(Iterable<FsEntry> entries) {
+  final counts = <String, int>{};
+  for (final e in entries) {
+    final ext = e.extension;
+    if (ext.isEmpty) continue;
+    counts[ext] = (counts[ext] ?? 0) + 1;
+  }
+  return counts;
+}

@@ -30,30 +30,46 @@ extension FmCategoryLabel on FmCategory {
 /// Uzantı → kategori tabloları. Tek kaynak: hem kategori ekranları hem de
 /// ızgara ikonları buradan beslenir.
 abstract final class FmExtensions {
+  /// **Eksik uzantı = görünmeyen dosya** (hata 2026-07-29: "videolarda tüm
+  /// videolar görünmüyor · görüntülerde de çok fazla eksik var"). Kategori
+  /// dışı kalan dosya "Diğer"e düşüp galeriye hiç girmediği için listeler
+  /// cömert tutulur: yanlış kategoriye düşen nadir bir dosya, hiç görünmeyen
+  /// dosyadan iyidir.
   static const image = {
-    'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'heic', 'heif', 'svg', 'ico',
-    'tif', 'tiff', 'avif', 'jfif', 'dng', 'raw',
+    'png', 'jpg', 'jpeg', 'jpe', 'gif', 'bmp', 'webp', 'heic', 'heif', 'hif',
+    'svg', 'svgz', 'ico', 'tif', 'tiff', 'avif', 'jfif', 'jpf', 'jp2', 'j2k',
+    'jxl', 'apng', 'pjpeg', 'dib', 'psd', 'xcf', 'pcx', 'tga', 'exr', 'hdr',
+    // Ham (RAW) fotoğraf makinesi biçimleri — telefonların "pro" kipi de üretir.
+    'dng', 'raw', 'cr2', 'cr3', 'nef', 'nrw', 'arw', 'srw', 'orf', 'rw2',
+    'raf', 'pef', 'sr2', '3fr',
   };
   static const video = {
-    'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', '3gp', 'm4v', 'mpg',
-    'mpeg', 'ts', 'mts', 'ogv',
+    'mp4', 'm4v', 'mkv', 'avi', 'mov', 'qt', 'wmv', 'flv', 'f4v', 'webm',
+    '3gp', '3gpp', '3g2', 'mpg', 'mpeg', 'mpe', 'm1v', 'm2v', 'm2t', 'm2ts',
+    'mts', 'ts', 'tp', 'vob', 'ogv', 'ogm', 'asf', 'rm', 'rmvb', 'divx',
+    'mxf', 'dv', 'mjpeg', 'mjpg', 'insv', 'lrv',
   };
   static const audio = {
-    'mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'wma', 'opus', 'amr',
-    'mid', 'midi', 'aiff', '3ga',
+    'mp3', 'wav', 'wave', 'ogg', 'oga', 'm4a', 'm4b', 'm4r', 'aac', 'flac',
+    'wma', 'opus', 'amr', 'awb', 'mid', 'midi', 'xmf', 'mka', 'aiff', 'aif',
+    'aifc', 'ape', 'ac3', 'eac3', 'dts', 'dsf', 'dff', 'wv', 'caf', 'au',
+    'ra', '3ga', 'mp2', 'mpga',
   };
   static const archive = {
-    'zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'iso', 'jar', 'cab',
+    'zip', 'zipx', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tbz', 'tbz2',
+    'xz', 'txz', 'lz', 'lzma', 'lz4', 'zst', 'zstd', 'arj', 'ace', 'iso',
+    'jar', 'cab', 'dmg', 'z',
   };
   static const apk = {'apk', 'apks', 'xapk', 'aab'};
 
   /// Belge sayılan uzantılar (ofis + PDF + metin/kod/veri).
   static const document = {
-    'pdf', 'doc', 'docx', 'dot', 'dotx', 'odt', 'rtf',
-    'xls', 'xlsx', 'xlsm', 'xlt', 'ods', 'csv', 'tsv',
-    'ppt', 'pptx', 'pot', 'pps', 'odp',
+    'pdf', 'xps', 'djvu', 'doc', 'docx', 'docm', 'dot', 'dotx', 'odt', 'rtf',
+    'xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'ods', 'csv', 'tsv',
+    'ppt', 'pptx', 'pptm', 'pot', 'potx', 'pps', 'ppsx', 'odp', 'odg',
     'txt', 'md', 'markdown', 'log', 'json', 'xml', 'yaml', 'yml', 'html',
-    'htm', 'epub', 'srt', 'ini', 'conf',
+    'htm', 'epub', 'mobi', 'azw', 'azw3', 'fb2', 'srt', 'vtt', 'sub', 'ass',
+    'ini', 'conf', 'cfg',
   };
 }
 

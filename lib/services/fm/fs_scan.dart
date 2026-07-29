@@ -126,6 +126,49 @@ abstract final class FsScan {
   }) =>
       _run(_indexSync, _IndexArgs(roots, perCategory, searchIndexPath));
 
+  /// Bir kategorinin (ya da tüm dosyaların) **eksiksiz** listesi — arama
+  /// dizininden, diske girilmeden.
+  ///
+  /// *Niye ayrı bir yol:* [index] kategori başına yalnız en yeni
+  /// [_IndexArgs.perCategory] (800) dosyayı tutar; pano kutuları için yeterli
+  /// ama kullanıcı "Videolar"a girince **hepsini** görmek ister (hata
+  /// 2026-07-29: "videolarda tüm videolar görünmüyor ama dosyaların içinde
+  /// bulabiliyorum"). Tam liste ancak istendiğinde kurulur — 100 bin dosyalık
+  /// bir telefonda hepsini sürekli bellekte tutmak pahalı olurdu.
+  ///
+  /// [root] verilirse yalnız o klasörün altı döner.
+  static Future<List<FsEntry>> collectFromIndex(
+    String searchIndexPath, {
+    FmCategory? category,
+    String? root,
+    int limit = 100000,
+  }) =>
+      _run(
+        _collectFromIndexSync,
+        _CollectArgs(
+          const [],
+          category?.name,
+          limit,
+          indexPath: searchIndexPath,
+          root: root,
+        ),
+      );
+
+  /// Aynı listeyi **diski gezerek** kurar (dizin yoksa / bozuksa).
+  static Future<List<FsEntry>> collect(
+    List<String> roots, {
+    FmCategory? category,
+    int limit = 100000,
+  }) =>
+      _run(_collectSync, _CollectArgs(roots, category?.name, limit));
+
+  /// Listedeki artık diskte olmayan girdileri ayıklar (arka planda).
+  ///
+  /// *Niye isolate:* silme/taşıma sonrası tazelemede 20 bin girdi için ana
+  /// izlekte `statSync` çağırmak listeyi saniyelerce kilitlerdi.
+  static Future<List<FsEntry>> pruneMissing(List<FsEntry> entries) =>
+      _run(_pruneMissingSync, entries);
+
   /// Aynı indeksi **diski hiç gezmeden**, daha önce yazılmış arama dizini
   /// dosyasından kurar (kullanıcı isteği 2026-07-25: "her açılışta baştan
   /// tarıyor").
@@ -226,6 +269,112 @@ class _IndexArgs {
   const _IndexArgs(this.roots, this.perCategory, [this.searchIndexPath]);
 }
 
+class _CollectArgs {
+  final List<String> roots;
+  final String? categoryName;
+  final int limit;
+  final String? indexPath;
+  final String? root;
+  const _CollectArgs(
+    this.roots,
+    this.categoryName,
+    this.limit, {
+    this.indexPath,
+    this.root,
+  });
+
+  FmCategory? get category {
+    for (final c in FmCategory.values) {
+      if (c.name == categoryName) return c;
+    }
+    return null;
+  }
+}
+
+/// Kategori süzgeci + yeniden eskiye sıralama (iki toplayıcıda ortak).
+List<FsEntry> _finishCollect(List<FsEntry> hits) {
+  hits.sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+  return hits;
+}
+
+List<FsEntry> _collectFromIndexSync(_CollectArgs args) {
+  final path = args.indexPath;
+  if (path == null) return const [];
+  final category = args.category;
+  final rootPrefix = args.root == null ? null : p.normalize(args.root!);
+  final hits = <FsEntry>[];
+  _forEachIndexRow(path, (entry) {
+    if (entry.isDir) return true;
+    if (category != null && entry.category != category) return true;
+    if (rootPrefix != null && !FsPaths.isInside(rootPrefix, entry.path)) {
+      return true;
+    }
+    hits.add(entry);
+    return hits.length < args.limit;
+  });
+  return _finishCollect(hits);
+}
+
+List<FsEntry> _collectSync(_CollectArgs args) {
+  final category = args.category;
+  final hits = <FsEntry>[];
+  for (final root in args.roots) {
+    walkFiles(
+      Directory(root),
+      (entry) {
+        if (hits.length >= args.limit) return;
+        if (category != null && entry.category != category) return;
+        hits.add(entry);
+      },
+      () {},
+      stop: () => hits.length >= args.limit,
+    );
+  }
+  return _finishCollect(hits);
+}
+
+List<FsEntry> _pruneMissingSync(List<FsEntry> entries) =>
+    [for (final e in entries) if (e.exists) e];
+
+/// Dizin dosyasını satır satır gezer. [onRow] `false` döndürünce durur.
+///
+/// Parça parça okunur (64 KB): 100 bin satırlık dizini tek String'e almak
+/// isolate'i onlarca MB şişirirdi. UTF-8'de satırsonu baytı (0x0A) çok baytlı
+/// bir dizinin içinde ASLA geçmez → baytları satırsonundan bölmek güvenlidir.
+void _forEachIndexRow(String path, bool Function(FsEntry) onRow) {
+  final file = File(path);
+  if (!file.existsSync()) return;
+  final raf = file.openSync();
+  try {
+    final pending = <int>[];
+    while (true) {
+      final chunk = raf.readSync(64 * 1024);
+      if (chunk.isEmpty) break;
+      pending.addAll(chunk);
+      var start = 0;
+      for (var i = 0; i < pending.length; i++) {
+        if (pending[i] != 0x0A) continue;
+        final line =
+            utf8.decode(pending.sublist(start, i), allowMalformed: true);
+        start = i + 1;
+        final entry = decodeIndexRow(line);
+        if (entry == null) continue;
+        if (!onRow(entry)) return;
+      }
+      pending.removeRange(0, start);
+    }
+    // Son satır `\n` ile bitmemiş olabilir.
+    final tail = decodeIndexRow(utf8.decode(pending, allowMalformed: true));
+    if (tail != null) onRow(tail);
+  } catch (_) {
+    // bozuk/okunamayan dizin: o ana kadar toplananlarla devam edilir
+  } finally {
+    try {
+      raf.closeSync();
+    } catch (_) {}
+  }
+}
+
 int _folderSizeSync(String path) {
   var total = 0;
   walkFiles(Directory(path), (entry) => total += entry.sizeBytes, () {});
@@ -287,43 +436,11 @@ StorageIndex? _indexFromRowsSync(_IndexArgs args) {
   if (!file.existsSync()) return null;
   final acc = _IndexAccumulator(args.perCategory);
   var rows = 0;
-  try {
-    // Parça parça okunur (64 KB): 100 bin satırlık dizini tek String'e almak
-    // isolate'i onlarca MB şişirir. UTF-8'de satırsonu baytı (0x0A) çok
-    // baytlı bir dizinin içinde ASLA geçmez → baytları satırsonundan bölmek
-    // güvenlidir (arama sorgusuyla aynı yöntem).
-    final raf = file.openSync();
-    try {
-      final pending = <int>[];
-      while (true) {
-        final chunk = raf.readSync(64 * 1024);
-        if (chunk.isEmpty) break;
-        pending.addAll(chunk);
-        var start = 0;
-        for (var i = 0; i < pending.length; i++) {
-          if (pending[i] != 0x0A) continue;
-          final line =
-              utf8.decode(pending.sublist(start, i), allowMalformed: true);
-          start = i + 1;
-          final entry = decodeIndexRow(line);
-          if (entry == null) continue;
-          acc.add(entry);
-          rows++;
-        }
-        pending.removeRange(0, start);
-      }
-      // Son satır `\n` ile bitmemiş olabilir.
-      final tail = decodeIndexRow(utf8.decode(pending, allowMalformed: true));
-      if (tail != null) {
-        acc.add(tail);
-        rows++;
-      }
-    } finally {
-      raf.closeSync();
-    }
-  } catch (_) {
-    return null;
-  }
+  _forEachIndexRow(path, (entry) {
+    acc.add(entry);
+    rows++;
+    return true;
+  });
   if (rows == 0) return null;
   return acc.build(searchIndexRows: rows);
 }
