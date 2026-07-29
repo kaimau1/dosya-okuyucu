@@ -3499,3 +3499,23 @@ ilerleme görünüyor, duraklat/sürdür bildirimden de yapılabiliyor.
   indirme yine çalışır, yalnız bildirim görünmez.
 - `serverHonorsRange` silindi (aralık yönetimi artık pakette) — ölü kod
   bırakmak "burada bir şey yapılıyor" yanılsaması üretir.
+
+### G. CI TUZAĞI — build 156 kırmızı: paket sürümü AGP'yi aştı
+`background_downloader 9.5.7` Android tarafında `androidx.core:core-ktx 1.17`
+ve `compileSdk 36` istiyor; ikisi de **AGP 8.9.1+** demek. Flutter 3.29.3'ün
+ürettiği şablon AGP 8.7 kullanıyor →
+"Dependency 'androidx.core:core-ktx:1.17.0' requires Android Gradle plugin
+8.9.1 or higher" ile derleme çöktü.
+**Çözüm:** paket `^8.9.0`a (8.9.5) sabitlendi — compileSdk 34, core-ktx 1.12,
+work-runtime 2.9; kullandığımız API (configureNotification, holdingQueue,
+start, resumeFromBackground, allTasks, Task.split, pause/resume) 8.9.5'te
+birebir var, kodda tek satır değişmedi.
+**Reddedilen yol:** AGP + Gradle wrapper'ı CI'da yükseltmek. Tek bir paket
+için tüm derleme zincirini (Flutter 3.29.3'ün doğruladığı sürümler) oynatmak,
+HAFIZA'daki sürüm cehennemi derslerinden sonra kabul edilebilir bir risk
+değil. Flutter yükseltildiği turda 9.x'e geçilebilir.
+
+**Ayrıca:** Android'de WorkManager işleri 9 dakikada kesiliyor. 10 MB'tan
+büyük dosyalar ön plan servisinde koşacak şekilde ayarlandı
+(`Config.runInForegroundIfFileLargerThan`), görevlerde `allowPause: true`
+olduğu için kesilse bile kendiliğinden duraklayıp sürüyor.

@@ -25,6 +25,12 @@ import 'fs_events.dart';
 /// tarafta (Android'de WorkManager + ön plan servisi) koşar, uygulama
 /// öldürülse bile sürer, sistem bildiriminde ilerleme görünür.
 ///
+/// **Sürüm notu (build 156 kırmızı):** paketin 9.x dalı `androidx.core:core-ktx
+/// 1.17` ve `compileSdk 36` istiyor; bunlar AGP 8.9.1+ demek, bizim Flutter
+/// 3.29.3 şablonumuz ise AGP 8.7 kullanıyor → derleme çöküyordu. 8.9.5
+/// (compileSdk 34, core-ktx 1.12) aynı API'yi sunuyor ve mevcut zincirle
+/// derleniyor. Flutter sürümü yükseltilirse 9.x'e geçilebilir.
+///
 /// ## Bu sınıfın rolü
 /// Paket kendi görev modelini kullanır; bizim arayüzümüz [DownloadTask]
 /// üzerine kurulu. Burası **iki modeli birbirine bağlayan ince katman**:
@@ -131,6 +137,13 @@ class DownloadService extends ChangeNotifier {
         (bg.Config.holdingQueue, (maxConcurrent, null, null)),
         // Yeniden deneme: kopan mobil bağlantıda indirme çöpe gitmesin.
         (bg.Config.requestTimeout, const Duration(seconds: 60)),
+        // **9 dakika kuralı:** Android'de WorkManager işleri varsayılan olarak
+        // 9 dakikada kesilir. 10 MB'tan büyük dosyalar ön plan servisinde
+        // koşsun ki büyük bir APK/video yarıda kalmasın. (Küçük dosyalar için
+        // gereksiz bildirim çıkmasın diye eşik var; ayrıca görevlerde
+        // `allowPause: true` olduğu için kesilen indirme kendiliğinden
+        // duraklayıp sürüyor.)
+        (bg.Config.runInForegroundIfFileLargerThan, 10),
       ]);
       _sub = downloader.updates.listen(_onUpdate, onError: (_) {});
       // Uygulama kapalıyken biten/ilerleyen görevlerin sonucu buradan gelir.

@@ -144,7 +144,7 @@ dependencies:
   # PDF içindeki dış bağlantıları tarayıcıda açmak için. Zaten printing üzerinden
   # dolaylı geliyordu; doğrudan bağımlılık yapıldı (dolaylıya güvenmek kırılgan).
   url_launcher: ^6.3.2
-  background_downloader: ^9.5.7
+  background_downloader: ^8.9.0
 
 dev_dependencies:
   flutter_test:
