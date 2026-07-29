@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -71,18 +72,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final path = first.path;
     if (path.isEmpty) return;
 
-    // Tarayıcıdan paylaşılan bir BAĞLANTI ise dosya değil, indirme isteğidir
+    // Tarayıcıdan gelen bir BAĞLANTI ise dosya değil, indirme isteğidir
     // (kullanıcı isteği 2026-07-29: "Chrome/DuckDuckGo'dan bizim programımızla
-    // indirmek istiyorum"). Metin paylaşımında yol alanında metnin kendisi
-    // gelir; içinde http(s) adresi varsa indirme akışına gideriz.
-    if (first.type == SharedMediaType.text || first.type == SharedMediaType.url) {
-      final url = extractUrl(path);
-      if (url != null) {
-        await Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => DownloadManagerScreen(initialUrl: url),
-        ));
-        return;
-      }
+    // indirmek istiyorum · indirme kısmında seçenek olarak çıkmalıyız").
+    //
+    // Tür alanına GÜVENMİYORUZ: paylaşım eklentisi kaynağa göre bu içeriği
+    // `text`, `url` ya da `file` diye etiketleyebiliyor ve Android sürümüne
+    // göre değişiyor. Karar tek ölçüte bağlı: içerik http(s) adresi mi ve
+    // diskte böyle bir dosya YOK mu? Öyleyse indirilecek bir bağlantıdır.
+    final url = extractUrl(path);
+    if (url != null && !File(path).existsSync()) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => DownloadManagerScreen(initialUrl: url),
+      ));
+      return;
     }
     await EntryOpener.open(context, path);
   }

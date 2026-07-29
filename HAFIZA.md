@@ -3449,3 +3449,25 @@ kalırsa sürdürülüyor ve biter bitmez açılabiliyor.
 `analyze` temiz, `flutter test` **689 geçti, 0 kırmızı** (19 yeni durum: ad
 çözümleme, sürdürme koşulu, kuyruk turu, GitHub adres kalıpları ve bozuk
 yanıtlar). Gerçek indirme cihazda denenMEDİ; ağ yolları CI'da koşturulamıyor.
+
+### E. "İndirme kısmında seçenek olarak çıkmalıyız" (aynı gün, ek istek)
+Paylaş menüsü yetmiyor: kullanıcı tarayıcıda **doğrudan bir dosya
+bağlantısına dokununca** Android'in "hangi uygulamayla?" listesinde de
+görünmeliyiz. Eklenen manifest filtreleri:
+- `VIEW` + `http`/`https` + **pathPattern** (`.*\.apk`, `.*\.zip`, `.*\.pdf`,
+  `.*\.mp4` …). **Desen ŞART:** yalnız şema yazılsaydı HER bağlantıda (haber
+  sitesi, arama sonucu) tarayıcı yerine biz önerilirdik. Sorgu dizeli
+  adresler için ayrıca `.*\.apk.*` deseni var.
+- `VIEW` + http(s) + MIME (`application/vnd.android.package-archive`, `zip`,
+  `octet-stream`): uzantı yerine tür bildiren sunucular için.
+
+**TUZAK — paylaşım türüne güvenmemek:** gelen içerik eklentiye/Android
+sürümüne göre `text`, `url` ya da `file` etiketlenebiliyor. Karar artık tek
+ölçüte bağlı: içerik http(s) adresi mi ve diskte o adla dosya YOK mu →
+indirme akışı. Ayrıca indirme ekranı açılışında **panodaki bağlantı** şerit
+olarak öneriliyor: paylaşım yolu bir cihazda çalışmasa bile her zaman işleyen
+bir yol kalsın.
+
+**Cihazda doğrulanmadı:** intent filtrelerinin gerçekten listede çıkardığı ve
+`receive_sharing_intent`in ACTION_VIEW http adreslerini ilettiği bu ortamda
+test edilemez; ilk kurulumda denenmeli.

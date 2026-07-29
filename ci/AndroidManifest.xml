@@ -99,6 +99,62 @@
                 <data android:mimeType="audio/*" />
             </intent-filter>
 
+            <!-- **İNDİRME BAĞLANTISINA DOKUNULUNCA SEÇENEK OLARAK ÇIKMAK.**
+                 Chrome/DuckDuckGo'da doğrudan bir dosya bağlantısına
+                 dokunulduğunda Android "hangi uygulamayla?" diye sorar; bu
+                 filtre olmadan listede görünmüyorduk (kullanıcı isteği
+                 2026-07-29: "indirme kısmında seçenek olarak çıkmalıyız").
+
+                 **pathPattern ŞART:** yalnız `http`/`https` yazıp desen
+                 koymazsak HER bağlantıda (haber sitesi, arama sonucu…)
+                 tarayıcı yerine biz öneriliriz — kullanıcıyı çileden çıkarır.
+                 Bu yüzden yalnız indirilebilir dosya uzantıları listelenir.
+                 Android'de pathPattern tam yolu eşler ve `\\.` kaçışı ister;
+                 sorgu dizeli adresler (…apk?token=…) için ayrıca `.*` ekli
+                 ikinci desen yazılır. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.apk" />
+                <data android:pathPattern=".*\\.apk.*" />
+                <data android:pathPattern=".*\\.zip" />
+                <data android:pathPattern=".*\\.zip.*" />
+                <data android:pathPattern=".*\\.rar" />
+                <data android:pathPattern=".*\\.7z" />
+                <data android:pathPattern=".*\\.tar" />
+                <data android:pathPattern=".*\\.gz" />
+                <data android:pathPattern=".*\\.pdf" />
+                <data android:pathPattern=".*\\.pdf.*" />
+                <data android:pathPattern=".*\\.docx" />
+                <data android:pathPattern=".*\\.xlsx" />
+                <data android:pathPattern=".*\\.pptx" />
+                <data android:pathPattern=".*\\.mp4" />
+                <data android:pathPattern=".*\\.mkv" />
+                <data android:pathPattern=".*\\.mp3" />
+                <data android:pathPattern=".*\\.epub" />
+                <data android:pathPattern=".*\\.iso" />
+            </intent-filter>
+
+            <!-- Bazı sunucular/tarayıcılar uzantı yerine MIME bildirir
+                 (örn. `…/download?id=42` + application/vnd.android.package-archive).
+                 Bu filtre o durumları yakalar; yine yalnız indirilebilir
+                 türlerle sınırlı. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" android:mimeType="application/vnd.android.package-archive" />
+                <data android:scheme="https" android:mimeType="application/vnd.android.package-archive" />
+                <data android:scheme="http" android:mimeType="application/zip" />
+                <data android:scheme="https" android:mimeType="application/zip" />
+                <data android:scheme="http" android:mimeType="application/octet-stream" />
+                <data android:scheme="https" android:mimeType="application/octet-stream" />
+            </intent-filter>
+
             <!-- Tarayıcıdan paylaşılan BAĞLANTI: Chrome/DuckDuckGo'da bir
                  bağlantıya uzun basıp "Paylaş → Dosya Okuyucu" denince adres
                  buraya text/plain olarak gelir ve indirme akışı açılır

@@ -52,13 +52,24 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Panoda bekleyen bağlantı (üstte şerit olarak önerilir).
+  String? _clipboardUrl;
+
   Future<void> _boot() async {
     await _service.ensureLoaded();
     if (!mounted) return;
     final url = widget.initialUrl;
     if (url != null && url.isNotEmpty) {
       await startDownloadFlow(context, url);
+      return;
     }
+    // Kullanıcı tarayıcıda bağlantıyı kopyalayıp geldiyse elle yazmasın.
+    // (Paylaşım yolu her cihazda çalışmayabilir; bu her zaman çalışır.)
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final fromClipboard = extractUrl(data?.text ?? '');
+    if (!mounted || fromClipboard == null) return;
+    if (_service.tasks.any((t) => t.url == fromClipboard)) return;
+    setState(() => _clipboardUrl = fromClipboard);
   }
 
   Future<void> _addFromClipboard() async {
@@ -126,7 +137,61 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
             ),
         ],
       ),
-      body: tasks.isEmpty
+      body: Column(children: [
+        if (_clipboardUrl != null) _clipboardBanner(),
+        Expanded(child: _list(tasks)),
+      ]),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addManual,
+        icon: const Icon(Icons.add_link),
+        label: const Text('Bağlantı'),
+      ),
+    );
+  }
+
+  /// Panodaki bağlantı şeridi — tek dokunuşla indirme.
+  Widget _clipboardBanner() {
+    final url = _clipboardUrl!;
+    return Material(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
+        child: Row(
+          children: [
+            const Icon(Icons.link, size: 20),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Panodaki bağlantı',
+                      style: Theme.of(context).textTheme.labelSmall),
+                  Text(url,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                setState(() => _clipboardUrl = null);
+                await startDownloadFlow(context, url);
+              },
+              child: const Text('İndir'),
+            ),
+            IconButton(
+              tooltip: 'Kapat',
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => setState(() => _clipboardUrl = null),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _list(List<DownloadTask> tasks) => tasks.isEmpty
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(Gap.lg),
@@ -144,14 +209,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
               itemCount: tasks.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) => _tile(tasks[i]),
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addManual,
-        icon: const Icon(Icons.add_link),
-        label: const Text('Bağlantı'),
-      ),
-    );
-  }
+            );
 
   Widget _tile(DownloadTask task) {
     final entry = FsEntry(
