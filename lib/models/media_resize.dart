@@ -143,6 +143,25 @@ class MediaResizeOptions {
       resolution == ResolutionChoice.custom ||
       resolution == ResolutionChoice.percent;
 
+  /// Ayarların **kararlı özeti** — kuyruk kimliğinin bir parçası.
+  ///
+  /// Niye: kimlik yalnız dosya sayısı + ilk yola bakıyordu; aynı seçimi önce
+  /// 720p sonra 480p için başlatmak aynı kimliği üretiyor, kuyruk "bu iş zaten
+  /// sürüyor" deyip İKİNCİSİNİ SESSİZCE YUTUYORDU — arayüz "arka planda
+  /// başladı" diyor, hiçbir şey olmuyordu (2026-07-29 sadakat denetimi).
+  String get signature => [
+        resolution.name,
+        percent,
+        customWidth ?? '-',
+        customHeight ?? '-',
+        imageQuality,
+        imageFormat.name,
+        videoQuality.name,
+        frameRate ?? '-',
+        removeAudio ? 'sessiz' : 'sesli',
+        replaceOriginal ? 'degistir' : 'kopya',
+      ].join('/');
+
   /// Dosya adına eklenecek ek ("_720p", "_1280x720", "_%50", "_kucuk").
   String get suffix {
     if (resolution == ResolutionChoice.percent) return '%$percent';
@@ -186,8 +205,21 @@ class MediaResizeOptions {
         height: even((sourceHeight * scale).round()),
       );
     case ResolutionChoice.custom:
-      final w = options.customWidth;
-      final h = options.customHeight;
+      // "Kaynaktan büyütme yapılmaz" kuralı BURADA da geçerli — arayüz bunu
+      // tam bu alanların altında yazıyor, oysa serbest ölçüde hiç
+      // uygulanmıyordu: 1000x750 bir fotoğrafa 2000 yazmak dosyayı büyütüyor,
+      // çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi" diye bitiyordu —
+      // kullanıcı nedenini hiç öğrenmiyordu (2026-07-29 denetimi, 2. tur).
+      final w = options.customWidth == null
+          ? null
+          : (options.customWidth! > sourceWidth
+              ? sourceWidth
+              : options.customWidth!);
+      final h = options.customHeight == null
+          ? null
+          : (options.customHeight! > sourceHeight
+              ? sourceHeight
+              : options.customHeight!);
       if (w != null && h != null) return (width: even(w), height: even(h));
       if (w != null) {
         return (

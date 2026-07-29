@@ -27,8 +27,16 @@ class SimilarGroup {
 ///   değişmiş, hafif kırpılmış). Tahmine dayanır → arayüz asla kendiliğinden
 ///   silmez, kullanıcı görüp onaylar.
 abstract final class SimilarFinder {
-  /// İş kuyruğundaki kararlı kimlik (ekran geri dönünce sonucu bulur).
-  static const jobId = 'similar_media';
+  /// İş kuyruğundaki kararlı kimlik — **kapsam başına ayrı** (ekran geri
+  /// dönünce KENDİ sonucunu bulur).
+  ///
+  /// Eskiden tek bir `'similar_media'` sabiti vardı: Görüntüler'den açılan
+  /// tarama ile Videolar'dan ya da panodaki "Benzer görsel" kutucuğundan açılan
+  /// tarama aynı işi paylaşıyordu. Sonuç, ikinci ekranın açılışta "sonuç zaten
+  /// var" deyip **başka bir kapsamın** gruplarını kendi sonucuymuş gibi
+  /// göstermesiydi — kullanıcı Videolar'da fotoğraf grupları görüp onları
+  /// silebilirdi (2026-07-29 sadakat denetimi).
+  static String jobIdFor(String scope) => 'similar_media:$scope';
 
   /// [entries] içindeki benzer kümeleri döndürür.
   ///

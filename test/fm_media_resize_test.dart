@@ -1,4 +1,6 @@
 import 'package:dosya_okuyucu/models/media_resize.dart';
+import 'package:dosya_okuyucu/services/fm/image_resize.dart';
+import 'package:dosya_okuyucu/services/fm/similar_finder.dart';
 import 'package:dosya_okuyucu/services/fm/video_transcode.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_compress/video_compress.dart';
@@ -226,6 +228,181 @@ void main() {
     test('4K kaynak 1080p’nin üstünde kalmaz', () {
       expect(VideoTranscoder.qualityForShortEdge(2160),
           VideoQuality.Res1920x1080Quality);
+    });
+  });
+
+  // ── "Aynı kalsın" biçiminde çıktının UZANTISI ───────────────────────────────
+  // Kök neden (2026-07-29 sadakat denetimi): kaynağın uzantısı körü körüne
+  // korunuyordu ama `ImageResizer` yalnız JPEG/PNG/BMP/TGA yazabiliyor. Sonuç
+  // `.webp` adlı, İÇİ JPEG olan dosyalardı — galeride açılmaz, paylaşımda bozuk
+  // görünür. "Özgün dosyayı çöp kutusuna at" açıkken kaybı geri almak da güç.
+  group('keepExtension (Aynı kalsın)', () {
+    test('yazabildiğimiz biçimler korunur', () {
+      expect(ImageResizer.keepExtension('/a/b/foto.png'), 'png');
+      expect(ImageResizer.keepExtension('/a/b/foto.JPG'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/foto.jpeg'), 'jpeg');
+      expect(ImageResizer.keepExtension('/a/b/tarama.bmp'), 'bmp');
+    });
+
+    test('YAZAMADIĞIMIZ biçimler jpg olur (içerik JPEG çünkü)', () {
+      expect(ImageResizer.keepExtension('/a/b/foto.webp'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/foto.gif'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/IMG_1.heic'), 'jpg');
+      expect(ImageResizer.keepExtension('/a/b/tarama.tiff'), 'jpg');
+    });
+
+    test('uzantısız kaynak jpg olur ("foto_720p." hiçbir yerde açılmaz)', () {
+      expect(ImageResizer.keepExtension('/a/b/whatsapp-gecici'), 'jpg');
+    });
+
+    test('encodableExtensions kümesi jpg’yi de içerir (tutarlılık)', () {
+      for (final ext in ImageResizer.encodableExtensions) {
+        expect(ImageResizer.keepExtension('/a/b/x.$ext'), ext);
+      }
+    });
+  });
+
+  // ── Kuyruk kimlikleri ──────────────────────────────────────────────────────
+  // İkisi de aynı hatanın iki yüzü: kimlik işi TAM olarak tanımlamazsa kuyruk
+  // farklı işleri aynı iş sanıyor. Boyut düşürmede bu "başlattım ama hiçbir şey
+  // olmadı", benzer taramada "başka kapsamın sonucunu kendi sonucu sanma".
+  group('ayar imzası (kuyruk kimliği)', () {
+    test('aynı ayarlar aynı imzayı verir', () {
+      expect(const MediaResizeOptions().signature,
+          const MediaResizeOptions().signature);
+    });
+
+    test('her ayar alanı imzayı DEĞİŞTİRİR', () {
+      const base = MediaResizeOptions();
+      final others = [
+        base.copyWith(resolution: ResolutionChoice.p480),
+        base.copyWith(percent: 33),
+        base.copyWith(customWidth: 1234),
+        base.copyWith(customHeight: 568),
+        base.copyWith(imageQuality: 55),
+        base.copyWith(imageFormat: ImageOutputFormat.png),
+        base.copyWith(videoQuality: VideoQualityChoice.high),
+        base.copyWith(frameRate: 24),
+        base.copyWith(removeAudio: true),
+        base.copyWith(replaceOriginal: true),
+      ];
+      for (final o in others) {
+        expect(o.signature, isNot(base.signature),
+            reason: 'imza bu ayarı yansıtmıyor → kuyruk işi yutar');
+      }
+      // Hepsi birbirinden de farklı olmalı (çakışma yok).
+      expect(others.map((o) => o.signature).toSet().length, others.length);
+    });
+  });
+
+  // ── Serbest ölçüde "büyütme yok" ───────────────────────────────────────────
+  // Arayüz bu kuralı tam serbest ölçü alanlarının ALTINDA yazıyor, oysa kural
+  // yalnız kademelerde uygulanıyordu: 1000 px bir fotoğrafa 2000 yazmak dosyayı
+  // büyütüyor, çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi" diye bitiyor.
+  group('serbest ölçü kaynaktan büyütmez', () {
+    test('genişlik kaynaktan büyükse kaynağa çekilir', () {
+      final r = size(
+          1000,
+          750,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom, customWidth: 2000));
+      expect(r.width, 1000);
+      expect(r.height, 750);
+    });
+
+    test('yükseklik kaynaktan büyükse kaynağa çekilir', () {
+      final r = size(
+          1000,
+          750,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom, customHeight: 3000));
+      expect(r.height, 750);
+      expect(r.width, 1000);
+    });
+
+    test('ikisi de büyükse ikisi de kaynağa çekilir', () {
+      final r = size(
+          1024,
+          768,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom,
+              customWidth: 4000,
+              customHeight: 3000));
+      expect(r.width, 1024);
+      expect(r.height, 768);
+    });
+
+    test('kaynaktan KÜÇÜK istenen ölçü aynen uygulanır (kırpma yok)', () {
+      final r = size(
+          4000,
+          3000,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom,
+              customWidth: 1234,
+              customHeight: 568));
+      expect(r.width, 1234);
+      expect(r.height, 568);
+    });
+  });
+
+  // ── Kare sayısı da büyütülmez ──────────────────────────────────────────────
+  group('cappedFps', () {
+    test('kaynaktan yüksek istek kaynağa çekilir', () {
+      expect(VideoTranscoder.cappedFps(60, 30.0), 30);
+      expect(VideoTranscoder.cappedFps(30, 23.976), 23);
+    });
+
+    test('kaynaktan düşük istek aynen geçer', () {
+      expect(VideoTranscoder.cappedFps(15, 30.0), 15);
+      expect(VideoTranscoder.cappedFps(24, 29.97), 24);
+    });
+
+    test('"Değiştirme" (null) null kalır', () {
+      expect(VideoTranscoder.cappedFps(null, 30.0), isNull);
+    });
+
+    test('kaynağın hızı bilinmiyorsa istek olduğu gibi geçer', () {
+      expect(VideoTranscoder.cappedFps(60, null), 60);
+      expect(VideoTranscoder.cappedFps(60, 0), 60);
+    });
+  });
+
+  // ── Hareketli / çok sayfalı kaynaklar ──────────────────────────────────────
+  // Tek kareye inen çıktı aslın yerini TUTMAZ; bu biçimlerde "özgünü çöpe at"
+  // uygulanmaz (bkz. resize_actions.dart).
+  group('mayLoseFrames', () {
+    test('hareketli/çok kareli olabilen biçimler işaretlenir', () {
+      for (final path in [
+        '/a/meme.gif',
+        '/a/x.APNG',
+        '/a/foto.webp',
+        '/a/tarama.tif',
+        '/a/tarama.tiff',
+        '/a/kapak.psd',
+        '/a/cizim.xcf',
+      ]) {
+        expect(ImageResizer.mayLoseFrames(path), isTrue, reason: path);
+      }
+    });
+
+    test('tek kareli biçimler işaretlenmez', () {
+      for (final path in ['/a/f.jpg', '/a/f.jpeg', '/a/f.png', '/a/f.bmp']) {
+        expect(ImageResizer.mayLoseFrames(path), isFalse, reason: path);
+      }
+    });
+  });
+
+  group('benzer tarama kapsam kimliği', () {
+    test('kapsamlar ayrı kimlik alır', () {
+      expect(SimilarFinder.jobIdFor('Görüntüler'),
+          isNot(SimilarFinder.jobIdFor('Videolar')));
+      expect(SimilarFinder.jobIdFor('tum-medya'),
+          isNot(SimilarFinder.jobIdFor('Görüntüler')));
+    });
+
+    test('aynı kapsam aynı kimliği alır (geri dönünce sonuç bulunur)', () {
+      expect(SimilarFinder.jobIdFor('Videolar'),
+          SimilarFinder.jobIdFor('Videolar'));
     });
   });
 }

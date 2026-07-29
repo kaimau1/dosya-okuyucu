@@ -87,18 +87,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   bool get _selecting => _selected.isNotEmpty;
 
-  /// Seçili girdiler. **Haritayla** bulunur: 20 bin dosyalık listede her
-  /// karede `where(...)` gezmek seçim çubuğunu kastırıyordu.
+  /// Seçili **ve ekranda görünen** girdiler.
+  ///
+  /// `_files` (tüm liste) DEĞİL `_sorted` (süzgeçten geçmiş liste) üzerinden
+  /// çözülür: süzgeç/belge türü çipleri seçim sürerken de canlı ve seçim
+  /// budanmıyordu → "Tümünü seç" sonrası bir çipe dokunmak, ekranda görünmeyen
+  /// dosyaları da silen bir "Sil" düğmesi bırakıyordu (2026-07-29 sadakat
+  /// denetimi, 2. tur). Seçim kümesi korunur, yalnız eylem/sayı görünenle
+  /// sınırlıdır. Ayrıntılı gerekçe: `photos_screen.dart`taki aynı getter.
   List<FsEntry> get _selectedEntries {
-    final key = identityHashCode(_files);
-    if (_byPathKey != key || _byPathCache == null) {
-      _byPathCache = {for (final e in _files) e.path: e};
-      _byPathKey = key;
-    }
-    final map = _byPathCache!;
+    if (_selected.isEmpty) return const [];
     return [
-      for (final path in _selected)
-        if (map[path] != null) map[path]!,
+      for (final e in _sorted)
+        if (_selected.contains(e.path)) e,
     ];
   }
 
@@ -106,8 +107,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
   // dosyada her karede yeniden süzmek uygulamayı kastırıyordu (2026-07-29).
   List<FsEntry>? _sortedCache;
   String? _sortedKey;
-  Map<String, FsEntry>? _byPathCache;
-  int? _byPathKey;
   Map<MediaBucket, int>? _bucketCache;
   Map<String, int>? _extCache;
   Map<ChatMediaKind, int>? _chatKindCache;
@@ -198,6 +197,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
     });
   }
 
+  /// Tek dosya seçiliyken görünürdeki konumuna göre üstündekileri/
+  /// altındakileri de seçer (Google Fotoğraflar'daki "buraya kadar seç"
+  /// jesti). Kullanıcı isteği (2026-07-29): *"1 görüntü seçtim, onun altında
+  /// kalanları seç, onun üstünde kalanları seç butonu olsun"*.
+  void _selectFromAnchor(List<FsEntry> visible, {required bool above}) {
+    if (_selected.length != 1) return;
+    final anchorIndex = visible.indexWhere((e) => e.path == _selected.first);
+    if (anchorIndex < 0) return;
+    _selectRange(
+      visible,
+      above ? 0 : anchorIndex,
+      above ? anchorIndex : visible.length - 1,
+      true,
+    );
+  }
+
   /// Toplu seçme: hepsi seçiliyse kaldırır, değilse görünen tümünü seçer.
   void _toggleSelectAll(List<FsEntry> visible) {
     setState(() {
@@ -232,9 +247,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   Widget build(BuildContext context) {
     final files = _sorted;
+    // Seçili+görünen küme build başına BİR kez hesaplanır (bkz.
+    // `photos_screen.dart`taki aynı not — 20 bin dosyada perf).
+    final selectedEntries = _selectedEntries;
     return Scaffold(
       appBar: _selecting
-          ? _selectionBar(files)
+          ? _selectionBar(files, selectedEntries)
           : (_searching ? _searchBar() : _normalBar()),
       // Stack: alt eylem çubuğu görünürken gövde yüksekliği DEĞİŞMESİN
       // (bottomNavigationBar kullanılırsa liste zıplıyor — 2026-07-29 hatası).
@@ -282,8 +300,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
               right: 0,
               bottom: 0,
               child: FmSelectionBar(
-                selected: _selectedEntries,
+                selected: selectedEntries,
                 onChanged: () async {
+                  // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
+                  // işini bitirdiğinde bu State artık ölü olabiliyor ve
+                  // `setState` "called after dispose" hatası atıyordu
+                  // (2026-07-29 sadakat denetimi, 2. tur).
+                  if (!mounted) return;
                   setState(_selected.clear);
                   await _dropMissing();
                 },
@@ -371,13 +394,28 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   /// Seçim üst çubuğu **sade**: sayaç + tümünü seç. Eylemler alttaki
   /// [FmSelectionBar]'da (proje kuralı: üstte yalnız altta karşılığı OLMAYAN).
-  PreferredSizeWidget _selectionBar(List<FsEntry> files) => AppBar(
+  PreferredSizeWidget _selectionBar(
+          List<FsEntry> files, List<FsEntry> selectedEntries) =>
+      AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
         ),
-        title: Text('${_selected.length} / ${files.length} seçildi'),
+        // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]).
+        title: Text('${selectedEntries.length} / ${files.length} seçildi'),
         actions: [
+          if (_selected.length == 1) ...[
+            IconButton(
+              tooltip: 'Üstündekileri de seç',
+              icon: const Icon(Icons.expand_less),
+              onPressed: () => _selectFromAnchor(files, above: true),
+            ),
+            IconButton(
+              tooltip: 'Altındakileri de seç',
+              icon: const Icon(Icons.expand_more),
+              onPressed: () => _selectFromAnchor(files, above: false),
+            ),
+          ],
           IconButton(
             tooltip: files.every((e) => _selected.contains(e.path))
                 ? 'Seçimi kaldır'

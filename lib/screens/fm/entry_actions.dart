@@ -14,14 +14,17 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/open_history.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/tag_picker_sheet.dart';
 import 'ai_actions.dart';
 import 'archive_screen.dart';
 import 'folder_picker_screen.dart';
 import 'important_screen.dart';
+import 'resize_actions.dart';
 
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
 /// ekranları ve arama sonuçları AYNI davranışı paylaşsın diye tek dosyada.
@@ -42,6 +45,8 @@ enum _EntryAction {
   important,
   aiSummary,
   imageInsight,
+  resize,
+  tag,
   reveal,
   properties,
 }
@@ -126,11 +131,27 @@ Future<bool> showEntryActions(
             if (entry.category == FmCategory.image)
               _tile(ctx, Icons.document_scanner_outlined,
                   'Bu görselde ne var? (metin tanı)', _EntryAction.imageInsight),
+            // Boyut düşürme ve etiketleme eskiden YALNIZ çoklu seçim çubuğunda
+            // vardı: kullanıcı tek bir fotoğrafa uzun basınca bulamıyordu
+            // (2026-07-29 sadakat denetimi). Aynı işler burada da duruyor.
+            if (!entry.isDir &&
+                (entry.category == FmCategory.image ||
+                    entry.category == FmCategory.video))
+              _tile(ctx, Icons.photo_size_select_large,
+                  'Boyut düşür (çözünürlük/kare sayısı)', _EntryAction.resize),
+            if (!entry.isDir)
+              _tile(ctx, Icons.sell_outlined, 'Etiketle (kişi/grup)',
+                  _EntryAction.tag),
             if (allowReveal)
               _tile(ctx, Icons.my_location, 'Konumunu aç', _EntryAction.reveal),
             _tile(ctx, Icons.info_outline, 'Özellikler',
                 _EntryAction.properties),
-            _tile(ctx, Icons.delete_outline, 'Sil (çöp kutusuna)',
+            _tile(
+                ctx,
+                Icons.delete_outline,
+                // Etiket ayarı okur: çöp kutusu kapalıyken "çöp kutusuna"
+                // yazmak tutulmayan bir sözdür (bkz. [deleteActionText]).
+                'Sil (${context.read<AppState>().fmUseTrash ? 'çöp kutusuna' : 'KALICI'})',
                 _EntryAction.delete,
                 danger: true),
             const SizedBox(height: Gap.sm),
@@ -205,6 +226,14 @@ Future<bool> showEntryActions(
     case _EntryAction.aiSummary:
       await showAiSummary(context, entry);
       return false;
+
+    case _EntryAction.resize:
+      // İş kuyruğa gider; liste tazelemeyi FsEvents üstlenir.
+      await startResizeJob(context, [entry]);
+      return false;
+
+    case _EntryAction.tag:
+      return showTagPicker(context, [entry.path]);
 
     case _EntryAction.imageInsight:
       await showImageInsight(context, entry);
@@ -285,6 +314,39 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
 /// veri geri gelmeyeceği için onay her zaman sorulur).
 /// [confirm] false ise onay penceresi atlanır — çağıran ZATEN toplu bir onay
 /// almışsa (yer açma asistanı) ikinci kez sormak akışı boğar.
+///
+/// **[confirm] `false` yalnız ÇÖP KUTUSU yolunu atlar.** Kalıcı silme onayı
+/// hiçbir koşulda atlanamaz: 2026-07-29 sadakat denetiminin 2. turunda tam
+/// buradan bir veri kaybı yolu çıktı — Fotoğraflar ekranındaki "Temizle"
+/// kendi penceresinde *"çöp kutusuna taşınacak"* yazıp `confirm: false` ile
+/// buraya geliyordu; Ayarlar > "Çöp kutusunu kullan" kapalıysa `!useTrash`
+/// dalı `confirm` yüzünden hiç sorulmuyor ve dosyalar **kalıcı** siliniyordu.
+/// Yani kullanıcının okuduğu söz ile yapılan iş birbirinin tersiydi.
+/// Silme düğmelerinin **dürüst** metni: "12 dosyayı çöpe taşı" / "…kalıcı sil".
+///
+/// Saf fonksiyon (BuildContext almaz) → birim testli. Ayarlar > "Çöp kutusunu
+/// kullan" kapalıyken "çöpe taşı" yazan bir düğme, kullanıcıya geri
+/// alabileceğini söyleyip dosyayı kalıcı silmek demekti.
+String deleteActionText({required bool useTrash, required String what}) =>
+    useTrash ? '$what çöpe taşı' : '$what kalıcı sil';
+
+/// Silmeden önce onay penceresi gösterilmeli mi?
+///
+/// Saf fonksiyon → birim testli, çünkü burada **veri kaybı** yatıyor:
+/// - [useTrash] `false` (Ayarlar > "Çöp kutusunu kullan" kapalı) ise onay
+///   **HER ZAMAN** sorulur. Kalıcı silme geri alınamaz; "çağıran zaten sordu"
+///   gerekçesi burada geçerli değil, çünkü çağıran genellikle *"çöp kutusuna
+///   taşınacak"* diye söz vermiş oluyor (bkz. [deleteEntries] notu).
+/// - Çöp kutusu açıkken: kullanıcı "silmeden önce sor"u kapatmışsa
+///   ([confirmSetting] `false`) ya da çağıran kendi onayını almışsa
+///   ([askAllowed] `false`) sorulmaz — dosya çöpten geri alınabilir.
+bool needsDeleteConfirm({
+  required bool useTrash,
+  required bool confirmSetting,
+  required bool askAllowed,
+}) =>
+    !useTrash || (askAllowed && confirmSetting);
+
 Future<bool> deleteEntries(
   BuildContext context,
   List<FsEntry> entries, {
@@ -297,7 +359,11 @@ Future<bool> deleteEntries(
       ? '“${entries.first.name}”'
       : '${entries.length} öğe';
 
-  if (confirm && (appState.fmConfirmDelete || !useTrash)) {
+  if (needsDeleteConfirm(
+    useTrash: useTrash,
+    confirmSetting: appState.fmConfirmDelete,
+    askAllowed: confirm,
+  )) {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -332,9 +398,14 @@ Future<bool> deleteEntries(
       task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
     );
     if (context.mounted && result.hasError) {
-      _snack(context, 'Bazı öğeler silinemedi: ${result.errors.first}');
+      _snack(
+          context,
+          '${result.succeeded} öğe silindi, ${result.errors.length} öğe '
+          'silinemedi: ${result.errors.first}');
     }
-    return true;
+    // Hiçbiri silinemediyse `false`: çağıranlar bu dönüşle "oldu" varsayıp
+    // seçimi temizliyor ve listeyi tazeliyordu (2026-07-29 denetimi, 4. tur).
+    return result.succeeded > 0;
   }
 
   await FmEnv.ensureInit();
@@ -347,9 +418,12 @@ Future<bool> deleteEntries(
         FmEnv.trash.moveToTrash(paths, onProgress: report),
   );
   if (context.mounted && result.hasError) {
-    _snack(context, 'Bazı öğeler taşınamadı: ${result.errors.first}');
+    _snack(
+        context,
+        '${result.succeeded} öğe çöp kutusuna taşındı, '
+        '${result.errors.length} öğe taşınamadı: ${result.errors.first}');
   }
-  return true;
+  return result.succeeded > 0;
 }
 
 /// Kalıcı silme (çöp kutusunu atlar) — çöp ekranında kullanılır.
@@ -425,10 +499,26 @@ Future<bool> moveOrCopyEntries(
 
   final where = p.basename(dest);
   final count = result.succeeded;
+  final verb = move ? 'taşındı' : 'kopyalandı';
   messenger.showSnackBar(SnackBar(
-    content: Text(result.hasError
-        ? 'Bazı öğeler aktarılamadı: ${result.errors.first}'
-        : '$count öğe “$where” klasörüne ${move ? "taşındı" : "kopyalandı"}.'),
+    // Mesaj GERÇEĞİ söyler: kaç tanesi oldu, kaç tanesi olmadı, iptal edildi mi.
+    //
+    // Eskiden hata varken yalnız ilk hata metni yazılıyordu ("Bazı öğeler
+    // aktarılamadı: …") — başarılı sayısı gizleniyor, kaç dosyanın kaldığı
+    // hiç söylenmiyordu. İptalde ise sonuç "iptal" bilgisini taşımadığı için
+    // kullanıcı "1 öğe taşındı" okuyup işlemin durduğunu sanıyordu. Kopyalama
+    // çekirdekte kesilemiyor (`File.copy` bölünemez); yapamadığımız şeyi
+    // yapıyormuş gibi göstermek yerine olanı yazıyoruz (2026-07-29 sadakat
+    // denetimi, 4. tur).
+    content: Text(
+      result.hasError
+          ? '$count öğe $verb, ${result.errors.length} öğe aktarılamadı: '
+              '${result.errors.first}'
+          : result.cancelled
+              ? 'Durduruldu · $count öğe “$where” klasörüne çoktan $verb '
+                  '(süren aktarma yarıda kesilemiyor).'
+              : '$count öğe “$where” klasörüne $verb.',
+    ),
     // Geri al YALNIZ taşımada: kopyalamayı geri almak "sil" demektir, yanlış
     // dokunuşta veri kaybı riski taşır.
     action: (move && result.transfers.isNotEmpty)
@@ -572,6 +662,27 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
   int? _folderSize;
   bool _calculating = false;
 
+  /// Son açılma zamanı (bizim kaydımız). Kullanıcı isteği 2026-07-29:
+  /// *"son açılma tarihi TÜM DOSYALAR içinde yapılabilmeli"* — ayrı ekranın
+  /// yanında dosyanın kendi özelliklerinde de görünmesi gerekiyor, çünkü
+  /// kullanıcı tek bir dosyayı merak ettiğinde listeye değil buraya bakar.
+  /// Dosya sisteminin "erişilme" damgası (`accessedMs`) bunun yerine
+  /// KULLANILAMAZ: Android'de tarama/yedekleme gibi işler de onu güncelliyor,
+  /// yani "kullanıcı ne zaman açtı" sorusunu yanıtlamıyor.
+  int? _openedAtMs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOpenedAt();
+  }
+
+  Future<void> _loadOpenedAt() async {
+    await OpenHistory.ensureLoaded();
+    if (!mounted) return;
+    setState(() => _openedAtMs = OpenHistory.forPath(widget.entry.path));
+  }
+
   Future<void> _calculate() async {
     setState(() => _calculating = true);
     final size = await FsScan.folderSize(widget.entry.path);
@@ -603,6 +714,10 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
                     : (_calculating ? 'Hesaplanıyor…' : 'Hesaplanmadı'),
               ),
             _row('Değiştirilme', FsPaths.humanDate(e.modifiedMs)),
+            // Yalnız gerçekten bir kaydımız varsa yazılır: "—" göstermek
+            // "hiç açılmadı" ile "bilmiyorum"u karıştırırdı.
+            if (_openedAtMs != null)
+              _row('Son açılma', FsPaths.humanDate(_openedAtMs!)),
             _row('Konum', e.path),
           ],
         ),

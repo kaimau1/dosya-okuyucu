@@ -190,7 +190,7 @@ abstract final class FfmpegVideo {
       if (encoder == 'mpeg4')
         ...['-q:v', '${_mpeg4QualityFor(crf)}']
       else
-        ...['-b:v', '${_bitrateFor(width, height, crf)}k'],
+        ...['-b:v', '${_bitrateFor(width, height, crf, fps)}k'],
       '-pix_fmt', 'yuv420p', // eski oynatıcılar 4:2:0 dışını açmaz
       if (removeAudio) '-an' else ...['-c:a', 'aac', '-b:a', '128k'],
       '-map_metadata', '0', // çekim tarihi korunsun
@@ -211,18 +211,24 @@ abstract final class FfmpegVideo {
         _ => 12,
       };
 
-  /// Donanım kodlayıcı için kaba bit hızı (kbit/s): piksel sayısı × CRF'den
-  /// türetilmiş kalite katsayısı.
-  static int _bitrateFor(int width, int height, int crf) {
+  /// Donanım kodlayıcı için kaba bit hızı (kbit/s): piksel sayısı × kare sayısı
+  /// × CRF'den türetilmiş kalite katsayısı.
+  ///
+  /// [fps] verilirse hesaba KATILIR (yoksa 30 varsayılır). Sabit 30 varsayımı,
+  /// "15 fps" seçen kullanıcıya gereğinin iki katı bit hızı ayırıyordu — yani
+  /// kare sayısını yarıya indirmek dosyayı beklendiği kadar küçültmüyordu
+  /// (2026-07-29 sadakat denetimi, 2. tur).
+  static int _bitrateFor(int width, int height, int crf, [int? fps]) {
     final pixels = width * height;
-    // CRF 20 → ~0.11 bit/piksel/kare, CRF 32 → ~0.04 (30 fps varsayımı).
+    // CRF 20 → ~0.11 bit/piksel/kare, CRF 32 → ~0.04.
     final bitsPerPixel = switch (crf) {
       <= 20 => 0.11,
       <= 24 => 0.08,
       <= 28 => 0.055,
       _ => 0.04,
     };
-    final kbps = (pixels * 30 * bitsPerPixel / 1000).round();
+    final rate = (fps != null && fps > 0) ? fps : 30;
+    final kbps = (pixels * rate * bitsPerPixel / 1000).round();
     return kbps.clamp(300, 20000);
   }
 
@@ -250,6 +256,12 @@ abstract final class FfmpegVideo {
     final encoders = ['h264_mediacodec', 'mpeg4'];
     Object? lastError;
     for (final encoder in encoders) {
+      // İptal HER denemeden önce yoklanır. Eskiden yalnız oturumun içinde
+      // bakılıyordu: kullanıcı ilk kodlayıcı hata verdiği anda "Durdur"a
+      // bastıysa (ya da iptal, iptal dönüş kodu yerine hata olarak döndüyse)
+      // İKİNCİ kodlayıcı sıfırdan başlıyor ve dakikalarca sürüyordu — düğme
+      // çalışmıyor görünürdü (2026-07-29 sadakat denetimi).
+      if (isCancelled?.call() ?? false) throw const FfmpegCancelled();
       try {
         await _run(
           buildArgs(
@@ -312,9 +324,25 @@ abstract final class FfmpegVideo {
       },
     );
     _sessionId = session.getSessionId();
+    // İptal, istatistik geri çağrısından BAĞIMSIZ olarak da yoklanır.
+    // İstatistik yalnız kodlanan kare oldukça gelir: ses akışı çözülürken,
+    // uzun bir dosyanın başında ya da kodlayıcı bir şeyi beklerken hiç
+    // gelmeyebilir. Tek yoklama yeri orası olduğu için "Durdur" bu aralıklarda
+    // hiçbir şey yapmıyordu (2026-07-29 sadakat denetimi).
+    final poll = isCancelled == null
+        ? null
+        : Timer.periodic(const Duration(milliseconds: 400), (timer) {
+            if (done.isCompleted) {
+              timer.cancel();
+            } else if (isCancelled()) {
+              timer.cancel();
+              unawaited(cancel());
+            }
+          });
     try {
       await done.future;
     } finally {
+      poll?.cancel();
       _sessionId = null;
     }
   }

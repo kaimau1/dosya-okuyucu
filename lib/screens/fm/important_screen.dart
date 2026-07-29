@@ -179,7 +179,13 @@ class _ImportantScreenState extends State<ImportantScreen> {
   void _openCategory(FmCategory category) {
     final files = _files.where((f) => f.category == category).toList();
     if (category == FmCategory.image || category == FmCategory.video) {
-      _push(PhotosScreen(title: category.label, files: files));
+      // Kapsam kimliği panodan AYRI: ikisi de "Görüntüler" başlığını kullanıyor
+      // ama bu ekran yalnız Önemli Dosyalar klasörünü gösterir.
+      _push(PhotosScreen(
+        title: category.label,
+        scopeId: 'onemli-${category.name}',
+        files: files,
+      ));
       return;
     }
     _push(CategoryScreen(

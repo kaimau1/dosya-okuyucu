@@ -185,4 +185,69 @@ void main() {
     expect(find.textContaining('Kamera'), findsOneWidget);
     expect(find.text('1 yinelenen kopya gizlendi'), findsOneWidget);
   });
+
+
+  /// Kullanıcı isteği (2026-07-29): *"tümünü seç butonuna ek olarak... 1
+  /// görüntü seçtim, onun altında kalanları seç, onun üstünde kalanları seç
+  /// butonu olsun"*. "Üstünde/altında" ekrandaki (görünen) sıraya göredir.
+  testWidgets('tek dosya seçiliyken üstündekileri/altındakileri de seçilebilir',
+      (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    // p0 en yeni (indeks 0), p4 en eski (indeks 4) — varsayılan azalan tarih
+    // sıralamasında bu tam olarak bildirim sırasıyla eşleşir.
+    final files = [
+      for (var i = 0; i < 5; i++)
+        photo('p$i.jpg', day.subtract(Duration(minutes: i))),
+    ];
+    await tester.pumpWidget(harness(files));
+    await tester.pump();
+
+    final icons = find.byType(FmEntryIcon);
+    expect(icons, findsNWidgets(5));
+
+    // Ortadaki (indeks 2) dosyayı seç.
+    await tester.longPress(icons.at(2));
+    await tester.pump();
+    expect(find.text('1 / 5 seçildi'), findsOneWidget);
+
+    // "Üstündekileri de seç" → indeks 0, 1, 2 (3 dosya).
+    await tester.tap(find.byTooltip('Üstündekileri de seç'));
+    await tester.pump();
+    expect(find.text('3 / 5 seçildi'), findsOneWidget);
+
+    // Seçimi temizle, tekrar ortadakini seç, bu kez altını seç.
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump();
+    await tester.longPress(icons.at(2));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Altındakileri de seç'));
+    await tester.pump();
+    // indeks 2, 3, 4 (3 dosya).
+    expect(find.text('3 / 5 seçildi'), findsOneWidget);
+  });
+
+  testWidgets(
+      'birden fazla dosya seçiliyken üstündekileri/altındakileri düğmeleri '
+      'KAYBOLUR (anchor belirsizleşir)', (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    final files = [
+      for (var i = 0; i < 3; i++)
+        photo('p$i.jpg', day.subtract(Duration(minutes: i))),
+    ];
+    await tester.pumpWidget(harness(files));
+    await tester.pump();
+
+    final icons = find.byType(FmEntryIcon);
+    await tester.longPress(icons.at(0));
+    await tester.pump();
+    expect(find.byTooltip('Üstündekileri de seç'), findsOneWidget);
+
+    // İkinci dosyaya dokunmak (seçim kipindeyken tap = toggle) seçim
+    // sayısını 2'ye çıkarır → anchor artık belirsiz, düğmeler kaybolmalı.
+    await tester.tap(icons.at(1));
+    await tester.pump();
+    expect(find.text('2 / 3 seçildi'), findsOneWidget);
+    expect(find.byTooltip('Üstündekileri de seç'), findsNothing);
+    expect(find.byTooltip('Altındakileri de seç'), findsNothing);
+  });
 }

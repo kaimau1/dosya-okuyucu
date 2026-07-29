@@ -91,8 +91,14 @@ class JobNotifications implements JobReporter {
   Future<void> onFinished(FmJob job) async {
     if (!_ready) return;
     final id = notificationId(job.id);
-    // İptal edilen iş için bildirim bırakmak gürültü: kaldırılır.
-    if (job.status == JobStatus.cancelled) {
+    // İptal edilen ve GERİYE İZ BIRAKMAYAN iş için bildirim gürültü: kaldırılır.
+    //
+    // Ama iz bırakan iptaller var: boyut düşürme durdurulduğunda o ana kadar
+    // işlenen dosyalar diskte kalır ve "Özgün dosyayı çöp kutusuna at" açıksa
+    // o özgünler ÇÖPTEDİR. İş bunu `detail`e yazıyor; bildirimi tümden silmek
+    // kullanıcının bunu öğrenmesinin son yolunu da kapatıyordu (2026-07-29
+    // sadakat denetimi, 2. tur). Bu yüzden ayrıntısı olan iptal gösterilir.
+    if (job.status == JobStatus.cancelled && job.detail.isEmpty) {
       try {
         await _plugin.cancel(id);
       } catch (_) {}
@@ -100,6 +106,7 @@ class JobNotifications implements JobReporter {
     }
     final body = switch (job.status) {
       JobStatus.failed => job.error ?? 'Bir hata oluştu.',
+      JobStatus.cancelled => 'Durduruldu · ${job.detail}',
       _ => job.detail.isEmpty ? 'Tamamlandı.' : job.detail,
     };
     await _plugin.show(

@@ -3789,3 +3789,581 @@ testi var: bu lisans kararının kodda sessizce geri gelmesini engelliyor
   kararı (silme geri alınamaz, bu yüzden sormadan yapılmadı).
 - `LICENSE` dosyası hâlâ YOK: artık uygulamanın kendi lisansı GPL'e
   zorlanmıyor, yani lisans seçimi tamamen proje sahibinin tercihi.
+
+## 2026-07-29 (VI) — Üç yeni istek: üstünü/altını seç, son açılanlar, benzer video oynatma
+
+### A. "Tümünü seç"e ek: üstündekileri/altındakileri de seç
+Kullanıcı isteği: *"1 görüntü seçtim, onun altında kalanları seç, onun
+üstünde kalanları seç butonu olsun"*. Google Fotoğraflar'daki "buraya kadar
+seç" jesti. Yalnız **tek dosya** seçiliyken görünür (birden çok seçiliyken
+hangi dosyanın "anchor" olacağı belirsizleşir) — `photos_screen`,
+`category_screen`, `browser_screen` üçünde de aynı mekanik: seçili dosyanın
+**görünen** (ekrandaki, mevcut sıralama/filtre sonrası) listede indeksi
+bulunur, `_selectRange` ile [0, indeks] ("üstündekiler") veya
+[indeks, son] ("altındakiler") aralığı seçime eklenir.
+`browser_screen`'de `_selectionBar(context)` görünen listeyi almıyordu
+(yalnız `_entries.length` biliyordu) — imza `_selectionBar(context, visible)`
+oldu, çağrı yeri `build()`'teki `entries` (= `_sorted`) değişkenini geçiyor.
+Widget testi (`fm_photos_screen_test`): 5 dosyalı bir grupta ortadakini seçip
+"üstündekileri" tıklayınca 3/5, "altındakileri" tıklayınca 3/5 seçili
+olduğu; 2. dosya seçilince (anchor belirsizleşince) düğmelerin kaybolduğu
+kilitlendi.
+
+### B. "Son açılanlar" — tüm dosya türleri için ayrı bir alan
+Kullanıcı isteği: *"son açılma tarihi tüm dosyalar içinde yapılabilmeli ayrı
+bir alanda"*. Var olan `AppState.recents` ("Son belgeler", AI sekmesi)
+yalnız **belge** (Word/Excel/PDF/metin) açılışlarını ve en yeni 40'ı tutar —
+görüntü/video/ses/arşiv YOK. `services/fm/open_history.dart`: yol→açılma
+zamanı eşleyen, `file_tags.dart` ile aynı desende (uygulama dizininde JSON,
+dosyanın içine yazılmaz, silinen dosyanın kaydı yüklemede düşer) AMA sınırsız
+kayıt tutan ayrı bir servis. `EntryOpener.open` ve `openExternally` içindeki
+**her başarılı açma dalına** (external/archive/player/audio/gallery+siblings/
+belge) `OpenHistory.record(path)` eklendi — tek kapı olduğu için tüm ekranlar
+otomatik kapsandı.
+**KÖK NEDEN yakalanan hata (kod incelemesinde, cihaza gitmeden):** `record()`
+ilk yazımda `ensureLoaded()`'ı hiç çağırmıyordu. `record()` genelde
+uygulamanın OpenHistory'ye dokunduğu İLK yer olduğu için (kullanıcı dosya
+açmaya "Son açılanlar" ekranını ziyaret etmekten çok daha sık başlar), bu
+neredeyse HER oturumda diskteki geçmişi TEK dosyalık bir kayıtla ezip
+önceki tüm geçmişi silecekti. Düzeltme: `record` önce `await ensureLoaded()`
+çağırır. Ayrıca `ensureLoaded` bool bayrak DEĞİL, paylaşılan bir
+`Future<void>?` ile memoize edilir — bayrak senkron olarak "yüklendi"
+işaretlenip gerçek disk okuması sürüyorsa, eşzamanlı bir `record()` çağrısı
+yüklemeyi BEKLEMEDEN devam edebilirdi. Bu ikisi `fm_open_history_test.dart`
+içinde "yeni oturumda ilk açılan dosya eski geçmişi silmez" ve "eşzamanlı ilk
+kayıtlar birbirini ezmez" testleriyle kilitli.
+Ekran: `open_history_screen.dart` — liste + arama + "geçmişi temizle" (yalnız
+kaydı siler, dosyaya dokunmaz). Panoya "Son açılanlar" aracı eklendi
+("Son işlemler" ile karıştırılmasın: o taşı/kopyala/sil İŞLEMLERİNİ tutar,
+bu hangi DOSYANIN ne zaman AÇILDIĞINI).
+
+### C. Benzer videolar — SimilarScreen'de oynatma
+Kullanıcı isteği: *"benzer videolar fotoğraflar ekranında oynatma
+yapılabilmeli emin olabilmek için"*. `PhotosScreen`de video zaten normal
+dokunuşla oynatılabiliyordu (istek bundan değil) — asıl sorun
+`SimilarScreen`de: tek dokunuş SEÇİME ayrılmış, oynatma yalnız uzun basışta
+gizliydi. Kullanıcı "aynı video mu?" diye emin olmadan silme kararı verme
+riskiyle karşı karşıyaydı. Çözüm: video küçük resimlerinin üstüne görünür,
+ayrı bir ▶ düğmesi (yarı saydam daire + `InkWell`) — kendi dokunuşunu
+yakalar, alttaki `GestureDetector`ın seçim davranışını TETİKLEMEZ (aynı iç-içe
+widget deseni `FmEntryListTile`'daki "⋮" düğmesinde de var, kanıtlanmış
+çalışıyor). Fotoğraf küçük resimlerinde düğme yok (gerek yok, önizleme yeterli).
+
+## 2026-07-29 (VII) — SADAKAT DENETİMİ: verilen sözler kodda tek tek doğrulandı
+
+Kullanıcı gece "tüm alanlarda sadakatimizi %100 yap" dedi. Yöntem: bu oturumda
+kullanıcıya ya da koda YAZDIĞIM her iddiayı bulup gerçekten öyle mi diye
+kontrol etmek. Bulunan açıklar ve düzeltmeleri:
+
+### AÇIK 1 (CİDDİ — veri kaybı): etiketler taşımada sessizce siliniyordu
+`FileTags.movePath` ve `OpenHistory.movePath` yazılmıştı ama **hiçbir yerden
+çağrılmıyordu**. Üstelik `file_tags.dart` başında *"Uygulama içinden taşımada
+yol güncellenir ([movePath])"* yazılıydı ve etiket sayfasında kullanıcıya
+*"dosyayı BAŞKA BİR uygulamayla taşırsan etiket onunla gitmez"* deniyordu —
+yani uygulama içinde korunacağı sözü verilmişti. Gerçekte: kullanıcı "Ayşe"
+diye etiketlediği fotoğrafı bizim gezginimizle başka klasöre taşıyınca kayıt
+eski yolda kalıyor, bir sonraki açılışta "dosya yok" sayılıp **siliniyordu**.
+**Düzeltme:** `path_side_index.dart` — yol anahtarlı yan kayıtları güncelleyen
+kanca. `FileOps.rename`, `FileOps._transfer` (yalnız TAŞIMA; kopyalamada
+etiket kaynakta kalır, kopyaya yapıştırmak kullanıcının vermediği bir karar
+olurdu), `TrashService.moveToTrash` ve `TrashService.restore` bağlandı.
+Kanca `main`de kaydediliyor: böylece `FileOps`/`TrashService` **saf `dart:io`**
+kalıyor (belgelenmiş değişmez), `FileTags` ise `path_provider`a bağlı olduğu
+hâlde katman kirlenmiyor. 7 test: `fm_path_side_index_test.dart`.
+
+### AÇIK 2: "video ve fotoğraflarda AI ile tespit" — AI yalnız fotoğrafta
+Cihaz-içi parmak izi videoda çalışıyordu (küçük resim karesini hash'liyor) ama
+Gemini yolu *"video karesi henüz desteklenmiyor"* diyordu; yani isteğin yarısı.
+**Düzeltme:** `SimilarScreen._previewFor` — video için aynı native kare
+(`ThumbnailCache`) alınıp küçültülüyor. Gemini artık video gruplarını da
+karşılaştırıyor.
+
+### AÇIK 3: erişilemeyen özellikler
+"Boyut düşür" ve "Etiketle" YALNIZ çoklu seçim çubuğundaydı; tek dosyaya uzun
+basan kullanıcı bulamıyordu. İkisi de uzun basış menüsüne eklendi.
+
+### AÇIK 4: yanıltıcı doküman (kuyruk kapsamı)
+`FmJob` dokümanı arşiv çıkarmayı kuyrukta sayıyordu; gerçekte kopyala/taşı/sil/
+sıkıştır/çıkar `showFmProgress` ile koşuyor. **Ama yetenek var:** o pencerenin
+2026-07-26'da eklenmiş "Arka plana al" düğmesi + kalıcı şerit + "Durdur"u
+mevcut. Yani "arka planda çalışabilmeli" isteği o işler için de karşılanıyor,
+yalnız mekanizma farklı. Doğrulanmış kodu birleştirmek için kurcalamak yerine
+**doküman gerçeğe uyduruldu** (iki mekanizmanın niye ayrı durduğu da yazıldı:
+`showFmProgress` işin SONUCUNU döndürüyor — "çıkar, sonra çıkan klasörü aç" —
+kuyruk ise ateşle-bırak).
+
+### AÇIK 5: "son açılma tarihi TÜM DOSYALAR içinde" — özellikler penceresi
+Ayrı ekran vardı ama tek bir dosyayı merak eden kullanıcı listeye değil
+**Özellikler**e bakar. `Son açılma` satırı eklendi (yalnız kaydımız varsa
+yazılıyor: "—" göstermek "hiç açılmadı" ile "bilmiyorum"u karıştırırdı).
+NOT: dosya sisteminin `accessedMs` damgası bu iş için KULLANILAMAZ — Android'de
+tarama/yedekleme de onu güncelliyor, "kullanıcı ne zaman açtı" demiyor.
+
+### AÇIK 6 (var olan hata, denetimde çıktı): çöpten geri yükleme yanlış ad
+`TrashService.restore` çapraz birimde (SD kart ↔ dahili) `rename` yapamayıp
+`FileOps.moveAll`e düşüyor; moveAll dosyayı çöpteki **id'li adıyla**
+("1753…-0-rapor.pdf") indiriyor ama metot çağırana `target`ı (eski adı)
+döndürüyordu → kullanıcıya "eski yerine döndü" denip dosya bambaşka adla
+duruyordu. Son adım (id'li addan gerçek ada rename) eklendi.
+
+### AÇIK 7: boyut düşürmede küçük sadakat kusurları
+- Uzantısız kaynakta çıktı adı `foto_720p.` oluyordu (hiçbir uygulama açmaz) →
+  içerik JPEG yazıldığı için ad da `jpg`.
+- Çıktı kaynaktan BÜYÜK çıkarsa çöpe atılıyordu; kullanıcının hiç görmediği,
+  saniyeler önce bizim ürettiğimiz ve işe yaramadığını ölçtüğümüz dosyayla çöp
+  kutusunu doldurmak yanlış → doğrudan silinir (özgün dosyaya dokunulmuyor).
+- "Özgünü çöpe at" seçilince etiket/geçmiş çöpe giden dosyayla gidiyordu; oysa
+  kullanıcının dosyası artık küçültülmüş çıktı → kayıtlar ÖNCE çıktıya taşınır,
+  SONRA özgün çöpe gider (sıra önemli).
+
+### FFmpeg iddiaları — İKİLİ DOSYADAN doğrulandı (tahmin değil)
+AAR indirilip (`com.antonkarpenko:ffmpeg-kit-min:2.2.2`) içine bakıldı:
+- **`--enable-gpl` YOK**, `libx264` kodlayıcı adı ikilide **yok** → LICENSES.md'
+  deki "GPL bileşen dağıtılmıyor" iddiası **doğru**. (libavcodec'te geçen
+  `x264 - core %d` / `x264_build` metinleri H.264 **ÇÖZÜCÜSÜNÜN** SEI sürüm
+  algılaması; kodlayıcı değil — denetimde bu ayrım özellikle yapıldı.)
+- `--enable-version3` → LGPL v3 doğru.
+- **Sürüm:** libavutil içinde `FFmpeg version n8.1.2`, libavcodec `Lavc62.28.102`
+  → gerçekten 8.1.2. (configure satırındaki `ffmpeg-kit-6.0.LTS` yazarın eski
+  KLASÖR adı, sürüm değil — yanıltıcı, denetimde neredeyse yanlış sonuca
+  götürüyordu.) 8.1.2 ≥ 6.1 olduğu için `h264_mediacodec` **kodlayıcısı** var;
+  `AMediaCodec_createEncoderByType` sembolü de ikilide mevcut → donanım
+  kodlama yolu gerçek.
+- Her FFmpeg kütüphanesi **ayrı `.so`** (libavcodec/avfilter/avformat/avutil/
+  swresample/swscale) → LGPL'in "dinamik bağlı, değiştirilebilir" koşulu fiilen
+  sağlanıyor.
+- **ÖLÇÜLEN boyut** (§V'teki "~12 MB beklenti" tahminini düzeltir): arm64
+  `.so`ların toplamı **15 MB**; APK 66.7 MB (build 162, ffmpeg'siz) → 81.7 MB
+  (build 166, LGPL ffmpeg) = **+15,0 MB**. Tahmin ve ölçüm birebir örtüştü.
+
+## 2026-07-29 (VIII) — SADAKAT DENETİMİ, 2. TUR: hata avı (12 bulgu, hepsi kapatıldı)
+
+§VII "verilen sözler kodda var mı?" sorusuna bakmıştı. Bu tur farklı bir soru
+soruyor: **"var olan kod hangi durumda kullanıcının verisini bozar?"** Sistematik
+hata avı (kod okuma, çalıştırma değil — cihaz yok) 12 bulgu verdi; hepsi
+doğrulandı ve kapatıldı. Sıra ciddiyete göre.
+
+### CRITICAL 1 — "Yer aç" yinelenenleri KALICI siliyordu (çöp sözü tutulmuyordu)
+`CleanupScreen` seçilen önerileri `CleanupAdvisor`ın sıralamasıyla işliyordu:
+`safeByDefault` önce, sonra bayta göre azalan. `trash` (çöp kutusunu boşalt) ile
+`duplicates` (yinelenenler) İKİSİ de `safeByDefault` → boyuta göre sıralanınca
+`duplicates` çoğu zaman ÖNCE geliyordu: yinelenenler çöpe taşınıyor, hemen
+ardından `trash` önerisi çöpü `empty()` ile **kalıcı siliyordu**. Pencere ise
+"çöp kutusuna taşınacak, geri alabilirsin" diyordu.
+**Düzeltme:** `trash` önerisi her zaman EN BAŞA alınır (`ordered` listesi), yani
+boşaltma kendisinden sonra çöpe gireni asla götürmez.
+Ders: "iki öneri de güvenli" demek "sıraları önemsiz" demek DEĞİL — biri diğerinin
+çıktısını yok eden bir işse sıra sözleşmenin parçasıdır.
+
+### CRITICAL 2/3 — `bool _loaded` bayrağı etiketleri ve açılma geçmişini biçiyordu
+`FileTags` ve `OpenHistory` diskten okumaya BAŞLAMADAN `_loaded = true`
+işaretliyordu. O aralıkta gelen ikinci çağıran "yüklendi" sanıp BOŞ harita
+üzerinde çalışıyor, ilk `add`/`record` tüm dosyanın üstüne yazıyordu.
+`record()` uygulamanın bu kayda dokunduğu İLK yer olduğu için pratikte
+**her oturum geçmişi/etiketleri sıfırlıyordu**.
+**Düzeltme:** paylaşılan `Future` memoizasyonu (`_loadFuture ??= _load()`) +
+`FmEnv.appSupportDir` boşken **kilitlenmeme** (paylaşımla soğuk açılışta
+`ensureInit()` henüz koşmamış olabiliyor; bir kez boş kilitlenmek her şeyi
+kaybettiriyordu).
+Ayrıca `existsSync() == false` olan HER kaydı atmak yanlıştı: depolama izni
+yokken / izin geri alınmışken / SD kart çıkarılmışken her yol "yok" görünür.
+Artık kayıt yalnız **klasörü okunabildiği hâlde** dosya yoksa atılır
+(`_shouldKeep`) ve ölü kayıt yüklemede **diske yazılmaz** (bir sonraki gerçek
+değişiklikte kendiliğinden iner). Kilit: `test/fm_file_tags_test.dart` (13),
+`test/fm_open_history_test.dart` (11).
+
+### CRITICAL 4 — "Aynı kalsın" biçimi `.webp` adlı JPEG dosyaları üretiyordu
+`ImageResizer` yalnız JPEG/PNG/BMP/TGA **yazabiliyor** (`image` paketi WebP
+yazamıyor), ama "Aynı kalsın" seçilince kaynağın uzantısı körü körüne
+korunuyordu. Sonuç: `.webp`/`.gif`/`.heic`/`.tiff` adlı, içi JPEG olan dosyalar —
+galeride açılmaz, paylaşımda bozuk görünür. "Özgün dosyayı çöp kutusuna at"
+açıkken kullanıcı sağlam aslını çöpe atıp bozuk kopyayla kalıyordu.
+**Düzeltme:** `ImageResizer.keepExtension` + `encodableExtensions` kümesi
+(`_resizeSync`teki switch ile birebir aynı olmak zorunda). Yazamadığımız her
+uzantı `jpg`'ye düşer.
+
+### HIGH 5 — benzer tarama kimliği TEK sabitti (kapsamlar birbirine karışıyordu)
+`SimilarFinder.jobId = 'similar_media'`. Görüntüler'den, Videolar'dan ve panonun
+"Benzer görsel" kutucuğundan açılan taramalar aynı kuyruk işini paylaşıyordu:
+ikinci ekran açılışta "sonuç zaten var" deyip **başka kapsamın** gruplarını
+gösteriyor, kullanıcı Videolar'da fotoğraf silebiliyordu.
+**Düzeltme:** `SimilarFinder.jobIdFor(scope)` + `SimilarScreen.scopeId`
+(`Görüntüler` / `Videolar` / `tum-medya`).
+Aynı yerde: `cancelled` iş yeniden taranmıyordu → iptalden sonra ekran
+"Benzer görüntü bulunamadı 🎉" diye **yanlış güvence** veriyordu. Artık
+`failed` gibi `cancelled` de yeniden taranır.
+
+### HIGH 6/8 — yinelenen taramada iptal ve geri dönüş
+- `DuplicateFinder.scan` ortasında durdurulamıyor; `handle.result = groups`
+  iptal yoklamasından SONRA yazılıyordu → tarama biterken "Durdur"a basmak
+  dakikalarca süren işi çöpe atıyordu. Sıra ters çevrildi (sonuç saklanır, iş
+  yine "İptal edildi" damgalanır).
+- Ekrana geri dönüşte varsayılan seçim kurulmuyordu (`_seedSelection` yalnız
+  kuyruk bildiriminde çalışıyor, bitmiş iş bir daha bildirim üretmiyor) →
+  sonuçlar görünüyor ama "N kopyayı çöpe taşı" şeridi hiç çıkmıyordu.
+- Yan bulgu: "Yeniden tara" içerik değişmediyse `_seedSignature` aynı kalıyor ve
+  seçim bir daha hiç kurulmuyordu → `_scan()` imzayı sıfırlıyor.
+
+### HIGH 7 — boyut düşürme kimliği çakışıyordu (ikinci iş SESSİZCE yutuluyordu)
+Kimlik `resize_${adet}_${ilkYolunHashCode}` idi. Aynı 3 fotoğrafı önce 720p sonra
+480p için başlatmak aynı kimliği üretiyor, kuyruk "bu iş zaten sürüyor" deyip
+ikincisini yutuyordu — arayüz "arka planda başladı" diyor, hiçbir şey olmuyordu.
+**Düzeltme:** kimlik = TÜM yolların hash'i + `MediaResizeOptions.signature`
+(tüm ayar alanlarını yansıtan kararlı imza, birim testli).
+
+### HIGH 9 — FFmpeg iptali yalnız istatistik geri çağrısında yoklanıyordu
+İki kusur: (a) istatistik yalnız kare kodlandıkça gelir — ses çözülürken ya da
+uzun dosyanın başında hiç gelmeyebilir, o aralıkta "Durdur" hiçbir şey
+yapmıyordu; (b) ilk kodlayıcı (`h264_mediacodec`) hata verdiği anda kullanıcı
+iptal etmişse İKİNCİ kodlayıcı (`mpeg4`) sıfırdan başlıyor ve dakikalarca
+sürüyordu. **Düzeltme:** 400 ms'lik bağımsız yoklama zamanlayıcısı +
+her kodlayıcı denemesinden önce iptal kontrolü.
+
+### HIGH 12 — iptal edilen boyut düşürme diskte yarım iz bırakıyordu
+`handle.throwIfCancelled()` döngünün başındaydı ve `FsEvents.changed()` ile
+"özgünleri çöpe at" adımının ÜSTÜNDEN atlayıp dışarı fırlıyordu: 10 dosyanın
+4'ü bittikten sonra durdurulunca o 4 yeni dosya hiçbir listede görünmüyor,
+"Özgün dosyayı çöp kutusuna at" açıkken kullanıcının elinde hem özgün hem kopya
+kalıyordu. **Düzeltme:** döngü `try`, kuyruk sonu `finally` — iptalde de
+etiket taşınır, özgünler çöpe gider, listeler tazelenir, ayrıntı satırında
+`durduruldu (4/10)` yazar.
+
+### MEDIUM 10 — `ResizeResult.width/height` yedek motorda YALAN söylüyordu
+Yedek motor (MediaCodec kademesi) istenen ölçüyü değil kendi kademesini uygular
+ama alanlara KAYNAĞIN ölçüsü yazılıyordu ("çıktı 1920x1080" derken dosya
+1280x720 olabiliyordu). Alanlar `int?` yapıldı; yedek yolda ölçü **çıktıdan**
+okunur, okunamazsa `null` ("uydurmak yerine bilmiyorum").
+
+### MEDIUM 11 — `PathSideIndex`: etiket/geçmiş yol değişince kayboluyordu
+(§VII AÇIK 1'in devamı) Kanca `FileOps.rename`, `FileOps._transfer` (**yalnız
+`move`** — kopyalamada etiket kaynakta kalmalı), `TrashService.moveToTrash`
+(hem hızlı hem yedek yol), `TrashService.restore` ve boyut düşürmenin
+"özgünü değiştir" yoluna bağlandı. `FileOps`/`TrashService` saf `dart:io`
+kalsın diye kanca deseni seçildi (bkz. `path_side_index.dart`).
+
+### Denetimin kendi dersi
+Bulguların 4'ü **aynı desenden** çıktı: *"iki durumu birbirine karıştırmak"*.
+- "dosya silinmiş" ↔ "şu an göremiyorum" (izin/SD kart) → CRITICAL 2/3
+- "yüklemeye başladım" ↔ "yüklendi" (bayrak ↔ Future) → CRITICAL 2/3
+- "iki öneri de güvenli" ↔ "sıraları önemsiz" → CRITICAL 1
+- "uzantı" ↔ "gerçekten yazabildiğim biçim" → CRITICAL 4
+Yeni kod yazarken bu dört ayrım özellikle sorulmalı.
+
+### Doğrulama (bu turda)
+`flutter analyze`: 0 hata (40 info/warning, hepsi eski koddan).
+`flutter test`: **824 test geçti** (denetim öncesi 805; +19 yeni kilit).
+Yeni/güncellenen test dosyaları: `fm_file_tags_test.dart` (yeni, 13),
+`fm_media_resize_test.dart` (+9: `keepExtension`, ayar imzası, kapsam kimliği),
+`fm_open_history_test.dart` (11), `fm_path_side_index_test.dart` (7).
+
+## 2026-07-29 (IX) — SADAKAT DENETİMİ, 3. TUR: iki bağımsız hata avı (23 bulgu)
+
+§VIII'deki 12 bulgu kapandıktan sonra **ikinci bir tur** koşuldu: bu kez iki
+bağımsız denetim, "birinci turun KAÇIRDIĞINI bul" göreviyle — biri boyut düşürme
+hattı (model/servis/ekran/pencere), biri dosya yöneticisi ekranları + yol
+anahtarlı yan kayıtlar. Toplam 23 bulgu; ikisi de eklentilerin **kendi native
+kaynağını** okuyarak (video_compress'in Android Kotlin'i, image 4.3.0) doğruladı,
+tahmin etmedi. Bu tur en ciddi veri kayıplarını buldu.
+
+### CRITICAL — "çıktı küçüldü" tek başına başarı ölçütü DEĞİLDİ
+`ResizeResult` çıktı yoksa `afterBytes`ı bilerek 0 yazıyor; kabul koşulu ise
+yalnız `afterBytes >= beforeBytes` idi → **0 >= 200 MB yanlış** olduğu için BOŞ
+ya da BOZUK çıktı "en büyük başarı" sayılıyordu: özet "199 MB kazanıldı" yazıyor,
+"Özgün dosyayı çöp kutusuna at" açıkken 10 dakikalık asıl videoyu çöpe atıyordu.
+Gerçek senaryo: kaydı yarıda kesilmiş video (bozuk `moov` — telefonlarda çok
+yaygın); ffmpeg ilk 3 saniyeyi çözüp **0 dönüş koduyla** çıkıyor.
+**Düzeltmeler:** (a) `afterBytes <= 0` artık başarısızlık; (b) yeni
+`VideoTranscoder._verifyOutput` — çıktı ffprobe ile okunur ve **süresi** kaynağın
+%90'ından kısaysa iş başarısız sayılır, yarım çıktı silinir, özgüne DOKUNULMAZ;
+(c) doğrulama `catch (_)` DIŞINDA: "yarım çıktı" kararı yedek motoru denemek için
+sebep değil (kaynak bozuksa o da yarım üretir, kullanıcı dakikalarca bekler).
+Ders: **"küçüldü" ile "geçerli" aynı şey değil.** Yer kazancı ölçmek, dosyanın
+açılabildiğini ölçmek değildir.
+
+### CRITICAL — yedek motor, "çözünürlüğü değiştirme" derken çözünürlüğü düşürüyordu
+`video_compress` kademeleri eklentinin Android tarafında `DefaultVideoStrategy
+.atMost(n)`e eşleniyor (`LowQuality` → 360, `MediumQuality` → 640; kısa kenarı
+zorla düşürür). Bizim `_presetQuality` "Çözünürlük: Değiştirme" seçiminde
+sıkıştırma sertliğini bu kademelere eşliyordu → kullanıcı *değiştirme* derken
+1080p aslı çöpe gidip elinde 640 piksellik dosya kalıyordu. Üstelik bu yol yalnız
+ffprobe başarısız olunca çalıştığı ve arayüzdeki "yedek motora düşülebilir"
+uyarısı `changesResolution`e bağlı olduğu için **uyarı da görünmüyordu**: söz
+verilmemiş, sorulmamış, geri alınamaz kayıp.
+**Düzeltme:** `!changesResolution` → `HighestQuality` (eklentide ölçü kısıtı
+KOYMAYAN tek kademe). Bedeli dürüstçe kabul edildi ve arayüze yazıldı: yedek
+motorda sıkıştırma sertliği ve kare sayısı seçimi uygulanamaz.
+
+### CRITICAL — "Temizle" çöp kutusu sözü verip KALICI siliyordu
+`deleteEntries(confirm: false)` TÜM onay bloğunu atlıyordu — `!useTrash` dalı
+dahil. Fotoğraflar ekranındaki "Temizle" kendi penceresinde *"çöp kutusuna
+taşınacak"* yazıp bu yolu kullanıyor; Ayarlar > "Çöp kutusunu kullan" kapalıysa
+31 fotoğraf kalıcı siliniyor, çöp kutusu boş kalıyordu.
+**Düzeltme:** onay kararı saf bir fonksiyona çıkarıldı ve kilitlendi
+(`needsDeleteConfirm`, `test/fm_delete_guard_test.dart`): **kalıcı silme onayı
+hiçbir koşulda atlanamaz.** Ayrıca "Temizle" penceresinin metni ayarı okuyor ve
+düğme etiketleri `deleteActionText` ile dürüstleşti (çöp kutusu kapalıyken
+"çöpe taşı" yazmıyor).
+
+### CRITICAL — benzer tarama kapsamı EKRAN BAŞLIĞIYLA anahtarlanıyordu
+§VIII'de eklenen `jobIdFor(scope)` doğru fikirdi ama ona verilen anahtar
+`category.label` ("Görüntüler") idi — bu ad **tek değil**: pano tüm depolamayı,
+Önemli Dosyalar ekranı ise o klasördeki bir düzine dosyayı aynı başlıkla açıyor.
+İkinci ekran "sonuç zaten var" deyip BİRİNCİNİN gruplarını gösteriyor,
+"Fazlaları seç" + kırmızı şerit hiç taranmamış, hiç görülmemiş 40 fotoğrafı çöpe
+atıyordu. **Düzeltme:** `PhotosScreen.scopeId` (pano `depolama-<kategori>`,
+Önemli Dosyalar `onemli-<kategori>`). Ders: **kimlik, ekranın adı değil, işin
+kapsamı olmalı.**
+
+### HIGH — klasörü yeniden adlandırmak İÇİNDEKİ tüm etiketleri öldürüyordu
+`PathSideIndex.moved` klasörler için de çağrılıyor ama `movePath` yalnız TAM
+anahtara bakıyordu. `DCIM/Tatil` → `Tatil 2025`: 40 fotoğrafın "Ayşe" etiketi
+ölü yollarda kalıyor, süzgeç çipi "Ayşe (40)" yazarken liste BOŞ dönüyor ve
+kayıtlar hiç temizlenmiyor (`_shouldKeep` eski üst klasörü de göremediği için
+"erişilemez" sanıp sonsuza dek saklıyor). **Düzeltme:** yeni saf fonksiyon
+`movedPathFor` — alt yollar da yeniden yazılır, eşleşme **ayırıcı sınırında**
+yapılır (`Tatil` taşınırken `Tatil 2025` etkilenmez), `/` ve `\` ikisi de sınır.
+`FileTags.movePath` ve `OpenHistory.movePath` bunu kullanıyor; kilit:
+`fm_path_side_index_test.dart` (klasör adlandırma + 6 saf yol testi).
+
+### HIGH — animasyon/çok sayfa tek kareye iniyor, asıl çöpe gidiyordu
+`image` paketinin `decodeImage`i animasyondan yalnız ilk kareyi çözüyor,
+`encodeJpg` de tek kare yazıyor. 4 MB'lık hareketli bir GIF 200 KB'a "küçülüyor"
+(çok küçük → kabul), asıl GIF çöpe gidiyor ve kullanıcının elinde tek duruk kare
+kalıyordu. 12 sayfalık TIFF'te 11 sayfa, PSD'de katmanlar aynı şekilde.
+**Düzeltme:** `ImageResizer.mayLoseFrames` (gif/apng/webp/tif/tiff/psd/xcf) —
+dönüştürme yapılır (duruk bir `.webp` küçültmek isteyenin yolu kapanmasın) ama
+**"özgünü çöpe at" bu dosyalarda uygulanmaz** ve özette yazar:
+"N hareketli/çok sayfalı dosyanın aslı korundu".
+
+### HIGH — kullanıcının kendi bastığı "Durdur" ona "biçim desteklenmiyor" diyordu
+`video_compress` iptalde de hatada da `null` döndürüyor (Android'de
+`onTranscodeCanceled` ve `onTranscodeFailed` ikisi de `result.success(null)`) →
+`info.isCancel` ölü kod. İptal `VideoTranscodeException`a düşüyor,
+`resize_actions` onu `failed++` sayıyordu. **Düzeltme:** `info == null` +
+iptal isteği → `JobCancelled`.
+
+### HIGH — iptal özeti hiçbir yüzeye ULAŞMIYORDU
+`resize_actions` iptalde dürüst bir özet yazıyor ("12,4 MB kazanıldı · 4 özgün
+çöp kutusunda · durduruldu (4/10)") ama ilerleme şeridi `İptal edildi.` sabitini
+basıyor, bildirim ise iptalde tümden **siliniyordu**. Yani 4 videosunun çöpe
+gittiğini öğrenmenin hiçbir yolu yoktu. **Düzeltme:** şerit `İptal edildi · …`
+yazıyor; ayrıntısı olan iptal bildirimi silinmiyor. Özete "N özgün çöp kutusunda"
+satırı eklendi.
+
+### HIGH — "Yer aç" iptalden sonra "Depolaman düzenli görünüyor 🎉" diyordu
+`cleanup_screen.initState` yalnız `failed` bakıyordu (§VIII'de diğer iki ekranda
+düzeltilen hatanın aynısı, burası atlanmış). İptal edilen çözümlemenin sonucu
+yok → ekran tam ters bir güvence veriyordu. Ayrıca geri dönüşte varsayılan seçim
+kurulmuyordu ("Güvenli öneriler açık gelir" sözü ikinci girişte tutulmuyor,
+düğme "Bir öneri seçin" diye kapalı kalıyordu). İkisi de düzeltildi.
+
+### HIGH — serbest ölçü kaynaktan BÜYÜTÜYORDU (arayüz tersini yazarken)
+"Kaynaktan büyütme yapılmaz" kuralı yalnız kademelerde uygulanıyordu; arayüz bu
+cümleyi tam serbest ölçü alanlarının ALTINDA yazıyor. 1000 px fotoğrafa 2000
+yazmak dosyayı büyütüyor, çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi"
+diye bitiyordu — kullanıcı nedenini hiç öğrenmiyordu. **Düzeltme:** serbest
+ölçüde de kaynağa çekilir (4 test). Ayrıca yardım metni ikinci gerçeği de
+söylüyor: iki alanı da doldurmak oranı bozar.
+
+### MEDIUM (hepsi kapatıldı)
+- **Yinelenenler ekranı GÖRÜNMEYEN grupları siliyordu:** varsayılan seçim tüm
+  gruplara kurulu, arama yalnız çizimi daraltıyordu → "1 / 47 grup" yazarken
+  şerit 94 dosyayı çöpe atıyordu. Artık eylem ve sayılar `_visibleGroups`ten.
+- **Seçim, çip süzgeciyle budanmıyordu:** "Tümünü seç" (8214) sonra "WhatsApp
+  (12)" çipi → başlık "8214 / 12 seçildi", "Sil" 8214 dosyayı götürüyordu.
+  `_selectedEntries` artık GÖRÜNEN listeden çözülür (seçim kümesi korunur, çipi
+  kapatınca geri gelir); sayaçlar eylemle aynı kümeyi sayar.
+- **`setState` after `dispose`:** `showFmProgress`ın "Arka plana al" düğmesi
+  pencereyi kapatıp işi sürdürüyor; kullanıcı geri gidince dört yerde ölü
+  State'e `setState` gidiyordu (photos/category/browser seçim çubuğu,
+  duplicates silme sonrası). `mounted` koruması eklendi.
+- **Kare sayısı büyütülüyordu:** 30 fps videoya "60" seçmek ffmpeg'e kareleri
+  kopyalattırıyor, dosya şişiyor, iş "küçültülemedi" diye bitiyordu →
+  `VideoTranscoder.cappedFps` (çözünürlükteki "büyütme yok" kuralının kare
+  sayısındaki karşılığı, 4 test).
+- **Yeniden kodlama uyarısı yanlış bayrağa bağlıydı:** video yolu çözünürlük
+  değişmese de HER durumda yeniden kodluyor; uyarı `changesResolution`e bağlıydı
+  → "Değiştirme" seçen kullanıcı dakikalar sürecek kodlamayı uyarısız
+  başlatıyordu. Uyarı artık seçimde video varsa her zaman görünüyor.
+- **Yedek motorda iptal yalnız ilerleme geri çağrısında yoklanıyordu** (FFmpeg
+  yolundaki 400 ms'lik yoklama buraya da eklendi).
+- **Yedek motorun geçici çıktısı sızıyordu:** eklenti iptal/hata yolunda dosyanın
+  yolunu söylemiyor → art arda iptallerde uygulama deposunda gigabaytlar
+  kalıyordu. İptal/hata yolunda `deleteAllCache()` çağrılıyor.
+- **Yarım kalan görüntü yazımı** albümde 0 baytlık dosya bırakıyordu → hata
+  anında silinir.
+- **Bit hızı 30 fps varsayıyordu:** "15 fps" seçene gereğinin iki katı bit hızı
+  ayrılıyor, yani kare sayısını yarıya indirmek dosyayı beklendiği kadar
+  küçültmüyordu → `_bitrateFor` artık fps alıyor.
+- **Fotoğraflar "Temizle" etiket süzgeci açıkken hiçbir şey yapmıyordu**
+  (`tagsOf` verilmemiş): ekran "6 kopya gizlendi" derken düğme "kopya çıkmadı"
+  diyordu. `analysis_screen`de de aynı çözücü savunma amaçlı eklendi.
+
+### LOW (kapatıldı)
+- Benzerlik kademesi geri dönüşte "Normal"e dönüyor ama ekranda SIKI sonuçları
+  duruyordu → kademe kapsam başına hatırlanıyor.
+- "İşlem arka planda başladı" metni durumu okumuyordu (aynı iş sürüyorsa yenisi
+  hiç açılmıyor; kuyrukta bekleyen iş "başlamış" değil) → üç ayrı metin.
+- `sourceSize` aynı dosyada ikinci bir ffprobe koşturuyordu → `_sizeViaPlugin`.
+- `archive_screen._preview` `await`ten sonra `context` kullanıyordu (analyzer
+  uyarısı; tek `mounted` koruması).
+
+### Bu turun dersi
+1. tur "kod ne yapıyor?" diye sordu; 2. tur **"eklenti gerçekte ne yapıyor?"**
+diye sordu ve en ciddi iki kaybı orada buldu (`atMost(360)`, `success(null)`).
+Bir paketin Dart API'si sözleşme değil; davranış native tarafta. Bir daha
+eklentiye dayanan bir söz verirken (birebir çözünürlük, iptal, kare sayısı) o
+sözün native karşılığı OKUNARAK doğrulanmalı.
+
+### Doğrulama (3. tur)
+`flutter analyze`: 0 hata, 0 yeni uyarı (kalan 39 info/warning eski koddan;
+`withOpacity` deprecation'ları). `flutter test`: **853 test geçti** (2. tur
+sonunda 829). Yeni: `fm_delete_guard_test.dart` (7),
+`fm_media_resize_test.dart` (+13: serbest ölçü büyütmez, `cappedFps`,
+`mayLoseFrames`), `fm_path_side_index_test.dart` (+7: `movedPathFor` + klasör
+adlandırma), `fm_smart_features_test.dart` (+5: `cleanupApplyOrder`).
+
+## 2026-07-29 (X) — SADAKAT DENETİMİ, 4. TUR: veri taşıma çekirdeği (17 bulgu)
+
+§VIII ve §IX ekranları ve boyut düşürme hattını taradı. Bu tur **altındaki
+katmanı** denetledi — kullanıcının gerçek dosyalarını taşıyan, silen, geri
+yükleyen kod: `file_ops.dart`, `trash_service.dart`, `job_queue.dart`,
+`op_history.dart`, ilerleme penceresi. Buradaki bir hata geri alınamaz.
+17 bulgu; 15'i kapatıldı, 2'si **bilinçli olarak kapatılmadı** (aşağıda gerekçe).
+Kilit: yeni `test/fm_transfer_safety_test.dart` (10 test).
+
+### CRITICAL — çöp kaydı üzerine yazılıyordu; yarım yazma TÜM çöpü görünmez yapıyordu
+`index.json` doğrudan `writeAsString` ile güncelleniyordu; bu çağrı dosyayı önce
+**kısaltır**. Yazma kesilirse (kart dolu — kullanıcı zaten bu yüzden siliyor;
+kart çıkarıldı; süreç öldü) dosyada yarım JSON kalıyor ve `_readIndex` bozuk
+JSON'u **boş listeye** çeviriyor. Sonuç: çöp kutusu "boş" görünüyor, o turdaki
+dosyalar VE tüm eski kayıtlar birden yok oluyor; baytlar `.dosya-okuyucu-cop`
+içinde `1753…-12-rapor.pdf` gibi adlarla, `FsScan`ın atladığı gizli klasörde
+kalıyor — kullanıcı ne görebiliyor, ne geri alabiliyor, ne "Yer aç" ile
+bulabiliyor. **Düzeltme:** geçici dosya + `rename` (atomik). Aynı sınıf hata
+`op_history.json`de de vardı (tüm geri alma geçmişi) → o da atomik.
+
+### CRITICAL — dosya çöpe taşındı ama KAYDI yazılamadıysa dosya yok sayılıyordu
+`moveToTrash` önce taşıyıp sonra kayıt yazıyor ve aradaki hata için koruma yoktu
+(ters durum için — kaynak yerinde kalmışsa — koruma vardı). İki gerçek tetikleyici
+bulundu: (a) çok uzun ad → id ekiyle 255 baytı aşıyor, yedek yoldaki İKİNCİ
+`rename` korumasız olduğu için hata dışa fırlıyor; (b) kart dolu → kayıt yazımı
+patlıyor. İkisinde de dosya kullanıcının klasöründen gitmiş, çöpte de kayıtsız
+(görünmez) kalıyor. **Düzeltmeler:** ikinci `rename` korundu (ad çevrilemezse
+dosya indiği adda bırakılır ve kayıt **o adı** gösterir) + kayıt yazılamazsa
+dosya **eski yoluna geri alınır** ve hata bildirilir; geri alma da olmazsa yol
+hata metnine yazılır. Kural: **çöpte dosya varsa kaydı da vardır.**
+
+### CRITICAL — `FmConflict.skip` + klasör taşıma: atlanan çocuğun TEK kopyası siliniyordu
+Klasör dalında çocuk sonuçları yok sayılıyor, sonra kaynak
+`delete(recursive: true)` ile siliniyordu. Ad çakışması yüzünden **atlanan**
+çocuk hata atmadığı için silme yine koşuyor: hedefte zaten farklı içerikli bir
+dosya var, kaynaktaki tek kopya yok oluyor. **Düzeltme:** herhangi bir çocuk
+atlandıysa kaynak klasör KORUNUR. (UI şu an `skip`/`overwrite` göndermiyor —
+`FmConflict` genel API ve bir sonraki doğal özellik "çakışma penceresi"; hata
+gelmeden kapatıldı.)
+
+### CRITICAL — `FmConflict.overwrite` hedefi, yerine bir şey koymadan siliyordu
+Önce `deleteSync(dest)`, sonra `copy`. Kopyalama patlarsa (kart doldu, kaynak
+okunamadı) hedefteki veri gitmiş, yerine bir şey konmamış olur. `rename`/`copy`
+POSIX'te var olan yolun üstüne zaten yazıyor. **Düzeltme:** ön silme kaldırıldı.
+
+### HIGH — iptal edilen taşımada "Geri al" KAYBOLUYORDU
+İptal dalı `transfers`ı boş döndürüyordu: 200 fotoğrafın 90'ı taşındıktan sonra
+"İptal"e basan kullanıcı "90 öğe taşındı" okuyor ama geri alma düğmesini
+(koşulu `transfers.isNotEmpty`) hiç görmüyordu. Otomatik düzenlemede daha kötüsü:
+o taşımalar `OpHistory` kaydına hiç yazılmadığı için "Son işlemler"den de geri
+alınamıyorlardı. Ayrıca `FsEvents.changed()` de atlanıyor, açık ekranlar taşınmış
+dosyaları eski yolunda göstermeye devam ediyordu. **Düzeltme:** iptalde de
+`transfers` + `FsEvents.changed()`.
+
+### HIGH — "İptal" tek dosyada hiç iptal etmiyordu ve sonuç bunu SÖYLEMİYORDU
+İptal yalnız döngü başında yoklanıyor; `File.copy`/`rename` bölünemez. 3 GB'lık
+tek bir videoda "İptal" hiçbir şeyi durdurmuyor ve sonuçta `cancelled == false`
+kaldığı için arayüz "1 öğe taşındı" diyordu. Kopyalamayı kesmek elimizde değil,
+ama **olanı doğru söylemek** elimizde: sonuç artık iptal isteğini yansıtıyor ve
+arayüz "Durduruldu · N öğe çoktan taşındı (süren aktarma yarıda kesilemiyor)"
+yazıyor.
+
+### HIGH — kaynak, kopya DOĞRULANMADAN siliniyordu (çapraz birim)
+Sıra doğruydu (kopya önce, silme sonra) ama boyut karşılaştırması yoktu: kısa
+yazmayı hata olarak bildirmeyen bir bağlama noktasında (sdcardfs/FUSE/MTP) tek
+sağlam kopya silinebilirdi. **Düzeltme:** kopya boyutu kaynakla eşit değilse
+yarım hedef silinir, hata atılır, **kaynak yerinde kalır**.
+
+### HIGH — "Çöp kutusu boşaltıldı · N öğe · X yer açıldı" silinemeyenler için de yazılıyordu
+`deleteForever` her hatayı yutup kaydı yine de düşürüyordu: kart salt-okunur
+takılıysa ya da dosya başka uygulamada açıksa baytlar diskte kalıyor, kayıt
+gidiyor → dosya çöp ekranında görünmüyor, `FsScan` çöpü atladığı için "Yer aç"
+da bulamıyor; kullanıcının 4 GB'ı uygulama içinden **asla** geri kazanılamaz
+hâle geliyor, üstelik ekran "4,2 GB yer açıldı" diyordu. **Düzeltme:** gerçek
+hata YUKARI çıkar ve kayıt korunur (dosya zaten yoksa kayıt düşer — o hata
+değil). Böylece var olan "N öğe silinemedi" dalları ilk kez gerçekten çalışıyor.
+Ek: klasörler kayda `0` bayt yazılıyordu ("4 GB klasörü boşalttım, 0 B yer
+açıldı") → çöpe atarken gerçek boyut ölçülüyor (`FsScan.folderSize`).
+
+### HIGH — eşzamanlı çöp işlemleri kayıt düşürüyordu (oku-değiştir-yaz yarışı)
+"Arka plana al" sayesinde kullanıcı uzun bir silmeyi arka plana atıp hemen başka
+bir silme/geri yükleme başlatabiliyor. A okur (42 kayıt) → B okur (42) → B 43
+yazar → A kendi 43'ünü B'nin kaydı olmadan yazar: B'nin dosyası çöpte, kaydı yok
+→ görünmez ve geri alınamaz. **Düzeltme:** kayıt değişiklikleri süreç genelinde
+bir `Future` zinciriyle sıraya alınıyor (`_withIndexLock`, static).
+
+### HIGH — "Geri al" dosyanın ADINI sessizce değiştiriyordu
+`undoMove`, `moveAll` üzerinden gittiği için hedef adı `basename(dest)`ten
+üretiyordu; taşımada çakışma olduysa (`rapor.pdf` → `rapor (1).pdf`) geri alma
+dosyayı `rapor (1).pdf` olarak geri getiriyor, arayüz ise sadece "Geri alındı."
+diyordu. **Düzeltme:** eski ad boşsa dosya o ada döndürülür.
+
+### MEDIUM (kapatıldı)
+- İptal edilen KLASÖR aktarımı "başarılı" sayılıyordu: 5000 fotoğraflık albümün
+  900'ü kopyalanmışken kullanıcıya "kopyalandı" deniyor, geri alma kaydına yarım
+  bir ağaç yazılıyordu → iptalde `null` döner, `succeeded` artmaz.
+- `succeeded` atlanan dosyaları da sayıyordu (hem `skipped` hem `succeeded`).
+- Kısmi hata bildirimi: yalnız ilk hata metni yazılıyor, kaç dosyanın olduğu/
+  olmadığı söylenmiyordu → "N öğe taşındı, M öğe aktarılamadı: …". Ayrıca
+  `deleteEntries` hepsi başarısız olsa bile `true` dönüyordu (çağıranlar seçimi
+  temizleyip listeyi tazeliyor, "oldu" sanılıyordu).
+- **Kısmi geri alma kaydı siliyordu:** 60 dosyanın 40'ı dönmüşse kayıt
+  düşürülüyor, kalan 20'nin nereye gittiğini söyleyen tek bilgi (kaynak→hedef
+  eşlemesi) yok oluyor ve o dosyalar bir daha ASLA geri alınamıyordu → kayıt
+  yalnız tamamı geri alındıysa düşer.
+- Arka plan ilerleme şeridi `hideCurrentSnackBar()` ile kapanıyordu: SnackBar'lar
+  sırayla gösterildiği için bu, araya giren bir sonuç mesajını ("5 öğe taşındı ·
+  Geri al") süpürebiliyordu → şeridin kendi denetleyicisi (`controller.close()`).
+- Yalnız büyük/küçük harf değiştiren yeniden adlandırma SD kartta (FAT32/exFAT)
+  "bu adda bir öğe zaten var" diye reddediliyordu (dahili depolamada çalışıyor —
+  tutarsız) → geçici ada uğrayıp hedefe inen iki adımlı `rename`.
+
+### BİLİNÇLİ KAPATILMAYAN İKİ BULGU (gerekçeli)
+1. **`JobQueue`ta zaman aşımı/gözcü yok.** Gövdesi hiç dönmeyen bir iş kuyruğu
+   kalıcı olarak kilitler (sonraki işler "Sırada"da bekler, bildirim şeritte
+   asılı kalır, çare uygulamayı zorla kapatmak). Zaman aşımı EKLENMEDİ: kuyruğun
+   gerçek sakinleri dakikalarca süren meşru işler (video kodlama, bayt bayt
+   tarama) ve "iptali 30 saniyede uygulamayan işi terk et" kuralı, dosya
+   değiştiren iki işi (ör. "Yer aç: temizleniyor" + yeni bir iş) aynı anda
+   koşturabilirdi — yani gözlemlenmemiş bir kilitlenmeyi önlemek için
+   gözlemlenmiş bir sınıf hatayı (çöp kaydı yarışı) yeniden açmak olurdu.
+   Kuyruk eşzamanlılığının 1 olması bilinçli bir güvenlik kararı; onu iptal
+   yolundan delmek yanlış takas. Gerçek çözüm, işleri tek tek kesilebilir
+   yapmak (her uzun döngüde `throwIfCancelled`) — şu an kuyruğa giren tüm
+   gövdelerde bu var; kesilemeyen tek adım `DuplicateFinder.scan` ve o da
+   sonlu.
+2. **İlerleme sayacı hızlı yollarda atlıyor.** Klasörün tamamı tek `rename` ile
+   taşındığında sayaç 1/5000 gösterip sona atlıyor. Düzeltmek ya ağacı ikinci
+   kez yürümek ya da ilerleme protokolünü değiştirmek demek; sayı hiçbir zaman
+   VERİ hakkında yanlış bir şey söylemiyor (yalnız çubuk kaba). Kozmetik olarak
+   kabul edildi.
+
+### Denetimin bulmadığı, doğrulanan yerler
+Çöpten geri yükleme hedefi ezmiyor (her zaman `uniquePath`), çöp içinde ad
+çakışması olamıyor (ms + süreç sayacı), "çöpü boşalt" çöp klasörü dışına
+çıkamıyor (yol `sanitizeName`den geçmiş bir taban adla kuruluyor), taşımada
+silme sırası her yerde doğru (kopya önce), `_pump` hata yutmuyor, ilerleme
+kısması SON raporu düşürmüyor (`report` alanları kapıdan önce yazıyor,
+`_pump` bitişte `notifyListeners` + `onFinished` çağırıyor).
+
+### Doğrulama (4. tur)
+`flutter analyze`: 0 hata, 0 yeni uyarı (39 info/warning eski koddan).
+`flutter test`: **863 test geçti** (3. tur sonunda 853).
+Yeni: `test/fm_transfer_safety_test.dart` (10).

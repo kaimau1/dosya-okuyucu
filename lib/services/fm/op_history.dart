@@ -115,8 +115,7 @@ abstract final class OpHistory {
     if (FmEnv.appSupportDir.isEmpty) return;
     final all = trim([record, ...await load()]);
     try {
-      await File(_path)
-          .writeAsString(jsonEncode(all.map((e) => e.toJson()).toList()));
+      await _writeAtomic(all);
     } catch (_) {
       // geçmiş yazılamazsa işlem yine de yapıldı; sessiz geçilir
     }
@@ -129,9 +128,22 @@ abstract final class OpHistory {
       ..removeWhere(
           (r) => r.whenMs == record.whenMs && r.summary == record.summary);
     try {
-      await File(_path)
-          .writeAsString(jsonEncode(all.map((e) => e.toJson()).toList()));
+      await _writeAtomic(all);
     } catch (_) {}
+  }
+
+  /// **Atomik** yazma: geçici dosya + `rename`.
+  ///
+  /// `writeAsString` dosyayı önce kısaltıyor; yazma yarıda kalırsa `load()`
+  /// bozuk JSON'u boş listeye çeviriyor ve TÜM geri alma geçmişi sessizce yok
+  /// oluyordu (2026-07-29 sadakat denetimi, 4. tur — çöp kutusu kaydındaki
+  /// aynı sınıf hata, orada dosya baytları söz konusuydu, burada geçmiş).
+  static Future<void> _writeAtomic(List<OpRecord> records) async {
+    final tmp = File('$_path.tmp');
+    await tmp.writeAsString(
+        jsonEncode(records.map((e) => e.toJson()).toList()),
+        flush: true);
+    await tmp.rename(_path);
   }
 
   static Future<void> clear() async {

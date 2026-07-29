@@ -55,8 +55,22 @@ class _CleanupScreenState extends State<CleanupScreen> {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
     final job = JobQueue.instance.find(_scanJobId);
+    final hasResult = job?.result is CleanupScanResult;
     // Sonuç varsa yeniden taramıyoruz: kullanıcı geri döndüğünde beklemesin.
-    if (job == null || job.status == JobStatus.failed) _analyze();
+    //
+    // Sonucu OLMAYAN ve artık koşmayan iş (başarısız **ya da iptal edilmiş**)
+    // yeniden taranır: eskiden yalnız `failed` bakılıyordu ve iptalden sonra
+    // ekran "Temizlenecek belirgin bir şey bulunamadı 🎉 / Depolaman düzenli
+    // görünüyor" diye tam ters bir güvence veriyordu — çözümleme hiç bitmemiş
+    // olduğu hâlde (2026-07-29 sadakat denetimi, 2. tur).
+    if (job == null || (!hasResult && !job.status.isActive)) {
+      _analyze();
+    } else if (hasResult) {
+      // Geri dönüşte varsayılan seçim burada kurulur: `_onQueue` yalnız kuyruk
+      // bildiriminde çalışıyor, bitmiş bir iş bir daha bildirim üretmiyor →
+      // "Güvenli öneriler açık gelir" sözü ikinci girişte tutulmuyordu.
+      _seedSelection();
+    }
   }
 
   @override
@@ -173,7 +187,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
       total: chosen.length,
       run: (handle) async {
         var done = 0;
-        for (final suggestion in chosen) {
+        // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA — gerekçesi ve kök nedeni
+        // (veri kaybı) `cleanupApplyOrder`ın başında yazılı, kilidi
+        // `test/fm_smart_features_test.dart`te.
+        for (final suggestion in cleanupApplyOrder(chosen)) {
           handle.throwIfCancelled();
           handle.report(done: done, detail: suggestion.title);
           if (suggestion.id == 'trash') {

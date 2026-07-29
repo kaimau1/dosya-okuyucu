@@ -8,22 +8,29 @@ import 'package:path/path.dart' as p;
 import '../../models/media_resize.dart';
 import 'file_ops.dart';
 
-/// Boyut düşürme sonucu (önce/sonra ölçüleri kullanıcıya yazılır).
+/// Boyut düşürme sonucu.
 class ResizeResult {
   final String sourcePath;
   final String outputPath;
   final int beforeBytes;
   final int afterBytes;
-  final int width;
-  final int height;
+
+  /// Çıktının **gerçek** ölçüsü; ölçülemediyse null.
+  ///
+  /// Nullable olması bilinçli: yedek video motoru (MediaCodec kademesi) istenen
+  /// ölçüyü değil kendi kademesini uygular ve ne ürettiğini söylemez. Burada
+  /// eskiden KAYNAĞIN ölçüsü yazılıydı — yani alan "çıktı 1920x1080" diyorken
+  /// dosya 1280x720 olabiliyordu. Uydurmak yerine "bilmiyorum" diyoruz.
+  final int? width;
+  final int? height;
 
   const ResizeResult({
     required this.sourcePath,
     required this.outputPath,
     required this.beforeBytes,
     required this.afterBytes,
-    required this.width,
-    required this.height,
+    this.width,
+    this.height,
   });
 
   int get savedBytes => beforeBytes - afterBytes;
@@ -47,8 +54,7 @@ abstract final class ImageResizer {
     MediaResizeOptions options,
   ) async {
     final before = File(path).lengthSync();
-    final ext = options.imageFormat.extension ??
-        (p.extension(path).replaceFirst('.', '').toLowerCase());
+    final ext = options.imageFormat.extension ?? keepExtension(path);
     final base = p.basenameWithoutExtension(path);
     final target = FileOps.uniquePath(
       p.join(p.dirname(path), '${base}_${options.suffix}.$ext'),
@@ -68,6 +74,49 @@ abstract final class ImageResizer {
       width: result.width,
       height: result.height,
     );
+  }
+
+  /// "Aynı kalsın" seçilince çıktının uzantısı ne olmalı?
+  ///
+  /// [encodableExtensions] dışındaki her uzantı `jpg`'ye düşürülür. Sebep
+  /// [_resizeSync]: gerçekten yazabildiğimiz biçimler bunlar; kaynağın
+  /// uzantısını körü körüne korumak `.webp` / `.gif` / `.heic` adlı ama İÇİ
+  /// JPEG olan dosyalar üretiyordu (2026-07-29 sadakat denetimi). Böyle bir
+  /// dosya galeride açılmaz, paylaşımda "bozuk" görünür ve kullanıcı özgününü
+  /// çöpe attıysa (Özgün dosyayı çöp kutusuna at) kaybı geri alması güçtür.
+  /// Uzantısız kaynakta (ör. WhatsApp'ın bazı geçici dosyaları) da `jpg`:
+  /// "foto_720p." adlı bir dosya hiçbir uygulamada açılmaz.
+  static String keepExtension(String path) {
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    return encodableExtensions.contains(ext) ? ext : 'jpg';
+  }
+
+  /// `image` paketiyle **yazabildiğimiz** uzantılar ([_resizeSync]'teki switch
+  /// ile birebir aynı küme olmalı).
+  static const Set<String> encodableExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'bmp',
+    'tga',
+  };
+
+  /// Kaynak **birden çok kare/sayfa/katman** taşıyabilen bir biçim mi?
+  ///
+  /// `image` paketinin `decodeImage`i animasyondan yalnız İLK kareyi çözer,
+  /// `encodeJpg`/`encodePng` de tek kare yazar. Yani hareketli bir GIF'i, çok
+  /// sayfalı bir TIFF'i ya da katmanlı bir PSD'yi "küçültmek" onu tek bir
+  /// duruk kareye indirmek demek — ve çıktı çok küçük olduğu için işlem
+  /// "başarılı" sayılıp **"Özgün dosyayı çöp kutusuna at" açıkken animasyon
+  /// çöpe gidiyordu** (2026-07-29 sadakat denetimi, 2. tur).
+  ///
+  /// Bu yüzden dönüştürme yapılır ama [ResizeAction.replaceOriginal] uygulanmaz
+  /// ve kullanıcıya söylenir: duruk bir `.webp`/`.tif` küçültmek isteyen
+  /// kullanıcının yolu kapanmasın, hareketli olan da kaybolmasın.
+  static bool mayLoseFrames(String path) {
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    return const {'gif', 'apng', 'webp', 'tif', 'tiff', 'psd', 'xcf'}
+        .contains(ext);
   }
 
   /// Gemini'ye gönderilecek **küçük önizleme** üretir (dosyaya yazmadan).
@@ -148,7 +197,19 @@ abstract final class ImageResizer {
       // ayarının anlamı olan tek yaygın biçim.
       _ => img.encodeJpg(resized, quality: args.options.imageQuality),
     };
-    File(args.outputPath).writeAsBytesSync(encoded, flush: true);
+    // Yazma YARIDA kalırsa (depolama doldu, SAF izni geri alındı) kullanıcının
+    // albümünde 0 baytlık bir "IMG_0031_720p.jpg" kalıyordu: galeride bozuk
+    // küçük resim, iş özetinde yalnız "küçültülemedi" (2026-07-29 sadakat
+    // denetimi, 2. tur). Hata anında yarım dosya silinir.
+    final out = File(args.outputPath);
+    try {
+      out.writeAsBytesSync(encoded, flush: true);
+    } catch (_) {
+      try {
+        if (out.existsSync()) out.deleteSync();
+      } catch (_) {}
+      rethrow;
+    }
     return (width: resized.width, height: resized.height);
   }
 }

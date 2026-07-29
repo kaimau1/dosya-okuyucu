@@ -14,6 +14,7 @@ import '../../services/fm/image_hash.dart';
 import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/similar_finder.dart';
+import '../../services/fm/thumbnail_cache.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
@@ -39,11 +40,18 @@ class SimilarScreen extends StatefulWidget {
 
   final String title;
 
+  /// Bu taramanın **kapsam kimliği** — kuyruk kimliği buradan üretilir
+  /// (bkz. [SimilarFinder.jobIdFor]). Aynı kapsamdan tekrar girmek taramayı
+  /// baştan başlatmaz; farklı kapsam (Görüntüler / Videolar / tüm medya) kendi
+  /// sonucunu tutar.
+  final String scopeId;
+
   const SimilarScreen({
     super.key,
     this.files = const [],
     this.loadAll,
     this.title = 'Benzer görüntüler',
+    this.scopeId = 'all',
   });
 
   @override
@@ -54,13 +62,35 @@ class _SimilarScreenState extends State<SimilarScreen> {
   final Set<String> _selected = {};
   SimilarityLevel _level = SimilarityLevel.normal;
 
+  /// Kapsam başına **son kullanılan benzerlik kademesi**.
+  ///
+  /// `_level` ekranın kendi durumu ve her girişte "Normal"e dönüyordu; oysa
+  /// kuyruk kimliği kademeyi içermiyor (bilinçli: kademe değiştirmek yeniden
+  /// tarama demek, geri dönmek değil). Sonuç: "Sıkı" ile tarayıp geri dönen
+  /// kullanıcı, çipte "Normal" seçili ve altında Normal'in açıklaması yazarken
+  /// ekranda SIKI sonuçlarını görüyordu — silme kararını kullanılmayan bir
+  /// eşiğe göre veriyordu (2026-07-29 sadakat denetimi, 2. tur).
+  static final Map<String, SimilarityLevel> _levelByScope = {};
+
   @override
   void initState() {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
     // Sonuç zaten varsa (kullanıcı geri döndü) yeniden tarama YOK.
-    final job = JobQueue.instance.find(SimilarFinder.jobId);
-    if (job == null || job.status == JobStatus.failed) _start();
+    //
+    // `cancelled` de yeniden taranır: iptal edilmiş bir taramanın sonucu YARIM
+    // (ya da hiç yok) ve ekran bunu "benzer bulunamadı 🎉" diye gösteriyordu —
+    // kullanıcı taramayı kendi durdurduğunu bilse bile ekranın bir daha asla
+    // taramaması, "Yeniden tara"ya basmadan yanlış bir güvence vermekti.
+    final job = _job;
+    if (job == null ||
+        job.status == JobStatus.failed ||
+        job.status == JobStatus.cancelled) {
+      _start();
+    } else {
+      // Gösterilen sonuç hangi kademeyle üretildiyse çip de onu göstermeli.
+      _level = _levelByScope[widget.scopeId] ?? _level;
+    }
   }
 
   @override
@@ -73,7 +103,9 @@ class _SimilarScreenState extends State<SimilarScreen> {
     if (mounted) setState(() {});
   }
 
-  FmJob? get _job => JobQueue.instance.find(SimilarFinder.jobId);
+  String get _jobId => SimilarFinder.jobIdFor(widget.scopeId);
+
+  FmJob? get _job => JobQueue.instance.find(_jobId);
 
   List<SimilarGroup> get _groups {
     final result = _job?.result;
@@ -82,9 +114,10 @@ class _SimilarScreenState extends State<SimilarScreen> {
 
   void _start() {
     final level = _level;
+    _levelByScope[widget.scopeId] = level;
     final loader = widget.loadAll;
     JobQueue.instance.enqueue(
-      id: SimilarFinder.jobId,
+      id: _jobId,
       title: 'Benzer görüntüler aranıyor (${level.label})',
       total: widget.files.length,
       run: (handle) async {
@@ -146,6 +179,26 @@ class _SimilarScreenState extends State<SimilarScreen> {
     setState(() => _selected.removeAll(files.map((f) => f.path)));
   }
 
+  /// Gemini'ye gönderilecek küçük önizleme — **video dahil**.
+  ///
+  /// Kullanıcının isteği *"video ve fotoğraflarda ai ile aynı resimleri
+  /// tespit"* idi; cihaz-içi parmak izi videoda zaten çalışıyor (küçük resim
+  /// karesini hash'liyor) ama Gemini yolu "video desteklenmiyor" diyordu —
+  /// yani AI karşılaştırması isteğin yarısını karşılıyordu. Video için aynı
+  /// native küçük resim karesi (`ThumbnailCache`, MediaMetadataRetriever)
+  /// kullanılıp o JPEG küçültülüyor. Kare üretilemezse null döner ve dosya
+  /// karşılaştırmaya girmez.
+  Future<Uint8List?> _previewFor(FsEntry file) async {
+    if (file.category != FmCategory.video) {
+      return ImageResizer.previewJpeg(file.path);
+    }
+    // 512 px: Gemini'ye giden önizleme zaten küçültülüyor, karenin daha
+    // büyük üretilmesinin faydası yok.
+    final frame = await ThumbnailCache.forVideo(file.path, size: 512);
+    if (frame == null) return null;
+    return ImageResizer.previewJpeg(frame);
+  }
+
   /// Grubu Gemini'ye sorar (kullanıcı isteği: cihaz-içi + AI birlikte seçenek).
   Future<void> _askGemini(SimilarGroup group) async {
     final appState = context.read<AppState>();
@@ -162,14 +215,14 @@ class _SimilarScreenState extends State<SimilarScreen> {
         content: Text('Görseller küçültülüp Gemini’ye gönderiliyor…')));
     final previews = <({String name, Uint8List bytes})>[];
     for (final f in chosen) {
-      final bytes = await ImageResizer.previewJpeg(f.path);
+      final bytes = await _previewFor(f);
       if (bytes != null) previews.add((name: f.name, bytes: bytes));
     }
     if (!mounted) return;
     if (previews.length < 2) {
       messenger.showSnackBar(const SnackBar(
-          content: Text('Görseller okunamadı (video karesi henüz '
-              'desteklenmiyor).')));
+          content: Text('Karşılaştırma için en az iki önizleme '
+              'üretilemedi (dosyalar okunamıyor olabilir).')));
       return;
     }
     try {
@@ -273,8 +326,12 @@ class _SimilarScreenState extends State<SimilarScreen> {
                 child: FilledButton.icon(
                   onPressed: _deleteSelected,
                   icon: const Icon(Icons.delete_outline),
-                  label: Text('${_selected.length} dosyayı çöpe taşı '
-                      '(${FsPaths.humanSize(_selectedBytes)})'),
+                  // Etiket ayarı okur: çöp kutusu kapalıyken "çöpe taşı" demek
+                  // kullanıcıya geri alabileceğini söylemek olurdu.
+                  label: Text('${deleteActionText(
+                    useTrash: context.watch<AppState>().fmUseTrash,
+                    what: '${_selected.length} dosyayı',
+                  )} (${FsPaths.humanSize(_selectedBytes)})'),
                 ),
               ),
             ),
@@ -376,6 +433,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
     final selected = _selected.contains(file.path);
     final scheme = Theme.of(context).colorScheme;
     final tags = FileTags.forPath(file.path);
+    final isVideo = file.category == FmCategory.video;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
       child: SizedBox(
@@ -398,6 +456,30 @@ class _SimilarScreenState extends State<SimilarScreen> {
                         decoration: BoxDecoration(
                           color: scheme.error.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    // Videoyu OYNATMAK için ayrı, görünür bir düğme (istek
+                    // 2026-07-29: "benzer videolar oynatma yapılabilmeli emin
+                    // olabilmek için"). Tek dokunuş burada zaten seçime
+                    // ayrılmış; oynatma uzun basışta gizli kalıyordu ve
+                    // kullanıcı silmeden önce videoyu GÖRMEDEN karar veriyordu.
+                    // İçteki düğme kendi dokunuşunu yakalar, dıştaki
+                    // GestureDetector'ın seçim davranışını tetiklemez (aynı
+                    // desen `FmEntryListTile`'daki iç-içe "⋮" düğmesinde de var).
+                    if (isVideo)
+                      Center(
+                        child: Material(
+                          color: Colors.black45,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => EntryOpener.open(context, file.path),
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(Icons.play_arrow,
+                                  color: Colors.white, size: 20),
+                            ),
+                          ),
                         ),
                       ),
                     Positioned(

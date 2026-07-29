@@ -53,12 +53,24 @@ class PhotosScreen extends StatefulWidget {
   /// "videolarda tüm videolar görünmüyor".
   final Future<List<FsEntry>> Function()? loadAll;
 
+  /// Bu ekranın **kapsam kimliği** — benzer görüntü taramasının kuyruk kimliği
+  /// buradan üretilir (bkz. `SimilarFinder.jobIdFor`).
+  ///
+  /// Niye başlık yetmiyor: `title` `category.label` ("Görüntüler") oluyor ve bu
+  /// ad **tek değil**. Pano tüm depolamayı, Önemli Dosyalar ise o klasördeki
+  /// bir düzine dosyayı aynı başlıkla açıyor. Kimlik başlıktan üretilirse
+  /// ikinci ekran "sonuç zaten var" deyip BİRİNCİNİN sonucunu gösterir ve
+  /// "Fazlaları seç" hiç taranmamış, hiç görülmemiş dosyaları çöpe atar
+  /// (2026-07-29 sadakat denetimi, 2. tur). Verilmezse başlığa düşer.
+  final String? scopeId;
+
   const PhotosScreen({
     super.key,
     required this.title,
     required this.files,
     this.showSources = true,
     this.loadAll,
+    this.scopeId,
   });
 
   @override
@@ -94,18 +106,24 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   bool get _selecting => _selected.isNotEmpty;
 
-  /// Seçili girdiler. **Haritayla** bulunur: 20 bin dosyalık listede her
-  /// karede `where(...)` gezmek seçim çubuğunu kastırıyordu.
+  /// Seçili **ve ekranda görünen** girdiler.
+  ///
+  /// `_files` (tüm liste) DEĞİL `_visible` (süzgeçten geçmiş liste) üzerinden
+  /// çözülür. Kaynak/gün/etiket çipleri seçim sürerken de canlı — bu bilinçli
+  /// bir kolaylık — ama seçim daraltmayla birlikte budanmıyordu: "Tümünü seç"
+  /// ile 8214 fotoğraf seçip sonra "WhatsApp (12)" çipine dokunan kullanıcı
+  /// kendi kendisiyle çelişen bir başlık ("8214 / 12 seçildi") görüyor ve
+  /// "Sil"e bastığında EKRANDA HİÇ GÖRMEDİĞİ 8214 dosya çöpe gidiyordu
+  /// (2026-07-29 sadakat denetimi, 2. tur).
+  ///
+  /// Seçim kümesi (`_selected`) korunur — çipi geri kapatınca eski seçim yine
+  /// oradadır — yalnız EYLEM ve SAYILAR görünenle sınırlıdır.
+  /// Sıra da görünen listenin sırasıdır (silme onayında okunabilir olsun diye).
   List<FsEntry> get _selectedEntries {
-    final key = identityHashCode(_files);
-    if (_byPathKey != key || _byPathCache == null) {
-      _byPathCache = {for (final e in _files) e.path: e};
-      _byPathKey = key;
-    }
-    final map = _byPathCache!;
+    if (_selected.isEmpty) return const [];
     return [
-      for (final path in _selected)
-        if (map[path] != null) map[path]!,
+      for (final e in _visible)
+        if (_selected.contains(e.path)) e,
     ];
   }
 
@@ -117,8 +135,6 @@ class _PhotosScreenState extends State<PhotosScreen> {
   String? _visibleKey;
   List<_Section>? _sectionsCache;
   String? _sectionsKey;
-  Map<String, FsEntry>? _byPathCache;
-  int? _byPathKey;
   Map<MediaBucket, int>? _bucketCache;
   Map<String, int>? _extCache;
   Map<ChatMediaKind, int>? _chatKindCache;
@@ -258,6 +274,26 @@ class _PhotosScreenState extends State<PhotosScreen> {
     });
   }
 
+  /// Tek dosya seçiliyken görünürdeki konumuna göre üstündekileri/
+  /// altındakileri de seçer (Google Fotoğraflar'daki "buraya kadar seç"
+  /// jesti). Kullanıcı isteği (2026-07-29): *"1 görüntü seçtim, onun altında
+  /// kalanları seç, onun üstünde kalanları seç butonu olsun"*.
+  ///
+  /// "Üstünde/altında" **ekrandaki sıraya** göredir (mevcut sıralama/filtre
+  /// ne olursa olsun): seçili dosyadan önceki indeksler üstte, sonrakiler
+  /// altta görünür.
+  void _selectFromAnchor(List<FsEntry> visible, {required bool above}) {
+    if (_selected.length != 1) return;
+    final anchorIndex = visible.indexWhere((e) => e.path == _selected.first);
+    if (anchorIndex < 0) return;
+    _selectRange(
+      visible,
+      above ? 0 : anchorIndex,
+      above ? anchorIndex : visible.length - 1,
+      true,
+    );
+  }
+
   void _toggleSection(_Section section) {
     final all = section.files.every((e) => _selected.contains(e.path));
     setState(() {
@@ -291,13 +327,17 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final layout = appState.fmPhotoLayout;
     final group = appState.fmPhotoGroup;
     final visible = _visible;
+    // Seçili+görünen küme build başına BİR kez hesaplanır: 20 bin dosyalık
+    // listede her kullanımda yeniden gezmek seçim çubuğunu kastırırdı
+    // (kullanıcı 2026-07-29: "uygulama biraz kasmaya başladı").
+    final selectedEntries = _selectedEntries;
     final sections = _timelineMode
         ? _sections(visible, group)
         : [_Section('${visible.length} dosya · ${_sort.label}', visible, 0)];
 
     return Scaffold(
       appBar: _selecting
-          ? _selectionBar(visible)
+          ? _selectionBar(visible, selectedEntries)
           : (_searching ? _searchBar() : _normalBar(appState)),
       // **Stack**, bottomNavigationBar DEĞİL: alt çubuk görünür/kaybolur
       // olduğunda gövdenin yüksekliği değişirse ızgara yeniden yerleşiyor ve
@@ -351,8 +391,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
               right: 0,
               bottom: 0,
               child: FmSelectionBar(
-                selected: _selectedEntries,
+                selected: selectedEntries,
                 onChanged: () async {
+                  // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
+                  // işini bitirdiğinde bu State artık ölü olabiliyor ve
+                  // `setState` "called after dispose" hatası atıyordu
+                  // (2026-07-29 sadakat denetimi, 2. tur).
+                  if (!mounted) return;
                   setState(_selected.clear);
                   await _dropMissing();
                 },
@@ -369,9 +414,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
   /// adaylar önce bayt bayt doğrulanır (`DuplicateFinder.scanPaths`) ve her
   /// gruptan **en eski** dosya korunur. Silinenler çöp kutusuna gider.
   Future<void> _cleanDuplicates() async {
+    // `tagsOf` verilmek ZORUNDA: etiket süzgeci açıkken çözücü verilmezse
+    // `FmFilter.matches` her dosyanın etiket kümesini boş sayar ve aday listesi
+    // TÜMÜYLE boşalır → ekran kopyaları gösterirken bu düğme "kopya bulunamadı"
+    // diyordu (2026-07-29 sadakat denetimi, 2. tur).
     final candidates = _filter
         .withHideDuplicates(false)
-        .apply(_files, query: _query)
+        .apply(_files, query: _query, tagsOf: FileTags.forPath)
         .toList();
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
@@ -392,12 +441,18 @@ class _PhotosScreenState extends State<PhotosScreen> {
       return;
     }
     final bytes = extras.fold<int>(0, (sum, e) => sum + e.sizeBytes);
+    // Pencere metni AYARI okur. Sabit "çöp kutusuna taşınacak" yazıyordu; çöp
+    // kutusu kapalıyken bu doğrudan yanlıştı ve dosyalar kalıcı siliniyordu
+    // (2026-07-29 sadakat denetimi, 2. tur — `deleteEntries`teki nota bak).
+    final useTrash = context.read<AppState>().fmUseTrash;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Kopyalar silinsin mi?'),
         content: Text('${extras.length} fazladan kopya '
-            '(${FsPaths.humanSize(bytes)}) çöp kutusuna taşınacak. '
+            '(${FsPaths.humanSize(bytes)}) '
+            '${useTrash ? 'çöp kutusuna taşınacak' : 'KALICI olarak silinecek '
+                '(çöp kutusu ayarlardan kapalı)'}. '
             'Her gruptan en eski dosya korunur.'),
         actions: [
           TextButton(
@@ -472,6 +527,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
               builder: (_) => SimilarScreen(
                 files: _files,
                 title: 'Benzer: ${widget.title}',
+                // Kapsam kimliği: Görüntüler / Videolar ve "tüm depolama" /
+                // "Önemli Dosyalar" taramaları aynı kuyruk işini paylaşmasın
+                // (bkz. [PhotosScreen.scopeId] ve SimilarFinder.jobIdFor).
+                scopeId: widget.scopeId ?? widget.title,
               ),
             )),
           ),
@@ -524,13 +583,33 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   /// Seçim üst çubuğu **sade**: sayaç + tümünü seç. Eylemler alttaki
   /// [FmSelectionBar]'da (proje kuralı: üstte yalnız altta karşılığı OLMAYAN).
-  PreferredSizeWidget _selectionBar(List<FsEntry> visible) => AppBar(
+  PreferredSizeWidget _selectionBar(
+          List<FsEntry> visible, List<FsEntry> selectedEntries) =>
+      AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
         ),
-        title: Text('${_selected.length} / ${visible.length} seçildi'),
+        // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]): görünen
+        // listeye daraltıldığında "8214 / 12 seçildi" gibi kendisiyle çelişen
+        // bir başlık çıkmaz.
+        title: Text('${selectedEntries.length} / ${visible.length} seçildi'),
         actions: [
+          // Tek dosya seçiliyken çıkar: "üstündekileri/altındakileri de seç"
+          // (istek 2026-07-29). Birden çok seçiliyken hangi dosya "anchor"
+          // olacağı belirsizleşir, o yüzden yalnız tek seçimde gösterilir.
+          if (_selected.length == 1) ...[
+            IconButton(
+              tooltip: 'Üstündekileri de seç',
+              icon: const Icon(Icons.expand_less),
+              onPressed: () => _selectFromAnchor(visible, above: true),
+            ),
+            IconButton(
+              tooltip: 'Altındakileri de seç',
+              icon: const Icon(Icons.expand_more),
+              onPressed: () => _selectFromAnchor(visible, above: false),
+            ),
+          ],
           IconButton(
             tooltip: visible.every((e) => _selected.contains(e.path))
                 ? 'Seçimi kaldır'

@@ -186,6 +186,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
     });
   }
 
+  /// Tek dosya seçiliyken görünürdeki konumuna göre üstündekileri/
+  /// altındakileri de seçer (Google Fotoğraflar'daki "buraya kadar seç"
+  /// jesti). Kullanıcı isteği (2026-07-29): *"1 görüntü seçtim, onun altında
+  /// kalanları seç, onun üstünde kalanları seç butonu olsun"*.
+  void _selectFromAnchor(List<FsEntry> visible, {required bool above}) {
+    if (_selected.length != 1) return;
+    final anchorIndex = visible.indexWhere((e) => e.path == _selected.first);
+    if (anchorIndex < 0) return;
+    _selectRange(
+      visible,
+      above ? 0 : anchorIndex,
+      above ? anchorIndex : visible.length - 1,
+      true,
+    );
+  }
+
   List<FsEntry> get _selectedEntries =>
       _entries.where((e) => _selected.contains(e.path)).toList();
 
@@ -295,7 +311,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final entries = _sorted;
 
     return Scaffold(
-      appBar: _selecting ? _selectionBar(context) : _normalBar(context),
+      appBar: _selecting ? _selectionBar(context, entries) : _normalBar(context),
       // Stack: alt eylem çubuğu gövdenin yüksekliğini DEĞİŞTİRMESİN (aksi
       // hâlde liste zıplıyor — 2026-07-29 hatası).
       body: Stack(
@@ -340,6 +356,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 selected: _selectedEntries,
                 zipDestDir: widget.path,
                 onChanged: () async {
+                  // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
+                  // işini bitirdiğinde bu State artık ölü olabiliyor ve
+                  // `setState` "called after dispose" hatası atıyordu
+                  // (2026-07-29 sadakat denetimi, 2. tur).
+                  if (!mounted) return;
                   setState(_selected.clear);
                   _load();
                 },
@@ -465,7 +486,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   /// Seçim üst çubuğu **sade**: sayaç + seçme yardımcıları. Eylemler
   /// (Taşı/Kopyala/Paylaş/Sil/…) alttaki [FmSelectionBar]'da — proje kuralı:
   /// üstte yalnız altta karşılığı OLMAYAN durur (HAFIZA 2026-07-28 D).
-  PreferredSizeWidget _selectionBar(BuildContext context) {
+  PreferredSizeWidget _selectionBar(BuildContext context, List<FsEntry> visible) {
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.close),
@@ -473,6 +494,18 @@ class _BrowserScreenState extends State<BrowserScreen> {
       ),
       title: Text('${_selected.length} / ${_entries.length} seçildi'),
       actions: [
+        if (_selected.length == 1) ...[
+          IconButton(
+            tooltip: 'Üstündekileri de seç',
+            icon: const Icon(Icons.expand_less),
+            onPressed: () => _selectFromAnchor(visible, above: true),
+          ),
+          IconButton(
+            tooltip: 'Altındakileri de seç',
+            icon: const Icon(Icons.expand_more),
+            onPressed: () => _selectFromAnchor(visible, above: false),
+          ),
+        ],
         IconButton(
           tooltip: _allSelected ? 'Seçimi kaldır' : 'Tümünü seç',
           icon: Icon(_allSelected ? Icons.deselect : Icons.select_all),

@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import 'fs_events.dart';
 import 'fs_scan.dart';
+import 'path_side_index.dart';
 
 /// Hedefte aynı adlı dosya varsa ne yapılacağı.
 enum FmConflict {
@@ -82,6 +83,15 @@ abstract final class FileOps {
   static bool _exists(String path) =>
       File(path).existsSync() || Directory(path).existsSync();
 
+  /// Dosyanın boyutu; okunamazsa -1 (kopya doğrulamasında "uyuşmadı" sayılır).
+  static int _sizeOf(String path) {
+    try {
+      return File(path).statSync().size;
+    } catch (_) {
+      return -1;
+    }
+  }
+
   /// Kaynakları [destDir] içine kopyalar.
   static Future<FmOpResult> copyAll(
     List<String> sources,
@@ -128,10 +138,22 @@ abstract final class FileOps {
 
     for (final src in sources) {
       if (isCancelled?.call() ?? false) {
+        // `transfers` MUTLAKA döner. Eskiden iptal dalı onu boş bırakıyordu:
+        // 200 fotoğrafın 90'ı taşındıktan sonra "İptal"e basan kullanıcıya
+        // "90 öğe taşındı" yazılıyor ama "Geri al" düğmesi (koşulu
+        // `transfers.isNotEmpty`) HİÇ çıkmıyordu — 90 dosya taşınmış, geri
+        // alma yok. Otomatik düzenlemede daha kötüsü oluyordu: `OpHistory`
+        // kaydına o taşımalar hiç yazılmadığı için "Son işlemler"den de
+        // geri alınamıyorlardı (2026-07-29 sadakat denetimi, 4. tur).
+        //
+        // `FsEvents.changed()` de burada çağrılır: yoksa açık ekranlar
+        // taşınmış dosyaları eski yollarında göstermeye devam ediyordu.
+        if (succeeded > 0) FsEvents.changed();
         return FmOpResult(
             succeeded: succeeded,
             skipped: skipped,
             errors: errors,
+            transfers: transfers,
             cancelled: true);
       }
       final name = p.basename(src);
@@ -162,8 +184,18 @@ abstract final class FileOps {
           isCancelled: isCancelled,
           onSkip: () => skipped++,
         );
-        succeeded++;
-        if (finalPath != null) transfers.add(FmTransfer(src, finalPath));
+        // `succeeded` yalnız GERÇEKTEN aktarılanı sayar. Eskiden koşulsuz
+        // artıyordu: atlanan dosya hem `skipped` hem `succeeded` sayılıyor,
+        // iptal edilen yarım klasör de "aktarıldı" görünüyordu.
+        if (finalPath != null) {
+          succeeded++;
+          transfers.add(FmTransfer(src, finalPath));
+          // TAŞIMADA yan kayıtlar (etiket, açılma geçmişi) yeni yola geçer.
+          // Kopyalamada geçmez: özgün dosya yerinde duruyor, etiketi onda
+          // kalmalı — kopyaya da yapıştırmak "iki dosyada aynı etiket" gibi
+          // kullanıcının vermediği bir karar olurdu.
+          if (move) await PathSideIndex.moved(src, finalPath);
+        }
       } catch (e) {
         errors.add('$name: ${_msg(e)}');
       }
@@ -174,14 +206,28 @@ abstract final class FileOps {
       skipped: skipped,
       errors: errors,
       transfers: transfers,
+      // İptal isteği döngü İÇİNDE geldiyse (tek dosyalık bir işte ya da son
+      // öğede) yukarıdaki erken dönüşe hiç uğranmaz ve sonuç "iptal edilmedi"
+      // diyordu: kullanıcı "İptal"e bastığı hâlde "1 öğe taşındı" görüyordu.
+      // Kopyalama/taşıma çekirdekte kesilemez (`File.copy` bölünemez), ama
+      // OLANI DOĞRU söylemek zorundayız — arayüz bu bayrakla "iptal istendi,
+      // şu kadarı çoktan aktarılmıştı" diyebiliyor.
+      cancelled: isCancelled?.call() ?? false,
     );
   }
 
-  /// Bir taşımayı **geri alır**: her öğeyi eski klasörüne geri taşır.
+  /// Bir taşımayı **geri alır**: her öğeyi eski yoluna (eski ADIYLA) geri taşır.
   ///
-  /// Ad çakışırsa yeni ad verilir (veri ezilmez), yani dosya eski adıyla
+  /// Eski yol doluysa yeni ad verilir (veri ezilmez), yani dosya eski adıyla
   /// dönmeyebilir — ama asla kaybolmaz. Kopyalama geri alınmaz: orada geri
   /// almak "sil" demektir, yanlış dokunuşta veri kaybı riski taşır.
+  ///
+  /// **Ad geri getirilir:** `moveAll` hedef adı `basename(dest)`ten üretiyor;
+  /// taşıma sırasında çakışma yüzünden ad değişmişse (`rapor.pdf` →
+  /// `rapor (1).pdf`) "Geri al" dosyayı `rapor (1).pdf` olarak geri getiriyor,
+  /// arayüz ise sadece "Geri alındı." diyordu — kullanıcının dosya adı sessizce
+  /// değişiyordu (2026-07-29 sadakat denetimi, 4. tur). Artık eski ad boşsa
+  /// dosya o ada döndürülür.
   static Future<FmOpResult> undoMove(List<FmTransfer> transfers) async {
     final errors = <String>[];
     var ok = 0;
@@ -190,8 +236,20 @@ abstract final class FileOps {
         final back = await moveAll([t.dest], p.dirname(t.source));
         if (back.hasError) {
           errors.addAll(back.errors);
-        } else {
-          ok += back.succeeded;
+          continue;
+        }
+        ok += back.succeeded;
+        final landed = back.transfers.isNotEmpty
+            ? back.transfers.first.dest
+            : p.join(p.dirname(t.source), p.basename(t.dest));
+        if (p.normalize(landed) != p.normalize(t.source) &&
+            _exists(landed) &&
+            !_exists(t.source)) {
+          try {
+            await rename(landed, p.basename(t.source));
+          } catch (_) {
+            // Ad geri verilemedi: dosya yerinde ve sağlam, yalnız adı farklı.
+          }
         }
       } catch (e) {
         errors.add('${p.basename(t.dest)}: ${_msg(e)}');
@@ -231,19 +289,40 @@ abstract final class FileOps {
           ? uniquePath(dest)
           : dest);
       await target.create(recursive: true);
+      // Çocuklardan biri ATLANDI mı? (Ad çakışması + `FmConflict.skip`.)
+      // Bunu bilmek zorunludur: atlanan çocuk kopyalanmadığı hâlde aşağıdaki
+      // `delete(recursive: true)` kaynağı komple siliyordu → atlanan dosyanın
+      // TEK kopyası yok oluyordu, hedefte de zaten farklı içerikli bir dosya
+      // vardı (2026-07-29 sadakat denetimi, 4. tur — CRITICAL). Atlama olduysa
+      // kaynak klasör KORUNUR; kullanıcı elinde kalanı görür.
+      var anySkipped = false;
+      var cancelledHere = false;
       for (final child in srcDir.listSync(followLinks: false)) {
-        if (isCancelled?.call() ?? false) return target.path;
-        await _transferOne(
+        if (isCancelled?.call() ?? false) {
+          cancelledHere = true;
+          break;
+        }
+        final childResult = await _transferOne(
           child.path,
           p.join(target.path, p.basename(child.path)),
           move: move,
           conflict: conflict,
           onFile: onFile,
-          onSkip: onSkip,
+          onSkip: () {
+            anySkipped = true;
+            onSkip();
+          },
           isCancelled: isCancelled,
         );
+        if (childResult == null) anySkipped = true;
       }
-      if (move) {
+      // İptalde klasör YARIM kopyalanmış olur; kaynağı silmek de "başarılı"
+      // demek de yanlış. `null` dönmek çağırana "bu öğe tamamlanmadı" der:
+      // `succeeded` artmaz ve geri alma kaydına yarım bir ağaç yazılmaz.
+      // (Eskiden `target.path` dönüyordu: 5000 fotoğraflık albümün 900'ü
+      // kopyalanmışken kullanıcıya "kopyalandı" deniyordu.)
+      if (cancelledHere) return null;
+      if (move && !anySkipped) {
         try {
           await srcDir.delete(recursive: true);
         } catch (_) {
@@ -265,9 +344,12 @@ abstract final class FileOps {
         case FmConflict.rename:
           target = uniquePath(dest);
         case FmConflict.overwrite:
-          try {
-            File(dest).deleteSync();
-          } catch (_) {}
+          // Hedef ÖNCEDEN SİLİNMEZ. `rename`/`copy` POSIX'te var olan yolun
+          // üstüne zaten yazar; önce silmek, kopyalama sonra başarısız olursa
+          // (kart doldu, kaynak okunamadı, kart çıkarıldı) hedefteki veriyi
+          // hiçbir şey koymadan yok etmek demekti — kullanıcı "üzerine yaz"
+          // dedi, "sil" demedi (2026-07-29 sadakat denetimi, 4. tur).
+          break;
       }
     }
 
@@ -279,7 +361,22 @@ abstract final class FileOps {
       } on FileSystemException {
         // farklı bölüm (SD kart / OTG): kopyala + sil
       }
+      final sourceSize = file.statSync().size;
       await file.copy(target);
+      // KAYNAK, KOPYA DOĞRULANMADAN SİLİNMEZ. Sıra zaten doğruydu (kopya önce),
+      // ama boyut karşılaştırması yoktu: kısa yazmayı hata olarak bildirmeyen
+      // bir bağlama noktasında (sdcardfs/FUSE/MTP) tek sağlam kopyayı silmek
+      // demekti. Uyuşmazlıkta yarım hedef temizlenir, kaynak YERİNDE kalır.
+      final copiedSize = _sizeOf(target);
+      if (copiedSize != sourceSize) {
+        try {
+          if (_exists(target)) File(target).deleteSync();
+        } catch (_) {}
+        throw FileSystemException(
+            'kopya eksik yazıldı ($copiedSize/$sourceSize bayt), '
+            'kaynak silinmedi',
+            target);
+      }
       await file.delete();
     } else {
       await file.copy(target);
@@ -322,16 +419,41 @@ abstract final class FileOps {
     if (clean.isEmpty) throw const FileSystemException('ad boş olamaz');
     final target = p.join(p.dirname(path), clean);
     if (p.normalize(target) == p.normalize(path)) return path;
-    if (_exists(target)) {
+    // YALNIZ BÜYÜK/KÜÇÜK HARF değişiyorsa "zaten var" hatası verilmez.
+    // SD kart ve USB bellek FAT32/exFAT'tir: orada `_exists('IMG.jpg')` ile
+    // `_exists('img.jpg')` aynı dosyayı bulur, yani `IMG_0042.JPG` →
+    // `IMG_0042.jpg` denemesi "bu adda bir öğe zaten var" diye reddediliyordu
+    // (dahili depolamada aynı işlem çalışıyor — kullanıcı için tutarsız).
+    // Çözüm: geçici bir ada uğrayıp hedefe inmek (2026-07-29 denetimi, 4. tur).
+    final caseOnly =
+        p.normalize(target).toLowerCase() == p.normalize(path).toLowerCase();
+    if (!caseOnly && _exists(target)) {
       throw const FileSystemException('bu adda bir öğe zaten var');
+    }
+    if (caseOnly) {
+      final via = uniquePath('$path.tmp-rename');
+      final isDirectory = Directory(path).existsSync();
+      if (isDirectory) {
+        await Directory(path).rename(via);
+        await Directory(via).rename(target);
+      } else {
+        await File(path).rename(via);
+        await File(via).rename(target);
+      }
+      await PathSideIndex.moved(path, target);
+      FsEvents.changed();
+      return target;
     }
     final dir = Directory(path);
     if (dir.existsSync()) {
       final renamed = await dir.rename(target);
+      // Etiket/açılma geçmişi yolu izler; yoksa yeniden adlandırınca kaybolur.
+      await PathSideIndex.moved(path, renamed.path);
       FsEvents.changed();
       return renamed.path;
     }
     final renamed = await File(path).rename(target);
+    await PathSideIndex.moved(path, renamed.path);
     FsEvents.changed();
     return renamed.path;
   }
