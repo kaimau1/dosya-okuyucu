@@ -3569,3 +3569,11 @@ boyda görününce göz nereye bakacağını bilmiyor.
   İndir, İndirilenler, Yer aç, Düzenle, Analiz, Uygulamalar, Son işlemler, Çöp.
 Hiçbir özellik silinmedi; yalnız görsel ağırlık ayrıldı. Kartsız + küçük ikon
 seçilmesinin nedeni: araçlar günde bir kez, kategoriler her açılışta lazım.
+
+**Ek (aynı gün):** §H'deki 3. yolun (elle izin) gerçekten kullanılabilmesi için
+manifeste `github.com`, `objects.githubusercontent.com`,
+`raw.githubusercontent.com`, `codeload.github.com` alan adları TEK TEK yazıldı.
+Eşleşme açısından gereksizler (`host="*"` zaten hepsini tutuyor); sebep şu:
+"Varsayılan olarak aç" ekranı manifestteki alan adlarını **listeler** ve yalnız
+`*` yazılıysa bazı cihazlarda liste boş geliyor → kullanıcının
+işaretleyebileceği hiçbir şey olmuyor, yani izin verme yolu da kapanıyor.

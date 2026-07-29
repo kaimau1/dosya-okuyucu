@@ -130,6 +130,19 @@
                 <data android:scheme="http" />
                 <data android:scheme="https" />
                 <data android:host="*" />
+                <!-- Aşağıdaki adlar eşleşme için GEREKSİZ (`*` zaten hepsini
+                     tutuyor); ayarlar ekranı için var. Android 12'den beri
+                     doğrulanmamış web filtreleri seçicide gizleniyor ve tek
+                     çare kullanıcının "Varsayılan olarak aç → Desteklenen
+                     bağlantıları aç" ekranından elle izin vermesi. O ekran
+                     manifestteki alan adlarını LİSTELER; yalnız `*` yazılıysa
+                     bazı cihazlarda liste boş çıkıyor ve kullanıcının
+                     işaretleyebileceği hiçbir şey olmuyor. En sık kullanılan
+                     adlar tek tek yazılınca liste dolu geliyor. -->
+                <data android:host="github.com" />
+                <data android:host="objects.githubusercontent.com" />
+                <data android:host="raw.githubusercontent.com" />
+                <data android:host="codeload.github.com" />
                 <data android:pathPattern=".*\\.apk" />
                 <data android:pathPattern=".*\\.apk.*" />
                 <data android:pathPattern=".*\\.zip" />
