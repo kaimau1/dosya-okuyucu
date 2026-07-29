@@ -3789,3 +3789,62 @@ testi var: bu lisans kararının kodda sessizce geri gelmesini engelliyor
   kararı (silme geri alınamaz, bu yüzden sormadan yapılmadı).
 - `LICENSE` dosyası hâlâ YOK: artık uygulamanın kendi lisansı GPL'e
   zorlanmıyor, yani lisans seçimi tamamen proje sahibinin tercihi.
+
+## 2026-07-29 (VI) — Üç yeni istek: üstünü/altını seç, son açılanlar, benzer video oynatma
+
+### A. "Tümünü seç"e ek: üstündekileri/altındakileri de seç
+Kullanıcı isteği: *"1 görüntü seçtim, onun altında kalanları seç, onun
+üstünde kalanları seç butonu olsun"*. Google Fotoğraflar'daki "buraya kadar
+seç" jesti. Yalnız **tek dosya** seçiliyken görünür (birden çok seçiliyken
+hangi dosyanın "anchor" olacağı belirsizleşir) — `photos_screen`,
+`category_screen`, `browser_screen` üçünde de aynı mekanik: seçili dosyanın
+**görünen** (ekrandaki, mevcut sıralama/filtre sonrası) listede indeksi
+bulunur, `_selectRange` ile [0, indeks] ("üstündekiler") veya
+[indeks, son] ("altındakiler") aralığı seçime eklenir.
+`browser_screen`'de `_selectionBar(context)` görünen listeyi almıyordu
+(yalnız `_entries.length` biliyordu) — imza `_selectionBar(context, visible)`
+oldu, çağrı yeri `build()`'teki `entries` (= `_sorted`) değişkenini geçiyor.
+Widget testi (`fm_photos_screen_test`): 5 dosyalı bir grupta ortadakini seçip
+"üstündekileri" tıklayınca 3/5, "altındakileri" tıklayınca 3/5 seçili
+olduğu; 2. dosya seçilince (anchor belirsizleşince) düğmelerin kaybolduğu
+kilitlendi.
+
+### B. "Son açılanlar" — tüm dosya türleri için ayrı bir alan
+Kullanıcı isteği: *"son açılma tarihi tüm dosyalar içinde yapılabilmeli ayrı
+bir alanda"*. Var olan `AppState.recents` ("Son belgeler", AI sekmesi)
+yalnız **belge** (Word/Excel/PDF/metin) açılışlarını ve en yeni 40'ı tutar —
+görüntü/video/ses/arşiv YOK. `services/fm/open_history.dart`: yol→açılma
+zamanı eşleyen, `file_tags.dart` ile aynı desende (uygulama dizininde JSON,
+dosyanın içine yazılmaz, silinen dosyanın kaydı yüklemede düşer) AMA sınırsız
+kayıt tutan ayrı bir servis. `EntryOpener.open` ve `openExternally` içindeki
+**her başarılı açma dalına** (external/archive/player/audio/gallery+siblings/
+belge) `OpenHistory.record(path)` eklendi — tek kapı olduğu için tüm ekranlar
+otomatik kapsandı.
+**KÖK NEDEN yakalanan hata (kod incelemesinde, cihaza gitmeden):** `record()`
+ilk yazımda `ensureLoaded()`'ı hiç çağırmıyordu. `record()` genelde
+uygulamanın OpenHistory'ye dokunduğu İLK yer olduğu için (kullanıcı dosya
+açmaya "Son açılanlar" ekranını ziyaret etmekten çok daha sık başlar), bu
+neredeyse HER oturumda diskteki geçmişi TEK dosyalık bir kayıtla ezip
+önceki tüm geçmişi silecekti. Düzeltme: `record` önce `await ensureLoaded()`
+çağırır. Ayrıca `ensureLoaded` bool bayrak DEĞİL, paylaşılan bir
+`Future<void>?` ile memoize edilir — bayrak senkron olarak "yüklendi"
+işaretlenip gerçek disk okuması sürüyorsa, eşzamanlı bir `record()` çağrısı
+yüklemeyi BEKLEMEDEN devam edebilirdi. Bu ikisi `fm_open_history_test.dart`
+içinde "yeni oturumda ilk açılan dosya eski geçmişi silmez" ve "eşzamanlı ilk
+kayıtlar birbirini ezmez" testleriyle kilitli.
+Ekran: `open_history_screen.dart` — liste + arama + "geçmişi temizle" (yalnız
+kaydı siler, dosyaya dokunmaz). Panoya "Son açılanlar" aracı eklendi
+("Son işlemler" ile karıştırılmasın: o taşı/kopyala/sil İŞLEMLERİNİ tutar,
+bu hangi DOSYANIN ne zaman AÇILDIĞINI).
+
+### C. Benzer videolar — SimilarScreen'de oynatma
+Kullanıcı isteği: *"benzer videolar fotoğraflar ekranında oynatma
+yapılabilmeli emin olabilmek için"*. `PhotosScreen`de video zaten normal
+dokunuşla oynatılabiliyordu (istek bundan değil) — asıl sorun
+`SimilarScreen`de: tek dokunuş SEÇİME ayrılmış, oynatma yalnız uzun basışta
+gizliydi. Kullanıcı "aynı video mu?" diye emin olmadan silme kararı verme
+riskiyle karşı karşıyaydı. Çözüm: video küçük resimlerinin üstüne görünür,
+ayrı bir ▶ düğmesi (yarı saydam daire + `InkWell`) — kendi dokunuşunu
+yakalar, alttaki `GestureDetector`ın seçim davranışını TETİKLEMEZ (aynı iç-içe
+widget deseni `FmEntryListTile`'daki "⋮" düğmesinde de var, kanıtlanmış
+çalışıyor). Fotoğraf küçük resimlerinde düğme yok (gerek yok, önizleme yeterli).

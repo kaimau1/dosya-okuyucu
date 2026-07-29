@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ import '../../screens/viewer_screen.dart';
 import '../file_service.dart';
 import 'archive_ops.dart';
 import 'fs_events.dart';
+import 'open_history.dart';
 
 /// Bir dosyanın hangi ekranda açılacağı. Saf karar fonksiyonu
 /// ([EntryOpener.routeFor]) olduğu için birim testiyle sabitlenir.
@@ -111,6 +113,7 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.archive) {
+      unawaited(OpenHistory.record(path));
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => ArchiveScreen(path: path),
       ));
@@ -130,18 +133,21 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.player) {
+      unawaited(OpenHistory.record(path));
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => MediaPlayerScreen(path: path, playlist: group),
       ));
       return;
     }
     if (route == OpenRoute.audio) {
+      unawaited(OpenHistory.record(path));
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => AudioPlayerScreen(path: path, playlist: group),
       ));
       return;
     }
     if (route == OpenRoute.gallery && group.length > 1) {
+      unawaited(OpenHistory.record(path));
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => ImageGalleryScreen(
           paths: group,
@@ -165,6 +171,7 @@ abstract final class EntryOpener {
     if (!context.mounted) return;
     navigator.pop();
 
+    unawaited(OpenHistory.record(path));
     await appState.addRecent(RecentFile(
       path: path,
       name: doc.name,
@@ -227,7 +234,10 @@ abstract final class EntryOpener {
   static Future<void> openExternally(BuildContext context, String path) async {
     try {
       final result = await OpenFilex.open(path);
-      if (result.type == ResultType.done) return;
+      if (result.type == ResultType.done) {
+        unawaited(OpenHistory.record(path));
+        return;
+      }
       if (!context.mounted) return;
       _snack(
         context,

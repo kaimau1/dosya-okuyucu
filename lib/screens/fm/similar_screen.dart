@@ -376,6 +376,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
     final selected = _selected.contains(file.path);
     final scheme = Theme.of(context).colorScheme;
     final tags = FileTags.forPath(file.path);
+    final isVideo = file.category == FmCategory.video;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
       child: SizedBox(
@@ -398,6 +399,30 @@ class _SimilarScreenState extends State<SimilarScreen> {
                         decoration: BoxDecoration(
                           color: scheme.error.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    // Videoyu OYNATMAK için ayrı, görünür bir düğme (istek
+                    // 2026-07-29: "benzer videolar oynatma yapılabilmeli emin
+                    // olabilmek için"). Tek dokunuş burada zaten seçime
+                    // ayrılmış; oynatma uzun basışta gizli kalıyordu ve
+                    // kullanıcı silmeden önce videoyu GÖRMEDEN karar veriyordu.
+                    // İçteki düğme kendi dokunuşunu yakalar, dıştaki
+                    // GestureDetector'ın seçim davranışını tetiklemez (aynı
+                    // desen `FmEntryListTile`'daki iç-içe "⋮" düğmesinde de var).
+                    if (isVideo)
+                      Center(
+                        child: Material(
+                          color: Colors.black45,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => EntryOpener.open(context, file.path),
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(Icons.play_arrow,
+                                  color: Colors.white, size: 20),
+                            ),
+                          ),
                         ),
                       ),
                     Positioned(

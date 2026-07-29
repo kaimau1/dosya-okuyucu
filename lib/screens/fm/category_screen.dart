@@ -198,6 +198,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
     });
   }
 
+  /// Tek dosya seçiliyken görünürdeki konumuna göre üstündekileri/
+  /// altındakileri de seçer (Google Fotoğraflar'daki "buraya kadar seç"
+  /// jesti). Kullanıcı isteği (2026-07-29): *"1 görüntü seçtim, onun altında
+  /// kalanları seç, onun üstünde kalanları seç butonu olsun"*.
+  void _selectFromAnchor(List<FsEntry> visible, {required bool above}) {
+    if (_selected.length != 1) return;
+    final anchorIndex = visible.indexWhere((e) => e.path == _selected.first);
+    if (anchorIndex < 0) return;
+    _selectRange(
+      visible,
+      above ? 0 : anchorIndex,
+      above ? anchorIndex : visible.length - 1,
+      true,
+    );
+  }
+
   /// Toplu seçme: hepsi seçiliyse kaldırır, değilse görünen tümünü seçer.
   void _toggleSelectAll(List<FsEntry> visible) {
     setState(() {
@@ -378,6 +394,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
         title: Text('${_selected.length} / ${files.length} seçildi'),
         actions: [
+          if (_selected.length == 1) ...[
+            IconButton(
+              tooltip: 'Üstündekileri de seç',
+              icon: const Icon(Icons.expand_less),
+              onPressed: () => _selectFromAnchor(files, above: true),
+            ),
+            IconButton(
+              tooltip: 'Altındakileri de seç',
+              icon: const Icon(Icons.expand_more),
+              onPressed: () => _selectFromAnchor(files, above: false),
+            ),
+          ],
           IconButton(
             tooltip: files.every((e) => _selected.contains(e.path))
                 ? 'Seçimi kaldır'

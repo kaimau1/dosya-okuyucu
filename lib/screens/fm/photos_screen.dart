@@ -258,6 +258,26 @@ class _PhotosScreenState extends State<PhotosScreen> {
     });
   }
 
+  /// Tek dosya seçiliyken görünürdeki konumuna göre üstündekileri/
+  /// altındakileri de seçer (Google Fotoğraflar'daki "buraya kadar seç"
+  /// jesti). Kullanıcı isteği (2026-07-29): *"1 görüntü seçtim, onun altında
+  /// kalanları seç, onun üstünde kalanları seç butonu olsun"*.
+  ///
+  /// "Üstünde/altında" **ekrandaki sıraya** göredir (mevcut sıralama/filtre
+  /// ne olursa olsun): seçili dosyadan önceki indeksler üstte, sonrakiler
+  /// altta görünür.
+  void _selectFromAnchor(List<FsEntry> visible, {required bool above}) {
+    if (_selected.length != 1) return;
+    final anchorIndex = visible.indexWhere((e) => e.path == _selected.first);
+    if (anchorIndex < 0) return;
+    _selectRange(
+      visible,
+      above ? 0 : anchorIndex,
+      above ? anchorIndex : visible.length - 1,
+      true,
+    );
+  }
+
   void _toggleSection(_Section section) {
     final all = section.files.every((e) => _selected.contains(e.path));
     setState(() {
@@ -531,6 +551,21 @@ class _PhotosScreenState extends State<PhotosScreen> {
         ),
         title: Text('${_selected.length} / ${visible.length} seçildi'),
         actions: [
+          // Tek dosya seçiliyken çıkar: "üstündekileri/altındakileri de seç"
+          // (istek 2026-07-29). Birden çok seçiliyken hangi dosya "anchor"
+          // olacağı belirsizleşir, o yüzden yalnız tek seçimde gösterilir.
+          if (_selected.length == 1) ...[
+            IconButton(
+              tooltip: 'Üstündekileri de seç',
+              icon: const Icon(Icons.expand_less),
+              onPressed: () => _selectFromAnchor(visible, above: true),
+            ),
+            IconButton(
+              tooltip: 'Altındakileri de seç',
+              icon: const Icon(Icons.expand_more),
+              onPressed: () => _selectFromAnchor(visible, above: false),
+            ),
+          ],
           IconButton(
             tooltip: visible.every((e) => _selected.contains(e.path))
                 ? 'Seçimi kaldır'

@@ -31,6 +31,7 @@ import 'fm_settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
 import 'op_history_screen.dart';
+import 'open_history_screen.dart';
 import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
@@ -591,6 +592,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: 'Son işlemler',
         subtitle: '',
         onTap: () => _push(const OpHistoryScreen()),
+      ),
+      // "Son işlemler" taşı/kopyala/sil gibi İŞLEMLERİ tutar; bu ise
+      // hangi DOSYALARIN ne zaman AÇILDIĞINI (istek 2026-07-29: "son açılma
+      // tarihi tüm dosyalar içinde yapılabilmeli ayrı bir alanda") — ikisi
+      // ayrı veri, ayrı ekran.
+      FmTileData(
+        icon: Icons.visibility_outlined,
+        color: const Color(0xFF3949AB),
+        label: 'Son açılanlar',
+        subtitle: '',
+        onTap: () => _push(const OpenHistoryScreen()),
       ),
       FmTileData(
         icon: Icons.delete_outline,
