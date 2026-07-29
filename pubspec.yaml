@@ -152,6 +152,23 @@ dependencies:
   # dosyaları artık barındırılmıyor → derleme indirme hatasıyla çöker.
   # video_compress: kalite/çözünürlük kademesi + kare sayısı (fps) + sesi at.
   video_compress: 3.1.4
+  # Birebir çözünürlük + kare sayısı (kullanıcı isteği 2026-07-29): FFmpeg.
+  # `ffmpeg_kit_flutter` (özgün) dağıtımdan kaldırıldı — ikilileri artık
+  # barındırılmıyor. Bu ÇATAL ikilileri Maven Central'da yeniden yayımlıyor
+  # (`com.antonkarpenko:ffmpeg-kit-min-gpl`), Android modülünde `namespace`
+  # var, compileSdk 35 / minSdk 24 (bizimkiyle aynı).
+  # `min_gpl` varyantı SEÇİLDİ: H.264 yazmak için x264 gerekiyor ve x264
+  # yalnız `-gpl` varyantlarında. Daha büyük varyantlara (full/https) gerek
+  # yok — ölçekleme+kare sayısı+AAC için min yeter.
+  # İKİ BEDELİ VAR, bilinçli kabul edildi:
+  #  1) APK mimari başına ~12 MB büyüyor;
+  #  2) x264/x265/xvid GPL v3 olduğu için uygulamanın dağıtımı GPL v3
+  #     koşullarına giriyor (depo halka açık, kaynak sunma fiilen karşılanıyor).
+  # NOT: paket kotlin-stdlib 2.2.0 taşıyor → CI'daki Kotlin eklentisi 2.1.0'dan
+  # 2.2.0'a çekildi (yeni derleyici eski metadata'yı okur; ters yön kırılır,
+  # bkz. HAFIZA build 119).
+  ffmpeg_kit_flutter_new_min_gpl: 2.6.0
+
   # `light_compressor` (serbest en×boy) DENENDİ ve EKLENMEDİ — 2026-07-29.
   # Paketin 2.2.0 Android modülü modern derleme zinciriyle uyumsuz, üç
   # bağımsız kırıcı var: (1) `namespace` yok, manifestte `package=` duruyor →

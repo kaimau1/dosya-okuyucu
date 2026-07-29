@@ -1,0 +1,193 @@
+import 'package:dosya_okuyucu/models/media_resize.dart';
+import 'package:dosya_okuyucu/services/fm/ffmpeg_video.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// **Niye bu test var:** FFmpeg komut satırıyla sürülüyor; tek bir yazım hatası
+/// ("-vf" yerine "-vs", filtreleri virgülle birleştirmeyi unutmak, tek sayılı
+/// ölçü) cihazda "video hiç dönüşmüyor" olarak görünür ve bu ortamda telefon
+/// olmadığı için başka türlü yakalanamaz. Döndürme okuması da burada kilitli:
+/// telefon videoları yatay kodlanıp "90° döndür" verisiyle saklanıyor, bu açı
+/// kaçırılırsa dikey video ezilir.
+void main() {
+  group('argümanlar', () {
+    final args = FfmpegVideo.buildArgs(
+      source: '/depo/VID_0001.mp4',
+      output: '/depo/VID_0001_720p.mp4',
+      width: 1280,
+      height: 720,
+      fps: 30,
+      crf: 24,
+      removeAudio: false,
+      encoder: 'libx264',
+    );
+
+    test('kaynak ve çıktı doğru yerlerde', () {
+      expect(args.first, '-y');
+      expect(args[args.indexOf('-i') + 1], '/depo/VID_0001.mp4');
+      expect(args.last, '/depo/VID_0001_720p.mp4');
+    });
+
+    test('ölçek filtresi istenen ölçüyü BİREBİR yazar', () {
+      final vf = args[args.indexOf('-vf') + 1];
+      expect(vf, contains('scale=1280:720'));
+    });
+
+    test('kare sayısı filtresi ölçekle VİRGÜLLE zincirlenir', () {
+      final vf = args[args.indexOf('-vf') + 1];
+      expect(vf, 'scale=1280:720:flags=bicubic,fps=30');
+    });
+
+    test('kare sayısı verilmezse fps filtresi HİÇ yazılmaz', () {
+      final noFps = FfmpegVideo.buildArgs(
+        source: 'a.mp4',
+        output: 'b.mp4',
+        width: 640,
+        height: 480,
+        crf: 24,
+        removeAudio: false,
+        encoder: 'libx264',
+      );
+      final vf = noFps[noFps.indexOf('-vf') + 1];
+      expect(vf, 'scale=640:480:flags=bicubic');
+      expect(vf.contains('fps='), isFalse);
+    });
+
+    test('yazılım kodlayıcı CRF + preset alır', () {
+      expect(args, containsAllInOrder(['-crf', '24']));
+      expect(args, containsAllInOrder(['-preset', 'veryfast']));
+      expect(args.contains('-b:v'), isFalse);
+    });
+
+    test('donanım kodlayıcı CRF yerine bit hızı alır (CRF anlamıyor)', () {
+      final hw = FfmpegVideo.buildArgs(
+        source: 'a.mp4',
+        output: 'b.mp4',
+        width: 1280,
+        height: 720,
+        crf: 24,
+        removeAudio: false,
+        encoder: 'h264_mediacodec',
+      );
+      expect(hw.contains('-crf'), isFalse);
+      final bitrate = hw[hw.indexOf('-b:v') + 1];
+      expect(bitrate, endsWith('k'));
+      expect(int.parse(bitrate.replaceAll('k', '')), greaterThan(300));
+    });
+
+    test('ses korunurken AAC ile YENİDEN kodlanır (copy değil)', () {
+      // `-c:a copy` kaynak sesi MP4'e girmeyen bir biçimdeyse (WebM/Opus)
+      // sessizce çöker; bu yüzden bilinçli olarak yeniden kodlanıyor.
+      expect(args, containsAllInOrder(['-c:a', 'aac']));
+      expect(args.contains('-an'), isFalse);
+    });
+
+    test('“sesi çıkar” seçilince -an yazılır ve ses kodlayıcı yazılmaz', () {
+      final muted = FfmpegVideo.buildArgs(
+        source: 'a.mp4',
+        output: 'b.mp4',
+        width: 640,
+        height: 480,
+        crf: 24,
+        removeAudio: true,
+        encoder: 'libx264',
+      );
+      expect(muted.contains('-an'), isTrue);
+      expect(muted.contains('-c:a'), isFalse);
+    });
+
+    test('uyumluluk ve üstveri bayrakları var', () {
+      // yuv420p: eski oynatıcılar 4:2:0 dışını açmaz.
+      expect(args, containsAllInOrder(['-pix_fmt', 'yuv420p']));
+      // map_metadata: çekim tarihi korunsun, galeride "bugün" görünmesin.
+      expect(args, containsAllInOrder(['-map_metadata', '0']));
+      // faststart: video baştan oynamaya başlasın.
+      expect(args, containsAllInOrder(['-movflags', '+faststart']));
+    });
+
+    test('yollar argüman olarak AYRI geçer (boşluklu ad bozulmaz)', () {
+      final spaced = FfmpegVideo.buildArgs(
+        source: '/depo/Tatil 2026/VID 01.mp4',
+        output: '/depo/Tatil 2026/VID 01_720p.mp4',
+        width: 1280,
+        height: 720,
+        crf: 24,
+        removeAudio: false,
+        encoder: 'libx264',
+      );
+      expect(spaced, contains('/depo/Tatil 2026/VID 01.mp4'));
+      expect(spaced.last, '/depo/Tatil 2026/VID 01_720p.mp4');
+    });
+  });
+
+  group('kalite eşlemesi', () {
+    test('sert sıkıştırma daha büyük CRF (daha düşük kalite) demek', () {
+      expect(FfmpegVideo.crfFor(VideoQualityChoice.high),
+          lessThan(FfmpegVideo.crfFor(VideoQualityChoice.medium)));
+      expect(FfmpegVideo.crfFor(VideoQualityChoice.medium),
+          lessThan(FfmpegVideo.crfFor(VideoQualityChoice.low)));
+      expect(FfmpegVideo.crfFor(VideoQualityChoice.low),
+          lessThan(FfmpegVideo.crfFor(VideoQualityChoice.veryLow)));
+    });
+  });
+
+  group('döndürme (dikey telefon videoları)', () {
+    test('side_data_list içindeki açı okunur', () {
+      final rotation = FfmpegVideo.rotationOf({
+        'side_data_list': [
+          {'side_data_type': 'Display Matrix', 'rotation': -90}
+        ],
+      });
+      expect(rotation, 270); // -90 ≡ 270
+      expect(FfmpegVideo.rotationSwapsAxes(rotation), isTrue);
+    });
+
+    test('eski dosyalarda tags.rotate okunur', () {
+      final rotation = FfmpegVideo.rotationOf({
+        'tags': {'rotate': '90'},
+      });
+      expect(rotation, 90);
+      expect(FfmpegVideo.rotationSwapsAxes(rotation), isTrue);
+    });
+
+    test('180° eksenleri TAKAS ETMEZ (baş aşağı ama yatay yine yatay)', () {
+      expect(FfmpegVideo.rotationSwapsAxes(180), isFalse);
+    });
+
+    test('döndürme yoksa 0 ve takas yok', () {
+      expect(FfmpegVideo.rotationOf(null), 0);
+      expect(FfmpegVideo.rotationOf(const {}), 0);
+      expect(FfmpegVideo.rotationSwapsAxes(0), isFalse);
+    });
+
+    test('bozuk/beklenmedik veri çökertmez', () {
+      expect(FfmpegVideo.rotationOf({'side_data_list': 'saçma'}), 0);
+      expect(FfmpegVideo.rotationOf({'tags': {'rotate': 'abc'}}), 0);
+      expect(
+          FfmpegVideo.rotationOf({
+            'side_data_list': [
+              {'side_data_type': 'başka bir şey'}
+            ]
+          }),
+          0);
+    });
+  });
+
+  group('dikey video ölçüsü', () {
+    test('90° döndürülmüş 1920x1080 kaynak 720p’ye doğru iner', () {
+      // Kodlanmış ölçü 1920x1080, gösterim 1080x1920. FfmpegVideo.probe
+      // eksenleri takas ettiği için hedef hesabı dikey videoya göre yapılır.
+      const rotation = 90;
+      final swap = FfmpegVideo.rotationSwapsAxes(rotation);
+      final displayWidth = swap ? 1080 : 1920;
+      final displayHeight = swap ? 1920 : 1080;
+      final target = targetSize(
+        sourceWidth: displayWidth,
+        sourceHeight: displayHeight,
+        options: const MediaResizeOptions(resolution: ResolutionChoice.p720),
+      );
+      // Kısa kenar (genişlik) 720 olmalı — 1280 olursa video yan yatmış demek.
+      expect(target.width, 720);
+      expect(target.height, 1280);
+    });
+  });
+}

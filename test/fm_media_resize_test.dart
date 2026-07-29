@@ -200,10 +200,11 @@ void main() {
     });
   });
 
-  group('video kademe eşleme (serbest ölçünün dürüst karşılığı)', () {
-    // Video motoru birebir piksel almıyor; hedef ölçü en yakın ALT kademeye
-    // eşleniyor. Yukarı yuvarlamak "küçült" isteğine rağmen daha büyük dosya
-    // üretirdi — bu testin tek işi o yönü kilitlemek.
+  group('YEDEK video motorunun kademe eşlemesi', () {
+    // Birincil motor (FFmpeg) birebir ölçü veriyor; bu eşleme yalnız FFmpeg
+    // çalışmadığında devreye giren yedek motor (MediaCodec) için. Hedef ölçü
+    // en yakın ALT kademeye iner: yukarı yuvarlamak "küçült" isteğine rağmen
+    // daha büyük dosya üretirdi — bu testin tek işi o yönü kilitlemek.
     test('hedef kısa kenar kademeye AŞAĞI yuvarlanır', () {
       expect(VideoTranscoder.qualityForShortEdge(1080),
           VideoQuality.Res1920x1080Quality);

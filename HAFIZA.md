@@ -3678,3 +3678,60 @@ etiket".
   düşürmek en kolay kaçan hata sınıfıydı, test bunu da kilitliyor.
   Etiket ölçütü **çözücü verilmezse hiçbir şeyi eşlemez**: sessizce "tümü"
   saymak, kullanıcı süzdüğü hâlde her şeyi görmesi demekti.
+
+## 2026-07-29 (IV) — Videoda BİREBİR çözünürlük: ffmpeg çatalı eklendi
+
+§D'de "açık kalan tek yol" diye bıraktığımız `ffmpeg_kit_flutter_new`
+kullanıcı isteğiyle denendi ve **çalıştı** (derleme doğrulaması CI'da).
+
+### Hangi varyant ve niye
+`ffmpeg_kit_flutter_new_min_gpl 2.6.0`. Sekiz varyant var; H.264 **yazmak**
+için x264 gerekiyor ve x264 yalnız `-gpl` varyantlarında. `min_gpl` en küçük
+GPL varyantı; ölçekleme + kare sayısı + AAC için fazlası gerekmiyor
+(full/https varyantları yalnız boyut ekler).
+
+### Niye bu paket light_compressor gibi kırmadı
+Bu sefer üç kırıcının hiçbiri yok: Android modülünde `namespace` **var**,
+compileSdk 35, minSdk 24 (bizimkiyle aynı), native kütüphane **Maven
+Central**'da (`com.antonkarpenko:ffmpeg-kit-min-gpl:2.2.2`) — JitPack yok.
+R8 kuralları paketin `consumerProguardFiles`ıyla kendiliğinden geliyor, CI'da
+proguard yaması gerekmedi.
+**Tek gereken CI değişikliği:** Kotlin eklentisi 2.1.0 → **2.2.0**. Paket
+kotlin-stdlib 2.2.0 çekiyor ve 2.1.0 derleyicisi 2.2 metadata'sını okuyamaz
+(build 119'daki hata sınıfının aynısı, ters yön). Kotlin 2.2 Gradle eklentisi
+Gradle 7.6.3+ / AGP 7.3+ istiyor; şablonda Gradle 8.10.2 + AGP 8.7.0 var.
+Paket kendi buildscript'inde AGP 8.11.1 bildiriyor ama kökteki AGP kazanıyor
+(light_compressor'daki AGP 4.2.2'nin aksine bu yön zararsız).
+
+### Bedeli (bilinçli kabul edildi, kullanıcıya söylendi)
+- **APK büyüdü:** arm64 66.7 MB → derleme sonrası ölçülecek (~+12 MB beklenti;
+  AAR tüm ABI'ler için 48.6 MB, biz ABI'ye böldüğümüz için mimari başına pay
+  düşüyor).
+- **LİSANS:** x264/x265/xvid GPL v3. Uygulamanın dağıtımı artık GPL v3
+  koşullarına giriyor. Depo halka açık olduğu için kaynak sunma fiilen
+  karşılanıyor ama depoda LICENSE dosyası YOK — eklenmesi kullanıcının kararı,
+  bizim değil (not edildi, sessizce lisans atanmadı).
+
+### Kararlar
+- **Yedek motor SİLİNMEDİ.** FFmpeg yolu bu ortamda cihazda doğrulanamıyor
+  (Android SDK/telefon yok). FFmpeg herhangi bir nedenle başarısız olursa
+  `video_compress` kademeli yoluna düşülüyor ve iş ayrıntısında hangi motorun
+  kullanıldığı yazıyor. Yedek olmadan olası bir aksaklık özelliği tamamen
+  kullanılamaz yapardı.
+- **Kodlayıcı sırası:** önce `h264_mediacodec` (donanım, kat kat hızlı), olmazsa
+  `libx264`. Donanım kodlayıcı her cihazda/derlemede olmayabiliyor; yokken
+  ffmpeg saniyenin altında "Unknown encoder" ile döndüğü için yedek yol pahalı
+  değil. Donanımda CRF anlamsız olduğu için bit hızı hesaplanıyor.
+- **Ses `-c:a copy` DEĞİL, AAC'ye yeniden kodlanıyor:** kaynak sesi MP4'e
+  girmeyen bir biçimde (WebM/Opus) olabilir ve copy o dosyada sessizce çöker.
+- **DÖNDÜRME TUZAĞI:** telefon videoları yatay kodlanıp "90° döndür"
+  verisiyle saklanıyor. ffprobe'un verdiği `width/height` **kodlanmış** ölçü;
+  açı okunmazsa dikey bir videoyu 720p'ye indirmek istediğinde ölçüler ters
+  hesaplanır ve video ezilir. `rotationOf` açıyı iki ayrı yerden okuyor
+  (`side_data_list` ve eski dosyalarda `tags.rotate`), 90/270'te eksenler
+  takas ediliyor. Saf fonksiyon + test.
+- **Argüman kurucusu saf fonksiyon ve testli:** komut satırında tek yazım
+  hatası ("-vf" yerine "-vs", filtreleri virgülle birleştirmemek) cihazda
+  "video hiç dönüşmüyor" olarak görünür ve telefon olmadan başka türlü
+  yakalanamaz. `-pix_fmt yuv420p` (eski oynatıcılar), `-map_metadata 0`
+  (çekim tarihi korunsun, galeride "bugün" görünmesin), `-movflags +faststart`.
