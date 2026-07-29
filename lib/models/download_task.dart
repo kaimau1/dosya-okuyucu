@@ -122,11 +122,11 @@ class DownloadTask {
     for (final s in DownloadState.values) {
       if (s.name == raw['state']) state = s;
     }
-    // Uygulama kapanırken koşan indirme "duraklatıldı" sayılır: arka planda
-    // devam etmiyoruz, bunu gizlemek kullanıcıyı yanıltırdı.
-    if (state == DownloadState.running || state == DownloadState.queued) {
-      state = DownloadState.paused;
-    }
+    // Koşan indirme "sırada" olarak okunur: uygulama kapalıyken indirme
+    // native tarafta SÜRMÜŞ olabilir (arka plan motoru). Gerçek durum açılışta
+    // motora sorulup düzeltilir (`DownloadService.ensureLoaded`); burada
+    // "duraklatıldı" yazmak, hâlâ inen bir dosyayı durmuş göstermek olurdu.
+    if (state == DownloadState.running) state = DownloadState.queued;
     return DownloadTask(
       id: id,
       url: url,
@@ -246,13 +246,6 @@ String? extensionForContentType(String? contentType) {
     'audio/mp4': 'm4a',
   }[mime];
 }
-
-/// Sunucu kaldığı yerden devam etmeye izin veriyor mu?
-///
-/// 206 = kısmi içerik (istediğimiz). 200 dönerse sunucu aralığı yok saymış
-/// demektir → dosya **baştan** yazılmalı, yoksa yarım dosyanın üstüne
-/// baştan veri gelir ve dosya bozulur (sessiz veri bozulması).
-bool serverHonorsRange(int statusCode) => statusCode == 206;
 
 /// Hız biçimi: "1,2 MB/s".
 String formatSpeed(int bytesPerSecond) {

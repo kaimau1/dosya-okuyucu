@@ -267,9 +267,9 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
         onSelected: (v) async {
           switch (v) {
             case 'pause':
-              _service.pause(task.id);
+              await _service.pause(task.id);
             case 'resume':
-              _service.resume(task.id);
+              await _service.resume(task.id);
             case 'cancel':
               await _service.cancel(task.id);
             case 'remove':

@@ -1,4 +1,6 @@
+import 'package:background_downloader/background_downloader.dart' as bg;
 import 'package:dosya_okuyucu/models/download_task.dart';
+import 'package:dosya_okuyucu/services/fm/download_service.dart';
 import 'package:dosya_okuyucu/services/fm/github_release.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -57,14 +59,6 @@ void main() {
   });
 
   group('sürdürme', () {
-    test('yalnız 206 sürdürülebilir sayılır', () {
-      // 200 dönerse sunucu Range'i yok saymıştır: baştan yazılmalı, yoksa
-      // yarım dosyanın sonuna baştan veri eklenir ve dosya bozulur.
-      expect(serverHonorsRange(206), isTrue);
-      expect(serverHonorsRange(200), isFalse);
-      expect(serverHonorsRange(416), isFalse);
-    });
-
     test('duruma göre devam/duraklat düğmeleri', () {
       expect(DownloadState.paused.isResumable, isTrue);
       expect(DownloadState.failed.isResumable, isTrue);
@@ -121,8 +115,10 @@ void main() {
       expect(back.single.state, DownloadState.paused);
     });
 
-    test('uygulama kapanınca KOŞAN indirme "duraklatıldı" olur', () {
-      // Arka planda devam etmiyoruz; "indiriliyor" göstermek yalan olurdu.
+    test('koşan indirme yeniden açılışta "sırada" okunur', () {
+      // Arka plan motoru uygulama kapalıyken indirmeyi SÜRDÜRMÜŞ olabilir;
+      // "duraklatıldı" yazmak hâlâ inen dosyayı durmuş göstermek olurdu.
+      // Gerçek durum açılışta motora sorulup düzeltilir.
       const running = DownloadTask(
         id: '8',
         url: 'https://x/y.bin',
@@ -131,12 +127,38 @@ void main() {
         state: DownloadState.running,
       );
       final back = decodeQueue(encodeQueue([running]));
-      expect(back.single.state, DownloadState.paused);
+      expect(back.single.state, DownloadState.queued);
     });
 
     test('bozuk kuyruk dosyası çökertmez', () {
       expect(decodeQueue('{bozuk'), isEmpty);
       expect(decodeQueue('[{"id":1}]'), isEmpty);
+    });
+  });
+
+  group('arka plan motoru durum eşlemesi', () {
+    test('paket durumları bizim durumlara doğru çevrilir', () {
+      expect(stateForNativeStatus(bg.TaskStatus.enqueued),
+          DownloadState.queued);
+      expect(stateForNativeStatus(bg.TaskStatus.running),
+          DownloadState.running);
+      expect(stateForNativeStatus(bg.TaskStatus.complete),
+          DownloadState.completed);
+      expect(stateForNativeStatus(bg.TaskStatus.paused),
+          DownloadState.paused);
+      expect(stateForNativeStatus(bg.TaskStatus.canceled),
+          DownloadState.canceled);
+      expect(stateForNativeStatus(bg.TaskStatus.failed),
+          DownloadState.failed);
+      expect(stateForNativeStatus(bg.TaskStatus.notFound),
+          DownloadState.failed);
+    });
+
+    test('yeniden denemeyi bekleyen görev "başarısız" DEĞİL, sırada sayılır',
+        () {
+      // Kullanıcı açısından indirme sürüyor; kırmızı yazmak gereksiz telaş.
+      expect(stateForNativeStatus(bg.TaskStatus.waitingToRetry),
+          DownloadState.queued);
     });
   });
 

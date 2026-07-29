@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:background_downloader/background_downloader.dart' as bg;
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../../models/download_task.dart';
@@ -10,40 +10,41 @@ import 'file_ops.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
 
-/// **İndirme yöneticisi** — bağlantıdan dosya indirir, ilerlemeyi bildirir,
-/// duraklatma/sürdürme yapar ve kuyruğu diskte saklar.
+/// **İndirme yöneticisi** — bağlantıdan dosya indirir, **uygulama kapalıyken
+/// bile devam eder**, ilerlemeyi bildirir, duraklatma/sürdürme yapar.
 ///
-/// ## Niye uygulama içi indirme
-/// Kullanıcı isteği (2026-07-29): *"bir linkten bir şey indireceğim (GitHub
-/// release, tarayıcı) — bizim programımızdan indirmek istiyorum, daha
-/// organize, hızlı ve etkili olabiliriz"*. Tarayıcının indirdiği dosya
-/// `Download` klasörüne düşer ve orada kaybolur; burada dosya **istenen
-/// klasöre** (örn. Önemli Dosyalar/Faturalar) doğrudan iner, bittiğinde
-/// açılabilir, yarım kalan indirme sürdürülebilir.
+/// ## Niye kendi HTTP döngümüz DEĞİL (2026-07-29, 2. karar)
+/// İlk sürüm `http` paketiyle kendi akışımızı yazıyordu; uygulama arka plana
+/// atılınca ya da kapanınca indirme duruyordu. Kullanıcı: *"arka planda
+/// mutlaka devam etmeli, sorunsuz bir şekilde."* Android'de bunun tek doğru
+/// yolu **ön plan servisi** (foreground service) + bildirim; bu, Dart'tan
+/// yazılamaz, yerel kod ister. Üstelik CI her derlemede `android/` klasörünü
+/// `flutter create` ile yeniden ürettiği için elle yazılmış Kotlin servisi
+/// her seferinde silinirdi.
+/// Bu yüzden iş `background_downloader` paketine devredildi: indirme native
+/// tarafta (Android'de WorkManager + ön plan servisi) koşar, uygulama
+/// öldürülse bile sürer, sistem bildiriminde ilerleme görünür.
 ///
-/// ## Tasarım kararları
-/// - **Akış hâlinde yazılır** (`StreamedResponse` → dosyaya parça parça):
-///   500 MB'lık bir APK'yı belleğe almak uygulamayı öldürürdü.
-/// - **Sürdürme `Range` ile.** Sunucu 206 dönmezse aralık yok sayılmış
-///   demektir → dosya baştan yazılır (yarım dosyanın üstüne yazmak sessiz
-///   bozulma olurdu, bkz. `serverHonorsRange`).
-/// - Dosya `.indiriliyor` uzantısıyla yazılır, bitince asıl adına taşınır:
-///   yarım dosya galeriye/listeye düşmez.
-/// - **Arka planda devam ETMEZ.** Android'de bunun için ön plan servisi
-///   gerekir; uygulama kapanınca indirme duraklatılır ve kullanıcıya böyle
-///   gösterilir (yalancı "devam ediyor" göstermek yerine).
-/// - Aynı anda en çok [maxConcurrent] indirme: mobil bağlantıda daha fazlası
-///   hepsini yavaşlatır.
+/// ## Bu sınıfın rolü
+/// Paket kendi görev modelini kullanır; bizim arayüzümüz [DownloadTask]
+/// üzerine kurulu. Burası **iki modeli birbirine bağlayan ince katman**:
+/// paketin durum/ilerleme akışını dinler, kendi listemizi günceller ve
+/// diske yazar (uygulama yeniden açıldığında liste yerinde durur).
 class DownloadService extends ChangeNotifier {
   DownloadService._();
   static final DownloadService instance = DownloadService._();
 
+  /// Aynı anda koşacak indirme sayısı. Mobil bağlantıda daha fazlası
+  /// hepsini yavaşlatır ve pil yakar.
   static const maxConcurrent = 2;
+
   static const _queueFile = 'downloads.json';
+  static const _group = 'dosya-okuyucu';
 
   final List<DownloadTask> _tasks = [];
-  final Map<String, _ActiveDownload> _active = {};
+  StreamSubscription<bg.TaskUpdate>? _sub;
   bool _loaded = false;
+  bool _ready = false;
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   List<DownloadTask> get activeTasks =>
@@ -52,20 +53,93 @@ class DownloadService extends ChangeNotifier {
 
   String get _queuePath => p.join(FmEnv.appSupportDir, _queueFile);
 
-  /// Kuyruğu diskten okur (uygulama açılışında bir kez).
+  /// Kuyruğu diskten okur ve arka plan motorunu hazırlar.
   Future<void> ensureLoaded() async {
     if (_loaded) return;
     _loaded = true;
     await FmEnv.ensureInit();
-    if (FmEnv.appSupportDir.isEmpty) return;
+    if (FmEnv.appSupportDir.isNotEmpty) {
+      try {
+        final file = File(_queuePath);
+        if (file.existsSync()) {
+          _tasks
+            ..clear()
+            ..addAll(decodeQueue(await file.readAsString()));
+        }
+      } catch (_) {}
+    }
+    await _initEngine();
+    await _reconcileWithEngine();
+    notifyListeners();
+  }
+
+  /// Kaydettiğimiz durumla **motorun gerçeği** arasındaki farkı kapatır.
+  ///
+  /// Uygulama kapalıyken indirme sürmüş, bitmiş ya da başarısız olmuş
+  /// olabilir. Motorda hâlâ duran görevler "sırada/indiriliyor", motorda
+  /// olmayıp diskte dosyası oluşmuşlar "tamamlandı" sayılır.
+  Future<void> _reconcileWithEngine() async {
+    Set<String> live = {};
     try {
-      final file = File(_queuePath);
-      if (!file.existsSync()) return;
-      _tasks
-        ..clear()
-        ..addAll(decodeQueue(await file.readAsString()));
-      notifyListeners();
-    } catch (_) {}
+      final running = await bg.FileDownloader().allTasks(group: _group);
+      live = {for (final task in running) task.taskId};
+    } catch (_) {
+      return; // motor sorgulanamadı: elimizdeki kayıtla devam
+    }
+    for (var i = 0; i < _tasks.length; i++) {
+      final task = _tasks[i];
+      if (live.contains(task.id)) {
+        if (!task.state.isActive) {
+          _tasks[i] = task.copyWith(state: DownloadState.queued);
+        }
+        continue;
+      }
+      if (!task.state.isActive) continue;
+      // Motorda yok: bitmiş ya da düşmüş. Diskte dosya varsa tamamlanmıştır.
+      try {
+        final file = File(task.destPath);
+        _tasks[i] = file.existsSync()
+            ? task.copyWith(
+                state: DownloadState.completed,
+                received: file.lengthSync(),
+              )
+            : task.copyWith(state: DownloadState.paused);
+      } catch (_) {
+        _tasks[i] = task.copyWith(state: DownloadState.paused);
+      }
+    }
+    await _persist();
+  }
+
+  Future<void> _initEngine() async {
+    if (_ready) return;
+    _ready = true;
+    try {
+      final downloader = bg.FileDownloader();
+      // Sistem bildirimi: kullanıcı uygulamadan çıksa da ilerlemeyi görür ve
+      // bildirimden duraklatıp sürdürebilir. Android 13+ bildirim izni
+      // istenmezse indirme yine çalışır, yalnız bildirim görünmez.
+      downloader.configureNotification(
+        running: const bg.TaskNotification('{filename}', 'İndiriliyor…'),
+        complete: const bg.TaskNotification('{filename}', 'İndirildi'),
+        paused: const bg.TaskNotification('{filename}', 'Duraklatıldı'),
+        error: const bg.TaskNotification('{filename}', 'İndirilemedi'),
+        progressBar: true,
+        tapOpensFile: true,
+      );
+      await downloader.configure(globalConfig: [
+        (bg.Config.holdingQueue, (maxConcurrent, null, null)),
+        // Yeniden deneme: kopan mobil bağlantıda indirme çöpe gitmesin.
+        (bg.Config.requestTimeout, const Duration(seconds: 60)),
+      ]);
+      _sub = downloader.updates.listen(_onUpdate, onError: (_) {});
+      // Uygulama kapalıyken biten/ilerleyen görevlerin sonucu buradan gelir.
+      await downloader.start();
+      unawaited(downloader.resumeFromBackground());
+    } catch (_) {
+      // Motor kurulamazsa (masaüstü/test ortamı) liste yine görünür; indirme
+      // denendiğinde hata kullanıcıya yazılır.
+    }
   }
 
   Future<void> _persist() async {
@@ -75,10 +149,66 @@ class DownloadService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Yeni indirme ekler ve (yer varsa) hemen başlatır.
-  ///
-  /// [destDir] verilmezse İndirilenler klasörüne iner. [fileName] verilmezse
-  /// sunucunun/URL'nin verdiği ad kullanılır (bkz. `resolveFileName`).
+  // ── paket → bizim model ────────────────────────────────────────────────────
+
+  void _onUpdate(bg.TaskUpdate update) {
+    final id = update.task.taskId;
+    switch (update) {
+      case bg.TaskStatusUpdate(:final status, :final exception):
+        _applyStatus(id, status, exception?.description);
+      case bg.TaskProgressUpdate(
+          :final progress,
+          :final expectedFileSize,
+          :final networkSpeed,
+        ):
+        _update(id, (t) {
+          final total = expectedFileSize > 0 ? expectedFileSize : t.total;
+          return t.copyWith(
+            state: DownloadState.running,
+            total: total,
+            received: total > 0 && progress >= 0
+                ? (total * progress).round()
+                : t.received,
+            // Paket MB/s verir; biz bayt/sn tutuyoruz (-1 = bilinmiyor).
+            bytesPerSecond:
+                networkSpeed > 0 ? (networkSpeed * 1024 * 1024).round() : 0,
+          );
+        });
+    }
+  }
+
+  void _applyStatus(String id, bg.TaskStatus status, String? error) {
+    final state = stateForNativeStatus(status);
+    _update(id, (t) => t.copyWith(
+          state: state,
+          error: state == DownloadState.failed ? (error ?? 'İndirilemedi') : null,
+          clearError: state != DownloadState.failed,
+          bytesPerSecond: state == DownloadState.running ? t.bytesPerSecond : 0,
+          received: state == DownloadState.completed && t.hasTotal
+              ? t.total
+              : t.received,
+        ));
+    if (state == DownloadState.completed) {
+      FsEvents.changed();
+      // Dosya adı sunucudan gelen adla değişmiş olabilir; diskten doğrula.
+      unawaited(_confirmFile(id));
+    }
+  }
+
+  Future<void> _confirmFile(String id) async {
+    final task = _find(id);
+    if (task == null) return;
+    try {
+      final file = File(task.destPath);
+      if (file.existsSync()) {
+        _update(id, (t) => t.copyWith(received: file.lengthSync()));
+      }
+    } catch (_) {}
+  }
+
+  // ── genel API ─────────────────────────────────────────────────────────────
+
+  /// Yeni indirme ekler. [destDir] verilmezse İndirilenler klasörüne iner.
   Future<DownloadTask> enqueue(
     String url, {
     String? destDir,
@@ -86,19 +216,63 @@ class DownloadService extends ChangeNotifier {
   }) async {
     await ensureLoaded();
     final dir = destDir ?? _defaultDir();
-    final name = fileName ?? resolveFileName(url: url);
+    final name = FileOps.sanitizeName(fileName ?? resolveFileName(url: url));
+    // Aynı adlı dosya varsa üzerine yazma: "rapor (1).pdf".
+    final destPath = FileOps.uniquePath(p.join(dir, name));
+    final id = '${DateTime.now().microsecondsSinceEpoch}';
+
     final task = DownloadTask(
-      id: '${DateTime.now().microsecondsSinceEpoch}',
+      id: id,
       url: url,
-      destPath: p.join(dir, FileOps.sanitizeName(name)),
-      fileName: name,
+      destPath: destPath,
+      fileName: p.basename(destPath),
+      state: DownloadState.queued,
       startedMs: DateTime.now().millisecondsSinceEpoch,
     );
     _tasks.insert(0, task);
     notifyListeners();
     await _persist();
-    _pump();
+
+    try {
+      final native = await _nativeTaskFor(task);
+      final ok = await bg.FileDownloader().enqueue(native);
+      if (!ok) {
+        _update(id, (t) => t.copyWith(
+              state: DownloadState.failed,
+              error: 'İndirme başlatılamadı',
+            ));
+      }
+    } catch (e) {
+      _update(id, (t) => t.copyWith(
+            state: DownloadState.failed,
+            error: e.toString(),
+          ));
+    }
     return task;
+  }
+
+  /// Bizim kaydımızdan paketin görev nesnesini kurar.
+  ///
+  /// `Task.split` mutlak yolu paketin beklediği (temel dizin, alt dizin, ad)
+  /// üçlüsüne çevirir — elle `BaseDirectory.root` kurmaya çalışmak platforma
+  /// göre farklı kök ön eklerinde (Android/Windows) kırılırdı.
+  Future<bg.DownloadTask> _nativeTaskFor(DownloadTask task) async {
+    final (baseDirectory, directory, filename) =
+        await bg.Task.split(filePath: task.destPath);
+    return bg.DownloadTask(
+      taskId: task.id,
+      url: task.url,
+      filename: filename,
+      directory: directory,
+      baseDirectory: baseDirectory,
+      group: _group,
+      updates: bg.Updates.statusAndProgress,
+      allowPause: true,
+      retries: 3,
+      displayName: task.fileName,
+      // Sunucuların bir kısmı User-Agent'sız isteği reddediyor (GitHub dahil).
+      headers: const {'user-agent': 'DosyaOkuyucu/1.0'},
+    );
   }
 
   String _defaultDir() {
@@ -106,59 +280,60 @@ class DownloadService extends ChangeNotifier {
     return Directory(download).existsSync() ? download : FmEnv.primaryRoot;
   }
 
-  /// Sıradaki görevleri eşzamanlılık sınırına kadar başlatır.
-  void _pump() {
-    if (_active.length >= maxConcurrent) return;
-    for (final task in _tasks) {
-      if (_active.length >= maxConcurrent) break;
-      if (task.state != DownloadState.queued) continue;
-      if (_active.containsKey(task.id)) continue;
-      unawaited(_start(task.id));
-    }
-  }
-
-  void pause(String id) {
-    _active[id]?.cancel();
+  Future<void> pause(String id) async {
+    final task = _find(id);
+    if (task == null) return;
+    try {
+      // `pause` yalnız taskId kullanır; görevi yeniden kurmak yeterli.
+      await bg.FileDownloader().pause(await _nativeTaskFor(task));
+    } catch (_) {}
     _update(id, (t) => t.copyWith(
           state: DownloadState.paused,
           bytesPerSecond: 0,
         ));
-    _pump();
   }
 
-  void resume(String id) {
-    _update(id, (t) => t.copyWith(state: DownloadState.queued, clearError: true));
-    _pump();
-  }
-
-  /// İndirmeyi iptal eder ve yarım dosyayı siler.
-  Future<void> cancel(String id) async {
-    _active[id]?.cancel();
+  Future<void> resume(String id) async {
     final task = _find(id);
-    if (task != null) {
-      try {
-        final partial = File(_partPath(task));
-        if (partial.existsSync()) await partial.delete();
-      } catch (_) {}
+    if (task == null) return;
+    _update(id, (t) =>
+        t.copyWith(state: DownloadState.queued, clearError: true));
+    try {
+      final native = await _nativeTaskFor(task);
+      // Sürdürme verisi yoksa (uygulama silinmiş/temizlenmiş) baştan başlat:
+      // "devam et" düğmesinin hiçbir şey yapmaması en kötü sonuç olurdu.
+      final resumed = await bg.FileDownloader().resume(native);
+      if (!resumed) await bg.FileDownloader().enqueue(native);
+    } catch (e) {
+      _update(id, (t) => t.copyWith(
+            state: DownloadState.failed,
+            error: e.toString(),
+          ));
     }
+  }
+
+  /// İndirmeyi iptal eder (yarım dosyayı paket kendisi siler).
+  Future<void> cancel(String id) async {
+    try {
+      await bg.FileDownloader().cancelTaskWithId(id);
+    } catch (_) {}
     _update(id, (t) => t.copyWith(
           state: DownloadState.canceled,
           bytesPerSecond: 0,
         ));
-    _pump();
   }
 
   /// Kaydı listeden düşürür (dosyaya dokunmaz).
   Future<void> remove(String id) async {
-    _active[id]?.cancel();
+    if (_find(id)?.state.isActive ?? false) await cancel(id);
     _tasks.removeWhere((t) => t.id == id);
     notifyListeners();
     await _persist();
   }
 
-  /// Biten/iptal edilen tüm kayıtları temizler.
   Future<void> clearFinished() async {
-    _tasks.removeWhere((t) => !t.state.isActive && t.state != DownloadState.paused);
+    _tasks.removeWhere(
+        (t) => !t.state.isActive && t.state != DownloadState.paused);
     notifyListeners();
     await _persist();
   }
@@ -180,146 +355,24 @@ class DownloadService extends ChangeNotifier {
     unawaited(_persist());
   }
 
-  /// Yarım dosyanın yolu — bitene kadar bu adla yazılır.
-  String _partPath(DownloadTask task) => '${task.destPath}.indiriliyor';
-
-  Future<void> _start(String id) async {
-    final task = _find(id);
-    if (task == null) return;
-    final active = _ActiveDownload();
-    _active[id] = active;
-    _update(id, (t) => t.copyWith(state: DownloadState.running));
-
-    final partFile = File(_partPath(task));
-    var received = 0;
-    IOSink? sink;
-    try {
-      await partFile.parent.create(recursive: true);
-      // Sürdürme: elde ne kadar varsa oradan iste.
-      final existing = partFile.existsSync() ? partFile.lengthSync() : 0;
-      final request = http.Request('GET', Uri.parse(task.url));
-      if (existing > 0) request.headers['range'] = 'bytes=$existing-';
-      // Bazı sunucular (GitHub dahil) User-Agent istemeyen isteği reddeder.
-      request.headers['user-agent'] = 'DosyaOkuyucu/1.0';
-
-      final response = await active.client.send(request);
-      if (response.statusCode >= 400) {
-        throw HttpException('Sunucu ${response.statusCode} döndü');
-      }
-
-      final resumed = existing > 0 && serverHonorsRange(response.statusCode);
-      received = resumed ? existing : 0;
-      // Sunucu aralığı yok saydıysa dosya BAŞTAN yazılır; yoksa yarım dosyanın
-      // üstüne baştan veri gelir ve dosya sessizce bozulur.
-      sink = partFile.openWrite(
-          mode: resumed ? FileMode.append : FileMode.write);
-
-      final contentLength = response.contentLength ?? -1;
-      final total = contentLength < 0 ? -1 : received + contentLength;
-      final serverName = resolveFileName(
-        url: task.url,
-        contentDisposition: response.headers['content-disposition'],
-        contentType: response.headers['content-type'],
-      );
-      _update(id, (t) => t.copyWith(
-            received: received,
-            total: total,
-            // Ad yalnız URL'den tahminse sunucununkini benimse.
-            fileName: t.fileName == resolveFileName(url: t.url)
-                ? serverName
-                : t.fileName,
-            destPath: t.fileName == resolveFileName(url: t.url)
-                ? p.join(p.dirname(t.destPath), FileOps.sanitizeName(serverName))
-                : t.destPath,
-          ));
-
-      var lastTick = DateTime.now().millisecondsSinceEpoch;
-      var lastBytes = received;
-
-      await for (final chunk in response.stream) {
-        if (active.canceled) break;
-        sink.add(chunk);
-        received += chunk.length;
-        final now = DateTime.now().millisecondsSinceEpoch;
-        // Saniyede bir bildir: her parçada setState çağırmak listeyi kastırır.
-        if (now - lastTick >= 700) {
-          final speed =
-              ((received - lastBytes) * 1000 / (now - lastTick)).round();
-          lastTick = now;
-          lastBytes = received;
-          _update(id, (t) => t.copyWith(
-                received: received,
-                bytesPerSecond: speed,
-              ));
-        }
-      }
-      await sink.flush();
-      await sink.close();
-      sink = null;
-
-      if (active.canceled) {
-        // Duraklatma/iptal: yarım dosya DURUR (sürdürülebilsin diye).
-        return;
-      }
-
-      final current = _find(id);
-      final finalPath = FileOps.uniquePath(current?.destPath ?? task.destPath);
-      await partFile.rename(finalPath);
-      FsEvents.changed();
-      _update(id, (t) => t.copyWith(
-            state: DownloadState.completed,
-            received: received,
-            total: t.hasTotal ? t.total : received,
-            bytesPerSecond: 0,
-            destPath: finalPath,
-            fileName: p.basename(finalPath),
-            clearError: true,
-          ));
-    } catch (e) {
-      try {
-        await sink?.flush();
-        await sink?.close();
-      } catch (_) {}
-      // Yarım dosya SİLİNMEZ: sürdürme buna dayanıyor.
-      _update(id, (t) => t.copyWith(
-            state: DownloadState.failed,
-            received: received,
-            bytesPerSecond: 0,
-            error: _message(e),
-          ));
-    } finally {
-      _active.remove(id);
-      active.close();
-      _pump();
-    }
-  }
-
-  static String _message(Object error) {
-    if (error is SocketException) return 'İnternet bağlantısı yok';
-    if (error is HttpException) return error.message;
-    if (error is FileSystemException) {
-      return 'Dosya yazılamadı: ${error.osError?.message ?? error.message}';
-    }
-    return error.toString();
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 }
 
-/// Süren bir indirmenin iptal edilebilir tutamağı.
-class _ActiveDownload {
-  final http.Client client = http.Client();
-  bool canceled = false;
-
-  void cancel() {
-    canceled = true;
-    // İstemciyi kapatmak akışı da keser (bekleyen `await for` biter).
-    try {
-      client.close();
-    } catch (_) {}
-  }
-
-  void close() {
-    try {
-      client.close();
-    } catch (_) {}
-  }
-}
+/// Paketin durum değerlerini bizim durumlarımıza çevirir (saf → testli).
+///
+/// `waitingToRetry` bilinçli olarak "sırada" sayılır: kullanıcı açısından
+/// indirme sürüyor, kendiliğinden yeniden denenecek — "başarısız" demek
+/// gereksiz telaş yaratırdı.
+DownloadState stateForNativeStatus(bg.TaskStatus status) => switch (status) {
+      bg.TaskStatus.enqueued => DownloadState.queued,
+      bg.TaskStatus.running => DownloadState.running,
+      bg.TaskStatus.complete => DownloadState.completed,
+      bg.TaskStatus.paused => DownloadState.paused,
+      bg.TaskStatus.canceled => DownloadState.canceled,
+      bg.TaskStatus.waitingToRetry => DownloadState.queued,
+      bg.TaskStatus.notFound || bg.TaskStatus.failed => DownloadState.failed,
+    };

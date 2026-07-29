@@ -3471,3 +3471,31 @@ bir yol kalsın.
 **Cihazda doğrulanmadı:** intent filtrelerinin gerçekten listede çıkardığı ve
 `receive_sharing_intent`in ACTION_VIEW http adreslerini ilettiği bu ortamda
 test edilemez; ilk kurulumda denenmeli.
+
+### F. "Arka planda mutlaka devam etmeli" — motor değiştirildi
+İlk sürüm `http` paketiyle kendi akışını yazıyordu; uygulama arka plana atılınca
+ya da kapanınca indirme duruyordu. Android'de bunun tek doğru yolu **ön plan
+servisi** (foreground service) + kalıcı bildirim ve bu Dart'tan yazılamaz.
+Üstelik CI her derlemede `android/` klasörünü `flutter create` ile yeniden
+ürettiği için elle yazılmış bir Kotlin servisi her seferinde silinirdi.
+**Karar:** iş `background_downloader 9.5.7` paketine devredildi — indirme
+native tarafta koşuyor, uygulama öldürülse bile sürüyor, sistem bildiriminde
+ilerleme görünüyor, duraklat/sürdür bildirimden de yapılabiliyor.
+- Kendi `DownloadService`imiz artık **ince bir köprü**: paketin durum/ilerleme
+  akışını dinleyip kendi modelimizi (`DownloadTask`) ve diskteki kuyruğu
+  güncelliyor. Arayüz hiç değişmedi.
+- Hedef yol `bg.Task.split(filePath:)` ile paketin beklediği (temel dizin,
+  alt dizin, ad) üçlüsüne çevriliyor — elle `BaseDirectory.root` kurmak
+  platforma göre farklı kök ön eklerinde kırılırdı.
+- `pause`/`resume` yalnız `taskId` kullandığı için görev nesnesini yeniden
+  kurmak yeterli; sürdürme verisi yoksa (uygulama verisi temizlenmiş)
+  baştan başlatılıyor — "devam et"in hiçbir şey yapmaması en kötü sonuç.
+- **Açılışta uzlaşma** (`_reconcileWithEngine`): kapalıyken indirme sürmüş,
+  bitmiş ya da düşmüş olabilir. Motorda duran görevler "sırada", motorda
+  olmayıp dosyası diskte olanlar "tamamlandı" sayılıyor. Bu yüzden kuyruk
+  okunurken `running` artık `paused` değil `queued` oluyor.
+- Manifest: `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`,
+  `FOREGROUND_SERVICE_DATA_SYNC`, `WAKE_LOCK`. Bildirim izni verilmezse
+  indirme yine çalışır, yalnız bildirim görünmez.
+- `serverHonorsRange` silindi (aralık yönetimi artık pakette) — ölü kod
+  bırakmak "burada bir şey yapılıyor" yanılsaması üretir.
