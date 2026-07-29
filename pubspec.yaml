@@ -157,17 +157,26 @@ dependencies:
   # barındırılmıyor. Bu ÇATAL ikilileri Maven Central'da yeniden yayımlıyor
   # (`com.antonkarpenko:ffmpeg-kit-min-gpl`), Android modülünde `namespace`
   # var, compileSdk 35 / minSdk 24 (bizimkiyle aynı).
-  # `min_gpl` varyantı SEÇİLDİ: H.264 yazmak için x264 gerekiyor ve x264
-  # yalnız `-gpl` varyantlarında. Daha büyük varyantlara (full/https) gerek
-  # yok — ölçekleme+kare sayısı+AAC için min yeter.
-  # İKİ BEDELİ VAR, bilinçli kabul edildi:
-  #  1) APK mimari başına ~12 MB büyüyor;
-  #  2) x264/x265/xvid GPL v3 olduğu için uygulamanın dağıtımı GPL v3
-  #     koşullarına giriyor (depo halka açık, kaynak sunma fiilen karşılanıyor).
+  # **`min` varyantı (LGPL v3) SEÇİLDİ — `min_gpl` DEĞİL.** Kullanıcı isteği:
+  # "lisans kısmını hallet, Google Play'de sorun yaşamayalım".
+  #  • `min_gpl` x264/x265/xvid taşıyor; bunlar GPL v3 → uygulamanın TAMAMI
+  #    GPL v3'e girerdi (tüm kaynağı bu lisansla yayımlama zorunluluğu) ve
+  #    GPL v3'ün "ek kısıtlama koyulamaz" maddesinin mağaza dağıtım
+  #    şartlarıyla çakışması bilinen bir sorun.
+  #  • `min` LGPL v3: dinamik bağlı .so olarak dağıtıldığı için yükümlülük
+  #    atıf + kütüphane kaynağını sunma + yeniden bağlamaya izin vermekle
+  #    sınırlı; uygulamanın kendi kodu etkilenmiyor (bkz. LICENSES.md).
+  # Birebir çözünürlük KAYBEDİLMEDİ: ölçekleme/kare sayısı süzgeçleri FFmpeg'in
+  # çekirdeğinde, GPL kütüphanelerde değil. H.264 yazmak için x264 yerine
+  # cihazın **donanım kodlayıcısı** (`h264_mediacodec`) kullanılıyor — paket
+  # FFmpeg 8.1.2 taşıyor, MediaCodec kodlayıcıları 6.1'den beri var. Yan
+  # faydası: H.264 patent lisansı cihaz üreticisinde kalıyor ve kodlama
+  # yazılım x264'ten kat kat hızlı.
+  # Boyut: min (38.9 MB AAR) min_gpl'den (48.6 MB) ~10 MB küçük.
   # NOT: paket kotlin-stdlib 2.2.0 taşıyor → CI'daki Kotlin eklentisi 2.1.0'dan
   # 2.2.0'a çekildi (yeni derleyici eski metadata'yı okur; ters yön kırılır,
   # bkz. HAFIZA build 119).
-  ffmpeg_kit_flutter_new_min_gpl: 2.6.0
+  ffmpeg_kit_flutter_new_min: 3.6.0
 
   # `light_compressor` (serbest en×boy) DENENDİ ve EKLENMEDİ — 2026-07-29.
   # Paketin 2.2.0 Android modülü modern derleme zinciriyle uyumsuz, üç

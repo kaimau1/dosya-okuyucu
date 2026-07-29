@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:ffmpeg_kit_flutter_new_min_gpl/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new_min_gpl/ffprobe_kit.dart';
-import 'package:ffmpeg_kit_flutter_new_min_gpl/return_code.dart';
-import 'package:ffmpeg_kit_flutter_new_min_gpl/statistics.dart';
+import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_min/ffprobe_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
+import 'package:ffmpeg_kit_flutter_new_min/statistics.dart';
 
 import '../../models/media_resize.dart';
 
@@ -33,24 +33,36 @@ class VideoProbe {
 ///   `namespace` yok (AGP 8 hatası), native bağımlılığı tanıtılmayan bir
 ///   JitPack deposunda ve kendi buildscript'i AGP 4.2.2 bildiriyor → üç
 ///   bağımsız derleme kırıcısı (2026-07-29'da denendi, eklenmedi).
-/// - `ffmpeg_kit_flutter_new_min_gpl` bu üç sorunun hiçbirini taşımıyor:
+/// - `ffmpeg_kit_flutter_new_min` bu üç sorunun hiçbirini taşımıyor:
 ///   `namespace` var, compileSdk 35, minSdk 24 (bizimkiyle aynı) ve native
-///   kütüphane **Maven Central**'da (`com.antonkarpenko:ffmpeg-kit-min-gpl`).
+///   kütüphane **Maven Central**'da (`com.antonkarpenko:ffmpeg-kit-min`).
 ///   Tek gereken CI'daki Kotlin eklentisini 2.2.0'a çekmek (paket
 ///   kotlin-stdlib 2.2.0 taşıyor; yeni derleyici eski metadata'yı okur, ters
 ///   yön kırılır — bkz. HAFIZA build 119).
 ///
-/// ## Bedeli — kullanıcıya da söylenir
-/// - APK mimari başına ~12 MB büyür (x264 dahil native kütüphaneler).
-/// - Paket GPL v3 bileşenler (x264/x265/xvid) içerdiği için uygulamanın
-///   dağıtımı **GPL v3** koşullarına girer. Depo halka açık olduğu için kaynak
-///   sunma yükümlülüğü fiilen karşılanıyor, ama bu bilinçli bir karardır.
+/// ## LİSANS — niye `min` (LGPL), `min_gpl` (GPL) değil
+/// İlk sürümde `min_gpl` kullanılmıştı (x264 ile H.264 yazmak için). Kullanıcı
+/// isteği üzerine değiştirildi: *"lisans kısmını hallet, Google Play'de sorun
+/// yaşamayalım"*. x264/x265/xvid **GPL v3**; onları dağıtmak uygulamanın
+/// TAMAMINI GPL v3'e sokar (tüm kaynağı bu lisansla yayımlama zorunluluğu) ve
+/// GPL v3'ün "ek kısıtlama koyulamaz" maddesinin mağaza dağıtım şartlarıyla
+/// çakışması bilinen bir sorundur. `min` varyantı **LGPL v3**: dinamik bağlı
+/// `.so` olarak dağıtıldığı için yükümlülük atıf + kütüphane kaynağını sunma +
+/// yeniden bağlamaya izin vermekle sınırlı, uygulamanın kendi kodu etkilenmez
+/// (bkz. depo kökündeki `LICENSES.md` ve Ayarlar > Açık kaynak bileşenler).
+///
+/// **Birebir çözünürlük kaybedilmedi:** ölçekleme (`scale`) ve kare sayısı
+/// (`fps`) süzgeçleri FFmpeg'in çekirdeğinde, GPL kütüphanelerde değil.
 ///
 /// ## Kalite kararları
-/// - Kodlayıcı önce **donanım** (`h264_mediacodec`) denenir, olmazsa
-///   `libx264`e düşülür: donanım kodlayıcı telefonda kat kat hızlı, ama her
-///   üretimde/derlemede bulunacağının garantisi yok. Bulunmadığında ffmpeg
-///   saniyenin altında "Unknown encoder" ile döner → yedek yol pahalı değil.
+/// - **Kodlayıcı `h264_mediacodec` (cihazın donanım kodlayıcısı).** Paket
+///   FFmpeg 8.1.2 taşıyor, MediaCodec kodlayıcıları 6.1'den beri var. Üç
+///   faydası: GPL'li x264 gerekmiyor, kodlama yazılım kodlamadan kat kat hızlı
+///   ve H.264 patent lisansı cihaz üreticisinde kalıyor.
+/// - Donanım kodlayıcı bulunamazsa **`mpeg4`**'e düşülür (FFmpeg'in kendi
+///   kodlayıcısı, LGPL kapsamında): kalitesi H.264'ün gerisinde ama istenen
+///   çözünürlük yine birebir uygulanır. İkisi de olmazsa çağıran katman
+///   (`VideoTranscoder`) kademeli MediaCodec motoruna düşer.
 /// - Ses **yeniden kodlanır** (AAC 128k), kopyalanmaz: kaynak sesi MP4'e
 ///   girmeyen bir biçimde (ör. WebM/Opus) olabilir ve `-c:a copy` o dosyada
 ///   sessizce çöker.
@@ -172,9 +184,13 @@ abstract final class FfmpegVideo {
       '-i', source,
       '-vf', filters.join(','),
       '-c:v', encoder,
-      // Donanım kodlayıcı CRF anlamaz; bit hızıyla sürülür.
-      if (encoder == 'libx264') ...['-crf', '$crf', '-preset', 'veryfast'],
-      if (encoder != 'libx264') ...['-b:v', '${_bitrateFor(width, height, crf)}k'],
+      // Kalite ayarı kodlayıcıya göre değişir:
+      //  • donanım (h264_mediacodec) CRF anlamaz → bit hızı,
+      //  • mpeg4 CRF anlamaz → 2..31 arası nicemleyici (-q:v; küçük = iyi).
+      if (encoder == 'mpeg4')
+        ...['-q:v', '${_mpeg4QualityFor(crf)}']
+      else
+        ...['-b:v', '${_bitrateFor(width, height, crf)}k'],
       '-pix_fmt', 'yuv420p', // eski oynatıcılar 4:2:0 dışını açmaz
       if (removeAudio) '-an' else ...['-c:a', 'aac', '-b:a', '128k'],
       '-map_metadata', '0', // çekim tarihi korunsun
@@ -182,6 +198,18 @@ abstract final class FfmpegVideo {
       output,
     ];
   }
+
+  /// `mpeg4` kodlayıcısının nicemleyicisi (2..31; küçük = daha iyi kalite).
+  ///
+  /// CRF ölçeği (20..32) bu aralığa doğrusal değil **kaba** eşlenir: mpeg4
+  /// zaten yedek yol, buradaki amaç "yüksek kalite seçince gözle görülür daha
+  /// iyi" davranışını korumak.
+  static int _mpeg4QualityFor(int crf) => switch (crf) {
+        <= 20 => 3,
+        <= 24 => 5,
+        <= 28 => 8,
+        _ => 12,
+      };
 
   /// Donanım kodlayıcı için kaba bit hızı (kbit/s): piksel sayısı × CRF'den
   /// türetilmiş kalite katsayısı.
@@ -215,8 +243,11 @@ abstract final class FfmpegVideo {
     bool Function()? isCancelled,
   }) async {
     final crf = crfFor(quality);
-    // Önce donanım, sonra yazılım. Donanım yoksa ffmpeg hemen döner.
-    final encoders = ['h264_mediacodec', 'libx264'];
+    // Önce cihazın donanım H.264 kodlayıcısı, bulunamazsa FFmpeg'in kendi
+    // mpeg4'ü. GPL'li libx264 BİLİNÇLİ olarak yok (lisans; bkz. sınıf notu).
+    // Donanım kodlayıcı yoksa ffmpeg saniyenin altında "Unknown encoder" ile
+    // döndüğü için bu deneme pahalı değil.
+    final encoders = ['h264_mediacodec', 'mpeg4'];
     Object? lastError;
     for (final encoder in encoders) {
       try {

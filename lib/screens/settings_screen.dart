@@ -387,7 +387,63 @@ class _AboutSection extends StatelessWidget {
         const SizedBox(height: 8),
         const Text('Dosya Okuyucu • sürüm 0.1.0\n'
             'Çok formatlı, hızlı ve sade dosya okuyucu/düzenleyici.'),
+        const SizedBox(height: 8),
+        // LGPL v3 ATIF YÜKÜMLÜLÜĞÜ: uygulama FFmpeg kütüphanelerini
+        // dağıtıyor; lisans atfın kullanıcıya erişilebilir olmasını istiyor.
+        // Ayrıntı ve kaynak bağlantıları depo kökündeki LICENSES.md'de.
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.balance_outlined),
+          title: const Text('Açık kaynak bileşenler'),
+          subtitle: const Text('FFmpeg (LGPL v3) ve diğer lisanslar'),
+          onTap: () => showOpenSourceLicenses(context),
+        ),
       ],
     );
   }
 }
+
+/// Açık kaynak bileşen ve lisans bilgisi.
+///
+/// **Niye bir ekran gerekiyor:** uygulama FFmpeg kütüphanelerini (LGPL v3)
+/// dağıtıyor ve lisans, atfın ve kaynak kodun nereden alınacağının kullanıcıya
+/// ulaşmasını gerektiriyor. Depodaki `LICENSES.md` tek başına yetmez — uygulamayı
+/// mağazadan kuran kullanıcı depoyu görmez.
+///
+/// GPL'li kodlayıcıların (x264/x265) bilinçli olarak DAĞITILMADIĞI da burada
+/// yazılı: "neden bazı videolar mpeg4 çıkıyor" sorusunun dürüst cevabı bu.
+Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Açık kaynak bileşenler'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'FFmpeg 8.1.2 — GNU Lesser General Public License v3.0 (LGPL v3)\n'
+            'Video boyut düşürme, çözünürlük ve kare sayısı değiştirme '
+            'işlemlerinde kullanılır.\n\n'
+            'Kaynak kodu:\n'
+            '• https://ffmpeg.org/download.html\n'
+            '• https://github.com/arthenica/ffmpeg-kit\n\n'
+            'Kütüphane değiştirilmeden, dinamik bağlı paylaşımlı kütüphane '
+            '(.so) olarak dağıtılır; APK içinden çıkarılıp uyumlu başka bir '
+            'sürümle değiştirilebilir.\n\n'
+            'GPL lisanslı kodlayıcılar (x264, x265, xvidcore) bilinçli olarak '
+            'DAĞITILMIYOR. Bu yüzden H.264 çıktısı cihazın donanım '
+            'kodlayıcısıyla üretilir; donanım kodlayıcısı olmayan cihazlarda '
+            'FFmpeg’in mpeg4 kodlayıcısına düşülür.\n\n'
+            'Diğer bileşenler (Flutter, PDFium/pdfrx, Syncfusion Flutter PDF, '
+            'Google ML Kit, Firebase, excel, archive, koni_archive, image, '
+            'video_player, audioplayers, video_compress, '
+            'flutter_local_notifications …) izin verici (BSD/MIT/Apache 2.0) '
+            'ya da ticari kullanıma açık lisanslarla dağıtılır. Tam liste: '
+            'depodaki LICENSES.md ve pubspec.yaml.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Kapat'),
+          ),
+        ],
+      ),
+    );
