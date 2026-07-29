@@ -75,12 +75,9 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     return _options.customWidth != null || _options.customHeight != null;
   }
 
-  /// Videoda serbest ölçü **birebir** verilemiyor (motorun sınırı; gerekçe
-  /// `services/fm/video_transcode.dart` başında yazılı). Kullanıcı yüzde ya da
-  /// serbest en×boy seçtiyse bunu bilmeli — sessizce başka bir çözünürlük
-  /// üretmek "ayar çalışmıyor" hatası olarak geri döner.
-  bool get _videoApproxWarning =>
-      widget.hasVideos && _options.needsExactSize;
+  /// Video yeniden kodlanacak mı? Kullanıcı bunu bilmeli: kodlama uzun sürer
+  /// (uzun bir videoda dakikalar) ve kaynaktan bir tur kalite kaybı olur.
+  bool get _videoNotice => widget.hasVideos && _options.changesResolution;
 
   void _readCustom() {
     final w = int.tryParse(_widthController.text.trim());
@@ -271,7 +268,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                           ),
                       ],
                     ),
-                    if (_videoApproxWarning) ...[
+                    if (_videoNotice) ...[
                       const SizedBox(height: Gap.sm),
                       Row(
                         children: [
@@ -281,10 +278,10 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                           const SizedBox(width: Gap.xs),
                           Expanded(
                             child: Text(
-                              'Videolarda birebir piksel verilemiyor: hedefe '
-                              'en yakın alt kademe (1080p / 720p / 540p / '
-                              '480p) kullanılır. Fotoğraflarda istediğin ölçü '
-                              'tam olarak uygulanır.',
+                              'Video istediğin ölçüye birebir dönüştürülür '
+                              '(FFmpeg). Uzun bir videoda bu dakikalar '
+                              'sürebilir; işlem arka planda koşar, ilerlemeyi '
+                              'alttaki şeritten izleyebilirsin.',
                               style: theme.textTheme.bodySmall,
                             ),
                           ),

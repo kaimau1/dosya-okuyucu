@@ -192,7 +192,7 @@ jobs:
           echo "--- desugaring sonrası ---"
           grep -R -A3 -E "compileOptions|coreLibraryDesugaring" android/app/build.gradle* || true
 
-      - name: Kotlin eklenti sürümünü yükselt (flutter_tts 2.x metadata ister)
+      - name: Kotlin eklenti sürümünü yükselt (flutter_tts + ffmpeg-kit metadata)
         run: |
           set -e
           # flutter_tts 4.2.5 Kotlin 2.x ile derlenmiş kotlin-stdlib çekiyor;
@@ -200,9 +200,15 @@ jobs:
           # OKUYAMIYOR ("compiled with an incompatible version of Kotlin",
           # build 119 kırmızı). Yeni derleyici eski metadata'yı okuyabildiği
           # için sürümü yükseltmek güvenli yön; düşürmek değil.
+          #
+          # 2026-07-29: 2.1.0 → **2.2.0**. ffmpeg_kit_flutter_new_min_gpl
+          # kotlin-stdlib 2.2.0 çekiyor; 2.1.0 derleyicisi 2.2 metadata'sını
+          # okuyamaz (aynı hata sınıfı, ters yön). Kotlin 2.2 Gradle eklentisi
+          # Gradle 7.6.3+ ve AGP 7.3+ istiyor — şablonda Gradle 8.10.2 /
+          # AGP 8.7.0 var, ikisi de fazlasıyla karşılıyor.
           for f in android/settings.gradle android/settings.gradle.kts; do
             [ -f "$f" ] || continue
-            sed -i -E 's/(id[( ]"org\.jetbrains\.kotlin\.android"\)? version )"[0-9.]+"/\1"2.1.0"/' "$f"
+            sed -i -E 's/(id[( ]"org\.jetbrains\.kotlin\.android"\)? version )"[0-9.]+"/\1"2.2.0"/' "$f"
           done
           echo "--- kotlin eklenti sürümü ---"
           grep -R "kotlin.android" android/settings.gradle* || true

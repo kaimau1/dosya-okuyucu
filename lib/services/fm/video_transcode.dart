@@ -5,43 +5,36 @@ import 'package:path/path.dart' as p;
 import 'package:video_compress/video_compress.dart' as vc;
 
 import '../../models/media_resize.dart';
+import 'ffmpeg_video.dart';
 import 'file_ops.dart';
 import 'image_resize.dart' show ResizeResult;
 import 'job_queue.dart';
 
-/// **Video boyut düşürme** — native `MediaCodec` (video_compress).
+/// **Video boyut düşürme** — birincil motor FFmpeg, yedek motor MediaCodec.
 ///
-/// ## Niye ffmpeg YOK
-/// `ffmpeg_kit_flutter` dağıtımdan kaldırıldı: ikili dosyaları artık
-/// barındırılmadığı için paketi eklemek derlemeyi indirme hatasıyla kırar.
+/// ## İki motor, biri yedek
+/// - **FFmpeg** (`ffmpeg_kit_flutter_new_min_gpl`): istenen **birebir**
+///   çözünürlük + kare sayısı, tek geçişte. Kullanıcı isteği 2026-07-29:
+///   kademeler yetmiyor, "1234x568" de verilebilmeli.
+/// - **video_compress** (native MediaCodec): FFmpeg herhangi bir nedenle
+///   çalışmazsa (bilinmeyen kodek, cihaz kısıtı, kütüphane yüklenmemesi)
+///   kademeli yola düşülür. Böylece en kötü durumda özellik yaklaşık çalışır,
+///   "hiç çalışmaz" olmaz — ve hangisinin kullanıldığı iş ayrıntısında yazar.
 ///
-/// ## Niye SERBEST en×boy yok (dürüst sınır — 2026-07-29)
-/// Kullanıcı serbest çözünürlük istedi; bunu verebilen paket
-/// `light_compressor` 2.2.0'dı ve **denenmeden önce** derleme zincirine
-/// bakıldığında üç bağımsız kırıcı bulundu (bkz. HAFIZA):
-/// 1. Android modülünde `namespace` yok, manifestte hâlâ `package=` var →
-///    AGP 8 bunu **hata** sayıyor ("Namespace not specified").
-/// 2. Native bağımlılığı JitPack'te (`com.github.AbedElazizShe:LightCompressor`)
-///    ve paket bu deposu tüketen uygulamaya tanıtmıyor → çözümleme çöker.
-/// 3. Kendi `buildscript`inde AGP 4.2.2 classpath'i bildiriyor → kökteki
-///    AGP 8.7 ile çakışır.
-/// Üçünü de yamayla zorlamak, HAFIZA'da zaten reddedilmiş olan "tek bir paket
-/// için tüm derleme zincirini oynatma" yoluna girmek olurdu.
-///
-/// **Bunun yerine:** hangi seçim yapılırsa yapılsın (yüzde, serbest en×boy,
-/// kademe) hedef ölçü hesaplanır ve **en yakın alt kademeye** eşlenir. Yani
-/// "%50" ya da "1000x562" seçildiğinde video 540p'ye iner; birebir istenen
-/// piksel değil ama istenen küçültme gerçekleşir ve arayüz bunu yazar.
-/// Fotoğraflarda serbest ölçü **tam olarak** uygulanır (saf Dart, bkz.
-/// `ImageResizer`).
+/// Neden yedeği silmedik: FFmpeg yolu bu ortamda **cihazda doğrulanamıyor**
+/// (Android SDK/telefon yok). Yedek olmadan olası bir aksaklık özelliği
+/// tamamen kullanılamaz yapardı.
 ///
 /// ## Dürüst sınır — arka plan
 /// Kodlama native tarafta koşar ama uygulama süreci içinde: uygulama arka
 /// planda kalabilir, görev listesinden **kapatılırsa** kodlama düşer
 /// (bkz. `JobQueue`). Yarım kalan çıktı silinir, özgün dosyaya dokunulmaz.
 abstract final class VideoTranscoder {
-  /// Kaynağın gerçek ölçüsü (yüzdeyle küçültme ve "büyütme yapma" kuralı için).
+  /// Kaynağın **gösterim** ölçüsü. Önce ffprobe (döndürme verisini de okur),
+  /// olmazsa video_compress.
   static Future<({int width, int height})?> sourceSize(String path) async {
+    final probe = await FfmpegVideo.probe(path);
+    if (probe != null) return (width: probe.width, height: probe.height);
     try {
       final info = await vc.VideoCompress.getMediaInfo(path);
       final w = info.width;
@@ -53,11 +46,10 @@ abstract final class VideoTranscoder {
     }
   }
 
-  /// Hedef kısa kenarı, motorun desteklediği kademeye eşler.
+  /// Hedef kısa kenarı, YEDEK motorun desteklediği kademeye eşler.
   ///
   /// **Aşağı** yuvarlanır: kullanıcı küçültmek istedi, 500 piksel hedefe 540p
-  /// vermek istediğinden büyük bir dosya üretmek olurdu. Hedef en küçük
-  /// kademenin de altındaysa en küçüğü seçilir (motorun altı yok).
+  /// vermek istediğinden büyük bir dosya üretmek olurdu.
   static vc.VideoQuality qualityForShortEdge(int shortEdge) {
     if (shortEdge >= 1080) return vc.VideoQuality.Res1920x1080Quality;
     if (shortEdge >= 720) return vc.VideoQuality.Res1280x720Quality;
@@ -73,36 +65,96 @@ abstract final class VideoTranscoder {
   }) async {
     final before = File(path).lengthSync();
     final base = p.basenameWithoutExtension(path);
-    // Çıktı her zaman MP4: motor MP4/H.264 üretiyor, uzantıyı korumak
+    // Çıktı her zaman MP4/H.264: iki motor da bunu üretiyor, uzantıyı korumak
     // (ör. .mkv) oynatıcıları yanıltırdı.
     final target = FileOps.uniquePath(
       p.join(p.dirname(path), '${base}_${options.suffix}.mp4'),
     );
 
-    final size = await sourceSize(path);
-    final quality = _quality(options, size);
+    final probe = await FfmpegVideo.probe(path);
+    final size = probe != null
+        ? (width: probe.width, height: probe.height)
+        : await sourceSize(path);
 
+    // ── 1) FFmpeg: birebir ölçü + kare sayısı ────────────────────────────────
+    if (size != null) {
+      final wanted = targetSize(
+        sourceWidth: size.width,
+        sourceHeight: size.height,
+        options: options,
+      );
+      try {
+        handle?.report(detail: 'Dönüştürülüyor (FFmpeg)…');
+        await FfmpegVideo.transcode(
+          source: path,
+          output: target,
+          width: wanted.width,
+          height: wanted.height,
+          fps: options.frameRate,
+          quality: options.videoQuality,
+          removeAudio: options.removeAudio,
+          durationMs: probe?.durationMs ?? 0,
+          onProgress: (ratio) => handle?.report(
+              detail: '${wanted.width}×${wanted.height} · '
+                  '%${(ratio * 100).round()}'),
+          isCancelled: () => handle?.cancelled ?? false,
+        );
+        return ResizeResult(
+          sourcePath: path,
+          outputPath: target,
+          beforeBytes: before,
+          afterBytes: File(target).existsSync() ? File(target).lengthSync() : 0,
+          width: wanted.width,
+          height: wanted.height,
+        );
+      } on FfmpegCancelled {
+        _cleanup(target);
+        throw const JobCancelled();
+      } catch (_) {
+        // Yarım kalan çıktı kalmasın; yedek motor kendi dosyasını üretecek.
+        _cleanup(target);
+      }
+    }
+
+    // ── 2) Yedek: MediaCodec kademesi ────────────────────────────────────────
+    handle?.report(detail: 'Dönüştürülüyor (yedek motor)…');
+    return _presetPass(path, options, target, before, size, handle);
+  }
+
+  static void _cleanup(String path) {
+    try {
+      final file = File(path);
+      if (file.existsSync()) file.deleteSync();
+    } catch (_) {}
+  }
+
+  static Future<ResizeResult> _presetPass(
+    String path,
+    MediaResizeOptions options,
+    String target,
+    int before,
+    ({int width, int height})? size,
+    JobHandle? handle,
+  ) async {
     final subscription = handle == null
         ? null
         : vc.VideoCompress.compressProgress$.subscribe((value) {
             // Yalnız AYRINTI satırı yazılır: `done/total` toplu işin dosya
             // sayacı (çağıranın) — buraya yüzde yazmak ilerleme çubuğunu her
             // dosyada 0-100 arasında zıplatırdı.
-            handle.report(detail: 'Sıkıştırma: %${value.toStringAsFixed(0)}');
-            // Uzun bir kodlamada iptal düğmesinin işe yaraması için tek
-            // yoklama noktası bu akış (döngü yok).
+            handle.report(
+                detail: 'Yedek motor: %${value.toStringAsFixed(0)}');
             if (handle.cancelled) unawaited(cancel());
           });
     String? produced;
     try {
       final info = await vc.VideoCompress.compressVideo(
         path,
-        quality: quality,
+        quality: _presetQuality(options, size),
         deleteOrigin: false,
         includeAudio: !options.removeAudio,
         // `frameRate` zorunlu (varsayılan 30). "Değiştirme" seçilirse yüksek
-        // bir değer verilir — motor kaynaktan fazlasını üretmez, yani kaynağın
-        // kare sayısı korunur.
+        // bir değer verilir — motor kaynaktan fazlasını üretmez.
         frameRate: options.frameRate ?? 60,
       );
       if (info?.isCancel ?? false) throw const JobCancelled();
@@ -122,23 +174,15 @@ abstract final class VideoTranscoder {
       );
     } finally {
       subscription?.unsubscribe();
-      // Motorun önbelleğindeki ara dosya birikirse depolamayı kendimiz
-      // doldururuz.
-      if (produced != null && produced != path) {
-        try {
-          final f = File(produced);
-          if (f.existsSync()) f.deleteSync();
-        } catch (_) {}
-      }
+      if (produced != null && produced != path) _cleanup(produced);
     }
   }
 
-  static vc.VideoQuality _quality(
+  static vc.VideoQuality _presetQuality(
     MediaResizeOptions options,
     ({int width, int height})? size,
   ) {
     if (!options.changesResolution) {
-      // Çözünürlüğe dokunulmuyor → yalnız sıkıştırma sertliği.
       return switch (options.videoQuality) {
         VideoQualityChoice.veryLow => vc.VideoQuality.LowQuality,
         VideoQualityChoice.low => vc.VideoQuality.LowQuality,
@@ -146,15 +190,12 @@ abstract final class VideoTranscoder {
         VideoQualityChoice.high => vc.VideoQuality.HighestQuality,
       };
     }
-    // Kademe seçildi ve kaynağı bilmiyoruz → kademeyi doğrudan kullan.
     final edge = options.resolution.shortEdge;
     if (size == null) {
       return edge != null
           ? qualityForShortEdge(edge)
           : vc.VideoQuality.MediumQuality;
     }
-    // Yüzde/serbest ölçü dahil her seçim hedef ölçüye çevrilir, oradan
-    // en yakın alt kademeye eşlenir.
     final target = targetSize(
       sourceWidth: size.width,
       sourceHeight: size.height,
@@ -167,6 +208,7 @@ abstract final class VideoTranscoder {
 
   /// Süren kodlamayı iptal eder (iş kuyruğundaki iptal düğmesi çağırır).
   static Future<void> cancel() async {
+    await FfmpegVideo.cancel();
     try {
       await vc.VideoCompress.cancelCompression();
     } catch (_) {}
