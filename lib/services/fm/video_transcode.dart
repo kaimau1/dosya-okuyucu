@@ -115,16 +115,23 @@ abstract final class VideoTranscoder {
     // kademeli yedek motor.
     if (size == null) {
       handle?.report(detail: _line(progressPrefix, ['yedek motor hazırlanıyor…']));
-      return _presetPass(
-        path,
-        options,
-        target,
-        before,
-        size,
-        handle,
-        sourceDurationMs,
-        progressPrefix,
-      );
+      try {
+        return await _presetPass(
+          path,
+          options,
+          target,
+          before,
+          size,
+          handle,
+          sourceDurationMs,
+          progressPrefix,
+        );
+      } catch (_) {
+        // Yarım kalan çıktı diskte kalmasın (deneme sırasının dışındaki tek
+        // yol bu; oradaki temizlik döngüde yapılıyor).
+        _cleanup(target);
+        rethrow;
+      }
     }
 
     final wanted = targetSize(

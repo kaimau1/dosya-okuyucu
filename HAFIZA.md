@@ -4444,6 +4444,27 @@ kodlamak dakikalar).
   de aynı metin gidiyor). Geçmiş `historyLimit = 40` ile sınırlı (süren iş ASLA
   düşmez), süreler `startedAtMs/finishedAtMs` ile ölçülüyor.
 
+### YENİ VE ÖNEMLİ — bulut oturumunda ffmpeg SÜZGECİ gerçekten koşturulabiliyor
+`pip install imageio-ffmpeg` ile **ffmpeg 7.0.2 ikilisi** geliyor (apt gerekmiyor).
+Yani video süzgeçleri artık varsayımla değil **ölçümle** doğrulanıyor. Bu turda
+hatanın kendisi birebir üretildi:
+```
+# Dikey telefon videosunu taklit et (yatay kodlanmış + 90° döndürme verisi)
+ffmpeg -f lavfi -i testsrc=size=1920x1080:rate=30:duration=2 -c:v libx264 yatay.mp4
+ffmpeg -display_rotation 90 -i yatay.mp4 -c copy dikey.mp4
+```
+| süzgeç | dikey kaynak (ekranda 1080x1920) | yatay kaynak |
+|---|---|---|
+| ESKİ `scale=1280:720` | **1280x720 (hata: yatay/ezik)** | 1280x720 |
+| YENİ kutuya sığdırma | **720x1280 ✓** | 1280x720 ✓ |
+
+Ayrıca ölçülenler: çıktıda döndürme verisi KALMIYOR (oynatıcı ikinci kez
+çevirmiyor), 480x640 kaynağa 640 kutusu verilince ölçü değişmiyor (büyütme yok),
+tek kenar biçimi (`scale=w=600:h=-2`) dikey kaynakta 600x1066 veriyor (yön
+korunuyor), tek sayıya düşen ölçüler çift sayıya yuvarlanıyor (H.264 kabul etti).
+**TUZAK:** libx264 **tek sayılı kaynağı** kodlamıyor — test videosu üretirken
+ölçüler çift olmalı, yoksa hata süzgeçte sanılıyor.
+
 ### Doğrulama
 Bulut Linux oturumunda Flutter **3.29.3** (CI ile aynı) indirilip koşturuldu:
 `flutter analyze` **0 hata, 0 yeni uyarı** (39 info/warning eski koddan),

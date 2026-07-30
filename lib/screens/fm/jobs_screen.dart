@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
+import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 
 /// **İşlemler ekranı** — uzun süren her işin nerede olduğu, başarılı mı
@@ -189,7 +191,10 @@ class _JobCard extends StatelessWidget {
           ListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
-            leading: const Icon(Icons.movie_creation_outlined),
+            // Simge dosyanın TÜRÜNDEN: boyut düşürme fotoğraf da üretiyor,
+            // hepsine film ikonu koymak yanlış bilgi olurdu.
+            leading: Icon(FmColors.iconFor(
+                FsEntry.categoryForExtension(_extension(path)))),
             title: Text(p.basename(path),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(_sizeAndFolder(path),
@@ -209,6 +214,12 @@ class _JobCard extends StatelessWidget {
   }
 
   static const _maxListed = 12;
+
+  static String _extension(String path) {
+    final name = p.basename(path);
+    final dot = name.lastIndexOf('.');
+    return dot <= 0 ? '' : name.substring(dot + 1);
+  }
 
   /// "12,4 MB · Camera" — boyut diskten okunur (çıktı gerçekten orada mı?).
   String _sizeAndFolder(String path) {
