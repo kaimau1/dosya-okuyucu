@@ -29,6 +29,7 @@ import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
+import 'remote/remote_connections_screen.dart';
 import 'fm_settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
@@ -536,6 +537,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           await openJobsScreen(context);
           if (mounted) setState(() {});
         },
+      ),
+      // Ağ depolama (NAS): Drive'ın yanında — ikisi de "telefonun dışındaki
+      // dosyalar". FTP/FTPS/SFTP/SMB/WebDAV ve PC'den erişim burada.
+      FmTileData(
+        icon: Icons.dns_outlined,
+        color: const Color(0xFF5E35B1),
+        label: 'Ağ depolama',
+        subtitle: '',
+        onTap: () => _push(const RemoteConnectionsScreen()),
       ),
       // Google Drive: "İndir"in yanında çünkü ikisi de dosyayı DIŞARIDAN
       // getiriyor. Kapsam sınırı (yalnız bizim yüklediklerimiz) ekranın

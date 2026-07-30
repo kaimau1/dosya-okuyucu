@@ -296,6 +296,147 @@ const Map<String, (String, String, String)> _table = {
     'FFmpeg (LGPL v3) وتراخيص أخرى',
   ),
 
+  // ── Uzak depolama (NAS) ───────────────────────────────────────────────────
+  'nas.title': ('Ağ depolama', 'Network storage', 'التخزين الشبكي'),
+  'nas.subtitle': ('NAS · FTP · SFTP · SMB', 'NAS · FTP · SFTP · SMB', 'NAS · FTP · SFTP · SMB'),
+  'nas.empty': (
+    'Kayıtlı bağlantı yok. Sunucunuzu elle ekleyin ya da ağda arayın.',
+    'No saved connections. Add your server manually or scan the network.',
+    'لا توجد اتصالات محفوظة. أضف خادمك يدويًا أو ابحث في الشبكة.',
+  ),
+  'nas.add': ('Bağlantı ekle', 'Add connection', 'إضافة اتصال'),
+  'nas.edit': ('Bağlantıyı düzenle', 'Edit connection', 'تعديل الاتصال'),
+  'nas.scan': ('Ağda ara', 'Scan network', 'البحث في الشبكة'),
+  'nas.scanning': ('Ağ taranıyor…', 'Scanning the network…', 'جارٍ فحص الشبكة…'),
+  'nas.scan_none': (
+    'Ağda sunucu bulunamadı. Sunucu ve telefon AYNI Wi-Fi ağında mı?',
+    'No server found. Are the server and the phone on the SAME Wi-Fi network?',
+    'لم يُعثر على خادم. هل الخادم والهاتف على نفس شبكة Wi-Fi؟',
+  ),
+  'nas.scan_found': ('{n} sunucu bulundu', '{n} servers found', 'تم العثور على {n} خادم'),
+  'nas.protocol': ('Protokol', 'Protocol', 'البروتوكول'),
+  'nas.name': ('Ad', 'Name', 'الاسم'),
+  'nas.name_hint': ('Ev NAS', 'Home NAS', 'NAS المنزل'),
+  'nas.host': ('Sunucu adresi', 'Server address', 'عنوان الخادم'),
+  'nas.host_hint': ('192.168.1.10', '192.168.1.10', '192.168.1.10'),
+  'nas.webdav_host_hint': (
+    'https://sunucu/dav',
+    'https://server/dav',
+    'https://server/dav',
+  ),
+  'nas.port': ('Port', 'Port', 'المنفذ'),
+  'nas.user': ('Kullanıcı adı', 'Username', 'اسم المستخدم'),
+  'nas.password': ('Parola', 'Password', 'كلمة المرور'),
+  'nas.domain': ('Etki alanı / çalışma grubu', 'Domain / workgroup', 'النطاق / مجموعة العمل'),
+  'nas.initial_path': ('Başlangıç klasörü', 'Starting folder', 'المجلد الابتدائي'),
+  'nas.save_password': ('Parolayı kaydet', 'Save password', 'حفظ كلمة المرور'),
+  'nas.save_password_note': (
+    'Parola cihazda DÜZ METİN saklanır. Kapatırsanız her bağlanışta sorulur.',
+    'The password is stored on the device in PLAIN TEXT. If you turn this off, '
+        'it is asked each time you connect.',
+    'تُحفظ كلمة المرور على الجهاز كنص عادي. إذا أوقفت هذا الخيار، سيتم سؤالك '
+        'عند كل اتصال.',
+  ),
+  'nas.password_prompt': (
+    '“{name}” için parola',
+    'Password for “{name}”',
+    'كلمة مرور «{name}»',
+  ),
+  'nas.test': ('Bağlantıyı sına', 'Test connection', 'اختبار الاتصال'),
+  'nas.test_ok': ('Bağlantı başarılı.', 'Connection succeeded.', 'نجح الاتصال.'),
+  'nas.connecting': ('Bağlanılıyor…', 'Connecting…', 'جارٍ الاتصال…'),
+  'nas.delete_confirm': (
+    '“{name}” bağlantısı silinsin mi? (Sunucudaki dosyalara dokunulmaz.)',
+    'Delete the connection “{name}”? (Files on the server are untouched.)',
+    'هل تريد حذف الاتصال «{name}»؟ (لن تُمس الملفات على الخادم.)',
+  ),
+  'nas.upload_here': ('Buraya yükle', 'Upload here', 'ارفع هنا'),
+  'nas.uploading': ('Yükleniyor…', 'Uploading…', 'جارٍ الرفع…'),
+  'nas.upload_done': ('Yüklendi.', 'Uploaded.', 'تم الرفع.'),
+  'nas.downloading': ('İndiriliyor…', 'Downloading…', 'جارٍ التنزيل…'),
+  'nas.new_folder': ('Yeni klasör', 'New folder', 'مجلد جديد'),
+  'nas.folder_name': ('Klasör adı', 'Folder name', 'اسم المجلد'),
+  'nas.rename': ('Yeniden adlandır', 'Rename', 'إعادة تسمية'),
+  'nas.new_name': ('Yeni ad', 'New name', 'الاسم الجديد'),
+  'nas.empty_folder': ('Bu klasör boş.', 'This folder is empty.', 'هذا المجلد فارغ.'),
+  'nas.smb_share_root': (
+    'Paylaşımlar — bir paylaşıma girerek dosyaları görün.',
+    'Shares — open a share to see its files.',
+    'المشاركات — افتح مشاركة لعرض ملفاتها.',
+  ),
+  'nas.error_unreachable': (
+    'Sunucuya ulaşılamadı. Adres, port ve aynı ağda olup olmadığınızı kontrol edin.',
+    'Could not reach the server. Check the address, the port, and that you are '
+        'on the same network.',
+    'تعذّر الوصول إلى الخادم. تحقق من العنوان والمنفذ ومن أنك على نفس الشبكة.',
+  ),
+  'nas.error_auth': (
+    'Kullanıcı adı ya da parola kabul edilmedi.',
+    'The username or password was rejected.',
+    'تم رفض اسم المستخدم أو كلمة المرور.',
+  ),
+  'nas.error_not_found': ('Klasör ya da dosya yok.', 'Folder or file not found.', 'المجلد أو الملف غير موجود.'),
+  'nas.error_denied': ('Sunucu izin vermedi.', 'The server denied access.', 'رفض الخادم الوصول.'),
+  'nas.error_unsupported': (
+    'Sunucu bu protokol sürümünü desteklemiyor. SFTP ya da FTP deneyin.',
+    'The server does not support this protocol version. Try SFTP or FTP.',
+    'لا يدعم الخادم إصدار البروتوكول هذا. جرّب SFTP أو FTP.',
+  ),
+  'nas.error_unknown': ('Bağlantı hatası.', 'Connection error.', 'خطأ في الاتصال.'),
+  'nas.smb_warning': (
+    'SMB desteği deneyseldir: bazı sunucular (yalnız SMB3 zorunlu kılanlar) '
+        'bağlanmayabilir. Çalışmazsa aynı sunucuda SFTP ya da FTP deneyin.',
+    'SMB support is experimental: some servers (those requiring SMB3 only) may '
+        'not connect. If it fails, try SFTP or FTP on the same server.',
+    'دعم SMB تجريبي: قد لا تتصل بعض الخوادم (التي تفرض SMB3 فقط). إذا فشل، '
+        'جرّب SFTP أو FTP على الخادم نفسه.',
+  ),
+
+  // ── PC'den telefona FTP sunucusu ──────────────────────────────────────────
+  'ftpd.title': ('PC\'den eriş (FTP)', 'Access from PC (FTP)', 'الوصول من الحاسوب (FTP)'),
+  'ftpd.description': (
+    'Telefonu FTP sunucusuna çevirir: PC\'nizin dosya gezgininden ya da '
+        'tarayıcısından aşağıdaki adresi açarak telefondaki dosyalara '
+        'ulaşabilirsiniz. Telefon ve PC AYNI Wi-Fi ağında olmalı.',
+    'Turns the phone into an FTP server: open the address below in your PC\'s '
+        'file explorer or browser to reach the files on the phone. The phone '
+        'and the PC must be on the SAME Wi-Fi network.',
+    'يحوّل الهاتف إلى خادم FTP: افتح العنوان أدناه في مستكشف الملفات أو المتصفح '
+        'على حاسوبك للوصول إلى ملفات الهاتف. يجب أن يكون الهاتف والحاسوب على '
+        'نفس شبكة Wi-Fi.',
+  ),
+  'ftpd.start': ('Başlat', 'Start', 'ابدأ'),
+  'ftpd.stop': ('Durdur', 'Stop', 'أوقف'),
+  'ftpd.running': ('Çalışıyor', 'Running', 'قيد التشغيل'),
+  'ftpd.stopped': ('Durdu', 'Stopped', 'متوقف'),
+  'ftpd.address': ('Adres', 'Address', 'العنوان'),
+  'ftpd.no_address': (
+    'Wi-Fi bağlantısı bulunamadı. Telefonu bir Wi-Fi ağına bağlayın.',
+    'No Wi-Fi connection found. Connect the phone to a Wi-Fi network.',
+    'لم يُعثر على اتصال Wi-Fi. صل الهاتف بشبكة Wi-Fi.',
+  ),
+  'ftpd.allow_write': ('Yazmaya izin ver', 'Allow writing', 'السماح بالكتابة'),
+  'ftpd.allow_write_note': (
+    'Kapalıyken PC yalnız okuyabilir. Açarsanız PC telefondaki dosyaları '
+        'değiştirebilir ve SİLEBİLİR.',
+    'While off, the PC can only read. If you turn it on, the PC can modify and '
+        'DELETE files on the phone.',
+    'عند الإيقاف، يمكن للحاسوب القراءة فقط. عند التفعيل، يمكنه تعديل وحذف ملفات '
+        'الهاتف.',
+  ),
+  'ftpd.anonymous_warning': (
+    'Kullanıcı adı boş: AYNI AĞDAKİ HERKES parolasız bağlanabilir.',
+    'Username is empty: ANYONE ON THE SAME NETWORK can connect without a password.',
+    'اسم المستخدم فارغ: يمكن لأي شخص على نفس الشبكة الاتصال بدون كلمة مرور.',
+  ),
+  'ftpd.shared_folder': ('Paylaşılan klasör', 'Shared folder', 'المجلد المشترك'),
+  'ftpd.copied': ('Adres kopyalandı.', 'Address copied.', 'تم نسخ العنوان.'),
+  'ftpd.start_failed': (
+    'Sunucu başlatılamadı: {error}',
+    'Could not start the server: {error}',
+    'تعذّر بدء الخادم: {error}',
+  ),
+
   // ── Google Drive ──────────────────────────────────────────────────────────
   'drive.title': ('Google Drive', 'Google Drive', 'Google Drive'),
   'drive.sign_in': ('Google ile bağlan', 'Connect with Google', 'الاتصال عبر Google'),

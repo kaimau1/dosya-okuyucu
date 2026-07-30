@@ -4684,3 +4684,98 @@ Flutter 3.29.3 (CI ile aynı): `flutter analyze` **0 hata**, 39 info/warning
 Cihazda doğrulanamayan: gerçek Google oturumu ve OAuth istemci yapılandırması
 (google-services.json) — Drive, Firebase ile aynı istemciyi kullanıyor,
 yapılandırma yoksa giriş açılmaz. KALANLAR'a yazıldı.
+
+---
+
+## 2026-07-30 (III) — NAS: FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN + PC'den FTP
+
+Kullanıcı isteğinin tamamı: *"FTP, FTPS, SFTP, SMB, WebDAV ve LAN gibi uzak ya
+da paylaşılan depolama… Ayrıca FTP kullanarak PC'den mobil cihazınıza erişim"*.
+
+### A) Mimari — ortak `RemoteFs` arayüzü, `FileOps`a DOKUNULMADI
+`lib/services/fm/remote/`: `remote_fs.dart` (arayüz + `RemoteEntry` +
+`RemoteError`/`RemoteException` + saf yol yardımcıları), `sftp_fs` `ftp_fs`
+`webdav_fs` `smb_fs` gerçeklemeleri, `remote_fs_factory` (protokol → sınıf).
+- **Neden ortak arayüz:** gezgin/indirme/yükleme/silme dört protokolde AYNI
+  davranmalı. Ekran protokolü bilseydi her yeni protokol arayüzü de
+  değiştirirdi ve davranışlar zamanla ayrışırdı (bu bedel daha önce ödendi:
+  iki ayrı iş listesi arayüzü).
+- **Neden `FileOps` genelleştirilmedi:** saf `dart:io` olması belgelenmiş bir
+  değişmez; etiket/çöp/iş kuyruğu/`PathSideIndex` zincirinin tamamı ona bağlı.
+  Uzak dosyalar **indir-önbelleğe-aç** akışıyla yerel dünyaya giriyor →
+  PDF/Word/Excel/slayt/video/arşiv desteği ilk günden çalışıyor.
+
+### B) Protokole özgü tuzaklar (hepsi kodda yazılı)
+- **FTP'de `TransferType.binary` ŞART.** Varsayılan ASCII kipi satır sonlarını
+  çevirir ve resim/zip/pdf'i **bozar**. Testle kilitlendi.
+- **FTP kullanıcı adı boşsa `anonymous`** — halka açık sunucular boş adı
+  reddediyor.
+- **SFTP'de `truncate` olmadan üzerine yazma:** yeni dosya kısaysa eskinin
+  kuyruğu kalıyor. `create|truncate|write` birlikte veriliyor.
+- **SFTP `modifyTime` SANİYE** — milisaniyeye çevrilmezse tarihler 1970'e yakın.
+- **SMB kökü paylaşım listesi**, dosya listesi değil; `IPC$` gibi yönetimsel
+  paylaşımlar gizleniyor. Yol biçimi dışarıya `/a/b`, pakete `\a\b`.
+- **SMB etki alanı boşsa `WORKGROUP`** — boş değer bazı sunucularda reddediliyor.
+- **WebDAV'da şema yazılmazsa `https` varsayılıyor.** http'ye sessizce düşmek
+  parolayı şifresiz göndermek demekti.
+- **WebDAV klasör silmede yol `/` ile bitmeli**, yoksa bazı sunucular 404 verir.
+- **WebDAV'da `ping` (PROPFIND) bağlanışta çağrılıyor:** yanlış adres/parola
+  ilk listelemede değil BURADA anlaşılsın (kullanıcı "klasör boş" sanmasın).
+
+### C) LAN keşfi — iki yöntem birlikte, çünkü tek başına ikisi de yetmiyor
+`lan_discovery.dart`: **mDNS** (`_smb._tcp`, `_sftp-ssh._tcp`, `_ftp._tcp`,
+`_webdav._tcp`) duyuru yapan sunucuyu adıyla verir ama duyuru yapmayanı
+bulamaz; bazı ROM'lar çoklu yayını kısıtlıyor. **Alt ağ port taraması**
+(/24, 32'lik gruplar, 400 ms) duyuru yapmayanı da bulur. Sonuçlar **akış**
+olarak veriliyor — 254 adresin bitmesi beklenseydi kullanıcı "hiçbir şey yok"
+sanardı. `169.254.` (APIPA) elenir: o adres "DHCP yok" demek, taraması boşuna.
+
+### D) PC'den telefona FTP **sunucusu** — paketsiz, `dart:io`
+`ftp_server.dart`. Hazır Dart FTP *sunucusu* yok (olanlar istemci); `dart:io`
+`ServerSocket` ile yazıldı.
+- **Kök hapsi (`resolve`) en kritik parça.** Olmasaydı sunucu telefonun TÜM
+  dosya sistemini ağa açardı. Karar: kökün üstüne çıkan yol **reddedilmiyor,
+  köke sıkıştırılıyor** — FTP istemcileri kökte `CWD ..` göndermeyi normal
+  sayıyor, hata döndürmek gezinmeyi kilitliyor. Güvenlik sözü "reddet" değil
+  **"sonuç her zaman kökün içinde"**; test bunu ölçüyor.
+- **Yalnız PASİF mod.** Aktif modda (PORT) sunucu istemciye geri bağlanır;
+  NAT/ev yönlendiricisi arkasında neredeyse hep başarısız → "listeleniyor ama
+  dosya inmiyor". Pasif dinleyici **port 0** ile açılıyor (sabit port ikinci
+  eşzamanlı aktarımı kırardı).
+- **Varsayılan port 2121:** Android'de 1024 altı root ister, 21'e bağlanmak
+  sessiz başarısızlık olurdu.
+- **Yazma varsayılan KAPALI** — PC'den bakmak isteyen kullanıcı yanlışlıkla
+  silme riskini istemez. Kullanıcı adı/parola yanlışsa **aynı** yanıt veriliyor
+  (fark, kaba kuvvete ipucu olurdu).
+- **Sunucu ekranla birlikte yaşıyor:** ekrandan çıkınca duruyor. Arka planda
+  sürseydi kullanıcı telefonunu ağa açtığını unuturdu.
+- **BULUNAN GERÇEK HATA (test sayesinde):** ilk yazımda `MLSD` yoktu ve FEAT'te
+  de duyurulmuyordu; `ftpconnect` (ve çoğu modern istemci) varsayılan olarak
+  MLSD kullandığı için listeleme **502** alıp tamamen çalışmıyordu. MLSD/MLST
+  (RFC 3659) eklendi ve FEAT'e yazıldı.
+
+### E) YENİ VE ÖNEMLİ — FTP sunucusu bu ortamda GERÇEKTEN koşturulabiliyor
+`test/ftp_server_test.dart` sunucuyu localhost'ta başlatıp `ftpconnect`
+istemcisiyle sürüyor: giriş, MLSD listeleme, klasöre girme, indirme, yükleme,
+silme ve **512 baytlık ikili içeriğin bozulmadan geçtiği** ölçülüyor. Ayrıca
+ham komut testleri: girişsiz komut reddi, kullanıcı/parola ayrımının
+sızdırılmaması, yazma kapalıyken STOR/DELE/MKD reddi, kök dışına CWD'de kökte
+kalma, SIZE/MDTM/EPSV/FEAT/MLST yanıt biçimleri. Yani "kör push" değil.
+
+### F) Parola saklama — bilinçli sınır, kullanıcıya SÖYLENİYOR
+Parola `shared_preferences`ta **düz metin**. Android sandbox'ı başka
+uygulamalara kapatıyor ama root'lu/yedeklenmiş cihazda okunabilir.
+`RemoteConnection.savePassword` kapatılırsa parola **diske hiç yazılmıyor**
+(`toMap` alanı atlıyor) ve her bağlanışta soruluyor; bellekteki nesne oturum
+boyunca taşımaya devam ediyor. `flutter_secure_storage` yeni bir platform
+bağımlılığı demekti — kullanıcıya seçenek sunmak, ona söylemeden düz metin
+yazmaktan dürüst. Form altındaki açıklama bunu birebir yazıyor.
+
+### Doğrulama
+Flutter 3.29.3 (CI ile aynı): `flutter analyze` **0 hata**, 39 info/warning
+(tur başındakiyle aynı, hepsi eski kod). `flutter test` **1002 test geçti**
+(önceki tur 949; yeni 53 — `ftp_server_test` 20, `remote_fs_test` 24,
+`remote_browser_screen_test` 9).
+**Cihazda doğrulanamayan:** gerçek bir NAS'a (SMB/SFTP/FTP/WebDAV) bağlanma ve
+telefonun Wi-Fi'sinde ağ taraması — bu ortamda yerel ağ yok. SMB'nin gerçek
+sunucuda çalışıp çalışmadığı KALANLAR'daki karar maddesine bağlı.

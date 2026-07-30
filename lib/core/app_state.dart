@@ -7,6 +7,7 @@ import '../models/fm_layout.dart';
 import '../models/fs_entry.dart';
 import '../models/media_open_with.dart';
 import '../models/photo_group.dart';
+import '../models/remote_connection.dart';
 import '../models/recent_file.dart';
 import '../services/firebase_service.dart';
 import '../services/fm/folder_lock.dart';
@@ -36,6 +37,7 @@ class AppState extends ChangeNotifier {
   static const _kFmUseTrash = 'fm_use_trash';
   static const _kFmConfirmDelete = 'fm_confirm_delete';
   static const _kFmTrashAutoDays = 'fm_trash_auto_days';
+  static const _kRemotes = 'fm_remote_connections';
 
   late SharedPreferences _prefs;
 
@@ -80,6 +82,14 @@ class AppState extends ChangeNotifier {
   bool _fmUseTrash = true;
   bool _fmConfirmDelete = true;
   int _fmTrashAutoDays = 0;
+  List<RemoteConnection> _remotes = [];
+
+  /// Kayıtlı uzak depolama bağlantıları (FTP/FTPS/SFTP/SMB/WebDAV).
+  ///
+  /// Parola YALNIZ `savePassword` açıkken diske yazılır (bkz.
+  /// [RemoteConnection]); kapalıysa bellekteki nesne parolayı oturum boyunca
+  /// taşır ama kayıt parolasız kalır.
+  List<RemoteConnection> get remotes => List.unmodifiable(_remotes);
 
   /// Kullanıcının yıldızladığı klasörler (kalıcı).
   List<String> get bookmarks => List.unmodifiable(_bookmarks);
@@ -289,6 +299,10 @@ class AppState extends ChangeNotifier {
     _fmUseTrash = _prefs.getBool(_kFmUseTrash) ?? true;
     _fmConfirmDelete = _prefs.getBool(_kFmConfirmDelete) ?? true;
     _fmTrashAutoDays = _prefs.getInt(_kFmTrashAutoDays) ?? 0;
+    _remotes = (_prefs.getStringList(_kRemotes) ?? [])
+        .map(RemoteConnection.tryDecode)
+        .whereType<RemoteConnection>()
+        .toList();
     notifyListeners();
 
     // Firebase'i güvenli başlat; config yoksa yerel modda kalır.
@@ -381,6 +395,27 @@ class AppState extends ChangeNotifier {
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     await _prefs.setString(_kThemeMode, mode.name);
+    notifyListeners();
+  }
+
+  Future<void> _persistRemotes() => _prefs.setStringList(
+      _kRemotes, _remotes.map((r) => r.encode()).toList());
+
+  /// Bağlantıyı ekler ya da (aynı `id` varsa) günceller.
+  Future<void> saveRemote(RemoteConnection connection) async {
+    final index = _remotes.indexWhere((r) => r.id == connection.id);
+    if (index < 0) {
+      _remotes.add(connection);
+    } else {
+      _remotes[index] = connection;
+    }
+    await _persistRemotes();
+    notifyListeners();
+  }
+
+  Future<void> removeRemote(String id) async {
+    _remotes.removeWhere((r) => r.id == id);
+    await _persistRemotes();
     notifyListeners();
   }
 
