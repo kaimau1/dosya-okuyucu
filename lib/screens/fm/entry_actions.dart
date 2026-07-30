@@ -22,6 +22,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/tag_picker_sheet.dart';
 import 'ai_actions.dart';
 import 'archive_screen.dart';
+import 'drive_screen.dart';
 import 'folder_picker_screen.dart';
 import 'important_screen.dart';
 import 'resize_actions.dart';
@@ -32,6 +33,7 @@ enum _EntryAction {
   open,
   openWith,
   share,
+  driveUpload,
   moveTo,
   copyTo,
   copy,
@@ -88,6 +90,9 @@ Future<bool> showEntryActions(
                   _EntryAction.openWith),
             if (!entry.isDir)
               _tile(ctx, Icons.share_outlined, 'Paylaş', _EntryAction.share),
+            if (!entry.isDir)
+              _tile(ctx, Icons.cloud_upload_outlined, 'Drive\'a yükle',
+                  _EntryAction.driveUpload),
             // Tek adımlı akış EN ÜSTTE (kullanıcı isteği 2026-07-29:
             // "taşıma/kopyalama şu an çok zor"): hedefi burada seç, iş bitsin.
             // Pano (kopyala/kes + git + yapıştır) altta, ileri kullanım için.
@@ -178,6 +183,10 @@ Future<bool> showEntryActions(
 
     case _EntryAction.share:
       await shareEntries([entry.path]);
+      return false;
+
+    case _EntryAction.driveUpload:
+      await uploadToDrive(context, entry.path);
       return false;
 
     case _EntryAction.moveTo:

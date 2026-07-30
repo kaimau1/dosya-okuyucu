@@ -1,6 +1,22 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **Google Drive cihaz doğrulaması (kullanıcı)** — 2026-07-30: Pano →
+      Araçlar → **Google Drive** → (a) "Google ile bağlan" hesap seçtiriyor ve
+      Drive izni soruyor mu, (b) bir dosyaya uzun bas → **Drive'a yükle** →
+      dosya gerçekten Drive'a çıkıyor mu, (c) Drive ekranında o dosya
+      listeleniyor mu, dokununca inip AÇILIYOR mu, (d) kapsam şeridi
+      ("yalnız bu uygulamayla yüklediğiniz…") okunuyor mu, (e) silme çalışıyor
+      mu, (f) **google-services.json yoksa** giriş penceresi hiç açılmıyor
+      olmalı — çökme DEĞİL. NOT: Drive, Firebase ile aynı OAuth istemcisini
+      kullanıyor; Firebase kurulmamışsa Drive da çalışmaz (FIREBASE_SETUP.md).
+- [ ] **NAS (FTP/FTPS/SFTP/WebDAV/LAN) — sıradaki tur.** Paket uyumluluğu
+      2026-07-30'da ÖLÇÜLDÜ (HAFIZA 2026-07-30 II §A): dartssh2 2.22.5,
+      ftpconnect 2.0.7, webdav_client 1.2.2, multicast_dns 0.3.3 — hiçbiri
+      sürüm duvarını kırmıyor. **SMB kararı:** `smb_connect 0.0.9` önce
+      denenecek; gerçek bir paylaşımda çalışmazsa listeden ÇIKARILACAK
+      (yarım çalışan SMB, hiç olmayandan kötüdür). PC→telefon FTP sunucusu
+      `dart:io` ServerSocket ile paketsiz yazılacak.
 - [ ] **Dil desteği cihaz doğrulaması (kullanıcı)** — 2026-07-30: Ayarlar →
       **Dil** → English / العربية seç → (a) ana ekran, alt sekmeler, Ayarlar,
       Excel ve Word ekranları o dilde mi, (b) **Arapça'da arayüz sağdan sola**

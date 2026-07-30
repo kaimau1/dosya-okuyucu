@@ -296,6 +296,67 @@ const Map<String, (String, String, String)> _table = {
     'FFmpeg (LGPL v3) وتراخيص أخرى',
   ),
 
+  // ── Google Drive ──────────────────────────────────────────────────────────
+  'drive.title': ('Google Drive', 'Google Drive', 'Google Drive'),
+  'drive.sign_in': ('Google ile bağlan', 'Connect with Google', 'الاتصال عبر Google'),
+  'drive.sign_out': ('Bağlantıyı kes', 'Disconnect', 'قطع الاتصال'),
+  'drive.sign_in_prompt': (
+    'Drive\'a dosya yüklemek ve yüklediklerinizi buradan açmak için Google '
+        'hesabınıza bağlanın.',
+    'Connect your Google account to upload files to Drive and open what you '
+        'uploaded from here.',
+    'اتصل بحساب Google لرفع الملفات إلى Drive وفتح ما رفعته من هنا.',
+  ),
+  // Kapsam dürüstlüğü: bu metin OLMADAN boş liste "bozuk" sanılır.
+  'drive.scope_notice': (
+    'Burada yalnız **bu uygulamayla yüklediğiniz** dosyalar görünür; '
+        'Drive\'ınızdaki diğer dosyalara erişim istemiyoruz. Başka bir Drive '
+        'dosyasını açmak için: Dosya Aç → sistem seçicisinde Drive.',
+    'Only files **you uploaded with this app** appear here; we do not request '
+        'access to the rest of your Drive. To open another Drive file: Open '
+        'file → pick Drive in the system picker.',
+    'تظهر هنا الملفات **التي رفعتها بهذا التطبيق** فقط؛ لا نطلب الوصول إلى بقية '
+        'ملفات Drive. لفتح ملف آخر من Drive: فتح ملف ← اختر Drive من منتقي النظام.',
+  ),
+  'drive.empty': (
+    'Henüz bu uygulamayla Drive\'a dosya yüklemediniz.',
+    'You haven\'t uploaded any file to Drive with this app yet.',
+    'لم ترفع أي ملف إلى Drive بهذا التطبيق بعد.',
+  ),
+  'drive.search_hint': ('Drive\'da ara…', 'Search Drive…', 'ابحث في Drive…'),
+  'drive.exports_as': (
+    '{format} olarak iner',
+    'downloads as {format}',
+    'يُنزَّل بصيغة {format}',
+  ),
+  'drive.uploading': ('Drive\'a yükleniyor…', 'Uploading to Drive…', 'جارٍ الرفع إلى Drive…'),
+  'drive.upload_done': ('Drive\'a yüklendi:', 'Uploaded to Drive:', 'تم الرفع إلى Drive:'),
+  'drive.upload_failed': ('Drive\'a yüklenemedi.', 'Upload to Drive failed.', 'فشل الرفع إلى Drive.'),
+  'drive.download_failed': ('Dosya indirilemedi.', 'Could not download the file.', 'تعذّر تنزيل الملف.'),
+  'drive.delete_confirm': (
+    '“{name}” Drive\'dan silinsin mi?',
+    'Delete “{name}” from Drive?',
+    'هل تريد حذف «{name}» من Drive؟',
+  ),
+  'drive.delete_failed': ('Silinemedi.', 'Could not delete.', 'تعذّر الحذف.'),
+  'drive.error_not_signed_in': (
+    'Google hesabına bağlı değilsiniz.',
+    'You are not connected to a Google account.',
+    'أنت غير متصل بحساب Google.',
+  ),
+  'drive.error_forbidden': (
+    'Drive bu işleme izin vermedi. Bu dosya uygulamamızla yüklenmemiş olabilir.',
+    'Drive denied this operation. The file may not have been uploaded with this app.',
+    'رفض Drive هذه العملية. قد لا يكون الملف مرفوعًا بواسطة هذا التطبيق.',
+  ),
+  'drive.error_not_found': ('Dosya Drive\'da bulunamadı.', 'File not found on Drive.', 'لم يُعثر على الملف في Drive.'),
+  'drive.error_temporary': (
+    'Drive şu an yanıt vermiyor, biraz sonra deneyin.',
+    'Drive is not responding right now, try again shortly.',
+    'لا يستجيب Drive حاليًا، حاول بعد قليل.',
+  ),
+  'drive.error_unknown': ('Drive bağlantısında hata.', 'Drive connection error.', 'خطأ في الاتصال بـ Drive.'),
+
   // ── Word ──────────────────────────────────────────────────────────────────
   'word.page_view': ('Sayfa görünümü', 'Page view', 'عرض الصفحة'),
   'word.text_editor': ('Metin düzenleyici', 'Text editor', 'محرر النص'),
