@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/l10n/app_language.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -79,39 +81,39 @@ Future<bool> showEntryActions(
               title: Text(entry.name,
                   maxLines: 2, overflow: TextOverflow.ellipsis),
               subtitle: Text(entry.isDir
-                  ? 'Klasör · ${FsPaths.humanDate(entry.modifiedMs)}'
+                  ? '${ctx.t('fm.folder')} · ${FsPaths.humanDate(entry.modifiedMs)}'
                   : '${FsPaths.humanSize(entry.sizeBytes)} · '
                       '${FsPaths.humanDate(entry.modifiedMs)}'),
             ),
             const Divider(),
-            _tile(ctx, Icons.open_in_new, 'Aç', _EntryAction.open),
+            _tile(ctx, Icons.open_in_new, context.t('common.open'), _EntryAction.open),
             if (!entry.isDir)
-              _tile(ctx, Icons.apps, 'Başka uygulamayla aç',
+              _tile(ctx, Icons.apps, context.t('fm.open_with_other'),
                   _EntryAction.openWith),
             if (!entry.isDir)
-              _tile(ctx, Icons.share_outlined, 'Paylaş', _EntryAction.share),
+              _tile(ctx, Icons.share_outlined, context.t('common.share'), _EntryAction.share),
             if (!entry.isDir)
-              _tile(ctx, Icons.cloud_upload_outlined, 'Drive\'a yükle',
+              _tile(ctx, Icons.cloud_upload_outlined, context.t('drive.upload_action'),
                   _EntryAction.driveUpload),
             // Tek adımlı akış EN ÜSTTE (kullanıcı isteği 2026-07-29:
             // "taşıma/kopyalama şu an çok zor"): hedefi burada seç, iş bitsin.
             // Pano (kopyala/kes + git + yapıştır) altta, ileri kullanım için.
-            _tile(ctx, Icons.drive_file_move_outline, 'Taşı…  (klasör seç)',
+            _tile(ctx, Icons.drive_file_move_outline, context.t('fm.move_to'),
                 _EntryAction.moveTo),
-            _tile(ctx, Icons.folder_copy_outlined, 'Kopyala…  (klasör seç)',
+            _tile(ctx, Icons.folder_copy_outlined, context.t('fm.copy_to'),
                 _EntryAction.copyTo),
-            _tile(ctx, Icons.copy_outlined, 'Panoya kopyala',
+            _tile(ctx, Icons.copy_outlined, context.t('fm.clip_copy'),
                 _EntryAction.copy),
-            _tile(ctx, Icons.content_cut, 'Panoya kes', _EntryAction.cut),
-            _tile(ctx, Icons.drive_file_rename_outline, 'Yeniden adlandır',
+            _tile(ctx, Icons.content_cut, context.t('fm.clip_cut'), _EntryAction.cut),
+            _tile(ctx, Icons.drive_file_rename_outline, context.t('fm.rename'),
                 _EntryAction.rename),
             if (isArchive)
-              _tile(ctx, Icons.folder_zip_outlined, 'Arşiv içeriğini göster',
+              _tile(ctx, Icons.folder_zip_outlined, context.t('fm.show_archive'),
                   _EntryAction.openArchive),
             if (isArchive)
-              _tile(ctx, Icons.unarchive_outlined, 'Buraya çıkar',
+              _tile(ctx, Icons.unarchive_outlined, context.t('fm.extract_here'),
                   _EntryAction.extract),
-            _tile(ctx, Icons.archive_outlined, 'Sıkıştır (ZIP / 7z, parolalı)',
+            _tile(ctx, Icons.archive_outlined, context.t('fm.compress_pw'),
                 _EntryAction.zip),
             if (entry.isDir)
               _tile(
@@ -120,22 +122,22 @@ Future<bool> showEntryActions(
                     ? Icons.star
                     : Icons.star_border,
                 appState.isBookmarked(entry.path)
-                    ? 'Favorilerden çıkar'
+                    ? context.t('fm.unfavorite')
                     : 'Favorilere ekle',
                 _EntryAction.bookmark,
               ),
-            _tile(ctx, Icons.star_outline, 'Önemli dosyalara kopyala',
+            _tile(ctx, Icons.star_outline, context.t('fm.copy_to_important'),
                 _EntryAction.important),
             // AI/tanıma: belgede özet, görselde metin tanıma + sınıflandırma.
             if (!entry.isDir &&
                 entry.category != FmCategory.image &&
                 entry.category != FmCategory.video &&
                 entry.category != FmCategory.audio)
-              _tile(ctx, Icons.auto_awesome, 'AI ile özetle',
+              _tile(ctx, Icons.auto_awesome, context.t('fm.ai_summary'),
                   _EntryAction.aiSummary),
             if (entry.category == FmCategory.image)
               _tile(ctx, Icons.document_scanner_outlined,
-                  'Bu görselde ne var? (metin tanı)', _EntryAction.imageInsight),
+                  context.t('fm.image_insight'), _EntryAction.imageInsight),
             // Boyut düşürme ve etiketleme eskiden YALNIZ çoklu seçim çubuğunda
             // vardı: kullanıcı tek bir fotoğrafa uzun basınca bulamıyordu
             // (2026-07-29 sadakat denetimi). Aynı işler burada da duruyor.
@@ -143,13 +145,13 @@ Future<bool> showEntryActions(
                 (entry.category == FmCategory.image ||
                     entry.category == FmCategory.video))
               _tile(ctx, Icons.photo_size_select_large,
-                  'Boyut düşür (çözünürlük/kare sayısı)', _EntryAction.resize),
+                  context.t('fm.resize'), _EntryAction.resize),
             if (!entry.isDir)
-              _tile(ctx, Icons.sell_outlined, 'Etiketle (kişi/grup)',
+              _tile(ctx, Icons.sell_outlined, context.t('fm.tag'),
                   _EntryAction.tag),
             if (allowReveal)
-              _tile(ctx, Icons.my_location, 'Konumunu aç', _EntryAction.reveal),
-            _tile(ctx, Icons.info_outline, 'Özellikler',
+              _tile(ctx, Icons.my_location, context.t('fm.reveal'), _EntryAction.reveal),
+            _tile(ctx, Icons.info_outline, context.t('fm.properties'),
                 _EntryAction.properties),
             _tile(
                 ctx,
@@ -197,14 +199,14 @@ Future<bool> showEntryActions(
 
     case _EntryAction.copy:
       appState.setClipboard([entry.path], cut: false);
-      _snack(context, '“${entry.name}” panoya kopyalandı. Hedef klasörde '
-          'yapıştırın.');
+      _snack(context,
+          context.t('fm.entry_clip_copied', {'name': entry.name}));
       return false;
 
     case _EntryAction.cut:
       appState.setClipboard([entry.path], cut: true);
-      _snack(context, '“${entry.name}” panoya kesildi. Hedef klasörde '
-          'yapıştırın.');
+      _snack(context,
+          context.t('fm.entry_clip_cut', {'name': entry.name}));
       return false;
 
     case _EntryAction.rename:
@@ -290,19 +292,19 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
   final newName = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Yeniden adlandır'),
+      title: Text(context.t('fm.rename')),
       content: TextField(
         controller: controller,
         autofocus: true,
-        decoration: const InputDecoration(labelText: 'Yeni ad'),
+        decoration: InputDecoration(labelText: ctx.t('fm.new_name')),
         onSubmitted: (v) => Navigator.pop(ctx, v),
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+            onPressed: () => Navigator.pop(ctx), child: Text(context.t('common.cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, controller.text),
-          child: const Text('Kaydet'),
+          child: Text(ctx.t('common.save')),
         ),
       ],
     ),
@@ -313,7 +315,9 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
     await FileOps.rename(entry.path, newName);
     return true;
   } catch (e) {
-    if (context.mounted) _snack(context, 'Yeniden adlandırılamadı: $e');
+    if (context.mounted) {
+      _snack(context, context.t('fm.rename_failed', {'error': e}));
+    }
     return false;
   }
 }
@@ -333,11 +337,18 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
 /// Yani kullanıcının okuduğu söz ile yapılan iş birbirinin tersiydi.
 /// Silme düğmelerinin **dürüst** metni: "12 dosyayı çöpe taşı" / "…kalıcı sil".
 ///
-/// Saf fonksiyon (BuildContext almaz) → birim testli. Ayarlar > "Çöp kutusunu
+/// **Saf fonksiyon:** `BuildContext` DEĞİL, [AppStrings] alır → birim testli
+/// kalır (çeviri tablosu düz bir değer nesnesi). Ayarlar > "Çöp kutusunu
 /// kullan" kapalıyken "çöpe taşı" yazan bir düğme, kullanıcıya geri
 /// alabileceğini söyleyip dosyayı kalıcı silmek demekti.
-String deleteActionText({required bool useTrash, required String what}) =>
-    useTrash ? '$what çöpe taşı' : '$what kalıcı sil';
+String deleteActionText({
+  required bool useTrash,
+  required String what,
+  AppStrings strings = const AppStrings(AppLanguage.tr),
+}) =>
+    useTrash
+        ? strings.t('fm.delete_trash_action', {'what': what})
+        : strings.t('fm.delete_permanent_action', {'what': what});
 
 /// Silmeden önce onay penceresi gösterilmeli mi?
 ///
@@ -366,7 +377,7 @@ Future<bool> deleteEntries(
   final useTrash = appState.fmUseTrash;
   final label = entries.length == 1
       ? '“${entries.first.name}”'
-      : '${entries.length} öğe';
+      : context.t('fm.items_count', {'n': entries.length});
 
   if (needsDeleteConfirm(
     useTrash: useTrash,
@@ -377,20 +388,19 @@ Future<bool> deleteEntries(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(useTrash
-            ? 'Çöp kutusuna taşınsın mı?'
-            : 'Kalıcı olarak silinsin mi?'),
+            ? context.t('fm.delete_trash_title')
+            : context.t('fm.delete_permanent_title')),
         content: Text(useTrash
-            ? '$label çöp kutusuna taşınacak. '
-                'Geri Dönüşüm Kutusu’ndan geri yükleyebilirsiniz.'
-            : '$label KALICI olarak silinecek. Bu işlem geri alınamaz. '
-                '(Çöp kutusu ayarlardan kapalı.)'),
+            ? ctx.t('fm.delete_trash_body', {'label': label})
+            : ctx.t('fm.delete_permanent_body', {'label': label})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(useTrash ? 'Taşı' : 'Sil'),
+            child: Text(
+                ctx.t(useTrash ? 'fm.move' : 'common.delete')),
           ),
         ],
       ),
@@ -402,7 +412,7 @@ Future<bool> deleteEntries(
   if (!useTrash) {
     final result = await showFmProgress<FmOpResult>(
       context,
-      title: 'Siliniyor',
+      title: context.t('fm.deleting'),
       cancellable: false,
       task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
     );
@@ -421,7 +431,7 @@ Future<bool> deleteEntries(
   if (!context.mounted) return false;
   final result = await showFmProgress<FmOpResult>(
     context,
-    title: 'Çöp kutusuna taşınıyor',
+    title: context.t('fm.trashing'),
     cancellable: false,
     task: (report, _) =>
         FmEnv.trash.moveToTrash(paths, onProgress: report),
@@ -429,8 +439,11 @@ Future<bool> deleteEntries(
   if (context.mounted && result.hasError) {
     _snack(
         context,
-        '${result.succeeded} öğe çöp kutusuna taşındı, '
-        '${result.errors.length} öğe taşınamadı: ${result.errors.first}');
+        context.t('fm.trashed_partial', {
+          'ok': result.succeeded,
+          'fail': result.errors.length,
+          'error': result.errors.first,
+        }));
   }
   return result.succeeded > 0;
 }
@@ -440,15 +453,15 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Kalıcı olarak silinsin mi?'),
-      content: const Text('Bu işlem geri alınamaz.'),
+      title: Text(context.t('fm.delete_permanent_title')),
+      content: Text(ctx.t('fm.irreversible')),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Vazgeç')),
+            child: Text(context.t('common.cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Sil'),
+          child: Text(ctx.t('common.delete')),
         ),
       ],
     ),
@@ -487,17 +500,21 @@ Future<bool> moveOrCopyEntries(
   if (paths.isEmpty) return false;
   final appState = context.read<AppState>();
   final messenger = ScaffoldMessenger.of(context);
+  // Sonuç metinleri await'lerden ÖNCE alınır: bu akış birden çok asenkron
+  // adım içeriyor ve sonunda `context` artık kullanılamaz.
+  final strings = AppStrings.of(context);
   final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
     builder: (_) => FolderPickerScreen(
       sources: paths,
-      actionLabel: move ? 'Buraya taşı' : 'Buraya kopyala',
+      actionLabel:
+          context.t(move ? 'fm.move_here' : 'fm.copy_here'),
     ),
   ));
   if (dest == null || !context.mounted) return false;
 
   final result = await showFmProgress<FmOpResult>(
     context,
-    title: move ? 'Taşınıyor' : 'Kopyalanıyor',
+    title: move ? context.t('fm.moving') : context.t('fm.copying'),
     task: (report, isCancelled) => move
         ? FileOps.moveAll(paths, dest, onProgress: report,
             isCancelled: isCancelled)
@@ -508,7 +525,7 @@ Future<bool> moveOrCopyEntries(
 
   final where = p.basename(dest);
   final count = result.succeeded;
-  final verb = move ? 'taşındı' : 'kopyalandı';
+  final verb = strings.t(move ? 'fm.verb_moved' : 'fm.verb_copied');
   messenger.showSnackBar(SnackBar(
     // Mesaj GERÇEĞİ söyler: kaç tanesi oldu, kaç tanesi olmadı, iptal edildi mi.
     //
@@ -521,24 +538,29 @@ Future<bool> moveOrCopyEntries(
     // denetimi, 4. tur).
     content: Text(
       result.hasError
-          ? '$count öğe $verb, ${result.errors.length} öğe aktarılamadı: '
-              '${result.errors.first}'
+          ? strings.t('fm.transfer_errors', {
+              'n': count,
+              'verb': verb,
+              'fail': result.errors.length,
+              'error': result.errors.first,
+            })
           : result.cancelled
-              ? 'Durduruldu · $count öğe “$where” klasörüne çoktan $verb '
-                  '(süren aktarma yarıda kesilemiyor).'
-              : '$count öğe “$where” klasörüne $verb.',
+              ? strings.t('fm.transfer_stopped',
+                  {'n': count, 'where': where, 'verb': verb})
+              : strings.t('fm.transfer_done',
+                  {'n': count, 'where': where, 'verb': verb}),
     ),
     // Geri al YALNIZ taşımada: kopyalamayı geri almak "sil" demektir, yanlış
     // dokunuşta veri kaybı riski taşır.
     action: (move && result.transfers.isNotEmpty)
         ? SnackBarAction(
-            label: 'Geri al',
+            label: strings.t('fm.undo_action'),
             onPressed: () async {
               final back = await FileOps.undoMove(result.transfers);
               messenger.showSnackBar(SnackBar(
                 content: Text(back.hasError
-                    ? 'Geri alınamadı: ${back.errors.first}'
-                    : 'Geri alındı.'),
+                    ? strings.t('fm.undo_failed', {'error': back.errors.first})
+                    : strings.t('fm.undo')),
               ));
             },
           )
@@ -558,13 +580,15 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
     final dir = Directory(dest);
     if (!dir.existsSync()) await dir.create(recursive: true);
   } catch (e) {
-    if (context.mounted) _snack(context, 'Klasör oluşturulamadı: $e');
+    if (context.mounted) {
+      _snack(context, context.t('fm.folder_create_failed', {'error': e}));
+    }
     return false;
   }
   if (!context.mounted) return false;
   final result = await showFmProgress<FmOpResult>(
     context,
-    title: 'Önemli dosyalara kopyalanıyor',
+    title: context.t('fm.copying_important'),
     task: (report, isCancelled) => FileOps.copyAll(paths, dest,
         onProgress: report, isCancelled: isCancelled),
   );
@@ -572,9 +596,11 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
   _snack(
     context,
     result.hasError
-        ? 'Kopyalanamadı: ${result.errors.first}'
-        : '${paths.length} öğe “${ImportantScreen.folderName}” klasörüne '
-            'kopyalandı.',
+        ? context.t('fm.copy_failed', {'error': result.errors.first})
+        : context.t('fm.important_copied', {
+            'n': paths.length,
+            'folder': ImportantScreen.folderName,
+          }),
   );
   return true;
 }
@@ -589,8 +615,8 @@ Future<bool> zipEntries(
     final zipPath = await showFmProgress<String>(
       context,
       title: options.password == null
-          ? 'Sıkıştırılıyor'
-          : 'Şifreleniyor (AES-256)',
+          ? context.t('fm.zipping')
+          : context.t('fm.encrypting'),
       cancellable: false,
       task: (report, _) => ArchiveOps.compress(
         paths,
@@ -602,11 +628,14 @@ Future<bool> zipEntries(
       ),
     );
     if (context.mounted) {
-      _snack(context, '${zipPath.split('/').last} oluşturuldu.');
+      _snack(context,
+          context.t('fm.created_archive', {'name': zipPath.split('/').last}));
     }
     return true;
   } catch (e) {
-    if (context.mounted) _snack(context, 'Sıkıştırılamadı: $e');
+    if (context.mounted) {
+      _snack(context, context.t('fm.zip_failed', {'error': e}));
+    }
     return false;
   }
 }
@@ -621,7 +650,7 @@ Future<bool> extractArchive(
   try {
     final target = await showFmProgress<String>(
       context,
-      title: 'Çıkarılıyor',
+      title: context.t('fm.extracting'),
       cancellable: false,
       task: (report, _) => ArchiveOps.extract(
         archivePath,
@@ -630,7 +659,8 @@ Future<bool> extractArchive(
       ),
     );
     if (context.mounted) {
-      _snack(context, '${target.split('/').last} klasörüne çıkarıldı.');
+      _snack(context,
+          context.t('fm.extracted_to', {'name': target.split('/').last}));
     }
     return true;
   } on ArchiveError catch (e) {
@@ -645,7 +675,9 @@ Future<bool> extractArchive(
     _snack(context, e.userMessage);
     return false;
   } catch (e) {
-    if (context.mounted) _snack(context, 'Çıkarılamadı: $e');
+    if (context.mounted) {
+      _snack(context, context.t('fm.extract_failed', {'error': e}));
+    }
     return false;
   }
 }
@@ -706,27 +738,27 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
   Widget build(BuildContext context) {
     final e = widget.entry;
     return AlertDialog(
-      title: const Text('Özellikler'),
+      title: Text(context.t('fm.properties')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _row('Ad', e.name),
-            _row('Tür', e.isDir ? 'Klasör' : e.category.label),
+            _row(context.t('fm.type'), e.isDir ? context.t('fm.folder') : e.category.label),
             if (!e.isDir) _row('Boyut', FsPaths.humanSize(e.sizeBytes)),
             if (e.isDir)
               _row(
                 'Boyut',
                 _folderSize != null
                     ? FsPaths.humanSize(_folderSize!)
-                    : (_calculating ? 'Hesaplanıyor…' : 'Hesaplanmadı'),
+                    : (_calculating ? context.t('fm.computing') : context.t('fm.not_computed')),
               ),
-            _row('Değiştirilme', FsPaths.humanDate(e.modifiedMs)),
+            _row(context.t('fm.modified'), FsPaths.humanDate(e.modifiedMs)),
             // Yalnız gerçekten bir kaydımız varsa yazılır: "—" göstermek
             // "hiç açılmadı" ile "bilmiyorum"u karıştırırdı.
             if (_openedAtMs != null)
-              _row('Son açılma', FsPaths.humanDate(_openedAtMs!)),
+              _row(context.t('fm.last_opened'), FsPaths.humanDate(_openedAtMs!)),
             _row('Konum', e.path),
           ],
         ),

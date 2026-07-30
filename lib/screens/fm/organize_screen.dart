@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/auto_organize.dart';
@@ -66,20 +67,18 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Düzenlensin mi?'),
-        content: Text(
-          '${plan.fileCount} dosya, ${plan.folderCount} klasöre taşınacak '
-          '(${FsPaths.humanSize(plan.bytes)}).\n\n'
-          'Dosyalar aynı klasörün içinde yer değiştirir; silinmez. '
-          'İşlem geçmişinden geri alabilirsiniz.',
-        ),
+        title: Text(context.t('org.confirm_title')),
+        content: Text(ctx.t('org.confirm_body', {
+          'files': plan.fileCount,
+          'folders': plan.folderCount,
+        })),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Düzenle')),
+              child: Text(context.t('fm.organize'))),
         ],
       ),
     );
@@ -96,7 +95,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
     final errors = <String>[];
     await showFmProgress<void>(
       context,
-      title: 'Düzenleniyor',
+      title: context.t('org.working'),
       task: (report, isCancelled) async {
         var done = 0;
         for (final entry in byFolder.entries) {
@@ -133,8 +132,8 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(errors.isEmpty
-          ? '${transfers.length} dosya düzenlendi.'
-          : 'Bazı dosyalar taşınamadı: ${errors.first}'),
+          ? context.t('org.done', {'n': transfers.length})
+          : context.t('org.partial', {'error': errors.first})),
     ));
     await _load();
   }
@@ -148,14 +147,14 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Otomatik düzenle'),
+            Text(context.t('org.title')),
             Text(p.basename(widget.path),
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: 'Klasörü aç',
+            tooltip: context.t('org.open_folder'),
             icon: const Icon(Icons.folder_open),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => BrowserScreen(path: widget.path),
@@ -169,7 +168,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
               padding:
                   const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 120),
               children: [
-                Text('Neye göre ayrılsın?',
+                Text(context.t('org.by_what'),
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: Gap.sm),
                 for (final by in OrganizeBy.values)
@@ -188,24 +187,27 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                     _load();
                   },
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Alt klasörler dahil'),
-                  subtitle: const Text(
-                      'Kapalıyken yalnız bu klasördeki dosyalar düzenlenir; '
-                      'mevcut alt klasörlerinize dokunulmaz.'),
+                  title: Text(context.t('org.include_sub')),
+                  subtitle: Text(
+                      context.t('org.include_sub_note')),
                 ),
                 const Divider(height: Gap.lg),
-                Text('Önizleme', style: Theme.of(context).textTheme.titleMedium),
+                Text(context.t('org.preview'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: Gap.sm),
                 if (plan.isEmpty)
                   Text(plan.alreadyPlaced > 0
-                      ? 'Her şey zaten yerinde görünüyor '
-                          '(${plan.alreadyPlaced} dosya).'
-                      : 'Bu klasörde düzenlenecek dosya yok.')
+                      ? context.t('org.all_placed',
+                          {'n': plan.alreadyPlaced})
+                      : context.t('org.nothing_body'))
                 else ...[
-                  Text('${plan.fileCount} dosya → ${plan.folderCount} klasör '
-                      '(${FsPaths.humanSize(plan.bytes)})'),
+                  Text('${context.t('org.plan', {
+                        'files': plan.fileCount,
+                        'folders': plan.folderCount,
+                      })} (${FsPaths.humanSize(plan.bytes)})'),
                   if (plan.alreadyPlaced > 0)
-                    Text('${plan.alreadyPlaced} dosya zaten doğru klasörde.',
+                    Text(
+                        context.t('org.already_placed',
+                            {'n': plan.alreadyPlaced}),
                         style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: Gap.sm),
                   for (final entry in (plan.folderCounts.entries.toList()
@@ -216,7 +218,8 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                       leading:
                           const Icon(Icons.folder, color: FmColors.folder),
                       title: Text(entry.key),
-                      trailing: Text('${entry.value} dosya'),
+                      trailing: Text(
+                          context.t('count.files', {'n': entry.value})),
                     ),
                 ],
               ],
@@ -228,8 +231,8 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
             onPressed: plan.isEmpty ? null : _apply,
             icon: const Icon(Icons.auto_awesome_motion),
             label: Text(plan.isEmpty
-                ? 'Düzenlenecek dosya yok'
-                : '${plan.fileCount} dosyayı düzenle'),
+                ? context.t('org.nothing')
+                : context.t('org.action', {'n': plan.fileCount})),
           ),
         ),
       ),

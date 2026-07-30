@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 
 /// Şifreli arşivler için parola penceresi. Gözatıcıdaki "Buraya çıkar" ile
@@ -14,14 +15,14 @@ Future<String?> askArchivePassword(
   final value = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Arşiv parolası'),
+      title: Text(ctx.t('ap.title')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(retry
-              ? 'Parola yanlış. Tekrar deneyin.'
-              : 'Bu arşiv parola korumalı.'),
+              ? ctx.t('ap.wrong')
+              : ctx.t('ap.body')),
           const SizedBox(height: Gap.sm),
           TextField(
             controller: controller,
@@ -34,7 +35,8 @@ Future<String?> askArchivePassword(
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.t('common.cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, controller.text),
           child: const Text('Aç'),

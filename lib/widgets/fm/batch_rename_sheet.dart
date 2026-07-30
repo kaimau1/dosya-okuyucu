@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/batch_rename.dart';
@@ -75,8 +76,12 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
     setState(() => _running = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(errors.isEmpty
-          ? '$ok dosya yeniden adlandırıldı.'
-          : '$ok dosya adlandırıldı, ${errors.length} hata: ${errors.first}'),
+          ? context.t('br.done', {'n': ok})
+          : context.t('br.partial', {
+              'n': ok,
+              'fail': errors.length,
+              'first': errors.first,
+            })),
     ));
     if (mounted) Navigator.pop(context, ok > 0);
   }
@@ -102,10 +107,11 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text('Toplu yeniden adlandır',
+                      child: Text(context.t('br.title'),
                           style: Theme.of(context).textTheme.titleMedium),
                     ),
-                    Text('${widget.entries.length} dosya',
+                    Text(context
+                        .t('br.file_count', {'n': widget.entries.length}),
                         style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
@@ -121,7 +127,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                       children: [
                         for (final preset in batchRenamePresets)
                           ActionChip(
-                            label: Text(preset.label),
+                            label: Text(context.t(preset.labelKey)),
                             onPressed: () => setState(() =>
                                 _patternController.text = preset.pattern),
                           ),
@@ -130,10 +136,11 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                     const SizedBox(height: Gap.sm),
                     TextField(
                       controller: _patternController,
-                      decoration: const InputDecoration(
-                        labelText: 'Ad kalıbı',
+                      decoration: InputDecoration(
+                        labelText: context.t('br.pattern'),
+                        // Yer tutucular ÇEVRİLMEZ (bkz. batchRenamePresets).
                         helperText: '{ad} {n} {n2} {tarih} {uzanti}',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                       onChanged: (_) => setState(() {}),
@@ -144,9 +151,9 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                         Expanded(
                           child: TextField(
                             controller: _findController,
-                            decoration: const InputDecoration(
-                              labelText: 'Bul (eski adda)',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: context.t('br.find'),
+                              border: const OutlineInputBorder(),
                               isDense: true,
                             ),
                             onChanged: (_) => setState(() {}),
@@ -156,9 +163,9 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                         Expanded(
                           child: TextField(
                             controller: _replaceController,
-                            decoration: const InputDecoration(
-                              labelText: 'Değiştir',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: context.t('br.replace'),
+                              border: const OutlineInputBorder(),
                               isDense: true,
                             ),
                             onChanged: (_) => setState(() {}),
@@ -168,9 +175,9 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                         SizedBox(
                           width: 92,
                           child: TextField(
-                            decoration: const InputDecoration(
-                              labelText: 'Başlangıç',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: context.t('br.start'),
+                              border: const OutlineInputBorder(),
                               isDense: true,
                             ),
                             keyboardType: TextInputType.number,
@@ -183,7 +190,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                       ],
                     ),
                     const SizedBox(height: Gap.md),
-                    Text('Önizleme',
+                    Text(context.t('br.preview'),
                         style: Theme.of(context).textTheme.titleSmall),
                     const SizedBox(height: Gap.xs),
                     // İlk 30 satır: kalıbın doğru olduğunu görmek için yeter,
@@ -193,7 +200,9 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                     if (preview.length > 30)
                       Padding(
                         padding: const EdgeInsets.only(top: Gap.xs),
-                        child: Text('… ve ${preview.length - 30} dosya daha',
+                        child: Text(
+                            context.t('br.more_files',
+                                {'n': preview.length - 30}),
                             style: Theme.of(context).textTheme.bodySmall),
                       ),
                     const SizedBox(height: Gap.md),
@@ -208,9 +217,9 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                     Expanded(
                       child: Text(
                         problems > 0
-                            ? '$valid dosya değişecek · $problems sorunlu '
-                                '(atlanacak)'
-                            : '$valid dosya değişecek',
+                            ? context.t('br.will_change_problems',
+                                {'n': valid, 'problems': problems})
+                            : context.t('br.will_change', {'n': valid}),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),

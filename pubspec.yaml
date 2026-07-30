@@ -214,6 +214,35 @@ dependencies:
   # dolaylı geliyordu; doğrudan bağımlılık yapıldı (dolaylıya güvenmek kırılgan).
   url_launcher: ^6.3.2
   background_downloader: ^8.9.0
+  # ── Ağ depolama (NAS): FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN ─────────
+  # Hepsinin uyumluluğu bizim sürüm duvarımıza (Flutter 3.29.3 / Dart 3.7)
+  # karşı `pub add --dry-run` ile ÖLÇÜLDÜ; hiçbiri çözümlemeyi kırmıyor.
+  #
+  # SFTP — saf Dart SSH istemcisi (MIT). Tercih edilen protokol: tek şifreli
+  # bağlantı, FTP'nin pasif mod port pazarlığı yok.
+  dartssh2: ^2.14.0
+  # FTP + FTPS (örtük) + FTPES (açık TLS) — saf Dart (MIT). Üç protokol tek
+  # sınıfta (`FtpFs`), aradaki tek fark `SecurityType` ve varsayılan port.
+  ftpconnect: ^2.0.7
+  # WebDAV (Nextcloud/ownCloud/Synology) — BSD 3-Clause, `dio` üstünde.
+  webdav_client: ^1.2.2
+  # Yerel ağ keşfi (mDNS/Bonjour) — Flutter ekibi, BSD. Tek başına yetmiyor
+  # (duyuru yapmayan sunucuyu bulamaz), alt ağ port taramasıyla BİRLİKTE
+  # kullanılıyor; bkz. services/fm/remote/lan_discovery.dart.
+  multicast_dns: ^0.3.3
+  # SMB/CIFS — Apache 2.0. **RİSKLİ, bilinçli seçim (kullanıcı kararı
+  # 2026-07-30: "önce dene, tutmazsa listeden çıkar").** Sürüm 0.0.9 ve olgun
+  # bir saf-Dart SMB istemcisi yok. Alternatif (Java `smbj`'yi platform
+  # kanalıyla sarmak) depoya kendi android/ klasörümüzü sokardı — CI iskeleti
+  # her derlemede `flutter create` ile üretiyor ve "tek paket için derleme
+  # zincirini oynatma" daha önce reddedildi (bkz. light_compressor,
+  # usage_stats). Çuvallarsa kullanıcı ANLAŞILIR bir hata görüyor
+  # (`RemoteFs.mapError` → "SFTP ya da FTP deneyin"), sessiz boş klasör değil.
+  smb_connect: ^0.0.9
+  # NOT: PC'den telefona FTP **sunucusu** için paket YOK — hazır bir Dart FTP
+  # sunucusu bulunmuyor, olanlar istemci. `dart:io` ServerSocket ile yazıldı
+  # (services/fm/remote/ftp_server.dart): kök hapsi, kimlik doğrulama ve pasif
+  # mod tamamen bizde, güvenlik açısından da doğrusu bu.
 
 dev_dependencies:
   flutter_test:

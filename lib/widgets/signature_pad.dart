@@ -1,3 +1,4 @@
+import '../core/l10n/app_strings.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -107,7 +108,7 @@ class _SignaturePadState extends State<SignaturePad> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      title: const Text('İmzanızı çizin'),
+      title: Text(context.t('sp.draw')),
       content: SizedBox(
         width: 400,
         height: 200,
@@ -139,7 +140,7 @@ class _SignaturePadState extends State<SignaturePad> {
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Vazgeç'),
+          child: Text(context.t('common.cancel')),
         ),
         FilledButton(
           onPressed: _strokes.isEmpty

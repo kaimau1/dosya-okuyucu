@@ -67,5 +67,21 @@ Google ML Kit, Firebase, `excel`, `archive`, `koni_archive`, `image`,
 ve diğerleri) izin verici (BSD/MIT/Apache 2.0) ya da ticari-kullanıma açık
 lisanslarla dağıtılmaktadır; tam liste ve sürümler `pubspec.yaml` dosyasındadır.
 
+Ağ depolama (NAS) bileşenleri ve lisansları:
+
+| Paket | İş | Lisans |
+|---|---|---|
+| `dartssh2` | SFTP | MIT |
+| `ftpconnect` | FTP / FTPS / FTPES | MIT |
+| `webdav_client` | WebDAV | BSD 3-Clause |
+| `multicast_dns` | Yerel ağ keşfi (mDNS) | BSD (Flutter Authors) |
+| `smb_connect` | SMB / CIFS | Apache 2.0 |
+
+Hepsi izin verici lisanslı ve **saf Dart**; hiçbiri APK'ya yerel (native)
+kütüphane eklemiyor, dolayısıyla LGPL'deki gibi yeniden bağlama yükümlülüğü
+doğurmuyorlar. PC'den telefona erişim için kullanılan FTP **sunucusu** bize
+ait koddur (`lib/services/fm/remote/ftp_server.dart`), üçüncü taraf bileşen
+içermez.
+
 > **Not:** Bu dosya bir hukuki görüş değildir. Uygulamayı bir mağazada
 > yayımlamadan önce lisans yükümlülüklerini kendi durumunuz için doğrulayın.

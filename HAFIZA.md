@@ -4684,3 +4684,218 @@ Flutter 3.29.3 (CI ile aynı): `flutter analyze` **0 hata**, 39 info/warning
 Cihazda doğrulanamayan: gerçek Google oturumu ve OAuth istemci yapılandırması
 (google-services.json) — Drive, Firebase ile aynı istemciyi kullanıyor,
 yapılandırma yoksa giriş açılmaz. KALANLAR'a yazıldı.
+
+---
+
+## 2026-07-30 (III) — NAS: FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN + PC'den FTP
+
+Kullanıcı isteğinin tamamı: *"FTP, FTPS, SFTP, SMB, WebDAV ve LAN gibi uzak ya
+da paylaşılan depolama… Ayrıca FTP kullanarak PC'den mobil cihazınıza erişim"*.
+
+### A) Mimari — ortak `RemoteFs` arayüzü, `FileOps`a DOKUNULMADI
+`lib/services/fm/remote/`: `remote_fs.dart` (arayüz + `RemoteEntry` +
+`RemoteError`/`RemoteException` + saf yol yardımcıları), `sftp_fs` `ftp_fs`
+`webdav_fs` `smb_fs` gerçeklemeleri, `remote_fs_factory` (protokol → sınıf).
+- **Neden ortak arayüz:** gezgin/indirme/yükleme/silme dört protokolde AYNI
+  davranmalı. Ekran protokolü bilseydi her yeni protokol arayüzü de
+  değiştirirdi ve davranışlar zamanla ayrışırdı (bu bedel daha önce ödendi:
+  iki ayrı iş listesi arayüzü).
+- **Neden `FileOps` genelleştirilmedi:** saf `dart:io` olması belgelenmiş bir
+  değişmez; etiket/çöp/iş kuyruğu/`PathSideIndex` zincirinin tamamı ona bağlı.
+  Uzak dosyalar **indir-önbelleğe-aç** akışıyla yerel dünyaya giriyor →
+  PDF/Word/Excel/slayt/video/arşiv desteği ilk günden çalışıyor.
+
+### B) Protokole özgü tuzaklar (hepsi kodda yazılı)
+- **FTP'de `TransferType.binary` ŞART.** Varsayılan ASCII kipi satır sonlarını
+  çevirir ve resim/zip/pdf'i **bozar**. Testle kilitlendi.
+- **FTP kullanıcı adı boşsa `anonymous`** — halka açık sunucular boş adı
+  reddediyor.
+- **SFTP'de `truncate` olmadan üzerine yazma:** yeni dosya kısaysa eskinin
+  kuyruğu kalıyor. `create|truncate|write` birlikte veriliyor.
+- **SFTP `modifyTime` SANİYE** — milisaniyeye çevrilmezse tarihler 1970'e yakın.
+- **SMB kökü paylaşım listesi**, dosya listesi değil; `IPC$` gibi yönetimsel
+  paylaşımlar gizleniyor. Yol biçimi dışarıya `/a/b`, pakete `\a\b`.
+- **SMB etki alanı boşsa `WORKGROUP`** — boş değer bazı sunucularda reddediliyor.
+- **WebDAV'da şema yazılmazsa `https` varsayılıyor.** http'ye sessizce düşmek
+  parolayı şifresiz göndermek demekti.
+- **WebDAV klasör silmede yol `/` ile bitmeli**, yoksa bazı sunucular 404 verir.
+- **WebDAV'da `ping` (PROPFIND) bağlanışta çağrılıyor:** yanlış adres/parola
+  ilk listelemede değil BURADA anlaşılsın (kullanıcı "klasör boş" sanmasın).
+
+### C) LAN keşfi — iki yöntem birlikte, çünkü tek başına ikisi de yetmiyor
+`lan_discovery.dart`: **mDNS** (`_smb._tcp`, `_sftp-ssh._tcp`, `_ftp._tcp`,
+`_webdav._tcp`) duyuru yapan sunucuyu adıyla verir ama duyuru yapmayanı
+bulamaz; bazı ROM'lar çoklu yayını kısıtlıyor. **Alt ağ port taraması**
+(/24, 32'lik gruplar, 400 ms) duyuru yapmayanı da bulur. Sonuçlar **akış**
+olarak veriliyor — 254 adresin bitmesi beklenseydi kullanıcı "hiçbir şey yok"
+sanardı. `169.254.` (APIPA) elenir: o adres "DHCP yok" demek, taraması boşuna.
+
+### D) PC'den telefona FTP **sunucusu** — paketsiz, `dart:io`
+`ftp_server.dart`. Hazır Dart FTP *sunucusu* yok (olanlar istemci); `dart:io`
+`ServerSocket` ile yazıldı.
+- **Kök hapsi (`resolve`) en kritik parça.** Olmasaydı sunucu telefonun TÜM
+  dosya sistemini ağa açardı. Karar: kökün üstüne çıkan yol **reddedilmiyor,
+  köke sıkıştırılıyor** — FTP istemcileri kökte `CWD ..` göndermeyi normal
+  sayıyor, hata döndürmek gezinmeyi kilitliyor. Güvenlik sözü "reddet" değil
+  **"sonuç her zaman kökün içinde"**; test bunu ölçüyor.
+- **Yalnız PASİF mod.** Aktif modda (PORT) sunucu istemciye geri bağlanır;
+  NAT/ev yönlendiricisi arkasında neredeyse hep başarısız → "listeleniyor ama
+  dosya inmiyor". Pasif dinleyici **port 0** ile açılıyor (sabit port ikinci
+  eşzamanlı aktarımı kırardı).
+- **Varsayılan port 2121:** Android'de 1024 altı root ister, 21'e bağlanmak
+  sessiz başarısızlık olurdu.
+- **Yazma varsayılan KAPALI** — PC'den bakmak isteyen kullanıcı yanlışlıkla
+  silme riskini istemez. Kullanıcı adı/parola yanlışsa **aynı** yanıt veriliyor
+  (fark, kaba kuvvete ipucu olurdu).
+- **Sunucu ekranla birlikte yaşıyor:** ekrandan çıkınca duruyor. Arka planda
+  sürseydi kullanıcı telefonunu ağa açtığını unuturdu.
+- **BULUNAN GERÇEK HATA (test sayesinde):** ilk yazımda `MLSD` yoktu ve FEAT'te
+  de duyurulmuyordu; `ftpconnect` (ve çoğu modern istemci) varsayılan olarak
+  MLSD kullandığı için listeleme **502** alıp tamamen çalışmıyordu. MLSD/MLST
+  (RFC 3659) eklendi ve FEAT'e yazıldı.
+
+### E) YENİ VE ÖNEMLİ — FTP sunucusu bu ortamda GERÇEKTEN koşturulabiliyor
+`test/ftp_server_test.dart` sunucuyu localhost'ta başlatıp `ftpconnect`
+istemcisiyle sürüyor: giriş, MLSD listeleme, klasöre girme, indirme, yükleme,
+silme ve **512 baytlık ikili içeriğin bozulmadan geçtiği** ölçülüyor. Ayrıca
+ham komut testleri: girişsiz komut reddi, kullanıcı/parola ayrımının
+sızdırılmaması, yazma kapalıyken STOR/DELE/MKD reddi, kök dışına CWD'de kökte
+kalma, SIZE/MDTM/EPSV/FEAT/MLST yanıt biçimleri. Yani "kör push" değil.
+
+### F) Parola saklama — bilinçli sınır, kullanıcıya SÖYLENİYOR
+Parola `shared_preferences`ta **düz metin**. Android sandbox'ı başka
+uygulamalara kapatıyor ama root'lu/yedeklenmiş cihazda okunabilir.
+`RemoteConnection.savePassword` kapatılırsa parola **diske hiç yazılmıyor**
+(`toMap` alanı atlıyor) ve her bağlanışta soruluyor; bellekteki nesne oturum
+boyunca taşımaya devam ediyor. `flutter_secure_storage` yeni bir platform
+bağımlılığı demekti — kullanıcıya seçenek sunmak, ona söylemeden düz metin
+yazmaktan dürüst. Form altındaki açıklama bunu birebir yazıyor.
+
+### Doğrulama
+Flutter 3.29.3 (CI ile aynı): `flutter analyze` **0 hata**, 39 info/warning
+(tur başındakiyle aynı, hepsi eski kod). `flutter test` **1002 test geçti**
+(önceki tur 949; yeni 53 — `ftp_server_test` 20, `remote_fs_test` 24,
+`remote_browser_screen_test` 9).
+**Cihazda doğrulanamayan:** gerçek bir NAS'a (SMB/SFTP/FTP/WebDAV) bağlanma ve
+telefonun Wi-Fi'sinde ağ taraması — bu ortamda yerel ağ yok. SMB'nin gerçek
+sunucuda çalışıp çalışmadığı KALANLAR'daki karar maddesine bağlı.
+
+---
+
+## 2026-07-30 (IV) — NAS istemcileri GERÇEK sunuculara karşı sınandı: SMB hatası bizdeymiş
+
+Önceki tur NAS'ı yazdı ama istemcilerin hiçbiri gerçek bir sunucuya
+bağlanmamıştı (yalnız FTP **sunucumuz** localhost'ta sınanmıştı). Kullanıcı
+"yarım iş kalmasın" deyince bu açık kapatıldı.
+
+### A) YENİ VE ÖNEMLİ — dört protokolün de sunucusu bu ortamda kurulabiliyor
+| Protokol | Sunucu | Kurulum |
+|---|---|---|
+| SFTP | OpenSSH | `apt-get install openssh-server`, ayrı `sshd_config`, port 2222 |
+| FTP | pyftpdlib | `pip install pyftpdlib` |
+| WebDAV | wsgidav | `pip install wsgidav cheroot` |
+| SMB | **Samba** | `apt-get install samba` |
+
+`test/remote_live_test.dart` (11 test) bunlara bağlanıyor: listeleme, indirme,
+yükleme, **ikili içeriğin bozulmadığı**, klasör oluşturma, yeniden adlandırma,
+silme, yanlış parola ve ulaşılamayan port. **Sunucu yoksa test kendini ATLIYOR**
+(`markTestSkipped`) → CI kırmızıya dönmüyor. `dart_test.yaml`de `live` etiketi
+tanımlı (tanımsız etiket `flutter test` çıktısında uyarı üretiyordu).
+
+### B) BULUNAN GERÇEK HATA — SMB yolunu ters eğik çizgiye çevirmek
+`SmbFs.toSmbPath` yolu `/paylasim/klasor` → `\paylasim\klasor` çeviriyordu
+("SMB Windows protokolü, ayraç `\` olmalı" varsayımı). **Yanlış:**
+`smb_connect` kendi örneğinde `connect.file("/home")` kullanıyor ve
+`SmbConnect.getShare` paylaşım adını **ilk `/`e kadar** okuyor. Ters eğik
+çizgiye çevrilince tüm dizgi paylaşım adı sanılıyor, tree connect düşüyor ve
+sunucu `STATUS_NETWORK_NAME_DELETED` ("The specified network name is no longer
+available") döndürüyor.
+
+**Belirti aldatıcıydı:** bağlanma ve **paylaşım listeleme çalışıyordu**, yalnız
+paylaşımın İÇİNE girmek düşüyordu. Cihazda "SMB bozuk, paket olgun değil" diye
+teşhis edilip protokol listeden çıkarılacaktı — oysa kusur bizdeydi.
+Düzeltme: yol **olduğu gibi** geçiyor (`/` ayracı, baştaki `/` garanti).
+
+**Sonuç: SMB ÇALIŞIYOR.** Samba 4.19 (SMB2) üzerinde okuma ve yazma doğrulandı
+→ KALANLAR'daki "SMB gerçek sunucu kararı" kapandı. Ekrandaki uyarı da
+ölçüme dayandırıldı ("Samba/Windows paylaşımlarıyla sınandı ve çalışıyor;
+yalnız SMB3 zorunlu kılan sunucular bağlanmayabilir").
+
+### C) `smb_connect` PORT AYARINI YOK SAYIYOR
+`smb_transport.dart` bağlanırken `SmbConstants.DEFAULT_PORT` (445) kullanıyor,
+verilen portu kullanmıyor. Formdaki port alanı SMB'de **kapatıldı**: alanı açık
+bırakmak kullanıcıya tutulmayacak bir söz verirdi ("yazdım ama bağlanmıyor").
+
+### D) TUZAKLAR (test ortamı kurarken)
+- **impacket'in `SimpleSMBServer`ı YETMİYOR.** Bağlanma ve paylaşım listeleme
+  çalışıyor, paylaşımın içine girmek düşüyor — yani B'deki hatayı **maskeliyor
+  ve yanlış yöne götürüyor**. Gerçek Samba şart.
+- **Samba bu konteynerde IPv6 olmadığı için açılmıyor:**
+  `smbd_open_one_socket: open_socket_in failed: Address family not supported by
+  protocol`. Çözüm: `interfaces = lo 127.0.0.1` + `bind interfaces only = yes`.
+  Ayrıca `/run/samba/ncalrpc` elle oluşturulmalı.
+- **SFTP kökü kullanıcının EV dizinidir** (`/home/<kullanıcı>`), yapılandırmada
+  gösterilen klasör değil.
+
+### Doğrulama
+`flutter analyze` **0 hata**, 39 info/warning (değişmedi). `flutter test`
+**1014 test geçti** (önceki tur 1002; yeni 11 canlı test + SMB yol testi ikiye
+ayrıldı). Canlı testler bu oturumda **gerçekten koştu ve geçti** — dört
+protokolün dördü de.
+
+### Ek (2026-07-30 IV) — uzak dosyada düzenleme artık sunucuya geri yazılıyor
+Önceki turda açık bırakılmıştı: uzaktan açılan dosya düzenlenip kaydedilince
+yalnız yerel önbellek kopyası değişiyor, sunucudaki eski kalıyordu — kullanıcı
+"kaydettim" sanıyor, sessiz veri kaybı gibi görünüyordu.
+
+`RemoteBrowserScreen._offerWriteBack`: dosya açılmadan önceki **boyut +
+değiştirilme damgası** saklanıyor; görüntüleyiciden dönüşte değişmişse
+kullanıcıya "sunucuya yüklensin mi?" diye soruluyor.
+- **Neden sorulup otomatik yapılmıyor:** yükleme sunucudaki sürümün üzerine
+  yazıyor; kullanıcı dosyayı yalnız incelemiş, editör dokunmuş olabilir.
+  Sessizce üzerine yazmak geri alınamayan bir karar olurdu.
+- **Neden boyut VE damga birlikte:** yalnız damga güvenilmez (aynı saniyede
+  kaydeden editör), yalnız boyut da güvenilmez (aynı uzunlukta düzeltme).
+- Yükleme dosyanın **kendi klasörüne, kendi adıyla** gidiyor (yeni dosya
+  oluşturmuyor).
+- **TUZAK (yine):** `File.stat()` (asenkron) `flutter_test`in sahte saat
+  zonunda hiç tamamlanmıyor → ekran sonsuza dek "yükleniyor" kalıyordu ve
+  `pumpAndSettle` zaman aşımına uğradı. `statSync` kullanıldı; damga okuma
+  birkaç baytlık üstveri işi, dosya içeriği okunmuyor.
+- Görüntüleyici çağrısı `openLocalFile` kancasına alındı (testte gerçek
+  görüntüleyici açılamıyor). Kilit: 3 test — değişmemişse SORULMAZ,
+  "şimdilik yükleme" YÜKLEMEZ, "Yükle" doğru yola/ada/içerikle yükler.
+
+## 2026-07-30 — Arayüz çevirisi tamamlandı (tr/en/ar)
+
+- **Kalan ~460 dizgi çevrildi**; uygulamada Türkçe sabit kullanıcı metni kalmadı.
+- **Saf Dart modeller `AppStrings`'i tanıyamaz** (Flutter importu yok, birim testli
+  kalsınlar diye). Çözüm: her enum uzantısına `labelKey` / `descriptionKey`;
+  metin tek yerde `app_strings.dart` tablosunda, ekran `context.t(x.labelKey)` der.
+- **`label` Türkçe bırakıldı — bilinçli.** İki yerde diske/kayda yazılıyor:
+  `auto_organize` klasör adı üretiyor ve `op_history` eski özetleri saklıyor.
+  Çevrilseydi dil değişince diskteki klasör adları değişir, geçmiş kayıtları
+  tutarsızlaşırdı.
+- **`AppStrings.current`** eklendi: bildirim, iş kuyruğu, `dart:io` katmanı gibi
+  `BuildContext`siz yerler için. Delegate her `load`ta günceller. Arayüzde
+  KULLANILMAZ — orada `context.t`, çünkü test/önizlemede ayrı dil kurulabilir.
+- **AI istemleri de çevriliyor** (chat hızlı komutları, `pdf_ai_edit`,
+  `ai_rewrite_sheet`, `ai_actions` özet istemi). Yoksa Arapça arayüzde Türkçe
+  istem gidiyordu. Desen: `(etiketAnahtarı, istemAnahtarı)` çifti.
+- **Çevrilmeyecekler (tuzak):**
+  - `batchRenamePresets` kalıpları — `{ad} {n} {n2} {tarih} {uzanti}`
+    `applyBatchRename`in sözleşmesi ve birim testli; çevrilirse eşleşme
+    SESSİZCE bozulur. Yalnız etiket çevrildi.
+  - `ImportantScreen.folderName` ve `downloadsPathIn` aday listesindeki
+    `'İndirilenler'` — diskteki KLASÖR ADLARI.
+  - `formula_engine` fonksiyon adları (TOPLA, EĞER…) — Excel formül dili.
+  - Bildirim kanalı adı (`job_notifications._channelName`) — Android kanalı bir
+    kez kaydediliyor, sonradan değişmesi kullanıcıya iki kanal gösterirdi.
+- `cleanup_advisor` saf fonksiyon kaldı: `CleanupSuggestion` artık `title`/`detail`
+  yerine `titleKey`/`detailKey` + `detailVars` taşıyor.
+- **Sık tekrarlayan iki derleme hatası** (toplu değiştirmede): `const Text(context.t(…))`
+  → `const` kaldır; `use_build_context_synchronously` → metinleri `await`ten ÖNCE
+  `AppStrings.of(context)` ile yakala (ya da kuyruğa giren işte `AppStrings.current`).
+
+Doğrulama: `flutter analyze` 0 hata (21 uyarı = değişmeyen taban), `flutter test`
+**1017 test geçti**.

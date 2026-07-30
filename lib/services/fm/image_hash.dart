@@ -72,6 +72,19 @@ int hamming(int a, int b) {
 enum SimilarityLevel { strict, normal, loose }
 
 extension SimilarityLevelInfo on SimilarityLevel {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        SimilarityLevel.strict => 'enum.sim_strict',
+        SimilarityLevel.normal => 'enum.sim_normal',
+        SimilarityLevel.loose => 'enum.sim_loose',
+      };
+
+  String get descriptionKey => switch (this) {
+        SimilarityLevel.strict => 'enum.sim_strict_desc',
+        SimilarityLevel.normal => 'enum.sim_normal_desc',
+        SimilarityLevel.loose => 'enum.sim_loose_desc',
+      };
+
   String get label => switch (this) {
         SimilarityLevel.strict => 'Çok sıkı',
         SimilarityLevel.normal => 'Normal',

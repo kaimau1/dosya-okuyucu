@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -29,6 +30,7 @@ import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
+import 'remote/remote_connections_screen.dart';
 import 'fm_settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
@@ -155,11 +157,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!granted && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-              'Tüm dosyalara erişim verilmedi — yalnızca izin verilen '
-              'klasörler görünür.'),
+          content: Text(context.t('fm.permission_denied')),
           action: SnackBarAction(
-            label: 'Ayarlar',
+            label: context.t('common.settings'),
             onPressed: StoragePermission.openSettings,
           ),
         ),
@@ -252,8 +252,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Dosyalar. Oluşan klasör hemen açılır — kullanıcı içine dosya koymak
   /// isteyecektir.
   Future<void> _newFolderFlow() async {
+    // Hata metni await'ten ÖNCE çevrilir (asenkron boşluktan sonra `context`
+    // kullanılamaz).
+    final createFailed = context.t('fm.folder_create_failed');
     final locations = <({String label, String path})>[
-      (label: 'Ana bellek', path: FmEnv.primaryRoot),
+      (label: context.t('fm.internal_storage'), path: FmEnv.primaryRoot),
       (
         label: ImportantScreen.folderName,
         path: ImportantScreen.pathIn(FmEnv.primaryRoot)
@@ -277,7 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await _push(BrowserScreen(path: path));
       await _scan();
     } catch (e) {
-      _snack('Klasör oluşturulamadı: $e');
+      _snack(createFailed.replaceAll('{error}', '\$e'));
     }
   }
 
@@ -295,7 +298,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.search),
             onPressed: () => _push(SearchScreen(
               root: FmEnv.primaryRoot,
-              rootLabel: 'Tüm dosyalar',
+              rootLabel: context.t('fm.all_files'),
             )),
           ),
           IconButton(
@@ -304,7 +307,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: _scanning ? null : _scan,
           ),
           IconButton(
-            tooltip: 'Dosya yöneticisi ayarları',
+            tooltip: context.t('fm.fm_settings'),
             icon: const Icon(Icons.settings_outlined),
             onPressed: () async {
               await _push(const FmSettingsScreen());
@@ -322,7 +325,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (_scanning) ...[
               const LinearProgressIndicator(minHeight: 3),
               const SizedBox(height: Gap.sm),
-              Text('Depolama taranıyor…',
+              Text(context.t('fm.scanning_storage'),
                   style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: Gap.sm),
             ],
@@ -336,7 +339,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: Gap.sm),
             _categoryGrid(),
             const SizedBox(height: Gap.lg),
-            _sectionTitle('Araçlar'),
+            _sectionTitle(context.t('fm.tools')),
             // Kuyruk değişince (iş başladı/bitti) yalnız araç ızgarası yeniden
             // çizilir: "İşlemler" kutusunun alt yazısı canlı sayaç
             // ("1 sürüyor" / "3 biten") — kullanıcı ana ekrandan bakınca
@@ -363,7 +366,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
             ],
             const SizedBox(height: Gap.lg),
-            _sectionTitle('Hızlı klasörler'),
+            _sectionTitle(context.t('fm.quick_folders')),
             _quickFolders(),
             if (_cachedAtMs > 0) ...[
               const SizedBox(height: Gap.lg),
@@ -393,7 +396,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           FloatingActionButton.small(
             heroTag: 'fm_new_folder',
             onPressed: _newFolderFlow,
-            tooltip: 'Yeni klasör',
+            tooltip: context.t('fm.new_folder'),
             child: const Icon(Icons.create_new_folder_outlined),
           ),
           const SizedBox(height: Gap.sm),
@@ -424,17 +427,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const Icon(Icons.folder_special_outlined),
                   const SizedBox(width: Gap.sm),
                   Expanded(
-                    child: Text('Tüm dosyalara erişim gerekli',
+                    child: Text(context.t('fm.permission_title'),
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                 ],
               ),
               const SizedBox(height: Gap.sm),
-              const Text(
-                'Telefonundaki tüm klasörleri görebilmek, kopyalayıp '
-                'taşıyabilmek için Android’in “Tüm dosyalara erişim” iznini '
-                'vermen gerekiyor. İzin yalnızca cihazda kullanılır; hiçbir '
-                'veri gönderilmez.',
+              Text(
+                context.t('fm.permission_body'),
               ),
               const SizedBox(height: Gap.sm),
               Align(
@@ -442,7 +442,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: FilledButton.icon(
                   onPressed: _requestAccess,
                   icon: const Icon(Icons.lock_open),
-                  label: const Text('İzin ver'),
+                  label: Text(context.t('fm.permission_grant')),
                 ),
               ),
             ],
@@ -466,9 +466,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color: FmColors.folder,
         label: ImportantScreen.folderName,
         subtitle: importantStat == null
-            ? 'Oluştur'
+            ? context.t('fm.create')
             : (importantStat.count == 0
-                ? 'Aç'
+                ? context.t('common.open')
                 : '${FsPaths.humanSize(importantStat.bytes)} '
                     '(${importantStat.count})'),
         onTap: () async {
@@ -485,13 +485,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.archive_outlined,
         color: const Color(0xFF00897B),
-        label: 'APK dosyaları',
+        label: context.t('fm.apk_files'),
         subtitle: _index.stat(FmCategory.apk).count == 0
-            ? (_scanning ? 'Taranıyor…' : 'Yok')
+            ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
             : '${FsPaths.humanSize(_index.stat(FmCategory.apk).bytes)} '
                 '(${_index.stat(FmCategory.apk).count})',
         onTap: () => _push(CategoryScreen(
-          title: 'APK dosyaları',
+          title: context.t('fm.apk_files'),
           files: _index.files(FmCategory.apk),
         )),
       ),
@@ -499,7 +499,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         icon: Icons.history,
         color: const Color(0xFF8D6E63),
         label: 'Yeni Dosyalar',
-        subtitle: '${_index.recent.length} dosya',
+        subtitle: context.t('count.files', {'n': _index.recent.length}),
         onTap: () => _push(CategoryScreen(
           title: 'Yeni Dosyalar',
           files: _index.recent,
@@ -528,14 +528,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? Icons.autorenew
             : Icons.playlist_add_check_circle_outlined,
         color: const Color(0xFF2E7D32),
-        label: 'İşlemler',
+        label: context.t('fm.jobs'),
         subtitle: runningJobs > 0
-            ? '$runningJobs sürüyor'
-            : (finishedJobs > 0 ? '$finishedJobs biten' : ''),
+            ? context.t('fm.jobs_running', {'n': runningJobs})
+            : (finishedJobs > 0
+                ? context.t('fm.jobs_finished', {'n': finishedJobs})
+                : ''),
         onTap: () async {
           await openJobsScreen(context);
           if (mounted) setState(() {});
         },
+      ),
+      // Ağ depolama (NAS): Drive'ın yanında — ikisi de "telefonun dışındaki
+      // dosyalar". FTP/FTPS/SFTP/SMB/WebDAV ve PC'den erişim burada.
+      FmTileData(
+        icon: Icons.dns_outlined,
+        color: const Color(0xFF5E35B1),
+        label: context.t('fm.network_storage'),
+        subtitle: '',
+        onTap: () => _push(const RemoteConnectionsScreen()),
       ),
       // Google Drive: "İndir"in yanında çünkü ikisi de dosyayı DIŞARIDAN
       // getiriyor. Kapsam sınırı (yalnız bizim yüklediklerimiz) ekranın
@@ -550,8 +561,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.download_for_offline_outlined,
         color: const Color(0xFF1565C0),
-        label: 'İndir',
-        subtitle: downloading > 0 ? '$downloading sürüyor' : '',
+        label: context.t('fm.download'),
+        subtitle: downloading > 0
+            ? context.t('fm.jobs_running', {'n': downloading})
+            : '',
         onTap: () async {
           await _push(const DownloadManagerScreen());
           if (mounted) setState(() {});
@@ -560,7 +573,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.download_outlined,
         color: const Color(0xFF3B6EF6),
-        label: 'İndirilenler',
+        label: context.t('fm.downloads'),
         subtitle: _folderSizes[download] != null
             ? FsPaths.humanSize(_folderSizes[download]!)
             : '',
@@ -569,14 +582,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (path != null) {
             _push(DownloadsScreen(path: path));
           } else {
-            _snack('İndirilenler klasörü bulunamadı.');
+            _snack(context.t('fm.downloads_missing'));
           }
         },
       ),
       FmTileData(
         icon: Icons.cleaning_services_outlined,
         color: const Color(0xFF00838F),
-        label: 'Yer aç',
+        label: context.t('fm.free_space'),
         subtitle: '',
         onTap: () => _push(CleanupScreen(index: _index)),
       ),
@@ -586,7 +599,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.auto_awesome_motion_outlined,
         color: const Color(0xFF00897B),
-        label: 'Benzer görsel',
+        label: context.t('fm.similar_images'),
         subtitle: '',
         onTap: () {
           final locked = context.read<AppState>().fmLockedFolders;
@@ -610,7 +623,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.auto_awesome_motion,
         color: const Color(0xFF5E35B1),
-        label: 'Düzenle',
+        label: context.t('fm.organize'),
         subtitle: '',
         onTap: () => _push(OrganizeScreen(
           path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
@@ -636,7 +649,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.history_toggle_off,
         color: const Color(0xFF6D4C41),
-        label: 'Son işlemler',
+        label: context.t('fm.recent_ops'),
         subtitle: '',
         onTap: () => _push(const OpHistoryScreen()),
       ),
@@ -647,15 +660,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.visibility_outlined,
         color: const Color(0xFF3949AB),
-        label: 'Son açılanlar',
+        label: context.t('fm.recent_opened'),
         subtitle: '',
         onTap: () => _push(const OpenHistoryScreen()),
       ),
       FmTileData(
         icon: Icons.delete_outline,
         color: const Color(0xFF78909C),
-        label: 'Çöp',
-        subtitle: _trashCount == 0 ? '' : '$_trashCount öğe',
+        label: context.t('fm.trash'),
+        subtitle: _trashCount == 0
+            ? ''
+            : context.t('fm.trash_count', {'n': _trashCount}),
         onTap: () async {
           await Navigator.of(context)
               .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
@@ -673,7 +688,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: FmColors.forCategory(category),
       label: category.label,
       subtitle: stat.count == 0
-          ? (_scanning ? 'Taranıyor…' : 'Yok')
+          ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
           : '${FsPaths.humanSize(stat.bytes)} (${stat.count})',
       onTap: () => _openCategory(category, grid: grid),
     );
@@ -682,7 +697,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _quickFolders() {
     final folders = StorageStats.standardFolders(FmEnv.primaryRoot);
     if (folders.isEmpty) {
-      return const Text('Standart klasörler bulunamadı.');
+      return Text(context.t('fm.no_standard_folders'));
     }
     return Wrap(
       spacing: Gap.sm,
@@ -730,7 +745,7 @@ class _NewFolderDialog extends StatefulWidget {
 }
 
 class _NewFolderDialogState extends State<_NewFolderDialog> {
-  final _controller = TextEditingController(text: 'Yeni klasör');
+  final _controller = TextEditingController();
   late String _parent = widget.locations.first.path;
 
   @override
@@ -754,14 +769,15 @@ class _NewFolderDialogState extends State<_NewFolderDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Yeni klasör'),
+        title: Text(context.t('fm.new_folder')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _controller,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Klasör adı'),
+              decoration:
+                  InputDecoration(labelText: context.t('fm.folder_name')),
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: Gap.md),
@@ -783,8 +799,9 @@ class _NewFolderDialogState extends State<_NewFolderDialog> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Vazgeç')),
-          FilledButton(onPressed: _submit, child: const Text('Oluştur')),
+              child: Text(context.t('common.cancel'))),
+          FilledButton(
+              onPressed: _submit, child: Text(context.t('fm.create'))),
         ],
       );
 }

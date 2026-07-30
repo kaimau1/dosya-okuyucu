@@ -1,0 +1,10 @@
+# `live` etiketi: GERÇEK sunuculara bağlanan testler
+# (test/remote_live_test.dart — SFTP/FTP/WebDAV/SMB).
+#
+# Varsayılan koşuda dışlanmıyor; sunucu yoksa testler kendini ATLIYOR
+# (`markTestSkipped`), böylece CI kırmızıya dönmüyor. Etiket yalnız
+# "bu testler ağ ister" demek ve `--exclude-tags live` ile kapatılabilsin diye
+# tanımlı — tanımsız etiket `flutter test` çıktısında uyarı üretiyordu.
+tags:
+  live:
+    description: Gerçek FTP/SFTP/WebDAV/SMB sunucusu ister; yoksa atlanır.

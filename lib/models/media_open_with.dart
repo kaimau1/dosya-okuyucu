@@ -17,6 +17,19 @@ enum MediaOpenWith {
 }
 
 extension MediaOpenWithLabel on MediaOpenWith {
+  /// Çeviri anahtarı (bkz. `FmLayoutInfo.labelKey`).
+  String get labelKey => switch (this) {
+        MediaOpenWith.ask => 'enum.open_with_ask',
+        MediaOpenWith.inApp => 'enum.open_with_in_app',
+        MediaOpenWith.external => 'enum.open_with_external',
+      };
+
+  String get descriptionKey => switch (this) {
+        MediaOpenWith.ask => 'enum.open_with_ask_desc',
+        MediaOpenWith.inApp => 'enum.open_with_in_app_desc',
+        MediaOpenWith.external => 'enum.open_with_external_desc',
+      };
+
   String get label => switch (this) {
         MediaOpenWith.ask => 'Her seferinde sor',
         MediaOpenWith.inApp => 'Uygulama içi oynatıcı',

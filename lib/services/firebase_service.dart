@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../core/l10n/app_strings.dart';
+
 /// Firebase giriş + bulut senkron sarmalayıcısı.
 ///
 /// Firebase yapılandırılmamışsa (google-services.json / firebase_options yoksa)
@@ -51,7 +53,8 @@ class FirebaseService {
       final googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
         throw FirebaseAuthException(
-            code: 'cancelled', message: 'Google girişi iptal edildi.');
+            code: 'cancelled',
+            message: AppStrings.current.t('fb.sign_in_cancelled'));
       }
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
@@ -99,7 +102,7 @@ class FirebaseService {
   /// İşlemi çalıştırır; hata mesajını (varsa) döndürür, başarıda null.
   Future<String?> _guard(Future<void> Function() action) async {
     if (!_available || _auth == null) {
-      return 'Firebase yapılandırılmamış. Ayarlar’daki kurulum adımlarını izleyin.';
+      return AppStrings.current.t('fb.not_configured');
     }
     try {
       await action();

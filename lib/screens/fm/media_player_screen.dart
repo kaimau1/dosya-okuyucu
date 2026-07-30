@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -97,8 +98,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       setState(() {
         _controller = null;
         _loading = false;
-        _error = 'Bu dosya oynatılamadı. Cihaz bu codec’i desteklemiyor '
-            'olabilir — “Başka uygulamayla aç”ı deneyin.\n\n$e';
+        _error = AppStrings.current.t('mp.video_failed', {'error': e});
       });
       return;
     }
@@ -264,7 +264,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 ),
               ),
             PopupMenuButton<double>(
-              tooltip: 'Oynatma hızı',
+              tooltip: context.t('mp.play_speed'),
               icon: const Icon(Icons.speed),
               onSelected: _setSpeed,
               itemBuilder: (_) => [
@@ -276,7 +276,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
               ],
             ),
             IconButton(
-              tooltip: 'Başka uygulamayla aç',
+              tooltip: context.t('mp.open_with'),
               icon: const Icon(Icons.apps),
               onPressed: () => EntryOpener.openExternally(context, _current),
             ),
@@ -284,7 +284,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
             // kapatıp dosyayı listede aramak gerekmesin (istek 2026-07-29:
             // "her türlü dosyada bu olmalı").
             IconButton(
-              tooltip: 'Dosya işlemleri (taşı, kopyala, paylaş…)',
+              tooltip: context.t('mp.file_ops'),
               icon: const Icon(Icons.more_vert),
               onPressed: () => showEntryActions(
                 context,
@@ -317,7 +317,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
               FilledButton.tonalIcon(
                 onPressed: () => EntryOpener.openExternally(context, _current),
                 icon: const Icon(Icons.apps),
-                label: const Text('Başka uygulamayla aç'),
+                label: Text(context.t('mp.open_with')),
               ),
             ],
           ),
@@ -410,7 +410,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                tooltip: 'Önceki',
+                tooltip: context.t('common.previous'),
                 color: Colors.white,
                 icon: const Icon(Icons.skip_previous),
                 onPressed: _index > 0 ? () => _skip(-1) : null,

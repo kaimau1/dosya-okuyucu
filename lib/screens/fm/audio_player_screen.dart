@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -104,7 +105,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       await _player.setPlaybackRate(_speed);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Bu ses dosyası çalınamadı: $e');
+        setState(
+            () => _error = AppStrings.current.t('mp.audio_failed', {'error': e}));
       }
     }
   }
@@ -169,10 +171,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Çalıyor'),
+        title: Text(context.t('mp.now_playing')),
         actions: [
           PopupMenuButton<double>(
-            tooltip: 'Hız',
+            tooltip: context.t('mp.speed'),
             icon: const Icon(Icons.speed),
             onSelected: _setSpeed,
             itemBuilder: (_) => [
@@ -182,14 +184,14 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             ],
           ),
           IconButton(
-            tooltip: 'Başka uygulamayla aç',
+            tooltip: context.t('mp.open_with'),
             icon: const Icon(Icons.apps),
             onPressed: () => EntryOpener.openExternally(context, _current),
           ),
           // Dinlerken dosyayı taşımak/kopyalamak için ekranı terk etmek
           // gerekmesin (istek 2026-07-29: "her türlü dosyada bu olmalı").
           IconButton(
-            tooltip: 'Dosya işlemleri (taşı, kopyala, paylaş…)',
+            tooltip: context.t('mp.file_ops'),
             icon: const Icon(Icons.more_vert),
             onPressed: () => showEntryActions(
               context,
@@ -272,14 +274,14 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  tooltip: 'Karışık',
+                  tooltip: context.t('mp.shuffle'),
                   isSelected: _shuffle,
                   icon: const Icon(Icons.shuffle),
                   selectedIcon: Icon(Icons.shuffle, color: scheme.primary),
                   onPressed: () => setState(() => _shuffle = !_shuffle),
                 ),
                 IconButton(
-                  tooltip: 'Önceki',
+                  tooltip: context.t('common.previous'),
                   icon: const Icon(Icons.skip_previous),
                   onPressed: _index > 0 ? () => _skipTo(_index - 1) : null,
                 ),
@@ -309,9 +311,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                 ),
                 IconButton(
                   tooltip: switch (_repeat) {
-                    RepeatMode.off => 'Tekrar: kapalı',
-                    RepeatMode.one => 'Tekrar: bu parça',
-                    RepeatMode.all => 'Tekrar: tümü',
+                    RepeatMode.off => context.t('mp.repeat_off'),
+                    RepeatMode.one => context.t('mp.repeat_one'),
+                    RepeatMode.all => context.t('mp.repeat_all'),
                   },
                   isSelected: _repeat != RepeatMode.off,
                   icon: Icon(_repeat == RepeatMode.one

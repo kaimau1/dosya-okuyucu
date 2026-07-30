@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -87,7 +88,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       setState(() {
         _dirs = const [];
         _loading = false;
-        _error = 'Bu klasör okunamıyor (izin yok).';
+        _error = context.t('picker.unreadable');
       });
     }
   }
@@ -108,9 +109,9 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
   Future<void> _newFolder() async {
     final name = await promptForName(
       context,
-      title: 'Yeni klasör',
-      label: 'Klasör adı',
-      initial: 'Yeni klasör',
+      title: context.t('fm.new_folder'),
+      label: context.t('fm.folder_name'),
+      initial: context.t('fm.new_folder'),
     );
     if (name == null) return;
     try {
@@ -119,7 +120,9 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Klasör oluşturulamadı: $e')));
+          .showSnackBar(SnackBar(
+              content: Text(
+                  AppStrings.current.t('fp.create_failed', {'error': e}))));
     }
   }
 
@@ -190,7 +193,9 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Klasör oluşturulamadı: $e')));
+            .showSnackBar(SnackBar(
+                content: Text(
+                    AppStrings.current.t('fp.create_failed', {'error': e}))));
         return;
       }
     }
@@ -210,16 +215,16 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Hedef klasör'),
+            Text(context.t('picker.title')),
             Text(
-              '${widget.sources.length} öğe · ${p.basename(_path)}',
+              context.t('picker.summary', {'n': widget.sources.length, 'name': p.basename(_path)}),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: 'Yeni klasör',
+            tooltip: context.t('fm.new_folder'),
             icon: const Icon(Icons.create_new_folder_outlined),
             onPressed: _newFolder,
           ),
@@ -291,7 +296,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     return Row(
       children: [
         IconButton(
-          tooltip: 'Üst klasör',
+          tooltip: context.t('picker.parent'),
           icon: const Icon(Icons.arrow_upward),
           onPressed: atTop ? null : () => _enter(parent),
         ),
@@ -323,13 +328,11 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       );
     }
     if (_dirs.isEmpty && !_loading) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(Gap.lg),
+          padding: const EdgeInsets.all(Gap.lg),
           child: Text(
-            'Bu klasörde alt klasör yok.\n'
-            'Aşağıdaki düğmeyle buraya koyabilir ya da üstteki '
-            '“yeni klasör” ile bir tane açabilirsiniz.',
+            context.t('fp.no_subfolders'),
             textAlign: TextAlign.center,
           ),
         ),
@@ -344,7 +347,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
           enabled: allowed,
           leading: const Icon(Icons.folder, color: FmColors.folder),
           title: Text(dir.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: allowed ? null : const Text('Kaynağın kendisi'),
+          subtitle: allowed ? null : Text(context.t('picker.source_itself')),
           trailing: const Icon(Icons.chevron_right),
           onTap: allowed ? () => _enter(dir.path) : null,
         );

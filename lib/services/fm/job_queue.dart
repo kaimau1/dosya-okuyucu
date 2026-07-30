@@ -6,6 +6,15 @@ import 'package:flutter/foundation.dart';
 enum JobStatus { queued, running, done, failed, cancelled }
 
 extension JobStatusLabel on JobStatus {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        JobStatus.queued => 'enum.job_queued',
+        JobStatus.running => 'enum.job_running',
+        JobStatus.done => 'enum.job_done',
+        JobStatus.failed => 'enum.job_failed',
+        JobStatus.cancelled => 'enum.job_cancelled',
+      };
+
   String get label => switch (this) {
         JobStatus.queued => 'Sırada',
         JobStatus.running => 'Sürüyor',

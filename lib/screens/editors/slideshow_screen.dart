@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/slide_canvas.dart';
 
@@ -142,7 +143,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
             child: SafeArea(
               child: IconButton(
                 icon: const Icon(Icons.close, color: Colors.white70),
-                tooltip: 'Çık',
+                tooltip: context.t('ss.exit'),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
@@ -162,7 +163,12 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                 child: Text(
                   _maxStep == 0
                       ? '${_index + 1} / ${widget.slides.length}'
-                      : '${_index + 1} / ${widget.slides.length}  ·  adım $_step/$_maxStep',
+                      : context.t('ss.step', {
+                          'n': _index + 1,
+                          'total': widget.slides.length,
+                          'step': _step,
+                          'max': _maxStep,
+                        }),
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/chat_media.dart';
@@ -272,11 +273,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(Gap.lg),
                       child: Text(
-                        _loadingAll
-                            ? 'Dosyalar yükleniyor…'
+                        context.t(_loadingAll
+                            ? 'ph.loading'
                             : (_query.trim().isEmpty && !_filter.isActive
-                                ? 'Bu kategoride dosya bulunamadı.'
-                                : 'Aramanıza/filtrenize uyan dosya yok.'),
+                                ? 'ph.cat_empty'
+                                : 'ph.no_match')),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -323,19 +324,21 @@ class _CategoryScreenState extends State<CategoryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(widget.title),
-            Text('${_sorted.length} / ${_files.length} dosya',
+            Text(
+                context.t('count.of_files',
+                    {'shown': _sorted.length, 'total': _files.length}),
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: '${widget.title} içinde ara',
+            tooltip: context.t('ph.search_in', {'title': widget.title}),
             icon: const Icon(Icons.search),
             onPressed: () => setState(() => _searching = true),
           ),
           FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           IconButton(
-            tooltip: 'Görünüm: ${_layout.label}',
+            tooltip: context.t('ph.layout', {'name': context.t(_layout.labelKey)}),
             icon: Icon(fmLayoutIcon(_layout)),
             onPressed: () async {
               final picked = await showFmLayoutSheet(context, current: _layout);
@@ -374,7 +377,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
         title: FmSearchField(
           controller: _searchController,
-          hint: '${widget.title} içinde ara…',
+          hint: context.t('ph.search_in_hint', {'title': widget.title}),
           onChanged: (v) => setState(() => _query = v),
         ),
         actions: [
@@ -402,24 +405,25 @@ class _CategoryScreenState extends State<CategoryScreen> {
           onPressed: () => setState(_selected.clear),
         ),
         // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]).
-        title: Text('${selectedEntries.length} / ${files.length} seçildi'),
+        title: Text(context.t('ph.selected_of',
+            {'n': selectedEntries.length, 'total': files.length})),
         actions: [
           if (_selected.length == 1) ...[
             IconButton(
-              tooltip: 'Üstündekileri de seç',
+              tooltip: context.t('ph.select_above'),
               icon: const Icon(Icons.expand_less),
               onPressed: () => _selectFromAnchor(files, above: true),
             ),
             IconButton(
-              tooltip: 'Altındakileri de seç',
+              tooltip: context.t('ph.select_below'),
               icon: const Icon(Icons.expand_more),
               onPressed: () => _selectFromAnchor(files, above: false),
             ),
           ],
           IconButton(
-            tooltip: files.every((e) => _selected.contains(e.path))
-                ? 'Seçimi kaldır'
-                : 'Tümünü seç',
+            tooltip: context.t(files.every((e) => _selected.contains(e.path))
+                ? 'ph.clear_selection'
+                : 'ph.select_all'),
             icon: Icon(files.every((e) => _selected.contains(e.path))
                 ? Icons.deselect
                 : Icons.select_all),
@@ -448,7 +452,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Padding(
             padding: const EdgeInsets.only(right: Gap.sm),
             child: ChoiceChip(
-              label: Text('Tümü (${_files.length})'),
+              label: Text(context.t('ph.all_count', {'n': _files.length})),
               selected: _filter.buckets.isEmpty,
               onSelected: (_) =>
                   setState(() => _filter = _filter.withBuckets(const {})),
@@ -460,7 +464,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
               // FilterChip = çoklu seçim (istek 2026-07-29). Çip ve süzgeç
               // sayfası AYNI alanı yazar → ikisi hep tutarlı.
               child: FilterChip(
-                label: Text('${b.label} (${counts[b]})'),
+                label: Text(context.t('ph.chip_count',
+                  {'label': context.t(b.labelKey), 'n': counts[b]})),
                 selected: _filter.buckets.contains(b),
                 onSelected: (_) =>
                     setState(() => _filter = _filter.toggleBucket(b)),
@@ -501,7 +506,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Padding(
             padding: const EdgeInsets.only(right: Gap.sm),
             child: ChoiceChip(
-              label: Text('Tümü (${_files.length})'),
+              label: Text(context.t('ph.all_count', {'n': _files.length})),
               selected: _docKind == null,
               onSelected: (_) => setState(() => _docKind = null),
             ),
@@ -510,8 +515,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
             Padding(
               padding: const EdgeInsets.only(right: Gap.sm),
               child: ChoiceChip(
-                label: Text('${k == DocKind.unknown ? "Diğer" : k.label} '
-                    '(${counts[k]})'),
+                label: Text(context.t('ph.chip_count', {
+                  'label': context.t(k.labelKey),
+                  'n': counts[k],
+                })),
                 selected: _docKind == k,
                 onSelected: (_) => setState(() => _docKind = k),
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../core/l10n/app_strings.dart';
 import 'job_queue.dart';
 
 /// [JobQueue]'nun **sistem bildirimi** köprüsü.
@@ -67,7 +68,9 @@ class JobNotifications implements JobReporter {
     await _plugin.show(
       notificationId(job.id),
       job.title,
-      job.detail.isEmpty ? job.status.label : job.detail,
+      job.detail.isEmpty
+          ? AppStrings.current.t(job.status.labelKey)
+          : job.detail,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
@@ -104,16 +107,17 @@ class JobNotifications implements JobReporter {
       } catch (_) {}
       return;
     }
+    final str = AppStrings.current;
     final body = switch (job.status) {
-      JobStatus.failed => job.error ?? 'Bir hata oluştu.',
-      JobStatus.cancelled => 'Durduruldu · ${job.detail}',
-      _ => job.detail.isEmpty ? 'Tamamlandı.' : job.detail,
+      JobStatus.failed => job.error ?? str.t('job.error_generic'),
+      JobStatus.cancelled => str.t('job.stopped_detail', {'detail': job.detail}),
+      _ => job.detail.isEmpty ? str.t('job.finished') : job.detail,
     };
     await _plugin.show(
       id,
       job.title,
       body,
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
           _channelName,

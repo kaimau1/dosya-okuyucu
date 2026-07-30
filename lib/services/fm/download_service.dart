@@ -1,3 +1,4 @@
+import '../../core/l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -126,10 +127,14 @@ class DownloadService extends ChangeNotifier {
       // bildirimden duraklatıp sürdürebilir. Android 13+ bildirim izni
       // istenmezse indirme yine çalışır, yalnız bildirim görünmez.
       downloader.configureNotification(
-        running: const bg.TaskNotification('{filename}', 'İndiriliyor…'),
-        complete: const bg.TaskNotification('{filename}', 'İndirildi'),
-        paused: const bg.TaskNotification('{filename}', 'Duraklatıldı'),
-        error: const bg.TaskNotification('{filename}', 'İndirilemedi'),
+        running: bg.TaskNotification(
+            '{filename}', AppStrings.current.t('dsv.downloading')),
+        complete: bg.TaskNotification(
+            '{filename}', AppStrings.current.t('dsv.downloaded')),
+        paused: bg.TaskNotification(
+            '{filename}', AppStrings.current.t('dsv.paused')),
+        error: bg.TaskNotification(
+            '{filename}', AppStrings.current.t('dsv.failed')),
         progressBar: true,
         tapOpensFile: true,
       );
@@ -194,7 +199,9 @@ class DownloadService extends ChangeNotifier {
     final state = stateForNativeStatus(status);
     _update(id, (t) => t.copyWith(
           state: state,
-          error: state == DownloadState.failed ? (error ?? 'İndirilemedi') : null,
+          error: state == DownloadState.failed
+              ? (error ?? AppStrings.current.t('dsv.failed'))
+              : null,
           clearError: state != DownloadState.failed,
           bytesPerSecond: state == DownloadState.running ? t.bytesPerSecond : 0,
           received: state == DownloadState.completed && t.hasTotal
@@ -252,7 +259,7 @@ class DownloadService extends ChangeNotifier {
       if (!ok) {
         _update(id, (t) => t.copyWith(
               state: DownloadState.failed,
-              error: 'İndirme başlatılamadı',
+              error: AppStrings.current.t('dsv.start_failed'),
             ));
       }
     } catch (e) {

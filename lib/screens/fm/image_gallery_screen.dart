@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
@@ -121,7 +122,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               ),
               actions: [
                 IconButton(
-                  tooltip: 'Paylaş',
+                  tooltip: context.t('common.share'),
                   icon: const Icon(Icons.share_outlined),
                   onPressed: () => shareEntries([_current]),
                 ),
@@ -142,13 +143,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                         await showProperties(context, _currentEntry);
                     }
                   },
-                  itemBuilder: (_) => const [
+                  itemBuilder: (_) => [
                     PopupMenuItem(
                         value: 'viewer',
-                        child: Text('Görüntüleyicide aç (OCR, çeviri, PDF)')),
+                        child: Text(context.t('gal.open_in_viewer'))),
                     PopupMenuItem(
-                        value: 'actions', child: Text('Diğer işlemler')),
-                    PopupMenuItem(value: 'info', child: Text('Özellikler')),
+                        value: 'actions',
+                        child: Text(context.t('gal.other_actions'))),
+                    PopupMenuItem(
+                        value: 'info', child: Text(context.t('fm.properties'))),
                   ],
                 ),
               ],
@@ -238,9 +241,9 @@ class _ZoomableImageState extends State<_ZoomableImage> {
           child: Image.file(
             File(widget.path),
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Center(
-              child: Text('Görsel görüntülenemedi.',
-                  style: TextStyle(color: Colors.white70)),
+            errorBuilder: (_, __, ___) => Center(
+              child: Text(context.t('vw.image_failed'),
+                  style: const TextStyle(color: Colors.white70)),
             ),
           ),
         ),

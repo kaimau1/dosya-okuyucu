@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -35,7 +36,7 @@ class JobsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text('İşlemler'),
+          title: Text(context.t('jb.title')),
           actions: [
             AnimatedBuilder(
               animation: JobQueue.instance,
@@ -59,18 +60,15 @@ class JobsScreen extends StatelessWidget {
                 // Dürüst sınır kullanıcının gözünün önünde: "arka planda
                 // çalışıyor" sözü ne kadarını kapsıyor?
                 Text(
-                  'İşler uygulama arka plandayken de sürer ve ilerleme '
-                  'bildirimde görünür. Uygulamayı görev listesinden tamamen '
-                  'kapatırsan iş durur.',
+                  context.t('jb.background_note'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: Gap.md),
                 if (jobs.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: Gap.xl),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: Gap.xl),
                     child: Center(
-                      child: Text('Henüz bir işlem yok.\nBoyut düşürme, yer '
-                          'açma, kopya arama gibi işlemler burada görünür.',
+                      child: Text(context.t('jb.empty'),
                           textAlign: TextAlign.center),
                     ),
                   )
@@ -96,9 +94,11 @@ class _JobCard extends StatelessWidget {
     // yazıyor ("12,4 MB kazanıldı · 4 özgün çöp kutusunda · durduruldu (4/10)")
     // ve kullanıcının bunu öğrenmesinin tek yolu bu satır.
     final subtitle = switch (job.status) {
-      JobStatus.failed => job.error ?? 'Bir hata oluştu.',
+      JobStatus.failed => job.error ?? context.t('job.error_generic'),
       JobStatus.cancelled =>
-        job.detail.isEmpty ? 'İptal edildi.' : 'İptal edildi · ${job.detail}',
+        job.detail.isEmpty
+            ? context.t('jb.cancelled')
+            : context.t('jb.cancelled_detail', {'detail': job.detail}),
       _ => job.detail.isEmpty ? job.status.label : job.detail,
     };
     final elapsed = job.elapsed;
@@ -134,8 +134,12 @@ class _JobCard extends StatelessWidget {
                 padding: const EdgeInsets.only(top: Gap.xs),
                 child: Text(
                   job.status.isActive
-                      ? '${humanDuration(elapsed)} sürüyor'
-                      : '${job.status.label} · ${humanDuration(elapsed)} sürdü',
+                      ? context.t(
+                          'jb.running_for', {'time': humanDuration(elapsed)})
+                      : context.t('jb.took', {
+                          'status': context.t(job.status.labelKey),
+                          'time': humanDuration(elapsed),
+                        }),
                   style: theme.textTheme.labelSmall
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
@@ -173,7 +177,7 @@ class _JobCard extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text('Oluşan dosyalar (${outputs.length})',
+              child: Text(context.t('jb.outputs', {'n': outputs.length}),
                   style: theme.textTheme.labelLarge),
             ),
             TextButton.icon(
@@ -181,7 +185,7 @@ class _JobCard extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => BrowserScreen(path: dir)),
               ),
               icon: const Icon(Icons.folder_open, size: 18),
-              label: const Text('Klasörü aç'),
+              label: Text(context.t('jb.open_folder')),
             ),
           ],
         ),
@@ -206,7 +210,9 @@ class _JobCard extends StatelessWidget {
         if (outputs.length > _maxListed)
           Padding(
             padding: const EdgeInsets.only(top: Gap.xs),
-            child: Text('… ve ${outputs.length - _maxListed} dosya daha',
+            child: Text(
+                context.t('count.more_files',
+                    {'n': outputs.length - _maxListed}),
                 style: theme.textTheme.bodySmall),
           ),
       ],
@@ -226,7 +232,9 @@ class _JobCard extends StatelessWidget {
     final folder = p.basename(p.dirname(path));
     try {
       final file = File(path);
-      if (!file.existsSync()) return 'Dosya bulunamadı · $folder';
+      if (!file.existsSync()) {
+        return AppStrings.current.t('jb.file_missing', {'folder': folder});
+      }
       return '${FsPaths.humanSize(file.lengthSync())} · $folder';
     } catch (_) {
       return folder;

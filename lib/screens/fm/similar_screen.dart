@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -38,7 +39,8 @@ class SimilarScreen extends StatefulWidget {
   /// yükleyici. Yükleme de işin parçası olur, ilerleme aynı şeritte görünür.
   final Future<List<FsEntry>> Function()? loadAll;
 
-  final String title;
+  /// Başlık; verilmezse “Benzer görüntüler” çevirisi kullanılır.
+  final String? title;
 
   /// Bu taramanın **kapsam kimliği** — kuyruk kimliği buradan üretilir
   /// (bkz. [SimilarFinder.jobIdFor]). Aynı kapsamdan tekrar girmek taramayı
@@ -50,7 +52,7 @@ class SimilarScreen extends StatefulWidget {
     super.key,
     this.files = const [],
     this.loadAll,
-    this.title = 'Benzer görüntüler',
+    this.title,
     this.scopeId = 'all',
   });
 
@@ -113,17 +115,20 @@ class _SimilarScreenState extends State<SimilarScreen> {
   }
 
   void _start() {
+    // Kuyruk işi ekran kapansa da sürer → metinler ŞİMDİ çözülür.
+    final strings = AppStrings.of(context);
     final level = _level;
     _levelByScope[widget.scopeId] = level;
     final loader = widget.loadAll;
     JobQueue.instance.enqueue(
       id: _jobId,
-      title: 'Benzer görüntüler aranıyor (${level.label})',
+      title: strings.t('sim.scanning_title',
+          {'level': strings.t(level.labelKey)}),
       total: widget.files.length,
       run: (handle) async {
         var files = widget.files;
         if (loader != null) {
-          handle.report(detail: 'Dosya listesi hazırlanıyor…');
+          handle.report(detail: strings.t('sim.preparing_list'));
           final all = await loader();
           // Kısa liste dönerse elimizdekini koru (bkz. kategori ekranları).
           if (all.length > files.length) files = all;
@@ -132,6 +137,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
           files,
           level: level,
           handle: handle,
+          strings: strings,
         );
         handle.result = groups;
       },
@@ -203,16 +209,15 @@ class _SimilarScreenState extends State<SimilarScreen> {
   Future<void> _askGemini(SimilarGroup group) async {
     final appState = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
+    // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final str = AppStrings.of(context);
     if (!appState.hasApiKey) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Gemini için Ayarlar > API anahtarı gerekiyor. '
-              'Cihaz-içi benzerlik taraması anahtarsız çalışır.')));
+      messenger.showSnackBar(SnackBar(content: Text(str.t('sim.need_key'))));
       return;
     }
     // En çok 6 görsel: daha fazlası hem pahalı hem yanıtı bulanıklaştırır.
     final chosen = group.files.take(6).toList();
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Görseller küçültülüp Gemini’ye gönderiliyor…')));
+    messenger.showSnackBar(SnackBar(content: Text(str.t('sim.sending'))));
     final previews = <({String name, Uint8List bytes})>[];
     for (final f in chosen) {
       final bytes = await _previewFor(f);
@@ -220,9 +225,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
     }
     if (!mounted) return;
     if (previews.length < 2) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Karşılaştırma için en az iki önizleme '
-              'üretilemedi (dosyalar okunamıyor olabilir).')));
+      messenger.showSnackBar(
+          SnackBar(content: Text(str.t('sim.too_few_previews'))));
       return;
     }
     try {
@@ -236,7 +240,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Gemini’nin görüşü'),
+          title: Text(ctx.t('sim.gemini_opinion')),
           content: SingleChildScrollView(child: Text(answer)),
           actions: [
             TextButton(
@@ -262,7 +266,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(widget.title ?? context.t('sim.title')),
         actions: [
           IconButton(
             tooltip: 'Yeniden tara',
@@ -283,14 +287,16 @@ class _SimilarScreenState extends State<SimilarScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${groups.length} benzer grup · '
-                      '${FsPaths.humanSize(wasted)} kazanılabilir',
+                      context.t('sim.groups_summary', {
+                        'n': groups.length,
+                        'size': FsPaths.humanSize(wasted),
+                      }),
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),
                   TextButton(
                     onPressed: _selectExtras,
-                    child: const Text('Fazlaları seç'),
+                    child: Text(context.t('sim.select_extras')),
                   ),
                 ],
               ),
@@ -304,8 +310,9 @@ class _SimilarScreenState extends State<SimilarScreen> {
                           padding: const EdgeInsets.all(Gap.lg),
                           child: Text(
                             job?.status == JobStatus.failed
-                                ? 'Tarama başarısız: ${job?.error}'
-                                : 'Benzer görüntü bulunamadı 🎉',
+                                ? context.t(
+                                    'sim.scan_failed', {'error': job?.error})
+                                : context.t('sim.none'),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -330,7 +337,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
                   // kullanıcıya geri alabileceğini söylemek olurdu.
                   label: Text('${deleteActionText(
                     useTrash: context.watch<AppState>().fmUseTrash,
-                    what: '${_selected.length} dosyayı',
+                    what: context.t('sim.n_files', {'n': _selected.length}),
+                    strings: AppStrings.of(context),
                   )} (${FsPaths.humanSize(_selectedBytes)})'),
                 ),
               ),
@@ -344,11 +352,10 @@ class _SimilarScreenState extends State<SimilarScreen> {
           children: [
             LinearProgressIndicator(value: job.progress),
             const SizedBox(height: Gap.sm),
-            Text(job.detail.isEmpty ? 'Taranıyor…' : job.detail),
+            Text(job.detail.isEmpty ? context.t('sim.scanning') : job.detail),
             const SizedBox(height: Gap.xs),
             Text(
-              'Ekranı kapatabilirsin — tarama arka planda sürer, '
-              'geri döndüğünde sonuç hazır olur.',
+              context.t('sim.background_note'),
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -366,7 +373,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
               children: [
                 for (final l in SimilarityLevel.values)
                   ChoiceChip(
-                    label: Text(l.label),
+                    label: Text(context.t(l.labelKey)),
                     selected: _level == l,
                     onSelected: running
                         ? null
@@ -378,7 +385,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
               ],
             ),
             const SizedBox(height: Gap.xs),
-            Text(_level.description,
+            Text(context.t(_level.descriptionKey),
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -399,8 +406,10 @@ class _SimilarScreenState extends State<SimilarScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${group.files.length} benzer · '
-                      '${FsPaths.humanSize(group.wastedBytes)} kazanılabilir',
+                      context.t('sim.group_summary', {
+                        'n': group.files.length,
+                        'size': FsPaths.humanSize(group.wastedBytes),
+                      }),
                       style: theme.textTheme.labelLarge,
                     ),
                   ),

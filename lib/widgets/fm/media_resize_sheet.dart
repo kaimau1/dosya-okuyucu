@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/media_resize.dart';
 
@@ -117,7 +118,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
               padding: const EdgeInsets.symmetric(horizontal: Gap.md),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Boyut düşür (${widget.fileCount} dosya)',
+                child: Text(
+                    context.t('rs.title', {'n': widget.fileCount}),
                     style: theme.textTheme.titleMedium),
               ),
             ),
@@ -127,14 +129,14 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 children: [
-                  _label('Çözünürlük'),
+                  _label(context.t('rs.resolution')),
                   Wrap(
                     spacing: Gap.sm,
                     runSpacing: Gap.xs,
                     children: [
                       for (final r in ResolutionChoice.values)
                         ChoiceChip(
-                          label: Text(r.label),
+                          label: Text(context.t(r.labelKey)),
                           selected: _options.resolution == r,
                           onSelected: (_) => setState(
                               () => _options = _options.copyWith(resolution: r)),
@@ -172,9 +174,9 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                           child: TextField(
                             controller: _widthController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Genişlik (px)',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: context.t('rs.width'),
+                              border: const OutlineInputBorder(),
                             ),
                             onChanged: (_) => _readCustom(),
                           ),
@@ -187,9 +189,9 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                           child: TextField(
                             controller: _heightController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Yükseklik (px)',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: context.t('rs.height'),
+                              border: const OutlineInputBorder(),
                             ),
                             onChanged: (_) => _readCustom(),
                           ),
@@ -198,17 +200,13 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     ),
                     const SizedBox(height: Gap.xs),
                     Text(
-                      'Yalnız birini yazarsan diğeri en/boy oranından '
-                      'hesaplanır ve resim bozulmaz. İKİSİNİ de yazarsan '
-                      'verdiğin ölçü aynen uygulanır — oran tutmuyorsa görüntü '
-                      'gerilir. Kaynaktan büyütme yapılmaz: kaynaktan büyük bir '
-                      'değer yazarsan kaynağın ölçüsünde kalır.',
+                      context.t('rs.custom_note'),
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
                   if (widget.hasImages) ...[
                     const SizedBox(height: Gap.md),
-                    _label('JPEG kalitesi (fotoğraf)'),
+                    _label(context.t('rs.jpeg_quality')),
                     Row(
                       children: [
                         Expanded(
@@ -230,13 +228,13 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       ],
                     ),
                     const SizedBox(height: Gap.xs),
-                    _label('Biçim (fotoğraf)'),
+                    _label(context.t('rs.format')),
                     Wrap(
                       spacing: Gap.sm,
                       children: [
                         for (final f in ImageOutputFormat.values)
                           ChoiceChip(
-                            label: Text(f.label),
+                            label: Text(context.t(f.labelKey)),
                             selected: _options.imageFormat == f,
                             onSelected: (_) => setState(() =>
                                 _options = _options.copyWith(imageFormat: f)),
@@ -246,14 +244,14 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                   ],
                   if (widget.hasVideos) ...[
                     const SizedBox(height: Gap.md),
-                    _label('Video sıkıştırma'),
+                    _label(context.t('rs.video_quality')),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
                       children: [
                         for (final q in VideoQualityChoice.values)
                           ChoiceChip(
-                            label: Text(q.label),
+                            label: Text(context.t(q.labelKey)),
                             selected: _options.videoQuality == q,
                             onSelected: (_) => setState(() =>
                                 _options = _options.copyWith(videoQuality: q)),
@@ -261,14 +259,15 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       ],
                     ),
                     const SizedBox(height: Gap.md),
-                    _label('Kare sayısı (fps)'),
+                    _label(context.t('rs.fps')),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
                       children: [
                         for (final fps in frameRateChoices)
                           ChoiceChip(
-                            label: Text(fps == null ? 'Değiştirme' : '$fps'),
+                            label: Text(
+                                fps == null ? context.t('rs.keep') : '$fps'),
                             selected: _options.frameRate == fps,
                             onSelected: (_) => setState(() => _options = fps ==
                                     null
@@ -287,19 +286,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                           const SizedBox(width: Gap.xs),
                           Expanded(
                             child: Text(
-                              'Video her durumda yeniden kodlanır (kalite ya da '
-                              'ses değişse de): istediğin ölçüye birebir '
-                              'dönüştürülür (FFmpeg). Öncelik cihazın donanım '
-                              'kodlayıcısında; o kullanılamazsa yazılım '
-                              'kodlayıcıya düşülür ve işlem belirgin biçimde '
-                              'yavaşlar. Hangi motorun çalıştığı, yüzde ve '
-                              'kalan süre işlem satırında yazar. Uzun bir '
-                              'videoda bu dakikalar sürebilir; işlem arka '
-                              'planda koşar. Cihaz bu videoyu hiç '
-                              'çeviremezse yedek motora düşülür: orada kare '
-                              'sayısı seçimi uygulanamaz ve “Değiştirme” '
-                              'dışındaki çözünürlükler en yakın kademeye '
-                              'yuvarlanır.',
+                              context.t('rs.video_note'),
                               style: theme.textTheme.bodySmall,
                             ),
                           ),
@@ -311,9 +298,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       value: _options.removeAudio,
                       onChanged: (v) => setState(
                           () => _options = _options.copyWith(removeAudio: v)),
-                      title: const Text('Sesi çıkar'),
-                      subtitle: const Text('Ses kaydı olmayan videolarda '
-                          'belirgin yer kazandırır.'),
+                      title: Text(context.t('rs.strip_audio')),
+                      subtitle: Text(context.t('rs.strip_audio_sub')),
                     ),
                   ],
                   const Divider(height: Gap.lg),
@@ -322,10 +308,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     value: _options.replaceOriginal,
                     onChanged: (v) => setState(() =>
                         _options = _options.copyWith(replaceOriginal: v)),
-                    title: const Text('Özgün dosyayı çöp kutusuna at'),
-                    subtitle: const Text(
-                        'Kapalıyken küçültülmüş kopya aynı klasöre yeni bir '
-                        'dosya olarak yazılır, aslına dokunulmaz.'),
+                    title: Text(context.t('rs.trash_original')),
+                    subtitle: Text(context.t('rs.trash_original_sub')),
                   ),
                   const SizedBox(height: Gap.sm),
                   Text(
@@ -333,11 +317,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     // kullanıcı hatası 2026-07-30 ("nereye gitti, nereden
                     // açacağım bilinmiyor") önce burada karşılanıyor, sonra
                     // İşlemler ekranında.
-                    'İşlem arka planda kuyrukta çalışır; başka ekranlara '
-                    'geçebilirsin. Uygulamayı tamamen kapatırsan durur. '
-                    'Küçültülen dosya özgün dosyanın yanına kaydedilir; '
-                    'sonucu ve oluşan dosyaları ana ekrandaki “İşlemler” '
-                    'kutusundan açabilirsin.',
+                    context.t('rs.queue_note'),
                     style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: Gap.md),
@@ -352,7 +332,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Vazgeç'),
+                      child: Text(context.t('common.cancel')),
                     ),
                   ),
                   const SizedBox(width: Gap.sm),
@@ -361,7 +341,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       onPressed: _valid
                           ? () => Navigator.pop(context, _options)
                           : null,
-                      child: const Text('Başlat'),
+                      child: Text(context.t('rs.start')),
                     ),
                   ),
                 ],

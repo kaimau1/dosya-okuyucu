@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../services/perspective.dart';
 import 'scan_edit_screen.dart';
 
@@ -64,7 +65,8 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Döndürülemedi: $e')));
+            .showSnackBar(SnackBar(
+                content: Text(context.t('sr.rotate_failed', {'error': e}))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -74,7 +76,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   void _removeCurrent() {
     if (_pages.length <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Son sayfa silinemez — taramayı iptal edin.')),
+        SnackBar(content: Text(context.t('sr.last_page'))),
       );
       return;
     }
@@ -93,12 +95,12 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         title: Text('Sayfa ${_index + 1} / ${_pages.length}'),
         actions: [
           IconButton(
-            tooltip: 'Sayfayı çevir (90°)',
+            tooltip: context.t('sr.rotate_page'),
             icon: const Icon(Icons.rotate_right),
             onPressed: _busy ? null : _rotate,
           ),
           IconButton(
-            tooltip: 'Bu sayfayı sil',
+            tooltip: context.t('sr.delete_page'),
             icon: const Icon(Icons.delete_outline),
             onPressed: _busy ? null : _removeCurrent,
           ),
@@ -118,21 +120,21 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                   child: Image.file(
                     File(_pages[i]),
                     key: ValueKey(_pages[i]),
-                    errorBuilder: (_, __, ___) => const Text(
-                      'Sayfa görüntülenemedi',
-                      style: TextStyle(color: Colors.white),
+                    errorBuilder: (_, __, ___) => Text(
+                      context.t('sr.page_failed'),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Text(
-              'Sayfa yamuk ya da fazla yer kaptıysa köşeleri düzeltin.',
+              context.t('sr.crop_hint'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ),
         ],
@@ -146,7 +148,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _busy ? null : _editCorners,
                   icon: const Icon(Icons.crop_free),
-                  label: const Text('Köşeleri ayarla'),
+                  label: Text(context.t('sr.adjust_corners')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -154,7 +156,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                 child: FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(_pages),
                   icon: const Icon(Icons.check),
-                  label: const Text('Devam'),
+                  label: Text(context.t('dl.continue')),
                 ),
               ),
             ],

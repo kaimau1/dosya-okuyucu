@@ -1,3 +1,4 @@
+import '../../core/l10n/app_strings.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -32,10 +33,10 @@ Future<bool> startResizeJob(
         e,
   ];
   final messenger = ScaffoldMessenger.of(context);
+  // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+  final str = AppStrings.of(context);
   if (media.isEmpty) {
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Boyut düşürme yalnız fotoğraf ve videolarda '
-            'yapılabilir.')));
+    messenger.showSnackBar(SnackBar(content: Text(str.t('ra.media_only'))));
     return false;
   }
 
@@ -62,8 +63,8 @@ Future<bool> startResizeJob(
   final job = JobQueue.instance.enqueue(
     id: id,
     title: media.length == 1
-        ? 'Boyut düşürülüyor: ${media.first.name}'
-        : '${media.length} dosyanın boyutu düşürülüyor',
+        ? str.t('ra.job_one', {'name': media.first.name})
+        : str.t('ra.job_many', {'n': media.length}),
     total: media.length,
     run: (handle) => _run(media, options, handle),
   );
@@ -73,15 +74,11 @@ Future<bool> startResizeJob(
   // Nereden takip edileceği YAZILIR: kullanıcı hatası 2026-07-30 — "nerede ne
   // oluyor göremiyorum". Şerit + ana ekrandaki İşlemler kutusu, ikisi de.
   messenger.showSnackBar(SnackBar(
-      content: Text(alreadyRunning
-          ? 'Bu işlem zaten sürüyor. Durumu alttaki şeritten ya da '
-              '“İşlemler” ekranından izleyebilirsin.'
+      content: Text(str.t(alreadyRunning
+          ? 'ra.already_running'
           : job.status == JobStatus.queued && JobQueue.instance.hasActive
-              ? 'İşlem kuyruğa alındı; süren iş bitince başlayacak. '
-                  'Durumu “İşlemler” ekranından izleyebilirsin.'
-              : 'İşlem arka planda başladı. Durumu ve oluşan dosyaları '
-                  'alttaki şeritten ya da “İşlemler” ekranından '
-                  'görebilirsin.')));
+              ? 'ra.queued'
+              : 'ra.started'))));
   return true;
 }
 
@@ -203,24 +200,28 @@ Future<void> _run(
     // arar durumda bırakıyordu (kullanıcı hatası 2026-07-30). Çıktı her zaman
     // özgün dosyanın yanına gider; tek klasörse adı yazılır.
     final outputDirs = {for (final o in handle.outputs) p.dirname(o)};
+    // İş kuyrukta, `context` yok → uygulama genelindeki dil okunur.
+    final str = AppStrings.current;
     final parts = <String>[
       if (savedBytes > 0)
-        '${FsPaths.humanSize(savedBytes)} kazanıldı'
+        str.t('ra.saved_bytes', {'size': FsPaths.humanSize(savedBytes)})
       else
-        'Kazanç olmadı',
+        str.t('ra.no_gain'),
       if (outputDirs.length == 1)
-        'Kaydedildi: ${p.basename(outputDirs.first)}'
+        str.t('ra.saved_into', {'name': p.basename(outputDirs.first)})
       else if (outputDirs.length > 1)
-        '${outputDirs.length} klasöre kaydedildi',
-      if (failed > 0) '$failed dosya küçültülemedi',
+        str.t('ra.saved_to', {'n': outputDirs.length}),
+      if (failed > 0) str.t('ra.failed_count', {'n': failed}),
       // Kaç özgün dosya GERÇEKTEN çöpe gitti: kullanıcı bunu bilmeli, hele
       // iptalde (10 dosyanın 4'ü işlendiyse 4 özgün çöpte, 6'sı yerinde).
-      if (replaced.isNotEmpty) '${replaced.length} özgün çöp kutusunda',
+      if (replaced.isNotEmpty)
+        str.t('ra.originals_trashed', {'n': replaced.length}),
       if (keptFrameLosing > 0)
-        '$keptFrameLosing hareketli/çok sayfalı dosyanın aslı korundu',
+        str.t('ra.frame_losing_kept', {'n': keptFrameLosing}),
       // İptalde sayılar yarımdır; "kaç dosyada kaldı" bilgisi olmadan
       // kullanıcı kalanların işlenip işlenmediğini bilemez.
-      if (handle.cancelled) 'durduruldu ($done/${media.length})',
+      if (handle.cancelled)
+        str.t('ra.stopped_at', {'n': done, 'total': media.length}),
     ];
     handle.report(detail: parts.join(' · '));
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../services/conversion_service.dart';
 import '../services/gemini_service.dart';
@@ -53,14 +54,14 @@ class PdfAiEditScreen extends StatefulWidget {
   State<PdfAiEditScreen> createState() => _PdfAiEditScreenState();
 }
 
-/// Hazır yönergeler — en sık istenen dört düzenleme. Serbest metin de yazılabilir.
+/// Hazır yönergeler — en sık istenen dört düzenleme. Serbest metin de
+/// yazılabilir. Çift: (etiket anahtarı, **AI'ya gidecek istem** anahtarı);
+/// ikisi de arayüz diliyle çözülür, yoksa Arapça arayüzde Türkçe istem giderdi.
 const _presets = <(String, String)>[
-  ('Yazım/dil bilgisi düzelt', 'Metindeki yazım ve dil bilgisi hatalarını '
-      'düzelt. Anlamı ve üslubu değiştirme, cümleleri yeniden kurma.'),
-  ('Sadeleştir', 'Metni daha kısa ve anlaşılır hâle getir. Bilgi kaybetme, '
-      'gereksiz tekrarları ve dolgu ifadeleri at.'),
-  ('Özetle', 'Metni ana başlıklar ve maddeler hâlinde özetle.'),
-  ('Resmî dile çevir', 'Metni resmî yazışma diline uygun hâle getir.'),
+  ('pa.preset_grammar', 'pa.preset_grammar_prompt'),
+  ('pa.preset_simplify', 'pa.preset_simplify_prompt'),
+  ('pa.preset_summary', 'pa.preset_summary_prompt'),
+  ('pa.preset_formal', 'pa.preset_formal_prompt'),
 ];
 
 class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
@@ -84,19 +85,20 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
   Future<void> _run() async {
     final state = context.read<AppState>();
     if (!state.hasApiKey) {
-      setState(() => _error =
-          'Önce Ayarlar > Gemini API anahtarı bölümünden anahtarınızı girin.');
+      setState(() => _error = context.t('pa.need_key'));
       return;
     }
     final task = _instruction.text.trim();
     if (task.isEmpty) {
-      setState(() => _error = 'Ne yapılmasını istediğinizi yazın ya da seçin.');
+      setState(() => _error = context.t('pa.need_task'));
       return;
     }
     setState(() {
       _busy = true;
       _error = null;
     });
+    // İstem await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final prompt = context.t('pa.prompt', {'task': task});
     try {
       final gemini =
           GeminiService(apiKey: state.apiKey, model: state.model);
@@ -104,11 +106,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
         history: [
           ChatTurn(
             fromUser: true,
-            text: 'Aşağıdaki belgenin metnini şu yönergeye göre yeniden yaz:\n'
-                '"$task"\n\n'
-                'ÇOK ÖNEMLİ: yalnızca düzenlenmiş metni döndür. Açıklama, '
-                'giriş cümlesi, "işte metin" gibi ifadeler ve kod bloğu '
-                'işaretleri EKLEME.',
+            text: prompt,
           ),
         ],
         fileContext: widget.sourceText,
@@ -125,6 +123,8 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
   Future<void> _save() async {
     final text = _result.text.trim();
     if (text.isEmpty) return;
+    // Not await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final note = context.t('pa.save_note');
     setState(() => _busy = true);
     try {
       final bytes = await _conversion.textToPdf(widget.fileName, text);
@@ -134,8 +134,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
         context,
         originalPath: widget.path,
         bytes: bytes,
-        note: 'Yeni PDF düz metinden üretilir: özgün belgenin sayfa düzeni '
-            '(sütun, tablo, logo, imza) KORUNMAZ.',
+        note: note,
       );
       if (outcome == null || !mounted) return;
       Navigator.of(context).pop(outcome.overwritten);
@@ -152,42 +151,40 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI ile düzenle'),
+        title: Text(context.t('vw.ai_edit')),
         actions: [
           IconButton(
-            tooltip: 'PDF olarak kaydet',
+            tooltip: context.t('pa.save_pdf'),
             icon: const Icon(Icons.save_outlined),
             onPressed: _hasResult && !_busy ? _save : null,
           ),
         ],
       ),
       body: widget.sourceText.trim().isEmpty
-          ? const Center(
+          ? Center(
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'Bu belgede okunabilir metin yok (taranmış olabilir).\n'
-                  'Önce ⋮ menüsünden "Metni tanı (OCR)" çalıştırın.',
-                  textAlign: TextAlign.center,
-                ),
+                padding: const EdgeInsets.all(24),
+                child: Text(context.t('pa.no_text'),
+                    textAlign: TextAlign.center),
               ),
             )
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                Text('Ne yapılsın?',
+                Text(context.t('pa.what'),
                     style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 4,
                   children: [
-                    for (final (label, prompt) in _presets)
+                    for (final (labelKey, promptKey) in _presets)
                       ActionChip(
-                        label: Text(label),
+                        label: Text(context.t(labelKey)),
                         onPressed: _busy
                             ? null
-                            : () => setState(() => _instruction.text = prompt),
+                            : () => setState(
+                                () => _instruction.text = context.t(promptKey)),
                       ),
                   ],
                 ),
@@ -196,9 +193,9 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
                   controller: _instruction,
                   minLines: 2,
                   maxLines: 4,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Örn. "Başlıkları numaralandır ve maddeleri kısalt"',
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    hintText: context.t('pa.hint'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -210,7 +207,8 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.auto_fix_high),
-                  label: Text(_busy ? 'Çalışıyor…' : 'AI ile düzenle'),
+                  label: Text(
+                      context.t(_busy ? 'pa.working' : 'vw.ai_edit')),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
@@ -221,11 +219,11 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Text('Sonuç',
+                    Text(context.t('pa.result'),
                         style: Theme.of(context).textTheme.titleSmall),
                     const Spacer(),
                     if (_hasResult)
-                      Text('elle düzenlenebilir',
+                      Text(context.t('pa.editable'),
                           style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
@@ -235,18 +233,14 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
                   minLines: 10,
                   maxLines: 30,
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'AI çıktısı burada görünecek…',
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    hintText: context.t('pa.result_hint'),
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Kaydederken üretilen PDF düz metindir: özgün sayfa düzeni '
-                  '(sütun, tablo, logo) korunmaz. Özgün belgeyi bozmamak için '
-                  '"Kopyasını kaydet"i seçin.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text(context.t('pa.footer'),
+                    style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
     );

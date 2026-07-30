@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../services/gemini_service.dart';
 
 /// Seçili parça üzerinde en sık istenen düzeltmeler.
+///
+/// Çift: (etiket anahtarı, **AI'ya gidecek istem** anahtarı); ikisi de arayüz
+/// diliyle çözülür, yoksa Arapça arayüzde Türkçe istem giderdi.
 const _presets = <(String, String)>[
-  ('Yazımı düzelt', 'Bu metindeki yazım ve dil bilgisi hatalarını düzelt. '
-      'Anlamı ve üslubu koru, uzunluğu mümkün olduğunca aynı tut.'),
-  ('Kısalt', 'Bu metni anlamını kaybetmeden belirgin biçimde kısalt.'),
-  ('Sadeleştir', 'Bu metni daha anlaşılır ve sade bir dille yeniden yaz.'),
-  ('Resmîleştir', 'Bu metni resmî yazışma diline uygun hâle getir.'),
+  ('aw.preset_fix', 'aw.preset_fix_prompt'),
+  ('aw.preset_shorten', 'aw.preset_shorten_prompt'),
+  ('aw.preset_simplify', 'aw.preset_simplify_prompt'),
+  ('aw.preset_formal', 'aw.preset_formal_prompt'),
 ];
 
 /// Seçili metni AI ile yeniden yazdırır; sonucu döndürür (vazgeçilirse null).
@@ -50,30 +53,28 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
   Future<void> _run() async {
     final state = context.read<AppState>();
     if (!state.hasApiKey) {
-      setState(() => _error =
-          'Önce Ayarlar > Gemini API anahtarı bölümünden anahtarınızı girin.');
+      setState(() => _error = context.t('aia.need_key'));
       return;
     }
     final task = _instruction.text.trim();
     if (task.isEmpty) {
-      setState(() => _error = 'Ne yapılmasını istediğinizi yazın ya da seçin.');
+      setState(() => _error = context.t('pa.need_task'));
       return;
     }
     setState(() {
       _busy = true;
       _error = null;
     });
+    // İstem await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final prompt =
+        context.t('aw.prompt', {'task': task, 'text': widget.text});
     try {
       final answer =
           await GeminiService(apiKey: state.apiKey, model: state.model).chat(
         history: [
           ChatTurn(
             fromUser: true,
-            text: 'Aşağıdaki metni şu yönergeye göre yeniden yaz: "$task"\n\n'
-                'Metin:\n"""\n${widget.text}\n"""\n\n'
-                'ÇOK ÖNEMLİ: yalnızca yeni metni döndür. Açıklama, tırnak, '
-                'giriş cümlesi ya da kod bloğu işareti EKLEME. Metin bir PDF '
-                'sayfasındaki dar bir satıra sığacak; gereksiz uzatma.',
+            text: prompt,
           ),
         ],
       );
@@ -98,7 +99,7 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('AI ile düzelt',
+            Text(context.t('aw.title'),
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(widget.text,
@@ -110,12 +111,13 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
               spacing: 8,
               runSpacing: 4,
               children: [
-                for (final (label, prompt) in _presets)
+                for (final (labelKey, promptKey) in _presets)
                   ActionChip(
-                    label: Text(label),
+                    label: Text(context.t(labelKey)),
                     onPressed: _busy
                         ? null
-                        : () => setState(() => _instruction.text = prompt),
+                        : () => setState(
+                            () => _instruction.text = context.t(promptKey)),
                   ),
               ],
             ),
@@ -124,9 +126,9 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
               controller: _instruction,
               minLines: 1,
               maxLines: 3,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Örn. "daha kibar bir dille yaz"',
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: context.t('aw.hint'),
               ),
             ),
             if (_error != null) ...[
@@ -140,7 +142,7 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
               children: [
                 TextButton(
                   onPressed: _busy ? null : () => Navigator.pop(context),
-                  child: const Text('Vazgeç'),
+                  child: Text(context.t('common.cancel')),
                 ),
                 const SizedBox(width: 8),
                 FilledButton.icon(
@@ -151,7 +153,8 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.auto_fix_high),
-                  label: Text(_busy ? 'Çalışıyor…' : 'Uygula'),
+                  label: Text(
+                      context.t(_busy ? 'aw.working' : 'common.apply')),
                 ),
               ],
             ),

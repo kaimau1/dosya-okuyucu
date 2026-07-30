@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/signature_pad.dart';
@@ -82,6 +83,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
         rect: rect,
       );
       if (!mounted) return;
+      final note = context.t('sg.note');
       setState(() => _busy = false);
       // İmza atmak geri alınamaz bir yazma: özgün belgeyi korumak isteyene
       // kopya/klasör seçme yolu açık (2026-07-26 isteği).
@@ -89,7 +91,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
         context,
         originalPath: widget.path,
         bytes: out,
-        note: 'İmza belgeye kalıcı olarak basılacak.',
+        note: note,
       );
       if (outcome == null || !mounted) return;
       // Yalnız üzerine yazıldıysa açık görüntüleyici tazelenmeli.
@@ -97,7 +99,8 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('İmzalanamadı: $e')));
+            .showSnackBar(SnackBar(
+                content: Text(AppStrings.current.t('sg.failed', {'error': e}))));
         setState(() => _busy = false);
       }
     }
@@ -111,11 +114,12 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
         final pages = document?.pages;
         return Scaffold(
           appBar: AppBar(
-            title: Text('İmzala — ${p.basename(widget.path)}',
+            title: Text(
+                context.t('sg.title', {'name': p.basename(widget.path)}),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             actions: [
               IconButton(
-                tooltip: 'İmzayı yeniden çiz',
+                tooltip: context.t('sg.redraw'),
                 icon: const Icon(Icons.gesture),
                 onPressed: _busy ? null : _drawSignature,
               ),
@@ -214,7 +218,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
         child: Row(
           children: [
             IconButton(
-              tooltip: 'Önceki sayfa',
+              tooltip: context.t('sg.prev_page'),
               icon: const Icon(Icons.chevron_left),
               onPressed:
                   _page == 0 ? null : () => setState(() => _page -= 1),

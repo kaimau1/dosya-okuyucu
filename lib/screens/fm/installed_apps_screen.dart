@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../core/theme.dart';
 import '../../services/fm/fs_scan.dart';
@@ -53,10 +54,8 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
     final granted = await InstalledAppsService.requestUsagePermission();
     if (!mounted) return;
     if (!granted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Açılan ayar sayfasından “Dosya Okuyucu”ya izin verip geri dönün, '
-            'sonra tekrar deneyin.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.t('ia.permission_hint')),
       ));
     }
     await _load();
@@ -117,17 +116,17 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
-                  value: 'idle', child: Text('En uzun kullanılmayan önce')),
-              const PopupMenuItem(value: 'name', child: Text('Ada göre')),
-              const PopupMenuItem(
-                  value: 'installed', child: Text('Kurulum tarihine göre')),
+              PopupMenuItem(
+                  value: 'idle', child: Text(context.t('apps.sort_idle'))),
+              PopupMenuItem(value: 'name', child: Text(context.t('apps.sort_name'))),
+              PopupMenuItem(
+                  value: 'installed', child: Text(context.t('apps.sort_installed'))),
               const PopupMenuDivider(),
               PopupMenuItem(
                 value: 'system',
                 child: Text(_showSystem
-                    ? 'Sistem uygulamalarını gizle'
-                    : 'Sistem uygulamalarını göster'),
+                    ? context.t('apps.hide_system')
+                    : context.t('apps.show_system')),
               ),
             ],
           ),
@@ -157,7 +156,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
                           style: Theme.of(context).textTheme.bodySmall),
                       const Spacer(),
                       if (_usageKnown)
-                        Text('Renk = kullanılmama süresi',
+                        Text(context.t('apps.color_legend'),
                             style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
@@ -165,7 +164,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
                 const Divider(height: 1),
                 Expanded(
                   child: apps.isEmpty
-                      ? const Center(child: Text('Uygulama bulunamadı'))
+                      ? Center(child: Text(context.t('apps.not_found')))
                       : ListView.builder(
                           itemCount: apps.length,
                           itemBuilder: (context, i) => _row(apps[i], now),
@@ -189,23 +188,21 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
                     const Icon(Icons.query_stats),
                     const SizedBox(width: Gap.sm),
                     Expanded(
-                      child: Text('Son açılma tarihleri için izin gerekli',
+                      child: Text(context.t('apps.usage_needed'),
                           style: Theme.of(context).textTheme.titleSmall),
                     ),
                   ],
                 ),
                 const SizedBox(height: Gap.xs),
-                const Text(
-                  'Android’in “Kullanım erişimi” iznini verirsen hangi '
-                  'uygulamayı en son ne zaman açtığın görünür ve uzun süredir '
-                  'kullanılmayanlar renklenir. Veri cihazdan çıkmaz.',
+                Text(
+                  context.t('apps.usage_body'),
                 ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: FilledButton.tonalIcon(
                     onPressed: _grant,
                     icon: const Icon(Icons.settings),
-                    label: const Text('İzin ver'),
+                    label: Text(context.t('fm.permission_grant')),
                   ),
                 ),
               ],
@@ -279,13 +276,13 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
     return switch (level) {
       AppIdleLevel.active => (
           const Color(0xFF2E7D32),
-          idle == 0 ? 'bugün' : '$idle gün önce'
+          idle == 0 ? context.t('apps.today') : context.t('apps.days_ago', {'n': idle})
         ),
-      AppIdleLevel.quiet => (const Color(0xFF827717), '$idle gün önce'),
-      AppIdleLevel.stale => (const Color(0xFFEF6C00), '$idle gün önce'),
+      AppIdleLevel.quiet => (const Color(0xFF827717), context.t('apps.days_ago', {'n': idle})),
+      AppIdleLevel.stale => (const Color(0xFFEF6C00), context.t('apps.days_ago', {'n': idle})),
       AppIdleLevel.forgotten => (
           scheme.error,
-          idle == null ? 'hiç açılmadı' : '$idle gün önce'
+          idle == null ? context.t('apps.never_opened') : context.t('apps.days_ago', {'n': idle})
         ),
       AppIdleLevel.unknown => (scheme.onSurfaceVariant, '—'),
     };
@@ -306,18 +303,18 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.open_in_new),
-              title: const Text('Aç'),
+              title: Text(context.t('common.open')),
               onTap: () => Navigator.pop(ctx, 'open'),
             ),
             ListTile(
               leading: const Icon(Icons.info_outline),
-              title: const Text('Uygulama bilgisi (sistem ayarı)'),
+              title: Text(context.t('apps.app_info')),
               onTap: () => Navigator.pop(ctx, 'settings'),
             ),
             ListTile(
               leading: Icon(Icons.delete_outline,
                   color: Theme.of(ctx).colorScheme.error),
-              title: Text('Kaldır',
+              title: Text(context.t('apps.uninstall'),
                   style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
               onTap: () => Navigator.pop(ctx, 'uninstall'),
             ),

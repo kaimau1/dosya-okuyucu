@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
@@ -56,6 +57,12 @@ class PdfEditorScreen extends StatefulWidget {
 enum _EditMode { text, image, background, page }
 
 class _PdfEditorScreenState extends State<PdfEditorScreen> {
+  /// Bu ekranın mesajları uzun asenkron işlerin **içinden** üretiliyor
+  /// (`_run`, `_apply`, `catch` dalları); orada `context` kullanmak
+  /// `use_build_context_synchronously` demektir. Dil uygulama genelinde tek
+  /// olduğu için statik olan okunur. Doğrudan çizilen parçalarda `context.t`.
+  AppStrings get _str => AppStrings.current;
+
   final _controller = PdfViewerController();
 
   /// Çalışma kopyası — özgün dosyaya kaydedene kadar hiç dokunulmaz.
@@ -114,7 +121,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       });
       await _loadOutline();
     } catch (e) {
-      if (mounted) setState(() => _error = 'Belge hazırlanamadı: $e');
+      if (mounted) {
+        setState(() => _error = _str.t('pe.prepare_failed', {'error': e}));
+      }
     }
   }
 
@@ -141,7 +150,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       _snack(e.message);
     } catch (e) {
       if (mounted) setState(() => _outline = PdfPageOutline.empty);
-      _snack('Sayfa çözümlenemedi: $e');
+      _snack(_str.t('pe.outline_failed', {'error': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -160,7 +169,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     } on PdfPageRefused catch (e) {
       _snack(e.message);
     } catch (e) {
-      _snack('Arka plan öğeleri taranamadı: $e');
+      _snack(_str.t('pe.background_failed', {'error': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -192,7 +201,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     if (!mounted) return;
     setState(() => _dirty = _undo.isNotEmpty);
     await _loadOutline();
-    if (mounted) _snack('Geri alındı');
+    if (mounted) _snack(_str.t('pe.undone'));
   }
 
   // ── İşlemler ──────────────────────────────────────────────────────────────
@@ -211,13 +220,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         paragraphIndex: index,
         newText: newText.trim(),
       );
-      await _apply(out, 'Paragraf güncellendi');
+      await _apply(out, _str.t('pe.paragraph_updated'));
     });
   }
 
   Future<void> _deleteObject(int index) async {
-    final ok = await _confirm('Görseli sil',
-        'Bu görsel sayfadan kaldırılacak. Geri al ile döndürebilirsiniz.');
+    final ok =
+        await _confirm(_str.t('pe.delete_image'), _str.t('pe.delete_image_body'));
     if (ok != true) return;
     await _run(() async {
       final out = await PdfPageEdit.deleteObjectInBackground(
@@ -225,7 +234,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         pageIndex: _page - 1,
         objectIndex: index,
       );
-      await _apply(out, 'Görsel silindi');
+      await _apply(out, _str.t('pe.image_deleted'));
     });
   }
 
@@ -240,19 +249,19 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         width: pageRect.width.abs(),
         height: pageRect.height.abs(),
       );
-      await _apply(out, 'Görsel taşındı');
+      await _apply(out, _str.t('pe.image_moved'));
     });
   }
 
   Future<void> _removeBackground() async {
     if (_backgroundPicked.isEmpty) {
-      _snack('Kaldırılacak öğe seçin');
+      _snack(_str.t('pe.pick_to_remove'));
       return;
     }
     await _run(() async {
       final out = await PdfPageEdit.removeBackgroundInBackground(
           await _workBytes(), {..._backgroundPicked});
-      await _apply(out, 'Seçilen öğeler kaldırıldı');
+      await _apply(out, _str.t('pe.items_removed'));
       await _loadBackground();
     });
   }
@@ -264,7 +273,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         pageIndexes: [_page - 1],
         quarterTurns: quarterTurns,
       );
-      await _apply(out, 'Sayfa döndürüldü');
+      await _apply(out, _str.t('pe.page_rotated'));
     });
   }
 
@@ -287,7 +296,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     } on PdfParagraphRefused catch (e) {
       _longSnack(e.message);
     } catch (e) {
-      _longSnack('İşlem yapılamadı: $e');
+      _longSnack(_str.t('pe.op_failed', {'error': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -302,18 +311,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     final unlock = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Belge korumalı'),
-        content: const Text(
-            'Bu belge düzenlemeye karşı kilitli ama parola sormadan açılıyor '
-            '(izin kilidi). Korumayı kaldırıp düzenleyelim mi?\n\n'
-            'Özgün dosyanız değişmez; koruma yalnız düzenlenen kopyada kalkar.'),
+        title: Text(ctx.t('pe.protected_title')),
+        content: Text(ctx.t('pe.protected_body')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Korumayı kaldır')),
+              child: Text(ctx.t('pe.remove_protection'))),
         ],
       ),
     );
@@ -324,12 +330,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         await _workBytes(),
         currentPassword: '',
       );
-      await _apply(unlocked, 'Koruma kaldırıldı');
+      await _apply(unlocked, _str.t('pe.protection_removed'));
       await body();
       return true;
     } catch (e) {
-      _longSnack('Belgenin şifre koruması kaldırılamadı: $e\n\n'
-          'Gerçek bir parola varsa PDF araçlarından kaldırıp yeniden deneyin.');
+      _longSnack(_str.t('pe.unlock_failed', {'error': e}));
       return true; // mesaj verildi; çağıran ikinci kez göstermesin
     }
   }
@@ -344,7 +349,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       context,
       originalPath: widget.path,
       bytes: bytes,
-      note: 'Düzenlenmiş belgeyi nereye kaydedelim?',
+      note: _str.t('pe.save_note'),
     );
     if (outcome == null) return false;
     if (mounted) setState(() => _dirty = false);
@@ -356,19 +361,18 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Kaydedilmemiş değişiklikler'),
-        content: const Text(
-            'Yaptığınız düzenlemeler henüz kaydedilmedi. Ne yapalım?'),
+        title: Text(ctx.t('pe.unsaved_title')),
+        content: Text(ctx.t('pe.unsaved_body')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, 'cancel'),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, 'discard'),
-              child: const Text('Kaydetme, çık')),
+              child: Text(ctx.t('pe.discard_leave'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, 'save'),
-              child: const Text('Kaydet')),
+              child: Text(ctx.t('common.save'))),
         ],
       ),
     );
@@ -496,17 +500,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   /// Kullanıcı ne yapacağını bilsin: her modda tek cümlelik yönerge.
   Widget _hintBar() {
-    final text = switch (_mode) {
+    final text = context.t(switch (_mode) {
       _EditMode.text => _outline.paragraphs.isEmpty
-          ? 'Bu sayfada düzenlenebilir metin bulunamadı (taranmış sayfa olabilir).'
-          : 'Değiştirmek istediğiniz paragrafa dokunun.',
-      _EditMode.image => _outline.objects.isEmpty
-          ? 'Bu sayfada gömülü görsel yok.'
-          : 'Görsele dokunup seçin; sürükleyerek taşıyın, köşeden boyutlandırın.',
-      _EditMode.background =>
-        'Her sayfada yinelenen öğeler aşağıda. Kaldırmak istediklerinizi seçin.',
-      _EditMode.page => 'Açık sayfayı döndürün.',
-    };
+          ? 'pe.hint_text_none'
+          : 'pe.hint_text',
+      _EditMode.image =>
+        _outline.objects.isEmpty ? 'pe.hint_image_none' : 'pe.hint_image',
+      _EditMode.background => 'pe.hint_background',
+      _EditMode.page => 'pe.hint_page',
+    });
     return Container(
       width: double.infinity,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -536,13 +538,19 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             _loadBackground();
           }
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-              icon: Icon(Icons.text_fields), label: 'Metin'),
-          NavigationDestination(icon: Icon(Icons.image_outlined), label: 'Görsel'),
-          NavigationDestination(icon: Icon(Icons.layers_clear), label: 'Filigran'),
+              icon: const Icon(Icons.text_fields),
+              label: context.t('pe.mode_text')),
           NavigationDestination(
-              icon: Icon(Icons.rotate_90_degrees_cw), label: 'Sayfa'),
+              icon: const Icon(Icons.image_outlined),
+              label: context.t('pe.mode_image')),
+          NavigationDestination(
+              icon: const Icon(Icons.layers_clear),
+              label: context.t('pe.mode_watermark')),
+          NavigationDestination(
+              icon: const Icon(Icons.rotate_90_degrees_cw),
+              label: context.t('pe.mode_page')),
         ],
       );
 
@@ -558,12 +566,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             TextButton.icon(
               onPressed: _busy ? null : () => _deleteObject(index),
               icon: const Icon(Icons.delete_outline),
-              label: const Text('Sil'),
+              label: Text(context.t('common.delete')),
             ),
             TextButton.icon(
               onPressed: () => setState(() => _selectedObject = null),
               icon: const Icon(Icons.close),
-              label: const Text('Seçimi bırak'),
+              label: Text(context.t('pe.clear_selection')),
             ),
           ],
         ),
@@ -581,12 +589,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               TextButton.icon(
                 onPressed: _busy ? null : () => _rotate(-1),
                 icon: const Icon(Icons.rotate_90_degrees_ccw),
-                label: const Text('90° sola'),
+                label: Text(context.t('pe.rot_left')),
               ),
               TextButton.icon(
                 onPressed: _busy ? null : () => _rotate(1),
                 icon: const Icon(Icons.rotate_90_degrees_cw),
-                label: const Text('90° sağa'),
+                label: Text(context.t('pe.rot_right')),
               ),
             ],
           ),
@@ -598,10 +606,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_background.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('Yinelenen arka plan öğesi bulunamadı.',
+          padding: const EdgeInsets.all(24),
+          child: Text(context.t('pe.no_background'),
               textAlign: TextAlign.center),
         ),
       );
@@ -639,7 +647,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             child: FilledButton.icon(
               onPressed: _busy ? null : _removeBackground,
               icon: const Icon(Icons.layers_clear),
-              label: Text('Seçilenleri kaldır (${_backgroundPicked.length})'),
+              label: Text(context.t(
+                  'pe.remove_picked', {'n': _backgroundPicked.length})),
             ),
           ),
         ),
@@ -659,13 +668,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Paragrafı düzenle'),
+        title: Text(ctx.t('pe.edit_paragraph')),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Şu anki metin',
+              Text(ctx.t('pe.current_text'),
                   style: Theme.of(ctx).textTheme.labelMedium),
               const SizedBox(height: 4),
               Container(
@@ -687,10 +696,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 autofocus: true,
                 maxLines: 8,
                 minLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Yeni metin',
-                  helperText: 'Yazı tipi, punto ve sayfa düzeni korunur.',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: ctx.t('pe.new_text'),
+                  helperText: ctx.t('pe.new_text_help'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -699,10 +708,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Uygula'),
+            child: Text(ctx.t('common.apply')),
           ),
         ],
       ),
@@ -717,10 +726,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Vazgeç')),
+                child: Text(ctx.t('common.cancel'))),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Sil')),
+                child: Text(ctx.t('common.delete'))),
           ],
         ),
       );

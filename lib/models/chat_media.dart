@@ -34,6 +34,18 @@ enum ChatMediaKind {
 }
 
 extension ChatMediaKindLabel on ChatMediaKind {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        ChatMediaKind.image => 'enum.chat_image',
+        ChatMediaKind.video => 'enum.chat_video',
+        ChatMediaKind.document => 'enum.chat_document',
+        ChatMediaKind.audio => 'enum.chat_audio',
+        ChatMediaKind.voice => 'enum.chat_voice',
+        ChatMediaKind.sticker => 'enum.chat_sticker',
+        ChatMediaKind.gif => 'enum.chat_gif',
+        ChatMediaKind.other => 'enum.chat_other',
+      };
+
   String get label => switch (this) {
         ChatMediaKind.image => 'Görüntü',
         ChatMediaKind.video => 'Video',
@@ -50,6 +62,13 @@ extension ChatMediaKindLabel on ChatMediaKind {
 enum ChatDirection { any, received, sent }
 
 extension ChatDirectionLabel on ChatDirection {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        ChatDirection.any => 'enum.chat_dir_any',
+        ChatDirection.received => 'enum.chat_dir_received',
+        ChatDirection.sent => 'enum.chat_dir_sent',
+      };
+
   String get label => switch (this) {
         ChatDirection.any => 'Hepsi',
         ChatDirection.received => 'Bana gelenler',

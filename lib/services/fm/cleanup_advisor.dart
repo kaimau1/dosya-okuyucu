@@ -7,8 +7,14 @@ import 'fs_scan.dart';
 class CleanupSuggestion {
   /// Kalıcı kimlik (arayüzde seçim durumu bunun üstünden tutulur).
   final String id;
-  final String title;
-  final String detail;
+
+  /// Başlığın **çeviri anahtarı** — bu dosya saf Dart (birim testli) ve
+  /// `AppStrings`'i tanımaz; metni ekran çözer: `context.t(s.titleKey)`.
+  final String titleKey;
+
+  /// Ayrıntının çeviri anahtarı ve içindeki `{…}` değişkenleri.
+  final String detailKey;
+  final Map<String, Object?> detailVars;
 
   /// Kazanılacak yer.
   final int bytes;
@@ -24,8 +30,9 @@ class CleanupSuggestion {
 
   const CleanupSuggestion({
     required this.id,
-    required this.title,
-    required this.detail,
+    required this.titleKey,
+    required this.detailKey,
+    this.detailVars = const {},
     required this.bytes,
     this.files = const [],
     this.safeByDefault = false,
@@ -54,8 +61,9 @@ List<CleanupSuggestion> adviseCleanup({
   if (trashCount > 0) {
     out.add(CleanupSuggestion(
       id: 'trash',
-      title: 'Çöp kutusunu boşalt',
-      detail: '$trashCount öğe · zaten silinmiş dosyalar',
+      titleKey: 'clean.trash',
+      detailKey: 'clean.trash_detail',
+      detailVars: {'n': trashCount},
       bytes: trashBytes,
       safeByDefault: true,
     ));
@@ -77,8 +85,9 @@ List<CleanupSuggestion> adviseCleanup({
     if (extras.isNotEmpty) {
       out.add(CleanupSuggestion(
         id: 'duplicates',
-        title: 'Yinelenen dosyaları temizle',
-        detail: '${extras.length} fazladan kopya · her gruptan biri kalır',
+        titleKey: 'clean.duplicates',
+        detailKey: 'clean.duplicates_detail',
+        detailVars: {'n': extras.length},
         bytes: bytes,
         files: extras,
         safeByDefault: true,
@@ -95,8 +104,9 @@ List<CleanupSuggestion> adviseCleanup({
   if (stale.isNotEmpty) {
     out.add(CleanupSuggestion(
       id: 'stale_downloads',
-      title: 'Eski indirilenler',
-      detail: '${stale.length} dosya · 180+ gündür açılmamış',
+      titleKey: 'clean.stale_downloads',
+      detailKey: 'clean.stale_downloads_detail',
+      detailVars: {'n': stale.length},
       bytes: stale.fold(0, (s, e) => s + e.sizeBytes),
       files: stale,
       safeByDefault: false,
@@ -108,8 +118,9 @@ List<CleanupSuggestion> adviseCleanup({
   if (apks.isNotEmpty) {
     out.add(CleanupSuggestion(
       id: 'apk',
-      title: 'Kurulum dosyaları (APK)',
-      detail: '${apks.length} dosya · uygulama kurulduysa gereksiz',
+      titleKey: 'clean.apk',
+      detailKey: 'clean.apk_detail',
+      detailVars: {'n': apks.length},
       bytes: apks.fold(0, (s, e) => s + e.sizeBytes),
       files: apks,
       safeByDefault: true,
@@ -126,8 +137,9 @@ List<CleanupSuggestion> adviseCleanup({
     final top = bigVideos.take(30).toList();
     out.add(CleanupSuggestion(
       id: 'big_videos',
-      title: 'Büyük videolar',
-      detail: '${top.length} video · 100 MB üzeri (tek tek seçin)',
+      titleKey: 'clean.big_videos',
+      detailKey: 'clean.big_videos_detail',
+      detailVars: {'n': top.length},
       bytes: top.fold(0, (s, e) => s + e.sizeBytes),
       files: top,
       safeByDefault: false,

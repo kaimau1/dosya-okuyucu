@@ -12,6 +12,17 @@ library;
 enum ResolutionChoice { keep, p480, p540, p720, p1080, percent, custom }
 
 extension ResolutionChoiceLabel on ResolutionChoice {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        ResolutionChoice.keep => 'enum.res_keep',
+        ResolutionChoice.p480 => 'enum.res_480',
+        ResolutionChoice.p540 => 'enum.res_540',
+        ResolutionChoice.p720 => 'enum.res_720',
+        ResolutionChoice.p1080 => 'enum.res_1080',
+        ResolutionChoice.percent => 'enum.res_percent',
+        ResolutionChoice.custom => 'enum.res_custom',
+      };
+
   String get label => switch (this) {
         ResolutionChoice.keep => 'Değiştirme',
         ResolutionChoice.p480 => '480p',
@@ -37,6 +48,13 @@ extension ResolutionChoiceLabel on ResolutionChoice {
 enum ImageOutputFormat { keep, jpeg, png }
 
 extension ImageOutputFormatLabel on ImageOutputFormat {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        ImageOutputFormat.keep => 'enum.imgfmt_keep',
+        ImageOutputFormat.jpeg => 'enum.imgfmt_jpeg',
+        ImageOutputFormat.png => 'enum.imgfmt_png',
+      };
+
   String get label => switch (this) {
         ImageOutputFormat.keep => 'Aynı kalsın',
         ImageOutputFormat.jpeg => 'JPEG (küçük)',
@@ -54,6 +72,14 @@ extension ImageOutputFormatLabel on ImageOutputFormat {
 enum VideoQualityChoice { veryLow, low, medium, high }
 
 extension VideoQualityChoiceLabel on VideoQualityChoice {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        VideoQualityChoice.veryLow => 'enum.vq_very_low',
+        VideoQualityChoice.low => 'enum.vq_low',
+        VideoQualityChoice.medium => 'enum.vq_medium',
+        VideoQualityChoice.high => 'enum.vq_high',
+      };
+
   String get label => switch (this) {
         VideoQualityChoice.veryLow => 'En küçük dosya',
         VideoQualityChoice.low => 'Küçük',

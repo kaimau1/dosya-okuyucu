@@ -15,6 +15,20 @@ import 'package:path/path.dart' as p;
 enum FmCategory { folder, image, video, audio, document, archive, apk, other }
 
 extension FmCategoryLabel on FmCategory {
+  /// Çeviri anahtarı — arayüz `context.t(category.labelKey)` çağırır. [label]
+  /// Türkçe kalır: **klasör adı üretiminde** de kullanılıyor (otomatik
+  /// düzenleme) ve dil değişince eski klasörlerin adı değişmemeli.
+  String get labelKey => switch (this) {
+        FmCategory.folder => 'enum.cat_folder',
+        FmCategory.image => 'enum.cat_image',
+        FmCategory.video => 'enum.cat_video',
+        FmCategory.audio => 'enum.cat_audio',
+        FmCategory.document => 'enum.cat_document',
+        FmCategory.archive => 'enum.cat_archive',
+        FmCategory.apk => 'enum.cat_apk',
+        FmCategory.other => 'enum.cat_other',
+      };
+
   String get label => switch (this) {
         FmCategory.folder => 'Klasör',
         FmCategory.image => 'Görüntüler',
@@ -171,6 +185,14 @@ class FsEntry {
 enum FmSort { name, date, size, type }
 
 extension FmSortLabel on FmSort {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        FmSort.name => 'enum.sort_name',
+        FmSort.date => 'enum.sort_date',
+        FmSort.size => 'enum.sort_size',
+        FmSort.type => 'enum.sort_type',
+      };
+
   String get label => switch (this) {
         FmSort.name => 'Ada göre',
         FmSort.date => 'Tarihe göre',

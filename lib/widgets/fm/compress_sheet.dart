@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/archive_ops.dart';
 
@@ -61,7 +62,8 @@ class _CompressSheetState extends State<_CompressSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Sıkıştır', style: Theme.of(context).textTheme.titleMedium),
+            Text(context.t('cmp.title'),
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: Gap.md),
             SegmentedButton<CompressFormat>(
               segments: const [
@@ -85,10 +87,8 @@ class _CompressSheetState extends State<_CompressSheet> {
             const SizedBox(height: Gap.sm),
             Text(
               _format == CompressFormat.zip
-                  ? 'Her yerde açılır. Parola verilirse AES-256 ile şifrelenir '
-                      '(dosya adları görünür kalır).'
-                  : 'Daha küçük dosya. Parola verilirse AES-256; istenirse '
-                      'dosya adları da gizlenir.',
+                  ? context.t('cmp.zip_note')
+                  : context.t('cmp.7z_note'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             SwitchListTile(
@@ -108,13 +108,13 @@ class _CompressSheetState extends State<_CompressSheet> {
               if (_format == CompressFormat.sevenZip)
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Dosya adlarını da gizle'),
-                  subtitle: const Text('Arşiv parolasız açılamaz'),
+                  title: Text(context.t('cmp.hide_names')),
+                  subtitle: Text(context.t('cmp.hide_names_sub')),
                   value: _hideNames,
                   onChanged: (v) => setState(() => _hideNames = v),
                 ),
               Text(
-                'Parolayı unutursanız arşiv AÇILAMAZ — kurtarma yolu yoktur.',
+                context.t('cmp.password_warning'),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.error,
                     ),
@@ -135,7 +135,7 @@ class _CompressSheetState extends State<_CompressSheet> {
                           ),
                         ),
                 icon: const Icon(Icons.archive_outlined),
-                label: const Text('Sıkıştır'),
+                label: Text(context.t('cmp.title')),
               ),
             ),
           ],

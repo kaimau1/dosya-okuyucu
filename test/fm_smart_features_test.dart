@@ -367,8 +367,8 @@ Tabii, işte:
   group('cleanupApplyOrder', () {
     CleanupSuggestion sug(String id, {int bytes = 0}) => CleanupSuggestion(
           id: id,
-          title: id,
-          detail: '',
+          titleKey: id,
+          detailKey: '',
           bytes: bytes,
           files: const [],
           safeByDefault: true,

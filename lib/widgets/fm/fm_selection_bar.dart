@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -68,7 +69,7 @@ class FmSelectionBar extends StatelessWidget {
               _action(
                 context,
                 Icons.drive_file_move_outline,
-                'Taşı',
+                context.t('fm.move'),
                 () async {
                   if (await moveOrCopyEntries(context, _paths, move: true)) {
                     await onChanged();
@@ -78,7 +79,7 @@ class FmSelectionBar extends StatelessWidget {
               _action(
                 context,
                 Icons.folder_copy_outlined,
-                'Kopyala',
+                context.t('fm.copy'),
                 () async {
                   if (await moveOrCopyEntries(context, _paths, move: false)) {
                     await onChanged();
@@ -89,13 +90,13 @@ class FmSelectionBar extends StatelessWidget {
                 _action(
                   context,
                   Icons.share_outlined,
-                  'Paylaş',
+                  context.t('common.share'),
                   () => shareEntries(_paths),
                 ),
               _action(
                 context,
                 Icons.delete_outline,
-                'Sil',
+                context.t('common.delete'),
                 () async {
                   if (await deleteEntries(context, selected)) await onChanged();
                 },
@@ -147,24 +148,24 @@ class FmSelectionBar extends StatelessWidget {
   Widget _more(BuildContext context) {
     final appState = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
+    // Asenkron boşluktan sonra `context` kullanılamaz → metinler şimdi alınır.
+    final clipCopied = context.t('fm.clipboard_copied');
+    final clipCut = context.t('fm.clipboard_cut');
     return Expanded(
       child: PopupMenuButton<String>(
-        tooltip: 'Diğer işlemler',
+        tooltip: context.t('fm.more_actions'),
         onSelected: (value) async {
           switch (value) {
             case 'important':
               if (await copyToImportant(context, _paths)) await onChanged();
             case 'clip_copy':
               appState.setClipboard(_paths, cut: false);
-              messenger.showSnackBar(const SnackBar(
-                  content: Text('Panoya kopyalandı. Hedef klasörde '
-                      '“Yapıştır”a dokunun.')));
+              messenger.showSnackBar(
+                  SnackBar(content: Text(clipCopied)));
               await onChanged();
             case 'clip_cut':
               appState.setClipboard(_paths, cut: true);
-              messenger.showSnackBar(const SnackBar(
-                  content: Text('Panoya kesildi. Hedef klasörde '
-                      '“Yapıştır”a dokunun.')));
+              messenger.showSnackBar(SnackBar(content: Text(clipCut)));
               await onChanged();
             case 'zip':
               final dest = zipDestDir;
@@ -193,27 +194,30 @@ class FmSelectionBar extends StatelessWidget {
         },
         itemBuilder: (_) => [
           if (_anyMedia)
-            const PopupMenuItem(
-                value: 'resize',
-                child: Text('Boyut düşür (çözünürlük/kare sayısı)')),
-          const PopupMenuItem(
-              value: 'tag', child: Text('Etiketle (kişi/grup)')),
-          const PopupMenuItem(
-              value: 'important', child: Text('Önemli dosyalara kopyala')),
-          const PopupMenuItem(
-              value: 'clip_copy', child: Text('Panoya kopyala')),
-          const PopupMenuItem(value: 'clip_cut', child: Text('Panoya kes')),
+            PopupMenuItem(
+                value: 'resize', child: Text(context.t('fm.resize'))),
+          PopupMenuItem(value: 'tag', child: Text(context.t('fm.tag'))),
+          PopupMenuItem(
+              value: 'important',
+              child: Text(context.t('fm.copy_to_important'))),
+          PopupMenuItem(
+              value: 'clip_copy', child: Text(context.t('fm.clip_copy'))),
+          PopupMenuItem(
+              value: 'clip_cut', child: Text(context.t('fm.clip_cut'))),
           if (zipDestDir != null)
-            const PopupMenuItem(value: 'zip', child: Text('Sıkıştır (ZIP/7z)')),
+            PopupMenuItem(
+                value: 'zip', child: Text(context.t('fm.compress'))),
           if (selected.length == 1)
-            const PopupMenuItem(
-                value: 'rename', child: Text('Yeniden adlandır')),
+            PopupMenuItem(
+                value: 'rename', child: Text(context.t('fm.rename'))),
           if (selected.length > 1)
-            const PopupMenuItem(
+            PopupMenuItem(
                 value: 'batch_rename',
-                child: Text('Toplu yeniden adlandır')),
+                child: Text(context.t('fm.batch_rename'))),
           if (selected.length == 1)
-            const PopupMenuItem(value: 'properties', child: Text('Özellikler')),
+            PopupMenuItem(
+                value: 'properties',
+                child: Text(context.t('fm.properties'))),
         ],
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.sm),
@@ -222,7 +226,7 @@ class FmSelectionBar extends StatelessWidget {
             children: [
               const Icon(Icons.more_horiz),
               const SizedBox(height: 2),
-              Text('Daha fazla',
+              Text(context.t('fm.more'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall),

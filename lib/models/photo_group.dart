@@ -7,6 +7,13 @@ library;
 enum PhotoGroup { day, month, year }
 
 extension PhotoGroupLabel on PhotoGroup {
+  /// Çeviri anahtarı (bkz. `FmLayoutInfo.labelKey`).
+  String get labelKey => switch (this) {
+        PhotoGroup.day => 'enum.photo_group_day',
+        PhotoGroup.month => 'enum.photo_group_month',
+        PhotoGroup.year => 'enum.photo_group_year',
+      };
+
   String get label => switch (this) {
         PhotoGroup.day => 'Gün',
         PhotoGroup.month => 'Ay',

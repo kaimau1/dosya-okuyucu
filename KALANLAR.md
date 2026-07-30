@@ -10,13 +10,32 @@
       mu, (f) **google-services.json yoksa** giriş penceresi hiç açılmıyor
       olmalı — çökme DEĞİL. NOT: Drive, Firebase ile aynı OAuth istemcisini
       kullanıyor; Firebase kurulmamışsa Drive da çalışmaz (FIREBASE_SETUP.md).
-- [ ] **NAS (FTP/FTPS/SFTP/WebDAV/LAN) — sıradaki tur.** Paket uyumluluğu
-      2026-07-30'da ÖLÇÜLDÜ (HAFIZA 2026-07-30 II §A): dartssh2 2.22.5,
-      ftpconnect 2.0.7, webdav_client 1.2.2, multicast_dns 0.3.3 — hiçbiri
-      sürüm duvarını kırmıyor. **SMB kararı:** `smb_connect 0.0.9` önce
-      denenecek; gerçek bir paylaşımda çalışmazsa listeden ÇIKARILACAK
-      (yarım çalışan SMB, hiç olmayandan kötüdür). PC→telefon FTP sunucusu
-      `dart:io` ServerSocket ile paketsiz yazılacak.
+- [ ] **NAS cihaz doğrulaması (kullanıcı)** — 2026-07-30: Pano → Araçlar →
+      **Ağ depolama** → (a) **Ağda ara** telefonun Wi-Fi'sindeki NAS'ı buluyor
+      mu (mDNS + port taraması), (b) elle eklenen SFTP/FTP/FTPS/WebDAV
+      bağlantısı **Bağlantıyı sına** ile yeşil veriyor mu, (c) klasörler
+      geziliyor, dosya dokununca inip AÇILIYOR mu, (d) **Buraya yükle** /
+      yeni klasör / yeniden adlandır / sil çalışıyor mu, (e) parola kaydetme
+      KAPALIYKEN her bağlanışta soruluyor mu, (f) yanlış adres/parola
+      ANLAŞILIR hata veriyor mu (ham SocketException değil).
+- [ ] **SMB: yalnız SMB3 zorunlu kılan sunucular sınanmadı.** SMB'nin kendisi
+      2026-07-30'da **gerçek Samba 4.19 (SMB2) üzerinde doğrulandı** — okuma ve
+      yazma çalışıyor (HAFIZA 2026-07-30 IV; `test/remote_live_test.dart`), o
+      yüzden "protokolü listeden çıkar" kararı KAPANDI. Kalan tek belirsizlik:
+      `smb_connect` en fazla SMB210 konuşuyor; SMB3'ü zorunlu kılan (eski
+      sürümleri kapatmış) bir NAS'ta bağlanmayabilir. Ekrandaki uyarı bunu
+      yazıyor ve kullanıcıyı SFTP/FTP'ye yönlendiriyor.
+- [ ] **SMB'de port değiştirilemez (paket sınırı).** `smb_connect` bağlanırken
+      445'i sabit kullanıyor, verilen portu yok sayıyor; form alanı bu yüzden
+      SMB'de kapalı. Farklı portta SMB gerekirse paket çatallanmalı.
+- [ ] **PC'den FTP cihaz doğrulaması (kullanıcı)** — Ağ depolama → sağ üst
+      bilgisayar simgesi → **Başlat** → PC'nin dosya gezginine/tarayıcısına
+      yazılan `ftp://<ip>:2121` adresi açılıyor mu, kullanıcı adı/parola
+      soruluyor mu, dosyalar listelenip indiriliyor mu, **Yazmaya izin ver**
+      kapalıyken PC'den silme reddediliyor mu.
+- [ ] **FTP sunucusu arka planda çalışmıyor (bilinçli).** Ekrandan çıkınca
+      duruyor: kullanıcı telefonunu ağa açtığını unutmasın. İstenirse ön plan
+      servisi + kalıcı bildirim gerekir (manifest'e servis eklenmesi lazım).
 - [ ] **Dil desteği cihaz doğrulaması (kullanıcı)** — 2026-07-30: Ayarlar →
       **Dil** → English / العربية seç → (a) ana ekran, alt sekmeler, Ayarlar,
       Excel ve Word ekranları o dilde mi, (b) **Arapça'da arayüz sağdan sola**

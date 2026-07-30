@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
 import '../services/pdf_tools.dart';
@@ -48,6 +49,11 @@ class PdfToolsScreen extends StatefulWidget {
 }
 
 class _PdfToolsScreenState extends State<PdfToolsScreen> {
+  /// Mesajlar uzun asenkron işlerin **içinden** üretiliyor (`_apply` ve
+  /// `catch` dalları); orada `context` kullanmak `use_build_context_synchronously`
+  /// demektir. Doğrudan çizilen parçalarda `context.t` kullanılır.
+  AppStrings get _str => AppStrings.current;
+
   final _conversion = ConversionService();
 
   Uint8List? _bytes;
@@ -109,7 +115,8 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       try {
         await PdfTools.pageCount(bytes);
       } catch (_) {
-        final pw = await _askPassword('Belge parolalı', 'Parolayı girin');
+        final pw = await _askPassword(
+            _str.t('pt.locked_title'), _str.t('pt.enter_password'));
         if (pw == null) {
           if (mounted) Navigator.of(context).pop();
           return;
@@ -148,7 +155,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       });
       _selection.value = <int>{};
     } catch (e) {
-      if (mounted) _snack('$label başarısız: $e');
+      if (mounted) {
+        _snack(_str.t('pt.op_failed', {'label': label, 'error': e}));
+      }
     } finally {
       if (mounted) setState(() => _busyLabel = '');
     }
@@ -165,7 +174,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
         : _selected.toList();
     final pw = _password;
     await _apply(
-      'Döndürme',
+      _str.t('pt.op_rotate'),
       (b) => PdfTools.rotatePagesInBackground(b,
           pageIndexes: pages, quarterTurns: 1, password: pw),
     );
@@ -173,12 +182,12 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
 
   Future<void> _deleteSelected() async {
     if (_selected.length >= await _pageCount()) {
-      _snack('Tüm sayfalar silinemez');
+      _snack(_str.t('pt.cannot_delete_all'));
       return;
     }
     final pages = _selected.toList();
     final pw = _password;
-    await _apply('Silme',
+    await _apply(_str.t('pt.op_delete'),
         (b) => PdfTools.deletePagesInBackground(b, pages, password: pw));
   }
 
@@ -190,17 +199,16 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Vurgular kaybolacak'),
-        content: Text('Bu belgede $count vurgu/not var. "$action" işlemi '
-            'sayfaları yeniden oluşturduğu için bunlar silinir.\n\n'
-            'Sayfa silmek isterseniz "Sil" düğmesi vurguları korur.'),
+        title: Text(ctx.t('pt.annot_title')),
+        content:
+            Text(ctx.t('pt.annot_body', {'n': count, 'action': action})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Devam et')),
+              child: Text(ctx.t('pt.continue'))),
         ],
       ),
     );
@@ -211,7 +219,8 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Future<void> _extractSelected() async {
     if (_selected.isEmpty || _bytes == null) return;
     final pages = _selected.toList()..sort();
-    setState(() => _busyLabel = 'Sayfalar çıkarılıyor…');
+    final str = _str;
+    setState(() => _busyLabel = str.t('pt.extracting'));
     try {
       final out = await PdfTools.selectPagesInBackground(_bytes!, pages,
           password: _password);
@@ -220,9 +229,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       final path =
           await _conversion.writeToTemp(name, Uint8List.fromList(out));
       await Share.shareXFiles([XFile(path)],
-          text: 'Seçili sayfalar ayrı PDF olarak çıkarıldı');
+          text: str.t('pt.extracted'));
     } catch (e) {
-      if (mounted) _snack('Çıkarma başarısız: $e');
+      if (mounted) _snack(str.t('pt.extract_failed', {'error': e}));
     } finally {
       if (mounted) setState(() => _busyLabel = '');
     }
@@ -238,10 +247,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final total = await _pageCount();
     final to = from + delta;
     if (to < 0 || to >= total) return;
-    if (!await _confirmAnnotationLoss('Sayfa taşıma')) return;
+    if (!await _confirmAnnotationLoss(_str.t('pt.op_move_page'))) return;
     final order = movePageOrder(total, from, to);
     final pw = _password;
-    await _apply('Taşıma',
+    await _apply(_str.t('pt.op_move'),
         (b) => PdfTools.selectPagesInBackground(b, order, password: pw));
     if (mounted) _selection.value = {to};
   }
@@ -254,13 +263,13 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     );
     final paths = res?.files.map((f) => f.path).whereType<String>().toList();
     if (paths == null || paths.isEmpty) return;
-    if (!await _confirmAnnotationLoss('Birleştirme')) return;
+    if (!await _confirmAnnotationLoss(_str.t('pt.op_merge'))) return;
     final others = [
       for (final path in paths) await File(path).readAsBytes(),
     ];
-    await _apply(
-        'Birleştirme', (b) => PdfTools.mergeInBackground([b, ...others]));
-    if (mounted) _snack('${paths.length} PDF eklendi');
+    await _apply(_str.t('pt.op_merge'),
+        (b) => PdfTools.mergeInBackground([b, ...others]));
+    if (mounted) _snack(_str.t('pt.merged', {'n': paths.length}));
   }
 
   /// Kameradan yeni sayfa(lar) tarayıp belgenin sonuna ekler — kâğıt eki olan
@@ -271,9 +280,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     // Ana tarama akışıyla aynı önizleme: yamuk sayfa belgeye girmeden düzeltilir.
     final pages = await ScanReviewScreen.open(context, scanned);
     if (pages == null || pages.isEmpty || !mounted) return;
-    if (!await _confirmAnnotationLoss('Tarama ekleme')) return;
+    if (!await _confirmAnnotationLoss(_str.t('pt.op_scan_append'))) return;
     // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada zaten görünür.
-    await _apply('Tarama ekleme', (b) async {
+    await _apply(_str.t('pt.op_scan_append'), (b) async {
       final doc = await _conversion.imagesToPdf(pages,
           uniformPage: PdfPageFormat.a4);
       return PdfTools.mergeInBackground([b, doc]);
@@ -291,42 +300,37 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Belgeyi sıkıştır'),
-        content: Text(
-          'Belge (${_kb(before)}) baştan yazılarak küçültülecek: veri akışları '
-          'en yüksek oranda sıkıştırılır, eski sürüm artıkları atılır. '
-          'Görüntü kalitesi DEĞİŞMEZ.\n\n'
-          'Bu yüzden taranmış (resim ağırlıklı) belgelerde kazanç küçük olur. '
-          'İşlem büyük belgelerde bir dakikayı bulabilir; arka planda çalışır, '
-          'ilerlemeyi görürsünüz.',
-        ),
+        title: Text(ctx.t('pt.compress_title')),
+        content: Text(ctx.t('pt.compress_body', {'size': _kb(before)})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sıkıştır')),
+              child: Text(ctx.t('pt.compress'))),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     final pw = _password;
-    await _apply('Sıkıştırılıyor',
+    await _apply(_str.t('pt.op_compress'),
         (b) => PdfTools.compressInBackground(b, password: pw));
     if (!mounted) return;
     final after = _bytes!.length;
     _snack(after < before
-        ? 'Boyut ${_kb(before)} → ${_kb(after)}'
-        : 'Bu belge zaten sıkışık (${_kb(before)}) — kazanç yok');
+        ? _str.t('pt.size_change',
+            {'before': _kb(before), 'after': _kb(after)})
+        : _str.t('pt.already_compact', {'size': _kb(before)}));
   }
 
   Future<void> _setPassword() async {
-    final pw = await _askPassword('Parola koy', 'Yeni parola');
+    final pw = await _askPassword(
+        _str.t('pt.set_password'), _str.t('pt.new_password'));
     if (pw == null || pw.isEmpty) return;
     final current = _password;
     await _apply(
-      'Parola koyma',
+      _str.t('pt.op_set_password'),
       (b) => PdfTools.setPasswordInBackground(b,
           password: pw, currentPassword: current),
     );
@@ -336,7 +340,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Future<void> _removePassword() async {
     final pw = _password;
     if (pw == null) return;
-    await _apply('Parola kaldırma',
+    await _apply(_str.t('pt.op_remove_password'),
         (b) => PdfTools.removePasswordInBackground(b, currentPassword: pw));
     if (mounted) setState(() => _password = null);
   }
@@ -395,10 +399,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Tamam')),
+              child: Text(ctx.t('common.ok'))),
         ],
       ),
     );
@@ -418,15 +422,15 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final leave = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Kaydedilmemiş değişiklik'),
-        content: const Text('Çıkarsanız yaptığınız düzenlemeler kaybolur.'),
+        title: Text(ctx.t('pt.unsaved_title')),
+        content: Text(ctx.t('pt.unsaved_body')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Kal')),
+              child: Text(ctx.t('pt.stay'))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Çık')),
+              child: Text(ctx.t('pt.leave'))),
         ],
       ),
     );
@@ -460,7 +464,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
               onPressed: _undo.isEmpty ? null : _undoLast,
             ),
             IconButton(
-              tooltip: 'Kaydet',
+              tooltip: context.t('common.save'),
               icon: const Icon(Icons.save_outlined),
               onPressed: _dirty ? _save : null,
             ),
@@ -475,18 +479,22 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 _ => null,
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'scan', child: Text('Sayfa tara ve ekle')),
-                const PopupMenuItem(
-                    value: 'merge', child: Text('Başka PDF ekle (birleştir)')),
-                const PopupMenuItem(
-                    value: 'compress', child: Text('Sıkıştır (boyut küçült)')),
+                PopupMenuItem(
+                    value: 'scan', child: Text(context.t('pt.scan_append'))),
+                PopupMenuItem(
+                    value: 'merge', child: Text(context.t('pt.merge_other'))),
+                PopupMenuItem(
+                    value: 'compress',
+                    child: Text(context.t('pt.compress_menu'))),
                 if (_password == null)
-                  const PopupMenuItem(value: 'lock', child: Text('Parola koy'))
+                  PopupMenuItem(
+                      value: 'lock', child: Text(context.t('pt.set_password')))
                 else
-                  const PopupMenuItem(
-                      value: 'unlock', child: Text('Parolayı kaldır')),
-                const PopupMenuItem(value: 'share', child: Text('Paylaş')),
+                  PopupMenuItem(
+                      value: 'unlock',
+                      child: Text(context.t('pt.remove_password'))),
+                PopupMenuItem(
+                    value: 'share', child: Text(context.t('common.share'))),
               ],
             ),
           ],
@@ -494,7 +502,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
         body: _error != null
             ? Center(child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Açılamadı: $_error'),
+                child: Text(context.t('pt.open_failed', {'error': _error})),
               ))
             : bytes == null
                 ? const Center(child: CircularProgressIndicator())
@@ -644,15 +652,17 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _barButton(Icons.rotate_right, has ? 'Döndür' : 'Tümünü döndür',
+              _barButton(
+                  Icons.rotate_right,
+                  context.t(has ? 'vw.rotate' : 'pt.rotate_all'),
                   _busy ? null : _rotate),
-              _barButton(Icons.delete_outline, 'Sil',
+              _barButton(Icons.delete_outline, context.t('common.delete'),
                   has && !_busy ? _deleteSelected : null),
-              _barButton(Icons.call_split, 'Çıkar',
+              _barButton(Icons.call_split, context.t('pt.extract'),
                   has && !_busy ? _extractSelected : null),
-              _barButton(Icons.arrow_upward, 'Öne',
+              _barButton(Icons.arrow_upward, context.t('pt.forward'),
                   single && !_busy ? () => _move(-1) : null),
-              _barButton(Icons.arrow_downward, 'Arkaya',
+              _barButton(Icons.arrow_downward, context.t('pt.backward'),
                   single && !_busy ? () => _move(1) : null),
             ],
           ),
