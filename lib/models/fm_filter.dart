@@ -19,6 +19,16 @@ import 'media_bucket.dart';
 enum FmDateRange { any, today, week, month, year, custom }
 
 extension FmDateRangeLabel on FmDateRange {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        FmDateRange.any => 'enum.date_any',
+        FmDateRange.today => 'enum.date_today',
+        FmDateRange.week => 'enum.date_week',
+        FmDateRange.month => 'enum.date_month',
+        FmDateRange.year => 'enum.date_year',
+        FmDateRange.custom => 'enum.date_custom',
+      };
+
   String get label => switch (this) {
         FmDateRange.any => 'Her zaman',
         FmDateRange.today => 'Bugün',
@@ -33,6 +43,15 @@ extension FmDateRangeLabel on FmDateRange {
 enum FmSizeRange { any, tiny, small, medium, large }
 
 extension FmSizeRangeLabel on FmSizeRange {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        FmSizeRange.any => 'enum.size_any',
+        FmSizeRange.tiny => 'enum.size_tiny',
+        FmSizeRange.small => 'enum.size_small',
+        FmSizeRange.medium => 'enum.size_medium',
+        FmSizeRange.large => 'enum.size_large',
+      };
+
   String get label => switch (this) {
         FmSizeRange.any => 'Tümü',
         FmSizeRange.tiny => '1 MB altı',

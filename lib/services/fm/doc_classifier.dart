@@ -15,6 +15,21 @@ enum DocClass {
 }
 
 extension DocClassInfo on DocClass {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`). [folder] çevrilmez —
+  /// diskteki klasör adıdır.
+  String get labelKey => switch (this) {
+        DocClass.fatura => 'enum.doc_invoice',
+        DocClass.makbuz => 'enum.doc_receipt',
+        DocClass.kimlik => 'enum.doc_id',
+        DocClass.saglik => 'enum.doc_health',
+        DocClass.banka => 'enum.doc_bank',
+        DocClass.sozlesme => 'enum.doc_contract',
+        DocClass.egitim => 'enum.doc_education',
+        DocClass.ekranGoruntusu => 'enum.doc_screenshot',
+        DocClass.bilet => 'enum.doc_ticket',
+        DocClass.diger => 'enum.doc_other',
+      };
+
   String get label => switch (this) {
         DocClass.fatura => 'Fatura',
         DocClass.makbuz => 'Makbuz / fiş',

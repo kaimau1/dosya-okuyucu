@@ -17,6 +17,19 @@ enum MediaBucket {
 }
 
 extension MediaBucketLabel on MediaBucket {
+  /// Çeviri anahtarı. Uygulama adları (WhatsApp…) her dilde aynı yazılır ama
+  /// anahtar üzerinden geçmeleri tabloyu tek yerde tutar.
+  String get labelKey => switch (this) {
+        MediaBucket.camera => 'enum.bucket_camera',
+        MediaBucket.screenshot => 'enum.bucket_screenshot',
+        MediaBucket.whatsapp => 'enum.bucket_whatsapp',
+        MediaBucket.telegram => 'enum.bucket_telegram',
+        MediaBucket.instagram => 'enum.bucket_instagram',
+        MediaBucket.download => 'enum.bucket_download',
+        MediaBucket.bluetooth => 'enum.bucket_bluetooth',
+        MediaBucket.other => 'enum.bucket_other',
+      };
+
   String get label => switch (this) {
         MediaBucket.camera => 'Kamera',
         MediaBucket.screenshot => 'Ekran görüntüsü',

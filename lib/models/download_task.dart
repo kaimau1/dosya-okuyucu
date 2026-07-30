@@ -11,6 +11,16 @@ import 'dart:convert';
 enum DownloadState { queued, running, paused, completed, failed, canceled }
 
 extension DownloadStateInfo on DownloadState {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        DownloadState.queued => 'enum.dl_queued',
+        DownloadState.running => 'enum.dl_running',
+        DownloadState.paused => 'enum.dl_paused',
+        DownloadState.completed => 'enum.dl_completed',
+        DownloadState.failed => 'enum.dl_failed',
+        DownloadState.canceled => 'enum.dl_canceled',
+      };
+
   String get label => switch (this) {
         DownloadState.queued => 'Sırada',
         DownloadState.running => 'İndiriliyor',

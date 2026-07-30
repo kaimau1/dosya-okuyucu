@@ -30,6 +30,14 @@ class AppStrings {
   static const LocalizationsDelegate<AppStrings> delegate =
       _AppStringsDelegate();
 
+  /// **Bağlamsız** yerler için son yüklenen dil (bildirimler, arka plandaki
+  /// iş kuyruğu, `dart:io` katmanı). Delegate her `load`ta günceller.
+  ///
+  /// Arayüzde bunu KULLANMA: `context.t(...)` ekranın kendi `Localizations`ına
+  /// bakar ve önizleme/test içinde ayrı bir dil kurulabilir; bu statik ise
+  /// uygulama genelinde tektir.
+  static AppStrings current = const AppStrings(AppLanguage.tr);
+
   /// Anahtarın bu dildeki karşılığı. Anahtar tabloda yoksa anahtarın kendisi
   /// döner (ekranda gözle görülür bir iz bırakır; sessizce boş kalmaz).
   String t(String key, [Map<String, Object?>? vars]) {
@@ -64,8 +72,11 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
   /// `async` bir gövde `Localizations`ı bir kare bekletir ve o karede ekran
   /// BOŞ çizilir — dil değiştirmede gözle görülür bir çakma olurdu.
   @override
-  Future<AppStrings> load(Locale locale) =>
-      SynchronousFuture(AppStrings(AppLanguageInfo.byCode(locale.languageCode)));
+  Future<AppStrings> load(Locale locale) {
+    final strings = AppStrings(AppLanguageInfo.byCode(locale.languageCode));
+    AppStrings.current = strings;
+    return SynchronousFuture(strings);
+  }
 
   @override
   bool shouldReload(_AppStringsDelegate old) => false;
@@ -97,6 +108,15 @@ const Map<String, (String, String, String)> _table = {
   'common.settings': ('Ayarlar', 'Settings', 'الإعدادات'),
   'common.previous': ('Önceki', 'Previous', 'السابق'),
   'common.next': ('Sonraki', 'Next', 'التالي'),
+  'common.copy': ('Kopyala', 'Copy', 'نسخ'),
+  'common.stop': ('Durdur', 'Stop', 'إيقاف'),
+  'common.go': ('Git', 'Go', 'انتقال'),
+  'common.saved': ('Kaydedildi', 'Saved', 'تم الحفظ'),
+  'common.save_failed': (
+    'Kaydedilemedi: {error}',
+    'Could not save: {error}',
+    'تعذّر الحفظ: {error}',
+  ),
   'common.translate': ('Çevir', 'Translate', 'ترجمة'),
   'common.ai': ('AI ile çalış', 'Work with AI', 'العمل بالذكاء الاصطناعي'),
   'common.bold': ('Kalın', 'Bold', 'عريض'),
@@ -609,6 +629,158 @@ const Map<String, (String, String, String)> _table = {
     '“{name}” panoya kesildi. Hedef klasörde “Yapıştır”a dokunun.',
     '“{name}” cut to clipboard. Tap “Paste” in the destination folder.',
     'تم قص «{name}» إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
+  ),
+
+  // ── Görüntüleyici (PDF / metin / görsel / tablo) ──────────────────────────
+  'vw.tools': ('Araçlar', 'Tools', 'الأدوات'),
+  'vw.editor': ('Düzenleyici', 'Editor', 'المحرر'),
+  'vw.rotate': ('Döndür', 'Rotate', 'تدوير'),
+  'vw.rotate_right': ('90° sağa döndür', 'Rotate 90° right', 'تدوير 90° لليمين'),
+  'vw.rotate_left': ('90° sola döndür', 'Rotate 90° left', 'تدوير 90° لليسار'),
+  'vw.rotate_failed': ('Döndürülemedi: {error}', 'Could not rotate: {error}', 'تعذّر التدوير: {error}'),
+  'vw.zoom_in': ('Yakınlaştır', 'Zoom in', 'تكبير'),
+  'vw.zoom_out': ('Uzaklaştır', 'Zoom out', 'تصغير'),
+  'vw.text_bigger': ('Yazıyı büyüt', 'Larger text', 'تكبير الخط'),
+  'vw.text_smaller': ('Yazıyı küçült', 'Smaller text', 'تصغير الخط'),
+  'vw.page_layout': ('Sayfa düzeni', 'Page layout', 'تخطيط الصفحة'),
+  'vw.one_column': ('Tek sütun', 'Single column', 'عمود واحد'),
+  'vw.two_columns': ('2 sütun', '2 columns', 'عمودان'),
+  'vw.four_columns': ('4 sütun', '4 columns', '4 أعمدة'),
+  'vw.night_on': ('Gece modu', 'Night mode', 'الوضع الليلي'),
+  'vw.night_off': ('Gece modunu kapat', 'Turn off night mode', 'إيقاف الوضع الليلي'),
+  'vw.image_to_pdf': ('Resmi PDF yap', 'Image to PDF', 'تحويل الصورة إلى PDF'),
+  'vw.image_to_pdf_body': (
+    'Resim tam çözünürlükte, kırpılmadan PDF’e gömülecek.\n\n',
+    'The image will be embedded in the PDF at full resolution, uncropped.\n\n',
+    'ستُضمَّن الصورة في PDF بدقتها الكاملة وبدون اقتصاص.\n\n',
+  ),
+  'vw.page_of': ('{n}. sayfa (toplam {total})', 'Page {n} (of {total})', 'الصفحة {n} (من {total})'),
+  'vw.page_jump_failed_total': (
+    '{target}. sayfaya gidilemedi; {landed}. sayfada kalındı (toplam {total}).',
+    'Could not jump to page {target}; stayed on page {landed} (of {total}).',
+    'تعذّر الانتقال إلى الصفحة {target}؛ بقيت على {landed} (من {total}).',
+  ),
+  'vw.goto_page': ('Sayfaya git…', 'Go to page…', 'الانتقال إلى صفحة…'),
+  'vw.goto_page_short': ('Sayfaya git', 'Go to page', 'الانتقال إلى صفحة'),
+  'vw.find_in_doc': ('Belgede ara…', 'Search in document…', 'ابحث في المستند…'),
+  'vw.find_in_doc_short': ('Belgede ara', 'Search in document', 'ابحث في المستند'),
+  'vw.dont_save': ('Kaydetme', 'Don’t save', 'عدم الحفظ'),
+  'vw.image_only': ('Sadece resim', 'Image only', 'الصورة فقط'),
+  'vw.doc_info': ('Belge bilgisi', 'Document info', 'معلومات المستند'),
+  'vw.highlight': ('Vurgula', 'Highlight', 'تمييز'),
+  'vw.rotated_right': (
+    '{n}. sayfa sağa döndürüldü',
+    'Page {n} rotated right',
+    'تم تدوير الصفحة {n} لليمين',
+  ),
+  'vw.rotated_left': (
+    '{n}. sayfa sola döndürüldü',
+    'Page {n} rotated left',
+    'تم تدوير الصفحة {n} لليسار',
+  ),
+  'vw.speak': ('Sesli oku', 'Read aloud', 'قراءة صوتية'),
+  'vw.speaking': ('Sesli okuma  {n} / {total}', 'Reading aloud  {n} / {total}', 'قراءة صوتية  {n} / {total}'),
+  'vw.toc': ('İçindekiler', 'Contents', 'المحتويات'),
+  'vw.no_toc': ('Bu belgede içindekiler yok', 'This document has no contents', 'لا يحتوي هذا المستند على فهرس'),
+  'vw.sign': ('İmzala', 'Sign', 'توقيع'),
+  'vw.print': ('Yazdır', 'Print', 'طباعة'),
+  'vw.ai_edit': ('AI ile düzenle', 'Edit with AI', 'تحرير بالذكاء الاصطناعي'),
+  'vw.translate_doc': ('Belgeyi çevir', 'Translate document', 'ترجمة المستند'),
+  'vw.to_pdf': ('PDF’e dönüştür', 'Convert to PDF', 'تحويل إلى PDF'),
+  'vw.to_slides': ('Slayta dönüştür', 'Convert to slides', 'تحويل إلى شرائح'),
+  'vw.file_ops': ('Dosya işlemleri (taşı, kopyala…)', 'File operations (move, copy…)', 'عمليات الملفات (نقل، نسخ…)'),
+  'vw.ocr': ('Metni tanı (OCR)', 'Recognize text (OCR)', 'التعرّف على النص (OCR)'),
+  'vw.ocr_short': ('Metni tanı', 'Recognize text', 'التعرّف على النص'),
+  'vw.ocr_running': ('Metin tanınıyor…', 'Recognizing text…', 'جارٍ التعرّف على النص…'),
+  'vw.ocr_page': ('Sayfa {n} / {total} taranıyor…', 'Scanning page {n} / {total}…', 'جارٍ فحص الصفحة {n} / {total}…'),
+  'vw.ocr_failed': ('OCR başarısız: {error}', 'OCR failed: {error}', 'فشل التعرّف على النص: {error}'),
+  'vw.ocr_none': ('Metin bulunamadı (OCR).', 'No text found (OCR).', 'لم يُعثر على نص (OCR).'),
+  'vw.ocr_first': (
+    'Metin bulunamadı. Önce “Metni tanı (OCR)” çalıştırın.',
+    'No text found. Run “Recognize text (OCR)” first.',
+    'لم يُعثر على نص. شغّل «التعرّف على النص (OCR)» أولًا.',
+  ),
+  'vw.ocr_text': ('Tanınan metin', 'Recognized text', 'النص المتعرَّف عليه'),
+  'vw.ocr_in_pdf': (
+    'İçindeki yazılar da PDF içinde aranabilir/kopyalanabilir olsun mu? '
+        '(Metin tanıma birkaç saniye sürer, görüntüyü değiştirmez.)',
+    'Should the text inside also be searchable/copyable in the PDF? '
+        '(Text recognition takes a few seconds and does not alter the image.)',
+    'هل تريد أن يكون النص بداخلها قابلًا للبحث/النسخ داخل PDF؟ '
+        '(يستغرق التعرّف بضع ثوانٍ ولا يغيّر الصورة.)',
+  ),
+  'vw.ocr_also': ('Yazıları da tanı', 'Also recognize text', 'تعرّف على النص أيضًا'),
+  'vw.scanning_text': ('Yazılar taranıyor…', 'Scanning text…', 'جارٍ فحص النص…'),
+  'vw.copy_all': ('Tümünü kopyala', 'Copy all', 'نسخ الكل'),
+  'vw.copied_all': ('Tümü kopyalandı', 'All copied', 'تم نسخ الكل'),
+  'vw.copied_chars': ('Kopyalandı ({n} karakter)', 'Copied ({n} characters)', 'تم النسخ ({n} حرفًا)'),
+  'vw.selected_text': ('Seçili metin', 'Selected text', 'النص المحدد'),
+  'vw.no_text_to_translate': ('Çevrilecek metin yok.', 'No text to translate.', 'لا يوجد نص للترجمة.'),
+  'vw.highlighted': ('Vurgulandı', 'Highlighted', 'تم التمييز'),
+  'vw.highlight_failed': ('Vurgulama başarısız: {error}', 'Highlighting failed: {error}', 'فشل التمييز: {error}'),
+  'vw.word_count': ('Sözcük sayısı / bilgi', 'Word count / info', 'عدد الكلمات / معلومات'),
+  'vw.word': ('Sözcük', 'Words', 'كلمات'),
+  'vw.line': ('Satır', 'Lines', 'أسطر'),
+  'vw.chars': ('Karakter', 'Characters', 'أحرف'),
+  'vw.chars_nospace': ('Karakter (boşluksuz)', 'Characters (no spaces)', 'أحرف (بدون مسافات)'),
+  'vw.paragraph': ('Paragraf', 'Paragraphs', 'فقرات'),
+  'vw.doc_content': ('Belge içeriği…', 'Document content…', 'محتوى المستند…'),
+  'vw.preparing': ('Hazırlanıyor…', 'Preparing…', 'جارٍ التحضير…'),
+  'vw.pdf_preparing': ('PDF hazırlanıyor…', 'Preparing the PDF…', 'جارٍ تحضير ملف PDF…'),
+  'vw.pdf_loading': (
+    'PDF henüz yükleniyor, birazdan tekrar deneyin.',
+    'The PDF is still loading; try again shortly.',
+    'لا يزال ملف PDF قيد التحميل؛ حاول بعد قليل.',
+  ),
+  'vw.pdf_exported': ('PDF olarak dışa aktarıldı', 'Exported as PDF', 'تم التصدير بصيغة PDF'),
+  'vw.pdf_failed': ('PDF oluşturulamadı: {error}', 'Could not create PDF: {error}', 'تعذّر إنشاء PDF: {error}'),
+  'vw.image_failed': ('Görsel görüntülenemedi.', 'The image could not be displayed.', 'تعذّر عرض الصورة.'),
+  'vw.table_empty': ('Tablo boş veya okunamadı.', 'The table is empty or unreadable.', 'الجدول فارغ أو غير قابل للقراءة.'),
+  'vw.no_viewer': (
+    'Bu dosya türü için yerleşik görüntüleyici yok.\nBaşka bir uygulamayla '
+        'açabilir veya AI’a sorabilirsiniz.',
+    'There is no built-in viewer for this file type.\nYou can open it with '
+        'another app or ask the AI.',
+    'لا يوجد عارض مدمج لهذا النوع من الملفات.\nيمكنك فتحه بتطبيق آخر أو سؤال '
+        'الذكاء الاصطناعي.',
+  ),
+  'vw.link_title': ('Bağlantıyı aç', 'Open link', 'فتح الرابط'),
+  'vw.link_body': (
+    'Bu belge sizi şu adrese götürmek istiyor:\n\n{url}\n\n'
+        'Tanımadığınız adreslere dikkat edin.',
+    'This document wants to take you to:\n\n{url}\n\n'
+        'Be careful with addresses you do not recognize.',
+    'يريد هذا المستند نقلك إلى:\n\n{url}\n\nكن حذرًا مع العناوين غير المعروفة.',
+  ),
+  'vw.link_failed': ('Bağlantı açılamadı', 'Could not open the link', 'تعذّر فتح الرابط'),
+  'vw.link_failed_e': ('Bağlantı açılamadı: {error}', 'Could not open the link: {error}', 'تعذّر فتح الرابط: {error}'),
+  'vw.unsaved_title': ('Kaydedilmemiş düzenleme var', 'You have unsaved edits', 'لديك تعديلات غير محفوظة'),
+  'vw.unsaved_body': (
+    'Belgede yaptığınız değişiklikler henüz kaydedilmedi. “Kaydetme” '
+        'derseniz belge düzenlemeden önceki hâline döner.',
+    'Your changes to the document have not been saved. If you choose “Don’t '
+        'save”, the document reverts to its state before editing.',
+    'لم تُحفظ تغييراتك على المستند. إذا اخترت «عدم الحفظ»، سيعود المستند إلى '
+        'حالته قبل التحرير.',
+  ),
+  'vw.save_edits': ('Düzenlemeleri kaydet', 'Save edits', 'حفظ التعديلات'),
+  'vw.edits_applied': (
+    'Yaptığınız düzenlemeler bu belgeye işlendi.',
+    'Your edits have been applied to this document.',
+    'تم تطبيق تعديلاتك على هذا المستند.',
+  ),
+  'vw.page_number': ('Sayfa numarası (1 – {count})', 'Page number (1 – {count})', 'رقم الصفحة (1 – {count})'),
+  'vw.page_jump_failed': (
+    '{target}. sayfaya gidilemedi; {landed}. sayfada kalındı.',
+    'Could not jump to page {target}; stayed on page {landed}.',
+    'تعذّر الانتقال إلى الصفحة {target}؛ بقيت على الصفحة {landed}.',
+  ),
+  'vw.searching': ('aranıyor…', 'searching…', 'جارٍ البحث…'),
+  'vw.change_failed': ('Değiştirilemedi: {error}', 'Could not change: {error}', 'تعذّر التغيير: {error}'),
+  'vw.no_readable_text': (
+    'Okunacak metin bulunamadı. Taranmış belgede önce “Metni tanı (OCR)”.',
+    'No readable text found. On a scanned document, run “Recognize text (OCR)” first.',
+    'لم يُعثر على نص قابل للقراءة. في مستند ممسوح ضوئيًا، شغّل «التعرّف على النص (OCR)» أولًا.',
   ),
 
   // ── Arşiv görüntüleyici ───────────────────────────────────────────────────
@@ -1342,4 +1514,565 @@ const Map<String, (String, String, String)> _table = {
   'excel.hidden': ('Gizli', 'Hidden', 'مخفي'),
   'excel.unit_chars': ('karakter', 'characters', 'حرفًا'),
   'excel.unit_points': ('punto', 'points', 'نقطة'),
+
+  // ── Dosya yöneticisi ayarları ─────────────────────────────────────────────
+  'fmset.title': (
+    'Dosya yöneticisi ayarları',
+    'File manager settings',
+    'إعدادات مدير الملفات',
+  ),
+  'fmset.sec_view': ('Görünüm', 'Appearance', 'المظهر'),
+  'fmset.sec_open': ('Açma', 'Opening', 'الفتح'),
+  'fmset.sec_search': ('Arama', 'Search', 'البحث'),
+  'fmset.sec_privacy': ('Gizlilik', 'Privacy', 'الخصوصية'),
+  'fmset.sec_delete': ('Silme', 'Deleting', 'الحذف'),
+  'fmset.sec_permissions': ('İzinler', 'Permissions', 'الأذونات'),
+  'fmset.sec_maintenance': ('Bakım', 'Maintenance', 'الصيانة'),
+  'fmset.sec_app': ('Uygulama', 'App', 'التطبيق'),
+  'fmset.list_layout': (
+    'Dosya listesi görünümü',
+    'File list layout',
+    'تخطيط قائمة الملفات',
+  ),
+  'fmset.photo_grid': ('Fotoğraflar ızgarası', 'Photo grid', 'شبكة الصور'),
+  'fmset.grid_density': ('Izgara yoğunluğu', 'Grid density', 'كثافة الشبكة'),
+  'fmset.grouping': ('gruplama', 'grouping', 'التجميع'),
+  'fmset.show_hidden': (
+    'Gizli dosyaları göster',
+    'Show hidden files',
+    'إظهار الملفات المخفية',
+  ),
+  'fmset.show_hidden_sub': (
+    'Adı nokta ile başlayanlar (.thumbnails gibi)',
+    'Names starting with a dot (such as .thumbnails)',
+    'الأسماء التي تبدأ بنقطة (مثل ‎.thumbnails)',
+  ),
+  'fmset.thumbnails': ('Küçük resimler', 'Thumbnails', 'الصور المصغّرة'),
+  'fmset.thumbnails_sub': (
+    'Görsel ve video önizlemeleri (yavaş cihazda kapatın)',
+    'Image and video previews (turn off on slow devices)',
+    'معاينات الصور والفيديو (أوقفها على الأجهزة البطيئة)',
+  ),
+  'fmset.default_sort': ('Varsayılan sıralama', 'Default sorting', 'الترتيب الافتراضي'),
+  'fmset.desc': ('azalan', 'descending', 'تنازلي'),
+  'fmset.asc': ('artan', 'ascending', 'تصاعدي'),
+  'fmset.reverse_dir': ('Yönü ters çevir', 'Reverse direction', 'عكس الاتجاه'),
+  'fmset.group_photos': ('Fotoğrafları grupla', 'Group photos', 'تجميع الصور'),
+  'fmset.group_photos_sub': (
+    '{unit} göre ayrılır',
+    'Grouped by {unit}',
+    'مجمَّعة حسب {unit}',
+  ),
+  'fmset.media_open_with': (
+    'Video, ses ve görselleri neyle aç',
+    'Open videos, audio and images with',
+    'فتح الفيديو والصوت والصور بواسطة',
+  ),
+  'fmset.index': ('Arama dizini', 'Search index', 'فهرس البحث'),
+  'fmset.index_building': ('Kuruluyor…', 'Building…', 'جارٍ الإنشاء…'),
+  'fmset.index_none': (
+    'Henüz kurulmadı — ilk aramada ya da tarama sonrası kurulur',
+    'Not built yet — it is built on the first search or after a scan',
+    'لم يُنشأ بعد — يُنشأ عند أول بحث أو بعد الفحص',
+  ),
+  'fmset.index_stale': (
+    ' · dosyalar değişti, tazelenmeli',
+    ' · files changed, needs refreshing',
+    ' · تغيّرت الملفات، يحتاج تحديثًا',
+  ),
+  'fmset.index_ready': (
+    '{n} kayıt · {date}{stale}',
+    '{n} records · {date}{stale}',
+    '{n} سجل · {date}{stale}',
+  ),
+  'fmset.index_failed': (
+    'Dizin kurulamadı (depolama izni verilmemiş olabilir).',
+    'Could not build the index (storage permission may be missing).',
+    'تعذّر إنشاء الفهرس (قد يكون إذن التخزين مفقودًا).',
+  ),
+  'fmset.index_built': (
+    'Arama dizini kuruldu · {n} kayıt.',
+    'Search index built · {n} records.',
+    'تم إنشاء فهرس البحث · {n} سجل.',
+  ),
+  'fmset.pin_change': (
+    'Klasör kilidi PIN’i değiştir',
+    'Change the folder lock PIN',
+    'تغيير رمز قفل المجلد',
+  ),
+  'fmset.pin_set': (
+    'Klasör kilidi PIN’i belirle',
+    'Set a folder lock PIN',
+    'تعيين رمز قفل المجلد',
+  ),
+  'fmset.pin_sub_locked': (
+    '{n} klasör kilitli · kilitlemek için klasörde ⋮ > “Klasörü kilitle”',
+    '{n} folders locked · to lock one, use ⋮ > “Lock folder” in the folder',
+    '{n} مجلد مقفل · للقفل استخدم ⋮ > «قفل المجلد» داخل المجلد',
+  ),
+  'fmset.pin_sub_unset': (
+    'Kilitli klasörler listelerde ve galeride görünmez. '
+        'Dosyalar ŞİFRELENMEZ — yalnız bu uygulamada gizlenir.',
+    'Locked folders are hidden from lists and the gallery. Files are NOT '
+        'encrypted — they are only hidden inside this app.',
+    'المجلدات المقفلة مخفية من القوائم والمعرض. الملفات غير مشفّرة — إنما '
+        'تُخفى داخل هذا التطبيق فقط.',
+  ),
+  'fmset.pin_remove': (
+    'Kilidi tamamen kaldır',
+    'Remove the lock completely',
+    'إزالة القفل تمامًا',
+  ),
+  'fmset.pin_remove_sub': (
+    'PIN silinir ve tüm klasörlerin kilidi açılır.',
+    'The PIN is deleted and all folders are unlocked.',
+    'يُحذف الرمز وتُفتح جميع المجلدات.',
+  ),
+  'fmset.unlock': ('Kilidi kaldır', 'Unlock', 'إلغاء القفل'),
+  'fmset.use_trash': ('Çöp kutusunu kullan', 'Use the trash', 'استخدام سلة المهملات'),
+  'fmset.use_trash_sub': (
+    'Kapalıysa dosyalar doğrudan kalıcı silinir (geri alınamaz)',
+    'When off, files are deleted permanently right away (cannot be undone)',
+    'عند الإيقاف تُحذف الملفات نهائيًا مباشرةً (لا يمكن التراجع)',
+  ),
+  'fmset.confirm_delete': (
+    'Silmeden önce sor',
+    'Ask before deleting',
+    'اسأل قبل الحذف',
+  ),
+  'fmset.trash_auto': (
+    'Çöp kutusunu otomatik temizle',
+    'Empty the trash automatically',
+    'تفريغ سلة المهملات تلقائيًا',
+  ),
+  'fmset.trash_auto_off': (
+    'Kapalı — çöp elle boşaltılır',
+    'Off — the trash is emptied by hand',
+    'مُعطّل — تُفرَّغ السلة يدويًا',
+  ),
+  'fmset.trash_auto_on': (
+    '{n} günden eski öğeler silinir',
+    'Items older than {n} days are deleted',
+    'تُحذف العناصر الأقدم من {n} يومًا',
+  ),
+  'fmset.off': ('Kapalı', 'Off', 'مُعطّل'),
+  'fmset.days': ('{n} gün', '{n} days', '{n} يومًا'),
+  'fmset.empty_trash_now': (
+    'Çöp kutusunu şimdi boşalt',
+    'Empty the trash now',
+    'تفريغ سلة المهملات الآن',
+  ),
+  'fmset.trash_empty': ('Çöp kutusu boş', 'The trash is empty', 'سلة المهملات فارغة'),
+  'fmset.trash_summary': (
+    '{n} öğe · {size}',
+    '{n} items · {size}',
+    '{n} عنصر · {size}',
+  ),
+  'fmset.empty_confirm_title': (
+    'Çöp kutusu boşaltılsın mı?',
+    'Empty the trash?',
+    'هل تريد تفريغ سلة المهملات؟',
+  ),
+  'fmset.empty_confirm_body': (
+    '{n} öğe ({size}) kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+    '{n} items ({size}) will be deleted permanently. This cannot be undone.',
+    'سيتم حذف {n} عنصر ({size}) نهائيًا. لا يمكن التراجع عن ذلك.',
+  ),
+  'fmset.empty': ('Boşalt', 'Empty', 'تفريغ'),
+  'fmset.emptying': (
+    'Çöp kutusu boşaltılıyor',
+    'Emptying the trash',
+    'جارٍ تفريغ سلة المهملات',
+  ),
+  'fmset.empty_partial': (
+    '{ok} öğe silindi, {fail} öğe silinemedi.',
+    '{ok} items deleted, {fail} could not be deleted.',
+    'تم حذف {ok} عنصر، وتعذّر حذف {fail}.',
+  ),
+  'fmset.empty_cancelled': (
+    'Durduruldu — {ok} öğe silindi.',
+    'Stopped — {ok} items deleted.',
+    'تم الإيقاف — حُذف {ok} عنصر.',
+  ),
+  'fmset.empty_done': (
+    'Çöp kutusu boşaltıldı · {ok} öğe · {size} yer açıldı.',
+    'Trash emptied · {ok} items · {size} freed.',
+    'تم تفريغ سلة المهملات · {ok} عنصر · تم تحرير {size}.',
+  ),
+  'fmset.full_access': (
+    'Tüm dosyalara erişim',
+    'All-files access',
+    'الوصول إلى كل الملفات',
+  ),
+  'fmset.full_access_on': (
+    'Verildi — tüm klasörler görünüyor',
+    'Granted — all folders are visible',
+    'مُمنوح — تظهر جميع المجلدات',
+  ),
+  'fmset.full_access_off': (
+    'Verilmedi — yalnız medya klasörleri görünür',
+    'Not granted — only media folders are visible',
+    'غير ممنوح — تظهر مجلدات الوسائط فقط',
+  ),
+  'fmset.usage_access': ('Kullanım erişimi', 'Usage access', 'الوصول إلى الاستخدام'),
+  'fmset.usage_access_on': (
+    'Verildi — uygulamaların son açılma tarihi görünüyor',
+    'Granted — apps’ last-opened dates are visible',
+    'مُمنوح — يظهر تاريخ آخر فتح للتطبيقات',
+  ),
+  'fmset.usage_access_off': (
+    'Verilmedi — “Uygulamalar” ekranında tarih gösterilemez',
+    'Not granted — dates cannot be shown on the “Apps” screen',
+    'غير ممنوح — لا يمكن عرض التواريخ في شاشة «التطبيقات»',
+  ),
+  'fmset.grant': ('İzin ver', 'Grant', 'منح الإذن'),
+  'fmset.clear_thumbs': (
+    'Küçük resim önbelleğini temizle',
+    'Clear the thumbnail cache',
+    'مسح ذاكرة الصور المصغّرة',
+  ),
+  'fmset.clear_thumbs_sub': (
+    'Video önizlemeleri yeniden üretilir',
+    'Video previews are regenerated',
+    'يُعاد إنشاء معاينات الفيديو',
+  ),
+  'fmset.thumbs_none': (
+    'Temizlenecek küçük resim bulunamadı.',
+    'No thumbnails to clear.',
+    'لا توجد صور مصغّرة لمسحها.',
+  ),
+  'fmset.thumbs_cleared': (
+    '{n} küçük resim silindi.',
+    '{n} thumbnails deleted.',
+    'تم حذف {n} صورة مصغّرة.',
+  ),
+  'fmset.volumes': ('Birimler', 'Volumes', 'وحدات التخزين'),
+  'fmset.volumes_none': ('Bulunamadı', 'None found', 'لم يُعثر على شيء'),
+  'fmset.general': ('Genel ayarlar', 'General settings', 'الإعدادات العامة'),
+  'fmset.general_sub': (
+    'Gemini anahtarı, tema, hesap',
+    'Gemini key, theme, account',
+    'مفتاح Gemini، السمة، الحساب',
+  ),
+
+  // ── İndirmeler ────────────────────────────────────────────────────────────
+  'dl.title': ('İndirmeler', 'Downloads', 'التنزيلات'),
+  'dl.clipboard_download': (
+    'Panodaki bağlantıyı indir',
+    'Download the link in the clipboard',
+    'تنزيل الرابط الموجود في الحافظة',
+  ),
+  'dl.how_to': (
+    'Tarayıcıdan nasıl indiririm?',
+    'How do I download from the browser?',
+    'كيف أُنزّل من المتصفح؟',
+  ),
+  'dl.clear_finished': (
+    'Biten kayıtları temizle',
+    'Clear finished entries',
+    'مسح السجلات المنتهية',
+  ),
+  'dl.link': ('Bağlantı', 'Link', 'رابط'),
+  'dl.clipboard_link': ('Panodaki bağlantı', 'Link in the clipboard', 'الرابط في الحافظة'),
+  'dl.download': ('İndir', 'Download', 'تنزيل'),
+  'dl.no_link': (
+    'Panoda bir bağlantı yok. Tarayıcıda bağlantıyı kopyalayıp buraya dönün.',
+    'There is no link in the clipboard. Copy a link in the browser and come back.',
+    'لا يوجد رابط في الحافظة. انسخ الرابط في المتصفح ثم عُد إلى هنا.',
+  ),
+  'dl.from_link': ('Bağlantıdan indir', 'Download from a link', 'التنزيل من رابط'),
+  'dl.link_label': ('Bağlantı (https://…)', 'Link (https://…)', 'الرابط (‎https://…)'),
+  'dl.continue': ('Devam', 'Continue', 'متابعة'),
+  'dl.empty': ('Henüz indirme yok', 'No downloads yet', 'لا توجد تنزيلات بعد'),
+  'dl.remaining': ('{time} kaldı', '{time} left', 'بقي {time}'),
+  'dl.link_copied': (
+    'Bağlantı panoya kopyalandı.',
+    'Link copied to the clipboard.',
+    'تم نسخ الرابط إلى الحافظة.',
+  ),
+  'dl.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
+  'dl.resume': ('Devam et', 'Resume', 'استئناف'),
+  'dl.cancel_task': ('İptal et', 'Cancel', 'إلغاء'),
+  'dl.open_folder': ('Klasörünü aç', 'Open its folder', 'فتح مجلده'),
+  'dl.copy_link': ('Bağlantıyı kopyala', 'Copy link', 'نسخ الرابط'),
+  'dl.remove': ('Listeden kaldır', 'Remove from list', 'إزالة من القائمة'),
+  'dl.download_here': ('Buraya indir', 'Download here', 'نزّل هنا'),
+  'dl.started': (
+    'İndirme başladı: {name}',
+    'Download started: {name}',
+    'بدأ التنزيل: {name}',
+  ),
+  'dl.fetching_release': (
+    'Sürüm dosyaları alınıyor…',
+    'Fetching release files…',
+    'جارٍ جلب ملفات الإصدار…',
+  ),
+  'dl.asset_count': ('{n} dosya · {tag}', '{n} files · {tag}', '{n} ملف · {tag}'),
+  'dl.size_unknown': ('Boyut bilinmiyor', 'Size unknown', 'الحجم غير معروف'),
+  'dl.step1_title': ('1) Paylaş (en kolayı)', '1) Share (easiest)', '1) المشاركة (الأسهل)'),
+  'dl.step1_body': (
+    'Bağlantıya uzun basın → “Bağlantıyı paylaş” → Dosya Okuyucu. '
+        'Sayfadaki paylaş düğmesi de olur.',
+    'Long-press the link → “Share link” → Dosya Okuyucu. The page’s own share '
+        'button works too.',
+    'اضغط مطوّلًا على الرابط ← «مشاركة الرابط» ← Dosya Okuyucu. زر المشاركة في '
+        'الصفحة يعمل أيضًا.',
+  ),
+  'dl.step2_title': ('2) Kopyala-yapıştır', '2) Copy and paste', '2) نسخ ولصق'),
+  'dl.step2_body': (
+    'Bağlantıya uzun basın → “Bağlantı adresini kopyala”, sonra bu ekranı '
+        'açın: bağlantı üstte çıkar, “İndir”e dokunun.',
+    'Long-press the link → “Copy link address”, then open this screen: the '
+        'link appears at the top, tap “Download”.',
+    'اضغط مطوّلًا على الرابط ← «نسخ عنوان الرابط»، ثم افتح هذه الشاشة: يظهر '
+        'الرابط في الأعلى، اضغط «تنزيل».',
+  ),
+  'dl.step3_title': (
+    '3) Bağlantıya dokununca çıkmamız için',
+    '3) To make us appear when you tap a link',
+    '3) لكي نظهر عند الضغط على رابط',
+  ),
+  'dl.step3_body': (
+    'Android 12’den beri bir uygulama, sahibi olmadığı bir sitenin '
+        'bağlantılarını izinsiz açamıyor. Elle izin verebilirsiniz: aşağıdaki '
+        'düğmeyle uygulama bilgisi ekranını açın, sonra:\n'
+        '• Saf Android / Pixel: “Varsayılan olarak aç” → '
+        '“Desteklenen bağlantıları aç”\n'
+        '• Samsung: “Varsayılan olarak ayarla” → “Desteklenen web adresleri”\n'
+        '• Xiaomi / Redmi: “Varsayılan olarak aç” → “Desteklenen bağlantılar”\n'
+        'Açılan listede github.com gibi adresleri işaretleyin.',
+    'Since Android 12, an app cannot open links for a site it does not own '
+        'without permission. You can grant it by hand: use the button below to '
+        'open the app info screen, then:\n'
+        '• Stock Android / Pixel: “Open by default” → “Open supported links”\n'
+        '• Samsung: “Set as default” → “Supported web addresses”\n'
+        '• Xiaomi / Redmi: “Open by default” → “Supported links”\n'
+        'Tick addresses such as github.com in the list that appears.',
+    'منذ Android 12 لا يمكن لتطبيق أن يفتح روابط موقع لا يملكه دون إذن. يمكنك '
+        'منح الإذن يدويًا: افتح شاشة معلومات التطبيق بالزر أدناه، ثم:\n'
+        '• Android الأصلي / Pixel: «الفتح افتراضيًا» ← «فتح الروابط المدعومة»\n'
+        '• Samsung: «التعيين كافتراضي» ← «عناوين الويب المدعومة»\n'
+        '• Xiaomi / Redmi: «الفتح افتراضيًا» ← «الروابط المدعومة»\n'
+        'علّم العناوين مثل github.com في القائمة التي تظهر.',
+  ),
+  'dl.how_to_note': (
+    'Bu menü yalnız Android 12 ve üstünde var. Bulamıyorsanız 1. yolu '
+        'kullanın — hiçbir ayar gerektirmiyor ve her cihazda çalışıyor.',
+    'This menu only exists on Android 12 and above. If you cannot find it, use '
+        'method 1 — it needs no settings and works on every device.',
+    'هذه القائمة موجودة فقط في Android 12 وما فوق. إن لم تجدها فاستخدم الطريقة '
+        'الأولى — لا تحتاج أي إعداد وتعمل على كل جهاز.',
+  ),
+  'dl.open_app_info': (
+    'Uygulama bilgisini aç',
+    'Open app info',
+    'فتح معلومات التطبيق',
+  ),
+
+  // ── Arka plandaki iş kuyruğu / bildirimler ────────────────────────────────
+  'job.error_generic': ('Bir hata oluştu.', 'Something went wrong.', 'حدث خطأ.'),
+  'job.finished': ('Tamamlandı.', 'Completed.', 'اكتمل.'),
+  'job.stopped_detail': (
+    'Durduruldu · {detail}',
+    'Stopped · {detail}',
+    'تم الإيقاف · {detail}',
+  ),
+
+  // ── Sayılabilir değerlerin etiketleri (models/… `labelKey`) ───────────────
+  // Buradaki her anahtar bir enum'un `labelKey` getter'ından gelir; saf Dart
+  // modeller `AppStrings`'i tanımadığı için etiket metni tek yerde, burada.
+  'enum.layout_list': ('Liste', 'List', 'قائمة'),
+  'enum.layout_detail': ('Büyük liste', 'Large list', 'قائمة كبيرة'),
+  'enum.layout_grid2': ('2 sütun', '2 columns', 'عمودان'),
+  'enum.layout_grid3': ('3 sütun', '3 columns', '3 أعمدة'),
+  'enum.layout_grid4': ('4 sütun', '4 columns', '4 أعمدة'),
+  'enum.layout_grid5': ('5 sütun', '5 columns', '5 أعمدة'),
+  'enum.layout_list_desc': (
+    'Tek sıra · ad, boyut ve tarih',
+    'Single row · name, size and date',
+    'صف واحد · الاسم والحجم والتاريخ',
+  ),
+  'enum.layout_detail_desc': (
+    'Tek sıra · büyük önizleme',
+    'Single row · large preview',
+    'صف واحد · معاينة كبيرة',
+  ),
+  'enum.layout_grid2_desc': ('En büyük kareler', 'Largest tiles', 'أكبر المربعات'),
+  'enum.layout_grid3_desc': (
+    'Dengeli — varsayılan',
+    'Balanced — default',
+    'متوازن — الافتراضي',
+  ),
+  'enum.layout_grid4_desc': ('Daha çok dosya sığar', 'Fits more files', 'يتّسع لملفات أكثر'),
+  'enum.layout_grid5_desc': ('En yoğun görünüm', 'Densest view', 'أكثف عرض'),
+
+  'enum.photo_group_day': ('Gün', 'Day', 'يوم'),
+  'enum.photo_group_month': ('Ay', 'Month', 'شهر'),
+  'enum.photo_group_year': ('Yıl', 'Year', 'سنة'),
+
+  'enum.open_with_ask': ('Her seferinde sor', 'Ask every time', 'اسأل في كل مرة'),
+  'enum.open_with_in_app': (
+    'Uygulama içi oynatıcı',
+    'In-app player',
+    'المشغّل داخل التطبيق',
+  ),
+  'enum.open_with_external': ('Başka uygulama', 'Another app', 'تطبيق آخر'),
+  'enum.open_with_ask_desc': (
+    'Video/ses/görsel açarken hangisini kullanacağın sorulur',
+    'You are asked which one to use when opening video/audio/images',
+    'يُسألك أيّهما تستخدم عند فتح فيديو/صوت/صورة',
+  ),
+  'enum.open_with_in_app_desc': (
+    'Dosyalar bu uygulamanın oynatıcısında açılır',
+    'Files open in this app’s player',
+    'تُفتح الملفات في مشغّل هذا التطبيق',
+  ),
+  'enum.open_with_external_desc': (
+    'Telefonundaki varsayılan oynatıcı/galeri açılır',
+    'Your phone’s default player/gallery opens',
+    'يُفتح المشغّل/المعرض الافتراضي في هاتفك',
+  ),
+
+  'enum.cat_folder': ('Klasör', 'Folder', 'مجلد'),
+  'enum.cat_image': ('Görüntüler', 'Images', 'الصور'),
+  'enum.cat_video': ('Videolar', 'Videos', 'الفيديوهات'),
+  'enum.cat_audio': ('Ses', 'Audio', 'الصوت'),
+  'enum.cat_document': ('Belgeler', 'Documents', 'المستندات'),
+  'enum.cat_archive': ('Arşivler', 'Archives', 'الأرشيفات'),
+  'enum.cat_apk': ('Uygulamalar', 'Apps', 'التطبيقات'),
+  'enum.cat_other': ('Diğer', 'Other', 'أخرى'),
+
+  'enum.sort_name': ('Ada göre', 'By name', 'حسب الاسم'),
+  'enum.sort_date': ('Tarihe göre', 'By date', 'حسب التاريخ'),
+  'enum.sort_size': ('Boyuta göre', 'By size', 'حسب الحجم'),
+  'enum.sort_type': ('Türe göre', 'By type', 'حسب النوع'),
+
+  'enum.doc_pdf': ('PDF', 'PDF', 'PDF'),
+  'enum.doc_text': ('Metin', 'Text', 'نص'),
+  'enum.doc_spreadsheet': ('Excel', 'Excel', 'Excel'),
+  'enum.doc_word': ('Word', 'Word', 'Word'),
+  'enum.doc_slides': ('Slayt', 'Slides', 'شرائح'),
+  'enum.doc_image': ('Görsel', 'Image', 'صورة'),
+  'enum.doc_unknown': ('Bilinmeyen', 'Unknown', 'غير معروف'),
+
+  'enum.bucket_camera': ('Kamera', 'Camera', 'الكاميرا'),
+  'enum.bucket_screenshot': ('Ekran görüntüsü', 'Screenshot', 'لقطة شاشة'),
+  'enum.bucket_whatsapp': ('WhatsApp', 'WhatsApp', 'WhatsApp'),
+  'enum.bucket_telegram': ('Telegram', 'Telegram', 'Telegram'),
+  'enum.bucket_instagram': ('Instagram', 'Instagram', 'Instagram'),
+  'enum.bucket_download': ('İndirilenler', 'Downloads', 'التنزيلات'),
+  'enum.bucket_bluetooth': ('Bluetooth', 'Bluetooth', 'بلوتوث'),
+  'enum.bucket_other': ('Diğer', 'Other', 'أخرى'),
+
+  'enum.dl_queued': ('Sırada', 'Queued', 'في الانتظار'),
+  'enum.dl_running': ('İndiriliyor', 'Downloading', 'جارٍ التنزيل'),
+  'enum.dl_paused': ('Duraklatıldı', 'Paused', 'متوقف مؤقتًا'),
+  'enum.dl_completed': ('Tamamlandı', 'Completed', 'اكتمل'),
+  'enum.dl_failed': ('Başarısız', 'Failed', 'فشل'),
+  'enum.dl_canceled': ('İptal edildi', 'Canceled', 'أُلغي'),
+
+  'enum.age_fresh': ('yeni', 'new', 'جديد'),
+  'enum.age_recent': ('bu ay', 'this month', 'هذا الشهر'),
+  'enum.age_old': ('eski', 'old', 'قديم'),
+  'enum.age_ancient': ('çok eski', 'very old', 'قديم جدًا'),
+  'enum.age_unknown': ('bilinmiyor', 'unknown', 'غير معروف'),
+
+  'enum.date_any': ('Her zaman', 'Any time', 'أي وقت'),
+  'enum.date_today': ('Bugün', 'Today', 'اليوم'),
+  'enum.date_week': ('Son 7 gün', 'Last 7 days', 'آخر 7 أيام'),
+  'enum.date_month': ('Son 30 gün', 'Last 30 days', 'آخر 30 يومًا'),
+  'enum.date_year': ('Son 1 yıl', 'Last year', 'آخر سنة'),
+  'enum.date_custom': ('Özel aralık', 'Custom range', 'نطاق مخصص'),
+
+  'enum.size_any': ('Tümü', 'All', 'الكل'),
+  'enum.size_tiny': ('1 MB altı', 'Under 1 MB', 'أقل من 1 ميغابايت'),
+  'enum.size_small': ('1 – 10 MB', '1 – 10 MB', '1 – 10 ميغابايت'),
+  'enum.size_medium': ('10 – 100 MB', '10 – 100 MB', '10 – 100 ميغابايت'),
+  'enum.size_large': ('100 MB üzeri', 'Over 100 MB', 'أكثر من 100 ميغابايت'),
+
+  'enum.chat_image': ('Görüntü', 'Image', 'صورة'),
+  'enum.chat_video': ('Video', 'Video', 'فيديو'),
+  'enum.chat_document': ('Belge', 'Document', 'مستند'),
+  'enum.chat_audio': ('Ses', 'Audio', 'صوت'),
+  'enum.chat_voice': ('Sesli not', 'Voice note', 'رسالة صوتية'),
+  'enum.chat_sticker': ('Çıkartma', 'Sticker', 'ملصق'),
+  'enum.chat_gif': ('Animasyon (GIF)', 'Animation (GIF)', 'صورة متحركة (GIF)'),
+  'enum.chat_other': ('Diğer', 'Other', 'أخرى'),
+  'enum.chat_dir_any': ('Hepsi', 'All', 'الكل'),
+  'enum.chat_dir_received': ('Bana gelenler', 'Received', 'الواردة'),
+  'enum.chat_dir_sent': ('Gönderdiklerim', 'Sent', 'المرسلة'),
+
+  'enum.res_keep': ('Değiştirme', 'Keep as is', 'دون تغيير'),
+  'enum.res_480': ('480p', '480p', '480p'),
+  'enum.res_540': ('540p', '540p', '540p'),
+  'enum.res_720': ('720p (HD)', '720p (HD)', '720p (HD)'),
+  'enum.res_1080': ('1080p (Full HD)', '1080p (Full HD)', '1080p (Full HD)'),
+  'enum.res_percent': ('Yüzdeyle küçült', 'Scale by percent', 'تصغير بنسبة مئوية'),
+  'enum.res_custom': ('Serbest en × boy', 'Custom width × height', 'عرض × ارتفاع مخصص'),
+
+  'enum.imgfmt_keep': ('Aynı kalsın', 'Keep the same', 'إبقاء كما هو'),
+  'enum.imgfmt_jpeg': ('JPEG (küçük)', 'JPEG (small)', 'JPEG (صغير)'),
+  'enum.imgfmt_png': ('PNG (kayıpsız)', 'PNG (lossless)', 'PNG (بلا فقد)'),
+
+  'enum.vq_very_low': ('En küçük dosya', 'Smallest file', 'أصغر ملف'),
+  'enum.vq_low': ('Küçük', 'Small', 'صغير'),
+  'enum.vq_medium': ('Dengeli', 'Balanced', 'متوازن'),
+  'enum.vq_high': ('Yüksek kalite', 'High quality', 'جودة عالية'),
+
+  'enum.doc_invoice': ('Fatura', 'Invoice', 'فاتورة'),
+  'enum.doc_receipt': ('Makbuz / fiş', 'Receipt', 'إيصال'),
+  'enum.doc_id': ('Kimlik / resmî belge', 'ID / official document', 'هوية / مستند رسمي'),
+  'enum.doc_health': ('Sağlık belgesi', 'Health document', 'مستند صحي'),
+  'enum.doc_bank': ('Banka / finans', 'Bank / finance', 'بنك / مالية'),
+  'enum.doc_contract': ('Sözleşme', 'Contract', 'عقد'),
+  'enum.doc_education': ('Eğitim / not', 'Education / notes', 'تعليم / ملاحظات'),
+  'enum.doc_screenshot': ('Ekran görüntüsü', 'Screenshot', 'لقطة شاشة'),
+  'enum.doc_ticket': ('Bilet / rezervasyon', 'Ticket / booking', 'تذكرة / حجز'),
+  'enum.doc_other': ('Diğer', 'Other', 'أخرى'),
+
+  'enum.org_type': ('Türüne göre', 'By type', 'حسب النوع'),
+  'enum.org_date': ('Tarihine göre', 'By date', 'حسب التاريخ'),
+  'enum.org_source': ('Kaynağına göre', 'By source', 'حسب المصدر'),
+  'enum.org_type_desc': (
+    'Görüntüler, Videolar, Belgeler…',
+    'Images, Videos, Documents…',
+    'صور، فيديوهات، مستندات…',
+  ),
+  'enum.org_date_desc': ('2026-07, 2026-06…', '2026-07, 2026-06…', '2026-07، 2026-06…'),
+  'enum.org_source_desc': (
+    'Kamera, WhatsApp, İndirilenler…',
+    'Camera, WhatsApp, Downloads…',
+    'الكاميرا، WhatsApp، التنزيلات…',
+  ),
+
+  'enum.job_queued': ('Sırada', 'Queued', 'في الانتظار'),
+  'enum.job_running': ('Sürüyor', 'Running', 'قيد التنفيذ'),
+  'enum.job_done': ('Tamamlandı', 'Completed', 'اكتمل'),
+  'enum.job_failed': ('Başarısız', 'Failed', 'فشل'),
+  'enum.job_cancelled': ('İptal edildi', 'Cancelled', 'أُلغي'),
+
+  'enum.sim_strict': ('Çok sıkı', 'Very strict', 'صارم جدًا'),
+  'enum.sim_normal': ('Normal', 'Normal', 'عادي'),
+  'enum.sim_loose': ('Gevşek', 'Loose', 'متساهل'),
+  'enum.sim_strict_desc': (
+    'Neredeyse birebir aynı görüntüler (yeniden sıkıştırılmış kopyalar).',
+    'Almost identical images (re-compressed copies).',
+    'صور متطابقة تقريبًا (نسخ أُعيد ضغطها).',
+  ),
+  'enum.sim_normal_desc': (
+    'Aynı görüntünün boyutu/kalitesi değişmiş ya da hafif kırpılmış hâlleri.',
+    'The same image resized, re-encoded or lightly cropped.',
+    'الصورة نفسها بعد تغيير الحجم أو الجودة أو قصّ بسيط.',
+  ),
+  'enum.sim_loose_desc': (
+    'Aynı sahnenin arka arkaya çekilmiş kareleri de eşleşir; yanlış eşleşme olabilir.',
+    'Also matches consecutive shots of the same scene; false matches are possible.',
+    'يطابق أيضًا لقطات متتالية للمشهد نفسه؛ قد تحدث مطابقات خاطئة.',
+  ),
+
+  'enum.op_move': ('Taşıma', 'Move', 'نقل'),
+  'enum.op_copy': ('Kopyalama', 'Copy', 'نسخ'),
+  'enum.op_delete': ('Silme', 'Delete', 'حذف'),
+  'enum.op_rename': ('Yeniden adlandırma', 'Rename', 'إعادة تسمية'),
+  'enum.op_organize': ('Otomatik düzenleme', 'Auto-organize', 'تنظيم تلقائي'),
 };

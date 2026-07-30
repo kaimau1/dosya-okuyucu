@@ -10,6 +10,16 @@ import 'fm_env.dart';
 enum OpKind { move, copy, delete, rename, organize }
 
 extension OpKindInfo on OpKind {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`). [label] Türkçe kalır:
+  /// geçmiş kayıtlarına **özet metni olarak yazılmış** eski kayıtlar var.
+  String get labelKey => switch (this) {
+        OpKind.move => 'enum.op_move',
+        OpKind.copy => 'enum.op_copy',
+        OpKind.delete => 'enum.op_delete',
+        OpKind.rename => 'enum.op_rename',
+        OpKind.organize => 'enum.op_organize',
+      };
+
   String get label => switch (this) {
         OpKind.move => 'Taşıma',
         OpKind.copy => 'Kopyalama',

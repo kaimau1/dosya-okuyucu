@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../core/text_search.dart';
 import '../models/document.dart';
@@ -275,7 +276,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       context,
       originalPath: widget.doc.path,
       bytes: bytes,
-      note: 'Yaptığınız düzenlemeler bu belgeye işlendi.',
+      note: context.t('vw.edits_applied'),
     );
     if (outcome == null) return false;
     // "Üzerine yaz" ise dosya zaten güncel — yedek atılır. Kopya/klasör
@@ -292,22 +293,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Kaydedilmemiş düzenleme var'),
-        content: const Text(
-          'Belgede yaptığınız değişiklikler henüz kaydedilmedi. '
-          'Kaydetmek ister misiniz?\n\n'
-          '"Kaydetme" derseniz belge düzenlemeden önceki hâline döner.',
-        ),
+        title: Text(context.t('vw.unsaved_title')),
+        content: Text(context.t('vw.unsaved_body')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, 'cancel'),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, 'discard'),
-              child: const Text('Kaydetme')),
+              child: Text(context.t('vw.dont_save'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, 'save'),
-              child: const Text('Kaydet')),
+              child: Text(context.t('common.save'))),
         ],
       ),
     );
@@ -395,7 +392,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (count > 0) {
         label = '${(s?.currentIndex ?? 0) + 1}/$count';
       } else if (s != null && s.isSearching) {
-        label = 'aranıyor…';
+        label = context.t('vw.searching');
       } else {
         label = _findCtl.text.trim().isEmpty ? '' : 'yok';
       }
@@ -416,7 +413,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             // "belgede gezinme" kutusunda.
             if (_isPdf)
               IconButton(
-                tooltip: 'Sayfaya git',
+                tooltip: context.t('vw.goto_page_short'),
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.numbers),
                 onPressed: _askGoToPage,
@@ -428,25 +425,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 textInputAction: TextInputAction.search,
                 onChanged: _runFind,
                 onSubmitted: (_) => _jumpMatch(1),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
-                  hintText: 'Belgede ara…',
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  hintText: context.t('vw.find_in_doc'),
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 10),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             Text(label, style: Theme.of(context).textTheme.bodySmall),
             IconButton(
-              tooltip: 'Önceki',
+              tooltip: context.t('common.previous'),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.keyboard_arrow_up),
               onPressed: count == 0 ? null : () => _jumpMatch(-1),
             ),
             IconButton(
-              tooltip: 'Sonraki',
+              tooltip: context.t('common.next'),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.keyboard_arrow_down),
               onPressed: count == 0 ? null : () => _jumpMatch(1),
@@ -483,22 +480,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _save() async {
     final doc = widget.doc;
     final text = _textController?.text ?? '';
+    // Etiketler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final str = AppStrings.of(context);
     try {
       if (doc.kind == DocKind.text) {
         await _fileService.saveText(doc.path, text);
         _dirty = false;
-        _snack('Kaydedildi');
+        _snack(str.t('common.saved'));
       } else {
         // Word/Slayt: özgün formata güvenli yazım yerine dışa aktarma öner.
         await _exportPdf();
       }
     } catch (e) {
-      _snack('Kaydedilemedi: $e');
+      _snack(str.t('common.save_failed', {'error': e}));
     }
     if (mounted) setState(() {});
   }
 
   Future<void> _exportPdf() async {
+    // Etiket await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final exportedLabel = context.t('vw.pdf_exported');
     // Görselde plainText boştur: metin yoluna sokulursa PDF'e "(Boş belge)"
     // yazılıp resim tamamen kaybolurdu — görsel kendi yolundan gider.
     if (widget.doc.kind == DocKind.image) {
@@ -511,29 +512,27 @@ class _ViewerScreenState extends State<ViewerScreen> {
       '${_stem(widget.doc.name)}.pdf',
       bytes,
     );
-    await Share.shareXFiles([XFile(path)], text: 'PDF olarak dışa aktarıldı');
+    await Share.shareXFiles([XFile(path)], text: exportedLabel);
   }
 
   /// Görseli tam çözünürlükte PDF'e gömer; istenirse OCR ile görünmez metin
   /// katmanı ekleyip PDF'i aranabilir yapar.
   Future<void> _exportImagePdf() async {
+    final pdfPreparing = context.t('vw.pdf_preparing');
     final withOcr = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Resmi PDF yap'),
-        content: const Text(
-          'Resim tam çözünürlükte, kırpılmadan PDF\'e gömülecek.\n\n'
-          'İçindeki yazılar da PDF içinde aranabilir/kopyalanabilir olsun mu? '
-          '(Metin tanıma birkaç saniye sürer, görüntüyü değiştirmez.)',
-        ),
+        title: Text(context.t('vw.image_to_pdf')),
+        content: Text(context.t('vw.image_to_pdf_body') +
+            context.t('vw.ocr_in_pdf')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Sadece resim'),
+            child: Text(context.t('vw.image_only')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yazıları da tanı'),
+            child: Text(context.t('vw.ocr_also')),
           ),
         ],
       ),
@@ -541,7 +540,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (withOcr == null || !mounted) return;
 
     final progress = ValueNotifier<String>(
-        withOcr ? 'Yazılar taranıyor…' : 'PDF hazırlanıyor…');
+        withOcr ? context.t('vw.scanning_text') : context.t('vw.pdf_preparing'));
     _showProgressDialog(progress);
 
     String? path;
@@ -550,7 +549,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       final lines = withOcr
           ? await OcrService.recognizeImageLines(widget.doc.path)
           : const <OcrLine>[];
-      progress.value = 'PDF hazırlanıyor…';
+      progress.value = pdfPreparing;
       final bytes =
           await _conversion.imageToPdf(widget.doc.path, ocrLines: lines);
       path = await _conversion.writeToTemp(
@@ -562,10 +561,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     Navigator.of(context).pop(); // ilerleme penceresi
 
     if (error != null) {
-      _snack('PDF oluşturulamadı: $error');
+      _snack(context.t('vw.pdf_failed', {'error': error}));
       return;
     }
-    await Share.shareXFiles([XFile(path!)], text: 'PDF olarak dışa aktarıldı');
+    await Share.shareXFiles([XFile(path!)], text: context.t('vw.pdf_exported'));
   }
 
   void _showProgressDialog(ValueNotifier<String> progress) {
@@ -673,8 +672,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final text = _documentText.trim();
     if (text.isEmpty) {
       _snack(widget.doc.kind == DocKind.pdf || widget.doc.kind == DocKind.image
-          ? 'Metin bulunamadı. Önce “Metni tanı (OCR)” çalıştırın.'
-          : 'Çevrilecek metin yok.');
+          ? context.t('vw.ocr_first')
+          : context.t('vw.no_text_to_translate'));
       return;
     }
     await TranslateFlow.run(context, text, title: widget.doc.name);
@@ -691,21 +690,21 @@ class _ViewerScreenState extends State<ViewerScreen> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Belge bilgisi'),
+        title: Text(context.t('vw.doc_info')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _statRow('Sözcük', s.words),
-            _statRow('Karakter', s.characters),
-            _statRow('Karakter (boşluksuz)', s.charactersNoSpaces),
-            _statRow('Satır', s.lines),
-            _statRow('Paragraf', s.paragraphs),
+            _statRow(context.t('vw.word'), s.words),
+            _statRow(context.t('vw.chars'), s.characters),
+            _statRow(context.t('vw.chars_nospace'), s.charactersNoSpaces),
+            _statRow(context.t('vw.line'), s.lines),
+            _statRow(context.t('vw.paragraph'), s.paragraphs),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Kapat'),
+            child: Text(context.t('common.close')),
           ),
         ],
       ),
@@ -760,33 +759,33 @@ class _ViewerScreenState extends State<ViewerScreen> {
       actions: [
         if (doc.kind == DocKind.pdf) ...[
           PopupMenuButton<int>(
-            tooltip: 'Sayfa düzeni',
+            tooltip: context.t('vw.page_layout'),
             icon: Icon(_pdfColumns == 1
                 ? Icons.view_agenda_outlined
                 : (_pdfColumns == 2
                     ? Icons.view_column_outlined
                     : Icons.grid_view_outlined)),
             onSelected: _setPdfColumns,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 1, child: Text('Tek sütun')),
-              PopupMenuItem(value: 2, child: Text('2 sütun')),
-              PopupMenuItem(value: 4, child: Text('4 sütun')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 1, child: Text(context.t('vw.one_column'))),
+              PopupMenuItem(value: 2, child: Text(context.t('vw.two_columns'))),
+              PopupMenuItem(value: 4, child: Text(context.t('vw.four_columns'))),
             ],
           ),
           IconButton(
-            tooltip: 'İçindekiler',
+            tooltip: context.t('vw.toc'),
             icon: const Icon(Icons.toc),
             onPressed: _showOutline,
           ),
           // Sayfa döndürme (2026-07-27 kullanıcı isteği). Kayıpsız: sayfanın
           // `/Rotate` girdisi değişir, içerik yeniden çizilmez.
           IconButton(
-            tooltip: '90° sola döndür',
+            tooltip: context.t('vw.rotate_left'),
             icon: const Icon(Icons.rotate_90_degrees_ccw),
             onPressed: _pdfBusy ? null : () => _rotateCurrentPage(-1),
           ),
           IconButton(
-            tooltip: '90° sağa döndür',
+            tooltip: context.t('vw.rotate_right'),
             icon: const Icon(Icons.rotate_90_degrees_cw),
             onPressed: _pdfBusy ? null : () => _rotateCurrentPage(1),
           ),
@@ -794,30 +793,30 @@ class _ViewerScreenState extends State<ViewerScreen> {
           // (2026-07-26 kullanıcı isteği) — üst çubuk kalabalıktı.
           if (_pdfDirty)
             IconButton(
-              tooltip: 'Düzenlemeleri kaydet',
+              tooltip: context.t('vw.save_edits'),
               icon: const Icon(Icons.save_outlined),
               onPressed: _savePendingPdf,
             ),
         ],
         if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
-            tooltip: 'Belgede ara',
+            tooltip: context.t('vw.find_in_doc_short'),
             icon: Icon(_findOpen ? Icons.search_off : Icons.search),
             onPressed: _toggleFind,
           ),
         if (doc.kind == DocKind.image) ...[
           IconButton(
-            tooltip: 'Uzaklaştır',
+            tooltip: context.t('vw.zoom_out'),
             icon: const Icon(Icons.zoom_out),
             onPressed: () => _zoomImg(1 / 1.4),
           ),
           IconButton(
-            tooltip: 'Yakınlaştır',
+            tooltip: context.t('vw.zoom_in'),
             icon: const Icon(Icons.zoom_in),
             onPressed: () => _zoomImg(1.4),
           ),
           IconButton(
-            tooltip: 'Döndür',
+            tooltip: context.t('vw.rotate'),
             icon: const Icon(Icons.rotate_right),
             onPressed: () =>
                 setState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
@@ -825,12 +824,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
         ],
         if (_textController != null) ...[
           IconButton(
-            tooltip: 'Yazıyı küçült',
+            tooltip: context.t('vw.text_smaller'),
             icon: const Icon(Icons.text_decrease),
             onPressed: () => _changeFont(-2),
           ),
           IconButton(
-            tooltip: 'Yazıyı büyüt',
+            tooltip: context.t('vw.text_bigger'),
             icon: const Icon(Icons.text_increase),
             onPressed: () => _changeFont(2),
           ),
@@ -882,36 +881,38 @@ class _ViewerScreenState extends State<ViewerScreen> {
               // arama çubuğunda ve alttaki sayfa rozetine dokununca. Kullanıcı
               // 2026-07-26'da yalnız arama çubuğundakini bulamadığını söyledi
               // ("nerede olduğu anlaşılmıyor, kişiler bulamaz").
-              const PopupMenuItem(
-                  value: 'gotopage', child: Text('Sayfaya git…')),
+              PopupMenuItem(
+                  value: 'gotopage',
+                  child: Text(context.t('vw.goto_page'))),
               PopupMenuItem(
                 value: 'night',
-                child: Text(_pdfNight ? 'Gece modunu kapat' : 'Gece modu'),
+                child: Text(context
+                    .t(_pdfNight ? 'vw.night_off' : 'vw.night_on')),
               ),
-              const PopupMenuItem(
-                  value: 'aiedit', child: Text('AI ile düzenle')),
-              const PopupMenuItem(value: 'sign', child: Text('İmzala')),
-              const PopupMenuItem(
-                  value: 'ocr', child: Text('Metni tanı (OCR)')),
+              PopupMenuItem(
+                  value: 'aiedit', child: Text(context.t('vw.ai_edit'))),
+              PopupMenuItem(value: 'sign', child: Text(context.t('vw.sign'))),
+              PopupMenuItem(
+                  value: 'ocr', child: Text(context.t('vw.ocr'))),
             ],
             if (_ttsTotal == 0)
-              const PopupMenuItem(
-                  value: 'speak', child: Text('Sesli oku')),
-            const PopupMenuItem(
-                value: 'translate', child: Text('Belgeyi çevir')),
+              PopupMenuItem(
+                  value: 'speak', child: Text(context.t('vw.speak'))),
+            PopupMenuItem(
+                value: 'translate', child: Text(context.t('vw.translate_doc'))),
             if (doc.kind != DocKind.image)
-              const PopupMenuItem(value: 'pdf', child: Text('PDF’e dönüştür')),
-            const PopupMenuItem(
-                value: 'slides', child: Text('Slayta dönüştür')),
+              PopupMenuItem(value: 'pdf', child: Text(context.t('vw.to_pdf'))),
+            PopupMenuItem(
+                value: 'slides', child: Text(context.t('vw.to_slides'))),
             if (_hasText)
-              const PopupMenuItem(
-                  value: 'stats', child: Text('Sözcük sayısı / bilgi')),
+              PopupMenuItem(
+                  value: 'stats', child: Text(context.t('vw.word_count'))),
             // Belgeyi okurken "bunu Önemli Dosyalar'a taşıyayım" demek için
             // görüntüleyiciyi kapatıp dosyayı listede aramak gerekmesin
             // (kullanıcı isteği 2026-07-29: "her türlü dosyada bu olmalı").
-            const PopupMenuItem(
+            PopupMenuItem(
                 value: 'fileops',
-                child: Text('Dosya işlemleri (taşı, kopyala…)')),
+                child: Text(context.t('vw.file_ops'))),
           ],
         ),
       ],
@@ -931,7 +932,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // kapatıyordu; etiket tooltip'e taşındı.
       fab: FloatingActionButton(
         onPressed: _openChat,
-        tooltip: hasApiKey ? 'AI ile çalış' : 'AI (anahtar gerekli)',
+        tooltip: hasApiKey ? context.t('common.ai') : 'AI (anahtar gerekli)',
         child: const Icon(Icons.smart_toy_outlined),
       ),
     );
@@ -946,19 +947,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final isImage = doc.kind == DocKind.image;
     return DocActionBar([
       if (doc.kind == DocKind.pdf) ...[
-        DocAction(Icons.edit_document, 'Düzenleyici', _openPdfEditor),
-        DocAction(Icons.construction, 'Araçlar', _openPdfTools),
+        DocAction(Icons.edit_document, context.t('vw.editor'), _openPdfEditor),
+        DocAction(Icons.construction, context.t('vw.tools'), _openPdfTools),
       ],
       if (isImage) ...[
-        DocAction(Icons.document_scanner_outlined, 'Metni tanı', _runOcr),
-        DocAction(Icons.picture_as_pdf_outlined, 'PDF’e dönüştür', _exportPdf),
+        DocAction(Icons.document_scanner_outlined, context.t('vw.ocr_short'), _runOcr),
+        DocAction(Icons.picture_as_pdf_outlined, context.t('vw.to_pdf'), _exportPdf),
       ],
       if (doc.isEditableText) ...[
-        DocAction(Icons.edit_outlined, 'Düzenle', _textFocus.requestFocus),
+        DocAction(Icons.edit_outlined, context.t('common.edit'), _textFocus.requestFocus),
         DocAction(Icons.save_outlined, 'Kaydet', _save),
       ],
-      DocAction(Icons.share_outlined, 'Paylaş', _share),
-      if (!isImage) DocAction(Icons.print_outlined, 'Yazdır', _print),
+      DocAction(Icons.share_outlined, context.t('common.share'), _share),
+      if (!isImage) DocAction(Icons.print_outlined, context.t('vw.print'), _print),
     ]);
   }
 
@@ -1006,14 +1007,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   onPressed: _highlightPdf,
                   icon: const Icon(Icons.border_color,
                       color: Colors.white, size: 18),
-                  label: const Text('Vurgula',
-                      style: TextStyle(color: Colors.white)),
+                  label: Text(context.t('vw.highlight'),
+                      style: const TextStyle(color: Colors.white)),
                 ),
                 TextButton.icon(
                   onPressed: _copyPdfSelection,
                   icon: const Icon(Icons.copy, color: Colors.white, size: 18),
-                  label: const Text('Kopyala',
-                      style: TextStyle(color: Colors.white)),
+                  label: Text(context.t('common.copy'),
+                      style: const TextStyle(color: Colors.white)),
                 ),
                 // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
                 // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
@@ -1021,16 +1022,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   onPressed: _startInlineEdit,
                   icon: const Icon(Icons.edit_outlined,
                       color: Colors.white, size: 18),
-                  label: const Text('Düzenle',
-                      style: TextStyle(color: Colors.white)),
+                  label: Text(context.t('common.edit'),
+                      style: const TextStyle(color: Colors.white)),
                 ),
                 TextButton.icon(
                   onPressed: () => TranslateFlow.run(context, _pdfSelection,
-                      title: 'Seçili metin'),
+                      title: context.t('vw.selected_text')),
                   icon:
                       const Icon(Icons.translate, color: Colors.white, size: 18),
-                  label:
-                      const Text('Çevir', style: TextStyle(color: Colors.white)),
+                  label: Text(context.t('common.translate'),
+                      style: const TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -1076,7 +1077,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            button(Icons.close, 'Vazgeç',
+            button(Icons.close, context.t('common.cancel'),
                 _pdfEditBusy ? null : _cancelInlineEdit),
             button(Icons.auto_fix_high, 'AI',
                 _pdfEditBusy ? null : _rewriteInlineEdit),
@@ -1091,7 +1092,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 ),
               )
             else
-              button(Icons.check, 'Uygula', _submitInlineEdit),
+              button(Icons.check, context.t('common.apply'), _submitInlineEdit),
           ],
         ),
       ),
@@ -1127,8 +1128,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _copyPdfSelection() async {
     final text = _pdfSelection.trim();
     if (text.isEmpty) return;
+    final copied = context.t('vw.copied_chars', {'n': text.length});
     await Clipboard.setData(ClipboardData(text: text));
-    _snack('Kopyalandı (${text.length} karakter)');
+    _snack(copied);
   }
 
   /// Seçili metni PDF'e kalıcı highlight annotation olarak yazar (Syncfusion),
@@ -1187,6 +1189,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF içindeki bağlantıya dokunulunca. Dış adresler ONAY İSTER: belgedeki
   /// bağlantı metni gerçek hedefi gizleyebilir, kullanıcı tam URL'yi görmeli.
   Future<void> _onPdfLink(PdfLink link) async {
+    final linkFailed = context.t('vw.link_failed');
+    final linkFailedE = context.t('vw.link_failed_e');
     final dest = link.dest;
     if (dest != null) {
       await _pdfController.goToDest(dest);
@@ -1197,25 +1201,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Bağlantıyı aç'),
-        content: Text('Bu belge sizi şu adrese götürmek istiyor:\n\n$url\n\n'
-            'Tanımadığınız adreslere dikkat edin.'),
+        title: Text(context.t('vw.link_title')),
+        content: Text(context.t('vw.link_body', {'url': url})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Aç')),
+              child: Text(context.t('common.open'))),
         ],
       ),
     );
     if (go != true) return;
     try {
       final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
-      if (!ok) _snack('Bağlantı açılamadı');
+      if (!ok) _snack(linkFailed);
     } catch (e) {
-      _snack('Bağlantı açılamadı: $e');
+      _snack(linkFailedE.replaceAll('{error}', '$e'));
     }
   }
 
@@ -1226,7 +1229,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final outline = await doc.loadOutline();
     if (!mounted) return;
     if (outline.isEmpty) {
-      _snack('Bu belgede içindekiler yok');
+      _snack(context.t('vw.no_toc'));
       return;
     }
     // ponytail: ağaç yerine girintili düz liste — açılır/kapanır düğüm yönetimi
@@ -1288,7 +1291,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final text = _documentText;
     if (text.trim().isEmpty) {
       _snack(_isPdf
-          ? 'Okunacak metin bulunamadı. Taranmış belgede önce "Metni tanı (OCR)".'
+          ? context.t('vw.no_readable_text')
           : 'Okunacak metin yok');
       return;
     }
@@ -1324,11 +1327,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
               onPressed: _toggleSpeech,
             ),
             Expanded(
-              child: Text('Sesli okuma  ${_ttsIndex + 1} / $_ttsTotal',
+              child: Text(
+                  context.t('vw.speaking',
+                      {'n': _ttsIndex + 1, 'total': _ttsTotal}),
                   style: Theme.of(context).textTheme.bodyMedium),
             ),
             IconButton(
-              tooltip: 'Durdur',
+              tooltip: context.t('common.stop'),
               icon: const Icon(Icons.stop),
               onPressed: _stopSpeech,
             ),
@@ -1442,7 +1447,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _pdfEditBusy = false);
-      _snack('Değiştirilemedi: $e');
+      _snack(context.t('vw.change_failed', {'error': e}));
     }
   }
 
@@ -1466,10 +1471,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (!mounted) return;
       await _writePending(out);
       if (mounted) {
-        _snack('$page. sayfa ${quarterTurns < 0 ? 'sola' : 'sağa'} döndürüldü');
+        _snack(context.t(
+            quarterTurns < 0 ? 'vw.rotated_left' : 'vw.rotated_right',
+            {'n': page}));
       }
     } catch (e) {
-      if (mounted) _snack('Döndürülemedi: $e');
+      if (mounted) _snack(context.t('vw.rotate_failed', {'error': e}));
     } finally {
       if (mounted) setState(() => _pdfBusy = false);
     }
@@ -1495,9 +1502,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // Vurgu da metin düzenlemesi gibi bekleyen değişikliktir: özgün dosyaya
       // dokunulmaz, çıkarken bir kez kaydedilir.
       await _writePending(out);
-      if (mounted) _snack('Vurgulandı');
+      if (mounted) _snack(context.t('vw.highlighted'));
     } catch (e) {
-      if (mounted) _snack('Vurgulama başarısız: $e');
+      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
     }
   }
 
@@ -1508,24 +1515,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _runOcr() async {
     final doc = widget.doc;
     if (doc.kind == DocKind.pdf && _pdfDoc == null) {
-      _snack('PDF henüz yükleniyor, birazdan tekrar deneyin.');
+      _snack(context.t('vw.pdf_loading'));
       return;
     }
-    final progress = ValueNotifier<String>('Hazırlanıyor…');
+    final progress = ValueNotifier<String>(context.t('vw.preparing'));
     _showProgressDialog(progress);
 
     String text = '';
     String? error;
     try {
       if (doc.kind == DocKind.image) {
-        progress.value = 'Metin tanınıyor…';
+        progress.value = context.t('vw.ocr_running');
         text = await OcrService.recognizeImageFile(doc.path);
       } else if (doc.kind == DocKind.pdf) {
         text = await OcrService.recognizePdf(
           _pdfDoc!,
           onProgress: (done, total) => progress.value = done >= total
               ? 'Bitiriliyor…'
-              : 'Sayfa ${done + 1} / $total taranıyor…',
+              : context.t('vw.ocr_page', {'n': done + 1, 'total': total}),
         );
       }
     } catch (e) {
@@ -1535,11 +1542,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
     Navigator.of(context).pop(); // ilerleme penceresi
 
     if (error != null) {
-      _snack('OCR başarısız: $error');
+      _snack(context.t('vw.ocr_failed', {'error': error}));
       return;
     }
     if (text.isEmpty) {
-      _snack('Metin bulunamadı (OCR).');
+      _snack(context.t('vw.ocr_none'));
       return;
     }
     setState(() {
@@ -1551,6 +1558,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   void _showOcrSheet(String text) {
+    final copiedAll = context.t('vw.copied_all');
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1566,17 +1574,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
             children: [
               Row(
                 children: [
-                  Text('Tanınan metin',
+                  Text(context.t('vw.ocr_text'),
                       style: Theme.of(ctx).textTheme.titleMedium),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: text));
                       if (ctx.mounted) Navigator.pop(ctx);
-                      _snack('Tümü kopyalandı');
+                      _snack(copiedAll);
                     },
                     icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Tümünü kopyala'),
+                    label: Text(context.t('vw.copy_all')),
                   ),
                 ],
               ),
@@ -1689,7 +1697,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('Sayfaya git'),
+          title: Text(context.t('vw.goto_page_short')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1698,7 +1706,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 autofocus: true,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Sayfa numarası (1 – $count)',
+                  labelText: context.t('vw.page_number', {'count': count}),
                 ),
                 onChanged: (v) {
                   final n = int.tryParse(v.trim());
@@ -1725,10 +1733,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Vazgeç')),
+                child: Text(context.t('common.cancel'))),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, resolve()),
-              child: const Text('Git'),
+              child: Text(context.t('common.go')),
             ),
           ],
         ),
@@ -1773,10 +1781,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     if (!mounted) return;
     if (landed == target) {
-      _snack('$target. sayfa (toplam $total)');
+      _snack(context.t('vw.page_of', {'n': target, 'total': total}));
     } else {
-      _snack('$target. sayfaya gidilemedi; $landed. sayfada kalındı '
-          '(toplam $total).');
+      _snack(context.t('vw.page_jump_failed_total',
+          {'target': target, 'landed': landed, 'total': total}));
     }
   }
 
@@ -1971,9 +1979,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   quarterTurns: _imgQuarterTurns,
                   child: Image.file(
                     File(doc.path),
-                    errorBuilder: (_, __, ___) => const Text(
-                      'Görsel görüntülenemedi.',
-                      style: TextStyle(color: Colors.white),
+                    errorBuilder: (_, __, ___) => Text(
+                      context.t('vw.image_failed'),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
@@ -2012,8 +2020,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 Text(
                   doc.plainText.isNotEmpty
                       ? doc.plainText
-                      : 'Bu dosya türü için yerleşik görüntüleyici yok.\n'
-                          'Başka bir uygulamayla açabilir veya AI’a sorabilirsiniz.',
+                      : context.t('vw.no_viewer'),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -2024,13 +2031,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   onPressed: () =>
                       EntryOpener.openExternally(context, widget.doc.path),
                   icon: const Icon(Icons.open_in_new),
-                  label: const Text('Başka uygulamayla aç'),
+                  label: Text(context.t('fm.open_with_other')),
                 ),
                 const SizedBox(height: 8),
                 TextButton.icon(
                   onPressed: _share,
                   icon: const Icon(Icons.share_outlined),
-                  label: const Text('Paylaş'),
+                  label: Text(context.t('common.share')),
                 ),
               ],
             ),
@@ -2068,7 +2075,7 @@ class _TextEditor extends StatelessWidget {
         textAlignVertical: TextAlignVertical.top,
         decoration: InputDecoration(
           border: InputBorder.none,
-          hintText: editable ? 'Belge içeriği…' : null,
+          hintText: editable ? context.t('vw.doc_content') : null,
           filled: false,
         ),
         style: TextStyle(fontSize: fontSize, height: 1.5),
@@ -2096,7 +2103,7 @@ class _SpreadsheetView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (table.isEmpty) {
-      return const Center(child: Text('Tablo boş veya okunamadı.'));
+      return Center(child: Text(context.t('vw.table_empty')));
     }
     final scheme = Theme.of(context).colorScheme;
     final divider = Theme.of(context).dividerColor;

@@ -2,6 +2,17 @@
 enum DocKind { pdf, text, spreadsheet, word, slides, image, unknown }
 
 extension DocKindLabel on DocKind {
+  /// Çeviri anahtarı — arayüz `context.t(kind.labelKey)` çağırır.
+  String get labelKey => switch (this) {
+        DocKind.pdf => 'enum.doc_pdf',
+        DocKind.text => 'enum.doc_text',
+        DocKind.spreadsheet => 'enum.doc_spreadsheet',
+        DocKind.word => 'enum.doc_word',
+        DocKind.slides => 'enum.doc_slides',
+        DocKind.image => 'enum.doc_image',
+        DocKind.unknown => 'enum.doc_unknown',
+      };
+
   String get label {
     switch (this) {
       case DocKind.pdf:

@@ -20,6 +20,15 @@ enum AgeLevel {
 }
 
 extension AgeLevelLabel on AgeLevel {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        AgeLevel.fresh => 'enum.age_fresh',
+        AgeLevel.recent => 'enum.age_recent',
+        AgeLevel.old => 'enum.age_old',
+        AgeLevel.ancient => 'enum.age_ancient',
+        AgeLevel.unknown => 'enum.age_unknown',
+      };
+
   String get label => switch (this) {
         AgeLevel.fresh => 'yeni',
         AgeLevel.recent => 'bu ay',

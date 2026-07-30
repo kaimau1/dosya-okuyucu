@@ -40,6 +40,27 @@ extension FmLayoutInfo on FmLayout {
 
   bool get isGrid => columns > 1;
 
+  /// Çeviri anahtarı — arayüzde bunun karşılığı gösterilir
+  /// (`context.t(layout.labelKey)`). [label] Türkçe kalır: saf Dart olan bu
+  /// dosya `AppStrings`'i tanımaz ve etiket testlerde/günlüklerde kullanılır.
+  String get labelKey => switch (this) {
+        FmLayout.list => 'enum.layout_list',
+        FmLayout.detail => 'enum.layout_detail',
+        FmLayout.grid2 => 'enum.layout_grid2',
+        FmLayout.grid3 => 'enum.layout_grid3',
+        FmLayout.grid4 => 'enum.layout_grid4',
+        FmLayout.grid5 => 'enum.layout_grid5',
+      };
+
+  String get descriptionKey => switch (this) {
+        FmLayout.list => 'enum.layout_list_desc',
+        FmLayout.detail => 'enum.layout_detail_desc',
+        FmLayout.grid2 => 'enum.layout_grid2_desc',
+        FmLayout.grid3 => 'enum.layout_grid3_desc',
+        FmLayout.grid4 => 'enum.layout_grid4_desc',
+        FmLayout.grid5 => 'enum.layout_grid5_desc',
+      };
+
   String get label => switch (this) {
         FmLayout.list => 'Liste',
         FmLayout.detail => 'Büyük liste',

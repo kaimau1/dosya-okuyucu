@@ -7,6 +7,19 @@ import '../../models/media_bucket.dart';
 enum OrganizeBy { type, date, source }
 
 extension OrganizeByInfo on OrganizeBy {
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
+  String get labelKey => switch (this) {
+        OrganizeBy.type => 'enum.org_type',
+        OrganizeBy.date => 'enum.org_date',
+        OrganizeBy.source => 'enum.org_source',
+      };
+
+  String get descriptionKey => switch (this) {
+        OrganizeBy.type => 'enum.org_type_desc',
+        OrganizeBy.date => 'enum.org_date_desc',
+        OrganizeBy.source => 'enum.org_source_desc',
+      };
+
   String get label => switch (this) {
         OrganizeBy.type => 'Türüne göre',
         OrganizeBy.date => 'Tarihine göre',

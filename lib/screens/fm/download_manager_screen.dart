@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/download_task.dart';
 import '../../models/fs_entry.dart';
@@ -78,9 +79,8 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     final url = extractUrl(data?.text ?? '');
     if (!mounted) return;
     if (url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Panoda bir bağlantı yok. Tarayıcıda bağlantıyı '
-              'kopyalayıp buraya dönün.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.t('dl.no_link'))));
       return;
     }
     await startDownloadFlow(context, url);
@@ -91,13 +91,13 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     final url = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Bağlantıdan indir'),
+        title: Text(context.t('dl.from_link')),
         content: TextField(
           controller: controller,
           autofocus: true,
           keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            labelText: 'Bağlantı (https://…)',
+          decoration: InputDecoration(
+            labelText: context.t('dl.link_label'),
             hintText: 'https://github.com/kullanici/depo/releases/latest',
           ),
           onSubmitted: (v) => Navigator.pop(ctx, v),
@@ -105,10 +105,10 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Devam')),
+              child: Text(context.t('dl.continue'))),
         ],
       ),
     );
@@ -123,21 +123,21 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     final tasks = _service.tasks;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('İndirmeler'),
+        title: Text(context.t('dl.title')),
         actions: [
           IconButton(
-            tooltip: 'Panodaki bağlantıyı indir',
+            tooltip: context.t('dl.clipboard_download'),
             icon: const Icon(Icons.content_paste_go),
             onPressed: _addFromClipboard,
           ),
           IconButton(
-            tooltip: 'Tarayıcıdan nasıl indiririm?',
+            tooltip: context.t('dl.how_to'),
             icon: const Icon(Icons.help_outline),
             onPressed: () => showDownloadHelp(context),
           ),
           if (tasks.any((t) => !t.state.isActive))
             IconButton(
-              tooltip: 'Biten kayıtları temizle',
+              tooltip: context.t('dl.clear_finished'),
               icon: const Icon(Icons.clear_all),
               onPressed: _service.clearFinished,
             ),
@@ -150,7 +150,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addManual,
         icon: const Icon(Icons.add_link),
-        label: const Text('Bağlantı'),
+        label: Text(context.t('dl.link')),
       ),
     );
   }
@@ -170,7 +170,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Panodaki bağlantı',
+                  Text(context.t('dl.clipboard_link'),
                       style: Theme.of(context).textTheme.labelSmall),
                   Text(url,
                       maxLines: 1,
@@ -184,10 +184,10 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
                 setState(() => _clipboardUrl = null);
                 await startDownloadFlow(context, url);
               },
-              child: const Text('İndir'),
+              child: Text(context.t('dl.download')),
             ),
             IconButton(
-              tooltip: 'Kapat',
+              tooltip: context.t('common.close'),
               icon: const Icon(Icons.close, size: 18),
               onPressed: () => setState(() => _clipboardUrl = null),
             ),
@@ -201,7 +201,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
           ? ListView(
               padding: const EdgeInsets.all(Gap.lg),
               children: [
-                Text('Henüz indirme yok',
+                Text(context.t('dl.empty'),
                     style: Theme.of(context).textTheme.titleMedium,
                     textAlign: TextAlign.center),
                 const SizedBox(height: Gap.md),
@@ -241,11 +241,12 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
                 '${FsPaths.humanSize(task.received)}'
                     '${task.hasTotal ? " / ${FsPaths.humanSize(task.total)}" : ""}'
                     ' · ${formatSpeed(task.bytesPerSecond)}'
-                    '${eta != null ? " · ${formatDuration(eta)} kaldı" : ""}',
+                    '${eta != null ? " · ${context.t('dl.remaining', {'time': formatDuration(eta)})}" : ""}',
               DownloadState.completed =>
                 '${FsPaths.humanSize(task.received)} · ${p.dirname(task.destPath)}',
-              DownloadState.failed => task.error ?? 'Başarısız',
-              _ => '${task.state.label} · '
+              DownloadState.failed =>
+                task.error ?? context.t('enum.dl_failed'),
+              _ => '${context.t(task.state.labelKey)} · '
                   '${FsPaths.humanSize(task.received)}'
                   '${task.hasTotal ? " / ${FsPaths.humanSize(task.total)}" : ""}',
             },
@@ -266,7 +267,10 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     );
   }
 
-  Widget _actions(DownloadTask task) => PopupMenuButton<String>(
+  Widget _actions(DownloadTask task) {
+    // Asenkron boşluktan sonra `context` kullanılamaz → metin şimdi alınır.
+    final copiedMsg = context.t('dl.link_copied');
+    return PopupMenuButton<String>(
         onSelected: (v) async {
           switch (v) {
             case 'pause':
@@ -289,26 +293,29 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
             case 'copy':
               await Clipboard.setData(ClipboardData(text: task.url));
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Bağlantı panoya kopyalandı.')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(copiedMsg)));
               }
           }
         },
         itemBuilder: (_) => [
           if (task.state == DownloadState.running)
-            const PopupMenuItem(value: 'pause', child: Text('Duraklat')),
+            PopupMenuItem(value: 'pause', child: Text(context.t('dl.pause'))),
           if (task.state.isResumable)
-            const PopupMenuItem(value: 'resume', child: Text('Devam et')),
+            PopupMenuItem(value: 'resume', child: Text(context.t('dl.resume'))),
           if (task.state.isActive || task.state == DownloadState.paused)
-            const PopupMenuItem(value: 'cancel', child: Text('İptal et')),
+            PopupMenuItem(
+                value: 'cancel', child: Text(context.t('dl.cancel_task'))),
           if (task.state == DownloadState.completed) ...[
-            const PopupMenuItem(value: 'open', child: Text('Aç')),
-            const PopupMenuItem(value: 'folder', child: Text('Klasörünü aç')),
+            PopupMenuItem(value: 'open', child: Text(context.t('common.open'))),
+            PopupMenuItem(
+                value: 'folder', child: Text(context.t('dl.open_folder'))),
           ],
-          const PopupMenuItem(value: 'copy', child: Text('Bağlantıyı kopyala')),
-          const PopupMenuItem(value: 'remove', child: Text('Listeden kaldır')),
+          PopupMenuItem(value: 'copy', child: Text(context.t('dl.copy_link'))),
+          PopupMenuItem(value: 'remove', child: Text(context.t('dl.remove'))),
         ],
       );
+  }
 }
 
 /// **İndirme akışı:** bağlantıyı çözümler, GitHub sürümüyse dosya seçtirir,
@@ -341,7 +348,7 @@ Future<void> startDownloadFlow(BuildContext context, String rawUrl) async {
   final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
     builder: (_) => FolderPickerScreen(
       sources: const [],
-      actionLabel: 'Buraya indir',
+      actionLabel: context.t('dl.download_here'),
       startPath: FmEnv.primaryRoot,
     ),
   ));
@@ -351,7 +358,8 @@ Future<void> startDownloadFlow(BuildContext context, String rawUrl) async {
       .enqueue(target, destDir: dest, fileName: suggestedName);
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text('İndirme başladı: ${suggestedName ?? p.basename(target)}'),
+    content: Text(context.t(
+        'dl.started', {'name': suggestedName ?? p.basename(target)})),
   ));
 }
 
@@ -359,14 +367,14 @@ Future<GithubRelease?> _fetchRelease(BuildContext context, String apiUrl) async 
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const AlertDialog(
+    builder: (ctx) => AlertDialog(
       content: Row(
         children: [
-          SizedBox(
+          const SizedBox(
               width: 20, height: 20,
               child: CircularProgressIndicator(strokeWidth: 2)),
-          SizedBox(width: Gap.md),
-          Expanded(child: Text('Sürüm dosyaları alınıyor…')),
+          const SizedBox(width: Gap.md),
+          Expanded(child: Text(ctx.t('dl.fetching_release'))),
         ],
       ),
     ),
@@ -403,8 +411,8 @@ Future<GithubAsset?> _pickAsset(
           children: [
             ListTile(
               title: Text(release.title),
-              subtitle: Text('${release.assets.length} dosya · '
-                  '${release.tag}'),
+              subtitle: Text(ctx.t('dl.asset_count',
+                  {'n': release.assets.length, 'tag': release.tag})),
             ),
             const Divider(height: 1),
             Flexible(
@@ -418,7 +426,7 @@ Future<GithubAsset?> _pickAsset(
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(asset.sizeBytes > 0
                           ? FsPaths.humanSize(asset.sizeBytes)
-                          : 'Boyut bilinmiyor'),
+                          : ctx.t('dl.size_unknown')),
                       onTap: () => Navigator.pop(ctx, asset),
                     ),
                 ],
@@ -461,54 +469,36 @@ class _HowToCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tarayıcıdan nasıl indiririm?', style: text.titleSmall),
+            Text(context.t('dl.how_to'), style: text.titleSmall),
             const SizedBox(height: Gap.sm),
-            const _Step(
+            _Step(
               icon: Icons.share_outlined,
-              title: '1) Paylaş (en kolayı)',
-              body: 'Bağlantıya uzun basın → “Bağlantıyı paylaş” → '
-                  'Dosya Okuyucu. Sayfadaki paylaş düğmesi de olur.',
+              title: context.t('dl.step1_title'),
+              body: context.t('dl.step1_body'),
             ),
-            const _Step(
+            _Step(
               icon: Icons.content_paste_go,
-              title: '2) Kopyala-yapıştır',
-              body: 'Bağlantıya uzun basın → “Bağlantı adresini kopyala”, '
-                  'sonra bu ekranı açın: bağlantı üstte çıkar, “İndir”e '
-                  'dokunun.',
+              title: context.t('dl.step2_title'),
+              body: context.t('dl.step2_body'),
             ),
             // Menü adı markaya göre değişiyor; tek bir yol yazmak
             // "bulamıyorum"a çıkıyor (kullanıcı geri bildirimi 2026-07-29).
             // Bu yüzden aşağıdaki düğme doğrudan uygulama bilgisi ekranını
             // açıyor ve metin oradan sonrasını marka marka anlatıyor.
-            const _Step(
+            _Step(
               icon: Icons.settings_outlined,
-              title: '3) Bağlantıya dokununca çıkmamız için',
-              body: 'Android 12’den beri bir uygulama, sahibi olmadığı bir '
-                  'sitenin bağlantılarını izinsiz açamıyor. Elle izin '
-                  'verebilirsiniz: aşağıdaki düğmeyle uygulama bilgisi '
-                  'ekranını açın, sonra:\n'
-                  '• Saf Android / Pixel: “Varsayılan olarak aç” → '
-                  '“Desteklenen bağlantıları aç”\n'
-                  '• Samsung: “Varsayılan olarak ayarla” → '
-                  '“Desteklenen web adresleri”\n'
-                  '• Xiaomi / Redmi: “Varsayılan olarak aç” → '
-                  '“Desteklenen bağlantılar”\n'
-                  'Açılan listede github.com gibi adresleri işaretleyin.',
+              title: context.t('dl.step3_title'),
+              body: context.t('dl.step3_body'),
             ),
             const SizedBox(height: Gap.xs),
-            Text(
-              'Bu menü yalnız Android 12 ve üstünde var. Bulamıyorsanız '
-              '1. yolu kullanın — hiçbir ayar gerektirmiyor ve her cihazda '
-              'çalışıyor.',
-              style: text.bodySmall,
-            ),
+            Text(context.t('dl.how_to_note'), style: text.bodySmall),
             const SizedBox(height: Gap.sm),
             Align(
               alignment: Alignment.centerRight,
               child: OutlinedButton.icon(
                 onPressed: StoragePermission.openSettings,
                 icon: const Icon(Icons.open_in_new),
-                label: const Text('Uygulama bilgisini aç'),
+                label: Text(context.t('dl.open_app_info')),
               ),
             ),
           ],
