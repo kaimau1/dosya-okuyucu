@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
+import '../core/l10n/app_strings.dart';
 import 'pdf_content_editor.dart';
 import 'pdf_tools.dart';
 
@@ -63,6 +64,9 @@ class PdfEditFlow {
     required String newText,
     String precedingText = '',
   }) async {
+    // Metinler await'ten ÖNCE: bu akış uzun asenkron adımlardan geçiyor ve
+    // sonrasında `context` kullanmak `use_build_context_synchronously` olurdu.
+    final strings = AppStrings.of(context);
     List<int> bytes = await File(path).readAsBytes();
     List<int> out;
     var note = '';
@@ -100,29 +104,23 @@ class PdfEditFlow {
           // Gerçek bir kullanıcı parolası var (belge boş parolayla açılmıyor)
           // ya da Syncfusion bu şifrelemeyi çözemedi. Yedek yola düşülür.
           throw PdfEditRefused(
-            'Belgenin şifre koruması kaldırılamadı: $e\n\n'
-            'Parolayı biliyorsanız PDF araçlarından kaldırıp yeniden deneyin.',
-          );
+              strings.t('pf.unlock_failed', {'error': e}));
         }
         unlocked = true;
         result = await attempt();
       }
       out = result.bytes;
       overflows = result.overflows;
-      note = result.reflowed
-          ? 'Değiştirildi — satırın kalanı yeniden hizalandı.'
-          : 'Değiştirildi.';
-      if (result.overflows) {
-        note = '⚠ Yeni metin satıra sığmadı, satır sayfanın metin alanının '
-            'dışına taşıyor.';
-      }
-      if (unlocked) note = '$note Belgenin şifre koruması kaldırıldı.';
+      note = strings.t(
+          result.reflowed ? 'pf.replaced_reflow' : 'pf.replaced');
+      if (result.overflows) note = strings.t('pf.overflow');
+      if (unlocked) note = '$note ${strings.t('pf.unlocked_note')}';
     } on PdfEditRefused catch (refusal) {
       if (!context.mounted) return null;
       final useOverlay = await _askOverlayFallback(context, refusal.message);
       if (useOverlay != true || !context.mounted) return null;
       out = await _overlayReplace(bytes, pageIndex, rawRects, newText);
-      note = 'Metin ÜSTE yazıldı (yerinde düzenleme yapılamadı).';
+      note = strings.t('pf.stamped');
     }
 
     return PdfEditApplied(bytes: out, note: note, overflows: overflows);
@@ -157,27 +155,15 @@ class PdfEditFlow {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Belge şifre korumalı'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'Bu belgede şifre koruması var; açılırken parola sorulmadığına '
-            'göre bu bir izin kilidi (yazdırma/kopyalama kısıtı).\n\n'
-            'Koruma kaldırılırsa metin, belgenin KENDİ yazı tipi ve puntosuyla '
-            'yerinde düzenlenebilir — görüntü hiç bozulmaz.\n\n'
-            '• Özgün dosyanız değişmez: koruma yalnız düzenlenen kopyada '
-            'kalkar, kaydetme biçimini çıkarken siz seçersiniz.\n'
-            '• Belge bu sırada yeniden yazılır (artımlı güncelleme değil).\n\n'
-            'Kaldırılmasın derseniz eski yazının üstüne yazma yolu önerilir; '
-            'orada yazı tipi belgenin fontu OLMAZ.',
-          ),
-        ),
+        title: Text(ctx.t('pf.locked_title')),
+        content: SingleChildScrollView(child: Text(ctx.t('pf.locked_body'))),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Kaldırma')),
+              child: Text(ctx.t('pf.dont_remove'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Korumayı kaldır')),
+              child: Text(ctx.t('pe.remove_protection'))),
         ],
       ),
     );
@@ -192,7 +178,7 @@ class PdfEditFlow {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Yerinde düzenleme yapılamadı'),
+        title: Text(ctx.t('pf.inplace_failed_title')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -200,26 +186,17 @@ class PdfEditFlow {
             children: [
               Text(reason),
               const SizedBox(height: 12),
-              const Text(
-                'Bunun yerine eski yazının ÜSTÜ kapatılıp yenisi çizilebilir. '
-                'Bu durumda:\n'
-                '• yazı tipi belgenin kendi fontu olmaz,\n'
-                '• iki yana yaslı metinde satır hizası bozulur,\n'
-                '• arka plan düz renk varsayılır (desenli zeminde kutu görünür),\n'
-                '• eski metin belgenin içinde aranabilir hâlde KALIR.\n\n'
-                'Kısacası görüntü bozulabilir. Belgeyi korumak istiyorsanız '
-                '"Vazgeç" deyip kaydederken "Kopyasını kaydet"i seçin.',
-              ),
+              Text(ctx.t('pf.stamp_body')),
             ],
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Üste yaz')),
+              child: Text(ctx.t('pf.stamp_over'))),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -114,12 +115,14 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
   /// Taramayı arka plan kuyruğuna verir.
   void _scan() {
+    // Kuyruk işi ekran kapansa da sürer → metinler ŞİMDİ çözülür.
+    final strings = AppStrings.of(context);
     final roots = widget.roots;
     JobQueue.instance.enqueue(
       id: _jobId,
-      title: 'Yinelenen dosyalar aranıyor',
+      title: strings.t('dup.scanning_title'),
       run: (handle) async {
-        handle.report(detail: 'Dosyalar bayt bayt karşılaştırılıyor…');
+        handle.report(detail: strings.t('dup.comparing'));
         final groups = await DuplicateFinder.scan(roots);
         // Sonuç iptal yoklamasından ÖNCE saklanır: `DuplicateFinder.scan`
         // ortasında durdurulamıyor, yani buraya gelindiğinde bayt bayt
@@ -132,9 +135,11 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
         final wasted = groups.fold<int>(0, (sum, g) => sum + g.wastedBytes);
         handle.report(
           detail: groups.isEmpty
-              ? 'Yinelenen dosya yok'
-              : '${groups.length} grup · '
-                  '${FsPaths.humanSize(wasted)} kazanılabilir',
+              ? strings.t('dup.none_short')
+              : strings.t('dup.job_summary', {
+                  'n': groups.length,
+                  'size': FsPaths.humanSize(wasted),
+                }),
         );
       },
     );
@@ -219,19 +224,16 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                     const SizedBox(height: Gap.md),
                     Text(_job?.detail.isNotEmpty ?? false
                         ? _job!.detail
-                        : 'Dosyalar karşılaştırılıyor…'),
+                        : context.t('dup.comparing_short')),
                     const SizedBox(height: Gap.sm),
-                    const Text(
-                      'Ekranı kapatabilirsin — tarama arka planda sürer, '
-                      'geri döndüğünde sonuç hazır olur.',
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(context.t('sim.background_note'),
+                        textAlign: TextAlign.center),
                   ],
                 ),
               ),
             )
           : _groups.isEmpty
-              ? const Center(child: Text('Yinelenen dosya bulunamadı 🎉'))
+              ? Center(child: Text(context.t('dup.none')))
               : Column(
                   children: [
                     Padding(
@@ -242,9 +244,11 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                           const SizedBox(width: Gap.sm),
                           Expanded(
                             child: Text(
-                              '${_visibleGroups.length} / ${_groups.length} '
-                              'grup · ${FsPaths.humanSize(wasted)} boşa '
-                              'gidiyor',
+                              context.t('dup.visible_summary', {
+                                'shown': _visibleGroups.length,
+                                'total': _groups.length,
+                                'size': FsPaths.humanSize(wasted),
+                              }),
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
                           ),
@@ -254,7 +258,9 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                     const Divider(height: 1),
                     Expanded(
                       child: _visibleGroups.isEmpty
-                          ? Center(child: Text('“$_query” için sonuç yok.'))
+                          ? Center(
+                              child: Text(
+                                  context.t('dup.no_match', {'query': _query})))
                           : ListView.builder(
                               padding: const EdgeInsets.only(bottom: 96),
                               itemCount: _visibleGroups.length,
@@ -276,7 +282,8 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                   icon: const Icon(Icons.delete_outline),
                   label: Text('${deleteActionText(
                     useTrash: context.watch<AppState>().fmUseTrash,
-                    what: '${selectedFiles.length} kopyayı',
+                    what: context.t('dup.n_copies', {'n': selectedFiles.length}),
+                    strings: AppStrings.of(context),
                   )} (${FsPaths.humanSize(_selectedBytes)})'),
                 ),
               ),
@@ -297,8 +304,11 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Gap.md),
               child: Text(
-                '${files.length} kopya · ${FsPaths.humanSize(group.sizeBytes)} '
-                '· ${FsPaths.humanSize(group.wastedBytes)} kazanılabilir',
+                context.t('dup.tile_summary', {
+                  'n': files.length,
+                  'size': FsPaths.humanSize(group.sizeBytes),
+                  'waste': FsPaths.humanSize(group.wastedBytes),
+                }),
                 style: Theme.of(context).textTheme.labelLarge,
               ),
             ),

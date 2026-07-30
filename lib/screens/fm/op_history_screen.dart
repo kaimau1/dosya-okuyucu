@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
@@ -55,10 +56,11 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
     setState(() => _busy.remove(record.whenMs));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(complete
-          ? '${result.succeeded} öğe eski yerine döndü.'
-          : '${result.succeeded}/${record.transfers.length} öğe geri alındı; '
-              '${result.errors.length} hata (${result.errors.first}). '
-              'Kayıt duruyor, yeniden deneyebilirsin.'),
+          ? context.t('oph.undone', {'n': result.succeeded})
+          : context.t('oph.undo_partial', {
+              'n': result.succeeded,
+              'total': record.transfers.length,
+            })),
     ));
     await _load();
   }
@@ -67,16 +69,16 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Son işlemler'),
+        title: Text(context.t('oph.title')),
         actions: [
           IconButton(
-            tooltip: 'Yenile',
+            tooltip: context.t('common.refresh'),
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _load,
           ),
           if (_records.isNotEmpty)
             IconButton(
-              tooltip: 'Geçmişi temizle',
+              tooltip: context.t('oph.clear'),
               icon: const Icon(Icons.delete_sweep_outlined),
               onPressed: () async {
                 // Geçmişi silmek DOSYALARA dokunmaz; yalnız kayıt listesi
@@ -84,17 +86,15 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Geçmiş temizlensin mi?'),
-                    content: const Text(
-                        'Yalnızca işlem kayıtları silinir; dosyalarınıza '
-                        'hiçbir şey olmaz. Geri alma imkânı kaybolur.'),
+                    title: Text(ctx.t('oph.clear_title')),
+                    content: Text(ctx.t('oph.clear_body')),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Vazgeç')),
+                          child: Text(ctx.t('common.cancel'))),
                       FilledButton(
                           onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Temizle')),
+                          child: Text(ctx.t('ph.clean'))),
                     ],
                   ),
                 );
@@ -109,15 +109,11 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _records.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(Gap.lg),
-                    child: Text(
-                      'Henüz kayıtlı işlem yok.\n'
-                      'Taşıma ve otomatik düzenleme işlemleri burada birikir '
-                      've buradan geri alınabilir.',
-                      textAlign: TextAlign.center,
-                    ),
+                    padding: const EdgeInsets.all(Gap.lg),
+                    child: Text(context.t('oph.empty'),
+                        textAlign: TextAlign.center),
                   ),
                 )
               : ListView.separated(
@@ -144,7 +140,8 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
       title: Text(record.summary,
           maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '${record.kind.label} · ${FsPaths.humanDate(record.whenMs)}',
+        '${context.t(record.kind.labelKey)} · '
+        '${FsPaths.humanDate(record.whenMs)}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

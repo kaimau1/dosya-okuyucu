@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../screens/scan_review_screen.dart';
 import '../services/document_scanner.dart';
 import '../services/fm/entry_opener.dart';
@@ -19,7 +20,7 @@ class ScanFlow {
     } catch (e) {
       if (context.mounted) {
         _snack(context,
-            'Tarayıcı açılamadı: $e\nKamera izni verilmemiş olabilir.');
+            AppStrings.current.t('sf.scanner_failed', {'error': e}));
       }
       return null;
     }
@@ -44,7 +45,8 @@ class ScanFlow {
         pages,
         searchable: searchable,
         onProgress: (done, total) =>
-            progress.value = 'Yazılar taranıyor… (${done + 1} / $total sayfa)',
+            progress.value = AppStrings.current
+                .t('sf.ocr_progress', {'n': done + 1, 'total': total}),
       );
     } catch (e) {
       error = '$e';
@@ -69,20 +71,16 @@ class ScanFlow {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('$pageCount sayfa tarandı'),
-        content: const Text(
-          'Sayfalardaki yazılar da tanınsın mı? Tanınırsa PDF içinde arama '
-          've kopyalama çalışır; görüntü aynen kalır.\n\n'
-          'Metin tanıma sayfa başına birkaç saniye sürer.',
-        ),
+        title: Text(ctx.t('sf.scanned_title', {'n': pageCount})),
+        content: Text(ctx.t('sf.scanned_body')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Sadece görüntü'),
+            child: Text(ctx.t('sf.image_only')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yazıları da tanı'),
+            child: Text(ctx.t('sf.with_ocr')),
           ),
         ],
       ),

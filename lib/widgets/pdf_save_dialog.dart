@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/l10n/app_strings.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/pdf_save.dart';
 
@@ -91,11 +92,11 @@ void _announce(BuildContext context, String written, bool overwritten) {
     duration: const Duration(seconds: 8),
     content: Text(
       overwritten
-          ? 'Kaydedildi: ${p.basename(written)}'
+          ? context.t('ps.saved_as', {'name': p.basename(written)})
           : '${p.basename(written)}\n${p.dirname(written)}',
     ),
     action: SnackBarAction(
-      label: 'AÇ',
+      label: context.t('ps.open'),
       onPressed: () {
         if (context.mounted) EntryOpener.open(context, written);
       },
@@ -111,7 +112,7 @@ Future<_SaveChoice?> _askSaveChoice(
   return showDialog<_SaveChoice>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Nasıl kaydedilsin?'),
+      title: Text(ctx.t('ps.title')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,22 +124,22 @@ Future<_SaveChoice?> _askSaveChoice(
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.save_outlined),
-            title: const Text('Üzerine yaz'),
-            subtitle: Text('$name değişir — geri alınamaz'),
+            title: Text(ctx.t('ps.overwrite')),
+            subtitle: Text(ctx.t('ps.overwrite_sub', {'name': name})),
             onTap: () => Navigator.pop(ctx, _SaveChoice.overwrite),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.copy_all_outlined),
-            title: const Text('Kopyasını kaydet'),
-            subtitle: const Text('Aynı klasöre “… (kopya).pdf” olarak'),
+            title: Text(ctx.t('ps.copy')),
+            subtitle: Text(ctx.t('ps.copy_sub')),
             onTap: () => Navigator.pop(ctx, _SaveChoice.copy),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.folder_open_outlined),
-            title: const Text('Klasör seçerek kaydet…'),
-            subtitle: const Text('Nereye gideceğine siz karar verin'),
+            title: Text(ctx.t('ps.pick_folder')),
+            subtitle: Text(ctx.t('ps.pick_folder_sub')),
             onTap: () => Navigator.pop(ctx, _SaveChoice.chooseFolder),
           ),
         ],
@@ -146,7 +147,7 @@ Future<_SaveChoice?> _askSaveChoice(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Vazgeç'),
+          child: Text(ctx.t('common.cancel')),
         ),
       ],
     ),

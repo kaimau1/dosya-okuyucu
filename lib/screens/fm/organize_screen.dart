@@ -68,12 +68,10 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.t('org.confirm_title')),
-        content: Text(
-          '${plan.fileCount} dosya, ${plan.folderCount} klasöre taşınacak '
-          '(${FsPaths.humanSize(plan.bytes)}).\n\n'
-          'Dosyalar aynı klasörün içinde yer değiştirir; silinmez. '
-          'İşlem geçmişinden geri alabilirsiniz.',
-        ),
+        content: Text(ctx.t('org.confirm_body', {
+          'files': plan.fileCount,
+          'folders': plan.folderCount,
+        })),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -198,14 +196,18 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                 const SizedBox(height: Gap.sm),
                 if (plan.isEmpty)
                   Text(plan.alreadyPlaced > 0
-                      ? 'Her şey zaten yerinde görünüyor '
-                          '(${plan.alreadyPlaced} dosya).'
+                      ? context.t('org.all_placed',
+                          {'n': plan.alreadyPlaced})
                       : context.t('org.nothing_body'))
                 else ...[
-                  Text('${plan.fileCount} dosya → ${plan.folderCount} klasör '
-                      '(${FsPaths.humanSize(plan.bytes)})'),
+                  Text('${context.t('org.plan', {
+                        'files': plan.fileCount,
+                        'folders': plan.folderCount,
+                      })} (${FsPaths.humanSize(plan.bytes)})'),
                   if (plan.alreadyPlaced > 0)
-                    Text('${plan.alreadyPlaced} dosya zaten doğru klasörde.',
+                    Text(
+                        context.t('org.already_placed',
+                            {'n': plan.alreadyPlaced}),
                         style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: Gap.sm),
                   for (final entry in (plan.folderCounts.entries.toList()

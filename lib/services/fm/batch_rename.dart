@@ -92,9 +92,15 @@ String _isoDate(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}';
 
 /// Hazır kalıplar (arayüzde tek dokunuşla seçilir).
-const batchRenamePresets = <({String label, String pattern})>[
-  (label: 'Tatil-1, Tatil-2…', pattern: 'Tatil-{n}'),
-  (label: 'Tarih + sıra', pattern: '{tarih}-{n2}'),
-  (label: 'Eski ad + sıra', pattern: '{ad}-{n2}'),
-  (label: 'Tarih + eski ad', pattern: '{tarih}-{ad}'),
+///
+/// `labelKey` çeviri anahtarıdır (bu dosya saf Dart, `AppStrings`'i tanımaz).
+/// **Kalıbın kendisi çevrilmez:** `{ad}` `{n}` `{n2}` `{tarih}` `{uzanti}`
+/// yer tutucuları [applyBatchRename]'in sözleşmesidir ve birim testlidir;
+/// çevrilirse eşleşme sessizce bozulur. Kullanıcı kalıbı zaten kutuda
+/// düzenleyebiliyor.
+const batchRenamePresets = <({String labelKey, String pattern})>[
+  (labelKey: 'br.preset_prefix', pattern: 'Tatil-{n}'),
+  (labelKey: 'br.preset_date_seq', pattern: '{tarih}-{n2}'),
+  (labelKey: 'br.preset_name_seq', pattern: '{ad}-{n2}'),
+  (labelKey: 'br.preset_date_name', pattern: '{tarih}-{ad}'),
 ];

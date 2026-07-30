@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../services/perspective.dart';
 
 /// Taranan bir sayfanın **köşelerini elle ayarlama** ekranı.
@@ -111,7 +112,8 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
       if (!mounted) return;
       setState(() => _busy = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Düzeltilemedi: $e')));
+          .showSnackBar(SnackBar(
+              content: Text(AppStrings.current.t('se.failed', {'error': e}))));
     }
   }
 
@@ -121,14 +123,14 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Köşeleri ayarla'),
+        title: Text(context.t('se.title')),
         actions: [
           if (img != null)
             TextButton(
               onPressed: _busy
                   ? null
                   : () => setState(() => _corners = _fullFrame(img)),
-              child: const Text('Sıfırla'),
+              child: Text(context.t('se.reset')),
             ),
         ],
       ),
@@ -136,7 +138,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Görsel açılamadı: $_error',
+                child: Text(context.t('se.open_failed', {'error': _error}),
                     style: const TextStyle(color: Colors.white)),
               ),
             )
@@ -161,20 +163,20 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.crop_free),
-                  label: Text(_busy ? 'Düzeltiliyor…' : 'Uygula'),
+                  label: Text(
+                      context.t(_busy ? 'se.working' : 'common.apply')),
                 ),
               ),
             ),
     );
   }
 
-  Widget _hint() => const Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+  Widget _hint() => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         child: Text(
-          'Mavi dikdörtgenin köşelerini sayfanın köşelerine sürükleyin. '
-          'Sayfa eğik çekildiyse de düzleştirilir.',
+          context.t('se.hint'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white70, fontSize: 12),
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
         ),
       );
 

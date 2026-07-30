@@ -200,7 +200,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
         // `test/fm_smart_features_test.dart`te.
         for (final suggestion in cleanupApplyOrder(chosen)) {
           handle.throwIfCancelled();
-          handle.report(done: done, detail: suggestion.title);
+          handle.report(
+              done: done, detail: strings.t(suggestion.titleKey));
           if (suggestion.id == 'trash') {
             await FmEnv.trash.empty();
           } else if (suggestion.files.isNotEmpty) {
@@ -292,8 +293,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
             onChanged: (_) => setState(() {
               if (!_selected.remove(s.id)) _selected.add(s.id);
             }),
-            title: Text(s.title),
-            subtitle: Text('${s.detail}\n${FsPaths.humanSize(s.bytes)}'),
+            title: Text(context.t(s.titleKey)),
+            subtitle: Text('${context.t(s.detailKey, s.detailVars)}\n'
+                '${FsPaths.humanSize(s.bytes)}'),
             isThreeLine: true,
             secondary: !s.safeByDefault
                 ? Tooltip(

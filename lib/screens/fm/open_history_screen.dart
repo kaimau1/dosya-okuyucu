@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -73,17 +74,15 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Geçmiş temizlensin mi?'),
-        content: const Text(
-            'Yalnız "ne zaman açıldı" kaydı silinir; dosyaların kendisi '
-            'etkilenmez.'),
+        title: Text(ctx.t('oh.clear_title')),
+        content: Text(ctx.t('oh.clear_body')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Temizle')),
+              child: Text(ctx.t('ph.clean'))),
         ],
       ),
     );
@@ -110,20 +109,20 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
         title: _searching
             ? FmSearchField(
                 controller: _searchController,
-                hint: 'Son açılanlarda ara…',
+                hint: context.t('oh.search'),
                 onChanged: (v) => setState(() => _query = v),
               )
-            : const Text('Son açılanlar'),
+            : Text(context.t('oh.title')),
         actions: [
           if (!_searching)
             IconButton(
-              tooltip: 'Ara',
+              tooltip: context.t('common.search'),
               icon: const Icon(Icons.search),
               onPressed: () => setState(() => _searching = true),
             ),
           if (_entries.isNotEmpty)
             IconButton(
-              tooltip: 'Geçmişi temizle',
+              tooltip: context.t('oh.clear'),
               icon: const Icon(Icons.delete_sweep_outlined),
               onPressed: _clearAll,
             ),
@@ -137,9 +136,8 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
                     padding: const EdgeInsets.all(Gap.lg),
                     child: Text(
                       _query.isEmpty
-                          ? 'Henüz açılmış bir dosya yok.\n'
-                              'Bir dosyayı açtığında burada görünür.'
-                          : '"$_query" için sonuç yok.',
+                          ? context.t('oh.empty')
+                          : context.t('oh.no_match', {'query': _query}),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -152,7 +150,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
                       entry: item.entry,
                       selected: false,
                       selecting: false,
-                      subtitle: 'Son açılma: '
+                      subtitle: '${context.t('oh.last_opened')}'
                           '${FsPaths.humanDate(item.openedAtMs)} · '
                           '${FsPaths.humanSize(item.entry.sizeBytes)}',
                       onTap: () => EntryOpener.open(context, item.entry.path),

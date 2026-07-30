@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
@@ -363,11 +364,11 @@ class _PhotosScreenState extends State<PhotosScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(Gap.lg),
                       child: Text(
-                        _loadingAll
-                            ? 'Dosyalar yükleniyor…'
+                        context.t(_loadingAll
+                            ? 'ph.loading'
                             : (_query.trim().isEmpty && !_filter.isActive
-                                ? 'Burada gösterilecek dosya yok.'
-                                : 'Aramanıza/filtrenize uyan dosya yok.'),
+                                ? 'ph.empty'
+                                : 'ph.no_match')),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -423,8 +424,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
         .apply(_files, query: _query, tagsOf: FileTags.forPath)
         .toList();
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Kopyalar bayt bayt doğrulanıyor…')));
+    // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final str = AppStrings.of(context);
+    messenger.showSnackBar(
+        SnackBar(content: Text(str.t('ph.verifying'))));
     final groups = await DuplicateFinder.scanPaths(candidates);
     if (!mounted) return;
 
@@ -435,9 +438,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
       extras.addAll(sorted.skip(1));
     }
     if (extras.isEmpty) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Bayt bayt doğrulamada birebir kopya çıkmadı — '
-              'hiçbir şey silinmedi.')));
+      messenger.showSnackBar(
+          SnackBar(content: Text(str.t('ph.not_identical'))));
       return;
     }
     final bytes = extras.fold<int>(0, (sum, e) => sum + e.sizeBytes);
@@ -448,19 +450,19 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Kopyalar silinsin mi?'),
-        content: Text('${extras.length} fazladan kopya '
-            '(${FsPaths.humanSize(bytes)}) '
-            '${useTrash ? 'çöp kutusuna taşınacak' : 'KALICI olarak silinecek '
-                '(çöp kutusu ayarlardan kapalı)'}. '
-            'Her gruptan en eski dosya korunur.'),
+        title: Text(ctx.t('ph.delete_dupes_title')),
+        content: Text(ctx.t('ph.delete_dupes_body', {
+          'n': extras.length,
+          'size': FsPaths.humanSize(bytes),
+          'fate': ctx.t(useTrash ? 'ph.fate_trash' : 'ph.fate_permanent'),
+        })),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sil')),
+              child: Text(ctx.t('common.delete'))),
         ],
       ),
     );
@@ -481,7 +483,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
             const SizedBox(width: Gap.xs),
             Expanded(
               child: Text(
-                '$_hiddenDuplicates yinelenen kopya gizlendi',
+                context.t('ph.hidden_dupes', {'n': _hiddenDuplicates}),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -492,11 +494,11 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   ? null
                   : () => setState(
                       () => _filter = _filter.withHideDuplicates(false)),
-              child: const Text('Göster'),
+              child: Text(context.t('ph.show')),
             ),
             TextButton(
               onPressed: _selecting ? null : _cleanDuplicates,
-              child: const Text('Temizle'),
+              child: Text(context.t('ph.clean')),
             ),
           ],
         ),
@@ -516,17 +518,17 @@ class _PhotosScreenState extends State<PhotosScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: '${widget.title} içinde ara',
+            tooltip: context.t('ph.search_in', {'title': widget.title}),
             icon: const Icon(Icons.search),
             onPressed: () => setState(() => _searching = true),
           ),
           IconButton(
-            tooltip: 'Benzer görüntüleri bul (yeniden sıkıştırılmış kopyalar)',
+            tooltip: context.t('ph.find_similar'),
             icon: const Icon(Icons.auto_awesome_motion_outlined),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => SimilarScreen(
                 files: _files,
-                title: 'Benzer: ${widget.title}',
+                title: context.t('ph.similar_title', {'title': widget.title}),
                 // Kapsam kimliği: Görüntüler / Videolar ve "tüm depolama" /
                 // "Önemli Dosyalar" taramaları aynı kuyruk işini paylaşmasın
                 // (bkz. [PhotosScreen.scopeId] ve SimilarFinder.jobIdFor).
@@ -536,13 +538,14 @@ class _PhotosScreenState extends State<PhotosScreen> {
           ),
           FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           IconButton(
-            tooltip: 'Görünüm: ${appState.fmPhotoLayout.label}',
+            tooltip: context.t('ph.layout',
+                {'name': context.t(appState.fmPhotoLayout.labelKey)}),
             icon: Icon(fmLayoutIcon(appState.fmPhotoLayout)),
             onPressed: () async {
               final picked = await showFmLayoutSheet(
                 context,
                 current: appState.fmPhotoLayout,
-                title: 'Izgara yoğunluğu',
+                title: context.t('fmset.grid_density'),
                 // Fotoğraf zaman ekseninde liste düzeni anlamsız.
                 allowLists: false,
               );
@@ -563,7 +566,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
         ),
         title: FmSearchField(
           controller: _searchController,
-          hint: '${widget.title} içinde ara…',
+          hint: context.t('ph.search_in_hint', {'title': widget.title}),
           onChanged: (v) => setState(() => _query = v),
         ),
         actions: [
@@ -593,27 +596,28 @@ class _PhotosScreenState extends State<PhotosScreen> {
         // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]): görünen
         // listeye daraltıldığında "8214 / 12 seçildi" gibi kendisiyle çelişen
         // bir başlık çıkmaz.
-        title: Text('${selectedEntries.length} / ${visible.length} seçildi'),
+        title: Text(context.t('ph.selected_of',
+            {'n': selectedEntries.length, 'total': visible.length})),
         actions: [
           // Tek dosya seçiliyken çıkar: "üstündekileri/altındakileri de seç"
           // (istek 2026-07-29). Birden çok seçiliyken hangi dosya "anchor"
           // olacağı belirsizleşir, o yüzden yalnız tek seçimde gösterilir.
           if (_selected.length == 1) ...[
             IconButton(
-              tooltip: 'Üstündekileri de seç',
+              tooltip: context.t('ph.select_above'),
               icon: const Icon(Icons.expand_less),
               onPressed: () => _selectFromAnchor(visible, above: true),
             ),
             IconButton(
-              tooltip: 'Altındakileri de seç',
+              tooltip: context.t('ph.select_below'),
               icon: const Icon(Icons.expand_more),
               onPressed: () => _selectFromAnchor(visible, above: false),
             ),
           ],
           IconButton(
-            tooltip: visible.every((e) => _selected.contains(e.path))
-                ? 'Seçimi kaldır'
-                : 'Tümünü seç',
+            tooltip: context.t(visible.every((e) => _selected.contains(e.path))
+                ? 'ph.clear_selection'
+                : 'ph.select_all'),
             icon: Icon(visible.every((e) => _selected.contains(e.path))
                 ? Icons.deselect
                 : Icons.select_all),
@@ -693,7 +697,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
           Padding(
             padding: const EdgeInsets.only(right: Gap.sm),
             child: ChoiceChip(
-              label: Text('Tümü (${_files.length})'),
+              label: Text(context.t('ph.all_count', {'n': _files.length})),
               selected: _filter.buckets.isEmpty,
               onSelected: (_) =>
                   setState(() => _filter = _filter.withBuckets(const {})),
@@ -845,7 +849,8 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
           ),
           if (selecting)
             IconButton(
-              tooltip: allSelected ? 'Grubun seçimini kaldır' : 'Grubu seç',
+              tooltip: context
+                  .t(allSelected ? 'ph.group_deselect' : 'ph.group_select'),
               icon: Icon(allSelected
                   ? Icons.check_circle
                   : Icons.radio_button_unchecked),

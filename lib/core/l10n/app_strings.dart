@@ -883,6 +883,40 @@ const Map<String, (String, String, String)> _table = {
   ),
 
   // ── Yer aç (temizlik) ─────────────────────────────────────────────────────
+  'clean.trash': ('Çöp kutusunu boşalt', 'Empty the trash', 'تفريغ سلة المهملات'),
+  'clean.trash_detail': (
+    '{n} öğe · zaten silinmiş dosyalar',
+    '{n} items · files already deleted',
+    '{n} عنصر · ملفات محذوفة بالفعل',
+  ),
+  'clean.duplicates': (
+    'Yinelenen dosyaları temizle',
+    'Clean up duplicate files',
+    'تنظيف الملفات المكررة',
+  ),
+  'clean.duplicates_detail': (
+    '{n} fazladan kopya · her gruptan biri kalır',
+    '{n} extra copies · one from each group is kept',
+    '{n} نسخة زائدة · يُحتفظ بواحدة من كل مجموعة',
+  ),
+  'clean.stale_downloads': ('Eski indirilenler', 'Old downloads', 'تنزيلات قديمة'),
+  'clean.stale_downloads_detail': (
+    '{n} dosya · 180+ gündür açılmamış',
+    '{n} files · not opened for 180+ days',
+    '{n} ملف · لم تُفتح منذ أكثر من 180 يومًا',
+  ),
+  'clean.apk': ('Kurulum dosyaları (APK)', 'Installer files (APK)', 'ملفات التثبيت (APK)'),
+  'clean.apk_detail': (
+    '{n} dosya · uygulama kurulduysa gereksiz',
+    '{n} files · unnecessary once the app is installed',
+    '{n} ملف · غير لازمة بعد تثبيت التطبيق',
+  ),
+  'clean.big_videos': ('Büyük videolar', 'Large videos', 'فيديوهات كبيرة'),
+  'clean.big_videos_detail': (
+    '{n} video · 100 MB üzeri (tek tek seçin)',
+    '{n} videos · over 100 MB (select them individually)',
+    '{n} فيديو · أكبر من 100 ميغابايت (اخترها واحدًا واحدًا)',
+  ),
   'clean.title': ('Yer aç', 'Free up space', 'تحرير مساحة'),
   'clean.analyzing': ('Yer aç: depolama çözümleniyor', 'Free up space: analysing storage', 'تحرير مساحة: جارٍ تحليل التخزين'),
   'clean.reading_trash': ('Çöp kutusu okunuyor…', 'Reading the trash…', 'جارٍ قراءة المهملات…'),
@@ -2180,10 +2214,47 @@ const Map<String, (String, String, String)> _table = {
   'ph.clear_selection': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
   'ph.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
   'ph.all_count': ('Tümü ({n})', 'All ({n})', 'الكل ({n})'),
+  'ph.chip_count': ('{label} ({n})', '{label} ({n})', '{label} ({n})'),
+  'ph.cat_empty': (
+    'Bu kategoride dosya bulunamadı.',
+    'No files found in this category.',
+    'لم يُعثر على ملفات في هذه الفئة.',
+  ),
   'ph.group_deselect': ('Grubun seçimini kaldır', 'Deselect group', 'إلغاء تحديد المجموعة'),
   'ph.group_select': ('Grubu seç', 'Select group', 'تحديد المجموعة'),
 
+  'ph.delete_dupes_title': (
+    'Kopyalar silinsin mi?',
+    'Delete the copies?',
+    'هل تريد حذف النسخ؟',
+  ),
+  'ph.delete_dupes_body': (
+    '{n} fazladan kopya ({size}) {fate}. Her gruptan en eski dosya korunur.',
+    '{n} extra copies ({size}) {fate}. The oldest file in each group is kept.',
+    '{n} نسخة زائدة ({size}) {fate}. يُحتفظ بأقدم ملف في كل مجموعة.',
+  ),
+  'ph.fate_trash': (
+    'çöp kutusuna taşınacak',
+    'will be moved to the trash',
+    'ستُنقل إلى سلة المهملات',
+  ),
+  'ph.fate_permanent': (
+    'KALICI olarak silinecek (çöp kutusu ayarlardan kapalı)',
+    'will be deleted PERMANENTLY (the trash is turned off in settings)',
+    'ستُحذف نهائيًا (سلة المهملات مُعطّلة في الإعدادات)',
+  ),
+  'ph.hidden_dupes': (
+    '{n} yinelenen kopya gizlendi',
+    '{n} duplicate copies hidden',
+    'تم إخفاء {n} نسخة مكررة',
+  ),
+  'ph.clean': ('Temizle', 'Clean up', 'تنظيف'),
+  'ph.similar_title': ('Benzer: {title}', 'Similar: {title}', 'مشابه: {title}'),
+
   // ── AI sohbeti ────────────────────────────────────────────────────────────
+  'chat.title': ('AI Sohbet', 'AI Chat', 'محادثة الذكاء الاصطناعي'),
+  'chat.answer_title': ('AI Yanıtı', 'AI answer', 'إجابة الذكاء الاصطناعي'),
+  'chat.deck_title': ('AI Sunumu', 'AI presentation', 'عرض الذكاء الاصطناعي'),
   'chat.key_required': ('API anahtarı gerekli', 'API key required', 'مفتاح API مطلوب'),
   'chat.key_required_body': (
     'AI özelliklerini kullanmak için Gemini API anahtarınızı girin.',
@@ -2328,6 +2399,763 @@ const Map<String, (String, String, String)> _table = {
         'النتيجة والملفات الناتجة من صندوق «العمليات» في الشاشة الرئيسية.',
   ),
   'rs.start': ('Başlat', 'Start', 'ابدأ'),
+
+  // ── PDF'i AI ile düzenle ──────────────────────────────────────────────────
+  'pa.preset_grammar': (
+    'Yazım/dil bilgisi düzelt',
+    'Fix spelling/grammar',
+    'صحّح الإملاء/النحو',
+  ),
+  'pa.preset_grammar_prompt': (
+    'Metindeki yazım ve dil bilgisi hatalarını düzelt. Anlamı ve üslubu '
+        'değiştirme, cümleleri yeniden kurma.',
+    'Fix the spelling and grammar mistakes in the text. Do not change the '
+        'meaning or the style, and do not rewrite the sentences.',
+    'صحّح الأخطاء الإملائية والنحوية في النص. لا تغيّر المعنى أو الأسلوب ولا '
+        'تُعِد صياغة الجمل.',
+  ),
+  'pa.preset_simplify': ('Sadeleştir', 'Simplify', 'بسّط'),
+  'pa.preset_simplify_prompt': (
+    'Metni daha kısa ve anlaşılır hâle getir. Bilgi kaybetme, gereksiz '
+        'tekrarları ve dolgu ifadeleri at.',
+    'Make the text shorter and clearer. Do not lose information; drop needless '
+        'repetition and filler.',
+    'اجعل النص أقصر وأوضح. لا تفقد أي معلومة؛ واحذف التكرار الزائد والحشو.',
+  ),
+  'pa.preset_summary': ('Özetle', 'Summarise', 'لخّص'),
+  'pa.preset_summary_prompt': (
+    'Metni ana başlıklar ve maddeler hâlinde özetle.',
+    'Summarise the text as headings and bullet points.',
+    'لخّص النص على شكل عناوين ونقاط.',
+  ),
+  'pa.preset_formal': ('Resmî dile çevir', 'Make it formal', 'حوّله إلى لغة رسمية'),
+  'pa.preset_formal_prompt': (
+    'Metni resmî yazışma diline uygun hâle getir.',
+    'Rewrite the text in formal correspondence style.',
+    'أعِد كتابة النص بأسلوب المراسلات الرسمية.',
+  ),
+  'pa.need_key': (
+    'Önce Ayarlar > Gemini API anahtarı bölümünden anahtarınızı girin.',
+    'First enter your key under Settings > Gemini API key.',
+    'أدخل مفتاحك أولًا من الإعدادات > مفتاح Gemini API.',
+  ),
+  'pa.need_task': (
+    'Ne yapılmasını istediğinizi yazın ya da seçin.',
+    'Type or pick what you want done.',
+    'اكتب أو اختر ما تريد إنجازه.',
+  ),
+  'pa.prompt': (
+    'Aşağıdaki belgenin metnini şu yönergeye göre yeniden yaz:\n"{task}"\n\n'
+        'ÇOK ÖNEMLİ: yalnızca düzenlenmiş metni döndür. Açıklama, giriş '
+        'cümlesi, "işte metin" gibi ifadeler ve kod bloğu işaretleri EKLEME.',
+    'Rewrite the text of the document below according to this instruction:\n'
+        '"{task}"\n\nVERY IMPORTANT: return only the edited text. Do NOT add '
+        'explanations, an introductory sentence, phrases like "here is the '
+        'text", or code-block markers.',
+    'أعِد كتابة نص المستند أدناه وفق هذه التعليمات:\n"{task}"\n\n'
+        'مهم جدًا: أعِد النص المحرَّر فقط. لا تُضِف شروحًا أو جملة تمهيدية أو '
+        'عبارات مثل «إليك النص» أو علامات كتل الشيفرة.',
+  ),
+  'pa.save_note': (
+    'Yeni PDF düz metinden üretilir: özgün belgenin sayfa düzeni '
+        '(sütun, tablo, logo, imza) KORUNMAZ.',
+    'The new PDF is produced from plain text: the original document’s layout '
+        '(columns, tables, logos, signatures) is NOT preserved.',
+    'يُنتَج ملف PDF الجديد من نص عادي: لا يُحافَظ على تخطيط المستند الأصلي '
+        '(الأعمدة والجداول والشعارات والتواقيع).',
+  ),
+  'pa.save_pdf': ('PDF olarak kaydet', 'Save as PDF', 'حفظ بصيغة PDF'),
+  'pa.no_text': (
+    'Bu belgede okunabilir metin yok (taranmış olabilir).\n'
+        'Önce ⋮ menüsünden “Metni tanı (OCR)” çalıştırın.',
+    'This document has no readable text (it may be scanned).\n'
+        'Run “Recognize text (OCR)” from the ⋮ menu first.',
+    'لا يحتوي هذا المستند على نص قابل للقراءة (قد يكون ممسوحًا ضوئيًا).\n'
+        'شغّل «التعرّف على النص (OCR)» من قائمة ⋮ أولًا.',
+  ),
+  'pa.what': ('Ne yapılsın?', 'What should be done?', 'ما الذي تريد فعله؟'),
+  'pa.hint': (
+    'Örn. “Başlıkları numaralandır ve maddeleri kısalt”',
+    'E.g. “Number the headings and shorten the bullet points”',
+    'مثال: «رقّم العناوين واختصر النقاط»',
+  ),
+  'pa.working': ('Çalışıyor…', 'Working…', 'جارٍ العمل…'),
+  'pa.result': ('Sonuç', 'Result', 'النتيجة'),
+  'pa.editable': ('elle düzenlenebilir', 'you can edit it by hand', 'يمكنك تحريره يدويًا'),
+  'pa.result_hint': (
+    'AI çıktısı burada görünecek…',
+    'The AI output will appear here…',
+    'سيظهر ناتج الذكاء الاصطناعي هنا…',
+  ),
+  'pa.footer': (
+    'Kaydederken üretilen PDF düz metindir: özgün sayfa düzeni '
+        '(sütun, tablo, logo) korunmaz. Özgün belgeyi bozmamak için '
+        '“Kopyasını kaydet”i seçin.',
+    'The PDF produced on save is plain text: the original layout (columns, '
+        'tables, logos) is not preserved. Choose “Save a copy” to keep the '
+        'original document intact.',
+    'ملف PDF المنتَج عند الحفظ نص عادي: لا يُحافَظ على التخطيط الأصلي (الأعمدة '
+        'والجداول والشعارات). اختر «حفظ نسخة» للإبقاء على المستند الأصلي كما هو.',
+  ),
+
+  // ── PDF kaydetme penceresi ────────────────────────────────────────────────
+  'ps.open': ('AÇ', 'OPEN', 'فتح'),
+  'ps.saved_as': ('Kaydedildi: {name}', 'Saved: {name}', 'تم الحفظ: {name}'),
+  'ps.title': ('Nasıl kaydedilsin?', 'How should we save it?', 'كيف نحفظه؟'),
+  'ps.overwrite': ('Üzerine yaz', 'Overwrite', 'الكتابة فوقه'),
+  'ps.overwrite_sub': (
+    '{name} değişir — geri alınamaz',
+    '{name} changes — this cannot be undone',
+    'سيتغيّر {name} — لا يمكن التراجع',
+  ),
+  'ps.copy': ('Kopyasını kaydet', 'Save a copy', 'حفظ نسخة'),
+  'ps.copy_sub': (
+    'Aynı klasöre “… (kopya).pdf” olarak',
+    'Into the same folder as “… (copy).pdf”',
+    'في المجلد نفسه باسم «… (نسخة).pdf»',
+  ),
+  'ps.pick_folder': ('Klasör seçerek kaydet…', 'Save to a chosen folder…', 'حفظ في مجلد مختار…'),
+  'ps.pick_folder_sub': (
+    'Nereye gideceğine siz karar verin',
+    'You decide where it goes',
+    'أنت تقرّر أين يذهب',
+  ),
+
+  // ── PDF yerinde metin düzenleme akışı ─────────────────────────────────────
+  'pf.unlock_failed': (
+    'Belgenin şifre koruması kaldırılamadı: {error}\n\n'
+        'Parolayı biliyorsanız PDF araçlarından kaldırıp yeniden deneyin.',
+    'Could not remove the document’s password protection: {error}\n\n'
+        'If you know the password, remove it from PDF tools and try again.',
+    'تعذّرت إزالة حماية كلمة المرور من المستند: {error}\n\n'
+        'إن كنت تعرف كلمة المرور فأزلها من أدوات PDF ثم أعد المحاولة.',
+  ),
+  'pf.replaced_reflow': (
+    'Değiştirildi — satırın kalanı yeniden hizalandı.',
+    'Replaced — the rest of the line was re-aligned.',
+    'تم الاستبدال — أُعيدت محاذاة بقية السطر.',
+  ),
+  'pf.replaced': ('Değiştirildi.', 'Replaced.', 'تم الاستبدال.'),
+  'pf.overflow': (
+    '⚠ Yeni metin satıra sığmadı, satır sayfanın metin alanının dışına taşıyor.',
+    '⚠ The new text did not fit the line; it overflows the page’s text area.',
+    '⚠ لم يتّسع النص الجديد للسطر، وهو يتجاوز منطقة النص في الصفحة.',
+  ),
+  'pf.unlocked_note': (
+    'Belgenin şifre koruması kaldırıldı.',
+    'The document’s password protection was removed.',
+    'أُزيلت حماية كلمة المرور من المستند.',
+  ),
+  'pf.stamped': (
+    'Metin ÜSTE yazıldı (yerinde düzenleme yapılamadı).',
+    'The text was stamped ON TOP (in-place editing was not possible).',
+    'كُتب النص فوق القديم (تعذّر التحرير في المكان).',
+  ),
+  'pf.locked_title': (
+    'Belge şifre korumalı',
+    'The document is password-protected',
+    'المستند محمي بكلمة مرور',
+  ),
+  'pf.locked_body': (
+    'Bu belgede şifre koruması var; açılırken parola sorulmadığına göre bu bir '
+        'izin kilidi (yazdırma/kopyalama kısıtı).\n\n'
+        'Koruma kaldırılırsa metin, belgenin KENDİ yazı tipi ve puntosuyla '
+        'yerinde düzenlenebilir — görüntü hiç bozulmaz.\n\n'
+        '• Özgün dosyanız değişmez: koruma yalnız düzenlenen kopyada kalkar, '
+        'kaydetme biçimini çıkarken siz seçersiniz.\n'
+        '• Belge bu sırada yeniden yazılır (artımlı güncelleme değil).\n\n'
+        'Kaldırılmasın derseniz eski yazının üstüne yazma yolu önerilir; orada '
+        'yazı tipi belgenin fontu OLMAZ.',
+    'This document has password protection; since no password is asked when '
+        'opening it, this is a permissions lock (printing/copying restriction).'
+        '\n\nIf the protection is removed, the text can be edited in place '
+        'using the document’s OWN font and size — the appearance is not '
+        'affected at all.\n\n'
+        '• Your original file is untouched: the protection is only removed on '
+        'the edited copy, and you choose how to save when you leave.\n'
+        '• The document is rewritten in the process (not an incremental '
+        'update).\n\nIf you decline, stamping over the old text is offered '
+        'instead; there the font will NOT be the document’s own.',
+    'يحتوي هذا المستند على حماية بكلمة مرور؛ وبما أنه لا يطلب كلمة مرور عند '
+        'الفتح فهذا قفل أذونات (تقييد الطباعة/النسخ).\n\n'
+        'إذا أُزيلت الحماية فيمكن تحرير النص في مكانه بخط المستند وحجمه '
+        'نفسيهما — دون أي تأثير على المظهر.\n\n'
+        '• ملفك الأصلي لا يتغيّر: تُزال الحماية من النسخة المحرَّرة فقط، وأنت '
+        'تختار طريقة الحفظ عند الخروج.\n'
+        '• يُعاد كتابة المستند أثناء ذلك (وليس تحديثًا تزايديًا).\n\n'
+        'إن رفضت فسيُقترح الكتابة فوق النص القديم؛ وهناك لن يكون الخط هو خط '
+        'المستند.',
+  ),
+  'pf.dont_remove': ('Kaldırma', 'Don’t remove', 'لا تُزلها'),
+  'pf.inplace_failed_title': (
+    'Yerinde düzenleme yapılamadı',
+    'In-place editing was not possible',
+    'تعذّر التحرير في المكان',
+  ),
+  'pf.stamp_body': (
+    'Bunun yerine eski yazının ÜSTÜ kapatılıp yenisi çizilebilir. '
+        'Bu durumda:\n'
+        '• yazı tipi belgenin kendi fontu olmaz,\n'
+        '• iki yana yaslı metinde satır hizası bozulur,\n'
+        '• arka plan düz renk varsayılır (desenli zeminde kutu görünür),\n'
+        '• eski metin belgenin içinde aranabilir hâlde KALIR.\n\n'
+        'Kısacası görüntü bozulabilir. Belgeyi korumak istiyorsanız “Vazgeç” '
+        'deyip kaydederken “Kopyasını kaydet”i seçin.',
+    'Instead, the old text can be covered and the new one drawn over it. '
+        'In that case:\n'
+        '• the font will not be the document’s own,\n'
+        '• line alignment breaks in justified text,\n'
+        '• the background is assumed to be a flat colour (a box shows on a '
+        'patterned background),\n'
+        '• the old text REMAINS searchable inside the document.\n\n'
+        'In short, the appearance may suffer. To keep the document intact, tap '
+        '“Cancel” and choose “Save a copy” when saving.',
+    'بدلًا من ذلك يمكن تغطية النص القديم ورسم الجديد فوقه. لكن:\n'
+        '• لن يكون الخط هو خط المستند،\n'
+        '• تختلّ محاذاة الأسطر في النص المضبوط،\n'
+        '• تُفترض الخلفية لونًا مسطحًا (يظهر مربع فوق خلفية منقوشة)،\n'
+        '• يبقى النص القديم قابلًا للبحث داخل المستند.\n\n'
+        'باختصار قد يتضرّر المظهر. للحفاظ على المستند اضغط «إلغاء» واختر «حفظ '
+        'نسخة» عند الحفظ.',
+  ),
+  'pf.stamp_over': ('Üste yaz', 'Stamp over', 'اكتب فوقه'),
+
+  // ── Benzer görüntüler ─────────────────────────────────────────────────────
+  'sim.title': ('Benzer görüntüler', 'Similar images', 'صور متشابهة'),
+  'sim.scanning_title': (
+    'Benzer görüntüler aranıyor ({level})',
+    'Searching for similar images ({level})',
+    'جارٍ البحث عن صور متشابهة ({level})',
+  ),
+  'sim.preparing_list': (
+    'Dosya listesi hazırlanıyor…',
+    'Preparing the file list…',
+    'جارٍ تحضير قائمة الملفات…',
+  ),
+  'sim.need_key': (
+    'Gemini için Ayarlar > API anahtarı gerekiyor. Cihaz-içi benzerlik '
+        'taraması anahtarsız çalışır.',
+    'Gemini needs an API key under Settings. The on-device similarity scan '
+        'works without a key.',
+    'يحتاج Gemini إلى مفتاح API من الإعدادات. أما فحص التشابه على الجهاز فيعمل '
+        'دون مفتاح.',
+  ),
+  'sim.sending': (
+    'Görseller küçültülüp Gemini’ye gönderiliyor…',
+    'Shrinking the images and sending them to Gemini…',
+    'جارٍ تصغير الصور وإرسالها إلى Gemini…',
+  ),
+  'sim.too_few_previews': (
+    'Karşılaştırma için en az iki önizleme üretilemedi '
+        '(dosyalar okunamıyor olabilir).',
+    'Could not produce at least two previews to compare (the files may be '
+        'unreadable).',
+    'تعذّر إنتاج معاينتين على الأقل للمقارنة (قد تكون الملفات غير قابلة للقراءة).',
+  ),
+  'sim.gemini_opinion': ('Gemini’nin görüşü', 'Gemini’s opinion', 'رأي Gemini'),
+  'sim.recoverable': ('{size} kazanılabilir', '{size} can be freed', 'يمكن تحرير {size}'),
+  'sim.groups_summary': (
+    '{n} benzer grup · {size} kazanılabilir',
+    '{n} similar groups · {size} can be freed',
+    '{n} مجموعة متشابهة · يمكن تحرير {size}',
+  ),
+  'sim.group_summary': (
+    '{n} benzer · {size} kazanılabilir',
+    '{n} similar · {size} can be freed',
+    '{n} متشابهة · يمكن تحرير {size}',
+  ),
+  'sim.select_extras': ('Fazlaları seç', 'Select the extras', 'حدّد الزائدة'),
+  'sim.scan_failed': (
+    'Tarama başarısız: {error}',
+    'Scan failed: {error}',
+    'فشل الفحص: {error}',
+  ),
+  'sim.none': (
+    'Benzer görüntü bulunamadı 🎉',
+    'No similar images found 🎉',
+    'لم يُعثر على صور متشابهة 🎉',
+  ),
+  'sim.n_files': ('{n} dosyayı', '{n} files', '{n} ملف'),
+  'sim.scanning': ('Taranıyor…', 'Scanning…', 'جارٍ الفحص…'),
+  'sim.background_note': (
+    'Ekranı kapatabilirsin — tarama arka planda sürer, geri döndüğünde sonuç '
+        'hazır olur.',
+    'You can close this screen — the scan continues in the background and the '
+        'result is ready when you come back.',
+    'يمكنك إغلاق الشاشة — يستمر الفحص في الخلفية وتكون النتيجة جاهزة عند عودتك.',
+  ),
+
+  // ── Süzgeç sayfası ────────────────────────────────────────────────────────
+  'flt.pick_range': ('Tarih aralığı seç', 'Pick a date range', 'اختر نطاقًا زمنيًا'),
+  'flt.title': ('Filtrele ve sırala', 'Filter and sort', 'التصفية والترتيب'),
+  'flt.sort': ('Sıralama', 'Sorting', 'الترتيب'),
+  'flt.source': (
+    'Kaynak (birden çok seçilebilir)',
+    'Source (you can pick several)',
+    'المصدر (يمكن اختيار أكثر من واحد)',
+  ),
+  'flt.all': ('Tümü', 'All', 'الكل'),
+  'flt.chat_kind': (
+    'Mesajlaşma dosyası türü',
+    'Messaging file type',
+    'نوع ملف المراسلة',
+  ),
+  'flt.direction': ('Gelen / gönderilen', 'Received / sent', 'واردة / مرسلة'),
+  'flt.direction_note': (
+    'Gönderdiklerin WhatsApp’ın “Sent” klasöründen okunur. Telegram bu ayrımı '
+        'yapmadığı için oradaki dosyalar “gelen” sayılır.',
+    'Your sent files are read from WhatsApp’s “Sent” folder. Telegram does not '
+        'make this distinction, so its files count as “received”.',
+    'تُقرأ ملفاتك المرسلة من مجلد «Sent» في WhatsApp. أما Telegram فلا يميّز '
+        'بينهما، لذا تُعدّ ملفاته «واردة».',
+  ),
+  'flt.tag': ('Etiket (kişi / grup)', 'Tag (person / group)', 'وسم (شخص / مجموعة)'),
+  'flt.file_type': ('Dosya türü', 'File type', 'نوع الملف'),
+  'flt.hide_dupes': (
+    'Yinelenen kopyaları gizle',
+    'Hide duplicate copies',
+    'إخفاء النسخ المكررة',
+  ),
+  'flt.hide_dupes_sub': (
+    'Aynı ad ve boyuttaki dosya bir kez görünür '
+        '(WhatsApp aynı görseli birkaç klasöre yazar).',
+    'A file with the same name and size is shown once (WhatsApp writes the '
+        'same image into several folders).',
+    'يظهر الملف ذو الاسم والحجم نفسيهما مرة واحدة (يكتب WhatsApp الصورة نفسها '
+        'في عدة مجلدات).',
+  ),
+  'flt.desc': ('Azalan', 'Descending', 'تنازلي'),
+  'flt.asc': ('Artan', 'Ascending', 'تصاعدي'),
+  'flt.date': ('Tarih', 'Date', 'التاريخ'),
+  'flt.size': ('Boyut', 'Size', 'الحجم'),
+  'flt.active_count': ('{n} filtre etkin', '{n} filters active', '{n} عامل تصفية نشط'),
+
+  // ── Tarama önizleme ───────────────────────────────────────────────────────
+  'sr.rotate_failed': (
+    'Döndürülemedi: {error}',
+    'Could not rotate: {error}',
+    'تعذّر التدوير: {error}',
+  ),
+  'sr.last_page': (
+    'Son sayfa silinemez — taramayı iptal edin.',
+    'You cannot delete the last page — cancel the scan instead.',
+    'لا يمكن حذف الصفحة الأخيرة — ألغِ المسح بدلًا من ذلك.',
+  ),
+  'sr.rotate_page': ('Sayfayı çevir (90°)', 'Rotate the page (90°)', 'تدوير الصفحة (90°)'),
+  'sr.delete_page': ('Bu sayfayı sil', 'Delete this page', 'حذف هذه الصفحة'),
+  'sr.page_failed': ('Sayfa görüntülenemedi', 'Could not show the page', 'تعذّر عرض الصفحة'),
+  'sr.crop_hint': (
+    'Sayfa yamuk ya da fazla yer kaptıysa köşeleri düzeltin.',
+    'If the page is skewed or takes too much room, adjust the corners.',
+    'إن كانت الصفحة مائلة أو تشغل مساحة زائدة فاضبط الزوايا.',
+  ),
+  'sr.adjust_corners': ('Köşeleri ayarla', 'Adjust the corners', 'ضبط الزوايا'),
+
+  // ── Açılma geçmişi ────────────────────────────────────────────────────────
+  'oh.title': ('Son açılanlar', 'Recently opened', 'المفتوحة مؤخرًا'),
+  'oh.search': ('Son açılanlarda ara…', 'Search recently opened…', 'ابحث في المفتوحة مؤخرًا…'),
+  'oh.clear': ('Geçmişi temizle', 'Clear the history', 'مسح السجل'),
+  'oh.clear_title': ('Geçmiş temizlensin mi?', 'Clear the history?', 'هل تريد مسح السجل؟'),
+  'oh.clear_body': (
+    'Yalnız “ne zaman açıldı” kaydı silinir; dosyaların kendisi silinmez.',
+    'Only the “when it was opened” record is deleted; the files themselves are not.',
+    'يُحذف سجل «متى فُتح» فقط؛ أما الملفات نفسها فلا تُحذف.',
+  ),
+  'oh.empty': (
+    'Henüz açılmış bir dosya yok.\nBir dosyayı açtığında burada görünür.',
+    'No file has been opened yet.\nWhen you open one, it shows up here.',
+    'لم يُفتح أي ملف بعد.\nعندما تفتح ملفًا سيظهر هنا.',
+  ),
+  'oh.no_match': ('“{query}” için sonuç yok.', 'No results for “{query}”.', 'لا نتائج لـ «{query}».'),
+  'oh.last_opened': ('Son açılma: ', 'Last opened: ', 'آخر فتح: '),
+
+  // ── Arama ekranı ──────────────────────────────────────────────────────────
+  'srch.in_hint': ('{name} içinde ara…', 'Search in {name}…', 'ابحث في {name}…'),
+  'srch.options': ('Arama seçenekleri', 'Search options', 'خيارات البحث'),
+  'srch.smart_off': ('Akıllı aramayı kapat', 'Turn off smart search', 'إيقاف البحث الذكي'),
+  'srch.smart_on': ('Akıllı aramayı aç', 'Turn on smart search', 'تشغيل البحث الذكي'),
+  'srch.index_building': (
+    'Arama dizini kuruluyor — bu ilk sefere özel, sonraki aramalar anında olacak.',
+    'Building the search index — this is a one-off; later searches are instant.',
+    'جارٍ إنشاء فهرس البحث — لمرة واحدة فقط؛ وستكون عمليات البحث اللاحقة فورية.',
+  ),
+  'srch.index_stale': (
+    'Dosyalar değişti — dizin arka planda tazeleniyor.',
+    'The files changed — the index is refreshing in the background.',
+    'تغيّرت الملفات — يجري تحديث الفهرس في الخلفية.',
+  ),
+  'srch.understood': ('Anladım:', 'Understood:', 'فهمت:'),
+  'srch.need_key': (
+    'Önce Ayarlar > Gemini API anahtarını girin.',
+    'First enter the Gemini API key under Settings.',
+    'أدخل مفتاح Gemini API من الإعدادات أولًا.',
+  ),
+  'srch.ai_fallback': (
+    'AI bu sorguyu yorumlayamadı; yerel çözümleme kullanılıyor.',
+    'The AI could not interpret this query; the local parser is used instead.',
+    'تعذّر على الذكاء الاصطناعي تفسير هذا الاستعلام؛ يُستخدم المحلّل المحلي.',
+  ),
+  'srch.ai_error': ('AI hatası: {error}', 'AI error: {error}', 'خطأ في الذكاء الاصطناعي: {error}'),
+  'srch.summary': (
+    '{n} sonuç · {sort} ({dir}){capped}',
+    '{n} results · {sort} ({dir}){capped}',
+    '{n} نتيجة · {sort} ({dir}){capped}',
+  ),
+  'srch.capped': (' · ilk 1000 sonuç', ' · first 1000 results', ' · أول 1000 نتيجة'),
+  'srch.empty_hint': (
+    'Dosya veya klasör adının bir bölümünü yazın.\n\n'
+        'İpucu: “geçen ay whatsapp videoları”, “bu hafta pdf”, '
+        '“2024 fotoğrafları” gibi cümleler de yazabilirsiniz.',
+    'Type part of a file or folder name.\n\n'
+        'Tip: you can also type sentences such as “whatsapp videos last month”, '
+        '“pdf this week” or “photos from 2024”.',
+    'اكتب جزءًا من اسم ملف أو مجلد.\n\n'
+        'نصيحة: يمكنك أيضًا كتابة جمل مثل «فيديوهات واتساب الشهر الماضي» أو '
+        '«pdf هذا الأسبوع» أو «صور 2024».',
+  ),
+  'srch.ai_interpret': (
+    'AI ile yorumla (Gemini)',
+    'Interpret with AI (Gemini)',
+    'فسّر بالذكاء الاصطناعي (Gemini)',
+  ),
+  'srch.rebuild_index': ('Dizini yeniden kur', 'Rebuild the index', 'إعادة بناء الفهرس'),
+  'srch.searching': ('Aranıyor…', 'Searching…', 'جارٍ البحث…'),
+  'srch.no_result': ('Sonuç bulunamadı.', 'No results found.', 'لم يُعثر على نتائج.'),
+
+  // ── Toplu yeniden adlandırma ──────────────────────────────────────────────
+  'br.title': ('Toplu yeniden adlandır', 'Batch rename', 'إعادة تسمية جماعية'),
+  'br.done': (
+    '{n} dosya yeniden adlandırıldı.',
+    '{n} files renamed.',
+    'تمت إعادة تسمية {n} ملف.',
+  ),
+  'br.partial': (
+    '{n} dosya adlandırıldı, {fail} hata: {first}',
+    '{n} files renamed, {fail} errors: {first}',
+    'أُعيدت تسمية {n} ملف، {fail} أخطاء: {first}',
+  ),
+  'br.preset_prefix': ('Tatil-1, Tatil-2…', 'Tatil-1, Tatil-2…', 'Tatil-1، Tatil-2…'),
+  'br.preset_date_seq': ('Tarih + sıra', 'Date + number', 'التاريخ + الرقم'),
+  'br.preset_name_seq': ('Eski ad + sıra', 'Old name + number', 'الاسم القديم + الرقم'),
+  'br.preset_date_name': ('Tarih + eski ad', 'Date + old name', 'التاريخ + الاسم القديم'),
+  'br.file_count': ('{n} dosya', '{n} files', '{n} ملف'),
+  'br.find': ('Bul (eski adda)', 'Find (in the old name)', 'ابحث (في الاسم القديم)'),
+  'br.more_files': (
+    '… ve {n} dosya daha',
+    '… and {n} more files',
+    '… و{n} ملف آخر',
+  ),
+  'br.pattern': ('Ad kalıbı', 'Name pattern', 'نمط الاسم'),
+  'br.replace': ('Değiştir', 'Replace', 'استبدال'),
+  'br.start': ('Başlangıç', 'Start', 'البداية'),
+  'br.preview': ('Önizleme', 'Preview', 'معاينة'),
+  'br.will_change': ('{n} dosya değişecek', '{n} files will change', 'سيتغيّر {n} ملف'),
+  'br.will_change_problems': (
+    '{n} dosya değişecek · {problems} sorunlu ad atlanacak',
+    '{n} files will change · {problems} problematic names will be skipped',
+    'سيتغيّر {n} ملف · وسيُتخطّى {problems} اسم به مشكلة',
+  ),
+
+  // ── İşlem geçmişi ─────────────────────────────────────────────────────────
+  'oph.title': ('Son işlemler', 'Recent operations', 'العمليات الأخيرة'),
+  'oph.undone': (
+    '{n} öğe eski yerine döndü.',
+    '{n} items were moved back.',
+    'أُعيد {n} عنصر إلى مكانه.',
+  ),
+  'oph.undo_partial': (
+    '{n}/{total} öğe geri alındı; kalanı taşınamadı. '
+        'Kayıt duruyor, yeniden deneyebilirsin.',
+    '{n}/{total} items were undone; the rest could not be moved. The record is '
+        'kept, so you can try again.',
+    'تم التراجع عن {n}/{total} عنصر؛ وتعذّر نقل الباقي. السجل محفوظ فيمكنك '
+        'المحاولة مجددًا.',
+  ),
+  'oph.clear': ('Geçmişi temizle', 'Clear the history', 'مسح السجل'),
+  'oph.clear_title': ('Geçmiş temizlensin mi?', 'Clear the history?', 'هل تريد مسح السجل؟'),
+  'oph.clear_body': (
+    'Yalnızca işlem kayıtları silinir; dosyalarınıza hiçbir şey olmaz. '
+        'Geri alma imkânı kaybolur.',
+    'Only the operation records are deleted; nothing happens to your files. '
+        'You lose the ability to undo them.',
+    'تُحذف سجلات العمليات فقط؛ ولا يحدث شيء لملفاتك. لكنك تفقد إمكانية التراجع.',
+  ),
+  'oph.empty': (
+    'Henüz kayıtlı işlem yok.\n'
+        'Taşıma ve otomatik düzenleme işlemleri burada birikir ve buradan '
+        'geri alınabilir.',
+    'No operations recorded yet.\n'
+        'Moves and auto-organize runs collect here and can be undone from here.',
+    'لا توجد عمليات مسجّلة بعد.\n'
+        'تتجمّع عمليات النقل والتنظيم التلقائي هنا ويمكن التراجع عنها من هنا.',
+  ),
+
+  // ── Yinelenen dosyalar ────────────────────────────────────────────────────
+  'dup.scanning_title': (
+    'Yinelenen dosyalar aranıyor',
+    'Searching for duplicate files',
+    'جارٍ البحث عن ملفات مكررة',
+  ),
+  'dup.comparing': (
+    'Dosyalar bayt bayt karşılaştırılıyor…',
+    'Comparing the files byte by byte…',
+    'جارٍ مقارنة الملفات بايتًا ببايت…',
+  ),
+  'dup.comparing_short': (
+    'Dosyalar karşılaştırılıyor…',
+    'Comparing the files…',
+    'جارٍ مقارنة الملفات…',
+  ),
+  'dup.none': (
+    'Yinelenen dosya bulunamadı 🎉',
+    'No duplicate files found 🎉',
+    'لم يُعثر على ملفات مكررة 🎉',
+  ),
+  'dup.summary': (
+    '{n} grup · {size} boşa gidiyor',
+    '{n} groups · {size} wasted',
+    '{n} مجموعة · {size} مهدرة',
+  ),
+  'dup.n_copies': ('{n} kopyayı', '{n} copies', '{n} نسخة'),
+  'dup.none_short': ('Yinelenen dosya yok', 'No duplicate files', 'لا توجد ملفات مكررة'),
+  'dup.job_summary': (
+    '{n} grup · {size} kazanılabilir',
+    '{n} groups · {size} can be freed',
+    '{n} مجموعة · يمكن تحرير {size}',
+  ),
+  'dup.visible_summary': (
+    '{shown} / {total} grup · {size} boşa gidiyor',
+    '{shown} / {total} groups · {size} wasted',
+    '{shown} / {total} مجموعة · {size} مهدرة',
+  ),
+  'dup.no_match': ('“{query}” için sonuç yok.', 'No results for “{query}”.', 'لا نتائج لـ «{query}».'),
+  'dup.tile_summary': (
+    '{n} kopya · {size} · {waste} kazanılabilir',
+    '{n} copies · {size} · {waste} can be freed',
+    '{n} نسخة · {size} · يمكن تحرير {waste}',
+  ),
+  'dup.group_summary': (
+    '· {size} kazanılabilir',
+    '· {size} can be freed',
+    '· يمكن تحرير {size}',
+  ),
+
+  // ── Ses / video oynatıcı ──────────────────────────────────────────────────
+  'mp.audio_failed': (
+    'Bu ses dosyası çalınamadı: {error}',
+    'This audio file could not be played: {error}',
+    'تعذّر تشغيل هذا الملف الصوتي: {error}',
+  ),
+  'mp.now_playing': ('Çalıyor', 'Now playing', 'قيد التشغيل'),
+  'mp.speed': ('Hız', 'Speed', 'السرعة'),
+  'mp.play_speed': ('Oynatma hızı', 'Playback speed', 'سرعة التشغيل'),
+  'mp.open_with': ('Başka uygulamayla aç', 'Open with another app', 'فتح بتطبيق آخر'),
+  'mp.file_ops': (
+    'Dosya işlemleri (taşı, kopyala, paylaş…)',
+    'File operations (move, copy, share…)',
+    'عمليات الملفات (نقل، نسخ، مشاركة…)',
+  ),
+  'mp.shuffle': ('Karışık', 'Shuffle', 'عشوائي'),
+  'mp.repeat_off': ('Tekrar: kapalı', 'Repeat: off', 'التكرار: مُعطّل'),
+  'mp.repeat_one': ('Tekrar: bu parça', 'Repeat: this track', 'التكرار: هذا المقطع'),
+  'mp.repeat_all': ('Tekrar: tümü', 'Repeat: all', 'التكرار: الكل'),
+  'mp.video_failed': (
+    'Bu dosya oynatılamadı. Cihaz bu codec’i desteklemiyor olabilir — '
+        '“Başka uygulamayla aç”ı deneyin.\n\n{error}',
+    'This file could not be played. Your device may not support this codec — '
+        'try “Open with another app”.\n\n{error}',
+    'تعذّر تشغيل هذا الملف. قد لا يدعم جهازك هذا الترميز — جرّب «فتح بتطبيق '
+        'آخر».\n\n{error}',
+  ),
+
+  // ── İşlemler ekranı ───────────────────────────────────────────────────────
+  'jb.title': ('İşlemler', 'Jobs', 'العمليات'),
+  'jb.background_note': (
+    'İşler uygulama arka plandayken de sürer ve ilerleme bildirimde görünür. '
+        'Uygulamayı görev listesinden tamamen kapatırsan iş durur.',
+    'Jobs keep running while the app is in the background and the progress '
+        'shows in a notification. If you close the app from the task list, the '
+        'job stops.',
+    'تستمر العمليات أثناء عمل التطبيق في الخلفية ويظهر التقدّم في إشعار. وإن '
+        'أغلقت التطبيق تمامًا من قائمة المهام فستتوقف العملية.',
+  ),
+  'jb.empty': (
+    'Henüz bir işlem yok.\n'
+        'Boyut düşürme, yer açma, kopya arama gibi işlemler burada görünür.',
+    'No jobs yet.\n'
+        'Jobs such as resizing, freeing space and duplicate scans show up here.',
+    'لا توجد عمليات بعد.\n'
+        'تظهر هنا عمليات مثل تصغير الحجم وتحرير المساحة والبحث عن النسخ المكررة.',
+  ),
+  'jb.cancelled': ('İptal edildi.', 'Cancelled.', 'أُلغيت.'),
+  'jb.cancelled_detail': (
+    'İptal edildi · {detail}',
+    'Cancelled · {detail}',
+    'أُلغيت · {detail}',
+  ),
+  'jb.running_for': ('{time} sürüyor', 'Running for {time}', 'مستمرة منذ {time}'),
+  'jb.took': ('{status} · {time} sürdü', '{status} · took {time}', '{status} · استغرقت {time}'),
+  'jb.outputs': (
+    'Oluşan dosyalar ({n})',
+    'Files created ({n})',
+    'الملفات الناتجة ({n})',
+  ),
+  'jb.open_folder': ('Klasörü aç', 'Open the folder', 'فتح المجلد'),
+  'jb.file_missing': (
+    'Dosya bulunamadı · {folder}',
+    'File not found · {folder}',
+    'الملف غير موجود · {folder}',
+  ),
+
+  // ── İmzalama ──────────────────────────────────────────────────────────────
+  'sg.note': (
+    'İmza belgeye kalıcı olarak basılacak.',
+    'The signature is stamped onto the document permanently.',
+    'يُطبع التوقيع على المستند بشكل دائم.',
+  ),
+  'sg.failed': ('İmzalanamadı: {error}', 'Signing failed: {error}', 'فشل التوقيع: {error}'),
+  'sg.title': ('İmzala — {name}', 'Sign — {name}', 'وقّع — {name}'),
+  'sg.redraw': ('İmzayı yeniden çiz', 'Redraw the signature', 'أعِد رسم التوقيع'),
+  'sg.prev_page': ('Önceki sayfa', 'Previous page', 'الصفحة السابقة'),
+
+  // ── Köşe düzeltme ─────────────────────────────────────────────────────────
+  'se.failed': ('Düzeltilemedi: {error}', 'Could not correct it: {error}', 'تعذّر التصحيح: {error}'),
+  'se.title': ('Köşeleri ayarla', 'Adjust the corners', 'ضبط الزوايا'),
+  'se.reset': ('Sıfırla', 'Reset', 'إعادة تعيين'),
+  'se.open_failed': (
+    'Görsel açılamadı: {error}',
+    'Could not open the image: {error}',
+    'تعذّر فتح الصورة: {error}',
+  ),
+  'se.working': ('Düzeltiliyor…', 'Correcting…', 'جارٍ التصحيح…'),
+  'se.hint': (
+    'Mavi dikdörtgenin köşelerini sayfanın köşelerine sürükleyin. '
+        'Sayfa eğik çekildiyse de düzleştirilir.',
+    'Drag the corners of the blue rectangle onto the corners of the page. A '
+        'skewed shot is straightened too.',
+    'اسحب زوايا المستطيل الأزرق إلى زوايا الصفحة. وتُقوَّم أيضًا اللقطة المائلة.',
+  ),
+
+  // ── Galeri ────────────────────────────────────────────────────────────────
+  'gal.open_in_viewer': (
+    'Görüntüleyicide aç (OCR, çeviri, PDF)',
+    'Open in the viewer (OCR, translation, PDF)',
+    'افتح في العارض (OCR، ترجمة، PDF)',
+  ),
+  'gal.other_actions': ('Diğer işlemler', 'Other actions', 'إجراءات أخرى'),
+
+  // ── Sıkıştırma ────────────────────────────────────────────────────────────
+  'cmp.title': ('Sıkıştır', 'Compress', 'ضغط'),
+  'cmp.zip_note': (
+    'Her yerde açılır. Parola verilirse AES-256 ile şifrelenir '
+        '(dosya adları görünür kalır).',
+    'Opens everywhere. With a password it is encrypted with AES-256 (file '
+        'names stay visible).',
+    'يُفتح في كل مكان. وبكلمة مرور يُشفَّر بـ AES-256 (تبقى أسماء الملفات ظاهرة).',
+  ),
+  'cmp.7z_note': (
+    'Daha küçük dosya. Parola verilirse AES-256; istenirse dosya adları da '
+        'gizlenir.',
+    'A smaller file. With a password, AES-256; file names can be hidden too.',
+    'ملف أصغر. وبكلمة مرور، AES-256؛ ويمكن إخفاء أسماء الملفات أيضًا.',
+  ),
+  'cmp.hide_names': (
+    'Dosya adlarını da gizle',
+    'Hide the file names too',
+    'إخفاء أسماء الملفات أيضًا',
+  ),
+  'cmp.hide_names_sub': (
+    'Arşiv parolasız açılamaz',
+    'The archive cannot be opened without the password',
+    'لا يمكن فتح الأرشيف بدون كلمة المرور',
+  ),
+  'cmp.password_warning': (
+    'Parolayı unutursanız arşiv AÇILAMAZ — kurtarma yolu yoktur.',
+    'If you forget the password the archive CANNOT be opened — there is no '
+        'recovery.',
+    'إن نسيت كلمة المرور فلن يمكن فتح الأرشيف — لا توجد طريقة للاستعادة.',
+  ),
+
+  // ── Tarama akışı ──────────────────────────────────────────────────────────
+  'sf.scanner_failed': (
+    'Tarayıcı açılamadı: {error}\nKamera izni verilmemiş olabilir.',
+    'Could not open the scanner: {error}\nCamera permission may be missing.',
+    'تعذّر فتح الماسح: {error}\nقد يكون إذن الكاميرا مفقودًا.',
+  ),
+  'sf.ocr_progress': (
+    'Yazılar taranıyor… ({n} / {total} sayfa)',
+    'Scanning text… ({n} / {total} pages)',
+    'جارٍ فحص النص… ({n} / {total} صفحة)',
+  ),
+  'sf.scanned_title': (
+    '{n} sayfa tarandı',
+    '{n} pages scanned',
+    'تم مسح {n} صفحة',
+  ),
+  'sf.scanned_body': (
+    'Sayfalardaki yazılar da tanınsın mı? Tanınırsa PDF içinde arama ve '
+        'kopyalama çalışır; görüntü aynen kalır.\n\n'
+        'Metin tanıma sayfa başına birkaç saniye sürer.',
+    'Should the text on the pages be recognized too? Then search and copy work '
+        'inside the PDF; the image itself is unchanged.\n\n'
+        'Recognition takes a few seconds per page.',
+    'هل تريد التعرّف على النص في الصفحات أيضًا؟ عندها يعمل البحث والنسخ داخل '
+        'ملف PDF؛ وتبقى الصورة كما هي.\n\n'
+        'يستغرق التعرّف بضع ثوانٍ لكل صفحة.',
+  ),
+  'sf.image_only': ('Sadece görüntü', 'Image only', 'الصورة فقط'),
+  'sf.with_ocr': ('Yazıları da tanı', 'Recognize the text too', 'تعرّف على النص أيضًا'),
+
+  // ── Çeviri akışı ──────────────────────────────────────────────────────────
+  'tf.title': ('Çeviri', 'Translation', 'الترجمة'),
+  'tf.no_text': ('Çevrilecek metin yok.', 'There is no text to translate.', 'لا يوجد نص للترجمة.'),
+  'tf.preparing': ('Hazırlanıyor…', 'Preparing…', 'جارٍ التحضير…'),
+  'tf.first_use': (
+    'Bu yalnızca ilk kullanımda gerekir.',
+    'This is only needed the first time.',
+    'هذا مطلوب في المرة الأولى فقط.',
+  ),
+  'tf.progress': (
+    'Çevriliyor… ({n} / {total} satır)',
+    'Translating… ({n} / {total} lines)',
+    'جارٍ الترجمة… ({n} / {total} سطر)',
+  ),
+  'tf.working': ('Çevriliyor…', 'Translating…', 'جارٍ الترجمة…'),
+  'tf.failed': (
+    'Çeviri başarısız: {error}\n'
+        'Dil modeli inmediyse internet bağlantısını kontrol edin.',
+    'Translation failed: {error}\n'
+        'If the language model has not downloaded, check your internet connection.',
+    'فشلت الترجمة: {error}\n'
+        'إن لم يُنزَّل نموذج اللغة فتحقّق من اتصالك بالإنترنت.',
+  ),
+  'tf.empty_result': (
+    'Çeviri sonucu boş döndü.',
+    'The translation came back empty.',
+    'عادت الترجمة فارغة.',
+  ),
+  'tf.lang_title': ('Çeviri dili', 'Translation language', 'لغة الترجمة'),
+  'tf.swap': ('Dilleri değiştir', 'Swap the languages', 'تبديل اللغتين'),
+  'tf.source_lang': ('Kaynak dil', 'Source language', 'لغة المصدر'),
+  'tf.target_lang': ('Hedef dil', 'Target language', 'اللغة الهدف'),
+  'tf.downloading': (
+    '{lang} dil modeli indiriliyor…',
+    'Downloading the {lang} language model…',
+    'جارٍ تنزيل نموذج اللغة {lang}…',
+  ),
+  'tf.copied': ('Çeviri kopyalandı', 'Translation copied', 'تم نسخ الترجمة'),
+
+  // ── Otomatik düzenleme ekranı ─────────────────────────────────────────────
+  'org.all_placed_full': (
+    'Her şey zaten yerinde görünüyor',
+    'Everything already looks in place',
+    'يبدو أن كل شيء في مكانه',
+  ),
+  'org.already_placed': (
+    '{n} dosya zaten doğru klasörde.',
+    '{n} files are already in the right folder.',
+    '{n} ملف موجود بالفعل في المجلد الصحيح.',
+  ),
 
   // ── Arka plandaki iş kuyruğu / bildirimler ────────────────────────────────
   'job.error_generic': ('Bir hata oluştu.', 'Something went wrong.', 'حدث خطأ.'),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/chat_media.dart';
@@ -180,8 +181,8 @@ class _SearchScreenState extends State<SearchScreen> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            hintText: '${widget.rootLabel ?? p.basename(widget.root)} '
-                'içinde ara…',
+            hintText: context.t('srch.in_hint',
+                {'name': widget.rootLabel ?? p.basename(widget.root)}),
             border: InputBorder.none,
             filled: false,
           ),
@@ -199,7 +200,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           PopupMenuButton<String>(
-            tooltip: 'Arama seçenekleri',
+            tooltip: context.t('srch.options'),
             onSelected: (v) async {
               switch (v) {
                 case 'rebuild':
@@ -219,17 +220,16 @@ class _SearchScreenState extends State<SearchScreen> {
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'smart',
-                child: Text(_smartOn
-                    ? 'Akıllı aramayı kapat'
-                    : 'Akıllı aramayı aç'),
+                child: Text(context
+                    .t(_smartOn ? 'srch.smart_off' : 'srch.smart_on')),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'ai',
-                child: Text('AI ile yorumla (Gemini)'),
+                child: Text(context.t('srch.ai_interpret')),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'rebuild',
-                child: Text('Dizini yeniden kur'),
+                child: Text(context.t('srch.rebuild_index')),
               ),
             ],
           ),
@@ -254,10 +254,9 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _indexBanner() {
     String? text;
     if (SearchIndex.isBuilding) {
-      text = 'Arama dizini kuruluyor — bu ilk sefere özel, sonraki aramalar '
-          'anında olacak.';
+      text = context.t('srch.index_building');
     } else if (SearchIndex.isReady && SearchIndex.isStale) {
-      text = 'Dosyalar değişti — dizin arka planda tazeleniyor.';
+      text = context.t('srch.index_stale');
     }
     if (text == null) return const SizedBox.shrink();
     return Padding(
@@ -276,7 +275,8 @@ class _SearchScreenState extends State<SearchScreen> {
         runSpacing: Gap.xs,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text('Anladım:', style: Theme.of(context).textTheme.bodySmall),
+          Text(context.t('srch.understood'),
+              style: Theme.of(context).textTheme.bodySmall),
           for (final label in smart.understood)
             Chip(
               label: Text(label),
@@ -303,9 +303,11 @@ class _SearchScreenState extends State<SearchScreen> {
     final q = _controller.text.trim();
     if (q.isEmpty) return;
     final appState = context.read<AppState>();
+    // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final str = AppStrings.of(context);
     if (!appState.hasApiKey) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Önce Ayarlar > Gemini API anahtarını girin.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(str.t('srch.need_key'))));
       return;
     }
     setState(() => _aiBusy = true);
@@ -322,15 +324,15 @@ class _SearchScreenState extends State<SearchScreen> {
         if (parsed != null) _smart = parsed;
       });
       if (parsed == null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('AI bu sorguyu yorumlayamadı; '
-                'yerel çözümleme kullanılıyor.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(str.t('srch.ai_fallback'))));
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _aiBusy = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('AI hatası: $e')));
+          .showSnackBar(SnackBar(
+              content: Text(str.t('srch.ai_error', {'error': e}))));
     }
   }
 
@@ -341,8 +343,12 @@ class _SearchScreenState extends State<SearchScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
       child: Text(
-        '$shown sonuç · ${_sort.label} (${_desc ? "azalan" : "artan"})'
-        '${capped ? " · ilk 1000 sonuç" : ""}',
+        context.t('srch.summary', {
+          'n': shown,
+          'sort': context.t(_sort.labelKey),
+          'dir': context.t(_desc ? 'fmset.desc' : 'fmset.asc'),
+          'capped': capped ? context.t('srch.capped') : '',
+        }),
         style: Theme.of(context).textTheme.bodySmall,
       ),
     );
@@ -355,20 +361,13 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
           children: [
             for (final entry in <(String, FmCategory?)>[
-              ('Tümü', null),
-              ('Klasör', FmCategory.folder),
-              ('Belge', FmCategory.document),
-              ('Görsel', FmCategory.image),
-              ('Video', FmCategory.video),
-              ('Ses', FmCategory.audio),
-              ('Arşiv', FmCategory.archive),
-              ('Uygulama', FmCategory.apk),
-              ('Diğer', FmCategory.other),
+              ('flt.all', null),
+              for (final c in FmCategory.values) (c.labelKey, c),
             ])
               Padding(
                 padding: const EdgeInsets.only(right: Gap.sm),
                 child: ChoiceChip(
-                  label: Text(entry.$1),
+                  label: Text(context.t(entry.$1)),
                   selected: _category == entry.$2,
                   onSelected: (_) => setState(() => _category = entry.$2),
                 ),
@@ -379,11 +378,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _body(List<FsEntry> results) {
     if (results.isEmpty) {
-      final message = !_searched
-          ? 'Dosya veya klasör adının bir bölümünü yazın.\n\n'
-              'İpucu: “geçen ay whatsapp videoları”, “bu hafta pdf”, '
-              '“2024 fotoğrafları” gibi cümleler de yazabilirsiniz.'
-          : (_searching ? 'Aranıyor…' : 'Sonuç bulunamadı.');
+      final message = context.t(!_searched
+          ? 'srch.empty_hint'
+          : (_searching ? 'srch.searching' : 'srch.no_result'));
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(Gap.lg),

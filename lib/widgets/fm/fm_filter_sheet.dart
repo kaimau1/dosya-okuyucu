@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
@@ -124,7 +125,7 @@ class _FilterSheetState extends State<_FilterSheet> {
       firstDate: DateTime(1980),
       lastDate: now.add(const Duration(days: 1)),
       initialDateRange: initial,
-      helpText: 'Tarih aralığı seç',
+      helpText: context.t('flt.pick_range'),
       saveText: 'Tamam',
     );
     if (picked == null || !mounted) return;
@@ -138,7 +139,9 @@ class _FilterSheetState extends State<_FilterSheet> {
   String get _customLabel {
     final from = _filter.customFromMs;
     final to = _filter.customToMs;
-    if (from == null || to == null) return FmDateRange.custom.label;
+    if (from == null || to == null) {
+      return context.t(FmDateRange.custom.labelKey);
+    }
     String d(int ms) {
       final x = DateTime.fromMillisecondsSinceEpoch(ms);
       return '${x.day}.${x.month}.${x.year}';
@@ -163,7 +166,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('Filtrele ve sırala',
+                    child: Text(context.t('flt.title'),
                         style: theme.textTheme.titleMedium),
                   ),
                   TextButton(
@@ -181,13 +184,13 @@ class _FilterSheetState extends State<_FilterSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 children: [
                   if (widget.showSort) ...[
-                    _label('Sıralama'),
+                    _label(context.t('flt.sort')),
                     Wrap(
                       spacing: Gap.sm,
                       children: [
                         for (final s in widget.sortOptions)
                           ChoiceChip(
-                            label: Text(s.label),
+                            label: Text(context.t(s.labelKey)),
                             selected: _sort == s,
                             onSelected: (_) => setState(() => _sort = s),
                           ),
@@ -195,16 +198,16 @@ class _FilterSheetState extends State<_FilterSheet> {
                     ),
                     const SizedBox(height: Gap.sm),
                     SegmentedButton<bool>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: true,
-                          icon: Icon(Icons.arrow_downward),
-                          label: Text('Azalan'),
+                          icon: const Icon(Icons.arrow_downward),
+                          label: Text(context.t('flt.desc')),
                         ),
                         ButtonSegment(
                           value: false,
-                          icon: Icon(Icons.arrow_upward),
-                          label: Text('Artan'),
+                          icon: const Icon(Icons.arrow_upward),
+                          label: Text(context.t('flt.asc')),
                         ),
                       ],
                       selected: {_desc},
@@ -213,7 +216,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     ),
                     const SizedBox(height: Gap.md),
                   ],
-                  _label('Tarih'),
+                  _label(context.t('flt.date')),
                   Wrap(
                     spacing: Gap.sm,
                     runSpacing: Gap.xs,
@@ -222,7 +225,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                         ChoiceChip(
                           label: Text(r == FmDateRange.custom
                               ? _customLabel
-                              : r.label),
+                              : context.t(r.labelKey)),
                           selected: _filter.dateRange == r,
                           onSelected: (_) {
                             if (r == FmDateRange.custom) {
@@ -236,14 +239,14 @@ class _FilterSheetState extends State<_FilterSheet> {
                     ],
                   ),
                   const SizedBox(height: Gap.md),
-                  _label('Boyut'),
+                  _label(context.t('flt.size')),
                   Wrap(
                     spacing: Gap.sm,
                     runSpacing: Gap.xs,
                     children: [
                       for (final s in FmSizeRange.values)
                         ChoiceChip(
-                          label: Text(s.label),
+                          label: Text(context.t(s.labelKey)),
                           selected: _filter.sizeRange == s,
                           onSelected: (_) =>
                               setState(() => _filter = _filter.withSizeRange(s)),
@@ -252,21 +255,24 @@ class _FilterSheetState extends State<_FilterSheet> {
                   ),
                   if (widget.buckets.length > 1) ...[
                     const SizedBox(height: Gap.md),
-                    _label('Kaynak (birden çok seçilebilir)'),
+                    _label(context.t('flt.source')),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
                       children: [
                         // Boş küme = tümü; "Tümü" çipi seçimi temizler.
                         ChoiceChip(
-                          label: const Text('Tümü'),
+                          label: Text(context.t('flt.all')),
                           selected: _filter.buckets.isEmpty,
                           onSelected: (_) => setState(
                               () => _filter = _filter.withBuckets(const {})),
                         ),
                         for (final e in _sortedBuckets)
                           FilterChip(
-                            label: Text('${e.key.label} (${e.value})'),
+                            label: Text(context.t('ph.chip_count', {
+                              'label': context.t(e.key.labelKey),
+                              'n': e.value,
+                            })),
                             selected: _filter.buckets.contains(e.key),
                             onSelected: (_) => setState(
                                 () => _filter = _filter.toggleBucket(e.key)),
@@ -280,20 +286,23 @@ class _FilterSheetState extends State<_FilterSheet> {
                   // anlamsız gürültü olurdu.
                   if (_showChatSection) ...[
                     const SizedBox(height: Gap.md),
-                    _label('Mesajlaşma dosyası türü'),
+                    _label(context.t('flt.chat_kind')),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
                       children: [
                         ChoiceChip(
-                          label: const Text('Tümü'),
+                          label: Text(context.t('flt.all')),
                           selected: _filter.chatKinds.isEmpty,
                           onSelected: (_) => setState(() =>
                               _filter = _filter.withChatKinds(const {})),
                         ),
                         for (final e in _sortedChatKinds)
                           FilterChip(
-                            label: Text('${e.key.label} (${e.value})'),
+                            label: Text(context.t('ph.chip_count', {
+                              'label': context.t(e.key.labelKey),
+                              'n': e.value,
+                            })),
                             selected: _filter.chatKinds.contains(e.key),
                             onSelected: (_) => setState(() =>
                                 _filter = _filter.toggleChatKind(e.key)),
@@ -301,14 +310,14 @@ class _FilterSheetState extends State<_FilterSheet> {
                       ],
                     ),
                     const SizedBox(height: Gap.md),
-                    _label('Gelen / gönderilen'),
+                    _label(context.t('flt.direction')),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
                       children: [
                         for (final d in ChatDirection.values)
                           ChoiceChip(
-                            label: Text(d.label),
+                            label: Text(context.t(d.labelKey)),
                             selected: _filter.direction == d,
                             onSelected: (_) => setState(
                                 () => _filter = _filter.withDirection(d)),
@@ -317,22 +326,20 @@ class _FilterSheetState extends State<_FilterSheet> {
                     ),
                     const SizedBox(height: Gap.xs),
                     Text(
-                      'Gönderdiklerin WhatsApp’ın “Sent” klasöründen okunur. '
-                      'Telegram bu ayrımı yapmadığı için oradaki dosyalar '
-                      '“gelen” sayılır.',
+                      context.t('flt.direction_note'),
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
                   // ── Etiketler (kişi/grup) ──────────────────────────────
                   if (widget.tags.isNotEmpty) ...[
                     const SizedBox(height: Gap.md),
-                    _label('Etiket (kişi / grup)'),
+                    _label(context.t('flt.tag')),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
                       children: [
                         ChoiceChip(
-                          label: const Text('Tümü'),
+                          label: Text(context.t('flt.all')),
                           selected: _filter.tags.isEmpty,
                           onSelected: (_) => setState(
                               () => _filter = _filter.withTags(const {})),
@@ -349,7 +356,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   ],
                   if (widget.extensions.isNotEmpty) ...[
                     const SizedBox(height: Gap.md),
-                    _label('Dosya türü'),
+                    _label(context.t('flt.file_type')),
                     Wrap(
                       spacing: Gap.sm,
                       runSpacing: Gap.xs,
@@ -371,10 +378,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                       value: _filter.hideDuplicates,
                       onChanged: (v) => setState(
                           () => _filter = _filter.withHideDuplicates(v)),
-                      title: const Text('Yinelenen kopyaları gizle'),
-                      subtitle: const Text(
-                          'Aynı ad ve boyuttaki dosya bir kez görünür '
-                          '(WhatsApp aynı görseli birkaç klasöre yazar).'),
+                      title: Text(context.t('flt.hide_dupes')),
+                      subtitle: Text(context.t('flt.hide_dupes_sub')),
                     ),
                   ],
                   const SizedBox(height: Gap.md),
@@ -389,7 +394,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Vazgeç'),
+                      child: Text(context.t('common.cancel')),
                     ),
                   ),
                   const SizedBox(width: Gap.sm),
@@ -397,7 +402,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     child: FilledButton(
                       onPressed: () => Navigator.pop(
                           context, FmFilterResult(_filter, _sort, _desc)),
-                      child: const Text('Uygula'),
+                      child: Text(context.t('common.apply')),
                     ),
                   ),
                 ],
@@ -473,7 +478,9 @@ class FmFilterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = filter.activeCount;
     return IconButton(
-      tooltip: count == 0 ? 'Filtrele ve sırala' : '$count filtre etkin',
+      tooltip: count == 0
+          ? context.t('flt.title')
+          : context.t('flt.active_count', {'n': count}),
       onPressed: onPressed,
       icon: Badge(
         isLabelVisible: count > 0,

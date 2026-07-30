@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
+import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
 import '../core/theme.dart';
 import '../services/conversion_service.dart';
@@ -95,13 +96,12 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('API anahtarı gerekli'),
-        content: const Text(
-            'AI özelliklerini kullanmak için Gemini API anahtarınızı girin.'),
+        title: Text(context.t('chat.key_required')),
+        content: Text(context.t('chat.key_required_body')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Vazgeç'),
+            child: Text(context.t('common.cancel')),
           ),
           FilledButton(
             onPressed: () {
@@ -109,7 +109,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const SettingsScreen()));
             },
-            child: const Text('Ayarlar'),
+            child: Text(context.t('common.settings')),
           ),
         ],
       ),
@@ -120,7 +120,7 @@ class _ChatScreenState extends State<ChatScreen> {
     await context.read<AppState>().addMemory(text);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kalıcı hafızaya kaydedildi')),
+        SnackBar(content: Text(context.t('chat.saved_to_memory'))),
       );
     }
   }
@@ -134,11 +134,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// AI yanıtını seçilen Office biçiminde dışa aktarır.
   Future<void> _export(String text, _ExportKind kind) async {
+    // Başlıklar await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final str = AppStrings.of(context);
     try {
       switch (kind) {
         case _ExportKind.word:
           await _shareBytes(
-              'AI_Yaniti.docx', MarkdownExport.toDocx(text, title: 'AI Yanıtı'));
+              'AI_Yaniti.docx',
+              MarkdownExport.toDocx(text, title: str.t('chat.answer_title')));
           break;
         case _ExportKind.excel:
           await _shareBytes('AI_Yaniti.xlsx', MarkdownExport.toXlsx(text));
@@ -150,14 +153,14 @@ class _ChatScreenState extends State<ChatScreen> {
           break;
         case _ExportKind.slides:
           final bytes = await ConversionService()
-              .textToSlidesPdf('AI Sunumu', stripMarkdown(text));
+              .textToSlidesPdf(str.t('chat.deck_title'), stripMarkdown(text));
           await _shareBytes('AI_Sunumu.pdf', bytes);
           break;
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Dışa aktarılamadı: $e')),
+          SnackBar(content: Text(str.t('chat.export_failed', {'error': e}))),
         );
       }
     }
@@ -168,7 +171,7 @@ class _ChatScreenState extends State<ChatScreen> {
     await Clipboard.setData(ClipboardData(text: stripMarkdown(text)));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Panoya kopyalandı')),
+        SnackBar(content: Text(context.t('chat.copied'))),
       );
     }
   }
@@ -177,7 +180,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Sohbet'),
+        title: Text(context.t('chat.title')),
         bottom: widget.fileName == null
             ? null
             : PreferredSize(
@@ -186,7 +189,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.only(left: 16, bottom: 6),
                   child: Text(
-                    'Bağlam: ${widget.fileName}',
+                    context.t('chat.context', {'name': widget.fileName}),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -230,10 +233,12 @@ class _ChatHint extends StatelessWidget {
   final void Function(String)? onQuick;
   const _ChatHint({this.hasContext = false, this.onQuick});
 
+  /// Hızlı komutlar — etiket ve **AI'ya gidecek istem** aynı dilden olmalı,
+  /// yoksa Arapça arayüzde Türkçe istem giderdi.
   static const _quick = <(String, String)>[
-    ('Özetle', 'Bu dosyayı kısa ve öz biçimde özetle.'),
-    ('Ana noktalar', 'Bu dosyanın ana noktalarını madde madde çıkar.'),
-    ('Basit anlat', 'Bu dosyayı sade, teknik olmayan bir dille açıkla.'),
+    ('chat.quick_summarize', 'chat.quick_summarize_prompt'),
+    ('chat.quick_points', 'chat.quick_points_prompt'),
+    ('chat.quick_simple', 'chat.quick_simple_prompt'),
   ];
 
   @override
@@ -248,12 +253,8 @@ class _ChatHint extends StatelessWidget {
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 12),
             Text(
-              hasContext
-                  ? 'Bu dosya hakkında soru sor ya da aşağıdan hızlı bir '
-                      'komut seç. Yanıtları kalıcı hafızaya kaydedebilirsin.'
-                  : 'Dosyalarını özetlet, sorular sor, düzenleme öner, '
-                      'PDF’den slayt planı çıkart. Yanıtları kalıcı hafızaya '
-                      'kaydedebilirsin.',
+              context
+                  .t(hasContext ? 'chat.empty_file' : 'chat.empty_general'),
               textAlign: TextAlign.center,
             ),
             if (hasContext) ...[
@@ -265,8 +266,10 @@ class _ChatHint extends StatelessWidget {
                 children: [
                   for (final q in _quick)
                     ActionChip(
-                      label: Text(q.$1),
-                      onPressed: onQuick == null ? null : () => onQuick!(q.$2),
+                      label: Text(context.t(q.$1)),
+                      onPressed: onQuick == null
+                          ? null
+                          : () => onQuick!(context.t(q.$2)),
                     ),
                 ],
               ),
@@ -345,7 +348,7 @@ class _Bubble extends StatelessWidget {
                   children: [
                     // Office biçimlerine dışa aktarım tek menüde toplandı.
                     PopupMenuButton<_ExportKind>(
-                      tooltip: 'Dışa aktar',
+                      tooltip: context.t('chat.export'),
                       onSelected: (k) => onExport(turn.text, k),
                       itemBuilder: (_) => const [
                         PopupMenuItem(
@@ -403,14 +406,14 @@ class _Bubble extends StatelessWidget {
                       style: _actionStyle,
                       onPressed: () => onCopy(turn.text),
                       icon: const Icon(Icons.copy_outlined, size: 16),
-                      label: const Text('Kopyala'),
+                      label: Text(context.t('common.copy')),
                     ),
                     TextButton.icon(
                       style: _actionStyle,
                       // Hafızaya düz metin yaz (işaretsiz).
                       onPressed: () => onSaveMemory(stripMarkdown(turn.text)),
                       icon: const Icon(Icons.bookmark_add_outlined, size: 16),
-                      label: const Text('Hafızaya kaydet'),
+                      label: Text(context.t('chat.save_to_memory')),
                     ),
                   ],
                 ),
@@ -447,10 +450,10 @@ class _Composer extends StatelessWidget {
                 maxLines: 5,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
-                decoration: const InputDecoration(
-                  hintText: 'Bir şey sor…',
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: InputDecoration(
+                  hintText: context.t('chat.ask_hint'),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
                 ),
               ),
             ),
