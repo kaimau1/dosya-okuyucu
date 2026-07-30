@@ -1869,6 +1869,466 @@ const Map<String, (String, String, String)> _table = {
     'فتح معلومات التطبيق',
   ),
 
+  // ── PDF düzenleyici ───────────────────────────────────────────────────────
+  'pe.prepare_failed': (
+    'Belge hazırlanamadı: {error}',
+    'Could not prepare the document: {error}',
+    'تعذّر تحضير المستند: {error}',
+  ),
+  'pe.outline_failed': (
+    'Sayfa çözümlenemedi: {error}',
+    'Could not analyse the page: {error}',
+    'تعذّر تحليل الصفحة: {error}',
+  ),
+  'pe.background_failed': (
+    'Arka plan öğeleri taranamadı: {error}',
+    'Could not scan background items: {error}',
+    'تعذّر فحص عناصر الخلفية: {error}',
+  ),
+  'pe.undone': ('Geri alındı', 'Undone', 'تم التراجع'),
+  'pe.paragraph_updated': ('Paragraf güncellendi', 'Paragraph updated', 'تم تحديث الفقرة'),
+  'pe.delete_image': ('Görseli sil', 'Delete image', 'حذف الصورة'),
+  'pe.delete_image_body': (
+    'Bu görsel sayfadan kaldırılacak. Geri al ile döndürebilirsiniz.',
+    'This image will be removed from the page. You can bring it back with Undo.',
+    'ستُزال هذه الصورة من الصفحة. يمكنك إرجاعها عبر التراجع.',
+  ),
+  'pe.image_deleted': ('Görsel silindi', 'Image deleted', 'تم حذف الصورة'),
+  'pe.image_moved': ('Görsel taşındı', 'Image moved', 'تم نقل الصورة'),
+  'pe.pick_to_remove': (
+    'Kaldırılacak öğe seçin',
+    'Select the items to remove',
+    'اختر العناصر المراد إزالتها',
+  ),
+  'pe.items_removed': (
+    'Seçilen öğeler kaldırıldı',
+    'Selected items removed',
+    'تمت إزالة العناصر المحددة',
+  ),
+  'pe.page_rotated': ('Sayfa döndürüldü', 'Page rotated', 'تم تدوير الصفحة'),
+  'pe.op_failed': (
+    'İşlem yapılamadı: {error}',
+    'The operation failed: {error}',
+    'فشلت العملية: {error}',
+  ),
+  'pe.protected_title': ('Belge korumalı', 'The document is protected', 'المستند محمي'),
+  'pe.protected_body': (
+    'Bu belge düzenlemeye karşı kilitli ama parola sormadan açılıyor '
+        '(izin kilidi). Korumayı kaldırıp düzenleyelim mi?\n\n'
+        'Özgün dosyanız değişmez; koruma yalnız düzenlenen kopyada kalkar.',
+    'This document is locked against editing but opens without asking for a '
+        'password (a permissions lock). Shall we remove the protection and '
+        'edit it?\n\nYour original file is untouched; the protection is only '
+        'removed on the edited copy.',
+    'هذا المستند مقفل ضد التحرير لكنه يُفتح دون طلب كلمة مرور (قفل أذونات). '
+        'هل نزيل الحماية ونحرّره؟\n\nملفك الأصلي لا يتغيّر؛ تُزال الحماية من '
+        'النسخة المحرَّرة فقط.',
+  ),
+  'pe.remove_protection': ('Korumayı kaldır', 'Remove protection', 'إزالة الحماية'),
+  'pe.protection_removed': ('Koruma kaldırıldı', 'Protection removed', 'تمت إزالة الحماية'),
+  'pe.unlock_failed': (
+    'Belgenin şifre koruması kaldırılamadı: {error}\n\n'
+        'Gerçek bir parola varsa PDF araçlarından kaldırıp yeniden deneyin.',
+    'Could not remove the document’s password protection: {error}\n\n'
+        'If there is a real password, remove it from PDF tools and try again.',
+    'تعذّرت إزالة حماية كلمة المرور من المستند: {error}\n\n'
+        'إن كانت هناك كلمة مرور حقيقية فأزلها من أدوات PDF ثم أعد المحاولة.',
+  ),
+  'pe.save_note': (
+    'Düzenlenmiş belgeyi nereye kaydedelim?',
+    'Where should we save the edited document?',
+    'أين نحفظ المستند المحرَّر؟',
+  ),
+  'pe.unsaved_title': (
+    'Kaydedilmemiş değişiklikler',
+    'Unsaved changes',
+    'تغييرات غير محفوظة',
+  ),
+  'pe.unsaved_body': (
+    'Yaptığınız düzenlemeler henüz kaydedilmedi. Ne yapalım?',
+    'Your edits have not been saved yet. What should we do?',
+    'لم تُحفظ تعديلاتك بعد. ماذا نفعل؟',
+  ),
+  'pe.discard_leave': ('Kaydetme, çık', 'Don’t save, leave', 'اخرج دون حفظ'),
+  'pe.hint_text_none': (
+    'Bu sayfada düzenlenebilir metin bulunamadı (taranmış sayfa olabilir).',
+    'No editable text found on this page (it may be a scanned page).',
+    'لم يُعثر على نص قابل للتحرير في هذه الصفحة (قد تكون صفحة ممسوحة ضوئيًا).',
+  ),
+  'pe.hint_text': (
+    'Değiştirmek istediğiniz paragrafa dokunun.',
+    'Tap the paragraph you want to change.',
+    'اضغط على الفقرة التي تريد تغييرها.',
+  ),
+  'pe.hint_image_none': (
+    'Bu sayfada gömülü görsel yok.',
+    'There are no embedded images on this page.',
+    'لا توجد صور مضمّنة في هذه الصفحة.',
+  ),
+  'pe.hint_image': (
+    'Görsele dokunup seçin; sürükleyerek taşıyın, köşeden boyutlandırın.',
+    'Tap an image to select it; drag to move, resize from a corner.',
+    'اضغط على صورة لتحديدها؛ اسحب للنقل، وغيّر الحجم من الزاوية.',
+  ),
+  'pe.hint_background': (
+    'Her sayfada yinelenen öğeler aşağıda. Kaldırmak istediklerinizi seçin.',
+    'Items repeated on every page are listed below. Select the ones to remove.',
+    'العناصر المتكررة في كل صفحة مدرجة أدناه. اختر ما تريد إزالته.',
+  ),
+  'pe.hint_page': ('Açık sayfayı döndürün.', 'Rotate the open page.', 'دوّر الصفحة المفتوحة.'),
+  'pe.mode_text': ('Metin', 'Text', 'نص'),
+  'pe.mode_image': ('Görsel', 'Image', 'صورة'),
+  'pe.mode_watermark': ('Filigran', 'Watermark', 'علامة مائية'),
+  'pe.mode_page': ('Sayfa', 'Page', 'صفحة'),
+  'pe.clear_selection': ('Seçimi bırak', 'Clear selection', 'إلغاء التحديد'),
+  'pe.rot_left': ('90° sola', '90° left', '90° لليسار'),
+  'pe.rot_right': ('90° sağa', '90° right', '90° لليمين'),
+  'pe.no_background': (
+    'Yinelenen arka plan öğesi bulunamadı.',
+    'No repeating background items found.',
+    'لم يُعثر على عناصر خلفية متكررة.',
+  ),
+  'pe.remove_picked': (
+    'Seçilenleri kaldır ({n})',
+    'Remove selected ({n})',
+    'إزالة المحدد ({n})',
+  ),
+  'pe.edit_paragraph': ('Paragrafı düzenle', 'Edit paragraph', 'تحرير الفقرة'),
+  'pe.current_text': ('Şu anki metin', 'Current text', 'النص الحالي'),
+  'pe.new_text': ('Yeni metin', 'New text', 'النص الجديد'),
+  'pe.new_text_help': (
+    'Yazı tipi, punto ve sayfa düzeni korunur.',
+    'The font, size and page layout are preserved.',
+    'يُحافظ على الخط والحجم وتخطيط الصفحة.',
+  ),
+
+  // ── Slayt düzenleyici ─────────────────────────────────────────────────────
+  'sl.play': ('Oynat', 'Play', 'تشغيل'),
+  'sl.none': ('Slayt bulunamadı.', 'No slides found.', 'لم يُعثر على شرائح.'),
+  'sl.actions': ('Slayt işlemleri', 'Slide actions', 'إجراءات الشريحة'),
+  'sl.duplicate': ('Slaytı çoğalt', 'Duplicate slide', 'تكرار الشريحة'),
+  'sl.move_up': ('Yukarı taşı', 'Move up', 'تحريك لأعلى'),
+  'sl.move_down': ('Aşağı taşı', 'Move down', 'تحريك لأسفل'),
+  'sl.delete': ('Slaytı sil', 'Delete slide', 'حذف الشريحة'),
+  'sl.no_structure': (
+    'Bu dosyada slayt yapısı düzenlenemiyor (eksik sunum bilgisi).',
+    'The slide structure cannot be edited in this file (missing presentation data).',
+    'لا يمكن تحرير بنية الشرائح في هذا الملف (بيانات العرض ناقصة).',
+  ),
+  'sl.duplicated': ('Slayt çoğaltıldı.', 'Slide duplicated.', 'تم تكرار الشريحة.'),
+  'sl.delete_body': (
+    'Slayt {n} silinsin mi? Bu işlem geri alınamaz '
+        '(kaydedene kadar dosya değişmez).',
+    'Delete slide {n}? This cannot be undone (the file is unchanged until you save).',
+    'هل تريد حذف الشريحة {n}؟ لا يمكن التراجع عن ذلك (لا يتغيّر الملف حتى تحفظ).',
+  ),
+  'sl.nothing_to_play': (
+    'Bu dosyada gösterilecek slayt yok.',
+    'There are no slides to show in this file.',
+    'لا توجد شرائح للعرض في هذا الملف.',
+  ),
+  'sl.open_failed': ('Açılamadı: {error}', 'Could not open: {error}', 'تعذّر الفتح: {error}'),
+
+  // ── PDF araçları ──────────────────────────────────────────────────────────
+  'pt.locked_title': ('Belge parolalı', 'The document has a password', 'المستند محمي بكلمة مرور'),
+  'pt.enter_password': ('Parolayı girin', 'Enter the password', 'أدخل كلمة المرور'),
+  'pt.op_failed': (
+    '{label} başarısız: {error}',
+    '{label} failed: {error}',
+    'فشل {label}: {error}',
+  ),
+  'pt.op_rotate': ('Döndürme', 'Rotating', 'التدوير'),
+  'pt.op_delete': ('Silme', 'Deleting', 'الحذف'),
+  'pt.op_move': ('Taşıma', 'Moving', 'النقل'),
+  'pt.op_move_page': ('Sayfa taşıma', 'Moving a page', 'نقل صفحة'),
+  'pt.op_merge': ('Birleştirme', 'Merging', 'الدمج'),
+  'pt.op_scan_append': ('Tarama ekleme', 'Adding a scan', 'إضافة مسح ضوئي'),
+  'pt.op_compress': ('Sıkıştırılıyor', 'Compressing', 'جارٍ الضغط'),
+  'pt.op_set_password': ('Parola koyma', 'Setting a password', 'تعيين كلمة مرور'),
+  'pt.op_remove_password': ('Parola kaldırma', 'Removing the password', 'إزالة كلمة المرور'),
+  'pt.cannot_delete_all': (
+    'Tüm sayfalar silinemez',
+    'You cannot delete every page',
+    'لا يمكن حذف كل الصفحات',
+  ),
+  'pt.annot_title': ('Vurgular kaybolacak', 'Highlights will be lost', 'ستفقد التمييزات'),
+  'pt.annot_body': (
+    'Bu belgede {n} vurgu/not var. “{action}” işlemi sayfaları yeniden '
+        'oluşturduğu için bunlar silinir.\n\n'
+        'Sayfa silmek isterseniz “Sil” düğmesi vurguları korur.',
+    'This document has {n} highlights/notes. The “{action}” operation rebuilds '
+        'the pages, so they will be deleted.\n\n'
+        'If you want to delete pages, the “Delete” button keeps highlights.',
+    'يحتوي هذا المستند على {n} تمييز/ملاحظة. عملية «{action}» تعيد بناء '
+        'الصفحات، لذا ستُحذف.\n\n'
+        'إن أردت حذف صفحات، فإن زر «حذف» يحافظ على التمييزات.',
+  ),
+  'pt.continue': ('Devam et', 'Continue', 'متابعة'),
+  'pt.extracting': ('Sayfalar çıkarılıyor…', 'Extracting pages…', 'جارٍ استخراج الصفحات…'),
+  'pt.extracted': (
+    'Seçili sayfalar ayrı PDF olarak çıkarıldı',
+    'The selected pages were extracted as a separate PDF',
+    'تم استخراج الصفحات المحددة كملف PDF منفصل',
+  ),
+  'pt.extract_failed': (
+    'Çıkarma başarısız: {error}',
+    'Extraction failed: {error}',
+    'فشل الاستخراج: {error}',
+  ),
+  'pt.merged': ('{n} PDF eklendi', '{n} PDFs added', 'تمت إضافة {n} ملف PDF'),
+  'pt.compress_title': ('Belgeyi sıkıştır', 'Compress the document', 'ضغط المستند'),
+  'pt.compress_body': (
+    'Belge ({size}) baştan yazılarak küçültülecek: veri akışları en yüksek '
+        'oranda sıkıştırılır, eski sürüm artıkları atılır. Görüntü kalitesi '
+        'DEĞİŞMEZ.\n\n'
+        'Bu yüzden taranmış (resim ağırlıklı) belgelerde kazanç küçük olur. '
+        'İşlem büyük belgelerde bir dakikayı bulabilir; arka planda çalışır, '
+        'ilerlemeyi görürsünüz.',
+    'The document ({size}) is rewritten to make it smaller: data streams are '
+        'compressed as hard as possible and leftovers from older revisions are '
+        'dropped. Image quality does NOT change.\n\n'
+        'That is why the gain is small on scanned (image-heavy) documents. On '
+        'large documents this can take a minute; it runs in the background and '
+        'you can watch the progress.',
+    'يُعاد كتابة المستند ({size}) لتصغيره: تُضغط تدفقات البيانات إلى أقصى حد '
+        'وتُحذف بقايا المراجعات القديمة. جودة الصورة لا تتغيّر.\n\n'
+        'لذلك يكون المكسب صغيرًا في المستندات الممسوحة ضوئيًا (كثيفة الصور). قد '
+        'تستغرق العملية دقيقة في المستندات الكبيرة؛ تعمل في الخلفية ويمكنك '
+        'متابعة التقدّم.',
+  ),
+  'pt.compress': ('Sıkıştır', 'Compress', 'ضغط'),
+  'pt.size_change': (
+    'Boyut {before} → {after}',
+    'Size {before} → {after}',
+    'الحجم {before} ← {after}',
+  ),
+  'pt.already_compact': (
+    'Bu belge zaten sıkışık ({size}) — kazanç yok',
+    'This document is already compact ({size}) — nothing to gain',
+    'هذا المستند مضغوط بالفعل ({size}) — لا مكسب',
+  ),
+  'pt.set_password': ('Parola koy', 'Set a password', 'تعيين كلمة مرور'),
+  'pt.new_password': ('Yeni parola', 'New password', 'كلمة المرور الجديدة'),
+  'pt.remove_password': ('Parolayı kaldır', 'Remove the password', 'إزالة كلمة المرور'),
+  'pt.unsaved_title': (
+    'Kaydedilmemiş değişiklik',
+    'Unsaved changes',
+    'تغييرات غير محفوظة',
+  ),
+  'pt.unsaved_body': (
+    'Çıkarsanız yaptığınız düzenlemeler kaybolur.',
+    'If you leave, your edits are lost.',
+    'إن خرجت ستفقد تعديلاتك.',
+  ),
+  'pt.stay': ('Kal', 'Stay', 'البقاء'),
+  'pt.leave': ('Çık', 'Leave', 'الخروج'),
+  'pt.scan_append': ('Sayfa tara ve ekle', 'Scan and append a page', 'امسح صفحة وأضفها'),
+  'pt.merge_other': (
+    'Başka PDF ekle (birleştir)',
+    'Add another PDF (merge)',
+    'أضف ملف PDF آخر (دمج)',
+  ),
+  'pt.compress_menu': (
+    'Sıkıştır (boyut küçült)',
+    'Compress (reduce size)',
+    'ضغط (تصغير الحجم)',
+  ),
+  'pt.open_failed': ('Açılamadı: {error}', 'Could not open: {error}', 'تعذّر الفتح: {error}'),
+  'pt.rotate_all': ('Tümünü döndür', 'Rotate all', 'تدوير الكل'),
+  'pt.extract': ('Çıkar', 'Extract', 'استخراج'),
+  'pt.forward': ('Öne', 'Forward', 'للأمام'),
+  'pt.backward': ('Arkaya', 'Backward', 'للخلف'),
+
+  // ── Fotoğraflar ───────────────────────────────────────────────────────────
+  'ph.loading': ('Dosyalar yükleniyor…', 'Loading files…', 'جارٍ تحميل الملفات…'),
+  'ph.empty': (
+    'Burada gösterilecek dosya yok.',
+    'There are no files to show here.',
+    'لا توجد ملفات لعرضها هنا.',
+  ),
+  'ph.no_match': (
+    'Aramanıza/filtrenize uyan dosya yok.',
+    'No file matches your search/filter.',
+    'لا يوجد ملف يطابق بحثك/عامل التصفية.',
+  ),
+  'ph.verifying': (
+    'Kopyalar bayt bayt doğrulanıyor…',
+    'Verifying the copies byte by byte…',
+    'جارٍ التحقق من النسخ بايتًا ببايت…',
+  ),
+  'ph.not_identical': (
+    'Bayt bayt doğrulamada birebir kopya çıkmadı — hiçbir şey silinmedi.',
+    'Byte-by-byte verification found no exact copies — nothing was deleted.',
+    'لم يجد التحقق بايتًا ببايت نسخًا متطابقة — لم يُحذف شيء.',
+  ),
+  'ph.show': ('Göster', 'Show', 'عرض'),
+  'ph.search_in': ('{title} içinde ara', 'Search in {title}', 'ابحث في {title}'),
+  'ph.search_in_hint': ('{title} içinde ara…', 'Search in {title}…', 'ابحث في {title}…'),
+  'ph.find_similar': (
+    'Benzer görüntüleri bul (yeniden sıkıştırılmış kopyalar)',
+    'Find similar images (re-compressed copies)',
+    'ابحث عن صور متشابهة (نسخ أُعيد ضغطها)',
+  ),
+  'ph.layout': ('Görünüm: {name}', 'Layout: {name}', 'العرض: {name}'),
+  'ph.selected_of': (
+    '{n} / {total} seçildi',
+    '{n} / {total} selected',
+    'تم تحديد {n} / {total}',
+  ),
+  'ph.select_above': ('Üstündekileri de seç', 'Also select above', 'حدّد ما فوقه أيضًا'),
+  'ph.select_below': ('Altındakileri de seç', 'Also select below', 'حدّد ما تحته أيضًا'),
+  'ph.clear_selection': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
+  'ph.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'ph.all_count': ('Tümü ({n})', 'All ({n})', 'الكل ({n})'),
+  'ph.group_deselect': ('Grubun seçimini kaldır', 'Deselect group', 'إلغاء تحديد المجموعة'),
+  'ph.group_select': ('Grubu seç', 'Select group', 'تحديد المجموعة'),
+
+  // ── AI sohbeti ────────────────────────────────────────────────────────────
+  'chat.key_required': ('API anahtarı gerekli', 'API key required', 'مفتاح API مطلوب'),
+  'chat.key_required_body': (
+    'AI özelliklerini kullanmak için Gemini API anahtarınızı girin.',
+    'Enter your Gemini API key to use the AI features.',
+    'أدخل مفتاح Gemini API لاستخدام ميزات الذكاء الاصطناعي.',
+  ),
+  'chat.saved_to_memory': (
+    'Kalıcı hafızaya kaydedildi',
+    'Saved to permanent memory',
+    'تم الحفظ في الذاكرة الدائمة',
+  ),
+  'chat.export_failed': (
+    'Dışa aktarılamadı: {error}',
+    'Export failed: {error}',
+    'فشل التصدير: {error}',
+  ),
+  'chat.copied': ('Panoya kopyalandı', 'Copied to the clipboard', 'تم النسخ إلى الحافظة'),
+  'chat.context': ('Bağlam: {name}', 'Context: {name}', 'السياق: {name}'),
+  'chat.quick_summarize': ('Özetle', 'Summarise', 'لخّص'),
+  'chat.quick_summarize_prompt': (
+    'Bu dosyayı kısa ve öz biçimde özetle.',
+    'Summarise this file briefly and concisely.',
+    'لخّص هذا الملف بإيجاز ووضوح.',
+  ),
+  'chat.quick_points': ('Ana noktalar', 'Key points', 'النقاط الرئيسية'),
+  'chat.quick_points_prompt': (
+    'Bu dosyanın ana noktalarını madde madde çıkar.',
+    'List the key points of this file as bullet points.',
+    'استخرج النقاط الرئيسية لهذا الملف على شكل نقاط.',
+  ),
+  'chat.quick_simple': ('Basit anlat', 'Explain simply', 'اشرح ببساطة'),
+  'chat.quick_simple_prompt': (
+    'Bu dosyayı sade, teknik olmayan bir dille açıkla.',
+    'Explain this file in plain, non-technical language.',
+    'اشرح هذا الملف بلغة بسيطة وغير تقنية.',
+  ),
+  'chat.empty_file': (
+    'Bu dosya hakkında soru sor ya da aşağıdan hızlı bir komut seç. '
+        'Yanıtları kalıcı hafızaya kaydedebilirsin.',
+    'Ask a question about this file or pick a quick command below. You can '
+        'save the answers to permanent memory.',
+    'اطرح سؤالًا عن هذا الملف أو اختر أمرًا سريعًا بالأسفل. يمكنك حفظ الإجابات '
+        'في الذاكرة الدائمة.',
+  ),
+  'chat.empty_general': (
+    'Dosyalarını özetlet, sorular sor, düzenleme öner, PDF’den slayt planı '
+        'çıkart. Yanıtları kalıcı hafızaya kaydedebilirsin.',
+    'Have your files summarised, ask questions, get editing suggestions, or '
+        'draft a slide outline from a PDF. You can save the answers to '
+        'permanent memory.',
+    'لخّص ملفاتك، واطرح الأسئلة، واحصل على اقتراحات تحرير، أو استخرج مخطط '
+        'شرائح من ملف PDF. يمكنك حفظ الإجابات في الذاكرة الدائمة.',
+  ),
+  'chat.export': ('Dışa aktar', 'Export', 'تصدير'),
+  'chat.save_to_memory': ('Hafızaya kaydet', 'Save to memory', 'حفظ في الذاكرة'),
+  'chat.ask_hint': ('Bir şey sor…', 'Ask something…', 'اسأل شيئًا…'),
+
+  // ── Boyut düşürme ─────────────────────────────────────────────────────────
+  'rs.title': (
+    'Boyut düşür ({n} dosya)',
+    'Reduce size ({n} files)',
+    'تصغير الحجم ({n} ملف)',
+  ),
+  'rs.resolution': ('Çözünürlük', 'Resolution', 'الدقة'),
+  'rs.width': ('Genişlik (px)', 'Width (px)', 'العرض (بكسل)'),
+  'rs.height': ('Yükseklik (px)', 'Height (px)', 'الارتفاع (بكسل)'),
+  'rs.custom_note': (
+    'Yalnız birini yazarsan diğeri en/boy oranından hesaplanır ve resim '
+        'bozulmaz. İKİSİNİ de yazarsan verdiğin ölçü aynen uygulanır — oran '
+        'tutmuyorsa görüntü gerilir. Kaynaktan büyütme yapılmaz: kaynaktan '
+        'büyük bir değer yazarsan kaynağın ölçüsünde kalır.',
+    'If you fill in only one, the other is derived from the aspect ratio and '
+        'the image is not distorted. If you fill in BOTH, your exact numbers '
+        'are used — if the ratio does not match, the image is stretched. '
+        'Nothing is upscaled: a value larger than the source keeps the source '
+        'size.',
+    'إذا ملأت واحدًا فقط فسيُحسب الآخر من نسبة الأبعاد ولن تتشوّه الصورة. وإذا '
+        'ملأت الاثنين فستُطبَّق قياساتك حرفيًا — وإن لم تتطابق النسبة فستُمطّ '
+        'الصورة. لا يجري أي تكبير: القيمة الأكبر من المصدر تُبقي حجم المصدر.',
+  ),
+  'rs.jpeg_quality': ('JPEG kalitesi (fotoğraf)', 'JPEG quality (photos)', 'جودة JPEG (الصور)'),
+  'rs.format': ('Biçim (fotoğraf)', 'Format (photos)', 'الصيغة (الصور)'),
+  'rs.video_quality': ('Video sıkıştırma', 'Video compression', 'ضغط الفيديو'),
+  'rs.fps': ('Kare sayısı (fps)', 'Frame rate (fps)', 'معدّل الإطارات (fps)'),
+  'rs.keep': ('Değiştirme', 'Keep as is', 'دون تغيير'),
+  'rs.video_note': (
+    'Video her durumda yeniden kodlanır (kalite ya da ses değişse de): '
+        'istediğin ölçüye birebir dönüştürülür (FFmpeg). Öncelik cihazın '
+        'donanım kodlayıcısında; o kullanılamazsa yazılım kodlayıcıya düşülür '
+        've işlem belirgin biçimde yavaşlar. Hangi motorun çalıştığı, yüzde ve '
+        'kalan süre işlem satırında yazar. Uzun bir videoda bu dakikalar '
+        'sürebilir; işlem arka planda koşar. Cihaz bu videoyu hiç çeviremezse '
+        'yedek motora düşülür: orada kare sayısı seçimi uygulanamaz ve '
+        '“Değiştirme” dışındaki çözünürlükler en yakın kademeye yuvarlanır.',
+    'Video is always re-encoded (even if only the quality or audio changes): '
+        'it is converted exactly to the size you asked for (FFmpeg). The '
+        'device’s hardware encoder is preferred; if it is unavailable the '
+        'software encoder is used and the job gets noticeably slower. Which '
+        'engine is running, the percentage and the remaining time are shown on '
+        'the job row. On a long video this can take minutes; the job runs in '
+        'the background. If the device cannot convert the video at all, a '
+        'fallback engine is used: there the frame-rate choice cannot be '
+        'applied and resolutions other than “Keep as is” are rounded to the '
+        'nearest step.',
+    'يُعاد ترميز الفيديو دائمًا (حتى لو تغيّرت الجودة أو الصوت فقط): يُحوَّل '
+        'تمامًا إلى المقاس المطلوب (FFmpeg). تُفضَّل وحدة الترميز العتادية في '
+        'الجهاز؛ وإن لم تتوفر يُستخدم المرمّز البرمجي وتصبح العملية أبطأ بوضوح. '
+        'يظهر المحرّك العامل والنسبة والوقت المتبقي في سطر العملية. قد يستغرق '
+        'ذلك دقائق في فيديو طويل؛ وتعمل العملية في الخلفية. وإن تعذّر على '
+        'الجهاز تحويل الفيديو إطلاقًا يُستخدم محرّك احتياطي: هناك لا يمكن تطبيق '
+        'اختيار معدّل الإطارات وتُقرَّب الدقات غير «دون تغيير» إلى أقرب درجة.',
+  ),
+  'rs.strip_audio': ('Sesi çıkar', 'Remove the audio', 'إزالة الصوت'),
+  'rs.strip_audio_sub': (
+    'Ses kaydı olmayan videolarda belirgin yer kazandırır.',
+    'Saves noticeable space on videos where the audio is not needed.',
+    'يوفّر مساحة ملحوظة في الفيديوهات التي لا يُحتاج فيها الصوت.',
+  ),
+  'rs.trash_original': (
+    'Özgün dosyayı çöp kutusuna at',
+    'Move the original to the trash',
+    'نقل الملف الأصلي إلى سلة المهملات',
+  ),
+  'rs.trash_original_sub': (
+    'Kapalıyken küçültülmüş kopya aynı klasöre yeni bir dosya olarak yazılır, '
+        'aslına dokunulmaz.',
+    'When off, the smaller copy is written to the same folder as a new file '
+        'and the original is untouched.',
+    'عند الإيقاف تُكتب النسخة المصغّرة في المجلد نفسه كملف جديد ولا يُمس الأصل.',
+  ),
+  'rs.queue_note': (
+    'İşlem arka planda kuyrukta çalışır; başka ekranlara geçebilirsin. '
+        'Uygulamayı tamamen kapatırsan durur. Küçültülen dosya özgün dosyanın '
+        'yanına kaydedilir; sonucu ve oluşan dosyaları ana ekrandaki '
+        '“İşlemler” kutusundan açabilirsin.',
+    'The job runs in a background queue; you can move to other screens. It '
+        'stops if you close the app completely. The smaller file is saved next '
+        'to the original; you can open the result and the created files from '
+        'the “Jobs” box on the home screen.',
+    'تعمل العملية في طابور بالخلفية؛ يمكنك الانتقال إلى شاشات أخرى. وتتوقف إن '
+        'أغلقت التطبيق تمامًا. يُحفظ الملف المصغّر بجوار الأصل؛ ويمكنك فتح '
+        'النتيجة والملفات الناتجة من صندوق «العمليات» في الشاشة الرئيسية.',
+  ),
+  'rs.start': ('Başlat', 'Start', 'ابدأ'),
+
   // ── Arka plandaki iş kuyruğu / bildirimler ────────────────────────────────
   'job.error_generic': ('Bir hata oluştu.', 'Something went wrong.', 'حدث خطأ.'),
   'job.finished': ('Tamamlandı.', 'Completed.', 'اكتمل.'),

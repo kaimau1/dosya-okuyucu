@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../models/document.dart';
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
@@ -102,12 +103,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       await File(widget.path).writeAsBytes(bytes);
       _dirty = false;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.t('common.saved_hint'))));
         setState(() {});
       }
     } catch (e) {
-      _snack('Kaydedilemedi: $e');
+      _snack(AppStrings.current.t('common.save_failed', {'error': e}));
     }
   }
 
@@ -137,13 +138,13 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       actions: [
         if (_editShapeVM != null)
           IconButton(
-            tooltip: 'Kaydet',
+            tooltip: context.t('common.save'),
             icon: const Icon(Icons.save_outlined),
             onPressed: editor == null ? null : _save,
           ),
       ],
       body: _error != null
-          ? Center(child: Text('Açılamadı: $_error'))
+          ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
               : Column(
@@ -157,15 +158,15 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       bottomBar: _editShapeVM != null
           ? null
           : DocActionBar([
-              DocAction(Icons.play_arrow, 'Oynat',
+              DocAction(Icons.play_arrow, context.t('sl.play'),
                   editor == null ? null : () => _play(0)),
-              DocAction(
-                  Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
-              DocAction(Icons.share_outlined, 'Paylaş',
+              DocAction(Icons.save_outlined, context.t('common.save'),
+                  editor == null ? null : _save),
+              DocAction(Icons.share_outlined, context.t('common.share'),
                   editor == null ? null : _export),
               DocAction(
                 Icons.translate,
-                'Çevir',
+                context.t('common.translate'),
                 () => TranslateFlow.run(context, widget.plainText,
                     title: widget.name),
               ),
@@ -177,7 +178,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
             fileName: widget.name,
           ),
         )),
-        tooltip: 'AI ile çalış',
+        tooltip: context.t('common.ai'),
         child: const Icon(Icons.smart_toy_outlined),
       ),
     );
@@ -185,7 +186,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   Widget _buildSlides(PptxEditor editor) {
     if (editor.slides.isEmpty) {
-      return const Center(child: Text('Slayt bulunamadı.'));
+      return Center(child: Text(context.t('sl.none')));
     }
     return LayoutBuilder(builder: (context, box) {
       return PinchZoomArea(
@@ -310,27 +311,27 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     final editor = _editor;
     final structural = editor?.canEditStructure ?? false;
     return PopupMenuButton<String>(
-      tooltip: 'Slayt işlemleri',
+      tooltip: context.t('sl.actions'),
       icon: const Icon(Icons.more_vert, size: 20),
       onSelected: (v) => _onSlideAction(slide, v),
       itemBuilder: (_) => [
         PopupMenuItem(
           value: 'dup',
           enabled: structural,
-          child: const ListTile(
+          child: ListTile(
             dense: true,
-            leading: Icon(Icons.copy_all_outlined),
-            title: Text('Slaytı çoğalt'),
+            leading: const Icon(Icons.copy_all_outlined),
+            title: Text(context.t('sl.duplicate')),
             contentPadding: EdgeInsets.zero,
           ),
         ),
         PopupMenuItem(
           value: 'up',
           enabled: structural && slide.index > 1,
-          child: const ListTile(
+          child: ListTile(
             dense: true,
-            leading: Icon(Icons.arrow_upward),
-            title: Text('Yukarı taşı'),
+            leading: const Icon(Icons.arrow_upward),
+            title: Text(context.t('sl.move_up')),
             contentPadding: EdgeInsets.zero,
           ),
         ),
@@ -338,20 +339,20 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
           value: 'down',
           enabled:
               structural && slide.index < (editor?.slides.length ?? 0),
-          child: const ListTile(
+          child: ListTile(
             dense: true,
-            leading: Icon(Icons.arrow_downward),
-            title: Text('Aşağı taşı'),
+            leading: const Icon(Icons.arrow_downward),
+            title: Text(context.t('sl.move_down')),
             contentPadding: EdgeInsets.zero,
           ),
         ),
         PopupMenuItem(
           value: 'del',
           enabled: structural && (editor?.slides.length ?? 0) > 1,
-          child: const ListTile(
+          child: ListTile(
             dense: true,
-            leading: Icon(Icons.delete_outline),
-            title: Text('Slaytı sil'),
+            leading: const Icon(Icons.delete_outline),
+            title: Text(context.t('sl.delete')),
             contentPadding: EdgeInsets.zero,
           ),
         ),
@@ -363,7 +364,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     final editor = _editor;
     if (editor == null) return;
     if (!editor.canEditStructure) {
-      _snack('Bu dosyada slayt yapısı düzenlenemiyor (eksik sunum bilgisi).');
+      _snack(context.t('sl.no_structure'));
       return;
     }
     switch (action) {
@@ -372,7 +373,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         if (added != null) {
           _dirty = true;
           setState(() {});
-          _snack('Slayt çoğaltıldı.');
+          _snack(context.t('sl.duplicated'));
         }
         break;
       case 'up':
@@ -399,16 +400,15 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Slaytı sil'),
-        content: Text('Slayt ${slide.index} silinsin mi? Bu işlem geri alınamaz '
-            '(kaydedene kadar dosya değişmez).'),
+        title: Text(ctx.t('sl.delete')),
+        content: Text(ctx.t('sl.delete_body', {'n': slide.index})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(ctx.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sil')),
+              child: Text(ctx.t('common.delete'))),
         ],
       ),
     );
@@ -429,7 +429,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       views.add(v);
     }
     if (views.isEmpty) {
-      _snack('Bu dosyada gösterilecek slayt yok.');
+      _snack(context.t('sl.nothing_to_play'));
       return;
     }
     Navigator.of(context).push(MaterialPageRoute(
@@ -564,7 +564,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
           child: Row(
             children: [
               IconButton(
-                tooltip: 'Kalın',
+                tooltip: context.t('common.bold'),
                 isSelected: _fBold,
                 icon: const Icon(Icons.format_bold),
                 onPressed: () => setState(() {
@@ -573,7 +573,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                 }),
               ),
               IconButton(
-                tooltip: 'İtalik',
+                tooltip: context.t('common.italic'),
                 isSelected: _fItalic,
                 icon: const Icon(Icons.format_italic),
                 onPressed: () => setState(() {
@@ -582,7 +582,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                 }),
               ),
               IconButton(
-                tooltip: 'Altı çizili',
+                tooltip: context.t('common.underline'),
                 isSelected: _fUnder,
                 icon: const Icon(Icons.format_underlined),
                 onPressed: () => setState(() {
@@ -592,7 +592,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
               ),
               const Spacer(),
               IconButton(
-                tooltip: 'Yazıyı küçült',
+                tooltip: context.t('vw.text_smaller'),
                 icon: const Icon(Icons.text_decrease),
                 onPressed: () => setState(() {
                   _fSize = (_fSize - 2).clamp(6.0, 96.0).toDouble();
@@ -602,7 +602,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
               Text('${_fSize.round()} pt',
                   style: Theme.of(context).textTheme.labelLarge),
               IconButton(
-                tooltip: 'Yazıyı büyüt',
+                tooltip: context.t('vw.text_bigger'),
                 icon: const Icon(Icons.text_increase),
                 onPressed: () => setState(() {
                   _fSize = (_fSize + 2).clamp(6.0, 96.0).toDouble();
