@@ -24,6 +24,22 @@ class VideoProbe {
   });
 }
 
+/// Hedef ölçünün uygulanma biçimi (bkz. [FfmpegVideo.scaleFilter]).
+enum VideoScaleMode {
+  /// Kaynağın kendi en/boy oranı korunarak hedef kutuya sığdırılır (kademe,
+  /// yüzde, "değiştirme"). Yön bilgisine ihtiyaç duymaz.
+  fit,
+
+  /// Kullanıcı hem en hem boy yazdı → birebir uygulanır (oran bozulabilir).
+  exactBoth,
+
+  /// Yalnız en yazıldı → boy orandan hesaplanır.
+  exactWidth,
+
+  /// Yalnız boy yazıldı → en orandan hesaplanır.
+  exactHeight,
+}
+
 /// **FFmpeg tabanlı video dönüştürücü** — birebir çözünürlük + kare sayısı.
 ///
 /// ## Niye bu paket (ve niye öncekiler olmadı)
@@ -150,6 +166,28 @@ abstract final class FfmpegVideo {
     return double.tryParse(value);
   }
 
+  /// Kalan süre metni ("~2 dk kaldı"). Boş dönerse tahmin **güvenilir değil**.
+  ///
+  /// Kullanıcı isteği 2026-07-30: *"nerede ne oluyor göremiyorum"* + *"çok
+  /// yavaş"*. Yavaşlığı bilmek ile ne kadar süreceğini bilmemek ayrı şeyler:
+  /// kodlama gerçekten uzun sürüyorsa kullanıcı en azından ne kadar
+  /// beklediğini görmeli. Tahmin **ölçülen** hızdan çıkar (geçen süre / oran),
+  /// uydurma yok; ilk saniyelerde (kodlayıcı ısınırken) ölçüm yanıltıcı olduğu
+  /// için boş dönülür — yanlış süre yazmak hiç yazmamaktan kötü.
+  /// Saf fonksiyon → birim testli.
+  static String remainingText(Duration elapsed, double ratio) {
+    if (ratio <= 0.02 || ratio >= 1) return '';
+    if (elapsed.inSeconds < 3) return '';
+    final totalMs = elapsed.inMilliseconds / ratio;
+    final leftMs = (totalMs - elapsed.inMilliseconds).round();
+    if (leftMs <= 0) return '';
+    final seconds = (leftMs / 1000).round();
+    if (seconds < 60) return '~$seconds sn kaldı';
+    final minutes = (seconds / 60).round();
+    if (minutes < 60) return '~$minutes dk kaldı';
+    return '~${(minutes / 60).round()} sa kaldı';
+  }
+
   /// Sıkıştırma sertliğinin CRF karşılığı (x264: küçük = daha iyi kalite).
   ///
   /// CRF seçildi, sabit bit hızı değil: aynı bit hızı hareketli bir videoda
@@ -162,6 +200,69 @@ abstract final class FfmpegVideo {
         VideoQualityChoice.high => 20,
       };
 
+  /// Hedef ölçünün kaynağa **nasıl** uygulanacağı.
+  ///
+  /// Ayrımın nedeni tek bir kullanıcı hatası (2026-07-30): *"dikey videonun
+  /// boyutu küçültülünce yatay gibi genişletmiş garip olmuş"*. Bkz.
+  /// [scaleFilter] — kademe/yüzde seçimlerinde ölçü artık kaynağın kendi
+  /// yönüne uydurulur, serbest en×boy ise kullanıcının yazdığı gibi kalır.
+  static VideoScaleMode scaleModeFor(MediaResizeOptions options) {
+    if (options.resolution != ResolutionChoice.custom) return VideoScaleMode.fit;
+    final w = options.customWidth;
+    final h = options.customHeight;
+    if (w != null && h != null) return VideoScaleMode.exactBoth;
+    if (w != null) return VideoScaleMode.exactWidth;
+    if (h != null) return VideoScaleMode.exactHeight;
+    return VideoScaleMode.fit;
+  }
+
+  /// Ölçekleme süzgeci. **Saf fonksiyon → birim testli.**
+  ///
+  /// ## KÖK NEDEN — dikey video yatay çıkıyordu (kullanıcı hatası 2026-07-30)
+  /// Telefon videoları neredeyse her zaman **yatay kodlanıp** "90° döndür"
+  /// verisiyle saklanır. Eski kod hedef ölçüyü mutlak sayı olarak yazıyordu
+  /// (`scale=1280:720`) ve o sayılar `probe`un okuduğu ölçüden geliyordu:
+  /// döndürme verisi herhangi bir nedenle okunamazsa (ffprobe düşer ve ölçü
+  /// yedek eklentiden gelir — `MediaMetadataRetriever` döndürmeyi ölçüye
+  /// KATMAZ) hedef "1280x720" hesaplanıyordu. Oysa ffmpeg süzgece giren kareyi
+  /// kendi döndürme verisiyle ÇEVİRİYOR (autorotate) → dikey kare zorla yatay
+  /// çerçeveye basılıyor: video enine yayılıyordu.
+  ///
+  /// ## Çözüm: mutlak sayı yerine **kutuya sığdır**
+  /// `force_original_aspect_ratio=decrease` ile hedef, uzun kenarı [longEdge]
+  /// olan bir kareye *sığdırılır*: çıktı oranı **kaynağın kendi karesinden**
+  /// çıkar, yön bilgisine hiç ihtiyaç kalmaz. Sığdırma asla büyütmez çünkü
+  /// `targetSize` hedefi zaten kaynakla sınırlıyor (kutu ≤ kaynağın uzun
+  /// kenarı → ölçek katsayısı ≤ 1). `force_divisible_by=2` çift ölçüyü garanti
+  /// eder (H.264 tek sayı kabul etmez); `decrease` ile aşağı yuvarlar.
+  ///
+  /// İfade (`if/min`) yerine bu seçenekler bilinçli: filtre ifadeleri virgül
+  /// içerir, virgül filtre zincirinin ayırıcısıdır ve kaçırma/tırnak hatası
+  /// burada "video hiç dönüşmüyor" demek olurdu — bu ortamda cihazda
+  /// doğrulanamaz.
+  ///
+  /// **Serbest en×boy** (kullanıcı iki sayıyı da yazdı) birebir uygulanır:
+  /// "1234x568" isteyen kişiye başka ölçü vermek sözden dönmek olurdu. Tek
+  /// kenar yazıldıysa diğeri `-2` ile orandan hesaplanır — bu da yönden
+  /// bağımsızdır.
+  static String scaleFilter({
+    required int width,
+    required int height,
+    required VideoScaleMode mode,
+  }) =>
+      switch (mode) {
+        VideoScaleMode.exactBoth => 'scale=w=$width:h=$height:flags=bicubic',
+        VideoScaleMode.exactWidth => 'scale=w=$width:h=-2:flags=bicubic',
+        VideoScaleMode.exactHeight => 'scale=w=-2:h=$height:flags=bicubic',
+        VideoScaleMode.fit => () {
+            final longEdge = width > height ? width : height;
+            return 'scale=w=$longEdge:h=$longEdge'
+                ':force_original_aspect_ratio=decrease'
+                ':force_divisible_by=2'
+                ':flags=bicubic';
+          }(),
+      };
+
   /// FFmpeg argümanlarını kurar. **Saf fonksiyon → birim testli**: burada tek
   /// bir yazım hatası "video hiç dönüşmüyor" demektir ve cihazda görülür.
   static List<String> buildArgs({
@@ -169,21 +270,30 @@ abstract final class FfmpegVideo {
     required String output,
     required int width,
     required int height,
+    VideoScaleMode mode = VideoScaleMode.fit,
     int? fps,
     required int crf,
     required bool removeAudio,
     required String encoder,
   }) {
     final filters = <String>[
-      // Çift sayıya yuvarlama zinciri: H.264 tek sayılı ölçüyü kabul etmez.
-      'scale=$width:$height:flags=bicubic',
+      // SIRA ÖNEMLİ — kare atma ÖLÇEKLEMEDEN ÖNCE. Tersi (eski hâli) atılacak
+      // kareleri de ölçekliyordu: 60 fps videoyu 30 fps'e indirirken
+      // ölçekleyicinin işinin YARISI çöpe gidiyordu. Kullanıcı hatası
+      // 2026-07-30: "video boyutu küçültme çok yavaş yapılıyor".
       if (fps != null) 'fps=$fps',
+      scaleFilter(width: width, height: height, mode: mode),
     ];
     return <String>[
       '-y', // çıktı yolunu biz üretiyoruz; sorulmadan yazsın
       '-i', source,
       '-vf', filters.join(','),
       '-c:v', encoder,
+      // Yazılım kodlayıcıda tüm çekirdekler kullanılsın (`0` = otomatik).
+      // mpeg4 dilim (slice) çoklu izleğini destekliyor; tek izlekte 1080p
+      // kodlamak telefonda dakikalar sürüyor. Donanım kodlayıcıda bu değer
+      // yoksayılır, zararı yok.
+      if (encoder == 'mpeg4') ...['-threads', '0'],
       // Kalite ayarı kodlayıcıya göre değişir:
       //  • donanım (h264_mediacodec) CRF anlamaz → bit hızı,
       //  • mpeg4 CRF anlamaz → 2..31 arası nicemleyici (-q:v; küçük = iyi).
@@ -241,19 +351,23 @@ abstract final class FfmpegVideo {
     required String output,
     required int width,
     required int height,
+    VideoScaleMode mode = VideoScaleMode.fit,
     int? fps,
     required VideoQualityChoice quality,
     required bool removeAudio,
     int durationMs = 0,
     void Function(double ratio)? onProgress,
     bool Function()? isCancelled,
+    /// Denenecek kodlayıcılar, sırayla. Çağıran bunu **bilerek** ayırıyor:
+    /// donanım denemesi ile yazılım denemesi arasında yedek (native
+    /// MediaCodec) motorun sırası var — yazılım kodlama en son çare, çünkü
+    /// telefonda dakikalar sürüyor (bkz. `VideoTranscoder.run`).
+    List<String> encoders = const ['h264_mediacodec', 'mpeg4'],
   }) async {
     final crf = crfFor(quality);
-    // Önce cihazın donanım H.264 kodlayıcısı, bulunamazsa FFmpeg'in kendi
-    // mpeg4'ü. GPL'li libx264 BİLİNÇLİ olarak yok (lisans; bkz. sınıf notu).
-    // Donanım kodlayıcı yoksa ffmpeg saniyenin altında "Unknown encoder" ile
-    // döndüğü için bu deneme pahalı değil.
-    final encoders = ['h264_mediacodec', 'mpeg4'];
+    // GPL'li libx264 BİLİNÇLİ olarak yok (lisans; bkz. sınıf notu). Donanım
+    // kodlayıcı yoksa ffmpeg saniyenin altında "Unknown encoder" ile döndüğü
+    // için o deneme pahalı değil.
     Object? lastError;
     for (final encoder in encoders) {
       // İptal HER denemeden önce yoklanır. Eskiden yalnız oturumun içinde
@@ -269,6 +383,7 @@ abstract final class FfmpegVideo {
             output: output,
             width: width,
             height: height,
+            mode: mode,
             fps: fps,
             crf: crf,
             removeAudio: removeAudio,

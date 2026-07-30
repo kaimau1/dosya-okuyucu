@@ -210,6 +210,90 @@ void main() {
     await pumpEventQueue();
   });
 
+  // ── Sonucun GÖRÜNMESİ (kullanıcı hatası 2026-07-30) ───────────────────────
+  // "Başlatıldı mı oldu başarısız mı oldu göremiyorum" + "küçültülen video
+  // nereye gitti belli değil": alt şerit son sonucu, İşlemler ekranı da
+  // üretilen dosyaları buradan okuyor. Üçü de sessizce bozulabilir.
+  test('üretilen dosyalar işte saklanır (kullanıcı onları bulabilsin)', () async {
+    JobQueue.instance.enqueue(
+      id: 'test_outputs',
+      title: 'Boyut düşürme',
+      run: (handle) async {
+        handle.addOutput('/depo/DCIM/VID_0001_720p.mp4');
+        expect(handle.outputs, hasLength(1));
+      },
+    );
+    await pumpEventQueue();
+    final job = JobQueue.instance.find('test_outputs');
+    expect(job?.outputs, ['/depo/DCIM/VID_0001_720p.mp4']);
+  });
+
+  test('biten iş sonuç şeridinde DURUR, kapatılınca listede kalır', () async {
+    JobQueue.instance.enqueue(
+      id: 'test_last',
+      title: 'Biten iş',
+      run: (handle) async => handle.report(detail: '18,2 MB kazanıldı'),
+    );
+    await pumpEventQueue();
+    // Şerit: iş bitti ama sonuç görünmeye devam ediyor.
+    expect(JobQueue.instance.lastFinished?.id, 'test_last');
+    JobQueue.instance.dismiss('test_last');
+    // Kapatıldı → şerit boş, ama iş (ve özeti) İşlemler ekranında duruyor.
+    expect(JobQueue.instance.lastFinished, isNull);
+    expect(JobQueue.instance.find('test_last')?.detail, '18,2 MB kazanıldı');
+    expect(JobQueue.instance.finishedJobs, hasLength(1));
+  });
+
+  test('iş süresi ölçülür ("ne kadar sürdü" yazılabilsin)', () async {
+    JobQueue.instance.enqueue(
+      id: 'test_elapsed',
+      title: 'Süreli',
+      run: (handle) async {},
+    );
+    await pumpEventQueue();
+    final job = JobQueue.instance.find('test_elapsed')!;
+    expect(job.startedAtMs, greaterThan(0));
+    expect(job.finishedAtMs, greaterThanOrEqualTo(job.startedAtMs));
+    expect(job.elapsed, isNotNull);
+    expect(job.elapsed!.isNegative, isFalse);
+  });
+
+  test('geçmiş sınırlı büyür; süren iş ASLA düşmez', () async {
+    final gate = gateFor();
+    JobQueue.instance.enqueue(
+      id: 'test_running_keep',
+      title: 'Süren',
+      run: (handle) => gate.future,
+    );
+    await pumpEventQueue();
+    for (var i = 0; i < JobQueue.historyLimit + 5; i++) {
+      JobQueue.instance.enqueue(
+        id: 'test_hist_$i',
+        title: 'Geçmiş $i',
+        run: (handle) async {},
+      );
+    }
+    // Sınırın üstünde iş eklendi ama SÜREN iş hâlâ listede (kırpma yalnız
+    // bitmişleri düşürür; süren işi düşürmek ilerleme şeridini yok ederdi).
+    expect(JobQueue.instance.find('test_running_keep')?.status,
+        JobStatus.running);
+    gate.complete();
+    await pumpEventQueue();
+    expect(JobQueue.instance.finishedJobs.length,
+        lessThanOrEqualTo(JobQueue.historyLimit));
+    // Kırpma ESKİDEN düşürür: en yeni işler duruyor.
+    expect(JobQueue.instance.find('test_hist_${JobQueue.historyLimit + 4}'),
+        isNotNull);
+  });
+
+  test('süre metni okunabilir', () {
+    expect(humanDuration(const Duration(seconds: 42)), '42 sn');
+    expect(humanDuration(const Duration(minutes: 2, seconds: 10)), '2 dk 10 sn');
+    expect(humanDuration(const Duration(minutes: 3)), '3 dk');
+    expect(humanDuration(const Duration(hours: 1, minutes: 5)), '1 sa 5 dk');
+    expect(humanDuration(const Duration(hours: 2)), '2 sa');
+  });
+
   test('bildirim kancası çökse bile iş tamamlanır', () async {
     JobQueue.instance.reporter = _BrokenReporter();
     JobQueue.instance.enqueue(

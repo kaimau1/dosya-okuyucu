@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
@@ -69,14 +70,18 @@ Future<bool> startResizeJob(
   // Metin durumu OKUR. Sabit "arka planda başladı" yazıyordu; oysa aynı iş zaten
   // sürüyorsa yenisi hiç açılmıyor ve kuyrukta başka bir iş varsa bu iş
   // BEKLİYOR — ikisinde de "başladı" demek yanlıştı (2026-07-29 denetimi).
+  // Nereden takip edileceği YAZILIR: kullanıcı hatası 2026-07-30 — "nerede ne
+  // oluyor göremiyorum". Şerit + ana ekrandaki İşlemler kutusu, ikisi de.
   messenger.showSnackBar(SnackBar(
       content: Text(alreadyRunning
-          ? 'Bu işlem zaten sürüyor. İlerlemeyi alttaki şeritten '
-              'izleyebilirsin.'
+          ? 'Bu işlem zaten sürüyor. Durumu alttaki şeritten ya da '
+              '“İşlemler” ekranından izleyebilirsin.'
           : job.status == JobStatus.queued && JobQueue.instance.hasActive
-              ? 'İşlem kuyruğa alındı; süren iş bitince başlayacak.'
-              : 'İşlem arka planda başladı. İlerlemeyi alttaki '
-                  'şeritten izleyebilirsin.')));
+              ? 'İşlem kuyruğa alındı; süren iş bitince başlayacak. '
+                  'Durumu “İşlemler” ekranından izleyebilirsin.'
+              : 'İşlem arka planda başladı. Durumu ve oluşan dosyaları '
+                  'alttaki şeritten ya da “İşlemler” ekranından '
+                  'görebilirsin.')));
   return true;
 }
 
@@ -116,7 +121,16 @@ Future<void> _run(
       );
       try {
         final result = entry.category == FmCategory.video
-            ? await VideoTranscoder.run(entry.path, options, handle: handle)
+            ? await VideoTranscoder.run(
+                entry.path,
+                options,
+                handle: handle,
+                // Toplu işte hangi dosyada olduğumuz ilerleme satırında da
+                // görünsün (dosya adı BAŞLIKTA zaten var, tek dosyada
+                // tekrarlamak satırı boşuna uzatırdı).
+                progressPrefix:
+                    media.length > 1 ? '${done + 1}/${media.length}' : null,
+              )
             : await ImageResizer.run(entry.path, options);
       // Çıktı KABUL EDİLEBİLİR mi? İki koşul birlikte aranır:
       //  (a) gerçekten küçüldü mü,
@@ -146,6 +160,10 @@ Future<void> _run(
           failed++;
         } else {
           savedBytes += result.savedBytes;
+          // Çıktı KAYDEDİLDİ → kullanıcı onu bulabilsin. İşlemler ekranı bu
+          // listeyi gösterir, dosya oradan tek dokunuşla açılır (kullanıcı
+          // hatası 2026-07-30: "nereye gitti, nereden açacağım bilinmiyor").
+          handle.addOutput(result.outputPath);
           if (options.replaceOriginal) {
             // Hareketli/çok sayfalı kaynakta özgün ASLA çöpe atılmaz: çıktı tek
             // kare, yani aslın yerini tutmuyor (bkz. `ImageResizer.mayLoseFrames`).
@@ -180,11 +198,20 @@ Future<void> _run(
     }
     FsEvents.changed();
 
+    // Çıktıların bulunduğu klasör(ler) — özette YAZILIR. "Kazanıldı" demek
+    // ama dosyanın nereye kaydedildiğini söylememek kullanıcıyı dosyasını
+    // arar durumda bırakıyordu (kullanıcı hatası 2026-07-30). Çıktı her zaman
+    // özgün dosyanın yanına gider; tek klasörse adı yazılır.
+    final outputDirs = {for (final o in handle.outputs) p.dirname(o)};
     final parts = <String>[
       if (savedBytes > 0)
         '${FsPaths.humanSize(savedBytes)} kazanıldı'
       else
         'Kazanç olmadı',
+      if (outputDirs.length == 1)
+        'Kaydedildi: ${p.basename(outputDirs.first)}'
+      else if (outputDirs.length > 1)
+        '${outputDirs.length} klasöre kaydedildi',
       if (failed > 0) '$failed dosya küçültülemedi',
       // Kaç özgün dosya GERÇEKTEN çöpe gitti: kullanıcı bunu bilmeli, hele
       // iptalde (10 dosyanın 4'ü işlendiyse 4 özgün çöpte, 6'sı yerinde).

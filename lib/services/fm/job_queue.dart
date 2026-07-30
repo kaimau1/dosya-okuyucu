@@ -48,6 +48,24 @@ class FmJob {
   /// burada durur — kullanıcı geri döndüğünde tarama baştan başlamaz.
   Object? result;
 
+  /// İşin **diskte ürettiği dosyalar** (boyut düşürmede küçültülmüş kopyalar).
+  ///
+  /// Kullanıcı hatası 2026-07-30: *"boyutu küçültülen video nereye gitti ne
+  /// oldu belli değil, nereden açacağım bilinmiyor"*. Çıktı özgün dosyanın
+  /// yanına kaydediliyordu ama bunu hiçbir yer söylemiyordu; İşlemler ekranı
+  /// artık bu listeyi gösteriyor ve dosyalar oradan açılabiliyor.
+  final List<String> outputs = [];
+
+  /// Başlangıç/bitiş damgaları (ms). "2 dk 10 sn sürdü" bilgisi buradan çıkar:
+  /// kullanıcı bir işin gerçekten ne kadar sürdüğünü görmeden "yavaş" dışında
+  /// bir şey söyleyemez.
+  int startedAtMs = 0;
+  int finishedAtMs = 0;
+
+  /// Kullanıcı sonuç şeridini kapattı mı? (Kapatılmayan sonuç şeritte durur —
+  /// "başarılı mı oldu göremiyorum" şikâyetinin cevabı bu.)
+  bool dismissed = false;
+
   bool _cancelRequested = false;
 
   /// İş gövdesi. Kuyruğun listesiyle ayrı bir "bekleyenler" dizisi tutmak
@@ -69,6 +87,29 @@ class FmJob {
       total > 0 ? (done / total).clamp(0.0, 1.0) : null;
 
   bool get cancelRequested => _cancelRequested;
+
+  /// İşin süresi (sürüyorsa şu ana kadar geçen). Damga yoksa null.
+  Duration? get elapsed {
+    if (startedAtMs == 0) return null;
+    final end = finishedAtMs > 0
+        ? finishedAtMs
+        : DateTime.now().millisecondsSinceEpoch;
+    final ms = end - startedAtMs;
+    return ms < 0 ? null : Duration(milliseconds: ms);
+  }
+}
+
+/// Süre metni ("2 dk 10 sn"). Saf fonksiyon → birim testli.
+String humanDuration(Duration d) {
+  if (d.inSeconds < 60) return '${d.inSeconds} sn';
+  final minutes = d.inMinutes;
+  final seconds = d.inSeconds % 60;
+  if (minutes < 60) {
+    return seconds == 0 ? '$minutes dk' : '$minutes dk $seconds sn';
+  }
+  final hours = d.inHours;
+  final restMinutes = minutes % 60;
+  return restMinutes == 0 ? '$hours sa' : '$hours sa $restMinutes dk';
 }
 
 /// İşin gövdesine verilen tutamak: ilerleme bildirir, iptal isteğini okur.
@@ -93,6 +134,16 @@ class JobHandle {
   /// İşin sonucunu saklar (ekran geri dönünce buradan okur).
   set result(Object? value) => _job.result = value;
   Object? get result => _job.result;
+
+  /// İşin ürettiği bir dosyayı kaydeder — İşlemler ekranı bunları listeler ve
+  /// kullanıcı oradan açar (bkz. [FmJob.outputs]).
+  void addOutput(String path) {
+    _job.outputs.add(path);
+    _queue._tick(_job);
+  }
+
+  /// Şimdiye kadar kaydedilen çıktılar (özet satırını yazan iş gövdesi okur).
+  List<String> get outputs => List.unmodifiable(_job.outputs);
 
   /// İptal isteğinde `JobCancelled` atarak işi düzgünce bitirir.
   void throwIfCancelled() {
@@ -158,6 +209,30 @@ class JobQueue extends ChangeNotifier {
 
   bool get hasActive => activeJobs.isNotEmpty;
 
+  /// Bitmiş işler, yeniden eskiye.
+  List<FmJob> get finishedJobs =>
+      [for (final j in _jobs.reversed) if (!j.status.isActive) j];
+
+  /// **Kapatılmamış en son sonuç** — alt şerit bunu gösterir.
+  ///
+  /// Niye gerekli: şerit yalnız SÜREN işi gösteriyordu, iş bitince şerit yok
+  /// oluyordu. Kullanıcı hatası 2026-07-30: *"başlatıldı mı oldu başarısız mı
+  /// oldu göremiyorum"* — sonuç, kullanıcı görüp kapatana kadar durmalı.
+  FmJob? get lastFinished {
+    for (final job in _jobs.reversed) {
+      if (!job.status.isActive && !job.dismissed) return job;
+    }
+    return null;
+  }
+
+  /// Sonuç şeridini kapatır (iş listede kalır, İşlemler ekranından görülür).
+  void dismiss(String id) {
+    final job = find(id);
+    if (job == null || job.status.isActive) return;
+    job.dismissed = true;
+    notifyListeners();
+  }
+
   /// Kimliğe göre iş (bitmiş olanlar dahil) — ekran geri dönünce sonucu bulur.
   FmJob? find(String id) {
     for (var i = _jobs.length - 1; i >= 0; i--) {
@@ -186,6 +261,7 @@ class JobQueue extends ChangeNotifier {
     final job = FmJob(id: id, title: title, detail: detail, total: total)
       .._run = run;
     _jobs.add(job);
+    _trimHistory();
     notifyListeners();
     unawaited(_pump());
     return job;
@@ -200,6 +276,7 @@ class JobQueue extends ChangeNotifier {
     if (job.status == JobStatus.queued) {
       job._run = null;
       job.status = JobStatus.cancelled;
+      job.finishedAtMs = DateTime.now().millisecondsSinceEpoch;
       unawaited(_finish(job));
     }
     notifyListeners();
@@ -209,6 +286,21 @@ class JobQueue extends ChangeNotifier {
   void clearFinished() {
     _jobs.removeWhere((j) => !j.status.isActive);
     notifyListeners();
+  }
+
+  /// Geçmişte tutulan bitmiş iş sayısı. İşlemler ekranı **geçmiş** olarak
+  /// okunuyor artık (eskiden yalnız süren iş görünüyordu), ama liste sonsuz
+  /// büyümesin: eski işler düşer. Süren/bekleyen işler ASLA düşmez.
+  static const historyLimit = 40;
+
+  void _trimHistory() {
+    var extra = _jobs.where((j) => !j.status.isActive).length - historyLimit;
+    if (extra <= 0) return;
+    _jobs.removeWhere((j) {
+      if (extra <= 0 || j.status.isActive) return false;
+      extra--;
+      return true;
+    });
   }
 
   Future<void> _pump() async {
@@ -228,6 +320,7 @@ class JobQueue extends ChangeNotifier {
         final run = job._run!;
         job._run = null;
         job.status = JobStatus.running;
+        job.startedAtMs = DateTime.now().millisecondsSinceEpoch;
         notifyListeners();
         unawaited(_report(job));
         try {
@@ -240,6 +333,10 @@ class JobQueue extends ChangeNotifier {
           job.status = JobStatus.failed;
           job.error = '$e';
         }
+        job.finishedAtMs = DateTime.now().millisecondsSinceEpoch;
+        // Geçmiş burada da kırpılır: 50 dosyayı tek tek küçültmek 50 iş demek
+        // ve hepsi bitmiş olarak listede kalırdı.
+        _trimHistory();
         notifyListeners();
         await _finish(job);
       }

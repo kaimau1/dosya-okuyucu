@@ -4367,3 +4367,90 @@ kısması SON raporu düşürmüyor (`report` alanları kapıdan önce yazıyor,
 `flutter analyze`: 0 hata, 0 yeni uyarı (39 info/warning eski koddan).
 `flutter test`: **863 test geçti** (3. tur sonunda 853).
 Yeni: `test/fm_transfer_safety_test.dart` (10).
+
+---
+
+## 2026-07-30 — Video küçültme: dikey→yatay bozulması, hız ve "İşlemler" ekranı
+
+Kullanıcı geri bildirimi (ekran görüntüsüyle): *"video boyutu düşürürken o
+işlemler için bir özel sayfa yok, nerede ne oluyor, başlatıldı mı başarısız mı
+oldu göremiyorum… ana ekranda bir yer/kart/buton lazım"*, *"çok yavaş"*,
+*"küçültülen video nereye gitti belli değil, nereden açacağım bilinmiyor"*,
+*"dikey videonun boyutu küçültülünce yatay gibi genişletmiş"*.
+
+### 1) KÖK NEDEN — dikey video yatay/ezik çıkıyordu (veri bozan hata)
+`FfmpegVideo.buildArgs` hedefi **mutlak sayı** olarak yazıyordu
+(`scale=1280:720`) ve o sayılar `probe`un okuduğu ölçüden geliyordu. Telefon
+videoları neredeyse her zaman **yatay kodlanıp** "90° döndür" verisiyle
+saklanır; ffprobe düşerse ölçü yedek eklentiden (`video_compress` →
+`MediaMetadataRetriever`) geliyor ve **o döndürmeyi ölçüye katmıyor** → hedef
+"1280x720" hesaplanıyor. ffmpeg ise süzgece giren kareyi kendi döndürme
+verisiyle çeviriyor (autorotate) → dikey kare zorla yatay çerçeveye basılıyor:
+video enine yayılıyordu.
+
+**Çözüm:** mutlak ölçü yerine **kutuya sığdırma** —
+`scale=w=L:h=L:force_original_aspect_ratio=decrease:force_divisible_by=2`
+(L = hedefin uzun kenarı). Çıktı oranı artık **kaynağın kendi karesinden**
+çıkıyor, döndürme bilgisine hiç ihtiyaç yok. Büyütme riski yok çünkü
+`targetSize` hedefi kaynakla sınırlıyor (kutu ≤ kaynağın uzun kenarı).
+- **REDDEDİLEN yol:** `scale=w='if(gt(iw\,ih)\,min(iw\,L)\,min(iw\,S))'…`
+  ifadeleri. Doğru çalışırdı ama filtre ifadeleri **virgül** içerir, virgül de
+  filtre zincirinin ayırıcısı: tek bir kaçırma/tırnak hatası "video hiç
+  dönüşmüyor" demek ve bu ortamda cihazda doğrulanamaz. Seçenek tabanlı çözüm
+  aynı sonucu virgülsüz veriyor (test: "süzgeç ifade İÇERMEZ").
+- **Serbest en×boy korundu:** kullanıcı iki sayıyı da yazdıysa birebir
+  uygulanır (`VideoScaleMode.exactBoth`); tek kenar yazıldıysa diğeri `-2` ile
+  orandan hesaplanır — o da yönden bağımsız. Yani 2026-07-29'un "1234x568 de
+  verilebilmeli" sözü bozulmadı.
+
+### 2) Hız — yazılım kodlayıcı en sona alındı
+Motor sırası artık: **donanım kodlayıcı (h264_mediacodec) → yedek motor
+(video_compress/native MediaCodec, o da DONANIM) → yazılım kodlayıcı (mpeg4)**.
+Eskiden mpeg4 ikinci sıradaydı; donanım kodlayıcısı bulunamayan cihazlarda
+kullanıcı sürekli **yazılım kodlamayı** yiyordu (telefonda dakikalar).
+Serbest ölçü istendiğinde sıra değişir (yedek motor birebir ölçü veremez;
+yazılım kodlayıcı verir). Ek hız: **`fps` süzgeci `scale`den ÖNCE** (atılacak
+kareler artık ölçeklenmiyor — 60→30 fps'te ölçekleyicinin işinin yarısı çöpe
+gidiyordu) ve mpeg4'te `-threads 0` (dilim çoklu izleği; tek izlekte 1080p
+kodlamak dakikalar).
+- **Dürüstlük:** hangi motorun koştuğu + yüzde + **ölçülen** kalan süre işlem
+  satırına yazılıyor ("720×1280 · %42 · ~2 dk kaldı · donanım kodlayıcı").
+  Yavaşlığın nedeni neredeyse her zaman motor; kullanıcı bunu görmeden
+  "takıldı mı?" diye bakıyordu. Tahmin ilk 3 saniyede YAZILMAZ (yanlış süre
+  yazmak hiç yazmamaktan kötü).
+- **REDDEDİLEN yol:** `-hwaccel mediacodec` ile donanım ÇÖZME. Yüzey/pix_fmt
+  pazarlığı kırılgan, bu ortamda cihazda doğrulanamıyor ve başarısızlığı
+  sessizce yazılım koduna düşürürdü. `libx264`/`openh264` de yok: lisans (GPL)
+  ve `min` varyantında openh264 bulunmuyor.
+- **TUZAK:** çıktı doğrulaması (süre/okunabilirlik) başarısızsa **başka motor
+  DENENMEZ** — kaynak bozuksa (yarıda kesilmiş kayıt, hasarlı `moov`) her motor
+  yarım üretir, kullanıcı dakikalarca bekleyip aynı yere varır. Bunun için
+  `VideoTranscodeException.fatal` bayrağı eklendi; motor döngüsü yalnız
+  `fatal: false` hatalarda sıradakine geçiyor.
+
+### 3) "İşlemler" ekranı + sonuç şeridi + çıktı dosyaları
+- Yeni ekran `lib/screens/fm/jobs_screen.dart`: süren/bekleyen/bitmiş işler,
+  **ne kadar sürdüğü**, özet ve **işin ürettiği dosyalar** (ad + boyut + klasör,
+  dokunarak açma, "Klasörü aç"). Eski alt sayfa (`_JobsSheet`) kaldırıldı —
+  iki arayüz olsa biri geride kalırdı.
+- Ana ekrandaki **İşlemler** kutusu (Araçlar'ın ilk sırası) canlı sayaç
+  gösteriyor ("1 sürüyor" / "3 biten"); araç ızgarası `JobQueue`ya bağlandı.
+- **Alt şerit iş bitince kaybolmuyor:** sonuç satırı (başarılı/başarısız simgesi
+  + özet + "Göster") kullanıcı kapatana kadar durur (`FmJob.dismissed`).
+  Eskiden şerit yalnız SÜREN işi gösteriyordu → iş bitince sonuç yok oluyordu
+  ve iş listesine girecek kapı da kalmıyordu.
+- `FmJob.outputs` + `JobHandle.addOutput`: boyut düşürme her başarılı çıktıyı
+  kaydediyor; özet satırında "Kaydedildi: <klasör>" yazıyor (sistem bildirimine
+  de aynı metin gidiyor). Geçmiş `historyLimit = 40` ile sınırlı (süren iş ASLA
+  düşmez), süreler `startedAtMs/finishedAtMs` ile ölçülüyor.
+
+### Doğrulama
+Bulut Linux oturumunda Flutter **3.29.3** (CI ile aynı) indirilip koşturuldu:
+`flutter analyze` **0 hata, 0 yeni uyarı** (39 info/warning eski koddan),
+`flutter test` **883 test geçti** (önceki tur 877 + yeni 6 dosya/testler).
+Yeni test dosyası: `test/fm_jobs_screen_test.dart` (5 widget testi — sonucun ve
+çıktı dosyalarının GERÇEKTEN göründüğünü kilitliyor). `fm_ffmpeg_video_test`
+ölçek süzgeci + kalan süre grupları, `fm_job_queue_test` çıktı/şerit/süre/geçmiş
+testleriyle büyüdü. Cihazda doğrulanamayan tek şey kodlamanın kendisi (Android
+SDK/telefon yok) — o yüzden süzgeç ve motor sırası saf fonksiyonlara ayrılıp
+testlendi.

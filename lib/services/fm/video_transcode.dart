@@ -12,6 +12,14 @@ import 'job_queue.dart';
 
 /// **Video boyut düşürme** — birincil motor FFmpeg, yedek motor MediaCodec.
 ///
+/// ## Motor sırası (2026-07-30 — "çok yavaş" şikâyetinin cevabı)
+/// `donanım kodlayıcı → yedek motor (o da donanım) → yazılım kodlayıcı`.
+/// Yazılım kodlama (mpeg4) en sona alındı: telefonda dakikalar sürüyor, oysa
+/// yedek motor native MediaCodec ile donanımı kullanıyor. Serbest ölçü
+/// istendiğinde sıra değişir (yedek motor birebir ölçü veremez). Ayrıntı:
+/// [run] gövdesindeki "MOTOR SIRASI" notu. Hangi motorun koştuğu ilerleme
+/// satırına yazılır — kullanıcı yavaşlığın nedenini görebilsin.
+///
 /// ## İki motor, biri yedek
 /// - **FFmpeg** (`ffmpeg_kit_flutter_new_min_gpl`): istenen **birebir**
 ///   çözünürlük + kare sayısı, tek geçişte. Kullanıcı isteği 2026-07-29:
@@ -80,10 +88,14 @@ abstract final class VideoTranscoder {
   }
 
   /// [path] videosunu [options]'a göre yeniden kodlar.
+  ///
+  /// [progressPrefix] toplu işte "3/10" gibi sayaç — ilerleme satırının başına
+  /// yazılır ki kullanıcı hangi dosyada olduğunu da görsün.
   static Future<ResizeResult> run(
     String path,
     MediaResizeOptions options, {
     JobHandle? handle,
+    String? progressPrefix,
   }) async {
     final before = File(path).lengthSync();
     final base = p.basenameWithoutExtension(path);
@@ -99,79 +111,189 @@ abstract final class VideoTranscoder {
         : await _sizeViaPlugin(path);
     final sourceDurationMs = probe?.durationMs ?? 0;
 
-    // ── 1) FFmpeg: birebir ölçü + kare sayısı ────────────────────────────────
-    if (size != null) {
-      final wanted = targetSize(
-        sourceWidth: size.width,
-        sourceHeight: size.height,
-        options: options,
+    // Ölçü hiç okunamadıysa FFmpeg'e verilecek hedef de yok → tek seçenek
+    // kademeli yedek motor.
+    if (size == null) {
+      handle?.report(detail: _line(progressPrefix, ['yedek motor hazırlanıyor…']));
+      return _presetPass(
+        path,
+        options,
+        target,
+        before,
+        size,
+        handle,
+        sourceDurationMs,
+        progressPrefix,
       );
-      var encoded = false;
-      try {
-        handle?.report(detail: 'Dönüştürülüyor (FFmpeg)…');
-        await FfmpegVideo.transcode(
-          source: path,
-          output: target,
-          width: wanted.width,
-          height: wanted.height,
-          // Kaynaktan YÜKSEK kare sayısı istenmez: ffmpeg aradaki kareleri
-          // kopyalar, dosya şişer, kalite artmaz. Çözünürlükte "büyütme yok"
-          // kuralının kare sayısındaki karşılığı (2026-07-29 denetimi, 2. tur).
-          fps: cappedFps(options.frameRate, probe?.fps),
-          quality: options.videoQuality,
-          removeAudio: options.removeAudio,
-          durationMs: sourceDurationMs,
-          onProgress: (ratio) => handle?.report(
-              detail: '${wanted.width}×${wanted.height} · '
-                  '%${(ratio * 100).round()}'),
-          isCancelled: () => handle?.cancelled ?? false,
-        );
-        encoded = true;
-      } on FfmpegCancelled {
-        _cleanup(target);
-        throw const JobCancelled();
-      } catch (_) {
-        // Yarım kalan çıktı kalmasın; yedek motor kendi dosyasını üretecek.
-        _cleanup(target);
-      }
-      // Doğrulama `catch (_)` DIŞINDA: "çıktı yarım" kararı yedek motoru
-      // denemek için bir sebep değil — kaynak bozuksa yedek motor da yarım
-      // üretir, kullanıcı dakikalarca bekleyip aynı yere varır. Hata yukarıya
-      // çıkar, dosya "küçültülemedi" sayılır ve özgün dosyaya DOKUNULMAZ.
-      if (encoded) {
-        ({int width, int height})? produced;
-        try {
-          produced = await _verifyOutput(
-            output: target,
-            sourceDurationMs: sourceDurationMs,
-          );
-        } catch (_) {
-          _cleanup(target);
-          rethrow;
-        }
-        return ResizeResult(
-          sourcePath: path,
-          outputPath: target,
-          beforeBytes: before,
-          afterBytes: File(target).existsSync() ? File(target).lengthSync() : 0,
-          width: produced?.width ?? wanted.width,
-          height: produced?.height ?? wanted.height,
-        );
-      }
     }
 
-    // ── 2) Yedek: MediaCodec kademesi ────────────────────────────────────────
-    handle?.report(detail: 'Dönüştürülüyor (yedek motor)…');
-    return _presetPass(
-      path,
-      options,
-      target,
-      before,
-      size,
-      handle,
-      sourceDurationMs,
+    final wanted = targetSize(
+      sourceWidth: size.width,
+      sourceHeight: size.height,
+      options: options,
+    );
+    // Kaynaktan YÜKSEK kare sayısı istenmez: ffmpeg aradaki kareleri kopyalar,
+    // dosya şişer, kalite artmaz. Çözünürlükte "büyütme yok" kuralının kare
+    // sayısındaki karşılığı (2026-07-29 denetimi, 2. tur).
+    final fps = cappedFps(options.frameRate, probe?.fps);
+
+    // ── MOTOR SIRASI ─────────────────────────────────────────────────────────
+    // 1. FFmpeg + **donanım** kodlayıcı (h264_mediacodec): hızlı ve istenen
+    //    ölçüyü birebir uygular. Normalde iş burada biter.
+    // 2. Serbest ölçü İSTENMEDİYSE yedek motor (native MediaCodec): o da
+    //    DONANIM kullanır, yani yazılım kodlamadan kat kat hızlı — yalnız
+    //    kademeli ölçü verir (720p/1080p…), ki kademe zaten istenmişti.
+    // 3. FFmpeg + **yazılım** kodlayıcı (mpeg4): en son çare. Telefonda
+    //    dakikalar sürüyor ve kalitesi H.264'ün gerisinde; eskiden 2. sıradaydı
+    //    ve donanım kodlayıcı bulunamayan cihazlarda kullanıcı sürekli bunu
+    //    yiyordu → "video boyutu küçültme çok yavaş" (kullanıcı hatası
+    //    2026-07-30). Serbest ölçüde sırası öne alınır: orada kademeli motor
+    //    istenen ölçüyü veremez, yazılım kodlayıcı verir.
+    final attempts = <({String label, Future<ResizeResult> Function() run})>[
+      (
+        label: 'donanım kodlayıcı',
+        run: () => _ffmpegPass(
+              path: path,
+              options: options,
+              target: target,
+              before: before,
+              wanted: wanted,
+              fps: fps,
+              handle: handle,
+              sourceDurationMs: sourceDurationMs,
+              encoders: const ['h264_mediacodec'],
+              engineLabel: 'donanım kodlayıcı',
+              progressPrefix: progressPrefix,
+            ),
+      ),
+      if (!options.needsExactSize) _presetAttempt(
+          path, options, target, before, size, handle, sourceDurationMs,
+          progressPrefix),
+      (
+        label: 'yazılım kodlayıcı',
+        run: () => _ffmpegPass(
+              path: path,
+              options: options,
+              target: target,
+              before: before,
+              wanted: wanted,
+              fps: fps,
+              handle: handle,
+              sourceDurationMs: sourceDurationMs,
+              encoders: const ['mpeg4'],
+              engineLabel: 'yazılım kodlayıcı (yavaş)',
+              progressPrefix: progressPrefix,
+            ),
+      ),
+      if (options.needsExactSize) _presetAttempt(
+          path, options, target, before, size, handle, sourceDurationMs,
+          progressPrefix),
+    ];
+
+    Object? lastError;
+    for (final attempt in attempts) {
+      try {
+        return await attempt.run();
+      } on JobCancelled {
+        _cleanup(target);
+        rethrow;
+      } on VideoTranscodeException catch (e) {
+        // ÇIKTI DOĞRULAMASI başarısızsa BAŞKA MOTOR DENENMEZ: kaynak bozuksa
+        // (yarıda kesilmiş kayıt, hasarlı moov) her motor yarım üretir,
+        // kullanıcı dakikalarca bekleyip aynı yere varır. Hata yukarı çıkar,
+        // dosya "küçültülemedi" sayılır, özgün dosyaya DOKUNULMAZ.
+        _cleanup(target);
+        if (e.fatal) rethrow;
+        lastError = e;
+      } catch (e) {
+        _cleanup(target);
+        lastError = e;
+      }
+    }
+    throw VideoTranscodeException('Video dönüştürülemedi: $lastError');
+  }
+
+  /// Kademeli yedek motor denemesi (liste içinde okunur dursun diye ayrıldı).
+  static ({String label, Future<ResizeResult> Function() run}) _presetAttempt(
+    String path,
+    MediaResizeOptions options,
+    String target,
+    int before,
+    ({int width, int height})? size,
+    JobHandle? handle,
+    int sourceDurationMs,
+    String? progressPrefix,
+  ) =>
+      (
+        label: 'yedek motor',
+        run: () => _presetPass(path, options, target, before, size, handle,
+            sourceDurationMs, progressPrefix),
+      );
+
+  /// Tek bir FFmpeg denemesi (verilen kodlayıcılarla) + çıktı doğrulaması.
+  static Future<ResizeResult> _ffmpegPass({
+    required String path,
+    required MediaResizeOptions options,
+    required String target,
+    required int before,
+    required ({int width, int height}) wanted,
+    required int? fps,
+    required JobHandle? handle,
+    required int sourceDurationMs,
+    required List<String> encoders,
+    required String engineLabel,
+    required String? progressPrefix,
+  }) async {
+    handle?.report(detail: _line(progressPrefix, ['$engineLabel hazırlanıyor…']));
+    final clock = Stopwatch()..start();
+    try {
+      await FfmpegVideo.transcode(
+        source: path,
+        output: target,
+        width: wanted.width,
+        height: wanted.height,
+        mode: FfmpegVideo.scaleModeFor(options),
+        fps: fps,
+        quality: options.videoQuality,
+        removeAudio: options.removeAudio,
+        durationMs: sourceDurationMs,
+        encoders: encoders,
+        // İlerleme satırı üç şeyi birlikte söyler: nereye gidiyor (%), ne kadar
+        // kaldı, HANGİ motorla. Üçüncüsü şart: yavaşlığın nedeni neredeyse her
+        // zaman motor (donanım mı, yazılım mı) ve kullanıcı bunu görmeden
+        // "uygulama takıldı mı?" diye bakıyordu (istek 2026-07-30).
+        onProgress: (ratio) => handle?.report(
+          detail: _line(progressPrefix, [
+            '${wanted.width}×${wanted.height}',
+            '%${(ratio * 100).round()}',
+            FfmpegVideo.remainingText(clock.elapsed, ratio),
+            engineLabel,
+          ]),
+        ),
+        isCancelled: () => handle?.cancelled ?? false,
+      );
+    } on FfmpegCancelled {
+      throw const JobCancelled();
+    }
+    final produced = await _verifyOutput(
+      output: target,
+      sourceDurationMs: sourceDurationMs,
+    );
+    return ResizeResult(
+      sourcePath: path,
+      outputPath: target,
+      beforeBytes: before,
+      afterBytes: File(target).existsSync() ? File(target).lengthSync() : 0,
+      width: produced?.width ?? wanted.width,
+      height: produced?.height ?? wanted.height,
     );
   }
+
+  /// İlerleme satırı: boş parçalar atılır (yarım tahmin yazılmaz).
+  static String _line(String? prefix, List<String> parts) => [
+        if (prefix != null && prefix.isNotEmpty) prefix,
+        ...parts.where((s) => s.isNotEmpty),
+      ].join(' · ');
 
   /// Üretilen videonun **eksiksiz** olduğunu doğrular; değilse hata atar.
   ///
@@ -200,7 +322,8 @@ abstract final class VideoTranscoder {
       if (sourceDurationMs > 0) {
         throw const VideoTranscodeException(
             'Dönüştürülen video okunamadı (bozuk çıktı) — özgün dosyaya '
-            'dokunulmadı.');
+            'dokunulmadı.',
+            fatal: true);
       }
       return null;
     }
@@ -209,7 +332,8 @@ abstract final class VideoTranscoder {
       throw VideoTranscodeException(
           'Dönüştürme yarıda kalmış: çıktı ${_seconds(probe.durationMs)} sn, '
           'kaynak ${_seconds(sourceDurationMs)} sn. Özgün dosyaya '
-          'dokunulmadı.');
+          'dokunulmadı.',
+          fatal: true);
     }
     return (width: probe.width, height: probe.height);
   }
@@ -231,7 +355,9 @@ abstract final class VideoTranscoder {
     ({int width, int height})? size,
     JobHandle? handle,
     int sourceDurationMs,
+    String? progressPrefix,
   ) async {
+    final clock = Stopwatch()..start();
     final subscription = handle == null
         ? null
         : vc.VideoCompress.compressProgress$.subscribe((value) {
@@ -239,7 +365,12 @@ abstract final class VideoTranscoder {
             // sayacı (çağıranın) — buraya yüzde yazmak ilerleme çubuğunu her
             // dosyada 0-100 arasında zıplatırdı.
             handle.report(
-                detail: 'Yedek motor: %${value.toStringAsFixed(0)}');
+              detail: _line(progressPrefix, [
+                '%${value.toStringAsFixed(0)}',
+                FfmpegVideo.remainingText(clock.elapsed, value / 100),
+                'yedek motor (kademeli ölçü)',
+              ]),
+            );
           });
     // İptal, ilerleme akışından BAĞIMSIZ yoklanır (FFmpeg yolundaki desenin
     // aynısı): MediaCodec ilk `updateProgress`i yayımlamadan takılırsa "Durdur"
@@ -296,16 +427,12 @@ abstract final class VideoTranscoder {
       // Aynı çağrı çıktının EKSİKSİZ olduğunu da doğrular (süre karşılaştırması,
       // bkz. [_verifyOutput]); yarım çıktıda hata atar ve dosya silinir, böylece
       // "özgünü çöpe at" yarım bir kopya için çalışmaz.
-      ({int width, int height})? produce;
-      try {
-        produce = await _verifyOutput(
-          output: target,
-          sourceDurationMs: sourceDurationMs,
-        );
-      } catch (_) {
-        _cleanup(target);
-        rethrow;
-      }
+      // Doğrulama hatasında çıktıyı ÇAĞIRAN siler (bkz. `run`'daki döngü) —
+      // orada "başka motor denenmesin" kararı da veriliyor.
+      final produce = await _verifyOutput(
+        output: target,
+        sourceDurationMs: sourceDurationMs,
+      );
       return ResizeResult(
         sourcePath: path,
         outputPath: target,
@@ -385,7 +512,13 @@ abstract final class VideoTranscoder {
 
 class VideoTranscodeException implements Exception {
   final String message;
-  const VideoTranscodeException(this.message);
+
+  /// **Başka motor denenmemeli mi?** Çıktı doğrulaması (süre/okunabilirlik)
+  /// başarısızsa true: sorun motorlarda değil kaynakta, sıradaki motor da
+  /// yarım üretir ve kullanıcı dakikalarca boşa bekler.
+  final bool fatal;
+
+  const VideoTranscodeException(this.message, {this.fatal = false});
   @override
   String toString() => message;
 }
