@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
@@ -192,10 +193,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               clipBehavior: Clip.antiAlias,
               child: ListTile(
                 leading: const Icon(Icons.auto_fix_high),
-                title: const Text('Yer aç (temizlik önerileri)'),
-                subtitle: const Text(
-                    'Çöp kutusu, kopyalar, eski indirilenler ve büyük '
-                    'videolar tek ekranda'),
+                title: Text(context.t('ana.free_space')),
+                subtitle: Text(
+                    context.t('ana.free_space_note')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => CleanupScreen(index: widget.index),
@@ -207,10 +207,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               clipBehavior: Clip.antiAlias,
               child: ListTile(
                 leading: const Icon(Icons.cleaning_services_outlined),
-                title: const Text('Yinelenen dosyaları bul'),
-                subtitle: const Text(
-                    'Birebir aynı dosyaları bulur, bir kopyayı bırakıp '
-                    'kalanları çöpe taşır'),
+                title: Text(context.t('ana.find_dupes')),
+                subtitle: Text(
+                    context.t('ana.find_dupes_note')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => DuplicatesScreen(roots: FmEnv.volumeRoots),
@@ -218,7 +217,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ),
             ),
             const SizedBox(height: Gap.lg),
-            Text('Türlere göre',
+            Text(context.t('ana.by_type'),
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: Gap.sm),
             Card(
@@ -240,7 +239,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             () => _category = _category == c ? null : c),
                       ),
                     if (categories.isEmpty)
-                      const Text('Henüz tarama sonucu yok.'),
+                      Text(context.t('ana.no_scan')),
                   ],
                 ),
               ),
@@ -251,13 +250,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             children: [
               Expanded(
                 child: Text(
-                  _isSearch ? 'Arama sonuçları' : 'En büyük dosyalar',
+                  _isSearch ? context.t('ana.results') : context.t('ana.largest'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               Text(
                 _isSearch
-                    ? '${visible.length} sonuç'
+                    ? context.t('ana.result_count', {'n': visible.length})
                     : '${index.totalFiles} dosya · '
                         '${FsPaths.humanSize(index.totalBytes)}',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -291,10 +290,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               child: Center(
                 child: Text(
                   _searching
-                      ? 'Aranıyor…'
+                      ? context.t('ana.searching')
                       : (_isSearch
-                          ? 'Sonuç bulunamadı.'
-                          : 'Gösterilecek dosya yok.'),
+                          ? context.t('ana.no_result')
+                          : context.t('ana.no_files')),
                 ),
               ),
             ),
@@ -375,7 +374,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         controller: _searchController,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          hintText: 'Tüm dosyalarda ara…',
+          hintText: context.t('ana.search_all'),
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _query.isEmpty
               ? null
@@ -428,7 +427,7 @@ class _VolumeBar extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ] else
-              Text('Doluluk bilgisi okunamadı.',
+              Text(context.t('ana.usage_unreadable'),
                   style: Theme.of(context).textTheme.bodySmall),
           ],
         ),

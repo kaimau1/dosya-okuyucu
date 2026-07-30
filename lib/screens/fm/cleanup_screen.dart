@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/duplicate_finder.dart';
@@ -113,21 +114,24 @@ class _CleanupScreenState extends State<CleanupScreen> {
   /// tuşuna basınca (ya da başka bir işe geçince) dakikalar süren kopya
   /// taraması çöpe gidiyordu.
   void _analyze() {
+    // İş kuyruğu geri çağrısı ekran kapandıktan SONRA da koşabilir; metinler
+    // bu yüzden şimdi alınıyor (`context` orada kullanılamaz).
+    final strings = AppStrings.of(context);
     JobQueue.instance.enqueue(
       id: _scanJobId,
-      title: 'Yer aç: depolama çözümleniyor',
+      title: strings.t('clean.analyzing'),
       run: (handle) async {
-        handle.report(detail: 'Çöp kutusu okunuyor…');
+        handle.report(detail: strings.t('clean.reading_trash'));
         final trash = await FmEnv.trash.list();
         handle.throwIfCancelled();
         final trashBytes = trash.fold<int>(0, (sum, i) => sum + i.sizeBytes);
 
-        handle.report(detail: 'İndirilenler inceleniyor…');
+        handle.report(detail: strings.t('clean.reading_downloads'));
         final downloadPath = p.join(FmEnv.primaryRoot, 'Download');
         final downloads = await FsScan.collect([downloadPath]);
         handle.throwIfCancelled();
 
-        handle.report(detail: 'Yinelenen dosyalar aranıyor (bayt bayt)…');
+        handle.report(detail: strings.t('clean.finding_dupes'));
         // Kopya taraması pahalıdır; yalnız burada, bir kez.
         final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
         handle.throwIfCancelled();
@@ -142,9 +146,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
         handle.result = CleanupScanResult(list);
         handle.report(
           detail: list.isEmpty
-              ? 'Temizlenecek belirgin bir şey yok'
-              : '${list.length} öneri · '
-                  '${FsPaths.humanSize(cleanupTotal(list))} kazanılabilir',
+              ? strings.t('clean.nothing')
+              : '${strings.t('clean.suggestions', {'n': list.length})} · '
+                  '${strings.t('clean.recoverable', {
+                      'size': FsPaths.humanSize(cleanupTotal(list)),
+                    })}',
         );
       },
     );
@@ -170,7 +176,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Temizle')),
@@ -181,9 +187,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
     // Silme de kuyrukta koşar: 8 bin dosyayı çöpe taşımak dakikalar sürebilir
     // ve kullanıcı bu sürede ekranda tutulmamalı.
+    final strings = AppStrings.of(context);
     JobQueue.instance.enqueue(
       id: _applyJobId,
-      title: 'Yer aç: ${FsPaths.humanSize(total)} temizleniyor',
+      title: strings
+          .t('clean.cleaning', {'size': FsPaths.humanSize(total)}),
       total: chosen.length,
       run: (handle) async {
         var done = 0;
@@ -204,7 +212,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
           handle.report(done: done);
         }
         FsEvents.changed();
-        handle.report(detail: 'Temizlendi. Yeniden çözümleniyor…');
+        handle.report(detail: strings.t('clean.cleaned'));
       },
     );
     // Temizlik bitince öneriler bayat: çözümleme kuyruğa arkasından eklenir
@@ -217,10 +225,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final chosen = _chosen;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yer aç'),
+        title: Text(context.t('clean.title')),
         actions: [
           IconButton(
-            tooltip: 'Yeniden çözümle',
+            tooltip: context.t('clean.reanalyze'),
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _analyze,
           ),
@@ -235,19 +243,17 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   const SizedBox(height: Gap.md),
                   Text(_step),
                   const SizedBox(height: Gap.sm),
-                  const Text('Kopya taraması dosyaları bayt bayt karşılaştırır,'
-                      ' biraz sürebilir.',
+                  Text(context.t('clean.dupes_note'),
                       textAlign: TextAlign.center),
                 ],
               ),
             )
           : _suggestions.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(Gap.lg),
+                    padding: const EdgeInsets.all(Gap.lg),
                     child: Text(
-                      'Temizlenecek belirgin bir şey bulunamadı 🎉\n'
-                      'Depolaman düzenli görünüyor.',
+                      context.t('clean.nothing_body'),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -268,7 +274,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   onPressed: chosen.isEmpty ? null : _apply,
                   icon: const Icon(Icons.cleaning_services_outlined),
                   label: Text(chosen.isEmpty
-                      ? 'Bir öneri seçin'
+                      ? context.t('clean.pick_one')
                       : '${FsPaths.humanSize(cleanupTotal(chosen))} yer aç'),
                 ),
               ),
@@ -291,7 +297,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
             isThreeLine: true,
             secondary: !s.safeByDefault
                 ? Tooltip(
-                    message: 'Dikkat: bunlar kişisel dosyalar olabilir',
+                    message: context.t('clean.personal_warning'),
                     child: Icon(Icons.warning_amber_rounded,
                         color: Theme.of(context).colorScheme.error),
                   )
@@ -299,7 +305,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
           ),
           if (s.files.isNotEmpty)
             ExpansionTile(
-              title: Text('${s.files.length} dosyayı gör'),
+              title: Text(context.t('clean.see_files', {'n': s.files.length})),
               children: [
                 // İlk 20: uzun listeyi tümüyle çizmek gereksiz, karar için yeter.
                 for (final f in s.files.take(20))
@@ -328,7 +334,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const TrashScreen(),
                 )),
-                child: const Text('Çöp kutusunu aç'),
+                child: Text(context.t('clean.open_trash')),
               ),
             ),
         ],
