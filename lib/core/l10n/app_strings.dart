@@ -611,6 +611,157 @@ const Map<String, (String, String, String)> _table = {
     'تم قص «{name}» إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
   ),
 
+  // ── Çöp kutusu ────────────────────────────────────────────────────────────
+  'trash.title': ('Geri Dönüşüm Kutusu', 'Recycle Bin', 'سلة المحذوفات'),
+  'trash.empty': ('Çöp kutusu boş', 'The trash is empty', 'سلة المهملات فارغة'),
+  'trash.search': ('Çöp kutusunda ara', 'Search the trash', 'ابحث في المهملات'),
+  'trash.search_hint': ('Çöp kutusunda ara…', 'Search the trash…', 'ابحث في المهملات…'),
+  'trash.restore': ('Geri yükle', 'Restore', 'استعادة'),
+  'trash.delete_forever': ('Kalıcı sil', 'Delete permanently', 'حذف نهائي'),
+  'trash.empty_action': ('Boşalt', 'Empty', 'تفريغ'),
+  'trash.count_size': ('{n} öğe · {size}', '{n} items · {size}', '{n} عنصر · {size}'),
+  'trash.filtered': ('{n} / {total} öğe', '{n} / {total} items', '{n} / {total} عنصر'),
+  'trash.restored': (
+    '“{name}” geri yüklendi → {where}',
+    '“{name}” restored → {where}',
+    'تمت استعادة «{name}» ← {where}',
+  ),
+  'trash.restore_failed': (
+    'Geri yüklenemedi: {error}',
+    'Could not restore: {error}',
+    'تعذّرت الاستعادة: {error}',
+  ),
+  'trash.delete_one_body': (
+    '“{name}” geri alınamaz şekilde silinecek.',
+    '“{name}” will be deleted irreversibly.',
+    'سيتم حذف «{name}» بشكل نهائي.',
+  ),
+  'trash.deleted_one': (
+    '“{name}” kalıcı olarak silindi.',
+    '“{name}” was deleted permanently.',
+    'تم حذف «{name}» نهائيًا.',
+  ),
+  'trash.empty_confirm_title': (
+    'Çöp kutusu boşaltılsın mı?',
+    'Empty the trash?',
+    'هل تريد تفريغ سلة المهملات؟',
+  ),
+  'trash.empty_confirm_body': (
+    '{n} öğe ({size}) kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+    '{n} items ({size}) will be deleted permanently. This cannot be undone.',
+    'سيتم حذف {n} عنصر ({size}) نهائيًا. لا يمكن التراجع عن هذا.',
+  ),
+  'trash.emptying': ('Çöp kutusu boşaltılıyor', 'Emptying the trash', 'جارٍ تفريغ المهملات'),
+  'trash.emptied': (
+    'Çöp kutusu boşaltıldı · {n} öğe · {size} yer açıldı.',
+    'Trash emptied · {n} items · {size} freed.',
+    'تم تفريغ المهملات · {n} عنصر · تحرير {size}.',
+  ),
+  'trash.empty_stopped': (
+    'Durduruldu — {n} öğe silindi.',
+    'Stopped — {n} items deleted.',
+    'تم الإيقاف — تم حذف {n} عنصر.',
+  ),
+  'trash.empty_partial': (
+    '{ok} öğe silindi, {fail} öğe silinemedi: {error}',
+    '{ok} items deleted, {fail} could not be deleted: {error}',
+    'تم حذف {ok} عنصر، وتعذّر حذف {fail}: {error}',
+  ),
+
+  // ── Önemli dosyalar ───────────────────────────────────────────────────────
+  'important.title': ('Önemli Dosyalar', 'Important files', 'الملفات المهمة'),
+  'important.search': ('Önemli dosyalarda ara', 'Search important files', 'ابحث في الملفات المهمة'),
+  'important.missing': (
+    'Önemli dosyalar klasörü yok',
+    'The important-files folder does not exist',
+    'مجلد الملفات المهمة غير موجود',
+  ),
+  'important.explain': (
+    'Kimlik, fatura, sözleşme gibi kaybolmaması gereken dosyaları tek yerde '
+        'toplayın. Klasör ana bellekte oluşturulur.\n\nDosya eklemek: herhangi '
+        'bir dosyaya uzun basın → “Taşı” ya da “Kopyala” → “Önemli Dosyalar”. '
+        'Konu başlıklarına göre alt klasörler de açabilirsiniz.',
+    'Keep files you must not lose — ID, invoices, contracts — in one place. '
+        'The folder is created in internal storage.\n\nTo add a file: long-press '
+        'any file → “Move” or “Copy” → “Important files”. You can also create '
+        'subfolders per topic.',
+    'اجمع الملفات التي لا يجب أن تفقدها — الهوية والفواتير والعقود — في مكان '
+        'واحد. يُنشأ المجلد في الذاكرة الداخلية.\n\nلإضافة ملف: اضغط مطولًا على '
+        'أي ملف ← «نقل» أو «نسخ» ← «الملفات المهمة». يمكنك أيضًا إنشاء مجلدات '
+        'فرعية حسب الموضوع.',
+  ),
+  'important.create_folder': ('Klasörü oluştur', 'Create the folder', 'إنشاء المجلد'),
+  'important.open_in_browser': ('Klasörü gezginde aç', 'Open folder in browser', 'فتح المجلد في المستعرض'),
+  'important.subfolders': ('Alt klasörler', 'Subfolders', 'المجلدات الفرعية'),
+  'important.new_subfolder': ('Yeni alt klasör', 'New subfolder', 'مجلد فرعي جديد'),
+  'important.by_type': ('Türlere göre', 'By type', 'حسب النوع'),
+  'important.no_subfolder': (
+    'Henüz alt klasör yok. “Yeni” ile konu başlıkları (Faturalar, Kimlik, '
+        'Sözleşmeler…) açabilirsiniz. Dosya eklemek için herhangi bir dosyaya '
+        'uzun basıp “Taşı”/“Kopyala” deyin.',
+    'No subfolders yet. Use “New” to create topics (Invoices, ID, Contracts…). '
+        'To add a file, long-press any file and choose “Move”/“Copy”.',
+    'لا توجد مجلدات فرعية بعد. استخدم «جديد» لإنشاء مواضيع (فواتير، هوية، '
+        'عقود…). لإضافة ملف، اضغط مطولًا على أي ملف واختر «نقل»/«نسخ».',
+  ),
+
+  // ── İndirilenler ──────────────────────────────────────────────────────────
+  'downloads.title': ('İndirilenler', 'Downloads', 'التنزيلات'),
+  'downloads.search': ('İndirilenler içinde ara', 'Search downloads', 'ابحث في التنزيلات'),
+  'downloads.search_hint': ('İndirilenler içinde ara…', 'Search downloads…', 'ابحث في التنزيلات…'),
+  'downloads.empty': (
+    'İndirilenler klasörü boş',
+    'The downloads folder is empty',
+    'مجلد التنزيلات فارغ',
+  ),
+  'downloads.no_result': ('“{q}” için sonuç yok.', 'No results for “{q}”.', 'لا نتائج لـ«{q}».'),
+  'downloads.count': (
+    '{n} dosya · alt klasörler dahil',
+    '{n} files · including subfolders',
+    '{n} ملف · بما في ذلك المجلدات الفرعية',
+  ),
+  'downloads.selected': ('{n} / {total} seçildi', '{n} / {total} selected', 'تم تحديد {n} / {total}'),
+  'downloads.sort': ('Sırala', 'Sort', 'ترتيب'),
+  'downloads.sort_name': ('Ada göre', 'By name', 'حسب الاسم'),
+  'downloads.sort_newest': ('En yeni önce', 'Newest first', 'الأحدث أولًا'),
+  'downloads.sort_oldest': (
+    'En eski (silme adayları) önce',
+    'Oldest (deletion candidates) first',
+    'الأقدم (مرشحة للحذف) أولًا',
+  ),
+  'downloads.sort_largest': ('En büyük önce', 'Largest first', 'الأكبر أولًا'),
+  'downloads.select_old': ('Eskileri seç', 'Select old ones', 'حدّد القديمة'),
+  'downloads.folder_view': (
+    'Klasör görünümü (alt klasörlerde gez)',
+    'Folder view (browse subfolders)',
+    'عرض المجلدات (تصفّح المجلدات الفرعية)',
+  ),
+  'downloads.last_opened': ('son açılma: {when}', 'last opened: {when}', 'آخر فتح: {when}'),
+  'downloads.ancient_hint': (
+    '{n} dosya 6 aydır dokunulmamış · ',
+    '{n} files untouched for 6 months · ',
+    '{n} ملف لم يُلمس منذ 6 أشهر · ',
+  ),
+
+  // ── Klasör seçici ─────────────────────────────────────────────────────────
+  'picker.title': ('Hedef klasör', 'Destination folder', 'المجلد الوجهة'),
+  'picker.parent': ('Üst klasör', 'Parent folder', 'المجلد الأصل'),
+  'picker.summary': ('{n} öğe · {name}', '{n} items · {name}', '{n} عنصر · {name}'),
+  'picker.source_itself': ('Kaynağın kendisi', 'The source itself', 'المصدر نفسه'),
+  'picker.unreadable': (
+    'Bu klasör okunamıyor (izin yok).',
+    'This folder cannot be read (no permission).',
+    'تعذّرت قراءة هذا المجلد (لا يوجد إذن).',
+  ),
+  'picker.no_subfolder': (
+    'Bu klasörde alt klasör yok.\nAşağıdaki düğmeyle buraya koyabilir ya da '
+        'üstteki “yeni klasör” ile bir tane açabilirsiniz.',
+    'This folder has no subfolders.\nUse the button below to place items here, '
+        'or create one with “new folder” above.',
+    'لا توجد مجلدات فرعية هنا.\nاستخدم الزر أدناه للوضع هنا، أو أنشئ مجلدًا '
+        'عبر «مجلد جديد» بالأعلى.',
+  ),
+
   // ── Dosya açma ────────────────────────────────────────────────────────────
   'open.with_what': ('{kind} neyle açılsın?', 'Open {kind} with?', 'بماذا تفتح {kind}؟'),
   'open.kind_image': ('Görsel', 'Image', 'صورة'),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
@@ -58,7 +59,7 @@ class _TrashScreenState extends State<TrashScreen> {
       if (!mounted) return;
       _snack('“${item.name}” geri yüklendi → ${target.split('/').last}');
     } catch (e) {
-      _snack('Geri yüklenemedi: $e');
+      _snack(context.t('trash.restore_failed', {'error': e}));
     }
     _load();
   }
@@ -67,12 +68,12 @@ class _TrashScreenState extends State<TrashScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Kalıcı olarak silinsin mi?'),
-        content: Text('“${item.name}” geri alınamaz şekilde silinecek.'),
+        title: Text(context.t('fm.delete_permanent_title')),
+        content: Text(context.t('trash.delete_one_body', {'name': item.name})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Sil')),
@@ -82,7 +83,7 @@ class _TrashScreenState extends State<TrashScreen> {
     if (ok != true) return;
     await FmEnv.trash.deleteForever(item);
     if (!mounted) return;
-    _snack('“${item.name}” kalıcı olarak silindi.');
+    _snack(context.t('trash.deleted_one', {'name': item.name}));
     _load();
   }
 
@@ -98,16 +99,16 @@ class _TrashScreenState extends State<TrashScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Çöp kutusu boşaltılsın mı?'),
+        title: Text(context.t('trash.empty_confirm_title')),
         content: Text('$count öğe (${FsPaths.humanSize(total)}) kalıcı olarak '
             'silinecek. Bu işlem geri alınamaz.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Boşalt')),
+              child: Text(context.t('trash.empty_action'))),
         ],
       ),
     );
@@ -118,7 +119,7 @@ class _TrashScreenState extends State<TrashScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final result = await showFmProgress<FmOpResult>(
       context,
-      title: 'Çöp kutusu boşaltılıyor',
+      title: context.t('trash.emptying'),
       task: (report, isCancelled) =>
           FmEnv.trash.empty(onProgress: report, isCancelled: isCancelled),
     );
@@ -159,27 +160,27 @@ class _TrashScreenState extends State<TrashScreen> {
               ),
               title: FmSearchField(
                 controller: _searchController,
-                hint: 'Çöp kutusunda ara…',
+                hint: context.t('trash.search_hint'),
                 onChanged: (v) => setState(() => _query = v),
               ),
             )
           : AppBar(
-              title: const Text('Geri Dönüşüm Kutusu'),
+              title: Text(context.t('trash.title')),
               actions: [
                 if (_items.isNotEmpty)
                   IconButton(
-                    tooltip: 'Çöp kutusunda ara',
+                    tooltip: context.t('trash.search'),
                     icon: const Icon(Icons.search),
                     onPressed: () => setState(() => _searching = true),
                   ),
                 if (_items.isNotEmpty)
-                  TextButton(onPressed: _empty, child: const Text('Boşalt')),
+                  TextButton(onPressed: _empty, child: Text(context.t('trash.empty_action'))),
               ],
             ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const Center(child: Text('Çöp kutusu boş'))
+              ? Center(child: Text(context.t('trash.empty')))
               : Column(
                   children: [
                     Padding(
@@ -191,7 +192,7 @@ class _TrashScreenState extends State<TrashScreen> {
                           Text(_query.trim().isEmpty
                               ? '${_items.length} öğe · '
                                   '${FsPaths.humanSize(total)}'
-                              : '${shown.length} / ${_items.length} öğe'),
+                              : context.t('trash.filtered', {'n': shown.length, 'total': _items.length})),
                         ],
                       ),
                     ),
@@ -217,12 +218,12 @@ class _TrashScreenState extends State<TrashScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  tooltip: 'Geri yükle',
+                                  tooltip: context.t('trash.restore'),
                                   icon: const Icon(Icons.restore),
                                   onPressed: () => _restore(item),
                                 ),
                                 IconButton(
-                                  tooltip: 'Kalıcı sil',
+                                  tooltip: context.t('trash.delete_forever'),
                                   icon: const Icon(Icons.delete_forever),
                                   onPressed: () => _delete(item),
                                 ),

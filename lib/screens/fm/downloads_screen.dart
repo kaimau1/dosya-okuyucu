@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/file_age.dart';
 import '../../models/fs_entry.dart';
@@ -133,12 +134,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(_selected.clear),
               ),
-              title: Text('${_selected.length} / ${files.length} seçildi'),
+              title: Text(context.t('downloads.selected', {'n': _selected.length, 'total': files.length})),
               actions: [
                 IconButton(
                   tooltip: files.every((e) => _selected.contains(e.path))
-                      ? 'Seçimi kaldır'
-                      : 'Tümünü seç',
+                      ? context.t('fm.select_none')
+                      : context.t('fm.select_all'),
                   icon: Icon(files.every((e) => _selected.contains(e.path))
                       ? Icons.deselect
                       : Icons.select_all),
@@ -164,7 +165,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   ),
                   title: FmSearchField(
                     controller: _searchController,
-                    hint: 'İndirilenler içinde ara…',
+                    hint: context.t('downloads.search_hint'),
                     onChanged: (v) => setState(() => _query = v),
                   ),
                 )
@@ -177,44 +178,44 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('İndirilenler'),
+                      Text(context.t('downloads.title')),
                       Text(
-                        '${_files.length} dosya · alt klasörler dahil',
+                        context.t('downloads.count', {'n': _files.length}),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
                   actions: [
                     IconButton(
-                      tooltip: 'İndirilenler içinde ara',
+                      tooltip: context.t('downloads.search'),
                       icon: const Icon(Icons.search),
                       onPressed: () => setState(() => _searching = true),
                     ),
                     IconButton(
-                      tooltip: 'Klasör görünümü (alt klasörlerde gez)',
+                      tooltip: context.t('downloads.folder_view'),
                       icon: const Icon(Icons.account_tree_outlined),
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => BrowserScreen(
-                              path: widget.path, title: 'İndirilenler'),
+                              path: widget.path, title: context.t('downloads.title')),
                         ),
                       ),
                     ),
                     PopupMenuButton<_DlSort>(
-                      tooltip: 'Sırala',
+                      tooltip: context.t('downloads.sort'),
                       icon: const Icon(Icons.sort),
                       onSelected: (v) => setState(() => _sort = v),
-                      itemBuilder: (_) => const [
+                      itemBuilder: (_) => [
                         PopupMenuItem(
                             value: _DlSort.oldest,
-                            child: Text('En eski (silme adayları) önce')),
+                            child: Text(context.t('downloads.sort_oldest'))),
                         PopupMenuItem(
-                            value: _DlSort.newest, child: Text('En yeni önce')),
+                            value: _DlSort.newest, child: Text(context.t('downloads.sort_newest'))),
                         PopupMenuItem(
                             value: _DlSort.largest,
-                            child: Text('En büyük önce')),
+                            child: Text(context.t('downloads.sort_largest'))),
                         PopupMenuItem(
-                            value: _DlSort.name, child: Text('Ada göre')),
+                            value: _DlSort.name, child: Text(context.t('downloads.sort_name'))),
                       ],
                     ),
                   ],
@@ -226,8 +227,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           : files.isEmpty
               ? Center(
                   child: Text(_query.trim().isEmpty
-                      ? 'İndirilenler klasörü boş'
-                      : '“$_query” için sonuç yok.'))
+                      ? context.t('downloads.empty')
+                      : context.t('downloads.no_result', {'q': _query})))
               : Column(
                   children: [
                     _summary(total, ancient),
@@ -324,7 +325,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             TextButton(
               onPressed: () =>
                   setState(() => _selected.addAll(ancient.map((e) => e.path))),
-              child: const Text('Eskileri seç'),
+              child: Text(context.t('downloads.select_old')),
             ),
         ],
       ),
@@ -383,7 +384,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           ),
           if (!_selecting)
             IconButton(
-              tooltip: 'İşlemler',
+              tooltip: context.t('fm.jobs'),
               icon: const Icon(Icons.more_vert),
               onPressed: () async {
                 await showEntryActions(context, entry,
@@ -416,6 +417,8 @@ bool downloadsExists(String path) => Directory(path).existsSync();
 
 /// Standart İndirilenler yolu (varsa) — `Download`, bazı cihazlarda `Downloads`.
 String? downloadsPathIn(String root) {
+  // DİKKAT: bunlar DOSYA SİSTEMİ klasör adları, arayüz metni DEĞİL —
+  // çevrilirlerse yol bulunamaz.
   for (final name in const ['Download', 'Downloads', 'İndirilenler']) {
     final candidate = p.join(root, name);
     if (Directory(candidate).existsSync()) return candidate;

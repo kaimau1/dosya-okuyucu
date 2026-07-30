@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -39,6 +40,10 @@ class ImportantScreen extends StatefulWidget {
   const ImportantScreen({super.key});
 
   /// Klasörün adı — yolu [pathIn] ile kurulur.
+  /// DİKKAT: bu bir **klasör adı** (dosya sisteminde gerçek dizin), arayüz
+  /// metni değil — çevrilirse var olan klasör bulunamaz ve kullanıcı
+  /// dosyalarını kaybetmiş gibi görür. Başlıkta gösterilen çevrilebilir ad
+  /// için `important.title` anahtarı var.
   static const folderName = 'Önemli Dosyalar';
 
   static String pathIn(String root) => p.join(root, folderName);
@@ -106,21 +111,23 @@ class _ImportantScreenState extends State<ImportantScreen> {
   }
 
   Future<void> _createRoot() async {
+    final createFailed = context.t('fm.folder_create_failed');
     try {
       await Directory(_root).create(recursive: true);
       FsEvents.changed();
       await _load();
     } catch (e) {
-      _snack('Klasör oluşturulamadı: $e');
+      _snack(createFailed.replaceAll('{error}', '$e'));
     }
   }
 
   Future<void> _newSubFolder() async {
+    final createFailed = context.t('fm.folder_create_failed');
     final name = await promptForName(
       context,
-      title: 'Yeni alt klasör',
-      label: 'Klasör adı',
-      initial: 'Yeni klasör',
+      title: context.t('important.new_subfolder'),
+      label: context.t('fm.folder_name'),
+      initial: context.t('fm.new_folder'),
     );
     if (name == null) return;
     try {
@@ -135,7 +142,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
       ));
       await _load();
     } catch (e) {
-      _snack('Klasör oluşturulamadı: $e');
+      _snack(createFailed.replaceAll('{error}', '$e'));
     }
   }
 
@@ -152,7 +159,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     }
     final result = await showFmProgress<FmOpResult>(
       context,
-      title: cut ? 'Taşınıyor' : 'Kopyalanıyor',
+      title: cut ? context.t('fm.moving') : context.t('fm.copying'),
       task: (report, isCancelled) => cut
           ? FileOps.moveAll(sources, _root,
               onProgress: report, isCancelled: isCancelled)
@@ -161,7 +168,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     );
     appState.clearClipboard();
     if (!mounted) return;
-    if (result.hasError) _snack('Bazı öğeler aktarılamadı: ${result.errors.first}');
+    if (result.hasError) _snack(context.t('fm.transfer_partial', {'error': result.errors.first}));
     await _load();
   }
 
@@ -204,7 +211,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
         actions: [
           if (_exists)
             IconButton(
-              tooltip: 'Önemli dosyalarda ara',
+              tooltip: context.t('important.search'),
               icon: const Icon(Icons.search),
               onPressed: () => _push(SearchScreen(
                 root: _root,
@@ -218,7 +225,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
           ),
           if (_exists)
             IconButton(
-              tooltip: 'Klasörü gezginde aç',
+              tooltip: context.t('important.open_in_browser'),
               icon: const Icon(Icons.folder_open),
               onPressed: () => _push(BrowserScreen(
                 path: _root,
@@ -237,7 +244,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
             if (_exists) ...[
               _summaryCard(),
               const SizedBox(height: Gap.md),
-              Text('Türlere göre',
+              Text(context.t('important.by_type'),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: Gap.sm),
               FmCategoryGrid(tiles: _categoryTiles()),
@@ -245,7 +252,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Text('Alt klasörler',
+                    child: Text(context.t('important.subfolders'),
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                   TextButton.icon(
@@ -256,13 +263,9 @@ class _ImportantScreenState extends State<ImportantScreen> {
                 ],
               ),
               if (_subFolders.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: Gap.sm),
-                  child: Text(
-                      'Henüz alt klasör yok. “Yeni” ile konu başlıkları '
-                      '(Faturalar, Kimlik, Sözleşmeler…) açabilirsiniz. '
-                      'Dosya eklemek için herhangi bir dosyaya uzun basıp '
-                      '“Taşı”/“Kopyala” deyin.'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                  child: Text(context.t('important.no_subfolder')),
                 ),
               for (final f in _subFolders)
                 ListTile(
@@ -287,11 +290,11 @@ class _ImportantScreenState extends State<ImportantScreen> {
               ? FloatingActionButton.extended(
                   onPressed: _paste,
                   icon: const Icon(Icons.content_paste),
-                  label: Text(appState.clipboardCut ? 'Taşı' : 'Yapıştır'),
+                  label: Text(appState.clipboardCut ? context.t('fm.move') : context.t('fm.paste')),
                 )
               : FloatingActionButton(
                   onPressed: _newSubFolder,
-                  tooltip: 'Yeni alt klasör',
+                  tooltip: context.t('important.new_subfolder'),
                   child: const Icon(Icons.create_new_folder_outlined),
                 )),
     );
@@ -341,15 +344,11 @@ class _ImportantScreenState extends State<ImportantScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Önemli dosyalar klasörü yok',
+              Text(context.t('important.missing'),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: Gap.sm),
-              const Text(
-                'Kimlik, fatura, sözleşme gibi kaybolmaması gereken '
-                'dosyaları tek yerde toplayın. Klasör ana bellekte '
-                'oluşturulur.\n\nDosya eklemek: herhangi bir dosyaya uzun '
-                'basın → “Taşı” ya da “Kopyala” → “Önemli Dosyalar”. '
-                'Konu başlıklarına göre alt klasörler de açabilirsiniz.',
+              Text(
+                context.t('important.explain'),
               ),
               const SizedBox(height: Gap.sm),
               Align(
@@ -357,7 +356,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
                 child: FilledButton.icon(
                   onPressed: _createRoot,
                   icon: const Icon(Icons.create_new_folder_outlined),
-                  label: const Text('Klasörü oluştur'),
+                  label: Text(context.t('important.create_folder')),
                 ),
               ),
             ],
@@ -422,10 +421,10 @@ Future<String?> promptForName(
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+            onPressed: () => Navigator.pop(ctx), child: Text(context.t('common.cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, controller.text),
-          child: const Text('Oluştur'),
+          child: Text(context.t('fm.create')),
         ),
       ],
     ),
