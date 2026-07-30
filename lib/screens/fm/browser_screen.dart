@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
@@ -80,7 +81,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final appState = context.read<AppState>();
     if (!appState.isFolderLocked(widget.path)) return;
     setState(() => _locked = true);
-    final ok = await askPin(context, title: 'Kilitli klasör');
+    final ok = await askPin(context, title: context.t('fm.locked_folder'));
     if (!mounted) return;
     if (ok) {
       setState(() => _locked = false);
@@ -110,9 +111,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Bu klasör okunamadı.\n'
-            'Android’in koruduğu bir konum olabilir (Android/data gibi) ya da '
-            '“tüm dosyalara erişim” izni verilmemiş olabilir.';
+        // Hata metni build'de çevriliyor; burada YALNIZ anahtar saklanıyor
+        // (dil değişince ekranda eski dilde asılı kalmasın).
+        _error = 'fm.unreadable';
       });
     }
   }
@@ -212,7 +213,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final cut = appState.clipboardCut;
     final result = await showFmProgress<FmOpResult>(
       context,
-      title: cut ? 'Taşınıyor' : 'Kopyalanıyor',
+      title: cut ? context.t('fm.moving') : context.t('fm.copying'),
       task: (report, isCancelled) => cut
           ? FileOps.moveAll(sources, widget.path,
               onProgress: report, isCancelled: isCancelled)
@@ -222,33 +223,38 @@ class _BrowserScreenState extends State<BrowserScreen> {
     appState.clearClipboard();
     if (!mounted) return;
     if (result.hasError) {
-      _snack('Bazı öğeler aktarılamadı: ${result.errors.first}');
+      _snack(context.t('fm.transfer_partial', {'error': result.errors.first}));
     } else if (result.cancelled) {
-      _snack('İşlem iptal edildi (aktarılanlar yerinde kaldı).');
+      _snack(context.t('fm.transfer_cancelled'));
     }
     _load();
   }
 
   Future<void> _newFolder() async {
-    final name = await _askName('Yeni klasör', 'Klasör adı', 'Yeni klasör');
+    // Hata metni await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final createFailed = context.t('fm.folder_create_failed');
+    final name = await _askName(context.t('fm.new_folder'),
+        context.t('fm.folder_name'), context.t('fm.new_folder'));
     if (name == null) return;
     try {
       await FileOps.createFolder(widget.path, name);
       _load();
     } catch (e) {
-      _snack('Klasör oluşturulamadı: $e');
+      _snack(createFailed.replaceAll('{error}', '\$e'));
     }
   }
 
   /// Yeni boş belge (metin / Word / Excel) — mevcut BlankDocs üreteçleriyle,
   /// ama dosya GEÇERLİ klasöre yazılır (BlankDocs kendi dizinine yazıyordu).
   Future<void> _newDocument(String kind) async {
+    // Hata metni await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final fileCreateFailed = context.t('fm.file_create_failed');
     final suggestion = switch (kind) {
       'docx' => 'Yeni Belge.docx',
       'xlsx' => 'Yeni Tablo.xlsx',
       _ => 'Yeni Metin.txt',
     };
-    final name = await _askName('Yeni dosya', 'Dosya adı', suggestion);
+    final name = await _askName('Yeni dosya', context.t('fm.file_name'), suggestion);
     if (name == null) return;
     try {
       final target =
@@ -263,7 +269,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       _load();
       await EntryOpener.open(context, target);
     } catch (e) {
-      _snack('Dosya oluşturulamadı: $e');
+      _snack(fileCreateFailed.replaceAll('{error}', '\$e'));
     }
   }
 
@@ -284,10 +290,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+              onPressed: () => Navigator.pop(ctx), child: Text(context.t('common.cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Oluştur'),
+            child: Text(context.t('fm.create')),
           ),
         ],
       ),
@@ -331,11 +337,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
           const Divider(height: 1),
           Expanded(
             child: _locked
-                ? const Center(
+                ? Center(
                     child: Padding(
-                      padding: EdgeInsets.all(Gap.lg),
+                      padding: const EdgeInsets.all(Gap.lg),
                       child: Text(
-                        'Bu klasör kilitli.\nGörmek için PIN girin.',
+                        context.t('fm.locked_prompt'),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -372,7 +378,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           ? null
           : FloatingActionButton(
               onPressed: _showCreateSheet,
-              tooltip: 'Yeni klasör / dosya',
+              tooltip: context.t('fm.new_folder_or_file'),
               child: const Icon(Icons.add),
             ),
     );
@@ -386,14 +392,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
           maxLines: 1, overflow: TextOverflow.ellipsis),
       actions: [
         IconButton(
-          tooltip: 'Bu klasörde ara',
+          tooltip: context.t('fm.search_here'),
           icon: const Icon(Icons.search),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => SearchScreen(root: widget.path),
           )),
         ),
         IconButton(
-          tooltip: 'Görünüm: ${appState.fmLayout.label}',
+          tooltip: context.t('fm.layout', {'name': appState.fmLayout.label}),
           icon: Icon(fmLayoutIcon(appState.fmLayout)),
           onPressed: () async {
             final picked =
@@ -402,7 +408,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           },
         ),
         PopupMenuButton<String>(
-          tooltip: 'Diğer',
+          tooltip: context.t('fm.other'),
           onSelected: (value) async {
             switch (value) {
               case 'sort_name':
@@ -443,40 +449,41 @@ class _BrowserScreenState extends State<BrowserScreen> {
             }
           },
           itemBuilder: (ctx) => [
-            const PopupMenuItem(
-                value: 'sort_name', child: Text('Ada göre sırala')),
-            const PopupMenuItem(
-                value: 'sort_date', child: Text('Tarihe göre sırala')),
-            const PopupMenuItem(
-                value: 'sort_size', child: Text('Boyuta göre sırala')),
-            const PopupMenuItem(
-                value: 'sort_type', child: Text('Türe göre sırala')),
+            PopupMenuItem(
+                value: 'sort_name', child: Text(context.t('fm.sort_name'))),
+            PopupMenuItem(
+                value: 'sort_date', child: Text(context.t('fm.sort_date'))),
+            PopupMenuItem(
+                value: 'sort_size', child: Text(context.t('fm.sort_size'))),
+            PopupMenuItem(
+                value: 'sort_type', child: Text(context.t('fm.sort_type'))),
             PopupMenuItem(
               value: 'sort_dir',
               child:
-                  Text(appState.fmSortDesc ? 'Artan sırala' : 'Azalan sırala'),
+                  Text(appState.fmSortDesc ? context.t('fm.sort_asc') : context.t('fm.sort_desc')),
             ),
             const PopupMenuDivider(),
             PopupMenuItem(
               value: 'hidden',
               child: Text(appState.fmShowHidden
-                  ? 'Gizli dosyaları gizle'
-                  : 'Gizli dosyaları göster'),
+                  ? context.t('fm.hide_hidden')
+                  : context.t('fm.show_hidden')),
             ),
             PopupMenuItem(
               value: 'star',
-              child: Text(starred ? 'Favorilerden çıkar' : 'Favorilere ekle'),
+              child: Text(starred ? context.t('fm.unfavorite') : 'Favorilere ekle'),
             ),
             PopupMenuItem(
               value: 'lock',
               child: Text(appState.isFolderLocked(widget.path)
-                  ? 'Klasör kilidini kaldır'
-                  : 'Klasörü kilitle (PIN)'),
+                  ? context.t('fm.unlock_folder')
+                  : context.t('fm.lock_folder')),
             ),
-            const PopupMenuItem(
-                value: 'organize', child: Text('Otomatik düzenle…')),
-            const PopupMenuItem(value: 'select_all', child: Text('Tümünü seç')),
-            const PopupMenuItem(value: 'refresh', child: Text('Yenile')),
+            PopupMenuItem(
+                value: 'organize', child: Text(context.t('fm.auto_organize'))),
+            PopupMenuItem(value: 'select_all', child: Text(context.t('fm.select_all'))),
+            PopupMenuItem(
+                value: 'refresh', child: Text(context.t('common.refresh'))),
           ],
         ),
       ],
@@ -492,27 +499,27 @@ class _BrowserScreenState extends State<BrowserScreen> {
         icon: const Icon(Icons.close),
         onPressed: () => setState(_selected.clear),
       ),
-      title: Text('${_selected.length} / ${_entries.length} seçildi'),
+      title: Text(context.t('fm.selected_count', {'n': _selected.length, 'total': _entries.length})),
       actions: [
         if (_selected.length == 1) ...[
           IconButton(
-            tooltip: 'Üstündekileri de seç',
+            tooltip: context.t('fm.select_above'),
             icon: const Icon(Icons.expand_less),
             onPressed: () => _selectFromAnchor(visible, above: true),
           ),
           IconButton(
-            tooltip: 'Altındakileri de seç',
+            tooltip: context.t('fm.select_below'),
             icon: const Icon(Icons.expand_more),
             onPressed: () => _selectFromAnchor(visible, above: false),
           ),
         ],
         IconButton(
-          tooltip: _allSelected ? 'Seçimi kaldır' : 'Tümünü seç',
+          tooltip: _allSelected ? context.t('fm.select_none') : context.t('fm.select_all'),
           icon: Icon(_allSelected ? Icons.deselect : Icons.select_all),
           onPressed: _toggleSelectAll,
         ),
         IconButton(
-          tooltip: 'Seçimi tersine çevir',
+          tooltip: context.t('fm.select_invert'),
           icon: const Icon(Icons.swap_horiz),
           onPressed: () => setState(() {
             final all = _entries.map((e) => e.path).toSet();
@@ -542,19 +549,24 @@ class _BrowserScreenState extends State<BrowserScreen> {
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: Text(
-                  '$count öğe ${appState.clipboardCut ? "taşınmaya" : "kopyalanmaya"} hazır',
+                  context.t('fm.clipboard_ready', {
+                    'n': count,
+                    'verb': context.t(appState.clipboardCut
+                        ? 'fm.verb_move'
+                        : 'fm.verb_copy'),
+                  }),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               TextButton(
                 onPressed: appState.clearClipboard,
-                child: const Text('Vazgeç'),
+                child: Text(context.t('common.cancel')),
               ),
               FilledButton.icon(
                 onPressed: _paste,
                 icon: const Icon(Icons.content_paste),
-                label: const Text('Yapıştır'),
+                label: Text(context.t('fm.paste')),
               ),
             ],
           ),
@@ -575,7 +587,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               Icon(Icons.lock_outline,
                   size: 56, color: Theme.of(context).colorScheme.outline),
               const SizedBox(height: Gap.md),
-              Text(_error!, textAlign: TextAlign.center),
+              Text(context.t(_error!), textAlign: TextAlign.center),
               const SizedBox(height: Gap.md),
               FilledButton.tonal(
                   onPressed: _load, child: const Text('Yeniden dene')),
@@ -593,7 +605,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             Icon(Icons.folder_open,
                 size: 64, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: Gap.md),
-            const Center(child: Text('Bu klasör boş')),
+            Center(child: Text(context.t('fm.empty_folder'))),
           ],
         ),
       );
@@ -679,7 +691,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.create_new_folder_outlined),
-              title: const Text('Yeni klasör'),
+              title: Text(context.t('fm.new_folder')),
               onTap: () {
                 Navigator.pop(ctx);
                 _newFolder();
@@ -703,7 +715,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.article_outlined),
-              title: const Text('Metin dosyası (.txt)'),
+              title: Text(context.t('fm.new_text_file')),
               onTap: () {
                 Navigator.pop(ctx);
                 _newDocument('txt');
@@ -731,7 +743,7 @@ class _Breadcrumb extends StatelessWidget {
     // yerine "Ana bellek" gösterilir.
     var remainder = p.normalize(path);
     String? rootPath;
-    String rootLabel = 'Kök';
+    String rootLabel = context.t('fm.root');
     for (final v in FmEnv.volumes) {
       if (FsPaths.isInside(v.path, remainder)) {
         rootPath = p.normalize(v.path);

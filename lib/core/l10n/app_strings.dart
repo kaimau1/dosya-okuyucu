@@ -368,6 +368,80 @@ const Map<String, (String, String, String)> _table = {
   'fm.none': ('Yok', 'None', 'لا شيء'),
   'fm.organize': ('Düzenle', 'Organize', 'تنظيم'),
 
+  // ── Dosya yöneticisi: gezgin ──────────────────────────────────────────────
+  'fm.root': ('Kök', 'Root', 'الجذر'),
+  'fm.other': ('Diğer', 'Other', 'أخرى'),
+  'fm.empty_folder': ('Bu klasör boş', 'This folder is empty', 'هذا المجلد فارغ'),
+  'fm.search_here': ('Bu klasörde ara', 'Search in this folder', 'ابحث في هذا المجلد'),
+  'fm.unreadable': (
+    'Bu klasör okunamadı.\nAndroid’in koruduğu bir konum olabilir '
+        '(Android/data gibi) ya da “tüm dosyalara erişim” izni verilmemiş olabilir.',
+    'This folder could not be read.\nIt may be a location Android protects '
+        '(such as Android/data), or “all files access” may not be granted.',
+    'تعذّرت قراءة هذا المجلد.\nقد يكون موقعًا يحميه Android (مثل Android/data) '
+        'أو أن إذن «الوصول إلى كل الملفات» غير ممنوح.',
+  ),
+  'fm.locked_folder': ('Kilitli klasör', 'Locked folder', 'مجلد مقفل'),
+  'fm.locked_prompt': (
+    'Bu klasör kilitli.\nGörmek için PIN girin.',
+    'This folder is locked.\nEnter the PIN to view it.',
+    'هذا المجلد مقفل.\nأدخل رمز PIN لعرضه.',
+  ),
+  'fm.lock_folder': ('Klasörü kilitle (PIN)', 'Lock folder (PIN)', 'قفل المجلد (PIN)'),
+  'fm.unlock_folder': ('Klasör kilidini kaldır', 'Unlock folder', 'إلغاء قفل المجلد'),
+  'fm.unfavorite': ('Favorilerden çıkar', 'Remove from favourites', 'إزالة من المفضلة'),
+  'fm.favorite': ('Favorilere ekle', 'Add to favourites', 'إضافة إلى المفضلة'),
+  'fm.show_hidden': ('Gizli dosyaları göster', 'Show hidden files', 'إظهار الملفات المخفية'),
+  'fm.hide_hidden': ('Gizli dosyaları gizle', 'Hide hidden files', 'إخفاء الملفات المخفية'),
+  'fm.layout': ('Görünüm: {name}', 'Layout: {name}', 'العرض: {name}'),
+  'fm.sort_name': ('Ada göre sırala', 'Sort by name', 'ترتيب حسب الاسم'),
+  'fm.sort_date': ('Tarihe göre sırala', 'Sort by date', 'ترتيب حسب التاريخ'),
+  'fm.sort_size': ('Boyuta göre sırala', 'Sort by size', 'ترتيب حسب الحجم'),
+  'fm.sort_type': ('Türe göre sırala', 'Sort by type', 'ترتيب حسب النوع'),
+  'fm.sort_asc': ('Artan sırala', 'Ascending', 'تصاعدي'),
+  'fm.sort_desc': ('Azalan sırala', 'Descending', 'تنازلي'),
+  'fm.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'fm.select_none': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
+  'fm.select_invert': ('Seçimi tersine çevir', 'Invert selection', 'عكس التحديد'),
+  'fm.select_above': ('Üstündekileri de seç', 'Also select above', 'حدّد ما فوقه أيضًا'),
+  'fm.select_below': ('Altındakileri de seç', 'Also select below', 'حدّد ما تحته أيضًا'),
+  'fm.selected_count': ('{n} / {total} seçildi', '{n} / {total} selected', 'تم تحديد {n} / {total}'),
+  'fm.new_name': ('Yeni ad', 'New name', 'الاسم الجديد'),
+  'fm.irreversible': (
+    'Bu işlem geri alınamaz.',
+    'This cannot be undone.',
+    'لا يمكن التراجع عن هذا.',
+  ),
+  'fm.new_folder_or_file': ('Yeni klasör / dosya', 'New folder / file', 'مجلد / ملف جديد'),
+  'fm.new_text_file': ('Metin dosyası (.txt)', 'Text file (.txt)', 'ملف نصي (.txt)'),
+  'fm.file_name': ('Dosya adı', 'File name', 'اسم الملف'),
+  'fm.file_create_failed': (
+    'Dosya oluşturulamadı: {error}',
+    'Could not create file: {error}',
+    'تعذّر إنشاء الملف: {error}',
+  ),
+  'fm.auto_organize': ('Otomatik düzenle…', 'Auto-organize…', 'تنظيم تلقائي…'),
+  'fm.paste': ('Yapıştır', 'Paste', 'لصق'),
+  'fm.clipboard_ready': (
+    '{n} öğe {verb} hazır',
+    '{n} items ready to {verb}',
+    '{n} عنصر جاهز لـ{verb}',
+  ),
+  'fm.verb_move': ('taşınmaya', 'move', 'النقل'),
+  'fm.verb_copy': ('kopyalanmaya', 'copy', 'النسخ'),
+  'fm.copying': ('Kopyalanıyor', 'Copying', 'جارٍ النسخ'),
+  'fm.moving': ('Taşınıyor', 'Moving', 'جارٍ النقل'),
+  'fm.transfer_partial': (
+    'Bazı öğeler aktarılamadı: {error}',
+    'Some items could not be transferred: {error}',
+    'تعذّر نقل بعض العناصر: {error}',
+  ),
+  'fm.transfer_cancelled': (
+    'İşlem iptal edildi (aktarılanlar yerinde kaldı).',
+    'The operation was cancelled (transferred items stayed in place).',
+    'تم إلغاء العملية (بقيت العناصر المنقولة في مكانها).',
+  ),
+
   // ── Dosya yöneticisi: seçim çubuğu ────────────────────────────────────────
   'fm.copy': ('Kopyala', 'Copy', 'نسخ'),
   'fm.clip_copy': ('Panoya kopyala', 'Copy to clipboard', 'نسخ إلى الحافظة'),
@@ -403,6 +477,138 @@ const Map<String, (String, String, String)> _table = {
     'Panoya kesildi. Hedef klasörde “Yapıştır”a dokunun.',
     'Cut to clipboard. Tap “Paste” in the destination folder.',
     'تم القص إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
+  ),
+
+  // ── Dosya yöneticisi: girdi işlemleri (uzun basış) ────────────────────────
+  'fm.open_with_other': ('Başka uygulamayla aç', 'Open with another app', 'فتح بتطبيق آخر'),
+  'fm.move_to': ('Taşı…  (klasör seç)', 'Move…  (pick folder)', 'نقل…  (اختر مجلدًا)'),
+  'fm.copy_to': ('Kopyala…  (klasör seç)', 'Copy…  (pick folder)', 'نسخ…  (اختر مجلدًا)'),
+  'fm.move_here': ('Buraya taşı', 'Move here', 'انقل هنا'),
+  'fm.copy_here': ('Buraya kopyala', 'Copy here', 'انسخ هنا'),
+  'fm.extract_here': ('Buraya çıkar', 'Extract here', 'استخرج هنا'),
+  'fm.show_archive': ('Arşiv içeriğini göster', 'Show archive contents', 'عرض محتويات الأرشيف'),
+  'fm.compress_pw': (
+    'Sıkıştır (ZIP / 7z, parolalı)',
+    'Compress (ZIP / 7z, password)',
+    'ضغط (ZIP / 7z، بكلمة مرور)',
+  ),
+  'fm.reveal': ('Konumunu aç', 'Show location', 'إظهار الموقع'),
+  'fm.ai_summary': ('AI ile özetle', 'Summarize with AI', 'تلخيص بالذكاء الاصطناعي'),
+  'fm.image_insight': (
+    'Bu görselde ne var? (metin tanı)',
+    'What is in this image? (recognize text)',
+    'ما الموجود في هذه الصورة؟ (تعرّف على النص)',
+  ),
+  'fm.type': ('Tür', 'Type', 'النوع'),
+  'fm.folder': ('Klasör', 'Folder', 'مجلد'),
+  'fm.modified': ('Değiştirilme', 'Modified', 'تاريخ التعديل'),
+  'fm.last_opened': ('Son açılma', 'Last opened', 'آخر فتح'),
+  'fm.not_computed': ('Hesaplanmadı', 'Not computed', 'غير محسوب'),
+  'fm.computing': ('Hesaplanıyor…', 'Computing…', 'جارٍ الحساب…'),
+  'fm.items_count': ('{n} öğe', '{n} items', '{n} عنصر'),
+  'fm.delete_permanent_title': (
+    'Kalıcı olarak silinsin mi?',
+    'Delete permanently?',
+    'حذف نهائيًا؟',
+  ),
+  'fm.delete_trash_title': (
+    'Çöp kutusuna taşınsın mı?',
+    'Move to trash?',
+    'نقل إلى المهملات؟',
+  ),
+  'fm.delete_permanent_body': (
+    '{label} KALICI olarak silinecek. Bu işlem geri alınamaz. '
+        '(Çöp kutusu ayarlardan kapalı.)',
+    '{label} will be deleted PERMANENTLY. This cannot be undone. '
+        '(Trash is disabled in settings.)',
+    'سيتم حذف {label} نهائيًا. لا يمكن التراجع عن هذا. '
+        '(سلة المهملات معطّلة من الإعدادات.)',
+  ),
+  'fm.delete_trash_body': (
+    '{label} çöp kutusuna taşınacak. Geri Dönüşüm Kutusu’ndan geri '
+        'yükleyebilirsiniz.',
+    '{label} will be moved to the trash. You can restore it from the Recycle '
+        'Bin.',
+    'سيتم نقل {label} إلى المهملات. يمكنك استعادته من سلة المحذوفات.',
+  ),
+  'fm.delete_permanent_action': ('{what} kalıcı sil', 'Delete {what} permanently', 'حذف {what} نهائيًا'),
+  'fm.delete_trash_action': ('{what} çöpe taşı', 'Move {what} to trash', 'نقل {what} إلى المهملات'),
+  'fm.undo': ('Geri alındı.', 'Undone.', 'تم التراجع.'),
+  'fm.undo_action': ('Geri al', 'Undo', 'تراجع'),
+  'fm.deleting': ('Siliniyor', 'Deleting', 'جارٍ الحذف'),
+  'fm.undo_failed': ('Geri alınamadı: {error}', 'Could not undo: {error}', 'تعذّر التراجع: {error}'),
+  'fm.deleted_partial': (
+    '{ok} öğe silindi, {fail} öğe silinemedi.',
+    '{ok} items deleted, {fail} could not be deleted.',
+    'تم حذف {ok} عنصر، وتعذّر حذف {fail}.',
+  ),
+  'fm.trashed_partial': (
+    '{ok} öğe çöp kutusuna taşındı, {fail} öğe taşınamadı: {error}',
+    '{ok} items moved to trash, {fail} could not be moved: {error}',
+    'تم نقل {ok} عنصر إلى المهملات، وتعذّر نقل {fail}: {error}',
+  ),
+  'fm.transfer_done': (
+    '{n} öğe “{where}” klasörüne {verb}.',
+    '{n} items were {verb} to “{where}”.',
+    'تم {verb} {n} عنصر إلى «{where}».',
+  ),
+  'fm.transfer_stopped': (
+    'Durduruldu · {n} öğe “{where}” klasörüne çoktan {verb} '
+        '(süren aktarma yarıda kesilemiyor).',
+    'Stopped · {n} items were already {verb} to “{where}” '
+        '(a transfer in progress cannot be cut off).',
+    'تم الإيقاف · {n} عنصر تم {verb}ه بالفعل إلى «{where}» '
+        '(لا يمكن قطع نقل جارٍ).',
+  ),
+  'fm.transfer_errors': (
+    '{n} öğe {verb}, {fail} öğe aktarılamadı: {error}',
+    '{n} items {verb}, {fail} could not be transferred: {error}',
+    'تم {verb} {n} عنصر، وتعذّر نقل {fail}: {error}',
+  ),
+  'fm.verb_moved': ('taşındı', 'moved', 'النقل'),
+  'fm.verb_copied': ('kopyalandı', 'copied', 'النسخ'),
+  'fm.important_copied': (
+    '{n} öğe “{folder}” klasörüne kopyalandı.',
+    '{n} items copied to “{folder}”.',
+    'تم نسخ {n} عنصر إلى «{folder}».',
+  ),
+  'fm.copy_failed': ('Kopyalanamadı: {error}', 'Could not copy: {error}', 'تعذّر النسخ: {error}'),
+  'fm.move_failed': (
+    '{n} öğe taşınamadı: {error}',
+    '{n} items could not be moved: {error}',
+    'تعذّر نقل {n} عنصر: {error}',
+  ),
+  'fm.rename_failed': (
+    'Yeniden adlandırılamadı: {error}',
+    'Could not rename: {error}',
+    'تعذّرت إعادة التسمية: {error}',
+  ),
+  'fm.zip_failed': ('Sıkıştırılamadı: {error}', 'Could not compress: {error}', 'تعذّر الضغط: {error}'),
+  'fm.extract_failed': ('Çıkarılamadı: {error}', 'Could not extract: {error}', 'تعذّر الاستخراج: {error}'),
+  'fm.zipping': ('Sıkıştırılıyor', 'Compressing', 'جارٍ الضغط'),
+  'fm.encrypting': ('Şifreleniyor (AES-256)', 'Encrypting (AES-256)', 'جارٍ التشفير (AES-256)'),
+  'fm.extracting': ('Çıkarılıyor', 'Extracting', 'جارٍ الاستخراج'),
+  'fm.trashing': ('Çöp kutusuna taşınıyor', 'Moving to trash', 'جارٍ النقل إلى المهملات'),
+  'fm.copying_important': (
+    'Önemli dosyalara kopyalanıyor',
+    'Copying to important files',
+    'جارٍ النسخ إلى الملفات المهمة',
+  ),
+  'fm.extracted_to': (
+    '“{name}” klasörüne çıkarıldı.',
+    'Extracted to “{name}”.',
+    'تم الاستخراج إلى «{name}».',
+  ),
+  'fm.created_archive': ('“{name}” oluşturuldu.', '“{name}” created.', 'تم إنشاء «{name}».'),
+  'fm.entry_clip_copied': (
+    '“{name}” panoya kopyalandı. Hedef klasörde “Yapıştır”a dokunun.',
+    '“{name}” copied to clipboard. Tap “Paste” in the destination folder.',
+    'تم نسخ «{name}» إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
+  ),
+  'fm.entry_clip_cut': (
+    '“{name}” panoya kesildi. Hedef klasörde “Yapıştır”a dokunun.',
+    '“{name}” cut to clipboard. Tap “Paste” in the destination folder.',
+    'تم قص «{name}» إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
   ),
 
   // ── Dosya açma ────────────────────────────────────────────────────────────
@@ -615,6 +821,7 @@ const Map<String, (String, String, String)> _table = {
 
   // ── Google Drive ──────────────────────────────────────────────────────────
   'drive.title': ('Google Drive', 'Google Drive', 'Google Drive'),
+  'drive.upload_action': ('Drive\'a yükle', 'Upload to Drive', 'رفع إلى Drive'),
   'drive.sign_in': ('Google ile bağlan', 'Connect with Google', 'الاتصال عبر Google'),
   'drive.sign_out': ('Bağlantıyı kes', 'Disconnect', 'قطع الاتصال'),
   'drive.sign_in_prompt': (
