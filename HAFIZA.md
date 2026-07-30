@@ -4779,3 +4779,66 @@ Flutter 3.29.3 (CI ile aynı): `flutter analyze` **0 hata**, 39 info/warning
 **Cihazda doğrulanamayan:** gerçek bir NAS'a (SMB/SFTP/FTP/WebDAV) bağlanma ve
 telefonun Wi-Fi'sinde ağ taraması — bu ortamda yerel ağ yok. SMB'nin gerçek
 sunucuda çalışıp çalışmadığı KALANLAR'daki karar maddesine bağlı.
+
+---
+
+## 2026-07-30 (IV) — NAS istemcileri GERÇEK sunuculara karşı sınandı: SMB hatası bizdeymiş
+
+Önceki tur NAS'ı yazdı ama istemcilerin hiçbiri gerçek bir sunucuya
+bağlanmamıştı (yalnız FTP **sunucumuz** localhost'ta sınanmıştı). Kullanıcı
+"yarım iş kalmasın" deyince bu açık kapatıldı.
+
+### A) YENİ VE ÖNEMLİ — dört protokolün de sunucusu bu ortamda kurulabiliyor
+| Protokol | Sunucu | Kurulum |
+|---|---|---|
+| SFTP | OpenSSH | `apt-get install openssh-server`, ayrı `sshd_config`, port 2222 |
+| FTP | pyftpdlib | `pip install pyftpdlib` |
+| WebDAV | wsgidav | `pip install wsgidav cheroot` |
+| SMB | **Samba** | `apt-get install samba` |
+
+`test/remote_live_test.dart` (11 test) bunlara bağlanıyor: listeleme, indirme,
+yükleme, **ikili içeriğin bozulmadığı**, klasör oluşturma, yeniden adlandırma,
+silme, yanlış parola ve ulaşılamayan port. **Sunucu yoksa test kendini ATLIYOR**
+(`markTestSkipped`) → CI kırmızıya dönmüyor. `dart_test.yaml`de `live` etiketi
+tanımlı (tanımsız etiket `flutter test` çıktısında uyarı üretiyordu).
+
+### B) BULUNAN GERÇEK HATA — SMB yolunu ters eğik çizgiye çevirmek
+`SmbFs.toSmbPath` yolu `/paylasim/klasor` → `\paylasim\klasor` çeviriyordu
+("SMB Windows protokolü, ayraç `\` olmalı" varsayımı). **Yanlış:**
+`smb_connect` kendi örneğinde `connect.file("/home")` kullanıyor ve
+`SmbConnect.getShare` paylaşım adını **ilk `/`e kadar** okuyor. Ters eğik
+çizgiye çevrilince tüm dizgi paylaşım adı sanılıyor, tree connect düşüyor ve
+sunucu `STATUS_NETWORK_NAME_DELETED` ("The specified network name is no longer
+available") döndürüyor.
+
+**Belirti aldatıcıydı:** bağlanma ve **paylaşım listeleme çalışıyordu**, yalnız
+paylaşımın İÇİNE girmek düşüyordu. Cihazda "SMB bozuk, paket olgun değil" diye
+teşhis edilip protokol listeden çıkarılacaktı — oysa kusur bizdeydi.
+Düzeltme: yol **olduğu gibi** geçiyor (`/` ayracı, baştaki `/` garanti).
+
+**Sonuç: SMB ÇALIŞIYOR.** Samba 4.19 (SMB2) üzerinde okuma ve yazma doğrulandı
+→ KALANLAR'daki "SMB gerçek sunucu kararı" kapandı. Ekrandaki uyarı da
+ölçüme dayandırıldı ("Samba/Windows paylaşımlarıyla sınandı ve çalışıyor;
+yalnız SMB3 zorunlu kılan sunucular bağlanmayabilir").
+
+### C) `smb_connect` PORT AYARINI YOK SAYIYOR
+`smb_transport.dart` bağlanırken `SmbConstants.DEFAULT_PORT` (445) kullanıyor,
+verilen portu kullanmıyor. Formdaki port alanı SMB'de **kapatıldı**: alanı açık
+bırakmak kullanıcıya tutulmayacak bir söz verirdi ("yazdım ama bağlanmıyor").
+
+### D) TUZAKLAR (test ortamı kurarken)
+- **impacket'in `SimpleSMBServer`ı YETMİYOR.** Bağlanma ve paylaşım listeleme
+  çalışıyor, paylaşımın içine girmek düşüyor — yani B'deki hatayı **maskeliyor
+  ve yanlış yöne götürüyor**. Gerçek Samba şart.
+- **Samba bu konteynerde IPv6 olmadığı için açılmıyor:**
+  `smbd_open_one_socket: open_socket_in failed: Address family not supported by
+  protocol`. Çözüm: `interfaces = lo 127.0.0.1` + `bind interfaces only = yes`.
+  Ayrıca `/run/samba/ncalrpc` elle oluşturulmalı.
+- **SFTP kökü kullanıcının EV dizinidir** (`/home/<kullanıcı>`), yapılandırmada
+  gösterilen klasör değil.
+
+### Doğrulama
+`flutter analyze` **0 hata**, 39 info/warning (değişmedi). `flutter test`
+**1014 test geçti** (önceki tur 1002; yeni 11 canlı test + SMB yol testi ikiye
+ayrıldı). Canlı testler bu oturumda **gerçekten koştu ve geçti** — dört
+protokolün dördü de.

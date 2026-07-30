@@ -18,11 +18,16 @@
       yeni klasör / yeniden adlandır / sil çalışıyor mu, (e) parola kaydetme
       KAPALIYKEN her bağlanışta soruluyor mu, (f) yanlış adres/parola
       ANLAŞILIR hata veriyor mu (ham SocketException değil).
-- [ ] **SMB gerçek sunucu KARARI (kullanıcı)** — `smb_connect 0.0.9` olgun
-      değil. Gerçek bir Windows paylaşımı / NAS ile denenecek: bağlanıyor,
-      listeliyor, indiriyor mu? **Çalışmazsa protokol listesinden ÇIKARILACAK**
-      (yarım çalışan SMB, hiç olmayandan kötüdür) — karar kullanıcının
-      2026-07-30'daki talimatı. Şu an ekranda "deneyseldir" uyarısı var.
+- [ ] **SMB: yalnız SMB3 zorunlu kılan sunucular sınanmadı.** SMB'nin kendisi
+      2026-07-30'da **gerçek Samba 4.19 (SMB2) üzerinde doğrulandı** — okuma ve
+      yazma çalışıyor (HAFIZA 2026-07-30 IV; `test/remote_live_test.dart`), o
+      yüzden "protokolü listeden çıkar" kararı KAPANDI. Kalan tek belirsizlik:
+      `smb_connect` en fazla SMB210 konuşuyor; SMB3'ü zorunlu kılan (eski
+      sürümleri kapatmış) bir NAS'ta bağlanmayabilir. Ekrandaki uyarı bunu
+      yazıyor ve kullanıcıyı SFTP/FTP'ye yönlendiriyor.
+- [ ] **SMB'de port değiştirilemez (paket sınırı).** `smb_connect` bağlanırken
+      445'i sabit kullanıyor, verilen portu yok sayıyor; form alanı bu yüzden
+      SMB'de kapalı. Farklı portta SMB gerekirse paket çatallanmalı.
 - [ ] **PC'den FTP cihaz doğrulaması (kullanıcı)** — Ağ depolama → sağ üst
       bilgisayar simgesi → **Başlat** → PC'nin dosya gezginine/tarayıcısına
       yazılan `ftp://<ip>:2121` adresi açılıyor mu, kullanıcı adı/parola

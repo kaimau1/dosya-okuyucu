@@ -18,9 +18,19 @@ import 'remote_fs.dart';
 /// "SMB bu sunucuda çalışmadı" diye ANLAŞILIR bir hata görüyor — sessiz boş
 /// klasör değil.
 ///
-/// **Yol biçimi:** dışarıya (arayüze) `/paylasim/klasor/dosya` veriyoruz;
-/// pakete giderken `\` ayracına çevriliyor. Arayüzün protokole göre yol
-/// biçimi değiştirmesi gerekmesin diye çeviri burada.
+/// **Yol biçimi — TERS EĞİK ÇİZGİYE ÇEVİRMEYİN.** Paket, adının çağrıştırdığının
+/// aksine `/paylasim/klasor/dosya` biçimini bekliyor (kendi örneği de öyle:
+/// `connect.file("/home")`). Yolu Windows biçimine (`\paylasim\klasor`)
+/// çevirmek **paylaşım adının yanlış çözülmesine** yol açıyor:
+/// `SmbConnect.getShare` ilk `/`e kadar okuduğu için tüm dizgiyi paylaşım adı
+/// sanıyor, tree connect düşüyor ve sunucu
+/// `STATUS_NETWORK_NAME_DELETED` ("The specified network name is no longer
+/// available") döndürüyor.
+///
+/// Bu hata ilk yazımda YAPILDI ve gerçek bir Samba sunucusuna karşı koşan
+/// `test/remote_live_test.dart` sayesinde yakalandı: paylaşım listeleme
+/// çalışıyor, paylaşımın İÇİNE girmek çalışmıyordu. Cihazda "SMB bozuk,
+/// paket olgun değil" diye teşhis edilecekti — oysa kusur bizim çevirimizdi.
 class SmbFs extends RemoteFs {
   SmbFs(super.connection);
 
@@ -29,13 +39,13 @@ class SmbFs extends RemoteFs {
   @override
   bool get canWrite => true;
 
-  /// `/paylasim/klasor` → `\paylasim\klasor` (paketin beklediği biçim).
-  static String toSmbPath(String path) {
-    final trimmed = path.startsWith('/') ? path.substring(1) : path;
-    return trimmed.isEmpty ? '' : trimmed.replaceAll('/', r'\');
-  }
+  /// Pakete giden yol: **olduğu gibi**, `/` ayracıyla ve baştaki `/` ile.
+  /// (Bkz. sınıf açıklaması — ters eğik çizgiye çevirmek paylaşım adını bozar.)
+  static String toSmbPath(String path) =>
+      path.startsWith('/') ? path : '/$path';
 
-  /// Paketten gelen `\paylasim\klasor` → `/paylasim/klasor`.
+  /// Paketten gelen yolu tek biçime indirger. Paket `/` kullanıyor ama bazı
+  /// yanıtlarda `\` görülebiliyor; tek yerde normalize ediliyor.
   static String fromSmbPath(String path) {
     final unified = path.replaceAll(r'\', '/');
     return unified.startsWith('/') ? unified : '/$unified';

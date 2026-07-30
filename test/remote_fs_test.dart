@@ -150,11 +150,20 @@ void main() {
     });
   });
 
-  group('SMB yol çevirisi', () {
-    test('ileri eğik çizgi ↔ ters eğik çizgi', () {
-      expect(SmbFs.toSmbPath('/paylasim/klasor'), r'paylasim\klasor');
-      expect(SmbFs.toSmbPath('/'), '');
+  group('SMB yol biçimi', () {
+    test('yol ters eğik çizgiye ÇEVRİLMEZ (paylaşım adı bozulur)', () {
+      // Paket `/paylasim/klasor` bekliyor. `\paylasim\klasor`e çevirmek
+      // `getShare`in tüm dizgiyi paylaşım adı sanmasına ve tree connect'in
+      // STATUS_NETWORK_NAME_DELETED ile düşmesine yol açıyor — gerçek Samba
+      // sunucusuna karşı ölçüldü (test/remote_live_test.dart).
+      expect(SmbFs.toSmbPath('/paylasim/klasor'), '/paylasim/klasor');
+      expect(SmbFs.toSmbPath('paylasim/klasor'), '/paylasim/klasor');
+      expect(SmbFs.toSmbPath('/'), '/');
+    });
+
+    test('gelen yol tek biçime indirgenir', () {
       expect(SmbFs.fromSmbPath(r'paylasim\klasor'), '/paylasim/klasor');
+      expect(SmbFs.fromSmbPath('/paylasim'), '/paylasim');
       expect(SmbFs.fromSmbPath(r'\paylasim'), '/paylasim');
     });
 

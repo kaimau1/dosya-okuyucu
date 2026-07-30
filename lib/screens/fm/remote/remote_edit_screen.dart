@@ -179,6 +179,11 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
           TextField(
             controller: _port,
             keyboardType: TextInputType.number,
+            // SMB'de port DEĞİŞTİRİLEMEZ: `smb_connect` bağlanırken 445'i
+            // sabit kullanıyor (`SmbConstants.DEFAULT_PORT`), verilen portu
+            // yok sayıyor. Alanı açık bırakmak kullanıcıya tutulmayacak bir
+            // söz verirdi — "yazdım ama bağlanmıyor"un sessiz nedeni.
+            enabled: _protocol != RemoteProtocol.smb,
             decoration: InputDecoration(labelText: context.t('nas.port')),
             onChanged: (_) => _portTouched = true,
           ),

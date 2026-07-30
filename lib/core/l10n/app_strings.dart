@@ -384,12 +384,15 @@ const Map<String, (String, String, String)> _table = {
   ),
   'nas.error_unknown': ('Bağlantı hatası.', 'Connection error.', 'خطأ في الاتصال.'),
   'nas.smb_warning': (
-    'SMB desteği deneyseldir: bazı sunucular (yalnız SMB3 zorunlu kılanlar) '
-        'bağlanmayabilir. Çalışmazsa aynı sunucuda SFTP ya da FTP deneyin.',
-    'SMB support is experimental: some servers (those requiring SMB3 only) may '
-        'not connect. If it fails, try SFTP or FTP on the same server.',
-    'دعم SMB تجريبي: قد لا تتصل بعض الخوادم (التي تفرض SMB3 فقط). إذا فشل، '
-        'جرّب SFTP أو FTP على الخادم نفسه.',
+    'SMB, Samba/Windows paylaşımlarıyla (SMB2) sınandı ve çalışıyor. Yalnız '
+        'SMB3 zorunlu kılan sunucular bağlanmayabilir; öyleyse aynı sunucuda '
+        'SFTP ya da FTP deneyin. Port her zaman 445\'tir, değiştirilemez.',
+    'SMB was tested against Samba/Windows shares (SMB2) and works. Servers that '
+        'require SMB3 only may not connect; in that case try SFTP or FTP on the '
+        'same server. The port is always 445 and cannot be changed.',
+    'تم اختبار SMB مع مشاركات Samba/Windows (SMB2) وهو يعمل. قد لا تتصل الخوادم '
+        'التي تفرض SMB3 فقط؛ في هذه الحالة جرّب SFTP أو FTP على الخادم نفسه. '
+        'المنفذ دائمًا 445 ولا يمكن تغييره.',
   ),
 
   // ── PC'den telefona FTP sunucusu ──────────────────────────────────────────
