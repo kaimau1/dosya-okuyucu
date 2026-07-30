@@ -395,6 +395,33 @@ const Map<String, (String, String, String)> _table = {
         'المنفذ دائمًا 445 ولا يمكن تغييره.',
   ),
 
+  'nas.writeback_title': (
+    'Değişiklikler sunucuya yüklensin mi?',
+    'Upload the changes to the server?',
+    'هل تريد رفع التغييرات إلى الخادم؟',
+  ),
+  'nas.writeback_body': (
+    '“{name}” düzenlendi. Değişiklik şu an yalnız telefondaki geçici kopyada; '
+        'sunucudaki dosya hâlâ eski. Yüklersen sunucudaki sürümün ÜZERİNE yazılır.',
+    '“{name}” was edited. The change is currently only in the temporary copy on '
+        'the phone; the file on the server is still the old one. Uploading '
+        'OVERWRITES the version on the server.',
+    'تم تعديل «{name}». التغيير موجود حاليًا فقط في النسخة المؤقتة على الهاتف؛ '
+        'الملف على الخادم لا يزال قديمًا. سيؤدي الرفع إلى الكتابة فوق النسخة '
+        'الموجودة على الخادم.',
+  ),
+  'nas.writeback_upload': ('Yükle', 'Upload', 'رفع'),
+  'nas.writeback_keep_local': (
+    'Şimdilik yükleme',
+    'Don’t upload for now',
+    'لا ترفع الآن',
+  ),
+  'nas.writeback_done': (
+    'Sunucuya yüklendi.',
+    'Uploaded to the server.',
+    'تم الرفع إلى الخادم.',
+  ),
+
   // ── PC'den telefona FTP sunucusu ──────────────────────────────────────────
   'ftpd.title': ('PC\'den eriş (FTP)', 'Access from PC (FTP)', 'الوصول من الحاسوب (FTP)'),
   'ftpd.description': (

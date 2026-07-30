@@ -36,11 +36,6 @@
 - [ ] **FTP sunucusu arka planda çalışmıyor (bilinçli).** Ekrandan çıkınca
       duruyor: kullanıcı telefonunu ağa açtığını unutmasın. İstenirse ön plan
       servisi + kalıcı bildirim gerekir (manifest'e servis eklenmesi lazım).
-- [ ] **Uzak dosyada DÜZENLEME geri yazılmıyor.** Şu an akış indir-aç:
-      uzaktan açılan bir Word/Excel dosyası düzenlenip kaydedilirse yalnız
-      YEREL önbellek kopyası değişir, sunucuya geri yüklenmez. Yükleme elle
-      yapılabiliyor ("Buraya yükle"). Otomatik geri yazma için düzenleyicilerin
-      kaydetme yoluna uzak hedef bilgisi taşınmalı.
 - [ ] **Dil desteği cihaz doğrulaması (kullanıcı)** — 2026-07-30: Ayarlar →
       **Dil** → English / العربية seç → (a) ana ekran, alt sekmeler, Ayarlar,
       Excel ve Word ekranları o dilde mi, (b) **Arapça'da arayüz sağdan sola**

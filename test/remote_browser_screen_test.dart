@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/models/remote_connection.dart';
 import 'package:dosya_okuyucu/screens/fm/remote/remote_browser_screen.dart';
+import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
+import 'package:dosya_okuyucu/services/fm/fm_env.dart';
 import 'package:dosya_okuyucu/services/fm/remote/remote_fs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -48,7 +50,15 @@ class FakeFs extends RemoteFs {
   final deleted = <String>[];
   final renamed = <String>[];
   final created = <String>[];
+  final uploaded = <String>[];
   bool closed = false;
+
+  /// İndirilen dosyaya yazılacak içerik; testler bunu değiştirerek
+  /// "kullanıcı düzenledi" durumunu taklit ediyor.
+  String downloadContent = 'ilk';
+
+  /// `EntryOpener` yerine geçen kanca: dosya açıldıktan sonra ne olsun?
+  Future<void> Function(File local)? onOpened;
 
   @override
   Future<void> connect() async {
@@ -65,11 +75,18 @@ class FakeFs extends RemoteFs {
   }
 
   @override
-  Future<File> download(RemoteEntry entry, String localPath) async =>
-      throw UnimplementedError();
+  Future<File> download(RemoteEntry entry, String localPath) async {
+    // Senkron G/Ç: `flutter_test`in sahte saat zonunda asenkron dosya işleri
+    // ilerlemiyor (bkz. HAFIZA 2026-07-25 §F).
+    final file = File(localPath);
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(downloadContent);
+    return file;
+  }
 
   @override
-  Future<void> upload(File local, String remoteDir, {String? name}) async {}
+  Future<void> upload(File local, String remoteDir, {String? name}) async =>
+      uploaded.add('$remoteDir/${name ?? ''}:${local.readAsStringSync()}');
 
   @override
   Future<void> delete(RemoteEntry entry) async => deleted.add(entry.path);
@@ -176,5 +193,63 @@ void main() {
     await _pump(tester, FakeFs(_connection, failOnConnect: RemoteError.auth),
         locale: const Locale('en'));
     expect(find.textContaining('password'), findsOneWidget);
+  });
+
+  group('düzenlemeyi sunucuya geri yazma', () {
+    late Directory support;
+
+    setUp(() {
+      support = Directory.systemTemp.createTempSync('remote_wb');
+      FmEnv.appSupportDir = support.path;
+    });
+
+    tearDown(() {
+      FmEnv.appSupportDir = '';
+      openLocalFile = (context, path) => EntryOpener.open(context, path);
+      support.deleteSync(recursive: true);
+    });
+
+    testWidgets('dosya DEĞİŞMEDİYSE hiç sorulmaz', (tester) async {
+      // Kullanıcı dosyayı yalnız İNCELEDİYSE soru sormak gürültüdür.
+      final fs = FakeFs(_connection);
+      openLocalFile = (context, path) async {};
+      await _pump(tester, fs);
+      await tester.tap(find.text('rapor.pdf'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('sunucuya yüklensin'), findsNothing);
+      expect(fs.uploaded, isEmpty);
+    });
+
+    testWidgets('düzenlenmişse SORULUR; "şimdilik yükleme" yüklemez',
+        (tester) async {
+      final fs = FakeFs(_connection);
+      openLocalFile = (context, path) async =>
+          File(path).writeAsStringSync('düzenlenmiş içerik');
+      await _pump(tester, fs);
+      await tester.tap(find.text('rapor.pdf'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('sunucuya yüklensin'), findsOneWidget);
+      await tester.tap(find.text('Şimdilik yükleme'));
+      await tester.pumpAndSettle();
+      // Sessizce üzerine yazmak geri alınamaz bir karar olurdu.
+      expect(fs.uploaded, isEmpty);
+    });
+
+    testWidgets('"Yükle" doğru yola, ÖZGÜN adla ve YENİ içerikle yükler',
+        (tester) async {
+      final fs = FakeFs(_connection);
+      openLocalFile = (context, path) async =>
+          File(path).writeAsStringSync('düzenlenmiş içerik');
+      await _pump(tester, fs);
+      await tester.tap(find.text('rapor.pdf'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yükle'));
+      await tester.pumpAndSettle();
+
+      // Hedef: dosyanın KENDİ klasörü (kök) ve KENDİ adı — yeni bir dosya
+      // oluşturmak değil, var olanın üzerine yazmak.
+      expect(fs.uploaded, ['//rapor.pdf:düzenlenmiş içerik']);
+    });
   });
 }

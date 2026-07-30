@@ -105,13 +105,85 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
     try {
       final dir = p.join(FmEnv.appSupportDir, 'remote', widget.connection.id);
       final local = await _fs.download(entry, p.join(dir, entry.name));
+      // Düzenleme geri yazımının ölçütü: dosyanın açılmadan ÖNCEKİ hâli.
+      // Boyut + değiştirilme damgası birlikte alınıyor; yalnız damga
+      // güvenilmez (aynı saniyede kaydeden editörler var), yalnız boyut da
+      // güvenilmez (aynı uzunlukta düzeltme).
+      // `statSync` bilinçli: `stat()` (asenkron) `flutter_test`in sahte saat
+      // zonunda HİÇ tamamlanmıyor ve ekran sonsuza dek "yükleniyor" kalıyor
+      // (HAFIZA 2026-07-25 §F'deki tuzağın aynısı). Damga okuma birkaç
+      // baytlık bir üstveri işi, dosya içeriği okunmuyor.
+      final before = local.statSync();
+      final beforeLength = before.size;
+      final beforeModified = before.modified;
       if (!mounted) return;
       setState(() => _busy = false);
-      await EntryOpener.open(context, local.path);
+      await openLocalFile(context, local.path);
+      // Ekran geri geldiğinde yerel kopya değiştiyse kullanıcı dosyayı
+      // düzenlemiş demektir; sunucudaki sürüm HÂLÂ ESKİ.
+      await _offerWriteBack(entry, local, beforeLength, beforeModified);
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       _snack(mounted ? errorTextFor(context, e) : failed);
+    }
+  }
+
+  /// Yerel kopya düzenlendiyse sunucuya geri yüklemeyi TEKLİF eder.
+  ///
+  /// **Neden sorulup otomatik yapılmıyor:** yükleme sunucudaki sürümün
+  /// üzerine yazıyor. Kullanıcı dosyayı yalnız incelemek için açmış ve
+  /// editör dokunmuş olabilir; sessizce üzerine yazmak, geri alınamayan bir
+  /// karar vermek olurdu. Sormak da şart: hiç sormamak "kaydettim sandım,
+  /// sunucuda eski hâli duruyor" demek — sessiz veri kaybı gibi görünür.
+  Future<void> _offerWriteBack(
+    RemoteEntry entry,
+    File local,
+    int beforeLength,
+    DateTime beforeModified,
+  ) async {
+    if (!mounted) return;
+    FileStat after;
+    try {
+      after = local.statSync();
+    } catch (_) {
+      return;
+    }
+    final changed =
+        after.size != beforeLength || after.modified.isAfter(beforeModified);
+    if (!changed || !mounted) return;
+
+    final title = context.t('nas.writeback_title');
+    final body = context.t('nas.writeback_body', {'name': entry.name});
+    final upload = context.t('nas.writeback_upload');
+    final keep = context.t('nas.writeback_keep_local');
+    final uploading = context.t('nas.uploading');
+    final done = context.t('nas.writeback_done');
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false), child: Text(keep)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true), child: Text(upload)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    _snack(uploading);
+    try {
+      await _fs.upload(local, RemoteFs.parentOf(entry.path),
+          name: entry.name);
+      if (!mounted) return;
+      _snack(done);
+      await _load(_path);
+    } catch (e) {
+      if (mounted) _snack(errorTextFor(context, e));
     }
   }
 
@@ -378,6 +450,14 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
     );
   }
 }
+
+/// İndirilen kopyayı uygulamanın görüntüleyici/editör zincirinde açar.
+///
+/// Değiştirilebilir bir işlev: widget testinde gerçek görüntüleyici
+/// açılamaz (dosya ayrıştırma + platform kanalı ister), testler bunu
+/// sahtesiyle değiştirip "kullanıcı düzenledi" durumunu taklit ediyor.
+Future<void> Function(BuildContext context, String path) openLocalFile =
+    (context, path) => EntryOpener.open(context, path);
 
 /// Yüklenecek yerel dosyayı sistem seçicisiyle sorar.
 ///

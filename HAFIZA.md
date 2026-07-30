@@ -4842,3 +4842,26 @@ bırakmak kullanıcıya tutulmayacak bir söz verirdi ("yazdım ama bağlanmıyo
 **1014 test geçti** (önceki tur 1002; yeni 11 canlı test + SMB yol testi ikiye
 ayrıldı). Canlı testler bu oturumda **gerçekten koştu ve geçti** — dört
 protokolün dördü de.
+
+### Ek (2026-07-30 IV) — uzak dosyada düzenleme artık sunucuya geri yazılıyor
+Önceki turda açık bırakılmıştı: uzaktan açılan dosya düzenlenip kaydedilince
+yalnız yerel önbellek kopyası değişiyor, sunucudaki eski kalıyordu — kullanıcı
+"kaydettim" sanıyor, sessiz veri kaybı gibi görünüyordu.
+
+`RemoteBrowserScreen._offerWriteBack`: dosya açılmadan önceki **boyut +
+değiştirilme damgası** saklanıyor; görüntüleyiciden dönüşte değişmişse
+kullanıcıya "sunucuya yüklensin mi?" diye soruluyor.
+- **Neden sorulup otomatik yapılmıyor:** yükleme sunucudaki sürümün üzerine
+  yazıyor; kullanıcı dosyayı yalnız incelemiş, editör dokunmuş olabilir.
+  Sessizce üzerine yazmak geri alınamayan bir karar olurdu.
+- **Neden boyut VE damga birlikte:** yalnız damga güvenilmez (aynı saniyede
+  kaydeden editör), yalnız boyut da güvenilmez (aynı uzunlukta düzeltme).
+- Yükleme dosyanın **kendi klasörüne, kendi adıyla** gidiyor (yeni dosya
+  oluşturmuyor).
+- **TUZAK (yine):** `File.stat()` (asenkron) `flutter_test`in sahte saat
+  zonunda hiç tamamlanmıyor → ekran sonsuza dek "yükleniyor" kalıyordu ve
+  `pumpAndSettle` zaman aşımına uğradı. `statSync` kullanıldı; damga okuma
+  birkaç baytlık üstveri işi, dosya içeriği okunmuyor.
+- Görüntüleyici çağrısı `openLocalFile` kancasına alındı (testte gerçek
+  görüntüleyici açılamıyor). Kilit: 3 test — değişmemişse SORULMAZ,
+  "şimdilik yükleme" YÜKLEMEZ, "Yükle" doğru yola/ada/içerikle yükler.
