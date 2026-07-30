@@ -453,9 +453,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       await File(widget.path).writeAsBytes(bytes);
       _dirty = false;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.t('common.saved_hint'))));
         setState(() {});
       }
     } catch (e) {
@@ -731,19 +730,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               onChanged: (_) => setState(() {}),
               textInputAction: TextInputAction.done,
               style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
-                border: OutlineInputBorder(),
-                hintText: 'Hücre içeriği',
+                border: const OutlineInputBorder(),
+                hintText: context.t('excel.cell_content'),
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               ),
             ),
           ),
           // Veri doğrulama listesi olan hücrede Excel'deki açılır ok.
           if (_validationOptions().isNotEmpty)
             PopupMenuButton<String>(
-              tooltip: 'Listeden seç',
+              tooltip: context.t('excel.pick_from_list'),
               icon: const Icon(Icons.arrow_drop_down_circle_outlined),
               onSelected: (v) {
                 _cellField.text = v;
@@ -755,7 +754,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               ],
             ),
           IconButton(
-            tooltip: 'Uygula',
+            tooltip: context.t('common.apply'),
             icon: const Icon(Icons.check),
             onPressed: () => _applyCell(_cellField.text),
           ),
@@ -848,45 +847,47 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text('Satır',
+              child: Text(context.t('excel.row'),
                   style:
                       TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             ),
-            btn(Icons.keyboard_arrow_up, 'Üste satır ekle',
+            btn(Icons.keyboard_arrow_up, context.t('excel.insert_row_above'),
                 () => _insertRow(below: false)),
-            btn(Icons.keyboard_arrow_down, 'Alta satır ekle',
+            btn(Icons.keyboard_arrow_down, context.t('excel.insert_row_below'),
                 () => _insertRow(below: true)),
-            btn(Icons.remove, 'Satırı sil', _deleteRow),
+            btn(Icons.remove, context.t('excel.delete_row'), _deleteRow),
             divider(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text('Sütun',
+              child: Text(context.t('excel.column'),
                   style:
                       TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             ),
-            btn(Icons.keyboard_arrow_left, 'Sola sütun ekle',
+            btn(Icons.keyboard_arrow_left, context.t('excel.insert_col_left'),
                 () => _insertColumn(right: false)),
-            btn(Icons.keyboard_arrow_right, 'Sağa sütun ekle',
+            btn(Icons.keyboard_arrow_right, context.t('excel.insert_col_right'),
                 () => _insertColumn(right: true)),
-            btn(Icons.remove, 'Sütunu sil', _deleteColumn),
+            btn(Icons.remove, context.t('excel.delete_col'), _deleteColumn),
             divider(),
-            toggle(Icons.format_bold, 'Kalın', selStyle?.bold ?? false,
+            toggle(Icons.format_bold, context.t('common.bold'),
+                selStyle?.bold ?? false,
                 () => _applyStyle(bold: !(selStyle?.bold ?? false))),
-            toggle(Icons.format_italic, 'İtalik', selStyle?.italic ?? false,
+            toggle(Icons.format_italic, context.t('common.italic'),
+                selStyle?.italic ?? false,
                 () => _applyStyle(italic: !(selStyle?.italic ?? false))),
             toggle(
                 Icons.format_align_left,
-                'Sola yasla',
+                context.t('common.align_left'),
                 selStyle?.hAlign == XlsxHAlign.left,
                 () => _applyStyle(align: TextAlign.left)),
             toggle(
                 Icons.format_align_center,
-                'Ortala',
+                context.t('common.align_center'),
                 selStyle?.hAlign == XlsxHAlign.center,
                 () => _applyStyle(align: TextAlign.center)),
             toggle(
                 Icons.format_align_right,
-                'Sağa yasla',
+                context.t('common.align_right'),
                 selStyle?.hAlign == XlsxHAlign.right,
                 () => _applyStyle(align: TextAlign.right)),
           ],
@@ -903,8 +904,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     String text;
     if (!_hasRange) {
       final fmt = sheet.numFmtCode(_selRow, _selCol);
-      text = 'Hücre ${XlsxRange.colName(_selCol)}${_selRow + 1}'
-          '${fmt == 'General' ? '' : '  ·  $fmt'}';
+      text = context.t('excel.cell_label',
+              {'ref': '${XlsxRange.colName(_selCol)}${_selRow + 1}'}) +
+          (fmt == 'General' ? '' : '  ·  $fmt');
     } else {
       final engine = _engineFor(sheet);
       final r1 = math.min(_anchorRow, _selRow);
@@ -915,7 +917,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       // Çok büyük seçimde (tümünü seç) hücre hücre hesap ekranı dondurur;
       // Excel de yalnız sayıyı gösterir.
       if (cellCount > 200000) {
-        return _statusText('Seçili: $cellCount hücre', scheme);
+        return _statusText(
+            context.t('excel.selection_cells', {'n': cellCount}), scheme);
       }
       var sum = 0.0;
       var count = 0;
@@ -932,9 +935,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         }
       }
       text = count == 0
-          ? 'Seçili: $cellCount hücre  ·  Dolu: $filled'
-          : 'Ortalama: ${generalNumber(sum / count)}  ·  '
-              'Sayı: $count  ·  Toplam: ${generalNumber(sum)}';
+          ? context.t(
+              'excel.selection_filled', {'n': cellCount, 'filled': filled})
+          : context.t('excel.selection_stats', {
+              'avg': generalNumber(sum / count),
+              'count': count,
+              'sum': generalNumber(sum),
+            });
     }
     return _statusText(text, scheme);
   }
@@ -998,21 +1005,23 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final ref = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hücreye git'),
+        title: Text(context.t('excel.goto_cell')),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-              labelText: 'Hücre başvurusu', hintText: 'ör. C15'),
+          decoration: InputDecoration(
+              labelText: context.t('excel.cell_reference'),
+              hintText: context.t('excel.cell_reference_hint')),
           onSubmitted: (v) => Navigator.pop(ctx, v),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Git'),
+            child: Text(context.t('excel.go')),
           ),
         ],
       ),
@@ -1101,15 +1110,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               onChanged: _runFind,
               onSubmitted: (_) => _stepHit(1),
               style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
-                border: OutlineInputBorder(),
-                hintText: 'Bu sayfada ara',
-                prefixIcon: Icon(Icons.search, size: 18),
+                border: const OutlineInputBorder(),
+                hintText: context.t('excel.find_in_sheet'),
+                prefixIcon: const Icon(Icons.search, size: 18),
                 prefixIconConstraints:
-                    BoxConstraints(minWidth: 32, minHeight: 32),
+                    const BoxConstraints(minWidth: 32, minHeight: 32),
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               ),
             ),
           ),
@@ -1118,19 +1127,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               style:
                   TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
           IconButton(
-            tooltip: 'Önceki',
+            tooltip: context.t('common.previous'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.keyboard_arrow_up),
             onPressed: _hits.isEmpty ? null : () => _stepHit(-1),
           ),
           IconButton(
-            tooltip: 'Sonraki',
+            tooltip: context.t('common.next'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.keyboard_arrow_down),
             onPressed: _hits.isEmpty ? null : () => _stepHit(1),
           ),
           IconButton(
-            tooltip: 'Kapat',
+            tooltip: context.t('common.close'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.close),
             onPressed: _toggleFind,
@@ -1164,16 +1173,17 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
           title: Text(isCol
-              ? '${XlsxRange.colName(col)} sütun genişliği'
-              : '${row! + 1}. satır yüksekliği'),
+              ? context.t('excel.column_width_of',
+                  {'col': XlsxRange.colName(col)})
+              : context.t('excel.row_height_of', {'row': row! + 1})),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 value <= 0
-                    ? 'Gizli'
+                    ? context.t('excel.hidden')
                     : '${value.toStringAsFixed(2)} '
-                        '${isCol ? 'karakter' : 'punto'}',
+                        '${context.t(isCol ? 'excel.unit_chars' : 'excel.unit_points')}',
                 style: const TextStyle(
                     fontSize: 18, fontWeight: FontWeight.w600),
               ),
@@ -1185,18 +1195,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               ),
               TextButton(
                 onPressed: () => setLocal(() => value = defaultValue),
-                child: Text(
-                    'Varsayılan (${defaultValue.toStringAsFixed(2)})'),
+                child: Text(context.t('excel.default_value',
+                    {'value': defaultValue.toStringAsFixed(2)})),
               ),
             ],
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Vazgeç')),
+                child: Text(context.t('common.cancel'))),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Uygula')),
+                child: Text(context.t('common.apply'))),
           ],
         ),
       ),

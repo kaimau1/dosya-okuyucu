@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/widgets.dart';
 
 import 'app_language.dart';
@@ -59,9 +60,12 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
   bool isSupported(Locale locale) =>
       const {'tr', 'en', 'ar'}.contains(locale.languageCode);
 
+  /// **`SynchronousFuture` şart:** tablo koddadır, yüklenecek bir şey yok.
+  /// `async` bir gövde `Localizations`ı bir kare bekletir ve o karede ekran
+  /// BOŞ çizilir — dil değiştirmede gözle görülür bir çakma olurdu.
   @override
-  Future<AppStrings> load(Locale locale) async =>
-      AppStrings(AppLanguageInfo.byCode(locale.languageCode));
+  Future<AppStrings> load(Locale locale) =>
+      SynchronousFuture(AppStrings(AppLanguageInfo.byCode(locale.languageCode)));
 
   @override
   bool shouldReload(_AppStringsDelegate old) => false;
@@ -311,6 +315,15 @@ const Map<String, (String, String, String)> _table = {
     'التحرير المباشر غير آمن في هذا المستند (عدم تطابق الفقرات: '
         '{web}/{ours}). استخدم ⋮ > محرر النص.',
   ),
+  'word.done': ('Bitti', 'Done', 'تم'),
+  'word.add_paragraph': ('Paragraf ekle', 'Add paragraph', 'إضافة فقرة'),
+  'word.page_layout': ('Sayfa', 'Page', 'صفحة'),
+  'word.mobile_flow': ('Mobil', 'Mobile', 'الجوال'),
+  'word.save_failed': (
+    'Kaydedilemedi: {error}',
+    'Could not save: {error}',
+    'تعذّر الحفظ: {error}',
+  ),
   'word.rtl_document': (
     'Sağdan sola belge',
     'Right-to-left document',
@@ -392,10 +405,10 @@ const Map<String, (String, String, String)> _table = {
     'Selected: {n} cells  ·  Filled: {filled}',
     'المحدد: {n} خلية  ·  المملوءة: {filled}',
   ),
-  'excel.selection_sum': (
-    'Sayı: {count}  ·  Toplam: {sum}',
-    'Count: {count}  ·  Sum: {sum}',
-    'العدد: {count}  ·  المجموع: {sum}',
+  'excel.selection_stats': (
+    'Ortalama: {avg}  ·  Sayı: {count}  ·  Toplam: {sum}',
+    'Average: {avg}  ·  Count: {count}  ·  Sum: {sum}',
+    'المتوسط: {avg}  ·  العدد: {count}  ·  المجموع: {sum}',
   ),
   'excel.csv_encoding': ('CSV kodlaması', 'CSV encoding', 'ترميز CSV'),
   'excel.csv_utf8': ('UTF-8 (önerilir)', 'UTF-8 (recommended)', 'UTF-8 (مستحسن)'),
@@ -411,4 +424,9 @@ const Map<String, (String, String, String)> _table = {
   ),
   'excel.pick_from_list': ('Listeden seç', 'Pick from list', 'اختر من القائمة'),
   'excel.no_sheet': ('Sayfa yok.', 'No sheet.', 'لا توجد ورقة.'),
+  'excel.go': ('Git', 'Go', 'انتقال'),
+  'excel.find_in_sheet': ('Bu sayfada ara', 'Search this sheet', 'ابحث في هذه الورقة'),
+  'excel.hidden': ('Gizli', 'Hidden', 'مخفي'),
+  'excel.unit_chars': ('karakter', 'characters', 'حرفًا'),
+  'excel.unit_points': ('punto', 'points', 'نقطة'),
 };

@@ -163,7 +163,7 @@ void main() {
           .whereType<XmlElement>()
           .map((e) => e.name.local)
           .toList();
-      expect(names.indexOf('cols') >= 0, isTrue);
+      expect(names.contains('cols'), isTrue);
       expect(names.indexOf('cols'), lessThan(names.indexOf('sheetData')));
       expect(_first(root, 'cols')!.children.length, 1);
     });

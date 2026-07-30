@@ -4475,3 +4475,121 @@ Yeni test dosyası: `test/fm_jobs_screen_test.dart` (5 widget testi — sonucun 
 testleriyle büyüdü. Cihazda doğrulanamayan tek şey kodlamanın kendisi (Android
 SDK/telefon yok) — o yüzden süzgeç ve motor sırası saf fonksiyonlara ayrılıp
 testlendi.
+
+---
+
+## 2026-07-30 — İngilizce + Arapça dil desteği; Excel/Word sadakatinde RTL turu
+
+Kullanıcı isteği: *"ingilizce ve Arapça dilleri ekleyelim"*, *"sadakat
+geliştirmelerine devam Excel word özellikle"*. İki iş aynı turda çünkü Arapça
+**yalnız çeviri değil YÖN** demek: Excel'in `rightToLeft` sayfası ve Word'ün
+`w:bidi` paragrafı bizde okunuyordu ama **hiç kullanılmıyordu**.
+
+### A) Dil altyapısı — `lib/core/l10n/`
+- `AppLanguage { system, tr, en, ar }` + `AppStrings` (anahtar → **üç alanlı
+  kayıt** `(tr, en, ar)`), `LocalizationsDelegate`, `context.t('anahtar')`.
+- **Neden üç alanlı kayıt, neden dil başına ayrı `Map` değil:** kayıtta bir
+  dili unutmak **derleme hatası**; üç `Map`te eksik anahtar ancak kullanıcının
+  ekranında (anahtarın kendisi yazılı olarak) fark edilirdi.
+- **Neden `.arb` + `gen_l10n` DEĞİL (reddedilen yol):** üretilen kod CI'da ek
+  bir adım ister; çıktı depoya girmezse APK derlemesi kırılır. Tablo düz Dart,
+  ek araç yok.
+- `flutter_localizations` (SDK) eklendi — Material/Widgets katmanının kendi
+  metinleri ve Arapça'da **sağdan sola akış** oradan geliyor. Çakışma yok:
+  Flutter 3.29.3 `intl 0.20.2` pinliyor, `syncfusion_flutter_pdf` zaten aynı
+  sürümü çekiyordu.
+- **TUZAK — `load()` `async` olursa ekran bir kare BOŞ çizilir.** `Localizations`
+  delege çözülene kadar hiçbir şey çizmiyor; tablo kodda olduğu için
+  `SynchronousFuture` döndürülüyor. İlk yazımda bu yüzden widget testleri
+  "0 widget bulundu" diye düşmüştü — ürün tarafındaki karşılığı dil
+  değiştirmede görünür bir çakma olurdu.
+- `AppState.language` kalıcı (`app_language`); Ayarlar'da seçim. Diller **kendi
+  dillerinde** listeleniyor (Türkçe / English / العربية) — dilini arayan
+  kullanıcı o an anlamadığı bir dilde yazılmış listeyi okuyamaz.
+- Çevrilen ekranlar: **ana ekran, Ayarlar, Excel, Word** (bu turda hedeflenen
+  kapsam). Kalan ekranlar Türkçe — bkz. KALANLAR.
+- Kilit: `test/l10n_test.dart` (10) — üç dilin de dolu olması, **yer
+  tutucuların üç dilde aynı** olması (`{error}`ı bir dilde unutmak o dilde
+  hatayı GİZLER) ve **kodda `\.t('x')` ile çağrılan her anahtarın tabloda
+  bulunması** (lib/ taranıyor; yazım hatası ekranda anahtarın kendisini
+  gösterirdi).
+
+### B) Excel: `excel` paketinin YAZAMADIKLARI geri kondu (`xlsx_save_patch.dart`)
+2026-07-28 §B'de "Kapatılamayan" diye bırakılan gap kapandı. `excel 4.0.6`
+zip'i ürettikten SONRA sayfa XML'i yamalanıyor:
+- **Gizli satır/sütun** — paketin yazma API'sinde karşılığı yok
+  (`_createNewRow` yalnız `r`/`ht`/`customHeight` yazıyor, `<cols>` her
+  kayıtta baştan kuruluyor). Kullanıcı gizlediği sütunu kaydedip Excel'de
+  açtığında sütun geri geliyordu.
+- **Hücresiz satırın yüksekliği** — `<row>` yalnız hücresi olan satır için
+  üretiliyor; ayırıcı boş satırların özel yüksekliği kayboluyordu.
+- **Sayfa yönü** `rightToLeft`.
+- **TUZAK — `Archive.files` DEĞİŞTİRİLEMEZ** (archive 3.6.1): yerinde yazmak
+  `UnmodifiableListMixin` hatası veriyor ve yamadaki `try/catch` bunu sessizce
+  yutup girdiyi aynen döndürüyordu (12 testin 5'i bu yüzden kırmızıydı, hata
+  yama mantığında SANILDI). Çözüm: yeni `Archive` kurup dokunulmayan dosyaları
+  taşımak.
+- **TUZAK — aralıklı `<col min="1" max="10">`:** gerçek dosyalarda tek `<col>`
+  onlarca sütunu kapsıyor; ona `hidden="1"` eklemek **10 sütunu birden**
+  gizlerdi. Aralık üçe bölünüyor (`1-4` · `5-5 hidden` · `6-10`), genişlik üç
+  parçada da korunuyor.
+- **TUZAK — ECMA-376 `CT_Worksheet` çocuk SIRASI zorunlu:** `<cols>`
+  `<sheetData>`dan önce gelmeli, yoksa Excel "onarılamayan içerik" diyor.
+  `_insertOrdered` şema sırasına göre yerleştiriyor.
+- Sayfa adı → `sheetN.xml` eşlemesi **`r:id` üzerinden** çözülüyor; `sheet1.xml`
+  in birinci sayfa olduğu garanti DEĞİL (Excel sayfa silip ekledikçe numaralar
+  karışır).
+- **Bozuk girdide yama ATLANIR, baytlar aynen döner** — kaydetmeyi kırmaktansa
+  yamayı atlamak doğru.
+- Kilit: `test/xlsx_save_patch_test.dart` (12), `XlsxEditor.save` üzerinden
+  gidiş-dönüş dahil.
+
+### C) Excel: dosyadaki sayfa yönü artık ÇİZİLİYOR
+`xlsx_reader` `rightToLeft`i okuyordu, `layout`ta duruyordu, **hiçbir yerde
+kullanılmıyordu** — Arapça/İbranice bir tablo bizde ters (A sütunu solda)
+açılıyordu.
+- Izgara `Directionality` ile sarıldı. `Row`/`SingleChildScrollView` yönü
+  kendiliğinden uyguluyor; **kaydırma konumu her iki yönde de BAŞLANGIÇTAN
+  ölçüldüğü için** sanallaştırma (`cols.startAt`) ve `_ensureVisible`
+  matematiği aynen geçerli kaldı. `_cellAtGlobal` zaten `hitTest` kullanıyor,
+  koordinat çevirisi gerekmedi.
+- **Yön ARAYÜZ DİLİNDEN BAĞIMSIZ:** yön belgenin özelliği. Bu yüzden yön her
+  iki durumda da AÇIKÇA yazılıyor — sarmalayıcı olmasaydı Arapça arayüzde
+  soldan sağa her tablo da ters çizilirdi. (Excel de böyle davranır.)
+- `general` (açık hizalaması olmayan) hücreler aynalanıyor: sağdan sola
+  sayfada **metin sağa / sayı sola**. AÇIK `left`/`right` aynalanmaz.
+- Pinch odağı aynalandı (`focal.dx` daima soldan, kaydırma başlangıçtan).
+- ⋮ menüsüne **Sayfa sağdan sola** anahtarı (Excel'in *Sayfa Düzeni → Sayfayı
+  Sağdan Sola* düğmesi); kaydetmede B'deki yamayla dosyaya yazılıyor.
+- Kilit: `test/spreadsheet_rtl_test.dart` (7).
+
+### D) Word: `w:bidi` okunuyor ve uygulanıyor
+- `DocxParagraph.rtl` (`w:pPr/w:bidi`) ve `DocxEditor.rightToLeft`
+  (`w:sectPr/w:bidi`, yoksa metinli paragrafların **çoğunluğu**).
+- **TUZAK — `findAllElements('w:bidi')` YANLIŞ:** bölüm sonu taşıyan bir `w:p`
+  içinde `w:pPr/w:sectPr/w:bidi` bulunabilir; o BÖLÜMÜN yönüdür. Yalnız
+  `w:pPr`nin doğrudan çocuğu sayılıyor, yoksa soldan sağa paragraf sırf bölüm
+  sonunu taşıdığı için sağa yaslanırdı.
+- Boş paragraflar çoğunluk hesabına GİRMİYOR (Word belgeleri metinsiz
+  paragrafla dolu; sayılsalardı Arapça belge "çoğunluk LTR" görünürdü).
+- Yedek metin editöründe paragraf `Directionality` ile sarılıyor, seçim şeridi
+  ve iç boşluk `BorderDirectional`/`EdgeInsetsDirectional`. Dosyada hizalama
+  **yazmıyorsa** `TextAlign.start` (eskiden koşulsuz `left` → Arapça belgede
+  her paragraf sola yapışıyordu); AÇIK `left`/`right` mutlak kalıyor
+  (`DocxParagraph.hasExplicitAlign`).
+- `viewer.html`: gömülü docx-preview **bölüm düzeyi** `w:bidi`yi yok sayıyor
+  (kendi ayrıştırıcısında `case "bidi": break`) → `setDocDir(rtl)` köprüsü
+  eklendi, `DocxView` çizimden ÖNCE çağırıyor.
+- `viewer.html` font: Carlito/Tinos/Arimo **yalnız Latin-Yunan-Kiril** taşıyor.
+  `unicode-range` olmadan tarayıcı "Calibri" adını görüp bu dosyaları yükler ve
+  Arapça harfleri onlarda arar. Arapça/İbranice aralıkları ayrı `@font-face` ile
+  cihazın kendi fontuna (`local('Noto Naskh Arabic')`) yönlendirildi; metrik
+  uyumu zaten Latin için anlamlı, Arapça'da kayıp yok.
+- Kilit: `test/docx_rtl_test.dart` (9).
+
+### Doğrulama
+Bulut Linux oturumunda Flutter **3.29.3** (CI ile aynı): `flutter analyze`
+**0 hata**, yeni dosyalarda 0 uyarı (39 info/warning eski koddan, baştaki
+sayının aynısı). `flutter test` **921 test geçti** (tur başında 883; yeni 38).
+Cihazda görsel doğrulama YAPILMADI (Android SDK/telefon yok) — Arapça arayüzün
+ve sağdan sola Excel/Word sayfalarının telefonda görünümü KALANLAR'da.
