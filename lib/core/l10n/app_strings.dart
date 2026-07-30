@@ -3157,6 +3157,456 @@ const Map<String, (String, String, String)> _table = {
     '{n} ملف موجود بالفعل في المجلد الصحيح.',
   ),
 
+  // ── AI ile yeniden yaz (metin şeridi) ─────────────────────────────────────
+  'aw.preset_fix': ('Yazımı düzelt', 'Fix the writing', 'صحّح الكتابة'),
+  'aw.preset_fix_prompt': (
+    'Bu metindeki yazım ve dil bilgisi hatalarını düzelt. Anlamı ve üslubu '
+        'koru, uzunluğu mümkün olduğunca aynı tut.',
+    'Fix the spelling and grammar mistakes in this text. Keep the meaning and '
+        'the style, and keep the length as close as possible.',
+    'صحّح الأخطاء الإملائية والنحوية في هذا النص. حافظ على المعنى والأسلوب، '
+        'وأبقِ الطول كما هو قدر الإمكان.',
+  ),
+  'aw.preset_shorten': ('Kısalt', 'Shorten', 'اختصر'),
+  'aw.preset_shorten_prompt': (
+    'Bu metni anlamını kaybetmeden belirgin biçimde kısalt.',
+    'Shorten this text noticeably without losing its meaning.',
+    'اختصر هذا النص بوضوح دون فقدان معناه.',
+  ),
+  'aw.preset_simplify': ('Sadeleştir', 'Simplify', 'بسّط'),
+  'aw.preset_simplify_prompt': (
+    'Bu metni daha anlaşılır ve sade bir dille yeniden yaz.',
+    'Rewrite this text in clearer, plainer language.',
+    'أعِد كتابة هذا النص بلغة أوضح وأبسط.',
+  ),
+  'aw.preset_formal': ('Resmîleştir', 'Make it formal', 'اجعله رسميًا'),
+  'aw.preset_formal_prompt': (
+    'Bu metni resmî yazışma diline uygun hâle getir.',
+    'Rewrite this text in formal correspondence style.',
+    'أعِد كتابة هذا النص بأسلوب المراسلات الرسمية.',
+  ),
+  'aw.prompt': (
+    'Aşağıdaki metni şu yönergeye göre yeniden yaz: "{task}"\n\n{text}\n\n'
+        'ÇOK ÖNEMLİ: yalnızca yeni metni döndür. Açıklama, tırnak, giriş '
+        'cümlesi ya da kod bloğu işareti EKLEME. Metin bir PDF sayfasındaki '
+        'dar bir satıra sığacak; gereksiz uzatma.',
+    'Rewrite the text below according to this instruction: "{task}"\n\n{text}'
+        '\n\nVERY IMPORTANT: return only the new text. Do NOT add explanations, '
+        'quotes, an introductory sentence or code-block markers. The text has '
+        'to fit a narrow line on a PDF page; do not pad it.',
+    'أعِد كتابة النص أدناه وفق هذه التعليمات: "{task}"\n\n{text}\n\n'
+        'مهم جدًا: أعِد النص الجديد فقط. لا تُضِف شروحًا أو علامات اقتباس أو '
+        'جملة تمهيدية أو علامات كتل الشيفرة. سيوضع النص في سطر ضيق داخل صفحة '
+        'PDF؛ فلا تُطِله بلا داعٍ.',
+  ),
+  'aw.hint': (
+    'Örn. “daha kibar bir dille yaz”',
+    'E.g. “write it more politely”',
+    'مثال: «اكتبه بلغة ألطف»',
+  ),
+  'aw.working': ('Çalışıyor…', 'Working…', 'جارٍ العمل…'),
+  'aw.title': ('AI ile düzelt', 'Fix with AI', 'تصحيح بالذكاء الاصطناعي'),
+
+  // ── Klasör kilidi PIN ─────────────────────────────────────────────────────
+  'pin.too_short': (
+    'PIN en az 4 haneli olmalı.',
+    'The PIN must be at least 4 digits.',
+    'يجب أن يتكوّن الرمز من 4 أرقام على الأقل.',
+  ),
+  'pin.mismatch': ('İki PIN aynı değil.', 'The two PINs do not match.', 'الرمزان غير متطابقين.'),
+  'pin.wrong': ('PIN yanlış.', 'Wrong PIN.', 'الرمز غير صحيح.'),
+  'pin.not_encrypted': (
+    'Bu kilit dosyaları ŞİFRELEMEZ: yalnız bu uygulamadaki listelerden gizler. '
+        'Telefon bilgisayara takılırsa ya da başka bir dosya yöneticisi '
+        'kullanılırsa dosyalar görülebilir.',
+    'This lock does NOT encrypt the files: it only hides them from the lists in '
+        'this app. If the phone is plugged into a computer, or another file '
+        'manager is used, the files are visible.',
+    'هذا القفل لا يشفّر الملفات: إنما يخفيها من القوائم داخل هذا التطبيق فقط. '
+        'وإذا وُصل الهاتف بحاسوب أو استُخدم مدير ملفات آخر فستكون الملفات ظاهرة.',
+  ),
+
+  // ── Benzerlik taraması (arka plan) ────────────────────────────────────────
+  'simf.preparing': ('Hazırlanıyor…', 'Preparing…', 'جارٍ التحضير…'),
+  'simf.inspected': (
+    '{n} / {total} dosya incelendi',
+    '{n} / {total} files inspected',
+    'تم فحص {n} / {total} ملف',
+  ),
+  'simf.matching': ('Eşleşmeler çıkarılıyor…', 'Extracting matches…', 'جارٍ استخراج المطابقات…'),
+  'simf.none': ('Benzer dosya bulunamadı', 'No similar files found', 'لم يُعثر على ملفات متشابهة'),
+  'simf.found': (
+    '{n} grup · {size} kazanılabilir',
+    '{n} groups · {size} can be freed',
+    '{n} مجموعة · يمكن تحرير {size}',
+  ),
+
+  // ── AI eylemleri (dosyaya uzun basış) ─────────────────────────────────────
+  'aia.need_key': (
+    'Önce Ayarlar > Gemini API anahtarı bölümünden anahtarınızı girin.',
+    'First enter your key under Settings > Gemini API key.',
+    'أدخل مفتاحك أولًا من الإعدادات > مفتاح Gemini API.',
+  ),
+  'aia.read_failed': (
+    'Belge okunamadı: {error}',
+    'Could not read the document: {error}',
+    'تعذّرت قراءة المستند: {error}',
+  ),
+  'aia.no_text': (
+    'Bu dosyadan özetlenecek metin çıkarılamadı.',
+    'No text could be extracted from this file to summarise.',
+    'تعذّر استخراج نص من هذا الملف لتلخيصه.',
+  ),
+  'aia.summary_prompt': (
+    'Bu belgeyi Türkçe özetle. Biçim:\n'
+        '1) Tek cümlelik "bu ne belgesi" tanımı\n'
+        '2) En fazla 5 madde hâlinde önemli bilgiler (tarih, tutar, taraflar, '
+        'son tarih varsa mutlaka yaz)\n'
+        'Uydurma bilgi ekleme; belgede yoksa yazma.',
+    'Summarise this document in English. Format:\n'
+        '1) A one-sentence "what kind of document is this"\n'
+        '2) At most 5 bullet points with the important facts (always include '
+        'dates, amounts, parties and any deadline)\n'
+        'Do not invent anything; if it is not in the document, leave it out.',
+    'لخّص هذا المستند بالعربية. الصيغة:\n'
+        '1) جملة واحدة تصف «ما نوع هذا المستند»\n'
+        '2) خمس نقاط كحد أقصى بالمعلومات المهمة (اذكر دائمًا التواريخ والمبالغ '
+        'والأطراف وأي موعد نهائي)\n'
+        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
+  ),
+  'aia.summary_failed': (
+    'AI özeti alınamadı: {error}',
+    'Could not get the AI summary: {error}',
+    'تعذّر الحصول على ملخّص الذكاء الاصطناعي: {error}',
+  ),
+  'aia.summary_title': ('AI özeti', 'AI summary', 'ملخّص الذكاء الاصطناعي'),
+  'aia.reading_doc': ('Belge okunuyor…', 'Reading the document…', 'جارٍ قراءة المستند…'),
+  'aia.reading_image': (
+    'Görseldeki metin okunuyor…',
+    'Reading the text in the image…',
+    'جارٍ قراءة النص في الصورة…',
+  ),
+  'aia.ocr_failed': (
+    'Metin tanınamadı: {error}',
+    'Text recognition failed: {error}',
+    'فشل التعرّف على النص: {error}',
+  ),
+  'aia.looks_like': (
+    'Bu bir {type} gibi görünüyor',
+    'This looks like a {type}',
+    'يبدو أن هذا {type}',
+  ),
+  'aia.image_text': ('Görseldeki metin', 'Text in the image', 'النص في الصورة'),
+  'aia.image_no_text': (
+    'Bu görselde okunabilir metin bulunamadı.',
+    'No readable text was found in this image.',
+    'لم يُعثر على نص قابل للقراءة في هذه الصورة.',
+  ),
+  'aia.move_failed': ('Taşınamadı: {error}', 'Could not move it: {error}', 'تعذّر النقل: {error}'),
+  'aia.moved': (
+    '“{name}” → Önemli Dosyalar/{folder}',
+    '“{name}” → Önemli Dosyalar/{folder}',
+    '«{name}» ← Önemli Dosyalar/{folder}',
+  ),
+  'aia.hints': ('İpuçları: {list}', 'Hints: {list}', 'مؤشرات: {list}'),
+  'aia.target_folder': (
+    'Önemli Dosyalar/{folder}',
+    'Önemli Dosyalar/{folder}',
+    'Önemli Dosyalar/{folder}',
+  ),
+
+  // ── İndirilenler ekranı ───────────────────────────────────────────────────
+  'dls.selected': ('{n} dosya seçildi · ', '{n} files selected · ', 'تم تحديد {n} ملف · '),
+  'dls.count_size': ('{n} dosya · {size}', '{n} files · {size}', '{n} ملف · {size}'),
+  'dls.untouched': (
+    '{n} dosya 6 aydır dokunulmamış · ',
+    '{n} files untouched for 6 months · ',
+    '{n} ملف لم يُلمس منذ 6 أشهر · ',
+  ),
+  'dls.last_opened': ('son açılma: {when}', 'last opened: {when}', 'آخر فتح: {when}'),
+
+  // ── Klasör seçici ─────────────────────────────────────────────────────────
+  'fp.create_failed': (
+    'Klasör oluşturulamadı: {error}',
+    'Could not create the folder: {error}',
+    'تعذّر إنشاء المجلد: {error}',
+  ),
+  'fp.no_subfolders': (
+    'Bu klasörde alt klasör yok.\n'
+        'Aşağıdaki düğmeyle buraya koyabilir ya da üstteki “yeni klasör” ile '
+        'bir tane açabilirsiniz.',
+    'This folder has no subfolders.\n'
+        'Use the button below to put it here, or create one with “new folder” '
+        'at the top.',
+    'لا توجد مجلدات فرعية داخل هذا المجلد.\n'
+        'استخدم الزر بالأسفل لوضعه هنا، أو أنشئ مجلدًا عبر «مجلد جديد» بالأعلى.',
+  ),
+  'fp.new_folder_default': ('Yeni klasör', 'New folder', 'مجلد جديد'),
+
+  // ── Etiket seçici ─────────────────────────────────────────────────────────
+  'tp.new_tag': (
+    'Yeni etiket (kişi / grup adı)',
+    'New tag (person / group name)',
+    'وسم جديد (اسم شخص / مجموعة)',
+  ),
+  'tp.new_tag_hint': ('Ayşe, İş grubu, Fatura…', 'Alex, Work group, Invoice…', 'أحمد، مجموعة العمل، فاتورة…'),
+  'tp.partial': ('{tag} (bazısında)', '{tag} (on some)', '{tag} (على بعضها)'),
+  'tp.note': (
+    'Etiket dosyanın içine yazılmaz, uygulamanın kendi kaydında durur. Bu '
+        'uygulamayla taşıdığında, adını değiştirdiğinde ve çöpten geri '
+        'aldığında etiket dosyayla birlikte gider; başka bir uygulamayla '
+        'taşırsan gitmez.',
+    'The tag is not written inside the file; it lives in this app’s own record. '
+        'It follows the file when you move, rename or restore it with this app; '
+        'it does not follow if you move it with another app.',
+    'لا يُكتب الوسم داخل الملف، بل يبقى في سجل التطبيق نفسه. وهو يتبع الملف عند '
+        'نقله أو إعادة تسميته أو استعادته بهذا التطبيق؛ ولا يتبعه إن نقلته '
+        'بتطبيق آخر.',
+  ),
+
+  // ── Video dönüştürme ──────────────────────────────────────────────────────
+  'vt.hw_encoder': ('donanım kodlayıcı', 'hardware encoder', 'مرمّز عتادي'),
+  'vt.sw_encoder': ('yazılım kodlayıcı', 'software encoder', 'مرمّز برمجي'),
+  'vt.sw_encoder_slow': (
+    'yazılım kodlayıcı (yavaş)',
+    'software encoder (slow)',
+    'مرمّز برمجي (بطيء)',
+  ),
+  'vt.fallback_engine': (
+    'yedek motor (kademeli ölçü)',
+    'fallback engine (stepped size)',
+    'محرّك احتياطي (مقاس متدرّج)',
+  ),
+  'vt.fallback_preparing': (
+    'yedek motor hazırlanıyor…',
+    'preparing the fallback engine…',
+    'جارٍ تحضير المحرّك الاحتياطي…',
+  ),
+  'vt.engine_preparing': ('{engine} hazırlanıyor…', 'preparing the {engine}…', 'جارٍ تحضير {engine}…'),
+  'vt.failed': (
+    'Video dönüştürülemedi: {error}',
+    'Could not convert the video: {error}',
+    'تعذّر تحويل الفيديو: {error}',
+  ),
+  'vt.unreadable_output': (
+    'Dönüştürülen video okunamadı (bozuk çıktı) — özgün dosyaya dokunulmadı.',
+    'The converted video could not be read (corrupt output) — the original file '
+        'was left untouched.',
+    'تعذّرت قراءة الفيديو المحوَّل (ناتج تالف) — لم يُمس الملف الأصلي.',
+  ),
+  'vt.truncated': (
+    'Dönüştürme yarıda kalmış: çıktı {out} sn, kaynak {src} sn. Özgün dosyaya '
+        'dokunulmadı.',
+    'The conversion was cut short: the output is {out} s, the source {src} s. '
+        'The original file was left untouched.',
+    'انقطع التحويل: الناتج {out} ثانية والمصدر {src} ثانية. لم يُمس الملف الأصلي.',
+  ),
+  'vt.unsupported': (
+    'Video sıkıştırılamadı (biçim desteklenmiyor olabilir).',
+    'The video could not be compressed (the format may be unsupported).',
+    'تعذّر ضغط الفيديو (قد تكون الصيغة غير مدعومة).',
+  ),
+
+  // ── Çöp kutusu ────────────────────────────────────────────────────────────
+  'tr.restored': (
+    '“{name}” geri yüklendi → {folder}',
+    '“{name}” restored → {folder}',
+    'تمت استعادة «{name}» ← {folder}',
+  ),
+  'tr.delete_body': (
+    '{n} öğe ({size}) kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+    '{n} items ({size}) will be deleted permanently. This cannot be undone.',
+    'سيتم حذف {n} عنصر ({size}) نهائيًا. لا يمكن التراجع عن ذلك.',
+  ),
+  'tr.partial': (
+    '{n} öğe silindi, {fail} öğe silinemedi: {first}',
+    '{n} items deleted, {fail} could not be deleted: {first}',
+    'تم حذف {n} عنصر، وتعذّر حذف {fail}: {first}',
+  ),
+  'tr.cancelled': (
+    'Durduruldu — {n} öğe silindi.',
+    'Stopped — {n} items deleted.',
+    'تم الإيقاف — حُذف {n} عنصر.',
+  ),
+  'tr.emptied': (
+    'Çöp kutusu boşaltıldı · {n} öğe · {size} yer açıldı.',
+    'Trash emptied · {n} items · {size} freed.',
+    'تم تفريغ سلة المهملات · {n} عنصر · تم تحرير {size}.',
+  ),
+  'tr.count_size': ('{n} öğe · {size}', '{n} items · {size}', '{n} عنصر · {size}'),
+
+  // ── Ortak sayaçlar ────────────────────────────────────────────────────────
+  'count.files': ('{n} dosya', '{n} files', '{n} ملف'),
+  'count.files_size': ('{n} dosya · {size}', '{n} files · {size}', '{n} ملف · {size}'),
+  'count.of_files': ('{shown} / {total} dosya', '{shown} / {total} files', '{shown} / {total} ملف'),
+  'count.more_files': ('… ve {n} dosya daha', '… and {n} more files', '… و{n} ملف آخر'),
+
+  // ── Yer açma (onay ve düğme) ──────────────────────────────────────────────
+  'clean.confirm_lead': (
+    '{n} öneri · {size} yer açılacak.\n\n',
+    '{n} suggestions · {size} will be freed.\n\n',
+    '{n} اقتراح · سيتم تحرير {size}.\n\n',
+  ),
+
+  // ── Bellek analizi ────────────────────────────────────────────────────────
+  'an.trend_days': ('Son {n} günde ', 'In the last {n} days ', 'خلال آخر {n} يومًا '),
+  'an.top_growing': (
+    'En çok büyüyen: {category} ',
+    'Growing fastest: {category} ',
+    'الأسرع نموًا: {category} ',
+  ),
+  'an.volume_usage': (
+    '{used} kullanıldı · {free} boş',
+    '{used} used · {free} free',
+    '{used} مستخدَم · {free} حر',
+  ),
+
+  // ── İmza kutusu ───────────────────────────────────────────────────────────
+  'sp.draw': ('İmzanızı çizin', 'Draw your signature', 'ارسم توقيعك'),
+
+  // ── Word sayfa görünümü ───────────────────────────────────────────────────
+  'dv.too_big': (
+    'belge çok büyük ({mb} MB)',
+    'the document is too large ({mb} MB)',
+    'المستند كبير جدًا ({mb} ميغابايت)',
+  ),
+  'dv.fallback': (
+    'Sayfa görünümü açılamadı: {error}\n\nMetin düzenleyiciye geçiliyor.',
+    'Could not open the page view: {error}\n\nSwitching to the text editor.',
+    'تعذّر فتح عرض الصفحة: {error}\n\nيجري التحويل إلى محرّر النصوص.',
+  ),
+
+  // ── Arşiv parolası ────────────────────────────────────────────────────────
+  'ap.title': ('Arşiv parolası', 'Archive password', 'كلمة مرور الأرشيف'),
+  'ap.wrong': (
+    'Parola yanlış. Tekrar deneyin.',
+    'Wrong password. Try again.',
+    'كلمة المرور خاطئة. حاول مجددًا.',
+  ),
+  'ap.body': (
+    'Bu arşiv parola korumalı.',
+    'This archive is password-protected.',
+    'هذا الأرشيف محمي بكلمة مرور.',
+  ),
+
+  // ── İş şeridi ─────────────────────────────────────────────────────────────
+  'jp.cancel': ('İptal', 'Cancel', 'إلغاء'),
+  'jp.show': ('Göster', 'Show', 'عرض'),
+
+  // ── Firebase / giriş ──────────────────────────────────────────────────────
+  'fb.sign_in_cancelled': (
+    'Google girişi iptal edildi.',
+    'Google sign-in was cancelled.',
+    'أُلغي تسجيل الدخول عبر Google.',
+  ),
+  'fb.not_configured': (
+    'Firebase yapılandırılmamış. Ayarlar’daki kurulum adımlarını izleyin.',
+    'Firebase is not configured. Follow the setup steps in Settings.',
+    'لم يُهيّأ Firebase. اتبع خطوات الإعداد في الإعدادات.',
+  ),
+
+  // ── İndirme bildirimi ─────────────────────────────────────────────────────
+  'dsv.downloading': ('İndiriliyor…', 'Downloading…', 'جارٍ التنزيل…'),
+  'dsv.downloaded': ('İndirildi', 'Downloaded', 'تم التنزيل'),
+  'dsv.paused': ('Duraklatıldı', 'Paused', 'متوقف مؤقتًا'),
+  'dsv.failed': ('İndirilemedi', 'Download failed', 'فشل التنزيل'),
+  'dsv.start_failed': (
+    'İndirme başlatılamadı',
+    'Could not start the download',
+    'تعذّر بدء التنزيل',
+  ),
+
+  // ── Sunum ─────────────────────────────────────────────────────────────────
+  'ss.exit': ('Çık', 'Exit', 'خروج'),
+  'ss.step': (
+    '{n} / {total}  ·  adım {step}/{max}',
+    '{n} / {total}  ·  step {step}/{max}',
+    '{n} / {total}  ·  الخطوة {step}/{max}',
+  ),
+  'ss.no_text': ('(Metin yok)', '(No text)', '(لا يوجد نص)'),
+
+  // ── Kurulu uygulamalar ────────────────────────────────────────────────────
+  'ia.permission_hint': (
+    'Açılan ayar sayfasından “Dosya Okuyucu”ya izin verip geri dönün, '
+        'sonra yenileyin.',
+    'Grant permission to “Dosya Okuyucu” on the settings page that opens, come '
+        'back, then refresh.',
+    'امنح الإذن لـ «Dosya Okuyucu» في صفحة الإعدادات التي تُفتح، ثم عُد وحدّث.',
+  ),
+
+  // ── Boyut düşürme işi ─────────────────────────────────────────────────────
+  'ra.media_only': (
+    'Boyut düşürme yalnız fotoğraf ve videolarda yapılabilir.',
+    'Reducing size only works on photos and videos.',
+    'تصغير الحجم متاح للصور والفيديوهات فقط.',
+  ),
+  'ra.job_one': (
+    'Boyut düşürülüyor: {name}',
+    'Reducing the size of: {name}',
+    'جارٍ تصغير حجم: {name}',
+  ),
+  'ra.job_many': (
+    '{n} dosyanın boyutu düşürülüyor',
+    'Reducing the size of {n} files',
+    'جارٍ تصغير حجم {n} ملف',
+  ),
+  'ra.already_running': (
+    'Bu işlem zaten sürüyor. Durumu alttaki şeritten ya da “İşlemler” '
+        'ekranından izleyebilirsin.',
+    'This job is already running. You can follow it from the bar below or the '
+        '“Jobs” screen.',
+    'هذه العملية جارية بالفعل. يمكنك متابعتها من الشريط بالأسفل أو من شاشة '
+        '«العمليات».',
+  ),
+  'ra.queued': (
+    'İşlem kuyruğa alındı; süren iş bitince başlayacak. Durumu “İşlemler” '
+        'ekranından izleyebilirsin.',
+    'The job is queued; it starts when the running one finishes. You can follow '
+        'it from the “Jobs” screen.',
+    'أُضيفت العملية إلى الطابور؛ وستبدأ عند انتهاء العملية الجارية. يمكنك '
+        'متابعتها من شاشة «العمليات».',
+  ),
+  'ra.started': (
+    'İşlem arka planda başladı. Durumu ve oluşan dosyaları alttaki şeritten ya '
+        'da “İşlemler” ekranından görebilirsin.',
+    'The job started in the background. You can see its status and the files it '
+        'creates from the bar below or the “Jobs” screen.',
+    'بدأت العملية في الخلفية. يمكنك رؤية حالتها والملفات الناتجة من الشريط '
+        'بالأسفل أو من شاشة «العمليات».',
+  ),
+  'ra.saved_bytes': ('{size} kazanıldı', '{size} saved', 'تم توفير {size}'),
+  'ra.no_gain': ('Kazanç olmadı', 'No gain', 'لا مكسب'),
+  'ra.saved_into': ('Kaydedildi: {name}', 'Saved to: {name}', 'حُفظ في: {name}'),
+  'ra.stopped_at': (
+    'durduruldu ({n}/{total})',
+    'stopped ({n}/{total})',
+    'تم الإيقاف ({n}/{total})',
+  ),
+  'ra.saved_to': (
+    '{n} klasöre kaydedildi',
+    'Saved into {n} folders',
+    'حُفظت في {n} مجلد',
+  ),
+  'ra.failed_count': (
+    '{n} dosya küçültülemedi',
+    '{n} files could not be shrunk',
+    'تعذّر تصغير {n} ملف',
+  ),
+  'ra.originals_trashed': (
+    '{n} özgün çöp kutusunda',
+    '{n} originals in the trash',
+    '{n} ملف أصلي في سلة المهملات',
+  ),
+  'ra.frame_losing_kept': (
+    '{n} hareketli/çok sayfalı dosyanın aslı korundu',
+    'the originals of {n} animated/multi-page files were kept',
+    'تم الإبقاء على أصول {n} ملف متحرك/متعدد الصفحات',
+  ),
+
+  // ── İlerleme penceresi ────────────────────────────────────────────────────
+  'pd.preparing': ('Hazırlanıyor…', 'Preparing…', 'جارٍ التحضير…'),
+  'pd.cancel': ('İptal', 'Cancel', 'إلغاء'),
+
   // ── Arka plandaki iş kuyruğu / bildirimler ────────────────────────────────
   'job.error_generic': ('Bir hata oluştu.', 'Something went wrong.', 'حدث خطأ.'),
   'job.finished': ('Tamamlandı.', 'Completed.', 'اكتمل.'),

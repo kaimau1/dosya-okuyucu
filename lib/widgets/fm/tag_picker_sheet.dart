@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_tags.dart';
 
@@ -118,10 +119,10 @@ class _TagSheetState extends State<_TagSheet> {
                           child: TextField(
                             controller: _controller,
                             textInputAction: TextInputAction.done,
-                            decoration: const InputDecoration(
-                              labelText: 'Yeni etiket (kişi / grup adı)',
-                              hintText: 'Ayşe, İş grubu, Fatura…',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: context.t('tp.new_tag'),
+                              hintText: context.t('tp.new_tag_hint'),
+                              border: const OutlineInputBorder(),
                             ),
                             onSubmitted: (_) => _addNew(),
                           ),
@@ -146,7 +147,7 @@ class _TagSheetState extends State<_TagSheet> {
                           for (final tag in all)
                             FilterChip(
                               label: Text(partial.contains(tag)
-                                  ? '$tag (bazısında)'
+                                  ? context.t('tp.partial', {'tag': tag})
                                   : tag),
                               selected: common.contains(tag),
                               onSelected: (v) => _toggle(tag, v),
@@ -156,11 +157,7 @@ class _TagSheetState extends State<_TagSheet> {
                     ],
                     const SizedBox(height: Gap.md),
                     Text(
-                      'Etiket dosyanın içine yazılmaz, uygulamanın kendi '
-                      'kaydında durur. Bu uygulamayla taşıdığında, adını '
-                      'değiştirdiğinde ve çöpten geri aldığında etiket '
-                      'dosyayla birlikte gider; başka bir uygulamayla '
-                      'taşırsan gitmez.',
+                      context.t('tp.note'),
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: Gap.md),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
@@ -32,16 +33,17 @@ const _maxAiChars = 12000;
 /// Belgeyi AI ile özetler ve sonucu bir sayfada gösterir.
 Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
   final appState = context.read<AppState>();
+  // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+  final str = AppStrings.of(context);
   if (!appState.hasApiKey) {
-    _snack(context,
-        'Önce Ayarlar > Gemini API anahtarı bölümünden anahtarınızı girin.');
+    _snack(context, str.t('aia.need_key'));
     return;
   }
 
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const _Busy('Belge okunuyor…'),
+    builder: (_) => _Busy(str.t('aia.reading_doc')),
   );
 
   String text;
@@ -53,14 +55,14 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
     }
   } catch (e) {
     if (context.mounted) Navigator.pop(context);
-    if (context.mounted) _snack(context, 'Belge okunamadı: $e');
+    if (context.mounted) _snack(context, str.t('aia.read_failed', {'error': e}));
     return;
   }
 
   if (text.trim().length < 20) {
     if (context.mounted) Navigator.pop(context);
     if (context.mounted) {
-      _snack(context, 'Bu dosyadan özetlenecek metin çıkarılamadı.');
+      _snack(context, str.t('aia.no_text'));
     }
     return;
   }
@@ -75,18 +77,16 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
       history: [
         ChatTurn(
           fromUser: true,
-          text: 'Bu belgeyi Türkçe özetle. Biçim:\n'
-              '1) Tek cümlelik "bu ne belgesi" tanımı\n'
-              '2) En fazla 5 madde hâlinde önemli bilgiler '
-              '(tarih, tutar, taraflar, son tarih varsa mutlaka yaz)\n'
-              'Uydurma bilgi ekleme; belgede yoksa yazma.',
+          text: str.t('aia.summary_prompt'),
         ),
       ],
       fileContext: trimmed,
     );
   } catch (e) {
     if (context.mounted) Navigator.pop(context);
-    if (context.mounted) _snack(context, 'AI özeti alınamadı: $e');
+    if (context.mounted) {
+      _snack(context, str.t('aia.summary_failed', {'error': e}));
+    }
     return;
   }
 
@@ -102,7 +102,7 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
     isScrollControlled: true,
     builder: (ctx) => _ResultSheet(
       entry: entry,
-      title: 'AI özeti',
+      title: str.t('aia.summary_title'),
       body: summary,
       guess: guess.isConfident ? guess : null,
     ),
@@ -111,10 +111,12 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
 
 /// Görselden metni tanır (OCR), türünü tahmin eder ve klasörleme önerir.
 Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
+  // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+  final str = AppStrings.of(context);
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const _Busy('Görseldeki metin okunuyor…'),
+    builder: (_) => _Busy(str.t('aia.reading_image')),
   );
 
   String text;
@@ -122,7 +124,7 @@ Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
     text = await OcrService.recognizeImageFile(entry.path);
   } catch (e) {
     if (context.mounted) Navigator.pop(context);
-    if (context.mounted) _snack(context, 'Metin tanınamadı: $e');
+    if (context.mounted) _snack(context, str.t('aia.ocr_failed', {'error': e}));
     return;
   }
   if (!context.mounted) return;
@@ -137,11 +139,10 @@ Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
     builder: (ctx) => _ResultSheet(
       entry: entry,
       title: guess.isConfident
-          ? 'Bu bir ${guess.type.label.toLowerCase()} gibi görünüyor'
-          : 'Görseldeki metin',
-      body: text.trim().isEmpty
-          ? 'Bu görselde okunabilir metin bulunamadı.'
-          : text.trim(),
+          ? str.t('aia.looks_like',
+              {'type': str.t(guess.type.labelKey).toLowerCase()})
+          : str.t('aia.image_text'),
+      body: text.trim().isEmpty ? str.t('aia.image_no_text') : text.trim(),
       guess: guess.isConfident ? guess : null,
     ),
   );
@@ -155,6 +156,8 @@ Future<bool> fileIntoSuggestedFolder(
 ) async {
   final dest =
       p.join(ImportantScreen.pathIn(FmEnv.primaryRoot), type.folder);
+  // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+  final str = AppStrings.of(context);
   try {
     final dir = Directory(dest);
     if (!dir.existsSync()) await dir.create(recursive: true);
@@ -163,12 +166,13 @@ Future<bool> fileIntoSuggestedFolder(
     _snack(
       context,
       result.hasError
-          ? 'Taşınamadı: ${result.errors.first}'
-          : '“${entry.name}” → Önemli Dosyalar/${type.folder}',
+          ? str.t('aia.move_failed', {'error': result.errors.first})
+          : str.t('aia.moved',
+              {'name': entry.name, 'folder': type.folder}),
     );
     return result.succeeded > 0;
   } catch (e) {
-    if (context.mounted) _snack(context, 'Taşınamadı: $e');
+    if (context.mounted) _snack(context, str.t('aia.move_failed', {'error': e}));
     return false;
   }
 }
@@ -242,7 +246,8 @@ class _ResultSheet extends StatelessWidget {
                     // Kanıt gösterilir: "neden fatura dedi?" sorusu
                     // cevapsız kalmasın.
                     Text(
-                      'İpuçları: ${g.matched.take(5).join(", ")}',
+                      context.t('aia.hints',
+                          {'list': g.matched.take(5).join(', ')}),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: Gap.sm),
@@ -258,7 +263,8 @@ class _ResultSheet extends StatelessWidget {
                               }
                             },
                             icon: const Icon(Icons.drive_file_move_outline),
-                            label: Text('Önemli Dosyalar/${g.type.folder}'),
+                            label: Text(context.t('aia.target_folder',
+                                {'folder': g.type.folder})),
                           ),
                         ),
                       ],

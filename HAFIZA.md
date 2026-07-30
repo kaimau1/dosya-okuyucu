@@ -4865,3 +4865,37 @@ kullanıcıya "sunucuya yüklensin mi?" diye soruluyor.
 - Görüntüleyici çağrısı `openLocalFile` kancasına alındı (testte gerçek
   görüntüleyici açılamıyor). Kilit: 3 test — değişmemişse SORULMAZ,
   "şimdilik yükleme" YÜKLEMEZ, "Yükle" doğru yola/ada/içerikle yükler.
+
+## 2026-07-30 — Arayüz çevirisi tamamlandı (tr/en/ar)
+
+- **Kalan ~460 dizgi çevrildi**; uygulamada Türkçe sabit kullanıcı metni kalmadı.
+- **Saf Dart modeller `AppStrings`'i tanıyamaz** (Flutter importu yok, birim testli
+  kalsınlar diye). Çözüm: her enum uzantısına `labelKey` / `descriptionKey`;
+  metin tek yerde `app_strings.dart` tablosunda, ekran `context.t(x.labelKey)` der.
+- **`label` Türkçe bırakıldı — bilinçli.** İki yerde diske/kayda yazılıyor:
+  `auto_organize` klasör adı üretiyor ve `op_history` eski özetleri saklıyor.
+  Çevrilseydi dil değişince diskteki klasör adları değişir, geçmiş kayıtları
+  tutarsızlaşırdı.
+- **`AppStrings.current`** eklendi: bildirim, iş kuyruğu, `dart:io` katmanı gibi
+  `BuildContext`siz yerler için. Delegate her `load`ta günceller. Arayüzde
+  KULLANILMAZ — orada `context.t`, çünkü test/önizlemede ayrı dil kurulabilir.
+- **AI istemleri de çevriliyor** (chat hızlı komutları, `pdf_ai_edit`,
+  `ai_rewrite_sheet`, `ai_actions` özet istemi). Yoksa Arapça arayüzde Türkçe
+  istem gidiyordu. Desen: `(etiketAnahtarı, istemAnahtarı)` çifti.
+- **Çevrilmeyecekler (tuzak):**
+  - `batchRenamePresets` kalıpları — `{ad} {n} {n2} {tarih} {uzanti}`
+    `applyBatchRename`in sözleşmesi ve birim testli; çevrilirse eşleşme
+    SESSİZCE bozulur. Yalnız etiket çevrildi.
+  - `ImportantScreen.folderName` ve `downloadsPathIn` aday listesindeki
+    `'İndirilenler'` — diskteki KLASÖR ADLARI.
+  - `formula_engine` fonksiyon adları (TOPLA, EĞER…) — Excel formül dili.
+  - Bildirim kanalı adı (`job_notifications._channelName`) — Android kanalı bir
+    kez kaydediliyor, sonradan değişmesi kullanıcıya iki kanal gösterirdi.
+- `cleanup_advisor` saf fonksiyon kaldı: `CleanupSuggestion` artık `title`/`detail`
+  yerine `titleKey`/`detailKey` + `detailVars` taşıyor.
+- **Sık tekrarlayan iki derleme hatası** (toplu değiştirmede): `const Text(context.t(…))`
+  → `const` kaldır; `use_build_context_synchronously` → metinleri `await`ten ÖNCE
+  `AppStrings.of(context)` ile yakala (ya da kuyruğa giren işte `AppStrings.current`).
+
+Doğrulama: `flutter analyze` 0 hata (21 uyarı = değişmeyen taban), `flutter test`
+**1017 test geçti**.

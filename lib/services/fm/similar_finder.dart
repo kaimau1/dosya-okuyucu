@@ -1,4 +1,7 @@
+import '../../core/l10n/app_language.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
+import 'fs_scan.dart';
 import 'image_hash.dart';
 import 'job_queue.dart';
 import 'media_fingerprint.dart';
@@ -41,10 +44,14 @@ abstract final class SimilarFinder {
   /// [entries] içindeki benzer kümeleri döndürür.
   ///
   /// [handle] verilirse ilerleme bildirilir ve iptal isteği yoklanır.
+  ///
+  /// [strings]: bu dosya saf servis katmanı, `BuildContext` almıyor; ilerleme
+  /// metinleri çağıranın verdiği tablodan çözülür.
   static Future<List<SimilarGroup>> run(
     List<FsEntry> entries, {
     SimilarityLevel level = SimilarityLevel.normal,
     JobHandle? handle,
+    AppStrings strings = const AppStrings(AppLanguage.tr),
   }) async {
     final files = [
       for (final e in entries)
@@ -52,7 +59,7 @@ abstract final class SimilarFinder {
             (e.category == FmCategory.image || e.category == FmCategory.video))
           e,
     ];
-    handle?.report(done: 0, total: files.length, detail: 'Hazırlanıyor…');
+    handle?.report(done: 0, total: files.length, detail: strings.t('simf.preparing'));
 
     final hashes = <int>[];
     final hashed = <FsEntry>[];
@@ -65,12 +72,13 @@ abstract final class SimilarFinder {
       }
       handle?.report(
         done: i + 1,
-        detail: '${i + 1} / ${files.length} dosya incelendi',
+        detail: strings
+            .t('simf.inspected', {'n': i + 1, 'total': files.length}),
       );
     }
     await MediaFingerprint.flush();
     handle?.throwIfCancelled();
-    handle?.report(detail: 'Eşleşmeler çıkarılıyor…');
+    handle?.report(detail: strings.t('simf.matching'));
 
     final indexGroups =
         groupSimilar(hashes, maxDistance: level.maxDistance);
@@ -86,8 +94,12 @@ abstract final class SimilarFinder {
     groups.sort((a, b) => b.wastedBytes.compareTo(a.wastedBytes));
     handle?.report(
       detail: groups.isEmpty
-          ? 'Benzer dosya bulunamadı'
-          : '${groups.length} benzer grup bulundu',
+          ? strings.t('simf.none')
+          : strings.t('sim.groups_summary', {
+              'n': groups.length,
+              'size': FsPaths.humanSize(
+                  groups.fold<int>(0, (sum, g) => sum + g.wastedBytes)),
+            }),
     );
     return groups;
   }

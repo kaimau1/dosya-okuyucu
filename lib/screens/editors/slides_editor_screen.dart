@@ -440,7 +440,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   /// Çizim yapılamadıysa (bozuk/desteklenmeyen slayt) düz metin listesi.
   Widget _fallbackText(PptxSlide slide) {
     if (slide.paragraphs.isEmpty) {
-      return const Center(child: Text('(Metin yok)'));
+      return Center(child: Text(context.t('ss.no_text')));
     }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

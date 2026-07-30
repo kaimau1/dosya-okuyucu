@@ -1,3 +1,4 @@
+import '../core/l10n/app_strings.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -165,7 +166,8 @@ class DocxViewState extends State<DocxView> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'belge çok büyük (${(widget.bytes.length / 1048576).round()} MB)';
+        _error = AppStrings.current.t('dv.too_big',
+            {'mb': (widget.bytes.length / 1048576).round()});
       });
       widget.onStatus?.call(false);
       return;
@@ -190,8 +192,7 @@ class DocxViewState extends State<DocxView> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                'Sayfa görünümü açılamadı: $_error\n\n'
-                'Metin düzenleyiciye geçiliyor.',
+                context.t('dv.fallback', {'error': _error}),
                 textAlign: TextAlign.center,
               ),
             ),

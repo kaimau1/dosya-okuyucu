@@ -309,9 +309,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     onChanged: (v) => setState(() =>
                         _options = _options.copyWith(replaceOriginal: v)),
                     title: Text(context.t('rs.trash_original')),
-                    subtitle: const Text(
-                        'Kapalıyken küçültülmüş kopya aynı klasöre yeni bir '
-                        'dosya olarak yazılır, aslına dokunulmaz.'),
+                    subtitle: Text(context.t('rs.trash_original_sub')),
                   ),
                   const SizedBox(height: Gap.sm),
                   Text(

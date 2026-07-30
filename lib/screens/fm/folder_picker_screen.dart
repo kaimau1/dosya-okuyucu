@@ -120,7 +120,9 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Klasör oluşturulamadı: $e')));
+          .showSnackBar(SnackBar(
+              content: Text(
+                  AppStrings.current.t('fp.create_failed', {'error': e}))));
     }
   }
 
@@ -191,7 +193,9 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Klasör oluşturulamadı: $e')));
+            .showSnackBar(SnackBar(
+                content: Text(
+                    AppStrings.current.t('fp.create_failed', {'error': e}))));
         return;
       }
     }
@@ -324,13 +328,11 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       );
     }
     if (_dirs.isEmpty && !_loading) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(Gap.lg),
+          padding: const EdgeInsets.all(Gap.lg),
           child: Text(
-            'Bu klasörde alt klasör yok.\n'
-            'Aşağıdaki düğmeyle buraya koyabilir ya da üstteki '
-            '“yeni klasör” ile bir tane açabilirsiniz.',
+            context.t('fp.no_subfolders'),
             textAlign: TextAlign.center,
           ),
         ),

@@ -210,7 +210,9 @@ class _JobCard extends StatelessWidget {
         if (outputs.length > _maxListed)
           Padding(
             padding: const EdgeInsets.only(top: Gap.xs),
-            child: Text('… ve ${outputs.length - _maxListed} dosya daha',
+            child: Text(
+                context.t('count.more_files',
+                    {'n': outputs.length - _maxListed}),
                 style: theme.textTheme.bodySmall),
           ),
       ],
@@ -230,7 +232,9 @@ class _JobCard extends StatelessWidget {
     final folder = p.basename(p.dirname(path));
     try {
       final file = File(path);
-      if (!file.existsSync()) return 'Dosya bulunamadı · $folder';
+      if (!file.existsSync()) {
+        return AppStrings.current.t('jb.file_missing', {'folder': folder});
+      }
       return '${FsPaths.humanSize(file.lengthSync())} · $folder';
     } catch (_) {
       return folder;

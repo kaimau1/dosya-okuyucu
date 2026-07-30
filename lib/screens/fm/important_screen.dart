@@ -274,7 +274,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   title: Text(f.name,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text(
-                    '${_countIn(f.path)} dosya · '
+                    '${context.t('count.files', {'n': _countIn(f.path)})} · '
                     '${FsPaths.humanSize(_bytesIn(f.path))}',
                   ),
                   trailing: const Icon(Icons.chevron_right),
@@ -319,7 +319,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${_files.length} dosya · '
+                      '${context.t('count.files', {'n': _files.length})} · '
                       '${FsPaths.humanSize(_files.fold<int>(0, (s, f) => s + f.sizeBytes))}',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),

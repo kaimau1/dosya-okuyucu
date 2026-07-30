@@ -54,10 +54,8 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
     final granted = await InstalledAppsService.requestUsagePermission();
     if (!mounted) return;
     if (!granted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Açılan ayar sayfasından “Dosya Okuyucu”ya izin verip geri dönün, '
-            'sonra tekrar deneyin.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.t('ia.permission_hint')),
       ));
     }
     await _load();

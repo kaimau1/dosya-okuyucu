@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../services/fm/folder_lock.dart';
@@ -59,11 +60,11 @@ class _PinDialogState extends State<_PinDialog> {
     final pin = _first.text.trim();
     if (widget.setup) {
       if (pin.length < 4) {
-        setState(() => _error = 'PIN en az 4 haneli olmalı.');
+        setState(() => _error = context.t('pin.too_short'));
         return;
       }
       if (pin != _second.text.trim()) {
-        setState(() => _error = 'İki PIN aynı değil.');
+        setState(() => _error = context.t('pin.mismatch'));
         return;
       }
       await appState.setFmLockPin(pin);
@@ -73,7 +74,7 @@ class _PinDialogState extends State<_PinDialog> {
     if (FolderLock.verify(pin, appState.fmLockPinHash)) {
       Navigator.pop(context, true);
     } else {
-      setState(() => _error = 'PIN yanlış.');
+      setState(() => _error = context.t('pin.wrong'));
     }
   }
 
@@ -104,9 +105,7 @@ class _PinDialogState extends State<_PinDialog> {
               ),
               const SizedBox(height: Gap.sm),
               Text(
-                'Bu kilit dosyaları ŞİFRELEMEZ: yalnız bu uygulamadaki '
-                'listelerden gizler. Telefon bilgisayara takılırsa ya da başka '
-                'bir dosya yöneticisi kullanılırsa dosyalar görülebilir.',
+                context.t('pin.not_encrypted'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -120,8 +119,9 @@ class _PinDialogState extends State<_PinDialog> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Vazgeç')),
-          FilledButton(onPressed: _submit, child: const Text('Tamam')),
+              child: Text(context.t('common.cancel'))),
+          FilledButton(
+              onPressed: _submit, child: Text(context.t('common.ok'))),
         ],
       );
 }

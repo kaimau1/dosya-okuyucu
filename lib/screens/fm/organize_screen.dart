@@ -218,7 +218,8 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                       leading:
                           const Icon(Icons.folder, color: FmColors.folder),
                       title: Text(entry.key),
-                      trailing: Text('${entry.value} dosya'),
+                      trailing: Text(
+                          context.t('count.files', {'n': entry.value})),
                     ),
                 ],
               ],

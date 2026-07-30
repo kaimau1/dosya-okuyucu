@@ -169,7 +169,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Temizlensin mi?'),
         content: Text(
-          '${chosen.length} öneri · ${FsPaths.humanSize(total)} yer açılacak.\n\n'
+          '${context.t('clean.confirm_lead', {
+                'n': chosen.length,
+                'size': FsPaths.humanSize(total),
+              })}'
           'Dosyalar çöp kutusuna taşınır (ayarlarda kapatılmadıysa), '
           'oradan geri alabilirsiniz.',
         ),
@@ -325,7 +328,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 if (s.files.length > 20)
                   ListTile(
                     dense: true,
-                    title: Text('… ve ${s.files.length - 20} dosya daha'),
+                    title: Text(context
+                        .t('count.more_files', {'n': s.files.length - 20})),
                   ),
               ],
             ),

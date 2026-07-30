@@ -499,7 +499,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         icon: Icons.history,
         color: const Color(0xFF8D6E63),
         label: 'Yeni Dosyalar',
-        subtitle: '${_index.recent.length} dosya',
+        subtitle: context.t('count.files', {'n': _index.recent.length}),
         onTap: () => _push(CategoryScreen(
           title: 'Yeni Dosyalar',
           files: _index.recent,
@@ -745,7 +745,7 @@ class _NewFolderDialog extends StatefulWidget {
 }
 
 class _NewFolderDialogState extends State<_NewFolderDialog> {
-  final _controller = TextEditingController(text: 'Yeni klasör');
+  final _controller = TextEditingController();
   late String _parent = widget.locations.first.path;
 
   @override

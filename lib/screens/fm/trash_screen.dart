@@ -57,7 +57,8 @@ class _TrashScreenState extends State<TrashScreen> {
     try {
       final target = await FmEnv.trash.restore(item);
       if (!mounted) return;
-      _snack('“${item.name}” geri yüklendi → ${target.split('/').last}');
+      _snack(context.t('tr.restored',
+          {'name': item.name, 'folder': target.split('/').last}));
     } catch (e) {
       _snack(context.t('trash.restore_failed', {'error': e}));
     }
@@ -100,8 +101,8 @@ class _TrashScreenState extends State<TrashScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.t('trash.empty_confirm_title')),
-        content: Text('$count öğe (${FsPaths.humanSize(total)}) kalıcı olarak '
-            'silinecek. Bu işlem geri alınamaz.'),
+        content: Text(ctx.t('tr.delete_body',
+            {'n': count, 'size': FsPaths.humanSize(total)})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -117,6 +118,8 @@ class _TrashScreenState extends State<TrashScreen> {
     // çıkmış olabilir. Messenger'ı ŞİMDİ yakalıyoruz: MaterialApp seviyesindeki
     // örnek ekrandan bağımsız yaşar, sonuç mesajı nerede olursa olsun görünür.
     final messenger = ScaffoldMessenger.of(context);
+    // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
+    final str = AppStrings.of(context);
     final result = await showFmProgress<FmOpResult>(
       context,
       title: context.t('trash.emptying'),
@@ -125,13 +128,16 @@ class _TrashScreenState extends State<TrashScreen> {
     );
     final String message;
     if (result.hasError) {
-      message = '${result.succeeded} öğe silindi, '
-          '${result.errors.length} öğe silinemedi: ${result.errors.first}';
+      message = str.t('tr.partial', {
+        'n': result.succeeded,
+        'fail': result.errors.length,
+        'first': result.errors.first,
+      });
     } else if (result.cancelled) {
-      message = 'Durduruldu — ${result.succeeded} öğe silindi.';
+      message = str.t('tr.cancelled', {'n': result.succeeded});
     } else {
-      message = 'Çöp kutusu boşaltıldı · ${result.succeeded} öğe · '
-          '${FsPaths.humanSize(total)} yer açıldı.';
+      message = str.t('tr.emptied',
+          {'n': result.succeeded, 'size': FsPaths.humanSize(total)});
     }
     messenger.showSnackBar(SnackBar(content: Text(message)));
     if (mounted) _load();
@@ -190,9 +196,14 @@ class _TrashScreenState extends State<TrashScreen> {
                           const Icon(Icons.delete_sweep_outlined),
                           const SizedBox(width: Gap.sm),
                           Text(_query.trim().isEmpty
-                              ? '${_items.length} öğe · '
-                                  '${FsPaths.humanSize(total)}'
-                              : context.t('trash.filtered', {'n': shown.length, 'total': _items.length})),
+                              ? context.t('tr.count_size', {
+                                  'n': _items.length,
+                                  'size': FsPaths.humanSize(total),
+                                })
+                              : context.t('trash.filtered', {
+                                  'n': shown.length,
+                                  'total': _items.length,
+                                })),
                         ],
                       ),
                     ),

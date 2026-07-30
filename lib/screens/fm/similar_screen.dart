@@ -137,6 +137,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
           files,
           level: level,
           handle: handle,
+          strings: strings,
         );
         handle.result = groups;
       },

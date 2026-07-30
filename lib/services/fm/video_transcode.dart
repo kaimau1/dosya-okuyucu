@@ -1,3 +1,4 @@
+import '../../core/l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -114,7 +115,8 @@ abstract final class VideoTranscoder {
     // Ölçü hiç okunamadıysa FFmpeg'e verilecek hedef de yok → tek seçenek
     // kademeli yedek motor.
     if (size == null) {
-      handle?.report(detail: _line(progressPrefix, ['yedek motor hazırlanıyor…']));
+      handle?.report(detail: _line(
+          progressPrefix, [AppStrings.current.t('vt.fallback_preparing')]));
       try {
         return await _presetPass(
           path,
@@ -158,7 +160,7 @@ abstract final class VideoTranscoder {
     //    istenen ölçüyü veremez, yazılım kodlayıcı verir.
     final attempts = <({String label, Future<ResizeResult> Function() run})>[
       (
-        label: 'donanım kodlayıcı',
+        label: AppStrings.current.t('vt.hw_encoder'),
         run: () => _ffmpegPass(
               path: path,
               options: options,
@@ -169,7 +171,7 @@ abstract final class VideoTranscoder {
               handle: handle,
               sourceDurationMs: sourceDurationMs,
               encoders: const ['h264_mediacodec'],
-              engineLabel: 'donanım kodlayıcı',
+              engineLabel: AppStrings.current.t('vt.hw_encoder'),
               progressPrefix: progressPrefix,
             ),
       ),
@@ -177,7 +179,7 @@ abstract final class VideoTranscoder {
           path, options, target, before, size, handle, sourceDurationMs,
           progressPrefix),
       (
-        label: 'yazılım kodlayıcı',
+        label: AppStrings.current.t('vt.sw_encoder'),
         run: () => _ffmpegPass(
               path: path,
               options: options,
@@ -188,7 +190,7 @@ abstract final class VideoTranscoder {
               handle: handle,
               sourceDurationMs: sourceDurationMs,
               encoders: const ['mpeg4'],
-              engineLabel: 'yazılım kodlayıcı (yavaş)',
+              engineLabel: AppStrings.current.t('vt.sw_encoder_slow'),
               progressPrefix: progressPrefix,
             ),
       ),
@@ -217,7 +219,8 @@ abstract final class VideoTranscoder {
         lastError = e;
       }
     }
-    throw VideoTranscodeException('Video dönüştürülemedi: $lastError');
+    throw VideoTranscodeException(
+        AppStrings.current.t('vt.failed', {'error': lastError}));
   }
 
   /// Kademeli yedek motor denemesi (liste içinde okunur dursun diye ayrıldı).
@@ -251,7 +254,8 @@ abstract final class VideoTranscoder {
     required String engineLabel,
     required String? progressPrefix,
   }) async {
-    handle?.report(detail: _line(progressPrefix, ['$engineLabel hazırlanıyor…']));
+    handle?.report(detail: _line(progressPrefix,
+        [AppStrings.current.t('vt.engine_preparing', {'engine': engineLabel})]));
     final clock = Stopwatch()..start();
     try {
       await FfmpegVideo.transcode(
@@ -327,9 +331,8 @@ abstract final class VideoTranscoder {
     final probe = await FfmpegVideo.probe(output);
     if (probe == null) {
       if (sourceDurationMs > 0) {
-        throw const VideoTranscodeException(
-            'Dönüştürülen video okunamadı (bozuk çıktı) — özgün dosyaya '
-            'dokunulmadı.',
+        throw VideoTranscodeException(
+            AppStrings.current.t('vt.unreadable_output'),
             fatal: true);
       }
       return null;
@@ -337,9 +340,10 @@ abstract final class VideoTranscoder {
     if (sourceDurationMs > 0 &&
         probe.durationMs < (sourceDurationMs * 0.9).round()) {
       throw VideoTranscodeException(
-          'Dönüştürme yarıda kalmış: çıktı ${_seconds(probe.durationMs)} sn, '
-          'kaynak ${_seconds(sourceDurationMs)} sn. Özgün dosyaya '
-          'dokunulmadı.',
+          AppStrings.current.t('vt.truncated', {
+            'out': _seconds(probe.durationMs),
+            'src': _seconds(sourceDurationMs),
+          }),
           fatal: true);
     }
     return (width: probe.width, height: probe.height);
@@ -375,7 +379,7 @@ abstract final class VideoTranscoder {
               detail: _line(progressPrefix, [
                 '%${value.toStringAsFixed(0)}',
                 FfmpegVideo.remainingText(clock.elapsed, value / 100),
-                'yedek motor (kademeli ölçü)',
+                AppStrings.current.t('vt.fallback_engine'),
               ]),
             );
           });
@@ -422,8 +426,8 @@ abstract final class VideoTranscoder {
         // Yarım kalan geçici çıktının yolunu eklenti söylemiyor; uygulamanın
         // kendi önbelleğinde kalmasın (art arda iptallerde gigabaytlar birikir).
         await _clearPluginCache();
-        throw const VideoTranscodeException(
-            'Video sıkıştırılamadı (biçim desteklenmiyor olabilir).');
+        throw VideoTranscodeException(
+            AppStrings.current.t('vt.unsupported'));
       }
       await File(produced).copy(target);
       // Ölçü ÇIKTIDAN okunur, kaynaktan değil: yedek motor istenen ölçüyü değil

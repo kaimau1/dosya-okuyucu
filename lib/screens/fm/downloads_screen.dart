@@ -278,7 +278,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     padding:
                         const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
                     child: Text(
-                      '${_selected.length} dosya seçildi · '
+                      '${context.t('dls.selected', {'n': _selected.length})}'
                       '${FsPaths.humanSize(_selectedBytes)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -308,11 +308,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${_files.length} dosya · ${FsPaths.humanSize(total)}',
+                Text(
+                    context.t('count.files_size', {
+                      'n': _files.length,
+                      'size': FsPaths.humanSize(total),
+                    }),
                     style: Theme.of(context).textTheme.titleSmall),
                 if (ancient.isNotEmpty)
                   Text(
-                    '${ancient.length} dosya 6 aydır dokunulmamış · '
+                    '${context.t('dls.untouched', {'n': ancient.length})}'
                     '${FsPaths.humanSize(ancientBytes)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.error,
@@ -364,7 +368,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             '📁 ${p.basename(p.dirname(entry.path))}',
           'indirilme: ${FsPaths.humanDate(entry.modifiedMs)}',
           if (entry.hasAccessInfo)
-            'son açılma: ${relativeDays(daysBetween(entry.accessedMs, _now))}',
+            context.t('dls.last_opened', {
+              'when': relativeDays(daysBetween(entry.accessedMs, _now)),
+            }),
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

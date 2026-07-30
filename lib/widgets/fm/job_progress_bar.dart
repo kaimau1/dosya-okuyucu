@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../screens/fm/jobs_screen.dart';
 import '../../services/fm/job_queue.dart';
@@ -81,7 +82,7 @@ class _RunningBar extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () => JobQueue.instance.cancel(job.id),
-                    child: const Text('İptal'),
+                    child: Text(context.t('jp.cancel')),
                   ),
                 ],
               ),
@@ -104,9 +105,11 @@ class _ResultBar extends StatelessWidget {
     final scheme = theme.colorScheme;
     final failed = job.status == JobStatus.failed;
     final summary = switch (job.status) {
-      JobStatus.failed => job.error ?? 'Bir hata oluştu.',
+      JobStatus.failed => job.error ?? context.t('job.error_generic'),
       JobStatus.cancelled =>
-        job.detail.isEmpty ? 'İptal edildi.' : 'İptal edildi · ${job.detail}',
+        job.detail.isEmpty
+            ? context.t('jb.cancelled')
+            : context.t('jb.cancelled_detail', {'detail': job.detail}),
       _ => job.detail.isEmpty ? job.status.label : job.detail,
     };
     return Material(
@@ -150,7 +153,7 @@ class _ResultBar extends StatelessWidget {
               if (job.outputs.isNotEmpty)
                 TextButton(
                   onPressed: () => openJobsScreen(context),
-                  child: const Text('Göster'),
+                  child: Text(context.t('jp.show')),
                 ),
               IconButton(
                 tooltip: 'Kapat',

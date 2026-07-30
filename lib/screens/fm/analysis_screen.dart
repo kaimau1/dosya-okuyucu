@@ -350,14 +350,17 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Son ${trend.days} günde '
+                    '${context.t('an.trend_days', {'n': trend.days})}'
                     '${grew ? "+" : "−"}'
                     '${FsPaths.humanSize(trend.deltaBytes.abs())}',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   if (trend.topCategory != null && trend.topCategoryBytes > 0)
                     Text(
-                      'En çok büyüyen: ${trend.topCategory!.label} '
+                      '${context.t('an.top_growing', {
+                            'category':
+                                context.t(trend.topCategory!.labelKey),
+                          })}'
                       '(+${FsPaths.humanSize(trend.topCategoryBytes)})',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -421,7 +424,10 @@ class _VolumeBar extends StatelessWidget {
               const SizedBox(height: Gap.sm),
               Text(
                 '${FsPaths.humanSize(volume.usedBytes)} / '
-                '${FsPaths.humanSize(volume.totalBytes)} kullanıldı '
+                '${context.t('an.volume_usage', {
+                      'used': FsPaths.humanSize(volume.totalBytes),
+                      'free': FsPaths.humanSize(volume.freeBytes),
+                    })}'
                 '(%${(volume.usedFraction * 100).round()}) · '
                 '${FsPaths.humanSize(volume.freeBytes)} boş',
                 style: Theme.of(context).textTheme.bodySmall,

@@ -324,7 +324,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(widget.title),
-            Text('${_sorted.length} / ${_files.length} dosya',
+            Text(
+                context.t('count.of_files',
+                    {'shown': _sorted.length, 'total': _files.length}),
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),

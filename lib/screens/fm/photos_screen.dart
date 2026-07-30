@@ -511,7 +511,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
           children: [
             Text(widget.title),
             Text(
-              '${_visible.length} / ${_files.length} dosya',
+              context.t('count.of_files',
+                  {'shown': _visible.length, 'total': _files.length}),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],

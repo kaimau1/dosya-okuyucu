@@ -1,3 +1,4 @@
+import '../../core/l10n/app_strings.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -130,7 +131,7 @@ Future<T> showFmProgress<T>(
                 const SizedBox(height: Gap.sm),
                 Text(
                   value.currentName.isEmpty
-                      ? 'Hazırlanıyor…'
+                      ? context.t('pd.preparing')
                       : value.currentName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -157,7 +158,7 @@ Future<T> showFmProgress<T>(
                   cancelled = true;
                   closeDialog();
                 },
-                child: const Text('İptal'),
+                child: Text(context.t('pd.cancel')),
               ),
           ],
         ),
