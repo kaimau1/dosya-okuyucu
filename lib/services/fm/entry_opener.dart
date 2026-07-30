@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
@@ -98,7 +99,7 @@ abstract final class EntryOpener {
     List<String>? siblings,
   }) async {
     if (!File(path).existsSync()) {
-      _snack(context, 'Dosya bulunamadı (taşınmış ya da silinmiş olabilir).');
+      _snack(context, context.t('open.not_found'));
       // Listede kalan hayalet kaydı düşür — kullanıcı bir daha görmesin.
       FsEvents.reportUnreadable(path);
       return;
@@ -221,8 +222,8 @@ abstract final class EntryOpener {
 
     final kind = switch (route) {
       OpenRoute.player => 'Video',
-      OpenRoute.audio => 'Ses dosyası',
-      _ => 'Görsel',
+      OpenRoute.audio => context.t('open.kind_audio'),
+      _ => context.t('open.kind_image'),
     };
     return showDialog<MediaOpenWith>(
       context: context,
@@ -242,8 +243,8 @@ abstract final class EntryOpener {
       _snack(
         context,
         result.type == ResultType.noAppToOpen
-            ? 'Bu dosya türünü açabilen bir uygulama bulunamadı.'
-            : 'Dosya açılamadı: ${result.message}',
+            ? context.t('open.no_app')
+            : context.t('home.open_error', {'error': result.message}),
       );
     } catch (e) {
       if (context.mounted) _snack(context, 'Dosya açılamadı: $e');
@@ -291,7 +292,7 @@ class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: Text('${widget.kind} neyle açılsın?'),
+        title: Text(context.t('open.with_what', {'kind': widget.kind})),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,15 +300,15 @@ class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.play_circle_outline),
-              title: const Text('Uygulama içi oynatıcı'),
-              subtitle: const Text('Hızlı açılır, uygulamadan çıkmazsın'),
+              title: Text(context.t('open.in_app_player')),
+              subtitle: Text(context.t('open.in_app_hint')),
               onTap: () => _pick(MediaOpenWith.inApp),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.open_in_new),
-              title: const Text('Başka uygulama'),
-              subtitle: const Text('Kendi medya oynatıcın / galerin'),
+              title: Text(context.t('open.other_app')),
+              subtitle: Text(context.t('open.other_app_hint')),
               onTap: () => _pick(MediaOpenWith.external),
             ),
             const SizedBox(height: Gap.sm),
@@ -316,15 +317,15 @@ class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
               controlAffinity: ListTileControlAffinity.leading,
               value: _remember,
               onChanged: (v) => setState(() => _remember = v ?? false),
-              title: const Text('Bunu hatırla'),
-              subtitle: const Text('Ayarlardan değiştirebilirsin'),
+              title: Text(context.t('open.remember')),
+              subtitle: Text(context.t('open.remember_hint')),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Vazgeç'),
+            child: Text(context.t('common.cancel')),
           ),
         ],
       );

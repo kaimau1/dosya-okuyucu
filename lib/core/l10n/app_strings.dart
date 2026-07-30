@@ -296,6 +296,152 @@ const Map<String, (String, String, String)> _table = {
     'FFmpeg (LGPL v3) وتراخيص أخرى',
   ),
 
+  // ── Dosya yöneticisi: pano ────────────────────────────────────────────────
+  'fm.all_files': ('Tüm dosyalar', 'All files', 'كل الملفات'),
+  'fm.quick_folders': ('Hızlı klasörler', 'Quick folders', 'مجلدات سريعة'),
+  'fm.tools': ('Araçlar', 'Tools', 'الأدوات'),
+  'fm.recent_opened': ('Son açılanlar', 'Recently opened', 'المفتوحة مؤخرًا'),
+  'fm.recent_ops': ('Son işlemler', 'Recent operations', 'العمليات الأخيرة'),
+  'fm.jobs': ('İşlemler', 'Jobs', 'المهام'),
+  'fm.jobs_running': ('{n} sürüyor', '{n} running', '{n} قيد التنفيذ'),
+  'fm.jobs_finished': ('{n} biten', '{n} finished', '{n} منتهية'),
+  'fm.download': ('İndir', 'Download', 'تنزيل'),
+  'fm.downloads': ('İndirilenler', 'Downloads', 'التنزيلات'),
+  'fm.downloads_missing': (
+    'İndirilenler klasörü bulunamadı.',
+    'Downloads folder not found.',
+    'لم يُعثر على مجلد التنزيلات.',
+  ),
+  'fm.free_space': ('Yer aç', 'Free up space', 'تحرير مساحة'),
+  'fm.similar_images': ('Benzer görsel', 'Similar images', 'صور متشابهة'),
+  'fm.apk_files': ('APK dosyaları', 'APK files', 'ملفات APK'),
+  'fm.network_storage': ('Ağ depolama', 'Network storage', 'التخزين الشبكي'),
+  'fm.trash': ('Çöp', 'Trash', 'المهملات'),
+  'fm.trash_count': ('{n} öğe', '{n} items', '{n} عنصر'),
+  'fm.fm_settings': (
+    'Dosya yöneticisi ayarları',
+    'File manager settings',
+    'إعدادات مدير الملفات',
+  ),
+  'fm.scanning': ('Taranıyor…', 'Scanning…', 'جارٍ الفحص…'),
+  'fm.scanning_storage': (
+    'Depolama taranıyor…',
+    'Scanning storage…',
+    'جارٍ فحص وحدة التخزين…',
+  ),
+  'fm.no_standard_folders': (
+    'Standart klasörler bulunamadı.',
+    'Standard folders not found.',
+    'لم يُعثر على المجلدات القياسية.',
+  ),
+  'fm.new_folder': ('Yeni klasör', 'New folder', 'مجلد جديد'),
+  'fm.folder_name': ('Klasör adı', 'Folder name', 'اسم المجلد'),
+  'fm.create': ('Oluştur', 'Create', 'إنشاء'),
+  'fm.folder_create_failed': (
+    'Klasör oluşturulamadı: {error}',
+    'Could not create folder: {error}',
+    'تعذّر إنشاء المجلد: {error}',
+  ),
+  'fm.permission_title': (
+    'Tüm dosyalara erişim gerekli',
+    'All-files access is required',
+    'مطلوب الوصول إلى كل الملفات',
+  ),
+  'fm.permission_body': (
+    'Telefonundaki tüm klasörleri görebilmek, kopyalayıp taşıyabilmek için '
+        'Android’in “Tüm dosyalara erişim” iznini vermen gerekiyor. İzin '
+        'yalnızca cihazda kullanılır; hiçbir veri gönderilmez.',
+    'To see, copy and move every folder on your phone, Android’s “All files '
+        'access” permission is required. The permission is used only on the '
+        'device; no data is sent anywhere.',
+    'لرؤية جميع المجلدات على هاتفك ونسخها ونقلها، يلزم إذن «الوصول إلى كل '
+        'الملفات» من Android. يُستخدم الإذن على الجهاز فقط ولا تُرسل أي بيانات.',
+  ),
+  'fm.permission_denied': (
+    'Tüm dosyalara erişim verilmedi — yalnızca izin verilen klasörler görünür.',
+    'All-files access was not granted — only permitted folders are shown.',
+    'لم يُمنح الوصول إلى كل الملفات — تظهر المجلدات المسموح بها فقط.',
+  ),
+  'fm.permission_grant': ('İzin ver', 'Grant permission', 'منح الإذن'),
+
+  'fm.internal_storage': ('Ana bellek', 'Internal storage', 'الذاكرة الداخلية'),
+  'fm.none': ('Yok', 'None', 'لا شيء'),
+  'fm.organize': ('Düzenle', 'Organize', 'تنظيم'),
+
+  // ── Dosya yöneticisi: seçim çubuğu ────────────────────────────────────────
+  'fm.copy': ('Kopyala', 'Copy', 'نسخ'),
+  'fm.clip_copy': ('Panoya kopyala', 'Copy to clipboard', 'نسخ إلى الحافظة'),
+  'fm.clip_cut': ('Panoya kes', 'Cut to clipboard', 'قص إلى الحافظة'),
+  'fm.move': ('Taşı', 'Move', 'نقل'),
+  'fm.rename': ('Yeniden adlandır', 'Rename', 'إعادة تسمية'),
+  'fm.batch_rename': (
+    'Toplu yeniden adlandır',
+    'Batch rename',
+    'إعادة تسمية جماعية',
+  ),
+  'fm.compress': ('Sıkıştır (ZIP/7z)', 'Compress (ZIP/7z)', 'ضغط (ZIP/7z)'),
+  'fm.resize': (
+    'Boyut düşür (çözünürlük/kare sayısı)',
+    'Reduce size (resolution / frame rate)',
+    'تصغير الحجم (الدقة/معدل الإطارات)',
+  ),
+  'fm.tag': ('Etiketle (kişi/grup)', 'Tag (person/group)', 'وسم (شخص/مجموعة)'),
+  'fm.copy_to_important': (
+    'Önemli dosyalara kopyala',
+    'Copy to important files',
+    'نسخ إلى الملفات المهمة',
+  ),
+  'fm.properties': ('Özellikler', 'Properties', 'الخصائص'),
+  'fm.more_actions': ('Diğer işlemler', 'More actions', 'إجراءات أخرى'),
+  'fm.more': ('Daha fazla', 'More', 'المزيد'),
+  'fm.clipboard_copied': (
+    'Panoya kopyalandı. Hedef klasörde “Yapıştır”a dokunun.',
+    'Copied to clipboard. Tap “Paste” in the destination folder.',
+    'تم النسخ إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
+  ),
+  'fm.clipboard_cut': (
+    'Panoya kesildi. Hedef klasörde “Yapıştır”a dokunun.',
+    'Cut to clipboard. Tap “Paste” in the destination folder.',
+    'تم القص إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
+  ),
+
+  // ── Dosya açma ────────────────────────────────────────────────────────────
+  'open.with_what': ('{kind} neyle açılsın?', 'Open {kind} with?', 'بماذا تفتح {kind}؟'),
+  'open.kind_image': ('Görsel', 'Image', 'صورة'),
+  'open.kind_audio': ('Ses dosyası', 'Audio file', 'ملف صوتي'),
+  'open.in_app_player': (
+    'Uygulama içi oynatıcı',
+    'Built-in player',
+    'المشغّل المدمج',
+  ),
+  'open.in_app_hint': (
+    'Hızlı açılır, uygulamadan çıkmazsın',
+    'Opens fast, you stay in the app',
+    'يفتح بسرعة وتبقى داخل التطبيق',
+  ),
+  'open.other_app': ('Başka uygulama', 'Another app', 'تطبيق آخر'),
+  'open.other_app_hint': (
+    'Kendi medya oynatıcın / galerin',
+    'Your own media player / gallery',
+    'مشغّل الوسائط / المعرض الخاص بك',
+  ),
+  'open.remember': ('Bunu hatırla', 'Remember this', 'تذكّر هذا'),
+  'open.remember_hint': (
+    'Ayarlardan değiştirebilirsin',
+    'You can change it in Settings',
+    'يمكنك تغييره من الإعدادات',
+  ),
+  'open.no_app': (
+    'Bu dosya türünü açabilen bir uygulama bulunamadı.',
+    'No app found that can open this file type.',
+    'لم يُعثر على تطبيق يمكنه فتح هذا النوع من الملفات.',
+  ),
+  'open.not_found': (
+    'Dosya bulunamadı (taşınmış ya da silinmiş olabilir).',
+    'File not found (it may have been moved or deleted).',
+    'لم يُعثر على الملف (ربما تم نقله أو حذفه).',
+  ),
+
   // ── Uzak depolama (NAS) ───────────────────────────────────────────────────
   'nas.title': ('Ağ depolama', 'Network storage', 'التخزين الشبكي'),
   'nas.subtitle': ('NAS · FTP · SFTP · SMB', 'NAS · FTP · SFTP · SMB', 'NAS · FTP · SFTP · SMB'),
