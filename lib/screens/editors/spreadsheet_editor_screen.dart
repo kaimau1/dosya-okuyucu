@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/excel_format.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
@@ -475,25 +476,28 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   Future<void> _exportCsv() async {
     final sheet = _sheet;
     if (sheet == null) return;
+    // Hata metni await'ten ÖNCE çevrilir (asenkron boşluktan sonra `context`
+    // kullanılamaz).
+    final csvFailed = context.t('excel.csv_failed');
     final enc = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        title: const Text('CSV kodlaması'),
+        title: Text(context.t('excel.csv_encoding')),
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'utf8'),
-            child: const ListTile(
+            child: ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('UTF-8 (önerilir)'),
-              subtitle: Text('Modern Excel / Google E-Tablolar'),
+              title: Text(context.t('excel.csv_utf8')),
+              subtitle: const Text('Modern Excel / Google E-Tablolar'),
             ),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'cp1254'),
-            child: const ListTile(
+            child: ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('Windows-1254'),
-              subtitle: Text('Eski Türkçe Excel / Not Defteri'),
+              title: const Text('Windows-1254'),
+              subtitle: Text(context.t('excel.csv_legacy')),
             ),
           ),
         ],
@@ -519,7 +523,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       await f.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(f.path)], text: '$base.csv');
     } catch (e) {
-      _snack('CSV dışa aktarılamadı: $e');
+      _snack(csvFailed.replaceAll('{error}', '$e'));
     }
   }
 
@@ -543,6 +547,27 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
   }
 
+  /// Sayfa yönünü (soldan sağa / sağdan sola) değiştirir — Excel'in
+  /// *Sayfa Düzeni → Sayfayı Sağdan Sola* düğmesinin karşılığı.
+  ///
+  /// Yön **dosyanın** özelliği: kaydetmede `<sheetView rightToLeft>` olarak
+  /// geri yazılır (bkz. `XlsxSavePatch`), arayüz dilini değiştirmez.
+  void _toggleSheetDirection() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    final next = !sheet.rightToLeft;
+    setState(() {
+      sheet.setRightToLeft(next);
+      _dirty = true;
+      // Sanallaştırma penceresi ve kaydırma konumu yön değişince anlamsızlaşır.
+      _firstCol = 0;
+      _lastCol = 0;
+    });
+    if (_hBody.hasClients) _hBody.jumpTo(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    _snack(context.t(next ? 'excel.sheet_rtl_on' : 'excel.sheet_rtl_off'));
+  }
+
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -563,7 +588,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       // kalır (2026-07-28 kullanıcı isteği: tekrar eden düğmeler kalksın).
       actions: [
         IconButton(
-          tooltip: 'Bul',
+          tooltip: context.t('common.search'),
           icon: const Icon(Icons.search),
           onPressed: editor == null ? null : _toggleFind,
         ),
@@ -573,25 +598,32 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             if (v == 'freeze') _toggleFreeze();
             if (v == 'colw') _showSizeDialog(col: _selCol);
             if (v == 'rowh') _showSizeDialog(row: _selRow);
+            if (v == 'rtl') _toggleSheetDirection();
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'goto', child: Text('Hücreye git…')),
-            const PopupMenuItem(
-                value: 'colw', child: Text('Sütun genişliği…')),
-            const PopupMenuItem(
-                value: 'rowh', child: Text('Satır yüksekliği…')),
+            PopupMenuItem(
+                value: 'goto', child: Text(context.t('excel.goto_cell_menu'))),
+            PopupMenuItem(
+                value: 'colw', child: Text(context.t('excel.column_width'))),
+            PopupMenuItem(
+                value: 'rowh', child: Text(context.t('excel.row_height'))),
+            CheckedPopupMenuItem(
+              value: 'rtl',
+              checked: _sheet?.rightToLeft ?? false,
+              child: Text(context.t('excel.sheet_rtl')),
+            ),
             if (_sheetHasFreeze)
               PopupMenuItem(
                 value: 'freeze',
-                child: Text(_freeze
-                    ? 'Bölmeleri çöz (sabit satır/sütun)'
-                    : 'Bölmeleri dondur (dosyadaki gibi)'),
+                child: Text(context.t(
+                    _freeze ? 'excel.unfreeze_panes' : 'excel.freeze_panes')),
               ),
           ],
         ),
       ],
       body: _error != null
-          ? Center(child: Text('Açılamadı: $_error'))
+          ? Center(
+              child: Text(context.t('common.open_failed', {'error': _error})))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
               : Column(
@@ -622,15 +654,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         children: [
           if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
           DocActionBar([
-            DocAction(
-                Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
-            DocAction(Icons.share_outlined, 'Paylaş',
+            DocAction(Icons.save_outlined, context.t('common.save'),
+                editor == null ? null : _save),
+            DocAction(Icons.share_outlined, context.t('common.share'),
                 editor == null ? null : _export),
             DocAction(Icons.table_view_outlined, 'CSV',
                 editor == null ? null : _exportCsv),
             DocAction(
               Icons.translate,
-              'Çevir',
+              context.t('common.translate'),
               () => TranslateFlow.run(context, widget.plainText,
                   title: widget.name),
             ),
@@ -644,7 +676,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             fileName: widget.name,
           ),
         )),
-        tooltip: 'AI ile çalış',
+        tooltip: context.t('common.ai'),
         child: const Icon(Icons.smart_toy_outlined),
       ),
     );
@@ -653,7 +685,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Pinch odağındaki içerik yerinde kalsın.
   void _fixScroll(double f, Offset focal) {
     if (_hBody.hasClients) {
-      _hBody.jumpTo(((_hBody.offset + focal.dx) * f - focal.dx)
+      // Kaydırma konumu her iki yönde de BAŞLANGIÇTAN ölçülür; `focal.dx` ise
+      // daima ekranın SOLUNDAN. Sağdan sola sayfada odağın başlangıca uzaklığı
+      // bu yüzden aynalanmalı, yoksa pinch odağın simetriği etrafında zoomlar.
+      final dx = (_sheet?.rightToLeft ?? false) && _viewportW > 0
+          ? _viewportW - focal.dx
+          : focal.dx;
+      _hBody.jumpTo(((_hBody.offset + dx) * f - dx)
           .clamp(0.0, _hBody.position.maxScrollExtent));
     }
     if (_vBody.hasClients) {
@@ -1197,7 +1235,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   Widget _grid(ScrollPhysics? physics) {
     final sheet = _sheet;
-    if (sheet == null) return const Center(child: Text('Sayfa yok.'));
+    if (sheet == null) return Center(child: Text(context.t('excel.no_sheet')));
 
     final engine = _engineFor(sheet);
     final ctx = _RenderContext(
@@ -1228,9 +1266,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       _paneTrimmed = _frozenColsFit < wantCols || _frozenRowsFit < wantRows;
       if (_paneTrimmed && !_paneNoticeShown) {
         _paneNoticeShown = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) => _snack(
-            'Dosyadaki sabit bölme ekrana sığmadı; o sütunlar kaydırılabilir '
-            'yapıldı. ⋮ > Bölmeleri çöz ile tamamen kapatabilirsiniz.'));
+        final message = context.t('excel.panes_trimmed');
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _snack(message));
       }
 
       _refreshMetrics(sheet);
@@ -1259,7 +1297,20 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           : cols.total - (cols.startAt(last) + cols.sizeAt(last));
       final bottomInset = MediaQuery.of(context).padding.bottom;
 
-      return Scrollbar(
+      // **Sayfa yönü belgeden gelir, arayüz dilinden DEĞİL** (Excel de böyle:
+      // Arapça Excel'de soldan sağa bir tablo yine soldan sağa açılır). Bu
+      // yüzden yön her iki durumda da AÇIKÇA yazılır — Arapça arayüzde
+      // sarmalayıcı olmasa soldan sağa sayfalar da ters çizilirdi.
+      //
+      // `Row`/`SingleChildScrollView` yönü kendiliğinden uygular: sütunlar
+      // sağdan sola dizilir, yatay kaydırma sağ kenardan başlar. Kaydırma
+      // konumu (`_hBody.offset`) her iki yönde de BAŞLANGIÇTAN ölçüldüğü için
+      // sanallaştırma (`cols.startAt`) ve `_ensureVisible` matematiği aynen
+      // geçerli kalır.
+      return Directionality(
+        textDirection:
+            sheet.rightToLeft ? TextDirection.rtl : TextDirection.ltr,
+        child: Scrollbar(
         controller: _hBody,
         scrollbarOrientation: ScrollbarOrientation.bottom,
         notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
@@ -1389,6 +1440,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             ),
           ],
         ),
+      ),
       );
     });
   }

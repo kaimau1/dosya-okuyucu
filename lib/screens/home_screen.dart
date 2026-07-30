@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
+import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
 import '../models/recent_file.dart';
@@ -114,21 +115,21 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(Icons.folder),
-            label: 'Dosyalar',
+            icon: const Icon(Icons.folder_outlined),
+            selectedIcon: const Icon(Icons.folder),
+            label: context.t('home.tab_files'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'Son belgeler',
+            icon: const Icon(Icons.history_outlined),
+            selectedIcon: const Icon(Icons.history),
+            label: context.t('home.tab_recent'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.smart_toy_outlined),
-            selectedIcon: Icon(Icons.smart_toy),
-            label: 'AI',
+            icon: const Icon(Icons.smart_toy_outlined),
+            selectedIcon: const Icon(Icons.smart_toy),
+            label: context.t('home.tab_ai'),
           ),
         ],
           ),
@@ -153,6 +154,9 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
   String _query = '';
 
   Future<void> _openNew() async {
+    // Çeviri tablosu await'ten ÖNCE alınır: `context` asenkron boşluktan
+    // sonra kullanılamaz (ekran bu arada kapanmış olabilir).
+    final s = AppStrings.of(context);
     setState(() => _loading = true);
     try {
       final path = await _fileService.pickFilePath();
@@ -160,7 +164,7 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
       if (!mounted) return;
       await EntryOpener.open(context, path);
     } catch (e) {
-      _showError('Dosya açılamadı: $e');
+      _showError(s.t('home.open_error', {'error': e}));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -184,13 +188,14 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Yeni belge oluştur',
+                child: Text(ctx.t('home.new_document_title'),
                     style: Theme.of(ctx).textTheme.titleMedium),
               ),
             ),
-            _newTile(ctx, DocKind.word, 'Word belgesi', '.docx', 'docx'),
-            _newTile(ctx, DocKind.spreadsheet, 'Excel tablosu', '.xlsx', 'xlsx'),
-            _newTile(ctx, DocKind.text, 'Metin dosyası', '.txt', 'txt'),
+            _newTile(ctx, DocKind.word, ctx.t('home.new_word'), '.docx', 'docx'),
+            _newTile(ctx, DocKind.spreadsheet, ctx.t('home.new_excel'), '.xlsx',
+                'xlsx'),
+            _newTile(ctx, DocKind.text, ctx.t('home.new_text'), '.txt', 'txt'),
             const SizedBox(height: 8),
           ],
         ),
@@ -212,13 +217,14 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
   }
 
   Future<void> _createAndOpen(String type) async {
+    final s = AppStrings.of(context);
     setState(() => _loading = true);
     try {
       final path = await BlankDocs.create(type);
       if (!mounted) return;
       await EntryOpener.open(context, path);
     } catch (e) {
-      _showError('Yeni belge oluşturulamadı: $e');
+      _showError(s.t('home.create_error', {'error': e}));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -234,9 +240,12 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
   }
 
   (IconData, String) _themeIcon(ThemeMode mode) => switch (mode) {
-        ThemeMode.system => (Icons.brightness_auto_outlined, 'Tema: Sistem'),
-        ThemeMode.light => (Icons.light_mode_outlined, 'Tema: Açık'),
-        ThemeMode.dark => (Icons.dark_mode_outlined, 'Tema: Koyu'),
+        ThemeMode.system =>
+          (Icons.brightness_auto_outlined, context.t('home.theme_system')),
+        ThemeMode.light =>
+          (Icons.light_mode_outlined, context.t('home.theme_light')),
+        ThemeMode.dark =>
+          (Icons.dark_mode_outlined, context.t('home.theme_dark')),
       };
 
   @override
@@ -251,15 +260,15 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Son belgeler'),
+        title: Text(context.t('home.tab_recent')),
         actions: [
           IconButton(
-            tooltip: 'PDF araçları',
+            tooltip: context.t('home.pdf_tools'),
             icon: const Icon(Icons.picture_as_pdf_outlined),
             onPressed: () => PdfToolsScreen.open(context),
           ),
           IconButton(
-            tooltip: 'Yeni belge',
+            tooltip: context.t('home.new_document'),
             icon: const Icon(Icons.note_add_outlined),
             onPressed: _newDocument,
           ),
@@ -269,7 +278,7 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
             onPressed: () => _cycleTheme(appState),
           ),
           IconButton(
-            tooltip: 'Ayarlar',
+            tooltip: context.t('common.settings'),
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -305,14 +314,14 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
             heroTag: 'scan',
             onPressed: () => ScanFlow.run(context),
             icon: const Icon(Icons.document_scanner_outlined),
-            label: const Text('Belge Tara'),
+            label: Text(context.t('home.scan')),
           ),
           const SizedBox(height: 12),
           FloatingActionButton.extended(
             heroTag: 'open',
             onPressed: _openNew,
             icon: const Icon(Icons.folder_open),
-            label: const Text('Dosya Aç'),
+            label: Text(context.t('home.open_file')),
           ),
         ],
       ),
@@ -321,10 +330,11 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
 
   /// Son dosya açılırken hata olursa (ör. dosya taşınmış) kullanıcıyı bilgilendir.
   Future<void> _openSafely(RecentFile r) async {
+    final s = AppStrings.of(context);
     try {
       await EntryOpener.open(context, r.path);
     } catch (e) {
-      _showError('Dosya açılamadı (taşınmış olabilir): ${r.name}');
+      _showError(s.t('home.open_error_moved', {'name': r.name}));
     }
   }
 
@@ -336,7 +346,7 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           isDense: true,
-          hintText: 'Son dosyalarda ara…',
+          hintText: context.t('home.search_recent'),
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _query.isEmpty
               ? null
@@ -354,7 +364,7 @@ class _NoMatch extends StatelessWidget {
   const _NoMatch();
   @override
   Widget build(BuildContext context) => Center(
-        child: Text('Eşleşen dosya yok',
+        child: Text(context.t('home.no_match'),
             style: Theme.of(context).textTheme.bodyMedium),
       );
 }
@@ -386,15 +396,12 @@ class _EmptyState extends StatelessWidget {
                   size: 40, color: scheme.onPrimaryContainer),
             ),
             const SizedBox(height: Gap.lg),
-            Text('Henüz belge açmadınız',
+            Text(context.t('home.empty_title'),
                 style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center),
             const SizedBox(height: Gap.sm),
             Text(
-              'PDF, Word, Excel, Slayt, görsel ve metin dosyalarını açıp '
-              'inceleyebilir, düzenleyebilir ve yapay zeka ile üzerinde '
-              'çalışabilirsiniz. Telefonundaki tüm dosyalar için alttaki '
-              '“Dosyalar” sekmesini kullanın.',
+              context.t('home.empty_body'),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: scheme.onSurfaceVariant),
@@ -403,7 +410,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onOpen,
               icon: const Icon(Icons.folder_open),
-              label: const Text('İlk dosyanı aç'),
+              label: Text(context.t('home.empty_cta')),
             ),
             if (!hasApiKey) ...[
               const SizedBox(height: Gap.md),
@@ -422,7 +429,7 @@ class _EmptyState extends StatelessWidget {
                     const SizedBox(width: Gap.sm),
                     Flexible(
                       child: Text(
-                        'AI özellikleri için Ayarlar’dan Gemini API anahtarı ekleyin.',
+                        context.t('home.empty_ai_hint'),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
@@ -482,7 +489,8 @@ class _RecentList extends StatelessWidget {
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  '${kind.label} · ${_size(r.sizeBytes)} · ${_relTime(r.openedAtMs)}',
+                  '${kind.label} · ${_size(r.sizeBytes)} · '
+                  '${_relTime(context, r.openedAtMs)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -497,17 +505,21 @@ class _RecentList extends StatelessWidget {
     );
   }
 
-  String _relTime(int ms) {
+  String _relTime(BuildContext context, int ms) {
     if (ms <= 0) return '';
     final d = DateTime.now()
         .difference(DateTime.fromMillisecondsSinceEpoch(ms));
-    if (d.inMinutes < 1) return 'az önce';
-    if (d.inMinutes < 60) return '${d.inMinutes} dk önce';
-    if (d.inHours < 24) return '${d.inHours} saat önce';
-    if (d.inDays < 7) return '${d.inDays} gün önce';
-    if (d.inDays < 30) return '${(d.inDays / 7).floor()} hafta önce';
-    if (d.inDays < 365) return '${(d.inDays / 30).floor()} ay önce';
-    return '${(d.inDays / 365).floor()} yıl önce';
+    if (d.inMinutes < 1) return context.t('home.time_now');
+    if (d.inMinutes < 60) return context.t('home.time_minutes', {'n': d.inMinutes});
+    if (d.inHours < 24) return context.t('home.time_hours', {'n': d.inHours});
+    if (d.inDays < 7) return context.t('home.time_days', {'n': d.inDays});
+    if (d.inDays < 30) {
+      return context.t('home.time_weeks', {'n': (d.inDays / 7).floor()});
+    }
+    if (d.inDays < 365) {
+      return context.t('home.time_months', {'n': (d.inDays / 30).floor()});
+    }
+    return context.t('home.time_years', {'n': (d.inDays / 365).floor()});
   }
 
   String _size(int bytes) {

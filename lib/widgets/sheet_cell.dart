@@ -118,7 +118,14 @@ class SheetCell extends StatelessWidget {
       height: 1.15,
     );
 
-    final align = s?.alignFor(view.numeric) ?? TextAlign.left;
+    // Sayfanın yönü ızgarayı saran `Directionality`den gelir (bkz.
+    // spreadsheet_editor_screen `_grid`). Hücrenin kendi parametresi
+    // OLMAMALI: yön sayfanın özelliği, hücrenin değil — parametre olsaydı
+    // her çağrı yerinde tekrar geçirilmesi gerekir, biri unutulunca o hücre
+    // ters hizalanırdı.
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final align = s?.alignFor(view.numeric, rightToLeft: rtl) ??
+        (rtl ? TextAlign.right : TextAlign.left);
     final vAlign = s?.vAlign ?? XlsxVAlign.bottom;
 
     Widget content;
