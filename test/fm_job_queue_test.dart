@@ -316,4 +316,9 @@ class _BrokenReporter implements JobReporter {
 
   @override
   Future<void> onProgress(FmJob job) async => throw StateError('bildirim yok');
+
+  /// Kuyruk boşalınca da patlar: ön plan servisini durdurma çağrısının
+  /// hatası da işi/kuyruğu düşürmemeli.
+  @override
+  Future<void> onIdle() async => throw StateError('bildirim yok');
 }

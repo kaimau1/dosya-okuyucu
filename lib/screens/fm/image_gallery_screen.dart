@@ -102,8 +102,28 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _chromeVisible
-          ? AppBar(
+      // GÖVDE ÇUBUĞUN ALTINDAN GEÇER — kullanıcı hatası 2026-07-30:
+      // "resimlerde üzerine tıklayınca zıplama oluyor".
+      //
+      // Eskiden çubuk gizlenirken `appBar: null` veriliyordu: Scaffold'un
+      // gövdesi o anda ~80 piksel uzuyor, `BoxFit.contain` görseli yeniden
+      // ölçekliyor ve resim gözle görülür biçimde ZIPLIYORDU (her dokunuşta
+      // iki kez: gizlerken ve gösterirken). Artık çubuk her zaman gövdenin
+      // ÜSTÜNE biniyor, gövdenin ölçüsü hiç değişmiyor; görünürlük yalnız
+      // saydamlıkla ayarlanıyor — yerleşim sabit, zıplama yok.
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        // Yükseklik SABİT (gizliyken de): Scaffold'un gövdeye verdiği alan
+        // değişmediği sürece görsel yerinde kalır.
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: IgnorePointer(
+          // Gizliyken dokunuşları yutmasın: ekranın üst şeridine dokunmak
+          // görünmez çubuğu değil, resmi tetiklemeli.
+          ignoring: !_chromeVisible,
+          child: AnimatedOpacity(
+            opacity: _chromeVisible ? 1 : 0,
+            duration: const Duration(milliseconds: 150),
+            child: AppBar(
               backgroundColor: Colors.black.withValues(alpha: 0.6),
               foregroundColor: Colors.white,
               title: Column(
@@ -155,8 +175,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   ],
                 ),
               ],
-            )
-          : null,
+            ),
+          ),
+        ),
+      ),
       body: PageView.builder(
         controller: _pages,
         physics: _zoomed

@@ -406,48 +406,68 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                   style: const TextStyle(color: Colors.white70)),
             ],
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          // OYNATMA DÜĞMELERİ GERÇEKTEN ORTADA (kullanıcı hatası 2026-07-30:
+          // "video kısmında alt durdur tuşu vs ortalı değil").
+          //
+          // Eskiden tam ekran düğmesi aynı `Row`un 6. öğesiydi: `center`
+          // hizalaması ALTI öğeyi ortalıyordu, yani beş oynatma düğmesi
+          // sağdaki tam ekran kadar SOLA kayıyordu ve büyük duraklat düğmesi
+          // ekranın ortasına denk gelmiyordu. Çözüm: tam ekran düğmesi
+          // yerleşimden çıkarılıp üste bindiriliyor — beşli grup artık
+          // ekranın tam ortasında, tam ekran düğmesi de kenarda.
+          Stack(
+            alignment: Alignment.center,
             children: [
-              IconButton(
-                tooltip: context.t('common.previous'),
-                color: Colors.white,
-                icon: const Icon(Icons.skip_previous),
-                onPressed: _index > 0 ? () => _skip(-1) : null,
-              ),
-              IconButton(
-                tooltip: '10 sn geri',
-                color: Colors.white,
-                icon: const Icon(Icons.replay_10),
-                onPressed: () => _seekBy(-10),
-              ),
-              IconButton(
-                iconSize: 48,
-                color: Colors.white,
-                icon: Icon(
-                    value.isPlaying ? Icons.pause_circle : Icons.play_circle),
-                onPressed: _togglePlay,
-              ),
-              IconButton(
-                tooltip: '10 sn ileri',
-                color: Colors.white,
-                icon: const Icon(Icons.forward_10),
-                onPressed: () => _seekBy(10),
-              ),
-              IconButton(
-                tooltip: 'Sonraki',
-                color: Colors.white,
-                icon: const Icon(Icons.skip_next),
-                onPressed:
-                    _index < _playlist.length - 1 ? () => _skip(1) : null,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: context.t('common.previous'),
+                    color: Colors.white,
+                    icon: const Icon(Icons.skip_previous),
+                    onPressed: _index > 0 ? () => _skip(-1) : null,
+                  ),
+                  IconButton(
+                    tooltip: '10 sn geri',
+                    color: Colors.white,
+                    icon: const Icon(Icons.replay_10),
+                    onPressed: () => _seekBy(-10),
+                  ),
+                  IconButton(
+                    iconSize: 48,
+                    color: Colors.white,
+                    icon: Icon(value.isPlaying
+                        ? Icons.pause_circle
+                        : Icons.play_circle),
+                    onPressed: _togglePlay,
+                  ),
+                  IconButton(
+                    tooltip: '10 sn ileri',
+                    color: Colors.white,
+                    icon: const Icon(Icons.forward_10),
+                    onPressed: () => _seekBy(10),
+                  ),
+                  IconButton(
+                    tooltip: 'Sonraki',
+                    color: Colors.white,
+                    icon: const Icon(Icons.skip_next),
+                    onPressed:
+                        _index < _playlist.length - 1 ? () => _skip(1) : null,
+                  ),
+                ],
               ),
               if (!_isAudio)
-                IconButton(
-                  tooltip: _landscape ? 'Dikey' : 'Tam ekran (yatay)',
-                  color: Colors.white,
-                  icon: Icon(
-                      _landscape ? Icons.fullscreen_exit : Icons.fullscreen),
-                  onPressed: _toggleLandscape,
+                // `AlignmentDirectional`: Arapça (sağdan sola) arayüzde düğme
+                // kendiliğinden sol kenara geçer.
+                PositionedDirectional(
+                  end: 0,
+                  child: IconButton(
+                    tooltip: _landscape ? 'Dikey' : 'Tam ekran (yatay)',
+                    color: Colors.white,
+                    icon: Icon(
+                        _landscape ? Icons.fullscreen_exit : Icons.fullscreen),
+                    onPressed: _toggleLandscape,
+                  ),
                 ),
             ],
           ),

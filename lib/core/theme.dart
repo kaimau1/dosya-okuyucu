@@ -157,19 +157,32 @@ class AppTheme {
         ),
       ),
 
+      // ── Metin kutuları ────────────────────────────────────────────────────
+      // KULLANICI HATASI 2026-07-30 (PIN diyaloğu): "eski pin girmedim ki".
+      // Kullanıcı yalnız bir kutu görüyor, "Tamam"a basıyor ve "İki PIN aynı
+      // değil" hatası alıyordu. Sebep tamamen buradaydı: kutunun dolgusu
+      // `surfaceContainerHigh`, DİYALOĞUN arka planı da `surfaceContainerHigh`
+      // (aşağıdaki `dialogTheme`) ve odaklanmamış kutunun KENARLIĞI YOKTU →
+      // diyalogdaki ikinci kutu tamamen görünmezdi. Yalnız odaklanan kutu
+      // (mavi kenarlık) fark ediliyordu.
+      //
+      // İki katmanlı düzeltme: (a) odaklanmamış kutuya ince ama gerçek bir
+      // kenarlık, (b) dolgu bir kademe koyu (`surfaceContainerHighest`), yani
+      // kutu diyalog zemininden de sayfa zemininden de ayrışıyor. Bu, PIN'e
+      // özel bir yama değil — kural her diyalogdaki her metin kutusu için.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHigh,
+        fillColor: scheme.surfaceContainerHighest,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
             horizontal: Gap.md, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Radii.control),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Radii.control),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Radii.control),

@@ -220,6 +220,27 @@
             </intent-filter>
         </activity>
 
+        <!-- ── İş kuyruğunun ÖN PLAN SERVİSİ ───────────────────────────────
+             Kullanıcı hatası 2026-07-30: "arka plana alınca uygulamayı
+             duraklıyor işlem". Android, ön planda olmayan süreci (özellikle
+             MIUI gibi agresif pil yönetimlerinde) donduruyor; video kodlama
+             native iş parçacığında koşsa bile süreç askıya alınınca duruyor.
+             Ön plan servisi süreci "kullanıcının gördüğü iş" sınıfına sokar.
+
+             Servisi flutter_local_notifications sağlıyor (startForegroundService)
+             — ayrı bir paket gerekmedi ve servisin bildirimi zaten bizim
+             ilerleme bildirimimiz. Eklenti servisi KENDİ manifest'inde
+             bildirmiyor, uygulamanın bildirmesi şart.
+
+             stopWithTask="true" DÜRÜSTLÜK GEREĞİ: iş uygulamanın Dart
+             izolatında koşuyor; görev listesinden kapatılınca izolat ölür,
+             ayakta kalan servis yalnız donmuş bir bildirim gösterirdi. -->
+        <service
+            android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"
+            android:stopWithTask="true" />
+
         <!-- Flutter v2 gömme (embedding) işareti. -->
         <meta-data
             android:name="flutterEmbedding"

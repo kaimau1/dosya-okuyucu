@@ -63,6 +63,14 @@ class _PinDialogState extends State<_PinDialog> {
         setState(() => _error = context.t('pin.too_short'));
         return;
       }
+      // Tekrar kutusu BOŞSA "iki PIN aynı değil" demek kullanıcıyı yanıltıyor:
+      // o kutuyu hiç doldurmadığını (hatta gördüğünü) bilmiyor olabilir —
+      // görünmezlik hatası temada düzeltildi, ama mesaj da doğru olmalı
+      // (kullanıcı hatası 2026-07-30: "eski pin girmedim ki").
+      if (_second.text.trim().isEmpty) {
+        setState(() => _error = context.t('pin.repeat_empty'));
+        return;
+      }
       if (pin != _second.text.trim()) {
         setState(() => _error = context.t('pin.mismatch'));
         return;
