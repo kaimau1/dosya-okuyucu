@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -82,7 +83,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Arşiv açılamadı: $e';
+        _error = context.t('arc.open_failed', {'error': e});
       });
     }
   }
@@ -95,7 +96,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     try {
       final target = await showFmProgress<String>(
         context,
-        title: 'Çıkarılıyor',
+        title: context.t('fm.extracting'),
         cancellable: false,
         task: (report, _) => ArchiveOps.extract(
           widget.path,
@@ -105,9 +106,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${p.basename(target)} klasörüne çıkarıldı'),
+        content: Text(context.t('fm.extracted_to', {'name': p.basename(target)})),
         action: SnackBarAction(
-          label: 'Aç',
+          label: context.t('common.open'),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => BrowserScreen(path: target),
           )),
@@ -116,7 +117,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     } on ArchiveError catch (e) {
       _snack(e.userMessage);
     } catch (e) {
-      _snack('Çıkarılamadı: $e');
+      _snack(context.t('fm.extract_failed', {'error': e}));
     }
   }
 
@@ -125,7 +126,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     try {
       final out = await showFmProgress<String>(
         context,
-        title: 'Çıkarılıyor',
+        title: context.t('fm.extracting'),
         cancellable: false,
         task: (report, _) {
           report(FmProgress(0, 1, item.name));
@@ -138,17 +139,19 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         },
       );
       if (!mounted) return;
-      _snack('${p.basename(out)} çıkarıldı');
+      _snack(context.t('arc.extracted_file', {'name': p.basename(out)}));
     } on ArchiveError catch (e) {
       _snack(e.userMessage);
     } catch (e) {
-      _snack('Çıkarılamadı: $e');
+      _snack(context.t('fm.extract_failed', {'error': e}));
     }
   }
 
   /// Arşivdeki dosyayı geçici klasöre açıp görüntüleyicide gösterir
   /// (arşivi diske açmadan "içine bakma").
   Future<void> _preview(ArchiveItem item) async {
+    // Hata metni await'lerden ÖNCE (asenkron boşluktan sonra context yok).
+    final openFailed = context.t('common.open_failed');
     try {
       final cache = await getTemporaryDirectory();
       // Geçici klasörü almak da bir `await`: kullanıcı bu arada geri gitmişse
@@ -157,7 +160,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       final dir = Directory(p.join(cache.path, 'arsiv_onizleme'));
       final out = await showFmProgress<String>(
         context,
-        title: 'Açılıyor',
+        title: context.t('arc.opening'),
         cancellable: false,
         task: (report, _) {
           report(FmProgress(0, 1, item.name));
@@ -174,7 +177,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     } on ArchiveError catch (e) {
       _snack(e.userMessage);
     } catch (e) {
-      _snack('Açılamadı: $e');
+      _snack(openFailed.replaceAll('{error}', '$e'));
     }
   }
 
@@ -207,7 +210,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            tooltip: 'Başka uygulamayla aç',
+            tooltip: context.t('fm.open_with_other'),
             icon: const Icon(Icons.apps),
             onPressed: () => EntryOpener.openExternally(context, widget.path),
           ),
@@ -218,7 +221,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           : FloatingActionButton.extended(
               onPressed: _extractAll,
               icon: const Icon(Icons.unarchive_outlined),
-              label: const Text('Tümünü çıkar'),
+              label: Text(context.t('arc.extract_all')),
             ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -231,7 +234,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                     const Divider(height: 1),
                     Expanded(
                       child: items.isEmpty
-                          ? const Center(child: Text('Eşleşen dosya yok'))
+                          ? Center(child: Text(context.t('arc.no_match')))
                           : ListView.builder(
                               padding: const EdgeInsets.only(bottom: 96),
                               itemCount: items.length,
@@ -270,7 +273,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                   OutlinedButton(
                     onPressed: () =>
                         EntryOpener.openExternally(context, widget.path),
-                    child: const Text('Başka uygulamayla aç'),
+                    child: Text(context.t('fm.open_with_other')),
                   ),
                 ],
               ),
@@ -302,9 +305,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                 Text(
                   [
                     if (ratio != null && ratio > 0)
-                      'sıkıştırma %${(100 - ratio * 100).clamp(0, 100).round()}',
-                    if (listing.hasEncryptedEntries) 'şifreli',
-                    if (listing.multiVolume) 'çok parçalı',
+                      context.t('arc.ratio', {'pct': (100 - ratio * 100).clamp(0, 100).round()}),
+                    if (listing.hasEncryptedEntries) context.t('arc.encrypted'),
+                    if (listing.multiVolume) context.t('arc.multipart'),
                   ].join(' · '),
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -320,10 +323,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   Widget _searchBar() => Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
         child: TextField(
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             isDense: true,
-            hintText: 'Arşiv içinde ara…',
-            prefixIcon: Icon(Icons.search),
+            hintText: context.t('arc.search'),
+            prefixIcon: const Icon(Icons.search),
           ),
           onChanged: (v) => setState(() => _query = v),
         ),
@@ -355,7 +358,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       trailing: item.isEncrypted
           ? const Icon(Icons.lock_outline, size: 18)
           : IconButton(
-              tooltip: 'Bu dosyayı çıkar',
+              tooltip: context.t('arc.extract_one'),
               icon: const Icon(Icons.download_outlined),
               onPressed: () => _extractOne(item),
             ),

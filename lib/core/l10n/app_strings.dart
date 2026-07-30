@@ -611,6 +611,183 @@ const Map<String, (String, String, String)> _table = {
     'تم قص «{name}» إلى الحافظة. اضغط «لصق» في المجلد الوجهة.',
   ),
 
+  // ── Arşiv görüntüleyici ───────────────────────────────────────────────────
+  'arc.search': ('Arşiv içinde ara…', 'Search in archive…', 'ابحث في الأرشيف…'),
+  'arc.no_match': ('Eşleşen dosya yok', 'No matching file', 'لا يوجد ملف مطابق'),
+  'arc.extract_all': ('Tümünü çıkar', 'Extract all', 'استخراج الكل'),
+  'arc.extract_one': ('Bu dosyayı çıkar', 'Extract this file', 'استخراج هذا الملف'),
+  'arc.opening': ('Açılıyor', 'Opening', 'جارٍ الفتح'),
+  'arc.open_failed': ('Arşiv açılamadı: {error}', 'Could not open archive: {error}', 'تعذّر فتح الأرشيف: {error}'),
+  'arc.extracted_file': ('{name} çıkarıldı', '{name} extracted', 'تم استخراج {name}'),
+  'arc.encrypted': ('şifreli', 'encrypted', 'مشفّر'),
+  'arc.multipart': ('çok parçalı', 'multi-part', 'متعدد الأجزاء'),
+  'arc.ratio': ('sıkıştırma %{pct}', '{pct}% compressed', 'ضغط {pct}%'),
+
+  // ── Otomatik düzenle ──────────────────────────────────────────────────────
+  'org.title': ('Otomatik düzenle', 'Auto-organize', 'التنظيم التلقائي'),
+  'org.by_what': ('Neye göre ayrılsın?', 'Group by what?', 'التجميع حسب ماذا؟'),
+  'org.include_sub': ('Alt klasörler dahil', 'Include subfolders', 'تضمين المجلدات الفرعية'),
+  'org.include_sub_note': (
+    'Kapalıyken yalnız bu klasördeki dosyalar düzenlenir; mevcut alt '
+        'klasörlerinize dokunulmaz.',
+    'When off, only files in this folder are organized; your existing '
+        'subfolders are left untouched.',
+    'عند الإيقاف، تُنظَّم ملفات هذا المجلد فقط؛ ولا تُمس مجلداتك الفرعية الحالية.',
+  ),
+  'org.preview': ('Önizleme', 'Preview', 'معاينة'),
+  'org.nothing': ('Düzenlenecek dosya yok', 'Nothing to organize', 'لا شيء لتنظيمه'),
+  'org.nothing_body': (
+    'Bu klasörde düzenlenecek dosya yok.',
+    'There are no files to organize in this folder.',
+    'لا توجد ملفات لتنظيمها في هذا المجلد.',
+  ),
+  'org.all_placed': (
+    'Her şey zaten yerinde görünüyor ({n} dosya zaten doğru klasörde.)',
+    'Everything already looks in place ({n} files are already in the right folder.)',
+    'يبدو أن كل شيء في مكانه ({n} ملف موجود بالفعل في المجلد الصحيح.)',
+  ),
+  'org.plan': (
+    '{files} dosya → {folders} klasör',
+    '{files} files → {folders} folders',
+    '{files} ملف ← {folders} مجلد',
+  ),
+  'org.action': ('{n} dosyayı düzenle', 'Organize {n} files', 'نظّم {n} ملف'),
+  'org.confirm_title': ('Düzenlensin mi?', 'Organize?', 'هل تريد التنظيم؟'),
+  'org.confirm_body': (
+    '{files} dosya, {folders} klasöre taşınacak. Dosyalar aynı klasörün '
+        'içinde yer değiştirir; silinmez. İşlem geçmişinden geri alabilirsiniz.',
+    '{files} files will be moved into {folders} folders. Files are rearranged '
+        'inside the same folder; nothing is deleted. You can undo it from the '
+        'operation history.',
+    'سيتم نقل {files} ملف إلى {folders} مجلد. تُعاد ترتيب الملفات داخل المجلد '
+        'نفسه ولا يُحذف شيء. يمكنك التراجع من سجل العمليات.',
+  ),
+  'org.working': ('Düzenleniyor', 'Organizing', 'جارٍ التنظيم'),
+  'org.done': ('{n} dosya düzenlendi.', '{n} files organized.', 'تم تنظيم {n} ملف.'),
+  'org.partial': (
+    'Bazı dosyalar taşınamadı: {error}',
+    'Some files could not be moved: {error}',
+    'تعذّر نقل بعض الملفات: {error}',
+  ),
+  'org.open_folder': ('Klasörü aç', 'Open folder', 'فتح المجلد'),
+
+  // ── Yüklü uygulamalar ─────────────────────────────────────────────────────
+  'apps.not_found': ('Uygulama bulunamadı', 'No app found', 'لم يُعثر على تطبيق'),
+  'apps.sort_name': ('Ada göre', 'By name', 'حسب الاسم'),
+  'apps.sort_installed': ('Kurulum tarihine göre', 'By install date', 'حسب تاريخ التثبيت'),
+  'apps.sort_idle': (
+    'En uzun kullanılmayan önce',
+    'Longest unused first',
+    'الأطول دون استخدام أولًا',
+  ),
+  'apps.show_system': ('Sistem uygulamalarını göster', 'Show system apps', 'إظهار تطبيقات النظام'),
+  'apps.hide_system': ('Sistem uygulamalarını gizle', 'Hide system apps', 'إخفاء تطبيقات النظام'),
+  'apps.uninstall': ('Kaldır', 'Uninstall', 'إلغاء التثبيت'),
+  'apps.app_info': ('Uygulama bilgisi (sistem ayarı)', 'App info (system settings)', 'معلومات التطبيق (إعدادات النظام)'),
+  'apps.color_legend': ('Renk = kullanılmama süresi', 'Colour = time unused', 'اللون = مدة عدم الاستخدام'),
+  'apps.never_opened': ('hiç açılmadı', 'never opened', 'لم يُفتح قط'),
+  'apps.today': ('bugün', 'today', 'اليوم'),
+  'apps.days_ago': ('{n} gün önce', '{n} days ago', 'قبل {n} يوم'),
+  'apps.usage_needed': (
+    'Son açılma tarihleri için izin gerekli',
+    'Permission is required for last-opened dates',
+    'يلزم إذن لمعرفة تواريخ آخر فتح',
+  ),
+  'apps.usage_body': (
+    'Android’in “Kullanım erişimi” iznini verirsen hangi uygulamayı en son ne '
+        'zaman açtığın görünür ve uzun süredir kullanılmayanlar renklenir. '
+        'Veri cihazdan çıkmaz.',
+    'If you grant Android’s “Usage access” permission, you can see when you '
+        'last opened each app and long-unused ones are highlighted. No data '
+        'leaves the device.',
+    'إذا منحت إذن «الوصول إلى بيانات الاستخدام» من Android، يمكنك رؤية آخر مرة '
+        'فتحت فيها كل تطبيق وتُميَّز التطبيقات غير المستخدمة. لا تغادر أي بيانات الجهاز.',
+  ),
+  'apps.usage_hint': (
+    'Açılan ayar sayfasından “Dosya Okuyucu”ya izin verip geri dönün.',
+    'Grant the permission to “Dosya Okuyucu” on the settings page that opens, '
+        'then come back.',
+    'امنح الإذن لتطبيق «Dosya Okuyucu» في صفحة الإعدادات التي تُفتح ثم عُد.',
+  ),
+
+  // ── Yer aç (temizlik) ─────────────────────────────────────────────────────
+  'clean.title': ('Yer aç', 'Free up space', 'تحرير مساحة'),
+  'clean.analyzing': ('Yer aç: depolama çözümleniyor', 'Free up space: analysing storage', 'تحرير مساحة: جارٍ تحليل التخزين'),
+  'clean.reading_trash': ('Çöp kutusu okunuyor…', 'Reading the trash…', 'جارٍ قراءة المهملات…'),
+  'clean.reading_downloads': ('İndirilenler inceleniyor…', 'Inspecting downloads…', 'جارٍ فحص التنزيلات…'),
+  'clean.finding_dupes': (
+    'Yinelenen dosyalar aranıyor (bayt bayt)…',
+    'Looking for duplicate files (byte by byte)…',
+    'جارٍ البحث عن الملفات المكررة (بايت ببايت)…',
+  ),
+  'clean.nothing': ('Temizlenecek belirgin bir şey yok', 'Nothing obvious to clean', 'لا شيء واضح للتنظيف'),
+  'clean.nothing_body': (
+    'Temizlenecek belirgin bir şey bulunamadı 🎉\nDepolaman düzenli görünüyor.',
+    'Nothing obvious to clean 🎉\nYour storage looks tidy.',
+    'لا شيء واضح للتنظيف 🎉\nيبدو تخزينك مرتبًا.',
+  ),
+  'clean.recoverable': ('{size} kazanılabilir', '{size} can be freed', 'يمكن تحرير {size}'),
+  'clean.suggestions': ('{n} öneri', '{n} suggestions', '{n} اقتراح'),
+  'clean.free_action': ('{size} yer aç', 'Free {size}', 'حرّر {size}'),
+  'clean.pick_one': ('Bir öneri seçin', 'Pick a suggestion', 'اختر اقتراحًا'),
+  'clean.personal_warning': (
+    'Dikkat: bunlar kişisel dosyalar olabilir',
+    'Careful: these may be personal files',
+    'انتبه: قد تكون هذه ملفات شخصية',
+  ),
+  'clean.confirm_body': (
+    '{n} öneri · {size} yer açılacak.\n\nDosyalar çöp kutusuna taşınır '
+        '(ayarlarda kapatılmadıysa), İşlem geçmişinden geri alabilirsiniz.',
+    '{n} suggestions · {size} will be freed.\n\nFiles are moved to the trash '
+        '(unless disabled in settings); you can undo from the operation history.',
+    '{n} اقتراح · سيتم تحرير {size}.\n\nتُنقل الملفات إلى المهملات (ما لم يُعطَّل '
+        'ذلك في الإعدادات)، ويمكنك التراجع من سجل العمليات.',
+  ),
+  'clean.cleaning': ('Yer aç: {size} temizleniyor', 'Free up space: cleaning {size}', 'تحرير مساحة: جارٍ تنظيف {size}'),
+  'clean.cleaned': ('Temizlendi. Yeniden çözümleniyor…', 'Cleaned. Re-analysing…', 'تم التنظيف. جارٍ إعادة التحليل…'),
+  'clean.reanalyze': ('Yeniden çözümle', 'Re-analyse', 'إعادة التحليل'),
+  'clean.open_trash': ('Çöp kutusunu aç', 'Open the trash', 'فتح المهملات'),
+  'clean.see_files': ('{n} dosyayı gör', 'See {n} files', 'عرض {n} ملف'),
+  'clean.dupes_note': (
+    'Kopya taraması dosyaları bayt bayt karşılaştırır, biraz sürebilir.',
+    'Duplicate scanning compares files byte by byte; it can take a while.',
+    'يقارن فحص التكرارات الملفات بايتًا ببايت، وقد يستغرق بعض الوقت.',
+  ),
+
+  // ── Bellek analizi ────────────────────────────────────────────────────────
+  'ana.by_type': ('Türlere göre', 'By type', 'حسب النوع'),
+  'ana.largest': ('En büyük dosyalar', 'Largest files', 'أكبر الملفات'),
+  'ana.search_all': ('Tüm dosyalarda ara…', 'Search all files…', 'ابحث في كل الملفات…'),
+  'ana.searching': ('Aranıyor…', 'Searching…', 'جارٍ البحث…'),
+  'ana.results': ('Arama sonuçları', 'Search results', 'نتائج البحث'),
+  'ana.result_count': ('{n} sonuç', '{n} results', '{n} نتيجة'),
+  'ana.no_result': ('Sonuç bulunamadı.', 'No results found.', 'لم يُعثر على نتائج.'),
+  'ana.no_files': ('Gösterilecek dosya yok.', 'No files to show.', 'لا توجد ملفات لعرضها.'),
+  'ana.no_scan': ('Henüz tarama sonucu yok.', 'No scan results yet.', 'لا توجد نتائج فحص بعد.'),
+  'ana.usage_unreadable': (
+    'Doluluk bilgisi okunamadı.',
+    'Storage usage could not be read.',
+    'تعذّرت قراءة معلومات الاستخدام.',
+  ),
+  'ana.used_free': ('{used} kullanıldı · {free} boş', '{used} used · {free} free', '{used} مستخدم · {free} فارغ'),
+  'ana.trend': (
+    'Son {days} günde en çok büyüyen: {category}',
+    'Grew the most in the last {days} days: {category}',
+    'الأكثر نموًا في آخر {days} يوم: {category}',
+  ),
+  'ana.free_space': ('Yer aç (temizlik önerileri)', 'Free up space (cleanup suggestions)', 'تحرير مساحة (اقتراحات التنظيف)'),
+  'ana.free_space_note': (
+    'Çöp kutusu, kopyalar, eski indirilenler ve büyük dosyalar',
+    'Trash, duplicates, old downloads and large files',
+    'المهملات والنسخ المكررة والتنزيلات القديمة والملفات الكبيرة',
+  ),
+  'ana.find_dupes': ('Yinelenen dosyaları bul', 'Find duplicate files', 'البحث عن الملفات المكررة'),
+  'ana.find_dupes_note': (
+    'Birebir aynı dosyaları bulur, bir kopyayı bırakıp kalanları çöpe taşır',
+    'Finds byte-identical files, keeps one copy and moves the rest to the trash',
+    'يعثر على الملفات المتطابقة تمامًا، ويبقي نسخة واحدة وينقل الباقي إلى المهملات',
+  ),
+
   // ── Çöp kutusu ────────────────────────────────────────────────────────────
   'trash.title': ('Geri Dönüşüm Kutusu', 'Recycle Bin', 'سلة المحذوفات'),
   'trash.empty': ('Çöp kutusu boş', 'The trash is empty', 'سلة المهملات فارغة'),
