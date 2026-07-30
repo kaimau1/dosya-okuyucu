@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import '../../screens/fm/jobs_screen.dart';
 import '../../services/fm/job_queue.dart';
 
-/// Süren işleri gösteren **kalıcı şerit** — her sekmenin altında, gezinme
-/// çubuğunun üstünde durur.
+/// Süren işi ve **son sonucu** gösteren kalıcı şerit — her sekmenin altında,
+/// gezinme çubuğunun üstünde durur.
 ///
 /// Niye burada: iş kuyruğunun tek anlamı "başlat ve başka işe geç"; ilerleme
 /// yalnız işi başlattığın ekranda görünürse kullanıcı o ekranda beklemek
-/// zorunda kalır. Şerit uygulamanın her yerinde görünür, dokununca ayrıntı
-/// açılır, sağdaki düğme iptal eder.
+/// zorunda kalır. Şerit uygulamanın her yerinde görünür, dokununca İşlemler
+/// ekranı açılır, sağdaki düğme iptal eder.
+///
+/// **İş bitince şerit kaybolmuyor** (kullanıcı hatası 2026-07-30: *"başlatıldı
+/// mı oldu başarısız mı oldu göremiyorum"*): sonuç satırı — başarılı/başarısız
+/// simgesi ve özet ("18,2 MB kazanıldı · Kaydedildi: Camera") — kullanıcı
+/// kapatana kadar durur. Kapatılan sonuç kaybolmuyor, İşlemler ekranında kalıyor.
 class JobProgressBar extends StatelessWidget {
   const JobProgressBar({super.key});
 
@@ -18,178 +24,143 @@ class JobProgressBar extends StatelessWidget {
         animation: JobQueue.instance,
         builder: (context, _) {
           final queue = JobQueue.instance;
-          final job = queue.currentJob;
-          if (job == null) return const SizedBox.shrink();
-          final theme = Theme.of(context);
-          final queued = queue.activeJobs.length - 1;
-          return Material(
-            color: theme.colorScheme.surfaceContainerHigh,
-            child: InkWell(
-              onTap: () => showJobsSheet(context),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(value: job.progress, minHeight: 3),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                queued > 0
-                                    ? '${job.title} (+$queued sırada)'
-                                    : job.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelLarge,
-                              ),
-                              if (job.detail.isNotEmpty)
-                                Text(
-                                  job.detail,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                            ],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => queue.cancel(job.id),
-                          child: const Text('İptal'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          final running = queue.currentJob;
+          if (running != null) return _RunningBar(job: running);
+          final finished = queue.lastFinished;
+          if (finished != null) return _ResultBar(job: finished);
+          return const SizedBox.shrink();
         },
       );
 }
 
-/// İş listesi sayfası: süren + sırada bekleyen + biten işler.
-Future<void> showJobsSheet(BuildContext context) => showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => const _JobsSheet(),
-    );
-
-class _JobsSheet extends StatelessWidget {
-  const _JobsSheet();
+/// İşin adı, ayrıntı satırı ("720×1280 · %42 · ~2 dk kaldı · donanım
+/// kodlayıcı") ve iptal düğmesi.
+class _RunningBar extends StatelessWidget {
+  final FmJob job;
+  const _RunningBar({required this.job});
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: JobQueue.instance,
-        builder: (context, _) {
-          final queue = JobQueue.instance;
-          final jobs = queue.jobs;
-          final theme = Theme.of(context);
-          return SafeArea(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.7,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final queued = JobQueue.instance.activeJobs.length - 1;
+    return Material(
+      color: theme.colorScheme.surfaceContainerHigh,
+      child: InkWell(
+        onTap: () => openJobsScreen(context),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LinearProgressIndicator(value: job.progress, minHeight: 3),
+            Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+              child: Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.sm, 0),
-                    child: Row(
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: Text('İşlemler',
-                              style: theme.textTheme.titleMedium),
+                        Text(
+                          queued > 0
+                              ? '${job.title} (+$queued sırada)'
+                              : job.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge,
                         ),
-                        if (jobs.any((j) => !j.status.isActive))
-                          TextButton(
-                            onPressed: queue.clearFinished,
-                            child: const Text('Bitenleri temizle'),
+                        if (job.detail.isNotEmpty)
+                          Text(
+                            job.detail,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
                           ),
                       ],
                     ),
                   ),
-                  // Dürüst sınır kullanıcının gözünün önünde: "arka planda
-                  // çalışıyor" sözü ne kadarını kapsıyor?
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                    child: Text(
-                      'İşler uygulama arka plandayken de sürer ve ilerleme '
-                      'bildirimde görünür. Uygulamayı görev listesinden '
-                      'tamamen kapatırsan iş durur.',
-                      style: theme.textTheme.bodySmall,
-                    ),
+                  TextButton(
+                    onPressed: () => JobQueue.instance.cancel(job.id),
+                    child: const Text('İptal'),
                   ),
-                  const Divider(height: Gap.md),
-                  if (jobs.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(Gap.lg),
-                      child: Text('Süren bir işlem yok.'),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: jobs.length,
-                        itemBuilder: (context, i) => _row(context, jobs[i]),
-                      ),
-                    ),
-                  const SizedBox(height: Gap.sm),
                 ],
               ),
             ),
-          );
-        },
-      );
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-  Widget _row(BuildContext context, FmJob job) {
+/// Biten işin sonuç satırı: durum simgesi + özet + (varsa) "Aç" + kapatma.
+class _ResultBar extends StatelessWidget {
+  final FmJob job;
+  const _ResultBar({required this.job});
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // İptalde de `detail` GÖSTERİLİR. Sabit "İptal edildi." yazılıyordu, oysa
-    // durdurulan bir iş yarıda ne yaptığını oraya yazıyor: boyut düşürme
-    // "12,4 MB kazanıldı · 4 özgün çöp kutusunda · durduruldu (4/10)" diyor.
-    // Bunu yutmak, kullanıcının 4 videosunun çöpe gittiğini öğrenmesinin TEK
-    // yolunu kapatmaktı (2026-07-29 sadakat denetimi, 2. tur).
-    final subtitle = switch (job.status) {
+    final scheme = theme.colorScheme;
+    final failed = job.status == JobStatus.failed;
+    final summary = switch (job.status) {
       JobStatus.failed => job.error ?? 'Bir hata oluştu.',
       JobStatus.cancelled =>
         job.detail.isEmpty ? 'İptal edildi.' : 'İptal edildi · ${job.detail}',
       _ => job.detail.isEmpty ? job.status.label : job.detail,
     };
-    return ListTile(
-      leading: Icon(switch (job.status) {
-        JobStatus.running => Icons.autorenew,
-        JobStatus.queued => Icons.schedule,
-        JobStatus.done => Icons.check_circle_outline,
-        JobStatus.failed => Icons.error_outline,
-        JobStatus.cancelled => Icons.block,
-      },
-          color: job.status == JobStatus.failed
-              ? theme.colorScheme.error
-              : null),
-      title: Text(job.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-          if (job.status == JobStatus.running)
-            Padding(
-              padding: const EdgeInsets.only(top: Gap.xs),
-              child: LinearProgressIndicator(value: job.progress),
-            ),
-        ],
+    return Material(
+      color: failed
+          ? scheme.errorContainer
+          : scheme.surfaceContainerHigh,
+      child: InkWell(
+        onTap: () => openJobsScreen(context),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+          child: Row(
+            children: [
+              Icon(
+                switch (job.status) {
+                  JobStatus.failed => Icons.error_outline,
+                  JobStatus.cancelled => Icons.block,
+                  _ => Icons.check_circle,
+                },
+                size: 20,
+                color: failed ? scheme.onErrorContainer : const Color(0xFF2E7D32),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(job.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelLarge),
+                    Text(summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              // Çıktı varsa doğrudan "oraya git": şeritten İşlemler ekranına,
+              // oradan dosyaya tek dokunuş kalır.
+              if (job.outputs.isNotEmpty)
+                TextButton(
+                  onPressed: () => openJobsScreen(context),
+                  child: const Text('Göster'),
+                ),
+              IconButton(
+                tooltip: 'Kapat',
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () => JobQueue.instance.dismiss(job.id),
+              ),
+            ],
+          ),
+        ),
       ),
-      trailing: job.status.isActive
-          ? IconButton(
-              tooltip: 'İptal',
-              icon: const Icon(Icons.close),
-              onPressed: () => JobQueue.instance.cancel(job.id),
-            )
-          : null,
     );
   }
 }

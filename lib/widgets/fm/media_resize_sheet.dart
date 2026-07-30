@@ -289,14 +289,17 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                             child: Text(
                               'Video her durumda yeniden kodlanır (kalite ya da '
                               'ses değişse de): istediğin ölçüye birebir '
-                              'dönüştürülür (FFmpeg). Uzun bir videoda bu '
-                              'dakikalar sürebilir; işlem arka planda koşar, '
-                              'ilerlemeyi alttaki şeritten izleyebilirsin. '
-                              'Cihaz bu videoyu FFmpeg ile çeviremezse yedek '
-                              'motora düşülür ve işlem satırında “yedek motor” '
-                              'yazar; orada kare sayısı seçimi uygulanamaz ve '
-                              '“Değiştirme” dışındaki çözünürlükler en yakın '
-                              'kademeye yuvarlanır.',
+                              'dönüştürülür (FFmpeg). Öncelik cihazın donanım '
+                              'kodlayıcısında; o kullanılamazsa yazılım '
+                              'kodlayıcıya düşülür ve işlem belirgin biçimde '
+                              'yavaşlar. Hangi motorun çalıştığı, yüzde ve '
+                              'kalan süre işlem satırında yazar. Uzun bir '
+                              'videoda bu dakikalar sürebilir; işlem arka '
+                              'planda koşar. Cihaz bu videoyu hiç '
+                              'çeviremezse yedek motora düşülür: orada kare '
+                              'sayısı seçimi uygulanamaz ve “Değiştirme” '
+                              'dışındaki çözünürlükler en yakın kademeye '
+                              'yuvarlanır.',
                               style: theme.textTheme.bodySmall,
                             ),
                           ),
@@ -326,8 +329,15 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                   ),
                   const SizedBox(height: Gap.sm),
                   Text(
+                    // Çıktının NEREYE gittiği işlem başlamadan söylenir:
+                    // kullanıcı hatası 2026-07-30 ("nereye gitti, nereden
+                    // açacağım bilinmiyor") önce burada karşılanıyor, sonra
+                    // İşlemler ekranında.
                     'İşlem arka planda kuyrukta çalışır; başka ekranlara '
-                    'geçebilirsin. Uygulamayı tamamen kapatırsan durur.',
+                    'geçebilirsin. Uygulamayı tamamen kapatırsan durur. '
+                    'Küçültülen dosya özgün dosyanın yanına kaydedilir; '
+                    'sonucu ve oluşan dosyaları ana ekrandaki “İşlemler” '
+                    'kutusundan açabilirsin.',
                     style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: Gap.md),

@@ -9,6 +9,7 @@ import 'package:dosya_okuyucu/screens/fm/duplicates_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/fm_settings_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/image_gallery_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/installed_apps_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/jobs_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/media_player_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/photos_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/search_screen.dart';
@@ -44,6 +45,7 @@ void main() {
       const InstalledAppsScreen(),
       const DownloadsScreen(path: '/tmp'),
       const FmSettingsScreen(),
+      const JobsScreen(),
     ];
     expect(widgets, everyElement(isA<Widget>()));
   });

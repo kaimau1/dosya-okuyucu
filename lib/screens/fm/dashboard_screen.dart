@@ -13,6 +13,7 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/job_queue.dart';
 import '../../services/fm/media_library.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
@@ -30,6 +31,7 @@ import 'downloads_screen.dart';
 import 'fm_settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
+import 'jobs_screen.dart';
 import 'op_history_screen.dart';
 import 'open_history_screen.dart';
 import 'organize_screen.dart';
@@ -334,7 +336,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _categoryGrid(),
             const SizedBox(height: Gap.lg),
             _sectionTitle('Araçlar'),
-            _toolGrid(),
+            // Kuyruk değişince (iş başladı/bitti) yalnız araç ızgarası yeniden
+            // çizilir: "İşlemler" kutusunun alt yazısı canlı sayaç
+            // ("1 sürüyor" / "3 biten") — kullanıcı ana ekrandan bakınca
+            // işleminin durduğunu ya da bittiğini görebilsin.
+            AnimatedBuilder(
+              animation: JobQueue.instance,
+              builder: (context, _) => _toolGrid(),
+            ),
             if (appState.bookmarks.isNotEmpty) ...[
               const SizedBox(height: Gap.lg),
               _sectionTitle('Favoriler'),
@@ -505,7 +514,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final download = p.join(FmEnv.primaryRoot, 'Download');
     final primary = FmEnv.volumes.firstOrNullVolume;
     final downloading = DownloadService.instance.activeTasks.length;
+    final queue = JobQueue.instance;
+    final runningJobs = queue.activeJobs.length;
+    final finishedJobs = queue.finishedJobs.length;
     final tools = <FmTileData>[
+      // **İşlemler — ilk sırada, bilinçli.** Kullanıcı isteği 2026-07-30:
+      // "video boyutu düşürme gibi işlemlerin sonucunu, işleyişini takip
+      // edebileceğim ana ekranda bir yer, kart, buton gibi bir şey lazım".
+      // Alt yazı gerçek sayaç: sürüyor mu, bitmiş iş var mı.
+      FmTileData(
+        icon: runningJobs > 0
+            ? Icons.autorenew
+            : Icons.playlist_add_check_circle_outlined,
+        color: const Color(0xFF2E7D32),
+        label: 'İşlemler',
+        subtitle: runningJobs > 0
+            ? '$runningJobs sürüyor'
+            : (finishedJobs > 0 ? '$finishedJobs biten' : ''),
+        onTap: () async {
+          await openJobsScreen(context);
+          if (mounted) setState(() {});
+        },
+      ),
       FmTileData(
         icon: Icons.download_for_offline_outlined,
         color: const Color(0xFF1565C0),

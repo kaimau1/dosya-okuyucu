@@ -27,14 +27,12 @@ void main() {
       expect(args.last, '/depo/VID_0001_720p.mp4');
     });
 
-    test('ölçek filtresi istenen ölçüyü BİREBİR yazar', () {
+    test('kare atma ÖLÇEKLEMEDEN ÖNCE zincirlenir (hız)', () {
+      // Tersi (eski hâli) atılacak kareleri de ölçekliyordu: 60→30 fps'te
+      // ölçekleyicinin işinin yarısı çöpe gidiyordu ("çok yavaş", 2026-07-30).
       final vf = args[args.indexOf('-vf') + 1];
-      expect(vf, contains('scale=1280:720'));
-    });
-
-    test('kare sayısı filtresi ölçekle VİRGÜLLE zincirlenir', () {
-      final vf = args[args.indexOf('-vf') + 1];
-      expect(vf, 'scale=1280:720:flags=bicubic,fps=30');
+      expect(vf, startsWith('fps=30,'));
+      expect(vf.indexOf('fps='), lessThan(vf.indexOf('scale=')));
     });
 
     test('kare sayısı verilmezse fps filtresi HİÇ yazılmaz', () {
@@ -48,8 +46,22 @@ void main() {
         encoder: 'h264_mediacodec',
       );
       final vf = noFps[noFps.indexOf('-vf') + 1];
-      expect(vf, 'scale=640:480:flags=bicubic');
       expect(vf.contains('fps='), isFalse);
+      expect(vf, startsWith('scale='));
+    });
+
+    test('yazılım kodlayıcı tüm çekirdekleri kullanır, donanım gerektirmez', () {
+      final sw = FfmpegVideo.buildArgs(
+        source: 'a.mp4',
+        output: 'b.mp4',
+        width: 1280,
+        height: 720,
+        crf: 24,
+        removeAudio: false,
+        encoder: 'mpeg4',
+      );
+      expect(sw, containsAllInOrder(['-threads', '0']));
+      expect(args.contains('-threads'), isFalse);
     });
 
     test('donanım kodlayıcı bit hızıyla sürülür (CRF anlamıyor)', () {
@@ -142,6 +154,118 @@ void main() {
       );
       expect(spaced, contains('/depo/Tatil 2026/VID 01.mp4'));
       expect(spaced.last, '/depo/Tatil 2026/VID 01_720p.mp4');
+    });
+  });
+
+  group('ölçek süzgeci — dikey video yatay çıkmasın (hata 2026-07-30)', () {
+    // KÖK NEDEN: hedef ölçü mutlak sayı olarak yazılıyordu (`scale=1280:720`)
+    // ve o sayılar döndürme verisi okunamadığında YATAY çıkıyordu; ffmpeg ise
+    // kareyi kendi döndürme verisiyle çevirip (autorotate) dikey kareyi yatay
+    // çerçeveye basıyordu → video enine yayılıyordu. Çözüm: kutuya sığdırma,
+    // yani çıktı oranını KAYNAĞIN karesinden aldırmak.
+    String fitFilter(int w, int h) => FfmpegVideo.scaleFilter(
+        width: w, height: h, mode: VideoScaleMode.fit);
+
+    test('kademe/yüzde: oran kaynaktan alınır, mutlak ölçü YAZILMAZ', () {
+      final filter = fitFilter(1280, 720);
+      expect(filter, contains('force_original_aspect_ratio=decrease'));
+      // Kutu = uzun kenar; kısa kenar mutlak olarak DAYATILMAZ.
+      expect(filter, contains('w=1280:h=1280'));
+      expect(filter.contains(':h=720'), isFalse);
+    });
+
+    test('dikey hedef de aynı kutuyu üretir (yön bilgisine bağlı değil)', () {
+      // Aynı videonun dikey ve yatay okunmuş hâli AYNI süzgeci vermeli:
+      // sonucu artık kaynağın kendi karesi belirliyor.
+      expect(fitFilter(720, 1280), fitFilter(1280, 720));
+    });
+
+    test('çift ölçü garanti (H.264 tek sayı kabul etmez)', () {
+      expect(fitFilter(1280, 720), contains('force_divisible_by=2'));
+    });
+
+    test('serbest en×boy BİREBİR uygulanır (kullanıcı iki sayıyı da yazdı)', () {
+      final filter = FfmpegVideo.scaleFilter(
+          width: 1234, height: 568, mode: VideoScaleMode.exactBoth);
+      expect(filter, 'scale=w=1234:h=568:flags=bicubic');
+      expect(filter.contains('force_original_aspect_ratio'), isFalse);
+    });
+
+    test('tek kenar yazıldıysa diğeri orandan (-2) hesaplanır', () {
+      expect(
+          FfmpegVideo.scaleFilter(
+              width: 1000, height: 562, mode: VideoScaleMode.exactWidth),
+          'scale=w=1000:h=-2:flags=bicubic');
+      expect(
+          FfmpegVideo.scaleFilter(
+              width: 1000, height: 562, mode: VideoScaleMode.exactHeight),
+          'scale=w=-2:h=562:flags=bicubic');
+    });
+
+    test('süzgeç ifade (virgül) İÇERMEZ — zincir ayırıcısıyla çakışmasın', () {
+      // `if(gt(iw\,ih)\,…)` yolu bilinçli olarak seçilmedi: virgül filtre
+      // zincirini ayırıyor, tek bir kaçırma hatası "video hiç dönüşmüyor"
+      // demek ve bu ortamda cihazda doğrulanamaz.
+      expect(fitFilter(1280, 720).contains(','), isFalse);
+    });
+
+    group('ölçek kipi seçimi', () {
+      test('kademe ve yüzde → sığdırma', () {
+        expect(
+            FfmpegVideo.scaleModeFor(
+                const MediaResizeOptions(resolution: ResolutionChoice.p720)),
+            VideoScaleMode.fit);
+        expect(
+            FfmpegVideo.scaleModeFor(const MediaResizeOptions(
+                resolution: ResolutionChoice.percent, percent: 50)),
+            VideoScaleMode.fit);
+        expect(
+            FfmpegVideo.scaleModeFor(
+                const MediaResizeOptions(resolution: ResolutionChoice.keep)),
+            VideoScaleMode.fit);
+      });
+
+      test('serbest ölçüde yazılan alan(lar)a göre kip', () {
+        expect(
+            FfmpegVideo.scaleModeFor(const MediaResizeOptions(
+                resolution: ResolutionChoice.custom,
+                customWidth: 1234,
+                customHeight: 568)),
+            VideoScaleMode.exactBoth);
+        expect(
+            FfmpegVideo.scaleModeFor(const MediaResizeOptions(
+                resolution: ResolutionChoice.custom, customWidth: 1234)),
+            VideoScaleMode.exactWidth);
+        expect(
+            FfmpegVideo.scaleModeFor(const MediaResizeOptions(
+                resolution: ResolutionChoice.custom, customHeight: 568)),
+            VideoScaleMode.exactHeight);
+        // Hiçbir alan yazılmadıysa sığdırmaya düşer (ölçü değişmez).
+        expect(
+            FfmpegVideo.scaleModeFor(
+                const MediaResizeOptions(resolution: ResolutionChoice.custom)),
+            VideoScaleMode.fit);
+      });
+    });
+  });
+
+  group('kalan süre tahmini', () {
+    test('ilk saniyelerde tahmin YAZILMAZ (yanlış süre yazmaktansa hiç)', () {
+      expect(FfmpegVideo.remainingText(const Duration(seconds: 1), 0.5), '');
+      expect(FfmpegVideo.remainingText(const Duration(seconds: 30), 0.0), '');
+      expect(FfmpegVideo.remainingText(const Duration(seconds: 30), 1.0), '');
+    });
+
+    test('ölçülen hızdan saniye/dakika/saat', () {
+      // 10 sn'de %50 → ~10 sn kaldı.
+      expect(FfmpegVideo.remainingText(const Duration(seconds: 10), 0.5),
+          '~10 sn kaldı');
+      // 60 sn'de %25 → 180 sn kaldı → ~3 dk.
+      expect(FfmpegVideo.remainingText(const Duration(seconds: 60), 0.25),
+          '~3 dk kaldı');
+      // 60 dk'da %10 → 9 saat kaldı.
+      expect(FfmpegVideo.remainingText(const Duration(minutes: 60), 0.1),
+          '~9 sa kaldı');
     });
   });
 
