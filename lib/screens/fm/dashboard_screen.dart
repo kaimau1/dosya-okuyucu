@@ -28,6 +28,7 @@ import 'category_screen.dart';
 import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
+import 'drive_screen.dart';
 import 'fm_settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
@@ -535,6 +536,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           await openJobsScreen(context);
           if (mounted) setState(() {});
         },
+      ),
+      // Google Drive: "İndir"in yanında çünkü ikisi de dosyayı DIŞARIDAN
+      // getiriyor. Kapsam sınırı (yalnız bizim yüklediklerimiz) ekranın
+      // kendisinde yazılı — kutucuğa sığmaz ve orada yazılsa da okunmazdı.
+      FmTileData(
+        icon: Icons.cloud_outlined,
+        color: const Color(0xFF0F9D58),
+        label: 'Google Drive',
+        subtitle: '',
+        onTap: () => _push(const DriveScreen()),
       ),
       FmTileData(
         icon: Icons.download_for_offline_outlined,

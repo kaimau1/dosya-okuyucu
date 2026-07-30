@@ -4593,3 +4593,94 @@ Bulut Linux oturumunda Flutter **3.29.3** (CI ile aynı): `flutter analyze`
 sayının aynısı). `flutter test` **921 test geçti** (tur başında 883; yeni 38).
 Cihazda görsel doğrulama YAPILMADI (Android SDK/telefon yok) — Arapça arayüzün
 ve sağdan sola Excel/Word sayfalarının telefonda görünümü KALANLAR'da.
+
+---
+
+## 2026-07-30 (II) — Google Drive bağlantısı (`drive.file`) ve NAS araştırması
+
+Kullanıcı iki şey sordu: *"NAS (FTP, FTPS, SFTP, SMB, WebDAV, LAN) yapabilir
+miyiz"* ve *"Google Drive bağlantısı yapabilir miyiz"*. Karar: **önce Drive**;
+NAS sonraki tura, SMB'de "önce dene, tutmazsa listeden çıkar".
+
+### A) Paket uyumluluğu TAHMİN DEĞİL, ÖLÇÜM
+Hepsi bizim sürüm duvarımıza (Flutter 3.29.3 / Dart 3.7) karşı
+`flutter pub add --dry-run` ile denendi — çözülen sürümler:
+
+| iş | paket | çözülen sürüm |
+|---|---|---|
+| SFTP | `dartssh2` | 2.22.5 |
+| FTP/FTPS | `ftpconnect` | 2.0.7 |
+| WebDAV | `webdav_client` | 1.2.2 |
+| LAN keşfi | `multicast_dns` | 0.3.3 |
+| Drive | `googleapis` / `googleapis_auth` | 15.0.0 / 2.0.0 |
+| SMB | `smb_connect` | **0.0.9** |
+
+Hiçbiri çözümlemeyi kırmıyor. **SMB tek zayıf halka:** olgun saf-Dart istemci
+yok, tek aday 0.0.9. Java `smbj`'yi platform kanalıyla sarmak **kendi
+`android/` klasörümüzü depoya sokmak** demek — CI iskeleti her derlemede
+`flutter create` ile üretiyor; "tek paket için tüm derleme zincirini oynatma"
+daha önce reddedilmiş bir yol (bkz. `light_compressor`, `usage_stats`).
+PC→telefon FTP **sunucusu** hiç paket istemiyor: `dart:io` `ServerSocket`.
+
+### B) Drive — `googleapis` DEĞİL, düz REST
+`googleapis` Google'ın bütün API'lerini tek pakette taşıyor; bize altı uç nokta
+gerekiyordu. Depoda zaten elle yazılmış REST istemcisi var
+(`gemini_service.dart`) ve testi `http.runWithClient` + `MockClient` ile
+kuruluyor — aynı desen izlendi, **yeni bağımlılık girmedi**.
+`lib/services/fm/drive_service.dart` + `lib/models/drive_file.dart`.
+
+### C) KARAR — kapsam `drive.file`, `drive` DEĞİL
+"Tüm Drive'ı gez" için gereken `drive`/`drive.readonly` Google'ın
+**restricted scope**'u: yayınlanan uygulamada yıllık ve **ÜCRETLİ** üçüncü
+taraf güvenlik denetimi (CASA) şart. Projenin "ücretsiz" ilkesiyle
+bağdaşmıyor. `drive.file` kısıtlı değil ve yalnız **uygulamanın kendi
+yüklediği/oluşturduğu** dosyaları görüyor.
+
+**Bunun kullanıcıya SÖYLENMESİ ürünün parçası:** yazılmazsa Drive'ında yüzlerce
+dosyası olan kullanıcı boş liste görüp uygulamayı bozuk sanar. Bilgi şeridi
+`drive_screen`de **liste doluyken de** duruyor (yalnız boşken gösterilseydi
+tek dosya yükleyen kullanıcı açıklamayı bir daha görmezdi) ve **Drive'daki
+diğer dosyalara nasıl ulaşılacağını** yazıyor: *Dosya Aç → sistem seçicisi*.
+Android'in Depolama Erişim Çerçevesi Drive'ı sağlayıcı olarak listeliyor ve o
+yol hiçbir yetki istemiyor — yani "her Drive dosyasını aç" yeteneği zaten
+vardı, sadece görünür değildi.
+
+### D) Tuzaklar (kodda ve testte sabitlendi)
+- **Google'ın kendi biçimleri (`vnd.google-apps.*`) `alt=media` ile
+  İNDİRİLEMEZ** — Drive 403 döndürür. `export` uç noktası + hedef MIME şart
+  (Dokümanlar→docx, E-Tablolar→xlsx, Slaytlar→pptx, Çizimler→pdf).
+- **O biçimlerde `size` alanı HİÇ GELMEZ.** Arayüz "0 B" değil **"—"**
+  gösteriyor: bayt karşılığı olmaması boş olmak demek değil.
+- **Drive'daki adın uzantısı yoktur** ("Bütçe"). İndirirken dışa aktarım
+  uzantısı eklenmezse telefonda hiçbir uygulama açamaz (`DriveFile.localName`).
+- **`fields` açıkça istenmeli:** yazılmazsa Drive yalnız `id`+`name` döndürür,
+  boyut/tarih sütunları sessizce boş kalırdı.
+- **Drive sorgu dilinde tek tırnak sınırlayıcı** → arama metnindeki kesme
+  işareti kaçırılmazsa sorgu bozulur ("Ali'nin raporu").
+- **`multipart/related` gövdesi BAYT olarak kurulmalı;** metne çevirip
+  birleştirmek UTF-8 olmayan içeriği bozardı (test bunu birebir ölçüyor).
+- **TUZAK (kendi hatam) — test kancası "oturum açık" demek DEĞİL:**
+  `authHeadersOverride` takılıyken `signIn*` koşulsuz `true` dönüyordu, bu
+  yüzden "oturumsuz" durumu hiç test edilemiyordu. Artık kanca **başlık
+  üretebiliyor mu** diye bakılıyor.
+- Hata sessizce yutulmuyor: `DriveException` + `DriveError` (notSignedIn /
+  forbidden / notFound / temporary / unknown) ve Drive'ın kendi
+  `error.message`'ı kullanıcıya taşınıyor. Sessiz boş liste, gerçekten boş bir
+  Drive'dan ayırt edilemezdi.
+
+### E) Bağlantı noktaları
+Pano → **Araçlar → Google Drive** kutucuğu; dosyaya uzun basış → **Drive'a
+yükle**. Açma yolu **indir-önbelleğe-aç**: uzak dosya uygulamanın kendi
+klasörüne iner, sonra mevcut `EntryOpener` zinciriyle açılır — Drive dosyaları
+tüm biçim desteğimizden ilk günden yararlanıyor ve `FileOps`un **saf `dart:io`**
+değişmezi bozulmuyor. (Alternatif "soyut dosya sistemi katmanı" doğru ama
+gezgin/iş kuyruğu/etiket zincirinin tamamını etkiliyor → NAS turunda yeniden
+değerlendirilecek.)
+
+### Doğrulama
+Flutter 3.29.3 (CI ile aynı): `flutter analyze` **0 hata**, 39 info/warning
+(tur başındakiyle aynı, hepsi eski kod). `flutter test` **949 test geçti**
+(önceki tur 921; yeni 28: `drive_service_test` 21, `drive_screen_test` 7).
+Cihazda doğrulanamayan: gerçek Google oturumu ve OAuth istemci yapılandırması
+(google-services.json) — Drive, Firebase ile aynı istemciyi kullanıyor,
+yapılandırma yoksa giriş açılmaz. KALANLAR'a yazıldı.
