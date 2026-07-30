@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/list_prefix.dart';
 import '../../models/document.dart';
 import '../../services/docx_editor.dart';
@@ -70,6 +71,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   Future<void> _save() async {
     final editor = _editor;
     if (editor == null) return;
+    // Hata metni await'ten önce çevrilir (asenkron boşluktan sonra `context`
+    // kullanılamaz).
+    final saveFailed = context.t('word.save_failed');
     try {
       final bytes = editor.save();
       await File(widget.path).writeAsBytes(bytes);
@@ -77,12 +81,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       _dirty = false;
       // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.t('common.saved_hint'))));
         setState(() {});
       }
     } catch (e) {
-      _snack('Kaydedilemedi: $e');
+      _snack(saveFailed.replaceAll('{error}', '$e'));
     }
   }
 
@@ -120,8 +124,8 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     if (webCount == ours) return;
     _viewKey.currentState?.setEditing(false);
     setState(() => _editing = false);
-    _snack('Bu belgede canlı düzenleme güvenli değil '
-        '(paragraf eşleşmedi: $webCount/$ours). ⋮ > Metin düzenleyici kullanın.');
+    _snack(context.t(
+        'word.live_edit_unsafe', {'web': webCount, 'ours': ours}));
   }
 
   void _onEdited(int i, List<(String, bool, bool, bool)> segs) {
@@ -160,7 +164,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       actions: [
         if (_editing)
           IconButton(
-            tooltip: 'Kaydet',
+            tooltip: context.t('common.save'),
             icon: const Icon(Icons.save_outlined),
             onPressed: editor == null ? null : _save,
           ),
@@ -181,10 +185,11 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
           },
           itemBuilder: (_) => [
             _plainMode
-                ? const PopupMenuItem(
-                    value: 'page', child: Text('Sayfa görünümü'))
-                : const PopupMenuItem(
-                    value: 'plain', child: Text('Metin düzenleyici')),
+                ? PopupMenuItem(
+                    value: 'page', child: Text(context.t('word.page_view')))
+                : PopupMenuItem(
+                    value: 'plain',
+                    child: Text(context.t('word.text_editor'))),
           ],
         ),
       ],
@@ -196,27 +201,29 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
           ? null
           : DocActionBar([
               if (!_plainMode)
-                DocAction(Icons.edit_outlined, 'Düzenle',
+                DocAction(Icons.edit_outlined, context.t('common.edit'),
                     editor == null ? null : _toggleEdit),
               if (!_plainMode)
                 DocAction(
                   _flow ? Icons.description_outlined : Icons.smartphone,
-                  _flow ? 'Sayfa' : 'Mobil',
+                  context.t(
+                      _flow ? 'word.page_layout' : 'word.mobile_flow'),
                   editor == null ? null : _toggleFlow,
                 ),
-              DocAction(
-                  Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
-              DocAction(Icons.share_outlined, 'Paylaş',
+              DocAction(Icons.save_outlined, context.t('common.save'),
+                  editor == null ? null : _save),
+              DocAction(Icons.share_outlined, context.t('common.share'),
                   editor == null ? null : _export),
               DocAction(
                 Icons.translate,
-                'Çevir',
+                context.t('common.translate'),
                 () => TranslateFlow.run(context, widget.plainText,
                     title: widget.name),
               ),
             ]),
       body: _error != null
-          ? Center(child: Text('Açılamadı: $_error'))
+          ? Center(
+              child: Text(context.t('common.open_failed', {'error': _error})))
           : editor == null || bytes == null
               ? const Center(child: CircularProgressIndicator())
               : _plainMode
@@ -224,6 +231,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                   : DocxView(
                       key: _viewKey,
                       bytes: bytes,
+                      rightToLeft: editor.rightToLeft,
                       onEdited: _onEdited,
                       onSelection: _onSelection,
                       onAlign: _onAlignChanged,
@@ -247,7 +255,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                   fileName: widget.name,
                 ),
               )),
-              tooltip: 'AI ile çalış',
+              tooltip: context.t('common.ai'),
               child: const Icon(Icons.smart_toy_outlined),
             ),
     );
@@ -278,22 +286,28 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         child: Row(
           children: [
             const SizedBox(width: 8),
-            btn('bold', Icons.format_bold, _selB, 'Kalın'),
-            btn('italic', Icons.format_italic, _selI, 'İtalik'),
-            btn('underline', Icons.format_underlined, _selU, 'Altı çizili'),
+            btn('bold', Icons.format_bold, _selB, context.t('common.bold')),
+            btn('italic', Icons.format_italic, _selI,
+                context.t('common.italic')),
+            btn('underline', Icons.format_underlined, _selU,
+                context.t('common.underline')),
             Container(
                 width: 1,
                 height: 22,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 color: Colors.white38),
-            btn('justifyLeft', Icons.format_align_left, false, 'Sola yasla'),
-            btn('justifyCenter', Icons.format_align_center, false, 'Ortala'),
-            btn('justifyRight', Icons.format_align_right, false, 'Sağa yasla'),
+            btn('justifyLeft', Icons.format_align_left, false,
+                context.t('common.align_left')),
+            btn('justifyCenter', Icons.format_align_center, false,
+                context.t('common.align_center')),
+            btn('justifyRight', Icons.format_align_right, false,
+                context.t('common.align_right')),
             const Spacer(),
             TextButton.icon(
               onPressed: _toggleEdit,
               icon: const Icon(Icons.keyboard_hide, color: Colors.white, size: 18),
-              label: const Text('Bitti', style: TextStyle(color: Colors.white)),
+              label: Text(context.t('word.done'),
+                  style: const TextStyle(color: Colors.white)),
             ),
             const SizedBox(width: 8),
           ],
@@ -338,7 +352,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                       child: TextButton.icon(
                         onPressed: () => _addParagraph(null),
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Paragraf ekle'),
+                        label: Text(context.t('word.add_paragraph')),
                       ),
                     ),
                   ],
@@ -426,39 +440,42 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: Row(
           children: [
-            toggle(Icons.format_bold, 'Kalın', sel?.bold ?? false,
+            toggle(Icons.format_bold, context.t('common.bold'),
+                sel?.bold ?? false,
                 () => toggleBool((p) => p.bold = !p.bold)),
-            toggle(Icons.format_italic, 'İtalik', sel?.italic ?? false,
+            toggle(Icons.format_italic, context.t('common.italic'),
+                sel?.italic ?? false,
                 () => toggleBool((p) => p.italic = !p.italic)),
-            toggle(Icons.format_underlined, 'Altı çizili',
+            toggle(Icons.format_underlined, context.t('common.underline'),
                 sel?.underline ?? false,
                 () => toggleBool((p) => p.underline = !p.underline)),
             _sep(scheme),
-            toggle(Icons.format_align_left, 'Sola yasla',
+            toggle(Icons.format_align_left, context.t('common.align_left'),
                 sel?.align == 'left', () => setAlign('left')),
-            toggle(Icons.format_align_center, 'Ortala',
+            toggle(Icons.format_align_center, context.t('common.align_center'),
                 sel?.align == 'center', () => setAlign('center')),
-            toggle(Icons.format_align_right, 'Sağa yasla',
+            toggle(Icons.format_align_right, context.t('common.align_right'),
                 sel?.align == 'right', () => setAlign('right')),
-            toggle(Icons.format_align_justify, 'İki yana yasla',
+            toggle(Icons.format_align_justify,
+                context.t('common.align_justify'),
                 sel?.align == 'both', () => setAlign('both')),
             _sep(scheme),
-            toggle(Icons.format_list_bulleted, 'Madde işareti',
+            toggle(Icons.format_list_bulleted, context.t('word.bullet_list'),
                 sel != null && hasBullet(sel.text),
                 () => applyList(numbered: false)),
-            toggle(Icons.format_list_numbered, 'Numaralı liste',
+            toggle(Icons.format_list_numbered, context.t('word.numbered_list'),
                 sel != null && hasNumber(sel.text),
                 () => applyList(numbered: true)),
             _sep(scheme),
             IconButton(
-              tooltip: 'Altına paragraf ekle',
+              tooltip: context.t('word.add_paragraph_below'),
               visualDensity: VisualDensity.compact,
               iconSize: 20,
               icon: const Icon(Icons.playlist_add),
               onPressed: enabled ? () => _addParagraph(sel) : null,
             ),
             IconButton(
-              tooltip: 'Paragrafı sil',
+              tooltip: context.t('word.delete_paragraph'),
               visualDensity: VisualDensity.compact,
               iconSize: 20,
               icon: const Icon(Icons.delete_outline),
@@ -522,17 +539,24 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       height: para.heading ? 1.3 : 1.5,
     );
 
-    return Container(
+    // Paragrafın kendi yönü (`w:pPr/w:bidi`). Arapça/İbranice belgede metin
+    // sağdan başlar; karışık (Arapça + Latin) satırlarda kelime sırası da
+    // taban yöne göre çözülür — yön verilmezse aynı satır GÖRÜNÜR biçimde
+    // yanlış sıralanır. Seçim şeridi ve iç boşluk da yönle birlikte döner
+    // (`BorderDirectional`/`EdgeInsetsDirectional`).
+    return Directionality(
+      textDirection: para.rtl ? TextDirection.rtl : TextDirection.ltr,
+      child: Container(
       margin: EdgeInsets.only(bottom: para.heading ? 10 : 6),
       decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(
+        border: BorderDirectional(
+          start: BorderSide(
             color: selected ? theme.colorScheme.primary : Colors.transparent,
             width: 3,
           ),
         ),
       ),
-      padding: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsetsDirectional.only(start: 6),
       child: TextFormField(
         key: ObjectKey(para),
         initialValue: para.text,
@@ -544,7 +568,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
           if (!_dirty) setState(() => _dirty = true);
         },
         style: style,
-        textAlign: _textAlign(para.align),
+        textAlign: _textAlign(para),
         maxLines: null,
         decoration: const InputDecoration(
           isDense: true,
@@ -552,13 +576,20 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
           contentPadding: EdgeInsets.zero,
         ),
       ),
+      ),
     );
   }
 
-  TextAlign _textAlign(String a) => switch (a) {
+  /// Paragrafın ekrandaki hizalaması.
+  ///
+  /// Dosyada hizalama YAZMIYORSA (`hasExplicitAlign == false`) `TextAlign.start`
+  /// kullanılır: soldan sağa paragrafta sol, sağdan solada sağ. Eskiden koşulsuz
+  /// `TextAlign.left` dönüyordu — Arapça belgede her paragraf sola yapışıyordu.
+  /// Dosyada AÇIKÇA yazan `left`/`right` ise mutlaktır (Word de aynalamaz).
+  TextAlign _textAlign(DocxParagraph p) => switch (p.align) {
         'center' => TextAlign.center,
         'right' => TextAlign.right,
         'both' => TextAlign.justify,
-        _ => TextAlign.left,
+        _ => p.hasExplicitAlign ? TextAlign.left : TextAlign.start,
       };
 }

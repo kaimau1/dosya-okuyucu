@@ -16,6 +16,12 @@ import 'package:webview_flutter/webview_flutter.dart';
 class DocxView extends StatefulWidget {
   final Uint8List bytes;
 
+  /// Belge **sağdan sola** bir bölüm mü (`w:sectPr/w:bidi`)? Gömülü
+  /// docx-preview motoru bölüm düzeyindeki yönü yok saydığı için değer
+  /// dışarıdan (`DocxEditor.rightToLeft`) verilir ve çizimden hemen sonra
+  /// sayfaya uygulanır.
+  final bool rightToLeft;
+
   /// Canlı düzenlemede bir paragraf değiştiğinde (indeks + biçimli parçalar).
   final void Function(int index, List<(String, bool, bool, bool)> segs)?
       onEdited;
@@ -36,6 +42,7 @@ class DocxView extends StatefulWidget {
   const DocxView({
     super.key,
     required this.bytes,
+    this.rightToLeft = false,
     this.onEdited,
     this.onSelection,
     this.onAlign,
@@ -138,6 +145,10 @@ class DocxViewState extends State<DocxView> {
   /// Seçime biçim uygular: 'bold' | 'italic' | 'underline'.
   void format(String cmd) => _controller.runJavaScript("fmt('$cmd')");
 
+  /// Belge yönünü günceller (sayfa çizildikten sonra da çağrılabilir).
+  void setDocDir(bool rtl) =>
+      _controller.runJavaScript('setDocDir($rtl)');
+
   /// Mobil akış görünümü: sayfanın sabit A4 genişliği kalkar, paragraflar
   /// ekrana sarılır → yazı gerçek boyutunda okunur (bkz. `viewer.html`).
   void setFlow(bool on) {
@@ -159,6 +170,10 @@ class DocxViewState extends State<DocxView> {
       widget.onStatus?.call(false);
       return;
     }
+    // Yön çizimden ÖNCE kurulur: docx-preview sayfayı yerleştirirken gövde
+    // zaten rtl olur, sonradan çevirip yeniden ölçmek gerekmez (fitPage
+    // genişliği bir kez ölçüyor).
+    await _controller.runJavaScript('setDocDir(${widget.rightToLeft})');
     final b64 = base64Encode(widget.bytes);
     await _controller.runJavaScript("renderDocx('$b64')");
   }

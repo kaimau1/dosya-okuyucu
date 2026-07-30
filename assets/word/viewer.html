@@ -38,11 +38,30 @@
   @font-face { font-family:'Cambria'; src:url('../fonts/Tinos-Regular.ttf'); font-weight:normal; font-style:normal; font-display:block; }
   @font-face { font-family:'Cambria'; src:url('../fonts/Tinos-Bold.ttf'); font-weight:bold; font-style:normal; font-display:block; }
   @font-face { font-family:'Cambria'; src:url('../fonts/Tinos-Italic.ttf'); font-weight:normal; font-style:italic; font-display:block; }
+  /* ARAPÇA/İBRANİCE/CJK: yukarıdaki ikameler (Carlito/Tinos/Arimo) YALNIZ
+     Latin-Yunan-Kiril taşır. `unicode-range` olmadan tarayıcı "Calibri" adını
+     görüp bu dosyaları yükler, Arapça harfleri onlarda arar ve bulamayınca
+     davranışı belirsizleşir (kimi WebView sürümünde kutu/tofu). Kapsam açıkça
+     sınırlanınca eksik harf için aile BOŞ kalır ve cihazın kendi Arapça fontuna
+     (Android'de Noto Naskh Arabic) düşülür — metrik uyumu zaten Latin için
+     anlamlı, Arapça'da kayıp yok. */
+  @font-face { font-family:'Calibri'; src:local('Noto Naskh Arabic'), local('Droid Arabic Naskh'), local('Arial'); unicode-range: U+0590-05FF, U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB1D-FDFF, U+FE70-FEFF; }
+  @font-face { font-family:'Times New Roman'; src:local('Noto Naskh Arabic'), local('Droid Arabic Naskh'), local('Arial'); unicode-range: U+0590-05FF, U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB1D-FDFF, U+FE70-FEFF; }
+  @font-face { font-family:'Arial'; src:local('Noto Naskh Arabic'), local('Droid Arabic Naskh'); unicode-range: U+0590-05FF, U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB1D-FDFF, U+FE70-FEFF; }
   html, body { margin: 0; padding: 0; background: #f3f2f1; }
   /* Fonta hiç ad vermeyen (theme default) metin de rastgele cihaz fontuna
      düşmesin: son çare olarak Calibri metrikli Carlito. docx-preview çoğu
      çalıştırmada fontu açıkça yazar, bu yalnızca boşluğu doldurur. */
   #container { padding: 8px 0 24px; font-family: 'Calibri', 'Carlito', sans-serif; }
+  /* Sağdan sola belge (bkz. setDocDir): docx-preview paragraf/çalıştırma
+     düzeyindeki w:bidi'yi uyguluyor ama BÖLÜM düzeyindekini yok sayıyor.
+     Açık hizalaması olmayan paragraflar bu kurala düşer; `w:jc` yazan
+     paragraflar docx-preview'ın kendi satır-içi stiliyle korunur (o daha
+     özgül) — yani dosyada yazan hizalama EZİLMEZ. */
+  body.rtl #container { direction: rtl; }
+  body.rtl .docx-wrapper section.docx p,
+  body.rtl .docx-wrapper section.docx li,
+  body.rtl .docx-wrapper section.docx table { direction: rtl; }
   /* docx-preview sayfayı beyaz bir "kağıt" olarak çizer; gölge ekleyip
      PowerPoint/Word hissini tamamlıyoruz. */
   .docx-wrapper { background: #f3f2f1 !important; padding: 8px !important; }
@@ -306,6 +325,15 @@
   var pageW = 0;
   var fitTries = 0;
   var FLOW = false;
+
+  // Belgenin BÖLÜM düzeyi yönü (w:sectPr/w:bidi). docx-preview bunu yok
+  // sayıyor, değer Flutter tarafında `DocxEditor.rightToLeft` ile okunup
+  // buraya veriliyor. Sayfa çizildikten sonra da çağrılabilir (yalnız sınıf
+  // ekler, yeniden çizim gerekmez).
+  window.setDocDir = function (rtl) {
+    document.body.classList.toggle('rtl', !!rtl);
+    document.body.dir = rtl ? 'rtl' : 'ltr';
+  };
 
   // Mobil akış / sayfa görünümü arasında geçiş. Akışta sığdırma ölçeği hiç
   // uygulanmaz; sayfaya dönerken genişlik yeniden ölçülür (pageW sıfırlanır).

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'l10n/app_language.dart';
 import '../models/fm_layout.dart';
 import '../models/fs_entry.dart';
 import '../models/media_open_with.dart';
@@ -16,6 +17,7 @@ class AppState extends ChangeNotifier {
   static const _kApiKey = 'gemini_api_key';
   static const _kModel = 'gemini_model';
   static const _kThemeMode = 'theme_mode';
+  static const _kLanguage = 'app_language';
   static const _kRecents = 'recent_files';
   static const _kMemory = 'ai_memory';
   // Dosya yöneticisi tercihleri
@@ -44,6 +46,7 @@ class AppState extends ChangeNotifier {
   String _apiKey = '';
   String _model = 'gemini-2.0-flash';
   ThemeMode _themeMode = ThemeMode.system;
+  AppLanguage _language = AppLanguage.system;
   List<RecentFile> _recents = [];
   List<String> _memory = [];
 
@@ -51,6 +54,9 @@ class AppState extends ChangeNotifier {
   String get model => _model;
   bool get hasApiKey => _apiKey.trim().isNotEmpty;
   ThemeMode get themeMode => _themeMode;
+
+  /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
+  AppLanguage get language => _language;
   List<RecentFile> get recents => List.unmodifiable(_recents);
 
   /// AI'nın kalıcı hafızası (RAG-lite): kaydedilen bilgi notları.
@@ -253,6 +259,7 @@ class AppState extends ChangeNotifier {
     _apiKey = _prefs.getString(_kApiKey) ?? '';
     _model = _prefs.getString(_kModel) ?? 'gemini-2.0-flash';
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
+    _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _recents = (_prefs.getStringList(_kRecents) ?? [])
         .map(RecentFile.tryDecode)
         .whereType<RecentFile>()
@@ -374,6 +381,12 @@ class AppState extends ChangeNotifier {
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     await _prefs.setString(_kThemeMode, mode.name);
+    notifyListeners();
+  }
+
+  Future<void> setLanguage(AppLanguage language) async {
+    _language = language;
+    await _prefs.setString(_kLanguage, language.code);
     notifyListeners();
   }
 

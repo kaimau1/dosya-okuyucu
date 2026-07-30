@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/excel_format.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
@@ -452,9 +453,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       await File(widget.path).writeAsBytes(bytes);
       _dirty = false;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.t('common.saved_hint'))));
         setState(() {});
       }
     } catch (e) {
@@ -475,25 +475,28 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   Future<void> _exportCsv() async {
     final sheet = _sheet;
     if (sheet == null) return;
+    // Hata metni await'ten ÖNCE çevrilir (asenkron boşluktan sonra `context`
+    // kullanılamaz).
+    final csvFailed = context.t('excel.csv_failed');
     final enc = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        title: const Text('CSV kodlaması'),
+        title: Text(context.t('excel.csv_encoding')),
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'utf8'),
-            child: const ListTile(
+            child: ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('UTF-8 (önerilir)'),
-              subtitle: Text('Modern Excel / Google E-Tablolar'),
+              title: Text(context.t('excel.csv_utf8')),
+              subtitle: const Text('Modern Excel / Google E-Tablolar'),
             ),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'cp1254'),
-            child: const ListTile(
+            child: ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('Windows-1254'),
-              subtitle: Text('Eski Türkçe Excel / Not Defteri'),
+              title: const Text('Windows-1254'),
+              subtitle: Text(context.t('excel.csv_legacy')),
             ),
           ),
         ],
@@ -519,7 +522,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       await f.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(f.path)], text: '$base.csv');
     } catch (e) {
-      _snack('CSV dışa aktarılamadı: $e');
+      _snack(csvFailed.replaceAll('{error}', '$e'));
     }
   }
 
@@ -543,6 +546,27 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
   }
 
+  /// Sayfa yönünü (soldan sağa / sağdan sola) değiştirir — Excel'in
+  /// *Sayfa Düzeni → Sayfayı Sağdan Sola* düğmesinin karşılığı.
+  ///
+  /// Yön **dosyanın** özelliği: kaydetmede `<sheetView rightToLeft>` olarak
+  /// geri yazılır (bkz. `XlsxSavePatch`), arayüz dilini değiştirmez.
+  void _toggleSheetDirection() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    final next = !sheet.rightToLeft;
+    setState(() {
+      sheet.setRightToLeft(next);
+      _dirty = true;
+      // Sanallaştırma penceresi ve kaydırma konumu yön değişince anlamsızlaşır.
+      _firstCol = 0;
+      _lastCol = 0;
+    });
+    if (_hBody.hasClients) _hBody.jumpTo(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    _snack(context.t(next ? 'excel.sheet_rtl_on' : 'excel.sheet_rtl_off'));
+  }
+
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -563,7 +587,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       // kalır (2026-07-28 kullanıcı isteği: tekrar eden düğmeler kalksın).
       actions: [
         IconButton(
-          tooltip: 'Bul',
+          tooltip: context.t('common.search'),
           icon: const Icon(Icons.search),
           onPressed: editor == null ? null : _toggleFind,
         ),
@@ -573,25 +597,32 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             if (v == 'freeze') _toggleFreeze();
             if (v == 'colw') _showSizeDialog(col: _selCol);
             if (v == 'rowh') _showSizeDialog(row: _selRow);
+            if (v == 'rtl') _toggleSheetDirection();
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'goto', child: Text('Hücreye git…')),
-            const PopupMenuItem(
-                value: 'colw', child: Text('Sütun genişliği…')),
-            const PopupMenuItem(
-                value: 'rowh', child: Text('Satır yüksekliği…')),
+            PopupMenuItem(
+                value: 'goto', child: Text(context.t('excel.goto_cell_menu'))),
+            PopupMenuItem(
+                value: 'colw', child: Text(context.t('excel.column_width'))),
+            PopupMenuItem(
+                value: 'rowh', child: Text(context.t('excel.row_height'))),
+            CheckedPopupMenuItem(
+              value: 'rtl',
+              checked: _sheet?.rightToLeft ?? false,
+              child: Text(context.t('excel.sheet_rtl')),
+            ),
             if (_sheetHasFreeze)
               PopupMenuItem(
                 value: 'freeze',
-                child: Text(_freeze
-                    ? 'Bölmeleri çöz (sabit satır/sütun)'
-                    : 'Bölmeleri dondur (dosyadaki gibi)'),
+                child: Text(context.t(
+                    _freeze ? 'excel.unfreeze_panes' : 'excel.freeze_panes')),
               ),
           ],
         ),
       ],
       body: _error != null
-          ? Center(child: Text('Açılamadı: $_error'))
+          ? Center(
+              child: Text(context.t('common.open_failed', {'error': _error})))
           : editor == null
               ? const Center(child: CircularProgressIndicator())
               : Column(
@@ -622,15 +653,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         children: [
           if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
           DocActionBar([
-            DocAction(
-                Icons.save_outlined, 'Kaydet', editor == null ? null : _save),
-            DocAction(Icons.share_outlined, 'Paylaş',
+            DocAction(Icons.save_outlined, context.t('common.save'),
+                editor == null ? null : _save),
+            DocAction(Icons.share_outlined, context.t('common.share'),
                 editor == null ? null : _export),
             DocAction(Icons.table_view_outlined, 'CSV',
                 editor == null ? null : _exportCsv),
             DocAction(
               Icons.translate,
-              'Çevir',
+              context.t('common.translate'),
               () => TranslateFlow.run(context, widget.plainText,
                   title: widget.name),
             ),
@@ -644,7 +675,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             fileName: widget.name,
           ),
         )),
-        tooltip: 'AI ile çalış',
+        tooltip: context.t('common.ai'),
         child: const Icon(Icons.smart_toy_outlined),
       ),
     );
@@ -653,7 +684,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Pinch odağındaki içerik yerinde kalsın.
   void _fixScroll(double f, Offset focal) {
     if (_hBody.hasClients) {
-      _hBody.jumpTo(((_hBody.offset + focal.dx) * f - focal.dx)
+      // Kaydırma konumu her iki yönde de BAŞLANGIÇTAN ölçülür; `focal.dx` ise
+      // daima ekranın SOLUNDAN. Sağdan sola sayfada odağın başlangıca uzaklığı
+      // bu yüzden aynalanmalı, yoksa pinch odağın simetriği etrafında zoomlar.
+      final dx = (_sheet?.rightToLeft ?? false) && _viewportW > 0
+          ? _viewportW - focal.dx
+          : focal.dx;
+      _hBody.jumpTo(((_hBody.offset + dx) * f - dx)
           .clamp(0.0, _hBody.position.maxScrollExtent));
     }
     if (_vBody.hasClients) {
@@ -693,19 +730,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               onChanged: (_) => setState(() {}),
               textInputAction: TextInputAction.done,
               style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
-                border: OutlineInputBorder(),
-                hintText: 'Hücre içeriği',
+                border: const OutlineInputBorder(),
+                hintText: context.t('excel.cell_content'),
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               ),
             ),
           ),
           // Veri doğrulama listesi olan hücrede Excel'deki açılır ok.
           if (_validationOptions().isNotEmpty)
             PopupMenuButton<String>(
-              tooltip: 'Listeden seç',
+              tooltip: context.t('excel.pick_from_list'),
               icon: const Icon(Icons.arrow_drop_down_circle_outlined),
               onSelected: (v) {
                 _cellField.text = v;
@@ -717,7 +754,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               ],
             ),
           IconButton(
-            tooltip: 'Uygula',
+            tooltip: context.t('common.apply'),
             icon: const Icon(Icons.check),
             onPressed: () => _applyCell(_cellField.text),
           ),
@@ -810,45 +847,47 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text('Satır',
+              child: Text(context.t('excel.row'),
                   style:
                       TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             ),
-            btn(Icons.keyboard_arrow_up, 'Üste satır ekle',
+            btn(Icons.keyboard_arrow_up, context.t('excel.insert_row_above'),
                 () => _insertRow(below: false)),
-            btn(Icons.keyboard_arrow_down, 'Alta satır ekle',
+            btn(Icons.keyboard_arrow_down, context.t('excel.insert_row_below'),
                 () => _insertRow(below: true)),
-            btn(Icons.remove, 'Satırı sil', _deleteRow),
+            btn(Icons.remove, context.t('excel.delete_row'), _deleteRow),
             divider(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text('Sütun',
+              child: Text(context.t('excel.column'),
                   style:
                       TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             ),
-            btn(Icons.keyboard_arrow_left, 'Sola sütun ekle',
+            btn(Icons.keyboard_arrow_left, context.t('excel.insert_col_left'),
                 () => _insertColumn(right: false)),
-            btn(Icons.keyboard_arrow_right, 'Sağa sütun ekle',
+            btn(Icons.keyboard_arrow_right, context.t('excel.insert_col_right'),
                 () => _insertColumn(right: true)),
-            btn(Icons.remove, 'Sütunu sil', _deleteColumn),
+            btn(Icons.remove, context.t('excel.delete_col'), _deleteColumn),
             divider(),
-            toggle(Icons.format_bold, 'Kalın', selStyle?.bold ?? false,
+            toggle(Icons.format_bold, context.t('common.bold'),
+                selStyle?.bold ?? false,
                 () => _applyStyle(bold: !(selStyle?.bold ?? false))),
-            toggle(Icons.format_italic, 'İtalik', selStyle?.italic ?? false,
+            toggle(Icons.format_italic, context.t('common.italic'),
+                selStyle?.italic ?? false,
                 () => _applyStyle(italic: !(selStyle?.italic ?? false))),
             toggle(
                 Icons.format_align_left,
-                'Sola yasla',
+                context.t('common.align_left'),
                 selStyle?.hAlign == XlsxHAlign.left,
                 () => _applyStyle(align: TextAlign.left)),
             toggle(
                 Icons.format_align_center,
-                'Ortala',
+                context.t('common.align_center'),
                 selStyle?.hAlign == XlsxHAlign.center,
                 () => _applyStyle(align: TextAlign.center)),
             toggle(
                 Icons.format_align_right,
-                'Sağa yasla',
+                context.t('common.align_right'),
                 selStyle?.hAlign == XlsxHAlign.right,
                 () => _applyStyle(align: TextAlign.right)),
           ],
@@ -865,8 +904,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     String text;
     if (!_hasRange) {
       final fmt = sheet.numFmtCode(_selRow, _selCol);
-      text = 'Hücre ${XlsxRange.colName(_selCol)}${_selRow + 1}'
-          '${fmt == 'General' ? '' : '  ·  $fmt'}';
+      text = context.t('excel.cell_label',
+              {'ref': '${XlsxRange.colName(_selCol)}${_selRow + 1}'}) +
+          (fmt == 'General' ? '' : '  ·  $fmt');
     } else {
       final engine = _engineFor(sheet);
       final r1 = math.min(_anchorRow, _selRow);
@@ -877,7 +917,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       // Çok büyük seçimde (tümünü seç) hücre hücre hesap ekranı dondurur;
       // Excel de yalnız sayıyı gösterir.
       if (cellCount > 200000) {
-        return _statusText('Seçili: $cellCount hücre', scheme);
+        return _statusText(
+            context.t('excel.selection_cells', {'n': cellCount}), scheme);
       }
       var sum = 0.0;
       var count = 0;
@@ -894,9 +935,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         }
       }
       text = count == 0
-          ? 'Seçili: $cellCount hücre  ·  Dolu: $filled'
-          : 'Ortalama: ${generalNumber(sum / count)}  ·  '
-              'Sayı: $count  ·  Toplam: ${generalNumber(sum)}';
+          ? context.t(
+              'excel.selection_filled', {'n': cellCount, 'filled': filled})
+          : context.t('excel.selection_stats', {
+              'avg': generalNumber(sum / count),
+              'count': count,
+              'sum': generalNumber(sum),
+            });
     }
     return _statusText(text, scheme);
   }
@@ -960,21 +1005,23 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final ref = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hücreye git'),
+        title: Text(context.t('excel.goto_cell')),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-              labelText: 'Hücre başvurusu', hintText: 'ör. C15'),
+          decoration: InputDecoration(
+              labelText: context.t('excel.cell_reference'),
+              hintText: context.t('excel.cell_reference_hint')),
           onSubmitted: (v) => Navigator.pop(ctx, v),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.t('common.cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Git'),
+            child: Text(context.t('excel.go')),
           ),
         ],
       ),
@@ -1063,15 +1110,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               onChanged: _runFind,
               onSubmitted: (_) => _stepHit(1),
               style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
-                border: OutlineInputBorder(),
-                hintText: 'Bu sayfada ara',
-                prefixIcon: Icon(Icons.search, size: 18),
+                border: const OutlineInputBorder(),
+                hintText: context.t('excel.find_in_sheet'),
+                prefixIcon: const Icon(Icons.search, size: 18),
                 prefixIconConstraints:
-                    BoxConstraints(minWidth: 32, minHeight: 32),
+                    const BoxConstraints(minWidth: 32, minHeight: 32),
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               ),
             ),
           ),
@@ -1080,19 +1127,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               style:
                   TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
           IconButton(
-            tooltip: 'Önceki',
+            tooltip: context.t('common.previous'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.keyboard_arrow_up),
             onPressed: _hits.isEmpty ? null : () => _stepHit(-1),
           ),
           IconButton(
-            tooltip: 'Sonraki',
+            tooltip: context.t('common.next'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.keyboard_arrow_down),
             onPressed: _hits.isEmpty ? null : () => _stepHit(1),
           ),
           IconButton(
-            tooltip: 'Kapat',
+            tooltip: context.t('common.close'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.close),
             onPressed: _toggleFind,
@@ -1126,16 +1173,17 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
           title: Text(isCol
-              ? '${XlsxRange.colName(col)} sütun genişliği'
-              : '${row! + 1}. satır yüksekliği'),
+              ? context.t('excel.column_width_of',
+                  {'col': XlsxRange.colName(col)})
+              : context.t('excel.row_height_of', {'row': row! + 1})),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 value <= 0
-                    ? 'Gizli'
+                    ? context.t('excel.hidden')
                     : '${value.toStringAsFixed(2)} '
-                        '${isCol ? 'karakter' : 'punto'}',
+                        '${context.t(isCol ? 'excel.unit_chars' : 'excel.unit_points')}',
                 style: const TextStyle(
                     fontSize: 18, fontWeight: FontWeight.w600),
               ),
@@ -1147,18 +1195,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               ),
               TextButton(
                 onPressed: () => setLocal(() => value = defaultValue),
-                child: Text(
-                    'Varsayılan (${defaultValue.toStringAsFixed(2)})'),
+                child: Text(context.t('excel.default_value',
+                    {'value': defaultValue.toStringAsFixed(2)})),
               ),
             ],
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Vazgeç')),
+                child: Text(context.t('common.cancel'))),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Uygula')),
+                child: Text(context.t('common.apply'))),
           ],
         ),
       ),
@@ -1197,7 +1245,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   Widget _grid(ScrollPhysics? physics) {
     final sheet = _sheet;
-    if (sheet == null) return const Center(child: Text('Sayfa yok.'));
+    if (sheet == null) return Center(child: Text(context.t('excel.no_sheet')));
 
     final engine = _engineFor(sheet);
     final ctx = _RenderContext(
@@ -1228,9 +1276,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       _paneTrimmed = _frozenColsFit < wantCols || _frozenRowsFit < wantRows;
       if (_paneTrimmed && !_paneNoticeShown) {
         _paneNoticeShown = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) => _snack(
-            'Dosyadaki sabit bölme ekrana sığmadı; o sütunlar kaydırılabilir '
-            'yapıldı. ⋮ > Bölmeleri çöz ile tamamen kapatabilirsiniz.'));
+        final message = context.t('excel.panes_trimmed');
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _snack(message));
       }
 
       _refreshMetrics(sheet);
@@ -1259,7 +1307,20 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           : cols.total - (cols.startAt(last) + cols.sizeAt(last));
       final bottomInset = MediaQuery.of(context).padding.bottom;
 
-      return Scrollbar(
+      // **Sayfa yönü belgeden gelir, arayüz dilinden DEĞİL** (Excel de böyle:
+      // Arapça Excel'de soldan sağa bir tablo yine soldan sağa açılır). Bu
+      // yüzden yön her iki durumda da AÇIKÇA yazılır — Arapça arayüzde
+      // sarmalayıcı olmasa soldan sağa sayfalar da ters çizilirdi.
+      //
+      // `Row`/`SingleChildScrollView` yönü kendiliğinden uygular: sütunlar
+      // sağdan sola dizilir, yatay kaydırma sağ kenardan başlar. Kaydırma
+      // konumu (`_hBody.offset`) her iki yönde de BAŞLANGIÇTAN ölçüldüğü için
+      // sanallaştırma (`cols.startAt`) ve `_ensureVisible` matematiği aynen
+      // geçerli kalır.
+      return Directionality(
+        textDirection:
+            sheet.rightToLeft ? TextDirection.rtl : TextDirection.ltr,
+        child: Scrollbar(
         controller: _hBody,
         scrollbarOrientation: ScrollbarOrientation.bottom,
         notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
@@ -1389,6 +1450,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             ),
           ],
         ),
+      ),
       );
     });
   }

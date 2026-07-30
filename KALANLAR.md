@@ -1,6 +1,28 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **Dil desteği cihaz doğrulaması (kullanıcı)** — 2026-07-30: Ayarlar →
+      **Dil** → English / العربية seç → (a) ana ekran, alt sekmeler, Ayarlar,
+      Excel ve Word ekranları o dilde mi, (b) **Arapça'da arayüz sağdan sola**
+      mı akıyor (geri oku, sekme sırası, kaydırıcılar), (c) Arapça'da yazı
+      tipi okunur mu (cihazın Arapça fontu), (d) dil seçimi uygulamayı
+      kapatıp açınca korunuyor mu, (e) "Sistem" seçiliyken telefon dili
+      İngilizce/Arapça ise uygulama o dilde mi açılıyor.
+- [ ] **Kalan ekranlar hâlâ Türkçe** — 2026-07-30'da çevrilenler: ana ekran,
+      Ayarlar, Excel, Word. Dosya yöneticisi ekranları (pano, kategoriler,
+      fotoğraflar, arama, işlemler, indirme…), PDF ekranları, slayt editörü,
+      AI sohbeti ve `services/` içindeki kullanıcıya görünen metinler
+      çevrilmedi. Altyapı hazır: `context.t('anahtar')` + `lib/core/l10n/
+      app_strings.dart` tablosuna üç dilli satır eklemek yetiyor; `l10n_test`
+      eksik anahtarı zaten yakalıyor.
+- [ ] **Sağdan sola Excel/Word cihaz doğrulaması (kullanıcı)** — 2026-07-30:
+      (a) Arapça bir .xlsx aç → A sütunu SAĞDA mı, kaydırma sağ kenardan mı
+      başlıyor, hücre metni sağa mı yaslı, sayılar sola mı, (b) ⋮ > **Sayfa
+      sağdan sola** ile yön değişiyor mu, kaydedip Excel'de açınca korunuyor
+      mu, (c) gizlediğin sütunu kaydedip Excel'de aç → gizli KALMALI,
+      (d) Arapça bir .docx aç → sayfa görünümünde metin sağdan mı akıyor,
+      Arapça harfler kutu (tofu) çıkmıyor mu, (e) ⋮ > Metin düzenleyicide
+      paragraflar sağa yaslı mı.
 - [ ] **2026-07-28 turu cihaz doğrulaması (kullanıcı)** — (a) resmi PDF'te
       *Düzenleyici → Metin* → paragrafa dokun → artık ne "metin dışı çizim var
       (ET)" ne de "(Q)" uyarısı ÇIKMAMALI; (b) **ortalı** bir başlığı (DAĞITIM

@@ -4,9 +4,12 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_state.dart';
+import 'core/l10n/app_language.dart';
+import 'core/l10n/app_strings.dart';
 import 'core/theme.dart';
 import 'screens/home_screen.dart';
 import 'services/fm/file_tags.dart';
@@ -70,6 +73,18 @@ class DosyaOkuyucuApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: appState.themeMode,
+      // Dil: seçim `system` ise `locale` null bırakılır — Flutter cihazın
+      // dilini `supportedLocales` ile eşleştirir, tutmazsa listenin İLKİNE
+      // (Türkçe) düşer. Arapça seçilince `GlobalWidgetsLocalizations`
+      // yönü rtl'e çevirdiği için ayrıca `Directionality` sarmaya gerek yok.
+      locale: appState.language.locale,
+      supportedLocales: AppLanguageInfo.supportedLocales,
+      localizationsDelegates: const [
+        AppStrings.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const HomeScreen(),
     );
   }

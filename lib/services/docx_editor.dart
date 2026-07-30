@@ -23,9 +23,26 @@ class DocxParagraph {
   /// 'left' | 'center' | 'right' | 'both' (iki yana yasla).
   String align;
 
+  /// Paragraf **sağdan sola** mı akıyor (`<w:pPr><w:bidi/>`)?
+  ///
+  /// Arapça/İbranice/Farsça belgelerin taşıyıcı özelliği: Word'de metin sağda
+  /// başlar, noktalama ve karışık (Arapça + Latin) satırlar buna göre dizilir.
+  /// Yedek metin düzenleyici bunu uygulamazsa Arapça bir belge soldan sola
+  /// çizilir ve karışık satırlarda kelime sırası GÖRÜNÜR biçimde bozulur.
+  ///
+  /// Salt okunur: `save()` paragrafın XML'ine dokunmadığı sürece `w:bidi`
+  /// olduğu yerde kalır, ayrıca yazmak gerekmez.
+  final bool rtl;
+
   /// Ayrıştırırken paragrafın açık bir hizalaması (`<w:jc>`) var mıydı — 'left'
   /// varsayılanına dönerken gereksiz düğüm eklememek için.
   final bool _hadJc;
+
+  /// Dosyada AÇIK bir `<w:jc>` var mıydı? [align] yoksa 'left' döndürür, ama
+  /// bu "sola yaslı" demek değil "hizalama yazılmamış" demektir — sağdan sola
+  /// bir paragrafta yazılmamış hizalamanın karşılığı SAĞDIR. Görüntüleyen
+  /// tarafın ikisini ayırabilmesi için açılıyor.
+  bool get hasExplicitAlign => _hadJc;
   final XmlElement _element;
 
   /// true ise çalıştırmalar [DocxEditor.setRuns] ile XML'e zaten yazıldı;
@@ -47,6 +64,7 @@ class DocxParagraph {
     this.italic = false,
     this.underline = false,
     this.align = 'left',
+    this.rtl = false,
     bool hadJc = false,
   })  : _hadJc = hadJc,
         _text0 = text,
@@ -75,6 +93,27 @@ class DocxEditor {
   final List<DocxParagraph> paragraphs;
 
   DocxEditor._(this._archive, this._doc, this.paragraphs);
+
+  /// Belgenin tamamı **sağdan sola** mı? (`<w:sectPr><w:bidi/>`)
+  ///
+  /// Word bunu bölüm özelliği olarak yazar; sütun sırası, tablo sütun sırası
+  /// ve varsayılan paragraf yönü buna bağlıdır. Gömülü docx-preview motoru
+  /// paragraf/çalıştırma düzeyindeki `w:bidi`yi uyguluyor ama **bölüm
+  /// düzeyindekini yok sayıyor** (kendi ayrıştırıcısında `case "bidi": break`),
+  /// bu yüzden değer buradan okunup görüntüleyiciye ayrıca veriliyor.
+  ///
+  /// Bölüm işareti hiç yoksa yedek ölçüt: paragrafların **çoğunluğu** sağdan
+  /// solaysa belge sağdan soladır. Word'ün Arapça şablonlarında `w:bidi` her
+  /// paragrafta durur ama `sectPr`de bulunmayabilir.
+  bool get rightToLeft {
+    for (final sect in _doc.findAllElements('w:sectPr')) {
+      if (_isOn(_firstOrNull(sect.findElements('w:bidi')))) return true;
+    }
+    final withText = paragraphs.where((p) => p.text.trim().isNotEmpty).toList();
+    if (withText.isEmpty) return false;
+    final rtlCount = withText.where((p) => p.rtl).length;
+    return rtlCount * 2 > withText.length;
+  }
 
   static DocxEditor parse(Uint8List bytes) {
     final archive = ZipDecoder().decodeBytes(bytes);
@@ -108,10 +147,30 @@ class DocxEditor {
         italic: rPr != null && _rprHas(rPr, 'w:i'),
         underline: rPr != null && _rprHas(rPr, 'w:u'),
         align: _normalizeAlign(jc?.getAttribute('w:val')),
+        rtl: _paragraphRtl(p),
         hadJc: jc != null,
       ));
     }
     return DocxEditor._(archive, xml, paras);
+  }
+
+  /// `<w:pPr><w:bidi/>` — paragraf sağdan sola mı?
+  ///
+  /// **YALNIZ `w:pPr`nin doğrudan çocuğu** sayılır: bir `w:p`, bölüm sonu
+  /// paragrafıysa içinde `w:pPr/w:sectPr/w:bidi` de bulunabilir; o BÖLÜMÜN
+  /// yönüdür, paragrafın değil. `findAllElements` ile aransaydı soldan sağa
+  /// bir paragraf sırf bölüm sonunu taşıdığı için sağdan sola görünürdü.
+  static bool _paragraphRtl(XmlElement p) {
+    final pPr = _firstOrNull(p.findElements('w:pPr'));
+    if (pPr == null) return false;
+    return _isOn(_firstOrNull(pPr.findElements('w:bidi')));
+  }
+
+  /// Word'ün aç/kapa öğesi: öğe varsa açık, `w:val="0"/"false"/"off"` ise kapalı.
+  static bool _isOn(XmlElement? el) {
+    if (el == null) return false;
+    final v = el.getAttribute('w:val');
+    return v == null || !(v == '0' || v == 'false' || v == 'none' || v == 'off');
   }
 
   static int _levelFromStyle(String style) {

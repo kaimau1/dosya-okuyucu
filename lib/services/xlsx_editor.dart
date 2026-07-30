@@ -6,6 +6,7 @@ import 'package:flutter/painting.dart' show TextAlign;
 
 import '../core/excel_format.dart';
 import 'xlsx_reader.dart';
+import 'xlsx_save_patch.dart';
 
 // Görünüm modelinin tamamı (aralık, kenarlık, hizalama, koşullu biçim…)
 // ekranlara buradan açılır — ad çakışması yok.
@@ -51,12 +52,21 @@ class XlsxCellStyle {
   });
 
   /// Excel kuralı: açık hizalama yoksa SAYI sağa, metin sola yaslanır.
-  TextAlign alignFor(bool numeric) => switch (hAlign) {
+  /// Hücrenin yatay hizalaması.
+  ///
+  /// `general` (dosyada açık hizalama YOK) Excel'de sayfanın yönüne göre
+  /// aynalanır: soldan sağa sayfada metin sola / sayı sağa, **sağdan sola
+  /// sayfada metin sağa / sayı sola**. Açık `left`/`right` ise dosyada
+  /// yazdığı gibi mutlaktır — Excel de onları aynalamaz.
+  TextAlign alignFor(bool numeric, {bool rightToLeft = false}) =>
+      switch (hAlign) {
         XlsxHAlign.left => TextAlign.left,
         XlsxHAlign.center => TextAlign.center,
         XlsxHAlign.right => TextAlign.right,
         XlsxHAlign.justify => TextAlign.justify,
-        XlsxHAlign.general => numeric ? TextAlign.right : TextAlign.left,
+        XlsxHAlign.general => numeric
+            ? (rightToLeft ? TextAlign.left : TextAlign.right)
+            : (rightToLeft ? TextAlign.right : TextAlign.left),
       };
 
   /// Araç çubuğu düğmelerinin durumu için (açık hizalama).
@@ -153,6 +163,18 @@ class XlsxSheet {
   int get frozenCols => layout.frozenCols;
   bool get showGridLines => layout.showGridLines;
   bool get isHiddenRow0 => false;
+
+  /// Sayfa sağdan sola mı çiziliyor (Excel: *Sayfa Düzeni → Sayfayı Sağdan
+  /// Sola*). Arapça/İbranice tabloların ayrılmaz parçası: A sütunu SAĞDA
+  /// başlar. Dosyadan okunur (`<sheetView rightToLeft="1"/>`) ve
+  /// [XlsxSavePatch] ile geri yazılır.
+  ///
+  /// **Arayüz dilinden bağımsız:** yön belgenin özelliğidir. Arapça arayüzde
+  /// açılan soldan sağa bir tablo yine soldan sağa çizilir — Excel de böyle
+  /// davranır.
+  bool get rightToLeft => layout.rightToLeft;
+
+  void setRightToLeft(bool value) => layout.rightToLeft = value;
 
   /// Bu hücreyi kapsayan birleştirme (yoksa null).
   XlsxMerge? mergeAt(int r, int c) {
@@ -814,7 +836,30 @@ class XlsxEditor {
 
   Uint8List save() {
     final bytes = _excel.encode();
-    return Uint8List.fromList(bytes ?? const []);
+    if (bytes == null || bytes.isEmpty) return Uint8List(0);
+    // `excel` paketinin yazamadıklarını (gizli satır/sütun, boş satır
+    // yüksekliği, sayfa yönü) zip üretildikten SONRA XML yamasıyla geri koy.
+    return XlsxSavePatch.apply(Uint8List.fromList(bytes), [
+      for (final s in sheets)
+        XlsxSheetPatch(
+          name: s.name,
+          rightToLeft: s.rightToLeft,
+          hiddenRows: s.layout.hiddenRows,
+          hiddenCols: s.layout.hiddenCols,
+          // Yalnız HİÇ HÜCRESİ OLMAYAN satırlar: paket `<row>`u yalnız
+          // hücresi olan satır için yazıyor, o yüzden ayırıcı boş satırların
+          // özel yüksekliği kaydetmede kayboluyordu.
+          rowHeightsPt: {
+            for (final e in s.layout.rowHeights.entries)
+              if (e.value > 0 && _isEmptyRow(s, e.key)) e.key: e.value,
+          },
+        ),
+    ]);
+  }
+
+  static bool _isEmptyRow(XlsxSheet sheet, int r) {
+    if (r < 0 || r >= sheet.rows.length) return true;
+    return sheet.rows[r].every((v) => v.isEmpty);
   }
 }
 

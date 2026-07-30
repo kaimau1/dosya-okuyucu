@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_state.dart';
+import '../core/l10n/app_language.dart';
+import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -29,6 +31,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<String>? _fetchedModels;
   bool _loadingModels = false;
   String? _modelsError;
+
+  /// Anahtar geçerli ama hiç model dönmedi (hata metninden ayrı tutulur —
+  /// çevirisi build'de yapılıyor, bkz. `build`).
+  bool _noModels = false;
   Timer? _debounce;
 
   /// Son çekilen anahtar — aynı anahtar için gereksiz tekrar çekmeyi önler.
@@ -67,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _loadingModels = true;
       _modelsError = null;
+      _noModels = false;
     });
     try {
       final models = await GeminiService.listModels(key);
@@ -75,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _fetchedModels = models.isEmpty ? null : models;
         _fetchedForKey = key;
         _loadingModels = false;
-        if (models.isEmpty) _modelsError = 'Bu anahtarla model bulunamadı.';
+        _noModels = models.isEmpty;
       });
       // Kaydedilmiş model bu anahtarda mevcut değilse (ör. ilk kurulum,
       // ya da eski seçim artık desteklenmiyor) listenin en iyisine geç.
@@ -94,24 +101,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    // Hata metni build'de çevriliyor: `setState` içinde üretilseydi dil
+    // değişince ekranda ESKİ dilde asılı kalırdı.
+    final modelsError = _noModels
+        ? context.t('settings.model_none')
+        : _modelsError;
     final models = _fetchedModels ?? _fallbackModels;
     final model = models.contains(appState.model) ? appState.model : models.first;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ayarlar')),
+      appBar: AppBar(title: Text(context.t('settings.title'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           const _AccountSection(),
           const Divider(height: 40),
-          Text('Yapay Zeka (Gemini)',
+          Text(context.t('settings.ai_section'),
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           TextField(
             controller: _apiKey,
             obscureText: _obscure,
             decoration: InputDecoration(
-              labelText: 'Gemini API anahtarı',
+              labelText: context.t('settings.api_key'),
               hintText: 'AIza...',
               suffixIcon: IconButton(
                 icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
@@ -122,8 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Anahtar cihazınızda saklanır. aistudio.google.com adresinden '
-            'ücretsiz alabilirsiniz.',
+            context.t('settings.api_key_note'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -133,9 +144,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: DropdownButtonFormField<String>(
                   value: model,
                   decoration: InputDecoration(
-                    labelText: _fetchedModels != null
-                        ? 'Model (hesabınızdan alındı)'
-                        : 'Model (varsayılan liste)',
+                    labelText: context.t(_fetchedModels != null
+                        ? 'settings.model_fetched'
+                        : 'settings.model_default'),
                   ),
                   items: models
                       .map((m) => DropdownMenuItem(value: m, child: Text(m)))
@@ -155,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 )
               else
                 IconButton(
-                  tooltip: 'Model listesini yenile',
+                  tooltip: context.t('settings.model_refresh'),
                   icon: const Icon(Icons.refresh),
                   onPressed: appState.hasApiKey
                       ? () {
@@ -166,28 +177,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
             ],
           ),
-          if (_modelsError != null) ...[
+          if (modelsError != null) ...[
             const SizedBox(height: 4),
             Text(
-              '$_modelsError Varsayılan liste gösteriliyor.',
+              context.t('settings.model_error', {'error': modelsError}),
               style: TextStyle(
                   color: Theme.of(context).colorScheme.error, fontSize: 12),
             ),
           ] else if (_fetchedModels != null) ...[
             const SizedBox(height: 4),
             Text(
-              '${_fetchedModels!.length} model bulundu.',
+              context.t('settings.model_found', {'n': _fetchedModels!.length}),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
           const Divider(height: 40),
-          Text('Görünüm', style: Theme.of(context).textTheme.titleMedium),
+          const _LanguageSection(),
+          const Divider(height: 40),
+          Text(context.t('settings.appearance'),
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           SegmentedButton<ThemeMode>(
-            segments: const [
-              ButtonSegment(value: ThemeMode.system, label: Text('Sistem')),
-              ButtonSegment(value: ThemeMode.light, label: Text('Açık')),
-              ButtonSegment(value: ThemeMode.dark, label: Text('Koyu')),
+            segments: [
+              ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text(context.t('settings.theme_system'))),
+              ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text(context.t('settings.theme_light'))),
+              ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text(context.t('settings.theme_dark'))),
             ],
             selected: {appState.themeMode},
             onSelectionChanged: (s) => appState.setThemeMode(s.first),
@@ -195,17 +215,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 40),
           Row(
             children: [
-              Text('AI Kalıcı Hafıza',
+              Text(context.t('settings.memory'),
                   style: Theme.of(context).textTheme.titleMedium),
               const Spacer(),
-              Text('${appState.memory.length} not',
+              Text(
+                  context.t(
+                      'settings.memory_count', {'n': appState.memory.length}),
                   style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
           const SizedBox(height: 8),
           if (appState.memory.isEmpty)
-            const Text('Henüz kayıtlı not yok. AI sohbetinde bir yanıtı '
-                '“Hafızaya kaydet” ile ekleyebilirsiniz.')
+            Text(context.t('settings.memory_empty'))
           else
             ...appState.memory.asMap().entries.map(
                   (e) => Card(
@@ -224,6 +245,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const _AboutSection(),
         ],
       ),
+    );
+  }
+}
+
+/// Arayüz dili seçimi.
+///
+/// Diller **kendi dillerinde** yazılır (Türkçe / English / العربية): dilini
+/// bulmaya çalışan kullanıcı, o an anlamadığı bir dilde yazılmış listeyi
+/// okuyamaz. "Sistem" seçeneği ise seçili dilde yazılır — o, dilin adı değil
+/// bir davranış.
+class _LanguageSection extends StatelessWidget {
+  const _LanguageSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(context.t('settings.language'),
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        for (final lang in AppLanguage.values)
+          RadioListTile<AppLanguage>(
+            value: lang,
+            groupValue: appState.language,
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(lang == AppLanguage.system
+                ? context.t('settings.language_system')
+                : lang.nativeLabel),
+            onChanged: (v) => v == null ? null : appState.setLanguage(v),
+          ),
+        const SizedBox(height: 4),
+        Text(context.t('settings.language_note'),
+            style: Theme.of(context).textTheme.bodySmall),
+      ],
     );
   }
 }
@@ -264,7 +322,7 @@ class _AccountSectionState extends State<_AccountSection> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final title = Text('Hesap & Senkron',
+    final title = Text(context.t('settings.account'),
         style: Theme.of(context).textTheme.titleMedium);
 
     if (!appState.firebaseAvailable) {
@@ -279,12 +337,10 @@ class _AccountSectionState extends State<_AccountSection> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Bulut senkron için Firebase henüz '
-                      'yapılandırılmamış. Uygulama şu an yerel modda çalışıyor.'),
+                  Text(context.t('settings.account_local')),
                   const SizedBox(height: 6),
                   Text(
-                    'Etkinleştirmek için depo kökündeki FIREBASE_SETUP.md '
-                    'adımlarını izleyin (flutterfire configure).',
+                    context.t('settings.account_local_note'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -304,14 +360,15 @@ class _AccountSectionState extends State<_AccountSection> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.cloud_done_outlined),
-              title: Text(appState.userEmail ?? 'Giriş yapıldı'),
-              subtitle: const Text('Bulut senkron aktif'),
+              title: Text(
+                  appState.userEmail ?? context.t('settings.signed_in')),
+              subtitle: Text(context.t('settings.sync_active')),
               trailing: TextButton(
                 onPressed: _busy ? null : () => _run(() async {
                   await appState.signOut();
                   return null;
                 }),
-                child: const Text('Çıkış'),
+                child: Text(context.t('settings.sign_out')),
               ),
             ),
           ),
@@ -327,13 +384,15 @@ class _AccountSectionState extends State<_AccountSection> {
         TextField(
           controller: _email,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'E-posta'),
+          decoration:
+              InputDecoration(labelText: context.t('settings.email')),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _password,
           obscureText: true,
-          decoration: const InputDecoration(labelText: 'Parola'),
+          decoration:
+              InputDecoration(labelText: context.t('settings.password')),
         ),
         if (_error != null) ...[
           const SizedBox(height: 8),
@@ -349,7 +408,7 @@ class _AccountSectionState extends State<_AccountSection> {
                     ? null
                     : () => _run(() =>
                         appState.signInWithEmail(_email.text, _password.text)),
-                child: const Text('Giriş'),
+                child: Text(context.t('settings.sign_in')),
               ),
             ),
             const SizedBox(width: 8),
@@ -359,7 +418,7 @@ class _AccountSectionState extends State<_AccountSection> {
                     ? null
                     : () => _run(() => appState.registerWithEmail(
                         _email.text, _password.text)),
-                child: const Text('Kayıt ol'),
+                child: Text(context.t('settings.register')),
               ),
             ),
           ],
@@ -369,7 +428,7 @@ class _AccountSectionState extends State<_AccountSection> {
           onPressed:
               _busy ? null : () => _run(() => appState.signInWithGoogle()),
           icon: const Icon(Icons.login),
-          label: const Text('Google ile giriş'),
+          label: Text(context.t('settings.google_sign_in')),
         ),
       ],
     );
@@ -383,10 +442,10 @@ class _AboutSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Hakkında', style: Theme.of(context).textTheme.titleMedium),
+        Text(context.t('settings.about'),
+            style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        const Text('Dosya Okuyucu • sürüm 0.1.0\n'
-            'Çok formatlı, hızlı ve sade dosya okuyucu/düzenleyici.'),
+        Text(context.t('settings.about_body')),
         const SizedBox(height: 8),
         // LGPL v3 ATIF YÜKÜMLÜLÜĞÜ: uygulama FFmpeg kütüphanelerini
         // dağıtıyor; lisans atfın kullanıcıya erişilebilir olmasını istiyor.
@@ -394,8 +453,8 @@ class _AboutSection extends StatelessWidget {
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.balance_outlined),
-          title: const Text('Açık kaynak bileşenler'),
-          subtitle: const Text('FFmpeg (LGPL v3) ve diğer lisanslar'),
+          title: Text(context.t('settings.oss')),
+          subtitle: Text(context.t('settings.oss_sub')),
           onTap: () => showOpenSourceLicenses(context),
         ),
       ],
@@ -415,7 +474,7 @@ class _AboutSection extends StatelessWidget {
 Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Açık kaynak bileşenler'),
+        title: Text(context.t('settings.oss')),
         content: const SingleChildScrollView(
           child: Text(
             'FFmpeg 8.1.2 — GNU Lesser General Public License v3.0 (LGPL v3)\n'
@@ -442,7 +501,7 @@ Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Kapat'),
+            child: Text(context.t('common.close')),
           ),
         ],
       ),
