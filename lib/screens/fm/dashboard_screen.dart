@@ -506,8 +506,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
           files: _index.recent,
         )),
       ),
+      _trashTile(),
     ];
     return FmCategoryGrid(tiles: tiles);
+  }
+
+  /// **Çöp kutusu — büyük kutulardan biri** (kullanıcı isteği 2026-07-31:
+  /// *"çöp kutusunu bulmak çok zor, üstteki büyük simgelerden biri olsun,
+  /// altta olmasın, doluysa animasyonu olsun"*).
+  ///
+  /// Aşağıdaki "Araçlar" ızgarasından alındı: orası küçük ve kartsız, 12
+  /// simgenin arasında kaybolan şey **silinen dosyayı geri almanın tek
+  /// kapısıydı**. Dolu olduğunda simge yavaşça nefes alır ve dolu/boş için
+  /// ayrı simge kullanılır — kutuyu aramadan durumu görebilmek için.
+  FmTileData _trashTile() {
+    final full = _trashCount > 0;
+    return FmTileData(
+      icon: full ? Icons.delete : Icons.delete_outline,
+      color: full ? const Color(0xFFE65100) : const Color(0xFF78909C),
+      label: context.t('fm.trash'),
+      subtitle: full
+          ? context.t('fm.trash_count', {'n': _trashCount})
+          : context.t('fm.trash_empty'),
+      pulse: full,
+      onTap: () async {
+        await Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
+        _loadTrash();
+      },
+    );
   }
 
   /// **Araçlar** — küçük, kartsız simgeler. Alt yazı yalnız gerçek bilgi
@@ -675,19 +702,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: '',
         onTap: () => _push(const OpenHistoryScreen()),
       ),
-      FmTileData(
-        icon: Icons.delete_outline,
-        color: const Color(0xFF78909C),
-        label: context.t('fm.trash'),
-        subtitle: _trashCount == 0
-            ? ''
-            : context.t('fm.trash_count', {'n': _trashCount}),
-        onTap: () async {
-          await Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
-          _loadTrash();
-        },
-      ),
+      // Çöp kutusu buradan YUKARI taşındı (bkz. `_trashTile`): kullanıcı
+      // 2026-07-31'de "çöp kutusunu bulmak çok zor" dedi. Araçlar ızgarası
+      // küçük ve kartsız; 12 küçük simgenin arasında geri alma kapısının
+      // kaybolması, silinen dosyayı kurtaramamak demekti.
     ];
     return FmToolGrid(tools: tools);
   }

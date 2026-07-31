@@ -336,8 +336,11 @@ const Map<String, (String, String, String)> _table = {
   'fm.similar_images': ('Benzer görsel', 'Similar images', 'صور متشابهة'),
   'fm.apk_files': ('APK dosyaları', 'APK files', 'ملفات APK'),
   'fm.network_storage': ('Ağ depolama', 'Network storage', 'التخزين الشبكي'),
-  'fm.trash': ('Çöp', 'Trash', 'المهملات'),
+  // "Çöp" yerine "Çöp kutusu": büyük kutuya taşınınca (2026-07-31) tek
+  // heceli "Çöp" neyi kastettiğini anlatmıyordu.
+  'fm.trash': ('Çöp kutusu', 'Trash', 'المهملات'),
   'fm.trash_count': ('{n} öğe', '{n} items', '{n} عنصر'),
+  'fm.trash_empty': ('Boş', 'Empty', 'فارغة'),
   'fm.fm_settings': (
     'Dosya yöneticisi ayarları',
     'File manager settings',
@@ -3040,6 +3043,17 @@ const Map<String, (String, String, String)> _table = {
     'Cancelled · {detail}',
     'أُلغيت · {detail}',
   ),
+  'jb.interrupted': (
+    'Uygulama kapandığı için yarıda kaldı. Dokunun: kaldığı yerden yeniden '
+        'başlatabilirsiniz.',
+    'It was interrupted because the app closed. Tap to start it again.',
+    'توقفت لأن التطبيق أُغلق. اضغط لبدئها من جديد.',
+  ),
+  'jb.interrupted_detail': (
+    'Yarıda kaldı · {detail} · dokunup yeniden başlatın',
+    'Interrupted · {detail} · tap to start it again',
+    'توقفت في المنتصف · {detail} · اضغط لإعادة البدء',
+  ),
   'jb.running_for': ('{time} sürüyor', 'Running for {time}', 'مستمرة منذ {time}'),
   'jb.took': ('{status} · {time} sürdü', '{status} · took {time}', '{status} · استغرقت {time}'),
   'jb.outputs': (
@@ -4109,6 +4123,7 @@ const Map<String, (String, String, String)> _table = {
   'enum.job_done': ('Tamamlandı', 'Completed', 'اكتمل'),
   'enum.job_failed': ('Başarısız', 'Failed', 'فشل'),
   'enum.job_cancelled': ('İptal edildi', 'Cancelled', 'أُلغي'),
+  'enum.job_interrupted': ('Yarıda kaldı', 'Interrupted', 'توقفت في المنتصف'),
 
   'enum.sim_strict': ('Çok sıkı', 'Very strict', 'صارم جدًا'),
   'enum.sim_normal': ('Normal', 'Normal', 'عادي'),

@@ -5139,3 +5139,71 @@ APK derlemesi yalnız CI'da doğrulanır.
 **Dal notu:** bu tur da oturum yönergesi gereği
 `claude/translation-navigation-improvements-qsabzb` dalına gitti (CLAUDE.md'deki
 "tek dal = main" kuralının istisnası; harici yönerge dalı açıkça dayattı).
+
+---
+
+## 2026-07-31 (2. tur) — İş listesi kalıcılığı · çöp kutusu görünürlüğü
+
+### A) TUZAK / YANLIŞ ÇIKAN YOL — "bir işi durdurunca diğerleri kayboluyor"
+Kullanıcı: *"İşlemler menüsünde birkaç işlem yapılıyor diyelim, uygulamayı 1-2
+kez alta alıp yeniden üste aldığımda … 1'ini sonlandırdığımda diğer tüm işlemler
+kayboluyor, boşa yapmış oluyorum."*
+
+**İlk şüpheli iptal mantığıydı — DEĞİLMİŞ.** Sonda testiyle doğrulandı: süren
+işi iptal etmek sıradakileri düşürmüyor, kuyruk sıradakini normal çalıştırıyor
+(`[C=queued, B=running, A=cancelled]` → `[C=done, B=done, A=cancelled]`). Bu
+invaryant artık `test/fm_job_queue_test.dart`te kilitli ki aynı şikâyet tekrar
+gelirse bu yol hemen elensin.
+
+**Gerçek kök neden: `JobQueue` yalnız BELLEKTEYDİ, hiç diske yazmıyordu.**
+Zincir şöyle:
+1. Son etkin iş bitiyor/durduruluyor → `_pump` boşalıyor → `reporter.onIdle()`
+   → **ön plan servisi kapanıyor**.
+2. Servis kapanınca süreç korumasını yitiriyor; kullanıcı uygulamayı alta
+   almışken Android (MIUI/EMUI'de fazlasıyla agresif) süreci öldürüyor.
+3. Geri gelince `main()` baştan koşuyor, `JobQueue.instance` yepyeni ve BOŞ.
+   Süren işler de, kullanıcının henüz görmediği SONUÇLAR da izsiz yok oluyor.
+
+Yani "1'ini sonlandırma" tetikleyiciydi (kuyruğu boşaltıp servisi indirdiği
+için), sebep değil.
+
+**Çözüm — `lib/services/fm/job_store.dart`:**
+- `JobPersistence` kancası (`JobReporter` ile aynı kalıp): `JobQueue` `dart:io`
+  ve eklenti bağımsız kalıyor, birim testi diske dokunmuyor.
+- Kaydedilen: işin **hikâyesi** (durum, ayrıntı, süre damgaları, çıktı yolları,
+  hedef). Kaydedilmeyen: `result` (rastgele Dart nesnesi) ve iş gövdesi
+  (closure) — bu yüzden yarıda kalan iş kendiliğinden DEVAM ETMEZ.
+- Yeni durum **`JobStatus.interrupted`**: geri yüklenirken süren/bekleyen işler
+  bunu alıyor. "Sürüyor" demek yalan olurdu (çubuk sonsuza kadar dönerdi),
+  sessizce silmek de kullanıcının şikâyetinin ta kendisiydi. Kart "yarıda kaldı
+  · dokunup yeniden başlatın" diyor; dokunmak işin hedef ekranını açıyor, tarama
+  oradan yeniden başlıyor (2026-07-31 1. turdaki `FmJobTarget` sayesinde
+  bedavaya geldi).
+- Yazma **kısılmış** (2 sn) + geçici dosya & `rename`: ilerleme saniyede ~7 kez
+  bildiriliyor, her birinde JSON yazmak diski döverdi; `rename` de yazma
+  ortasında ölen süreçte yarım JSON bırakmaz.
+- Okuma **açılışı bloklamaz** (`unawaited(_restoreJobs())`): kayıt yolu
+  `FmEnv.appSupportDir`e bağlı ve `FmEnv.ensureInit()` depolama birimlerini de
+  tarıyor. Liste geç gelse de İşlemler ekranı/şerit kuyruğu dinliyor.
+  `restore` bu oturumda eklenmiş kimliği EZMEZ.
+
+### B) "Çöp kutusunu bulmak çok zor"
+İstek: *"üstteki büyük simgelerden 1'i olsun, altta olmasın, doluysa animasyonu
+olsun."* Çöp kutusu **Araçlar** ızgarasının SON kutucuğuydu — orası bilinçli
+olarak "görsel ağırlığı düşük" (2026-07-29 kararı: küçük, kartsız simgeler).
+Ama o hiyerarşide kaybolan şey **silinen dosyayı geri almanın tek kapısıydı**;
+ağırlığı düşürülecek bir "araç" değil.
+- Kutucuk büyük kategori ızgarasına taşındı, Araçlar'dan çıkarıldı.
+- Doluyken: dolu simge (`Icons.delete`), turuncu renk, sayı alt satırda ve
+  simge yavaşça **nefes alıyor** (`FmTileData.pulse`).
+- **Erişilebilirlik:** cihazda animasyonlar kapalıysa (`disableAnimations`)
+  hiç oynamıyor; kutu o durumda renk + dolu simge + sayı ile ayırt ediliyor.
+  Sürekli titreyen bir kutuyu hareket duyarlılığı olan kullanıcıya dayatmak
+  olmaz. Üçü de `test/fm_trash_tile_test.dart`te kilitli.
+- **Test tuzağı:** `find.byType(ScaleTransition)` işe YARAMAZ — Material'in
+  kendi içinde de `ScaleTransition` var. `FmCategoryTile.pulseKey` ile bulunuyor.
+- Etiket "Çöp" → "Çöp kutusu": büyük kutuda tek heceli "Çöp" ne olduğunu
+  anlatmıyordu.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 hata,
+`flutter test` **1080 test geçti** (10 yeni test).

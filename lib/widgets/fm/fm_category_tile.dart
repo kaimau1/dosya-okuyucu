@@ -9,13 +9,69 @@ class FmTileData {
   final String label;
   final String subtitle;
   final VoidCallback onTap;
+
+  /// Kutu **dikkat çeksin mi** — simge yavaşça nefes alır.
+  ///
+  /// Kullanıcı isteği 2026-07-31: *"çöp kutusunu bulmak çok zor … doluysa
+  /// animasyonu olsun"*. Yalnız DURUM varken açılır (çöp kutusunda dosya
+  /// varken); sürekli oynayan bir kutu bir süre sonra görünmez olur.
+  final bool pulse;
+
   const FmTileData({
     required this.icon,
     required this.color,
     required this.label,
     required this.subtitle,
     required this.onTap,
+    this.pulse = false,
   });
+}
+
+/// Simgeyi yavaşça büyütüp küçülten kutu ("dolu" göstergesi).
+///
+/// Erişilebilirlik: cihazda animasyonlar kapalıysa (`disableAnimations`) hiç
+/// oynamaz — hareket duyarlılığı olan kullanıcıya sürekli titreşen bir kutu
+/// dayatılmamalı. Kutu o durumda da renk/simge değişimiyle ayırt ediliyor.
+class _PulsingIcon extends StatefulWidget {
+  final Widget child;
+  const _PulsingIcon({super.key, required this.child});
+
+  @override
+  State<_PulsingIcon> createState() => _PulsingIconState();
+}
+
+class _PulsingIconState extends State<_PulsingIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduced) {
+      _controller.stop();
+      _controller.value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ScaleTransition(
+        scale: Tween<double>(begin: 1, end: 1.14).animate(
+          CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+        ),
+        child: widget.child,
+      );
 }
 
 /// Panonun kategori kutusu. **Ortak widget:** "Önemli Dosyalar" klasörü de
@@ -25,6 +81,10 @@ class FmTileData {
 class FmCategoryTile extends StatelessWidget {
   final FmTileData data;
   const FmCategoryTile({super.key, required this.data});
+
+  /// Nefes alan simgenin kimliği. Material'in kendi içinde de
+  /// `ScaleTransition`lar var; test bizimkini tür yerine bununla bulur.
+  static const pulseKey = ValueKey<String>('fm-tile-pulse');
 
   @override
   Widget build(BuildContext context) {
@@ -41,15 +101,23 @@ class FmCategoryTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: tint.withValues(alpha: dark ? 0.22 : 0.13),
-                  borderRadius: BorderRadius.circular(Radii.control),
-                ),
-                child: Icon(data.icon, color: tint),
-              ),
+              Builder(builder: (context) {
+                final box = Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    // Dikkat çeken kutuda zemin biraz daha koyu: animasyon
+                    // dursa bile (erişilebilirlik) kutu ayırt edilebilir kalır.
+                    color: tint.withValues(
+                        alpha: data.pulse ? (dark ? 0.34 : 0.22) : (dark ? 0.22 : 0.13)),
+                    borderRadius: BorderRadius.circular(Radii.control),
+                  ),
+                  child: Icon(data.icon, color: tint),
+                );
+                return data.pulse
+                    ? _PulsingIcon(key: pulseKey, child: box)
+                    : box;
+              }),
               const SizedBox(height: Gap.sm),
               Text(
                 data.label,

@@ -3,7 +3,24 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 /// Bir işin durumu.
-enum JobStatus { queued, running, done, failed, cancelled }
+enum JobStatus {
+  queued,
+  running,
+  done,
+  failed,
+  cancelled,
+
+  /// Uygulama süreci **iş sürerken öldü** (Android arka planda süreci
+  /// kapattı ya da kullanıcı görev listesinden attı).
+  ///
+  /// Kullanıcı hatası 2026-07-31: *"uygulamayı 1-2 kez alta alıp yeniden üste
+  /// aldığımda … diğer tüm işlemler kayboluyor, boşa yapmış oluyorum"*. Eskiden
+  /// kuyruk **yalnız bellekteydi**: süreç ölünce süren işler de, kullanıcının
+  /// henüz görmediği SONUÇLAR da izsiz yok oluyordu. Artık liste diske yazılıyor
+  /// ve geri yüklenirken süren/bekleyen işler bu durumu alıyor — sessizce
+  /// kaybolmak yerine "yarıda kaldı" diyor.
+  interrupted,
+}
 
 extension JobStatusLabel on JobStatus {
   /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
@@ -13,6 +30,7 @@ extension JobStatusLabel on JobStatus {
         JobStatus.done => 'enum.job_done',
         JobStatus.failed => 'enum.job_failed',
         JobStatus.cancelled => 'enum.job_cancelled',
+        JobStatus.interrupted => 'enum.job_interrupted',
       };
 
   String get label => switch (this) {
@@ -21,6 +39,7 @@ extension JobStatusLabel on JobStatus {
         JobStatus.done => 'Tamamlandı',
         JobStatus.failed => 'Başarısız',
         JobStatus.cancelled => 'İptal edildi',
+        JobStatus.interrupted => 'Yarıda kaldı',
       };
 
   bool get isActive => this == JobStatus.queued || this == JobStatus.running;
@@ -90,6 +109,32 @@ class FmJobTarget {
   /// Tek dosya. `paths`in ilki açılır, kalanı kaydırmalı gezinmenin kardeşleri.
   const FmJobTarget.files(List<String> paths)
       : this(FmJobTargetKind.file, paths: paths);
+
+  Map<String, Object?> toJson() => {
+        'kind': kind.name,
+        if (paths.isNotEmpty) 'paths': paths,
+        if (scopeId != null) 'scopeId': scopeId,
+        if (title != null) 'title': title,
+      };
+
+  /// Tanınmayan `kind` (eski/yeni sürüm kaydı) null döner: bilinmeyen bir
+  /// hedefe gitmeye çalışmaktansa hedefsiz iş göstermek doğru.
+  static FmJobTarget? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final name = raw['kind'];
+    for (final kind in FmJobTargetKind.values) {
+      if (kind.name != name) continue;
+      return FmJobTarget(
+        kind,
+        paths: [
+          for (final p in (raw['paths'] as List? ?? const [])) '$p',
+        ],
+        scopeId: raw['scopeId'] as String?,
+        title: raw['title'] as String?,
+      );
+    }
+    return null;
+  }
 }
 
 /// Kuyruktaki **uzun süren iş**.
@@ -186,6 +231,61 @@ class FmJob {
 
   bool get cancelRequested => _cancelRequested;
 
+  /// Diske yazılan hâli.
+  ///
+  /// [result] ve iş gövdesi **kaydedilmez**: biri rastgele bir Dart nesnesi
+  /// (tarama sonucu), öteki bir closure. Kaydedilen şey işin *hikâyesi* —
+  /// ne yapıldı, başarılı mı oldu, ne üretti. Sonucu gereken ekranlar zaten
+  /// sonuç yoksa yeniden tarıyor.
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'title': title,
+        'detail': detail,
+        'done': done,
+        'total': total,
+        'status': status.name,
+        if (error != null) 'error': error,
+        if (outputs.isNotEmpty) 'outputs': outputs,
+        'startedAtMs': startedAtMs,
+        'finishedAtMs': finishedAtMs,
+        'dismissed': dismissed,
+        if (target != null) 'target': target!.toJson(),
+      };
+
+  /// Kayıttan iş kurar. **Süren/bekleyen işler [JobStatus.interrupted] olur:**
+  /// süreç öldüğü için o iş gerçekten bitmedi ve "Sürüyor" demek yalan olurdu
+  /// (ilerleme çubuğu sonsuza kadar dönerdi).
+  static FmJob? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final id = raw['id'];
+    final title = raw['title'];
+    if (id is! String || id.isEmpty || title is! String) return null;
+    var status = JobStatus.interrupted;
+    for (final s in JobStatus.values) {
+      if (s.name == raw['status']) {
+        status = s.isActive ? JobStatus.interrupted : s;
+        break;
+      }
+    }
+    final job = FmJob(
+      id: id,
+      title: title,
+      detail: raw['detail'] as String? ?? '',
+      done: (raw['done'] as num?)?.toInt() ?? 0,
+      total: (raw['total'] as num?)?.toInt() ?? 0,
+      status: status,
+      target: FmJobTarget.fromJson(raw['target']),
+    )
+      ..error = raw['error'] as String?
+      ..startedAtMs = (raw['startedAtMs'] as num?)?.toInt() ?? 0
+      ..finishedAtMs = (raw['finishedAtMs'] as num?)?.toInt() ?? 0
+      ..dismissed = raw['dismissed'] == true;
+    for (final path in (raw['outputs'] as List? ?? const [])) {
+      job.outputs.add('$path');
+    }
+    return job;
+  }
+
   /// İşin süresi (sürüyorsa şu ana kadar geçen). Damga yoksa null.
   Duration? get elapsed {
     if (startedAtMs == 0) return null;
@@ -244,6 +344,7 @@ class JobHandle {
   /// kullanıcı oradan açar (bkz. [FmJob.outputs]).
   void addOutput(String path) {
     _job.outputs.add(path);
+    _queue._persist(); // çıktı yolu kaybolmasın: süreç ölürse dosya öksüz kalır
     _queue._tick(_job);
   }
 
@@ -279,6 +380,17 @@ abstract class JobReporter {
   Future<void> onIdle() async {}
 }
 
+/// Kuyruğun **diske yazma** kancası.
+///
+/// [JobReporter] ile aynı gerekçe: [JobQueue] `dart:io`suz ve eklentisiz
+/// kalsın, birim testinde diske hiç dokunmadan koşsun. Üretimde `main`
+/// `JobStore`u takıyor (bkz. `services/fm/job_store.dart`).
+abstract class JobPersistence {
+  /// Liste değişti — yaz. Gerçekleştirme **kısabilir** (her ilerleme
+  /// bildiriminde disk yazmak saçma olurdu).
+  void save(List<FmJob> jobs);
+}
+
 /// **Arka plan iş kuyruğu.**
 ///
 /// ## Dürüst sınır (kullanıcıya da böyle yazılır)
@@ -303,8 +415,29 @@ class JobQueue extends ChangeNotifier {
   /// Sistem bildirimi kancası (üretimde `main` takar; null ise sessiz çalışır).
   JobReporter? reporter;
 
+  /// Diske yazma kancası (üretimde `main` takar; null ise bellekte kalır).
+  JobPersistence? store;
+
   final List<FmJob> _jobs = [];
   bool _busy = false;
+
+  void _persist() => store?.save(_jobs);
+
+  /// Önceki oturumdan kalan işleri listenin **başına** koyar.
+  ///
+  /// Yalnız bir kez, uygulama açılışında çağrılır. Bu oturumda çoktan
+  /// eklenmiş bir kimlik varsa kayıt atlanır: yeni iş her zaman kazanır
+  /// (kullanıcı yeniden başlattıysa eskisinin kaydını görmek kafa karıştırır).
+  void restore(List<FmJob> saved) {
+    if (saved.isEmpty) return;
+    final existing = {for (final j in _jobs) j.id};
+    _jobs.insertAll(0, [
+      for (final job in saved)
+        if (!existing.contains(job.id)) job,
+    ]);
+    _trimHistory();
+    notifyListeners();
+  }
 
   /// Yeniden eskiye: en son eklenen üstte.
   List<FmJob> get jobs => List.unmodifiable(_jobs.reversed);
@@ -343,6 +476,7 @@ class JobQueue extends ChangeNotifier {
     if (job == null || job.status.isActive) return;
     job.dismissed = true;
     notifyListeners();
+    _persist();
   }
 
   /// Kimliğe göre iş (bitmiş olanlar dahil) — ekran geri dönünce sonucu bulur.
@@ -381,6 +515,7 @@ class JobQueue extends ChangeNotifier {
     _jobs.add(job);
     _trimHistory();
     notifyListeners();
+    _persist();
     unawaited(_pump());
     return job;
   }
@@ -398,12 +533,14 @@ class JobQueue extends ChangeNotifier {
       unawaited(_finish(job));
     }
     notifyListeners();
+    _persist();
   }
 
   /// Bitmiş (tamam/hata/iptal) işleri listeden temizler.
   void clearFinished() {
     _jobs.removeWhere((j) => !j.status.isActive);
     notifyListeners();
+    _persist();
   }
 
   /// Geçmişte tutulan bitmiş iş sayısı. İşlemler ekranı **geçmiş** olarak
@@ -440,6 +577,7 @@ class JobQueue extends ChangeNotifier {
         job.status = JobStatus.running;
         job.startedAtMs = DateTime.now().millisecondsSinceEpoch;
         notifyListeners();
+        _persist();
         unawaited(_report(job));
         try {
           await run(JobHandle._(job, this));
@@ -456,6 +594,7 @@ class JobQueue extends ChangeNotifier {
         // ve hepsi bitmiş olarak listede kalırdı.
         _trimHistory();
         notifyListeners();
+        _persist();
         await _finish(job);
       }
     } finally {

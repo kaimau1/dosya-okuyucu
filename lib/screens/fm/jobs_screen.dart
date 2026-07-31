@@ -100,6 +100,11 @@ class _JobCard extends StatelessWidget {
         job.detail.isEmpty
             ? context.t('jb.cancelled')
             : context.t('jb.cancelled_detail', {'detail': job.detail}),
+      // Yarıda kalan işte NE OLDUĞU ve NE YAPILACAĞI yazılır: iş sessizce
+      // kaybolmasın diye kaydediliyor, ama "sürüyor" sanılması da yanlış olur.
+      JobStatus.interrupted => job.detail.isEmpty
+          ? context.t('jb.interrupted')
+          : context.t('jb.interrupted_detail', {'detail': job.detail}),
       _ => job.detail.isEmpty ? job.status.label : job.detail,
     };
     final elapsed = job.elapsed;
@@ -173,6 +178,7 @@ class _JobCard extends StatelessWidget {
         JobStatus.done => Icons.check_circle,
         JobStatus.failed => Icons.error_outline,
         JobStatus.cancelled => Icons.block,
+        JobStatus.interrupted => Icons.power_settings_new,
       };
 
   Color? _color(ColorScheme scheme) => switch (job.status) {
