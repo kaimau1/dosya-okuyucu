@@ -11,6 +11,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
+import 'job_navigation.dart';
 
 /// **İşlemler ekranı** — uzun süren her işin nerede olduğu, başarılı mı
 /// olduğu ve **ne ürettiği** tek yerde.
@@ -102,9 +103,18 @@ class _JobCard extends StatelessWidget {
       _ => job.detail.isEmpty ? job.status.label : job.detail,
     };
     final elapsed = job.elapsed;
+    // Kullanıcı isteği 2026-07-31: *"bir işlemin üzerine tıklayınca ilgili yere
+    // götürsün"*. Eskiden kartın kendisi ölü bir kutuydu; yalnız çıktı dosyası
+    // listesi tıklanabiliyordu, tarama işlerinde (kopya/benzer/yer aç) ise
+    // sonuca dönmenin hiçbir yolu yoktu — kullanıcı ekranı elle arıyordu.
+    final destination = jobHasDestination(job);
     return Card(
       margin: const EdgeInsets.only(bottom: Gap.sm),
-      child: Padding(
+      child: InkWell(
+        onTap: destination
+            ? () => openJobTarget(context, job, fallbackToJobs: false)
+            : null,
+        child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,7 +130,12 @@ class _JobCard extends StatelessWidget {
                   TextButton(
                     onPressed: () => JobQueue.instance.cancel(job.id),
                     child: const Text('Durdur'),
-                  ),
+                  )
+                // Ok yalnız GİDİLECEK bir yer varken: her karta ok koymak,
+                // dokununca hiçbir şey olmayan kartlarda yalan olurdu.
+                else if (destination)
+                  Icon(Icons.chevron_right,
+                      size: 20, color: scheme.onSurfaceVariant),
               ],
             ),
             const SizedBox(height: Gap.xs),
@@ -146,6 +161,7 @@ class _JobCard extends StatelessWidget {
               ),
             if (job.outputs.isNotEmpty) _outputs(context),
           ],
+        ),
         ),
       ),
     );

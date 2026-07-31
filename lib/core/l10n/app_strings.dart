@@ -3169,6 +3169,36 @@ const Map<String, (String, String, String)> _table = {
     '{n} pages scanned',
     'تم مسح {n} صفحة',
   ),
+
+  // ── Tarama sonucu ekranı ──────────────────────────────────────────────────
+  'scr.title': ('Tarama sonucu', 'Scan result', 'نتيجة المسح'),
+  'scr.tab_document': ('Belge', 'Document', 'المستند'),
+  'scr.tab_text': ('Metin', 'Text', 'النص'),
+  'scr.saved_to': (
+    'PDF kaydedildi · {folder}',
+    'PDF saved · {folder}',
+    'حُفظ الـ PDF · {folder}',
+  ),
+  'scr.change_location': ('Konumu değiştir', 'Change location', 'تغيير الموقع'),
+  'scr.save_here': ('Buraya kaydet', 'Save here', 'احفظ هنا'),
+  'scr.moved': (
+    'Taşındı · {folder}',
+    'Moved · {folder}',
+    'تم النقل · {folder}',
+  ),
+  'scr.move_failed': (
+    'Taşınamadı: {error}',
+    'Could not move: {error}',
+    'تعذّر النقل: {error}',
+  ),
+  'scr.open_pdf': ('PDF\'i aç', 'Open the PDF', 'فتح الـ PDF'),
+  'scr.no_text_yet': (
+    'Bu tarama metin tanımadan yapıldı. Sayfalardaki yazıları şimdi '
+        'tanıyabilirsiniz.',
+    'This scan was made without text recognition. You can recognize the text '
+        'on the pages now.',
+    'تم هذا المسح دون التعرّف على النص. يمكنك التعرّف على النص الآن.',
+  ),
   'sf.scanned_body': (
     'Sayfalardaki yazılar da tanınsın mı? Tanınırsa PDF içinde arama ve '
         'kopyalama çalışır; görüntü aynen kalır.\n\n'
@@ -3221,6 +3251,34 @@ const Map<String, (String, String, String)> _table = {
     'جارٍ تنزيل نموذج اللغة {lang}…',
   ),
   'tf.copied': ('Çeviri kopyalandı', 'Translation copied', 'تم نسخ الترجمة'),
+  // Belge çevirisi: metin toplama (katman/OCR) → sayfa sayfa çeviri.
+  'tf.page_reading': (
+    'Sayfa {n} / {total} okunuyor…',
+    'Reading page {n} / {total}…',
+    'جارٍ قراءة الصفحة {n} / {total}…',
+  ),
+  'tf.page_ocr': (
+    'Sayfa {n} / {total} taranıyor (metin tanıma)…',
+    'Scanning page {n} / {total} (text recognition)…',
+    'جارٍ فحص الصفحة {n} / {total} (التعرّف على النص)…',
+  ),
+  'tf.page_translating': (
+    'Sayfa {n} / {total} çevriliyor…',
+    'Translating page {n} / {total}…',
+    'جارٍ ترجمة الصفحة {n} / {total}…',
+  ),
+  'tf.page_header': ('— Sayfa {n} —', '— Page {n} —', '— صفحة {n} —'),
+  'tf.stopping': ('Durduruluyor…', 'Stopping…', 'جارٍ الإيقاف…'),
+  'tf.stopped': (
+    'Çeviri durduruldu.',
+    'Translation stopped.',
+    'تم إيقاف الترجمة.',
+  ),
+  'tf.partial': (
+    'Durduruldu — {total} sayfanın {n} tanesi çevrildi.',
+    'Stopped — {n} of {total} pages were translated.',
+    'تم الإيقاف — تُرجمت {n} من {total} صفحة.',
+  ),
 
   // ── Otomatik düzenleme ekranı ─────────────────────────────────────────────
   'org.all_placed_full': (

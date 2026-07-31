@@ -53,6 +53,19 @@ class JobNotifications implements JobReporter {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
+  /// Bildirime **dokunulduğunda** çağrılır (iş kimliğiyle).
+  ///
+  /// Kullanıcı isteği 2026-07-31: *"bildirimlere tıklayınca da ilgili yere
+  /// götürsün"*. Eskiden `initialize`a hiç yanıt işleyicisi verilmiyordu:
+  /// bildirime dokunmak yalnız uygulamayı öne alıyor, kullanıcı hangi ekrandan
+  /// çıkmışsa oraya dönüyordu.
+  ///
+  /// **Niye burada bir geri çağrı, niye doğrudan gezinme:** bu dosya servis
+  /// katmanı; `Navigator`ı buradan sürmek servisleri ekranlara bağlardı ve
+  /// bildirim eklentisi olmadan test edilemez hâle getirirdi. Kancayı `main`
+  /// takıyor.
+  void Function(String jobId)? onTap;
+
   bool _ready = false;
   bool _tried = false;
 
@@ -67,16 +80,50 @@ class JobNotifications implements JobReporter {
     if (_tried) return;
     _tried = true;
     try {
-      await _plugin.initialize(const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      ));
+      await _plugin.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        ),
+        onDidReceiveNotificationResponse: _handleResponse,
+      );
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       await android?.requestNotificationsPermission();
       _ready = true;
+      // Uygulama KAPALIYKEN bildirime dokunulduysa yanıt `initialize`
+      // geri çağrısına düşmez; başlatma ayrıntılarından okunur. Kanca henüz
+      // takılmamış olabilir (main sırayla kuruyor) → beklemede tutulur.
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      final payload = launch?.notificationResponse?.payload;
+      if ((launch?.didNotificationLaunchApp ?? false) &&
+          payload != null &&
+          payload.isNotEmpty) {
+        _pendingJobId = payload;
+      }
     } catch (_) {
       _ready = false;
     }
+  }
+
+  /// Uygulama bildirimden açıldıysa o işin kimliği (bir kez okunur).
+  String? _pendingJobId;
+
+  /// Bildirimden açılışı tüketir — `main` ilk kare çizildikten sonra sorar.
+  String? takePendingJobId() {
+    final id = _pendingJobId;
+    _pendingJobId = null;
+    return id;
+  }
+
+  void _handleResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    final handler = onTap;
+    if (handler == null) {
+      _pendingJobId = payload;
+      return;
+    }
+    handler(payload);
   }
 
   /// İş kimliğinden kararlı bildirim numarası (FNV-1a; `crypto` eklemeye
@@ -151,6 +198,9 @@ class JobNotifications implements JobReporter {
             title,
             body,
             notificationDetails: details,
+            // Yük = iş kimliği: dokunulunca gezinme katmanı işi bulup
+            // "ilgili yer"e götürür.
+            payload: job.id,
             // START_NOT_STICKY: süreç ölürse Android servisi geri getirmesin —
             // geri gelen servis, işi olmayan bir bildirimden ibaret olurdu.
             startType: AndroidServiceStartType.startNotSticky,
@@ -176,6 +226,7 @@ class JobNotifications implements JobReporter {
       title,
       body,
       NotificationDetails(android: details),
+      payload: job.id,
     );
   }
 
@@ -222,6 +273,7 @@ class JobNotifications implements JobReporter {
           styleInformation: BigTextStyleInformation(body),
         ),
       ),
+      payload: job.id,
     );
   }
 

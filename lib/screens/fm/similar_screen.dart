@@ -125,6 +125,10 @@ class _SimilarScreenState extends State<SimilarScreen> {
       title: strings.t('sim.scanning_title',
           {'level': strings.t(level.labelKey)}),
       total: widget.files.length,
+      // Sonuç bu kapsamın ekranında duruyor; hedef onu geri açar (tarama
+      // baştan başlamaz, sonuç kuyrukta kayıtlı).
+      target: FmJobTarget.similar(
+          scopeId: widget.scopeId, title: widget.title),
       run: (handle) async {
         var files = widget.files;
         if (loader != null) {

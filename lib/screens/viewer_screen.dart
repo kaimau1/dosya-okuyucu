@@ -16,6 +16,7 @@ import '../core/text_search.dart';
 import '../models/document.dart';
 import '../models/fs_entry.dart';
 import '../services/conversion_service.dart';
+import '../services/doc_translate.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
@@ -668,15 +669,60 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  /// **Tek düğme çeviri** (istek 2026-07-31): metin nereden gelirse gelsin
+  /// kullanıcı ayrıca OCR çalıştırmaz.
+  ///
+  /// - PDF: her sayfa için önce metin katmanı, boşsa OCR (bkz.
+  ///   [DocTranslate.collectPdfPages]) → sayfa yapısı korunarak çevrilir.
+  /// - Görsel: OCR (bir kez tanındıysa sonucu yeniden kullanılır).
+  /// - Diğer belgeler: zaten yüklü olan metin.
   Future<void> _translateDocument() async {
-    final text = _documentText.trim();
-    if (text.isEmpty) {
-      _snack(widget.doc.kind == DocKind.pdf || widget.doc.kind == DocKind.image
-          ? context.t('vw.ocr_first')
-          : context.t('vw.no_text_to_translate'));
+    final doc = widget.doc;
+    if (doc.kind == DocKind.pdf) {
+      final pdf = _pdfDoc;
+      if (pdf == null) {
+        _snack(context.t('vw.pdf_loading'));
+        return;
+      }
+      await TranslateFlow.runDocument(
+        context,
+        title: doc.name,
+        load: (progress) => DocTranslate.collectPdfPages(
+          pdf,
+          onLayer: (done, total) => progress.status(
+              context.t('tf.page_reading', {'n': done + 1, 'total': total})),
+          onOcr: (done, total) => progress.status(
+              context.t('tf.page_ocr', {'n': done + 1, 'total': total})),
+          cancelled: () => progress.cancelled,
+        ),
+      );
       return;
     }
-    await TranslateFlow.run(context, text, title: widget.doc.name);
+    if (doc.kind == DocKind.image) {
+      await TranslateFlow.runDocument(
+        context,
+        title: doc.name,
+        load: (progress) async {
+          if (_ocrImageText.trim().isNotEmpty) {
+            return [OcrPage(1, _ocrImageText.trim())];
+          }
+          progress.status(context.t('vw.ocr_running'));
+          final text = await OcrService.recognizeImageFile(doc.path);
+          if (text.trim().isEmpty) return const <OcrPage>[];
+          // Tanınan metin ekranda da kalsın: AI sohbeti ve "Metni tanı"
+          // sayfası aynı sonucu yeniden taramasın.
+          if (mounted) setState(() => _ocrImageText = text);
+          return [OcrPage(1, text.trim())];
+        },
+      );
+      return;
+    }
+    final text = _documentText.trim();
+    if (text.isEmpty) {
+      _snack(context.t('vw.no_text_to_translate'));
+      return;
+    }
+    await TranslateFlow.run(context, text, title: doc.name);
   }
 
   bool get _hasText =>
@@ -867,9 +913,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'speak':
                 _toggleSpeech();
                 break;
-              case 'translate':
-                _translateDocument();
-                break;
               case 'fileops':
                 _fileActions();
                 break;
@@ -898,8 +941,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
             if (_ttsTotal == 0)
               PopupMenuItem(
                   value: 'speak', child: Text(context.t('vw.speak'))),
-            PopupMenuItem(
-                value: 'translate', child: Text(context.t('vw.translate_doc'))),
+            // "Çevir" buradan KALDIRILDI: alt eylem çubuğunda etiketli duruyor
+            // (2026-07-31 — "tek butonla" isteği; menüde de tutmak aynı işi
+            // iki yere koymak olurdu).
             if (doc.kind != DocKind.image)
               PopupMenuItem(value: 'pdf', child: Text(context.t('vw.to_pdf'))),
             PopupMenuItem(
@@ -943,6 +987,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Etiketli, çünkü kullanıcı ne yapacağını ekrandan okuyabilmeli.
   /// "Yazdır" görselde YOK: `_print` metni PDF'e çevirip basar, görselin metni
   /// olmadığı için boş sayfa çıkardı — orada iş "PDF'e dönüştür".
+  ///
+  /// **Çevir** her türde var (2026-07-31): eskiden yalnız taşma menüsündeydi ve
+  /// taranmış belgede önce OCR istiyordu; artık düğme tek başına yetiyor.
   Widget _actionBar(LoadedDoc doc) {
     final isImage = doc.kind == DocKind.image;
     return DocActionBar([
@@ -958,6 +1005,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
         DocAction(Icons.edit_outlined, context.t('common.edit'), _textFocus.requestFocus),
         DocAction(Icons.save_outlined, 'Kaydet', _save),
       ],
+      DocAction(
+          Icons.translate, context.t('common.translate'), _translateDocument),
       DocAction(Icons.share_outlined, context.t('common.share'), _share),
       if (!isImage) DocAction(Icons.print_outlined, context.t('vw.print'), _print),
     ]);

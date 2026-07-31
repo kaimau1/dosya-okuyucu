@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:path/path.dart' as p;
@@ -45,32 +46,73 @@ class DocumentScanner {
     bool searchable = false,
     void Function(int done, int total)? onProgress,
   }) async {
-    final ocrLines = <List<OcrLine>>[];
-    if (searchable) {
-      for (var i = 0; i < imagePaths.length; i++) {
-        onProgress?.call(i, imagePaths.length);
-        ocrLines.add(await OcrService.recognizeImageLines(imagePaths[i]));
-      }
-      onProgress?.call(imagePaths.length, imagePaths.length);
+    final ocrLines = searchable
+        ? await recognizePages(imagePaths, onProgress: onProgress)
+        : const <List<OcrLine>>[];
+    final bytes = await renderPdf(imagePaths, ocrLinesPerPage: ocrLines);
+    return savePdf(bytes);
+  }
+
+  /// Sayfaları OCR'lar — satır **kutularıyla** birlikte.
+  ///
+  /// Ayrı bir adım olması gerekiyor: aynı sonuç iki yerde kullanılıyor —
+  /// PDF'in görünmez metin katmanı **ve** tarama sonucu ekranındaki "Metin"
+  /// sekmesi (kullanıcı isteği 2026-07-31: *"bir sayfada belge, bir sayfada
+  /// yazılar düzgün formatta"*). İki kez taramak süreyi ikiye katlardı.
+  static Future<List<List<OcrLine>>> recognizePages(
+    List<String> imagePaths, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final out = <List<OcrLine>>[];
+    for (var i = 0; i < imagePaths.length; i++) {
+      onProgress?.call(i, imagePaths.length);
+      out.add(await OcrService.recognizeImageLines(imagePaths[i]));
     }
+    onProgress?.call(imagePaths.length, imagePaths.length);
+    return out;
+  }
 
-    // Her sayfa A4: gerçek bir tarayıcı gibi tek boy kâğıt. Görsel oranı
-    // korunarak sayfaya tam oturtulur (kırpılmaz), yatay sayfa yatay basılır.
-    final bytes = await ConversionService().imagesToPdf(
-      imagePaths,
-      ocrLinesPerPage: ocrLines,
-      uniformPage: PdfPageFormat.a4,
-    );
+  /// Sayfa görsellerinden PDF baytları üretir (diske yazmaz).
+  ///
+  /// Her sayfa A4: gerçek bir tarayıcı gibi tek boy kâğıt. Görsel oranı
+  /// korunarak sayfaya tam oturtulur (kırpılmaz), yatay sayfa yatay basılır.
+  static Future<Uint8List> renderPdf(
+    List<String> imagePaths, {
+    List<List<OcrLine>> ocrLinesPerPage = const [],
+  }) =>
+      ConversionService().imagesToPdf(
+        imagePaths,
+        ocrLinesPerPage: ocrLinesPerPage,
+        uniformPage: PdfPageFormat.a4,
+      );
 
-    final dir = await _targetDir();
-    final path = p.join(dir.path, 'Tarama ${_stamp()}.pdf');
+  /// PDF'i diske yazar ve yolunu döner. [dir] verilmezse Belgeler dizini
+  /// (kullanıcı sonuç ekranından başka bir klasör seçebiliyor).
+  static Future<String> savePdf(Uint8List bytes,
+      {String? dir, String? fileName}) async {
+    final target = dir ?? (await defaultDir()).path;
+    await Directory(target).create(recursive: true);
+    final path = p.join(target, fileName ?? 'Tarama ${_stamp()}.pdf');
     await File(path).writeAsBytes(bytes, flush: true);
     return path;
   }
 
+  /// Taranan sayfaların düz metni — sayfa sayfa (boş sayfa listeye girmez).
+  static List<OcrPage> textPages(List<List<OcrLine>> ocrLinesPerPage) {
+    final out = <OcrPage>[];
+    for (var i = 0; i < ocrLinesPerPage.length; i++) {
+      final text = ocrLinesPerPage[i]
+          .map((line) => line.text.trim())
+          .where((line) => line.isNotEmpty)
+          .join('\n');
+      if (text.isNotEmpty) out.add(OcrPage(i + 1, text));
+    }
+    return out;
+  }
+
   /// Yeni belgelerle aynı yer (bkz. `BlankDocs`): kullanıcı taramasını "Son
   /// belgeler"de ve dosya yöneticisinde aynı klasörde bulsun.
-  static Future<Directory> _targetDir() async {
+  static Future<Directory> defaultDir() async {
     try {
       return await getApplicationDocumentsDirectory();
     } catch (_) {

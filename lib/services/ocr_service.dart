@@ -17,8 +17,26 @@ class OcrLine {
   const OcrLine(this.text, this.box);
 }
 
+/// Tek sayfanın metni (sayfa numarası 1'den başlar).
+///
+/// Niye sayfa sayfa: çeviri sayfa yapısını KORUMALI ("tüm sayfa olarak çevir",
+/// kullanıcı isteği 2026-07-31). Metni tek dizede birleştirip içine
+/// "— Sayfa 3 —" yazmak, o başlığın da çeviriye girmesi demekti; sayfa ayrımı
+/// veride durursa başlığı arayüz kendi dilinde yazar ve çeviriye hiç sokmaz.
+class OcrPage {
+  final int number;
+  final String text;
+  const OcrPage(this.number, this.text);
+}
+
 class OcrService {
   /// Tek OCR turunda işlenecek en fazla PDF sayfası (süre/pil koruması).
+  ///
+  /// "Metni tanı" sayfasının varsayılanı budur. Belge ÇEVİRİSİ bu sınırı
+  /// [recognizePdfPages]'in `maxPages`'iyle aşabilir: orada kullanıcı işi
+  /// istediği an durdurabiliyor ve durdurulan iş o ana kadarki sayfaları
+  /// gösteriyor — yani uzun belgede kararı kullanıcı veriyor, sabit bir
+  /// kesme değil.
   static const maxPdfPages = 25;
 
   /// Bir görsel dosyadan metin tanır. Metin yoksa boş dize döner.
@@ -62,24 +80,45 @@ class OcrService {
     PdfDocument document, {
     void Function(int done, int total)? onProgress,
   }) async {
-    final pages = document.pages;
-    final total = pages.length > maxPdfPages ? maxPdfPages : pages.length;
+    final pages =
+        await recognizePdfPages(document, onProgress: onProgress);
+    return joinPages(pages, (n) => '— Sayfa $n —');
+  }
+
+  /// PDF sayfalarını **ayrı ayrı** OCR'lar; metni olmayan sayfa listeye girmez.
+  ///
+  /// [maxPages] sayfa üst sınırı (varsayılan [maxPdfPages]).
+  /// [cancelled] her sayfa öncesi yoklanır; true dönerse o ana kadar tanınan
+  /// sayfalar döner (hata atılmaz — yarım sonuç, hiç sonuçtan iyidir ve
+  /// kullanıcı işi bilerek durdurmuştur).
+  /// [onlyPages] verilirse yalnız o sayfa numaraları (1'den) taranır: metin
+  /// katmanı olan PDF'te sadece taranmış sayfalar için OCR'a düşülür.
+  static Future<List<OcrPage>> recognizePdfPages(
+    PdfDocument document, {
+    int maxPages = maxPdfPages,
+    void Function(int done, int total)? onProgress,
+    bool Function()? cancelled,
+    Set<int>? onlyPages,
+  }) async {
+    final pages = [
+      for (final page in document.pages)
+        if (onlyPages == null || onlyPages.contains(page.pageNumber)) page,
+    ];
+    final total = pages.length > maxPages ? maxPages : pages.length;
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-    final sb = StringBuffer();
+    final out = <OcrPage>[];
     try {
       for (var i = 0; i < total; i++) {
+        if (cancelled?.call() ?? false) break;
         onProgress?.call(i, total);
-        final path = await _renderPageToPng(pages[i], i);
+        final page = pages[i];
+        final path = await _renderPageToPng(page, i);
         if (path == null) continue;
         try {
           final result =
               await recognizer.processImage(InputImage.fromFilePath(path));
           final text = result.text.trim();
-          if (text.isNotEmpty) {
-            if (total > 1) sb.writeln('— Sayfa ${i + 1} —');
-            sb.writeln(text);
-            sb.writeln();
-          }
+          if (text.isNotEmpty) out.add(OcrPage(page.pageNumber, text));
         } finally {
           try {
             File(path).deleteSync();
@@ -87,10 +126,23 @@ class OcrService {
         }
       }
       onProgress?.call(total, total);
-      return sb.toString().trim();
+      return out;
     } finally {
       await recognizer.close();
     }
+  }
+
+  /// Sayfaları tek metne dizer; birden çok sayfa varsa [header] ile başlık
+  /// yazar. Saf fonksiyon → birim testli (bkz. test/ocr_pages_test.dart).
+  static String joinPages(
+      List<OcrPage> pages, String Function(int pageNumber) header) {
+    final sb = StringBuffer();
+    for (final page in pages) {
+      if (pages.length > 1) sb.writeln(header(page.number));
+      sb.writeln(page.text);
+      sb.writeln();
+    }
+    return sb.toString().trim();
   }
 
   /// Sayfayı ~1600px genişlikte PNG'ye çizer (OCR için yeterli çözünürlük).

@@ -40,26 +40,56 @@ class TranslateService {
 
   /// [text]'i satır yapısını (paragraf/boş satır) koruyarak çevirir.
   /// [onProgress] her satır öncesi (işlenen, toplam) ile çağrılır.
+  /// [cancelled] her satır öncesi yoklanır; true dönerse çevrilen satırlar
+  /// döner (kalanlar atılır) — kullanıcı durdurduğunda yarım çeviri yine de
+  /// gösterilebilsin.
   static Future<String> translate(
     String text, {
     required TranslateLanguage from,
     required TranslateLanguage to,
     void Function(int done, int total)? onProgress,
+    bool Function()? cancelled,
   }) async {
-    final lines = text.split('\n');
     final translator =
         OnDeviceTranslator(sourceLanguage: from, targetLanguage: to);
-    final out = <String>[];
     try {
-      for (var i = 0; i < lines.length; i++) {
-        onProgress?.call(i, lines.length);
-        out.add(await _translateLine(translator, lines[i]));
-      }
+      return await translateWith(
+        translator,
+        text,
+        onProgress: onProgress,
+        cancelled: cancelled,
+      );
     } finally {
       await translator.close();
     }
+  }
+
+  /// Hazır bir çeviriciyle çevirir — **çok sayfalı belgede** her sayfa için
+  /// yeni çevirici açmamak içindir: `OnDeviceTranslator` açılışı dil modelini
+  /// belleğe yüklüyor, 180 sayfalık bir belgede bunu 180 kez yapmak süreyi
+  /// katlıyordu.
+  static Future<String> translateWith(
+    OnDeviceTranslator translator,
+    String text, {
+    void Function(int done, int total)? onProgress,
+    bool Function()? cancelled,
+  }) async {
+    final lines = text.split('\n');
+    final out = <String>[];
+    for (var i = 0; i < lines.length; i++) {
+      if (cancelled?.call() ?? false) break;
+      onProgress?.call(i, lines.length);
+      out.add(await _translateLine(translator, lines[i]));
+    }
     return out.join('\n');
   }
+
+  /// Çevirici üretir (akış katmanı ML Kit tipini kendi kurmasın diye).
+  static OnDeviceTranslator translator({
+    required TranslateLanguage from,
+    required TranslateLanguage to,
+  }) =>
+      OnDeviceTranslator(sourceLanguage: from, targetLanguage: to);
 
   static Future<String> _translateLine(
       OnDeviceTranslator t, String line) async {

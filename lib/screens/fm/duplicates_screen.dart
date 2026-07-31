@@ -121,6 +121,9 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
     JobQueue.instance.enqueue(
       id: _jobId,
       title: strings.t('dup.scanning_title'),
+      // İş bittikten sonra (bildirimden, şeritten, İşlemler kartından)
+      // dokunulunca sonucu gösteren ekran bu — aynı köklerle.
+      target: FmJobTarget.duplicates(roots),
       run: (handle) async {
         handle.report(detail: strings.t('dup.comparing'));
         final groups = await DuplicateFinder.scan(roots);

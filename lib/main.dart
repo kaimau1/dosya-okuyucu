@@ -11,6 +11,8 @@ import 'core/app_state.dart';
 import 'core/l10n/app_language.dart';
 import 'core/l10n/app_strings.dart';
 import 'core/theme.dart';
+import 'screens/fm/job_navigation.dart';
+import 'screens/fm/jobs_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/fm/file_tags.dart';
 import 'services/fm/job_notifications.dart';
@@ -28,7 +30,18 @@ Future<void> main() async {
   // köprüsü. Bildirim izni verilmezse ya da eklenti kurulamazsa sessizce
   // geçilir — işler yine çalışır, yalnız bildirim görünmez.
   final jobNotifications = JobNotifications();
-  unawaited(jobNotifications.init());
+  // Bildirime dokunulunca işin **ilgili yerine** gidilir (istek 2026-07-31).
+  // Gezinme kökten yapılır: bildirim uygulamanın hangi ekranında olursa olsun
+  // gelebilir ve o anki `context` bilinmiyor.
+  jobNotifications.onTap = (jobId) => _openJobFromNotification(jobId);
+  unawaited(jobNotifications.init().then((_) {
+    // Uygulama bildirime dokunularak AÇILDIYSA yanıt `onTap`tan önce
+    // gelmiş olabilir; ilk kareden sonra tüketilir (Navigator o an hazır).
+    final pending = jobNotifications.takePendingJobId();
+    if (pending == null) return;
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openJobFromNotification(pending));
+  }));
   JobQueue.instance.reporter = jobNotifications;
   // Dosya taşınınca/adı değişince YOL ANAHTARLI yan kayıtlar da taşınmalı:
   // etiketler ve açılma geçmişi dosyayı yolundan tanıyor. Bu kanca bağlı
@@ -50,6 +63,24 @@ Future<void> main() async {
   );
 }
 
+/// Uygulamanın kök gezinme anahtarı — `context`i olmayan yerlerden (sistem
+/// bildirimi) ekran açmak için tek yol.
+final navigatorKey = GlobalKey<NavigatorState>();
+
+/// Bildirimden gelen iş kimliğini ekrana çevirir. İş kuyrukta yoksa (uygulama
+/// yeniden başlamış, kuyruk bellekte) İşlemler ekranı açılır — boş bir
+/// dokunuştansa listeye götürmek daha iyi.
+void _openJobFromNotification(String jobId) {
+  final context = navigatorKey.currentContext;
+  if (context == null) return;
+  final job = JobQueue.instance.find(jobId);
+  if (job == null) {
+    unawaited(openJobsScreen(context));
+    return;
+  }
+  unawaited(openJobTarget(context, job));
+}
+
 /// 120Hz+ ekranlarda Android'in 60Hz kilidini açar.
 /// Desteklenmeyen cihaz/ROM'da sessizce geçilir — akış asla bloklanmaz.
 Future<void> _enableHighRefreshRate() async {
@@ -69,6 +100,7 @@ class DosyaOkuyucuApp extends StatelessWidget {
     final appState = context.watch<AppState>();
     return MaterialApp(
       title: 'Dosya Okuyucu',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

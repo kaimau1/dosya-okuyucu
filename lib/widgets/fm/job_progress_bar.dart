@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../screens/fm/job_navigation.dart';
 import '../../screens/fm/jobs_screen.dart';
 import '../../services/fm/job_queue.dart';
 
@@ -47,7 +48,10 @@ class _RunningBar extends StatelessWidget {
     return Material(
       color: theme.colorScheme.surfaceContainerHigh,
       child: InkWell(
-        onTap: () => openJobsScreen(context),
+        // Şeride dokunmak **işin olduğu yere** götürür (istek 2026-07-31);
+        // hedefi olmayan işte İşlemler ekranına düşer. Listeye gitmek isteyen
+        // için sağdaki liste düğmesi duruyor.
+        onTap: () => openJobTarget(context, job),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -79,6 +83,11 @@ class _RunningBar extends StatelessWidget {
                           ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    tooltip: context.t('jb.title'),
+                    icon: const Icon(Icons.list_alt, size: 20),
+                    onPressed: () => openJobsScreen(context),
                   ),
                   TextButton(
                     onPressed: () => JobQueue.instance.cancel(job.id),
@@ -117,7 +126,7 @@ class _ResultBar extends StatelessWidget {
           ? scheme.errorContainer
           : scheme.surfaceContainerHigh,
       child: InkWell(
-        onTap: () => openJobsScreen(context),
+        onTap: () => openJobTarget(context, job),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
           child: Row(
@@ -148,11 +157,11 @@ class _ResultBar extends StatelessWidget {
                   ],
                 ),
               ),
-              // Çıktı varsa doğrudan "oraya git": şeritten İşlemler ekranına,
-              // oradan dosyaya tek dokunuş kalır.
-              if (job.outputs.isNotEmpty)
+              // "Göster" artık gerçekten sonuca götürüyor: üretilen dosyayı
+              // (ya da tarama sonucunu) açar, arada İşlemler ekranı yok.
+              if (jobHasDestination(job))
                 TextButton(
-                  onPressed: () => openJobsScreen(context),
+                  onPressed: () => openJobTarget(context, job),
                   child: Text(context.t('jp.show')),
                 ),
               IconButton(
