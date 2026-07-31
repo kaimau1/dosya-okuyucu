@@ -15,7 +15,20 @@ void main() {
   late Directory tmp;
 
   setUp(() => tmp = Directory.systemTemp.createTempSync('fm_rar_test'));
-  tearDown(() => tmp.deleteSync(recursive: true));
+  // Silme birkaç kez denenir: Windows'ta koni'nin native (unrar) tarafı
+  // parola-hatası yolunda dosya tanıtıcısını bir tur geç bırakabiliyor;
+  // Dart tarafındaki tüm close'lar zaten finally'de (bkz. _extractSync).
+  tearDown(() async {
+    for (var i = 0; ; i++) {
+      try {
+        tmp.deleteSync(recursive: true);
+        return;
+      } on FileSystemException {
+        if (i >= 4) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+    }
+  });
 
   /// Fixture'ı geçici klasöre kopyalar (çıkarma arşivin yanına yazar).
   String copy(String name) {

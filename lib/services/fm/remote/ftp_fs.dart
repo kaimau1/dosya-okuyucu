@@ -15,9 +15,9 @@ class FtpFs extends RemoteFs {
   FTPConnect? _ftp;
 
   static SecurityType securityFor(RemoteProtocol protocol) => switch (protocol) {
-        RemoteProtocol.ftps => SecurityType.FTPS,
-        RemoteProtocol.ftpes => SecurityType.FTPES,
-        _ => SecurityType.FTP,
+        RemoteProtocol.ftps => SecurityType.ftps,
+        RemoteProtocol.ftpes => SecurityType.ftpes,
+        _ => SecurityType.ftp,
       };
 
   @override
@@ -74,7 +74,7 @@ class FtpFs extends RemoteFs {
         out.add(RemoteEntry(
           name: item.name,
           path: RemoteFs.join(path, item.name),
-          isDir: item.type == FTPEntryType.DIR,
+          isDir: item.type == FTPEntryType.dir,
           sizeBytes: item.size ?? 0,
           modifiedMs: item.modifyTime?.millisecondsSinceEpoch ?? 0,
         ));

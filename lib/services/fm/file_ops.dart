@@ -162,7 +162,7 @@ abstract final class FileOps {
         errors.add('$name: klasör kendi içine taşınamaz');
         continue;
       }
-      var dest = p.join(destDir, name);
+      var dest = joinKeepingSeparator(destDir, name);
       if (p.normalize(src) == p.normalize(dest)) {
         // Aynı klasöre kopyalama → kopya üret ("rapor (1).pdf").
         if (move) {
@@ -413,11 +413,26 @@ abstract final class FileOps {
     return FmOpResult(succeeded: ok, errors: errors);
   }
 
+  /// [dir] + [name]; ayırıcı olarak [dir]'deki SON ayırıcı kullanılır.
+  /// p.join platform ayırıcısı basar: Android'de fark yok ama Windows'ta
+  /// '/'lu gelen yol '\'ya döner, yan kayıt (etiket/geçmiş) anahtarları ve
+  /// test sözleşmeleri girdinin stilini bekler (2026-07-31 Windows koşusu).
+  static String joinKeepingSeparator(String dir, String name) {
+    final trimmed = (dir.endsWith('/') || dir.endsWith(r'\'))
+        ? dir.substring(0, dir.length - 1)
+        : dir;
+    final i = trimmed.lastIndexOf(RegExp(r'[/\\]'));
+    final sep = i < 0 ? p.separator : trimmed[i];
+    return '$trimmed$sep$name';
+  }
+
   /// Yeniden adlandırır ve yeni yolu döndürür.
   static Future<String> rename(String path, String newName) async {
     final clean = sanitizeName(newName);
     if (clean.isEmpty) throw const FileSystemException('ad boş olamaz');
-    final target = p.join(p.dirname(path), clean);
+    // p.dirname+p.join değil: girdinin ayırıcı stili korunur (üstteki not).
+    final cut = path.lastIndexOf(RegExp(r'[/\\]')) + 1;
+    final target = '${path.substring(0, cut)}$clean';
     if (p.normalize(target) == p.normalize(path)) return path;
     // YALNIZ BÜYÜK/KÜÇÜK HARF değişiyorsa "zaten var" hatası verilmez.
     // SD kart ve USB bellek FAT32/exFAT'tir: orada `_exists('IMG.jpg')` ile

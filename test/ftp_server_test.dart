@@ -127,7 +127,7 @@ void main() {
       final names = entries.map((e) => e.name).toSet();
       expect(names, containsAll(['merhaba.txt', 'klasor']));
       final folder = entries.firstWhere((e) => e.name == 'klasor');
-      expect(folder.type, FTPEntryType.DIR);
+      expect(folder.type, FTPEntryType.dir);
 
       final target = File('${root.path}/inen.txt');
       expect(await ftp.downloadFile('merhaba.txt', target), isTrue);

@@ -250,7 +250,7 @@ void main() {
     );
 
     test('bağlan ve paylaşımları listele', () async {
-      if (!await _up(445)) return _skip('smb :445');
+      if (!await _smbUp(445)) return _skip('smb :445');
       final fs = SmbFs(connection);
       await fs.connect();
       addTearDown(fs.close);
@@ -264,7 +264,7 @@ void main() {
     });
 
     test('paylaşım içindeki dosyaları listeler ve indirir', () async {
-      if (!await _up(445)) return _skip('smb :445');
+      if (!await _smbUp(445)) return _skip('smb :445');
       final fs = SmbFs(connection);
       await fs.connect();
       addTearDown(fs.close);
@@ -280,7 +280,7 @@ void main() {
     });
 
     test('yukle - klasor olustur - yeniden adlandir - sil', () async {
-      if (!await _up(445)) return _skip('smb :445');
+      if (!await _smbUp(445)) return _skip('smb :445');
       final fs = SmbFs(connection);
       await fs.connect();
       addTearDown(fs.close);
@@ -329,6 +329,17 @@ Future<bool> _up(int port, {String host = '127.0.0.1'}) async {
   } finally {
     socket?.destroy();
   }
+}
+
+/// SMB'ye özel yoklama. Windows kendi SMB servisiyle 445'i HER ZAMAN dinler,
+/// bu yüzden düz port yoklaması "bizim test sunucumuz" ile işletim sisteminkini
+/// ayıramaz ve testler atlanacakları yerde gerçek Windows SMB'ye bağlanıp
+/// patlar. Windows'ta açık onay iste; diğer platformlarda davranış aynı kalır.
+Future<bool> _smbUp(int port, {String host = '127.0.0.1'}) async {
+  if (Platform.isWindows && Platform.environment['LIVE_SMB'] != '1') {
+    return false;
+  }
+  return _up(port, host: host);
 }
 
 void _skip(String what) => markTestSkipped(

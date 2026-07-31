@@ -320,31 +320,34 @@ abstract final class ArchiveOps {
   /// - `ad.zip` → `ad.z01`, `ad.z02`, …
   static String? volumePath(String first, int volume) {
     if (volume <= 1) return first;
-    final dir = p.dirname(first);
-    final name = p.basename(first);
+    // Saf yol hesabı: p.dirname+p.join platform ayırıcısı basar (Windows'ta
+    // '/a/x.rar' → '/a\x.rar' olur). Girdinin öneki ayırıcısıyla birlikte
+    // aynen korunur — gerçek dosya yollarında da doğru cilt yolu çıkar.
+    final cut = first.lastIndexOf(RegExp(r'[/\\]')) + 1;
+    final dir = first.substring(0, cut);
+    final name = first.substring(cut);
 
     final part = RegExp(r'^(.*\.part)(\d+)(\.rar)$', caseSensitive: false)
         .firstMatch(name);
     if (part != null) {
       final width = part.group(2)!.length;
-      return p.join(dir,
-          '${part.group(1)}${volume.toString().padLeft(width, '0')}${part.group(3)}');
+      return '$dir${part.group(1)}'
+          '${volume.toString().padLeft(width, '0')}${part.group(3)}';
     }
 
     final numbered = RegExp(r'^(.*)\.(\d{3})$').firstMatch(name);
     if (numbered != null) {
-      return p.join(dir, '${numbered.group(1)}.'
-          '${volume.toString().padLeft(3, '0')}');
+      return '$dir${numbered.group(1)}.${volume.toString().padLeft(3, '0')}';
     }
 
     final ext = _ext(name);
     final base = p.basenameWithoutExtension(name);
     if (ext == 'rar') {
       // cilt 2 → .r00, cilt 3 → .r01 …
-      return p.join(dir, '$base.r${(volume - 2).toString().padLeft(2, '0')}');
+      return '$dir$base.r${(volume - 2).toString().padLeft(2, '0')}';
     }
     if (ext == 'zip') {
-      return p.join(dir, '$base.z${(volume - 1).toString().padLeft(2, '0')}');
+      return '$dir$base.z${(volume - 1).toString().padLeft(2, '0')}';
     }
     return null;
   }
@@ -662,6 +665,14 @@ Future<String> _extractSync(
     var done = 0;
     for (final entry in files) {
       progress?.send([done, files.length, p.basename(entry.path)]);
+      // Şifreli girdi + parola yok → native okuyucuya HİÇ girmeden tiplenmiş
+      // hata. Windows'ta koni'nin parola-hata yolu arşiv tanıtıcısını süresiz
+      // kilitli bırakıyor (dosya silinemiyor, errno=32); erken çıkış sızıntıyı
+      // hiç oluşturmaz, kullanıcı da aynı hatayı daha erken alır.
+      if (entry.isEncrypted && (password == null || password.isEmpty)) {
+        throw const ArchiveError(
+            ArchiveFailure.passwordRequired, 'şifreli girdi, parola verilmedi');
+      }
       final outPath = _safeJoin(target, entry.path);
       // Zip-slip: koni yolları normalleştirip bayrakla işaretler, biz de
       // hedef klasörün dışına düşen her şeyi atlarız (iki kat güvence).
@@ -718,6 +729,12 @@ Future<String> _extractOneSync(
     if (entry == null) {
       throw const ArchiveError(
           ArchiveFailure.other, 'arşivde böyle bir dosya yok');
+    }
+    // Aynı erken kontrol (_extractSync'teki nota bak): native parola-hata
+    // yolu Windows'ta dosya tanıtıcısı sızdırıyor.
+    if (entry.isEncrypted && (password == null || password.isEmpty)) {
+      throw const ArchiveError(
+          ArchiveFailure.passwordRequired, 'şifreli girdi, parola verilmedi');
     }
     final out = File(FileOps.uniquePath(
         p.join(destDir, p.basename(entry.path))));

@@ -5207,3 +5207,29 @@ ağırlığı düşürülecek bir "araç" değil.
 
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 hata,
 `flutter test` **1080 test geçti** (10 yeni test).
+
+## 2026-07-31 — Windows test koşusu: 8 kırmızının kök nedenleri
+
+- **Saf yol hesabında platform join'i (6 test):** `p.join`/`p.dirname`/`p.normalize`
+  Windows'ta `\` basar; POSIX-stilli girdiyle çalışan saf hesaplar bozuldu.
+  Düzeltilen yerler: `ArchiveOps.volumePath` (concat, önek korunur),
+  `FileOps.rename` hedefi + `_transfer` dest'i (`joinKeepingSeparator`:
+  girdinin SON ayırıcısı kullanılır), `FtpServer.resolve` dönüşü (güvenlik
+  kontrolü normalize üzerinde kalır, dönüş `kök + '/' + sanal`),
+  `TrashService.trashDirFor` (`startsWith('$r/')` → `p.equals`/`p.isWithin`;
+  literal `/` yüzünden HER yol fallback'e düşüyordu — birim çöpü, `.nomedia`
+  ve `index.json` üçünü birden bozan tek satırdı).
+- **koni FFI parola-hatası handle sızdırıyor (Windows):** parolasız şifreli
+  RAR extract'inde native yol arşiv tanıtıcısını süresiz kilitli bırakıyor
+  (tearDown `errno=32`; retry çare değil). Çözüm semptomda değil:
+  `_extractSync`/`_extractOneSync` şifreli girdi + parolasızken native'e HİÇ
+  girmeden `ArchiveError(passwordRequired)` fırlatır — sızıntı hiç oluşmaz.
+- **SMB canlı testleri Windows'ta yanlış-pozitif:** Windows 445'i kendi SMB
+  servisiyle HER ZAMAN dinler; `_up(445)` "test sunucumuz ayakta" sanıp
+  gerçek Windows SMB'ye bağlanıyordu. `_smbUp`: Windows'ta `LIVE_SMB=1`
+  açık onayı ister, diğer platformlarda davranış aynı.
+- Kit kuruldu: `hooks/pre-push` (flutter test; kırmızı → push engellenir),
+  `core.hooksPath=hooks`; `.claude/skills/flutter-ui` eklendi (usta §3b).
+
+**Doğrulama:** `flutter analyze` 0 hata; `flutter test` pre-push hook
+üzerinden **1080 geçti / 9 atlandı (canlı sunucu) / 0 kırmızı**.

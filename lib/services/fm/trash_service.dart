@@ -85,7 +85,11 @@ class TrashService {
     final normalized = p.normalize(path);
     for (final root in volumeRoots) {
       final r = p.normalize(root);
-      if (normalized == r || normalized.startsWith('$r/')) {
+      // `startsWith('$r/')` DEĞİL: p.normalize Windows'ta `\` üretir, literal
+      // `/` karşılaştırması hiçbir birimi eşleştirmez ve her şey yedek köke
+      // düşer (2026-07-31, Windows test koşusu). p.isWithin iki ayırıcıyı da
+      // sınır sayar.
+      if (p.equals(normalized, r) || p.isWithin(r, normalized)) {
         return p.join(r, dirName);
       }
     }

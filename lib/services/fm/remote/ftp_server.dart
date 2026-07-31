@@ -120,7 +120,10 @@ class FtpServer {
     if (!p.equals(real, rootDirectory) && !p.isWithin(rootDirectory, real)) {
       return null;
     }
-    return real;
+    // Güvenlik kontrolü normalize edilmiş yol üzerinde yapıldı; DÖNÜŞ ise
+    // kök + '/' + sanal parça. p.normalize Windows'ta '\' basar — sözleşme
+    // (test: yol çözümü) '/' bekler, File() iki ayırıcıyı da açar.
+    return relative.isEmpty ? rootDirectory : '$rootDirectory/$relative';
   }
 
   /// Sanal yolu (`/` kökten) [resolve] için normalize eder.

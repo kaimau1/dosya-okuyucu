@@ -1,0 +1,16 @@
+#!/bin/sh
+# usta saglik kiti (refs/kit.md): kirmizi testle push edilmez.
+# --no-verify ile gecme; testi kok nedeninden duzelt.
+FLUTTER=$(command -v flutter 2>/dev/null)
+[ -z "$FLUTTER" ] && FLUTTER="/c/src/flutter/bin/flutter.bat"
+if [ ! -x "$FLUTTER" ] && [ ! -f "$FLUTTER" ]; then
+  echo "pre-push: flutter bulunamadi ($FLUTTER) - test atlandi, PUSH DURDURULDU."
+  exit 1
+fi
+echo "pre-push: flutter test calisiyor..."
+if ! "$FLUTTER" test; then
+  echo ""
+  echo "PUSH ENGELLENDI: testler kirmizi (usta refs/kit.md)."
+  exit 1
+fi
+echo "pre-push: testler yesil, push devam."
