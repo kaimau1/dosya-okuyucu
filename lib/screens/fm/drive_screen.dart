@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
@@ -54,16 +55,61 @@ class _DriveScreenState extends State<DriveScreen> {
     if (ok) await _refresh();
   }
 
+  /// Sınıflandırılamayan giriş hatasının ham metni (yalnız o durumda gösterilir).
+  String? _signInDetail;
+
   Future<void> _signIn() async {
     setState(() => _busy = true);
-    final ok = await _drive.signIn();
+    final result = await _drive.signIn();
     if (!mounted) return;
     setState(() {
-      _signedIn = ok;
+      _signedIn = result.success;
       _busy = false;
-      if (!ok) _error = 'drive.error_not_signed_in';
+      _signInDetail = null;
+      if (result.success) {
+        _error = null;
+      } else if (result.error == DriveSignInError.cancelled) {
+        // Kullanıcı pencereyi kendi kapattı: hata şeridi göstermek onu
+        // yaptığı şey için azarlamak olurdu.
+        _error = null;
+      } else {
+        _error = _signInKeyFor(result.error!);
+        if (result.error == DriveSignInError.failed) {
+          _signInDetail = result.detail;
+        }
+      }
     });
-    if (ok) await _refresh();
+    if (result.success) await _refresh();
+  }
+
+  static String _signInKeyFor(DriveSignInError error) => switch (error) {
+        DriveSignInError.notConfigured => 'drive.error_not_configured',
+        DriveSignInError.noPlayServices => 'drive.error_no_play_services',
+        DriveSignInError.network => 'drive.error_temporary',
+        DriveSignInError.cancelled || DriveSignInError.failed =>
+          'drive.error_sign_in_failed',
+      };
+
+  /// **Yapılandırma GEREKTİRMEYEN yol:** Android'in sistem dosya seçicisi.
+  ///
+  /// Neden bu düğme var (kullanıcı hatası 2026-07-30: "drive olmadı"):
+  /// Google hesabıyla giriş, APK'nın imzasının Google Cloud'a kaydedilmiş
+  /// olmasını şart koşuyor. Bu bizim kodumuzla çözülebilecek bir şey değil ve
+  /// kurulum yapılana kadar kullanıcının elinde HİÇBİR Drive yolu kalmıyordu.
+  /// Oysa Android'in Depolama Erişim Çerçevesi Drive'ı bir dosya sağlayıcısı
+  /// olarak listeler: kullanıcı oradan gerçek Drive'ının TAMAMINI gezip dosya
+  /// açabilir, üstelik hiçbir yetki penceresi görmeden. Metinde tarif etmek
+  /// yetmiyordu — düğme oldu.
+  Future<void> _openViaSystemPicker() async {
+    final failed = context.t('drive.download_failed');
+    try {
+      final result = await FilePicker.platform.pickFiles(withData: false);
+      final path = result?.files.single.path;
+      if (path == null || !mounted) return;
+      await EntryOpener.open(context, path);
+    } catch (e) {
+      if (mounted) _snack('$failed $e');
+    }
   }
 
   Future<void> _signOut() async {
@@ -226,12 +272,29 @@ class _DriveScreenState extends State<DriveScreen> {
 
   Widget _errorBar() {
     final scheme = Theme.of(context).colorScheme;
+    final detail = _signInDetail;
     return Container(
       width: double.infinity,
       color: scheme.errorContainer,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Text(context.t(_error!),
-          style: TextStyle(color: scheme.onErrorContainer)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(context.t(_error!),
+              style: TextStyle(color: scheme.onErrorContainer)),
+          // Ham platform hatası: yalnız sınıflandıramadığımızda. Kullanıcıya
+          // anlamsız gelebilir ama bildirebileceği TEK ipucu bu; gizlemek
+          // "olmadı"dan başka bir şey söyleyemez hâle getiriyordu.
+          if (detail != null && detail.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            SelectableText(
+              detail,
+              style: TextStyle(
+                  fontSize: 11, color: scheme.onErrorContainer.withValues(alpha: 0.8)),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -267,6 +330,19 @@ class _DriveScreenState extends State<DriveScreen> {
                 onPressed: _signIn,
                 icon: const Icon(Icons.login),
                 label: Text(context.t('drive.sign_in')),
+              ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 12),
+              // Giriş çalışmasa bile Drive'a ulaşmanın ÇALIŞAN yolu.
+              Text(context.t('drive.system_picker_hint'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _openViaSystemPicker,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: Text(context.t('drive.open_via_system')),
               ),
             ],
           ),
@@ -333,7 +409,19 @@ Future<void> uploadToDrive(BuildContext context, String path,
   final failed = context.t('drive.upload_failed');
 
   if (!await drive.signInSilently()) {
-    if (!await drive.signIn()) return;
+    final result = await drive.signIn();
+    if (!result.success) {
+      // Sessizce vazgeçmek "yükledim sandım" yaratıyordu: giriş neden
+      // olmadıysa kullanıcı onu görsün (kullanıcı hatası 2026-07-30).
+      if (result.error != DriveSignInError.cancelled && context.mounted) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(context.t(_DriveScreenState._signInKeyFor(
+              result.error ?? DriveSignInError.failed))),
+          duration: const Duration(seconds: 8),
+        ));
+      }
+      return;
+    }
   }
   messenger.showSnackBar(SnackBar(content: Text(uploading)));
   try {

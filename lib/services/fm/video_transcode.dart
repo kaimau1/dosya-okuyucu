@@ -273,7 +273,11 @@ abstract final class VideoTranscoder {
         // kaldı, HANGİ motorla. Üçüncüsü şart: yavaşlığın nedeni neredeyse her
         // zaman motor (donanım mı, yazılım mı) ve kullanıcı bunu görmeden
         // "uygulama takıldı mı?" diye bakıyordu (istek 2026-07-30).
+        // `unit`: bu DOSYANIN kendi ilerlemesi. Bildirimin çubuğu bunsuz
+        // yalnız dosya sayacını çiziyordu ve tek videoluk işte iş bitene kadar
+        // boş kalıyordu (kullanıcı hatası 2026-07-30: "o çubuk hep boş").
         onProgress: (ratio) => handle?.report(
+          unit: ratio,
           detail: _line(progressPrefix, [
             '${wanted.width}×${wanted.height}',
             '%${(ratio * 100).round()}',
@@ -372,10 +376,11 @@ abstract final class VideoTranscoder {
     final subscription = handle == null
         ? null
         : vc.VideoCompress.compressProgress$.subscribe((value) {
-            // Yalnız AYRINTI satırı yazılır: `done/total` toplu işin dosya
-            // sayacı (çağıranın) — buraya yüzde yazmak ilerleme çubuğunu her
-            // dosyada 0-100 arasında zıplatırdı.
+            // `done/total` toplu işin DOSYA sayacı (çağıranın); dosya-içi
+            // yüzde ayrı alana (`unit`) yazılır — ikisini karıştırmak çubuğu
+            // her dosyada 0-100 arasında zıplatırdı.
             handle.report(
+              unit: value / 100,
               detail: _line(progressPrefix, [
                 '%${value.toStringAsFixed(0)}',
                 FfmpegVideo.remainingText(clock.elapsed, value / 100),

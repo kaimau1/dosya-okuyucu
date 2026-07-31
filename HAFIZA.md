@@ -4899,3 +4899,128 @@ kullanıcıya "sunucuya yüklensin mi?" diye soruluyor.
 
 Doğrulama: `flutter analyze` 0 hata (21 uyarı = değişmeyen taban), `flutter test`
 **1017 test geçti**.
+
+## 2026-07-30 — 7 KULLANICI HATASI: bildirim çubuğu, arka plan, Drive, tarama, galeri, oynatıcı, PIN
+Kullanıcı ekran görüntüleriyle bildirdi. Hepsi tek turda düzeltildi; her biri
+için **kök neden** aşağıda (belirti değil).
+
+### A) Bildirim ilerleme çubuğu hep boş
+*"video boyutu ayarlama gibi işlevler bildirim çubuğunda ilerlemesi görülmüyor,
+o çubuk hep boş"*.
+- **Kök neden:** `FmJob.done/total` **DOSYA** sayıyor. Tek videoyu küçültmek
+  `done=0, total=1` demek → çubuk iş bitene kadar 0'da duruyor. Yüzde yalnız
+  `detail` METNİNDE vardı, o da daraltılmış bildirimde görünmüyor.
+- **Çözüm:** `FmJob.unit` (0..1, süren dosyanın kesri). `progress` artık
+  `(done + unit) / total`. `JobHandle.report(unit:)` — `done` ilerleyince
+  `unit` SIFIRLANIR (yoksa dosya değişiminde çubuk bir kare zıplardı).
+  Bildirimde çubuk 0-1000 ölçeğinde çizilir (`scaledProgress`), ayrıntı
+  `BigTextStyleInformation` ile genişletilince tam okunur.
+
+### B) Arka plana alınca iş duraklıyor
+- **Kök neden:** Android (özellikle MIUI/EMUI) ön planda olmayan süreci
+  donduruyor; kodlama native iş parçacığında koşsa bile süreç askıya alınınca
+  duruyor. İş kuyruğunun tek koruması bir bildirimdi — bildirim süreci ayakta
+  TUTMAZ.
+- **Çözüm:** **ön plan servisi**. `flutter_local_notifications`ın
+  `startForegroundService`i kullanıldı → **yeni paket gerekmedi** ve servisin
+  bildirimi zaten bizim ilerleme bildirimimiz (iki ayrı bildirim birikmiyor).
+  `ci/AndroidManifest.xml`'e `com.dexterous...ForegroundService` tanımı eklendi
+  (eklenti kendi manifestinde bildirmiyor; `foregroundServiceType="dataSync"`,
+  izinler zaten indirmelerden vardı).
+- `JobReporter.onIdle()` eklendi (gövdesi boş, sahte raportörler bilmek zorunda
+  değil): kuyruk boşalınca servis durur. Her işin sonunda durdurup sıradakinde
+  yeniden açmak, Android 12+ "arka plandan servis başlatma" kısıtına takılıp
+  ikinci dosyada korumayı düşürürdü.
+- **DÜRÜST SINIR (değişmedi):** servis `stopWithTask="true"`. İş Dart
+  izolatında koşuyor; görev listesinden kapatınca izolat ölür, ayakta kalan
+  servis yalnız donmuş bir bildirim gösterirdi.
+
+### C) "drive olmadı"
+- **Kök neden:** `DriveService.signIn()` içinde `catch (_) { return false; }`
+  vardı → her hata tek bir "Google hesabına bağlı değilsiniz" oluyordu. Gerçek
+  neden neredeyse kesin `ApiException: 10` (DEVELOPER_ERROR): APK'nın **paket
+  adı + imza SHA-1** ikilisi Google Cloud'da "Android OAuth istemcisi" olarak
+  kayıtlı değil. **Kodla çözülemez** — kurulum adımı.
+- **Çözüm (üç parça):**
+  1. Hata sınıflandırılıyor (`DriveSignInError`: notConfigured / noPlayServices
+     / network / cancelled / failed), her biri için EYLEM içeren ayrı metin.
+     Sınıflandırılamayanın ham platform mesajı seçilebilir metin olarak
+     gösteriliyor (kullanıcının bildirebileceği tek ipucu).
+  2. **Yapılandırma gerektirmeyen ÇALIŞAN yol düğme oldu:** "Sistem seçicisiyle
+     Drive dosyası aç" — Android'in Depolama Erişim Çerçevesi Drive'ı sağlayıcı
+     olarak listeler, hiçbir yetki istemez ve Drive'ın TAMAMINI gezdirir.
+     Eskiden yalnız METİNDE tarif ediliyordu.
+  3. `docs/GOOGLE-DRIVE-KURULUM.md` — SHA-1 nereden alınır, hangi kapsam
+     (`drive.file`, CASA denetimi gerektirmeyen), neden `google-services.json`
+     gerekmiyor. **Uyarı:** `ANDROID_KEYSTORE_B64` secret'ı yoksa CI her koşuda
+     geçici anahtar üretir → SHA-1 değişir → kayıt bir sonraki derlemede ölür.
+- Yan bulgu: `drive.scope_notice` metnindeki `**yıldızlar**` ekranda düz metin
+  olarak çıkıyordu (şerit `Text`, Markdown değil) — kaldırıldı.
+
+### D) Belge tarama kalitesi
+*"kenarlar vs çok daha iyi algılanıp sayfa düzeltilmeli ve yazılar
+netleştirilmeli"*. İki yeni saf-Dart servis (`image` paketi, izolatta koşar):
+
+**`lib/services/doc_edges.dart` — otomatik kenar bulma (Hough).**
+Köşe ayar ekranı artık görselin tamamıyla değil, bulunan kâğıtla açılıyor.
+Yolda **ölçülerek** düzeltilen üç tuzak:
+- *Sabit yüzdelik eşik ÇALIŞMIYOR:* temiz bir çekimde piksellerin %99'u sıfır
+  eğimli, "en güçlü %8" eşiği SIFIR yapıyor ve hiçbir kenar bulunamıyordu →
+  **Otsu** (parametresiz, dağılıma bakar).
+- *θ adımı 2° YETMİYOR:* gerçek açı iki bin arasına düşünce oylar ρ kutularına
+  bölünüp eşiği geçemiyordu → 1° adım + tepe puanı = üç komşu ρ kutusunun
+  toplamı.
+- *"En dıştaki doğruyu al" ÇUVALLIYOR:* kalın kenar bandını çapraz kesen 4°'lik
+  zayıf bir "hayalet" doğru gerçek kenardan dışta çıkıp dörtgeni yamultuyordu
+  (sol kenar üstte 46, altta 70 piksel). İki düzeltme birlikte: (a) Canny usulü
+  **inceltme** (eğim yönünde maksimum olmayanı bastır) bandı 1 piksele indirir,
+  (b) seçim artık "en dıştaki" değil **"en güçlü + ondan yeterince uzak en
+  güçlü"** (`_pickPair`). Sentetik sayfada köşe hatası <6 piksel.
+- Bulamazsa **null** döner ve görselin tamamına düşülür — yanlış dörtgen,
+  dörtgen olmamasından kötü.
+
+**`lib/services/scan_enhance.dart` — yazı netleştirme.**
+Asıl sorun çözünürlük değil **ışık**: sayfanın bir yanı parlak, öbür yanı
+gölgede; genel kontrast artırmak gölgeli yanı büsbütün karartıyor. Boru hattı:
+yerel zemine **bölme** (gölge/vinyet giderme) → %2-98 kontrast gerdirme →
+keskinleştirme maskesi → (S-B modunda) uyarlamalı eşikleme. Renkli modda
+düzeltme **parlaklık** üstünden uygulanıp renge taşınıyor; üç kanalı ayrı
+düzeltmek renkleri kaydırıyordu (mavi imza morarıyordu).
+Önizleme ekranı açılırken TÜM sayfalara `auto` uygulanıyor (kullanıcı "daha iyi
+taransın" diyor, her sayfada düğmeye basmasını istemiyor); çip şeridinden
+Özgün/Gri/S-B'ye geçilebiliyor ve **özgün dosyalar korunuyor** (filtre yıkıcı
+değil, köşe düzeltme hep özgün üstünde yapılıyor).
+
+### E) Galeride dokununca resim zıplıyor
+- **Kök neden:** çubuk gizlenirken `appBar: null` veriliyordu → Scaffold gövdesi
+  ~80 piksel uzuyor, `BoxFit.contain` görseli yeniden ölçekliyor. Her dokunuşta
+  iki kez zıplama.
+- **Çözüm:** `extendBodyBehindAppBar` + sabit yükseklikli `PreferredSize`;
+  görünürlük yalnız `AnimatedOpacity` ile, `IgnorePointer` gizliyken dokunuşu
+  yutmasın diye.
+
+### F) Video oynatıcı düğmeleri ortalı değil
+- **Kök neden:** tam ekran düğmesi aynı `Row`un 6. öğesiydi; `center` ALTI
+  öğeyi ortalıyordu → beşli oynatma grubu sola kayıyordu.
+- **Çözüm:** `Stack` — beşli grup ortada, tam ekran `PositionedDirectional(end:)`
+  ile kenarda (RTL'de kendiliğinden sola geçer).
+
+### G) "eski pin girmedim ki" — TEMA HATASI, PIN hatası değil
+- **Kök neden:** `inputDecorationTheme.fillColor` = `surfaceContainerHigh` ve
+  `dialogTheme.backgroundColor` = **aynı renk**, üstelik odaklanmamış kutunun
+  kenarlığı `BorderSide.none` idi → diyalogdaki ikinci metin kutusu TAMAMEN
+  görünmezdi. Kullanıcı "PIN (tekrar)" kutusunu göremediği için boş bırakıyor
+  ve "İki PIN aynı değil" hatası alıyordu. **Her diyalogdaki her metin kutusunu
+  ilgilendiren genel bir hata**, PIN'e özel değil.
+- **Çözüm:** odaklanmamış kutuya `outlineVariant` kenarlık + dolgu bir kademe
+  koyu (`surfaceContainerHighest`). Ayrıca tekrar kutusu boşken artık "aynı
+  PIN'i alttaki kutuya da yazın" deniyor (yanlış tanı veren mesaj düzeltildi).
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze` 0 hata, `flutter test` **1038 test geçti** (25 yeni test:
+`doc_edges_test`, `scan_enhance_test`, `job_progress_test`). APK derlemesi
+yalnız CI'da doğrulanır.
+
+**Dal notu:** bu tur, oturum yönergesi gereği `claude/video-size-document-scan-issues-q0vf9o`
+dalına gitti (CLAUDE.md'deki "tek dal = main" kuralının istisnası; harici
+yönerge dalı açıkça dayattı).

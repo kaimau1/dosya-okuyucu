@@ -70,14 +70,60 @@ class DriveService {
   }
 
   /// Google hesabı seçtirir ve `drive.file` iznini ister.
-  Future<bool> signIn() async {
+  ///
+  /// **Hata ARTIK yutulmuyor** (kullanıcı hatası 2026-07-30: "drive olmadı").
+  /// Eskiden `catch (_) => false` vardı: giriş neden başarısız olduysa olsun
+  /// ekranda tek bir "Google hesabına bağlı değilsiniz" beliriyordu ve
+  /// kullanıcının da bizim de elimizde hiçbir ipucu kalmıyordu. Şimdi neden
+  /// [DriveSignIn] olarak dönüyor; ekran her nedene ayrı, EYLEM İÇEREN bir
+  /// metin gösteriyor.
+  Future<DriveSignIn> signIn() async {
     final override = authHeadersOverride;
-    if (override != null) return (await override()) != null;
-    try {
-      return await _google.signIn() != null;
-    } catch (_) {
-      return false;
+    if (override != null) {
+      return (await override()) != null
+          ? const DriveSignIn.ok()
+          : const DriveSignIn(DriveSignInError.failed);
     }
+    try {
+      final account = await _google.signIn();
+      return account != null
+          ? const DriveSignIn.ok()
+          : const DriveSignIn(DriveSignInError.cancelled);
+    } catch (e) {
+      return DriveSignIn(classifySignInError(e), detail: '$e');
+    }
+  }
+
+  /// Google Play Services hatasını **anlaşılır bir nedene** çevirir.
+  ///
+  /// Saf fonksiyon (metin üstünden çalışır) → birim testli. Kodları metinden
+  /// okuyoruz çünkü `google_sign_in` bunları `PlatformException`ın mesajına
+  /// gömüyor (`ApiException: 10:`), ayrı bir alanda vermiyor.
+  static DriveSignInError classifySignInError(Object error) {
+    final text = '$error';
+    // 10 = DEVELOPER_ERROR. Android'de neredeyse HER ZAMAN tek bir anlama
+    // gelir: bu APK'nın paket adı + imza parmak izi (SHA-1) ikilisi Google
+    // Cloud'da bir "Android OAuth istemcisi" olarak kayıtlı değil. Kod
+    // tarafından düzeltilebilir bir şey DEĞİL; kurulum adımı gerekiyor
+    // (bkz. docs/GOOGLE-DRIVE-KURULUM.md).
+    if (text.contains('ApiException: 10') ||
+        text.contains('DEVELOPER_ERROR') ||
+        text.contains('sign_in_failed')) {
+      return DriveSignInError.notConfigured;
+    }
+    // 12501 = kullanıcı pencereyi kapattı, 12502 = giriş zaten sürüyor.
+    if (text.contains('12501')) return DriveSignInError.cancelled;
+    // 7 = NETWORK_ERROR.
+    if (text.contains('ApiException: 7') || text.contains('network')) {
+      return DriveSignInError.network;
+    }
+    // Play Services yok/eski (Huawei, özel ROM'lar).
+    if (text.contains('SERVICE_MISSING') ||
+        text.contains('SERVICE_VERSION_UPDATE_REQUIRED') ||
+        text.contains('ApiException: 9')) {
+      return DriveSignInError.noPlayServices;
+    }
+    return DriveSignInError.failed;
   }
 
   Future<void> signOut() async {
@@ -316,6 +362,42 @@ class DriveService {
 }
 
 enum DriveError { notSignedIn, forbidden, notFound, temporary, unknown }
+
+/// Giriş neden olmadı?
+enum DriveSignInError {
+  /// Kullanıcı hesap penceresini kapattı — hata değil, sessizce geçilir.
+  cancelled,
+
+  /// **Bu sürümün en olası nedeni.** APK'nın paket adı + imza parmak izi
+  /// Google Cloud'da kayıtlı değil (ApiException 10 / DEVELOPER_ERROR).
+  notConfigured,
+
+  /// Cihazda Google Play Services yok ya da çok eski.
+  noPlayServices,
+
+  /// Ağ yok / Google'a ulaşılamadı.
+  network,
+
+  /// Sınıflandıramadığımız hata — ham metni kullanıcıya gösteriyoruz ki
+  /// bildirebilsin ("olmadı"dan daha fazlasını söyleyebilsin).
+  failed,
+}
+
+/// Giriş denemesinin sonucu.
+class DriveSignIn {
+  final bool success;
+  final DriveSignInError? error;
+
+  /// Ham platform hatası (yalnız sınıflandırılamayanlarda gösterilir).
+  final String? detail;
+
+  const DriveSignIn(DriveSignInError this.error, {this.detail})
+      : success = false;
+  const DriveSignIn.ok()
+      : success = true,
+        error = null,
+        detail = null;
+}
 
 class DriveException implements Exception {
   final DriveError error;

@@ -50,6 +50,17 @@ class FmJob {
 
   int done;
   int total;
+
+  /// **Süren parçanın** kendi ilerlemesi (0..1) — `done`/`total` DOSYA sayar.
+  ///
+  /// Kullanıcı hatası 2026-07-30: *"bildirim çubuğunda ilerlemesi görülmüyor,
+  /// o çubuk hep boş"*. Tek bir videoyu küçültmek `done=0, total=1` demek: iş
+  /// on dakika sürerken çubuk baştan sona boş duruyordu, çünkü ilerleme yalnız
+  /// AYRINTI metnine ("%37") yazılıyordu ve bildirim daraltılmışken o metin
+  /// görünmüyor. Bu alan o boşluğu kapatır: çubuk artık dosya-içi ilerlemeyi de
+  /// gösterir.
+  double unit;
+
   JobStatus status;
   String? error;
 
@@ -88,12 +99,19 @@ class FmJob {
     this.detail = '',
     this.done = 0,
     this.total = 0,
+    this.unit = 0,
     this.status = JobStatus.queued,
   });
 
   /// 0..1 arası oran; toplam bilinmiyorsa null (belirsiz gösterge çizilir).
-  double? get progress =>
-      total > 0 ? (done / total).clamp(0.0, 1.0) : null;
+  ///
+  /// Biten dosyalara **süren dosyanın kesri** eklenir: 10 videonun 3'ü bitmiş
+  /// ve 4.'sü yarılanmışsa oran 0,35 — 0,30 değil. Tek dosyalık işte (çok
+  /// yaygın: kullanıcı bir videoyu küçültüyor) çubuğun tek bilgi kaynağı
+  /// budur; olmazsa çubuk iş bitene kadar boş kalır.
+  double? get progress => total > 0
+      ? ((done + unit.clamp(0.0, 1.0)) / total).clamp(0.0, 1.0)
+      : null;
 
   bool get cancelRequested => _cancelRequested;
 
@@ -133,10 +151,17 @@ class JobHandle {
 
   /// İlerlemeyi bildirir. Arayüz bildirimi kısılır (bkz. [JobQueue._tick]) —
   /// bu yüzden her adımda çağırmak güvenlidir.
-  void report({int? done, int? total, String? detail}) {
-    if (done != null) _job.done = done;
+  /// [unit] süren dosyanın kendi ilerlemesi (0..1). `done` her ilerlediğinde
+  /// sıfırlanır: yeni dosyaya geçildi demektir ve eski kesri taşımak çubuğu
+  /// bir kare ileri zıplatırdı.
+  void report({int? done, int? total, String? detail, double? unit}) {
+    if (done != null && done != _job.done) {
+      _job.done = done;
+      _job.unit = 0;
+    }
     if (total != null) _job.total = total;
     if (detail != null) _job.detail = detail;
+    if (unit != null) _job.unit = unit.clamp(0.0, 1.0);
     _queue._tick(_job);
   }
 
@@ -174,6 +199,13 @@ class JobCancelled implements Exception {
 abstract class JobReporter {
   Future<void> onProgress(FmJob job);
   Future<void> onFinished(FmJob job);
+
+  /// Kuyruk **boşaldı** (sürecek iş kalmadı). Ön plan servisi burada durur:
+  /// servisi her işin sonunda kapatıp sıradakinde yeniden açmak, art arda 10
+  /// dosyada 10 kez servis başlatıp durdurmak demekti (Android 12+ arka
+  /// plandan servis başlatmayı reddedebiliyor → ikinci dosyada koruma düşerdi).
+  /// Gövdesi boş: bildirimsiz/sahte raportörler bunu bilmek zorunda değil.
+  Future<void> onIdle() async {}
 }
 
 /// **Arka plan iş kuyruğu.**
@@ -351,6 +383,9 @@ class JobQueue extends ChangeNotifier {
       }
     } finally {
       _busy = false;
+      try {
+        await reporter?.onIdle();
+      } catch (_) {}
     }
   }
 

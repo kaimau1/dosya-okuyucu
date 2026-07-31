@@ -1367,13 +1367,16 @@ const Map<String, (String, String, String)> _table = {
   ),
   // Kapsam dürüstlüğü: bu metin OLMADAN boş liste "bozuk" sanılır.
   'drive.scope_notice': (
-    'Burada yalnız **bu uygulamayla yüklediğiniz** dosyalar görünür; '
+    // Yıldızlar KALDIRILDI: bu şerit düz `Text`, Markdown değil — ekranda
+    // "**bu uygulamayla yüklediğiniz**" diye çift yıldızlı çıkıyordu
+    // (kullanıcı ekran görüntüsü 2026-07-30).
+    'Burada yalnız BU UYGULAMAYLA yüklediğiniz dosyalar görünür; '
         'Drive\'ınızdaki diğer dosyalara erişim istemiyoruz. Başka bir Drive '
         'dosyasını açmak için: Dosya Aç → sistem seçicisinde Drive.',
-    'Only files **you uploaded with this app** appear here; we do not request '
+    'Only files YOU UPLOADED WITH THIS APP appear here; we do not request '
         'access to the rest of your Drive. To open another Drive file: Open '
         'file → pick Drive in the system picker.',
-    'تظهر هنا الملفات **التي رفعتها بهذا التطبيق** فقط؛ لا نطلب الوصول إلى بقية '
+    'تظهر هنا الملفات التي رفعتها بهذا التطبيق فقط؛ لا نطلب الوصول إلى بقية '
         'ملفات Drive. لفتح ملف آخر من Drive: فتح ملف ← اختر Drive من منتقي النظام.',
   ),
   'drive.empty': (
@@ -1401,6 +1404,50 @@ const Map<String, (String, String, String)> _table = {
     'Google hesabına bağlı değilsiniz.',
     'You are not connected to a Google account.',
     'أنت غير متصل بحساب Google.',
+  ),
+  // Giriş neden olmadı? Kullanıcı hatası 2026-07-30 ("drive olmadı"): tek ve
+  // aynı "bağlı değilsiniz" metni her nedene veriliyordu. Aşağıdakiler ayrı
+  // ayrı NE YAPILACAĞINI söylüyor.
+  'drive.error_not_configured': (
+    'Google girişi bu APK için etkinleştirilmemiş. Uygulamanın imzası '
+        'Google Cloud\'a "Android OAuth istemcisi" olarak kaydedilmeden '
+        'hesap bağlanamıyor (Google\'ın kuralı; kod tarafında çözülemez). '
+        'Aşağıdaki sistem seçicisi yolu bu kayıt olmadan da çalışır.',
+    'Google sign-in is not enabled for this APK. An account cannot be '
+        'connected until the app signature is registered in Google Cloud as '
+        'an "Android OAuth client" (Google\'s rule; not fixable in code). '
+        'The system picker below works without that registration.',
+    'لم يُفعَّل تسجيل الدخول بحساب Google لهذه النسخة. لا يمكن ربط حساب قبل '
+        'تسجيل توقيع التطبيق في Google Cloud كـ«عميل OAuth لأندرويد» (قاعدة من '
+        'Google ولا تُحل برمجيًا). أما منتقي النظام أدناه فيعمل بدون ذلك.',
+  ),
+  'drive.error_no_play_services': (
+    'Bu cihazda Google Play Hizmetleri yok ya da güncel değil; Google girişi '
+        'çalışmıyor. Aşağıdaki sistem seçicisi yolunu kullanabilirsiniz.',
+    'Google Play Services is missing or outdated on this device, so Google '
+        'sign-in cannot run. You can use the system picker below.',
+    'خدمات Google Play غير متوفرة أو قديمة على هذا الجهاز، لذا لا يعمل تسجيل '
+        'الدخول. يمكنك استخدام منتقي النظام أدناه.',
+  ),
+  'drive.error_sign_in_failed': (
+    'Google girişi tamamlanamadı.',
+    'Google sign-in could not be completed.',
+    'تعذّر إتمام تسجيل الدخول بحساب Google.',
+  ),
+  'drive.system_picker_hint': (
+    'Giriş çalışmasa da Drive\'ınızın TAMAMINA ulaşabilirsiniz: Android\'in '
+        'sistem seçicisi Drive\'ı dosya kaynağı olarak listeler ve hiçbir '
+        'yetki istemez.',
+    'Even if sign-in does not work you can still reach ALL of your Drive: '
+        'Android\'s system picker lists Drive as a file source and asks for '
+        'no permissions.',
+    'حتى لو لم يعمل تسجيل الدخول يمكنك الوصول إلى كامل Drive: يعرض منتقي نظام '
+        'أندرويد خدمة Drive كمصدر للملفات ولا يطلب أي أذونات.',
+  ),
+  'drive.open_via_system': (
+    'Sistem seçicisiyle Drive dosyası aç',
+    'Open a Drive file with the system picker',
+    'فتح ملف من Drive عبر منتقي النظام',
   ),
   'drive.error_forbidden': (
     'Drive bu işleme izin vermedi. Bu dosya uygulamamızla yüklenmemiş olabilir.',
@@ -3035,6 +3082,36 @@ const Map<String, (String, String, String)> _table = {
         'skewed shot is straightened too.',
     'اسحب زوايا المستطيل الأزرق إلى زوايا الصفحة. وتُقوَّم أيضًا اللقطة المائلة.',
   ),
+  // ── Otomatik kenar bulma + belge filtreleri (istek 2026-07-30) ────────────
+  'se.auto_detect': (
+    'Kenarları otomatik bul',
+    'Detect the edges automatically',
+    'اكتشاف الحواف تلقائيًا',
+  ),
+  'se.detecting': (
+    'Kâğıdın kenarları aranıyor…',
+    'Looking for the edges of the sheet…',
+    'جارٍ البحث عن حواف الورقة…',
+  ),
+  'se.auto_found': (
+    'Kenarlar otomatik bulundu. Yanlışsa köşeleri sürükleyerek düzeltin.',
+    'The edges were found automatically. If they are off, drag the corners.',
+    'عُثر على الحواف تلقائيًا. إن كانت خاطئة فاسحب الزوايا لتصحيحها.',
+  ),
+  'scan.filter_original': ('Özgün', 'Original', 'الأصل'),
+  'scan.filter_auto': ('Netleştir (renkli)', 'Sharpen (color)', 'توضيح (ملوّن)'),
+  'scan.filter_gray': ('Gri', 'Gray', 'رمادي'),
+  'scan.filter_bw': ('Siyah-beyaz', 'Black & white', 'أبيض وأسود'),
+  'scan.apply_to_all': (
+    'Tüm sayfalara uygula',
+    'Apply to all pages',
+    'تطبيق على كل الصفحات',
+  ),
+  'scan.filter_failed': (
+    'Sayfa netleştirilemedi: {error}',
+    'The page could not be enhanced: {error}',
+    'تعذّر تحسين الصفحة: {error}',
+  ),
 
   // ── Galeri ────────────────────────────────────────────────────────────────
   'gal.open_in_viewer': (
@@ -3214,6 +3291,11 @@ const Map<String, (String, String, String)> _table = {
     'يجب أن يتكوّن الرمز من 4 أرقام على الأقل.',
   ),
   'pin.mismatch': ('İki PIN aynı değil.', 'The two PINs do not match.', 'الرمزان غير متطابقين.'),
+  'pin.repeat_empty': (
+    'Aynı PIN\'i alttaki "PIN (tekrar)" kutusuna da yazın.',
+    'Type the same PIN again in the "PIN (repeat)" box below.',
+    'أعد كتابة الرمز نفسه في خانة «الرمز (تكرار)» بالأسفل.',
+  ),
   'pin.wrong': ('PIN yanlış.', 'Wrong PIN.', 'الرمز غير صحيح.'),
   'pin.not_encrypted': (
     'Bu kilit dosyaları ŞİFRELEMEZ: yalnız bu uygulamadaki listelerden gizler. '

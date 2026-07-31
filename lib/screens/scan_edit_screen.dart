@@ -1,8 +1,12 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../services/doc_edges.dart';
 import '../services/perspective.dart';
 
 /// Taranan bir sayfanın **köşelerini elle ayarlama** ekranı.
@@ -42,6 +46,12 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
   /// kullanıcının ayarı kaymasın.
   late List<Offset> _corners;
 
+  /// Kâğıdın kenarları otomatik bulunabildi mi? (İpucu metni buna göre
+  /// değişiyor: bulunmadıysa kullanıcı köşeleri kendi taşımalı, bunu
+  /// söylemeden bırakmak "program çalışmadı" hissi veriyordu.)
+  bool _autoFound = false;
+  bool _detecting = false;
+
   @override
   void initState() {
     super.initState();
@@ -65,8 +75,45 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
         _image = image;
         _corners = _fullFrame(image);
       });
+      // Ekran açılır açılmaz kenarlar aranır: kullanıcı dört köşeyi tek tek
+      // sürüklemek zorunda kalmasın (istek 2026-07-30).
+      await _autoDetect();
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  /// Kâğıdın kenarlarını otomatik bulur; bulamazsa dörtgeni OLDUĞU GİBİ
+  /// bırakır (kullanıcının elle yaptığı ayarı bir tahminle ezmek, tahmin
+  /// yanlışsa geri alınamaz bir kayıp olurdu).
+  ///
+  /// Çözümleme **izolatta**: 12 MP bir fotoğrafta Sobel + Hough ana izleği
+  /// yarım saniye kilitler, ekran donuk açılırdı.
+  Future<void> _autoDetect() async {
+    final img = _image;
+    if (img == null || _detecting) return;
+    setState(() => _detecting = true);
+    try {
+      final bytes = await File(widget.imagePath).readAsBytes();
+      final found = await compute(_detectCorners, bytes);
+      if (!mounted) return;
+      setState(() {
+        _detecting = false;
+        if (found == null) {
+          _autoFound = false;
+          return;
+        }
+        _autoFound = true;
+        _corners = [
+          for (final c in found)
+            Offset(
+              c.x.clamp(0.0, img.width.toDouble()),
+              c.y.clamp(0.0, img.height.toDouble()),
+            )
+        ];
+      });
+    } catch (_) {
+      if (mounted) setState(() => _detecting = false);
     }
   }
 
@@ -126,10 +173,24 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
         title: Text(context.t('se.title')),
         actions: [
           if (img != null)
+            IconButton(
+              tooltip: context.t('se.auto_detect'),
+              icon: _detecting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.auto_fix_high),
+              onPressed: _busy || _detecting ? null : _autoDetect,
+            ),
+          if (img != null)
             TextButton(
               onPressed: _busy
                   ? null
-                  : () => setState(() => _corners = _fullFrame(img)),
+                  : () => setState(() {
+                        _corners = _fullFrame(img);
+                        _autoFound = false;
+                      }),
               child: Text(context.t('se.reset')),
             ),
         ],
@@ -174,7 +235,9 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
   Widget _hint() => Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         child: Text(
-          context.t('se.hint'),
+          _detecting
+              ? context.t('se.detecting')
+              : context.t(_autoFound ? 'se.auto_found' : 'se.hint'),
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.white70, fontSize: 12),
         ),
@@ -245,6 +308,10 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
     );
   }
 }
+
+/// İzolat giriş noktası — üst düzey fonksiyon olmalı (`compute` kuralı).
+List<({double x, double y})>? _detectCorners(Uint8List bytes) =>
+    DocEdges.detect(bytes);
 
 class _QuadPainter extends CustomPainter {
   final ui.Image image;
