@@ -10,6 +10,147 @@ import 'package:flutter_test/flutter_test.dart';
 /// 2. iptalin işe yaramaması (düğme çalışmıyor sanılır),
 /// 3. sonucun kaybolması (ekrandan çıkıp dönünce tarama baştan başlar).
 void main() {
+  /// Kullanıcı hatası 2026-07-31: *"birkaç işlem yapılıyor … 1'ini
+  /// sonlandırdığımda diğer tüm işlemler kayboluyor, boşa yapmış oluyorum"*.
+  ///
+  /// İlk şüpheli iptal mantığıydı; DEĞİLMİŞ — bu grup onu kilitliyor, böylece
+  /// aynı şikâyet tekrar gelirse burası elenmiş olur. Gerçek kök neden
+  /// kuyruğun yalnız bellekte durmasıydı (bkz. "kalıcılık" grubu ve
+  /// `services/fm/job_store.dart`).
+  group('bir işi durdurmak ötekileri ETKİLEMEZ', () {
+    setUp(JobQueue.instance.clearFinished);
+
+    test('süren iş iptal edilince sıradakiler koşmaya devam eder', () async {
+      final queue = JobQueue.instance;
+      final gate = Completer<void>();
+
+      queue.enqueue(
+          id: 'ilk',
+          title: 'ilk',
+          run: (h) async {
+            await gate.future;
+            h.throwIfCancelled();
+          });
+      queue.enqueue(id: 'ikinci', title: 'ikinci', run: (_) async {});
+      queue.enqueue(id: 'ucuncu', title: 'üçüncü', run: (_) async {});
+
+      await Future<void>.delayed(Duration.zero);
+      queue.cancel('ilk');
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(queue.find('ilk')?.status, JobStatus.cancelled);
+      // Listeden DÜŞMEMELİ ve gerçekten koşmuş olmalılar.
+      expect(queue.find('ikinci')?.status, JobStatus.done);
+      expect(queue.find('ucuncu')?.status, JobStatus.done);
+    });
+
+    test('bekleyen iş iptal edilince süren iş bozulmaz', () async {
+      final queue = JobQueue.instance;
+      final gate = Completer<void>();
+
+      queue.enqueue(
+          id: 'suren', title: 'süren', run: (_) => gate.future);
+      queue.enqueue(id: 'bekleyen', title: 'bekleyen', run: (_) async {});
+
+      await Future<void>.delayed(Duration.zero);
+      queue.cancel('bekleyen');
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(queue.find('suren')?.status, JobStatus.done);
+      expect(queue.find('bekleyen')?.status, JobStatus.cancelled);
+    });
+  });
+
+  /// Asıl düzeltme: liste diske yazılıyor ve geri yükleniyor.
+  group('kalıcılık', () {
+    test('iş kaydedilip aynen geri okunur', () {
+      final job = FmJob(
+        id: 'kucult',
+        title: 'Videoyu küçült',
+        detail: '12,4 MB kazanıldı',
+        done: 3,
+        total: 10,
+        status: JobStatus.done,
+        target: const FmJobTarget.duplicates(['/depo']),
+      )
+        ..startedAtMs = 1000
+        ..finishedAtMs = 5000
+        ..dismissed = true;
+      job.outputs.add('/depo/Camera/kucuk.mp4');
+
+      final geri = FmJob.fromJson(job.toJson())!;
+
+      expect(geri.id, 'kucult');
+      expect(geri.title, 'Videoyu küçült');
+      expect(geri.detail, '12,4 MB kazanıldı');
+      expect(geri.done, 3);
+      expect(geri.total, 10);
+      expect(geri.status, JobStatus.done);
+      expect(geri.outputs, ['/depo/Camera/kucuk.mp4']);
+      expect(geri.startedAtMs, 1000);
+      expect(geri.finishedAtMs, 5000);
+      expect(geri.dismissed, isTrue);
+      expect(geri.target?.kind, FmJobTargetKind.duplicates);
+      expect(geri.target?.paths, ['/depo']);
+      expect(geri.elapsed, const Duration(milliseconds: 4000));
+    });
+
+    /// Süreç ölünce iş gerçekten bitmedi; "Sürüyor" demek yalan olur ve
+    /// ilerleme çubuğu sonsuza kadar dönerdi.
+    test('süren/bekleyen iş "yarıda kaldı" olarak geri gelir', () {
+      for (final durum in [JobStatus.running, JobStatus.queued]) {
+        final json = FmJob(id: 'x', title: 'x', status: durum).toJson();
+        expect(FmJob.fromJson(json)?.status, JobStatus.interrupted,
+            reason: '$durum');
+      }
+      expect(JobStatus.interrupted.isActive, isFalse);
+    });
+
+    test('bozuk/eksik kayıt null döner, listeyi çökertmez', () {
+      expect(FmJob.fromJson(null), isNull);
+      expect(FmJob.fromJson('düz metin'), isNull);
+      expect(FmJob.fromJson(<String, Object?>{'title': 'kimliksiz'}), isNull);
+      // Tanınmayan hedef türü: iş kalır, hedefi düşer.
+      final job = FmJob.fromJson(<String, Object?>{
+        'id': 'a',
+        'title': 'a',
+        'status': 'done',
+        'target': {'kind': 'gelecekteki_tur'},
+      });
+      expect(job, isNotNull);
+      expect(job!.target, isNull);
+    });
+
+    test('restore listeyi doldurur, bu oturumdaki kimliği EZMEZ', () {
+      final queue = JobQueue.instance;
+      queue.clearFinished();
+      queue.enqueue(id: 'canli', title: 'yeni iş', run: (_) async {});
+
+      queue.restore([
+        FmJob(id: 'canli', title: 'ESKİ KAYIT', status: JobStatus.interrupted),
+        FmJob(id: 'eski', title: 'geçen oturum', status: JobStatus.done),
+      ]);
+
+      expect(queue.find('canli')?.title, 'yeni iş');
+      expect(queue.find('eski')?.title, 'geçen oturum');
+    });
+
+    test('kanca takılıysa iş eklemek kaydetmeyi tetikler', () {
+      final queue = JobQueue.instance;
+      queue.clearFinished();
+      final store = _SahteDepo();
+      queue.store = store;
+      addTearDown(() => queue.store = null);
+
+      queue.enqueue(id: 'kayitli', title: 'iş', run: (_) async {});
+
+      expect(store.cagri, greaterThan(0));
+      expect(store.sonListe.any((j) => j.id == 'kayitli'), isTrue);
+    });
+  });
+
   /// Bloke eden gövdelerin kapısı. Bir `expect` patlarsa testin geri kalanı
   /// çalışmaz; kapı açılmadan kalırsa TEK kuyruk (singleton) tıkanır ve
   /// sonraki testler de düşer. Bu yüzden kapılar tearDown'da açılıyor.
@@ -321,4 +462,16 @@ class _BrokenReporter implements JobReporter {
   /// hatası da işi/kuyruğu düşürmemeli.
   @override
   Future<void> onIdle() async => throw StateError('bildirim yok');
+}
+
+/// Diske yazmayan sahte depo (birim testi diske dokunmaz).
+class _SahteDepo implements JobPersistence {
+  int cagri = 0;
+  List<FmJob> sonListe = const [];
+
+  @override
+  void save(List<FmJob> jobs) {
+    cagri++;
+    sonListe = List.of(jobs);
+  }
 }

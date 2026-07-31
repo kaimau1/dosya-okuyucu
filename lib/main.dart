@@ -15,8 +15,10 @@ import 'screens/fm/job_navigation.dart';
 import 'screens/fm/jobs_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/fm/file_tags.dart';
+import 'services/fm/fm_env.dart';
 import 'services/fm/job_notifications.dart';
 import 'services/fm/job_queue.dart';
+import 'services/fm/job_store.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
 
@@ -53,6 +55,11 @@ Future<void> main() async {
     await FileTags.movePath(from, to);
     await OpenHistory.movePath(from, to);
   });
+  // İş listesi artık diske yazılıyor (kullanıcı hatası 2026-07-31: "uygulamayı
+  // alta alıp geri aldığımda diğer tüm işlemler kayboluyor"). Kanca hemen
+  // takılır; okuma ilk kareyi BEKLETMEZ (bkz. [_restoreJobs]).
+  JobQueue.instance.store = JobStore();
+  unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();
   runApp(
@@ -61,6 +68,23 @@ Future<void> main() async {
       child: const DosyaOkuyucuApp(),
     ),
   );
+}
+
+/// Önceki oturumun iş listesini geri yükler.
+///
+/// **Açılışı bloklamaz:** kayıt dosyasının yolu `FmEnv.appSupportDir`e bağlı ve
+/// `FmEnv.ensureInit()` depolama birimlerini de tarıyor; bunu ilk karenin
+/// önüne koymak uygulamayı yavaş açardı. Liste geç gelse de sorun değil —
+/// İşlemler ekranı ve alt şerit kuyruğu dinliyor, geldiğinde kendiliğinden
+/// dolar. Bu arada başlatılan yeni işlerin kimliği korunur:
+/// [JobQueue.restore] zaten listede olan kimliği atlar.
+Future<void> _restoreJobs() async {
+  try {
+    await FmEnv.ensureInit();
+    JobQueue.instance.restore(await JobStore.load());
+  } catch (_) {
+    // Kalıcılık bir güvence ağı; okunamıyorsa uygulama yine çalışır.
+  }
 }
 
 /// Uygulamanın kök gezinme anahtarı — `context`i olmayan yerlerden (sistem
