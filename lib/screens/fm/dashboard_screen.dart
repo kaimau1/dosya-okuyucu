@@ -26,6 +26,7 @@ import '../../widgets/scan_flow.dart';
 import 'analysis_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
@@ -592,6 +593,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: context.t('fm.free_space'),
         subtitle: '',
         onTap: () => _push(CleanupScreen(index: _index)),
+      ),
+      // Sohbet yığını ayrı bir kutu: telefonu dolduran şey çoğu kullanıcıda
+      // WhatsApp klasörü oluyor ve orada "gereksiz" ölçütü genel yer açmadan
+      // farklı (çıkartma, iletilmiş mem, gönderilenin kopyası…).
+      FmTileData(
+        icon: Icons.forum_outlined,
+        color: const Color(0xFF2E7D32),
+        label: context.t('cj.title'),
+        subtitle: '',
+        onTap: () => openChatCleanupScreen(context),
       ),
       // Benzer görüntüler: "yer aç"ın yanında duruyor çünkü aynı işi yapıyor
       // (yer kazandırıyor) ama farklı bir ölçütle — birebir değil, GÖRSEL

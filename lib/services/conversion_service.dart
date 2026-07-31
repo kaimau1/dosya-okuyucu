@@ -167,20 +167,25 @@ class ConversionService {
           build: (context) => pw.Stack(
             fit: pw.StackFit.expand,
             children: [
-              // Önce metin → resim üstünü örter; metin PDF'te aranabilir kalır.
-              for (final line in ocrLines)
-                pw.Positioned(
-                  left: offsetX + line.box.left * scale,
-                  top: offsetY + line.box.top * scale,
-                  child: pw.Text(
-                    line.text,
-                    style: pw.TextStyle(
-                      font: font,
-                      fontSize: (line.box.height * scale).clamp(4.0, 72.0),
-                      color: const PdfColor(0, 0, 0, 0),
-                    ),
-                  ),
-                ),
+              // Resim ALTTA, metin katmanı ÜSTTE ama GÖRÜNMEZ çizilir.
+              //
+              // Kullanıcı hatası 2026-07-31 (ekran görüntüsü): "metinleri de
+              // tanı" ile taranan sayfada OCR metni **koyu siyah** ve dev
+              // punto olarak sayfanın sağına taşmış hâlde basılıyordu; belge
+              // okunamaz hâle geliyordu. İki ayrı kök neden vardı:
+              //
+              // 1. Görünmezlik `PdfColor(0,0,0,0)` ile, yani **saydam renkle**
+              //    deneniyordu. `pdf` paketi metin doldurma renginde alfa
+              //    kanalını PDF'e yazmıyor (`… rg` yalnız RGB) → metin
+              //    tastamam siyah çıkıyordu. Doğrusu PDF'in kendi "metin
+              //    çizim kipi 3" özelliği: `PdfTextRenderingMode.invisible`.
+              //    Metin çizilmez ama belgede DURUR: aranabilir, kopyalanabilir.
+              // 2. Metin resmin ALTINA konup "resim üstünü örter" varsayılıyordu.
+              //    Örtme yalnız resmin sınırları içinde çalışır; OCR kutusuna
+              //    sığmayan uzun satır resmin sağından taşıyordu ve orada
+              //    örtecek bir şey yok. Artık her satır **kendi kutusuna**
+              //    sıkıştırılıyor (`FittedBox`) ve tüm katman resmin dikdörtgeniyle
+              //    kırpılıyor — taşma fiziksel olarak imkânsız.
               pw.Positioned(
                 left: offsetX,
                 top: offsetY,
@@ -190,6 +195,46 @@ class ConversionService {
                   child: pw.Image(image, fit: pw.BoxFit.fill),
                 ),
               ),
+              if (ocrLines.isNotEmpty)
+                pw.Positioned(
+                  left: offsetX,
+                  top: offsetY,
+                  child: pw.SizedBox(
+                    width: drawWidth,
+                    height: drawHeight,
+                    child: pw.ClipRect(
+                      child: pw.Stack(
+                        children: [
+                          for (final line in ocrLines)
+                            pw.Positioned(
+                              left: line.box.left * scale,
+                              top: line.box.top * scale,
+                              child: pw.SizedBox(
+                                width: (line.box.width * scale)
+                                    .clamp(1.0, drawWidth),
+                                height: (line.box.height * scale)
+                                    .clamp(1.0, drawHeight),
+                                child: pw.FittedBox(
+                                  fit: pw.BoxFit.fill,
+                                  child: pw.Text(
+                                    line.text,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: pw.TextStyle(
+                                      font: font,
+                                      fontSize: 12,
+                                      renderingMode:
+                                          PdfTextRenderingMode.invisible,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

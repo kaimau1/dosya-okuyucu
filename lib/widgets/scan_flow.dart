@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../screens/scan_result_screen.dart';
 import '../screens/scan_review_screen.dart';
 import '../services/document_scanner.dart';
-import '../services/fm/entry_opener.dart';
+import '../services/ocr_service.dart';
 
 /// Belge tarama akışı: kamera/tarayıcı arayüzü → (isteğe bağlı) OCR →
 /// tek PDF → Belgeler dizinine kaydet → belgeyi aç.
@@ -40,14 +41,22 @@ class ScanFlow {
 
     String? path;
     String? error;
+    var textPages = const <OcrPage>[];
     try {
-      path = await DocumentScanner.buildPdf(
-        pages,
-        searchable: searchable,
-        onProgress: (done, total) =>
-            progress.value = AppStrings.current
-                .t('sf.ocr_progress', {'n': done + 1, 'total': total}),
-      );
+      // OCR bir kez koşar; sonucu hem PDF'in görünmez metin katmanına hem
+      // sonuç ekranının "Metin" sekmesine gider (bkz. ScanResultScreen).
+      final ocrLines = searchable
+          ? await DocumentScanner.recognizePages(
+              pages,
+              onProgress: (done, total) => progress.value = AppStrings.current
+                  .t('sf.ocr_progress', {'n': done + 1, 'total': total}),
+            )
+          : const <List<OcrLine>>[];
+      textPages = DocumentScanner.textPages(ocrLines);
+      progress.value = 'PDF hazırlanıyor…';
+      final bytes =
+          await DocumentScanner.renderPdf(pages, ocrLinesPerPage: ocrLines);
+      path = await DocumentScanner.savePdf(bytes);
     } catch (e) {
       error = '$e';
     }
@@ -60,8 +69,18 @@ class ScanFlow {
       return null;
     }
 
-    _snack(context, '${pages.length} sayfa PDF olarak kaydedildi');
-    if (open) await EntryOpener.open(context, path);
+    // Sonuç ekranı: belge + tanınan metin + çeviri + kaydetme yeri. Eskiden
+    // doğrudan görüntüleyici açılıyordu ve tanınan metnin gidecek yeri yoktu.
+    if (open) {
+      await ScanResultScreen.open(
+        context,
+        pdfPath: path,
+        pages: pages,
+        textPages: textPages,
+      );
+    } else {
+      _snack(context, '${pages.length} sayfa PDF olarak kaydedildi');
+    }
     return path;
   }
 

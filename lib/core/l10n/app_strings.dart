@@ -3169,6 +3169,217 @@ const Map<String, (String, String, String)> _table = {
     '{n} pages scanned',
     'تم مسح {n} صفحة',
   ),
+
+  // ── Sohbet medyası temizliği (WhatsApp/Telegram yığını) ───────────────────
+  'cj.title': (
+    'Sohbet medyası temizliği',
+    'Chat media cleanup',
+    'تنظيف وسائط المحادثات',
+  ),
+  'cj.job_title': (
+    'Sohbet medyası taranıyor',
+    'Scanning chat media',
+    'جارٍ فحص وسائط المحادثات',
+  ),
+  'cj.rescan': ('Yeniden tara', 'Scan again', 'إعادة الفحص'),
+  'cj.step_listing': (
+    'Dosyalar listeleniyor…',
+    'Listing the files…',
+    'جارٍ سرد الملفات…',
+  ),
+  'cj.step_found': (
+    '{n} sohbet dosyası bulundu',
+    'Found {n} chat files',
+    'تم العثور على {n} ملف محادثة',
+  ),
+  'cj.step_duplicates': (
+    'Birebir kopyalar aranıyor…',
+    'Looking for identical copies…',
+    'جارٍ البحث عن النسخ المتطابقة…',
+  ),
+  'cj.step_sorting': ('Ayrıştırılıyor…', 'Sorting…', 'جارٍ التصنيف…'),
+  'cj.step_none': (
+    'Sohbet medyası bulunamadı',
+    'No chat media found',
+    'لم يُعثر على وسائط محادثات',
+  ),
+  'cj.step_clean': (
+    'Gereksiz görünen bir şey çıkmadı',
+    'Nothing looks unnecessary',
+    'لا يبدو أن هناك ما هو غير ضروري',
+  ),
+  'cj.step_summary': (
+    '{n} dosya · {size} geri kazanılabilir',
+    '{n} files · {size} can be reclaimed',
+    '{n} ملف · يمكن استرجاع {size}',
+  ),
+  'cj.scanned': (
+    '{n} sohbet dosyası · {size}',
+    '{n} chat files · {size}',
+    '{n} ملف محادثة · {size}',
+  ),
+  'cj.summary': (
+    'Bunların {n} tanesi (%{percent}) gereksiz görünüyor · {size}',
+    '{n} of them ({percent}%) look unnecessary · {size}',
+    'يبدو أن {n} منها ({percent}%) غير ضرورية · {size}',
+  ),
+  'cj.summary_none': (
+    'Gereksiz görünen bir yığın çıkmadı.',
+    'No unnecessary pile came up.',
+    'لم تظهر أي كومة غير ضرورية.',
+  ),
+  'cj.disclaimer': (
+    '“Gereksiz” bir tahmindir: kimin gönderdiği ya da fotoğrafın sizin için '
+        'değeri dosyadan okunamaz. Hiçbir şey kendiliğinden silinmez; kararı '
+        'siz verirsiniz.',
+    '“Unnecessary” is a guess: who sent a file, or what it means to you, '
+        'cannot be read from the file. Nothing is deleted on its own — you '
+        'decide.',
+    '«غير ضروري» تخمين: لا يمكن معرفة المُرسِل أو قيمة الصورة لك من الملف '
+        'نفسه. لا يُحذف شيء تلقائيًا — القرار لك.',
+  ),
+  'cj.tiny_threshold': (
+    'Küçük görüntü sınırı (bunun altı “iletilmiş” sayılır)',
+    'Small image limit (below this counts as “forwarded”)',
+    'حد الصورة الصغيرة (ما دونه يُعدّ «مُعاد توجيهه»)',
+  ),
+  'cj.empty_no_media': (
+    'Bu telefonda WhatsApp/Telegram klasörü bulunamadı.',
+    'No WhatsApp/Telegram folder was found on this phone.',
+    'لم يُعثر على مجلد واتساب/تيليجرام على هذا الهاتف.',
+  ),
+  'cj.empty_clean': (
+    'Sohbet medyanızda gereksiz görünen bir yığın yok 🎉',
+    'There is no unnecessary pile in your chat media 🎉',
+    'لا توجد كومة غير ضرورية في وسائط محادثاتك 🎉',
+  ),
+  'cj.kind_duplicate': (
+    'Birebir kopyalar',
+    'Identical copies',
+    'نسخ متطابقة',
+  ),
+  'cj.kind_sticker': ('Çıkartmalar', 'Stickers', 'ملصقات'),
+  'cj.kind_gif': ('Animasyonlar (GIF)', 'Animations (GIF)', 'صور متحركة (GIF)'),
+  'cj.kind_profile': (
+    'Profil fotoğrafları',
+    'Profile photos',
+    'صور الملف الشخصي',
+  ),
+  'cj.kind_tiny': (
+    'Küçük görüntüler',
+    'Small images',
+    'صور صغيرة',
+  ),
+  'cj.kind_sent': (
+    'Gönderdiklerim',
+    'Files I sent',
+    'الملفات التي أرسلتها',
+  ),
+  'cj.kind_stale': (
+    'Uzun süredir açılmamışlar',
+    'Not opened for a long time',
+    'لم تُفتح منذ وقت طويل',
+  ),
+  'cj.why_duplicate': (
+    'Aynı dosyanın fazladan kopyaları. Her kümeden en eski kopya KALIR.',
+    'Extra copies of the same file. The oldest copy in each set is KEPT.',
+    'نسخ إضافية من الملف نفسه. تبقى أقدم نسخة في كل مجموعة.',
+  ),
+  'cj.why_sticker': (
+    'Sohbet süsü; saklanacak bir anı değil.',
+    'Chat decoration, not a memory worth keeping.',
+    'زينة محادثة، وليست ذكرى تستحق الحفظ.',
+  ),
+  'cj.why_gif': (
+    'Genelde iletilmiş espri/animasyon.',
+    'Usually a forwarded joke or animation.',
+    'عادةً نكتة أو صورة متحركة مُعاد توجيهها.',
+  ),
+  'cj.why_profile': (
+    'Uygulamanın indirdiği profil resmi önbelleği.',
+    'Profile picture cache downloaded by the app.',
+    'ذاكرة مؤقتة لصور الملفات الشخصية نزّلها التطبيق.',
+  ),
+  'cj.why_tiny': (
+    'Bu kadar küçük görüntüler çoğunlukla iletilen afiş, mem ya da '
+        '“günaydın” görselleridir; telefonla çekilen kare daha büyük olur.',
+    'Images this small are mostly forwarded posters, memes or “good morning” '
+        'pictures; a photo taken with the phone is larger.',
+    'الصور بهذا الصغر غالبًا ملصقات أو «ميمز» أو صور «صباح الخير» مُعاد '
+        'توجيهها؛ الصورة الملتقطة بالهاتف تكون أكبر.',
+  ),
+  'cj.why_sent': (
+    'Sizin gönderdiğiniz dosyaların ikinci kopyası; aslı galeride ya da '
+        'indirilenlerde duruyor olabilir.',
+    'A second copy of files you sent; the original may still be in your '
+        'gallery or downloads.',
+    'نسخة ثانية من ملفات أرسلتها؛ قد يكون الأصل في المعرض أو التنزيلات.',
+  ),
+  'cj.why_stale': (
+    'Aylardır ne açılmış ne dokunulmuş.',
+    'Neither opened nor touched for months.',
+    'لم تُفتح ولم تُمس منذ أشهر.',
+  ),
+  'cj.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'cj.select_none': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
+  'cj.nothing_selected': (
+    'Silinecek dosya seçin',
+    'Select the files to delete',
+    'اختر الملفات المراد حذفها',
+  ),
+  'cj.selected_summary': (
+    '{n} dosya seçildi · {size}',
+    '{n} files selected · {size}',
+    'تم تحديد {n} ملف · {size}',
+  ),
+  'cj.bucket_empty': (
+    'Bu kovada dosya kalmadı.',
+    'No files left in this bucket.',
+    'لم تبقَ ملفات في هذه المجموعة.',
+  ),
+  'cj.similar_title': (
+    'Benzer kareler (WhatsApp)',
+    'Similar shots (WhatsApp)',
+    'لقطات متشابهة (واتساب)',
+  ),
+  'cj.similar_body': (
+    'Kovaların bulamadığı yığın: aynı anın 5 karesi, yeniden sıkıştırılmış '
+        'kopyalar. Görüntüleri çözerek arar, uzun sürer.',
+    'The pile the buckets cannot find: five shots of the same moment, '
+        'recompressed copies. It decodes the images, so it takes a while.',
+    'الكومة التي لا تجدها المجموعات: خمس لقطات للحظة نفسها، ونسخ أُعيد '
+        'ضغطها. يفكّ ترميز الصور، لذا يستغرق وقتًا.',
+  ),
+
+  // ── Tarama sonucu ekranı ──────────────────────────────────────────────────
+  'scr.title': ('Tarama sonucu', 'Scan result', 'نتيجة المسح'),
+  'scr.tab_document': ('Belge', 'Document', 'المستند'),
+  'scr.tab_text': ('Metin', 'Text', 'النص'),
+  'scr.saved_to': (
+    'PDF kaydedildi · {folder}',
+    'PDF saved · {folder}',
+    'حُفظ الـ PDF · {folder}',
+  ),
+  'scr.change_location': ('Konumu değiştir', 'Change location', 'تغيير الموقع'),
+  'scr.save_here': ('Buraya kaydet', 'Save here', 'احفظ هنا'),
+  'scr.moved': (
+    'Taşındı · {folder}',
+    'Moved · {folder}',
+    'تم النقل · {folder}',
+  ),
+  'scr.move_failed': (
+    'Taşınamadı: {error}',
+    'Could not move: {error}',
+    'تعذّر النقل: {error}',
+  ),
+  'scr.open_pdf': ('PDF\'i aç', 'Open the PDF', 'فتح الـ PDF'),
+  'scr.no_text_yet': (
+    'Bu tarama metin tanımadan yapıldı. Sayfalardaki yazıları şimdi '
+        'tanıyabilirsiniz.',
+    'This scan was made without text recognition. You can recognize the text '
+        'on the pages now.',
+    'تم هذا المسح دون التعرّف على النص. يمكنك التعرّف على النص الآن.',
+  ),
   'sf.scanned_body': (
     'Sayfalardaki yazılar da tanınsın mı? Tanınırsa PDF içinde arama ve '
         'kopyalama çalışır; görüntü aynen kalır.\n\n'
@@ -3221,6 +3432,34 @@ const Map<String, (String, String, String)> _table = {
     'جارٍ تنزيل نموذج اللغة {lang}…',
   ),
   'tf.copied': ('Çeviri kopyalandı', 'Translation copied', 'تم نسخ الترجمة'),
+  // Belge çevirisi: metin toplama (katman/OCR) → sayfa sayfa çeviri.
+  'tf.page_reading': (
+    'Sayfa {n} / {total} okunuyor…',
+    'Reading page {n} / {total}…',
+    'جارٍ قراءة الصفحة {n} / {total}…',
+  ),
+  'tf.page_ocr': (
+    'Sayfa {n} / {total} taranıyor (metin tanıma)…',
+    'Scanning page {n} / {total} (text recognition)…',
+    'جارٍ فحص الصفحة {n} / {total} (التعرّف على النص)…',
+  ),
+  'tf.page_translating': (
+    'Sayfa {n} / {total} çevriliyor…',
+    'Translating page {n} / {total}…',
+    'جارٍ ترجمة الصفحة {n} / {total}…',
+  ),
+  'tf.page_header': ('— Sayfa {n} —', '— Page {n} —', '— صفحة {n} —'),
+  'tf.stopping': ('Durduruluyor…', 'Stopping…', 'جارٍ الإيقاف…'),
+  'tf.stopped': (
+    'Çeviri durduruldu.',
+    'Translation stopped.',
+    'تم إيقاف الترجمة.',
+  ),
+  'tf.partial': (
+    'Durduruldu — {total} sayfanın {n} tanesi çevrildi.',
+    'Stopped — {n} of {total} pages were translated.',
+    'تم الإيقاف — تُرجمت {n} من {total} صفحة.',
+  ),
 
   // ── Otomatik düzenleme ekranı ─────────────────────────────────────────────
   'org.all_placed_full': (

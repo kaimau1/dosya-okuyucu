@@ -1,15 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../services/doc_translate.dart';
+import '../services/ocr_service.dart';
 import '../services/translate_service.dart';
 
-/// Çeviri akışı: dil seç → (ilk kullanımda) dil modelini indir → çevir →
-/// sonucu kopyalanabilir bir sayfada göster.
+/// Akış sırasında ilerlemeyi yazan ve **iptal isteğini taşıyan** tutamak.
 ///
-/// Tek giriş noktası [run]; hem PDF görüntüleyiciden (seçili metin) hem belge
-/// ekranlarından (tüm belge) çağrılır — akış tek yerde durur.
+/// Metni toplayan kod (OCR, metin katmanı) arayüzü tanımaz; ilerlemeyi buraya
+/// yazar, iptali buradan okur.
+class TranslateProgress {
+  final ValueNotifier<String> message;
+  bool _cancelled = false;
+
+  TranslateProgress(String initial) : message = ValueNotifier(initial);
+
+  bool get cancelled => _cancelled;
+  void cancel() => _cancelled = true;
+  void status(String text) => message.value = text;
+  void dispose() => message.dispose();
+}
+
+/// Çevrilecek metni **çeviri anında** üreten yükleyici (OCR burada koşar).
+typedef TranslatePageLoader = Future<List<OcrPage>> Function(
+    TranslateProgress progress);
+
+/// Çeviri akışı: dil seç → (ilk kullanımda) dil modelini indir → metni topla
+/// (gerekirse OCR) → sayfa sayfa çevir → sonucu kopyalanabilir bir sayfada
+/// göster.
+///
+/// İki giriş noktası var, ikisi de aynı gövdeyi kullanır:
+/// - [run]: elde **hazır metin** varken (PDF'te seçili metin, düz metin belge).
+/// - [runDocument]: belgenin tamamı için — metin akış içinde toplanır, yani
+///   taranmış PDF'te OCR'ı kullanıcı ayrıca çalıştırmaz (istek 2026-07-31:
+///   *"tek butonla"*).
 class TranslateFlow {
   static Future<void> run(
     BuildContext context,
@@ -17,13 +44,33 @@ class TranslateFlow {
     String? title,
   }) async {
     final str = AppStrings.of(context);
-    title ??= str.t('tf.title');
     final source = text.trim();
     if (source.isEmpty) {
       _snack(context, str.t('tf.no_text'));
       return;
     }
+    await _run(
+      context,
+      title: title ?? str.t('tf.title'),
+      load: (_) async => [OcrPage(1, source)],
+    );
+  }
 
+  /// Tüm belgeyi çevirir. [load] metni akış içinde toplar (sayfa sayfa);
+  /// döndürdüğü liste boşsa "metin yok" denir.
+  static Future<void> runDocument(
+    BuildContext context, {
+    required String title,
+    required TranslatePageLoader load,
+  }) =>
+      _run(context, title: title, load: load);
+
+  static Future<void> _run(
+    BuildContext context, {
+    required String title,
+    required TranslatePageLoader load,
+  }) async {
+    final str = AppStrings.of(context);
     final pair = await TranslateService.lastPair();
     if (!context.mounted) return;
     final chosen = await _pickLanguages(context, pair.$1, pair.$2);
@@ -32,45 +79,68 @@ class TranslateFlow {
     await TranslateService.savePair(from, to);
     if (!context.mounted) return;
 
-    final progress = ValueNotifier<String>(str.t('tf.preparing'));
+    final progress = TranslateProgress(str.t('tf.preparing'));
     _showProgress(context, progress);
 
-    String? result;
+    List<OcrPage> result = const [];
+    var sourcePages = 0;
     String? error;
     try {
       // Modeller yoksa indir (tek seferlik, internet gerekir; sonrası çevrimdışı).
       for (final lang in {from, to}) {
+        if (progress.cancelled) break;
         if (!await TranslateService.isModelReady(lang)) {
-          progress.value = '${str.t('tf.downloading', {
+          progress.status('${str.t('tf.downloading', {
                 'lang': TranslateService.languages[lang],
-              })}\n${str.t('tf.first_use')}';
+              })}\n${str.t('tf.first_use')}');
           await TranslateService.downloadModel(lang);
         }
       }
-      result = await TranslateService.translate(
-        source,
-        from: from,
-        to: to,
-        onProgress: (done, total) => progress.value = total > 1
-            ? str.t('tf.progress', {'n': done + 1, 'total': total})
-            : str.t('tf.working'),
-      );
+      final pages = progress.cancelled ? <OcrPage>[] : await load(progress);
+      sourcePages = pages.length;
+      if (pages.isNotEmpty && !progress.cancelled) {
+        result = await DocTranslate.translatePages(
+          pages,
+          from: from,
+          to: to,
+          onPage: (done, total) => progress.status(total > 1
+              ? str.t('tf.page_translating', {'n': done + 1, 'total': total})
+              : str.t('tf.working')),
+          cancelled: () => progress.cancelled,
+        );
+      }
     } catch (e) {
       error = '$e';
     }
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      progress.dispose();
+      return;
+    }
     Navigator.of(context).pop(); // ilerleme penceresi
+    final cancelled = progress.cancelled;
+    progress.dispose();
 
     if (error != null) {
       _snack(context, str.t('tf.failed', {'error': error}));
       return;
     }
-    if (result == null || result.trim().isEmpty) {
-      _snack(context, str.t('tf.empty_result'));
+    if (result.isEmpty) {
+      // Durdurulan iş "başarısız" değildir; kullanıcı ne olduğunu bilsin.
+      _snack(context,
+          cancelled ? str.t('tf.stopped') : str.t('tf.empty_result'));
       return;
     }
-    _showResult(context, title, result, from, to);
+    _showResult(
+      context,
+      title: title,
+      pages: result,
+      from: from,
+      to: to,
+      // Yarım kalan çeviri sonuç sayfasında açıkça yazar: eksik metni tam
+      // sanmak, çeviriyi hiç görmemekten daha kötü.
+      partialOf: cancelled && result.length < sourcePages ? sourcePages : null,
+    );
   }
 
   /// Kaynak/hedef dil seçimi. Kullanıcı iptal ederse null döner.
@@ -141,12 +211,15 @@ class TranslateFlow {
     );
   }
 
+  /// İlerleme penceresi — **durdurulabilir**: 200 sayfalık taranmış bir belge
+  /// on dakika sürebiliyor ve eskiden pencerenin kapatılmasının hiçbir yolu
+  /// yoktu (`barrierDismissible: false`, düğme yok).
   static void _showProgress(
-      BuildContext context, ValueNotifier<String> progress) {
+      BuildContext context, TranslateProgress progress) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         content: Row(
           children: [
             const SizedBox(
@@ -154,23 +227,39 @@ class TranslateFlow {
             const SizedBox(width: 16),
             Expanded(
               child: ValueListenableBuilder<String>(
-                valueListenable: progress,
+                valueListenable: progress.message,
                 builder: (_, v, __) => Text(v),
               ),
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            // Pencere KAPATILMAZ: iş döngüsü iptal bayrağını görüp durunca
+            // akışın kendisi kapatıyor. Burada kapatmak, arkada süren OCR'ı
+            // görünmez bırakırdı.
+            onPressed: () {
+              progress.cancel();
+              progress.status(ctx.t('tf.stopping'));
+            },
+            child: Text(ctx.t('common.stop')),
+          ),
+        ],
       ),
     );
   }
 
   static void _showResult(
-    BuildContext context,
-    String title,
-    String text,
-    TranslateLanguage from,
-    TranslateLanguage to,
-  ) {
+    BuildContext context, {
+    required String title,
+    required List<OcrPage> pages,
+    required TranslateLanguage from,
+    required TranslateLanguage to,
+    int? partialOf,
+  }) {
+    final str = AppStrings.of(context);
+    final text = OcrService.joinPages(
+        pages, (n) => str.t('tf.page_header', {'n': n}));
     final header = '$title — ${TranslateService.languages[from]} → '
         '${TranslateService.languages[to]}';
     showModalBottomSheet<void>(
@@ -193,6 +282,11 @@ class TranslateFlow {
                         style: Theme.of(ctx).textTheme.titleMedium,
                         overflow: TextOverflow.ellipsis),
                   ),
+                  IconButton(
+                    tooltip: ctx.t('common.share'),
+                    icon: const Icon(Icons.share_outlined, size: 20),
+                    onPressed: () => Share.share(text, subject: title),
+                  ),
                   TextButton.icon(
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: text));
@@ -206,6 +300,18 @@ class TranslateFlow {
                   ),
                 ],
               ),
+              if (partialOf != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    ctx.t('tf.partial',
+                        {'n': pages.length, 'total': partialOf}),
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Theme.of(ctx).colorScheme.error),
+                  ),
+                ),
               const Divider(height: 1),
               Expanded(
                 child: SingleChildScrollView(

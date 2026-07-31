@@ -27,8 +27,15 @@ import 'trash_screen.dart';
 /// - Silme **çöp kutusuna** gider (ayarlarda kapatılmadıysa): asistanın kendisi
 ///   bir hata yaparsa bile dosya kurtarılabilir.
 class CleanupScreen extends StatefulWidget {
-  final StorageIndex index;
-  const CleanupScreen({super.key, required this.index});
+  /// Panonun/analiz ekranının elindeki hazır indeks.
+  ///
+  /// **null olabilir:** ekran artık bir işin "ilgili yeri" olarak da açılıyor
+  /// (İşlemler kartı, alt şerit, sistem bildirimi — bkz.
+  /// `screens/fm/job_navigation.dart`) ve orada elde indeks yok. O durumda
+  /// tarama indeksi kendisi kurar; hazır indeksle açıldığında (yaygın yol)
+  /// hiçbir şey değişmez, ikinci bir tam tarama YAPILMAZ.
+  final StorageIndex? index;
+  const CleanupScreen({super.key, this.index});
 
   @override
   State<CleanupScreen> createState() => _CleanupScreenState();
@@ -120,7 +127,15 @@ class _CleanupScreenState extends State<CleanupScreen> {
     JobQueue.instance.enqueue(
       id: _scanJobId,
       title: strings.t('clean.analyzing'),
+      target: const FmJobTarget.cleanup(),
       run: (handle) async {
+        // İndeks yoksa (bildirimden/işlem kartından açıldı) burada kurulur:
+        // `adviseCleanup` APK ve büyük video önerilerini indeksten okuyor,
+        // boş indeksle koşmak o önerileri sessizce yok sayardı.
+        final index = widget.index ??
+            await FsScan.index(FmEnv.volumeRoots);
+        handle.throwIfCancelled();
+
         handle.report(detail: strings.t('clean.reading_trash'));
         final trash = await FmEnv.trash.list();
         handle.throwIfCancelled();
@@ -137,7 +152,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
         handle.throwIfCancelled();
 
         final list = adviseCleanup(
-          index: widget.index,
+          index: index,
           downloads: downloads,
           duplicates: duplicates,
           trashBytes: trashBytes,
@@ -196,6 +211,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
       title: strings
           .t('clean.cleaning', {'size': FsPaths.humanSize(total)}),
       total: chosen.length,
+      target: const FmJobTarget.cleanup(),
       run: (handle) async {
         var done = 0;
         // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA — gerekçesi ve kök nedeni

@@ -26,6 +26,72 @@ extension JobStatusLabel on JobStatus {
   bool get isActive => this == JobStatus.queued || this == JobStatus.running;
 }
 
+/// Bir işin **ilgili yeri**: kart, şerit ya da sistem bildirimi dokunulunca
+/// nereye gidilecek.
+///
+/// Kullanıcı isteği 2026-07-31: *"işlemler menüsünde bir işlemin üzerine
+/// tıklayınca ilgili yere götürsün, aynı şekilde bildirimlere ve arka plan
+/// işlem çubuğuna tıklayınca da"*. Eskiden üçü de aynı yere (İşlemler ekranı)
+/// ya da hiçbir yere gidiyordu: bildirime dokunmak yalnız uygulamayı öne
+/// alıyordu, şerit her zaman İşlemler'i açıyordu, İşlemler'deki kart ise —
+/// çıktı dosyaları dışında — hiç tıklanabilir değildi.
+///
+/// **Niye veri, niye geri çağrı değil:** iş kuyruğu ekranlardan uzun yaşıyor;
+/// bir `BuildContext` ya da closure saklamak, ekran kapandıktan sonra ölü bir
+/// bağlama gitmek demekti. Hedef düz veri olarak durur, ekranı gezinme
+/// katmanı (`screens/fm/job_navigation.dart`) kurar.
+enum FmJobTargetKind {
+  /// Yinelenen dosya taraması sonucu ([FmJobTarget.paths] = taranan kökler).
+  duplicates,
+
+  /// Benzer görüntü taraması ([FmJobTarget.scopeId] = kapsam).
+  similar,
+
+  /// Yer açma (çözümleme ve temizleme).
+  cleanup,
+
+  /// Sohbet medyası (WhatsApp/Telegram) temizliği.
+  chatCleanup,
+
+  /// Bir klasör ([FmJobTarget.paths] = tek yol).
+  folder,
+
+  /// Bir dosya ([FmJobTarget.paths] = tek yol; kardeşleri de verilebilir).
+  file,
+}
+
+class FmJobTarget {
+  final FmJobTargetKind kind;
+
+  /// Türe göre: taranan kökler, klasör yolu ya da dosya yolları.
+  final List<String> paths;
+
+  /// Benzer taramanın kapsam kimliği (bkz. `SimilarFinder.jobIdFor`).
+  final String? scopeId;
+
+  /// Ekran başlığı (benzer taramada kapsamın adı).
+  final String? title;
+
+  const FmJobTarget(this.kind,
+      {this.paths = const [], this.scopeId, this.title});
+
+  const FmJobTarget.duplicates(List<String> roots)
+      : this(FmJobTargetKind.duplicates, paths: roots);
+
+  const FmJobTarget.similar({required String scopeId, String? title})
+      : this(FmJobTargetKind.similar, scopeId: scopeId, title: title);
+
+  const FmJobTarget.cleanup() : this(FmJobTargetKind.cleanup);
+
+  // `const` DEĞİL: yönlendiren const kurucu, parametreden liste kuramaz.
+  FmJobTarget.folder(String path)
+      : this(FmJobTargetKind.folder, paths: [path]);
+
+  /// Tek dosya. `paths`in ilki açılır, kalanı kaydırmalı gezinmenin kardeşleri.
+  const FmJobTarget.files(List<String> paths)
+      : this(FmJobTargetKind.file, paths: paths);
+}
+
 /// Kuyruktaki **uzun süren iş**.
 ///
 /// Bu kuyruğa giren işler (2026-07-29 sadakat denetiminde doğrulandı):
@@ -76,6 +142,10 @@ class FmJob {
   /// artık bu listeyi gösteriyor ve dosyalar oradan açılabiliyor.
   final List<String> outputs = [];
 
+  /// İşin **ilgili yeri** (bkz. [FmJobTarget]). Yoksa gezinme [outputs]'a,
+  /// o da yoksa İşlemler ekranına düşer.
+  FmJobTarget? target;
+
   /// Başlangıç/bitiş damgaları (ms). "2 dk 10 sn sürdü" bilgisi buradan çıkar:
   /// kullanıcı bir işin gerçekten ne kadar sürdüğünü görmeden "yavaş" dışında
   /// bir şey söyleyemez.
@@ -101,6 +171,7 @@ class FmJob {
     this.total = 0,
     this.unit = 0,
     this.status = JobStatus.queued,
+    this.target,
   });
 
   /// 0..1 arası oran; toplam bilinmiyorsa null (belirsiz gösterge çizilir).
@@ -292,6 +363,7 @@ class JobQueue extends ChangeNotifier {
     required Future<void> Function(JobHandle handle) run,
     String detail = '',
     int total = 0,
+    FmJobTarget? target,
   }) {
     final existing = find(id);
     if (existing != null && existing.status.isActive) return existing;
@@ -299,8 +371,13 @@ class JobQueue extends ChangeNotifier {
     // tutuyoruz (geçmiş için Son işlemler ekranı var).
     _jobs.removeWhere((j) => j.id == id);
 
-    final job = FmJob(id: id, title: title, detail: detail, total: total)
-      .._run = run;
+    final job = FmJob(
+      id: id,
+      title: title,
+      detail: detail,
+      total: total,
+      target: target,
+    ).._run = run;
     _jobs.add(job);
     _trimHistory();
     notifyListeners();

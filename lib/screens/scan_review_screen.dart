@@ -80,17 +80,48 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     if (mounted) setState(() => _preparing = null);
   }
 
+  /// Kullanıcının dokunduğu filtreyi uygular.
+  ///
+  /// Kullanıcı hatası 2026-07-31: *"butonlara tıkladığımda işlemin başlayıp
+  /// başlamadığını anlayamıyorum, önce bir sessizlik sonra arka planda işlem
+  /// tamamlanınca geçiyor"*. Sebebi: [_applyFilter] görüntüyü ayrı bir
+  /// izolatta işliyor (`compute`) ve **bitene kadar ekranda hiçbir şey
+  /// değişmiyordu** — çip bile seçili görünmüyordu, çünkü seçim işaretini
+  /// sonuç geldiğinde koyuyorduk. Büyük bir sayfada bu birkaç saniye sürüyor
+  /// ve dokunuşun kaydedilmediği izlenimi veriyor.
+  ///
+  /// Artık dokunulur dokunulmaz: çip seçili işaretlenir (iyimser), üstte
+  /// belirsiz ilerleme çubuğu belirir, çipte küçük bir gösterge döner ve
+  /// diğer düğmeler kilitlenir. İş başarısız olursa seçim geri alınır.
+  Future<void> _chooseFilter(int index, ScanFilter filter) async {
+    if (_busy || _preparing != null) return;
+    final previous = _filters[index];
+    setState(() {
+      _busy = true;
+      _filters[index] = filter;
+    });
+    final ok = await _applyFilter(index, filter);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (!ok) _filters[index] = previous;
+    });
+  }
+
   /// [index] sayfasına [filter] uygular. Kaynak hep `_sources[index]`.
-  Future<void> _applyFilter(int index, ScanFilter filter,
+  /// Başarılıysa true. **Meşguliyet göstergesini yönetmez** — toplu döngüler
+  /// (açılış hazırlığı, "hepsine uygula") kendi ilerlemesini gösteriyor ve
+  /// buradaki bir bayrak onlarınkini sıfırlardı.
+  Future<bool> _applyFilter(int index, ScanFilter filter,
       {bool silent = false}) async {
     final source = _sources[index];
     if (filter == ScanFilter.original) {
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _filters[index] = filter;
         _pages[index] = source;
       });
-      return;
+      return true;
     }
     try {
       final target = await ScanEnhance.tempTarget(source, filter);
@@ -99,15 +130,17 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         ScanEnhanceRequest(
             sourcePath: source, targetPath: target, filter: filter),
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _filters[index] = filter;
         _pages[index] = produced;
       });
+      return true;
     } catch (e) {
-      if (!mounted || silent) return;
+      if (!mounted || silent) return false;
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.t('scan.filter_failed', {'error': e}))));
+      return false;
     }
   }
 
@@ -119,8 +152,15 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     if (edited == null || !mounted) return;
     final index = _index;
     _sources[index] = edited;
-    setState(() => _pages[index] = edited);
+    // Kırpılmış sayfa hemen görünür, filtre arkasından gelir; bu arada ekran
+    // "çalışıyorum" der (aşağıdaki belirsiz çubuk) — dönüşteki sessizlik de
+    // aynı şikâyetin parçasıydı.
+    setState(() {
+      _pages[index] = edited;
+      _busy = true;
+    });
     await _applyFilter(index, _filters[index]);
+    if (mounted) setState(() => _busy = false);
   }
 
   /// Geçerli sayfayı 90° saat yönünde çevirir (yeni dosyaya yazılır).
@@ -208,10 +248,15 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
       ),
       body: Column(
         children: [
+          // Toplu hazırlıkta belirli (kaçıncı sayfa), tek sayfalık işte
+          // belirsiz çubuk. Eskiden yalnız ilki vardı: tek bir filtreye
+          // dokunmak ekranda HİÇBİR iz bırakmıyordu.
           if (preparing != null)
             LinearProgressIndicator(
               value: _pages.isEmpty ? null : (preparing + 1) / _pages.length,
-            ),
+            )
+          else if (_busy)
+            const LinearProgressIndicator(),
           Expanded(
             child: PageView.builder(
               controller: _controller,
@@ -287,9 +332,18 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
               child: ChoiceChip(
                 label: Text(context.t(filter.labelKey)),
                 selected: current == filter,
+                // Seçili çipte çalışırken küçük gösterge: dokunuşun
+                // kaydedildiği ve işin SÜRDÜĞÜ ilk anda görünür.
+                avatar: _busy && current == filter
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : null,
                 onSelected: _busy || _preparing != null
                     ? null
-                    : (_) => _applyFilter(_index, filter),
+                    : (_) => _chooseFilter(_index, filter),
               ),
             ),
           if (_pages.length > 1)
