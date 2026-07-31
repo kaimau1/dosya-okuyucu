@@ -50,6 +50,9 @@ enum FmJobTargetKind {
   /// Yer açma (çözümleme ve temizleme).
   cleanup,
 
+  /// Sohbet medyası (WhatsApp/Telegram) temizliği.
+  chatCleanup,
+
   /// Bir klasör ([FmJobTarget.paths] = tek yol).
   folder,
 

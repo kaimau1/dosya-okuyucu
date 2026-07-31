@@ -5024,3 +5024,118 @@ yalnız CI'da doğrulanır.
 **Dal notu:** bu tur, oturum yönergesi gereği `claude/video-size-document-scan-issues-q0vf9o`
 dalına gitti (CLAUDE.md'deki "tek dal = main" kuralının istisnası; harici
 yönerge dalı açıkça dayattı).
+
+---
+
+## 2026-07-31 — Tüm belge çevirisi · işlemden ilgili yere gezinme · tarama sonucu
+
+Kullanıcının bu turdaki altı bulgusu (üçü sohbet, ikisi ekran görüntülü):
+
+### A) "Tek butonla tüm sayfayı çevir" — `lib/services/doc_translate.dart`
+Eski çeviri **hazır metin** istiyordu; taranmış PDF'te ekran "önce Metni tanı"
+diyordu. Yani tek düğme değil, iki düğme ve arada kullanıcının bilmesi gereken
+bir kavram (OCR) vardı.
+- `DocTranslate.collectPdfPages`: **sayfa sayfa** önce metin katmanı, o sayfa
+  boşsa OCR. Karma belgede (dijital sayfalar + arada taranmış imza sayfası) hem
+  hızlı hem eksiksiz — "hepsini OCR'la" ya da "hiç OCR'lama" ikisi de yanlıştı.
+- Sayfa ayrımı **veride** duruyor (`OcrPage` listesi), metnin içinde değil.
+  Eskiden OCR çıktısına "— Sayfa 3 —" yazılıyordu ve o başlık da çeviriye
+  giriyordu. Başlığı artık arayüz kendi dilinde yazıyor.
+- Çok sayfalı belgede **tek** `OnDeviceTranslator` açılıyor
+  (`TranslateService.translateWith`): sayfa başına yeni çevirici, 180 sayfada
+  dil modelini 180 kez belleğe yüklemek demekti.
+- Akış durdurulabilir; durdurulunca o ana kadar çevrilen sayfalar GÖSTERİLİR ve
+  "M sayfanın N tanesi çevrildi" yazılır. Eskiden ilerleme penceresinin
+  kapatılma yolu yoktu (`barrierDismissible: false`, düğme yok) — 200 sayfalık
+  taranmış bir belge kullanıcıyı on dakika kilitliyordu.
+- `OcrService.maxPdfPages` (25) yerini çeviride kullanıcının "Durdur" kararına
+  bıraktı; sabit kesme uzun belgede sessizce eksik çeviri üretirdi.
+
+### B) İşlem → "ilgili yer" (kart · şerit · **bildirim**)
+Üçü de ya aynı yere (İşlemler ekranı) ya hiçbir yere gidiyordu.
+- **`FmJobTarget` düz VERİ olarak kuyrukta durur.** Geri çağrı/`BuildContext`
+  saklamak denenmedi bile: kuyruk ekranlardan uzun yaşıyor, ekran kapandıktan
+  sonra elde ölü bir bağlam kalırdı.
+- Tek gezinme noktası `screens/fm/job_navigation.dart`; sıra: hedef → işin
+  ürettiği dosyalar → İşlemler ekranı. İşlemler ekranındaki kart `fallbackToJobs:
+  false` ile çağırıyor (kendi ekranını yeniden açmasın).
+- Ok simgesi yalnız `jobHasDestination(job)` iken çiziliyor: her karta ok koymak,
+  dokununca hiçbir şey olmayan kartlarda yalan olurdu.
+- **Bildirim:** `initialize`a hiç yanıt işleyicisi verilmemişti — bildirime
+  dokunmak yalnız uygulamayı öne alıyordu. Artık yük = iş kimliği,
+  `onDidReceiveNotificationResponse` + kök `navigatorKey`. Uygulama KAPALIYKEN
+  açılan bildirim `getNotificationAppLaunchDetails` ile ilk kareden sonra
+  tüketiliyor (`takePendingJobId`).
+- `CleanupScreen.index` **isteğe bağlı** oldu: bildirimden açılınca elde indeks
+  yok, tarama indeksi kendisi kuruyor. Boş indeksle koşmak APK/büyük video
+  önerilerini sessizce yok sayardı.
+
+### C) TUZAK — `pdf` paketi metin renginde ALFA kanalını yazmıyor
+Kullanıcı ekran görüntüsü: "metinleri de tanı" ile taranan sayfada OCR metni
+**koyu siyah, dev punto**, sayfanın sağına taşmış. İki kök neden birlikte:
+1. Görünmezlik `PdfColor(0, 0, 0, 0)` ile, yani **saydam renkle** deneniyordu.
+   `PdfGraphics.setFillColor` yalnız `r g b rg` yazıyor; alfa PDF'e hiç
+   gitmiyor → metin tastamam siyah çıkıyor. **Doğrusu PDF'in kendi metin çizim
+   kipi 3'ü:** `pw.TextStyle(renderingMode: PdfTextRenderingMode.invisible)`.
+   Metin çizilmez ama belgede durur (aranabilir + kopyalanabilir).
+2. Metin resmin ALTINA konup "resim üstünü örter" varsayılıyordu. Örtme yalnız
+   resmin sınırları içinde çalışır; OCR kutusuna sığmayan uzun satır resmin
+   sağından taşıyordu ve orada örtecek bir şey yok. Artık her satır **kendi
+   kutusuna** `FittedBox` ile sıkıştırılıyor ve katman resmin dikdörtgeniyle
+   `ClipRect`leniyor.
+**Test tuzağı:** içerik akışı `FlateDecode`; doğrulama için açmak gerekiyor
+(`zlib.decode`). Ama gömülü yazı tipi programı da bir akış ve ikili içeriğinde
+tesadüfen "0 Tr" geçiyor → yalnız `BT ` içeren akışlara bakılmalı
+(`test/scan_searchable_pdf_test.dart`).
+
+### D) Tarama sonucu ekranı — `lib/screens/scan_result_screen.dart`
+İstek: "bir sayfada belge, bir sayfada yazılar düzgün formatta, çeviri seçeneği,
+PDF dönüştür ve kaydet, kaydedilecek konum seçilebilsin."
+- Belge / Metin sekmeleri; metin sayfa sayfa kartlarda ve seçilebilir.
+- **Kaydetme sırası bilinçli ters:** PDF ekran açılmadan Belgeler dizinine
+  yazılıyor, ekran "Konumu değiştir" (klasör seçici → taşı) sunuyor.
+  "Kaydetmeden göster, düğme bekle" kurgusunda geri tuşuna basan kullanıcı
+  taramasını kaybederdi.
+- OCR **bir kez** koşuyor (`DocumentScanner.recognizePages`); aynı sonuç hem
+  PDF katmanına hem metin sekmesine gidiyor.
+
+### E) "Butona bastım, başladı mı anlamıyorum" (tarama filtre çipleri)
+Filtre `compute` ile ayrı izolatta koşuyor ve **bitene kadar ekranda hiçbir şey
+değişmiyordu** — çip bile seçili görünmüyordu, çünkü seçim işareti sonuç
+geldiğinde konuyordu. Genel kural olarak yazıldı: *izolata iş veren her dokunuş,
+dokunulduğu KARE içinde görünür bir iz bırakmalı.* Çip iyimser seçilir, çipte
+gösterge döner, üstte belirsiz çubuk çıkar; iş başarısız olursa seçim geri alınır.
+
+### F) "10 bin WhatsApp fotoğrafının %90'ı gereksiz" — `services/fm/chat_junk.dart`
+- **Karar: kova, tek tek eleme DEĞİL.** 10 bin dosyayı kaydır-sil ile elemek
+  10 bin karar demek; kimse yapmaz. Dosyalar "gereksiz olma SEBEBİNE" göre
+  kovalanıyor, kullanıcı kova başına tek karar veriyor.
+- **Yalnız üst veri** (yol, ad, boyut, tarih) — dosya AÇILMIYOR. 10 bin görüntüyü
+  çözmek dakikalar sürer. Görüntü çözmeyi gerektiren iş (benzer kareler) zaten
+  ayrı bir özellik (`SimilarFinder`); ekranın altından oraya kapı var.
+- Kovalar: birebir kopya · çıkartma · GIF · profil fotoğrafı · küçük görüntü
+  (iletilmiş mem/"günaydın") · gönderdiklerim (`/Sent/`) · uzun süredir
+  açılmamış. Öncelik sırası sabit ve **bir dosya en çok BİR kovada**: iki kovada
+  saymak "şu kadar yer açılacak" toplamını yalan yapardı.
+- Kopya kümesinin bir parçası sohbet klasörünün DIŞINDAysa buradakilerin hepsi
+  silinmez (en az biri kalmalı) — `test/fm_chat_junk_test.dart`te kilitli.
+- Kopya taraması **yalnız sohbet klasörlerinde** (`DuplicateFinder.scanPaths`):
+  soru "WhatsApp yığını", tüm depolamayı bayt bayt karşılaştırmak dakikalar alır.
+- "Küçük görüntü" eşiği (varsayılan 150 KB) ekrandan değiştirilebiliyor; sabit
+  bir sayı dayatıp "gereksiz" demek fazla iddialı olurdu.
+- Fotoğraf içeren hiçbir kova **varsayılan seçili gelmez**; yalnız birebir
+  kopyalar güvenli (bir kopya kalıyor). Projedeki sabit kural.
+
+**TEST TUZAĞI (bu turda iki test bu yüzden yanlış geçti/kaldı):** sahte "şimdi"
+olarak küçük bir sayı (1e9) kullanmak `now - 400 gün`ü NEGATİF yapıyor ve yaş
+kuralını sessizce devre dışı bırakıyor. Yaşa bakan testlerde gerçekçi epoch
+kullan (`1785456000000`) ve varsayılan `modifiedMs`i "dün" yap.
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze` 0 hata, `flutter test` **1070 test geçti** (32 yeni test:
+`scan_searchable_pdf_test`, `fm_job_target_test`, `fm_chat_junk_test`).
+APK derlemesi yalnız CI'da doğrulanır.
+
+**Dal notu:** bu tur da oturum yönergesi gereği
+`claude/translation-navigation-improvements-qsabzb` dalına gitti (CLAUDE.md'deki
+"tek dal = main" kuralının istisnası; harici yönerge dalı açıkça dayattı).
