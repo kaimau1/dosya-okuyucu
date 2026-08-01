@@ -5335,3 +5335,52 @@ Cihazda görsel doğrulama YAPILMADI → KALANLAR "2026-08-01 turu".
 **Dal notu:** oturum yönergesi gereği `claude/slide-document-features-bd90oq`
 dalına gitti (CLAUDE.md'deki "tek dal = main" kuralının istisnası; harici
 yönerge dalı açıkça dayattı — 2026-07-31'deki gibi).
+
+## 2026-08-01 (2. tur) — Cihaz bulguları: sayfa ekrana sığmıyordu · FAB çakışmaları
+
+Kullanıcı ekran görüntüsüyle geldi: *"bulanıklık devam ediyor yaklaştırınca
+düzeliyor"*, *"ai butonu ile bir çok şey çakışıyor"*.
+
+### A) KÖK NEDEN — "bulanıklık" aslında SIĞDIRMA hatasıydı
+1. turda native pinch kapatılıp CSS zoom'a geçilmişti ve bu DOĞRUYDU
+(kullanıcı "yaklaştırınca düzeliyor" diyor — yani yeniden dizme çalışıyor).
+Ama ekran görüntüsü ölçüldüğünde sayfa ekranın **yalnız %59'unu** kaplıyordu:
+yani sığdırma ölçeği olması gerekenin ~0,6 katıydı, yazı da o oranda küçük
+kalıyordu. Küçük yazı ekranda "bulanık" görünür — sorun keskinlik değil BOYUT
+(2026-07-28'deki teşhisin aynısı, bu kez sebebi ölçüm hatası).
+
+İki hata birden vardı, ikisi de `fitPage`te:
+- **`Math.max(offsetWidth, scrollWidth)`** — `scrollWidth` sayfadan TAŞAN bir
+  tablo/başlık yüzünden şişiyor ve sayfayı gereksiz yere küçültüyordu. Sayfa
+  ekrana sığmalı; taşan içerik yatayda kaydırılsın. Artık `offsetWidth`.
+- **`if (!pageW)` önbelleği** — genişlik bir kez ölçülüp sonsuza dek
+  saklanıyordu. İlk ölçüm docx-preview yerleşimi/fontlar tamamlanmadan
+  yapılırsa yanlış değer bir daha DÜZELMİYORDU. Artık her `fitPage`te yeniden
+  ölçülüyor (ölçümden önce zoom temizleniyor).
+
+**Kalıcı ders — ölçüme değil SONUCA bak:** hangi ölçümün yalan söylediğini
+kestirmek yerine `fitPage` artık bir **doğrulama turu** yapıyor: ölçek
+uygulandıktan sonra `sec.getBoundingClientRect().width` okunuyor, sayfa ekranı
+doldurmuyorsa ölçek bir kez düzeltiliyor (`pageW /= hata`). Böylece ölçüm
+katmanı ne yaparsa yapsın sonuç doğru çıkıyor. Döngü riski yok: düzeltme
+özyinelemesiz ve yalnız `USER === 1`de (kullanıcı yakınlaştırmamışken).
+
+**Kalan bilinçli sınır:** A4 sayfa telefon genişliğine sığdırıldığında gövde
+yazısı yine de gerçek boyutunun ~yarısı olur. Gerçek boyutta okumak için
+**Mobil (akış) görünümü** var; "belge SAYFA görünümüyle açılır" 2026-07-28
+kullanıcı kararı olduğu için varsayılan değiştirilmedi.
+
+### B) FAB çakışmaları — alt şeridin üç yeri var, üçü de doluydu
+Sağ altta ekranın AI düğmesi (FAB) duruyor. 1. turda konum rozetleri de sağ
+alta konmuştu → FAB rozeti yarıdan kesiyordu ("Slay…" görünüyordu). Word'de
+ayrıca `DocxView`in zoom düğmeleri (bunlar eskiden beri sağ altta) FAB'ın
+altında kalıyordu.
+
+**Kural yazıldı: alt şerit ÜÇE bölünür — SOL = zoom düğmeleri / pinch %
+rozeti, ORTA = konum rozeti (sayfa/slayt), SAĞ = FAB.** PDF görüntüleyici
+zaten sayfa rozetini ortada tutuyordu; slayt ve Word de aynı hizaya geldi.
+
+**Doğrulama:** `flutter analyze` 0 hata; `flutter test` tüm paket yeşil.
+Sığdırma düzeltmesi ancak CİHAZDA görülebilir (WebView yerleşimi birim testi
+ile taklit edilemiyor) — `word_assets_test` yalnız sözleşmeyi kilitliyor
+(`scrollWidth` kullanılmıyor + doğrulama turu duruyor).

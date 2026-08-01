@@ -346,13 +346,21 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                           children: [
                             _buildSlides(editor),
                             // Konum rozeti — PDF'teki sayfa rozetiyle aynı
-                            // kurgu: nerede olduğunu söyler ve dokununca
-                            // "slayta git"i açar.
+                            // kurgu ve aynı YER: nerede olduğunu söyler ve
+                            // dokununca "slayta git"i açar.
+                            //
+                            // ORTADA duruyor, sağda değil: sağ altta AI
+                            // düğmesi (FAB), sol altta pinch'in % rozeti var —
+                            // ilk sürümde sağa konmuştu ve FAB rozeti yarıdan
+                            // kesiyordu (2026-08-01 kullanıcı ekran görüntüsü).
                             if (!editing && editor.slides.isNotEmpty)
                               Positioned(
                                 bottom: 12,
-                                right: 12,
-                                child: _slideBadge(editor.slides.length),
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: _slideBadge(editor.slides.length),
+                                ),
                               ),
                           ],
                         ),

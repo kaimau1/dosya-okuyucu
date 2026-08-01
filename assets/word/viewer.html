@@ -442,10 +442,14 @@
     }
   };
 
+  function viewportW() {
+    return document.documentElement.clientWidth || window.innerWidth || 0;
+  }
+
   // Sığdırma ölçeği (kullanıcı çarpanı hariç).
   function fitScale() {
     if (FLOW || !pageW) return 1;
-    var vw = document.documentElement.clientWidth || window.innerWidth;
+    var vw = viewportW();
     return vw > 0 ? Math.min(1, vw / pageW) : 1;
   }
 
@@ -522,16 +526,39 @@
       if (fitTries++ < 20) setTimeout(fitPage, 150);
       return;
     }
-    if (!pageW) {
-      wrap.style.zoom = '';
-      var w = Math.max(sec.offsetWidth, sec.scrollWidth);
-      if (w < 100) {
-        if (fitTries++ < 20) setTimeout(fitPage, 150);
-        return;
-      }
-      pageW = w + 16;
+    // Genişlik HER SEFERİNDE yeniden ölçülür (eskiden bir kez ölçülüp
+    // önbelleğe alınıyordu): ilk ölçüm, docx-preview sayfayı yerleştirmeden
+    // ya da fontlar yüklenmeden yapılırsa yanlış kalıyor ve bir daha
+    // düzelmiyordu. Ölçümden önce zoom temizleniyor, yoksa kendi ölçeğimizi
+    // ölçerdik.
+    wrap.style.zoom = '';
+    // `scrollWidth` DEĞİL `offsetWidth`: taşan bir tablo/başlık scrollWidth'i
+    // şişirir ve SAYFAYI gereksiz yere küçültürdü — sayfa ekrana sığmalı,
+    // taşan içerik yatayda kaydırılabilir.
+    var w = sec.offsetWidth;
+    if (w < 100) {
+      if (fitTries++ < 20) setTimeout(fitPage, 150);
+      return;
     }
+    pageW = w + 16;
     applyZoom();
+
+    // DOĞRULAMA TURU (2026-08-01 kullanıcı ekran görüntüsü: sayfa ekranın
+    // ancak %59'unu kaplıyordu, yazı bu yüzden okunamayacak kadar küçüktü ve
+    // "bulanık" görünüyordu). Ölçüme güvenmek yerine SONUCA bakılıyor: uygulanan
+    // ölçekten sonra sayfa gerçekten ekranı dolduruyor mu? Doldurmuyorsa ölçek
+    // bir kez düzeltilir. Hangi ölçüm yalan söylerse söylesin sonuç doğru olur.
+    if (USER !== 1) return;
+    var vw = viewportW();
+    var shown = sec.getBoundingClientRect().width;
+    if (vw <= 0 || shown <= 0) return;
+    var err = (vw - 8) / shown;
+    // Sayfa zaten ekrandan genişse (err < 1) küçültme yapılır; darsa büyütülür.
+    // %2'lik sapma için uğraşmaya değmez.
+    if (err > 1.02 || err < 0.98) {
+      pageW = pageW / err;
+      applyZoom();
+    }
   }
   window.addEventListener('resize', fitPage);
 

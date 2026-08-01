@@ -31,6 +31,17 @@ void main() {
     expect(html, isNot(contains('document.body.style.zoom')));
   });
 
+  test('sayfa ekran genişliğine sığdırılırken SONUÇ doğrulanıyor', () async {
+    // Kullanıcı ekran görüntüsünde sayfa ekranın ancak %59'unu kaplıyordu →
+    // yazı gereksiz yere küçük ve okunaksızdı. İki koruma:
+    final html = await rootBundle.loadString('assets/word/viewer.html');
+    // 1) Genişlik `scrollWidth` ile ölçülmez (taşan tablo sayfayı küçültürdü).
+    expect(html.contains('sec.scrollWidth'), isFalse);
+    // 2) Ölçekten sonra sayfanın gerçekten ekranı doldurduğu ölçülüp
+    //    gerekiyorsa bir kez düzeltiliyor.
+    expect(html, contains('getBoundingClientRect().width'));
+  });
+
   test('köprü sözleşmesi: Flutter\'ın çağırdığı JS işlevleri viewer\'da var',
       () async {
     // DocxViewState bu adları runJavaScript ile çağırıyor; biri yeniden

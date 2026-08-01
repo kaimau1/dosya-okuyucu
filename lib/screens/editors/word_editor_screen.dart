@@ -337,12 +337,17 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                         // Sayfa rozeti (2026-08-01 isteği: toplam sayfa sayısı
                         // her belgede görünsün) — dokununca "sayfaya git".
                         // Düzenleme sırasında gizli: klavye+çubuk zaten yer
-                        // kapıyor, rozet de zoom düğmelerinin yanına düşerdi.
+                        // kapıyor.
+                        //
+                        // Alt şeridin paylaşımı: SOL = zoom düğmeleri,
+                        // ORTA = sayfa rozeti, SAĞ = AI düğmesi (FAB).
+                        // Üçü de köşeye yığılırsa üst üste biniyor.
                         if (_pageCount > 0 && !_editing)
                           Positioned(
-                            left: 12,
+                            left: 0,
+                            right: 0,
                             bottom: 12,
-                            child: _pageBadge(),
+                            child: Center(child: _pageBadge()),
                           ),
                       ],
                     ),
