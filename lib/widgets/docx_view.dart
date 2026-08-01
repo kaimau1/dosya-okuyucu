@@ -263,9 +263,12 @@ class DocxViewState extends State<DocxView> {
             ),
           ),
         // Yakınlaştır/uzaklaştır (pinch'e ek, garanti kontrol).
+        //
+        // SOLDA duruyor: sağ altta ekranın AI düğmesi (FAB) var ve düğmeler
+        // onun altında kalıyordu (2026-08-01 kullanıcı ekran görüntüsü).
         if (_error == null)
           Positioned(
-            right: 12,
+            left: 12,
             bottom: 12,
             child: Column(
               mainAxisSize: MainAxisSize.min,

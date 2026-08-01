@@ -19,6 +19,11 @@
       (i) **dondurulmuş bölmesi olan** bir Excel dosyasında tek hücre değiştirip
       kaydet → masaüstü Excel'de aç → bölme, ızgara ayarı ve süzgeç okları
       DURUYOR mu.
+      **2. tur (aynı gün, kullanıcı ekran görüntüsü üzerine):** (j) Word'de
+      belge açılır açılmaz sayfa **ekran genişliğini DOLDURUYOR** mu (önceden
+      %59'unu kaplıyordu, yazı bu yüzden okunaksızdı), (k) slaytta konum rozeti
+      ve Word'de sayfa rozeti artık **ortada** — AI düğmesi hiçbirini kesmiyor,
+      Word'de zoom düğmeleri de solda ve FAB'ın altında kalmıyor.
 - [ ] **Google Drive cihaz doğrulaması (kullanıcı)** — 2026-07-30: Pano →
       Araçlar → **Google Drive** → (a) "Google ile bağlan" hesap seçtiriyor ve
       Drive izni soruyor mu, (b) bir dosyaya uzun bas → **Drive'a yükle** →
