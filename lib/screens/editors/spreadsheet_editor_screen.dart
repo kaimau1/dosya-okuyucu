@@ -946,17 +946,37 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     return _statusText(text, scheme);
   }
 
-  Widget _statusText(String text, ColorScheme scheme) => Container(
-        width: double.infinity,
-        color: scheme.surfaceContainerHigh,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
-        ),
-      );
+  /// Durum çubuğu — solda seçim bilgisi, sağda **kaçıncı sayfadayız**
+  /// (2026-08-01 kullanıcı isteği: toplam sayfa sayısı her belgede görünsün).
+  /// Excel'in "sayfa"sı çalışma sayfasıdır; gizli sayfalar sayılmaz çünkü
+  /// sekmelerde de görünmezler.
+  Widget _statusText(String text, ColorScheme scheme) {
+    final sheets =
+        _editor?.sheets.where((s) => !s.layout.hidden).toList() ?? const [];
+    final at = _sheet == null ? -1 : sheets.indexWhere((s) => s.name == _sheet!.name);
+    final style = TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant);
+    return Container(
+      width: double.infinity,
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: style),
+          ),
+          if (at >= 0) ...[
+            const SizedBox(width: 8),
+            Text(
+              context.t('excel.sheet_pos',
+                  {'n': at + 1, 'total': sheets.length}),
+              style: style,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _sheetTabs(List<XlsxSheet> sheets) {
     return SingleChildScrollView(

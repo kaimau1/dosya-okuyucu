@@ -1992,7 +1992,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   child: InkWell(
                     onTap: _askGoToPage,
                     borderRadius: BorderRadius.circular(20),
-                    child: _pageBadge('$_pdfPage / $_pageCount — sayfaya git'),
+                    // Rozet İngilizce/Arapça arayüzde de çevrilmeli — eskiden
+                    // "— sayfaya git" kısmı koda gömülü Türkçeydi.
+                    child: _pageBadge('$_pdfPage / $_pageCount · '
+                        '${context.t('vw.goto_page_short')}'),
                   ),
                 ),
               ),

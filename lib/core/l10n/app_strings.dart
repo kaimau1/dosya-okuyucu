@@ -664,7 +664,7 @@ const Map<String, (String, String, String)> _table = {
     'تعذّر الانتقال إلى الصفحة {target}؛ بقيت على {landed} (من {total}).',
   ),
   'vw.goto_page': ('Sayfaya git…', 'Go to page…', 'الانتقال إلى صفحة…'),
-  'vw.goto_page_short': ('Sayfaya git', 'Go to page', 'الانتقال إلى صفحة'),
+  'vw.goto_page_short': ('sayfaya git', 'go to page', 'انتقل إلى صفحة'),
   'vw.find_in_doc': ('Belgede ara…', 'Search in document…', 'ابحث في المستند…'),
   'vw.find_in_doc_short': ('Belgede ara', 'Search in document', 'ابحث في المستند'),
   'vw.dont_save': ('Kaydetme', 'Don’t save', 'عدم الحفظ'),
@@ -1485,6 +1485,15 @@ const Map<String, (String, String, String)> _table = {
         '{web}/{ours}). استخدم ⋮ > محرر النص.',
   ),
   'word.done': ('Bitti', 'Done', 'تم'),
+  'word.page_of': ('Sayfa {n} / {total}', 'Page {n} / {total}', 'الصفحة {n} / {total}'),
+  'word.goto_page': ('Sayfaya git', 'Go to page', 'الانتقال إلى صفحة'),
+  'word.goto_page_hint': (
+    '1 – {total} arası',
+    'Between 1 and {total}',
+    'بين 1 و {total}',
+  ),
+  'word.font_family': ('Yazı tipi', 'Font', 'نوع الخط'),
+  'word.font_size': ('Punto', 'Size', 'حجم الخط'),
   'word.add_paragraph': ('Paragraf ekle', 'Add paragraph', 'إضافة فقرة'),
   'word.page_layout': ('Sayfa', 'Page', 'صفحة'),
   'word.mobile_flow': ('Mobil', 'Mobile', 'الجوال'),
@@ -1514,6 +1523,11 @@ const Map<String, (String, String, String)> _table = {
   'excel.cell_reference_hint': ('ör. C15', 'e.g. C15', 'مثال: C15'),
   'excel.cell_content': ('Hücre içeriği', 'Cell content', 'محتوى الخلية'),
   'excel.cell_label': ('Hücre {ref}', 'Cell {ref}', 'الخلية {ref}'),
+  'excel.sheet_pos': (
+    'Sayfa {n} / {total}',
+    'Sheet {n} / {total}',
+    'الورقة {n} / {total}',
+  ),
   'excel.column_width': ('Sütun genişliği…', 'Column width…', 'عرض العمود…'),
   'excel.row_height': ('Satır yüksekliği…', 'Row height…', 'ارتفاع الصف…'),
   'excel.column_width_of': (
@@ -2112,6 +2126,22 @@ const Map<String, (String, String, String)> _table = {
     'لا توجد شرائح للعرض في هذا الملف.',
   ),
   'sl.open_failed': ('Açılamadı: {error}', 'Could not open: {error}', 'تعذّر الفتح: {error}'),
+  'sl.slide_of': ('Slayt {n} / {total}', 'Slide {n} / {total}', 'الشريحة {n} / {total}'),
+  'sl.goto': ('Slayta git', 'Go to slide', 'الانتقال إلى شريحة'),
+  'sl.goto_hint': (
+    '1 – {total} arası',
+    'Between 1 and {total}',
+    'بين 1 و {total}',
+  ),
+  'sl.search_hint': (
+    'Slaytlarda ara',
+    'Search in slides',
+    'ابحث في الشرائح',
+  ),
+  'sl.no_match': ('Eşleşme yok', 'No matches', 'لا توجد نتائج'),
+  'sl.match_pos': ('{n} / {total}', '{n} / {total}', '{n} / {total}'),
+  'sl.fullscreen': ('Tam ekran sunum', 'Full-screen slideshow', 'عرض ملء الشاشة'),
+  'sl.done': ('Bitti', 'Done', 'تم'),
 
   // ── PDF araçları ──────────────────────────────────────────────────────────
   'pt.locked_title': ('Belge parolalı', 'The document has a password', 'المستند محمي بكلمة مرور'),
@@ -3615,6 +3645,63 @@ const Map<String, (String, String, String)> _table = {
     'تعذّر الحصول على ملخّص الذكاء الاصطناعي: {error}',
   ),
   'aia.summary_title': ('AI özeti', 'AI summary', 'ملخّص الذكاء الاصطناعي'),
+
+  // AI özet akışı (AiSummaryFlow) — kısa / detaylı.
+  'ai.summarize': ('AI özet', 'AI summary', 'ملخّص ذكي'),
+  'ai.sum_working': ('Özet hazırlanıyor…', 'Preparing the summary…', 'جارٍ إعداد الملخّص…'),
+  'ai.sum_no_text': (
+    'Özetlenecek metin bulunamadı.',
+    'No text found to summarise.',
+    'لم يُعثر على نص لتلخيصه.',
+  ),
+  'ai.sum_short': ('Kısa özet', 'Short summary', 'ملخّص قصير'),
+  'ai.sum_short_hint': (
+    'Birkaç cümle — "bu ne anlatıyor"',
+    'A few sentences — the gist',
+    'بضع جمل — الفكرة العامة',
+  ),
+  'ai.sum_detailed': ('Detaylı özet', 'Detailed summary', 'ملخّص مفصّل'),
+  'ai.sum_detailed_hint': (
+    'Bölüm bölüm, önemli sayı ve isimlerle',
+    'Section by section, with key figures and names',
+    'قسمًا بقسم، مع الأرقام والأسماء المهمة',
+  ),
+  'ai.sum_truncated': (
+    'Belge uzun olduğu için yalnız ilk {n} karakter özetlendi.',
+    'The document is long; only the first {n} characters were summarised.',
+    'المستند طويل؛ لم يُلخَّص سوى أول {n} حرف.',
+  ),
+  'ai.sum_prompt_short': (
+    'Bu belgeyi Türkçe, KISA özetle: en fazla 4-5 cümle. '
+        'Ne anlattığını ve en önemli 2-3 bilgiyi ver. '
+        'Uydurma bilgi ekleme; belgede yoksa yazma.',
+    'Summarise this document in English, SHORT: at most 4-5 sentences. '
+        'Say what it is about and give the 2-3 most important facts. '
+        'Do not invent anything; if it is not in the document, leave it out.',
+    'لخّص هذا المستند بالعربية بإيجاز: 4-5 جمل كحد أقصى. '
+        'اذكر موضوعه وأهم 2-3 معلومات. '
+        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
+  ),
+  'ai.sum_prompt_detailed': (
+    'Bu belgeyi Türkçe, DETAYLI özetle. Biçim:\n'
+        '1) Tek cümlelik "bu ne belgesi" tanımı\n'
+        '2) Bölüm bölüm (slayt/başlık sırasıyla) madde madde özet — metinde '
+        'slayt numarası varsa koru\n'
+        '3) Önemli sayı, tarih, isim ve kararları ayrı bir başlıkta topla\n'
+        'Uydurma bilgi ekleme; belgede yoksa yazma.',
+    'Summarise this document in English, in DETAIL. Format:\n'
+        '1) A one-sentence "what kind of document is this"\n'
+        '2) A section-by-section (slide/heading order) bullet summary — keep '
+        'slide numbers if the text has them\n'
+        '3) A separate heading collecting key figures, dates, names and decisions\n'
+        'Do not invent anything; if it is not in the document, leave it out.',
+    'لخّص هذا المستند بالعربية بالتفصيل. الصيغة:\n'
+        '1) جملة واحدة تصف «ما نوع هذا المستند»\n'
+        '2) ملخّص بالنقاط قسمًا بقسم (بترتيب الشرائح/العناوين) — واحتفظ بأرقام '
+        'الشرائح إن وُجدت في النص\n'
+        '3) عنوان منفصل يجمع الأرقام والتواريخ والأسماء والقرارات المهمة\n'
+        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
+  ),
   'aia.reading_doc': ('Belge okunuyor…', 'Reading the document…', 'جارٍ قراءة المستند…'),
   'aia.reading_image': (
     'Görseldeki metin okunuyor…',

@@ -14,10 +14,15 @@ class FtpFs extends RemoteFs {
 
   FTPConnect? _ftp;
 
+  // `ftpconnect` 2.0.7 sabitleri BÜYÜK HARF (`SecurityType.FTPS`); küçük
+  // harfli adlar derlemeyi kırıyordu. 2.0.8+ `intl ^0.20.2` istiyor, o da
+  // Flutter 3.29.3'ün `flutter_localizations`ıyla (intl 0.19.0) çakışıyor →
+  // sürüm yükseltmek yol DEĞİL, paketin kendi adları kullanılır.
+  // ignore: constant_identifier_names — adlar paketten geliyor.
   static SecurityType securityFor(RemoteProtocol protocol) => switch (protocol) {
-        RemoteProtocol.ftps => SecurityType.ftps,
-        RemoteProtocol.ftpes => SecurityType.ftpes,
-        _ => SecurityType.ftp,
+        RemoteProtocol.ftps => SecurityType.FTPS,
+        RemoteProtocol.ftpes => SecurityType.FTPES,
+        _ => SecurityType.FTP,
       };
 
   @override
@@ -74,7 +79,7 @@ class FtpFs extends RemoteFs {
         out.add(RemoteEntry(
           name: item.name,
           path: RemoteFs.join(path, item.name),
-          isDir: item.type == FTPEntryType.dir,
+          isDir: item.type == FTPEntryType.DIR,
           sizeBytes: item.size ?? 0,
           modifiedMs: item.modifyTime?.millisecondsSinceEpoch ?? 0,
         ));

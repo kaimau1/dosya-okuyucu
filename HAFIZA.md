@@ -5233,3 +5233,105 @@ ağırlığı düşürülecek bir "araç" değil.
 
 **Doğrulama:** `flutter analyze` 0 hata; `flutter test` pre-push hook
 üzerinden **1080 geçti / 9 atlandı (canlı sunucu) / 0 kırmızı**.
+
+## 2026-08-01 — Slaytta gezinme/arama/AI özet · Word bulanıklığı ve font · Excel bölme sadakati
+
+Kullanıcı listesi: *"slayt toplam slayt sayısı görülmeli, tüm belgelerde toplam
+sayfa sayısı görülmeli · slayta git seçeneği ve arama · ai ile slayt özetleme
+detaylı ve kısa · Excel sadakatini devam · word bulanıklık ve metin boyutu yazı
+tipi seçimi sadakat geliştirmelerine devam · slaytta tıklayıp düzenleme
+başladığında geri tuşu düzenlemeyi kapatmalı, geri gidiyor direk."*
+
+### A) KÖK NEDEN — Word'de bulanıklık: yakınlaştırma ÜÇ ayrı katmandaydı
+`viewer.html` sayfayı `wrap.style.zoom` ile sığdırıyordu, `DocxViewState._zoomBy`
+**ayrıca** `document.body.style.zoom` yazıyordu ve `enableZoom(true)` +
+`user-scalable=yes` ile üstüne **native WebView pinch**'i biniyordu. Bulanıklığın
+kaynağı üçüncüsü: native pinch sayfayı yeniden dizmez, **çizilmiş kareyi
+büyütür** — yani yakınlaştıkça yazı piksel piksel şişer.
+- Native yakınlaştırma kapatıldı (`user-scalable=no`, `enableZoom(false)`).
+- Pinch artık JS'te yakalanıp tek bir CSS `zoom`a çevriliyor
+  (`fitScale() * USER`) → tarayıcı metni **yeniden diziyor**, her ölçekte keskin.
+  Odak noktası korunuyor: `scrollTo((s + f) * oran - f)`.
+- Aynı ilke PDF tarafında zaten yazılıydı (*"yeniden-yerleşimle NET tutulur,
+  InteractiveViewer değil"*); Word'e uygulanmamıştı.
+- Ölçek JS'ten `Sayfa` kanalıyla bildirildiği için **zoom % rozeti** de
+  bedavaya geldi (KALANLAR'daki "Word'de zoom rozeti yok" maddesi kapandı).
+
+### B) Word'de yazı tipi/punto — neden SEÇİME değil PARAGRAFA
+Canlı düzenlemenin tamamı *"DOM'daki `<p>` sırası = `document.xml`'deki `w:p`
+sırası"* varsayımına dayanıyor; sigorta sayı uyuşmazsa düzenlemeyi tamamen
+kapatıyor. Seçimi `<span>`la sarmak (`surroundContents`/`extractContents`)
+paragraf sınırını aşan seçimlerde `<p>` bölebilir → eşleme çöker. Bu yüzden
+font/punto paragrafın **stiline** yazılıyor (DOM yapısı değişmiyor).
+- **`data-fk-font` / `data-fk-size` işareti şart:** `segsOf` hesaplanmış stili
+  koşulsuz gönderseydi, kullanıcı sadece harf yazdığında bile dosyadaki
+  STİLDEN gelen font satır içi bir `w:rFonts`e dönüşür ve belge stili sessizce
+  donardı. İşaret yoksa alan `null` gider, `setRuns` şablon `rPr`ye dokunmaz.
+- `RunSeg` 4'lü kayıttan (record) sınıfa çevrildi: opsiyonel `font`/`sizePt`
+  alanı record'da temsil edilemiyor.
+- `w:sz` **yarım punto** (14 pt → 28) ve `w:szCs` de yazılıyor; `w:rFonts`ta
+  `ascii`+`hAnsi`+`cs` birlikte — yalnız `ascii` yazılsa Arapça metin eski
+  fontta kalırdı.
+- Liste bilinçli dar (Calibri/Times/Arial/Cambria/Helvetica): yalnız
+  APK'ya gömülü, metrik-uyumlu karşılığı olan aileler. Cihazda olmayan bir font
+  seçtirmek belgeyi Word'de bambaşka gösterirdi.
+
+### C) Slaytta konum: ölçüm değil ANALİTİK hesap
+Slaytlar tek akışta olduğu için "kaçıncı slayttayım" ancak kaydırma konumundan
+çıkar. Kart yükseklikleri `_slideExtent` ile **hesaplanıyor** (başlık şeridi
+`40*zoom` + `cardW/en-boy` + `20*zoom`), ölçülmüyor: ölçüme dayansaydı henüz
+çizilmemiş bir slayda atlanamazdı (`ListView.builder` tembel). Formül
+`_buildSlides`/`_slideCard` yerleşimiyle birebir aynı — **ikisi ayrışırsa
+"slayta git" yanlış yere atlar**, ikisine de bunu söyleyen yorum kondu.
+Rozet PDF'teki sayfa rozetiyle aynı kurguda: konumu söyler + dokununca "git".
+
+### D) Arama: eşleşme slaytın ÜSTÜNDE vurgulanamıyor
+`SlideCanvas` biçimli metni kendi çiziyor; içine vurgu katmanı koymak render
+motoruna dokunmayı gerektirirdi. Onun yerine arama çubuğunun altında **bağlam
+satırı** var ("Slayt 3 / 12 · …bütçe kalemleri…"): sayaç tek başına hangi metni
+bulduğunu söylemiyordu. Arama çekirdeği `core/text_search.dart#searchSections`
+— saf Dart, testli, bölüm bazlı (slayt/sayfa fark etmez).
+**Tuzak:** sınıra dayanıp dayanmadığını anlamak için `findAll`dan
+**sınırdan bir fazla** istemek gerekiyor; yoksa "tam 200 buldum" ile "200'de
+kestim" ayırt edilemez ve kırpma sessiz kalır.
+
+### E) Geri tuşu (kullanıcının doğrudan şikâyeti)
+Slayt ve Word ekranlarında `PopScope`: düzenleme (ya da slaytta arama) açıkken
+geri **onu** kapatır, ekrandan çıkmaz. Slaytta geri = `_finishEdit()`, yani
+yazılan metin de kaydedilir — düzenlemeyi kapatıp yazılanı atmak, şikâyetin
+kendisini başka biçimde tekrar etmek olurdu.
+
+### F) Excel sadakati: `<pane>` / `showGridLines` / `<autoFilter>` kaydetmede uçuyordu
+`excel 4.0.6` sayfayı yazarken `sheetData`yı temizleyip yeniden kuruyor;
+dondurulmuş bölme, kapalı ızgara ve otomatik süzgeç **okunuyor ve ekranda
+uygulanıyordu ama geri yazılmıyordu**. Başlık satırı donmuş bir tabloda tek
+hücre değiştirip kaydeden kullanıcı, dosyayı Excel'de açtığında bölmenin
+çözülmüş olduğunu görüyordu. `XlsxSavePatch`e eklendi.
+- **Kırmızı→yeşil kanıtlandı:** yamanın alanları geçici olarak kaldırılınca
+  gidiş-dönüş testi düşüyor (`frozenRows` 1 yerine 0) — yani kazanç gerçek,
+  paket bunları korumuyor.
+- `<pane>` **`sheetView`'ın İLK çocuğu** olmalı, `<autoFilter>` ise
+  `sheetData`dan SONRA: `_worksheetOrder` listesi `sheetData` sonrasındaki
+  kardeşlerle genişletildi, yoksa `autoFilter` `pageMargins`in arkasına düşüp
+  Excel'de "onarılamayan içerik" uyarısı verirdi.
+- Izgara niteliği yalnız KAPALIYKEN yazılıyor (Excel varsayılanı açık) —
+  gereksiz nitelik dosyayı boşuna değiştirirdi.
+
+### G) TUZAK — `main` zaten DERLENMİYORDU (`ftpconnect` sabitleri)
+İstenen işle ilgisiz ama turu bloke ediyordu: `ftp_fs.dart` (ve
+`ftp_server_test.dart`) `SecurityType.ftps` / `FTPEntryType.dir` yazıyordu;
+`ftpconnect 2.0.7`de sabitler **BÜYÜK HARF** (`FTPS`, `DIR`). 4 derleme hatası
+= APK derlemesi kırık. Sürüm yükseltmek yol DEĞİL: 2.0.8+ `intl ^0.20.2`
+istiyor, Flutter 3.29.3'ün `flutter_localizations`ı `intl 0.19.0`a pinli.
+Paketin kendi adları kullanıldı.
+
+### H) Doğrulama
+Bulut oturumunda Flutter **3.29.3** (CI ile aynı) indirilip koşturuldu:
+`flutter analyze` **0 hata**, `flutter test` tüm paket yeşil
+(yeni testler: `slides_screen_test` 6, `searchSections` 5, `word_assets`
+2 sözleşme testi, `xlsx_save_patch` 5, `docx_editor` font/punto 2).
+Cihazda görsel doğrulama YAPILMADI → KALANLAR "2026-08-01 turu".
+
+**Dal notu:** oturum yönergesi gereği `claude/slide-document-features-bd90oq`
+dalına gitti (CLAUDE.md'deki "tek dal = main" kuralının istisnası; harici
+yönerge dalı açıkça dayattı — 2026-07-31'deki gibi).

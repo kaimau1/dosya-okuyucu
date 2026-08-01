@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n/app_strings.dart';
+import '../../core/text_search.dart';
 import '../../models/document.dart';
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
+import '../../widgets/ai_summary_flow.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
@@ -20,6 +22,10 @@ import 'slideshow_screen.dart';
 /// kutusuna dokunmak o kutunun yazılarını düzenlemeyi açar. Kaydederken orijinal
 /// tasarım korunur (yalnızca metin güncellenir).
 class SlidesEditorScreen extends StatefulWidget {
+  /// Konum rozetinin anahtarı. Testte rozeti "sondaki InkWell" diye aramak
+  /// kırılgan olurdu (slayt kanvası ve alt çubuk da InkWell içeriyor).
+  static const badgeKey = ValueKey('slideBadge');
+
   final String path;
   final String name;
   final String plainText;
@@ -46,6 +52,22 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   final _hCtrl = ScrollController();
   final _vCtrl = ScrollController();
 
+  // ── Konum / gezinme ────────────────────────────────────────────────────────
+  // Slaytlar tek bir akışta olduğu için "kaçıncı slayttayım" bilgisi ancak
+  // kaydırma konumundan çıkar. Kart yükseklikleri ANALİTİK olarak biliniyor
+  // (bkz. _slideExtent), o yüzden hem rozet hem "slayta git" ölçüm yapmadan,
+  // tek karede doğru sonucu verir — ölçüme dayansaydı henüz çizilmemiş bir
+  // slayda atlanamazdı.
+  double _baseW = 0;
+  int _currentSlide = 1;
+
+  /// Arama çubuğu açık mı, eşleşmeler ve etkin eşleşme.
+  bool _finding = false;
+  final _findCtrl = TextEditingController();
+  List<SectionHit> _hits = const [];
+  bool _hitLimit = false;
+  int _hitIndex = -1;
+
   // ── Canlı (yerinde) metin düzenleme durumu ─────────────────────────────────
   // Popup yerine kutu doğrudan slaytın üstünde TextField olur; biçim çubuğu
   // klavyenin üstünde yüzer. Denetleyiciler şeklin paragraflarıyla hizalıdır.
@@ -60,6 +82,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   @override
   void initState() {
     super.initState();
+    _vCtrl.addListener(_onScroll);
     _load();
   }
 
@@ -68,8 +91,10 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     for (final c in _editCtrls) {
       c?.dispose();
     }
+    _vCtrl.removeListener(_onScroll);
     _hCtrl.dispose();
     _vCtrl.dispose();
+    _findCtrl.dispose();
     super.dispose();
   }
 
@@ -125,61 +150,350 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
+  // ── Konum, "slayta git" ve arama ──────────────────────────────────────────
+
+  int get _slideCount => _editor?.slides.length ?? 0;
+
+  /// Bir slayt kartının listedeki toplam yüksekliği (başlık şeridi + kart +
+  /// alt boşluk). `_buildSlides`/`_slideCard` yerleşimiyle BİREBİR aynı
+  /// formül — ikisi ayrışırsa "slayta git" yanlış yere atlar.
+  double _slideExtent(int i) {
+    final cardW = _baseW * _zoom;
+    final view = _editor!.slides[i].view;
+    final aspect = view == null ? 16 / 9 : view.widthPt / view.heightPt;
+    final cardH = aspect <= 0 ? cardW * 9 / 16 : cardW / aspect;
+    return 40 * _zoom + cardH + 20 * _zoom;
+  }
+
+  /// [i]. slaydın (0 tabanlı) liste içindeki kaydırma konumu.
+  double _slideOffset(int i) {
+    var offset = 8 * _zoom; // ListView'ın üst dolgusu
+    for (var j = 0; j < i; j++) {
+      offset += _slideExtent(j);
+    }
+    return offset;
+  }
+
+  /// Kaydırma konumundan "kaçıncı slayttayız". Ekranın üstünden bir tutam
+  /// aşağısı (60 px) ölçüt: iki slaydın sınırı tam tepedeyken kullanıcı
+  /// gözüyle ALTTAKİ slayda bakıyordur.
+  void _onScroll() {
+    if (!_vCtrl.hasClients || _baseW <= 0 || _slideCount == 0) return;
+    final target = _vCtrl.offset + 60;
+    var at = 8 * _zoom;
+    var index = 0;
+    for (var i = 0; i < _slideCount; i++) {
+      at += _slideExtent(i);
+      if (at > target) {
+        index = i;
+        break;
+      }
+      index = i;
+    }
+    final next = index + 1;
+    if (next != _currentSlide) setState(() => _currentSlide = next);
+  }
+
+  /// [number] 1 tabanlı slayt numarasına kaydırır.
+  Future<void> _goToSlide(int number) async {
+    if (!_vCtrl.hasClients || _slideCount == 0) return;
+    final index = (number - 1).clamp(0, _slideCount - 1);
+    final target = _slideOffset(index)
+        .clamp(0.0, _vCtrl.position.maxScrollExtent);
+    await _vCtrl.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    if (mounted) setState(() => _currentSlide = index + 1);
+  }
+
+  Future<void> _showGoToSlide() async {
+    final total = _slideCount;
+    if (total == 0) return;
+    final ctrl = TextEditingController(text: '$_currentSlide');
+    // Metin SEÇİLİ açılır: kullanıcı numarayı silmeden üstüne yazabilsin.
+    ctrl.selection =
+        TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('sl.goto')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration:
+              InputDecoration(labelText: ctx.t('sl.goto_hint', {'total': total})),
+          onSubmitted: (v) => Navigator.pop(ctx, int.tryParse(v.trim())),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(ctx, int.tryParse(ctrl.text.trim())),
+            child: Text(ctx.t('common.go')),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (value != null) await _goToSlide(value);
+  }
+
+  /// Slaytların düz metni — arama ve AI özeti aynı kaynağı kullanır.
+  /// Slayt numarası metne yazılır: özet "3. slaytta…" diyebilsin, arama
+  /// sonucu hangi slaytta olduğunu gösterebilsin.
+  List<String> _slideTexts() => [
+        for (final slide in _editor?.slides ?? const <PptxSlide>[])
+          slide.paragraphs.map((p) => p.text).join('\n'),
+      ];
+
+  void _toggleFind() {
+    setState(() {
+      _finding = !_finding;
+      if (!_finding) {
+        _findCtrl.clear();
+        _hits = const [];
+        _hitIndex = -1;
+        _hitLimit = false;
+      }
+    });
+  }
+
+  void _runSearch(String query) {
+    final result = searchSections(_slideTexts(), query);
+    setState(() {
+      _hits = result.hits;
+      _hitLimit = result.hitLimit;
+      _hitIndex = _hits.isEmpty ? -1 : 0;
+    });
+    if (_hits.isNotEmpty) _goToSlide(_hits.first.section + 1);
+  }
+
+  void _stepHit(int delta) {
+    if (_hits.isEmpty) return;
+    final next = (_hitIndex + delta) % _hits.length;
+    setState(() => _hitIndex = next < 0 ? _hits.length - 1 : next);
+    _goToSlide(_hits[_hitIndex].section + 1);
+  }
+
+  /// AI özeti — slayt numaralı düz metinle (bkz. [_slideTexts]).
+  Future<void> _summarize() async {
+    final texts = _slideTexts();
+    final buffer = StringBuffer();
+    for (var i = 0; i < texts.length; i++) {
+      if (texts[i].trim().isEmpty) continue;
+      buffer.writeln(
+          context.t('sl.slide_of', {'n': i + 1, 'total': texts.length}));
+      buffer.writeln(texts[i].trim());
+      buffer.writeln();
+    }
+    await AiSummaryFlow.run(context, buffer.toString(), title: widget.name);
+  }
+
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
-    return OfficeShell(
-      kind: DocKind.slides,
-      title: widget.name,
-      dirty: _dirty,
-      // Bütün eylemler ALT çubukta (2026-07-28 kullanıcı isteği: aynı işlev
-      // iki yerde durmasın). İstisna: metin kutusu düzenlenirken alt çubuk
-      // gizlendiği için Kaydet buraya çıkar.
-      actions: [
-        if (_editShapeVM != null)
-          IconButton(
-            tooltip: context.t('common.save'),
-            icon: const Icon(Icons.save_outlined),
-            onPressed: editor == null ? null : _save,
-          ),
-      ],
-      body: _error != null
-          ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
-          : editor == null
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  children: [
-                    Expanded(child: _buildSlides(editor)),
-                    if (_editShapeVM != null) _formatBar(),
-                  ],
+    final editing = _editShapeVM != null;
+    // GERİ TUŞU (2026-08-01 kullanıcı bulgusu: *"düzenleme başladığında geri
+    // tuşu düzenlemeyi kapatmalı, direk geri gidiyor"*). Metin kutusu açıkken
+    // geri, yazılanı kaydedip düzenlemeyi kapatır; ekrandan çıkmaz. Aynısı
+    // arama çubuğu için de geçerli — geri tuşu en üstteki katmanı kapatır.
+    return PopScope(
+      canPop: !editing && !_finding,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (editing) {
+          _finishEdit();
+        } else if (_finding) {
+          _toggleFind();
+        }
+      },
+      child: OfficeShell(
+        kind: DocKind.slides,
+        title: widget.name,
+        dirty: _dirty,
+        // Bütün eylemler ALT çubukta (2026-07-28 kullanıcı isteği: aynı işlev
+        // iki yerde durmasın). İstisna: metin kutusu düzenlenirken alt çubuk
+        // gizlendiği için Kaydet buraya çıkar; arama da altta karşılığı
+        // olmadığı için üstte durur (Excel'le aynı yer).
+        actions: [
+          if (editing)
+            IconButton(
+              tooltip: context.t('common.save'),
+              icon: const Icon(Icons.save_outlined),
+              onPressed: editor == null ? null : _save,
+            ),
+          if (!editing)
+            IconButton(
+              tooltip: context.t('common.search'),
+              icon: const Icon(Icons.search),
+              onPressed: editor == null ? null : _toggleFind,
+            ),
+        ],
+        body: _error != null
+            ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
+            : editor == null
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                    children: [
+                      if (_finding) _findBar(),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            _buildSlides(editor),
+                            // Konum rozeti — PDF'teki sayfa rozetiyle aynı
+                            // kurgu: nerede olduğunu söyler ve dokununca
+                            // "slayta git"i açar.
+                            if (!editing && editor.slides.isNotEmpty)
+                              Positioned(
+                                bottom: 12,
+                                right: 12,
+                                child: _slideBadge(editor.slides.length),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (editing) _formatBar(),
+                    ],
+                  ),
+        // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
+        // Metin kutusu düzenlenirken gizli: altta zaten biçim çubuğu var.
+        bottomBar: editing
+            ? null
+            : DocActionBar([
+                DocAction(Icons.play_arrow, context.t('sl.play'),
+                    editor == null ? null : () => _play(0)),
+                DocAction(Icons.summarize_outlined, context.t('ai.summarize'),
+                    editor == null ? null : _summarize),
+                DocAction(Icons.save_outlined, context.t('common.save'),
+                    editor == null ? null : _save),
+                DocAction(Icons.share_outlined, context.t('common.share'),
+                    editor == null ? null : _export),
+                DocAction(
+                  Icons.translate,
+                  context.t('common.translate'),
+                  () => TranslateFlow.run(context, widget.plainText,
+                      title: widget.name),
                 ),
-      // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
-      // Metin kutusu düzenlenirken gizli: altta zaten biçim çubuğu var.
-      bottomBar: _editShapeVM != null
-          ? null
-          : DocActionBar([
-              DocAction(Icons.play_arrow, context.t('sl.play'),
-                  editor == null ? null : () => _play(0)),
-              DocAction(Icons.save_outlined, context.t('common.save'),
-                  editor == null ? null : _save),
-              DocAction(Icons.share_outlined, context.t('common.share'),
-                  editor == null ? null : _export),
-              DocAction(
-                Icons.translate,
-                context.t('common.translate'),
-                () => TranslateFlow.run(context, widget.plainText,
-                    title: widget.name),
+              ]),
+        fab: editing
+            ? null
+            : FloatingActionButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ChatScreen(
+                    fileContext: widget.plainText,
+                    fileName: widget.name,
+                  ),
+                )),
+                tooltip: context.t('common.ai'),
+                child: const Icon(Icons.smart_toy_outlined),
               ),
-            ]),
-      fab: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            fileContext: widget.plainText,
-            fileName: widget.name,
+      ),
+    );
+  }
+
+  /// "Slayt 3 / 12" rozeti — dokununca [_showGoToSlide].
+  Widget _slideBadge(int total) {
+    return Material(
+      color: Colors.black54,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        key: SlidesEditorScreen.badgeKey,
+        borderRadius: BorderRadius.circular(16),
+        onTap: _showGoToSlide,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Text(
+            context.t('sl.slide_of', {'n': _currentSlide, 'total': total}),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
           ),
-        )),
-        tooltip: context.t('common.ai'),
-        child: const Icon(Icons.smart_toy_outlined),
+        ),
+      ),
+    );
+  }
+
+  /// Arama çubuğu — Excel'in "Bul"uyla aynı kurgu: yaz, ‹ › ile eşleşmeler
+  /// arasında gez, sayaç kaçıncı eşleşmede olduğunu söyler.
+  Widget _findBar() {
+    final scheme = Theme.of(context).colorScheme;
+    final hit = _hitIndex >= 0 && _hitIndex < _hits.length ? _hits[_hitIndex] : null;
+    return Material(
+      color: scheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _findCtrl,
+                    autofocus: true,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      hintText: context.t('sl.search_hint'),
+                    ),
+                    onChanged: _runSearch,
+                    onSubmitted: (_) => _stepHit(1),
+                  ),
+                ),
+                Text(
+                  _findCtrl.text.trim().isEmpty
+                      ? ''
+                      : _hits.isEmpty
+                          ? context.t('sl.no_match')
+                          : context.t('sl.match_pos', {
+                              'n': _hitIndex + 1,
+                              'total': '${_hits.length}${_hitLimit ? '+' : ''}',
+                            }),
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.keyboard_arrow_up),
+                  onPressed: _hits.isEmpty ? null : () => _stepHit(-1),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  onPressed: _hits.isEmpty ? null : () => _stepHit(1),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close),
+                  onPressed: _toggleFind,
+                ),
+              ],
+            ),
+            // Eşleşmenin BAĞLAMI: slaytın üstünde vurgulama yapamıyoruz
+            // (kanvas biçimli metin çiziyor), o yüzden bulunan yer buradan
+            // okunur — yoksa "3/12" sayacı hangi metni bulduğunu söylemezdi.
+            if (hit != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 2),
+                  child: Text(
+                    '${context.t('sl.slide_of', {
+                          'n': hit.section + 1,
+                          'total': _slideCount,
+                        })} · ${hit.snippet}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -200,6 +514,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
           // doğrusal olursa parmak kalkınca commit edilen düzen canlı önizlemeyle
           // birebir örtüşür ve "slaytlar zıplıyor" hissi kalkar (bkz. HAFIZA).
           final baseW = math.max(120.0, box.maxWidth - 32);
+          // "Slayta git" ve konum rozeti kart yüksekliklerini bu genişlikten
+          // hesaplıyor (bkz. _slideExtent) — build dışında da lazım.
+          _baseW = baseW;
           final cardW = baseW * _zoom;
           final totalW = math.max(box.maxWidth, cardW + 32 * _zoom);
           return SingleChildScrollView(
@@ -256,11 +573,19 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                   padding: const EdgeInsets.only(left: 4, bottom: 2),
                   child: Row(
                     children: [
-                      Text('Slayt ${slide.index}',
-                          style: Theme.of(context).textTheme.labelMedium),
+                      // Toplam da yazılır (2026-08-01 kullanıcı isteği):
+                      // tek slayda bakarken destenin kaç slayt olduğu
+                      // görünmüyordu.
+                      Text(
+                        context.t('sl.slide_of', {
+                          'n': slide.index,
+                          'total': _editor?.slides.length ?? 0,
+                        }),
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
                       const Spacer(),
                       IconButton(
-                        tooltip: 'Tam ekran sunum',
+                        tooltip: context.t('sl.fullscreen'),
                         visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.fullscreen, size: 20),
                         onPressed: () => _play(i),
@@ -612,7 +937,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
               const SizedBox(width: 4),
               FilledButton(
                 onPressed: _finishEdit,
-                child: const Text('Bitti'),
+                child: Text(context.t('sl.done')),
               ),
             ],
           ),

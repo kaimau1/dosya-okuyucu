@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../services/docx_editor.dart' show RunSeg;
+import 'office_shell.dart' show ZoomBadge, ZoomBadgeController;
+
 /// .docx belgesini **Word'deki sayfa görünümüyle** çizer: sayfa kenarları,
 /// stiller, tablolar, gömülü görseller, sütunlar. Canlı düzenleme modunda
 /// sayfanın kendisi contenteditable olur; değişen paragraflar `Kalem`
@@ -24,11 +27,19 @@ class DocxView extends StatefulWidget {
   final bool rightToLeft;
 
   /// Canlı düzenlemede bir paragraf değiştiğinde (indeks + biçimli parçalar).
-  final void Function(int index, List<(String, bool, bool, bool)> segs)?
-      onEdited;
+  final void Function(int index, List<RunSeg> segs)? onEdited;
 
-  /// Seçimin kalın/italik/altçizgi durumu değiştiğinde (araç çubuğu için).
-  final void Function(bool bold, bool italic, bool underline)? onSelection;
+  /// Seçimin kalın/italik/altçizgi + yazı tipi/punto durumu değiştiğinde
+  /// (araç çubuğu için). [font] boş, [sizePt] 0 ise okunamamış demektir.
+  final void Function(
+          bool bold, bool italic, bool underline, String font, double sizePt)?
+      onSelection;
+
+  /// Belgenin toplam sayfa sayısı çizildikten sonra bildirilir.
+  final void Function(int pages)? onPageCount;
+
+  /// Kaydırmayla görünen sayfa değiştiğinde (1 tabanlı).
+  final void Function(int page)? onPage;
 
   /// Canlı görünümde bir paragrafın hizalaması değiştiğinde
   /// (indeks + 'left'|'center'|'right'|'both') — kaydetmede `w:jc` olur.
@@ -49,6 +60,8 @@ class DocxView extends StatefulWidget {
     this.onAlign,
     this.onStatus,
     this.onParagraphCount,
+    this.onPageCount,
+    this.onPage,
   });
 
   @override
@@ -59,13 +72,18 @@ class DocxViewState extends State<DocxView> {
   late final WebViewController _controller;
   bool _loading = true;
   String? _error;
-  double _zoom = 1.0;
 
-  void _zoomBy(double f) {
-    setState(() => _zoom = (_zoom * f).clamp(0.5, 3.0));
-    // Pinch'e ek olarak düğmeyle de: sayfayı JS ile ölçekle.
-    _controller.runJavaScript("document.body.style.zoom='$_zoom'");
-  }
+  /// Sayfanın o anki toplam ölçeği (sığdırma × kullanıcı çarpanı) — rozet için.
+  /// Değeri JS bildirir; Flutter tarafı kendi başına hesaplayamaz. (Bu köprü
+  /// olmadığı için Word'de zoom yüzdesi rozeti yoktu — KALANLAR maddesi.)
+  double _zoom = 1.0;
+  late final _badge = ZoomBadgeController(setState);
+
+  /// Yakınlaştırma **tek yoldan** yapılır: JS'teki `zoomBy` CSS `zoom`
+  /// değiştirir ve tarayıcı metni yeniden dizer (keskin kalır). Native
+  /// WebView pinch'i bilinçli KAPALI — o çizilmiş kareyi büyütüp
+  /// bulanıklaştırıyordu (2026-08-01 kullanıcı bulgusu).
+  void _zoomBy(double f) => _controller.runJavaScript('zoomBy($f)');
 
   @override
   void initState() {
@@ -73,7 +91,8 @@ class DocxViewState extends State<DocxView> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFF3F2F1)) // Fluent kanvas
-      ..enableZoom(true)
+      ..enableZoom(false)
+      ..addJavaScriptChannel('Sayfa', onMessageReceived: _onSayfa)
       ..addJavaScriptChannel('Durum', onMessageReceived: (m) {
         if (!mounted) return;
         final err = m.message.startsWith('hata') ? m.message : null;
@@ -114,7 +133,12 @@ class DocxViewState extends State<DocxView> {
     if (data['sel'] is Map) {
       final s = data['sel'] as Map;
       widget.onSelection?.call(
-          s['b'] == true, s['i'] == true, s['u'] == true);
+        s['b'] == true,
+        s['i'] == true,
+        s['u'] == true,
+        '${s['font'] ?? ''}',
+        (s['size'] as num?)?.toDouble() ?? 0,
+      );
       return;
     }
     if (data['a'] is Map) {
@@ -125,17 +149,46 @@ class DocxViewState extends State<DocxView> {
       return;
     }
     if (data['i'] is int && data['segs'] is List) {
-      final segs = <(String, bool, bool, bool)>[
+      final segs = <RunSeg>[
         for (final seg in data['segs'] as List)
           if (seg is List && seg.isNotEmpty)
-            (
+            RunSeg(
               '${seg[0]}',
               seg.length > 1 && seg[1] == true,
               seg.length > 2 && seg[2] == true,
               seg.length > 3 && seg[3] == true,
+              // 5. ve 6. alan yalnız kullanıcı yazı tipi/punto SEÇTİYSE dolu
+              // gelir; null ise dosyadaki biçim korunur (bkz. viewer.html).
+              font: seg.length > 4 && seg[4] is String && (seg[4] as String).isNotEmpty
+                  ? seg[4] as String
+                  : null,
+              sizePt: seg.length > 5 && seg[5] is num && (seg[5] as num) > 0
+                  ? (seg[5] as num).toDouble()
+                  : null,
             ),
       ];
       widget.onEdited?.call(data['i'] as int, segs);
+    }
+  }
+
+  /// Sayfa sayacı ve yakınlaştırma oranı kanalı.
+  void _onSayfa(JavaScriptMessage m) {
+    if (!mounted) return;
+    final dynamic data;
+    try {
+      data = jsonDecode(m.message);
+    } catch (_) {
+      return;
+    }
+    if (data is! Map) return;
+    if (data['pages'] is int) widget.onPageCount?.call(data['pages'] as int);
+    if (data['page'] is int) widget.onPage?.call(data['page'] as int);
+    if (data['zoom'] is num) {
+      final z = (data['zoom'] as num).toDouble();
+      if ((z - _zoom).abs() > 0.001) {
+        setState(() => _zoom = z);
+        _badge.bump(z);
+      }
     }
   }
 
@@ -145,6 +198,18 @@ class DocxViewState extends State<DocxView> {
 
   /// Seçime biçim uygular: 'bold' | 'italic' | 'underline'.
   void format(String cmd) => _controller.runJavaScript("fmt('$cmd')");
+
+  /// Seçili paragraf(lar)ın yazı tipini değiştirir. Tek tırnak kaçırılır:
+  /// font adları ("Book Antiqua" gibi) boşluk içerebilir, tırnak da içerebilir.
+  void setFontFamily(String name) => _controller
+      .runJavaScript("setFontFamily('${name.replaceAll("'", r"\'")}')");
+
+  /// Seçili paragraf(lar)ın puntosunu değiştirir.
+  void setFontSize(double pt) =>
+      _controller.runJavaScript('setFontSize($pt)');
+
+  /// Belirtilen (1 tabanlı) Word sayfasına kaydırır.
+  void goToPage(int page) => _controller.runJavaScript('goToPage($page)');
 
   /// Belge yönünü günceller (sayfa çizildikten sonra da çağrılabilir).
   void setDocDir(bool rtl) =>
@@ -211,8 +276,24 @@ class DocxViewState extends State<DocxView> {
               ],
             ),
           ),
+        // Ölçek yüzdesi rozeti (Excel/slaytlardaki ile aynı).
+        if (_error == null)
+          Positioned(
+            top: 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ZoomBadge(zoom: _badge.zoom, visible: _badge.visible),
+            ),
+          ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _badge.dispose();
+    super.dispose();
   }
 }
 
