@@ -49,9 +49,9 @@ void main() {
     expect(editor.paragraphs.length, 2);
     expect(editor.paragraphs.first.text, 'Eski metin');
 
-    editor.setRuns(0, [
-      ('Merhaba ', false, false, false),
-      ('dünya', true, false, true),
+    editor.setRuns(0, const [
+      RunSeg('Merhaba ', false, false, false),
+      RunSeg('dünya', true, false, true),
     ]);
     expect(editor.paragraphs.first.text, 'Merhaba dünya');
 
@@ -69,16 +69,40 @@ void main() {
 
   test('segment içindeki satır sonu w:br olarak yazılır', () {
     final editor = DocxEditor.parse(_richSampleDocx());
-    editor.setRuns(0, [('üst\nalt', false, false, false)]);
+    editor.setRuns(0, const [RunSeg('üst\nalt', false, false, false)]);
 
     final saved = editor.save();
     expect(utf8.decode(_docXml(saved)), contains('<w:br/>'));
     expect(DocxEditor.parse(saved).paragraphs.first.text, 'üstalt');
   });
 
+  test('yazı tipi ve punto seçimi w:rFonts / w:sz olarak yazılır', () {
+    final editor = DocxEditor.parse(_richSampleDocx());
+    editor.setRuns(0, const [
+      RunSeg('Arial 14', false, false, false, font: 'Arial', sizePt: 14),
+    ]);
+    final xml = utf8.decode(_docXml(editor.save()));
+    expect(xml, contains('w:ascii="Arial"'));
+    expect(xml, contains('w:hAnsi="Arial"'));
+    expect(xml, contains('w:cs="Arial"'), reason: 'Arapça/karmaşık yazı da dönmeli');
+    // Word yarım punto tutar: 14 pt → 28.
+    expect(xml, contains('<w:sz w:val="28"/>'));
+    expect(xml, contains('<w:szCs w:val="28"/>'));
+  });
+
+  test('font/punto VERİLMEZSE şablonun biçimi ezilmez', () {
+    // Kullanıcı yalnız yazı yazdıysa dosyadaki stilden gelen font satır içi
+    // bir w:rFonts'a dönüşmemeli — belge stili sessizce donardı.
+    final editor = DocxEditor.parse(_richSampleDocx());
+    editor.setRuns(0, const [RunSeg('sade', false, false, false)]);
+    final xml = utf8.decode(_docXml(editor.save()));
+    expect(xml.contains('<w:sz '), isFalse);
+    expect(xml, contains('FF0000'), reason: 'şablon rPr yerinde kalmalı');
+  });
+
   test('rich olmayan paragraf save() ile eski yoldan güncellenir', () {
     final editor = DocxEditor.parse(_richSampleDocx());
-    editor.setRuns(0, [('Zengin', true, false, false)]);
+    editor.setRuns(0, const [RunSeg('Zengin', true, false, false)]);
     editor.paragraphs[1].text = 'Düz değişti';
 
     final again = DocxEditor.parse(editor.save());
@@ -170,7 +194,7 @@ void main() {
 
   test('rich (canlı yazılmış) paragrafta hizalama da kaydedilir', () {
     final e = DocxEditor.parse(_richSampleDocx());
-    e.setRuns(0, [('Merhaba', true, false, false)]);
+    e.setRuns(0, const [RunSeg('Merhaba', true, false, false)]);
     e.paragraphs[0].align = 'right'; // canlı hizalama düğmesinin yolu
 
     final again = DocxEditor.parse(e.save());

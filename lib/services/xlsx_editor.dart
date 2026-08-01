@@ -838,7 +838,8 @@ class XlsxEditor {
     final bytes = _excel.encode();
     if (bytes == null || bytes.isEmpty) return Uint8List(0);
     // `excel` paketinin yazamadıklarını (gizli satır/sütun, boş satır
-    // yüksekliği, sayfa yönü) zip üretildikten SONRA XML yamasıyla geri koy.
+    // yüksekliği, sayfa yönü, dondurulmuş bölme, ızgara çizgisi, otomatik
+    // süzgeç) zip üretildikten SONRA XML yamasıyla geri koy.
     return XlsxSavePatch.apply(Uint8List.fromList(bytes), [
       for (final s in sheets)
         XlsxSheetPatch(
@@ -846,6 +847,10 @@ class XlsxEditor {
           rightToLeft: s.rightToLeft,
           hiddenRows: s.layout.hiddenRows,
           hiddenCols: s.layout.hiddenCols,
+          frozenRows: s.layout.frozenRows,
+          frozenCols: s.layout.frozenCols,
+          showGridLines: s.layout.showGridLines,
+          autoFilterRef: s.layout.autoFilterRef,
           // Yalnız HİÇ HÜCRESİ OLMAYAN satırlar: paket `<row>`u yalnız
           // hücresi olan satır için yazıyor, o yüzden ayırıcı boş satırların
           // özel yüksekliği kaydetmede kayboluyordu.

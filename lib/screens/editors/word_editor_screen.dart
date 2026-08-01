@@ -46,7 +46,32 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   /// Mobil akış görünümü açık mı? (Sayfa görünümü varsayılan.)
   bool _flow = false;
   bool _selB = false, _selI = false, _selU = false;
+
+  /// İmlecin bulunduğu paragrafın yazı tipi/puntosu (araç çubuğu gösterir).
+  String _selFont = '';
+  double _selSize = 0;
+
+  /// Belgenin toplam sayfa sayısı ve görünen sayfa (canlı görünümden gelir).
+  int _pageCount = 0;
+  int _page = 1;
+
   final _viewKey = GlobalKey<DocxViewState>();
+
+  /// Biçim çubuğunda sunulan yazı tipleri. Uygulamayla **gömülü**, metrik
+  /// uyumlu karşılıkları olan aileler (bkz. `assets/word/viewer.html`):
+  /// listede olmayan bir ad seçtirmek, cihazda bulunmayan bir fonta yazıp
+  /// belgeyi Word'de bambaşka göstermek olurdu.
+  static const _fonts = <String>[
+    'Calibri',
+    'Times New Roman',
+    'Arial',
+    'Cambria',
+    'Helvetica',
+  ];
+
+  static const _sizes = <double>[
+    8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48,
+  ];
 
   /// Yedek editörde biçim araç çubuğunun üzerinde çalıştığı seçili paragraf.
   DocxParagraph? _sel;
@@ -128,7 +153,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         'word.live_edit_unsafe', {'web': webCount, 'ours': ours}));
   }
 
-  void _onEdited(int i, List<(String, bool, bool, bool)> segs) {
+  void _onEdited(int i, List<RunSeg> segs) {
     _editor?.setRuns(i, segs);
     if (!_dirty) setState(() => _dirty = true);
   }
@@ -141,19 +166,75 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     if (!_dirty) setState(() => _dirty = true);
   }
 
-  void _onSelection(bool b, bool i, bool u) {
-    if (b == _selB && i == _selI && u == _selU) return;
+  void _onSelection(bool b, bool i, bool u, String font, double size) {
+    if (b == _selB &&
+        i == _selI &&
+        u == _selU &&
+        font == _selFont &&
+        size == _selSize) {
+      return;
+    }
     setState(() {
       _selB = b;
       _selI = i;
       _selU = u;
+      _selFont = font;
+      _selSize = size;
     });
+  }
+
+  /// "Sayfaya git" — canlı görünümdeki sayfa rozetine dokununca.
+  Future<void> _showGoToPage() async {
+    final total = _pageCount;
+    if (total <= 0) return;
+    final ctrl = TextEditingController(text: '$_page');
+    ctrl.selection =
+        TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('word.goto_page')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+              labelText: ctx.t('word.goto_page_hint', {'total': total})),
+          onSubmitted: (v) => Navigator.pop(ctx, int.tryParse(v.trim())),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, int.tryParse(ctrl.text.trim())),
+            child: Text(ctx.t('common.go')),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (value != null) {
+      _viewKey.currentState?.goToPage(value.clamp(1, total));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
     final bytes = _bytes;
+    // Geri tuşu önce DÜZENLEMEYİ kapatır (slaytlarla aynı kural, 2026-08-01):
+    // yazarken yanlışlıkla ekrandan çıkmak yazılanı görünmez kılıyordu.
+    return PopScope(
+      canPop: !_editing,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _editing) _toggleEdit();
+      },
+      child: _buildShell(editor, bytes),
+    );
+  }
+
+  Widget _buildShell(DocxEditor? editor, Uint8List? bytes) {
     return OfficeShell(
       kind: DocKind.word,
       title: widget.name,
@@ -228,22 +309,42 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
               ? const Center(child: CircularProgressIndicator())
               : _plainMode
                   ? _buildPage(editor)
-                  : DocxView(
-                      key: _viewKey,
-                      bytes: bytes,
-                      rightToLeft: editor.rightToLeft,
-                      onEdited: _onEdited,
-                      onSelection: _onSelection,
-                      onAlign: _onAlignChanged,
-                      onParagraphCount: _onParagraphCount,
-                      onStatus: (ok) {
-                        if (!ok && mounted) {
-                          setState(() {
-                            _plainMode = true;
-                            _editing = false;
-                          });
-                        }
-                      },
+                  : Stack(
+                      children: [
+                        DocxView(
+                          key: _viewKey,
+                          bytes: bytes,
+                          rightToLeft: editor.rightToLeft,
+                          onEdited: _onEdited,
+                          onSelection: _onSelection,
+                          onAlign: _onAlignChanged,
+                          onParagraphCount: _onParagraphCount,
+                          onPageCount: (n) {
+                            if (n != _pageCount) setState(() => _pageCount = n);
+                          },
+                          onPage: (n) {
+                            if (n != _page) setState(() => _page = n);
+                          },
+                          onStatus: (ok) {
+                            if (!ok && mounted) {
+                              setState(() {
+                                _plainMode = true;
+                                _editing = false;
+                              });
+                            }
+                          },
+                        ),
+                        // Sayfa rozeti (2026-08-01 isteği: toplam sayfa sayısı
+                        // her belgede görünsün) — dokununca "sayfaya git".
+                        // Düzenleme sırasında gizli: klavye+çubuk zaten yer
+                        // kapıyor, rozet de zoom düğmelerinin yanına düşerdi.
+                        if (_pageCount > 0 && !_editing)
+                          Positioned(
+                            left: 12,
+                            bottom: 12,
+                            child: _pageBadge(),
+                          ),
+                      ],
                     ),
       // Klavye/biçim çubuğu varken FAB araya girmesin.
       fab: _editing
@@ -261,7 +362,27 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     );
   }
 
-  /// M365 mobil tarzı biçim çubuğu: B / I / U + bitti.
+  /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage].
+  Widget _pageBadge() {
+    return Material(
+      color: Colors.black54,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _showGoToPage,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Text(
+            context.t('word.page_of', {'n': _page, 'total': _pageCount}),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// M365 mobil tarzı biçim çubuğu: yazı tipi/punto + B / I / U + bitti.
   PreferredSizeWidget _formatBar() {
     Widget btn(String cmd, IconData icon, bool active, String tip) {
       return Container(
@@ -279,30 +400,46 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       );
     }
 
+    Widget sep() => Container(
+        width: 1,
+        height: 22,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        color: Colors.white38);
+
     return PreferredSize(
       preferredSize: const Size.fromHeight(48),
       child: SizedBox(
         height: 48,
         child: Row(
           children: [
-            const SizedBox(width: 8),
-            btn('bold', Icons.format_bold, _selB, context.t('common.bold')),
-            btn('italic', Icons.format_italic, _selI,
-                context.t('common.italic')),
-            btn('underline', Icons.format_underlined, _selU,
-                context.t('common.underline')),
-            Container(
-                width: 1,
-                height: 22,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                color: Colors.white38),
-            btn('justifyLeft', Icons.format_align_left, false,
-                context.t('common.align_left')),
-            btn('justifyCenter', Icons.format_align_center, false,
-                context.t('common.align_center')),
-            btn('justifyRight', Icons.format_align_right, false,
-                context.t('common.align_right')),
-            const Spacer(),
+            // Düğmeler sığmazsa YATAY kaydırılır; "Bitti" kaydırmanın DIŞINDA
+            // kalır — dar ekranda düzenlemeden çıkış düğmesi kaybolmamalı.
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    _fontMenu(),
+                    _sizeMenu(),
+                    sep(),
+                    btn('bold', Icons.format_bold, _selB,
+                        context.t('common.bold')),
+                    btn('italic', Icons.format_italic, _selI,
+                        context.t('common.italic')),
+                    btn('underline', Icons.format_underlined, _selU,
+                        context.t('common.underline')),
+                    sep(),
+                    btn('justifyLeft', Icons.format_align_left, false,
+                        context.t('common.align_left')),
+                    btn('justifyCenter', Icons.format_align_center, false,
+                        context.t('common.align_center')),
+                    btn('justifyRight', Icons.format_align_right, false,
+                        context.t('common.align_right')),
+                  ],
+                ),
+              ),
+            ),
             TextButton.icon(
               onPressed: _toggleEdit,
               icon: const Icon(Icons.keyboard_hide, color: Colors.white, size: 18),
@@ -315,6 +452,78 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       ),
     );
   }
+
+  /// Yazı tipi seçici. Seçim **paragrafa** uygulanır (bkz. viewer.html:
+  /// seçimi span'la sarmak `<p>` eşlemesini bozabiliyor).
+  Widget _fontMenu() {
+    final current = _fonts.contains(_selFont) ? _selFont : null;
+    return PopupMenuButton<String>(
+      tooltip: context.t('word.font_family'),
+      onSelected: (v) => _viewKey.currentState?.setFontFamily(v),
+      itemBuilder: (_) => [
+        for (final f in _fonts)
+          CheckedPopupMenuItem(
+            value: f,
+            checked: f == current,
+            child: Text(f, style: TextStyle(fontFamily: f)),
+          ),
+      ],
+      child: _barChip(
+        // Bilinmeyen (listede olmayan) bir font geldiyse adı yine gösterilir:
+        // "hangi fonttayım" bilgisi seçebilmekten bağımsız olarak değerli.
+        _selFont.isEmpty ? context.t('word.font_family') : _selFont,
+        icon: Icons.text_fields,
+      ),
+    );
+  }
+
+  Widget _sizeMenu() {
+    final shown = _selSize > 0 ? _selSize : null;
+    return PopupMenuButton<double>(
+      tooltip: context.t('word.font_size'),
+      onSelected: (v) => _viewKey.currentState?.setFontSize(v),
+      itemBuilder: (_) => [
+        for (final s in _sizes)
+          CheckedPopupMenuItem(
+            value: s,
+            // Dosyadan gelen punto ara bir değer olabilir (11.5); eşitlik
+            // yerine yakınlık aranır, yoksa hiçbiri işaretli görünmezdi.
+            checked: shown != null && (shown - s).abs() < 0.25,
+            child: Text('${s.round()}'),
+          ),
+      ],
+      child: _barChip(
+        shown == null ? '—' : '${shown.round()}',
+        icon: Icons.format_size,
+      ),
+    );
+  }
+
+  Widget _barChip(String label, {required IconData icon}) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white24,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        constraints: const BoxConstraints(maxWidth: 150),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
+          ],
+        ),
+      );
 
   /// Yedek düz metin editörü: paragraf bazlı biçim (B/I/U, hizalama) +
   /// paragraf ekle/sil — canlı düzenlemede olmayan yapısal işlemler burada.

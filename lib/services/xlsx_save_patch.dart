@@ -22,19 +22,39 @@ class XlsxSheetPatch {
   /// zaten `ht`/`customHeight` ile yazılıyor.
   final Map<int, double> rowHeightsPt;
 
+  /// Dondurulmuş bölme: üstte sabit kalan satır ve solda sabit kalan sütun
+  /// sayısı (`<pane state="frozen" xSplit="…" ySplit="…"/>`). 0 = bölme yok.
+  final int frozenRows;
+  final int frozenCols;
+
+  /// Sayfada ızgara çizgileri görünüyor mu (`<sheetView showGridLines="0"/>`).
+  /// Excel varsayılanı AÇIK; yalnız kapalıysa yazılır.
+  final bool showGridLines;
+
+  /// Otomatik süzgeç aralığı (`<autoFilter ref="A1:D20"/>`). null = süzgeç yok.
+  final String? autoFilterRef;
+
   const XlsxSheetPatch({
     required this.name,
     this.rightToLeft = false,
     this.hiddenRows = const {},
     this.hiddenCols = const {},
     this.rowHeightsPt = const {},
+    this.frozenRows = 0,
+    this.frozenCols = 0,
+    this.showGridLines = true,
+    this.autoFilterRef,
   });
 
   bool get isEmpty =>
       !rightToLeft &&
       hiddenRows.isEmpty &&
       hiddenCols.isEmpty &&
-      rowHeightsPt.isEmpty;
+      rowHeightsPt.isEmpty &&
+      frozenRows == 0 &&
+      frozenCols == 0 &&
+      showGridLines &&
+      autoFilterRef == null;
 }
 
 /// `excel` paketinin **yazamadığı** sayfa niteliklerini, üretilen .xlsx
@@ -51,6 +71,12 @@ class XlsxSheetPatch {
 ///    özel yüksekliği kayboluyordu.
 /// 3. **Sayfa yönü** (`rightToLeft`) — okunuyordu ama yazılmıyordu; Arapça/
 ///    İbranice bir sayfa bizde kaydedilince Excel'de soldan sağa açılıyordu.
+/// 4. **Dondurulmuş bölme** (`<pane state="frozen"/>`), **ızgara çizgisi**
+///    (`showGridLines="0"`) ve **otomatik süzgeç** (`<autoFilter>`) — üçü de
+///    okunup ekranda uygulanıyordu ama pakette yazma karşılığı yok: başlık
+///    satırı donmuş bir tabloyu bizde tek hücre düzenleyip kaydeden kullanıcı
+///    dosyayı Excel'de açtığında bölmenin çözülmüş, süzgeç oklarının kaybolmuş
+///    olduğunu görüyordu (2026-08-01).
 ///
 /// **Neden yama, neden paketi değiştirmek değil:** `excel` paketini çatallamak
 /// bakım borcu; buradaki yama girdi olarak yalnız zip baytlarını alıyor, saf
@@ -164,34 +190,50 @@ class XlsxSavePatch {
     final root = doc.rootElement;
     var changed = false;
 
-    if (_applyDirection(root, patch.rightToLeft)) changed = true;
+    if (_applyView(root, patch)) changed = true;
     if (_applyHiddenCols(root, patch.hiddenCols)) changed = true;
     if (_applyRows(root, patch)) changed = true;
+    if (_applyAutoFilter(root, patch.autoFilterRef)) changed = true;
 
     return changed ? doc.toXmlString() : null;
   }
 
-  /// `<sheetViews><sheetView rightToLeft="1"/></sheetViews>`.
-  static bool _applyDirection(XmlElement root, bool rtl) {
-    final views = _firstChild(root, 'sheetViews');
+  /// `<sheetViews><sheetView …/></sheetViews>` — yön, ızgara çizgisi ve
+  /// dondurulmuş bölme aynı düğümde durur, hepsi tek geçişte yazılır.
+  static bool _applyView(XmlElement root, XlsxSheetPatch patch) {
+    final needsView =
+        patch.rightToLeft || !patch.showGridLines || _hasFreeze(patch);
+    var views = _firstChild(root, 'sheetViews');
     if (views == null) {
-      if (!rtl) return false;
-      final view = XmlElement(XmlName('sheetView'), [
-        XmlAttribute(XmlName('rightToLeft'), '1'),
+      if (!needsView) return false;
+      views = XmlElement(XmlName('sheetViews'));
+      _insertOrdered(root, views);
+    }
+    var view = _firstChild(views, 'sheetView');
+    if (view == null) {
+      if (!needsView) return false;
+      view = XmlElement(XmlName('sheetView'), [
         XmlAttribute(XmlName('workbookViewId'), '0'),
       ]);
-      _insertOrdered(root, XmlElement(XmlName('sheetViews'), [], [view]));
-      return true;
+      views.children.add(view);
     }
-    final view = _firstChild(views, 'sheetView');
-    if (view == null) {
-      if (!rtl) return false;
-      views.children.add(XmlElement(XmlName('sheetView'), [
-        XmlAttribute(XmlName('rightToLeft'), '1'),
-        XmlAttribute(XmlName('workbookViewId'), '0'),
-      ]));
-      return true;
+
+    var changed = false;
+    if (_applyDirection(view, patch.rightToLeft)) changed = true;
+    if (_applyGridLines(view, patch.showGridLines)) changed = true;
+    if (_applyPane(view, patch)) changed = true;
+
+    // Hiçbir şey yazılmadıysa boş kabuk bırakma (dosyayı gereksiz değiştirir).
+    if (!changed && view.attributes.length <= 1 && view.children.isEmpty) {
+      views.children.remove(view);
+      if (views.children.isEmpty) views.parent?.children.remove(views);
     }
+    return changed;
+  }
+
+  static bool _hasFreeze(XlsxSheetPatch p) => p.frozenRows > 0 || p.frozenCols > 0;
+
+  static bool _applyDirection(XmlElement view, bool rtl) {
     final current = view.getAttribute('rightToLeft');
     final already = current == '1' || current == 'true';
     if (already == rtl) return false;
@@ -200,6 +242,97 @@ class XlsxSavePatch {
     } else {
       view.removeAttribute('rightToLeft');
     }
+    return true;
+  }
+
+  /// Izgara çizgisi Excel'de VARSAYILAN olarak açıktır; nitelik yalnız
+  /// kapalıyken yazılır, açıkken (varsa) kaldırılır.
+  static bool _applyGridLines(XmlElement view, bool show) {
+    final current = view.getAttribute('showGridLines');
+    final already = !(current == '0' || current == 'false');
+    if (already == show) return false;
+    if (show) {
+      view.removeAttribute('showGridLines');
+    } else {
+      view.setAttribute('showGridLines', '0');
+    }
+    return true;
+  }
+
+  /// Dondurulmuş bölme. `<pane>` **sheetView'ın İLK çocuğu** olmalıdır
+  /// (CT_SheetView sırası: pane → selection → …); yanlış sıra Excel'de
+  /// "onarılamayan içerik" uyarısı demek.
+  ///
+  /// `topLeftCell` bölmenin ALTINDA/SAĞINDA kalan ilk hücredir; `activePane`
+  /// hangi bölmenin etkin olduğunu söyler (Excel'in kendi yazdığı değerler:
+  /// yalnız satır donmuşsa `bottomLeft`, yalnız sütun donmuşsa `topRight`,
+  /// ikisi birdense `bottomRight`).
+  static bool _applyPane(XmlElement view, XlsxSheetPatch patch) {
+    final existing = _firstChild(view, 'pane');
+    if (!_hasFreeze(patch)) {
+      if (existing == null) return false;
+      // Kullanıcı bölmeyi kaldırdıysa düğüm de gitmeli.
+      view.children.remove(existing);
+      return true;
+    }
+    final rows = patch.frozenRows;
+    final cols = patch.frozenCols;
+    final activePane = rows > 0 && cols > 0
+        ? 'bottomRight'
+        : (rows > 0 ? 'bottomLeft' : 'topRight');
+    final pane = XmlElement(XmlName('pane'), [
+      if (cols > 0) XmlAttribute(XmlName('xSplit'), '$cols'),
+      if (rows > 0) XmlAttribute(XmlName('ySplit'), '$rows'),
+      XmlAttribute(XmlName('topLeftCell'), _cellRef(rows, cols)),
+      XmlAttribute(XmlName('activePane'), activePane),
+      XmlAttribute(XmlName('state'), 'frozen'),
+    ]);
+    if (existing != null) {
+      if (_sameAttributes(existing, pane)) return false;
+      final at = view.children.indexOf(existing);
+      view.children[at] = pane;
+      return true;
+    }
+    view.children.insert(0, pane);
+    return true;
+  }
+
+  static bool _sameAttributes(XmlElement a, XmlElement b) {
+    if (a.attributes.length != b.attributes.length) return false;
+    for (final attr in b.attributes) {
+      if (a.getAttribute(attr.name.qualified) != attr.value) return false;
+    }
+    return true;
+  }
+
+  /// 0 tabanlı satır/sütun → "B2" biçiminde A1 başvurusu.
+  static String _cellRef(int row, int col) {
+    var n = col + 1;
+    final letters = <int>[];
+    while (n > 0) {
+      letters.add(65 + (n - 1) % 26);
+      n = (n - 1) ~/ 26;
+    }
+    return '${String.fromCharCodes(letters.reversed)}${row + 1}';
+  }
+
+  /// `<autoFilter ref="A1:D20"/>` — `sheetData`dan SONRA gelir.
+  static bool _applyAutoFilter(XmlElement root, String? ref) {
+    final existing = _firstChild(root, 'autoFilter');
+    if (ref == null || ref.isEmpty) {
+      if (existing == null) return false;
+      root.children.remove(existing);
+      return true;
+    }
+    if (existing != null) {
+      if (existing.getAttribute('ref') == ref) return false;
+      existing.setAttribute('ref', ref);
+      return true;
+    }
+    _insertOrdered(
+      root,
+      XmlElement(XmlName('autoFilter'), [XmlAttribute(XmlName('ref'), ref)]),
+    );
     return true;
   }
 
@@ -355,6 +488,25 @@ class XlsxSavePatch {
     'sheetFormatPr',
     'cols',
     'sheetData',
+    // `sheetData`dan SONRAKİ kardeşler de listede: `autoFilter` sona eklenseydi
+    // `mergeCells`/`pageMargins`in ARKASINA düşerdi — şema sırası bozulurdu.
+    'sheetCalcPr',
+    'sheetProtection',
+    'protectedRanges',
+    'scenarios',
+    'autoFilter',
+    'sortState',
+    'dataConsolidate',
+    'customSheetViews',
+    'mergeCells',
+    'phoneticPr',
+    'conditionalFormatting',
+    'dataValidations',
+    'hyperlinks',
+    'printOptions',
+    'pageMargins',
+    'pageSetup',
+    'headerFooter',
   ];
 
   static void _insertOrdered(XmlElement root, XmlElement child) {
@@ -367,7 +519,8 @@ class XlsxSavePatch {
       final node = root.children[i];
       if (node is! XmlElement) continue;
       final other = _worksheetOrder.indexOf(node.name.local);
-      // Listede olmayan öğe (`sheetData` sonrasındakiler) daima sonradır.
+      // Listede olmayan öğe (`drawing`, `legacyDrawing`, `extLst`…) şemada
+      // listedekilerin tamamından SONRA gelir → önüne konur.
       if (other < 0 || other > rank) {
         root.children.insert(i, child);
         return;

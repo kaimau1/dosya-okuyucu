@@ -5,7 +5,33 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 /// Canlı düzenlemeden gelen tek biçimli metin parçası.
-typedef RunSeg = (String text, bool bold, bool italic, bool underline);
+///
+/// [font] ve [sizePt] **null bırakılabilir**: o zaman parça şablon
+/// çalıştırmanın (`w:rPr`) yazı tipini/puntosunu miras alır. Görünümden gelen
+/// hesaplanmış değeri koşulsuz yazmak, dosyada stilden gelen fontu her
+/// düzenlemede satır içi bir `w:rFonts`e dönüştürür ve belge stilini
+/// sessizce dondururdu.
+class RunSeg {
+  final String text;
+  final bool bold;
+  final bool italic;
+  final bool underline;
+
+  /// Yazı tipi ailesi (`w:rFonts`). null = şablondakini koru.
+  final String? font;
+
+  /// Punto (`w:sz`, dosyada yarım-punto). null = şablondakini koru.
+  final double? sizePt;
+
+  const RunSeg(
+    this.text,
+    this.bold,
+    this.italic,
+    this.underline, {
+    this.font,
+    this.sizePt,
+  });
+}
 
 /// Düzenlenebilir bir Word paragrafı (orijinal XML düğümüne bağlı).
 ///
@@ -236,15 +262,18 @@ class DocxEditor {
     el.children.removeWhere(
         (n) => !(n is XmlElement && n.name.qualified == 'w:pPr'));
 
-    for (final (text, bold, italic, underline) in segs) {
+    for (final seg in segs) {
+      final text = seg.text;
       if (text.isEmpty) continue;
       final run = XmlElement(XmlName('w:r'));
       final rPr = templateRPr == null
           ? XmlElement(XmlName('w:rPr'))
           : (templateRPr.copy());
-      _setToggle(rPr, 'w:b', bold);
-      _setToggle(rPr, 'w:i', italic);
-      _setUnderline(rPr, underline);
+      _setToggle(rPr, 'w:b', seg.bold);
+      _setToggle(rPr, 'w:i', seg.italic);
+      _setUnderline(rPr, seg.underline);
+      if (seg.font != null) _setFont(rPr, seg.font!);
+      if (seg.sizePt != null) _setSize(rPr, seg.sizePt!);
       run.children.add(rPr);
       // '\n' canlı düzenlemedeki satır sonudur (Enter → <br>) → w:br yazılır.
       final parts = text.split('\n');
@@ -259,7 +288,7 @@ class DocxEditor {
       el.children.add(run);
     }
 
-    para.text = segs.map((s) => s.$1).join();
+    para.text = segs.map((s) => s.text).join();
     para.rich = true;
   }
 
@@ -395,6 +424,30 @@ class DocxEditor {
   void _setToggle(XmlElement rPr, String name, bool on) {
     _removeElems(rPr, (e) => e.name.qualified == name);
     if (on) rPr.children.insert(0, XmlElement(XmlName(name)));
+  }
+
+  /// Yazı tipi ailesi. Word dört ayrı alan tutar (ascii / hAnsi / cs / eastAsia);
+  /// üçünü birden yazmak şart: yalnız `w:ascii` yazılsa Latin olmayan harfler
+  /// (Türkçe'de sorun yok ama Arapça/Yunanca'da var) eski fontta kalırdı.
+  void _setFont(XmlElement rPr, String font) {
+    _removeElems(rPr, (e) => e.name.qualified == 'w:rFonts');
+    final el = XmlElement(XmlName('w:rFonts'))
+      ..setAttribute('w:ascii', font)
+      ..setAttribute('w:hAnsi', font)
+      ..setAttribute('w:cs', font);
+    // rPr'nin ilk çocuğu olmalı (CT_RPr sırası: rFonts → b → i → …).
+    rPr.children.insert(0, el);
+  }
+
+  /// Punto. Dosyada **yarım punto** cinsindendir (12 pt → `w:sz w:val="24"`).
+  /// `w:szCs` (karmaşık yazı) da yazılır, yoksa Arapça metin eski boyutta kalır.
+  void _setSize(XmlElement rPr, double pt) {
+    final half = (pt.clamp(1.0, 409.0) * 2).round();
+    _removeElems(rPr,
+        (e) => e.name.qualified == 'w:sz' || e.name.qualified == 'w:szCs');
+    rPr.children.add(XmlElement(XmlName('w:sz'))..setAttribute('w:val', '$half'));
+    rPr.children
+        .add(XmlElement(XmlName('w:szCs'))..setAttribute('w:val', '$half'));
   }
 
   void _setUnderline(XmlElement rPr, bool on) {

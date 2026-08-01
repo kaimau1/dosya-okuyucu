@@ -18,6 +18,39 @@ void main() {
     }
   });
 
+  test('bulanıklık: native pinch KAPALI, yakınlaştırma CSS zoom ile', () async {
+    // Native pinch çizilmiş kareyi büyütür (bulanık); CSS zoom metni yeniden
+    // dizer (keskin). Biri geri gelirse kullanıcı yine bulanık yazı görür.
+    final html = await rootBundle.loadString('assets/word/viewer.html');
+    final meta = RegExp(r'<meta name="viewport"[^>]*>').firstMatch(html)?.group(0);
+    expect(meta, isNotNull);
+    expect(meta, contains('user-scalable=no'));
+    expect(html, contains('window.zoomBy'));
+    expect(html, contains("wrap.style.zoom"));
+    // Gövde zoom'u ikinci bir ölçek katmanıydı; tek yol kaldı.
+    expect(html, isNot(contains('document.body.style.zoom')));
+  });
+
+  test('köprü sözleşmesi: Flutter\'ın çağırdığı JS işlevleri viewer\'da var',
+      () async {
+    // DocxViewState bu adları runJavaScript ile çağırıyor; biri yeniden
+    // adlandırılırsa hata sessizdir (JS konsolunda kalır) — burada yakalanır.
+    final html = await rootBundle.loadString('assets/word/viewer.html');
+    for (final fn in [
+      'setEditable',
+      'setDocDir',
+      'setFlow',
+      'goToPage',
+      'setFontFamily',
+      'setFontSize',
+      'zoomBy',
+    ]) {
+      expect(html, contains(fn), reason: '$fn viewer.html\'de yok');
+    }
+    // Sayfa sayacı kanalı (Flutter tarafında 'Sayfa' adıyla dinleniyor).
+    expect(html, contains('window.Sayfa'));
+  });
+
   test('sadakat: MS font aliasları viewer.html\'de ve dosyalar gömülü', () async {
     final html = await rootBundle.loadString('assets/word/viewer.html');
     // Metrik-uyumlu ikame olmadan satır/sayfa kırma Word'den sapar.

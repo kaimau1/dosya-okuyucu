@@ -40,6 +40,52 @@ List<int> findAll(String haystack, String needle, {int limit = 5000}) {
   return out;
 }
 
+/// Bölümlere ayrılmış bir belgede (slayt, sayfa, sayfa sekmesi…) tek eşleşme.
+class SectionHit {
+  /// Eşleşmenin bulunduğu bölümün 0 tabanlı sırası.
+  final int section;
+
+  /// Eşleşmenin bölüm metnindeki başlangıç indeksi.
+  final int offset;
+
+  /// Listede gösterilecek kısa bağlam (eşleşme ortada kalacak şekilde).
+  final String snippet;
+
+  const SectionHit(this.section, this.offset, this.snippet);
+}
+
+/// Bölüm bölüm arama: [sections] içindeki her metinde [query]'yi arar.
+///
+/// Sonuç **belge sırasındadır** (önce 1. slayt, sonra 2.…), böylece ‹ ›
+/// gezinmesi kullanıcının gördüğü sırayla ilerler. [limit] kasıtlı düşük:
+/// tek harflik bir aramada binlerce eşleşme listelemek ekranı dondurur ve
+/// gezinmeyi anlamsızlaştırır — sınıra dayanıldığı çağırana `hitLimit` ile
+/// bildirilir (sessiz kırpma "başka eşleşme yok" sanılır).
+({List<SectionHit> hits, bool hitLimit}) searchSections(
+  List<String> sections,
+  String query, {
+  int limit = 200,
+  int context = 30,
+}) {
+  final out = <SectionHit>[];
+  if (query.trim().isEmpty) return (hits: out, hitLimit: false);
+  for (var i = 0; i < sections.length; i++) {
+    final text = sections[i];
+    // Sınırdan BİR FAZLA istenir: "tam sınır kadar buldum" ile "daha var ama
+    // kestim" ancak fazladan bir eşleşme görülerek ayrılabilir.
+    for (final at in findAll(text, query, limit: limit - out.length + 1)) {
+      if (out.length >= limit) return (hits: out, hitLimit: true);
+      final from = (at - context).clamp(0, text.length);
+      final to = (at + query.trim().length + context).clamp(0, text.length);
+      final snippet = (from > 0 ? '…' : '') +
+          text.substring(from, to).replaceAll('\n', ' ').trim() +
+          (to < text.length ? '…' : '');
+      out.add(SectionHit(i, at, snippet));
+    }
+  }
+  return (hits: out, hitLimit: false);
+}
+
 /// Metin istatistikleri (kelime/karakter/satır/paragraf).
 class TextStats {
   final int words;

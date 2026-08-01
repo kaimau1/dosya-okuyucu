@@ -168,6 +168,64 @@ void main() {
       expect(_first(root, 'cols')!.children.length, 1);
     });
 
+    test('dondurulmuş bölme <pane> olarak yazılır ve sheetView\'ın İLK çocuğu olur',
+        () {
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', frozenRows: 1, frozenCols: 2),
+      ]);
+      final view = _all(_sheetXml(out), 'sheetView').single;
+      final pane = _first(view, 'pane')!;
+      expect(pane.getAttribute('state'), 'frozen');
+      expect(pane.getAttribute('ySplit'), '1');
+      expect(pane.getAttribute('xSplit'), '2');
+      expect(pane.getAttribute('topLeftCell'), 'C2');
+      expect(pane.getAttribute('activePane'), 'bottomRight');
+      // CT_SheetView sırası: pane her şeyden önce gelmeli.
+      expect(view.children.whereType<XmlElement>().first, same(pane));
+    });
+
+    test('yalnız satır donmuşsa xSplit yazılmaz, etkin bölme bottomLeft olur', () {
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', frozenRows: 2),
+      ]);
+      final pane = _first(_all(_sheetXml(out), 'sheetView').single, 'pane')!;
+      expect(pane.getAttribute('xSplit'), isNull);
+      expect(pane.getAttribute('ySplit'), '2');
+      expect(pane.getAttribute('topLeftCell'), 'A3');
+      expect(pane.getAttribute('activePane'), 'bottomLeft');
+    });
+
+    test('ızgara çizgisi yalnız KAPALIYKEN yazılır', () {
+      final off = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', showGridLines: false),
+      ]);
+      expect(
+          _all(_sheetXml(off), 'sheetView').single.getAttribute('showGridLines'),
+          '0');
+
+      // Açık = Excel varsayılanı; nitelik eklenmemeli (dosya değişmemeli).
+      final on = _sampleBook();
+      expect(
+        identical(
+          XlsxSavePatch.apply(on, const [XlsxSheetPatch(name: 'Sheet1')]),
+          on,
+        ),
+        isTrue,
+      );
+    });
+
+    test('otomatik süzgeç sheetData\'dan SONRA eklenir', () {
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', autoFilterRef: 'A1:C3'),
+      ]);
+      final root = _sheetXml(out);
+      expect(_first(root, 'autoFilter')!.getAttribute('ref'), 'A1:C3');
+      final names =
+          root.children.whereType<XmlElement>().map((e) => e.name.local).toList();
+      expect(names.indexOf('autoFilter'),
+          greaterThan(names.indexOf('sheetData')));
+    });
+
     test('bozuk girdi kaydetmeyi KIRMAZ, baytlar olduğu gibi döner', () {
       final junk = Uint8List.fromList(List<int>.filled(64, 7));
       final out = XlsxSavePatch.apply(junk, const [
@@ -217,7 +275,47 @@ void main() {
       final reopened = XlsxEditor.parse(editor.save());
       expect(reopened.sheets.first.isRowHidden(0), isTrue);
     });
+
+    test('dondurulmuş bölme, kapalı ızgara ve süzgeç gidiş-dönüşte korunur', () {
+      // Kullanıcının başlık satırı donmuş tablosunda tek hücre düzenleyip
+      // kaydetmek bölmeyi çözüyordu (2026-08-01 sadakat turu).
+      final editor = XlsxEditor.parse(_bookWithView());
+      final sheet = editor.sheets.first;
+      expect(sheet.frozenRows, 1, reason: 'fixture okunamadıysa test anlamsız');
+      expect(sheet.frozenCols, 1);
+      expect(sheet.showGridLines, isFalse);
+
+      editor.setCell(sheet.name, 1, 1, 'yeni'); // sıradan bir düzenleme
+      final reopened = XlsxEditor.parse(editor.save()).sheets.first;
+      expect(reopened.frozenRows, 1);
+      expect(reopened.frozenCols, 1);
+      expect(reopened.showGridLines, isFalse);
+      expect(reopened.layout.autoFilterRef, 'A1:C3');
+    });
   });
+}
+
+/// Dondurulmuş bölme + kapalı ızgara + otomatik süzgeç içeren bir çalışma
+/// kitabı (Excel'in gerçek dosyalarındaki `sheetView` yapısı).
+Uint8List _bookWithView() {
+  final book = _sampleBook();
+  var xml = utf8.decode(
+    ZipDecoder()
+        .decodeBytes(book)
+        .files
+        .firstWhere((f) => f.name == 'xl/worksheets/sheet1.xml')
+        .content as List<int>,
+  );
+  xml = xml.replaceFirst(
+    RegExp(r'<sheetView[^>]*/>|<sheetView[^>]*>.*?</sheetView>', dotAll: true),
+    '<sheetView showGridLines="0" workbookViewId="0">'
+        '<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" '
+        'state="frozen"/>'
+        '</sheetView>',
+  );
+  xml = xml.replaceFirst(
+      '</worksheet>', '<autoFilter ref="A1:C3"/></worksheet>');
+  return _rebuild(book, xml);
 }
 
 /// `sheet1.xml`i verilen metinle değiştirip zip'i yeniden kurar (testte

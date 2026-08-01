@@ -1,6 +1,24 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **2026-08-01 turu cihaz doğrulaması (kullanıcı)** — (a) slaytta her kartın
+      üstünde ve sağ alt rozette **"Slayt 3 / 12"** yazıyor mu, rozete
+      dokununca "Slayta git" açılıp o slayda ATLIYOR mu (yakınlaştırılmış
+      hâlde de doğru yere), (b) üstteki 🔍 ile aranan kelime bulunuyor,
+      ‹ › eşleşmeler arasında geziyor, altındaki bağlam satırı hangi slaytta
+      olduğunu söylüyor mu, (c) alt çubuktaki **AI özet** → "Kısa"/"Detaylı"
+      seçenekleri geliyor ve özet slayt numaralarına atıf yapıyor mu,
+      (d) slaytta bir metin kutusuna dokunup düzenlemeye geçince **geri tuşu**
+      ekrandan çıkmak yerine düzenlemeyi kapatıyor mu (Word'de de aynı),
+      (e) Word'de **yakınlaştırınca yazı keskin mi** (pinch artık JS/CSS zoom;
+      bulanıklık gitmeli), ölçek rozeti (%) çıkıyor mu, (f) Word biçim
+      çubuğundaki **yazı tipi/punto** seçimi paragrafa uygulanıp KAYDEDİLİYOR
+      mu (kaydet → Word'de aç → font ve punto korunmuş olmalı), (g) Word'de
+      sol alt **"Sayfa 3 / 12"** rozeti doğru sayıyor ve dokununca o sayfaya
+      gidiyor mu, (h) Excel durum çubuğunun sağında **"Sayfa 1 / 3"** var mı,
+      (i) **dondurulmuş bölmesi olan** bir Excel dosyasında tek hücre değiştirip
+      kaydet → masaüstü Excel'de aç → bölme, ızgara ayarı ve süzgeç okları
+      DURUYOR mu.
 - [ ] **Google Drive cihaz doğrulaması (kullanıcı)** — 2026-07-30: Pano →
       Araçlar → **Google Drive** → (a) "Google ile bağlan" hesap seçtiriyor ve
       Drive izni soruyor mu, (b) bir dosyaya uzun bas → **Drive'a yükle** →
@@ -191,8 +209,6 @@
 ## Sonra yapılacak
 - [ ] **PDF form doldurma (en son)** — Syncfusion `PdfLoadedForm` alanları oku (`doc.form.fields`),
       ekranda düzenlenebilir overlay, doldur → save. En belirsiz UX; en son.
-- [ ] Excel: dondurulmuş bölme (frozen pane) desteği — kullanıcının SAHU dosyasında var,
-      şu an yok sayılıyor (tek parça kaydırma)
 - [ ] Yol haritası #2: Firebase config + gerçek senkron (kullanıcı `flutterfire configure`)
 
 ## Bilinen eksik-risk
@@ -201,9 +217,13 @@
       Metin kutusu/köprü içeren belgelerde cihazda doğrulanmalı (2026-07-22)
 - [ ] Excel pinch: kaydırma sürerken başlayan pinch ilk denemede tutmayabilir
       (ilk parmağın sahipliği scrollable'da kalır); cihazda rahatsız ederse iyileştirilecek
-- [ ] Word'de zoom % rozeti yok (native WebView zoom ölçeği Flutter'a bildirmiyor);
-      istenirse visualViewport JS köprüsü
 - [ ] Koyu temada Word WebView kanvası açık kalıyor (sayfa zaten beyaz; bilinçli erteleme)
+- [ ] **Word'de yazı tipi/punto PARAGRAF düzeyinde** (2026-08-01): seçimin
+      ortasındaki üç kelimeye ayrı punto verilemiyor. Bilinçli sınır — seçimi
+      `<span>`la sarmak `<p>` sayısını değiştirip canlı düzenlemenin paragraf
+      eşlemesini bozabiliyor (sigorta düzenlemeyi tamamen kapatır). Gerekirse
+      yol: seçimi paragraf sınırında BÖLÜP her parçayı ayrı sarmak ve eşlemeyi
+      `data-p-index` gibi bir kimlikle indeksten bağımsız hale getirmek.
 
 ## Dosya yöneticisi (2026-07-25) — cihaz doğrulaması gereken/ertelenen işler
 - [ ] **İzin akışı (kullanıcı, cihaz):** ilk açılışta "Tüm dosyalara erişim" kartı →
