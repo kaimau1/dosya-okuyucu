@@ -21,6 +21,7 @@ import '../../services/formula_engine.dart';
 import '../../services/sheet_edit.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/doc_more_sheet.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/sheet_cell.dart';
@@ -883,17 +884,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           onSelected: (v) {
             if (v == 'goto') _showGoTo();
             if (v == 'freeze') _toggleFreeze();
-            if (v == 'colw') _showSizeDialog(col: _selCol);
-            if (v == 'rowh') _showSizeDialog(row: _selRow);
             if (v == 'rtl') _toggleSheetDirection();
           },
+          // Sütun genişliği / satır yüksekliği buradan kalktı: artık
+          // "Daha fazla" sayfasında, ait oldukları Satır/Sütun grubunda.
           itemBuilder: (_) => [
             PopupMenuItem(
                 value: 'goto', child: Text(context.t('excel.goto_cell_menu'))),
-            PopupMenuItem(
-                value: 'colw', child: Text(context.t('excel.column_width'))),
-            PopupMenuItem(
-                value: 'rowh', child: Text(context.t('excel.row_height'))),
             CheckedPopupMenuItem(
               value: 'rtl',
               checked: _sheet?.rightToLeft ?? false,
@@ -1156,16 +1153,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     setState(() {});
   }
 
+  /// Biçim çubuğu — **sade tutulur**: sık kullanılan altı kontrol ikonla
+  /// burada, gerisi etiketli "Daha fazla" sayfasında (`DocMoreSheet`).
+  ///
+  /// **Neden:** çubuk 20 ikona kadar şişmişti ve telefonda `tooltip`
+  /// görünmediği için hiçbirinin ne yaptığı belli değildi; kullanıcı yatayda
+  /// kör kaydırıp deneyerek buluyordu. Aynı ders `DocActionBar`da 2026-07-27'de
+  /// öğrenilmişti, biçim çubuğu dışarıda kalmıştı.
   Widget _rowColBar() {
     final scheme = Theme.of(context).colorScheme;
     final selStyle = _sheet?.styleAt(_selRow, _selCol);
-    Widget btn(IconData icon, String tip, VoidCallback onTap) => IconButton(
-          tooltip: tip,
-          visualDensity: VisualDensity.compact,
-          iconSize: 20,
-          icon: Icon(icon),
-          onPressed: onTap,
-        );
+    final align = selStyle?.hAlign;
+
     Widget toggle(IconData icon, String tip, bool active, VoidCallback onTap) =>
         IconButton(
           tooltip: tip,
@@ -1178,94 +1177,121 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           icon: Icon(icon),
           onPressed: onTap,
         );
-    Widget divider() => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Container(width: 1, height: 22, color: scheme.outlineVariant),
-        );
+
     return Container(
       color: scheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(context.t('excel.row'),
-                  style:
-                      TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-            ),
-            btn(Icons.keyboard_arrow_up, context.t('excel.insert_row_above'),
-                () => _insertRow(below: false)),
-            btn(Icons.keyboard_arrow_down, context.t('excel.insert_row_below'),
-                () => _insertRow(below: true)),
-            btn(Icons.remove, context.t('excel.delete_row'), _deleteRow),
-            divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(context.t('excel.column'),
-                  style:
-                      TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-            ),
-            btn(Icons.keyboard_arrow_left, context.t('excel.insert_col_left'),
-                () => _insertColumn(right: false)),
-            btn(Icons.keyboard_arrow_right, context.t('excel.insert_col_right'),
-                () => _insertColumn(right: true)),
-            btn(Icons.remove, context.t('excel.delete_col'), _deleteColumn),
-            divider(),
-            // Pano ve Σ — Excel mobilin "Giriş" sekmesindeki çekirdek eylemler.
-            btn(Icons.content_cut, context.t('excel.cut'),
-                () => _copySelection(cut: true)),
-            btn(Icons.content_copy, context.t('common.copy'), _copySelection),
-            btn(Icons.content_paste, context.t('excel.paste'), _paste),
-            btn(Icons.backspace_outlined, context.t('excel.clear_contents'),
-                _clearSelection),
-            btn(Icons.functions, context.t('excel.autosum'), _autoSum),
-            divider(),
-            // Sayı biçimi — Excel mobilin "Giriş > Sayı" bölümü.
-            PopupMenuButton<String>(
-              tooltip: context.t('excel.number_format'),
-              icon: const Icon(Icons.tag, size: 20),
-              onSelected: (code) => _applyNumberFormat((_) => code),
-              itemBuilder: (_) => [
-                for (final (key, code) in _numberFormatPresets)
-                  CheckedPopupMenuItem(
-                    value: code,
-                    checked: _sheet?.numFmtCode(_selRow, _selCol) == code,
-                    child: Text(context.t(key)),
-                  ),
-              ],
-            ),
-            btn(Icons.add, context.t('excel.decimal_more'),
-                () => _applyNumberFormat((c) => bumpDecimals(c, 1))),
-            btn(Icons.remove_circle_outline, context.t('excel.decimal_less'),
-                () => _applyNumberFormat((c) => bumpDecimals(c, -1))),
-            divider(),
-            toggle(Icons.format_bold, context.t('common.bold'),
-                selStyle?.bold ?? false,
-                () => _applyStyle(bold: !(selStyle?.bold ?? false))),
-            toggle(Icons.format_italic, context.t('common.italic'),
-                selStyle?.italic ?? false,
-                () => _applyStyle(italic: !(selStyle?.italic ?? false))),
-            toggle(
-                Icons.format_align_left,
-                context.t('common.align_left'),
-                selStyle?.hAlign == XlsxHAlign.left,
-                () => _applyStyle(align: TextAlign.left)),
-            toggle(
-                Icons.format_align_center,
-                context.t('common.align_center'),
-                selStyle?.hAlign == XlsxHAlign.center,
-                () => _applyStyle(align: TextAlign.center)),
-            toggle(
-                Icons.format_align_right,
-                context.t('common.align_right'),
-                selStyle?.hAlign == XlsxHAlign.right,
-                () => _applyStyle(align: TextAlign.right)),
-          ],
-        ),
+      child: Row(
+        children: [
+          toggle(Icons.format_bold, context.t('common.bold'),
+              selStyle?.bold ?? false,
+              () => _applyStyle(bold: !(selStyle?.bold ?? false))),
+          toggle(Icons.format_italic, context.t('common.italic'),
+              selStyle?.italic ?? false,
+              () => _applyStyle(italic: !(selStyle?.italic ?? false))),
+          // Hizalama üç ayrı düğme yerine TEK menü: seçenekler birbirini
+          // dışlıyor, üç slot harcamaya değmez ve etkin olan menüde işaretli.
+          PopupMenuButton<TextAlign>(
+            tooltip: context.t('excel.alignment'),
+            icon: Icon(_alignIcon(align), size: 20),
+            onSelected: (a) => _applyStyle(align: a),
+            itemBuilder: (_) => [
+              CheckedPopupMenuItem(
+                value: TextAlign.left,
+                checked: align == XlsxHAlign.left,
+                child: Text(context.t('common.align_left')),
+              ),
+              CheckedPopupMenuItem(
+                value: TextAlign.center,
+                checked: align == XlsxHAlign.center,
+                child: Text(context.t('common.align_center')),
+              ),
+              CheckedPopupMenuItem(
+                value: TextAlign.right,
+                checked: align == XlsxHAlign.right,
+                child: Text(context.t('common.align_right')),
+              ),
+            ],
+          ),
+          PopupMenuButton<String>(
+            tooltip: context.t('excel.number_format'),
+            icon: const Icon(Icons.tag, size: 20),
+            onSelected: (code) => _applyNumberFormat((_) => code),
+            itemBuilder: (_) => [
+              for (final (key, code) in _numberFormatPresets)
+                CheckedPopupMenuItem(
+                  value: code,
+                  checked: _sheet?.numFmtCode(_selRow, _selCol) == code,
+                  child: Text(context.t(key)),
+                ),
+            ],
+          ),
+          IconButton(
+            tooltip: context.t('excel.autosum'),
+            visualDensity: VisualDensity.compact,
+            iconSize: 20,
+            icon: const Icon(Icons.functions),
+            onPressed: _autoSum,
+          ),
+          const Spacer(),
+          // Etiketli sayfa: seyrek ama gerekli olan her şey burada.
+          TextButton.icon(
+            onPressed: _showMore,
+            icon: const Icon(Icons.more_horiz, size: 20),
+            label: Text(context.t('common.more')),
+          ),
+        ],
       ),
     );
+  }
+
+  IconData _alignIcon(XlsxHAlign? align) => switch (align) {
+        XlsxHAlign.center => Icons.format_align_center,
+        XlsxHAlign.right => Icons.format_align_right,
+        XlsxHAlign.justify => Icons.format_align_justify,
+        _ => Icons.format_align_left,
+      };
+
+  /// Çubuğa sığmayan eylemler — hepsi ETİKETLİ ve konusuna göre gruplu.
+  void _showMore() {
+    _endEdit();
+    DocMoreSheet.show(context, [
+      DocMoreGroup(context.t('excel.group_clipboard'), [
+        DocMoreItem(Icons.content_cut, context.t('excel.cut'),
+            () => _copySelection(cut: true)),
+        DocMoreItem(
+            Icons.content_copy, context.t('common.copy'), _copySelection),
+        DocMoreItem(Icons.content_paste, context.t('excel.paste'), _paste),
+        DocMoreItem(Icons.backspace_outlined,
+            context.t('excel.clear_contents'), _clearSelection),
+      ]),
+      DocMoreGroup(context.t('excel.group_number'), [
+        DocMoreItem(Icons.add, context.t('excel.decimal_more'),
+            () => _applyNumberFormat((c) => bumpDecimals(c, 1))),
+        DocMoreItem(Icons.remove, context.t('excel.decimal_less'),
+            () => _applyNumberFormat((c) => bumpDecimals(c, -1))),
+      ]),
+      DocMoreGroup(context.t('excel.row'), [
+        DocMoreItem(Icons.keyboard_arrow_up,
+            context.t('excel.insert_row_above'), () => _insertRow(below: false)),
+        DocMoreItem(Icons.keyboard_arrow_down,
+            context.t('excel.insert_row_below'), () => _insertRow(below: true)),
+        DocMoreItem(
+            Icons.delete_outline, context.t('excel.delete_row'), _deleteRow),
+        DocMoreItem(Icons.height, context.t('excel.row_height'),
+            () => _showSizeDialog(row: _selRow)),
+      ]),
+      DocMoreGroup(context.t('excel.column'), [
+        DocMoreItem(Icons.keyboard_arrow_left, context.t('excel.insert_col_left'),
+            () => _insertColumn(right: false)),
+        DocMoreItem(Icons.keyboard_arrow_right,
+            context.t('excel.insert_col_right'), () => _insertColumn(right: true)),
+        DocMoreItem(
+            Icons.delete_outline, context.t('excel.delete_col'), _deleteColumn),
+        DocMoreItem(Icons.straighten, context.t('excel.column_width'),
+            () => _showSizeDialog(col: _selCol)),
+      ]),
+    ]);
   }
 
   /// Excel'in durum çubuğu: seçili aralığın ortalaması / sayısı / toplamı.

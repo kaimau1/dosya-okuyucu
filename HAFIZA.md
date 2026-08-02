@@ -5577,3 +5577,48 @@ bazen paragrafı geri alır). Yığın yalnız yapısal işlemleri taşıyor.
 ### Doğrulama
 Flutter 3.29.3: `analyze` **0 hata**, **1184 test yeşil** (+3).
 Cihazda doğrulama YAPILMADI → KALANLAR.
+
+## 2026-08-02 (5. tur) — Arayüz: "sade ama kullanışlı" (araç çubuğu kuralı)
+
+Kullanıcı: *"arayüzümüz konusunda çalışmalıyız, sana bıraktım, bizi sade ama
+kullanışlı bir hale getir."*
+
+### Denetim: ön kapı iyi, KALABALIK belge ekranlarında
+Ana ekran zaten sade (3 sekme: Dosyalar / Son / AI) ve alt eylem çubukları
+tutarlı (Düzenle · Kaydet · Paylaş + türe özel). Sorun biçim çubuklarındaydı.
+
+**Excel biçim çubuğu 20 kontrole çıkmıştı** — üstelik çoğunu bu oturumda ben
+ekledim. Hepsi ikon-only ve tek satırda yatay kaydırmalı: kullanıcı ne
+olduğunu ancak deneyerek öğreniyor, üstelik kaydırmadan görmüyor bile.
+
+**Bu ders daha önce öğrenilmişti:** `DocActionBar`ın doğuş gerekçesi
+(2026-07-27) *"üst çubuktaki ikonların tooltip'i telefonda hiç görünmüyor"*.
+Biçim çubuğu o dersin dışında kalmış.
+
+### KURAL (bundan sonra her belge ekranı için)
+**Çubukta en fazla ~5 sık kullanılan eylem ikonla; gerisi ETİKETLİ ve GRUPLU
+"Daha fazla" sayfasında.** Yeni ortak bileşen: `widgets/doc_more_sheet.dart`
+(`DocMoreSheet` / `DocMoreGroup` / `DocMoreItem`).
+
+- **Excel: 20 → 6.** Kalan: Kalın · İtalik · Hizalama · Sayı biçimi · Σ ·
+  Daha fazla. Sayfada gruplu: **Pano** (kes/kopyala/yapıştır/temizle),
+  **Sayı** (ondalık ±), **Satır** (ekle/sil/yükseklik), **Sütun**
+  (ekle/sil/genişlik).
+- **Hizalama üç düğme yerine TEK menü:** seçenekler birbirini dışlıyor, üç
+  slot harcamaya değmez ve etkin olan menüde işaretli görünüyor. Aynı desen
+  sayı biçiminde de var.
+- Sütun genişliği / satır yüksekliği ⋮ menüsünden kalktı: artık ait oldukları
+  Satır/Sütun grubunda (aynı işi iki yerde tutmamak).
+- **PDF görüntüleyici: 7 → 5 eylem.** İki döndürme ikonu (birbirinin aynası,
+  hangisinin ne yaptığı anlaşılmıyordu) etiketli ⋮ menüsüne taşındı. Dar
+  telefonda 7×48dp başlığa yer bırakmıyordu.
+
+### Karşı argüman ve cevabı
+Satır/sütun ekleme artık iki dokunuş uzakta. Kabul: seyrek kullanılan bir iş
+için bulunabilirlik > hız, üstelik artık ETİKETLİ. Excel mobil de bu işleri
+panele koyuyor. Sık olanlar (biçim, Σ) çubukta kaldı.
+
+### Doğrulama
+`analyze` 0 hata, **1184 test yeşil**. Ekran testleri yeni akıştan geçiyor
+(`tapMore` yardımcısı: "Daha fazla" → etiketli eylem), yani sayfa gerçekten
+açılıyor ve eylemler çalışıyor.

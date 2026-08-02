@@ -237,6 +237,15 @@ void main() {
     await tester.pump();
   }
 
+
+  /// "Daha fazla" sayfasını açıp etiketli bir eyleme dokunur.
+  Future<void> tapMore(WidgetTester tester, String label) async {
+    await tester.tap(find.text('Daha fazla'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('geri al/yinele düğmeleri düzenlemeyi geri sarar',
       (tester) async {
     await pump(tester);
@@ -270,8 +279,7 @@ void main() {
     await pump(tester);
     await tapCell(tester, '%15');
 
-    await tester.tap(find.byIcon(Icons.backspace_outlined));
-    await tester.pump();
+    await tapMore(tester, 'İçeriği temizle');
     expect(find.text('%15'), findsNothing);
 
     await tester.tap(find.byIcon(Icons.undo));
@@ -300,14 +308,12 @@ void main() {
     await pump(tester);
     await tapCell(tester, '%15');
     expect(formulaBar(tester), '0.15');
-    await tester.tap(find.byIcon(Icons.content_copy));
-    await tester.pumpAndSettle();
+    await tapMore(tester, 'Kopyala');
 
     // Metin içeren bir hücreye yapıştır.
     await tapCell(tester, 'Ürün');
     expect(formulaBar(tester), 'Ürün');
-    await tester.tap(find.byIcon(Icons.content_paste));
-    await tester.pumpAndSettle();
+    await tapMore(tester, 'Yapıştır');
     // **Yapıştırma yalnız DEĞERİ taşır, biçimi değil** (bilinçli sınır):
     // hedef hücrede yüzde biçimi olmadığı için "%15" değil ham 0,15 çizilir.
     expect(formulaBar(tester), '0.15');

@@ -1,5 +1,16 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
+- [ ] **2026-08-02 (5. tur) arayüz cihaz doğrulaması (kullanıcı).**
+      (a) Excel biçim çubuğu artık kısa mı (Kalın · İtalik · Hizalama ·
+      Sayı biçimi · Σ · **Daha fazla**) ve yatayda kaydırmaya gerek kalmıyor
+      mu, (b) **Daha fazla** sayfası açılıp Pano/Sayı/Satır/Sütun grupları
+      ETİKETLİ görünüyor mu, dokununca sayfa kapanıp iş yapılıyor mu,
+      (c) hizalama menüsü etkin hizalamayı işaretli gösteriyor mu,
+      (d) PDF'te üst çubuk daha ferah mı, döndürme ⋮ menüsünde bulunuyor mu,
+      (e) belge başlığı artık kırpılmadan okunuyor mu.
+      **Sonraki adım (istenirse):** aynı kural Word ve slayt biçim
+      çubuklarına da uygulanabilir — ikisi şu an sınırda (9 ve 11 kontrol).
+
 - [ ] **2026-08-02 (3-4. tur) cihaz doğrulaması (kullanıcı).**
       **Excel:** (a) bir sütun seç → biçim çubuğundaki **#** menüsünden
       *Para (₺)* / *Yüzde* / *Tarih* seç → hücreler o biçimde görünüyor mu,
