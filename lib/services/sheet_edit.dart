@@ -676,3 +676,95 @@ class SheetUndoStack {
     _undone.clear();
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sayı biçimi yardımcıları
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Excel'in "Ondalık artır / azalt" düğmeleri.
+///
+/// Biçim kodundaki **sayı bölümünün** ondalık basamak sayısını [delta] kadar
+/// değiştirir: `#,##0.00` → `#,##0.000`. Kod `General` ise sayı biçimi
+/// verilmemiş demektir; Excel bu durumda `0.00`/`0` üretir.
+///
+/// Metin (`@`), tarih ve saat biçimlerinde ondalık kavramı yok — kod
+/// değiştirilmeden döner.
+String bumpDecimals(String formatCode, int delta) {
+  final code = formatCode.trim();
+  if (code.isEmpty || code == 'General') {
+    final n = delta > 0 ? delta : 0;
+    return n == 0 ? 'General' : '0.${'0' * n}';
+  }
+  if (code == '@' || _looksLikeDateTimeCode(code)) return formatCode;
+
+  // Yalnız İLK bölüm (pozitif sayı bölümü) yeter: Excel de artır/azaltı
+  // oradan yürütür ve diğer bölümleri aynı basamakla hizalar.
+  final parts = code.split(';');
+  final updated = parts.map((p) => _bumpSection(p, delta)).toList();
+  return updated.join(';');
+}
+
+String _bumpSection(String section, int delta) {
+  final dot = section.indexOf('.');
+  if (dot < 0) {
+    if (delta <= 0) return section;
+    // Ondalık yok: sayı kalıbının hemen ardına eklenir.
+    final at = _numericEnd(section);
+    if (at < 0) return section;
+    return '${section.substring(0, at)}.${'0' * delta}${section.substring(at)}';
+  }
+  var end = dot + 1;
+  while (end < section.length &&
+      (section[end] == '0' || section[end] == '#')) {
+    end++;
+  }
+  final digits = end - dot - 1 + delta;
+  if (digits <= 0) {
+    return section.substring(0, dot) + section.substring(end);
+  }
+  return section.substring(0, dot + 1) +
+      '0' * digits +
+      section.substring(end);
+}
+
+/// Sayı kalıbının (`0`, `#`, `,`) bittiği konum; yoksa -1.
+int _numericEnd(String s) {
+  var last = -1;
+  for (var i = 0; i < s.length; i++) {
+    final ch = s[i];
+    if (ch == '0' || ch == '#') last = i;
+  }
+  return last < 0 ? -1 : last + 1;
+}
+
+/// Kod tarih/saat mi?
+///
+/// Yalnız **kalıp** bölümündeki `y`/`d`/`h`/`s` harfleri sayılır. Atlanması
+/// gerekenler:
+/// - tırnak içi sabit metin (`"adet"`),
+/// - **köşeli parantezli belirteçler** (`[Red]`, `[Kırmızı]`, `[h]`) — `[Red]`
+///   içindeki `d` yüzünden `#,##0.00;[Red]-#,##0.00` tarih sanılıyordu ve
+///   ondalık artır/azalt o kodda hiç çalışmıyordu,
+/// - ters eğik çizgiyle kaçırılmış tek karakter (`\d`).
+bool _looksLikeDateTimeCode(String code) {
+  var i = 0;
+  while (i < code.length) {
+    final ch = code[i];
+    if (ch == '"') {
+      i = _closingQuote(code, i);
+      continue;
+    }
+    if (ch == '[') {
+      final end = code.indexOf(']', i);
+      i = end < 0 ? code.length : end + 1;
+      continue;
+    }
+    if (ch == r'\') {
+      i += 2;
+      continue;
+    }
+    if ('ydhs'.contains(ch.toLowerCase())) return true;
+    i++;
+  }
+  return false;
+}

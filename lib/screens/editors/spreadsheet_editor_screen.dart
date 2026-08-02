@@ -1115,6 +1115,47 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     setState(() {});
   }
 
+  /// Excel mobilin "Sayı biçimi" listesi. Kodlar Türkçe Excel'in yazdığı
+  /// kodlarla aynı (para birimi ₺, tarih `dd.mm.yyyy`).
+  static const _numberFormatPresets = <(String, String)>[
+    ('excel.fmt_general', 'General'),
+    ('excel.fmt_number', '#,##0.00'),
+    ('excel.fmt_thousands', '#,##0'),
+    ('excel.fmt_currency', r'#,##0.00\ ₺'),
+    ('excel.fmt_percent', '0%'),
+    ('excel.fmt_date', 'dd.mm.yyyy'),
+    ('excel.fmt_time', 'hh:mm'),
+    ('excel.fmt_text', '@'),
+  ];
+
+  /// Seçili aralığa sayı biçimi uygular (geri alınabilir).
+  void _applyNumberFormat(String Function(String current) codeFor) {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final r = _range;
+    final before = <(int, int), String>{};
+    final after = <(int, int), String>{};
+    for (var row = r.top; row <= r.bottom; row++) {
+      for (var col = r.left; col <= r.right; col++) {
+        final current = sheet.numFmtCode(row, col);
+        final next = codeFor(current);
+        if (next == current) continue;
+        before[(row, col)] = current;
+        after[(row, col)] = next;
+      }
+    }
+    if (after.isEmpty) return;
+    void write(Map<(int, int), String> map) {
+      map.forEach((at, code) => sheet.setNumberFormat(at.$1, at.$2, code));
+    }
+
+    write(after);
+    _recordStep('excel.undo_number_format', () => write(after), () => write(before));
+    _dirty = true;
+    setState(() {});
+  }
+
   Widget _rowColBar() {
     final scheme = Theme.of(context).colorScheme;
     final selStyle = _sheet?.styleAt(_selRow, _selCol);
@@ -1180,6 +1221,25 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             btn(Icons.backspace_outlined, context.t('excel.clear_contents'),
                 _clearSelection),
             btn(Icons.functions, context.t('excel.autosum'), _autoSum),
+            divider(),
+            // Sayı biçimi — Excel mobilin "Giriş > Sayı" bölümü.
+            PopupMenuButton<String>(
+              tooltip: context.t('excel.number_format'),
+              icon: const Icon(Icons.tag, size: 20),
+              onSelected: (code) => _applyNumberFormat((_) => code),
+              itemBuilder: (_) => [
+                for (final (key, code) in _numberFormatPresets)
+                  CheckedPopupMenuItem(
+                    value: code,
+                    checked: _sheet?.numFmtCode(_selRow, _selCol) == code,
+                    child: Text(context.t(key)),
+                  ),
+              ],
+            ),
+            btn(Icons.add, context.t('excel.decimal_more'),
+                () => _applyNumberFormat((c) => bumpDecimals(c, 1))),
+            btn(Icons.remove_circle_outline, context.t('excel.decimal_less'),
+                () => _applyNumberFormat((c) => bumpDecimals(c, -1))),
             divider(),
             toggle(Icons.format_bold, context.t('common.bold'),
                 selStyle?.bold ?? false,

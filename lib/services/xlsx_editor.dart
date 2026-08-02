@@ -77,6 +77,7 @@ class XlsxCellStyle {
     bool? italic,
     XlsxHAlign? hAlign,
     Color? background,
+    String? numFmtCode,
   }) =>
       XlsxCellStyle(
         bold: bold ?? this.bold,
@@ -93,7 +94,7 @@ class XlsxCellStyle {
         indent: indent,
         rotation: rotation,
         border: border,
-        numFmtCode: numFmtCode,
+        numFmtCode: numFmtCode ?? this.numFmtCode,
       );
 }
 
@@ -281,6 +282,19 @@ class XlsxSheet {
   /// Uygulama içinde verilmiş biçim örtmesi (dosyadaki stil DEĞİL).
   /// Geri alma bunu yakalayıp geri koyar.
   XlsxCellStyle? overrideAt(int r, int c) => _overrides[cellKey(r, c)];
+
+  /// Kullanıcının bu oturumda verdiği sayı biçimleri — kaydetmede
+  /// [XlsxSavePatch] `styles.xml`e yazar (paket bunu yapamıyor, bkz. orada).
+  final Map<(int, int), String> numberFormatEdits = {};
+
+  /// Hücreye sayı biçimi verir: ekranda ANINDA uygulanır (biçim örtmesi) ve
+  /// kaydetmede dosyaya yazılır.
+  void setNumberFormat(int r, int c, String formatCode) {
+    if (r < 0 || c < 0) return;
+    final current = styleAt(r, c) ?? const XlsxCellStyle();
+    patchStyle(r, c, current.copyWith(numFmtCode: formatCode));
+    numberFormatEdits[(r, c)] = formatCode;
+  }
 
   void patchStyle(int r, int c, XlsxCellStyle? style) {
     if (r < 0 || c < 0) return;
@@ -974,6 +988,7 @@ class XlsxEditor {
             for (final e in s.layout.rowHeights.entries)
               if (e.value > 0 && _isEmptyRow(s, e.key)) e.key: e.value,
           },
+          numberFormats: s.numberFormatEdits,
         ),
     ]);
   }

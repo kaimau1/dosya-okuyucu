@@ -5510,3 +5510,42 @@ Flutter **3.29.3** (CI ile aynı): `analyze` **0 hata**, `flutter test`
 `spreadsheet_screen_test` +5 (geri al/yinele, temizle, kopyala-yapıştır, Σ,
 doldurma sürüklemesi, değiştir), `xlsx_editor_test` +3 (satır/sütun geri alma,
 `overrideAt`). Cihazda doğrulama YAPILMADI → KALANLAR "2026-08-02 (2. tur)".
+
+## 2026-08-02 (3. tur) — Excel sayı biçimi YAZMA: paket kaydetmeyi kırıyordu
+
+### KÖK NEDEN — `excel 4.0.6` biçim kodunu hücre TİPİYLE eşleştiriyor
+Sayı biçimini paketin `CellStyle.numberFormat` alanından yazmayı denedim.
+Paket, `save()` sırasında `numberFormat.accepts(value)` denetimi yapıyor ve
+uymazsa ya biçimi sessizce varsayılana çeviriyor ya da **istisna fırlatıyor**:
+
+    Exception: CustomDateTimeNumFormat("dd.mm.yyyy") does not work for IntCellValue
+
+Excel'de tarihler **sayı** (seri numarası) olarak saklandığı için "bu sütunu
+tarih yap" en sık istenen biçimlendirme — ve bu yolla dosya **hiç
+kaydedilemez** hâle geliyordu. Yani kullanıcı verisini kaybederdi.
+
+**Karar:** sayı biçimleri de `XlsxSavePatch`e taşındı (gizli satır/bölme/
+süzgeçle aynı yol). Yama `styles.xml`i doğrudan yazdığı için tip polisi yok.
+Bu aynı zamanda KALANLAR'daki tüm "biçim yazma" ailesinin (dolgu rengi,
+kenarlık, metin kaydırma…) altyapısı — hepsi aynı `_StyleTable`den geçecek.
+
+### `_StyleTable` — Excel'de biçim hücrede DEĞİL, tabloda durur
+Hücre yalnız `s="<cellXfs indeksi>"` yazar. Bir hücreye biçim vermek üç adım:
+1. biçim kodu için `numFmtId` (yerleşikse hazır id, değilse `<numFmts>`e
+   **164'ten** başlayan yeni kayıt),
+2. hücrenin ŞU ANKİ `<xf>`ini **kopyalayıp** `numFmtId`ini değiştir — sıfırdan
+   kurulsaydı biçim vermek yazı tipini/dolguyu/kenarlığı silerdi,
+3. aynı `<xf>` varsa indeksini **yeniden kullan**; her hücreye yeni `<xf>`
+   eklemek büyük tabloda stil tablosunu şişirir.
+Üçü de testli (`sayı biçimi hücrenin ÖTEKİ biçimlerini korur`,
+`aynı biçim iki hücrede TEK bir <xf> paylaşır`).
+
+### TUZAK — `[Red]` içindeki `d` yüzünden ondalık düğmeleri çalışmıyordu
+`bumpDecimals` tarih kodlarına dokunmuyor; tarih tespiti "kodda y/d/h/s var mı"
+diye bakıyordu. `#,##0.00;[Red]-#,##0.00` gibi ÇOK YAYGIN bir kodda `[Red]`
+parçası tarih sanılıyor ve ondalık artır/azalt sessizce hiçbir şey yapmıyordu.
+Tespit artık köşeli parantezli belirteçleri, tırnak içi sabitleri ve `\`
+kaçışlarını atlıyor.
+
+### Doğrulama
+Flutter 3.29.3: `analyze` **0 hata**, **1181 test yeşil** (+9).

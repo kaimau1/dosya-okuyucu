@@ -348,4 +348,46 @@ void main() {
       expect(a.contains(0, 2), isFalse);
     });
   });
+
+  group('bumpDecimals', () {
+    test('General ondalık eklenince sayı biçimine döner', () {
+      expect(bumpDecimals('General', 1), '0.0');
+      expect(bumpDecimals('General', 2), '0.00');
+      // Genel'de ondalık AZALTMAK anlamsız — kod değişmez.
+      expect(bumpDecimals('General', -1), 'General');
+    });
+
+    test('var olan ondalık artar ve azalır', () {
+      expect(bumpDecimals('0.00', 1), '0.000');
+      expect(bumpDecimals('0.00', -1), '0.0');
+      expect(bumpDecimals('0.0', -1), '0');
+      // Sıfırın altına inmez.
+      expect(bumpDecimals('0', -1), '0');
+    });
+
+    test('binlik ayracı ve para birimi korunur', () {
+      expect(bumpDecimals('#,##0.00', 1), '#,##0.000');
+      expect(bumpDecimals(r'#,##0.00\ ₺', -1), r'#,##0.0\ ₺');
+      // Ondalıksız koda basamak eklenirken sayı kalıbının ARDINA girer.
+      expect(bumpDecimals('#,##0', 2), '#,##0.00');
+    });
+
+    test('çok bölümlü kodun her bölümü hizalanır', () {
+      expect(bumpDecimals('#,##0.00;[Red]-#,##0.00', 1),
+          '#,##0.000;[Red]-#,##0.000');
+    });
+
+    test('metin, tarih ve saat biçimlerine dokunulmaz', () {
+      expect(bumpDecimals('@', 1), '@');
+      expect(bumpDecimals('dd.mm.yyyy', 1), 'dd.mm.yyyy');
+      expect(bumpDecimals('hh:mm', -1), 'hh:mm');
+      // Tırnak içindeki harf tarih sanılmamalı.
+      expect(bumpDecimals('0.00" adet"', 1), '0.000" adet"');
+    });
+
+    test('yüzde biçimi ondalık alır', () {
+      expect(bumpDecimals('0%', 1), '0.0%');
+      expect(bumpDecimals('0.00%', -1), '0.0%');
+    });
+  });
 }
