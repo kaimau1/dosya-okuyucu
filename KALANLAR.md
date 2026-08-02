@@ -1,6 +1,18 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
 ## Yarım kalan
+- [ ] **2026-08-02 turu cihaz doğrulaması (kullanıcı) — slayt şekilleri.**
+      İçinde süreç/akış diyagramı olan gerçek bir .pptx aç: (a) **oklar, üçgen,
+      elmas, chevron, yıldız, altıgen, artı, silindir, akış şeması kutuları
+      artık kendi biçiminde mi** (eskiden hepsi düz dikdörtgendi), (b) **geniş
+      bir elips** (basık oval) artık daire değil oval mi, (c) kırpılmış bir
+      **fotoğraf doğru kadrajda ve doğru en-boy oranında** mı, (d) kenarlıklı
+      bir fotoğrafın **çerçevesi görünüyor** mu, (e) yuvarlatılmış dikdörtgenin
+      köşe yuvarlaklığı PowerPoint'tekiyle aynı mı, (f) aynalanmış (flipH/flipV)
+      bir ok/üçgen doğru yöne bakıyor mu, (g) konuşma balonunun kuyruğu var mı.
+      **Bilinen sınır:** bulut (`cloud`) ve gözyaşı (`teardrop`) yaklaşık
+      çiziliyor; `bentArrow`/`circularArrow`/`ribbon` gibi tanımsız geometriler
+      hâlâ dikdörtgen düşüyor (bilinçli — yanlış biçim yerine kutu).
 - [ ] **2026-08-01 turu cihaz doğrulaması (kullanıcı)** — (a) slaytta her kartın
       üstünde ve sağ alt rozette **"Slayt 3 / 12"** yazıyor mu, rozete
       dokununca "Slayta git" açılıp o slayda ATLIYOR mu (yakınlaştırılmış
@@ -359,16 +371,13 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       geç kapatıyor olabilir) · `fm_trash` iki testi Android birim mantığına
       dayanıyor.
 
-- [ ] **Gizli satır/sütun kaydetmede kayboluyor (Excel sadakati).**
-      `excel 4.0.6` yazma API'sinde `hidden` karşılığı yok: `<cols>` ve
-      `sheetData` her kayıtta paketin kendi haritasından baştan üretiliyor
-      (`save_file.dart` `_setColumns` / `_setRows`), `<col hidden="1">` ve
-      `<row hidden="1">` hiç yazılmıyor. Genişlik/yükseklik kaybı
-      `XlsxEditor._seedSizes` ile kapatıldı ama gizlilik kapatılamadı.
-      Yol: `save()` sonrası zip'i açıp `xl/worksheets/*.xml` içindeki
-      `<col>`/`<row>` düğümlerine `hidden` özniteliğini geri yazmak
-      (bizim `layout.hiddenCols/hiddenRows` doğru veriyi tutuyor).
-      Aynı yama satır özel biçimini (`s`+`customFormat`) da kurtarır.
-- [ ] **Tamamen BOŞ satırın yüksekliği kaydedilmiyor.** Paket `<row>`u yalnız
-      hücresi olan satır için yazıyor. Ekranda doğru, dosyada kayıp.
-      Ucuz çözüm: yükseklik verilen boş satıra bir boş hücre yazmak.
+- [x] ~~**Gizli satır/sütun kaydetmede kayboluyor (Excel sadakati).**~~ →
+      **YAPILDI** (2026-08-02'de doğrulandı; madde eskimişti). Önerilen yol
+      uygulanmış: `services/xlsx_save_patch.dart` `save()` sonrası zip'i açıp
+      `<col hidden="1">` / `<row hidden="1">` yazıyor, `XlsxEditor.save`
+      `layout.hiddenRows/hiddenCols`u geçiriyor. Testli:
+      `xlsx_save_patch_test` (aralık bölme dahil).
+- [x] ~~**Tamamen BOŞ satırın yüksekliği kaydedilmiyor.**~~ → **YAPILDI**
+      (2026-08-02'de doğrulandı; madde eskimişti). `XlsxEditor.save`
+      `rowHeightsPt`e yalnız `_isEmptyRow` satırlarını koyuyor, yama `<row>`u
+      `ht`+`customHeight` ile üretiyor.

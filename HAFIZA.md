@@ -5384,3 +5384,70 @@ zaten sayfa rozetini ortada tutuyordu; slayt ve Word de aynı hizaya geldi.
 Sığdırma düzeltmesi ancak CİHAZDA görülebilir (WebView yerleşimi birim testi
 ile taklit edilemiyor) — `word_assets_test` yalnız sözleşmeyi kilitliyor
 (`scrollWidth` kullanılmıyor + doğrulama turu duruyor).
+
+## 2026-08-02 — Slayt sadakati: ön tanımlı şekiller ARTIK KUTU DEĞİL
+
+Kullanıcı isteği: *"sadakat geliştirmeleri için araştırma yap ve geliştir."*
+Araştırma turunda üç açık sadakat kaybı bulundu, üçü de PPTX çiziminde.
+
+### A) KÖK NEDEN — `BoxDecoration` üçgen çizemez
+`slide_canvas` şekilleri yalnız `BoxDecoration` ile çiziyordu. `BoxDecoration`
+sadece dikdörtgen (isteğe bağlı köşe yarıçapı) ve daire üretebilir; yani
+`a:prstGeom@prst` ne olursa olsun ekrana **düz dikdörtgen** düşüyordu:
+üçgen, elmas, ok, chevron, yıldız, altıgen, artı, silindir, küp, halka,
+akış şeması kutuları… Süreç/akış diyagramı içeren bir sunumda bu, sadakat
+kaybının en görünür biçimi — **okun yerinde kutu**.
+- Yeni modül `services/pptx_geometry.dart`: `prst` → `dart:ui` `Path`.
+  ECMA-376 `presetShapeDefinitions.xml` formülleri (`ss = min(w,h)`, ayarlar
+  1/100000) izlendi; **50+ şekil** tanımlı, saf `dart:ui` (widget/dosya G/Ç
+  yok) olduğu için yol geometrisi doğrudan birim testli.
+- `ShapeVM.preset` + `ShapeVM.adjust` eklendi. **Tanımadığımız geometri
+  sessizce `rect`e düşer** — yanlış çizmektense kutu çizmek daha az yanıltıcı
+  (bilerek alınan karar; `funkyShapeXyz` testi bunu kilitliyor).
+- `roundRect` yarıçapı artık `a:avLst`ten geliyor. Eskiden `min(w,h)*0.12`
+  sabitti; ECMA varsayılanı **16667/100000** ve kullanıcı sarı tutamağı
+  oynattıysa değer dosyada yazılı. Aynı yoldan `flowChartTerminator`
+  (stadyum) ve `flowChartAlternateProcess` de kutu ailesine bağlandı.
+
+### B) HATA — geniş elips DAİRE çiziliyordu
+`isEllipse` bayrağı `BoxShape.circle`a gidiyordu; Flutter orada **kısa kenara
+göre daire** çizer (`drawCircle(center, shortestSide/2)`). Yani 200x100'lük
+bir elips ekranda 100x100 daire oluyordu — hem yanlış biçim hem ortada
+kaybolmuş bir şekil. Elips artık yol olarak çiziliyor ve kutunun tamamını
+kaplıyor (`elips kutunun TAMAMINI kaplar — daire değil` testi).
+
+### C) `a:srcRect` (görsel kırpması) hiç okunmuyordu
+PowerPoint kırpmayı kaynağın kenarlarından atılan ORAN olarak saklar; görünen
+parça yine kutuyu doldurur. Biz kırpmayı yok sayıp görselin tamamını kutuya
+gerdiğimiz için fotoğraf hem **yanlış kadrajdan** hem **bozuk en-boy oranıyla**
+çıkıyordu. `_CroppedImage`: görsel `1/(1-l-r)` oranında büyütülüp `-l` kadar
+kaydırılıyor, `ClipRect` fazlasını kesiyor.
+
+### D) Görselin çerçevesi görselin ALTINDA kalıyordu
+`Container(decoration:…, child: img)` süslemeyi çocuktan ÖNCE boyar → kenarlıklı
+bir fotoğrafın çerçevesi görselin altında kayboluyordu. Çerçeve artık
+`foregroundDecoration`a (yol şekillerinde `foregroundPainter`a) taşındı.
+Bu yüzden `_GeometryPainter` `fill`/`stroke` bayrağı taşıyor: aynı yol iki
+katmanda, arada görsel.
+
+### TUZAKLAR
+- **Dart'ta `switch` gövdeleri TEK kapsam paylaşır.** İki ayrı `case` içinde
+  `final d` tanımlamak "already defined" derleme hatası; her gövde `{ }` ile
+  sarıldı. (İlk yazımda 6 çakışma vardı.)
+- **`Path.getBounds` YALAN SÖYLER** — Skia sınırı denetim noktalarından
+  hesaplar, yay içeren şekillerde çizilen hattın çok dışını verir: 200x100'lük
+  bir `chord` için `Rect(-41.4, 0, 170.7, 120.7)`. "Şekil kutuya sığıyor mu"
+  testi bu yüzden `computeMetrics` ile yolu ÖRNEKLİYOR (`_outlineBounds`).
+  Yol gerçekten taşmıyordu; ölçü aleti taşıyordu.
+- **OOXML `pie` varsayılanı 0°→270°** ve açı saat 3 yönünden SAAT YÖNÜNDE
+  ölçülür (kanvasla aynı yön). Boş kalan çeyrek **sağ üst**, sol üst değil —
+  testi ters yazınca yakalandı.
+- **Balon (`wedge*Callout`) kuyruğu şekil kutusunun DIŞINA taşar**; PowerPoint
+  de öyle çizer, bu yüzden "kutuya sığmalı" kuralının bilinçli istisnası.
+
+### Doğrulama
+Bulut oturumunda Flutter **3.29.3** (CI ile aynı): `flutter analyze` **0 hata**
+(kalan uyarılar önceden var olan `withOpacity` maddeleri), `flutter test`
+**1124 test yeşil**. Yeni testler: `pptx_geometry_test` 19,
+`pptx_render_test`e 4 (preset+avLst, yol çizimi, `srcRect`, çerçeve katmanı).
+Cihazda GÖRSEL doğrulama yapılmadı → KALANLAR "2026-08-02 turu".

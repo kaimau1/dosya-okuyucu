@@ -6,13 +6,18 @@ import 'package:archive/archive.dart';
 import 'package:flutter/painting.dart';
 import 'package:xml/xml.dart';
 
+import 'pptx_geometry.dart';
+
+export 'pptx_geometry.dart' show Adjust, PptxPresetShape;
+
 /// PPTX (Open XML) slaytlarını **gerçek tasarımıyla** çizebilmek için gereken
 /// geometri/renk/metin bilgisini çıkarır. Çizim `widgets/slide_canvas.dart`te.
 ///
 /// Ölçü birimi: **punto (pt)**. EMU -> pt = /12700.
-/// Kapsam: arka plan, düzen/asıl slayt (master) grafikleri, dikdörtgen/elips
-/// şekiller, dolgu + çerçeve, görseller, gruplar, metin (boyut/kalın/italik/
-/// renk/hizalama/madde işareti).
+/// Kapsam: arka plan, düzen/asıl slayt (master) grafikleri, ön tanımlı
+/// şekiller (`a:prstGeom` — üçgen/ok/elmas/yıldız/akış şeması… bkz.
+/// `pptx_geometry.dart`), dolgu + çerçeve, görseller (`a:srcRect` kırpmasıyla),
+/// gruplar, metin (boyut/kalın/italik/renk/hizalama/madde işareti).
 // Kapsam: düz renk + gradient dolgu, görsel, tablo (a:tbl), metin (Calibri/
 // Arial/Times metrik-uyumlu gömülü fontlarla), bağlayıcı/çizgi, gölge, grafik.
 // ponytail: SmartArt ve animasyon efekt türleri hâlâ kapsam dışı.
@@ -88,8 +93,23 @@ class ShapeVM {
   final Gradient? gradient;
   final Color? stroke;
   final double strokeWidth;
-  final bool isEllipse;
+
+  /// Ön tanımlı şekil adı (`a:prstGeom@prst`). `rect` = dikdörtgen ailesi
+  /// ([cornerRadius] ile birlikte kutu olarak çizilir); başka bir değer ise
+  /// `PptxPresetShape.build` ile **vektör yol** olarak çizilir. Tanımadığımız
+  /// bir geometri buraya `rect` olarak düşer (yanlış çizmektense kutu).
+  final String preset;
+
+  /// `a:avLst > a:gd` ayar değerleri (`adj`, `adj1`…), ECMA ham biçiminde.
+  /// PowerPoint'te sarı tutamağın çekildiği yeri taşır.
+  final Adjust adjust;
+
   final double cornerRadius;
+
+  /// Görsel kırpması (`a:blipFill > a:srcRect`) — kenarlardan atılan ORAN
+  /// (0-1). null = kırpma yok. PowerPoint'te kırpılan bir fotoğraf bizde
+  /// kırpılmadan çiziliyordu: hem yanlış kadraj hem yanlış en-boy.
+  final Rect? crop;
 
   /// Şekil bir çizgi/bağlayıcı mı (`p:cxnSp` ya da line/connector geometrisi).
   /// true ise kutu yerine köşe-köşe bir çizgi çizilir (bkz. slide_canvas
@@ -147,8 +167,10 @@ class ShapeVM {
     this.gradient,
     this.stroke,
     this.strokeWidth = 0,
-    this.isEllipse = false,
+    this.preset = 'rect',
+    this.adjust = const {},
     this.cornerRadius = 0,
+    this.crop,
     this.isLine = false,
     this.flipH = false,
     this.flipV = false,
@@ -169,6 +191,10 @@ class ShapeVM {
   });
 
   bool get hasText => paragraphs.any((p) => p.plainText.isNotEmpty);
+
+  /// Kutu olarak mı çizilecek (dolgu/kenarlık/gölge `BoxDecoration`'a gider)?
+  /// false ise geometri yolu boyanır.
+  bool get isBoxShaped => preset == 'rect';
 }
 
 /// Desteklenen grafik türleri. Bar (yatay çubuk), sütun (dikey çubuk), pasta
@@ -655,7 +681,8 @@ class PptxRender {
     final w = (_pt(ext.getAttribute('cx')) ?? 0) * xf.sx;
     final h = (_pt(ext.getAttribute('cy')) ?? 0) * xf.sy;
 
-    final prst = _first(spPr, 'a:prstGeom')?.getAttribute('prst') ?? 'rect';
+    final geom = _first(spPr, 'a:prstGeom');
+    final prst = geom?.getAttribute('prst') ?? 'rect';
     final isLine = el.name.qualified == 'p:cxnSp' ||
         prst == 'line' ||
         prst == 'straightConnector1' ||
@@ -673,7 +700,18 @@ class PptxRender {
         _first(el, 'p:nvCxnSpPr');
     final id = int.tryParse(_first(nv, 'p:cNvPr')?.getAttribute('id') ?? '') ?? 0;
 
-    final isEllipse = prst == 'ellipse' || prst == 'chord' || prst == 'pie';
+    // Geometri: ayar değerleri (`a:avLst`) + dikdörtgen ailesi mi, yol mu.
+    // Çizgi/bağlayıcı ayrı yolda çizildiği için geometriye sokulmaz.
+    final adjust = _adjustValues(geom);
+    final geomSize = Size(w, h);
+    final radius = isLine
+        ? 0.0
+        : (PptxPresetShape.rectRadius(prst, geomSize, adjust) ?? 0.0);
+    final preset = isLine ||
+            PptxPresetShape.rectRadius(prst, geomSize, adjust) != null ||
+            PptxPresetShape.build(prst, geomSize, adjust) == null
+        ? 'rect'
+        : prst;
 
     // Modern PPTX'te tema temelli şekiller dolgu/çizgiyi `spPr`'de DEĞİL,
     // `p:style`'daki stil matrisi referanslarında taşır (`a:fillRef`/`a:lnRef`
@@ -729,6 +767,7 @@ class PptxRender {
         spPr == null ? null : _first(spPr, 'a:effectLst'), theme, clrMap);
 
     Uint8List? image;
+    Rect? crop;
     if (el.name.qualified == 'p:pic') {
       final blip = _firstDeep(el, 'a:blip');
       final rid = blip?.getAttribute('r:embed');
@@ -737,6 +776,7 @@ class PptxRender {
         if (target != null) image = _imageBytes(target);
       }
       if (image == null) return null; // desteklenmeyen görsel (emf/wmf) atlanır
+      crop = _srcRect(_firstDeep(el, 'a:srcRect'));
     }
 
     final txBody = _first(el, 'p:txBody');
@@ -756,8 +796,10 @@ class PptxRender {
       gradient: gradient,
       stroke: stroke,
       strokeWidth: strokeW,
-      isEllipse: isEllipse,
-      cornerRadius: prst == 'roundRect' ? (w < h ? w : h) * 0.12 : 0,
+      preset: preset,
+      adjust: adjust,
+      cornerRadius: radius,
+      crop: crop,
       isLine: isLine,
       flipH: flipH,
       flipV: flipV,
@@ -779,6 +821,35 @@ class PptxRender {
       lnSpcReduction: _lnSpcReduction(bodyPr),
       isPlaceholder: ph != null,
     );
+  }
+
+  /// `a:prstGeom > a:avLst > a:gd` ayar değerleri. `fmla` daima `"val <sayı>"`
+  /// biçimindedir (ön tanımlı şekillerde tek izinli formül); başka bir formül
+  /// gelirse o kılavuz atlanır ve şeklin ECMA varsayılanı kullanılır.
+  static Adjust _adjustValues(XmlElement? geom) {
+    final av = geom == null ? null : _first(geom, 'a:avLst');
+    if (av == null) return const {};
+    final out = <String, double>{};
+    for (final gd in av.findElements('a:gd')) {
+      final name = gd.getAttribute('name');
+      final fmla = gd.getAttribute('fmla');
+      if (name == null || fmla == null || !fmla.startsWith('val ')) continue;
+      final v = double.tryParse(fmla.substring(4).trim());
+      if (v != null) out[name] = v;
+    }
+    return out.isEmpty ? const {} : out;
+  }
+
+  /// `a:srcRect` — görselin kenarlarından ATILAN oran (1/1000 yüzde).
+  /// Negatif değer (kenar boşluğu eklemek) desteklenmiyor, 0'a kırpılır.
+  static Rect? _srcRect(XmlElement? src) {
+    if (src == null) return null;
+    double side(String a) =>
+        ((int.tryParse(src.getAttribute(a) ?? '') ?? 0) / 100000.0)
+            .clamp(0.0, 0.95);
+    final r = Rect.fromLTRB(side('l'), side('t'), side('r'), side('b'));
+    if (r.left + r.right >= 1 || r.top + r.bottom >= 1) return null;
+    return r.left == 0 && r.top == 0 && r.right == 0 && r.bottom == 0 ? null : r;
   }
 
   double _fontScale(XmlElement? bodyPr) {

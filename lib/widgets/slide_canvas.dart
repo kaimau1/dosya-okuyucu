@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -172,27 +173,28 @@ class _ShapeBody extends StatelessWidget {
           painter: ChartPainter(shape.chart!), size: Size.infinite);
     }
 
+    // Tablo hücresi kenar-başına kenarlık taşır; diğer şekiller tekil stroke.
+    final border = shape.cellBorder ??
+        (shape.stroke == null
+            ? null
+            : Border.all(color: shape.stroke!, width: shape.strokeWidth));
+    final radius = shape.cornerRadius == 0
+        ? null
+        : BorderRadius.circular(shape.cornerRadius);
+
     final decoration = BoxDecoration(
       color: shape.gradient == null ? shape.fill : null,
       gradient: shape.gradient,
-      shape: shape.isEllipse ? BoxShape.circle : BoxShape.rectangle,
-      borderRadius: shape.isEllipse || shape.cornerRadius == 0
-          ? null
-          : BorderRadius.circular(shape.cornerRadius),
-      // Tablo hücresi kenar-başına kenarlık taşır; diğer şekiller tekil stroke.
-      border: shape.cellBorder ??
-          (shape.stroke == null
-              ? null
-              : Border.all(color: shape.stroke!, width: shape.strokeWidth)),
+      borderRadius: radius,
+      // Görselli şekilde çerçeve ÖN plana alınır (aşağıya bak).
+      border: shape.image == null ? border : null,
       boxShadow: shape.shadow == null ? null : [shape.shadow!],
     );
 
     if (shape.image != null) {
-      Widget img = Image.memory(
-        shape.image!,
-        fit: BoxFit.fill,
-        errorBuilder: (_, __, ___) => const SizedBox(),
-      );
+      // Görsel: `a:srcRect` kırpması + aynalama. PowerPoint görseli kutuya
+      // GERER (stretch), o yüzden `BoxFit.fill`.
+      Widget img = _CroppedImage(bytes: shape.image!, crop: shape.crop);
       // Yatay/dikey aynalama (`a:xfrm@flipH/flipV`): görsel merkez etrafında
       // çevrilir. Eskiden flip yalnız çizgilerde uygulanıyordu → aynalanmış
       // görseller/oklar ters çıkıyordu.
@@ -204,15 +206,43 @@ class _ShapeBody extends StatelessWidget {
           child: img,
         );
       }
+      // Çerçeve görselin ÜSTÜNE çizilir: arka planda kalsaydı görselin
+      // altında kaybolurdu — PowerPoint'te kenarlıklı bir fotoğrafın
+      // çerçevesi bizde hiç görünmüyordu.
+      //
+      // Dikdörtgen olmayan geometri (ör. elips çerçeveli fotoğraf) görseli de
+      // şekle kırpar; kutu şekillerde ucuz `ClipRect` yeter.
+      if (!shape.isBoxShaped) {
+        return CustomPaint(
+          painter: _GeometryPainter(shape, stroke: false),
+          foregroundPainter: _GeometryPainter(shape, fill: false),
+          child: ClipPath(clipper: _GeometryClipper(shape), child: img),
+        );
+      }
       return ClipRect(
-        child: Container(decoration: decoration, child: img),
+        child: Container(
+          decoration: decoration,
+          foregroundDecoration: border == null
+              ? null
+              : BoxDecoration(border: border, borderRadius: radius),
+          child: img,
+        ),
       );
     }
 
-    return Container(
-      decoration: decoration,
-      child: shape.hasText ? _text(shape) : null,
-    );
+    final body = shape.hasText ? _text(shape) : null;
+
+    // Ön tanımlı şekil (üçgen/ok/elmas/yıldız/akış şeması…): kutu yerine
+    // vektör yol. Metin yolun ÜSTÜNDE, PowerPoint'teki gibi kutu alanına
+    // yerleşir (şeklin kendi metin dikdörtgeni ayrıca hesaplanmıyor).
+    if (!shape.isBoxShaped) {
+      return CustomPaint(
+        painter: _GeometryPainter(shape),
+        child: body ?? const SizedBox.expand(),
+      );
+    }
+
+    return Container(decoration: decoration, child: body);
   }
 
   /// Metin kutusu: PowerPoint'te olduğu gibi sığmayan yazı kutunun dışına taşar
@@ -381,6 +411,138 @@ class _ShapeBody extends StatelessWidget {
                 Expanded(child: body),
               ],
             ),
+    );
+  }
+}
+
+/// Ön tanımlı şekli (`a:prstGeom`) vektör yol olarak çizer: gölge → dolgu
+/// (düz ya da gradyan) → kenarlık. `BoxDecoration` yalnız dikdörtgen ve elips
+/// çizebildiği için üçgen/ok/elmas/yıldız/akış şeması kutuları bu sınıftan
+/// önce ekranda **düz dikdörtgen** görünüyordu.
+class _GeometryPainter extends CustomPainter {
+  final ShapeVM s;
+
+  /// Gölge + dolgu çizilsin mi (görselli şekilde arka plan katmanı).
+  final bool fill;
+
+  /// Kenarlık çizilsin mi (görselli şekilde ÖN plan katmanı — bkz. `_ShapeBody`).
+  final bool stroke;
+
+  const _GeometryPainter(this.s, {this.fill = true, this.stroke = true});
+
+  /// Yol + [ShapeVM.flipH]/[ShapeVM.flipV] aynalaması. Ayna şeklin kendi
+  /// merkezine göredir (PowerPoint de öyle çevirir).
+  static Path? pathFor(ShapeVM s, Size size) {
+    final path = PptxPresetShape.build(s.preset, size, s.adjust);
+    if (path == null || (!s.flipH && !s.flipV)) return path;
+    final m = Matrix4.identity()
+      ..translate(size.width / 2, size.height / 2)
+      ..scale(s.flipH ? -1.0 : 1.0, s.flipV ? -1.0 : 1.0)
+      ..translate(-size.width / 2, -size.height / 2);
+    return path.transform(m.storage);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = pathFor(s, size);
+    if (path == null) return;
+    final rect = Offset.zero & size;
+
+    final shadow = fill ? s.shadow : null;
+    if (shadow != null) {
+      canvas.drawPath(
+        path.shift(shadow.offset),
+        Paint()
+          ..color = shadow.color
+          ..maskFilter = shadow.blurRadius <= 0
+              ? null
+              : MaskFilter.blur(
+                  BlurStyle.normal, _sigma(shadow.blurRadius)),
+      );
+    }
+
+    if (fill && s.gradient != null) {
+      canvas.drawPath(path, Paint()..shader = s.gradient!.createShader(rect));
+    } else if (fill && s.fill != null) {
+      canvas.drawPath(path, Paint()..color = s.fill!);
+    }
+
+    if (stroke && s.stroke != null && s.strokeWidth > 0) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = s.stroke!
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = s.strokeWidth
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
+  }
+
+  /// `BoxShadow.blurRadius` → Gauss sigması (Flutter'ın kendi dönüşümü).
+  static double _sigma(double radius) => radius * 0.57735 + 0.5;
+
+  @override
+  bool shouldRepaint(_GeometryPainter old) =>
+      !identical(old.s, s) || old.fill != fill || old.stroke != stroke;
+}
+
+/// Şekil geometrisiyle kırpar (elips/yıldız çerçeveli fotoğraflar için).
+class _GeometryClipper extends CustomClipper<Path> {
+  final ShapeVM s;
+  const _GeometryClipper(this.s);
+
+  @override
+  Path getClip(Size size) =>
+      _GeometryPainter.pathFor(s, size) ?? (Path()..addRect(Offset.zero & size));
+
+  @override
+  bool shouldReclip(_GeometryClipper old) => !identical(old.s, s);
+}
+
+/// Görseli kutuya gerer; `a:srcRect` verilmişse önce KIRPAR.
+///
+/// PowerPoint kırpmayı kaynağın kenarlarından atılan oran olarak saklar;
+/// görünen parça yine kutunun tamamını doldurur. Bu yüzden görsel `1/(1-l-r)`
+/// oranında büyütülüp `-l` kadar kaydırılır — böylece yalnız istenen kadraj
+/// kutuda kalır. Kırpma yok sayıldığında fotoğraf hem yanlış yerinden
+/// görünüyor hem de yatay/dikey oranı bozuluyordu.
+class _CroppedImage extends StatelessWidget {
+  final Uint8List bytes;
+  final Rect? crop;
+  const _CroppedImage({required this.bytes, this.crop});
+
+  @override
+  Widget build(BuildContext context) {
+    final img = Image.memory(
+      bytes,
+      fit: BoxFit.fill,
+      errorBuilder: (_, __, ___) => const SizedBox(),
+    );
+    final c = crop;
+    if (c == null) return img;
+    final fw = 1 - c.left - c.right;
+    final fh = 1 - c.top - c.bottom;
+    if (fw <= 0 || fh <= 0) return img;
+    return ClipRect(
+      child: LayoutBuilder(
+        builder: (_, box) {
+          final w = box.maxWidth, h = box.maxHeight;
+          if (!w.isFinite || !h.isFinite) return img;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: -c.left * w / fw,
+                top: -c.top * h / fh,
+                width: w / fw,
+                height: h / fh,
+                child: img,
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
