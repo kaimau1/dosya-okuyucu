@@ -1,6 +1,98 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
+- [ ] **2026-08-02 (5. tur) arayüz cihaz doğrulaması (kullanıcı).**
+      (a) Excel biçim çubuğu artık kısa mı (Kalın · İtalik · Hizalama ·
+      Sayı biçimi · Σ · **Daha fazla**) ve yatayda kaydırmaya gerek kalmıyor
+      mu, (b) **Daha fazla** sayfası açılıp Pano/Sayı/Satır/Sütun grupları
+      ETİKETLİ görünüyor mu, dokununca sayfa kapanıp iş yapılıyor mu,
+      (c) hizalama menüsü etkin hizalamayı işaretli gösteriyor mu,
+      (d) PDF'te üst çubuk daha ferah mı, döndürme ⋮ menüsünde bulunuyor mu,
+      (e) belge başlığı artık kırpılmadan okunuyor mu.
+      **Sonraki adım (istenirse):** aynı kural Word ve slayt biçim
+      çubuklarına da uygulanabilir — ikisi şu an sınırda (9 ve 11 kontrol).
+
+- [ ] **2026-08-02 (3-4. tur) cihaz doğrulaması (kullanıcı).**
+      **Excel:** (a) bir sütun seç → biçim çubuğundaki **#** menüsünden
+      *Para (₺)* / *Yüzde* / *Tarih* seç → hücreler o biçimde görünüyor mu,
+      (b) **kaydet → masaüstü Excel'de aç**: biçimler DURUYOR mu (en kritik
+      madde — eski yol dosyayı hiç kaydettirmiyordu), (c) **ondalık artır/
+      azalt** düğmeleri çalışıyor mu, (d) biçim verilen hücrenin kalın/renk/
+      kenarlığı BOZULMADI mı, (e) hepsi **geri al** ile geri dönüyor mu.
+      **Word:** (f) akış (Mobil) görünümünde bir paragrafı **sil** → üstteki
+      **geri al** paragrafı KENDİ yerine geri getiriyor mu (sona değil),
+      (g) paragraf **ekle** → geri al onu kaldırıyor mu, (h) yazarken
+      klavyenin kendi geri alması hâlâ çalışıyor mu.
+
+
+## Word "gerçek mobil Word gibi olsun" — kalan yol haritası
+2026-08-02'de yapısal geri al/yinele geldi. Kalanlar:
+- [ ] **Belge içinde bul / değiştir yok** (slaytta ve Excel'de var).
+      `core/text_search.dart#searchSections` hazır; canlı görünümde eşleşmeye
+      atlamak için `DocxView`e JS köprüsü gerekiyor.
+- [ ] **Yazı tipi/punto PARAGRAF düzeyinde** — seçimin ortasındaki üç kelimeye
+      ayrı punto verilemiyor (aşağıdaki "Bilinen eksik-risk" maddesi).
+- [ ] **Metin rengi / vurgu / madde işareti / numaralandırma** düğmeleri yok.
+- [ ] **Tablo düzenleme yok** (tablolar görüntüleniyor, düzenlenemiyor).
+- [ ] **Resim ekleme/taşıma yok.**
+- [ ] **Seçili metin çevirisi yok** (WebView seçimi Flutter'a gelmiyor).
+- [ ] Harf harf yazma geri alma yığınına girmiyor (bilinçli — HAFIZA 4. tur).
+
+## Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası
+2026-08-02'de düzenleme çekirdeği geldi (geri al/yinele, kes/kopyala/yapıştır,
+doldurma tutamağı, Σ, bul-değiştir). Excel mobilden hâlâ ayıranlar, **etkiye
+göre sıralı**:
+- [ ] **Yapıştırmada BİÇİM taşınmıyor** — yalnız değer gider. Excel hücre
+      biçimini de yapıştırır. Yol: `SheetClip`e `styleIndex` matrisi eklemek +
+      `XlsxEditor`a `setCellStyleIndex`. Bilinçli olarak bu tura alınmadı
+      (biçim yazma yolu ayrı bir doğrulama gerektiriyor).
+- [x] ~~**Sayı biçimi düğmeleri yok**~~ → **YAPILDI 2026-08-02:** biçim çubuğunda
+      **#** menüsü (Genel/Sayı/Binlik/Para ₺/Yüzde/Tarih/Saat/Metin) + ondalık
+      artır/azalt. `XlsxSavePatch._StyleTable` `numFmtId` tahsis edip hücrenin
+      var olan `<xf>`ini kopyalıyor. **Paket yolu kullanılamazdı:** tarih
+      biçimi sayısal hücrede `save()`i istisnayla kırıyordu (HAFIZA 3. tur).
+- [ ] **Dolgu rengi / yazı rengi / kenarlık / metin kaydırma / hücre
+      birleştirme** yazılamıyor (hepsi okunuyor ve çiziliyor). Altyapı ARTIK
+      HAZIR: `_StyleTable` aynı yoldan `fontId`/`fillId`/`borderId` de tahsis
+      edebilir — sayı biçimiyle aynı desen.
+- [ ] **Sırala ve süz (autofilter) arayüzü yok** — `<autoFilter>` okunup
+      kaydediliyor ama başlıktaki süzgeç oku tıklanabilir değil.
+- [ ] **Sayfa ekle / yeniden adlandır / sil / taşı yok** (sekmeler yalnız
+      gezinme).
+- [ ] **Grafik EKLEME yok** (PPTX tarafında grafik çizimi var, Excel'de yok).
+- [ ] **Hücre notu/açıklaması** okunmuyor/yazılmıyor.
+- [ ] **İşlev ekle sihirbazı ve formül otomatik tamamlama yok** — motor 100+
+      işlev biliyor ama kullanıcı adını ezberlemek zorunda.
+- [ ] **Koşullu biçimlendirme yalnız OKUNUYOR**, kullanıcı kural ekleyemiyor.
+- [ ] **Doldurma tutamağına çift dokunup sütunu otomatik doldurma** (Excel'de
+      çift tık) ve **köşegen doldurma** yok — tek eksende doldurma var.
+
+- [ ] **2026-08-02 (2. tur) cihaz doğrulaması (kullanıcı) — Excel düzenleme.**
+      Bir .xlsx aç: (a) bir hücreye yaz → üstteki **geri al** oku eski değeri
+      geri getiriyor, **yinele** tekrar yazıyor mu, (b) aralık seç → **kopyala**
+      → başka yere **yapıştır**; formül yapıştırınca başvurular kaydı mı
+      (`=A1*2` bir sağa → `=B1*2`), (c) **kes** → yapıştır: kaynak yapıştırınca
+      mı boşalıyor, (d) seçimin **sağ alt köşesindeki küçük kare** parmakla
+      aşağı sürüklenebiliyor mu (sayfa kaymadan!), 1-2 yazıp sürükleyince
+      3,4,5 geliyor mu, "Ocak" sürükleyince "Şubat" geliyor mu, (e) sayı
+      sütununun altına **Σ** basınca doğru aralığı topluyor mu, (f) 🔍 →
+      **Tümünü değiştir** çalışıp tek geri alma adımında geri alınıyor mu,
+      (g) satır/sütun **sil** → geri al: veri VE biçim geri geliyor mu,
+      (h) uygulamadan kopyalayıp **başka bir uygulamaya** (Not Defteri/Excel)
+      yapıştırınca tablo düzgün mü (sekmeyle ayrılmış).
+
 ## Yarım kalan
+- [ ] **2026-08-02 turu cihaz doğrulaması (kullanıcı) — slayt şekilleri.**
+      İçinde süreç/akış diyagramı olan gerçek bir .pptx aç: (a) **oklar, üçgen,
+      elmas, chevron, yıldız, altıgen, artı, silindir, akış şeması kutuları
+      artık kendi biçiminde mi** (eskiden hepsi düz dikdörtgendi), (b) **geniş
+      bir elips** (basık oval) artık daire değil oval mi, (c) kırpılmış bir
+      **fotoğraf doğru kadrajda ve doğru en-boy oranında** mı, (d) kenarlıklı
+      bir fotoğrafın **çerçevesi görünüyor** mu, (e) yuvarlatılmış dikdörtgenin
+      köşe yuvarlaklığı PowerPoint'tekiyle aynı mı, (f) aynalanmış (flipH/flipV)
+      bir ok/üçgen doğru yöne bakıyor mu, (g) konuşma balonunun kuyruğu var mı.
+      **Bilinen sınır:** bulut (`cloud`) ve gözyaşı (`teardrop`) yaklaşık
+      çiziliyor; `bentArrow`/`circularArrow`/`ribbon` gibi tanımsız geometriler
+      hâlâ dikdörtgen düşüyor (bilinçli — yanlış biçim yerine kutu).
 - [ ] **2026-08-01 turu cihaz doğrulaması (kullanıcı)** — (a) slaytta her kartın
       üstünde ve sağ alt rozette **"Slayt 3 / 12"** yazıyor mu, rozete
       dokununca "Slayta git" açılıp o slayda ATLIYOR mu (yakınlaştırılmış
@@ -359,16 +451,13 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       geç kapatıyor olabilir) · `fm_trash` iki testi Android birim mantığına
       dayanıyor.
 
-- [ ] **Gizli satır/sütun kaydetmede kayboluyor (Excel sadakati).**
-      `excel 4.0.6` yazma API'sinde `hidden` karşılığı yok: `<cols>` ve
-      `sheetData` her kayıtta paketin kendi haritasından baştan üretiliyor
-      (`save_file.dart` `_setColumns` / `_setRows`), `<col hidden="1">` ve
-      `<row hidden="1">` hiç yazılmıyor. Genişlik/yükseklik kaybı
-      `XlsxEditor._seedSizes` ile kapatıldı ama gizlilik kapatılamadı.
-      Yol: `save()` sonrası zip'i açıp `xl/worksheets/*.xml` içindeki
-      `<col>`/`<row>` düğümlerine `hidden` özniteliğini geri yazmak
-      (bizim `layout.hiddenCols/hiddenRows` doğru veriyi tutuyor).
-      Aynı yama satır özel biçimini (`s`+`customFormat`) da kurtarır.
-- [ ] **Tamamen BOŞ satırın yüksekliği kaydedilmiyor.** Paket `<row>`u yalnız
-      hücresi olan satır için yazıyor. Ekranda doğru, dosyada kayıp.
-      Ucuz çözüm: yükseklik verilen boş satıra bir boş hücre yazmak.
+- [x] ~~**Gizli satır/sütun kaydetmede kayboluyor (Excel sadakati).**~~ →
+      **YAPILDI** (2026-08-02'de doğrulandı; madde eskimişti). Önerilen yol
+      uygulanmış: `services/xlsx_save_patch.dart` `save()` sonrası zip'i açıp
+      `<col hidden="1">` / `<row hidden="1">` yazıyor, `XlsxEditor.save`
+      `layout.hiddenRows/hiddenCols`u geçiriyor. Testli:
+      `xlsx_save_patch_test` (aralık bölme dahil).
+- [x] ~~**Tamamen BOŞ satırın yüksekliği kaydedilmiyor.**~~ → **YAPILDI**
+      (2026-08-02'de doğrulandı; madde eskimişti). `XlsxEditor.save`
+      `rowHeightsPt`e yalnız `_isEmptyRow` satırlarını koyuyor, yama `<row>`u
+      `ht`+`customHeight` ile üretiyor.

@@ -823,18 +823,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
             icon: const Icon(Icons.toc),
             onPressed: _showOutline,
           ),
-          // Sayfa döndürme (2026-07-27 kullanıcı isteği). Kayıpsız: sayfanın
-          // `/Rotate` girdisi değişir, içerik yeniden çizilmez.
-          IconButton(
-            tooltip: context.t('vw.rotate_left'),
-            icon: const Icon(Icons.rotate_90_degrees_ccw),
-            onPressed: _pdfBusy ? null : () => _rotateCurrentPage(-1),
-          ),
-          IconButton(
-            tooltip: context.t('vw.rotate_right'),
-            icon: const Icon(Icons.rotate_90_degrees_cw),
-            onPressed: _pdfBusy ? null : () => _rotateCurrentPage(1),
-          ),
+          // Sayfa döndürme üst çubuktan ÜÇ NOKTAYA taşındı (2026-08-02):
+          // dar telefonda 7 eylem başlığa yer bırakmıyordu ve iki ikon
+          // birbirinin aynası olduğu için hangisinin ne yaptığı anlaşılmıyordu.
+          // Menüde etiketli ve seyrek kullanılan bir iş için doğru yer.
           // Gece/gündüz düğmesi üst çubuktan ÜÇ NOKTAYA taşındı
           // (2026-07-26 kullanıcı isteği) — üst çubuk kalabalıktı.
           if (_pdfDirty)
@@ -910,6 +902,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'gotopage':
                 _askGoToPage();
                 break;
+              case 'rotl':
+                _rotateCurrentPage(-1);
+                break;
+              case 'rotr':
+                _rotateCurrentPage(1);
+                break;
               case 'speak':
                 _toggleSpeech();
                 break;
@@ -931,6 +929,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 value: 'night',
                 child: Text(context
                     .t(_pdfNight ? 'vw.night_off' : 'vw.night_on')),
+              ),
+              PopupMenuItem(
+                value: 'rotl',
+                enabled: !_pdfBusy,
+                child: Text(context.t('vw.rotate_left')),
+              ),
+              PopupMenuItem(
+                value: 'rotr',
+                enabled: !_pdfBusy,
+                child: Text(context.t('vw.rotate_right')),
               ),
               PopupMenuItem(
                   value: 'aiedit', child: Text(context.t('vw.ai_edit'))),

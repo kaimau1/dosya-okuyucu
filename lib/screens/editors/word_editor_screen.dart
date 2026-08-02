@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/list_prefix.dart';
+import '../../core/undo_stack.dart';
 import '../../models/document.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
@@ -243,6 +244,18 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       // kullanıcı isteği: "bazı işlevler hem altta hem üstte var, gerek yok").
       // İstisna: düzenleme sırasında alt çubuk gizlendiği için Kaydet burada.
       actions: [
+        // Geri al / yinele: yapısal işlemler (paragraf ekle/sil) için —
+        // paragraf silmenin geri dönüşü yoktu.
+        IconButton(
+          tooltip: context.t('word.undo'),
+          icon: const Icon(Icons.undo),
+          onPressed: !_undo.canUndo ? null : _undoStep,
+        ),
+        IconButton(
+          tooltip: context.t('word.redo'),
+          icon: const Icon(Icons.redo),
+          onPressed: !_undo.canRedo ? null : _redoStep,
+        ),
         if (_editing)
           IconButton(
             tooltip: context.t('common.save'),
@@ -711,6 +724,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     final editor = _editor;
     if (editor == null) return;
     final para = editor.addParagraphAfter(after);
+    final slot = editor.slotOf(para);
+    _undo.record(CallbackUndoStep(
+      'word.undo_add_paragraph',
+      () => editor.restoreParagraph(para, slot),
+      () => editor.deleteParagraph(para),
+    ));
     setState(() {
       _sel = para;
       _dirty = true;
@@ -720,11 +739,48 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   void _deleteParagraph(DocxParagraph para) {
     final editor = _editor;
     if (editor == null) return;
+    // Konum silmeden ÖNCE alınır: geri alırken paragraf sona değil KENDİ
+    // yerine dönmeli (başlık altındaki madde başka yere düşerse belge bozulur).
+    final slot = editor.slotOf(para);
     editor.deleteParagraph(para);
+    _undo.record(CallbackUndoStep(
+      'word.undo_delete_paragraph',
+      () => editor.deleteParagraph(para),
+      () => editor.restoreParagraph(para, slot),
+    ));
     setState(() {
       if (identical(_sel, para)) _sel = null;
       _dirty = true;
     });
+  }
+
+  // ── geri al / yinele ────────────────────────────────────────────────────
+
+  /// **Kapsam:** paragraf ekleme/silme ve hizalama gibi **yapısal** işlemler.
+  /// Harf harf yazma buraya girmez — canlı görünümde tarayıcının kendi geri
+  /// alması, akış görünümünde `TextField`in kendi geri alması zaten çalışıyor;
+  /// her tuş vuruşunu ayrıca kaydetmek iki katmanlı ve şaşırtıcı bir geri alma
+  /// yaratırdı.
+  final _undo = UndoStack();
+
+  void _undoStep() {
+    final step = _undo.undo();
+    if (step == null) return;
+    _afterHistory(step.label, undone: true);
+  }
+
+  void _redoStep() {
+    final step = _undo.redo();
+    if (step == null) return;
+    _afterHistory(step.label, undone: false);
+  }
+
+  void _afterHistory(String label, {required bool undone}) {
+    final paras = _editor?.paragraphs ?? const <DocxParagraph>[];
+    if (_sel != null && !paras.any((p) => identical(p, _sel))) _sel = null;
+    setState(() => _dirty = true);
+    _snack(context.t(undone ? 'word.undone' : 'word.redone',
+        {'what': context.t(label)}));
   }
 
   Widget _paragraphField(DocxParagraph para) {

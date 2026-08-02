@@ -5384,3 +5384,241 @@ zaten sayfa rozetini ortada tutuyordu; slayt ve Word de aynı hizaya geldi.
 Sığdırma düzeltmesi ancak CİHAZDA görülebilir (WebView yerleşimi birim testi
 ile taklit edilemiyor) — `word_assets_test` yalnız sözleşmeyi kilitliyor
 (`scrollWidth` kullanılmıyor + doğrulama turu duruyor).
+
+## 2026-08-02 — Slayt sadakati: ön tanımlı şekiller ARTIK KUTU DEĞİL
+
+Kullanıcı isteği: *"sadakat geliştirmeleri için araştırma yap ve geliştir."*
+Araştırma turunda üç açık sadakat kaybı bulundu, üçü de PPTX çiziminde.
+
+### A) KÖK NEDEN — `BoxDecoration` üçgen çizemez
+`slide_canvas` şekilleri yalnız `BoxDecoration` ile çiziyordu. `BoxDecoration`
+sadece dikdörtgen (isteğe bağlı köşe yarıçapı) ve daire üretebilir; yani
+`a:prstGeom@prst` ne olursa olsun ekrana **düz dikdörtgen** düşüyordu:
+üçgen, elmas, ok, chevron, yıldız, altıgen, artı, silindir, küp, halka,
+akış şeması kutuları… Süreç/akış diyagramı içeren bir sunumda bu, sadakat
+kaybının en görünür biçimi — **okun yerinde kutu**.
+- Yeni modül `services/pptx_geometry.dart`: `prst` → `dart:ui` `Path`.
+  ECMA-376 `presetShapeDefinitions.xml` formülleri (`ss = min(w,h)`, ayarlar
+  1/100000) izlendi; **50+ şekil** tanımlı, saf `dart:ui` (widget/dosya G/Ç
+  yok) olduğu için yol geometrisi doğrudan birim testli.
+- `ShapeVM.preset` + `ShapeVM.adjust` eklendi. **Tanımadığımız geometri
+  sessizce `rect`e düşer** — yanlış çizmektense kutu çizmek daha az yanıltıcı
+  (bilerek alınan karar; `funkyShapeXyz` testi bunu kilitliyor).
+- `roundRect` yarıçapı artık `a:avLst`ten geliyor. Eskiden `min(w,h)*0.12`
+  sabitti; ECMA varsayılanı **16667/100000** ve kullanıcı sarı tutamağı
+  oynattıysa değer dosyada yazılı. Aynı yoldan `flowChartTerminator`
+  (stadyum) ve `flowChartAlternateProcess` de kutu ailesine bağlandı.
+
+### B) HATA — geniş elips DAİRE çiziliyordu
+`isEllipse` bayrağı `BoxShape.circle`a gidiyordu; Flutter orada **kısa kenara
+göre daire** çizer (`drawCircle(center, shortestSide/2)`). Yani 200x100'lük
+bir elips ekranda 100x100 daire oluyordu — hem yanlış biçim hem ortada
+kaybolmuş bir şekil. Elips artık yol olarak çiziliyor ve kutunun tamamını
+kaplıyor (`elips kutunun TAMAMINI kaplar — daire değil` testi).
+
+### C) `a:srcRect` (görsel kırpması) hiç okunmuyordu
+PowerPoint kırpmayı kaynağın kenarlarından atılan ORAN olarak saklar; görünen
+parça yine kutuyu doldurur. Biz kırpmayı yok sayıp görselin tamamını kutuya
+gerdiğimiz için fotoğraf hem **yanlış kadrajdan** hem **bozuk en-boy oranıyla**
+çıkıyordu. `_CroppedImage`: görsel `1/(1-l-r)` oranında büyütülüp `-l` kadar
+kaydırılıyor, `ClipRect` fazlasını kesiyor.
+
+### D) Görselin çerçevesi görselin ALTINDA kalıyordu
+`Container(decoration:…, child: img)` süslemeyi çocuktan ÖNCE boyar → kenarlıklı
+bir fotoğrafın çerçevesi görselin altında kayboluyordu. Çerçeve artık
+`foregroundDecoration`a (yol şekillerinde `foregroundPainter`a) taşındı.
+Bu yüzden `_GeometryPainter` `fill`/`stroke` bayrağı taşıyor: aynı yol iki
+katmanda, arada görsel.
+
+### TUZAKLAR
+- **Dart'ta `switch` gövdeleri TEK kapsam paylaşır.** İki ayrı `case` içinde
+  `final d` tanımlamak "already defined" derleme hatası; her gövde `{ }` ile
+  sarıldı. (İlk yazımda 6 çakışma vardı.)
+- **`Path.getBounds` YALAN SÖYLER** — Skia sınırı denetim noktalarından
+  hesaplar, yay içeren şekillerde çizilen hattın çok dışını verir: 200x100'lük
+  bir `chord` için `Rect(-41.4, 0, 170.7, 120.7)`. "Şekil kutuya sığıyor mu"
+  testi bu yüzden `computeMetrics` ile yolu ÖRNEKLİYOR (`_outlineBounds`).
+  Yol gerçekten taşmıyordu; ölçü aleti taşıyordu.
+- **OOXML `pie` varsayılanı 0°→270°** ve açı saat 3 yönünden SAAT YÖNÜNDE
+  ölçülür (kanvasla aynı yön). Boş kalan çeyrek **sağ üst**, sol üst değil —
+  testi ters yazınca yakalandı.
+- **Balon (`wedge*Callout`) kuyruğu şekil kutusunun DIŞINA taşar**; PowerPoint
+  de öyle çizer, bu yüzden "kutuya sığmalı" kuralının bilinçli istisnası.
+
+### Doğrulama
+Bulut oturumunda Flutter **3.29.3** (CI ile aynı): `flutter analyze` **0 hata**
+(kalan uyarılar önceden var olan `withOpacity` maddeleri), `flutter test`
+**1124 test yeşil**. Yeni testler: `pptx_geometry_test` 19,
+`pptx_render_test`e 4 (preset+avLst, yol çizimi, `srcRect`, çerçeve katmanı).
+Cihazda GÖRSEL doğrulama yapılmadı → KALANLAR "2026-08-02 turu".
+
+## 2026-08-02 (2. tur) — Excel: DÜZENLEME çekirdeği (geri al, pano, doldurma, Σ)
+
+Kullanıcı: *"Excel tarafını geliştirmeye devam edelim, gerçek mobil excel gibi
+olsun, aynısı oluncaya kadar çalış."*
+
+### A) Araştırma bulgusu — eksik olan GÖRÜNÜM değil, DÜZENLEME
+Ekran zaten Excel gibi ÇİZİYORDU (biçim, koşullu biçim, donmuş bölme, RTL,
+formül motoru). Gerçek Excel'den ayıran şey düzenleme eylemleriydi ve en
+temel dördü **hiç yoktu**: geri al/yinele, kopyala/kes/yapıştır, doldurma
+tutamağı, otomatik toplam. Yani kullanıcı yanlış bir hücreye yazdığında geri
+dönüşü yoktu — bu, bir tablo uygulamasında en sık kullanılan tuştur.
+
+### B) Çekirdek ayrı ve SAF DART: `services/sheet_edit.dart`
+Kural yoğun, kenar durumu bol her şey (formül kaydırma, seri üretimi, pano
+tekrar kuralı, geri alma yığını) ekrandan ayrıldı → 39 birim testiyle
+kilitlendi. Widget testinde sürükle-bırak taklidiyle uğraşmadan kural sınanıyor.
+
+### C) TUZAKLAR (hepsi testte yakalandı)
+- **`LOG10(A1)` → `LOG11(A2)` oluyordu.** `LOG` geçerli bir sütun adı, `10`
+  geçerli bir satır — yani işlev adı tam bir hücre başvurusu gibi görünüyor.
+  Excel ayrımı **ardından `(` gelip gelmediğine** bakarak yapar; biz de öyle.
+- **Doldurma tutamağı kaydırılabilir ızgaranın İÇİNDE.** Sıradan
+  `GestureDetector` sürüklemeyi kaydırma tanıyıcısıyla arenada paylaşır ve
+  çoğu zaman KAYDIRMA kazanır: tutamak hiç çalışmaz, sayfa kayar. Çözüm
+  `RawGestureDetector` + **`ImmediateMultiDragGestureRecognizer`** (Flutter'ın
+  kendi sürükle-bırak listelerinde kullandığı yöntem) — pointer'ı hemen
+  üstlenir. Widget testi gerçek sürükleme yapıyor, çünkü sınanması gereken
+  şey kod yolu değil **arenayı kimin kazandığı**.
+- **Formül çubuğu bayatlıyordu:** yapıştırma/doldurma/Σ imlecin ALTINDAKİ
+  değeri değiştirdiğinde çubuk eski değeri gösteriyordu ve bir sonraki
+  düzenlemede onu geri yazardı. `_editCells` artık `_syncField()` çağırıyor.
+- **`deleteRow`un tersi `insertRow` DEĞİLDİR.** Silinen satırın değerleri,
+  biçim indeksleri, uygulama içi biçim örtmeleri ve yüksekliği de geri
+  konmalı; yoksa "geri al" veri kaybeder. `XlsxEditor.captureRow/restoreRow`
+  (ve sütun karşılıkları) bunun için eklendi.
+- **Testte `find.text` `EditableText`i de sayar:** "Tümünü değiştir" testinde
+  değiştir ALANINDAKİ metin eşleşmeye karışıyordu; ızgara aramaları
+  `find.descendant(of: SheetCell)` ile kapsandı.
+
+### D) Kararlar
+- **Geri alma yığını SAYFA BAŞINA.** Tek ortak yığın olsaydı geri al bazen
+  görünmeyen bir sayfayı değiştirirdi.
+- **Kesmede formül KAYDIRILMAZ** (taşımadır, kopyalama değil); kopyalamada
+  göreli başvurular kayar, `$` kilitli olanlar durur — Excel kuralı.
+- **Kesme kaynağı YAPIŞTIRINCA boşalır**, kesince değil: kullanıcı vazgeçerse
+  veri yerinde kalır. Kaynak temizliği yapıştırmayla AYNI geri alma adımında.
+- **Tek sayı doldurulunca KOPYALANIR** (5 → 5,5,5). Excel'de artırmak için
+  Ctrl gerekir, dokunmatikte o kip yok.
+- **Yapıştırma yalnız DEĞERİ taşır, biçimi değil** — bilinçli sınır, KALANLAR'da.
+- Sistem panosuna TSV yazılıyor: başka uygulamaya (gerçek Excel dahil)
+  yapıştırılabiliyor; sistem panosundan gelen TSV de okunuyor.
+
+### E) Doğrulama
+Flutter **3.29.3** (CI ile aynı): `analyze` **0 hata**, `flutter test`
+**1172 test yeşil** (önceki tur 1124 → +48). Yeni: `sheet_edit_test` 39,
+`spreadsheet_screen_test` +5 (geri al/yinele, temizle, kopyala-yapıştır, Σ,
+doldurma sürüklemesi, değiştir), `xlsx_editor_test` +3 (satır/sütun geri alma,
+`overrideAt`). Cihazda doğrulama YAPILMADI → KALANLAR "2026-08-02 (2. tur)".
+
+## 2026-08-02 (3. tur) — Excel sayı biçimi YAZMA: paket kaydetmeyi kırıyordu
+
+### KÖK NEDEN — `excel 4.0.6` biçim kodunu hücre TİPİYLE eşleştiriyor
+Sayı biçimini paketin `CellStyle.numberFormat` alanından yazmayı denedim.
+Paket, `save()` sırasında `numberFormat.accepts(value)` denetimi yapıyor ve
+uymazsa ya biçimi sessizce varsayılana çeviriyor ya da **istisna fırlatıyor**:
+
+    Exception: CustomDateTimeNumFormat("dd.mm.yyyy") does not work for IntCellValue
+
+Excel'de tarihler **sayı** (seri numarası) olarak saklandığı için "bu sütunu
+tarih yap" en sık istenen biçimlendirme — ve bu yolla dosya **hiç
+kaydedilemez** hâle geliyordu. Yani kullanıcı verisini kaybederdi.
+
+**Karar:** sayı biçimleri de `XlsxSavePatch`e taşındı (gizli satır/bölme/
+süzgeçle aynı yol). Yama `styles.xml`i doğrudan yazdığı için tip polisi yok.
+Bu aynı zamanda KALANLAR'daki tüm "biçim yazma" ailesinin (dolgu rengi,
+kenarlık, metin kaydırma…) altyapısı — hepsi aynı `_StyleTable`den geçecek.
+
+### `_StyleTable` — Excel'de biçim hücrede DEĞİL, tabloda durur
+Hücre yalnız `s="<cellXfs indeksi>"` yazar. Bir hücreye biçim vermek üç adım:
+1. biçim kodu için `numFmtId` (yerleşikse hazır id, değilse `<numFmts>`e
+   **164'ten** başlayan yeni kayıt),
+2. hücrenin ŞU ANKİ `<xf>`ini **kopyalayıp** `numFmtId`ini değiştir — sıfırdan
+   kurulsaydı biçim vermek yazı tipini/dolguyu/kenarlığı silerdi,
+3. aynı `<xf>` varsa indeksini **yeniden kullan**; her hücreye yeni `<xf>`
+   eklemek büyük tabloda stil tablosunu şişirir.
+Üçü de testli (`sayı biçimi hücrenin ÖTEKİ biçimlerini korur`,
+`aynı biçim iki hücrede TEK bir <xf> paylaşır`).
+
+### TUZAK — `[Red]` içindeki `d` yüzünden ondalık düğmeleri çalışmıyordu
+`bumpDecimals` tarih kodlarına dokunmuyor; tarih tespiti "kodda y/d/h/s var mı"
+diye bakıyordu. `#,##0.00;[Red]-#,##0.00` gibi ÇOK YAYGIN bir kodda `[Red]`
+parçası tarih sanılıyor ve ondalık artır/azalt sessizce hiçbir şey yapmıyordu.
+Tespit artık köşeli parantezli belirteçleri, tırnak içi sabitleri ve `\`
+kaçışlarını atlıyor.
+
+### Doğrulama
+Flutter 3.29.3: `analyze` **0 hata**, **1181 test yeşil** (+9).
+
+## 2026-08-02 (4. tur) — Word: paragraf silmenin geri dönüşü yoktu
+
+Kullanıcı: *"devam sonra word e çalış."*
+
+### Ortak geri alma yığını `core/undo_stack.dart`e taşındı
+Excel'de doğan `SheetUndoStack` Word'de de gerekince çekirdeğe alındı
+(`UndoStep` / `UndoStack` / `CallbackUndoStep`). Excel tarafındaki adlar
+**typedef** olarak korundu — çağıranların ve testlerin hiçbiri değişmedi.
+
+### Word'ün gerçek boşluğu: YAPISAL işlemler
+Word ekranında paragraf ekle/sil vardı ama **geri alma yoktu**: yanlış
+paragrafı silen kullanıcının belgeyi kaydetmeden kapatmaktan başka yolu yoktu.
+- `DocxEditor.slotOf` / `restoreParagraph`: paragrafın **XML ağacındaki yeri +
+  model sırası** silmeden ÖNCE yakalanır. **Sona eklemek yeterli değil:**
+  Word'de paragrafın yeri anlamının parçası — başlığın altındaki madde
+  belgenin sonuna düşerse metin bozulur. Testli (ilk paragraf dahil).
+- Üst çubuğa geri al/yinele.
+
+### Bilinçli sınır — harf harf yazma yığına GİRMEZ
+Canlı görünümde tarayıcının kendi geri alması, akış görünümünde `TextField`in
+kendi geri alması zaten çalışıyor. Her tuş vuruşunu ayrıca kaydetmek **iki
+katmanlı ve şaşırtıcı** bir geri alma yaratırdı (bir "geri al" bazen harfi,
+bazen paragrafı geri alır). Yığın yalnız yapısal işlemleri taşıyor.
+
+### Doğrulama
+Flutter 3.29.3: `analyze` **0 hata**, **1184 test yeşil** (+3).
+Cihazda doğrulama YAPILMADI → KALANLAR.
+
+## 2026-08-02 (5. tur) — Arayüz: "sade ama kullanışlı" (araç çubuğu kuralı)
+
+Kullanıcı: *"arayüzümüz konusunda çalışmalıyız, sana bıraktım, bizi sade ama
+kullanışlı bir hale getir."*
+
+### Denetim: ön kapı iyi, KALABALIK belge ekranlarında
+Ana ekran zaten sade (3 sekme: Dosyalar / Son / AI) ve alt eylem çubukları
+tutarlı (Düzenle · Kaydet · Paylaş + türe özel). Sorun biçim çubuklarındaydı.
+
+**Excel biçim çubuğu 20 kontrole çıkmıştı** — üstelik çoğunu bu oturumda ben
+ekledim. Hepsi ikon-only ve tek satırda yatay kaydırmalı: kullanıcı ne
+olduğunu ancak deneyerek öğreniyor, üstelik kaydırmadan görmüyor bile.
+
+**Bu ders daha önce öğrenilmişti:** `DocActionBar`ın doğuş gerekçesi
+(2026-07-27) *"üst çubuktaki ikonların tooltip'i telefonda hiç görünmüyor"*.
+Biçim çubuğu o dersin dışında kalmış.
+
+### KURAL (bundan sonra her belge ekranı için)
+**Çubukta en fazla ~5 sık kullanılan eylem ikonla; gerisi ETİKETLİ ve GRUPLU
+"Daha fazla" sayfasında.** Yeni ortak bileşen: `widgets/doc_more_sheet.dart`
+(`DocMoreSheet` / `DocMoreGroup` / `DocMoreItem`).
+
+- **Excel: 20 → 6.** Kalan: Kalın · İtalik · Hizalama · Sayı biçimi · Σ ·
+  Daha fazla. Sayfada gruplu: **Pano** (kes/kopyala/yapıştır/temizle),
+  **Sayı** (ondalık ±), **Satır** (ekle/sil/yükseklik), **Sütun**
+  (ekle/sil/genişlik).
+- **Hizalama üç düğme yerine TEK menü:** seçenekler birbirini dışlıyor, üç
+  slot harcamaya değmez ve etkin olan menüde işaretli görünüyor. Aynı desen
+  sayı biçiminde de var.
+- Sütun genişliği / satır yüksekliği ⋮ menüsünden kalktı: artık ait oldukları
+  Satır/Sütun grubunda (aynı işi iki yerde tutmamak).
+- **PDF görüntüleyici: 7 → 5 eylem.** İki döndürme ikonu (birbirinin aynası,
+  hangisinin ne yaptığı anlaşılmıyordu) etiketli ⋮ menüsüne taşındı. Dar
+  telefonda 7×48dp başlığa yer bırakmıyordu.
+
+### Karşı argüman ve cevabı
+Satır/sütun ekleme artık iki dokunuş uzakta. Kabul: seyrek kullanılan bir iş
+için bulunabilirlik > hız, üstelik artık ETİKETLİ. Excel mobil de bu işleri
+panele koyuyor. Sık olanlar (biçim, Σ) çubukta kaldı.
+
+### Doğrulama
+`analyze` 0 hata, **1184 test yeşil**. Ekran testleri yeni akıştan geçiyor
+(`tapMore` yardımcısı: "Daha fazla" → etiketli eylem), yani sayfa gerçekten
+açılıyor ve eylemler çalışıyor.

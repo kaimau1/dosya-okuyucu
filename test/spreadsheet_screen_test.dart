@@ -226,6 +226,178 @@ void main() {
     expect(find.text('A sütun genişliği'), findsNothing);
   });
 
+  // ── düzenleme çekirdeği (gerçek Excel gibi) ─────────────────────────────
+
+  /// Ekrandaki hücreyi bulup ona dokunur (aynı metin formül çubuğunda da
+  /// çıkabildiği için ızgaradaki `SheetCell` içindeki eşleşme aranır).
+  Future<void> tapCell(WidgetTester tester, String text) async {
+    await tester.tap(find
+        .descendant(of: find.byType(SheetCell), matching: find.text(text))
+        .first);
+    await tester.pump();
+  }
+
+
+  /// "Daha fazla" sayfasını açıp etiketli bir eyleme dokunur.
+  Future<void> tapMore(WidgetTester tester, String label) async {
+    await tester.tap(find.text('Daha fazla'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('geri al/yinele düğmeleri düzenlemeyi geri sarar',
+      (tester) async {
+    await pump(tester);
+
+    // Başlangıçta yapacak bir şey yok → düğmeler kapalı.
+    IconButton buttonFor(IconData icon) => tester.widget<IconButton>(
+        find.ancestor(of: find.byIcon(icon), matching: find.byType(IconButton))
+            .first);
+    expect(buttonFor(Icons.undo).onPressed, isNull);
+    expect(buttonFor(Icons.redo).onPressed, isNull);
+
+    await tapCell(tester, '%15');
+    await tester.enterText(find.byType(TextField).first, '42');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(find.text('42'), findsWidgets);
+
+    expect(buttonFor(Icons.undo).onPressed, isNotNull);
+    await tester.tap(find.byIcon(Icons.undo));
+    await tester.pump();
+    // Eski değer geri geldi (yüzde biçimiyle çizilir).
+    expect(find.text('%15'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.redo));
+    await tester.pump();
+    expect(find.text('%15'), findsNothing);
+  });
+
+  testWidgets('İçeriği temizle seçili hücreyi boşaltır, geri al geri getirir',
+      (tester) async {
+    await pump(tester);
+    await tapCell(tester, '%15');
+
+    await tapMore(tester, 'İçeriği temizle');
+    expect(find.text('%15'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.undo));
+    await tester.pump();
+    expect(find.text('%15'), findsOneWidget);
+  });
+
+  /// Geri al düğmesi etkin mi (yani gerçekten bir değişiklik kaydedildi mi)?
+  bool undoEnabled(WidgetTester tester) =>
+      tester
+          .widget<IconButton>(find
+              .ancestor(
+                  of: find.byIcon(Icons.undo), matching: find.byType(IconButton))
+              .first)
+          .onPressed !=
+      null;
+
+  /// Formül çubuğundaki ham değer (ızgara HESAPLANMIŞ değeri gösterir,
+  /// formülün kendisini değil).
+  String formulaBar(WidgetTester tester) =>
+      tester.widget<TextField>(find.byType(TextField).first).controller?.text ??
+      '';
+
+  testWidgets('kopyala + yapıştır ham değeri başka hücreye taşır',
+      (tester) async {
+    await pump(tester);
+    await tapCell(tester, '%15');
+    expect(formulaBar(tester), '0.15');
+    await tapMore(tester, 'Kopyala');
+
+    // Metin içeren bir hücreye yapıştır.
+    await tapCell(tester, 'Ürün');
+    expect(formulaBar(tester), 'Ürün');
+    await tapMore(tester, 'Yapıştır');
+    // **Yapıştırma yalnız DEĞERİ taşır, biçimi değil** (bilinçli sınır):
+    // hedef hücrede yüzde biçimi olmadığı için "%15" değil ham 0,15 çizilir.
+    expect(formulaBar(tester), '0.15');
+
+    await tester.tap(find.byIcon(Icons.undo));
+    await tester.pump();
+    expect(formulaBar(tester), 'Ürün');
+  });
+
+  testWidgets('Σ seçili hücreye TOPLA formülü yazar', (tester) async {
+    await pump(tester);
+    await tapCell(tester, '1.234,50 ₺');
+    await tester.tap(find.byIcon(Icons.functions));
+    await tester.pumpAndSettle();
+    // Izgara sonucu gösterir; formülün kendisi formül çubuğundadır.
+    expect(formulaBar(tester), startsWith('=TOPLA('));
+
+    await tester.tap(find.byIcon(Icons.undo));
+    await tester.pump();
+    expect(find.text('1.234,50 ₺'), findsOneWidget);
+    expect(formulaBar(tester), '1234.5');
+  });
+
+  testWidgets('doldurma tutamağı sürüklenince seri yazılır', (tester) async {
+    await pump(tester);
+    await tapCell(tester, '%15'); // ham değeri 0.15 — tek sayı → kopyalanır
+    expect(undoEnabled(tester), isFalse);
+
+    // Tutamak `RawGestureDetector` — kaydırılabilir ızgaranın içinde arenayı
+    // KAYBETMEMESİ gereken tek yer burası, o yüzden test gerçek sürükleme
+    // yapar (kod yolunu değil davranışı sınar).
+    final handle = find.byKey(SpreadsheetEditorScreen.fillHandleKey);
+    expect(handle, findsOneWidget, reason: 'doldurma tutamağı çizilmedi');
+
+    final gesture = await tester.startGesture(tester.getCenter(handle));
+    await tester.pump();
+    for (var i = 0; i < 3; i++) {
+      await gesture.moveBy(const Offset(0, 22)); // ~bir satır
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    // Sürükleme gerçekten doldurmaya dönüştü: değişiklik kaydedildi ve
+    // seçim doldurulan alanı kapsayacak şekilde büyüdü (durum çubuğu artık
+    // aralık istatistiği gösterir).
+    expect(undoEnabled(tester), isTrue, reason: 'sürükleme doldurmaya dönmedi');
+    expect(find.textContaining('Toplam'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.undo));
+    await tester.pump();
+    expect(undoEnabled(tester), isFalse);
+  });
+
+  testWidgets('Bul çubuğunda Tümünü değiştir çalışır ve geri alınır',
+      (tester) async {
+    await pump(tester);
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField).first, 'Ürün');
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(1), 'Mal');
+    await tester.pump();
+
+    // Izgaradaki hücrelerde ara — "Mal" metni değiştir ALANINDA da duruyor,
+    // `find.text` onu da sayardı.
+    final malCells = find.descendant(
+        of: find.byType(SheetCell), matching: find.text('Mal'));
+    expect(malCells, findsNothing);
+
+    await tester.tap(find.text('Tümünü değiştir'));
+    await tester.pumpAndSettle();
+    expect(malCells, findsWidgets);
+
+    await tester.tap(find.byIcon(Icons.undo));
+    await tester.pump();
+    expect(malCells, findsNothing);
+    expect(
+        find.descendant(
+            of: find.byType(SheetCell), matching: find.text('Ürün')),
+        findsWidgets);
+  });
+
   test('okunmaz yazı rengi zemine göre çevrilir, bilinçli gri korunur', () {
     const white = Color(0xFFFFFFFF);
     const black = Color(0xFF000000);

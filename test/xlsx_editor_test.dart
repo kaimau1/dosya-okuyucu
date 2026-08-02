@@ -147,6 +147,114 @@ void main() {
     expect(e.sheets.first.rows[1][0], '42');
   });
 
+  test('satır silmenin TERSİ içeriği de geri getirir (geri alma)', () {
+    // Geri almanın en kırılgan yeri: `deleteRow`un tersi düz `insertRow`
+    // DEĞİLDİR — satırın değerleri, biçimleri ve yüksekliği de geri konmalı.
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+    final sheet = e.sheets.first;
+
+    e.setCellStyle(name, 1, 0, bold: true);
+    sheet.setRowHeightPt(1, 33);
+
+    final snap = e.captureRow(name, 1);
+    e.deleteRow(name, 1);
+    expect(e.sheets.first.rawAt(1, 0), isNot('42'));
+
+    // Geri al.
+    e.insertRow(name, 1);
+    e.restoreRow(name, 1, snap);
+    expect(e.sheets.first.rawAt(1, 0), '42');
+    expect(e.sheets.first.rawAt(1, 1), '3.5');
+    expect(e.sheets.first.styleAt(1, 0)?.bold, isTrue);
+    expect(e.sheets.first.layout.rowHeights[1], 33);
+
+    // Ve dosyaya da doğru yazılır.
+    final reread = XlsxEditor.parse(e.save());
+    expect(reread.sheets.first.rawAt(1, 0), '42');
+  });
+
+  test('sütun silmenin TERSİ içeriği de geri getirir (geri alma)', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+
+    final snap = e.captureColumn(name, 0);
+    e.deleteColumn(name, 0);
+    expect(e.sheets.first.rawAt(1, 0), isNot('42'));
+
+    e.insertColumn(name, 0);
+    e.restoreColumn(name, 0, snap);
+    expect(e.sheets.first.rawAt(1, 0), '42');
+    expect(e.sheets.first.rawAt(0, 0), 'Başlık');
+  });
+
+  test('overrideAt yalnız uygulama içi biçimi döndürür', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final sheet = e.sheets.first;
+    // Dosyadaki kalın başlık örtme DEĞİLDİR (styles.xml'den gelir).
+    expect(sheet.styleAt(0, 0)?.bold, isTrue);
+    expect(sheet.overrideAt(0, 0), isNull);
+
+    e.setCellStyle(sheet.name, 0, 0, italic: true);
+    expect(sheet.overrideAt(0, 0), isNotNull);
+    // Geri alma örtmeyi kaldırabilmeli.
+    sheet.patchStyle(0, 0, null);
+    expect(sheet.overrideAt(0, 0), isNull);
+    expect(sheet.styleAt(0, 0)?.italic, isNot(true));
+  });
+
+
+  test('sayı biçimi kaydedilip geri okunur (paket yapamıyordu)', () {
+    // KIRMIZI→YEŞİL kanıtı: bu biçimler `excel 4.0.6`nın `numberFormat`
+    // alanından geçirilseydi TARİH biçimi sayısal hücrede `save()` sırasında
+    // istisna fırlatır, dosya hiç kaydedilemezdi. Yama `styles.xml`i doğrudan
+    // yazdığı için tip polisi yok.
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final sheet = e.sheets.first;
+
+    sheet.setNumberFormat(1, 0, r'#,##0.00\ ₺'); // A2 = 42 → para
+    sheet.setNumberFormat(1, 1, '0%'); // B2 = 3.5 → yüzde
+    sheet.setNumberFormat(1, 2, 'dd.mm.yyyy'); // C2 = tarih
+
+    // Ekranda ANINDA uygulanır.
+    expect(sheet.numFmtCode(1, 0), r'#,##0.00\ ₺');
+    expect(sheet.displayText(1, 1, '3.5'), '%350');
+
+    // Ve dosyaya yazılır.
+    final again = XlsxEditor.parse(e.save());
+    final back = again.sheets.first;
+    expect(back.numFmtCode(1, 0), r'#,##0.00\ ₺');
+    expect(back.numFmtCode(1, 1), '0%');
+    expect(back.numFmtCode(1, 2), 'dd.mm.yyyy');
+    // Değerler bozulmadı.
+    expect(back.rawAt(1, 0), '42');
+  });
+
+  test('aynı biçim iki hücrede TEK bir <xf> paylaşır', () {
+    // Her hücreye yeni bir <xf> eklemek büyük tabloda stil tablosunu şişirir.
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final sheet = e.sheets.first;
+    sheet.setNumberFormat(1, 0, '0.000');
+    sheet.setNumberFormat(1, 1, '0.000');
+    final again = XlsxEditor.parse(e.save());
+    expect(again.sheets.first.numFmtCode(1, 0), '0.000');
+    expect(again.sheets.first.numFmtCode(1, 1), '0.000');
+    expect(again.sheets.first.styleIndexAt(1, 0),
+        again.sheets.first.styleIndexAt(1, 1));
+  });
+
+  test('sayı biçimi hücrenin ÖTEKİ biçimlerini korur', () {
+    // A1 dosyada kalın + kırmızı + ortalı. Sayı biçimi vermek bunları
+    // sıfırlamamalı (xf kopyalanıyor, sıfırdan kurulmuyor).
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final sheet = e.sheets.first;
+    sheet.setNumberFormat(0, 0, '0.00');
+    final back = XlsxEditor.parse(e.save()).sheets.first;
+    expect(back.numFmtCode(0, 0), '0.00');
+    expect(back.styleAt(0, 0)?.bold, isTrue);
+    expect(back.styleAt(0, 0)?.hAlign, XlsxHAlign.center);
+  });
+
   test('setCellStyle kalın/italik/hizalamayı anında ve kalıcı uygular', () {
     final e = XlsxEditor.parse(_sampleXlsx());
     final s = e.sheets.first;

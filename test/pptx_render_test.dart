@@ -174,6 +174,102 @@ Uint8List _linePptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// Ön tanımlı geometri örneği: ok (ayar değerli), elmas, elips, çentikli
+/// köşeli dikdörtgen ve tanınmayan bir geometri.
+Uint8List _geometryPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+
+  String sp(String name, String prst, String geomBody) => '''
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="0" name="$name"/><p:nvPr/></p:nvSpPr>
+   <p:spPr>
+    <a:xfrm><a:off x="0" y="0"/><a:ext cx="2540000" cy="1270000"/></a:xfrm>
+    <a:prstGeom prst="$prst">$geomBody</a:prstGeom>
+    <a:solidFill><a:srgbClr val="3366CC"/></a:solidFill>
+   </p:spPr>
+   <p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1400"/><a:t>$name</a:t></a:r></a:p></p:txBody>
+  </p:sp>''';
+
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+${sp('Ok', 'rightArrow', '<a:avLst><a:gd name="adj1" fmla="val 30000"/><a:gd name="adj2" fmla="val 70000"/></a:avLst>')}
+${sp('Elmas', 'diamond', '<a:avLst/>')}
+${sp('Elips', 'ellipse', '')}
+${sp('Yuvarlak', 'roundRect', '<a:avLst><a:gd name="adj" fmla="val 50000"/></a:avLst>')}
+${sp('Bilinmeyen', 'funkyShapeXyz', '')}
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
+/// `a:srcRect` ile kırpılmış görsel içeren slayt.
+Uint8List _croppedPicPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  // 1x1 saydam PNG — çözümlemeye girmesi yeter, çizilmesi gerekmiyor.
+  final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
+      'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
+  archive.addFile(ArchiveFile('ppt/media/image1.png', png.length, png));
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/_rels/slide1.xml.rels', '''
+<Relationships xmlns="rel">
+ <Relationship Id="rId1" Type="image" Target="../media/image1.png"/>
+</Relationships>''');
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw" xmlns:r="rel">
+ <p:cSld><p:spTree>
+  <p:pic>
+   <p:nvPicPr><p:cNvPr id="7" name="Foto"/><p:nvPr/></p:nvPicPr>
+   <p:blipFill>
+    <a:blip r:embed="rId1"/>
+    <a:srcRect l="10000" t="25000" r="5000" b="0"/>
+    <a:stretch><a:fillRect/></a:stretch>
+   </p:blipFill>
+   <p:spPr>
+    <a:xfrm><a:off x="0" y="0"/><a:ext cx="2540000" cy="1270000"/></a:xfrm>
+    <a:prstGeom prst="ellipse"/>
+    <a:ln w="25400"><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill></a:ln>
+   </p:spPr>
+  </p:pic>
+  <p:pic>
+   <p:nvPicPr><p:cNvPr id="8" name="Tam"/><p:nvPr/></p:nvPicPr>
+   <p:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>
+   <p:spPr>
+    <a:xfrm><a:off x="3000000" y="0"/><a:ext cx="1270000" cy="1270000"/></a:xfrm>
+    <a:prstGeom prst="rect"/>
+    <a:ln w="25400"><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill></a:ln>
+   </p:spPr>
+  </p:pic>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 /// Grafikli slayt: graphicFrame → ayrı chart parçası (2 seri, 3 kategori sütun).
 Uint8List _chartPptx() {
   final archive = Archive();
@@ -461,6 +557,90 @@ void main() {
     // Pump hatasız geçtiyse çizim başarılı; şekil metni de görünür.
     expect(find.text('Golge'), findsOneWidget);
     expect(find.byType(CustomPaint), findsWidgets); // çizgi painter'ı var
+  });
+
+  test('ön tanımlı geometri ve avLst ayarları çözülür', () {
+    final view = PptxEditor.parse(_geometryPptx()).slides.single.view!;
+    ShapeVM byName(String preset) =>
+        view.shapes.firstWhere((s) => s.preset == preset);
+
+    // Yol olarak çizilecek şekiller preset adını taşır.
+    final ok = byName('rightArrow');
+    expect(ok.isBoxShaped, isFalse);
+    expect(ok.adjust['adj1'], 30000);
+    expect(ok.adjust['adj2'], 70000);
+    expect(byName('diamond').isBoxShaped, isFalse);
+    expect(byName('ellipse').isBoxShaped, isFalse);
+
+    // roundRect dikdörtgen ailesindedir: yarıçapa çözülür (adj=50000 →
+    // kısa kenarın yarısı = 100pt / 2 = 50pt).
+    final yuvarlak =
+        view.shapes.firstWhere((s) => s.cornerRadius > 0);
+    expect(yuvarlak.isBoxShaped, isTrue);
+    expect(yuvarlak.cornerRadius, closeTo(50, 0.01));
+
+    // Tanınmayan geometri sessizce dikdörtgene düşer (yanlış çizmektense kutu).
+    expect(view.shapes.where((s) => s.preset == 'funkyShapeXyz'), isEmpty);
+    expect(view.shapes.where((s) => s.isBoxShaped).length, 2);
+  });
+
+  testWidgets('ön tanımlı şekiller yol olarak hatasız çizilir', (t) async {
+    final view = PptxEditor.parse(_geometryPptx()).slides.single.view!;
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(width: 400, height: 225, child: SlideCanvas(slide: view)),
+      ),
+    ));
+    expect(t.takeException(), isNull);
+    expect(find.text('Ok'), findsOneWidget);
+    expect(find.text('Elmas'), findsOneWidget);
+  });
+
+  test('görsel kırpması (a:srcRect) oran olarak okunur', () {
+    final view = PptxEditor.parse(_croppedPicPptx()).slides.single.view!;
+    final pics = view.shapes.where((s) => s.image != null).toList();
+    expect(pics.length, 2);
+
+    final cropped = pics.firstWhere((s) => s.crop != null);
+    expect(cropped.crop!.left, closeTo(0.10, 1e-6));
+    expect(cropped.crop!.top, closeTo(0.25, 1e-6));
+    expect(cropped.crop!.right, closeTo(0.05, 1e-6));
+    expect(cropped.crop!.bottom, 0);
+    // Elips çerçeveli fotoğraf yol olarak kırpılır.
+    expect(cropped.isBoxShaped, isFalse);
+
+    // srcRect yoksa kırpma da yok (gereksiz sarmalayıcı kurulmasın).
+    expect(pics.firstWhere((s) => s.isBoxShaped).crop, isNull);
+  });
+
+  testWidgets('görselin çerçevesi görselin ÜSTÜNE çizilir', (t) async {
+    // Kenarlık arka plan süslemesinde kalırsa görselin altında kaybolur;
+    // PowerPoint'te çerçeveli fotoğrafın çerçevesi bizde görünmüyordu.
+    final view = PptxEditor.parse(_croppedPicPptx()).slides.single.view!;
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(width: 400, height: 225, child: SlideCanvas(slide: view)),
+      ),
+    ));
+    expect(t.takeException(), isNull);
+
+    // Kutu (dikdörtgen) görsel: çerçeve ARKA plan süslemesinde OLMAMALI,
+    // ön plan süslemesinde olmalı.
+    final frames = t
+        .widgetList<Container>(find.byType(Container))
+        .where((c) => (c.foregroundDecoration as BoxDecoration?)?.border != null)
+        .toList();
+    expect(frames, isNotEmpty, reason: 'kutu görselin çerçevesi ön planda değil');
+    for (final c in frames) {
+      expect((c.decoration as BoxDecoration?)?.border, isNull,
+          reason: 'çerçeve hem arka hem ön planda');
+    }
+
+    // Yol tabanlı (elips) görsel: kenarlık ön plan painter'ıyla çizilir.
+    expect(
+      find.byWidgetPredicate((w) => w is CustomPaint && w.foregroundPainter != null),
+      findsWidgets,
+    );
   });
 
   test('tema stil referansı (p:style) dolgu ve çizgi rengini çözer', () {

@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
+import '../core/excel_format.dart' show builtinNumberFormats;
+
 /// Bir sayfa için kaydetme sonrası düzeltilecek nitelikler.
 ///
 /// Satır/sütun indeksleri **0 tabanlıdır** (uygulamanın her yerinde olduğu
@@ -34,6 +36,17 @@ class XlsxSheetPatch {
   /// Otomatik süzgeç aralığı (`<autoFilter ref="A1:D20"/>`). null = süzgeç yok.
   final String? autoFilterRef;
 
+  /// Kullanıcının verdiği **sayı biçimleri**: `(satır, sütun)` → biçim kodu
+  /// (`'#,##0.00 ₺'`, `'0%'`, `'dd.mm.yyyy'`…).
+  ///
+  /// **Neden pakete değil buraya:** `excel 4.0.6` biçim kodunu hücrenin
+  /// TİPİYLE eşleştirmeye çalışıyor ve uymazsa `save()` sırasında **istisna
+  /// fırlatıyor** ("CustomDateTimeNumFormat does not work for IntCellValue").
+  /// Excel'de tarihler sayı (seri numarası) olarak saklandığı için bu, en sık
+  /// istenen biçimlendirmede dosyayı kaydedilemez hâle getiriyordu. Yama
+  /// `styles.xml`i doğrudan yazdığından böyle bir tip polisi yok.
+  final Map<(int, int), String> numberFormats;
+
   const XlsxSheetPatch({
     required this.name,
     this.rightToLeft = false,
@@ -44,6 +57,7 @@ class XlsxSheetPatch {
     this.frozenCols = 0,
     this.showGridLines = true,
     this.autoFilterRef,
+    this.numberFormats = const {},
   });
 
   bool get isEmpty =>
@@ -54,7 +68,8 @@ class XlsxSheetPatch {
       frozenRows == 0 &&
       frozenCols == 0 &&
       showGridLines &&
-      autoFilterRef == null;
+      autoFilterRef == null &&
+      numberFormats.isEmpty;
 }
 
 /// `excel` paketinin **yazamadığı** sayfa niteliklerini, üretilen .xlsx
@@ -94,14 +109,25 @@ class XlsxSavePatch {
       final targets = _sheetTargets(archive);
       if (targets.isEmpty) return bytes;
 
+      // Sayı biçimleri `styles.xml`de yaşar, hücre yalnız `s="<indeks>"` ile
+      // ona işaret eder → stil tablosu sayfalardan ÖNCE açılır, sayfalar
+      // yamalanırken indeks ondan istenir, en son (değiştiyse) geri yazılır.
+      final stylesFile = _fileAt(archive, 'xl/styles.xml');
+      final styles = stylesFile == null
+          ? null
+          : _StyleTable.parse(_textOf(stylesFile));
+
       final replacements = <String, String>{};
       for (final patch in todo) {
         final path = targets[patch.name];
         if (path == null) continue;
         final file = _fileAt(archive, path);
         if (file == null) continue;
-        final patched = _patchSheetXml(_textOf(file), patch);
+        final patched = _patchSheetXml(_textOf(file), patch, styles);
         if (patched != null) replacements[path] = patched;
+      }
+      if (styles != null && styles.changed) {
+        replacements['xl/styles.xml'] = styles.toXmlString();
       }
       if (replacements.isEmpty) return bytes;
 
@@ -185,7 +211,8 @@ class XlsxSavePatch {
   // ── sayfa XML'i ─────────────────────────────────────────────────────────
 
   /// Yamalanmış XML metni; değişiklik gerekmediyse null.
-  static String? _patchSheetXml(String xmlText, XlsxSheetPatch patch) {
+  static String? _patchSheetXml(
+      String xmlText, XlsxSheetPatch patch, _StyleTable? styles) {
     final doc = XmlDocument.parse(xmlText);
     final root = doc.rootElement;
     var changed = false;
@@ -194,8 +221,103 @@ class XlsxSavePatch {
     if (_applyHiddenCols(root, patch.hiddenCols)) changed = true;
     if (_applyRows(root, patch)) changed = true;
     if (_applyAutoFilter(root, patch.autoFilterRef)) changed = true;
+    if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
 
     return changed ? doc.toXmlString() : null;
+  }
+
+  /// Sayı biçimlerini hücrelere bağlar: her hücre için `styles.xml`de uygun
+  /// bir `<xf>` bulunur/oluşturulur ve hücreye `s="<indeks>"` yazılır.
+  static bool _applyNumberFormats(
+    XmlElement root,
+    Map<(int, int), String> formats,
+    _StyleTable? styles,
+  ) {
+    if (formats.isEmpty || styles == null) return false;
+    final data = _firstChild(root, 'sheetData');
+    if (data == null) return false;
+
+    var changed = false;
+    // Satır satır gruplanır: aynı satırdaki hücreler tek geçişte bulunur.
+    final byRow = <int, List<int>>{};
+    for (final key in formats.keys) {
+      byRow.putIfAbsent(key.$1, () => []).add(key.$2);
+    }
+
+    for (final entry in byRow.entries) {
+      final rowNumber = entry.key + 1;
+      final row = _rowElement(data, rowNumber);
+      for (final col in entry.value..sort()) {
+        final ref = '${_colLetters(col)}$rowNumber';
+        final cell = _cellElement(row, ref, col);
+        final baseXf = int.tryParse(cell.getAttribute('s') ?? '') ?? 0;
+        final xf = styles.xfWithNumberFormat(baseXf, formats[(entry.key, col)]!);
+        if (cell.getAttribute('s') == '$xf') continue;
+        cell.setAttribute('s', '$xf');
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /// `<row r="N">` — yoksa sıralı yerine oluşturulur.
+  static XmlElement _rowElement(XmlElement data, int number) {
+    for (final row in data.children.whereType<XmlElement>()) {
+      if (row.name.local != 'row') continue;
+      if (int.tryParse(row.getAttribute('r') ?? '') == number) return row;
+    }
+    final created =
+        XmlElement(XmlName('row'), [XmlAttribute(XmlName('r'), '$number')]);
+    _insertRowSorted(data, created, number);
+    return created;
+  }
+
+  /// `<c r="B3">` — yoksa SÜTUN SIRASINA göre oluşturulur. Değeri olmayan
+  /// hücreye de biçim verilebilir (Excel `<c r="B3" s="5"/>` yazar); sıra
+  /// bozulursa Excel dosyayı onarılamaz sayar.
+  static XmlElement _cellElement(XmlElement row, String ref, int col) {
+    for (final c in row.children.whereType<XmlElement>()) {
+      if (c.name.local != 'c') continue;
+      if (c.getAttribute('r') == ref) return c;
+    }
+    final created =
+        XmlElement(XmlName('c'), [XmlAttribute(XmlName('r'), ref)]);
+    for (var i = 0; i < row.children.length; i++) {
+      final node = row.children[i];
+      if (node is! XmlElement || node.name.local != 'c') continue;
+      final other = _colOfRef(node.getAttribute('r') ?? '');
+      if (other > col) {
+        row.children.insert(i, created);
+        return created;
+      }
+    }
+    row.children.add(created);
+    return created;
+  }
+
+  /// "B3" → 1 (0 tabanlı sütun). Çözülemezse en sona düşsün diye çok büyük.
+  static int _colOfRef(String ref) {
+    var n = 0;
+    for (final u in ref.codeUnits) {
+      if (u >= 65 && u <= 90) {
+        n = n * 26 + (u - 64);
+      } else if (u >= 97 && u <= 122) {
+        n = n * 26 + (u - 96);
+      } else {
+        break;
+      }
+    }
+    return n == 0 ? 1 << 30 : n - 1;
+  }
+
+  static String _colLetters(int index) {
+    var n = index + 1;
+    final out = <int>[];
+    while (n > 0) {
+      out.add(65 + (n - 1) % 26);
+      n = (n - 1) ~/ 26;
+    }
+    return String.fromCharCodes(out.reversed);
   }
 
   /// `<sheetViews><sheetView …/></sheetViews>` — yön, ızgara çizgisi ve
@@ -510,7 +632,13 @@ class XlsxSavePatch {
   ];
 
   static void _insertOrdered(XmlElement root, XmlElement child) {
-    final rank = _worksheetOrder.indexOf(child.name.local);
+    insertOrderedIn(root, child, _worksheetOrder);
+  }
+
+  /// Şema sırasını koruyarak ekler (sayfa ve stil tablosu ortak kullanır).
+  static void insertOrderedIn(
+      XmlElement root, XmlElement child, List<String> order) {
+    final rank = order.indexOf(child.name.local);
     if (rank < 0) {
       root.children.add(child);
       return;
@@ -518,7 +646,7 @@ class XlsxSavePatch {
     for (var i = 0; i < root.children.length; i++) {
       final node = root.children[i];
       if (node is! XmlElement) continue;
-      final other = _worksheetOrder.indexOf(node.name.local);
+      final other = order.indexOf(node.name.local);
       // Listede olmayan öğe (`drawing`, `legacyDrawing`, `extLst`…) şemada
       // listedekilerin tamamından SONRA gelir → önüne konur.
       if (other < 0 || other > rank) {
@@ -528,4 +656,161 @@ class XlsxSavePatch {
     }
     root.children.add(child);
   }
+}
+
+/// `xl/styles.xml` üzerinde **sayı biçimi** tahsisi.
+///
+/// Excel'de hücre biçimi hücrede DEĞİL, stil tablosunda durur: hücre yalnız
+/// `s="<cellXfs indeksi>"` yazar. Bir hücreye yeni bir sayı biçimi vermek bu
+/// yüzden üç adımdır:
+/// 1. biçim kodu için bir `numFmtId` bul (yerleşikse hazır id, değilse
+///    `<numFmts>`e 164'ten başlayan yeni bir kayıt),
+/// 2. hücrenin ŞU ANKİ `<xf>`ini kopyalayıp `numFmtId`ini değiştir (yazı tipi,
+///    dolgu, kenarlık, hizalama korunsun — yoksa biçim vermek hücrenin
+///    görünümünü sıfırlardı),
+/// 3. aynı `<xf>` zaten varsa onun indeksini kullan, yoksa ekle.
+///
+/// Adım 3 şart: her hücre için yeni bir `<xf>` eklemek büyük bir tabloda stil
+/// tablosunu şişirir ve Excel'in sınırlarına dayanır.
+class _StyleTable {
+  final XmlDocument doc;
+  final XmlElement root;
+  bool changed = false;
+
+  /// Biçim kodu → numFmtId (yerleşikler + dosyadaki özel kayıtlar).
+  final Map<String, int> _idByCode = {};
+  int _nextCustomId = 164;
+
+  _StyleTable._(this.doc) : root = doc.rootElement;
+
+  static _StyleTable? parse(String xml) {
+    try {
+      final table = _StyleTable._(XmlDocument.parse(xml));
+      table._index();
+      return table;
+    } catch (_) {
+      // Bozuk stil tablosu yüzünden kaydetmeyi kırma; biçim yazılamaz, o kadar.
+      return null;
+    }
+  }
+
+  void _index() {
+    builtinNumberFormats.forEach((id, code) => _idByCode.putIfAbsent(code, () => id));
+    final numFmts = _child(root, 'numFmts');
+    if (numFmts == null) return;
+    for (final nf in numFmts.childElements) {
+      if (nf.name.local != 'numFmt') continue;
+      final id = int.tryParse(nf.getAttribute('numFmtId') ?? '');
+      final code = nf.getAttribute('formatCode');
+      if (id == null || code == null) continue;
+      _idByCode[code] = id;
+      if (id >= _nextCustomId) _nextCustomId = id + 1;
+    }
+  }
+
+  /// [baseXf] biçimini koruyup sayı biçimini [formatCode] yapan `<xf>`in
+  /// `cellXfs` indeksi.
+  int xfWithNumberFormat(int baseXf, String formatCode) {
+    final cellXfs = _childOrCreate(root, 'cellXfs');
+    final xfs = cellXfs.childElements
+        .where((e) => e.name.local == 'xf')
+        .toList(growable: false);
+
+    final numFmtId = _numFmtIdFor(formatCode);
+    final base = baseXf >= 0 && baseXf < xfs.length ? xfs[baseXf] : null;
+    final wanted = base == null
+        ? XmlElement(XmlName('xf'), [
+            XmlAttribute(XmlName('numFmtId'), '$numFmtId'),
+            XmlAttribute(XmlName('fontId'), '0'),
+            XmlAttribute(XmlName('fillId'), '0'),
+            XmlAttribute(XmlName('borderId'), '0'),
+            XmlAttribute(XmlName('xfId'), '0'),
+            XmlAttribute(XmlName('applyNumberFormat'), '1'),
+          ])
+        : _cloneXf(base, numFmtId);
+
+    for (var i = 0; i < xfs.length; i++) {
+      if (_sameXf(xfs[i], wanted)) return i;
+    }
+    cellXfs.children.add(wanted);
+    _setCount(cellXfs, xfs.length + 1);
+    changed = true;
+    return xfs.length;
+  }
+
+  int _numFmtIdFor(String code) {
+    final existing = _idByCode[code];
+    if (existing != null) return existing;
+    final id = _nextCustomId++;
+    final numFmts = _childOrCreate(root, 'numFmts');
+    numFmts.children.add(XmlElement(XmlName('numFmt'), [
+      XmlAttribute(XmlName('numFmtId'), '$id'),
+      XmlAttribute(XmlName('formatCode'), code),
+    ]));
+    _setCount(numFmts, numFmts.childElements.length);
+    _idByCode[code] = id;
+    changed = true;
+    return id;
+  }
+
+  static XmlElement _cloneXf(XmlElement src, int numFmtId) {
+    final el = XmlElement(XmlName('xf'), [
+      for (final a in src.attributes)
+        if (a.name.local != 'numFmtId' && a.name.local != 'applyNumberFormat')
+          XmlAttribute(XmlName(a.name.qualified), a.value),
+      XmlAttribute(XmlName('numFmtId'), '$numFmtId'),
+      XmlAttribute(XmlName('applyNumberFormat'), '1'),
+    ]);
+    // `<alignment>` / `<protection>` alt düğümleri de taşınmalı.
+    for (final child in src.childElements) {
+      el.children.add(child.copy());
+    }
+    return el;
+  }
+
+  static bool _sameXf(XmlElement a, XmlElement b) {
+    if (a.attributes.length != b.attributes.length) return false;
+    for (final attr in b.attributes) {
+      if (a.getAttribute(attr.name.qualified) != attr.value) return false;
+    }
+    return a.children.whereType<XmlElement>().length ==
+        b.children.whereType<XmlElement>().length;
+  }
+
+  static void _setCount(XmlElement el, int n) =>
+      el.setAttribute('count', '$n');
+
+  static XmlElement? _child(XmlElement parent, String local) {
+    for (final e in parent.childElements) {
+      if (e.name.local == local) return e;
+    }
+    return null;
+  }
+
+  /// ECMA-376 `CT_Stylesheet` çocuk sırası zorunludur; yanlış yere konan
+  /// `<numFmts>` Excel'de "onarılamayan içerik" demek.
+  static const _order = [
+    'numFmts',
+    'fonts',
+    'fills',
+    'borders',
+    'cellStyleXfs',
+    'cellXfs',
+    'cellStyles',
+    'dxfs',
+    'tableStyles',
+    'colors',
+    'extLst',
+  ];
+
+  XmlElement _childOrCreate(XmlElement parent, String local) {
+    final existing = _child(parent, local);
+    if (existing != null) return existing;
+    final created = XmlElement(XmlName(local));
+    XlsxSavePatch.insertOrderedIn(parent, created, _order);
+    changed = true;
+    return created;
+  }
+
+  String toXmlString() => doc.toXmlString();
 }
