@@ -173,6 +173,50 @@ void main() {
     expect(again.paragraphs.map((p) => p.text), ['Başlık', 'Normal']);
   });
 
+
+  test('silinen paragraf KENDİ yerine geri konur (geri alma)', () {
+    // Geri almanın kritik noktası: paragraf sona değil, silindiği yere
+    // dönmeli — başlığın altındaki madde belgenin sonuna düşerse metin bozulur.
+    final e = DocxEditor.parse(_sampleDocx());
+    final target = e.paragraphs[1];
+    final textsBefore = e.paragraphs.map((p) => p.text).toList();
+
+    final slot = e.slotOf(target);
+    e.deleteParagraph(target);
+    expect(e.paragraphs.length, textsBefore.length - 1);
+
+    e.restoreParagraph(target, slot);
+    expect(e.paragraphs.map((p) => p.text), textsBefore);
+
+    // Dosyada da doğru sırada.
+    final again = DocxEditor.parse(e.save());
+    expect(again.paragraphs.map((p) => p.text), textsBefore);
+  });
+
+  test('eklenen paragrafın geri alınması belgeyi eski hâline döndürür', () {
+    final e = DocxEditor.parse(_sampleDocx());
+    final textsBefore = e.paragraphs.map((p) => p.text).toList();
+
+    final added = e.addParagraphAfter(e.paragraphs[0]);
+    added.text = 'Fazlalık';
+    expect(e.paragraphs.length, textsBefore.length + 1);
+
+    e.deleteParagraph(added);
+    expect(e.paragraphs.map((p) => p.text), textsBefore);
+    final again = DocxEditor.parse(e.save());
+    expect(again.paragraphs.map((p) => p.text), textsBefore);
+  });
+
+  test('ilk paragrafın silinmesi de geri alınabilir', () {
+    final e = DocxEditor.parse(_sampleDocx());
+    final first = e.paragraphs.first;
+    final slot = e.slotOf(first);
+    e.deleteParagraph(first);
+    expect(e.paragraphs.first.text, isNot('Başlık'));
+    e.restoreParagraph(first, slot);
+    expect(e.paragraphs.first.text, 'Başlık');
+  });
+
   test('metin düzenlemesi biçimi bozmadan yazılır', () {
     final e = DocxEditor.parse(_sampleDocx());
     e.paragraphs[1].text = 'Değişti';

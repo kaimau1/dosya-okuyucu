@@ -5549,3 +5549,31 @@ kaçışlarını atlıyor.
 
 ### Doğrulama
 Flutter 3.29.3: `analyze` **0 hata**, **1181 test yeşil** (+9).
+
+## 2026-08-02 (4. tur) — Word: paragraf silmenin geri dönüşü yoktu
+
+Kullanıcı: *"devam sonra word e çalış."*
+
+### Ortak geri alma yığını `core/undo_stack.dart`e taşındı
+Excel'de doğan `SheetUndoStack` Word'de de gerekince çekirdeğe alındı
+(`UndoStep` / `UndoStack` / `CallbackUndoStep`). Excel tarafındaki adlar
+**typedef** olarak korundu — çağıranların ve testlerin hiçbiri değişmedi.
+
+### Word'ün gerçek boşluğu: YAPISAL işlemler
+Word ekranında paragraf ekle/sil vardı ama **geri alma yoktu**: yanlış
+paragrafı silen kullanıcının belgeyi kaydetmeden kapatmaktan başka yolu yoktu.
+- `DocxEditor.slotOf` / `restoreParagraph`: paragrafın **XML ağacındaki yeri +
+  model sırası** silmeden ÖNCE yakalanır. **Sona eklemek yeterli değil:**
+  Word'de paragrafın yeri anlamının parçası — başlığın altındaki madde
+  belgenin sonuna düşerse metin bozulur. Testli (ilk paragraf dahil).
+- Üst çubuğa geri al/yinele.
+
+### Bilinçli sınır — harf harf yazma yığına GİRMEZ
+Canlı görünümde tarayıcının kendi geri alması, akış görünümünde `TextField`in
+kendi geri alması zaten çalışıyor. Her tuş vuruşunu ayrıca kaydetmek **iki
+katmanlı ve şaşırtıcı** bir geri alma yaratırdı (bir "geri al" bazen harfi,
+bazen paragrafı geri alır). Yığın yalnız yapısal işlemleri taşıyor.
+
+### Doğrulama
+Flutter 3.29.3: `analyze` **0 hata**, **1184 test yeşil** (+3).
+Cihazda doğrulama YAPILMADI → KALANLAR.

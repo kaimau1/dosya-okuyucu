@@ -10,6 +10,10 @@ library;
 
 import 'dart:math' as math;
 
+import '../core/undo_stack.dart';
+
+export '../core/undo_stack.dart';
+
 /// Bir hücrenin konumu (0 tabanlı).
 class CellRef {
   final int row;
@@ -576,19 +580,13 @@ CellRange? autoSumRange(
 // Geri al / yinele
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Geri alınabilir tek bir düzenleme adımı.
-///
-/// Uygulama (`apply`) ve geri alma (`revert`) tek bir arayüzde: yığın
-/// yalnız bunları çağırır, ne yaptığını bilmez. Böylece yeni bir işlem
-/// eklemek yığına dokunmadan mümkün.
-abstract class SheetUndoStep {
-  /// Adımı anlatan **i18n anahtarı** (`excel.undo_paste` gibi); metne çevirmek
-  /// çağıranın işi — çekirdek dilden habersiz kalsın.
-  String get label;
+/// Excel'in geri alma adımı — ortak [UndoStep]in takma adı. Excel tarafındaki
+/// çağıranlar (ve testleri) bu adla yazıldı; çekirdek `core/undo_stack.dart`e
+/// taşınınca isim korundu.
+typedef SheetUndoStep = UndoStep;
 
-  void apply();
-  void revert();
-}
+/// Excel'in geri alma yığını — ortak [UndoStack]in takma adı.
+typedef SheetUndoStack = UndoStack;
 
 /// Değer/stil gibi "önce-sonra" çiftleriyle tarif edilen genel adım.
 class SheetValueStep implements SheetUndoStep {
@@ -620,60 +618,6 @@ class SheetValueStep implements SheetUndoStep {
       if (before[e.key] != e.value) return false;
     }
     return true;
-  }
-}
-
-/// Geri alma/yineleme yığını.
-///
-/// Yeni bir adım eklendiğinde yineleme dalı silinir (her editörde olduğu gibi).
-/// [limit] bellek tavanı: en eski adımlar düşer.
-class SheetUndoStack {
-  final int limit;
-  final _done = <SheetUndoStep>[];
-  final _undone = <SheetUndoStep>[];
-
-  SheetUndoStack({this.limit = 100});
-
-  bool get canUndo => _done.isNotEmpty;
-  bool get canRedo => _undone.isNotEmpty;
-  int get depth => _done.length;
-
-  /// Adımı UYGULAR ve yığına koyar.
-  void push(SheetUndoStep step) {
-    step.apply();
-    record(step);
-  }
-
-  /// Adım zaten uygulandıysa (ekran kendi yolundan yazdıysa) yalnız kaydeder.
-  void record(SheetUndoStep step) {
-    _done.add(step);
-    _undone.clear();
-    while (_done.length > limit) {
-      _done.removeAt(0);
-    }
-  }
-
-  /// Son adımı geri alır; adım yoksa null.
-  SheetUndoStep? undo() {
-    if (_done.isEmpty) return null;
-    final step = _done.removeLast();
-    step.revert();
-    _undone.add(step);
-    return step;
-  }
-
-  /// Geri alınan son adımı yineler; adım yoksa null.
-  SheetUndoStep? redo() {
-    if (_undone.isEmpty) return null;
-    final step = _undone.removeLast();
-    step.apply();
-    _done.add(step);
-    return step;
-  }
-
-  void clear() {
-    _done.clear();
-    _undone.clear();
   }
 }
 

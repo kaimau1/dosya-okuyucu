@@ -1,5 +1,31 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
+- [ ] **2026-08-02 (3-4. tur) cihaz doğrulaması (kullanıcı).**
+      **Excel:** (a) bir sütun seç → biçim çubuğundaki **#** menüsünden
+      *Para (₺)* / *Yüzde* / *Tarih* seç → hücreler o biçimde görünüyor mu,
+      (b) **kaydet → masaüstü Excel'de aç**: biçimler DURUYOR mu (en kritik
+      madde — eski yol dosyayı hiç kaydettirmiyordu), (c) **ondalık artır/
+      azalt** düğmeleri çalışıyor mu, (d) biçim verilen hücrenin kalın/renk/
+      kenarlığı BOZULMADI mı, (e) hepsi **geri al** ile geri dönüyor mu.
+      **Word:** (f) akış (Mobil) görünümünde bir paragrafı **sil** → üstteki
+      **geri al** paragrafı KENDİ yerine geri getiriyor mu (sona değil),
+      (g) paragraf **ekle** → geri al onu kaldırıyor mu, (h) yazarken
+      klavyenin kendi geri alması hâlâ çalışıyor mu.
+
+
+## Word "gerçek mobil Word gibi olsun" — kalan yol haritası
+2026-08-02'de yapısal geri al/yinele geldi. Kalanlar:
+- [ ] **Belge içinde bul / değiştir yok** (slaytta ve Excel'de var).
+      `core/text_search.dart#searchSections` hazır; canlı görünümde eşleşmeye
+      atlamak için `DocxView`e JS köprüsü gerekiyor.
+- [ ] **Yazı tipi/punto PARAGRAF düzeyinde** — seçimin ortasındaki üç kelimeye
+      ayrı punto verilemiyor (aşağıdaki "Bilinen eksik-risk" maddesi).
+- [ ] **Metin rengi / vurgu / madde işareti / numaralandırma** düğmeleri yok.
+- [ ] **Tablo düzenleme yok** (tablolar görüntüleniyor, düzenlenemiyor).
+- [ ] **Resim ekleme/taşıma yok.**
+- [ ] **Seçili metin çevirisi yok** (WebView seçimi Flutter'a gelmiyor).
+- [ ] Harf harf yazma geri alma yığınına girmiyor (bilinçli — HAFIZA 4. tur).
+
 ## Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası
 2026-08-02'de düzenleme çekirdeği geldi (geri al/yinele, kes/kopyala/yapıştır,
 doldurma tutamağı, Σ, bul-değiştir). Excel mobilden hâlâ ayıranlar, **etkiye
@@ -8,11 +34,15 @@ göre sıralı**:
       biçimini de yapıştırır. Yol: `SheetClip`e `styleIndex` matrisi eklemek +
       `XlsxEditor`a `setCellStyleIndex`. Bilinçli olarak bu tura alınmadı
       (biçim yazma yolu ayrı bir doğrulama gerektiriyor).
-- [ ] **Sayı biçimi düğmeleri yok** — para/yüzde/binlik ayracı/ondalık artır-
-      azalt/tarih. Okuma tarafı hazır (`excel_format.dart`), eksik olan
-      `numFmtId` YAZMA yolu (`excel 4.0.6`'da karşılığı yok → `XlsxSavePatch`).
+- [x] ~~**Sayı biçimi düğmeleri yok**~~ → **YAPILDI 2026-08-02:** biçim çubuğunda
+      **#** menüsü (Genel/Sayı/Binlik/Para ₺/Yüzde/Tarih/Saat/Metin) + ondalık
+      artır/azalt. `XlsxSavePatch._StyleTable` `numFmtId` tahsis edip hücrenin
+      var olan `<xf>`ini kopyalıyor. **Paket yolu kullanılamazdı:** tarih
+      biçimi sayısal hücrede `save()`i istisnayla kırıyordu (HAFIZA 3. tur).
 - [ ] **Dolgu rengi / yazı rengi / kenarlık / metin kaydırma / hücre
-      birleştirme** yazılamıyor (hepsi okunuyor ve çiziliyor).
+      birleştirme** yazılamıyor (hepsi okunuyor ve çiziliyor). Altyapı ARTIK
+      HAZIR: `_StyleTable` aynı yoldan `fontId`/`fillId`/`borderId` de tahsis
+      edebilir — sayı biçimiyle aynı desen.
 - [ ] **Sırala ve süz (autofilter) arayüzü yok** — `<autoFilter>` okunup
       kaydediliyor ama başlıktaki süzgeç oku tıklanabilir değil.
 - [ ] **Sayfa ekle / yeniden adlandır / sil / taşı yok** (sekmeler yalnız

@@ -108,6 +108,15 @@ class DocxParagraph {
   bool get _alignChanged => align != _align0;
 }
 
+/// Bir paragrafın belgedeki konumu (XML ağacındaki yeri + model sırası).
+/// Silmenin tersini alabilmek için gerekir.
+class DocxParagraphSlot {
+  final XmlNode? parent;
+  final int xmlIndex;
+  final int modelIndex;
+  const DocxParagraphSlot(this.parent, this.xmlIndex, this.modelIndex);
+}
+
 /// .docx dosyasını paragraf bazında düzenler ve orijinal biçimi koruyarak kaydeder.
 ///
 /// Metin, paragraf içindeki ilk `<w:t>` düğümüne yazılır; paragraf stilleri (pPr)
@@ -329,6 +338,31 @@ class DocxEditor {
   void deleteParagraph(DocxParagraph p) {
     p._element.parent?.children.remove(p._element);
     paragraphs.remove(p);
+  }
+
+  /// Paragrafın belgedeki YERİ — silmeyi geri alabilmek için silmeden ÖNCE
+  /// alınır. Silinen paragrafı sona eklemek yeterli değil: Word'de paragrafın
+  /// yeri anlamının parçası (başlık altındaki madde başka yere düşemez).
+  DocxParagraphSlot slotOf(DocxParagraph p) {
+    final parent = p._element.parent;
+    return DocxParagraphSlot(
+      parent,
+      parent == null ? -1 : parent.children.indexOf(p._element),
+      paragraphs.indexOf(p),
+    );
+  }
+
+  /// [slotOf] ile alınmış konuma paragrafı geri koyar.
+  void restoreParagraph(DocxParagraph p, DocxParagraphSlot slot) {
+    final parent = slot.parent;
+    if (parent != null &&
+        slot.xmlIndex >= 0 &&
+        slot.xmlIndex <= parent.children.length) {
+      parent.children.insert(slot.xmlIndex, p._element);
+    }
+    final at = slot.modelIndex;
+    paragraphs.insert(
+        at < 0 || at > paragraphs.length ? paragraphs.length : at, p);
   }
 
   /// Değişen paragrafları geri yazıp yeni .docx byte'larını üretir.
