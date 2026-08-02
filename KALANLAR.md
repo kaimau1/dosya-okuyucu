@@ -1,5 +1,44 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
+## Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası
+2026-08-02'de düzenleme çekirdeği geldi (geri al/yinele, kes/kopyala/yapıştır,
+doldurma tutamağı, Σ, bul-değiştir). Excel mobilden hâlâ ayıranlar, **etkiye
+göre sıralı**:
+- [ ] **Yapıştırmada BİÇİM taşınmıyor** — yalnız değer gider. Excel hücre
+      biçimini de yapıştırır. Yol: `SheetClip`e `styleIndex` matrisi eklemek +
+      `XlsxEditor`a `setCellStyleIndex`. Bilinçli olarak bu tura alınmadı
+      (biçim yazma yolu ayrı bir doğrulama gerektiriyor).
+- [ ] **Sayı biçimi düğmeleri yok** — para/yüzde/binlik ayracı/ondalık artır-
+      azalt/tarih. Okuma tarafı hazır (`excel_format.dart`), eksik olan
+      `numFmtId` YAZMA yolu (`excel 4.0.6`'da karşılığı yok → `XlsxSavePatch`).
+- [ ] **Dolgu rengi / yazı rengi / kenarlık / metin kaydırma / hücre
+      birleştirme** yazılamıyor (hepsi okunuyor ve çiziliyor).
+- [ ] **Sırala ve süz (autofilter) arayüzü yok** — `<autoFilter>` okunup
+      kaydediliyor ama başlıktaki süzgeç oku tıklanabilir değil.
+- [ ] **Sayfa ekle / yeniden adlandır / sil / taşı yok** (sekmeler yalnız
+      gezinme).
+- [ ] **Grafik EKLEME yok** (PPTX tarafında grafik çizimi var, Excel'de yok).
+- [ ] **Hücre notu/açıklaması** okunmuyor/yazılmıyor.
+- [ ] **İşlev ekle sihirbazı ve formül otomatik tamamlama yok** — motor 100+
+      işlev biliyor ama kullanıcı adını ezberlemek zorunda.
+- [ ] **Koşullu biçimlendirme yalnız OKUNUYOR**, kullanıcı kural ekleyemiyor.
+- [ ] **Doldurma tutamağına çift dokunup sütunu otomatik doldurma** (Excel'de
+      çift tık) ve **köşegen doldurma** yok — tek eksende doldurma var.
+
+- [ ] **2026-08-02 (2. tur) cihaz doğrulaması (kullanıcı) — Excel düzenleme.**
+      Bir .xlsx aç: (a) bir hücreye yaz → üstteki **geri al** oku eski değeri
+      geri getiriyor, **yinele** tekrar yazıyor mu, (b) aralık seç → **kopyala**
+      → başka yere **yapıştır**; formül yapıştırınca başvurular kaydı mı
+      (`=A1*2` bir sağa → `=B1*2`), (c) **kes** → yapıştır: kaynak yapıştırınca
+      mı boşalıyor, (d) seçimin **sağ alt köşesindeki küçük kare** parmakla
+      aşağı sürüklenebiliyor mu (sayfa kaymadan!), 1-2 yazıp sürükleyince
+      3,4,5 geliyor mu, "Ocak" sürükleyince "Şubat" geliyor mu, (e) sayı
+      sütununun altına **Σ** basınca doğru aralığı topluyor mu, (f) 🔍 →
+      **Tümünü değiştir** çalışıp tek geri alma adımında geri alınıyor mu,
+      (g) satır/sütun **sil** → geri al: veri VE biçim geri geliyor mu,
+      (h) uygulamadan kopyalayıp **başka bir uygulamaya** (Not Defteri/Excel)
+      yapıştırınca tablo düzgün mü (sekmeyle ayrılmış).
+
 ## Yarım kalan
 - [ ] **2026-08-02 turu cihaz doğrulaması (kullanıcı) — slayt şekilleri.**
       İçinde süreç/akış diyagramı olan gerçek bir .pptx aç: (a) **oklar, üçgen,

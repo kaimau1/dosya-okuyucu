@@ -5451,3 +5451,62 @@ Bulut oturumunda Flutter **3.29.3** (CI ile aynı): `flutter analyze` **0 hata**
 **1124 test yeşil**. Yeni testler: `pptx_geometry_test` 19,
 `pptx_render_test`e 4 (preset+avLst, yol çizimi, `srcRect`, çerçeve katmanı).
 Cihazda GÖRSEL doğrulama yapılmadı → KALANLAR "2026-08-02 turu".
+
+## 2026-08-02 (2. tur) — Excel: DÜZENLEME çekirdeği (geri al, pano, doldurma, Σ)
+
+Kullanıcı: *"Excel tarafını geliştirmeye devam edelim, gerçek mobil excel gibi
+olsun, aynısı oluncaya kadar çalış."*
+
+### A) Araştırma bulgusu — eksik olan GÖRÜNÜM değil, DÜZENLEME
+Ekran zaten Excel gibi ÇİZİYORDU (biçim, koşullu biçim, donmuş bölme, RTL,
+formül motoru). Gerçek Excel'den ayıran şey düzenleme eylemleriydi ve en
+temel dördü **hiç yoktu**: geri al/yinele, kopyala/kes/yapıştır, doldurma
+tutamağı, otomatik toplam. Yani kullanıcı yanlış bir hücreye yazdığında geri
+dönüşü yoktu — bu, bir tablo uygulamasında en sık kullanılan tuştur.
+
+### B) Çekirdek ayrı ve SAF DART: `services/sheet_edit.dart`
+Kural yoğun, kenar durumu bol her şey (formül kaydırma, seri üretimi, pano
+tekrar kuralı, geri alma yığını) ekrandan ayrıldı → 39 birim testiyle
+kilitlendi. Widget testinde sürükle-bırak taklidiyle uğraşmadan kural sınanıyor.
+
+### C) TUZAKLAR (hepsi testte yakalandı)
+- **`LOG10(A1)` → `LOG11(A2)` oluyordu.** `LOG` geçerli bir sütun adı, `10`
+  geçerli bir satır — yani işlev adı tam bir hücre başvurusu gibi görünüyor.
+  Excel ayrımı **ardından `(` gelip gelmediğine** bakarak yapar; biz de öyle.
+- **Doldurma tutamağı kaydırılabilir ızgaranın İÇİNDE.** Sıradan
+  `GestureDetector` sürüklemeyi kaydırma tanıyıcısıyla arenada paylaşır ve
+  çoğu zaman KAYDIRMA kazanır: tutamak hiç çalışmaz, sayfa kayar. Çözüm
+  `RawGestureDetector` + **`ImmediateMultiDragGestureRecognizer`** (Flutter'ın
+  kendi sürükle-bırak listelerinde kullandığı yöntem) — pointer'ı hemen
+  üstlenir. Widget testi gerçek sürükleme yapıyor, çünkü sınanması gereken
+  şey kod yolu değil **arenayı kimin kazandığı**.
+- **Formül çubuğu bayatlıyordu:** yapıştırma/doldurma/Σ imlecin ALTINDAKİ
+  değeri değiştirdiğinde çubuk eski değeri gösteriyordu ve bir sonraki
+  düzenlemede onu geri yazardı. `_editCells` artık `_syncField()` çağırıyor.
+- **`deleteRow`un tersi `insertRow` DEĞİLDİR.** Silinen satırın değerleri,
+  biçim indeksleri, uygulama içi biçim örtmeleri ve yüksekliği de geri
+  konmalı; yoksa "geri al" veri kaybeder. `XlsxEditor.captureRow/restoreRow`
+  (ve sütun karşılıkları) bunun için eklendi.
+- **Testte `find.text` `EditableText`i de sayar:** "Tümünü değiştir" testinde
+  değiştir ALANINDAKİ metin eşleşmeye karışıyordu; ızgara aramaları
+  `find.descendant(of: SheetCell)` ile kapsandı.
+
+### D) Kararlar
+- **Geri alma yığını SAYFA BAŞINA.** Tek ortak yığın olsaydı geri al bazen
+  görünmeyen bir sayfayı değiştirirdi.
+- **Kesmede formül KAYDIRILMAZ** (taşımadır, kopyalama değil); kopyalamada
+  göreli başvurular kayar, `$` kilitli olanlar durur — Excel kuralı.
+- **Kesme kaynağı YAPIŞTIRINCA boşalır**, kesince değil: kullanıcı vazgeçerse
+  veri yerinde kalır. Kaynak temizliği yapıştırmayla AYNI geri alma adımında.
+- **Tek sayı doldurulunca KOPYALANIR** (5 → 5,5,5). Excel'de artırmak için
+  Ctrl gerekir, dokunmatikte o kip yok.
+- **Yapıştırma yalnız DEĞERİ taşır, biçimi değil** — bilinçli sınır, KALANLAR'da.
+- Sistem panosuna TSV yazılıyor: başka uygulamaya (gerçek Excel dahil)
+  yapıştırılabiliyor; sistem panosundan gelen TSV de okunuyor.
+
+### E) Doğrulama
+Flutter **3.29.3** (CI ile aynı): `analyze` **0 hata**, `flutter test`
+**1172 test yeşil** (önceki tur 1124 → +48). Yeni: `sheet_edit_test` 39,
+`spreadsheet_screen_test` +5 (geri al/yinele, temizle, kopyala-yapıştır, Σ,
+doldurma sürüklemesi, değiştir), `xlsx_editor_test` +3 (satır/sütun geri alma,
+`overrideAt`). Cihazda doğrulama YAPILMADI → KALANLAR "2026-08-02 (2. tur)".

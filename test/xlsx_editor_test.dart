@@ -147,6 +147,62 @@ void main() {
     expect(e.sheets.first.rows[1][0], '42');
   });
 
+  test('satır silmenin TERSİ içeriği de geri getirir (geri alma)', () {
+    // Geri almanın en kırılgan yeri: `deleteRow`un tersi düz `insertRow`
+    // DEĞİLDİR — satırın değerleri, biçimleri ve yüksekliği de geri konmalı.
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+    final sheet = e.sheets.first;
+
+    e.setCellStyle(name, 1, 0, bold: true);
+    sheet.setRowHeightPt(1, 33);
+
+    final snap = e.captureRow(name, 1);
+    e.deleteRow(name, 1);
+    expect(e.sheets.first.rawAt(1, 0), isNot('42'));
+
+    // Geri al.
+    e.insertRow(name, 1);
+    e.restoreRow(name, 1, snap);
+    expect(e.sheets.first.rawAt(1, 0), '42');
+    expect(e.sheets.first.rawAt(1, 1), '3.5');
+    expect(e.sheets.first.styleAt(1, 0)?.bold, isTrue);
+    expect(e.sheets.first.layout.rowHeights[1], 33);
+
+    // Ve dosyaya da doğru yazılır.
+    final reread = XlsxEditor.parse(e.save());
+    expect(reread.sheets.first.rawAt(1, 0), '42');
+  });
+
+  test('sütun silmenin TERSİ içeriği de geri getirir (geri alma)', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+
+    final snap = e.captureColumn(name, 0);
+    e.deleteColumn(name, 0);
+    expect(e.sheets.first.rawAt(1, 0), isNot('42'));
+
+    e.insertColumn(name, 0);
+    e.restoreColumn(name, 0, snap);
+    expect(e.sheets.first.rawAt(1, 0), '42');
+    expect(e.sheets.first.rawAt(0, 0), 'Başlık');
+  });
+
+  test('overrideAt yalnız uygulama içi biçimi döndürür', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final sheet = e.sheets.first;
+    // Dosyadaki kalın başlık örtme DEĞİLDİR (styles.xml'den gelir).
+    expect(sheet.styleAt(0, 0)?.bold, isTrue);
+    expect(sheet.overrideAt(0, 0), isNull);
+
+    e.setCellStyle(sheet.name, 0, 0, italic: true);
+    expect(sheet.overrideAt(0, 0), isNotNull);
+    // Geri alma örtmeyi kaldırabilmeli.
+    sheet.patchStyle(0, 0, null);
+    expect(sheet.overrideAt(0, 0), isNull);
+    expect(sheet.styleAt(0, 0)?.italic, isNot(true));
+  });
+
   test('setCellStyle kalın/italik/hizalamayı anında ve kalıcı uygular', () {
     final e = XlsxEditor.parse(_sampleXlsx());
     final s = e.sheets.first;

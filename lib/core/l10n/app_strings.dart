@@ -1613,6 +1613,48 @@ const Map<String, (String, String, String)> _table = {
   'excel.unit_chars': ('karakter', 'characters', 'حرفًا'),
   'excel.unit_points': ('punto', 'points', 'نقطة'),
 
+  // ── Düzenleme: geri al, pano, doldurma, Σ, değiştir ───────────────────────
+  'excel.undo': ('Geri al', 'Undo', 'تراجع'),
+  'excel.redo': ('Yinele', 'Redo', 'إعادة'),
+  'excel.undone': ('Geri alındı: {what}', 'Undone: {what}', 'تم التراجع: {what}'),
+  'excel.redone': ('Yinelendi: {what}', 'Redone: {what}', 'تمت الإعادة: {what}'),
+  'excel.undo_typing': ('yazma', 'typing', 'الكتابة'),
+  'excel.undo_paste': ('yapıştırma', 'paste', 'اللصق'),
+  'excel.undo_clear': ('temizleme', 'clear', 'المسح'),
+  'excel.undo_fill': ('doldurma', 'fill', 'التعبئة'),
+  'excel.undo_autosum': ('otomatik toplam', 'AutoSum', 'الجمع التلقائي'),
+  'excel.undo_format': ('biçimlendirme', 'formatting', 'التنسيق'),
+  'excel.undo_replace': ('değiştirme', 'replace', 'الاستبدال'),
+  'excel.undo_insert_row': ('satır ekleme', 'insert row', 'إدراج صف'),
+  'excel.undo_delete_row': ('satır silme', 'delete row', 'حذف صف'),
+  'excel.undo_insert_col': ('sütun ekleme', 'insert column', 'إدراج عمود'),
+  'excel.undo_delete_col': ('sütun silme', 'delete column', 'حذف عمود'),
+  'excel.cut': ('Kes', 'Cut', 'قص'),
+  'excel.paste': ('Yapıştır', 'Paste', 'لصق'),
+  'excel.clear_contents': ('İçeriği temizle', 'Clear contents', 'مسح المحتويات'),
+  'excel.autosum': ('Otomatik toplam', 'AutoSum', 'الجمع التلقائي'),
+  'excel.autosum_empty': (
+    'Toplanacak bitişik sayı bulunamadı — aralığı kendiniz yazın.',
+    'No adjacent numbers to sum — type the range yourself.',
+    'لا توجد أرقام متجاورة للجمع — اكتب النطاق بنفسك.',
+  ),
+  'excel.copy_done': ('{n} hücre kopyalandı', '{n} cells copied', 'تم نسخ {n} خلية'),
+  'excel.cut_done': ('{n} hücre kesildi', '{n} cells cut', 'تم قص {n} خلية'),
+  'excel.clipboard_empty': ('Pano boş.', 'Clipboard is empty.', 'الحافظة فارغة.'),
+  'excel.replace': ('Değiştir', 'Replace', 'استبدال'),
+  'excel.replace_all': ('Tümünü değiştir', 'Replace all', 'استبدال الكل'),
+  'excel.replace_with': ('Şununla değiştir', 'Replace with', 'استبدال بـ'),
+  'excel.replace_none': (
+    'Değiştirilecek eşleşme yok.',
+    'No matches to replace.',
+    'لا توجد تطابقات للاستبدال.',
+  ),
+  'excel.replaced_count': (
+    '{n} hücre değiştirildi',
+    '{n} cells replaced',
+    'تم استبدال {n} خلية',
+  ),
+
   // ── Dosya yöneticisi ayarları ─────────────────────────────────────────────
   'fmset.title': (
     'Dosya yöneticisi ayarları',

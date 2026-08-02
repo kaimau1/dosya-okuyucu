@@ -3,8 +3,11 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
+import 'package:flutter/gestures.dart'
+    show Drag, ImmediateMultiDragGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/excel_format.dart';
@@ -15,6 +18,7 @@ import '../../models/document.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
+import '../../services/sheet_edit.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/office_shell.dart';
@@ -43,6 +47,11 @@ class SpreadsheetEditorScreen extends StatefulWidget {
   /// asılı kaldığı için widget testleri bunu kapatır — üretim yolu değişmez.
   @visibleForTesting
   static bool parseInIsolate = true;
+
+  /// Doldurma tutamağının anahtarı — `SheetCell` kendi içinde de hareket
+  /// tanıyıcıları kuruyor, test tutamağı tipe göre ayırt edemiyor.
+  @visibleForTesting
+  static const fillHandleKey = Key('sheet-fill-handle');
 
   const SpreadsheetEditorScreen({
     super.key,
@@ -130,6 +139,30 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Eşleşme üst sınırı — "a" gibi bir aramada 100 bin hücreyi listelemek
   /// ekranı dondurur; Excel de sonuç listesini sınırlar.
   static const int _maxHits = 500;
+
+  /// Değiştir alanı (Bul çubuğu açıkken).
+  final _replaceField = TextEditingController();
+
+  /// Geri alma yığını **sayfa başına**: kullanıcı hangi sayfaya bakıyorsa
+  /// geri al onun son işlemini alır. Tek ortak yığın olsaydı geri al bazen
+  /// görünmeyen bir sayfayı değiştirirdi.
+  final _undoBySheet = <String, SheetUndoStack>{};
+
+  SheetUndoStack get _undo =>
+      _undoBySheet.putIfAbsent(_sheet?.name ?? '', SheetUndoStack.new);
+
+  /// Uygulama içi pano. Sistem panosu da yazılır (TSV) ama formül kaydırması
+  /// ve "kesme" bilgisi yalnız burada durur.
+  SheetClip? _clip;
+
+  /// Doldurma tutamağı sürüklenirken hedeflenen son satır/sütun
+  /// (null = sürükleme yok). Hedef aralık seçili gibi vurgulanır.
+  int? _fillToRow;
+  int? _fillToCol;
+
+  /// Izgara alanının render kutusu — doldurma tutamağı sürüklenirken parmağın
+  /// altındaki hücreyi bulmak için gerekiyor (`_cellAtGlobal`).
+  final _gridAreaKey = GlobalKey();
 
   @override
   void initState() {
@@ -358,11 +391,27 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   }
 
   bool _inSelection(int r, int c) {
-    final r1 = math.min(_anchorRow, _selRow);
-    final r2 = math.max(_anchorRow, _selRow);
-    final c1 = math.min(_anchorCol, _selCol);
-    final c2 = math.max(_anchorCol, _selCol);
-    return r >= r1 && r <= r2 && c >= c1 && c <= c2;
+    if (_range.contains(r, c)) return true;
+    // Doldurma tutamağı sürüklenirken hedef alan da vurgulanır: kullanıcı
+    // bırakmadan önce nereye yazılacağını görsün (Excel'in önizleme çerçevesi).
+    return _fillPreview?.contains(r, c) ?? false;
+  }
+
+  /// Sürükleme sırasında doldurulacak aralık (yoksa null). Yalnız TEK eksende
+  /// büyür — Excel de köşegen doldurma yapmaz.
+  CellRange? get _fillPreview {
+    final toRow = _fillToRow, toCol = _fillToCol;
+    if (toRow == null || toCol == null) return null;
+    final src = _range;
+    if (toRow < src.top || toRow > src.bottom) {
+      return CellRange(math.min(src.top, toRow), src.left,
+          math.max(src.bottom, toRow), src.right);
+    }
+    if (toCol < src.left || toCol > src.right) {
+      return CellRange(src.top, math.min(src.left, toCol), src.bottom,
+          math.max(src.right, toCol));
+    }
+    return null;
   }
 
   bool get _hasRange => _anchorRow != _selRow || _anchorCol != _selCol;
@@ -383,14 +432,75 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     if (_selRow + 1 < rowCount) _select(_selRow + 1, _selCol);
   }
 
-  void _applyCell(String value) {
+  void _applyCell(String value) =>
+      _editCells('excel.undo_typing', {CellRef(_selRow, _selCol): value});
+
+  // ── geri alınabilir düzenleme ───────────────────────────────────────────
+
+  /// Seçili aralık (tek hücrede de geçerli).
+  CellRange get _range =>
+      CellRange.between(_anchorRow, _anchorCol, _selRow, _selCol);
+
+  /// Bir grup hücre yazımını uygular ve **tek** geri alma adımı olarak kaydeder.
+  ///
+  /// Yapıştırma, doldurma, temizleme, Σ ve düz yazma hepsi buradan geçer:
+  /// böylece "geri al" her zaman kullanıcının yaptığı TEK işlemi geri alır,
+  /// hücre hücre değil.
+  void _editCells(String label, Map<CellRef, String> values) {
     final sheet = _sheet;
     final editor = _editor;
-    if (sheet == null || editor == null) return;
-    editor.setCell(sheet.name, _selRow, _selCol, value);
+    if (sheet == null || editor == null || values.isEmpty) return;
+    final name = sheet.name;
+    final step = SheetValueStep(
+      label: label,
+      before: {for (final k in values.keys) k: sheet.rawAt(k.row, k.col)},
+      after: values,
+      write: (at, v) => editor.setCell(name, at.row, at.col, v),
+    );
+    if (step.isNoop) return;
+    _undo.push(step);
     _dirty = true;
     _gridVersion++; // yazma kullanılan alanı büyütebilir → ölçüler yenilenir
+    // Yapıştırma/doldurma/Σ imlecin ALTINDAKİ değeri de değiştirmiş olabilir;
+    // formül çubuğu tazelenmezse eski değeri gösterip bir sonraki düzenlemede
+    // onu geri yazardı.
+    _syncField();
     setState(() {});
+  }
+
+  /// Geri alma yığınına, uygulanmış bir işlemin tersini kaydeder.
+  void _recordStep(String label, VoidCallback apply, VoidCallback revert) =>
+      _undo.record(_CallbackStep(label, apply, revert));
+
+  void _undoStep() {
+    final step = _undo.undo();
+    if (step == null) return;
+    _afterHistory(step.label, undone: true);
+  }
+
+  void _redoStep() {
+    final step = _undo.redo();
+    if (step == null) return;
+    _afterHistory(step.label, undone: false);
+  }
+
+  void _afterHistory(String label, {required bool undone}) {
+    _editing = false;
+    _dirty = true;
+    _gridVersion++;
+    final sheet = _sheet;
+    if (sheet != null) {
+      // Yapısal geri alma satır/sütun sayısını değiştirmiş olabilir; imleç
+      // sayfanın dışında kalmasın.
+      _selRow = _selRow.clamp(0, math.max(0, _rowCount(sheet) - 1));
+      _selCol = _selCol.clamp(0, math.max(0, _colCount(sheet) - 1));
+      _anchorRow = _anchorRow.clamp(0, math.max(0, _rowCount(sheet) - 1));
+      _anchorCol = _anchorCol.clamp(0, math.max(0, _colCount(sheet) - 1));
+    }
+    _syncField();
+    setState(() {});
+    _snack(context.t(undone ? 'excel.undone' : 'excel.redone',
+        {'what': context.t(label)}));
   }
 
   void _afterStructural() {
@@ -414,7 +524,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null) return;
-    editor.insertRow(sheet.name, below ? _selRow + 1 : _selRow);
+    final name = sheet.name;
+    final at = below ? _selRow + 1 : _selRow;
+    editor.insertRow(name, at);
+    // Eklemenin tersi düz silmedir (eklenen satır boştur, içerik kaybı yok).
+    _recordStep('excel.undo_insert_row', () => editor.insertRow(name, at),
+        () => editor.deleteRow(name, at));
     if (below) _selRow += 1;
     _afterStructural();
   }
@@ -423,7 +538,16 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null) return;
-    editor.deleteRow(sheet.name, _selRow);
+    final name = sheet.name;
+    final at = _selRow;
+    // Silmenin tersi "ekle" DEĞİL, "ekle + içeriği geri koy": satırın
+    // değerleri, biçimleri ve yüksekliği yakalanmadan geri alma veri kaybeder.
+    final snap = editor.captureRow(name, at);
+    editor.deleteRow(name, at);
+    _recordStep('excel.undo_delete_row', () => editor.deleteRow(name, at), () {
+      editor.insertRow(name, at);
+      editor.restoreRow(name, at, snap);
+    });
     _afterStructural();
   }
 
@@ -431,7 +555,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null) return;
-    editor.insertColumn(sheet.name, right ? _selCol + 1 : _selCol);
+    final name = sheet.name;
+    final at = right ? _selCol + 1 : _selCol;
+    editor.insertColumn(name, at);
+    _recordStep('excel.undo_insert_col', () => editor.insertColumn(name, at),
+        () => editor.deleteColumn(name, at));
     if (right) _selCol += 1;
     _afterStructural();
   }
@@ -440,8 +568,156 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null) return;
-    editor.deleteColumn(sheet.name, _selCol);
+    final name = sheet.name;
+    final at = _selCol;
+    final snap = editor.captureColumn(name, at);
+    editor.deleteColumn(name, at);
+    _recordStep('excel.undo_delete_col', () => editor.deleteColumn(name, at),
+        () {
+      editor.insertColumn(name, at);
+      editor.restoreColumn(name, at, snap);
+    });
     _afterStructural();
+  }
+
+  // ── pano · temizle · otomatik toplam · doldurma ─────────────────────────
+
+  /// Seçili aralığı panoya alır. [cut] ise yapıştırdıktan sonra kaynak
+  /// temizlenir — Excel'de kesme budur (kaynak hemen değil, YAPIŞTIRINCA
+  /// boşalır; kullanıcı vazgeçerse veri yerinde kalır).
+  Future<void> _copySelection({bool cut = false}) async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final r = _range;
+    final clip = SheetClip(
+      values: [
+        for (var row = r.top; row <= r.bottom; row++)
+          [for (var col = r.left; col <= r.right; col++) sheet.rawAt(row, col)],
+      ],
+      origin: CellRef(r.top, r.left),
+      cut: cut,
+    );
+    setState(() => _clip = clip);
+    // Sistem panosuna TSV: kullanıcı başka bir uygulamaya (gerçek Excel dahil)
+    // yapıştırabilsin.
+    await Clipboard.setData(ClipboardData(text: clip.toTsv()));
+    if (!mounted) return;
+    _snack(context.t(cut ? 'excel.cut_done' : 'excel.copy_done',
+        {'n': r.cellCount}));
+  }
+
+  /// Panoyu seçime yapıştırır.
+  ///
+  /// Uygulama içi pano varsa o kullanılır (formül kaydırması ve kesme bilgisi
+  /// oradadır); yoksa **sistem panosundaki metin** TSV olarak çözümlenir —
+  /// böylece başka uygulamadan kopyalanan tablo da yapışır.
+  Future<void> _paste() async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    var clip = _clip;
+    if (clip == null) {
+      final data = await Clipboard.getData('text/plain');
+      clip = SheetClip.fromTsv(data?.text ?? '',
+          origin: CellRef(_selRow, _selCol));
+    }
+    if (clip == null || clip.isEmpty) {
+      if (mounted) _snack(context.t('excel.clipboard_empty'));
+      return;
+    }
+    final values = pasteCells(clip, _range);
+    if (clip.cut) {
+      // Kesmede kaynak da aynı adımda temizlenir; iki ayrı adım olsaydı
+      // "geri al" yarım bir durum bırakırdı.
+      for (var r = 0; r < clip.rows; r++) {
+        for (var c = 0; c < clip.cols; c++) {
+          final at = CellRef(clip.origin.row + r, clip.origin.col + c);
+          values.putIfAbsent(at, () => '');
+        }
+      }
+    }
+    _editCells('excel.undo_paste', values);
+    if (clip.cut) setState(() => _clip = null);
+  }
+
+  /// Seçili aralığın içeriğini siler (Excel'de Delete tuşu).
+  void _clearSelection() {
+    _endEdit();
+    final r = _range;
+    _editCells('excel.undo_clear', {
+      for (var row = r.top; row <= r.bottom; row++)
+        for (var col = r.left; col <= r.right; col++) CellRef(row, col): '',
+    });
+  }
+
+  /// Σ — imlecin üstündeki (yoksa solundaki) bitişik sayı bloğunu toplar.
+  void _autoSum() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final range = autoSumRange(
+        _selRow, _selCol, (r, c) => sheet.isNumericAt(r, c));
+    final formula = range == null
+        ? '=TOPLA()'
+        : '=TOPLA(${CellRef(range.top, range.left)}:'
+            '${CellRef(range.bottom, range.right)})';
+    _editCells('excel.undo_autosum', {CellRef(_selRow, _selCol): formula});
+    if (range == null && mounted) _snack(context.t('excel.autosum_empty'));
+  }
+
+  /// Doldurma tutamağı bırakıldığında seriyi yazar.
+  ///
+  /// Yalnız TEK eksende doldurma yapılır (Excel de öyle): sürükleme daha çok
+  /// hangi yönde ilerlediyse o eksen seçilir.
+  void _applyFill(int toRow, int toCol) {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    final src = _range;
+    final vertical = toRow < src.top || toRow > src.bottom;
+    final horizontal = toCol < src.left || toCol > src.right;
+    if (!vertical && !horizontal) return;
+
+    final values = <CellRef, String>{};
+    if (vertical) {
+      final backwards = toRow < src.top;
+      final count = backwards ? src.top - toRow : toRow - src.bottom;
+      for (var col = src.left; col <= src.right; col++) {
+        final source = [
+          for (var row = src.top; row <= src.bottom; row++) sheet.rawAt(row, col),
+        ];
+        final out = FillSeries.extend(source, count, backwards: backwards);
+        for (var i = 0; i < out.length; i++) {
+          final row = backwards ? toRow + i : src.bottom + 1 + i;
+          values[CellRef(row, col)] = out[i];
+        }
+      }
+    } else {
+      final backwards = toCol < src.left;
+      final count = backwards ? src.left - toCol : toCol - src.right;
+      for (var row = src.top; row <= src.bottom; row++) {
+        final source = [
+          for (var col = src.left; col <= src.right; col++) sheet.rawAt(row, col),
+        ];
+        final out = FillSeries.extend(source, count,
+            backwards: backwards, horizontal: true);
+        for (var i = 0; i < out.length; i++) {
+          final col = backwards ? toCol + i : src.right + 1 + i;
+          values[CellRef(row, col)] = out[i];
+        }
+      }
+    }
+    _editCells('excel.undo_fill', values);
+    // Doldurulan alan Excel'de seçili kalır.
+    setState(() {
+      if (vertical) {
+        _anchorRow = math.min(src.top, toRow);
+        _selRow = math.max(src.bottom, toRow);
+      } else {
+        _anchorCol = math.min(src.left, toCol);
+        _selCol = math.max(src.right, toCol);
+      }
+    });
   }
 
   Future<void> _save() async {
@@ -586,6 +862,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       // Kaydet/Paylaş/CSV/Çevir ALT çubukta; burada yalnız karşılığı olmayanlar
       // kalır (2026-07-28 kullanıcı isteği: tekrar eden düğmeler kalksın).
       actions: [
+        // Geri al / yinele Excel'de de en görünür yerdedir: her düzenleme
+        // güvenle denenebilsin.
+        IconButton(
+          tooltip: context.t('excel.undo'),
+          icon: const Icon(Icons.undo),
+          onPressed: editor == null || !_undo.canUndo ? null : _undoStep,
+        ),
+        IconButton(
+          tooltip: context.t('excel.redo'),
+          icon: const Icon(Icons.redo),
+          onPressed: editor == null || !_undo.canRedo ? null : _redoStep,
+        ),
         IconButton(
           tooltip: context.t('common.search'),
           icon: const Icon(Icons.search),
@@ -627,7 +915,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: [
-                    if (_finding) _findBar(),
+                    if (_finding) ...[_findBar(), _replaceBar()],
                     _cellBar(),
                     _formulaPreview(),
                     _rowColBar(),
@@ -802,12 +1090,27 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final r2 = math.max(_anchorRow, _selRow);
     final c1 = math.min(_anchorCol, _selCol);
     final c2 = math.max(_anchorCol, _selCol);
-    for (var r = r1; r <= r2; r++) {
-      for (var c = c1; c <= c2; c++) {
-        editor.setCellStyle(sheet.name, r, c,
-            bold: bold, italic: italic, align: align);
+    // Geri alma için ÖNCEKİ örtmeler yakalanır; `setCellStyle` dosyadaki
+    // paylaşımlı stile değil bu örtme haritasına yazdığı için tersi budur.
+    final name = sheet.name;
+    final before = <CellRef, XlsxCellStyle?>{
+      for (var r = r1; r <= r2; r++)
+        for (var c = c1; c <= c2; c++)
+          CellRef(r, c): sheet.overrideAt(r, c),
+    };
+    void applyNow() {
+      for (var r = r1; r <= r2; r++) {
+        for (var c = c1; c <= c2; c++) {
+          editor.setCellStyle(name, r, c,
+              bold: bold, italic: italic, align: align);
+        }
       }
     }
+
+    applyNow();
+    _recordStep('excel.undo_format', applyNow, () {
+      before.forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
+    });
     _dirty = true;
     setState(() {});
   }
@@ -868,6 +1171,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             btn(Icons.keyboard_arrow_right, context.t('excel.insert_col_right'),
                 () => _insertColumn(right: true)),
             btn(Icons.remove, context.t('excel.delete_col'), _deleteColumn),
+            divider(),
+            // Pano ve Σ — Excel mobilin "Giriş" sekmesindeki çekirdek eylemler.
+            btn(Icons.content_cut, context.t('excel.cut'),
+                () => _copySelection(cut: true)),
+            btn(Icons.content_copy, context.t('common.copy'), _copySelection),
+            btn(Icons.content_paste, context.t('excel.paste'), _paste),
+            btn(Icons.backspace_outlined, context.t('excel.clear_contents'),
+                _clearSelection),
+            btn(Icons.functions, context.t('excel.autosum'), _autoSum),
             divider(),
             toggle(Icons.format_bold, context.t('common.bold'),
                 selStyle?.bold ?? false,
@@ -1167,6 +1479,107 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         ],
       ),
     );
+  }
+
+  /// Bul çubuğunun ikinci satırı: **değiştir**.
+  Widget _replaceBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.fromLTRB(8, 0, 4, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _replaceField,
+              style: const TextStyle(fontSize: 14),
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                hintText: context.t('excel.replace_with'),
+                prefixIcon: const Icon(Icons.find_replace, size: 18),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 32, minHeight: 32),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            onPressed: _hits.isEmpty ? null : () => _replaceCurrent(),
+            child: Text(context.t('excel.replace')),
+          ),
+          TextButton(
+            onPressed: _hits.isEmpty ? null : _replaceAll,
+            child: Text(context.t('excel.replace_all')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Etkin eşleşmedeki metni değiştirir ve bir sonrakine geçer.
+  void _replaceCurrent() {
+    final sheet = _sheet;
+    if (sheet == null || _hitIndex < 0 || _hitIndex >= _hits.length) return;
+    final query = _findField.text;
+    if (query.isEmpty) return;
+    final (r, c) = _hits[_hitIndex];
+    final old = sheet.rawAt(r, c);
+    final next = _replaceOnce(old, query, _replaceField.text);
+    if (next == old) return;
+    _editCells('excel.undo_replace', {CellRef(r, c): next});
+    // Eşleşme listesi bayatladı (hücre artık aranan metni içermeyebilir).
+    _runFind(query);
+    if (_hits.isNotEmpty) _stepHit(0);
+  }
+
+  /// Sayfadaki tüm eşleşmeleri tek geri alma adımında değiştirir.
+  void _replaceAll() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    final query = _findField.text;
+    if (query.isEmpty) return;
+    final to = _replaceField.text;
+    final values = <CellRef, String>{};
+    for (final (r, c) in _hits) {
+      final old = sheet.rawAt(r, c);
+      final next = _replaceAllIn(old, query, to);
+      if (next != old) values[CellRef(r, c)] = next;
+    }
+    if (values.isEmpty) {
+      _snack(context.t('excel.replace_none'));
+      return;
+    }
+    final n = values.length;
+    _editCells('excel.undo_replace', values);
+    _runFind(query);
+    _snack(context.t('excel.replaced_count', {'n': n}));
+  }
+
+  /// Büyük/küçük harf duyarsız TEK değiştirme (arama da duyarsız arıyor).
+  static String _replaceOnce(String source, String find, String to) {
+    final at = source.toLowerCase().indexOf(find.toLowerCase());
+    if (at < 0) return source;
+    return source.replaceRange(at, at + find.length, to);
+  }
+
+  static String _replaceAllIn(String source, String find, String to) {
+    if (find.isEmpty) return source;
+    final lowerFind = find.toLowerCase();
+    final buf = StringBuffer();
+    var i = 0;
+    while (i < source.length) {
+      final at = source.toLowerCase().indexOf(lowerFind, i);
+      if (at < 0) break;
+      buf
+        ..write(source.substring(i, at))
+        ..write(to);
+      i = at + find.length;
+    }
+    buf.write(source.substring(i));
+    return buf.toString();
   }
 
   // ── sütun genişliği / satır yüksekliği ────────────────────────────────────
@@ -1480,6 +1893,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// çocuk kazanır, sürükleme hiç başlamazdı.
   Widget _dragSelectArea(Widget child) => Builder(
         builder: (areaContext) => GestureDetector(
+          key: _gridAreaKey,
           onLongPressStart: (d) {
             final pos = _cellAtGlobal(areaContext, d.globalPosition);
             if (pos == null) return;
@@ -1673,8 +2087,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
     final selected = _inSelection(r, c);
     final isCursor = r == _selRow && c == _selCol;
+    // Doldurma tutamağı seçimin SAĞ ALT köşesinde durur (Excel'deki gibi).
+    final range = _range;
+    final showHandle =
+        !_editing && r == range.bottom && c == range.right && !hideContent;
 
-    return SheetCell(
+    final cell = SheetCell(
       row: r,
       col: c,
       width: width,
@@ -1694,7 +2112,121 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       onSubmitted: () => _commitAndMoveDown(_rowCount(sheet)),
       onEditingComplete: _endEdit,
     );
+    if (!showHandle) return cell;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: cell),
+          Positioned(right: 0, bottom: 0, child: _fillHandle()),
+        ],
+      ),
+    );
   }
+
+  /// Excel'in doldurma tutamağı: seçimin sağ alt köşesindeki küçük kare.
+  ///
+  /// **Neden `RawGestureDetector` + [ImmediateMultiDragGestureRecognizer]:**
+  /// tutamak kaydırılabilir ızgaranın İÇİNDE duruyor. Sıradan bir
+  /// `GestureDetector` sürüklemeyi kaydırma tanıyıcısıyla arenada paylaşır ve
+  /// çoğu zaman kaydırma kazanır — tutamak sürüklenmez, sayfa kayar. Anında
+  /// kabul eden tanıyıcı (Flutter'ın kendi sürükle-bırak listelerinde
+  /// kullandığı yöntem) pointer'ı hemen üstlenir.
+  Widget _fillHandle() {
+    final scheme = Theme.of(context).colorScheme;
+    return RawGestureDetector(
+      key: SpreadsheetEditorScreen.fillHandleKey,
+      behavior: HitTestBehavior.opaque,
+      gestures: {
+        ImmediateMultiDragGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<
+                ImmediateMultiDragGestureRecognizer>(
+          ImmediateMultiDragGestureRecognizer.new,
+          (r) => r.onStart = (_) => _FillDrag(
+                onMove: _onFillMove,
+                onDone: _onFillEnd,
+              ),
+        ),
+      },
+      child: SizedBox(
+        // Görünen kare küçük, dokunma alanı parmağa göre büyük.
+        width: 22,
+        height: 22,
+        child: Align(
+          alignment: Alignment.bottomRight,
+          child: Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              border: Border.all(color: scheme.onPrimary, width: 1),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onFillMove(Offset global) {
+    final ctx = _gridAreaKey.currentContext;
+    if (ctx == null) return;
+    final pos = _cellAtGlobal(ctx, global);
+    if (pos == null) return;
+    if (pos.$1 == _fillToRow && pos.$2 == _fillToCol) return;
+    setState(() {
+      _fillToRow = pos.$1;
+      _fillToCol = pos.$2;
+    });
+  }
+
+  void _onFillEnd({required bool apply}) {
+    final row = _fillToRow;
+    final col = _fillToCol;
+    setState(() {
+      _fillToRow = null;
+      _fillToCol = null;
+    });
+    if (apply && row != null && col != null) _applyFill(row, col);
+  }
+}
+
+/// Doldurma tutamağının sürükleme oturumu (bkz. `_fillHandle`).
+class _FillDrag extends Drag {
+  final void Function(Offset global) onMove;
+  final void Function({required bool apply}) onDone;
+
+  _FillDrag({required this.onMove, required this.onDone});
+
+  @override
+  void update(DragUpdateDetails details) => onMove(details.globalPosition);
+
+  @override
+  void end(DragEndDetails details) => onDone(apply: true);
+
+  /// İptal (ör. sistem geri hareketi) doldurma YAPMAZ — yarım bir seri
+  /// yazmaktansa hiç yazmamak doğru.
+  @override
+  void cancel() => onDone(apply: false);
+}
+
+/// Uygulanmış bir işlemin tersini taşıyan genel geri alma adımı
+/// (yapısal işlemler ve biçim değişiklikleri buradan geçer).
+class _CallbackStep implements SheetUndoStep {
+  @override
+  final String label;
+
+  final VoidCallback _apply;
+  final VoidCallback _revert;
+
+  _CallbackStep(this.label, this._apply, this._revert);
+
+  @override
+  void apply() => _apply();
+
+  @override
+  void revert() => _revert();
 }
 
 /// Bir çizim geçişi boyunca paylaşılan bağlam (koşullu biçim min/max

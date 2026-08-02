@@ -278,6 +278,10 @@ class XlsxSheet {
 
   /// Tek hücrenin görünümünü uygulama içinde değiştirir (dosyadaki paylaşımlı
   /// stil nesnesi bozulmaz — kaydetmede excel paketi kendi stilini yazar).
+  /// Uygulama içinde verilmiş biçim örtmesi (dosyadaki stil DEĞİL).
+  /// Geri alma bunu yakalayıp geri koyar.
+  XlsxCellStyle? overrideAt(int r, int c) => _overrides[cellKey(r, c)];
+
   void patchStyle(int r, int c, XlsxCellStyle? style) {
     if (r < 0 || c < 0) return;
     if (style == null) {
@@ -393,6 +397,31 @@ class XlsxSheet {
 /// **Okuma** (görünüm) `XlsxReader` ile ham OOXML'den, **yazma** `excel`
 /// paketiyle yapılır. İkisi ayrı tutulur: okuma sadakati paket hatalarına
 /// takılmaz, yazma tarafı ise kanıtlanmış paket yolunda kalır.
+/// Bir satırın/sütunun geri alma için yakalanmış içeriği.
+///
+/// [sizePt] satırda punto (yükseklik), sütunda karakter (genişlik) —
+/// `XlsxSheetLayout` ikisini de tek tipte tuttuğu için tek alan yeter.
+class SheetLineSnapshot {
+  final List<String> values;
+
+  /// İndeks → hücre kaydı (biçim indeksi, sayı/metin/formül).
+  final Map<int, XlsxCell> cells;
+
+  /// İndeks → uygulama içi biçim örtmesi.
+  final Map<int, XlsxCellStyle> overrides;
+
+  final double? sizePt;
+  final bool hidden;
+
+  const SheetLineSnapshot({
+    required this.values,
+    required this.cells,
+    required this.overrides,
+    this.sizePt,
+    this.hidden = false,
+  });
+}
+
 class XlsxEditor {
   final Excel _excel;
   final List<XlsxSheet> sheets;
@@ -597,6 +626,93 @@ class XlsxEditor {
     if (v.length > 1 && v.startsWith('0') && !v.startsWith('0.')) return true;
     if (v.length > 15) return true;
     return false;
+  }
+
+  // ── anlık görüntü (geri alma) ─────────────────────────────────────────────
+
+  /// Bir satırın ya da sütunun **tam** içeriği: değerler, hücre kayıtları
+  /// (biçim indeksi dahil), uygulama içi biçim örtmeleri, ölçü ve gizlilik.
+  ///
+  /// Silme işlemini geri alabilmek için gerekir: `deleteRow`un tersi yalnız
+  /// `insertRow` değildir — silinen satırın İÇERİĞİ de geri konmalıdır.
+  SheetLineSnapshot captureRow(String sheetName, int rowIndex) {
+    final sheet = _modelSheet(sheetName);
+    if (sheet == null || rowIndex < 0) {
+      return const SheetLineSnapshot(values: [], cells: {}, overrides: {});
+    }
+    final width = sheet.maxCols;
+    return SheetLineSnapshot(
+      values: [for (var c = 0; c < width; c++) sheet.rawAt(rowIndex, c)],
+      cells: {
+        for (var c = 0; c < width; c++)
+          if (sheet.layout.cells[cellKey(rowIndex, c)] != null)
+            c: sheet.layout.cells[cellKey(rowIndex, c)]!,
+      },
+      overrides: {
+        for (var c = 0; c < width; c++)
+          if (sheet.overrideAt(rowIndex, c) != null)
+            c: sheet.overrideAt(rowIndex, c)!,
+      },
+      sizePt: sheet.layout.rowHeights[rowIndex],
+      hidden: sheet.layout.hiddenRows.contains(rowIndex),
+    );
+  }
+
+  SheetLineSnapshot captureColumn(String sheetName, int colIndex) {
+    final sheet = _modelSheet(sheetName);
+    if (sheet == null || colIndex < 0) {
+      return const SheetLineSnapshot(values: [], cells: {}, overrides: {});
+    }
+    final height = sheet.maxRows;
+    return SheetLineSnapshot(
+      values: [for (var r = 0; r < height; r++) sheet.rawAt(r, colIndex)],
+      cells: {
+        for (var r = 0; r < height; r++)
+          if (sheet.layout.cells[cellKey(r, colIndex)] != null)
+            r: sheet.layout.cells[cellKey(r, colIndex)]!,
+      },
+      overrides: {
+        for (var r = 0; r < height; r++)
+          if (sheet.overrideAt(r, colIndex) != null)
+            r: sheet.overrideAt(r, colIndex)!,
+      },
+      sizePt: sheet.layout.colWidths[colIndex],
+      hidden: sheet.layout.hiddenCols.contains(colIndex),
+    );
+  }
+
+  /// [captureRow] ile alınmış içeriği [rowIndex]'e geri yazar.
+  /// Satırın kendisi çağırandan ÖNCE `insertRow` ile açılmış olmalıdır.
+  void restoreRow(String sheetName, int rowIndex, SheetLineSnapshot snap) {
+    final sheet = _modelSheet(sheetName);
+    if (sheet == null) return;
+    for (var c = 0; c < snap.values.length; c++) {
+      setCell(sheetName, rowIndex, c, snap.values[c]);
+    }
+    // `setCell` hücre kaydını yeniden kurar ve biçim indeksini SIFIRLAR
+    // (yeni açılan satırda eski kayıt yok); özgün kaydı üstüne yazmak şart,
+    // yoksa geri alınan satır biçimsiz geri gelirdi.
+    snap.cells.forEach((c, cell) {
+      sheet.layout.cells[cellKey(rowIndex, c)] = cell;
+    });
+    snap.overrides.forEach((c, style) => sheet.patchStyle(rowIndex, c, style));
+    if (snap.sizePt != null) sheet.layout.rowHeights[rowIndex] = snap.sizePt!;
+    if (snap.hidden) sheet.layout.hiddenRows.add(rowIndex);
+  }
+
+  /// [captureColumn] ile alınmış içeriği [colIndex]'e geri yazar.
+  void restoreColumn(String sheetName, int colIndex, SheetLineSnapshot snap) {
+    final sheet = _modelSheet(sheetName);
+    if (sheet == null) return;
+    for (var r = 0; r < snap.values.length; r++) {
+      setCell(sheetName, r, colIndex, snap.values[r]);
+    }
+    snap.cells.forEach((r, cell) {
+      sheet.layout.cells[cellKey(r, colIndex)] = cell;
+    });
+    snap.overrides.forEach((r, style) => sheet.patchStyle(r, colIndex, style));
+    if (snap.sizePt != null) sheet.layout.colWidths[colIndex] = snap.sizePt!;
+    if (snap.hidden) sheet.layout.hiddenCols.add(colIndex);
   }
 
   // ── yapısal işlemler ──────────────────────────────────────────────────────
