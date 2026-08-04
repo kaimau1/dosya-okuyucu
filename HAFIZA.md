@@ -5655,22 +5655,29 @@ türündeydi ve listede HİÇ GÖRÜNMÜYORDU — ancak paylaşılan URL'deki `p
 dediğinde list_projects boş/alakasız çıkıyorsa proje **URL'si** istenir, liste
 üstünden tahmin yürütülmez.
 
-### TUZAK — `ftpconnect: ^2.0.7` aralığı depoyu SESSİZCE kırdı (bu turda çıktı)
-5 test dosyası "loading" hatasıyla düşüyordu: `ftp_fs.dart` içindeki
-`SecurityType.FTPS/FTPES/FTP` ve `FTPEntryType.DIR` bulunamıyor. Sebep:
-**ftpconnect 2.0.10 enum adlarını küçük harfe çevirdi** (`FTPS` → `ftps`,
-`DIR` → `dir`) ve `^2.0.7` aralığı onu çekiyor.
+### TUZAK — `ftpconnect` enum adları sürüme göre değişiyor; İKİ ORTAM İKİ SÜRÜM
+5 test dosyası yerelde "loading" hatasıyla düşüyordu: `SecurityType.FTPS/FTPES/FTP`
+ve `FTPEntryType.DIR` bulunamıyor. Sebep: **2.0.8+ enum adlarını küçük harfe
+çevirdi** (`FTPS` → `ftps`, `DIR` → `dir`).
 
-İlk teşhis "yereldeki Flutter 3.44 farkı, CI'da sorun yok" idi — **YANLIŞ**:
-2.0.10 Dart >=3.0 istiyor, CI'nın Dart 3.7'siyle de uyumlu, yani `pubspec.lock`
-gitignore'da olduğu için CI da bir sonraki derlemede aynı sürümü çözecekti ve
-APK derlemesi kırılacaktı. Kod değişikliğimizle ilgisi yoktu; aralık, paket
-yayınlandığı anda patlayan gizli bir mayındı.
+**Sürüm sabitlemek ÇÖZMÜYOR — iki denemede de kırıldı:**
+- `2.0.9`'a sabitlendi → CI'da **"version solving failed"** (2.0.8+'ın `intl`
+  kısıtı Flutter 3.29.3'ün `flutter_localizations`ıyla çakışıyor).
+- `2.0.7`'ye sabitlendi → bu sefer **yerel** çözemiyor (daha yeni Flutter'ın
+  `intl`i 2.0.7'yi dışlıyor).
 
-**Çözüm:** `pubspec.yaml`da `ftpconnect: 2.0.9` olarak SABİTLENDİ (deponun diğer
-paketlerdeki deseni). Koda dokunulmadı — kod 2.0.9 API'sine göre doğru.
-**Ders:** `pubspec.lock` gitignore'dayken `^` aralığı = zamana bağlı bomba;
-API'sine doğrudan bağlı olduğumuz paketler sabit sürümle yazılır.
+Yani CI zorunlu olarak 2.0.7'de, güncel yerel ortam zorunlu olarak 2.0.10'da.
+Aralık (`^2.0.7`) ikisinin de çözebildiği tek yazım; ilk teşhisimin ("aralık
+CI'yı da kıracaktı") aksine **CI hep 2.0.7'ye düşüyordu ve yeşildi**.
+
+**Çözüm:** sabitin ADINI yazmayı bırak. `ftp_fs.dart` (ve `ftp_server_test.dart`)
+artık `SecurityType.values.firstWhere((v) => v.name.toLowerCase() == 'ftps')`
+ve `item.type?.name.toLowerCase() == 'dir'` kullanıyor — aynı kaynak her iki
+sürümde de derleniyor. `pubspec.yaml`daki aralık bilinçli olarak açık bırakıldı.
+
+**Ders:** iki ortam farklı sürüm çözmek ZORUNDAysa (SDK'nın pinlediği `intl`
+gibi geçişli bir kısıt yüzünden), sürümü sabitlemeye çalışmak birini kırar;
+kodu sürümler arası tarafsız yazmak tek çıkış.
 
 ### Doğrulama
 `flutter analyze lib` → hata yok. `flutter test` → **1184 test yeşil** (9 atlandı).

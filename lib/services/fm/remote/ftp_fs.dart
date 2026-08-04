@@ -14,16 +14,28 @@ class FtpFs extends RemoteFs {
 
   FTPConnect? _ftp;
 
-  // `ftpconnect` 2.0.7 sabitleri BÜYÜK HARF (`SecurityType.FTPS`); küçük
-  // harfli adlar derlemeyi kırıyordu. 2.0.8+ `intl ^0.20.2` istiyor, o da
-  // Flutter 3.29.3'ün `flutter_localizations`ıyla (intl 0.19.0) çakışıyor →
-  // sürüm yükseltmek yol DEĞİL, paketin kendi adları kullanılır.
-  // ignore: constant_identifier_names — adlar paketten geliyor.
+  /// `ftpconnect` sabitleri **sürüme göre ad değiştiriyor**: 2.0.7'de
+  /// `SecurityType.FTPS`, 2.0.8+'da `SecurityType.ftps`. Tek bir adı yazmak
+  /// diğer sürümde DERLEMEYİ KIRIYOR ve iki ortam farklı sürüm çözüyor:
+  /// CI (Flutter 3.29.3) 2.0.8+'ın `intl` kısıtı yüzünden 2.0.7'de kalıyor,
+  /// daha yeni bir Flutter ise 2.0.10 çekiyor. Sürümü sabitlemek de çözüm
+  /// değil — biri ya da öteki çözemiyor.
+  ///
+  /// Bu yüzden sabit ADIYLA değil, **büyük/küçük harf duyarsız arama** ile
+  /// bulunur: aynı kaynak her iki sürümde de derlenir.
+  /// (2026-08-05; bkz. HAFIZA — "ftpconnect enum adı" tuzağı.)
   static SecurityType securityFor(RemoteProtocol protocol) => switch (protocol) {
-        RemoteProtocol.ftps => SecurityType.FTPS,
-        RemoteProtocol.ftpes => SecurityType.FTPES,
-        _ => SecurityType.FTP,
+        RemoteProtocol.ftps => _security('ftps'),
+        RemoteProtocol.ftpes => _security('ftpes'),
+        _ => _security('ftp'),
       };
+
+  static SecurityType _security(String name) => SecurityType.values.firstWhere(
+        (v) => v.name.toLowerCase() == name,
+        // Düz FTP her sürümde var; buraya düşmek imkânsıza yakın ama
+        // fırlatmaktansa şifresiz bağlantıya düşmek daha az zararlı değil —
+        // o yüzden aramanın kendisi başarısızsa hata yükselir.
+      );
 
   @override
   Future<void> connect() async {
@@ -79,7 +91,11 @@ class FtpFs extends RemoteFs {
         out.add(RemoteEntry(
           name: item.name,
           path: RemoteFs.join(path, item.name),
-          isDir: item.type == FTPEntryType.DIR,
+          // `FTPEntryType.DIR` / `.dir` — sürüme göre ad değişiyor
+          // (bkz. [securityFor] notu), o yüzden ad üstünden karşılaştırılır.
+          // ignore: invalid_null_aware_operator — 2.0.7'de bu alan nullable,
+          // 2.0.10'da değil; `?.` iki sürümde de derlenen tek yazım.
+          isDir: item.type?.name.toLowerCase() == 'dir',
           sizeBytes: item.size ?? 0,
           modifiedMs: item.modifyTime?.millisecondsSinceEpoch ?? 0,
         ));

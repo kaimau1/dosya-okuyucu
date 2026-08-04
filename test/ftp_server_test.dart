@@ -127,8 +127,11 @@ void main() {
       final names = entries.map((e) => e.name).toSet();
       expect(names, containsAll(['merhaba.txt', 'klasor']));
       final folder = entries.firstWhere((e) => e.name == 'klasor');
-      // `ftpconnect` 2.0.7 sabitleri BÜYÜK HARF (bkz. ftp_fs.dart notu).
-      expect(folder.type, FTPEntryType.DIR);
+      // Sabit ADI sürüme göre değişiyor (`DIR` / `dir`) — bkz. ftp_fs.dart
+      // notu; testi de üretimdeki gibi harf duyarsız yazmak gerekiyor,
+      // yoksa iki ortamdan biri derlenmiyor.
+      // ignore: invalid_null_aware_operator
+      expect(folder.type?.name.toLowerCase(), 'dir');
 
       final target = File('${root.path}/inen.txt');
       expect(await ftp.downloadFile('merhaba.txt', target), isTrue);
