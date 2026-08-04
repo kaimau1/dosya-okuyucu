@@ -1697,6 +1697,11 @@ const Map<String, (String, String, String)> _table = {
   'excel.undo_number_format': ('sayı biçimi', 'number format', 'تنسيق الأرقام'),
   'excel.group_format': ('Biçim', 'Format', 'تنسيق'),
   'excel.add_sheet': ('Sayfa ekle', 'Add sheet', 'إضافة ورقة'),
+  'excel.fill_no_neighbour': (
+    'Komşu sütun boş — nereye kadar doldurulacağı belirlenemedi',
+    'Neighbouring column is empty — nothing to fill down to',
+    'العمود المجاور فارغ — لا يمكن تحديد نطاق التعبئة',
+  ),
   'excel.filter_column': (
     '{col} sütununu süz',
     'Filter column {col}',

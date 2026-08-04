@@ -4,7 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/gestures.dart'
-    show Drag, ImmediateMultiDragGestureRecognizer;
+    show Drag, DoubleTapGestureRecognizer, ImmediateMultiDragGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
@@ -2846,7 +2846,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       onSubmitted: () => _commitAndMoveDown(_rowCount(sheet)),
       onEditingComplete: _endEdit,
     );
-    if (!showHandle) return cell;
+    // Hücre notu (Excel'in "Açıklama"sı): sağ ÜST köşede küçük kırmızı üçgen,
+    // dokununca metni gösterir. Excel'in kendi işareti de budur.
+    final note = hideContent ? null : sheet.commentAt(r, c);
+    if (!showHandle && note == null) return cell;
     return SizedBox(
       width: width,
       height: height,
@@ -2854,7 +2857,20 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         clipBehavior: Clip.none,
         children: [
           Positioned.fill(child: cell),
-          Positioned(right: 0, bottom: 0, child: _fillHandle()),
+          if (note != null)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: GestureDetector(
+                onTap: () => _showComment(r, c, note),
+                child: CustomPaint(
+                  size: Size(6 * _zoom, 6 * _zoom),
+                  painter: const _NoteMarkPainter(),
+                ),
+              ),
+            ),
+          if (showHandle)
+            Positioned(right: 0, bottom: 0, child: _fillHandle()),
         ],
       ),
     );
@@ -2883,6 +2899,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                 onDone: _onFillEnd,
               ),
         ),
+        // Çift dokunuş: masaüstü Excel'deki "tutamağa çift tıkla" — komşu
+        // sütun nereye kadar doluysa oraya kadar doldurur. Sürükleme
+        // tanıyıcısıyla çakışmaz: biri sürüklemeyi, öteki dokunuşu üstlenir.
+        DoubleTapGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
+          DoubleTapGestureRecognizer.new,
+          (r) => r.onDoubleTap = _fillDownToNeighbour,
+        ),
       },
       child: SizedBox(
         // Görünen kare küçük, dokunma alanı parmağa göre büyük.
@@ -2901,6 +2925,57 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         ),
       ),
     );
+  }
+
+  /// Hücre notunu gösterir.
+  void _showComment(int r, int c, XlsxComment note) {
+    _endEdit();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${XlsxRange.colName(c)}${r + 1}'
+            '${note.author.isEmpty ? '' : ' · ${note.author}'}'),
+        content: SingleChildScrollView(child: Text(note.text)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.t('common.close')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tutamağa çift dokunuş: seçimi **komşu sütunun bittiği yere kadar**
+  /// aşağı doldurur. Excel'in en çok kullanılan kısayollarından biri — formülü
+  /// bin satır sürüklemeye gerek kalmıyor.
+  ///
+  /// Sınırı komşu sütun belirler: önce SOLDAKİ (Excel'in kuralı), o boşsa
+  /// sağdaki. İkisi de boşsa yapacak bir şey yok — nereye kadar dolduracağını
+  /// bilemeyiz ve tahmin etmek binlerce boş satır yazmak olurdu.
+  void _fillDownToNeighbour() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final src = _range;
+    final lastRow = math.max(0, sheet.maxRows - 1);
+
+    int runEnd(int col) {
+      if (col < 0) return src.bottom;
+      var r = src.bottom + 1;
+      while (r <= lastRow && sheet.rawAt(r, col).isNotEmpty) {
+        r++;
+      }
+      return r - 1;
+    }
+
+    var target = runEnd(src.left - 1);
+    if (target <= src.bottom) target = runEnd(src.right + 1);
+    if (target <= src.bottom) {
+      _snack(context.t('excel.fill_no_neighbour'));
+      return;
+    }
+    _applyFill(target, src.right);
   }
 
   void _onFillMove(Offset global) {
@@ -3224,4 +3299,24 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
       ),
     );
   }
+}
+
+/// Hücre notu işareti: sağ üst köşede küçük kırmızı üçgen (Excel'in kendi
+/// göstergesi). `CustomPaint` seçildi çünkü bir `Icon` bu boyutta ne okunur
+/// ne de Excel'e benzer duruyordu.
+class _NoteMarkPainter extends CustomPainter {
+  const _NoteMarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, 0)
+      ..close();
+    canvas.drawPath(path, Paint()..color = const Color(0xFFB23A2E));
+  }
+
+  @override
+  bool shouldRepaint(_NoteMarkPainter oldDelegate) => false;
 }

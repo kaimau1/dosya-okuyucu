@@ -219,6 +219,9 @@ class XlsxSheet {
 
   bool isColFiltered(int c) => (filterHidden[c] ?? const {}).isNotEmpty;
 
+  /// Hücrenin notu (Excel'de "Açıklama") — yoksa null.
+  XlsxComment? commentAt(int r, int c) => layout.comments[cellKey(r, c)];
+
   bool isRowHidden(int r) => layout.hiddenRows.contains(r);
   bool isColHidden(int c) => layout.hiddenCols.contains(c);
 

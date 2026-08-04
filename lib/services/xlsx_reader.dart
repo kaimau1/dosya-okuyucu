@@ -75,6 +75,7 @@ class XlsxReader {
         final ws = target == null ? null : doc(target);
         final layout = _readSheet(ws, name, shared, styles);
         layout.hidden = state == 'hidden' || state == 'veryHidden';
+        if (target != null) _readComments(layout, target, doc);
         sheets.add(layout);
       }
     }
@@ -92,6 +93,77 @@ class XlsxReader {
       theme: theme,
       date1904: date1904,
     );
+  }
+
+  /// Hücre **notlarını** (açıklama/yorum) okur.
+  ///
+  /// Not, sayfanın kendi XML'inde DEĞİL ayrı bir `xl/comments*.xml`
+  /// parçasında durur; sayfaya `worksheets/_rels/sheetN.xml.rels` üzerinden
+  /// bağlıdır. İki biçim var ve ikisi de okunur:
+  /// - **klasik** (`comments1.xml`): yazar listesi + `<comment ref="A1">`,
+  /// - **iş parçacıklı** (`threadedComments/`): Office 365'in yeni biçimi;
+  ///   klasik parça da genelde yazılır ama her zaman değil.
+  ///
+  /// **Yazma bilinçli olarak YAPILMADI:** not eklemek `comments1.xml`in yanına
+  /// eski VML çizimini (`vmlDrawing1.vml` + `<legacyDrawing>`) da üretmeyi
+  /// gerektiriyor; eksik/yanlış VML'de Excel dosyayı "onarılması gerekiyor"
+  /// diye açıyor. Cihazda doğrulanamayan bir yazma yolu eklemektense okumak
+  /// önce geldi. **Var olan notlar kaybolmuyor:** `excel` paketi tanımadığı
+  /// zip parçalarını baytı baytına taşıyor (`_cloneArchive`).
+  static void _readComments(
+    XlsxSheetLayout layout,
+    String sheetTarget,
+    XmlDocument? Function(String) doc,
+  ) {
+    final slash = sheetTarget.lastIndexOf('/');
+    if (slash < 0) return;
+    final dir = sheetTarget.substring(0, slash + 1);
+    final file = sheetTarget.substring(slash + 1);
+    final rels = doc('${dir}_rels/$file.rels');
+    if (rels == null) return;
+
+    for (final r in rels.rootElement.childElements) {
+      final type = r.getAttribute('Type') ?? '';
+      if (!type.endsWith('/comments')) continue;
+      final tgt = _resolveRelative(dir, r.getAttribute('Target'));
+      final cdoc = tgt == null ? null : doc(tgt);
+      if (cdoc == null) continue;
+
+      final authors = <String>[
+        for (final a in cdoc.findAllElements('author')) a.innerText,
+      ];
+      for (final c in cdoc.findAllElements('comment')) {
+        final at = XlsxRange.cellRef(c.getAttribute('ref'));
+        if (at == null) continue;
+        // Not metni biçimli parçalara (`<r><t>`) bölünmüş olabilir; hepsi
+        // birleştirilir — ekranda düz metin gösteriliyor.
+        final text = c
+            .findAllElements('t')
+            .map((t) => t.innerText)
+            .join()
+            .trim();
+        if (text.isEmpty) continue;
+        final idx = int.tryParse(c.getAttribute('authorId') ?? '');
+        final author =
+            idx != null && idx >= 0 && idx < authors.length ? authors[idx] : '';
+        layout.comments[cellKey(at.$1, at.$2)] =
+            XlsxComment(author: author, text: text);
+      }
+    }
+  }
+
+  /// `../comments1.xml` gibi göreli bir ilişki hedefini zip içi yola indirger.
+  static String? _resolveRelative(String dir, String? target) {
+    if (target == null || target.isEmpty) return null;
+    var t = target.replaceAll('\\', '/');
+    if (t.startsWith('/')) return t.substring(1);
+    var base = dir;
+    while (t.startsWith('../')) {
+      t = t.substring(3);
+      final cut = base.lastIndexOf('/', base.length - 2);
+      base = cut < 0 ? '' : base.substring(0, cut + 1);
+    }
+    return '$base${t.replaceFirst('./', '')}';
   }
 
   static String? _normalizeTarget(String? target) {
@@ -1193,6 +1265,13 @@ class XlsxCell {
 }
 
 /// A1:B3 gibi bir aralık (0 tabanlı, uçlar dahil).
+/// Hücre notu (Excel'de "Açıklama"/"Not"). Yazar boş olabilir.
+class XlsxComment {
+  final String author;
+  final String text;
+  const XlsxComment({required this.author, required this.text});
+}
+
 class XlsxRange {
   final int r1, c1, r2, c2;
   const XlsxRange(this.r1, this.c1, this.r2, this.c2);
@@ -1311,6 +1390,9 @@ class XlsxSheetLayout {
   final Map<int, XlsxCell> cells = {};
   final List<XlsxCondRule> condFormats = [];
   final Map<int, String> hyperlinks = {};
+
+  /// Hücre notları (açıklama/yorum) — `cellKey(r, c)` → not.
+  final Map<int, XlsxComment> comments = {};
   final List<XlsxDataValidation> validations = [];
 
   int frozenRows = 0;

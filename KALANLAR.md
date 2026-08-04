@@ -72,14 +72,26 @@ göre sıralı**:
       haritasının ekleme sırasından yazıyor ve sırayı değiştirecek API
       sunmuyor; zorlamak her sayfayı kopyala-sil ile yeniden kurmak demek.
 - [ ] **Grafik EKLEME yok** (PPTX tarafında grafik çizimi var, Excel'de yok).
-- [ ] **Hücre notu/açıklaması** okunmuyor/yazılmıyor.
+- [x] ~~**Hücre notu/açıklaması** okunmuyor~~ → **OKUNUYOR 2026-08-04:**
+      `comments*.xml` (klasik biçim) sayfanın `_rels`i üzerinden çözülüp
+      okunuyor; hücrenin sağ üst köşesinde Excel'inki gibi kırmızı üçgen,
+      dokununca yazar + metin. **Yazma bilinçli yapılmadı:** not eklemek eski
+      VML çizimini (`vmlDrawing1.vml` + `<legacyDrawing>`) de üretmeyi
+      gerektiriyor, eksik/yanlış VML'de Excel dosyayı "onarılması gerekiyor"
+      diye açıyor — cihazda doğrulanamayan bir yazma yolu eklenmedi. Var olan
+      notlar kaybolmuyor (`excel` paketi tanımadığı parçaları baytı baytına
+      taşıyor).
 - [x] ~~**formül otomatik tamamlama yok**~~ → **YAPILDI 2026-08-04:** formül
       çubuğunun altında işlev adı önerileri (motorun KENDİ takma ad
       tablosundan). Ayrı bir "işlev sihirbazı" ekranı bilinçli yapılmadı:
       satır içi öneri telefonda ekran değiştirmeden çalışıyor.
 - [ ] **Koşullu biçimlendirme yalnız OKUNUYOR**, kullanıcı kural ekleyemiyor.
-- [ ] **Doldurma tutamağına çift dokunup sütunu otomatik doldurma** (Excel'de
-      çift tık) ve **köşegen doldurma** yok — tek eksende doldurma var.
+- [x] ~~**Doldurma tutamağına çift dokunup sütunu otomatik doldurma**~~ →
+      **YAPILDI 2026-08-04:** sınırı komşu sütun belirliyor (önce SOLDAKİ —
+      Excel'in kuralı, o boşsa sağdaki). İkisi de boşsa uyarı veriliyor:
+      nereye kadar dolduracağı bilinemez, tahmin binlerce boş satır yazmak
+      olurdu.
+- [ ] **Köşegen doldurma** yok — tek eksende doldurma var.
 
 - [ ] **2026-08-02 (2. tur) cihaz doğrulaması (kullanıcı) — Excel düzenleme.**
       Bir .xlsx aç: (a) bir hücreye yaz → üstteki **geri al** oku eski değeri

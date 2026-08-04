@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
 
 import 'package:dosya_okuyucu/core/excel_format.dart';
 import 'package:dosya_okuyucu/services/xlsx_reader.dart';
@@ -152,6 +155,54 @@ void main() {
       expect(XlsxReader.shiftFormulaRefs('A1', -5, 0), '#REF!');
       // Kayma yoksa metin hiç dokunulmaz.
       expect(XlsxReader.shiftFormulaRefs('A1+B2', 0, 0), 'A1+B2');
+    });
+  });
+
+  group('hücre notları (açıklama)', () {
+    /// Notu olan küçük bir çalışma kitabı: not sayfanın kendi XML'inde DEĞİL
+    /// ayrı bir `comments1.xml` parçasında durur ve sayfaya `_rels` üzerinden
+    /// GÖRELİ bir hedefle (`../comments1.xml`) bağlanır.
+    Uint8List book() {
+      final archive = Archive();
+      void add(String name, String xml) {
+        final d = utf8.encode(xml);
+        archive.addFile(ArchiveFile(name, d.length, d));
+      }
+
+      add('xl/workbook.xml',
+          '<workbook xmlns:r="r"><sheets>'
+          '<sheet name="Veri" sheetId="1" r:id="rId1"/></sheets></workbook>');
+      add('xl/_rels/workbook.xml.rels',
+          '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/>'
+          '</Relationships>');
+      add('xl/worksheets/sheet1.xml',
+          '<worksheet><sheetData><row r="1">'
+          '<c r="B1" t="inlineStr"><is><t>Tutar</t></is></c>'
+          '</row></sheetData></worksheet>');
+      add('xl/worksheets/_rels/sheet1.xml.rels',
+          '<Relationships><Relationship Id="rId1" '
+          'Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+          'relationships/comments" Target="../comments1.xml"/></Relationships>');
+      add('xl/comments1.xml',
+          '<comments><authors><author>Ayşe</author></authors><commentList>'
+          '<comment ref="B1" authorId="0"><text>'
+          '<r><t>KDV </t></r><r><t>dahil</t></r></text></comment>'
+          '</commentList></comments>');
+      return Uint8List.fromList(ZipEncoder().encode(archive)!);
+    }
+
+    test('not, yazarı ve BİRLEŞTİRİLMİŞ metniyle okunur', () {
+      final layout = XlsxReader.read(book()).sheets.single;
+      final note = layout.comments[cellKey(0, 1)];
+      expect(note, isNotNull);
+      expect(note!.author, 'Ayşe');
+      // Biçimli parçalara bölünmüş metin tek parçaya birleşmeli.
+      expect(note.text, 'KDV dahil');
+    });
+
+    test('notu olmayan hücrede kayıt yok', () {
+      final layout = XlsxReader.read(book()).sheets.single;
+      expect(layout.comments[cellKey(0, 0)], isNull);
     });
   });
 }
