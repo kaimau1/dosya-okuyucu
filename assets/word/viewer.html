@@ -275,7 +275,9 @@
   }
 
   function markInline(p) {
-    var els = p.querySelectorAll('[style]');
+    // Paragrafın KENDİSİ de listede: seçim tüm paragrafı kapsıyorsa
+    // `execCommand` rengi <span> yerine doğrudan <p>'ye yazıyor.
+    var els = [p].concat([].slice.call(p.querySelectorAll('[style]')));
     for (var k = 0; k < els.length; k++) {
       var el = els[k];
       var c = rgbToHex(el.style.color);
