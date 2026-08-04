@@ -296,11 +296,14 @@ flutter:
           style: italic
 
 # Uygulama ikonu: assets/icon/ altındaki PNG'lerden CI'da üretilir
-# (dart run flutter_launcher_icons). Zemin marka mavisi, ön-plan şeffaf belge.
+# (dart run flutter_launcher_icons). PNG'lerin kaynağı `tool/gen_icon.py`
+# (harici bağımlılık yok). 2026-08-04'te KAĞIT temasına geçirildi: zemin sıcak
+# kağıt tonu, ön-plan mürekkep mavisi sırtı olan bir sayfa. Adaptive zemin
+# rengi `tool/gen_icon.py` gradyanının ortasıdır — ön-plan PNG'siyle aynı aile.
 flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
   min_sdk_android: 23
-  adaptive_icon_background: "#3B6EF6"
+  adaptive_icon_background: "#E3D7BD"
   adaptive_icon_foreground: "assets/icon/foreground.png"
