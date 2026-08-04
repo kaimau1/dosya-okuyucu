@@ -392,8 +392,12 @@ göre sıralı**:
       ve RAR YAZMA kalıcı olarak yok (biçim özel mülk; .zip üretiliyor).
 - [ ] **Yapıştırmada çakışma politikası soruluyor değil**, varsayılan "yeniden adlandır"
       (veri ezilmez). İstenirse yapıştırma öncesi Üzerine yaz/Atla/Yeniden adlandır sorusu.
-- [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*` düğümleri
-      graf raporunda yok (bu oturumda ağ/API yok) — `graphify update .` çalıştırılmalı.
+- [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*`
+      düğümleri graf raporunda yok. 2026-08-04 turunun getirdikleri de eksik:
+      `XlsxStyleEdit`, `XlsxCondRuleWrite`, `_ColumnFilterSheet`,
+      `_NoteMarkPainter`, `XlsxComment`, `turkishSearchPattern`,
+      `PptxRender.notes`, `DocxEditor.setListStyle`. Araç bulut oturumunda
+      kurulu değil (npm'de de yok) — `graphify update .` yerelde çalıştırılmalı.
 
 ## Dosya yöneticisi — araştırma karşılaştırmasından KALAN maddeler (2026-07-25)
 Referanslar: Fossify File Manager, Material Files, AnExplorer, ekran görüntüsündeki
