@@ -26,42 +26,57 @@
 
 ## Word "gerçek mobil Word gibi olsun" — kalan yol haritası
 2026-08-02'de yapısal geri al/yinele geldi. Kalanlar:
-- [ ] **Belge içinde bul / değiştir yok** (slaytta ve Excel'de var).
-      `core/text_search.dart#searchSections` hazır; canlı görünümde eşleşmeye
-      atlamak için `DocxView`e JS köprüsü gerekiyor.
+- [x] ~~**Belge içinde bul / değiştir yok**~~ → **YAPILDI 2026-08-04:** JS
+      köprüsü (`findAll`/`findGo`/`replaceHit`/`replaceAll`). Arama DOM'a hiç
+      dokunmuyor (eşleşme `Range` ile seçiliyor) → düzenleme kapalıyken de
+      çalışıyor. Katlama Türkçe duyarlı.
 - [ ] **Yazı tipi/punto PARAGRAF düzeyinde** — seçimin ortasındaki üç kelimeye
       ayrı punto verilemiyor (aşağıdaki "Bilinen eksik-risk" maddesi).
-- [ ] **Metin rengi / vurgu / madde işareti / numaralandırma** düğmeleri yok.
+- [x] ~~**Metin rengi / vurgu / madde işareti / numaralandırma** düğmeleri yok~~
+      → **YAPILDI 2026-08-04:** renk/vurgu seçime (`execCommand` + `data-fk-*`
+      işaretleri), liste PARAGRAF ÖZELLİĞİ olarak (`w:numPr` + üretilen
+      `numbering.xml`). `insertUnorderedList` bilinçli kullanılmadı: `<p>`yi
+      `<li>`ye çevirip paragraf eşlemesini bozuyordu (HAFIZA 2026-08-04 §D).
 - [ ] **Tablo düzenleme yok** (tablolar görüntüleniyor, düzenlenemiyor).
 - [ ] **Resim ekleme/taşıma yok.**
-- [ ] **Seçili metin çevirisi yok** (WebView seçimi Flutter'a gelmiyor).
+- [x] ~~**Seçili metin çevirisi yok**~~ → **YAPILDI 2026-08-04:**
+      `sendSelectionText` köprüsü; "Seçimi çevir" ve "Seçimi AI ile düzelt"
+      alt çubukta.
 - [ ] Harf harf yazma geri alma yığınına girmiyor (bilinçli — HAFIZA 4. tur).
 
 ## Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası
 2026-08-02'de düzenleme çekirdeği geldi (geri al/yinele, kes/kopyala/yapıştır,
 doldurma tutamağı, Σ, bul-değiştir). Excel mobilden hâlâ ayıranlar, **etkiye
 göre sıralı**:
-- [ ] **Yapıştırmada BİÇİM taşınmıyor** — yalnız değer gider. Excel hücre
-      biçimini de yapıştırır. Yol: `SheetClip`e `styleIndex` matrisi eklemek +
-      `XlsxEditor`a `setCellStyleIndex`. Bilinçli olarak bu tura alınmadı
-      (biçim yazma yolu ayrı bir doğrulama gerektiriyor).
+- [x] ~~**Yapıştırmada BİÇİM taşınmıyor**~~ → **YAPILDI 2026-08-04:** önerilen
+      yoldan DAHA UCUZU bulundu — `styleCopies` hedef→kaynak eşlemesiyle
+      kaynağın `s` indeksi hedefe yazılıyor, stil tablosuna hiç dokunulmuyor
+      (ikisi de aynı dosyada, indeks zaten geçerli). Değer ve biçim TEK geri
+      alma adımında.
 - [x] ~~**Sayı biçimi düğmeleri yok**~~ → **YAPILDI 2026-08-02:** biçim çubuğunda
       **#** menüsü (Genel/Sayı/Binlik/Para ₺/Yüzde/Tarih/Saat/Metin) + ondalık
       artır/azalt. `XlsxSavePatch._StyleTable` `numFmtId` tahsis edip hücrenin
       var olan `<xf>`ini kopyalıyor. **Paket yolu kullanılamazdı:** tarih
       biçimi sayısal hücrede `save()`i istisnayla kırıyordu (HAFIZA 3. tur).
-- [ ] **Dolgu rengi / yazı rengi / kenarlık / metin kaydırma / hücre
-      birleştirme** yazılamıyor (hepsi okunuyor ve çiziliyor). Altyapı ARTIK
-      HAZIR: `_StyleTable` aynı yoldan `fontId`/`fillId`/`borderId` de tahsis
-      edebilir — sayı biçimiyle aynı desen.
-- [ ] **Sırala ve süz (autofilter) arayüzü yok** — `<autoFilter>` okunup
-      kaydediliyor ama başlıktaki süzgeç oku tıklanabilir değil.
-- [ ] **Sayfa ekle / yeniden adlandır / sil / taşı yok** (sekmeler yalnız
-      gezinme).
+- [x] ~~**Dolgu rengi / yazı rengi / kenarlık / metin kaydırma / hücre
+      birleştirme** yazılamıyor~~ → **YAPILDI 2026-08-04:** `_StyleTable`
+      `fontId`/`fillId`/`borderId` de tahsis ediyor; birleştirmeyi `excel`
+      paketi yazabiliyordu. Arayüz: "Daha fazla" → **Biçim** grubu.
+- [x] ~~**Sırala ve süz (autofilter) arayüzü yok**~~ → **YAPILDI 2026-08-04:**
+      başlıktaki ok tıklanabilir — A→Z / Z→A + değer onay listesi. Süzgecin
+      gizlediği satırlar sütun başına ayrı tutuluyor (elle gizlenen satır
+      etkilenmiyor); sıralama satırları BÜTÜN olarak taşıyor.
+- [x] ~~**Sayfa ekle / yeniden adlandır / sil**~~ → **YAPILDI 2026-08-04:**
+      sekmeye uzun basış + "+" düğmesi.
+- [ ] **Sayfa TAŞIMA yok (bilinçli).** `excel 4.0.6` sayfa sırasını kendi
+      haritasının ekleme sırasından yazıyor ve sırayı değiştirecek API
+      sunmuyor; zorlamak her sayfayı kopyala-sil ile yeniden kurmak demek.
 - [ ] **Grafik EKLEME yok** (PPTX tarafında grafik çizimi var, Excel'de yok).
 - [ ] **Hücre notu/açıklaması** okunmuyor/yazılmıyor.
-- [ ] **İşlev ekle sihirbazı ve formül otomatik tamamlama yok** — motor 100+
-      işlev biliyor ama kullanıcı adını ezberlemek zorunda.
+- [x] ~~**formül otomatik tamamlama yok**~~ → **YAPILDI 2026-08-04:** formül
+      çubuğunun altında işlev adı önerileri (motorun KENDİ takma ad
+      tablosundan). Ayrı bir "işlev sihirbazı" ekranı bilinçli yapılmadı:
+      satır içi öneri telefonda ekran değiştirmeden çalışıyor.
 - [ ] **Koşullu biçimlendirme yalnız OKUNUYOR**, kullanıcı kural ekleyemiyor.
 - [ ] **Doldurma tutamağına çift dokunup sütunu otomatik doldurma** (Excel'de
       çift tık) ve **köşegen doldurma** yok — tek eksende doldurma var.
@@ -246,9 +261,9 @@ göre sıralı**:
 - [ ] **Seçili metin çevirisi Word/Excel/Slayt'ta yok** — şu an yalnız PDF'te
       (seçim altyapısı orada). Word WebView tabanlı, seçim Flutter'a gelmiyor;
       istenirse JS köprüsüyle seçili metin okunabilir.
-- [ ] **`withOpacity` → `withValues` temizliği** — analyze'da ~8 uyarı
-      (markdown_text, pdf_select_layer, office_shell, viewer_screen, editörler).
-      Yeni kod `withValues` kullanıyor, eskiler kaldı.
+- [x] ~~**`withOpacity` → `withValues` temizliği**~~ → **YAPILDI 2026-08-04:**
+      10 çağrı dönüştürüldü. `flutter analyze lib` artık **0 uyarı** (yalnız
+      `info` kaldı).
 - [ ] **PDF Faz 2 vurgu cihaz doğrulaması (kullanıcı)** — yerel build telefona
       KURULDU (2026-07-23, adb install başarılı, debug-imzalı). "Metin seç" →
       renk seç (sarı/yeşil/pembe/mavi) → Vurgula → (a) vurgu SEÇİLEN metnin tam
@@ -286,14 +301,17 @@ göre sıralı**:
       görseller doğru yönde mi, (c) tablo yalnız tanımlı kenarları mı çiziyor.
 
 ## PDF sadakat/deneyim — araştırıldı, cihaz doğrulaması gerekli (kör push yok)
-- [ ] **Türkçe-duyarlı PDF arama** — PDF yolu `startTextSearch(caseInsensitive)` locale-
-      duyarsız; İ/ı/ş kaçıyor. `findAll`(turkishFold) + `selectionPdfRects` + kendi
-      paint callback'iyle değiştir (`viewer_screen` PDF arama dalı). Altyapı hazır.
-- [ ] **Döndürülmüş sayfa (/Rotate≠0) vurgu düzeltmesi** — `pdf_annotator.addHighlight`
-      sayfa rotasyonunu okuyup rect'leri görünür koordinata döndürsün; `pdf_annotator_test`e
-      90/180/270. Syncfusion rotasyon konvansiyonu cihazda teyit edilmeli.
-- [ ] **PDF vurgu remount zoom kaybı** — `_pdfReloadKey++` remount'ta zoom/kaydırma sıfırlanır;
-      `onViewerReady`'de son matris geri uygula.
+- [x] ~~**Türkçe-duyarlı PDF arama**~~ → **YAPILDI 2026-08-04:** `startTextSearch`
+      bir `Pattern` alıyor; `turkishSearchPattern` her harfi Türkçe eş
+      biçimlerini kapsayan sınıfa çevirip eşleştirmeyi DUYARLI koşuyor.
+      Önerilen "kendi paint callback'ini yaz" yoluna gerek kalmadı.
+- [x] ~~**Döndürülmüş sayfa (/Rotate≠0) vurgu düzeltmesi**~~ → **GEREKSİZ:**
+      aynı bölümün altında 2026-07-26'da ölçülüp yanlış alarm olduğu yazılmış
+      (dört açıda da `/Rect` birebir aynı; iki taraf da ham sayfa uzayında
+      konuşuyor). Madde iki yerde duruyordu.
+- [x] ~~**PDF vurgu remount zoom kaybı**~~ → **GEREKSİZ:** `_pdfReloadKey` yolu
+      2026-07-26'da `PdfReload.reloadFile` ile değiştirildi; widget artık hiç
+      remount olmuyor, zoom/kaydırma zaten korunuyor.
 
 ## Play Store atağı — PDF (2026-07-25 kararı, 4 faz)
 - [x] ~~Faz 1: PDF Araçları (birleştir/çıkar/sil/sırala/döndür/parola/sıkıştır)~~ → YAPILDI 2026-07-25
@@ -467,14 +485,14 @@ Tasarımın `2a` bölümü (belge ekranları). Tema, palet, kanvas, rozet ve Exc
 sayı hücreleri UYGULANDI; aşağıdakiler bilinçli olarak bu tura alınmadı çünkü
 her biri ilgili editörün seçim/veri modeline dokunuyor ve cihazda görülmeden
 doğrulanamıyor:
-- [ ] **Word:** gövde altında "Seçili paragrafı AI ile yeniden yaz" şeridi.
-      `showAiRewriteSheet` bugün yalnız `viewer_screen.dart:1459`ten çağrılıyor;
-      Word editöründe paragraf seçimi WebView tarafında, Flutter'a gelmiyor
-      (aynı engel "seçili metin çevirisi" maddesinde de var).
-- [ ] **Slayt:** kanvasın altında konuşmacı notu şeridi. Önce `pptx_render`
-      notes slide (`notesSlide*.xml`) okuması gerekiyor — bugün okunmuyor.
-- [ ] **Excel:** sayfa sekmelerinin çip görünümüne alınması (işlevsel değil,
-      yalnız görsel; `_sheetTabs`).
+- [x] ~~**Word:** "Seçili paragrafı AI ile yeniden yaz" şeridi~~ → **YAPILDI
+      2026-08-04:** `sendSelectionText`/`replaceSelectionText` köprüsü engeli
+      kaldırdı; sonuç seçimin YERİNE yazılıyor.
+- [x] ~~**Slayt:** kanvasın altında konuşmacı notu şeridi~~ → **YAPILDI
+      2026-08-04:** `pptx_render.notes()` `notesSlide*.xml`i okuyor (yalnız
+      `body` yer tutucusu).
+- [x] ~~**Excel:** sayfa sekmelerinin çip görünümü~~ → zaten `ChoiceChip`di
+      (madde eskimişti).
 - [ ] **Belge sayfası** çerçevesi (`#FBF8F1` zemin + 1px `#D2C8B4` + yarıçap 4)
       yalnız kanvas düzeyinde uygulandı; PDF/Word sayfa kutusunun kendisi
       pdfrx/WebView içinde çiziliyor, oraya dokunmak ayrı bir tur.

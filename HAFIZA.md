@@ -5681,3 +5681,115 @@ kodu sürümler arası tarafsız yazmak tek çıkış.
 
 ### Doğrulama
 `flutter analyze lib` → hata yok. `flutter test` → **1184 test yeşil** (9 atlandı).
+
+---
+
+## 2026-08-04 — Sadakat turu: Excel biçim yazma, Word köprüsü, kağıt simgesi
+
+Kullanıcı isteği: "uygulama simgesini de yeni kağıt temamıza uygun hale getir;
+sadakat geliştirmelerine devam et, kalanlarda bir şey kalmasın". Tur boyunca
+`flutter analyze lib` **0 hata / 0 uyarı** (yalnız `info` kaldı; 22 → 10) ve
+tam takım yeşil tutuldu.
+
+### A) Uygulama simgesi kağıda geçti
+`tool/gen_icon.py` yeniden yazıldı (harici bağımlılık yok, sadece `zlib`):
+sıcak kağıt gradyanı + gölgeli, kenarlıklı bir sayfa + mürekkep mavisi sırt
+bandı + ink/inkSoft satırlar. Renkler `theme.dart#Paper` ile birebir.
+
+- **TUZAK — kağıt üstüne kağıt görünmüyor:** ilk denemede zemin (`#F7F2E6`) ile
+  sayfa (`#FBF8F1`) neredeyse aynıydı; simge 48dp'de bej bir lekeye dönüyordu.
+  Zemin bilinçli olarak iki kademe koyulaştırıldı (`#ECE2CC → #D9CBAD`).
+- Adaptive ön-plan **gölgesiz** üretiliyor: maske kırpınca gölge kenarda leke
+  bırakıyor. `pubspec.yaml` adaptive zemini `#3B6EF6` → `#E3D7BD`.
+
+### B) Excel: "okunuyor ama yazılamıyor" maddesi kapandı
+`_StyleTable` artık `numFmtId` yanında `fontId`/`fillId`/`borderId` de tahsis
+ediyor; desen sayı biçimiyle aynı (hücrenin ŞU ANKİ `<xf>`i klonlanır, yalnız
+ilgili alan değişir). Dolgu rengi, yazı rengi, kalın/italik/altı çizili,
+kenarlık (kenar başına, `null` = sil) ve metin kaydırma yazılıyor.
+
+- **Neden `excel` paketinin renk API'si kullanılmadı:** tek bir `ExcelColor`
+  sabit paleti var ve kullanıcının seçtiği rengi en yakın sabite yuvarlıyor.
+- **TUZAK — nitelik SIRASI:** eski `_sameXf` nitelikleri sıraya duyarlı
+  karşılaştırıyordu; aynı biçim iki kez kaydedilebiliyordu. Artık kanonik
+  anahtar (ad + SIRALI nitelikler + çocukların aynısı) kullanılıyor.
+- `<font>`/`<border>` çocukları ECMA sırasına diziliyor — yanlış sıra Word/Excel
+  için "onarılamayan içerik" demek.
+- **Biçim yapıştırma** stil tablosuna HİÇ dokunmuyor: `styleCopies` hedef→kaynak
+  eşlemesiyle kaynağın `s` indeksi hedefe yazılıyor (ikisi de aynı dosyada,
+  indeks zaten geçerli). Yapıştırma değeri ve biçimi TEK geri alma adımında
+  taşıyor.
+- **Geri alma kaydetmeye giden izi de geri alıyor.** Yalnız ekran örtmesini
+  geri koymak, geri alınmış bir dolgunun dosyaya yine yazılmasına yol açardı.
+
+### C) Excel: sayfa yönetimi, süzgeç arayüzü, formül tamamlama
+- **Sayfa ekle / yeniden adlandır / sil** (sekmeye uzun basış + "+" düğmesi).
+  `excel.rename` kopyala+sil olduğu için YENİ bir `Sheet` nesnesi üretiyor;
+  model nesnesinin KENDİSİ korunup yeni tabloya bağlanıyor — yoksa o oturumda
+  verilen biçimler kaybolurdu. `XlsxSheet.name` ve `_sheet` bu yüzden artık
+  değiştirilebilir.
+- **Sayfa TAŞIMA yapılmadı (bilinçli):** `excel 4.0.6` sayfa sırasını kendi
+  haritasının ekleme sırasından yazıyor, sırayı değiştirecek API yok; zorlamak
+  her sayfayı kopyala-sil ile yeniden kurmak demekti.
+- **Otomatik süzgeç arayüzü:** başlıktaki ok artık tıklanabilir — A→Z / Z→A
+  sıralama + değer onay listesi. Süzgecin gizlediği satırlar `filterHidden`da
+  sütun başına ayrı tutuluyor: süzgeci kaldırmak kullanıcının ELLE gizlediği
+  satırı geri getirmemeli. Sıralama satırları BÜTÜN olarak taşıyor
+  (`captureRow`/`restoreRow`), yoksa satırın gerisi yerinde kalıp veri karışırdı.
+- **Formül otomatik tamamlama:** öneriler motorun KENDİ takma ad tablosundan
+  üretiliyor (`FormulaEngine.functionNames`), ayrı bir liste tutmak motor yeni
+  işlev öğrendiğinde eskirdi. Ayrı "işlev sihirbazı" ekranı yerine satır içi
+  çip şeridi seçildi — telefonda ekran değiştirmeden, yazma ritmini bozmadan.
+
+### D) Word: seçim köprüsü her şeyin önündeki tıkaçtı
+`sendSelectionText` / `replaceSelectionText` eklenince dört KALANLAR maddesi
+birden çözüldü.
+
+- **Bul/değiştir:** arama DOM'a HİÇ dokunmuyor — eşleşme `Range` ile seçiliyor,
+  tarayıcı kendi vurgusunu çiziyor. Bu yüzden düzenleme KAPALIYKEN de çalışıyor
+  ve paragraf eşlemesini bozamıyor. Katlama Türkçe duyarlı
+  (`toLocaleLowerCase('tr')`). Değiştirme metin düğümü düzeyinde ve SAĞDAN
+  SOLA: soldaki eşleşmelerin konumu bozulmasın.
+- **Renk/vurgu seçime uygulanıyor** (yazı tipinin aksine): `execCommand`
+  `<span>` ürettiği için `<p>` sayısı değişmiyor. Renk YALNIZ kullanıcı
+  verdiyse taşınıyor (`data-fk-color`/`data-fk-hl`) — hesaplanmışı koşulsuz
+  göndermek temadan gelen rengi her düzenlemede satır içi bir `w:color`a
+  dondururdu (yazı tipiyle aynı gerekçe).
+- **TUZAK — liste için `execCommand('insertUnorderedList')` KULLANILAMAZ:**
+  `<p>`yi `<li>`ye çevirip paragraf sayısını değiştiriyor ve eşleme sigortası
+  düzenlemeyi tamamen kapatıyor. Liste bir PARAGRAF ÖZELLİĞİ olarak yapıldı:
+  işaret CSS'ten çiziliyor, Word tarafında `w:numPr` oluyor — Word'ün kendi
+  modeli de tam olarak bu. Kaydetmede `numbering.xml` + `[Content_Types].xml` +
+  `document.xml.rels` BİRLİKTE yazılıyor; üçünden biri eksikse Word dosyayı
+  "onarılamaz" sayıyor. Liste verilmemişse hiçbir parça eklenmiyor.
+- **TUZAK — seçim alt sayfa açılınca kayboluyor:** AI/çeviri sayfası açılırken
+  DOM seçimi düşebiliyor; `Range` istek anında saklanıp sonuç yazılırken o
+  kullanılıyor.
+
+### E) Slayt: konuşmacı notu
+`pptx_render.notes()` `notesSlide*.xml`i okuyor — yalnız `body` yer tutucusunu.
+Not sayfasında `sldNum` (sayfa numarası) yer tutucusu da var; alınsaydı her
+notun sonuna slayt numarası yapışırdı. Şeridin yüksekliği `_slideExtent`e de
+eklendi — kart yüksekliği ANALİTİK hesaplandığı için ikisi ayrışsaydı "slayta
+git" notlu destelerde kayardı.
+
+### F) PDF: Türkçe-duyarlı arama
+`PdfTextSearcher.startTextSearch` bir `Pattern` (RegExp) kabul ediyor. Paketin
+`caseInsensitive` bayrağı yerel-duyarsızdı ("İSTANBUL" ararken "istanbul"u
+kaçırıyordu). `turkishSearchPattern` her harfi Türkçe eş biçimlerini kapsayan
+bir karakter sınıfına çeviriyor ve eşleştirme büyük/küçük harf DUYARLI
+koşuyor — böylece KALANLAR'ın önerdiği "kendi paint callback'ini yaz" yoluna
+hiç gerek kalmadı, paketin vurgulaması olduğu gibi kullanılıyor.
+
+### G) Eskimiş KALANLAR maddeleri (kod okunarak kapatıldı)
+- "PDF vurgu remount zoom kaybı" — `_pdfReloadKey` yolu 2026-07-26'da
+  `PdfReload.reloadFile` ile değiştirilmişti; widget artık hiç remount olmuyor,
+  zoom/kaydırma zaten korunuyor.
+- "Döndürülmüş sayfa vurgu düzeltmesi" — aynı bölümün üstünde 2026-07-26'da
+  ÖLÇÜLÜP yanlış alarm olduğu yazılmış (dört açıda da `/Rect` birebir aynı).
+  Madde iki yerde duruyordu; ölçülmemiş bir konvansiyona göre kod yazmak
+  "kör push" olurdu.
+- "Excel sayfa sekmeleri çip görünümüne alınsın" — sekmeler zaten `ChoiceChip`.
+- `withOpacity` temizliği: 10 çağrı `withValues(alpha:)` oldu; `ftp_fs`teki
+  sürümler-arası `?.` uyarısı gerekçesiyle susturuldu, `sheet_cell`deki
+  gereksiz import kalktı.

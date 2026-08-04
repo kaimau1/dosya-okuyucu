@@ -944,6 +944,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                   children: [
                     if (_finding) ...[_findBar(), _replaceBar()],
                     _cellBar(),
+                    _formulaSuggestions(),
                     _formulaPreview(),
                     _rowColBar(),
                     Expanded(
@@ -1081,6 +1082,90 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Seçili hücrenin veri doğrulama listesi (yoksa boş).
   List<String> _validationOptions() =>
       _sheet?.validationAt(_selRow, _selCol)?.options ?? const [];
+
+  /// Formül yazarken **işlev adı önerileri**.
+  ///
+  /// Motor 100'ün üzerinde işlev biliyordu ama kullanıcı adını ezberlemek
+  /// zorundaydı (KALANLAR maddesi). Öneriler imlecin solundaki YARIM SÖZCÜKTEN
+  /// üretilir: `=TOP` → TOPLA, `=DÜŞ` → DÜŞEYARA. Ayrı bir "işlev sihirbazı"
+  /// ekranı yerine satır içi öneri seçildi — telefonda ekran değiştirmeden,
+  /// yazma ritmini bozmadan çalışıyor.
+  Widget _formulaSuggestions() {
+    final names = _currentCompletions();
+    if (names.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      color: scheme.surfaceContainerHighest,
+      padding: const EdgeInsets.only(left: 68, right: 8, bottom: 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final name in names)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  labelStyle: const TextStyle(fontSize: 12),
+                  label: Text(name),
+                  onPressed: () => _completeFunction(name),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// İmlecin solundaki yarım işlev adı (yoksa boş).
+  ///
+  /// Yalnız formülde ve **harf** dizisi üzerinde çalışır: `=A1+` sonrası
+  /// başvuru yazılıyor olabilir, oraya işlev önermek yanıltıcı olurdu.
+  (int, String) _functionPrefixAt() {
+    final text = _cellField.text;
+    if (!text.startsWith('=')) return (-1, '');
+    final sel = _cellField.selection;
+    final caret = sel.isValid ? sel.baseOffset : text.length;
+    var start = caret.clamp(0, text.length);
+    while (start > 1 && _isNameChar(text.codeUnitAt(start - 1))) {
+      start--;
+    }
+    final word = text.substring(start, caret.clamp(0, text.length));
+    return word.isEmpty ? (-1, '') : (start, word);
+  }
+
+  /// İşlev adında geçebilen karakter: harf, rakam, alt çizgi, Türkçe harfler.
+  static bool _isNameChar(int u) =>
+      (u >= 65 && u <= 90) ||
+      (u >= 97 && u <= 122) ||
+      (u >= 48 && u <= 57) ||
+      u == 95 ||
+      u > 127;
+
+  List<String> _currentCompletions() {
+    final (start, word) = _functionPrefixAt();
+    if (start < 0 || word.length < 2) return const [];
+    // Zaten tam bir işlev adı yazıldıysa öneri göstermeye gerek yok.
+    final hits = FormulaEngine.completionsFor(word);
+    if (hits.length == 1 && hits.first.length == word.length) return const [];
+    return hits;
+  }
+
+  /// Yarım adı seçilen işlevle tamamlar ve imleci parantezin içine koyar.
+  void _completeFunction(String name) {
+    final (start, word) = _functionPrefixAt();
+    if (start < 0) return;
+    final text = _cellField.text;
+    final end = start + word.length;
+    final inserted = '$name(';
+    final next = text.replaceRange(start, end, inserted);
+    _cellField.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: start + inserted.length),
+    );
+    setState(() {});
+  }
 
   Widget _formulaPreview() {
     final sheet = _sheet;
@@ -1667,7 +1752,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           for (final s in sheets)
             Padding(
               padding: const EdgeInsets.all(4),
-              child: ChoiceChip(
+              child: GestureDetector(
+                // Sekmeye UZUN BASIŞ: yeniden adlandır / sil. Excel mobil de
+                // sekme işlemlerini böyle sunuyor; ayrı bir düğme sekme
+                // şeridini daraltırdı.
+                onLongPress: () => _sheetActions(s),
+                child: ChoiceChip(
                 avatar: s.layout.tabColorArgb == null
                     ? null
                     : CircleAvatar(
@@ -1693,11 +1783,143 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                   WidgetsBinding.instance
                       .addPostFrameCallback((_) => _updateColWindow());
                 },
+                ),
               ),
             ),
+          // Yeni sayfa — sekmelerin sonunda, Excel'deki "+" gibi.
+          IconButton(
+            tooltip: context.t('excel.add_sheet'),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add, size: 20),
+            onPressed: _addSheet,
+          ),
         ],
       ),
     );
+  }
+
+  /// Sekmeye uzun basınca: yeniden adlandır / sil.
+  ///
+  /// Sayfa **taşıma** bilinçli olarak yok: `excel 4.0.6` sayfa sırasını kendi
+  /// haritasının ekleme sırasından yazıyor ve sırayı değiştirecek bir API
+  /// sunmuyor; sıralamayı zorlamak sayfaları kopyala-sil ile yeniden kurmak
+  /// demek olurdu ve her sayfanın biçim tablosu bağını riske atardı.
+  void _sheetActions(XlsxSheet sheet) {
+    _endEdit();
+    DocMoreSheet.show(context, [
+      DocMoreGroup(sheet.name, [
+        DocMoreItem(Icons.drive_file_rename_outline,
+            context.t('excel.rename_sheet'), () => _renameSheet(sheet)),
+        DocMoreItem(Icons.delete_outline, context.t('excel.delete_sheet'),
+            () => _deleteSheet(sheet)),
+      ]),
+    ]);
+  }
+
+  Future<void> _addSheet() async {
+    final editor = _editor;
+    if (editor == null) return;
+    _endEdit();
+    // Kullanılmayan ilk "Sayfa N" önerilir.
+    var n = editor.sheets.length + 1;
+    while (editor.hasSheet(context.t('excel.sheet_name', {'n': n}))) {
+      n++;
+    }
+    final name = await _askSheetName(
+        context.t('excel.add_sheet'), context.t('excel.sheet_name', {'n': n}));
+    if (name == null || !mounted) return;
+    if (editor.hasSheet(name)) {
+      _snack(context.t('excel.sheet_name_taken'));
+      return;
+    }
+    final added = editor.addSheet(name);
+    if (added == null) return;
+    setState(() {
+      _sheetIndex = editor.sheets.indexOf(added);
+      _selRow = 0;
+      _selCol = 0;
+      _anchorRow = 0;
+      _anchorCol = 0;
+      _dirty = true;
+      _gridVersion++;
+    });
+    _syncField();
+  }
+
+  Future<void> _renameSheet(XlsxSheet sheet) async {
+    final editor = _editor;
+    if (editor == null) return;
+    final name = await _askSheetName(context.t('excel.rename_sheet'), sheet.name);
+    if (name == null || !mounted || name == sheet.name) return;
+    if (editor.hasSheet(name)) {
+      _snack(context.t('excel.sheet_name_taken'));
+      return;
+    }
+    if (!editor.renameSheet(sheet.name, name)) return;
+    setState(() => _dirty = true);
+  }
+
+  Future<void> _deleteSheet(XlsxSheet sheet) async {
+    final editor = _editor;
+    if (editor == null) return;
+    if (editor.sheets.length <= 1) {
+      _snack(context.t('excel.last_sheet'));
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('excel.delete_sheet')),
+        content: Text(ctx.t('excel.delete_sheet_confirm', {'name': sheet.name})),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ctx.t('common.delete'))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    if (!editor.deleteSheet(sheet.name)) return;
+    setState(() {
+      _sheetIndex = _sheetIndex.clamp(0, editor.sheets.length - 1);
+      _selRow = 0;
+      _selCol = 0;
+      _anchorRow = 0;
+      _anchorCol = 0;
+      _dirty = true;
+      _gridVersion++;
+    });
+    _syncField();
+  }
+
+  Future<String?> _askSheetName(String title, String initial) {
+    final ctrl = TextEditingController(text: initial);
+    ctrl.selection =
+        TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration:
+              InputDecoration(labelText: ctx.t('excel.sheet_name_label')),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: Text(ctx.t('common.ok'))),
+        ],
+      ),
+    ).then((v) => v == null || v.isEmpty ? null : v);
   }
 
   Future<void> _showGoTo() async {
@@ -2361,14 +2583,157 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               : scheme.surfaceContainerHighest,
           border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
         ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(XlsxRange.colName(c),
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, fontSize: 11 * _zoom)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(XlsxRange.colName(c),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 11 * _zoom)),
+              ),
+            ),
+            // Otomatik süzgeç oku: dosyada `<autoFilter>` varsa ve bu sütun
+            // aralığındaysa çizilir. Eskiden yalnız OKUNUP kaydediliyordu,
+            // tıklanamıyordu (KALANLAR maddesi).
+            if (_filterCoversColumn(sheet, c))
+              GestureDetector(
+                onTap: () => _showColumnFilter(sheet, c),
+                child: Icon(
+                  sheet.isColFiltered(c)
+                      ? Icons.filter_alt
+                      : Icons.arrow_drop_down,
+                  size: 12 * _zoom,
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  /// Bu sütunda süzgeç oku çizilmeli mi (aralık sütunu kapsıyor mu)?
+  bool _filterCoversColumn(XlsxSheet sheet, int c) {
+    final range = _filterRange(sheet);
+    return range != null && c >= range.c1 && c <= range.c2;
+  }
+
+  /// Sayfanın otomatik süzgeç aralığı (yoksa null).
+  XlsxRange? _filterRange(XlsxSheet sheet) {
+    final ref = sheet.layout.autoFilterRef;
+    if (ref == null) return null;
+    return XlsxRange.parse(ref);
+  }
+
+  /// Süzgeç oku menüsü: A→Z / Z→A sırala + değere göre süz.
+  Future<void> _showColumnFilter(XlsxSheet sheet, int c) async {
+    _endEdit();
+    final range = _filterRange(sheet);
+    if (range == null) return;
+    // Başlık satırı süzgecin ilk satırıdır; veri onun altından başlar.
+    final firstData = range.r1 + 1;
+    final lastData = math.max(firstData, sheet.maxRows - 1);
+
+    final values = <String>{};
+    for (var r = firstData; r <= lastData; r++) {
+      values.add(sheet.rawAt(r, c));
+    }
+    final sorted = values.toList()..sort(_compareCellText);
+    final hidden = {...(sheet.filterHidden[c] ?? const <int>{})};
+    // Gizli satırların değerleri "işaretsiz" gelmeli.
+    final unchecked = <String>{
+      for (final r in hidden)
+        if (r >= firstData && r <= lastData) sheet.rawAt(r, c),
+    };
+
+    if (!mounted) return;
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _ColumnFilterSheet(
+        title: context.t('excel.filter_column',
+            {'col': XlsxRange.colName(c)}),
+        values: sorted,
+        unchecked: unchecked,
+        onSort: (asc) {
+          Navigator.pop(ctx);
+          _sortByColumn(sheet, c, firstData, lastData, asc);
+        },
+      ),
+    );
+    if (result == null || !mounted) return;
+    _applyColumnFilter(sheet, c, firstData, lastData, result);
+  }
+
+  /// Sayılar sayısal, gerisi metin olarak karşılaştırılır (Excel de böyle
+  /// sıralar: "10" metin sıralamasında "9"dan önce gelirdi).
+  static int _compareCellText(String a, String b) {
+    final na = double.tryParse(a);
+    final nb = double.tryParse(b);
+    if (na != null && nb != null) return na.compareTo(nb);
+    if (na != null) return -1;
+    if (nb != null) return 1;
+    return a.toLowerCase().compareTo(b.toLowerCase());
+  }
+
+  /// Seçilmeyen değerlere sahip satırları gizler (geri alınabilir).
+  void _applyColumnFilter(XlsxSheet sheet, int c, int firstData, int lastData,
+      Set<String> unchecked) {
+    final before = {...(sheet.filterHidden[c] ?? const <int>{})};
+    final after = <int>{
+      for (var r = firstData; r <= lastData; r++)
+        if (unchecked.contains(sheet.rawAt(r, c))) r,
+    };
+    void write(Set<int> rows) {
+      // Önce bu sütunun eski gizlemeleri kaldırılır: başka bir sütunun
+      // süzgeci ya da kullanıcının elle gizlediği satır ETKİLENMEMELİ.
+      for (final r in sheet.filterHidden[c] ?? const <int>{}) {
+        final stillHidden = sheet.filterHidden.entries
+            .any((e) => e.key != c && e.value.contains(r));
+        if (!stillHidden) sheet.layout.hiddenRows.remove(r);
+      }
+      sheet.filterHidden[c] = {...rows};
+      sheet.layout.hiddenRows.addAll(rows);
+    }
+
+    write(after);
+    _recordStep('excel.undo_filter', () => write(after), () => write(before));
+    _dirty = true;
+    _gridVersion++;
+    setState(() {});
+  }
+
+  /// Süzgeç aralığını bu sütuna göre sıralar. Satırlar **bütün olarak**
+  /// taşınır (değer + biçim + hücre kaydı), yoksa satırın gerisi yerinde
+  /// kalıp veri birbirine karışırdı.
+  void _sortByColumn(
+      XlsxSheet sheet, int c, int firstData, int lastData, bool ascending) {
+    final editor = _editor;
+    if (editor == null || lastData <= firstData) return;
+    final name = sheet.name;
+    final before = [
+      for (var r = firstData; r <= lastData; r++) editor.captureRow(name, r),
+    ];
+    final order = [for (var r = firstData; r <= lastData; r++) r]
+      ..sort((a, b) {
+        final cmp = _compareCellText(sheet.rawAt(a, c), sheet.rawAt(b, c));
+        return ascending ? cmp : -cmp;
+      });
+    final after = [
+      for (final r in order) before[r - firstData],
+    ];
+    void write(List<SheetLineSnapshot> rows) {
+      for (var i = 0; i < rows.length; i++) {
+        editor.restoreRow(name, firstData + i, rows[i]);
+      }
+    }
+
+    write(after);
+    _recordStep('excel.undo_sort', () => write(after), () => write(before));
+    _dirty = true;
+    _gridVersion++;
+    setState(() {});
   }
 
   Widget _rowHeader(XlsxSheet sheet, int r) {
@@ -2750,4 +3115,113 @@ class _RenderContext {
 class _CondStats {
   final double min, max;
   const _CondStats(this.min, this.max);
+}
+
+/// Sütun süzgeci sayfası: sırala düğmeleri + değer onay listesi.
+///
+/// Değer listesi Excel'in süzgeç açılırıyla aynı mantıkta: sütundaki BENZERSİZ
+/// değerler, işaretlenmeyenlerin satırları gizlenir. "Tümü" kutusu üç durumlu
+/// değil iki durumlu — telefonda üçüncü durumu ayırt etmek zor.
+class _ColumnFilterSheet extends StatefulWidget {
+  const _ColumnFilterSheet({
+    required this.title,
+    required this.values,
+    required this.unchecked,
+    required this.onSort,
+  });
+
+  final String title;
+  final List<String> values;
+  final Set<String> unchecked;
+  final void Function(bool ascending) onSort;
+
+  @override
+  State<_ColumnFilterSheet> createState() => _ColumnFilterSheetState();
+}
+
+class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
+  late final Set<String> _off = {...widget.unchecked};
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppStrings.of(context);
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+            child: Text(widget.title,
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => widget.onSort(true),
+                  icon: const Icon(Icons.arrow_upward, size: 18),
+                  label: Text(t.t('excel.sort_asc')),
+                ),
+              ),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => widget.onSort(false),
+                  icon: const Icon(Icons.arrow_downward, size: 18),
+                  label: Text(t.t('excel.sort_desc')),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 1),
+          CheckboxListTile(
+            dense: true,
+            value: _off.isEmpty,
+            title: Text(t.t('excel.filter_all')),
+            onChanged: (v) => setState(() {
+              _off
+                ..clear()
+                ..addAll(v == true ? const <String>[] : widget.values);
+            }),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.values.length,
+              itemBuilder: (_, i) {
+                final v = widget.values[i];
+                return CheckboxListTile(
+                  dense: true,
+                  value: !_off.contains(v),
+                  title: Text(v.isEmpty ? t.t('excel.filter_blank') : v,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onChanged: (on) => setState(() {
+                    on == true ? _off.remove(v) : _off.add(v);
+                  }),
+                );
+              },
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, <String>{}),
+                  child: Text(t.t('excel.filter_clear')),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, _off),
+                  child: Text(t.t('common.apply')),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

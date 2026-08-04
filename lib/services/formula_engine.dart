@@ -15,6 +15,15 @@ import '../core/excel_format.dart';
 /// `1234.5` gibi ham). Sonuç ekranda gösterilecek ham metindir; hücrenin sayı
 /// biçimi (para/yüzde/tarih) bunun ÜSTÜNE gösterim katmanında uygulanır.
 class FormulaEngine {
+  /// Formül otomatik tamamlamanın önerdiği işlev adları — çözümleyicinin
+  /// KENDİ takma ad tablosundan (Türkçe adlar + İngilizce karşılıkları).
+  /// Ayrı bir liste tutmak, motor yeni bir işlev öğrendiğinde onu eskitirdi.
+  static List<String> get functionNames => _Parser.functionNames;
+
+  /// [prefix] ile başlayan (yoksa içinde geçen) işlev adları.
+  static List<String> completionsFor(String prefix, {int limit = 8}) =>
+      _Parser.completionsFor(prefix, limit: limit);
+
   final List<List<String>> grid;
 
   /// Çapraz sayfa referansları için tüm sayfalar (ad → ızgara). Verilmezse
@@ -2539,4 +2548,33 @@ class _Parser {
     'ANA_PARA_ÖDEMESİ': 'PPMT',
     'DA': 'SLN',
   };
+
+  /// Formül otomatik tamamlamanın önerdiği işlev adları.
+  ///
+  /// Kaynak, motorun KENDİ takma ad tablosu: Türkçe adlar (kullanıcının
+  /// yazdığı) ve İngilizce karşılıkları (dosyada duran). Ayrı bir liste
+  /// tutmak, motor yeni bir işlev öğrendiğinde listeyi eskitirdi.
+  static List<String> get functionNames {
+    final out = <String>{..._aliases.keys, ..._aliases.values}.toList()..sort();
+    return List.unmodifiable(out);
+  }
+
+  /// [prefix] ile başlayan işlev adları (büyük/küçük harf duyarsız, Türkçe
+  /// katlamalı — `i` yazan `İ`li adı da bulmalı).
+  static List<String> completionsFor(String prefix, {int limit = 8}) {
+    final p = _trUpper(prefix);
+    if (p.isEmpty) return const [];
+    final starts = <String>[];
+    final contains = <String>[];
+    for (final name in functionNames) {
+      if (name.startsWith(p)) {
+        starts.add(name);
+      } else if (name.contains(p)) {
+        contains.add(name);
+      }
+      if (starts.length >= limit) break;
+    }
+    // Önce baştan eşleşenler; yer kalırsa içinde geçenler ("ARA" → "DÜŞEYARA").
+    return [...starts, ...contains].take(limit).toList(growable: false);
+  }
 }

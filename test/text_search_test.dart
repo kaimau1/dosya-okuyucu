@@ -101,4 +101,33 @@ void main() {
       expect(TextStats.of('a    b\t\tc').words, 3);
     });
   });
+
+  group('turkishSearchPattern', () {
+    test('İ/ı ayrımı: aranan sözcük her iki yazımda da bulunur', () {
+      // Dart'ın (ve pdfrx'in) yerel-duyarsız katlaması bunları kaçırıyordu.
+      expect(turkishSearchPattern('istanbul').hasMatch('İSTANBUL'), isTrue);
+      expect(turkishSearchPattern('İSTANBUL').hasMatch('istanbul'), isTrue);
+      expect(turkishSearchPattern('ışık').hasMatch('IŞIK'), isTrue);
+      expect(turkishSearchPattern('IŞIK').hasMatch('ışık'), isTrue);
+    });
+
+    test('noktalı ve noktasız i BİRBİRİNE karışmaz', () {
+      // "ısı" ile "isi" farklı sözcükler; katlama ikisini eşitlerse arama
+      // yanlış sonuç verir.
+      expect(turkishSearchPattern('ısı').hasMatch('isi'), isFalse);
+      expect(turkishSearchPattern('isi').hasMatch('ısı'), isFalse);
+    });
+
+    test('Türkçe\'ye özgü harfler her iki biçimde eşleşir', () {
+      expect(turkishSearchPattern('şçğöü').hasMatch('ŞÇĞÖÜ'), isTrue);
+      expect(turkishSearchPattern('ŞÇĞÖÜ').hasMatch('şçğöü'), isTrue);
+    });
+
+    test('düzenli ifade karakterleri KAÇIRILIR (desen olarak yorumlanmaz)', () {
+      expect(turkishSearchPattern('a.b').hasMatch('axb'), isFalse);
+      expect(turkishSearchPattern('a.b').hasMatch('a.b'), isTrue);
+      expect(turkishSearchPattern('(1)').hasMatch('(1)'), isTrue);
+      expect(turkishSearchPattern(r'a[b]').hasMatch('a[b]'), isTrue);
+    });
+  });
 }

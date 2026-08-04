@@ -40,6 +40,49 @@ List<int> findAll(String haystack, String needle, {int limit = 5000}) {
   return out;
 }
 
+/// Türkçe-duyarlı arama için **düzenli ifade**.
+///
+/// [findAll] metnin tamamı elimizdeyken çalışır; PDF'te ise arama pdfium'un
+/// içinde, sayfa sayfa yapılıyor (`PdfTextSearcher`) ve bize yalnız bir
+/// `Pattern` verme imkânı var. Paketin kendi `caseInsensitive` bayrağı
+/// yerel-duyarsız — "İSTANBUL" ararken "istanbul"u, "IŞIK" ararken "ışık"ı
+/// kaçırıyordu (KALANLAR maddesi). Çözüm: her harfi Türkçe eş biçimlerini
+/// kapsayan bir karakter sınıfına çevirmek, eşleştirmeyi büyük/küçük harf
+/// DUYARLI koşturmak. Böylece kendi çizim geri çağırımımızı yazmadan,
+/// paketin vurgulaması olduğu gibi kullanılabiliyor.
+RegExp turkishSearchPattern(String query) =>
+    RegExp(query.split('').map(_charClass).join());
+
+/// Türkçe'de `toLowerCase`/`toUpperCase` yanlış eşleyen çiftler.
+const _turkishCasePairs = <String, String>{
+  'i': 'İ',
+  'İ': 'i',
+  'ı': 'I',
+  'I': 'ı',
+};
+
+/// Bir karakterin büyük/küçük biçimlerini kapsayan düzenli ifade parçası.
+String _charClass(String ch) {
+  final variants = <String>{ch};
+  final special = _turkishCasePairs[ch];
+  if (special != null) {
+    variants.add(special);
+  } else {
+    final up = ch.toUpperCase();
+    final low = ch.toLowerCase();
+    // Yalnız 1:1 dönüşümler; `ß`→`SS` gibi genişleyenler sınıfa konamaz.
+    if (up.length == 1) variants.add(up);
+    if (low.length == 1) variants.add(low);
+  }
+  if (variants.length == 1) return RegExp.escape(ch);
+  // Karakter sınıfının kendi kaçış kuralları var (`RegExp.escape` sınıf içinde
+  // `-` ve `^`ı bilmiyor); tehlikeli olanlar tek tek kaçırılır.
+  final body = variants.map((c) {
+    return const {'\\', ']', '^', '-'}.contains(c) ? '\\$c' : c;
+  }).join();
+  return '[$body]';
+}
+
 /// Bölümlere ayrılmış bir belgede (slayt, sayfa, sayfa sekmesi…) tek eşleşme.
 class SectionHit {
   /// Eşleşmenin bulunduğu bölümün 0 tabanlı sırası.

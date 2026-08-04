@@ -127,14 +127,19 @@ class XlsxCellView {
 }
 
 class XlsxSheet {
-  final String name;
+  /// Sayfa adı. Yeniden adlandırma bunu YERİNDE değiştirir: sayfanın oturum
+  /// içi düzenlemeleri (biçim örtmeleri, sayı biçimleri, yapıştırılan biçim
+  /// izleri) yeni bir nesne kurulsa kaybolurdu.
+  String name;
 
   /// Ham hücre metinleri — formül motorunun ve CSV dışa aktarımının girdisi.
   /// Sayılar burada HAM durur (`1234.5`), biçim yalnız gösterimde uygulanır;
   /// yoksa `=A1*2` gibi formüller "₺1.234,50"yi sayı sanıp bozulurdu.
   final List<List<String>> rows;
 
-  final Sheet _sheet;
+  /// `excel` paketindeki karşılık. Yeniden adlandırmada paket kopya+sil
+  /// yaptığı için YENİ bir nesneyle değişir (bkz. [XlsxEditor.renameSheet]).
+  Sheet _sheet;
   final XlsxSheetLayout layout;
   final XlsxStyles styles;
   final bool date1904;
@@ -206,6 +211,13 @@ class XlsxSheet {
   }
 
   void removeMerge(XlsxMerge m) => merges.remove(m);
+
+  /// Otomatik süzgeçle **gizlenen** satırlar, sütun başına. Kullanıcının elle
+  /// gizlediği satırlardan ayrı tutulur: süzgeci kaldırmak yalnız süzgecin
+  /// gizlediklerini geri getirmeli.
+  final Map<int, Set<int>> filterHidden = {};
+
+  bool isColFiltered(int c) => (filterHidden[c] ?? const {}).isNotEmpty;
 
   bool isRowHidden(int r) => layout.hiddenRows.contains(r);
   bool isColHidden(int c) => layout.hiddenCols.contains(c);
@@ -1083,6 +1095,69 @@ class XlsxEditor {
     if (srcEdit != null) model.styleEdits[(dr, dc)] = srcEdit;
     final srcFmt = model.numberFormatEdits[(sr, sc)];
     if (srcFmt != null) model.numberFormatEdits[(dr, dc)] = srcFmt;
+  }
+
+  // ── sayfa yönetimi ────────────────────────────────────────────────────
+
+  /// Kitapta bu ad kullanılıyor mu (büyük/küçük harf duyarsız — Excel de
+  /// "Sayfa1" ile "sayfa1"i aynı sayar).
+  bool hasSheet(String name) {
+    final want = name.trim().toLowerCase();
+    return sheets.any((s) => s.name.toLowerCase() == want);
+  }
+
+  /// Yeni boş sayfa ekler; model listesinin SONUNA gelir. Ad boşsa ya da
+  /// kullanılıyorsa hiçbir şey yapmaz ve null döner.
+  XlsxSheet? addSheet(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty || hasSheet(clean)) return null;
+    // `excel[ad]` sayfayı yoksa yaratır.
+    final table = _excel[clean];
+    final sheet = XlsxSheet(
+      name: clean,
+      rows: <List<String>>[],
+      sheet: table,
+      layout: XlsxSheetLayout(name: clean),
+      styles: workbook.styles,
+      date1904: workbook.date1904,
+    );
+    sheets.add(sheet);
+    return sheet;
+  }
+
+  /// Sayfayı siler. **Son sayfa silinemez** — `excel` paketi de reddediyor,
+  /// sayfasız bir çalışma kitabı geçersiz.
+  bool deleteSheet(String name) {
+    if (sheets.length <= 1) return false;
+    final model = _modelSheet(name);
+    if (model == null) return false;
+    _excel.delete(name);
+    sheets.remove(model);
+    return true;
+  }
+
+  /// Sayfayı yeniden adlandırır.
+  ///
+  /// `excel` paketinin `rename`i kopyala+sil olduğu için **yeni bir `Sheet`
+  /// nesnesi** üretiyor; model o nesneye yeniden bağlanır. Model nesnesinin
+  /// KENDİSİ korunur, yoksa bu oturumda verilen biçimler (örtmeler, sayı
+  /// biçimleri, yapıştırılan biçim izleri) kaybolurdu.
+  bool renameSheet(String oldName, String newName) {
+    final clean = newName.trim();
+    final model = _modelSheet(oldName);
+    if (model == null || clean.isEmpty || oldName == clean) return false;
+    if (hasSheet(clean)) return false;
+    _excel.rename(oldName, clean);
+    final table = _excel.tables[clean];
+    if (table == null) return false;
+    model.name = clean;
+    model.layout.name = clean;
+    model._sheet = table;
+    // Ölçüler kopyalanan nesneye taşınmamış olabilir; yeniden tohumlanır
+    // (kaydetmede sütun genişlikleri paketin haritasından yazılıyor).
+    model.layout.colWidths.forEach(table.setColumnWidth);
+    model.layout.rowHeights.forEach(table.setRowHeight);
+    return true;
   }
 
   /// Hücre aralığını **birleştirir** (`excel` paketi `<mergeCells>` yazabiliyor).

@@ -400,7 +400,7 @@ class _ZoomBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surface.withOpacity(0.92),
+      color: scheme.surface.withValues(alpha: 0.92),
       shape: const CircleBorder(),
       elevation: 2,
       child: InkWell(

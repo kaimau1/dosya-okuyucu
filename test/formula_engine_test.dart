@@ -406,4 +406,37 @@ void main() {
       expect(FormulaEngine([['']]).preview('=1+', 0, 0), '#DEĞER!');
     });
   });
+
+  group('otomatik tamamlama', () {
+    test('yarım addan işlev önerir (Türkçe ve İngilizce)', () {
+      expect(FormulaEngine.completionsFor('TOP'), contains('TOPLA'));
+      expect(FormulaEngine.completionsFor('SUM'), contains('SUM'));
+      // Küçük harfle de bulunmalı.
+      expect(FormulaEngine.completionsFor('top'), contains('TOPLA'));
+    });
+
+    test('baştan eşleşme yoksa İÇİNDE geçenler önerilir', () {
+      // "ARA" ile başlayan yoksa DÜŞEYARA/YATAYARA gibi adlar gelmeli.
+      final hits = FormulaEngine.completionsFor('EYARA');
+      expect(hits, isNotEmpty);
+      expect(hits.every((h) => h.contains('EYARA')), isTrue);
+    });
+
+    test('boş önek öneri vermez', () {
+      expect(FormulaEngine.completionsFor(''), isEmpty);
+    });
+
+    test('öneri sayısı sınırı aşmaz', () {
+      expect(FormulaEngine.completionsFor('A', limit: 3).length,
+          lessThanOrEqualTo(3));
+    });
+
+    test('işlev listesi motorun takma ad tablosundan gelir', () {
+      final names = FormulaEngine.functionNames;
+      expect(names, contains('TOPLA'));
+      expect(names, contains('SUM'));
+      // Sıralı ve tekrarsız olmalı.
+      expect(names.toSet().length, names.length);
+    });
+  });
 }

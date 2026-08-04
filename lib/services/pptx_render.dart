@@ -1097,7 +1097,7 @@ class PptxRender {
     if (tint != null) l = l * tint + (1 - tint);
     final alpha = pct('a:alpha');
     final out = hsl.withLightness(l.clamp(0.0, 1.0)).toColor();
-    return alpha == null ? out : out.withOpacity(alpha.clamp(0.0, 1.0));
+    return alpha == null ? out : out.withValues(alpha: alpha.clamp(0.0, 1.0));
   }
 
   /// `a:effectLst > a:outerShdw` → Flutter [BoxShadow]. Yön (`dir`, 60000'de bir

@@ -339,7 +339,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (q.isEmpty) {
         _pdfSearcher?.resetTextSearch();
       } else {
-        _pdfSearcher?.startTextSearch(q, caseInsensitive: true);
+        // Paketin `caseInsensitive`i yerel-duyarsız (İ/ı kaçıyordu); harf
+        // biçimlerini kendimiz kapsayıp eşleştirmeyi duyarlı koşturuyoruz.
+        _pdfSearcher?.startTextSearch(turkishSearchPattern(q),
+            caseInsensitive: false);
       }
       return;
     }

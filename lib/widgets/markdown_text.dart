@@ -63,7 +63,7 @@ class MarkdownText extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
-                color: theme.colorScheme.primary.withOpacity(0.5),
+                color: theme.colorScheme.primary.withValues(alpha: 0.5),
                 width: 3,
               ),
             ),
@@ -93,7 +93,7 @@ class MarkdownText extends StatelessWidget {
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: theme.dividerColor, width: 0.5),
           ),
@@ -210,7 +210,7 @@ class MarkdownText extends StatelessWidget {
               decoration: r == 0
                   ? BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest
-                          .withOpacity(0.5))
+                          .withValues(alpha: 0.5))
                   : null,
               children: [
                 for (var c = 0; c < cols; c++)
@@ -240,7 +240,7 @@ class MarkdownText extends StatelessWidget {
     final codeBg = Theme.of(context)
         .colorScheme
         .surfaceContainerHighest
-        .withOpacity(0.5);
+        .withValues(alpha: 0.5);
     return TextSpan(
       children: [
         for (final s in spans)

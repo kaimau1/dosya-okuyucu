@@ -352,7 +352,7 @@ class _QuadPainter extends CustomPainter {
       Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
       path,
     );
-    canvas.drawPath(outside, Paint()..color = Colors.black.withOpacity(0.55));
+    canvas.drawPath(outside, Paint()..color = Colors.black.withValues(alpha: 0.55));
     canvas.drawPath(
       path,
       Paint()

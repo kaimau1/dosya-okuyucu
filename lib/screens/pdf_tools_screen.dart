@@ -524,7 +524,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   Widget _busyOverlay() {
     return Positioned.fill(
       child: ColoredBox(
-        color: Colors.black.withOpacity(0.35),
+        color: Colors.black.withValues(alpha: 0.35),
         child: Center(
           child: Card(
             child: Padding(

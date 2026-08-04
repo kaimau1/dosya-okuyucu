@@ -1292,7 +1292,8 @@ class XlsxDataValidation {
 }
 
 class XlsxSheetLayout {
-  final String name;
+  /// Sayfa adı — yeniden adlandırmada modelle birlikte güncellenir.
+  String name;
   bool hidden = false;
   int? tabColorArgb;
 

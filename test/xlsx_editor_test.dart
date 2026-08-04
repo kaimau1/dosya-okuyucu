@@ -31,6 +31,53 @@ Uint8List _sampleXlsx() {
 }
 
 void main() {
+  group('sayfa yönetimi', () {
+    test('sayfa eklenir, yeniden adlandırılır ve silinir', () {
+      final e = XlsxEditor.parse(_sampleXlsx());
+      final first = e.sheets.first.name;
+
+      final added = e.addSheet('Bütçe');
+      expect(added, isNotNull);
+      expect(e.sheets.map((s) => s.name), contains('Bütçe'));
+      // Aynı ad ikinci kez eklenmemeli (Excel de reddediyor).
+      expect(e.addSheet('bütçe'), isNull, reason: 'ad karşılaştırması duyarsız');
+
+      expect(e.renameSheet('Bütçe', 'Plan'), isTrue);
+      expect(e.sheets.map((s) => s.name), contains('Plan'));
+      expect(e.sheets.map((s) => s.name), isNot(contains('Bütçe')));
+
+      expect(e.deleteSheet('Plan'), isTrue);
+      expect(e.sheets.map((s) => s.name), isNot(contains('Plan')));
+      // Son sayfa silinemez.
+      expect(e.deleteSheet(first), isFalse);
+    });
+
+    test('yeniden adlandırma sayfanın oturum-içi biçimlerini KORUR', () {
+      final e = XlsxEditor.parse(_sampleXlsx());
+      final name = e.sheets.first.name;
+      e.setCellFill(name, 1, 0, const Color(0xFFFFFF00));
+      expect(e.renameSheet(name, 'Yeni'), isTrue);
+
+      final sheet = e.sheets.firstWhere((s) => s.name == 'Yeni');
+      expect(sheet.styleAt(1, 0)?.background, const Color(0xFFFFFF00));
+      expect(sheet.styleEdits, isNotEmpty,
+          reason: 'kaydetmeye giden iz de taşınmalı');
+      // Yazma yolu yeni ada bağlanmalı.
+      e.setCell('Yeni', 3, 0, 'x');
+      expect(sheet.rawAt(3, 0), 'x');
+    });
+
+    test('eklenen sayfa kaydetmede dosyaya çıkar', () {
+      final e = XlsxEditor.parse(_sampleXlsx());
+      e.addSheet('Ek');
+      e.setCell('Ek', 0, 0, 'merhaba');
+      final again = XlsxEditor.parse(e.save());
+      expect(again.sheets.map((s) => s.name), contains('Ek'));
+      expect(again.sheets.firstWhere((s) => s.name == 'Ek').rawAt(0, 0),
+          'merhaba');
+    });
+  });
+
   test('ham değerler modelde HAM durur, gösterimde Excel gibi biçimlenir', () {
     final e = XlsxEditor.parse(_sampleXlsx());
     final s = e.sheets.first;
