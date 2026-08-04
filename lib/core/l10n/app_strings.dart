@@ -1697,6 +1697,22 @@ const Map<String, (String, String, String)> _table = {
   'excel.undo_number_format': ('sayı biçimi', 'number format', 'تنسيق الأرقام'),
   'excel.group_format': ('Biçim', 'Format', 'تنسيق'),
   'excel.add_sheet': ('Sayfa ekle', 'Add sheet', 'إضافة ورقة'),
+  'excel.cond_format': (
+    'Koşullu biçimlendirme',
+    'Conditional formatting',
+    'تنسيق شرطي',
+  ),
+  'excel.cond_greater': ('Şundan büyükse', 'Greater than', 'أكبر من'),
+  'excel.cond_less': ('Şundan küçükse', 'Less than', 'أصغر من'),
+  'excel.cond_equal': ('Şuna eşitse', 'Equal to', 'يساوي'),
+  'excel.cond_contains': ('Şunu içeriyorsa', 'Text contains', 'يحتوي على'),
+  'excel.cond_value': ('Değer', 'Value', 'القيمة'),
+  'excel.cond_text': ('Aranan metin', 'Text', 'النص'),
+  'excel.undo_cond_format': (
+    'koşullu biçimlendirme',
+    'conditional formatting',
+    'التنسيق الشرطي',
+  ),
   'excel.fill_no_neighbour': (
     'Komşu sütun boş — nereye kadar doldurulacağı belirlenemedi',
     'Neighbouring column is empty — nothing to fill down to',

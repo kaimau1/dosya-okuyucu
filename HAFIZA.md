@@ -5793,3 +5793,28 @@ hiç gerek kalmadı, paketin vurgulaması olduğu gibi kullanılıyor.
 - `withOpacity` temizliği: 10 çağrı `withValues(alpha:)` oldu; `ftp_fs`teki
   sürümler-arası `?.` uyarısı gerekçesiyle susturuldu, `sheet_cell`deki
   gereksiz import kalktı.
+
+### H) Aynı turun ikinci yarısı — notlar, süzgeç, koşullu biçim
+- **Hücre notu OKUNUYOR, yazılmıyor (bilinçli).** Not ayrı bir `comments*.xml`
+  parçasında ve sayfaya `worksheets/_rels` üzerinden GÖRELİ hedefle bağlı;
+  ikisi de çözülüyor. Yazmak için eski VML çizimini (`vmlDrawing1.vml` +
+  `<legacyDrawing>`) da üretmek gerekiyor ve eksik/yanlış VML'de Excel dosyayı
+  "onarılması gerekiyor" diye açıyor — cihazda doğrulanamayan bir yazma yolu
+  eklenmedi. **Ölçüldü:** `excel` paketi tanımadığı zip parçalarını baytı
+  baytına taşıyor (`utilities/archive.dart#_cloneArchive`), yani var olan
+  notlar kaydetmede KAYBOLMUYOR.
+- **TUZAK — `<dxf>` dolgusu `bgColor`a yazılır.** Hücre stilinde renk
+  `patternFill/fgColor`a gider; koşullu biçimlendirmenin `<dxf>`inde ise
+  `bgColor`a. Ters yazılırsa Excel dolguyu hiç göstermiyor.
+- **TUZAK — `cfRule/@priority` POZİTİF olmak zorunda.** İlk yazımda yeni
+  kurallara 0 ve negatif öncelik verilmişti (en üstte olsunlar diye); Excel
+  bunu kabul etmiyor. Çözüm: var olan kuralların önceliği yeni kural sayısı
+  kadar yukarı kaydırılıyor, yenilere 1..n veriliyor.
+- **`dxfId` iki tarafta da aynı sırada.** Ekrandaki çizim
+  `styles.dxfs[dxfId]`e, dosyadaki kural `styles.xml`deki aynı sıraya bakıyor;
+  bu yüzden `<dxf>` tekilleştirmesi bilinçli olarak YOK — aynı rengi
+  paylaştırmak indeksleri kaydırıp ekranla dosyayı ayrıştırırdı.
+- **Süzgeç gizlemesi sütun başına ayrı.** `filterHidden[col]` kullanıcının
+  ELLE gizlediği satırlardan ayrı tutuluyor; süzgeci kaldırmak yalnız o
+  sütunun gizlediklerini geri getiriyor ve başka bir sütunun süzgeci hâlâ
+  gizliyorsa satır gizli kalıyor.

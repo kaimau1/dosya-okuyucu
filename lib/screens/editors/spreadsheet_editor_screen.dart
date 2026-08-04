@@ -1567,6 +1567,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               : 'excel.merge'),
           _toggleMerge,
         ),
+        DocMoreItem(Icons.rule, context.t('excel.cond_format'),
+            _showCondFormat),
       ]),
       DocMoreGroup(context.t('excel.row'), [
         DocMoreItem(Icons.keyboard_arrow_up,
@@ -1590,6 +1592,98 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       ]),
     ]);
   }
+
+  /// Koşullu biçimlendirme kuralları — eskiden yalnız OKUNUYORDU, kullanıcı
+  /// kural ekleyemiyordu (KALANLAR maddesi).
+  ///
+  /// Kural seçili aralığa uygulanır. Karşılaştırma değeri **serbest metin**:
+  /// sayı kuralları için sayı, metin kuralları için aranan sözcük.
+  void _showCondFormat() {
+    _endEdit();
+    DocMoreSheet.show(context, [
+      DocMoreGroup(context.t('excel.cond_format'), [
+        DocMoreItem(Icons.trending_up, context.t('excel.cond_greater'),
+            () => _askCondRule('cellIs', operator: 'greaterThan')),
+        DocMoreItem(Icons.trending_down, context.t('excel.cond_less'),
+            () => _askCondRule('cellIs', operator: 'lessThan')),
+        DocMoreItem(Icons.drag_handle, context.t('excel.cond_equal'),
+            () => _askCondRule('cellIs', operator: 'equal')),
+        DocMoreItem(Icons.text_fields, context.t('excel.cond_contains'),
+            () => _askCondRule('containsText')),
+      ]),
+    ]);
+  }
+
+  /// Kuralın eşiğini ve rengini sorar, sonra uygular.
+  Future<void> _askCondRule(String type, {String? operator}) async {
+    final editor = _editor;
+    final sheet = _sheet;
+    if (editor == null || sheet == null) return;
+    final ctrl = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('excel.cond_format')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: type == 'cellIs'
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text,
+          decoration: InputDecoration(
+              labelText: ctx.t(type == 'cellIs'
+                  ? 'excel.cond_value'
+                  : 'excel.cond_text')),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: Text(ctx.t('common.ok'))),
+        ],
+      ),
+    );
+    if (value == null || value.isEmpty || !mounted) return;
+
+    await _pickColor(context.t('excel.fill_color'), (color) {
+      final range = _range;
+      final xr = XlsxRange(range.top, range.left, range.bottom, range.right);
+      // "Renk yok" seçilirse Excel'in varsayılan açık kırmızısı kullanılır:
+      // renksiz bir kuralın ekranda hiçbir etkisi olmazdı.
+      final fill = _argbOf(color ?? const Color(0xFFFFC7CE));
+      // Yinele (redo) kuralı YENİDEN kurar; hangi nesnenin söküleceğini
+      // bilmek için son eklenen tutulur.
+      XlsxCondRule? added;
+      void apply() {
+        added = sheet.addCondRule(
+          range: xr,
+          type: type,
+          operator: operator,
+          formulas: type == 'cellIs' ? [value] : const [],
+          text: type == 'cellIs' ? null : value,
+          fillArgb: fill,
+        );
+      }
+
+      apply();
+      _recordStep('excel.undo_cond_format', apply, () {
+        final rule = added;
+        if (rule != null) sheet.removeCondRule(rule);
+      });
+      _dirty = true;
+      _gridVersion++;
+      setState(() {});
+    });
+  }
+
+  static int _argbOf(Color c) =>
+      ((c.a * 255).round() << 24) |
+      ((c.r * 255).round() << 16) |
+      ((c.g * 255).round() << 8) |
+      (c.b * 255).round();
 
   /// Kenarlık ön ayarları (Excel'in "Kenarlıklar" menüsü).
   void _showBorders() {

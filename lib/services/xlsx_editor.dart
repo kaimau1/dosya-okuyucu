@@ -222,6 +222,73 @@ class XlsxSheet {
   /// Hücrenin notu (Excel'de "Açıklama") — yoksa null.
   XlsxComment? commentAt(int r, int c) => layout.comments[cellKey(r, c)];
 
+  /// Bu oturumda eklenen koşullu biçimlendirme kuralları (kaydetmede yazılır).
+  final List<XlsxCondRuleWrite> condRuleEdits = [];
+
+  /// Koşullu biçimlendirme kuralı ekler: ekranda ANINDA uygulanır, kaydetmede
+  /// `<cfRule>` + `<dxf>` olarak yazılır.
+  ///
+  /// **`dxfId` indeksi iki tarafta da aynı olmak zorunda:** ekrandaki çizim
+  /// `styles.dxfs[dxfId]`e bakıyor, dosyadaki kural da `styles.xml`deki aynı
+  /// sıraya. Bu yüzden ikisine de SONA, aynı sırayla ekleniyor.
+  XlsxCondRule addCondRule({
+    required XlsxRange range,
+    required String type,
+    String? operator,
+    List<String> formulas = const [],
+    String? text,
+    int? fillArgb,
+    int? fontArgb,
+  }) {
+    final dxfId = styles.dxfs.length;
+    styles.dxfs.add(XlsxDxf(
+      fill: fillArgb == null
+          ? null
+          : XlsxFill(pattern: 'solid', fgArgb: fillArgb),
+      font: fontArgb == null ? null : XlsxFont(colorArgb: fontArgb),
+    ));
+    final rule = XlsxCondRule(
+      ranges: [range],
+      type: type,
+      operator: operator,
+      text: text,
+      formulas: formulas,
+      // Yeni kural en yüksek öncelikli (Excel de yeniyi listenin başına koyar).
+      priority: 1,
+      dxfId: dxfId,
+    );
+    layout.condFormats.insert(0, rule);
+    condRuleEdits.add(XlsxCondRuleWrite(
+      sqref: _rangeRef(range),
+      type: type,
+      operator: operator,
+      formulas: formulas,
+      text: text,
+      fillArgb: fillArgb,
+      fontArgb: fontArgb,
+    ));
+    return rule;
+  }
+
+  /// `XlsxRange` → "A1:D20".
+  static String _rangeRef(XlsxRange r) =>
+      '${XlsxRange.colName(r.c1)}${r.r1 + 1}:'
+      '${XlsxRange.colName(r.c2)}${r.r2 + 1}';
+
+  /// Eklenen bir kuralı geri alır (yalnız bu oturumda eklenenler).
+  void removeCondRule(XlsxCondRule rule) {
+    final at = layout.condFormats.indexOf(rule);
+    if (at < 0) return;
+    layout.condFormats.removeAt(at);
+    final dxfId = rule.dxfId;
+    if (dxfId != null && dxfId == styles.dxfs.length - 1) {
+      // Yalnız SON dxf sökülebilir; ortadakini silmek kalan kuralların
+      // indekslerini kaydırırdı.
+      styles.dxfs.removeLast();
+      if (condRuleEdits.isNotEmpty) condRuleEdits.removeLast();
+    }
+  }
+
   bool isRowHidden(int r) => layout.hiddenRows.contains(r);
   bool isColHidden(int c) => layout.hiddenCols.contains(c);
 
@@ -1243,6 +1310,7 @@ class XlsxEditor {
           numberFormats: s.numberFormatEdits,
           styleEdits: s.styleEdits,
           styleCopies: s.styleCopies,
+          condRules: s.condRuleEdits,
         ),
     ]);
   }

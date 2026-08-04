@@ -357,6 +357,42 @@ void main() {
           isNot('a'));
     });
 
+    test('koşullu biçimlendirme kuralı ve dxf birlikte yazılır', () {
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', condRules: [
+          XlsxCondRuleWrite(
+            sqref: 'A1:C3',
+            type: 'cellIs',
+            operator: 'greaterThan',
+            formulas: ['100'],
+            fillArgb: 0xFFFFC7CE,
+          ),
+        ]),
+      ]);
+      final root = _sheetXml(out);
+      final cf = _first(root, 'conditionalFormatting')!;
+      expect(cf.getAttribute('sqref'), 'A1:C3');
+      final rule = _first(cf, 'cfRule')!;
+      expect(rule.getAttribute('type'), 'cellIs');
+      expect(rule.getAttribute('operator'), 'greaterThan');
+      // Öncelik POZİTİF olmak zorunda (Excel 0/negatifi kabul etmiyor).
+      expect(int.parse(rule.getAttribute('priority')!), greaterThan(0));
+      expect(_first(rule, 'formula')!.innerText, '100');
+
+      // Görünüm stil tablosunda; sayfa yalnız indeksle işaret ediyor.
+      final styles = _sheetXml(out, 'xl/styles.xml');
+      final dxfs = _all(_first(styles, 'dxfs')!, 'dxf');
+      final dxf = dxfs[int.parse(rule.getAttribute('dxfId')!)];
+      // `<dxf>` dolgusunda renk bgColor'a yazılır (hücre stilinin aksine).
+      expect(_all(dxf, 'bgColor').single.getAttribute('rgb'), 'FFFFC7CE');
+
+      // Şema sırası: conditionalFormatting sheetData'dan SONRA gelmeli.
+      final names =
+          root.children.whereType<XmlElement>().map((e) => e.name.local).toList();
+      expect(names.indexOf('conditionalFormatting'),
+          greaterThan(names.indexOf('sheetData')));
+    });
+
     test('bozuk girdi kaydetmeyi KIRMAZ, baytlar olduğu gibi döner', () {
       final junk = Uint8List.fromList(List<int>.filled(64, 7));
       final out = XlsxSavePatch.apply(junk, const [

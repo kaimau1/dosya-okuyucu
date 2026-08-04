@@ -85,7 +85,13 @@ göre sıralı**:
       çubuğunun altında işlev adı önerileri (motorun KENDİ takma ad
       tablosundan). Ayrı bir "işlev sihirbazı" ekranı bilinçli yapılmadı:
       satır içi öneri telefonda ekran değiştirmeden çalışıyor.
-- [ ] **Koşullu biçimlendirme yalnız OKUNUYOR**, kullanıcı kural ekleyemiyor.
+- [x] ~~**Koşullu biçimlendirme yalnız OKUNUYOR**~~ → **YAPILDI 2026-08-04:**
+      "Daha fazla" → Biçim → **Koşullu biçimlendirme** (şundan büyükse /
+      küçükse / eşitse / metin içeriyorsa) + renk. Kural sayfada (`<cfRule>`),
+      görünümü stil tablosunda (`<dxf>`) yazılıyor; `dxfId` indeksi ekrandaki
+      modelle dosyada BİREBİR aynı sırada tutuluyor (tekilleştirme bilinçli
+      olarak yok — indeks kayması ekranla dosyayı ayrıştırırdı). Kalan: renk
+      ölçeği / veri çubuğu kuralları hâlâ yalnız okunuyor.
 - [x] ~~**Doldurma tutamağına çift dokunup sütunu otomatik doldurma**~~ →
       **YAPILDI 2026-08-04:** sınırı komşu sütun belirliyor (önce SOLDAKİ —
       Excel'in kuralı, o boşsa sağdaki). İkisi de boşsa uyarı veriliyor:

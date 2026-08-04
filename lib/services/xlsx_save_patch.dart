@@ -59,6 +59,11 @@ class XlsxSheetPatch {
   /// geçerlidir; yeni `<xf>` üretmek gereksiz şişme olurdu.
   final Map<(int, int), (int, int)> styleCopies;
 
+  /// Kullanıcının bu oturumda eklediği **koşullu biçimlendirme** kuralları.
+  /// Sıra önemli: `dxf` kayıtları bu sırayla `styles.xml`e ekleniyor ve
+  /// ekrandaki modelin kullandığı indekslerle birebir örtüşmesi gerekiyor.
+  final List<XlsxCondRuleWrite> condRules;
+
   const XlsxSheetPatch({
     required this.name,
     this.rightToLeft = false,
@@ -72,6 +77,7 @@ class XlsxSheetPatch {
     this.numberFormats = const {},
     this.styleEdits = const {},
     this.styleCopies = const {},
+    this.condRules = const [],
   });
 
   bool get isEmpty =>
@@ -85,7 +91,42 @@ class XlsxSheetPatch {
       autoFilterRef == null &&
       numberFormats.isEmpty &&
       styleEdits.isEmpty &&
-      styleCopies.isEmpty;
+      styleCopies.isEmpty &&
+      condRules.isEmpty;
+}
+
+/// Dosyaya yazılacak tek bir koşullu biçimlendirme kuralı.
+///
+/// Excel'de kuralın **koşulu** sayfada (`<cfRule>`), **görünümü** ise stil
+/// tablosunda (`<dxfs><dxf>`) durur; sayfa yalnız `dxfId` ile ona işaret eder.
+/// İki parça bu yüzden birlikte yazılıyor.
+class XlsxCondRuleWrite {
+  /// Kuralın uygulandığı aralık (`A1:D20`).
+  final String sqref;
+
+  /// `cellIs` | `containsText` | `beginsWith` | `endsWith` …
+  final String type;
+
+  /// `cellIs` için: `greaterThan`, `lessThan`, `equal`, `between`…
+  final String? operator;
+
+  /// `cellIs` için formül(ler), metin kuralları için aranan metin.
+  final List<String> formulas;
+  final String? text;
+
+  /// Eşleşen hücrenin dolgusu / yazı rengi (0xAARRGGBB, null = dokunma).
+  final int? fillArgb;
+  final int? fontArgb;
+
+  const XlsxCondRuleWrite({
+    required this.sqref,
+    required this.type,
+    this.operator,
+    this.formulas = const [],
+    this.text,
+    this.fillArgb,
+    this.fontArgb,
+  });
 }
 
 /// Tek hücrenin görünüm değişikliği. Verilmeyen (null) alan **dokunulmaz**:
@@ -300,8 +341,55 @@ class XlsxSavePatch {
     if (_applyStyleCopies(root, patch.styleCopies)) changed = true;
     if (_applyStyleEdits(root, patch.styleEdits, styles)) changed = true;
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
+    if (_applyCondRules(root, patch.condRules, styles)) changed = true;
 
     return changed ? doc.toXmlString() : null;
+  }
+
+  /// Koşullu biçimlendirme kurallarını yazar.
+  ///
+  /// Öncelik (`priority`) 1'den başlar ve KÜÇÜK olan üstündür; kullanıcının
+  /// yeni eklediği kural dosyadaki tüm kuralların ÖNÜNE geçmeli (Excel de yeni
+  /// kuralı listenin başına koyar), o yüzden var olan en küçük önceliğin
+  /// altından numaralanır.
+  static bool _applyCondRules(
+    XmlElement root,
+    List<XlsxCondRuleWrite> rules,
+    _StyleTable? styles,
+  ) {
+    if (rules.isEmpty || styles == null) return false;
+    // `priority` 1'den başlar ve POZİTİF olmak zorundadır; var olan kurallar
+    // yeni kuralların sayısı kadar yukarı kaydırılır, yenilere 1..n verilir.
+    for (final cf in root.descendants.whereType<XmlElement>()) {
+      if (cf.name.local != 'cfRule') continue;
+      final p = int.tryParse(cf.getAttribute('priority') ?? '');
+      if (p != null) cf.setAttribute('priority', '${p + rules.length}');
+    }
+
+    var priority = 0;
+    for (final rule in rules) {
+      final dxfId = styles.addDxf(rule.fillArgb, rule.fontArgb);
+      final cfRule = XmlElement(XmlName('cfRule'), [
+        XmlAttribute(XmlName('type'), rule.type),
+        XmlAttribute(XmlName('dxfId'), '$dxfId'),
+        XmlAttribute(XmlName('priority'), '${++priority}'),
+        if (rule.operator != null)
+          XmlAttribute(XmlName('operator'), rule.operator!),
+        if (rule.text != null) XmlAttribute(XmlName('text'), rule.text!),
+      ], [
+        for (final f in rule.formulas)
+          XmlElement(XmlName('formula'), [], [XmlText(f)]),
+      ]);
+      _insertOrdered(
+        root,
+        XmlElement(
+          XmlName('conditionalFormatting'),
+          [XmlAttribute(XmlName('sqref'), rule.sqref)],
+          [cfRule],
+        ),
+      );
+    }
+    return true;
   }
 
   /// Biçim yapıştırma: kaynak hücrenin `s` indeksi hedefe kopyalanır.
@@ -963,6 +1051,37 @@ class _StyleTable {
     }
 
     return _indexOfOrAdd(cellXfs, wanted);
+  }
+
+  /// Koşullu biçimlendirmenin görünümü (`<dxfs><dxf>`) — **daima SONA
+  /// eklenir** ve indeksi döner.
+  ///
+  /// Tekilleştirme bilinçli olarak YOK: ekrandaki model de aynı sırayla kendi
+  /// `dxfs` listesine ekliyor, indekslerin birebir örtüşmesi gerekiyor. Aynı
+  /// rengi paylaştırmak indeksleri kaydırıp ekranla dosyayı ayrıştırırdı.
+  int addDxf(int? fillArgb, int? fontArgb) {
+    final dxfs = _childOrCreate(root, 'dxfs');
+    final index = dxfs.childElements.where((e) => e.name.local == 'dxf').length;
+    dxfs.children.add(XmlElement(XmlName('dxf'), const [], [
+      // CT_Dxf sırası: font, numFmt, fill, alignment, border, protection.
+      if (fontArgb != null)
+        XmlElement(XmlName('font'), const [], [
+          XmlElement(XmlName('color'),
+              [XmlAttribute(XmlName('rgb'), _argbHex(fontArgb))]),
+        ]),
+      if (fillArgb != null)
+        XmlElement(XmlName('fill'), const [], [
+          // `<dxf>` dolgusunda Excel rengi **bgColor**a yazar (hücre
+          // stilindeki `fgColor`un aksine) — ters yazılırsa dolgu görünmez.
+          XmlElement(XmlName('patternFill'), const [], [
+            XmlElement(XmlName('bgColor'),
+                [XmlAttribute(XmlName('rgb'), _argbHex(fillArgb))]),
+          ]),
+        ]),
+    ]));
+    _setCount(dxfs, index + 1);
+    changed = true;
+    return index;
   }
 
   /// [baseFontId]'i klonlayıp kalın/italik/altı çizili/renk alanlarını uygular.
