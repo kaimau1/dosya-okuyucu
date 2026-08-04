@@ -5655,16 +5655,22 @@ türündeydi ve listede HİÇ GÖRÜNMÜYORDU — ancak paylaşılan URL'deki `p
 dediğinde list_projects boş/alakasız çıkıyorsa proje **URL'si** istenir, liste
 üstünden tahmin yürütülmez.
 
-### TUZAK — yerel `flutter test`te 5 dosya "loading" hatasıyla düşüyor
-`ftp_fs.dart` içindeki `SecurityType.FTPS/FTPES/FTP` ve `FTPEntryType.DIR`
-bulunamıyor: `pubspec.lock` gitignore'da olduğu için YEREL pub (Flutter 3.44)
-`ftpconnect`in yeni sürümünü çözüyor, o sürümde enum adları küçük harfe geçmiş.
-CI (Flutter 3.29.3) eski sürümü çözdüğü için orada yeşil. **Yerelde düzeltilirse
-CI kırılır** — dokunulmadı. Etkilenen dosyalar: ftp_server, remote_fs,
-remote_live, remote_browser_screen, fm_screens_smoke (sonuncusu remote ekranlarını
-import ettiği için).
+### TUZAK — `ftpconnect: ^2.0.7` aralığı depoyu SESSİZCE kırdı (bu turda çıktı)
+5 test dosyası "loading" hatasıyla düşüyordu: `ftp_fs.dart` içindeki
+`SecurityType.FTPS/FTPES/FTP` ve `FTPEntryType.DIR` bulunamıyor. Sebep:
+**ftpconnect 2.0.10 enum adlarını küçük harfe çevirdi** (`FTPS` → `ftps`,
+`DIR` → `dir`) ve `^2.0.7` aralığı onu çekiyor.
+
+İlk teşhis "yereldeki Flutter 3.44 farkı, CI'da sorun yok" idi — **YANLIŞ**:
+2.0.10 Dart >=3.0 istiyor, CI'nın Dart 3.7'siyle de uyumlu, yani `pubspec.lock`
+gitignore'da olduğu için CI da bir sonraki derlemede aynı sürümü çözecekti ve
+APK derlemesi kırılacaktı. Kod değişikliğimizle ilgisi yoktu; aralık, paket
+yayınlandığı anda patlayan gizli bir mayındı.
+
+**Çözüm:** `pubspec.yaml`da `ftpconnect: 2.0.9` olarak SABİTLENDİ (deponun diğer
+paketlerdeki deseni). Koda dokunulmadı — kod 2.0.9 API'sine göre doğru.
+**Ders:** `pubspec.lock` gitignore'dayken `^` aralığı = zamana bağlı bomba;
+API'sine doğrudan bağlı olduğumuz paketler sabit sürümle yazılır.
 
 ### Doğrulama
-`flutter analyze lib` → yeni hata yok. `flutter test` → **1124 yeşil, 5 kırmızı**;
-5'inin tamamı yukarıdaki ftpconnect tuzağı (değişiklikle ilgisi yok, `git status`
-`ftp_fs.dart`ı ve `pubspec.yaml`ı içermiyor).
+`flutter analyze lib` → hata yok. `flutter test` → **1184 test yeşil** (9 atlandı).

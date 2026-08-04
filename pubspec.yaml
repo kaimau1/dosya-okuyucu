@@ -223,7 +223,12 @@ dependencies:
   dartssh2: ^2.14.0
   # FTP + FTPS (örtük) + FTPES (açık TLS) — saf Dart (MIT). Üç protokol tek
   # sınıfta (`FtpFs`), aradaki tek fark `SecurityType` ve varsayılan port.
-  ftpconnect: ^2.0.7
+  # 2.0.9'a SABİT: 2.0.10 enum adlarını küçük harfe çevirdi
+  # (`SecurityType.FTPS` → `ftps`, `FTPEntryType.DIR` → `dir`) ve `^2.0.7`
+  # aralığı onu çekiyordu → `ftp_fs.dart` derlenmiyordu. Aralık bırakılırsa
+  # aynı kırılma CI'da da olur (2.0.10 Dart 3.0+ istiyor, CI'nın 3.7'siyle
+  # uyumlu). Bkz. HAFIZA 2026-08-05.
+  ftpconnect: 2.0.9
   # WebDAV (Nextcloud/ownCloud/Synology) — BSD 3-Clause, `dio` üstünde.
   webdav_client: ^1.2.2
   # Yerel ağ keşfi (mDNS/Bonjour) — Flutter ekibi, BSD. Tek başına yetmiyor
