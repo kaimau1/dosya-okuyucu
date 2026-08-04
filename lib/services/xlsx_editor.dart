@@ -72,28 +72,37 @@ class XlsxCellStyle {
   /// Araç çubuğu düğmelerinin durumu için (açık hizalama).
   TextAlign get align => alignFor(false);
 
+  /// [clearBackground] / [clearFontColor]: `null` "dokunma" demek olduğu için
+  /// rengi KALDIRMAK ayrı bir bayrak ister (Excel'de "dolgu yok" geçerli bir
+  /// seçim; `background: null` ile ifade edilemezdi).
   XlsxCellStyle copyWith({
     bool? bold,
     bool? italic,
+    bool? underline,
+    bool? wrap,
     XlsxHAlign? hAlign,
     Color? background,
+    bool clearBackground = false,
+    Color? fontColor,
+    bool clearFontColor = false,
+    XlsxBorder? border,
     String? numFmtCode,
   }) =>
       XlsxCellStyle(
         bold: bold ?? this.bold,
         italic: italic ?? this.italic,
-        underline: underline,
+        underline: underline ?? this.underline,
         strike: strike,
         fontSize: fontSize,
         fontFamily: fontFamily,
-        fontColor: fontColor,
-        background: background ?? this.background,
+        fontColor: clearFontColor ? null : (fontColor ?? this.fontColor),
+        background: clearBackground ? null : (background ?? this.background),
         hAlign: hAlign ?? this.hAlign,
         vAlign: vAlign,
-        wrap: wrap,
+        wrap: wrap ?? this.wrap,
         indent: indent,
         rotation: rotation,
-        border: border,
+        border: border ?? this.border,
         numFmtCode: numFmtCode ?? this.numFmtCode,
       );
 }
@@ -184,6 +193,19 @@ class XlsxSheet {
     }
     return null;
   }
+
+  /// Yeni birleşme. Kesişen eski birleşmeler önce çözülür — Excel de üst üste
+  /// binen iki birleşmeye izin vermez, dosya "onarılamaz" olurdu.
+  void addMerge(XlsxMerge m) {
+    merges.removeWhere((o) =>
+        o.rowStart <= m.rowEnd &&
+        o.rowEnd >= m.rowStart &&
+        o.colStart <= m.colEnd &&
+        o.colEnd >= m.colStart);
+    merges.add(m);
+  }
+
+  void removeMerge(XlsxMerge m) => merges.remove(m);
 
   bool isRowHidden(int r) => layout.hiddenRows.contains(r);
   bool isColHidden(int c) => layout.hiddenCols.contains(c);
@@ -286,6 +308,23 @@ class XlsxSheet {
   /// Kullanıcının bu oturumda verdiği sayı biçimleri — kaydetmede
   /// [XlsxSavePatch] `styles.xml`e yazar (paket bunu yapamıyor, bkz. orada).
   final Map<(int, int), String> numberFormatEdits = {};
+
+  /// Bu oturumda verilen görünüm değişiklikleri (dolgu/yazı rengi, kalın,
+  /// kenarlık, metin kaydırma) — kaydetmede [XlsxSavePatch] yazar.
+  final Map<(int, int), XlsxStyleEdit> styleEdits = {};
+
+  /// Biçim yapıştırma izleri: hedef hücre → kaynak hücre.
+  final Map<(int, int), (int, int)> styleCopies = {};
+
+  /// Bir hücreye görünüm değişikliği kaydeder (öncekiyle birleşerek).
+  void recordStyleEdit(int r, int c, XlsxStyleEdit edit) {
+    if (r < 0 || c < 0 || edit.isEmpty) return;
+    final key = (r, c);
+    final existing = styleEdits[key];
+    styleEdits[key] = existing == null ? edit : existing.merge(edit);
+    // Açık bir biçim değişikliği, o hücreye daha önce YAPIŞTIRILMIŞ biçimin
+    // üstüne biner; ikisi de kalır (yama önce kopyayı, sonra bunu uygular).
+  }
 
   /// Hücreye sayı biçimi verir: ekranda ANINDA uygulanır (biçim örtmesi) ve
   /// kaydetmede dosyaya yazılır.
@@ -951,6 +990,141 @@ class XlsxEditor {
     );
   }
 
+  /// Hücrenin **dolgu rengi**. [color] null ise dolgu kaldırılır.
+  ///
+  /// Ekranda anında görünür (biçim örtmesi) ve kaydetmede `styles.xml`e
+  /// yazılır. `excel` paketinin renk API'si bilinçli olarak KULLANILMIYOR:
+  /// tek bir `ExcelColor` sabit paleti var, kullanıcının seçtiği serbest
+  /// rengi en yakın sabite yuvarlıyor.
+  void setCellFill(String sheetName, int r, int c, Color? color) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0) return;
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    model.patchStyle(
+      r,
+      c,
+      current.copyWith(background: color, clearBackground: color == null),
+    );
+    model.recordStyleEdit(
+      r,
+      c,
+      XlsxStyleEdit(
+        fillArgb: color == null ? XlsxStyleEdit.noFill : _argbOf(color),
+      ),
+    );
+  }
+
+  /// Hücrenin **yazı rengi**. [color] null ise dosyadaki varsayılana döner.
+  void setFontColor(String sheetName, int r, int c, Color? color) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0) return;
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    model.patchStyle(
+      r,
+      c,
+      current.copyWith(fontColor: color, clearFontColor: color == null),
+    );
+    // "Otomatik" (null) siyaha yazılır: `<color>` etiketini SİLMEK dosyadaki
+    // taban yazı tipinin rengini geri getirmez, çünkü taban zaten klonlanıyor.
+    model.recordStyleEdit(
+      r,
+      c,
+      XlsxStyleEdit(fontArgb: _argbOf(color ?? const Color(0xFF000000))),
+    );
+  }
+
+  /// Hücrede **metin kaydırma**.
+  void setWrapText(String sheetName, int r, int c, bool wrap) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0) return;
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    model.patchStyle(r, c, current.copyWith(wrap: wrap));
+    model.recordStyleEdit(r, c, XlsxStyleEdit(wrap: wrap));
+  }
+
+  /// Hücrenin kenarlığı. [sides] kenar adı → Excel çizgi biçimi (`thin`,
+  /// `medium`, `thick`, `double`); değer `null` ise o kenar silinir.
+  void setCellBorder(
+      String sheetName, int r, int c, Map<String, String?> sides) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0 || sides.isEmpty) return;
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    XlsxBorderSide sideOf(String name, XlsxBorderSide fallback) =>
+        sides.containsKey(name)
+            ? XlsxBorderSide(sides[name] ?? 'none', null)
+            : fallback;
+    model.patchStyle(
+      r,
+      c,
+      current.copyWith(
+        border: XlsxBorder(
+          left: sideOf('left', current.border.left),
+          right: sideOf('right', current.border.right),
+          top: sideOf('top', current.border.top),
+          bottom: sideOf('bottom', current.border.bottom),
+        ),
+      ),
+    );
+    model.recordStyleEdit(r, c, XlsxStyleEdit(borders: sides));
+  }
+
+  /// **Biçim yapıştırma**: kaynak hücrenin görünümünü hedefe taşır.
+  /// Değer taşınmaz — onu `paste` yapar.
+  void copyCellFormat(String sheetName, int sr, int sc, int dr, int dc) {
+    final model = _modelSheet(sheetName);
+    if (model == null || sr < 0 || sc < 0 || dr < 0 || dc < 0) return;
+    if (sr == dr && sc == dc) return;
+    model.patchStyle(dr, dc, model.styleAt(sr, sc));
+    model.styleCopies[(dr, dc)] = (sr, sc);
+    // Kaynağın kendi oturum-içi düzenlemeleri de taşınır: yamada kopyalanan
+    // `s` indeksi kaynağın DOSYADAKİ hâlidir, bu turda verilen dolgu/renk
+    // ondan sonra geliyor.
+    final srcEdit = model.styleEdits[(sr, sc)];
+    if (srcEdit != null) model.styleEdits[(dr, dc)] = srcEdit;
+    final srcFmt = model.numberFormatEdits[(sr, sc)];
+    if (srcFmt != null) model.numberFormatEdits[(dr, dc)] = srcFmt;
+  }
+
+  /// Hücre aralığını **birleştirir** (`excel` paketi `<mergeCells>` yazabiliyor).
+  void mergeCells(String sheetName, int r1, int c1, int r2, int c2) {
+    if (r1 == r2 && c1 == c2) return;
+    _excel.merge(
+      sheetName,
+      CellIndex.indexByColumnRow(columnIndex: c1, rowIndex: r1),
+      CellIndex.indexByColumnRow(columnIndex: c2, rowIndex: r2),
+    );
+    _modelSheet(sheetName)?.addMerge(XlsxMerge(r1, c1, r2, c2));
+  }
+
+  /// Verilen hücreyi kapsayan birleşmeyi **çözer**.
+  void unmergeAt(String sheetName, int r, int c) {
+    final model = _modelSheet(sheetName);
+    final merge = model?.mergeAt(r, c);
+    if (model == null || merge == null) return;
+    _excel.unMerge(
+      sheetName,
+      '${_colName(merge.colStart)}${merge.rowStart + 1}:'
+      '${_colName(merge.colEnd)}${merge.rowEnd + 1}',
+    );
+    model.removeMerge(merge);
+  }
+
+  static String _colName(int index) {
+    var n = index + 1;
+    final out = <int>[];
+    while (n > 0) {
+      out.add(65 + (n - 1) % 26);
+      n = (n - 1) ~/ 26;
+    }
+    return String.fromCharCodes(out.reversed);
+  }
+
+  static int _argbOf(Color c) =>
+      ((c.a * 255).round() << 24) |
+      ((c.r * 255).round() << 16) |
+      ((c.g * 255).round() << 8) |
+      (c.b * 255).round();
+
   static void _copyCell(Sheet t, int sr, int sc, int dr, int dc) {
     final src =
         t.cell(CellIndex.indexByColumnRow(columnIndex: sc, rowIndex: sr));
@@ -989,6 +1163,8 @@ class XlsxEditor {
               if (e.value > 0 && _isEmptyRow(s, e.key)) e.key: e.value,
           },
           numberFormats: s.numberFormatEdits,
+          styleEdits: s.styleEdits,
+          styleCopies: s.styleCopies,
         ),
     ]);
   }

@@ -226,6 +226,137 @@ void main() {
           greaterThan(names.indexOf('sheetData')));
     });
 
+    test('dolgu rengi styles.xml\'e solid patternFill olarak yazılır', () {
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(fillArgb: 0xFFFF0000),
+        }),
+      ]);
+      final styles = _sheetXml(out, 'xl/styles.xml');
+      final fills = _first(styles, 'fills')!;
+      final added = _all(fills, 'fgColor')
+          .where((e) => e.getAttribute('rgb') == 'FFFF0000');
+      expect(added, hasLength(1), reason: 'renk bir kez tahsis edilmeli');
+      expect(_all(fills, 'patternFill').last.getAttribute('patternType'),
+          'solid');
+
+      // Hücre yeni `<xf>`e işaret etmeli ve o `<xf>` yeni dolguyu göstermeli.
+      final cell = _all(_sheetXml(out), 'c')
+          .firstWhere((e) => e.getAttribute('r') == 'A1');
+      final xfs = _all(_first(styles, 'cellXfs')!, 'xf');
+      final xf = xfs[int.parse(cell.getAttribute('s')!)];
+      expect(xf.getAttribute('applyFill'), '1');
+      final fillId = int.parse(xf.getAttribute('fillId')!);
+      expect(_all(_all(fills, 'fill')[fillId], 'fgColor').single
+          .getAttribute('rgb'), 'FFFF0000');
+    });
+
+    test('aynı biçim iki hücreye verilince TEK <xf> üretilir', () {
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(fontArgb: 0xFF0070C0, bold: true),
+          (2, 2): XlsxStyleEdit(fontArgb: 0xFF0070C0, bold: true),
+        }),
+      ]);
+      final root = _sheetXml(out);
+      final a1 = _all(root, 'c').firstWhere((e) => e.getAttribute('r') == 'A1');
+      final c3 = _all(root, 'c').firstWhere((e) => e.getAttribute('r') == 'C3');
+      expect(a1.getAttribute('s'), c3.getAttribute('s'),
+          reason: 'aynı görünüm aynı stil indeksini paylaşmalı');
+
+      final styles = _sheetXml(out, 'xl/styles.xml');
+      final fonts = _all(_first(styles, 'fonts')!, 'font');
+      final withColor = fonts.where((f) =>
+          _all(f, 'color').any((c) => c.getAttribute('rgb') == 'FF0070C0'));
+      expect(withColor, hasLength(1), reason: 'yazı tipi de bir kez eklenmeli');
+      expect(_all(withColor.single, 'b'), hasLength(1));
+    });
+
+    test('kenarlık verilen kenarı yazar, verilmeyeni tabandan taşır', () {
+      // İki tur: önce sol kenar, sonra alt kenar. İkincisi birincinin
+      // kenarlığını TABAN alır — Excel'de kenar eklemek diğerlerini silmez.
+      final withLeft = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(borders: {'left': 'thin'}),
+        }),
+      ]);
+      final out = XlsxSavePatch.apply(withLeft, const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(borders: {'bottom': 'medium'}),
+        }),
+      ]);
+      final styles = _sheetXml(out, 'xl/styles.xml');
+      final cell = _all(_sheetXml(out), 'c')
+          .firstWhere((e) => e.getAttribute('r') == 'A1');
+      final xf = _all(_first(styles, 'cellXfs')!, 'xf')[
+          int.parse(cell.getAttribute('s')!)];
+      final border = _all(_first(styles, 'borders')!, 'border')[
+          int.parse(xf.getAttribute('borderId')!)];
+      expect(_first(border, 'bottom')!.getAttribute('style'), 'medium');
+      expect(_first(border, 'left')!.getAttribute('style'), 'thin',
+          reason: 'önceki tur yazdığı kenar korunmalı');
+      // ECMA `CT_Border` sırası: left … top, bottom.
+      final order =
+          border.children.whereType<XmlElement>().map((e) => e.name.local);
+      expect(order.toList(), containsAllInOrder(['left', 'bottom']));
+    });
+
+    test('kenarlık SİLME boş etiket yazar (tabandaki çizgiyi bastırır)', () {
+      final withAll = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(borders: {'left': 'thin', 'bottom': 'thin'}),
+        }),
+      ]);
+      final out = XlsxSavePatch.apply(withAll, const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(borders: {'left': null, 'bottom': null}),
+        }),
+      ]);
+      final styles = _sheetXml(out, 'xl/styles.xml');
+      final cell = _all(_sheetXml(out), 'c')
+          .firstWhere((e) => e.getAttribute('r') == 'A1');
+      final xf = _all(_first(styles, 'cellXfs')!, 'xf')[
+          int.parse(cell.getAttribute('s')!)];
+      final border = _all(_first(styles, 'borders')!, 'border')[
+          int.parse(xf.getAttribute('borderId')!)];
+      expect(_first(border, 'left')!.getAttribute('style'), isNull);
+      expect(_first(border, 'bottom')!.getAttribute('style'), isNull);
+    });
+
+    test('metin kaydırma <alignment wrapText> olarak yazılır', () {
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(wrap: true),
+        }),
+      ]);
+      final styles = _sheetXml(out, 'xl/styles.xml');
+      final cell = _all(_sheetXml(out), 'c')
+          .firstWhere((e) => e.getAttribute('r') == 'A1');
+      final xf = _all(_first(styles, 'cellXfs')!, 'xf')[
+          int.parse(cell.getAttribute('s')!)];
+      expect(xf.getAttribute('applyAlignment'), '1');
+      expect(_first(xf, 'alignment')!.getAttribute('wrapText'), '1');
+    });
+
+    test('biçim yapıştırma kaynağın stil indeksini hedefe kopyalar', () {
+      // Önce A1'e bir biçim ver, sonra onu C3'e "yapıştır".
+      final colored = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(fillArgb: 0xFF92D050),
+        }),
+      ]);
+      final out = XlsxSavePatch.apply(colored, const [
+        XlsxSheetPatch(name: 'Sheet1', styleCopies: {(2, 2): (0, 0)}),
+      ]);
+      final root = _sheetXml(out);
+      final a1 = _all(root, 'c').firstWhere((e) => e.getAttribute('r') == 'A1');
+      final c3 = _all(root, 'c').firstWhere((e) => e.getAttribute('r') == 'C3');
+      expect(c3.getAttribute('s'), a1.getAttribute('s'));
+      // Değer taşınmamalı — yapıştırılan yalnız biçim.
+      expect(_first(c3, 'v')?.innerText ?? _first(c3, 'is')?.innerText,
+          isNot('a'));
+    });
+
     test('bozuk girdi kaydetmeyi KIRMAZ, baytlar olduğu gibi döner', () {
       final junk = Uint8List.fromList(List<int>.filled(64, 7));
       final out = XlsxSavePatch.apply(junk, const [

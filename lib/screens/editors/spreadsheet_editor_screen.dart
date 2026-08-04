@@ -447,18 +447,45 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// Yapıştırma, doldurma, temizleme, Σ ve düz yazma hepsi buradan geçer:
   /// böylece "geri al" her zaman kullanıcının yaptığı TEK işlemi geri alır,
   /// hücre hücre değil.
-  void _editCells(String label, Map<CellRef, String> values) {
+  ///
+  /// [formatSources] verilirse hedef hücrelerin **görünümü** de kaynağınkine
+  /// çekilir (yapıştırma). Değer ve biçim TEK adımda kaydedilir — ayrı iki
+  /// adım olsaydı kullanıcı "geri al"a iki kez basmak zorunda kalırdı.
+  void _editCells(String label, Map<CellRef, String> values,
+      {Map<CellRef, CellRef>? formatSources}) {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null || values.isEmpty) return;
     final name = sheet.name;
-    final step = SheetValueStep(
+    final valueStep = SheetValueStep(
       label: label,
       before: {for (final k in values.keys) k: sheet.rawAt(k.row, k.col)},
       after: values,
       write: (at, v) => editor.setCell(name, at.row, at.col, v),
     );
-    if (step.isNoop) return;
+    final formats = formatSources ?? const <CellRef, CellRef>{};
+    if (valueStep.isNoop && formats.isEmpty) return;
+
+    final stylesBefore = <CellRef, XlsxCellStyle?>{
+      for (final at in formats.keys) at: sheet.overrideAt(at.row, at.col),
+    };
+    final step = _CallbackStep(
+      label,
+      () {
+        valueStep.apply();
+        formats.forEach((at, src) =>
+            editor.copyCellFormat(name, src.row, src.col, at.row, at.col));
+      },
+      () {
+        valueStep.revert();
+        stylesBefore.forEach((at, s) => sheet.patchStyle(at.row, at.col, s));
+        // Kaydetmeye giden iz de silinir; yoksa geri alınmış bir yapıştırmanın
+        // biçimi dosyaya yine yazılırdı.
+        for (final at in formats.keys) {
+          sheet.styleCopies.remove((at.row, at.col));
+        }
+      },
+    );
     _undo.push(step);
     _dirty = true;
     _gridVersion++; // yazma kullanılan alanı büyütebilir → ölçüler yenilenir
@@ -628,6 +655,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       return;
     }
     final values = pasteCells(clip, _range);
+    // Excel yapıştırırken hücrenin BİÇİMİNİ de taşır. Yalnız uygulama içi
+    // panoda yapılabilir: sistem panosundan gelen düz metnin biçimi yok.
+    final formats = _clip == null ? null : pasteSources(clip, _range);
     if (clip.cut) {
       // Kesmede kaynak da aynı adımda temizlenir; iki ayrı adım olsaydı
       // "geri al" yarım bir durum bırakırdı.
@@ -638,7 +668,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         }
       }
     }
-    _editCells('excel.undo_paste', values);
+    _editCells('excel.undo_paste', values, formatSources: formats);
     if (clip.cut) setState(() => _clip = null);
   }
 
@@ -1112,6 +1142,169 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     setState(() {});
   }
 
+  /// Seçili aralığa görünüm değişikliği uygular ve **tek** geri alma adımı
+  /// olarak kaydeder.
+  ///
+  /// [write] her hücreye ne yazılacağını, [restore] o hücrenin ÖNCEKİ hâlini
+  /// geri koymayı bilir. İkisi de aynı `XlsxEditor` API'sini çağırır: böylece
+  /// geri alma yalnız ekrandaki örtmeyi değil, **kaydetmeye giden izi** de
+  /// eski hâline döndürür (yoksa geri alınan dolgu dosyaya yine yazılırdı).
+  void _applyCellFormat(
+    String label,
+    void Function(XlsxEditor ed, String sheet, int r, int c) write,
+    void Function(XlsxEditor ed, String sheet, int r, int c, XlsxCellStyle before)
+        restore,
+  ) {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    _endEdit();
+    final range = _range;
+    final name = sheet.name;
+    final before = <CellRef, XlsxCellStyle>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          CellRef(r, c): sheet.styleAt(r, c) ?? const XlsxCellStyle(),
+    };
+    void applyNow() {
+      for (var r = range.top; r <= range.bottom; r++) {
+        for (var c = range.left; c <= range.right; c++) {
+          write(editor, name, r, c);
+        }
+      }
+    }
+
+    applyNow();
+    _recordStep(label, applyNow, () {
+      before.forEach((at, style) => restore(editor, name, at.row, at.col, style));
+    });
+    _dirty = true;
+    setState(() {});
+  }
+
+  void _applyFillColor(Color? color) => _applyCellFormat(
+        'excel.undo_fill_color',
+        (ed, s, r, c) => ed.setCellFill(s, r, c, color),
+        (ed, s, r, c, before) => ed.setCellFill(s, r, c, before.background),
+      );
+
+  void _applyFontColor(Color? color) => _applyCellFormat(
+        'excel.undo_font_color',
+        (ed, s, r, c) => ed.setFontColor(s, r, c, color),
+        (ed, s, r, c, before) => ed.setFontColor(s, r, c, before.fontColor),
+      );
+
+  void _applyWrap(bool wrap) => _applyCellFormat(
+        'excel.undo_wrap',
+        (ed, s, r, c) => ed.setWrapText(s, r, c, wrap),
+        (ed, s, r, c, before) => ed.setWrapText(s, r, c, before.wrap),
+      );
+
+  /// Kenarlık ön ayarları — Excel'in "Kenarlıklar" menüsünün karşılığı.
+  /// Değer `null` olan kenar SİLİNİR.
+  void _applyBorder(Map<String, String?> sides) => _applyCellFormat(
+        'excel.undo_border',
+        (ed, s, r, c) => ed.setCellBorder(s, r, c, sides),
+        (ed, s, r, c, before) => ed.setCellBorder(s, r, c, {
+          'left': before.border.left.visible ? before.border.left.style : null,
+          'right': before.border.right.visible ? before.border.right.style : null,
+          'top': before.border.top.visible ? before.border.top.style : null,
+          'bottom':
+              before.border.bottom.visible ? before.border.bottom.style : null,
+        }),
+      );
+
+  /// Seçili aralığı birleştirir; imleç zaten birleşik bir hücredeyse çözer.
+  void _toggleMerge() {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    _endEdit();
+    final name = sheet.name;
+    final existing = sheet.mergeAt(_selRow, _selCol);
+    if (existing != null) {
+      void undo() => editor.mergeCells(name, existing.rowStart,
+          existing.colStart, existing.rowEnd, existing.colEnd);
+      void apply() => editor.unmergeAt(name, _selRow, _selCol);
+      apply();
+      _recordStep('excel.undo_unmerge', apply, undo);
+    } else {
+      final range = _range;
+      if (range.cellCount < 2) {
+        _snack(context.t('excel.merge_needs_range'));
+        return;
+      }
+      void apply() => editor.mergeCells(
+          name, range.top, range.left, range.bottom, range.right);
+      void undo() => editor.unmergeAt(name, range.top, range.left);
+      apply();
+      _recordStep('excel.undo_merge', apply, undo);
+    }
+    _dirty = true;
+    _gridVersion++;
+    setState(() {});
+  }
+
+  /// Excel'in standart renk paleti + "yok". Serbest renk seçici bilinçli
+  /// olarak yok: telefonda çarkla renk aramak yavaş, Excel mobil de sabit
+  /// paletle çalışıyor.
+  static const _palette = <int>[
+    0xFFFFFFFF, 0xFF000000, 0xFF808080, 0xFFD9D9D9,
+    0xFFC00000, 0xFFFF0000, 0xFFFFC000, 0xFFFFFF00,
+    0xFF92D050, 0xFF00B050, 0xFF00B0F0, 0xFF0070C0,
+    0xFF002060, 0xFF7030A0, 0xFFFCE4D6, 0xFFDDEBF7,
+  ];
+
+  /// Renk seçme sayfası. [onPick] `null` alırsa "yok / otomatik" seçilmiştir.
+  Future<void> _pickColor(String title, void Function(Color?) onPick) async {
+    final chosen = await showModalBottomSheet<Object?>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(title, style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final argb in _palette)
+                    InkWell(
+                      onTap: () => Navigator.pop(ctx, Color(argb)),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Color(argb),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: Theme.of(ctx).colorScheme.outlineVariant),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.pop(ctx, 'none'),
+              icon: const Icon(Icons.format_color_reset),
+              label: Text(ctx.t('excel.color_none')),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null) return; // sayfa kapatıldı — değişiklik yok
+    onPick(chosen is Color ? chosen : null);
+  }
+
   /// Excel mobilin "Sayı biçimi" listesi. Kodlar Türkçe Excel'in yazdığı
   /// kodlarla aynı (para birimi ₺, tarih `dd.mm.yyyy`).
   static const _numberFormatPresets = <(String, String)>[
@@ -1271,6 +1464,25 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         DocMoreItem(Icons.remove, context.t('excel.decimal_less'),
             () => _applyNumberFormat((c) => bumpDecimals(c, -1))),
       ]),
+      DocMoreGroup(context.t('excel.group_format'), [
+        DocMoreItem(Icons.format_color_fill, context.t('excel.fill_color'),
+            () => _pickColor(context.t('excel.fill_color'), _applyFillColor)),
+        DocMoreItem(Icons.format_color_text, context.t('excel.font_color'),
+            () => _pickColor(context.t('excel.font_color'), _applyFontColor)),
+        DocMoreItem(Icons.border_all, context.t('excel.borders'), _showBorders),
+        DocMoreItem(
+          Icons.wrap_text,
+          context.t('excel.wrap_text'),
+          () => _applyWrap(!(_sheet?.styleAt(_selRow, _selCol)?.wrap ?? false)),
+        ),
+        DocMoreItem(
+          Icons.merge_type,
+          context.t(_sheet?.mergeAt(_selRow, _selCol) != null
+              ? 'excel.unmerge'
+              : 'excel.merge'),
+          _toggleMerge,
+        ),
+      ]),
       DocMoreGroup(context.t('excel.row'), [
         DocMoreItem(Icons.keyboard_arrow_up,
             context.t('excel.insert_row_above'), () => _insertRow(below: false)),
@@ -1292,6 +1504,77 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             () => _showSizeDialog(col: _selCol)),
       ]),
     ]);
+  }
+
+  /// Kenarlık ön ayarları (Excel'in "Kenarlıklar" menüsü).
+  void _showBorders() {
+    const thin = 'thin';
+    DocMoreSheet.show(context, [
+      DocMoreGroup(context.t('excel.borders'), [
+        DocMoreItem(Icons.border_all, context.t('excel.border_all'),
+            () => _applyBorder(const {
+                  'left': thin,
+                  'right': thin,
+                  'top': thin,
+                  'bottom': thin,
+                })),
+        DocMoreItem(Icons.border_outer, context.t('excel.border_outline'),
+            _applyOutlineBorder),
+        DocMoreItem(Icons.border_bottom, context.t('excel.border_bottom'),
+            () => _applyBorder(const {'bottom': thin})),
+        DocMoreItem(Icons.border_top, context.t('excel.border_top'),
+            () => _applyBorder(const {'top': thin})),
+        DocMoreItem(Icons.border_clear, context.t('excel.border_none'),
+            () => _applyBorder(const {
+                  'left': null,
+                  'right': null,
+                  'top': null,
+                  'bottom': null,
+                })),
+      ]),
+    ]);
+  }
+
+  /// "Dış kenarlık": aralığın yalnız DIŞ kenarlarına çizgi — içteki hücre
+  /// sınırları boş kalır. Her hücrenin hangi kenarı dışta olduğu konumuna
+  /// bağlı olduğu için bu, [_applyCellFormat]'ın tek biçimli döngüsüne
+  /// sığmıyor; adım burada elle kurulur.
+  void _applyOutlineBorder() {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    _endEdit();
+    final range = _range;
+    final name = sheet.name;
+    final before = <CellRef, XlsxBorder>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          CellRef(r, c): (sheet.styleAt(r, c) ?? const XlsxCellStyle()).border,
+    };
+    void applyNow() {
+      for (var r = range.top; r <= range.bottom; r++) {
+        for (var c = range.left; c <= range.right; c++) {
+          editor.setCellBorder(name, r, c, {
+            'left': c == range.left ? 'thin' : null,
+            'right': c == range.right ? 'thin' : null,
+            'top': r == range.top ? 'thin' : null,
+            'bottom': r == range.bottom ? 'thin' : null,
+          });
+        }
+      }
+    }
+
+    applyNow();
+    _recordStep('excel.undo_border', applyNow, () {
+      before.forEach((at, b) => editor.setCellBorder(name, at.row, at.col, {
+            'left': b.left.visible ? b.left.style : null,
+            'right': b.right.visible ? b.right.style : null,
+            'top': b.top.visible ? b.top.style : null,
+            'bottom': b.bottom.visible ? b.bottom.style : null,
+          }));
+    });
+    _dirty = true;
+    setState(() {});
   }
 
   /// Excel'in durum çubuğu: seçili aralığın ortalaması / sayısı / toplamı.

@@ -47,6 +47,18 @@ class XlsxSheetPatch {
   /// `styles.xml`i doğrudan yazdığından böyle bir tip polisi yok.
   final Map<(int, int), String> numberFormats;
 
+  /// Kullanıcının verdiği **görünüm** değişiklikleri: dolgu rengi, yazı rengi,
+  /// kalın/italik/altı çizili, kenarlık ve metin kaydırma. Sayı biçimiyle aynı
+  /// nedenle burada (excel 4.0.6 bunların çoğunu yazamıyor; renkleri yazan
+  /// API'si de tema/indeks renklerini düşürüyor).
+  final Map<(int, int), XlsxStyleEdit> styleEdits;
+
+  /// **Biçim yapıştırma**: hedef hücre → kaynak hücre. Yama, üretilen dosyada
+  /// kaynağın `s="…"` indeksini okuyup hedefe yazar. Stil tablosuna hiç
+  /// dokunulmaz — kaynak ve hedef aynı dosyada olduğu için indeks zaten
+  /// geçerlidir; yeni `<xf>` üretmek gereksiz şişme olurdu.
+  final Map<(int, int), (int, int)> styleCopies;
+
   const XlsxSheetPatch({
     required this.name,
     this.rightToLeft = false,
@@ -58,6 +70,8 @@ class XlsxSheetPatch {
     this.showGridLines = true,
     this.autoFilterRef,
     this.numberFormats = const {},
+    this.styleEdits = const {},
+    this.styleCopies = const {},
   });
 
   bool get isEmpty =>
@@ -69,7 +83,65 @@ class XlsxSheetPatch {
       frozenCols == 0 &&
       showGridLines &&
       autoFilterRef == null &&
-      numberFormats.isEmpty;
+      numberFormats.isEmpty &&
+      styleEdits.isEmpty &&
+      styleCopies.isEmpty;
+}
+
+/// Tek hücrenin görünüm değişikliği. Verilmeyen (null) alan **dokunulmaz**:
+/// hücrenin dosyadaki mevcut yazı tipi/dolgusu/kenarlığı korunur.
+class XlsxStyleEdit {
+  /// Dolgu rengi (0xAARRGGBB). `null` = dokunma, [noFill] = dolguyu kaldır.
+  final int? fillArgb;
+
+  /// Yazı rengi (0xAARRGGBB). `null` = dokunma.
+  final int? fontArgb;
+
+  final bool? bold;
+  final bool? italic;
+  final bool? underline;
+
+  /// Metin kaydırma (`<alignment wrapText="1"/>`).
+  final bool? wrap;
+
+  /// Kenarlık: kenar adı (`left`/`right`/`top`/`bottom`) → çizgi biçimi
+  /// (`thin`, `medium`, `thick`, `double`…). Değer `null` ise o kenar SİLİNİR.
+  /// Haritada olmayan kenara dokunulmaz.
+  final Map<String, String?> borders;
+
+  /// "Dolguyu kaldır" işareti — `fillArgb`da 0 ile karıştırılmasın diye ayrı
+  /// bir sabit (0x00000000 saydam siyah da geçerli bir renk olabilirdi).
+  static const int noFill = -1;
+
+  const XlsxStyleEdit({
+    this.fillArgb,
+    this.fontArgb,
+    this.bold,
+    this.italic,
+    this.underline,
+    this.wrap,
+    this.borders = const {},
+  });
+
+  bool get isEmpty =>
+      fillArgb == null &&
+      fontArgb == null &&
+      bold == null &&
+      italic == null &&
+      underline == null &&
+      wrap == null &&
+      borders.isEmpty;
+
+  /// Aynı hücreye art arda verilen düzenlemeleri birleştirir (sonraki kazanır).
+  XlsxStyleEdit merge(XlsxStyleEdit other) => XlsxStyleEdit(
+        fillArgb: other.fillArgb ?? fillArgb,
+        fontArgb: other.fontArgb ?? fontArgb,
+        bold: other.bold ?? bold,
+        italic: other.italic ?? italic,
+        underline: other.underline ?? underline,
+        wrap: other.wrap ?? wrap,
+        borders: {...borders, ...other.borders},
+      );
 }
 
 /// `excel` paketinin **yazamadığı** sayfa niteliklerini, üretilen .xlsx
@@ -221,9 +293,108 @@ class XlsxSavePatch {
     if (_applyHiddenCols(root, patch.hiddenCols)) changed = true;
     if (_applyRows(root, patch)) changed = true;
     if (_applyAutoFilter(root, patch.autoFilterRef)) changed = true;
+    // Sıra önemli: önce biçim YAPIŞTIRMA (hedefin taban stili kaynağınki olur),
+    // sonra kullanıcının açık görünüm değişiklikleri, en sonra sayı biçimi —
+    // her adım bir öncekinin bıraktığı `s`yi taban alır, böylece üst üste
+    // binen işlemler birbirini silmez.
+    if (_applyStyleCopies(root, patch.styleCopies)) changed = true;
+    if (_applyStyleEdits(root, patch.styleEdits, styles)) changed = true;
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
 
     return changed ? doc.toXmlString() : null;
+  }
+
+  /// Biçim yapıştırma: kaynak hücrenin `s` indeksi hedefe kopyalanır.
+  static bool _applyStyleCopies(
+      XmlElement root, Map<(int, int), (int, int)> copies) {
+    if (copies.isEmpty) return false;
+    final data = _firstChild(root, 'sheetData');
+    if (data == null) return false;
+
+    // Kaynakların `s`si ÖNCE toplanır: hedeflerden biri başka bir kopyalamanın
+    // kaynağıysa, aradaki yazma sırası sonucu değiştirmesin.
+    final sourceStyles = <(int, int), String?>{};
+    for (final src in copies.values) {
+      sourceStyles.putIfAbsent(src, () {
+        final row = _findRow(data, src.$1 + 1);
+        if (row == null) return null;
+        final ref = '${_colLetters(src.$2)}${src.$1 + 1}';
+        return _findCell(row, ref)?.getAttribute('s');
+      });
+    }
+
+    var changed = false;
+    for (final entry in copies.entries) {
+      final style = sourceStyles[entry.value];
+      final (r, c) = entry.key;
+      final rowNumber = r + 1;
+      final ref = '${_colLetters(c)}$rowNumber';
+      // Kaynağın stili yoksa (varsayılan) hedefte de varsayılana dönmeli;
+      // ama yok olan hücreyi biçim vermek için ÜRETMEYE değmez.
+      if (style == null) {
+        final row = _findRow(data, rowNumber);
+        final cell = row == null ? null : _findCell(row, ref);
+        if (cell == null || cell.getAttribute('s') == null) continue;
+        cell.removeAttribute('s');
+        changed = true;
+        continue;
+      }
+      final cell = _cellElement(_rowElement(data, rowNumber), ref, c);
+      if (cell.getAttribute('s') == style) continue;
+      cell.setAttribute('s', style);
+      changed = true;
+    }
+    return changed;
+  }
+
+  /// Dolgu/yazı rengi, kalın-italik-altı çizili, kenarlık ve metin kaydırma.
+  static bool _applyStyleEdits(
+    XmlElement root,
+    Map<(int, int), XlsxStyleEdit> edits,
+    _StyleTable? styles,
+  ) {
+    if (edits.isEmpty || styles == null) return false;
+    final data = _firstChild(root, 'sheetData');
+    if (data == null) return false;
+
+    var changed = false;
+    final byRow = <int, List<int>>{};
+    for (final key in edits.keys) {
+      byRow.putIfAbsent(key.$1, () => []).add(key.$2);
+    }
+    for (final entry in byRow.entries) {
+      final rowNumber = entry.key + 1;
+      final row = _rowElement(data, rowNumber);
+      for (final col in entry.value..sort()) {
+        final edit = edits[(entry.key, col)]!;
+        if (edit.isEmpty) continue;
+        final ref = '${_colLetters(col)}$rowNumber';
+        final cell = _cellElement(row, ref, col);
+        final baseXf = int.tryParse(cell.getAttribute('s') ?? '') ?? 0;
+        final xf = styles.xfWithEdit(baseXf, edit);
+        if (cell.getAttribute('s') == '$xf') continue;
+        cell.setAttribute('s', '$xf');
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /// `<row r="N">` — yoksa null (üretmez).
+  static XmlElement? _findRow(XmlElement data, int number) {
+    for (final row in data.children.whereType<XmlElement>()) {
+      if (row.name.local != 'row') continue;
+      if (int.tryParse(row.getAttribute('r') ?? '') == number) return row;
+    }
+    return null;
+  }
+
+  /// `<c r="REF">` — yoksa null (üretmez).
+  static XmlElement? _findCell(XmlElement row, String ref) {
+    for (final c in row.children.whereType<XmlElement>()) {
+      if (c.name.local == 'c' && c.getAttribute('r') == ref) return c;
+    }
+    return null;
   }
 
   /// Sayı biçimlerini hücrelere bağlar: her hücre için `styles.xml`de uygun
@@ -729,13 +900,220 @@ class _StyleTable {
           ])
         : _cloneXf(base, numFmtId);
 
-    for (var i = 0; i < xfs.length; i++) {
-      if (_sameXf(xfs[i], wanted)) return i;
+    return _indexOfOrAdd(cellXfs, wanted);
+  }
+
+  /// [baseXf]'in her şeyini koruyup [edit]'teki görünüm alanlarını değiştiren
+  /// `<xf>`in `cellXfs` indeksi.
+  ///
+  /// Yazı tipi, dolgu ve kenarlık `<xf>`in İÇİNDE durmaz — `<fonts>`,
+  /// `<fills>`, `<borders>` listelerinde durur ve `<xf>` onlara indeksle
+  /// işaret eder. Bu yüzden her biri için önce "aynısı var mı" diye bakılır,
+  /// yoksa listeye eklenir; sonra `<xf>` yeni indekslerle klonlanır.
+  int xfWithEdit(int baseXf, XlsxStyleEdit edit) {
+    final cellXfs = _childOrCreate(root, 'cellXfs');
+    final xfs = cellXfs.childElements
+        .where((e) => e.name.local == 'xf')
+        .toList(growable: false);
+    final base = baseXf >= 0 && baseXf < xfs.length ? xfs[baseXf] : null;
+
+    final wanted = base == null
+        ? XmlElement(XmlName('xf'), [
+            XmlAttribute(XmlName('numFmtId'), '0'),
+            XmlAttribute(XmlName('fontId'), '0'),
+            XmlAttribute(XmlName('fillId'), '0'),
+            XmlAttribute(XmlName('borderId'), '0'),
+            XmlAttribute(XmlName('xfId'), '0'),
+          ])
+        : XmlElement(
+            XmlName('xf'),
+            [
+              for (final a in base.attributes)
+                XmlAttribute(XmlName(a.name.qualified), a.value),
+            ],
+            [for (final c in base.childElements) c.copy()],
+          );
+
+    if (edit.bold != null ||
+        edit.italic != null ||
+        edit.underline != null ||
+        edit.fontArgb != null) {
+      final baseFont = int.tryParse(wanted.getAttribute('fontId') ?? '') ?? 0;
+      wanted.setAttribute('fontId', '${_fontIdWith(baseFont, edit)}');
+      wanted.setAttribute('applyFont', '1');
     }
-    cellXfs.children.add(wanted);
-    _setCount(cellXfs, xfs.length + 1);
+    if (edit.fillArgb != null) {
+      wanted.setAttribute('fillId', '${_fillIdFor(edit.fillArgb!)}');
+      wanted.setAttribute('applyFill', '1');
+    }
+    if (edit.borders.isNotEmpty) {
+      final baseBorder = int.tryParse(wanted.getAttribute('borderId') ?? '') ?? 0;
+      wanted.setAttribute(
+          'borderId', '${_borderIdWith(baseBorder, edit.borders)}');
+      wanted.setAttribute('applyBorder', '1');
+    }
+    if (edit.wrap != null) {
+      final align = _childOrAppend(wanted, 'alignment');
+      if (edit.wrap!) {
+        align.setAttribute('wrapText', '1');
+      } else {
+        align.removeAttribute('wrapText');
+      }
+      wanted.setAttribute('applyAlignment', '1');
+    }
+
+    return _indexOfOrAdd(cellXfs, wanted);
+  }
+
+  /// [baseFontId]'i klonlayıp kalın/italik/altı çizili/renk alanlarını uygular.
+  int _fontIdWith(int baseFontId, XlsxStyleEdit edit) {
+    final fonts = _childOrCreate(root, 'fonts');
+    final list = fonts.childElements
+        .where((e) => e.name.local == 'font')
+        .toList(growable: false);
+    final base = baseFontId >= 0 && baseFontId < list.length
+        ? list[baseFontId]
+        : (list.isNotEmpty ? list.first : null);
+
+    final children = <XmlElement>[
+      if (base != null) for (final c in base.childElements) c.copy(),
+    ];
+    void setFlag(String local, bool? on) {
+      if (on == null) return;
+      children.removeWhere((e) => e.name.local == local);
+      if (on) children.add(XmlElement(XmlName(local)));
+    }
+
+    setFlag('b', edit.bold);
+    setFlag('i', edit.italic);
+    setFlag('u', edit.underline);
+    if (edit.fontArgb != null) {
+      children.removeWhere((e) => e.name.local == 'color');
+      children.add(XmlElement(XmlName('color'),
+          [XmlAttribute(XmlName('rgb'), _argbHex(edit.fontArgb!))]));
+    }
+
+    final font = XmlElement(XmlName('font'), const [], _ordered(children, _fontOrder));
+    return _indexOfOrAdd(fonts, font);
+  }
+
+  /// Düz (solid) dolgu. [XlsxStyleEdit.noFill] verilirse Excel'in ayırdığı
+  /// **0 numaralı** boş dolguya döner — yeni bir "none" dolgusu eklemek
+  /// gereksiz, her dosyada zaten var.
+  int _fillIdFor(int argb) {
+    if (argb == XlsxStyleEdit.noFill) return 0;
+    final fills = _childOrCreate(root, 'fills');
+    final fill = XmlElement(XmlName('fill'), const [], [
+      XmlElement(
+        XmlName('patternFill'),
+        [XmlAttribute(XmlName('patternType'), 'solid')],
+        [
+          XmlElement(XmlName('fgColor'),
+              [XmlAttribute(XmlName('rgb'), _argbHex(argb))]),
+          // Excel `bgColor indexed="64"` (= "otomatik") yazar; bırakılırsa
+          // bazı sürümler dolguyu desen sanıp farklı çiziyor.
+          XmlElement(XmlName('bgColor'),
+              [XmlAttribute(XmlName('indexed'), '64')]),
+        ],
+      ),
+    ]);
+    return _indexOfOrAdd(fills, fill);
+  }
+
+  /// [baseBorderId]'i klonlayıp verilen kenarları değiştirir (`null` = sil).
+  int _borderIdWith(int baseBorderId, Map<String, String?> sides) {
+    final borders = _childOrCreate(root, 'borders');
+    final list = borders.childElements
+        .where((e) => e.name.local == 'border')
+        .toList(growable: false);
+    final base = baseBorderId >= 0 && baseBorderId < list.length
+        ? list[baseBorderId]
+        : (list.isNotEmpty ? list.first : null);
+
+    final children = <XmlElement>[
+      if (base != null) for (final c in base.childElements) c.copy(),
+    ];
+    sides.forEach((side, style) {
+      children.removeWhere((e) => e.name.local == side);
+      if (style == null) {
+        // Boş kenar da YAZILIR: `<left/>` "çizgi yok" demektir ve taban
+        // kenarlıktan miras kalan çizgiyi bastırır.
+        children.add(XmlElement(XmlName(side)));
+      } else {
+        children.add(XmlElement(
+          XmlName(side),
+          [XmlAttribute(XmlName('style'), style)],
+          [
+            XmlElement(XmlName('color'),
+                [XmlAttribute(XmlName('indexed'), '64')]),
+          ],
+        ));
+      }
+    });
+
+    final border =
+        XmlElement(XmlName('border'), const [], _ordered(children, _borderOrder));
+    return _indexOfOrAdd(borders, border);
+  }
+
+  /// ECMA-376 `CT_Font` çocuk sırası.
+  static const _fontOrder = [
+    'b', 'i', 'strike', 'condense', 'extend', 'outline', 'shadow', 'u',
+    'vertAlign', 'sz', 'color', 'name', 'family', 'charset', 'scheme',
+  ];
+
+  /// ECMA-376 `CT_Border` çocuk sırası.
+  static const _borderOrder = [
+    'start', 'end', 'left', 'right', 'top', 'bottom', 'diagonal',
+    'vertical', 'horizontal',
+  ];
+
+  static List<XmlElement> _ordered(List<XmlElement> items, List<String> order) {
+    final out = <XmlElement>[];
+    for (final name in order) {
+      out.addAll(items.where((e) => e.name.local == name));
+    }
+    // Tanımadığımız çocuklar (uzantılar) sıranın sonunda korunur.
+    out.addAll(items.where((e) => !order.contains(e.name.local)));
+    return out;
+  }
+
+  /// [wanted]'ın aynısı [container] içinde varsa indeksi, yoksa ekleyip
+  /// yeni indeksi. Karşılaştırma **kanonik anahtar** üzerinden yapılır:
+  /// nitelik SIRASI dosyadan dosyaya değişir, anlamı değişmez.
+  int _indexOfOrAdd(XmlElement container, XmlElement wanted) {
+    final itemName = wanted.name.local;
+    final list = container.childElements
+        .where((e) => e.name.local == itemName)
+        .toList(growable: false);
+    final key = _canonical(wanted);
+    for (var i = 0; i < list.length; i++) {
+      if (_canonical(list[i]) == key) return i;
+    }
+    container.children.add(wanted);
+    _setCount(container, list.length + 1);
     changed = true;
-    return xfs.length;
+    return list.length;
+  }
+
+  /// Etiketin anlamsal parmak izi: ad + SIRALI nitelikler + çocukların aynısı.
+  static String _canonical(XmlElement e) {
+    final attrs = [
+      for (final a in e.attributes) '${a.name.local}=${a.value}',
+    ]..sort();
+    final kids = [for (final c in e.childElements) _canonical(c)];
+    return '${e.name.local}[${attrs.join(',')}](${kids.join(',')})';
+  }
+
+  static String _argbHex(int argb) =>
+      argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase();
+
+  static XmlElement _childOrAppend(XmlElement parent, String local) {
+    final existing = _child(parent, local);
+    if (existing != null) return existing;
+    final created = XmlElement(XmlName(local));
+    parent.children.add(created);
+    return created;
   }
 
   int _numFmtIdFor(String code) {
@@ -766,15 +1144,6 @@ class _StyleTable {
       el.children.add(child.copy());
     }
     return el;
-  }
-
-  static bool _sameXf(XmlElement a, XmlElement b) {
-    if (a.attributes.length != b.attributes.length) return false;
-    for (final attr in b.attributes) {
-      if (a.getAttribute(attr.name.qualified) != attr.value) return false;
-    }
-    return a.children.whereType<XmlElement>().length ==
-        b.children.whereType<XmlElement>().length;
   }
 
   static void _setCount(XmlElement el, int n) =>

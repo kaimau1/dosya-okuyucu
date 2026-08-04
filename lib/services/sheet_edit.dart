@@ -299,6 +299,29 @@ Map<CellRef, String> pasteCells(SheetClip clip, CellRange target) {
   return out;
 }
 
+/// [pasteCells] ile **aynı** yerleşim, ama değer yerine hedef → KAYNAK hücre
+/// eşlemesi verir. Biçim yapıştırma bunu kullanır: Excel yapıştırırken hücre
+/// biçimini de taşır, biz de hedefin görünümünü kaynağınkine çekiyoruz.
+Map<CellRef, CellRef> pasteSources(SheetClip clip, CellRange target) {
+  final out = <CellRef, CellRef>{};
+  if (clip.isEmpty) return out;
+  final repeatRows = _repeatCount(target.rows, clip.rows);
+  final repeatCols = _repeatCount(target.cols, clip.cols);
+  for (var br = 0; br < repeatRows; br++) {
+    for (var bc = 0; bc < repeatCols; bc++) {
+      for (var r = 0; r < clip.rows; r++) {
+        for (var c = 0; c < clip.cols; c++) {
+          out[CellRef(
+            target.top + br * clip.rows + r,
+            target.left + bc * clip.cols + c,
+          )] = CellRef(clip.origin.row + r, clip.origin.col + c);
+        }
+      }
+    }
+  }
+  return out;
+}
+
 int _repeatCount(int targetSize, int clipSize) =>
     clipSize > 0 && targetSize > clipSize && targetSize % clipSize == 0
         ? targetSize ~/ clipSize
