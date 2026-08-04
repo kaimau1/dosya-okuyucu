@@ -10,6 +10,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/section_header.dart';
 import 'browser_screen.dart';
 import 'job_navigation.dart';
 
@@ -149,19 +150,30 @@ class _JobCard extends StatelessWidget {
               const SizedBox(height: Gap.sm),
               LinearProgressIndicator(value: job.progress),
             ],
-            if (elapsed != null)
+            // Dosya sayacı ve süre KENDİ satırında: ikisi de `detail`in
+            // içinde, uzun özet metninin arasında kayboluyordu.
+            if (elapsed != null || job.total > 1)
               Padding(
                 padding: const EdgeInsets.only(top: Gap.xs),
-                child: Text(
-                  job.status.isActive
-                      ? context.t(
-                          'jb.running_for', {'time': humanDuration(elapsed)})
-                      : context.t('jb.took', {
-                          'status': context.t(job.status.labelKey),
-                          'time': humanDuration(elapsed),
-                        }),
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                child: Row(
+                  children: [
+                    if (job.total > 1)
+                      MonoText(
+                        context.t('jobs.files_progress',
+                            {'done': job.done, 'total': job.total}),
+                      ),
+                    const Spacer(),
+                    if (elapsed != null)
+                      MonoText(
+                        job.status.isActive
+                            ? context.t('jb.running_for',
+                                {'time': humanDuration(elapsed)})
+                            : context.t('jb.took', {
+                                'status': context.t(job.status.labelKey),
+                                'time': humanDuration(elapsed),
+                              }),
+                      ),
+                  ],
                 ),
               ),
             if (job.outputs.isNotEmpty) _outputs(context),
@@ -183,7 +195,7 @@ class _JobCard extends StatelessWidget {
 
   Color? _color(ColorScheme scheme) => switch (job.status) {
         JobStatus.failed => scheme.error,
-        JobStatus.done => const Color(0xFF2E7D32),
+        JobStatus.done => Paper.ok,
         _ => scheme.onSurfaceVariant,
       };
 
@@ -223,8 +235,7 @@ class _JobCard extends StatelessWidget {
                 FsEntry.categoryForExtension(_extension(path)))),
             title: Text(p.basename(path),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(_sizeAndFolder(path),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: MonoText(_sizeAndFolder(path)),
             // Dosya listede DURUYOR ama diskte olmayabilir (kullanıcı silmiş,
             // taşımış olabilir) — `EntryOpener` bu durumu kendisi bildiriyor.
             onTap: () => EntryOpener.open(context, path, siblings: outputs),

@@ -114,7 +114,12 @@ class SheetCell extends StatelessWidget {
           : FontStyle.normal,
       decoration: _decoration(s),
       color: color,
-      fontFamily: _mapFont(s?.fontFamily),
+      // Sayı hücreleri monospace: rakamlar sabit genişlikte olunca sütun
+      // içinde hizalanıyor (2026-08-04 tasarım turu, 2. not). Dosya hücreye
+      // AÇIKÇA bir yazı tipi verdiyse ona dokunulmaz — sadakat önce gelir.
+      fontFamily: view.numeric && s?.fontFamily == null
+          ? AppTheme.fontMono
+          : _mapFont(s?.fontFamily),
       height: 1.15,
     );
 

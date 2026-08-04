@@ -65,7 +65,18 @@ class OfficeShell extends StatelessWidget {
 class ZoomBadge extends StatelessWidget {
   final double zoom;
   final bool visible;
-  const ZoomBadge({super.key, required this.zoom, required this.visible});
+
+  /// PDF'te rozet KALICI ve sayfa numarası da taşır ("4 / 28 · %120"):
+  /// pinch dışında sayfa numarasını görmenin tek yolu ayrı bir gezinme
+  /// satırıydı (2026-08-04 tasarım turu, 2. not).
+  final String? page;
+
+  const ZoomBadge({
+    super.key,
+    required this.zoom,
+    required this.visible,
+    this.page,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -76,11 +87,13 @@ class ZoomBadge extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.65),
-            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xB8262219), // rgba(38,34,25,.72)
+            borderRadius: BorderRadius.circular(Radii.control),
           ),
           child: Text(
-            '%${(zoom * 100).round()}',
+            page == null
+                ? '%${(zoom * 100).round()}'
+                : '$page · %${(zoom * 100).round()}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 13,

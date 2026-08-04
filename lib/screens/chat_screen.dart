@@ -11,6 +11,7 @@ import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
 import '../core/theme.dart';
 import '../services/conversion_service.dart';
+import '../services/file_service.dart';
 import '../services/gemini_service.dart';
 import '../services/markdown_export.dart';
 import '../widgets/markdown_text.dart';
@@ -31,6 +32,39 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
   final List<ChatTurn> _turns = [];
   bool _busy = false;
+
+  /// Bağlam artık DEĞİŞTİRİLEBİLİR: eskiden yalnız görüntüleyiciden gelebilen
+  /// dosya bağlamı, composer'daki (+) ile sohbetin içinden de seçilebiliyor.
+  String? _ctxText;
+  String? _ctxName;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctxText = widget.fileContext;
+    _ctxName = widget.fileName;
+  }
+
+  /// (+) — bağlam dosyası seç/değiştir. Metni uygulamanın kendi yükleyicisi
+  /// çıkarır (PDF metin katmanı, Word/Excel içeriği…), ayrı bir yol yazılmadı.
+  Future<void> _pickContext() async {
+    final s = AppStrings.of(context);
+    try {
+      final path = await FileService().pickFilePath();
+      if (path == null) return;
+      final doc = await FileService().load(path);
+      if (!mounted) return;
+      setState(() {
+        _ctxText = doc.plainText;
+        _ctxName = doc.name;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.t('home.open_error', {'error': e}))),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -68,7 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final reply = await service.chat(
         history: _turns,
-        fileContext: widget.fileContext,
+        fileContext: _ctxText,
         memory: appState.memory,
       );
       setState(() => _turns.add(ChatTurn(fromUser: false, text: reply)));
@@ -178,32 +212,40 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasContext = _ctxText?.trim().isNotEmpty ?? false;
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('chat.title')),
-        bottom: widget.fileName == null
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(28),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(left: 16, bottom: 6),
-                  child: Text(
-                    context.t('chat.context', {'name': widget.fileName}),
-                    style: Theme.of(context).textTheme.bodySmall,
+        // **Rozet şeridi**: hangi modelle konuşulduğunu görmek için Ayarlar'a
+        // gitmek gerekiyordu; bağlam dosyası da yalnız başlıkta bir satırdı.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(34),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+            child: Row(
+              children: [
+                _badge(context, Icons.smart_toy_outlined,
+                    context.watch<AppState>().model),
+                if (_ctxName != null) ...[
+                  const SizedBox(width: Gap.sm),
+                  Flexible(
+                    child: _badge(
+                      context,
+                      Icons.attach_file,
+                      context.t('chat.context_badge', {'f': _ctxName}),
+                    ),
                   ),
-                ),
-              ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
           Expanded(
             child: _turns.isEmpty
-                ? _ChatHint(
-                    hasContext:
-                        widget.fileContext?.trim().isNotEmpty ?? false,
-                    onQuick: _quickAsk,
-                  )
+                ? _ChatHint(hasContext: hasContext)
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.all(12),
@@ -221,25 +263,85 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: EdgeInsets.symmetric(vertical: 6),
               child: LinearProgressIndicator(minHeight: 2),
             ),
-          _Composer(controller: _input, onSend: _send, enabled: !_busy),
+          // Hızlı komutlar KALICI (eskiden yalnız sohbet boşken ve yalnız
+          // dosya bağlamı varken görünüyordu) — ikinci soruda da lazım.
+          _QuickBar(onQuick: _quickAsk, enabled: !_busy),
+          _Composer(
+            controller: _input,
+            onSend: _send,
+            enabled: !_busy,
+            onAttach: _pickContext,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _badge(BuildContext context, IconData icon, String label) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(Radii.control),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Paper.faint(context)),
+          const SizedBox(width: Gap.xs),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: Paper.faint(context)),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ChatHint extends StatelessWidget {
-  final bool hasContext;
-  final void Function(String)? onQuick;
-  const _ChatHint({this.hasContext = false, this.onQuick});
+/// Composer'ın üstündeki kalıcı hızlı komut şeridi.
+class _QuickBar extends StatelessWidget {
+  final void Function(String) onQuick;
+  final bool enabled;
+  const _QuickBar({required this.onQuick, required this.enabled});
 
-  /// Hızlı komutlar — etiket ve **AI'ya gidecek istem** aynı dilden olmalı,
-  /// yoksa Arapça arayüzde Türkçe istem giderdi.
-  static const _quick = <(String, String)>[
+  /// Etiket ve **AI'ya gidecek istem** aynı dilden olmalı, yoksa Arapça
+  /// arayüzde Türkçe istem giderdi.
+  static const quick = <(String, String)>[
     ('chat.quick_summarize', 'chat.quick_summarize_prompt'),
     ('chat.quick_points', 'chat.quick_points_prompt'),
     ('chat.quick_simple', 'chat.quick_simple_prompt'),
+    ('chat.quick_slides', 'chat.quick_slides_prompt'),
   ];
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 40,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          children: [
+            for (final q in quick)
+              Padding(
+                padding: const EdgeInsets.only(right: Gap.sm),
+                child: ActionChip(
+                  label: Text(context.t(q.$1)),
+                  onPressed: enabled ? () => onQuick(context.t(q.$2)) : null,
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
+class _ChatHint extends StatelessWidget {
+  final bool hasContext;
+  const _ChatHint({this.hasContext = false});
 
   @override
   Widget build(BuildContext context) {
@@ -257,23 +359,6 @@ class _ChatHint extends StatelessWidget {
                   .t(hasContext ? 'chat.empty_file' : 'chat.empty_general'),
               textAlign: TextAlign.center,
             ),
-            if (hasContext) ...[
-              const SizedBox(height: 18),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final q in _quick)
-                    ActionChip(
-                      label: Text(context.t(q.$1)),
-                      onPressed: onQuick == null
-                          ? null
-                          : () => onQuick!(context.t(q.$2)),
-                    ),
-                ],
-              ),
-            ],
           ],
         ),
       ),
@@ -339,7 +424,11 @@ class _Bubble extends StatelessWidget {
                 turn.text,
                 baseStyle: DefaultTextStyle.of(context).style,
               ),
-            if (!isUser)
+            if (!isUser) ...[
+              // Eylemler metinden cetvelle ayrılır — yanıtın kendisiyle
+              // düğmeler aynı akışta okunuyordu.
+              const SizedBox(height: Gap.sm),
+              Divider(height: 1, color: scheme.outlineVariant),
               Align(
                 alignment: Alignment.centerRight,
                 child: Wrap(
@@ -418,6 +507,7 @@ class _Bubble extends StatelessWidget {
                   ],
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -429,10 +519,12 @@ class _Composer extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
   final bool enabled;
+  final VoidCallback onAttach;
   const _Composer({
     required this.controller,
     required this.onSend,
     required this.enabled,
+    required this.onAttach,
   });
 
   @override
@@ -443,6 +535,11 @@ class _Composer extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
         child: Row(
           children: [
+            IconButton(
+              tooltip: context.t('chat.pick_context'),
+              onPressed: enabled ? onAttach : null,
+              icon: const Icon(Icons.add),
+            ),
             Expanded(
               child: TextField(
                 controller: controller,

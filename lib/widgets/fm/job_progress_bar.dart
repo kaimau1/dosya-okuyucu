@@ -138,7 +138,7 @@ class _ResultBar extends StatelessWidget {
                   _ => Icons.check_circle,
                 },
                 size: 20,
-                color: failed ? scheme.onErrorContainer : const Color(0xFF2E7D32),
+                color: failed ? scheme.onErrorContainer : Paper.success(context),
               ),
               const SizedBox(width: Gap.sm),
               Expanded(

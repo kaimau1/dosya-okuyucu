@@ -20,6 +20,7 @@ import '../../services/fm/storage_permission.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/pin_dialog.dart';
+import '../../widgets/section_header.dart';
 import '../settings_screen.dart';
 
 /// **Dosya yöneticisine özel** ayarlar (uygulama geneli ayarlar ayrı ekranda:
@@ -40,6 +41,10 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
   int _trashBytes = 0;
   bool _fullAccess = true;
   bool _usageAccess = false;
+
+  /// Ayar araması (bölüm düzeyinde süzme — Ayarlar ekranıyla aynı davranış).
+  bool _searching = false;
+  String _query = '';
 
   @override
   void initState() {
@@ -158,12 +163,45 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    // Ayarlar ekranıyla AYNI davranış: bölüm başlığına göre süzme.
+    final q = _query.trim().toLowerCase();
+    bool shows(String key) =>
+        q.isEmpty || context.t(key).toLowerCase().contains(q);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.t('fmset.title'))),
+      appBar: AppBar(
+        title: Text(context.t('fmset.title')),
+        actions: [
+          IconButton(
+            tooltip: context.t('set.search_hint'),
+            icon: Icon(_searching ? Icons.close : Icons.search),
+            onPressed: () => setState(() {
+              _searching = !_searching;
+              if (!_searching) _query = '';
+            }),
+          ),
+        ],
+        bottom: !_searching
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+                  child: TextField(
+                    autofocus: true,
+                    onChanged: (v) => setState(() => _query = v),
+                    decoration: InputDecoration(
+                      hintText: context.t('set.search_hint'),
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                  ),
+                ),
+              ),
+      ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: Gap.xl),
         children: [
+          if (shows('fmset.sec_view')) ...[
           _section(context.t('fmset.sec_view')),
           ListTile(
             leading: Icon(fmLayoutIcon(appState.fmLayout)),
@@ -213,7 +251,9 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
             title: Text(context.t('fmset.default_sort')),
             subtitle: Text('${context.t(appState.fmSort.labelKey)} · '
                 '${context.t(appState.fmSortDesc ? 'fmset.desc' : 'fmset.asc')}'),
-            trailing: PopupMenuButton<String>(
+            trailing: _valueMenu<String>(
+              value: '${context.t(appState.fmSort.labelKey)} '
+                  '${appState.fmSortDesc ? '↓' : '↑'}',
               onSelected: (v) {
                 if (v == 'dir') {
                   appState.setFmSort(appState.fmSort,
@@ -237,7 +277,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
             title: Text(context.t('fmset.group_photos')),
             subtitle: Text(context.t('fmset.group_photos_sub',
                 {'unit': context.t(appState.fmPhotoGroup.labelKey)})),
-            trailing: PopupMenuButton<PhotoGroup>(
+            trailing: _valueMenu<PhotoGroup>(
+              value: context.t(appState.fmPhotoGroup.labelKey),
               onSelected: appState.setFmPhotoGroup,
               itemBuilder: (_) => [
                 for (final g in PhotoGroup.values)
@@ -245,13 +286,16 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               ],
             ),
           ),
+          ],
+          if (shows('fmset.sec_open')) ...[
           _section(context.t('fmset.sec_open')),
           ListTile(
             leading: const Icon(Icons.play_circle_outline),
             title: Text(context.t('fmset.media_open_with')),
             subtitle: Text('${context.t(appState.fmMediaOpenWith.labelKey)} · '
                 '${context.t(appState.fmMediaOpenWith.descriptionKey)}'),
-            trailing: PopupMenuButton<MediaOpenWith>(
+            trailing: _valueMenu<MediaOpenWith>(
+              value: context.t(appState.fmMediaOpenWith.labelKey),
               onSelected: appState.setFmMediaOpenWith,
               itemBuilder: (_) => [
                 for (final v in MediaOpenWith.values)
@@ -259,6 +303,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               ],
             ),
           ),
+          ],
+          if (shows('fmset.sec_search')) ...[
           _section(context.t('fmset.sec_search')),
           ListTile(
             leading: const Icon(Icons.manage_search),
@@ -269,6 +315,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               child: Text(context.t('common.refresh')),
             ),
           ),
+          ],
+          if (shows('fmset.sec_privacy')) ...[
           _section(context.t('fmset.sec_privacy')),
           ListTile(
             leading: const Icon(Icons.lock_outline),
@@ -310,6 +358,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                   },
                 ),
               ),
+          ],
+          if (shows('fmset.sec_delete')) ...[
           _section(context.t('fmset.sec_delete')),
           SwitchListTile(
             secondary: const Icon(Icons.delete_outline),
@@ -331,7 +381,10 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                 ? context.t('fmset.trash_auto_off')
                 : context.t(
                     'fmset.trash_auto_on', {'n': appState.fmTrashAutoDays})),
-            trailing: PopupMenuButton<int>(
+            trailing: _valueMenu<int>(
+              value: appState.fmTrashAutoDays == 0
+                  ? context.t('fmset.off')
+                  : context.t('fmset.days', {'n': appState.fmTrashAutoDays}),
               onSelected: appState.setFmTrashAutoDays,
               itemBuilder: (_) => [
                 PopupMenuItem(value: 0, child: Text(context.t('fmset.off'))),
@@ -352,6 +405,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                   })),
             onTap: _trashCount == 0 ? null : _emptyTrash,
           ),
+          ],
+          if (shows('fmset.sec_permissions')) ...[
           _section(context.t('fmset.sec_permissions')),
           ListTile(
             leading: Icon(_fullAccess ? Icons.lock_open : Icons.lock_outline),
@@ -386,6 +441,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                     child: Text(context.t('fmset.grant')),
                   ),
           ),
+          ],
+          if (shows('fmset.sec_maintenance')) ...[
           _section(context.t('fmset.sec_maintenance')),
           ListTile(
             leading: const Icon(Icons.cleaning_services_outlined),
@@ -404,6 +461,8 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               await _refresh();
             },
           ),
+          ],
+          if (shows('fmset.sec_app')) ...[
           _section(context.t('fmset.sec_app')),
           ListTile(
             leading: const Icon(Icons.settings_outlined),
@@ -414,19 +473,34 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
             ),
           ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _section(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.lg, Gap.md, Gap.xs),
-        child: Text(
-          title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
+  /// Cetvelli bölüm başlığı. Renkli (primary) başlık kağıtta bağırıyordu —
+  /// üçüncül mürekkep + çizgi.
+  Widget _section(String title) => SectionHeader(title);
+
+  /// Bir ayar satırının **sağındaki özet değer** (`Liste`, `3 sütun`,
+  /// `Tarih ↓`, `30 gün`). Değer bugüne kadar alt satırın içinde saklıydı ve
+  /// `PopupMenuButton` boş bir üç nokta gibi duruyordu.
+  Widget _valueMenu<T>({
+    required String value,
+    required void Function(T) onSelected,
+    required List<PopupMenuEntry<T>> Function(BuildContext) itemBuilder,
+  }) =>
+      PopupMenuButton<T>(
+        onSelected: onSelected,
+        itemBuilder: itemBuilder,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(value,
+                style: TextStyle(fontSize: 13, color: Paper.faint(context))),
+            Icon(Icons.arrow_drop_down, color: Paper.faint(context)),
+          ],
         ),
       );
 }

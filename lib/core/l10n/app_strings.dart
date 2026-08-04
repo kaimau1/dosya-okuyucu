@@ -4171,6 +4171,85 @@ const Map<String, (String, String, String)> _table = {
   'enum.sort_size': ('Boyuta göre', 'By size', 'حسب الحجم'),
   'enum.sort_type': ('Türe göre', 'By type', 'حسب النوع'),
 
+  // ── Kağıt teması turu (2026-08-04 tasarım devir notu) ────────────────────
+  'fm.search_all': (
+    'Tüm dosyalarda ara',
+    'Search all files',
+    'ابحث في كل الملفات',
+  ),
+  'fm.free_bytes': ('{v} boş', '{v} free', '{v} متاح'),
+  'fm.storage_free': ('Boş', 'Free', 'متاح'),
+  'recent.group_today': ('Bugün', 'Today', 'اليوم'),
+  'recent.group_week': ('Bu hafta', 'This week', 'هذا الأسبوع'),
+  'recent.group_older': ('Daha önce', 'Earlier', 'قبل ذلك'),
+  'recent.show_path': ('Yolu göster', 'Show path', 'إظهار المسار'),
+  'recent.remove': ('Listeden kaldır', 'Remove from list', 'إزالة من القائمة'),
+  'chat.context_badge': ('Bağlam: {f}', 'Context: {f}', 'السياق: {f}'),
+  'chat.pick_context': (
+    'Bağlam dosyası seç',
+    'Choose a context file',
+    'اختر ملف السياق',
+  ),
+  'chat.quick_slides': (
+    'Slayt planı çıkar',
+    'Draft a slide plan',
+    'أعدّ خطة شرائح',
+  ),
+  'chat.quick_slides_prompt': (
+    'Bu içerikten bir sunum planı çıkar: her slayt için kısa bir başlık ve '
+        'en fazla üç madde yaz.',
+    'Draft a slide plan from this content: a short title and at most three '
+        'bullets per slide.',
+    'أعدّ خطة عرض تقديمي من هذا المحتوى: عنوان قصير وثلاث نقاط كحد أقصى لكل شريحة.',
+  ),
+  'cat.summary': (
+    '{n} / {total} dosya · {sort}',
+    '{n} / {total} files · {sort}',
+    '{n} / {total} ملف · {sort}',
+  ),
+  'trash.auto_days': (
+    '{n} gün sonra kendiliğinden silinir',
+    'Deleted automatically after {n} days',
+    'يُحذف تلقائيًا بعد {n} يومًا',
+  ),
+  'trash.auto_off': (
+    'Otomatik temizleme kapalı',
+    'Auto-cleanup is off',
+    'التنظيف التلقائي متوقف',
+  ),
+  'trash.restore_all': ('Tümünü geri yükle', 'Restore all', 'استعادة الكل'),
+  'trash.restore_all_done': (
+    '{n} öğe geri yüklendi',
+    '{n} items restored',
+    'تمت استعادة {n} عنصرًا',
+  ),
+  'jobs.files_progress': (
+    '{done}/{total} dosya',
+    '{done}/{total} files',
+    '{done}/{total} ملف',
+  ),
+  'jobs.outputs': (
+    'Oluşan dosyalar ({n})',
+    'Files created ({n})',
+    'الملفات الناتجة ({n})',
+  ),
+  'set.key_valid': (
+    'Anahtar geçerli · {n} model bulundu',
+    'Key is valid · {n} models found',
+    'المفتاح صالح · تم العثور على {n} نموذجًا',
+  ),
+  'set.key_invalid': (
+    'Anahtar doğrulanamadı',
+    'Key could not be verified',
+    'تعذّر التحقق من المفتاح',
+  ),
+  'set.search_hint': ('Ayarlarda ara', 'Search settings', 'ابحث في الإعدادات'),
+  'set.no_match': (
+    'Eşleşen ayar yok',
+    'No matching setting',
+    'لا توجد إعدادات مطابقة',
+  ),
+
   'enum.doc_pdf': ('PDF', 'PDF', 'PDF'),
   'enum.doc_text': ('Metin', 'Text', 'نص'),
   'enum.doc_spreadsheet': ('Excel', 'Excel', 'Excel'),

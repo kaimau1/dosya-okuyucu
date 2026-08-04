@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../core/text_search.dart';
+import '../core/theme.dart';
 import '../models/document.dart';
 import '../models/fs_entry.dart';
 import '../services/conversion_service.dart';
@@ -1871,8 +1872,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 6, 14, 6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.66),
-        borderRadius: BorderRadius.circular(20),
+        // Kağıt teması: saf siyah yerine mürekkep tonu (rgba(38,34,25,.72)).
+        color: const Color(0xB8262219),
+        borderRadius: BorderRadius.circular(Radii.control),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1880,7 +1882,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
           const Icon(Icons.unfold_more, color: Colors.white, size: 16),
           const SizedBox(width: 6),
           Text(text,
-              style: const TextStyle(color: Colors.white, fontSize: 13)),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontFamily: AppTheme.fontMono,
+              )),
         ],
       ),
     );

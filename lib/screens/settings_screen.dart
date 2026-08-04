@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/theme.dart';
 import '../services/gemini_service.dart';
+import '../widgets/section_header.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,6 +20,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _apiKey;
   bool _obscure = true;
+
+  /// Ayar araması (bölüm düzeyinde süzme).
+  bool _searching = false;
+  String _query = '';
 
   /// Anahtar geçersiz/ağ hatası/henüz çekilmediyse gösterilen yedek liste.
   static const _fallbackModels = [
@@ -109,16 +115,127 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final models = _fetchedModels ?? _fallbackModels;
     final model = models.contains(appState.model) ? appState.model : models.first;
 
+    // Bölüm bazlı arama: 7 bölüm × ~20 satır, aramasız bulunmuyordu. Süzme
+    // BÖLÜM düzeyinde — satır düzeyi her satıra ayrı anahtar kelime listesi
+    // yazmayı gerektirirdi ve bakımı ilk eklenen ayarda bozulurdu.
+    final q = _query.trim().toLowerCase();
+    bool shows(String titleKey) =>
+        q.isEmpty || context.t(titleKey).toLowerCase().contains(q);
+
+    final sections = <Widget>[
+      if (shows('settings.account')) const _AccountSection(),
+      if (shows('settings.ai_section')) _aiSection(appState, models, model, modelsError),
+      if (shows('settings.language')) const _LanguageSection(),
+      if (shows('settings.appearance')) _appearanceSection(appState),
+      if (shows('settings.memory')) _memorySection(appState),
+      if (shows('settings.about')) const _AboutSection(),
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: Text(context.t('settings.title'))),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      appBar: AppBar(
+        title: Text(context.t('settings.title')),
+        actions: [
+          IconButton(
+            tooltip: context.t('set.search_hint'),
+            icon: Icon(_searching ? Icons.close : Icons.search),
+            onPressed: () => setState(() {
+              _searching = !_searching;
+              if (!_searching) _query = '';
+            }),
+          ),
+        ],
+        bottom: !_searching
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: TextField(
+                    autofocus: true,
+                    onChanged: (v) => setState(() => _query = v),
+                    decoration: InputDecoration(
+                      hintText: context.t('set.search_hint'),
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                  ),
+                ),
+              ),
+      ),
+      body: sections.isEmpty
+          ? Center(child: Text(context.t('set.no_match')))
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              children: sections,
+            ),
+    );
+  }
+
+  Widget _appearanceSection(AppState appState) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _AccountSection(),
-          const Divider(height: 40),
-          Text(context.t('settings.ai_section'),
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
+          SectionHeader(context.t('settings.appearance'),
+              padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
+          SegmentedButton<ThemeMode>(
+            showSelectedIcon: false,
+            segments: [
+              ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text(context.t('settings.theme_system'))),
+              ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text(context.t('settings.theme_light'))),
+              ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text(context.t('settings.theme_dark'))),
+            ],
+            selected: {appState.themeMode},
+            onSelectionChanged: (s) => appState.setThemeMode(s.first),
+          ),
+        ],
+      );
+
+  Widget _memorySection(AppState appState) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(
+            context.t('settings.memory'),
+            count: '${appState.memory.length}',
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm),
+          ),
+          if (appState.memory.isEmpty)
+            Text(context.t('settings.memory_empty'))
+          else
+            // Simgeli kart satırı: düz metin yığını neyin "hafıza notu"
+            // olduğunu göstermiyordu.
+            ...appState.memory.asMap().entries.map(
+                  (e) => Card(
+                    margin: const EdgeInsets.only(bottom: Gap.sm),
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.bookmark_outline),
+                      title: Text(e.value,
+                          maxLines: 3, overflow: TextOverflow.ellipsis),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => appState.removeMemory(e.key),
+                      ),
+                    ),
+                  ),
+                ),
+        ],
+      );
+
+  Widget _aiSection(
+    AppState appState,
+    List<String> models,
+    String model,
+    String? modelsError,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+          SectionHeader(context.t('settings.ai_section'),
+              padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
           TextField(
             controller: _apiKey,
             obscureText: _obscure,
@@ -137,6 +254,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context.t('settings.api_key_note'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          // **Doğrulama satırı**: bilgi zaten `_fetchModels`ta vardı ama
+          // aşağıda model listesinin altına gömülüydü — "anahtarım çalışıyor
+          // mu" sorusu anahtarın hemen altında cevaplanmalı.
+          if (appState.hasApiKey) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  _fetchedModels != null
+                      ? Icons.check_circle_outline
+                      : (modelsError != null
+                          ? Icons.error_outline
+                          : Icons.hourglass_empty),
+                  size: 16,
+                  color: _fetchedModels != null
+                      ? Paper.success(context)
+                      : (modelsError != null
+                          ? Theme.of(context).colorScheme.error
+                          : Paper.faint(context)),
+                ),
+                const SizedBox(width: Gap.xs),
+                Flexible(
+                  child: Text(
+                    _fetchedModels != null
+                        ? context.t('set.key_valid',
+                            {'n': _fetchedModels!.length})
+                        : (modelsError != null
+                            ? context.t('set.key_invalid')
+                            : context.t('settings.model_refresh')),
+                    style: TextStyle(fontSize: 12, color: Paper.faint(context)),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -184,67 +336,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextStyle(
                   color: Theme.of(context).colorScheme.error, fontSize: 12),
             ),
-          ] else if (_fetchedModels != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              context.t('settings.model_found', {'n': _fetchedModels!.length}),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
           ],
-          const Divider(height: 40),
-          const _LanguageSection(),
-          const Divider(height: 40),
-          Text(context.t('settings.appearance'),
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          SegmentedButton<ThemeMode>(
-            segments: [
-              ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text(context.t('settings.theme_system'))),
-              ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text(context.t('settings.theme_light'))),
-              ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text(context.t('settings.theme_dark'))),
-            ],
-            selected: {appState.themeMode},
-            onSelectionChanged: (s) => appState.setThemeMode(s.first),
-          ),
-          const Divider(height: 40),
-          Row(
-            children: [
-              Text(context.t('settings.memory'),
-                  style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              Text(
-                  context.t(
-                      'settings.memory_count', {'n': appState.memory.length}),
-                  style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (appState.memory.isEmpty)
-            Text(context.t('settings.memory_empty'))
-          else
-            ...appState.memory.asMap().entries.map(
-                  (e) => Card(
-                    child: ListTile(
-                      dense: true,
-                      title: Text(e.value,
-                          maxLines: 3, overflow: TextOverflow.ellipsis),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => appState.removeMemory(e.key),
-                      ),
-                    ),
-                  ),
-                ),
-          const Divider(height: 40),
-          const _AboutSection(),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -264,20 +357,27 @@ class _LanguageSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.t('settings.language'),
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        for (final lang in AppLanguage.values)
-          RadioListTile<AppLanguage>(
-            value: lang,
-            groupValue: appState.language,
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text(lang == AppLanguage.system
-                ? context.t('settings.language_system')
-                : lang.nativeLabel),
-            onChanged: (v) => v == null ? null : appState.setLanguage(v),
+        SectionHeader(context.t('settings.language'),
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
+        // Dikey dört radyo ekranın yarısını yiyordu → tek satır segment.
+        // Yatayda kaydırılabilir: Arapça etiket + "Sistem" dar ekranda taşar.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<AppLanguage>(
+            showSelectedIcon: false,
+            segments: [
+              for (final lang in AppLanguage.values)
+                ButtonSegment(
+                  value: lang,
+                  label: Text(lang == AppLanguage.system
+                      ? context.t('settings.language_system')
+                      : lang.nativeLabel),
+                ),
+            ],
+            selected: {appState.language},
+            onSelectionChanged: (s) => appState.setLanguage(s.first),
           ),
+        ),
         const SizedBox(height: 4),
         Text(context.t('settings.language_note'),
             style: Theme.of(context).textTheme.bodySmall),
@@ -322,8 +422,8 @@ class _AccountSectionState extends State<_AccountSection> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final title = Text(context.t('settings.account'),
-        style: Theme.of(context).textTheme.titleMedium);
+    final title = SectionHeader(context.t('settings.account'),
+        padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.sm));
 
     if (!appState.firebaseAvailable) {
       return Column(
@@ -442,9 +542,8 @@ class _AboutSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.t('settings.about'),
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        SectionHeader(context.t('settings.about'),
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
         Text(context.t('settings.about_body')),
         const SizedBox(height: 8),
         // LGPL v3 ATIF YÜKÜMLÜLÜĞÜ: uygulama FFmpeg kütüphanelerini

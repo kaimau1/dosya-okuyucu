@@ -23,6 +23,7 @@ import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/scan_flow.dart';
+import '../../widgets/section_header.dart';
 import 'analysis_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
@@ -289,19 +290,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final volumes = FmEnv.volumes;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dosyalar'),
-        actions: [
-          IconButton(
-            tooltip: 'Ara',
-            icon: const Icon(Icons.search),
-            onPressed: () => _push(SearchScreen(
-              root: FmEnv.primaryRoot,
-              rootLabel: context.t('fm.all_files'),
-            )),
+        // **Arama kalıcı** (2026-08-04 tasarım turu): dosya yöneticisine gelme
+        // sebebi çoğu zaman arama; simgenin arkasında bir dokunuş kaybediyordu.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(Radii.control),
+              onTap: () => _push(SearchScreen(
+                root: FmEnv.primaryRoot,
+                rootLabel: context.t('fm.all_files'),
+              )),
+              child: Container(
+                height: 44,
+                padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search,
+                        size: 20, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: Gap.sm),
+                    Text(
+                      context.t('fm.search_all'),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Paper.faint(context)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
+        ),
+        actions: [
           IconButton(
             tooltip: 'Yeniden tara',
             icon: const Icon(Icons.refresh),
@@ -333,25 +365,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
             for (final v in volumes) ...[
               _VolumeCard(
                 volume: v,
+                index: _index,
                 onTap: () => _push(BrowserScreen(path: v.path, title: v.label)),
               ),
               const SizedBox(height: Gap.sm),
             ],
             const SizedBox(height: Gap.sm),
             _categoryGrid(),
-            const SizedBox(height: Gap.lg),
-            _sectionTitle(context.t('fm.tools')),
             // Kuyruk değişince (iş başladı/bitti) yalnız araç ızgarası yeniden
             // çizilir: "İşlemler" kutusunun alt yazısı canlı sayaç
             // ("1 sürüyor" / "3 biten") — kullanıcı ana ekrandan bakınca
             // işleminin durduğunu ya da bittiğini görebilsin.
             AnimatedBuilder(
               animation: JobQueue.instance,
-              builder: (context, _) => _toolGrid(),
+              builder: (context, _) {
+                final tools = _tools();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SectionHeader(context.t('fm.tools'),
+                        count: '${tools.length}',
+                        padding: const EdgeInsets.only(
+                            top: Gap.lg, bottom: Gap.sm)),
+                    _toolFrame(FmToolGrid(tools: tools)),
+                  ],
+                );
+              },
             ),
             if (appState.bookmarks.isNotEmpty) ...[
-              const SizedBox(height: Gap.lg),
-              _sectionTitle('Favoriler'),
+              SectionHeader('Favoriler',
+                  count: '${appState.bookmarks.length}',
+                  padding:
+                      const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
               for (final path in appState.bookmarks)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -366,8 +411,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
             ],
-            const SizedBox(height: Gap.lg),
-            _sectionTitle(context.t('fm.quick_folders')),
+            SectionHeader(context.t('fm.quick_folders'),
+                padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
             _quickFolders(),
             if (_cachedAtMs > 0) ...[
               const SizedBox(height: Gap.lg),
@@ -412,10 +457,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: Gap.sm),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      );
+  /// Araç ızgarasının hafif çerçevesi: 13 kartsız simge kağıt zeminde
+  /// yüzüyordu, dokunma alanının nerede bittiği belirsizdi. Çerçeve kategori
+  /// kutularından DAHA HAFİF (bir ton açık zemin + ince kenarlık) — ağırlık
+  /// hiyerarşisi korunuyor, araçlar içerik kutularının önüne geçmiyor.
+  Widget _toolFrame(Widget child) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(Gap.sm),
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : const Color(0xFFFDFBF6),
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(
+          color: isDark ? scheme.outlineVariant : const Color(0xFFE6DECC),
+        ),
+      ),
+      child: child,
+    );
+  }
 
   Widget _permissionCard() => Card(
         child: Padding(
@@ -539,7 +599,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// **Araçlar** — küçük, kartsız simgeler. Alt yazı yalnız gerçek bilgi
   /// taşıdığında yazılır ("3 sürüyor"), dolgu metin konmaz.
-  Widget _toolGrid() {
+  List<FmTileData> _tools() {
     final download = p.join(FmEnv.primaryRoot, 'Download');
     final primary = FmEnv.volumes.firstOrNullVolume;
     final downloading = DownloadService.instance.activeTasks.length;
@@ -600,7 +660,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       FmTileData(
         icon: Icons.download_outlined,
-        color: const Color(0xFF3B6EF6),
+        color: OfficeColors.neutral,
         label: context.t('fm.downloads'),
         subtitle: _folderSizes[download] != null
             ? FsPaths.humanSize(_folderSizes[download]!)
@@ -707,7 +767,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // küçük ve kartsız; 12 küçük simgenin arasında geri alma kapısının
       // kaybolması, silinen dosyayı kurtaramamak demekti.
     ];
-    return FmToolGrid(tools: tools);
+    return tools;
   }
 
   FmTileData _categoryTile(FmCategory category, {bool grid = false}) {
@@ -732,10 +792,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       spacing: Gap.sm,
       runSpacing: Gap.sm,
       children: [
+        // Boyut yalnız ÖLÇÜLMÜŞ klasörde yazılır (bugün: İndirilenler).
+        // Hepsini ölçmek her klasör için ayrı bir ağaç yürüyüşü demek —
+        // panonun açılışını saniyelerce geciktirirdi, bilinçli olarak yapılmadı.
         for (final f in folders)
           ActionChip(
             avatar: const Icon(Icons.folder_outlined, size: 18),
-            label: Text(f.label),
+            label: Text(
+              _folderSizes[f.path] != null
+                  ? '${f.label} · ${FsPaths.humanSize(_folderSizes[f.path]!)}'
+                  : f.label,
+            ),
             onPressed: () => _push(BrowserScreen(path: f.path, title: f.label)),
           ),
       ],
@@ -837,8 +904,53 @@ class _NewFolderDialogState extends State<_NewFolderDialog> {
 
 class _VolumeCard extends StatelessWidget {
   final StorageVolume volume;
+
+  /// Kırılım çubuğunun verisi. Tarama zaten yapıldı — ek maliyet yok.
+  final StorageIndex index;
   final VoidCallback onTap;
-  const _VolumeCard({required this.volume, required this.onTap});
+  const _VolumeCard({
+    required this.volume,
+    required this.index,
+    required this.onTap,
+  });
+
+  /// Kategori paylı yığın çubuğu: "98,4/128 GB" tek başına NEYİN yer
+  /// kapladığını söylemiyordu. Kalan (ölçülemeyen sistem/uygulama verisi)
+  /// "diğer" payına yazılır — çubuk her zaman doluluğu kadar dolar.
+  List<({Color color, String label, int bytes})> _breakdown() {
+    final image = index.stat(FmCategory.image).bytes;
+    final video = index.stat(FmCategory.video).bytes;
+    final document = index.stat(FmCategory.document).bytes;
+    final audio = index.stat(FmCategory.audio).bytes;
+    final rest = volume.usedBytes - image - video - document - audio;
+    return [
+      (
+        color: FmColors.image,
+        label: FmCategory.image.label,
+        bytes: image,
+      ),
+      (
+        color: FmColors.video,
+        label: FmCategory.video.label,
+        bytes: video,
+      ),
+      (
+        color: OfficeColors.neutral,
+        label: FmCategory.document.label,
+        bytes: document,
+      ),
+      (
+        color: FmColors.audio,
+        label: FmCategory.audio.label,
+        bytes: audio,
+      ),
+      (
+        color: FmColors.other,
+        label: FmCategory.other.label,
+        bytes: rest < 0 ? 0 : rest,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -850,7 +962,10 @@ class _VolumeCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(Gap.md),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
             children: [
               SizedBox(
                 width: 52,
@@ -882,26 +997,98 @@ class _VolumeCard extends StatelessWidget {
                   children: [
                     Text(volume.label, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 2),
-                    Text(
-                      volume.hasStats
-                          ? '${FsPaths.humanSize(volume.usedBytes)} / '
-                              '${FsPaths.humanSize(volume.totalBytes)}'
-                          : volume.path,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    // Aradığı sayı "kaç GB boş" — dolu/toplam ikilisi bunu
+                    // kafadan çıkarmayı gerektiriyordu, ayrıca yazılıyor.
+                    volume.hasStats
+                        ? MonoText(
+                            '${FsPaths.humanSize(volume.usedBytes)} / '
+                            '${FsPaths.humanSize(volume.totalBytes)}  ·  '
+                            '${context.t('fm.free_bytes', {
+                                  'v': FsPaths.humanSize(
+                                      volume.totalBytes - volume.usedBytes),
+                                })}',
+                            size: 12,
+                          )
+                        : MonoText(volume.path, size: 12),
                   ],
                 ),
               ),
               Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
             ],
           ),
+              if (volume.hasStats) ...[
+                const SizedBox(height: Gap.md),
+                _breakdownBar(context),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  /// Yığın çubuğu + renk açıklaması. Çubuğun boş kalan kısmı kağıdın kendisi
+  /// (dolgu yok) — "boş yer" görsel olarak da boşluk.
+  Widget _breakdownBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final parts = _breakdown().where((p) => p.bytes > 0).toList();
+    final free = volume.totalBytes - volume.usedBytes;
+    final total = volume.totalBytes <= 0 ? 1 : volume.totalBytes;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: SizedBox(
+            height: 6,
+            child: Row(
+              children: [
+                for (final part in parts)
+                  Expanded(
+                    flex: part.bytes,
+                    child: ColoredBox(color: part.color),
+                  ),
+                if (free > 0)
+                  Expanded(
+                    flex: free,
+                    child: ColoredBox(color: scheme.outlineVariant),
+                  ),
+                // Sıfır genişlikli satır olmasın (tüm paylar 0 ise).
+                if (parts.isEmpty && free <= 0)
+                  Expanded(
+                    flex: total,
+                    child: ColoredBox(color: scheme.outlineVariant),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        Wrap(
+          spacing: Gap.md,
+          runSpacing: Gap.xs,
+          children: [
+            for (final part in parts) _legend(context, part.color, part.label),
+            if (free > 0)
+              _legend(context, scheme.outlineVariant,
+                  context.t('fm.storage_free')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _legend(BuildContext context, Color color, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 8, height: 8, color: color),
+          const SizedBox(width: Gap.xs),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: Paper.faint(context)),
+          ),
+        ],
+      );
 }
 
 /// Küçük yardımcı: liste boşsa null döndüren "ilk birim".

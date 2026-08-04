@@ -15,13 +15,16 @@ import '../file_type_icon.dart';
 /// (liste ve şerit aynı tonu kullansın diye — bkz. HAFIZA 2026-07-24 tutarsızlık
 /// bulgusu); yeni kategoriler burada tanımlanır.
 abstract final class FmColors {
-  static const folder = Color(0xFFF2A93B); // klasör sarısı
-  static const image = Color(0xFF8E24AA);
-  static const video = Color(0xFFD32F2F);
-  static const audio = Color(0xFF00897B);
-  static const archive = Color(0xFF6D4C41);
-  static const apk = Color(0xFF43A047);
-  static const other = Color(0xFF757575);
+  // Kağıt teması (2026-08-04): kağıt zeminde parlak renkler bağırıyordu —
+  // hepsi bir kademe koyulaştırıldı (koyu temada aşağıdaki beyaza doğru
+  // lerp mantığı korunuyor).
+  static const folder = Color(0xFFB07C2A); // klasör okrası
+  static const image = Color(0xFF7A4A93);
+  static const video = Color(0xFFA6382F);
+  static const audio = Color(0xFF1E6F66);
+  static const archive = Color(0xFF6B4B39);
+  static const apk = Color(0xFF3E7A3C);
+  static const other = Color(0xFF6E6555);
 
   static Color forCategory(FmCategory c) => switch (c) {
         FmCategory.folder => folder,

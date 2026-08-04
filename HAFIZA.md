@@ -5622,3 +5622,49 @@ panele koyuyor. Sık olanlar (biçim, Σ) çubukta kaldı.
 `analyze` 0 hata, **1184 test yeşil**. Ekran testleri yeni akıştan geçiyor
 (`tapMore` yardımcısı: "Daha fazla" → etiketli eylem), yani sayfa gerçekten
 açılıyor ve eylemler çalışıyor.
+
+---
+
+## 2026-08-05 — Kağıt teması (claude.ai/design "Sekiz ekran Flutter tasarımı" devir notları)
+
+**Karar: uygulamanın varsayılan teması artık KAĞIT.** Tasarım claude.ai/design'da
+üretildi; iki devir notu (`DEVIR-NOTU.md`, `DEVIR-NOTU-2.md`) doğrudan Claude Code
+için yazılmıştı ve token tablosu + ekran bazlı iyileştirme listesi içeriyordu.
+Notların kendisi `design/` altına indirilmedi (tasarım projesi kaynakta duruyor);
+uygulanan değerler `lib/core/theme.dart` içindeki `Paper` sınıfında yaşıyor.
+
+### Niye "tohum korunur ama yüzeyler elle geçersiz kılınır"
+`ColorScheme.fromSeed` yüzeyleri tohumdan türetiyor ve mavi-gri çıkıyor; kağıt
+hissini bozan tam olarak buydu. Tohum (`#3B6EF6`) ikincil/üçüncül rollerin
+türetilmesi için kaldı, `surface*` / `outline*` / `on*` / `secondaryContainer` /
+`inverseSurface` elle yazıldı. Kabul ölçütü buydu: hiçbir ekranda Material'ın
+türetilmiş mavi-gri yüzeyi kalmayacak.
+
+### Tipografi: yeni font İNDİRİLMEDİ
+Devir notu Spectral + IBM Plex öneriyordu. `assets/fonts/` altında slayt sadakati
+için zaten **Tinos** (serif) ve **Arimo** (sans) vardı; başlık = Tinos w600,
+gövde = Arimo, yol/boyut/zaman = sistem `monospace` seçildi. **APK boyutu
+artmadı.** (İlk denemede Cormorant Garamond + Lora indirilmişti — yanlış tasarım
+projesine ("Classical") bakıldığı anlaşılınca silindi; bkz. TUZAK.)
+
+### TUZAK — 2026-08-05: "claude design" iki ayrı proje demek olabiliyor
+`DesignSync.list_projects` yalnız **tasarım sistemi** (design-system) türündeki
+projeleri döndürüyor. Kullanıcının kastettiği ekran tasarımı ise `PROJECT_TYPE_PROJECT`
+türündeydi ve listede HİÇ GÖRÜNMÜYORDU — ancak paylaşılan URL'deki `projectId` ile
+`get_project`/`list_files` çağrılabildi. Ders: kullanıcı "claude design'da çalışıyor"
+dediğinde list_projects boş/alakasız çıkıyorsa proje **URL'si** istenir, liste
+üstünden tahmin yürütülmez.
+
+### TUZAK — yerel `flutter test`te 5 dosya "loading" hatasıyla düşüyor
+`ftp_fs.dart` içindeki `SecurityType.FTPS/FTPES/FTP` ve `FTPEntryType.DIR`
+bulunamıyor: `pubspec.lock` gitignore'da olduğu için YEREL pub (Flutter 3.44)
+`ftpconnect`in yeni sürümünü çözüyor, o sürümde enum adları küçük harfe geçmiş.
+CI (Flutter 3.29.3) eski sürümü çözdüğü için orada yeşil. **Yerelde düzeltilirse
+CI kırılır** — dokunulmadı. Etkilenen dosyalar: ftp_server, remote_fs,
+remote_live, remote_browser_screen, fm_screens_smoke (sonuncusu remote ekranlarını
+import ettiği için).
+
+### Doğrulama
+`flutter analyze lib` → yeni hata yok. `flutter test` → **1124 yeşil, 5 kırmızı**;
+5'inin tamamı yukarıdaki ftpconnect tuzağı (değişiklikle ilgisi yok, `git status`
+`ftp_fs.dart`ı ve `pubspec.yaml`ı içermiyor).

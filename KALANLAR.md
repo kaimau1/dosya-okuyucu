@@ -461,3 +461,24 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       (2026-08-02'de doğrulandı; madde eskimişti). `XlsxEditor.save`
       `rowHeightsPt`e yalnız `_isEmptyRow` satırlarını koyuyor, yama `<row>`u
       `ht`+`customHeight` ile üretiyor.
+
+## Kağıt teması — 2. tur devir notundan kalanlar (2026-08-05)
+Tasarımın `2a` bölümü (belge ekranları). Tema, palet, kanvas, rozet ve Excel
+sayı hücreleri UYGULANDI; aşağıdakiler bilinçli olarak bu tura alınmadı çünkü
+her biri ilgili editörün seçim/veri modeline dokunuyor ve cihazda görülmeden
+doğrulanamıyor:
+- [ ] **Word:** gövde altında "Seçili paragrafı AI ile yeniden yaz" şeridi.
+      `showAiRewriteSheet` bugün yalnız `viewer_screen.dart:1459`ten çağrılıyor;
+      Word editöründe paragraf seçimi WebView tarafında, Flutter'a gelmiyor
+      (aynı engel "seçili metin çevirisi" maddesinde de var).
+- [ ] **Slayt:** kanvasın altında konuşmacı notu şeridi. Önce `pptx_render`
+      notes slide (`notesSlide*.xml`) okuması gerekiyor — bugün okunmuyor.
+- [ ] **Excel:** sayfa sekmelerinin çip görünümüne alınması (işlevsel değil,
+      yalnız görsel; `_sheetTabs`).
+- [ ] **Belge sayfası** çerçevesi (`#FBF8F1` zemin + 1px `#D2C8B4` + yarıçap 4)
+      yalnız kanvas düzeyinde uygulandı; PDF/Word sayfa kutusunun kendisi
+      pdfrx/WebView içinde çiziliyor, oraya dokunmak ayrı bir tur.
+- [ ] **Cihaz doğrulaması (kullanıcı):** kağıt temasında (a) büyük sistem yazı
+      tipinde taşma var mı, (b) koyu temada kart kenarlıkları görünüyor mu,
+      (c) Arapça (RTL) düzende cetvel çizgileri ve sağdaki özet değerler doğru
+      yönde mi, (d) serif başlık + sans gövde okunaklı mı.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
+import '../section_header.dart';
 import 'fm_entry_icon.dart';
 
 /// Dosya/klasör satırı ve ızgara hücresi — gözatıcı, kategori ve arama
@@ -61,7 +62,9 @@ class FmEntryListTile extends StatelessWidget {
             )
           : FmEntryIcon(entry: entry, size: iconSize),
       title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+      // Boyut + yol monospace: alt alta gelen boyutlar hizalanıyor ve uzun
+      // yollarda rakam/eğik çizgi karışmıyor (2026-08-04 kağıt teması).
+      subtitle: MonoText(subtitle),
       trailing: _trailing(scheme),
       onTap: onTap,
     );

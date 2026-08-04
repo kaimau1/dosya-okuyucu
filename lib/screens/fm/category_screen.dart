@@ -20,6 +20,7 @@ import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
+import '../../widgets/section_header.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 
@@ -324,10 +325,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(widget.title),
-            Text(
-                context.t('count.of_files',
-                    {'shown': _sorted.length, 'total': _files.length}),
-                style: Theme.of(context).textTheme.bodySmall),
+            // Sıralamanın ne olduğu yalnız süzgeç sayfası açılınca
+            // görülüyordu — özet satıra alındı ("… · Tarihe göre ↓").
+            MonoText(
+              context.t('cat.summary', {
+                'n': _sorted.length,
+                'total': _files.length,
+                'sort': '${context.t(_sort.labelKey)} ${_desc ? '↓' : '↑'}',
+              }),
+              size: 11,
+            ),
           ],
         ),
         actions: [

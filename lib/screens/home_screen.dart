@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
@@ -17,6 +18,7 @@ import '../services/fm/entry_opener.dart';
 import '../widgets/file_type_icon.dart';
 import '../widgets/fm/job_progress_bar.dart';
 import '../widgets/scan_flow.dart';
+import '../widgets/section_header.dart';
 import 'chat_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'fm/download_manager_screen.dart';
@@ -153,6 +155,10 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
   bool _loading = false;
   String _query = '';
 
+  /// Tür süzgeci (null = tümü). Kategori ekranındaki belge çipleriyle aynı
+  /// mantık — son belgelerde de "yalnız PDF'lerim" en sık istenen daraltma.
+  DocKind? _kind;
+
   Future<void> _openNew() async {
     // Çeviri tablosu await'ten ÖNCE alınır: `context` asenkron boşluktan
     // sonra kullanılamaz (ekran bu arada kapanmış olabilir).
@@ -253,9 +259,14 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
     final appState = context.watch<AppState>();
     final recents = appState.recents;
     final q = _query.trim().toLowerCase();
-    final filtered = q.isEmpty
+    final byQuery = q.isEmpty
         ? recents
         : recents.where((r) => r.name.toLowerCase().contains(q)).toList();
+    final filtered = _kind == null
+        ? byQuery
+        : byQuery
+            .where((r) => FileService.kindForExtension(r.extension) == _kind)
+            .toList();
     final (themeIc, themeTip) = _themeIcon(appState.themeMode);
 
     return Scaffold(
@@ -292,7 +303,11 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
               ? _EmptyState(onOpen: _openNew, hasApiKey: appState.hasApiKey)
               : Column(
                   children: [
-                    if (recents.length > 4) _searchBar(),
+                    // Arama KOŞULSUZ görünür (eskiden `recents.length > 4`):
+                    // yeri listenin uzunluğuna göre değişen bir kutu
+                    // ezberlenemiyordu.
+                    _searchBar(),
+                    _kindChips(byQuery),
                     Expanded(
                       child: filtered.isEmpty
                           ? const _NoMatch()
@@ -300,6 +315,8 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
                               recents: filtered,
                               onTap: _openSafely,
                               onRemove: (r) => appState.removeRecent(r.path),
+                              onShare: _share,
+                              onShowPath: _showPath,
                             ),
                     ),
                   ],
@@ -337,6 +354,65 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
       _showError(s.t('home.open_error_moved', {'name': r.name}));
     }
   }
+
+  Future<void> _share(RecentFile r) async {
+    if (!File(r.path).existsSync()) {
+      _showError(AppStrings.of(context).t('home.open_error_moved', {
+        'name': r.name,
+      }));
+      return;
+    }
+    await Share.shareXFiles([XFile(r.path)], text: r.name);
+  }
+
+  void _showPath(RecentFile r) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: MonoText(r.path, maxLines: 3, size: 12)),
+    );
+  }
+
+  /// Tür çipleri — sayılarla. Sıfır olan tür hiç çizilmez: boş bir süzgeç
+  /// dokunulacak bir şey gibi durup hiçbir şey yapmıyordu.
+  Widget _kindChips(List<RecentFile> pool) {
+    const kinds = [
+      DocKind.pdf,
+      DocKind.word,
+      DocKind.spreadsheet,
+      DocKind.slides,
+      DocKind.text,
+    ];
+    final counts = <DocKind, int>{};
+    for (final r in pool) {
+      final k = FileService.kindForExtension(r.extension);
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    final shown = kinds.where((k) => (counts[k] ?? 0) > 0).toList();
+    if (shown.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          _chip(context.t('enum.size_any'), pool.length, _kind == null,
+              () => setState(() => _kind = null)),
+          for (final k in shown)
+            _chip(k.label, counts[k] ?? 0, _kind == k,
+                () => setState(() => _kind = _kind == k ? null : k)),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String label, int count, bool selected, VoidCallback onTap) =>
+      Padding(
+        padding: const EdgeInsets.only(right: Gap.sm),
+        child: ChoiceChip(
+          selected: selected,
+          onSelected: (_) => onTap(),
+          label: Text('$label  $count'),
+        ),
+      );
 
   Widget _searchBar() {
     return Padding(
@@ -449,26 +525,65 @@ class _RecentList extends StatelessWidget {
   final List<RecentFile> recents;
   final void Function(RecentFile) onTap;
   final void Function(RecentFile) onRemove;
+  final void Function(RecentFile) onShare;
+  final void Function(RecentFile) onShowPath;
 
   const _RecentList({
     required this.recents,
     required this.onTap,
     required this.onRemove,
+    required this.onShare,
+    required this.onShowPath,
   });
+
+  /// Başlık (String) ve satır (RecentFile) karışık tek liste. Gün grupları
+  /// "ne zaman açmıştım" sorusuna satır içi göreli zamandan daha hızlı cevap
+  /// verir; göreli zaman satırda kalmaya devam eder.
+  List<Object> _withGroups(BuildContext context) {
+    final now = DateTime.now();
+    final todayStart =
+        DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+    final weekStart = todayStart - const Duration(days: 6).inMilliseconds;
+    final out = <Object>[];
+    String? current;
+    for (final r in recents) {
+      final label = r.openedAtMs >= todayStart
+          ? context.t('recent.group_today')
+          : (r.openedAtMs >= weekStart
+              ? context.t('recent.group_week')
+              : context.t('recent.group_older'));
+      if (label != current) {
+        out.add(label);
+        current = label;
+      }
+      out.add(r);
+    }
+    return out;
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ListView.separated(
+    final items = _withGroups(context);
+    return ListView.builder(
       // Alt boşluk FAB'ın altında kalan son kartı kurtarır (sabit öğe ile
       // kaydırma içeriği çakışmasın).
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 96),
-      itemCount: recents.length,
-      separatorBuilder: (_, __) => const SizedBox(height: Gap.sm),
+      itemCount: items.length,
       itemBuilder: (context, i) {
-        final r = recents[i];
+        final item = items[i];
+        if (item is String) {
+          return SectionHeader(
+            item,
+            padding: EdgeInsets.only(top: i == 0 ? Gap.xs : Gap.md,
+                bottom: Gap.sm),
+          );
+        }
+        final r = item as RecentFile;
         final kind = FileService.kindForExtension(r.extension);
-        return Dismissible(
+        return Padding(
+          padding: const EdgeInsets.only(bottom: Gap.sm),
+          child: Dismissible(
           key: ValueKey(r.path + r.openedAtMs.toString()),
           direction: DismissDirection.endToStart,
           background: Container(
@@ -488,17 +603,37 @@ class _RecentList extends StatelessWidget {
               title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text(
+                child: MonoText(
                   '${kind.label} · ${_size(r.sizeBytes)} · '
                   '${_relTime(context, r.openedAtMs)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  size: 11,
                 ),
               ),
-              trailing: Icon(Icons.chevron_right,
-                  size: 20, color: scheme.onSurfaceVariant),
+              // Kaydırarak silme KALIYOR ama tek keşif yolu olmaktan çıktı:
+              // gizli bir hareketin arkasındaki dört eylem artık görünür.
+              trailing: PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert,
+                    size: 20, color: scheme.onSurfaceVariant),
+                onSelected: (v) => switch (v) {
+                  'open' => onTap(r),
+                  'share' => onShare(r),
+                  'path' => onShowPath(r),
+                  _ => onRemove(r),
+                },
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                      value: 'open', child: Text(ctx.t('common.open'))),
+                  PopupMenuItem(
+                      value: 'share', child: Text(ctx.t('common.share'))),
+                  PopupMenuItem(
+                      value: 'path', child: Text(ctx.t('recent.show_path'))),
+                  PopupMenuItem(
+                      value: 'remove', child: Text(ctx.t('recent.remove'))),
+                ],
+              ),
               onTap: () => onTap(r),
             ),
+          ),
           ),
         );
       },
