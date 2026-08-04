@@ -1432,6 +1432,50 @@ class PptxRender {
     return out;
   }
 
+  /// Slaytın **konuşmacı notu** (`notesSlideN.xml`). Not yoksa boş metin.
+  ///
+  /// Not sayfası da bir slayttır: içinde slaytın küçük resmini taşıyan
+  /// `sldImg` yer tutucusu, sayfa numarası (`sldNum`) ve asıl notun durduğu
+  /// `body` yer tutucusu vardır. Yalnız `body` alınır — yoksa sunumun her
+  /// notunun sonuna slayt numarası yapışırdı.
+  String notes(String slideFile) {
+    final notesFile = _relOfType(_rels(slideFile), 'notesSlide');
+    if (notesFile == null) return '';
+    final doc = _xml(notesFile);
+    if (doc == null) return '';
+
+    final paragraphs = <String>[];
+    for (final sp in doc.findAllElements('p:sp')) {
+      final ph = _placeholder(sp);
+      // Yer tutucusu OLMAYAN metin kutusu da not olabilir (bazı üreticiler
+      // notu serbest kutuya yazıyor); dışlanan yalnız bilinen "not değil"ler.
+      if (ph != null && ph.type != null && ph.type != 'body') continue;
+      final txBody = _first(sp, 'p:txBody');
+      if (txBody == null) continue;
+      for (final p in txBody.childElements) {
+        if (p.name.qualified != 'a:p') continue;
+        final buf = StringBuffer();
+        for (final node in p.descendants.whereType<XmlElement>()) {
+          if (node.name.qualified == 'a:t') {
+            buf.write(node.innerText);
+          } else if (node.name.qualified == 'a:br') {
+            buf.write('\n');
+          }
+        }
+        paragraphs.add(buf.toString());
+      }
+    }
+    // Baştaki/sondaki boş paragraflar atılır, aradakiler korunur (yazarın
+    // koyduğu boşluk anlamlı olabilir).
+    while (paragraphs.isNotEmpty && paragraphs.first.trim().isEmpty) {
+      paragraphs.removeAt(0);
+    }
+    while (paragraphs.isNotEmpty && paragraphs.last.trim().isEmpty) {
+      paragraphs.removeLast();
+    }
+    return paragraphs.join('\n');
+  }
+
   String? _relOfType(Map<String, String> rels, String type) {
     for (final e in rels.entries) {
       if (e.key.startsWith('type:') && e.value == type) {

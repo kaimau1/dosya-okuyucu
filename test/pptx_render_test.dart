@@ -450,6 +450,8 @@ Uint8List _tablePptx() {
 }
 
 void main() {
+  _notesTests();
+
   test('slayt geometrisi, rengi ve metni EMU -> punto olarak çözümlenir', () {
     final editor = PptxEditor.parse(_samplePptx());
     final view = editor.slides.single.view!;
@@ -829,4 +831,63 @@ void main() {
 class ShapeVMTapped {
   final String text;
   ShapeVMTapped(this.text);
+}
+
+/// Konuşmacı notu olan bir slayt: not sayfasında hem `body` (asıl not) hem de
+/// `sldNum` (sayfa numarası) yer tutucusu var — PowerPoint her not sayfasına
+/// ikisini de koyar.
+Uint8List _notesPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add('ppt/presentation.xml',
+      '<p:presentation xmlns:p="ppt"><p:sldSz cx="9144000" cy="6858000"/>'
+      '</p:presentation>');
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw"><p:cSld><p:spTree>
+ <p:sp><p:spPr/><p:txBody><a:bodyPr/><a:p><a:r><a:t>Slayt</a:t></a:r></a:p>
+ </p:txBody></p:sp>
+</p:spTree></p:cSld></p:sld>
+''');
+  add('ppt/slides/_rels/slide1.xml.rels', '''
+<Relationships xmlns="rel">
+ <Relationship Id="rId1"
+   Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide"
+   Target="../notesSlides/notesSlide1.xml"/>
+</Relationships>
+''');
+  add('ppt/notesSlides/notesSlide1.xml', '''
+<p:notes xmlns:p="ppt" xmlns:a="draw"><p:cSld><p:spTree>
+ <p:sp>
+  <p:nvSpPr><p:cNvPr id="2"/><p:nvPr><p:ph type="sldNum"/></p:nvPr></p:nvSpPr>
+  <p:txBody><a:bodyPr/><a:p><a:r><a:t>7</a:t></a:r></a:p></p:txBody>
+ </p:sp>
+ <p:sp>
+  <p:nvSpPr><p:cNvPr id="3"/><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr>
+  <p:txBody><a:bodyPr/>
+   <a:p><a:r><a:t>Bütçeyi </a:t></a:r><a:r><a:t>anlat</a:t></a:r></a:p>
+   <a:p><a:r><a:t>Soruları sona bırak</a:t></a:r></a:p>
+  </p:txBody>
+ </p:sp>
+</p:spTree></p:cSld></p:notes>
+''');
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
+void _notesTests() {
+  test('konuşmacı notu okunur; sayfa numarası yer tutucusu notun içine karışmaz',
+      () {
+    final editor = PptxEditor.parse(_notesPptx());
+    final notes = editor.notesOf(editor.slides.single);
+    expect(notes, 'Bütçeyi anlat\nSoruları sona bırak');
+    expect(notes, isNot(contains('7')));
+  });
+
+  test('notu olmayan slaytta boş metin döner', () {
+    final editor = PptxEditor.parse(_samplePptx());
+    expect(editor.notesOf(editor.slides.single), isEmpty);
+  });
 }

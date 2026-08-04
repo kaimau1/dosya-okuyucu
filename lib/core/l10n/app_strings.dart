@@ -1486,6 +1486,30 @@ const Map<String, (String, String, String)> _table = {
         '{web}/{ours}). استخدم ⋮ > محرر النص.',
   ),
   'word.done': ('Bitti', 'Done', 'تم'),
+  'word.text_color': ('Yazı rengi', 'Text color', 'لون النص'),
+  'word.highlight': ('Vurgu rengi', 'Highlight', 'لون التمييز'),
+  'word.bullets': ('Madde işareti', 'Bullets', 'تعداد نقطي'),
+  'word.numbering': ('Numaralandırma', 'Numbering', 'تعداد رقمي'),
+  'word.rewrite_selection': (
+    'Seçimi AI ile düzelt',
+    'Rewrite selection with AI',
+    'أعد صياغة التحديد بالذكاء الاصطناعي',
+  ),
+  'word.translate_selection': (
+    'Seçimi çevir',
+    'Translate selection',
+    'ترجم التحديد',
+  ),
+  'word.select_text_first': (
+    'Önce belgede metin seçin',
+    'Select some text in the document first',
+    'حدد نصًا في المستند أولًا',
+  ),
+  'word.replace_needs_edit': (
+    'Değiştirmek için önce düzenlemeye geçin',
+    'Switch to editing to replace',
+    'انتقل إلى التحرير للاستبدال',
+  ),
   'word.page_of': ('Sayfa {n} / {total}', 'Page {n} / {total}', 'الصفحة {n} / {total}'),
   'word.goto_page': ('Sayfaya git', 'Go to page', 'الانتقال إلى صفحة'),
   'word.goto_page_hint': (

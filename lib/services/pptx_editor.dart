@@ -122,6 +122,18 @@ class PptxEditor {
     }
   }
 
+  /// Slaytın **konuşmacı notu** (yoksa boş). İlk istekte okunup saklanır:
+  /// not sayfası ayrı bir XML dosyası, her karede açmak pahalı olurdu.
+  final Map<String, String> _notesCache = {};
+
+  String notesOf(PptxSlide slide) => _notesCache.putIfAbsent(slide.fileName, () {
+        try {
+          return _render.notes(slide.fileName);
+        } catch (_) {
+          return '';
+        }
+      });
+
   /// Slaytları sunumdaki gerçek sıraya (sldIdLst) göre, yoksa dosya numarasına
   /// göre sıralar. Sentetik/eksik dosyalar için dosya numarası yedeği çalışır.
   static List<String> _orderedSlideFiles(

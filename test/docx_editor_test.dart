@@ -42,7 +42,115 @@ Uint8List _richSampleDocx() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// İçerik türü ve ilişki dosyası OLAN tam bir .docx (numaralandırma yazma
+/// yolu bu üç parçaya birden dokunuyor).
+Uint8List _fullDocx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add('[Content_Types].xml', '''
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+ <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+ <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>''');
+  add('word/_rels/document.xml.rels', '''
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+ <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>''');
+  add('word/document.xml', '''
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+ <w:body>
+  <w:p><w:r><w:t>Birinci</w:t></w:r></w:p>
+  <w:p><w:r><w:t>İkinci</w:t></w:r></w:p>
+ </w:body>
+</w:document>''');
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
+String _part(Uint8List bytes, String name) {
+  final f = ZipDecoder()
+      .decodeBytes(bytes)
+      .files
+      .where((f) => f.name == name)
+      .toList();
+  return f.isEmpty ? '' : utf8.decode(f.first.content as List<int>);
+}
+
 void main() {
+  // --- Yazı rengi / vurgu ---------------------------------------------------
+  test('setRuns yazı rengini ve ADLANDIRILMIŞ vurguyu yazar', () {
+    final editor = DocxEditor.parse(_richSampleDocx());
+    editor.setRuns(0, const [
+      RunSeg('renkli', false, false, false, color: '0070C0', highlight: 'FFFF00'),
+    ]);
+    final xml = _part(editor.save(), 'word/document.xml');
+    expect(xml, contains('<w:color w:val="0070C0"/>'));
+    // Word'ün fosforlu kalemi ada göre yazılır; keyfi renk `w:shd`ye düşer.
+    expect(xml, contains('<w:highlight w:val="yellow"/>'));
+  });
+
+  test('palette olmayan vurgu w:shd dolgusu olarak yazılır', () {
+    final editor = DocxEditor.parse(_richSampleDocx());
+    editor.setRuns(0, const [
+      RunSeg('renkli', false, false, false, highlight: 'FCE4D6'),
+    ]);
+    final xml = _part(editor.save(), 'word/document.xml');
+    expect(xml, isNot(contains('<w:highlight')));
+    expect(xml, contains('w:fill="FCE4D6"'));
+  });
+
+  test('renk verilmezse şablonun kendi rengi KORUNUR', () {
+    final editor = DocxEditor.parse(_richSampleDocx());
+    editor.setRuns(0, const [RunSeg('düz', false, false, false)]);
+    // Şablon run'ın rengi FF0000'dı; renk verilmediği için değişmemeli.
+    expect(_part(editor.save(), 'word/document.xml'),
+        contains('<w:color w:val="FF0000"/>'));
+  });
+
+  // --- Madde işareti / numaralandırma --------------------------------------
+  test('setListStyle w:numPr yazar ve numbering parçasını ÜRETİR', () {
+    final editor = DocxEditor.parse(_fullDocx());
+    editor.setListStyle(0, 'bullet');
+    editor.setListStyle(1, 'number');
+    final bytes = editor.save();
+
+    final doc = _part(bytes, 'word/document.xml');
+    expect(doc, contains('<w:numPr>'));
+    expect(doc, contains('<w:numId w:val="9101"/>'));
+    expect(doc, contains('<w:numId w:val="9102"/>'));
+
+    // Üç parça birden yazılmalı: tanım, içerik türü, ilişki. Biri eksikse
+    // Word dosyayı "onarılamaz" sayar.
+    final numbering = _part(bytes, 'word/numbering.xml');
+    expect(numbering, contains('w:abstractNumId="9101"'));
+    expect(numbering, contains('<w:numFmt w:val="bullet"/>'));
+    expect(numbering, contains('<w:numFmt w:val="decimal"/>'));
+    expect(_part(bytes, '[Content_Types].xml'),
+        contains('/word/numbering.xml'));
+    expect(_part(bytes, 'word/_rels/document.xml.rels'),
+        contains('Target="numbering.xml"'));
+  });
+
+  test('liste verilmezse numbering parçası HİÇ eklenmez', () {
+    final editor = DocxEditor.parse(_fullDocx());
+    editor.paragraphs.first.text = 'değişti';
+    final bytes = editor.save();
+    expect(_part(bytes, 'word/numbering.xml'), isEmpty);
+    expect(_part(bytes, '[Content_Types].xml'),
+        isNot(contains('numbering.xml')));
+  });
+
+  test('liste kaldırma w:numPr\'yi siler', () {
+    final editor = DocxEditor.parse(_fullDocx());
+    editor.setListStyle(0, 'bullet');
+    editor.setListStyle(0, 'none');
+    expect(_part(editor.save(), 'word/document.xml'),
+        isNot(contains('<w:numPr>')));
+  });
+
   // --- Canlı düzenleme (setRuns) -------------------------------------------
   test('setRuns B/I/U çalıştırmalarını yazar, şablon biçimi ve pPr korunur', () {
     final editor = DocxEditor.parse(_richSampleDocx());

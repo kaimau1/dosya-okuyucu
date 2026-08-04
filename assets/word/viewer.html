@@ -98,6 +98,25 @@
   /* Sabit genişlikli tablo/görsel ekranı yatay taşırmasın. */
   body.flow table { max-width: 100% !important; }
   body.flow img { max-width: 100% !important; height: auto !important; }
+
+  /* Kullanıcının bu oturumda verdiği madde/numara işaretleri. Paragraf <li>
+     olmadığı için (bkz. setListStyle) işaret CSS'ten çizilir. Sayaç, liste
+     OLMAYAN her paragrafta sıfırlanır: art arda gelen numaralı paragraflar
+     1,2,3 sayar, araya düz metin girince yeni liste 1'den başlar — Word de
+     böyle davranır. */
+  p:not([data-fk-list="number"]) { counter-reset: fklist; }
+  p[data-fk-list] { padding-inline-start: 26px !important; position: relative; }
+  p[data-fk-list="bullet"]::before {
+    content: "\2022";
+    position: absolute;
+    inset-inline-start: 8px;
+  }
+  p[data-fk-list="number"] { counter-increment: fklist; }
+  p[data-fk-list="number"]::before {
+    content: counter(fklist) ".";
+    position: absolute;
+    inset-inline-start: 2px;
+  }
 </style>
 <div id="container"></div>
 <div id="err"></div>
@@ -205,28 +224,154 @@
   // işareti varsa) doldurulur. Hesaplanmış değeri koşulsuz göndermek,
   // dosyadaki STİLDEN gelen fontu her düzenlemede satır içi bir w:rFonts'a
   // dondururdu (bkz. DocxEditor.setRuns yorumu).
+  // Renk/vurgu YALNIZ kullanıcı verdiyse (data-fk-color / data-fk-hl işaretli
+  // bir kapsayıcının içindeyse) taşınır. Hesaplanmış rengi koşulsuz göndermek
+  // temadan/stilden gelen rengi her düzenlemede satır içi bir w:color'a
+  // dondururdu — yazı tipiyle aynı gerekçe.
   function segsOf(p) {
     var out = [];
     var font = p.getAttribute('data-fk-font') || null;
     var sizeAttr = p.getAttribute('data-fk-size');
     var size = sizeAttr ? parseFloat(sizeAttr) : null;
-    function walk(node, b, i, u) {
+    function walk(node, b, i, u, col, hl) {
       if (node.nodeType === 3) {
-        if (node.textContent) out.push([node.textContent, b, i, u, font, size]);
+        if (node.textContent) {
+          out.push([node.textContent, b, i, u, font, size, col, hl]);
+        }
         return;
       }
       if (node.nodeType !== 1) return;
-      if (node.nodeName === 'BR') { out.push(['\n', b, i, u, font, size]); return; }
+      if (node.nodeName === 'BR') {
+        out.push(['\n', b, i, u, font, size, col, hl]);
+        return;
+      }
       var cs = window.getComputedStyle(node);
       var nb = b || parseInt(cs.fontWeight, 10) >= 600 || cs.fontWeight === 'bold';
       var ni = i || cs.fontStyle === 'italic';
       var nu = u || ((cs.textDecorationLine || cs.textDecoration || '')
                        .indexOf('underline') >= 0);
-      for (var c = node.firstChild; c; c = c.nextSibling) walk(c, nb, ni, nu);
+      var nc = node.getAttribute('data-fk-color') || col;
+      var nh = node.getAttribute('data-fk-hl') || hl;
+      for (var c = node.firstChild; c; c = c.nextSibling) {
+        walk(c, nb, ni, nu, nc, nh);
+      }
     }
-    walk(p, false, false, false);
+    walk(p, false, false, false, null, null);
     return out;
   }
+
+  // ---- Yazı rengi ve vurgu ------------------------------------------------
+  // Bunlar SEÇİME uygulanır (yazı tipinin aksine): bir cümlenin üç kelimesini
+  // sarıya boyamak Word'ün en sık kullanılan işlerinden. Güvenli olmasının
+  // nedeni `execCommand`ın `<span>` ÜRETMESİ — <p> sayısı değişmez, paragraf
+  // eşlemesi bozulmaz. Üretilen span'lar işaretlenir ki `segsOf` yalnız
+  // kullanıcının verdiği rengi taşısın.
+  function rgbToHex(v) {
+    if (!v) return null;
+    var m = v.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (!m) return v.charAt(0) === '#' ? v.substring(1).toUpperCase() : null;
+    function h(n) { var s = parseInt(n, 10).toString(16).toUpperCase(); return s.length < 2 ? '0' + s : s; }
+    return h(m[1]) + h(m[2]) + h(m[3]);
+  }
+
+  function markInline(p) {
+    var els = p.querySelectorAll('[style]');
+    for (var k = 0; k < els.length; k++) {
+      var el = els[k];
+      var c = rgbToHex(el.style.color);
+      var bg = rgbToHex(el.style.backgroundColor);
+      if (c) el.setAttribute('data-fk-color', c);
+      if (bg) el.setAttribute('data-fk-hl', bg);
+    }
+  }
+
+  // hex: "FF0000" · null = kaldır (rengi otomatiğe döndür).
+  function applyInline(cmd, hex, attr) {
+    if (!EDIT) return;
+    document.execCommand('styleWithCSS', false, true);
+    if (hex) {
+      document.execCommand(cmd, false, '#' + hex);
+    } else {
+      // "Yok": execCommand'in geri alması yok — seçimdeki işaretli span'ların
+      // stili elle temizlenir.
+      var paras = selectedParas();
+      for (var i = 0; i < paras.length; i++) {
+        var els = paras[i].p.querySelectorAll('[' + attr + ']');
+        for (var k = 0; k < els.length; k++) {
+          els[k].removeAttribute(attr);
+          if (attr === 'data-fk-color') els[k].style.color = '';
+          else els[k].style.backgroundColor = '';
+        }
+      }
+    }
+    selectedParas().forEach(function (e) {
+      markInline(e.p);
+      sendPara(e.i, e.p);
+    });
+  }
+
+  // ---- Madde işareti / numaralandırma -------------------------------------
+  // `execCommand('insertUnorderedList')` BİLİNÇLİ olarak kullanılmıyor: <p>'yi
+  // <li>'ye çevirip paragraf sayısını değiştirir ve canlı düzenlemenin eşleme
+  // sigortası devreye girip düzenlemeyi tamamen kapatırdı. Bunun yerine liste
+  // PARAGRAF ÖZELLİĞİ: işaret CSS'ten çizilir, Word tarafında `w:numPr` olur —
+  // Word'ün kendi modeli de tam olarak budur.
+  window.setListStyle = function (kind) {
+    if (!EDIT) return;
+    selectedParas().forEach(function (e) {
+      if (kind === 'none' || e.p.getAttribute('data-fk-list') === kind) {
+        e.p.removeAttribute('data-fk-list');
+        if (window.Kalem) {
+          window.Kalem.postMessage(JSON.stringify({ list: { i: e.i, v: 'none' } }));
+        }
+      } else {
+        e.p.setAttribute('data-fk-list', kind);
+        if (window.Kalem) {
+          window.Kalem.postMessage(JSON.stringify({ list: { i: e.i, v: kind } }));
+        }
+      }
+    });
+  };
+
+  window.setTextColor = function (hex) {
+    applyInline('foreColor', hex || null, 'data-fk-color');
+  };
+  window.setHighlight = function (hex) {
+    applyInline('hiliteColor', hex || null, 'data-fk-hl');
+  };
+
+  // Seçili metni Flutter'a verir (AI ile yeniden yazma, çeviri, arama kutusunu
+  // doldurma). Seçim yoksa boş dizi gider — çağıran uyarıyı kendisi gösterir.
+  // Seçim, alt sayfa (AI/çeviri) açılırken kaybolabilir → istek anında
+  // Range SAKLANIR ve sonucu yazarken o kullanılır.
+  var SAVED_RANGE = null;
+
+  window.sendSelectionText = function () {
+    var s = window.getSelection();
+    var t = s ? s.toString() : '';
+    SAVED_RANGE = (s && s.rangeCount) ? s.getRangeAt(0).cloneRange() : null;
+    if (window.Kalem) {
+      window.Kalem.postMessage(JSON.stringify({ seltext: t }));
+    }
+  };
+
+  // AI/çeviri sonucunu saklanan seçimin yerine yazar. Metin düğümü düzeyinde
+  // çalışır → <p> sayısı sabit, paragraf eşlemesi güvende.
+  window.replaceSelectionText = function (text) {
+    if (!EDIT || !SAVED_RANGE) return;
+    var list = paraList();
+    var node = SAVED_RANGE.startContainer;
+    while (node && node.nodeType !== 1) node = node.parentNode;
+    var p = node && node.closest ? node.closest('p') : null;
+    SAVED_RANGE.deleteContents();
+    if (text) SAVED_RANGE.insertNode(document.createTextNode(text));
+    if (p) {
+      p.normalize();
+      var idx = list.indexOf(p);
+      if (idx >= 0) sendPara(idx, p);
+    }
+    SAVED_RANGE = null;
+  };
 
   // ---- Yazı tipi ve punto -------------------------------------------------
   // Seçime değil **paragrafa** uygulanır. Nedeni yapısal: canlı düzenlemenin
@@ -399,6 +544,132 @@
     var from = Math.min(a, f), to = Math.max(a, f);
     for (var k = from; k <= to; k++) sendPara(k, list[k]);
   }
+
+  // ---- Belge içinde bul / değiştir ---------------------------------------
+  // Slaytta ve Excel'de vardı, Word'de yoktu (KALANLAR maddesi). Arama DOM'a
+  // hiç dokunmaz: eşleşme `Range` ile SEÇİLİR, tarayıcı kendi vurgusunu çizer.
+  // Böylece bulmak paragraf eşlemesini bozamaz — düzenleme kapalıyken de
+  // çalışır.
+  var HITS = [];
+
+  // Türkçe katlama: `toLocaleLowerCase('tr')` I→ı, İ→i doğru yapar; İngilizce
+  // katlamada "İSTANBUL" ile "istanbul" eşleşmezdi.
+  function fold(s) {
+    try { return s.toLocaleLowerCase('tr'); } catch (e) { return s.toLowerCase(); }
+  }
+
+  // Paragrafın metin düğümleri, karakter ofsetleriyle: eşleşmeyi Range'e
+  // çevirmek için hangi düğümün neresinde olduğunu bilmek gerekiyor.
+  function textNodesOf(p) {
+    var out = [];
+    var at = 0;
+    var walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT, null, false);
+    var n;
+    while ((n = walker.nextNode())) {
+      var len = n.textContent.length;
+      if (len) { out.push({ node: n, from: at, to: at + len }); at += len; }
+    }
+    return out;
+  }
+
+  function rangeAt(p, start, end) {
+    var nodes = textNodesOf(p);
+    var r = document.createRange();
+    var set = 0;
+    for (var k = 0; k < nodes.length; k++) {
+      var t = nodes[k];
+      if (set === 0 && start >= t.from && start < t.to) {
+        r.setStart(t.node, start - t.from);
+        set = 1;
+      }
+      if (set === 1 && end > t.from && end <= t.to) {
+        r.setEnd(t.node, end - t.from);
+        return r;
+      }
+    }
+    return null;
+  }
+
+  window.findAll = function (q) {
+    HITS = [];
+    if (q) {
+      var list = paraList();
+      var needle = fold(q);
+      for (var k = 0; k < list.length; k++) {
+        var hay = fold(list[k].textContent || '');
+        var at = hay.indexOf(needle);
+        while (at >= 0) {
+          HITS.push({ i: k, s: at, e: at + q.length });
+          at = hay.indexOf(needle, at + Math.max(1, q.length));
+        }
+      }
+    }
+    if (window.Kalem) {
+      window.Kalem.postMessage(JSON.stringify({ find: { n: HITS.length } }));
+    }
+  };
+
+  window.findGo = function (k) {
+    if (k < 0 || k >= HITS.length) return;
+    var hit = HITS[k];
+    var p = paraList()[hit.i];
+    if (!p) return;
+    var r = rangeAt(p, hit.s, hit.e);
+    if (!r) return;
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    p.scrollIntoView({ block: 'center' });
+  };
+
+  // Tek bir eşleşmeyi değiştirir. Metin düğümü YERİNDE değişir, <p> sayısı
+  // sabit kalır → paragraf eşlemesi güvende.
+  window.replaceHit = function (k, text) {
+    if (!EDIT || k < 0 || k >= HITS.length) return;
+    var hit = HITS[k];
+    var p = paraList()[hit.i];
+    if (!p) return;
+    var r = rangeAt(p, hit.s, hit.e);
+    if (!r) return;
+    r.deleteContents();
+    if (text) r.insertNode(document.createTextNode(text));
+    p.normalize();
+    sendPara(hit.i, p);
+  };
+
+  // Tümünü değiştir: her paragraf tek geçişte yeniden kurulur.
+  window.replaceAll = function (q, text) {
+    if (!EDIT || !q) return;
+    var list = paraList();
+    var needle = fold(q);
+    var count = 0;
+    for (var k = 0; k < list.length; k++) {
+      var p = list[k];
+      var nodes = textNodesOf(p);
+      var changed = false;
+      for (var j = nodes.length - 1; j >= 0; j--) {
+        var node = nodes[j].node;
+        var src = node.textContent;
+        var low = fold(src);
+        var hitHere = false;
+        // SAĞDAN SOLA değiştirilir: soldaki eşleşmelerin konumu bozulmasın.
+        var at = low.lastIndexOf(needle);
+        while (at >= 0) {
+          src = src.substring(0, at) + text + src.substring(at + q.length);
+          low = fold(src);
+          count++;
+          hitHere = true;
+          at = low.lastIndexOf(needle, at - 1);
+        }
+        if (hitHere) { node.textContent = src; changed = true; }
+      }
+      if (changed) { p.normalize(); sendPara(k, p); }
+    }
+    HITS = [];
+    if (window.Kalem) {
+      window.Kalem.postMessage(JSON.stringify({ replaced: count }));
+    }
+  };
 
   // Sayfayı CSS zoom ile ekran genişliğine sığdırır: açılışta TÜM sayfa
   // görünür. pageW bir kez, zoom uygulanmadan ölçülür; döndürme/yeniden

@@ -52,6 +52,10 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   final _hCtrl = ScrollController();
   final _vCtrl = ScrollController();
 
+  /// Konuşmacı notu şeridi AÇIK olan slaytların dosya adları. Slayt sırası
+  /// değişebildiği için indeks değil dosya adı tutulur.
+  final _openNotes = <String>{};
+
   // ── Konum / gezinme ────────────────────────────────────────────────────────
   // Slaytlar tek bir akışta olduğu için "kaçıncı slayttayım" bilgisi ancak
   // kaydırma konumundan çıkar. Kart yükseklikleri ANALİTİK olarak biliniyor
@@ -159,10 +163,21 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   /// formül — ikisi ayrışırsa "slayta git" yanlış yere atlar.
   double _slideExtent(int i) {
     final cardW = _baseW * _zoom;
-    final view = _editor!.slides[i].view;
+    final slide = _editor!.slides[i];
+    final view = slide.view;
     final aspect = view == null ? 16 / 9 : view.widthPt / view.heightPt;
     final cardH = aspect <= 0 ? cardW * 9 / 16 : cardW / aspect;
-    return 40 * _zoom + cardH + 20 * _zoom;
+    return 40 * _zoom + cardH + _notesHeight(slide) * _zoom + 20 * _zoom;
+  }
+
+  /// Konuşmacı notu şeridinin zoom UYGULANMAMIŞ yüksekliği (not yoksa 0).
+  /// `_notesStrip` ile birebir aynı formül — ikisi ayrışırsa "slayta git"
+  /// notlu destelerde kayar.
+  double _notesHeight(PptxSlide slide) {
+    final editor = _editor;
+    if (editor == null) return 0;
+    if (editor.notesOf(slide).trim().isEmpty) return 0;
+    return _openNotes.contains(slide.fileName) ? 30 + 18.0 * 5 : 30;
   }
 
   /// [i]. slaydın (0 tabanlı) liste içindeki kaydırma konumu.
@@ -634,7 +649,74 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                     ),
             ),
           ),
+          _notesStrip(slide, baseW),
         ],
+      ),
+    );
+  }
+
+  /// Konuşmacı notu şeridi — kanvasın hemen altında, kağıt teması devir
+  /// notundaki yerinde. Notu olmayan slaytta hiç yer kaplamaz.
+  ///
+  /// Şerit de kanvasla aynı zoom oranında ölçeklenir; sabit yükseklikte
+  /// kalsaydı dikey yerleşim doğrusallığını bozup pinch bırakılınca slaytları
+  /// zıplatırdı (kart başlığındaki aynı ders).
+  Widget _notesStrip(PptxSlide slide, double baseW) {
+    final editor = _editor;
+    if (editor == null) return const SizedBox.shrink();
+    final text = editor.notesOf(slide);
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final expanded = _openNotes.contains(slide.fileName);
+    // Kapalıyken tek satır, açıkken en çok altı satır (uzun not kartı
+    // ezmesin — devamı kaydırılarak okunur).
+    final lines = expanded ? 6 : 1;
+    final height = _notesHeight(slide);
+
+    return SizedBox(
+      height: height * _zoom,
+      child: FittedBox(
+        fit: BoxFit.fitHeight,
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: baseW,
+          height: height,
+          child: InkWell(
+            onTap: () => setState(() {
+              expanded
+                  ? _openNotes.remove(slide.fileName)
+                  : _openNotes.add(slide.fileName);
+            }),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                border: Border(
+                  left: BorderSide(color: scheme.outlineVariant, width: 3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.sticky_note_2_outlined,
+                      size: 14, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      text,
+                      maxLines: lines,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12, color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                  Icon(expanded ? Icons.expand_less : Icons.expand_more,
+                      size: 16, color: scheme.onSurfaceVariant),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

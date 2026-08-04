@@ -23,6 +23,14 @@ class RunSeg {
   /// Punto (`w:sz`, dosyada yarım-punto). null = şablondakini koru.
   final double? sizePt;
 
+  /// Yazı rengi `RRGGBB` (`w:color`). null = şablondakini koru.
+  final String? color;
+
+  /// Vurgu (fosforlu kalem) rengi `RRGGBB`. Word'ün adlandırılmış vurgu
+  /// paletinde karşılığı varsa `w:highlight`, yoksa `w:shd` dolgusu olarak
+  /// yazılır. null = şablondakini koru.
+  final String? highlight;
+
   const RunSeg(
     this.text,
     this.bold,
@@ -30,6 +38,8 @@ class RunSeg {
     this.underline, {
     this.font,
     this.sizePt,
+    this.color,
+    this.highlight,
   });
 }
 
@@ -283,6 +293,8 @@ class DocxEditor {
       _setUnderline(rPr, seg.underline);
       if (seg.font != null) _setFont(rPr, seg.font!);
       if (seg.sizePt != null) _setSize(rPr, seg.sizePt!);
+      if (seg.color != null) _setColor(rPr, seg.color!);
+      if (seg.highlight != null) _setHighlight(rPr, seg.highlight!);
       run.children.add(rPr);
       // '\n' canlı düzenlemedeki satır sonudur (Enter → <br>) → w:br yazılır.
       final parts = text.split('\n');
@@ -380,18 +392,192 @@ class DocxEditor {
       if (para._alignChanged) _applyAlign(para);
     }
 
+    // Liste kullanıldıysa numaralandırma tanımı, içerik türü ve ilişki de
+    // yazılır (dosyada hiç yoksa üretilir).
+    final extra = _numberingParts();
+
     final newXml = _doc.toXmlString();
     final out = Archive();
+    final written = <String>{};
+    void put(String name, String text) {
+      final data = utf8.encode(text);
+      out.addFile(ArchiveFile(name, data.length, data));
+      written.add(name);
+    }
+
     for (final f in _archive.files) {
       if (f.name == 'word/document.xml') {
-        final data = utf8.encode(newXml);
-        out.addFile(ArchiveFile(f.name, data.length, data));
+        put(f.name, newXml);
+      } else if (extra.containsKey(f.name)) {
+        put(f.name, extra[f.name]!);
       } else {
         out.addFile(f);
       }
     }
+    // Dosyada hiç bulunmayan parçalar (ör. numbering.xml yoksa) sona eklenir.
+    extra.forEach((name, text) {
+      if (!written.contains(name)) put(name, text);
+    });
+
     final List<int>? encoded = ZipEncoder().encode(out);
     return Uint8List.fromList(encoded ?? const <int>[]);
+  }
+
+  // ── madde işareti / numaralandırma ─────────────────────────────────────
+
+  /// Bu oturumda kullanılan liste türleri. Boşsa hiçbir parça yazılmaz —
+  /// liste vermeyen bir kaydetme dosyanın hiçbir baytını fazladan değiştirmez.
+  final _usedLists = <String>{};
+
+  /// Uygulamanın ürettiği numaralandırma kimlikleri. Belgede zaten kullanılan
+  /// kimliklerle çakışmaması için yüksek ve sabit seçildi; `w:abstractNumId`
+  /// ile aynı numarayı kullanmak Word'de sorun değil.
+  static const _numIdBullet = 9101;
+  static const _numIdNumber = 9102;
+
+  /// Paragrafa madde işareti / numaralandırma verir.
+  /// [kind]: `bullet` | `number` | `none`.
+  void setListStyle(int index, String kind) {
+    if (index < 0 || index >= paragraphs.length) return;
+    final el = paragraphs[index]._element;
+    final pPr = _ensurePPr(el);
+    _removeElems(pPr, (e) => e.name.qualified == 'w:numPr');
+    if (kind == 'none') return;
+
+    final numId = kind == 'number' ? _numIdNumber : _numIdBullet;
+    _usedLists.add(kind);
+    final numPr = XmlElement(XmlName('w:numPr'), [], [
+      XmlElement(XmlName('w:ilvl'))..setAttribute('w:val', '0'),
+      XmlElement(XmlName('w:numId'))..setAttribute('w:val', '$numId'),
+    ]);
+    // CT_PPr sırasında `w:numPr`, `w:pStyle`den hemen sonra gelir.
+    final style = _firstOrNull(pPr.findElements('w:pStyle'));
+    final at = style == null ? 0 : pPr.children.indexOf(style) + 1;
+    pPr.children.insert(at, numPr);
+  }
+
+  /// Liste kullanıldıysa güncellenmesi/eklenmesi gereken zip parçaları.
+  ///
+  /// Word'de madde işareti paragrafın kendisinde DEĞİL, `numbering.xml`deki
+  /// bir tanımda durur; paragraf yalnız `w:numId` ile ona işaret eder. Bu
+  /// yüzden liste vermek üç dosyaya dokunmayı gerektiriyor: tanımın kendisi,
+  /// `[Content_Types].xml` (parçanın türü) ve `document.xml.rels` (belgenin
+  /// tanıma bağlanması). Üçünden biri eksikse Word dosyayı "onarılamaz" sayar.
+  Map<String, String> _numberingParts() {
+    if (_usedLists.isEmpty) return const {};
+    final out = <String, String>{};
+
+    final existing = _partText('word/numbering.xml');
+    final doc = existing == null
+        ? XmlDocument.parse(
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w:numbering xmlns:w="http://schemas.openxmlformats.org/'
+            'wordprocessingml/2006/main"/>')
+        : XmlDocument.parse(existing);
+    final root = doc.rootElement;
+
+    for (final kind in _usedLists) {
+      final numId = kind == 'number' ? _numIdNumber : _numIdBullet;
+      // Aynı kimlik zaten varsa (ikinci kaydetme) yeniden eklenmez.
+      final has = root
+          .findElements('w:num')
+          .any((e) => e.getAttribute('w:numId') == '$numId');
+      if (has) continue;
+      // `w:abstractNum` HEPSİNDEN ÖNCE, `w:num` ondan sonra gelmeli.
+      root.children.insert(0, _abstractNum(numId, kind));
+      root.children.add(XmlElement(XmlName('w:num'), [
+        XmlAttribute(XmlName('w:numId'), '$numId'),
+      ], [
+        XmlElement(XmlName('w:abstractNumId'))..setAttribute('w:val', '$numId'),
+      ]));
+    }
+    out['word/numbering.xml'] = doc.toXmlString();
+
+    final types = _withNumberingContentType();
+    if (types != null) out['[Content_Types].xml'] = types;
+    final rels = _withNumberingRel();
+    if (rels != null) out['word/_rels/document.xml.rels'] = rels;
+    return out;
+  }
+
+  static XmlElement _abstractNum(int id, String kind) {
+    final bullet = kind != 'number';
+    return XmlElement(XmlName('w:abstractNum'), [
+      XmlAttribute(XmlName('w:abstractNumId'), '$id'),
+    ], [
+      XmlElement(XmlName('w:multiLevelType'))
+        ..setAttribute('w:val', 'hybridMultilevel'),
+      XmlElement(XmlName('w:lvl'), [
+        XmlAttribute(XmlName('w:ilvl'), '0'),
+      ], [
+        XmlElement(XmlName('w:start'))..setAttribute('w:val', '1'),
+        XmlElement(XmlName('w:numFmt'))
+          ..setAttribute('w:val', bullet ? 'bullet' : 'decimal'),
+        XmlElement(XmlName('w:lvlText'))
+          ..setAttribute('w:val', bullet ? '•' : '%1.'),
+        XmlElement(XmlName('w:lvlJc'))..setAttribute('w:val', 'left'),
+        XmlElement(XmlName('w:pPr'), [], [
+          XmlElement(XmlName('w:ind'))
+            ..setAttribute('w:left', '720')
+            ..setAttribute('w:hanging', '360'),
+        ]),
+        if (bullet)
+          XmlElement(XmlName('w:rPr'), [], [
+            XmlElement(XmlName('w:rFonts'))
+              ..setAttribute('w:ascii', 'Symbol')
+              ..setAttribute('w:hAnsi', 'Symbol')
+              ..setAttribute('w:hint', 'default'),
+          ]),
+      ]),
+    ]);
+  }
+
+  /// `[Content_Types].xml`e numbering parçasının türünü ekler (varsa null).
+  String? _withNumberingContentType() {
+    const type = 'application/vnd.openxmlformats-officedocument.'
+        'wordprocessingml.numbering+xml';
+    final text = _partText('[Content_Types].xml');
+    if (text == null) return null;
+    final doc = XmlDocument.parse(text);
+    final has = doc.rootElement.findElements('Override').any(
+        (e) => e.getAttribute('PartName') == '/word/numbering.xml');
+    if (has) return null;
+    doc.rootElement.children.add(XmlElement(XmlName('Override'), [
+      XmlAttribute(XmlName('PartName'), '/word/numbering.xml'),
+      XmlAttribute(XmlName('ContentType'), type),
+    ]));
+    return doc.toXmlString();
+  }
+
+  /// `document.xml.rels`e numbering ilişkisini ekler (varsa null).
+  String? _withNumberingRel() {
+    const relType = 'http://schemas.openxmlformats.org/officeDocument/2006/'
+        'relationships/numbering';
+    final text = _partText('word/_rels/document.xml.rels');
+    if (text == null) return null;
+    final doc = XmlDocument.parse(text);
+    final rels = doc.rootElement.findElements('Relationship').toList();
+    if (rels.any((e) => e.getAttribute('Type') == relType)) return null;
+    // Kullanılmayan bir rId bulunur (rId1, rId2… sırası dosyaya göre değişir).
+    var n = rels.length + 1;
+    final used = rels.map((e) => e.getAttribute('Id')).toSet();
+    while (used.contains('rId$n')) {
+      n++;
+    }
+    doc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
+      XmlAttribute(XmlName('Id'), 'rId$n'),
+      XmlAttribute(XmlName('Type'), relType),
+      XmlAttribute(XmlName('Target'), 'numbering.xml'),
+    ]));
+    return doc.toXmlString();
+  }
+
+  String? _partText(String name) {
+    for (final f in _archive.files) {
+      if (f.name != name) continue;
+      return utf8.decode(f.content as List<int>, allowMalformed: true);
+    }
+    return null;
   }
 
   void _writeText(DocxParagraph para) {
@@ -490,6 +676,52 @@ class DocxEditor {
       final u = XmlElement(XmlName('w:u'))..setAttribute('w:val', 'single');
       rPr.children.add(u);
     }
+  }
+
+  /// Yazı rengi (`w:color w:val="RRGGBB"`). `auto` da geçerli bir değerdir —
+  /// "otomatik" (temadan gelen) renk demektir.
+  void _setColor(XmlElement rPr, String hex) {
+    _removeElems(rPr, (e) => e.name.qualified == 'w:color');
+    rPr.children.add(
+        XmlElement(XmlName('w:color'))..setAttribute('w:val', hex.toUpperCase()));
+  }
+
+  /// Word'ün **adlandırılmış** vurgu paleti. `w:highlight` yalnız bu adları
+  /// kabul eder; keyfi bir renk verilirse Word dosyayı bozuk sayar.
+  static const _highlightNames = <String, String>{
+    'FFFF00': 'yellow',
+    '00FF00': 'green',
+    '00FFFF': 'cyan',
+    'FF00FF': 'magenta',
+    'FF0000': 'red',
+    '0000FF': 'blue',
+    'C0C0C0': 'lightGray',
+    '808080': 'darkGray',
+    '008000': 'darkGreen',
+    '800000': 'darkRed',
+    '000080': 'darkBlue',
+    '808000': 'darkYellow',
+    'FFFFFF': 'white',
+    '000000': 'black',
+  };
+
+  /// Vurgu. Palette karşılığı varsa `w:highlight` (Word'ün fosforlu kalemi,
+  /// arayüzde "Vurgu rengi" olarak görünür), yoksa `w:shd` gölgelendirmesi —
+  /// ikisi de Word'de aynı görünür ama `w:shd` keyfi rengi taşıyabilir.
+  void _setHighlight(XmlElement rPr, String hex) {
+    _removeElems(rPr,
+        (e) => e.name.qualified == 'w:highlight' || e.name.qualified == 'w:shd');
+    final upper = hex.toUpperCase();
+    final named = _highlightNames[upper];
+    if (named != null) {
+      rPr.children.add(
+          XmlElement(XmlName('w:highlight'))..setAttribute('w:val', named));
+      return;
+    }
+    rPr.children.add(XmlElement(XmlName('w:shd'))
+      ..setAttribute('w:val', 'clear')
+      ..setAttribute('w:color', 'auto')
+      ..setAttribute('w:fill', upper));
   }
 
   void _setJc(XmlElement pPr, String align) {

@@ -10,6 +10,7 @@ import '../../core/undo_stack.dart';
 import '../../models/document.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/docx_view.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/translate_flow.dart';
@@ -76,6 +77,28 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
 
   /// Yedek editörde biçim araç çubuğunun üzerinde çalıştığı seçili paragraf.
   DocxParagraph? _sel;
+
+  /// Belge içi bul/değiştir çubuğu (slayt ve Excel'dekiyle aynı davranış).
+  bool _finding = false;
+  bool _replacing = false;
+  final _findCtrl = TextEditingController();
+  final _replaceCtrl = TextEditingController();
+  int _hitCount = 0;
+  int _hitIndex = -1;
+
+  /// Seçili metin geldiğinde çalışacak iş (AI ile yeniden yaz / çevir).
+  /// JS köprüsü asenkron olduğu için istek ve sonuç ayrı yerlerde.
+  void Function(String text)? _pendingSelection;
+
+  /// Word'ün fosforlu kalem paleti + yazı rengi paleti. Vurgu renkleri Word'ün
+  /// **adlandırılmış** vurgularına birebir eşleşecek şekilde seçildi (bkz.
+  /// `DocxEditor._highlightNames`), yoksa `w:shd` yedeğine düşerlerdi.
+  static const _highlightPalette = <String>[
+    'FFFF00', '00FF00', '00FFFF', 'FF00FF', 'C0C0C0',
+  ];
+  static const _textColorPalette = <String>[
+    '000000', 'C00000', 'FF0000', '0070C0', '00B050', '7030A0', '808080',
+  ];
 
   @override
   void initState() {
@@ -184,6 +207,116 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     });
   }
 
+  /// Seçili metni AI'a yeniden yazdırır ve sonucu **yerine** koyar.
+  ///
+  /// Bu, kağıt teması devir notundaki "Word'de seçili paragrafı AI ile yeniden
+  /// yaz" maddesiydi; o gün yapılamamasının nedeni seçimin WebView tarafında
+  /// kalması ve Flutter'a gelmemesiydi. Köprü (`sendSelectionText` /
+  /// `replaceSelectionText`) o engeli kaldırdı.
+  void _rewriteSelection() => _withSelection((text) async {
+        final result = await showAiRewriteSheet(context, text);
+        if (result == null || result.isEmpty || !mounted) return;
+        if (!_editing) {
+          // Yazabilmek için düzenleme açık olmalı; kullanıcıyı geri
+          // göndermek yerine kendimiz açıyoruz.
+          _toggleEdit();
+        }
+        _viewKey.currentState?.replaceSelectionText(result);
+        if (!_dirty) setState(() => _dirty = true);
+      });
+
+  /// Seçili metni çevirir (sonuç çeviri sayfasında gösterilir; belgeye
+  /// yazılmaz — çeviriyi belgeye gömmek ayrı bir karar).
+  void _translateSelection() => _withSelection((text) {
+        TranslateFlow.run(context, text, title: widget.name);
+      });
+
+  /// Canlı görünümden gelen madde/numara işareti; kaydetmede `w:numPr` olur.
+  void _onListStyle(int i, String kind) {
+    _editor?.setListStyle(i, kind);
+    if (!_dirty) setState(() => _dirty = true);
+  }
+
+  /// Seçili metin geldi — bekleyen işi (AI / çeviri) çalıştır.
+  void _onSelectionText(String text) {
+    final job = _pendingSelection;
+    _pendingSelection = null;
+    if (job == null) return;
+    if (text.trim().isEmpty) {
+      _snack(context.t('word.select_text_first'));
+      return;
+    }
+    job(text);
+  }
+
+  /// Seçili metni ister; gelince [then] çalışır.
+  void _withSelection(void Function(String text) then) {
+    _pendingSelection = then;
+    _viewKey.currentState?.requestSelectionText();
+  }
+
+  // ── belge içi bul / değiştir ───────────────────────────────────────────
+
+  void _toggleFind() {
+    setState(() {
+      _finding = !_finding;
+      if (!_finding) {
+        _replacing = false;
+        _hitCount = 0;
+        _hitIndex = -1;
+        _findCtrl.clear();
+      }
+    });
+  }
+
+  void _runFind(String query) {
+    _hitIndex = -1;
+    _viewKey.currentState?.findAll(query);
+  }
+
+  void _onFindCount(int hits) {
+    setState(() {
+      _hitCount = hits;
+      _hitIndex = hits > 0 ? 0 : -1;
+    });
+    if (hits > 0) _viewKey.currentState?.findGo(0);
+  }
+
+  void _stepHit(int delta) {
+    if (_hitCount == 0) return;
+    final next = (_hitIndex + delta) % _hitCount;
+    setState(() => _hitIndex = next < 0 ? next + _hitCount : next);
+    _viewKey.currentState?.findGo(_hitIndex);
+  }
+
+  /// Etkin eşleşmeyi değiştirir. Değiştirmek metnin uzunluğunu değiştirdiği
+  /// için eşleşme listesi ARTIK GEÇERSİZ → arama yeniden koşturulur.
+  void _replaceCurrent() {
+    if (_hitIndex < 0 || !_editing) {
+      _snack(context.t('word.replace_needs_edit'));
+      return;
+    }
+    _viewKey.currentState?.replaceHit(_hitIndex, _replaceCtrl.text);
+    _runFind(_findCtrl.text);
+  }
+
+  void _replaceAll() {
+    if (!_editing) {
+      _snack(context.t('word.replace_needs_edit'));
+      return;
+    }
+    _viewKey.currentState?.replaceAll(_findCtrl.text, _replaceCtrl.text);
+  }
+
+  void _onReplaced(int count) {
+    _snack(context.t('excel.replaced_count', {'n': count}));
+    setState(() {
+      _hitCount = 0;
+      _hitIndex = -1;
+    });
+    if (!_dirty) setState(() => _dirty = true);
+  }
+
   /// "Sayfaya git" — canlı görünümdeki sayfa rozetine dokununca.
   Future<void> _showGoToPage() async {
     final total = _pageCount;
@@ -256,6 +389,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
           icon: const Icon(Icons.redo),
           onPressed: !_undo.canRedo ? null : _redoStep,
         ),
+        // Belge içi arama: slaytta ve Excel'de zaten vardı, Word'de yoktu.
+        if (!_plainMode)
+          IconButton(
+            tooltip: context.t('common.search'),
+            isSelected: _finding,
+            icon: const Icon(Icons.search),
+            onPressed: editor == null ? null : _toggleFind,
+          ),
         if (_editing)
           IconButton(
             tooltip: context.t('common.save'),
@@ -314,6 +455,21 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 () => TranslateFlow.run(context, widget.plainText,
                     title: widget.name),
               ),
+              // Seçili metin işleri: canlı görünümde seçim WebView tarafında
+              // yaşıyor, `sendSelectionText` köprüsüyle alınıyor. Yedek metin
+              // editöründe seçim Flutter'da olduğu için bu yol kapalı.
+              if (!_plainMode)
+                DocAction(
+                  Icons.auto_fix_high,
+                  context.t('word.rewrite_selection'),
+                  editor == null ? null : _rewriteSelection,
+                ),
+              if (!_plainMode)
+                DocAction(
+                  Icons.g_translate,
+                  context.t('word.translate_selection'),
+                  editor == null ? null : _translateSelection,
+                ),
             ]),
       body: _error != null
           ? Center(
@@ -324,6 +480,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                   ? _buildPage(editor)
                   : Stack(
                       children: [
+                        // Arama çubuğu sayfanın ÜSTÜNDE yüzer: `tabBar`
+                        // yuvası düzenlemedeki biçim çubuğunun, arama ise
+                        // düzenleme kapalıyken de gerekli.
                         DocxView(
                           key: _viewKey,
                           bytes: bytes,
@@ -331,7 +490,11 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                           onEdited: _onEdited,
                           onSelection: _onSelection,
                           onAlign: _onAlignChanged,
+                          onListStyle: _onListStyle,
                           onParagraphCount: _onParagraphCount,
+                          onFindCount: _onFindCount,
+                          onReplacedCount: _onReplaced,
+                          onSelectionText: _onSelectionText,
                           onPageCount: (n) {
                             if (n != _pageCount) setState(() => _pageCount = n);
                           },
@@ -362,6 +525,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                             bottom: 12,
                             child: Center(child: _pageBadge()),
                           ),
+                        if (_finding)
+                          Positioned(
+                            top: 0, left: 0, right: 0, child: _findBar()),
                       ],
                     ),
       // Klavye/biçim çubuğu varken FAB araya girmesin.
@@ -454,6 +620,24 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                         context.t('common.align_center')),
                     btn('justifyRight', Icons.format_align_right, false,
                         context.t('common.align_right')),
+                    sep(),
+                    _colorMenu(
+                      Icons.format_color_text,
+                      context.t('word.text_color'),
+                      _textColorPalette,
+                      (hex) => _viewKey.currentState?.setTextColor(hex),
+                    ),
+                    _colorMenu(
+                      Icons.border_color_outlined,
+                      context.t('word.highlight'),
+                      _highlightPalette,
+                      (hex) => _viewKey.currentState?.setHighlight(hex),
+                    ),
+                    sep(),
+                    _listBtn(Icons.format_list_bulleted,
+                        context.t('word.bullets'), 'bullet'),
+                    _listBtn(Icons.format_list_numbered,
+                        context.t('word.numbering'), 'number'),
                   ],
                 ),
               ),
@@ -467,6 +651,144 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
             const SizedBox(width: 8),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Renk seçici (yazı rengi / vurgu). Renkler biçim çubuğunun kendi
+  /// paletinden; `null` seçeneği rengi kaldırır.
+  Widget _colorMenu(IconData icon, String tip, List<String> palette,
+      void Function(String?) onPick) {
+    return PopupMenuButton<String>(
+      tooltip: tip,
+      icon: Icon(icon, color: Colors.white),
+      onSelected: (v) => onPick(v == 'none' ? null : v),
+      itemBuilder: (_) => [
+        for (final hex in palette)
+          PopupMenuItem(
+            value: hex,
+            child: Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Color(int.parse('FF$hex', radix: 16)),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text('#$hex'),
+              ],
+            ),
+          ),
+        PopupMenuItem(
+          value: 'none',
+          child: Row(
+            children: [
+              const Icon(Icons.format_color_reset, size: 20),
+              const SizedBox(width: 10),
+              Text(context.t('excel.color_none')),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Madde işareti / numaralandırma düğmesi. Aynı biçime tekrar basmak
+  /// listeyi kaldırır (Word'de olduğu gibi).
+  Widget _listBtn(IconData icon, String tip, String kind) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        child: IconButton(
+          tooltip: tip,
+          icon: Icon(icon, color: Colors.white),
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _viewKey.currentState?.setListStyle(kind),
+        ),
+      );
+
+  /// Belge içi bul/değiştir çubuğu — Excel ve slayttakiyle aynı düzen.
+  Widget _findBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _findCtrl,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    hintText: context.t('common.search'),
+                  ),
+                  onSubmitted: _runFind,
+                  onChanged: (v) {
+                    if (v.isEmpty) _onFindCount(0);
+                  },
+                ),
+              ),
+              Text(
+                _hitCount == 0
+                    ? context.t('srch.no_result')
+                    : '${_hitIndex + 1}/$_hitCount',
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_up),
+                onPressed: _hitCount == 0 ? null : () => _stepHit(-1),
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_down),
+                onPressed: _hitCount == 0 ? null : () => _stepHit(1),
+              ),
+              IconButton(
+                tooltip: context.t('excel.replace'),
+                isSelected: _replacing,
+                icon: const Icon(Icons.find_replace),
+                onPressed: () => setState(() => _replacing = !_replacing),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleFind,
+              ),
+            ],
+          ),
+          if (_replacing)
+            Row(
+              children: [
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _replaceCtrl,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      hintText: context.t('excel.replace_with'),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _replaceCurrent,
+                  child: Text(context.t('excel.replace')),
+                ),
+                TextButton(
+                  onPressed: _replaceAll,
+                  child: Text(context.t('excel.replace_all')),
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
+        ],
       ),
     );
   }

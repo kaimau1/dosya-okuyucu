@@ -51,6 +51,19 @@ class DocxView extends StatefulWidget {
   /// WebView'daki paragraf sayısı beklenen sayıyla uyuşmazsa (eşleme sigortası).
   final void Function(int webCount)? onParagraphCount;
 
+  /// Belge içi aramada bulunan eşleşme sayısı ([findAll] sonrası).
+  final void Function(int hits)? onFindCount;
+
+  /// "Tümünü değiştir" kaç yeri değiştirdi.
+  final void Function(int count)? onReplacedCount;
+
+  /// [requestSelectionText] sonrası seçili metin (seçim yoksa boş).
+  final void Function(String text)? onSelectionText;
+
+  /// Paragrafın madde/numara biçimi değiştiğinde
+  /// (indeks + 'bullet'|'number'|'none') — kaydetmede `w:numPr` olur.
+  final void Function(int index, String kind)? onListStyle;
+
   const DocxView({
     super.key,
     required this.bytes,
@@ -62,6 +75,10 @@ class DocxView extends StatefulWidget {
     this.onParagraphCount,
     this.onPageCount,
     this.onPage,
+    this.onFindCount,
+    this.onReplacedCount,
+    this.onSelectionText,
+    this.onListStyle,
   });
 
   @override
@@ -141,6 +158,26 @@ class DocxViewState extends State<DocxView> {
       );
       return;
     }
+    if (data['find'] is Map) {
+      final n = (data['find'] as Map)['n'];
+      if (n is int) widget.onFindCount?.call(n);
+      return;
+    }
+    if (data['replaced'] is int) {
+      widget.onReplacedCount?.call(data['replaced'] as int);
+      return;
+    }
+    if (data['seltext'] is String) {
+      widget.onSelectionText?.call(data['seltext'] as String);
+      return;
+    }
+    if (data['list'] is Map) {
+      final l = data['list'] as Map;
+      if (l['i'] is int && l['v'] is String) {
+        widget.onListStyle?.call(l['i'] as int, l['v'] as String);
+      }
+      return;
+    }
     if (data['a'] is Map) {
       final a = data['a'] as Map;
       if (a['i'] is int && a['v'] is String) {
@@ -157,18 +194,26 @@ class DocxViewState extends State<DocxView> {
               seg.length > 1 && seg[1] == true,
               seg.length > 2 && seg[2] == true,
               seg.length > 3 && seg[3] == true,
-              // 5. ve 6. alan yalnız kullanıcı yazı tipi/punto SEÇTİYSE dolu
-              // gelir; null ise dosyadaki biçim korunur (bkz. viewer.html).
-              font: seg.length > 4 && seg[4] is String && (seg[4] as String).isNotEmpty
-                  ? seg[4] as String
-                  : null,
+              // 5.–8. alanlar yalnız kullanıcı yazı tipi/punto/renk/vurgu
+              // SEÇTİYSE dolu gelir; null ise dosyadaki biçim korunur
+              // (bkz. viewer.html).
+              font: _str(seg, 4),
               sizePt: seg.length > 5 && seg[5] is num && (seg[5] as num) > 0
                   ? (seg[5] as num).toDouble()
                   : null,
+              color: _str(seg, 6),
+              highlight: _str(seg, 7),
             ),
       ];
       widget.onEdited?.call(data['i'] as int, segs);
     }
+  }
+
+  /// JS'ten gelen parçanın [at]. alanı — dolu bir metin değilse null.
+  static String? _str(List seg, int at) {
+    if (seg.length <= at) return null;
+    final v = seg[at];
+    return v is String && v.isNotEmpty ? v : null;
   }
 
   /// Sayfa sayacı ve yakınlaştırma oranı kanalı.
@@ -207,6 +252,51 @@ class DocxViewState extends State<DocxView> {
   /// Seçili paragraf(lar)ın puntosunu değiştirir.
   void setFontSize(double pt) =>
       _controller.runJavaScript('setFontSize($pt)');
+
+  /// Seçili metnin **yazı rengi**. [hex] `RRGGBB`; null = rengi kaldır.
+  void setTextColor(String? hex) => _controller
+      .runJavaScript(hex == null ? 'setTextColor(null)' : "setTextColor('$hex')");
+
+  /// Seçili metnin **vurgu (fosforlu kalem) rengi**. null = vurguyu kaldır.
+  void setHighlight(String? hex) => _controller
+      .runJavaScript(hex == null ? 'setHighlight(null)' : "setHighlight('$hex')");
+
+  /// Seçili paragraflara madde işareti / numaralandırma verir (aynı biçim
+  /// yeniden verilirse kaldırır). 'bullet' | 'number' | 'none'.
+  void setListStyle(String kind) =>
+      _controller.runJavaScript("setListStyle('$kind')");
+
+  /// [requestSelectionText] ile alınan seçimin yerine [text] yazar
+  /// (AI ile yeniden yazma / çeviri sonucu).
+  void replaceSelectionText(String text) =>
+      _controller.runJavaScript("replaceSelectionText('${_js(text)}')");
+
+  /// Seçili metni [DocxView.onSelectionText] üzerinden ister.
+  void requestSelectionText() =>
+      _controller.runJavaScript('sendSelectionText()');
+
+  /// Belgede arar; sonuç [DocxView.onFindCount] ile döner.
+  /// Tek tırnak kaçırılır (kullanıcı metni serbest).
+  void findAll(String query) =>
+      _controller.runJavaScript("findAll('${_js(query)}')");
+
+  /// [k]. eşleşmeye kaydırır ve seçer (0 tabanlı).
+  void findGo(int k) => _controller.runJavaScript('findGo($k)');
+
+  /// [k]. eşleşmeyi [text] ile değiştirir.
+  void replaceHit(int k, String text) =>
+      _controller.runJavaScript("replaceHit($k, '${_js(text)}')");
+
+  /// Tümünü değiştirir; sonuç [DocxView.onReplacedCount] ile döner.
+  void replaceAll(String query, String text) => _controller
+      .runJavaScript("replaceAll('${_js(query)}', '${_js(text)}')");
+
+  /// JS tek tırnaklı dizgeye gömülecek metin: ters bölü, tırnak ve satır sonu.
+  static String _js(String s) => s
+      .replaceAll(r'\', r'\\')
+      .replaceAll("'", r"\'")
+      .replaceAll('\n', r'\n')
+      .replaceAll('\r', '');
 
   /// Belirtilen (1 tabanlı) Word sayfasına kaydırır.
   void goToPage(int page) => _controller.runJavaScript('goToPage($page)');
