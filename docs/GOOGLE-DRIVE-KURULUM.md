@@ -10,9 +10,18 @@ uygulama ne yaparsa yapsın. Uygulamada görülen belirti:
 
 Kayıt yapılmadan da Drive'a ulaşmanın **çalışan** bir yolu var ve uygulama onu
 Drive ekranında düğme olarak sunuyor: *"Sistem seçicisiyle Drive dosyası aç"*.
-O yol Android'in Depolama Erişim Çerçevesini kullanır, hiçbir yetki istemez ve
-Drive'ın **tamamını** gezdirir. Aşağıdaki adımlar yalnızca uygulama içi Drive
-listesini (yükleme + yüklenenleri listeleme) açmak isteyenler içindir.
+O yol Android'in Depolama Erişim Çerçevesini kullanır ve hiçbir yetki istemez.
+Aşağıdaki adımlar uygulama içi Drive **gezgini** (klasörlerde dolaşma, klasör
+oluşturma, yükleme, yeniden adlandırma, silme) içindir.
+
+> ### Kapsam: tam erişim — bedeliyle birlikte
+> Uygulama 2026-08-05'ten beri `.../auth/drive` (tam Drive) kapsamını istiyor;
+> önceki `drive.file` yalnız uygulamanın kendi yüklediklerini gösteriyordu.
+> **Tam kapsam Google'ın *restricted* kapsamı:** OAuth izin ekranı **Test**
+> modundayken ücretsiz çalışır (en fazla 100 test kullanıcısı, e-postaları elle
+> eklenir). Uygulamayı **yayınlamak** (Play Store / herkese açık) için Google
+> yıllık ve **ücretli** üçüncü taraf güvenlik denetimi (CASA) şart koşuyor.
+> Play Store hedefi bu kapsamla birlikte yeniden değerlendirilmeli.
 
 ## Gereken iki değer
 
@@ -46,12 +55,13 @@ keytool -printcert -jarfile dosya-okuyucu.apk
 3. **API'ler ve Hizmetler → OAuth izin ekranı**:
    - Kullanıcı türü: *Harici*.
    - Uygulama adı / destek e-postası / geliştirici e-postası doldurulur.
-   - **Kapsam** olarak yalnız `.../auth/drive.file` eklenir. Bu kapsam
-     *restricted* değildir; ücretli CASA güvenlik denetimi **gerekmez**
-     (uygulamanın "ücretsiz" ilkesi bu yüzden `drive` kapsamını istemiyor —
-     bkz. `lib/services/fm/drive_service.dart` sınıf açıklaması).
-   - Yayın durumu *Test* bırakılırsa yalnızca **test kullanıcıları** listesine
-     eklenen Google hesapları giriş yapabilir. Kendi hesabınızı oraya ekleyin.
+   - **Kapsam** olarak `https://www.googleapis.com/auth/drive` eklenir
+     (yalnız `drive.file` YETMEZ: gezgin bütün klasörleri listeler).
+     Google bunu "hassas/kısıtlı" diye işaretler — Test modunda sorun değil.
+   - Yayın durumu ***Test* bırakılmalı**: yalnızca **test kullanıcıları**
+     listesine eklenen Google hesapları giriş yapabilir (en fazla 100). Kendi
+     hesabınızı oraya ekleyin. *Yayınla* derseniz Google doğrulama + ücretli
+     CASA denetimi ister (bkz. yukarıdaki kutu).
 4. **Kimlik bilgileri → Kimlik bilgisi oluştur → OAuth istemci kimliği**:
    - Uygulama türü: **Android**
    - Paket adı: `com.dosyaokuyucu.dosya_okuyucu`
@@ -66,9 +76,22 @@ ayrı bir konu; o `google-services.json` ister ve yoksa uygulama yerel modda
 
 ## Doğrulama
 
-Uygulama → Drive → **Google ile bağlan**. Hesap penceresi açılıp liste geliyorsa
-tamam. Hâlâ "etkinleştirilmemiş" diyorsa sırasıyla: SHA-1 doğru mu (imza secret'ı
-ekli mi), paket adı birebir mi, OAuth izin ekranında hesabınız test kullanıcısı mı.
+Uygulama → Drive → **Google ile bağlan**. Hesap penceresi açılıp Drive'ınızın
+klasörleri geliyorsa tamam.
 
-Sınıflandıramadığımız bir hata olursa uygulama ham platform mesajını hata
-şeridinde **seçilebilir metin** olarak gösteriyor — bildirirken onu kopyalayın.
+## Sorun giderme
+
+Uygulama hatayı artık sınıflandırıp **ne yapılacağını** yazıyor; ayrıca
+Google'ın kendi mesajını seçilebilir metin olarak gösteriyor (bildirirken onu
+kopyalayın). Sık görülenler:
+
+| Ekranda | Anlamı ve çözümü |
+| --- | --- |
+| "Google girişi bu APK için etkinleştirilmemiş" | Paket adı + SHA-1 kayıtlı değil → adım 4 |
+| "Google Drive API bu projede etkin değil" | **Adım 2 atlanmış** → Kitaplık'tan Drive API'yi açın |
+| "Hesap bağlandı ama Drive izni verilmemiş" | Jeton eski/dar kapsamlı → uygulamada **Bağlantıyı kes**, sonra yeniden bağlanın ve izin penceresini onaylayın |
+| Giriş açılıyor ama hesap seçilince kapanıyor | Hesabınız **test kullanıcıları** listesinde değil → adım 3 |
+
+> **Kapsam büyütüldüğünde yeniden izin şart.** Uygulama daha önce `drive.file`
+> ile bağlandıysa elinizdeki jeton dar kapsamlıdır ve yeni sürümde 403 verir.
+> Bir kez **Bağlantıyı kes → Google ile bağlan** yapmak yeterli.

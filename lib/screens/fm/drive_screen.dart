@@ -13,15 +13,18 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 
-/// Google Drive ekranı.
+/// Google Drive ekranı — **gezilebilir dosya yöneticisi** (2026-08-05).
 ///
-/// **Kapsam dürüstlüğü ekranın ilk işi:** yetkimiz `drive.file` — yalnız bu
-/// uygulamanın yüklediği/oluşturduğu dosyaları görüyoruz. Bu yazılmazsa
-/// Drive'ında yüzlerce dosyası olan kullanıcı boş liste görüp uygulamayı
-/// bozuk sanar. Bilgi şeridi bu yüzden liste boşken de, doluyken de duruyor
-/// ve **Drive'daki diğer dosyalara nasıl ulaşacağını** söylüyor (sistem
-/// seçicisi; Android'in Depolama Erişim Çerçevesi Drive'ı sağlayıcı olarak
-/// listeler ve o yol hiçbir yetki istemez).
+/// Kapsam `drive.file`ken burası düz bir listeydi ve yalnız uygulamanın kendi
+/// yüklediklerini gösterdiği için bir "kapsam uyarısı" şeridi taşıyordu.
+/// Kullanıcı tam erişimi seçince (bkz. `DriveService` sınıf açıklaması) o
+/// şerit KALDIRILDI — artık yanlış olurdu — ve yerine gerçek gezinme geldi:
+/// kırıntı yolu, klasöre girme, geri tuşuyla bir üst klasör, klasör
+/// oluşturma, yeniden adlandırma, bulunulan klasöre yükleme.
+///
+/// Arama klasör sınırı TANIMAZ (Drive'ın tamamında arar); bu yüzden arama
+/// sürerken gezinme düğmeleri kapalıdır — "hangi klasördeyim" sorusunun
+/// cevabı o sırada yok.
 class DriveScreen extends StatefulWidget {
   /// Testte sahte servis takmak için.
   final DriveService? service;
@@ -40,6 +43,18 @@ class _DriveScreenState extends State<DriveScreen> {
   List<DriveFile> _files = const [];
   String? _error;
   String _query = '';
+
+  /// Gezinme yığını: kökten bulunulan klasöre kadar (id, ad). Kök her zaman
+  /// altta durur, bu yüzden liste hiç boşalmaz.
+  final List<(String id, String name)> _path = [
+    (DriveService.rootId, 'Drive')
+  ];
+
+  (String, String) get _current => _path.last;
+
+  /// Arama sonuçları klasör sınırı tanımadığı için gezinme (klasöre gir,
+  /// yukarı çık, yükle) o sırada anlamsız — ayırt etmek gerekiyor.
+  bool get _searching => _query.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -143,7 +158,10 @@ class _DriveScreenState extends State<DriveScreen> {
       _errorDetail = null;
     });
     try {
-      final files = await _drive.list(query: _query.isEmpty ? null : _query);
+      final files = await _drive.list(
+        parentId: _searching ? null : _current.$1,
+        query: _searching ? _query : null,
+      );
       if (!mounted) return;
       setState(() {
         _files = files;
@@ -178,6 +196,117 @@ class _DriveScreenState extends State<DriveScreen> {
         DriveError.temporary => 'drive.error_temporary',
         DriveError.unknown => 'drive.error_unknown',
       };
+
+  /// Klasöre girer. Arama sonucundan girilirse arama temizlenir: aksi hâlde
+  /// "klasördeyim ama liste hâlâ arama sonucu" gibi bir ara durum kalırdı.
+  void _enter(DriveFile folder) {
+    setState(() {
+      _path.add((folder.id, folder.name));
+      _query = '';
+      _searchController.clear();
+    });
+    _refresh();
+  }
+
+  /// Bir üst klasöre. Kökteyken false döner → ekran kapanır (geri tuşu).
+  bool _goUp() {
+    if (_path.length <= 1) return false;
+    setState(() => _path.removeLast());
+    _refresh();
+    return true;
+  }
+
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _newFolder() async {
+    final name = await _askName(
+      title: context.t('drive.new_folder'),
+      initial: context.t('drive.new_folder_default'),
+    );
+    if (name == null || name.isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      await _drive.createFolder(name, parentId: _current.$1);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('${context.t('drive.new_folder_failed')} ${_detail(e)}');
+    }
+  }
+
+  Future<void> _rename(DriveFile file) async {
+    final name = await _askName(
+      title: context.t('drive.rename'),
+      initial: file.name,
+    );
+    if (name == null || name.isEmpty || name == file.name) return;
+    setState(() => _busy = true);
+    try {
+      await _drive.rename(file.id, name);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('${context.t('drive.rename_failed')} ${_detail(e)}');
+    }
+  }
+
+  /// Ad soran ortak diyalog. Metin baştan seçili gelir — yeniden adlandırmada
+  /// kullanıcı eski adı tek tek silmek zorunda kalmasın.
+  Future<String?> _askName({
+    required String title,
+    required String initial,
+  }) async {
+    final controller = TextEditingController(text: initial)
+      ..selection = TextSelection(baseOffset: 0, extentOffset: initial.length);
+    final cancel = context.t('common.cancel');
+    final ok = context.t('common.ok');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: Text(cancel)),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(ok),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
+  /// Telefondan dosya seçip BULUNULAN klasöre yükler.
+  Future<void> _uploadHere() async {
+    final result = await FilePicker.platform.pickFiles(withData: false);
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _drive.upload(File(path), parentId: _current.$1);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('${context.t('drive.upload_failed')} ${_detail(e)}');
+    }
+  }
 
   /// İndir → aç. Dosya önce **önbelleğe** iner (uygulamanın kendi klasörü),
   /// sonra mevcut görüntüleyici/editör zinciriyle açılır — böylece Drive
@@ -235,60 +364,99 @@ class _DriveScreenState extends State<DriveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.t('drive.title')),
-        actions: [
-          if (_signedIn)
-            IconButton(
-              tooltip: context.t('common.refresh'),
-              icon: const Icon(Icons.refresh),
-              onPressed: _busy ? null : _refresh,
-            ),
-          if (_signedIn)
-            IconButton(
-              tooltip: context.t('drive.sign_out'),
-              icon: const Icon(Icons.logout),
-              onPressed: _busy ? null : _signOut,
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _scopeNotice(),
-          if (_error != null) _errorBar(),
-          if (_error == 'drive.error_not_configured') _setupCard(),
-          if (_signedIn) _searchBar(),
-          Expanded(child: _body()),
-        ],
+    // Geri tuşu önce KLASÖRDEN çıkar; ekranı ancak köke gelince kapatır.
+    // Aksi hâlde üç klasör derine inen kullanıcı tek dokunuşta Drive'dan
+    // tamamen düşerdi.
+    return PopScope(
+      canPop: _path.length <= 1,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goUp();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(context.t('drive.title')),
+          actions: [
+            if (_signedIn)
+              IconButton(
+                tooltip: context.t('drive.new_folder'),
+                icon: const Icon(Icons.create_new_folder_outlined),
+                onPressed: _busy || _searching ? null : _newFolder,
+              ),
+            if (_signedIn)
+              IconButton(
+                tooltip: context.t('drive.upload_action'),
+                icon: const Icon(Icons.upload_file),
+                onPressed: _busy || _searching ? null : _uploadHere,
+              ),
+            if (_signedIn)
+              IconButton(
+                tooltip: context.t('common.refresh'),
+                icon: const Icon(Icons.refresh),
+                onPressed: _busy ? null : _refresh,
+              ),
+            if (_signedIn)
+              IconButton(
+                tooltip: context.t('drive.sign_out'),
+                icon: const Icon(Icons.logout),
+                onPressed: _busy ? null : _signOut,
+              ),
+          ],
+        ),
+        body: Column(
+          children: [
+            if (_error != null) _errorBar(),
+            if (_error == 'drive.error_not_configured') _setupCard(),
+            if (_signedIn) _searchBar(),
+            if (_signedIn && !_searching) _breadcrumb(),
+            Expanded(child: _body()),
+          ],
+        ),
       ),
     );
   }
 
-  /// Kapsam bilgisi — liste doluyken de duruyor. "Boşsa göster" yapılsaydı
-  /// tek dosya yükleyen kullanıcı açıklamayı bir daha görmez, geri kalan
-  /// dosyalarının neden görünmediğini anlamazdı.
-  Widget _scopeNotice() {
+  /// Kırıntı yolu: kökten bulunulan klasöre. Herhangi bir parçaya dokunmak
+  /// oraya döner — derin klasörde tek tek geri gitmek zorunda kalınmasın.
+  Widget _breadcrumb() {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline, size: 18, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              context.t('drive.scope_notice'),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        reverse: true, // derin yolda SON parça görünür kalsın
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            for (var i = 0; i < _path.length; i++) ...[
+              if (i > 0)
+                Icon(Icons.chevron_right,
+                    size: 16, color: scheme.onSurfaceVariant),
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: i == _path.length - 1 || _busy
+                    ? null
+                    : () {
+                        setState(() => _path.removeRange(i + 1, _path.length));
+                        _refresh();
+                      },
+                child: Text(
+                  i == 0 ? context.t('drive.root') : _path[i].$2,
+                  style: TextStyle(
+                    fontWeight: i == _path.length - 1
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -381,13 +549,26 @@ class _DriveScreenState extends State<DriveScreen> {
   Widget _searchBar() => Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
         child: TextField(
+          controller: _searchController,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             isDense: true,
             hintText: context.t('drive.search_hint'),
             prefixIcon: const Icon(Icons.search),
+            // Aramayı bitirmenin görünür bir yolu olmalı: yoksa kullanıcı
+            // metni tek tek silmeden bulunduğu klasöre dönemezdi.
+            suffixIcon: _searching
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _query = '');
+                      _refresh();
+                    },
+                  )
+                : null,
           ),
-          onChanged: (v) => _query = v,
+          onChanged: (v) => setState(() => _query = v),
           onSubmitted: (_) => _refresh(),
         ),
       );
@@ -440,7 +621,10 @@ class _DriveScreenState extends State<DriveScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(context.t('drive.empty'), textAlign: TextAlign.center),
+          child: Text(
+            context.t(_searching ? 'drive.empty_search' : 'drive.empty'),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -452,16 +636,36 @@ class _DriveScreenState extends State<DriveScreen> {
         itemBuilder: (_, i) {
           final f = _files[i];
           return ListTile(
-            leading: Icon(f.isFolder
-                ? Icons.folder_outlined
-                : Icons.insert_drive_file_outlined),
+            leading: Icon(
+              f.isFolder
+                  ? Icons.folder_outlined
+                  : Icons.insert_drive_file_outlined,
+              color: f.isFolder
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
             title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(_subtitle(f)),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _delete(f),
+            trailing: PopupMenuButton<String>(
+              onSelected: (v) => switch (v) {
+                'rename' => _rename(f),
+                'delete' => _delete(f),
+                _ => null,
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'rename',
+                  child: Text(context.t('drive.rename')),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text(context.t('common.delete')),
+                ),
+              ],
             ),
-            onTap: f.isFolder ? null : () => _open(f),
+            // Klasöre dokunmak İÇİNE girer; arama sonucundaysa da girilebilir
+            // (arama temizlenip o klasör açılır).
+            onTap: f.isFolder ? () => _enter(f) : () => _open(f),
           );
         },
       ),

@@ -1363,30 +1363,37 @@ const Map<String, (String, String, String)> _table = {
   'drive.sign_in': ('Google ile bağlan', 'Connect with Google', 'الاتصال عبر Google'),
   'drive.sign_out': ('Bağlantıyı kes', 'Disconnect', 'قطع الاتصال'),
   'drive.sign_in_prompt': (
-    'Drive\'a dosya yüklemek ve yüklediklerinizi buradan açmak için Google '
-        'hesabınıza bağlanın.',
-    'Connect your Google account to upload files to Drive and open what you '
-        'uploaded from here.',
-    'اتصل بحساب Google لرفع الملفات إلى Drive وفتح ما رفعته من هنا.',
+    'Drive\'ınızı buradan gezmek, dosya açmak, yüklemek ve klasör düzenlemek '
+        'için Google hesabınıza bağlanın.',
+    'Connect your Google account to browse your Drive here, open and upload '
+        'files, and organise folders.',
+    'اتصل بحساب Google لتصفح Drive من هنا وفتح الملفات ورفعها وتنظيم المجلدات.',
   ),
-  // Kapsam dürüstlüğü: bu metin OLMADAN boş liste "bozuk" sanılır.
-  'drive.scope_notice': (
-    // Yıldızlar KALDIRILDI: bu şerit düz `Text`, Markdown değil — ekranda
-    // "**bu uygulamayla yüklediğiniz**" diye çift yıldızlı çıkıyordu
-    // (kullanıcı ekran görüntüsü 2026-07-30).
-    'Burada yalnız BU UYGULAMAYLA yüklediğiniz dosyalar görünür; '
-        'Drive\'ınızdaki diğer dosyalara erişim istemiyoruz. Başka bir Drive '
-        'dosyasını açmak için: Dosya Aç → sistem seçicisinde Drive.',
-    'Only files YOU UPLOADED WITH THIS APP appear here; we do not request '
-        'access to the rest of your Drive. To open another Drive file: Open '
-        'file → pick Drive in the system picker.',
-    'تظهر هنا الملفات التي رفعتها بهذا التطبيق فقط؛ لا نطلب الوصول إلى بقية '
-        'ملفات Drive. لفتح ملف آخر من Drive: فتح ملف ← اختر Drive من منتقي النظام.',
+  'drive.root': ('Drive\'ım', 'My Drive', 'ملفاتي'),
+  'drive.new_folder': ('Yeni klasör', 'New folder', 'مجلد جديد'),
+  'drive.new_folder_default': ('Yeni klasör', 'New folder', 'مجلد جديد'),
+  'drive.new_folder_failed': (
+    'Klasör oluşturulamadı.',
+    'Could not create the folder.',
+    'تعذّر إنشاء المجلد.',
   ),
+  'drive.rename': ('Yeniden adlandır', 'Rename', 'إعادة تسمية'),
+  'drive.rename_failed': (
+    'Yeniden adlandırılamadı.',
+    'Could not rename.',
+    'تعذّرت إعادة التسمية.',
+  ),
+  // Tam erişimden sonra "henüz yüklemediniz" yanlış: klasör gerçekten boş
+  // olabilir, kullanıcının bir şey yüklememesiyle ilgisi yok.
   'drive.empty': (
-    'Henüz bu uygulamayla Drive\'a dosya yüklemediniz.',
-    'You haven\'t uploaded any file to Drive with this app yet.',
-    'لم ترفع أي ملف إلى Drive بهذا التطبيق بعد.',
+    'Bu klasör boş.',
+    'This folder is empty.',
+    'هذا المجلد فارغ.',
+  ),
+  'drive.empty_search': (
+    'Eşleşen dosya bulunamadı.',
+    'No matching files found.',
+    'لم يُعثر على ملفات مطابقة.',
   ),
   'drive.search_hint': ('Drive\'da ara…', 'Search Drive…', 'ابحث في Drive…'),
   'drive.exports_as': (

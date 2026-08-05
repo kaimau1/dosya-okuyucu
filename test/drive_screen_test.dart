@@ -47,24 +47,55 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('kapsam uyarısı liste DOLUYKEN de görünür', (tester) async {
-    // Uyarı yalnız boş listede gösterilseydi, tek dosya yükleyen kullanıcı
-    // geri kalan Drive dosyalarının neden görünmediğini bir daha öğrenemezdi.
+  testWidgets('kök klasör listelenir, kırıntı yolu görünür', (tester) async {
+    // Tam erişimden sonra ekran gerçek bir gezgin: kökten başlar ve nerede
+    // olduğunu kırıntı yoluyla söyler.
+    late Uri seen;
     await http.runWithClient(() async {
       await _pump(tester, _signedIn());
-      expect(find.textContaining('yalnız'), findsOneWidget);
       expect(find.text('rapor.pdf'), findsOneWidget);
-    },
-        () => MockClient((_) async => http.Response(
-            '{"files":[{"id":"1","name":"rapor.pdf","mimeType":"application/pdf","size":"2048"}]}',
-            200)));
+      expect(find.text('Drive\'ım'), findsOneWidget);
+      // Kök listesi ÜST KLASÖRE göre istenmeli, yoksa Drive'ın tamamı düz
+      // bir yığın hâlinde gelirdi.
+      expect(seen.queryParameters['q'], contains("'root' in parents"));
+    }, () => MockClient((req) async {
+          seen = req.url;
+          return http.Response(
+              '{"files":[{"id":"1","name":"rapor.pdf","mimeType":"application/pdf","size":"2048"}]}',
+              200);
+        }));
   });
 
-  testWidgets('boş listede "henüz yüklemediniz" yazar, hata DEĞİL',
+  testWidgets('klasöre dokunmak İÇİNE girer, geri tuşu üst klasöre çıkarır',
       (tester) async {
+    final asked = <String?>[];
     await http.runWithClient(() async {
       await _pump(tester, _signedIn());
-      expect(find.textContaining('yüklemediniz'), findsOneWidget);
+      await tester.tap(find.text('Belgeler'));
+      await tester.pumpAndSettle();
+      // İkinci istek klasörün kimliğiyle yapılmalı.
+      expect(asked.last, contains("'fid' in parents"));
+      expect(find.text('Belgeler'), findsWidgets); // kırıntı yolunda
+
+      // Geri tuşu ekranı KAPATMAZ, bir üst klasöre çıkarır.
+      final popped =
+          await tester.binding.handlePopRoute().then((v) => v, onError: (_) => false);
+      await tester.pumpAndSettle();
+      expect(popped, isTrue, reason: 'geri tuşu tüketilmeli');
+      expect(asked.last, contains("'root' in parents"));
+    }, () => MockClient((req) async {
+          asked.add(req.url.queryParameters['q']);
+          return http.Response(
+              '{"files":[{"id":"fid","name":"Belgeler",'
+              '"mimeType":"application/vnd.google-apps.folder"}]}',
+              200);
+        }));
+  });
+
+  testWidgets('boş klasörde "bu klasör boş" yazar, hata DEĞİL', (tester) async {
+    await http.runWithClient(() async {
+      await _pump(tester, _signedIn());
+      expect(find.textContaining('klasör boş'), findsOneWidget);
     }, () => MockClient((_) async => http.Response('{"files":[]}', 200)));
   });
 

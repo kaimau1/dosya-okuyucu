@@ -14,25 +14,26 @@ import '../../models/drive_file.dart';
 /// `http.runWithClient` + `MockClient` ile kuruluyor — aynı desen izlendi,
 /// yeni bağımlılık girmedi.
 ///
-/// ## Kapsam: `drive.file` — ve bunun ANLAMI
-/// İstenen tek yetki `drive.file`: **yalnız bu uygulamanın oluşturduğu ya da
-/// yüklediği dosyalar** görünür. Kullanıcının Drive'ındaki diğer her şey bize
-/// KAPALIDIR ve `files.list` onları hiç döndürmez.
+/// ## Kapsam: `drive` (TAM erişim) — 2026-08-05 kullanıcı kararı
+/// Önceki kapsam `drive.file`ydı: yalnız uygulamanın kendi yüklediği dosyalar
+/// görünüyordu, kullanıcının Drive'ının geri kalanı listelenemiyordu. Kullanıcı
+/// *"diğer drive dosyalarını göremez miyiz, klasör oluşturma vs yapamaz mıyız"*
+/// diye sorup **tam erişimi** seçti; artık Drive bir dosya yöneticisi gibi
+/// geziliyor (klasöre gir, klasör oluştur, yeniden adlandır, taşı, sil).
 ///
-/// Bu bilinçli bir karar: "tüm Drive'ı gez" için gereken `drive` kapsamı
-/// Google'ın **restricted scope**'u; yayınlanan uygulamada yıllık ve ÜCRETLİ
-/// üçüncü taraf güvenlik denetimi (CASA) şart koşuyor. Projenin "ücretsiz"
-/// ilkesiyle bağdaşmıyor.
-///
-/// **Kullanıcıya bunun söylenmesi ZORUNLU:** aksi hâlde Drive ekranını açan
-/// kullanıcı boş liste görüp "bozuk" sanır. Ekranda yazılı (`drive_screen`),
-/// ve Drive'daki başka bir dosyayı açmanın yolu da orada gösteriliyor:
-/// **Dosya Aç → sistem seçicisi**, Android'in Depolama Erişim Çerçevesi
-/// Drive'ı sağlayıcı olarak listeler ve o yol hiçbir yetki istemez.
+/// **BEDELİ — bilinçli ve yazılı:** `drive` Google'ın *restricted* kapsamı.
+/// OAuth izin ekranı **Test** modundayken ücretsiz çalışır (en fazla 100 test
+/// kullanıcısı, e-postaları elle eklenir). Uygulamayı **yayınlamak** için
+/// Google yıllık ve ÜCRETLİ üçüncü taraf güvenlik denetimi (CASA) şart
+/// koşuyor. Play Store hedefi bu yüzden bu kapsamla birlikte yeniden
+/// değerlendirilmeli (bkz. HAFIZA 2026-08-05).
 class DriveService {
-  /// Yalnız uygulamanın kendi dosyaları. `drive`/`drive.readonly` BİLİNÇLİ
-  /// olarak istenmiyor (bkz. sınıf açıklaması).
-  static const scope = 'https://www.googleapis.com/auth/drive.file';
+  /// Kullanıcının Drive'ının TAMAMI. Kısıtlı kapsam — bedeli sınıf
+  /// açıklamasında yazılı, kullanıcı kararıyla seçildi.
+  static const scope = 'https://www.googleapis.com/auth/drive';
+
+  /// Drive'ın kök klasörünün takma kimliği (Drive v3 bunu kabul eder).
+  static const rootId = 'root';
 
   static const _api = 'https://www.googleapis.com/drive/v3';
   static const _upload = 'https://www.googleapis.com/upload/drive/v3';
@@ -151,25 +152,40 @@ class DriveService {
 
   // ── uç noktalar (saf, test edilebilir) ───────────────────────────────────
 
-  /// Listeleme adresi. `spaces=drive` + `trashed=false`; ad araması verilirse
-  /// Drive'ın `contains` süzgeciyle daraltılır.
-  static Uri listUri({String? query, String? pageToken, int pageSize = 100}) {
+  /// Listeleme adresi. `spaces=drive` + `trashed=false`.
+  ///
+  /// [parentId] verilirse **o klasörün içi** listelenir (gezinme); kök için
+  /// [rootId]. [query] verilirse ad araması yapılır ve arama **klasör sınırı
+  /// tanımaz** — kullanıcı "ara" dediğinde Drive'ın tamamında arar, bulunduğu
+  /// klasörde değil (dosya yöneticilerinin beklenen davranışı).
+  static Uri listUri({
+    String? parentId,
+    String? query,
+    String? pageToken,
+    int pageSize = 200,
+  }) {
     final clauses = <String>['trashed = false'];
     final q = query?.trim() ?? '';
     if (q.isNotEmpty) {
       // Tek tırnak Drive sorgu dilinde sınırlayıcı → kaçırılmalı, yoksa
       // adında kesme işareti olan bir arama sorguyu bozardı.
-      clauses.add("name contains '${q.replaceAll("'", r"\'")}'");
+      clauses.add("name contains '${_esc(q)}'");
+    } else if (parentId != null) {
+      clauses.add("'${_esc(parentId)}' in parents");
     }
     return Uri.parse('$_api/files').replace(queryParameters: {
       'q': clauses.join(' and '),
       'spaces': 'drive',
-      'orderBy': 'folder,modifiedTime desc',
+      'orderBy': 'folder,name',
       'pageSize': '$pageSize',
       'fields': _fields,
       if (pageToken != null) 'pageToken': pageToken,
     });
   }
+
+  /// Drive sorgu dilinde tek tırnak ve ters bölü kaçırma.
+  static String _esc(String s) =>
+      s.replaceAll(r'\', r'\\').replaceAll("'", r"\'");
 
   static Uri downloadUri(DriveFile file) {
     final export = file.exportAs;
@@ -192,6 +208,20 @@ class DriveService {
 
   static Uri deleteUri(String id) => Uri.parse('$_api/files/$id');
 
+  /// **Üstveri** uç noktası (ad/konum). `updateUri`den ayrı: o `upload`
+  /// alanına gidip dosyanın İÇERİĞİNİ değiştirir. Yeniden adlandırmayı oraya
+  /// göndermek dosyanın içeriğini silerdi.
+  static Uri metadataUri(String id, {String? addParents, String? removeParents}) =>
+      Uri.parse('$_api/files/$id').replace(queryParameters: {
+        'fields': _fields2,
+        if (addParents != null) 'addParents': addParents,
+        if (removeParents != null) 'removeParents': removeParents,
+      });
+
+  /// Yeni klasör (ya da genel olarak içeriksiz dosya) oluşturma adresi.
+  static Uri createUri() =>
+      Uri.parse('$_api/files').replace(queryParameters: {'fields': _fields2});
+
   static const _fields2 = 'id,name,mimeType,size,modifiedTime';
 
   /// Drive'ın `multipart/related` yükleme gövdesi: önce JSON üstveri, sonra
@@ -204,11 +234,18 @@ class DriveService {
     required String name,
     required String mimeType,
     required List<int> bytes,
+    String? parentId,
   }) {
     final head = utf8.encode(
       '--$multipartBoundary\r\n'
       'Content-Type: application/json; charset=UTF-8\r\n\r\n'
-      '${jsonEncode({'name': name, 'mimeType': mimeType})}\r\n'
+      '${jsonEncode({
+            'name': name,
+            'mimeType': mimeType,
+            // Üst klasör yazılmazsa dosya HER ZAMAN köke düşerdi; kullanıcı
+            // hangi klasördeyse oraya yüklenmeli.
+            if (parentId != null) 'parents': [parentId],
+          })}\r\n'
       '--$multipartBoundary\r\n'
       'Content-Type: $mimeType\r\n\r\n',
     );
@@ -272,11 +309,61 @@ class DriveService {
     return headers;
   }
 
-  Future<List<DriveFile>> list({String? query}) async {
+  /// [parentId] klasörünün içi (kök için [rootId]); [query] verilirse
+  /// Drive'ın tamamında ad araması.
+  Future<List<DriveFile>> list({String? parentId, String? query}) async {
     final headers = await _requireHeaders();
-    final res = await http.get(listUri(query: query), headers: headers);
+    final res = await http.get(
+      listUri(parentId: parentId, query: query),
+      headers: headers,
+    );
     _check(res.statusCode, res.body);
     return parseList(res.body);
+  }
+
+  /// [parentId] içinde yeni klasör.
+  Future<DriveFile> createFolder(String name, {String? parentId}) async {
+    final headers = await _requireHeaders();
+    final res = await http.post(
+      createUri(),
+      headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({
+        'name': name,
+        'mimeType': DriveFile.folderMime,
+        if (parentId != null) 'parents': [parentId],
+      }),
+    );
+    _check(res.statusCode, res.body);
+    return DriveFile.fromJson(
+        (jsonDecode(res.body) as Map).cast<String, dynamic>());
+  }
+
+  /// Yeniden adlandırma — yalnız ÜSTVERİ değişir, içerik ellenmez.
+  Future<DriveFile> rename(String id, String newName) async {
+    final headers = await _requireHeaders();
+    final res = await http.patch(
+      metadataUri(id),
+      headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'name': newName}),
+    );
+    _check(res.statusCode, res.body);
+    return DriveFile.fromJson(
+        (jsonDecode(res.body) as Map).cast<String, dynamic>());
+  }
+
+  /// Başka klasöre taşıma. Drive'da taşımak = üst klasör listesini
+  /// değiştirmek; eski üst KALDIRILMAZSA dosya iki yerde birden görünür.
+  Future<DriveFile> move(String id,
+      {required String toParentId, required String fromParentId}) async {
+    final headers = await _requireHeaders();
+    final res = await http.patch(
+      metadataUri(id, addParents: toParentId, removeParents: fromParentId),
+      headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: '{}',
+    );
+    _check(res.statusCode, res.body);
+    return DriveFile.fromJson(
+        (jsonDecode(res.body) as Map).cast<String, dynamic>());
   }
 
   /// Dosyayı [toDirectory] içine indirir ve yerel dosyayı döndürür.
@@ -290,7 +377,7 @@ class DriveService {
     return target;
   }
 
-  Future<DriveFile> upload(File local, {String? name}) async {
+  Future<DriveFile> upload(File local, {String? name, String? parentId}) async {
     final headers = await _requireHeaders();
     final fileName = name ?? local.uri.pathSegments.last;
     final mime = mimeForName(fileName);
@@ -304,6 +391,7 @@ class DriveService {
         name: fileName,
         mimeType: mime,
         bytes: await local.readAsBytes(),
+        parentId: parentId,
       ),
     );
     _check(res.statusCode, res.body);
