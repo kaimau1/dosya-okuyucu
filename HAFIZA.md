@@ -5954,3 +5954,46 @@ Tema stilli şekillerde kalınlık sabit 0.75pt varsayılıyordu; şimdi
 
 Doğrulama: yerel Flutter 3.29.3 `analyze` temiz, `flutter test` 1230 yeşil.
 Dal: claude/google-drive-connection-xpsmgn (PR #34, Drive işiyle birlikte).
+
+## 2026-08-05 (IV) — Drive 403'ü: giriş ÇALIŞTI, liste düştü (kullanıcı ekran görüntüsü)
+
+Kullanıcı OAuth kaydını yaptı; ekran görüntüsünde **giriş başarılı** (çıkış/yenile
+düğmeleri ve arama çubuğu görünüyor) ama `files.list` **403** dönüyor ve ekranda
+"Drive bu işleme izin vermedi. Bu dosya uygulamamızla yüklenmemiş olabilir."
+yazıyor. Bu metin YANLIŞ yere baktırıyor: liste çağrısının dosya sahipliğiyle
+ilgisi yok.
+
+### Kök neden sınıfı — 403 TEK bir şey değil
+- `accessNotConfigured` → **Cloud projesinde Drive API etkin değil.** Kurulumun
+  en sık atlanan adımı: OAuth istemcisi kaydedilir, API kitaplıktan açılmaz →
+  giriş çalışır, HER çağrı 403. En olası neden bu.
+- `insufficientPermissions` → jeton `drive.file` kapsamını taşımıyor.
+- Tanınmayan 403 → eski "dosya bizim değil" yorumu.
+
+### Yapılan
+- `DriveService.classify(status, body)`: 403 gövdesindeki `reason`/mesaja bakıp
+  `apiNotEnabled` / `insufficientScope` / `forbidden` ayırıyor. `errorFor` (yalnız
+  durum kodu) duruyor ve testte kalıyor.
+- İki yeni metin: API'yi nereden açacağını (Console → Kitaplık → Google Drive
+  API → Etkinleştir) ve kapsam eksikse ne yapacağını (çıkış → yeniden bağlan)
+  ADIM ADIM söylüyor.
+- **Google'ın kendi `error.message`i artık ekranda.** Eskiden yalnız
+  sınıflandırılamayan GİRİŞ hatasında gösteriliyordu; `_refresh` içinde
+  `e.detail` atılıyordu — bu yüzden ekran görüntüsünden 403'ün nedeni
+  okunamadı. Alan `_signInDetail` → `_errorDetail` olarak adlandırıldı.
+- **Çelişki giderildi:** hata şeridi varken "Henüz bu uygulamayla Drive'a dosya
+  yüklemediniz." de yazıyordu (ekran görüntüsünde ikisi birden). Liste boş
+  çünkü çağrı düştü; kullanıcı yüklemediği için değil. Hata varken boş-liste
+  metni çizilmiyor.
+
+### DERS
+Sınıflandırdığımız hatalarda ham mesajı gizlemek, sınıflandırmanın YANLIŞ
+olduğu durumda teşhisi imkânsızlaştırıyor. Ham metin her hata için görünür
+kalmalı (kullanıcı ekran görüntüsü tek teşhis aracı).
+
+### AÇIK KARAR — kapsam
+Kullanıcı "diğer Drive dosyalarını göremez miyiz, klasör açamaz mıyız" diye
+sordu. `drive.file` ile klasör oluşturma/yönetme MÜMKÜN (klasör de bir dosya,
+uygulamanın oluşturduğu her şeye erişilir); TÜM Drive'ı gezmek `drive` kapsamı
+ister — kısıtlı kapsam, Test modunda (≤100 test kullanıcısı) ücretsiz çalışır,
+YAYINLAMAK için ücretli CASA denetimi şart. Karar kullanıcıya soruldu.
