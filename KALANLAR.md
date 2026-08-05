@@ -364,6 +364,21 @@ göre sıralı**:
       medya izinleriyle en azından Görüntüler/Video/Ses görünüyor mu.
 - [ ] **Depolama doluluğu (`df`) gerçek cihazda:** halka/çubuk doğru dolu mu; bazı
       ROM'larda `df` kısıtlıysa çubuk gizlenmeli (kod öyle davranıyor, doğrulanmadı).
+      **2026-08-05 güncellemesi:** toplam artık `df`in ham boyutu değil AOSP
+      `roundStorageSize` ile yuvarlanmış REKLAM kapasitesi (512 GB) ve ondalık
+      biçimleniyor; boş alan yuvarlanmıyor.
+- [ ] **Uygulama boyutu cihaz doğrulaması (kullanıcı)** — 2026-08-05: Pano →
+      **Uygulamalar** → (a) liste boyuta göre mi sıralı, boyutlar Ayarlar →
+      Uygulamalar'daki sayılarla tutuyor mu, (b) "Kullanım erişimi" izni YOKKEN
+      boyut yerine sıfır DEĞİL hiçbir şey gösteriliyor mu, izin verilince
+      hemen geliyor mu, (c) satırdaki klasör düğmesi doğrudan "Depolama ve
+      önbellek" sayfasına iniyor mu (MIUI), (d) Bellek Analizi'ndeki
+      **Uygulamalar kartı** toplamı Ayarlar'daki toplamla yakın mı.
+- [ ] **Hızlı süzgeç cihaz doğrulaması (kullanıcı)** — 2026-08-05: Belgeler /
+      Videolar ekranında (a) üstte WhatsApp/Telegram/Kamera çipleri sayılarıyla
+      çıkıyor mu, (b) **"6 aydır açılmamış"** çipi mantıklı bir sonuç veriyor
+      mu — cihazın `atime` tutup tutmadığına bağlı, tutmuyorsa liste "eski
+      dosyalar"a dönüşür (bilinçli sınır).
 - [ ] **Büyük depolama taraması:** 100 bin+ dosyalı telefonda pano taraması ne kadar
       sürüyor, bellek sorun çıkarıyor mu (`_TopN` sınırı yeterli mi).
 - [ ] **SD kart / OTG:** `/storage/XXXX-XXXX` bulunuyor mu; birimler arası taşımada

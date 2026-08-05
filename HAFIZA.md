@@ -5818,3 +5818,73 @@ hiç gerek kalmadı, paketin vurgulaması olduğu gibi kullanılıyor.
   ELLE gizlediği satırlardan ayrı tutuluyor; süzgeci kaldırmak yalnız o
   sütunun gizlediklerini geri getiriyor ve başka bir sütunun süzgeci hâlâ
   gizliyorsa satır gizli kalıyor.
+
+---
+
+## 2026-08-05 — Depolama sayıları, uygulama boyutu ve hızlı süzgeçler
+
+Kullanıcı, File Manager+ (`com.alphainventor.filemanager`) ile karşılaştırmalı
+ekran görüntüleri gönderdi. Üç gerçek eksik ve bir gerçek hata çıktı.
+
+### A) HATA — doluluk satırı iki kez "boş" yazıyordu
+Ekranda `281 GB / 464 GB kullanıldı · 182 GB boş(%61) · 182 GB boş`. Sebep:
+`an.volume_usage` şablonu zaten `{free} boş` içeriyordu, çağıran üstüne elle
+bir kez daha ekliyordu; ayrıca `{used}` yuvasına **toplam** besleniyordu. Tek
+şablona indirildi (`{used} / {total} kullanıldı (%{percent}) · {free} boş`).
+
+### B) "464 GB" — `df` yanlış soru soruyordu
+`df` yalnız `/data` bölümünü ölçüyor; sistem/vendor/ayrılmış bloklar dışarıda
+kalınca 512 GB'lık telefonda 464 GiB çıkıyor. **Android'in kendisi kullanıcıya
+bu ham sayıyı göstermiyor:** `StorageStatsManager.getTotalBytes()` içeride
+`FileUtils.roundStorageSize()` uyguluyor ve reklam kapasitesine yuvarlıyor
+(1,2,4…512 × 1000ⁿ). O algoritma saf Dart'a taşındı (`StorageVolume.
+advertisedSize`) — yalnız bu sayı için platform kanalı eklemeye gerek kalmadı.
+
+- **Kapasite ONDALIK biçimleniyor** (`FsPaths.humanCapacity`), dosya boyutları
+  1024 tabanında kaldı. İkisi karışınca 512 GB "477 GB" görünüyordu.
+- **Boş alan YUVARLANMIYOR** (bilinçli): kullanıcıya dolduramayacağı yer
+  varmış gibi göstermek, birkaç GB'lık kozmetik tutarlılıktan daha kötü.
+  Fark "kullanılan" tarafında görünüyor — Ayarlar → Depolama da böyle yapıyor.
+- Karşılaştırma uygulamasının sayılarıyla birebir örtüştü (196 GB boş, 512 GB).
+
+### C) YENİ — platform kanalı gerçekten gerekiyordu (uygulama boyutları)
+`installed_apps` boyut vermiyor, `df` uygulama başına kırılım bilmiyor,
+`Android/data` Android 11'den beri başka uygulamalara kapalı. Tek yol
+`StorageStatsManager.queryStatsForPackage`.
+
+- **CI `android/` iskeletini her derlemede `flutter create` ile üretiyor**, bu
+  yüzden "Kotlin eklenemez" sanılıyordu (HAFIZA 2026-07-25 §F). Doğru değil:
+  iş akışı zaten `ci/AndroidManifest.xml` ve `ci/proguard-rules.pro`
+  kopyalıyor. `ci/MainActivity.kt` aynı desenle eklendi.
+- **Doğrulandı:** build 216 logunda adım çıktısı `package com.dosyaokuyucu.
+  dosya_okuyucu` yazdırdı ve `find` tek bir `MainActivity.kt` buldu (java/
+  altındaki olası ikizi siliniyor, yoksa "duplicate class").
+- İzin `PACKAGE_USAGE_STATS` — son kullanım tarihiyle **aynı** izin, kullanıcı
+  bir kez verince ikisi de açılıyor. Kanal yoksa (masaüstü/test/eski APK)
+  her çağrı zarifçe boş dönüyor; arayüz sıfır yazmıyor, "bilinmiyor" diyor.
+- Ölçüm 200+ binder çağrısı → Kotlin tarafında arka izlekte, Dart tarafında
+  5 dakikalık önbellekle. **Boş sonuç önbelleğe alınmıyor:** izin verilip
+  dönüldüğünde kullanıcı beş dakika beklemesin.
+- `openAppStorageSettings`: `:settings:fragment_args_key` eklentisiyle doğrudan
+  "Depolama ve önbellek" alt sayfasına iner; tanımayan ROM'da uygulama bilgisi
+  sayfası açılır (tek dokunuş uzakta, yine doğru yer).
+
+### D) Hızlı süzgeçler — kod VARDI, ekranda YOKTU
+`CategoryScreen.showSources` bayrağının arkasındaki kaynak çipleri
+(WhatsApp/Telegram/Kamera…) hiçbir çağıran tarafından açılmıyordu; yani özellik
+yazılmış ama hiç görünmemişti. **Ders:** varsayılanı kapalı bir görünürlük
+bayrağı eklerken onu açan en az bir çağıran da aynı commit'te olmalı, yoksa
+ölü kod sessizce birikiyor.
+
+Yerine `FmQuickFilters` geldi: çipler **veriden türetiliyor** (listede o kaynak
+yoksa çip yok) ve sayı taşıyor. Yanına "Büyük dosyalar" ve **"6 aydır
+açılmamış"** eklendi.
+
+- **TUZAK — "son açılma" diye güvenilir bir veri yok.** `FsEntry.lastTouchedMs`
+  atime'ı kullanıyor ama Android'de çoğu bağlama `relatime`/`noatime`; ölçüt en
+  kötü durumda "şu tarihten eski"ye düşüyor. Kendi açılma veritabanımızı tutmak
+  reddedildi: yalnız BİZİM açtığımız dosyaları bilirdi ve kullanıcıya yanlış
+  bir tamlık hissi verirdi.
+
+### E) Bellek Analizi büyük kutulara alındı
+Araç satırındayken kaydırmadan görünmüyordu (kullanıcı isteği).

@@ -190,7 +190,21 @@ abstract final class InstalledAppsService {
   ///
   /// Bellek analizi kartı bunu kullanıyor: simge yüklemeden (pahalı) yalnız
   /// ad + boyut isteniyor.
+  /// Son özet + ölçüm anı. Analiz ekranı her açılışta 200+ binder çağrısı
+  /// yapmasın diye kısa süre saklanır; boyutlar dakikalar içinde anlamlı
+  /// ölçüde değişmiyor.
+  static AppStorageSummary? _summaryCache;
+  static DateTime? _summaryAt;
+  static const _summaryTtl = Duration(minutes: 5);
+
   static Future<AppStorageSummary> summary({int top = 3}) async {
+    final cached = _summaryCache;
+    final at = _summaryAt;
+    if (cached != null &&
+        at != null &&
+        DateTime.now().difference(at) < _summaryTtl) {
+      return cached;
+    }
     List<AppInfo> apps;
     try {
       apps = await InstalledApps.getInstalledApps(
@@ -204,6 +218,8 @@ abstract final class InstalledAppsService {
     final sizes =
         await AppStorageService.sizesOf([for (final a in apps) a.packageName]);
     if (sizes.isEmpty) {
+      // Önbelleğe ALINMAZ: izin yokken boş dönüyor olabilir, kullanıcı izni
+      // verip döndüğünde beş dakika beklemesin.
       return const AppStorageSummary(totalBytes: 0, cacheBytes: 0, top: []);
     }
     var total = 0;
@@ -217,11 +233,14 @@ abstract final class InstalledAppsService {
       ranked.add((app.name, s.totalBytes));
     }
     ranked.sort((a, b) => b.$2.compareTo(a.$2));
-    return AppStorageSummary(
+    final summary = AppStorageSummary(
       totalBytes: total,
       cacheBytes: cache,
       top: ranked.take(top).toList(growable: false),
     );
+    _summaryCache = summary;
+    _summaryAt = DateTime.now();
+    return summary;
   }
 
   /// `lastForeground` → ms. Saf yardımcı (birim testli): veri yokken eklenti
