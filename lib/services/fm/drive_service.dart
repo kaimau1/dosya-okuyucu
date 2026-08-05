@@ -336,10 +336,34 @@ class DriveService {
 
   static void _check(int status, String body) {
     if (status >= 200 && status < 300) return;
-    throw DriveException(errorFor(status), detail: _messageOf(body));
+    throw DriveException(classify(status, body), detail: _messageOf(body));
   }
 
-  /// HTTP durumunu kullanıcıya anlatılabilir bir nedene çevirir.
+  /// HTTP durumu + gövde → kullanıcıya anlatılabilir neden.
+  ///
+  /// **403 tek bir şey demek değil** (kullanıcı ekran görüntüsü 2026-08-05:
+  /// giriş başarılı ama liste 403): Cloud projesinde **Drive API açılmamışsa**
+  /// da, yetki kapsamı yetmiyorsa da aynı durum kodu gelir. İkisi bambaşka
+  /// adımlar gerektirdiği için gövdedeki `reason`/mesaja bakılıyor — "izin
+  /// vermedi" demek kullanıcıyı yanlış yere (dosya sahipliğine) bakmaya
+  /// gönderiyordu.
+  static DriveError classify(int status, String body) {
+    if (status == 403) {
+      final text = body.toLowerCase();
+      if (text.contains('accessnotconfigured') ||
+          text.contains('has not been used in project') ||
+          text.contains('it is disabled')) {
+        return DriveError.apiNotEnabled;
+      }
+      if (text.contains('insufficientpermissions') ||
+          text.contains('insufficient permission')) {
+        return DriveError.insufficientScope;
+      }
+    }
+    return errorFor(status);
+  }
+
+  /// Yalnız HTTP durumuna bakan eşleme (gövdesiz çağrılar için).
   static DriveError errorFor(int status) => switch (status) {
         401 => DriveError.notSignedIn,
         403 => DriveError.forbidden,
@@ -361,7 +385,26 @@ class DriveService {
   }
 }
 
-enum DriveError { notSignedIn, forbidden, notFound, temporary, unknown }
+enum DriveError {
+  notSignedIn,
+
+  /// 403 — dosya bu uygulamayla yüklenmemiş (kapsam `drive.file`).
+  forbidden,
+
+  /// 403 — **Cloud projesinde Google Drive API etkin değil.** Kurulumun en
+  /// sık atlanan adımı: OAuth istemcisi kaydedilip API kitaplıktan
+  /// açılmayınca giriş çalışır ama her çağrı 403 döner.
+  apiNotEnabled,
+
+  /// 403 — jeton `drive.file` kapsamını taşımıyor (izin ekranında kapsam
+  /// eksik ya da kullanıcı onaylamadan geçmiş). Çıkış yapıp yeniden bağlanmak
+  /// çözer.
+  insufficientScope,
+
+  notFound,
+  temporary,
+  unknown,
+}
 
 /// Giriş neden olmadı?
 enum DriveSignInError {

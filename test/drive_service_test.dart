@@ -255,16 +255,18 @@ void main() {
     });
 
     test('HTTP durumu anlaşılır nedene çevrilir, Drive mesajı taşınır', () async {
+      // Tanıyamadığımız bir 403: "bu dosya bizim değil" yorumuna düşer.
       await expectLater(
         _withMock(
           () => _service().list(),
           (_) async => _json({
-            'error': {'message': 'Insufficient Permission'}
+            'error': {'message': 'The user does not have sufficient rights'}
           }, 403),
         ),
         throwsA(isA<DriveException>()
             .having((e) => e.error, 'error', DriveError.forbidden)
-            .having((e) => e.detail, 'detail', 'Insufficient Permission')),
+            .having((e) => e.detail, 'detail',
+                'The user does not have sufficient rights')),
       );
     });
 
@@ -273,6 +275,48 @@ void main() {
       expect(DriveService.errorFor(404), DriveError.notFound);
       expect(DriveService.errorFor(503), DriveError.temporary);
       expect(DriveService.errorFor(418), DriveError.unknown);
+    });
+
+    test('403 AYRIŞTIRILIR: API kapalı / kapsam eksik / dosya bizim değil', () {
+      // Üçü de 403 ama üçü de BAŞKA bir adım gerektiriyor. Tek "izin vermedi"
+      // metni kullanıcıyı dosya sahipliğine baktırıyordu, oysa asıl neden
+      // çoğu kez API'nin hiç açılmamış olması (ekran görüntüsü 2026-08-05).
+      const notEnabled = '{"error":{"errors":[{"reason":"accessNotConfigured"}],'
+          '"code":403,"message":"Google Drive API has not been used in project '
+          '123 before or it is disabled."}}';
+      expect(DriveService.classify(403, notEnabled), DriveError.apiNotEnabled);
+
+      const noScope = '{"error":{"errors":[{"reason":"insufficientPermissions"}],'
+          '"code":403,"message":"Insufficient Permission"}}';
+      expect(DriveService.classify(403, noScope), DriveError.insufficientScope);
+
+      // Tanıyamadığımız 403 eski davranışta kalır.
+      expect(DriveService.classify(403, '{"error":{"message":"Nope"}}'),
+          DriveError.forbidden);
+      // Başka durumlar gövdeden etkilenmez.
+      expect(DriveService.classify(404, notEnabled), DriveError.notFound);
+    });
+
+    test('API kapalıyken list apiNotEnabled fırlatır, Google mesajı taşınır',
+        () async {
+      await expectLater(
+        _withMock(
+          () => _service().list(),
+          (_) async => _json({
+            'error': {
+              'errors': [
+                {'reason': 'accessNotConfigured'}
+              ],
+              'code': 403,
+              'message': 'Google Drive API has not been used in project 123 '
+                  'before or it is disabled.'
+            }
+          }, 403),
+        ),
+        throwsA(isA<DriveException>()
+            .having((e) => e.error, 'error', DriveError.apiNotEnabled)
+            .having((e) => e.detail, 'detail', contains('has not been used'))),
+      );
     });
   });
 }

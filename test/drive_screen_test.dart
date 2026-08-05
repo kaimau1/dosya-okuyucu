@@ -86,9 +86,33 @@ void main() {
     await http.runWithClient(() async {
       await _pump(tester, _signedIn());
       expect(find.textContaining('izin vermedi'), findsOneWidget);
+      // Google'ın kendi mesajı da görünür: sınıflandırma tutmazsa kullanıcının
+      // bildirebileceği tek ipucu bu (2026-08-05'te atılıyordu).
+      expect(find.textContaining('sufficient rights'), findsOneWidget);
+      // Hata varken "henüz yüklemediniz" YAZILMAZ — liste boş çünkü çağrı
+      // düştü, kullanıcı yüklemediği için değil.
+      expect(find.textContaining('yüklemediniz'), findsNothing);
     },
         () => MockClient((_) async => http.Response(
-            '{"error":{"message":"Insufficient Permission"}}', 403)));
+            '{"error":{"message":"The user does not have sufficient rights"}}',
+            403)));
+  });
+
+  testWidgets('API kapalıysa ekran "Drive API etkin değil" der, sahiplik değil',
+      (tester) async {
+    // Kullanıcı ekran görüntüsü 2026-08-05: giriş çalışıyor ama liste 403.
+    // Eski metin ("bu dosya uygulamamızla yüklenmemiş olabilir") kullanıcıyı
+    // dosya sahipliğine baktırıyordu; asıl neden API'nin açılmamış olmasıydı.
+    await http.runWithClient(() async {
+      await _pump(tester, _signedIn());
+      expect(find.textContaining('Kitaplık'), findsOneWidget);
+      expect(find.textContaining('uygulamamızla yüklenmemiş'), findsNothing);
+    },
+        () => MockClient((_) async => http.Response(
+            '{"error":{"errors":[{"reason":"accessNotConfigured"}],'
+            '"code":403,"message":"Google Drive API has not been used in '
+            'project 123 before or it is disabled."}}',
+            403)));
   });
 
   testWidgets('Google E-Tablosu boyut yerine "—" ve dışa aktarım biçimi gösterir',

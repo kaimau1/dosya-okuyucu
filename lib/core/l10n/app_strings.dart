@@ -1484,6 +1484,29 @@ const Map<String, (String, String, String)> _table = {
     'Drive denied this operation. The file may not have been uploaded with this app.',
     'رفض Drive هذه العملية. قد لا يكون الملف مرفوعًا بواسطة هذا التطبيق.',
   ),
+  // 403'ün İKİ ayrı nedeni (kullanıcı ekran görüntüsü 2026-08-05): giriş
+  // çalışıyor ama liste 403. "İzin vermedi" demek kullanıcıyı dosya
+  // sahipliğine baktırıyordu; asıl neden çoğu kez API'nin hiç açılmamış olması.
+  'drive.error_api_not_enabled': (
+    'Google Drive API bu projede etkin değil. Google Cloud Console → '
+        'API\'ler ve Hizmetler → Kitaplık → "Google Drive API" → Etkinleştir '
+        'adımını uygulayın; birkaç dakika sonra tekrar deneyin.',
+    'The Google Drive API is not enabled for this project. Go to Google Cloud '
+        'Console → APIs & Services → Library → "Google Drive API" → Enable, '
+        'then try again in a few minutes.',
+    'واجهة Google Drive API غير مفعّلة في هذا المشروع. انتقل إلى Google Cloud '
+        'Console ← واجهات برمجة التطبيقات والخدمات ← المكتبة ← «Google Drive '
+        'API» ← تفعيل، ثم أعد المحاولة بعد دقائق.',
+  ),
+  'drive.error_insufficient_scope': (
+    'Hesap bağlandı ama Drive izni verilmemiş. Bağlantıyı kesip yeniden '
+        'bağlanın ve izin penceresinde Drive erişimini onaylayın.',
+    'The account is connected but Drive permission was not granted. '
+        'Disconnect, connect again and approve Drive access in the consent '
+        'dialog.',
+    'تم ربط الحساب لكن لم يُمنح إذن Drive. اقطع الاتصال ثم أعد الربط ووافق على '
+        'الوصول إلى Drive في نافذة الأذونات.',
+  ),
   'drive.error_not_found': ('Dosya Drive\'da bulunamadı.', 'File not found on Drive.', 'لم يُعثر على الملف في Drive.'),
   'drive.error_temporary': (
     'Drive şu an yanıt vermiyor, biraz sonra deneyin.',

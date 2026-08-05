@@ -57,8 +57,10 @@ class _DriveScreenState extends State<DriveScreen> {
     if (ok) await _refresh();
   }
 
-  /// Sınıflandırılamayan giriş hatasının ham metni (yalnız o durumda gösterilir).
-  String? _signInDetail;
+  /// Hatanın ham metni (giriş hatasında platform mesajı, Drive hatasında
+  /// Google'ın `error.message`i). Sınıflandırmamız tutmadığında kullanıcının
+  /// bildirebileceği tek ipucu bu.
+  String? _errorDetail;
 
   /// Kurulum kartında gösterilen imza SHA-1'i (yalnız notConfigured'da yüklenir).
   String? _sha1;
@@ -70,7 +72,7 @@ class _DriveScreenState extends State<DriveScreen> {
     setState(() {
       _signedIn = result.success;
       _busy = false;
-      _signInDetail = null;
+      _errorDetail = null;
       if (result.success) {
         _error = null;
       } else if (result.error == DriveSignInError.cancelled) {
@@ -80,7 +82,7 @@ class _DriveScreenState extends State<DriveScreen> {
       } else {
         _error = _signInKeyFor(result.error!);
         if (result.error == DriveSignInError.failed) {
-          _signInDetail = result.detail;
+          _errorDetail = result.detail;
         }
       }
     });
@@ -138,6 +140,7 @@ class _DriveScreenState extends State<DriveScreen> {
     setState(() {
       _busy = true;
       _error = null;
+      _errorDetail = null;
     });
     try {
       final files = await _drive.list(query: _query.isEmpty ? null : _query);
@@ -151,12 +154,17 @@ class _DriveScreenState extends State<DriveScreen> {
       setState(() {
         _busy = false;
         _error = _keyFor(e.error);
+        // Google'ın kendi mesajı da gösteriliyor: sınıflandırmamız tutmazsa
+        // kullanıcının elinde bildirebileceği TEK ipucu bu (2026-08-05'te
+        // atıldığı için 403'ün nedeni ekran görüntüsünden okunamadı).
+        _errorDetail = e.detail;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _busy = false;
         _error = 'drive.error_unknown';
+        _errorDetail = '$e';
       });
     }
   }
@@ -164,6 +172,8 @@ class _DriveScreenState extends State<DriveScreen> {
   static String _keyFor(DriveError error) => switch (error) {
         DriveError.notSignedIn => 'drive.error_not_signed_in',
         DriveError.forbidden => 'drive.error_forbidden',
+        DriveError.apiNotEnabled => 'drive.error_api_not_enabled',
+        DriveError.insufficientScope => 'drive.error_insufficient_scope',
         DriveError.notFound => 'drive.error_not_found',
         DriveError.temporary => 'drive.error_temporary',
         DriveError.unknown => 'drive.error_unknown',
@@ -285,7 +295,7 @@ class _DriveScreenState extends State<DriveScreen> {
 
   Widget _errorBar() {
     final scheme = Theme.of(context).colorScheme;
-    final detail = _signInDetail;
+    final detail = _errorDetail;
     return Container(
       width: double.infinity,
       color: scheme.errorContainer,
@@ -421,7 +431,12 @@ class _DriveScreenState extends State<DriveScreen> {
         ),
       );
     }
+    // Hata varken "henüz yüklemediniz" YAZILMAZ: liste boş çünkü çağrı
+    // başarısız oldu, kullanıcı bir şey yüklemediği için değil. İkisini birden
+    // göstermek kullanıcıyı "yükleme yapayım da dolsun" diye yanlış yola
+    // sokuyordu (ekran görüntüsü 2026-08-05).
     if (_files.isEmpty) {
+      if (_error != null) return const SizedBox.shrink();
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
