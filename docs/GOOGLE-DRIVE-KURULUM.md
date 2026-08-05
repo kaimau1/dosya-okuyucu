@@ -48,26 +48,41 @@ keytool -printcert -jarfile dosya-okuyucu.apk
 > değer geçerli kalır. Secret silinirse CI her koşuda geçici anahtar üretir →
 > SHA-1 değişir ve kayıt geçersiz olur.
 
+## Konsolda neresi? (yeni "Google Auth Platform" arayüzü)
+
+Google eski tek sayfalık **OAuth izin ekranı**nı alt başlıklara böldü; eski
+adlarla arayan kaybolur. Karşılıklar:
+
+| Ne yapacaksınız | Yeni menü | Doğrudan bağlantı |
+| --- | --- | --- |
+| Drive API'yi açmak | **API'ler ve Hizmetler → Kitaplık** (Auth Platform'da DEĞİL) | <https://console.cloud.google.com/apis/library/drive.googleapis.com> |
+| **Kapsam** eklemek | Google Auth Platform → **Data Access** | <https://console.cloud.google.com/auth/scopes> |
+| **Test kullanıcısı** + yayın durumu | Google Auth Platform → **Audience** | <https://console.cloud.google.com/auth/audience> |
+| Android istemcisi (paket adı + SHA-1) | Google Auth Platform → **Clients** | <https://console.cloud.google.com/auth/clients> |
+| Uygulama adı / destek e-postası | Google Auth Platform → **Branding** | — |
+
 ## Adımlar
 
 1. <https://console.cloud.google.com/> → yeni proje (ya da mevcut proje).
 2. **API'ler ve Hizmetler → Kitaplık** → *Google Drive API* → **Etkinleştir**.
-3. **API'ler ve Hizmetler → OAuth izin ekranı**:
-   - Kullanıcı türü: *Harici*.
-   - Uygulama adı / destek e-postası / geliştirici e-postası doldurulur.
-   - **Kapsam** olarak `https://www.googleapis.com/auth/drive` eklenir
-     (yalnız `drive.file` YETMEZ: gezgin bütün klasörleri listeler).
-     Google bunu "hassas/kısıtlı" diye işaretler — Test modunda sorun değil.
-   - Yayın durumu ***Test* bırakılmalı**: yalnızca **test kullanıcıları**
-     listesine eklenen Google hesapları giriş yapabilir (en fazla 100). Kendi
-     hesabınızı oraya ekleyin. *Yayınla* derseniz Google doğrulama + ücretli
-     CASA denetimi ister (bkz. yukarıdaki kutu).
-4. **Kimlik bilgileri → Kimlik bilgisi oluştur → OAuth istemci kimliği**:
+   Bu adım atlanırsa giriş çalışır ama HER çağrı 403 döner — en sık yapılan
+   hata bu (uygulama artık bunu ayırt edip söylüyor).
+3. **Data Access** → *Add or remove scopes* →
+   `https://www.googleapis.com/auth/drive` eklenir ve **Update/Save** denir.
+   Yalnız `drive.file` YETMEZ: gezgin bütün klasörleri listeler. Google bunu
+   "kısıtlı" diye işaretler — Test modunda sorun değil.
+4. **Audience**:
+   - Kullanıcı türü *Harici (External)*.
+   - Yayın durumu ***Testing* bırakılmalı**; *Publish* derseniz Google
+     doğrulama + ücretli CASA denetimi ister (bkz. yukarıdaki kutu).
+   - **Test users** bölümüne kendi Gmail adresinizi ekleyin (en fazla 100).
+     Listede olmayan hesap, hesap seçer seçmez pencereden düşer.
+5. **Clients → Create client**:
    - Uygulama türü: **Android**
    - Paket adı: `com.dosyaokuyucu.dosya_okuyucu`
    - SHA-1: `F5:5D:0C:09:9F:97:71:3B:7A:1B:8D:B7:E8:6D:6A:0A:DA:EE:9D:B5`
      (ya da uygulamadaki kurulum kartından kopyalayın)
-5. Kaydedin. Değişikliğin yayılması birkaç dakika sürebilir.
+6. Kaydedin. Değişikliğin yayılması birkaç dakika sürebilir.
 
 `google-services.json` indirmeye **gerek yok**: Android'de `google_sign_in`
 istemciyi paket adı + SHA-1 üzerinden bulur, dosyadan değil. (Firebase senkronu
