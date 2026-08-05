@@ -18,6 +18,7 @@ import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/section_header.dart';
@@ -37,9 +38,6 @@ class CategoryScreen extends StatefulWidget {
   /// Kategori ızgarada görsel ise küçük resimli ızgara varsayılan olur.
   final bool gridDefault;
 
-  /// Kaynak filtresi (Kamera / WhatsApp / Telegram / Ekran görüntüsü …)
-  /// gösterilsin mi? Görsel ve video kategorilerinde anlamlı.
-  final bool showSources;
 
   /// Belge türü süzgeci (PDF / Word / Excel / Slayt / Metin) gösterilsin mi?
   /// Kullanıcı isteği: "belgelerde filtre olmalı, PDF slayt text word vs
@@ -56,7 +54,6 @@ class CategoryScreen extends StatefulWidget {
     required this.title,
     required this.files,
     this.gridDefault = false,
-    this.showSources = false,
     this.showDocKinds = false,
     this.loadAll,
   });
@@ -266,7 +263,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Column(
         children: [
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
-          if (widget.showSources) _sourceChips(),
+          // **Hızlı süzgeç çipleri** (2026-08-05 kullanıcı isteği): kaynak
+          // (WhatsApp/Telegram/Kamera…), büyük dosyalar ve "6 aydır
+          // açılmamış" tek dokunuşta. Eskiden kaynak çipleri `showSources`
+          // bayrağının arkasındaydı ve HİÇBİR çağıran onu açmıyordu — yani
+          // belgelerde WhatsApp süzgeci kodda vardı ama ekranda yoktu.
+          FmQuickFilters(
+            source: _files,
+            filter: _filter,
+            onChanged: (f) => setState(() => _filter = f),
+          ),
           if (widget.showDocKinds) _docKindChips(),
           Expanded(
             child: files.isEmpty
@@ -439,49 +445,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ],
       );
 
-  /// Kaynak çipleri: hangi klasörden/uygulamadan geldiğine göre süzme.
-  /// Sayılar gerçek dosya sayısıdır; boş kaynak çipi gösterilmez.
-  Widget _sourceChips() {
-    _ensureCounts();
-    final counts = _bucketCache!;
-    final buckets = MediaBucket.values
-        .where((b) => (counts[b] ?? 0) > 0)
-        .toList()
-      ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
-    if (buckets.length < 2) return const SizedBox.shrink();
-
-    return SizedBox(
-      height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: Gap.sm),
-            child: ChoiceChip(
-              label: Text(context.t('ph.all_count', {'n': _files.length})),
-              selected: _filter.buckets.isEmpty,
-              onSelected: (_) =>
-                  setState(() => _filter = _filter.withBuckets(const {})),
-            ),
-          ),
-          for (final b in buckets)
-            Padding(
-              padding: const EdgeInsets.only(right: Gap.sm),
-              // FilterChip = çoklu seçim (istek 2026-07-29). Çip ve süzgeç
-              // sayfası AYNI alanı yazar → ikisi hep tutarlı.
-              child: FilterChip(
-                label: Text(context.t('ph.chip_count',
-                  {'label': context.t(b.labelKey), 'n': counts[b]})),
-                selected: _filter.buckets.contains(b),
-                onSelected: (_) =>
-                    setState(() => _filter = _filter.toggleBucket(b)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   /// Belge türü çipleri (PDF / Word / Excel / Slayt / Metin / Diğer).
   /// Boş tür gösterilmez; sayılar gerçek dosya sayısıdır.

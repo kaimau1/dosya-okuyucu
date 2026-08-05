@@ -1702,6 +1702,11 @@ const Map<String, (String, String, String)> _table = {
     '{v} من هذا ذاكرة مؤقتة — آمن حذفها',
   ),
   'fm.apps': ('Uygulamalar', 'Apps', 'التطبيقات'),
+  'fm.quick_untouched': (
+    '{n} aydır açılmamış',
+    'Not opened in {n} months',
+    'لم يُفتح منذ {n} أشهر',
+  ),
   'fm.storage_analysis': ('Bellek Analizi', 'Storage analysis', 'تحليل التخزين'),
   'fm.used_percent': ('Kullanılan %{n}', '{n}% used', 'مستخدَم %{n}'),
   'apps.sort_size': ('Boyuta göre', 'By size', 'حسب الحجم'),

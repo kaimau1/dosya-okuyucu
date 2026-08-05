@@ -19,6 +19,7 @@ import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
@@ -357,6 +358,14 @@ class _PhotosScreenState extends State<PhotosScreen> {
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
           if (_timelineMode) _groupChips(appState, group),
           if (widget.showSources) _sourceChips(),
+          // Kaynak satırı zaten yukarıda; burada yalnız "6 aydır açılmamış"
+          // ve "büyük dosyalar" çipleri.
+          FmQuickFilters(
+            source: _files,
+            filter: _filter,
+            onChanged: (f) => setState(() => _filter = f),
+            showBuckets: false,
+          ),
           if (_hiddenDuplicates > 0) _duplicateNotice(),
           Expanded(
             child: visible.isEmpty

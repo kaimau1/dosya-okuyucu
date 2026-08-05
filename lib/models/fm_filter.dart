@@ -136,6 +136,16 @@ class FmFilter {
   /// (bkz. `models/chat_media.dart` ve `services/fm/file_tags.dart`).
   final Set<String> tags;
 
+  /// **Şu kadar gündür açılmamış** dosyalar (null = ölçüt kapalı).
+  ///
+  /// Ölçü [FsEntry.lastTouchedMs]: erişim zamanı (atime) anlamlıysa o,
+  /// değilse değiştirilme zamanı. Android'de çoğu bağlama `relatime`/`noatime`
+  /// olduğu için atime her cihazda güvenilmez — bu yüzden "açılmamış" yerine
+  /// "dokunulmamış" diyoruz ve en kötü durumda ölçüt "şu tarihten eski"ye
+  /// düşüyor. Uydurma bir "son açılma" veritabanı tutmaktan (yalnız BİZİM
+  /// açtıklarımızı bilirdi, cihazın tamamını değil) daha dürüst.
+  final int? untouchedDays;
+
   const FmFilter({
     this.buckets = const {},
     this.extensions = const {},
@@ -147,6 +157,7 @@ class FmFilter {
     this.chatKinds = const {},
     this.direction = ChatDirection.any,
     this.tags = const {},
+    this.untouchedDays,
   });
 
   static const none = FmFilter();
@@ -166,6 +177,8 @@ class FmFilter {
     Set<ChatMediaKind>? chatKinds,
     ChatDirection? direction,
     Set<String>? tags,
+    int? untouchedDays,
+    bool clearUntouched = false,
   }) =>
       FmFilter(
         buckets: buckets ?? this.buckets,
@@ -180,7 +193,14 @@ class FmFilter {
         chatKinds: chatKinds ?? this.chatKinds,
         direction: direction ?? this.direction,
         tags: tags ?? this.tags,
+        untouchedDays:
+            clearUntouched ? null : (untouchedDays ?? this.untouchedDays),
       );
+
+  /// "Şu kadar gündür açılmamış" ölçütünü açar/kapatır (null = kapat).
+  FmFilter withUntouchedDays(int? days) => days == null
+      ? _copy(clearUntouched: true)
+      : _copy(untouchedDays: days);
 
   FmFilter withBuckets(Set<MediaBucket> value) => _copy(buckets: value);
 
@@ -241,7 +261,8 @@ class FmFilter {
       (sizeRange == FmSizeRange.any ? 0 : 1) +
       (chatKinds.isEmpty ? 0 : 1) +
       (direction == ChatDirection.any ? 0 : 1) +
-      (tags.isEmpty ? 0 : 1);
+      (tags.isEmpty ? 0 : 1) +
+      (untouchedDays == null ? 0 : 1);
 
   bool get isActive => activeCount > 0;
 
@@ -261,6 +282,7 @@ class FmFilter {
         chatKinds.map((k) => k.name).toList()..sort(),
         direction.name,
         tags.toList()..sort(),
+        untouchedDays,
       ].join('|');
 
   /// Tarih ölçütünün gerçek zaman penceresi.
@@ -330,6 +352,14 @@ class FmFilter {
       return false;
     }
     if (!window(now: now).contains(entry.modifiedMs)) return false;
+    final untouched = untouchedDays;
+    if (untouched != null) {
+      if (entry.isDir) return false; // klasörün "açılma"sı ölçülemez
+      final cutoff = (now ?? DateTime.now())
+          .subtract(Duration(days: untouched))
+          .millisecondsSinceEpoch;
+      if (entry.lastTouchedMs > cutoff) return false;
+    }
     if (sizeRange != FmSizeRange.any) {
       // Klasörün boyutu 0'dır (özyinelemeli toplam tutulmaz) — boyut ölçütü
       // seçiliyse klasörler elenir, yoksa "100 MB üzeri"nde klasör listelenirdi.

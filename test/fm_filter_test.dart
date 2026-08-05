@@ -374,4 +374,59 @@ void main() {
       expect(cleared.customFromMs, isNull);
     });
   });
+
+  group('“şu kadar gündür açılmamış” ölçütü', () {
+    FsEntry touched(String path, {required int modified, int accessed = 0}) =>
+        FsEntry(
+          path: path,
+          name: path.split('/').last,
+          isDir: false,
+          sizeBytes: 1000,
+          modifiedMs: modified,
+          accessedMs: accessed,
+        );
+
+    test('6 aydır dokunulmayan dosya kalır, yeni açılan elenir', () {
+      final filter = FmFilter.none.withUntouchedDays(180);
+      final old = touched('/a/eski.pdf', modified: daysAgo(400));
+      final fresh = touched('/a/yeni.pdf', modified: daysAgo(3));
+      expect(filter.matches(old, now: now), isTrue);
+      expect(filter.matches(fresh, now: now), isFalse);
+    });
+
+    test('erişim zamanı yeni ise dosya AÇILMIŞ sayılır', () {
+      // Dosya eski ama geçen hafta okunmuş → "açılmamış" listesine girmemeli.
+      final filter = FmFilter.none.withUntouchedDays(180);
+      final e = touched('/a/eski.pdf',
+          modified: daysAgo(400), accessed: daysAgo(7));
+      expect(filter.matches(e, now: now), isFalse);
+    });
+
+    test('atime güvenilmezse (0) değiştirilme zamanına düşer', () {
+      final filter = FmFilter.none.withUntouchedDays(180);
+      final e = touched('/a/eski.pdf', modified: daysAgo(400), accessed: 0);
+      expect(filter.matches(e, now: now), isTrue);
+    });
+
+    test('klasörler ölçüte girmez', () {
+      final filter = FmFilter.none.withUntouchedDays(180);
+      final dir = FsEntry(
+        path: '/a/klasor',
+        name: 'klasor',
+        isDir: true,
+        sizeBytes: 0,
+        modifiedMs: daysAgo(400),
+      );
+      expect(filter.matches(dir, now: now), isFalse);
+    });
+
+    test('ölçüt kapatılabilir ve rozet sayısına yansır', () {
+      final on = FmFilter.none.withUntouchedDays(180);
+      expect(on.activeCount, 1);
+      expect(on.withUntouchedDays(null).untouchedDays, isNull);
+      expect(on.withUntouchedDays(null).activeCount, 0);
+      // İmza değişmeli, yoksa süzme önbelleği eski sonucu döndürürdü.
+      expect(on.signature, isNot(FmFilter.none.signature));
+    });
+  });
 }
