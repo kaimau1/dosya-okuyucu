@@ -5,12 +5,19 @@ import '../screens/scan_result_screen.dart';
 import '../screens/scan_review_screen.dart';
 import '../services/document_scanner.dart';
 import '../services/ocr_service.dart';
+import '../services/scan_title.dart';
 
-/// Belge tarama akışı: kamera/tarayıcı arayüzü → (isteğe bağlı) OCR →
-/// tek PDF → Belgeler dizinine kaydet → belgeyi aç.
+/// Belge tarama akışı: kamera/tarayıcı arayüzü → OCR (hep) → akıllı ad →
+/// tek PDF → Belgeler dizinine kaydet → sonuç ekranı.
 ///
 /// Tek giriş noktası [run]; ana ekrandan ve PDF araçlarından aynı akış çağrılır
 /// ([TranslateFlow] ile aynı kalıp).
+///
+/// **"Aranabilir olsun mu?" penceresi KALDIRILDI (2026-08-05).** Kullanıcı
+/// ilkesi: *"kullanıcıya bir şey bırakma, otomatik olmalı."* OCR cihaz içinde
+/// ve sayfa başına ~yarım saniye; her tarama artık kendiliğinden aranabilir,
+/// metni kopyalanabilir VE adını içeriğinden alır. Soru sormak, doğru cevabı
+/// bildiğimiz bir konuda kullanıcıya iş çıkarmaktı.
 class ScanFlow {
   /// Taramayı çalıştırır. Üretilen PDF'in yolunu döndürür (iptal edilirse null).
   /// [open] true ise belge sonunda görüntüleyicide açılır (son belgelere düşer).
@@ -32,31 +39,30 @@ class ScanFlow {
     if (reviewed == null || reviewed.isEmpty || !context.mounted) return null;
     pages = reviewed;
 
-    final searchable = await _askSearchable(context, pages.length);
-    if (searchable == null || !context.mounted) return null;
-
-    final progress = ValueNotifier<String>(
-        searchable ? 'Yazılar taranıyor…' : 'PDF hazırlanıyor…');
+    final progress = ValueNotifier<String>(AppStrings.current
+        .t('sf.ocr_progress', {'n': 1, 'total': pages.length}));
     _showProgress(context, progress);
 
     String? path;
     String? error;
     var textPages = const <OcrPage>[];
+    var ocrLines = const <List<OcrLine>>[];
     try {
-      // OCR bir kez koşar; sonucu hem PDF'in görünmez metin katmanına hem
-      // sonuç ekranının "Metin" sekmesine gider (bkz. ScanResultScreen).
-      final ocrLines = searchable
-          ? await DocumentScanner.recognizePages(
-              pages,
-              onProgress: (done, total) => progress.value = AppStrings.current
-                  .t('sf.ocr_progress', {'n': done + 1, 'total': total}),
-            )
-          : const <List<OcrLine>>[];
+      // OCR bir kez koşar; sonucu ÜÇ yere gider: PDF'in görünmez metin
+      // katmanı, sonuç ekranının "Metin" sekmesi ve belgenin akıllı adı.
+      ocrLines = await DocumentScanner.recognizePages(
+        pages,
+        onProgress: (done, total) => progress.value = AppStrings.current
+            .t('sf.ocr_progress', {'n': done + 1, 'total': total}),
+      );
       textPages = DocumentScanner.textPages(ocrLines);
-      progress.value = 'PDF hazırlanıyor…';
+      progress.value = AppStrings.current.t('sf.building_pdf');
       final bytes =
           await DocumentScanner.renderPdf(pages, ocrLinesPerPage: ocrLines);
-      path = await DocumentScanner.savePdf(bytes);
+      final title =
+          suggestScanTitle(ocrLines.isNotEmpty ? ocrLines.first : const []);
+      path = await DocumentScanner.savePdf(bytes,
+          fileName: scanFileName(title, DateTime.now()));
     } catch (e) {
       error = '$e';
     }
@@ -65,7 +71,7 @@ class ScanFlow {
     Navigator.of(context).pop(); // ilerleme penceresi
 
     if (error != null || path == null) {
-      _snack(context, 'Tarama kaydedilemedi: $error');
+      _snack(context, AppStrings.current.t('sf.save_failed', {'error': error}));
       return null;
     }
 
@@ -77,33 +83,13 @@ class ScanFlow {
         pdfPath: path,
         pages: pages,
         textPages: textPages,
+        ocrLines: ocrLines,
       );
     } else {
-      _snack(context, '${pages.length} sayfa PDF olarak kaydedildi');
+      _snack(context,
+          AppStrings.current.t('sf.saved_n', {'n': pages.length}));
     }
     return path;
-  }
-
-  /// Aranabilir PDF (OCR metin katmanı) isteniyor mu? Görüntüyü değiştirmez,
-  /// yalnızca süre ekler — bu yüzden soruluyor, sessizce yapılmıyor.
-  static Future<bool?> _askSearchable(BuildContext context, int pageCount) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('sf.scanned_title', {'n': pageCount})),
-        content: Text(ctx.t('sf.scanned_body')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(ctx.t('sf.image_only')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(ctx.t('sf.with_ocr')),
-          ),
-        ],
-      ),
-    );
   }
 
   static void _showProgress(

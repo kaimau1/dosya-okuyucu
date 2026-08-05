@@ -85,6 +85,15 @@ abstract final class ScanEnhance {
   /// Çıktı JPEG kalitesi. 92: gözle kayıp yok, dosya makul.
   static const jpegQuality = 92;
 
+  /// Sayfanın uzun kenarı için üst sınır (piksel). 2480 px ≈ A4 @ 300 dpi —
+  /// masaüstü tarayıcıların "yüksek kalite" ayarı. 12MP telefon kamerası
+  /// ~4000 px sayfa üretir: fazlası OCR'a da baskıya da bir şey katmaz ama
+  /// PDF'i sayfa başına birkaç MB şişirir ve filtreleri yavaşlatır. Küçültme
+  /// filtre borusunun EN BAŞINDA yapılır (2026-08-05, "mükemmel tarama" turu);
+  /// [ScanFilter.original] seçilirse dosyaya hiç dokunulmadığı için o yol
+  /// bilerek tam çözünürlük kalır.
+  static const maxLongEdge = 2480;
+
   /// [request]'i uygular ve **hedef dosyanın yolunu** döndürür.
   /// `compute` ile izolatta çağrılmak üzere tek argümanlı.
   static String runRequest(ScanEnhanceRequest request) {
@@ -103,6 +112,16 @@ abstract final class ScanEnhance {
   }
 
   static img.Image applyToImage(img.Image source, ScanFilter filter) {
+    final longEdge = math.max(source.width, source.height);
+    if (longEdge > maxLongEdge) {
+      final ratio = maxLongEdge / longEdge;
+      source = img.copyResize(
+        source,
+        width: (source.width * ratio).round(),
+        height: (source.height * ratio).round(),
+        interpolation: img.Interpolation.average,
+      );
+    }
     final w = source.width;
     final h = source.height;
     if (w < 8 || h < 8) return source;

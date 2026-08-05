@@ -6173,3 +6173,49 @@ sayfanın OCR'lanmaması, çift dokunuş, sahiplik devri, onDragAt dengesi).
 bakılacaklar: taranmış sayfada hiç dokunmadan ~1 sn sonra uzun basışın anında
 seçmesi, kenarda akışın hızı (56/14 sabitleri), çift dokunuşun yazı dışında
 yanlış tetiklenmemesi.
+
+## 2026-08-05 (3. tur) — "Mükemmel belge tarama": tamamen otomatik boru hattı
+Kullanıcı: *"belge tarama işine de el at, mükemmel bir belge tarama sistemi
+kur"* + önceki turun ilkesi (*"kullanıcıya bir şey bırakma, otomatik olmalı"*).
+Tarama hattının iskeleti zaten iyiydi (ML Kit tarayıcı → inceleme/filtre →
+A4 PDF + görünmez OCR katmanı → sonuç ekranı); bu tur kalan el işlerini
+otomatikleştirdi.
+
+### A) "Aranabilir olsun mu?" penceresi KALDIRILDI — OCR hep koşar
+Cihaz içi OCR sayfa başına ~yarım saniye; doğru cevabı bildiğimiz soruyu
+sormak kullanıcıya iş çıkarmaktı. Artık her tarama kendiliğinden aranabilir,
+metin sekmesi hep dolu gelir VE belge adını içeriğinden alır. Kaldırılan
+l10n anahtarları: sf.scanned_title/scanned_body/image_only/with_ocr.
+
+### B) Akıllı adlandırma (`services/scan_title.dart`, saf + birim testli)
+"Tarama 2026-08-05 171234.pdf" → "SAĞLIK RAPORU 2026-08-05.pdf" (Drive
+tarayıcısı davranışı). Sezgisel: satırlar y'ye sıralanır, ilk 14 aday içinde
+`kutu yüksekliği × (1 − 0,015·sıra)` en yüksek satır başlıktır (punto vekili
+kutu yüksekliği); kısa üst başlık ("T.C.") altındaki benzer puntolu satırla
+birleşir; dosya-yasağı karakterler ayıklanır, 48 karakterde kelime sınırından
+kesilir. Başlık çıkmazsa eski damgalı ad. `DocumentScanner.savePdf` artık
+`FileOps.uniquePath` kullanır — aynı belge iki kez taranınca ikincisi
+"(1)" alır, SESSİZCE EZİLMEZ (akıllı ad çakışmayı olağanlaştırdı).
+
+### C) PDF boyutu: uzun kenar 2480 px (A4 @ 300 dpi)
+`ScanEnhance.applyToImage` borunun BAŞINDA küçültür (12MP kamera ~4000 px
+üretiyor; fazlası OCR'a/baskıya katkısız, sayfa başına birkaç MB şişkinlik).
+Filtreler de küçük görselde ~2-3 kat hızlandı. `ScanFilter.original` bilerek
+tam çözünürlük kalır (dosyaya hiç dokunulmayan yol). Köşe düzeltme etkilenmez
+(kaynak üzerinde çalışır, filtre sonrası görüntü yalnız gösterim+PDF girdisi).
+
+### D) Sonuç ekranı: yeniden adlandır + sayfa ekle
+- Kayıt satırı artık dosya ADINI da gösterir; kalem → ad değiştirme
+  (`FileOps.rename`; FAT32 büyük/küçük harf tuzağı orada zaten çözülü).
+- **"Sayfa ekle"**: tarayıcı → inceleme/netleştirme → yalnız YENİ sayfalar
+  OCR'lanır → PDF aynı yolda yeniden kurulur (masaüstü tarayıcının "beslemeye
+  devam et"i). Bunun için OCR SATIRLARI (kutulu) akıştan sonuç ekranına
+  taşınıyor (`ScanResultScreen.ocrLines`) — düz metin yetmez, görünmez katman
+  kutular ister. OCR'sız eski taramada hizalama `while (_lines.length <
+  _pages.length) _lines.add(const [])` ile korunur.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 hata/0 uyarı, **1274 test yeşil**
+(+10: 7 `scan_title_test`, 3 `scan_enhance_resize_test`; mevcut
+`scan_enhance_test` 60x40 sentetik görselleri eşiğin altında, kırılmadı).
+Cihazda bakılacaklar: gerçek belgede başlık isabeti (fatura/rapor/kimlik),
+"Sayfa ekle" sonrası PDF sayfa sırası, 2480 px'in yakınlaştırmada yeterliliği.

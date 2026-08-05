@@ -3478,10 +3478,20 @@ const Map<String, (String, String, String)> _table = {
     'Scanning text… ({n} / {total} pages)',
     'جارٍ فحص النص… ({n} / {total} صفحة)',
   ),
-  'sf.scanned_title': (
-    '{n} sayfa tarandı',
-    '{n} pages scanned',
-    'تم مسح {n} صفحة',
+  'sf.building_pdf': (
+    'PDF hazırlanıyor…',
+    'Preparing the PDF…',
+    'جارٍ تجهيز ملف PDF…',
+  ),
+  'sf.save_failed': (
+    'Tarama kaydedilemedi: {error}',
+    'Could not save the scan: {error}',
+    'تعذّر حفظ المسح: {error}',
+  ),
+  'sf.saved_n': (
+    '{n} sayfa PDF olarak kaydedildi',
+    '{n} pages saved as a PDF',
+    'تم حفظ {n} صفحة كملف PDF',
   ),
 
   // ── Sohbet medyası temizliği (WhatsApp/Telegram yığını) ───────────────────
@@ -3694,19 +3704,25 @@ const Map<String, (String, String, String)> _table = {
         'on the pages now.',
     'تم هذا المسح دون التعرّف على النص. يمكنك التعرّف على النص الآن.',
   ),
-  'sf.scanned_body': (
-    'Sayfalardaki yazılar da tanınsın mı? Tanınırsa PDF içinde arama ve '
-        'kopyalama çalışır; görüntü aynen kalır.\n\n'
-        'Metin tanıma sayfa başına birkaç saniye sürer.',
-    'Should the text on the pages be recognized too? Then search and copy work '
-        'inside the PDF; the image itself is unchanged.\n\n'
-        'Recognition takes a few seconds per page.',
-    'هل تريد التعرّف على النص في الصفحات أيضًا؟ عندها يعمل البحث والنسخ داخل '
-        'ملف PDF؛ وتبقى الصورة كما هي.\n\n'
-        'يستغرق التعرّف بضع ثوانٍ لكل صفحة.',
+  // ('Aranabilir olsun mu?' penceresi 2026-08-05'te kaldırıldı: OCR artık her
+  // taramada kendiliğinden koşar — soru anahtarları da tabloyla birlikte gitti.)
+  'scr.rename': ('Yeniden adlandır', 'Rename', 'إعادة التسمية'),
+  'scr.rename_failed': (
+    'Ad değiştirilemedi: {error}',
+    'Could not rename: {error}',
+    'تعذّرت إعادة التسمية: {error}',
   ),
-  'sf.image_only': ('Sadece görüntü', 'Image only', 'الصورة فقط'),
-  'sf.with_ocr': ('Yazıları da tanı', 'Recognize the text too', 'تعرّف على النص أيضًا'),
+  'scr.add_pages': ('Sayfa ekle', 'Add pages', 'إضافة صفحات'),
+  'scr.pages_added': (
+    '{n} sayfa eklendi',
+    '{n} pages added',
+    'تمت إضافة {n} صفحة',
+  ),
+  'scr.add_failed': (
+    'Sayfalar eklenemedi: {error}',
+    'Could not add the pages: {error}',
+    'تعذّرت إضافة الصفحات: {error}',
+  ),
 
   // ── Çeviri akışı ──────────────────────────────────────────────────────────
   'tf.title': ('Çeviri', 'Translation', 'الترجمة'),

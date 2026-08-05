@@ -13,6 +13,7 @@ import '../services/fm/file_ops.dart';
 import '../services/ocr_service.dart';
 import '../widgets/translate_flow.dart';
 import 'fm/folder_picker_screen.dart';
+import 'scan_review_screen.dart';
 
 /// **Tarama sonucu** — taranan belge ve tanınan metin, yan yana iki sekmede.
 ///
@@ -44,11 +45,17 @@ class ScanResultScreen extends StatefulWidget {
   /// Tanınan metin, sayfa sayfa. Boşsa "Metin" sekmesi OCR teklif eder.
   final List<OcrPage> textPages;
 
+  /// OCR satırları (kutularıyla) — "Sayfa ekle" PDF'i görünmez metin
+  /// katmanıyla YENİDEN kurarken eski sayfaların katmanı kaybolmasın diye
+  /// akıştan taşınır (yalnız düz metin yetmez, kutular gerekir).
+  final List<List<OcrLine>> ocrLines;
+
   const ScanResultScreen({
     super.key,
     required this.pdfPath,
     required this.pages,
     this.textPages = const [],
+    this.ocrLines = const [],
   });
 
   static Future<void> open(
@@ -56,12 +63,14 @@ class ScanResultScreen extends StatefulWidget {
     required String pdfPath,
     required List<String> pages,
     List<OcrPage> textPages = const [],
+    List<List<OcrLine>> ocrLines = const [],
   }) =>
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => ScanResultScreen(
           pdfPath: pdfPath,
           pages: pages,
           textPages: textPages,
+          ocrLines: ocrLines,
         ),
       ));
 
@@ -72,6 +81,8 @@ class ScanResultScreen extends StatefulWidget {
 class _ScanResultScreenState extends State<ScanResultScreen> {
   late String _pdfPath = widget.pdfPath;
   late List<OcrPage> _text = List.of(widget.textPages);
+  late final List<String> _pages = List.of(widget.pages);
+  late final List<List<OcrLine>> _lines = List.of(widget.ocrLines);
   bool _busy = false;
 
   String get _folder => p.dirname(_pdfPath);
@@ -111,8 +122,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
-  /// "Kaydedildi: <klasör>" + konumu değiştir. Kullanıcı nereye yazıldığını
-  /// görmeden "kaydedildi" demek, dosyayı aratmak demektir.
+  /// "Kaydedildi: <klasör>" + ad (dokununca değiştirilir) + konumu değiştir.
+  /// Kullanıcı nereye ve HANGİ ADLA yazıldığını görmeden "kaydedildi" demek,
+  /// dosyayı aratmak demektir. Ad artık OCR'dan kendiliğinden geliyor
+  /// (bkz. `suggestScanTitle`); beğenilmezse kalemle bir dokunuşta değişir.
   Widget _savedRow() => Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
         child: Row(
@@ -120,12 +133,28 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             const Icon(Icons.check_circle, size: 18, color: Color(0xFF2E7D32)),
             const SizedBox(width: Gap.sm),
             Expanded(
-              child: Text(
-                context.t('scr.saved_to', {'folder': p.basename(_folder)}),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.basename(_pdfPath),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  Text(
+                    context.t('scr.saved_to', {'folder': p.basename(_folder)}),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
+            ),
+            IconButton(
+              onPressed: _busy ? null : _rename,
+              tooltip: context.t('scr.rename'),
+              icon: const Icon(Icons.edit_outlined, size: 20),
             ),
             TextButton.icon(
               onPressed: _busy ? null : _changeLocation,
@@ -137,14 +166,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
 
   Widget _documentTab() => PageView.builder(
-        itemCount: widget.pages.length,
+        itemCount: _pages.length,
         itemBuilder: (_, i) => InteractiveViewer(
           minScale: 1,
           maxScale: 5,
           child: Center(
             child: Image.file(
-              File(widget.pages[i]),
-              key: ValueKey(widget.pages[i]),
+              File(_pages[i]),
+              key: ValueKey(_pages[i]),
               errorBuilder: (_, __, ___) => Text(context.t('sr.page_failed')),
             ),
           ),
@@ -213,6 +242,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               label: Text(context.t('scr.open_pdf')),
             ),
             TextButton.icon(
+              onPressed: _busy ? null : _addPages,
+              icon: const Icon(Icons.add_photo_alternate_outlined, size: 20),
+              label: Text(context.t('scr.add_pages')),
+            ),
+            TextButton.icon(
               onPressed: _busy ? null : _translate,
               icon: const Icon(Icons.translate, size: 20),
               label: Text(context.t('common.translate')),
@@ -246,12 +280,92 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   Future<void> _recognize() async {
     setState(() => _busy = true);
     try {
-      final lines = await DocumentScanner.recognizePages(widget.pages);
+      final lines = await DocumentScanner.recognizePages(_pages);
       if (!mounted) return;
-      setState(() => _text = DocumentScanner.textPages(lines));
+      setState(() {
+        _lines
+          ..clear()
+          ..addAll(lines);
+        _text = DocumentScanner.textPages(lines);
+      });
       if (_text.isEmpty) _snack(context.t('vw.ocr_none'));
     } catch (e) {
       if (mounted) _snack(context.t('vw.ocr_failed', {'error': e}));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Dosya adını değiştirir (uzantı sabit kalır). Ad OCR'dan kendiliğinden
+  /// gelir; burası "beğenmedim" yolu.
+  Future<void> _rename() async {
+    final controller = TextEditingController(
+        text: p.basenameWithoutExtension(_pdfPath));
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('scr.rename')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.t('common.cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(ctx.t('common.ok')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final clean = name?.trim();
+    if (clean == null || clean.isEmpty || !mounted) return;
+    try {
+      final newPath = await FileOps.rename(_pdfPath, '$clean.pdf');
+      if (mounted) setState(() => _pdfPath = newPath);
+    } catch (e) {
+      if (mounted) _snack(context.t('scr.rename_failed', {'error': e}));
+    }
+  }
+
+  /// Belgeye SONRADAN sayfa ekler: tarayıcı → inceleme/netleştirme → OCR →
+  /// PDF aynı yolda yeniden kurulur. Eskiden eksik sayfa fark edilince tüm
+  /// tarama baştan yapılıyordu; şimdi kalan sayfalar eklenip aynı belgede
+  /// birleşiyor (masaüstü tarayıcıların "beslemeye devam et" davranışı).
+  Future<void> _addPages() async {
+    List<String>? more;
+    try {
+      more = await DocumentScanner.scanPages();
+    } catch (e) {
+      if (mounted) _snack(context.t('sf.scanner_failed', {'error': e}));
+      return;
+    }
+    if (more == null || more.isEmpty || !mounted) return;
+    final reviewed = await ScanReviewScreen.open(context, more);
+    if (reviewed == null || reviewed.isEmpty || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      // Yalnız YENİ sayfalar OCR'lanır; eskilerin satırları elimizde.
+      final newLines = await DocumentScanner.recognizePages(reviewed);
+      while (_lines.length < _pages.length) {
+        _lines.add(const []); // OCR'sız eski tarama: hizalama bozulmasın
+      }
+      _pages.addAll(reviewed);
+      _lines.addAll(newLines);
+      final bytes =
+          await DocumentScanner.renderPdf(_pages, ocrLinesPerPage: _lines);
+      await File(_pdfPath).writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      setState(() => _text = DocumentScanner.textPages(_lines));
+      _snack(context.t('scr.pages_added', {'n': reviewed.length}));
+    } catch (e) {
+      if (mounted) _snack(context.t('scr.add_failed', {'error': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -264,7 +378,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       load: (progress) async {
         if (_text.isNotEmpty) return _text;
         progress.status(AppStrings.of(context).t('vw.ocr_running'));
-        final lines = await DocumentScanner.recognizePages(widget.pages);
+        final lines = await DocumentScanner.recognizePages(_pages);
         final pages = DocumentScanner.textPages(lines);
         if (mounted) setState(() => _text = pages);
         return pages;

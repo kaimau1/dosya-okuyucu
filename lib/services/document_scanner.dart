@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 
 import 'conversion_service.dart';
+import 'fm/file_ops.dart';
 import 'ocr_service.dart';
 
 /// **Belge tarayıcı** — kamerayla çekilen sayfayı masaüstü tarayıcıdan çıkmış
@@ -88,11 +89,16 @@ class DocumentScanner {
 
   /// PDF'i diske yazar ve yolunu döner. [dir] verilmezse Belgeler dizini
   /// (kullanıcı sonuç ekranından başka bir klasör seçebiliyor).
+  ///
+  /// Ad çakışırsa üzerine YAZILMAZ: `rapor (1).pdf` üretilir. Akıllı
+  /// adlandırma (bkz. `suggestScanTitle`) aynı belgeyi iki kez tarayana aynı
+  /// adı önerir — sessizce ezmek ilk taramayı kaybettirirdi.
   static Future<String> savePdf(Uint8List bytes,
       {String? dir, String? fileName}) async {
     final target = dir ?? (await defaultDir()).path;
     await Directory(target).create(recursive: true);
-    final path = p.join(target, fileName ?? 'Tarama ${_stamp()}.pdf');
+    final path = FileOps.uniquePath(
+        p.join(target, fileName ?? 'Tarama ${_stamp()}.pdf'));
     await File(path).writeAsBytes(bytes, flush: true);
     return path;
   }
