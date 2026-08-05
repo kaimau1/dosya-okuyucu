@@ -6219,3 +6219,52 @@ tam çözünürlük kalır (dosyaya hiç dokunulmayan yol). Köşe düzeltme etk
 `scan_enhance_test` 60x40 sentetik görselleri eşiğin altında, kırılmadı).
 Cihazda bakılacaklar: gerçek belgede başlık isabeti (fatura/rapor/kimlik),
 "Sayfa ekle" sonrası PDF sayfa sırası, 2480 px'in yakınlaştırmada yeterliliği.
+
+## 2026-08-05 (4. tur) — Taranmış PDF'te ARAMA + OCR disk önbelleği
+"Taranmış veya yazılmış fark etmez" sözünün son parçası: seçim/kopyalama OCR
+ile çalışıyordu ama **belge içi arama** pdfrx'in pdfium arayıcısına bağlıydı,
+taranmış sayfada kördü. Ayrıca OCR sonuçları yalnız bellekteydi — uygulama
+kapanınca uçuyor, aynı belge her açılışta yeniden OCR'lanıyordu.
+
+### A) OCR disk önbelleği (`pdf_ocr_text.dart` 2. katman)
+- `encodeOcrPageText`/`decodeOcrPageText` (saf JSON, birim testli — kutular
+  BİREBİR dönmeli, kayıp = yeniden açılışta kayan seçim) + `fnv1a` (kararlı
+  64-bit özet; `hashCode` OLMAZ: Dart oturumlar arası kararlılık vaat etmez;
+  işaret biti maskelenir yoksa `toRadixString` '-' üretip dosya adını bozar).
+- Anahtar: yol + mtime + boyut → dosya değişince eski girdi kendiliğinden
+  ıskalanır. "Metin yok" da `yok` işaretiyle saklanır (boş taranmış sayfa her
+  açılışta OCR'lanmasın). Kap: 300 sayfa dosyası, taşınca en eski silinir.
+- **TUZAK — platform kanalı kritik yolda beklenmez:**
+  `getApplicationSupportDirectory` flutter_test'te İLERLEMEZ; ilk sürümde
+  `_diskRead` bunu await ediyordu ve üç seçim widget testi "OCR hiç koşmadı"
+  diye kırıldı (HAFIZA §F "gerçek asenkron iş ilerlemez" tuzağının kanal
+  biçimi). Çözüm `_dirSync()`: dizin çözülmemişse arka planda ısındırılır,
+  o çağrı diski atlar (OCR ~1 sn sürdüğünden yazma anına dek dizin hazır).
+- KVKK notu: önbellek uygulamanın KENDİ destek dizininde, belgenin kendisiyle
+  aynı mahremiyet düzeyinde; buluta çıkmaz.
+
+### B) Taranmış sayfalarda arama (`pdf_ocr_search.dart` + viewer)
+- `PdfOcrSearch` (ChangeNotifier): metin katmanı ince (<8 karakter, seçim
+  katmanıyla aynı eşik) sayfaları `PdfOcrText` üzerinden OCR'layıp deseni
+  OCR metninde arar; eşleşme kutuları `selectionPdfRects` ile (vurgu, seçim
+  vurgusuyla aynı satır geometrisi — bu yüzden yardımcılar
+  `services/pdf/selection_rects.dart`a taşındı, `pdf_select_layer` eski
+  adresten `export` ediyor, hiçbir import/test kırılmadı).
+- Arama kullanıcının BAKTIĞI sayfadan başlar (ilk sonuçlar gözün önünden);
+  yeni arama generation sayacıyla eskisini iptal eder; sayfa başına
+  `notifyListeners` → sayaç canlı büyür. OCR bütçesi: bir aramada en çok
+  40 YENİ sayfa OCR'lanır (önbellekli sayfalar bütçe yemez), atlananlar
+  `skippedPages`te sayılır — sessiz kesme yok.
+- Viewer birleşik gezinme: pdfrx + OCR eşleşmeleri sayfa sırasına dizilir;
+  imleç SAYI değil KAYIT (`_findEntry`) — OCR eşleşmeleri damla damla
+  gelirken sayı kayardı. İleri/geri: pdfrx eşleşmesine `goToMatchOfIndex`,
+  OCR eşleşmesine `goToRectInsidePage`. OCR vurguları `pagePaintCallbacks`te
+  pdfrx'in varsayılan renkleriyle boyanır (sarı/turuncu, %50) — kullanıcı
+  hangi motorun bulduğunu AYIRT EDEMEZ. Sayaç OCR sürerken "n/m…" (üç nokta).
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 hata/0 uyarı, **1284 test yeşil**
+(+10: 5 `ocr_disk_cache_test` — gidiş-dönüş, bozuk girdi, fnv, iki-oturum
+diskten dönüş, "yok" işareti; 5 `pdf_ocr_search_test` — ince/dolu sayfa
+ayrımı, baktığın-sayfadan-başlama, generation iptali, bütçe sayacı, reset).
+Cihazda bakılacaklar: taranmış PDF'te arama vurgusunun konumu, 40-sayfa
+bütçesinin uzun taramalarda hissiyatı, arama sayacının canlı büyümesi.

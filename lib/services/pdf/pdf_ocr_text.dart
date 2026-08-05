@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../ocr_service.dart';
@@ -36,8 +38,124 @@ class PdfOcrText {
   static final _inFlight = <String, Future<OcrPageText?>>{};
   static const _cacheCap = 24;
 
+  /// Disk önbelleği (2. katman): uygulama kapanıp açılınca taranmış sayfa
+  /// YENİDEN OCR'lanmaz — seçim/arama anında hazır olur, pil korunur.
+  /// Anahtar belge yolu + mtime + boyut (bkz. [_docStamp]): dosya değişirse
+  /// eski girdi kendiliğinden ıskalanır. En çok [_diskCap] sayfa dosyası
+  /// tutulur; taşınca en eskiler silinir. Testler için [debugDiskDirOverride].
+  static String? debugDiskDirOverride;
+  static const _diskCap = 300;
+  static Directory? _diskDir;
+  static Future<void>? _diskWarmUp;
+
   static String _key(PdfPage page) =>
       '${page.document.sourceName}#${page.pageNumber}';
+
+  /// Disk dizini — **beklemesiz**. Çözülmemişse arka planda ısındırır ve null
+  /// döner (o çağrı diski atlar; OCR ~1 sn sürdüğü için yazma anına dek dizin
+  /// hazır olur).
+  ///
+  /// TUZAK (2026-08-05, HAFIZA §F akrabası): `getApplicationSupportDirectory`
+  /// platform kanalıdır; flutter_test'te kanal yanıtı İLERLEMEZ ve kritik
+  /// yolda `await` edilirse OCR zinciri sonsuza dek askıda kalır — üç widget
+  /// testi tam böyle kırıldı. Kanal bu yüzden ASLA kritik yolda beklenmez.
+  static Directory? _dirSync() {
+    final override = debugDiskDirOverride;
+    if (override != null) {
+      return Directory(override)..createSync(recursive: true);
+    }
+    if (_diskDir == null) {
+      _diskWarmUp ??= () async {
+        try {
+          final base = await getApplicationSupportDirectory();
+          _diskDir = Directory(p.join(base.path, 'ocr_sayfa_onbellek'))
+            ..createSync(recursive: true);
+        } catch (_) {
+          // Disk önbelleği olmadan da her şey çalışır.
+        }
+      }();
+    }
+    return _diskDir;
+  }
+
+  /// Belgenin kimlik damgası: yol + değişme zamanı + boyut. `sourceName`
+  /// gerçek bir dosya değilse (bellekten açılmış belge) yalnız ad kalır —
+  /// yanlış eşleşme riski sıfır değil ama pdfrx'te belgeler yol tabanlı.
+  static String _docStamp(PdfPage page) {
+    final name = page.document.sourceName;
+    try {
+      final st = File(name).statSync();
+      return '$name|${st.modified.millisecondsSinceEpoch}|${st.size}';
+    } catch (_) {
+      return name;
+    }
+  }
+
+  static String _diskFileName(PdfPage page) =>
+      '${fnv1a(_docStamp(page))}_p${page.pageNumber}.json';
+
+  /// Disk girdisi: `hit` false ise girdi yok (OCR koşmalı); true ise sonuç
+  /// [text]'tir — null da olabilir ("bu sayfada metin yok" işareti: metinsiz
+  /// taranmış sayfa her açılışta yeniden OCR'lanmasın).
+  static Future<({bool hit, OcrPageText? text})> _diskRead(
+      PdfPage page) async {
+    final dir = _dirSync();
+    if (dir == null) return (hit: false, text: null);
+    try {
+      final f = File(p.join(dir.path, _diskFileName(page)));
+      if (!f.existsSync()) return (hit: false, text: null);
+      final raw = await f.readAsString();
+      if (raw == 'yok') return (hit: true, text: null);
+      final decoded = decodeOcrPageText(raw);
+      if (decoded != null) return (hit: true, text: decoded);
+      f.deleteSync(); // bozuk girdi: at, OCR yeniden koşsun
+    } catch (_) {}
+    return (hit: false, text: null);
+  }
+
+  static Future<void> _diskWrite(PdfPage page, OcrPageText? text) async {
+    final dir = _dirSync();
+    if (dir == null) return;
+    try {
+      final f = File(p.join(dir.path, _diskFileName(page)));
+      await f.writeAsString(text == null ? 'yok' : encodeOcrPageText(text),
+          flush: true);
+      _pruneDisk(dir);
+    } catch (_) {}
+  }
+
+  /// Taşan önbelleği buda: en eski değiştirilenler gider. Her yazımda koşar —
+  /// birkaç yüz dosyalık dizin listelemek milisaniyelik iş.
+  static void _pruneDisk(Directory dir) {
+    try {
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.json'))
+          .toList();
+      if (files.length <= _diskCap) return;
+      files.sort(
+          (a, b) => a.statSync().modified.compareTo(b.statSync().modified));
+      for (final f in files.take(files.length - _diskCap)) {
+        f.deleteSync();
+      }
+    } catch (_) {}
+  }
+
+  /// Bu sayfanın sonucu önbellekte (bellek ya da disk) hazır mı? OCR arama
+  /// bütçesi (bkz. `PdfOcrSearch.maxFreshOcrPages`) yalnız GERÇEKTEN OCR
+  /// koşacak sayfaları saysın diye. Disk dizini henüz kurulmadıysa tutucu
+  /// davranır (false) — bütçeden düşer ama yanlış "hazır" demez.
+  static bool isCached(PdfPage page) {
+    if (_cache.containsKey(_key(page))) return true;
+    final dir = _dirSync();
+    if (dir == null) return false;
+    try {
+      return File(p.join(dir.path, _diskFileName(page))).existsSync();
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// [page] için OCR metni. Aynı sayfa için eşzamanlı ikinci çağrı ilk işi
   /// bekler; sonuç (boş olsa da) önbelleğe girer.
@@ -58,6 +176,12 @@ class PdfOcrText {
   static Future<OcrPageText?> _run(PdfPage page, String key) async {
     OcrPageText? result;
     try {
+      final disk = await _diskRead(page);
+      if (disk.hit) {
+        _cache[key] = disk.text;
+        if (_cache.length > _cacheCap) _cache.remove(_cache.keys.first);
+        return disk.text;
+      }
       final override = debugOcrOverride;
       if (override != null) {
         result = await override(page);
@@ -87,6 +211,7 @@ class PdfOcrText {
     }
     _cache[key] = result;
     if (_cache.length > _cacheCap) _cache.remove(_cache.keys.first);
+    await _diskWrite(page, result);
     return result;
   }
 
@@ -95,5 +220,8 @@ class PdfOcrText {
     _cache.clear();
     _inFlight.clear();
     debugOcrOverride = null;
+    debugDiskDirOverride = null;
+    _diskDir = null;
+    _diskWarmUp = null;
   }
 }

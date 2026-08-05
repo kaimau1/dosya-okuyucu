@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonDecode, jsonEncode, utf8;
 import 'dart:ui' show Rect;
 
 import 'package:pdfrx/pdfrx.dart';
@@ -135,4 +136,70 @@ OcrPageText? buildOcrPageText({
     fullText: buffer.toString(),
     fragments: fragments,
   );
+}
+
+/// [OcrPageText]'i JSON'a çevirir — **disk önbelleği** için (2026-08-05,
+/// 4. tur: uygulama kapanıp açılınca taranmış sayfa yeniden OCR'lanmasın;
+/// pil + "anında seçilebilir sayfa"). Saf fonksiyon, birim testli.
+String encodeOcrPageText(OcrPageText text) => jsonEncode({
+      'v': 1,
+      'page': text.pageNumber,
+      'text': text.fullText,
+      'frags': [
+        for (final f in text.fragments)
+          {
+            'i': f.index,
+            't': f.text,
+            // Kutu başına 4 sayı düz dizide: JSON küçük kalsın (sayfa başına
+            // yüzlerce karakter kutusu var).
+            'r': [
+              for (final r in f.charRects) ...[r.left, r.top, r.right, r.bottom],
+            ],
+          },
+      ],
+    });
+
+/// [encodeOcrPageText] çıktısını geri çözer; biçim tanınmazsa/bozuksa null
+/// (önbellek girdisi atılır, OCR yeniden koşar — asla hata fırlatmaz).
+OcrPageText? decodeOcrPageText(String json) {
+  try {
+    final map = jsonDecode(json);
+    if (map is! Map || map['v'] != 1) return null;
+    final fullText = map['text'] as String;
+    final fragments = <PdfPageTextFragment>[];
+    for (final f in map['frags'] as List) {
+      final text = f['t'] as String;
+      final flat = (f['r'] as List).cast<num>();
+      if (flat.length != text.length * 4) return null;
+      final rects = <PdfRect>[
+        for (var i = 0; i < flat.length; i += 4)
+          PdfRect(flat[i].toDouble(), flat[i + 1].toDouble(),
+              flat[i + 2].toDouble(), flat[i + 3].toDouble()),
+      ];
+      fragments.add(PdfPageTextFragment.fromParams(
+          f['i'] as int, text.length, rects.boundingRect(), text, rects));
+    }
+    if (fragments.isEmpty) return null;
+    return OcrPageText(
+      pageNumber: map['page'] as int,
+      fullText: fullText,
+      fragments: fragments,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Kararlı, bağımlılıksız 64-bit FNV-1a özeti — önbellek dosya adı için
+/// (belge yolu + mtime + boyut → aynı belge aynı ada, değişen belge yeni ada).
+/// `hashCode` KULLANILAMAZ: Dart onun oturumlar arası kararlılığını vaat etmez.
+String fnv1a(String input) {
+  var hash = 0xcbf29ce484222325;
+  for (final byte in utf8.encode(input)) {
+    hash ^= byte;
+    hash = hash * 0x100000001b3; // Dart VM 64-bit sarmalı çarpım
+  }
+  // İşaret biti atılır: `toRadixString` negatif sayıya '-' koyar, dosya adında
+  // istemeyiz. 63 bit önbellek anahtarı için fazlasıyla yeter.
+  return (hash & 0x7FFFFFFFFFFFFFFF).toRadixString(16).padLeft(16, '0');
 }

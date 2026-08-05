@@ -10,6 +10,12 @@ import 'package:pdfrx/pdfrx.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/pdf/ocr_page_text.dart' show OcrPageText;
 import '../services/pdf/pdf_ocr_text.dart';
+import '../services/pdf/selection_rects.dart';
+
+// Seçim geometrisi 2026-08-05'te servise taşındı (OCR araması da kullanıyor);
+// eski adresten içe aktaran dosyalar/testler kırılmasın diye yeniden sunulur.
+export '../services/pdf/selection_rects.dart'
+    show selectionPdfRects, mergeSameLineRects;
 
 /// PDF sayfası üzerinde **kendi metin seçim katmanımız** — hedef davranış
 /// Chrome'un PDF görüntüleyicisi: yazılmış ya da TARANMIŞ fark etmeden,
@@ -952,65 +958,6 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       ),
     );
   }
-}
-
-/// [text]'in [start]..[end] (dahil) aralığını kaplayan, **satır başına bir**
-/// `PdfRect` (PDF koordinatı) listesi. Ekran seçim boyaması
-/// (`_SelectionPainter`) ile kalıcı vurgu annotation'ı (`PdfAnnotator`) AYNI
-/// geometriyi kullansın diye ortak.
-///
-/// Aynı satırdaki parçalar BİRLEŞTİRİLİR. Niye (2026-07-26 kullanıcı bulgusu:
-/// "kelime aralarında çıkan koyuluklar göz yoruyor"): PDF üreticileri bir
-/// satırı kelime kelime (hatta harf harf) ayrı parçalara böler; her parça ayrı
-/// yarı saydam dikdörtgen olarak boyanınca kelime aralarındaki örtüşmeler üst
-/// üste binip koyu şeritler yapıyordu. Satır tek dikdörtgen olunca seçim
-/// telefonun yerel seçimi gibi düz ve tek tonlu görünür.
-List<PdfRect> selectionPdfRects(PdfPageText text, int start, int end) {
-  final out = <PdfRect>[];
-  if (end < start) return out;
-  for (final f in text.fragments) {
-    final a = start - f.index;
-    final b = end + 1 - f.index; // hariç
-    final s = a < 0 ? 0 : a;
-    final e = b > f.length ? f.length : b;
-    if (s >= e) continue;
-    PdfRect? bounds;
-    try {
-      bounds = f.getBoundsForRange(start: s, end: e);
-    } catch (_) {
-      bounds = f.bounds;
-    }
-    if (bounds != null) out.add(bounds);
-  }
-  return mergeSameLineRects(out);
-}
-
-/// Dikey olarak örtüşen (aynı satırdaki) dikdörtgenleri tek dikdörtgende
-/// birleştirir. Sıra korunur: ilk satır listenin başında kalır.
-List<PdfRect> mergeSameLineRects(List<PdfRect> rects) {
-  final out = <PdfRect>[];
-  for (final r in rects) {
-    if (r.top <= r.bottom) continue; // bozuk/boş kutu
-    var merged = false;
-    for (var i = 0; i < out.length; i++) {
-      final o = out[i];
-      final overlap = math.min(o.top, r.top) - math.max(o.bottom, r.bottom);
-      final minHeight = math.min(o.top - o.bottom, r.top - r.bottom);
-      // Satır yüksekliğinin yarısından fazlası örtüşüyorsa aynı satırdır.
-      if (minHeight > 0 && overlap > minHeight * 0.5) {
-        out[i] = PdfRect(
-          math.min(o.left, r.left),
-          math.max(o.top, r.top),
-          math.max(o.right, r.right),
-          math.min(o.bottom, r.bottom),
-        );
-        merged = true;
-        break;
-      }
-    }
-    if (!merged) out.add(r);
-  }
-  return out;
 }
 
 class _SelectionPainter extends CustomPainter {

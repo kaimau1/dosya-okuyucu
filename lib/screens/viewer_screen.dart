@@ -24,6 +24,7 @@ import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
+import '../services/pdf/pdf_ocr_search.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_edit_flow.dart';
 import '../services/pdf_reload.dart';
@@ -190,6 +191,41 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final PdfViewerController _pdfController = PdfViewerController();
   PdfTextSearcher? _pdfSearcher;
 
+  /// Taranmış sayfalarda arama (Faz 2, 2026-08-05): pdfrx arayıcısı yalnız
+  /// pdfium metin katmanını görür; metin katmanı olmayan sayfalar
+  /// [PdfOcrSearch] ile OCR üzerinden aranır. İki kaynak [_findEntries]'te
+  /// sayfa sırasına göre birleşir, ileri/geri tek listede gezer.
+  PdfOcrSearch? _ocrSearch;
+
+  /// Birleşik arama imleci: pdfrx (ocr:false) ya da OCR (ocr:true) eşleşmesi.
+  /// Konum SAYI olarak tutulmaz — OCR eşleşmeleri damla damla geldikçe liste
+  /// büyür, sayı kayardı; kayıt yapısal eşitlikle taze listede yeniden bulunur.
+  ({bool ocr, int index, int page})? _findEntry;
+
+  /// pdfrx + OCR eşleşmeleri, sayfa sırasında.
+  List<({bool ocr, int index, int page})> get _findEntries {
+    final s = _pdfSearcher;
+    final o = _ocrSearch;
+    final out = <({bool ocr, int index, int page})>[];
+    if (s != null) {
+      for (var i = 0; i < s.matches.length; i++) {
+        out.add((ocr: false, index: i, page: s.matches[i].pageNumber));
+      }
+    }
+    if (o != null) {
+      for (var i = 0; i < o.matches.length; i++) {
+        out.add((ocr: true, index: i, page: o.matches[i].pageNumber));
+      }
+    }
+    out.sort((a, b) {
+      final byPage = a.page.compareTo(b.page);
+      if (byPage != 0) return byPage;
+      if (a.ocr != b.ocr) return a.ocr ? 1 : -1;
+      return a.index.compareTo(b.index);
+    });
+    return out;
+  }
+
   bool get _isPdf => widget.doc.kind == DocKind.pdf;
 
   /// PDF gece modu: sayfayı renk matrisiyle TERSLER (beyaz kağıt → siyah).
@@ -213,12 +249,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     if (doc.kind == DocKind.pdf) {
       _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
+      _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
     }
   }
 
-  /// Arayıcı eşleşme bulup ilerledikçe sayaç/konum etiketini güncelle.
+  /// Arayıcılar (pdfrx + OCR) eşleşme bulup ilerledikçe sayaç/konum etiketini
+  /// güncelle. pdfrx ilk eşleşmeye KENDİLİĞİNDEN atlar; birleşik konum imleci
+  /// boşsa o eşleşmeye oturtulur ki etiket "1/n" desin ve ileri/geri oradan
+  /// devam etsin.
   void _onPdfSearch() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {
+      final s = _pdfSearcher;
+      if (_findEntry == null &&
+          s != null &&
+          s.currentIndex != null &&
+          s.matches.isNotEmpty) {
+        _findEntry = (ocr: false, index: s.currentIndex!,
+            page: s.matches[s.currentIndex!].pageNumber);
+      }
+    });
   }
 
   @override
@@ -229,6 +279,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _findCtl.dispose();
     _textFocus.dispose();
     _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
+    _ocrSearch?.dispose();
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     _pdfEditCtl?.dispose();
     _restoreOriginal();
@@ -354,6 +405,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _matchStarts = const [];
         _matchPos = -1;
         _pdfSearcher?.resetTextSearch();
+        _ocrSearch?.reset();
+        _findEntry = null;
       }
     });
   }
@@ -361,14 +414,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _runFind(String query) {
     final q = query.trim();
     if (_isPdf) {
+      _findEntry = null;
       // pdfrx arayıcısı: sayfa sayfa bulur, vurgular, ilk eşleşmeye kaydırır.
       if (q.isEmpty) {
         _pdfSearcher?.resetTextSearch();
+        _ocrSearch?.reset();
       } else {
         // Paketin `caseInsensitive`i yerel-duyarsız (İ/ı kaçıyordu); harf
         // biçimlerini kendimiz kapsayıp eşleştirmeyi duyarlı koşturuyoruz.
         _pdfSearcher?.startTextSearch(turkishSearchPattern(q),
             caseInsensitive: false);
+        // Taranmış sayfalar: aynı desen OCR metninde aranır. Kullanıcının
+        // baktığı sayfadan başlar — ilk sonuçlar gözün önünden gelir.
+        final doc = _pdfDoc;
+        if (doc != null) {
+          _ocrSearch?.start(doc, turkishSearchPattern(q), fromPage: _pdfPage);
+        }
       }
       return;
     }
@@ -386,10 +447,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   void _jumpMatch(int delta) {
     if (_isPdf) {
-      if (delta > 0) {
-        _pdfSearcher?.goToNextMatch();
+      final entries = _findEntries;
+      if (entries.isEmpty) return;
+      var i = _findEntry == null ? -1 : entries.indexOf(_findEntry!);
+      if (i == -1) {
+        i = delta > 0 ? 0 : entries.length - 1;
       } else {
-        _pdfSearcher?.goToPrevMatch();
+        i = (i + delta) % entries.length;
+        if (i < 0) i += entries.length;
+      }
+      final e = entries[i];
+      setState(() => _findEntry = e);
+      if (e.ocr) {
+        final o = _ocrSearch!;
+        o.currentIndex = e.index; // vurgu turuncuya döner
+        final m = o.matches[e.index];
+        _pdfController.goToRectInsidePage(
+            pageNumber: m.pageNumber, rect: m.bounds);
+      } else {
+        _ocrSearch?.currentIndex = -1;
+        _pdfSearcher?.goToMatchOfIndex(e.index);
       }
       return;
     }
@@ -413,16 +490,46 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (focus) _textFocus.requestFocus();
   }
 
+  /// Taranmış sayfa arama eşleşmelerini boyar. Renkler pdfrx'in
+  /// varsayılanlarıyla birebir (sarı/turuncu, %50 saydam) — kullanıcı hangi
+  /// eşleşmenin hangi motordan geldiğini AYIRT EDEMEMELİ.
+  void _paintOcrSearchMatches(Canvas canvas, Rect pageRect, PdfPage page) {
+    final o = _ocrSearch;
+    if (o == null || o.matches.isEmpty) return;
+    final normal = Paint()..color = Colors.yellow.withAlpha(127);
+    final active = Paint()..color = Colors.orange.withAlpha(127);
+    for (var i = 0; i < o.matches.length; i++) {
+      final m = o.matches[i];
+      if (m.pageNumber != page.pageNumber) continue;
+      final paint = i == o.currentIndex ? active : normal;
+      for (final r in m.rects) {
+        canvas.drawRect(
+          r
+              .toRect(page: page, scaledPageSize: pageRect.size)
+              .translate(pageRect.left, pageRect.top),
+          paint,
+        );
+      }
+    }
+  }
+
   /// Belge içi arama çubuğu (app bar altında).
   PreferredSizeWidget _findBar() {
     final int count;
     final String label;
     if (_isPdf) {
-      final s = _pdfSearcher;
-      count = s?.matches.length ?? 0;
+      // Birleşik sayaç: metin katmanı + OCR (taranmış sayfa) eşleşmeleri.
+      final entries = _findEntries;
+      final busy = (_pdfSearcher?.isSearching ?? false) ||
+          (_ocrSearch?.isSearching ?? false);
+      count = entries.length;
       if (count > 0) {
-        label = '${(s?.currentIndex ?? 0) + 1}/$count';
-      } else if (s != null && s.isSearching) {
+        final pos =
+            _findEntry == null ? -1 : entries.indexOf(_findEntry!);
+        final head = pos >= 0 ? '${pos + 1}/$count' : '$count';
+        // OCR hâlâ sayfa tarıyorsa üç nokta: sayı büyümeye devam edebilir.
+        label = busy ? '$head…' : head;
+      } else if (busy) {
         label = context.t('vw.searching');
       } else {
         label = _findCtl.text.trim().isEmpty ? '' : 'yok';
@@ -1284,6 +1391,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Yenisi `onViewerReady` ile geri gelir.
     _pdfDoc = null;
     _pdfSearcher?.resetTextSearch(); // eşleşmeler eski belgeye aitti
+    _ocrSearch?.reset();
+    _findEntry = null;
     await PdfReload.reloadFile(widget.doc.path);
     if (mounted) setState(() {});
   }
@@ -2006,10 +2115,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                   // düzeni kullanılır — gereksiz yere devralmıyoruz.
                   layoutPages: _pdfColumns == 1 ? null : _layoutPdfColumns,
-                  // Arama eşleşmelerini sayfada vurgula (Faz 1).
+                  // Arama eşleşmelerini sayfada vurgula: metin katmanı
+                  // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
+                  // (Faz 2) — renkler aynı, kullanıcı fark görmez.
                   pagePaintCallbacks: [
                     if (_pdfSearcher != null)
                       _pdfSearcher!.pageTextMatchPaintCallback,
+                    if (_ocrSearch != null) _paintOcrSearchMatches,
                   ],
                   // Sağ kenarda sürüklenebilir kaydırma çubuğu: uzun belgede
                   // sayfa sayfa kaydırmak yerine tutup atlanır, üstünde de
