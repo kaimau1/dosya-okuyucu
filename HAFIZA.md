@@ -6046,3 +6046,79 @@ Elde `drive.file` jetonu varsa yeni sürümde 403 gelir. Uygulamada bir kez
 **Bağlantıyı kes → Google ile bağlan** gerekiyor; ayrıca Cloud'da OAuth izin
 ekranına `.../auth/drive` kapsamı eklenmeli. Belge (`docs/GOOGLE-DRIVE-KURULUM.md`)
 sorun giderme tablosuyla güncellendi.
+
+## 2026-08-05 — PDF'te "premium" metin seçimi: Chrome eşdeğeri, taranmış sayfa dahil
+Kullanıcı isteği: *"PDF üzerindeki metinleri normal metin seçer gibi seçebilmek
+istiyorum, taranmış veya yazılmış fark etmez; Chrome PDF görüntüleyicisi bunu
+çok güzel yapmış, şu anki sistemimiz kullanışlı değil."* Eski davranış yalnız
+uzun basış + tutamaçtı; sürükleyerek büyütme, fare desteği ve taranmış sayfa
+desteği hiç yoktu.
+
+### A) Sürükleyerek seçim, pan kilidini KIRMADAN (`pdf_select_layer.dart`)
+Uzun basış kelimeyi seçer; parmak kalkmadan sürüklenirse seçim KELİME KELİME
+büyür (Android/Chrome yerlisi). Bunu jest arenasına girmeden yapmanın yolu:
+- Katman hâlâ yalnız `Listener` (arena tuzağı için bkz. 2026-07-26 kayıtları;
+  `pdf_select_layer_gestures_test` kaynak düzeyinde korumaya devam ediyor).
+- Seçim başladığı an katman `onSelectingChanged(true)` bildirir,
+  `viewer_screen` `PdfViewerParams.panEnabled: false` yapar. **Bu güvenli**:
+  pdfrx'in `InteractiveViewer`'ı bayrağı HER olayda okur (jest ortasında bile
+  etkili) ve params değişimi belgeyi yeniden YÜKLETMEZ (yalnız documentRef
+  değişiminde yükler; kaynaktan doğrulandı, pdfrx 1.3.5 `_widgetUpdated`).
+- Kilit yalnız işaretçi yerdeyken sürer: up/cancel/ikinci parmak anında
+  `false` bildirilir; katman sökülürse `dispose` post-frame ile açar. Eski
+  "seçim modu açıkken pan hep kapalı" hatasına (2026-07-26) dönüş yapısal
+  olarak engelli — widget testi `selectingLog == [true, false]`'u kilitliyor.
+- Sürüklerken parmağın 66 px üstünde `RawMagnifier` büyüteç gezer (yerel his);
+  tutamaç sürüklemede de var. Tutamaçlar karakter, sürükleme kelime hassaslığı.
+- "En yakın karakter" araması artık düz dizide (ekran-koordinat önbelleği,
+  `_ensureGeometry`); sürüklemede her olayda `PdfRect→Rect` çevirisi yapılmıyor.
+
+### B) Fare (masaüstü): Chrome birebir
+Metin üstünde imleç I-kirişi (`MouseRegion` `opaque: false` — hit-test'ten
+hiçbir şey çalmaz), bas-sürükle karakter seçimi (basıldığı AN pan kilidi →
+ilk pikseller pdfrx'e kaçmaz), çift tık kelime, boşluğa/metne tık seçimi
+çözer. Metin DIŞINDA bas-sürükle sayfayı kaydırmaya devam eder. Ctrl/Cmd+C
+kopyalar (`CallbackShortcuts`, `viewer_screen`).
+
+### C) Taranmış sayfa = cihaz-içi OCR ile aynı seçim yolu
+- `services/pdf/ocr_page_text.dart`: ML Kit sözcük kutuları → **sahte
+  `PdfPageText`** (`buildOcrPageText`, saf fonksiyon + birim test). Kritik
+  çeviri: görüntü pikseli y-AŞAĞI → PDF puntosu y-YUKARI (`top > bottom`);
+  karakter kutuları sözcük kutusunun eşit dilimleri, sözcük arası boşluklara
+  ARADAKİ aralık verilir (vurgu kesintisiz), satır sonuna sıfır genişlik '\n'.
+  Satır sırası ML Kit'in blok sırası — y'ye göre YENİDEN SIRALAMA YOK (çok
+  sütunlu sayfayı karıştırır).
+- `services/pdf/pdf_ocr_text.dart`: sayfa→PNG (OcrService.renderPageToPng,
+  artık ölçek de döndürür) → `recognizeImageWordLines` (ML Kit satır
+  `elements`ları) → önbellek (24 sayfa LRU, anahtar `sourceName#sayfa`;
+  "metin yok" da önbelleklenir — pil). `debugOcrOverride` test kancası tüm
+  boru hattının yerine geçer (Linux'ta ne ML Kit ne pdfium render var).
+- Katman OCR'ı ANCAK kullanıcı taranmış sayfada uzun basınca tetikler
+  (görünür her sayfayı otomatik OCR'lamak pil yakardı; Chrome de tembel).
+  Çip: "Metin tanınıyor…" → bitince basılan kelime seçili gelir, parmak hâlâ
+  yerdeyse sürükleme kipi de açılır. Metin çıkmazsa "Sayfada seçilebilir
+  metin bulunamadı" 2,4 sn görünür. pdfium metni <8 karakterse sayfa
+  "taranmış" sayılır (yalnız sayfa numarası kırıntısı olan taramalar için).
+- `onSelected` artık `fromOcr` bayrağı taşır: OCR seçiminde **Düzenle
+  gizlenir** (gerçek metin akışı yok, yerinde düzenleme imkânsız); Vurgula/
+  Kopyala/Çevir çalışır (vurgu zaten dikdörtgen tabanlı). KVKK: OCR tamamen
+  cihazda, geçici PNG işi bitince siliniyor.
+
+### Tuzak/karar notları
+- `PdfPageTextFragment.fromParams(...)` pdfrx 1.3.5'te public — sahte fragment
+  üretmek için Mock gerekmiyor; `PdfPageText` de soyut sınıf, `OcrPageText`
+  düz alt sınıf. Widget testinde `PdfPage`/`PdfDocument` `implements` +
+  `noSuchMethod(throw)` ile taklit edildi (yanlışlıkla pdfium'a inen yol testte
+  hemen patlar).
+- Reddedilen yol: OCR metnini görünür her sayfada otomatik başlatmak (pil) ve
+  satırları y'ye göre sıralamak (çok sütun bozulur).
+- Yapılmadı (bilinçli, istenirse sonraki tur): sayfalar ARASI kesintisiz seçim
+  (katman sayfa başına; Chrome yapabiliyor), sürüklerken kenarda otomatik
+  kaydırma. İkisi de görüntüleyici düzeyinde eşgüdüm ister.
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze` 0 hata/0 uyarı, **1254 test yeşil** (+13: 5 birim
+`ocr_page_text_test`, 8 widget `pdf_select_layer_widget_test` — uzun basış +
+sürükleme, büyüteç, fare sürükleme/çift tık, OCR çipi/bayrağı/boş sonucu,
+iki parmak kilidi). Cihaz doğrulaması: taranmış PDF'te uzun basış → çip →
+seçim; yazılmış PDF'te sürükleyerek büyütme + zoom/kaydırmanın ÖLMEDİĞİ.

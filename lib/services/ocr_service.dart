@@ -5,6 +5,8 @@ import 'dart:ui' as ui;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import 'pdf/ocr_page_text.dart' show OcrWordBox;
+
 /// Cihaz-içi OCR (Google ML Kit, Latin alfabesi — Türkçe karakterler dahil).
 ///
 /// İnternet gerekmez; model APK ile gelir. Görsel dosyalardan ve taranmış
@@ -68,6 +70,32 @@ class OcrService {
           for (final line in block.lines)
             if (line.text.trim().isNotEmpty)
               OcrLine(line.text, line.boundingBox),
+      ];
+    } finally {
+      await recognizer.close();
+    }
+  }
+
+  /// Bir görselden metni SÖZCÜK SÖZCÜK, satır yapısı korunarak tanır
+  /// (satır başına sözcük listesi; kutular resim piksel koordinatında).
+  ///
+  /// Taranmış PDF sayfasında Chrome benzeri metin seçimi bunun üstüne kurulur:
+  /// sözcük kutuları `buildOcrPageText` ile sahte bir `PdfPageText`e çevrilir
+  /// ve seçim katmanı yazılmış sayfayla aynı yoldan çalışır.
+  static Future<List<List<OcrWordBox>>> recognizeImageWordLines(
+      String path) async {
+    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    try {
+      final result =
+          await recognizer.processImage(InputImage.fromFilePath(path));
+      return [
+        for (final block in result.blocks)
+          for (final line in block.lines)
+            [
+              for (final e in line.elements)
+                if (e.text.trim().isNotEmpty)
+                  OcrWordBox(e.text, e.boundingBox),
+            ],
       ];
     } finally {
       await recognizer.close();
@@ -146,7 +174,16 @@ class OcrService {
   }
 
   /// Sayfayı ~1600px genişlikte PNG'ye çizer (OCR için yeterli çözünürlük).
-  static Future<String?> _renderPageToPng(PdfPage page, int index) async {
+  static Future<String?> _renderPageToPng(PdfPage page, int index) async =>
+      (await renderPageToPng(page, tag: '$index'))?.path;
+
+  /// [_renderPageToPng]'nin ölçeği de döndüren biçimi: `scale` = görüntü
+  /// pikseli / PDF punto oranı. Taranmış sayfa seçiminde OCR kutularını sayfa
+  /// koordinatına geri çevirmek için gerekir (bkz. `PdfOcrText`).
+  static Future<({String path, double scale})?> renderPageToPng(
+    PdfPage page, {
+    String tag = '',
+  }) async {
     final scale = (1600 / page.width).clamp(1.0, 4.0);
     final img = await page.render(
       fullWidth: page.width * scale,
@@ -168,9 +205,9 @@ class OcrService {
       uiImage.dispose();
       if (png == null) return null;
       final f = File(
-          '${Directory.systemTemp.path}/ocr_page_${index}_${page.pageNumber}.png');
+          '${Directory.systemTemp.path}/ocr_page_${tag}_${page.pageNumber}.png');
       await f.writeAsBytes(png.buffer.asUint8List());
-      return f.path;
+      return (path: f.path, scale: scale);
     } finally {
       img.dispose();
     }

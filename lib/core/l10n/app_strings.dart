@@ -672,6 +672,16 @@ const Map<String, (String, String, String)> _table = {
   'vw.image_only': ('Sadece resim', 'Image only', 'الصورة فقط'),
   'vw.doc_info': ('Belge bilgisi', 'Document info', 'معلومات المستند'),
   'vw.highlight': ('Vurgula', 'Highlight', 'تمييز'),
+  'vw.select_ocr_running': (
+    'Metin tanınıyor…',
+    'Recognizing text…',
+    'جارٍ التعرف على النص…',
+  ),
+  'vw.select_ocr_none': (
+    'Sayfada seçilebilir metin bulunamadı',
+    'No selectable text found on this page',
+    'لا يوجد نص قابل للتحديد في هذه الصفحة',
+  ),
   'vw.rotated_right': (
     '{n}. sayfa sağa döndürüldü',
     'Page {n} rotated right',

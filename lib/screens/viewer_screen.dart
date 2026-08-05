@@ -2,7 +2,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, LogicalKeyboardKey;
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
@@ -94,6 +95,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Seçimden önceki metin — yerinde düzenlemede aynı kelimenin doğru geçişini
   /// bulmak için (bkz. `PdfContentEditor.replaceText`).
   String _pdfSelPreceding = '';
+
+  /// Seçim taranmış sayfadan OCR ile mi geldi? OCR metni sayfada GERÇEKTEN
+  /// yazılı değildir: kopyalama/vurgu/çeviri çalışır ama yerinde düzenleme
+  /// çalışamaz (değiştirilecek içerik akışı yok) — Düzenle düğmesi gizlenir.
+  bool _pdfSelFromOcr = false;
+
+  /// Sürükleyerek seçim ŞU AN sürüyor mu? (Uzun basış sonrası parmak yerde ya
+  /// da fare metin üzerinde basılı.) True iken pdfrx'in pan'ı kilitlenir ki
+  /// sürükleme sayfayı kaydırmasın; işaretçi kalkar kalkmaz katman false
+  /// bildirir ve kilit açılır. Eski "seçim modu açıkken pan hep kapalı"
+  /// hatasından farkı bu anlıklık (bkz. HAFIZA 2026-07-26 ve 2026-08-05).
+  bool _pdfSelecting = false;
 
   /// Sayfa üzerinde açık olan yerinde düzenleme kutusu (yoksa null).
   _InlineEdit? _pdfEdit;
@@ -1079,13 +1092,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 ),
                 // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
                 // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
-                TextButton.icon(
-                  onPressed: _startInlineEdit,
-                  icon: const Icon(Icons.edit_outlined,
-                      color: Colors.white, size: 18),
-                  label: Text(context.t('common.edit'),
-                      style: const TextStyle(color: Colors.white)),
-                ),
+                // OCR seçiminde GİZLİ: taranmış sayfada değiştirilecek metin
+                // akışı yok, düğme yalnız boş vaat olurdu.
+                if (!_pdfSelFromOcr)
+                  TextButton.icon(
+                    onPressed: _startInlineEdit,
+                    icon: const Icon(Icons.edit_outlined,
+                        color: Colors.white, size: 18),
+                    label: Text(context.t('common.edit'),
+                        style: const TextStyle(color: Colors.white)),
+                  ),
                 TextButton.icon(
                   onPressed: () => TranslateFlow.run(context, _pdfSelection,
                       title: context.t('vw.selected_text')),
@@ -1898,7 +1914,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Widget _buildBody(LoadedDoc doc) {
     switch (doc.kind) {
       case DocKind.pdf:
-        return Stack(
+        // Ctrl/Cmd+C: seçili metni panoya kopyalar (masaüstü alışkanlığı —
+        // Chrome'un PDF görüntüleyicisiyle aynı). Focus çevresi klavye
+        // olayını alabilmek için; arama kutusu gibi alanlar açılınca odağı
+        // onlar devralır, kısayol da doğal olarak onlara akar.
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyC, control: true):
+                _copyPdfSelection,
+            const SingleActivator(LogicalKeyboardKey.keyC, meta: true):
+                _copyPdfSelection,
+          },
+          child: Focus(
+            autofocus: true,
+            child: Stack(
           children: [
             Positioned.fill(
               // pdfrx (pdfium). Metin seçimi: paketin SelectionArea'sı Android'de
@@ -1925,6 +1954,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 params: PdfViewerParams(
                   backgroundColor:
                       Theme.of(context).colorScheme.surfaceContainerHighest,
+                  // Sürükleyerek seçim sürerken pan kapalı: parmak/fare
+                  // seçimi büyütür, sayfa kaymaz (Chrome davranışı).
+                  // InteractiveViewer bu bayrağı HER olayda okuduğu için jest
+                  // ortasında kapatmak da işler; belge yeniden YÜKLENMEZ
+                  // (pdfrx yalnız documentRef değişiminde yükler).
+                  panEnabled: !_pdfSelecting,
                   // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                   // düzeni kullanılır — gereksiz yere devralmıyoruz.
                   layoutPages: _pdfColumns == 1 ? null : _layoutPdfColumns,
@@ -1984,14 +2019,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       PdfSelectLayer(
                         page: page,
                         pageSize: pageRect.size,
-                        onSelected: (t, rects, pageNo, preceding) {
+                        onSelected: (t, rects, pageNo, preceding, fromOcr) {
                           if (mounted) {
                             setState(() {
                               _pdfSelection = t;
                               _pdfSelRects = rects;
                               _pdfSelPage = pageNo;
                               _pdfSelPreceding = preceding;
+                              _pdfSelFromOcr = fromOcr;
                             });
+                          }
+                        },
+                        onSelectingChanged: (s) {
+                          if (mounted && _pdfSelecting != s) {
+                            setState(() => _pdfSelecting = s);
                           }
                         },
                       ),
@@ -2031,6 +2072,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 child: Center(child: _editBar()),
               ),
           ],
+            ),
+          ),
         );
 
       case DocKind.image:
