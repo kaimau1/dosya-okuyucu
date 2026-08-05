@@ -38,11 +38,16 @@ void main() {
   late List<String> selections;
   late List<bool> fromOcrLog;
   late List<bool> selectingLog;
+  late List<Offset?> dragLog;
 
-  Future<void> pumpLayer(WidgetTester tester, _FakePage page) async {
-    selections = [];
-    fromOcrLog = [];
-    selectingLog = [];
+  Future<void> pumpLayer(WidgetTester tester, _FakePage page,
+      {int activeSelectionPage = 0, bool fresh = true}) async {
+    if (fresh) {
+      selections = [];
+      fromOcrLog = [];
+      selectingLog = [];
+      dragLog = [];
+    }
     await tester.pumpWidget(
       MaterialApp(
         home: Stack(
@@ -50,11 +55,13 @@ void main() {
             PdfSelectLayer(
               page: page,
               pageSize: pageSize,
+              activeSelectionPage: activeSelectionPage,
               onSelected: (t, rects, pageNo, preceding, fromOcr) {
                 selections.add(t);
                 fromOcrLog.add(fromOcr);
               },
               onSelectingChanged: selectingLog.add,
+              onDragAt: dragLog.add,
             ),
           ],
         ),
@@ -62,6 +69,12 @@ void main() {
     );
     await tester.pump(); // loadText çözülsün
   }
+
+  /// Seçim tutamaçlarının (daire nokta) sayısı — seçim var/yok göstergesi.
+  Finder handleDots() => find.byWidgetPredicate((w) =>
+      w is Container &&
+      w.decoration is BoxDecoration &&
+      (w.decoration as BoxDecoration).shape == BoxShape.circle);
 
   testWidgets('uzun basış kelime seçer, sürükleme kelime kelime büyütür',
       (tester) async {
@@ -202,6 +215,108 @@ void main() {
     expect(find.text('Sayfada seçilebilir metin bulunamadı'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3)); // çip zamanlayıcısı bitsin
     expect(find.text('Sayfada seçilebilir metin bulunamadı'), findsNothing);
+  });
+
+  testWidgets(
+      'taranmış sayfa KENDİLİĞİNDEN tanınır: jest yok, çip yok, '
+      'sonrasında uzun basış anında seçer', (tester) async {
+    final page = _FakePage(
+        text: OcrPageText(pageNumber: 1, fullText: '', fragments: const []));
+    var ocrCalls = 0;
+    PdfOcrText.debugReset();
+    PdfOcrText.debugOcrOverride = (_) async {
+      ocrCalls++;
+      return lineText('Merhaba dünya');
+    };
+    addTearDown(PdfOcrText.debugReset);
+
+    await pumpLayer(tester, page);
+    expect(ocrCalls, 0, reason: 'gecikme dolmadan OCR başlamamalı');
+
+    // Hiç dokunmadan bekle: sayfa arka planda sessizce tanınmalı.
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(ocrCalls, 1, reason: 'OCR kullanıcı beklemeden kendiliğinden koşmalı');
+    expect(find.text('Metin tanınıyor…'), findsNothing,
+        reason: 'otomatik tur görünmez olmalı (çip yalnız beklerken)');
+
+    // Artık uzun basış OCR beklemeden anında kelime seçer.
+    final g = await tester.startGesture(const Offset(15, 45));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g.up();
+    await tester.pump();
+    expect(selections.last, 'Merhaba');
+    expect(fromOcrLog.last, isTrue);
+    expect(ocrCalls, 1, reason: 'önbellek/tek-seferlik: ikinci OCR koşmamalı');
+  });
+
+  testWidgets('hızla geçilen sayfa OCR\'lanmaz (katman sökülünce iptal)',
+      (tester) async {
+    final page = _FakePage(
+        text: OcrPageText(pageNumber: 1, fullText: '', fragments: const []));
+    var ocrCalls = 0;
+    PdfOcrText.debugReset();
+    PdfOcrText.debugOcrOverride = (_) async {
+      ocrCalls++;
+      return null;
+    };
+    addTearDown(PdfOcrText.debugReset);
+
+    await pumpLayer(tester, page);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(ocrCalls, 0, reason: '350 ms dolmadan sökülen sayfa pil yakmamalı');
+  });
+
+  testWidgets('çift dokunuş kelime seçer (mobil Chrome paritesi)',
+      (tester) async {
+    await pumpLayer(tester, _FakePage(text: lineText('Merhaba dünya')));
+
+    await tester.tapAt(const Offset(95, 45));
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tapAt(const Offset(95, 45));
+    await tester.pump();
+
+    expect(selections.last, 'dünya');
+    expect(selectingLog, isEmpty,
+        reason: 'çift dokunuş pan kilidi açmamalı (parmak yerde değil)');
+  });
+
+  testWidgets('seçimi başka sayfa devralınca katman vurgusunu bırakır',
+      (tester) async {
+    final page = _FakePage(text: lineText('Merhaba dünya'));
+    await pumpLayer(tester, page);
+
+    final g = await tester.startGesture(const Offset(15, 45));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g.up();
+    await tester.pump();
+    expect(handleDots(), findsNWidgets(2), reason: 'seçim tutamaçları görünür');
+
+    final before = selections.length;
+    await pumpLayer(tester, page, activeSelectionPage: 2, fresh: false);
+    expect(handleDots(), findsNothing,
+        reason: 'seçim 2. sayfaya geçti: bu katman vurgusunu bırakmalı');
+    expect(selections.length, before,
+        reason: 'sessiz bırakma: rapor YOK (devralanın seçimi ezilmesin)');
+  });
+
+  testWidgets('sürükleme sırasında kenar kaydırma konumları bildirilir',
+      (tester) async {
+    await pumpLayer(tester, _FakePage(text: lineText('Merhaba dünya')));
+
+    final g = await tester.startGesture(const Offset(15, 45));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g.moveTo(const Offset(95, 45));
+    await tester.pump();
+    expect(dragLog, isNotEmpty);
+    expect(dragLog.last, isNotNull);
+
+    await g.up();
+    await tester.pump();
+    expect(dragLog.last, isNull,
+        reason: 'sürükleme bitince null gelmeli (zamanlayıcı ölsün)');
   });
 
   testWidgets('iki parmak inince sürükleme seçimi biter, pan kilidi açılır',

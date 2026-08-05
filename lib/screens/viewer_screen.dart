@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -22,6 +23,7 @@ import '../services/doc_translate.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
+import '../services/pdf/edge_auto_scroll.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_edit_flow.dart';
 import '../services/pdf_reload.dart';
@@ -107,6 +109,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// bildirir ve kilit açılır. Eski "seçim modu açıkken pan hep kapalı"
   /// hatasından farkı bu anlıklık (bkz. HAFIZA 2026-07-26 ve 2026-08-05).
   bool _pdfSelecting = false;
+
+  /// Kenar oto-kaydırması: seçim sürüklenirken işaretçinin son EKRAN konumu
+  /// (katman bildirir; null = sürükleme yok) ve 60 Hz itme zamanlayıcısı.
+  /// Parmak ekran kenarına dayanınca sayfa o yöne akar, seçim büyümeye devam
+  /// eder — Chrome'un seçim oto-kaydırması. Matris `PdfViewerController.value`
+  /// üzerinden itilir; ayarlayıcı `makeMatrixInSafeRange`ten geçtiği için
+  /// belge sınırının dışına ASLA çıkılamaz (pdfrx 1.3.5 kaynağından
+  /// doğrulandı) — kilitli pan'dan bağımsız çalışır (programatik).
+  Offset? _pdfSelDragPos;
+  Timer? _pdfEdgeScrollTimer;
 
   /// Sayfa üzerinde açık olan yerinde düzenleme kutusu (yoksa null).
   _InlineEdit? _pdfEdit;
@@ -211,6 +223,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   @override
   void dispose() {
+    _pdfEdgeScrollTimer?.cancel();
     _textController?.dispose();
     _imgTx.dispose();
     _findCtl.dispose();
@@ -1051,6 +1064,36 @@ class _ViewerScreenState extends State<ViewerScreen> {
       setState(() => _pdfText = '');
       await _reloadPdf();
     }
+  }
+
+  /// Seçim sürüklemesinin ekran konumu değişti (null = bitti). Kenara
+  /// yaklaşınca 60 Hz'lik zamanlayıcı görüntüyü o yöne iter; sürükleme bitince
+  /// zamanlayıcı ölür. Zamanlayıcı işaretçi olaylarından AYRI koşar ki parmak
+  /// kenarda hiç kımıldamadan dursa da akış sürsün.
+  void _onPdfSelDragAt(Offset? global) {
+    _pdfSelDragPos = global;
+    if (global == null) {
+      _pdfEdgeScrollTimer?.cancel();
+      _pdfEdgeScrollTimer = null;
+      return;
+    }
+    _pdfEdgeScrollTimer ??=
+        Timer.periodic(const Duration(milliseconds: 16), (_) {
+      final pos = _pdfSelDragPos;
+      if (pos == null || !mounted) return;
+      final box = context.findRenderObject() as RenderBox?;
+      if (box == null) return;
+      final delta = edgeAutoScrollDelta(box.globalToLocal(pos), box.size);
+      if (delta == Offset.zero) return;
+      try {
+        // Görüntü matrisi işaretçinin TERS yönüne itilir (alt kenar →
+        // içerik yukarı). Ayarlayıcı güvenli aralığa kıstırır.
+        _pdfController.value = _pdfController.value.clone()
+          ..leftTranslate(-delta.dx, -delta.dy);
+      } catch (_) {
+        // Görüntüleyici henüz hazır değilse (yarış) itme sessizce atlanır.
+      }
+    });
   }
 
   /// Seçim çubuğu: **Vurgula / Kopyala / Düzenle / Çevir** ve vurgu renkleri.
@@ -2019,12 +2062,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       PdfSelectLayer(
                         page: page,
                         pageSize: pageRect.size,
+                        // Tek etkin seçim: seçim hangi sayfadaysa öbür
+                        // sayfaların katmanları kendi vurgusunu bırakır.
+                        activeSelectionPage:
+                            _pdfSelection.isEmpty ? 0 : _pdfSelPage,
                         onSelected: (t, rects, pageNo, preceding, fromOcr) {
                           if (mounted) {
                             setState(() {
                               _pdfSelection = t;
                               _pdfSelRects = rects;
-                              _pdfSelPage = pageNo;
+                              _pdfSelPage = t.isEmpty ? 0 : pageNo;
                               _pdfSelPreceding = preceding;
                               _pdfSelFromOcr = fromOcr;
                             });
@@ -2035,6 +2082,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                             setState(() => _pdfSelecting = s);
                           }
                         },
+                        onDragAt: _onPdfSelDragAt,
                       ),
                   ],
                   ),

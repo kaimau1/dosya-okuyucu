@@ -85,12 +85,25 @@ class PdfSelectLayer extends StatefulWidget {
   /// iken pan'ı kilitler (sayfa kaymadan seçim büyüsün), false olunca açar.
   final ValueChanged<bool>? onSelectingChanged;
 
+  /// Sürükleme (uzun basış büyütmesi, tutamaç, fare seçimi) sırasında
+  /// işaretçinin EKRAN (global) konumu; sürükleme bitince null. Üst katman
+  /// bununla kenar oto-kaydırmasını sürer: parmak ekran kenarına yaklaşınca
+  /// sayfa kendiliğinden akar, seçim satır satır büyümeye devam eder (Chrome).
+  final ValueChanged<Offset?>? onDragAt;
+
+  /// Şu an seçimi TAŞIYAN sayfa (viewer'daki son bildirime göre; 0 = yok).
+  /// Başka bir sayfa seçimi devralınca bu katman kendi vurgusunu sessizce
+  /// bırakır — iki sayfada iki vurgu kalmaz (tek etkin seçim, Chrome gibi).
+  final int activeSelectionPage;
+
   const PdfSelectLayer({
     super.key,
     required this.page,
     required this.pageSize,
     required this.onSelected,
     this.onSelectingChanged,
+    this.onDragAt,
+    this.activeSelectionPage = 0,
   });
 
   @override
@@ -163,6 +176,26 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   bool _ocrEmpty = false; // "metin bulunamadı" çipi kısa süre görünür
   Timer? _ocrEmptyTimer;
 
+  /// OCR'ı kullanıcı mı bekliyor? (Uzun basıştan geldiyse çip gösterilir ve
+  /// bitince basılan yer seçilir; OTOMATİK arka plan turunda ikisi de yok —
+  /// premium davranış görünmez olandır.)
+  bool _ocrInteractive = false;
+  Offset? _ocrPendingSelect;
+  int? _ocrPendingPointer;
+
+  /// Taranmış sayfa görünür olur olmaz OCR'ı kendiliğinden başlatan gecikme.
+  /// 350 ms: hızla kaydırılıp geçilen sayfalar pil yakmasın, duran sayfa ise
+  /// kullanıcı daha dokunmadan seçilebilir olsun.
+  Timer? _autoOcrTimer;
+
+  /// Çift dokunuş ölçümü (dokunmada kelime seçimi — Chrome mobil paritesi).
+  DateTime? _lastTapAt;
+  Offset _lastTapPos = Offset.zero;
+
+  /// [onDragAt]'e en son null-olmayan konum bildirildi mi? (Dengeli kapanış:
+  /// her sürükleme bitişinde null gönderilir, katman sökülürse de.)
+  bool _dragAtActive = false;
+
   // ── Karakter kutusu önbelleği ────────────────────────────────────────────
   //
   // "En yakın karakter" araması sürüklemede HER işaretçi olayında koşar;
@@ -182,23 +215,54 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
           _text = t;
           _textLoaded = true;
         });
+        _maybeAutoOcr();
       }
     }).catchError((_) {
-      if (mounted) setState(() => _textLoaded = true);
+      if (mounted) {
+        setState(() => _textLoaded = true);
+        _maybeAutoOcr();
+      }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant PdfSelectLayer old) {
+    super.didUpdateWidget(old);
+    // Seçimi başka bir sayfa devraldı: buradaki vurguyu SESSİZCE bırak
+    // (rapor yok — rapor, devralan sayfanın seçimini ezerdi).
+    if (widget.activeSelectionPage != 0 &&
+        widget.activeSelectionPage != widget.page.pageNumber &&
+        _hasSelection) {
+      setState(() {
+        _anchor = null;
+        _extent = null;
+      });
+    }
   }
 
   @override
   void dispose() {
     _pressTimer?.cancel();
     _ocrEmptyTimer?.cancel();
-    if (_notifiedSelecting) {
-      // Katman aktif seçim ortasında sökülürse pan kilidi üstte asılı
-      // kalmasın. dispose içinde parent setState'i çağrılamaz → kare sonuna.
-      final cb = widget.onSelectingChanged;
-      WidgetsBinding.instance.addPostFrameCallback((_) => cb?.call(false));
+    _autoOcrTimer?.cancel();
+    if (_notifiedSelecting || _dragAtActive) {
+      // Katman aktif seçim ortasında sökülürse pan kilidi / kenar kaydırması
+      // üstte asılı kalmasın. dispose içinde parent setState çağrılamaz →
+      // kare sonuna ertelenir.
+      final selectingCb = _notifiedSelecting ? widget.onSelectingChanged : null;
+      final dragCb = _dragAtActive ? widget.onDragAt : null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        selectingCb?.call(false);
+        dragCb?.call(null);
+      });
     }
     super.dispose();
+  }
+
+  void _notifyDragAt(Offset? global) {
+    if (global == null && !_dragAtActive) return;
+    _dragAtActive = global != null;
+    widget.onDragAt?.call(global);
   }
 
   void _setSelecting(bool v) {
@@ -242,7 +306,8 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   }
 
   /// Uzun basış ateşlendi: kelimeyi seç ve sürükleyerek büyütme kipine gir.
-  /// Metin yoksa (taranmış sayfa) OCR'ı tetikle.
+  /// Metin yoksa (taranmış sayfa) OCR'ı bekle/tetikle; OCR bitmiş ve yine
+  /// metin yoksa kullanıcıya söyle.
   void _beginTouchSelection(Offset at, int pointer) {
     if (_selectWordAt(at)) {
       _dragAnchorStart = _selStart;
@@ -250,8 +315,15 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       _dragSelecting = true;
       _setSelecting(true);
       setState(() => _magnifier = at);
-    } else if (_shouldTryOcr) {
-      _startOcr(at, pointer);
+    } else if (_textThin && PdfOcrText.isSupported && !_ocrTried) {
+      // Otomatik tur ya başlamadı ya sürüyor: basılan yeri sıraya koy, çipi
+      // görünür yap (kullanıcı artık BEKLİYOR) ve işi başlat/başlamışsa bekle.
+      _ocrPendingSelect = at;
+      _ocrPendingPointer = pointer;
+      setState(() => _ocrInteractive = true);
+      _startOcr();
+    } else if (_textThin && _ocrTried) {
+      _flashOcrEmpty();
     }
   }
 
@@ -262,6 +334,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     }
     if (_dragSelecting && event.pointer == _pressPointer) {
       _extendDragTo(event.localPosition);
+      _notifyDragAt(event.position);
       setState(() => _magnifier = event.localPosition);
       return;
     }
@@ -284,19 +357,43 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     }
     final wasMeasuring = _pressPointer == event.pointer;
     if (wasMeasuring) _cancelPress();
-    // Boş dokunuş (kısa, kıpırdamadan, seçim yapmadan) → seçimi temizle.
-    // Telefonun yerel davranışı. Uzun basış ateşlendiyse ya da parmak
-    // kaydıysa dokunulmaz.
-    if (wasMeasuring && !_pressFired && _hasSelection) {
+    // Kısa, kıpırdamayan dokunuş = TIK. İki hızlı tık kelimeyi seçer (Chrome
+    // mobil paritesi; pdfrx 1.3'te çift tık jesti yok, çakışmaz). Tek tık
+    // telefonun yerel davranışıyla seçimi temizler. Uzun basış ateşlendiyse
+    // ya da parmak kaydıysa dokunulmaz.
+    if (wasMeasuring && !_pressFired) {
       final moved = (event.localPosition - _pressStart).distance;
-      if (moved <= _slop) _clear();
+      if (moved <= _slop) _onTouchTap(event.localPosition);
     }
     if (_pointers.isEmpty) _pressFired = false;
+  }
+
+  void _onTouchTap(Offset at) {
+    final now = DateTime.now();
+    final isDoubleTap = _lastTapAt != null &&
+        now.difference(_lastTapAt!) < const Duration(milliseconds: 300) &&
+        (at - _lastTapPos).distance < 30;
+    if (isDoubleTap) {
+      _lastTapAt = null;
+      if (!_selectWordAt(at) && _textThin && !_ocrTried &&
+          PdfOcrText.isSupported) {
+        // Taranmış sayfada çift dokunuş da OCR'ı bekletir (parmak yerde
+        // olmadığı için sürükleme kipi açılmaz, yalnız kelime seçilir).
+        _ocrPendingSelect = at;
+        setState(() => _ocrInteractive = true);
+        _startOcr();
+      }
+      return;
+    }
+    _lastTapAt = now;
+    _lastTapPos = at;
+    if (_hasSelection) _clear();
   }
 
   void _endTouchDragSelection() {
     _dragSelecting = false;
     _setSelecting(false);
+    _notifyDragAt(null);
     if (_magnifier != null) setState(() => _magnifier = null);
     _report();
   }
@@ -362,6 +459,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       return; // titreme değil gerçek sürükleme olsun
     }
     _mouseMoved = true;
+    _notifyDragAt(event.position);
     final i = _charIndexAt(event.localPosition, maxDist: _unbounded);
     if (i == null) return;
     if (_anchor != _mouseAnchorChar || _extent != i) {
@@ -376,6 +474,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     if (_mouseSelecting) {
       _mouseSelecting = false;
       _setSelecting(false);
+      _notifyDragAt(null);
       if (_mouseMoved) {
         _report();
       } else if (!_mouseWordSelected && _hasSelection) {
@@ -399,23 +498,37 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   // ═══ Taranmış sayfa: OCR ═════════════════════════════════════════════════
 
-  /// Uzun basış karaktere denk gelmediyse OCR denemeye değer mi?
-  /// pdfium metni "ince" olmalı (yalnız sayfa numarası gibi kırıntılar da
-  /// taranmış sayıdadır) ve bu sayfa için daha önce denenmemiş olmalı.
-  bool get _shouldTryOcr =>
-      _textLoaded &&
-      !_ocrTried &&
-      !_ocrRunning &&
-      PdfOcrText.isSupported &&
-      (_text?.fullText.trim().length ?? 0) < 8;
+  /// pdfium metni "ince" mi? (Yalnız sayfa numarası gibi kırıntılar da
+  /// taranmış sayıdadır.) İnce sayfa = OCR adayı.
+  bool get _textThin => (_text?.fullText.trim().length ?? 0) < 8;
 
-  Future<void> _startOcr(Offset at, int pointer) async {
+  /// Taranmış sayfa görünür olur olmaz OCR'ı KENDİLİĞİNDEN başlat (kullanıcı
+  /// isteği 2026-08-05: *"kullanıcıya bir şey bırakmamalısın, otomatik
+  /// olmalı"*). Sessiz çalışır — çip yalnız kullanıcı sonucu beklerken
+  /// görünür. 350 ms gecikme: hızla kaydırılıp geçilen sayfa (katman söküldüğü
+  /// için zamanlayıcısı iptal olur) hiç OCR'lanmaz, pil korunur; önbellek
+  /// sayesinde aynı sayfa ikinci görünüşünde anında hazırdır.
+  void _maybeAutoOcr() {
+    if (!_textLoaded || _ocrTried || _ocrRunning) return;
+    if (!PdfOcrText.isSupported || !_textThin) return;
+    _autoOcrTimer?.cancel();
+    _autoOcrTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _startOcr();
+    });
+  }
+
+  Future<void> _startOcr() async {
+    if (_ocrRunning || _ocrTried || !PdfOcrText.isSupported) return;
     setState(() => _ocrRunning = true);
     OcrPageText? t;
     try {
       t = await PdfOcrText.forPage(widget.page);
     } catch (_) {}
     if (!mounted) return;
+    final at = _ocrPendingSelect;
+    final pointer = _ocrPendingPointer;
+    _ocrPendingSelect = null;
+    _ocrPendingPointer = null;
     setState(() {
       _ocrRunning = false;
       _ocrTried = true;
@@ -425,17 +538,22 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       }
     });
     if (t == null) {
-      _flashOcrEmpty();
+      // Sessiz (otomatik) turda çip YOK: kullanıcı bir şey beklemiyordu.
+      if (_ocrInteractive) _flashOcrEmpty();
+      setState(() => _ocrInteractive = false);
       return;
     }
-    // Kullanıcının niyeti belliydi: bastığı kelimeyi şimdi seç. Parmak hâlâ
-    // yerdeyse sürükleyerek büyütme kipi de açılır (Chrome hissi).
-    if (_selectWordAt(at) && _pointers.contains(pointer)) {
-      _dragAnchorStart = _selStart;
-      _dragAnchorEnd = _selEnd;
-      _dragSelecting = true;
-      _setSelecting(true);
-      setState(() => _magnifier = at);
+    setState(() => _ocrInteractive = false);
+    // Kullanıcı OCR sürerken bastıysa niyeti belliydi: bastığı kelimeyi şimdi
+    // seç. Parmak hâlâ yerdeyse sürükleyerek büyütme kipi de açılır.
+    if (at != null && _selectWordAt(at)) {
+      if (pointer != null && _pointers.contains(pointer)) {
+        _dragAnchorStart = _selStart;
+        _dragAnchorEnd = _selEnd;
+        _dragSelecting = true;
+        _setSelecting(true);
+        setState(() => _magnifier = at);
+      }
     }
   }
 
@@ -684,7 +802,10 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
             _handle(isStart: false, color: scheme.primary),
           ],
           if (_magnifier != null) _buildMagnifier(scheme),
-          if (_ocrRunning || _ocrEmpty) _ocrChip(context, scheme),
+          // Çip yalnız kullanıcı OCR'ı BEKLERKEN görünür; otomatik arka plan
+          // turu görünmezdir (sayfa kendiliğinden seçilebilir hâle gelir).
+          if ((_ocrRunning && _ocrInteractive) || _ocrEmpty)
+            _ocrChip(context, scheme),
         ],
       ),
     );
@@ -797,12 +918,19 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
           final at = _globalToOverlay(d.globalPosition);
           if (at != null) setState(() => _magnifier = at - const Offset(0, 14));
         },
-        onPanUpdate: (d) => _dragHandle(isStart, d.globalPosition),
+        onPanUpdate: (d) {
+          _dragHandle(isStart, d.globalPosition);
+          _notifyDragAt(d.globalPosition);
+        },
         onPanEnd: (_) {
+          _notifyDragAt(null);
           setState(() => _magnifier = null);
           _report();
         },
-        onPanCancel: () => setState(() => _magnifier = null),
+        onPanCancel: () {
+          _notifyDragAt(null);
+          setState(() => _magnifier = null);
+        },
         child: SizedBox(
           width: touch,
           height: touch,

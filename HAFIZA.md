@@ -6122,3 +6122,54 @@ kopyalar (`CallbackShortcuts`, `viewer_screen`).
 sürükleme, büyüteç, fare sürükleme/çift tık, OCR çipi/bayrağı/boş sonucu,
 iki parmak kilidi). Cihaz doğrulaması: taranmış PDF'te uzun basış → çip →
 seçim; yazılmış PDF'te sürükleyerek büyütme + zoom/kaydırmanın ÖLMEDİĞİ.
+
+## 2026-08-05 (2. tur) — Seçim tamamen otomatik + üç premium dokunuş
+Kullanıcı: *"kullanıcıya bir şey bırakmamalısın, otomatik olmalı — özellikle
+mobilde; benzer premium geliştirmeleri sen bul ve uygula."* İlk turda OCR
+uzun basışla tetikleniyordu; artık kullanıcıdan hiçbir şey beklenmiyor.
+
+### A) OCR artık KENDİLİĞİNDEN (`_maybeAutoOcr`)
+Taranmış sayfa görünür olup metin katmanı "ince" çıkınca katman **350 ms
+sonra** OCR'ı sessizce başlatır: çip yok, jest yok — sayfa kullanıcı daha
+dokunmadan seçilebilir olur (premium davranış görünmez olandır). 350 ms
+gecikme + katman sökülünce zamanlayıcı iptali = hızla kaydırılıp geçilen
+sayfalar HİÇ OCR'lanmaz (pil); testle kilitli. Çip yalnız kullanıcı OCR
+bitmeden basarsa görünür (`_ocrInteractive`), bitince bastığı kelime seçilir.
+OCR bitmiş ve sayfada gerçekten metin yoksa uzun basışta "bulunamadı" çipi.
+
+### B) Çift dokunuş kelime seçer (mobil Chrome paritesi)
+İki hızlı dokunuş (<300 ms, <30 px) kelimeyi seçer. pdfrx 1.3'te çift tık
+jesti YOK (kaynaktan bakıldı), çakışma olmaz. Tek dokunuş seçimi temizlemeye
+devam eder. Çift dokunuşta sürükleme kipi/pan kilidi AÇILMAZ (parmak yerde
+değil — kilit açılsaydı asılı kalırdı; test `selectingLog == []`).
+
+### C) Kenar oto-kaydırması (Chrome'un seçim akışı)
+Sürükleme (uzun basış büyütmesi / tutamaç / fare) ekran kenarına yaklaşınca
+görüntü o yöne akar, seçim büyümeye devam eder. Kurulum:
+- Saf `edgeAutoScrollDelta` (`services/pdf/edge_auto_scroll.dart`, birim
+  testli): 56 px kenar payı, doğrusal hızlanma, tavan 14 px/kare (~840 px/sn),
+  küçük görüntüde pay extent/3'e daralır (ölü bölge hep kalır).
+- Katman `onDragAt(global|null)` bildirir (null'lar DENGELİ: her bitişte ve
+  dispose'ta — aksi hâlde zamanlayıcı sonsuza dek koşardı).
+- Viewer 16 ms'lik `Timer.periodic` ile `_pdfController.value = value..
+  leftTranslate(-d)` iter. **Güvenli**: `PdfViewerController.value` setter'ı
+  `makeMatrixInSafeRange`ten geçer (pdfrx 1.3.5:1750) → belge sınırı dışına
+  çıkılamaz; pan kilidi programatik matrisi etkilemez. Zamanlayıcı işaretçi
+  olaylarından bağımsız → parmak kenarda hareketsiz dursa da akış sürer.
+- Bilinen sınır: sayfa parmağın altından akarken seçim ucu ancak parmak
+  kımıldayınca güncellenir (işaretçi olayı gerekir; parmak doğal titrer).
+
+### D) Tek etkin seçim (`activeSelectionPage`)
+Eskiden iki sayfada iki vurgu kalabiliyordu (her katman kendi durumunu
+tutar). Viewer artık seçimi taşıyan sayfayı katmanlara verir; başka sayfa
+devralınca katman vurgusunu `didUpdateWidget`te SESSİZCE bırakır (rapor yok —
+rapor devralanın seçimini ezerdi; testle kilitli). Boş seçim raporunda
+`_pdfSelPage = 0`.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 hata/0 uyarı, **1264 test yeşil**
+(+10: 5 `edge_auto_scroll_test`, 5 widget: otomatik OCR sessizliği, sökülen
+sayfanın OCR'lanmaması, çift dokunuş, sahiplik devri, onDragAt dengesi).
+1. turun CI'si (run 226 / bcc2ab8) YEŞİL — APK release'e çıktı. Cihazda
+bakılacaklar: taranmış sayfada hiç dokunmadan ~1 sn sonra uzun basışın anında
+seçmesi, kenarda akışın hızı (56/14 sabitleri), çift dokunuşun yazı dışında
+yanlış tetiklenmemesi.
