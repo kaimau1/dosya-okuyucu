@@ -110,6 +110,21 @@ jobs:
           grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
             android/app/src/main/AndroidManifest.xml || true
 
+      - name: MainActivity'yi değiştir (uygulama boyutu platform kanalı)
+        run: |
+          set -e
+          # `flutter create` boş bir MainActivity üretiyor; elle bakımlı
+          # sürümde `StorageStatsManager` köprüsü var (uygulama başına kapladığı
+          # alan — Dart tarafından okunamıyor). Manifest'le aynı desen.
+          DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
+          mkdir -p "$DIR"
+          cp ci/MainActivity.kt "$DIR/MainActivity.kt"
+          # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
+          # kalırsa "duplicate class" hatası verir.
+          rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java
+          echo "--- MainActivity ---"; head -5 "$DIR/MainActivity.kt"
+          find android/app/src/main -name 'MainActivity.*'
+
       - name: Proguard kuralları (ML Kit R8 "missing class" düzeltmesi)
         run: |
           set -e

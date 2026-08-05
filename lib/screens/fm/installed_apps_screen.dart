@@ -4,10 +4,11 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../core/theme.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
 
 /// Sıralama ölçütü.
-enum _AppSort { idle, name, installed }
+enum _AppSort { size, idle, name, installed }
 
 /// Telefonda **yüklü uygulamalar**: son açılma tarihi, uzun süredir
 /// kullanılmayanların renklendirilmesi, açma / uygulama bilgisi / kaldırma.
@@ -26,7 +27,9 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
   bool _loading = true;
   bool _usageKnown = false;
   bool _showSystem = false;
-  _AppSort _sort = _AppSort.idle;
+  // Varsayılan **boyuta göre**: "hangi uygulama yerimi yiyor" en sık
+  // sorulan soru; boyut bilinmiyorsa (izin yok) listenin sonuna düşer.
+  _AppSort _sort = _AppSort.size;
   String _query = '';
 
   @override
@@ -72,6 +75,11 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
         .toList();
     list.sort((a, b) {
       switch (_sort) {
+        case _AppSort.size:
+          if (a.totalBytes != b.totalBytes) {
+            return b.totalBytes.compareTo(a.totalBytes);
+          }
+          return turkishFold(a.name).compareTo(turkishFold(b.name));
         case _AppSort.idle:
           // En uzun süredir açılmayan üstte; hiç açılmamış en üstte.
           final ai = a.idleDays(now) ?? 1 << 20;
@@ -104,6 +112,8 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
           PopupMenuButton<String>(
             onSelected: (v) async {
               switch (v) {
+                case 'size':
+                  setState(() => _sort = _AppSort.size);
                 case 'idle':
                   setState(() => _sort = _AppSort.idle);
                 case 'name':
@@ -116,6 +126,8 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
               }
             },
             itemBuilder: (_) => [
+              PopupMenuItem(
+                  value: 'size', child: Text(context.t('apps.sort_size'))),
               PopupMenuItem(
                   value: 'idle', child: Text(context.t('apps.sort_idle'))),
               PopupMenuItem(value: 'name', child: Text(context.t('apps.sort_name'))),
@@ -235,14 +247,19 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
               ),
       ),
       title: Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      // Boyut EN ÖNE: listenin varsayılan sıralaması da bu ve kullanıcı
+      // "hangisi yerimi yiyor" diye bakıyor.
       subtitle: Text(
-        '${app.packageName} · v${app.versionName}',
+        app.size == null
+            ? '${app.packageName} · v${app.versionName}'
+            : '${FsPaths.humanSize(app.totalBytes)} · v${app.versionName}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      // Kurulum tarihi buradan KALKTI: depolama düğmesiyle yan yana satırı
+      // taşırıyordu ve zaten uzun basış menüsünde duruyor.
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding:
@@ -259,9 +276,15 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
                   ?.copyWith(color: color, fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(height: 2),
-          Text('Kurulum: ${FsPaths.humanDate(app.installedAtMs)}',
-              style: Theme.of(context).textTheme.bodySmall),
+          // Doğrudan Android'in "Depolama ve önbellek" sayfası — önbelleği
+          // temizlemek için uygulamadan çıkıp Ayarlar'da aramaya gerek yok.
+          IconButton(
+            tooltip: context.t('apps.storage_settings'),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.folder_special_outlined),
+            onPressed: () =>
+                AppStorageService.openAppStorageSettings(app.packageName),
+          ),
         ],
       ),
       onTap: () => InstalledAppsService.open(app.packageName),

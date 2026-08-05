@@ -31,6 +31,39 @@ Filesystem                          1K-blocks    Used Available Use% Mounted on
 
     test('anlamsız çıktıda null döner (doluluk çubuğu gizlenir)', () {
       expect(StorageStats.parseDf(''), isNull);
+    });
+
+    test('reklam kapasitesi: 464 GiB\'lık /data → 512 GB', () {
+      // Kullanıcı bulgusu 2026-08-05: 512 GB'lık telefonda "464 GB" yazıyordu.
+      // `df` yalnız /data'yı ölçüyor; Android'in kendisi (ve diğer dosya
+      // yöneticileri) yuvarlanmış REKLAM kapasitesini gösteriyor.
+      const fsTotal = 464 * 1024 * 1024 * 1024; // df'in verdiği ham boyut
+      expect(StorageVolume.advertisedSize(fsTotal), 512 * 1000 * 1000 * 1000);
+
+      // AOSP FileUtils.roundStorageSize dizisi: 1,2,4…512 × 1000ⁿ
+      expect(StorageVolume.advertisedSize(1), 1);
+      expect(StorageVolume.advertisedSize(3), 4);
+      expect(StorageVolume.advertisedSize(60 * 1000 * 1000 * 1000),
+          64 * 1000 * 1000 * 1000);
+      expect(StorageVolume.advertisedSize(0), 0);
+      // Tam sınırda yuvarlama YUKARI kaymaz.
+      expect(StorageVolume.advertisedSize(128 * 1000 * 1000 * 1000),
+          128 * 1000 * 1000 * 1000);
+    });
+
+    test('kullanılan = reklam kapasitesi − gerçek boş alan', () {
+      const volume = StorageVolume(
+        path: '/storage/emulated/0',
+        label: 'Ana bellek',
+        isPrimary: true,
+        totalBytes: 464 * 1024 * 1024 * 1024,
+        freeBytes: 182 * 1024 * 1024 * 1024,
+      );
+      expect(volume.capacityBytes, 512 * 1000 * 1000 * 1000);
+      // Boş alan YUVARLANMAZ: kullanıcıya olmayan yer varmış gibi gösterilemez.
+      expect(volume.freeBytes, 182 * 1024 * 1024 * 1024);
+      expect(volume.usedBytes, volume.capacityBytes - volume.freeBytes);
+      expect((volume.usedFraction * 100).round(), 62);
       expect(StorageStats.parseDf('df: /yok: No such file'), isNull);
     });
   });

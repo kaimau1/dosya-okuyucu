@@ -11,6 +11,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
@@ -19,6 +20,7 @@ import '../../widgets/fm/fm_filter_sheet.dart';
 import 'browser_screen.dart';
 import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
+import 'installed_apps_screen.dart';
 import 'entry_actions.dart';
 
 /// Bellek Analizi: neyin ne kadar yer kapladığı + en büyük dosyalar.
@@ -67,10 +69,88 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// Depolama eğilimi ("bu hafta +2,1 GB · en çok Videolar").
   TrendDelta? _trend;
 
+  /// Yüklü uygulamaların kapladığı alan. Ölçüm binder çağrıları gerektirdiği
+  /// için ekran açılır açılmaz DEĞİL, arka planda gelir; hazır olana kadar
+  /// kart hiç görünmez (boş bir kutu göstermek yanıltıcı olurdu).
+  AppStorageSummary? _apps;
+
   @override
   void initState() {
     super.initState();
     _loadTrend();
+    _loadApps();
+  }
+
+  Future<void> _loadApps() async {
+    final summary = await InstalledAppsService.summary();
+    if (!mounted || !summary.hasData) return;
+    setState(() => _apps = summary);
+  }
+
+  /// **Uygulamalar** kartı — diğer dosya yöneticilerinin analizindeki
+  /// "Uygulamalar 63 GB" kutusunun karşılığı. Bizde hiç yoktu: `df` uygulama
+  /// başına kırılım bilmiyor, `Android/data` klasörü de Android 11'den beri
+  /// okunamıyor; sayı ancak `StorageStatsManager` köprüsünden geliyor
+  /// (`ci/MainActivity.kt`).
+  Widget _appsCard() {
+    final apps = _apps;
+    if (apps == null) return const SizedBox.shrink();
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const InstalledAppsScreen())),
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.android),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: Text(context.t('fm.apps'),
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  Text(FsPaths.humanSize(apps.totalBytes),
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+              for (final (name, bytes) in apps.top)
+                Padding(
+                  padding: const EdgeInsets.only(top: Gap.xs),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ),
+                      Text(FsPaths.humanSize(bytes),
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+              if (apps.cacheBytes > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: Gap.sm),
+                  child: Text(
+                    context.t('ana.cache_total',
+                        {'v': FsPaths.humanSize(apps.cacheBytes)}),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Paper.faint(context)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadTrend() async {
@@ -216,6 +296,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 )),
               ),
             ),
+            const SizedBox(height: Gap.sm),
+            _appsCard(),
             const SizedBox(height: Gap.lg),
             Text(context.t('ana.by_type'),
                 style: Theme.of(context).textTheme.titleMedium),
@@ -422,14 +504,15 @@ class _VolumeBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: Gap.sm),
+              // Kapasite ONDALIK gösterilir (512 GB) — telefonun üstünde yazan
+              // sayı bu. Dosya boyutları 1024 tabanında kalır.
               Text(
-                '${FsPaths.humanSize(volume.usedBytes)} / '
-                '${context.t('an.volume_usage', {
-                      'used': FsPaths.humanSize(volume.totalBytes),
-                      'free': FsPaths.humanSize(volume.freeBytes),
-                    })}'
-                '(%${(volume.usedFraction * 100).round()}) · '
-                '${FsPaths.humanSize(volume.freeBytes)} boş',
+                context.t('an.volume_usage', {
+                  'used': FsPaths.humanCapacity(volume.usedBytes),
+                  'total': FsPaths.humanCapacity(volume.capacityBytes),
+                  'percent': (volume.usedFraction * 100).round(),
+                  'free': FsPaths.humanCapacity(volume.freeBytes),
+                }),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ] else

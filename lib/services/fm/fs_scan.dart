@@ -649,6 +649,28 @@ abstract final class FsPaths {
       p.equals(parent, child) || p.isWithin(parent, child);
 
   /// Okunabilir boyut: 1536 → "1,5 KB" (Türkçe ondalık ayracı).
+  /// **Depolama kapasitesi** için okunur boyut — 1000 tabanlı.
+  ///
+  /// Dosya boyutları ([humanSize]) 1024 tabanında gösteriliyor, ama disk
+  /// kapasitesi dünyanın her yerinde ondalık olarak anılıyor: 512 GB'lık bir
+  /// telefonun `/data` bölümü 1024 tabanında 464 "GB" çıkıyor ve kullanıcı
+  /// kutunun üstündeki sayıyı göremiyordu. Ayarlar → Depolama da, karşılaştığımız
+  /// diğer dosya yöneticileri de ondalık gösteriyor.
+  static String humanCapacity(int bytes) {
+    if (bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var size = bytes.toDouble();
+    var unit = 0;
+    while (size >= 1000 && unit < units.length - 1) {
+      size /= 1000;
+      unit++;
+    }
+    final text = unit == 0
+        ? size.toStringAsFixed(0)
+        : size.toStringAsFixed(size < 10 ? 1 : 0);
+    return '${text.replaceAll('.', ',')} ${units[unit]}';
+  }
+
   static String humanSize(int bytes) {
     if (bytes <= 0) return '0 B';
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];

@@ -19,10 +19,48 @@ class StorageVolume {
     this.freeBytes = 0,
   });
 
-  int get usedBytes => (totalBytes - freeBytes).clamp(0, totalBytes);
+  /// **Cihazın üstünde yazan** kapasite (512 GB gibi) — `df`in verdiği dosya
+  /// sistemi boyutu değil.
+  ///
+  /// `df` yalnız `/data` bölümünü ölçer; sistem, vendor ve ayrılmış bloklar
+  /// dışarıda kalır, o yüzden 512 GB'lık bir telefonda 464 GiB görünür.
+  /// Android'in kendisi de (Ayarlar → Depolama, `StorageStatsManager`)
+  /// kullanıcıya bu ham sayıyı DEĞİL yuvarlanmış reklam kapasitesini gösterir
+  /// — bkz. [advertisedSize]. Diğer dosya yöneticileri de öyle yapıyor;
+  /// bizim "464 GB" demenizin nedeni buydu.
+  int get capacityBytes => advertisedSize(totalBytes);
+
+  /// Kullanılan = reklam kapasitesi − GERÇEK boş alan.
+  ///
+  /// Boş alan yuvarlanmaz: kullanıcıya olduğundan fazla yer varmış gibi
+  /// göstermek, dolduramayacağı bir alana güvenmesine yol açardı. Aradaki
+  /// fark (sistem bölümleri) "kullanılan" tarafında görünür — Android
+  /// Ayarlar'ın davranışı da budur.
+  int get usedBytes => (capacityBytes - freeBytes).clamp(0, capacityBytes);
   bool get hasStats => totalBytes > 0;
-  double get usedFraction =>
-      totalBytes <= 0 ? 0 : (usedBytes / totalBytes).clamp(0, 1).toDouble();
+  double get usedFraction => capacityBytes <= 0
+      ? 0
+      : (usedBytes / capacityBytes).clamp(0, 1).toDouble();
+
+  /// AOSP `android.os.FileUtils#roundStorageSize` birebir karşılığı: boyutu
+  /// 1,2,4…512 × 1000ⁿ dizisindeki bir sonraki değere yuvarlar.
+  ///
+  /// `StorageStatsManager.getTotalBytes()` de tam olarak bunu yapıyor; saf
+  /// Dart'a taşımak, yalnız bu sayı için bir platform kanalı eklemekten
+  /// (CI `android/` iskelesini her derlemede yeniden üretiyor) çok daha ucuz.
+  static int advertisedSize(int bytes) {
+    if (bytes <= 0) return 0;
+    var val = 1;
+    var pow = 1;
+    while (val * pow < bytes) {
+      val <<= 1;
+      if (val > 512) {
+        val = 1;
+        pow *= 1000;
+      }
+    }
+    return val * pow;
+  }
 
   StorageVolume copyWith({int? totalBytes, int? freeBytes}) => StorageVolume(
         path: path,

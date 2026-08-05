@@ -1696,6 +1696,20 @@ const Map<String, (String, String, String)> _table = {
   'excel.decimal_less': ('Ondalık azalt', 'Decrease decimals', 'إنقاص المنازل العشرية'),
   'excel.undo_number_format': ('sayı biçimi', 'number format', 'تنسيق الأرقام'),
   'excel.group_format': ('Biçim', 'Format', 'تنسيق'),
+  'ana.cache_total': (
+    'Bunun {v} kadarı önbellek — silinmesi güvenli',
+    '{v} of this is cache — safe to clear',
+    '{v} من هذا ذاكرة مؤقتة — آمن حذفها',
+  ),
+  'fm.apps': ('Uygulamalar', 'Apps', 'التطبيقات'),
+  'fm.storage_analysis': ('Bellek Analizi', 'Storage analysis', 'تحليل التخزين'),
+  'fm.used_percent': ('Kullanılan %{n}', '{n}% used', 'مستخدَم %{n}'),
+  'apps.sort_size': ('Boyuta göre', 'By size', 'حسب الحجم'),
+  'apps.storage_settings': (
+    'Depolama ve önbellek',
+    'Storage & cache',
+    'التخزين والذاكرة المؤقتة',
+  ),
   'excel.add_sheet': ('Sayfa ekle', 'Add sheet', 'إضافة ورقة'),
   'excel.cond_format': (
     'Koşullu biçimlendirme',
@@ -4047,9 +4061,9 @@ const Map<String, (String, String, String)> _table = {
     'الأسرع نموًا: {category} ',
   ),
   'an.volume_usage': (
-    '{used} kullanıldı · {free} boş',
-    '{used} used · {free} free',
-    '{used} مستخدَم · {free} حر',
+    '{used} / {total} kullanıldı (%{percent}) · {free} boş',
+    '{used} / {total} used ({percent}%) · {free} free',
+    '{used} / {total} مستخدَم (%{percent}) · {free} حر',
   ),
 
   // ── İmza kutusu ───────────────────────────────────────────────────────────

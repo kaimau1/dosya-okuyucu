@@ -5,6 +5,8 @@ import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_storage_service.dart';
+
 /// Yüklü bir uygulama + son kullanım bilgisi.
 class InstalledAppEntry {
   final String name;
@@ -20,6 +22,10 @@ class InstalledAppEntry {
   /// Kullanım verisi okunabildi mi (izin verilmiş mi)?
   final bool usageKnown;
 
+  /// Kapladığı alan — `null` ise ÖLÇÜLEMEDİ (izin yok ya da kanal yok).
+  /// Sıfır yazmak "yer kaplamıyor" demek olurdu, bu yanlış olurdu.
+  final AppStorageSize? size;
+
   const InstalledAppEntry({
     required this.name,
     required this.packageName,
@@ -28,7 +34,11 @@ class InstalledAppEntry {
     required this.installedAtMs,
     required this.lastUsedMs,
     required this.usageKnown,
+    this.size,
   });
+
+  /// Uygulama + veri (önbellek dahil). Bilinmiyorsa 0 — SIRALAMA için.
+  int get totalBytes => size?.totalBytes ?? 0;
 
   /// Kaç gündür açılmadı? Bilinmiyorsa null.
   int? idleDays(int nowMs) {
@@ -129,6 +139,7 @@ abstract final class InstalledAppsService {
   static Future<List<InstalledAppEntry>> list({
     bool includeSystemApps = false,
     int usageWindowDays = 365,
+    bool withSizes = true,
   }) async {
     List<AppInfo> apps;
     try {
@@ -153,6 +164,13 @@ abstract final class InstalledAppsService {
       }
     }
 
+    // Boyutlar AYNI izne bağlı (Kullanım erişimi); izin yoksa kanal boş
+    // döner ve liste boyutsuz gelir — ekran bunu "bilinmiyor" gösterir.
+    final sizes = withSizes
+        ? await AppStorageService.sizesOf(
+            [for (final a in apps) a.packageName])
+        : const <String, AppStorageSize>{};
+
     return [
       for (final app in apps)
         InstalledAppEntry(
@@ -163,8 +181,47 @@ abstract final class InstalledAppsService {
           installedAtMs: app.installedTimestamp,
           lastUsedMs: usage[app.packageName] ?? 0,
           usageKnown: usageKnown,
+          size: sizes[app.packageName],
         ),
     ];
+  }
+
+  /// Yüklü uygulamaların TOPLAM kapladığı alan + en büyükleri.
+  ///
+  /// Bellek analizi kartı bunu kullanıyor: simge yüklemeden (pahalı) yalnız
+  /// ad + boyut isteniyor.
+  static Future<AppStorageSummary> summary({int top = 3}) async {
+    List<AppInfo> apps;
+    try {
+      apps = await InstalledApps.getInstalledApps(
+        excludeSystemApps: true,
+        excludeNonLaunchableApps: true,
+        withIcon: false,
+      );
+    } catch (_) {
+      return const AppStorageSummary(totalBytes: 0, cacheBytes: 0, top: []);
+    }
+    final sizes =
+        await AppStorageService.sizesOf([for (final a in apps) a.packageName]);
+    if (sizes.isEmpty) {
+      return const AppStorageSummary(totalBytes: 0, cacheBytes: 0, top: []);
+    }
+    var total = 0;
+    var cache = 0;
+    final ranked = <(String, int)>[];
+    for (final app in apps) {
+      final s = sizes[app.packageName];
+      if (s == null) continue;
+      total += s.totalBytes;
+      cache += s.cacheBytes;
+      ranked.add((app.name, s.totalBytes));
+    }
+    ranked.sort((a, b) => b.$2.compareTo(a.$2));
+    return AppStorageSummary(
+      totalBytes: total,
+      cacheBytes: cache,
+      top: ranked.take(top).toList(growable: false),
+    );
   }
 
   /// `lastForeground` → ms. Saf yardımcı (birim testli): veri yokken eklenti
@@ -192,4 +249,24 @@ abstract final class InstalledAppsService {
       await InstalledApps.uninstallApp(packageName);
     } catch (_) {}
   }
+}
+
+/// Bellek analizi "Uygulamalar" kartının özeti.
+class AppStorageSummary {
+  /// Tüm (sistem dışı) uygulamaların uygulama + veri toplamı.
+  final int totalBytes;
+
+  /// Silinmesi güvenli önbellek toplamı.
+  final int cacheBytes;
+
+  /// En büyükler: (uygulama adı, bayt).
+  final List<(String, int)> top;
+
+  const AppStorageSummary({
+    required this.totalBytes,
+    required this.cacheBytes,
+    required this.top,
+  });
+
+  bool get hasData => totalBytes > 0;
 }

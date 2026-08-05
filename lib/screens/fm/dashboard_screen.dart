@@ -537,6 +537,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (mounted) setState(() {});
         },
       ),
+      // **Bellek Analizi büyük kutulardan biri** (kullanıcı isteği 2026-08-05:
+      // "bellek analizi butonu daha görünür bir yerde olmalı"). Araç
+      // satırındayken kaydırmadan görünmüyordu; karşılaştırdığımız dosya
+      // yöneticisinde de ilk satırda duruyor.
+      FmTileData(
+        icon: Icons.pie_chart_outline,
+        color: const Color(0xFF546E7A),
+        label: context.t('fm.storage_analysis'),
+        subtitle: () {
+          final primary = FmEnv.volumes.firstOrNullVolume;
+          return primary != null && primary.hasStats
+              ? context.t('fm.used_percent',
+                  {'n': (primary.usedFraction * 100).round()})
+              : '';
+        }(),
+        onTap: () =>
+            _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+      ),
       _categoryTile(FmCategory.image, grid: true),
       _categoryTile(FmCategory.video, grid: true),
       _categoryTile(FmCategory.document),
@@ -601,7 +619,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// taşıdığında yazılır ("3 sürüyor"), dolgu metin konmaz.
   List<FmTileData> _tools() {
     final download = p.join(FmEnv.primaryRoot, 'Download');
-    final primary = FmEnv.volumes.firstOrNullVolume;
     final downloading = DownloadService.instance.activeTasks.length;
     final queue = JobQueue.instance;
     final runningJobs = queue.activeJobs.length;
@@ -726,16 +743,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: () => _push(OrganizeScreen(
           path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
         )),
-      ),
-      FmTileData(
-        icon: Icons.pie_chart_outline,
-        color: const Color(0xFF546E7A),
-        label: 'Analiz',
-        subtitle: primary != null && primary.hasStats
-            ? '%${(primary.usedFraction * 100).round()}'
-            : '',
-        onTap: () =>
-            _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
       ),
       FmTileData(
         icon: Icons.android,
@@ -1001,11 +1008,11 @@ class _VolumeCard extends StatelessWidget {
                     // kafadan çıkarmayı gerektiriyordu, ayrıca yazılıyor.
                     volume.hasStats
                         ? MonoText(
-                            '${FsPaths.humanSize(volume.usedBytes)} / '
-                            '${FsPaths.humanSize(volume.totalBytes)}  ·  '
+                            // Kapasite ONDALIK (telefonun üstünde yazan sayı).
+                            '${FsPaths.humanCapacity(volume.usedBytes)} / '
+                            '${FsPaths.humanCapacity(volume.capacityBytes)}  ·  '
                             '${context.t('fm.free_bytes', {
-                                  'v': FsPaths.humanSize(
-                                      volume.totalBytes - volume.usedBytes),
+                                  'v': FsPaths.humanCapacity(volume.freeBytes),
                                 })}',
                             size: 12,
                           )
@@ -1032,8 +1039,8 @@ class _VolumeCard extends StatelessWidget {
   Widget _breakdownBar(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final parts = _breakdown().where((p) => p.bytes > 0).toList();
-    final free = volume.totalBytes - volume.usedBytes;
-    final total = volume.totalBytes <= 0 ? 1 : volume.totalBytes;
+    final free = volume.freeBytes;
+    final total = volume.capacityBytes <= 0 ? 1 : volume.capacityBytes;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
