@@ -5997,3 +5997,52 @@ sordu. `drive.file` ile klasör oluşturma/yönetme MÜMKÜN (klasör de bir dos
 uygulamanın oluşturduğu her şeye erişilir); TÜM Drive'ı gezmek `drive` kapsamı
 ister — kısıtlı kapsam, Test modunda (≤100 test kullanıcısı) ücretsiz çalışır,
 YAYINLAMAK için ücretli CASA denetimi şart. Karar kullanıcıya soruldu.
+
+## 2026-08-05 (V) — KAPSAM KARARI DEĞİŞTİ: `drive.file` → `drive` (tam erişim)
+
+Kullanıcı *"diğer drive dosyalarını göremez miyiz, klasör oluşturma vs
+yapamaz mıyız"* diye sordu; seçenekler bedelleriyle sunuldu ve **tam erişimi**
+seçti. 2026-07-30'daki "`drive.file` yeter, CASA denetimi istemiyoruz" kararı
+bu tarihten itibaren GEÇERSİZ.
+
+### Bedeli — yazılı ve bilinçli
+`drive` Google'ın *restricted* kapsamı. OAuth izin ekranı **Test** modundayken
+ücretsiz çalışıyor (≤100 test kullanıcısı, e-postalar elle eklenir). **Yayına
+almak** (Play Store) yıllık ve ücretli üçüncü taraf güvenlik denetimi (CASA)
+istiyor. KALANLAR'daki Play Store hedefi bu kapsamla birlikte yeniden
+değerlendirilmeli — ikisi aynı anda ücretsiz olmuyor.
+
+### Servis (`drive_service.dart`)
+- `scope` = `.../auth/drive`, `rootId = 'root'`.
+- `listUri(parentId:)` → `'<id>' in parents` ile **klasör gezinme**;
+  `orderBy` artık `folder,name` (dosya yöneticisi sıralaması).
+- **Arama klasör sınırı TANIMAZ:** query verilince parent süzgeci düşer,
+  Drive'ın tamamında aranır (dosya yöneticilerinin beklenen davranışı; testle
+  sabit).
+- `createFolder` / `rename` / `move`; `upload(parentId:)` → `parents` üstverisi.
+- **TUZAK — iki ayrı uç nokta:** yeniden adlandırma `www.googleapis.com/drive/v3`
+  (üstveri), içerik yazma `upload.../drive/v3`. Adı upload adresine göndermek
+  dosyanın İÇERİĞİNİ ezerdi. `metadataUri` bu yüzden `updateUri`den ayrı ve
+  ikisinin ayrı kaldığı testle sabitlendi.
+- **TUZAK — taşımada `removeParents` şart:** yalnız `addParents` yazmak dosyayı
+  iki klasörde birden gösterir (Drive'da "üst klasör" çoklu bir alan).
+
+### Ekran (`drive_screen.dart`)
+- Kırıntı yolu (herhangi bir parçaya dokunmak oraya döner), klasöre girme,
+  **geri tuşu bir üst klasöre** (`PopScope`; kökte ekranı kapatır), klasör
+  oluştur, yeniden adlandır, bulunulan klasöre yükle, arama temizleme (×).
+- **Kapsam uyarısı şeridi KALDIRILDI** — "yalnız bu uygulamayla yüklediğiniz
+  dosyalar görünür" artık yanlış olurdu. `drive.scope_notice` anahtarı silindi.
+- `drive.empty` metni "henüz yüklemediniz" → **"Bu klasör boş."**; aramada
+  ayrı metin. Eski metin tam erişimde yanlış yönlendirirdi.
+- Arama sürerken gezinme düğmeleri kapalı: sonuçlar klasör sınırı tanımadığı
+  için "hangi klasördeyim" sorusunun cevabı o sırada yok.
+- **Bilinen sınır:** arama sonucundan bir klasöre girilince kırıntı yolu
+  kökten kurulur (gerçek üst zincir bilinmiyor); "yukarı" köke döner. Listeleme
+  doğru, yalnız yol gösterimi kısa.
+
+### KULLANICI ADIMI — kapsam büyüdü, yeniden izin ŞART
+Elde `drive.file` jetonu varsa yeni sürümde 403 gelir. Uygulamada bir kez
+**Bağlantıyı kes → Google ile bağlan** gerekiyor; ayrıca Cloud'da OAuth izin
+ekranına `.../auth/drive` kapsamı eklenmeli. Belge (`docs/GOOGLE-DRIVE-KURULUM.md`)
+sorun giderme tablosuyla güncellendi.

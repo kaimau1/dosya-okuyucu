@@ -93,6 +93,38 @@ void main() {
       expect(uri.queryParameters['q'], contains(r"name contains 'Ali\'nin raporu'"));
     });
 
+    test('klasör gezinme: parentId "in parents" süzgecine çevrilir', () {
+      final root = DriveService.listUri(parentId: DriveService.rootId);
+      expect(root.queryParameters['q'], "trashed = false and 'root' in parents");
+      // Klasörler önce, sonra ada göre — dosya yöneticisi sıralaması.
+      expect(root.queryParameters['orderBy'], 'folder,name');
+
+      final sub = DriveService.listUri(parentId: 'abc123');
+      expect(sub.queryParameters['q'], contains("'abc123' in parents"));
+    });
+
+    test('arama klasör sınırı TANIMAZ: parentId verilse de yok sayılır', () {
+      // Kullanıcı "ara" dediğinde Drive'ın tamamında arar; bulunduğu klasörle
+      // sınırlamak dosya yöneticilerinin beklenen davranışı değil.
+      final uri = DriveService.listUri(parentId: 'abc123', query: 'rapor');
+      expect(uri.queryParameters['q'], contains('name contains'));
+      expect(uri.queryParameters['q'], isNot(contains('in parents')));
+    });
+
+    test('üstveri ve içerik uç noktaları AYRI', () {
+      // Yeniden adlandırmayı upload adresine göndermek dosyanın içeriğini
+      // silerdi — iki adres karışmamalı.
+      expect(DriveService.metadataUri('id7').toString(),
+          startsWith('https://www.googleapis.com/drive/v3/files/id7'));
+      expect(DriveService.updateUri('id7').toString(),
+          startsWith('https://www.googleapis.com/upload/drive/v3/files/id7'));
+
+      final moved = DriveService.metadataUri('id7',
+          addParents: 'yeni', removeParents: 'eski');
+      expect(moved.queryParameters['addParents'], 'yeni');
+      expect(moved.queryParameters['removeParents'], 'eski');
+    });
+
     test('normal dosya alt=media, Google biçimi EXPORT ile iner', () {
       const pdf = DriveFile(id: 'a', name: 'x.pdf', mimeType: 'application/pdf');
       expect(DriveService.downloadUri(pdf).queryParameters['alt'], 'media');
@@ -236,6 +268,70 @@ void main() {
       expect(seen.single.method, 'PATCH');
       expect(seen.single.url.path, endsWith('/files/id7'));
       expect(seen.single.url.queryParameters['uploadType'], 'media');
+    });
+
+    test('klasör oluşturma: klasör MIME + üst klasör gönderilir', () async {
+      final seen = <http.Request>[];
+      final folder = await _withMock(
+        () => _service().createFolder('Faturalar', parentId: 'p1'),
+        (_) async => _json({
+          'id': 'f1',
+          'name': 'Faturalar',
+          'mimeType': DriveFile.folderMime,
+        }),
+        seen: seen,
+      );
+      expect(folder.isFolder, isTrue);
+      expect(seen.single.method, 'POST');
+      final body = jsonDecode(seen.single.body) as Map;
+      expect(body['mimeType'], DriveFile.folderMime);
+      expect(body['parents'], ['p1']);
+      // İçerik yükleme adresine GİTMEMELİ.
+      expect(seen.single.url.host, 'www.googleapis.com');
+      expect(seen.single.url.path, '/drive/v3/files');
+    });
+
+    test('yeniden adlandırma yalnız ADI yazar, içeriğe dokunmaz', () async {
+      final seen = <http.Request>[];
+      await _withMock(
+        () => _service().rename('id7', 'Yeni ad.pdf'),
+        (_) async => _json(
+            {'id': 'id7', 'name': 'Yeni ad.pdf', 'mimeType': 'application/pdf'}),
+        seen: seen,
+      );
+      expect(seen.single.method, 'PATCH');
+      expect(jsonDecode(seen.single.body), {'name': 'Yeni ad.pdf'});
+      // Üstveri adresi — upload/ DEĞİL (orası içeriği ezerdi).
+      expect(seen.single.url.path, '/drive/v3/files/id7');
+    });
+
+    test('taşımada eski üst klasör KALDIRILIR (yoksa iki yerde görünür)',
+        () async {
+      final seen = <http.Request>[];
+      await _withMock(
+        () => _service()
+            .move('id7', toParentId: 'yeni', fromParentId: 'eski'),
+        (_) async =>
+            _json({'id': 'id7', 'name': 'a.pdf', 'mimeType': 'application/pdf'}),
+        seen: seen,
+      );
+      expect(seen.single.url.queryParameters['addParents'], 'yeni');
+      expect(seen.single.url.queryParameters['removeParents'], 'eski');
+    });
+
+    test('yükleme bulunulan klasöre yapılır (parents üstveride)', () async {
+      final dir = await Directory.systemTemp.createTemp('drive_up_parent');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final local = File('${dir.path}/not.txt')..writeAsStringSync('x');
+
+      final seen = <http.Request>[];
+      await _withMock(
+        () => _service().upload(local, parentId: 'klasor1'),
+        (_) async => _json({'id': 'n', 'name': 'not.txt', 'mimeType': 'text/plain'}),
+        seen: seen,
+      );
+      // Üst klasör yazılmazsa dosya HER ZAMAN köke düşerdi.
+      expect(seen.single.body, contains('"parents":["klasor1"]'));
     });
 
     test('silmede 204 başarı sayılır', () async {
