@@ -127,6 +127,33 @@ List<CleanupSuggestion> adviseCleanup({
     ));
   }
 
+  // Uygulama yedekleri: `Uygulama Adı(com.paket).bak`. Bunlar uygulamanın
+  // ÇALIŞMASI için gerekli DEĞİL — yedekleme aracının (MIUI "Yedekle" gibi)
+  // aldığı kopyalar. Uygulamanın gerçek verisi `/data/data/<paket>` ve
+  // `Android/data/<paket>` altındadır, ikisi de `.bak` dosyası değildir.
+  // Kullanıcı bunları "Diğer" yığınının içinde görüp silmeye çekiniyordu
+  // (2026-08-05 sorusu: "silersem uygulamalar bozulmaz mı").
+  final backups = <FsEntry>[];
+  for (final c in FmCategory.values) {
+    for (final e in index.files(c)) {
+      if (isAppBackup(e)) backups.add(e);
+    }
+  }
+  if (backups.isNotEmpty) {
+    backups.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+    out.add(CleanupSuggestion(
+      id: 'app_backup',
+      titleKey: 'clean.app_backup',
+      detailKey: 'clean.app_backup_detail',
+      detailVars: {'n': backups.length},
+      bytes: backups.fold(0, (s, e) => s + e.sizeBytes),
+      files: backups,
+      // Güvenli: silmek yalnız "bu yedekten geri yükleme" imkânını
+      // kaybettirir, yüklü uygulamalara dokunmaz.
+      safeByDefault: true,
+    ));
+  }
+
   // En büyük videolar — kazanç burada, ama ASLA varsayılan seçili değil.
   final bigVideos = index
       .files(FmCategory.video)
@@ -181,3 +208,30 @@ List<CleanupSuggestion> cleanupApplyOrder(
     ...list.where((s) => s.id != 'trash'),
   ];
 }
+
+/// Dosya bir **uygulama yedeği** mi?
+///
+/// İki işaret aranır ve ikisi de dar tutulur — `notlar.bak` gibi kullanıcıya
+/// ait bir yedeği "güvenle silinir" diye işaretlemek kabul edilemez:
+/// 1. ad `Uygulama Adı(com.paket.adi).bak` kalıbında (yedekleme araçlarının
+///    ürettiği ad; parantez içi gerçek bir paket adı gibi olmalı),
+/// 2. ya da yol bilinen bir yedek klasörünün altında.
+bool isAppBackup(FsEntry entry) {
+  if (entry.isDir) return false;
+  final lower = entry.path.toLowerCase();
+  const backupDirs = [
+    '/miui/backup/',
+    '/backup/allbackup/',
+    '/backups/apps/',
+  ];
+  for (final dir in backupDirs) {
+    if (lower.contains(dir)) return true;
+  }
+  if (!lower.endsWith('.bak')) return false;
+  return _packageInName.hasMatch(entry.name);
+}
+
+/// `… (com.bir.paket).bak` — parantez içinde EN AZ iki nokta ayrılmış parça
+/// olmalı (ters alan adı). `yedek(1).bak` gibi adlar eşleşmez.
+final _packageInName =
+    RegExp(r'\(([a-zA-Z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+){1,})\)\.bak$');

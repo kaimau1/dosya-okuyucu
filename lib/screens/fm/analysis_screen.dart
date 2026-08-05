@@ -17,6 +17,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
+import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
@@ -68,6 +69,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   /// Depolama eğilimi ("bu hafta +2,1 GB · en çok Videolar").
   TrendDelta? _trend;
+
+  /// **Toplu seçim** (yol kümesi). Bellek analizinde "büyük dosyayı bul ve
+  /// sil" akışının son adımı eksikti: tek tek ⋮ menüsünden silmek 20 dosya
+  /// için 60 dokunuş demekti (kullanıcı isteği 2026-08-05).
+  final _selected = <String>{};
+
+  bool get _selecting => _selected.isNotEmpty;
 
   /// Yüklü uygulamaların kapladığı alan. Ölçüm binder çağrıları gerektirdiği
   /// için ekran açılır açılmaz DEĞİL, arka planda gelir; hazır olana kadar
@@ -245,105 +253,133 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final visible = _visible;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bellek Analizi'),
-        actions: [
-          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.xl),
+      appBar: _selecting
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(_selected.clear),
+              ),
+              title: Text(context.t('ph.selected_of', {
+                'n': _selected.length,
+                'total': visible.length,
+              })),
+              actions: [
+                IconButton(
+                  tooltip: context.t('ph.select_all'),
+                  icon: Icon(_selected.length >= visible.length
+                      ? Icons.deselect
+                      : Icons.select_all),
+                  onPressed: () => _toggleSelectAll(visible),
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Bellek Analizi'),
+              actions: [
+                FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
+              ],
+            ),
+      // Stack: seçim çubuğu görünürken gövde yüksekliği DEĞİŞMESİN
+      // (`bottomNavigationBar` kullanılırsa liste zıplıyor).
+      body: Stack(
         children: [
-          _searchField(),
-          if (_searching) ...[
-            const SizedBox(height: Gap.sm),
-            const LinearProgressIndicator(minHeight: 2),
-          ],
-          const SizedBox(height: Gap.md),
-          if (!_isSearch) ...[
-            for (final v in widget.volumes) ...[
-              _VolumeBar(volume: v),
-              const SizedBox(height: Gap.md),
-            ],
-            if (_trend?.hasData ?? false) ...[
-              _trendCard(_trend!),
-              const SizedBox(height: Gap.md),
-            ],
-            Card(
-              clipBehavior: Clip.antiAlias,
-              child: ListTile(
-                leading: const Icon(Icons.auto_fix_high),
-                title: Text(context.t('ana.free_space')),
-                subtitle: Text(
-                    context.t('ana.free_space_note')),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => CleanupScreen(index: widget.index),
-                )),
-              ),
-            ),
-            const SizedBox(height: Gap.sm),
-            Card(
-              clipBehavior: Clip.antiAlias,
-              child: ListTile(
-                leading: const Icon(Icons.cleaning_services_outlined),
-                title: Text(context.t('ana.find_dupes')),
-                subtitle: Text(
-                    context.t('ana.find_dupes_note')),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => DuplicatesScreen(roots: FmEnv.volumeRoots),
-                )),
-              ),
-            ),
-            const SizedBox(height: Gap.sm),
-            _appsCard(),
-            const SizedBox(height: Gap.lg),
-            Text(context.t('ana.by_type'),
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: Gap.sm),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.md),
-                child: Column(
-                  children: [
-                    for (final c in categories)
-                      _CategoryBar(
-                        label: c.label,
-                        bytes: index.stat(c).bytes,
-                        count: index.stat(c).count,
-                        fraction: index.stat(c).bytes / maxBytes,
-                        color: FmColors.forCategory(c),
-                        selected: _category == c,
-                        // Çubuğa dokunmak listeyi o türe daraltır: "en büyük
-                        // videolarım hangileri" en sık sorulan soru.
-                        onTap: () => setState(
-                            () => _category = _category == c ? null : c),
-                      ),
-                    if (categories.isEmpty)
-                      Text(context.t('ana.no_scan')),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: Gap.lg),
-          ],
-          Row(
+          ListView(
+            padding:
+                const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.xl),
             children: [
-              Expanded(
-                child: Text(
-                  _isSearch ? context.t('ana.results') : context.t('ana.largest'),
-                  style: Theme.of(context).textTheme.titleMedium,
+              _searchField(),
+              if (_searching) ...[
+                const SizedBox(height: Gap.sm),
+                const LinearProgressIndicator(minHeight: 2),
+              ],
+              const SizedBox(height: Gap.md),
+              if (!_isSearch) ...[
+                for (final v in widget.volumes) ...[
+                  _VolumeBar(volume: v),
+                  const SizedBox(height: Gap.md),
+                ],
+                if (_trend?.hasData ?? false) ...[
+                  _trendCard(_trend!),
+                  const SizedBox(height: Gap.md),
+                ],
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    leading: const Icon(Icons.auto_fix_high),
+                    title: Text(context.t('ana.free_space')),
+                    subtitle: Text(
+                        context.t('ana.free_space_note')),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => CleanupScreen(index: widget.index),
+                    )),
+                  ),
                 ),
-              ),
-              Text(
-                _isSearch
-                    ? context.t('ana.result_count', {'n': visible.length})
-                    : '${index.totalFiles} dosya · '
-                        '${FsPaths.humanSize(index.totalBytes)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+                const SizedBox(height: Gap.sm),
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    leading: const Icon(Icons.cleaning_services_outlined),
+                    title: Text(context.t('ana.find_dupes')),
+                    subtitle: Text(
+                        context.t('ana.find_dupes_note')),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => DuplicatesScreen(roots: FmEnv.volumeRoots),
+                    )),
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
+                _appsCard(),
+                const SizedBox(height: Gap.lg),
+                Text(context.t('ana.by_type'),
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: Gap.sm),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(Gap.md),
+                    child: Column(
+                      children: [
+                        for (final c in categories)
+                          _CategoryBar(
+                            // Çeviri anahtarı: `c.label` Türkçe SABİT (otomatik
+                            // düzenlemede klasör adı üretiyor), ekranda gösterilen
+                            // ad ondan bağımsız olmalı.
+                            label: context.t(c.labelKey),
+                            bytes: index.stat(c).bytes,
+                            count: index.stat(c).count,
+                            fraction: index.stat(c).bytes / maxBytes,
+                            color: FmColors.forCategory(c),
+                            selected: _category == c,
+                            // Çubuğa dokunmak listeyi o türe daraltır: "en büyük
+                            // videolarım hangileri" en sık sorulan soru.
+                            onTap: () => setState(
+                                () => _category = _category == c ? null : c),
+                          ),
+                        if (categories.isEmpty)
+                          Text(context.t('ana.no_scan')),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Gap.lg),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _isSearch ? context.t('ana.results') : context.t('ana.largest'),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  Text(
+                    _isSearch
+                        ? context.t('ana.result_count', {'n': visible.length})
+                        : '${index.totalFiles} dosya · '
+                            '${FsPaths.humanSize(index.totalBytes)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
           ),
           if (_category != null || _filter.isActive)
             Padding(
@@ -384,7 +420,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           for (final e in visible.take(200))
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: FmEntryIcon(entry: e),
+              selected: _selected.contains(e.path),
+              leading: _selecting
+                  ? Checkbox(
+                      value: _selected.contains(e.path),
+                      onChanged: (_) => _toggle(e),
+                    )
+                  : FmEntryIcon(entry: e),
               title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
                 '${FsPaths.humanSize(e.sizeBytes)} · '
@@ -392,27 +434,71 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              onTap: () => EntryOpener.open(context, e.path),
-              trailing: IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () async {
-                  await showEntryActions(
-                    context,
-                    e,
-                    allowReveal: true,
-                    onReveal: (path) => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => BrowserScreen(path: path)),
+              // Seçim açıkken dokunmak SEÇER (dosyayı açmaz) — her liste
+              // ekranında aynı kural.
+              onTap: () => _selecting
+                  ? _toggle(e)
+                  : EntryOpener.open(context, e.path),
+              onLongPress: () => _toggle(e),
+              trailing: _selecting
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () async {
+                        await showEntryActions(
+                          context,
+                          e,
+                          allowReveal: true,
+                          onReveal: (path) => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => BrowserScreen(path: path)),
+                          ),
+                        );
+                        await _refreshAlive();
+                      },
                     ),
-                  );
-                  await _refreshAlive();
-                },
               ),
+            ],
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: FmSelectionBar(
+              selected: _selectedEntries(visible),
+              onChanged: () async {
+                setState(_selected.clear);
+                await _refreshAlive();
+              },
             ),
+          ),
         ],
       ),
     );
   }
+
+  /// Seçimi açar/kapatır.
+  void _toggle(FsEntry e) => setState(() {
+        if (!_selected.remove(e.path)) _selected.add(e.path);
+      });
+
+  /// Hepsini seç / seçimi kaldır — ölçüt GÖRÜNEN liste (200 sınırı dahil),
+  /// yoksa "tümünü seç" görünmeyen dosyaları da silmeye giderdi.
+  void _toggleSelectAll(List<FsEntry> visible) => setState(() {
+        if (_selected.length >= visible.length) {
+          _selected.clear();
+        } else {
+          _selected
+            ..clear()
+            ..addAll(visible.map((e) => e.path));
+        }
+      });
+
+  /// Seçili yolların GÖRÜNEN listedeki karşılıkları. Eylem çubuğu ile sayaç
+  /// aynı kümeyi kullanır; süzgeç değişip bir dosya listeden düşerse seçim de
+  /// onu kapsamaz.
+  List<FsEntry> _selectedEntries(List<FsEntry> visible) =>
+      [for (final e in visible) if (_selected.contains(e.path)) e];
 
   /// Depolama eğilimi kartı. Veri yoksa hiç gösterilmez — "0 B değişti"
   /// demek bilgi değil gürültüdür.

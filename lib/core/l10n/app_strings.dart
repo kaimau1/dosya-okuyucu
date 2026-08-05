@@ -1701,6 +1701,22 @@ const Map<String, (String, String, String)> _table = {
     '{v} of this is cache — safe to clear',
     '{v} من هذا ذاكرة مؤقتة — آمن حذفها',
   ),
+  'clean.app_backup': (
+    'Uygulama yedekleri',
+    'App backups',
+    'نسخ التطبيقات الاحتياطية',
+  ),
+  'clean.app_backup_detail': (
+    '{n} yedek dosyası (.bak). Bunlar uygulamaların ÇALIŞMASI için gerekli '
+        'değil — bir yedekleme aracının aldığı kopyalar. Silince yüklü '
+        'uygulamalar bozulmaz; yalnız bu yedekten geri yükleme imkânı gider.',
+    '{n} backup files (.bak). Apps do NOT need these to run — they are copies '
+        'made by a backup tool. Deleting them will not break installed apps; '
+        'you only lose the ability to restore from this backup.',
+    '{n} ملف نسخ احتياطي (.bak). التطبيقات لا تحتاجها للعمل — إنها نسخ أنشأتها '
+        'أداة نسخ احتياطي. حذفها لا يعطّل التطبيقات المثبتة؛ تفقد فقط إمكانية '
+        'الاستعادة من هذه النسخة.',
+  ),
   'fm.apps': ('Uygulamalar', 'Apps', 'التطبيقات'),
   'fm.quick_untouched': (
     '{n} aydır açılmamış',
@@ -4287,7 +4303,14 @@ const Map<String, (String, String, String)> _table = {
   'enum.cat_audio': ('Ses', 'Audio', 'الصوت'),
   'enum.cat_document': ('Belgeler', 'Documents', 'المستندات'),
   'enum.cat_archive': ('Arşivler', 'Archives', 'الأرشيفات'),
-  'enum.cat_apk': ('Uygulamalar', 'Apps', 'التطبيقات'),
+  // "Uygulamalar" DEĞİL: bu, depolamada bulunan .apk/.bak KURULUM
+  // DOSYALARI; yüklü uygulamalar ayrı bir kart. İkisi aynı adı
+  // taşıyınca kullanıcı "49 GB mı 85 MB mı" diye takıldı (2026-08-05).
+  'enum.cat_apk': (
+    'Kurulum dosyaları',
+    'Installer files',
+    'ملفات التثبيت',
+  ),
   'enum.cat_other': ('Diğer', 'Other', 'أخرى'),
 
   'enum.sort_name': ('Ada göre', 'By name', 'حسب الاسم'),

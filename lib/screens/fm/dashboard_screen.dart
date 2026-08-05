@@ -363,11 +363,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: Gap.sm),
             ],
             for (final v in volumes) ...[
-              _VolumeCard(
-                volume: v,
-                index: _index,
-                onTap: () => _push(BrowserScreen(path: v.path, title: v.label)),
-              ),
+              // Birincil bellek kartının YANINDA "Bellek Analizi" (kullanıcı
+              // isteği 2026-08-05: "orası 2 buton olsun"). Takılabilir
+              // birimlerde analiz kutusu tekrarlanmaz — tek bir analiz ekranı
+              // var, iki kez göstermek yer kaybı olurdu.
+              if (v.isPrimary)
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _VolumeCard(
+                          volume: v,
+                          index: _index,
+                          onTap: () => _push(
+                              BrowserScreen(path: v.path, title: v.label)),
+                        ),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      SizedBox(width: 118, child: _analysisCard(v)),
+                    ],
+                  ),
+                )
+              else
+                _VolumeCard(
+                  volume: v,
+                  index: _index,
+                  onTap: () =>
+                      _push(BrowserScreen(path: v.path, title: v.label)),
+                ),
               const SizedBox(height: Gap.sm),
             ],
             const SizedBox(height: Gap.sm),
@@ -536,24 +560,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           await _push(const ImportantScreen());
           if (mounted) setState(() {});
         },
-      ),
-      // **Bellek Analizi büyük kutulardan biri** (kullanıcı isteği 2026-08-05:
-      // "bellek analizi butonu daha görünür bir yerde olmalı"). Araç
-      // satırındayken kaydırmadan görünmüyordu; karşılaştırdığımız dosya
-      // yöneticisinde de ilk satırda duruyor.
-      FmTileData(
-        icon: Icons.pie_chart_outline,
-        color: const Color(0xFF546E7A),
-        label: context.t('fm.storage_analysis'),
-        subtitle: () {
-          final primary = FmEnv.volumes.firstOrNullVolume;
-          return primary != null && primary.hasStats
-              ? context.t('fm.used_percent',
-                  {'n': (primary.usedFraction * 100).round()})
-              : '';
-        }(),
-        onTap: () =>
-            _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
       ),
       _categoryTile(FmCategory.image, grid: true),
       _categoryTile(FmCategory.video, grid: true),
@@ -787,6 +793,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
           : '${FsPaths.humanSize(stat.bytes)} (${stat.count})',
       onTap: () => _openCategory(category, grid: grid),
+    );
+  }
+
+  /// **Bellek Analizi** — ana bellek kartının yanındaki ikinci düğme
+  /// (kullanıcı isteği 2026-08-05). Önce araç satırındaydı, kaydırmadan
+  /// görünmüyordu; sonra büyük kutulara alındı, orada da ana bellekten
+  /// uzaktaydı. Yeri artık aradığı bilgiyle yan yana.
+  Widget _analysisCard(StorageVolume volume) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.pie_chart_outline,
+                  size: 26, color: scheme.onSurfaceVariant),
+              const SizedBox(height: Gap.sm),
+              Text(
+                context.t('fm.storage_analysis'),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              if (volume.hasStats) ...[
+                const SizedBox(height: 2),
+                Text(
+                  context.t('fm.used_percent',
+                      {'n': (volume.usedFraction * 100).round()}),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Paper.faint(context)),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1096,9 +1143,4 @@ class _VolumeCard extends StatelessWidget {
           ),
         ],
       );
-}
-
-/// Küçük yardımcı: liste boşsa null döndüren "ilk birim".
-extension on List<StorageVolume> {
-  StorageVolume? get firstOrNullVolume => isEmpty ? null : first;
 }

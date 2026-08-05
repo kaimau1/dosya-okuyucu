@@ -204,6 +204,54 @@ Tabii, işte:
       expect(dups.safeByDefault, isTrue);
     });
 
+    test('uygulama yedekleri (.bak) GÜVENLİ öneri olarak çıkar', () {
+      // Kullanıcı sorusu 2026-08-05: "bunlar uygulamaların çalışması için
+      // gerekli değil mi, silersem bozulur mu?" — değil; yedekleme aracının
+      // kopyaları. Uygulama içinde de böyle anlatılıyor.
+      final index = StorageIndex(
+        stats: const {},
+        byCategory: {
+          FmCategory.other: [
+            file('/depo/WhatsApp(com.whatsapp).bak', size: 379000000),
+            file('/depo/Temu(com.einnovation.temu).bak', size: 395000000),
+            file('/depo/notlar.bak', size: 1000), // kullanıcının kendi yedeği
+          ],
+        },
+        largest: const [],
+        recent: const [],
+        totalFiles: 3,
+        totalBytes: 774001000,
+        skipped: 0,
+      );
+      final list = adviseCleanup(
+        index: index,
+        downloads: const [],
+        duplicates: const [],
+        trashBytes: 0,
+        trashCount: 0,
+        now: now,
+      );
+      final backup = list.firstWhere((s) => s.id == 'app_backup');
+      expect(backup.safeByDefault, isTrue);
+      // `notlar.bak` paket adı taşımıyor → kullanıcının kendi dosyası olabilir,
+      // "güvenle silinir" listesine ALINMAZ.
+      expect(backup.files.map((e) => e.name),
+          isNot(contains('notlar.bak')));
+      expect(backup.files, hasLength(2));
+      // En büyük önce.
+      expect(backup.files.first.name, 'Temu(com.einnovation.temu).bak');
+    });
+
+    test('isAppBackup: paket adı kalıbı ve yedek klasörü', () {
+      expect(isAppBackup(file('/a/Edge(com.microsoft.emmx).bak')), isTrue);
+      expect(isAppBackup(file('/a/MIUI/backup/AllBackup/2025/x.dat')), isTrue);
+      // Kullanıcı yedekleri ve klasörler dışarıda.
+      expect(isAppBackup(file('/a/yedek(1).bak')), isFalse);
+      expect(isAppBackup(file('/a/notlar.bak')), isFalse);
+      expect(isAppBackup(file('/a/rapor.pdf')), isFalse);
+      expect(isAppBackup(file('/a/klasor', dir: true)), isFalse);
+    });
+
     test('eski indirilenler önerilir, tazeler önerilmez', () {
       final list = adviseCleanup(
         index: StorageIndex.empty,
