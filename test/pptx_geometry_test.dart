@@ -36,6 +36,7 @@ void _fitsIn(Path p, Size box, {double slack = 0.5}) {
 }
 
 void main() {
+  _custPathTests();
   const box = Size(200, 100); // bilerek KARE DEĞİL: elips/daire ayrımını yakalar
 
   group('PptxPresetShape.rectRadius', () {
@@ -236,5 +237,58 @@ void main() {
       expect(p.getBounds().bottom, greaterThan(box.height));
       expect(p.contains(const Offset(100, 50)), isTrue); // gövde dolu
     });
+  });
+}
+
+/// `PptxCustPath` — özel geometri yolunun saf geometrisi.
+void _custPathTests() {
+  test('custGeom: arcTo mevcut noktadan merkezi geri hesaplar', () {
+    // 100x100 uzayında sağ yarım daire: (50,0)'dan başla, yay stAng=270°
+    // (tepe), swAng=180° → (50,100)'de bit. Merkez (50,50), yarıçap 50.
+    const path = PptxCustPath(w: 100, h: 100, cmds: [
+      ('M', [50.0, 0.0]),
+      ('A', [50.0, 50.0, 270.0 * 60000, 180.0 * 60000]),
+      ('Z', <double>[]),
+    ]);
+    final p = path.build(const Size(100, 100))!;
+    final b = _outlineBounds(p);
+    expect(b.left, closeTo(50, 1));
+    expect(b.right, closeTo(100, 1));
+    expect(b.top, closeTo(0, 1));
+    expect(b.bottom, closeTo(100, 1));
+  });
+
+  test('custGeom: eksik/bozuk komut TÜM yolu düşürür (yanlış çizim yok)', () {
+    // moveTo olmadan lnTo — başlangıcı belirsiz yol reddedilir.
+    const headless = PptxCustPath(w: 100, h: 100, cmds: [
+      ('L', [10.0, 10.0]),
+    ]);
+    expect(headless.build(const Size(100, 100)), isNull);
+
+    // Sıfır boyutlu koordinat uzayı da reddedilir.
+    const flat = PptxCustPath(w: 0, h: 100, cmds: [
+      ('M', [0.0, 0.0]),
+    ]);
+    expect(flat.build(const Size(100, 100)), isNull);
+  });
+
+  test('custGeom: fillOnly fill="none" alt yolunu atlar', () {
+    const geom = PptxCustomGeom([
+      PptxCustPath(w: 10, h: 10, cmds: [
+        ('M', [5.0, 0.0]),
+        ('L', [10.0, 0.0]),
+        ('L', [10.0, 10.0]),
+        ('Z', <double>[]),
+      ]),
+      PptxCustPath(w: 10, h: 10, filled: false, cmds: [
+        ('M', [0.0, 10.0]),
+        ('L', [0.0, 0.0]),
+      ]),
+    ]);
+    final full = geom.build(const Size(10, 10))!;
+    final fillOnly = geom.build(const Size(10, 10), fillOnly: true)!;
+    // Sol kenar çizgisi yalnız tam yolda: x=0'a dokunan metrik var.
+    expect(_outlineBounds(full).left, closeTo(0, 0.01));
+    expect(_outlineBounds(fillOnly).left, greaterThan(0));
   });
 }

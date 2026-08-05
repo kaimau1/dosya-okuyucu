@@ -574,3 +574,122 @@ class PptxPresetShape {
     return Path.combine(PathOperation.union, shell, tail);
   }
 }
+
+/// `a:custGeom` — kullanıcının PowerPoint'te SERBEST ÇİZDİĞİ (ya da bir
+/// şekli "Noktaları Düzenle" ile bozduğu) özel geometri.
+///
+/// **Neden gerekiyor:** ön tanımlı şekiller (`a:prstGeom`) vektör çizilirken
+/// özel geometriler hiç okunmuyordu ve ekranda **düz dikdörtgen** çıkıyordu.
+/// Süreç şemasını serbest okla çizen ya da şekli deforme eden her sunumda
+/// görünür sadakat kaybı: eğrinin yerinde kutu.
+///
+/// Model saf veri + `dart:ui` yolu: XML ayrıştırması `pptx_render`'da kalır
+/// (bu modül xml paketine bağımlı olmasın, testler yol geometrisini doğrudan
+/// ölçebilsin).
+///
+/// **Bilinçli sınır:** `a:gdLst` formül kılavuzları çözülmez. Koordinatlardan
+/// biri sayı değilse (kılavuz adı geçiyorsa) ayrıştırıcı null döner ve şekil
+/// dikdörtgene düşer — formülü yanlış hesaplayıp çarpık yol çizmekten iyidir.
+/// Pratikte serbest çizimler ve "Noktaları Düzenle" çıktıları düz sayı yazar.
+class PptxCustomGeom {
+  final List<PptxCustPath> paths;
+
+  const PptxCustomGeom(this.paths);
+
+  /// Hedef [size] kutusuna ölçeklenmiş birleşik yol.
+  ///
+  /// [fillOnly] true ise `fill="none"` işaretli alt yollar atlanır: PowerPoint
+  /// bu alt yolları yalnız ÇİZGİ olarak basar; dolguya katmak şekli kapalı
+  /// bir lekeye çevirirdi.
+  Path? build(Size size, {bool fillOnly = false}) {
+    Path? out;
+    for (final p in paths) {
+      if (fillOnly && !p.filled) continue;
+      final built = p.build(size);
+      if (built == null) continue;
+      out = out == null ? built : (out..addPath(built, Offset.zero));
+    }
+    return out;
+  }
+}
+
+/// `a:custGeom > a:pathLst > a:path` — tek alt yol.
+class PptxCustPath {
+  /// Yol koordinat uzayı (`@w`/`@h`; yoksa şeklin EMU boyutu geçilir).
+  final double w, h;
+
+  /// `@fill="none"` DEĞİLSE true — alt yol dolguya katılır.
+  final bool filled;
+
+  /// Komutlar: `op` ∈ M/L/C/Q/A/Z, `args` ham yol-uzayı sayıları
+  /// (A: wR,hR,stAng60k,swAng60k — açılar ECMA'nın 1/60000 derecesi).
+  final List<(String, List<double>)> cmds;
+
+  const PptxCustPath({
+    required this.w,
+    required this.h,
+    this.filled = true,
+    required this.cmds,
+  });
+
+  Path? build(Size size) {
+    if (w <= 0 || h <= 0 || cmds.isEmpty) return null;
+    final sx = size.width / w, sy = size.height / h;
+    final path = Path();
+    // arcTo merkezi mevcut noktadan geri hesaplanır → nokta yol-uzayında izlenir.
+    var cur = Offset.zero;
+    var started = false;
+    for (final (op, a) in cmds) {
+      switch (op) {
+        case 'M':
+          if (a.length < 2) return null;
+          cur = Offset(a[0], a[1]);
+          path.moveTo(cur.dx * sx, cur.dy * sy);
+          started = true;
+        case 'L':
+          if (a.length < 2 || !started) return null;
+          cur = Offset(a[0], a[1]);
+          path.lineTo(cur.dx * sx, cur.dy * sy);
+        case 'C':
+          if (a.length < 6 || !started) return null;
+          path.cubicTo(
+              a[0] * sx, a[1] * sy, a[2] * sx, a[3] * sy, a[4] * sx, a[5] * sy);
+          cur = Offset(a[4], a[5]);
+        case 'Q':
+          if (a.length < 4 || !started) return null;
+          path.quadraticBezierTo(a[0] * sx, a[1] * sy, a[2] * sx, a[3] * sy);
+          cur = Offset(a[2], a[3]);
+        case 'A':
+          {
+            if (a.length < 4 || !started) return null;
+            final wR = a[0], hR = a[1];
+            if (wR <= 0 || hR <= 0) return null;
+            // ECMA: mevcut nokta elipsin stAng'daki noktasıdır; merkez oradan
+            // geri hesaplanır. Açılar parametrik kabul edilir (eksen hizalı
+            // ölçekte korunur) — spec'in atan düzeltmesi ihmal edilebilir.
+            final st = a[2] / 60000 * math.pi / 180;
+            final sw = a[3] / 60000 * math.pi / 180;
+            final center =
+                cur - Offset(wR * math.cos(st), hR * math.sin(st));
+            path.arcTo(
+              Rect.fromCenter(
+                center: Offset(center.dx * sx, center.dy * sy),
+                width: 2 * wR * sx,
+                height: 2 * hR * sy,
+              ),
+              st,
+              sw,
+              false,
+            );
+            final end = st + sw;
+            cur = center + Offset(wR * math.cos(end), hR * math.sin(end));
+          }
+        case 'Z':
+          path.close();
+        default:
+          return null; // bilinmeyen komut: yanlış çizmektense vazgeç
+      }
+    }
+    return path;
+  }
+}

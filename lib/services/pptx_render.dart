@@ -8,7 +8,8 @@ import 'package:xml/xml.dart';
 
 import 'pptx_geometry.dart';
 
-export 'pptx_geometry.dart' show Adjust, PptxPresetShape;
+export 'pptx_geometry.dart'
+    show Adjust, PptxPresetShape, PptxCustomGeom, PptxCustPath;
 
 /// PPTX (Open XML) slaytlarını **gerçek tasarımıyla** çizebilmek için gereken
 /// geometri/renk/metin bilgisini çıkarır. Çizim `widgets/slide_canvas.dart`te.
@@ -104,6 +105,11 @@ class ShapeVM {
   /// PowerPoint'te sarı tutamağın çekildiği yeri taşır.
   final Adjust adjust;
 
+  /// Özel geometri (`a:custGeom`) — serbest çizim / "Noktaları Düzenle"
+  /// çıktısı. Doluysa [preset] `custGeom` olur ve çizim yolu buradan üretilir;
+  /// eskiden bu şekiller düz dikdörtgen çıkıyordu.
+  final PptxCustomGeom? custom;
+
   final double cornerRadius;
 
   /// Görsel kırpması (`a:blipFill > a:srcRect`) — kenarlardan atılan ORAN
@@ -169,6 +175,7 @@ class ShapeVM {
     this.strokeWidth = 0,
     this.preset = 'rect',
     this.adjust = const {},
+    this.custom,
     this.cornerRadius = 0,
     this.crop,
     this.isLine = false,
@@ -318,6 +325,11 @@ class PptxRender {
   final Map<String, XmlDocument?> _xmlCache = {};
   final Map<String, Map<String, Color>> _themeCache = {};
   final Map<String, (String, String)> _fontCache = {};
+  final Map<String, List<double>> _lnWidthCache = {};
+
+  /// Temanın çizgi stili kalınlıkları (`a:fmtScheme > a:lnStyleLst`, punto).
+  /// `p:style > a:lnRef@idx` 1 tabanlı olarak bu listeyi işaret eder.
+  List<double> _lnWidths = const [];
 
   /// Geçerli slaytın tema başlık/gövde latin yazı tipi adı (`a:majorFont`/
   /// `a:minorFont`). `slide()` başında ayarlanır; `+mj-lt`/`+mn-lt` referansları
@@ -356,6 +368,7 @@ class PptxRender {
     final themeFonts = _themeFonts(masterFile);
     _majorLatin = themeFonts.$1;
     _minorLatin = themeFonts.$2;
+    _lnWidths = _themeLineWidths(masterFile);
 
     Color? bg;
     Gradient? bgGradient;
@@ -704,14 +717,20 @@ class PptxRender {
     // Çizgi/bağlayıcı ayrı yolda çizildiği için geometriye sokulmaz.
     final adjust = _adjustValues(geom);
     final geomSize = Size(w, h);
-    final radius = isLine
+    // Özel geometri (`a:custGeom`): ayrıştırılabildiyse yol ondan çizilir;
+    // ayrıştırılamazsa (kılavuz formülü vb.) aşağıdaki kural dikdörtgene
+    // düşürür — eskiden TÜM özel şekiller dikdörtgendi.
+    final custom = isLine ? null : _customGeom(spPr, ext);
+    final radius = isLine || custom != null
         ? 0.0
         : (PptxPresetShape.rectRadius(prst, geomSize, adjust) ?? 0.0);
-    final preset = isLine ||
-            PptxPresetShape.rectRadius(prst, geomSize, adjust) != null ||
-            PptxPresetShape.build(prst, geomSize, adjust) == null
-        ? 'rect'
-        : prst;
+    final preset = custom != null && !isLine
+        ? 'custGeom'
+        : (isLine ||
+                PptxPresetShape.rectRadius(prst, geomSize, adjust) != null ||
+                PptxPresetShape.build(prst, geomSize, adjust) == null
+            ? 'rect'
+            : prst);
 
     // Modern PPTX'te tema temelli şekiller dolgu/çizgiyi `spPr`'de DEĞİL,
     // `p:style`'daki stil matrisi referanslarında taşır (`a:fillRef`/`a:lnRef`
@@ -748,14 +767,18 @@ class PptxRender {
       final dash = _first(ln, 'a:prstDash')?.getAttribute('val');
       dashed = dash != null && dash != 'solid';
     }
-    // spPr'de çizgi yoksa tema stil referansına düş (p:style > a:lnRef). Gerçek
-    // çizgi kalınlığı tema lnStyleLst'te; onu çözmeden tema minör çizgisi ~0.75pt
-    // varsayılır (görünür ince kenarlık, PowerPoint bu şekilleri kenarlıkla çizer).
+    // spPr'de çizgi yoksa tema stil referansına düş (p:style > a:lnRef).
+    // Kalınlık temanın `lnStyleLst`inden okunur (idx 1 tabanlı); tema
+    // çözülemiyorsa ~0.75pt varsayılır (görünür ince kenarlık, PowerPoint bu
+    // şekilleri kenarlıkla çizer).
     if (stroke == null && !isLine) {
       final lnRef = style == null ? null : _first(style, 'a:lnRef');
-      if (lnRef != null && (lnRef.getAttribute('idx') ?? '0') != '0') {
+      final idx = int.tryParse(lnRef?.getAttribute('idx') ?? '') ?? 0;
+      if (lnRef != null && idx > 0) {
         stroke = _colorOf(lnRef, theme, clrMap);
-        if (stroke != null) strokeW = 0.75;
+        if (stroke != null) {
+          strokeW = idx <= _lnWidths.length ? _lnWidths[idx - 1] : 0.75;
+        }
       }
     }
     if (isLine) {
@@ -798,6 +821,7 @@ class PptxRender {
       strokeWidth: strokeW,
       preset: preset,
       adjust: adjust,
+      custom: custom,
       cornerRadius: radius,
       crop: crop,
       isLine: isLine,
@@ -821,6 +845,81 @@ class PptxRender {
       lnSpcReduction: _lnSpcReduction(bodyPr),
       isPlaceholder: ph != null,
     );
+  }
+
+  /// `a:custGeom` → [PptxCustomGeom]; ayrıştırılamıyorsa null (çağıran
+  /// dikdörtgene düşer — yanlış yol çizmektense kutu).
+  ///
+  /// Koordinatlar `a:gdLst` kılavuz ADI taşıyorsa (sayı değilse) formül motoru
+  /// olmadığı için tüm geometri reddedilir; bkz. `PptxCustomGeom` sınıf notu.
+  /// `a:path@w/@h` yoksa koordinatlar şeklin EMU uzayındadır → [ext]'in ham
+  /// `cx`/`cy` değerleri uzay olarak kullanılır.
+  static PptxCustomGeom? _customGeom(XmlElement? spPr, XmlElement ext) {
+    final pathLst = _first(_first(spPr, 'a:custGeom'), 'a:pathLst');
+    if (pathLst == null) return null;
+    final emuW = double.tryParse(ext.getAttribute('cx') ?? '') ?? 0;
+    final emuH = double.tryParse(ext.getAttribute('cy') ?? '') ?? 0;
+
+    List<double>? pts(XmlElement el, int count) {
+      final out = <double>[];
+      for (final pt in el.findElements('a:pt')) {
+        final x = double.tryParse(pt.getAttribute('x') ?? '');
+        final y = double.tryParse(pt.getAttribute('y') ?? '');
+        if (x == null || y == null) return null; // kılavuz adı → vazgeç
+        out
+          ..add(x)
+          ..add(y);
+      }
+      return out.length == count * 2 ? out : null;
+    }
+
+    final paths = <PptxCustPath>[];
+    for (final p in pathLst.findElements('a:path')) {
+      final w = double.tryParse(p.getAttribute('w') ?? '') ?? emuW;
+      final h = double.tryParse(p.getAttribute('h') ?? '') ?? emuH;
+      final cmds = <(String, List<double>)>[];
+      for (final el in p.childElements) {
+        switch (el.name.qualified) {
+          case 'a:moveTo':
+            final a = pts(el, 1);
+            if (a == null) return null;
+            cmds.add(('M', a));
+          case 'a:lnTo':
+            final a = pts(el, 1);
+            if (a == null) return null;
+            cmds.add(('L', a));
+          case 'a:cubicBezTo':
+            final a = pts(el, 3);
+            if (a == null) return null;
+            cmds.add(('C', a));
+          case 'a:quadBezTo':
+            final a = pts(el, 2);
+            if (a == null) return null;
+            cmds.add(('Q', a));
+          case 'a:arcTo':
+            final args = <double>[];
+            for (final name in const ['wR', 'hR', 'stAng', 'swAng']) {
+              final v = double.tryParse(el.getAttribute(name) ?? '');
+              if (v == null) return null;
+              args.add(v);
+            }
+            cmds.add(('A', args));
+          case 'a:close':
+            cmds.add(('Z', const []));
+          default:
+            return null; // bilinmeyen komut: tüm geometriden vazgeç
+        }
+      }
+      if (cmds.isNotEmpty) {
+        paths.add(PptxCustPath(
+          w: w,
+          h: h,
+          filled: p.getAttribute('fill') != 'none',
+          cmds: cmds,
+        ));
+      }
+    }
+    return paths.isEmpty ? null : PptxCustomGeom(paths);
   }
 
   /// `a:prstGeom > a:avLst > a:gd` ayar değerleri. `fmla` daima `"val <sayı>"`
@@ -1310,6 +1409,30 @@ class PptxRender {
       }
     }
     _themeCache[masterFile] = out;
+    return out;
+  }
+
+  /// Temanın çizgi stili kalınlıkları (punto, `a:lnStyleLst` sırasıyla).
+  ///
+  /// `p:style > a:lnRef@idx` şekle temanın kaçıncı çizgi stilinin
+  /// uygulanacağını söyler; kalınlık okunmayınca her tema şekli 0.75pt sabit
+  /// kenarlıkla çiziliyordu — kalın kenarlıklı vurgu kutuları inceliyordu.
+  List<double> _themeLineWidths(String? masterFile) {
+    if (masterFile == null) return const [];
+    final cached = _lnWidthCache[masterFile];
+    if (cached != null) return cached;
+    final themeFile = _relOfType(_rels(masterFile), 'theme');
+    final doc = themeFile == null ? null : _xml(themeFile);
+    final lst = doc == null ? null : _firstDeep(doc.rootElement, 'a:lnStyleLst');
+    final out = <double>[];
+    if (lst != null) {
+      for (final ln in lst.childElements) {
+        if (ln.name.qualified != 'a:ln') continue;
+        // @w yoksa ECMA varsayılanı 9525 EMU (0.75pt).
+        out.add(_pt(ln.getAttribute('w')) ?? 0.75);
+      }
+    }
+    _lnWidthCache[masterFile] = out;
     return out;
   }
 

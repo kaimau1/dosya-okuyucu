@@ -432,8 +432,13 @@ class _GeometryPainter extends CustomPainter {
 
   /// Yol + [ShapeVM.flipH]/[ShapeVM.flipV] aynalaması. Ayna şeklin kendi
   /// merkezine göredir (PowerPoint de öyle çevirir).
-  static Path? pathFor(ShapeVM s, Size size) {
-    final path = PptxPresetShape.build(s.preset, size, s.adjust);
+  ///
+  /// [fillOnly]: özel geometride `fill="none"` alt yolları dışarıda bırakır
+  /// (dolgu/gölge katmanı için); ön tanımlı şekillerde fark etmez.
+  static Path? pathFor(ShapeVM s, Size size, {bool fillOnly = false}) {
+    final path = s.custom != null
+        ? s.custom!.build(size, fillOnly: fillOnly)
+        : PptxPresetShape.build(s.preset, size, s.adjust);
     if (path == null || (!s.flipH && !s.flipV)) return path;
     final m = Matrix4.identity()
       ..translate(size.width / 2, size.height / 2)
@@ -446,12 +451,16 @@ class _GeometryPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final path = pathFor(s, size);
     if (path == null) return;
+    // Dolgu/gölge, `fill="none"` alt yolları içermeyen yola basılır — onları
+    // doldurmak açık bir eğriyi kapalı lekeye çevirirdi. Özel geometri yoksa
+    // iki yol aynıdır (ikinci hesap yapılmaz).
+    final fillPath = s.custom == null ? path : pathFor(s, size, fillOnly: true);
     final rect = Offset.zero & size;
 
-    final shadow = fill ? s.shadow : null;
+    final shadow = fill && fillPath != null ? s.shadow : null;
     if (shadow != null) {
       canvas.drawPath(
-        path.shift(shadow.offset),
+        fillPath!.shift(shadow.offset),
         Paint()
           ..color = shadow.color
           ..maskFilter = shadow.blurRadius <= 0
@@ -461,10 +470,11 @@ class _GeometryPainter extends CustomPainter {
       );
     }
 
-    if (fill && s.gradient != null) {
-      canvas.drawPath(path, Paint()..shader = s.gradient!.createShader(rect));
-    } else if (fill && s.fill != null) {
-      canvas.drawPath(path, Paint()..color = s.fill!);
+    if (fill && fillPath != null && s.gradient != null) {
+      canvas.drawPath(
+          fillPath, Paint()..shader = s.gradient!.createShader(rect));
+    } else if (fill && fillPath != null && s.fill != null) {
+      canvas.drawPath(fillPath, Paint()..color = s.fill!);
     }
 
     if (stroke && s.stroke != null && s.strokeWidth > 0) {
