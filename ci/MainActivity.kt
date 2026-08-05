@@ -4,6 +4,7 @@ import android.app.AppOpsManager
 import android.app.usage.StorageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -61,6 +62,13 @@ class MainActivity : FlutterActivity() {
                             }
                         }.start()
                     }
+
+                    // Google Drive kurulumu: Google, hesap girişini paket adı +
+                    // imza SHA-1 ikilisi Cloud'da kayıtlıysa veriyor. Kayıt için
+                    // gereken SHA-1'i kullanıcıya UYGULAMANIN İÇİNDE göstermek
+                    // "hangi APK'yı kurduysa ONUN imzası" garantisi verir —
+                    // belge/CI logundaki değer eski bir anahtara ait olabilir.
+                    "appSignatureSha1" -> result.success(appSignatureSha1())
 
                     else -> result.notImplemented()
                 }
@@ -171,6 +179,35 @@ class MainActivity : FlutterActivity() {
             }
         }
         return out
+    }
+
+    /**
+     * Bu APK'nın imza sertifikasının SHA-1'i, düz onaltılık (40 karakter).
+     *
+     * Google Cloud'a "Android OAuth istemcisi" kaydı bu değeri ister; APK'yı
+     * kimin/nasıl imzaladığından bağımsız olarak her zaman kurulu APK'nın
+     * GERÇEK imzasını verir. Biçimleme (aa:bb:…) Dart tarafında — saf fonksiyon
+     * olarak test edilebilsin diye.
+     */
+    private fun appSignatureSha1(): String? {
+        return try {
+            val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageManager.getPackageInfo(
+                    packageName, PackageManager.GET_SIGNING_CERTIFICATES
+                ).signingInfo?.apkContentsSigners
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(
+                    packageName, PackageManager.GET_SIGNATURES
+                ).signatures
+            }
+            val first = signatures?.firstOrNull() ?: return null
+            java.security.MessageDigest.getInstance("SHA-1")
+                .digest(first.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private companion object {

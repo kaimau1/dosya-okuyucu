@@ -5888,3 +5888,42 @@ açılmamış"** eklendi.
 
 ### E) Bellek Analizi büyük kutulara alındı
 Araç satırındayken kaydırmadan görünmüyordu (kullanıcı isteği).
+
+## 2026-08-05 (II) — "google drive girmiyorum": kayıt değerleri artık uygulamada
+
+Kullanıcı Drive'a hâlâ giremiyor. Kod tarafında hata YOK; kök neden 2026-07-30'da
+saptananla aynı: paket adı + imza SHA-1 ikilisi Google Cloud'da "Android OAuth
+istemcisi" olarak kayıtlı değil (ApiException 10). Bu turda eksik olan parça
+kapatıldı: **kayıt için gereken iki değer kullanıcının elinde yoktu.**
+
+### CI'dan doğrulanan gerçekler (build 219 logu)
+- `ANDROID_KEYSTORE_B64` secret'ı EKLİ → "İmza anahtarı repo secret'ından
+  yüklendi (kalıcı)" satırı var; imza tüm derlemelerde AYNI.
+- İmza **SHA-1: `F5:5D:0C:09:9F:97:71:3B:7A:1B:8D:B7:E8:6D:6A:0A:DA:EE:9D:B5`**
+  (SHA-256: 9eef6704…3718). Paket: `com.dosyaokuyucu.dosya_okuyucu`.
+
+### Yapılan
+- `ci/MainActivity.kt` → `appSignatureSha1` metodu (aynı `app_storage` kanalı):
+  KURULU APK'nın kendi imza sertifikasından SHA-1 okur. Neden koddan: belgedeki/
+  CI logundaki değer eski bir anahtara ait olabilir; uygulamanın gösterdiği
+  değer tanım gereği doğru. API 28+ `signingInfo`, öncesi `GET_SIGNATURES`.
+- `lib/services/fm/app_signature.dart`: kanal + `colonize()` (saf, birim
+  testli). Kanal yoksa CI anahtarının bilinen SHA-1 sabitine düşer.
+- `drive_screen`: `notConfigured` hatasında **kurulum kartı** — paket adı ve
+  SHA-1, kopyala düğmeleriyle; adım özeti. Yalnız DEĞER kopyalanıyor (Cloud
+  formu etiketli yapıştırmayı kabul etmez).
+- Giriş ekranı gövdesi `SingleChildScrollView` oldu: hata şeridi + kurulum
+  kartı açıkken sabit Column dikeyde taşıyordu (testte yakalandı).
+- `docs/GOOGLE-DRIVE-KURULUM.md` gerçek SHA-1 ile güncellendi.
+
+### TUZAK — testte işleyicisiz platform kanalı SESSİZCE ASILI KALIR
+`MethodChannel.invokeMethod` widget testinde mock işleyici yoksa hata da
+fırlatmayabiliyor; Future hiç tamamlanmıyor ve `pumpAndSettle` sonrası ilgili
+satır "yok" görünüyor. Çözüm: `setMockMethodCallHandler(..., (_) async => null)`
+— null yanıt aynı zamanda sabite düşüş yolunu da sınıyor.
+
+### KULLANICI ADIMI (kod bunu yapamaz)
+console.cloud.google.com → Drive API etkin + OAuth izin ekranı (`drive.file`
+kapsamı, Test modundaysa hesabı test kullanıcısına ekle) → OAuth istemci
+kimliği (Android) = paket adı + yukarıdaki SHA-1. Uygulamadaki kurulum kartı
+iki değeri de kopyalatıyor; yayılması birkaç dakika sürebilir.

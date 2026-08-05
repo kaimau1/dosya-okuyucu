@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/drive_file.dart';
+import '../../services/fm/app_signature.dart';
 import '../../services/fm/drive_service.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
@@ -58,6 +60,9 @@ class _DriveScreenState extends State<DriveScreen> {
   /// Sınıflandırılamayan giriş hatasının ham metni (yalnız o durumda gösterilir).
   String? _signInDetail;
 
+  /// Kurulum kartında gösterilen imza SHA-1'i (yalnız notConfigured'da yüklenir).
+  String? _sha1;
+
   Future<void> _signIn() async {
     setState(() => _busy = true);
     final result = await _drive.signIn();
@@ -79,7 +84,14 @@ class _DriveScreenState extends State<DriveScreen> {
         }
       }
     });
-    if (result.success) await _refresh();
+    if (result.success) {
+      await _refresh();
+    } else if (result.error == DriveSignInError.notConfigured) {
+      // Kayıt için gereken SHA-1, ÇALIŞAN APK'nın kendi imzasından okunur —
+      // belgede yazılı değer eski bir anahtara ait olabilir.
+      final sha1 = await AppSignature.sha1Colonized();
+      if (mounted) setState(() => _sha1 = sha1);
+    }
   }
 
   static String _signInKeyFor(DriveSignInError error) => switch (error) {
@@ -235,6 +247,7 @@ class _DriveScreenState extends State<DriveScreen> {
         children: [
           _scopeNotice(),
           if (_error != null) _errorBar(),
+          if (_error == 'drive.error_not_configured') _setupCard(),
           if (_signedIn) _searchBar(),
           Expanded(child: _body()),
         ],
@@ -298,6 +311,63 @@ class _DriveScreenState extends State<DriveScreen> {
     );
   }
 
+  /// Google Cloud kaydı için gereken İKİ değeri telefondan kopyalatır.
+  ///
+  /// "Kayıt yap" demek yetmiyordu: kullanıcının elinde ne paket adı ne de
+  /// imza SHA-1 vardı ("google drive girmiyorum", 2026-08-05). SHA-1 kurulu
+  /// APK'nın KENDİ imza sertifikasından okunur (`AppSignature`), yani hangi
+  /// derleme kurulmuş olursa olsun kayıt için doğru değerdir.
+  Widget _setupCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      color: scheme.surfaceContainerHighest,
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(context.t('drive.setup_title'),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(context.t('drive.setup_steps'),
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 6),
+          _setupValue(context.t('drive.setup_package'), AppSignature.packageName),
+          // SHA-1 asenkron okunur; gelene kadar satır hiç çizilmez (yanlış ya
+          // da yarım değer göstermekten iyidir).
+          if (_sha1 != null) _setupValue(context.t('drive.setup_sha1'), _sha1!),
+        ],
+      ),
+    );
+  }
+
+  Widget _setupValue(String label, String value) {
+    final copied = context.t('drive.setup_copied');
+    return Row(
+      children: [
+        Expanded(
+          child: SelectableText(
+            '$label: $value',
+            style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          ),
+        ),
+        IconButton(
+          tooltip: context.t('common.copy'),
+          icon: const Icon(Icons.copy, size: 18),
+          onPressed: () async {
+            // Yalnız DEĞER kopyalanır: Cloud formu "Paket adı: com…" gibi
+            // etiketli bir yapıştırmayı reddederdi.
+            await Clipboard.setData(ClipboardData(text: value));
+            _snack(copied);
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _searchBar() => Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
         child: TextField(
@@ -315,7 +385,9 @@ class _DriveScreenState extends State<DriveScreen> {
   Widget _body() {
     if (_busy) return const Center(child: CircularProgressIndicator());
     if (!_signedIn) {
-      return Center(
+      // Kaydırılabilir: hata şeridi + kurulum kartı açıkken (ya da küçük
+      // ekranda) sabit Column dikeyde taşıyordu.
+      return SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
