@@ -73,6 +73,21 @@ class PdfEditFlow {
     var overflows = false;
     var unlocked = false;
 
+    // Seçimin kapladığı kutuların birleşimi: aynı metin sayfada birden çok
+    // kez geçiyorsa DOKUNULAN yerdeki eşleşme değişsin (isabet).
+    List<double>? nearRect;
+    for (final r in rawRects) {
+      if (r.length < 4) continue;
+      nearRect = nearRect == null
+          ? List.of(r)
+          : [
+              nearRect[0] < r[0] ? nearRect[0] : r[0],
+              nearRect[1] > r[1] ? nearRect[1] : r[1],
+              nearRect[2] > r[2] ? nearRect[2] : r[2],
+              nearRect[3] < r[3] ? nearRect[3] : r[3],
+            ];
+    }
+
     Future<PdfEditResult> attempt() =>
         PdfContentEditor.replaceTextInBackground(
           bytes,
@@ -80,6 +95,7 @@ class PdfEditFlow {
           oldText: oldText,
           newText: newText,
           precedingText: precedingText,
+          nearRect: nearRect,
         );
 
     try {

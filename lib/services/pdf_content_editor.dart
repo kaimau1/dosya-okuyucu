@@ -32,12 +32,16 @@ class PdfContentEditor {
   ///
   /// Başarılıysa yeni PDF baytlarını döndürür. Yapılamıyorsa açıklamalı bir
   /// [PdfEditRefused] atar — çağıran kullanıcıya yedek yolu önerebilir.
+  /// [nearRect] seçimin PDF-koordinat kutusu `[sol, üst, sağ, alt]` —
+  /// aynı metin sayfada birden çok kez geçiyorsa dokunulan yerdeki değişsin
+  /// diye eşleşme seçiminde hakem (bkz. `replaceTextInContent.nearX/nearY`).
   static Future<PdfEditResult> replaceText(
     List<int> bytes, {
     required int pageIndex,
     required String oldText,
     required String newText,
     String precedingText = '',
+    List<double>? nearRect,
   }) async {
     if (oldText.trim().isEmpty) {
       throw const PdfEditRefused('Değiştirilecek metin seçilmedi.');
@@ -89,6 +93,12 @@ class PdfContentEditor {
           fontEncodings: fontEncodings,
           fontMetrics: fontMetrics,
           mediaBox: mediaBox,
+          nearX: nearRect != null && nearRect.length >= 4
+              ? (nearRect[0] + nearRect[2]) / 2
+              : null,
+          nearY: nearRect != null && nearRect.length >= 4
+              ? (nearRect[1] + nearRect[3]) / 2
+              : null,
         );
       } on PdfReplaceException catch (e) {
         lastRefusal = PdfEditRefused(e.message);
@@ -182,6 +192,7 @@ class PdfContentEditor {
     required String oldText,
     required String newText,
     String precedingText = '',
+    List<double>? nearRect,
   }) {
     return Isolate.run(() async {
       try {
@@ -189,7 +200,8 @@ class PdfContentEditor {
             pageIndex: pageIndex,
             oldText: oldText,
             newText: newText,
-            precedingText: precedingText);
+            precedingText: precedingText,
+            nearRect: nearRect);
       } on PdfEditRefused catch (e) {
         // Isolate sınırından geçebilsin diye sade tipe indirgiyoruz.
         throw PdfEditRefused(e.message, encrypted: e.encrypted);

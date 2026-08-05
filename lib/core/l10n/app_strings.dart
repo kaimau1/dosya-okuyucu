@@ -672,6 +672,7 @@ const Map<String, (String, String, String)> _table = {
   'vw.image_only': ('Sadece resim', 'Image only', 'الصورة فقط'),
   'vw.doc_info': ('Belge bilgisi', 'Document info', 'معلومات المستند'),
   'vw.highlight': ('Vurgula', 'Highlight', 'تمييز'),
+  'fm.drive_subtitle': ('Buluttaki dosyalar', 'Files in the cloud', 'الملفات في السحابة'),
   'vw.select_ocr_running': (
     'Metin tanınıyor…',
     'Recognizing text…',

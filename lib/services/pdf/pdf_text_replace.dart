@@ -73,6 +73,24 @@ class PdfReplaceException implements Exception {
 /// `öncesi + aranan` bütünü aranır. Niye: aynı kelime sayfada birkaç kez
 /// geçebilir ve yalnız kelimeye bakan bir arama YANLIŞ yeri değiştirirdi.
 /// Bağlamla bulunamazsa sade aramaya düşülür.
+///
+/// **Kademeli eşleşme (2026-08-05, "isabet" turu).** pdfium'un çıkardığı metin
+/// (kullanıcının seçtiği şey) ile akışın `/ToUnicode` çözümü ayrışabilir:
+/// ligatür (akışta U+FB01 "ﬁ", seçimde "fi"), tipografik tırnak/çizgi
+/// (’ karşı ', – karşı -) ve **büyük/küçük harf** (küçük-büyük harf fontları
+/// ya da tablo tutarsızlıkları; kullanıcı bulgusu 2026-08-05: *"büyük küçük
+/// yazım... şu an yeterli değil"*). Birebir arama bu belgelerde "bulunamadı"
+/// deyip kullanıcıyı üstü-kapatma yedeğine düşürüyordu. Şimdi üç geçiş var:
+/// 1. birebir; 2. katlama (ligatür açılır, tırnak/çizgi türleri tekilleşir);
+/// 3. katlama + Türkçe küçük harf (İ→i, I→ı — `toLowerCase` OLMAZ: Dart
+/// 'İ'.toLowerCase() 'i̇' (i + birleşen nokta) üretir ve eşleşme yine kaçar).
+/// Yazılan yeni metin kullanıcının yazdığıdır, dönüşüm YALNIZ aramada.
+///
+/// [nearX]/[nearY] verilirse (seçimin PDF-koordinat merkezi) ve aynı geçişte
+/// birden çok eşleşme varsa **konuma en yakın olan** değiştirilir — aynı
+/// kelime sayfada iki kez geçtiğinde kullanıcının DOKUNDUĞU değişir, ilk
+/// bulunan değil. Bağlam öneki yine önceliklidir; konum, bağlamın da çözemediği
+/// (ya da bağlamsız) durumların hakemidir.
 /// [fontEncodings] sayfanın font kaynaklarının `/ToUnicode` eşlemeleridir
 /// (kaynak adı → eşleme). **Öncelikli yol budur:** belgenin kendi tablosunu
 /// kullandığımız için alt küme gömülü ve Type0/Identity-H fontlar da çalışır,
@@ -89,6 +107,8 @@ PdfContentReplacement replaceTextInContent(
   Map<String, PdfFontMetrics> fontMetrics = const {},
   List<double>? mediaBox,
   List<PdfSingleByteEncoding>? encodings,
+  double? nearX,
+  double? nearY,
 }) {
   final measure = _measureFor(fontEncodings, fontMetrics);
   final scan = scanContent(content, measure: measure);
@@ -98,6 +118,9 @@ PdfContentReplacement replaceTextInContent(
         PdfReplaceFailure.notFound, 'Bu sayfada düzenlenebilir metin yok.');
   }
 
+  // Dönüşüm kademeleri: birebir → katlama → katlama + Türkçe küçük harf.
+  const transforms = <String Function(String)?>[null, _fold, _foldLower];
+
   // 1) Fontun kendi /ToUnicode tablosu.
   if (fontEncodings.isNotEmpty) {
     final pieces = [
@@ -106,9 +129,14 @@ PdfContentReplacement replaceTextInContent(
             op, (op) => fontEncodings[op.fontName]?.decode ?? _latin1Decode),
     ];
     final texts = [for (final p in pieces) p.join()];
-    final match = _findFlexible(texts, oldText, prefix: precedingText) ??
-        _findFlexible(texts, oldText);
-    if (match != null) {
+    for (final transform in transforms) {
+      final match = _findBest(texts, oldText,
+          prefix: precedingText,
+          transform: transform,
+          ops: ops,
+          nearX: nearX,
+          nearY: nearY);
+      if (match == null) continue;
       return _apply(
         content: content,
         scan: scan,
@@ -122,31 +150,39 @@ PdfContentReplacement replaceTextInContent(
         measure: measure,
         mediaBox: mediaBox,
         encodingName: 'ToUnicode',
-        matchCount: _countFlexible(texts, oldText),
+        matchCount: _countFlexible(texts, oldText, transform: transform),
       );
     }
   }
 
   // 2) Yedek: yaygın tek baytlık kodlamalar.
-  for (final enc in encodings ?? PdfSingleByteEncoding.candidates) {
-    final pieces = [for (final op in ops) _decodePieces(op, (_) => enc.decode)];
-    final texts = [for (final p in pieces) p.join()];
-    final match = _findFlexible(texts, oldText, prefix: precedingText) ??
-        _findFlexible(texts, oldText);
-    if (match == null) continue;
-    return _apply(
-      content: content,
-      scan: scan,
-      pieces: pieces,
-      texts: texts,
-      match: match,
-      newText: newText,
-      encoderFor: (_) => enc.encode,
-      measure: measure,
-      mediaBox: mediaBox,
-      encodingName: enc.name,
-      matchCount: _countFlexible(texts, oldText),
-    );
+  for (final transform in transforms) {
+    for (final enc in encodings ?? PdfSingleByteEncoding.candidates) {
+      final pieces = [
+        for (final op in ops) _decodePieces(op, (_) => enc.decode),
+      ];
+      final texts = [for (final p in pieces) p.join()];
+      final match = _findBest(texts, oldText,
+          prefix: precedingText,
+          transform: transform,
+          ops: ops,
+          nearX: nearX,
+          nearY: nearY);
+      if (match == null) continue;
+      return _apply(
+        content: content,
+        scan: scan,
+        pieces: pieces,
+        texts: texts,
+        match: match,
+        newText: newText,
+        encoderFor: (_) => enc.encode,
+        measure: measure,
+        mediaBox: mediaBox,
+        encodingName: enc.name,
+        matchCount: _countFlexible(texts, oldText, transform: transform),
+      );
+    }
   }
 
   throw const PdfReplaceException(
@@ -212,32 +248,122 @@ class _Splice {
   const _Splice(this.start, this.end, this.bytes);
 }
 
-/// Boşlukları yok sayarak arar; bulursa operatör/karakter koordinatı döner.
-///
-/// [prefix] verilirse `prefix + needle` bütünü aranır ama YALNIZ needle
-/// kısmının koordinatı döndürülür (bağlam değiştirilmez, sadece yeri bulur).
-_Match? _findFlexible(List<String> texts, String needle, {String prefix = ''}) {
-  final (hay, opIndex, charIndex) = _flatten(texts);
-  final target = _stripSpaces(needle);
-  if (target.isEmpty) return null;
-  final head = _stripSpaces(prefix);
-  if (head.isEmpty && prefix.isNotEmpty) return null;
-  final at0 = hay.indexOf('$head$target');
-  if (at0 < 0) return null;
-  final at = at0 + head.length;
-  final endAt = at + target.length - 1;
-  if (endAt >= opIndex.length) return null;
-  return _Match(
-    opIndex[at],
-    charIndex[at],
-    opIndex[endAt],
-    charIndex[endAt] + 1,
-  );
+/// Katlama: ligatürler açılır, tipografik tırnak/çizgi türleri tekilleşir.
+/// pdfium ile /ToUnicode çoğu belgede bu karakterlerde ayrışır.
+String _fold(String ch) => switch (ch) {
+      'ﬀ' => 'ff',
+      'ﬁ' => 'fi',
+      'ﬂ' => 'fl',
+      'ﬃ' => 'ffi',
+      'ﬄ' => 'ffl',
+      'ﬅ' => 'ft',
+      'ﬆ' => 'st',
+      '‘' || '’' || '‚' || '′' || 'ʼ' => "'",
+      '“' || '”' || '„' || '″' => '"',
+      '‐' || '‑' || '‒' || '–' || '—' || '−' =>
+        '-',
+      '…' => '...',
+      _ => ch,
+    };
+
+/// Katlama + Türkçe küçük harf. `toLowerCase` KULLANILMAZ:
+/// Dart'ta 'İ'.toLowerCase() 'i̇' (i + U+0307 birleşen nokta) üretir ve
+/// pdfium'un düz 'i'siyle yine eşleşmez; I/İ elle eşlenir.
+String _foldLower(String ch) {
+  final folded = _fold(ch);
+  final out = StringBuffer();
+  for (var i = 0; i < folded.length; i++) {
+    final c = folded[i];
+    out.write(switch (c) {
+      'İ' => 'i',
+      'I' => 'ı',
+      _ => c.toLowerCase(),
+    });
+  }
+  return out.toString();
 }
 
-int _countFlexible(List<String> texts, String needle) {
-  final (hay, _, __) = _flatten(texts);
-  final target = _stripSpaces(needle);
+/// Boşlukları yok sayarak TÜM eşleşmeleri toplar, [nearX]/[nearY] verilmişse
+/// konuma en yakınını döndürür.
+///
+/// Sıra: önce `prefix + needle` (bağlam) eşleşmeleri, boşsa sade eşleşmeler;
+/// her iki kümede de konum hakemdir. [transform] arama-anı dönüşümüdür
+/// (katlama/harf) — koordinat eşlemesi özgün karakterlere göre tutulur,
+/// değiştirme özgün baytlara iner.
+_Match? _findBest(
+  List<String> texts,
+  String needle, {
+  String prefix = '',
+  String Function(String)? transform,
+  required List<PdfTextOp> ops,
+  double? nearX,
+  double? nearY,
+}) {
+  final withPrefix = prefix.isEmpty
+      ? const <_Match>[]
+      : _findAllFlexible(texts, needle, prefix: prefix, transform: transform);
+  final candidates = withPrefix.isNotEmpty
+      ? withPrefix
+      : _findAllFlexible(texts, needle, transform: transform);
+  if (candidates.isEmpty) return null;
+  if (candidates.length == 1 || nearX == null || nearY == null) {
+    return candidates.first;
+  }
+  _Match best = candidates.first;
+  var bestScore = double.infinity;
+  for (final m in candidates) {
+    final op = ops[m.firstOp];
+    if (!op.xKnown || op.event.isRotated) continue;
+    // Dikey uzaklık ağır basar: kullanıcı satırı seçti, aynı satırın başka
+    // sütunundaki eşleşme yataydan gelir.
+    final score = (op.matrix[5] - nearY).abs() * 3 + (op.matrix[4] - nearX).abs();
+    if (score < bestScore) {
+      bestScore = score;
+      best = m;
+    }
+  }
+  return best;
+}
+
+/// [needle]'ın (istenirse `prefix+needle` bütününün) BÜTÜN eşleşmeleri.
+///
+/// [prefix] verilirse yalnız needle kısmının koordinatı döndürülür (bağlam
+/// değiştirilmez, sadece yeri bulur).
+List<_Match> _findAllFlexible(
+  List<String> texts,
+  String needle, {
+  String prefix = '',
+  String Function(String)? transform,
+}) {
+  final (hay, opIndex, charIndex) = _flatten(texts, transform: transform);
+  final target = _stripSpaces(needle, transform: transform);
+  if (target.isEmpty) return const [];
+  final head = _stripSpaces(prefix, transform: transform);
+  if (head.isEmpty && prefix.isNotEmpty) return const [];
+  final whole = '$head$target';
+  final out = <_Match>[];
+  var from = 0;
+  while (true) {
+    final at0 = hay.indexOf(whole, from);
+    if (at0 < 0) break;
+    from = at0 + 1;
+    final at = at0 + head.length;
+    final endAt = at + target.length - 1;
+    if (endAt >= opIndex.length) break;
+    out.add(_Match(
+      opIndex[at],
+      charIndex[at],
+      opIndex[endAt],
+      charIndex[endAt] + 1,
+    ));
+  }
+  return out;
+}
+
+int _countFlexible(List<String> texts, String needle,
+    {String Function(String)? transform}) {
+  final (hay, _, __) = _flatten(texts, transform: transform);
+  final target = _stripSpaces(needle, transform: transform);
   if (target.isEmpty) return 0;
   var count = 0;
   var from = 0;
@@ -250,8 +376,12 @@ int _countFlexible(List<String> texts, String needle) {
 }
 
 /// Tüm operatör metinlerini boşluksuz tek dizeye indirger; her karakterin
-/// hangi operatörün kaçıncı karakteri olduğunu tutar.
-(String, List<int>, List<int>) _flatten(List<String> texts) {
+/// hangi operatörün kaçıncı karakteri olduğunu tutar. [transform] bir kaynak
+/// karakteri 1..n arama karakterine açabilir (ligatür); açılan her karakter
+/// AYNI kaynak (operatör, karakter) çiftine eşlenir — böylece eşleşme sınırı
+/// ligatürün ortasına düşse bile değiştirme bütün kaynak karakteri kapsar.
+(String, List<int>, List<int>) _flatten(List<String> texts,
+    {String Function(String)? transform}) {
   final buffer = StringBuffer();
   final opIndex = <int>[];
   final charIndex = <int>[];
@@ -259,18 +389,22 @@ int _countFlexible(List<String> texts, String needle) {
     final text = texts[o];
     for (var c = 0; c < text.length; c++) {
       if (_isSpace(text.codeUnitAt(c))) continue;
-      buffer.writeCharCode(text.codeUnitAt(c));
-      opIndex.add(o);
-      charIndex.add(c);
+      final unit = transform?.call(text[c]) ?? text[c];
+      for (var u = 0; u < unit.length; u++) {
+        buffer.writeCharCode(unit.codeUnitAt(u));
+        opIndex.add(o);
+        charIndex.add(c);
+      }
     }
   }
   return (buffer.toString(), opIndex, charIndex);
 }
 
-String _stripSpaces(String s) {
+String _stripSpaces(String s, {String Function(String)? transform}) {
   final buffer = StringBuffer();
   for (var i = 0; i < s.length; i++) {
-    if (!_isSpace(s.codeUnitAt(i))) buffer.writeCharCode(s.codeUnitAt(i));
+    if (_isSpace(s.codeUnitAt(i))) continue;
+    buffer.write(transform?.call(s[i]) ?? s[i]);
   }
   return buffer.toString();
 }

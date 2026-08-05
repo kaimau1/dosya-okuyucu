@@ -22,6 +22,7 @@ import '../widgets/section_header.dart';
 import 'chat_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'fm/download_manager_screen.dart';
+import 'fm/drive_screen.dart';
 import 'pdf_tools_screen.dart';
 import 'settings_screen.dart';
 
@@ -299,28 +300,42 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : recents.isEmpty
-              ? _EmptyState(onOpen: _openNew, hasApiKey: appState.hasApiKey)
-              : Column(
-                  children: [
-                    // Arama KOŞULSUZ görünür (eskiden `recents.length > 4`):
-                    // yeri listenin uzunluğuna göre değişen bir kutu
-                    // ezberlenemiyordu.
-                    _searchBar(),
-                    _kindChips(byQuery),
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? const _NoMatch()
-                          : _RecentList(
-                              recents: filtered,
-                              onTap: _openSafely,
-                              onRemove: (r) => appState.removeRecent(r.path),
-                              onShare: _share,
-                              onShowPath: _showPath,
+          : Column(
+              children: [
+                // Hızlı erişim ŞERİDİ — liste boşken de durur (kullanıcı
+                // isteği 2026-08-05: *"Drive daha kolay erişilebilmeli, şu an
+                // zor bulunuyor"*). Drive eskiden yalnız Dosyalar sekmesinin
+                // araç ızgarasındaydı; en sık kullanılan dört kapı artık
+                // açılış sekmesinde tek dokunuş.
+                _quickAccess(),
+                Expanded(
+                  child: recents.isEmpty
+                      ? _EmptyState(
+                          onOpen: _openNew, hasApiKey: appState.hasApiKey)
+                      : Column(
+                          children: [
+                            // Arama KOŞULSUZ görünür (eskiden
+                            // `recents.length > 4`): yeri listenin uzunluğuna
+                            // göre değişen bir kutu ezberlenemiyordu.
+                            _searchBar(),
+                            _kindChips(byQuery),
+                            Expanded(
+                              child: filtered.isEmpty
+                                  ? const _NoMatch()
+                                  : _RecentList(
+                                      recents: filtered,
+                                      onTap: _openSafely,
+                                      onRemove: (r) =>
+                                          appState.removeRecent(r.path),
+                                      onShare: _share,
+                                      onShowPath: _showPath,
+                                    ),
                             ),
-                    ),
-                  ],
+                          ],
+                        ),
                 ),
+              ],
+            ),
       // Belge tarama uygulamanın vitrin özelliği: dosya açmanın hemen üstünde,
       // kendi düğmesiyle duruyor.
       floatingActionButton: Column(
@@ -413,6 +428,77 @@ class _RecentDocsScreenState extends State<RecentDocsScreen> {
           label: Text('$label  $count'),
         ),
       );
+
+  /// Dört kapılık yatay hızlı erişim: Tara · Drive · PDF araçları · Yeni.
+  Widget _quickAccess() {
+    final items = [
+      (
+        Icons.document_scanner_outlined,
+        const Color(0xFF7B1FA2),
+        context.t('home.scan'),
+        () => ScanFlow.run(context),
+      ),
+      (
+        Icons.cloud_outlined,
+        const Color(0xFF0F9D58),
+        'Google Drive',
+        () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DriveScreen()),
+            ),
+      ),
+      (
+        Icons.picture_as_pdf_outlined,
+        const Color(0xFFC62828),
+        context.t('home.pdf_tools'),
+        () => PdfToolsScreen.open(context),
+      ),
+      (
+        Icons.note_add_outlined,
+        const Color(0xFF1565C0),
+        context.t('home.new_document'),
+        _newDocument,
+      ),
+    ];
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
+        itemBuilder: (context, i) {
+          final (icon, color, label, onTap) = items[i];
+          return Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: SizedBox(
+                width: 108,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: color.withValues(alpha: 0.14),
+                      child: Icon(icon, size: 20, color: color),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _searchBar() {
     return Padding(

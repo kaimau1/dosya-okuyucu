@@ -6268,3 +6268,46 @@ diskten dönüş, "yok" işareti; 5 `pdf_ocr_search_test` — ince/dolu sayfa
 ayrımı, baktığın-sayfadan-başlama, generation iptali, bütçe sayacı, reset).
 Cihazda bakılacaklar: taranmış PDF'te arama vurgusunun konumu, 40-sayfa
 bütçesinin uzun taramalarda hissiyatı, arama sayacının canlı büyümesi.
+
+## 2026-08-05 (5. tur / gece) — Düzenlemede isabet, ana ekran hızlı erişim, Drive terfisi
+Kullanıcı (yatarken, işler bize emanet): *"ana ekranı geliştir; Drive daha
+kolay erişilebilmeli, şu an zor bulunuyor; PDF düzenlemede daha serbestlik ve
+isabet istiyorum, yazıları değiştirirken şu an yeterli değil, büyük küçük
+yazım; main'e merge et, APK derlensin."*
+
+### A) PDF yerinde düzenleme: kademeli eşleşme + konumla hedefleme
+(`pdf_text_replace.dart` — "bulunamadı"ların ve yanlış-yeri-değiştirmenin ilacı)
+- **Üç geçişli arama:** 1) birebir (eski davranış — birebir varken katlama
+  DEVREYE GİRMEZ, testle kilitli); 2) katlama: ligatürler açılır (ﬁ→fi …),
+  tipografik tırnak/çizgi tekilleşir (’→', –→-, …→...); 3) katlama + Türkçe
+  küçük harf. pdfium'un çıkardığı metin (seçilen) ile /ToUnicode çözümü tam
+  bu karakterlerde ayrışıyor ve kullanıcı üstü-kapatma yedeğine düşüyordu.
+- **TUZAK — `toLowerCase` Türkçede kullanılamaz:** Dart'ta 'İ'.toLowerCase()
+  'i̇' (i + U+0307) üretir, eşleşme yine kaçar. I→ı, İ→i elle eşlendi.
+- **Konumla hedefleme:** `replaceTextInContent(nearX:, nearY:)` — bir geçişte
+  birden çok eşleşme varsa seçim kutusuna (dikey ağırlıklı: |Δy|·3+|Δx|)
+  en yakın olan değişir. Bağlam öneki yine önce gelir (daha güçlü kanıt),
+  konum bağlamın çözemediğinin hakemi. `PdfEditFlow` seçim kutularının
+  birleşimini `nearRect` olarak geçirir; isolate sınırından düz liste geçer.
+- Katlamada koordinat eşlemesi: `_flatten(transform:)` açılan her karakteri
+  AYNI kaynak (op, karakter) çiftine bağlar — eşleşme sınırı ligatürün
+  ortasına düşse bile değiştirme bütün kaynak karakteri kapsar. Yeni metin
+  daima kullanıcının YAZDIĞI gibi girer (dönüşüm yalnız aramada).
+- 7 yeni birim test (`pdf_replace_matching_test`); mevcut 70 düzenleme testi
+  aynen yeşil (davranış geriye uyumlu: tek eşleşme + birebir = eski yol).
+
+### B) Ana ekran: hızlı erişim şeridi (Son belgeler sekmesi)
+Dört kapı: **Tara · Google Drive · PDF araçları · Yeni belge** — liste boşken
+de görünür (boş durumda da Drive'a/taramaya tek dokunuş). Renkli daire +
+etiketli kompakt kartlar, yatay kaydırılır.
+
+### C) Google Drive: araç simgesinden BÜYÜK karta terfi (dashboard)
+Çöp kutusuyla aynı hikâye (2026-07-31): 12 küçük simge arasında kaybolan tek
+kapı. Artık kategori ızgarasında "Buluttaki dosyalar" alt yazılı büyük kart;
+araçlar ızgarasından çıkarıldı (NAS orada kaldı — onu kuran bilir, Drive'ı
+herkes arar). Yeni anahtar: `fm.drive_subtitle`.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 hata/0 uyarı, **1291 test yeşil**
+(+7 eşleşme testi). Cihazda bakılacaklar: büyük/küçük harfli belgede yerinde
+düzenlemenin artık "bulunamadı" dememesi; aynı kelimenin iki geçtiği sayfada
+dokunulanın değişmesi; ana ekrandaki şeridin dar ekranda taşmaması.

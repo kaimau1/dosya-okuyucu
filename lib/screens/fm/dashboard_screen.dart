@@ -590,6 +590,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           files: _index.recent,
         )),
       ),
+      // **Google Drive — büyük kutulardan biri** (kullanıcı isteği 2026-08-05:
+      // *"Drive daha kolay erişilebilmeli, şu an zor bulunuyor"*). Çöp
+      // kutusuyla aynı terfi hikâyesi: araçlar ızgarasındaki 12 küçük simge
+      // arasında kayboluyordu; buluttaki dosyaların tek kapısı büyük kart
+      // olmayı hak ediyor. Ağ depolama (NAS) araçlarda kalıyor — o, kuran
+      // birinin bildiği bir yer; Drive ise herkesin aradığı.
+      FmTileData(
+        icon: Icons.cloud_outlined,
+        color: const Color(0xFF0F9D58),
+        label: 'Google Drive',
+        subtitle: context.t('fm.drive_subtitle'),
+        onTap: () => _push(const DriveScreen()),
+      ),
       _trashTile(),
     ];
     return FmCategoryGrid(tiles: tiles);
@@ -659,16 +672,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: '',
         onTap: () => _push(const RemoteConnectionsScreen()),
       ),
-      // Google Drive: "İndir"in yanında çünkü ikisi de dosyayı DIŞARIDAN
-      // getiriyor. Kapsam sınırı (yalnız bizim yüklediklerimiz) ekranın
-      // kendisinde yazılı — kutucuğa sığmaz ve orada yazılsa da okunmazdı.
-      FmTileData(
-        icon: Icons.cloud_outlined,
-        color: const Color(0xFF0F9D58),
-        label: 'Google Drive',
-        subtitle: '',
-        onTap: () => _push(const DriveScreen()),
-      ),
+      // (Google Drive 2026-08-05'te buradan yukarıdaki BÜYÜK kart ızgarasına
+      // terfi etti — çöp kutusuyla aynı gerekçe: küçük simge kalabalığında
+      // bulunamıyordu.)
       FmTileData(
         icon: Icons.download_for_offline_outlined,
         color: const Color(0xFF1565C0),
