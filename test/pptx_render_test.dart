@@ -215,6 +215,73 @@ ${sp('Bilinmeyen', 'funkyShapeXyz', '')}
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// Özel geometri (`a:custGeom`) örnekleri: dolu üçgen + `fill="none"` açık
+/// eğri taşıyan serbest çizim, kılavuz ADI kullanan (çözülemeyen) geometri ve
+/// `@w/@h` vermeyen (EMU uzayında) yol.
+Uint8List _custGeomPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+
+  String sp(String name, String custGeom) => '''
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="0" name="$name"/><p:nvPr/></p:nvSpPr>
+   <p:spPr>
+    <a:xfrm><a:off x="0" y="0"/><a:ext cx="2540000" cy="1270000"/></a:xfrm>
+    $custGeom
+    <a:solidFill><a:srgbClr val="3366CC"/></a:solidFill>
+   </p:spPr>
+   <p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1400"/><a:t>$name</a:t></a:r></a:p></p:txBody>
+  </p:sp>''';
+
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+${sp('Serbest', '''
+<a:custGeom><a:avLst/><a:gdLst/><a:pathLst>
+ <a:path w="200" h="100">
+  <a:moveTo><a:pt x="100" y="0"/></a:moveTo>
+  <a:lnTo><a:pt x="200" y="100"/></a:lnTo>
+  <a:lnTo><a:pt x="0" y="100"/></a:lnTo>
+  <a:close/>
+ </a:path>
+ <a:path w="200" h="100" fill="none">
+  <a:moveTo><a:pt x="0" y="0"/></a:moveTo>
+  <a:cubicBezTo><a:pt x="50" y="50"/><a:pt x="150" y="50"/><a:pt x="200" y="0"/></a:cubicBezTo>
+ </a:path>
+</a:pathLst></a:custGeom>''')}
+${sp('Kilavuzlu', '''
+<a:custGeom><a:gdLst><a:gd name="g1" fmla="*/ w 1 2"/></a:gdLst><a:pathLst>
+ <a:path w="200" h="100">
+  <a:moveTo><a:pt x="g1" y="0"/></a:moveTo>
+  <a:lnTo><a:pt x="200" y="100"/></a:lnTo>
+  <a:close/>
+ </a:path>
+</a:pathLst></a:custGeom>''')}
+${sp('EmuUzay', '''
+<a:custGeom><a:pathLst>
+ <a:path>
+  <a:moveTo><a:pt x="0" y="0"/></a:moveTo>
+  <a:lnTo><a:pt x="2540000" y="1270000"/></a:lnTo>
+  <a:lnTo><a:pt x="0" y="1270000"/></a:lnTo>
+  <a:close/>
+ </a:path>
+</a:pathLst></a:custGeom>''')}
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 /// `a:srcRect` ile kırpılmış görsel içeren slayt.
 Uint8List _croppedPicPptx() {
   final archive = Archive();
@@ -338,7 +405,11 @@ Uint8List _chartPptx() {
 
 /// Tema stil referansı: dolgu/çizgi `spPr`'de DEĞİL, `p:style` içinde
 /// (`a:fillRef`/`a:lnRef`). Modern PowerPoint şekillerinin yaygın hâli.
-Uint8List _styleRefPptx() {
+///
+/// [withTheme] true ise slayt → düzen → asıl slayt → tema zinciri de yazılır
+/// ve temada `lnStyleLst` (0.5 / 2 / 3 pt) bulunur: `a:lnRef@idx` artık
+/// GERÇEK kalınlığa çözülmeli. false ise tema yok → 0.75pt varsayılanı.
+Uint8List _styleRefPptx({bool withTheme = false}) {
   final archive = Archive();
   void add(String name, String xml) {
     final data = utf8.encode(xml);
@@ -350,6 +421,34 @@ Uint8List _styleRefPptx() {
     '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
         '</p:presentation>',
   );
+  if (withTheme) {
+    add('ppt/slides/_rels/slide1.xml.rels', '''
+<Relationships xmlns="rel">
+ <Relationship Id="rId1" Type="x/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>''');
+    add('ppt/slideLayouts/slideLayout1.xml',
+        '<p:sldLayout xmlns:p="ppt"><p:cSld><p:spTree/></p:cSld></p:sldLayout>');
+    add('ppt/slideLayouts/_rels/slideLayout1.xml.rels', '''
+<Relationships xmlns="rel">
+ <Relationship Id="rId1" Type="x/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>''');
+    add('ppt/slideMasters/slideMaster1.xml',
+        '<p:sldMaster xmlns:p="ppt"><p:cSld><p:spTree/></p:cSld></p:sldMaster>');
+    add('ppt/slideMasters/_rels/slideMaster1.xml.rels', '''
+<Relationships xmlns="rel">
+ <Relationship Id="rId1" Type="x/theme" Target="../theme/theme1.xml"/>
+</Relationships>''');
+    add('ppt/theme/theme1.xml', '''
+<a:theme xmlns:a="draw"><a:themeElements>
+ <a:fmtScheme>
+  <a:lnStyleLst>
+   <a:ln w="6350"/>
+   <a:ln w="25400"/>
+   <a:ln w="38100"/>
+  </a:lnStyleLst>
+ </a:fmtScheme>
+</a:themeElements></a:theme>''');
+  }
   add('ppt/slides/slide1.xml', '''
 <p:sld xmlns:p="ppt" xmlns:a="draw">
  <p:cSld><p:spTree>
@@ -586,6 +685,64 @@ void main() {
     expect(view.shapes.where((s) => s.isBoxShaped).length, 2);
   });
 
+  test('özel geometri (custGeom) yol olarak çözülür, kılavuzlu olan kutuya düşer',
+      () {
+    final view = PptxEditor.parse(_custGeomPptx()).slides.single.view!;
+    ShapeVM byText(String t) => view.shapes
+        .firstWhere((s) => s.paragraphs.any((p) => p.plainText == t));
+
+    // Serbest çizim: özel geometri modeli dolu, kutu DEĞİL.
+    final serbest = byText('Serbest');
+    expect(serbest.preset, 'custGeom');
+    expect(serbest.isBoxShaped, isFalse);
+    expect(serbest.custom, isNotNull);
+    expect(serbest.custom!.paths.length, 2);
+
+    // Yol hedef kutuya ölçeklenir: 200x100 uzayındaki üçgen 400x200 kutuda
+    // aynı oranla büyür (tepe 200,0 — taban köşeleri 0/400,200).
+    final tri = serbest.custom!.paths.first.build(const Size(400, 200))!;
+    final b = tri.getBounds();
+    expect(b.left, closeTo(0, 0.01));
+    expect(b.top, closeTo(0, 0.01));
+    expect(b.right, closeTo(400, 0.01));
+    expect(b.bottom, closeTo(200, 0.01));
+
+    // fill="none" alt yolu DOLGUDAN dışlanır ama tam yolda (kenarlık) durur.
+    final fillOnly = serbest.custom!.build(const Size(400, 200), fillOnly: true)!;
+    final full = serbest.custom!.build(const Size(400, 200))!;
+    // Açık eğri üst yarıda (y<100); dolgu yolu yalnız üçgeni (y 0..200,
+    // ama üçgenin tepe noktası x=200'de y=0'dan başlıyor) içerir. Eğrinin
+    // (0,0) başlangıcı yalnız tam yolda görülür.
+    expect(fillOnly.contains(const Offset(1, 1)), isFalse);
+    expect(full.getBounds().left, closeTo(0, 0.01));
+    expect(fillOnly.getBounds(), tri.getBounds());
+
+    // Kılavuz ADI (g1) çözülemez → şekil dikdörtgene düşer (yanlış çizim yok).
+    final kilavuzlu = byText('Kilavuzlu');
+    expect(kilavuzlu.custom, isNull);
+    expect(kilavuzlu.isBoxShaped, isTrue);
+
+    // @w/@h verilmeyen yol EMU uzayındadır: şeklin kendi EMU boyutuyla
+    // normalize edilir → 100x50 kutuda taban köşeleri (0,50) ve (100,50).
+    final emu = byText('EmuUzay');
+    expect(emu.custom, isNotNull);
+    final p = emu.custom!.build(const Size(100, 50))!;
+    final eb = p.getBounds();
+    expect(eb.right, closeTo(100, 0.01));
+    expect(eb.bottom, closeTo(50, 0.01));
+  });
+
+  testWidgets('özel geometrili slayt hatasız çizilir', (t) async {
+    final view = PptxEditor.parse(_custGeomPptx()).slides.single.view!;
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(width: 400, height: 225, child: SlideCanvas(slide: view)),
+      ),
+    ));
+    expect(t.takeException(), isNull);
+    expect(find.text('Serbest'), findsOneWidget);
+  });
+
   testWidgets('ön tanımlı şekiller yol olarak hatasız çizilir', (t) async {
     final view = PptxEditor.parse(_geometryPptx()).slides.single.view!;
     await t.pumpWidget(MaterialApp(
@@ -652,7 +809,17 @@ void main() {
     final shape = view.shapes.single;
     expect(shape.fill, const Color(0xFF00AAFF)); // fillRef
     expect(shape.stroke, const Color(0xFF112233)); // lnRef
-    expect(shape.strokeWidth, closeTo(0.75, 0.001)); // tema minör çizgi varsayılanı
+    expect(shape.strokeWidth, closeTo(0.75, 0.001)); // tema yok → varsayılan
+  });
+
+  test('lnRef kalınlığı temanın lnStyleLst listesinden çözülür', () {
+    // idx="2" → listenin 2. çizgisi: 25400 EMU = 2pt. Okunmadığında her tema
+    // şekli 0.75pt sabit kenarlıkla çiziliyordu (kalın vurgular inceliyordu).
+    final view =
+        PptxEditor.parse(_styleRefPptx(withTheme: true)).slides.single.view!;
+    final shape = view.shapes.single;
+    expect(shape.stroke, const Color(0xFF112233));
+    expect(shape.strokeWidth, closeTo(2.0, 0.001));
   });
 
   test('mutlak satır aralığı (spcPts) çarpana, spcAft puntoya çözülür', () {

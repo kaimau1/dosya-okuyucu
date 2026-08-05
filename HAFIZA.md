@@ -5927,3 +5927,30 @@ console.cloud.google.com → Drive API etkin + OAuth izin ekranı (`drive.file`
 kapsamı, Test modundaysa hesabı test kullanıcısına ekle) → OAuth istemci
 kimliği (Android) = paket adı + yukarıdaki SHA-1. Uygulamadaki kurulum kartı
 iki değeri de kopyalatıyor; yayılması birkaç dakika sürebilir.
+
+## 2026-08-05 (III) — Slayt sadakati: custGeom (serbest çizim) + tema çizgi kalınlığı
+
+Kullanıcı isteği "sadakat geliştirmeleri, araştır-uygula". Tarama sonucu iki
+kapanmamış render açığı bulundu ve kapatıldı (ikisi de birim testli):
+
+### A) `a:custGeom` — özel geometri artık ÇİZİLİYOR
+Serbest çizim / "Noktaları Düzenle" çıktısı şekiller `prstGeom` olmadığı için
+düz DİKDÖRTGEN çıkıyordu. Yeni: `PptxCustomGeom`/`PptxCustPath`
+(pptx_geometry, saf dart:ui) + `_customGeom` ayrıştırıcısı (pptx_render) +
+`_GeometryPainter.pathFor` özel yolu tercih ediyor.
+- Komutlar: moveTo/lnTo/cubicBezTo/quadBezTo/arcTo/close. arcTo merkezi
+  mevcut noktadan GERİ hesaplanır (ECMA); açılar 1/60000 derece.
+- `a:path@w/@h` yoksa koordinatlar şeklin EMU uzayında → ext cx/cy uzay olur.
+- `fill="none"` alt yol dolgudan DIŞLANIR ama kenarlıkta durur (fillOnly).
+- **Bilinçli sınır:** `gdLst` formül kılavuzları çözülmüyor; koordinat sayı
+  değilse TÜM geometri reddedilir → dikdörtgene düşülür (yanlış çizim yok).
+- TUZAK (testte): üçgen köşesini x=0'a koyup "fillOnly sol kenara değmez"
+  beklemek çelişki — fikstür köşeleri sınırlardan uzak seçilmeli.
+
+### B) `p:style > a:lnRef@idx` kalınlığı artık temadan
+Tema stilli şekillerde kalınlık sabit 0.75pt varsayılıyordu; şimdi
+`a:fmtScheme > a:lnStyleLst`ten idx (1 tabanlı) ile okunuyor
+(`_themeLineWidths`, master başına önbellekli). Tema yoksa 0.75 kalır.
+
+Doğrulama: yerel Flutter 3.29.3 `analyze` temiz, `flutter test` 1230 yeşil.
+Dal: claude/google-drive-connection-xpsmgn (PR #34, Drive işiyle birlikte).
