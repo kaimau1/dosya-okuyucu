@@ -1425,6 +1425,32 @@ const Map<String, (String, String, String)> _table = {
         'تسجيل توقيع التطبيق في Google Cloud كـ«عميل OAuth لأندرويد» (قاعدة من '
         'Google ولا تُحل برمجيًا). أما منتقي النظام أدناه فيعمل بدون ذلك.',
   ),
+  // Kurulum kartı: notConfigured hatasında paket adı + SHA-1'i telefondan
+  // kopyalatır. Değerleri belgeye gömmek yetmiyordu — kullanıcının elinde
+  // kayıt için gereken iki değer de yoktu ("google drive girmiyorum",
+  // 2026-08-05). SHA-1 çalışan APK'nın KENDİ imzasından okunur.
+  'drive.setup_title': (
+    'Tek seferlik kurulum bilgileri',
+    'One-time setup values',
+    'قيم الإعداد لمرة واحدة',
+  ),
+  'drive.setup_steps': (
+    'console.cloud.google.com → API\'ler ve Hizmetler → Kimlik bilgileri → '
+        'OAuth istemci kimliği (Android) sayfasında aşağıdaki iki değeri girin. '
+        'OAuth izin ekranı "Test" modundaysa hesabınızı test kullanıcılarına '
+        'ekleyin. Ayrıntı: docs/GOOGLE-DRIVE-KURULUM.md',
+    'Enter the two values below at console.cloud.google.com → APIs & '
+        'Services → Credentials → OAuth client ID (Android). If the OAuth '
+        'consent screen is in "Testing" mode, add your account as a test '
+        'user. Details: docs/GOOGLE-DRIVE-KURULUM.md',
+    'أدخل القيمتين أدناه في console.cloud.google.com ← واجهات برمجة التطبيقات '
+        'والخدمات ← بيانات الاعتماد ← معرّف عميل OAuth (أندرويد). إذا كانت شاشة '
+        'موافقة OAuth في وضع «الاختبار» فأضف حسابك كمستخدم اختبار. التفاصيل: '
+        'docs/GOOGLE-DRIVE-KURULUM.md',
+  ),
+  'drive.setup_package': ('Paket adı', 'Package name', 'اسم الحزمة'),
+  'drive.setup_sha1': ('İmza SHA-1', 'Signing SHA-1', 'بصمة SHA-1'),
+  'drive.setup_copied': ('Kopyalandı.', 'Copied.', 'تم النسخ.'),
   'drive.error_no_play_services': (
     'Bu cihazda Google Play Hizmetleri yok ya da güncel değil; Google girişi '
         'çalışmıyor. Aşağıdaki sistem seçicisi yolunu kullanabilirsiniz.',

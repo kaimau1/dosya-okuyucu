@@ -16,10 +16,17 @@ listesini (yükleme + yüklenenleri listeleme) açmak isteyenler içindir.
 
 ## Gereken iki değer
 
-| Değer | Nereden |
+| Değer | |
 | --- | --- |
-| Paket adı | `com.dosyaokuyucu.dosya_okuyucu` (CI'daki `flutter create --org` değeriyle sabit) |
-| İmza SHA-1 | CI'da **"APK'yı imzala ve doğrula"** adımının çıktısı — `SHA-1:` satırı |
+| Paket adı | `com.dosyaokuyucu.dosya_okuyucu` |
+| İmza SHA-1 | `F5:5D:0C:09:9F:97:71:3B:7A:1B:8D:B7:E8:6D:6A:0A:DA:EE:9D:B5` |
+
+Bu SHA-1, CI'ın kalıcı imza anahtarına aittir (build 219 logundan doğrulandı;
+`ANDROID_KEYSTORE_B64` secret'ı ekli olduğu için **tüm derlemelerde aynıdır**).
+En kolay yol yine de uygulamanın kendisi: Drive ekranında giriş
+"etkinleştirilmemiş" hatası verdiğinde açılan **kurulum kartı** iki değeri de
+kopyala düğmesiyle gösterir — üstelik SHA-1'i kurulu APK'nın kendi imzasından
+okur, yani her zaman doğrudur.
 
 SHA-1'i elle de alabilirsiniz:
 
@@ -27,11 +34,10 @@ SHA-1'i elle de alabilirsiniz:
 keytool -printcert -jarfile dosya-okuyucu.apk
 ```
 
-> **Önemli:** SHA-1 imza anahtarına bağlıdır. Depoda `ANDROID_KEYSTORE_B64`
-> secret'ı tanımlıysa her derleme aynı anahtarla imzalanır ve SHA-1 sabit kalır.
-> Secret yoksa CI her koşuda **geçici** bir anahtar üretir → SHA-1 her derlemede
-> değişir ve kayıt bir sonraki derlemede geçersiz olur. Yani önce o secret'ı
-> eklemek gerekiyor (workflow ilk koşuda base64 değerini log'a yazıyor).
+> **Not:** SHA-1 imza anahtarına bağlıdır. `ANDROID_KEYSTORE_B64` secret'ı
+> tanımlı olduğu sürece her derleme aynı anahtarla imzalanır ve yukarıdaki
+> değer geçerli kalır. Secret silinirse CI her koşuda geçici anahtar üretir →
+> SHA-1 değişir ve kayıt geçersiz olur.
 
 ## Adımlar
 
@@ -49,7 +55,8 @@ keytool -printcert -jarfile dosya-okuyucu.apk
 4. **Kimlik bilgileri → Kimlik bilgisi oluştur → OAuth istemci kimliği**:
    - Uygulama türü: **Android**
    - Paket adı: `com.dosyaokuyucu.dosya_okuyucu`
-   - SHA-1: yukarıdaki değer
+   - SHA-1: `F5:5D:0C:09:9F:97:71:3B:7A:1B:8D:B7:E8:6D:6A:0A:DA:EE:9D:B5`
+     (ya da uygulamadaki kurulum kartından kopyalayın)
 5. Kaydedin. Değişikliğin yayılması birkaç dakika sürebilir.
 
 `google-services.json` indirmeye **gerek yok**: Android'de `google_sign_in`
