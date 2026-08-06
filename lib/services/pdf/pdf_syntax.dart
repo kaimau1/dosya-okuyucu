@@ -399,6 +399,20 @@ PdfContentScan scanContent(List<int> content, {PdfMeasure? measure}) {
 List<PdfTextOp> scanTextOps(List<int> content, {PdfMeasure? measure}) =>
     scanContent(content, measure: measure).textOps;
 
+/// İçerikte **görünmez metin** var mı? (`3 Tr` = hiç çizme, `7 Tr` = yalnız
+/// kırpma yolu.)
+///
+/// Taranmış "aranabilir" PDF'in imzası budur: sayfa aslında bir GÖRÜNTÜ, OCR
+/// metni onun üstüne görünmez yazılır ki arama/kopyalama çalışsın. Bizim
+/// tarayıcımız da böyle üretiyor (`ConversionService.imagesToPdf`,
+/// `PdfTextRenderingMode.invisible`).
+bool hasInvisibleText(List<int> content) => scanContent(content).events.any(
+      (e) =>
+          e.op == 'Tr' &&
+          e.numbers.isNotEmpty &&
+          (e.numbers.last == 3 || e.numbers.last == 7),
+    );
+
 /// [bytes] baytlarının [op]'un durumuyla ölçeklenmiş yatay ilerleyişi
 /// (metin uzayı birimi). Ölçülemiyorsa null.
 ///

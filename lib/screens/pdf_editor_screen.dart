@@ -168,8 +168,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _outline = outline;
         _selectedObject = null;
         _error = null;
-        // Paragrafsız sayfa = taranmış aday; sınıf YAPIŞKAN (bkz. alan notu).
-        if (outline.paragraphs.isEmpty) _scannedPages.add(_page);
+        // Taranmış aday iki türlü olur: (1) hiç metin yok, (2) metin VAR ama
+        // görünmez — "aranabilir PDF"in OCR katmanı (kullanıcı bulgusu
+        // 2026-08-06: aranabilir tarattığı belgede düzeltme çubuğu hiç
+        // çıkmıyordu, çünkü sayfa metinli sayılıyordu). Sınıf YAPIŞKAN.
+        if (outline.paragraphs.isEmpty || outline.scanned) {
+          _scannedPages.add(_page);
+        }
       });
     } on PdfPageRefused catch (e) {
       if (mounted) setState(() => _outline = PdfPageOutline.empty);

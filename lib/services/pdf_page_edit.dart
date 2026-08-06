@@ -34,12 +34,19 @@ class PdfPageOutline {
   final double pageWidth;
   final double pageHeight;
 
+  /// Sayfa **taranmış** mı: görüntünün üstüne görünmez OCR metni yazılmış
+  /// ("aranabilir PDF"). Metinsiz sayfa da taranmış adayıdır ama onu
+  /// `paragraphs.isEmpty` söyler; bu bayrak METİNLİ görünen taranmış sayfa
+  /// için var — düzenleyici o sayfada da OCR araçlarını açsın diye.
+  final bool scanned;
+
   const PdfPageOutline({
     required this.paragraphs,
     required this.objects,
     required this.mediaBox,
     required this.pageWidth,
     required this.pageHeight,
+    this.scanned = false,
   });
 
   static const empty = PdfPageOutline(
@@ -61,6 +68,7 @@ abstract final class PdfPageEdit {
       mediaBox: page.mediaBox,
       pageWidth: page.pageWidth,
       pageHeight: page.pageHeight,
+      scanned: page.isScannedPage,
     );
   }
 

@@ -8,6 +8,7 @@ library;
 
 import 'pdf_objects.dart';
 import 'pdf_paragraph.dart';
+import 'pdf_syntax.dart';
 
 /// Düzenleme yapılamadı — mesaj doğrudan kullanıcıya gösterilebilir.
 class PdfPageRefused implements Exception {
@@ -135,6 +136,14 @@ class PdfPageContext {
   /// Sayfadaki paragraflar (belgedeki okuma sırasıyla).
   List<PdfParagraph> paragraphs() =>
       findParagraphs(contents, fonts, pageBox: mediaBox);
+
+  /// Sayfa **taranmış** mı: üstünde görüntü var ve metni görünmez yazılmış.
+  ///
+  /// "Aranabilir PDF" tam olarak budur — sayfa bir fotoğraf, OCR metni onun
+  /// üstüne `3 Tr` ile yazılmış. İki koşul birlikte aranıyor: görünmez metin
+  /// tek başına (filigran, gizli not) sayfayı taranmış yapmaz.
+  bool get isScannedPage =>
+      imageNames.isNotEmpty && contents.any(hasInvisibleText);
 
   /// Sayfadaki GÖRÜNTÜ kaynaklarının adları (`Im1` …).
   ///
