@@ -6617,3 +6617,21 @@ kategori, "Boş" yazılmıyor.
 
 **Doğrulama:** analyze temiz, 1363 test yeşil, APK imzalanıp telefona kuruldu
 (çökme yok). Görsel doğrulama telefon kilitli olduğu için yapılamadı.
+
+### E) "Düzelt" adı yanılttı → adlandırma + elle düzleştirme (2026-08-06 gece)
+Kullanıcı **eğik taranmış sayfayı** düzeltmek için PDF düzenleyicideki
+"Düzelt" / "AI ile düzelt" ikilisini aradı. O ikili **METNİ** onarıyor (OCR'ın
+Türkçe hataları), geometriyi değil; geometri düzeltme tarama önizlemesinde ve
+**otomatik**. Ders: bir düğmenin adı ne yaptığını söylemiyorsa kullanıcı onu
+başka bir şey sanıp arar — ve bulamayınca "özellik yok" der.
+- `pe.fix_page` → **"Metni düzelt"**, `pe.fix_page_ai` → **"Metni AI ile düzelt"**.
+  (Yukarıdaki 2026-08-06 sabah notundaki "Düzelt/AI ile düzelt" adları ARTIK
+  BÖYLE DEĞİL.)
+- Tarama önizlemesine **"Düzleştir"** (`sr.straighten`) düğmesi eklendi:
+  otomatik geçiş temkinli olduğu için (emin değilse dokunmuyor) eğik kalan
+  sayfada kullanıcının elinde hiçbir şey yoktu. `_flatten` artık bool döndürüyor
+  — otomatik geçişte sessizlik doğru, düğmeye basana geri bildirim şart.
+- Düğmelerin nerede göründüğü: "Metni düzelt" ikilisi YALNIZ PDF düzenleyici →
+  Metin modunda, sayfada gerçek metin katmanı YOKKEN (`paragraphs.isEmpty` →
+  "taranmış aday") ve OCR satır bulmuşken çıkar. Aranabilir (OCR katmanlı) PDF
+  üretilmişse sayfa metinli sayılır ve çubuk çıkmaz — açık kalan konu.
