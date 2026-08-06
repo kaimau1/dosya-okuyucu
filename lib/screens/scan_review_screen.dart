@@ -109,7 +109,10 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   /// Yazıya bakarak eğim + kıvrım düzeltme (izolatta — Sobel/örnekleme ana
   /// izleği kilitler). Kaynak dosya güncellenir ki sonradan seçilen filtre de
   /// düzleştirilmiş sayfaya uygulansın.
-  Future<void> _flatten(int index) async {
+  /// Sayfa gerçekten düzleştirildiyse true; "dokunmaya değmedi" ya da hata
+  /// olduysa false. Dönüş değeri ELLE düzleştirme için gerekli: otomatik
+  /// geçişte sessizlik doğru, düğmeye basan kullanıcıya bir şey söylenmeli.
+  Future<bool> _flatten(int index) async {
     try {
       final source = _sources[index];
       final target = await ScanDewarp.tempTarget(source);
@@ -117,12 +120,32 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         ScanDewarp.runRequest,
         ScanStraightenRequest(sourcePath: source, targetPath: target),
       );
-      if (produced == null || !mounted) return;
+      if (produced == null || !mounted) return false;
       _sources[index] = produced;
       setState(() => _pages[index] = produced);
+      return true;
     } catch (_) {
       // Aynı ilke: düzleştirilemeyen sayfa olduğu gibi kalır.
+      return false;
     }
+  }
+
+  /// **Elle düzleştirme** (kullanıcı isteği 2026-08-06). Açılıştaki otomatik
+  /// geçiş temkinli: emin değilse sayfaya dokunmuyor. Eğik kaldığını GÖREN
+  /// kullanıcının elinde bir düğme olmalı — yoksa tek çare taramayı baştan
+  /// yapmak. Düzleşen sayfaya seçili filtre yeniden uygulanır, yoksa sayfa
+  /// filtresiz (ham) hâline dönerdi.
+  Future<void> _straightenNow() async {
+    if (_busy || _preparing != null) return;
+    final index = _index;
+    setState(() => _busy = true);
+    final ok = await _flatten(index);
+    if (ok) await _applyFilter(index, _filters[index], silent: true);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(context.t(ok ? 'sr.straightened' : 'sr.straighten_noop')),
+    ));
   }
 
   /// Kullanıcının dokunduğu filtreyi uygular.
@@ -337,20 +360,38 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-          child: Row(
+          // İki satır: üstte sayfaya müdahale eden ikili, altta tam genişlikte
+          // "Devam". Üçünü yan yana dizmek dar telefonda etiketleri taşırırdı.
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _busy ? null : _editCorners,
-                  icon: const Icon(Icons.crop_free),
-                  label: Text(context.t('sr.adjust_corners')),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : _editCorners,
+                      icon: const Icon(Icons.crop_free),
+                      label: Text(context.t('sr.adjust_corners')),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          _busy || preparing != null ? null : _straightenNow,
+                      icon: const Icon(Icons.straighten),
+                      label: Text(context.t('sr.straighten')),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed:
-                      _busy || preparing != null ? null : () => Navigator.of(context).pop(_pages),
+                  onPressed: _busy || preparing != null
+                      ? null
+                      : () => Navigator.of(context).pop(_pages),
                   icon: const Icon(Icons.check),
                   label: Text(context.t('dl.continue')),
                 ),

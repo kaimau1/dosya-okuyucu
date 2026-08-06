@@ -2406,8 +2406,12 @@ const Map<String, (String, String, String)> _table = {
     'Read with AI needs a Gemini API key (Settings).',
     'تتطلب القراءة بالذكاء مفتاح Gemini من الإعدادات.',
   ),
-  'pe.fix_page': ('Düzelt', 'Fix', 'إصلاح'),
-  'pe.fix_page_ai': ('AI ile düzelt', 'Fix with AI', 'إصلاح بالذكاء'),
+  // "Düzelt" adı kullanıcıyı yanıltıyordu (2026-08-06): sayfanın EĞİKLİĞİNİ
+  // düzelteceğini sanıp bu düğmeleri aradı. İkisi de METNİ onarır (OCR'ın
+  // Türkçe hataları); eğiklik/kavis düzeltme tarama önizlemesinde
+  // ("Düzleştir", `sr.straighten`). Ad artık ne yaptığını söylüyor.
+  'pe.fix_page': ('Metni düzelt', 'Fix text', 'إصلاح النص'),
+  'pe.fix_page_ai': ('Metni AI ile düzelt', 'Fix text with AI', 'إصلاح النص بالذكاء'),
   'pe.fix_done': (
     '{n} satır düzeltildi.',
     '{n} lines corrected.',
@@ -3203,6 +3207,19 @@ const Map<String, (String, String, String)> _table = {
     'إن كانت الصفحة مائلة أو تشغل مساحة زائدة فاضبط الزوايا.',
   ),
   'sr.adjust_corners': ('Köşeleri ayarla', 'Adjust the corners', 'ضبط الزوايا'),
+  // Elle düzleştirme: açılıştaki otomatik geçiş emin olmadığı sayfaya
+  // dokunmuyor; eğik kaldığını gören kullanıcının düğmesi.
+  'sr.straighten': ('Düzleştir', 'Straighten', 'تقويم'),
+  'sr.straightened': (
+    'Sayfa düzleştirildi.',
+    'The page was straightened.',
+    'تم تقويم الصفحة.',
+  ),
+  'sr.straighten_noop': (
+    'Sayfa zaten düz görünüyor — değiştirilmedi.',
+    'The page already looks straight — nothing changed.',
+    'تبدو الصفحة مستقيمة بالفعل — لم يتغيّر شيء.',
+  ),
 
   // ── Açılma geçmişi ────────────────────────────────────────────────────────
   'oh.title': ('Son açılanlar', 'Recently opened', 'المفتوحة مؤخرًا'),
