@@ -1161,6 +1161,7 @@ const Map<String, (String, String, String)> _table = {
   ),
 
   // ── Dosya açma ────────────────────────────────────────────────────────────
+  'open.opening': ('Dosya açılıyor…', 'Opening file…', 'جارٍ فتح الملف…'),
   'open.with_what': ('{kind} neyle açılsın?', 'Open {kind} with?', 'بماذا تفتح {kind}؟'),
   'open.kind_image': ('Görsel', 'Image', 'صورة'),
   'open.kind_audio': ('Ses dosyası', 'Audio file', 'ملف صوتي'),
@@ -1416,6 +1417,7 @@ const Map<String, (String, String, String)> _table = {
   'drive.upload_done': ('Drive\'a yüklendi:', 'Uploaded to Drive:', 'تم الرفع إلى Drive:'),
   'drive.upload_failed': ('Drive\'a yüklenemedi.', 'Upload to Drive failed.', 'فشل الرفع إلى Drive.'),
   'drive.download_failed': ('Dosya indirilemedi.', 'Could not download the file.', 'تعذّر تنزيل الملف.'),
+  'drive.downloading': ('Drive\'dan indiriliyor…', 'Downloading from Drive…', 'جارٍ التنزيل من Drive…'),
   'drive.delete_confirm': (
     '“{name}” Drive\'dan silinsin mi?',
     'Delete “{name}” from Drive?',

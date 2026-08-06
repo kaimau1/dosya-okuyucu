@@ -10,18 +10,20 @@ import 'package:http/testing.dart';
 /// Ağ, `gemini_service_test`teki desenle yakalanır: `http.runWithClient`
 /// zon istemcisi + `MockClient`. Gerçek Google oturumu gerekmesin diye
 /// `authHeadersOverride` sahte başlık veriyor.
-DriveService _service() =>
-    DriveService(authHeadersOverride: () async => {'Authorization': 'Bearer t'});
+DriveService _service() => DriveService(
+    authHeadersOverride: () async => {'Authorization': 'Bearer t'});
 
 Future<T> _withMock<T>(
   Future<T> Function() body,
   Future<http.Response> Function(http.Request req) handler, {
   List<http.Request>? seen,
 }) {
-  return http.runWithClient(body, () => MockClient((req) async {
-        seen?.add(req);
-        return handler(req);
-      }));
+  return http.runWithClient(
+      body,
+      () => MockClient((req) async {
+            seen?.add(req);
+            return handler(req);
+          }));
 }
 
 http.Response _json(Object body, [int status = 200]) =>
@@ -39,8 +41,8 @@ void main() {
         'modifiedTime': '2026-07-30T12:00:00.000Z',
       });
       expect(f.sizeBytes, 1048576);
-      expect(f.modifiedAtMs,
-          DateTime.utc(2026, 7, 30, 12).millisecondsSinceEpoch);
+      expect(
+          f.modifiedAtMs, DateTime.utc(2026, 7, 30, 12).millisecondsSinceEpoch);
       expect(f.isFolder, isFalse);
       expect(f.isGoogleDoc, isFalse);
     });
@@ -90,12 +92,14 @@ void main() {
 
     test('aramada tek tırnak KAÇIRILIR (sorgu dili sınırlayıcısı)', () {
       final uri = DriveService.listUri(query: "Ali'nin raporu");
-      expect(uri.queryParameters['q'], contains(r"name contains 'Ali\'nin raporu'"));
+      expect(uri.queryParameters['q'],
+          contains(r"name contains 'Ali\'nin raporu'"));
     });
 
     test('klasör gezinme: parentId "in parents" süzgecine çevrilir', () {
       final root = DriveService.listUri(parentId: DriveService.rootId);
-      expect(root.queryParameters['q'], "trashed = false and 'root' in parents");
+      expect(
+          root.queryParameters['q'], "trashed = false and 'root' in parents");
       // Klasörler önce, sonra ada göre — dosya yöneticisi sıralaması.
       expect(root.queryParameters['orderBy'], 'folder,name');
 
@@ -126,14 +130,13 @@ void main() {
     });
 
     test('normal dosya alt=media, Google biçimi EXPORT ile iner', () {
-      const pdf = DriveFile(id: 'a', name: 'x.pdf', mimeType: 'application/pdf');
+      const pdf =
+          DriveFile(id: 'a', name: 'x.pdf', mimeType: 'application/pdf');
       expect(DriveService.downloadUri(pdf).queryParameters['alt'], 'media');
       expect(DriveService.downloadUri(pdf).path, endsWith('/files/a'));
 
       const doc = DriveFile(
-          id: 'b',
-          name: 'y',
-          mimeType: 'application/vnd.google-apps.document');
+          id: 'b', name: 'y', mimeType: 'application/vnd.google-apps.document');
       final uri = DriveService.downloadUri(doc);
       // Google biçimi alt=media ile İNDİRİLEMEZ (403); export şart.
       expect(uri.path, endsWith('/files/b/export'));
@@ -231,6 +234,43 @@ void main() {
       expect(file.readAsBytesSync(), [1, 2, 3]);
     });
 
+    test('indirme ilerlemesi bildirilir (inen bayt + toplam)', () async {
+      // 2026-08-06 kullanıcı bulgusu: büyük dosyada "ne oluyor belli değil".
+      // Akan indirme her parçada (inen, toplam) bildirmeli ki ekran yüzde
+      // gösterebilsin.
+      final dir = await Directory.systemTemp.createTemp('drive_dl');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      const pdf =
+          DriveFile(id: 'a', name: 'rapor.pdf', mimeType: 'application/pdf');
+      final ticks = <(int, int?)>[];
+      final file = await _withMock(
+        () => _service().download(pdf, dir.path,
+            onProgress: (received, total) => ticks.add((received, total))),
+        (_) async => http.Response.bytes([1, 2, 3, 4], 200),
+      );
+      expect(file.readAsBytesSync(), [1, 2, 3, 4]);
+      expect(ticks, isNotEmpty);
+      expect(ticks.last.$1, 4, reason: 'son bildirim tüm baytları saymalı');
+      expect(ticks.last.$2, 4, reason: 'toplam Content-Length\'ten gelmeli');
+    });
+
+    test('ilerlemede toplam yoksa üstverideki boyut kullanılır', () {
+      // Content-Length'i olmayan yanıtı MockClient ile kurmak zor; en azından
+      // hata YOLU akan indirmede de sınıflandırılmalı.
+      final dir = Directory.systemTemp.createTempSync('drive_dl_err');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      const pdf =
+          DriveFile(id: 'a', name: 'rapor.pdf', mimeType: 'application/pdf');
+      expect(
+        _withMock(
+          () => _service().download(pdf, dir.path, onProgress: (_, __) {}),
+          (_) async => http.Response('{"error":{"message":"x"}}', 404),
+        ),
+        throwsA(isA<DriveException>()
+            .having((e) => e.error, 'error', DriveError.notFound)),
+      );
+    });
+
     test('yükleme multipart POST atar', () async {
       final dir = await Directory.systemTemp.createTemp('drive_up');
       addTearDown(() => dir.deleteSync(recursive: true));
@@ -262,7 +302,8 @@ void main() {
       final seen = <http.Request>[];
       await _withMock(
         () => _service().update('id7', local),
-        (_) async => _json({'id': 'id7', 'name': 'a.txt', 'mimeType': 'text/plain'}),
+        (_) async =>
+            _json({'id': 'id7', 'name': 'a.txt', 'mimeType': 'text/plain'}),
         seen: seen,
       );
       expect(seen.single.method, 'PATCH');
@@ -295,8 +336,11 @@ void main() {
       final seen = <http.Request>[];
       await _withMock(
         () => _service().rename('id7', 'Yeni ad.pdf'),
-        (_) async => _json(
-            {'id': 'id7', 'name': 'Yeni ad.pdf', 'mimeType': 'application/pdf'}),
+        (_) async => _json({
+          'id': 'id7',
+          'name': 'Yeni ad.pdf',
+          'mimeType': 'application/pdf'
+        }),
         seen: seen,
       );
       expect(seen.single.method, 'PATCH');
@@ -309,10 +353,9 @@ void main() {
         () async {
       final seen = <http.Request>[];
       await _withMock(
-        () => _service()
-            .move('id7', toParentId: 'yeni', fromParentId: 'eski'),
-        (_) async =>
-            _json({'id': 'id7', 'name': 'a.pdf', 'mimeType': 'application/pdf'}),
+        () => _service().move('id7', toParentId: 'yeni', fromParentId: 'eski'),
+        (_) async => _json(
+            {'id': 'id7', 'name': 'a.pdf', 'mimeType': 'application/pdf'}),
         seen: seen,
       );
       expect(seen.single.url.queryParameters['addParents'], 'yeni');
@@ -327,7 +370,8 @@ void main() {
       final seen = <http.Request>[];
       await _withMock(
         () => _service().upload(local, parentId: 'klasor1'),
-        (_) async => _json({'id': 'n', 'name': 'not.txt', 'mimeType': 'text/plain'}),
+        (_) async =>
+            _json({'id': 'n', 'name': 'not.txt', 'mimeType': 'text/plain'}),
         seen: seen,
       );
       // Üst klasör yazılmazsa dosya HER ZAMAN köke düşerdi.
@@ -341,7 +385,8 @@ void main() {
       );
     });
 
-    test('oturum yoksa notSignedIn fırlatır (sessiz boş liste DEĞİL)', () async {
+    test('oturum yoksa notSignedIn fırlatır (sessiz boş liste DEĞİL)',
+        () async {
       final service = DriveService(authHeadersOverride: () async => null);
       await expectLater(
         service.list(),
@@ -350,7 +395,8 @@ void main() {
       );
     });
 
-    test('HTTP durumu anlaşılır nedene çevrilir, Drive mesajı taşınır', () async {
+    test('HTTP durumu anlaşılır nedene çevrilir, Drive mesajı taşınır',
+        () async {
       // Tanıyamadığımız bir 403: "bu dosya bizim değil" yorumuna düşer.
       await expectLater(
         _withMock(
@@ -377,12 +423,14 @@ void main() {
       // Üçü de 403 ama üçü de BAŞKA bir adım gerektiriyor. Tek "izin vermedi"
       // metni kullanıcıyı dosya sahipliğine baktırıyordu, oysa asıl neden
       // çoğu kez API'nin hiç açılmamış olması (ekran görüntüsü 2026-08-05).
-      const notEnabled = '{"error":{"errors":[{"reason":"accessNotConfigured"}],'
+      const notEnabled =
+          '{"error":{"errors":[{"reason":"accessNotConfigured"}],'
           '"code":403,"message":"Google Drive API has not been used in project '
           '123 before or it is disabled."}}';
       expect(DriveService.classify(403, notEnabled), DriveError.apiNotEnabled);
 
-      const noScope = '{"error":{"errors":[{"reason":"insufficientPermissions"}],'
+      const noScope =
+          '{"error":{"errors":[{"reason":"insufficientPermissions"}],'
           '"code":403,"message":"Insufficient Permission"}}';
       expect(DriveService.classify(403, noScope), DriveError.insufficientScope);
 

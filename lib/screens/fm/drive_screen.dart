@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:path/path.dart' as p;
@@ -46,9 +48,7 @@ class _DriveScreenState extends State<DriveScreen> {
 
   /// Gezinme yığını: kökten bulunulan klasöre kadar (id, ad). Kök her zaman
   /// altta durur, bu yüzden liste hiç boşalmaz.
-  final List<(String id, String name)> _path = [
-    (DriveService.rootId, 'Drive')
-  ];
+  final List<(String id, String name)> _path = [(DriveService.rootId, 'Drive')];
 
   (String, String) get _current => _path.last;
 
@@ -115,7 +115,8 @@ class _DriveScreenState extends State<DriveScreen> {
         DriveSignInError.notConfigured => 'drive.error_not_configured',
         DriveSignInError.noPlayServices => 'drive.error_no_play_services',
         DriveSignInError.network => 'drive.error_temporary',
-        DriveSignInError.cancelled || DriveSignInError.failed =>
+        DriveSignInError.cancelled ||
+        DriveSignInError.failed =>
           'drive.error_sign_in_failed',
       };
 
@@ -279,8 +280,7 @@ class _DriveScreenState extends State<DriveScreen> {
           onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: Text(cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(cancel)),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: Text(ok),
@@ -311,20 +311,48 @@ class _DriveScreenState extends State<DriveScreen> {
   /// İndir → aç. Dosya önce **önbelleğe** iner (uygulamanın kendi klasörü),
   /// sonra mevcut görüntüleyici/editör zinciriyle açılır — böylece Drive
   /// dosyaları da tüm biçim desteğimizden ilk günden yararlanıyor.
+  ///
+  /// İndirme sırasında ADLI ve YÜZDELİ bir pencere durur (2026-08-06 kullanıcı
+  /// bulgusu: büyük PDF'te "yüklenme ekranı var ama açılıyor mu ne oluyor
+  /// belli değil"). Toplam boyut bilinmiyorsa (Google biçimi `export` ile
+  /// iner) çubuk belirsiz akar ama inen MB yine yazılır.
   Future<void> _open(DriveFile file) async {
     final failed = context.t('drive.download_failed');
-    setState(() => _busy = true);
+    final progress = ValueNotifier<(int, int?)>((
+      0,
+      file.sizeBytes > 0 && file.exportAs == null ? file.sizeBytes : null
+    ));
+    var dialogUp = true;
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _DownloadDialog(name: file.name, progress: progress),
+    ).then((_) => dialogUp = false));
+    void closeDialog() {
+      if (dialogUp && mounted) {
+        dialogUp = false;
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+
     try {
       final dir = p.join(FmEnv.appSupportDir, 'drive');
-      final local = await _drive.download(file, dir);
+      final local = await _drive.download(
+        file,
+        dir,
+        onProgress: (received, total) => progress.value = (received, total),
+      );
       if (!mounted) return;
-      setState(() => _busy = false);
+      closeDialog();
       await EntryOpener.open(context, local.path);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _busy = false);
+      closeDialog();
       _snack('$failed ${_detail(e)}');
     }
+    // Not: `progress` bilerek dispose EDİLMİYOR — pencerenin kapanış animasyonu
+    // sürerken ValueListenableBuilder hâlâ dinliyor olabilir; kısa ömürlü
+    // nesneyi çöp toplayıcıya bırakmak güvenli olan.
   }
 
   Future<void> _delete(DriveFile file) async {
@@ -481,7 +509,8 @@ class _DriveScreenState extends State<DriveScreen> {
             SelectableText(
               detail,
               style: TextStyle(
-                  fontSize: 11, color: scheme.onErrorContainer.withValues(alpha: 0.8)),
+                  fontSize: 11,
+                  color: scheme.onErrorContainer.withValues(alpha: 0.8)),
             ),
           ],
         ],
@@ -513,7 +542,8 @@ class _DriveScreenState extends State<DriveScreen> {
           Text(context.t('drive.setup_steps'),
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 6),
-          _setupValue(context.t('drive.setup_package'), AppSignature.packageName),
+          _setupValue(
+              context.t('drive.setup_package'), AppSignature.packageName),
           // SHA-1 asenkron okunur; gelene kadar satır hiç çizilmez (yanlış ya
           // da yarım değer göstermekten iyidir).
           if (_sha1 != null) _setupValue(context.t('drive.setup_sha1'), _sha1!),
@@ -640,9 +670,7 @@ class _DriveScreenState extends State<DriveScreen> {
               f.isFolder
                   ? Icons.folder_outlined
                   : Icons.insert_drive_file_outlined,
-              color: f.isFolder
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
+              color: f.isFolder ? Theme.of(context).colorScheme.primary : null,
             ),
             title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(_subtitle(f)),
@@ -680,7 +708,9 @@ class _DriveScreenState extends State<DriveScreen> {
       final ext = f.exportAs?.$2;
       return ext == null
           ? size
-          : '$size · ${context.t('drive.exports_as', {'format': ext.toUpperCase()})}';
+          : '$size · ${context.t('drive.exports_as', {
+                  'format': ext.toUpperCase()
+                })}';
     }
     return size;
   }
@@ -717,10 +747,60 @@ Future<void> uploadToDrive(BuildContext context, String path,
   messenger.showSnackBar(SnackBar(content: Text(uploading)));
   try {
     final file = await drive.upload(File(path));
-    messenger.showSnackBar(
-        SnackBar(content: Text('$done ${file.name}'.trim())));
+    messenger
+        .showSnackBar(SnackBar(content: Text('$done ${file.name}'.trim())));
   } catch (e) {
     final detail = e is DriveException && e.detail != null ? e.detail! : '';
     messenger.showSnackBar(SnackBar(content: Text('$failed $detail'.trim())));
+  }
+}
+
+/// İndirme ilerleme penceresi: dosya adı + çubuk + "12,3 MB / 29,0 MB · %42".
+/// Toplam bilinmiyorsa çubuk belirsiz akar, yalnız inen miktar yazılır —
+/// kullanıcı en azından işlemin CANLI olduğunu görür.
+class _DownloadDialog extends StatelessWidget {
+  final String name;
+  final ValueListenable<(int, int?)> progress;
+
+  const _DownloadDialog({required this.name, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(context.t('drive.downloading'),
+          style: Theme.of(context).textTheme.titleMedium),
+      content: ValueListenableBuilder<(int, int?)>(
+        valueListenable: progress,
+        builder: (context, value, _) {
+          final (received, total) = value;
+          final pct = total != null && total > 0
+              ? (received * 100 / total).clamp(0, 100).round()
+              : null;
+          final label = total != null && total > 0
+              ? '${FsPaths.humanSize(received)} / ${FsPaths.humanSize(total)} · %$pct'
+              : FsPaths.humanSize(received);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 14),
+              LinearProgressIndicator(
+                value: total != null && total > 0
+                    ? (received / total).clamp(0.0, 1.0)
+                    : null,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              const SizedBox(height: 8),
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          );
+        },
+      ),
+    );
   }
 }

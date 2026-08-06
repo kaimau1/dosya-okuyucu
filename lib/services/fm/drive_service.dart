@@ -203,15 +203,16 @@ class DriveService {
   static Uri uploadUri() => Uri.parse('$_upload/files').replace(
       queryParameters: {'uploadType': 'multipart', 'fields': _fields2});
 
-  static Uri updateUri(String id) => Uri.parse('$_upload/files/$id').replace(
-      queryParameters: {'uploadType': 'media', 'fields': _fields2});
+  static Uri updateUri(String id) => Uri.parse('$_upload/files/$id')
+      .replace(queryParameters: {'uploadType': 'media', 'fields': _fields2});
 
   static Uri deleteUri(String id) => Uri.parse('$_api/files/$id');
 
   /// **Üstveri** uç noktası (ad/konum). `updateUri`den ayrı: o `upload`
   /// alanına gidip dosyanın İÇERİĞİNİ değiştirir. Yeniden adlandırmayı oraya
   /// göndermek dosyanın içeriğini silerdi.
-  static Uri metadataUri(String id, {String? addParents, String? removeParents}) =>
+  static Uri metadataUri(String id,
+          {String? addParents, String? removeParents}) =>
       Uri.parse('$_api/files/$id').replace(queryParameters: {
         'fields': _fields2,
         if (addParents != null) 'addParents': addParents,
@@ -367,14 +368,53 @@ class DriveService {
   }
 
   /// Dosyayı [toDirectory] içine indirir ve yerel dosyayı döndürür.
-  Future<File> download(DriveFile file, String toDirectory) async {
+  ///
+  /// [onProgress] verilirse indirme AKAN gövdeyle yapılır ve her parça diske
+  /// yazıldıkça `(inen bayt, toplam bayt?)` bildirilir (2026-08-06 kullanıcı
+  /// bulgusu: büyük PDF inerken "açılıyor mu, ne oluyor belli değil" —
+  /// ekran artık yüzde/MB gösterebiliyor). Toplam, `Content-Length`
+  /// başlığından; o yoksa Drive üstverisindeki boyuttan gelir. Google
+  /// biçimleri `export` ile döndüğü için toplamları önceden bilinemez → null.
+  Future<File> download(
+    DriveFile file,
+    String toDirectory, {
+    void Function(int received, int? total)? onProgress,
+  }) async {
     final headers = await _requireHeaders();
-    final res = await http.get(downloadUri(file), headers: headers);
-    _check(res.statusCode, res.body);
-    final target = File('$toDirectory/${file.localName()}');
-    await target.parent.create(recursive: true);
-    await target.writeAsBytes(res.bodyBytes);
-    return target;
+    // `Client()` http.runWithClient bölgesine saygılıdır — testlerdeki
+    // MockClient akan indirmede de devrede kalır.
+    final client = http.Client();
+    try {
+      final req = http.Request('GET', downloadUri(file))
+        ..headers.addAll(headers);
+      final res = await client.send(req);
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        _check(res.statusCode, await res.stream.bytesToString());
+      }
+      final contentLength = res.contentLength;
+      final total = contentLength != null && contentLength > 0
+          ? contentLength
+          : (file.exportAs == null && file.sizeBytes > 0
+              ? file.sizeBytes
+              : null);
+      final target = File('$toDirectory/${file.localName()}');
+      await target.parent.create(recursive: true);
+      final sink = target.openWrite();
+      try {
+        var received = 0;
+        await for (final chunk in res.stream) {
+          sink.add(chunk);
+          received += chunk.length;
+          onProgress?.call(received, total);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      return target;
+    } finally {
+      client.close();
+    }
   }
 
   Future<DriveFile> upload(File local, {String? name, String? parentId}) async {
@@ -537,5 +577,6 @@ class DriveException implements Exception {
   const DriveException(this.error, {this.detail});
 
   @override
-  String toString() => 'DriveException(${error.name}${detail == null ? '' : ': $detail'})';
+  String toString() =>
+      'DriveException(${error.name}${detail == null ? '' : ': $detail'})';
 }

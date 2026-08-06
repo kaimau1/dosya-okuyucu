@@ -12,7 +12,8 @@ void main() {
       final merged = mergeSameLineRects(const [
         PdfRect(10, 100, 40, 90), // "Sigorta"
         PdfRect(44, 100, 70, 90), // "şirketi"
-        PdfRect(74, 101, 96, 91), // "bir" — birkaç birim kaymış, hâlâ aynı satır
+        PdfRect(
+            74, 101, 96, 91), // "bir" — birkaç birim kaymış, hâlâ aynı satır
       ]);
 
       expect(merged, hasLength(1));
@@ -47,6 +48,30 @@ void main() {
 
     test('boş liste boş kalır', () {
       expect(mergeSameLineRects(const []), isEmpty);
+    });
+
+    test('aynı hizadaki UZAK sütunlar birleşmez (akış şeması bulgusu)', () {
+      // 2026-08-06: sol ve sağ kutular aynı yükseklikte diye birleşince
+      // vurgu aradaki boşlukla birlikte tüm sayfa genişliğini kaplıyordu.
+      // Satır yüksekliği 10, aradaki boşluk 300 birim → sütun aralığıdır.
+      final merged = mergeSameLineRects(const [
+        PdfRect(10, 100, 100, 90), // sol kutu
+        PdfRect(400, 100, 500, 90), // sağ kutu, aynı hiza
+      ]);
+
+      expect(merged, hasLength(2));
+      expect(merged[0].right, 100, reason: 'sol kutu kendi metnini sarmalı');
+      expect(merged[1].left, 400);
+    });
+
+    test('kelime aralığı kadar yakın parçalar birleşmeye devam eder', () {
+      final merged = mergeSameLineRects(const [
+        PdfRect(10, 100, 40, 90),
+        PdfRect(55, 100, 80, 90), // 15 birim boşluk < 2×satır yüksekliği
+      ]);
+
+      expect(merged, hasLength(1));
+      expect(merged.first.right, 80);
     });
   });
 }

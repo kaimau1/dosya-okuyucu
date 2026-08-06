@@ -6311,3 +6311,49 @@ herkes arar). Yeni anahtar: `fm.drive_subtitle`.
 (+7 eşleşme testi). Cihazda bakılacaklar: büyük/küçük harfli belgede yerinde
 düzenlemenin artık "bulunamadı" dememesi; aynı kelimenin iki geçtiği sayfada
 dokunulanın değişmesi; ana ekrandaki şeridin dar ekranda taşmaması.
+
+## 2026-08-06 — PDF seçim/kopyalama düzeltmeleri + Drive indirme ilerlemesi
+Kullanıcı (ekran görüntüleriyle): *"Drive'da büyük PDF açarken ne olduğu belli
+değil, ilerleme lazım; kopyalanan metinde anlamsız karakter var; üst alanda
+seçim yaparken tüm sayfa seçiliyor; 'Fizik Muayene' iki satır yapışıyor, tek
+satır olmalı."*
+
+### A) Pano temizliği — `core/copy_text.dart` (`cleanPdfCopyText`)
+- **KÖK NEDEN:** pdfium `fullText` satır sonlarını `\r\n` verir ve eşlemesiz
+  glifler için U+FFFE bırakır; panoya aynen gidince Not uygulamasında tofu
+  (⍰) ve bölünmüş satırlar görünüyordu.
+- Kural: tek satır sonu → boşluk (2+ = paragraf, tek `\n` kalır); C0/C1,
+  soft hyphen, sıfır genişlikli, BOM, U+FFFD..U+FFFF atılır; satır sonunda
+  tireyle bölünen kelime birleşir (devam küçük harfse). YALNIZ kopyalama
+  yolunda (`_copyPdfSelection`) — seçim katmanının ham metni (yerinde
+  düzenleme eşleştirmesi) DEĞİŞMEDİ.
+
+### B) "Tüm sayfa seçiliyor" — iki kök neden, iki düzeltme
+1. **`mergeSameLineRects` yatay sınır tanımıyordu:** akış şemasında sol/sağ
+   kutular aynı hizada diye aradaki boşlukla birlikte TEK banda birleşiyordu
+   → vurgu sayfa genişliğinde görünüyordu. Artık boşluk satır yüksekliğinin
+   2 katını aşarsa birleşmez (kelime aralığı ≠ sütun aralığı).
+2. **Sürükleme araması düz uzaklık kullanıyordu:** parmak kutular arası
+   boşluğa taşınca "en yakın karakter" BAŞKA kutuda bulunuyor, seçim
+   sıçrıyordu. `_charIndexAt`e `lineBias` (dikey ceza ×4) eklendi — seçim
+   parmağın satırına kilitli kalır, alt kutuya ancak parmak gerçekten
+   inince geçer (fare sürüklemesi ve tutamaçlar da aynı yolu kullanır).
+
+### C) Drive indirme: ilerleme penceresi
+- `DriveService.download` artık AKAN gövdeyle (`Client().send`) iner ve
+  `onProgress(inen, toplam?)` bildirir; toplam Content-Length'ten, yoksa
+  Drive üstverisinden (Google biçimi export'ta null → belirsiz çubuk).
+  `http.Client()` `runWithClient` zonuna saygılı → MockClient testleri akan
+  yolda da çalışıyor.
+- `DriveScreen._open`: çıplak `_busy` spinner yerine adlı pencere — dosya
+  adı + çubuk + "12,3 MB / 29,0 MB · %42". `EntryOpener._showBusy` de
+  "Dosya açılıyor…" yazan karta dönüştü (`open.opening`).
+- TUZAK: ilerleme `ValueNotifier`'ı bilerek dispose edilmiyor — pencerenin
+  kapanış animasyonu sürerken `ValueListenableBuilder` hâlâ dinliyor
+  olabilir; dispose sonrası removeListener debug'da fırlatır.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` 0 hata/0 uyarı (45
+önceden var olan info), **1302 test yeşil** (+11: pano temizliği 7, sütun
+birleşmeme 2, indirme ilerlemesi 2). Cihazda bakılacaklar: Drive'dan büyük
+PDF'te yüzdeli pencere; akış şemalı PDF'te seçim vurgusunun kutulara
+yapışması; kopyalanan metnin Not'ta tek satır ve tofu'suz yapışması.
