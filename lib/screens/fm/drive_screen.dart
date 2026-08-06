@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/drive_file.dart';
@@ -51,6 +52,12 @@ class _DriveScreenState extends State<DriveScreen> {
   final List<(String id, String name)> _path = [(DriveService.rootId, 'Drive')];
 
   (String, String) get _current => _path.last;
+
+  /// Drive panosu: yapıştırılmayı bekleyen dosya, KAYNAK klasörü ve kes mi
+  /// kopyala mı olduğu. Kaynak klasör ayrıca tutuluyor çünkü Drive'da taşımak
+  /// "eski üstü kaldır + yeni üstü ekle" demek; dosyanın kendi satırında bu
+  /// bilgi yok (`_fields` `parents` istemiyor — her listelemeyi şişirirdi).
+  ({DriveFile file, String fromParentId, bool cut})? _clip;
 
   /// Arama sonuçları klasör sınırı tanımadığı için gezinme (klasöre gir,
   /// yukarı çık, yükle) o sırada anlamsız — ayırt etmek gerekiyor.
@@ -322,12 +329,26 @@ class _DriveScreenState extends State<DriveScreen> {
   /// belli değil"). Toplam boyut bilinmiyorsa (Google biçimi `export` ile
   /// iner) çubuk belirsiz akar ama inen MB yine yazılır.
   Future<void> _open(DriveFile file) async {
+    final local = await _localCopy(file);
+    if (local == null || !mounted) return;
+    await EntryOpener.open(context, local.path);
+  }
+
+  /// Dosyayı sistem paylaşım sayfasına **dosya olarak** verir (WhatsApp'a ek
+  /// gider). Bağlantı paylaşımından ayrı: karşı tarafın Drive'a erişimi
+  /// olmadığında ya da çevrimdışı okuyacaksa gereken bu.
+  Future<void> _shareFile(DriveFile file) async {
+    final local = await _localCopy(file);
+    if (local == null) return;
+    await Share.shareXFiles([XFile(local.path)], text: file.name);
+  }
+
+  /// Dosyanın yerel kopyası: önbellek tazeyse indirmez, değilse aşağıdaki
+  /// adlı/yüzdeli pencereyle indirir. Hata kullanıcıya bildirilir, null döner.
+  Future<File?> _localCopy(DriveFile file) async {
     final root = DriveCache.rootOf(FmEnv.appSupportDir);
     final cached = DriveCache.freshFile(file, root);
-    if (cached != null) {
-      await EntryOpener.open(context, cached.path);
-      return;
-    }
+    if (cached != null) return cached;
 
     final failed = context.t('drive.download_failed');
     final progress = ValueNotifier<(int, int?)>((
@@ -354,17 +375,87 @@ class _DriveScreenState extends State<DriveScreen> {
         onProgress: (received, total) => progress.value = (received, total),
       );
       DriveCache.prune(root);
-      if (!mounted) return;
+      if (!mounted) return null;
       closeDialog();
-      await EntryOpener.open(context, local.path);
+      return local;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return null;
       closeDialog();
       _snack('$failed ${_detail(e)}');
+      return null;
     }
     // Not: `progress` bilerek dispose EDİLMİYOR — pencerenin kapanış animasyonu
     // sürerken ValueListenableBuilder hâlâ dinliyor olabilir; kısa ömürlü
     // nesneyi çöp toplayıcıya bırakmak güvenli olan.
+  }
+
+  /// "Bağlantısı olan herkes görüntüleyebilir" izni verip bağlantıyı paylaşır.
+  /// Dosya İNMEZ — 1 GB'lık videoyu da anında paylaşır.
+  Future<void> _shareLink(DriveFile file) async {
+    setState(() => _busy = true);
+    try {
+      final link = await _drive.shareLink(file.id);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      await Share.share(link, subject: file.name);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('${context.t('drive.share_failed')} ${_detail(e)}');
+    }
+  }
+
+  /// Panoya al (kopyala/kes). Kaynak klasör şu an bulunulan klasördür;
+  /// menü arama sonuçlarında gösterilmiyor, orada "hangi klasörden" sorusunun
+  /// cevabı yok.
+  void _clipSet(DriveFile file, {required bool cut}) {
+    setState(() =>
+        _clip = (file: file, fromParentId: _current.$1, cut: cut));
+  }
+
+  Future<void> _paste() async {
+    final clip = _clip;
+    if (clip == null) return;
+    final target = _current.$1;
+    // Aynı klasöre taşımak hiçbir şeyi değiştirmez; Drive'a boşuna istek
+    // atmak yerine pano kapatılır.
+    if (clip.cut && clip.fromParentId == target) {
+      setState(() => _clip = null);
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      if (clip.cut) {
+        await _drive.move(clip.file.id,
+            toParentId: target, fromParentId: clip.fromParentId);
+      } else {
+        await _drive.copy(
+          clip.file.id,
+          toParentId: target,
+          // Aynı klasördeyse ad değişir, yoksa listede ayırt edilemeyen iki
+          // satır olurdu (Drive aynı adlı iki dosyaya izin verir).
+          name: clip.fromParentId == target
+              ? _copyName(clip.file.name)
+              : null,
+        );
+      }
+      setState(() => _clip = null);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('${context.t('drive.paste_failed')} ${_detail(e)}');
+    }
+  }
+
+  /// "Rapor.pdf" → "Rapor (kopya).pdf". Etiket uzantıdan ÖNCE giriyor; sona
+  /// eklenirse dosya "…pdf (kopya)" olur ve hiçbir uygulama açamaz.
+  String _copyName(String name) {
+    final tag = context.t('drive.copy_tag');
+    final dot = name.lastIndexOf('.');
+    return dot <= 0
+        ? '$name ($tag)'
+        : '${name.substring(0, dot)} ($tag)${name.substring(dot)}';
   }
 
   Future<void> _delete(DriveFile file) async {
@@ -450,6 +541,51 @@ class _DriveScreenState extends State<DriveScreen> {
             if (_signedIn && !_searching) _breadcrumb(),
             Expanded(child: _body()),
           ],
+        ),
+        // Yapıştırma hedefi "bulunulan klasör" olduğu için çubuk aramada
+        // gizli: arama sonucunun klasörü yok.
+        bottomNavigationBar:
+            _clip != null && _signedIn && !_searching ? _pasteBar() : null,
+      ),
+    );
+  }
+
+  /// Panodaki öğeyi bulunulan klasöre yapıştırma çubuğu — yerel gezgindeki
+  /// çubuğun aynısı (`browser_screen`), kullanıcı iki ekranda aynı şeyi görsün.
+  Widget _pasteBar() {
+    final clip = _clip!;
+    return Material(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+          child: Row(
+            children: [
+              Icon(clip.cut ? Icons.content_cut : Icons.copy_outlined),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  context.t('fm.clipboard_ready', {
+                    'n': 1,
+                    'verb': context
+                        .t(clip.cut ? 'fm.verb_move' : 'fm.verb_copy'),
+                  }),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _clip = null),
+                child: Text(context.t('common.cancel')),
+              ),
+              FilledButton.icon(
+                onPressed: _busy ? null : _paste,
+                icon: const Icon(Icons.content_paste),
+                label: Text(context.t('fm.paste')),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -688,11 +824,39 @@ class _DriveScreenState extends State<DriveScreen> {
             subtitle: Text(_subtitle(f)),
             trailing: PopupMenuButton<String>(
               onSelected: (v) => switch (v) {
+                'share_link' => _shareLink(f),
+                'share_file' => _shareFile(f),
+                'copy' => _clipSet(f, cut: false),
+                'cut' => _clipSet(f, cut: true),
                 'rename' => _rename(f),
                 'delete' => _delete(f),
                 _ => null,
               },
               itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'share_link',
+                  child: Text(context.t('drive.share_link')),
+                ),
+                // Klasörün "dosyası" yok: indirilip eklenecek tek bir şey
+                // olmadığı için yalnız bağlantısı paylaşılabilir.
+                if (!f.isFolder)
+                  PopupMenuItem(
+                    value: 'share_file',
+                    child: Text(context.t('drive.share_file')),
+                  ),
+                // Kopyala/Taşı aramada YOK: kaynak klasör bilinmeden taşıma
+                // yapılamaz (arama Drive'ın tamamını tarar). Klasör kopyalama
+                // ise Drive API'sinde hiç yok.
+                if (!_searching && !f.isFolder)
+                  PopupMenuItem(
+                    value: 'copy',
+                    child: Text(context.t('fm.copy')),
+                  ),
+                if (!_searching)
+                  PopupMenuItem(
+                    value: 'cut',
+                    child: Text(context.t('fm.move')),
+                  ),
                 PopupMenuItem(
                   value: 'rename',
                   child: Text(context.t('drive.rename')),

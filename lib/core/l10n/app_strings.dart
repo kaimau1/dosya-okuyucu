@@ -1424,6 +1424,16 @@ const Map<String, (String, String, String)> _table = {
     'هل تريد حذف «{name}» من Drive؟',
   ),
   'drive.delete_failed': ('Silinemedi.', 'Could not delete.', 'تعذّر الحذف.'),
+  'drive.share_link': ('Bağlantıyı paylaş', 'Share link', 'مشاركة الرابط'),
+  'drive.share_file': ('Dosyayı paylaş', 'Share file', 'مشاركة الملف'),
+  'drive.share_failed': (
+    'Paylaşım bağlantısı oluşturulamadı.',
+    'Could not create the share link.',
+    'تعذّر إنشاء رابط المشاركة.',
+  ),
+  'drive.paste_failed': ('Yapıştırılamadı.', 'Could not paste.', 'تعذّر اللصق.'),
+  // Aynı klasöre kopyalanan dosyanın adına eklenir: "Rapor (kopya).pdf".
+  'drive.copy_tag': ('kopya', 'copy', 'نسخة'),
   'drive.error_not_signed_in': (
     'Google hesabına bağlı değilsiniz.',
     'You are not connected to a Google account.',

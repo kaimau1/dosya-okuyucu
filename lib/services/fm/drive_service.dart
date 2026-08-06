@@ -219,6 +219,19 @@ class DriveService {
         if (removeParents != null) 'removeParents': removeParents,
       });
 
+  static Uri copyUri(String id) => Uri.parse('$_api/files/$id/copy')
+      .replace(queryParameters: {'fields': _fields2});
+
+  /// Paylaşım izinleri (kime açık) — dosyanın kendi üstverisinden ayrı kaynak.
+  static Uri permissionsUri(String id) =>
+      Uri.parse('$_api/files/$id/permissions');
+
+  /// Tarayıcıda açılan paylaşım adresi. Ayrı bir çağrı çünkü `webViewLink`
+  /// liste alanlarımızda yok — her listelemede istemek bütün listeyi
+  /// yavaşlatırdı, oysa yalnız paylaşırken gerekiyor.
+  static Uri linkUri(String id) => Uri.parse('$_api/files/$id')
+      .replace(queryParameters: {'fields': 'webViewLink'});
+
   /// Yeni klasör (ya da genel olarak içeriksiz dosya) oluşturma adresi.
   static Uri createUri() =>
       Uri.parse('$_api/files').replace(queryParameters: {'fields': _fields2});
@@ -365,6 +378,54 @@ class DriveService {
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(
         (jsonDecode(res.body) as Map).cast<String, dynamic>());
+  }
+
+  /// Kopya çıkarır. Kopyalama **sunucuda** olur: dosya inip tekrar
+  /// yüklenmez, 1 GB'lık video da anında kopyalanır.
+  ///
+  /// [name] verilmezse Drive özgün adı korur. Aynı klasöre yapıştırırken
+  /// çağıran ad değiştiriyor — Drive aynı adlı iki dosyaya izin verdiği için
+  /// listede birbirinden ayırt edilemeyen iki satır kalırdı.
+  ///
+  /// **Klasör kopyalanamaz:** Drive'ın `files.copy`si yalnız dosya kabul eder;
+  /// klasör için hata döner. Çağıran menüde klasöre bu seçeneği göstermiyor.
+  Future<DriveFile> copy(String id,
+      {required String toParentId, String? name}) async {
+    final headers = await _requireHeaders();
+    final res = await http.post(
+      copyUri(id),
+      headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({
+        'parents': [toParentId],
+        if (name != null) 'name': name,
+      }),
+    );
+    _check(res.statusCode, res.body);
+    return DriveFile.fromJson(
+        (jsonDecode(res.body) as Map).cast<String, dynamic>());
+  }
+
+  /// Dosyayı "bağlantısı olan herkes görüntüleyebilir" yapar ve paylaşılabilir
+  /// bağlantıyı döndürür.
+  ///
+  /// Bağlantı Drive'dan OKUNUR, elle kurulmaz: klasörün, Google Dokümanı'nın ve
+  /// sıradan dosyanın adresleri farklı biçimde (`/drive/folders/…`,
+  /// `docs.google.com/…`). Tek kalıptan üretilen adres yarısında 404 verirdi.
+  Future<String> shareLink(String id) async {
+    final headers = await _requireHeaders();
+    final res = await http.post(
+      permissionsUri(id),
+      headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'role': 'reader', 'type': 'anyone'}),
+    );
+    _check(res.statusCode, res.body);
+    final meta = await http.get(linkUri(id), headers: headers);
+    _check(meta.statusCode, meta.body);
+    final link = (jsonDecode(meta.body) as Map)['webViewLink'];
+    if (link is! String || link.isEmpty) {
+      throw const DriveException(DriveError.unknown);
+    }
+    return link;
   }
 
   /// Dosyayı [toDirectory] içine indirir ve yerel dosyayı döndürür.
