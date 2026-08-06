@@ -42,10 +42,10 @@ class PdfFontAccess {
 
   const PdfFontAccess({this.encodings = const {}, this.metrics = const {}});
 
-  /// Ham baytları metne çevirir (tablo yoksa Latin-1 varsayımı).
+  /// Ham baytları metne çevirir (tablo yoksa [PdfFontEncoding.fallback]).
   String decode(String? font, List<int> bytes) =>
       encodings[font]?.decode(bytes) ??
-      PdfSingleByteEncoding.latin1.decode(bytes);
+      PdfFontEncoding.fallback.decode(bytes);
 
   /// Metni fontun kodlarına çevirir; tek harf bile karşılanamıyorsa null.
   ///
@@ -57,7 +57,7 @@ class PdfFontAccess {
   List<int>? encode(String? font, String text) {
     final encoding = encodings[font];
     if (encoding != null) return encoding.encode(text);
-    return PdfSingleByteEncoding.latin1.encode(text);
+    return PdfFontEncoding.fallback.encode(text);
   }
 
   int codeBytes(String? font) => encodings[font]?.codeBytes ?? 1;

@@ -3,13 +3,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:provider/provider.dart';
 
+import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
+import '../services/gemini_service.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
+import '../services/scan_ai_fix.dart';
+import '../services/scan_text_fix.dart';
 import '../widgets/pdf_edit_overlay.dart';
 import '../widgets/pdf_save_dialog.dart';
 
@@ -318,6 +323,55 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     });
   }
 
+  /// **Sayfayı düzelt** — taranmış sayfanın TÜM satırlarını bir geçişte
+  /// onarır (2026-08-06 kullanıcı isteği: *"düzenle ve AI ile düzenle butonu
+  /// koyalım, taranan sayfaları ikisi de mükemmelleştirmeye çalışsın"*).
+  ///
+  /// [withAi] false → cihaz-içi kural tabanlı düzeltme ([ScanTextFix]):
+  /// ücretsiz, çevrimdışı, yalnız kesin bildiğini düzeltir.
+  /// [withAi] true → Gemini ([ScanAiFix]): bağlama bakarak daha cesur onarır.
+  ///
+  /// **Yalnız DEĞİŞEN satırlar yeniden yazılır.** Bütün satırları basmak,
+  /// hiç hatası olmayan satırların görüntüsünü de gömülü fontla değiştirirdi;
+  /// sayfa "tarama" olmaktan çıkar, kutu hataları her satırda görünür olurdu.
+  Future<void> _fixScannedPage({required bool withAi}) async {
+    if (_scannedLines.isEmpty) return;
+    final originals = [for (final l in _scannedLines) l.text];
+    GeminiService? gemini;
+    if (withAi) {
+      final state = context.read<AppState>();
+      if (!state.hasApiKey) {
+        _longSnack(_str.t('pe.fix_needs_key'));
+        return;
+      }
+      gemini = GeminiService(apiKey: state.apiKey, model: state.model);
+    }
+
+    await _run(() async {
+      final fixed = withAi
+          ? await ScanAiFix.polish(gemini!, originals)
+          : ScanTextFix.lines(originals);
+      final edits = <ScannedEdit>[];
+      for (var i = 0; i < originals.length && i < fixed.length; i++) {
+        if (fixed[i].trim() == originals[i].trim()) continue;
+        edits.add(ScannedEdit(_scannedLines[i].box, fixed[i]));
+      }
+      if (edits.isEmpty) {
+        _snack(_str.t('pe.fix_nothing'));
+        return;
+      }
+      final out = await PdfScannedRetype.applyMany(
+        bytes: await _workBytes(),
+        pageIndex: _page - 1,
+        edits: edits,
+      );
+      // Sayfa değişti: OCR bellek önbelleği bayat, kutular yeniden yüklensin.
+      PdfOcrText.invalidateMemory();
+      _docRev++;
+      await _apply(out, _str.t('pe.fix_done', {'n': edits.length}));
+    });
+  }
+
   Future<void> _deleteObject(int index) async {
     final ok =
         await _confirm(_str.t('pe.delete_image'), _str.t('pe.delete_image_body'));
@@ -388,6 +442,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       if (e.encrypted && await _unlockAndRetry(body)) return;
       _longSnack(e.message);
     } on PdfParagraphRefused catch (e) {
+      _longSnack(e.message);
+    } on ScanAiFixRefused catch (e) {
+      // Eksik/bozuk AI yanıtı: sebebi kullanıcıya olduğu gibi söyleniyor,
+      // "işlem başarısız" gibi bir örtü metnin altına saklanmıyor.
+      _longSnack(e.message);
+    } on GeminiException catch (e) {
       _longSnack(e.message);
     } catch (e) {
       _longSnack(_str.t('pe.op_failed', {'error': e}));
@@ -595,6 +655,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   bottom: 12,
                   child: _objectToolbar(),
                 ),
+              // Taranmış sayfada tüm satırları bir geçişte onaran ikili.
+              if (_mode == _EditMode.text &&
+                  _scannedPages.contains(_page) &&
+                  _scannedLines.isNotEmpty)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                  child: _scannedToolbar(),
+                ),
               if (_mode == _EditMode.page)
                 Positioned(
                   left: 12,
@@ -693,6 +763,31 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       ),
     );
   }
+
+  /// Taranmış sayfa araç çubuğu: **Düzelt** (cihaz içi) ve **AI ile düzelt**.
+  /// İkisi de aynı işi yapmaya çalışır, farkı ne kadar cesur olduklarıdır —
+  /// kullanıcı hangisinin sonucunu beğenirse onda kalır, beğenmezse "Geri al".
+  Widget _scannedToolbar() => Card(
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TextButton.icon(
+                onPressed: _busy ? null : () => _fixScannedPage(withAi: false),
+                icon: const Icon(Icons.auto_fix_high),
+                label: Text(context.t('pe.fix_page')),
+              ),
+              TextButton.icon(
+                onPressed: _busy ? null : () => _fixScannedPage(withAi: true),
+                icon: const Icon(Icons.auto_awesome),
+                label: Text(context.t('pe.fix_page_ai')),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _pageToolbar() => Card(
         elevation: 4,

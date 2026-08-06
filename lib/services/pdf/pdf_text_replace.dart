@@ -126,7 +126,7 @@ PdfContentReplacement replaceTextInContent(
     final pieces = [
       for (final op in ops)
         _decodePieces(
-            op, (op) => fontEncodings[op.fontName]?.decode ?? _latin1Decode),
+            op, (op) => fontEncodings[op.fontName]?.decode ?? _fallbackDecode),
     ];
     final texts = [for (final p in pieces) p.join()];
     for (final transform in transforms) {
@@ -146,7 +146,7 @@ PdfContentReplacement replaceTextInContent(
         newText: newText,
         encoderFor: (op) =>
             fontEncodings[op.fontName]?.encode ??
-            PdfSingleByteEncoding.latin1.encode,
+            PdfFontEncoding.fallback.encode,
         measure: measure,
         mediaBox: mediaBox,
         encodingName: 'ToUnicode',
@@ -192,8 +192,10 @@ PdfContentReplacement replaceTextInContent(
   );
 }
 
-String _latin1Decode(List<int> bytes) => PdfSingleByteEncoding.latin1
-    .decode(bytes);
+/// Font tablosu olmayan operatör için yedek çözüm — Latin-1 DEĞİL CP1254
+/// (gerekçe: [PdfFontEncoding.fallback]).
+String _fallbackDecode(List<int> bytes) =>
+    PdfFontEncoding.fallback.decode(bytes);
 
 /// Operatörün her DİZESİNİN ayrı ayrı çözülmüş metni.
 ///

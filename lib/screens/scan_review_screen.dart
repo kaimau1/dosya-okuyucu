@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/perspective.dart';
 import '../services/scan_deskew.dart';
+import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
 import 'scan_edit_screen.dart';
 
@@ -71,11 +72,20 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     super.dispose();
   }
 
-  /// Açılışta bütün sayfalar önce **kendiliğinden düzeltilir** (eğik sayfa
-  /// düz dikdörtgene açılır — 2026-08-06 kullanıcı bulgusu: "sayfa eğimli
-  /// tarandığında düzeltilmeli"), sonra varsayılan filtre uygulanır.
-  /// Düzeltme temkinlidir (bkz. [ScanDeskew.worthApplying]); emin değilse
-  /// sayfaya dokunmaz, elle "Köşeleri ayarla" yolu hep açık.
+  /// Açılışta bütün sayfalar önce **kendiliğinden düzeltilir**, sonra
+  /// varsayılan filtre uygulanır. İki aşamalı, çünkü iki ayrı bozulma var:
+  ///
+  /// 1. **Kâğıt kenarına** bakan perspektif düzeltme ([ScanDeskew]) — sayfa
+  ///    kadrajda dörtgen olarak görünüyorsa yamukluğu açar.
+  /// 2. **Yazıya** bakan düzleştirme ([ScanDewarp]) — eğimi ve kitap
+  ///    kıvrımını (bombe) giderir. 2026-08-06 kullanıcı bulgusu: kendi
+  ///    kitabının sayfalarında kenar hiç görünmediği için birinci aşama
+  ///    devreye girmiyordu ve satırlar eğik/kavisli kalıyordu ("bombe
+  ///    kısımlar düzenlenmiyor", "metinleri tanımakta zorlanıyor").
+  ///
+  /// İkisi de temkinli: emin değilse sayfaya dokunmaz (bkz.
+  /// [ScanDeskew.worthApplying] ve [ScanDewarp.straighten]), elle "Köşeleri
+  /// ayarla" yolu hep açık.
   Future<void> _prepareAll() async {
     for (var i = 0; i < _pages.length; i++) {
       if (!mounted) return;
@@ -90,9 +100,29 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
       } catch (_) {
         // Düzeltme süs değil sigortadır: başarısızsa sayfa OLDUĞU GİBİ kalır.
       }
+      await _flatten(i);
       await _applyFilter(i, ScanFilter.auto, silent: true);
     }
     if (mounted) setState(() => _preparing = null);
+  }
+
+  /// Yazıya bakarak eğim + kıvrım düzeltme (izolatta — Sobel/örnekleme ana
+  /// izleği kilitler). Kaynak dosya güncellenir ki sonradan seçilen filtre de
+  /// düzleştirilmiş sayfaya uygulansın.
+  Future<void> _flatten(int index) async {
+    try {
+      final source = _sources[index];
+      final target = await ScanDewarp.tempTarget(source);
+      final produced = await compute(
+        ScanDewarp.runRequest,
+        ScanStraightenRequest(sourcePath: source, targetPath: target),
+      );
+      if (produced == null || !mounted) return;
+      _sources[index] = produced;
+      setState(() => _pages[index] = produced);
+    } catch (_) {
+      // Aynı ilke: düzleştirilemeyen sayfa olduğu gibi kalır.
+    }
   }
 
   /// Kullanıcının dokunduğu filtreyi uygular.

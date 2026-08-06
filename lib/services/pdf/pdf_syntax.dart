@@ -686,10 +686,13 @@ class PdfSingleByteEncoding {
     return out;
   }
 
-  /// Denenecek kodlamalar — en yaygından başlayarak.
+  /// Denenecek kodlamalar. **CP1254 önce** (2026-08-06): WinAnsi'den yalnız
+  /// altı Türkçe harf konumunda ayrılır, o konumları içermeyen belgede ikisi
+  /// birebir aynı sonucu verir — yani sıralamanın tek etkisi Türkçe belgede
+  /// doğru harfi seçmek.
   static List<PdfSingleByteEncoding> get candidates => [
-        winAnsi,
         turkish,
+        winAnsi,
         latin1,
       ];
 

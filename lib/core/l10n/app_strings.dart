@@ -2336,6 +2336,65 @@ const Map<String, (String, String, String)> _table = {
     'Line updated.',
     'تم تحديث السطر.',
   ),
+  // ── Sesli okuma ayarları ──────────────────────────────────────────────────
+  'tts.settings': ('Sesli okuma', 'Read aloud', 'القراءة الصوتية'),
+  'tts.default_voice': (
+    'Cihaz varsayılanı',
+    'Device default',
+    'إعداد الجهاز الافتراضي',
+  ),
+  'tts.no_voices': (
+    'Cihaz ses listesi vermedi; hız ve perde yine ayarlanabilir. Daha iyi '
+        'sesler için cihaz ayarlarından konuşma motoru sesi indirilebilir.',
+    'The device did not report a voice list; speed and pitch still apply. '
+        'Better voices can be downloaded from the system speech settings.',
+    'لم يوفّر الجهاز قائمة أصوات؛ تظل السرعة والنبرة قابلتين للضبط.',
+  ),
+  'tts.rate': ('Hız', 'Speed', 'السرعة'),
+  'tts.pitch': ('Perde', 'Pitch', 'النبرة'),
+  'tts.try': ('Dene', 'Try', 'جرّب'),
+  'tts.sample': (
+    'Bu ses böyle okuyor. Beğendiniz mi?',
+    'This is how this voice reads. Do you like it?',
+    'هكذا يقرأ هذا الصوت. هل أعجبك؟',
+  ),
+  'tts.voice_settings': ('Ses ayarları', 'Voice settings', 'إعدادات الصوت'),
+  'tts.ai_read': ('AI ile oku', 'Read with AI', 'اقرأ بالذكاء'),
+  'tts.ai_read_on': (
+    'AI ile oku açık: sayfa okunmadan önce metin toparlanır.',
+    'Read with AI is on: the text is tidied before each page is read.',
+    'القراءة بالذكاء مفعّلة: يُنظَّف النص قبل قراءة كل صفحة.',
+  ),
+  'tts.ai_read_off': (
+    'AI ile oku kapalı.',
+    'Read with AI is off.',
+    'القراءة بالذكاء متوقفة.',
+  ),
+  'tts.ai_needs_key': (
+    'AI ile oku için Ayarlar > Gemini API anahtarı gerekiyor.',
+    'Read with AI needs a Gemini API key (Settings).',
+    'تتطلب القراءة بالذكاء مفتاح Gemini من الإعدادات.',
+  ),
+  'pe.fix_page': ('Düzelt', 'Fix', 'إصلاح'),
+  'pe.fix_page_ai': ('AI ile düzelt', 'Fix with AI', 'إصلاح بالذكاء'),
+  'pe.fix_done': (
+    '{n} satır düzeltildi.',
+    '{n} lines corrected.',
+    'تم تصحيح {n} سطرًا.',
+  ),
+  'pe.fix_nothing': (
+    'Düzeltilecek bir şey bulunamadı — sayfa zaten temiz görünüyor.',
+    'Nothing to correct — the page already looks clean.',
+    'لا شيء لتصحيحه — تبدو الصفحة نظيفة بالفعل.',
+  ),
+  'pe.fix_needs_key': (
+    'AI ile düzeltme için Ayarlar > Gemini API anahtarı gerekiyor. '
+        'Anahtarsız "Düzelt" düğmesi cihaz içinde çalışmaya devam eder.',
+    'Fixing with AI needs a Gemini API key (Settings). The plain “Fix” '
+        'button keeps working on-device without a key.',
+    'يتطلب الإصلاح بالذكاء مفتاح Gemini من الإعدادات. يظل زر «إصلاح» '
+        'يعمل على الجهاز بدون مفتاح.',
+  ),
   'pe.hint_text': (
     'Değiştirmek istediğiniz paragrafa dokunun.',
     'Tap the paragraph you want to change.',

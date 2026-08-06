@@ -4,6 +4,7 @@ import '../core/l10n/app_strings.dart';
 import '../screens/scan_result_screen.dart';
 import '../screens/scan_review_screen.dart';
 import '../services/document_scanner.dart';
+import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/scan_title.dart';
 
@@ -74,6 +75,14 @@ class ScanFlow {
       _snack(context, AppStrings.current.t('sf.save_failed', {'error': error}));
       return null;
     }
+
+    // Belge üretildi → "Son belgeler"e YAZ. Eskiden bu kayıt yalnız
+    // görüntüleyicide açılınca yapılıyordu; tarama kendi sonuç ekranına
+    // gittiği için üretilen PDF hiçbir listede görünmüyordu (2026-08-06
+    // kullanıcı bulgusu). Kayıt sonuç ekranı açılmadan ÖNCE atılıyor:
+    // kullanıcı geri tuşuyla çıksa da belge listede duruyor.
+    await EntryOpener.rememberFile(context, path);
+    if (!context.mounted) return path;
 
     // Sonuç ekranı: belge + tanınan metin + çeviri + kaydetme yeri. Eskiden
     // doğrudan görüntüleyici açılıyordu ve tanınan metnin gidecek yeri yoktu.

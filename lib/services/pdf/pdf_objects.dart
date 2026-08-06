@@ -209,15 +209,26 @@ class PdfFile {
       final font = objects[entry.value];
       if (font == null) continue;
       final toUnicodeRef = pdfRef(font.dict, 'ToUnicode');
-      if (toUnicodeRef == null) continue;
-      final cmap = objects[toUnicodeRef];
-      if (cmap == null || !cmap.isStream) continue;
-      try {
-        final encoding = PdfFontEncoding.parseCMap(decodeStream(cmap));
-        if (!encoding.isEmpty) out[entry.key] = encoding;
-      } catch (_) {
-        // Çözülemeyen CMap: o font için eşleme yok, diğerleri etkilenmesin.
+      final cmap = toUnicodeRef == null ? null : objects[toUnicodeRef];
+      if (cmap != null && cmap.isStream) {
+        try {
+          final encoding = PdfFontEncoding.parseCMap(decodeStream(cmap));
+          if (!encoding.isEmpty) {
+            out[entry.key] = encoding;
+            continue;
+          }
+        } catch (_) {
+          // Çözülemeyen CMap: /Differences yoluna düşülür.
+        }
       }
+      // `/ToUnicode` yoksa fontun `/Encoding /Differences` tablosu okunur —
+      // Türkçe belgelerin çoğunda harf eşlemesi YALNIZ orada duruyor
+      // (bkz. PdfFontEncoding.fromSimpleFont).
+      final byName = PdfFontEncoding.fromSimpleFont(
+        font.dict,
+        dictOf: (ref) => objects[ref]?.dict,
+      );
+      if (byName != null) out[entry.key] = byName;
     }
     return out;
   }

@@ -39,6 +39,7 @@ import '../widgets/pdf_inline_editor.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
+import '../widgets/tts_voice_sheet.dart';
 import 'chat_screen.dart';
 import 'pdf_ai_edit_screen.dart';
 import 'reader_screen.dart';
@@ -1544,7 +1545,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           : 'Okunacak metin yok');
       return;
     }
-    final service = TtsService()
+    final service = TtsService(prefs: context.read<AppState>().ttsPrefs)
       ..onProgress = (i, total, playing) {
         if (!mounted) return;
         setState(() {
@@ -1580,6 +1581,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   context.t('vw.speaking',
                       {'n': _ttsIndex + 1, 'total': _ttsTotal}),
                   style: Theme.of(context).textTheme.bodyMedium),
+            ),
+            IconButton(
+              tooltip: context.t('tts.voice_settings'),
+              icon: const Icon(Icons.record_voice_over_outlined),
+              onPressed: () async {
+                await TtsVoiceSheet.show(context);
+                // Okuma sürerken ses değiştirilebilsin: yeni tercih sonraki
+                // parçadan itibaren geçerli olur.
+                if (mounted) _tts?.prefs = context.read<AppState>().ttsPrefs;
+              },
             ),
             IconButton(
               tooltip: context.t('common.stop'),
