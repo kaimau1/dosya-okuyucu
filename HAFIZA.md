@@ -6460,3 +6460,22 @@ parça n/m" durumu. Duraklatma kaldığı parçadan sürer. TUZAK: kullanıcı
 duraklatması ile "sayfa bitti" bildirimi ayrışsın diye niyet bayrağı
 (`_speaking`) pause'dan ÖNCE kapatılır — yoksa pause bir sonraki sayfayı
 tetikliyordu. Doğrulama: analyze 0 hata/uyarı, 1320 test yeşil.
+
+## 2026-08-06 (5. tur) — Word: SAYFA görünümü varsayılana döndü + netlik düzeltmesi
+Kullanıcı: *"mobil görünüme geçmeden, tam sayfada uzaktan bakarken de net
+görünsün — asıl isteğim o."* Aynı gün alınan "telefonda akış varsayılan"
+kararı GERİ ALINDI (akış görünümü duruyor, yalnız varsayılan sayfa).
+- **Netlik düzeltmesi:** `DocxView` Android'de artık **hybrid composition**
+  ile çiziliyor (`AndroidWebViewWidgetCreationParams(displayWithHybrid
+  Composition: true)`, `webview_flutter_android` doğrudan bağımlılık oldu —
+  sürüm zaten kilitliydi, çözünürlük değişmedi). Varsayılan Texture Layer
+  yolu WebView çıktısını Flutter dokusuna alıp örnekleyerek basıyor; ~%50
+  sığdırmadaki küçük harfler bu EK yeniden örneklemede yumuşuyordu
+  (yakınlaşınca harf büyüyüp fark kaybolur — kullanıcının tarifi birebir).
+  Hybrid composition ara dokuyu kaldırır, metin motorun çizdiği keskinlikte.
+- Fizik notu: sığdırmada 11 punto ~7 dp'dir; hedef "o boyda OLABİLECEK en
+  keskin çizim". Cihazda beklenen: sayfa görünümü pdfrx'in PDF sayfası kadar
+  net. Yetmezse sıradaki aday: WebView içeriğini 2× yerleşimle çizip
+  transform'la küçültme (supersampling) — raster ölçek seçimi Chromium'a
+  takılabilir, denenmedi.
+**Doğrulama:** analyze 0 hata/uyarı, 1320 test yeşil.

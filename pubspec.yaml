@@ -60,6 +60,10 @@ dependencies:
   # Word'ü gerçek sayfa düzeniyle çizmek için (assets/word içindeki docx-preview
   # motoru gömülü çalışır — internet gerekmez)
   webview_flutter: ^4.10.0
+  # Doğrudan bağımlılık (zaten geçişliydi): Word sayfa görünümündeki bulanıklık
+  # düzeltmesi AndroidWebViewWidgetCreationParams ister (hybrid composition —
+  # bkz. docx_view.dart 2026-08-06).
+  webview_flutter_android: ^4.3.0
 
   # Office (Open XML) okuma/yazma
   excel: ^4.0.6
