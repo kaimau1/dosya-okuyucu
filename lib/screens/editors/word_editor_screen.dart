@@ -45,8 +45,21 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   bool _plainMode = false;
   bool _editing = false;
 
-  /// Mobil akış görünümü açık mı? (Sayfa görünümü varsayılan.)
+  /// Mobil akış görünümü açık mı?
+  ///
+  /// **Telefonda (dar ekran) VARSAYILAN artık AKIŞ** (2026-08-06 kullanıcı
+  /// bulgusu: *"word belgelerinde bulanık görünüm var, zoom yapınca düzeliyor
+  /// ama hep düzgün görünmeli"* — 2026-07-28'in "sayfa varsayılan" kararının
+  /// yerine geçer). Kök neden çözünürlük değil ÖLÇEK: A4 sayfa ~794 px,
+  /// telefon ~411 px → sığdırma ~%50 → 11 punto yazı 5-6 piksele düşüyor ve
+  /// "bulanık" görünüyor. Akışta yazı gerçek boyutunda çizilir, hep keskin;
+  /// sayfa düzeni isteyene tek dokunuş uzakta. Geniş ekranda (tablet/masaüstü)
+  /// sayfa zaten ~1 ölçekle sığdığı için varsayılan SAYFA kalır.
   bool _flow = false;
+
+  /// [_flow] varsayılanı ekran ölçüsüne bakarak BİR KEZ seçildi mi?
+  /// (initState'te MediaQuery yok; ilk build'de karar verilir.)
+  bool _flowDecided = false;
   bool _selB = false, _selI = false, _selU = false;
 
   /// İmlecin bulunduğu paragrafın yazı tipi/puntosu (araç çubuğu gösterir).
@@ -355,6 +368,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Akış/sayfa varsayılanı ekran ölçüsüne göre bir kez seçilir (telefonda
+    // akış — bkz. [_flow]); kullanıcının sonraki geçişleri ellenmez.
+    if (!_flowDecided) {
+      _flowDecided = true;
+      _flow = MediaQuery.sizeOf(context).shortestSide < 600;
+    }
     final editor = _editor;
     final bytes = _bytes;
     // Geri tuşu önce DÜZENLEMEYİ kapatır (slaytlarla aynı kural, 2026-08-01):
@@ -507,6 +526,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                                 _plainMode = true;
                                 _editing = false;
                               });
+                            }
+                            // Telefon varsayılanı akışsa çizim biter bitmez
+                            // uygulanır (sayfa bir an %50'de görünüp yeniden
+                            // dizilir; JS köprüsü çizimden önce çağrılamıyor).
+                            if (ok && _flow) {
+                              _viewKey.currentState?.setFlow(true);
                             }
                           },
                         ),
