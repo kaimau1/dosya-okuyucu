@@ -14,7 +14,9 @@ import '../../services/fm/drive_cache.dart';
 import '../../services/fm/drive_service.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import 'folder_picker_screen.dart';
 
 /// Google Drive ekranı — **gezilebilir dosya yöneticisi** (2026-08-05).
 ///
@@ -349,7 +351,35 @@ class _DriveScreenState extends State<DriveScreen> {
     final root = DriveCache.rootOf(FmEnv.appSupportDir);
     final cached = DriveCache.freshFile(file, root);
     if (cached != null) return cached;
+    final local = await _downloadTo(file, DriveCache.dirFor(file, root));
+    if (local != null) DriveCache.prune(root);
+    return local;
+  }
 
+  /// **Telefondaki bir klasöre indirir.** Önbellek yolundan ayrı: oradaki kopya
+  /// uygulamanın kendi gizli klasöründe durur ve temizlenebilir; buradaki
+  /// kullanıcının kendi klasörüne iner, kalıcıdır ve gezginde görünür.
+  Future<void> _downloadToFolder(DriveFile file) async {
+    final target = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => FolderPickerScreen(
+          sources: const [],
+          actionLabel: context.t('drive.download_here'),
+        ),
+      ),
+    );
+    if (target == null || !mounted) return;
+    final local = await _downloadTo(file, target);
+    if (local == null || !mounted) return;
+    // Gezgin/pano ANINDA tazelensin diye sinyal: yoksa kullanıcı klasöre
+    // gidip "inmemiş" sanırdı.
+    FsEvents.changed();
+    _snack(context.t('drive.downloaded', {'folder': target}));
+  }
+
+  /// İndirme penceresiyle birlikte tek indirme adımı. Hata kullanıcıya
+  /// bildirilir, null döner.
+  Future<File?> _downloadTo(DriveFile file, String dir) async {
     final failed = context.t('drive.download_failed');
     final progress = ValueNotifier<(int, int?)>((
       0,
@@ -371,10 +401,9 @@ class _DriveScreenState extends State<DriveScreen> {
     try {
       final local = await _drive.download(
         file,
-        DriveCache.dirFor(file, root),
+        dir,
         onProgress: (received, total) => progress.value = (received, total),
       );
-      DriveCache.prune(root);
       if (!mounted) return null;
       closeDialog();
       return local;
@@ -404,6 +433,54 @@ class _DriveScreenState extends State<DriveScreen> {
       _snack('${context.t('drive.share_failed')} ${_detail(e)}');
     }
   }
+
+  /// Yıldızı ters çevirir. Liste tazelenir — yıldız satırda da görünüyor.
+  Future<void> _toggleStar(DriveFile file) async {
+    setState(() => _busy = true);
+    try {
+      await _drive.setStarred(file.id, !file.starred);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('${context.t('drive.star_failed')} ${_detail(e)}');
+    }
+  }
+
+  /// Dosya ayrıntıları. Elimizdeki üstveriden gösterilir — ek API çağrısı yok.
+  Future<void> _info(DriveFile file) async {
+    final size = file.sizeBytes > 0 ? FsPaths.humanSize(file.sizeBytes) : '—';
+    final when = file.modifiedAtMs > 0
+        ? DateTime.fromMillisecondsSinceEpoch(file.modifiedAtMs).toString()
+        : '—';
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(file.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoRow(context.t('drive.info_kind'),
+                file.isFolder ? context.t('drive.folder') : file.mimeType),
+            _infoRow(context.t('drive.info_size'), size),
+            _infoRow(context.t('drive.info_modified'), when),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.t('common.ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text('$label: $value'),
+      );
 
   /// Panoya al (kopyala/kes). Kaynak klasör şu an bulunulan klasördür;
   /// menü arama sonuçlarında gösterilmiyor, orada "hangi klasörden" sorusunun
@@ -477,7 +554,9 @@ class _DriveScreenState extends State<DriveScreen> {
     );
     if (ok != true) return;
     try {
-      await _drive.delete(file.id);
+      // Kalıcı `delete` DEĞİL: Drive'ın kendi davranışı gibi çöp kutusuna
+      // gider, 30 gün geri alınabilir.
+      await _drive.trash(file.id);
       await _refresh();
     } catch (e) {
       if (mounted) _snack('$failed ${_detail(e)}');
@@ -820,19 +899,40 @@ class _DriveScreenState extends State<DriveScreen> {
                   : Icons.insert_drive_file_outlined,
               color: f.isFolder ? Theme.of(context).colorScheme.primary : null,
             ),
-            title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Row(
+              children: [
+                if (f.starred) ...[
+                  const Icon(Icons.star, size: 16, color: Color(0xFFF9A825)),
+                  const SizedBox(width: 4),
+                ],
+                Expanded(
+                  child: Text(f.name,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ],
+            ),
             subtitle: Text(_subtitle(f)),
             trailing: PopupMenuButton<String>(
               onSelected: (v) => switch (v) {
+                'download' => _downloadToFolder(f),
                 'share_link' => _shareLink(f),
                 'share_file' => _shareFile(f),
                 'copy' => _clipSet(f, cut: false),
                 'cut' => _clipSet(f, cut: true),
+                'star' => _toggleStar(f),
+                'info' => _info(f),
                 'rename' => _rename(f),
                 'delete' => _delete(f),
                 _ => null,
               },
               itemBuilder: (_) => [
+                // Klasör indirilemez: Drive'da klasörün baytı yok, içeriğinin
+                // tek tek inmesi gerekirdi — ayrı bir iş.
+                if (!f.isFolder)
+                  PopupMenuItem(
+                    value: 'download',
+                    child: Text(context.t('drive.download')),
+                  ),
                 PopupMenuItem(
                   value: 'share_link',
                   child: Text(context.t('drive.share_link')),
@@ -857,6 +957,15 @@ class _DriveScreenState extends State<DriveScreen> {
                     value: 'cut',
                     child: Text(context.t('fm.move')),
                   ),
+                PopupMenuItem(
+                  value: 'star',
+                  child: Text(context
+                      .t(f.starred ? 'drive.unstar' : 'drive.star')),
+                ),
+                PopupMenuItem(
+                  value: 'info',
+                  child: Text(context.t('drive.info')),
+                ),
                 PopupMenuItem(
                   value: 'rename',
                   child: Text(context.t('drive.rename')),

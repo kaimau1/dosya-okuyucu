@@ -352,7 +352,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: RefreshIndicator(
         onRefresh: _scan,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
+          // Alt boşluk FAB yığınını (küçük düğme sırası + "Belge Tara") aşar:
+          // 2026-08-06'da Gap.xl (32) yetmiyordu ve son satırdaki "Google
+          // Drive" kartının yazısı düğmelerin altında kalıyordu.
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 136),
           children: [
             if (!_hasAccess) _permissionCard(),
             if (_scanning) ...[
@@ -463,11 +466,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          FloatingActionButton.small(
-            heroTag: 'fm_new_folder',
-            onPressed: _newFolderFlow,
-            tooltip: context.t('fm.new_folder'),
-            child: const Icon(Icons.create_new_folder_outlined),
+          // Çöp kutusu ile klasör ekleme YAN YANA: ikisi de küçük, ikisi de
+          // "bir şey yap" düğmesi; alt alta dizilseler taramanın geniş
+          // düğmesini ekranın yarısına kadar iterlerdi.
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _trashFab(),
+              const SizedBox(width: Gap.sm),
+              FloatingActionButton.small(
+                heroTag: 'fm_new_folder',
+                onPressed: _newFolderFlow,
+                tooltip: context.t('fm.new_folder'),
+                child: const Icon(Icons.create_new_folder_outlined),
+              ),
+            ],
           ),
           const SizedBox(height: Gap.sm),
           FloatingActionButton.extended(
@@ -603,34 +616,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: context.t('fm.drive_subtitle'),
         onTap: () => _push(const DriveScreen()),
       ),
-      _trashTile(),
     ];
     return FmCategoryGrid(tiles: tiles);
   }
 
-  /// **Çöp kutusu — büyük kutulardan biri** (kullanıcı isteği 2026-07-31:
-  /// *"çöp kutusunu bulmak çok zor, üstteki büyük simgelerden biri olsun,
-  /// altta olmasın, doluysa animasyonu olsun"*).
+  /// **Çöp kutusu — yüzen düğme** (kullanıcı isteği 2026-08-06: *"çöp kutusu
+  /// da grid kart yerine klasör eklenin yanında yüzen buton olsun"*).
   ///
-  /// Aşağıdaki "Araçlar" ızgarasından alındı: orası küçük ve kartsız, 12
-  /// simgenin arasında kaybolan şey **silinen dosyayı geri almanın tek
-  /// kapısıydı**. Dolu olduğunda simge yavaşça nefes alır ve dolu/boş için
-  /// ayrı simge kullanılır — kutuyu aramadan durumu görebilmek için.
-  FmTileData _trashTile() {
+  /// Yolculuğu: araç ızgarası (12 simge arasında kayboluyordu) → büyük kart
+  /// (ızgarada yer kaplıyordu) → klasör ekleme düğmesinin yanındaki küçük
+  /// yüzen düğme. Kaydırınca kaybolmaz. Doluyken turuncu ve dolu simgeli —
+  /// kutuyu açmadan durum görünsün diye.
+  Widget _trashFab() {
     final full = _trashCount > 0;
-    return FmTileData(
-      icon: full ? Icons.delete : Icons.delete_outline,
-      color: full ? const Color(0xFFE65100) : const Color(0xFF78909C),
-      label: context.t('fm.trash'),
-      subtitle: full
-          ? context.t('fm.trash_count', {'n': _trashCount})
-          : context.t('fm.trash_empty'),
-      pulse: full,
-      onTap: () async {
+    return FloatingActionButton.small(
+      heroTag: 'fm_trash',
+      onPressed: () async {
         await Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
         _loadTrash();
       },
+      tooltip: full
+          ? context.t('fm.trash_count', {'n': _trashCount})
+          : context.t('fm.trash_empty'),
+      backgroundColor: full ? const Color(0xFFE65100) : null,
+      foregroundColor: full ? Colors.white : null,
+      child: Icon(full ? Icons.delete : Icons.delete_outline),
     );
   }
 
@@ -1123,19 +1134,34 @@ class _VolumeCard extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.xs),
+        // Renk açıklaması TEK SATIR (kullanıcı isteği 2026-08-06: *"ana bellek
+        // kısmında alt maddeleri çok yer kaplıyor"*). Eskiden altı madde iki
+        // satıra taşıyordu. Artık yalnız **payı görülebilir** olanlar (≥ %1)
+        // ve en büyük dörde kadar yazılır; "Boş" hiç yazılmaz — çubuktaki
+        // dolgusuz kısım zaten o. Küçük paylar çubukta duruyor, sayısı
+        // "Bellek Analizi" ekranında.
         Wrap(
-          spacing: Gap.md,
+          spacing: Gap.sm,
           runSpacing: Gap.xs,
           children: [
-            for (final part in parts) _legend(context, part.color, part.label),
-            if (free > 0)
-              _legend(context, scheme.outlineVariant,
-                  context.t('fm.storage_free')),
+            for (final part in _legendParts(parts, total))
+              _legend(context, part.color, part.label),
           ],
         ),
       ],
     );
+  }
+
+  /// Açıklamaya yazılacak paylar: yüzdesi görülebilir olanlar (≥ %1), en
+  /// büyükten küçüğe, en çok dört tane. Amaç tek satıra sığmak.
+  List<({Color color, String label, int bytes})> _legendParts(
+    List<({Color color, String label, int bytes})> parts,
+    int total,
+  ) {
+    final visible = parts.where((p) => p.bytes * 100 >= total).toList()
+      ..sort((a, b) => b.bytes.compareTo(a.bytes));
+    return visible.take(4).toList();
   }
 
   Widget _legend(BuildContext context, Color color, String label) => Row(

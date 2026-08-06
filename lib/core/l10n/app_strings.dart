@@ -1418,12 +1418,33 @@ const Map<String, (String, String, String)> _table = {
   'drive.upload_failed': ('Drive\'a yüklenemedi.', 'Upload to Drive failed.', 'فشل الرفع إلى Drive.'),
   'drive.download_failed': ('Dosya indirilemedi.', 'Could not download the file.', 'تعذّر تنزيل الملف.'),
   'drive.downloading': ('Drive\'dan indiriliyor…', 'Downloading from Drive…', 'جارٍ التنزيل من Drive…'),
+  // Kalıcı silme DEĞİL (2026-08-06): dosya Drive'ın çöp kutusuna gider ve
+  // 30 gün geri alınabilir — metin de bunu söylemeli.
   'drive.delete_confirm': (
-    '“{name}” Drive\'dan silinsin mi?',
-    'Delete “{name}” from Drive?',
-    'هل تريد حذف «{name}» من Drive؟',
+    '“{name}” Drive\'ın çöp kutusuna taşınsın mı?',
+    'Move “{name}” to the Drive trash?',
+    'هل تريد نقل «{name}» إلى سلة محذوفات Drive؟',
   ),
   'drive.delete_failed': ('Silinemedi.', 'Could not delete.', 'تعذّر الحذف.'),
+  'drive.download': ('Telefona indir…', 'Download to phone…', 'تنزيل إلى الهاتف…'),
+  'drive.download_here': ('Buraya indir', 'Download here', 'التنزيل هنا'),
+  'drive.downloaded': (
+    'İndirildi: {folder}',
+    'Downloaded to: {folder}',
+    'تم التنزيل إلى: {folder}',
+  ),
+  'drive.star': ('Yıldız ekle', 'Add star', 'إضافة نجمة'),
+  'drive.unstar': ('Yıldızı kaldır', 'Remove star', 'إزالة النجمة'),
+  'drive.star_failed': (
+    'Yıldız değiştirilemedi.',
+    'Could not change the star.',
+    'تعذّر تغيير النجمة.',
+  ),
+  'drive.info': ('Bilgi', 'Details', 'التفاصيل'),
+  'drive.info_kind': ('Tür', 'Kind', 'النوع'),
+  'drive.info_size': ('Boyut', 'Size', 'الحجم'),
+  'drive.info_modified': ('Değiştirilme', 'Modified', 'آخر تعديل'),
+  'drive.folder': ('Klasör', 'Folder', 'مجلد'),
   'drive.share_link': ('Bağlantıyı paylaş', 'Share link', 'مشاركة الرابط'),
   'drive.share_file': ('Dosyayı paylaş', 'Share file', 'مشاركة الملف'),
   'drive.share_failed': (

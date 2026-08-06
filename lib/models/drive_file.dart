@@ -12,12 +12,17 @@ class DriveFile {
 
   final int modifiedAtMs;
 
+  /// Drive'ın yıldızı. Menüdeki "Yıldız ekle/kaldır" bunun tersini yazar;
+  /// listede yıldızlı dosyanın satırında da işaret gösterilir.
+  final bool starred;
+
   const DriveFile({
     required this.id,
     required this.name,
     required this.mimeType,
     this.sizeBytes = 0,
     this.modifiedAtMs = 0,
+    this.starred = false,
   });
 
   static const folderMime = 'application/vnd.google-apps.folder';
@@ -61,6 +66,7 @@ class DriveFile {
         modifiedAtMs:
             DateTime.tryParse('${json['modifiedTime']}')?.millisecondsSinceEpoch ??
                 0,
+        starred: json['starred'] == true,
       );
 
   /// İndirilen dosyanın yerel adı. Google biçimlerinde Drive'daki adın

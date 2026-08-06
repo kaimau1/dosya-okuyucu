@@ -41,7 +41,7 @@ class DriveService {
   /// Listede istenen alanlar. Açıkça yazılmazsa Drive yalnız `id`/`name`
   /// döndürür ve boyut/tarih sütunları sessizce boş kalırdı.
   static const _fields =
-      'nextPageToken,files(id,name,mimeType,size,modifiedTime)';
+      'nextPageToken,files(id,name,mimeType,size,modifiedTime,starred)';
 
   final GoogleSignIn _google;
 
@@ -236,7 +236,7 @@ class DriveService {
   static Uri createUri() =>
       Uri.parse('$_api/files').replace(queryParameters: {'fields': _fields2});
 
-  static const _fields2 = 'id,name,mimeType,size,modifiedTime';
+  static const _fields2 = 'id,name,mimeType,size,modifiedTime,starred';
 
   /// Drive'ın `multipart/related` yükleme gövdesi: önce JSON üstveri, sonra
   /// ham baytlar. Sınır dizgisi içerikte geçemeyecek kadar uzun ve sabit
@@ -353,17 +353,8 @@ class DriveService {
   }
 
   /// Yeniden adlandırma — yalnız ÜSTVERİ değişir, içerik ellenmez.
-  Future<DriveFile> rename(String id, String newName) async {
-    final headers = await _requireHeaders();
-    final res = await http.patch(
-      metadataUri(id),
-      headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'name': newName}),
-    );
-    _check(res.statusCode, res.body);
-    return DriveFile.fromJson(
-        (jsonDecode(res.body) as Map).cast<String, dynamic>());
-  }
+  Future<DriveFile> rename(String id, String newName) =>
+      _patchMetadata(id, {'name': newName});
 
   /// Başka klasöre taşıma. Drive'da taşımak = üst klasör listesini
   /// değiştirmek; eski üst KALDIRILMAZSA dosya iki yerde birden görünür.
@@ -374,6 +365,31 @@ class DriveService {
       metadataUri(id, addParents: toParentId, removeParents: fromParentId),
       headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
       body: '{}',
+    );
+    _check(res.statusCode, res.body);
+    return DriveFile.fromJson(
+        (jsonDecode(res.body) as Map).cast<String, dynamic>());
+  }
+
+  /// Yıldızı açar/kapatır.
+  Future<DriveFile> setStarred(String id, bool starred) =>
+      _patchMetadata(id, {'starred': starred});
+
+  /// **Çöp kutusuna taşır** (kalıcı SİLMEZ).
+  ///
+  /// `files.delete` dosyayı geri dönüşü olmadan siler; Drive uygulamasının
+  /// "Sil"i ise çöp kutusuna atar ve 30 gün geri alınabilir. Kullanıcının
+  /// beklediği davranış bu — yanlış dokunulan bir dosya kaybolmamalı.
+  Future<DriveFile> trash(String id) => _patchMetadata(id, {'trashed': true});
+
+  /// Üstveri yaması (ad dışındaki tek alanlık güncellemeler). İçerik
+  /// adresinden ayrı: `updateUri` dosyanın İÇİNİ değiştirir.
+  Future<DriveFile> _patchMetadata(String id, Map<String, Object?> body) async {
+    final headers = await _requireHeaders();
+    final res = await http.patch(
+      metadataUri(id),
+      headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode(body),
     );
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(

@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart' show PdfPageFormat;
 
 import 'conversion_service.dart';
 import 'fm/file_ops.dart';
+import 'fm/fs_events.dart';
 import 'ocr_service.dart';
 
 /// **Belge tarayıcı** — kamerayla çekilen sayfayı masaüstü tarayıcıdan çıkmış
@@ -100,6 +101,12 @@ class DocumentScanner {
     final path = FileOps.uniquePath(
         p.join(target, fileName ?? 'Tarama ${_stamp()}.pdf'));
     await File(path).writeAsBytes(bytes, flush: true);
+    // Pano/gezgin ANINDA tazelensin (kullanıcı bulgusu 2026-08-06: *"benim
+    // eklediğim taramalar hemen düşmüyor"*). Tarama sonucu süreç boyunca
+    // önbellekli; kimse "değişti" demezse yeni PDF ancak aşağı çekince ya da
+    // uygulama yeniden açılınca görünüyordu. Sinyal BURADA, çünkü her tarama
+    // kaydı — akıştan da, sonuç ekranından da — bu tek noktadan geçiyor.
+    FsEvents.changed();
     return path;
   }
 
