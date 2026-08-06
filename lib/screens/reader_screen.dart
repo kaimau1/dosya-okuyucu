@@ -4,6 +4,7 @@ import 'package:pdfrx/pdfrx.dart';
 import '../core/copy_text.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/pdf/pdf_ocr_text.dart';
+import '../services/tts_service.dart';
 
 /// **Okuma görünümü** — PDF'i (taranmış olsa bile) bir e-kitap gibi sunar
 /// (2026-08-06 kullanıcı isteği: *"tarandıktan sonra PDF'i okutmak
@@ -51,6 +52,71 @@ class _ReaderScreenState extends State<ReaderScreen> {
   final _texts = <int, String?>{};
   final _loading = <int, Future<String?>>{};
 
+  // ── Sesli kitap (2026-08-06 isteği: "e-kitap sesli kitap gibi okusun") ────
+  /// Cihazın konuşma motoru — internet gerektirmez, görüntüleyicidekiyle
+  /// aynı servis. Sayfa bitince kendiliğinden SONRAKİ sayfaya geçer.
+  TtsService? _tts;
+
+  /// Kullanıcı niyeti: sesli okuma açık mı? (Motorun anlık "konuşuyor"
+  /// durumundan ayrı — sayfa arası metin yüklenirken de açık sayılır.)
+  bool _speaking = false;
+
+  /// Şu an okunan sayfa (1-tabanlı) — duraklatınca kaldığı yerden sürer.
+  int _speakPage = 1;
+
+  @override
+  void dispose() {
+    _tts?.dispose(); // ekran kapanınca konuşma sürmesin
+    super.dispose();
+  }
+
+  Future<void> _toggleSpeech() async {
+    final tts = _tts ??= TtsService()..onProgress = _onTtsProgress;
+    if (_speaking) {
+      // ÖNCE niyet kapatılır: pause bildirimi "sayfa bitti" sanılmasın.
+      _speaking = false;
+      await tts.pause();
+      if (mounted) setState(() {});
+      return;
+    }
+    setState(() => _speaking = true);
+    // Duraklatılmış sayfa varsa kaldığı parçadan sür; yoksa sayfayı yükle.
+    if (tts.total > 0) {
+      await tts.resume();
+      return;
+    }
+    await _speakCurrentPage();
+  }
+
+  Future<void> _speakCurrentPage() async {
+    final text = await _textFor(_speakPage);
+    if (!mounted || !_speaking) return;
+    if (text == null) {
+      await _advanceSpeech(); // boş sayfa atlanır (kitaplarda kapak/ayraç)
+      return;
+    }
+    await _tts!.start(text);
+  }
+
+  void _onTtsProgress(int index, int total, bool playing) {
+    if (!mounted) return;
+    setState(() {});
+    // Motor durdu ve sıra sıfırlandıysa sayfanın TAMAMI okundu (TtsService
+    // bitişte stop → index 0). Kullanıcı duraklatması buraya düşmez:
+    // [_toggleSpeech] niyeti önce kapatır.
+    if (!playing && index == 0 && _speaking) _advanceSpeech();
+  }
+
+  Future<void> _advanceSpeech() async {
+    if (!_speaking || !mounted) return;
+    if (_speakPage >= widget.document.pages.length) {
+      setState(() => _speaking = false); // kitap bitti
+      return;
+    }
+    _speakPage++;
+    await _speakCurrentPage();
+  }
+
   Future<String?> _textFor(int pageNumber) {
     if (_texts.containsKey(pageNumber)) {
       return Future.value(_texts[pageNumber]);
@@ -97,6 +163,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
         title: Text(widget.title,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
+          // Sesli kitap: cihazın konuşma motoru sayfaları sırayla okur,
+          // sayfa bitince kendiliğinden sonrakine geçer.
+          IconButton(
+            tooltip: context.t('vw.speak'),
+            icon: Icon(_speaking
+                ? Icons.pause_circle_outline
+                : Icons.headphones_outlined),
+            onPressed: _toggleSpeech,
+          ),
           IconButton(
             tooltip: context.t('vw.text_smaller'),
             icon: const Icon(Icons.text_decrease),
@@ -130,6 +205,26 @@ class _ReaderScreenState extends State<ReaderScreen> {
         itemCount: pageCount,
         itemBuilder: (context, i) => _pageItem(context, i + 1, fg),
       ),
+      // Sesli okuma sürerken küçük durum çubuğu: hangi sayfa, parça ilerlemesi.
+      bottomNavigationBar: !_speaking
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.graphic_eq, size: 16, color: fg),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${context.t('tf.page_header', {'n': _speakPage})}'
+                      '${(_tts?.total ?? 0) > 0 ? '  ·  ${(_tts!.index) + 1} / ${_tts!.total}' : ''}',
+                      style: TextStyle(color: fg, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 

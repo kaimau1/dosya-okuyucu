@@ -6450,3 +6450,13 @@ yeniden aç/metin çıkar döngüsüyle). Cihazda bakılacaklar: eğik kitap say
 önizlemede kendiliğinden düzelmeli; köşe ayarında büyüteç; taranmış PDF'te
 Metin modunda satır kutuları ve üstüne yazma; Okuma görünümünde taranmış
 sayfanın metin olarak akması.
+
+## 2026-08-06 (4. tur) — Okuma görünümüne SESLİ KİTAP
+Kullanıcı: *"e-book sesli kitap gibi okuma olsun."* `ReaderScreen`e mevcut
+`TtsService` bağlandı (görüntüleyicideki "Sesli oku" ile aynı motor — cihaz
+içi, internetsiz): kulaklık düğmesi başlatır/duraklatır, sayfa bitince
+KENDİLİĞİNDEN sonraki sayfaya geçer (boş sayfa atlanır), altta "Sayfa X ·
+parça n/m" durumu. Duraklatma kaldığı parçadan sürer. TUZAK: kullanıcı
+duraklatması ile "sayfa bitti" bildirimi ayrışsın diye niyet bayrağı
+(`_speaking`) pause'dan ÖNCE kapatılır — yoksa pause bir sonraki sayfayı
+tetikliyordu. Doğrulama: analyze 0 hata/uyarı, 1320 test yeşil.
