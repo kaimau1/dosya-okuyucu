@@ -171,7 +171,7 @@ abstract final class ScanTextFix {
   /// özel adlar). Uyum kuralı bunları "kalın" sayıp elinden kaçırırdı.
   static const _dottedWords = <String>[
     'stanbul', 'spanya', 'sviçre', 'srail', 'sveç', 'skoç', 'slam', 'slâm',
-    'sa ', 'talya', 'ngiliz', 'ngiltere', 'rlanda', 'zmir', 'zmit', 'znik',
+    'talya', 'ngiliz', 'ngiltere', 'rlanda', 'zmir', 'zmit', 'znik',
   ];
 
   /// Tamamı büyük harfle yazılmış hâlde de `İ` olduğu kesin olanlar.
