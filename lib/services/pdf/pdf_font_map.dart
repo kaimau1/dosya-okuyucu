@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'pdf_dict.dart';
+import 'pdf_glyph_names.dart';
+import 'pdf_syntax.dart' show PdfSingleByteEncoding;
+
 /// Bir PDF fontunun **kod ↔ karakter** eşlemesi (`/ToUnicode` CMap'inden).
 ///
 /// **Niye şart oldu (2026-07-26, kullanıcı ekran görüntüsü):** gerçek bir
@@ -145,6 +149,82 @@ class PdfFontEncoding {
       codeBytes: codeBytes,
     );
   }
+
+  /// **Basit (tek baytlık) fontun `/Encoding /Differences` tablosundan** eşleme
+  /// kurar; kurulamıyorsa null.
+  ///
+  /// `/ToUnicode` YOKSA tek umut budur: `/Differences [ 208 /Gbreve 221
+  /// /Idotaccent … ]` dizisi "bu kod şu harftir"i glif ADIYLA söyler ve
+  /// Türkçe belgelerin çoğunda bulunur. Okumadan Latin-1 varsaydığımız için
+  /// `İ` yerine `Ý`, `Ğ` yerine `Ð` görüyorduk (2026-08-06 kullanıcı bulgusu).
+  ///
+  /// Temel tablo **CP1254** (bkz. [PdfFontEncoding.fallback] gerekçesi); adı
+  /// açıkça verilen kodlar dizideki glif adından gelir ve temeli EZER.
+  ///
+  /// Null dönen durumlar (hepsi bilinçli — yarım anlamaktansa yedeğe düşmek):
+  /// * `/Subtype /Type0` — kodlar 2 baytlık, `/Differences` kavramı yok.
+  /// * `/Differences` yok — temel tablo zaten yedekle aynı, nesne kurmayalım.
+  /// * Temel tablo Mac tabanlı — o eşlemeyi taşımıyoruz, yanlış harf yazmayalım.
+  static PdfFontEncoding? fromSimpleFont(
+    String fontDict, {
+    required String? Function(int ref) dictOf,
+  }) {
+    if (pdfName(fontDict, 'Subtype') == 'Type0') return null;
+
+    final encodingRef = pdfRef(fontDict, 'Encoding');
+    final encodingDict = encodingRef == null ? null : dictOf(encodingRef);
+    final baseName =
+        pdfName(fontDict, 'Encoding') ?? // /Encoding /WinAnsiEncoding
+            (encodingDict == null ? null : pdfName(encodingDict, 'BaseEncoding'));
+    if (baseName != null && baseName.startsWith('Mac')) return null;
+
+    final differences =
+        encodingDict == null ? null : pdfArray(encodingDict, 'Differences');
+    if (differences == null || differences.trim().isEmpty) return null;
+
+    final map = <int, String>{
+      for (var b = 0; b < 256; b++) b: PdfSingleByteEncoding.turkish.decode([b]),
+    };
+    var applied = 0;
+    var code = 0;
+    for (final m
+        in RegExp(r'(\d+)|/([^\s/\[\]<>()]+)').allMatches(differences)) {
+      final number = m.group(1);
+      if (number != null) {
+        code = int.tryParse(number) ?? code;
+        continue;
+      }
+      final rune = glyphNameToRune(m.group(2)!);
+      if (rune != null && code >= 0 && code < 256) {
+        map[code] = String.fromCharCode(rune);
+        applied++;
+      }
+      code++;
+    }
+    if (applied == 0) return null;
+
+    final reverse = <String, int>{};
+    for (final entry in map.entries) {
+      if (entry.value.isNotEmpty && !reverse.containsKey(entry.value)) {
+        reverse[entry.value] = entry.key;
+      }
+    }
+    return PdfFontEncoding(
+        toUnicode: map, fromUnicode: reverse, codeBytes: 1);
+  }
+
+  /// Font hakkında **hiçbir** eşleme bilgisi bulunamadığında kullanılacak tek
+  /// baytlık tablo.
+  ///
+  /// **Latin-1 DEĞİL, CP1254 — bilinçli karar (2026-08-06).** İkisi yalnız altı
+  /// konumda ayrışır: 0xD0/0xDD/0xDE/0xF0/0xFD/0xFE. Latin-1 okuması bunları
+  /// `Ð Ý Þ ð ý þ` (İzlandaca) yapar, CP1254 okuması `Ğ İ Ş ğ ı ş`. Bu
+  /// uygulamanın açtığı belgelerde ilk küme neredeyse hiç geçmez, ikincisi
+  /// neredeyse her Türkçe belgede geçer. Üstelik CP1254 0x80–0x9F bölgesini de
+  /// doldurur: Latin-1 yedeğinde tırnak/tire (`’ “ –`) görünmez denetim
+  /// karakterine düşüyordu. Gerçekten `Ð` demek isteyen üretici bunu
+  /// `/Differences`ta ADIYLA söyler ve o yol bu tabloyu ezer.
+  static PdfSingleByteEncoding get fallback => PdfSingleByteEncoding.turkish;
 
   /// UTF-16BE onaltılık dizesini metne çevirir (`00DC` → `Ü`).
   static String _utf16BeToString(String hex) {

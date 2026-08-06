@@ -6479,3 +6479,92 @@ kararı GERİ ALINDI (akış görünümü duruyor, yalnız varsayılan sayfa).
   transform'la küçültme (supersampling) — raster ölçek seçimi Chromium'a
   takılabilir, denenmedi.
 **Doğrulama:** analyze 0 hata/uyarı, 1320 test yeşil.
+
+## 2026-08-06 (6. tur) — Taranmış belge turu: düzleştirme, Türkçe kodlama, sesli okuma
+Kullanıcı (ekran görüntüleriyle): *"kendi taradığım kitapta da metinleri
+tanımakta zorlanıyor düzenleyici"*, *"tarama yapılırken bombe kısımlar
+düzenlenmiyor"*, *"editöre düzenle ve AI ile düzenle butonu koyalım"*,
+*"sesli okuma çok kalitesiz, ses seçimi olmalı notlar uygulamadaki gibi,
+ayrıca AI ile oku seçeneği de olsun, sayfa numaraları okunmamalı"*,
+*"oluşturduğumuz taranmış belgelerin PDF'i son dosyalara düşmüyor"*,
+*"düzenleme editörü de PDF de Türkçe karakter sorunu mevcut"*.
+
+### A) Türkçe karakter (mojibake) — KÖK NEDEN bulundu
+Paragraf düzenleyici `T.C. ANKARA ÜNÝVERSÝTESÝ REKTÖRLÜÐÜ` gösteriyordu.
+Belge EKRANDA doğruydu; yanlış olan bizim okumamızdı: `/ToUnicode` taşımayan
+fontta **Latin-1** varsayıyorduk (0xDD→`Ý`, 0xD0→`Ð`). İki katman eklendi:
+1. **`/Encoding /Differences` ayrıştırması** (`pdf_glyph_names.dart` +
+   `PdfFontEncoding.fromSimpleFont`): "221 /Idotaccent" gibi glif ADLARI
+   okunuyor. Bu belgelerde harf eşlemesi YALNIZ orada duruyor. Çözüm
+   simetrik — geri yazarken de fontun kendi kodları kullanılıyor.
+2. **Yedek tablo Latin-1 DEĞİL CP1254** (`PdfFontEncoding.fallback`).
+   İkisi yalnız altı konumda ayrışır (Ð Ý Þ ð ý þ ↔ Ğ İ Ş ğ ı ş); bu
+   uygulamanın belgelerinde ilk küme neredeyse hiç geçmez. Yan fayda:
+   0x80–0x9F artık dolu — tırnak/tire (`’ “ –`) görünmez denetim karakterine
+   düşmüyor. `PdfSingleByteEncoding.candidates` sırası da CP1254 önce yapıldı
+   (test `pdf_replace_matching` yalnız BİLDİRİLEN tablo adı için güncellendi;
+   davranış aynı).
+   **Gerçekten `Ð` demek isteyen üretici bunu `/Differences`ta adıyla söyler
+   ve o yol bu tabloyu ezer** — kararın dayanağı bu.
+
+### B) Bombe + eğim: kâğıda değil YAZIYA bakan düzleştirme (`scan_dewarp.dart`)
+Var olan `ScanDeskew` kâğıdın KENARINI arıyor; kullanıcının kitap
+fotoğraflarında kenar kadrajda yok → hiç devreye girmiyordu.
+- **Eğim:** izdüşüm profili yöntemi — sayfa her aday açıyla eğilir, satır
+  histogramının kareler toplamı ölçülür; en sivri açı eğimdir (±12°, 0,1°
+  ince ayar). Hough'a göre ucuz ve harf kenarlarına kanmıyor.
+- **Bombe:** sayfa 12 dikey şeride bölünür, komşu şeritlerin satır profilleri
+  çapraz ilinti ile hizalanır → sütun başına dikey kaydırma alanı → yeniden
+  örnekleme. Arama penceresi satır aralığının %45'iyle sınırlı (yoksa bir
+  satır aşağıyı "mükemmel hizalanma" sanar).
+- Kendi `rotateWhite`'ımız yazıldı: `img.copyRotate` boşluğu siyah bırakıyor,
+  belge taramasında hem çirkin hem OCR'ı bozuyor.
+- **TUZAK (test yakaladı):** düzeltme `+eğim` ile döndürülüyordu (eğimi İKİYE
+  KATLIYOR) ama arkasından gelen kıvrım adımı kaymayı KESME ile örttüğü için
+  uçtan uca test yeşil kalıyordu. Artık işaret sözleşmesi ayrı testte sabit:
+  `rotateWhite(+eğim)` eğimi ikiye katlamalı.
+- Emin değilse dokunmaz: mürekkep oranı %0,5–45 dışında, satır düzeni yoksa,
+  eğim <0,25° ya da kıvrım <%0,6 ise sayfa OLDUĞU GİBİ kalır.
+
+### C) Editörde "Düzelt" ve "AI ile düzelt"
+Taranmış sayfada metin modunda iki düğme; ikisi de tüm satırları TEK geçişte
+onarır (`PdfScannedRetype.applyMany` — 30 satır için belgeyi 30 kez açıp
+kaydetmek yerine).
+- **Düzelt** (`scan_text_fix.dart`, cihaz içi, ücretsiz): kelime başındaki
+  `I`→`İ` **ünlü uyumuna bakarak** ("Iki"→"İki" ama "Işık" dokunulmaz; uyuma
+  uymayan İstanbul/İzmir gibi adlar için küçük liste), iki harf ARASINDAKİ
+  0/1/5/8 → harf, satır sonu tiresi birleştirme, noktalama boşlukları.
+- **AI ile düzelt** (`scan_ai_fix.dart`, Gemini): satırlar NUMARALI gidip
+  numaralı dönüyor; 1..N eksiksiz gelmezse düzeltme TÜMÜYLE reddediliyor —
+  kutular sabit olduğu için eksik yanıt metni yanlış satıra taşırdı.
+- **Yalnız DEĞİŞEN satır yeniden yazılır.** Hepsini basmak, hatasız satırların
+  görüntüsünü de gömülü fontla değiştirir ve sayfa "tarama" olmaktan çıkardı.
+
+### D) Sesli okuma: ses seçimi + AI ile oku + sayfa numarası
+- `TtsPrefs` (ses adı/yerel, hız, perde) AppState'te kalıcı; `TtsVoiceSheet`
+  cihazdaki sesleri listeler, dinletir. Kalitenin kaynağı motor değil SEÇİLEN
+  SES; varsayılan çoğu zaman en robotik olanı.
+- **TUZAK:** `flutter_tts`ta 1.0 her yerde "normal" değil — Android'de normal
+  1.0, iOS'ta 0.5. Çarpan `TtsService.platformRate` ile çevriliyor.
+- `cleanForSpeech`: tek başına duran sayfa numarası satırı okunmuyor
+  (cümle içindeki sayıya dokunulmuyor), satır sonu tiresi birleşiyor.
+  Roma rakamı tanıma İKİ KEZ daraltıldı: harf kümesine bakmak "civil"i,
+  geçerli roma dizilişi aramak "mix"i (=1009) sayfa numarası sanıyordu →
+  yalnız ön sayfa aralığı (i…lxxxix, C/D/M yok).
+- **AI ile oku** (`read_aloud_ai.dart`): sayfa metni okunmadan önce Gemini'ye
+  toparlatılır. Yanıt özgününün %60'ından kısaysa ATILIR (model özetlemiş
+  demektir) ve özgün metin okunur; AI'ya ulaşılamazsa okuma DURMAZ.
+
+### E) Taranan PDF "Son belgeler"e düşmüyordu
+Kayıt yalnız `EntryOpener.open` içinde atılıyordu — tarama kendi sonuç
+ekranına gittiği için üretilen PDF hiçbir listeye girmiyordu. Yeni
+`EntryOpener.rememberFile` (açmadan kaydeder) tarama akışında PDF yazılır
+yazılmaz çağrılıyor; sonuç ekranındaki yeniden adlandırma/taşıma da kaydı
+`previousPath` ile güncelliyor.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` 0 hata/0 uyarı (45
+eski info), **1363 test yeşil** (+43). Cihazda bakılacaklar: eğik/kavisli
+kitap sayfası önizlemede düzleşmeli; resmî PDF'te paragraf metni `İ/Ğ/Ş` ile
+görünmeli; taranmış sayfada "Düzelt"/"AI ile düzelt"; sesli okumada ses
+seçimi ve sayfa numarasının atlanması; taranan PDF ana ekranda "Son
+belgeler"de.

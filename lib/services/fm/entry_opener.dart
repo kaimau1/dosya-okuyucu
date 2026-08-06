@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/l10n/app_strings.dart';
@@ -88,6 +89,37 @@ abstract final class EntryOpener {
     final name = path.split('/').last;
     final dot = name.lastIndexOf('.');
     return dot <= 0 ? '' : name.substring(dot + 1).toLowerCase();
+  }
+
+  /// Dosyayı **açmadan** "Son belgeler"e ve açılma geçmişine yazar.
+  ///
+  /// Niye ayrı bir yol (2026-08-06 kullanıcı bulgusu: *"oluşturduğumuz
+  /// taranmış belgelerin PDF'i son dosyalara düşmüyor"*): kayıt şimdiye kadar
+  /// yalnız [open] içinde yapılıyordu, yani belge ancak GÖRÜNTÜLEYİCİDE
+  /// açılırsa listeye giriyordu. Tarama akışı kendi sonuç ekranına gittiği
+  /// için üretilen PDF hiçbir listeye düşmüyordu — kullanıcının gözünde
+  /// "kaydedildi ama kayboldu". Uygulamanın kendi ürettiği belgeler
+  /// (tarama, boş belge, dönüştürme) artık bu yoldan kaydediliyor.
+  ///
+  /// [eskiYol] verilirse (yeniden adlandırma/taşıma) o kayıt düşürülür.
+  static Future<void> rememberFile(
+    BuildContext context,
+    String path, {
+    String? previousPath,
+  }) async {
+    final appState = context.read<AppState>();
+    final file = File(path);
+    if (!file.existsSync()) return;
+    if (previousPath != null && previousPath != path) {
+      await appState.removeRecent(previousPath);
+    }
+    unawaited(OpenHistory.record(path));
+    await appState.addRecent(RecentFile(
+      path: path,
+      name: p.basename(path),
+      sizeBytes: file.lengthSync(),
+      openedAtMs: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   /// [path]'i açar. [siblings] verilirse (aynı klasördeki dosyalar) görseller

@@ -340,8 +340,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     final clean = name?.trim();
     if (clean == null || clean.isEmpty || !mounted) return;
     try {
+      final old = _pdfPath;
       final newPath = await FileOps.rename(_pdfPath, '$clean.pdf');
-      if (mounted) setState(() => _pdfPath = newPath);
+      if (!mounted) return;
+      setState(() => _pdfPath = newPath);
+      // "Son belgeler" kaydı yolla eşleşir; ad değişince eski kayıt ölü
+      // bağlantıya dönerdi.
+      await EntryOpener.rememberFile(context, newPath, previousPath: old);
     } catch (e) {
       if (mounted) _snack(context.t('scr.rename_failed', {'error': e}));
     }
@@ -439,11 +444,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
     if (target == null || !mounted || target == _folder) return;
     setState(() => _busy = true);
+    final old = _pdfPath;
     final result = await FileOps.moveAll([_pdfPath], target);
     if (!mounted) return;
     setState(() => _busy = false);
     if (result.transfers.isNotEmpty) {
       setState(() => _pdfPath = result.transfers.first.dest);
+      await EntryOpener.rememberFile(context, _pdfPath, previousPath: old);
+      if (!mounted) return;
       _snack(context.t('scr.moved', {'folder': p.basename(_folder)}));
     } else {
       _snack(result.errors.isEmpty

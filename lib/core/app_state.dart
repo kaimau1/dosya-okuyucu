@@ -11,6 +11,7 @@ import '../models/remote_connection.dart';
 import '../models/recent_file.dart';
 import '../services/firebase_service.dart';
 import '../services/fm/folder_lock.dart';
+import '../services/tts_service.dart' show TtsPrefs;
 
 /// Uygulama genel durumu: tema, AI ayarları, son açılan dosyalar.
 /// SharedPreferences ile kalıcı; Firebase senkronu build-2'de eklenecek.
@@ -38,6 +39,9 @@ class AppState extends ChangeNotifier {
   static const _kFmConfirmDelete = 'fm_confirm_delete';
   static const _kFmTrashAutoDays = 'fm_trash_auto_days';
   static const _kRemotes = 'fm_remote_connections';
+  // Sesli okuma tercihleri (ses/hız/perde + "AI ile oku")
+  static const _kTtsPrefs = 'tts_prefs';
+  static const _kTtsAiRead = 'tts_ai_read';
 
   late SharedPreferences _prefs;
 
@@ -83,6 +87,8 @@ class AppState extends ChangeNotifier {
   bool _fmConfirmDelete = true;
   int _fmTrashAutoDays = 0;
   List<RemoteConnection> _remotes = [];
+  TtsPrefs _ttsPrefs = TtsPrefs.defaults;
+  bool _ttsAiRead = false;
 
   /// Kayıtlı uzak depolama bağlantıları (FTP/FTPS/SFTP/SMB/WebDAV).
   ///
@@ -303,6 +309,8 @@ class AppState extends ChangeNotifier {
         .map(RemoteConnection.tryDecode)
         .whereType<RemoteConnection>()
         .toList();
+    _ttsPrefs = TtsPrefs.decode(_prefs.getString(_kTtsPrefs));
+    _ttsAiRead = _prefs.getBool(_kTtsAiRead) ?? false;
     notifyListeners();
 
     // Firebase'i güvenli başlat; config yoksa yerel modda kalır.
@@ -377,6 +385,24 @@ class AppState extends ChangeNotifier {
     await firebase.signOut();
     _uid = null;
     _userEmail = null;
+    notifyListeners();
+  }
+
+  /// Sesli okuma tercihleri (ses, hız, perde).
+  TtsPrefs get ttsPrefs => _ttsPrefs;
+
+  /// Sesli okumada metin önce AI ile toparlansın mı? (Gemini anahtarı şart.)
+  bool get ttsAiRead => _ttsAiRead;
+
+  Future<void> setTtsPrefs(TtsPrefs value) async {
+    _ttsPrefs = value;
+    await _prefs.setString(_kTtsPrefs, value.encode());
+    notifyListeners();
+  }
+
+  Future<void> setTtsAiRead(bool value) async {
+    _ttsAiRead = value;
+    await _prefs.setBool(_kTtsAiRead, value);
     notifyListeners();
   }
 

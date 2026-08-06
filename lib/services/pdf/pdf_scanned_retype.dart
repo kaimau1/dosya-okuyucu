@@ -44,27 +44,45 @@ abstract final class PdfScannedRetype {
     required int pageIndex,
     required PdfRect box,
     required String newText,
+  }) =>
+      applyMany(
+        bytes: bytes,
+        pageIndex: pageIndex,
+        edits: [ScannedEdit(box, newText)],
+      );
+
+  /// Birden çok satırı **tek belge açılışında** düzeltir.
+  ///
+  /// Sayfa düzeltme ("Düzelt" / "AI ile düzelt") satır satır [apply]
+  /// çağırsaydı 30 satırlık bir sayfa için belge 30 kez açılıp kaydedilirdi —
+  /// her kayıt bir artımlı güncelleme (dosya büyür) ve saniyeler süren bir iş.
+  /// Buradaki tek geçiş hem hızlı hem de tek bir geri alma adımı bırakıyor.
+  static Future<List<int>> applyMany({
+    required List<int> bytes,
+    required int pageIndex,
+    required List<ScannedEdit> edits,
   }) async {
+    if (edits.isEmpty) return bytes;
     final font = await _font();
     final doc = PdfDocument(inputBytes: bytes);
     try {
       final page = doc.pages[pageIndex];
-      final rect = pdfToSyncfusionRect(
-        left: box.left,
-        pdfTop: box.top,
-        width: box.width,
-        height: box.height,
-        pageHeight: page.size.height,
-      );
-      // Kapak satırdan bir tık büyük: OCR kutusu glif uçlarını (ç/ğ kuyruğu,
-      // noktalama) kıl payı kaçırabiliyor; artık görünmesin.
-      final cover = Rect.fromLTRB(
-          rect.left - 2, rect.top - 2, rect.right + 2, rect.bottom + 2);
-      page.graphics
-          .drawRectangle(brush: PdfBrushes.white, bounds: cover);
+      for (final edit in edits) {
+        final rect = pdfToSyncfusionRect(
+          left: edit.box.left,
+          pdfTop: edit.box.top,
+          width: edit.box.width,
+          height: edit.box.height,
+          pageHeight: page.size.height,
+        );
+        // Kapak satırdan bir tık büyük: OCR kutusu glif uçlarını (ç/ğ kuyruğu,
+        // noktalama) kıl payı kaçırabiliyor; artık görünmesin.
+        final cover = Rect.fromLTRB(
+            rect.left - 2, rect.top - 2, rect.right + 2, rect.bottom + 2);
+        page.graphics.drawRectangle(brush: PdfBrushes.white, bounds: cover);
 
-      final text = newText.trim();
-      if (text.isNotEmpty) {
+        final text = edit.text.trim();
+        if (text.isEmpty) continue;
         // Punto satır yüksekliğinden: OCR kutusu glif kutusudur, x-yüksekliği
         // payı için ~%74'ü alınır. Yazım alanı sağa doğru sayfa kenarına
         // kadar uzar — kullanıcı satırı UZATIRSA metin kırpılmasın.
@@ -90,4 +108,11 @@ abstract final class PdfScannedRetype {
       doc.dispose();
     }
   }
+}
+
+/// Tek satırlık düzeltme isteği: hangi kutu, yerine ne yazılacak.
+class ScannedEdit {
+  final PdfRect box;
+  final String text;
+  const ScannedEdit(this.box, this.text);
 }

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// ortadan keser, hiç bölünmezse durdurma gecikir, kelime ortasından bölünürse
 /// telaffuz bozulur. Konuşma motoru cihaz gerektirir; bölme saf metin işi.
 void main() {
+  _cleanForSpeechTests();
   test('boş metin parça üretmez', () {
     expect(splitForSpeech(''), isEmpty);
     expect(splitForSpeech('   \n  '), isEmpty);
@@ -53,5 +54,30 @@ void main() {
 
     expect(joined.replaceAll(RegExp(r'\s+'), ' '),
         text.replaceAll(RegExp(r'\s+'), ' '));
+  });
+}
+
+/// **Sayfa numarası okunmasın** (2026-08-06 kullanıcı isteği: *"sayfadaki
+/// sayfa numaralarının okunmaması lazım"*). Taranmış kitapta numara metnin
+/// ortasında kendi satırı olarak durur ve motor onu "otuz beş" diye okuyup
+/// cümleyi böler.
+void _cleanForSpeechTests() {
+  group('cleanForSpeech', () {
+    test('tek başına duran sayfa numarası atılır', () {
+      final out = cleanForSpeech('Son cümle burada.\n35\nYeni sayfa başlıyor.');
+      expect(out, isNot(contains('35')));
+      expect(out, contains('Son cümle burada.'));
+      expect(out, contains('Yeni sayfa başlıyor.'));
+    });
+
+    test('cümlenin İÇİNDEKİ sayı korunur', () {
+      expect(cleanForSpeech('Toplantıya 35 kişi geldi.'),
+          'Toplantıya 35 kişi geldi.');
+    });
+
+    test('satır sonu tiresi birleşir (hece ikiye bölünmez)', () {
+      expect(cleanForSpeech('miktarda ener-\njiye ihtiyaç var.'),
+          'miktarda enerjiye ihtiyaç var.');
+    });
   });
 }

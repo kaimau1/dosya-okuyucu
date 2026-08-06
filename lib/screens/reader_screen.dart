@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:provider/provider.dart';
 
+import '../core/app_state.dart';
 import '../core/copy_text.dart';
 import '../core/l10n/app_strings.dart';
+import '../services/gemini_service.dart';
 import '../services/pdf/pdf_ocr_text.dart';
+import '../services/read_aloud_ai.dart';
 import '../services/tts_service.dart';
+import '../widgets/tts_voice_sheet.dart';
 
 /// **Okuma görünümü** — PDF'i (taranmış olsa bile) bir e-kitap gibi sunar
 /// (2026-08-06 kullanıcı isteği: *"tarandıktan sonra PDF'i okutmak
@@ -70,8 +75,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
     super.dispose();
   }
 
+  /// "AI ile oku" ile toparlanmış sayfa metinleri — sayfa başına bir kez
+  /// istenir (her duraklat/devam ettede yeniden istemek hem yavaş hem masraflı).
+  final _narration = <int, String>{};
+
   Future<void> _toggleSpeech() async {
     final tts = _tts ??= TtsService()..onProgress = _onTtsProgress;
+    // Ses/hız/perde tercihi her başlatışta tazelenir: kullanıcı okuma
+    // sürerken ayarı değiştirebiliyor.
+    tts.prefs = context.read<AppState>().ttsPrefs;
     if (_speaking) {
       // ÖNCE niyet kapatılır: pause bildirimi "sayfa bitti" sanılmasın.
       _speaking = false;
@@ -89,11 +101,22 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Future<void> _speakCurrentPage() async {
-    final text = await _textFor(_speakPage);
+    final page = _speakPage;
+    var text = await _textFor(page);
     if (!mounted || !_speaking) return;
     if (text == null) {
       await _advanceSpeech(); // boş sayfa atlanır (kitaplarda kapak/ayraç)
       return;
+    }
+    // "AI ile oku": sayfa metni okunmadan önce toparlanır. Başarısız olursa
+    // özgün metin okunur — okuma asla durmaz (bkz. ReadAloudAi).
+    final state = context.read<AppState>();
+    if (state.ttsAiRead && state.hasApiKey) {
+      text = _narration[page] ??= await ReadAloudAi.tidyOrOriginal(
+        GeminiService(apiKey: state.apiKey, model: state.model),
+        text,
+      );
+      if (!mounted || !_speaking || page != _speakPage) return;
     }
     await _tts!.start(text);
   }
@@ -198,6 +221,27 @@ class _ReaderScreenState extends State<ReaderScreen> {
               _themeItem(_ReaderTheme.dark, context.t('reader.theme_dark')),
             ],
           ),
+          // Sesli okuma ayarları: ses seçimi (kalitenin asıl kaynağı) ve
+          // "AI ile oku" anahtarı.
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: _onMenu,
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'voice',
+                child: Row(children: [
+                  const Icon(Icons.record_voice_over_outlined, size: 18),
+                  const SizedBox(width: 8),
+                  Text(context.t('tts.voice_settings')),
+                ]),
+              ),
+              CheckedPopupMenuItem(
+                value: 'ai',
+                checked: context.watch<AppState>().ttsAiRead,
+                child: Text(context.t('tts.ai_read')),
+              ),
+            ],
+          ),
         ],
       ),
       body: ListView.builder(
@@ -226,6 +270,31 @@ class _ReaderScreenState extends State<ReaderScreen> {
               ),
             ),
     );
+  }
+
+  Future<void> _onMenu(String action) async {
+    final state = context.read<AppState>();
+    final messenger = ScaffoldMessenger.of(context);
+    if (action == 'voice') {
+      await TtsVoiceSheet.show(context);
+      if (mounted) _tts?.prefs = context.read<AppState>().ttsPrefs;
+      return;
+    }
+    if (action != 'ai') return;
+    final next = !state.ttsAiRead;
+    if (next && !state.hasApiKey) {
+      messenger.showSnackBar(
+          SnackBar(content: Text(AppStrings.current.t('tts.ai_needs_key'))));
+      return;
+    }
+    await state.setTtsAiRead(next);
+    // Anahtar değişince önceki toparlamalar geçersiz (biri ham, biri işlenmiş
+    // metin okurdu).
+    _narration.clear();
+    messenger.showSnackBar(SnackBar(
+      content: Text(AppStrings.current
+          .t(next ? 'tts.ai_read_on' : 'tts.ai_read_off')),
+    ));
   }
 
   PopupMenuItem<_ReaderTheme> _themeItem(_ReaderTheme value, String label) =>

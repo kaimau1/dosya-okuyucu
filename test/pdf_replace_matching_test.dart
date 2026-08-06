@@ -39,15 +39,19 @@ void main() {
     expect(out, contains('(Kart)'));
   });
 
-  test('tipografik kesme işareti katlanır (WinAnsi ’ = seçimdeki \')', () {
-    // 0x92: WinAnsi'de U+2019 (’). Kullanıcı klavyeden düz ' yazar/seçer.
+  test('tipografik kesme işareti katlanır (0x92 ’ = seçimdeki \')', () {
+    // 0x92: WinAnsi ve CP1254'te aynı — U+2019 (’). Kullanıcı klavyeden düz
+    // ' yazar/seçer.
     final bytes = [
       ...latin1.encode('BT /F1 10 Tf 1 0 0 1 50 700 Tm (Ali'),
       0x92,
       ...latin1.encode('nin) Tj ET'),
     ];
     final r = replaceTextInContent(bytes, "Ali'nin", "Veli'nin");
-    expect(r.encoding, 'WinAnsi');
+    // 2026-08-06: aday sırasında CP1254 öne alındı (Türkçe harfler doğru
+    // çözülsün diye). Bu bayt ikisinde de AYNI karaktere düştüğü için
+    // davranış değişmedi, yalnız bildirilen tablo adı değişti.
+    expect(r.encoding, 'CP1254');
     expect(decoded(r.content), contains("(Veli'nin)"),
         reason: 'yeni metin kullanıcının yazdığı gibi (düz kesme) girer');
   });
