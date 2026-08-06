@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../services/docx_editor.dart' show RunSeg;
 import 'office_shell.dart' show ZoomBadge, ZoomBadgeController;
@@ -335,11 +336,35 @@ class DocxViewState extends State<DocxView> {
     await _controller.runJavaScript("renderDocx('$b64')");
   }
 
+  /// Android'de WebView **hybrid composition** ile çizilir (2026-08-06
+  /// kullanıcı bulgusu: *"tam sayfada uzaktan bakarken de net görünsün"*).
+  ///
+  /// Varsayılan yol (Texture Layer) WebView'ın çıktısını bir Flutter dokusuna
+  /// alıp sahneye örnekleyerek basar; ~%50 sığdırma ölçeğindeki küçük harfler
+  /// bu ek yeniden örneklemede yumuşuyordu (yakınlaşınca harfler büyüdüğü
+  /// için fark kayboluyordu — kullanıcının tarifiyle birebir). Hybrid
+  /// composition WebView'ı GERÇEK bir platform görünümü olarak, kendi
+  /// çözünürlüğünde ekrana koyar — ara doku yok, metin motorun çizdiği
+  /// keskinlikte kalır. Bedeli (biraz daha yüksek bellek/kompozisyon
+  /// maliyeti) belge ekranı için kabul edilebilir.
+  Widget _webView() {
+    final platform = _controller.platform;
+    if (platform is AndroidWebViewController) {
+      return WebViewWidget.fromPlatformCreationParams(
+        params: AndroidWebViewWidgetCreationParams(
+          controller: platform,
+          displayWithHybridComposition: true,
+        ),
+      );
+    }
+    return WebViewWidget(controller: _controller);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        WebViewWidget(controller: _controller),
+        _webView(),
         if (_loading)
           const Center(child: CircularProgressIndicator())
         else if (_error != null)
