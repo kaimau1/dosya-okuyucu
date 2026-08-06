@@ -215,6 +215,14 @@ class PdfOcrText {
     return result;
   }
 
+  /// BELLEK önbelleğini boşaltır — belge düzenlendiğinde çağrılır (taranmış
+  /// satır üstüne yazma sonrası eski OCR kutuları geçersizdir). Disk önbelleği
+  /// kendiliğinden ıskalar: anahtarı dosyanın mtime+boyutunu içerir.
+  static void invalidateMemory() {
+    _cache.clear();
+    _inFlight.clear();
+  }
+
   /// Testler arası sızıntı olmasın diye.
   static void debugReset() {
     _cache.clear();

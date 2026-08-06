@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../services/pdf/pdf_scanned_retype.dart' show ScannedLine;
 import '../services/pdf_page_edit.dart';
 
 /// PDF sayfasının üstünde **düzenlenebilir öğeleri gösteren katman**:
@@ -224,6 +225,55 @@ class _MovableObjectState extends State<_MovableObject> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Taranmış sayfada **OCR satır kutularını** gösteren katman (2026-08-06:
+/// "taranmış belge deyip düzenleme yaptırmıyor"). Paragraf kutularıyla aynı
+/// jest kuralı: yalnız dokunuş, sürükleme pdfrx'e kalır. Kesikli kenarlık
+/// bilinçli fark: bunlar gerçek metin akışı değil, OCR TAHMİNİ — dokununca
+/// satırın üstüne yazılır.
+class PdfScannedOverlay extends StatelessWidget {
+  final PdfPage page;
+  final Size pageSize;
+  final List<ScannedLine> lines;
+  final void Function(int index) onLineTap;
+
+  const PdfScannedOverlay({
+    super.key,
+    required this.page,
+    required this.pageSize,
+    required this.lines,
+    required this.onLineTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Stack(
+      children: [
+        for (var i = 0; i < lines.length; i++)
+          Positioned.fromRect(
+            rect: lines[i]
+                .box
+                .toRect(page: page, scaledPageSize: pageSize)
+                .inflate(2),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onLineTap(i),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: scheme.tertiary.withValues(alpha: 0.55),
+                      width: 1),
+                  borderRadius: BorderRadius.circular(3),
+                  color: scheme.tertiary.withValues(alpha: 0.05),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

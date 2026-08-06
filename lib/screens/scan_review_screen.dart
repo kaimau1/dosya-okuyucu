@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../services/perspective.dart';
+import '../services/scan_deskew.dart';
 import '../services/scan_enhance.dart';
 import 'scan_edit_screen.dart';
 
@@ -70,11 +71,25 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     super.dispose();
   }
 
-  /// Açılışta bütün sayfalara varsayılan filtreyi uygular.
+  /// Açılışta bütün sayfalar önce **kendiliğinden düzeltilir** (eğik sayfa
+  /// düz dikdörtgene açılır — 2026-08-06 kullanıcı bulgusu: "sayfa eğimli
+  /// tarandığında düzeltilmeli"), sonra varsayılan filtre uygulanır.
+  /// Düzeltme temkinlidir (bkz. [ScanDeskew.worthApplying]); emin değilse
+  /// sayfaya dokunmaz, elle "Köşeleri ayarla" yolu hep açık.
   Future<void> _prepareAll() async {
     for (var i = 0; i < _pages.length; i++) {
       if (!mounted) return;
       setState(() => _preparing = i);
+      try {
+        final straightened = await ScanDeskew.autoStraighten(_sources[i]);
+        if (!mounted) return;
+        if (straightened != null) {
+          _sources[i] = straightened;
+          setState(() => _pages[i] = straightened);
+        }
+      } catch (_) {
+        // Düzeltme süs değil sigortadır: başarısızsa sayfa OLDUĞU GİBİ kalır.
+      }
       await _applyFilter(i, ScanFilter.auto, silent: true);
     }
     if (mounted) setState(() => _preparing = null);

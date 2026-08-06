@@ -2326,6 +2326,16 @@ const Map<String, (String, String, String)> _table = {
     'No editable text found on this page (it may be a scanned page).',
     'لم يُعثر على نص قابل للتحرير في هذه الصفحة (قد تكون صفحة ممسوحة ضوئيًا).',
   ),
+  'pe.hint_text_scanned': (
+    'Taranmış sayfa: dokunduğunuz satırın üstüne yazılır (satır tanınıyor…).',
+    'Scanned page: tap a line to type over it (recognizing lines…).',
+    'صفحة ممسوحة: المس سطرًا للكتابة فوقه (جارٍ التعرف على الأسطر…).',
+  ),
+  'pe.scanned_updated': (
+    'Satır güncellendi.',
+    'Line updated.',
+    'تم تحديث السطر.',
+  ),
   'pe.hint_text': (
     'Değiştirmek istediğiniz paragrafa dokunun.',
     'Tap the paragraph you want to change.',
@@ -3716,6 +3726,18 @@ const Map<String, (String, String, String)> _table = {
     'تعذّرت إعادة التسمية: {error}',
   ),
   'scr.add_pages': ('Sayfa ekle', 'Add pages', 'إضافة صفحات'),
+  'scr.crop_page': ('Kenarları kırp', 'Crop edges', 'قصّ الحواف'),
+  'scr.cropped': ('Sayfa düzeltildi.', 'Page adjusted.', 'تم تعديل الصفحة.'),
+  'reader.open': ('Okuma görünümü', 'Reading view', 'وضع القراءة'),
+  'reader.theme': ('Zemin', 'Background', 'الخلفية'),
+  'reader.theme_light': ('Açık', 'Light', 'فاتح'),
+  'reader.theme_sepia': ('Sepya', 'Sepia', 'بني داكن'),
+  'reader.theme_dark': ('Koyu', 'Dark', 'داكن'),
+  'reader.page_empty': (
+    'Bu sayfada okunabilir metin bulunamadı.',
+    'No readable text found on this page.',
+    'لم يُعثر على نص مقروء في هذه الصفحة.'
+  ),
   'scr.pages_added': (
     '{n} sayfa eklendi',
     '{n} pages added',

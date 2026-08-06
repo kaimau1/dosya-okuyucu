@@ -41,6 +41,7 @@ import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import 'chat_screen.dart';
 import 'pdf_ai_edit_screen.dart';
+import 'reader_screen.dart';
 import 'pdf_sign_screen.dart';
 import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
@@ -1040,6 +1041,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'gotopage':
                 _askGoToPage();
                 break;
+              case 'reader':
+                final pdf = _pdfDoc;
+                if (pdf != null) {
+                  ReaderScreen.open(context,
+                      document: pdf, title: widget.doc.name);
+                }
+                break;
               case 'rotl':
                 _rotateCurrentPage(-1);
                 break;
@@ -1063,6 +1071,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
               PopupMenuItem(
                   value: 'gotopage',
                   child: Text(context.t('vw.goto_page'))),
+              // E-kitap okuma görünümü (2026-08-06 isteği): taranmış PDF'te
+              // bile sayfanın METNİ akar — OCR arka planda, sayfa görüntüsü
+              // yerine kitap gibi okunur.
+              PopupMenuItem(
+                  value: 'reader',
+                  enabled: _pdfDoc != null,
+                  child: Text(context.t('reader.open'))),
               PopupMenuItem(
                 value: 'night',
                 child: Text(context
@@ -1243,16 +1258,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 ),
                 // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
                 // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
-                // OCR seçiminde GİZLİ: taranmış sayfada değiştirilecek metin
-                // akışı yok, düğme yalnız boş vaat olurdu.
-                if (!_pdfSelFromOcr)
-                  TextButton.icon(
-                    onPressed: _startInlineEdit,
-                    icon: const Icon(Icons.edit_outlined,
-                        color: Colors.white, size: 18),
-                    label: Text(context.t('common.edit'),
-                        style: const TextStyle(color: Colors.white)),
-                  ),
+                // OCR seçiminde düğme ARTIK VAR (2026-08-06: "taranmış belge
+                // deyip düzenleme yaptırmıyor"): PDF düzenleyicisine gider —
+                // orada OCR satırının üstüne yazılır (PdfScannedRetype).
+                TextButton.icon(
+                  onPressed:
+                      _pdfSelFromOcr ? _openPdfEditor : _startInlineEdit,
+                  icon: const Icon(Icons.edit_outlined,
+                      color: Colors.white, size: 18),
+                  label: Text(context.t('common.edit'),
+                      style: const TextStyle(color: Colors.white)),
+                ),
                 TextButton.icon(
                   onPressed: () => TranslateFlow.run(context, _pdfSelection,
                       title: context.t('vw.selected_text')),
