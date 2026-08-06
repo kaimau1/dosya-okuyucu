@@ -5,11 +5,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/drive_file.dart';
 import '../../services/fm/app_signature.dart';
+import '../../services/fm/drive_cache.dart';
 import '../../services/fm/drive_service.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
@@ -312,11 +312,23 @@ class _DriveScreenState extends State<DriveScreen> {
   /// sonra mevcut görüntüleyici/editör zinciriyle açılır — böylece Drive
   /// dosyaları da tüm biçim desteğimizden ilk günden yararlanıyor.
   ///
+  /// Önbellek TAZE ise hiç indirilmez (2026-08-06 kullanıcı bulgusu: *"her
+  /// açma istediğimde tekrar tekrar indiriyor"*): boyut ve değişiklik zamanı
+  /// Drive üstverisiyle tutuyorsa yerel kopya doğrudan açılır — 40 MB'lık
+  /// PDF ikinci açılışta anında gelir, mobil veri yakmaz (bkz. `DriveCache`).
+  ///
   /// İndirme sırasında ADLI ve YÜZDELİ bir pencere durur (2026-08-06 kullanıcı
   /// bulgusu: büyük PDF'te "yüklenme ekranı var ama açılıyor mu ne oluyor
   /// belli değil"). Toplam boyut bilinmiyorsa (Google biçimi `export` ile
   /// iner) çubuk belirsiz akar ama inen MB yine yazılır.
   Future<void> _open(DriveFile file) async {
+    final root = DriveCache.rootOf(FmEnv.appSupportDir);
+    final cached = DriveCache.freshFile(file, root);
+    if (cached != null) {
+      await EntryOpener.open(context, cached.path);
+      return;
+    }
+
     final failed = context.t('drive.download_failed');
     final progress = ValueNotifier<(int, int?)>((
       0,
@@ -336,12 +348,12 @@ class _DriveScreenState extends State<DriveScreen> {
     }
 
     try {
-      final dir = p.join(FmEnv.appSupportDir, 'drive');
       final local = await _drive.download(
         file,
-        dir,
+        DriveCache.dirFor(file, root),
         onProgress: (received, total) => progress.value = (received, total),
       );
+      DriveCache.prune(root);
       if (!mounted) return;
       closeDialog();
       await EntryOpener.open(context, local.path);

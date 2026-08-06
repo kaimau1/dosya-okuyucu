@@ -6357,3 +6357,37 @@ satır olmalı."*
 birleşmeme 2, indirme ilerlemesi 2). Cihazda bakılacaklar: Drive'dan büyük
 PDF'te yüzdeli pencere; akış şemalı PDF'te seçim vurgusunun kutulara
 yapışması; kopyalanan metnin Not'ta tek satır ve tofu'suz yapışması.
+
+## 2026-08-06 (2. tur) — Drive önbelleği + Word'de telefonda akış varsayılanı
+Kullanıcı: *"her açma istediğimde tekrar tekrar indiriyor"* ve *"word
+belgelerinde bulanık görünüm var, zoom yapınca düzeliyor ama hep düzgün
+görünmeli"*. (İlerleme penceresi sahada doğrulandı — ekran görüntüsü:
+"Drive'dan indiriliyor… 26 MB / 40 MB · %65".)
+
+### A) Drive indirme önbelleği — `services/fm/drive_cache.dart`
+- Eski `_open` her dokunuşta koşulsuz indiriyordu. Artık yol düzeni
+  `drive/<dosya kimliği>/<yerel ad>` (kimlik klasörü: Drive'da aynı adlı iki
+  dosya birbirini ezmesin) ve `DriveCache.freshFile` taze kopyayı bulursa
+  indirme + pencere tamamen atlanır.
+- Tazelik (saf `isFresh`, birim testli): boyut Drive üstverisiyle tutmalı
+  (yarım inmiş kopyayı yakalar; Google biçimlerinde boyut gelmez → atlanır)
+  VE yerel değişiklik zamanı buluttan eski olmamalı. Yerel > bulut bilerek
+  taze sayılır — uygulama içi düzenleme sessizce ezilmesin.
+- `prune`: kök 400 MB'ı aşarsa en eski dokunulan kimlik klasörleri silinir;
+  eski düz düzenin (`drive/<ad>`) artık dosyaları da temizlenir.
+
+### B) Word "bulanık" — telefonda VARSAYILAN artık MOBİL AKIŞ
+- Kök neden 2026-07-28'dekiyle aynı (çözünürlük değil ÖLÇEK: A4 794 px →
+  telefonda sığdırma ~%48 → 11 punto ~5 px). Akış görünümü o gün yapılmıştı
+  ama varsayılan SAYFAydı; kullanıcı bugün "hep düzgün görünmeli" deyince
+  karar değişti: dar ekranda (shortestSide < 600) belge AKIŞLA açılır,
+  sayfa düzeni tek dokunuş ("Sayfa düzeni"). Geniş ekranda sayfa kalır
+  (ölçek ~1, sorun yok). Karar ilk build'de bir kez verilir (initState'te
+  MediaQuery yok); JS köprüsü çizimden önce çağrılamadığı için `setFlow`
+  onStatus(ok) anında uygulanır — sayfa bir an %48'de görünüp akışa geçer.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 hata/0 uyarı (45 eski info),
+**1314 test yeşil** (+12 DriveCache). Cihazda bakılacaklar: aynı Drive
+dosyası ikinci açılışta pencere görmeden anında açılmalı; Drive'da güncellenen
+dosya yeniden inmeli; Word telefonda net açılmalı, "Sayfa düzeni"ne geçiş
+çalışmalı.
