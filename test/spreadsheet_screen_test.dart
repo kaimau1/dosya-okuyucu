@@ -149,12 +149,16 @@ void main() {
       expect(find.text('60'), findsWidgets);
     });
 
-    testWidgets('⋮ menüsünden bölmeler çözülebilir', (tester) async {
+    testWidgets('Görünüm sekmesinden bölmeler çözülebilir', (tester) async {
       await pumpWide(tester);
-      await tester.tap(find.byIcon(Icons.more_vert));
+      // Bölme düğmesi artık şeridin "Görünüm" sekmesinde (2026-08-07 şerit
+      // turu); eskiden ⋮ menüsündeydi.
+      await tester.tap(find.text('Görünüm'));
       await tester.pumpAndSettle();
-      expect(find.text('Bölmeleri çöz (sabit satır/sütun)'), findsOneWidget);
-      await tester.tap(find.text('Bölmeleri çöz (sabit satır/sütun)'));
+      final freeze = find.byIcon(Icons.push_pin_outlined);
+      expect(freeze, findsOneWidget);
+      await tester.ensureVisible(freeze);
+      await tester.tap(freeze);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       // Bölme kalkınca A sütunu artık kaydırılan bölgededir; ızgara çizilmeye
@@ -326,6 +330,9 @@ void main() {
   testWidgets('Σ seçili hücreye TOPLA formülü yazar', (tester) async {
     await pump(tester);
     await tapCell(tester, '1.234,50 ₺');
+    // Şerit yatay kayar: düğme dar ekranda görünür alanın dışında kalabilir.
+    await tester.ensureVisible(find.byIcon(Icons.functions));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.functions));
     await tester.pumpAndSettle();
     // Izgara sonucu gösterir; formülün kendisi formül çubuğundadır.

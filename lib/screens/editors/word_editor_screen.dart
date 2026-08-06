@@ -6,12 +6,14 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/list_prefix.dart';
+import '../../core/theme.dart';
 import '../../core/undo_stack.dart';
 import '../../models/document.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/docx_view.dart';
+import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
@@ -577,89 +579,65 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   }
 
   /// M365 mobil tarzı biçim çubuğu: yazı tipi/punto + B / I / U + bitti.
+  /// Word'ün biçim şeridi. Simgeler ve düzen **Excel/Slayt ile ortak**
+  /// (`OfficeRibbon` + `OfficeIcons`, 2026-08-07): aynı iş üç uygulamada da
+  /// aynı simge. Renkli üst çubuğun üstünde durduğu için `onBrand`.
   PreferredSizeWidget _formatBar() {
-    Widget btn(String cmd, IconData icon, bool active, String tip) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? Colors.white24 : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: IconButton(
-          tooltip: tip,
-          icon: Icon(icon, color: Colors.white),
-          visualDensity: VisualDensity.compact,
-          onPressed: () => _viewKey.currentState?.format(cmd),
-        ),
-      );
-    }
-
-    Widget sep() => Container(
-        width: 1,
-        height: 22,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        color: Colors.white38);
+    Widget btn(String cmd, IconData icon, bool active, String tip) =>
+        RibbonButton(icon, tip,
+            active: active, onTap: () => _viewKey.currentState?.format(cmd));
 
     return PreferredSize(
-      preferredSize: const Size.fromHeight(48),
-      child: SizedBox(
-        height: 48,
-        child: Row(
-          children: [
-            // Düğmeler sığmazsa YATAY kaydırılır; "Bitti" kaydırmanın DIŞINDA
-            // kalır — dar ekranda düzenlemeden çıkış düğmesi kaybolmamalı.
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    _fontMenu(),
-                    _sizeMenu(),
-                    sep(),
-                    btn('bold', Icons.format_bold, _selB,
-                        context.t('common.bold')),
-                    btn('italic', Icons.format_italic, _selI,
-                        context.t('common.italic')),
-                    btn('underline', Icons.format_underlined, _selU,
-                        context.t('common.underline')),
-                    sep(),
-                    btn('justifyLeft', Icons.format_align_left, false,
-                        context.t('common.align_left')),
-                    btn('justifyCenter', Icons.format_align_center, false,
-                        context.t('common.align_center')),
-                    btn('justifyRight', Icons.format_align_right, false,
-                        context.t('common.align_right')),
-                    sep(),
-                    _colorMenu(
-                      Icons.format_color_text,
-                      context.t('word.text_color'),
-                      _textColorPalette,
-                      (hex) => _viewKey.currentState?.setTextColor(hex),
-                    ),
-                    _colorMenu(
-                      Icons.border_color_outlined,
-                      context.t('word.highlight'),
-                      _highlightPalette,
-                      (hex) => _viewKey.currentState?.setHighlight(hex),
-                    ),
-                    sep(),
-                    _listBtn(Icons.format_list_bulleted,
-                        context.t('word.bullets'), 'bullet'),
-                    _listBtn(Icons.format_list_numbered,
-                        context.t('word.numbering'), 'number'),
-                  ],
-                ),
-              ),
+      preferredSize: Size.fromHeight(OfficeRibbon.heightFor(1)),
+      child: OfficeRibbon(
+        onBrand: true,
+        tabs: [
+          RibbonTab('', [
+            _fontMenu(),
+            _sizeMenu(),
+            const RibbonSep(),
+            btn('bold', OfficeIcons.bold, _selB, context.t('common.bold')),
+            btn('italic', OfficeIcons.italic, _selI,
+                context.t('common.italic')),
+            btn('underline', OfficeIcons.underline, _selU,
+                context.t('common.underline')),
+            const RibbonSep(),
+            btn('justifyLeft', OfficeIcons.alignLeft, false,
+                context.t('common.align_left')),
+            btn('justifyCenter', OfficeIcons.alignCenter, false,
+                context.t('common.align_center')),
+            btn('justifyRight', OfficeIcons.alignRight, false,
+                context.t('common.align_right')),
+            const RibbonSep(),
+            _colorMenu(
+              OfficeIcons.textColor,
+              context.t('word.text_color'),
+              _textColorPalette,
+              (hex) => _viewKey.currentState?.setTextColor(hex),
             ),
-            TextButton.icon(
-              onPressed: _toggleEdit,
-              icon: const Icon(Icons.keyboard_hide, color: Colors.white, size: 18),
-              label: Text(context.t('word.done'),
-                  style: const TextStyle(color: Colors.white)),
+            _colorMenu(
+              OfficeIcons.highlight,
+              context.t('word.highlight'),
+              _highlightPalette,
+              (hex) => _viewKey.currentState?.setHighlight(hex),
             ),
-            const SizedBox(width: 8),
-          ],
+            const RibbonSep(),
+            _listBtn(OfficeIcons.bullets, context.t('word.bullets'), 'bullet'),
+            _listBtn(
+                OfficeIcons.numbering, context.t('word.numbering'), 'number'),
+          ]),
+        ],
+        // "Bitti" kaydırmanın DIŞINDA kalır — dar ekranda düzenlemeden çıkış
+        // düğmesi kaybolmamalı.
+        trailing: Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: TextButton.icon(
+            onPressed: _toggleEdit,
+            icon:
+                const Icon(Icons.keyboard_hide, color: Colors.white, size: 18),
+            label: Text(context.t('word.done'),
+                style: const TextStyle(color: Colors.white)),
+          ),
         ),
       ),
     );
@@ -671,7 +649,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       void Function(String?) onPick) {
     return PopupMenuButton<String>(
       tooltip: tip,
-      icon: Icon(icon, color: Colors.white),
+      icon: Icon(icon, size: 20, color: Colors.white),
       onSelected: (v) => onPick(v == 'none' ? null : v),
       itemBuilder: (_) => [
         for (final hex in palette)
@@ -710,14 +688,10 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
 
   /// Madde işareti / numaralandırma düğmesi. Aynı biçime tekrar basmak
   /// listeyi kaldırır (Word'de olduğu gibi).
-  Widget _listBtn(IconData icon, String tip, String kind) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-        child: IconButton(
-          tooltip: tip,
-          icon: Icon(icon, color: Colors.white),
-          visualDensity: VisualDensity.compact,
-          onPressed: () => _viewKey.currentState?.setListStyle(kind),
-        ),
+  Widget _listBtn(IconData icon, String tip, String kind) => RibbonButton(
+        icon,
+        tip,
+        onTap: () => _viewKey.currentState?.setListStyle(kind),
       );
 
   /// Belge içi bul/değiştir çubuğu — Excel ve slayttakiyle aynı düzen.
@@ -818,11 +792,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
             child: Text(f, style: TextStyle(fontFamily: f)),
           ),
       ],
-      child: _barChip(
+      child: RibbonChip(
         // Bilinmeyen (listede olmayan) bir font geldiyse adı yine gösterilir:
         // "hangi fonttayım" bilgisi seçebilmekten bağımsız olarak değerli.
-        _selFont.isEmpty ? context.t('word.font_family') : _selFont,
-        icon: Icons.text_fields,
+        label: _selFont.isEmpty ? context.t('word.font_family') : _selFont,
+        icon: OfficeIcons.fontFamily,
+        tooltip: context.t('word.font_family'),
       ),
     );
   }
@@ -842,38 +817,13 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
             child: Text('${s.round()}'),
           ),
       ],
-      child: _barChip(
-        shown == null ? '—' : '${shown.round()}',
-        icon: Icons.format_size,
+      child: RibbonChip(
+        label: shown == null ? '—' : '${shown.round()}',
+        icon: OfficeIcons.fontSize,
+        tooltip: context.t('word.font_size'),
       ),
     );
   }
-
-  Widget _barChip(String label, {required IconData icon}) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white24,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        constraints: const BoxConstraints(maxWidth: 150),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 16),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-              ),
-            ),
-            const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
-          ],
-        ),
-      );
 
   /// Yedek düz metin editörü: paragraf bazlı biçim (B/I/U, hizalama) +
   /// paragraf ekle/sil — canlı düzenlemede olmayan yapısal işlemler burada.
@@ -890,7 +840,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 820),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  // Belgenin sayfası beyaz (bkz. Paper.docSurface): kağıt
+                  // dokusu uygulamanın kabuğuna ait, belgenin içine değil.
+                  color: Paper.docSurface(context),
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
@@ -999,30 +951,30 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: Row(
           children: [
-            toggle(Icons.format_bold, context.t('common.bold'),
+            toggle(OfficeIcons.bold, context.t('common.bold'),
                 sel?.bold ?? false,
                 () => toggleBool((p) => p.bold = !p.bold)),
-            toggle(Icons.format_italic, context.t('common.italic'),
+            toggle(OfficeIcons.italic, context.t('common.italic'),
                 sel?.italic ?? false,
                 () => toggleBool((p) => p.italic = !p.italic)),
-            toggle(Icons.format_underlined, context.t('common.underline'),
+            toggle(OfficeIcons.underline, context.t('common.underline'),
                 sel?.underline ?? false,
                 () => toggleBool((p) => p.underline = !p.underline)),
             _sep(scheme),
-            toggle(Icons.format_align_left, context.t('common.align_left'),
+            toggle(OfficeIcons.alignLeft, context.t('common.align_left'),
                 sel?.align == 'left', () => setAlign('left')),
-            toggle(Icons.format_align_center, context.t('common.align_center'),
+            toggle(OfficeIcons.alignCenter, context.t('common.align_center'),
                 sel?.align == 'center', () => setAlign('center')),
-            toggle(Icons.format_align_right, context.t('common.align_right'),
+            toggle(OfficeIcons.alignRight, context.t('common.align_right'),
                 sel?.align == 'right', () => setAlign('right')),
-            toggle(Icons.format_align_justify,
+            toggle(OfficeIcons.alignJustify,
                 context.t('common.align_justify'),
                 sel?.align == 'both', () => setAlign('both')),
             _sep(scheme),
-            toggle(Icons.format_list_bulleted, context.t('word.bullet_list'),
+            toggle(OfficeIcons.bullets, context.t('word.bullet_list'),
                 sel != null && hasBullet(sel.text),
                 () => applyList(numbered: false)),
-            toggle(Icons.format_list_numbered, context.t('word.numbered_list'),
+            toggle(OfficeIcons.numbering, context.t('word.numbered_list'),
                 sel != null && hasNumber(sel.text),
                 () => applyList(numbered: true)),
             _sep(scheme),
@@ -1037,7 +989,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
               tooltip: context.t('word.delete_paragraph'),
               visualDensity: VisualDensity.compact,
               iconSize: 20,
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(OfficeIcons.deleteCells),
               onPressed: enabled ? () => _deleteParagraph(sel) : null,
             ),
           ],

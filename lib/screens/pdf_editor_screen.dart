@@ -255,6 +255,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     });
   }
 
+  /// Bu sayfada OCR ile düzenleme denenmeli mi?
+  ///
+  /// Taranmış sınıfı **ya da** sayfada görsel olması yeter: gömülü fotokopi
+  /// bloğu taşıyan karma sayfalarda kullanıcı "metin var ama düzenletmiyor"
+  /// diyordu. Tamamen metin olan sayfalarda (görsel yok) OCR çalıştırılmaz —
+  /// gereksiz iş ve zaten paragraf kutuları var.
+  bool get _ocrEditable =>
+      _scannedPages.contains(_page) || _outline.objects.isNotEmpty;
+
   /// Taranmış sayfanın OCR satır kutularını (gerekiyorsa) yükler. [page]
   /// pdfrx'in CANLI sayfa nesnesi — overlay kurucusundan gelir; yeniden
   /// yüklemeden sonra da doğru belgeyi gösterir. Yalnız zamanlar: build
@@ -635,9 +644,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                     // (2026-08-06 — "taranmış belge deyip düzenleme
                     // yaptırmıyor"). Kutu listesi bu sayfa+sürüm için
                     // yüklenmemişse boş çizilir, yükleme arkada tetiklenir.
+                    //
+                    // **2026-08-07 — daha müsade:** artık yalnız "taranmış"
+                    // sınıfı yeterli değil. Metin katmanı olan ama İÇİNDE
+                    // taranmış blok taşıyan sayfalar (üstte gerçek başlık,
+                    // altta fotokopi tablo) da OCR kutusu alır — sayfada
+                    // görsel varsa tanıma çalıştırılır. Paragrafla örtüşen
+                    // satırlar zaten eleniyor (`_withoutParagraphOverlaps`),
+                    // yani gerçek metnin üstüne ikinci kutu binmez.
                     if (page.pageNumber == _page &&
                         _mode == _EditMode.text &&
-                        _scannedPages.contains(_page) &&
+                        _ocrEditable &&
                         PdfOcrText.isSupported)
                       Builder(builder: (context) {
                         _maybeLoadScanned(page);

@@ -8,9 +8,27 @@ import 'office_shell.dart';
 /// zoom'a işlenir ([builder] net içerikle yeniden çizer) ve [onCommitted]
 /// kaydırma ofsetlerini düzeltebilsin diye çarpanı alır (kare sonrası).
 /// Zoom % rozeti içeridedir. Excel ızgarası ve slayt listesi bunu paylaşır.
+/// Şerit/durum çubuğundaki **zoom düğmeleri** için dışarıdan kumanda.
+///
+/// *Niye gerekli:* pinch keşfedilmesi gereken bir jest; kullanıcı "zoom yok"
+/// dedi (2026-08-07). Görünür bir −/%/+ takımı olmalı ve o da aynı ölçeği
+/// sürmeli — ikinci bir zoom durumu tutmak ızgara ölçüleriyle çelişirdi.
+class PinchZoomController {
+  _PinchZoomAreaState? _state;
+
+  double get zoom => _state?.currentZoom ?? 1;
+
+  /// Ölçeği [factor] ile çarpar (1.25 = bir kademe yaklaş).
+  void zoomBy(double factor) => _state?.zoomBy(factor);
+
+  /// Ölçeği doğrudan verilen değere getirir (1 = %100).
+  void setZoom(double value) => _state?.setZoomTo(value);
+}
+
 class PinchZoomArea extends StatefulWidget {
   final double minZoom;
   final double maxZoom;
+  final PinchZoomController? controller;
   final Widget Function(
       BuildContext context, double zoom, ScrollPhysics? physics) builder;
 
@@ -23,6 +41,7 @@ class PinchZoomArea extends StatefulWidget {
     super.key,
     this.minZoom = 0.5,
     this.maxZoom = 3,
+    this.controller,
     required this.builder,
     this.onCommitted,
   });
@@ -41,10 +60,50 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
     if (mounted) setState(fn);
   });
 
+  /// Son ölçülen görünür alan — düğmeyle zoom'da odak burasının ortası olur.
+  Size _size = Size.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?._state = this;
+  }
+
+  @override
+  void didUpdateWidget(PinchZoomArea old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      if (old.controller?._state == this) old.controller?._state = null;
+      widget.controller?._state = this;
+    }
+  }
+
   @override
   void dispose() {
+    if (widget.controller?._state == this) widget.controller?._state = null;
     _badge.dispose();
     super.dispose();
+  }
+
+  double get currentZoom => _zoom;
+
+  void zoomBy(double factor) => setZoomTo(_zoom * factor);
+
+  /// Ölçeği doğrudan ayarlar (düğmeyle zoom). Pinch'in commit yoluyla AYNI
+  /// matematiği kullanır: kaydırma ofseti odak noktasına göre düzeltilir,
+  /// yoksa yaklaştırınca ızgara başka bir hücreye kayardı.
+  void setZoomTo(double value) {
+    final next = value.clamp(widget.minZoom, widget.maxZoom).toDouble();
+    final f = next / _zoom;
+    if ((f - 1).abs() < 0.001) return;
+    setState(() => _zoom = next);
+    _badge.bump(next);
+    final focal = _size == Size.zero
+        ? Offset.zero
+        : Offset(_size.width / 2, _size.height / 2);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onCommitted?.call(f, focal);
+    });
   }
 
   double _dist() {
@@ -102,6 +161,13 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
         _pinchStartDist != null ? const NeverScrollableScrollPhysics() : null;
     return Stack(
       children: [
+        // Görünür alanı ölç: düğmeyle zoom'un odağı ekranın ortasıdır.
+        Positioned.fill(
+          child: LayoutBuilder(builder: (_, c) {
+            _size = Size(c.maxWidth, c.maxHeight);
+            return const SizedBox.shrink();
+          }),
+        ),
         Positioned.fill(
           child: Listener(
             onPointerDown: _down,

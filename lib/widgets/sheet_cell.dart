@@ -98,9 +98,11 @@ class SheetCell extends StatelessWidget {
     final background = cond?.background ?? s?.background;
 
     final fontSize = ((s?.fontSize ?? 11) * zoom).clamp(4.0, 96.0);
+    // Okunurluk hesabı hücrenin GERÇEK zeminine göre: ızgara artık kağıt
+    // değil beyaz (bkz. Paper.docSurface).
     final color = readableOn(
       cond?.foreground ?? view.formatColor ?? s?.fontColor ?? scheme.onSurface,
-      background ?? scheme.surface,
+      background ?? Paper.docSurface(context),
     );
 
     final textStyle = TextStyle(

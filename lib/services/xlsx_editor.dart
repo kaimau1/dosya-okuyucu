@@ -87,14 +87,16 @@ class XlsxCellStyle {
     bool clearFontColor = false,
     XlsxBorder? border,
     String? numFmtCode,
+    double? fontSize,
+    String? fontFamily,
   }) =>
       XlsxCellStyle(
         bold: bold ?? this.bold,
         italic: italic ?? this.italic,
         underline: underline ?? this.underline,
         strike: strike,
-        fontSize: fontSize,
-        fontFamily: fontFamily,
+        fontSize: fontSize ?? this.fontSize,
+        fontFamily: fontFamily ?? this.fontFamily,
         fontColor: clearFontColor ? null : (fontColor ?? this.fontColor),
         background: clearBackground ? null : (background ?? this.background),
         hAlign: hAlign ?? this.hAlign,
@@ -1113,6 +1115,43 @@ class XlsxEditor {
       c,
       XlsxStyleEdit(fontArgb: _argbOf(color ?? const Color(0xFF000000))),
     );
+  }
+
+  /// Hücrenin **yazı puntosu**. `null` verilirse dosyadaki taban punto kalır.
+  void setFontSize(String sheetName, int r, int c, double? size) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0) return;
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    final value = size ?? current.fontSize ?? 11;
+    model.patchStyle(r, c, current.copyWith(fontSize: value));
+    model.recordStyleEdit(r, c, XlsxStyleEdit(fontSize: value));
+    // `excel` paketinin kendi stili de güncellenir: kaydetmede paket önce
+    // kendi tablosunu yazar, yama onun üstüne biner.
+    final table = _excel.tables[sheetName];
+    if (table != null) {
+      final cell =
+          table.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r));
+      cell.cellStyle = (cell.cellStyle ?? CellStyle())
+          .copyWith(fontSizeVal: value.round());
+    }
+  }
+
+  /// Hücrenin **yazı tipi ailesi** (Arial, Calibri…).
+  void setFontFamily(String sheetName, int r, int c, String? family) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0 || family == null || family.isEmpty) {
+      return;
+    }
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    model.patchStyle(r, c, current.copyWith(fontFamily: family));
+    model.recordStyleEdit(r, c, XlsxStyleEdit(fontName: family));
+    final table = _excel.tables[sheetName];
+    if (table != null) {
+      final cell =
+          table.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r));
+      cell.cellStyle =
+          (cell.cellStyle ?? CellStyle()).copyWith(fontFamilyVal: family);
+    }
   }
 
   /// Hücrede **metin kaydırma**.

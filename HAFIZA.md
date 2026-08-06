@@ -6649,3 +6649,104 @@ birlikte aranıyor, yoksa filigranlı sıradan belge de taranmış sayılırdı.
 **Tuzak (test):** `fm_file_tags` eşzamanlılık testi, tam paket APK derlemesiyle
 AYNI ANDA koşarken düşüyor (yükte zamanlama). Tek başına yeşil — kırmızı
 görünce önce tek dosyayı koştur, koda dalmadan.
+
+## 2026-08-07 — Excel turu: eski .xls, şerit, zoom, beyaz zemin, ortak simge dili
+
+Kullanıcının sekiz maddelik listesi (xls uyumu · düzenleyicide daha çok müsade
+ve isabet · xls'te zoom yok · PDF çok sütunda oto genişleme · Excel/txt'de
+kağıt değil beyaz · yazı boyutu+font · üç uygulamanın simge dili · Excel gibi
+şerit).
+
+### A) Eski `.xls` artık SALT-OKUNUR DEĞİL — çevrilip gerçek ızgarada açılıyor
+Kök neden: `.xls` dosyaları `viewer_screen`deki basit bir listede
+gösteriliyordu (`_SpreadsheetView`). Zoom yok, şerit yok, formül yok, düzenleme
+yok — kullanıcının "xls uyumu" ve "xls'te zoom yok" maddelerinin ikisi de
+buydu; Excel ekranındaki zoom (pinch) hep vardı ama o dosyalar oraya HİÇ
+gitmiyordu.
+- **Karar: BIFF oku → .xlsx YAZ → normal Excel ekranını aç.** `.xls` (BIFF)
+  ÜRETMİYORUZ: yazma tarafı okuma tarafından çok daha büyük bir iş ve kullanıcı
+  düzenlediğini modern biçimde saklamalı. Kaydetme özgün dosyanın YANINA aynı
+  adlı `.xlsx` bırakır (`LoadedDoc.savePath`), `.xls` dosyasına DOKUNULMAZ.
+  Açılan yol geçici bir çalışma kopyasıdır (`LoadedDoc.path`).
+- Yeni `services/xlsx_writer.dart`: sıfırdan geçerli bir OOXML paketi üretir
+  (content types, rels, workbook, styles, sharedStrings, sheetN). *Niye elle,
+  niye `excel` paketiyle değil:* paketin yazma yolu sütun genişliği, donmuş
+  bölme, birleşik hücre ve sayı biçimini ya hiç yazmıyor ya kendi kafasına göre
+  yazıyor (aynı eksikler için zaten `xlsx_save_patch` var). Çevrimde kayıp
+  olmaması için XML'i baştan sona biz belirliyoruz.
+- `xls_legacy.dart` genişletildi: FORMAT (sayı biçimi → tarihler artık tarih
+  görünüyor), FONT (punto/kalın/italik/renk; **BIFF8'de 4 numaralı font indeksi
+  YOKTUR**, ifnt≥4 bir kayar), XF (hizalama/kaydırma/girinti/dolgu), PALETTE,
+  ROW (yükseklik+gizli), COLINFO (genişlik+gizli), MERGEDCELLS, WINDOW2+PANE
+  (donmuş bölme, sağdan sola, ızgara çizgisi), BLANK/MULBLANK (biçimli boş
+  hücre), BOOLERR, BOUNDSHEET gizli bayrağı.
+- **KÖK NEDEN düzeltmesi — SST CONTINUE:** BIFF8'de bir metin kayıt sınırında
+  bölünür ve devam kaydı **1 baytlık yeni bir kodlama bayrağıyla** başlar. Eski
+  sürüm blokları düz birleştiriyordu → ilk sınırdan sonraki bütün metinler
+  kayıyordu (dosya büyüdükçe tablo anlamsızlaşıyor). Artık okuma blok sınırını
+  biliyor (`_SstCursor`): karakter verisi sınırı geçerken bayrak tüketilip
+  kodlama güncelleniyor; zengin metin/fonetik atlamalarında bayrak YOKTUR.
+- Test yolu: `XlsLegacy.parseWorkbookStream` (@visibleForTesting) — testler
+  BIFF kayıtlarını elle üretiyor, OLE2 kabı üretmeye gerek yok.
+
+### B) Excel şeridi: sekmeli ve simgeli (`widgets/office_ribbon.dart`)
+"Sade tutulur, altı düğme + Daha fazla" kararı (2026-07-28) BURADA GEÇERSİZ:
+sadeliğin bedeli, kullanıcının Excel'de refleksle aradığı her şeyin (yazı tipi,
+punto, kenarlık, süzgeç, sıralama, zoom) menü içinde kaybolmasıydı — "şeritte
+Excel gibi simgeler bile yok". Yeni şerit Excel'in kendi sekmeleriyle: **Giriş
+/ Ekle / Veri / Görünüm**. Etiketli "Daha fazla" sayfası DURUYOR (seyrek işler).
+- ⋮ menüsü kalktı: sayfaya git / bölme / yön artık Veri ve Görünüm sekmesinde.
+  (Testler de oraya taşındı — `spreadsheet_screen_test`, `spreadsheet_rtl_test`.)
+- **Simge dili tek yerden:** `OfficeIcons`. Word, Excel ve Slayt aynı işi aynı
+  simgeyle gösteriyor; üç editör de aynı `OfficeRibbon` bileşenini kullanıyor
+  (`onBrand: true` = Word'ün renkli üst çubuğu).
+- **Tuzak:** `RibbonChip` kendi `InkWell`ini kurarsa `PopupMenuButton` çocuğu
+  olduğunda dokunuşu YUTAR (Word'ün yazı tipi/punto menüleri açılmaz).
+  `onTap` null ise hiç jest kurulmuyor; regresyon testi `office_ribbon_test`.
+
+### C) Görünür zoom (`PinchZoomController`)
+Pinch keşfedilmesi gereken bir jest. Şeritteki −/%/+ takımı **aynı** ölçeği
+sürüyor (ikinci bir zoom durumu ızgara ölçüleriyle çelişirdi); düğmeyle zoomda
+odak görünür alanın ortası, kaydırma düzeltmesi pinch'le aynı matematik.
+Yüzde göstergesi `_fixScroll` içindeki `setState` ile tazeleniyor — rozet
+yalnız pinch'te görünüyor, düğmeyle zoomun tek geri bildirimi şerit.
+
+### D) Kağıt teması belgenin İÇİNE girmiyor (`Paper.docSurface`)
+Kullanıcı: *"kağıt teması arka planları excelde kağıt yapmış olmaz, beyaz
+olmalı, txt de öyle"*. Kağıt dokusu uygulamanın KABUĞUNA ait (listeler,
+kartlar, ayarlar); belgenin içi kullanıcının verisidir ve Excel/Not
+Defteri'nde beyazdır. Excel ızgarası, düz metin sayfası ve Word'ün yedek
+sayfası artık `Paper.docSurface` (açık temada beyaz, koyu temada kanvastan bir
+tık koyu nötr yüzey — koyuda beyaz gözü yakar).
+
+### E) Yazı boyutu ve yazı tipi
+- Excel: şeritte yazı tipi çipi + punto çipi + A▲/A▼. Kaydetmeye giriyor —
+  `XlsxStyleEdit.fontSize/fontName` → `<sz>`/`<name>`. **`scheme` SİLİNİR:**
+  kalırsa Excel tema fontunu kullanır ve seçilen ad görünmez.
+- Metin görüntüleyici: punto zaten vardı, **yazı tipi ailesi** eklendi
+  (gömülü/kesin var olan aileler: Arimo, Tinos, tek aralıklı).
+- Slayt: iki düğmeyle 12'den 44'e çıkmak 16 dokunuştu → punto listesi.
+- Word'de ikisi de vardı; yalnız ortak bileşene taşındı.
+
+### F) PDF: çok sütunda oto sığdırma + düzenleyicide isabet/müsade
+- **Sütun düzeni:** pdfrx sütun sayısı değişince yakınlaştırmayı OLDUĞU GİBİ
+  bırakıyor; 4 sütun bir anda dört kat genişliyor ama ekranda hâlâ tek
+  sütunluk kadarı görünüyor ("hiçbir şey değişmedi" / "sayfalar kayboldu").
+  `_fitPdfWidth` düzen ölçüldükten sonra genişliğe sığdırıyor (dikey konum
+  korunur).
+- **İsabet:** `Stack` hit-test'i SONDAKİ çocuktan başlar; kutular dosya
+  sırasındaydı, paragrafın içindeki küçük satır kutusu büyüğün altında kalıp
+  dokunuşu kaptırıyordu. Artık alan büyüklüğüne göre azalan sıra (küçük üstte)
+  + ince kutulara en az 30dp dokunma hedefi (görünen kutu yerinde kalır).
+- **Müsade:** OCR satır kutuları artık yalnız "taranmış" sınıfı için değil,
+  **sayfada görsel varsa** da yükleniyor — üstte gerçek başlık altta fotokopi
+  tablo taşıyan karma sayfalarda kullanıcı "metin var ama düzenletmiyor"
+  diyordu. Paragrafla örtüşen satırlar zaten eleniyor, çift kutu olmuyor.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` 0 hata/0 uyarı (44 eski
+info), **1392 test yeşil** (+27; yeni: `xlsx_writer_test`,
+`xls_legacy_rich_test`, `spreadsheet_ribbon_test`, `office_ribbon_test`,
+`pdf_edit_overlay_test` + file_service/save_patch eklemeleri).
+Cihazda bakılacaklar: `.xls` dosyası Excel ızgarasında açılmalı (şerit, zoom,
+düzenleme) ve "Kaydet" yanına `.xlsx` bırakmalı; şeritte dört sekme; Görünüm
+sekmesinde %; Excel/txt zemini beyaz; PDF'te 2/4 sütun seçilince tam genişlik.

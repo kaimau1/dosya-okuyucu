@@ -11,6 +11,7 @@ import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/ai_summary_flow.dart';
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_canvas.dart';
@@ -963,6 +964,38 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     setState(_commitEdit);
   }
 
+  /// Punto listesi — Word/Excel'dekiyle aynı kademeler. İki düğmeyle tek tek
+  /// büyütmek 12'den 44'e çıkarken 16 dokunuş demekti.
+  static const _slideSizes = <double>[
+    8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 54, 66, 88,
+  ];
+
+  Future<void> _pickSlideFontSize() async {
+    final pick = await showModalBottomSheet<double>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final s in _slideSizes)
+              ListTile(
+                title: Text('${s.round()}'),
+                trailing: (s - _fSize).abs() < 0.25
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(ctx, s),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    setState(() {
+      _fSize = pick;
+      _tSize = true;
+    });
+  }
+
   /// Klavyenin üstünde yüzen biçim çubuğu (yerinde düzenleme aktifken).
   Widget _formatBar() {
     final scheme = Theme.of(context).colorScheme;
@@ -974,62 +1007,59 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       // payı çift sayardı. SafeArea klavye kapalıyken alt çentiği korur.
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
+        // Simgeler Word/Excel ile ORTAK (`OfficeIcons`, 2026-08-07): aynı iş
+        // üç uygulamada da aynı simge.
         child: SafeArea(
           top: false,
-          child: Row(
-            children: [
-              IconButton(
-                tooltip: context.t('common.bold'),
-                isSelected: _fBold,
-                icon: const Icon(Icons.format_bold),
-                onPressed: () => setState(() {
-                  _fBold = !_fBold;
-                  _tBold = true;
-                }),
-              ),
-              IconButton(
-                tooltip: context.t('common.italic'),
-                isSelected: _fItalic,
-                icon: const Icon(Icons.format_italic),
-                onPressed: () => setState(() {
-                  _fItalic = !_fItalic;
-                  _tItalic = true;
-                }),
-              ),
-              IconButton(
-                tooltip: context.t('common.underline'),
-                isSelected: _fUnder,
-                icon: const Icon(Icons.format_underlined),
-                onPressed: () => setState(() {
-                  _fUnder = !_fUnder;
-                  _tUnder = true;
-                }),
-              ),
-              const Spacer(),
-              IconButton(
-                tooltip: context.t('vw.text_smaller'),
-                icon: const Icon(Icons.text_decrease),
-                onPressed: () => setState(() {
-                  _fSize = (_fSize - 2).clamp(6.0, 96.0).toDouble();
-                  _tSize = true;
-                }),
-              ),
-              Text('${_fSize.round()} pt',
-                  style: Theme.of(context).textTheme.labelLarge),
-              IconButton(
-                tooltip: context.t('vw.text_bigger'),
-                icon: const Icon(Icons.text_increase),
-                onPressed: () => setState(() {
-                  _fSize = (_fSize + 2).clamp(6.0, 96.0).toDouble();
-                  _tSize = true;
-                }),
-              ),
-              const SizedBox(width: 4),
-              FilledButton(
+          child: OfficeRibbon(
+            tabs: [
+              RibbonTab('', [
+                RibbonButton(OfficeIcons.bold, context.t('common.bold'),
+                    active: _fBold,
+                    onTap: () => setState(() {
+                          _fBold = !_fBold;
+                          _tBold = true;
+                        })),
+                RibbonButton(OfficeIcons.italic, context.t('common.italic'),
+                    active: _fItalic,
+                    onTap: () => setState(() {
+                          _fItalic = !_fItalic;
+                          _tItalic = true;
+                        })),
+                RibbonButton(
+                    OfficeIcons.underline, context.t('common.underline'),
+                    active: _fUnder,
+                    onTap: () => setState(() {
+                          _fUnder = !_fUnder;
+                          _tUnder = true;
+                        })),
+                const RibbonSep(),
+                RibbonButton(
+                    OfficeIcons.fontShrink, context.t('vw.text_smaller'),
+                    onTap: () => setState(() {
+                          _fSize = (_fSize - 2).clamp(6.0, 96.0).toDouble();
+                          _tSize = true;
+                        })),
+                RibbonChip(
+                  icon: OfficeIcons.fontSize,
+                  label: '${_fSize.round()}',
+                  tooltip: context.t('word.font_size'),
+                  onTap: _pickSlideFontSize,
+                ),
+                RibbonButton(OfficeIcons.fontGrow, context.t('vw.text_bigger'),
+                    onTap: () => setState(() {
+                          _fSize = (_fSize + 2).clamp(6.0, 96.0).toDouble();
+                          _tSize = true;
+                        })),
+              ]),
+            ],
+            trailing: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilledButton(
                 onPressed: _finishEdit,
                 child: Text(context.t('sl.done')),
               ),
-            ],
+            ),
           ),
         ),
       ),

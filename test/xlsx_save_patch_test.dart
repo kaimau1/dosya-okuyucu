@@ -251,6 +251,28 @@ void main() {
           .getAttribute('rgb'), 'FFFF0000');
     });
 
+    test('yazı puntosu ve yazı tipi adı fonts tablosuna yazılır', () {
+      // 2026-08-07: Excel şeridine yazı tipi/punto geldi; kaydetmede de
+      // durmalı. `scheme` SİLİNİR — kalırsa Excel tema fontunu kullanır ve
+      // kullanıcının seçtiği ad görünmezdi.
+      final out = XlsxSavePatch.apply(_sampleBook(), const [
+        XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+          (0, 0): XlsxStyleEdit(fontSize: 18, fontName: 'Arial'),
+        }),
+      ]);
+      final styles = _sheetXml(out, 'xl/styles.xml');
+      final cell = _all(_sheetXml(out), 'c')
+          .firstWhere((e) => e.getAttribute('r') == 'A1');
+      final xf = _all(_first(styles, 'cellXfs')!, 'xf')[
+          int.parse(cell.getAttribute('s')!)];
+      expect(xf.getAttribute('applyFont'), '1');
+      final font = _all(_first(styles, 'fonts')!, 'font')[
+          int.parse(xf.getAttribute('fontId')!)];
+      expect(_all(font, 'sz').single.getAttribute('val'), '18');
+      expect(_all(font, 'name').single.getAttribute('val'), 'Arial');
+      expect(_all(font, 'scheme'), isEmpty);
+    });
+
     test('aynı biçim iki hücreye verilince TEK <xf> üretilir', () {
       final out = XlsxSavePatch.apply(_sampleBook(), const [
         XlsxSheetPatch(name: 'Sheet1', styleEdits: {

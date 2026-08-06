@@ -65,40 +65,92 @@ class PdfEditOverlay extends StatelessWidget {
     return Rect.fromLTRB(left, bottom, right, top);
   }
 
+  /// Parmak hedefi için en küçük kutu yüksekliği (Material dokunma hedefi
+  /// 48dp; belge kutuları üst üste binmesin diye 30'da tutuldu).
+  static const double minTouch = 30;
+
+  /// Kutuların çizim/dokunma sırası: **büyükler altta, küçükler üstte.**
+  ///
+  /// KÖK NEDEN (2026-08-07 kullanıcı: *"daha çok isabet"*): `Stack` içinde
+  /// hit-test SONDAKİ çocuktan başlar. Kutular dosya sırasındaydı, yani bir
+  /// paragrafın içindeki küçük bir satır/başlık kutusu çoğu zaman büyük
+  /// kutunun ALTINDA kalıyor ve dokunuş hep büyük olanı seçiyordu. Alan
+  /// büyüklüğüne göre sıralamak "kullanıcı gördüğü en küçük kutuyu
+  /// kastediyor" kuralını uygular.
+  @visibleForTesting
+  static List<int> orderByAreaDesc(List<Rect> rects) {
+    final order = [for (var i = 0; i < rects.length; i++) i];
+    order.sort((a, b) {
+      final areaA = rects[a].width * rects[a].height;
+      final areaB = rects[b].width * rects[b].height;
+      return areaB.compareTo(areaA);
+    });
+    return order;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    if (!textMode) {
+      final rects = [
+        for (final o in outline.objects)
+          _toScreen(o.left, o.bottom, o.right, o.top),
+      ];
+      return Stack(
+        children: [
+          for (final i in orderByAreaDesc(rects))
+            _objectBox(scheme, i, outline.objects[i]),
+        ],
+      );
+    }
+    final rects = [
+      for (final par in outline.paragraphs)
+        _toScreen(par.left, par.bottom, par.right, par.top),
+    ];
     return Stack(
       children: [
-        if (textMode)
-          for (var i = 0; i < outline.paragraphs.length; i++)
-            _paragraphBox(scheme, i, outline.paragraphs[i])
-        else
-          for (var i = 0; i < outline.objects.length; i++)
-            _objectBox(scheme, i, outline.objects[i]),
+        for (final i in orderByAreaDesc(rects)) _paragraphBox(scheme, i, rects[i]),
       ],
     );
   }
 
-  Widget _paragraphBox(ColorScheme scheme, int index, PdfParagraph paragraph) {
-    final rect = _toScreen(
-        paragraph.left, paragraph.bottom, paragraph.right, paragraph.top);
+  Widget _paragraphBox(ColorScheme scheme, int index, Rect rect) {
+    // Dokunma alanı görünenden büyük olabilir: ince satırlar (tek satırlık
+    // paragraf, dipnot, tablo hücresi) parmakla vurulamıyordu. Görünen kutu
+    // olduğu yerde kalır — kullanıcı neyi düzenlediğini görmeye devam eder.
+    final touch = touchRect(rect);
     return Positioned.fromRect(
-      rect: rect.inflate(2),
+      rect: touch,
       child: GestureDetector(
         // Yalnız dokunuş: sürükleme pdfrx'e kalır, sayfa gezinmesi bozulmaz.
         behavior: HitTestBehavior.opaque,
         onTap: () => onParagraphTap(index),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-                color: scheme.primary.withValues(alpha: 0.55), width: 1),
-            borderRadius: BorderRadius.circular(3),
-            color: scheme.primary.withValues(alpha: 0.06),
-          ),
+        child: Stack(
+          children: [
+            Positioned.fromRect(
+              rect: rect.inflate(2).shift(-touch.topLeft),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.55), width: 1),
+                  borderRadius: BorderRadius.circular(3),
+                  color: scheme.primary.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  /// Kutuyu en az [minTouch] yüksekliğe/genişliğe büyütür (ortadan).
+  @visibleForTesting
+  static Rect touchRect(Rect rect) {
+    final dy = rect.height < minTouch ? (minTouch - rect.height) / 2 : 2.0;
+    final dx = rect.width < minTouch ? (minTouch - rect.width) / 2 : 2.0;
+    return Rect.fromLTRB(
+        rect.left - dx, rect.top - dy, rect.right + dx, rect.bottom + dy);
   }
 
   Widget _objectBox(ColorScheme scheme, int index, PdfPageObject object) {
@@ -251,25 +303,35 @@ class PdfScannedOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final rects = [
+      for (final l in lines) l.box.toRect(page: page, scaledPageSize: pageSize),
+    ];
+    // Paragraf katmanıyla aynı kural: küçük kutu üstte (isabet), dokunma
+    // hedefi en az 30dp (OCR satırları ince olur, parmakla vurulamıyordu).
     return Stack(
       children: [
-        for (var i = 0; i < lines.length; i++)
+        for (final i in PdfEditOverlay.orderByAreaDesc(rects))
           Positioned.fromRect(
-            rect: lines[i]
-                .box
-                .toRect(page: page, scaledPageSize: pageSize)
-                .inflate(2),
+            rect: PdfEditOverlay.touchRect(rects[i]),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => onLineTap(i),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: scheme.tertiary.withValues(alpha: 0.55),
-                      width: 1),
-                  borderRadius: BorderRadius.circular(3),
-                  color: scheme.tertiary.withValues(alpha: 0.05),
-                ),
+              child: Stack(
+                children: [
+                  Positioned.fromRect(
+                    rect: rects[i].inflate(2).shift(
+                        -PdfEditOverlay.touchRect(rects[i]).topLeft),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: scheme.tertiary.withValues(alpha: 0.55),
+                            width: 1),
+                        borderRadius: BorderRadius.circular(3),
+                        color: scheme.tertiary.withValues(alpha: 0.05),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
