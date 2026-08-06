@@ -39,6 +39,15 @@ List<PdfRect> selectionPdfRects(PdfPageText text, int start, int end) {
 
 /// Dikey olarak örtüşen (aynı satırdaki) dikdörtgenleri tek dikdörtgende
 /// birleştirir. Sıra korunur: ilk satır listenin başında kalır.
+///
+/// **Yatay uzaklık koşulu (2026-08-06 kullanıcı bulgusu: "üst alanda seçim
+/// yapmaya çalıştım ama tüm sayfa seçiliyor"):** akış şeması gibi çok sütunlu
+/// sayfalarda sol ve sağ kutular aynı yüksekliğe düşer; yalnız dikeye bakan
+/// birleştirme ikisini aradaki BOŞLUKLA birlikte tek banda çeviriyordu ve
+/// vurgu sayfanın tüm genişliğini kaplamış görünüyordu. Aynı satır sayılmak
+/// için dikdörtgenlerin yatayda da komşu olması gerekir: aradaki boşluk satır
+/// yüksekliğinin 2 katını aşarsa (kelime aralığı değil sütun aralığıdır)
+/// birleştirilmez, her kutu kendi metnini sarar.
 List<PdfRect> mergeSameLineRects(List<PdfRect> rects) {
   final out = <PdfRect>[];
   for (final r in rects) {
@@ -48,8 +57,10 @@ List<PdfRect> mergeSameLineRects(List<PdfRect> rects) {
       final o = out[i];
       final overlap = math.min(o.top, r.top) - math.max(o.bottom, r.bottom);
       final minHeight = math.min(o.top - o.bottom, r.top - r.bottom);
-      // Satır yüksekliğinin yarısından fazlası örtüşüyorsa aynı satırdır.
-      if (minHeight > 0 && overlap > minHeight * 0.5) {
+      final hGap = math.max(o.left, r.left) - math.min(o.right, r.right);
+      // Satır yüksekliğinin yarısından fazlası örtüşüyorsa VE yatayda
+      // komşularsa aynı satırdır.
+      if (minHeight > 0 && overlap > minHeight * 0.5 && hGap <= minHeight * 2) {
         out[i] = PdfRect(
           math.min(o.left, r.left),
           math.max(o.top, r.top),

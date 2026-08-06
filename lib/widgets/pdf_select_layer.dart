@@ -381,7 +381,9 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
         (at - _lastTapPos).distance < 30;
     if (isDoubleTap) {
       _lastTapAt = null;
-      if (!_selectWordAt(at) && _textThin && !_ocrTried &&
+      if (!_selectWordAt(at) &&
+          _textThin &&
+          !_ocrTried &&
           PdfOcrText.isSupported) {
         // Taranmış sayfada çift dokunuş da OCR'ı bekletir (parmak yerde
         // olmadığı için sürükleme kipi açılmaz, yalnız kelime seçilir).
@@ -408,7 +410,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   /// (Chrome/Android yerel davranışı): çapa kelime hep seçili kalır, uç
   /// kelime sınırına yapışır.
   void _extendDragTo(Offset local) {
-    final i = _charIndexAt(local, maxDist: _unbounded);
+    final i = _charIndexAt(local, maxDist: _unbounded, lineBias: _lineBias);
     if (i == null) return;
     final (ws, we) = _wordBoundsAt(i);
     final int a, b;
@@ -460,13 +462,13 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   void _onMouseMove(PointerMoveEvent event) {
     if (!_mouseSelecting || event.buttons & kPrimaryButton == 0) return;
-    if (!_mouseMoved &&
-        (event.localPosition - _mouseDownPos).distance < 4) {
+    if (!_mouseMoved && (event.localPosition - _mouseDownPos).distance < 4) {
       return; // titreme değil gerçek sürükleme olsun
     }
     _mouseMoved = true;
     _notifyDragAt(event.position);
-    final i = _charIndexAt(event.localPosition, maxDist: _unbounded);
+    final i = _charIndexAt(event.localPosition,
+        maxDist: _unbounded, lineBias: _lineBias);
     if (i == null) return;
     if (_anchor != _mouseAnchorChar || _extent != i) {
       setState(() {
@@ -622,7 +624,16 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   /// [local] noktasına en yakın karakterin fullText indeksi (yoksa null).
   /// [maxDist]: kutu dışına bu kadar piksele kadar tolerans (parmak kalın;
   /// sürüklemede [_unbounded] verilir — en yakın karakter her zaman bulunur).
-  int? _charIndexAt(Offset local, {double maxDist = 28}) {
+  ///
+  /// [lineBias] dikey uzaklığı bu katsayıyla cezalandırır. Sürükleme
+  /// aramaları [_lineBias] verir (2026-08-06 kullanıcı bulgusu: "üst alanda
+  /// seçim yapmaya çalıştım ama tüm sayfa seçiliyor"): akış şeması gibi
+  /// dağınık yerleşimde parmak kutular arasındaki boşluğa taşınca düz uzaklık
+  /// en yakın karakteri BAŞKA bir kutuda buluyor, seçim bir anda sayfanın
+  /// yarısına sıçrıyordu. Dikey ceza seçimi parmağın bulunduğu satıra
+  /// kilitler — Chrome gibi satır sonuna kadar uzar, alttaki kutuya ancak
+  /// parmak gerçekten oraya inince geçer.
+  int? _charIndexAt(Offset local, {double maxDist = 28, double lineBias = 1}) {
     _ensureGeometry();
     int? best;
     var bestD = maxDist * maxDist;
@@ -634,7 +645,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       final dy = local.dy < r.top
           ? r.top - local.dy
           : (local.dy > r.bottom ? local.dy - r.bottom : 0.0);
-      final d = dx * dx + dy * dy;
+      final d = dx * dx + dy * dy * lineBias * lineBias;
       if (d < bestD) {
         bestD = d;
         best = _charTextIndex[k];
@@ -642,6 +653,10 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     }
     return best;
   }
+
+  /// Sürükleme aramalarındaki dikey ceza katsayısı: 4 → bir satır aşağıdaki
+  /// karakter, aynı satırda 4 kat uzaktaki karakterle eş uzaklıkta sayılır.
+  static const _lineBias = 4.0;
 
   static bool _isWordChar(String ch) => ch.trim().isNotEmpty;
 
@@ -722,7 +737,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     // Parmak tutamacın ORTASINDA değil, ucundadır; hedefi biraz yukarı al ki
     // kullanıcı gördüğü karakteri seçsin, altındakini değil.
     final local = at - const Offset(0, 14);
-    final i = _charIndexAt(local, maxDist: _unbounded);
+    final i = _charIndexAt(local, maxDist: _unbounded, lineBias: _lineBias);
     if (i == null) return;
     final fixed = isStart ? _selEnd : _selStart;
     if (fixed < 0) return;
@@ -755,10 +770,11 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   void _report() {
     final t = _text;
-    final rects =
-        t == null ? const <PdfRect>[] : selectionPdfRects(t, _selStart, _selEnd);
-    widget.onSelected(_selectedText, rects, widget.page.pageNumber,
-        _precedingText, _fromOcr);
+    final rects = t == null
+        ? const <PdfRect>[]
+        : selectionPdfRects(t, _selStart, _selEnd);
+    widget.onSelected(
+        _selectedText, rects, widget.page.pageNumber, _precedingText, _fromOcr);
   }
 
   bool get _hasSelection =>
@@ -781,8 +797,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
           // saydam, alttaki katmanlardan hiçbir şey çalmaz).
           MouseRegion(
             opaque: false,
-            cursor:
-                _hoverOnText ? SystemMouseCursors.text : MouseCursor.defer,
+            cursor: _hoverOnText ? SystemMouseCursors.text : MouseCursor.defer,
             child: Listener(
               behavior: HitTestBehavior.translucent,
               onPointerDown: _onPointerDown,
@@ -826,9 +841,8 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     const size = Size(112, 56);
     const above = 66.0;
     final maxLeft = widget.pageSize.width - size.width + 8.0;
-    final left = maxLeft < -8.0
-        ? -8.0
-        : (p.dx - size.width / 2).clamp(-8.0, maxLeft);
+    final left =
+        maxLeft < -8.0 ? -8.0 : (p.dx - size.width / 2).clamp(-8.0, maxLeft);
     final top = p.dy - size.height / 2 - above;
     return Positioned(
       left: left,
@@ -913,7 +927,8 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   Widget _handle({required bool isStart, required Color color}) {
     final r = _charRect(isStart ? _selStart : _selEnd);
     if (r == null) return const SizedBox.shrink();
-    final point = isStart ? Offset(r.left, r.bottom) : Offset(r.right, r.bottom);
+    final point =
+        isStart ? Offset(r.left, r.bottom) : Offset(r.right, r.bottom);
     const touch = 48.0, dot = 20.0;
     return Positioned(
       left: point.dx - touch / 2,
@@ -949,7 +964,9 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 3),
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 3),
                 ],
               ),
             ),

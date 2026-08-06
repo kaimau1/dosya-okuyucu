@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
+import '../core/copy_text.dart';
 import '../core/text_search.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
@@ -1353,7 +1354,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Future<void> _copyPdfSelection() async {
-    final text = _pdfSelection.trim();
+    // Ham seçim değil TEMİZ metin kopyalanır (2026-08-06 kullanıcı bulgusu):
+    // pdfium'un satır sonları ve görünmez karakterleri panoya taşınmasın,
+    // satırlara bölünmüş "Fizik / Muayene" tek satır "Fizik Muayene" olsun.
+    final text = cleanPdfCopyText(_pdfSelection);
     if (text.isEmpty) return;
     final copied = context.t('vw.copied_chars', {'n': text.length});
     await Clipboard.setData(ClipboardData(text: text));

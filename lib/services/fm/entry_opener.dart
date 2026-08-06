@@ -70,9 +70,8 @@ abstract final class EntryOpener {
       FmCategory.document || FmCategory.other => OpenRoute.document,
       // Açabildiğimiz arşivler kendi ekranımıza gider; okuyamadığımız biçim
       // (ör. .iso) sisteme düşer.
-      FmCategory.archive => ArchiveOps.canExtract(path)
-          ? OpenRoute.archive
-          : OpenRoute.external,
+      FmCategory.archive =>
+        ArchiveOps.canExtract(path) ? OpenRoute.archive : OpenRoute.external,
       FmCategory.apk || FmCategory.folder => OpenRoute.external,
     };
   }
@@ -251,11 +250,32 @@ abstract final class EntryOpener {
     }
   }
 
+  /// Yükleniyor penceresi — çıplak spinner değil, NE olduğunu söyleyen bir
+  /// kart (2026-08-06 kullanıcı bulgusu: "açılıyor mu ne oluyor belli değil").
   static void _showBusy(BuildContext context) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => Center(
+        child: Material(
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+                const SizedBox(width: 16),
+                Text(ctx.t('open.opening')),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
