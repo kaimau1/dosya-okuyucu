@@ -6635,3 +6635,17 @@ başka bir şey sanıp arar — ve bulamayınca "özellik yok" der.
   Metin modunda, sayfada gerçek metin katmanı YOKKEN (`paragraphs.isEmpty` →
   "taranmış aday") ve OCR satır bulmuşken çıkar. Aranabilir (OCR katmanlı) PDF
   üretilmişse sayfa metinli sayılır ve çubuk çıkmaz — açık kalan konu.
+
+### F) Aranabilir taranmış PDF "metinli" sayılıyordu (2026-08-07)
+"Metni düzelt / Metni AI ile düzelt" çubuğu, tarama **aranabilir** yapıldığında
+HİÇ çıkmıyordu: sayfaya gömülen görünmez OCR metni (`3 Tr`) yüzünden
+`paragraphs.isEmpty` yanlış çıkıyor, sayfa taranmış sayılmıyordu — kendi
+özelliğimiz kendi özelliğimizi kapatıyordu. Artık `PdfPageOutline.scanned`
+bayrağı var: **görünmez metin (`3 Tr`/`7 Tr`) VE sayfada görüntü**. İkisi
+birlikte aranıyor, yoksa filigranlı sıradan belge de taranmış sayılırdı.
+`hasInvisibleText` var olan `scanContent` tarayıcısını kullanıyor — dize
+İÇİNDEKİ "3 Tr" operatör sanılmıyor (`test/pdf_invisible_text_test.dart`).
+
+**Tuzak (test):** `fm_file_tags` eşzamanlılık testi, tam paket APK derlemesiyle
+AYNI ANDA koşarken düşüyor (yükte zamanlama). Tek başına yeşil — kırmızı
+görünce önce tek dosyayı koştur, koda dalmadan.
