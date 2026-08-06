@@ -6391,3 +6391,62 @@ görünmeli"*. (İlerleme penceresi sahada doğrulandı — ekran görüntüsü:
 dosyası ikinci açılışta pencere görmeden anında açılmalı; Drive'da güncellenen
 dosya yeniden inmeli; Word telefonda net açılmalı, "Sayfa düzeni"ne geçiş
 çalışmalı.
+
+## 2026-08-06 (3. tur) — Tarama akışı iyileştirmeleri + taranmış PDF düzenleme/okuma
+Kullanıcı (ekran görüntüleriyle, 5+2 madde): kırpma seçeneği, yarım sayfa,
+eğik tarama, e-kitap okuma, kaybolan büyüteç; ayrıca "taranmış belge deyip
+düzenleme yaptırmıyor, PDF'de yapılabilmeli; premium olmalı".
+
+### A) Köşe ayarına BÜYÜTEÇ geri geldi (`scan_edit_screen`)
+Tutamaç sürüklenirken RawMagnifier (1,8×) köşeyi izler (`_dragCorner` indeksi
+— konum build'de köşeden hesaplanır, sürüklemede kaymaz). Kullanıcının
+"eskiden vardı" dediği pencere ML Kit'in kendi arayüzündeydi; bizim köşe
+ekranımıza hiç konmamıştı.
+
+### B) Otomatik eğim düzeltme (`services/scan_deskew.dart`)
+Önizleme (`ScanReviewScreen._prepareAll`) her sayfada önce `DocEdges` ile
+kâğıt dörtgeni arar; `worthApplying` (saf, testli) onaylarsa `Perspective`
+ile düz açar, sonra filtre. Kurallar: alan oranı %45–98 arası VE kimliğe
+yakın değil (her köşe kendi görsel köşesinin %2,5'i içindeyse dokunma).
+Yanlış kırpma kırpmamaktan kötü — emin değilse sayfa olduğu gibi kalır,
+elle "Köşeleri ayarla" hep açık.
+
+### C) Sonuç ekranına "Kenarları kırp" (`scan_result_screen._cropCurrent`)
+Görünen sayfa köşe ekranında kırpılır → o sayfanın OCR'ı tazelenir → PDF
+aynı yolda yeniden kurulur ("Sayfa ekle" ile aynı yol). Yeni anahtarlar:
+`scr.crop_page`, `scr.cropped`.
+**SINIR — yarım sayfa (madde 2):** çekim anındaki mavi dörtgen ML Kit
+tarayıcısının KENDİ arayüzü (`cunning_document_scanner` → GMS); oraya kod
+enjekte edilemiyor. Çözüm yolu kullanıcıya: Manuel çekim + sonradan kırpma.
+
+### D) Okuma görünümü (`screens/reader_screen.dart`)
+PDF menüsünde "Okuma görünümü": sayfa GÖRÜNTÜSÜ değil METNİ akar — yazılmış
+sayfada pdfium, taranmışta `PdfOcrText` (aynı önbellek), `cleanPdfCopyText`
+ile satır kırıkları birleşik. Punto ± , zemin üçlüsü (açık/sepya/koyu),
+Tinos serif. Gemini KULLANILMADI: cihaz-içi OCR ücretsiz/çevrimdışı ve
+yeterli; AI temizliği istenirse sonra eklenir.
+
+### E) Taranmış PDF düzenleme (`services/pdf/pdf_scanned_retype.dart`)
+- PDF düzenleyici Metin modunda paragrafsız sayfa "taranmış" sayılır
+  (YAPIŞKAN küme `_scannedPages` — ilk düzenleme gerçek metin ekleyince
+  sınıf değişmesin) ve OCR satır kutuları (`PdfScannedOverlay`, kesikli
+  tertiary) dokunulabilir çizilir; kutular `PdfOcrText` fragmentlarından.
+- Dokununca tanınan metin ön-dolu pencere; Uygula = satır BEYAZ kapakla
+  örtülür + yeni metin AYNI yere gömülü Carlito ile yazılır (Türkçe glifler
+  tam; punto = kutu yüksekliği × 0,74; yazım alanı sağa sayfa kenarına dek).
+  Boş metin = satırı sil. Syncfusion `page.graphics` — annotation değil,
+  düzleştirilmiş içerik.
+- Düzenleme sonrası `PdfOcrText.invalidateMemory()` (yeni API) + `_docRev`
+  artar → kutular tazelenir; paragraf kutusuyla >%50 örtüşen OCR satırı
+  elenir (üstüne yazılmış satır artık paragraf yolundan düzenlenir).
+- Görüntüleyicinin seçim çubuğunda OCR seçiminde "Düzenle" artık görünür →
+  PDF düzenleyiciye götürür.
+- SINIR (bilinçli v1): kapak düz beyaz — renkli zeminde yama görünür; zemin
+  renk örnekleme açık iş.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 hata/0 uyarı (45 eski info),
+**1320 test yeşil** (+6: deskew kararı 4, üstüne yazma 2 — Syncfusion üret/
+yeniden aç/metin çıkar döngüsüyle). Cihazda bakılacaklar: eğik kitap sayfası
+önizlemede kendiliğinden düzelmeli; köşe ayarında büyüteç; taranmış PDF'te
+Metin modunda satır kutuları ve üstüne yazma; Okuma görünümünde taranmış
+sayfanın metin olarak akması.

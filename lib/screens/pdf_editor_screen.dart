@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../services/pdf/pdf_ocr_text.dart';
+import '../services/pdf/pdf_scanned_retype.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
@@ -85,6 +87,23 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   bool _ready = false;
   String? _error;
 
+  // ── Taranmış sayfa düzenleme (2026-08-06: "taranmış belge deyip düzenleme
+  // yaptırmıyor — PDF'de yapılabilmeli") ───────────────────────────────────
+  /// Bu oturumda "taranmış" olarak sınıflanan sayfalar (1-tabanlı). YAPIŞKAN:
+  /// bir satırın üstüne yazılınca sayfada gerçek metin oluşur ve paragraf
+  /// sayısı artar; sınıf değişseydi kalan OCR satırları düzenlenemez kalırdı.
+  final Set<int> _scannedPages = {};
+
+  /// Açık sayfanın OCR satırları (yalnız taranmış sayfada dolu).
+  List<ScannedLine> _scannedLines = const [];
+
+  /// [_scannedLines] hangi (belge sürümü, sayfa) için yüklendi.
+  String _scannedKey = '';
+  bool _scannedLoading = false;
+
+  /// Her başarılı düzenlemede artar — OCR kutuları yeniden yüklensin.
+  int _docRev = 0;
+
   @override
   void initState() {
     super.initState();
@@ -144,6 +163,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _outline = outline;
         _selectedObject = null;
         _error = null;
+        // Paragrafsız sayfa = taranmış aday; sınıf YAPIŞKAN (bkz. alan notu).
+        if (outline.paragraphs.isEmpty) _scannedPages.add(_page);
       });
     } on PdfPageRefused catch (e) {
       if (mounted) setState(() => _outline = PdfPageOutline.empty);
@@ -221,6 +242,79 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         newText: newText.trim(),
       );
       await _apply(out, _str.t('pe.paragraph_updated'));
+    });
+  }
+
+  /// Taranmış sayfanın OCR satır kutularını (gerekiyorsa) yükler. [page]
+  /// pdfrx'in CANLI sayfa nesnesi — overlay kurucusundan gelir; yeniden
+  /// yüklemeden sonra da doğru belgeyi gösterir. Yalnız zamanlar: build
+  /// sırasında çağrılır ama iş Future'a atıldığı için build'i bozmaz.
+  void _maybeLoadScanned(PdfPage page) {
+    if (!PdfOcrText.isSupported || _scannedLoading) return;
+    final key = '$_docRev#${page.pageNumber}';
+    if (_scannedKey == key) return;
+    _scannedLoading = true;
+    Future(() async {
+      var lines = const <ScannedLine>[];
+      try {
+        final ocr = await PdfOcrText.forPage(page);
+        lines = [
+          for (final f in ocr?.fragments ?? const <PdfPageTextFragment>[])
+            if (f.text.trim().isNotEmpty) ScannedLine(f.text.trim(), f.bounds),
+        ];
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _scannedKey = key;
+        _scannedLines = _withoutParagraphOverlaps(lines);
+        _scannedLoading = false;
+      });
+    });
+  }
+
+  /// Paragraf kutusuyla örtüşen OCR satırlarını eler: üstüne yazılmış satır
+  /// artık GERÇEK metindir ve kutusu paragraf yolundan gelir — aynı yerde iki
+  /// kutu (biri bayat) üst üste binmesin.
+  List<ScannedLine> _withoutParagraphOverlaps(List<ScannedLine> lines) {
+    if (_outline.paragraphs.isEmpty) return lines;
+    bool overlaps(ScannedLine s) {
+      for (final par in _outline.paragraphs) {
+        final w = (s.box.right < par.right ? s.box.right : par.right) -
+            (s.box.left > par.left ? s.box.left : par.left);
+        final h = (s.box.top < par.top ? s.box.top : par.top) -
+            (s.box.bottom > par.bottom ? s.box.bottom : par.bottom);
+        if (w > 0 && h > 0 && w * h > 0.5 * s.box.width * s.box.height) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return [
+      for (final s in lines)
+        if (!overlaps(s)) s
+    ];
+  }
+
+  /// OCR satırına dokunuldu: tanınan metin ön-dolu pencerede düzenlenir,
+  /// satır beyaz kapakla örtülüp yeni metin AYNI yere yazılır (bkz.
+  /// [PdfScannedRetype]). Boş bırakmak satırı siler.
+  Future<void> _editScannedLine(int index) async {
+    if (index < 0 || index >= _scannedLines.length) return;
+    final line = _scannedLines[index];
+    final newText = await _askParagraphText(line.text);
+    if (newText == null || !mounted) return;
+    await _run(() async {
+      final out = await PdfScannedRetype.apply(
+        bytes: await _workBytes(),
+        pageIndex: _page - 1,
+        box: line.box,
+        newText: newText,
+      );
+      // Sayfa değişti: OCR bellek önbelleği bayat, kutular yeniden yüklensin.
+      PdfOcrText.invalidateMemory();
+      _docRev++;
+      await _apply(out, _str.t('pe.scanned_updated'));
     });
   }
 
@@ -472,6 +566,25 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                             () => _selectedObject = _selectedObject == i ? null : i),
                         onObjectChanged: _moveObject,
                       ),
+                    // Taranmış sayfa: OCR satır kutuları da düzenlenebilir
+                    // (2026-08-06 — "taranmış belge deyip düzenleme
+                    // yaptırmıyor"). Kutu listesi bu sayfa+sürüm için
+                    // yüklenmemişse boş çizilir, yükleme arkada tetiklenir.
+                    if (page.pageNumber == _page &&
+                        _mode == _EditMode.text &&
+                        _scannedPages.contains(_page) &&
+                        PdfOcrText.isSupported)
+                      Builder(builder: (context) {
+                        _maybeLoadScanned(page);
+                        final fresh =
+                            _scannedKey == '$_docRev#${page.pageNumber}';
+                        return PdfScannedOverlay(
+                          page: page,
+                          pageSize: pageRect.size,
+                          lines: fresh ? _scannedLines : const [],
+                          onLineTap: _editScannedLine,
+                        );
+                      }),
                   ],
                 ),
               ),
@@ -502,7 +615,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   Widget _hintBar() {
     final text = context.t(switch (_mode) {
       _EditMode.text => _outline.paragraphs.isEmpty
-          ? 'pe.hint_text_none'
+          ? (_scannedPages.contains(_page) && PdfOcrText.isSupported
+              ? 'pe.hint_text_scanned'
+              : 'pe.hint_text_none')
           : 'pe.hint_text',
       _EditMode.image =>
         _outline.objects.isEmpty ? 'pe.hint_image_none' : 'pe.hint_image',

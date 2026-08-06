@@ -13,6 +13,7 @@ import '../services/fm/file_ops.dart';
 import '../services/ocr_service.dart';
 import '../widgets/translate_flow.dart';
 import 'fm/folder_picker_screen.dart';
+import 'scan_edit_screen.dart';
 import 'scan_review_screen.dart';
 
 /// **Tarama sonucu** — taranan belge ve tanınan metin, yan yana iki sekmede.
@@ -84,6 +85,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   late final List<String> _pages = List.of(widget.pages);
   late final List<List<OcrLine>> _lines = List.of(widget.ocrLines);
   bool _busy = false;
+
+  /// Belge sekmesinde görünen sayfa — "Kenarları kırp" bu sayfaya uygulanır.
+  int _pageIndex = 0;
 
   String get _folder => p.dirname(_pdfPath);
 
@@ -167,6 +171,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
   Widget _documentTab() => PageView.builder(
         itemCount: _pages.length,
+        onPageChanged: (i) => _pageIndex = i,
         itemBuilder: (_, i) => InteractiveViewer(
           minScale: 1,
           maxScale: 5,
@@ -245,6 +250,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               onPressed: _busy ? null : _addPages,
               icon: const Icon(Icons.add_photo_alternate_outlined, size: 20),
               label: Text(context.t('scr.add_pages')),
+            ),
+            // Kenarları kırp/düzelt (2026-08-06 isteği: "sayfa ilk
+            // çekildiğindeki ekranda kenarları kırp seçeneği olmalı") —
+            // görünen sayfa köşe ekranında kırpılır, PDF yeniden kurulur.
+            TextButton.icon(
+              onPressed: _busy ? null : _cropCurrent,
+              icon: const Icon(Icons.crop, size: 20),
+              label: Text(context.t('scr.crop_page')),
             ),
             TextButton.icon(
               onPressed: _busy ? null : _translate,
@@ -364,6 +377,34 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       if (!mounted) return;
       setState(() => _text = DocumentScanner.textPages(_lines));
       _snack(context.t('scr.pages_added', {'n': reviewed.length}));
+    } catch (e) {
+      if (mounted) _snack(context.t('scr.add_failed', {'error': e}));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Görünen sayfanın kenarlarını kırpar/perspektifini düzeltir; sayfa OCR'ı
+  /// tazelenir ve PDF aynı yolda yeniden kurulur ("Sayfa ekle" ile aynı yol).
+  Future<void> _cropCurrent() async {
+    if (_pages.isEmpty) return;
+    final index = _pageIndex.clamp(0, _pages.length - 1);
+    final edited = await ScanEditScreen.open(context, _pages[index]);
+    if (edited == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final newLines = await DocumentScanner.recognizePages([edited]);
+      while (_lines.length < _pages.length) {
+        _lines.add(const []); // OCR'sız eski tarama: hizalama bozulmasın
+      }
+      _pages[index] = edited;
+      _lines[index] = newLines.first;
+      final bytes =
+          await DocumentScanner.renderPdf(_pages, ocrLinesPerPage: _lines);
+      await File(_pdfPath).writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      setState(() => _text = DocumentScanner.textPages(_lines));
+      _snack(context.t('scr.cropped'));
     } catch (e) {
       if (mounted) _snack(context.t('scr.add_failed', {'error': e}));
     } finally {
