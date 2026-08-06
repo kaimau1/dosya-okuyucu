@@ -45,10 +45,20 @@ class LoadedDoc {
   /// Elektronik tablolar için satır/sütun verisi (opsiyonel).
   final List<List<String>>? table;
 
-  /// Salt-okunur mu? Eski ikili biçimlerden (.doc/.xls/.ppt) çıkarılan içerik
+  /// Salt-okunur mu? Eski ikili biçimlerden (.doc/.ppt) çıkarılan içerik
   /// düzenlenip geri yazılamaz — görüntüleyici (ViewerScreen) ile gösterilir,
   /// OOXML editörlerine yönlendirilmez.
   final bool readOnly;
+
+  /// [path] bir **çalışma kopyasıysa** (ör. `.xls` → `.xlsx` çevrimi), kaydetme
+  /// buraya yazar. Kullanıcının gördüğü dosya `.xls` ama biz BIFF yazamayız;
+  /// kaydetme özgün dosyanın yanına aynı adlı `.xlsx` bırakır. `null` ise
+  /// kaydetme [path]'in kendisine gider (normal durum).
+  final String? savePath;
+
+  /// Çalışma kopyasının geldiği özgün dosya (kullanıcıya "şuradan çevrildi"
+  /// demek ve son belgeler kaydını doğru tutmak için).
+  final String? sourcePath;
 
   const LoadedDoc({
     required this.path,
@@ -57,6 +67,8 @@ class LoadedDoc {
     this.plainText = '',
     this.table,
     this.readOnly = false,
+    this.savePath,
+    this.sourcePath,
   });
 
   bool get isEditableText =>

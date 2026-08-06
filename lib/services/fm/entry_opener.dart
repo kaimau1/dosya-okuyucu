@@ -221,7 +221,11 @@ abstract final class EntryOpener {
     switch (doc.kind) {
       case DocKind.spreadsheet:
         return SpreadsheetEditorScreen(
-            path: doc.path, name: doc.name, plainText: doc.plainText);
+          path: doc.path,
+          name: doc.name,
+          plainText: doc.plainText,
+          savePath: doc.savePath,
+        );
       case DocKind.word:
         return WordEditorScreen(
             path: doc.path, name: doc.name, plainText: doc.plainText);

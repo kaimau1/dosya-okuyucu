@@ -127,7 +127,7 @@ void main() {
       );
     });
 
-    testWidgets('yön ⋮ menüsünden değiştirilebilir ve kaydetmeye girer',
+    testWidgets('yön Görünüm sekmesinden değiştirilebilir ve kaydetmeye girer',
         (tester) async {
       final path = '${dir.path}/toggle.xlsx';
       File(path).writeAsBytesSync(_book(rtl: false));
@@ -141,13 +141,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byIcon(Icons.more_vert));
+      // Yön düğmesi artık şeridin "Görünüm" sekmesinde (2026-08-07 şerit
+      // turu); eskiden ⋮ menüsündeydi.
+      await tester.tap(find.text('Görünüm'));
       await tester.pumpAndSettle();
-      // Metnin kendisine değil MENÜ ÖĞESİNE dokunulur: CheckedPopupMenuItem'da
-      // metin, onay simgesinin yanında dar bir kutuda durur ve merkezine
-      // yapılan dokunuş menü katmanına düşebiliyor ("would not hit test").
-      await tester.tap(
-          find.widgetWithText(CheckedPopupMenuItem<String>, 'Sayfa sağdan sola'));
+      final rtlButton = find.byIcon(Icons.format_textdirection_r_to_l);
+      await tester.ensureVisible(rtlButton);
+      await tester.pumpAndSettle();
+      await tester.tap(rtlButton);
       await tester.pumpAndSettle();
 
       expect(

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dosya_okuyucu/models/document.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
+import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -150,4 +151,34 @@ void main() {
       await dir.delete(recursive: true);
     }
   });
+
+  test('.xls artık salt-okunur değil: düzenlenebilir .xlsx çalışma kopyası açar',
+      () async {
+    // 2026-08-07: eski .xls dosyaları gerçek Excel ızgarasında açılıyor
+    // (zoom + şerit + düzenleme). Yükleme, BIFF'ten çevrilmiş geçici bir
+    // .xlsx'e işaret eder; kaydetme özgün dosyanın YANINA .xlsx bırakır.
+    final dir = await Directory.systemTemp.createTemp('fs_xls');
+    try {
+      final src = File('test/fixtures/legacy_sample.xls').readAsBytesSync();
+      final f = File('${dir.path}/kitap.xls');
+      await f.writeAsBytes(src);
+
+      final doc = await svc.load(f.path);
+      expect(doc.kind, DocKind.spreadsheet);
+      expect(doc.readOnly, isFalse, reason: 'düzenleyiciye gitmeli');
+      expect(doc.path, endsWith('.xlsx'), reason: 'çalışma kopyası .xlsx');
+      expect(File(doc.path).existsSync(), isTrue);
+      expect(doc.savePath, '${dir.path}/kitap.xlsx');
+      expect(doc.sourcePath, f.path);
+      // İçerik korunmuş olmalı (fixture: Alfa/Beta + 42.5/100).
+      expect(doc.plainText, contains('Alfa'));
+      final editor = XlsxEditor.parse(
+          Uint8List.fromList(File(doc.path).readAsBytesSync()));
+      expect(editor.sheets.first.rawAt(0, 0), 'Alfa');
+      expect(editor.sheets.first.rawAt(1, 0), '42.5');
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+
 }

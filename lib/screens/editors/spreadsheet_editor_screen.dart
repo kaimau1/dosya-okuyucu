@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/excel_format.dart';
@@ -22,6 +23,7 @@ import '../../services/sheet_edit.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
+import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/sheet_cell.dart';
@@ -54,11 +56,17 @@ class SpreadsheetEditorScreen extends StatefulWidget {
   @visibleForTesting
   static const fillHandleKey = Key('sheet-fill-handle');
 
+  /// Kaydetmenin gideceği yol. `null` ise [path]'in kendisi. Eski `.xls`
+  /// dosyalarında [path] geçici bir `.xlsx` çalışma kopyasıdır; kaydetme
+  /// özgün dosyanın yanına `.xlsx` bırakır (BIFF yazmıyoruz).
+  final String? savePath;
+
   const SpreadsheetEditorScreen({
     super.key,
     required this.path,
     required this.name,
     required this.plainText,
+    this.savePath,
   });
 
   @override
@@ -97,6 +105,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   bool _editing = false;
 
   double _zoom = 1;
+
+  /// Şeritteki −/%/+ düğmeleri pinch ile AYNI ölçeği sürer.
+  final _zoomCtl = PinchZoomController();
 
   // Bağlı kaydırma: gövde sürüklenir, başlıklar onu takip eder.
   final _hBody = ScrollController();
@@ -755,13 +766,23 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     _endEdit();
     final editor = _editor;
     if (editor == null) return;
+    final target = widget.savePath ?? widget.path;
     try {
       final bytes = editor.save();
-      await File(widget.path).writeAsBytes(bytes);
+      await File(target).writeAsBytes(bytes);
+      // Çevrilmiş dosyada çalışma kopyası da tazelenir: kullanıcı kaydettikten
+      // sonra düzenlemeye devam edip yine kaydedebilsin.
+      if (widget.savePath != null) {
+        await File(widget.path).writeAsBytes(bytes);
+      }
       _dirty = false;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.t('common.saved_hint'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(widget.savePath == null
+              ? context.t('common.saved_hint')
+              : context.t('excel.saved_as_xlsx',
+                  {'name': p.basename(target)})),
+        ));
         setState(() {});
       }
     } catch (e) {
@@ -895,44 +916,22 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       actions: [
         // Geri al / yinele Excel'de de en görünür yerdedir: her düzenleme
         // güvenle denenebilsin.
+        // Sayfa git / bölme / yön ve arama artık ŞERİTTE (Veri ve Görünüm
+        // sekmeleri) — üst çubukta yalnız her an lazım olan ikili kaldı.
         IconButton(
           tooltip: context.t('excel.undo'),
-          icon: const Icon(Icons.undo),
+          icon: const Icon(OfficeIcons.undo),
           onPressed: editor == null || !_undo.canUndo ? null : _undoStep,
         ),
         IconButton(
           tooltip: context.t('excel.redo'),
-          icon: const Icon(Icons.redo),
+          icon: const Icon(OfficeIcons.redo),
           onPressed: editor == null || !_undo.canRedo ? null : _redoStep,
         ),
         IconButton(
           tooltip: context.t('common.search'),
-          icon: const Icon(Icons.search),
+          icon: const Icon(OfficeIcons.search),
           onPressed: editor == null ? null : _toggleFind,
-        ),
-        PopupMenuButton<String>(
-          onSelected: (v) {
-            if (v == 'goto') _showGoTo();
-            if (v == 'freeze') _toggleFreeze();
-            if (v == 'rtl') _toggleSheetDirection();
-          },
-          // Sütun genişliği / satır yüksekliği buradan kalktı: artık
-          // "Daha fazla" sayfasında, ait oldukları Satır/Sütun grubunda.
-          itemBuilder: (_) => [
-            PopupMenuItem(
-                value: 'goto', child: Text(context.t('excel.goto_cell_menu'))),
-            CheckedPopupMenuItem(
-              value: 'rtl',
-              checked: _sheet?.rightToLeft ?? false,
-              child: Text(context.t('excel.sheet_rtl')),
-            ),
-            if (_sheetHasFreeze)
-              PopupMenuItem(
-                value: 'freeze',
-                child: Text(context.t(
-                    _freeze ? 'excel.unfreeze_panes' : 'excel.freeze_panes')),
-              ),
-          ],
         ),
       ],
       body: _error != null
@@ -946,11 +945,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                     _cellBar(),
                     _formulaSuggestions(),
                     _formulaPreview(),
-                    _rowColBar(),
+                    _ribbon(),
                     Expanded(
                       child: PinchZoomArea(
                         minZoom: 0.3,
                         maxZoom: 3,
+                        controller: _zoomCtl,
                         onCommitted: _fixScroll,
                         builder: (context, zoom, physics) {
                           _zoom = zoom;
@@ -1014,6 +1014,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           .clamp(0.0, _vBody.position.maxScrollExtent));
     }
     _updateColWindow();
+    // Şeritteki zoom yüzdesi ölçekle birlikte yenilensin (rozet pinch'te
+    // görünür, düğmeyle zoomda görünmez — kullanıcının tek göstergesi bu).
+    if (mounted) setState(() {});
   }
 
   Widget _cellBar() {
@@ -1431,47 +1434,60 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     setState(() {});
   }
 
-  /// Biçim çubuğu — **sade tutulur**: sık kullanılan altı kontrol ikonla
-  /// burada, gerisi etiketli "Daha fazla" sayfasında (`DocMoreSheet`).
+  /// **Excel şeridi** (2026-08-07 kullanıcı isteği: *"xls şeritte Excel gibi
+  /// simgeler bile yok"*).
   ///
-  /// **Neden:** çubuk 20 ikona kadar şişmişti ve telefonda `tooltip`
-  /// görünmediği için hiçbirinin ne yaptığı belli değildi; kullanıcı yatayda
-  /// kör kaydırıp deneyerek buluyordu. Aynı ders `DocActionBar`da 2026-07-27'de
-  /// öğrenilmişti, biçim çubuğu dışarıda kalmıştı.
-  Widget _rowColBar() {
-    final scheme = Theme.of(context).colorScheme;
+  /// Sekmeler Excel'in kendi düzeni: Giriş / Ekle / Veri / Görünüm. Simge dili
+  /// üç editörde ortak (`OfficeIcons`) — aynı iş Word'de de aynı simge.
+  ///
+  /// Eski "sade altı düğme + Daha fazla" kararı BURADA GEÇERSİZ: sadeliğin
+  /// bedeli, kullanıcının Excel'de refleksle bulduğu her şeyin (yazı tipi,
+  /// punto, kenarlık, süzgeç, zoom) menü içinde kaybolmasıydı. Etiketli
+  /// "Daha fazla" sayfası **duruyor** — sekmelerin dışında kalan seyrek
+  /// işler hâlâ orada.
+  Widget _ribbon() {
     final selStyle = _sheet?.styleAt(_selRow, _selCol);
     final align = selStyle?.hAlign;
+    final merged = _sheet?.mergeAt(_selRow, _selCol) != null;
 
-    Widget toggle(IconData icon, String tip, bool active, VoidCallback onTap) =>
-        IconButton(
-          tooltip: tip,
-          isSelected: active,
-          visualDensity: VisualDensity.compact,
-          iconSize: 20,
-          style: active
-              ? IconButton.styleFrom(backgroundColor: scheme.primaryContainer)
-              : null,
-          icon: Icon(icon),
-          onPressed: onTap,
-        );
-
-    return Container(
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        children: [
-          toggle(Icons.format_bold, context.t('common.bold'),
-              selStyle?.bold ?? false,
-              () => _applyStyle(bold: !(selStyle?.bold ?? false))),
-          toggle(Icons.format_italic, context.t('common.italic'),
-              selStyle?.italic ?? false,
-              () => _applyStyle(italic: !(selStyle?.italic ?? false))),
-          // Hizalama üç ayrı düğme yerine TEK menü: seçenekler birbirini
-          // dışlıyor, üç slot harcamaya değmez ve etkin olan menüde işaretli.
-          PopupMenuButton<TextAlign>(
+    return OfficeRibbon(
+      tabs: [
+        RibbonTab(context.t('excel.tab_home'), [
+          RibbonChip(
+            icon: OfficeIcons.fontFamily,
+            label: selStyle?.fontFamily ?? context.t('excel.font_default'),
+            tooltip: context.t('word.font_family'),
+            onTap: _pickFontFamily,
+          ),
+          RibbonChip(
+            icon: OfficeIcons.fontSize,
+            label: _sizeText(selStyle?.fontSize),
+            tooltip: context.t('word.font_size'),
+            onTap: _pickFontSize,
+          ),
+          RibbonButton(OfficeIcons.fontGrow, context.t('vw.text_bigger'),
+              onTap: () => _bumpFontSize(1)),
+          RibbonButton(OfficeIcons.fontShrink, context.t('vw.text_smaller'),
+              onTap: () => _bumpFontSize(-1)),
+          const RibbonSep(),
+          RibbonButton(OfficeIcons.bold, context.t('common.bold'),
+              active: selStyle?.bold ?? false,
+              onTap: () => _applyStyle(bold: !(selStyle?.bold ?? false))),
+          RibbonButton(OfficeIcons.italic, context.t('common.italic'),
+              active: selStyle?.italic ?? false,
+              onTap: () => _applyStyle(italic: !(selStyle?.italic ?? false))),
+          RibbonButton(OfficeIcons.textColor, context.t('excel.font_color'),
+              onTap: () =>
+                  _pickColor(context.t('excel.font_color'), _applyFontColor)),
+          RibbonButton(OfficeIcons.fillColor, context.t('excel.fill_color'),
+              onTap: () =>
+                  _pickColor(context.t('excel.fill_color'), _applyFillColor)),
+          RibbonButton(OfficeIcons.borders, context.t('excel.borders'),
+              onTap: _showBorders),
+          const RibbonSep(),
+          RibbonMenu<TextAlign>(
+            icon: _alignIcon(align),
             tooltip: context.t('excel.alignment'),
-            icon: Icon(_alignIcon(align), size: 20),
             onSelected: (a) => _applyStyle(align: a),
             itemBuilder: (_) => [
               CheckedPopupMenuItem(
@@ -1491,9 +1507,16 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
               ),
             ],
           ),
-          PopupMenuButton<String>(
+          RibbonButton(OfficeIcons.wrapText, context.t('excel.wrap_text'),
+              active: selStyle?.wrap ?? false,
+              onTap: () => _applyWrap(!(selStyle?.wrap ?? false))),
+          RibbonButton(OfficeIcons.merge,
+              context.t(merged ? 'excel.unmerge' : 'excel.merge'),
+              active: merged, onTap: _toggleMerge),
+          const RibbonSep(),
+          RibbonMenu<String>(
+            icon: OfficeIcons.numberFormat,
             tooltip: context.t('excel.number_format'),
-            icon: const Icon(Icons.tag, size: 20),
             onSelected: (code) => _applyNumberFormat((_) => code),
             itemBuilder: (_) => [
               for (final (key, code) in _numberFormatPresets)
@@ -1504,23 +1527,214 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                 ),
             ],
           ),
-          IconButton(
-            tooltip: context.t('excel.autosum'),
-            visualDensity: VisualDensity.compact,
-            iconSize: 20,
-            icon: const Icon(Icons.functions),
-            onPressed: _autoSum,
+          RibbonButton(Icons.add, context.t('excel.decimal_more'),
+              onTap: () => _applyNumberFormat((c) => bumpDecimals(c, 1))),
+          RibbonButton(Icons.remove, context.t('excel.decimal_less'),
+              onTap: () => _applyNumberFormat((c) => bumpDecimals(c, -1))),
+          RibbonButton(OfficeIcons.autoSum, context.t('excel.autosum'),
+              onTap: _autoSum),
+        ]),
+        RibbonTab(context.t('excel.tab_insert'), [
+          RibbonButton(Icons.keyboard_arrow_up,
+              context.t('excel.insert_row_above'),
+              onTap: () => _insertRow(below: false)),
+          RibbonButton(Icons.keyboard_arrow_down,
+              context.t('excel.insert_row_below'),
+              onTap: () => _insertRow(below: true)),
+          RibbonButton(Icons.keyboard_arrow_left,
+              context.t('excel.insert_col_left'),
+              onTap: () => _insertColumn(right: false)),
+          RibbonButton(Icons.keyboard_arrow_right,
+              context.t('excel.insert_col_right'),
+              onTap: () => _insertColumn(right: true)),
+          const RibbonSep(),
+          RibbonButton(OfficeIcons.insertRow, context.t('excel.delete_row'),
+              onTap: _deleteRow),
+          RibbonButton(
+              OfficeIcons.insertColumn, context.t('excel.delete_col'),
+              onTap: _deleteColumn),
+          RibbonButton(
+              OfficeIcons.clearContents, context.t('excel.clear_contents'),
+              onTap: _clearSelection),
+          const RibbonSep(),
+          RibbonButton(OfficeIcons.rowHeight, context.t('excel.row_height'),
+              onTap: () => _showSizeDialog(row: _selRow)),
+          RibbonButton(
+              OfficeIcons.columnWidth, context.t('excel.column_width'),
+              onTap: () => _showSizeDialog(col: _selCol)),
+          RibbonButton(OfficeIcons.sheetAdd, context.t('excel.add_sheet'),
+              onTap: _addSheet),
+        ]),
+        RibbonTab(context.t('excel.tab_data'), [
+          RibbonButton(OfficeIcons.sortAsc, context.t('excel.sort_asc'),
+              onTap: () => _sortSelection(true)),
+          RibbonButton(OfficeIcons.sortDesc, context.t('excel.sort_desc'),
+              onTap: () => _sortSelection(false)),
+          RibbonButton(OfficeIcons.filter, context.t('excel.filter'),
+              onTap: _filterSelectedColumn),
+          const RibbonSep(),
+          RibbonButton(OfficeIcons.condFormat, context.t('excel.cond_format'),
+              onTap: _showCondFormat),
+          RibbonButton(OfficeIcons.search, context.t('common.search'),
+              active: _finding, onTap: _toggleFind),
+          RibbonButton(OfficeIcons.goTo, context.t('excel.goto_cell_menu'),
+              onTap: _showGoTo),
+          const RibbonSep(),
+          RibbonButton(OfficeIcons.cut, context.t('excel.cut'),
+              onTap: () => _copySelection(cut: true)),
+          RibbonButton(OfficeIcons.copy, context.t('common.copy'),
+              onTap: _copySelection),
+          RibbonButton(OfficeIcons.paste, context.t('excel.paste'),
+              onTap: _paste),
+        ]),
+        RibbonTab(context.t('excel.tab_view'), [
+          RibbonButton(OfficeIcons.zoomOut, context.t('excel.zoom_out'),
+              onTap: () => _zoomCtl.zoomBy(1 / 1.25)),
+          RibbonChip(
+            icon: Icons.search,
+            label: '%${(_zoom * 100).round()}',
+            tooltip: context.t('excel.zoom_reset'),
+            onTap: () => _zoomCtl.setZoom(1),
           ),
-          const Spacer(),
-          // Etiketli sayfa: seyrek ama gerekli olan her şey burada.
-          TextButton.icon(
-            onPressed: _showMore,
-            icon: const Icon(Icons.more_horiz, size: 20),
-            label: Text(context.t('common.more')),
-          ),
-        ],
+          RibbonButton(OfficeIcons.zoomIn, context.t('excel.zoom_in'),
+              onTap: () => _zoomCtl.zoomBy(1.25)),
+          const RibbonSep(),
+          if (_sheetHasFreeze)
+            RibbonButton(
+                OfficeIcons.freeze,
+                context.t(_freeze
+                    ? 'excel.unfreeze_panes'
+                    : 'excel.freeze_panes'),
+                active: _freeze,
+                onTap: _toggleFreeze),
+          RibbonButton(Icons.format_textdirection_r_to_l,
+              context.t('excel.sheet_rtl'),
+              active: _sheet?.rightToLeft ?? false,
+              onTap: _toggleSheetDirection),
+          RibbonButton(OfficeIcons.undo, context.t('excel.undo'),
+              onTap: _undo.canUndo ? _undoStep : null),
+          RibbonButton(OfficeIcons.redo, context.t('excel.redo'),
+              onTap: _undo.canRedo ? _redoStep : null),
+        ]),
+      ],
+      // Etiketli sayfa: seyrek ama gerekli olan her şey burada kalır.
+      trailing: TextButton.icon(
+        onPressed: _showMore,
+        icon: const Icon(OfficeIcons.more, size: 20),
+        label: Text(context.t('common.more')),
       ),
     );
+  }
+
+  /// Seçili hücrenin puntosu (yoksa dosyanın tabanı 11).
+  String _sizeText(double? size) => '${(size ?? 11).round()}';
+
+  /// Seçili aralığın yazı tipini değiştirir. Liste uygulamada GÖMÜLÜ olan ve
+  /// her cihazda bulunan ailelerle sınırlı: seçilen ad hem ekranda çizilebilsin
+  /// hem de dosyaya yazılınca Excel'de aynı görünsün.
+  Future<void> _pickFontFamily() async {
+    _endEdit();
+    final current = _sheet?.styleAt(_selRow, _selCol)?.fontFamily;
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final f in _fontFamilies)
+              ListTile(
+                title: Text(f, style: TextStyle(fontFamily: f)),
+                trailing: f == current ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(ctx, f),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null) return;
+    _applyCellFormat(
+      'excel.undo_font',
+      (ed, s, r, c) => ed.setFontFamily(s, r, c, pick),
+      (ed, s, r, c, before) => ed.setFontFamily(s, r, c, before.fontFamily),
+    );
+  }
+
+  Future<void> _pickFontSize() async {
+    _endEdit();
+    final current = _sheet?.styleAt(_selRow, _selCol)?.fontSize ?? 11;
+    final pick = await showModalBottomSheet<double>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final s in _fontSizes)
+              ListTile(
+                title: Text('${s.round()}'),
+                trailing:
+                    (s - current).abs() < 0.25 ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(ctx, s),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null) return;
+    _applyFontSize(pick);
+  }
+
+  /// Puntoyu bir kademe büyütür/küçültür (Excel'in A▲ A▼ düğmeleri).
+  void _bumpFontSize(int delta) {
+    final current = _sheet?.styleAt(_selRow, _selCol)?.fontSize ?? 11;
+    _applyFontSize((current + delta).clamp(6, 72).toDouble());
+  }
+
+  void _applyFontSize(double size) => _applyCellFormat(
+        'excel.undo_font',
+        (ed, s, r, c) => ed.setFontSize(s, r, c, size),
+        (ed, s, r, c, before) => ed.setFontSize(s, r, c, before.fontSize ?? 11),
+      );
+
+  static const _fontFamilies = ['Arimo', 'Tinos', 'Calibri', 'Arial',
+    'Times New Roman', 'Courier New', 'Verdana', 'Georgia'];
+
+  static const _fontSizes = <double>[8, 9, 10, 11, 12, 14, 16, 18, 20, 24,
+    28, 32, 36, 48, 72];
+
+  /// Seçili sütuna göre sıralar.
+  ///
+  /// Kaynak aralık sırayla: (1) çok satırlı seçim, (2) sayfanın otomatik
+  /// süzgeç aralığı. İkisi de yoksa sıralamıyoruz — "hangi satırlar veri,
+  /// hangisi başlık" tahmini yanlış çıkarsa tablo bozulur ve kullanıcı bunu
+  /// ancak kaydettikten sonra fark eder.
+  void _sortSelection(bool ascending) {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final r1 = math.min(_anchorRow, _selRow);
+    final r2 = math.max(_anchorRow, _selRow);
+    if (r2 > r1) {
+      _sortByColumn(sheet, _selCol, r1, r2, ascending);
+      return;
+    }
+    final range = _filterRange(sheet);
+    if (range != null && _selCol >= range.c1 && _selCol <= range.c2) {
+      _sortByColumn(sheet, _selCol, range.r1 + 1,
+          math.max(range.r1 + 1, sheet.maxRows - 1), ascending);
+      return;
+    }
+    _snack(context.t('excel.sort_needs_range'));
+  }
+
+  /// Süzgeç okunun yaptığını şeritten yapar (aralık yoksa açıklar).
+  void _filterSelectedColumn() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    if (!_filterCoversColumn(sheet, _selCol)) {
+      _snack(context.t('excel.filter_needs_table'));
+      return;
+    }
+    _showColumnFilter(sheet, _selCol);
   }
 
   IconData _alignIcon(XlsxHAlign? align) => switch (align) {
@@ -2435,7 +2649,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       // konumu (`_hBody.offset`) her iki yönde de BAŞLANGIÇTAN ölçüldüğü için
       // sanallaştırma (`cols.startAt`) ve `_ensureVisible` matematiği aynen
       // geçerli kalır.
-      return Directionality(
+      return Container(
+        // Izgaranın zemini BEYAZ: kağıt teması uygulamanın kabuğuna ait,
+        // belgenin içine değil (2026-08-07 kullanıcı isteği).
+        color: Paper.docSurface(context),
+        child: Directionality(
         textDirection:
             sheet.rightToLeft ? TextDirection.rtl : TextDirection.ltr,
         child: Scrollbar(
@@ -2568,6 +2786,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             ),
           ],
         ),
+      ),
       ),
       );
     });

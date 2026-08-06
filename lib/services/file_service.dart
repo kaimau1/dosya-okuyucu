@@ -176,11 +176,31 @@ class FileService {
       return null;
     }
 
-    // .xls / .xlt → Excel ızgarası (BIFF).
+    // .xls / .xlt → gerçek Excel ızgarası.
+    //
+    // Dosya BIFF'ten okunup **.xlsx'e çevrilir** ve düzenleyiciye o çalışma
+    // kopyası verilir (2026-08-07). Eskiden salt-okunur bir listede
+    // gösteriliyordu: zoom yok, şerit yok, düzenleme yok — kullanıcının
+    // gördüğü "xls uyumu yok" buydu. Çevrim başarısızsa eski salt-okunur yol
+    // yedek olarak duruyor (hiç açılmamasındansa liste iyidir).
     if (ext == 'xls' || ext == 'xlt') {
       final xlsDoc = XlsLegacy.tryParse(bytes);
       if (xlsDoc == null) return null;
       final first = xlsDoc.sheets.isEmpty ? null : xlsDoc.sheets.first;
+      final work = await _writeXlsWorkCopy(xlsDoc, path, name);
+      if (work != null) {
+        return LoadedDoc(
+          path: work,
+          name: name,
+          kind: DocKind.spreadsheet,
+          plainText: xlsDoc.plainText,
+          table: first?.rows,
+          // Kaydetme özgün dosyanın YANINA .xlsx bırakır: .xls (BIFF) yazmak
+          // ayrı ve çok daha büyük bir iş, modern biçim zaten daha iyi.
+          savePath: '${path.replaceAll(RegExp(r'\.[^.]*$'), '')}.xlsx',
+          sourcePath: path,
+        );
+      }
       return LoadedDoc(
         path: path,
         name: name,
@@ -208,6 +228,28 @@ class FileService {
           '$text',
       readOnly: true,
     );
+  }
+
+  /// Çevrilmiş `.xlsx` çalışma kopyasını geçici klasöre yazar; yolunu döner.
+  /// Çevrim/yazma başarısızsa null (çağıran salt-okunur yola düşer).
+  ///
+  /// Ad özgün dosyanın yoluna göre türetilir: aynı adlı iki `.xls` farklı
+  /// klasörlerden açıldığında birbirinin kopyasını EZMESİN.
+  Future<String?> _writeXlsWorkCopy(
+      XlsLegacy doc, String path, String name) async {
+    try {
+      final bytes = doc.toXlsxBytes();
+      if (bytes.isEmpty) return null;
+      final dir = Directory('${Directory.systemTemp.path}/xls_donusum');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final stamp = path.hashCode.toUnsigned(32).toRadixString(16);
+      final base = name.replaceAll(RegExp(r'\.[^.]*$'), '');
+      final out = File('${dir.path}/${base}_$stamp.xlsx');
+      await out.writeAsBytes(bytes, flush: true);
+      return out.path;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<LoadedDoc> _loadSpreadsheet(

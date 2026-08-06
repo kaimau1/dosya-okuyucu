@@ -142,6 +142,12 @@ class XlsxStyleEdit {
   final bool? italic;
   final bool? underline;
 
+  /// Yazı puntosu (`<sz val="14"/>`). `null` = dokunma.
+  final double? fontSize;
+
+  /// Yazı tipi adı (`<name val="Arial"/>`). `null` = dokunma.
+  final String? fontName;
+
   /// Metin kaydırma (`<alignment wrapText="1"/>`).
   final bool? wrap;
 
@@ -160,6 +166,8 @@ class XlsxStyleEdit {
     this.bold,
     this.italic,
     this.underline,
+    this.fontSize,
+    this.fontName,
     this.wrap,
     this.borders = const {},
   });
@@ -170,6 +178,8 @@ class XlsxStyleEdit {
       bold == null &&
       italic == null &&
       underline == null &&
+      fontSize == null &&
+      fontName == null &&
       wrap == null &&
       borders.isEmpty;
 
@@ -180,6 +190,8 @@ class XlsxStyleEdit {
         bold: other.bold ?? bold,
         italic: other.italic ?? italic,
         underline: other.underline ?? underline,
+        fontSize: other.fontSize ?? fontSize,
+        fontName: other.fontName ?? fontName,
         wrap: other.wrap ?? wrap,
         borders: {...borders, ...other.borders},
       );
@@ -1025,7 +1037,9 @@ class _StyleTable {
     if (edit.bold != null ||
         edit.italic != null ||
         edit.underline != null ||
-        edit.fontArgb != null) {
+        edit.fontArgb != null ||
+        edit.fontSize != null ||
+        edit.fontName != null) {
       final baseFont = int.tryParse(wanted.getAttribute('fontId') ?? '') ?? 0;
       wanted.setAttribute('fontId', '${_fontIdWith(baseFont, edit)}');
       wanted.setAttribute('applyFont', '1');
@@ -1106,6 +1120,19 @@ class _StyleTable {
     setFlag('b', edit.bold);
     setFlag('i', edit.italic);
     setFlag('u', edit.underline);
+    if (edit.fontSize != null) {
+      children.removeWhere((e) => e.name.local == 'sz');
+      children.add(XmlElement(XmlName('sz'),
+          [XmlAttribute(XmlName('val'), _sizeText(edit.fontSize!))]));
+    }
+    if (edit.fontName != null) {
+      children.removeWhere((e) => e.name.local == 'name');
+      children.add(XmlElement(XmlName('name'),
+          [XmlAttribute(XmlName('val'), edit.fontName!)]));
+      // Tema yazı tipine bağlı `scheme` kalırsa Excel adı yok sayıp temanınkini
+      // kullanır — kullanıcının seçtiği yazı tipi görünmezdi.
+      children.removeWhere((e) => e.name.local == 'scheme');
+    }
     if (edit.fontArgb != null) {
       children.removeWhere((e) => e.name.local == 'color');
       children.add(XmlElement(XmlName('color'),
@@ -1223,6 +1250,10 @@ class _StyleTable {
     final kids = [for (final c in e.childElements) _canonical(c)];
     return '${e.name.local}[${attrs.join(',')}](${kids.join(',')})';
   }
+
+  /// Punto metni: 12.0 → `12` (Excel tam sayı puntoyu böyle yazar).
+  static String _sizeText(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : '$v';
 
   static String _argbHex(int argb) =>
       argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase();

@@ -41,6 +41,19 @@ abstract final class Paper {
   static const page = Color(0xFFFBF8F1);
   static const pageEdge = Color(0xFFD2C8B4);
 
+  /// **Belgenin kendi yüzeyi** — Excel hücresi, düz metin sayfası.
+  ///
+  /// (2026-08-07 kullanıcı: *"kağıt teması arka planları excelde kağıt yapmış
+  /// olmaz, beyaz olmalı, txt de öyle"*.) Kağıt dokusu uygulamanın KABUĞUNA
+  /// aittir: listeler, kartlar, ayarlar. Belgenin İÇİ kullanıcının verisidir
+  /// ve Excel/Not Defteri'nde beyazdır — krem zemin orada "dosyamın rengi
+  /// bozulmuş" gibi görünüyor. Koyu temada beyaz yapılamaz (gözü yakar);
+  /// kanvastan bir tık koyu, nötr bir yüzey kullanılır.
+  static Color docSurface(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF141210)
+          : Colors.white;
+
   /// Üçüncül mürekkep: yol, sayaç, zaman damgası. Gövde metninden bir kademe
   /// soluk — kağıtta "kurşun kalem" tonu.
   static Color faint(BuildContext context) =>

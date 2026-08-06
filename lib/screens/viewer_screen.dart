@@ -31,6 +31,7 @@ import '../services/pdf_edit_flow.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
+import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/doc_action_bar.dart';
 import '../widgets/office_shell.dart';
@@ -177,6 +178,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
   String _ocrImageText = '';
   int _imgQuarterTurns = 0;
   double _fontSize = 15;
+
+  /// Okuma yazı tipi. `null` = temanın gövde yazı tipi (Arimo).
+  String? _fontFamily;
+
+  /// Seçilebilir yazı tipleri: (görünen ad, aile). Boş aile = temanın kendi
+  /// gövde yazı tipi. Hepsi APK'da GÖMÜLÜ ya da platformda kesin var —
+  /// indirilecek font yok, boyut artmıyor.
+  static const _readerFonts = <(String, String)>[
+    ('Varsayılan', ''),
+    ('Arimo', 'Arimo'),
+    ('Tinos', 'Tinos'),
+    ('Tek aralıklı', 'monospace'),
+  ];
   final TransformationController _imgTx = TransformationController();
   TapDownDetails? _doubleTapDetails;
 
@@ -1003,13 +1017,31 @@ class _ViewerScreenState extends State<ViewerScreen> {
         if (_textController != null) ...[
           IconButton(
             tooltip: context.t('vw.text_smaller'),
-            icon: const Icon(Icons.text_decrease),
+            icon: const Icon(OfficeIcons.fontShrink),
             onPressed: () => _changeFont(-2),
           ),
           IconButton(
             tooltip: context.t('vw.text_bigger'),
-            icon: const Icon(Icons.text_increase),
+            icon: const Icon(OfficeIcons.fontGrow),
             onPressed: () => _changeFont(2),
+          ),
+          // Yazı TİPİ de değişebilsin (2026-08-07 kullanıcı isteği: "yazı
+          // boyutu ve font değiştirme"). Boyut zaten vardı, aile yoktu.
+          PopupMenuButton<String>(
+            tooltip: context.t('word.font_family'),
+            icon: const Icon(OfficeIcons.fontFamily),
+            onSelected: (f) =>
+                setState(() => _fontFamily = f.isEmpty ? null : f),
+            itemBuilder: (_) => [
+              for (final f in _readerFonts)
+                CheckedPopupMenuItem(
+                  value: f.$2,
+                  checked: (_fontFamily ?? '') == f.$2,
+                  child: Text(f.$1,
+                      style: TextStyle(
+                          fontFamily: f.$2.isEmpty ? null : f.$2)),
+                ),
+            ],
           ),
         ],
         // "Kaydet", "Paylaş", "Yazdır", "PDF araçları" ve görselde "Metni tanı"
@@ -1931,6 +1963,37 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _setPdfColumns(int cols) {
     if (cols == _pdfColumns) return;
     setState(() => _pdfColumns = cols);
+    // Yeni düzen ölçüldükten SONRA genişliğe sığdır.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fitPdfWidth());
+  }
+
+  /// Belgeyi **genişliğine sığdırır** — çok sütunlu dizilimin can alıcı yarısı.
+  ///
+  /// KÖK NEDEN (2026-08-07 kullanıcı: *"2 sütun 4 sütun yapınca oto genişlemeli
+  /// alan görülsün"*): sütun sayısı değişince pdfrx yakınlaştırma oranını
+  /// OLDUĞU GİBİ bırakıyor. 4 sütunluk düzen bir anda dört kat genişliyor ama
+  /// ekranda hâlâ tek sütunluk kadarı görünüyor; kullanıcı "hiçbir şey
+  /// değişmedi" ya da "sayfalar kayboldu" diyor. Sığdırma, düzenin tamamını
+  /// bir bakışta gösterir.
+  ///
+  /// Dikey konum korunur (üstteki satır neredeyse orada kalır); yalnız ölçek
+  /// değişir. Belge hazır değilse sessizce vazgeçilir.
+  Future<void> _fitPdfWidth() async {
+    try {
+      if (!_pdfController.isReady) return;
+      final doc = _pdfController.documentSize;
+      final view = _pdfController.viewSize;
+      if (doc.width <= 0 || view.width <= 0 || view.height <= 0) return;
+      final top = _pdfController.visibleRect.top;
+      // Görünüm oranıyla aynı oranda bir dikdörtgen istersek sığdırma
+      // genişliği belirler (pdfrx en dar kenara göre ölçekler).
+      final height = doc.width * view.height / view.width;
+      await _pdfController.goToArea(
+        rect: Rect.fromLTWH(0, top, doc.width, height),
+      );
+    } catch (_) {
+      // Belge kapanmış/yeniden yükleniyor olabilir — sığdırma kritik değil.
+    }
   }
 
   /// "Sayfaya git": numara yaz ya da kaydırıcıyı sürükle.
@@ -2304,6 +2367,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           focusNode: _textFocus,
           editable: doc.isEditableText,
           fontSize: _fontSize,
+          fontFamily: _fontFamily,
           onChanged: () {
             if (!_dirty) setState(() => _dirty = true);
           },
@@ -2355,6 +2419,9 @@ class _TextEditor extends StatelessWidget {
   final FocusNode focusNode;
   final bool editable;
   final double fontSize;
+
+  /// `null` = temanın gövde yazı tipi.
+  final String? fontFamily;
   final VoidCallback onChanged;
   const _TextEditor({
     required this.controller,
@@ -2362,11 +2429,15 @@ class _TextEditor extends StatelessWidget {
     required this.editable,
     required this.fontSize,
     required this.onChanged,
+    this.fontFamily,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      // Metin sayfası BEYAZ: kağıt teması uygulamanın kabuğuna ait, belgenin
+      // içine değil (2026-08-07 kullanıcı isteği — "txt de öyle").
+      color: Paper.docSurface(context),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: TextField(
         controller: controller,
@@ -2381,7 +2452,14 @@ class _TextEditor extends StatelessWidget {
           hintText: editable ? context.t('vw.doc_content') : null,
           filled: false,
         ),
-        style: TextStyle(fontSize: fontSize, height: 1.5),
+        style: TextStyle(
+          fontSize: fontSize,
+          height: 1.5,
+          fontFamily: fontFamily,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Paper.inkDark
+              : Paper.ink,
+        ),
       ),
     );
   }
