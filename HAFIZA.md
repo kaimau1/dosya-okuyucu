@@ -6568,3 +6568,52 @@ kitap sayfası önizlemede düzleşmeli; resmî PDF'te paragraf metni `İ/Ğ/Ş`
 görünmeli; taranmış sayfada "Düzelt"/"AI ile düzelt"; sesli okumada ses
 seçimi ve sayfa numarasının atlanması; taranan PDF ana ekranda "Son
 belgeler"de.
+
+## 2026-08-06 (akşam) — Drive menüsü, pano düzeni, YEREL APK derleme reçetesi
+
+### A) Drive "Sil" KALICI siliyordu → çöp kutusu
+`files.delete` dosyayı geri dönüşsüz siliyordu; Drive uygulamasının "Sil"i ise
+`trashed: true` yapar (30 gün geri alınabilir). Menü artık çöp kutusuna taşıyor,
+onay metni de bunu söylüyor. `rename`/`setStarred`/`trash` tek `_patchMetadata`
+üzerinden gidiyor. Eklenenler: **Telefona indir…** (klasör seçici; Drive'ın
+Kopyala/Yapıştır'ı yalnız Drive İÇİNDE çalışır — sunucuda kopya çıkarır, dosya
+telefona inmez), **Bilgi**, **Yıldız** (`starred` alanı `fields`e eklendi).
+
+### B) Taranan PDF panoda anında görünmüyordu
+`DocumentScanner.savePdf` dosyayı yazıp `FsEvents.changed()` DEMİYORDU; pano
+taraması süreç boyunca önbellekli olduğu için yeni PDF ancak aşağı çekince
+görünüyordu. Sinyal, her tarama kaydının geçtiği tek ortak noktaya (savePdf)
+kondu. (2026-07-25'teki "Son belgeler" kaydı ayrı bir eksikti — bkz. E maddesi.)
+
+### C) YEREL APK derleme reçetesi (CI kırmızıyken lazım oldu)
+`android/` **gitignore'da** ve CI onu her koşuda `flutter create` ile yeniden
+üretip yamalıyor. Yerelde derlemek için AYNI yamalar elle uygulanmalı, yoksa:
+1. **Desugaring yoksa** → `flutter_local_notifications requires core library
+   desugaring` ile derleme kırılır (`isCoreLibraryDesugaringEnabled = true` +
+   `desugar_jdk_libs:2.1.4`, minSdk 24).
+2. **`dart run flutter_launcher_icons` unutulursa** → APK ESKİ ikonla çıkar
+   (yerel mipmap'ler 23.07'den kalmaydı; kullanıcı fark etti, kurmadı).
+3. **`--split-per-abi` olmadan** → versionCode 1 üretilir, telefondaki 2001'in
+   altında kalır → `INSTALL_FAILED_VERSION_DOWNGRADE`. Flutter arm64'e +2000
+   ekliyor; CI'nın şeması bu, aynısı kullanılmalı (`--build-number` ile
+   büyütmek CI güncellemelerini kırardı).
+4. **R8 (Flutter 3.44 yerelde) WorkManager'ı kırıyor:** açılışta
+   `Failed to create an instance of class androidx.work.impl.WorkDatabase` ile
+   ÇÖKÜYOR (Room sınıfı yansımayla bulunamıyor). Yerel derlemede
+   `isMinifyEnabled = false`. CI (Flutter 3.29.3) etkilenmiyor — CI APK'ları
+   sağlam.
+5. İmza: Gradle debug anahtarıyla imzalar; APK sonradan `apksigner` ile
+   `Yazılımlar\dosya-okuyucu-imza\release.jks` (parola aynı klasörde) ile
+   imzalanır → SHA-256 `9eef6704…`, CI ile AYNI, üstüne kurulur.
+6. `ci/AndroidManifest.xml`, `ci/MainActivity.kt`, `ci/proguard-rules.pro`
+   elle kopyalanır.
+
+### D) Pano düzeni (kullanıcı ekran görüntüsüyle)
+Liste alt boşluğu 32 → **136**: yüzen düğmeler son satırdaki "Google Drive"
+kartının yazısını örtüyordu. Çöp kutusu ızgara kartından çıkıp klasör eklemenin
+YANINA küçük yüzen düğme oldu (yolculuğu: araçlar → büyük kart → FAB).
+"Ana bellek" renk açıklaması tek satıra indi: payı %1 üstü en büyük dört
+kategori, "Boş" yazılmıyor.
+
+**Doğrulama:** analyze temiz, 1363 test yeşil, APK imzalanıp telefona kuruldu
+(çökme yok). Görsel doğrulama telefon kilitli olduğu için yapılamadı.
