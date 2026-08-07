@@ -761,6 +761,12 @@ const Map<String, (String, String, String)> _table = {
   'vw.toc': ('İçindekiler', 'Contents', 'المحتويات'),
   'vw.no_toc': ('Bu belgede içindekiler yok', 'This document has no contents', 'لا يحتوي هذا المستند على فهرس'),
   'vw.sign': ('İmzala', 'Sign', 'توقيع'),
+  'vw.fill_form': ('Formu doldur', 'Fill form', 'تعبئة النموذج'),
+  'vw.form_detected': (
+    'Bu belge doldurulabilir bir form.',
+    'This document is a fillable form.',
+    'هذا المستند نموذج قابل للتعبئة.',
+  ),
   'vw.print': ('Yazdır', 'Print', 'طباعة'),
   'vw.ai_edit': ('AI ile düzenle', 'Edit with AI', 'تحرير بالذكاء الاصطناعي'),
   'vw.translate_doc': ('Belgeyi çevir', 'Translate document', 'ترجمة المستند'),
@@ -2869,6 +2875,43 @@ const Map<String, (String, String, String)> _table = {
   'chat.export': ('Dışa aktar', 'Export', 'تصدير'),
   'chat.save_to_memory': ('Hafızaya kaydet', 'Save to memory', 'حفظ في الذاكرة'),
   'chat.ask_hint': ('Bir şey sor…', 'Ask something…', 'اسأل شيئًا…'),
+
+  // ── PDF formu doldurma ────────────────────────────────────────────────────
+  'pf.title': ('Formu doldur — {name}', 'Fill form — {name}', 'تعبئة النموذج — {name}'),
+  'pf.save': ('Doldur ve kaydet', 'Fill and save', 'تعبئة وحفظ'),
+  'pf.page': ('Sayfa {n}', 'Page {n}', 'الصفحة {n}'),
+  'pf.other_fields': ('Diğer alanlar', 'Other fields', 'حقول أخرى'),
+  'pf.read_only': ('salt okunur', 'read-only', 'للقراءة فقط'),
+  'pf.flatten': (
+    'Doldurduktan sonra kilitle',
+    'Lock after filling',
+    'قفل بعد التعبئة',
+  ),
+  'pf.flatten_sub': (
+    'Alanlar sayfaya işlenir; karşı taraf değiştiremez. Geri alınamaz.',
+    'Values are drawn onto the page; nobody can change them afterwards. This '
+        'cannot be undone.',
+    'تُطبع القيم على الصفحة ولا يمكن تغييرها لاحقًا. لا يمكن التراجع.',
+  ),
+  'pf.note': ('Form dolduruldu', 'Form filled', 'تم ملء النموذج'),
+  'pf.note_flat': (
+    'Form dolduruldu ve kilitlendi',
+    'Form filled and locked',
+    'تم ملء النموذج وقفله',
+  ),
+  'pf.no_fields': (
+    'Bu PDF doldurulabilir form alanı taşımıyor.',
+    'This PDF has no fillable form fields.',
+    'لا يحتوي هذا الملف على حقول قابلة للتعبئة.',
+  ),
+  'pf.no_fields_hint': (
+    'Yazı yazmak için PDF düzenleyicideki metin aracını, imza için '
+        '⋮ → İmzala\'yı kullanabilirsiniz.',
+    'To add text use the text tool in the PDF editor; to sign use ⋮ → Sign.',
+    'لإضافة نص استخدم أداة النص في محرر PDF، وللتوقيع استخدم ⋮ ← توقيع.',
+  ),
+  'pf.failed': ('Form doldurulamadı: {error}', 'Could not fill the form: {error}',
+      'تعذّرت تعبئة النموذج: {error}'),
 
   // ── Boyut düşürme ─────────────────────────────────────────────────────────
   'rs.title': (
