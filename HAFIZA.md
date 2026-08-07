@@ -7104,3 +7104,118 @@ Cihazda bakılacaklar: (a) hata veren form dosyası artık açılıyor mu,
 yükseliyor mu, (c) yarıda kalan boyut düşürmede "Devam et" 4/10'dan mı
 sürüyor, (d) ayar sayfasındaki tahmin gerçek sonuca yakın mı,
 (e) form PDF'inde ⋮ → Formu doldur (Türkçe harfli alanla) kaydediyor mu.
+
+## 2026-08-07 (7) — PİL ve BAŞARIM denetimi (kullanıcı: "pil ve performans sorunlarını tespit edip düzelt")
+Bu tur bir istek listesi değil, **denetim**: uygulama baştan sona pil kaçağı,
+bellek şişmesi ve gereksiz yeniden çizim açısından tarandı. Bulunan altı
+maddenin hepsi düzeltildi, biri de yeni ayar olarak kullanıcının eline verildi.
+
+### A) EN BÜYÜĞÜ — görseller TAM ÇÖZÜNÜRLÜKTE açılıyordu (`core/image_budget.dart`)
+- Galeri (`image_gallery_screen`) ve görüntüleyici (`viewer_screen`)
+  `Image.file`ı **`cacheWidth` vermeden** kullanıyordu. Flutter o zaman dosyayı
+  tam çözünürlükte bitmap'e açar: sıradan bir 12 MP telefon fotoğrafı
+  (4000×3000) bellekte **48 MB** eder — dosyanın kendisi 3 MB olsa bile, çünkü
+  JPEG çözülünce piksel başına 4 bayt kalır. `PageView` komşu sayfayı da canlı
+  tuttuğu için aynı anda iki-üç görsel açılıyordu → 100 MB+ bitmap, sürekli çöp
+  toplama, kaydırmada takılma, düşük bellekli telefonda sistemin uygulamayı
+  öldürmesi. Sürekli çöz-at döngüsü CPU'yu meşgul ettiği için pil de buna
+  gidiyordu.
+- **Çözüm:** ekranda kaç piksel görünecekse o kadar çöz. 1080p telefonda tam
+  sayfa görsel için 1536 piksel yeter (~9 MB yerine 48 MB).
+- **Yakınlaştırma kaybedilmedi:** ölçek hesaba katılıyor, ama `maxWidth = 3072`
+  tavanıyla — 6 kat yakınlaştırmada tam çözünürlüğe dönmek ilk sorunu geri
+  getirirdi.
+- **TUZAK — kademe (`step = 512`) şart:** `cacheWidth` her değiştiğinde Flutter
+  görseli YENİDEN çözer ve önbellekte AYRI kayıt tutar. Ölçek parmak
+  hareketiyle sürekli değiştiği için her karede yeni genişlik istenirse
+  saniyede onlarca çözme olurdu; kademeye YUKARI yuvarlamak bunu elle
+  sayılacak kadar seyrekleştirir (aşağı yuvarlamak istenenin altında kalıp bir
+  kademe bulanık çizerdi).
+- `cacheWidth` kaynaktan büyük olursa Flutter değeri kendiliğinden kaynağa
+  kısar (`allowUpscaling: false`) → küçük görsel büyütülüp şişmez.
+- `ImageBudget` saf ve testli; ekranlarda `TransformationController` dinlenip
+  kademe atlayınca yeniden çözülüyor.
+
+### B) Video arka planda oynamaya DEVAM ediyordu (en pahalı pil kaçağı)
+- `media_player_screen`in sınıf notu "uygulama arkaya alınınca çalma durur"
+  diyordu; **Android'de bu doğru değil.** `video_player` ExoPlayer'ı sürer,
+  ekran kapalıyken bile kareleri çözmeye devam eder — görüntü kimseye
+  gösterilmeden. Telefon cepteyken süren tam güçte video kod çözme.
+- Artık `WidgetsBindingObserver`: `paused`/`hidden`/`detached`ta duraklar,
+  `resumed`da **yalnız biz duraklattıysak** devam eder (kullanıcı duraklattıysa
+  kendiliğinden başlamaz — şaşırtıcı olurdu).
+- `inactive` bilerek YOK SAYILIYOR: bildirim gölgesini çekmek ya da izin
+  penceresi de o durumu üretir, orada duraklatmak izlemeyi bölerdi.
+- Ses oynatıcı (`AudioPlayerScreen`, audioplayers) bilerek dışarıda: müziğin
+  arka planda sürmesi İSTENEN davranış.
+
+### C) Video oynatıcı her yarım saniyede TÜM ekranı yeniden kuruyordu
+`_onTick` içindeki `setState(() {})` denetleyicinin her konum yayınında (saniyede
+iki kez) üst çubuğu, degradeleri, açılır menüleri ve video ağacını yeniden
+kuruyordu. Konum çubuğu artık kendi `ValueListenableBuilder`ında
+(`VideoPlayerController` zaten `ValueListenable`) → yeniden çizilen alan yalnız
+alt kontroller. `_onTick`te setState yalnız oynat/duraklat DEĞİŞİMİNDE.
+
+### D) Pano kutusunun "nefes alması" SÜRESİZDİ
+Çöp kutusu dolu olduğunda simge sonsuza kadar büyüyüp küçülüyordu. Hareket eden
+tek piksel bile olsa Flutter her kareyi yeniden çizer: pano açıkken uygulama hiç
+boşa geçmiyor, 120 Hz ekranda kullanıcı ekrana bakıp dururken bile saniyede 120
+kare üretiliyordu. Kutunun işi **dikkat çekmek**; 6 saniye sonra o iş bitti
+sayılıp dinlenme boyutuna dönülüyor (`animateBack` — ortada kesilen animasyon
+simgeyi büyük bırakıp "bozuk" gösterirdi). Kutu bundan sonra da koyu zemin +
+renkle ayırt edilebiliyor.
+
+### E) Pano taraması sırasında yapılan değişiklik YUTULUYORDU (gerçek hata)
+`_scan()` bitişte `FsEvents.version`i okuyup `_stale = false` yapıyordu. Tarama
+dakikalar sürebildiği için o sırada silinen/taşınan dosya "görülmüş" sayılıyor,
+panoya hiç yansımıyordu — kullanıcı silinen dosyayı sayılarda görmeye devam
+ederdi. Sürüm artık yürüyüşün BAŞINDA alınıyor; arada değiştiyse tarama **bir
+kez** tekrarlanıyor (`allowRepeat`). Zincir en çok iki tur: sürekli yazan bir
+işlem (büyük kopyalama) panoyu sonsuza dek yeniden taratmasın.
+
+### F) Sohbet: yanıt gelmeden ekrandan çıkınca `setState() called after dispose()`
+Gemini yanıtı saniyeler sürüyor; kullanıcı bu arada geri tuşuna basarsa
+`chat_screen`in üç `setState`i elden çıkmış `State` üzerinde çalışıyordu.
+`mounted` koruması eklendi.
+
+### G) Küçük resim "başarısız" listesi SINIRSIZDI
+`ThumbnailCache._failed` süreç boyunca büyüyordu (her kayıt tam dosya yolu); on
+binlerce videosu olan telefonda kaydırdıkça şişiyor ve hiç boşalmıyordu. 512'de
+sınırlandı, dolunca en eski yarısı düşüyor — en kötü ihtimalle o dosyalar için
+zaten hızlıca başarısız olan çağrı bir kez daha yapılır.
+
+### H) YENİ — Ayarlar > **Pil ve başarım**
+Uygulamanın en pahalı iki alışkanlığı KOŞULSUZ açıktı; ikisi de çoğu kullanıcı
+için doğru varsayılan ama kapatılabilmeliydi:
+- **Yüksek tazeleme hızı** (varsayılan açık). Kapatınca `FlutterDisplayMode.
+  setLowRefreshRate()` — GPU saniyede yarı kadar kare çizer; uzun belge
+  okumada en gözle görülür pil kazancı. Ayar **anında** uygulanıyor:
+  "yeniden başlat" isteyen bir ayar denenmeden kapatılıp unutulur.
+  `main.dart`taki koşulsuz `setHighRefreshRate()` çağrısı kaldırıldı; tercih
+  `AppState.init()` sonrasında okunup uygulanıyor
+  (`core/display_mode.dart` → `applyRefreshRate`). Fonksiyon `main.dart`ta
+  BIRAKILMADI: Ayarlar ekranının `main.dart`ı içe aktarması (uygulamanın giriş
+  noktasına geri bağımlılık) test kurulumunu da gereksiz yere ağırlaştırırdı.
+- **Otomatik yeniden tarama** (varsayılan açık). Pano dizin 12 saatten eskiyse
+  tüm depolamayı yeniden geziyordu: on binlerce dosyada dakikalarca CPU + disk.
+  Kapatılabilir. **AYRIM önemli:** `SearchIndex.isStale` (bizim yaptığımız bir
+  silme/taşıma yüzünden bayat) tercihe BAKMADAN tazeleniyor — kullanıcının
+  sildiği dosyanın sayılarda kalması kabul edilemez; kapatılabilen yalnız
+  "uygulama dışında bir şey değişmiş olabilir" varsayımıyla yapılan tahmini
+  tam tarama.
+
+**Bilinçli YAPILMAYAN:** ekranı açık tutma (wakelock). `wakelock_plus 1.4.0`
+Flutter 3.29.3 ile çözümleniyor (bu oturumda denendi, uyumlu) ama pil azaltmayı
+isteyen bir turda pil ARTIRAN bir bağımlılık eklemek ve gece boyu doğrulanmamış
+bir eklentiyle main'i riske atmak doğru olmazdı. KALANLAR'da duruyor.
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze` 0 hata/uyarı (lib'de yeni tek bir `info` bile yok, stash'li
+karşılaştırmayla ölçüldü), **1495 test yeşil** (+17: `image_budget_test`,
+`image_decode_budget_screen_test`, oynatıcı yaşam döngüsü, kutu nefesinin
+durması, Pil ve başarım ayarları).
+Cihazda bakılacaklar: (a) galeride büyük fotoğraflar arasında kaydırma daha
+akıcı mı ve yakınlaştırınca yazı hâlâ keskin mi, (b) video izlerken ana ekrana
+çıkıp dönünce video durup kaldığı yerden devam ediyor mu, (c) çöp kutusu
+kutusunun animasyonu birkaç saniye sonra duruyor mu, (d) Ayarlar > Pil ve
+başarım'da tazeleme hızını kapatınca kaydırma hissi değişiyor mu.

@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_state.dart';
+import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
 import 'core/l10n/app_strings.dart';
 import 'core/theme.dart';
@@ -28,7 +27,6 @@ Future<void> main() async {
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  await _enableHighRefreshRate();
   // Uzun işlerin (yer aç, kopya/benzer arama, boyut düşürme) sistem bildirimi
   // köprüsü. Bildirim izni verilmezse ya da eklenti kurulamazsa sessizce
   // geçilir — işler yine çalışır, yalnız bildirim görünmez.
@@ -67,6 +65,10 @@ Future<void> main() async {
   unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();
+  // Tazeleme hızı tercihi AYARLARDAN okunur → `init()` sonrasında uygulanır.
+  // (Eskiden koşulsuz "en yüksek" isteniyordu; artık kullanıcı pil için
+  // 60 Hz'de kalmayı seçebiliyor — bkz. AppState.highRefreshRate.)
+  unawaited(applyRefreshRate(appState.highRefreshRate));
   runApp(
     ChangeNotifierProvider<AppState>.value(
       value: appState,
@@ -108,17 +110,6 @@ void _openJobFromNotification(String jobId) {
     return;
   }
   unawaited(openJobTarget(context, job));
-}
-
-/// 120Hz+ ekranlarda Android'in 60Hz kilidini açar.
-/// Desteklenmeyen cihaz/ROM'da sessizce geçilir — akış asla bloklanmaz.
-Future<void> _enableHighRefreshRate() async {
-  if (!Platform.isAndroid) return;
-  try {
-    await FlutterDisplayMode.setHighRefreshRate();
-  } catch (_) {
-    // eski cihaz veya izin vermeyen ROM; varsayılan tazelemeyle devam
-  }
 }
 
 class DosyaOkuyucuApp extends StatelessWidget {

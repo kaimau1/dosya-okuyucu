@@ -1,5 +1,18 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
+- [ ] **Pil/başarım turu cihaz doğrulaması (kullanıcı)** — 2026-08-07 (7):
+      (a) çok sayıda büyük fotoğrafı olan bir klasörde galeriyi aç, sağa-sola
+      hızlı kaydır → takılma/kasma AZALDI mı, uygulama artık kendiliğinden
+      kapanıyor mu (eskiden tam çözünürlük belleği şişiriyordu), (b) bir
+      fotoğrafı 3-4 kat **yakınlaştırınca yazı hâlâ keskin** mi (çözünürlük
+      kademeli artıyor), (c) bir video aç → ana ekrana çık → **ses/görüntü
+      duruyor** mu, uygulamaya dönünce kaldığı yerden devam ediyor mu,
+      (d) videoyu KENDİN duraklat → arkaya al → dön: kendiliğinden BAŞLAMAMALI,
+      (e) çöp kutusu doluyken panodaki kutunun nefes alması birkaç saniye sonra
+      duruyor mu (sonsuza kadar oynamamalı), (f) Ayarlar > **Pil ve başarım** →
+      "Yüksek tazeleme hızı"nı kapat → kaydırma hissi 60 Hz'e düşüyor mu,
+      uygulamayı kapatıp açınca tercih korunuyor mu.
+
 - [ ] **2026-08-02 (5. tur) arayüz cihaz doğrulaması (kullanıcı).**
       (a) Excel biçim çubuğu artık kısa mı (Kalın · İtalik · Hizalama ·
       Sayı biçimi · Σ · **Daha fazla**) ve yatayda kaydırmaya gerek kalmıyor
@@ -413,8 +426,13 @@ göre sıralı**:
       süreci öldürebilir ve bildirimden kontrol edilemez. Çözüm `just_audio_background`
       (manifest'te activity sınıfı değişir → APK'da sınıf doğrulayan CI adımı şart).
 - [ ] **Ses: ID3 kapak resmi / albüm-sanatçı bilgisi okunmuyor** (dosya adı gösteriliyor).
-- [ ] **Ekranı açık tutma (wakelock) yok:** uzun videoda ekran sönebilir; istenirse
-      `wakelock_plus` eklenir (küçük eklenti, Flutter 3.29 uyumlu sürüm seçilmeli).
+- [ ] **Ekranı açık tutma (wakelock) yok:** uzun videoda ekran sönebilir.
+      **2026-08-07 ölçüldü:** `wakelock_plus 1.4.0` Flutter 3.29.3 ile temiz
+      çözümleniyor (ayrı bir örnek projede `pub get` denendi) — sürüm arayışına
+      gerek yok. Pil turunda BİLEREK eklenmedi: pil azaltmayı isteyen bir turda
+      pil artıran bir bağımlılığı gece boyu doğrulanmadan main'e koymak doğru
+      değildi. Eklenirse **yalnız video OYNARKEN** tutulmalı (duraklatınca
+      bırakılmalı), ses oynatıcıda hiç tutulmamalı.
 - [ ] **Video küçük resmi (thumbnail) yok** — listelerde video ikonuyla gösteriliyor.
 - [ ] **Küçük resim (thumbnail) yalnız görsellerde** — video/PDF küçük resmi yok
       (video için platform kanalı, PDF için pdfium render gerekir).

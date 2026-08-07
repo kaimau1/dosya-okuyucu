@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/doc_fonts.dart';
+import '../core/image_budget.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../core/copy_text.dart';
@@ -200,6 +201,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final TransformationController _imgTx = TransformationController();
   TapDownDetails? _doubleTapDetails;
 
+  /// Görselin kaç piksel genişlikte çözüleceği (bellek/pil koruması —
+  /// bkz. `core/image_budget.dart`). Yakınlaştırma kademe atlayınca artar.
+  int _imgDecodeWidth = ImageBudget.minWidth;
+
+  /// Yakınlaştırma değişince çözme genişliğini kademeye göre günceller.
+  void _onImgTransform() {
+    if (!mounted) return;
+    final media = MediaQuery.maybeOf(context);
+    if (media == null) return;
+    final want = ImageBudget.forViewport(
+      logicalWidth: media.size.width,
+      devicePixelRatio: media.devicePixelRatio,
+      scale: _imgTx.value.getMaxScaleOnAxis(),
+    );
+    if (want == _imgDecodeWidth) return;
+    setState(() => _imgDecodeWidth = want);
+  }
+
   // Belge içi arama (metin görüntüleyici).
   bool _findOpen = false;
   final _findCtl = TextEditingController();
@@ -275,6 +294,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
       unawaited(_offerFormFilling());
     }
+    if (doc.kind == DocKind.image) _imgTx.addListener(_onImgTransform);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Ekran ölçüsü ilk kez burada bilinir; çözme genişliği ona göre kurulur.
+    if (widget.doc.kind == DocKind.image) _onImgTransform();
   }
 
   /// Belge doldurulabilir bir formsa kullanıcıya **söylenir**.
@@ -318,6 +345,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void dispose() {
     _pdfEdgeScrollTimer?.cancel();
     _textController?.dispose();
+    _imgTx.removeListener(_onImgTransform);
     _imgTx.dispose();
     _findCtl.dispose();
     _textFocus.dispose();
@@ -2484,6 +2512,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   quarterTurns: _imgQuarterTurns,
                   child: Image.file(
                     File(doc.path),
+                    // Bellek/pil: tam çözünürlük yerine ekranın gerektirdiği
+                    // kadar piksel (bkz. core/image_budget.dart). 12 MP'lik
+                    // bir fotoğraf tam açıldığında 48 MB bitmap ediyordu.
+                    cacheWidth: _imgDecodeWidth,
+                    gaplessPlayback: true,
                     errorBuilder: (_, __, ___) => Text(
                       context.t('vw.image_failed'),
                       style: const TextStyle(color: Colors.white),

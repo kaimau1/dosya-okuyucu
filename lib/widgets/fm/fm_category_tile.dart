@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
@@ -47,20 +49,41 @@ class _PulsingIconState extends State<_PulsingIcon>
     duration: const Duration(milliseconds: 1300),
   );
 
+  /// Nefes alma bu süre sonunda **durur**.
+  ///
+  /// **PİL (2026-08-07 denetimi):** animasyon sonsuza kadar dönüyordu. Hareket
+  /// eden tek bir piksel bile olsa Flutter her karede yeniden çizer: pano
+  /// açıkken uygulama hiç boşa geçmiyor, 120 Hz ekranda saniyede 120 kare
+  /// üretiliyordu — kullanıcı ekrana bakıp dururken bile. Kutunun işi
+  /// **dikkat çekmek**; birkaç saniye sonra o iş bitmiştir ve ekran duruyorsa
+  /// GPU da durmalıdır. Kutu bundan sonra da koyu zemin + renkle ayırt
+  /// edilebilir kalıyor (aşağıdaki `data.pulse` zemin farkı).
+  static const _pulseFor = Duration(seconds: 6);
+
+  Timer? _stop;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     if (reduced) {
+      _stop?.cancel();
       _controller.stop();
       _controller.value = 0;
-    } else if (!_controller.isAnimating) {
+    } else if (!_controller.isAnimating && _stop == null) {
       _controller.repeat(reverse: true);
+      _stop = Timer(_pulseFor, () {
+        if (!mounted) return;
+        // Dinlenme boyutuna (1.0 ölçek) yumuşak dönüş — ortada kesilen bir
+        // animasyon simgeyi büyük bırakıp "bozuk" görünürdü.
+        _controller.animateBack(0, duration: const Duration(milliseconds: 400));
+      });
     }
   }
 
   @override
   void dispose() {
+    _stop?.cancel();
     _controller.dispose();
     super.dispose();
   }

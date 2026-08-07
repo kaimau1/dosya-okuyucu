@@ -18,7 +18,24 @@ abstract final class ThumbnailCache {
   static final Map<String, Future<String?>> _inFlight = {};
 
   /// Üretilemeyen dosyalar (bozuk/desteklenmeyen codec) — tekrar denenmez.
-  static final Set<String> _failed = {};
+  ///
+  /// **Sınırlı (2026-08-07):** liste sınırsızdı; on binlerce videosu olan bir
+  /// telefonda kaydırdıkça büyüyor ve süreç boyunca hiç boşalmıyordu (her
+  /// kayıt bir tam dosya yolu = yüzlerce bayt). Sınıra gelince en eski yarısı
+  /// düşürülür — en kötü ihtimalle o dosyalar için küçük resim bir kez daha
+  /// denenir, ki bu zaten hızlıca başarısız olan bir çağrıdır.
+  static const _failedLimit = 512;
+  static final Set<String> _failed = <String>{};
+
+  static void _markFailed(String path) {
+    if (_failed.length >= _failedLimit) {
+      // `Set` ekleme sırasını korur → ilk yarısı en eskiler.
+      for (final old in _failed.take(_failedLimit ~/ 2).toList()) {
+        _failed.remove(old);
+      }
+    }
+    _failed.add(path);
+  }
 
   static Directory? _dir;
   static bool _pruned = false;
@@ -80,12 +97,12 @@ abstract final class ThumbnailCache {
         quality: 80,
       );
       if (!ok || !File(dest).existsSync()) {
-        _failed.add(path);
+        _markFailed(path);
         return null;
       }
       return dest;
     } catch (_) {
-      _failed.add(path);
+      _markFailed(path);
       return null;
     }
   }

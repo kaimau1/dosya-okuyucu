@@ -124,7 +124,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await _loadFolderSizes();
       // Dizin bayatsa (uygulama dışında dosya değişmiş olabilir) sessizce
       // tazele — kullanıcı bu sırada panoyu kullanmaya devam eder.
-      if (SearchIndex.isStale || _indexTooOld) unawaited(_scan());
+      // `isStale` = BİZİM yaptığımız bir dosya işlemi sonucu bayat: kullanıcı
+      // silmiş/taşımışsa sayıların yanlış kalması kabul edilemez, tercihten
+      // bağımsız tazelenir. `_indexTooOld` ise "uygulama dışında bir şey
+      // değişmiş olabilir" varsayımıyla yapılan **tahmini** tam tarama —
+      // pahalı olan bu, ve kapatılabilen de bu (Ayarlar > Pil ve başarım).
+      if (SearchIndex.isStale ||
+          (_indexTooOld && mounted && context.read<AppState>().autoRescan)) {
+        unawaited(_scan());
+      }
       return;
     }
     await _scan();
@@ -170,9 +178,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _scan() async {
+  /// [allowRepeat] false ise, tarama sırasında dosya sistemi değişse bile
+  /// tekrar taranmaz — yalnız `_stale` işaretlenir. Zincirin uzunluğu böylece
+  /// en çok iki tur: sürekli yazan bir işlem (büyük kopyalama) panoyu sonsuza
+  /// dek yeniden taratmasın.
+  Future<void> _scan({bool allowRepeat = true}) async {
     if (_scanning) return;
     setState(() => _scanning = true);
+    // Sürüm yürüyüşün BAŞINDA alınır. Eskiden bitişte `FsEvents.version`
+    // okunuyordu: tarama sürerken (dakikalar sürebilir) yapılan bir silme/
+    // taşıma "görülmüş" sayılıp `_stale` bayrağı temizleniyordu → o değişiklik
+    // panoya hiç yansımıyor, kullanıcı silinen dosyayı sayılarda görmeye devam
+    // ediyordu. Artık arada bir şey olduysa tarama bir kez tekrarlanır.
+    final startedAtVersion = FsEvents.version.value;
     await FmEnv.ensureInit(force: true);
     await SearchIndex.ensureLoaded();
     // Tek yürüyüş hem panoyu hem arama dizinini besler.
@@ -185,16 +203,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _cachedIndex = index;
     _cachedAtMs = DateTime.now().millisecondsSinceEpoch;
     if (!mounted) return;
+    final changedDuringScan = FsEvents.version.value != startedAtVersion;
     setState(() {
       _index = index;
       _scanning = false;
-      _stale = false;
+      _stale = changedDuringScan;
       _seenFsVersion = FsEvents.version.value;
     });
     await _loadTrash();
     await _loadFolderSizes();
     // Depolama takibi: günde bir fotoğraf (tarama zaten yapıldı, ek maliyet yok).
     unawaited(StorageTrend.record(index));
+    // Tarama sürerken dosya sistemi değiştiyse sonuç daha doğarken bayattı.
+    // Bir kez tekrarlanır; ikinci turda da değişmişse (aktif bir kopyalama
+    // sürüyor olabilir) `_stale` bayrağı bırakılır ve kullanıcı sekmeye
+    // dönünce / aşağı çekince tazelenir.
+    if (changedDuringScan && allowRepeat && mounted && widget.active) {
+      _stale = false;
+      await _scan(allowRepeat: false);
+    }
   }
 
   Future<void> _loadTrash() async {

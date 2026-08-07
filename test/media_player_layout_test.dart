@@ -26,7 +26,12 @@ void main() {
 
   tearDownAll(() => dir.deleteSync(recursive: true));
 
-  setUp(() => VideoPlayerPlatform.instance = _FakeVideoPlayerPlatform());
+  late _FakeVideoPlayerPlatform platform;
+
+  setUp(() {
+    platform = _FakeVideoPlayerPlatform();
+    VideoPlayerPlatform.instance = platform;
+  });
 
   testWidgets('kontroller açılıp kapanınca görüntü yerinden oynamaz',
       (tester) async {
@@ -67,6 +72,60 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
+
+  testWidgets('uygulama arkaya alınınca video DURUR, dönünce devam eder',
+      (tester) async {
+    // PİL: `video_player` Android'de arka planda oynatmaya devam eder —
+    // ekran kapalıyken bile tam güçte video kod çözme. Telefon cepteyken
+    // süren bu iş uygulamanın en pahalı pil kaçağıydı.
+    await tester.pumpWidget(
+      MaterialApp(home: MediaPlayerScreen(path: video.path)),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(platform.playing, isTrue, reason: 'açılışta oynamaya başlar');
+
+    tester.binding
+        .handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    expect(platform.playing, isTrue,
+        reason: 'inactive geçici (bildirim gölgesi) — duraklatmamalı');
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(platform.playing, isFalse, reason: 'arka planda kod çözme sürmemeli');
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(platform.playing, isTrue, reason: 'dönünce kaldığı yerden sürer');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('kullanıcı duraklattıysa arka plandan dönüşte KENDİ BAŞINA '
+      'başlamaz', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: MediaPlayerScreen(path: video.path)),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    // Kullanıcı duraklatır.
+    await tester.tap(find.byIcon(Icons.pause_circle), warnIfMissed: false);
+    await tester.pump();
+    expect(platform.playing, isFalse);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(platform.playing, isFalse,
+        reason: 'duraklatılmış videoyu dönüşte başlatmak kullanıcıyı şaşırtır');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }
 
 /// Gerçek ExoPlayer yerine testte kullanılan sahte oynatma motoru:
@@ -75,6 +134,10 @@ class _FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   final Map<int, StreamController<VideoEvent>> _events =
       <int, StreamController<VideoEvent>>{};
   int _next = 1;
+
+  /// Motor şu an oynatıyor mu? Yaşam döngüsü testleri buna bakar — asıl
+  /// soru "ekranda ne yazıyor" değil, **motora dur denildi mi**.
+  bool playing = false;
 
   @override
   Future<void> init() async {}
@@ -109,10 +172,10 @@ class _FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   Future<void> setLooping(int playerId, bool looping) async {}
 
   @override
-  Future<void> play(int playerId) async {}
+  Future<void> play(int playerId) async => playing = true;
 
   @override
-  Future<void> pause(int playerId) async {}
+  Future<void> pause(int playerId) async => playing = false;
 
   @override
   Future<void> setVolume(int playerId, double volume) async {}

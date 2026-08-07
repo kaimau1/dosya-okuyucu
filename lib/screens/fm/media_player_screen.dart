@@ -39,7 +39,8 @@ class MediaPlayerScreen extends StatefulWidget {
   State<MediaPlayerScreen> createState() => _MediaPlayerScreenState();
 }
 
-class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
+class _MediaPlayerScreenState extends State<MediaPlayerScreen>
+    with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   late List<String> _playlist;
   late int _index;
@@ -50,6 +51,13 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   double _speed = 1.0;
   Timer? _hideTimer;
 
+  /// Uygulama arkaya alındığı için mi duraklattık? (Kullanıcı duraklattıysa
+  /// dönüşte kendiliğinden başlamamalı.)
+  bool _pausedByLifecycle = false;
+
+  /// Son bilinen oynatma durumu — yalnız DEĞİŞİMİNDE ekran yeniden çizilir.
+  bool _wasPlaying = false;
+
   String get _current => _playlist[_index];
   bool get _isAudio =>
       FsEntry.categoryForExtension(p.extension(_current).replaceFirst('.', ''))
@@ -58,6 +66,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _playlist = widget.playlist.isEmpty ? [widget.path] : widget.playlist;
     _index = _playlist.indexOf(widget.path);
     if (_index < 0) {
@@ -69,6 +78,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
     _controller?.removeListener(_onTick);
     _controller?.dispose();
@@ -76,6 +86,42 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
+  }
+
+  /// **PİL — uygulama arkaya alınınca video DURUR.**
+  ///
+  /// Sınıfın başındaki not "arkaya alınınca çalma durur" diyordu; Android'de
+  /// bu DOĞRU DEĞİL: `video_player` ExoPlayer'ı sürer ve ekran kapalıyken bile
+  /// kareleri çözmeye devam eder (görüntü kimseye gösterilmeden). Bir saatlik
+  /// filmde bu, telefonu cebe koyduktan sonra da süren tam güçte video kod
+  /// çözme demek — uygulamanın en pahalı pil kaçağı buydu.
+  ///
+  /// Ses oynatıcı (`AudioPlayerScreen`) bilerek DIŞARIDA: müziğin arka planda
+  /// sürmesi istenen davranış, video için değil.
+  ///
+  /// `inactive` kasten yok sayılıyor: bildirim gölgesini aşağı çekmek ya da
+  /// izin penceresi de o durumu üretir, orada duraklatmak izlemeyi bölerdi.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    final c = _controller;
+    if (c == null) return;
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        if (c.value.isPlaying) {
+          _pausedByLifecycle = true;
+          unawaited(c.pause());
+        }
+      case AppLifecycleState.resumed:
+        if (_pausedByLifecycle) {
+          _pausedByLifecycle = false;
+          unawaited(c.play());
+        }
+      case AppLifecycleState.inactive:
+        break;
+    }
   }
 
   Future<void> _load() async {
@@ -108,6 +154,8 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       return;
     }
     controller.addListener(_onTick);
+    _wasPlaying = controller.value.isPlaying;
+    _pausedByLifecycle = false;
     setState(() {
       _controller = controller;
       _loading = false;
@@ -115,7 +163,14 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _scheduleHide();
   }
 
-  /// Konum çubuğunu güncelle + dosya bitince sıradakine geç.
+  /// Dosya bitince sıradakine geç.
+  ///
+  /// **Burada `setState` YOK (2026-08-07 pil/başarım denetimi).** Eskiden her
+  /// konum güncellemesinde (saniyede iki kez, denetleyici böyle yayınlar) TÜM
+  /// ekran yeniden kuruluyordu: üst çubuk, degradeler, açılır menüler ve
+  /// videonun bulunduğu ağaç. Konum çubuğu artık kendi
+  /// `ValueListenableBuilder`ında tazeleniyor (bkz. [build]) → yeniden çizilen
+  /// alan ekranın tamamı değil, yalnız alt kontroller.
   void _onTick() {
     final c = _controller;
     if (c == null || !mounted) return;
@@ -128,7 +183,13 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
         return;
       }
     }
-    setState(() {});
+    // Oynat/duraklat DEĞİŞİMİ kontrollerin gizlenme zamanlayıcısını ve
+    // (kontroller kapalıysa) ekranın kalanını ilgilendirir — nadir olay.
+    if (v.isPlaying != _wasPlaying) {
+      _wasPlaying = v.isPlaying;
+      if (v.isPlaying) _scheduleHide();
+      setState(() {});
+    }
   }
 
   void _skip(int delta) {
@@ -224,7 +285,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: _controls(c, value),
+                // Konum çubuğu saniyede iki kez değişir; yeniden çizilen
+                // alanı BURAYA hapsediyoruz (bkz. [_onTick]).
+                child: ValueListenableBuilder<VideoPlayerValue>(
+                  valueListenable: c,
+                  builder: (_, live, __) => _controls(c, live),
+                ),
               ),
           ],
         ),

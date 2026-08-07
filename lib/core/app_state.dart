@@ -42,6 +42,9 @@ class AppState extends ChangeNotifier {
   static const _kRemotes = 'fm_remote_connections';
   static const _kUiFont = 'ui_font';
   static const _kUiTextScale = 'ui_text_scale';
+  // Pil ve başarım
+  static const _kHighRefresh = 'perf_high_refresh';
+  static const _kAutoRescan = 'perf_auto_rescan';
   // Sesli okuma tercihleri (ses/hız/perde + "AI ile oku")
   static const _kTtsPrefs = 'tts_prefs';
   static const _kTtsAiRead = 'tts_ai_read';
@@ -66,6 +69,21 @@ class AppState extends ChangeNotifier {
   /// `DosyaOkuyucuApp`): uygulama her telefonda aynı görünsün, büyütmek
   /// isteyen buradan büyütsün.
   double _uiTextScale = 1.0;
+
+  /// 120 Hz+ ekranlarda yüksek tazeleme hızı isteniyor mu?
+  ///
+  /// Açıkken kaydırma ve animasyonlar belirgin biçimde akıcı; kapalıyken ekran
+  /// 60 Hz'de kalır ve **GPU'nun karesi yarıya iner** — uzun belge okurken en
+  /// gözle görülür pil kazancı budur. Varsayılan AÇIK: uygulamanın satır
+  /// başlarından biri hız hissi.
+  bool _highRefreshRate = true;
+
+  /// Arama dizini bayatlayınca (12 saat) pano kendiliğinden yeniden tarasın mı?
+  ///
+  /// Tarama tüm depolamayı gezer: on binlerce dosyada dakikalarca CPU + disk.
+  /// Kapatan kullanıcı listeleri kendisi tazeler (aşağı çekme) — sık dosya
+  /// eklemeyen telefonlarda saf kazanç.
+  bool _autoRescan = true;
   List<RecentFile> _recents = [];
   List<String> _memory = [];
 
@@ -91,6 +109,24 @@ class AppState extends ChangeNotifier {
 
   /// Ölçek 0,85–1,40 arasına kısılır: altında dokunma hedefleri okunmaz
   /// küçüklüğe, üstünde çubuk/etiketler taşmaya başlıyor.
+  /// Yüksek tazeleme hızı tercihi (bkz. [_highRefreshRate]).
+  bool get highRefreshRate => _highRefreshRate;
+
+  /// Otomatik arka plan taraması tercihi (bkz. [_autoRescan]).
+  bool get autoRescan => _autoRescan;
+
+  Future<void> setHighRefreshRate(bool value) async {
+    _highRefreshRate = value;
+    await _prefs.setBool(_kHighRefresh, value);
+    notifyListeners();
+  }
+
+  Future<void> setAutoRescan(bool value) async {
+    _autoRescan = value;
+    await _prefs.setBool(_kAutoRescan, value);
+    notifyListeners();
+  }
+
   Future<void> setUiTextScale(double value) async {
     _uiTextScale = value.clamp(0.85, 1.4);
     await _prefs.setDouble(_kUiTextScale, _uiTextScale);
@@ -311,6 +347,8 @@ class AppState extends ChangeNotifier {
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = _prefs.getString(_kUiFont) ?? AppTheme.uiFontDefault;
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
+    _highRefreshRate = _prefs.getBool(_kHighRefresh) ?? true;
+    _autoRescan = _prefs.getBool(_kAutoRescan) ?? true;
     _recents = (_prefs.getStringList(_kRecents) ?? [])
         .map(RecentFile.tryDecode)
         .whereType<RecentFile>()

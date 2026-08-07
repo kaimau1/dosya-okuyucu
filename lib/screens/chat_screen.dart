@@ -105,12 +105,20 @@ class _ChatScreenState extends State<ChatScreen> {
         fileContext: _ctxText,
         memory: appState.memory,
       );
+      // `mounted` ŞART: Gemini yanıtı saniyeler sürüyor ve kullanıcı bu arada
+      // geri tuşuna basmış olabilir. Elden çıkmış bir `State` üzerinde
+      // `setState` çağırmak "setState() called after dispose()" istisnası
+      // atar — sohbet ekranı kapandıktan sonra uygulamada hata belirirdi.
+      if (!mounted) return;
       setState(() => _turns.add(ChatTurn(fromUser: false, text: reply)));
     } catch (e) {
+      if (!mounted) return;
       setState(() => _turns.add(ChatTurn(fromUser: false, text: '⚠️ $e')));
     } finally {
-      setState(() => _busy = false);
-      _scrollToEnd();
+      if (mounted) {
+        setState(() => _busy = false);
+        _scrollToEnd();
+      }
     }
   }
 
