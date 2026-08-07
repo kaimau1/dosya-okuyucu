@@ -305,6 +305,42 @@ const Map<String, (String, String, String)> _table = {
     'Notes you want the AI to remember',
     'ملاحظات تريد أن يتذكرها الذكاء الاصطناعي',
   ),
+  'settings.perf_section': (
+    'Pil ve başarım',
+    'Battery & performance',
+    'البطارية والأداء',
+  ),
+  'settings.perf_sub': (
+    'Tazeleme hızı ve arka plan taraması',
+    'Refresh rate and background scanning',
+    'معدل التحديث والفحص في الخلفية',
+  ),
+  'settings.perf_high_refresh': (
+    'Yüksek tazeleme hızı',
+    'High refresh rate',
+    'معدل تحديث مرتفع',
+  ),
+  'settings.perf_high_refresh_sub': (
+    '120 Hz ekranlarda kaydırma daha akıcı. Kapatınca ekran 60 Hz\'de kalır '
+        've pil daha az harcanır.',
+    'Smoother scrolling on 120 Hz screens. Turn off to stay at 60 Hz and use '
+        'less battery.',
+    'تمرير أكثر سلاسة على شاشات 120 هرتز. أوقفه للبقاء عند 60 هرتز وتوفير '
+        'البطارية.',
+  ),
+  'settings.perf_auto_rescan': (
+    'Otomatik yeniden tarama',
+    'Automatic re-scan',
+    'إعادة الفحص التلقائي',
+  ),
+  'settings.perf_auto_rescan_sub': (
+    'Uygulama dışında eklenen dosyalar görünsün diye pano 12 saatte bir tüm '
+        'depolamayı tarar. Kapatınca listeleri aşağı çekerek siz tazelersiniz.',
+    'The dashboard re-scans all storage every 12 hours so files added outside '
+        'the app show up. Turn off and refresh lists yourself by pulling down.',
+    'تعيد اللوحة فحص وحدة التخزين كل 12 ساعة لتظهر الملفات المضافة خارج '
+        'التطبيق. أوقفه وحدّث القوائم بالسحب للأسفل.',
+  ),
   'settings.fm_section': ('Dosya yöneticisi', 'File manager', 'مدير الملفات'),
   'settings.fm_sub': (
     'Küçük resimler, gizli dosyalar, çöp kutusu',

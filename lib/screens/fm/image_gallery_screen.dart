@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/image_budget.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
@@ -50,22 +51,38 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
   String get _current => _paths[_index];
 
-  FsEntry get _currentEntry {
-    final file = File(_current);
+  /// Dosya bilgisi (boyut/tarih) yol başına bir kez ölçülür.
+  ///
+  /// **Niye önbellek:** bu getter `build` içinden çağrılıyor ve `statSync`
+  /// SENKRON disk erişimidir. Yakınlaştırma, çubuğu gizleme, sayfa değişimi —
+  /// her `setState` bir kare içinde diske gidiyordu; kaydırırken saniyede
+  /// onlarca kez. Ölçüm dosya yolu başına bir kez yapılıp saklanıyor.
+  final Map<String, FsEntry> _statCache = {};
+
+  FsEntry get _currentEntry => _entryFor(_current);
+
+  FsEntry _entryFor(String path) {
+    final cached = _statCache[path];
+    if (cached != null) return cached;
+    // Binlerce fotoğraflı klasörde sırayla geçilen her dosya birikmesin;
+    // önbellek yalnız "şu an bakılan birkaç dosya" için var.
+    if (_statCache.length > 64) _statCache.clear();
     var size = 0;
     var modified = 0;
     try {
-      final stat = file.statSync();
+      final stat = File(path).statSync();
       size = stat.size;
       modified = stat.modified.millisecondsSinceEpoch;
     } catch (_) {}
-    return FsEntry(
-      path: _current,
-      name: p.basename(_current),
+    final entry = FsEntry(
+      path: path,
+      name: p.basename(path),
       isDir: false,
       sizeBytes: size,
       modifiedMs: modified,
     );
+    _statCache[path] = entry;
+    return entry;
   }
 
   Future<void> _delete() async {
@@ -158,6 +175,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                         _openInViewer();
                       case 'actions':
                         await showEntryActions(context, _currentEntry);
+                        // Yeniden adlandırma/taşıma dosyayı değiştirmiş
+                        // olabilir: ölçüm önbelleği bayat kalmasın.
+                        _statCache.remove(_current);
                         if (mounted) setState(() {});
                       case 'info':
                         await showProperties(context, _currentEntry);
@@ -221,19 +241,51 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   final _tx = TransformationController();
   TapDownDetails? _doubleTapAt;
 
+  /// Görselin kaç piksel genişlikte çözüleceği. Yakınlaştırınca kademeli
+  /// olarak artar (bkz. [ImageBudget]); tam çözünürlükte açmak 12 MP'lik bir
+  /// fotoğrafta 48 MB bitmap demekti.
+  int _decodeWidth = ImageBudget.minWidth;
+
   @override
   void initState() {
     super.initState();
-    _tx.addListener(() {
-      // Ölçek 1'in üstündeyken sayfa kaydırma kilitlenir (üst ekran dinler).
-      widget.onZoomChanged(_tx.value.getMaxScaleOnAxis() > 1.02);
-    });
+    _tx.addListener(_onTransform);
   }
 
   @override
   void dispose() {
+    _tx.removeListener(_onTransform);
     _tx.dispose();
     super.dispose();
+  }
+
+  void _onTransform() {
+    final scale = _tx.value.getMaxScaleOnAxis();
+    // Ölçek 1'in üstündeyken sayfa kaydırma kilitlenir (üst ekran dinler).
+    widget.onZoomChanged(scale > 1.02);
+    _syncDecodeWidth(scale);
+  }
+
+  /// Yakınlaştırma kademe atladıysa görseli daha yüksek çözünürlükte açar.
+  /// Kademe içinde kalan hareketler hiçbir şey tetiklemez — her karede yeniden
+  /// çözmek yakınlaştırmayı takılır hale getirirdi.
+  void _syncDecodeWidth(double scale) {
+    if (!mounted) return;
+    final media = MediaQuery.maybeOf(context);
+    if (media == null) return;
+    final want = ImageBudget.forViewport(
+      logicalWidth: media.size.width,
+      devicePixelRatio: media.devicePixelRatio,
+      scale: scale,
+    );
+    if (want == _decodeWidth) return;
+    setState(() => _decodeWidth = want);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncDecodeWidth(_tx.value.getMaxScaleOnAxis());
   }
 
   void _handleDoubleTap() {
@@ -263,6 +315,13 @@ class _ZoomableImageState extends State<_ZoomableImage> {
           child: Image.file(
             File(widget.path),
             fit: BoxFit.contain,
+            // Bellek/pil: ekranda görünecek kadar piksel çöz (bkz.
+            // ImageBudget). Kaynak bundan küçükse Flutter değeri kendiliğinden
+            // kaynağa kısar — küçük görsel büyütülüp şişmez.
+            cacheWidth: _decodeWidth,
+            // Yeni çözünürlük gelene kadar eskisi ekranda kalsın: yoksa her
+            // kademede görsel bir kare boyunca kayboluyordu.
+            gaplessPlayback: true,
             errorBuilder: (_, __, ___) => Center(
               child: Text(context.t('vw.image_failed'),
                   style: const TextStyle(color: Colors.white70)),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_state.dart';
+import '../core/display_mode.dart';
 import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
@@ -135,6 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (shows('settings.ai_section'))
         _aiSection(appState, models, model, modelsError),
       if (shows('settings.memory')) _memorySection(appState),
+      if (shows('settings.perf_section')) const _PerformanceSection(),
       if (shows('settings.fm_section')) const _FileManagerSection(),
       if (shows('settings.about')) const _AboutSection(),
     ];
@@ -661,6 +663,49 @@ class _AccountSectionState extends State<_AccountSection> {
 ///
 /// O ekran yalnız gezgin panosundan açılabiliyordu; "ayarlar" diye buraya
 /// gelen kullanıcı küçük resim/gizli dosya/çöp ayarlarını hiç bulamıyordu.
+/// **Pil ve başarım** — kullanıcının pil/akıcılık dengesini kendi kurduğu yer.
+///
+/// Niye ayrı bir bölüm (2026-08-07 denetimi): uygulamanın en pahalı iki
+/// alışkanlığı 120 Hz ekran ve 12 saatte bir yapılan tam depolama taramasıydı
+/// ve ikisi de KOŞULSUZ açıktı. İkisi de çoğu kullanıcı için doğru varsayılan,
+/// ama pili biten ya da on binlerce dosyası olan kullanıcının bunları
+/// kapatabilmesi gerekir. Kapatınca uygulama yeteneğini KAYBETMEZ: tazeleme
+/// yalnız yavaşlar, tarama da elle (aşağı çekerek) yapılır.
+class _PerformanceSection extends StatelessWidget {
+  const _PerformanceSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SettingsGroup(
+      icon: Icons.battery_saver_outlined,
+      title: context.t('settings.perf_section'),
+      subtitle: context.t('settings.perf_sub'),
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: appState.highRefreshRate,
+          title: Text(context.t('settings.perf_high_refresh')),
+          subtitle: Text(context.t('settings.perf_high_refresh_sub')),
+          // Anında uygulanır: "yeniden başlat" isteyen bir ayar denenmeden
+          // kapatılıp unutulur.
+          onChanged: (v) async {
+            await appState.setHighRefreshRate(v);
+            await applyRefreshRate(v);
+          },
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: appState.autoRescan,
+          title: Text(context.t('settings.perf_auto_rescan')),
+          subtitle: Text(context.t('settings.perf_auto_rescan_sub')),
+          onChanged: appState.setAutoRescan,
+        ),
+      ],
+    );
+  }
+}
+
 class _FileManagerSection extends StatelessWidget {
   const _FileManagerSection();
 

@@ -98,4 +98,82 @@ void main() {
     expect(find.text('Merriweather'), findsOneWidget);
     expect(find.textContaining('Örnek:'), findsWidgets);
   });
+
+  testWidgets('pil ve başarım bölümü iki anahtarla geliyor', (tester) async {
+    // 2026-08-07 denetimi: 120 Hz ekran ve 12 saatlik tam depolama taraması
+    // koşulsuz açıktı; ikisi de kapatılabilir olmalı.
+    await _pump(tester);
+    await tester.dragUntilVisible(
+      find.text('Pil ve başarım'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    final group = find.ancestor(
+      of: find.text('Pil ve başarım'),
+      matching: find.byType(SettingsGroup),
+    );
+    expect(group, findsOneWidget);
+    expect(
+      find.descendant(of: group, matching: find.text('Yüksek tazeleme hızı')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+          of: group, matching: find.text('Otomatik yeniden tarama')),
+      findsOneWidget,
+    );
+  });
+
+  test('tazeleme hızı ve otomatik tarama varsayılan AÇIK ve diske yazılıyor',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    await state.init();
+    // Varsayılanlar: uygulamanın satır başı hız hissi bozulmasın.
+    expect(state.highRefreshRate, isTrue);
+    expect(state.autoRescan, isTrue);
+
+    await state.setAutoRescan(false);
+    await state.setHighRefreshRate(false);
+
+    // Tercih diske yazılıyor: yeni bir oturum onu okumalı.
+    final reloaded = AppState();
+    await reloaded.init();
+    expect(reloaded.autoRescan, isFalse);
+    expect(reloaded.highRefreshRate, isFalse);
+  });
+
+  testWidgets('anahtara dokunmak tercihi DEĞİŞTİRİYOR', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    // `init()` gerçek asenkron iş: sahte saat zonunda tamamlanmaz
+    // (HAFIZA 2026-07-25 §F tuzağı) → gerçek zonda koşturulur.
+    await tester.runAsync(state.init);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: state,
+        child: const MaterialApp(
+          locale: Locale('tr'),
+          supportedLocales: [Locale('tr'), Locale('en'), Locale('ar')],
+          localizationsDelegates: _delegates,
+          home: SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.dragUntilVisible(
+      find.text('Otomatik yeniden tarama'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    expect(state.autoRescan, isTrue);
+    // `dragUntilVisible` satırı ekranın ALT KENARINA getirebiliyor; dokunma
+    // noktası görünür alanın dışında kalırsa tıklama düşer.
+    await tester.ensureVisible(find.text('Otomatik yeniden tarama'));
+    await tester.pump();
+    await tester.tap(find.text('Otomatik yeniden tarama'));
+    await tester.pump();
+    expect(state.autoRescan, isFalse);
+  });
 }

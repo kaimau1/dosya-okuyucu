@@ -43,6 +43,28 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('canlanma birkaç saniye sonra DURUR (pil)', (tester) async {
+    // 2026-08-07 pil denetimi: animasyon sonsuza kadar dönüyordu, yani pano
+    // açıkken uygulama hiç boşa geçmiyor ve 120 Hz ekranda saniyede 120 kare
+    // üretiliyordu. Dikkat çekme işi birkaç saniyede biter.
+    await tester.pumpWidget(_wrap(FmCategoryTile(data: _tile(pulse: true))));
+    await tester.pump(const Duration(milliseconds: 650));
+
+    // Yeterince beklendiğinde bekleyen kare kalmamalı: `pumpAndSettle`
+    // sonsuz animasyonda zaman aşımına düşer, bu satır tam onu yakalar.
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+
+    final scale = tester
+        .widget<ScaleTransition>(find.descendant(
+            of: find.byKey(FmCategoryTile.pulseKey),
+            matching: find.byType(ScaleTransition)))
+        .scale
+        .value;
+    expect(scale, closeTo(1.0, 0.01),
+        reason: 'durunca dinlenme boyutuna dönmeli, büyük kalmamalı');
+  });
+
   testWidgets('boş çöp kutusu sessiz durur', (tester) async {
     await tester.pumpWidget(_wrap(FmCategoryTile(data: _tile(pulse: false))));
 
