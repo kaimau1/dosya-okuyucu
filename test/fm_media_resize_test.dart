@@ -463,4 +463,148 @@ void main() {
       expect(unknown.noVisualChangeWith(const MediaResizeOptions()), isFalse);
     });
   });
+
+  /// Kullanıcı 2026-08-07: *"boyut düşürmede tahmini boyut yazmalı"*.
+  group('tahmini boyut', () {
+    // 1 dakikalık 1080p30 video, 200 MB.
+    const video = MediaSourceInfo(
+      name: 'gezi.mp4',
+      sizeBytes: 200 * 1024 * 1024,
+      isVideo: true,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      durationMs: 60000,
+    );
+
+    test('video: piksel × kare × kalite katsayısı (kodlayıcıyla aynı sayılar)',
+        () {
+      final est = video.estimatedBytes(const MediaResizeOptions(
+        resolution: ResolutionChoice.p720,
+        videoQuality: VideoQualityChoice.medium,
+      ));
+      expect(est, isNotNull);
+      // 1280×720 × 30 fps × 0.08 bit = ~2.21 Mbit/s + 128 kbit/s ses,
+      // 60 sn → ~17.5 MB.
+      expect(est! / (1024 * 1024), closeTo(16.7, 1.5));
+    });
+
+    test('video: daha sert sıkıştırma daha küçük tahmin verir', () {
+      int est(VideoQualityChoice q) => video.estimatedBytes(MediaResizeOptions(
+            resolution: ResolutionChoice.p720,
+            videoQuality: q,
+          ))!;
+      expect(est(VideoQualityChoice.veryLow), lessThan(est(VideoQualityChoice.low)));
+      expect(est(VideoQualityChoice.low), lessThan(est(VideoQualityChoice.medium)));
+      expect(est(VideoQualityChoice.medium), lessThan(est(VideoQualityChoice.high)));
+    });
+
+    test('video: kare sayısını yarılamak tahmini de yarılar', () {
+      final full = video.estimatedBytes(
+          const MediaResizeOptions(resolution: ResolutionChoice.keep))!;
+      final half = video.estimatedBytes(const MediaResizeOptions(
+          resolution: ResolutionChoice.keep, frameRate: 15))!;
+      expect(half, lessThan(full * 0.6));
+    });
+
+    test('tahmin kaynağın boyutunu AŞMAZ', () {
+      const small = MediaSourceInfo(
+        name: 'k.mp4',
+        sizeBytes: 1024,
+        isVideo: true,
+        width: 1920,
+        height: 1080,
+        fps: 30,
+        durationMs: 60000,
+      );
+      expect(small.estimatedBytes(const MediaResizeOptions()), 1024);
+    });
+
+    test('süresi bilinmeyen videoda tahmin YOK (uydurma yazmıyoruz)', () {
+      const noDuration = MediaSourceInfo(
+        name: 'k.mp4',
+        sizeBytes: 5000,
+        isVideo: true,
+        width: 1920,
+        height: 1080,
+      );
+      expect(noDuration.estimatedBytes(const MediaResizeOptions()), isNull);
+    });
+
+    // 12 MP fotoğraf, 5 MB.
+    const photo = MediaSourceInfo(
+      name: 'IMG_1.jpg',
+      sizeBytes: 5 * 1024 * 1024,
+      isVideo: false,
+      width: 4000,
+      height: 3000,
+    );
+
+    test('fotoğraf: piksel oranı × kalite katsayısı', () {
+      final est = photo.estimatedBytes(const MediaResizeOptions(
+        resolution: ResolutionChoice.p1080,
+        imageQuality: 80,
+      ));
+      expect(est, isNotNull);
+      // 3000 kısa kenar → 1080'e iner (oran 0.36² ≈ 0.13), kalite 80/85 ≈ 0.79.
+      expect(est! / (1024 * 1024), closeTo(0.51, 0.2));
+    });
+
+    test('fotoğraf: PNG çıktı piksel sayısına göre (kaynağın boyutuna değil)',
+        () {
+      final est = photo.estimatedBytes(const MediaResizeOptions(
+        resolution: ResolutionChoice.keep,
+        imageFormat: ImageOutputFormat.png,
+      ));
+      expect(est, isNotNull);
+      // Kaynağın 5 MB'ı ile ilgisi yok: 12 MP × ~2.2 bayt, tavan kaynağın
+      // boyutu olduğu için 5 MB'da kalır.
+      expect(est, photo.sizeBytes);
+    });
+
+    test('ölçüsü bilinmeyen fotoğrafta yüzde seçimi yine tahmin edilebilir',
+        () {
+      const unknown =
+          MediaSourceInfo(name: 'a.jpg', sizeBytes: 4000000, isVideo: false);
+      expect(
+        unknown.estimatedBytes(const MediaResizeOptions(
+            resolution: ResolutionChoice.p720)),
+        isNull,
+      );
+      final percent = unknown.estimatedBytes(const MediaResizeOptions(
+          resolution: ResolutionChoice.percent, percent: 50));
+      expect(percent, isNotNull);
+      // Alan oranı 0.5² = 0.25, üstüne kalite katsayısı (80 ≈ 85'in %79'u).
+      expect(percent! / unknown.sizeBytes, closeTo(0.20, 0.02));
+    });
+
+    test('toplam: ölçülmeyen dosyalar ortalama oranla hesaba katılır', () {
+      final total = estimateResizeTotal(
+        [
+          photo,
+          // Ölçülmemiş üç fotoğraf (ayar sayfası ilk beşini ölçüyor).
+          const MediaSourceInfo(
+              name: 'b.jpg', sizeBytes: 5 * 1024 * 1024, isVideo: false),
+          const MediaSourceInfo(
+              name: 'c.jpg', sizeBytes: 5 * 1024 * 1024, isVideo: false),
+        ],
+        const MediaResizeOptions(
+            resolution: ResolutionChoice.p1080, imageQuality: 80),
+      );
+      expect(total, isNotNull);
+      expect(total!.before, 15 * 1024 * 1024);
+      // Üç dosya da aynı oranda küçülür → tahmin ilk dosyanınkinin üç katı.
+      final single = photo.estimatedBytes(const MediaResizeOptions(
+          resolution: ResolutionChoice.p1080, imageQuality: 80))!;
+      expect(total.after, closeTo(single * 3, single * 0.1));
+    });
+
+    test('hiçbir dosya tahmin edilemiyorsa toplam null', () {
+      final total = estimateResizeTotal(
+        const [MediaSourceInfo(name: 'a.mp4', sizeBytes: 10, isVideo: true)],
+        const MediaResizeOptions(),
+      );
+      expect(total, isNull);
+    });
+  });
 }

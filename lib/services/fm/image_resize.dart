@@ -119,6 +119,33 @@ abstract final class ImageResizer {
         .contains(ext);
   }
 
+  /// Fotoğrafın ölçüsü — dosyanın yalnız **başlığı** okunur.
+  ///
+  /// Niye başlık: 12 MP bir JPEG'i tümüyle çözmek yarım saniye sürer; ayar
+  /// sayfası beş dosya için bunu yapamaz. Ölçü, JPEG'de SOF işaretçisinde,
+  /// PNG'de 16. bayttadır — ikisi de ilk kilobaytlarda. Okunamazsa null
+  /// (uydurma ölçü, uydurma tahmin demek olurdu).
+  static Future<({int width, int height})?> probeSize(String path) async {
+    try {
+      final file = File(path);
+      final length = await file.length();
+      final head = await file.openRead(0, length < _headBytes ? length : _headBytes)
+          .fold<List<int>>(<int>[], (a, b) => a..addAll(b));
+      final bytes = Uint8List.fromList(head);
+      final decoder = img.findDecoderForData(bytes);
+      if (decoder == null) return null;
+      final info = decoder.startDecode(bytes);
+      if (info == null || info.width <= 0 || info.height <= 0) return null;
+      return (width: info.width, height: info.height);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Ölçü ararken okunacak baş kısım (256 KB) — JPEG'in SOF işaretçisi çok
+  /// büyük EXIF önizlemelerinde birkaç on kilobayta kadar geri kalabiliyor.
+  static const int _headBytes = 256 * 1024;
+
   /// Gemini'ye gönderilecek **küçük önizleme** üretir (dosyaya yazmadan).
   ///
   /// Niye: karşılaştırma için 5 MB'lık özgün fotoğrafı yüklemek hem yavaş hem

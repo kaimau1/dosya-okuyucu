@@ -2881,6 +2881,18 @@ const Map<String, (String, String, String)> _table = {
   'rs.fps_value': ('{n} fps', '{n} fps', '{n} إطار/ث'),
   'rs.bitrate': ('{n} Mbps', '{n} Mbps', '{n} ميغابت/ث'),
   'rs.no_audio': ('sessiz', 'muted', 'بلا صوت'),
+  'rs.estimate': (
+    'Tahmini: {before} → ≈ {after}',
+    'Estimated: {before} → ≈ {after}',
+    'المتوقع: {before} → ≈ {after}',
+  ),
+  'rs.estimate_gain': ('≈ %{n} kazanç', '≈ {n}% saved', '≈ توفير {n}%'),
+  'rs.estimate_note': (
+    'Gerçek boyut içeriğe göre değişir; kesin sonuç işlem bitince görünür.',
+    'The real size depends on the content; the exact result appears when the '
+        'job finishes.',
+    'يعتمد الحجم الفعلي على المحتوى؛ تظهر النتيجة الدقيقة عند انتهاء العملية.',
+  ),
   'rs.and_more': (
     've {n} dosya daha · toplam {size}',
     'and {n} more files · {size} total',

@@ -5,6 +5,7 @@ import 'package:excel/excel.dart';
 import 'package:flutter/painting.dart' show TextAlign;
 
 import '../core/excel_format.dart';
+import 'xlsx_compat.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 
@@ -152,6 +153,13 @@ class XlsxSheet {
 
   /// styleIndex → çözümlenmiş görünüm (her karede yeniden hesaplanmasın).
   final Map<int, XlsxCellStyle> _styleCache = {};
+
+  /// **İçeriğe göre hesaplanmış** satır yükseklikleri (punto) — yalnız dosyada
+  /// açık yüksekliği OLMAYAN satırlar için. Excel dosyayı açarken bu hesabı
+  /// kendisi yapar; biz yapmayınca çok satırlı hücreler tek satıra kırpılıyordu
+  /// (kullanıcı ekran görüntüsü 2026-08-07). Ekran doldurur (ölçüm `TextPainter`
+  /// ister), dosyaya YAZILMAZ: bu bizim gösterimimiz, kullanıcının verisi değil.
+  final Map<int, double> autoRowHeights = {};
 
   late final List<XlsxMerge> merges = [
     for (final m in layout.merges) XlsxMerge(m.r1, m.c1, m.r2, m.c2),
@@ -305,9 +313,15 @@ class XlsxSheet {
   }
 
   /// Satır yüksekliği puntodur; 1 pt ≈ 1.333 px.
+  ///
+  /// Sıra: dosyanın verdiği yükseklik → içerikten hesaplanan otomatik
+  /// yükseklik ([autoRowHeights]) → varsayılan. Dosyadaki değer her zaman
+  /// kazanır; kullanıcının ölçüsü tahminimizden önce gelir.
   double rowHeight(int r) {
     if (layout.hiddenRows.contains(r)) return 0;
-    final pt = layout.rowHeightPt(r);
+    final pt = layout.rowHeights[r] ??
+        autoRowHeights[r] ??
+        (layout.defaultRowHeightPt <= 0 ? 15 : layout.defaultRowHeightPt);
     return (pt * 1.34).clamp(8.0, 409.0);
   }
 
@@ -567,7 +581,18 @@ class XlsxEditor {
   XlsxEditor._(this._excel, this.sheets, this.workbook);
 
   static XlsxEditor parse(Uint8List bytes) {
-    final excel = Excel.decodeBytes(bytes);
+    // `excel` paketi bazı GEÇERLİ dosyaları reddediyor (yerleşik sayı biçimi
+    // kimliğinin yeniden tanımı → "custom numFmtId starts at 164…"). Hata
+    // alınca dosya onarılmış bir KOPYAYLA yeniden denenir; onarım da tutmazsa
+    // özgün hata yükselir (bkz. `XlsxCompat`).
+    Excel excel;
+    try {
+      excel = Excel.decodeBytes(bytes);
+    } catch (_) {
+      final repaired = XlsxCompat.repair(bytes);
+      if (repaired == null) rethrow;
+      excel = Excel.decodeBytes(repaired);
+    }
     XlsxWorkbook wb;
     try {
       wb = XlsxReader.read(bytes);

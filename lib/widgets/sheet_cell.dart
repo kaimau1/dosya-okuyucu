@@ -66,6 +66,16 @@ class SheetCell extends StatelessWidget {
   final bool cursor;
   final bool editing;
   final bool showGridLines;
+
+  /// **Excel'in taşma davranışı**: kaydırılmayan bir metin, komşu hücreler
+  /// BOŞSA onların üstüne taşar (kırpılmaz). Bu iki alan, hücrenin sağına ve
+  /// soluna kaç piksel taşabileceğini söyler (0 = taşma yok).
+  ///
+  /// Yerleşimi DEĞİŞTİRMEZ: hücre kendi genişliğinde kalır, yalnız metin
+  /// çizimi taşar (`OverflowBox`). Hesabı ekran yapar — komşunun boş olup
+  /// olmadığını yalnız o bilir (bkz. `spreadsheet_editor_screen._spillPlan`).
+  final double spillLeft;
+  final double spillRight;
   final TextEditingController controller;
   final VoidCallback onTap;
   final VoidCallback onSubmitted;
@@ -84,6 +94,8 @@ class SheetCell extends StatelessWidget {
     required this.cursor,
     required this.editing,
     required this.showGridLines,
+    this.spillLeft = 0,
+    this.spillRight = 0,
     required this.controller,
     required this.onTap,
     required this.onSubmitted,
@@ -97,7 +109,6 @@ class SheetCell extends StatelessWidget {
     final s = style;
     final background = cond?.background ?? s?.background;
 
-    final fontSize = ((s?.fontSize ?? 11) * zoom).clamp(4.0, 96.0);
     // Okunurluk hesabı hücrenin GERÇEK zeminine göre: ızgara artık kağıt
     // değil beyaz (bkz. Paper.docSurface).
     final color = readableOn(
@@ -105,24 +116,13 @@ class SheetCell extends StatelessWidget {
       background ?? Paper.docSurface(context),
     );
 
-    final textStyle = TextStyle(
-      fontSize: fontSize,
-      fontWeight: (cond?.bold ?? false) || (s?.bold ?? false)
-          ? FontWeight.bold
-          : FontWeight.normal,
-      fontStyle: (cond?.italic ?? false) || (s?.italic ?? false)
-          ? FontStyle.italic
-          : FontStyle.normal,
-      decoration: _decoration(s),
-      color: color,
-      // Sayı hücreleri monospace: rakamlar sabit genişlikte olunca sütun
-      // içinde hizalanıyor (2026-08-04 tasarım turu, 2. not). Dosya hücreye
-      // AÇIKÇA bir yazı tipi verdiyse ona dokunulmaz — sadakat önce gelir.
-      fontFamily: view.numeric && s?.fontFamily == null
-          ? AppTheme.fontMono
-          : _mapFont(s?.fontFamily),
-      height: 1.15,
-    );
+    final textStyle = metricsStyle(
+      s,
+      numeric: view.numeric,
+      zoom: zoom,
+      bold: cond?.bold ?? false,
+      italic: cond?.italic ?? false,
+    ).copyWith(color: color, decoration: _decoration(s));
 
     // Sayfanın yönü ızgarayı saran `Directionality`den gelir (bkz.
     // spreadsheet_editor_screen `_grid`). Hücrenin kendi parametresi
@@ -183,6 +183,23 @@ class SheetCell extends StatelessWidget {
       child: Padding(padding: padding, child: content),
     );
 
+    // **Komşuya taşma** (Excel'in en görünür davranışlarından biri): başlık
+    // satırı ya da uzun bir açıklama, sağındaki hücreler boşsa kırpılmaz,
+    // üstlerine sarkar. Kutu büyümez — yalnız çizim taşar, yerleşim aynı
+    // kalır; hücrenin dokunma alanı da kendi sınırında durur.
+    if (!editing && (spillLeft > 0 || spillRight > 0)) {
+      body = OverflowBox(
+        alignment: spillLeft > 0 && spillRight > 0
+            ? Alignment.center
+            : (spillLeft > 0 ? Alignment.centerRight : Alignment.centerLeft),
+        minWidth: 0,
+        maxWidth: width + spillLeft + spillRight,
+        minHeight: 0,
+        maxHeight: height,
+        child: body,
+      );
+    }
+
     // Metin döndürme (Excel'de başlık sütunlarında sık kullanılır).
     final rotation = s?.rotation ?? 0;
     if (rotation != 0 && rotation != 255 && !editing) {
@@ -223,6 +240,40 @@ class SheetCell extends StatelessWidget {
       ),
     );
   }
+
+  /// Hücre metninin **ÖLÇÜ taşıyan** stili (renk/altçizgi dışında her şey).
+  ///
+  /// Ayrı bir fonksiyon çünkü ekran aynı metni **ölçmek** zorunda: taşma
+  /// (komşuya sarkma) ve otomatik satır yüksekliği ancak metnin gerçek
+  /// genişliği/yüksekliği bilinerek hesaplanır. Ölçüm ile çizim aynı stili
+  /// kullanmazsa hesap tutmaz — bu yüzden tek kaynak.
+  static TextStyle metricsStyle(
+    XlsxCellStyle? s, {
+    required bool numeric,
+    double zoom = 1,
+    bool bold = false,
+    bool italic = false,
+  }) =>
+      TextStyle(
+        fontSize: ((s?.fontSize ?? 11) * zoom).clamp(4.0, 96.0),
+        fontWeight:
+            bold || (s?.bold ?? false) ? FontWeight.bold : FontWeight.normal,
+        fontStyle: italic || (s?.italic ?? false)
+            ? FontStyle.italic
+            : FontStyle.normal,
+        // Sayı hücreleri monospace: rakamlar sabit genişlikte olunca sütun
+        // içinde hizalanıyor (2026-08-04 tasarım turu, 2. not). Dosya hücreye
+        // AÇIKÇA bir yazı tipi verdiyse ona dokunulmaz — sadakat önce gelir.
+        fontFamily: numeric && s?.fontFamily == null
+            ? AppTheme.fontMono
+            : _mapFont(s?.fontFamily),
+        height: 1.15,
+      );
+
+  /// Hücrenin metin kutusundaki **yatay boşluk** (her iki yandaki dolgu +
+  /// girinti). Ölçüm bunu düşmeli, yoksa metin bir tık erken taşmış sayılır.
+  static double horizontalPadding(XlsxCellStyle? s, {double zoom = 1}) =>
+      6 * zoom + (s?.indent ?? 0) * 8.0 * zoom;
 
   static TextDecoration? _decoration(XlsxCellStyle? s) {
     if (s == null) return null;

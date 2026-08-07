@@ -1016,6 +1016,11 @@ class XlsxReader {
 /// Hücre anahtarı (satır, sütun) → tek int. 16384 = Excel'in sütun sınırı.
 int cellKey(int r, int c) => r * 16384 + c;
 
+/// [cellKey]in tersi — hücre haritasını satır/sütun bilerek dolaşan yerler
+/// (otomatik satır yüksekliği) için.
+int rowOfKey(int key) => key ~/ 16384;
+int colOfKey(int key) => key % 16384;
+
 // ───────────────────────────────────────────────────────────────── modeller
 
 /// Paylaşılan formülün ana hücresi (`<f t="shared" si="…" ref="…">`).

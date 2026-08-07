@@ -604,14 +604,25 @@ class JobQueue extends ChangeNotifier {
     final recipe = job.recipe!;
     final runner = JobRecipes.runnerFor(recipe.kind)!;
     final params = {...recipe.params, 'skip': job.done};
-    return enqueue(
+    // Eski işin sayaçları ve ÇIKTILARI kopyalanır: [enqueue] aynı kimlikli
+    // kaydı listeden düşürüyor, kopyalamazsak dördü bitmiş bir işte kullanıcı
+    // hem "0/10" görüyor hem de daha önce üretilmiş dört dosyanın kaydını
+    // kaybediyordu (kullanıcı 2026-08-07: *"devam et 0'dan başlıyor"*).
+    final doneBefore = job.done;
+    final totalBefore = job.total;
+    final producedBefore = List<String>.from(job.outputs);
+    final resumed = enqueue(
       id: job.id,
       title: job.title,
-      total: job.total,
+      total: totalBefore,
       target: job.target,
       recipe: JobRecipe(recipe.kind, recipe.params),
       run: (handle) => runner(handle, params),
     );
+    resumed.done = doneBefore;
+    resumed.outputs.addAll(producedBefore);
+    _persist();
+    return resumed;
   }
 
   /// İptal **isteği** gönderir; iş gövdesi bunu görüp durur (anında ölmez).
