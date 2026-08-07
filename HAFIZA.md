@@ -6871,3 +6871,30 @@ boş liste gösteriyor; hata "widget bulunamadı" gibi görünüyor.
 Cihazda bakılacaklar: PDF'te sayfaya git (klavye kapanır kapanmaz, işlem
 sonrası da), Drive'da PDF/Excel/Word simgeleri, slaytta yazı tipi çipi,
 Ayarlar'ın yeni düzeni.
+
+## 2026-08-07 (3) — Yazı tipi/boyutu HER TELEFONDA sabit, varsayılan Carlito
+Kullanıcı: *"en uygun fontu varsayılan yap; yazı boyutu ve fontumuz tüm
+telefonlarda sabit olmalı, sadece uygulama içerisinden değiştirilebilmeli."*
+
+- **Varsayılan gövde yazı tipi Arimo → Carlito.** Arimo = Arial/Helvetica
+  metriği (baskı çağı groteski, küçük puntoda harfler yaklaşıyor); Carlito =
+  Calibri metriği, doğrudan EKRAN için tasarlanmış hümanist sans, açık harf
+  boşluğu, tam Türkçe. Belge tarafıyla da tutarlı (Word/Excel varsayılanı
+  Calibri, `viewer.html` zaten Calibri→Carlito eşliyordu). Başlıklar Tinos
+  (serif) kalıyor — kağıt temasının karşıtlığı oradan geliyor.
+- **Sistem yazı boyutu YOK SAYILIYOR.** `MaterialApp.builder` içinde
+  `MediaQuery.copyWith(textScaler: linear(appState.uiTextScale))` — sistemden
+  gelen ölçeğin yerine geçer (`withNoTextScaling` sarmaya gerek yok). Aynı
+  ekran artık her telefonda birebir aynı. Ödün bilinçli: sistemden büyük yazı
+  seçmiş kullanıcı bunu bizde görmez → uygulama içi ölçek **%85–%140**
+  (`setUiTextScale` kısar) ve Ayarlar > Görünüm'ün en üstünde.
+- **WebView ayrı bir kaçaktı:** Android WebView'ın metin yakınlaştırması
+  sistem yazı boyutunu izler; Flutter'daki kilit ona işlemez. `.docx`
+  görünümünde aynı belge farklı telefonlarda başka sarıyor, sayfa sayısı bile
+  tutmuyordu → `AndroidWebViewController.setTextZoom(100)`.
+- Yazı tipi seçenekleri yalnız GÖMÜLÜ aileler (Carlito/Arimo/Tinos/tek
+  aralıklı): cihazda kurulu olmaya bağlı bir aile "her telefonda aynı" olmazdı.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` 0 hata, **1419 test
+yeşil** (+5: `ui_font_scale_test` — sistem ölçeği etkisiz, uygulama ölçeği
+etkili, varsayılan Carlito, seçim temaya işliyor, sınırlar).

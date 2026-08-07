@@ -127,13 +127,37 @@ class AppTheme {
   /// Başlık serifi ve gövde sans'ı zaten APK'da gömülü (slayt sadakati için
   /// eklenmişlerdi) — kağıt teması için yeni font indirilmedi, boyut artmadı.
   static const String fontHeading = 'Tinos';
-  static const String fontBody = 'Arimo';
+
+  /// Arayüzün **varsayılan** gövde yazı tipi.
+  ///
+  /// 2026-08-07'de Arimo'dan Carlito'ya alındı (kullanıcı: *"en uygun fontu
+  /// varsayılan yap"*). Arimo = Arial/Helvetica metriği: baskı çağının
+  /// grotesk'i, küçük puntoda harfleri birbirine yaklaşıyor. Carlito =
+  /// Calibri metriği: doğrudan EKRANDA OKUMAK için tasarlanmış hümanist sans,
+  /// yuvarlak uçlar, daha açık harf boşluğu; Türkçe'nin ı/İ/ş/ğ işaretleri
+  /// tam. Belge tarafıyla da tutarlı: Word/Excel varsayılanı da Calibri.
+  static const String fontBody = 'Carlito';
+
+  /// Seçilebilir arayüz yazı tipleri (hepsi APK'da GÖMÜLÜ — cihazda kurulu
+  /// olup olmamasına bağlı değil, her telefonda birebir aynı görünür).
+  static const List<(String label, String family)> uiFonts = [
+    ('Carlito (varsayılan)', fontBody),
+    ('Arimo', 'Arimo'),
+    ('Tinos', 'Tinos'),
+    ('Tek aralıklı', 'monospace'),
+  ];
+
   static const String fontMono = 'monospace';
 
-  static ThemeData light() => _base(Brightness.light);
-  static ThemeData dark() => _base(Brightness.dark);
+  /// [bodyFont] verilirse gövde yazı tipi onunla kurulur (kullanıcının
+  /// Ayarlar'dan seçtiği aile); verilmezse [fontBody].
+  static ThemeData light({String? bodyFont}) =>
+      _base(Brightness.light, bodyFont: bodyFont);
+  static ThemeData dark({String? bodyFont}) =>
+      _base(Brightness.dark, bodyFont: bodyFont);
 
-  static ThemeData _base(Brightness brightness) {
+  static ThemeData _base(Brightness brightness, {String? bodyFont}) {
+    final body = bodyFont ?? fontBody;
     final isDark = brightness == Brightness.dark;
     // Tohum korunur (türetilen ikincil/üçüncül roller ondan gelir) ama kağıt
     // hissini bozan mavi-gri YÜZEYLER elle geçersiz kılınır.
@@ -176,13 +200,13 @@ class AppTheme {
           isDark ? const Color(0xFFF7DCD8) : const Color(0xFF4A130E),
       surfaceTint: Colors.transparent, // gölge/ton yok: kağıt düz durur
     );
-    final text = _textTheme(scheme);
+    final text = _textTheme(scheme, body);
 
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       textTheme: text,
-      fontFamily: fontBody,
+      fontFamily: body,
       scaffoldBackgroundColor: scheme.surface,
       splashFactory: InkRipple.splashFactory,
 
@@ -370,10 +394,10 @@ class AppTheme {
   /// Tipografi: serif başlık (Tinos w600, hafif negatif harf aralığı) / sans
   /// gövde (Arimo). Karşıtlık kağıt hissinin ikinci yarısı — yalnız renk
   /// değişse gazete değil, boyanmış Material olurdu.
-  static TextTheme _textTheme(ColorScheme scheme) {
+  static TextTheme _textTheme(ColorScheme scheme, [String? bodyFont]) {
     final base = ThemeData(brightness: scheme.brightness)
         .textTheme
-        .apply(fontFamily: fontBody);
+        .apply(fontFamily: bodyFont ?? fontBody);
     TextStyle? head(TextStyle? s, {double? size}) => s?.copyWith(
           fontFamily: fontHeading,
           fontWeight: FontWeight.w600,

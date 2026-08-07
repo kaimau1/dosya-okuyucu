@@ -211,6 +211,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(height: Gap.lg * 1.5),
+          // Yazı tipi ve boyutu: cihazın sistem ayarı YOK SAYILIYOR
+          // (bkz. `DosyaOkuyucuApp.builder`), tek yer burası.
+          _fieldLabel(context.t('settings.ui_font')),
+          const SizedBox(height: Gap.sm),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [
+                for (final f in AppTheme.uiFonts)
+                  ButtonSegment(
+                    value: f.$2,
+                    // Etiket kendi yazı tipiyle yazılır: seçmeden önce
+                    // görünüşü belli olsun.
+                    label: Text(f.$1, style: TextStyle(fontFamily: f.$2)),
+                  ),
+              ],
+              selected: {appState.uiFont},
+              onSelectionChanged: (s) => appState.setUiFont(s.first),
+            ),
+          ),
+          const SizedBox(height: Gap.md),
+          Row(
+            children: [
+              Expanded(child: _fieldLabel(context.t('settings.ui_text_size'))),
+              Text('%${(appState.uiTextScale * 100).round()}',
+                  style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+            ],
+          ),
+          Slider(
+            value: appState.uiTextScale,
+            min: 0.85,
+            max: 1.4,
+            // 0,05'lik kademeler: sürüklerken her kare yeniden tema kurmasın
+            // ve kullanıcı aynı boyuta geri dönebilsin.
+            divisions: 11,
+            label: '%${(appState.uiTextScale * 100).round()}',
+            onChanged: (v) => appState.setUiTextScale(v),
+          ),
+          Text(
+            context.t('settings.ui_text_size_note'),
+            style: TextStyle(fontSize: 12, color: Paper.faint(context)),
+          ),
+          const Divider(height: Gap.lg * 1.5),
           _fieldLabel(context.t('settings.language')),
           const SizedBox(height: Gap.sm),
           const _LanguageSection(),

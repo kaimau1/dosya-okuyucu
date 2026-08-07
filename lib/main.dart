@@ -126,9 +126,26 @@ class DosyaOkuyucuApp extends StatelessWidget {
       title: 'Dosya Okuyucu',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.light(bodyFont: appState.uiFont),
+      darkTheme: AppTheme.dark(bodyFont: appState.uiFont),
       themeMode: appState.themeMode,
+      // **Yazı boyutu her telefonda AYNI** (kullanıcı isteği 2026-08-07):
+      // Android'in "Yazı tipi boyutu" ayarı normalde her uygulamayı büyütür;
+      // aynı ekran bir telefonda ferah, ötekinde taşmış görünüyordu. Sistem
+      // ölçeği burada YOK SAYILIYOR ve yerine uygulamanın kendi ölçeği
+      // konuyor — büyütmek isteyen Ayarlar > Görünüm'den büyütür.
+      //
+      // (Bilinçli ödün: sistemden büyük yazı seçmiş kullanıcı bizim
+      // ekranlarımızda bunu görmez; bu yüzden uygulama içi ölçek 1,4'e kadar
+      // çıkıyor ve Ayarlar'ın en üstünde duruyor.)
+      builder: (context, child) => MediaQuery(
+        // `copyWith(textScaler:)` sistemden gelen ölçeğin YERİNE geçer —
+        // ayrıca `withNoTextScaling` sarmaya gerek yok.
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(appState.uiTextScale),
+        ),
+        child: child ?? const SizedBox.shrink(),
+      ),
       // Dil: seçim `system` ise `locale` null bırakılır — Flutter cihazın
       // dilini `supportedLocales` ile eşleştirir, tutmazsa listenin İLKİNE
       // (Türkçe) düşer. Arapça seçilince `GlobalWidgetsLocalizations`

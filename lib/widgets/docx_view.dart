@@ -123,6 +123,7 @@ class DocxViewState extends State<DocxView> {
       ..addJavaScriptChannel('Kalem', onMessageReceived: _onKalem)
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) => _render(),
+        // (aşağıda `_lockWebViewTextSize` ile sistem yazı boyutu etkisizleşir)
         onWebResourceError: (e) {
           if (!mounted) return;
           setState(() {
@@ -133,6 +134,21 @@ class DocxViewState extends State<DocxView> {
         },
       ))
       ..loadFlutterAsset('assets/word/viewer.html');
+    _lockWebViewTextSize();
+  }
+
+  /// **Belge her telefonda aynı boyutta** (kullanıcı isteği 2026-08-07).
+  ///
+  /// Android WebView'ın kendi metin yakınlaştırması cihazın "Yazı tipi boyutu"
+  /// sistem ayarını izler: aynı .docx, sistem yazısını büyütmüş bir telefonda
+  /// bambaşka sarıyor ve sayfa sayısı bile tutmuyordu. Flutter tarafındaki
+  /// ölçek kilidi (bkz. `DosyaOkuyucuApp.builder`) WebView'a işlemez — ayarı
+  /// burada %100'e sabitliyoruz. Android dışında sessizce geçilir.
+  void _lockWebViewTextSize() {
+    final platform = _controller.platform;
+    if (platform is AndroidWebViewController) {
+      platform.setTextZoom(100);
+    }
   }
 
   void _onKalem(JavaScriptMessage m) {

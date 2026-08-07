@@ -271,6 +271,16 @@ const Map<String, (String, String, String)> _table = {
     'السمة ولغة الواجهة',
   ),
   'settings.theme': ('Tema', 'Theme', 'السمة'),
+  'settings.ui_font': ('Yazı tipi', 'Font', 'نوع الخط'),
+  'settings.ui_text_size': ('Yazı boyutu', 'Text size', 'حجم النص'),
+  'settings.ui_text_size_note': (
+    'Yazı tipi ve boyutu tüm telefonlarda aynıdır; sistemin yazı boyutu ayarı '
+    'uygulamayı etkilemez, yalnız buradan değişir.',
+    'Font and size are identical on every phone; the system font-size setting '
+    'does not affect the app — change it only here.',
+    'الخط والحجم متطابقان على كل الهواتف؛ إعداد حجم خط النظام لا يؤثر على '
+    'التطبيق — يُغيَّر من هنا فقط.',
+  ),
   'settings.account_sub': (
     'Oturum ve cihazlar arası senkron',
     'Sign-in and cross-device sync',

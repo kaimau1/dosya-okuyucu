@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_language.dart';
+import 'theme.dart';
 import '../models/fm_layout.dart';
 import '../models/fs_entry.dart';
 import '../models/media_open_with.dart';
@@ -39,6 +40,8 @@ class AppState extends ChangeNotifier {
   static const _kFmConfirmDelete = 'fm_confirm_delete';
   static const _kFmTrashAutoDays = 'fm_trash_auto_days';
   static const _kRemotes = 'fm_remote_connections';
+  static const _kUiFont = 'ui_font';
+  static const _kUiTextScale = 'ui_text_scale';
   // Sesli okuma tercihleri (ses/hız/perde + "AI ile oku")
   static const _kTtsPrefs = 'tts_prefs';
   static const _kTtsAiRead = 'tts_ai_read';
@@ -53,6 +56,15 @@ class AppState extends ChangeNotifier {
   String _model = 'gemini-2.0-flash';
   ThemeMode _themeMode = ThemeMode.system;
   AppLanguage _language = AppLanguage.system;
+
+  /// Arayüz yazı tipi (gövde metni). Varsayılan Carlito: ekranda okumak için
+  /// tasarlanmış, Calibri metriğinde, tam Türkçe kapsamlı gömülü aile.
+  String _uiFont = AppTheme.fontBody;
+
+  /// Arayüz yazı ölçeği. **Cihazın sistem ayarından BAĞIMSIZ** (bkz.
+  /// `DosyaOkuyucuApp`): uygulama her telefonda aynı görünsün, büyütmek
+  /// isteyen buradan büyütsün.
+  double _uiTextScale = 1.0;
   List<RecentFile> _recents = [];
   List<String> _memory = [];
 
@@ -63,6 +75,26 @@ class AppState extends ChangeNotifier {
 
   /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
   AppLanguage get language => _language;
+
+  /// Arayüzün gövde yazı tipi (gömülü aile adı).
+  String get uiFont => _uiFont;
+
+  /// Arayüz yazı ölçeği (1.0 = tasarım boyutu). Sistem ayarı okunmaz.
+  double get uiTextScale => _uiTextScale;
+
+  Future<void> setUiFont(String family) async {
+    _uiFont = family;
+    await _prefs.setString(_kUiFont, family);
+    notifyListeners();
+  }
+
+  /// Ölçek 0,85–1,40 arasına kısılır: altında dokunma hedefleri okunmaz
+  /// küçüklüğe, üstünde çubuk/etiketler taşmaya başlıyor.
+  Future<void> setUiTextScale(double value) async {
+    _uiTextScale = value.clamp(0.85, 1.4);
+    await _prefs.setDouble(_kUiTextScale, _uiTextScale);
+    notifyListeners();
+  }
   List<RecentFile> get recents => List.unmodifiable(_recents);
 
   /// AI'nın kalıcı hafızası (RAG-lite): kaydedilen bilgi notları.
@@ -276,6 +308,8 @@ class AppState extends ChangeNotifier {
     _model = _prefs.getString(_kModel) ?? 'gemini-2.0-flash';
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
+    _uiFont = _prefs.getString(_kUiFont) ?? AppTheme.fontBody;
+    _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
     _recents = (_prefs.getStringList(_kRecents) ?? [])
         .map(RecentFile.tryDecode)
         .whereType<RecentFile>()
