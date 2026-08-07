@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/excel_format.dart';
+import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/theme.dart';
@@ -1643,7 +1644,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           children: [
             for (final f in _fontFamilies)
               ListTile(
-                title: Text(f, style: TextStyle(fontFamily: f)),
+                // Örnek yazı GÖMÜLÜ karşılıkla çizilir: "Georgia" adıyla
+                // çizmeye kalkmak Android'de sessizce Roboto'ya düşerdi.
+                title: Text(f, style: TextStyle(fontFamily: renderFamilyFor(f))),
                 trailing: f == current ? const Icon(Icons.check) : null,
                 onTap: () => Navigator.pop(ctx, f),
               ),
@@ -1695,11 +1698,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         (ed, s, r, c, before) => ed.setFontSize(s, r, c, before.fontSize ?? 11),
       );
 
-  static const _fontFamilies = ['Arimo', 'Tinos', 'Calibri', 'Arial',
-    'Times New Roman', 'Courier New', 'Verdana', 'Georgia'];
+  /// Word/slayt ile ORTAK liste — kullanıcı bir uygulamada bulduğu yazı
+  /// tipini diğerinde de bulsun (`kDocFonts`).
+  static final _fontFamilies = kDocFonts.map((f) => f.name).toList();
 
-  static const _fontSizes = <double>[8, 9, 10, 11, 12, 14, 16, 18, 20, 24,
-    28, 32, 36, 48, 72];
+  static const _fontSizes = kDocFontSizes;
 
   /// Seçili sütuna göre sıralar.
   ///

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/list_prefix.dart';
 import '../../core/theme.dart';
@@ -65,21 +66,13 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
 
   final _viewKey = GlobalKey<DocxViewState>();
 
-  /// Biçim çubuğunda sunulan yazı tipleri. Uygulamayla **gömülü**, metrik
-  /// uyumlu karşılıkları olan aileler (bkz. `assets/word/viewer.html`):
-  /// listede olmayan bir ad seçtirmek, cihazda bulunmayan bir fonta yazıp
-  /// belgeyi Word'de bambaşka göstermek olurdu.
-  static const _fonts = <String>[
-    'Calibri',
-    'Times New Roman',
-    'Arial',
-    'Cambria',
-    'Helvetica',
-  ];
+  /// Biçim çubuğunda sunulan yazı tipleri — Excel/slaytla ORTAK liste
+  /// (`kDocFonts`). Her adın `viewer.html` içinde metrik uyumlu gömülü bir
+  /// karşılığı tanımlıdır (Carlito/Tinos/Arimo); tanımsız bir ad seçtirmek
+  /// belgeyi cihazda bambaşka gösterirdi.
+  static final _fonts = kDocFonts.map((f) => f.name).toList();
 
-  static const _sizes = <double>[
-    8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48,
-  ];
+  static const _sizes = kDocFontSizes;
 
   /// Yedek editörde biçim araç çubuğunun üzerinde çalıştığı seçili paragraf.
   DocxParagraph? _sel;

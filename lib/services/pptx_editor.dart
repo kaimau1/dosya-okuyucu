@@ -278,8 +278,13 @@ class PptxEditor {
     bool? italic,
     bool? underline,
     double? sizePt,
+    String? fontFamily,
   }) {
-    if (bold == null && italic == null && underline == null && sizePt == null) {
+    if (bold == null &&
+        italic == null &&
+        underline == null &&
+        sizePt == null &&
+        fontFamily == null) {
       return;
     }
     for (final r in para.element.findElements('a:r')) {
@@ -294,8 +299,43 @@ class PptxEditor {
       if (sizePt != null) {
         rPr.setAttribute('sz', '${(sizePt * 100).round()}');
       }
+      if (fontFamily != null) _setTypeface(rPr, fontFamily);
     }
     slide.view = _tryRender(_render, slide.fileName, slide.doc) ?? slide.view;
+  }
+
+  /// Çalıştırmanın yazı tipini yazar.
+  ///
+  /// Üç ayrı düğüm var çünkü PowerPoint her yazı sistemi için ayrısına bakar:
+  /// `a:latin` (Latin), `a:cs` (karmaşık yazılar — Arapça belgeler bunu okur),
+  /// `a:ea` (Doğu Asya). Yalnız `a:latin` yazmak Arapça metinde hiçbir şeyi
+  /// değiştirmezdi. Var olan düğüm güncellenir, yoksa eklenir — `a:latin`
+  /// şema gereği rPr'nin İÇİNDE, `a:t`'nin dışındadır.
+  static void _setTypeface(XmlElement rPr, String typeface) {
+    for (final tag in const ['a:latin', 'a:cs', 'a:ea']) {
+      var node = _firstOrNull(rPr.findElements(tag));
+      if (node == null) {
+        node = XmlElement(XmlName(tag));
+        rPr.children.add(node);
+      }
+      node.setAttribute('typeface', typeface);
+    }
+  }
+
+  /// Paragrafın ilk çalıştırmasında yazılı yazı tipi (yoksa null).
+  ///
+  /// Çizim modelindeki ad DEĞİL, XML'deki ÖZGÜN ad okunur: çizim modeli adı
+  /// gömülü aileye eşliyor (Arial → Arimo) ve o eşlemeden geri dönülemez —
+  /// çubukta "Arimo" yazsaydı kullanıcı hiç seçmediği bir font görürdü.
+  static String? fontOfParagraph(PptxParagraph para) {
+    for (final r in para.element.findElements('a:r')) {
+      final rPr = _firstOrNull(r.findElements('a:rPr'));
+      if (rPr == null) continue;
+      final tf = _firstOrNull(rPr.findElements('a:latin'))
+          ?.getAttribute('typeface');
+      if (tf != null && tf.isNotEmpty) return tf;
+    }
+    return null;
   }
 
   void _writeText(PptxParagraph para) {

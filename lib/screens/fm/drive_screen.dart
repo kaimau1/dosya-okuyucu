@@ -9,7 +9,8 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/drive_file.dart';
-import '../../models/fs_entry.dart' show FmCategoryLabel;
+import '../../models/fs_entry.dart' show FmCategory, FmCategoryLabel;
+import '../../services/file_service.dart';
 import '../../services/fm/app_signature.dart';
 import '../../services/fm/drive_cache.dart';
 import '../../services/fm/drive_service.dart';
@@ -17,6 +18,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/file_type_icon.dart';
 import '../../widgets/fm/fm_entry_icon.dart' show FmColors;
 import 'folder_picker_screen.dart';
 
@@ -962,14 +964,7 @@ class _DriveScreenState extends State<DriveScreen> {
         itemBuilder: (_, i) {
           final f = _files[i];
           return ListTile(
-            // Yerel gezginle AYNI ikon/renk paleti (`FmColors`): eskiden
-            // Drive'da APK de PDF de görüntü de tek tip gri kağıttı, listeye
-            // bakınca dosyanın türü hiç anlaşılmıyordu.
-            leading: Icon(
-              FmColors.iconFor(f.category),
-              color: FmColors.forCategory(f.category),
-              size: 32,
-            ),
+            leading: _driveIcon(f),
             title: Row(
               children: [
                 if (f.starred) ...[
@@ -1053,6 +1048,42 @@ class _DriveScreenState extends State<DriveScreen> {
             onTap: f.isFolder ? () => _enter(f) : () => _open(f),
           );
         },
+      ),
+    );
+  }
+
+  /// Satırın simgesi — yerel gezginle AYNI kural (`FmEntryIcon`).
+  ///
+  /// Belgelerde `FileTypeIcon`: **PDF kırmızı PDF simgesi, Excel yeşil tablo,
+  /// Word mavi belge** (2026-08-07 kullanıcı: *"şu an hepsi aynı belge işareti
+  /// var"* — kategori ikonu bütün belgeleri tek tip gösteriyordu). Belge
+  /// olmayanlarda kategori paleti: APK yeşil android, görüntü mor, arşiv…
+  ///
+  /// Google biçimlerinde adın uzantısı yoktur; `DriveFile.extension` dışa
+  /// aktarım uzantısına düştüğü için Google E-Tablolar da Excel simgesiyle
+  /// görünür — indirilince gerçekten .xlsx olacak.
+  Widget _driveIcon(DriveFile f) {
+    const size = 34.0;
+    if (f.category == FmCategory.document) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: FileTypeIcon(
+          kind: FileService.iconKindForExtension(f.extension),
+          size: size,
+        ),
+      );
+    }
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final base = FmColors.forCategory(f.category);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Icon(
+        FmColors.iconFor(f.category),
+        // Koyu temada marka renkleri sönüyor — gezgindeki aynı düzeltme.
+        color: dark ? Color.lerp(base, Colors.white, 0.25) : base,
+        size: size * 0.92,
       ),
     );
   }

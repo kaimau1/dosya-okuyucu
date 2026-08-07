@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/doc_fonts.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../core/copy_text.dart';
@@ -183,14 +184,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Okuma yazı tipi. `null` = temanın gövde yazı tipi (Arimo).
   String? _fontFamily;
 
-  /// Seçilebilir yazı tipleri: (görünen ad, aile). Boş aile = temanın kendi
-  /// gövde yazı tipi. Hepsi APK'da GÖMÜLÜ ya da platformda kesin var —
-  /// indirilecek font yok, boyut artmıyor.
-  static const _readerFonts = <(String, String)>[
+  /// Seçilebilir yazı tipleri: (görünen ad, çizilen aile). Boş aile =
+  /// temanın kendi gövde yazı tipi.
+  ///
+  /// Adlar tanıdık ofis adları (`kDocFonts`), çizim ise APK'da GÖMÜLÜ
+  /// karşılıklarıyla yapılır — indirilecek font yok, boyut artmıyor. Eskiden
+  /// listede gömülü ailelerin kendi adları vardı ("Arimo", "Tinos") ve
+  /// kullanıcı aradığı yazı tipini bulamıyordu (2026-08-07).
+  static final _readerFonts = <(String, String)>[
     ('Varsayılan', ''),
-    ('Arimo', 'Arimo'),
-    ('Tinos', 'Tinos'),
-    ('Tek aralıklı', 'monospace'),
+    for (final f in kDocFonts) (f.name, f.render),
   ];
   final TransformationController _imgTx = TransformationController();
   TapDownDetails? _doubleTapDetails;

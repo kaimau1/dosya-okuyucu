@@ -6800,3 +6800,74 @@ sayfalama, sıralama `orderBy`, oluşturulma/sahip/paylaşım ayrıştırma,
 kategori eşlemesi, listede tarih, bilgi penceresi).
 Cihazda bakılacaklar: Drive satırlarında "boyut · tarih", türe göre renkli
 ikon, çubukta sıralama menüsü, bilgi penceresinde sahip/paylaşım.
+
+## 2026-08-07 (2) — "Sayfaya git" yarışları, Drive simgeleri, yazı tipi listesi, Ayarlar
+Kullanıcı bulguları: *"sayfaya git bazen çalışmıyor; ilk girdiğimde çalışıyor,
+biraz gezip işlem yapınca çalışmıyor"*, *"yazı tipi fontu boyutu seçimi yok"*,
+*"Drive'da PDF PDF simgesinde, Excel kendi simgesinde olmalı; şu an hepsi aynı
+belge işareti"*, *"ayarlar kısmı eskidi, görsel ve mantıksal olarak
+düzenlenmeli"*.
+
+### A) "Sayfaya git" — ÜÇ ayrı neden, üçü de sessizdi
+1. **Klavye yarışı.** Pencere kapanınca yumuşak klavye de kapanıyor, Scaffold
+   görünümü yeniden boyutlandırıyor; pdfrx `isViewSizeChanged` görünce
+   `_goToPage(o anki sayfa)` atıyor ve tam bizim atlayışımızı geri çekiyor.
+   Çözüm: `_waitViewerSettled` — ölçüt "klavye kapandı" DEĞİL, "viewInsets iki
+   ölçümde aynı"; odak arama kutusuna dönerse klavye açık kalıyor ve kapanmasını
+   beklemek boşuna 1 sn eklerdi.
+2. **Kopmuş denetleyici.** Dosyada işlem yapılınca (`_reloadPdf` — vurgu, imza,
+   düzenleme, PDF araçları) pdfrx `_onDocumentChanged` içinde `_controller
+   ._attach(null)` yapıp belge null'ken ERKEN DÖNÜYOR. O aralıkta
+   `controller.goToPage` `__state!` üstünden FIRLATIYOR; hata yakalanmadığı için
+   ekranda hiçbir şey olmuyordu = "düğme ölü". Artık try/catch + hazır olana
+   kadar bekleme, olmazsa "belge hâlâ yükleniyor".
+3. **Yanlış ölçü.** Varış pdfrx'in TAHMİNİ sayfa numarasıyla ölçülüyordu; o
+   numara "görünen alanla en çok kesişen sayfa"dır — yakınlaştırılmış ya da çok
+   sütunlu görünümde doğru sayfadayken bile komşusunu söyleyebiliyor, biz de
+   3 kez tekrar deneyip "gidilemedi" diyorduk. Artık geometri:
+   `arrivedAtPage` (saf, testli) — merkez sayfanın üstünde VEYA kesişim ≥ %20.
+   İki ölçüt de gerekli: merkez yakınlaştırmayı, oran uzaklaşmayı karşılıyor.
+   Tuzak: `Rect.intersect` kesişme yokken NEGATİF kenar döndürür; eksi × eksi
+   = artı olduğu için naif alan hesabı "varıldı" derdi.
+
+### B) Drive: her belge kendi simgesiyle
+Kategori ikonu (`FmColors`) bütün belgeleri tek tip gösteriyordu. Belgelerde
+artık `FileTypeIcon` (PDF kırmızı, Excel yeşil, Word mavi) — yerel gezginle
+aynı kural. Ayrıca `FileService.iconKindForExtension` eklendi: **yalnız simge
+için** tür; `kindForExtension` eski biçimleri bilerek "bilinmeyen" sayıyor
+(editörlerimiz .doc/.ppt açamaz) ama listede .xls'in Excel yeşili olması
+gerekiyor. Yerel gezgin de bunu kullanıyor.
+
+### C) Yazı tipi: tek liste, tanıdık adlar, slaytta ARTIK VAR
+- `lib/core/doc_fonts.dart` — tek kaynak. Her seçenek çift yüzlü: `name`
+  **dosyaya yazılan** ad (Word/Excel/PowerPoint'te gerçek Arial görünsün),
+  `render` **ekranda çizilen** gömülü aile (Carlito/Arimo/Tinos/monospace).
+  Android'de Arial/Georgia/Verdana KURULU DEĞİL — o adla çizmek sessizce
+  Roboto'ya düşerdi ("seçtim ama değişmedi").
+- **Slaytta yazı tipi ailesi HİÇ YOKTU** (yalnız punto vardı) → eklendi.
+  `PptxEditor.formatParagraph(fontFamily:)` `a:latin` + **`a:cs`** + `a:ea`
+  yazıyor: yalnız `a:latin` Arapça metinde hiçbir şeyi değiştirmezdi.
+  Çubuktaki ad XML'den okunuyor (`fontOfParagraph`) — çizim modelindeki ad
+  gömülü aileye eşlenmiş olur (Arial → Arimo) ve geri dönülemez.
+- Word/Excel/metin görüntüleyici aynı listeye geçti; `viewer.html`e eksik
+  adlar için @font-face takma adları eklendi (Georgia/Garamond/Book Antiqua →
+  Tinos, Verdana/Tahoma/Segoe UI → Arimo).
+
+### D) Ayarlar: kart + simge + açıklama, mantıklı sıra
+Bölümler sayfa zemininde gevşek bileşen yığınlarıydı. Artık `SettingsGroup`:
+simge + başlık + tek satır açıklama taşıyan kart. Sıra: Hesap → **Görünüm ve
+dil (tema + dil TEK grupta)** → Yapay zekâ → Hafıza → Dosya yöneticisi →
+Hakkında. Dil ayrı bölümken kullanıcı onu temanın altında arıyordu. Dosya
+yöneticisi ayarları yalnız gezgin panosundan açılabiliyordu → köprü eklendi.
+
+### E) TUZAK (test) — `http.Response` gövdesi başlıksızken LATIN-1
+Türkçe içeren sahte yanıt ("Ayşe") kurulamıyor, MockClient patlıyor ve ekran
+boş liste gösteriyor; hata "widget bulunamadı" gibi görünüyor.
+`headers: {'content-type': 'application/json; charset=utf-8'}` şart.
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`analyze` 0 hata, **1414 test yeşil** (+13: `pdf_page_arrival_test`,
+`settings_screen_test`, pptx yazı tipi, Drive simge/tarih/sıralama/sayfalama).
+Cihazda bakılacaklar: PDF'te sayfaya git (klavye kapanır kapanmaz, işlem
+sonrası da), Drive'da PDF/Excel/Word simgeleri, slaytta yazı tipi çipi,
+Ayarlar'ın yeni düzeni.

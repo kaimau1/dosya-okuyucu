@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../models/document.dart';
@@ -82,7 +83,10 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   final List<PptxParagraph?> _editTargets = [];
   bool _fBold = false, _fItalic = false, _fUnder = false;
   double _fSize = 18;
+  /// Seçili kutunun yazı tipi (belgede yazılı ÖZGÜN ad; boş = tema fontu).
+  String _fFont = '';
   bool _tBold = false, _tItalic = false, _tUnder = false, _tSize = false;
+  bool _tFont = false;
 
   @override
   void initState() {
@@ -916,7 +920,13 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     _fItalic = firstRun?.italic ?? false;
     _fUnder = firstRun?.underline ?? false;
     _fSize = (firstRun?.sizePt ?? 18.0).clamp(6.0, 96.0).roundToDouble();
-    _tBold = _tItalic = _tUnder = _tSize = false;
+    // Yazı tipi XML'den okunur: çizim modelindeki ad gömülü aileye eşlenmiş
+    // olur (Arial → Arimo) ve geri dönülemez.
+    final firstTarget = _editTargets.firstWhere((t) => t != null, orElse: () => null);
+    _fFont = firstTarget == null
+        ? ''
+        : (PptxEditor.fontOfParagraph(firstTarget) ?? '');
+    _tBold = _tItalic = _tUnder = _tSize = _tFont = false;
 
     setState(() {
       _editSlide = slide;
@@ -936,7 +946,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       final c = _editCtrls[i];
       if (t != null && c != null) editor.updateParagraph(slide, t, c.text);
     }
-    if (_tBold || _tItalic || _tUnder || _tSize) {
+    if (_tBold || _tItalic || _tUnder || _tSize || _tFont) {
       for (final t in _editTargets) {
         if (t == null) continue;
         editor.formatParagraph(
@@ -946,6 +956,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
           italic: _tItalic ? _fItalic : null,
           underline: _tUnder ? _fUnder : null,
           sizePt: _tSize ? _fSize : null,
+          fontFamily: _tFont && _fFont.isNotEmpty ? _fFont : null,
         );
       }
     }
@@ -964,11 +975,31 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     setState(_commitEdit);
   }
 
-  /// Punto listesi — Word/Excel'dekiyle aynı kademeler. İki düğmeyle tek tek
-  /// büyütmek 12'den 44'e çıkarken 16 dokunuş demekti.
-  static const _slideSizes = <double>[
-    8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 54, 66, 88,
-  ];
+  /// Yazı tipi ailesi seçimi. Seçilen ad DOSYAYA yazılır (PowerPoint'te
+  /// gerçek Arial görünsün), ekranda ise gömülü karşılığıyla çizilir.
+  Future<void> _pickSlideFont() async {
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final f in kDocFonts)
+              ListTile(
+                title: Text(f.name, style: TextStyle(fontFamily: f.render)),
+                trailing: f.name == _fFont ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(ctx, f.name),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    setState(() {
+      _fFont = pick;
+      _tFont = true;
+    });
+  }
 
   Future<void> _pickSlideFontSize() async {
     final pick = await showModalBottomSheet<double>(
@@ -977,7 +1008,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            for (final s in _slideSizes)
+            for (final s in kDocFontSizes)
               ListTile(
                 title: Text('${s.round()}'),
                 trailing: (s - _fSize).abs() < 0.25
@@ -1034,6 +1065,17 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                           _tUnder = true;
                         })),
                 const RibbonSep(),
+                // Yazı tipi ailesi (2026-08-07 kullanıcı: *"yazı tipi fontu
+                // boyutu seçimi yok"*): Word ve Excel'de vardı, slaytta hiç
+                // yoktu. Liste üçünde de aynı (`kDocFonts`).
+                RibbonChip(
+                  icon: OfficeIcons.fontFamily,
+                  label: _fFont.isEmpty
+                      ? context.t('word.font_family')
+                      : _fFont,
+                  tooltip: context.t('word.font_family'),
+                  onTap: _pickSlideFont,
+                ),
                 RibbonButton(
                     OfficeIcons.fontShrink, context.t('vw.text_smaller'),
                     onTap: () => setState(() {

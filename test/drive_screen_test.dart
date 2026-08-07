@@ -180,6 +180,28 @@ void main() {
             200)));
   });
 
+  testWidgets('her belge KENDİ simgesiyle: PDF, Excel, Word ayrı',
+      (tester) async {
+    // Kullanıcı 2026-08-07: "PDF PDF simgesinde, Excel kendi simgesinde gibi
+    // olmalı; şu an hepsi aynı belge işareti var".
+    await http.runWithClient(() async {
+      await _pump(tester, _signedIn());
+      expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
+      expect(find.byIcon(Icons.table_chart), findsNWidgets(2)); // .xls + Google E-Tablo
+      expect(find.byIcon(Icons.description), findsOneWidget); // Word
+      expect(find.byIcon(Icons.android_rounded), findsOneWidget); // APK
+    },
+        () => MockClient((_) async => http.Response(
+            '{"files":['
+            '{"id":"1","name":"rapor.pdf","mimeType":"application/pdf"},'
+            '{"id":"2","name":"butce.xls","mimeType":"application/vnd.ms-excel"},'
+            '{"id":"3","name":"yazi.docx","mimeType":"application/msword"},'
+            '{"id":"4","name":"Tablom","mimeType":"application/vnd.google-apps.spreadsheet"},'
+            '{"id":"5","name":"uygulama.apk","mimeType":"application/vnd.android.package-archive"}'
+            ']}',
+            200)));
+  });
+
   testWidgets('sıralama seçimi Drive orderBy ile yeniden listeler',
       (tester) async {
     final orders = <String?>[];

@@ -135,4 +135,30 @@ void main() {
     expect(e.duplicateSlide(e.slides[0]), isNull);
     expect(e.slides.length, 1);
   });
+  test('yazı tipi üç yazı sistemine de yazılır ve geri okunur', () {
+    // 2026-08-07: slaytta yazı tipi seçimi HİÇ yoktu. Yalnız `a:latin`
+    // yazmak Arapça metinde hiçbir şeyi değiştirmezdi — `a:cs` de gerekiyor.
+    final e = PptxEditor.parse(_structuredPptx());
+    final slide = e.slides.first;
+    final para = slide.paragraphs.first;
+    e.formatParagraph(slide, para, fontFamily: 'Georgia', sizePt: 28);
+
+    final xml = slide.doc.toXmlString();
+    expect(xml, contains('<a:latin typeface="Georgia"/>'));
+    expect(xml, contains('<a:cs typeface="Georgia"/>'));
+    expect(xml, contains('sz="2800"'));
+
+    // Kaydedilip yeniden okunduğunda çubuk aynı adı gösterebilmeli.
+    final again = PptxEditor.parse(e.save());
+    expect(PptxEditor.fontOfParagraph(again.slides.first.paragraphs.first),
+        'Georgia');
+  });
+
+  test('yazı tipi verilmezse var olan biçime DOKUNULMAZ', () {
+    final e = PptxEditor.parse(_structuredPptx());
+    final slide = e.slides.first;
+    e.formatParagraph(slide, slide.paragraphs.first, bold: true);
+    expect(slide.doc.toXmlString(), isNot(contains('a:latin')));
+    expect(PptxEditor.fontOfParagraph(slide.paragraphs.first), isNull);
+  });
 }

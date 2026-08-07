@@ -46,6 +46,23 @@ class FileService {
   static bool isLegacyOffice(String ext) =>
       _legacyOffice.contains(ext.toLowerCase());
 
+  /// **Yalnız SİMGE seçimi için** tür. [kindForExtension]'dan ayrı, çünkü o
+  /// dosyanın hangi editöre gideceğini söyler ve eski biçimleri bilerek
+  /// "bilinmeyen" sayar (kendi ayrıştırıcılarımız .doc/.ppt'yi açamaz).
+  /// Listede ise .xls'in Excel yeşili, .doc'un Word mavisi olması gerekir —
+  /// kullanıcı ne olduğunu ikondan anlıyor (2026-08-07: *"PDF PDF simgesinde,
+  /// Excel kendi simgesinde olmalı; şu an hepsi aynı belge işareti"*).
+  static DocKind iconKindForExtension(String ext) {
+    ext = ext.toLowerCase();
+    return switch (ext) {
+      'doc' || 'dot' || 'docm' || 'odt' || 'rtf' || 'pages' => DocKind.word,
+      'xls' || 'xlt' || 'xlsb' || 'ods' || 'numbers' => DocKind.spreadsheet,
+      'ppt' || 'pot' || 'pps' || 'odp' || 'key' => DocKind.slides,
+      'csv' || 'tsv' => DocKind.spreadsheet,
+      _ => kindForExtension(ext),
+    };
+  }
+
   static DocKind kindForExtension(String ext) {
     ext = ext.toLowerCase();
     if (ext == 'pdf') return DocKind.pdf;

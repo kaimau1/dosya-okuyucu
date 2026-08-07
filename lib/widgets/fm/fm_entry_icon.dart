@@ -83,7 +83,10 @@ class FmEntryIcon extends StatelessWidget {
 
     if (category == FmCategory.document) {
       return FileTypeIcon(
-        kind: FileService.kindForExtension(entry.extension),
+        // Simge türü: .xls/.doc gibi ESKİ biçimler de kendi markalarıyla
+        // görünsün (editör yönlendirmesi ayrı bir soru — bkz.
+        // `iconKindForExtension`).
+        kind: FileService.iconKindForExtension(entry.extension),
         size: size,
       );
     }
