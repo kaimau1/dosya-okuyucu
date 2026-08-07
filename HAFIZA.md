@@ -6750,3 +6750,53 @@ info), **1392 test yeşil** (+27; yeni: `xlsx_writer_test`,
 Cihazda bakılacaklar: `.xls` dosyası Excel ızgarasında açılmalı (şerit, zoom,
 düzenleme) ve "Kaydet" yanına `.xlsx` bırakmalı; şeritte dört sekme; Görünüm
 sekmesinde %; Excel/txt zemini beyaz; PDF'te 2/4 sütun seçilince tam genişlik.
+
+## 2026-08-07 — Drive listesinde eksik üstveri: tarih, tür ikonu, sayfalama
+Kullanıcı ekran görüntüsü: Drive listesinde satır altında **yalnız boyut**
+vardı ("24 MB"), her dosyanın ikonu aynı gri kağıttı ve `ezanvakti-ozel-1.0.130`
+ile `1.0.135`ten hangisinin yeni olduğu okunamıyordu.
+
+### A) Son değiştirilme tarihi (asıl istek)
+- Alt yazı artık yerel gezginle AYNI düzende: `boyut · 6 Ağu 2026 23:41`
+  (`FsPaths.humanDate`). Klasörde boyut yazılmaz (Drive klasörün baytını
+  vermez), yalnız tarih. Google biçimlerinde araya "DOCX olarak iner" giriyor.
+- Bilgi penceresindeki tarih `DateTime.toString()` ile ham damga
+  ("2026-08-06 23:41:18.573Z") olarak yazılıyordu → `humanDate`.
+
+### B) Ekranın diğer eksikleri (aynı turda tespit + eklendi)
+- **Tür ikonu YOKTU:** hepsi `insert_drive_file_outlined`. Artık
+  `FmColors.iconFor/forCategory` — APK yeşil android, PDF/Office belge,
+  görüntü mor: yerel gezginle tek palet. `DriveFile.category` uzantıdan
+  türetiliyor; Google biçimlerinde adın uzantısı olmadığı için **dışa aktarım
+  uzantısına** düşüyor, yoksa hepsi "Diğer" olurdu.
+- **Bilgi penceresi yoksuldu:** tür olarak ham MIME
+  (`application/vnd.openxml…`) yazıyordu. Artık "PDF · Belgeler" + oluşturulma
+  tarihi + sahip + paylaşım durumu + yıldız. Yeni Drive alanları:
+  `createdTime,owners(displayName,emailAddress),shared` (istenmezse Drive
+  göndermez → satırlar sessizce "—" kalırdı). `_fields2` (tek dosya dönen uç
+  noktalar) liste alanlarıyla aynı kümede tutuldu: yeniden adlandırma sonrası
+  dönen kayıt satırın yerine geçiyor, eksik alan gelse tarih/sahip silinirdi.
+- **SIRALAMA yoktu:** çubuğa sıralama menüsü (ad / tarih / boyut). Sıralamayı
+  **Drive yapıyor** (`orderBy`), yerelde değil — liste sunucuda sayfalanıyor,
+  yerel sıralama yalnız eldeki sayfayı sıralardı. Tuzak: boyutun Drive
+  anahtarı `size` DEĞİL `quotaBytesUsed`; `size` yazmak 400 döndürür. Her
+  seçenek `folder,` ile başlıyor ki klasörler üstte kalsın.
+- **BUG — sayfalama hiç yapılmıyordu:** `files.list` yanıtındaki
+  `nextPageToken` okunmuyordu, yani 200'den kalabalık bir klasörün kuyruğu
+  SESSİZCE kayboluyordu (kullanıcı "dosyam Drive'da yok" derdi). `list()`
+  artık sayfaları izliyor, `maxPages` (10 × 200) üst sınırıyla — 20 binlik bir
+  Drive'ı tek listede çekmek telefonu kilitlerdi.
+
+### C) TUZAK — testte `http.Response` gövdesi LATIN-1 sayılır
+Başlıksız `http.Response('{"…Ayşe…"}', 200)` kurulamıyor ("ş" latin-1'de yok)
+→ MockClient patlıyor, ekran boş liste gösteriyor ve hata "widget bulunamadı"
+gibi görünüyor. Türkçe içeren sahte yanıtlara
+`headers: {'content-type': 'application/json; charset=utf-8'}` gerekiyor.
+(`Bütçe` geçen eski test bu yüzden çalışıyordu: ü/ç latin-1'de var.)
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`analyze` 0 hata/0 uyarı (44 eski info), **1401 test yeşil** (+9: Drive
+sayfalama, sıralama `orderBy`, oluşturulma/sahip/paylaşım ayrıştırma,
+kategori eşlemesi, listede tarih, bilgi penceresi).
+Cihazda bakılacaklar: Drive satırlarında "boyut · tarih", türe göre renkli
+ikon, çubukta sıralama menüsü, bilgi penceresinde sahip/paylaşım.

@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/drive_file.dart';
+import '../../models/fs_entry.dart' show FmCategoryLabel;
 import '../../services/fm/app_signature.dart';
 import '../../services/fm/drive_cache.dart';
 import '../../services/fm/drive_service.dart';
@@ -16,6 +17,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/fm_entry_icon.dart' show FmColors;
 import 'folder_picker_screen.dart';
 
 /// Google Drive ekranı — **gezilebilir dosya yöneticisi** (2026-08-05).
@@ -64,6 +66,10 @@ class _DriveScreenState extends State<DriveScreen> {
   /// Arama sonuçları klasör sınırı tanımadığı için gezinme (klasöre gir,
   /// yukarı çık, yükle) o sırada anlamsız — ayırt etmek gerekiyor.
   bool get _searching => _query.trim().isNotEmpty;
+
+  /// Liste sıralaması. Drive'ın kendi `orderBy`ına gider (bkz. [DriveSort]);
+  /// yerelde sıralamak sayfalanmış listenin yalnız bir bölümünü sıralardı.
+  DriveSort _sort = DriveSort.name;
 
   @override
   void initState() {
@@ -171,6 +177,7 @@ class _DriveScreenState extends State<DriveScreen> {
       final files = await _drive.list(
         parentId: _searching ? null : _current.$1,
         query: _searching ? _query : null,
+        sort: _sort,
       );
       if (!mounted) return;
       setState(() {
@@ -448,33 +455,67 @@ class _DriveScreenState extends State<DriveScreen> {
   }
 
   /// Dosya ayrıntıları. Elimizdeki üstveriden gösterilir — ek API çağrısı yok.
+  ///
+  /// Tarihler `FsPaths.humanDate` ile yazılıyor: burada eskiden
+  /// `DateTime.toString()` vardı ve kullanıcıya "2026-08-06 23:41:18.573Z"
+  /// gibi ham bir damga gösteriyordu.
   Future<void> _info(DriveFile file) async {
     final size = file.sizeBytes > 0 ? FsPaths.humanSize(file.sizeBytes) : '—';
-    final when = file.modifiedAtMs > 0
-        ? DateTime.fromMillisecondsSinceEpoch(file.modifiedAtMs).toString()
-        : '—';
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(file.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _infoRow(context.t('drive.info_kind'),
-                file.isFolder ? context.t('drive.folder') : file.mimeType),
-            _infoRow(context.t('drive.info_size'), size),
-            _infoRow(context.t('drive.info_modified'), when),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _infoRow(ctx.t('drive.info_kind'), _kindLabel(ctx, file)),
+              if (!file.isFolder) _infoRow(ctx.t('drive.info_size'), size),
+              _infoRow(ctx.t('drive.info_modified'),
+                  FsPaths.humanDate(file.modifiedAtMs)),
+              // Oluşturulma = Drive'a yüklenme anı; değiştirilmeden farklı
+              // olduğu için ayrı satır.
+              _infoRow(ctx.t('drive.info_created'),
+                  FsPaths.humanDate(file.createdAtMs)),
+              // Sahip yalnız BİLİNİYORSA yazılır: boş bir satır "sahibi yok"
+              // gibi okunurdu.
+              if (file.ownerName.isNotEmpty)
+                _infoRow(ctx.t('drive.info_owner'), file.ownerName),
+              _infoRow(
+                ctx.t('drive.info_shared'),
+                ctx.t(file.shared ? 'drive.shared_yes' : 'drive.shared_no'),
+              ),
+              _infoRow(ctx.t('drive.info_starred'),
+                  ctx.t(file.starred ? 'common.yes' : 'common.no')),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.t('common.ok')),
+            child: Text(ctx.t('common.ok')),
           ),
         ],
       ),
     );
+  }
+
+  /// "PDF · Belgeler" gibi okunur tür. Ham MIME (`application/vnd.openxml…`)
+  /// kullanıcıya hiçbir şey anlatmıyordu; Google biçimlerinde ise indirilecek
+  /// biçim yazılıyor ("Google E-Tablolar → XLSX").
+  String _kindLabel(BuildContext ctx, DriveFile file) {
+    if (file.isFolder) return ctx.t('drive.folder');
+    final ext = file.extension.toUpperCase();
+    final category = ctx.t(file.category.labelKey);
+    final base = ext.isEmpty ? category : '$ext · $category';
+    if (!file.isGoogleDoc) return base;
+    final export = file.exportAs?.$2;
+    return export == null
+        ? base
+        : '$category · ${ctx.t('drive.exports_as', {
+              'format': export.toUpperCase()
+            })}';
   }
 
   Widget _infoRow(String label, String value) => Padding(
@@ -597,6 +638,34 @@ class _DriveScreenState extends State<DriveScreen> {
                 tooltip: context.t('drive.upload_action'),
                 icon: const Icon(Icons.upload_file),
                 onPressed: _busy || _searching ? null : _uploadHere,
+              ),
+            // Sıralama: tarih sütunu eklendikten sonra "en yeni üstte" istemek
+            // doğal oldu. Sıralamayı Drive yapıyor (bkz. [DriveSort]).
+            if (_signedIn)
+              PopupMenuButton<DriveSort>(
+                tooltip: context.t('drive.sort'),
+                icon: const Icon(Icons.sort),
+                enabled: !_busy,
+                initialValue: _sort,
+                onSelected: (value) {
+                  if (value == _sort) return;
+                  setState(() => _sort = value);
+                  _refresh();
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: DriveSort.name,
+                    child: Text(context.t('fm.sort_name')),
+                  ),
+                  PopupMenuItem(
+                    value: DriveSort.modified,
+                    child: Text(context.t('fm.sort_date')),
+                  ),
+                  PopupMenuItem(
+                    value: DriveSort.size,
+                    child: Text(context.t('fm.sort_size')),
+                  ),
+                ],
               ),
             if (_signedIn)
               IconButton(
@@ -893,11 +962,13 @@ class _DriveScreenState extends State<DriveScreen> {
         itemBuilder: (_, i) {
           final f = _files[i];
           return ListTile(
+            // Yerel gezginle AYNI ikon/renk paleti (`FmColors`): eskiden
+            // Drive'da APK de PDF de görüntü de tek tip gri kağıttı, listeye
+            // bakınca dosyanın türü hiç anlaşılmıyordu.
             leading: Icon(
-              f.isFolder
-                  ? Icons.folder_outlined
-                  : Icons.insert_drive_file_outlined,
-              color: f.isFolder ? Theme.of(context).colorScheme.primary : null,
+              FmColors.iconFor(f.category),
+              color: FmColors.forCategory(f.category),
+              size: 32,
             ),
             title: Row(
               children: [
@@ -911,7 +982,8 @@ class _DriveScreenState extends State<DriveScreen> {
                 ),
               ],
             ),
-            subtitle: Text(_subtitle(f)),
+            subtitle: Text(_subtitle(f),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
             trailing: PopupMenuButton<String>(
               onSelected: (v) => switch (v) {
                 'download' => _downloadToFolder(f),
@@ -985,19 +1057,29 @@ class _DriveScreenState extends State<DriveScreen> {
     );
   }
 
+  /// Satırın alt yazısı: **boyut · son değiştirilme** — yerel gezgindeki
+  /// düzenin aynısı (`browser_screen`).
+  ///
+  /// Tarih 2026-08-07'de eklendi (kullanıcı ekran görüntüsü: listede yalnız
+  /// "24 MB" yazıyordu, aynı adın iki sürümünden hangisinin yeni olduğu
+  /// anlaşılmıyordu). Klasörde boyut yazılmaz — Drive klasörün baytını
+  /// vermez, "—" göstermek satırı gereksiz doldururdu.
+  ///
   /// Boyut bilinmiyorsa "—". "0 B" yazmak yanlış olurdu: Google Dokümanları'nın
   /// bayt karşılığı YOKTUR, boş oldukları anlamına gelmez.
   String _subtitle(DriveFile f) {
+    final when = FsPaths.humanDate(f.modifiedAtMs);
+    if (f.isFolder) return when;
     final size = f.sizeBytes > 0 ? FsPaths.humanSize(f.sizeBytes) : '—';
     if (f.isGoogleDoc) {
       final ext = f.exportAs?.$2;
       return ext == null
-          ? size
+          ? '$size · $when'
           : '$size · ${context.t('drive.exports_as', {
                   'format': ext.toUpperCase()
-                })}';
+                })} · $when';
     }
-    return size;
+    return '$size · $when';
   }
 }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/models/drive_file.dart';
+import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/drive_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -72,6 +73,56 @@ void main() {
       expect(f.localName(), 'Rapor.docx');
     });
 
+    test('oluşturulma / sahip / paylaşım okunur', () {
+      final f = DriveFile.fromJson({
+        'id': '9',
+        'name': 'Rapor.pdf',
+        'mimeType': 'application/pdf',
+        'createdTime': '2026-07-01T08:30:00.000Z',
+        'modifiedTime': '2026-07-30T12:00:00.000Z',
+        'owners': [
+          {'displayName': 'Ayşe', 'emailAddress': 'a@x.com'}
+        ],
+        'shared': true,
+      });
+      expect(
+          f.createdAtMs, DateTime.utc(2026, 7, 1, 8, 30).millisecondsSinceEpoch);
+      expect(f.ownerName, 'Ayşe');
+      expect(f.shared, isTrue);
+    });
+
+    test('sahip adı yoksa e-postaya düşer, alan hiç yoksa boş kalır', () {
+      final withEmail = DriveFile.fromJson({
+        'id': '10',
+        'name': 'a.pdf',
+        'mimeType': 'application/pdf',
+        'owners': [
+          {'emailAddress': 'a@x.com'}
+        ],
+      });
+      expect(withEmail.ownerName, 'a@x.com');
+      final none = DriveFile.fromJson(
+          {'id': '11', 'name': 'a.pdf', 'mimeType': 'application/pdf'});
+      expect(none.ownerName, '');
+      expect(none.shared, isFalse);
+      expect(none.createdAtMs, 0);
+    });
+
+    test('kategori uzantıdan gelir; Google biçiminde dışa aktarımdan', () {
+      // Listede ikon/renk buradan seçiliyor: yanlış kategori = yanlış ikon.
+      DriveFile file(String name, [String mime = 'application/octet-stream']) =>
+          DriveFile(id: '1', name: name, mimeType: mime);
+      expect(file('uygulama.apk').category, FmCategory.apk);
+      expect(file('rapor.pdf').category, FmCategory.document);
+      expect(file('foto.jpg').category, FmCategory.image);
+      expect(file('K', DriveFile.folderMime).category, FmCategory.folder);
+      // Google E-Tablosu'nun adında uzantı YOK — dışa aktarım uzantısı
+      // olmasa "Diğer"e düşerdi.
+      expect(
+          file('Bütçe', 'application/vnd.google-apps.spreadsheet').category,
+          FmCategory.document);
+    });
+
     test('klasör tanınır', () {
       final f = DriveFile.fromJson(
           {'id': '4', 'name': 'K', 'mimeType': DriveFile.folderMime});
@@ -88,6 +139,21 @@ void main() {
       // sütunları sessizce boş kalırdı.
       expect(uri.queryParameters['fields'], contains('modifiedTime'));
       expect(uri.queryParameters['fields'], contains('size'));
+      // 2026-08-07: bilgi penceresi oluşturulma/sahip/paylaşım da gösteriyor —
+      // alanlar istenmezse o satırlar sessizce "—" kalırdı.
+      expect(uri.queryParameters['fields'], contains('createdTime'));
+      expect(uri.queryParameters['fields'], contains('owners'));
+      expect(uri.queryParameters['fields'], contains('shared'));
+    });
+
+    test('sıralama Drive\'ın orderBy\'ına gider, klasörler hep üstte', () {
+      // Yerelde sıralamak yalnız elimizdeki SAYFAYI sıralardı; liste
+      // sunucuda sayfalanıyor.
+      expect(DriveService.listUri(sort: DriveSort.modified)
+          .queryParameters['orderBy'], 'folder,modifiedTime desc');
+      // Boyutun Drive'daki anahtarı `size` DEĞİL — `size` yazmak 400 verir.
+      expect(DriveService.listUri(sort: DriveSort.size)
+          .queryParameters['orderBy'], 'folder,quotaBytesUsed desc');
     });
 
     test('aramada tek tırnak KAÇIRILIR (sorgu dili sınırlayıcısı)', () {
@@ -217,6 +283,47 @@ void main() {
       expect(files.single.name, 'rapor.pdf');
       expect(seen.single.headers['Authorization'], 'Bearer t');
       expect(seen.single.url.queryParameters['q'], contains('rapor'));
+    });
+
+    test('SAYFALAR takip edilir: 200. dosyadan sonrası kaybolmaz', () async {
+      // `nextPageToken` hiç okunmadığı için kalabalık klasörlerin kuyruğu
+      // sessizce kesiliyordu — kullanıcı "dosyam Drive'da yok" derdi.
+      final seen = <http.Request>[];
+      final files = await _withMock(
+        () => _service().list(parentId: DriveService.rootId),
+        (req) async => req.url.queryParameters['pageToken'] == null
+            ? _json({
+                'nextPageToken': 'T2',
+                'files': [
+                  {'id': '1', 'name': 'a.pdf', 'mimeType': 'application/pdf'}
+                ]
+              })
+            : _json({
+                'files': [
+                  {'id': '2', 'name': 'b.pdf', 'mimeType': 'application/pdf'}
+                ]
+              }),
+        seen: seen,
+      );
+      expect(files.map((f) => f.id), ['1', '2']);
+      expect(seen.length, 2);
+      expect(seen.last.url.queryParameters['pageToken'], 'T2');
+    });
+
+    test('sayfa üst sınırı: sonsuz belirteç telefonu kilitlemez', () async {
+      final seen = <http.Request>[];
+      final files = await _withMock(
+        () => _service().list(maxPages: 3),
+        (_) async => _json({
+          'nextPageToken': 'hep-var',
+          'files': [
+            {'id': '1', 'name': 'a.pdf', 'mimeType': 'application/pdf'}
+          ]
+        }),
+        seen: seen,
+      );
+      expect(seen.length, 3);
+      expect(files.length, 3);
     });
 
     test('indirme dosyayı diske yazar, Google biçimine uzantı ekler', () async {

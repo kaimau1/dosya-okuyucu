@@ -1,3 +1,5 @@
+import 'fs_entry.dart';
+
 /// Google Drive'daki bir dosya (Drive v3 `files` kaynağının bizim
 /// kullandığımız alanları).
 class DriveFile {
@@ -12,6 +14,18 @@ class DriveFile {
 
   final int modifiedAtMs;
 
+  /// Oluşturulma zamanı. Değiştirilmeden ayrı bir bilgi: Drive'a *ne zaman
+  /// yüklendiği* çoğu zaman dosyanın kendi tarihinden farklıdır.
+  final int createdAtMs;
+
+  /// Dosya sahibinin görünen adı. Paylaşılan sürücülerde/başkasının paylaştığı
+  /// dosyada "bu benim değil" bilgisini veren tek alan; boş olabilir.
+  final String ownerName;
+
+  /// Drive'da başkasıyla paylaşılmış mı. Bilgi penceresinde gösterilir —
+  /// "bağlantıyı paylaş" dedikten sonra durumu görmenin tek yolu buydu.
+  final bool shared;
+
   /// Drive'ın yıldızı. Menüdeki "Yıldız ekle/kaldır" bunun tersini yazar;
   /// listede yıldızlı dosyanın satırında da işaret gösterilir.
   final bool starred;
@@ -22,6 +36,9 @@ class DriveFile {
     required this.mimeType,
     this.sizeBytes = 0,
     this.modifiedAtMs = 0,
+    this.createdAtMs = 0,
+    this.ownerName = '',
+    this.shared = false,
     this.starred = false,
   });
 
@@ -66,8 +83,39 @@ class DriveFile {
         modifiedAtMs:
             DateTime.tryParse('${json['modifiedTime']}')?.millisecondsSinceEpoch ??
                 0,
+        createdAtMs:
+            DateTime.tryParse('${json['createdTime']}')?.millisecondsSinceEpoch ??
+                0,
+        ownerName: _firstOwner(json['owners']),
+        shared: json['shared'] == true,
         starred: json['starred'] == true,
       );
+
+  /// `owners` bir DİZİ gelir (Drive birden çok sahip modelini taşıyor) ama
+  /// pratikte tek eleman olur; ilkinin görünen adı alınır, yoksa boş.
+  static String _firstOwner(Object? owners) {
+    if (owners is! List || owners.isEmpty) return '';
+    final first = owners.first;
+    if (first is! Map) return '';
+    final name = first['displayName'] ?? first['emailAddress'];
+    return name is String ? name : '';
+  }
+
+  /// Uzantı (noktasız, küçük harf). Google biçimlerinde adın uzantısı yoktur —
+  /// o durumda dışa aktarım uzantısı kullanılır ki dosya "Diğer"e düşmesin.
+  String get extension {
+    final dot = name.lastIndexOf('.');
+    final fromName =
+        dot <= 0 || dot == name.length - 1 ? '' : name.substring(dot + 1);
+    if (fromName.isNotEmpty) return fromName.toLowerCase();
+    return exportAs?.$2 ?? '';
+  }
+
+  /// Yerel gezginle AYNI kategori tablosu (`FsEntry.categoryForExtension`):
+  /// Drive listesinde de APK yeşil android, PDF kırmızı belge, görüntü mor
+  /// olsun diye — eskiden hepsi tek tip gri kağıt ikonuydu.
+  FmCategory get category =>
+      FsEntry.categoryForExtension(extension, isDir: isFolder);
 
   /// İndirilen dosyanın yerel adı. Google biçimlerinde Drive'daki adın
   /// uzantısı YOKTUR ("Bütçe" gibi) — dışa aktarım uzantısı eklenir, yoksa

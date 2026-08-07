@@ -2,6 +2,7 @@ import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/fm/drive_screen.dart';
 import 'package:dosya_okuyucu/services/fm/app_signature.dart';
 import 'package:dosya_okuyucu/services/fm/drive_service.dart';
+import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -158,6 +159,75 @@ void main() {
         () => MockClient((_) async => http.Response(
             '{"files":[{"id":"1","name":"Bütçe","mimeType":"application/vnd.google-apps.spreadsheet"}]}',
             200)));
+  });
+
+  testWidgets('satırda SON DEĞİŞTİRİLME tarihi yazar', (tester) async {
+    // Kullanıcı ekran görüntüsü 2026-08-07: listede yalnız boyut vardı,
+    // aynı adın iki sürümünden hangisinin yeni olduğu anlaşılmıyordu.
+    // Beklenen metin `humanDate` ile üretiliyor — saat dilimi makineye göre
+    // değiştiği için sabit dizgi yazmak testi kırılgan yapardı.
+    final when = FsPaths.humanDate(
+        DateTime.utc(2026, 8, 6, 23, 41).millisecondsSinceEpoch);
+    await http.runWithClient(() async {
+      await _pump(tester, _signedIn());
+      expect(find.textContaining(when), findsOneWidget);
+      expect(find.textContaining('2,0 KB'), findsOneWidget);
+    },
+        () => MockClient((_) async => http.Response(
+            '{"files":[{"id":"1","name":"rapor.pdf",'
+            '"mimeType":"application/pdf","size":"2048",'
+            '"modifiedTime":"2026-08-06T23:41:00.000Z"}]}',
+            200)));
+  });
+
+  testWidgets('sıralama seçimi Drive orderBy ile yeniden listeler',
+      (tester) async {
+    final orders = <String?>[];
+    await http.runWithClient(() async {
+      await _pump(tester, _signedIn());
+      expect(orders.first, 'folder,name');
+      await tester.tap(find.byTooltip('Sıralama'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tarihe göre sırala'));
+      await tester.pumpAndSettle();
+      expect(orders.last, 'folder,modifiedTime desc');
+    }, () => MockClient((req) async {
+          orders.add(req.url.queryParameters['orderBy']);
+          return http.Response(
+              '{"files":[{"id":"1","name":"rapor.pdf",'
+              '"mimeType":"application/pdf","size":"2048"}]}',
+              200);
+        }));
+  });
+
+  testWidgets('bilgi penceresi: ham damga değil okunur tarih + sahip/paylaşım',
+      (tester) async {
+    await http.runWithClient(() async {
+      await _pump(tester, _signedIn());
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bilgi'));
+      await tester.pumpAndSettle();
+      final when = FsPaths.humanDate(
+          DateTime.utc(2026, 8, 6, 23, 41).millisecondsSinceEpoch);
+      expect(find.textContaining('Değiştirilme: $when'), findsOneWidget);
+      expect(find.textContaining('Sahibi: Ayşe'), findsOneWidget);
+      expect(find.textContaining('Paylaşım: Paylaşılmış'), findsOneWidget);
+      // Ham MIME kullanıcıya hiçbir şey anlatmıyordu.
+      expect(find.textContaining('application/pdf'), findsNothing);
+      // Eski hâl: "2026-08-06 23:41:00.000Z".
+      expect(find.textContaining('.000'), findsNothing);
+    },
+        () => MockClient((_) async => http.Response(
+            '{"files":[{"id":"1","name":"rapor.pdf",'
+            '"mimeType":"application/pdf","size":"2048",'
+            '"modifiedTime":"2026-08-06T23:41:00.000Z",'
+            '"createdTime":"2026-08-01T10:00:00.000Z",'
+            '"owners":[{"displayName":"Ayşe"}],"shared":true}]}',
+            200,
+            // Başlıksız `http.Response` gövdeyi LATIN-1 sayar ve "ş" harfi
+            // orada yok → yanıt hiç kurulamaz, liste boş gelirdi.
+            headers: {'content-type': 'application/json; charset=utf-8'})));
   });
 
   testWidgets('İngilizce arayüzde ekran İngilizce', (tester) async {

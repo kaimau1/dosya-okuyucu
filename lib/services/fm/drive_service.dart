@@ -40,8 +40,7 @@ class DriveService {
 
   /// Listede istenen alanlar. Açıkça yazılmazsa Drive yalnız `id`/`name`
   /// döndürür ve boyut/tarih sütunları sessizce boş kalırdı.
-  static const _fields =
-      'nextPageToken,files(id,name,mimeType,size,modifiedTime,starred)';
+  static const _fields = 'nextPageToken,files($_fields2)';
 
   final GoogleSignIn _google;
 
@@ -163,6 +162,7 @@ class DriveService {
     String? query,
     String? pageToken,
     int pageSize = 200,
+    DriveSort sort = DriveSort.name,
   }) {
     final clauses = <String>['trashed = false'];
     final q = query?.trim() ?? '';
@@ -176,7 +176,7 @@ class DriveService {
     return Uri.parse('$_api/files').replace(queryParameters: {
       'q': clauses.join(' and '),
       'spaces': 'drive',
-      'orderBy': 'folder,name',
+      'orderBy': sort.orderBy,
       'pageSize': '$pageSize',
       'fields': _fields,
       if (pageToken != null) 'pageToken': pageToken,
@@ -236,7 +236,11 @@ class DriveService {
   static Uri createUri() =>
       Uri.parse('$_api/files').replace(queryParameters: {'fields': _fields2});
 
-  static const _fields2 = 'id,name,mimeType,size,modifiedTime,starred';
+  /// Tek dosya döndüren uç noktaların alanları — liste alanlarıyla AYNI küme
+  /// olmalı: yeniden adlandırma/taşıma sonrası dönen kayıt doğrudan listedeki
+  /// satırın yerine geçiyor, eksik alan gelirse tarih/sahip satırdan silinirdi.
+  static const _fields2 = 'id,name,mimeType,size,modifiedTime,createdTime,'
+      'owners(displayName,emailAddress),shared,starred';
 
   /// Drive'ın `multipart/related` yükleme gövdesi: önce JSON üstveri, sonra
   /// ham baytlar. Sınır dizgisi içerikte geçemeyecek kadar uzun ve sabit
@@ -265,6 +269,19 @@ class DriveService {
     );
     final tail = utf8.encode('\r\n--$multipartBoundary--\r\n');
     return [...head, ...bytes, ...tail];
+  }
+
+  /// Yanıttaki `nextPageToken` — yoksa null. Bu okunmadığı sürece liste ilk
+  /// sayfada (200 dosya) SESSİZCE kesiliyordu: kalabalık bir klasörde
+  /// dosyalar "yok" gibi görünürdü.
+  static String? parseNextPageToken(String body) {
+    try {
+      final json = jsonDecode(body);
+      final token = json is Map ? json['nextPageToken'] : null;
+      return token is String && token.isNotEmpty ? token : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// `files.list` yanıtından dosya listesi. Beklenmedik/bozuk kayıtlar
@@ -325,14 +342,33 @@ class DriveService {
 
   /// [parentId] klasörünün içi (kök için [rootId]); [query] verilirse
   /// Drive'ın tamamında ad araması.
-  Future<List<DriveFile>> list({String? parentId, String? query}) async {
+  ///
+  /// **Sayfalar takip edilir.** Drive tek yanıtta en çok [maxPages]×200 kayıt
+  /// verir ve gerisini `nextPageToken` ardında tutar; eskiden bu belirteç hiç
+  /// okunmadığı için 200'den kalabalık klasörlerin kuyruğu sessizce
+  /// kayboluyordu. Üst sınır yine de var: 20 bin dosyalık bir Drive'ı tek
+  /// listede çekmek telefonu kilitlerdi — kullanıcı aramayla daraltmalı.
+  Future<List<DriveFile>> list({
+    String? parentId,
+    String? query,
+    DriveSort sort = DriveSort.name,
+    int maxPages = 10,
+  }) async {
     final headers = await _requireHeaders();
-    final res = await http.get(
-      listUri(parentId: parentId, query: query),
-      headers: headers,
-    );
-    _check(res.statusCode, res.body);
-    return parseList(res.body);
+    final out = <DriveFile>[];
+    String? token;
+    for (var page = 0; page < maxPages; page++) {
+      final res = await http.get(
+        listUri(
+            parentId: parentId, query: query, sort: sort, pageToken: token),
+        headers: headers,
+      );
+      _check(res.statusCode, res.body);
+      out.addAll(parseList(res.body));
+      token = parseNextPageToken(res.body);
+      if (token == null) break;
+    }
+    return out;
   }
 
   /// [parentId] içinde yeni klasör.
@@ -588,6 +624,23 @@ class DriveService {
     } catch (_) {}
     return null;
   }
+}
+
+/// Liste sıralaması. Sıralamayı **Drive yapar** (`orderBy`), biz değil:
+/// sayfalama sunucu tarafında olduğu için yerelde sıralamak yalnız elimizdeki
+/// sayfayı sıralar, listenin tamamını değil.
+///
+/// Her seçenek `folder` ile başlar — klasörler her zaman üstte kalsın
+/// (dosya yöneticisi beklentisi). Boyut için Drive'ın anahtarı `size` DEĞİL,
+/// `quotaBytesUsed`tir; `size` yazmak 400 döndürür.
+enum DriveSort {
+  name('folder,name'),
+  modified('folder,modifiedTime desc'),
+  size('folder,quotaBytesUsed desc');
+
+  const DriveSort(this.orderBy);
+
+  final String orderBy;
 }
 
 enum DriveError {
