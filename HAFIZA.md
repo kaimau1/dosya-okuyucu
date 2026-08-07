@@ -6898,3 +6898,28 @@ telefonlarda sabit olmalı, sadece uygulama içerisinden değiştirilebilmeli."*
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` 0 hata, **1419 test
 yeşil** (+5: `ui_font_scale_test` — sistem ölçeği etkisiz, uygulama ölçeği
 etkili, varsayılan Carlito, seçim temaya işliyor, sınırlar).
+
+### 2026-08-07 (3b) — DÜZELTME: yazı tipi ayarı yalnız gövdeyi değiştiriyordu
+Kullanıcı ekran görüntüsü (gezgin, "Ana bellek"): *"buradaki yazı tipleri vs
+değişmiyor hep aynı kalıyor."* Haklı ve nedeni yapısal:
+
+- Gezgin satırında dosya adı **başlık** stiliyle (`ListTile.titleTextStyle` →
+  `titleMedium` → serif Tinos), tarih satırı ise `MonoText` ile (koda gömülü
+  `'monospace'`) çiziliyor. Yani o ekranda **gövde metni HİÇ YOK**; yalnız
+  `ThemeData.fontFamily`yi değiştiren ayar orada hiçbir şeyi değiştirmiyordu.
+- Çözüm iki parçalı:
+  1. Bir aile seçilirse **başlık ve veri satırları da** onunla kuruluyor
+     (`_base` içinde `heading`/`mono` seçilen aileye eşitleniyor).
+  2. Koda gömülü aile adları yerine tema uzantısı: `AppFonts` (body/heading/
+     mono). `MonoText` ve PDF sayfa rozeti artık `AppFonts.of(context)` okuyor.
+     Yeni yerlerde `AppTheme.fontMono` yazmak yerine bu kullanılmalı.
+- Ayar listesine **"Varsayılan"** işaret değeri eklendi
+  (`AppTheme.uiFontDefault`): tasarımın kendi karışımı (serif başlık + Carlito
+  gövde + tek aralıklı veri). Diğer seçenekler tek aileyi her yere uygular.
+- **Bilerek DIŞARIDA bırakıldı:** elektronik tablo sayı hücreleri
+  (`sheet_cell`) ve Drive kurulum kartındaki SHA-1/paket adı. İkisi de belge/
+  teknik veri sadakati: rakam hizası ve kopyalanabilir değerler arayüz
+  tercihine göre değişmemeli.
+
+**Doğrulama:** `analyze` 0 hata, **1420 test yeşil** (+1: varsayılan karışım ve
+seçimin başlık/veri satırlarına işlemesi).

@@ -58,9 +58,22 @@ void main() {
         containsAll(<String>['Carlito', 'Arimo', 'Tinos', 'monospace']));
   });
 
-  test('seçilen yazı tipi temaya işler', () {
-    expect(AppTheme.dark(bodyFont: 'Tinos').textTheme.bodyMedium?.fontFamily,
-        'Tinos');
+  test('varsayılanda tasarımın karışımı korunur: serif başlık, mono veri', () {
+    final theme = AppTheme.light(bodyFont: AppTheme.uiFontDefault);
+    expect(theme.textTheme.titleLarge?.fontFamily, AppTheme.fontHeading);
+    expect(theme.extension<AppFonts>()?.mono, AppTheme.fontMono);
+  });
+
+  test('seçilen yazı tipi BAŞLIK ve VERİ satırlarına da işler', () {
+    // 2026-08-07 kullanıcı: gezgin listesinde ad = başlık stili, tarih =
+    // tek aralıklı; yalnız gövdeyi değiştiren ayar orada hiçbir şeyi
+    // değiştirmiyordu ("hep aynı kalıyor").
+    final theme = AppTheme.dark(bodyFont: 'Tinos');
+    expect(theme.textTheme.bodyMedium?.fontFamily, 'Tinos');
+    expect(theme.textTheme.titleLarge?.fontFamily, 'Tinos');
+    final fonts = theme.extension<AppFonts>();
+    expect(fonts?.heading, 'Tinos');
+    expect(fonts?.mono, 'Tinos');
   });
 
   test('ölçek okunur sınırlara kısılır', () async {

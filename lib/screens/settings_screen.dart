@@ -224,8 +224,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ButtonSegment(
                     value: f.$2,
                     // Etiket kendi yazı tipiyle yazılır: seçmeden önce
-                    // görünüşü belli olsun.
-                    label: Text(f.$1, style: TextStyle(fontFamily: f.$2)),
+                    // görünüşü belli olsun. "Varsayılan" bir aile adı değil —
+                    // onda tema ne diyorsa o.
+                    label: Text(
+                      f.$1,
+                      style: f.$2 == AppTheme.uiFontDefault
+                          ? null
+                          : TextStyle(fontFamily: f.$2),
+                    ),
                   ),
               ],
               selected: {appState.uiFont},

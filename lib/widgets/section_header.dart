@@ -94,7 +94,7 @@ class MonoText extends StatelessWidget {
         maxLines: maxLines,
         overflow: overflow,
         style: TextStyle(
-          fontFamily: AppTheme.fontMono,
+          fontFamily: AppFonts.of(context).mono,
           fontSize: size,
           height: 1.35,
           color: color ?? Paper.faint(context),

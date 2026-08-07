@@ -2251,7 +2251,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 13,
-                fontFamily: AppTheme.fontMono,
+                fontFamily: AppFonts.of(context).mono,
               )),
         ],
       ),

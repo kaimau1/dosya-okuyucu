@@ -138,26 +138,42 @@ class AppTheme {
   /// tam. Belge tarafıyla da tutarlı: Word/Excel varsayılanı da Calibri.
   static const String fontBody = 'Carlito';
 
-  /// Seçilebilir arayüz yazı tipleri (hepsi APK'da GÖMÜLÜ — cihazda kurulu
-  /// olup olmamasına bağlı değil, her telefonda birebir aynı görünür).
-  static const List<(String label, String family)> uiFonts = [
-    ('Carlito (varsayılan)', fontBody),
-    ('Arimo', 'Arimo'),
-    ('Tinos', 'Tinos'),
-    ('Tek aralıklı', 'monospace'),
-  ];
-
   static const String fontMono = 'monospace';
 
-  /// [bodyFont] verilirse gövde yazı tipi onunla kurulur (kullanıcının
-  /// Ayarlar'dan seçtiği aile); verilmezse [fontBody].
+  /// "Tasarımın kendi karışımı" seçeneği: serif başlık + Carlito gövde +
+  /// tek aralıklı veri satırları. Tek bir aile adı DEĞİL, bu yüzden ayrı bir
+  /// işaret değeri.
+  static const String uiFontDefault = 'default';
+
+  /// Seçilebilir arayüz yazı tipleri (hepsi APK'da GÖMÜLÜ — cihazda kurulu
+  /// olup olmamasına bağlı değil, her telefonda birebir aynı görünür).
+  ///
+  /// İlk seçenek dışındakiler **her yere** uygulanır: başlık, gövde ve tarih/
+  /// boyut satırları. 2026-08-07 kullanıcı bulgusu: yalnız gövde yazı tipi
+  /// değişiyordu ve gezgin listesinde gövde metni HİÇ YOK (ad = başlık stili,
+  /// tarih = tek aralıklı) → "yazı tipleri değişmiyor, hep aynı kalıyor".
+  static const List<(String label, String family)> uiFonts = [
+    ('Varsayılan', uiFontDefault),
+    ('Carlito', fontBody),
+    ('Arimo', 'Arimo'),
+    ('Tinos', 'Tinos'),
+    ('Tek aralıklı', fontMono),
+  ];
+
+  /// [bodyFont] kullanıcının seçtiği aile ([uiFontDefault] ya da null =
+  /// tasarımın kendi karışımı). Aile verilirse başlıklar ve veri satırları da
+  /// onunla çizilir.
   static ThemeData light({String? bodyFont}) =>
       _base(Brightness.light, bodyFont: bodyFont);
   static ThemeData dark({String? bodyFont}) =>
       _base(Brightness.dark, bodyFont: bodyFont);
 
   static ThemeData _base(Brightness brightness, {String? bodyFont}) {
-    final body = bodyFont ?? fontBody;
+    final picked =
+        (bodyFont == null || bodyFont == uiFontDefault) ? null : bodyFont;
+    final body = picked ?? fontBody;
+    final heading = picked ?? fontHeading;
+    final mono = picked ?? fontMono;
     final isDark = brightness == Brightness.dark;
     // Tohum korunur (türetilen ikincil/üçüncül roller ondan gelir) ama kağıt
     // hissini bozan mavi-gri YÜZEYLER elle geçersiz kılınır.
@@ -200,13 +216,17 @@ class AppTheme {
           isDark ? const Color(0xFFF7DCD8) : const Color(0xFF4A130E),
       surfaceTint: Colors.transparent, // gölge/ton yok: kağıt düz durur
     );
-    final text = _textTheme(scheme, body);
+    final text = _textTheme(scheme, body, heading);
 
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       textTheme: text,
       fontFamily: body,
+      // Tema DIŞINDA kalan yazı tipleri de seçime uysun: tarih/boyut satırları
+      // (`MonoText`) ve hücre yazıları koda gömülü 'monospace' kullanıyordu ve
+      // ayardan hiç etkilenmiyordu.
+      extensions: [AppFonts(body: body, heading: heading, mono: mono)],
       scaffoldBackgroundColor: scheme.surface,
       splashFactory: InkRipple.splashFactory,
 
@@ -394,12 +414,13 @@ class AppTheme {
   /// Tipografi: serif başlık (Tinos w600, hafif negatif harf aralığı) / sans
   /// gövde (Arimo). Karşıtlık kağıt hissinin ikinci yarısı — yalnız renk
   /// değişse gazete değil, boyanmış Material olurdu.
-  static TextTheme _textTheme(ColorScheme scheme, [String? bodyFont]) {
+  static TextTheme _textTheme(ColorScheme scheme,
+      [String? bodyFont, String? headingFont]) {
     final base = ThemeData(brightness: scheme.brightness)
         .textTheme
         .apply(fontFamily: bodyFont ?? fontBody);
     TextStyle? head(TextStyle? s, {double? size}) => s?.copyWith(
-          fontFamily: fontHeading,
+          fontFamily: headingFont ?? fontHeading,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.3,
           fontSize: size,
@@ -420,4 +441,46 @@ class AppTheme {
       labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w600),
     );
   }
+}
+
+/// Temanın yazı tipi üçlüsü — widget'lar koda gömülü aile adı yerine bunu
+/// okur, böylece Ayarlar'daki seçim BÜTÜN arayüze işler.
+///
+/// KÖK NEDEN (2026-08-07 kullanıcı: *"buradaki yazı tipleri değişmiyor, hep
+/// aynı kalıyor"*): gezgin listesinde dosya adı başlık stiliyle (serif Tinos),
+/// tarih satırı ise `MonoText` ile (koda gömülü 'monospace') çiziliyor — yani
+/// o ekranda GÖVDE metni hiç yok. Yalnız gövde yazı tipini değiştiren bir ayar
+/// orada hiçbir şeyi değiştirmiyordu.
+class AppFonts extends ThemeExtension<AppFonts> {
+  final String body;
+  final String heading;
+  final String mono;
+
+  const AppFonts({
+    required this.body,
+    required this.heading,
+    required this.mono,
+  });
+
+  /// Tema uzantısı bulunamazsa (test/izole widget) tasarımın kendi karışımı.
+  static AppFonts of(BuildContext context) =>
+      Theme.of(context).extension<AppFonts>() ??
+      const AppFonts(
+        body: AppTheme.fontBody,
+        heading: AppTheme.fontHeading,
+        mono: AppTheme.fontMono,
+      );
+
+  @override
+  AppFonts copyWith({String? body, String? heading, String? mono}) => AppFonts(
+        body: body ?? this.body,
+        heading: heading ?? this.heading,
+        mono: mono ?? this.mono,
+      );
+
+  /// Yazı tipi ailesi ARA DEĞER ALMAZ (yarı Tinos diye bir şey yok): tema
+  /// geçişinin ortasında hedefe atlanır.
+  @override
+  AppFonts lerp(ThemeExtension<AppFonts>? other, double t) =>
+      other is AppFonts && t >= 0.5 ? other : this;
 }

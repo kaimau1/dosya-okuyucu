@@ -57,9 +57,10 @@ class AppState extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   AppLanguage _language = AppLanguage.system;
 
-  /// Arayüz yazı tipi (gövde metni). Varsayılan Carlito: ekranda okumak için
-  /// tasarlanmış, Calibri metriğinde, tam Türkçe kapsamlı gömülü aile.
-  String _uiFont = AppTheme.fontBody;
+  /// Arayüz yazı tipi. Varsayılan `AppTheme.uiFontDefault` = tasarımın kendi
+  /// karışımı (serif başlık + Carlito gövde + tek aralıklı veri satırları);
+  /// bir aile seçilirse **başlık dahil her yer** onunla çizilir.
+  String _uiFont = AppTheme.uiFontDefault;
 
   /// Arayüz yazı ölçeği. **Cihazın sistem ayarından BAĞIMSIZ** (bkz.
   /// `DosyaOkuyucuApp`): uygulama her telefonda aynı görünsün, büyütmek
@@ -76,7 +77,7 @@ class AppState extends ChangeNotifier {
   /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
   AppLanguage get language => _language;
 
-  /// Arayüzün gövde yazı tipi (gömülü aile adı).
+  /// Arayüz yazı tipi: gömülü aile adı ya da `AppTheme.uiFontDefault`.
   String get uiFont => _uiFont;
 
   /// Arayüz yazı ölçeği (1.0 = tasarım boyutu). Sistem ayarı okunmaz.
@@ -308,7 +309,7 @@ class AppState extends ChangeNotifier {
     _model = _prefs.getString(_kModel) ?? 'gemini-2.0-flash';
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
-    _uiFont = _prefs.getString(_kUiFont) ?? AppTheme.fontBody;
+    _uiFont = _prefs.getString(_kUiFont) ?? AppTheme.uiFontDefault;
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
     _recents = (_prefs.getStringList(_kRecents) ?? [])
         .map(RecentFile.tryDecode)
