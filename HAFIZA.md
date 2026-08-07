@@ -7010,3 +7010,97 @@ kategorize olmalı"*, *"video boyut düşürmede şu anki durum görülmeli,
 
 **Doğrulama:** `analyze` 0 hata, **1439 test yeşil** (+16: tarif kaydı/devam
 akışı, activity_log defteri, kaynak özeti).
+
+## 2026-08-07 (6) — Açılmayan Excel dosyası, Excel taşma/oto yükseklik, tahmini boyut, PDF formu
+Kullanıcı: ekran görüntüsüyle *"custom numFmtId starts at 164 but found a value
+of 26"*, *"excelde farklar var bizle gerçek excelde"*, *"devam et 0 dan
+başlıyor"*, *"boyut düşürmede tahmini boyut yazmalı"*, *"PDF düzenlemeyi
+geliştir"*.
+
+### A) KÖK NEDEN — `excel` paketi GEÇERLİ dosyayı reddediyordu (dosya hiç açılmıyor)
+- OOXML'de 0–163 arası sayı biçimi kimlikleri yerleşiktir, 164+ dosyaya özeldir.
+  LibreOffice / Google E-Tablolar / kimi Java kütüphaneleri yerleşik bir kimliği
+  `<numFmt numFmtId="26" formatCode="…"/>` diye **yeniden tanımlar**; Excel kabul
+  eder, `excel` 4.0.6 (`parse.dart`) istisna atar → `XlsxEditor.parse` düşer,
+  ekran "Açılamadı" der. Aynı yolda iki tuzak daha var: **aynı kimliğin ikinci
+  tanımı** (`numFmtId N already exists`) ve **`formatCode` niteliği olmayan**
+  `<numFmt>` (paket `!` ile okuyor → null hatası).
+- **Çözüm `services/xlsx_compat.dart`:** styles.xml'de o kimlik 164+ boş bir
+  kimliğe **taşınır** (silinmez — biçim kaybolmaz) ve ona işaret eden bütün
+  `cellXfs`/`cellStyleXfs` `<xf>` kayıtları güncellenir. `<dxf>` içindeki
+  `<numFmt>`e DOKUNULMAZ (orası tanım değil, yerel etiket).
+- Onarım yalnız **pakete verilen kopyaya** uygulanır; `XlsxReader` özgün
+  baytları okumaya devam eder, kullanıcının dosyası değişmez. Yol try/catch
+  ardına konuldu: sağlam dosyada hiç çalışmaz (zip'i ikinci kez açmak bedava
+  değil). Aynı onarım `FileService._decodeSpreadsheet`te de var.
+
+### B) "Gerçek Excel gibi" iki eksik davranış
+- **Komşuya taşma (`core/sheet_overflow.dart`):** sığmayan metin, komşu hücreler
+  BOŞSA üstlerine sarkar. Yerleşim değişmez — `SheetCell` içerikte `OverflowBox`
+  kullanır, kutu kendi genişliğinde kalır (dokunma alanı da). Sarkmanın
+  altındaki hücre kendi **ızgara çizgisini çizmez** (`Row` çocukları sırayla
+  boyandığı için o çizgi harfin ortasından geçerdi; Excel de gizler).
+  Kaydırılan / birleşik / **sayı** hücreleri taşmaz — Excel sığmayan sayıyı
+  `###` yapar, taşırmaz. Sağdan sola sayfada liste ters çevrilip ekran sırasına
+  göre çözülür.
+- **Otomatik satır yüksekliği:** dosyada `ht` OLMAYAN satırlar, metin kaydırma
+  açık ya da içinde satır sonu olan içeriğe göre yükselir (`XlsxSheet.
+  autoRowHeights`, ekran doldurur, dosyaya yazılmaz). Üreticilerin çoğu `ht`
+  yazmaz; yüksekliği açan Excel'in kendisidir — bizde dört satırlık hücre tek
+  satıra kırpılıyordu.
+- **Ölçüm tek kaynaktan:** `SheetCell.metricsStyle` + `SheetTextMeasure`
+  (TextPainter, önbellekli). Ölçüm ile çizim aynı stili kullanmazsa hesap
+  tutmaz. Karakter sayısından tahmin REDDEDİLDİ: "İĞÜŞÇÖ" ile "illlli" aynı
+  karakter sayısında bambaşka genişlikte.
+- Sınır: en çok 4000 hücre ölçülür (200 bin hücrelik dosyada açılış saniyelere
+  çıkardı); kalan satırlar varsayılan yükseklikte kalır.
+
+### C) "Devam et 0'dan başlıyor"
+İş gövdesi (`resize_actions._run`) her koşuda 0'dan sayıyor ve `total`ı KALAN
+dosya sayısına düşürüyordu → devam eden iş "0/6" görünüyordu. Dahası bir sonraki
+"Devam et" `job.done`u okuduğu için YANLIŞ yerden (baştan) sürerdi. Artık
+ilerleme **mutlak** (`offset + done` / `totalFiles`), `JobQueue.resume` eski
+işin sayaçlarını ve **çıktı listesini** yeni işe kopyalıyor (`enqueue` aynı
+kimlikli kaydı listeden düşürüyor, kopyalamazsak üretilmiş dosyaların kaydı
+kayboluyordu).
+
+### D) Tahmini boyut (`models/media_resize.dart`)
+- Video: `piksel × kare × kalite bit/piksel` — katsayılar **kodlayıcının
+  kendi** tablosundan (`FfmpegVideo._bitrateFor` ile aynı sayılar), kodlayıcıyla
+  aynı bit hızı sınırları, ses eklenir.
+- Fotoğraf: piksel oranı × JPEG kalite eğrisi (`jpegBytesPerPixel`); kayıpsız
+  çıktı piksel sayısından. Kaynak ölçüsü artık **yalnız dosya başlığı**
+  okunarak alınıyor (`ImageResizer.probeSize`, ilk 256 KB) — 12 MP JPEG'i
+  tümüyle çözmek sayfayı bekletirdi.
+- Ölçülmeyen dosyalar (sayfa hız için ilk 5'ini ölçüyor) aynı türün **ortalama
+  oranıyla** toplama katılır. Tahmin kaynağın boyutunu aşmaz ve "≈" ile yazılır.
+
+### E) PDF form doldurma (`services/pdf/pdf_form.dart` + `screens/pdf_form_screen.dart`)
+- Form PDF'inde yazı içerik akışında DEĞİL, `/Widget` alanlarında yaşar; üstüne
+  metin basmak formu doldurmuş saymaz. `PdfFormFiller` alanın kendi değerini
+  değiştirir (metin/onay/radyo/açılır liste), isteğe bağlı **düzleştirir**.
+- **TUZAK (gerçek hata) — Türkçe:** PDF'in yerleşik yazı tipleri (Helvetica
+  ailesi) `İ Ğ Ş ğ ı ş` tanımıyor; Syncfusion alanın görünümünü çizerken
+  `Invalid argument (The character is not supported by the font.)` atıyor —
+  "Ayşe" yazan kullanıcı formu HİÇ kaydedemezdi. Değerinde ya da **açılır liste
+  seçeneğinde** böyle harf geçen alanların yazı tipi gömülü Carlito'yla
+  değiştiriliyor (`fontData` ekrandan geçer, izolata `rootBundle` girmiyor).
+  Gömülü font yoksa sessiz kalınmaz, açık `PdfFormException` verilir.
+- Arayüz **liste**, sayfa üstünde kutucuk değil: alanlar telefonda 8-10 punto,
+  yakınlaştırıp minik kutulara yazmak Acrobat'ın mobilde en çok şikâyet edilen
+  yanı. Alanlar sayfa sırasına göre gruplanır; salt-okunur alan kilit
+  simgesiyle görünür (dokunup bir şey olmaması "bozuk" sanılıyor).
+- Keşif: PDF açılırken dosyada `/AcroForm` **akış hâlinde** aranıyor (50 MB'lık
+  belgeyi belleğe almadan) ve bulunursa "Bu belge doldurulabilir bir form ·
+  Formu doldur" şeridi çıkıyor. Yanlış pozitifte ekran zaten "form alanı yok"
+  diyor ve ne yapılabileceğini yazıyor.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` 0 hata/uyarı,
+**1478 test yeşil** (+39: `xlsx_compat_test`, `sheet_overflow_test`,
+`spreadsheet_fidelity_test`, `pdf_form_test`, `pdf_form_screen_test`, iş
+kuyruğu devam sayacı, tahmini boyut).
+Cihazda bakılacaklar: (a) hata veren form dosyası artık açılıyor mu,
+(b) uzun başlık komşu boş hücreye sarkıyor mu ve çok satırlı hücrede satır
+yükseliyor mu, (c) yarıda kalan boyut düşürmede "Devam et" 4/10'dan mı
+sürüyor, (d) ayar sayfasındaki tahmin gerçek sonuca yakın mı,
+(e) form PDF'inde ⋮ → Formu doldur (Türkçe harfli alanla) kaydediyor mu.
