@@ -517,6 +517,43 @@ void main() {
       expect(queue.find('r1')?.recipe?.kind, 'resize');
     });
 
+    test('devam: sayaç 0\'dan DEĞİL, kaldığı yerden başlar', () async {
+      final queue = JobQueue.instance..clearFinished();
+      JobRecipes.register('resize', (handle, params) async {
+        // Gerçek gövde gibi: mutlak sayarak bildirir.
+        final skip = (params['skip'] as num?)?.toInt() ?? 0;
+        handle.report(done: skip, total: 10);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        handle.report(done: 10, total: 10);
+      });
+      queue.restore([
+        FmJob.fromJson({
+          'id': 'r3',
+          'title': 'Boyut düşürme',
+          'done': 4,
+          'total': 10,
+          'status': 'running',
+          'outputs': ['/out/1.mp4', '/out/2.mp4'],
+          'recipe': {
+            'kind': 'resize',
+            'params': {'paths': [for (var i = 0; i < 10; i++) '/v$i.mp4']},
+          },
+        })!
+      ]);
+
+      final resumed = queue.resume('r3')!;
+      // Kuyruğa girer girmez (daha iş başlamadan) sayaç doğru: kullanıcı
+      // "0/10" görmemeli.
+      expect(resumed.done, 4);
+      expect(resumed.total, 10);
+      expect(resumed.progress, closeTo(0.4, 0.001));
+      // Daha önce üretilmiş dosyaların kaydı da korunur.
+      expect(resumed.outputs, ['/out/1.mp4', '/out/2.mp4']);
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(queue.find('r3')?.done, 10);
+    });
+
     test('bilinmeyen tarifte resume null döner (sessiz kalmaz)', () {
       final queue = JobQueue.instance..clearFinished();
       queue.restore([

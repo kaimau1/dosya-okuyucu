@@ -14,6 +14,7 @@ import 'legacy_text.dart';
 import 'office_reader.dart';
 import 'text_decode.dart';
 import 'xls_legacy.dart';
+import 'xlsx_compat.dart';
 
 /// Dosya seçme, tür tespiti ve içerik yükleme.
 class FileService {
@@ -302,7 +303,17 @@ class FileService {
     final table = <List<String>>[];
     final buffer = StringBuffer();
     try {
-      final excel = xls.Excel.decodeBytes(bytes);
+      xls.Excel excel;
+      try {
+        excel = xls.Excel.decodeBytes(bytes);
+      } catch (_) {
+        // Paketin reddettiği (ama Excel'in açtığı) dosyalar onarılmış kopyayla
+        // yeniden denenir — bkz. `XlsxCompat`. Ekranda "okunamadı" yazmak
+        // yerine önizleme/CSV/AI yolları da bu dosyalarda çalışsın.
+        final repaired = XlsxCompat.repair(bytes);
+        if (repaired == null) rethrow;
+        excel = xls.Excel.decodeBytes(repaired);
+      }
       for (final entry in excel.tables.entries) {
         buffer.writeln('# Sayfa: ${entry.key}');
         for (final row in entry.value.rows) {

@@ -249,6 +249,44 @@ class MediaResizeOptions {
   }
 }
 
+/// JPEG'in bir piksele ayırdığı **kabaca** bayt sayısı, kaliteye göre.
+///
+/// Fotoğraf gibi (gürültülü, geniş tonlu) içerikte ölçülen tipik değerler.
+/// Ara değerler doğrusal geçişle bulunur. Tahminin tamamı bu tabloya dayanır;
+/// arayüz de sonucu "≈" ile yazar — kesin boyut ancak kodlandıktan sonra
+/// bilinir.
+double jpegBytesPerPixel(int quality) {
+  const table = <int, double>{
+    40: 0.08, 50: 0.10, 60: 0.13, 70: 0.16, 75: 0.19,
+    80: 0.22, 85: 0.28, 90: 0.38, 95: 0.55, 100: 1.00,
+  };
+  final q = quality.clamp(40, 100);
+  final keys = table.keys.toList()..sort();
+  if (q <= keys.first) return table[keys.first]!;
+  for (var i = 1; i < keys.length; i++) {
+    if (q > keys[i]) continue;
+    final lo = keys[i - 1], hi = keys[i];
+    final t = (q - lo) / (hi - lo);
+    return table[lo]! + (table[hi]! - table[lo]!) * t;
+  }
+  return table[keys.last]!;
+}
+
+/// Video sıkıştırma sertliğinin **piksel başına bit** karşılığı.
+///
+/// `FfmpegVideo` donanım kodlayıcıya bit hızını bu katsayıyla veriyor
+/// (CRF 20 → 0.11, CRF 32 → 0.04); tahmin de aynı sayıları kullanmalı, yoksa
+/// "tahmini boyut" ile çıkan dosya sistematik olarak ayrışır.
+double videoBitsPerPixel(VideoQualityChoice quality) => switch (quality) {
+      VideoQualityChoice.high => 0.11,
+      VideoQualityChoice.medium => 0.08,
+      VideoQualityChoice.low => 0.055,
+      VideoQualityChoice.veryLow => 0.04,
+    };
+
+/// Sesin kapladığı yer (bit/sn) — ses atılmadıysa tahmine eklenir.
+const int _audioBitrate = 128000;
+
 /// Seçilen bir medya dosyasının **şu anki** özellikleri.
 ///
 /// KÖK NEDEN (kullanıcı 2026-08-07: *"video boyut düşürmede şu anki durum
@@ -305,6 +343,86 @@ class MediaSourceInfo {
     return wanted > source.floor() ? source.floor() : wanted;
   }
 
+  /// Dosya uzantısı (küçük harf, noktasız). Çıktı biçimi "Aynı kalsın"
+  /// seçildiğinde tahmin bunu bilmek zorunda: PNG kayıpsızdır, JPEG değil.
+  String get extension {
+    final dot = name.lastIndexOf('.');
+    return dot <= 0 ? '' : name.substring(dot + 1).toLowerCase();
+  }
+
+  /// Bu ayarlarla çıkacak **tahmini** boyut (bayt); kestirilemiyorsa null.
+  ///
+  /// KÖK NEDEN (kullanıcı 2026-08-07: *"boyut düşürmede tahmini boyut
+  /// yazmalı"*): sayfa "480p / Küçük / 30 fps" gibi seçenekler sunuyor ama
+  /// bunların 200 MB'lık bir videoyu 20 MB'a mı 120 MB'a mı indireceğini
+  /// söylemiyordu. Kullanıcı ancak dakikalarca süren kodlamadan SONRA
+  /// öğreniyordu — yani seçimi bilerek yapamıyordu.
+  ///
+  /// Tahmin **kaynağın kendi boyutunu aşmaz**: iş zaten büyüyen çıktıyı siler
+  /// ("kazanç yok" der), daha büyük bir sayı yazmak yanıltıcı olurdu.
+  int? estimatedBytes(MediaResizeOptions options) {
+    final estimate = isVideo ? _videoEstimate(options) : _imageEstimate(options);
+    if (estimate == null || estimate <= 0) return null;
+    if (sizeBytes > 0 && estimate > sizeBytes) return sizeBytes;
+    return estimate;
+  }
+
+  int? _videoEstimate(MediaResizeOptions options) {
+    final target = targetFor(options);
+    if (target == null || durationMs <= 0) return null;
+    final fpsOut = targetFps(options) ?? 30;
+    if (fpsOut <= 0) return null;
+    final seconds = durationMs / 1000;
+    final raw = target.width * target.height * fpsOut *
+        videoBitsPerPixel(options.videoQuality);
+    // Kodlayıcıyla aynı sınırlar (300 kbit/s .. 20 Mbit/s).
+    final bitrate = raw.clamp(300000.0, 20000000.0);
+    final audio = options.removeAudio ? 0.0 : _audioBitrate.toDouble();
+    return ((bitrate + audio) * seconds / 8).round();
+  }
+
+  int? _imageEstimate(MediaResizeOptions options) {
+    // Ölçü oranı: piksel sayısı ne kadar azalıyor?
+    final double? ratio;
+    if (hasSize) {
+      final t = targetFor(options);
+      if (t == null) return null;
+      ratio = (t.width * t.height) / (width * height);
+    } else if (options.resolution == ResolutionChoice.keep) {
+      ratio = 1;
+    } else if (options.resolution == ResolutionChoice.percent) {
+      final s = options.percent.clamp(10, 100) / 100;
+      ratio = s * s;
+    } else {
+      // Kaynağın ölçüsü bilinmeden "480p'ye inince ne olur" denemez.
+      return null;
+    }
+
+    final outExt = options.imageFormat.extension ?? extension;
+    const lossless = {'png', 'bmp', 'tga', 'tif', 'tiff'};
+    if (lossless.contains(outExt)) {
+      // Kayıpsız çıktıda dosya boyutu piksel sayısına bağlı; kaynağın kendi
+      // sıkıştırması hiçbir şey söylemez.
+      if (!hasSize) return null;
+      final pixels = width * height * ratio;
+      return (pixels * (outExt == 'png' ? 2.2 : 3.0)).round();
+    }
+
+    final sourceLossless = lossless.contains(extension);
+    if (sourceLossless) {
+      if (!hasSize) return null;
+      final pixels = width * height * ratio;
+      return (pixels * jpegBytesPerPixel(options.imageQuality)).round();
+    }
+    if (sizeBytes <= 0) return null;
+    // JPEG → JPEG: kaynağın boyutu ~85 kalitede sayılır, seçilen kaliteye göre
+    // ölçeklenir. Kaynağın kendi sıkıştırmasını bilmediğimiz için en sağlam
+    // dayanak yine kendi boyutu.
+    final factor = jpegBytesPerPixel(options.imageQuality) /
+        jpegBytesPerPixel(85);
+    return (sizeBytes * ratio * factor).round();
+  }
+
   /// Ayarlar bu dosyada **hiçbir şeyi küçültmüyor** mu? (Çözünürlük aynı
   /// kalıyor ve kare sayısı düşmüyor.) Görüntülerde kalite/format da
   /// değiştiği için yalnız videoda anlamlı.
@@ -317,6 +435,44 @@ class MediaSourceInfo {
     final sameFps = fps == null || tFps == null || tFps >= fps!.floor();
     return sameSize && sameFps;
   }
+}
+
+/// Seçimin **tamamı** için tahmini boyut (önce → sonra).
+///
+/// Ölçülemeyen dosyalar (ayar sayfası hız için yalnız ilk birkaçını ölçüyor)
+/// aynı türden ölçülebilenlerin **ortalama küçülme oranıyla** hesaba katılır:
+/// 200 fotoğraflık bir seçimde yalnız 5'ini yazmak "toplam ne kazanacağım"
+/// sorusunu cevapsız bırakırdı. Hiçbir dosya için tahmin üretilemiyorsa null.
+({int before, int after})? estimateResizeTotal(
+  List<MediaSourceInfo> sources,
+  MediaResizeOptions options,
+) {
+  if (sources.isEmpty) return null;
+  var before = 0;
+  var after = 0.0;
+  final ratios = <bool, List<double>>{true: [], false: []};
+  final unknown = <MediaSourceInfo>[];
+
+  for (final s in sources) {
+    before += s.sizeBytes;
+    final est = s.estimatedBytes(options);
+    if (est == null || s.sizeBytes <= 0) {
+      unknown.add(s);
+      continue;
+    }
+    after += est;
+    ratios[s.isVideo]!.add(est / s.sizeBytes);
+  }
+  double? average(List<double> list) => list.isEmpty
+      ? null
+      : list.reduce((a, b) => a + b) / list.length;
+  final all = [...ratios[true]!, ...ratios[false]!];
+  if (all.isEmpty) return null;
+  for (final s in unknown) {
+    final ratio = average(ratios[s.isVideo]!) ?? average(all)!;
+    after += s.sizeBytes * ratio;
+  }
+  return (before: before, after: after.round());
 }
 
 /// Kaynak ölçüden hedef ölçüyü hesaplar (en/boy oranı korunur, çift sayıya

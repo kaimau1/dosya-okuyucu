@@ -68,6 +68,16 @@ göre sıralı**:
       etkilenmiyor); sıralama satırları BÜTÜN olarak taşıyor.
 - [x] ~~**Sayfa ekle / yeniden adlandır / sil**~~ → **YAPILDI 2026-08-04:**
       sekmeye uzun basış + "+" düğmesi.
+- [x] ~~**Metin komşu hücreye taşmıyor, satır içeriğe göre yükselmiyor**~~ →
+      **YAPILDI 2026-08-07** (kullanıcı: "excelde farklar var bizle gerçek
+      excelde"): `core/sheet_overflow.dart` + `SheetTextMeasure`. Sığmayan
+      metin boş komşunun üstüne sarkıyor, `ht` taşımayan satırlar kaydırılan/
+      çok satırlı içeriğe göre yükseliyor. **Cihaz doğrulaması bekliyor:**
+      başlık satırı kırpılmadan okunuyor mu, çok satırlı hücreler Excel'deki
+      kadar yüksek mi, büyük dosyada kaydırma akıcı mı.
+- [ ] **Sayı sığmayınca `###` gösterilmiyor** (bilinçli): Excel sığmayan sayıyı
+      `###` yapar, biz kırpıyoruz. Ölçümümüz Excel'inkiyle birebir aynı
+      olmadığı için yanlış yerde `###` göstermektense kırpmak seçildi.
 - [ ] **Sayfa TAŞIMA yok (bilinçli).** `excel 4.0.6` sayfa sırasını kendi
       haritasının ekleme sırasından yazıyor ve sırayı değiştirecek API
       sunmuyor; zorlamak her sayfayı kopyala-sil ile yeniden kurmak demek.
@@ -340,8 +350,16 @@ göre sıralı**:
       **4 fazın tamamı bitti.**
 
 ## Sonra yapılacak
-- [ ] **PDF form doldurma (en son)** — Syncfusion `PdfLoadedForm` alanları oku (`doc.form.fields`),
-      ekranda düzenlenebilir overlay, doldur → save. En belirsiz UX; en son.
+- [x] ~~**PDF form doldurma (en son)**~~ → **YAPILDI 2026-08-07:**
+      `PdfFormFiller` + `PdfFormScreen` (⋮ → Formu doldur). Overlay yerine
+      **liste** seçildi: alanlar telefonda 8-10 punto, sayfayı yakınlaştırıp
+      minik kutulara yazmak Acrobat'ın mobilde en çok şikâyet edilen yanı.
+      Düzleştirme (kilitleme) seçenekli ve varsayılan kapalı.
+      **Cihaz doğrulaması bekliyor (kullanıcı):** gerçek bir form PDF'i aç →
+      (a) alanlar sayfa sırasına göre listeleniyor mu, (b) Türkçe harfli değer
+      (Ayşe, İstanbul) kaydediliyor mu, (c) kaydedilen dosya Acrobat/tarayıcıda
+      dolu görünüyor mu, (d) "Doldurduktan sonra kilitle" değeri sayfaya
+      işliyor mu, (e) form olmayan PDF'te açıklama metni çıkıyor mu.
 - [ ] Yol haritası #2: Firebase config + gerçek senkron (kullanıcı `flutterfire configure`)
 
 ## Bilinen eksik-risk

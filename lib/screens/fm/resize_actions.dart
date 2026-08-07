@@ -116,19 +116,24 @@ Future<List<MediaSourceInfo>> _describeSources(List<FsEntry> media) async {
   for (final entry in ordered.take(_probeLimit)) {
     final isVideo = entry.category == FmCategory.video;
     VideoProbe? probe;
+    ({int width, int height})? photo;
     if (isVideo) {
       try {
         probe = await FfmpegVideo.probe(entry.path);
       } catch (_) {
         // ffprobe yoksa/düşerse ölçüsüz devam: boyut yine gösterilir.
       }
+    } else {
+      // Fotoğrafın ölçüsü de okunur (yalnız başlık): tahmini boyut ancak
+      // piksel sayısı bilinerek hesaplanabiliyor.
+      photo = await ImageResizer.probeSize(entry.path);
     }
     out.add(MediaSourceInfo(
       name: entry.name,
       sizeBytes: entry.sizeBytes,
       isVideo: isVideo,
-      width: probe?.width ?? 0,
-      height: probe?.height ?? 0,
+      width: probe?.width ?? photo?.width ?? 0,
+      height: probe?.height ?? photo?.height ?? 0,
       fps: probe?.fps,
       durationMs: probe?.durationMs ?? 0,
     ));
@@ -157,24 +162,40 @@ void registerResizeJobRunner() {
     final options = MediaResizeOptions.fromJson(params['options']);
     // Biten dosyalar atlanır: on videonun dördü kodlanmışsa beşinciden devam
     // edilir, dördü baştan kodlanmaz.
-    final skip = (params['skip'] as num?)?.toInt() ?? 0;
+    final skip = ((params['skip'] as num?)?.toInt() ?? 0).clamp(0, paths.length);
     final media = <FsEntry>[];
-    for (final path in paths.skip(skip < 0 ? 0 : skip)) {
+    for (final path in paths.skip(skip)) {
       final entry = FsEntry.ofPath(path);
       // Aradan silinmiş/taşınmış dosya sessizce atlanır: iş "bulunamadı"
       // diye tamamen düşmemeli, kalanlar yine küçültülmeli.
       if (entry != null) media.add(entry);
     }
-    if (media.isEmpty) return;
-    await _run(media, options, handle);
+    if (media.isEmpty) {
+      // Kalan dosya kalmadıysa iş BİTMİŞTİR; sessiz çıkmak kartı "0/0" ile
+      // bırakırdı. Sayaç tamamlanmış olarak yazılır.
+      handle.report(done: paths.length, total: paths.length);
+      return;
+    }
+    // İlerleme **mutlak** bildirilir: dördü bitmiş on dosyalık iş 4/10'dan
+    // devam eder. Eskiden `_run` her zaman 0'dan sayıyor ve `total`ı kalan
+    // dosya sayısına düşürüyordu → kullanıcı "devam et 0'dan başlıyor" diyordu
+    // (2026-08-07). Dahası bir sonraki "Devam et" `job.done`u okuduğu için
+    // yanlış yerden (baştan) devam ederdi.
+    await _run(media, options, handle, offset: skip, totalFiles: paths.length);
   });
 }
 
+/// [offset] daha önceki bir koşuda BİTMİŞ dosya sayısı ("Devam et"), [totalFiles]
+/// işin başındaki toplam. İkisi de ilerlemenin mutlak bildirilmesi için:
+/// kullanıcı 10 dosyalık işi 4'te bıraktıysa çubuk 4/10'dan sürmelidir.
 Future<void> _run(
   List<FsEntry> media,
   MediaResizeOptions options,
-  JobHandle handle,
-) async {
+  JobHandle handle, {
+  int offset = 0,
+  int totalFiles = 0,
+}) async {
+  final total = totalFiles > 0 ? totalFiles : offset + media.length;
   var done = 0;
   var savedBytes = 0;
   var failed = 0;
@@ -201,8 +222,9 @@ Future<void> _run(
     for (final entry in media) {
       handle.throwIfCancelled();
       handle.report(
-        done: done,
-        detail: '${done + 1}/${media.length} · ${entry.name}',
+        done: offset + done,
+        total: total,
+        detail: '${offset + done + 1}/$total · ${entry.name}',
       );
       try {
         final result = entry.category == FmCategory.video
@@ -214,7 +236,7 @@ Future<void> _run(
                 // görünsün (dosya adı BAŞLIKTA zaten var, tek dosyada
                 // tekrarlamak satırı boşuna uzatırdı).
                 progressPrefix:
-                    media.length > 1 ? '${done + 1}/${media.length}' : null,
+                    total > 1 ? '${offset + done + 1}/$total' : null,
               )
             : await ImageResizer.run(entry.path, options);
       // Çıktı KABUL EDİLEBİLİR mi? İki koşul birlikte aranır:
@@ -277,7 +299,7 @@ Future<void> _run(
       done++;
       // Toplam ilerleme dosya sayısına göre; tek video içinde yüzde bilgisi
       // ayrıntı satırında geliyor.
-      handle.report(done: done, total: media.length);
+      handle.report(done: offset + done, total: total);
     }
   } finally {
     if (replaced.isNotEmpty) {
@@ -319,7 +341,7 @@ Future<void> _run(
       // İptalde sayılar yarımdır; "kaç dosyada kaldı" bilgisi olmadan
       // kullanıcı kalanların işlenip işlenmediğini bilemez.
       if (handle.cancelled)
-        str.t('ra.stopped_at', {'n': done, 'total': media.length}),
+        str.t('ra.stopped_at', {'n': offset + done, 'total': total}),
     ];
     handle.report(detail: parts.join(' · '));
   }

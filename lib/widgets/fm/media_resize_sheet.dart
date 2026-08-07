@@ -382,6 +382,9 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     // Ayarlar bu videoda hiçbir şeyi küçültmüyorsa SÖYLENİR: kullanıcı
     // dakikalarca bekleyip "küçülmedi" yazısını görmesin.
     final noChange = first.noVisualChangeWith(_options);
+    // Seçimin TAMAMI için tahmin (kullanıcı isteği 2026-08-07: "boyut
+    // düşürmede tahmini boyut yazmalı").
+    final estimate = estimateResizeTotal(widget.sources, _options);
     return Card(
       margin: const EdgeInsets.only(bottom: Gap.md),
       child: Padding(
@@ -418,8 +421,12 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                   if (fps != null) context.t('rs.fps_value', {'n': fps}),
                   if (_options.removeAudio && first.isVideo)
                     context.t('rs.no_audio'),
+                  // Bu dosyanın tahmini boyutu — "sonra" satırının doğal yeri.
+                  if (first.estimatedBytes(_options) case final b?)
+                    '≈ ${FsPaths.humanSize(b)}',
                 ],
               ),
+            if (estimate != null) _estimateRow(context, estimate),
             if (widget.sources.length > 1)
               Padding(
                 padding: const EdgeInsets.only(top: Gap.xs),
@@ -452,6 +459,63 @@ class _ResizeSheetState extends State<_ResizeSheet> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// **Tahmini boyut** satırı: `48 MB → ≈ 12 MB · ≈ %75 kazanç`.
+  ///
+  /// Sayı "≈" ile yazılır ve altında tek satırlık uyarı durur: gerçek boyut
+  /// ancak kodlama bitince bilinir (içeriğe göre ±%30 sapabilir). Kesinmiş
+  /// gibi yazmak, tutmadığında güveni bitirirdi.
+  Widget _estimateRow(
+      BuildContext context, ({int before, int after}) estimate) {
+    final theme = Theme.of(context);
+    final saved = estimate.before - estimate.after;
+    final percent = estimate.before > 0
+        ? (saved * 100 / estimate.before).round()
+        : 0;
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.compress,
+                  size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: Gap.xs),
+              Expanded(
+                child: Text(
+                  context.t('rs.estimate', {
+                    'before': FsPaths.humanSize(estimate.before),
+                    'after': FsPaths.humanSize(estimate.after),
+                  }),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              if (percent > 0)
+                Text(
+                  context.t('rs.estimate_gain', {'n': percent}),
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary),
+                ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              context.t('rs.estimate_note'),
+              style: TextStyle(fontSize: 11, color: Paper.faint(context)),
+            ),
+          ),
+        ],
       ),
     );
   }

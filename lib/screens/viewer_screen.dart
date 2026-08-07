@@ -27,6 +27,7 @@ import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
 import '../services/pdf/page_arrival.dart';
+import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_edit_flow.dart';
@@ -46,6 +47,7 @@ import '../widgets/tts_voice_sheet.dart';
 import 'chat_screen.dart';
 import 'pdf_ai_edit_screen.dart';
 import 'reader_screen.dart';
+import 'pdf_form_screen.dart';
 import 'pdf_sign_screen.dart';
 import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
@@ -271,7 +273,27 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (doc.kind == DocKind.pdf) {
       _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
+      unawaited(_offerFormFilling());
     }
+  }
+
+  /// Belge doldurulabilir bir formsa kullanıcıya **söylenir**.
+  ///
+  /// Menüdeki "Formu doldur" tek başına keşfedilmiyor: kullanıcı bir form
+  /// PDF'ini açtığında yapabileceği ilk şey onu doldurmaktır ve bunu ⋮
+  /// menüsünde aramaz. Bakış ucuz (dosyada `/AcroForm` anahtarı aranır),
+  /// yanlış pozitifte ekran zaten "form alanı yok" diyor.
+  Future<void> _offerFormFilling() async {
+    if (!await PdfFormFiller.looksLikeForm(widget.doc.path)) return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(context.t('vw.form_detected')),
+      duration: const Duration(seconds: 6),
+      action: SnackBarAction(
+        label: context.t('vw.fill_form'),
+        onPressed: _fillPdfForm,
+      ),
+    ));
   }
 
   /// Arayıcılar (pdfrx + OCR) eşleşme bulup ilerledikçe sayaç/konum etiketini
@@ -1069,6 +1091,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'sign':
                 _signPdf();
                 break;
+              case 'form':
+                _fillPdfForm();
+                break;
               case 'aiedit':
                 _aiEditPdf();
                 break;
@@ -1133,6 +1158,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
               PopupMenuItem(
                   value: 'aiedit', child: Text(context.t('vw.ai_edit'))),
               PopupMenuItem(value: 'sign', child: Text(context.t('vw.sign'))),
+              PopupMenuItem(
+                  value: 'form', child: Text(context.t('vw.fill_form'))),
               PopupMenuItem(
                   value: 'ocr', child: Text(context.t('vw.ocr'))),
             ],
@@ -1637,6 +1664,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
         ),
       ),
     );
+  }
+
+  /// Form doldurma ekranı — belgenin kendi alanları düzenlenir.
+  ///
+  /// Menüde HER PDF'te duruyor: alan olup olmadığı ancak belge çözümlenince
+  /// bilinir ve her açılışta bunu yapmak büyük dosyalarda saniyeler alırdı.
+  /// Alan yoksa ekran bunu söyleyip ne yapılabileceğini yazıyor.
+  Future<void> _fillPdfForm() async {
+    if (!await _confirmLeavePending() || !mounted) return;
+    final filled = await PdfFormScreen.open(context, widget.doc.path);
+    if (filled == true && mounted) await _reloadPdf();
   }
 
   /// İmza ekranı; imza basılırsa dosya değişmiştir → görüntüleyici tazelenir.

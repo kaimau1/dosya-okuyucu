@@ -16,6 +16,8 @@ import '../../core/excel_format.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/sheet_metrics.dart';
+import '../../core/sheet_overflow.dart';
+import '../../core/sheet_text_measure.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../services/fm/activity_log.dart';
@@ -141,6 +143,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   String _metricsKey = '';
   SheetAxisMetrics _colMetrics = SheetAxisMetrics.empty;
   SheetAxisMetrics _rowMetrics = SheetAxisMetrics.empty;
+
+  /// Metin ölçer (taşma + otomatik satır yüksekliği) — bkz.
+  /// `core/sheet_text_measure.dart`.
+  final _measure = SheetTextMeasure();
 
   /// Satır/sütun ekle-sil ve hücre yazma ölçüleri değiştirebilir.
   int _gridVersion = 0;
@@ -352,6 +358,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         '${_rowCount(sheet)}|${_colCount(sheet)}|$_gridVersion';
     if (key == _metricsKey) return;
     _metricsKey = key;
+    _autoFitRows(sheet);
     _colMetrics = SheetAxisMetrics.build(
       from: _frozenColsFit,
       to: _colCount(sheet),
@@ -364,6 +371,116 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       sizeOf: (r) => sheet.rowHeight(r) * _zoom,
       hidden: sheet.isRowHidden,
     );
+  }
+
+  /// Dosyada **açık yüksekliği olmayan** satırları içeriğe göre yükseltir —
+  /// Excel'in "otomatik satır yüksekliği"nin karşılığı.
+  ///
+  /// Niye gerekli: pek çok üretici (LibreOffice, Google E-Tablolar, kütüphane
+  /// çıktıları) `<row ht="…">` yazmaz; yüksekliği açan Excel'in kendisidir.
+  /// Biz varsayılan 15 puntoda bırakınca dört satırlık bir hücre tek satıra
+  /// kırpılıyordu (kullanıcı ekran görüntüsü 2026-08-07).
+  ///
+  /// Sınırlar bilinçli:
+  /// * Yalnız **metin kaydırma açık** ya da içinde satır sonu olan hücreler.
+  /// * **Birleşik hücreler hariç** — Excel de birleşik hücre için otomatik
+  ///   yükseklik hesaplamaz.
+  /// * En çok [_autoFitCellLimit] hücre ölçülür: 200 bin hücrelik bir dosyada
+  ///   her hücreyi ölçmek açılışı dakikalara çıkarırdı. Kalan satırlar
+  ///   varsayılan yükseklikte kalır (eskisi gibi), veri kaybı olmaz.
+  static const int _autoFitCellLimit = 4000;
+
+  void _autoFitRows(XlsxSheet sheet) {
+    sheet.autoRowHeights.clear();
+    final byRow = <int, List<double>>{};
+    var measured = 0;
+    for (final entry in sheet.layout.cells.entries) {
+      if (measured >= _autoFitCellLimit) break;
+      final r = rowOfKey(entry.key);
+      final c = colOfKey(entry.key);
+      // Dosya bu satırın yüksekliğini SÖYLEDİYSE ona dokunulmaz: kullanıcının
+      // (ya da Excel'in) verdiği ölçü bizim tahminimizden önce gelir.
+      if (sheet.layout.rowHeights.containsKey(r)) continue;
+      if (sheet.isRowHidden(r) || sheet.isColHidden(c)) continue;
+      if (sheet.mergeAt(r, c) != null) continue;
+      // ÖNCE ucuz eleme: kaydırma bayrağı (önbellekli stil) ve ham metindeki
+      // satır sonu. Biçimlendirilmiş metni (`viewAt`) üretmek 200 bin hücrelik
+      // bir dosyada her ölçü tazelemesinde sayfayı bekletirdi.
+      final style = sheet.styleAt(r, c);
+      final raw = sheet.rawAt(r, c);
+      if (raw.isEmpty) continue;
+      if (!(style?.wrap ?? false) && !raw.contains('\n')) continue;
+      final text = _autoFitText(sheet, r, c);
+      if (text.isEmpty) continue;
+      final width = sheet.colWidth(c) -
+          SheetCell.horizontalPadding(style);
+      if (width <= 8) continue;
+      measured++;
+      byRow
+          .putIfAbsent(r, () => <double>[])
+          .add(_measure.heightOf(
+            text,
+            SheetCell.metricsStyle(style, numeric: false),
+            width,
+          ));
+    }
+    byRow.forEach((r, heights) {
+      final pt = autoRowHeightPt(
+        contentHeights: heights,
+        defaultPt: sheet.layout.defaultRowHeightPt,
+      );
+      if (pt != null) sheet.autoRowHeights[r] = pt;
+    });
+  }
+
+  /// Otomatik yükseklikte ölçülecek metin. Formül hücrelerinde motoru
+  /// çalıştırmak yerine Excel'in dosyaya yazdığı SONUÇ kullanılır: açılışta
+  /// bütün sayfanın formüllerini hesaplatmak (yalnız yükseklik için) pahalı.
+  String _autoFitText(XlsxSheet sheet, int r, int c) {
+    final raw = sheet.rawAt(r, c);
+    if (raw.startsWith('=')) return sheet.cachedResultAt(r, c) ?? '';
+    if (raw.isEmpty) return '';
+    return sheet.viewAt(r, c, raw).text;
+  }
+
+  /// Satırın **taşma planı** — hangi hücre komşusunun üstüne sarkıyor.
+  /// Görünen sütunlar için her karede kurulur; ölçüm önbelleklidir.
+  SheetSpillPlan _spillPlan(
+    _RenderContext ctx,
+    int r,
+    List<int> cols,
+    Map<int, XlsxCellView> views,
+  ) {
+    final sheet = ctx.sheet;
+    final rtl = sheet.rightToLeft;
+    final cells = <SheetSpillCell>[];
+    for (final c in cols) {
+      final view = views[c] ?? const XlsxCellView('');
+      final style = sheet.styleAt(r, c);
+      final align = style?.alignFor(view.numeric, rightToLeft: rtl) ??
+          (rtl ? TextAlign.right : TextAlign.left);
+      cells.add(SheetSpillCell(
+        col: c,
+        text: view.text,
+        columnWidth: sheet.colWidth(c),
+        textWidth: view.text.isEmpty
+            ? 0
+            : _measure.widthOf(view.text,
+                    SheetCell.metricsStyle(style, numeric: view.numeric)) +
+                SheetCell.horizontalPadding(style),
+        wrap: style?.wrap ?? false,
+        merged: sheet.mergeAt(r, c) != null,
+        numeric: view.numeric,
+        align: switch (align) {
+          TextAlign.right => SheetSpillAlign.right,
+          TextAlign.center => SheetSpillAlign.center,
+          _ => SheetSpillAlign.left,
+        },
+      ));
+    }
+    // Sağdan sola sayfada ekranda soldaki sütun, dosyada sağdaki sütundur:
+    // taşma yönü ekran sırasına göre çözülür.
+    return planRowSpill(rtl ? cells.reversed.toList() : cells);
   }
 
   // ── seçim / düzenleme ─────────────────────────────────────────────────────
@@ -3099,6 +3216,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final sheet = ctx.sheet;
     final out = <Widget>[];
     final drawn = <int>{};
+    // Görünen değerler satır başına BİR KEZ çözülür: hem taşma hesabı hem
+    // hücre çizimi aynı değeri kullanır (formül hücrelerinde motor iki kez
+    // koşmasın).
+    final views = <int, XlsxCellView>{
+      for (final c in cols)
+        c: sheet.viewAt(r, c, ctx.engine.displayValue(r, c)),
+    };
+    final spill = _spillPlan(ctx, r, cols, views);
     for (final c in cols) {
       if (drawn.contains(c)) continue;
       final merge = sheet.mergeAt(r, c);
@@ -3110,7 +3235,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           drawn.add(k);
         }
       }
-      out.add(_cell(ctx, r, c, cols));
+      out.add(_cell(ctx, r, c, cols, views: views, spill: spill));
     }
     return out;
   }
@@ -3118,7 +3243,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// [cols] bu bölgede çizilen sütunlar — birleşik hücre genişliği YALNIZ bu
   /// bölgedeki sütunları toplar. (Dondurulmuş bölmede A1:C1 birleşmesi tüm
   /// genişliğiyle çizilirse sol bölme taşar; Excel de bölme sınırında keser.)
-  Widget _cell(_RenderContext ctx, int r, int c, List<int> cols) {
+  Widget _cell(
+    _RenderContext ctx,
+    int r,
+    int c,
+    List<int> cols, {
+    Map<int, XlsxCellView>? views,
+    SheetSpillPlan spill = SheetSpillPlan.empty,
+  }) {
     final sheet = ctx.sheet;
     final merge = sheet.mergeAt(r, c);
     var width = sheet.colWidth(c) * _zoom;
@@ -3147,6 +3279,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final showHandle =
         !_editing && r == range.bottom && c == range.right && !hideContent;
 
+    final spillHere = spill.spillAt(c);
     final cell = SheetCell(
       row: r,
       col: c,
@@ -3156,12 +3289,16 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       style: sheet.styleAt(r, c),
       view: hideContent
           ? const XlsxCellView('')
-          : sheet.viewAt(r, c, ctx.engine.displayValue(r, c)),
+          : (views?[c] ?? sheet.viewAt(r, c, ctx.engine.displayValue(r, c))),
       cond: hideContent ? null : ctx.condFor(r, c),
       selected: selected,
       cursor: isCursor,
       editing: isCursor && _editing,
-      showGridLines: sheet.showGridLines,
+      spillLeft: spillHere.left * _zoom,
+      spillRight: spillHere.right * _zoom,
+      // Sarkan metnin ALTINDAKİ hücre kendi ızgara çizgisini çizmez: çizerse
+      // harflerin ortasından geçen bir kıl çizgi kalırdı (Excel de gizler).
+      showGridLines: sheet.showGridLines && !spill.isCovered(c),
       controller: _cellField,
       onTap: () => _select(r, c),
       onSubmitted: () => _commitAndMoveDown(_rowCount(sheet)),
