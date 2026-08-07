@@ -403,11 +403,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       if (sheet.layout.rowHeights.containsKey(r)) continue;
       if (sheet.isRowHidden(r) || sheet.isColHidden(c)) continue;
       if (sheet.mergeAt(r, c) != null) continue;
+      // ÖNCE ucuz eleme: kaydırma bayrağı (önbellekli stil) ve ham metindeki
+      // satır sonu. Biçimlendirilmiş metni (`viewAt`) üretmek 200 bin hücrelik
+      // bir dosyada her ölçü tazelemesinde sayfayı bekletirdi.
       final style = sheet.styleAt(r, c);
+      final raw = sheet.rawAt(r, c);
+      if (raw.isEmpty) continue;
+      if (!(style?.wrap ?? false) && !raw.contains('\n')) continue;
       final text = _autoFitText(sheet, r, c);
       if (text.isEmpty) continue;
-      final wraps = (style?.wrap ?? false) || text.contains('\n');
-      if (!wraps) continue;
       final width = sheet.colWidth(c) -
           SheetCell.horizontalPadding(style);
       if (width <= 8) continue;
