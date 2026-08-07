@@ -660,6 +660,11 @@ const Map<String, (String, String, String)> _table = {
     'The image will be embedded in the PDF at full resolution, uncropped.\n\n',
     'ستُضمَّن الصورة في PDF بدقتها الكاملة وبدون اقتصاص.\n\n',
   ),
+  'vw.still_loading': (
+    'Belge hâlâ yükleniyor…',
+    'The document is still loading…',
+    'لا يزال المستند قيد التحميل…',
+  ),
   'vw.page_of': ('{n}. sayfa (toplam {total})', 'Page {n} (of {total})', 'الصفحة {n} (من {total})'),
   'vw.page_jump_failed_total': (
     '{target}. sayfaya gidilemedi; {landed}. sayfada kalındı (toplam {total}).',

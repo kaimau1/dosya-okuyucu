@@ -25,6 +25,7 @@ import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
+import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_ocr_search.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_edit_flow.dart';
@@ -2006,7 +2007,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// kutudaki sayıyı okuyup sınırlara kısıyor.
   Future<void> _askGoToPage() async {
     final count = _pageCount;
-    if (count <= 0) return;
+    // Sayfa sayısı yoksa belge daha okunuyor demektir. SESSİZCE vazgeçmek
+    // "dokunuyorum hiçbir şey olmuyor" diye görünüyordu (2026-08-07).
+    if (count <= 0) {
+      _snack(context.t('vw.still_loading'));
+      return;
+    }
     var target = _pdfPage.toDouble();
     final controller = TextEditingController(text: '$_pdfPage')
       ..selection = TextSelection(baseOffset: 0, extentOffset: '$_pdfPage'.length);
@@ -2084,30 +2090,122 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Niye tek `goToPage` yetmiyor (2026-07-26 kullanıcı bulgusu: *"ne yazarsam
   /// yazayım sadece 1 sayfa ilerliyor"*): pdfrx hedefe 200 ms'lik bir
   /// animasyonla gidiyor ve bu sırada gelen her yeniden yerleşim
-  /// (`_updateLayout` → düzen değiştiyse `_goToPage(o anki sayfa)`) atlayışı
-  /// yarıda kesip bulunulan yere geri çekebiliyor. Sayfa boyutları belge
-  /// açıldıktan sonra da yükleniyor, yani bu tam da "aç, hemen sayfaya git"
-  /// anında oluyor. Bu yüzden varış NOKTASI ölçülüyor ve tutmazsa yeniden
-  /// deneniyor.
+  /// (`_updateLayout` → düzen ya da GÖRÜNÜM BOYU değiştiyse `_goToPage(o anki
+  /// sayfa)`) atlayışı yarıda kesip bulunulan yere geri çekebiliyor.
+  ///
+  /// 2026-08-07 turunda üç ayrı "bazen çalışmıyor" nedeni daha çıktı:
+  /// 1. **Klavye:** pencere kapanınca yumuşak klavye de kapanıyor ve görünüm
+  ///    yeniden boyutlanıyor → pdfrx tam biz atlarken "o anki sayfaya" geri
+  ///    çekiyordu. Artık önce yerleşmesi bekleniyor ([_waitViewerSettled]).
+  /// 2. **Bağlantısız denetleyici:** dosyada işlem yapıldıysa (vurgu, imza,
+  ///    düzenleme…) belge yeniden okunuyor; o aralıkta `goToPage` FIRLATIYOR
+  ///    ve hata yakalanmadığı için ekranda hiçbir şey olmuyordu — kullanıcı
+  ///    için "düğme ölü". Artık hazır olması bekleniyor, olmazsa söyleniyor.
+  /// 3. **Yanlış ölçü:** varış pdfrx'in tahmini sayfa numarasıyla ölçülüyordu;
+  ///    yakınlaştırılmış/çok sütunlu görünümde doğru sayfadayken bile
+  ///    tutmuyordu (bkz. [arrivedAtPage]). Artık geometriyle ölçülüyor.
   ///
   /// Sonuç her hâlükârda kullanıcıya söyleniyor: başarılıysa nereye gidildiği,
   /// başarısızsa nerede kalındığı. Sessizce yanlış yerde bırakmak, kullanıcının
   /// "çalışmıyor" deyip nedenini bilememesi demekti.
   Future<void> _goToPdfPage(int target, int total) async {
-    int? landed;
-    for (var attempt = 0; attempt < 3; attempt++) {
-      await _pdfController.goToPage(pageNumber: target);
+    // Klavye kapanışı + düzen yerleşmesi bitmeden atlamak boşuna: pdfrx
+    // görünüm boyu değişince bulunulan sayfaya geri çekiyor.
+    final ready = await _waitViewerSettled();
+    if (!mounted) return;
+    if (!ready) {
+      _snack(context.t('vw.still_loading'));
+      return;
+    }
+    var arrived = false;
+    for (var attempt = 0; attempt < 3 && !arrived; attempt++) {
+      // İlk deneme animasyonlu (kullanıcı nereye gittiğini görsün); yeniden
+      // denerken anlık, yoksa iki animasyon birbirini kesiyor.
+      if (!await _tryGoToPage(target, animate: attempt == 0)) {
+        await Future<void>.delayed(const Duration(milliseconds: 160));
+        continue;
+      }
       await Future<void>.delayed(const Duration(milliseconds: 240));
       if (!mounted) return;
-      landed = _livePdfPage() ?? _pdfPage;
-      if (landed == target) break;
+      arrived = _arrivedAtPdfPage(target);
     }
     if (!mounted) return;
-    if (landed == target) {
+    if (arrived) {
+      // Rozet pdfrx'in tahminiyle değil, gerçekten gidilen sayfayla
+      // güncellensin — yoksa "8'e gittim ama altta 7 yazıyor" olurdu.
+      if (_pdfPage != target) setState(() => _pdfPage = target);
       _snack(context.t('vw.page_of', {'n': target, 'total': total}));
     } else {
-      _snack(context.t('vw.page_jump_failed_total',
-          {'target': target, 'landed': landed, 'total': total}));
+      _snack(context.t('vw.page_jump_failed_total', {
+        'target': target,
+        'landed': _livePdfPage() ?? _pdfPage,
+        'total': total,
+      }));
+    }
+  }
+
+  /// Tek atlayış denemesi. Denetleyici belgeye bağlı değilse (yeniden yükleme
+  /// sürüyor) pdfrx null denetimiyle FIRLATIR — bu yakalanmazsa ekranda hiçbir
+  /// şey olmuyor ve düğme bozuk sanılıyordu.
+  Future<bool> _tryGoToPage(int target, {required bool animate}) async {
+    try {
+      await _pdfController.goToPage(
+        pageNumber: target,
+        duration: animate
+            ? const Duration(milliseconds: 200)
+            : Duration.zero,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Görüntüleyici atlamaya hazır mı: belge yüklü, düzen ölçülmüş ve **görünüm
+  /// boyu oturmuş**.
+  ///
+  /// Ölçüt "klavye kapandı" DEĞİL, "klavye artık kımıldamıyor": pencere
+  /// kapandıktan sonra odak arama kutusuna geri dönerse klavye açık kalır ve
+  /// kapanmasını beklemek boşuna 1 saniye eklerdi. Kritik olan, biz atlarken
+  /// görünümün yeniden boyutlanmaması (pdfrx bunu görünce bulunulan sayfaya
+  /// geri çeker). En çok ~1,2 sn beklenir.
+  Future<bool> _waitViewerSettled() async {
+    double? previous;
+    for (var i = 0; i < 24; i++) {
+      if (!mounted) return false;
+      final inset = MediaQuery.viewInsetsOf(context).bottom;
+      if (inset == previous && _viewerLaidOut()) return true;
+      previous = inset;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    // Klavye hiç durulmadıysa da düzen hazırsa yine deneriz.
+    return mounted && _viewerLaidOut();
+  }
+
+  /// Belge + düzen + görünüm boyu elimizde mi? (Hepsi pdfrx'te `null!`
+  /// erişimi; hazır değilken okumak fırlatır.)
+  bool _viewerLaidOut() {
+    try {
+      if (!_pdfController.isReady) return false;
+      return _pdfController.layout.pageLayouts.isNotEmpty &&
+          _pdfController.viewSize.width > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Hedef sayfa gerçekten ekranda mı (geometriyle — bkz. [arrivedAtPage]).
+  /// Ölçemezsek pdfrx'in kendi sayfa numarasına düşülür.
+  bool _arrivedAtPdfPage(int target) {
+    try {
+      final layouts = _pdfController.layout.pageLayouts;
+      if (target < 1 || target > layouts.length) return false;
+      return arrivedAtPage(
+        pageRect: layouts[target - 1],
+        visibleRect: _pdfController.visibleRect,
+      );
+    } catch (_) {
+      return _livePdfPage() == target;
     }
   }
 
