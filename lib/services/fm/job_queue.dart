@@ -150,6 +150,66 @@ class FmJobTarget {
 /// nedeni: `showFmProgress` işin SONUCUNU çağırana döndürür ("arşivi çıkar,
 /// sonra çıkan klasörü aç"), kuyruk ise ateşle-ve-bırak çalışır ve sonucu
 /// ekranların geri dönünce okuduğu `result` alanında tutar.
+/// Yarıda kalan (ya da başarısız olan) bir işi **yeniden başlatabilmek** için
+/// gereken tarif: ne tür bir iş ve hangi girdilerle.
+///
+/// KÖK NEDEN (kullanıcı 2026-08-07: *"boyut düşürme veya başka bir işlem
+/// yarım kaldığında 'dokunun devam etsin' çalışmıyor"*): kartta "yeniden
+/// başlatmak için dokunun" yazıyordu ama dokunmak yalnız ilgili KLASÖRE
+/// gidiyordu. İşin gövdesi bir closure; diske yazılamıyor, dolayısıyla süreç
+/// öldükten sonra elimizde çalıştırılabilir hiçbir şey kalmıyordu. Tarif düz
+/// veri olarak kaydedilir, gövde [JobRecipes] kaydındaki üreticiden yeniden
+/// kurulur.
+class JobRecipe {
+  /// Tarif türü ([JobRecipes]'e kaydedilen anahtar).
+  final String kind;
+
+  /// Türün kendi anlayacağı düz veri (yollar, ayarlar…).
+  final Map<String, Object?> params;
+
+  const JobRecipe(this.kind, this.params);
+
+  Map<String, Object?> toJson() => {'kind': kind, 'params': params};
+
+  static JobRecipe? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final kind = raw['kind'];
+    if (kind is! String || kind.isEmpty) return null;
+    final params = raw['params'];
+    return JobRecipe(
+      kind,
+      params is Map ? params.cast<String, Object?>() : const {},
+    );
+  }
+}
+
+/// Tarif türü → iş gövdesi üreticisi.
+///
+/// Kayıtlar uygulama açılışında yapılır (`main.dart`): kullanıcı yarıda kalan
+/// bir işe dokunduğunda o türün nasıl çalıştırılacağı BİLİNİYOR olmalı, yoksa
+/// düğme yine ölü kalırdı.
+typedef JobRunner = Future<void> Function(
+    JobHandle handle, Map<String, Object?> params);
+
+abstract final class JobRecipes {
+  static final Map<String, JobRunner> _runners = {};
+
+  static void register(String kind, JobRunner runner) =>
+      _runners[kind] = runner;
+
+  /// Yalnız testlerde: kayıtları temizler.
+  @visibleForTesting
+  static void reset() => _runners.clear();
+
+  static JobRunner? runnerFor(String? kind) =>
+      kind == null ? null : _runners[kind];
+
+  /// Bu iş yeniden başlatılabilir mi? (Tarifi var ve türü kayıtlı, işin
+  /// kendisi de sürmüyor.)
+  static bool canResume(FmJob job) =>
+      !job.status.isActive && runnerFor(job.recipe?.kind) != null;
+}
+
 class FmJob {
   /// Kararlı kimlik. Aynı kimlikli iş zaten sürüyorsa yenisi açılmaz ve
   /// ekranlar (ör. Yer aç) kendi işini bununla geri bulur.
@@ -191,6 +251,10 @@ class FmJob {
   /// o da yoksa İşlemler ekranına düşer.
   FmJobTarget? target;
 
+  /// Yeniden başlatma tarifi (bkz. [JobRecipe]). Yoksa iş yalnız izlenebilir,
+  /// devam ettirilemez.
+  JobRecipe? recipe;
+
   /// Başlangıç/bitiş damgaları (ms). "2 dk 10 sn sürdü" bilgisi buradan çıkar:
   /// kullanıcı bir işin gerçekten ne kadar sürdüğünü görmeden "yavaş" dışında
   /// bir şey söyleyemez.
@@ -217,6 +281,7 @@ class FmJob {
     this.unit = 0,
     this.status = JobStatus.queued,
     this.target,
+    this.recipe,
   });
 
   /// 0..1 arası oran; toplam bilinmiyorsa null (belirsiz gösterge çizilir).
@@ -250,6 +315,8 @@ class FmJob {
         'finishedAtMs': finishedAtMs,
         'dismissed': dismissed,
         if (target != null) 'target': target!.toJson(),
+        // Tarif KAYDEDİLİR: yarıda kalan iş ancak böyle devam ettirilebilir.
+        if (recipe != null) 'recipe': recipe!.toJson(),
       };
 
   /// Kayıttan iş kurar. **Süren/bekleyen işler [JobStatus.interrupted] olur:**
@@ -275,6 +342,7 @@ class FmJob {
       total: (raw['total'] as num?)?.toInt() ?? 0,
       status: status,
       target: FmJobTarget.fromJson(raw['target']),
+      recipe: JobRecipe.fromJson(raw['recipe']),
     )
       ..error = raw['error'] as String?
       ..startedAtMs = (raw['startedAtMs'] as num?)?.toInt() ?? 0
@@ -498,6 +566,7 @@ class JobQueue extends ChangeNotifier {
     String detail = '',
     int total = 0,
     FmJobTarget? target,
+    JobRecipe? recipe,
   }) {
     final existing = find(id);
     if (existing != null && existing.status.isActive) return existing;
@@ -511,6 +580,7 @@ class JobQueue extends ChangeNotifier {
       detail: detail,
       total: total,
       target: target,
+      recipe: recipe,
     ).._run = run;
     _jobs.add(job);
     _trimHistory();
@@ -518,6 +588,30 @@ class JobQueue extends ChangeNotifier {
     _persist();
     unawaited(_pump());
     return job;
+  }
+
+  /// Yarıda kalan / başarısız olan işi **kaldığı yerden yeniden başlatır**.
+  ///
+  /// Tarif yoksa ya da türü kayıtlı değilse null döner — çağıran o zaman
+  /// "devam ettirilemiyor" der; sessizce hiçbir şey yapmamak, kullanıcının
+  /// 2026-08-07'de bildirdiği "dokunuyorum olmuyor" durumunun ta kendisiydi.
+  ///
+  /// Biten dosya sayısı ([FmJob.done]) tarife `skip` olarak geçirilir: on
+  /// videonun dördü bittiyse yeniden kodlama beşinciden devam eder.
+  FmJob? resume(String id) {
+    final job = find(id);
+    if (job == null || !JobRecipes.canResume(job)) return null;
+    final recipe = job.recipe!;
+    final runner = JobRecipes.runnerFor(recipe.kind)!;
+    final params = {...recipe.params, 'skip': job.done};
+    return enqueue(
+      id: job.id,
+      title: job.title,
+      total: job.total,
+      target: job.target,
+      recipe: JobRecipe(recipe.kind, recipe.params),
+      run: (handle) => runner(handle, params),
+    );
   }
 
   /// İptal **isteği** gönderir; iş gövdesi bunu görüp durur (anında ölmez).

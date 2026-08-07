@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -8,6 +9,7 @@ import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../models/document.dart';
+import '../../services/fm/activity_log.dart';
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/ai_summary_flow.dart';
@@ -135,6 +137,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     try {
       final bytes = editor.save();
       await File(widget.path).writeAsBytes(bytes);
+      unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
       _dirty = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

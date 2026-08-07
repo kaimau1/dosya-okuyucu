@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -17,6 +18,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
+import '../../services/fm/activity_log.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
@@ -776,6 +778,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       if (widget.savePath != null) {
         await File(widget.path).writeAsBytes(bytes);
       }
+      // "Yaptıklarım" defteri: kaydedilen HEDEF yazılır (.xls açıldıysa
+      // kullanıcının elindeki dosya .xlsx olan odur).
+      unawaited(ActivityLog.add(ActivityKind.documentEdit, target));
       _dirty = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

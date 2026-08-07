@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -6,6 +7,7 @@ import 'package:path/path.dart' as p;
 
 import '../core/l10n/app_strings.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/activity_log.dart';
 import '../services/pdf_save.dart';
 
 /// Kaydetme sonucunun çağırana söylediği şey.
@@ -62,6 +64,10 @@ Future<PdfSaveOutcome?> savePdfWithChoice(
     return null;
   }
 
+  // "Yaptıklarım" defterine yazılır: kullanıcı düzenlediği PDF'i sonradan
+  // klasör klasör aramasın (istek 2026-08-07).
+  unawaited(ActivityLog.add(ActivityKind.pdfEdit, written,
+      detail: note ?? ''));
   if (context.mounted) {
     _announce(context, written, choice == _SaveChoice.overwrite);
   }

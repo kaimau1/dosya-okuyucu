@@ -405,4 +405,62 @@ void main() {
           SimilarFinder.jobIdFor('Videolar'));
     });
   });
+  group('kaynak özeti (MediaSourceInfo)', () {
+    const source = MediaSourceInfo(
+      name: 'tatil.mp4',
+      sizeBytes: 48 * 1024 * 1024,
+      isVideo: true,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      durationMs: 120000,
+    );
+
+    test('bit hızı süreden hesaplanır; süre yoksa null (uydurulmaz)', () {
+      expect(source.bitrate, closeTo(48 * 1024 * 1024 * 8 / 120, 1));
+      const noDuration = MediaSourceInfo(
+          name: 'a.mp4', sizeBytes: 100, isVideo: true, width: 10, height: 10);
+      expect(noDuration.bitrate, isNull);
+    });
+
+    test('hedef ölçü ve kare sayısı ayarlardan çıkar', () {
+      const opts = MediaResizeOptions(
+          resolution: ResolutionChoice.p720, frameRate: 24);
+      expect(source.targetFor(opts)?.height, 720);
+      expect(source.targetFps(opts), 24);
+    });
+
+    test('kaynaktan YÜKSEK kare sayısı istenirse kaynağınki geçerli', () {
+      const opts = MediaResizeOptions(frameRate: 60);
+      expect(source.targetFps(opts), 30);
+    });
+
+    test('ayarlar hiçbir şeyi küçültmüyorsa UYARI koşulu doğru', () {
+      // 1080p videoya 1080p seçmek: ölçü de kare sayısı da aynı → kullanıcı
+      // dakikalarca bekleyip "küçülmedi" yazısını görmesin diye uyarılır.
+      expect(
+        source.noVisualChangeWith(
+            const MediaResizeOptions(resolution: ResolutionChoice.p1080)),
+        isTrue,
+      );
+      expect(
+        source.noVisualChangeWith(
+            const MediaResizeOptions(resolution: ResolutionChoice.p720)),
+        isFalse,
+      );
+      // Kare sayısını düşürmek de bir küçültmedir.
+      expect(
+        source.noVisualChangeWith(const MediaResizeOptions(
+            resolution: ResolutionChoice.p1080, frameRate: 24)),
+        isFalse,
+      );
+    });
+
+    test('ölçüsü bilinmeyen kaynakta hedef null, uyarı YOK', () {
+      const unknown =
+          MediaSourceInfo(name: 'a.mp4', sizeBytes: 10, isVideo: true);
+      expect(unknown.targetFor(const MediaResizeOptions()), isNull);
+      expect(unknown.noVisualChangeWith(const MediaResizeOptions()), isFalse);
+    });
+  });
 }

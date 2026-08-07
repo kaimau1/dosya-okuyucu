@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../services/document_scanner.dart';
+import '../services/fm/activity_log.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/file_ops.dart';
 import '../services/ocr_service.dart';
@@ -379,6 +381,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       final bytes =
           await DocumentScanner.renderPdf(_pages, ocrLinesPerPage: _lines);
       await File(_pdfPath).writeAsBytes(bytes, flush: true);
+      // Taranan belge "Yaptıklarım" defterine yazılır.
+      unawaited(ActivityLog.add(ActivityKind.scan, _pdfPath));
       if (!mounted) return;
       setState(() => _text = DocumentScanner.textPages(_lines));
       _snack(context.t('scr.pages_added', {'n': reviewed.length}));
@@ -407,6 +411,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       final bytes =
           await DocumentScanner.renderPdf(_pages, ocrLinesPerPage: _lines);
       await File(_pdfPath).writeAsBytes(bytes, flush: true);
+      // Taranan belge "Yaptıklarım" defterine yazılır.
+      unawaited(ActivityLog.add(ActivityKind.scan, _pdfPath));
       if (!mounted) return;
       setState(() => _text = DocumentScanner.textPages(_lines));
       _snack(context.t('scr.cropped'));

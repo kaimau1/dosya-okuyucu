@@ -151,6 +151,19 @@ class FsEntry {
     return FmCategory.other;
   }
 
+  /// Yoldan girdi üretir; dosya **artık yoksa null**.
+  ///
+  /// Yarıda kalan bir işi yeniden kurarken gerekiyor (bkz. `JobRecipe`):
+  /// kaydedilen şey yol; girdinin kendisi diskten yeniden okunur. Silinmiş
+  /// dosya için null dönmesi bilinçli — 0 baytlık hayalet bir girdi üretip
+  /// işi ona çalıştırmak sessiz hataya yol açardı.
+  static FsEntry? ofPath(String path) {
+    final file = File(path);
+    if (file.existsSync()) return fromEntity(file);
+    final dir = Directory(path);
+    return dir.existsSync() ? fromEntity(dir) : null;
+  }
+
   /// Diskteki bir [FileSystemEntity]'den girdi üretir. `stat` başarısız olursa
   /// (izin yok / yarışta silinmiş) boyut/tarih 0 kalır ama girdi yine listelenir
   /// — kullanıcı en azından adı görür.

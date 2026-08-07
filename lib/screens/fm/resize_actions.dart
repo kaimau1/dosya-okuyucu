@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../core/l10n/app_strings.dart';
 import 'dart:io';
 
@@ -6,6 +7,8 @@ import 'package:path/path.dart' as p;
 
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
+import '../../services/fm/activity_log.dart';
+import '../../services/fm/ffmpeg_video.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
@@ -42,11 +45,16 @@ Future<bool> startResizeJob(
 
   final hasImages = media.any((e) => e.category == FmCategory.image);
   final hasVideos = media.any((e) => e.category == FmCategory.video);
+  // Kaynak özellikleri ÖLÇÜLÜR (çözünürlük/kare sayısı/süre) — ayar sayfası
+  // "şu an ne var, sonra ne olacak" diyebilsin (kullanıcı isteği 2026-08-07).
+  final sources = await _describeSources(media);
+  if (!context.mounted) return false;
   final options = await showMediaResizeSheet(
     context,
     hasImages: hasImages,
     hasVideos: hasVideos,
     fileCount: media.length,
+    sources: sources,
   );
   if (options == null) return false;
 
@@ -66,6 +74,12 @@ Future<bool> startResizeJob(
         ? str.t('ra.job_one', {'name': media.first.name})
         : str.t('ra.job_many', {'n': media.length}),
     total: media.length,
+    // Tarif KAYDEDİLİR: uygulama iş sürerken kapanırsa kullanıcı İşlemler
+    // ekranından "Devam et" diyebilsin (2026-08-07 bulgusu).
+    recipe: JobRecipe(resizeJobKind, {
+      'paths': [for (final e in media) e.path],
+      'options': options.toJson(),
+    }),
     run: (handle) => _run(media, options, handle),
   );
   // Metin durumu OKUR. Sabit "arka planda başladı" yazıyordu; oysa aynı iş zaten
@@ -80,6 +94,80 @@ Future<bool> startResizeJob(
               ? 'ra.queued'
               : 'ra.started'))));
   return true;
+}
+
+/// Seçilen dosyaların özelliklerini ölçer.
+///
+/// Video için ffprobe (çözünürlük/kare sayısı/süre), görüntü için yalnız
+/// dosya boyutu. **En çok [_probeLimit] dosya** ölçülür: 200 fotoğraflık bir
+/// seçimde her dosyayı ölçmek ayar sayfasını saniyelerce geciktirirdi ve
+/// sayfada zaten yalnız ilki gösteriliyor. Ölçüm başarısızsa liste boş döner
+/// ve sayfa eskisi gibi çalışır — kart çizilmez, iş engellenmez.
+const int _probeLimit = 5;
+
+Future<List<MediaSourceInfo>> _describeSources(List<FsEntry> media) async {
+  final out = <MediaSourceInfo>[];
+  // Video ÖNCE: kart ilk öğeyi gösteriyor ve asıl merak edilen video
+  // (fotoğrafta çözünürlük/kare sayısı sorusu yok).
+  final ordered = [
+    ...media.where((e) => e.category == FmCategory.video),
+    ...media.where((e) => e.category != FmCategory.video),
+  ];
+  for (final entry in ordered.take(_probeLimit)) {
+    final isVideo = entry.category == FmCategory.video;
+    VideoProbe? probe;
+    if (isVideo) {
+      try {
+        probe = await FfmpegVideo.probe(entry.path);
+      } catch (_) {
+        // ffprobe yoksa/düşerse ölçüsüz devam: boyut yine gösterilir.
+      }
+    }
+    out.add(MediaSourceInfo(
+      name: entry.name,
+      sizeBytes: entry.sizeBytes,
+      isVideo: isVideo,
+      width: probe?.width ?? 0,
+      height: probe?.height ?? 0,
+      fps: probe?.fps,
+      durationMs: probe?.durationMs ?? 0,
+    ));
+  }
+  // Toplam boyut kartta yazılıyor: ölçülmeyen dosyalar da sayılsın.
+  for (final entry in ordered.skip(_probeLimit)) {
+    out.add(MediaSourceInfo(
+      name: entry.name,
+      sizeBytes: entry.sizeBytes,
+      isVideo: entry.category == FmCategory.video,
+    ));
+  }
+  return out;
+}
+
+/// Boyut düşürme işinin tarif türü (bkz. [JobRecipe]).
+const String resizeJobKind = 'resize';
+
+/// Yarıda kalan boyut düşürme işini yeniden kurabilmek için kaydı yapar.
+/// Uygulama açılışında bir kez çağrılır (`main.dart`).
+void registerResizeJobRunner() {
+  JobRecipes.register(resizeJobKind, (handle, params) async {
+    final paths = [
+      for (final path in (params['paths'] as List? ?? const [])) '$path',
+    ];
+    final options = MediaResizeOptions.fromJson(params['options']);
+    // Biten dosyalar atlanır: on videonun dördü kodlanmışsa beşinciden devam
+    // edilir, dördü baştan kodlanmaz.
+    final skip = (params['skip'] as num?)?.toInt() ?? 0;
+    final media = <FsEntry>[];
+    for (final path in paths.skip(skip < 0 ? 0 : skip)) {
+      final entry = FsEntry.ofPath(path);
+      // Aradan silinmiş/taşınmış dosya sessizce atlanır: iş "bulunamadı"
+      // diye tamamen düşmemeli, kalanlar yine küçültülmeli.
+      if (entry != null) media.add(entry);
+    }
+    if (media.isEmpty) return;
+    await _run(media, options, handle);
+  });
 }
 
 Future<void> _run(
@@ -161,6 +249,16 @@ Future<void> _run(
           // listeyi gösterir, dosya oradan tek dokunuşla açılır (kullanıcı
           // hatası 2026-07-30: "nereye gitti, nereden açacağım bilinmiyor").
           handle.addOutput(result.outputPath);
+          // "Yaptıklarım" defteri: küçültülen dosya, kazanılan yerle birlikte
+          // (istek 2026-08-07 — "video boyutu düşürdük, düşen video orada").
+          unawaited(ActivityLog.add(
+            entry.category == FmCategory.video
+                ? ActivityKind.videoResize
+                : ActivityKind.imageResize,
+            result.outputPath,
+            detail: '${FsPaths.humanSize(result.beforeBytes)} → '
+                '${FsPaths.humanSize(result.afterBytes)}',
+          ));
           if (options.replaceOriginal) {
             // Hareketli/çok sayfalı kaynakta özgün ASLA çöpe atılmaz: çıktı tek
             // kare, yani aslın yerini tutmuyor (bkz. `ImageResizer.mayLoseFrames`).

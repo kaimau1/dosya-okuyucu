@@ -114,12 +114,22 @@ class _JobCard extends StatelessWidget {
     // listesi tıklanabiliyordu, tarama işlerinde (kopya/benzer/yer aç) ise
     // sonuca dönmenin hiçbir yolu yoktu — kullanıcı ekranı elle arıyordu.
     final destination = jobHasDestination(job);
+    // Yarıda kalan/başarısız iş DEVAM ETTİRİLEBİLİYORSA karta dokunmak onu
+    // yeniden başlatır (kullanıcı 2026-08-07: *"yarım kaldığında 'dokunun
+    // devam etsin' çalışmıyor"* — kart "yeniden başlatmak için dokunun"
+    // diyordu ama dokunuş yalnız klasöre gidiyordu).
+    final resumable = JobRecipes.canResume(job) &&
+        (job.status == JobStatus.interrupted ||
+            job.status == JobStatus.failed ||
+            job.status == JobStatus.cancelled);
     return Card(
       margin: const EdgeInsets.only(bottom: Gap.sm),
       child: InkWell(
-        onTap: destination
-            ? () => openJobTarget(context, job, fallbackToJobs: false)
-            : null,
+        onTap: resumable
+            ? () => _resume(context, job)
+            : (destination
+                ? () => openJobTarget(context, job, fallbackToJobs: false)
+                : null),
         child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(
@@ -136,6 +146,13 @@ class _JobCard extends StatelessWidget {
                   TextButton(
                     onPressed: () => JobQueue.instance.cancel(job.id),
                     child: const Text('Durdur'),
+                  )
+                // Görünür düğme: "karta dokun" bilgisini yalnız alt yazıya
+                // gömmek, dokunulabileceğini fark ettirmiyordu.
+                else if (resumable)
+                  FilledButton.tonal(
+                    onPressed: () => _resume(context, job),
+                    child: Text(context.t('jb.resume')),
                   )
                 // Ok yalnız GİDİLECEK bir yer varken: her karta ok koymak,
                 // dokununca hiçbir şey olmayan kartlarda yalan olurdu.
@@ -182,6 +199,16 @@ class _JobCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// İşi yeniden kuyruğa koyar ve sonucu SÖYLER: sessizce hiçbir şey olmaması,
+  /// düzeltmeye çalıştığımız şikâyetin ta kendisiydi.
+  void _resume(BuildContext context, FmJob job) {
+    final resumed = JobQueue.instance.resume(job.id);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(context.t(
+          resumed == null ? 'jb.resume_failed' : 'jb.resume_started')),
+    ));
   }
 
   IconData get _icon => switch (job.status) {

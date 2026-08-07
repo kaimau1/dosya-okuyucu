@@ -6956,3 +6956,57 @@ boyut ek olarak küçük orta büyük çok büyük şeklinde kolay seçimde olsu
 
 **Doğrulama:** `analyze` 0 hata, **1423 test yeşil** (+3: yeni varsayılan,
 kademe listesi ve sınırları, ayarlar ekranında kademeler + yazı tipi sayfası).
+
+## 2026-08-07 (5) — Yarıda kalan işe "Devam et", Yaptıklarım defteri, video özeti
+Kullanıcı üç madde: *"boyut düşürme veya başka bir işlem yarım kaldığında
+'dokunun devam etsin' çalışmıyor"*, *"benim yaptıklarım kartı lazım … her şey
+kategorize olmalı"*, *"video boyut düşürmede şu anki durum görülmeli,
+çözünürlük kare sayısı vs görülmeli ki ne yapacağımızı bilelim"*.
+
+### A) "Devam et" gerçekten çalışıyor — `JobRecipe`
+- **Neden çalışmıyordu:** kart "yeniden başlatmak için dokunun" yazıyordu ama
+  dokunuş `openJobTarget`e gidiyordu (yalnız klasörü açar). Asıl engel şuydu:
+  işin gövdesi bir **closure**, diske yazılamıyor; süreç ölünce elde
+  çalıştırılabilir hiçbir şey kalmıyordu.
+- **Çözüm:** `JobRecipe(kind, params)` — işin TARİFİ düz veri olarak kaydedilir
+  (`FmJob.recipe`, `toJson`/`fromJson`). `JobRecipes.register(kind, runner)`
+  ile tür → gövde üreticisi eşlenir; kayıt **`main.dart`ta açılışta** yapılır
+  (`registerResizeJobRunner`) — kullanıcı dokunduğunda üretici hazır olmalı.
+  `JobQueue.resume(id)` gövdeyi yeniden kurup kuyruğa koyar.
+- **Kaldığı yerden:** biten dosya sayısı (`job.done`) tarife `skip` olarak
+  geçer; on videonun dördü bittiyse beşinciden devam edilir.
+- Kartta artık görünür bir **"Devam et"** düğmesi var (yalnız alt yazıya
+  gömülü "dokunun" fark edilmiyordu) ve sonuç snack ile SÖYLENİR — sessiz
+  kalmak şikâyetin ta kendisiydi.
+- Şu an yalnız boyut düşürme tarifli. Tarama/temizlik işleri zaten kendi
+  ekranlarından yeniden başlatılıyor; yeni bir uzun iş eklenirken tarif de
+  eklenmeli (`JobRecipes.canResume` düğmeyi ona göre gösteriyor).
+
+### B) Yaptıklarım defteri (`ActivityLog` + `ActivityScreen`)
+- Sonuçlar üç yere dağılmıştı ve hiçbiri kalıcı değildi: iş kuyruğu listeyi
+  kırpıyor, düzenlenen belgeler hiçbir yere yazılmıyordu.
+- Yeni defter `activity_log.json` (en çok 300 kayıt, yol + tür + zaman +
+  açıklama). Yazan yerler: **PDF kaydetme diyalogu** (araçlar/imza/AI düzenleme
+  hepsi oradan geçiyor), Word/Excel/Slayt `_save`, boyut düşürme çıktıları
+  (kazanç bilgisiyle: "48 MB → 12 MB"), tarama PDF'i.
+- Ekran türe göre gruplu + çipli süzgeç; **diskte olmayan kayıt listelenmez**
+  (dokununca açılmayan satır "bozuk" sanılır). "Geçmişi temizle" YALNIZ
+  defteri siler, dosyaları değil — onay metni bunu açıkça yazıyor.
+- Panoda İşlemler'in yanında yeni kutu: İşlemler "şu an ne oluyor", Yaptıklarım
+  "ne ürettim".
+
+### C) Boyut düşürme sayfasında "Şu an → Sonra"
+- Sayfa yalnız hedef sunuyordu; kaynağın ne olduğu hiçbir yerde yazmıyordu.
+  Artık üstte kart: **çözünürlük · kare sayısı · süre · boyut · Mbps** ve
+  seçime göre canlı **"Sonra: 1280×720 · 30 fps"** satırı.
+- Ölçüm `FfmpegVideo.probe` ile, **en çok 5 dosya** (200 fotoğrafta her dosyayı
+  ölçmek sayfayı saniyelerce geciktirirdi); videolar önce sıralanır çünkü kart
+  ilk öğeyi gösteriyor. Ölçüm başarısızsa kart çizilmez, iş engellenmez.
+- **Uyarı:** seçilen ayarlar o dosyada hiçbir şeyi küçültmüyorsa (1080p videoya
+  1080p) kırmızı satır çıkıyor — kullanıcı dakikalarca bekleyip "küçülmedi"
+  yazısını görmesin.
+- Saf mantık `MediaSourceInfo` içinde (bitrate/targetFor/targetFps/
+  noVisualChangeWith) → birim testli.
+
+**Doğrulama:** `analyze` 0 hata, **1439 test yeşil** (+16: tarif kaydı/devam
+akışı, activity_log defteri, kaynak özeti).

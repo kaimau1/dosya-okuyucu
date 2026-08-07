@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -10,6 +11,7 @@ import '../../core/list_prefix.dart';
 import '../../core/theme.dart';
 import '../../core/undo_stack.dart';
 import '../../models/document.dart';
+import '../../services/fm/activity_log.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
@@ -125,6 +127,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     try {
       final bytes = editor.save();
       await File(widget.path).writeAsBytes(bytes);
+      // "Yaptıklarım" defteri (istek 2026-08-07): düzenlenen belge orada
+      // görünsün. Beklenmez — kaydetmenin hızını defter yavaşlatmamalı.
+      unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
       _bytes = bytes;
       _dirty = false;
       // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.

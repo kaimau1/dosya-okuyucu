@@ -25,6 +25,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/scan_flow.dart';
 import '../../widgets/section_header.dart';
 import 'analysis_screen.dart';
+import 'activity_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'chat_cleanup_screen.dart';
@@ -673,6 +674,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           await openJobsScreen(context);
           if (mounted) setState(() {});
         },
+      ),
+      // **Yaptıklarım** — İşlemler'in hemen yanında, bilinçli (istek
+      // 2026-08-07: *"benim yaptıklarım kartı lazım … her şey kategorize
+      // olmalı"*). İşlemler "şu an ne oluyor"u, bu kutu "ne ürettim"i
+      // gösterir: küçültülen video, düzenlenen PDF, taranan belge.
+      FmTileData(
+        icon: Icons.history_edu_outlined,
+        color: const Color(0xFF6A4C93),
+        label: context.t('act.title'),
+        subtitle: context.t('act.subtitle'),
+        onTap: () => _push(const ActivityScreen()),
       ),
       // Ağ depolama (NAS): Drive'ın yanında — ikisi de "telefonun dışındaki
       // dosyalar". FTP/FTPS/SFTP/SMB/WebDAV ve PC'den erişim burada.

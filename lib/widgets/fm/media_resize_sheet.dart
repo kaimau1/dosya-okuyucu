@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/media_resize.dart';
+import '../../services/fm/fs_scan.dart';
+import '../../services/fm/job_queue.dart' show humanDuration;
 
 /// Boyut düşürme ayarları sayfası.
 ///
@@ -16,6 +18,7 @@ Future<MediaResizeOptions?> showMediaResizeSheet(
   required bool hasVideos,
   required int fileCount,
   MediaResizeOptions initial = const MediaResizeOptions(),
+  List<MediaSourceInfo> sources = const [],
 }) =>
     showModalBottomSheet<MediaResizeOptions>(
       context: context,
@@ -26,6 +29,7 @@ Future<MediaResizeOptions?> showMediaResizeSheet(
         hasVideos: hasVideos,
         fileCount: fileCount,
         initial: initial,
+        sources: sources,
       ),
     );
 
@@ -35,11 +39,17 @@ class _ResizeSheet extends StatefulWidget {
   final int fileCount;
   final MediaResizeOptions initial;
 
+  /// Seçilen dosyaların ÖLÇÜLEN özellikleri (bkz. [MediaSourceInfo]). Boş
+  /// olabilir — ölçüm başarısızsa sayfa eskisi gibi çalışır, yalnız üstteki
+  /// "şu an" kartı çizilmez.
+  final List<MediaSourceInfo> sources;
+
   const _ResizeSheet({
     required this.hasImages,
     required this.hasVideos,
     required this.fileCount,
     required this.initial,
+    this.sources = const [],
   });
 
   @override
@@ -129,6 +139,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 children: [
+                  if (widget.sources.isNotEmpty) _sourceCard(context),
                   _label(context.t('rs.resolution')),
                   Wrap(
                     spacing: Gap.sm,
@@ -352,6 +363,123 @@ class _ResizeSheetState extends State<_ResizeSheet> {
       ),
     );
   }
+
+  /// **Şu an → sonra** kartı.
+  ///
+  /// Kullanıcı 2026-08-07: *"video boyut düşürmede şu anki durum görülmeli,
+  /// çözünürlük kare sayısı vs görülmeli ki ne yapacağımızı bilelim"*. Sayfa
+  /// yalnız hedefleri sunuyordu; kaynağın ne olduğu hiçbir yerde yazmıyordu.
+  ///
+  /// Tek dosyada dosyanın kendi ölçüleri, çoklu seçimde ilk dosya + "ve N
+  /// dosya daha" yazılır (hepsini listelemek sayfayı kaplardı).
+  Widget _sourceCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final first = widget.sources.first;
+    final totalBytes =
+        widget.sources.fold<int>(0, (sum, s) => sum + s.sizeBytes);
+    final target = first.targetFor(_options);
+    final fps = first.targetFps(_options);
+    // Ayarlar bu videoda hiçbir şeyi küçültmüyorsa SÖYLENİR: kullanıcı
+    // dakikalarca bekleyip "küçülmedi" yazısını görmesin.
+    final noChange = first.noVisualChangeWith(_options);
+    return Card(
+      margin: const EdgeInsets.only(bottom: Gap.md),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(first.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall),
+            const SizedBox(height: Gap.xs),
+            _specRow(
+              context,
+              context.t('rs.now'),
+              [
+                if (first.hasSize) '${first.width}×${first.height}',
+                if (first.fps != null)
+                  context.t('rs.fps_value', {'n': first.fps!.round()}),
+                if (first.durationMs > 0)
+                  humanDuration(Duration(milliseconds: first.durationMs)),
+                FsPaths.humanSize(first.sizeBytes),
+                if (first.bitrate case final b?)
+                  context.t('rs.bitrate', {'n': (b / 1000000).toStringAsFixed(1)}),
+              ],
+              bold: true,
+            ),
+            if (target != null)
+              _specRow(
+                context,
+                context.t('rs.after'),
+                [
+                  '${target.width}×${target.height}',
+                  if (fps != null) context.t('rs.fps_value', {'n': fps}),
+                  if (_options.removeAudio && first.isVideo)
+                    context.t('rs.no_audio'),
+                ],
+              ),
+            if (widget.sources.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: Gap.xs),
+                child: Text(
+                  context.t('rs.and_more', {
+                    'n': widget.sources.length - 1,
+                    'size': FsPaths.humanSize(totalBytes),
+                  }),
+                  style: TextStyle(fontSize: 12, color: Paper.faint(context)),
+                ),
+              ),
+            if (noChange)
+              Padding(
+                padding: const EdgeInsets.only(top: Gap.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 16, color: theme.colorScheme.error),
+                    const SizedBox(width: Gap.xs),
+                    Expanded(
+                      child: Text(
+                        context.t('rs.no_change_warning'),
+                        style: TextStyle(
+                            fontSize: 12, color: theme.colorScheme.error),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _specRow(BuildContext context, String label, List<String> parts,
+          {bool bold = false}) =>
+      Padding(
+        padding: const EdgeInsets.only(top: Gap.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 62,
+              child: Text(label,
+                  style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+            ),
+            Expanded(
+              child: Text(
+                parts.join(' · '),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: Gap.sm),

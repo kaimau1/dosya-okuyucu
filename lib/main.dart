@@ -13,6 +13,7 @@ import 'core/l10n/app_strings.dart';
 import 'core/theme.dart';
 import 'screens/fm/job_navigation.dart';
 import 'screens/fm/jobs_screen.dart';
+import 'screens/fm/resize_actions.dart';
 import 'screens/home_screen.dart';
 import 'services/fm/file_tags.dart';
 import 'services/fm/fm_env.dart';
@@ -59,6 +60,10 @@ Future<void> main() async {
   // alta alıp geri aldığımda diğer tüm işlemler kayboluyor"). Kanca hemen
   // takılır; okuma ilk kareyi BEKLETMEZ (bkz. [_restoreJobs]).
   JobQueue.instance.store = JobStore();
+  // Yarıda kalan işlerin nasıl yeniden kurulacağı KAYITLI olmalı — kullanıcı
+  // "Devam et" dediğinde tarifin türünü çalıştıracak üretici bulunamazsa
+  // düğme yine ölü kalırdı (bkz. JobRecipes).
+  registerResizeJobRunner();
   unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();

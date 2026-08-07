@@ -129,6 +129,51 @@ class MediaResizeOptions {
     this.replaceOriginal = false,
   });
 
+  /// Diske yazılabilir hâli — **yarıda kalan işi yeniden başlatmak** için
+  /// (bkz. `JobRecipe`). Kuyruktaki işin gövdesi bir closure ve kaydedilemez;
+  /// kaydedilen şey işin tarifi: hangi dosyalara hangi ayarlar.
+  Map<String, Object?> toJson() => {
+        'resolution': resolution.name,
+        'percent': percent,
+        if (customWidth != null) 'customWidth': customWidth,
+        if (customHeight != null) 'customHeight': customHeight,
+        'imageQuality': imageQuality,
+        'imageFormat': imageFormat.name,
+        'videoQuality': videoQuality.name,
+        if (frameRate != null) 'frameRate': frameRate,
+        'removeAudio': removeAudio,
+        'replaceOriginal': replaceOriginal,
+      };
+
+  /// Kayıttan okur; tanınmayan/eksik alanlar varsayılana düşer (eski sürümün
+  /// yazdığı kayıt yeni sürümde de açılabilsin).
+  static MediaResizeOptions fromJson(Object? raw) {
+    if (raw is! Map) return const MediaResizeOptions();
+    T pick<T extends Enum>(List<T> values, Object? name, T fallback) {
+      for (final v in values) {
+        if (v.name == name) return v;
+      }
+      return fallback;
+    }
+
+    int? asInt(Object? v) => v is num ? v.toInt() : null;
+    return MediaResizeOptions(
+      resolution:
+          pick(ResolutionChoice.values, raw['resolution'], ResolutionChoice.p1080),
+      percent: asInt(raw['percent']) ?? 50,
+      customWidth: asInt(raw['customWidth']),
+      customHeight: asInt(raw['customHeight']),
+      imageQuality: asInt(raw['imageQuality']) ?? 80,
+      imageFormat:
+          pick(ImageOutputFormat.values, raw['imageFormat'], ImageOutputFormat.keep),
+      videoQuality: pick(
+          VideoQualityChoice.values, raw['videoQuality'], VideoQualityChoice.medium),
+      frameRate: asInt(raw['frameRate']),
+      removeAudio: raw['removeAudio'] == true,
+      replaceOriginal: raw['replaceOriginal'] == true,
+    );
+  }
+
   MediaResizeOptions copyWith({
     ResolutionChoice? resolution,
     int? percent,
@@ -201,6 +246,76 @@ class MediaResizeOptions {
     }
     final edge = resolution.shortEdge;
     return edge != null ? '${edge}p' : 'kucuk';
+  }
+}
+
+/// Seçilen bir medya dosyasının **şu anki** özellikleri.
+///
+/// KÖK NEDEN (kullanıcı 2026-08-07: *"video boyut düşürmede şu anki durum
+/// görülmeli, her alanda çözünürlük kare sayısı vs görülmeli ki ne yapacağımızı
+/// bilelim"*): ayar sayfası "1080p / 720p" gibi hedefler sunuyordu ama kaynağın
+/// NE OLDUĞUNU söylemiyordu. 720p bir videoya 1080p seçmek hiçbir şey
+/// kazandırmaz; kullanıcı bunu ancak dakikalarca bekleyip "küçülmedi" yazısını
+/// gördükten sonra anlıyordu.
+class MediaSourceInfo {
+  final String name;
+  final int sizeBytes;
+  final bool isVideo;
+
+  /// Video/görüntü ölçüsü (bilinmiyorsa 0).
+  final int width;
+  final int height;
+
+  /// Videonun kare sayısı ve süresi (görüntüde null/0).
+  final double? fps;
+  final int durationMs;
+
+  const MediaSourceInfo({
+    required this.name,
+    required this.sizeBytes,
+    required this.isVideo,
+    this.width = 0,
+    this.height = 0,
+    this.fps,
+    this.durationMs = 0,
+  });
+
+  bool get hasSize => width > 0 && height > 0;
+
+  /// Ortalama bit hızı (bit/sn). Süre ya da boyut bilinmiyorsa null —
+  /// uydurma değer yazmak "ne yapacağımızı bilelim"in tam tersi olurdu.
+  int? get bitrate => durationMs > 0 && sizeBytes > 0
+      ? (sizeBytes * 8 / (durationMs / 1000)).round()
+      : null;
+
+  /// Bu ayarlarla çıkacak ölçü (kaynak bilinmiyorsa null).
+  ({int width, int height})? targetFor(MediaResizeOptions options) => hasSize
+      ? targetSize(
+          sourceWidth: width, sourceHeight: height, options: options)
+      : null;
+
+  /// Bu ayarlarla çıkacak kare sayısı. Kaynaktan yüksek istenirse kaynağınki
+  /// geçerlidir (ffmpeg kare kopyalar, dosya şişer — bkz.
+  /// `VideoTranscoder.cappedFps`).
+  int? targetFps(MediaResizeOptions options) {
+    final wanted = options.frameRate;
+    if (wanted == null) return fps?.round();
+    final source = fps;
+    if (source == null || source <= 0) return wanted;
+    return wanted > source.floor() ? source.floor() : wanted;
+  }
+
+  /// Ayarlar bu dosyada **hiçbir şeyi küçültmüyor** mu? (Çözünürlük aynı
+  /// kalıyor ve kare sayısı düşmüyor.) Görüntülerde kalite/format da
+  /// değiştiği için yalnız videoda anlamlı.
+  bool noVisualChangeWith(MediaResizeOptions options) {
+    if (!isVideo || !hasSize) return false;
+    final target = targetFor(options);
+    if (target == null) return false;
+    final sameSize = target.width >= width && target.height >= height;
+    final tFps = targetFps(options);
+    final sameFps = fps == null || tFps == null || tFps >= fps!.floor();
+    return sameSize && sameFps;
   }
 }
 

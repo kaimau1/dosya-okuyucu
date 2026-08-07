@@ -2876,6 +2876,24 @@ const Map<String, (String, String, String)> _table = {
     'Reduce size ({n} files)',
     'تصغير الحجم ({n} ملف)',
   ),
+  'rs.now': ('Şu an', 'Now', 'الآن'),
+  'rs.after': ('Sonra', 'After', 'بعد'),
+  'rs.fps_value': ('{n} fps', '{n} fps', '{n} إطار/ث'),
+  'rs.bitrate': ('{n} Mbps', '{n} Mbps', '{n} ميغابت/ث'),
+  'rs.no_audio': ('sessiz', 'muted', 'بلا صوت'),
+  'rs.and_more': (
+    've {n} dosya daha · toplam {size}',
+    'and {n} more files · {size} total',
+    'و{n} ملفات أخرى · الإجمالي {size}',
+  ),
+  'rs.no_change_warning': (
+    'Bu ayarlar bu dosyayı küçültmüyor: çözünürlük ve kare sayısı aynı kalıyor. '
+    'Daha düşük bir çözünürlük ya da kare sayısı seçin.',
+    'These settings do not shrink this file: resolution and frame rate stay the '
+    'same. Pick a lower resolution or frame rate.',
+    'هذه الإعدادات لا تصغّر هذا الملف: الدقة ومعدل الإطارات كما هما. اختر دقة أو '
+    'معدل إطارات أقل.',
+  ),
   'rs.resolution': ('Çözünürlük', 'Resolution', 'الدقة'),
   'rs.width': ('Genişlik (px)', 'Width (px)', 'العرض (بكسل)'),
   'rs.height': ('Yükseklik (px)', 'Height (px)', 'الارتفاع (بكسل)'),
@@ -3563,6 +3581,58 @@ const Map<String, (String, String, String)> _table = {
     'İptal edildi · {detail}',
     'Cancelled · {detail}',
     'أُلغيت · {detail}',
+  ),
+  'act.title': ('Yaptıklarım', 'My activity', 'ما قمت به'),
+  'act.subtitle': (
+    'Ürettiğiniz dosyalar',
+    'Files you produced',
+    'الملفات التي أنتجتها',
+  ),
+  'act.empty': (
+    'Henüz kayıt yok.\nBir videoyu küçültünce, bir PDF düzenleyince ya da belge '
+    'tarayınca ürettiğiniz dosyalar burada türlerine göre listelenir.',
+    'Nothing yet.\nShrink a video, edit a PDF or scan a document and the files '
+    'you produce will be listed here by type.',
+    'لا يوجد شيء بعد.\nصغّر فيديو أو حرّر ملف PDF أو امسح مستندًا وستظهر الملفات '
+    'التي تنتجها هنا مصنّفة حسب النوع.',
+  ),
+  'act.all': ('Hepsi ({n})', 'All ({n})', 'الكل ({n})'),
+  'act.clear': ('Geçmişi temizle', 'Clear history', 'مسح السجل'),
+  'act.clear_confirm': (
+    'Bu liste temizlensin mi? Dosyalarınız SİLİNMEZ, yalnız buradaki kayıt '
+    'listesi boşalır.',
+    'Clear this list? Your files are NOT deleted — only the log is emptied.',
+    'هل تريد مسح هذه القائمة؟ لن تُحذف ملفاتك — يُفرَّغ السجل فقط.',
+  ),
+  'act.kind_video': ('Küçültülen videolar', 'Shrunk videos', 'فيديوهات مصغّرة'),
+  'act.kind_image': (
+    'Küçültülen fotoğraflar',
+    'Shrunk photos',
+    'صور مصغّرة',
+  ),
+  'act.kind_pdf': ('Düzenlenen PDF\'ler', 'Edited PDFs', 'ملفات PDF محرَّرة'),
+  'act.kind_doc': (
+    'Düzenlenen belgeler',
+    'Edited documents',
+    'مستندات محرَّرة',
+  ),
+  'act.kind_convert': (
+    'Dönüştürülen dosyalar',
+    'Converted files',
+    'ملفات محوَّلة',
+  ),
+  'act.kind_scan': ('Taranan belgeler', 'Scanned documents', 'مستندات ممسوحة'),
+  'act.kind_other': ('Diğer', 'Other', 'أخرى'),
+  'jb.resume': ('Devam et', 'Resume', 'متابعة'),
+  'jb.resume_started': (
+    'Kaldığı yerden devam ediyor.',
+    'Resuming where it left off.',
+    'تُستأنف من حيث توقفت.',
+  ),
+  'jb.resume_failed': (
+    'Bu işlem devam ettirilemiyor; yeniden başlatın.',
+    'This job cannot be resumed; start it again.',
+    'لا يمكن استئناف هذه المهمة؛ ابدأها من جديد.',
   ),
   'jb.interrupted': (
     'Uygulama kapandığı için yarıda kaldı. Dokunun: kaldığı yerden yeniden '

@@ -449,6 +449,88 @@ void main() {
     expect(JobQueue.instance.find('test_reporter')?.status, JobStatus.done);
     expect(JobQueue.instance.find('test_reporter')?.result, 'tamam');
   });
+
+  group('yarıda kalan işi devam ettirme', () {
+    setUp(JobRecipes.reset);
+    tearDown(JobRecipes.reset);
+
+    test('tarif kaydedilir ve kayıttan geri okunur', () {
+      final job = FmJob(
+        id: 'x',
+        title: 'Boyut düşürme',
+        recipe: const JobRecipe('resize', {'paths': ['/a.mp4']}),
+      )..done = 2;
+      final again = FmJob.fromJson(job.toJson())!;
+      expect(again.recipe?.kind, 'resize');
+      expect(again.recipe?.params['paths'], ['/a.mp4']);
+      // Süren/bekleyen iş kayıttan "yarıda kaldı" olarak döner.
+      expect(again.status, JobStatus.interrupted);
+    });
+
+    test('tarifi olmayan iş devam ettirilemez', () {
+      final job = FmJob(id: 'y', title: 'x', status: JobStatus.interrupted);
+      expect(JobRecipes.canResume(job), isFalse);
+    });
+
+    test('türü KAYITLI DEĞİLSE devam ettirilemez (düğme yalan söylemesin)', () {
+      final job = FmJob(
+        id: 'z',
+        title: 'x',
+        status: JobStatus.interrupted,
+        recipe: const JobRecipe('bilinmeyen', {}),
+      );
+      expect(JobRecipes.canResume(job), isFalse);
+    });
+
+    test('devam: gövde yeniden kurulur ve BİTEN dosyalar atlanır', () async {
+      final queue = JobQueue.instance..clearFinished();
+      Map<String, Object?>? seen;
+      JobRecipes.register('resize', (handle, params) async {
+        seen = params;
+        handle.report(done: 3, total: 3);
+      });
+      // Süreç ölmüş gibi: yarıda kalmış, 2 dosyası bitmiş bir iş.
+      queue.restore([
+        FmJob.fromJson({
+          'id': 'r1',
+          'title': 'Boyut düşürme',
+          'done': 2,
+          'total': 3,
+          'status': 'running',
+          'recipe': {
+            'kind': 'resize',
+            'params': {'paths': ['/a.mp4', '/b.mp4', '/c.mp4']},
+          },
+        })!
+      ]);
+      final job = queue.find('r1')!;
+      expect(job.status, JobStatus.interrupted);
+      expect(JobRecipes.canResume(job), isTrue);
+
+      final resumed = queue.resume('r1');
+      expect(resumed, isNotNull);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(seen?['skip'], 2, reason: 'biten 2 dosya yeniden işlenmemeli');
+      expect(seen?['paths'], ['/a.mp4', '/b.mp4', '/c.mp4']);
+      expect(queue.find('r1')?.status, JobStatus.done);
+      // Tarif KORUNUR: ikinci kez yarıda kalırsa yine devam edilebilmeli.
+      expect(queue.find('r1')?.recipe?.kind, 'resize');
+    });
+
+    test('bilinmeyen tarifte resume null döner (sessiz kalmaz)', () {
+      final queue = JobQueue.instance..clearFinished();
+      queue.restore([
+        FmJob.fromJson({
+          'id': 'r2',
+          'title': 'x',
+          'status': 'running',
+          'recipe': {'kind': 'yok', 'params': {}},
+        })!
+      ]);
+      expect(queue.resume('r2'), isNull);
+    });
+  });
+
 }
 
 class _BrokenReporter implements JobReporter {
@@ -473,5 +555,4 @@ class _SahteDepo implements JobPersistence {
   void save(List<FmJob> jobs) {
     cagri++;
     sonListe = List.of(jobs);
-  }
-}
+  }}
