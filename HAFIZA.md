@@ -6750,3 +6750,40 @@ info), **1392 test yeşil** (+27; yeni: `xlsx_writer_test`,
 Cihazda bakılacaklar: `.xls` dosyası Excel ızgarasında açılmalı (şerit, zoom,
 düzenleme) ve "Kaydet" yanına `.xlsx` bırakmalı; şeritte dört sekme; Görünüm
 sekmesinde %; Excel/txt zemini beyaz; PDF'te 2/4 sütun seçilince tam genişlik.
+
+## 2026-08-07 — CI kırmızıydı: iki AYRI arıza var, karıştırma
+
+Kullanıcı "CI kırmızı sorunu bu repoda da var" dedi (kardeş repo `ezan-vakti`
+üzerinden). İncelendi: **aynı arıza DEĞİL.** İki imza birbirinden 10 saniyede
+ayrılıyor, ayırmadan hata aramak boşa zaman.
+
+**İmza A — iş akışı dosyası geçersiz (bu repoda YOK).**
+`ezan-vakti`'de bir adımın `if:`'inde `secrets` bağlamı kullanılmıştı. `secrets`
+adım düzeyindeki `if:` içinde KULLANILAMAZ (orada izin verilenler: github, needs,
+strategy, matrix, job, runner, env, vars, steps, inputs). Tanımsız bağlam ifadeyi
+`false` yapmaz, TÜM dosyayı ayrıştırma anında düşürür. Belirti: koşu **0 job** ile
+anında kırmızı, **hiç log yok** — orada 10 koşu boyunca herkes Gradle'da hata aradı.
+Buradaki `build-apk.yml` denetlendi: `secrets` yalnızca `env:` ve `with:` içinde
+geçiyor (`KS_B64`, `KS_PASS`, `GITHUB_TOKEN`), adım `if:`'lerinde yok.
+**Bu arıza burada yok, tekrar arama.**
+
+**İmza B — platform işi iptal ediyor (2026-08-06'da BU repoyu vuran arıza).**
+`Android APK` işi **tam ~15 dakika** sonra `conclusion: cancelled` ile bitti; işin
+kendi `timeout-minutes: 30` sınırına daha çok vardı, yani bizim zaman aşımımız
+değil. Etkilenen koşular: 31118376313, 31118555699, 31118582733
+(2026-08-06 16:02 → 17:16 UTC; sonuncusu 3. denemeydi, o da iptal edildi).
+
+**Kendiliğinden düzeldi:** 23:01'deki koşu (31129558085) hiçbir değişiklik
+yapılmadan 10 dakikada yeşil. Aynı gün aynı saatlerde kardeş repo `not` da
+tamamen farklı bir iş akışıyla birebir aynı imzayı verdi (~15:02'de `cancelled`,
+iş logu 404). İki ayrı repo + iki ayrı iş akışı + aynı sabit 15 dk = runner tarafı.
+
+**Ne yapılmalı:** koda dokunmadan koşuyu yeniden çalıştır. Yeşile dönerse konu
+kapanır; art arda üç denemede de aynı 15 dk'da iptal oluyorsa (2026-08-06'da öyle
+oldu) beklemek dışında yapılacak bir şey yok — düzeltme denemesi için commit
+atmak sadece CI dakikası yakar.
+
+**Tuzak:** `conclusion: cancelled` olan işler `failed_only=true` ile listelenmez —
+"başarısız iş yok" cevabı gelir ve arıza görünmez olur. Koşu kırmızı ama
+`failed_jobs: 0` ise işlerin `conclusion`'ına tek tek bak (`list_workflow_jobs`);
+`cancelled` ise İmza B, `total_jobs: 0` ise İmza A.
