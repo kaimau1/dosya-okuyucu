@@ -213,48 +213,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: Gap.lg * 1.5),
           // Yazı tipi ve boyutu: cihazın sistem ayarı YOK SAYILIYOR
           // (bkz. `DosyaOkuyucuApp.builder`), tek yer burası.
-          _fieldLabel(context.t('settings.ui_font')),
+          //
+          // Yazı tipi bir SegmentedButton değil, satır + alt sayfa: on aile
+          // tek satıra sığmıyordu ve her birinin nasıl göründüğü ancak kendi
+          // yazı tipiyle yazılınca anlaşılıyor.
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(context.t('settings.ui_font')),
+            subtitle: Text(
+              _fontLabel(appState.uiFont),
+              style: TextStyle(fontFamily: appState.uiFont, fontSize: 15),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _pickUiFont(appState),
+          ),
           const SizedBox(height: Gap.sm),
+          _fieldLabel(context.t('settings.ui_text_size')),
+          const SizedBox(height: Gap.sm),
+          // Hazır kademeler: "küçük / orta / büyük / çok büyük" tek dokunuş.
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: SegmentedButton<String>(
+            child: SegmentedButton<double>(
               showSelectedIcon: false,
               segments: [
-                for (final f in AppTheme.uiFonts)
+                for (final step in AppTheme.uiTextScales)
                   ButtonSegment(
-                    value: f.$2,
-                    // Etiket kendi yazı tipiyle yazılır: seçmeden önce
-                    // görünüşü belli olsun. "Varsayılan" bir aile adı değil —
-                    // onda tema ne diyorsa o.
-                    label: Text(
-                      f.$1,
-                      style: f.$2 == AppTheme.uiFontDefault
-                          ? null
-                          : TextStyle(fontFamily: f.$2),
-                    ),
+                    value: step.$2,
+                    label: Text(context.t(step.$1)),
                   ),
               ],
-              selected: {appState.uiFont},
-              onSelectionChanged: (s) => appState.setUiFont(s.first),
+              // Kaydırıcıyla ara bir değere gelindiyse EN YAKIN kademe seçili
+              // görünür; hiçbiri seçili olmayan bir çubuk bozuk sanılıyordu.
+              selected: {_nearestScale(appState.uiTextScale)},
+              onSelectionChanged: (v) => appState.setUiTextScale(v.first),
             ),
           ),
-          const SizedBox(height: Gap.md),
+          const SizedBox(height: Gap.xs),
+          // İnce ayar isteyen için kaydırıcı (kademeler onun üstünde duruyor).
           Row(
             children: [
-              Expanded(child: _fieldLabel(context.t('settings.ui_text_size'))),
+              Expanded(
+                child: Slider(
+                  value: appState.uiTextScale,
+                  min: 0.85,
+                  max: 1.4,
+                  divisions: 11,
+                  label: '%${(appState.uiTextScale * 100).round()}',
+                  onChanged: (v) => appState.setUiTextScale(v),
+                ),
+              ),
               Text('%${(appState.uiTextScale * 100).round()}',
                   style: TextStyle(fontSize: 12, color: Paper.faint(context))),
             ],
-          ),
-          Slider(
-            value: appState.uiTextScale,
-            min: 0.85,
-            max: 1.4,
-            // 0,05'lik kademeler: sürüklerken her kare yeniden tema kurmasın
-            // ve kullanıcı aynı boyuta geri dönebilsin.
-            divisions: 11,
-            label: '%${(appState.uiTextScale * 100).round()}',
-            onChanged: (v) => appState.setUiTextScale(v),
           ),
           Text(
             context.t('settings.ui_text_size_note'),
@@ -266,6 +276,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const _LanguageSection(),
         ],
       );
+
+  /// Ayarlanmış ölçeğe en yakın hazır kademe (kaydırıcı ara değere gelmişse).
+  double _nearestScale(double value) {
+    var best = AppTheme.uiTextScales.first.$2;
+    for (final step in AppTheme.uiTextScales) {
+      if ((step.$2 - value).abs() < (best - value).abs()) best = step.$2;
+    }
+    return best;
+  }
+
+  String _fontLabel(String family) => AppTheme.uiFonts
+      .firstWhere((f) => f.$2 == family,
+          orElse: () => (family, family))
+      .$1;
+
+  /// Yazı tipi seçimi — her seçenek KENDİ yazı tipiyle yazılır, altında da
+  /// Türkçe bir örnek satır: ad ("Nunito") tek başına neye benzediğini
+  /// söylemiyor.
+  Future<void> _pickUiFont(AppState appState) async {
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm),
+              child: Text(ctx.t('settings.ui_font'),
+                  style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            for (final f in AppTheme.uiFonts)
+              ListTile(
+                title: Text(f.$1,
+                    style: TextStyle(fontFamily: f.$2, fontSize: 17)),
+                subtitle: Text(
+                  ctx.t('settings.font_sample'),
+                  style: TextStyle(fontFamily: f.$2),
+                ),
+                trailing:
+                    f.$2 == appState.uiFont ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(ctx, f.$2),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick != null) await appState.setUiFont(pick);
+  }
 
   /// Grup içi alan etiketi ("Tema", "Dil"): başlık değil, alanın adı.
   Widget _fieldLabel(String text) => Text(

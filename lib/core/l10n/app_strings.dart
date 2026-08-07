@@ -273,6 +273,15 @@ const Map<String, (String, String, String)> _table = {
   'settings.theme': ('Tema', 'Theme', 'السمة'),
   'settings.ui_font': ('Yazı tipi', 'Font', 'نوع الخط'),
   'settings.ui_text_size': ('Yazı boyutu', 'Text size', 'حجم النص'),
+  'settings.size_small': ('Küçük', 'Small', 'صغير'),
+  'settings.size_medium': ('Orta', 'Medium', 'متوسط'),
+  'settings.size_large': ('Büyük', 'Large', 'كبير'),
+  'settings.size_xlarge': ('Çok büyük', 'Extra large', 'كبير جدًا'),
+  'settings.font_sample': (
+    'Örnek: Dosya Okuyucu — 0123456789',
+    'Sample: File Reader — 0123456789',
+    'مثال: قارئ الملفات — 0123456789',
+  ),
   'settings.ui_text_size_note': (
     'Yazı tipi ve boyutu tüm telefonlarda aynıdır; sistemin yazı boyutu ayarı '
     'uygulamayı etkilemez, yalnız buradan değişir.',

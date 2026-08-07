@@ -6923,3 +6923,36 @@ değişmiyor hep aynı kalıyor."* Haklı ve nedeni yapısal:
 
 **Doğrulama:** `analyze` 0 hata, **1420 test yeşil** (+1: varsayılan karışım ve
 seçimin başlık/veri satırlarına işlemesi).
+
+## 2026-08-07 (4) — Varsayılan Carlito, 10 arayüz yazı tipi, hazır boyut kademeleri
+Kullanıcı: *"varsayılan carlito olsun, daha fazla yazı tipi lazım, ayrıca
+boyut ek olarak küçük orta büyük çok büyük şeklinde kolay seçimde olsun."*
+
+- **Varsayılan artık düz Carlito** (`uiFontDefault = fontBody`). Önceki
+  "tasarımın karışımı" (serif başlık + sans gövde + tek aralıklı veri) işaret
+  değeri KALDIRILDI; seçilen aile başlık dahil her yere uygulanıyor. Kağıt
+  temasının serif/sans karşıtlığı bilinçli olarak feda edildi — kullanıcı tek
+  ve tutarlı yazı tipi istedi.
+- **Yedi yeni gömülü aile:** Inter, Lato, Nunito (sans), Merriweather,
+  EB Garamond, Roboto Slab (serif), JetBrains Mono (tek aralıklı). Listeden
+  cihazın kendi `monospace`i ÇIKARILDI: telefondan telefona değiştiği için
+  "her telefonda aynı" kuralını bozuyordu.
+  - **Boyut:** ham set 8,2 MB → **2,2 MB**. İki adım: (1) değişken fontlarda
+    `wght` dışındaki eksenler (opsz/wdth) varsayılana sabitlendi —
+    Merriweather tek başına 4,5 MB'dı, (2) Latin + Latin Ext-A/B (Türkçe
+    ğ/İ/ı/ş) + noktalama + para birimlerine altkümeleme. İtalik kesitler
+    alınmadı (arayüzde kullanılmıyor, boyutu ikiye katlardı).
+  - Üretici betik **`tool/fetch_ui_fonts.py`** (fonttools) — depodaki ikili
+    dosyalar tek komutla yeniden üretilebilsin diye. Lisans notu
+    `assets/fonts/FONTS-NOTICE.txt`e eklendi (altısı OFL, Roboto Slab
+    Apache-2.0).
+- **Yazı tipi seçimi artık alt sayfa:** on aile tek bir SegmentedButton'a
+  sığmıyordu; her satır kendi yazı tipiyle + Türkçe örnek satırla yazılıyor
+  ("Nunito" adı tek başına neye benzediğini söylemiyor).
+- **Boyut kademeleri:** Küçük %90 / Orta %100 / Büyük %115 / Çok büyük %130
+  (`AppTheme.uiTextScales`) — ince ayar için kaydırıcı altında duruyor.
+  Kaydırıcıyla ara değere gelinirse çubukta EN YAKIN kademe seçili görünür;
+  hiçbiri seçili olmayan bir çubuk "bozuk" sanılıyordu.
+
+**Doğrulama:** `analyze` 0 hata, **1423 test yeşil** (+3: yeni varsayılan,
+kademe listesi ve sınırları, ayarlar ekranında kademeler + yazı tipi sayfası).

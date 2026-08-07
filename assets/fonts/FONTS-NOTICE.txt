@@ -22,3 +22,25 @@ Lisans: hepsi SIL Open Font License 1.1 (tam metin: OFL.txt).
 Kaynak: github.com/google/fonts (ofl/carlito, ofl/arimo, ofl/tinos).
 Arimo yalnızca değişken (variable) font olarak geliyor; ağırlık (kalın) wght
 ekseninden uygulanır.
+
+
+Arayüz yazı tipi seçenekleri (2026-08-07)
+==========================================
+
+Ayarlar > Görünüm ve dil > Yazı tipi listesi. Hepsi APK'ya GÖMÜLÜ: cihazın
+kendi fontlarına düşen bir seçenek "her telefonda aynı görünsün" kuralını
+bozardı. Boyut için Latin + Latin Ext-A/B'ye (Türkçe dahil) altkümelendiler ve
+değişken eksenlerden yalnız `wght` bırakıldı — üretici betik:
+tool/fetch_ui_fonts.py
+
+  Inter, Lato, Nunito                 — sans (modern / hümanist / yuvarlak)
+  Merriweather, EB Garamond,
+  Roboto Slab                         — serif (ekran / kitap / slab)
+  JetBrains Mono                      — tek aralıklı
+
+Lisans:
+  - Inter, Lato, Nunito, Merriweather, EB Garamond, JetBrains Mono:
+    SIL Open Font License 1.1 (tam metin: OFL.txt), kaynak
+    github.com/google/fonts (ofl/…).
+  - Roboto Slab: Apache License 2.0, kaynak github.com/google/fonts
+    (apache/robotoslab).

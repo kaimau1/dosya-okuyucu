@@ -140,24 +140,40 @@ class AppTheme {
 
   static const String fontMono = 'monospace';
 
-  /// "Tasarımın kendi karışımı" seçeneği: serif başlık + Carlito gövde +
-  /// tek aralıklı veri satırları. Tek bir aile adı DEĞİL, bu yüzden ayrı bir
-  /// işaret değeri.
-  static const String uiFontDefault = 'default';
-
-  /// Seçilebilir arayüz yazı tipleri (hepsi APK'da GÖMÜLÜ — cihazda kurulu
-  /// olup olmamasına bağlı değil, her telefonda birebir aynı görünür).
+  /// Varsayılan arayüz yazı tipi: **Carlito** (kullanıcı kararı 2026-08-07).
   ///
-  /// İlk seçenek dışındakiler **her yere** uygulanır: başlık, gövde ve tarih/
-  /// boyut satırları. 2026-08-07 kullanıcı bulgusu: yalnız gövde yazı tipi
-  /// değişiyordu ve gezgin listesinde gövde metni HİÇ YOK (ad = başlık stili,
-  /// tarih = tek aralıklı) → "yazı tipleri değişmiyor, hep aynı kalıyor".
+  /// Seçim BÜTÜN arayüze uygulanır — başlık, gövde ve tarih/boyut satırları.
+  /// Eskiden varsayılan "tasarımın karışımı"ydı (serif başlık + sans gövde);
+  /// kullanıcı tek ve tutarlı bir yazı tipi istedi.
+  static const String uiFontDefault = fontBody;
+
+  /// Seçilebilir arayüz yazı tipleri — hepsi APK'da **GÖMÜLÜ**: cihazda kurulu
+  /// olup olmamasına bağlı değil, her telefonda birebir aynı görünür (sistem
+  /// fontuna düşen bir seçenek "her telefonda sabit" olmazdı).
+  ///
+  /// Etiketler yazı tipinin karakterini söylüyor: kullanıcı adı bilmese de
+  /// ne seçtiğini anlasın.
   static const List<(String label, String family)> uiFonts = [
-    ('Varsayılan', uiFontDefault),
     ('Carlito', fontBody),
+    ('Inter', 'Inter'),
+    ('Lato', 'Lato'),
+    ('Nunito', 'Nunito'),
     ('Arimo', 'Arimo'),
+    ('Merriweather', 'Merriweather'),
     ('Tinos', 'Tinos'),
-    ('Tek aralıklı', fontMono),
+    ('EB Garamond', 'EB Garamond'),
+    ('Roboto Slab', 'Roboto Slab'),
+    ('JetBrains Mono', 'JetBrains Mono'),
+  ];
+
+  /// Yazı boyutu hazır kademeleri (kullanıcı isteği 2026-08-07: *"küçük orta
+  /// büyük çok büyük şeklinde kolay seçimde olsun"*). Kaydırıcı ince ayar
+  /// için duruyor; günlük kullanımda tek dokunuş yetiyor.
+  static const List<(String labelKey, double scale)> uiTextScales = [
+    ('settings.size_small', 0.9),
+    ('settings.size_medium', 1.0),
+    ('settings.size_large', 1.15),
+    ('settings.size_xlarge', 1.3),
   ];
 
   /// [bodyFont] kullanıcının seçtiği aile ([uiFontDefault] ya da null =
@@ -169,11 +185,12 @@ class AppTheme {
       _base(Brightness.dark, bodyFont: bodyFont);
 
   static ThemeData _base(Brightness brightness, {String? bodyFont}) {
-    final picked =
-        (bodyFont == null || bodyFont == uiFontDefault) ? null : bodyFont;
-    final body = picked ?? fontBody;
-    final heading = picked ?? fontHeading;
-    final mono = picked ?? fontMono;
+    // Seçilen aile HER YERE: başlık ve veri satırları da. Gezgin listesinde
+    // gövde metni yok (ad = başlık stili, tarih = tek aralıklı); yalnız
+    // gövdeyi değiştiren bir ayar orada hiçbir şeyi değiştirmiyordu.
+    final body = bodyFont ?? fontBody;
+    final heading = body;
+    final mono = body;
     final isDark = brightness == Brightness.dark;
     // Tohum korunur (türetilen ikincil/üçüncül roller ondan gelir) ama kağıt
     // hissini bozan mavi-gri YÜZEYLER elle geçersiz kılınır.

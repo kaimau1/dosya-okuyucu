@@ -54,14 +54,29 @@ void main() {
     expect(AppTheme.light().textTheme.bodyMedium?.fontFamily, 'Carlito');
     // Seçenekler APK'da GÖMÜLÜ ailelerle sınırlı — cihazda kurulu olup
     // olmamasına bağlı bir aile "her telefonda aynı" olmazdı.
+    // Seçenekler APK'da GÖMÜLÜ ailelerle sınırlı; cihazın kendi 'monospace'i
+    // telefondan telefona değiştiği için listede yok — yerine JetBrains Mono.
     expect(AppTheme.uiFonts.map((f) => f.$2),
-        containsAll(<String>['Carlito', 'Arimo', 'Tinos', 'monospace']));
+        containsAll(<String>['Carlito', 'Inter', 'Merriweather', 'JetBrains Mono']));
+    expect(AppTheme.uiFonts.length, greaterThanOrEqualTo(8));
   });
 
-  test('varsayılanda tasarımın karışımı korunur: serif başlık, mono veri', () {
+  test('varsayılan seçim BAŞLIK dahil her yere Carlito koyar', () {
     final theme = AppTheme.light(bodyFont: AppTheme.uiFontDefault);
-    expect(theme.textTheme.titleLarge?.fontFamily, AppTheme.fontHeading);
-    expect(theme.extension<AppFonts>()?.mono, AppTheme.fontMono);
+    expect(AppTheme.uiFontDefault, AppTheme.fontBody);
+    expect(theme.textTheme.titleLarge?.fontFamily, 'Carlito');
+    expect(theme.extension<AppFonts>()?.mono, 'Carlito');
+  });
+
+  test('hazır boyut kademeleri: küçük / orta / büyük / çok büyük', () {
+    // Kullanıcı isteği 2026-08-07: kaydırıcı tek başına "kolay seçim" değil.
+    expect(AppTheme.uiTextScales.length, 4);
+    expect(AppTheme.uiTextScales.map((s) => s.$2), [0.9, 1.0, 1.15, 1.3]);
+    // Hepsi AppState'in izin verdiği aralıkta olmalı, yoksa seçilen kademe
+    // kısılıp çubukta başka bir yer seçili görünürdü.
+    for (final s in AppTheme.uiTextScales) {
+      expect(s.$2, inInclusiveRange(0.85, 1.4));
+    }
   });
 
   test('seçilen yazı tipi BAŞLIK ve VERİ satırlarına da işler', () {

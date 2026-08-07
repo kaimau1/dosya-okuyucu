@@ -80,4 +80,22 @@ void main() {
     expect(find.text('Dosya yöneticisi'), findsOneWidget);
     expect(find.text('Görünüm ve dil'), findsNothing);
   });
+  testWidgets('yazı boyutu hazır kademelerle seçilebiliyor', (tester) async {
+    // Kullanıcı isteği 2026-08-07: "küçük orta büyük çok büyük şeklinde kolay
+    // seçimde olsun".
+    await _pump(tester);
+    expect(find.text('Küçük'), findsOneWidget);
+    expect(find.text('Orta'), findsOneWidget);
+    expect(find.text('Büyük'), findsOneWidget);
+    expect(find.text('Çok büyük'), findsOneWidget);
+  });
+
+  testWidgets('yazı tipi listesi örnek satırlarıyla açılıyor', (tester) async {
+    await _pump(tester);
+    await tester.tap(find.text('Yazı tipi'));
+    await tester.pumpAndSettle();
+    // Her seçenek kendi yazı tipiyle + Türkçe örnek satırla listeleniyor.
+    expect(find.text('Merriweather'), findsOneWidget);
+    expect(find.textContaining('Örnek:'), findsWidgets);
+  });
 }
