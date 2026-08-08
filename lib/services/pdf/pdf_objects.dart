@@ -147,7 +147,7 @@ class PdfFile {
     final data = obj.rawData(bytes);
     final filter = pdfName(obj.dict, 'Filter');
     if (filter == null) return data;
-    if (filter == 'FlateDecode') return ZLibDecoder().decodeBytes(data);
+    if (filter == 'FlateDecode') return const ZLibDecoder().decodeBytes(data);
     throw UnsupportedError('Desteklenmeyen akış filtresi: /$filter');
   }
 
@@ -367,7 +367,7 @@ class PdfFile {
     final offsets = <PdfObject, int>{};
     for (final entry in entries) {
       final obj = entry.key;
-      final compressed = ZLibEncoder().encode(entry.value);
+      final compressed = const ZLibEncoder().encode(entry.value);
       final dict = _rebuildStreamDict(obj.dict, compressed.length);
       offsets[obj] = out.length;
       out
@@ -446,7 +446,7 @@ class PdfFile {
     }
     entries.add(_xrefEntry(xrefOffset, 0));
     index.write('$xrefNumber 1');
-    final compressed = ZLibEncoder().encode(entries.takeBytes());
+    final compressed = const ZLibEncoder().encode(entries.takeBytes());
 
     final dict = StringBuffer()
       ..write('<< /Type /XRef /Size $size ')

@@ -113,6 +113,10 @@ const Map<String, (String, String, String)> _table = {
   'common.copy': ('Kopyala', 'Copy', 'نسخ'),
   'common.more': ('Daha fazla', 'More', 'المزيد'),
   'common.stop': ('Durdur', 'Stop', 'إيقاف'),
+  'common.add': ('Ekle', 'Add', 'إضافة'),
+  'common.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
+  'common.resume': ('Devam et', 'Resume', 'متابعة'),
+  'fm.search_apps': ('Uygulama ara…', 'Search apps…', 'ابحث في التطبيقات…'),
   'common.go': ('Git', 'Go', 'انتقال'),
   'common.saved': ('Kaydedildi', 'Saved', 'تم الحفظ'),
   'common.save_failed': (
@@ -2933,6 +2937,8 @@ const Map<String, (String, String, String)> _table = {
   'ph.similar_title': ('Benzer: {title}', 'Similar: {title}', 'مشابه: {title}'),
 
   // ── AI sohbeti ────────────────────────────────────────────────────────────
+  'chat.export_short': ('Aktar', 'Export', 'تصدير'),
+  'chat.export_slides': ('Sunum (PDF)', 'Presentation (PDF)', 'عرض تقديمي (PDF)'),
   'chat.title': ('AI Sohbet', 'AI Chat', 'محادثة الذكاء الاصطناعي'),
   'chat.answer_title': ('AI Yanıtı', 'AI answer', 'إجابة الذكاء الاصطناعي'),
   'chat.deck_title': ('AI Sunumu', 'AI presentation', 'عرض الذكاء الاصطناعي'),

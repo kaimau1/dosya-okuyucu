@@ -364,7 +364,8 @@ List<_Match> _findAllFlexible(
 
 int _countFlexible(List<String> texts, String needle,
     {String Function(String)? transform}) {
-  final (hay, _, __) = _flatten(texts, transform: transform);
+  // Yalnız ilk alan gerekiyor; kalanlar joker desenle atılıyor.
+  final (hay, _, _) = _flatten(texts, transform: transform);
   final target = _stripSpaces(needle, transform: transform);
   if (target.isEmpty) return 0;
   var count = 0;

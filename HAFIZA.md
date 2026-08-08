@@ -7358,3 +7358,24 @@ ekranları). Üçü de listede "yok" diye duruyordu.
 
 **Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
 `flutter analyze` 0 hata/uyarı, tüm testler yeşil.
+
+### 2026-08-08 (2) — Bekçi testi kendi sınırını gösterdi
+`lib/` lint temizliği yaparken sohbet ekranının dışa aktarma menüsünde
+`Text('Aktar')` ve `Text('Sunum (PDF)')` görüldü — yani bir gün önce yazılan
+`l10n_literals_test` bunları KAÇIRMIŞTI. Sebep yapısal ve kayda değer:
+
+**Bekçi Türkçe'yi harften ve kelime listesinden tanıyor.** "Aktar" ve "Sunum"
+Türkçe'ye özgü harf taşımıyor ve listede yoktu → sızdılar. Kelime listesi
+genişletildi (aktar, sunum, ekle, gönder, indir, paylaş, ara, bul, başlat,
+durdur, devam, bitir) ve genişletme **anında altı tane daha gerçek sızıntı**
+yakaladı: "Ara", "Uygulama ara…", "Durdur" (iki yerde), "Devam et", "Ekle".
+Hepsi tabloya taşındı.
+
+**Ders — bu test bir kanıt değil, ucuz bir süzgeç.** Yanlış pozitif üretmemesi
+(İngilizce/marka dizelerini kızdırmaması) yakalama oranından daha değerli:
+bağıran ama yanılan bir test kısa sürede susturulur. Sızıntı görüldükçe
+kelime listesi büyütülmeli; testin dosya başındaki notu bunu yazıyor.
+
+Ayrıca `flutter analyze lib` **ilk kez sıfır sorun**: `const ZLibEncoder/
+Decoder`, kayıt deseninde `__` yerine joker `_`, galeri `_paths` alanı
+`final` (yalnız mutasyon var, yeniden atama yok).

@@ -1663,7 +1663,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
         child: Row(
           children: [
             IconButton(
-              tooltip: _ttsPlaying ? 'Duraklat' : 'Devam et',
+              tooltip: context.t(
+                  _ttsPlaying ? 'common.pause' : 'common.resume'),
               icon: Icon(_ttsPlaying ? Icons.pause : Icons.play_arrow),
               onPressed: _toggleSpeech,
             ),

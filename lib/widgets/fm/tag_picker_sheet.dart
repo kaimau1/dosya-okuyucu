@@ -130,7 +130,7 @@ class _TagSheetState extends State<_TagSheet> {
                         const SizedBox(width: Gap.sm),
                         FilledButton(
                           onPressed: _addNew,
-                          child: const Text('Ekle'),
+                          child: Text(context.t('common.add')),
                         ),
                       ],
                     ),

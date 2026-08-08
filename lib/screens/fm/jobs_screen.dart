@@ -145,7 +145,7 @@ class _JobCard extends StatelessWidget {
                 if (job.status.isActive)
                   TextButton(
                     onPressed: () => JobQueue.instance.cancel(job.id),
-                    child: const Text('Durdur'),
+                    child: Text(context.t('common.stop')),
                   )
                 // Görünür düğme: "karta dokun" bilgisini yalnız alt yazıya
                 // gömmek, dokunulabileceğini fark ettirmiyordu.

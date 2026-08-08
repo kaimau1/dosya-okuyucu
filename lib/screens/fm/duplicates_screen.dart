@@ -205,7 +205,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
         actions: [
           if (!_searching)
             IconButton(
-              tooltip: 'Ara',
+              tooltip: context.t('common.search'),
               icon: const Icon(Icons.search),
               onPressed: () => setState(() => _searching = true),
             ),

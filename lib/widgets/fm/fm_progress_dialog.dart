@@ -1,8 +1,8 @@
-import '../../core/l10n/app_strings.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 
@@ -41,6 +41,10 @@ Future<T> showFmProgress<T>(
   // plana alınan iş için kalıcı şerit burada gösterilir, kullanıcı başka
   // sayfaya geçse bile görünür kalır.
   final messenger = ScaffoldMessenger.of(context);
+  // Metin await'ten ÖNCE alınır: şerit asenkron boşluktan sonra kuruluyor ve
+  // `context` o an geçerli olmayabilir (aynı dosyadaki diğer metinlerle aynı
+  // kural).
+  final stopLabel = AppStrings.of(context).t('common.stop');
 
   // Kapatma İSTEĞİ ile kapatma EYLEMİ ayrı tutulur. Eskiden tek bayrak vardı ve
   // eylemden önce yakılıyordu: iş pencere ilk karesini çizmeden biterse
@@ -92,7 +96,8 @@ Future<T> showFmProgress<T>(
         ),
       ),
       action: cancellable
-          ? SnackBarAction(label: 'Durdur', onPressed: () => cancelled = true)
+          ? SnackBarAction(
+              label: stopLabel, onPressed: () => cancelled = true)
           : null,
     ));
   }

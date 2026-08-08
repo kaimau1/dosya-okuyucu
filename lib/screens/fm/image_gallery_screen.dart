@@ -36,7 +36,7 @@ class ImageGalleryScreen extends StatefulWidget {
 class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   late final PageController _pages =
       PageController(initialPage: widget.initialIndex);
-  late List<String> _paths = [...widget.paths];
+  late final List<String> _paths = [...widget.paths];
   late int _index = widget.initialIndex.clamp(0, widget.paths.length - 1);
   bool _chromeVisible = true;
 

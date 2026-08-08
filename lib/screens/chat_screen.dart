@@ -447,8 +447,11 @@ class _Bubble extends StatelessWidget {
                     PopupMenuButton<_ExportKind>(
                       tooltip: context.t('chat.export'),
                       onSelected: (k) => onExport(turn.text, k),
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
+                      // Biçim adları (Word/.docx, Excel/.xlsx, CSV) marka ve
+                      // uzantı: çevrilmez. "Sunum" ve "Aktar" ise düz metin —
+                      // çeviri tablosundan gelir.
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
                           value: _ExportKind.word,
                           child: ListTile(
                             dense: true,
@@ -457,7 +460,7 @@ class _Bubble extends StatelessWidget {
                             title: Text('Word (.docx)'),
                           ),
                         ),
-                        PopupMenuItem(
+                        const PopupMenuItem(
                           value: _ExportKind.excel,
                           child: ListTile(
                             dense: true,
@@ -466,7 +469,7 @@ class _Bubble extends StatelessWidget {
                             title: Text('Excel (.xlsx)'),
                           ),
                         ),
-                        PopupMenuItem(
+                        const PopupMenuItem(
                           value: _ExportKind.csv,
                           child: ListTile(
                             dense: true,
@@ -480,8 +483,8 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.slideshow_outlined),
-                            title: Text('Sunum (PDF)'),
+                            leading: const Icon(Icons.slideshow_outlined),
+                            title: Text(context.t('chat.export_slides')),
                           ),
                         ),
                       ],
@@ -490,11 +493,13 @@ class _Bubble extends StatelessWidget {
                             horizontal: 6, vertical: 4),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.ios_share, size: 16),
-                            SizedBox(width: 4),
-                            Text('Aktar'),
-                            Icon(Icons.arrow_drop_down, size: 18),
+                          children: [
+                            const Icon(Icons.ios_share, size: 16),
+                            const SizedBox(width: 4),
+                            // İpucu uzun ('Dışa aktar'), düğme etiketi kısa:
+                            // satır dar ve dört öğe yan yana duruyor.
+                            Text(context.t('chat.export_short')),
+                            const Icon(Icons.arrow_drop_down, size: 18),
                           ],
                         ),
                       ),

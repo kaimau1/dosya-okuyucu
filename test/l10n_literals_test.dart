@@ -61,11 +61,21 @@ final _uiSlot = RegExp(
 final _literal = RegExp(r"'([^'\\\n]{2,})'");
 
 /// Türkçe'ye özgü harfler ya da yalnız Türkçe'de geçen yaygın kelimeler.
+///
+/// **Bu bir sezgi, kanıt değil.** Türkçe'ye özgü harf taşımayan ve listede
+/// olmayan bir kelime (ör. `'Aktar'`, `'Sunum (PDF)'`) buradan sızabilir —
+/// 2026-08-08'de sohbet ekranındaki dışa aktarma menüsünde tam olarak bu
+/// oldu, gözle bakarken yakalandı. Sızıntı görüldükçe kelime listesi
+/// büyütülüyor; testin işi "hepsini yakalamak" değil, **ucuz ve gürültüsüz
+/// olanı yakalamak**. Yanlış pozitif üretmemesi (İngilizce/marka dizeleri
+/// kızdırmaması) doğru yakalama oranından daha değerli: bağıran ama yanılan
+/// bir test kısa sürede susturulur.
 final _turkish = RegExp(
   r'[çğıöşüÇĞİÖŞÜ]|'
   r'\b(ve|için|bir|bu|yok|var|ile|dosya|klasör|kaydet|sil|kapat|tamam|'
   r'iptal|hata|seç|yeni|geri|ileri|gir|dene|yenile|temizle|sonraki|önceki|'
-  r'tara)\b',
+  r'tara|aktar|sunum|ekle|gönder|indir|paylas|paylaş|ara|bul|degistir|'
+  r'kapat|baslat|durdur|devam|bitir)\b',
   caseSensitive: false,
 );
 

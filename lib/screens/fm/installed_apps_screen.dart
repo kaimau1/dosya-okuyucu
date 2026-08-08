@@ -152,10 +152,10 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
                   child: TextField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      hintText: 'Uygulama ara…',
-                      prefixIcon: Icon(Icons.search),
+                      hintText: context.t('fm.search_apps'),
+                      prefixIcon: const Icon(Icons.search),
                     ),
                     onChanged: (v) => setState(() => _query = v),
                   ),
