@@ -7441,3 +7441,78 @@ verdi. Yeni anahtar açmadan önce tabloya bakmak gerekiyor.
 **Doğrulama:** Linux bulut oturumu, Flutter 3.29.3 (CI ile aynı) —
 `flutter analyze lib` sıfır sorun, **1523 test yeşil** (yeni `labelKey`
 gerileme testi dahil).
+
+## 2026-08-08 (4) — Slayt ↔ PDF: iki yön de yazıldı
+
+Kullanıcı yarım kalan işin `claude/slayt-pdf-donusturme-ypvtqd` dalı olduğunu
+söyledi. **O dal uzakta YOK** (GitHub'da 19 dal var, aralarında değil), ona ait
+PR yok, yerelde stash/reflog izi yok, hiçbir dalda slayt↔PDF commit'i yok —
+yani o oturumdan hiçbir şey push edilmemiş. Devam edilecek kod değil, sıfırdan
+yazılacak iş çıktı. **Ders:** dal adı işin yapıldığını göstermez; "yarım kalan"
+denince önce uzakta gerçekten commit var mı diye bakılmalı.
+
+### Önceki durum (ölçüldü, varsayılmadı)
+- **Slayt → PDF: hiç yoktu.** `.pptx` dosya yöneticisinden `SlidesEditorScreen`e
+  gidiyor, oradaki "Paylaş" `.pptx`in KENDİSİNİ paylaşıyordu. `pptx_render`,
+  `pptx_editor`, `slideshow_screen` — üçünde de "pdf" kelimesi geçmiyordu.
+- **PDF → slayt: çalışmıyordu.** Menüde "Slayta dönüştür" vardı ama
+  `_exportSlides` metni `_textController?.text ?? doc.plainText`ten alıyordu ve
+  PDF'te İKİSİ DE BOŞ (PDF metin türü değil, metni `_pdfText`te durur). Yani
+  asıl hedef olan PDF'te boş deste üretiyordu. Üstüne bölme yalnız `---` /
+  `— Slayt N —` arıyordu; gerçek bir PDF'te bunlar yok, her şey tek slayta
+  düşerdi.
+
+### A) Slayt → PDF: görüntü + GÖRÜNMEZ metin (`slides_pdf.dart`, `slide_snapshot.dart`)
+Ekranda çizilenin ta kendisi PDF'e basılıyor, üstüne `3 Tr` ile görünmez metin
+yazılıyor — **taranmış PDF'ler için zaten var olan `imagesToPdf(ocrLinesPerPage:)`
+yolu yeniden kullanıldı**, yeni bir PDF yazıcı yazılmadı.
+- **Neden vektör yeniden çizim DEĞİL:** slayt sadakati (prstGeom, custGeom,
+  lnRef, gradient, kırpılmış görsel) `slide_canvas`ta uzun uğraşla oturdu. Aynı
+  çizimi `pdf` paketiyle ikinci kez yazmak o sadakati sıfırdan riske atardı ve
+  iki çizici birbirinden bağımsız bozulurdu.
+- **TUZAK — başsız (headless) çizim görselli slaytları BOŞ basar.** `SlideCanvas`
+  görselleri `Image.memory` ile çiziyor, çözümleme asenkron. Tek karede boyayan
+  bir `BuildOwner`/`PipelineOwner` kurgusu görseli olan slaytları sessizce boş
+  bırakırdı (hata da atmaz). Bu yüzden slayt gerçek ağaca (Overlay) ekleniyor,
+  görseller `precacheImage` ile önden alınıyor, İKİ kare bekleniyor.
+- **TUZAK — `Offstage` işe yaramaz:** offstage alt ağaç hiç boyanmaz,
+  `toImage` boş döner. Slayt ekran DIŞINA ötelenerek konuyor; `RepaintBoundary
+  .toImage` kendi katmanını çizdiği için üstteki öteleme çıktıya yansımıyor.
+- **TUZAK — `ui.Image.dispose()`:** yerel bellek tutar, GC beklemez; 40 slaytlık
+  destede bırakılırsa bellek slayt sayısıyla büyür.
+- Görüntü ve metin kutuları AYNI `_pdfPixelRatio` (2.0) ile ölçekleniyor —
+  ayrışırsa seçim kutuları yazının yanına düşer. Kutu şekil başına değil
+  **paragraf başına**: yoksa kopyalanan metin tek satıra iner.
+- Sayfa boyu = slaydın kendi boyu; A4'e sığdırmak 16:9'u kâğıdın ortasında bant
+  yapardı.
+
+### B) PDF → Slayt: GERÇEK .pptx (`pptx_writer.dart`, `text_to_slides.dart`)
+Çıktı artık PDF değil **düzenlenebilir .pptx** — "tersi" isteğinin karşılığı bu.
+- **Neden elle XML:** pub'da bakımlı bir PPTX YAZICI yok. Paket ~11 küçük XML
+  parçası; elle yazmak bağımlılık eklemiyor.
+- **TUZAK — PowerPoint ilişkilerde katı.** Eksik `slideLayout`/`theme` ilişkisi
+  "onarılması gerekiyor" uyarısı çıkarır. `fmtScheme` listeleri SABİT sayıda
+  öğe ister (3 dolgu, 3 çizgi, 3 efekt, 3 arka plan). Kendi okuyucumuzun
+  hoşgörülü olması yeterli DEĞİL — dosya dışarıda da açılmalı.
+- **TUZAK — `p:sldId@id` en az 256** (ECMA-376); küçüğü dosyayı geçersiz yapar.
+- **TUZAK — XML kaçışında `&` ÖNCE gelmeli**, yoksa `&lt;` → `&amp;lt;` olur.
+  Ayrıca XML 1.0'da yasak denetim karakterleri PDF metninden geliyor ve
+  dosyayı açılamaz yapardı — süzülüyor.
+- Yerleşimden MİRAS alınmıyor, her şekle açık `a:xfrm` yazılıyor: miras zinciri
+  okuyucuya göre farklı yorumlanıyor, açık koordinat her yerde aynı.
+- **TUZAK — `RegExp` varsayılanı çok satırlı DEĞİL.** Ayraç sezgisi
+  `_explicit.hasMatch(tümMetin)` ile yazılınca `^…$` yalnız metnin tamamı bir
+  ayraçsa eşleşiyordu; açık `---` ayraçları hiç görülmedi (test yakaladı).
+  Artık satır satır bakılıyor.
+- Bölme kuralları: açık ayraç > boş satır blokları. Tek satırlık UZUN paragraf
+  kendi slaytını açmaz, öncekine madde olur (yoksa her cümleye bir slayt).
+  Altı maddeden sonrası aynı başlıkla taşar. Cümleyle başlayan blok başlıksız
+  kalır — uydurma başlık yazmaktansa boş bırakmak dürüst.
+
+**Bilinen borç:** iki ayrı bölücü var — `conversion_service._splitIntoSlides`
+(AI metninden PDF deste, `stripInlineMarkdown` uygular) ve `TextToSlides`.
+İkincisi daha iyi ama markdown temizlemiyor; birleştirmek ayrı bir tur.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze lib` sıfır sorun,
+**1540 test yeşil** (17 yeni). Gidiş-dönüş testi asıl kanıt: ürettiğimiz .pptx
+`PptxEditor.parse` ile açılıyor ve çizilebilir `SlideVM` veriyor.

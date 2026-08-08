@@ -34,6 +34,8 @@ import '../services/pdf_annotator.dart';
 import '../services/pdf_edit_flow.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
+import '../services/pptx_writer.dart';
+import '../services/text_to_slides.dart';
 import '../services/tts_service.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/ai_rewrite_sheet.dart';
@@ -798,14 +800,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
   }
 
+  /// Belgeyi **düzenlenebilir bir sunuma** (.pptx) çevirir.
+  ///
+  /// Eskiden çıktı PDF'ti (`textToSlidesPdf`); "PDF'ten slayta" isteğinin
+  /// karşılığı düzenlenebilir bir dosyadır, o yüzden gerçek .pptx üretiliyor.
+  /// Dosya hem bizim slayt düzenleyicimizde hem PowerPoint'te açılır.
+  ///
+  /// Metin `_documentText`ten geliyor: eski hâli `_textController?.text ??
+  /// doc.plainText` idi ve PDF'te ikisi de BOŞTU (PDF metin türü değil, metni
+  /// `_pdfText`te duruyor) — yani asıl hedef olan PDF'te boş deste üretiyordu.
   Future<void> _exportSlides() async {
-    final text = _textController?.text ?? widget.doc.plainText;
-    final bytes = await _conversion.textToSlidesPdf(widget.doc.name, text);
+    final text = _documentText;
+    if (text.trim().isEmpty) {
+      _snack(context.t('vw.slides_no_text'));
+      return;
+    }
+
+    final drafts = TextToSlides.split(text);
+    if (drafts.isEmpty) {
+      _snack(context.t('vw.slides_no_text'));
+      return;
+    }
+
+    final bytes = PptxWriter.build(drafts);
     final path = await _conversion.writeToTemp(
-      '${_stem(widget.doc.name)}-slayt.pdf',
+      '${_stem(widget.doc.name)}.pptx',
       bytes,
     );
-    await Share.shareXFiles([XFile(path)], text: 'Slayt destesi (PDF)');
+    if (!mounted) return;
+    await Share.shareXFiles([XFile(path)], text: context.t('vw.slides_share'));
   }
 
   /// Paylaş / yazdır: PDF'te GÖRÜLEN hâli gönderilir — bekleyen düzenlemeler

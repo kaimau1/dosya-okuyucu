@@ -19,6 +19,19 @@
 >    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
 >    (split-per-abi/AAB). Her biri kendi başına bir tur.
 
+- [ ] **Slayt ↔ PDF cihaz doğrulaması (kullanıcı)** — 2026-08-08:
+      (a) bir `.pptx` aç → alt çubukta **PDF** → üretilen PDF'te slaytlar
+      **ekrandakiyle birebir** mi (şekiller, renkler, görseller yerinde mi),
+      (b) o PDF'te **yazı seçilip kopyalanabiliyor** ve aranabiliyor mu
+      (görünmez metin katmanı), (c) görsel içeren bir slayt PDF'te boş
+      çıkıyor mu (çıkıyorsa önbellek/kare bekleme yetmemiş demektir),
+      (d) çok slaytlı (20+) bir destede bellek/donma sorunu var mı,
+      (e) bir **PDF** aç → ⋮ → **Slayta dönüştür** → çıkan `.pptx`
+      düzenleyicimizde açılıyor mu, (f) aynı dosya **PowerPoint / Google
+      Slaytlar**'da onarım uyarısı olmadan açılıyor mu (en kritik madde —
+      paket geçerliliği yalnız orada kanıtlanır), (g) bölme mantıklı mı
+      (başlıklar başlık, her cümle ayrı slayt değil).
+
 - [ ] **KALANLAR turu cihaz doğrulaması (kullanıcı)** — 2026-08-08:
       (a) Ayarlar > **Dil** > English seç → **dosya yöneticisi, PDF, slayt ve
       sohbet** ekranlarında da artık Türkçe metin KALMAMALI, (b) bir video

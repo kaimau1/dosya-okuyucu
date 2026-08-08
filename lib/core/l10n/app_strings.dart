@@ -877,6 +877,12 @@ const Map<String, (String, String, String)> _table = {
   'vw.translate_doc': ('Belgeyi çevir', 'Translate document', 'ترجمة المستند'),
   'vw.to_pdf': ('PDF’e dönüştür', 'Convert to PDF', 'تحويل إلى PDF'),
   'vw.to_slides': ('Slayta dönüştür', 'Convert to slides', 'تحويل إلى شرائح'),
+  'vw.slides_share': ('Sunum (.pptx)', 'Presentation (.pptx)', 'عرض تقديمي (.pptx)'),
+  'vw.slides_no_text': (
+    'Bu belgede slayta çevrilecek metin yok.',
+    'This document has no text to turn into slides.',
+    'لا يوجد في هذا المستند نص لتحويله إلى شرائح.',
+  ),
   'vw.file_ops': ('Dosya işlemleri (taşı, kopyala…)', 'File operations (move, copy…)', 'عمليات الملفات (نقل، نسخ…)'),
   'vw.ocr': ('Metni tanı (OCR)', 'Recognize text (OCR)', 'التعرّف على النص (OCR)'),
   'vw.ocr_short': ('Metni tanı', 'Recognize text', 'التعرّف على النص'),
@@ -2730,6 +2736,18 @@ const Map<String, (String, String, String)> _table = {
 
   // ── Slayt düzenleyici ─────────────────────────────────────────────────────
   'sl.play': ('Oynat', 'Play', 'تشغيل'),
+  'sl.to_pdf': ('PDF', 'PDF', 'PDF'),
+  'sl.pdf_progress': (
+    'Slayt {n}/{total} basılıyor…',
+    'Rendering slide {n}/{total}…',
+    'يجري تصيير الشريحة {n}/{total}…',
+  ),
+  'sl.pdf_failed': (
+    'PDF üretilemedi: {error}',
+    'Could not create the PDF: {error}',
+    'تعذّر إنشاء ملف PDF: {error}',
+  ),
+  'sl.pdf_share': ('Sunum (PDF)', 'Presentation (PDF)', 'عرض تقديمي (PDF)'),
   'sl.none': ('Slayt bulunamadı.', 'No slides found.', 'لم يُعثر على شرائح.'),
   'sl.actions': ('Slayt işlemleri', 'Slide actions', 'إجراءات الشريحة'),
   'sl.duplicate': ('Slaytı çoğalt', 'Duplicate slide', 'تكرار الشريحة'),

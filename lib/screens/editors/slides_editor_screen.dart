@@ -3,21 +3,26 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../models/document.dart';
+import '../../services/conversion_service.dart';
 import '../../services/fm/activity_log.dart';
+import '../../services/ocr_service.dart' show OcrLine;
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
+import '../../services/slides_pdf.dart';
 import '../../widgets/ai_summary_flow.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_canvas.dart';
+import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
@@ -43,6 +48,13 @@ class SlidesEditorScreen extends StatefulWidget {
   @override
   State<SlidesEditorScreen> createState() => _SlidesEditorScreenState();
 }
+
+/// PDF'e basarken slayt puntosunun kaç katı piksel üretileceği.
+///
+/// 2 = okunur keskinlik, makul dosya. Yükseltmek yazıyı netleştirir ama her
+/// slayt kare kare belleğe alındığı için 40 slaytlık bir destede telefonu
+/// zorlar; düşürmek başlıkları bulanıklaştırır.
+const _pdfPixelRatio = 2.0;
 
 class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   PptxEditor? _editor;
@@ -155,6 +167,113 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     final f = File('${Directory.systemTemp.path}/${widget.name}');
     await f.writeAsBytes(editor.save());
     await Share.shareXFiles([XFile(f.path)], text: widget.name);
+  }
+
+  /// Slaytların **ekranda göründüğü hâlini** PDF'e basar.
+  ///
+  /// Her slayt önce PNG'e alınıyor, sonra üstüne görünmez metin katmanı
+  /// yazılıyor — gerekçesi `SlidesPdf` ve `SlideSnapshot` başlarında.
+  /// Görüntü ve metin kutuları AYNI [_pdfPixelRatio] ile ölçekleniyor; ikisi
+  /// ayrışırsa seçim kutuları yazının yanına düşer.
+  Future<void> _exportPdf() async {
+    final editor = _editor;
+    if (editor == null || editor.slides.isEmpty) return;
+
+    final progress = ValueNotifier<String>('');
+    var closed = false;
+    void close() {
+      if (closed) return;
+      closed = true;
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+                width: 24, height: 24, child: CircularProgressIndicator()),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ValueListenableBuilder<String>(
+                valueListenable: progress,
+                builder: (_, v, __) => Text(v),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ));
+
+    final dir = await Directory.systemTemp.createTemp('slayt-pdf');
+    try {
+      final paths = <String>[];
+      final linesPerPage = <List<OcrLine>>[];
+      SlideVM? firstView;
+
+      for (var i = 0; i < editor.slides.length; i++) {
+        final view = editor.slides[i].view;
+        if (view == null) continue; // çizilemeyen slayt sessizce atlanır
+        if (!mounted) return;
+        progress.value = context.t(
+          'sl.pdf_progress',
+          {'n': i + 1, 'total': editor.slides.length},
+        );
+
+        final png =
+            await SlideSnapshot.toPng(context, view, pixelRatio: _pdfPixelRatio);
+        if (png == null) return; // ekran kapandı — vazgeçildi
+
+        final file = File('${dir.path}/slayt-${i.toString().padLeft(4, '0')}.png');
+        await file.writeAsBytes(png);
+        paths.add(file.path);
+        linesPerPage.add(SlidesPdf.textLines(view, pixelRatio: _pdfPixelRatio));
+        firstView ??= view;
+      }
+
+      if (paths.isEmpty || firstView == null) return;
+
+      // Sayfa boyu = slaydın kendi boyu. A4'e sığdırmak 16:9 bir sunumu
+      // kâğıdın ortasında bant hâline getirirdi; PowerPoint de slayt boyunda basar.
+      final bytes = await ConversionService().imagesToPdf(
+        paths,
+        ocrLinesPerPage: linesPerPage,
+        uniformPage: PdfPageFormat(firstView.widthPt, firstView.heightPt),
+      );
+      final out = File('${dir.path}/${_stem(widget.name)}.pdf');
+      await out.writeAsBytes(bytes);
+
+      close();
+      if (!mounted) return;
+      await Share.shareXFiles([XFile(out.path)],
+          text: context.t('sl.pdf_share'));
+    } catch (e) {
+      close();
+      _snack(AppStrings.current.t('sl.pdf_failed', {'error': e}));
+    } finally {
+      close();
+      progress.dispose();
+      // Geçici PNG'ler destede onlarca MB tutabilir; paylaşım PDF'i okuduktan
+      // sonra silmek yerine burada silmek dosyayı da götürürdü, o yüzden
+      // PNG'ler gidiyor, PDF sistemin geçici klasöründe kalıyor.
+      for (final p in Directory(dir.path).listSync()) {
+        if (p.path.endsWith('.png')) {
+          try {
+            p.deleteSync();
+          } catch (_) {
+            // silinemedi — işletim sistemi geçici klasörü zaten toplar
+          }
+        }
+      }
+    }
+  }
+
+  /// Dosya adının uzantısız kökü.
+  String _stem(String name) {
+    final dot = name.lastIndexOf('.');
+    return dot <= 0 ? name : name.substring(0, dot);
   }
 
   void _snack(String m) {
@@ -402,6 +521,8 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                     editor == null ? null : _summarize),
                 DocAction(Icons.save_outlined, context.t('common.save'),
                     editor == null ? null : _save),
+                DocAction(Icons.picture_as_pdf_outlined, context.t('sl.to_pdf'),
+                    editor == null ? null : _exportPdf),
                 DocAction(Icons.share_outlined, context.t('common.share'),
                     editor == null ? null : _export),
                 DocAction(
