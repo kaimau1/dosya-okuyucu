@@ -28,7 +28,8 @@ Future<String?> askArchivePassword(
             controller: controller,
             autofocus: true,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Parola'),
+            decoration:
+                InputDecoration(labelText: ctx.t('common.password')),
             onSubmitted: (v) => Navigator.pop(ctx, v),
           ),
         ],

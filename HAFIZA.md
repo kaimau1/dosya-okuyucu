@@ -7379,3 +7379,65 @@ kelime listesi büyütülmeli; testin dosya başındaki notu bunu yazıyor.
 Ayrıca `flutter analyze lib` **ilk kez sıfır sorun**: `const ZLibEncoder/
 Decoder`, kayıt deseninde `__` yerine joker `_`, galeri `_paths` alanı
 `final` (yalnız mutasyon var, yeniden atama yok).
+
+### 2026-08-08 (3) — Bekçinin iki YAPISAL deliği: eklemeli dil ve alt satır
+
+Önceki oturum `ba88610`'ı APK derlensin diye main'e itip yarıda kaldı.
+**Önce o kapatıldı:** koşu 265 yeşil, `v0.1.0-build-265` yayımlandı — yani
+2026-08-06 kırmızısının runner tarafı olduğu (PR #43 teşhisi) artık ölçüyle
+de doğrulandı, kodda yapılacak bir şey yok.
+
+Asıl iş, o commit'in kendi açık bıraktığı uçtu. Bir gün önce kelime listesi
+genişletilince ANINDA altı sızıntı çıkmıştı; bu, listenin dar olduğunu değil
+**testin şeklinin yanlış** olduğunu gösteriyordu. İki ayrı delik bulundu:
+
+**A) Türkçe EKLEMELİ bir dil — `\b(gövde)\b` yanlış şekil.** Liste `dosya`yı
+tanıyordu ama `'Dosyalar'` sızdı: `-lar` eki sondaki `\b`yi kaydırıyor ve tam
+kelime eşleşmesi tutmuyor. Aynı sebeple `'Uygulamalar'`, `'Yolu kopyala'`,
+`'Boyutu hesapla'`, `'Konum'`, `'Parola'` görünmezdi. Çözüm: gövde + **en çok
+iki Türkçe ek** (`uygula`+`ma`+`lar`), ek listesi AÇIK ve sonlu.
+**Serbest son ek (`gövde\w*`) DENENMEDİ, çünkü İngilizce'yi yakardı:** `bu`
+gövdesi `button`/`build`/`buffer`, `bas` gövdesi `base` ile eşleşirdi — ve bu
+testin en değerli özelliği yanlış pozitif üretmemesi. Kapalı ek listesi
+bunları eler (`tton` Türkçe eki değildir). Ölçüldü: 21 gerçek sızıntı, sıfır
+yanlış pozitif.
+
+**B) Yuva ile metin AYNI satırda olmayabilir.** `Text(` satır sonunda bitip
+dize alt satıra düşünce (biçimlendiricinin sık yaptığı şey) yalnız o satıra
+bakan tarama körleşiyordu — `markdown_text`teki `'kod'` böyle sızmıştı.
+Artık önceki satır yuva açıp kapatmadan bittiyse alt satır da taranıyor.
+Bütün ağaçta bu konumda yalnız 4 dize var (`'kod'` + `'page'`, `', '`, `' · '`
+— üçü çevrilmez), yani delik kapandı ve gürültü gelmedi.
+
+**TUZAK — `_suffixes` sıralaması.** Alternatifler soldan denenir: `lar`,
+`ları`dan önce yazılırsa uzun biçim hiç denenmez ve sondaki `\b` tutmaz.
+Uzun ek kısa olandan ÖNCE gelmeli.
+
+**TUZAK — Python ile prova ETME.** Regex'i önce Python'da denerken 107 sahte
+sızıntı çıktı (`'ps.title'`, `'ZIP'`, `'size'`…). Sebep: Python'un `re.I`si
+tam kılıf katlaması yapar, `ı` (U+0131) ASCII `I` ile eşleşir — yani
+`[çğıöşü]` sınıfı **içinde `i` geçen her dizeyi** yakar. Dart/ECMAScript bu
+eşlemeyi bilerek dışarıda bırakır (büyük harfi ASCII'ye düşen ASCII-dışı
+karakter kendisi olarak kalır), o yüzden Dart testinde bu sorun YOK. Ders:
+bekçiyi kendi diliyle koştur, taklidiyle değil.
+
+### Servis katmanındaki etiketler — `StorageVolume.labelKey`
+`'Ana bellek'` / `'SD kart'` saf Dart serviste duruyordu (`context.t` yok).
+Model artık metin değil **anahtar** taşıyor (`labelKey`, mevcut
+`FmCategoryLabel.labelKey` düzeniyle aynı) ve ekran `displayLabel(context.t)`
+ile çeviriyor. **Neden metin saklanmadı:** birim listesi açılışta bir kez
+kuruluyor; hazır çevrilmiş metin saklansaydı kullanıcı dili değiştirdiğinde
+eski dilde donardı. Takılabilir diskin KENDİ adı (`SAMSUNG`) çevrilmez — o
+kullanıcının verisi; yalnız UUID adlı birim "SD kart" olur.
+
+**TUZAK (testle sabitlendi):** `volumes()` doluluk bilgisini `copyWith` ile
+dolduruyor. `copyWith` yeni alanı taşımayı unutursa **her birim adsız kalır**
+— sızıntı derlemede değil yalnız ekranda görünürdü.
+
+`vt.fallback_engine` zaten TABLODA VARDI (`yedek motor (kademeli ölçü)`) ve
+kullanılmıyordu; yenisini eklemek `equal_keys_in_const_map` derleme hatası
+verdi. Yeni anahtar açmadan önce tabloya bakmak gerekiyor.
+
+**Doğrulama:** Linux bulut oturumu, Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze lib` sıfır sorun, **1523 test yeşil** (yeni `labelKey`
+gerileme testi dahil).

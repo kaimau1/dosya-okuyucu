@@ -27,7 +27,8 @@ abstract final class FmEnv {
     volumes = await StorageStats.volumes();
     if (volumes.isEmpty) {
       volumes = [
-        StorageVolume(path: primaryRoot, label: 'Ana bellek', isPrimary: true),
+        StorageVolume(
+            path: primaryRoot, labelKey: 'fm.vol_internal', isPrimary: true),
       ];
     }
     _ready = true;

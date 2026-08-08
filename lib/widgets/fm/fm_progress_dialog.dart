@@ -155,7 +155,7 @@ Future<T> showFmProgress<T>(
                   closeDialog();
                   showBackgroundBar();
                 },
-                child: const Text('Arka plana al'),
+                child: Text(ctx.t('fm.to_background')),
               ),
             if (cancellable)
               TextButton(

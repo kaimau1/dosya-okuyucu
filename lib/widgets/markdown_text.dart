@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
+import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
 
 /// [parseMarkdown] bloklarını Flutter zengin metnine çizer.
@@ -106,7 +107,9 @@ class MarkdownText extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      block.codeLang.isEmpty ? 'kod' : block.codeLang,
+                      block.codeLang.isEmpty
+                          ? context.t('md.code')
+                          : block.codeLang,
                       style: base.copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -115,7 +118,7 @@ class MarkdownText extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Kopyala',
+                    tooltip: context.t('common.copy'),
                     visualDensity: VisualDensity.compact,
                     iconSize: 16,
                     icon: const Icon(Icons.copy_outlined),

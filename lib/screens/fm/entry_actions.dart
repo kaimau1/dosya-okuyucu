@@ -767,14 +767,14 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
         if (e.isDir && _folderSize == null)
           TextButton(
             onPressed: _calculating ? null : _calculate,
-            child: const Text('Boyutu hesapla'),
+            child: Text(context.t('fm.calc_size')),
           ),
         TextButton(
           onPressed: () {
             Clipboard.setData(ClipboardData(text: e.path));
             Navigator.pop(context);
           },
-          child: const Text('Yolu kopyala'),
+          child: Text(context.t('fm.copy_path')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context),

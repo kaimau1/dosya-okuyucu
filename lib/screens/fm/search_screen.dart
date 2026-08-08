@@ -290,7 +290,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           TextButton(
             onPressed: () => setState(() => _smart = null),
-            child: const Text('Yoksay'),
+            child: Text(context.t('common.ignore')),
           ),
         ],
       ),

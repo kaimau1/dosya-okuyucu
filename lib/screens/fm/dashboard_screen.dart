@@ -322,7 +322,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dosyalar'),
+        title: Text(context.t('fm.files')),
         // **Arama kalıcı** (2026-08-04 tasarım turu): dosya yöneticisine gelme
         // sebebi çoğu zaman arama; simgenin arkasında bir dokunuş kaybediyordu.
         bottom: PreferredSize(
@@ -809,7 +809,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.android,
         color: FmColors.apk,
-        label: 'Uygulamalar',
+        label: context.t('fm.apps'),
         subtitle: '',
         onTap: () => _push(const InstalledAppsScreen()),
       ),
@@ -990,7 +990,8 @@ class _NewFolderDialogState extends State<_NewFolderDialog> {
             DropdownButtonFormField<String>(
               value: _parent,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Konum'),
+              decoration:
+                  InputDecoration(labelText: context.t('common.location')),
               items: [
                 for (final l in widget.locations)
                   DropdownMenuItem(
@@ -1105,7 +1106,8 @@ class _VolumeCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(volume.label, style: theme.textTheme.titleMedium),
+                    Text(volume.displayLabel(context.t),
+                        style: theme.textTheme.titleMedium),
                     const SizedBox(height: 2),
                     // Aradığı sayı "kaç GB boş" — dolu/toplam ikilisi bunu
                     // kafadan çıkarmayı gerektiriyordu, ayrıca yazılıyor.

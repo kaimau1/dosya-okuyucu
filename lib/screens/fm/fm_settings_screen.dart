@@ -485,7 +485,7 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
             title: Text(context.t('fmset.volumes')),
             subtitle: Text(FmEnv.volumes.isEmpty
                 ? context.t('fmset.volumes_none')
-                : FmEnv.volumes.map((v) => v.label).join(' · ')),
+                : FmEnv.volumes.map((v) => v.displayLabel(context.t)).join(' · ')),
             onTap: () async {
               await FmEnv.ensureInit(force: true);
               await _refresh();

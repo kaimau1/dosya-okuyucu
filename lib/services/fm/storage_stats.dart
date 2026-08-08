@@ -6,18 +6,36 @@ import 'package:path_provider/path_provider.dart';
 /// Bir depolama birimi (dahili bellek, SD kart, USB).
 class StorageVolume {
   final String path;
+
+  /// Birimin **ham** adı — dosya sistemindeki karşılığı (ör. `SAMSUNG`).
+  /// Kullanıcının verisidir, çevrilmez. [labelKey] doluysa ekranda kullanılmaz.
   final String label;
+
+  /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`). Yalnız **tanınan**
+  /// birimlerde dolu: ana bellek ve UUID adlı SD kart. Bu dosya saf Dart —
+  /// `AppStrings`'i tanımaz, o yüzden metin değil anahtar taşınır.
+  ///
+  /// Metnin burada tutulmaması bir dil değişiminde de doğru olmasını sağlar:
+  /// birim listesi açılışta bir kez kuruluyor, hazır çevrilmiş bir metin
+  /// saklansaydı kullanıcı dili değiştirdiğinde eski dilde kalırdı.
+  final String? labelKey;
+
   final bool isPrimary;
   final int totalBytes;
   final int freeBytes;
 
   const StorageVolume({
     required this.path,
-    required this.label,
     required this.isPrimary,
+    this.label = '',
+    this.labelKey,
     this.totalBytes = 0,
     this.freeBytes = 0,
   });
+
+  /// Ekranda gösterilecek ad. [t] genelde `context.t`.
+  String displayLabel(String Function(String) t) =>
+      labelKey == null ? label : t(labelKey!);
 
   /// **Cihazın üstünde yazan** kapasite (512 GB gibi) — `df`in verdiği dosya
   /// sistemi boyutu değil.
@@ -65,6 +83,7 @@ class StorageVolume {
   StorageVolume copyWith({int? totalBytes, int? freeBytes}) => StorageVolume(
         path: path,
         label: label,
+        labelKey: labelKey,
         isPrimary: isPrimary,
         totalBytes: totalBytes ?? this.totalBytes,
         freeBytes: freeBytes ?? this.freeBytes,
@@ -91,7 +110,7 @@ abstract final class StorageStats {
     final primary = await primaryRoot();
     if (primary != null) {
       out.add(StorageVolume(
-          path: primary, label: 'Ana bellek', isPrimary: true));
+          path: primary, labelKey: 'fm.vol_internal', isPrimary: true));
     }
 
     // Takılabilir birimler: /storage altında UUID adlı (ör. 1A2B-3C4D) klasörler.
@@ -108,9 +127,14 @@ abstract final class StorageStats {
         } catch (_) {
           continue;
         }
+        // UUID adlı birim takılabilir bir karttır ve "1A2B-3C4D" kullanıcıya
+        // hiçbir şey anlatmaz → çevrilen ad. Adı olan birim kendi adıyla
+        // gösterilir (o ad kullanıcının verisi, çevrilmez).
+        final isCard = _isUuid(name);
         out.add(StorageVolume(
           path: entity.path,
-          label: _isUuid(name) ? 'SD kart' : name,
+          label: isCard ? '' : name,
+          labelKey: isCard ? 'fm.vol_sdcard' : null,
           isPrimary: false,
         ));
       }

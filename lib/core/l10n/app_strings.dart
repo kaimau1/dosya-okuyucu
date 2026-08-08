@@ -116,6 +116,11 @@ const Map<String, (String, String, String)> _table = {
   'common.add': ('Ekle', 'Add', 'إضافة'),
   'common.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
   'common.resume': ('Devam et', 'Resume', 'متابعة'),
+  'common.location': ('Konum', 'Location', 'الموقع'),
+  // Dili belirtilmemiş kod bloğunun rozeti (```…```).
+  'md.code': ('kod', 'code', 'شيفرة'),
+  'common.password': ('Parola', 'Password', 'كلمة المرور'),
+  'common.ignore': ('Yoksay', 'Ignore', 'تجاهل'),
   'fm.search_apps': ('Uygulama ara…', 'Search apps…', 'ابحث في التطبيقات…'),
   'common.go': ('Git', 'Go', 'انتقال'),
   'common.saved': ('Kaydedildi', 'Saved', 'تم الحفظ'),
@@ -1901,6 +1906,11 @@ const Map<String, (String, String, String)> _table = {
   ),
   'excel.csv_encoding': ('CSV kodlaması', 'CSV encoding', 'ترميز CSV'),
   'excel.csv_utf8': ('UTF-8 (önerilir)', 'UTF-8 (recommended)', 'UTF-8 (مستحسن)'),
+  'excel.csv_utf8_sub': (
+    'Modern Excel / Google E-Tablolar',
+    'Modern Excel / Google Sheets',
+    'Excel الحديث / جداول بيانات Google',
+  ),
   'excel.csv_legacy': (
     'Eski Türkçe Excel / Not Defteri',
     'Legacy Turkish Excel / Notepad',
@@ -1999,6 +2009,19 @@ const Map<String, (String, String, String)> _table = {
         'الاستعادة من هذه النسخة.',
   ),
   'fm.apps': ('Uygulamalar', 'Apps', 'التطبيقات'),
+  'fm.files': ('Dosyalar', 'Files', 'الملفات'),
+  'fm.calc_size': ('Boyutu hesapla', 'Calculate size', 'حساب الحجم'),
+  'fm.copy_path': ('Yolu kopyala', 'Copy path', 'نسخ المسار'),
+  'fm.new_xlsx': (
+    'Excel tablosu (.xlsx)',
+    'Excel spreadsheet (.xlsx)',
+    'جدول Excel (.xlsx)',
+  ),
+  'fm.to_background': ('Arka plana al', 'Run in background', 'تشغيل في الخلفية'),
+  // Depolama birimi adları: yalnız TANINAN birimler çevrilir. Takılabilir bir
+  // diskin kendi adı (ör. "SAMSUNG") çevrilmez — o kullanıcının verisidir.
+  'fm.vol_internal': ('Ana bellek', 'Internal storage', 'الذاكرة الداخلية'),
+  'fm.vol_sdcard': ('SD kart', 'SD card', 'بطاقة SD'),
   'fm.quick_untouched': (
     '{n} aydır açılmamış',
     'Not opened in {n} months',
@@ -3855,6 +3878,7 @@ const Map<String, (String, String, String)> _table = {
   'sg.failed': ('İmzalanamadı: {error}', 'Signing failed: {error}', 'فشل التوقيع: {error}'),
   'sg.title': ('İmzala — {name}', 'Sign — {name}', 'وقّع — {name}'),
   'sg.redraw': ('İmzayı yeniden çiz', 'Redraw the signature', 'أعِد رسم التوقيع'),
+  'sg.stamp': ('Bas', 'Stamp', 'اختم'),
   'sg.prev_page': ('Önceki sayfa', 'Previous page', 'الصفحة السابقة'),
 
   // ── Köşe düzeltme ─────────────────────────────────────────────────────────
@@ -3928,6 +3952,7 @@ const Map<String, (String, String, String)> _table = {
     'A smaller file. With a password, AES-256; file names can be hidden too.',
     'ملف أصغر. وبكلمة مرور، AES-256؛ ويمكن إخفاء أسماء الملفات أيضًا.',
   ),
+  'cmp.set_password': ('Parola koy', 'Set a password', 'تعيين كلمة مرور'),
   'cmp.hide_names': (
     'Dosya adlarını da gizle',
     'Hide the file names too',
@@ -4722,6 +4747,8 @@ const Map<String, (String, String, String)> _table = {
     '{n} / {total}  ·  الخطوة {step}/{max}',
   ),
   'ss.no_text': ('(Metin yok)', '(No text)', '(لا يوجد نص)'),
+  // İçerik hiç bölünemediğinde tek slayda verilen başlık.
+  'conv.slide_fallback': ('Slayt', 'Slide', 'شريحة'),
 
   // ── Kurulu uygulamalar ────────────────────────────────────────────────────
   'ia.permission_hint': (

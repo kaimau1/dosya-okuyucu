@@ -102,7 +102,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Uygulamalar'),
+        title: Text(context.t('fm.apps')),
         actions: [
           IconButton(
             tooltip: context.t('common.refresh'),

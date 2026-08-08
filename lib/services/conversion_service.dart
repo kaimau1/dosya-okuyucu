@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
 import 'ocr_service.dart';
 
@@ -329,7 +330,9 @@ class ConversionService {
           title: title, bullets: bullets.isEmpty ? [title] : bullets));
     }
     if (result.isEmpty) {
-      result.add(_Slide(title: 'Slayt', bullets: [content]));
+      result.add(_Slide(
+          title: AppStrings.current.t('conv.slide_fallback'),
+          bullets: [content]));
     }
     return result;
   }

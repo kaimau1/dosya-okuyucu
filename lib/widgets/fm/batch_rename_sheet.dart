@@ -233,7 +233,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                               child:
                                   CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.check),
-                      label: const Text('Uygula'),
+                      label: Text(context.t('common.apply')),
                     ),
                   ],
                 ),

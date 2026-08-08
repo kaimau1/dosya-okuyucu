@@ -723,7 +723,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.table_chart_outlined),
-              title: const Text('Excel tablosu (.xlsx)'),
+              title: Text(context.t('fm.new_xlsx')),
               onTap: () {
                 Navigator.pop(ctx);
                 _newDocument('xlsx');

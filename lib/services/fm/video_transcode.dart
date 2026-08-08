@@ -235,7 +235,7 @@ abstract final class VideoTranscoder {
     String? progressPrefix,
   ) =>
       (
-        label: 'yedek motor',
+        label: AppStrings.current.t('vt.fallback_engine'),
         run: () => _presetPass(path, options, target, before, size, handle,
             sourceDurationMs, progressPrefix),
       );

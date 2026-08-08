@@ -93,7 +93,7 @@ class _CompressSheetState extends State<_CompressSheet> {
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Parola koy'),
+              title: Text(context.t('cmp.set_password')),
               value: _protect,
               onChanged: (v) => setState(() => _protect = v),
             ),
@@ -102,7 +102,8 @@ class _CompressSheetState extends State<_CompressSheet> {
                 controller: _password,
                 obscureText: true,
                 autofocus: true,
-                decoration: const InputDecoration(labelText: 'Parola'),
+                decoration:
+                    InputDecoration(labelText: context.t('common.password')),
                 onChanged: (_) => setState(() {}),
               ),
               if (_format == CompressFormat.sevenZip)

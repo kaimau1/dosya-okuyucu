@@ -939,7 +939,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(context.t('excel.csv_utf8')),
-              subtitle: const Text('Modern Excel / Google E-Tablolar'),
+              subtitle: Text(context.t('excel.csv_utf8_sub')),
             ),
           ),
           SimpleDialogOption(

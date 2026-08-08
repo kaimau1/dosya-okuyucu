@@ -128,7 +128,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
                     ? null
                     : () => _stamp(pages[_page]),
                 icon: const Icon(Icons.check),
-                label: const Text('Bas'),
+                label: Text(context.t('sg.stamp')),
               ),
             ],
           ),

@@ -67,6 +67,28 @@ Filesystem                          1K-blocks    Used Available Use% Mounted on
       expect((volume.usedFraction * 100).round(), 62);
       expect(StorageStats.parseDf('df: /yok: No such file'), isNull);
     });
+
+    test('birim adı: tanınan birim çevrilir, diskin KENDİ adı çevrilmez', () {
+      // Etiket metni modelde DURMAZ, anahtar durur: birim listesi açılışta bir
+      // kez kuruluyor; hazır çevrilmiş metin saklansaydı kullanıcı dili
+      // değiştirdiğinde eski dilde kalırdı.
+      const internal = StorageVolume(
+        path: '/storage/emulated/0',
+        labelKey: 'fm.vol_internal',
+        isPrimary: true,
+      );
+      expect(internal.displayLabel((k) => 'ÇEVİRİ:$k'), 'ÇEVİRİ:fm.vol_internal');
+
+      // Takılabilir diskin kendi adı kullanıcının verisidir — olduğu gibi.
+      const named =
+          StorageVolume(path: '/storage/ABCD', label: 'SAMSUNG', isPrimary: false);
+      expect(named.displayLabel((k) => 'ÇEVİRİ:$k'), 'SAMSUNG');
+
+      // TUZAK: `volumes()` doluluk bilgisini `copyWith` ile dolduruyor —
+      // anahtar orada düşerse HER birim adsız kalırdı.
+      final filled = internal.copyWith(totalBytes: 100, freeBytes: 40);
+      expect(filled.labelKey, 'fm.vol_internal');
+    });
   });
 
   group('arşiv', () {
