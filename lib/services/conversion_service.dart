@@ -7,9 +7,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
 import 'ocr_service.dart';
+import 'pptx_writer.dart' show SlideDraft;
+import 'text_to_slides.dart';
 
 /// Basit format dönüştürme: metin/office içeriğini PDF veya TXT'e çevirir,
 /// AI metninden PDF slayt destesi üretir.
@@ -246,8 +247,17 @@ class ConversionService {
 
   /// AI/metin içeriğinden slayt destesi (PDF) üretir.
   /// Slaytlar "---" veya "— Slayt" ile ayrılabilir; yoksa paragraflara bölünür.
-  Future<Uint8List> textToSlidesPdf(String title, String content) async {
-    final slides = _splitIntoSlides(content);
+  Future<Uint8List> textToSlidesPdf(String title, String content) {
+    // Markdown işaretleri ÖNCE temizleniyor: slaytta ham `**`/`#` görünmesin.
+    // (Eskiden bu temizlik `_splitIntoSlides` içindeydi; bölme `TextToSlides`e
+    // taşınınca burada kaldı — iki ayrı bölücü tutmak bakım borcuydu.)
+    final cleaned =
+        content.split('\n').map(stripInlineMarkdown).join('\n');
+    return slidesToPdf(title, TextToSlides.split(cleaned));
+  }
+
+  /// Hazır bir slayt planından (AI ya da sezgi) PDF deste üretir.
+  Future<Uint8List> slidesToPdf(String title, List<SlideDraft> slides) async {
     final doc = pw.Document(theme: await _turkishTheme());
 
     doc.addPage(
@@ -306,40 +316,4 @@ class ConversionService {
     await file.writeAsBytes(bytes);
     return file.path;
   }
-
-  List<_Slide> _splitIntoSlides(String content) {
-    final blocks = content.contains('— Slayt')
-        ? content.split(RegExp(r'—\s*Slayt\s*\d*\s*—'))
-        : content.split(RegExp(r'\n-{3,}\n'));
-
-    final result = <_Slide>[];
-    for (final block in blocks) {
-      final lines = block
-          .split('\n')
-          .map((l) => l.trim())
-          .where((l) => l.isNotEmpty)
-          .toList();
-      if (lines.isEmpty) continue;
-      // Markdown işaretlerini temizle: slaytta ham `**`/`- `/`#` görünmesin.
-      final title = stripInlineMarkdown(lines.first);
-      final bullets = (lines.length > 1 ? lines.sublist(1) : <String>[lines.first])
-          .map(stripInlineMarkdown)
-          .where((l) => l.isNotEmpty)
-          .toList();
-      result.add(_Slide(
-          title: title, bullets: bullets.isEmpty ? [title] : bullets));
-    }
-    if (result.isEmpty) {
-      result.add(_Slide(
-          title: AppStrings.current.t('conv.slide_fallback'),
-          bullets: [content]));
-    }
-    return result;
-  }
-}
-
-class _Slide {
-  final String title;
-  final List<String> bullets;
-  _Slide({required this.title, required this.bullets});
 }

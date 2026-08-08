@@ -100,6 +100,35 @@ void main() {
       expect(all, contains('<2026> "hedef"'));
     });
 
+    test('konuşmacı notu yazılıyor ve KENDİ okuyucumuz geri okuyor', () {
+      final bytes = PptxWriter.build(const [
+        SlideDraft('Başlık', ['madde'], notes: 'Burada şunu anlat.'),
+        SlideDraft('Notsuz', ['madde']),
+      ]);
+      final editor = PptxEditor.parse(bytes);
+      expect(editor.notesOf(editor.slides[0]).trim(), 'Burada şunu anlat.');
+      expect(editor.notesOf(editor.slides[1]).trim(), '');
+
+      // Notsuz slayt için notesSlide parçası HİÇ yazılmamalı (paket şişmesin).
+      final names = ZipDecoder()
+          .decodeBytes(bytes)
+          .files
+          .map((f) => f.name)
+          .toSet();
+      expect(names, contains('ppt/notesSlides/notesSlide1.xml'));
+      expect(names, isNot(contains('ppt/notesSlides/notesSlide2.xml')));
+      expect(names, contains('ppt/notesMasters/notesMaster1.xml'));
+    });
+
+    test('not YOKSA not parçaları hiç eklenmez', () {
+      final names = ZipDecoder()
+          .decodeBytes(PptxWriter.build(const [SlideDraft('a', ['b'])]))
+          .files
+          .map((f) => f.name)
+          .toSet();
+      expect(names.any((n) => n.contains('notes')), isFalse);
+    });
+
     test('boş liste bile GEÇERLİ sunum üretir', () {
       // Sıfır slaytlı bir sunum PowerPoint'te geçersizdir.
       final editor = PptxEditor.parse(PptxWriter.build(const []));

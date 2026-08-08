@@ -7516,3 +7516,65 @@ yolu yeniden kullanıldı**, yeni bir PDF yazıcı yazılmadı.
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze lib` sıfır sorun,
 **1540 test yeşil** (17 yeni). Gidiş-dönüş testi asıl kanıt: ürettiğimiz .pptx
 `PptxEditor.parse` ile açılıyor ve çizilebilir `SlideVM` veriyor.
+
+## 2026-08-08 (5) — AI ile gerçek sunum: yapılandırılmış JSON + konuşmacı notu
+
+Kullanıcı "AI ile yapabilmeliyiz, gerçekten kullanışlı slayt ve PDF istiyorum"
+dedi. Sezgi (`TextToSlides`) kaynağın BİÇİMİNE bakıyor: metin zaten slayt gibi
+yazılmışsa iyi, ama tipik bir PDF (rapor, makale, form) düzyazıdır — orada
+"başlık" ve "madde" diye bir şey yoktur ve sezgi ne yaparsa yapsın çıktı
+paragrafların slayta kopyalanmış hâli olur. Teknik olarak slayt, sunum olarak
+işe yaramaz. Özetleyerek madde çıkarmak anlama dayalı bir iş; modele ait.
+
+### A) Serbest metin değil, ŞEMAYA BAĞLI JSON — `GeminiService.generateJson`
+`chat()` + "bana JSON ver" istemi güvenilmez: model açıklama cümlesi ekler,
+```json çiti koyar, bazen tek tırnak kullanır. Gemini'nin `responseMimeType:
+application/json` + `responseSchema` ayarı çözümlemeyi MODELE bırakıyor.
+Sıcaklık 0.3 — burada yaratıcılık değil kaynağa sadakat isteniyor.
+
+**Yine de savunmacı ayrıştırma şart** (`AiSlides.parse`): şema garantisi mutlak
+değil, yanıt uzunluk sınırında KESİLEBİLİR. Kurtarılabilen her şey kurtarılıyor
+— tek bozuk slayt yüzünden kullanıcının bütün işi çöpe gitmesin. Çit ve
+gövde-dışı cümle soyuluyor, nesne olmayan öğe atlanıyor, boş madde süzülüyor.
+Hiç kullanılabilir slayt yoksa **hata veriyor**, sessizce boş dönmüyor.
+
+### B) Konuşmacı notu — `notesSlide` + `notesMaster`
+AI'nin ürettiği asıl değer maddelerden çok "bu slaytta ne anlatılacak" notu.
+- **TUZAK — ECMA-376 eleman SIRASI bağlayıcı:** `sldMasterIdLst` →
+  `notesMasterIdLst` → `sldIdLst` → `sldSz` → `notesSz`. Sıra bozulursa dosya
+  geçersiz.
+- **TUZAK — `notesMasterId r:id`, `presentation.xml.rels`teki Id ile BİREBİR
+  aynı olmalı**; slayt sayısına göre kayan numaralandırmada kolay kaçar.
+- Notu olmayan slayt için `notesSlide` parçası HİÇ yazılmıyor (paket şişmesin);
+  hiç not yoksa `notesMaster` da eklenmiyor. Testle sabitlendi.
+
+### C) Çift bölücü borcu KAPANDI
+`conversion_service._splitIntoSlides` silindi; `textToSlidesPdf` artık
+markdown'ı temizleyip `TextToSlides.split`e veriyor ve ortak
+`slidesToPdf(title, List<SlideDraft>)` yolunu çağırıyor. Böylece AI planı da,
+sezgi planı da AYNI PDF yolundan geçiyor. `conv.slide_fallback` anahtarı da
+gereksizleşti (artık uydurma başlık yazılmıyor, başlıksız slayt kalıyor).
+
+### D) Sezgi yolu SİLİNMEDİ
+Akışta "AI ile hazırla" / "Hızlı (AI'sız)" seçimi var. AI anahtar ister ve para
+harcar; ücretsiz ve çevrimdışı seçeneği kaldırmak uygulamanın "sade, hızlı,
+ücretsiz" konumlandırmasına aykırı olurdu. Çıktı biçimi de ayrı soruluyor:
+.pptx (düzenlenebilir) / PDF (düzeni bozulmaz).
+
+Deste kullanıcının ARAYÜZ dilinde üretiliyor ve modele dilin KENDİ adı
+gönderiliyor ('Türkçe'/'English'/'العربية') — 'tr' gibi bir koddan net.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib` sıfır sorun, **1551 test yeşil**.
+
+### Excel bulgusu — İKİ TEZ DE ÇÜRÜDÜ (henüz teşhis YOK)
+Kullanıcı düzenlediği .xlsx'te "yazılar farklı göründü, çubuk silindi" dedi.
+İki tez ölçüldü ve **ikisi de yanlış çıktı** — kayda değer, çünkü ikisi de
+makul görünüyordu:
+1. *"`excel` paketi tanımadığı parçaları atıyor"* → HAYIR. Gidiş-dönüş denendi:
+   `xl/charts/chart1.xml` ve `xl/drawings/drawing1.xml` kaydetmeden sağ çıktı
+   (KAYBOLAN: []).
+2. *"Sayfadaki `<drawing r:id>` bağlantısı düşüyor, grafik yetim kalıyor"* →
+   HAYIR. Etiket de sağ çıktı.
+Yani grafik kaybı bu mekanizmadan DEĞİL. Teşhis için kullanıcıdan netleştirme
+gerekiyor. **KVKK:** bulgunun geldiği dosya hasta/asistan kişisel verisi
+içeriyor — dosya İSTENMEYECEK, tekrar üretim için anonim örnek istenecek.

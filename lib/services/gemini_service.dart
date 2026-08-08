@@ -102,6 +102,87 @@ class GeminiService {
     return text.trim().isEmpty ? '(Boş yanıt)' : text.trim();
   }
 
+  /// Modelden **şemaya uyan JSON** ister ve ham gövdeyi döndürür.
+  ///
+  /// **Neden ayrı bir yol, neden `chat` + "JSON yaz" istemi değil:** serbest
+  /// metinden JSON ayıklamak güvenilmez — model açıklama cümlesi ekler, ```json
+  /// çiti koyar, bazen tek tırnak kullanır. Gemini'nin `responseMimeType` +
+  /// `responseSchema` ayarı çözümlemeyi MODELE bırakır; dönen gövde şemaya
+  /// uyar. Yine de çağıran savunmacı ayrıştırmalı: engellenen istek ya da
+  /// kesilen yanıt hâlâ mümkün.
+  ///
+  /// [schema] Gemini'nin OpenAPI alt kümesi biçiminde (`type`, `properties`,
+  /// `items`, `required`).
+  Future<String> generateJson({
+    required String prompt,
+    required Map<String, Object?> schema,
+    String? fileContext,
+    String? systemInstruction,
+  }) async {
+    if (apiKey.trim().isEmpty) {
+      throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
+          'Gemini API anahtarınızı girin.');
+    }
+
+    final parts = <String>[
+      if (systemInstruction != null) systemInstruction,
+      if (fileContext != null && fileContext.trim().isNotEmpty)
+        'Kaynak belge:\n"""\n${_truncate(fileContext, 24000)}\n"""',
+    ];
+
+    final body = {
+      if (parts.isNotEmpty)
+        'systemInstruction': {
+          'parts': [
+            {'text': parts.join('\n\n')}
+          ]
+        },
+      'contents': [
+        {
+          'role': 'user',
+          'parts': [
+            {'text': prompt}
+          ],
+        }
+      ],
+      'generationConfig': {
+        // Düşük sıcaklık: burada yaratıcılık değil, kaynağa sadık ve
+        // biçimi bozmayan bir çıktı isteniyor.
+        'temperature': 0.3,
+        'responseMimeType': 'application/json',
+        'responseSchema': schema,
+      },
+    };
+
+    late http.Response resp;
+    try {
+      resp = await http.post(
+        _endpoint(),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+    } catch (e) {
+      throw GeminiException('Ağ hatası: $e');
+    }
+    if (resp.statusCode != 200) throw GeminiException(_readError(resp));
+
+    final map = jsonDecode(resp.body) as Map<String, dynamic>;
+    final candidates = map['candidates'] as List?;
+    if (candidates == null || candidates.isEmpty) {
+      final block = map['promptFeedback']?['blockReason'];
+      throw GeminiException(block != null
+          ? 'Yanıt engellendi: $block'
+          : 'Model boş yanıt döndürdü.');
+    }
+    final text = ((candidates.first['content']?['parts'] as List?) ?? const [])
+        .map((p) => p is Map && p['text'] != null ? p['text'] as String : '')
+        .join();
+    if (text.trim().isEmpty) {
+      throw GeminiException('Model boş yanıt döndürdü.');
+    }
+    return text;
+  }
+
   String _readError(http.Response resp) => _readErrorStatic(resp);
 
   String _truncate(String s, int max) =>

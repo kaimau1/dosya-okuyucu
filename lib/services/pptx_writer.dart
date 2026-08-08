@@ -3,11 +3,17 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
-/// Tek slaytın içeriği: bir başlık ve madde listesi.
+/// Tek slaytın içeriği: bir başlık, madde listesi ve konuşmacı notu.
 class SlideDraft {
   final String title;
   final List<String> bullets;
-  const SlideDraft(this.title, this.bullets);
+
+  /// Konuşmacı notu (sunum modunda görünür, slaytta değil). Boşsa slayt için
+  /// `notesSlide` parçası hiç yazılmaz — boş bir not parçası paketi
+  /// gereksiz büyütür.
+  final String notes;
+
+  const SlideDraft(this.title, this.bullets, {this.notes = ''});
 }
 
 /// **Sıfırdan geçerli .pptx üretir** (PDF/metin → düzenlenebilir sunum).
@@ -48,27 +54,44 @@ class PptxWriter {
   static Uint8List build(List<SlideDraft> slides) {
     final list = slides.isEmpty ? const [SlideDraft('', [])] : slides;
 
+    final noteIndexes = <int>[
+      for (var i = 0; i < list.length; i++)
+        if (list[i].notes.trim().isNotEmpty) i + 1,
+    ];
+
     final files = <String, String>{
-      '[Content_Types].xml': _contentTypes(list.length),
+      '[Content_Types].xml': _contentTypes(list.length, noteIndexes),
       '_rels/.rels': _rootRels,
-      'ppt/presentation.xml': _presentation(list.length),
-      'ppt/_rels/presentation.xml.rels': _presentationRels(list.length),
+      'ppt/presentation.xml': _presentation(list.length, noteIndexes.isNotEmpty),
+      'ppt/_rels/presentation.xml.rels':
+          _presentationRels(list.length, noteIndexes.isNotEmpty),
       'ppt/theme/theme1.xml': _theme,
       'ppt/slideMasters/slideMaster1.xml': _slideMaster,
       'ppt/slideMasters/_rels/slideMaster1.xml.rels': _slideMasterRels,
       'ppt/slideLayouts/slideLayout1.xml': _slideLayout,
       'ppt/slideLayouts/_rels/slideLayout1.xml.rels': _slideLayoutRels,
     };
+    if (noteIndexes.isNotEmpty) {
+      files['ppt/notesMasters/notesMaster1.xml'] = _notesMaster;
+      files['ppt/notesMasters/_rels/notesMaster1.xml.rels'] = _notesMasterRels;
+    }
+
     for (var i = 0; i < list.length; i++) {
-      files['ppt/slides/slide${i + 1}.xml'] = _slide(list[i]);
-      files['ppt/slides/_rels/slide${i + 1}.xml.rels'] = _slideRels;
+      final n = i + 1;
+      final notes = list[i].notes.trim();
+      files['ppt/slides/slide$n.xml'] = _slide(list[i]);
+      files['ppt/slides/_rels/slide$n.xml.rels'] = _slideRels(notes.isEmpty ? null : n);
+      if (notes.isNotEmpty) {
+        files['ppt/notesSlides/notesSlide$n.xml'] = _notesSlide(notes);
+        files['ppt/notesSlides/_rels/notesSlide$n.xml.rels'] = _notesSlideRels(n);
+      }
     }
     return _zip(files);
   }
 
   // ── Paket iskeleti ────────────────────────────────────────────────────────
 
-  static String _contentTypes(int count) {
+  static String _contentTypes(int count, List<int> noteIndexes) {
     final buf = StringBuffer(
       '$_xmlHead'
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
@@ -83,6 +106,14 @@ class PptxWriter {
       buf.write('<Override PartName="/ppt/slides/slide$i.xml" '
           'ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>');
     }
+    if (noteIndexes.isNotEmpty) {
+      buf.write('<Override PartName="/ppt/notesMasters/notesMaster1.xml" '
+          'ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"/>');
+      for (final i in noteIndexes) {
+        buf.write('<Override PartName="/ppt/notesSlides/notesSlide$i.xml" '
+            'ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"/>');
+      }
+    }
     buf.write('</Types>');
     return buf.toString();
   }
@@ -94,21 +125,27 @@ class PptxWriter {
 
   /// Slayt kimlikleri 256'dan başlar: ECMA-376 `p:sldId@id` için 256 alt
   /// sınırdır, daha küçük değer dosyayı geçersiz yapar.
-  static String _presentation(int count) {
+  static String _presentation(int count, bool hasNotes) {
     final ids = StringBuffer();
     for (var i = 1; i <= count; i++) {
       ids.write('<p:sldId id="${255 + i}" r:id="rId${i + 1}"/>');
     }
+    // ECMA-376 eleman SIRASI bağlayıcıdır: sldMasterIdLst → notesMasterIdLst
+    // → sldIdLst → sldSz → notesSz. Sıra bozulursa dosya geçersiz olur.
+    final notesMaster = hasNotes
+        ? '<p:notesMasterIdLst><p:notesMasterId r:id="rId${count + 3}"/></p:notesMasterIdLst>'
+        : '';
     return '$_xmlHead'
         '<p:presentation xmlns:a="$_aNs" xmlns:r="$_rNs" xmlns:p="$_pNs">'
         '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>'
+        '$notesMaster'
         '<p:sldIdLst>$ids</p:sldIdLst>'
         '<p:sldSz cx="$_slideW" cy="$_slideH"/>'
         '<p:notesSz cx="$_slideH" cy="$_slideW"/>'
         '</p:presentation>';
   }
 
-  static String _presentationRels(int count) {
+  static String _presentationRels(int count, bool hasNotes) {
     final buf = StringBuffer(
       '$_xmlHead'
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
@@ -122,6 +159,11 @@ class PptxWriter {
     // Id'ye bakar ama çakışan bir Id dosyayı bozar.
     buf.write('<Relationship Id="rId${count + 2}" Type="$_relNs/theme" '
         'Target="theme/theme1.xml"/>');
+    if (hasNotes) {
+      // Id, `_presentation`daki `notesMasterId r:id` ile BİREBİR aynı olmalı.
+      buf.write('<Relationship Id="rId${count + 3}" Type="$_relNs/notesMaster" '
+          'Target="notesMasters/notesMaster1.xml"/>');
+    }
     buf.write('</Relationships>');
     return buf.toString();
   }
@@ -137,10 +179,62 @@ class PptxWriter {
       '<Relationship Id="rId1" Type="$_relNs/slideMaster" Target="../slideMasters/slideMaster1.xml"/>'
       '</Relationships>';
 
-  static const _slideRels = '$_xmlHead'
+  /// [notesIndex] doluysa slayt kendi `notesSlide`ına da bağlanır.
+  static String _slideRels(int? notesIndex) => '$_xmlHead'
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
       '<Relationship Id="rId1" Type="$_relNs/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'
+      '${notesIndex == null ? '' : '<Relationship Id="rId2" Type="$_relNs/notesSlide" Target="../notesSlides/notesSlide$notesIndex.xml"/>'}'
       '</Relationships>';
+
+  static String _notesSlideRels(int index) => '$_xmlHead'
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      '<Relationship Id="rId1" Type="$_relNs/notesMaster" Target="../notesMasters/notesMaster1.xml"/>'
+      '<Relationship Id="rId2" Type="$_relNs/slide" Target="../slides/slide$index.xml"/>'
+      '</Relationships>';
+
+  static const _notesMasterRels = '$_xmlHead'
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      '<Relationship Id="rId1" Type="$_relNs/theme" Target="../theme/theme1.xml"/>'
+      '</Relationships>';
+
+  /// Konuşmacı notu parçası. Kutu `type="body"` yer tutucusudur — hem
+  /// PowerPoint hem bizim `PptxRender.notes` okuyucumuz notu orada arar.
+  static String _notesSlide(String notes) {
+    final paragraphs = StringBuffer();
+    for (final line in notes.split('\n')) {
+      paragraphs.write('<a:p><a:r><a:rPr lang="tr-TR" dirty="0"/>'
+          '<a:t>${_esc(line)}</a:t></a:r></a:p>');
+    }
+    return '$_xmlHead'
+        '<p:notes xmlns:a="$_aNs" xmlns:r="$_rNs" xmlns:p="$_pNs">'
+        '<p:cSld><p:spTree>'
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>'
+        '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+        '<p:sp>'
+        '<p:nvSpPr><p:cNvPr id="2" name="Notes Placeholder 1"/>'
+        '<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>'
+        '<p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr>'
+        '<p:spPr><a:xfrm><a:off x="685800" y="4343400"/>'
+        '<a:ext cx="5486400" cy="4114800"/></a:xfrm>'
+        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>'
+        '<p:txBody><a:bodyPr/><a:lstStyle/>$paragraphs</p:txBody>'
+        '</p:sp>'
+        '</p:spTree></p:cSld>'
+        '</p:notes>';
+  }
+
+  static const _notesMaster = '$_xmlHead'
+      '<p:notesMaster xmlns:a="$_aNs" xmlns:r="$_rNs" xmlns:p="$_pNs">'
+      '<p:cSld><p:spTree>'
+      '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+      '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>'
+      '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+      '</p:spTree></p:cSld>'
+      '<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" '
+      'accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" '
+      'accent6="accent6" hlink="hlink" folHlink="folHlink"/>'
+      '</p:notesMaster>';
 
   // ── Slayt ─────────────────────────────────────────────────────────────────
 

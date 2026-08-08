@@ -878,6 +878,40 @@ const Map<String, (String, String, String)> _table = {
   'vw.to_pdf': ('PDF’e dönüştür', 'Convert to PDF', 'تحويل إلى PDF'),
   'vw.to_slides': ('Slayta dönüştür', 'Convert to slides', 'تحويل إلى شرائح'),
   'vw.slides_share': ('Sunum (.pptx)', 'Presentation (.pptx)', 'عرض تقديمي (.pptx)'),
+  'ais.with_ai': ('AI ile hazırla', 'Build with AI', 'إنشاء بالذكاء الاصطناعي'),
+  'ais.with_ai_hint': (
+    'Belgeyi okuyup özetler; başlık, madde ve konuşmacı notu yazar',
+    'Reads and summarises the document; writes titles, bullets and notes',
+    'يقرأ المستند ويلخّصه؛ يكتب العناوين والنقاط وملاحظات المتحدث',
+  ),
+  'ais.quick': ('Hızlı (AI\'sız)', 'Quick (no AI)', 'سريع (بدون ذكاء اصطناعي)'),
+  'ais.quick_hint': (
+    'Metni olduğu gibi böler — ücretsiz ve çevrimdışı',
+    'Splits the text as it is — free and offline',
+    'يقسّم النص كما هو — مجاني وبدون إنترنت',
+  ),
+  'ais.as_pptx': ('Sunum (.pptx)', 'Presentation (.pptx)', 'عرض تقديمي (.pptx)'),
+  'ais.as_pptx_hint': (
+    'Düzenlenebilir — PowerPoint\'te de açılır',
+    'Editable — opens in PowerPoint too',
+    'قابل للتحرير — يُفتح في PowerPoint أيضًا',
+  ),
+  'ais.as_pdf': ('Deste (PDF)', 'Deck (PDF)', 'مجموعة شرائح (PDF)'),
+  'ais.as_pdf_hint': (
+    'Herkes açar, düzeni bozulmaz',
+    'Opens anywhere, layout stays put',
+    'يُفتح في كل مكان ولا يتغيّر تخطيطه',
+  ),
+  'ais.working': (
+    'Sunum hazırlanıyor…',
+    'Building the presentation…',
+    'يجري إعداد العرض التقديمي…',
+  ),
+  'ais.failed': (
+    'Sunum hazırlanamadı: {error}',
+    'Could not build the presentation: {error}',
+    'تعذّر إعداد العرض التقديمي: {error}',
+  ),
   'vw.slides_no_text': (
     'Bu belgede slayta çevrilecek metin yok.',
     'This document has no text to turn into slides.',
@@ -4765,8 +4799,6 @@ const Map<String, (String, String, String)> _table = {
     '{n} / {total}  ·  الخطوة {step}/{max}',
   ),
   'ss.no_text': ('(Metin yok)', '(No text)', '(لا يوجد نص)'),
-  // İçerik hiç bölünemediğinde tek slayda verilen başlık.
-  'conv.slide_fallback': ('Slayt', 'Slide', 'شريحة'),
 
   // ── Kurulu uygulamalar ────────────────────────────────────────────────────
   'ia.permission_hint': (
