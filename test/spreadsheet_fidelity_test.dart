@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/xlsx_writer.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// **Gerçek Excel gibi görünme** turu (kullanıcı ekran görüntüsü 2026-08-07:
 /// bir rotasyon planı dosyası Excel'de başlığı komşuya sarkmış ve satırları
@@ -54,7 +55,7 @@ void main() {
 
   tearDown(() {
     SpreadsheetEditorScreen.parseInIsolate = true;
-    dir.deleteSync(recursive: true);
+    removeTempDir(dir);
   });
 
   Future<void> pump(WidgetTester tester) async {

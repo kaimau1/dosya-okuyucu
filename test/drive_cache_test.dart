@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/models/drive_file.dart';
 import 'package:dosya_okuyucu/services/fm/drive_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// Drive önbelleği (2026-08-06 kullanıcı bulgusu: "her açma istediğimde
 /// tekrar tekrar indiriyor") — taze kopya varken indirme atlanmalı, bulut
@@ -92,7 +93,7 @@ void main() {
       root = Directory.systemTemp.createTempSync('drive_cache');
     });
 
-    tearDown(() => root.deleteSync(recursive: true));
+    tearDown(() => removeTempDir(root));
 
     test('taze kopya bulunur, ikinci "aç" indirme istemez', () {
       const file = DriveFile(
@@ -142,7 +143,7 @@ void main() {
     });
 
     tearDown(() {
-      if (root.existsSync()) root.deleteSync(recursive: true);
+      if (root.existsSync()) removeTempDir(root);
     });
 
     File write(String id, String name, int bytes, DateTime at) {

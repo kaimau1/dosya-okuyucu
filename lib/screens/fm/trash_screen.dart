@@ -81,7 +81,7 @@ class _TrashScreenState extends State<TrashScreen> {
               child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sil')),
+              child: Text(context.t('common.delete'))),
         ],
       ),
     );

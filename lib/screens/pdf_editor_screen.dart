@@ -568,12 +568,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               overflow: TextOverflow.ellipsis),
           actions: [
             IconButton(
-              tooltip: 'Geri al',
+              tooltip: context.t('common.undo'),
               icon: const Icon(Icons.undo),
               onPressed: _undo.isEmpty || _busy ? null : _undoLast,
             ),
             IconButton(
-              tooltip: 'Kaydet',
+              tooltip: context.t('common.save'),
               icon: const Icon(Icons.save_outlined),
               onPressed: !_dirty || _busy
                   ? null

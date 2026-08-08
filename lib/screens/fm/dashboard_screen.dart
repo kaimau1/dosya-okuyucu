@@ -363,7 +363,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Yeniden tara',
+            tooltip: context.t('common.rescan'),
             icon: const Icon(Icons.refresh),
             onPressed: _scanning ? null : _scan,
           ),
@@ -515,7 +515,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             heroTag: 'fm_scan_doc',
             onPressed: () => ScanFlow.run(context),
             icon: const Icon(Icons.document_scanner_outlined),
-            label: const Text('Belge Tara'),
+            label: Text(context.t('fm.scan_document')),
           ),
         ],
       ),
@@ -624,10 +624,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       FmTileData(
         icon: Icons.history,
         color: const Color(0xFF8D6E63),
-        label: 'Yeni Dosyalar',
+        label: context.t('fm.new_files'),
         subtitle: context.t('count.files', {'n': _index.recent.length}),
         onTap: () => _push(CategoryScreen(
-          title: 'Yeni Dosyalar',
+          title: context.t('fm.new_files'),
           files: _index.recent,
         )),
       ),

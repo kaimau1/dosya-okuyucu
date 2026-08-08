@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'support/temp_dir.dart';
 
 /// **Tek adımlı taşı/kopyala** akışının kanıtları (kullanıcı isteği
 /// 2026-07-29: "taşıma kopyalama şu an çok zor").
@@ -24,7 +25,7 @@ void main() {
     });
 
     tearDown(() {
-      if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+      if (tmp.existsSync()) removeTempDir(tmp);
     });
 
     File touch(String relative, [String content = 'veri']) {

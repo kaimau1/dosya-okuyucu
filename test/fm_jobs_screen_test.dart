@@ -6,6 +6,7 @@ import 'package:dosya_okuyucu/services/fm/job_queue.dart';
 import 'package:dosya_okuyucu/widgets/fm/job_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// **Niye bu test var:** kullanıcı hatası 2026-07-30 — *"video boyutu
 /// düşürürken nerede ne oluyor, başlatıldı mı, başarısız mı oldu göremiyorum"*
@@ -32,7 +33,7 @@ void main() {
 
   tearDown(() {
     try {
-      dir.deleteSync(recursive: true);
+      removeTempDir(dir);
     } catch (_) {}
   });
 

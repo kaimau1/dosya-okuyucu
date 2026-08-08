@@ -7,6 +7,7 @@ import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// Excel şeridi (2026-08-07 kullanıcı turu): sekmeler, yazı tipi/punto ve
 /// **görünür zoom** — pinch'ten başka bir yol olmadığı için kullanıcı "zoom
@@ -25,7 +26,7 @@ void main() {
 
   tearDown(() {
     SpreadsheetEditorScreen.parseInIsolate = true;
-    dir.deleteSync(recursive: true);
+    removeTempDir(dir);
   });
 
   Future<void> pump(WidgetTester tester) async {

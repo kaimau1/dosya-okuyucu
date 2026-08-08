@@ -6,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import 'package:dosya_okuyucu/services/pdf/ocr_page_text.dart';
 import 'package:dosya_okuyucu/services/pdf/pdf_ocr_text.dart';
+import 'support/temp_dir.dart';
 
 /// OCR disk önbelleği: sayfa metni JSON'a gidip AYNEN geri gelmeli — kutu
 /// koordinatlarında kayıp, uygulama yeniden açılınca seçimin kaymasıdır.
@@ -71,7 +72,7 @@ void main() {
     tearDown(() {
       PdfOcrText.debugReset();
       try {
-        tempDir.deleteSync(recursive: true);
+        removeTempDir(tempDir);
       } catch (_) {}
     });
 

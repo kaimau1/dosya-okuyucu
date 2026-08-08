@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/screens/pdf_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'support/temp_dir.dart';
 
 /// Form doldurma ekranının duman testi: alanlar türlerine göre çiziliyor mu,
 /// salt-okunur alan kilitli görünüyor mu, formu olmayan belgede ekran çıkmaz
@@ -16,7 +17,7 @@ void main() {
     dir = await Directory.systemTemp.createTemp('pdf_form_screen');
   });
 
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTempDir(dir));
 
   String writeForm({bool withFields = true}) {
     final doc = PdfDocument();

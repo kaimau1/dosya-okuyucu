@@ -469,7 +469,7 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
   if (confirmed != true || !context.mounted) return false;
   final result = await showFmProgress(
     context,
-    title: 'Siliniyor',
+    title: context.t('common.deleting'),
     cancellable: false,
     task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
   );
@@ -778,7 +778,7 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Kapat'),
+          child: Text(context.t('common.close')),
         ),
       ],
     );

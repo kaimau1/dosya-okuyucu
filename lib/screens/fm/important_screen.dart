@@ -219,7 +219,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
               )),
             ),
           IconButton(
-            tooltip: 'Yenile',
+            tooltip: context.t('common.refresh'),
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _load,
           ),
@@ -258,7 +258,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   TextButton.icon(
                     onPressed: _newSubFolder,
                     icon: const Icon(Icons.create_new_folder_outlined),
-                    label: const Text('Yeni'),
+                    label: Text(context.t('common.new')),
                   ),
                 ],
               ),

@@ -17,7 +17,7 @@ Future<bool> askPin(BuildContext context, {String? title}) async {
   if (!appState.fmHasLockPin) return true;
   final ok = await showDialog<bool>(
     context: context,
-    builder: (_) => _PinDialog(title: title ?? 'PIN girin'),
+    builder: (_) => _PinDialog(title: title ?? AppStrings.of(context).t('fm.pin_enter')),
   );
   return ok ?? false;
 }
@@ -27,7 +27,8 @@ Future<bool> setupPin(BuildContext context) async {
   final appState = context.read<AppState>();
   final ok = await showDialog<bool>(
     context: context,
-    builder: (_) => const _PinDialog(title: 'Yeni PIN', setup: true),
+    builder: (_) => _PinDialog(
+        title: AppStrings.of(context).t('fm.pin_new'), setup: true),
   );
   if (ok != true) return false;
   if (!context.mounted) return false;
@@ -98,7 +99,8 @@ class _PinDialogState extends State<_PinDialog> {
               obscureText: true,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'PIN'),
+              decoration:
+                  InputDecoration(labelText: context.t('fm.pin_label')),
               onSubmitted: (_) => widget.setup ? null : _submit(),
             ),
             if (widget.setup) ...[
@@ -108,7 +110,8 @@ class _PinDialogState extends State<_PinDialog> {
                 obscureText: true,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(labelText: 'PIN (tekrar)'),
+                decoration: InputDecoration(
+                    labelText: context.t('fm.pin_repeat')),
                 onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: Gap.sm),

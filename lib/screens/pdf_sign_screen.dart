@@ -225,7 +225,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
             ),
             Text('${_page + 1} / $pageCount'),
             IconButton(
-              tooltip: 'Sonraki sayfa',
+              tooltip: context.t('mp.next_page'),
               icon: const Icon(Icons.chevron_right),
               onPressed: _page >= pageCount - 1
                   ? null

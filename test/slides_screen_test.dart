@@ -8,6 +8,7 @@ import 'package:dosya_okuyucu/screens/editors/slides_editor_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// Üç slaytlık, çizilebilir (boyutu ve metin kutusu olan) bir .pptx.
 Uint8List _deck() {
@@ -90,7 +91,7 @@ void main() {
     await File(path).writeAsBytes(_deck());
   });
 
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTempDir(dir));
 
   /// TUZAK (HAFIZA 2026-07-25 §F): ekran dosyayı `await readAsBytes()` ile
   /// okuyor; sahte saat zonunda bu future İLERLEMEZ, o yüzden `pumpAndSettle`

@@ -182,7 +182,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Temizlensin mi?'),
+        title: Text(context.t('clean.confirm_title')),
         content: Text(
           '${context.t('clean.confirm_lead', {
                 'n': chosen.length,
@@ -197,7 +197,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
               child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Temizle')),
+              child: Text(context.t('common.clear'))),
         ],
       ),
     );

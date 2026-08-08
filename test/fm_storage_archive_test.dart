@@ -4,6 +4,7 @@ import 'package:dosya_okuyucu/services/fm/archive_ops.dart';
 import 'package:dosya_okuyucu/services/fm/storage_stats.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 void main() {
   group('df çözümleme', () {
@@ -74,7 +75,7 @@ Filesystem                          1K-blocks    Used Available Use% Mounted on
     setUp(() {
       tmp = Directory.systemTemp.createTempSync('fm_archive_test');
     });
-    tearDown(() => tmp.deleteSync(recursive: true));
+    tearDown(() => removeTempDir(tmp));
 
     test('canExtract: arşiv biçimleri evet, belge hayır', () {
       expect(ArchiveOps.canExtract('/a/b.zip'), isTrue);

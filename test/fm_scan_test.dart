@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 void main() {
   group('kategori eşlemesi', () {
@@ -101,7 +102,7 @@ void main() {
       File(p.join(tmp.path, 'alt', 'video.mp4')).writeAsStringSync('12345');
     });
 
-    tearDown(() => tmp.deleteSync(recursive: true));
+    tearDown(() => removeTempDir(tmp));
 
     test('list: gizli dosyalar varsayılan olarak gizlenir', () async {
       final visible = await FsScan.list(tmp.path);
@@ -187,7 +188,7 @@ void main() {
       File(indexPath).writeAsStringSync(rows.toString());
     });
 
-    tearDown(() => tmp.deleteSync(recursive: true));
+    tearDown(() => removeTempDir(tmp));
 
     test('800 sınırı yok: 1000 videonun hepsi döner, yeniden eskiye sıralı',
         () async {

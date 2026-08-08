@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dosya_okuyucu/services/pdf_save.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// "Üzerine yaz / kopyasını kaydet" hedef seçimi.
 ///
@@ -22,7 +23,7 @@ void main() {
   });
 
   tearDown(() {
-    if (dir.existsSync()) dir.deleteSync(recursive: true);
+    if (dir.existsSync()) removeTempDir(dir);
   });
 
   test('overwrite: özgün dosyaya yazar, yolu aynıdır', () async {

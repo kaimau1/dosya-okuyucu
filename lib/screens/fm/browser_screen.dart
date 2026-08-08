@@ -15,12 +15,14 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/paste_conflict.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
-import '../../widgets/fm/fm_selection_bar.dart';
-import '../../widgets/fm/pin_dialog.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/fm_selection_bar.dart';
+import '../../widgets/fm/paste_conflict_sheet.dart';
+import '../../widgets/fm/pin_dialog.dart';
 import 'archive_screen.dart';
 import 'entry_actions.dart';
 import 'organize_screen.dart';
@@ -211,14 +213,28 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final sources = appState.clipboard;
     if (sources.isEmpty) return;
     final cut = appState.clipboardCut;
+    // ÇAKIŞMA SORULUYOR (KALANLAR maddesi kapandı). Eskiden sessizce
+    // "yeniden adlandır" uygulanıyordu: aynı dosyanın yeni sürümünü
+    // yapıştıran kullanıcı klasörde iki kopya buluyor ve hangisinin güncel
+    // olduğunu bilemiyordu. Çakışma yoksa hiçbir şey sorulmuyor.
+    var conflict = FmConflict.rename;
+    final collisions = PasteConflict.collisions(sources, widget.path);
+    if (collisions.isNotEmpty) {
+      final choice = await showPasteConflictSheet(context, names: collisions);
+      // Pencereyi kapatmak = vazgeç. Sessizce bir varsayılana düşmek,
+      // kullanıcının kapattığı pencerenin yine de dosya yazması olurdu.
+      if (choice == null) return;
+      conflict = choice;
+    }
+    if (!mounted) return;
     final result = await showFmProgress<FmOpResult>(
       context,
       title: cut ? context.t('fm.moving') : context.t('fm.copying'),
       task: (report, isCancelled) => cut
           ? FileOps.moveAll(sources, widget.path,
-              onProgress: report, isCancelled: isCancelled)
+              conflict: conflict, onProgress: report, isCancelled: isCancelled)
           : FileOps.copyAll(sources, widget.path,
-              onProgress: report, isCancelled: isCancelled),
+              conflict: conflict, onProgress: report, isCancelled: isCancelled),
     );
     appState.clearClipboard();
     if (!mounted) return;
@@ -590,7 +606,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               Text(context.t(_error!), textAlign: TextAlign.center),
               const SizedBox(height: Gap.md),
               FilledButton.tonal(
-                  onPressed: _load, child: const Text('Yeniden dene')),
+                  onPressed: _load, child: Text(context.t('common.retry'))),
             ],
           ),
         ),
@@ -699,7 +715,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.description_outlined),
-              title: const Text('Word belgesi (.docx)'),
+              title: Text(context.t('fm.new_word_doc')),
               onTap: () {
                 Navigator.pop(ctx);
                 _newDocument('docx');

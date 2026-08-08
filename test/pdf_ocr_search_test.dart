@@ -8,6 +8,7 @@ import 'package:dosya_okuyucu/services/pdf/pdf_ocr_search.dart';
 import 'package:dosya_okuyucu/services/pdf/pdf_ocr_text.dart';
 
 import 'ocr_disk_cache_test.dart' show FakeOcrDoc, FakeOcrPage;
+import 'support/temp_dir.dart';
 
 /// Taranmış sayfalarda arama: metin katmanlı sayfa pdfrx'in işi (atlanır),
 /// ince sayfa OCR'lanıp desende aranır; sonuçlar kullanıcının baktığı
@@ -24,7 +25,7 @@ void main() {
   tearDown(() {
     PdfOcrText.debugReset();
     try {
-      tempDir.deleteSync(recursive: true);
+      removeTempDir(tempDir);
     } catch (_) {}
   });
 

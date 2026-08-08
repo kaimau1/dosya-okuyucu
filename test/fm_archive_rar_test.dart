@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/services/fm/archive_ops.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// RAR/7z okuma yolunun gerçek arşivlerle doğrulanması.
 ///
@@ -15,20 +16,13 @@ void main() {
   late Directory tmp;
 
   setUp(() => tmp = Directory.systemTemp.createTempSync('fm_rar_test'));
-  // Silme birkaç kez denenir: Windows'ta koni'nin native (unrar) tarafı
-  // parola-hatası yolunda dosya tanıtıcısını bir tur geç bırakabiliyor;
-  // Dart tarafındaki tüm close'lar zaten finally'de (bkz. _extractSync).
-  tearDown(() async {
-    for (var i = 0; ; i++) {
-      try {
-        tmp.deleteSync(recursive: true);
-        return;
-      } on FileSystemException {
-        if (i >= 4) rethrow;
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-      }
-    }
-  });
+  // Silme birkaç kez denenir ve sonunda SESSİZCE pes edilir: Windows'ta
+  // koni'nin native (unrar) tarafı parola-hatası yolunda dosya tanıtıcısını
+  // bir tur geç bırakabiliyor. Dart tarafındaki tüm close'lar zaten
+  // finally'de (bkz. `_extractSync`) — yani burada kalan bir kilit testin
+  // bulgusu değil, ortamın gecikmesi. Eskiden `rethrow` vardı ve testi
+  // GEÇMİŞKEN kırmızı yakıyordu (bkz. `support/temp_dir.dart`).
+  tearDown(() => removeTempDir(tmp));
 
   /// Fixture'ı geçici klasöre kopyalar (çıkarma arşivin yanına yazar).
   String copy(String name) {

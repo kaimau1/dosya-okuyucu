@@ -105,7 +105,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
         title: const Text('Uygulamalar'),
         actions: [
           IconButton(
-            tooltip: 'Yenile',
+            tooltip: context.t('common.refresh'),
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _load,
           ),

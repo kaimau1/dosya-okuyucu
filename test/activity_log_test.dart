@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/services/fm/activity_log.dart';
 import 'package:dosya_okuyucu/services/fm/fm_env.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 void main() {
   late Directory dir;
@@ -15,7 +16,7 @@ void main() {
   });
 
   tearDown(() {
-    dir.deleteSync(recursive: true);
+    removeTempDir(dir);
   });
 
   test('kayıt yazılır, diskten geri okunur, en yeni başta', () async {

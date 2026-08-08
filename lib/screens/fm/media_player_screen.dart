@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
 import '../../core/l10n/app_strings.dart';
+import '../../core/screen_awake.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -58,6 +59,26 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
   /// Son bilinen oynatma durumu — yalnız DEĞİŞİMİNDE ekran yeniden çizilir.
   bool _wasPlaying = false;
 
+  /// Ekranı açık tutan kilidi bırakan işlev; kilit yokken null.
+  ///
+  /// **Yalnız GERÇEKTEN OYNARKEN tutulur.** Uzun bir filmde kimse ekrana
+  /// dokunmaz ve Android görüntüyü 30 saniyede karartırdı (KALANLAR maddesi).
+  /// Ama wakelock pil harcar: duraklatınca, video bitince, uygulama arkaya
+  /// alınınca ve ekran kapanınca bırakılıyor. Ses dosyasında hiç alınmıyor —
+  /// müzik dinlerken ekranın sönmesi istenen davranış.
+  VoidCallback? _awake;
+
+  void _syncAwake(bool playing) {
+    final wanted = playing && !_isAudio;
+    if (wanted == (_awake != null)) return;
+    if (wanted) {
+      _awake = ScreenAwake.request();
+    } else {
+      _awake?.call();
+      _awake = null;
+    }
+  }
+
   String get _current => _playlist[_index];
   bool get _isAudio =>
       FsEntry.categoryForExtension(p.extension(_current).replaceFirst('.', ''))
@@ -79,6 +100,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _syncAwake(false);
     _hideTimer?.cancel();
     _controller?.removeListener(_onTick);
     _controller?.dispose();
@@ -114,6 +136,8 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
           _pausedByLifecycle = true;
           unawaited(c.pause());
         }
+        // Arkadayken ekranı açık tutmanın anlamı yok.
+        _syncAwake(false);
       case AppLifecycleState.resumed:
         if (_pausedByLifecycle) {
           _pausedByLifecycle = false;
@@ -155,6 +179,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
     }
     controller.addListener(_onTick);
     _wasPlaying = controller.value.isPlaying;
+    _syncAwake(_wasPlaying);
     _pausedByLifecycle = false;
     setState(() {
       _controller = controller;
@@ -187,6 +212,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
     // (kontroller kapalıysa) ekranın kalanını ilgilendirir — nadir olay.
     if (v.isPlaying != _wasPlaying) {
       _wasPlaying = v.isPlaying;
+      _syncAwake(v.isPlaying);
       if (v.isPlaying) _scheduleHide();
       setState(() {});
     }
@@ -494,7 +520,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
                     onPressed: _index > 0 ? () => _skip(-1) : null,
                   ),
                   IconButton(
-                    tooltip: '10 sn geri',
+                    tooltip: context.t('mp.back10'),
                     color: Colors.white,
                     icon: const Icon(Icons.replay_10),
                     onPressed: () => _seekBy(-10),
@@ -508,13 +534,13 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
                     onPressed: _togglePlay,
                   ),
                   IconButton(
-                    tooltip: '10 sn ileri',
+                    tooltip: context.t('mp.forward10'),
                     color: Colors.white,
                     icon: const Icon(Icons.forward_10),
                     onPressed: () => _seekBy(10),
                   ),
                   IconButton(
-                    tooltip: 'Sonraki',
+                    tooltip: context.t('common.next'),
                     color: Colors.white,
                     icon: const Icon(Icons.skip_next),
                     onPressed:
@@ -528,7 +554,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
                 PositionedDirectional(
                   end: 0,
                   child: IconButton(
-                    tooltip: _landscape ? 'Dikey' : 'Tam ekran (yatay)',
+                    tooltip: context.t(_landscape ? 'mp.portrait' : 'mp.fullscreen'),
                     color: Colors.white,
                     icon: Icon(
                         _landscape ? Icons.fullscreen_exit : Icons.fullscreen),

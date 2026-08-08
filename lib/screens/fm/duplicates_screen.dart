@@ -201,7 +201,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                 hint: 'Yinelenenlerde ara…',
                 onChanged: (v) => setState(() => _query = v),
               )
-            : const Text('Yinelenen dosyalar'),
+            : Text(context.t('fm.duplicates_title')),
         actions: [
           if (!_searching)
             IconButton(
@@ -210,7 +210,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
               onPressed: () => setState(() => _searching = true),
             ),
           IconButton(
-            tooltip: 'Yeniden tara',
+            tooltip: context.t('common.rescan'),
             icon: const Icon(Icons.refresh),
             onPressed: _scanning ? null : _scan,
           ),
@@ -345,7 +345,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
           if (keep && !selected)
             Padding(
               padding: const EdgeInsets.only(left: Gap.sm),
-              child: Text('en eski',
+              child: Text(context.t('common.oldest'),
                   style: Theme.of(context).textTheme.bodySmall),
             ),
         ],

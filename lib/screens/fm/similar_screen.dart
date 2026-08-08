@@ -249,7 +249,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Kapat'),
+              child: Text(ctx.t('common.close')),
             ),
           ],
         ),
@@ -273,7 +273,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
         title: Text(widget.title ?? context.t('sim.title')),
         actions: [
           IconButton(
-            tooltip: 'Yeniden tara',
+            tooltip: context.t('common.rescan'),
             icon: const Icon(Icons.refresh),
             onPressed: running ? null : _start,
           ),
@@ -420,7 +420,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                   TextButton.icon(
                     onPressed: () => _askGemini(group),
                     icon: const Icon(Icons.smart_toy_outlined, size: 18),
-                    label: const Text('Gemini’ye sor'),
+                    label: Text(context.t('fm.ask_gemini')),
                   ),
                 ],
               ),
@@ -517,7 +517,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 1),
                           color: scheme.primary,
-                          child: Text('en iyi',
+                          child: Text(context.t('common.best'),
                               style: TextStyle(
                                   fontSize: 10,
                                   color: scheme.onPrimary)),

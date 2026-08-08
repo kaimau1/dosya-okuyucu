@@ -47,7 +47,7 @@ class JobsScreen extends StatelessWidget {
                       ? const SizedBox.shrink()
                       : TextButton(
                           onPressed: JobQueue.instance.clearFinished,
-                          child: const Text('Bitenleri temizle'),
+                          child: Text(context.t('fm.clear_finished')),
                         ),
             ),
           ],

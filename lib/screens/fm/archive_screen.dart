@@ -262,13 +262,13 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                 children: [
                   FilledButton.tonal(
                       onPressed: () => _load(password: _password),
-                      child: const Text('Yeniden dene')),
+                      child: Text(context.t('common.retry'))),
                   OutlinedButton(
                     onPressed: () async {
                       final pw = await _askPassword();
                       if (pw != null) await _load(password: pw);
                     },
-                    child: const Text('Parola gir'),
+                    child: Text(context.t('fm.enter_password')),
                   ),
                   OutlinedButton(
                     onPressed: () =>
