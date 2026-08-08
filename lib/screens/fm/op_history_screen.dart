@@ -157,7 +157,7 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2))
               : TextButton(
                   onPressed: () => _undo(record),
-                  child: const Text('Geri al'),
+                  child: Text(context.t('common.undo')),
                 ))
           : null,
     );

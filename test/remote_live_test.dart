@@ -10,6 +10,7 @@ import 'package:dosya_okuyucu/services/fm/remote/sftp_fs.dart';
 import 'package:dosya_okuyucu/services/fm/remote/smb_fs.dart';
 import 'package:dosya_okuyucu/services/fm/remote/webdav_fs.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// **Gerçek sunuculara karşı** uzak dosya sistemi testleri.
 ///
@@ -69,7 +70,7 @@ void main() {
       expect(file.modifiedMs, greaterThan(1600000000000));
 
       final tmp = await Directory.systemTemp.createTemp('sftp_live');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(tmp));
       final local = await fs.download(file, '${tmp.path}/inen.txt');
       expect(local.readAsStringSync().trim(), 'merhaba sftp');
 
@@ -137,7 +138,7 @@ void main() {
       expect(entries.firstWhere((e) => e.name == 'klasor').isDir, isTrue);
 
       final tmp = await Directory.systemTemp.createTemp('ftp_live');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(tmp));
 
       // İkili aktarım: ASCII kipi kalsaydı bu bayt dizisi BOZULURDU.
       final bytes = List<int>.generate(400, (i) => (i * 7) % 256);
@@ -170,7 +171,7 @@ void main() {
       expect(inner.single.name, 'b.txt');
 
       final tmp = await Directory.systemTemp.createTemp('ftp_inner');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(tmp));
       final local = await fs.download(inner.single, '${tmp.path}/b.txt');
       expect(local.readAsStringSync().trim(), 'ic');
     });
@@ -206,7 +207,7 @@ void main() {
       expect(entries.firstWhere((e) => e.name == 'klasor').isDir, isTrue);
 
       final tmp = await Directory.systemTemp.createTemp('dav_live');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(tmp));
       final file = entries.firstWhere((e) => e.name == 'a.txt');
       final local = await fs.download(file, '${tmp.path}/inen.txt');
       expect(local.readAsStringSync().trim(), 'merhaba sftp');
@@ -273,7 +274,7 @@ void main() {
       expect(entries.map((e) => e.name), contains('a.txt'));
 
       final tmp = await Directory.systemTemp.createTemp('smb_live');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(tmp));
       final file = entries.firstWhere((e) => e.name == 'a.txt');
       final local = await fs.download(file, '${tmp.path}/inen.txt');
       expect(local.readAsStringSync().trim(), 'merhaba sftp');
@@ -286,7 +287,7 @@ void main() {
       addTearDown(fs.close);
 
       final tmp = await Directory.systemTemp.createTemp('smb_write');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(tmp));
 
       // Ikili icerik bozulmadan gidip geliyor mu?
       final bytes = List<int>.generate(333, (i) => (i * 13) % 256);

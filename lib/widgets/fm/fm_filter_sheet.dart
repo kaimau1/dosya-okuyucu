@@ -172,7 +172,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   TextButton(
                     onPressed: () => setState(() => _filter = FmFilter.none
                         .withHideDuplicates(_filter.hideDuplicates)),
-                    child: const Text('Temizle'),
+                    child: Text(context.t('common.clear')),
                   ),
                 ],
               ),

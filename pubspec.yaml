@@ -97,6 +97,12 @@ dependencies:
   # bunu sağlar ama alt paketi permission_handler_android 13.x compileSdk'yı
   # yukarı çeker. 11.3.1 (sdk >=2.15 <4.0, flutter >=2.8) en güvenli sürüm.
   permission_handler: 11.3.1
+  # Video oynarken ekranın sönmesini engeller. YALNIZ video OYNARKEN tutulur
+  # (duraklatınca ve ekrandan çıkınca bırakılır) — ses oynatıcıda hiç
+  # kullanılmaz, orada ekranın kapanması zaten istenen davranış.
+  # 1.4.0: Flutter 3.29.3 / Dart 3.7 ile çözümlenen sürüm (1.7.0 sdk >=3.8 ister).
+  wakelock_plus: 1.4.0
+
   # Uygulama içi video + ses oynatıcı (ExoPlayer/Media3).
   # SÜRÜM ZİNCİRİ SABİT — CI Flutter 3.29.3 için: video_player 2.10.1
   # (flutter>=3.29) → alt paket `video_player_android` **2.8.15**, Flutter 3.29

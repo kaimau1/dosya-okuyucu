@@ -9,6 +9,7 @@ import 'package:dosya_okuyucu/services/fm/remote/remote_fs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 const _delegates = <LocalizationsDelegate<Object?>>[
   AppStrings.delegate,
@@ -206,7 +207,7 @@ void main() {
     tearDown(() {
       FmEnv.appSupportDir = '';
       openLocalFile = (context, path) => EntryOpener.open(context, path);
-      support.deleteSync(recursive: true);
+      removeTempDir(support);
     });
 
     testWidgets('dosya DEĞİŞMEDİYSE hiç sorulmaz', (tester) async {

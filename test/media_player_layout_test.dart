@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
+import 'support/temp_dir.dart';
 
 /// **Niye bu test var:** oynatıcıda ekrana dokununca görüntü kayıyordu
 /// (2026-07-25 hata raporu). Sebep: üst bar `Scaffold.appBar` slotuna
@@ -24,7 +25,7 @@ void main() {
     video = File('${dir.path}/ornek.mp4')..writeAsBytesSync(<int>[0, 1, 2, 3]);
   });
 
-  tearDownAll(() => dir.deleteSync(recursive: true));
+  tearDownAll(() => removeTempDir(dir));
 
   late _FakeVideoPlayerPlatform platform;
 

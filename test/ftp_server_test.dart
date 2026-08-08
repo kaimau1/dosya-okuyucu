@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/fm/remote/ftp_server.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ftpconnect/ftpconnect.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// FTP sunucusu bu ortamda **gerçekten koşturulabiliyor** (localhost soketi),
 /// bu yüzden testler varsayımla değil ölçümle: sunucu başlatılıyor ve
@@ -20,7 +21,7 @@ void main() {
       server = FtpServer(rootDirectory: root.path);
     });
 
-    tearDown(() => root.deleteSync(recursive: true));
+    tearDown(() => removeTempDir(root));
 
     test('kök içindeki yollar çözülür', () {
       expect(server.resolve('/', 'a.txt'), '${root.path}/a.txt');
@@ -111,7 +112,7 @@ void main() {
 
     tearDown(() async {
       await server.stop();
-      root.deleteSync(recursive: true);
+      removeTempDir(root);
     });
 
     FTPConnect client({String user = 'kullanici', String pass = 'gizli'}) =>
@@ -239,7 +240,7 @@ void main() {
     tearDown(() async {
       control.destroy();
       await server.stop();
-      root.deleteSync(recursive: true);
+      removeTempDir(root);
     });
 
     test('giriş yapılmadan komut kabul edilmez', () async {

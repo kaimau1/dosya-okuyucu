@@ -6,6 +6,7 @@ import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// Excel ekranının duman testi.
 ///
@@ -28,7 +29,7 @@ void main() {
 
   tearDown(() {
     SpreadsheetEditorScreen.parseInIsolate = true;
-    dir.deleteSync(recursive: true);
+    removeTempDir(dir);
   });
 
   Future<void> pump(WidgetTester tester) async {
@@ -104,7 +105,7 @@ void main() {
           File('test/fixtures/wide_freeze.xlsx').readAsBytesSync());
     });
 
-    tearDown(() => wideDir.deleteSync(recursive: true));
+    tearDown(() => removeTempDir(wideDir));
 
     Future<void> pumpWide(WidgetTester tester) async {
       await tester.pumpWidget(MaterialApp(

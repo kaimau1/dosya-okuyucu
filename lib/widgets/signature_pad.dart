@@ -136,7 +136,7 @@ class _SignaturePadState extends State<SignaturePad> {
         TextButton(
           onPressed:
               _strokes.isEmpty ? null : () => setState(_strokes.clear),
-          child: const Text('Temizle'),
+          child: Text(context.t('common.clear')),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -154,7 +154,7 @@ class _SignaturePadState extends State<SignaturePad> {
                   sig.save();
                   Navigator.pop(context, sig);
                 },
-          child: const Text('Tamam'),
+          child: Text(context.t('common.ok')),
         ),
       ],
     );

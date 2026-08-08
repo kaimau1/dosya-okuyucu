@@ -7,6 +7,7 @@ import 'package:dosya_okuyucu/services/fm/drive_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'support/temp_dir.dart';
 
 /// Ağ, `gemini_service_test`teki desenle yakalanır: `http.runWithClient`
 /// zon istemcisi + `MockClient`. Gerçek Google oturumu gerekmesin diye
@@ -328,7 +329,7 @@ void main() {
 
     test('indirme dosyayı diske yazar, Google biçimine uzantı ekler', () async {
       final dir = await Directory.systemTemp.createTemp('drive_dl');
-      addTearDown(() => dir.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(dir));
       const doc = DriveFile(
           id: 'b',
           name: 'Bütçe',
@@ -346,7 +347,7 @@ void main() {
       // Akan indirme her parçada (inen, toplam) bildirmeli ki ekran yüzde
       // gösterebilsin.
       final dir = await Directory.systemTemp.createTemp('drive_dl');
-      addTearDown(() => dir.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(dir));
       const pdf =
           DriveFile(id: 'a', name: 'rapor.pdf', mimeType: 'application/pdf');
       final ticks = <(int, int?)>[];
@@ -365,7 +366,7 @@ void main() {
       // Content-Length'i olmayan yanıtı MockClient ile kurmak zor; en azından
       // hata YOLU akan indirmede de sınıflandırılmalı.
       final dir = Directory.systemTemp.createTempSync('drive_dl_err');
-      addTearDown(() => dir.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(dir));
       const pdf =
           DriveFile(id: 'a', name: 'rapor.pdf', mimeType: 'application/pdf');
       expect(
@@ -380,7 +381,7 @@ void main() {
 
     test('yükleme multipart POST atar', () async {
       final dir = await Directory.systemTemp.createTemp('drive_up');
-      addTearDown(() => dir.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(dir));
       final local = File('${dir.path}/not.txt')..writeAsStringSync('içerik');
 
       final seen = <http.Request>[];
@@ -403,7 +404,7 @@ void main() {
 
     test('güncelleme PATCH ile İÇERİĞİ değiştirir (kimlik korunur)', () async {
       final dir = await Directory.systemTemp.createTemp('drive_patch');
-      addTearDown(() => dir.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(dir));
       final local = File('${dir.path}/a.txt')..writeAsStringSync('yeni');
 
       final seen = <http.Request>[];
@@ -471,7 +472,7 @@ void main() {
 
     test('yükleme bulunulan klasöre yapılır (parents üstveride)', () async {
       final dir = await Directory.systemTemp.createTemp('drive_up_parent');
-      addTearDown(() => dir.deleteSync(recursive: true));
+      addTearDown(() => removeTempDir(dir));
       final local = File('${dir.path}/not.txt')..writeAsStringSync('x');
 
       final seen = <http.Request>[];

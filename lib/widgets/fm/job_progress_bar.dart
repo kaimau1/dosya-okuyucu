@@ -165,7 +165,7 @@ class _ResultBar extends StatelessWidget {
                   child: Text(context.t('jp.show')),
                 ),
               IconButton(
-                tooltip: 'Kapat',
+                tooltip: context.t('common.close'),
                 icon: const Icon(Icons.close, size: 20),
                 onPressed: () => JobQueue.instance.dismiss(job.id),
               ),

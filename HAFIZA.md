@@ -7219,3 +7219,105 @@ akıcı mı ve yakınlaştırınca yazı hâlâ keskin mi, (b) video izlerken an
 çıkıp dönünce video durup kaldığı yerden devam ediyor mu, (c) çöp kutusu
 kutusunun animasyonu birkaç saniye sonra duruyor mu, (d) Ayarlar > Pil ve
 başarım'da tazeleme hızını kapatınca kaydırma hissi değişiyor mu.
+
+## 2026-08-08 — KALANLAR turu: çevrilmemiş metin bitti, altı madde kapandı
+Kullanıcı: *"kalanları bitir hepsini bu oturumda yap"*. Liste ~60 maddeydi;
+**yarısı cihaz doğrulaması** (kullanıcının telefonunda bakılacak şeyler) ve bir
+kısmı paket/ortam sınırı. Bu turda **kodla kapatılabilen** maddeler kapatıldı,
+kapatılamayanların NEDENİ maddenin yanına yazıldı (aşağıda ve KALANLAR'da).
+
+### A) "Kalan ekranlar hâlâ Türkçe" → BİTTİ, üstelik BEKÇİSİ var
+- Madde 2026-07-30'da yazılmıştı ve **eskiydi:** tablo o gün 4 ekranlıkken
+  bugün **1692 anahtar** ve 75 dosya `context.t` kullanıyordu. Kaynak
+  tarandığında kullanıcıya görünen yerlerde yalnız **~50 sabit Türkçe dize**
+  kalmıştı; hepsi taşındı (ortak sözcükler `common.*` altında toplandı —
+  "Geri al / Yeniden dene / Yeniden tara / Temizle / Yeni / en eski / en iyi").
+- **Asıl iş bekçi:** `test/l10n_literals_test.dart` kaynağı tarıyor ve
+  `Text(...)`, `tooltip:`, `label:`, `title:`, `hintText:` gibi kullanıcıya
+  görünen yerlere doğrudan Türkçe yazılırsa **testi kırıyor**.
+  *Niye kaynak taraması:* çevrilmemiş metin çalışırken hata vermez, yalnız
+  İngilizce/Arapça kullananın ekranında Türkçe görünür — kimse fark etmez ve
+  liste tur sonunda yeniden şişer. `l10n_test` yalnız TABLODAKİ eksikleri
+  yakalıyor; tabloya hiç girmemiş metni ancak kaynağa bakan bir test yakalar.
+- İzin listesi dar ve gerekçeli: marka adı (Dosya Okuyucu, Google Drive, ZIP),
+  JSON anahtarı, disk göstergesi, API anahtarı ipucu, JS çağrısı, desen
+  sözdizimi.
+
+### B) Ekranı açık tutma (wakelock) — `core/screen_awake.dart`
+- `wakelock_plus 1.4.0` eklendi (Flutter 3.29.3 ile çözümlendiği bir önceki
+  turda ölçülmüştü).
+- **Doğrudan eklenti çağrılmıyor, sayaçlı bir kapı var.** Wakelock pil HARCAR;
+  bir önceki tur pil kaçaklarını kapatmakla geçti, buraya kontrolsüz bir kaçak
+  açmak o işi geri alırdı. `request()` bir bırakma işlevi döndürür; **son**
+  sahip bırakınca kilit açılır. Sayaç şart: iç içe iki sahip varken biri
+  bırakınca ekran ötekinin altından sönerdi.
+- Kilit **yalnız video GERÇEKTEN OYNARKEN** tutuluyor: duraklatınca, video
+  bitince, uygulama arkaya alınınca ve ekran kapanınca bırakılıyor. Ses
+  oynatıcıda hiç alınmıyor (müzik dinlerken ekranın sönmesi istenen davranış).
+- **TUZAK:** `unawaited(_apply(...))` ile başlatılan çağrıda `try` bloğu test
+  yönlendirmesini de KAPSAMALI; yoksa oradan sızan hata "yakalanmayan asenkron
+  hata" olur ve ilgisiz bir testi kırar.
+
+### C) Yapıştırmada çakışma politikası soruluyor
+- Eskiden sessizce `FmConflict.rename` uygulanıyordu (`rapor.pdf` →
+  `rapor (1).pdf`). Veri kaybı yoktu ama kullanıcının niyeti çoğu zaman
+  **güncelleme**: aynı dosyanın yeni sürümünü yapıştırıp klasörde iki kopya
+  bulmak ve hangisinin yeni olduğunu bilememek gerçek bir karışıklıktı.
+- `PasteConflict.collisions` (saf + testli) çakışan adları buluyor; **yalnız
+  çakışma varsa** alt sayfa açılıyor: İkisini de tut / Atla / Üzerine yaz.
+- **Pencereyi kapatmak = vazgeç.** Sessizce bir varsayılana düşmek,
+  kullanıcının kapattığı pencerenin yine de dosya yazması olurdu.
+- Klasör çakışması da sayılıyor (aynı adlı klasörün üzerine yazmak dosyadan
+  daha yıkıcı; sorulmayan bir yol bırakılamazdı).
+
+### D) Açılış klasörü ayarı (Material Files'ta vardı)
+`AppState.fmStartFolder` + Dosya yöneticisi ayarları > **Açılış klasörü**.
+Boşken hiçbir şey değişmiyor (pano yine ilk ekran). Klasör silinmişse
+(SD kart çıkarılmış olabilir) **sessizce** pano gösteriliyor — açılışta
+kullanıcının çözemeyeceği bir hata penceresiyle karşılamak kötü karşılamadır.
+Açılış yalnız BİR KEZ: bayrak `static`, yoksa tema/dil değişimi ağacı yeniden
+kurunca kullanıcı geri tuşuyla panoya her döndüğünde içeri fırlatılırdı.
+
+### E) Ses etiketleri: kapak resmi + sanatçı/albüm — `services/fm/audio_tags.dart`
+- **Saf Dart, bağımlılık yok.** Ekranda dört alan gösteriliyor; bunun için tam
+  bir etiket kütüphanesi (ve APK'da birkaç yüz KB) eklemek "sade/hızlı"
+  konumlandırmasıyla çelişirdi.
+- **ID3v2.2/2.3/2.4** + **MP4/M4A `ilst`**. Okunamayan etiket sessizce boş
+  döner ve ekran eskisi gibi dosya adını gösterir — en kötü durum, bu iş
+  yapılmadan önceki durumdur.
+- **TUZAKLAR (testle sabitlendi):**
+  - v2.4'te ÇERÇEVE boyutu da senkron-güvenlidir (7 bit). Düz 32 bit okumak
+    zinciri kaydırır ve etiketin kalanı çöpe döner.
+  - `APIC` açıklaması kodlamaya göre 1 ya da 2 bayt NUL ile biter; UTF-16'da
+    tek bayt aramak görüntünün ilk baytını yutar.
+  - MP4 atom adı DÖRT BAYTTIR: `©nam`daki `©` UTF-8 (2 bayt) değil, tek
+    baytlık 0xA9. `utf8.encode` kullanmak bütün atom zincirini kaydırır.
+  - Metin alanları NUL ile sonlanır → ilk NUL'dan sonrası atılmalı.
+- Dosyanın yalnız **ilk 2 MB'ı** okunuyor (etiket başta durur); 40 MB'lık bir
+  albümü belleğe almanın anlamı yok. Kapak `cacheWidth: 480` ile çözülüyor.
+
+### F) PDF kapak küçük resmi — `services/fm/pdf_thumbnail.dart`
+Listelerde her PDF aynı kırmızı simgeydi; on faturanın hangisinin hangisi
+olduğu yalnız addan anlaşılıyordu. İlk sayfa pdfium ile çizilip **diskte**
+önbelleğe alınıyor — anahtar video küçük resimleriyle AYNI kural
+(`ThumbnailCache.cacheName`: yol + değişiklik zamanı + boy), aynı klasör
+mantığı. Parolalı/bozuk belge sessizce simgeye düşüyor ve **bir daha
+denenmiyor** (her kaydırmada pdfium'u yeniden çalıştırmasın). En-boy oranı
+korunuyor: kare çizmek A4'ü yamultup "yanlış belge" hissi verirdi.
+
+### G) Windows'ta kırık testler → `test/support/temp_dir.dart`
+Kök neden temizlikti: `tearDown`daki çıplak `deleteSync(recursive: true)`
+Windows'ta `FileSystemException` atıyor (arşiv/WebView/video bir kolu geç
+bırakıyor) ve **testin kendisi geçmişken** kırmızı yakıyordu. Sonuç: yerelde
+`flutter test` sürekli kırmızı döndüğü için gerçek regresyon gürültüden
+ayrılamıyordu. Artık tek yardımcı: kısa yeniden deneme, sonra **sessizce** pes.
+Temizlik bir doğrulama değildir; silinemezse işletim sistemi zaten toplar.
+`fm_archive_rar_test`teki `rethrow`lu döngü de buna çevrildi.
+
+### H) Eskimiş maddeler kapatıldı (kod zaten yapıyordu)
+Toplu yeniden adlandırma (`batch_rename_sheet.dart`), video küçük resmi
+(`ThumbnailCache` + `_VideoThumb`), ağ/bulut (Drive + SFTP/FTP/SMB/WebDAV
+ekranları). Üçü de listede "yok" diye duruyordu.
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze` 0 hata/uyarı, tüm testler yeşil.

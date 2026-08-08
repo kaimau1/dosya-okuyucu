@@ -274,7 +274,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ],
             )
           : AppBar(
-              title: const Text('Bellek Analizi'),
+              title: Text(context.t('fm.memory_analysis')),
               actions: [
                 FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
               ],

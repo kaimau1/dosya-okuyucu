@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/services/fm/file_ops.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// Dosya işlemleri (kopyala/taşı/sil/yeniden adlandır) gerçek geçici klasörde
 /// doğrulanır — bu mantık kullanıcının verisine dokunduğu için en kritik kısım.
@@ -14,7 +15,7 @@ void main() {
   });
 
   tearDown(() {
-    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    if (tmp.existsSync()) removeTempDir(tmp);
   });
 
   File touch(String relative, [String content = 'veri']) {

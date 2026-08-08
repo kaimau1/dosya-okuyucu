@@ -1,5 +1,36 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
+> **Bu liste nasıl okunur (2026-08-08 sınıflandırması).** Açık maddelerin
+> çoğunluğu benim kapatabileceğim işler DEĞİL; hangisinin kimde olduğu
+> karışmasın diye üç kümeye ayrılıyor:
+>
+> 1. **“cihaz doğrulaması (kullanıcı)”** başlıklı ~27 madde — telefonda
+>    bakılacak şeyler (kamera, Play Services, gerçek Word/Excel'de açma,
+>    dokunma hissi, gerçek NAS). Birim testle doğrulanamazlar; kodla
+>    “kapatmak” yalnız kâğıt üzerinde kapatmak olurdu.
+> 2. **“bilinçli” / paket sınırı** işaretli maddeler — kararı verilmiş ve
+>    gerekçesi maddenin içinde yazılı olanlar (`excel 4.0.6` sayfa taşıma
+>    API'si yok, `smb_connect` portu yok sayıyor, cihazda JPEG kodlayıcı yok,
+>    graphify bu ortamda kurulu değil, Firebase config kullanıcının).
+> 3. **Gerçek kalan iş** — Word tablo/resim düzenleme, Word'de karakter
+>    düzeyinde punto, Excel grafik ekleme ve köşegen doldurma, çift bölme,
+>    dosya seçici intent'i, SAF ile SD karta yazma, listede klasör boyutu,
+>    `/ToUnicode`suz PDF'lerde AGL tablosu, iki yana yaslı satırın yeniden
+>    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
+>    (split-per-abi/AAB). Her biri kendi başına bir tur.
+
+- [ ] **KALANLAR turu cihaz doğrulaması (kullanıcı)** — 2026-08-08:
+      (a) Ayarlar > **Dil** > English seç → **dosya yöneticisi, PDF, slayt ve
+      sohbet** ekranlarında da artık Türkçe metin KALMAMALI, (b) bir video
+      izlerken ekrana dokunmadan bekle → **ekran sönmemeli**; duraklatınca
+      normal zaman aşımına dönmeli, (c) bir dosyayı kopyala → **aynı adlı
+      dosyanın olduğu** klasöre yapıştır → İkisini de tut / Atla / Üzerine yaz
+      soruluyor mu, üçü de doğru davranıyor mu, (d) Dosya yöneticisi ayarları >
+      **Açılış klasörü** bir klasör seç → uygulamayı kapat-aç → doğrudan orada
+      açılıyor mu, (e) bir mp3 aç → **kapak resmi, sanatçı ve albüm** geliyor
+      mu, (f) Belgeler listesinde **PDF'ler kapak sayfalarıyla** mı görünüyor,
+      çok PDF'li klasörde kaydırma akıcı mı.
+
 - [ ] **Pil/başarım turu cihaz doğrulaması (kullanıcı)** — 2026-08-07 (7):
       (a) çok sayıda büyük fotoğrafı olan bir klasörde galeriyi aç, sağa-sola
       hızlı kaydır → takılma/kasma AZALDI mı, uygulama artık kendiliğinden
@@ -214,13 +245,13 @@ göre sıralı**:
       tipi okunur mu (cihazın Arapça fontu), (d) dil seçimi uygulamayı
       kapatıp açınca korunuyor mu, (e) "Sistem" seçiliyken telefon dili
       İngilizce/Arapça ise uygulama o dilde mi açılıyor.
-- [ ] **Kalan ekranlar hâlâ Türkçe** — 2026-07-30'da çevrilenler: ana ekran,
-      Ayarlar, Excel, Word. Dosya yöneticisi ekranları (pano, kategoriler,
-      fotoğraflar, arama, işlemler, indirme…), PDF ekranları, slayt editörü,
-      AI sohbeti ve `services/` içindeki kullanıcıya görünen metinler
-      çevrilmedi. Altyapı hazır: `context.t('anahtar')` + `lib/core/l10n/
-      app_strings.dart` tablosuna üç dilli satır eklemek yetiyor; `l10n_test`
-      eksik anahtarı zaten yakalıyor.
+- [x] ~~**Kalan ekranlar hâlâ Türkçe**~~ → **BİTTİ 2026-08-08.** Madde
+      eskimişti (yazıldığında 4 ekran çevriliydi, bugün tablo 1700+ anahtar).
+      Kaynakta kalan ~50 sabit dize taşındı; ortak sözcükler `common.*`
+      altında toplandı. **Bekçisi var:** `test/l10n_literals_test.dart`
+      kaynağı tarıyor — `Text(...)`/`tooltip:`/`label:` gibi yerlere doğrudan
+      Türkçe yazan bir değişiklik testi KIRAR. İzin listesi dar ve gerekçeli
+      (marka adı, JSON anahtarı, desen sözdizimi).
 - [ ] **Sağdan sola Excel/Word cihaz doğrulaması (kullanıcı)** — 2026-07-30:
       (a) Arapça bir .xlsx aç → A sütunu SAĞDA mı, kaydırma sağ kenardan mı
       başlıyor, hücre metni sağa mı yaslı, sayılar sola mı, (b) ⋮ > **Sayfa
@@ -425,24 +456,37 @@ göre sıralı**:
       çalmayı sürdürür ama ön plan servisi olmadığı için sistem bellek baskısında
       süreci öldürebilir ve bildirimden kontrol edilemez. Çözüm `just_audio_background`
       (manifest'te activity sınıfı değişir → APK'da sınıf doğrulayan CI adımı şart).
-- [ ] **Ses: ID3 kapak resmi / albüm-sanatçı bilgisi okunmuyor** (dosya adı gösteriliyor).
-- [ ] **Ekranı açık tutma (wakelock) yok:** uzun videoda ekran sönebilir.
-      **2026-08-07 ölçüldü:** `wakelock_plus 1.4.0` Flutter 3.29.3 ile temiz
-      çözümleniyor (ayrı bir örnek projede `pub get` denendi) — sürüm arayışına
-      gerek yok. Pil turunda BİLEREK eklenmedi: pil azaltmayı isteyen bir turda
-      pil artıran bir bağımlılığı gece boyu doğrulanmadan main'e koymak doğru
-      değildi. Eklenirse **yalnız video OYNARKEN** tutulmalı (duraklatınca
-      bırakılmalı), ses oynatıcıda hiç tutulmamalı.
-- [ ] **Video küçük resmi (thumbnail) yok** — listelerde video ikonuyla gösteriliyor.
-- [ ] **Küçük resim (thumbnail) yalnız görsellerde** — video/PDF küçük resmi yok
-      (video için platform kanalı, PDF için pdfium render gerekir).
+- [x] ~~**Ses: ID3 kapak resmi / albüm-sanatçı bilgisi okunmuyor**~~ →
+      **YAPILDI 2026-08-08:** `services/fm/audio_tags.dart` (saf Dart,
+      bağımlılık yok) — ID3v2.2/2.3/2.4 + MP4/M4A `ilst`. Çalarda kapak
+      resmi, parça adı ve "Sanatçı · Albüm" satırı. Etiket okunamazsa dosya
+      adına düşülür. FLAC (Vorbis) ve ID3v1 bilinçli dışarıda.
+- [x] ~~**Ekranı açık tutma (wakelock) yok**~~ → **YAPILDI 2026-08-08:**
+      `wakelock_plus 1.4.0` + `core/screen_awake.dart` (sayaçlı tek kapı).
+      Kilit **yalnız video gerçekten oynarken** tutuluyor; duraklatınca, video
+      bitince, uygulama arkaya alınınca ve ekran kapanınca bırakılıyor. Ses
+      oynatıcıda hiç alınmıyor. Sayaç birim testli — wakelock pil harcar,
+      bırakılmayan bir kilit bir önceki turun pil işini geri alırdı.
+- [x] ~~**Video küçük resmi (thumbnail) yok**~~ → madde ESKİMİŞTİ; kod
+      2026-07-25'ten beri üretiyor (`ThumbnailCache` + `_VideoThumb`, disk
+      önbellekli, film karesi + oynat rozeti).
+- [x] ~~**Küçük resim yalnız görsellerde — video/PDF küçük resmi yok**~~ →
+      **BİTTİ 2026-08-08:** PDF de kapak sayfasıyla görünüyor
+      (`services/fm/pdf_thumbnail.dart`, pdfium ile ilk sayfa, disk önbelleği
+      video ile AYNI anahtar kuralında). Parolalı/bozuk belge sessizce simgeye
+      düşer ve bir daha denenmez. **Cihaz doğrulaması bekliyor:** belgeler
+      listesinde PDF'ler kapaklarıyla mı görünüyor, kaydırma akıcı mı.
 - [x] ~~RAR/7z çıkarma yok~~ → **YAPILDI 2026-07-25:** koni_archive (saf Dart, MIT)
       ile RAR4/RAR5 + 7z listeleme/çıkarma/önizleme/parola/çok parçalı. Kalan:
       cihazda büyük ve solid RAR'da hız (saf Dart LZMA/PPMd yavaştır — 100 MB+
       arşivde çıkarma dakikalar sürebilir, ilerleme çubuğu var ama İPTAL YOK),
       ve RAR YAZMA kalıcı olarak yok (biçim özel mülk; .zip üretiliyor).
-- [ ] **Yapıştırmada çakışma politikası soruluyor değil**, varsayılan "yeniden adlandır"
-      (veri ezilmez). İstenirse yapıştırma öncesi Üzerine yaz/Atla/Yeniden adlandır sorusu.
+- [x] ~~**Yapıştırmada çakışma politikası soruluyor değil**~~ →
+      **YAPILDI 2026-08-08:** çakışma VARSA alt sayfa açılıyor (İkisini de tut
+      / Atla / Üzerine yaz); yoksa hiçbir şey sorulmuyor. Pencereyi kapatmak
+      = vazgeç (sessizce bir varsayılana düşmek, kapatılan pencerenin yine de
+      dosya yazması olurdu). Klasör çakışması da sayılıyor. `PasteConflict`
+      saf ve testli.
 - [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*`
       düğümleri graf raporunda yok. 2026-08-04 turunun getirdikleri de eksik:
       `XlsxStyleEdit`, `XlsxCondRuleWrite`, `_ColumnFilterSheet`,
@@ -455,14 +499,18 @@ Referanslar: Fossify File Manager, Material Files, AnExplorer, ekran görüntüs
 File Manager+. Bizde artık olanlar: pano/kategoriler, gezgin+çoklu seçim, çöp
 kutusu, bellek analizi, **yinelenen dosya bulucu**, arşiv (RAR5/RAR4/7z okuma +
 parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
-- [ ] **Ağ/bulut (FTP, SMB, WebDAV, Drive)** — Material Files/AnExplorer'da var.
-      Büyük iş: her protokol için sanal dosya sistemi katmanı gerekir; mevcut
-      `FsEntry`/`FileOps` doğrudan `dart:io` üzerine kurulu → önce soyutlama.
+- [x] ~~**Ağ/bulut (FTP, SMB, WebDAV, Drive)**~~ → madde ESKİMİŞTİ:
+      2026-07-30'da yapıldı — `screens/fm/remote/` (SFTP/FTP/FTPS/SMB/WebDAV,
+      ağda arama, bağlantı sınama) ve `drive_screen.dart` (Google Drive).
+      Kalan belirsizlikler ayrı maddelerde (SMB3, SMB portu, cihaz doğrulaması).
 - [ ] **Çift bölme (dual pane)** — tablet/yatay ekranda iki klasör yan yana,
       sürükle-bırak taşıma. Gezgin push-tabanlı olduğu için orta ölçekli iş.
-- [ ] **Toplu yeniden adlandırma** (desen: "Tatil_###.jpg", bul/değiştir).
-- [ ] **Varsayılan başlangıç klasörü** ayarı (Material Files'ta var) — küçük iş,
-      AppState'e tek tercih.
+- [x] ~~**Toplu yeniden adlandırma**~~ → madde ESKİMİŞTİ:
+      `widgets/fm/batch_rename_sheet.dart` + `services/fm/batch_rename.dart`
+      zaten var (desen + önizleme, uzantı korunuyor).
+- [x] ~~**Varsayılan başlangıç klasörü** ayarı~~ → **YAPILDI 2026-08-08:**
+      Dosya yöneticisi ayarları > **Açılış klasörü**. Boşken pano ilk ekran
+      (davranış değişmedi); klasör silinmişse sessizce panoya düşer.
 - [ ] **Dosya seçici olarak davranma** (başka uygulama dosya isteyince
       GET_CONTENT/OPEN_DOCUMENT intent'i karşılamak).
 - [ ] **SD karta yazma (SAF)** — Android bazı cihazlarda ikincil birime doğrudan
@@ -531,16 +579,16 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       motoru. Yol: `--split-per-abi` ya da App Bundle (AAB) — indirilen boyut
       3-4 kat düşer. Release akışının değişmesi gerekir, ayrı iş.
 
-- [ ] **Windows'ta kırık 4 test (yerel doğrulamayı köreltiyor).** CI Linux'ta
-      geçiyorlar, ama yerelde `flutter test` hep kırmızı döndüğü için gerçek
-      regresyonu gürültüden ayırmak zorlaşıyor (2026-07-28 turunda kök nedeni
-      bulmadan önce baseline'ı stash'leyip ölçmek gerekti):
-      `fm_archive_rar_test: volumePath` — test POSIX yol bekliyor, `p.join`
-      Windows'ta `\` üretiyor (ya test platform-duyarlı olmalı ya `volumePath`
-      POSIX ayracı sabitlemeli) · `şifreli arşiv … parolasız çıkarma` —
-      tearDown temp klasörünü silemiyor, Windows dosya kilidi (koni bir kolu
-      geç kapatıyor olabilir) · `fm_trash` iki testi Android birim mantığına
-      dayanıyor.
+- [x] ~~**Windows'ta kırık 4 test (yerel doğrulamayı köreltiyor)**~~ →
+      **YAPILDI 2026-08-08:** kök neden TEMİZLİKTİ. `tearDown`daki çıplak
+      `deleteSync(recursive: true)` Windows'ta dosya kilidi yüzünden istisna
+      atıyor ve **test geçmişken** kırmızı yakıyordu. Tek yardımcı:
+      `test/support/temp_dir.dart` — kısa yeniden deneme, sonra SESSİZCE pes
+      (temizlik bir doğrulama değildir; silinemezse işletim sistemi toplar).
+      Tüm test dosyaları buna geçirildi; `fm_archive_rar_test`teki `rethrow`lu
+      döngü de kaldırıldı. `volumePath` POSIX sorunu zaten çözülmüştü.
+      **Doğrulanmadı:** Windows makine bu oturumda yok — Linux'ta yeşil,
+      yerelde kullanıcı bakmalı.
 
 - [x] ~~**Gizli satır/sütun kaydetmede kayboluyor (Excel sadakati).**~~ →
       **YAPILDI** (2026-08-02'de doğrulandı; madde eskimişti). Önerilen yol

@@ -22,6 +22,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import '../../widgets/section_header.dart';
 import '../settings_screen.dart';
+import 'folder_picker_screen.dart';
 
 /// **Dosya yöneticisine özel** ayarlar (uygulama geneli ayarlar ayrı ekranda:
 /// Gemini anahtarı, tema, hesap).
@@ -302,6 +303,35 @@ class _FmSettingsScreenState extends State<FmSettingsScreen> {
                   PopupMenuItem(value: v, child: Text(context.t(v.labelKey))),
               ],
             ),
+          ),
+          // **Açılış klasörü** (KALANLAR maddesi, Material Files'ta var):
+          // dosyalarını hep aynı klasörde tutan kullanıcı her açılışta
+          // panodan oraya tıklaya tıklaya gidiyordu. Boşken hiçbir şey
+          // değişmez — pano yine ilk ekran.
+          ListTile(
+            leading: const Icon(Icons.home_outlined),
+            title: Text(context.t('fmset.start_folder')),
+            subtitle: Text(appState.fmStartFolder.isEmpty
+                ? context.t('fmset.start_folder_none')
+                : appState.fmStartFolder),
+            trailing: appState.fmStartFolder.isEmpty
+                ? const Icon(Icons.chevron_right)
+                : IconButton(
+                    tooltip: context.t('fmset.start_folder_clear'),
+                    icon: const Icon(Icons.close),
+                    onPressed: () => appState.setFmStartFolder(''),
+                  ),
+            onTap: () async {
+              final picked = await Navigator.of(context).push<String>(
+                MaterialPageRoute(
+                  builder: (_) => FolderPickerScreen(
+                    sources: const [],
+                    actionLabel: context.t('fmset.start_folder_pick'),
+                  ),
+                ),
+              );
+              if (picked != null) await appState.setFmStartFolder(picked);
+            },
           ),
           ],
           if (shows('fmset.sec_search')) ...[

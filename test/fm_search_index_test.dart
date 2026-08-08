@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_search_field.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// Arama dizininin **saf** parçaları: satır kodlama/çözme ve panonun
 /// taramasıyla üretilen dizin dosyası. (Dizinin kendisi `path_provider`
@@ -18,7 +19,7 @@ void main() {
 
   tearDown(() {
     try {
-      tmp.deleteSync(recursive: true);
+      removeTempDir(tmp);
     } catch (_) {}
   });
 

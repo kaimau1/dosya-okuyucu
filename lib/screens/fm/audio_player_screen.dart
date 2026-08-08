@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/audio_tags.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import 'entry_actions.dart';
@@ -56,6 +57,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   bool _shuffle = false;
   String? _error;
 
+  /// Çalan parçanın etiketleri (ID3/MP4). Okunamazsa boş kalır ve ekran
+  /// eskisi gibi dosya adını gösterir.
+  AudioTags _tags = AudioTags.empty;
+
   String get _current => _playlist[_index];
 
   @override
@@ -98,7 +103,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       _error = null;
       _position = Duration.zero;
       _duration = Duration.zero;
+      // Yeni parçaya geçerken ÖNCEKİNİN kapağı/adı ekranda kalmasın.
+      _tags = AudioTags.empty;
     });
+    // Etiket okuma çalmayı BEKLETMEZ: dosyanın başından en çok 2 MB okunuyor
+    // ama yavaş bir SD kartta bu da hissedilir. Ses hemen başlar, kapak ve
+    // sanatçı bilgisi geldiğinde yerine oturur.
+    unawaited(_loadTags(path));
     try {
       await _player.stop();
       await _player.play(DeviceFileSource(path));
@@ -110,6 +121,22 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       }
     }
   }
+
+  /// Etiketleri okur ve ekrana yansıtır. Bu sırada kullanıcı başka parçaya
+  /// geçmiş olabilir — sonuç o zaman ATILIR, yoksa yeni parçanın üstüne eski
+  /// kapak binerdi.
+  Future<void> _loadTags(String path) async {
+    final tags = await AudioTagReader.read(path);
+    if (!mounted || path != _current) return;
+    setState(() => _tags = tags);
+  }
+
+  /// Kapak yoksa (ya da açılamazsa) gösterilen nota kutusu.
+  Widget _coverFallback(ColorScheme scheme) => Container(
+        color: scheme.primaryContainer,
+        child: Icon(Icons.music_note,
+            size: 84, color: scheme.onPrimaryContainer),
+      );
 
   void _onComplete() {
     if (_repeat == RepeatMode.one) {
@@ -210,27 +237,55 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         child: Column(
           children: [
             const SizedBox(height: Gap.lg),
-            Container(
+            // **Kapak resmi** dosyanın kendi etiketinden (ID3 `APIC` / MP4
+            // `covr`). Yoksa eski nota simgesi — kutu ölçüsü DEĞİŞMEZ, yoksa
+            // kapak geldiğinde bütün ekran zıplardı.
+            SizedBox(
               width: 160,
               height: 160,
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(Radii.sheet),
+                child: _tags.cover != null
+                    ? Image.memory(
+                        _tags.cover!,
+                        fit: BoxFit.cover,
+                        // Kapaklar 1500 piksele kadar çıkabiliyor; 160 dp'lik
+                        // kutuya tam çözünürlükte açmak boşuna bellek
+                        // (bkz. core/image_budget.dart dersi).
+                        cacheWidth: 480,
+                        gaplessPlayback: true,
+                        errorBuilder: (_, __, ___) => _coverFallback(scheme),
+                      )
+                    : _coverFallback(scheme),
               ),
-              child: Icon(Icons.music_note,
-                  size: 84, color: scheme.onPrimaryContainer),
             ),
             const SizedBox(height: Gap.lg),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
               child: Text(
-                p.basenameWithoutExtension(_current),
+                // Etikette parça adı varsa o gösterilir: "03 - track.mp3"
+                // yerine gerçek ad.
+                _tags.title.isNotEmpty
+                    ? _tags.title
+                    : p.basenameWithoutExtension(_current),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleMedium,
               ),
             ),
+            if (_tags.subtitle.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+                child: Text(
+                  _tags.subtitle,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ),
             Text(
               _playlist.length > 1
                   ? '${_index + 1}/${_playlist.length} · ${p.basename(p.dirname(_current))}'
@@ -286,7 +341,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   onPressed: _index > 0 ? () => _skipTo(_index - 1) : null,
                 ),
                 IconButton(
-                  tooltip: '10 sn geri',
+                  tooltip: context.t('mp.back10'),
                   icon: const Icon(Icons.replay_10),
                   onPressed: () => _seekBy(-10),
                 ),
@@ -298,12 +353,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   onPressed: _toggle,
                 ),
                 IconButton(
-                  tooltip: '10 sn ileri',
+                  tooltip: context.t('mp.forward10'),
                   icon: const Icon(Icons.forward_10),
                   onPressed: () => _seekBy(10),
                 ),
                 IconButton(
-                  tooltip: 'Sonraki',
+                  tooltip: context.t('common.next'),
                   icon: const Icon(Icons.skip_next),
                   onPressed: _index < _playlist.length - 1
                       ? () => _skipTo(_index + 1)

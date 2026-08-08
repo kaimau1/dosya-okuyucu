@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:dosya_okuyucu/services/fm/trash_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// Çöp kutusu: sil → geri yükle → kalıcı sil döngüsü. Kullanıcı verisi
 /// söz konusu olduğu için "geri yükleme gerçekten eski yere koyuyor mu"
@@ -23,7 +24,7 @@ void main() {
     );
   });
 
-  tearDown(() => tmp.deleteSync(recursive: true));
+  tearDown(() => removeTempDir(tmp));
 
   File touch(String relative, [String content = 'veri']) {
     final f = File(p.join(volume.path, relative));

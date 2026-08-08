@@ -20,6 +20,7 @@ import '../widgets/fm/job_progress_bar.dart';
 import '../widgets/scan_flow.dart';
 import '../widgets/section_header.dart';
 import 'chat_screen.dart';
+import 'fm/browser_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'fm/download_manager_screen.dart';
 import 'fm/drive_screen.dart';
@@ -35,6 +36,11 @@ import 'settings_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  /// Yalnız test: "açılış klasörü bir kez açılır" bayrağını sıfırlar.
+  @visibleForTesting
+  static void debugResetStartFolder() =>
+      _HomeScreenState._startFolderOpened = false;
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -43,11 +49,36 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   StreamSubscription<List<SharedMediaFile>>? _intentSub;
 
+  /// Açılışta "başlangıç klasörü" YALNIZ BİR KEZ açılır.
+  ///
+  /// Alan `static`: `HomeScreen` yeniden kurulabilir (tema/dil değişimi
+  /// ağacı yeniden inşa eder) ve her seferinde klasörü yeniden açmak,
+  /// kullanıcı geri tuşuyla panoya döndükten sonra onu tekrar içeri
+  /// fırlatmak demek olurdu.
+  static bool _startFolderOpened = false;
+
   @override
   void initState() {
     super.initState();
     _initShareIntake();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openStartFolder());
   }
+
+  /// Ayarlardaki "açılış klasörü" doluysa doğrudan oraya girer.
+  ///
+  /// Klasör silinmiş/çıkarılmış olabilir (SD kart) — o durumda SESSİZCE pano
+  /// gösterilir. Açılışta "klasör bulunamadı" penceresiyle karşılamak, üstelik
+  /// kullanıcının çözemeyeceği bir sorun için, kötü bir karşılama olurdu.
+  Future<void> _openStartFolder() async {
+    if (_startFolderOpened || !mounted) return;
+    _startFolderOpened = true;
+    final path = context.read<AppState>().fmStartFolder;
+    if (path.isEmpty || !Directory(path).existsSync()) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => BrowserScreen(path: path),
+    ));
+  }
+
 
   @override
   void dispose() {

@@ -459,7 +459,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
               maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
             IconButton(
-              tooltip: 'Geri al',
+              tooltip: context.t('common.undo'),
               icon: const Icon(Icons.undo),
               onPressed: _undo.isEmpty ? null : _undoLast,
             ),

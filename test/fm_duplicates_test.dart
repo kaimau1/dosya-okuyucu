@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dosya_okuyucu/services/fm/duplicate_finder.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// Yinelenen dosya bulucu: kullanıcının dosyasını sildirecek bir özellik
 /// olduğu için "yanlış pozitif YOK" güvencesi testle sabitlenir.
@@ -11,7 +12,7 @@ void main() {
   late Directory tmp;
 
   setUp(() => tmp = Directory.systemTemp.createTempSync('fm_dup_test'));
-  tearDown(() => tmp.deleteSync(recursive: true));
+  tearDown(() => removeTempDir(tmp));
 
   /// Belirlenimci "rastgele" içerik (aynı tohum → aynı bayt dizisi).
   List<int> content(int seed, int length) {

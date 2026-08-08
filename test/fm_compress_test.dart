@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/fm/archive_ops.dart';
 import 'package:dosya_okuyucu/services/fm/file_ops.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'support/temp_dir.dart';
 
 /// Şifreli arşiv ÜRETME → geri OKUMA turu. Kullanıcının verisini parolayla
 /// kilitleyen bir özellik: "yazdığımızı geri açabiliyor muyuz" testle
@@ -21,7 +22,7 @@ void main() {
     File(p.join(source.path, 'alt', 'derin.txt')).writeAsStringSync('derin');
   });
 
-  tearDown(() => tmp.deleteSync(recursive: true));
+  tearDown(() => removeTempDir(tmp));
 
   test('parolasız ZIP: hızlı yol (ZipFileEncoder) çalışmayı sürdürür', () async {
     final path = await ArchiveOps.compress([source.path], tmp.path,

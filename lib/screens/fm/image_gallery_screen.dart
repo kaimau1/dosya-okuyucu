@@ -164,7 +164,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   onPressed: () => shareEntries([_current]),
                 ),
                 IconButton(
-                  tooltip: 'Sil',
+                  tooltip: context.t('common.delete'),
                   icon: const Icon(Icons.delete_outline),
                   onPressed: _delete,
                 ),

@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/file_service.dart';
 import '../../services/fm/fs_events.dart';
+import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../file_type_icon.dart';
 
@@ -82,13 +83,26 @@ class FmEntryIcon extends StatelessWidget {
         thumbnails && (context.select<AppState, bool>((s) => s.fmThumbnails));
 
     if (category == FmCategory.document) {
-      return FileTypeIcon(
+      final icon = FileTypeIcon(
         // Simge türü: .xls/.doc gibi ESKİ biçimler de kendi markalarıyla
         // görünsün (editör yönlendirmesi ayrı bir soru — bkz.
         // `iconKindForExtension`).
         kind: FileService.iconKindForExtension(entry.extension),
         size: size,
       );
+      // PDF: **kapak sayfası** küçük resmi. On tane faturanın hangisinin
+      // hangisi olduğu eskiden yalnız dosya adından anlaşılıyordu; hepsi aynı
+      // kırmızı simgeyle görünüyordu. Üretilene kadar (ve üretilemezse —
+      // parolalı/bozuk belge) simge kalır.
+      if (thumbsOn && entry.extension.toLowerCase() == 'pdf') {
+        return _PdfThumb(
+          path: entry.path,
+          size: size,
+          radius: radius,
+          fallback: icon,
+        );
+      }
+      return icon;
     }
 
     // Video: native küçük resim (film karesi) — üretilene kadar/olmazsa ikon.
@@ -136,6 +150,76 @@ class FmEntryIcon extends StatelessWidget {
       width: size,
       height: size,
       child: Icon(FmColors.iconFor(category), color: tint, size: size * 0.92),
+    );
+  }
+}
+
+/// PDF kapak küçük resmi: önbellekten gelir, yoksa arka planda üretilir.
+///
+/// [_VideoThumb] ile aynı kalıp — üretim bitene kadar (ve üretilemezse)
+/// [fallback] simgesi görünür, liste asla boş kutu göstermez.
+class _PdfThumb extends StatefulWidget {
+  final String path;
+  final double size;
+  final double radius;
+  final Widget fallback;
+
+  const _PdfThumb({
+    required this.path,
+    required this.size,
+    required this.fallback,
+    this.radius = Radii.control,
+  });
+
+  @override
+  State<_PdfThumb> createState() => _PdfThumbState();
+}
+
+class _PdfThumbState extends State<_PdfThumb> {
+  String? _thumb;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PdfThumb old) {
+    super.didUpdateWidget(old);
+    // Liste öğesi geri dönüştürülüp başka belgeye bağlanabilir.
+    if (old.path != widget.path) {
+      _thumb = null;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final path = widget.path;
+    final result = await PdfThumbnail.forPdf(path,
+        size: (widget.size * 2).round().clamp(96, 512));
+    if (!mounted || path != widget.path) return;
+    setState(() => _thumb = result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final thumb = _thumb;
+    if (thumb == null) return widget.fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: Image.file(
+        File(thumb),
+        width: widget.size,
+        height: widget.size,
+        // `contain`: sayfa oranı korunsun, kırpılmasın — kırpılmış bir kapak
+        // yanlış belgeymiş gibi görünür.
+        fit: BoxFit.contain,
+        cacheWidth: (widget.size * 3).round(),
+        filterQuality: FilterQuality.low,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => widget.fallback,
+      ),
     );
   }
 }

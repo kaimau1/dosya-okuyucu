@@ -136,7 +136,7 @@ class _TagSheetState extends State<_TagSheet> {
                     ),
                     if (all.isNotEmpty) ...[
                       const SizedBox(height: Gap.md),
-                      Text('Var olan etiketler',
+                      Text(context.t('fm.existing_tags'),
                           style: theme.textTheme.labelLarge
                               ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: Gap.sm),
@@ -171,7 +171,7 @@ class _TagSheetState extends State<_TagSheet> {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: () => Navigator.pop(context, _changed),
-                    child: const Text('Tamam'),
+                    child: Text(context.t('common.ok')),
                   ),
                 ),
               ),

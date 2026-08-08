@@ -39,6 +39,7 @@ class AppState extends ChangeNotifier {
   static const _kFmUseTrash = 'fm_use_trash';
   static const _kFmConfirmDelete = 'fm_confirm_delete';
   static const _kFmTrashAutoDays = 'fm_trash_auto_days';
+  static const _kFmStartFolder = 'fm_start_folder';
   static const _kRemotes = 'fm_remote_connections';
   static const _kUiFont = 'ui_font';
   static const _kUiTextScale = 'ui_text_scale';
@@ -84,6 +85,13 @@ class AppState extends ChangeNotifier {
   /// Kapatan kullanıcı listeleri kendisi tazeler (aşağı çekme) — sık dosya
   /// eklemeyen telefonlarda saf kazanç.
   bool _autoRescan = true;
+
+  /// Uygulama açılınca doğrudan girilecek klasör (boş = pano).
+  ///
+  /// Material Files'ta olan, bizde eksik olan tercih: dosyalarını hep aynı
+  /// klasörde tutan kullanıcı her açılışta panodan oraya tıklaya tıklaya
+  /// gidiyordu. Boşken hiçbir şey değişmez — pano yine ilk ekran.
+  String _fmStartFolder = '';
   List<RecentFile> _recents = [];
   List<String> _memory = [];
 
@@ -107,13 +115,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Ölçek 0,85–1,40 arasına kısılır: altında dokunma hedefleri okunmaz
-  /// küçüklüğe, üstünde çubuk/etiketler taşmaya başlıyor.
   /// Yüksek tazeleme hızı tercihi (bkz. [_highRefreshRate]).
   bool get highRefreshRate => _highRefreshRate;
 
   /// Otomatik arka plan taraması tercihi (bkz. [_autoRescan]).
   bool get autoRescan => _autoRescan;
+
+  /// Açılışta girilecek klasör; boş ise pano gösterilir.
+  String get fmStartFolder => _fmStartFolder;
+
+  Future<void> setFmStartFolder(String path) async {
+    _fmStartFolder = path;
+    await _prefs.setString(_kFmStartFolder, path);
+    notifyListeners();
+  }
 
   Future<void> setHighRefreshRate(bool value) async {
     _highRefreshRate = value;
@@ -127,11 +142,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ölçek 0,85–1,40 arasına kısılır: altında dokunma hedefleri okunmaz
+  /// küçüklüğe, üstünde çubuk/etiketler taşmaya başlıyor.
   Future<void> setUiTextScale(double value) async {
     _uiTextScale = value.clamp(0.85, 1.4);
     await _prefs.setDouble(_kUiTextScale, _uiTextScale);
     notifyListeners();
   }
+
   List<RecentFile> get recents => List.unmodifiable(_recents);
 
   /// AI'nın kalıcı hafızası (RAG-lite): kaydedilen bilgi notları.
@@ -378,6 +396,7 @@ class AppState extends ChangeNotifier {
     _fmUseTrash = _prefs.getBool(_kFmUseTrash) ?? true;
     _fmConfirmDelete = _prefs.getBool(_kFmConfirmDelete) ?? true;
     _fmTrashAutoDays = _prefs.getInt(_kFmTrashAutoDays) ?? 0;
+    _fmStartFolder = _prefs.getString(_kFmStartFolder) ?? '';
     _remotes = (_prefs.getStringList(_kRemotes) ?? [])
         .map(RemoteConnection.tryDecode)
         .whereType<RemoteConnection>()

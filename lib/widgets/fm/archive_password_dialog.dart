@@ -39,7 +39,7 @@ Future<String?> askArchivePassword(
             child: Text(ctx.t('common.cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, controller.text),
-          child: const Text('Aç'),
+          child: Text(ctx.t('common.open')),
         ),
       ],
     ),

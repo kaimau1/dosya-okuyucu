@@ -11,6 +11,7 @@ import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/temp_dir.dart';
 
 /// Arapça bir tablo üretir; [rtl] ise `<sheetView rightToLeft="1"/>` yazılır.
 Uint8List _book({required bool rtl}) {
@@ -88,7 +89,7 @@ void main() {
 
     tearDown(() {
       SpreadsheetEditorScreen.parseInIsolate = true;
-      dir.deleteSync(recursive: true);
+      removeTempDir(dir);
     });
 
     Future<TextDirection> directionOf(WidgetTester tester,
