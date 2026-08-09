@@ -34,7 +34,7 @@ import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
 import 'remote/remote_connections_screen.dart';
-import 'fm_settings_screen.dart';
+import '../settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
 import 'jobs_screen.dart';
@@ -368,10 +368,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: _scanning ? null : _scan,
           ),
           IconButton(
-            tooltip: context.t('fm.fm_settings'),
+            // Ayrı bir "dosya yöneticisi ayarları" ekranı KALMADI (2026-08-09):
+            // ayarlar tek ekranda, sekiz kategoride toplandı.
+            tooltip: context.t('common.settings'),
             icon: const Icon(Icons.settings_outlined),
             onPressed: () async {
-              await _push(const FmSettingsScreen());
+              await _push(const SettingsScreen());
               if (mounted) await _loadTrash();
             },
           ),

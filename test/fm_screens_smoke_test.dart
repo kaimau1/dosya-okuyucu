@@ -6,7 +6,6 @@ import 'package:dosya_okuyucu/screens/fm/category_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/dashboard_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/downloads_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/duplicates_screen.dart';
-import 'package:dosya_okuyucu/screens/fm/fm_settings_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/image_gallery_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/installed_apps_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/jobs_screen.dart';
@@ -15,6 +14,9 @@ import 'package:dosya_okuyucu/screens/fm/photos_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/search_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/trash_screen.dart';
 import 'package:dosya_okuyucu/screens/home_screen.dart';
+import 'package:dosya_okuyucu/screens/settings/settings_catalog.dart';
+import 'package:dosya_okuyucu/screens/settings/settings_category_screen.dart';
+import 'package:dosya_okuyucu/screens/settings_screen.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -44,7 +46,13 @@ void main() {
       const DuplicatesScreen(roots: ['/tmp']),
       const InstalledAppsScreen(),
       const DownloadsScreen(path: '/tmp'),
-      const FmSettingsScreen(),
+      // Ayrı bir "dosya yöneticisi ayarları" ekranı KALMADI (2026-08-09):
+      // hepsi tek Ayarlar ekranında, sekiz kategoride. Kategori sayfalarının
+      // hepsi burada kuruluyor — yoksa çöp/izin/bakım satırlarındaki bir
+      // derleme hatası ancak APK derlemesinde görülürdü.
+      const SettingsScreen(),
+      for (final category in settingsCategories())
+        SettingsCategoryScreen(category: category),
       const JobsScreen(),
     ];
     expect(widgets, everyElement(isA<Widget>()));

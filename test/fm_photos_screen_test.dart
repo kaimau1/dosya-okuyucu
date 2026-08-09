@@ -2,6 +2,7 @@ import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/screens/fm/photos_screen.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_entry_icon.dart';
+import 'package:dosya_okuyucu/widgets/fm/fm_quick_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -112,14 +113,60 @@ void main() {
     await tester.pump();
 
     // 4 dosyanın 2'si gösterilir (3 kopya → 1), gizlenen sayısı yazılır.
+    // Uyarı 2026-08-09'dan beri kendi satırında değil, süzgeç şeridindeki
+    // bir pilde (üst alan ~180 dp'den 38 dp'ye indi).
     expect(find.text('2 / 4 dosya'), findsOneWidget);
-    expect(find.text('2 yinelenen kopya gizlendi'), findsOneWidget);
+    expect(find.text('2 kopya gizli'), findsOneWidget);
 
     // "Göster" hepsini geri getirir — gizleme kalıcı bir kayıp değil.
+    await tester.tap(find.text('2 kopya gizli'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Göster'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('4 / 4 dosya'), findsOneWidget);
-    expect(find.text('2 yinelenen kopya gizlendi'), findsNothing);
+    expect(find.text('2 kopya gizli'), findsNothing);
+  });
+
+  /// **Kök neden testi (2026-08-09):** kullanıcı ekran görüntüsünde galerinin
+  /// üstündeki alanı işaretleyip *"çok yer kaplıyor, kompaktlaşmalı"* dedi.
+  /// Orada üst üste DÖRT satır vardı (gün/ay/yıl · kaynaklar · hızlı süzgeçler
+  /// · kopya uyarısı) ve birlikte ~180 dp yiyorlardı. Bu test dördünün de TEK
+  /// şeritte olduğunu ve şeridin sabit yüksekliğini bekler; biri yeniden kendi
+  /// satırına çıkarsa kırmızı yanar.
+  testWidgets('üst süzgeç alanı TEK ve kompakt bir şerittir', (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    FsEntry at(String dir, String name) => FsEntry(
+          path: '/depo/$dir/$name',
+          name: name,
+          isDir: false,
+          sizeBytes: 500,
+          modifiedMs: day.millisecondsSinceEpoch,
+        );
+    await tester.pumpWidget(harness([
+      at('DCIM/Camera', 'IMG_0001.jpg'),
+      at('WhatsApp Images', 'IMG-WA0001.jpg'),
+      at('WhatsApp Images/Sent', 'IMG-WA0001.jpg'),
+    ]));
+    await tester.pump();
+
+    // Tek şerit, sabit yükseklik.
+    expect(find.byType(FmFilterBar), findsOneWidget);
+    expect(tester.getSize(find.byType(FmFilterBar)).height,
+        kFmFilterBarHeight);
+
+    // Ölçek, kaynak çipi ve kopya uyarısı AYNI şeridin içinde.
+    final bar = find.byType(FmFilterBar);
+    expect(find.descendant(of: bar, matching: find.text('Gün')), findsOneWidget);
+    expect(find.descendant(of: bar, matching: find.textContaining('WhatsApp')),
+        findsOneWidget);
+    expect(find.descendant(of: bar, matching: find.text('1 kopya gizli')),
+        findsOneWidget);
+
+    // Izgara şeridin hemen altında başlar: arada yalnız yapışkan grup başlığı
+    // (44 dp) var — üçüncü bir satır sıkışırsa bu fark büyür.
+    final barBottom = tester.getBottomLeft(bar).dy;
+    final gridTop = tester.getTopLeft(find.byType(FmEntryIcon).first).dy;
+    expect(gridTop - barBottom, lessThan(50));
   });
 
   testWidgets('süzgeç düğmesi var ve tarih/boyut seçenekleri açılır',
@@ -140,7 +187,8 @@ void main() {
   /// seçtiğimde zıplama oluyor alt panel çıktığı için"*. Alt panel aslında
   /// bindirmeli çiziliyordu ve zıplatmıyordu; asıl neden ÜSTTEKİ satırların
   /// (gün/ay/yıl çipleri, kaynak çipleri, "kopya gizlendi" şeridi) seçim
-  /// başlayınca kaybolup ızgarayı yukarı çekmesiydi. Bu test ilk karonun
+  /// başlayınca kaybolup ızgarayı yukarı çekmesiydi. (2026-08-09'dan beri üçü
+  /// de TEK şeritte; şerit yine seçim sırasında da yerinde durur.) İlk karonun
   /// ekrandaki yerini seçim öncesi/sonrası karşılaştırır: bir piksel kayarsa
   /// düşer.
   testWidgets('uzun basıp seçim başlayınca ızgara ZIPLAMAZ', (tester) async {
@@ -164,7 +212,7 @@ void main() {
     // Üst satırların üçü de görünüyor olmalı (yoksa test bir şeyi ölçmez).
     expect(find.text('Gün'), findsOneWidget);
     expect(find.textContaining('Kamera'), findsOneWidget);
-    expect(find.text('1 yinelenen kopya gizlendi'), findsOneWidget);
+    expect(find.text('1 kopya gizli'), findsOneWidget);
 
     // Karonun kendisi (özel sınıf) yerine içindeki önizleme aranıyor:
     // uzun basış DragSelectArea'da yakalanıyor ve basılan NOKTA karonun
@@ -183,7 +231,7 @@ void main() {
     // Üst satırlar seçim sırasında da DURUR (kaybolan satır = zıplama).
     expect(find.text('Gün'), findsOneWidget);
     expect(find.textContaining('Kamera'), findsOneWidget);
-    expect(find.text('1 yinelenen kopya gizlendi'), findsOneWidget);
+    expect(find.text('1 kopya gizli'), findsOneWidget);
   });
 
 

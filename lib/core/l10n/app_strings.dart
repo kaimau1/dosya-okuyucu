@@ -3025,6 +3025,15 @@ const Map<String, (String, String, String)> _table = {
     '{n} duplicate copies hidden',
     'تم إخفاء {n} نسخة مكررة',
   ),
+  // Süzgeç şeridindeki pilin ÜSTÜNDE yazan kısa biçim; uzun biçim
+  // (`ph.hidden_dupes`) pilin ipucunda ve menü başlığında durur. Şerit tek
+  // satır ve yatay kaydırmalı — uzun metin sağdaki kaynak çiplerini ekran
+  // dışına itiyordu (2026-08-09).
+  'ph.hidden_dupes_short': (
+    '{n} kopya gizli',
+    '{n} duplicates hidden',
+    '{n} نسخة مخفية',
+  ),
   'ph.clean': ('Temizle', 'Clean up', 'تنظيف'),
   'ph.similar_title': ('Benzer: {title}', 'Similar: {title}', 'مشابه: {title}'),
 
@@ -5085,6 +5094,66 @@ const Map<String, (String, String, String)> _table = {
     'No matching setting',
     'لا توجد إعدادات مطابقة',
   ),
+
+  // ── Ayarlar: sekiz kategori (2026-08-09 yeniden tasarım) ────────────────
+  // Kullanıcı: "ayarlar kısmımız çok karıştı her yer her yerde tamamen 0 dan
+  // tasarlanmalı". Ayarlar iki ekrandan tek ekrana, sekiz kategoriye indi;
+  // aşağıdaki anahtarlar o yerleşimin adlarıdır.
+  'set.search_all': (
+    'Tüm ayarlarda ara',
+    'Search all settings',
+    'ابحث في كل الإعدادات',
+  ),
+  'set.key_missing': (
+    'Anahtar girilmedi',
+    'No key entered',
+    'لم يتم إدخال مفتاح',
+  ),
+  'set.cat_appearance': ('Görünüm ve dil', 'Appearance & language', 'المظهر واللغة'),
+  'set.cat_appearance_sub': (
+    'Tema, yazı tipi, yazı boyutu ve arayüz dili',
+    'Theme, font, text size and interface language',
+    'السمة والخط وحجم النص ولغة الواجهة',
+  ),
+  'set.cat_browsing': ('Dosya listeleri', 'File lists', 'قوائم الملفات'),
+  'set.cat_browsing_sub': (
+    'Yerleşim, sıralama, küçük resimler, açılış klasörü',
+    'Layout, sorting, thumbnails, start folder',
+    'التخطيط والترتيب والصور المصغّرة ومجلد البدء',
+  ),
+  'set.cat_ai': ('Yapay zekâ', 'Artificial intelligence', 'الذكاء الاصطناعي'),
+  'set.cat_ai_sub': (
+    'Gemini anahtarı, model ve kalıcı hafıza',
+    'Gemini key, model and long-term memory',
+    'مفتاح Gemini والنموذج والذاكرة الدائمة',
+  ),
+  'set.cat_privacy': ('Gizlilik ve izinler', 'Privacy & permissions', 'الخصوصية والأذونات'),
+  'set.cat_privacy_sub': (
+    'Klasör kilidi ve uygulamanın aldığı izinler',
+    'Folder lock and the permissions the app holds',
+    'قفل المجلدات وأذونات التطبيق',
+  ),
+  'set.cat_trash': ('Silme ve çöp kutusu', 'Deleting & trash', 'الحذف وسلة المهملات'),
+  'set.cat_trash_sub': (
+    'Silinen dosyaya ne olacağı ve çöp kutusu bakımı',
+    'What happens to deleted files, and trash upkeep',
+    'ما يحدث للملفات المحذوفة وصيانة السلة',
+  ),
+  'set.cat_perf': ('Pil, hız ve bakım', 'Battery, speed & upkeep', 'البطارية والسرعة والصيانة'),
+  'set.cat_perf_sub': (
+    'Tazeleme hızı, otomatik tarama, arama dizini, önbellek',
+    'Refresh rate, auto scan, search index, cache',
+    'معدل التحديث والفحص التلقائي وفهرس البحث والذاكرة المؤقتة',
+  ),
+  'set.sec_theme': ('Tema', 'Theme', 'السمة'),
+  'set.sec_text': ('Yazı', 'Text', 'النص'),
+  'set.sec_language': ('Dil', 'Language', 'اللغة'),
+  'set.sec_lists': ('Listeler', 'Lists', 'القوائم'),
+  'set.sec_photos': ('Fotoğraflar', 'Photos', 'الصور'),
+  'set.sec_opening': ('Açma', 'Opening', 'الفتح'),
+  'set.sec_key': ('Erişim', 'Access', 'الوصول'),
+  'set.sec_lock': ('Klasör kilidi', 'Folder lock', 'قفل المجلد'),
+  'set.sec_speed': ('Hız ve pil', 'Speed & battery', 'السرعة والبطارية'),
 
   'enum.doc_pdf': ('PDF', 'PDF', 'PDF'),
   'enum.doc_text': ('Metin', 'Text', 'نص'),

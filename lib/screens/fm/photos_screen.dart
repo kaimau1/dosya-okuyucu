@@ -366,17 +366,25 @@ class _PhotosScreenState extends State<PhotosScreen> {
           Column(
         children: [
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
-          if (_timelineMode) _groupChips(appState, group),
-          if (widget.showSources) _sourceChips(),
-          // Kaynak satırı zaten yukarıda; burada yalnız "6 aydır açılmamış"
-          // ve "büyük dosyalar" çipleri.
+          // **TEK süzgeç satırı** (2026-08-09 kullanıcı: *"görüntüler ve
+          // videolardaki işaretli üst alan çok yer kaplıyor, kompaktlaşmalı"*).
+          // Eskiden dört ayrı satırdı — gün/ay/yıl ölçeği, kaynak çipleri,
+          // hızlı süzgeçler, kopya uyarısı — ve birlikte ~180 dp yiyordu.
+          // Hepsi aynı yatay şeritte: ölçek → kaynaklar → süzgeçler → uyarı.
           FmQuickFilters(
             source: _files,
             filter: _filter,
             onChanged: (f) => setState(() => _filter = f),
             showBuckets: false,
+            leading: [
+              // Kopya uyarısı EN BAŞTA: satır yatay kaydırmalı ve sona konan
+              // bir uyarı ekran dışında kalabiliyor — "dosyam kayboldu"
+              // hatasını önlemesi gereken bilgi görünmeden işe yaramaz.
+              if (_hiddenDuplicates > 0) _duplicateChip(),
+              if (_timelineMode) _scaleToggle(appState, group),
+              if (widget.showSources) ..._sourceChips(),
+            ],
           ),
-          if (_hiddenDuplicates > 0) _duplicateNotice(),
           Expanded(
             child: visible.isEmpty
                 ? Center(
@@ -491,35 +499,33 @@ class _PhotosScreenState extends State<PhotosScreen> {
     }
   }
 
-  /// "N kopya gizlendi" bilgisi + tek dokunuşla göster/gizle.
-  /// Sessiz gizleme "dosyam kayboldu" hatasına yol açar; burada hep görünür.
-  Widget _duplicateNotice() => Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.sm, 0),
-        child: Row(
-          children: [
-            Icon(Icons.copy_all_outlined,
-                size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
-            const SizedBox(width: Gap.xs),
-            Expanded(
-              child: Text(
-                context.t('ph.hidden_dupes', {'n': _hiddenDuplicates}),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            // Seçim sırasında düğmeler PASİF ama satır yerinde durur: kaybolsa
-            // ızgara zıplar, etkin kalsa "seçtiklerimi mi siliyor?" sanılır.
-            TextButton(
-              onPressed: _selecting
-                  ? null
-                  : () => setState(
-                      () => _filter = _filter.withHideDuplicates(false)),
-              child: Text(context.t('ph.show')),
-            ),
-            TextButton(
-              onPressed: _selecting ? null : _cleanDuplicates,
-              child: Text(context.t('ph.clean')),
-            ),
-          ],
+  /// "N kopya gizlendi" — süzgeç satırının sonundaki **tek çip**.
+  ///
+  /// Sessiz gizleme "dosyam kayboldu" hatasına yol açar, o yüzden bilgi hep
+  /// ekranda; ama kendi satırını hak etmiyordu (2026-08-09: üst alan çok yer
+  /// kaplıyor). Dokununca "Göster / Temizle" menüsü açılır — iki eylem de
+  /// eskisi gibi tek dokunuş uzakta, yalnız 48 dp'lik satırı yemiyor.
+  Widget _duplicateChip() => PopupMenuButton<String>(
+        // Seçim sırasında PASİF: etkin kalsa "seçtiklerimi mi siliyor?" sanılır.
+        enabled: !_selecting,
+        tooltip: context.t('ph.hidden_dupes', {'n': _hiddenDuplicates}),
+        onSelected: (value) {
+          if (value == 'show') {
+            setState(() => _filter = _filter.withHideDuplicates(false));
+          } else {
+            _cleanDuplicates();
+          }
+        },
+        itemBuilder: (ctx) => [
+          PopupMenuItem(value: 'show', child: Text(ctx.t('ph.show'))),
+          PopupMenuItem(value: 'clean', child: Text(ctx.t('ph.clean'))),
+        ],
+        // `FmChip` DEĞİL `FmPill`: çipin kendi jest tanıyıcısı menü düğmesinin
+        // dokunuşunu yutar ve menü hiç açılmazdı.
+        child: FmPill(
+          icon: Icons.copy_all_outlined,
+          label: context.t('ph.hidden_dupes_short', {'n': _hiddenDuplicates}),
+          disabled: _selecting,
         ),
       );
 
@@ -647,22 +653,50 @@ class _PhotosScreenState extends State<PhotosScreen> {
       );
 
   /// Gün / Ay / Yıl seçimi — Google Fotoğraflar'daki zaman ölçeği.
-  Widget _groupChips(AppState appState, PhotoGroup group) => Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
+  ///
+  /// Üç ayrı çip yerine **tek pil içinde üç bölme**: üçü de görünür kalır
+  /// (menüye saklanan bir ölçek bulunmaz) ama satırda üç çipin yerine bir
+  /// denetimin yerini kaplar — süzgeç şeridi tek satıra ancak böyle sığdı.
+  Widget _scaleToggle(AppState appState, PhotoGroup group) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(right: Gap.sm),
+      child: Container(
+        height: kFmFilterBarHeight - 8,
+        decoration: BoxDecoration(
+          border: Border.all(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(Radii.control),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             for (final g in PhotoGroup.values)
-              Padding(
-                padding: const EdgeInsets.only(right: Gap.sm),
-                child: ChoiceChip(
-                  label: Text(g.label),
-                  selected: group == g,
-                  onSelected: (_) => appState.setFmPhotoGroup(g),
+              InkWell(
+                onTap: () => appState.setFmPhotoGroup(g),
+                child: Container(
+                  height: double.infinity,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                  color: group == g ? scheme.secondaryContainer : null,
+                  child: Text(
+                    context.t(g.labelKey),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          group == g ? FontWeight.w600 : FontWeight.w400,
+                      color: group == g
+                          ? scheme.onSecondaryContainer
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
           ],
         ),
-      );
+      ),
+    );
+  }
 
   /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
   Future<void> _openFilterSheet() async {
@@ -700,44 +734,35 @@ class _PhotosScreenState extends State<PhotosScreen> {
     _countsKey = key;
   }
 
-  Widget _sourceChips() {
+  /// Kaynak çipleri (Tümü / Kamera / WhatsApp …) — **kendi satırı yok**,
+  /// ortak süzgeç şeridine katılır (bkz. `FmQuickFilters.leading`).
+  List<Widget> _sourceChips() {
     _ensureCounts();
     final counts = _bucketCache!;
     final buckets = MediaBucket.values
         .where((b) => (counts[b] ?? 0) > 0)
         .toList()
       ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
-    if (buckets.length < 2) return const SizedBox.shrink();
-    return SizedBox(
-      height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: Gap.sm),
-            child: ChoiceChip(
-              label: Text(context.t('ph.all_count', {'n': _files.length})),
-              selected: _filter.buckets.isEmpty,
-              onSelected: (_) =>
-                  setState(() => _filter = _filter.withBuckets(const {})),
-            ),
-          ),
-          for (final b in buckets)
-            Padding(
-              padding: const EdgeInsets.only(right: Gap.sm),
-              // FilterChip = çoklu seçim (istek 2026-07-29). Çip ve süzgeç
-              // sayfası AYNI alanı yazar → ikisi hep tutarlı.
-              child: FilterChip(
-                label: Text('${b.label} (${counts[b]})'),
-                selected: _filter.buckets.contains(b),
-                onSelected: (_) =>
-                    setState(() => _filter = _filter.toggleBucket(b)),
-              ),
-            ),
-        ],
+    if (buckets.length < 2) return const [];
+    return [
+      FmChip(
+        label: context.t('flt.all'),
+        count: _files.length,
+        selected: _filter.buckets.isEmpty,
+        onTap: () => setState(() => _filter = _filter.withBuckets(const {})),
       ),
-    );
+      for (final b in buckets)
+        // Çoklu seçim (istek 2026-07-29). Çip ve süzgeç sayfası AYNI alanı
+        // yazar → ikisi hep tutarlı.
+        FmChip(
+          // `b.label` Türkçe SABİT (klasör adı üretiminde kullanılıyor);
+          // ekranda görünen ad çeviri anahtarından gelmeli.
+          label: context.t(b.labelKey),
+          count: counts[b],
+          selected: _filter.buckets.contains(b),
+          onTap: () => setState(() => _filter = _filter.toggleBucket(b)),
+        ),
+    ];
   }
 
   Widget _timeline(

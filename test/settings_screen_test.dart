@@ -1,5 +1,7 @@
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
+import 'package:dosya_okuyucu/screens/settings/settings_catalog.dart';
+import 'package:dosya_okuyucu/screens/settings/settings_category_screen.dart';
 import 'package:dosya_okuyucu/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -7,6 +9,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// **Ayarların 2026-08-09 yeniden tasarımı.**
+///
+/// Kullanıcı: *"ayarlar kısmımız çok karıştı her yer her yerde tamamen 0 dan
+/// tasarlanmalı ve yerleştirilmeli"*. Ayarlar iki ekrana (`SettingsScreen` +
+/// `FmSettingsScreen`) bölünmüştü ve her ikisinde de arama YALNIZ bölüm
+/// başlığına bakıyordu — "küçük resim" yazan kullanıcı hiçbir sonuç bulamıyordu.
+///
+/// Bu dosya yeni yerleşimin taşıyıcı sözlerini kilitler: tek giriş, sekiz
+/// kategori, kartta mevcut değer ve SATIR düzeyinde arama.
 const _delegates = <LocalizationsDelegate<Object?>>[
   AppStrings.delegate,
   GlobalMaterialLocalizations.delegate,
@@ -14,76 +25,108 @@ const _delegates = <LocalizationsDelegate<Object?>>[
   GlobalCupertinoLocalizations.delegate,
 ];
 
-Future<void> _pump(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues({});
-  final state = AppState();
-  await tester.pumpWidget(
+Widget _wrap(AppState state, Widget home) =>
     ChangeNotifierProvider<AppState>.value(
       value: state,
-      child: const MaterialApp(
-        locale: Locale('tr'),
-        supportedLocales: [Locale('tr'), Locale('en'), Locale('ar')],
+      child: MaterialApp(
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
         localizationsDelegates: _delegates,
-        home: SettingsScreen(),
+        home: home,
       ),
-    ),
-  );
+    );
+
+Future<AppState> _pump(WidgetTester tester) async {
+  SharedPreferences.setMockInitialValues({});
+  final state = AppState();
+  await tester.pumpWidget(_wrap(state, const SettingsScreen()));
   await tester.pump();
+  return state;
 }
 
+/// Kimliğinden kategori bulur (çeviriden bağımsız).
+SettingsCategory _category(String id) =>
+    settingsCategories().firstWhere((c) => c.id == id);
+
 void main() {
-  testWidgets('ayarlar simgeli gruplara bölünmüş, her grubun açıklaması var',
+  testWidgets('ayarlar TEK ekranda, sekiz kategori kartı olarak duruyor',
       (tester) async {
-    // 2026-08-07 kullanıcı: "ayarlar kısmı eskidi, görsel ve mantıksal olarak
-    // düzenlenmeli". Bölümler artık başlıksız bileşen yığını değil, kart.
     await _pump(tester);
-    expect(find.byType(SettingsGroup), findsWidgets);
+    // Kategoriler kartlar hâlinde; ana ekran açık bölümlerin üst üste yığıldığı
+    // üç ekran boyu bir liste değil.
+    expect(settingsCategories().length, 8);
     expect(find.text('Görünüm ve dil'), findsOneWidget);
-    expect(find.text('Tema ve arayüz dili'), findsOneWidget);
+    expect(find.text('Dosya listeleri'), findsOneWidget);
+    expect(find.text('Yapay zekâ'), findsOneWidget);
   });
 
-  testWidgets('tema ve DİL aynı grupta (ikisi de "arayüz")', (tester) async {
+  testWidgets('kart mevcut değeri gösterir (açmadan ne ayarlı görülüyor)',
+      (tester) async {
     await _pump(tester);
-    final group = find.ancestor(
-      of: find.text('Görünüm ve dil'),
-      matching: find.byType(SettingsGroup),
-    );
-    expect(group, findsOneWidget);
-    // Dil seçimi artık ayrı bir bölüm değil, bu grubun içinde.
-    expect(
-      find.descendant(of: group, matching: find.text('Dil')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: group, matching: find.text('Tema')),
-      findsOneWidget,
-    );
+    // Varsayılan tema "Sistem", dil "Sistem" → kartta ikisi de yazar.
+    expect(find.text('Sistem · Sistem'), findsOneWidget);
   });
 
-  testWidgets('dosya yöneticisi ayarlarına köprü var', (tester) async {
-    // O ekran yalnız gezgin panosundan açılabiliyordu.
+  /// **Kök neden testi:** eski arama BÖLÜM başlığına bakıyordu; "küçük resim"
+  /// bir bölüm değil bir satır olduğu için hiç bulunamıyordu. Üstelik o satır
+  /// ÖTEKİ ekrandaydı (dosya yöneticisi ayarları) — arama onu görmüyordu bile.
+  testWidgets('arama SATIR düzeyinde ve tüm kategorilerde çalışır',
+      (tester) async {
     await _pump(tester);
-    await tester.dragUntilVisible(
-      find.text('Dosya yöneticisi'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
-    expect(find.text('Dosya yöneticisi ayarlarını aç'), findsOneWidget);
-  });
-
-  testWidgets('arama bölümleri süzer', (tester) async {
-    await _pump(tester);
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.enterText(find.byType(TextField).first, 'küçük resim');
     await tester.pump();
-    await tester.enterText(find.byType(TextField).first, 'dosya');
-    await tester.pump();
-    expect(find.text('Dosya yöneticisi'), findsOneWidget);
-    expect(find.text('Görünüm ve dil'), findsNothing);
+
+    // Ayarın kendisi sonuçta: anahtarıyla birlikte, kategorisinin altında.
+    expect(find.text('Küçük resimler'), findsOneWidget);
+    expect(find.byType(Switch), findsOneWidget);
+    // Eşleşmeyen kategoriler listede yok.
+    expect(find.text('Yapay zekâ'), findsNothing);
   });
+
+  testWidgets('sonuçtaki anahtar doğrudan çalışır (sayfaya gitmek gerekmez)',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    // `init()` gerçek asenkron iş: sahte saat zonunda tamamlanmaz
+    // (HAFIZA 2026-07-25 §F tuzağı) → gerçek zonda koşturulur.
+    await tester.runAsync(state.init);
+    await tester.pumpWidget(_wrap(state, const SettingsScreen()));
+    await tester.pump();
+    expect(state.fmThumbnails, isTrue);
+    await tester.enterText(find.byType(TextField).first, 'küçük resim');
+    await tester.pump();
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+    expect(state.fmThumbnails, isFalse);
+  });
+
+  testWidgets('eşleşme yoksa açıkça söylenir', (tester) async {
+    await _pump(tester);
+    await tester.enterText(find.byType(TextField).first, 'zzzz');
+    await tester.pump();
+    expect(find.text('Eşleşen ayar yok'), findsOneWidget);
+  });
+
+  testWidgets('karta dokunmak kategorinin kendi sayfasını açar',
+      (tester) async {
+    await _pump(tester);
+    await tester.tap(find.text('Görünüm ve dil'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsCategoryScreen), findsOneWidget);
+    // Tema, yazı ve dil AYNI kategoride: üçü de "uygulama bana nasıl görünsün"
+    // sorusunun cevabı (eskiden dil ayrı bir bölümdü).
+    expect(find.text('Tema'), findsOneWidget);
+    expect(find.text('Yazı tipi'), findsOneWidget);
+    expect(find.text('Dil'), findsOneWidget);
+  });
+
   testWidgets('yazı boyutu hazır kademelerle seçilebiliyor', (tester) async {
     // Kullanıcı isteği 2026-08-07: "küçük orta büyük çok büyük şeklinde kolay
     // seçimde olsun".
-    await _pump(tester);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(_wrap(AppState(),
+        SettingsCategoryScreen(category: _category('appearance'))));
+    await tester.pump();
     expect(find.text('Küçük'), findsOneWidget);
     expect(find.text('Orta'), findsOneWidget);
     expect(find.text('Büyük'), findsOneWidget);
@@ -91,37 +134,43 @@ void main() {
   });
 
   testWidgets('yazı tipi listesi örnek satırlarıyla açılıyor', (tester) async {
-    await _pump(tester);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(_wrap(AppState(),
+        SettingsCategoryScreen(category: _category('appearance'))));
+    await tester.pump();
     await tester.tap(find.text('Yazı tipi'));
     await tester.pumpAndSettle();
-    // Her seçenek kendi yazı tipiyle + Türkçe örnek satırla listeleniyor.
+    // Her seçenek KENDİ yazı tipiyle + Türkçe örnek satırla listeleniyor.
     expect(find.text('Merriweather'), findsOneWidget);
     expect(find.textContaining('Örnek:'), findsWidgets);
   });
 
-  testWidgets('pil ve başarım bölümü iki anahtarla geliyor', (tester) async {
-    // 2026-08-07 denetimi: 120 Hz ekran ve 12 saatlik tam depolama taraması
-    // koşulsuz açıktı; ikisi de kapatılabilir olmalı.
-    await _pump(tester);
+  /// Dosya yöneticisi ayarları ayrı bir ekran DEĞİL artık: yerleşim, sıralama,
+  /// küçük resim ve açılış klasörü "Dosya listeleri" kategorisinde.
+  testWidgets('dosya yöneticisi ayarları da aynı ekranda', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(_wrap(
+        AppState(), SettingsCategoryScreen(category: _category('browsing'))));
+    await tester.pump();
+    expect(find.text('Dosya listesi görünümü'), findsOneWidget);
+    expect(find.text('Varsayılan sıralama'), findsOneWidget);
+    expect(find.text('Küçük resimler'), findsOneWidget);
     await tester.dragUntilVisible(
-      find.text('Pil ve başarım'),
+      find.text('Açılış klasörü'),
       find.byType(ListView),
       const Offset(0, -200),
     );
-    final group = find.ancestor(
-      of: find.text('Pil ve başarım'),
-      matching: find.byType(SettingsGroup),
-    );
-    expect(group, findsOneWidget);
-    expect(
-      find.descendant(of: group, matching: find.text('Yüksek tazeleme hızı')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-          of: group, matching: find.text('Otomatik yeniden tarama')),
-      findsOneWidget,
-    );
+    expect(find.text('Açılış klasörü'), findsOneWidget);
+  });
+
+  test('her ayar satırının kimliği TEK ve her kategori en az bir satır taşır',
+      () {
+    final ids = <String>[];
+    for (final category in settingsCategories()) {
+      expect(category.rows, isNotEmpty, reason: '${category.id} boş');
+      ids.addAll(category.rows.map((r) => r.id));
+    }
+    expect(ids.toSet().length, ids.length, reason: 'yinelenen ayar kimliği');
   });
 
   test('tazeleme hızı ve otomatik tarama varsayılan AÇIK ve diske yazılıyor',
@@ -141,39 +190,5 @@ void main() {
     await reloaded.init();
     expect(reloaded.autoRescan, isFalse);
     expect(reloaded.highRefreshRate, isFalse);
-  });
-
-  testWidgets('anahtara dokunmak tercihi DEĞİŞTİRİYOR', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final state = AppState();
-    // `init()` gerçek asenkron iş: sahte saat zonunda tamamlanmaz
-    // (HAFIZA 2026-07-25 §F tuzağı) → gerçek zonda koşturulur.
-    await tester.runAsync(state.init);
-
-    await tester.pumpWidget(
-      ChangeNotifierProvider<AppState>.value(
-        value: state,
-        child: const MaterialApp(
-          locale: Locale('tr'),
-          supportedLocales: [Locale('tr'), Locale('en'), Locale('ar')],
-          localizationsDelegates: _delegates,
-          home: SettingsScreen(),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.dragUntilVisible(
-      find.text('Otomatik yeniden tarama'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
-    expect(state.autoRescan, isTrue);
-    // `dragUntilVisible` satırı ekranın ALT KENARINA getirebiliyor; dokunma
-    // noktası görünür alanın dışında kalırsa tıklama düşer.
-    await tester.ensureVisible(find.text('Otomatik yeniden tarama'));
-    await tester.pump();
-    await tester.tap(find.text('Otomatik yeniden tarama'));
-    await tester.pump();
-    expect(state.autoRescan, isFalse);
   });
 }

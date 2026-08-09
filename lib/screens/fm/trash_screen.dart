@@ -11,7 +11,7 @@ import '../../services/fm/trash_service.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/section_header.dart';
-import 'fm_settings_screen.dart';
+import '../settings_screen.dart';
 
 /// Geri Dönüşüm Kutusu: silinen dosyaları geri yükle ya da kalıcı sil.
 class TrashScreen extends StatefulWidget {
@@ -344,10 +344,8 @@ class _TrashScreenState extends State<TrashScreen> {
               ),
               if (days <= 0)
                 TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const FmSettingsScreen()),
-                  ),
+                  // Ana ayar listesine değil, ayarın KENDİ sayfasına gider.
+                  onPressed: () => openSettingsCategory(context, 'trash'),
                   child: Text(context.t('common.settings')),
                 ),
             ],

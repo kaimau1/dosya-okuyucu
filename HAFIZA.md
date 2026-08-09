@@ -7730,3 +7730,67 @@ TÜRETİLİYOR — ortak dilin sayısı değişirse tek yerden değişsin.
 
 **Doğrulama:** ikonlar üretildi, üç maskede de piksel piksel sınandı
 (`kare`/`squircle` TAM, `daire` bilinen ödünç). Kod değişmedi; APK CI'da.
+
+## 2026-08-09 — Galeri üst alanı kompakt · Ayarlar sıfırdan yeniden tasarlandı
+Kullanıcı iki madde verdi (ekran görüntüsüyle): *"1- bu görüntüler ve
+videolardaki işaretli üst alan çok yer kaplıyor kompaktlaşmalı. 2- ayarlar
+kısmımız çok karıştı her yer her yerde tamamen 0 dan tasarlanmalı ve
+yerleştirilmeli"*.
+
+### A) Süzgeç alanı: dört satır → TEK 38 dp'lik şerit
+**Kök neden:** Fotoğraflar/Videolar ekranında üst üste dört ayrı satır vardı —
+gün/ay/yıl ölçeği (48), kaynak çipleri (48), hızlı süzgeçler (44), "N kopya
+gizlendi" şeridi (48) — toplam ~180 dp. 7559 dosyalık galeride ekranın üçte
+biri süzgeçti.
+- Yeni `FmFilterBar` + `FmChip` + `FmPill` (`fm_quick_filters.dart`): sabit
+  `kFmFilterBarHeight = 38`, yatay kaydırmalı TEK satır. `FmQuickFilters`
+  artık `leading` / `trailing` alıyor, ekranlar kendi çiplerini AYNI şeride
+  katıyor (kategori ekranındaki belge türü çipleri de öyle).
+- Gün/Ay/Yıl üç ayrı çip değil, tek pil içinde üç bölme (üçü de görünür kalır
+  — menüye saklanan ölçek bulunmuyor).
+- Kopya uyarısı çipe indi ("25 kopya gizli"), Göster/Temizle bir menüde.
+  **Şeridin EN BAŞINDA**: satır kaydırmalı, sona konsa ekran dışında kalır ve
+  "dosyam kayboldu" hatasını önlemesi gereken bilgi görünmezdi.
+- **TUZAK:** `PopupMenuButton`ın çocuğu `FilterChip` olamaz — çipin kendi jest
+  tanıyıcısı dokunuşu yutuyor, menü hiç açılmıyor. Bunun için görünüşü çipe eş
+  ama dokunmayı yutmayan `FmPill` yazıldı.
+- **TUZAK:** yatay `ListView` tembel — ekran dışındaki çip HİÇ kurulmuyor, test
+  `find.text('Kamera')` ile onu bulamıyor. Uzun uyarı metni sağdaki kaynak
+  çiplerini dışarı itiyordu → kısa biçim (`ph.hidden_dupes_short`) eklendi.
+- Regresyon bekçisi: `fm_photos_screen_test` → "üst süzgeç alanı TEK ve kompakt
+  bir şerittir" (şerit sayısı, sabit yükseklik, ızgaranın şeride uzaklığı).
+
+### B) Ayarlar: iki ekran → tek ekran, sekiz kategori, satır düzeyinde arama
+**Kök neden:** ayarlar `SettingsScreen` (tema, dil, Gemini, hesap, pil) ve
+`FmSettingsScreen` (yerleşim, küçük resim, çöp, izin, dizin) arasında
+bölünmüştü; ikisi birbirine köprü veriyor, "Görünüm" başlığı iki ekranda iki
+farklı şey anlatıyordu. **Her iki ekranda da arama YALNIZ bölüm başlığına
+bakıyordu:** "küçük resim" yazan kullanıcı sıfır sonuç alıyordu, çünkü o metin
+bir bölüm değil bir satırdı.
+- `FmSettingsScreen` **silindi**. Tek giriş: `SettingsScreen`. Pano ve çöp
+  ekranındaki düğmeler oraya bakıyor; çöp ekranı `openSettingsCategory(
+  context, 'trash')` ile doğrudan ilgili sayfayı açıyor.
+- Yeni bildirimsel katalog `lib/screens/settings/settings_catalog.dart`:
+  `SettingsCategory` → `SettingsSection` → `SettingRow` (sabit `id`, çeviri
+  anahtarı, eşanlam anahtarları, denetimi kuran `builder`). Bir ayarın nerede
+  yaşadığı tek satırda görünüyor; yeni ayar "hangi ekrana" değil "hangi
+  kategoriye" sorusunu sorduruyor.
+- Sekiz kategori: Görünüm ve dil · Dosya listeleri · Yapay zekâ · Hesap ·
+  Gizlilik ve izinler · Silme ve çöp kutusu · Pil, hız ve bakım · Hakkında.
+  Ana ekran kart listesi; **kartta mevcut değer** yazıyor ("Sistem · Sistem",
+  "Liste · Tarih ↓") — kategoriyi açmadan ne ayarlı olduğu görünüyor.
+- Arama kutusu düğme arkasında DEĞİL, hep açık; eşleşen ayarın **kendisi**
+  kendi denetimiyle listeleniyor → sonuçtaki anahtar oracıkta çalışıyor.
+- Satır dili üçe indirildi: `SettingTile` (değeri olan satır) · `SettingSwitch`
+  · `SettingChoice` (2-4 seçenek). Eskiden beş farklı satır tipi vardı.
+- **TUZAK:** `const` bir `SettingRow` listesi kurmak için `builder`ların ÜST
+  DÜZEY işlev olması gerekiyor (kapanış/lambda `const` olamaz) — katalog
+  dosyasının sonundaki tek satırlık `_xTile` işlevleri bunun için.
+- **TUZAK (test):** ayar satırları `AppState.init()` çağrılmadan pump edilirse
+  bir anahtara dokunma `LateInitializationError` atıyor; `tester.runAsync(
+  state.init)` şart (HAFIZA 2026-07-25 §F ile aynı ders).
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` lib'de 0 sorun,
+**1580 test yeşil** (l10n tablo ve "sabit Türkçe metin yok" bekçileri dahil).
+`graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil) —
+yerelde çalıştırılmalı.
