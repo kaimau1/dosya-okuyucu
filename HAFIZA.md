@@ -7682,3 +7682,51 @@ oradaki sınır maske değil **gölgenin sığması** (kayma 16 + bulanıklık 2
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze lib` sıfır sorun,
 **1577 test yeşil** (26 yeni: altyazı ayrıştırıcısı, çip sayıları, kategori
 başına en büyükler, dizin satırında atime, karşıt süzgeçler).
+
+## 2026-08-09 (2) — Üç uygulama tek simge dili
+
+Kullanıcı: *"3 uygulamanın simgelerini aynı dile getirelim; dosya okumanın
+boyutu güzel, ezan vaktinin çerçeve rengi güzel."* Dosya Okuyucu · Notlar ·
+Ezan Vakti aynı ana ekranda duruyor, üçü üç ayrı dil konuşuyordu (sıcak kağıt
+gradyanı + gölge / düz krem / beyaz).
+
+### Ortak dilin dört kuralı (üç depoda da aynı)
+1. **Zemin düz beyaz** `#FFFFFF` — gradyan, gölge, doku yok. (Ezan Vakti'nden.)
+2. **İşaret tek renk dolu silüet**, ayrıntılar zeminden OYUK — ikinci bir
+   renk eklenmiyor.
+3. **İşaretin uzun kenarı 66dp / 108dp tuval.** Kare/dairesel işaretler
+   keyline kuralıyla ×0,95 (Ezan Vakti'nin hilali → 62,7dp): aynı ölçüde
+   basılan kare bir işaret dar-uzun olandan gözle daha İRİ görünüyor.
+4. İşaretin sınır kutusu tuvalin **merkezine** oturur.
+
+Karşılıkları: burada `tool/gen_icon.py`, Notlar'da `assets/icon/src/*.svg`,
+Ezan Vakti'nde `res/drawable/ic_launcher_*.xml`.
+
+### KÖK NEDEN — 69dp yanlıştı, "güvenli alan" kare sanılmıştı
+Bir önceki tur (§H) ön-planı 0,93'e çıkarırken güvenli alanı **kare** varsaydı:
+"sayfa 656 px, 676 px'lik alanın altında, hiçbir maske kesmiyor". Maskelerin
+hepsi kare DEĞİL. Ölçüldü (`maskecheck`, piksel piksel maske sınaması):
+69dp'lik sayfa MIUI'nin **squircle**'ında yüzeyin %1,6'sından, Pixel'in
+**dairesinde** %8,5'inden kırpılıyordu. Eski tasarımda zemin tuvali baştan
+başa doldurduğu için bu görünmüyordu; işaret tek başına kalınca kırpılma
+**düz bir kesik** gibi ortaya çıktı.
+- Sayfa oranıyla (286:352) squircle'a sığan en büyük ölçü **67,1dp** (köşe
+  yarıçapı 30 → **70** yapıldıktan sonra; yuvarlatma köşeleri içeri çekiyor ve
+  2,4dp daha büyük sayfaya izin veriyor). **66** seçildi, 1,1dp pay kalsın.
+- **Daire maskesi bilerek karşılanmadı:** sığması için 59,6dp'ye inmek, yani
+  kullanıcının "boyutu güzel" dediği simgenin %14 küçüğüne dönmek gerekirdi.
+  Hedef cihaz MIUI ve eski simge de aynı davranıştaydı.
+
+### Sayfa beyazdan MAVİYE döndü — mecburiyet, tercih değil
+Zemin beyaz olunca `Paper.page` (#FBF8F1) beyaz üstünde beyaz kalıyordu.
+Silüet tersine çevrildi: kütle `Paper.accent` (#2E5AA8), sırt bandı onun
+koyusu (#1E3B70), satırlar zeminle oyuk. Gölge ve kenarlık silindi (1. kural).
+Yan fayda: Notlar'ın belgesiyle aynı boyda ama farklı renk + sırt bandı, Ezan
+Vakti'nin hilalinden hem renk hem biçimle ayrılıyor — üçü 48dp'de ayırt
+edilebiliyor (ölçüldü, ön izleme çekildi).
+
+`FG_SCALE` ve `ICON_SCALE` artık elle yazılmıyor, `ISARET_DP`/`ESKI_ORAN`'dan
+TÜRETİLİYOR — ortak dilin sayısı değişirse tek yerden değişsin.
+
+**Doğrulama:** ikonlar üretildi, üç maskede de piksel piksel sınandı
+(`kare`/`squircle` TAM, `daire` bilinen ödünç). Kod değişmedi; APK CI'da.
