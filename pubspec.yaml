@@ -336,13 +336,17 @@ flutter:
 
 # Uygulama ikonu: assets/icon/ altındaki PNG'lerden CI'da üretilir
 # (dart run flutter_launcher_icons). PNG'lerin kaynağı `tool/gen_icon.py`
-# (harici bağımlılık yok). 2026-08-04'te KAĞIT temasına geçirildi: zemin sıcak
-# kağıt tonu, ön-plan mürekkep mavisi sırtı olan bir sayfa. Adaptive zemin
-# rengi `tool/gen_icon.py` gradyanının ortasıdır — ön-plan PNG'siyle aynı aile.
+# (harici bağımlılık yok).
+#
+# 2026-08-09: Notlar ve Ezan Vakti ile ORTAK SİMGE DİLİ'ne geçirildi — düz
+# beyaz zemin, tek renk dolu işaret, ayrıntılar zeminden oyuk, işaretin uzun
+# kenarı 66dp/108dp. Kurallar ve gerekçeleri `tool/gen_icon.py` başlığında.
+# Zemin artık gradyan değil, düz beyaz; bu yüzden sayfa da beyazdan mürekkep
+# mavisine döndü (beyaz sayfa beyaz zeminde görünmezdi).
 flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
   min_sdk_android: 23
-  adaptive_icon_background: "#E3D7BD"
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/icon/foreground.png"
