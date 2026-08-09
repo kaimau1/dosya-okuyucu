@@ -169,6 +169,17 @@ abstract final class FsScan {
   static Future<List<FsEntry>> pruneMissing(List<FsEntry> entries) =>
       _run(_pruneMissingSync, entries);
 
+  /// Yolları girdiye çevirir; **artık olmayanlar listeye girmez** (arka
+  /// planda, sıra korunur).
+  ///
+  /// "Son açılanlar" ekranı bunu yolları elinde tutan bir kayıttan
+  /// (`OpenHistory`) liste kurmak için kullanıyor. Eskiden her yol için ana
+  /// izlekte `existsSync` + `statSync` çağrılıyordu: birkaç bin kayıtlık bir
+  /// geçmişte ekran saniyelerce donuyordu (kullanıcı 2026-08-09: *"son
+  /// açılanlar çok daha hızlı çalışmalı"*).
+  static Future<List<FsEntry>> statPaths(List<String> paths) =>
+      _run(_statPathsSync, paths);
+
   /// Aynı indeksi **diski hiç gezmeden**, daha önce yazılmış arama dizini
   /// dosyasından kurar (kullanıcı isteği 2026-07-25: "her açılışta baştan
   /// tarıyor").
@@ -209,8 +220,19 @@ class StorageIndex {
   /// Kategori başına en yeni dosyalar (kategori ekranı bunu gösterir).
   final Map<FmCategory, List<FsEntry>> byCategory;
 
-  /// En büyük dosyalar (depolama analizi).
+  /// En büyük dosyalar (depolama analizi) — **tüm kategoriler karışık**.
   final List<FsEntry> largest;
+
+  /// Kategori başına en büyük dosyalar.
+  ///
+  /// **Niye ayrı liste (genel [largest]'ı süzmek YETMİYOR):** genel liste ilk
+  /// 200 dosyayla sınırlı ve pratikte hepsi videodur (bir film 2 GB, bir PDF
+  /// 2 MB). Bellek analizinde "Belgeler" çubuğuna dokunan kullanıcı o listeyi
+  /// süzünce **boş** bir ekran görüyordu (kullanıcı hatası 2026-08-09: *"en
+  /// büyük dosyalarda sadece videolar görülüyor, diğerleri boş çıkıyor"*).
+  /// Her kategorinin kendi "en büyük"leri ayrı toplanıyor: artık her süzgeç
+  /// kendi içinde çalışıyor.
+  final Map<FmCategory, List<FsEntry>> largestByCategory;
 
   /// Son değiştirilen dosyalar (tüm kategoriler karışık).
   final List<FsEntry> recent;
@@ -230,6 +252,7 @@ class StorageIndex {
     required this.stats,
     required this.byCategory,
     required this.largest,
+    this.largestByCategory = const {},
     required this.recent,
     required this.totalFiles,
     required this.totalBytes,
@@ -249,6 +272,10 @@ class StorageIndex {
 
   CategoryStat stat(FmCategory c) => stats[c] ?? const CategoryStat(0, 0);
   List<FsEntry> files(FmCategory c) => byCategory[c] ?? const [];
+
+  /// [c] null ise genel en büyükler, değilse o kategorinin en büyükleri.
+  List<FsEntry> largestOf(FmCategory? c) =>
+      c == null ? largest : (largestByCategory[c] ?? const []);
 }
 
 // ── isolate'te koşan saf fonksiyonlar ───────────────────────────────────────
@@ -335,6 +362,16 @@ List<FsEntry> _collectSync(_CollectArgs args) {
 
 List<FsEntry> _pruneMissingSync(List<FsEntry> entries) =>
     [for (final e in entries) if (e.exists) e];
+
+List<FsEntry> _statPathsSync(List<String> paths) {
+  final out = <FsEntry>[];
+  for (final path in paths) {
+    final file = File(path);
+    if (!file.existsSync()) continue;
+    out.add(FsEntry.fromEntity(file));
+  }
+  return out;
+}
 
 /// Dizin dosyasını satır satır gezer. [onRow] `false` döndürünce durur.
 ///
@@ -453,6 +490,11 @@ class _IndexAccumulator {
   final Map<FmCategory, int> _counts = {};
   final Map<FmCategory, int> _bytes = {};
   final Map<FmCategory, _TopN> _tops = {};
+
+  /// Kategori başına **en büyükler** (bkz. [StorageIndex.largestByCategory]).
+  /// Sınır kategori başına 200: bellek analizinde 200'den sonrası yer açma
+  /// kararına katkı vermiyor (ekran da o kadarını çiziyor).
+  final Map<FmCategory, _TopN> _largestTops = {};
   final _TopN _largest = _TopN(200, (a, b) => b.sizeBytes.compareTo(a.sizeBytes));
   final _TopN _recent = _TopN(300, (a, b) => b.modifiedMs.compareTo(a.modifiedMs));
   int _totalFiles = 0;
@@ -478,6 +520,9 @@ class _IndexAccumulator {
       (a, b) => b.modifiedMs.compareTo(a.modifiedMs),
     ))
         .add(entry);
+    (_largestTops[c] ??=
+            _TopN(200, (a, b) => b.sizeBytes.compareTo(a.sizeBytes)))
+        .add(entry);
     _largest.add(entry);
     _recent.add(entry);
   }
@@ -489,6 +534,9 @@ class _IndexAccumulator {
         },
         byCategory: {for (final e in _tops.entries) e.key: e.value.result()},
         largest: _largest.result(),
+        largestByCategory: {
+          for (final e in _largestTops.entries) e.key: e.value.result(),
+        },
         recent: _recent.result(),
         totalFiles: _totalFiles,
         totalBytes: _totalBytes,
@@ -499,13 +547,24 @@ class _IndexAccumulator {
 
 /// Dizin satırını üretir. Yol içinde sekme/satırsonu olamayacağı için ayraç
 /// güvenli; yine de olası kaçık karakterler boşluğa çevrilir.
+///
+/// **5. alan erişim zamanı (2026-08-09).** Eskiden yazılmıyordu ve dizinden
+/// kurulan her girdinin `accessedMs`'i 0 oluyordu → [FsEntry.lastTouchedMs]
+/// sessizce değiştirilme zamanına düşüyordu. Sonuç: "6 aydır açılmamış"
+/// süzgeci dizin yolundan gelen listelerde (kategori ekranları, hızlı süzgeç
+/// çipleri) aslında "6 aydır DEĞİŞTİRİLMEMİŞ" demekti — kullanıcının indirip
+/// dün izlediği film de "açılmamış" sayılıyordu.
 String encodeIndexRow(FsEntry entry) {
   final path = entry.path.replaceAll('\t', ' ').replaceAll('\n', ' ');
   return '$path\t${entry.sizeBytes}\t${entry.modifiedMs}\t'
-      '${entry.isDir ? 1 : 0}';
+      '${entry.isDir ? 1 : 0}\t${entry.accessedMs}';
 }
 
 /// Dizin satırını çözer; bozuk satırda null.
+///
+/// Beşinci alan (erişim zamanı) **isteğe bağlı**: sürüm yükseltmeden önce
+/// yazılmış dizinler dört alanlıdır ve okunmaya devam etmelidir — dizin
+/// yeniden tarandığında kendiliğinden tamamlanır.
 FsEntry? decodeIndexRow(String line) {
   if (line.isEmpty) return null;
   final parts = line.split('\t');
@@ -518,6 +577,7 @@ FsEntry? decodeIndexRow(String line) {
     isDir: parts[3] == '1',
     sizeBytes: int.tryParse(parts[1]) ?? 0,
     modifiedMs: int.tryParse(parts[2]) ?? 0,
+    accessedMs: parts.length > 4 ? (int.tryParse(parts[4]) ?? 0) : 0,
   );
 }
 

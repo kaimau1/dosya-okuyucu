@@ -34,6 +34,15 @@ abstract final class OpenHistory {
   /// (bitmiş) yüklemeyi beklemesini garantiler.
   static Future<void>? _loadFuture;
 
+  /// Kayıt her değiştiğinde artan sayaç.
+  ///
+  /// Süzme önbelleklerinin anahtarına girer (`category_screen._sorted`,
+  /// `FmQuickFilters`). Onlar listeye ve süzgece bakıyor; geçmiş ise ekran
+  /// çizildikten SONRA diskten geliyor. Sayaç olmasaydı önbellek "değişen bir
+  /// şey yok" deyip eski sonucu döndürür, "son 6 ayda açılanlar" çipi geçmiş
+  /// yüklenmeden hesaplanmış (eksik) sayısında donup kalırdı.
+  static int revision = 0;
+
   static String get _path => p.join(FmEnv.appSupportDir, _fileName);
 
   /// Diskten okur ve **artık var olmayan** dosyaların kayıtlarını atar.
@@ -68,6 +77,8 @@ abstract final class OpenHistory {
     } catch (_) {
       // Bozuk dosya sessizce yok sayılır: bu bir kolaylık kaydı, uygulamayı
       // kilitlememeli.
+    } finally {
+      revision++;
     }
   }
 
@@ -86,6 +97,7 @@ abstract final class OpenHistory {
   }
 
   static Future<void> _saveNow() async {
+    revision++;
     if (FmEnv.appSupportDir.isEmpty) return;
     try {
       final tmp = File('$_path.tmp');
@@ -120,6 +132,17 @@ abstract final class OpenHistory {
     final out = _byPath.entries.where((e) => File(e.key).existsSync()).toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return out;
+  }
+
+  /// Kayıtlı yollar, **en son açılan önce** — diske DOKUNMADAN.
+  ///
+  /// [all]'ın aksine var olma denetimi yapmaz; onu çağıran ekran
+  /// `FsScan.statPaths` ile arka planda yaptırır. Ana izlekte birkaç bin
+  /// `existsSync` çağırmak listenin açılışını saniyelerce donduruyordu.
+  static List<String> pathsByRecency() {
+    final entries = _byPath.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return [for (final e in entries) e.key];
   }
 
   /// Bir kaydı listeden düşürür (dosya elle silindiğinde ekran tazelerken).
@@ -158,5 +181,6 @@ abstract final class OpenHistory {
   static void resetForTest() {
     _byPath.clear();
     _loadFuture = null;
+    revision++;
   }
 }

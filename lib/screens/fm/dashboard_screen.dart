@@ -621,15 +621,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
           files: _index.files(FmCategory.apk),
         )),
       ),
+      // **Yeni dosyalar** — pano önbelleği yalnız en yeni 300 dosyayı tutar;
+      // ekran anında onunla açılır, EKSİKSİZ liste `loadAll` ile arka planda
+      // gelir ve tarihe göre sıralanır. Eskiden `loadAll` yoktu: "yeni
+      // dosyalar" 300'de kesiliyordu ve kullanıcı dünkü bir dosyayı orada
+      // bulamıyordu (istek 2026-08-09: *"son açılanlar ve yeni dosyalar ...
+      // eksiksiz çalışmalı"*).
       FmTileData(
-        icon: Icons.history,
+        icon: Icons.fiber_new_outlined,
         color: const Color(0xFF8D6E63),
         label: context.t('fm.new_files'),
         subtitle: context.t('count.files', {'n': _index.recent.length}),
         onTap: () => _push(CategoryScreen(
           title: context.t('fm.new_files'),
           files: _index.recent,
+          loadAll: () => MediaLibrary.categoryFiles(
+            null,
+            lockedFolders: context.read<AppState>().fmLockedFolders,
+          ),
         )),
+      ),
+      // **Son açılanlar — büyük kutu.** Araçlar satırındaki 12 küçük simgenin
+      // arasındaydı ve kaydırmadan görünmüyordu; oysa "dün baktığım dosya"
+      // insanların panoya dönme sebeplerinden biri (istek 2026-08-09:
+      // *"... kolay erişilebilir olmalı"*). Çöp kutusu ve Drive ile aynı
+      // terfi hikâyesi.
+      FmTileData(
+        icon: Icons.history,
+        color: const Color(0xFF3949AB),
+        label: context.t('fm.recent_opened'),
+        subtitle: context.t('fm.recent_opened_note'),
+        onTap: () => _push(const OpenHistoryScreen()),
       ),
       // **Google Drive — büyük kutulardan biri** (kullanıcı isteği 2026-08-05:
       // *"Drive daha kolay erişilebilmeli, şu an zor bulunuyor"*). Çöp
@@ -820,17 +842,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: '',
         onTap: () => _push(const OpHistoryScreen()),
       ),
-      // "Son işlemler" taşı/kopyala/sil gibi İŞLEMLERİ tutar; bu ise
-      // hangi DOSYALARIN ne zaman AÇILDIĞINI (istek 2026-07-29: "son açılma
-      // tarihi tüm dosyalar içinde yapılabilmeli ayrı bir alanda") — ikisi
-      // ayrı veri, ayrı ekran.
-      FmTileData(
-        icon: Icons.visibility_outlined,
-        color: const Color(0xFF3949AB),
-        label: context.t('fm.recent_opened'),
-        subtitle: '',
-        onTap: () => _push(const OpenHistoryScreen()),
-      ),
+      // NOT: "Son açılanlar" buradan YUKARI, büyük kutulara taşındı (bkz.
+      // `_categoryGrid`). "Son işlemler" taşı/kopyala/sil gibi İŞLEMLERİ
+      // tutar; o, hangi DOSYALARIN ne zaman AÇILDIĞINI — ikisi ayrı veri,
+      // ayrı ekran, ikisi birden araç satırında olunca karışıyordu.
       // Çöp kutusu buradan YUKARI taşındı (bkz. `_trashTile`): kullanıcı
       // 2026-07-31'de "çöp kutusunu bulmak çok zor" dedi. Araçlar ızgarası
       // küçük ve kartsız; 12 küçük simgenin arasında geri alma kapısının

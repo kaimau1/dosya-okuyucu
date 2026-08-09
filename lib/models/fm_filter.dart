@@ -146,6 +146,16 @@ class FmFilter {
   /// açtıklarımızı bilirdi, cihazın tamamını değil) daha dürüst.
   final int? untouchedDays;
 
+  /// **Son şu kadar günde açılmış** dosyalar (null = ölçüt kapalı).
+  ///
+  /// [untouchedDays]'in tam tersi. İkisi aynı anda açık olamaz (çakışır, boş
+  /// liste verirdi) — `with*` üreteçleri birini kurarken diğerini siler.
+  ///
+  /// Kullanıcı isteği 2026-08-09: *"son 6 ayda açılanlar ile ilgili tüm
+  /// filtrelerden bir çoğu doğru çalışmıyor"*. Eksik olan yalnız doğruluk
+  /// değildi: "açılmamışlar" vardı, "açılanlar" hiç yoktu.
+  final int? openedWithinDays;
+
   const FmFilter({
     this.buckets = const {},
     this.extensions = const {},
@@ -158,6 +168,7 @@ class FmFilter {
     this.direction = ChatDirection.any,
     this.tags = const {},
     this.untouchedDays,
+    this.openedWithinDays,
   });
 
   static const none = FmFilter();
@@ -179,6 +190,8 @@ class FmFilter {
     Set<String>? tags,
     int? untouchedDays,
     bool clearUntouched = false,
+    int? openedWithinDays,
+    bool clearOpenedWithin = false,
   }) =>
       FmFilter(
         buckets: buckets ?? this.buckets,
@@ -195,12 +208,23 @@ class FmFilter {
         tags: tags ?? this.tags,
         untouchedDays:
             clearUntouched ? null : (untouchedDays ?? this.untouchedDays),
+        openedWithinDays: clearOpenedWithin
+            ? null
+            : (openedWithinDays ?? this.openedWithinDays),
       );
 
   /// "Şu kadar gündür açılmamış" ölçütünü açar/kapatır (null = kapat).
+  /// Açarken karşıt ölçüt ([openedWithinDays]) silinir — ikisi birlikte hiçbir
+  /// dosyayı eşlemez, kullanıcı da "boş liste" görüp süzgecin bozuk olduğunu
+  /// sanardı.
   FmFilter withUntouchedDays(int? days) => days == null
       ? _copy(clearUntouched: true)
-      : _copy(untouchedDays: days);
+      : _copy(untouchedDays: days, clearOpenedWithin: true);
+
+  /// "Son şu kadar günde açılmış" ölçütünü açar/kapatır (null = kapat).
+  FmFilter withOpenedWithinDays(int? days) => days == null
+      ? _copy(clearOpenedWithin: true)
+      : _copy(openedWithinDays: days, clearUntouched: true);
 
   FmFilter withBuckets(Set<MediaBucket> value) => _copy(buckets: value);
 
@@ -262,7 +286,8 @@ class FmFilter {
       (chatKinds.isEmpty ? 0 : 1) +
       (direction == ChatDirection.any ? 0 : 1) +
       (tags.isEmpty ? 0 : 1) +
-      (untouchedDays == null ? 0 : 1);
+      (untouchedDays == null ? 0 : 1) +
+      (openedWithinDays == null ? 0 : 1);
 
   bool get isActive => activeCount > 0;
 
@@ -283,6 +308,7 @@ class FmFilter {
         direction.name,
         tags.toList()..sort(),
         untouchedDays,
+        openedWithinDays,
       ].join('|');
 
   /// Tarih ölçütünün gerçek zaman penceresi.
@@ -325,11 +351,31 @@ class FmFilter {
   /// saf modelden okunamaz. Verilmezse etiket ölçütü hiçbir dosyayı eşlemez —
   /// sessizce "tümü" saymak, kullanıcı etiketle süzdüğü hâlde her şeyi görmesi
   /// demek olurdu.
+  /// Bir dosyanın **gerçekten** en son ne zaman görüldüğü (ms).
+  ///
+  /// İki kaynağın en yenisi:
+  /// 1. [FsEntry.lastTouchedMs] — dosya sisteminin erişim zamanı (atime),
+  ///    anlamlı değilse değiştirilme zamanı;
+  /// 2. [openedAtOf] — uygulamanın KENDİ açılış kaydı (`OpenHistory`).
+  ///
+  /// İkincisi olmadan ölçüt yanlış cevap veriyordu: Android bağlamalarının
+  /// çoğu `relatime`/`noatime` olduğu için kullanıcının dün bu uygulamada
+  /// açtığı bir film hâlâ "6 aydır açılmamış" sayılıyordu (kullanıcı hatası
+  /// 2026-08-09). Kendi kaydımız kesin bilgidir: o dosyanın o anda açıldığını
+  /// biliyoruz. Kaydın olmaması "açılmadı" demek değil — o yüzden atime'ın
+  /// yerini almıyor, onunla **en yenisi** alınıyor.
+  static int lastSeenMs(FsEntry entry, {int? Function(String path)? openedAtOf}) {
+    final own = openedAtOf?.call(entry.path) ?? 0;
+    final fs = entry.lastTouchedMs;
+    return own > fs ? own : fs;
+  }
+
   bool matches(
     FsEntry entry, {
     String query = '',
     DateTime? now,
     Set<String> Function(String path)? tagsOf,
+    int? Function(String path)? openedAtOf,
   }) {
     final q = turkishFold(query.trim());
     if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
@@ -353,12 +399,21 @@ class FmFilter {
     }
     if (!window(now: now).contains(entry.modifiedMs)) return false;
     final untouched = untouchedDays;
-    if (untouched != null) {
+    final openedWithin = openedWithinDays;
+    if (untouched != null || openedWithin != null) {
       if (entry.isDir) return false; // klasörün "açılma"sı ölçülemez
-      final cutoff = (now ?? DateTime.now())
-          .subtract(Duration(days: untouched))
-          .millisecondsSinceEpoch;
-      if (entry.lastTouchedMs > cutoff) return false;
+      final seen = lastSeenMs(entry, openedAtOf: openedAtOf);
+      final at = now ?? DateTime.now();
+      if (untouched != null) {
+        final cutoff =
+            at.subtract(Duration(days: untouched)).millisecondsSinceEpoch;
+        if (seen > cutoff) return false;
+      }
+      if (openedWithin != null) {
+        final cutoff =
+            at.subtract(Duration(days: openedWithin)).millisecondsSinceEpoch;
+        if (seen < cutoff) return false;
+      }
     }
     if (sizeRange != FmSizeRange.any) {
       // Klasörün boyutu 0'dır (özyinelemeli toplam tutulmaz) — boyut ölçütü
@@ -379,11 +434,15 @@ class FmFilter {
     String query = '',
     DateTime? now,
     Set<String> Function(String path)? tagsOf,
+    int? Function(String path)? openedAtOf,
   }) {
     final out = <FsEntry>[];
     final seen = hideDuplicates ? <String>{} : null;
     for (final e in entries) {
-      if (!matches(e, query: query, now: now, tagsOf: tagsOf)) continue;
+      if (!matches(e,
+          query: query, now: now, tagsOf: tagsOf, openedAtOf: openedAtOf)) {
+        continue;
+      }
       if (seen != null && !seen.add(duplicateKey(e))) continue;
       out.add(e);
     }

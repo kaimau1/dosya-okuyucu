@@ -12,6 +12,7 @@ import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/installed_apps_service.dart';
+import '../../services/fm/open_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
@@ -49,7 +50,16 @@ class AnalysisScreen extends StatefulWidget {
 }
 
 class _AnalysisScreenState extends State<AnalysisScreen> {
-  late List<FsEntry> _largest = [...widget.index.largest];
+  /// Kategori → o kategorinin en büyükleri; `null` anahtarı genel liste.
+  ///
+  /// Taramadan gelen listeler kopyalanır çünkü silme sonrası
+  /// ([_refreshAlive]) budanıyorlar. `StorageIndex`in listeleri değişmez
+  /// (`List.unmodifiable`) — doğrudan yazmaya kalkmak çalışma anında patlardı.
+  late final Map<FmCategory?, List<FsEntry>> _largest = {
+    null: [...widget.index.largest],
+    for (final c in FmCategory.values)
+      if (widget.index.largestOf(c).isNotEmpty) c: [...widget.index.largestOf(c)],
+  };
 
   final _searchController = TextEditingController();
   Timer? _debounce;
@@ -87,6 +97,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     super.initState();
     _loadTrend();
     _loadApps();
+    // Süzgeç sayfasındaki "açılmış/açılmamış" ölçütleri için.
+    OpenHistory.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _loadApps() async {
@@ -202,17 +216,28 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     });
   }
 
+  /// Seçili kategorinin (ya da genel) en büyük dosyaları — süzülmemiş.
+  ///
+  /// **Kategori süzgeci genel listeyi DARALTMAZ, kendi listesini açar.** Genel
+  /// liste tüm depolamanın en büyük 200 dosyası, yani pratikte 200 video; onu
+  /// "Belgeler"e süzmek boş ekran demekti (kullanıcı hatası 2026-08-09).
+  List<FsEntry> get _source =>
+      _isSearch ? _results : (_largest[_category] ?? const []);
+
   /// Ekranda gösterilen liste: arama sonucu ya da en büyük dosyalar.
   List<FsEntry> get _visible {
-    final source = _isSearch ? _results : _largest;
     final list = [
-      for (final e in source)
-        if (_category == null || e.category == _category)
+      for (final e in _source)
+        // Arama sonucu tüm depolamadan gelir → kategori ölçütü orada hâlâ bir
+        // süzgeçtir. En büyükler listesi zaten kategorisine göre seçilidir.
+        if (!_isSearch || _category == null || e.category == _category)
           // `tagsOf` her zaman verilir: bu ekranın süzgeç sayfası şu an etiket
           // çipi göstermiyor (bkz. aşağıdaki `showFmFilterSheet` çağrısı), ama
           // çözücüyü atlamak sessiz bir tuzak — çip bir gün eklenirse liste
           // sebepsizce bomboş görünürdü (etiketsiz sayılan her dosya elenir).
-          if (_filter.matches(e, tagsOf: FileTags.forPath)) e,
+          if (_filter.matches(e,
+              tagsOf: FileTags.forPath, openedAtOf: OpenHistory.forPath))
+            e,
     ];
     return FsScan.sort(list, _sort, descending: _desc, foldersFirst: false);
   }
@@ -223,7 +248,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       filter: _filter,
       sort: _sort,
       descending: _desc,
-      extensions: extensionCounts(_isSearch ? _results : _largest),
+      extensions: extensionCounts(_source),
     );
     if (result == null || !mounted) return;
     setState(() {
@@ -233,11 +258,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     });
   }
 
+  /// Silme/taşıma sonrası: **her** en-büyükler listesinden düşenleri at.
+  ///
+  /// Yalnız görünen liste budansaydı, kullanıcı "Videolar"da sildiği dosyayı
+  /// "Tümü"ne dönünce yeniden görürdü.
   Future<void> _refreshAlive() async {
-    final alive = await FsScan.pruneMissing(_largest);
+    final pruned = <FmCategory?, List<FsEntry>>{};
+    for (final entry in _largest.entries) {
+      pruned[entry.key] = await FsScan.pruneMissing(entry.value);
+    }
     if (!mounted) return;
     setState(() {
-      _largest = alive;
+      _largest
+        ..clear()
+        ..addAll(pruned);
       _results = _results.where((e) => e.exists).toList();
     });
   }
@@ -373,32 +407,65 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     ),
                   ),
                   Text(
+                    // Kapsam seçiliyse O kapsamın toplamı yazar — başlığın
+                    // altındaki sayı ekrandaki listeyle aynı şeyi anlatmalı.
                     _isSearch
                         ? context.t('ana.result_count', {'n': visible.length})
-                        : '${index.totalFiles} dosya · '
-                            '${FsPaths.humanSize(index.totalBytes)}',
+                        : context.t('ana.total_summary', {
+                            'n': _category == null
+                                ? index.totalFiles
+                                : index.stat(_category!).count,
+                            'size': FsPaths.humanSize(_category == null
+                                ? index.totalBytes
+                                : index.stat(_category!).bytes),
+                          }),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
           ),
-          if (_category != null || _filter.isActive)
+          // **Kapsam çipleri.** "Tümü" ilk açılışta seçili görünsün diye var:
+          // genel en büyükler pratikte hep video olduğu için kullanıcı ekranı
+          // "videolar süzgeci açık gelmiş" sanıyordu (2026-08-09). Artık hangi
+          // kapsamda olduğu yazıyor ve her kapsam KENDİ en büyüklerini açıyor.
+          if (!_isSearch && categories.isNotEmpty)
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: Gap.sm),
+                    child: ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(context.t('ana.scope_all')),
+                      selected: _category == null,
+                      onSelected: (_) => setState(() => _category = null),
+                    ),
+                  ),
+                  for (final c in categories)
+                    if ((_largest[c] ?? const []).isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(right: Gap.sm),
+                        child: ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(context.t(c.labelKey)),
+                          selected: _category == c,
+                          onSelected: (_) => setState(() => _category = c),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          if (_filter.isActive)
             Padding(
               padding: const EdgeInsets.only(top: Gap.xs),
-              child: Wrap(
-                spacing: Gap.sm,
-                children: [
-                  if (_category != null)
-                    InputChip(
-                      label: Text(_category!.label),
-                      onDeleted: () => setState(() => _category = null),
-                    ),
-                  if (_filter.isActive)
-                    InputChip(
-                      label: Text('${_filter.activeCount} filtre'),
-                      onDeleted: () =>
-                          setState(() => _filter = FmFilter.none),
-                    ),
-                ],
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: InputChip(
+                  label: Text(
+                      context.t('ana.filter_count', {'n': _filter.activeCount})),
+                  onDeleted: () => setState(() => _filter = FmFilter.none),
+                ),
               ),
             ),
           const SizedBox(height: Gap.sm),

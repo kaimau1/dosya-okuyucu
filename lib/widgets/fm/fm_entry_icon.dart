@@ -292,14 +292,25 @@ class _VideoThumbState extends State<_VideoThumb> {
             gaplessPlayback: true,
             errorBuilder: (_, __, ___) => widget.fallback,
           ),
-          // Küçük oynat rozeti: küçük resim videodan geldiğini belli etsin.
-          Positioned.fill(
-            child: Center(
-              child: Icon(
-                Icons.play_circle_fill,
-                size: widget.size * 0.42,
-                color: Colors.white.withValues(alpha: 0.85),
-              ),
+          // **Oynat rozeti KÖŞEDE, ortada değil** (kullanıcı 2026-08-09:
+          // *"videolarda üstteki oynat butonu görüntüyü bozuyor"*). Ortadaki
+          // %42'lik daire küçük resmin tam da anlamlı yerini — yüzü, sahneyi —
+          // kapatıyordu; ızgarada video seçmek imkânsızlaşıyordu. Rozetin işi
+          // "bu bir video" demek; bunun için köşede %18 yetiyor.
+          //
+          // `PositionedDirectional`: Arapça (sağdan sola) arayüzde kendiliğinden
+          // karşı köşeye geçer.
+          PositionedDirectional(
+            start: widget.size * 0.05,
+            bottom: widget.size * 0.05,
+            child: Icon(
+              Icons.play_circle_fill,
+              size: (widget.size * 0.18).clamp(12.0, 28.0),
+              color: Colors.white.withValues(alpha: 0.92),
+              // Açık zeminli karede beyaz rozet kaybolmasın.
+              shadows: const [
+                Shadow(color: Colors.black54, blurRadius: 4),
+              ],
             ),
           ),
         ],

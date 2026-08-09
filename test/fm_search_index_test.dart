@@ -57,6 +57,31 @@ void main() {
       expect(decodeIndexRow('yalnız-yol'), isNull);
       expect(decodeIndexRow('\t1\t2\t0'), isNull);
     });
+
+    test('erişim zamanı turda KORUNUR', () {
+      // Korunmazsa `lastTouchedMs` sessizce mtime'a düşer ve "6 aydır
+      // açılmamış" süzgeci dizinden gelen listelerde yanlış cevap verir.
+      const entry = FsEntry(
+        path: '/depo/Filmler/Film.mkv',
+        name: 'Film.mkv',
+        isDir: false,
+        sizeBytes: 10,
+        modifiedMs: 1000,
+        accessedMs: 9000,
+      );
+      final decoded = decodeIndexRow(encodeIndexRow(entry))!;
+      expect(decoded.accessedMs, 9000);
+      expect(decoded.lastTouchedMs, 9000);
+    });
+
+    test('ESKİ dört alanlı satırlar hâlâ okunur', () {
+      // Sürüm yükseltmeden önce yazılmış dizin, yeniden taranana kadar
+      // okunabilir kalmalı — yoksa güncellemeden sonra arama boş dönerdi.
+      final decoded = decodeIndexRow('/depo/a.pdf\t12\t34\t0')!;
+      expect(decoded.sizeBytes, 12);
+      expect(decoded.modifiedMs, 34);
+      expect(decoded.accessedMs, 0);
+    });
   });
 
   group('tarama dizini yazar', () {

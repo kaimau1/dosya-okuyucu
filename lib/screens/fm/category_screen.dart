@@ -14,6 +14,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/open_history.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
@@ -120,6 +121,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
     FileTags.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
+    // Açılış geçmişi hazır olunca "açılmış/açılmamış" çiplerinin sayıları
+    // doğrulansın — yüklenmeden `forPath` her dosya için null döner ve ölçüt
+    // yalnız atime'a bakar (eksik ama yanlış değil).
+    OpenHistory.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     _loadAll();
   }
 
@@ -149,14 +156,23 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   List<FsEntry> get _sorted {
+    // Açılış geçmişi ekran çizildikten SONRA diskten gelir; anahtara girmezse
+    // önbellek eski (geçmişsiz) sonucu döndürüp donardı.
     final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
-        '${_filter.signature}|${_docKind?.name}|${_sort.name}|$_desc';
+        '${_filter.signature}|${_docKind?.name}|${_sort.name}|$_desc|'
+        '${OpenHistory.revision}';
     final cached = _sortedCache;
     if (cached != null && _sortedKey == key) return cached;
     final sorted =
         FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
-    var filtered =
-        _filter.apply(sorted, query: _query, tagsOf: FileTags.forPath);
+    var filtered = _filter.apply(
+      sorted,
+      query: _query,
+      tagsOf: FileTags.forPath,
+      // "6 aydır açılmamış" / "son 6 ayda açılanlar" ölçütleri uygulamanın
+      // kendi açılış kaydını da sayar (bkz. `FmFilter.lastSeenMs`).
+      openedAtOf: OpenHistory.forPath,
+    );
     if (_docKind != null) {
       filtered = filtered
           .where((f) => FileService.kindForExtension(f.extension) == _docKind)
@@ -268,12 +284,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
           // açılmamış" tek dokunuşta. Eskiden kaynak çipleri `showSources`
           // bayrağının arkasındaydı ve HİÇBİR çağıran onu açmıyordu — yani
           // belgelerde WhatsApp süzgeci kodda vardı ama ekranda yoktu.
+          // **TEK çip satırı** (2026-08-09): belge türü çipleri eskiden ikinci
+          // bir satırdaydı; iki satır birlikte listeden 92 dp çalıyordu.
           FmQuickFilters(
             source: _files,
             filter: _filter,
             onChanged: (f) => setState(() => _filter = f),
+            extraChips: widget.showDocKinds ? _docKindChips() : const [],
           ),
-          if (widget.showDocKinds) _docKindChips(),
           Expanded(
             child: files.isEmpty
                 ? Center(
@@ -448,7 +466,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   /// Belge türü çipleri (PDF / Word / Excel / Slayt / Metin / Diğer).
   /// Boş tür gösterilmez; sayılar gerçek dosya sayısıdır.
-  Widget _docKindChips() {
+  ///
+  /// [FmQuickFilters.extraChips]'e verilir — kendi satırında değil, süzgeç
+  /// çipleriyle AYNI yatay satırda çizilir (bkz. oradaki not).
+  List<Widget> _docKindChips() {
     final counts = <DocKind, int>{};
     for (final f in _files) {
       final kind = FileService.kindForExtension(f.extension);
@@ -465,37 +486,32 @@ class _CategoryScreenState extends State<CategoryScreen> {
       DocKind.unknown,
     ];
     final kinds = order.where((k) => (counts[k] ?? 0) > 0).toList();
-    if (kinds.length < 2) return const SizedBox.shrink();
+    if (kinds.length < 2) return const [];
 
-    return SizedBox(
-      height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: Gap.sm),
-            child: ChoiceChip(
-              label: Text(context.t('ph.all_count', {'n': _files.length})),
-              selected: _docKind == null,
-              onSelected: (_) => setState(() => _docKind = null),
-            ),
-          ),
-          for (final k in kinds)
-            Padding(
-              padding: const EdgeInsets.only(right: Gap.sm),
-              child: ChoiceChip(
-                label: Text(context.t('ph.chip_count', {
-                  'label': context.t(k.labelKey),
-                  'n': counts[k],
-                })),
-                selected: _docKind == k,
-                onSelected: (_) => setState(() => _docKind = k),
-              ),
-            ),
-        ],
+    return [
+      Padding(
+        padding: const EdgeInsets.only(right: Gap.sm),
+        child: ChoiceChip(
+          visualDensity: VisualDensity.compact,
+          label: Text(context.t('ph.all_count', {'n': _files.length})),
+          selected: _docKind == null,
+          onSelected: (_) => setState(() => _docKind = null),
+        ),
       ),
-    );
+      for (final k in kinds)
+        Padding(
+          padding: const EdgeInsets.only(right: Gap.sm),
+          child: ChoiceChip(
+            visualDensity: VisualDensity.compact,
+            label: Text(context.t('ph.chip_count', {
+              'label': context.t(k.labelKey),
+              'n': counts[k],
+            })),
+            selected: _docKind == k,
+            onSelected: (_) => setState(() => _docKind = k),
+          ),
+        ),
+    ];
   }
 
   Widget _listView(List<FsEntry> files) => ListView.builder(

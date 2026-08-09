@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -11,6 +12,7 @@ import '../../core/screen_awake.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/subtitles.dart';
 import 'entry_actions.dart';
 
 /// Uygulama içi **video ve ses** oynatıcı.
@@ -51,6 +53,19 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
   bool _landscape = false;
   double _speed = 1.0;
   Timer? _hideTimer;
+
+  /// Şu anki dosyanın yanında bulunan altyazı dosyaları.
+  List<SubtitleTrack> _subtitles = const [];
+
+  /// Seçili altyazı yolu; null = kapalı.
+  String? _subtitlePath;
+
+  /// Çözülmüş satırlar (seçili altyazınınki).
+  List<SubtitleCue> _cues = const [];
+
+  /// Altyazı gecikmesi (ms). Kaynağı farklı bir sürümden indirilmiş altyazı
+  /// sesle tutmayabiliyor; kullanıcı ileri/geri kaydırabilsin.
+  int _subtitleOffsetMs = 0;
 
   /// Uygulama arkaya alındığı için mi duraklattık? (Kullanıcı duraklattıysa
   /// dönüşte kendiliğinden başlamamalı.)
@@ -177,6 +192,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
       await controller.dispose();
       return;
     }
+    unawaited(_loadSubtitles());
     controller.addListener(_onTick);
     _wasPlaying = controller.value.isPlaying;
     _syncAwake(_wasPlaying);
@@ -186,6 +202,136 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
       _loading = false;
     });
     _scheduleHide();
+  }
+
+  // ── Altyazı ────────────────────────────────────────────────────────────
+  //
+  // Video motorunun (`setClosedCaptionFile`) yerine kendi katmanımızı
+  // çiziyoruz. Sebep: gecikme ayarı (`_subtitleOffsetMs`) ve punto denetimi
+  // motorun API'sinde yok, oysa indirilen altyazının sesle tutmaması en sık
+  // karşılaşılan sorun. Zamanlama işini zaten biz yapıyorsak, çizimi de
+  // yapmak ek maliyet değil.
+
+  /// Şu anki dosyanın altyazılarını bulur ve birini seçer.
+  ///
+  /// Otomatik seçim **arayüz diline** göre: Türkçe arayüzde `Film.tr.srt`
+  /// varsa o açılır. Yoksa ilk altyazı — tek altyazısı olan bir filmde
+  /// kullanıcının menüyü açması gerekmesin.
+  Future<void> _loadSubtitles() async {
+    if (_isAudio) {
+      if (mounted) {
+        setState(() {
+          _subtitles = const [];
+          _subtitlePath = null;
+          _cues = const [];
+        });
+      }
+      return;
+    }
+    final path = _current;
+    final found = Subtitles.findFor(path);
+    if (!mounted || path != _current) return;
+    setState(() {
+      _subtitles = found;
+      _subtitleOffsetMs = 0;
+    });
+    if (found.isEmpty) {
+      setState(() {
+        _subtitlePath = null;
+        _cues = const [];
+      });
+      return;
+    }
+    // `code` 'tr' | 'en' | 'ar' (sistem dilinde 'system' → hiçbir etiketle
+    // eşleşmez ve ilk altyazıya düşülür, doğru davranış).
+    final code = AppStrings.current.language.name;
+    final preferred = found.firstWhere(
+      (t) => t.label.toLowerCase().startsWith(code),
+      orElse: () => found.first,
+    );
+    await _selectSubtitle(preferred.path, forPath: path);
+  }
+
+  /// [subPath] altyazısını yükler (null = kapat). [forPath] verilirse, o video
+  /// hâlâ açık değilse sonuç yok sayılır (çalma listesinde hızlı geçiş).
+  Future<void> _selectSubtitle(String? subPath, {String? forPath}) async {
+    if (subPath == null) {
+      if (mounted) {
+        setState(() {
+          _subtitlePath = null;
+          _cues = const [];
+        });
+      }
+      return;
+    }
+    final cues = await Subtitles.load(subPath);
+    if (!mounted || (forPath != null && forPath != _current)) return;
+    setState(() {
+      _subtitlePath = subPath;
+      _cues = cues;
+    });
+    if (cues.isEmpty) {
+      _toast(context.t('mp.sub_unreadable'));
+    }
+  }
+
+  /// Kullanıcının seçtiği bir altyazı dosyasını ekler ve açar.
+  Future<void> _pickSubtitle() async {
+    final result = await FilePicker.platform.pickFiles(
+      // `FileType.custom` + uzantı süzgeci: kullanıcı seçicide film klasörünü
+      // açtığında yüzlerce medya dosyası arasında altyazıyı aramasın.
+      type: FileType.custom,
+      allowedExtensions: Subtitles.extensions.toList(),
+    );
+    final files = result?.files ?? const [];
+    final picked = files.isEmpty ? null : files.first.path;
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (!_subtitles.any((t) => t.path == picked)) {
+        _subtitles = [
+          ..._subtitles,
+          SubtitleTrack(path: picked, label: p.basename(picked)),
+        ];
+      }
+    });
+    await _selectSubtitle(picked);
+  }
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// [position] anında ekranda olması gereken metin (yoksa boş).
+  ///
+  /// İkili arama: bir filmde 2000 satır olabiliyor ve bu, konum her
+  /// güncellendiğinde (saniyede iki kez) çalışıyor.
+  String captionAt(Duration position) {
+    if (_cues.isEmpty) return '';
+    final t = position - Duration(milliseconds: _subtitleOffsetMs);
+    var lo = 0;
+    var hi = _cues.length - 1;
+    var found = -1;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (_cues[mid].start <= t) {
+        found = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (found < 0) return '';
+    // Üst üste binen satırlar (ASS'te sık): başlangıcı geçmiş ama bitişi
+    // gelmemiş komşulara da bakılır. Sekiz geriye bakmak pratikte yeter ve
+    // aramayı sabit maliyette tutar.
+    final lines = <String>[];
+    for (var i = found; i >= 0 && i > found - 8; i--) {
+      final c = _cues[i];
+      if (c.start <= t && c.end >= t) lines.add(c.text);
+    }
+    return lines.reversed.join('\n');
   }
 
   /// Dosya bitince sıradakine geç.
@@ -304,6 +450,19 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
         child: Stack(
           children: [
             Positioned.fill(child: _surface(c, value)),
+            // Altyazı katmanı: konum saniyede iki kez değişiyor, yeniden
+            // çizilen alan BURAYA hapsediliyor (bkz. [_onTick] notu).
+            // Kontroller açıkken yukarı kaçar ki alttaki çubuk metni örtmesin.
+            if (c != null && _cues.isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: _controlsVisible ? 140 : 32,
+                child: ValueListenableBuilder<VideoPlayerValue>(
+                  valueListenable: c,
+                  builder: (_, live, __) => _captionLayer(live.position),
+                ),
+              ),
             if (_controlsVisible)
               Positioned(left: 0, right: 0, top: 0, child: _topBar()),
             if (_controlsVisible && c != null && value != null)
@@ -323,6 +482,89 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
       ),
     );
   }
+
+  /// Altyazı metni. Zemin yerine **kontur** kullanılıyor: siyah şerit açık
+  /// sahnelerde görüntünün beşte birini kapatıyordu, kontur her zeminde okunur
+  /// ve görüntüyü örtmez.
+  Widget _captionLayer(Duration position) {
+    final text = captionAt(position);
+    if (text.isEmpty) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            height: 1.25,
+            fontWeight: FontWeight.w600,
+            shadows: [
+              Shadow(color: Colors.black, blurRadius: 3),
+              Shadow(color: Colors.black, blurRadius: 6),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Altyazı menüsü: kapat · bulunan dosyalar · gecikme · dosyadan seç.
+  Widget _subtitleMenu() => PopupMenuButton<String>(
+        tooltip: context.t('mp.subtitles'),
+        icon: Icon(_subtitlePath == null
+            ? Icons.closed_caption_off_outlined
+            : Icons.closed_caption),
+        onSelected: (value) async {
+          switch (value) {
+            case '_off':
+              await _selectSubtitle(null);
+            case '_pick':
+              await _pickSubtitle();
+            case '_later':
+              setState(() => _subtitleOffsetMs -= 500);
+            case '_sooner':
+              setState(() => _subtitleOffsetMs += 500);
+            default:
+              await _selectSubtitle(value);
+          }
+        },
+        itemBuilder: (_) => [
+          PopupMenuItem(
+            value: '_off',
+            child: Text('${context.t('mp.sub_off')}'
+                '${_subtitlePath == null ? '  ✓' : ''}'),
+          ),
+          for (final track in _subtitles)
+            PopupMenuItem(
+              value: track.path,
+              child: Text('${track.label}'
+                  '${_subtitlePath == track.path ? '  ✓' : ''}'),
+            ),
+          const PopupMenuDivider(),
+          if (_subtitlePath != null) ...[
+            // Gecikme: altyazı sesin GERİSİNDEyse "+", ilerideyse "−".
+            PopupMenuItem(
+              value: '_sooner',
+              child: Text(context.t('mp.sub_earlier')),
+            ),
+            PopupMenuItem(
+              value: '_later',
+              child: Text(context.t('mp.sub_later')),
+            ),
+            PopupMenuItem(
+              enabled: false,
+              child: Text(context.t('mp.sub_offset',
+                  {'v': (_subtitleOffsetMs / 1000).toStringAsFixed(1)})),
+            ),
+          ],
+          PopupMenuItem(
+            value: '_pick',
+            child: Text(context.t('mp.sub_pick')),
+          ),
+        ],
+      );
 
   /// Videonun üstünde yüzen başlık çubuğu (Scaffold slotu değil — bkz. build).
   Widget _topBar() {
@@ -355,6 +597,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
                       style: const TextStyle(color: Colors.white70)),
                 ),
               ),
+            if (!_isAudio) _subtitleMenu(),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),
               icon: const Icon(Icons.speed),

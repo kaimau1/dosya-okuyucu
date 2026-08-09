@@ -62,6 +62,21 @@ ACCENT = (0x2E, 0x5A, 0xA8)      # Paper.accent — sırt bandı
 INK = (0x26, 0x22, 0x19)         # Paper.ink — başlık satırı
 INK_SOFT = (0x6E, 0x65, 0x55)    # Paper.inkSoft — gövde satırları
 
+# --- Sayfanın büyüklüğü ------------------------------------------------------
+# Kullanıcı isteği 2026-08-09: *"uygulama simgesindeki ortadaki dosyayı büyüt,
+# çerçeve azalsın, yüzde 50 büyüt en az"*.
+#
+# Modern Android'de kullanıcının GÖRDÜĞÜ simge adaptive olandır; ön-plan
+# 0.62 → 0.93, yani tam **+%50**. Üst sınır ADAPTIVE GÜVENLİ ALAN: 1024'lük
+# tuvalde maskenin her cihazda gösterdiği bölge ortadaki %66 (676 px).
+# 0.93'te sayfa 532 × 654 px — yüksekliği güvenli alanın 22 px altında kalıyor,
+# yani hiçbir maske sayfayı kesmiyor. Daha büyüğü (ör. 1.0 → 704 px) yuvarlak
+# maskeli cihazlarda sayfanın alt/üst kenarını kırpardı.
+#
+# Eski (API 23-25) launcher'ların kullandığı düz `icon.png` ayrı ölçekleniyor
+# (bkz. `main`): orada maske yok ama gölgenin sığması gerekiyor.
+FG_SCALE = 0.93
+
 
 def draw_glyph(buf, ox=0.0, oy=0.0, scale=1.0, shadow=True):
     """Sayfa + sırt bandı + satırları buf'a çizer (merkez tabanlı)."""
@@ -171,16 +186,19 @@ def main():
     import os
     os.makedirs("assets/icon", exist_ok=True)
 
-    # Tam ikon: kağıt gradyanı + sayfa (eski launcher'lar bunu kırpar)
+    # Tam ikon: kağıt gradyanı + sayfa (eski launcher'lar bunu kırpar).
+    # Ölçek 1.30 = sayfa yüksekliği tuvalin %92'si; üstte kalan kenar payı
+    # gölgenin (kayma + bulanıklık) sığacağı en küçük değer, daha büyüğü
+    # gölgeyi kırpar. Bkz. ICON_SCALE notu.
     icon = new_buffer()
     fill_bg_gradient(icon)
-    draw_glyph(icon, ox=0, oy=0, scale=1.0)
+    draw_glyph(icon, ox=0, oy=0, scale=1.30)
     write_png("assets/icon/icon.png", icon)
 
     # Adaptive ön-plan: şeffaf; glyph güvenli alana (%66) sığacak kadar küçük.
     # Gölge YOK — adaptive maskesi kırpınca gölge kenarda leke bırakıyor.
     fg = new_buffer()
-    draw_glyph(fg, ox=0, oy=0, scale=0.62, shadow=False)
+    draw_glyph(fg, ox=0, oy=0, scale=FG_SCALE, shadow=False)
     write_png("assets/icon/foreground.png", fg)
 
     print("yazıldı: assets/icon/icon.png, assets/icon/foreground.png")

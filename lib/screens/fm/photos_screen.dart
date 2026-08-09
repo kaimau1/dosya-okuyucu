@@ -15,6 +15,7 @@ import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/open_history.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
@@ -158,6 +159,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
     FileTags.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
+    // "Açılmış/açılmamış" ölçütleri uygulamanın kendi açılış kaydını da sayar.
+    OpenHistory.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     _loadAll();
   }
 
@@ -202,7 +207,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
   /// Süzülmüş ve sıralı dosyalar (düz liste). Sonuç önbelleklenir.
   List<FsEntry> get _visible {
     final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
-        '${_filter.signature}|${_sort.name}|$_desc';
+        '${_filter.signature}|${_sort.name}|$_desc|${OpenHistory.revision}';
     final cached = _visibleCache;
     if (cached != null && _visibleKey == key) return cached;
     // Yinelenen ayıklaması SIRALAMADAN SONRA anlamlı olsun diye önce sıralanır:
@@ -210,13 +215,18 @@ class _PhotosScreenState extends State<PhotosScreen> {
     // bağlıdır (apply listedeki İLK kopyayı tutar).
     final sorted =
         FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
-    final list =
-        _filter.apply(sorted, query: _query, tagsOf: FileTags.forPath);
+    final list = _filter.apply(sorted,
+        query: _query,
+        tagsOf: FileTags.forPath,
+        openedAtOf: OpenHistory.forPath);
     // Kaç kopya gizlendi? (Süzgeci kopyasız hâliyle uygulayıp farkı alırız.)
     _hiddenDuplicates = _filter.hideDuplicates
         ? _filter
                 .withHideDuplicates(false)
-                .apply(sorted, query: _query, tagsOf: FileTags.forPath)
+                .apply(sorted,
+                    query: _query,
+                    tagsOf: FileTags.forPath,
+                    openedAtOf: OpenHistory.forPath)
                 .length -
             list.length
         : 0;

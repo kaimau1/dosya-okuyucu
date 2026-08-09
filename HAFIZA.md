@@ -7578,3 +7578,107 @@ makul görünüyordu:
 Yani grafik kaybı bu mekanizmadan DEĞİL. Teşhis için kullanıcıdan netleştirme
 gerekiyor. **KVKK:** bulgunun geldiği dosya hasta/asistan kişisel verisi
 içeriyor — dosya İSTENMEYECEK, tekrar üretim için anonim örnek istenecek.
+
+## 2026-08-09 — Bellek analizi, hızlı süzgeçler, altyazı, simge
+Kullanıcı ekran görüntüsüyle yedi madde bildirdi. Hepsinin ortak teması:
+**gösterilen sayı ile verilen sonuç birbirini tutmuyordu.**
+
+### A) "En büyük dosyalarda sadece videolar var, diğerleri boş"
+Kök neden: `StorageIndex.largest` **tek** bir liste ve yalnız 200 kayıt. Bir
+film 2 GB, bir PDF 2 MB → o 200 kaydın tamamı video oluyor. Bellek analizinde
+"Belgeler" çubuğuna dokunmak bu listeyi *süzüyordu*, yani boş ekran veriyordu.
+- **Çözüm — `StorageIndex.largestByCategory`:** aynı tek geçişli yürüyüşte
+  kategori başına ayrı bir `_TopN` (200) toplanıyor. Kategori süzgeci artık
+  genel listeyi daraltmıyor, **kendi listesini açıyor** (`largestOf`).
+- Ekrana açık **kapsam çipleri** eklendi ("Tümü" + türler). Kullanıcı "direkt
+  videolar seçili geliyor" demişti; aslında süzgeç kapalıydı — genel en
+  büyükler gerçekten hep videoydu. Görünmeyen durumu tartışmak yerine
+  görünür kılmak doğru çözümdü: "Tümü" çipi ilk açılışta seçili duruyor.
+- `_refreshAlive` artık **her** listeyi buduyor; yalnız görüneni budasaydı
+  silinen dosya kapsam değişince geri gelirdi.
+- Kapsam çipi `c.label` yerine `context.t(c.labelKey)` kullanıyor: apk
+  kategorisinin sabit adı "Uygulamalar", çeviri anahtarı "Kurulum dosyaları"
+  — aynı ekranda iki farklı ad görünüyordu.
+
+### B) "Son 6 ayda açılanlar" süzgeçleri — İKİ ayrı kök neden
+1. **atime arama dizininde KAYBOLUYORDU.** `encodeIndexRow` dört alan
+   yazıyordu (yol, boyut, mtime, klasör mü); dizinden kurulan her girdinin
+   `accessedMs`'i 0 oluyor, `lastTouchedMs` sessizce mtime'a düşüyordu. Yani
+   kategori ekranlarındaki "6 aydır açılmamış" çipi aslında "6 aydır
+   DEĞİŞTİRİLMEMİŞ" demekti. Beşinci alan eklendi; **dört alanlı eski
+   satırlar okunmaya devam ediyor** (dizin yeniden taranınca tamamlanır).
+2. **Uygulamanın kendi açılış kaydı hiç sayılmıyordu.** Android'de çoğu
+   bağlama `relatime`/`noatime` → atime yok. Kullanıcının dün bu uygulamada
+   açtığı film hâlâ "açılmamış" sayılıyordu. `FmFilter.lastSeenMs` artık
+   atime ile `OpenHistory` kaydının **en yenisini** alıyor (`openedAtOf`
+   çözücüsü, `tagsOf` deseniyle aynı). Kayıt yokluğu "açılmadı" demek
+   olmadığı için atime'ın yerini almıyor, onu tamamlıyor.
+- **Eksik olan üçüncü şey:** "açılmamışlar" vardı, **"açılanlar" hiç yoktu**.
+  `openedWithinDays` eklendi; ikisi karşıt olduğu için biri kurulunca diğeri
+  siliniyor (ikisi birlikte her zaman boş liste verirdi → "süzgeç bozuk").
+- **TUZAK — süzme önbellekleri geçmişi görmüyordu.** `category_screen._sorted`
+  ve `FmQuickFilters` anahtarları listeye+süzgece bakıyor; geçmiş ekran
+  çizildikten SONRA diskten geliyor. `OpenHistory.revision` sayacı anahtara
+  eklendi, yoksa çip yüklenmemiş (eksik) sayısında donup kalıyordu.
+
+### C) Çip sayıları başka bir soruyu yanıtlıyordu
+`FmQuickFilters` her çipin sayısını **ham** listeden hesaplıyordu: WhatsApp
+çipi zaten seçiliyken "Büyük dosyalar · 312" yazan çipe dokununca 4 dosya
+çıkıyordu. Artık her sayı "**dokunursam kaç dosya kalır**"ın karşılığı (çip
+başına bir geçiş). Maliyeti karşılamak için widget `Stateful` oldu ve sayım
+`(liste, süzgeç imzası, geçmiş sürümü)` anahtarıyla önbelleklendi — 20 bin
+dosyada her karede yeniden saymak ekranı kastırırdı.
+
+### D) Üst filtre alanı sayfayı daraltıyordu
+Kategori ekranında ALT ALTA iki çip satırı vardı (hızlı süzgeçler 44 dp +
+belge türleri 48 dp). Belge türü çipleri `FmQuickFilters.extraChips` ile aynı
+yatay satıra alındı → listeye 48 dp geri verildi.
+
+### E) Son açılanlar / yeni dosyalar
+- **Hız:** "Son açılanlar" her yol için ana izlekte `existsSync` + `statSync`
+  çağırıyordu. `FsScan.statPaths` (izolatta, sıra korunur) eklendi;
+  `OpenHistory.pathsByRecency()` diske hiç dokunmuyor.
+- **Eksiksizlik:** "Yeni dosyalar" pano önbelleğinin 300 kaydında kesiliyordu;
+  `loadAll` (tüm kategoriler = `MediaLibrary.categoryFiles(null)`) eklendi.
+- **Erişilebilirlik:** "Son açılanlar" araçlar satırındaki 12 küçük simgenin
+  arasından büyük kutulara terfi etti (çöp kutusu/Drive ile aynı hikâye).
+- Arama `toLowerCase()` yerine `turkishFold` kullanıyor ("sarki" → "Şarkı").
+
+### F) Video küçük resmindeki oynat rozeti
+Ortadaki %42'lik daire karenin tam anlamlı yerini kapatıyordu ("görüntüyü
+bozuyor"). Rozet köşeye alındı ve %18'e indi (12–28 dp arası kelepçeli),
+gölgeyle açık zeminde de görünür. `PositionedDirectional` → Arapça arayüzde
+karşı köşeye geçiyor.
+
+### G) Altyazı — `services/fm/subtitles.dart` (saf Dart, testli)
+`.srt` / `.vtt` / `.ass` / `.ssa` okunuyor; film dosyasının yanındaki ve
+`Subs/` altındaki dosyalar kendiliğinden bulunuyor, arayüz diline uyan varsa
+o açılıyor.
+- **KARAR — motorun `setClosedCaptionFile`'ı DEĞİL, kendi katmanımız.**
+  Gecikme ayarı ve punto denetimi o API'de yok, oysa indirilen altyazının
+  sesle tutmaması en sık karşılaşılan sorun. Zamanlamayı zaten biz yapıyorsak
+  çizmek ek maliyet değil. Aktif satır **ikili aramayla** bulunuyor (2000
+  satırlık bir filmde saniyede iki kez çalışıyor).
+- **TUZAK — Türkçe altyazıların çoğu UTF-8 DEĞİL.** `utf8.decode(
+  allowMalformed: true)` onları "Ã§ok gÃ¼zel"e çeviriyordu. Sıra: BOM → KATI
+  UTF-8 → Windows-1254. Katı çözmenin patlaması burada **bilgidir**.
+- **TUZAK — ASS metin alanı virgül içerebilir** (`Dialogue: …,Virgül, içeren
+  metin`); alan sırası `Format:` satırından okunuyor, sabit 9 varsayılmıyor
+  (SSA v4'te alan sayısı farklı).
+- **TUZAK — SubRip bloklarının arasında boş satır olmayabiliyor**; sonraki
+  bloğun numarası metnin son satırı gibi görünüyordu.
+- `.sub` bilerek DESTEKLENMİYOR: MicroDVD (kare numaralı, fps bilinmeden
+  zamana çevrilemez) ya da VobSub (ikili + ayrı `.idx`). Yarım destek
+  vermektense listelememek dürüst.
+
+### H) Uygulama simgesi
+`tool/gen_icon.py`: adaptive ön-plan 0.62 → **0.93** (tam +%50). Üst sınır
+adaptive **güvenli alan**: 1024'lük tuvalde maskenin her cihazda gösterdiği
+bölge ortadaki %66 (676 px). 0.93'te sayfa 532 × 656 px — güvenli alanın 22 px
+altında, yani hiçbir maske kesmiyor. Düz `icon.png` (API 23-25) 1.0 → 1.30;
+oradaki sınır maske değil **gölgenin sığması** (kayma 16 + bulanıklık 22,
+ölçekle birlikte büyüyor).
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze lib` sıfır sorun,
+**1577 test yeşil** (26 yeni: altyazı ayrıştırıcısı, çip sayıları, kategori
+başına en büyükler, dizin satırında atime, karşıt süzgeçler).

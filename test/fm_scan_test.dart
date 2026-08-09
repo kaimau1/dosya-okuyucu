@@ -126,6 +126,29 @@ void main() {
       expect(index.largest.first.sizeBytes, greaterThan(0));
     });
 
+    test('her kategorinin KENDİ en büyükleri ayrı tutulur', () async {
+      // Bellek analizinde "Belgeler"e süzen kullanıcı boş ekran görüyordu:
+      // genel en büyükler listesi (200 dosya) pratikte hep videodur, onu
+      // süzmek hiçbir belge bırakmıyordu.
+      final index = await FsScan.index([tmp.path]);
+
+      final docs = index.largestOf(FmCategory.document);
+      expect(docs, isNotEmpty);
+      expect(docs.every((e) => e.category == FmCategory.document), isTrue);
+      // Kendi içinde büyükten küçüğe.
+      for (var i = 1; i < docs.length; i++) {
+        expect(docs[i - 1].sizeBytes, greaterThanOrEqualTo(docs[i].sizeBytes));
+      }
+
+      final videos = index.largestOf(FmCategory.video);
+      expect(videos.map((e) => e.name), ['video.mp4']);
+
+      // null → genel liste (kategori süzgeci kapalıyken gösterilen).
+      expect(index.largestOf(null), index.largest);
+      // Hiç dosyası olmayan kategori boş liste döner (null değil).
+      expect(index.largestOf(FmCategory.archive), isEmpty);
+    });
+
     test('folderSize: alt klasörler dahil toplanır', () async {
       final size = await FsScan.folderSize(tmp.path);
       expect(size, 3 + 1 + 3 + 5); // Rapor.pdf + .gizli + txt + mp4

@@ -14,6 +14,7 @@ import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/open_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../services/fm/smart_query.dart';
@@ -70,6 +71,10 @@ class _SearchScreenState extends State<SearchScreen> {
     SearchIndex.revision.addListener(_onIndexChanged);
     // Etiket süzgeci çipleri için (kişi/grup).
     FileTags.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
+    // "Açılmış/açılmamış" ölçütleri uygulamanın kendi açılış kaydını da sayar.
+    OpenHistory.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
     // Ekran açılırken dizin hazırlanır; kullanıcı yazana kadar çoğu zaman
@@ -145,7 +150,9 @@ class _SearchScreenState extends State<SearchScreen> {
         if (_category == null || e.category == _category)
           if (smartCategory == null || e.category == smartCategory)
             if (smart == null || smart.filter.matches(e))
-              if (_filter.matches(e, tagsOf: FileTags.forPath)) e,
+              if (_filter.matches(e,
+                  tagsOf: FileTags.forPath, openedAtOf: OpenHistory.forPath))
+                e,
     ];
     // Klasörler üstte KALMAZ: arama sonucunda kullanıcı ölçüte (tarih/boyut)
     // göre sıralı tek bir liste bekler.

@@ -428,5 +428,89 @@ void main() {
       // İmza değişmeli, yoksa süzme önbelleği eski sonucu döndürürdü.
       expect(on.signature, isNot(FmFilter.none.signature));
     });
+
+    test('uygulamanın kendi açılış kaydı atime kadar geçerlidir', () {
+      // Android'de çoğu bağlama noatime → atime yok. Kullanıcı dosyayı DÜN bu
+      // uygulamada açtıysa "6 aydır açılmamış" listesinde görünmemeli.
+      final filter = FmFilter.none.withUntouchedDays(180);
+      final e = touched('/a/film.mkv', modified: daysAgo(400), accessed: 0);
+      expect(filter.matches(e, now: now), isTrue,
+          reason: 'kayıt olmadan yalnız atime/mtime var');
+      expect(
+        filter.matches(e,
+            now: now, openedAtOf: (path) => daysAgo(1)),
+        isFalse,
+        reason: 'kendi kaydımız dosyanın açıldığını KESİN biliyor',
+      );
+    });
+
+    test('açılış kaydı ESKİYSE dosya hâlâ açılmamış sayılır', () {
+      final filter = FmFilter.none.withUntouchedDays(180);
+      final e = touched('/a/film.mkv', modified: daysAgo(400), accessed: 0);
+      expect(
+        filter.matches(e, now: now, openedAtOf: (path) => daysAgo(300)),
+        isTrue,
+      );
+    });
+  });
+
+  group('“son şu kadar günde açılmış” ölçütü', () {
+    FsEntry touched(String path, {required int modified, int accessed = 0}) =>
+        FsEntry(
+          path: path,
+          name: path.split('/').last,
+          isDir: false,
+          sizeBytes: 1000,
+          modifiedMs: modified,
+          accessedMs: accessed,
+        );
+
+    test('“açılmamış” ölçütünün tam tersini seçer', () {
+      final untouched = FmFilter.none.withUntouchedDays(180);
+      final opened = FmFilter.none.withOpenedWithinDays(180);
+      final old = touched('/a/eski.pdf', modified: daysAgo(400));
+      final fresh = touched('/a/yeni.pdf', modified: daysAgo(3));
+
+      expect(untouched.matches(old, now: now), isTrue);
+      expect(opened.matches(old, now: now), isFalse);
+      expect(untouched.matches(fresh, now: now), isFalse);
+      expect(opened.matches(fresh, now: now), isTrue);
+    });
+
+    test('açılış kaydı olan eski dosya “açılanlar”a girer', () {
+      final opened = FmFilter.none.withOpenedWithinDays(180);
+      final e = touched('/a/film.mkv', modified: daysAgo(400), accessed: 0);
+      expect(opened.matches(e, now: now), isFalse);
+      expect(opened.matches(e, now: now, openedAtOf: (_) => daysAgo(10)),
+          isTrue);
+    });
+
+    test('iki karşıt ölçüt birlikte AÇIK KALAMAZ', () {
+      // Açık kalsalardı liste her zaman boş çıkar, kullanıcı süzgeci bozuk
+      // sanardı.
+      final f = FmFilter.none
+          .withUntouchedDays(180)
+          .withOpenedWithinDays(180);
+      expect(f.untouchedDays, isNull);
+      expect(f.openedWithinDays, 180);
+      expect(f.activeCount, 1);
+
+      final back = f.withUntouchedDays(180);
+      expect(back.openedWithinDays, isNull);
+      expect(back.untouchedDays, 180);
+    });
+
+    test('klasörler ölçüte girmez ve imza değişir', () {
+      final opened = FmFilter.none.withOpenedWithinDays(180);
+      final dir = FsEntry(
+        path: '/a/klasor',
+        name: 'klasor',
+        isDir: true,
+        sizeBytes: 0,
+        modifiedMs: daysAgo(1),
+      );
+      expect(opened.matches(dir, now: now), isFalse);
+      expect(opened.signature, isNot(FmFilter.none.signature));
+    });
   });
 }

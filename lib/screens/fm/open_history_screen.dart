@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
+import '../../core/text_search.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -50,24 +49,40 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
     super.dispose();
   }
 
+  /// Geç dönen eski yükleme yenisini ezmesin (silme sonrası art arda
+  /// tazelemede `FsEvents` birden çok kez tetikleniyor).
+  int _loadToken = 0;
+
+  /// Diskteki gerçeği okumak **arka planda** yapılır: birkaç bin kayıtlık bir
+  /// geçmişte ana izlekte `existsSync`+`statSync` çağırmak ekranı saniyelerce
+  /// donduruyordu (kullanıcı 2026-08-09: *"son açılanlar ... çok daha hızlı
+  /// çalışmalı"*).
   Future<void> _load() async {
+    final token = ++_loadToken;
     if (mounted) setState(() => _loading = true);
     await OpenHistory.ensureLoaded();
+    final paths = OpenHistory.pathsByRecency();
+    final alive = await FsScan.statPaths(paths);
+    if (!mounted || token != _loadToken) return;
+    // `statPaths` sırayı korur, yani liste zaten en yeniden eskiye.
     final entries = [
-      for (final e in OpenHistory.all())
-        (entry: FsEntry.fromEntity(File(e.key)), openedAtMs: e.value),
+      for (final entry in alive)
+        (entry: entry, openedAtMs: OpenHistory.forPath(entry.path) ?? 0),
     ];
-    if (!mounted) return;
     setState(() {
       _entries = entries;
       _loading = false;
     });
   }
 
+  /// Arama Türkçe-duyarlı: "sarki" yazınca "Şarkı" bulunmalı — bu ekranda
+  /// düz `toLowerCase()` vardı ve `İ`/`ı` yüzünden dosyayı bulamıyordu.
   List<({FsEntry entry, int openedAtMs})> get _filtered {
-    final q = _query.trim().toLowerCase();
+    final q = turkishFold(_query.trim());
     if (q.isEmpty) return _entries;
-    return _entries.where((e) => e.entry.name.toLowerCase().contains(q)).toList();
+    return _entries
+        .where((e) => turkishFold(e.entry.name).contains(q))
+        .toList();
   }
 
   Future<void> _clearAll() async {
