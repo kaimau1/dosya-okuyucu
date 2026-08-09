@@ -1,16 +1,31 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../core/app_state.dart';
-import '../core/display_mode.dart';
-import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
-import '../services/gemini_service.dart';
-import 'fm/fm_settings_screen.dart';
+import '../widgets/section_header.dart';
+import 'settings/settings_catalog.dart';
+import 'settings/settings_category_screen.dart';
 
+export 'settings/tiles_system.dart' show showOpenSourceLicenses;
+
+/// **Ayarlar — tek giriş kapısı.**
+///
+/// KÖK NEDEN (2026-08-09 kullanıcı: *"ayarlar kısmımız çok karıştı, her yer her
+/// yerde, tamamen sıfırdan tasarlanmalı ve yerleştirilmeli"*): ayarlar iki ayrı
+/// ekrana bölünmüştü (`SettingsScreen` + `FmSettingsScreen`), ikisi birbirine
+/// köprü veriyor, "görünüm" başlığı iki ekranda iki farklı şey anlatıyordu.
+/// Üstelik her iki ekranda da arama YALNIZ bölüm başlığına bakıyordu: "küçük
+/// resim" yazan kullanıcı hiçbir sonuç bulamıyordu, çünkü o metin bir bölüm
+/// başlığı değil bir satırdı.
+///
+/// Yeni yerleşim:
+/// - **Sekiz kategori kartı** — her biri kendi sayfası, ana ekran tek bakışta
+///   okunuyor (eskiden yedi açık bölüm üst üste, üç ekran boyu bir listeydi).
+/// - **Kartta mevcut değer** ("Koyu · Türkçe") — kategoriyi açmadan ne ayarlı
+///   olduğu görünüyor.
+/// - **Arama TÜM ayarlarda ve satır düzeyinde**: eşleşen ayarın kendisi, kendi
+///   denetimiyle ve hangi kategoriden geldiği yazılı olarak listeleniyor —
+///   sonuca dokunup değiştirmek için o sayfaya gitmek gerekmiyor.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -19,864 +34,164 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late final TextEditingController _apiKey;
-  bool _obscure = true;
-
-  /// Ayar araması (bölüm düzeyinde süzme).
-  bool _searching = false;
+  final _search = TextEditingController();
   String _query = '';
-
-  /// Anahtar geçersiz/ağ hatası/henüz çekilmediyse gösterilen yedek liste.
-  static const _fallbackModels = [
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-  ];
-
-  /// API'den çekilen modeller (anahtara özgü — plan/bölgeye göre değişebilir).
-  List<String>? _fetchedModels;
-  bool _loadingModels = false;
-  String? _modelsError;
-
-  /// Anahtar geçerli ama hiç model dönmedi (hata metninden ayrı tutulur —
-  /// çevirisi build'de yapılıyor, bkz. `build`).
-  bool _noModels = false;
-  Timer? _debounce;
-
-  /// Son çekilen anahtar — aynı anahtar için gereksiz tekrar çekmeyi önler.
-  String? _fetchedForKey;
-
-  @override
-  void initState() {
-    super.initState();
-    final key = context.read<AppState>().apiKey;
-    _apiKey = TextEditingController(text: key);
-    if (key.trim().isNotEmpty) _fetchModels(key);
-  }
 
   @override
   void dispose() {
-    _apiKey.dispose();
-    _debounce?.cancel();
+    _search.dispose();
     super.dispose();
-  }
-
-  void _onApiKeyChanged(String value) {
-    context.read<AppState>().setApiKey(value);
-    // Kullanıcı yazarken her tuşta ağ isteği atmamak için 600ms debounce.
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), () {
-      if (value.trim().isNotEmpty) _fetchModels(value);
-    });
-  }
-
-  /// Bu anahtarla kullanılabilir modelleri Gemini'den çeker. Anahtar
-  /// geçersizse veya ağ hatası olursa yedek statik listeye sessizce düşülür
-  /// (kullanıcı yine de bir model seçip devam edebilsin).
-  Future<void> _fetchModels(String apiKey) async {
-    final key = apiKey.trim();
-    if (key.isEmpty || key == _fetchedForKey) return;
-    setState(() {
-      _loadingModels = true;
-      _modelsError = null;
-      _noModels = false;
-    });
-    try {
-      final models = await GeminiService.listModels(key);
-      if (!mounted) return;
-      setState(() {
-        _fetchedModels = models.isEmpty ? null : models;
-        _fetchedForKey = key;
-        _loadingModels = false;
-        _noModels = models.isEmpty;
-      });
-      // Kaydedilmiş model bu anahtarda mevcut değilse (ör. ilk kurulum,
-      // ya da eski seçim artık desteklenmiyor) listenin en iyisine geç.
-      if (models.isNotEmpty && !models.contains(context.read<AppState>().model)) {
-        context.read<AppState>().setModel(models.first);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loadingModels = false;
-        _modelsError = '$e';
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    // Hata metni build'de çevriliyor: `setState` içinde üretilseydi dil
-    // değişince ekranda ESKİ dilde asılı kalırdı.
-    final modelsError = _noModels
-        ? context.t('settings.model_none')
-        : _modelsError;
-    final models = _fetchedModels ?? _fallbackModels;
-    final model = models.contains(appState.model) ? appState.model : models.first;
-
-    // Bölüm bazlı arama: 7 bölüm × ~20 satır, aramasız bulunmuyordu. Süzme
-    // BÖLÜM düzeyinde — satır düzeyi her satıra ayrı anahtar kelime listesi
-    // yazmayı gerektirirdi ve bakımı ilk eklenen ayarda bozulurdu.
+    final categories = settingsCategories();
     final q = _query.trim().toLowerCase();
-    bool shows(String titleKey) =>
-        q.isEmpty || context.t(titleKey).toLowerCase().contains(q);
-
-    // Sıra MANTIKLI (2026-08-07 kullanıcı: *"ayarlar kısmı eskidi, görsel ve
-    // mantıksal olarak düzenlenmeli"*): önce "kimim" (hesap), sonra her açılışta
-    // görünen şeyler (arayüz: tema + dil), sonra yeteneği açan ayar (yapay
-    // zekâ) ve onun eki (hafıza), sonra dosya yöneticisi, en sonda hakkında.
-    // Eskiden yapay zekâ ile dil arasında bir bağ yokken yan yanaydı ve dil,
-    // temadan ayrı bir bölümdeydi.
-    final sections = <Widget>[
-      if (shows('settings.account')) const _AccountSection(),
-      if (shows('settings.appearance') || shows('settings.language'))
-        _interfaceSection(appState),
-      if (shows('settings.ai_section'))
-        _aiSection(appState, models, model, modelsError),
-      if (shows('settings.memory')) _memorySection(appState),
-      if (shows('settings.perf_section')) const _PerformanceSection(),
-      if (shows('settings.fm_section')) const _FileManagerSection(),
-      if (shows('settings.about')) const _AboutSection(),
-    ];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('settings.title')),
-        actions: [
-          IconButton(
-            tooltip: context.t('set.search_hint'),
-            icon: Icon(_searching ? Icons.close : Icons.search),
-            onPressed: () => setState(() {
-              _searching = !_searching;
-              if (!_searching) _query = '';
-            }),
-          ),
-        ],
-        bottom: !_searching
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(56),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: TextField(
-                    autofocus: true,
-                    onChanged: (v) => setState(() => _query = v),
-                    decoration: InputDecoration(
-                      hintText: context.t('set.search_hint'),
-                      prefixIcon: const Icon(Icons.search),
-                    ),
-                  ),
-                ),
+        // Arama kutusu HEP açık, düğme arkasında değil: "ayarı bulamıyorum"
+        // sorununun çözümü, aramanın önce keşfedilmesini gerektirmemeli.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+            child: TextField(
+              controller: _search,
+              onChanged: (v) => setState(() => _query = v),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: context.t('set.search_all'),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: q.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: context.t('common.clear'),
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() {
+                          _query = '';
+                          _search.clear();
+                        }),
+                      ),
               ),
-      ),
-      body: sections.isEmpty
-          ? Center(child: Text(context.t('set.no_match')))
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-              children: sections,
-            ),
-    );
-  }
-
-  /// Arayüz: tema + dil TEK grupta.
-  ///
-  /// İkisi de "uygulama bana nasıl görünsün" sorusunun cevabı; ayrı iki bölüm
-  /// olmaları kullanıcıyı dili ararken tema başlığının altına baktırıyordu.
-  Widget _interfaceSection(AppState appState) => SettingsGroup(
-        icon: Icons.palette_outlined,
-        title: context.t('settings.appearance'),
-        subtitle: context.t('settings.appearance_sub'),
-        children: [
-          _fieldLabel(context.t('settings.theme')),
-          const SizedBox(height: Gap.sm),
-          // Yatayda kaydırılabilir: üç etiket dar ekranda/büyük yazı tipinde
-          // taşıyordu.
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SegmentedButton<ThemeMode>(
-              showSelectedIcon: false,
-              segments: [
-                ButtonSegment(
-                    value: ThemeMode.system,
-                    label: Text(context.t('settings.theme_system'))),
-                ButtonSegment(
-                    value: ThemeMode.light,
-                    label: Text(context.t('settings.theme_light'))),
-                ButtonSegment(
-                    value: ThemeMode.dark,
-                    label: Text(context.t('settings.theme_dark'))),
-              ],
-              selected: {appState.themeMode},
-              onSelectionChanged: (s) => appState.setThemeMode(s.first),
             ),
           ),
-          const Divider(height: Gap.lg * 1.5),
-          // Yazı tipi ve boyutu: cihazın sistem ayarı YOK SAYILIYOR
-          // (bkz. `DosyaOkuyucuApp.builder`), tek yer burası.
-          //
-          // Yazı tipi bir SegmentedButton değil, satır + alt sayfa: on aile
-          // tek satıra sığmıyordu ve her birinin nasıl göründüğü ancak kendi
-          // yazı tipiyle yazılınca anlaşılıyor.
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.t('settings.ui_font')),
-            subtitle: Text(
-              _fontLabel(appState.uiFont),
-              style: TextStyle(fontFamily: appState.uiFont, fontSize: 15),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _pickUiFont(appState),
-          ),
-          const SizedBox(height: Gap.sm),
-          _fieldLabel(context.t('settings.ui_text_size')),
-          const SizedBox(height: Gap.sm),
-          // Hazır kademeler: "küçük / orta / büyük / çok büyük" tek dokunuş.
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SegmentedButton<double>(
-              showSelectedIcon: false,
-              segments: [
-                for (final step in AppTheme.uiTextScales)
-                  ButtonSegment(
-                    value: step.$2,
-                    label: Text(context.t(step.$1)),
-                  ),
-              ],
-              // Kaydırıcıyla ara bir değere gelindiyse EN YAKIN kademe seçili
-              // görünür; hiçbiri seçili olmayan bir çubuk bozuk sanılıyordu.
-              selected: {_nearestScale(appState.uiTextScale)},
-              onSelectionChanged: (v) => appState.setUiTextScale(v.first),
-            ),
-          ),
-          const SizedBox(height: Gap.xs),
-          // İnce ayar isteyen için kaydırıcı (kademeler onun üstünde duruyor).
-          Row(
-            children: [
-              Expanded(
-                child: Slider(
-                  value: appState.uiTextScale,
-                  min: 0.85,
-                  max: 1.4,
-                  divisions: 11,
-                  label: '%${(appState.uiTextScale * 100).round()}',
-                  onChanged: (v) => appState.setUiTextScale(v),
-                ),
-              ),
-              Text('%${(appState.uiTextScale * 100).round()}',
-                  style: TextStyle(fontSize: 12, color: Paper.faint(context))),
-            ],
-          ),
-          Text(
-            context.t('settings.ui_text_size_note'),
-            style: TextStyle(fontSize: 12, color: Paper.faint(context)),
-          ),
-          const Divider(height: Gap.lg * 1.5),
-          _fieldLabel(context.t('settings.language')),
-          const SizedBox(height: Gap.sm),
-          const _LanguageSection(),
-        ],
-      );
-
-  /// Ayarlanmış ölçeğe en yakın hazır kademe (kaydırıcı ara değere gelmişse).
-  double _nearestScale(double value) {
-    var best = AppTheme.uiTextScales.first.$2;
-    for (final step in AppTheme.uiTextScales) {
-      if ((step.$2 - value).abs() < (best - value).abs()) best = step.$2;
-    }
-    return best;
-  }
-
-  String _fontLabel(String family) => AppTheme.uiFonts
-      .firstWhere((f) => f.$2 == family,
-          orElse: () => (family, family))
-      .$1;
-
-  /// Yazı tipi seçimi — her seçenek KENDİ yazı tipiyle yazılır, altında da
-  /// Türkçe bir örnek satır: ad ("Nunito") tek başına neye benzediğini
-  /// söylemiyor.
-  Future<void> _pickUiFont(AppState appState) async {
-    final pick = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm),
-              child: Text(ctx.t('settings.ui_font'),
-                  style: Theme.of(ctx).textTheme.titleMedium),
-            ),
-            for (final f in AppTheme.uiFonts)
-              ListTile(
-                title: Text(f.$1,
-                    style: TextStyle(fontFamily: f.$2, fontSize: 17)),
-                subtitle: Text(
-                  ctx.t('settings.font_sample'),
-                  style: TextStyle(fontFamily: f.$2),
-                ),
-                trailing:
-                    f.$2 == appState.uiFont ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(ctx, f.$2),
-              ),
-          ],
         ),
       ),
+      body: q.isEmpty ? _categoryList(categories) : _searchResults(categories, q),
     );
-    if (pick != null) await appState.setUiFont(pick);
   }
 
-  /// Grup içi alan etiketi ("Tema", "Dil"): başlık değil, alanın adı.
-  Widget _fieldLabel(String text) => Text(
-        text,
-        style: Theme.of(context)
-            .textTheme
-            .labelLarge
-            ?.copyWith(fontWeight: FontWeight.w600),
+  /// Kategori kartları — ana görünüm.
+  Widget _categoryList(List<SettingsCategory> categories) => ListView.builder(
+        padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, Gap.xl),
+        itemCount: categories.length,
+        itemBuilder: (context, i) => _CategoryCard(category: categories[i]),
       );
 
-  Widget _memorySection(AppState appState) => SettingsGroup(
-        icon: Icons.bookmark_outline,
-        title: context.t('settings.memory'),
-        subtitle: context.t('settings.memory_sub'),
-        count: appState.memory.isEmpty ? null : '${appState.memory.length}',
-        children: [
-          if (appState.memory.isEmpty)
-            Text(context.t('settings.memory_empty'),
-                style: Theme.of(context).textTheme.bodySmall)
-          else
-            // Grup zaten bir kart: iç içe kart "kutu içinde kutu" oluyordu.
-            // Notlar ince ayraçlı düz satırlar.
-            ...appState.memory.asMap().entries.map(
-                  (e) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(e.value,
-                        maxLines: 3, overflow: TextOverflow.ellipsis),
-                    trailing: IconButton(
-                      tooltip: context.t('common.delete'),
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => appState.removeMemory(e.key),
-                    ),
-                  ),
-                ),
-        ],
-      );
-
-  Widget _aiSection(
-    AppState appState,
-    List<String> models,
-    String model,
-    String? modelsError,
-  ) {
-    return SettingsGroup(
-      icon: Icons.auto_awesome_outlined,
-      title: context.t('settings.ai_section'),
-      subtitle: context.t('settings.ai_sub'),
-      children: [
-          TextField(
-            controller: _apiKey,
-            obscureText: _obscure,
-            decoration: InputDecoration(
-              labelText: context.t('settings.api_key'),
-              hintText: 'AIza...',
-              suffixIcon: IconButton(
-                icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscure = !_obscure),
-              ),
-            ),
-            onChanged: _onApiKeyChanged,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            context.t('settings.api_key_note'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          // **Doğrulama satırı**: bilgi zaten `_fetchModels`ta vardı ama
-          // aşağıda model listesinin altına gömülüydü — "anahtarım çalışıyor
-          // mu" sorusu anahtarın hemen altında cevaplanmalı.
-          if (appState.hasApiKey) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(
-                  _fetchedModels != null
-                      ? Icons.check_circle_outline
-                      : (modelsError != null
-                          ? Icons.error_outline
-                          : Icons.hourglass_empty),
-                  size: 16,
-                  color: _fetchedModels != null
-                      ? Paper.success(context)
-                      : (modelsError != null
-                          ? Theme.of(context).colorScheme.error
-                          : Paper.faint(context)),
-                ),
-                const SizedBox(width: Gap.xs),
-                Flexible(
-                  child: Text(
-                    _fetchedModels != null
-                        ? context.t('set.key_valid',
-                            {'n': _fetchedModels!.length})
-                        : (modelsError != null
-                            ? context.t('set.key_invalid')
-                            : context.t('settings.model_refresh')),
-                    style: TextStyle(fontSize: 12, color: Paper.faint(context)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: model,
-                  decoration: InputDecoration(
-                    labelText: context.t(_fetchedModels != null
-                        ? 'settings.model_fetched'
-                        : 'settings.model_default'),
-                  ),
-                  items: models
-                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                      .toList(),
-                  onChanged: (v) => v == null ? null : appState.setModel(v),
-                ),
-              ),
-              const SizedBox(width: 4),
-              if (_loadingModels)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              else
-                IconButton(
-                  tooltip: context.t('settings.model_refresh'),
-                  icon: const Icon(Icons.refresh),
-                  onPressed: appState.hasApiKey
-                      ? () {
-                          _fetchedForKey = null; // zorla yeniden çek
-                          _fetchModels(appState.apiKey);
-                        }
-                      : null,
-                ),
-            ],
-          ),
-          if (modelsError != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              context.t('settings.model_error', {'error': modelsError}),
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.error, fontSize: 12),
-            ),
-          ],
-      ],
-    );
-  }
-}
-
-/// Arayüz dili seçimi.
-///
-/// Diller **kendi dillerinde** yazılır (Türkçe / English / العربية): dilini
-/// bulmaya çalışan kullanıcı, o an anlamadığı bir dilde yazılmış listeyi
-/// okuyamaz. "Sistem" seçeneği ise seçili dilde yazılır — o, dilin adı değil
-/// bir davranış.
-class _LanguageSection extends StatelessWidget {
-  const _LanguageSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Dikey dört radyo ekranın yarısını yiyordu → tek satır segment.
-        // Yatayda kaydırılabilir: Arapça etiket + "Sistem" dar ekranda taşar.
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<AppLanguage>(
-            showSelectedIcon: false,
-            segments: [
-              for (final lang in AppLanguage.values)
-                ButtonSegment(
-                  value: lang,
-                  label: Text(lang == AppLanguage.system
-                      ? context.t('settings.language_system')
-                      : lang.nativeLabel),
-                ),
-            ],
-            selected: {appState.language},
-            onSelectionChanged: (s) => appState.setLanguage(s.first),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(context.t('settings.language_note'),
-            style: Theme.of(context).textTheme.bodySmall),
-      ],
-    );
-  }
-}
-
-class _AccountSection extends StatefulWidget {
-  const _AccountSection();
-  @override
-  State<_AccountSection> createState() => _AccountSectionState();
-}
-
-class _AccountSectionState extends State<_AccountSection> {
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-  bool _busy = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _email.dispose();
-    _password.dispose();
-    super.dispose();
-  }
-
-  Future<void> _run(Future<String?> Function() action) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    final err = await action();
-    if (mounted) {
-      setState(() {
-        _busy = false;
-        _error = err;
-      });
+  /// Arama sonuçları: eşleşen **ayarın kendisi**, kategorisiyle birlikte.
+  Widget _searchResults(List<SettingsCategory> categories, String q) {
+    final blocks = <Widget>[];
+    for (final category in categories) {
+      final hits =
+          category.rows.where((r) => r.matches(context, q)).toList();
+      if (hits.isEmpty) continue;
+      blocks.add(SectionHeader(context.t(category.titleKey)));
+      for (final row in hits) {
+        blocks.add(row.builder(context));
+      }
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-
-    if (!appState.firebaseAvailable) {
-      return SettingsGroup(
-        icon: Icons.phone_android_outlined,
-        title: context.t('settings.account'),
-        subtitle: context.t('settings.account_sub'),
-        children: [
-          Text(context.t('settings.account_local')),
-          const SizedBox(height: 6),
-          Text(
-            context.t('settings.account_local_note'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+    if (blocks.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.lg),
+          child: Text(context.t('set.no_match'), textAlign: TextAlign.center),
+        ),
       );
     }
-
-    if (appState.signedIn) {
-      return SettingsGroup(
-        icon: Icons.cloud_done_outlined,
-        title: context.t('settings.account'),
-        subtitle: context.t('settings.sync_active'),
-        children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-                appState.userEmail ?? context.t('settings.signed_in')),
-            subtitle: Text(context.t('settings.sync_active')),
-            trailing: TextButton(
-              onPressed: _busy ? null : () => _run(() async {
-                await appState.signOut();
-                return null;
-              }),
-              child: Text(context.t('settings.sign_out')),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return SettingsGroup(
-      icon: Icons.account_circle_outlined,
-      title: context.t('settings.account'),
-      subtitle: context.t('settings.account_sub'),
-      children: [
-        TextField(
-          controller: _email,
-          keyboardType: TextInputType.emailAddress,
-          decoration:
-              InputDecoration(labelText: context.t('settings.email')),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _password,
-          obscureText: true,
-          decoration:
-              InputDecoration(labelText: context.t('settings.password')),
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: 8),
-          Text(_error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error)),
-        ],
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton(
-                onPressed: _busy
-                    ? null
-                    : () => _run(() =>
-                        appState.signInWithEmail(_email.text, _password.text)),
-                child: Text(context.t('settings.sign_in')),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _busy
-                    ? null
-                    : () => _run(() => appState.registerWithEmail(
-                        _email.text, _password.text)),
-                child: Text(context.t('settings.register')),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed:
-              _busy ? null : () => _run(() => appState.signInWithGoogle()),
-          icon: const Icon(Icons.login),
-          label: Text(context.t('settings.google_sign_in')),
-        ),
-      ],
+    return ListView(
+      padding: const EdgeInsets.only(bottom: Gap.xl),
+      children: blocks,
     );
   }
 }
 
-/// Dosya yöneticisi ayarlarına köprü.
+/// Bir ayar kategorisini **doğrudan** açar (`settingsCategories()` kimlikleri:
+/// `appearance`, `browsing`, `ai`, `account`, `privacy`, `trash`,
+/// `performance`, `about`).
 ///
-/// O ekran yalnız gezgin panosundan açılabiliyordu; "ayarlar" diye buraya
-/// gelen kullanıcı küçük resim/gizli dosya/çöp ayarlarını hiç bulamıyordu.
-/// **Pil ve başarım** — kullanıcının pil/akıcılık dengesini kendi kurduğu yer.
-///
-/// Niye ayrı bir bölüm (2026-08-07 denetimi): uygulamanın en pahalı iki
-/// alışkanlığı 120 Hz ekran ve 12 saatte bir yapılan tam depolama taramasıydı
-/// ve ikisi de KOŞULSUZ açıktı. İkisi de çoğu kullanıcı için doğru varsayılan,
-/// ama pili biten ya da on binlerce dosyası olan kullanıcının bunları
-/// kapatabilmesi gerekir. Kapatınca uygulama yeteneğini KAYBETMEZ: tazeleme
-/// yalnız yavaşlar, tarama da elle (aşağı çekerek) yapılır.
-class _PerformanceSection extends StatelessWidget {
-  const _PerformanceSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    return SettingsGroup(
-      icon: Icons.battery_saver_outlined,
-      title: context.t('settings.perf_section'),
-      subtitle: context.t('settings.perf_sub'),
-      children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: appState.highRefreshRate,
-          title: Text(context.t('settings.perf_high_refresh')),
-          subtitle: Text(context.t('settings.perf_high_refresh_sub')),
-          // Anında uygulanır: "yeniden başlat" isteyen bir ayar denenmeden
-          // kapatılıp unutulur.
-          onChanged: (v) async {
-            await appState.setHighRefreshRate(v);
-            await applyRefreshRate(v);
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: appState.autoRescan,
-          title: Text(context.t('settings.perf_auto_rescan')),
-          subtitle: Text(context.t('settings.perf_auto_rescan_sub')),
-          onChanged: appState.setAutoRescan,
-        ),
-      ],
-    );
-  }
+/// Ekranlar "ayarlara git" derken kullanıcıyı ana listeye bırakıp aradığını
+/// kendisi bulmaya zorlamamalı: çöp kutusundaki "otomatik boşaltma kapalı"
+/// uyarısı tam o ayarın olduğu sayfayı açar. Kimlik bulunamazsa (yazım hatası)
+/// ana ayar ekranı açılır — kullanıcı hiçbir durumda boşluğa düşmez.
+Future<void> openSettingsCategory(BuildContext context, String id) {
+  final match = settingsCategories().where((c) => c.id == id).toList();
+  return Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => match.isEmpty
+        ? const SettingsScreen()
+        : SettingsCategoryScreen(category: match.first),
+  ));
 }
 
-class _FileManagerSection extends StatelessWidget {
-  const _FileManagerSection();
+/// Ana ekrandaki kategori kartı: simge · ad · ne olduğu · mevcut değer.
+class _CategoryCard extends StatelessWidget {
+  final SettingsCategory category;
 
-  @override
-  Widget build(BuildContext context) {
-    return SettingsGroup(
-      icon: Icons.folder_outlined,
-      title: context.t('settings.fm_section'),
-      subtitle: context.t('settings.fm_sub'),
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(context.t('settings.fm_open')),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const FmSettingsScreen()),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AboutSection extends StatelessWidget {
-  const _AboutSection();
-  @override
-  Widget build(BuildContext context) {
-    return SettingsGroup(
-      icon: Icons.info_outline,
-      title: context.t('settings.about'),
-      subtitle: context.t('settings.about_sub'),
-      children: [
-        Text(context.t('settings.about_body'),
-            style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 8),
-        // LGPL v3 ATIF YÜKÜMLÜLÜĞÜ: uygulama FFmpeg kütüphanelerini
-        // dağıtıyor; lisans atfın kullanıcıya erişilebilir olmasını istiyor.
-        // Ayrıntı ve kaynak bağlantıları depo kökündeki LICENSES.md'de.
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.balance_outlined),
-          title: Text(context.t('settings.oss')),
-          subtitle: Text(context.t('settings.oss_sub')),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => showOpenSourceLicenses(context),
-        ),
-      ],
-    );
-  }
-}
-
-/// Ayarlar grubunun kabı: **simge + başlık + tek satır açıklama** taşıyan bir
-/// kart.
-///
-/// KÖK NEDEN (2026-08-07 kullanıcı: *"ayarlar kısmı eskidi, görsel ve mantıksal
-/// olarak düzenlenmeli"*): bölümler sayfa zemininde başlıksız-kutusuz duran
-/// gevşek bileşen yığınlarıydı; nerede bittiği, hangi ayarın hangi başlığa ait
-/// olduğu ancak boşluktan tahmin ediliyordu. Simge tanımayı hızlandırır,
-/// açıklama da "bu bölüm ne işe yarar" sorusunu başlıkta cevaplar.
-class SettingsGroup extends StatelessWidget {
-  final IconData icon;
-  final String title;
-
-  /// Başlığın altındaki tek satırlık "bu bölüm ne yapar" açıklaması.
-  final String? subtitle;
-
-  /// Başlığın sağındaki sayaç (ör. hafıza notu sayısı).
-  final String? count;
-
-  final List<Widget> children;
-
-  const SettingsGroup({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.children,
-    this.subtitle,
-    this.count,
-  });
+  const _CategoryCard({required this.category});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
-      margin: const EdgeInsets.only(bottom: Gap.md),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 22, color: scheme.primary),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      if (subtitle != null)
-                        Text(
-                          subtitle!,
-                          style: TextStyle(
-                              fontSize: 12, color: Paper.faint(context)),
-                        ),
-                    ],
-                  ),
-                ),
-                if (count != null)
-                  Text(count!,
+      margin: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => SettingsCategoryScreen(category: category),
+        )),
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Row(
+            children: [
+              Icon(category.icon, size: 24, color: scheme.primary),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.t(category.titleKey),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      context.t(category.subtitleKey),
+                      style:
+                          TextStyle(fontSize: 12, color: Paper.faint(context)),
+                    ),
+                    const SizedBox(height: Gap.xs),
+                    // Mevcut değer: kategoriyi açmadan ne ayarlı olduğu.
+                    Text(
+                      category.summary(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 12, color: Paper.faint(context))),
-              ],
-            ),
-            const Divider(height: Gap.lg),
-            ...children,
-          ],
+                        fontSize: 12,
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Paper.faint(context)),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
-/// Açık kaynak bileşen ve lisans bilgisi.
-///
-/// **Niye bir ekran gerekiyor:** uygulama FFmpeg kütüphanelerini (LGPL v3)
-/// dağıtıyor ve lisans, atfın ve kaynak kodun nereden alınacağının kullanıcıya
-/// ulaşmasını gerektiriyor. Depodaki `LICENSES.md` tek başına yetmez — uygulamayı
-/// mağazadan kuran kullanıcı depoyu görmez.
-///
-/// GPL'li kodlayıcıların (x264/x265) bilinçli olarak DAĞITILMADIĞI da burada
-/// yazılı: "neden bazı videolar mpeg4 çıkıyor" sorusunun dürüst cevabı bu.
-Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('settings.oss')),
-        content: const SingleChildScrollView(
-          child: Text(
-            'FFmpeg 8.1.2 — GNU Lesser General Public License v3.0 (LGPL v3)\n'
-            'Video boyut düşürme, çözünürlük ve kare sayısı değiştirme '
-            'işlemlerinde kullanılır.\n\n'
-            'Kaynak kodu:\n'
-            '• https://ffmpeg.org/download.html\n'
-            '• https://github.com/arthenica/ffmpeg-kit\n\n'
-            'Kütüphane değiştirilmeden, dinamik bağlı paylaşımlı kütüphane '
-            '(.so) olarak dağıtılır; APK içinden çıkarılıp uyumlu başka bir '
-            'sürümle değiştirilebilir.\n\n'
-            'GPL lisanslı kodlayıcılar (x264, x265, xvidcore) bilinçli olarak '
-            'DAĞITILMIYOR. Bu yüzden H.264 çıktısı cihazın donanım '
-            'kodlayıcısıyla üretilir; donanım kodlayıcısı olmayan cihazlarda '
-            'FFmpeg’in mpeg4 kodlayıcısına düşülür.\n\n'
-            'Diğer bileşenler (Flutter, PDFium/pdfrx, Syncfusion Flutter PDF, '
-            'Google ML Kit, Firebase, excel, archive, koni_archive, image, '
-            'video_player, audioplayers, video_compress, '
-            'flutter_local_notifications …) izin verici (BSD/MIT/Apache 2.0) '
-            'ya da ticari kullanıma açık lisanslarla dağıtılır. Tam liste: '
-            'depodaki LICENSES.md ve pubspec.yaml.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.t('common.close')),
-          ),
-        ],
-      ),
-    );

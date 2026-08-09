@@ -290,7 +290,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
             source: _files,
             filter: _filter,
             onChanged: (f) => setState(() => _filter = f),
-            extraChips: widget.showDocKinds ? _docKindChips() : const [],
+            leading: widget.showDocKinds ? _docKindChips() : const [],
           ),
           Expanded(
             child: files.isEmpty
@@ -467,7 +467,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   /// Belge türü çipleri (PDF / Word / Excel / Slayt / Metin / Diğer).
   /// Boş tür gösterilmez; sayılar gerçek dosya sayısıdır.
   ///
-  /// [FmQuickFilters.extraChips]'e verilir — kendi satırında değil, süzgeç
+  /// [FmQuickFilters.leading]'e verilir — kendi satırında değil, süzgeç
   /// çipleriyle AYNI yatay satırda çizilir (bkz. oradaki not).
   List<Widget> _docKindChips() {
     final counts = <DocKind, int>{};
@@ -489,27 +489,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (kinds.length < 2) return const [];
 
     return [
-      Padding(
-        padding: const EdgeInsets.only(right: Gap.sm),
-        child: ChoiceChip(
-          visualDensity: VisualDensity.compact,
-          label: Text(context.t('ph.all_count', {'n': _files.length})),
-          selected: _docKind == null,
-          onSelected: (_) => setState(() => _docKind = null),
-        ),
+      FmChip(
+        label: context.t('flt.all'),
+        count: _files.length,
+        selected: _docKind == null,
+        onTap: () => setState(() => _docKind = null),
       ),
       for (final k in kinds)
-        Padding(
-          padding: const EdgeInsets.only(right: Gap.sm),
-          child: ChoiceChip(
-            visualDensity: VisualDensity.compact,
-            label: Text(context.t('ph.chip_count', {
-              'label': context.t(k.labelKey),
-              'n': counts[k],
-            })),
-            selected: _docKind == k,
-            onSelected: (_) => setState(() => _docKind = k),
-          ),
+        FmChip(
+          label: context.t(k.labelKey),
+          count: counts[k],
+          selected: _docKind == k,
+          onTap: () => setState(() => _docKind = k),
         ),
     ];
   }

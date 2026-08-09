@@ -7,6 +7,139 @@ import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/open_history.dart';
 
+/// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
+///
+/// KÖK NEDEN (2026-08-09 kullanıcı, ekran görüntüsüyle: *"görüntüler ve
+/// videolardaki işaretli üst alan çok yer kaplıyor, kompaktlaşmalı"*):
+/// Fotoğraflar ekranında üst üste **dört** satır vardı — gün/ay/yıl ölçeği,
+/// kaynak çipleri, hızlı süzgeçler ve "kopya gizlendi" uyarısı — ve birlikte
+/// ~180 dp yiyorlardı. 7559 dosyalık bir galeride ekranın üçte biri süzgeç
+/// oluyordu. Artık hepsi **tek** yatay satırda ve sıkı (compact) çizilir;
+/// üst alan 180 dp'den 38 dp'ye indi.
+const double kFmFilterBarHeight = 38;
+
+/// Süzgeç satırının tek çipi: **sıkı** (yükseklik `kFmFilterBarHeight` - 6),
+/// küçük punto, dar iç boşluk.
+///
+/// Material'ın varsayılan `FilterChip`i 48 dp'lik dokunma hedefiyle gelir;
+/// yan yana üç satır çip bu yüzden ekranın üçte birini yiyordu. Dokunma hedefi
+/// küçülüyor ama satırın kendisi 38 dp — parmakla vurulacak kadar geniş.
+class FmChip extends StatelessWidget {
+  final String label;
+
+  /// Etiketin yanına ` · 12` diye eklenen sayı. 0/`null` ise yazılmaz.
+  final int? count;
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  /// Etiketin solundaki küçük simge (ör. kopya uyarısı).
+  final IconData? icon;
+
+  const FmChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.count,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final n = count ?? 0;
+    return Padding(
+      padding: const EdgeInsets.only(right: Gap.xs),
+      child: FilterChip(
+        selected: selected,
+        showCheckmark: false, // onay imi çipi ~20 dp genişletiyordu
+        avatar: icon == null ? null : Icon(icon, size: 14),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 0),
+        labelStyle: const TextStyle(fontSize: 12, height: 1.1),
+        label: Text(n > 0 ? '$label · $n' : label),
+        onSelected: (_) => onTap(),
+      ),
+    );
+  }
+}
+
+/// [FmChip] ile **aynı ölçüde** ama dokunmayı YUTMAYAN pil.
+///
+/// `PopupMenuButton`ın çocuğu olarak kullanılır: `FilterChip`in kendi jest
+/// tanıyıcısı üstteki menü düğmesinin dokunuşunu yutar ve menü hiç açılmaz.
+/// Görünüşü çipe eş olsun diye ölçüler tek yerden (`FmChip`) kopyalanmıştır.
+class FmPill extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+
+  /// Soluk çizilsin mi (ör. seçim sürerken pasif duran uyarı pili).
+  final bool disabled;
+
+  const FmPill({
+    super.key,
+    required this.label,
+    this.icon,
+    this.disabled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final ink = disabled ? Paper.faint(context) : scheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(right: Gap.xs),
+      child: Container(
+        height: kFmFilterBarHeight - 8,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+        decoration: BoxDecoration(
+          border: Border.all(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(Radii.control),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: ink),
+              const SizedBox(width: Gap.xs),
+            ],
+            Text(label, style: TextStyle(fontSize: 12, color: ink)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Liste/galeri ekranlarının üstündeki **tek satırlık** süzgeç şeridi.
+///
+/// Sabit yükseklikli (`kFmFilterBarHeight`) yatay kaydırmalı bir satır: içine
+/// ne konursa konsun ekranın üstünden aldığı yer değişmez. Seçim başlayınca
+/// gizlenmez — gizlenirse altındaki ızgara yukarı zıplıyordu (2026-07-29).
+class FmFilterBar extends StatelessWidget {
+  final List<Widget> children;
+
+  const FmFilterBar({super.key, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: kFmFilterBarHeight,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+        children: [
+          for (final child in children)
+            Align(alignment: Alignment.center, child: child),
+        ],
+      ),
+    );
+  }
+}
+
 /// Liste ekranlarının üstündeki **tek dokunuşluk süzgeç çipleri**.
 ///
 /// Süzgeç sayfası (`showFmFilterSheet`) her şeyi yapabiliyordu ama üç dokunuş
@@ -40,14 +173,18 @@ class FmQuickFilters extends StatefulWidget {
   /// bunu kapatır — aynı çip iki kez görünmesin.
   final bool showBuckets;
 
-  /// Satırın sonuna eklenecek ekrana özel çipler (ör. belge türleri).
+  /// Süzgeç çiplerinden **önce** aynı satıra çizilen ekrana özel bileşenler
+  /// (ör. gün/ay/yıl ölçeği, kaynak çipleri, belge türü çipleri).
   ///
-  /// **Niye burada:** kategori ekranında bu satırın ALTINDA ikinci bir çip
-  /// satırı daha vardı; ikisi birlikte 92 dp yer kaplıyor, telefon ekranında
-  /// listeye kalan yeri gözle görülür daraltıyordu (kullanıcı 2026-08-09:
-  /// *"üst filtre alanları çok yer kaplıyor, sayfa daralıyor"*). Tek satır,
-  /// yatay kaydırmalı.
-  final List<Widget> extraChips;
+  /// **Niye burada:** bunların her biri eskiden KENDİ satırındaydı; galeride
+  /// dört satır birlikte ~180 dp yiyor, telefon ekranında listeye kalan yeri
+  /// gözle görülür daraltıyordu (kullanıcı 2026-08-09: *"üst alan çok yer
+  /// kaplıyor, kompaktlaşmalı"*). Tek satır, yatay kaydırmalı.
+  final List<Widget> leading;
+
+  /// Süzgeç çiplerinden **sonra** çizilenler (ör. "N kopya gizlendi" uyarısı).
+  /// Süzgeçler önce gelir: satırın başı en sık kullanılan şeye ayrılmıştır.
+  final List<Widget> trailing;
 
   const FmQuickFilters({
     super.key,
@@ -56,7 +193,8 @@ class FmQuickFilters extends StatefulWidget {
     required this.onChanged,
     this.untouchedDays = 180,
     this.showBuckets = true,
-    this.extraChips = const [],
+    this.leading = const [],
+    this.trailing = const [],
   });
 
   @override
@@ -151,67 +289,53 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
         counts.untouched == 0 &&
         counts.openedWithin == 0 &&
         counts.large == 0 &&
-        widget.extraChips.isEmpty) {
+        widget.leading.isEmpty &&
+        widget.trailing.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    Widget chip(String label, int count, bool selected, VoidCallback onTap) =>
-        Padding(
-          padding: const EdgeInsets.only(right: Gap.sm),
-          child: FilterChip(
-            selected: selected,
-            visualDensity: VisualDensity.compact,
-            label: Text(count > 0 ? '$label · $count' : label),
-            onSelected: (_) => onTap(),
+    return FmFilterBar(
+      children: [
+        ...widget.leading,
+        // "Son 6 ayda açılanlar" ÖNCE: kullanıcının aradığı dosya çoğunlukla
+        // yakında dokunduğu dosyadır; "açılmamışlar" yer açma işidir.
+        if (counts.openedWithin > 0 || f.openedWithinDays != null)
+          FmChip(
+            label: context.t('fm.quick_opened_within', {'n': months}),
+            count: counts.openedWithin,
+            selected: f.openedWithinDays != null,
+            onTap: () => widget.onChanged(widget.filter.withOpenedWithinDays(
+                f.openedWithinDays == null ? widget.untouchedDays : null)),
           ),
-        );
-
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-        children: [
-          ...widget.extraChips,
-          // "Son 6 ayda açılanlar" ÖNCE: kullanıcının aradığı dosya çoğunlukla
-          // yakında dokunduğu dosyadır; "açılmamışlar" yer açma işidir.
-          if (counts.openedWithin > 0 || f.openedWithinDays != null)
-            chip(
-              context.t('fm.quick_opened_within', {'n': months}),
-              counts.openedWithin,
-              f.openedWithinDays != null,
-              () => widget.onChanged(widget.filter.withOpenedWithinDays(
-                  f.openedWithinDays == null ? widget.untouchedDays : null)),
-            ),
-          if (counts.untouched > 0 || f.untouchedDays != null)
-            chip(
-              context.t('fm.quick_untouched', {'n': months}),
-              counts.untouched,
-              f.untouchedDays != null,
-              () => widget.onChanged(widget.filter.withUntouchedDays(
-                  f.untouchedDays == null ? widget.untouchedDays : null)),
-            ),
-          if (counts.large > 0 || f.sizeRange == FmSizeRange.large)
-            chip(
-              context.t(FmSizeRange.large.labelKey),
-              counts.large,
-              f.sizeRange == FmSizeRange.large,
-              () => widget.onChanged(widget.filter.withSizeRange(
-                  f.sizeRange == FmSizeRange.large
-                      ? FmSizeRange.any
-                      : FmSizeRange.large)),
-            ),
-          for (final (bucket, count) in counts.buckets)
-            chip(
-              // Çeviri anahtarı: `bucket.label` Türkçe SABİT ("Kamera",
-              // "İndirilenler"), ekranda gösterilen ad ondan bağımsız olmalı.
-              context.t(bucket.labelKey),
-              count,
-              f.buckets.contains(bucket),
-              () => widget.onChanged(widget.filter.toggleBucket(bucket)),
-            ),
-        ],
-      ),
+        if (counts.untouched > 0 || f.untouchedDays != null)
+          FmChip(
+            label: context.t('fm.quick_untouched', {'n': months}),
+            count: counts.untouched,
+            selected: f.untouchedDays != null,
+            onTap: () => widget.onChanged(widget.filter.withUntouchedDays(
+                f.untouchedDays == null ? widget.untouchedDays : null)),
+          ),
+        if (counts.large > 0 || f.sizeRange == FmSizeRange.large)
+          FmChip(
+            label: context.t(FmSizeRange.large.labelKey),
+            count: counts.large,
+            selected: f.sizeRange == FmSizeRange.large,
+            onTap: () => widget.onChanged(widget.filter.withSizeRange(
+                f.sizeRange == FmSizeRange.large
+                    ? FmSizeRange.any
+                    : FmSizeRange.large)),
+          ),
+        for (final (bucket, count) in counts.buckets)
+          FmChip(
+            // Çeviri anahtarı: `bucket.label` Türkçe SABİT ("Kamera",
+            // "İndirilenler"), ekranda gösterilen ad ondan bağımsız olmalı.
+            label: context.t(bucket.labelKey),
+            count: count,
+            selected: f.buckets.contains(bucket),
+            onTap: () => widget.onChanged(widget.filter.toggleBucket(bucket)),
+          ),
+        ...widget.trailing,
+      ],
     );
   }
 }
