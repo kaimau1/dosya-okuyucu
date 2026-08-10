@@ -70,7 +70,7 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
         context.t('aw.prompt', {'task': task, 'text': widget.text});
     try {
       final answer =
-          await GeminiService(apiKey: state.apiKey, model: state.model).chat(
+          await state.gemini.chat(
         history: [
           ChatTurn(
             fromUser: true,

@@ -123,6 +123,9 @@ jobs:
           # Manifest'teki <provider android:name=".DosyaProvider"> bunu arar;
           # kopyalanmazsa derleme "class not found" ile kırılır.
           cp ci/DosyaProvider.kt "$DIR/DosyaProvider.kt"
+          # Seçici kipi aktivitesi ("Şuradan aç" çekmecesindeki ok işareti).
+          # Manifest'teki <activity android:name=".PickerActivity"> bunu arar.
+          cp ci/PickerActivity.kt "$DIR/PickerActivity.kt"
           # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
           # kalırsa "duplicate class" hatası verir.
           rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java

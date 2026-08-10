@@ -16,7 +16,6 @@ import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/similar_finder.dart';
 import '../../services/fm/thumbnail_cache.dart';
-import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
 
@@ -235,7 +234,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
     }
     try {
       final service =
-          GeminiService(apiKey: appState.apiKey, model: appState.model);
+          appState.gemini;
       final answer = await service.compareImages([
         for (final preview in previews)
           (name: preview.name, bytes: preview.bytes),

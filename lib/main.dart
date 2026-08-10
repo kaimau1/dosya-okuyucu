@@ -13,6 +13,7 @@ import 'core/theme.dart';
 import 'screens/fm/job_navigation.dart';
 import 'screens/fm/jobs_screen.dart';
 import 'screens/fm/resize_actions.dart';
+import 'screens/fm/pick_file_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/fm/file_tags.dart';
 import 'services/fm/fm_env.dart';
@@ -27,6 +28,23 @@ Future<void> main() async {
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // **Seçici kipi** (başka bir uygulama bizden dosya istedi — `PickerActivity`).
+  // Ayrı ve KISA bir açılış: iş kuyruğu, bildirim köprüsü, yarım kalan işlerin
+  // geri yüklenmesi burada çalıştırılmaz. Çağıran uygulama beklerken saniyeler
+  // süren bir açılış yaşatmak bir yana, seçici kipinde arka planda dosya
+  // taşıyan bir kuyruğu diriltmek istenmeyen bir yan etki olurdu.
+  if (WidgetsBinding.instance.platformDispatcher.defaultRouteName ==
+      pickerRoute) {
+    final pickerState = AppState();
+    await pickerState.init();
+    runApp(
+      ChangeNotifierProvider<AppState>.value(
+        value: pickerState,
+        child: const DosyaOkuyucuApp(picker: true),
+      ),
+    );
+    return;
+  }
   // Uzun işlerin (yer aç, kopya/benzer arama, boyut düşürme) sistem bildirimi
   // köprüsü. Bildirim izni verilmezse ya da eklenti kurulamazsa sessizce
   // geçilir — işler yine çalışır, yalnız bildirim görünmez.
@@ -112,8 +130,15 @@ void _openJobFromNotification(String jobId) {
   unawaited(openJobTarget(context, job));
 }
 
+/// `PickerActivity`nin Flutter'a verdiği başlangıç yolu. Tek yerde tanımlı:
+/// Kotlin tarafındaki değerle birebir aynı olmalı (bkz. ci/PickerActivity.kt).
+const pickerRoute = '/picker';
+
 class DosyaOkuyucuApp extends StatelessWidget {
-  const DosyaOkuyucuApp({super.key});
+  /// Seçici kipinde mi açıldı? (Ana ekran yerine dosya seçme ekranı.)
+  final bool picker;
+
+  const DosyaOkuyucuApp({super.key, this.picker = false});
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +179,7 @@ class DosyaOkuyucuApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const HomeScreen(),
+      home: picker ? const PickFileScreen() : const HomeScreen(),
     );
   }
 }

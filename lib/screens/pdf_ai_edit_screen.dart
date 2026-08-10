@@ -101,7 +101,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
     final prompt = context.t('pa.prompt', {'task': task});
     try {
       final gemini =
-          GeminiService(apiKey: state.apiKey, model: state.model);
+          state.gemini;
       final answer = await gemini.chat(
         history: [
           ChatTurn(

@@ -221,8 +221,7 @@ class _StatusBar extends StatelessWidget {
     // Analiz uzun sürer ve ekran kapanabilir; state okumaları burada bitiyor.
     await AiAnalyzer.start(
       scope: state.aiScopeRules,
-      apiKey: state.apiKey,
-      model: state.model,
+      credentials: state.aiCredentials,
       reanalyze: reanalyze,
     );
   }
@@ -275,8 +274,7 @@ class _ChatTabState extends State<_ChatTab> {
     try {
       final answer = await AiAsk.ask(
         question: question,
-        apiKey: state.apiKey,
-        model: state.model,
+        gemini: state.gemini,
         scope: state.aiScopeRules,
       );
       if (!mounted) return;

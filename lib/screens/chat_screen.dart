@@ -98,7 +98,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToEnd();
 
     final service =
-        GeminiService(apiKey: appState.apiKey, model: appState.model);
+        appState.gemini;
     try {
       final reply = await service.chat(
         history: _turns,

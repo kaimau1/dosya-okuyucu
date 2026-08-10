@@ -7,7 +7,6 @@ import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/ai_slides.dart';
 import '../services/conversion_service.dart';
-import '../services/gemini_service.dart';
 import '../services/pptx_writer.dart';
 import '../services/text_to_slides.dart';
 
@@ -71,7 +70,7 @@ class AiSlidesFlow {
       try {
         plan = await AiSlides.generate(
           gemini:
-              GeminiService(apiKey: appState.apiKey, model: appState.model),
+              appState.gemini,
           text: source,
           // Deste kullanıcının ARAYÜZ dilinde çıksın: Arapça arayüz kullanan
           // birine Türkçe slayt üretmek işe yaramaz. Dilin KENDİ adı

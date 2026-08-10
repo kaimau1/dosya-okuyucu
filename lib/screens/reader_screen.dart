@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../core/copy_text.dart';
 import '../core/l10n/app_strings.dart';
-import '../services/gemini_service.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/read_aloud_ai.dart';
 import '../services/tts_service.dart';
@@ -113,7 +112,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final state = context.read<AppState>();
     if (state.ttsAiRead && state.hasApiKey) {
       text = _narration[page] ??= await ReadAloudAi.tidyOrOriginal(
-        GeminiService(apiKey: state.apiKey, model: state.model),
+        state.gemini,
         text,
       );
       if (!mounted || !_speaking || page != _speakPage) return;
