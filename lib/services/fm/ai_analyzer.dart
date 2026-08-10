@@ -248,6 +248,12 @@ abstract final class AiAnalyzer {
     var failed = 0;
     var backoffStep = 0;
 
+    // Kota beklemesinden sonra AYNI grup yeniden denenir; özleri (PDF
+    // ayrıştırma, OCR) ikinci kez çıkarmak saf israf olurdu — 6 görselin OCR'ı
+    // saniyeler sürer ve pil yakar. Son grubun özü elde tutulur.
+    var cachedIndex = -1;
+    Map<FsEntry, AiExcerpt> cachedExcerpts = const {};
+
     for (var i = 0; i < queue.length; i += _batchSize) {
       if (_cancelRequested) break;
       await _waitWhilePaused();
@@ -261,14 +267,22 @@ abstract final class AiAnalyzer {
         currentName: batch.first.name,
       );
 
-      // 1) Yerel çıkarım (cihazda, ücretsiz).
-      final excerpts = <FsEntry, AiExcerpt>{};
-      for (final entry in batch) {
-        if (!scope.allowsContent(entry)) continue;
-        excerpts[entry] = await AiExtract.excerpt(
-          entry,
-          maxChars: _clampChars(scope.settings.excerptKb),
-        );
+      // 1) Yerel çıkarım (cihazda, ücretsiz) — yeniden denemede atlanır.
+      final Map<FsEntry, AiExcerpt> excerpts;
+      if (cachedIndex == i) {
+        excerpts = cachedExcerpts;
+      } else {
+        final fresh = <FsEntry, AiExcerpt>{};
+        for (final entry in batch) {
+          if (!scope.allowsContent(entry)) continue;
+          fresh[entry] = await AiExtract.excerpt(
+            entry,
+            maxChars: _clampChars(scope.settings.excerptKb),
+          );
+        }
+        excerpts = fresh;
+        cachedIndex = i;
+        cachedExcerpts = fresh;
       }
 
       // 2) Yerel kip ya da buluta gidecek hiçbir şey yoksa kuralla sınıflandır.
@@ -323,8 +337,13 @@ abstract final class AiAnalyzer {
         continue;
       } catch (e) {
         // Beklenmeyen hata: grubu yerel sonuçla kaydet, iş devam etsin.
-        await AiIndex.putAll(
-            [for (final entry in batch) _localRecord(entry, excerpts[entry])]);
+        // `markAnalyzed: false`: bu dosyalar GERÇEKTEN analiz edilmedi.
+        // Taze işaretlenirlerse artımlı süzgeç onları bir daha hiç denemez ve
+        // geçici bir hata kalıcı bir boşluğa dönüşür.
+        await AiIndex.putAll([
+          for (final entry in batch)
+            _localRecord(entry, excerpts[entry], markAnalyzed: false)
+        ]);
         failed += batch.length;
         done += batch.length;
         progress.value =
@@ -540,7 +559,11 @@ abstract final class AiAnalyzer {
   }
 
   /// AI'sız kayıt: kural tabanlı sınıflandırma (ücretsiz, çevrimdışı).
-  static AiRecord _localRecord(FsEntry entry, AiExcerpt? excerpt) {
+  static AiRecord _localRecord(
+    FsEntry entry,
+    AiExcerpt? excerpt, {
+    bool markAnalyzed = true,
+  }) {
     final text = excerpt?.text ?? '';
     final guess = classifyDocumentText(text, fileName: entry.name);
     final confident = guess.isConfident;
@@ -558,7 +581,7 @@ abstract final class AiAnalyzer {
       // Yerel geçiş de "analiz edildi" sayılır: aynı dosya her turda yeniden
       // okunursa artımlılık anlamını yitirir. AI kipine geçilince kullanıcı
       // "yeniden analiz et" ile hepsini tazeleyebilir.
-      analyzedMs: DateTime.now().millisecondsSinceEpoch,
+      analyzedMs: markAnalyzed ? DateTime.now().millisecondsSinceEpoch : 0,
       source: 'local',
     );
   }
