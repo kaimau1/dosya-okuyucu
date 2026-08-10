@@ -7794,3 +7794,84 @@ bir bölüm değil bir satırdı.
 **1580 test yeşil** (l10n tablo ve "sabit Türkçe metin yok" bekçileri dahil).
 `graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil) —
 yerelde çalıştırılmalı.
+
+## 2026-08-10 — AI ile tüm dosya analizi + "Şuradan aç" listesinde görünme
+Kullanıcı iki şey istedi: **(1)** ekran görüntüsüyle *"pull burada ki listede
+bizim adımız yok"* — Android dosya seçicisinin kaynak çekmecesi; **(2)** *"ai
+ile tüm dosya analizi… bana sorular sor planlayalım"*. Planlama turunda yedi
+soru soruldu; kararlar aşağıda ve kodun tepesindeki notlarda.
+
+### A) Planlama turunun kararları (kullanıcının seçtikleri)
+- **Kapsam:** arka planda tüm cihaz indeksi (yerel çıkarım + AI kayıt).
+- **Gizlilik:** buluta yalnız **meta + ilk N KB metin** (varsayılan 6 KB).
+- **Çıktı:** dördü birden — dosya sohbeti, etiket/önem, ad+klasör önerisi, rapor.
+- **Maliyet:** kullanıcının kendi Gemini anahtarı; ücretsiz kotayı korumak bizim işimiz.
+- **Yer:** panoda AI kartı → tek merkez (`AiHubScreen`).
+- **Tetik:** **elle başlatılır** (otomatik/şarj tetiklemesi YOK).
+- **Kullanıcının eklediği şart:** *"kapsama girmeyecek klasörleri ve filtreleri
+  (mesela kamera klasörü) seçilebilmeli, kameram ile çektiğim fotoğraflara
+  erişmesini istemiyorum."*
+
+### B) Kapsam denetimi indeksin TEMELİ (sonradan takılan süzgeç değil)
+`lib/services/fm/ai_scope.dart` üç katman: sabit dışlamalar (`Android/data`,
+`Android/obb`, uygulamanın çöp kutusu, önbellek/küçük resim klasörleri) ·
+PIN'li klasörler (`FolderLock`) · kullanıcı seçimi. **İlk kurulumda
+`DCIM/Camera` kapalı gelir** ve bu bir kez tohumlanır (`ai_scope_seeded`) —
+kullanıcı kamerayı kapsama alırsa karar geri alınmaz.
+- **KARAR:** kapsam daraltılınca o klasörün ESKİ analiz kayıtları da silinir
+  (`AiIndex.dropOutOfScope`). Aksi hâlde "artık bakma" denen klasör sohbet
+  yanıtlarında ve raporda görünmeye devam ederdi; ayarın anlamı kalmazdı.
+- **KARAR:** görsellerin kendisi varsayılan olarak buluta **gitmez**; görselden
+  metin cihaz-içi OCR ile okunur, yalnız o metin (ve "metin gönder" açıksa)
+  gider. `sendImages` ayrı ve varsayılan kapalı bir anahtardır.
+- **Dürüst sınır (kullanıcıya da böyle söylendi):** bu ayarlar AI hattını
+  kapatır — uygulamanın kendi dosya gezgini/araması (kullanıcının kendi
+  cihazında, ağa çıkmadan) o klasörleri listelemeye devam eder.
+
+### C) Kuyruk: ücretsiz kotanın içinde kalma mühendisliği
+`ai_analyzer.dart` — dosya başına bir istek DEĞİL, **6'lı grup** (ücretsiz
+kotada sınır dakikadaki istek sayısı; 2.000 dosya tek tek sorulursa ilk 15
+dosyada duvara çarpılır). İstekler arası 4 sn nefes payı, 429/5xx'te üstel geri
+çekilme (8→120 sn), günlük dosya bütçesi (varsayılan 400), duraklat/durdur.
+Her grup sonunda sonuç diske yazılır → yarıda kesilme kayıp değil, artımlı
+devam. Anahtar yoksa **yerel kip**: `classifyDocumentText` ile tür/önem, özet
+üretilmez.
+- **TUZAK/DÜZELTME:** `GeminiException`a `statusCode` eklendi. Hata metninden
+  "(429)" aramak (ilk taslak) çeviri/biçim değişince sessizce bozulurdu;
+  "geçici mi kalıcı mı" kararı artık koda dayanıyor.
+
+### D) Soru-cevap: maliyeti SABİT tutan iki aşama
+`ai_ask.dart` — soru sözcükleri indekste yerel elenir (ücretsiz), yalnız en iyi
+30 kayıt modele gider. Telefonda 500 dosya da olsa 50.000 dosya da olsa soru
+başına maliyet aynı. Cevapla birlikte **kaynak dosyalar** döner (dokununca
+açılır): kaynaksız AI cevabı dosya yöneticisinde doğrulanamaz, yanlışsa fark
+edilmez.
+- **TUZAK (test yakaladı):** tam sözcük eşleşmesi Türkçede çalışmıyor —
+  "faturalarım nerede" sorusu "elektrik-faturasi.pdf" ile eşleşmiyordu. Çözüm:
+  eşleşme sözcüğün **ilk beş harfiyle** (`_stem`). Aday seçimi olduğu için
+  yanlış pozitif zararsız, son kararı model veriyor.
+
+### E) "Şuradan aç" çekmecesi = DocumentsProvider
+Manifestteki VIEW/SEND filtreleri "Birlikte aç" ve "Paylaş" menülerine sokar;
+seçicinin sol çekmecesi (Son / İndirilenler / Dosya Yöneticisi / Drive…)
+**yalnız `DocumentsProvider` bildiren** uygulamaları listeler. `ci/
+DosyaProvider.kt` eklendi (kökler: dahili + Android 11+ takılabilir birimler;
+listeleme, açma, arama, oluştur/sil/adlandır, küçük resim), manifeste
+`<provider … android:permission="MANAGE_DOCUMENTS">` ve iş akışına kopyalama
+adımı. Belge kimliği = mutlak yol (AOSP `ExternalStorageProvider` deseni).
+- **Not:** izin verilmemişse kök yine listelenir ama içi boş görünür — seçicide
+  hiç görünmemek asıl şikâyetin ta kendisiydi.
+
+### F) Başarım pürüzleri (yazarken düzeltildi)
+- Liste satırında `FsEntry.ofPath` = satır başına `existsSync/statSync` → ana
+  izlekte disk G/Ç. Girdi artık kayıttan kuruluyor, diske dokunulmuyor.
+- Panodaki kart "bekleyen öneri" sayısını her çizimde tüm indeksi tarayarak
+  buluyordu → `AiIndex.suggestionCount` önbelleğe alındı (yalnız indeks
+  değişince sayılır).
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze` 0 hata/uyarı, tüm test takımı yeşil; yeni 28 test
+(`ai_scope_test`, `ai_index_test`) kamera dışlamasını, kapsam daraldığında
+kaydın silinmesini, öneri güvenliğini (uzantı korunur, klasör ayıracı
+temizlenir) ve soru elemesini kilitliyor. **APK yalnız CI'da doğrulanır.**
+`graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil).
