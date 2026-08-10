@@ -119,6 +119,10 @@ jobs:
           DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
           mkdir -p "$DIR"
           cp ci/MainActivity.kt "$DIR/MainActivity.kt"
+          # Belge sağlayıcı (SAF): "Şuradan aç" listesinde görünmemizi sağlar.
+          # Manifest'teki <provider android:name=".DosyaProvider"> bunu arar;
+          # kopyalanmazsa derleme "class not found" ile kırılır.
+          cp ci/DosyaProvider.kt "$DIR/DosyaProvider.kt"
           # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
           # kalırsa "duplicate class" hatası verir.
           rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java

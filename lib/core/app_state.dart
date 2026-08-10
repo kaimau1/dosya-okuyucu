@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +13,9 @@ import '../models/photo_group.dart';
 import '../models/remote_connection.dart';
 import '../models/recent_file.dart';
 import '../services/firebase_service.dart';
+import '../services/fm/ai_scope.dart';
 import '../services/fm/folder_lock.dart';
+import '../services/fm/storage_stats.dart' show StorageStats;
 import '../services/tts_service.dart' show TtsPrefs;
 
 /// Uygulama genel durumu: tema, AI ayarları, son açılan dosyalar.
@@ -49,6 +53,10 @@ class AppState extends ChangeNotifier {
   // Sesli okuma tercihleri (ses/hız/perde + "AI ile oku")
   static const _kTtsPrefs = 'tts_prefs';
   static const _kTtsAiRead = 'tts_ai_read';
+  // AI toplu analizinin kapsamı (dışlanan klasörler, türler, gizlilik).
+  // Tek JSON anahtarı — bkz. AiScopeSettings.toJson.
+  static const _kAiScope = 'ai_scope';
+  static const _kAiScopeSeeded = 'ai_scope_seeded';
 
   late SharedPreferences _prefs;
 
@@ -94,6 +102,14 @@ class AppState extends ChangeNotifier {
   String _fmStartFolder = '';
   List<RecentFile> _recents = [];
   List<String> _memory = [];
+
+  /// AI toplu analizinin kapsamı.
+  ///
+  /// **İlk kurulumda kamera klasörü kapalı gelir** (kullanıcı isteği
+  /// 2026-08-10: *"kameram ile çektiğim fotoğraflara erişmesini istemiyorum"*).
+  /// Bu bir kez tohumlanır (`_kAiScopeSeeded`): kullanıcı kamera klasörünü
+  /// listeden çıkarırsa bir sonraki açılışta geri gelmemeli.
+  AiScopeSettings _aiScope = const AiScopeSettings();
 
   String get apiKey => _apiKey;
   String get model => _model;
@@ -372,6 +388,7 @@ class AppState extends ChangeNotifier {
         .whereType<RecentFile>()
         .toList();
     _memory = _prefs.getStringList(_kMemory) ?? [];
+    _loadAiScope();
     _bookmarks = _prefs.getStringList(_kBookmarks) ?? [];
     _recentDests = _prefs.getStringList(_kRecentDests) ?? [];
     _fmLockPinHash = _prefs.getString(_kLockPin) ?? '';
@@ -495,6 +512,46 @@ class AppState extends ChangeNotifier {
   Future<void> setTtsAiRead(bool value) async {
     _ttsAiRead = value;
     await _prefs.setBool(_kTtsAiRead, value);
+    notifyListeners();
+  }
+
+  /// Kapsamı diskten okur; ilk açılışta kamera klasörünü dışlayarak tohumlar.
+  ///
+  /// Tohumlama **bir kez** yapılır: kullanıcı kamera klasörünü kapsama almayı
+  /// seçerse (listeden çıkarırsa) bir sonraki açılışta karar geri alınmamalı.
+  void _loadAiScope() {
+    final raw = _prefs.getString(_kAiScope);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, Object?>) {
+          _aiScope = AiScopeSettings.fromJson(decoded);
+          return;
+        }
+      } catch (_) {
+        // Bozuk kayıt: kısıtlayıcı varsayılana düş (aşağıdaki tohumlama).
+      }
+    }
+    if (_prefs.getBool(_kAiScopeSeeded) == true) return;
+    _aiScope = _aiScope.copyWith(
+      excludedFolders: AiScope.defaultExclusions(StorageStats.primaryPath),
+    );
+    _prefs.setBool(_kAiScopeSeeded, true);
+    _prefs.setString(_kAiScope, jsonEncode(_aiScope.toJson()));
+  }
+
+  /// AI analiz kapsamı (dışlanan klasörler, türler, gizlilik anahtarları).
+  AiScopeSettings get aiScope => _aiScope;
+
+  /// Kapsam kurallarını **kilitli klasörlerle birlikte** verir — AI motoru
+  /// bunu kullanır, ayrı ayrı `AiScope(...)` kurmaz (kilitli klasörü unutan
+  /// bir çağrı gizlilik açığı olurdu).
+  AiScope get aiScopeRules =>
+      AiScope(settings: _aiScope, lockedFolders: _lockedFolders);
+
+  Future<void> setAiScope(AiScopeSettings value) async {
+    _aiScope = value;
+    await _prefs.setString(_kAiScope, jsonEncode(value.toJson()));
     notifyListeners();
   }
 

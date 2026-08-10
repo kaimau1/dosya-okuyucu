@@ -5279,6 +5279,207 @@ const Map<String, (String, String, String)> _table = {
     'يطابق أيضًا لقطات متتالية للمشهد نفسه؛ قد تحدث مطابقات خاطئة.',
   ),
 
+  // ── AI analiz kuyruğu (arka planda, bağlamsız — AppStrings.current) ───────
+  'aiq.collecting': ('Dosyalar toplanıyor…', 'Collecting files…', 'جارٍ جمع الملفات…'),
+  'aiq.all_fresh': (
+    'Kapsamdaki her dosya zaten analiz edilmiş.',
+    'Every file in scope is already analyzed.',
+    'كل ملف ضمن النطاق مُحلَّل بالفعل.',
+  ),
+  'aiq.budget_done': (
+    'Bugünlük dosya bütçesi doldu. Yarın devam edilebilir.',
+    'Today\'s file budget is used up. You can continue tomorrow.',
+    'انتهت حصة اليوم من الملفات. يمكنك المتابعة غدًا.',
+  ),
+  'aiq.budget_split': (
+    'Günlük bütçe: bugün {n} dosya işlenecek, {rest} dosya yarına kaldı.',
+    'Daily budget: {n} files today, {rest} left for tomorrow.',
+    'الحصة اليومية: {n} ملف اليوم و{rest} متبقٍ للغد.',
+  ),
+  'aiq.waiting': (
+    'Kota sınırı — {sec} sn bekleniyor…',
+    'Quota limit — waiting {sec} s…',
+    'حد الحصة — الانتظار {sec} ثانية…',
+  ),
+  'aiq.quota_stuck': ('Kota açılmadı: {error}', 'Quota did not recover: {error}', 'لم تُستعد الحصة: {error}'),
+  'aiq.finished': ('{n} dosya analiz edildi.', '{n} files analyzed.', 'تم تحليل {n} ملف.'),
+  'aiq.stopped': (
+    'Durduruldu — {n} dosya işlendi, sonuçlar kaydedildi.',
+    'Stopped — {n} files processed, results saved.',
+    'أُوقف — تمت معالجة {n} ملف وحُفظت النتائج.',
+  ),
+
+  // ── AI Merkezi (toplu dosya analizi) ──────────────────────────────────────
+  'aih.title': ('AI Merkezi', 'AI Hub', 'مركز الذكاء الاصطناعي'),
+  'aih.tab_chat': ('Sohbet', 'Chat', 'محادثة'),
+  'aih.tab_tags': ('Etiketler', 'Tags', 'الوسوم'),
+  'aih.tab_suggestions': ('Öneriler', 'Suggestions', 'اقتراحات'),
+  'aih.tab_report': ('Rapor', 'Report', 'تقرير'),
+  'aih.scope_settings': ('Kapsam ayarları', 'Scope settings', 'إعدادات النطاق'),
+  'aih.start': ('Analizi başlat', 'Start analysis', 'ابدأ التحليل'),
+  'aih.continue': ('Devam et', 'Continue', 'متابعة'),
+  'aih.reanalyze': ('Hepsini yeniden analiz et', 'Re-analyze everything', 'أعد تحليل كل شيء'),
+  'aih.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
+  'aih.resume': ('Sürdür', 'Resume', 'استئناف'),
+  'aih.stop': ('Durdur', 'Stop', 'إيقاف'),
+  'aih.analyzed': (
+    '{n} dosya analiz edildi',
+    '{n} files analyzed',
+    'تم تحليل {n} ملف',
+  ),
+  'aih.scope_summary': (
+    '{n} klasör kapsam dışı · kapsamı ayarlardan değiştir',
+    '{n} folders excluded · change the scope in settings',
+    '{n} مجلد خارج النطاق · غيّر النطاق من الإعدادات',
+  ),
+  'aih.no_key_note': (
+    'API anahtarı yok — yerel kip: tür ve önem tahmini yapılır, özet üretilmez.',
+    'No API key — local mode: type and importance are guessed, no summaries.',
+    'لا يوجد مفتاح API — الوضع المحلي: يُخمَّن النوع والأهمية دون ملخصات.',
+  ),
+  'aih.need_key': (
+    'Sohbet için Ayarlar > Gemini API anahtarı gerekir.',
+    'Chat needs a Gemini API key (Settings).',
+    'تحتاج المحادثة إلى مفتاح Gemini API من الإعدادات.',
+  ),
+  'aih.chat_empty': (
+    'Dosyalarına soru sor',
+    'Ask your files',
+    'اسأل ملفاتك',
+  ),
+  'aih.chat_empty_sub': (
+    'Örnek: "geçen ay indirdiğim faturalar", "kira sözleşmem nerede", '
+        '"bu yıl taradığım kimlik belgeleri".',
+    'For example: "invoices I downloaded last month", "where is my lease", '
+        '"ID documents I scanned this year".',
+    'مثال: «الفواتير التي نزّلتها الشهر الماضي»، «أين عقد الإيجار»، '
+        '«وثائق الهوية التي مسحتها هذا العام».',
+  ),
+  'aih.chat_hint': ('Bir soru yaz…', 'Type a question…', 'اكتب سؤالًا…'),
+  'aih.sources': ('Kaynak dosyalar', 'Source files', 'الملفات المصدر'),
+  'aih.no_match': (
+    'Analiz edilen dosyalarda eşleşme yok.',
+    'No match among the analyzed files.',
+    'لا تطابق ضمن الملفات المُحلَّلة.',
+  ),
+  'aih.tags_empty': (
+    'Henüz analiz yok',
+    'No analysis yet',
+    'لا يوجد تحليل بعد',
+  ),
+  'aih.tags_empty_sub': (
+    'Yukarıdaki "Analizi başlat" düğmesi dosyaları okuyup etiketler.',
+    'The "Start analysis" button above reads and tags your files.',
+    'زر «ابدأ التحليل» أعلاه يقرأ ملفاتك ويضع لها وسومًا.',
+  ),
+  'aih.filter_important': ('Yalnız önemli', 'Important only', 'المهم فقط'),
+  'aih.sug_empty': (
+    'Bekleyen öneri yok',
+    'No pending suggestions',
+    'لا اقتراحات معلّقة',
+  ),
+  'aih.sug_empty_sub': (
+    'Analiz, anlamsız adlandırılmış ya da yanlış klasördeki dosyalar için '
+        'öneri üretir.',
+    'Analysis suggests fixes for badly named or misplaced files.',
+    'يقترح التحليل إصلاحات للملفات ذات الأسماء غير المفيدة أو في مجلد خاطئ.',
+  ),
+  'aih.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'aih.apply_selected': ('Uygula ({n})', 'Apply ({n})', 'تطبيق ({n})'),
+  'aih.applied': (
+    '{ok} dosya düzenlendi, {fail} atlandı',
+    '{ok} files updated, {fail} skipped',
+    'تم تحديث {ok} ملف وتخطّي {fail}',
+  ),
+  'aih.report_empty': ('Rapor için önce analiz gerekir', 'Analyze first to see a report', 'حلّل أولًا لعرض التقرير'),
+  'aih.report_empty_sub': (
+    'Analiz bittiğinde burada tür dağılımı, önemli evrak ve çöp adayları çıkar.',
+    'After analysis you get type breakdown, important documents and junk candidates.',
+    'بعد التحليل يظهر توزيع الأنواع والمستندات المهمة والمرشّحة للحذف.',
+  ),
+  'aih.report_analyzed': ('Analiz edilen dosya', 'Files analyzed', 'ملفات محلَّلة'),
+  'aih.report_important': ('Önemli evrak', 'Important documents', 'مستندات مهمة'),
+  'aih.report_junk': ('Silinebilir aday', 'Deletion candidates', 'مرشّحة للحذف'),
+  'aih.report_suggestions': ('Bekleyen öneri', 'Pending suggestions', 'اقتراحات معلّقة'),
+  'aih.report_types': ('Türlere göre', 'By type', 'حسب النوع'),
+  'aih.card_title': ('AI Asistan', 'AI assistant', 'مساعد الذكاء الاصطناعي'),
+  'aih.card_idle': (
+    'Dosyalarını analiz et, sonra onlara soru sor',
+    'Analyze your files, then ask them questions',
+    'حلّل ملفاتك ثم اسألها',
+  ),
+  'aih.card_ready': (
+    '{n} dosya analiz edildi · {s} öneri bekliyor',
+    '{n} files analyzed · {s} suggestions pending',
+    'تم تحليل {n} ملف · {s} اقتراح معلّق',
+  ),
+
+  // ── AI kapsam ayarları ────────────────────────────────────────────────────
+  'aiset.excluded': ('Kapsam dışı klasörler', 'Excluded folders', 'مجلدات مستثناة'),
+  'aiset.excluded_sub': (
+    'Buradaki klasörler analiz edilmez, içerikleri AI\'ya hiç gönderilmez. '
+        'Kamera klasörü varsayılan olarak kapalıdır.',
+    'These folders are never analyzed and their contents never leave the device. '
+        'The camera folder is excluded by default.',
+    'لا تُحلَّل هذه المجلدات ولا تغادر محتوياتها الجهاز. '
+        'مجلد الكاميرا مستثنى افتراضيًا.',
+  ),
+  'aiset.exclude_add': ('Klasör dışla', 'Exclude a folder', 'استثنِ مجلدًا'),
+  'aiset.exclude_pick': ('Bu klasörü dışla', 'Exclude this folder', 'استثنِ هذا المجلد'),
+  'aiset.include_again': ('Kapsama geri al', 'Include again', 'أعده إلى النطاق'),
+  'aiset.types': ('Analiz edilen türler', 'Analyzed types', 'الأنواع المُحلَّلة'),
+  'aiset.types_sub': (
+    'Kapalı tür hiç okunmaz.',
+    'Types left off are never read.',
+    'الأنواع المغلقة لا تُقرأ إطلاقًا.',
+  ),
+  'aiset.send_text': ('Metin özünü gönder', 'Send text excerpt', 'أرسل مقتطف النص'),
+  'aiset.send_text_sub': (
+    'Belgenin ilk {kb} KB metni Gemini\'ye gider. Kapalıyken yalnız dosya adı '
+        've boyutu gönderilir.',
+    'The first {kb} KB of text goes to Gemini. When off, only name and size are sent.',
+    'تُرسل أول {kb} كيلوبايت من النص إلى Gemini. عند الإيقاف يُرسل الاسم والحجم فقط.',
+  ),
+  'aiset.send_images': ('Görselleri gönder', 'Send images', 'أرسل الصور'),
+  'aiset.send_images_sub': (
+    'Kapalıyken görselin kendisi asla yüklenmez; yalnız cihazda okunan metin '
+        '(OCR) kullanılır.',
+    'When off the image itself is never uploaded; only on-device OCR text is used.',
+    'عند الإيقاف لا تُرفع الصورة أبدًا؛ يُستخدم نص OCR المستخرج على الجهاز فقط.',
+  ),
+  'aiset.hidden': ('Gizli dosyalar', 'Hidden files', 'الملفات المخفية'),
+  'aiset.hidden_sub': (
+    'Nokta ile başlayan dosya ve klasörler de analiz edilsin mi?',
+    'Also analyze dot-files and dot-folders?',
+    'هل تُحلَّل أيضًا الملفات والمجلدات التي تبدأ بنقطة؟',
+  ),
+  'aiset.excerpt': ('Gönderilen metin', 'Text sent', 'النص المُرسل'),
+  'aiset.excerpt_sub': (
+    'Dosya başına buluta giden en fazla metin.',
+    'Maximum text sent to the cloud per file.',
+    'أقصى نص يُرسل إلى السحابة لكل ملف.',
+  ),
+  'aiset.budget': ('Günlük dosya bütçesi', 'Daily file budget', 'حصة الملفات اليومية'),
+  'aiset.budget_sub': (
+    'Ücretsiz Gemini kotasını tek seferde tüketmemek için günlük sınır.',
+    'Daily cap so the free Gemini quota is not burned in one run.',
+    'حد يومي كي لا تُستهلك حصة Gemini المجانية دفعة واحدة.',
+  ),
+  'aiset.forget': ('AI belleğini temizle', 'Clear AI memory', 'امسح ذاكرة الذكاء الاصطناعي'),
+  'aiset.forget_sub': (
+    'Tüm analiz kayıtlarını siler. Dosyalara dokunulmaz.',
+    'Deletes all analysis records. Your files are untouched.',
+    'يحذف كل سجلات التحليل. لا تُمسّ ملفاتك.',
+  ),
+  'aiset.forget_confirm': (
+    'Analiz sonuçları (etiket, özet, öneri) silinsin mi? Dosyalarınız silinmez.',
+    'Delete analysis results (tags, summaries, suggestions)? Your files stay.',
+    'هل تُحذف نتائج التحليل (الوسوم والملخصات والاقتراحات)؟ تبقى ملفاتك.',
+  ),
+  'set.sec_ai_scope': ('Analiz kapsamı', 'Analysis scope', 'نطاق التحليل'),
+  'set.sec_ai_privacy': ('Buluta ne gidiyor', 'What leaves the device', 'ما يغادر الجهاز'),
+  'set.sec_ai_budget': ('Bütçe ve bellek', 'Budget and memory', 'الحصة والذاكرة'),
+
   'enum.op_move': ('Taşıma', 'Move', 'نقل'),
   'enum.op_copy': ('Kopyalama', 'Copy', 'نسخ'),
   'enum.op_delete': ('Silme', 'Delete', 'حذف'),

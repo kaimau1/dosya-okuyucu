@@ -220,6 +220,31 @@
             </intent-filter>
         </activity>
 
+        <!-- ── BELGE SAĞLAYICI: "Şuradan aç" listesinde görünmek ───────────
+             Kullanıcı bulgusu 2026-08-10 (ekran görüntüsüyle): *"bu listede
+             bizim adımız yok"* — Android'in dosya seçicisindeki soldan açılan
+             kaynak çekmecesi (Son / İndirilenler / Dosya Yöneticisi / Drive…)
+             YALNIZCA `DocumentsProvider` bildiren uygulamaları listeler.
+             Yukarıdaki VIEW/SEND filtreleri "Birlikte aç" ve "Paylaş"
+             menüleri içindir, o çekmece için yetmez.
+
+             `android:permission="android.permission.MANAGE_DOCUMENTS"` sistemin
+             belge seçicisinden BAŞKA hiçbir uygulamanın sağlayıcıyı doğrudan
+             sorgulayamamasını sağlar (bu izin yalnız sistemde vardır); seçici
+             de seçilen dosya için çağırana geçici URI izni verir. Bu, Android
+             belgelendirmesindeki standart kalıptır — izinsiz `exported="true"`
+             bir sağlayıcı tüm depolamayı her uygulamaya açardı. -->
+        <provider
+            android:name=".DosyaProvider"
+            android:authorities="com.dosyaokuyucu.dosya_okuyucu.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER"/>
+            </intent-filter>
+        </provider>
+
         <!-- ── İş kuyruğunun ÖN PLAN SERVİSİ ───────────────────────────────
              Kullanıcı hatası 2026-07-30: "arka plana alınca uygulamayı
              duraklıyor işlem". Android, ön planda olmayan süreci (özellikle

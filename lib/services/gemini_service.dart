@@ -11,7 +11,22 @@ class ChatTurn {
 
 class GeminiException implements Exception {
   final String message;
-  GeminiException(this.message);
+
+  /// HTTP durum kodu (0 = ağ/çözümleme hatası, sunucuya ulaşılamadı).
+  ///
+  /// Toplu analiz kuyruğu buna bakar: **429 (kota) geçicidir** — beklenip
+  /// yeniden denenir; **400/403 (anahtar/istek hatası) kalıcıdır** — 500 dosya
+  /// boyunca aynı hatayı tekrarlamak yerine iş durdurulur. Metinden
+  /// ayıklamak ("(429)" arayarak) çeviri/biçim değişince sessizce bozulurdu.
+  final int statusCode;
+
+  GeminiException(this.message, {this.statusCode = 0});
+
+  /// Beklemenin işe yarayabileceği hata mı? (Kota aşımı, geçici sunucu hatası.)
+  bool get isRetryable =>
+      statusCode == 429 || statusCode == 500 || statusCode == 503 ||
+      statusCode == 504 || statusCode == 0;
+
   @override
   String toString() => message;
 }
@@ -83,7 +98,7 @@ class GeminiService {
     }
 
     if (resp.statusCode != 200) {
-      throw GeminiException(_readError(resp));
+      throw GeminiException(_readError(resp), statusCode: resp.statusCode);
     }
 
     final map = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -164,7 +179,9 @@ class GeminiService {
     } catch (e) {
       throw GeminiException('Ağ hatası: $e');
     }
-    if (resp.statusCode != 200) throw GeminiException(_readError(resp));
+    if (resp.statusCode != 200) {
+      throw GeminiException(_readError(resp), statusCode: resp.statusCode);
+    }
 
     final map = jsonDecode(resp.body) as Map<String, dynamic>;
     final candidates = map['candidates'] as List?;
@@ -251,7 +268,7 @@ class GeminiService {
       throw GeminiException('Ağ hatası: $e');
     }
     if (resp.statusCode != 200) {
-      throw GeminiException(_readErrorStatic(resp));
+      throw GeminiException(_readErrorStatic(resp), statusCode: resp.statusCode);
     }
     final data = jsonDecode(utf8.decode(resp.bodyBytes));
     final candidates = data['candidates'];
@@ -281,7 +298,7 @@ class GeminiService {
       throw GeminiException('Ağ hatası: $e');
     }
     if (resp.statusCode != 200) {
-      throw GeminiException(_readErrorStatic(resp));
+      throw GeminiException(_readErrorStatic(resp), statusCode: resp.statusCode);
     }
     final map = jsonDecode(resp.body) as Map<String, dynamic>;
     final list = (map['models'] as List?) ?? const [];
