@@ -208,12 +208,28 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
               : null,
         ),
         for (var i = 0; i < chain.length; i++)
-          ListTile(
+          // **"Model kaldırılmış olabilir"** (kullanıcı notu 2026-08-10):
+          // ölü bir model listede sessizce durursa her işte bir başarısız
+          // istek üretir. İki kaynak birleştiriliyor: anahtarın canlı model
+          // listesi (varsa) ve havuzun 404 gördüğü modeller.
+          Builder(builder: (context) {
+            final dead = AiPool.deadModels.contains(chain[i]) ||
+                (_available != null && !_available!.contains(chain[i]));
+            return ListTile(
             dense: true,
             contentPadding: const EdgeInsets.only(left: 56, right: Gap.sm),
             leading: null,
             title: Text('${i + 1}. ${chain[i]}',
                 maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: !dead
+                ? null
+                : Text(
+                    context.t('aipool.model_gone'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -242,7 +258,8 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
                 ),
               ],
             ),
-          ),
+          );
+          }),
         Padding(
           padding: const EdgeInsets.only(left: 56, bottom: Gap.sm),
           child: Align(

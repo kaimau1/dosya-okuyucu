@@ -7937,3 +7937,33 @@ tüm işlerde."* → `lib/services/ai_pool.dart`.
 `flutter analyze` lib'de 0 sorun, **tüm test takımı yeşil**; yeni testler:
 `ai_pool_test` (9 test — sıra, soğuma, geçersiz anahtar, kalıcı hata, anahtarın
 gizliliği), `picker_request_test` (5 test — MIME süzgeci).
+
+### H2) "Sadece kota değil, diğer hatalar da gözetilmeli" (aynı gün, düzeltme)
+Havuzun ilk sürümü 429'u yönetiyor, gerisini ya hiç denemiyor ya da sonsuza
+kadar deniyordu. Kullanıcı iki noktayı işaret etti: *"sadece kota değil diğer
+hatalarda gözetilmeli"* ve *"model kaldırılmış olabilir, çalışmayabilir."*
+Artık `AiPool.classify` altı sınıf üretiyor ve her birinin ayrı karşılığı var:
+
+| Sınıf | Belirti | Davranış |
+|---|---|---|
+| `quota` | 429 | katlamalı soğuma → sıradaki ikili |
+| `transient` | 500/502/503/504 | kısa soğuma → sıradaki ikili |
+| `modelMissing` | 404 · 400 + "not found/not supported" | **12 saat** eleme, "ölü model" damgası → sıradaki MODEL |
+| `auth` | 401/403 · 400 + anahtar metni | o ANAHTARIN tüm modelleri atlanır |
+| `network` | kodsuz + "ağ hatası/socket/timeout" | soğutma YOK, en çok 2 deneme |
+| `content` | kodsuz + engel/boş yanıt | en çok 2 model (güvenlik eşiği modele göre değişebiliyor) |
+
+- **TUZAK — 400 iki şeyi birden anlatıyor:** Gemini hem bozuk anahtarı hem
+  tanınmayan model adını 400 ile döndürüyor. Metne bakılmazsa "model
+  kaldırılmış" durumunda kullanıcının SAĞLAM anahtarı yarım saat devre dışı
+  kalıyordu. Sınıflandırma bu yüzden koda ek olarak mesaja da bakıyor.
+- **Ağ hatasında soğutma YOK:** internet yokken 30 ikiliyi işaretlemek,
+  bağlantı geri geldiğinde çalışan modelleri de dışlamak demekti.
+- Havuz tükendiğinde hata metni **sebebe göre** yazılıyor: "kotalar doldu" ile
+  "anahtar kabul edilmedi", "model kaldırılmış", "internet yok" ayrı cümleler.
+  Kullanıcıyı yanlış yere baktırmamak için.
+- Ayarlar > Model sırası: canlı model listesinde olmayan ya da 404 görmüş
+  modeller kırmızı "artık kullanılamıyor" alt yazısı alıyor.
+
+**Doğrulama:** `flutter analyze` 0 sorun, tüm takım yeşil; `ai_pool_test` 14
+teste çıktı (sınıflandırma tablosu + 404/400 ayrımı + ağ sınırı dahil).

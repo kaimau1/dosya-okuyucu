@@ -99,6 +99,37 @@ class AiSlot {
   }
 }
 
+/// Bir denemenin neden başarısız olduğu — **davranış buna göre değişir.**
+///
+/// Kullanıcı uyarısı (2026-08-10): *"sadece kota değil diğer hatalarda da
+/// gözetilmeli."* İlk sürüm 429'u yönetiyor, geri kalan her şeyi ya sonsuza
+/// kadar deniyor ya da hemen pes ediyordu. Doğrusu her hatanın kendi
+/// karşılığının olması:
+enum AiFailure {
+  /// 429 — bu ikilinin kotası doldu. Katlamalı soğuma + sıradaki ikili.
+  quota,
+
+  /// 5xx — sunucu geçici olarak bozuk. Kısa soğuma + sıradaki ikili.
+  transient,
+
+  /// Ağa çıkılamadı. Model suçlu değil; başka ikili denemek çoğu zaman
+  /// işe yaramaz (internet yoksa 30 deneme 30 kez beklemek demek), o yüzden
+  /// deneme sayısı sınırlı.
+  network,
+
+  /// Model bu anahtarda YOK (404 / "not found" / "not supported"). Kalıcı bir
+  /// durum: o ikili uzun süre elenir, sıradaki MODELE geçilir.
+  modelMissing,
+
+  /// Anahtar geçersiz/kapalı (400 "API key not valid", 401, 403). O anahtarın
+  /// bütün modelleri atlanır.
+  auth,
+
+  /// İçerik engellendi / model boş yanıt verdi. Başka bir model farklı
+  /// davranabilir ama bu bir kota sorunu değil: yalnız birkaç model denenir.
+  content,
+}
+
 abstract final class AiPool {
   static const _kCooldowns = 'ai_pool_cooldowns';
 
@@ -108,10 +139,77 @@ abstract final class AiPool {
   /// Üst sınır — günlük kotanın en geç açılma anına yakın.
   static const _maxCooldownMs = 6 * 60 * 60 * 1000;
 
-  /// Anahtar geçersizse (400/403) o **anahtarın tamamı** bu kadar beklemeye
+  /// Anahtar geçersizse (400/401/403) o **anahtarın tamamı** bu kadar beklemeye
   /// alınır: yanlış yazılmış bir anahtarla altı modeli tek tek denemek altı
   /// gereksiz ağ isteği ve altı kat gecikme demek.
   static const _badKeyCooldownMs = 30 * 60 * 1000;
+
+  /// **Kaldırılmış/erişilemeyen model** cezası (kullanıcı notu 2026-08-10:
+  /// *"model kaldırılmış olabilir, çalışmayabilir"*). Google eski modelleri
+  /// emekliye ayırıyor; listede duran ölü bir model her işte bir başarısız
+  /// istek demek. 12 saat: kullanıcı ayarlardan düzeltene kadar yolu tıkamaz,
+  /// ama geçici bir 404 kalıcı bir dışlamaya da dönüşmez.
+  static const _deadModelCooldownMs = 12 * 60 * 60 * 1000;
+
+  /// Ağ hatasında en fazla kaç ikili denenir. İnternet yoksa 30 ikiliyi tek
+  /// tek denemek 30 kez zaman aşımı beklemek demektir.
+  static const _maxNetworkTries = 2;
+
+  /// İçerik engelinde en fazla kaç ikili denenir. Başka bir model farklı
+  /// davranabilir; ama aynı metni 30 kez göndermek hem token hem zaman israfı.
+  static const _maxContentTries = 2;
+
+  /// 404 dönen modeller — arayüz "bu model artık yok" uyarısı gösterir.
+  static final Set<String> _deadModels = {};
+
+  /// Kaldırılmış/erişilemeyen olduğu görülen modeller.
+  static Set<String> get deadModels => Set.unmodifiable(_deadModels);
+
+  /// Bir hatanın **ne tür** bir hata olduğu. Genel (public): davranışın
+  /// tamamı buna bağlı olduğu için doğrudan test ediliyor.
+  static AiFailure classify(GeminiException error) {
+    final message = error.message.toLowerCase();
+    switch (error.statusCode) {
+      case 429:
+        return AiFailure.quota;
+      case 401:
+      case 403:
+        return AiFailure.auth;
+      case 404:
+        return AiFailure.modelMissing;
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        return AiFailure.transient;
+      case 400:
+        // 400 iki farklı şeyi anlatabiliyor: bozuk anahtar ya da tanınmayan
+        // model adı. Gemini ikisini de 400 ile döndürdüğü için metne bakmak
+        // ZORUNLU — yoksa "model kaldırılmış" durumunda kullanıcının sağlam
+        // anahtarı yarım saatliğine devre dışı bırakılırdı.
+        if (message.contains('not found') ||
+            message.contains('is not supported') ||
+            message.contains('not supported for') ||
+            message.contains('unsupported model') ||
+            message.contains('models/')) {
+          return AiFailure.modelMissing;
+        }
+        return AiFailure.auth;
+      case 0:
+        // Kod yoksa iki olasılık var: ağa çıkılamadı ya da 200 dönen ama
+        // kullanılamayan bir yanıt (engellendi / boş / şemaya uymadı).
+        if (message.contains('ağ hatası') ||
+            message.contains('socket') ||
+            message.contains('timeout') ||
+            message.contains('zaman aşımı') ||
+            message.contains('failed host lookup')) {
+          return AiFailure.network;
+        }
+        return AiFailure.content;
+      default:
+        return AiFailure.content;
+    }
+  }
 
   /// ikiliKimliği → (açılma anı, ardışık hata sayısı)
   static final Map<String, ({int untilMs, int strikes})> _cooldowns = {};
@@ -171,6 +269,9 @@ abstract final class AiPool {
   /// Tüm soğumaları siler (ayarlardaki "kotaları sıfırla").
   static Future<void> clearCooldowns() async {
     _cooldowns.clear();
+    // "Artık yok" damgası da silinir: kullanıcı modeli değiştirdikten sonra
+    // eski uyarının ekranda asılı kalması yanlış yönlendirir.
+    _deadModels.clear();
     await _save();
   }
 
@@ -179,6 +280,7 @@ abstract final class AiPool {
   /// beklenmedik bir başlangıç noktası yaratırdı.
   static void resetForTest() {
     _cooldowns.clear();
+    _deadModels.clear();
     _lastGood = null;
     _loaded = true;
   }
@@ -261,7 +363,10 @@ abstract final class AiPool {
     final now = DateTime.now().millisecondsSinceEpoch;
     final skippedKeys = <String>{};
     GeminiException? lastError;
+    AiFailure? lastFailure;
     var triedAny = false;
+    var networkTries = 0;
+    var contentTries = 0;
 
     for (final slot in _order(creds)) {
       if (skippedKeys.contains(slot.key)) continue;
@@ -275,35 +380,78 @@ abstract final class AiPool {
         return value;
       } on GeminiException catch (e) {
         lastError = e;
-        if (e.statusCode == 429) {
-          await _cool(slot);
-          continue;
+        final failure = classify(e);
+        lastFailure = failure;
+        switch (failure) {
+          case AiFailure.quota:
+            await _cool(slot);
+
+          case AiFailure.transient:
+            await _cool(slot, fixedMs: _baseCooldownMs);
+
+          case AiFailure.modelMissing:
+            // Model kaldırılmış ya da bu anahtara kapalı: uzun süre elenir ve
+            // arayüzde "artık yok" işareti alır. Sıradaki MODEL denenir.
+            _deadModels.add(slot.model);
+            await _cool(slot, fixedMs: _deadModelCooldownMs);
+
+          case AiFailure.auth:
+            // Anahtar geçersiz: aynı anahtarla diğer modelleri denemek anlamsız.
+            skippedKeys.add(slot.key);
+            await _cool(slot, fixedMs: _badKeyCooldownMs);
+
+          case AiFailure.network:
+            // Soğutma YOK: model/anahtar suçlu değil, ağ yok. Ama sınırsız
+            // denemek de offline'da kullanıcıyı dakikalarca bekletirdi.
+            if (++networkTries >= _maxNetworkTries) {
+              throw GeminiException(e.message, statusCode: e.statusCode);
+            }
+
+          case AiFailure.content:
+            // Başka model farklı davranabilir (güvenlik eşikleri modele göre
+            // değişiyor) ama aynı metni her modele göndermek israf.
+            if (++contentTries >= _maxContentTries) rethrow;
         }
-        if (e.statusCode == 400 || e.statusCode == 403) {
-          // Anahtar geçersiz ya da bu projeye kapalı: aynı anahtarla diğer
-          // modelleri denemek anlamsız.
-          skippedKeys.add(slot.key);
-          await _cool(slot, fixedMs: _badKeyCooldownMs);
-          continue;
-        }
-        if (e.isRetryable) {
-          // 5xx / ağ: model suçlu değil ama başka bir ikili şansımızı artırır.
-          await _cool(slot, fixedMs: _baseCooldownMs);
-          continue;
-        }
-        // İçerik engeli, boş yanıt, şema hatası: model değiştirmek çözmez.
-        rethrow;
+        continue;
       }
     }
 
     if (!triedAny) {
-      throw GeminiException(
-        _allCoolingMessage(creds),
-        statusCode: 429,
-      );
+      throw GeminiException(_allCoolingMessage(creds), statusCode: 429);
     }
-    throw lastError ??
-        GeminiException('Yapay zekâ isteği tamamlanamadı.', statusCode: 429);
+    // Son hatayı OLDUĞU GİBİ yukarı taşımak önemli: kullanıcıya "kota doldu"
+    // demek, sorun aslında geçersiz anahtar ya da kaldırılmış model iken
+    // yanlış yere bakmasına yol açardı.
+    throw GeminiException(
+      _summary(lastFailure, lastError),
+      statusCode: lastError?.statusCode ?? 0,
+    );
+  }
+
+  /// Havuz tükendiğinde kullanıcıya gösterilecek **sebebe uygun** metin.
+  static String _summary(AiFailure? failure, GeminiException? error) {
+    final detail = error?.message ?? '';
+    return switch (failure) {
+      AiFailure.quota =>
+        'Tüm anahtar ve modellerin kotası doldu. Ayarlar > Yapay zekâ\'dan '
+            'yedek anahtar ekleyebilir ya da model sırasına yeni model '
+            'ekleyebilirsiniz.',
+      AiFailure.auth => 'API anahtarı kabul edilmedi. Ayarlar > Yapay zekâ\'dan '
+          'anahtarı kontrol edin. ($detail)',
+      AiFailure.modelMissing =>
+        'Seçili modellerin hiçbiri bu anahtarla kullanılamıyor (model '
+            'kaldırılmış olabilir). Ayarlar > Yapay zekâ > Model sırası\'ndan '
+            'güncel bir model seçin. ($detail)',
+      AiFailure.network =>
+        'İnternete ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.',
+      AiFailure.transient =>
+        'Gemini sunucusu şu an yanıt vermiyor. Biraz sonra yeniden deneyin. '
+            '($detail)',
+      AiFailure.content => detail.isEmpty
+          ? 'Model isteği yanıtlayamadı.'
+          : detail,
+      null => 'Yapay zekâ isteği tamamlanamadı. $detail',
+    };
   }
 
   static String _allCoolingMessage(AiCredentials creds) {

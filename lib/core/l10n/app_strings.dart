@@ -5302,6 +5302,11 @@ const Map<String, (String, String, String)> _table = {
   ),
   'aipool.add_model': ('Model ekle', 'Add model', 'إضافة نموذج'),
   'aipool.move_up': ('Yukarı taşı', 'Move up', 'نقل لأعلى'),
+  'aipool.model_gone': (
+    'Bu model artık kullanılamıyor — kaldırılmış ya da anahtarınıza kapalı.',
+    'This model is no longer available — retired or not enabled for your key.',
+    'لم يعد هذا النموذج متاحًا — أُوقف أو غير مفعّل لمفتاحك.',
+  ),
   'aipool.status': ('Kota durumu', 'Quota status', 'حالة الحصة'),
   'aipool.status_sub': (
     '{total} kota havuzu (anahtar × model) · {cooling} tanesi şu an dolu.',

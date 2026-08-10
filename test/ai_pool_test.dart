@@ -88,15 +88,79 @@ void main() {
         reason: 'geçersiz anahtarla beş kez daha denemek boşuna gecikme');
   });
 
-  test('içerik engeli gibi kalıcı hatada model değiştirilmez', () async {
-    // statusCode 0 + isRetryable false değil… engellenen yanıtın kodu yok;
-    // ama şema/engel hataları `statusCode: 200` ile gelmez. Burada modelin
-    // suçlu olmadığı, isteğin kendisinin reddedildiği durumu temsilen 400
-    // DIŞINDA, yeniden denenmeyecek bir kod kullanılıyor.
-    final r = recorder((_, __) => GeminiException('engellendi', statusCode: 451));
-    await expectLater(AiPool.run(creds, r.action), throwsA(isA<GeminiException>()));
-    expect(r.tried, ['anahtar1/model-a'],
-        reason: 'aynı isteği altı modelde tekrarlamak altı kat maliyet');
+  test('içerik engelinde en çok iki model denenir (30 değil)', () async {
+    // Güvenlik eşiği modele göre değişebildiği için bir alternatif denemek
+    // mantıklı; aynı metni otuz kez göndermek israf.
+    final r = recorder((_, __) => GeminiException('Yanıt engellendi: SAFETY'));
+    await expectLater(
+        AiPool.run(creds, r.action), throwsA(isA<GeminiException>()));
+    expect(r.tried.length, 2);
+  });
+
+  test('kaldırılmış model (404) atlanır ve işaretlenir', () async {
+    final r = recorder((key, model) => model == 'model-a'
+        ? GeminiException('models/model-a is not found', statusCode: 404)
+        : null);
+    final result = await AiPool.run(creds, r.action);
+    expect(result, 'tamam');
+    expect(r.tried, ['anahtar1/model-a', 'anahtar1/model-b']);
+    expect(AiPool.deadModels, contains('model-a'),
+        reason: 'ayarlarda "bu model artık yok" uyarısı için');
+  });
+
+  test('400 + "not found" ANAHTARI değil MODELİ suçlar', () async {
+    // Gemini hem bozuk anahtarı hem tanınmayan modeli 400 ile döndürüyor.
+    // Metne bakılmazsa sağlam anahtar yarım saatliğine devre dışı kalırdı.
+    final r = recorder((key, model) => model == 'model-a'
+        ? GeminiException(
+            'Gemini hatası (400): models/model-a is not found', statusCode: 400)
+        : null);
+    await AiPool.run(creds, r.action);
+    expect(r.tried, ['anahtar1/model-a', 'anahtar1/model-b'],
+        reason: 'aynı anahtarın diğer modelleri denenmeli');
+  });
+
+  test('ağ hatasında sınırlı deneme yapılır (offline\'da 30 bekleme yok)',
+      () async {
+    final r = recorder((_, __) => GeminiException('Ağ hatası: SocketException'));
+    await expectLater(
+        AiPool.run(creds, r.action), throwsA(isA<GeminiException>()));
+    expect(r.tried.length, 2);
+  });
+
+  test('sunucu hatası (503) sıradaki ikiliye geçirir', () async {
+    final r = recorder((key, model) => model == 'model-a'
+        ? GeminiException('sunucu', statusCode: 503)
+        : null);
+    await AiPool.run(creds, r.action);
+    expect(r.tried, ['anahtar1/model-a', 'anahtar1/model-b']);
+  });
+
+  group('hata sınıflandırması', () {
+    test('her kod doğru sınıfa düşer', () {
+      expect(AiPool.classify(GeminiException('', statusCode: 429)),
+          AiFailure.quota);
+      expect(AiPool.classify(GeminiException('', statusCode: 403)),
+          AiFailure.auth);
+      expect(AiPool.classify(GeminiException('', statusCode: 401)),
+          AiFailure.auth);
+      expect(AiPool.classify(GeminiException('', statusCode: 404)),
+          AiFailure.modelMissing);
+      expect(AiPool.classify(GeminiException('', statusCode: 503)),
+          AiFailure.transient);
+      expect(
+          AiPool.classify(
+              GeminiException('API key not valid', statusCode: 400)),
+          AiFailure.auth);
+      expect(
+          AiPool.classify(
+              GeminiException('models/x is not found', statusCode: 400)),
+          AiFailure.modelMissing);
+      expect(AiPool.classify(GeminiException('Ağ hatası: x')),
+          AiFailure.network);
+      expect(AiPool.classify(GeminiException('Yanıt engellendi: SAFETY')),
+          AiFailure.content);
+    });
   });
 
   test('anahtar yoksa açık ve yönlendirici hata verir', () async {
