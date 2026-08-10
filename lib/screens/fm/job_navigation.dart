@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/job_queue.dart';
+import 'ai_hub_screen.dart';
 import 'browser_screen.dart';
 import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
@@ -73,6 +74,11 @@ Future<bool> _openTarget(BuildContext context, FmJobTarget target) async {
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => BrowserScreen(path: path)),
       );
+      return true;
+    case FmJobTargetKind.aiHub:
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const AiHubScreen(),
+      ));
       return true;
     case FmJobTargetKind.file:
       return _openFiles(context, target.paths);

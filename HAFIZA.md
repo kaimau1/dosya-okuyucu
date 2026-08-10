@@ -7967,3 +7967,32 @@ Artık `AiPool.classify` altı sınıf üretiyor ve her birinin ayrı karşılı
 
 **Doğrulama:** `flutter analyze` 0 sorun, tüm takım yeşil; `ai_pool_test` 14
 teste çıktı (sınıflandırma tablosu + 404/400 ayrımı + ağ sınırı dahil).
+
+### I) CI build 277 KIRMIZI — gerçek yarış hatası (kırılgan test değil)
+`fm_file_tags_test: "eşzamanlı ilk yazmalar birbirini EZMEZ"` CI'da düştü,
+yerelde 5 koşuda da geçti. Sebep gerçek bir **veri kaybı** hatasıydı:
+iki eşzamanlı `FileTags.add` **aynı** `file_tags.json.tmp` dosyasına yazıyor,
+ikinci yazma birincinin dosyasını sıfırlıyor, sonra iki `rename` yarışıyordu.
+Diskte yarım JSON kalınca bir sonraki açılışta `jsonDecode` patlıyor, `catch`
+sessizce yutuyor ve **kullanıcının bütün etiketleri siliniyordu**. Testin
+gördüğü "hepsi boş" tam olarak buydu.
+- Çözüm: yazmalar **zincire** alındı (`_saving` future'ı). Her yazma o anki tam
+  durumu serileştirdiği için sıradaki yazma en güncel hâli indiriyor.
+- **Aynı desen `AiIndex`te de vardı** ve orada risk gerçekti: analiz sürerken
+  kullanıcı öneri uygulayabilir (`movePath`) ya da klasörü kapsam dışına
+  alabilir (`dropOutOfScope`). Aynı zincir oraya da kondu.
+- Ders: "yerelde geçiyor, CI'da düşüyor" = kırılgan test DEĞİL demek zorunda
+  değil; zamanlamaya bağlı gerçek hatalar tam da böyle görünüyor.
+
+### J) AI analizi arka planda + bildirim panelinde
+Kullanıcı isteği: *"ai analiz işlemi arka planda yürümeli ve bildirim panelinde
+görmeliyim."* Analiz artık `JobQueue`ya iş olarak giriyor (`id: 'ai-analysis'`):
+- Uzun işler kuyrukta **ön plan servisinde** koşuyor; aksi hâlde MIUI gibi pil
+  yönetimleri uygulama arka plana alınır alınmaz süreci donduruyordu
+  (HAFIZA 2026-07-30 ile aynı ders).
+- İlerleme kalıcı bildirime yazılıyor ("AI dosya analizi · 120/500 · dosya adı");
+  bildirime dokunmak **AI Merkezi**'ni açıyor (yeni `FmJobTargetKind.aiHub`).
+- Bildirimden/İşlemler ekranından iptal analizi durduruyor (`handle.cancelled`
+  her grupta yoklanıyor), o ana kadarki sonuçlar diskte kalıyor.
+- `start()` artık **beklemiyor**: iş kuyrukta koşuyor, arayüz `progress`
+  üzerinden izliyor; kullanıcı ekranı kapatıp gidebiliyor.

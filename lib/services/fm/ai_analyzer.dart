@@ -40,6 +40,7 @@ import 'ai_scope.dart';
 import 'doc_classifier.dart';
 import 'fm_env.dart';
 import 'fs_scan.dart';
+import 'job_queue.dart';
 import 'search_index.dart';
 
 /// Analizin o anki evresi.
@@ -144,6 +145,12 @@ abstract final class AiAnalyzer {
 
   /// Analizi başlatır. Zaten çalışıyorsa hiçbir şey yapmaz.
   ///
+  /// Kuyruktaki işin kararlı kimliği — aynı anda iki analiz başlamasın ve
+  /// "İşlemler" ekranı işi geri bulabilsin.
+  static const jobId = 'ai-analysis';
+
+  /// Analizi **iş kuyruğunda** başlatır (arka planda koşar, bildirimde görünür).
+  ///
   /// [credentials] boşsa (hiç anahtar yok) **yerel kip**: dosyalar cihazda
   /// okunur ve kural tabanlı sınıflandırıcıdan geçer (ücretsiz, çevrimdışı,
   /// özet yok). Böylece anahtarı olmayan kullanıcı da etiket/önem/öneri görür.
@@ -161,18 +168,39 @@ abstract final class AiAnalyzer {
     _running = true;
     _cancelRequested = false;
     _pauseRequested = false;
-    try {
-      await _run(
-        scope: scope,
-        credentials: credentials.normalized,
-        reanalyze: reanalyze,
-      );
-    } catch (e) {
-      progress.value = progress.value
-          .copyWith(phase: AiRunPhase.error, message: '$e', currentName: '');
-    } finally {
-      _running = false;
-    }
+
+    // **Arka planda yürüsün ve bildirim panelinde görünsün** (kullanıcı isteği
+    // 2026-08-10). İş kuyruğu bunu zaten yapıyor: uzun işler ÖN PLAN
+    // SERVİSİNDE koşuyor (aksi hâlde MIUI gibi agresif pil yönetimleri
+    // uygulamayı arka plana alır almaz donduruyor — bkz. HAFIZA 2026-07-30) ve
+    // ilerleme kalıcı bir bildirime yazılıyor. Analizi kuyruğun DIŞINDA
+    // çalıştırmak, kullanıcı başka uygulamaya geçtiğinde analizin sessizce
+    // durması demekti.
+    JobQueue.instance.enqueue(
+      id: jobId,
+      title: _str.t('aiq.job_title'),
+      detail: _str.t('aiq.collecting'),
+      target: const FmJobTarget.aiHub(),
+      run: (handle) async {
+        try {
+          await _run(
+            scope: scope,
+            credentials: credentials.normalized,
+            reanalyze: reanalyze,
+            handle: handle,
+          );
+        } catch (e) {
+          progress.value = progress.value
+              .copyWith(phase: AiRunPhase.error, message: '$e', currentName: '');
+          rethrow;
+        } finally {
+          _running = false;
+        }
+      },
+    );
+    // **Beklenmez:** iş kuyrukta koşuyor. Arayüz ilerlemeyi [progress]
+    // üzerinden canlı izliyor; kullanıcı ekranı kapatıp başka uygulamaya
+    // geçebilsin diye burada tutulmuyor.
   }
 
   static void pause() {
@@ -198,6 +226,7 @@ abstract final class AiAnalyzer {
     required AiScope scope,
     required AiCredentials credentials,
     required bool reanalyze,
+    JobHandle? handle,
   }) async {
     final aiEnabled = credentials.keys.isNotEmpty;
     progress.value = AiProgress(
@@ -247,6 +276,7 @@ abstract final class AiAnalyzer {
       return;
     }
 
+    handle?.report(done: 0, total: planned, detail: '');
     final queue = candidates.take(planned).toList();
     var done = 0;
     var failed = 0;
@@ -259,6 +289,8 @@ abstract final class AiAnalyzer {
     Map<FsEntry, AiExcerpt> cachedExcerpts = const {};
 
     for (var i = 0; i < queue.length; i += _batchSize) {
+      // Bildirimdeki "Durdur"/İşlemler ekranındaki iptal de analizi durdurur.
+      if (handle?.cancelled == true) _cancelRequested = true;
       if (_cancelRequested) break;
       await _waitWhilePaused();
       if (_cancelRequested) break;
@@ -270,6 +302,7 @@ abstract final class AiAnalyzer {
         failed: failed,
         currentName: batch.first.name,
       );
+      handle?.report(done: done, total: planned, detail: batch.first.name);
 
       // 1) Yerel çıkarım (cihazda, ücretsiz) — yeniden denemede atlanır.
       final Map<FsEntry, AiExcerpt> excerpts;
@@ -295,6 +328,7 @@ abstract final class AiAnalyzer {
             [for (final e in batch) _localRecord(e, excerpts[e])]);
         done += batch.length;
         progress.value = progress.value.copyWith(done: done);
+        handle?.report(done: done);
         continue;
       }
 
@@ -311,6 +345,7 @@ abstract final class AiAnalyzer {
         backoffStep = 0;
         await _spendBudget(batch.length);
         progress.value = progress.value.copyWith(done: done, message: '');
+        handle?.report(done: done);
       } on GeminiException catch (e) {
         if (!e.isRetryable) {
           progress.value = progress.value.copyWith(
@@ -335,6 +370,7 @@ abstract final class AiAnalyzer {
           message: _str.t('aiq.waiting', {'sec': (wait / 1000).round()}),
           waitUntilMs: DateTime.now().millisecondsSinceEpoch + wait,
         );
+        handle?.report(detail: _str.t('aiq.waiting', {'sec': (wait / 1000).round()}));
         await _sleep(wait);
         i -= _batchSize; // aynı grubu tekrar dene
         continue;
@@ -356,6 +392,7 @@ abstract final class AiAnalyzer {
       if (i + _batchSize < queue.length) await _sleep(_requestGapMs);
     }
 
+    handle?.report(done: done, detail: '');
     progress.value = progress.value.copyWith(
       phase: _cancelRequested ? AiRunPhase.idle : AiRunPhase.done,
       done: done,

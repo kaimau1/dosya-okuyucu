@@ -84,8 +84,31 @@ abstract final class FileTags {
     return !Directory(p.dirname(path)).existsSync();
   }
 
-  static Future<void> _save() async {
-    if (FmEnv.appSupportDir.isEmpty) return;
+  /// Süren yazma — yazmalar **sıraya** dizilir.
+  static Future<void>? _saving;
+
+  /// KÖK NEDEN (CI build 277 kırmızı, 2026-08-10): iki `add` çağrısı aynı anda
+  /// koştuğunda ikisi de **aynı** `file_tags.json.tmp` dosyasına yazıyordu.
+  /// İkinci yazma birincinin dosyasını sıfırlıyor, ardından iki `rename`
+  /// yarışıyordu; diskte yarım bir JSON kalınca bir sonraki açılışta
+  /// `jsonDecode` patlıyor, `catch` sessizce yutuyor ve **kullanıcının bütün
+  /// etiketleri siliniyordu**. Test bunu yakaladı ("eşzamanlı ilk yazmalar
+  /// birbirini EZMEZ"); yerelde hızlı diskte denk gelmiyor, yüklü bir makinede
+  /// (CI) çıkıyor — yani kullanıcının telefonunda da çıkardı.
+  ///
+  /// Çözüm: yazmalar zincire alınır. Her yazma o anki **tam** durumu
+  /// serileştirdiği için sıradaki yazma her zaman en güncel hâli diske indirir.
+  static Future<void> _save() {
+    if (FmEnv.appSupportDir.isEmpty) return Future<void>.value();
+    final previous = _saving ?? Future<void>.value();
+    final next = previous.then((_) => _writeNow());
+    _saving = next;
+    return next.whenComplete(() {
+      if (identical(_saving, next)) _saving = null;
+    });
+  }
+
+  static Future<void> _writeNow() async {
     try {
       final data = {
         for (final e in _byPath.entries) e.key: e.value.toList()..sort(),
@@ -198,5 +221,8 @@ abstract final class FileTags {
   static void resetForTest() {
     _byPath.clear();
     _loadFuture = null;
+    // Yazma zinciri de sıfırlanır: önceki testten sarkan bir yazma, yeni
+    // testin ilk kaydını bekletir ve sırayı yanıltırdı.
+    _saving = null;
   }
 }

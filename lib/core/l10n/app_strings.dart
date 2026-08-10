@@ -5340,6 +5340,7 @@ const Map<String, (String, String, String)> _table = {
   ),
 
   // ── AI analiz kuyruğu (arka planda, bağlamsız — AppStrings.current) ───────
+  'aiq.job_title': ('AI dosya analizi', 'AI file analysis', 'تحليل الملفات بالذكاء الاصطناعي'),
   'aiq.collecting': ('Dosyalar toplanıyor…', 'Collecting files…', 'جارٍ جمع الملفات…'),
   'aiq.all_fresh': (
     'Kapsamdaki her dosya zaten analiz edilmiş.',

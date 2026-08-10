@@ -397,6 +397,24 @@ abstract final class AiIndex {
     return gone.length;
   }
 
+  /// Süren disk yazması — AiIndex de yazmaları **sıraya** dizer.
+  ///
+  /// Aynı hata `FileTags`te CI'yı kırdı (bkz. oradaki not): iki eşzamanlı
+  /// yazma aynı geçici dosyayı paylaşınca diskte yarım bir dosya kalıyor ve
+  /// bir sonraki açılışta indeksin tamamı kayboluyordu. Burada risk gerçek:
+  /// analiz sürerken kullanıcı bir öneriyi uygulayabilir (`movePath`) ya da
+  /// ayarlardan bir klasörü kapsam dışına alabilir (`dropOutOfScope`).
+  static Future<void>? _writing;
+
+  static Future<void> _enqueue(Future<void> Function() write) {
+    final previous = _writing ?? Future<void>.value();
+    final next = previous.then((_) => write());
+    _writing = next;
+    return next.whenComplete(() {
+      if (identical(_writing, next)) _writing = null;
+    });
+  }
+
   static Future<void> _append(Iterable<AiRecord> records) async {
     if (FmEnv.appSupportDir.isEmpty) return;
     // Bayat satır oranı büyüdüyse ekleme yerine baştan yaz.
@@ -409,28 +427,35 @@ abstract final class AiIndex {
       buffer.writeln(jsonEncode(record.toJson()));
       _lines++;
     }
-    try {
-      await File(path).writeAsString(buffer.toString(), mode: FileMode.append);
-    } catch (_) {
-      // Disk dolu / izin yok: bellekteki indeks çalışmayı sürdürür, yalnız
-      // kalıcı olmaz. Analizi hata verip durdurmak daha kötü olurdu.
-    }
+    final text = buffer.toString();
+    await _enqueue(() async {
+      try {
+        await File(path).writeAsString(text, mode: FileMode.append);
+      } catch (_) {
+        // Disk dolu / izin yok: bellekteki indeks çalışmayı sürdürür, yalnız
+        // kalıcı olmaz. Analizi hata verip durdurmak daha kötü olurdu.
+      }
+    });
   }
 
-  static Future<void> _rewrite() async {
-    if (FmEnv.appSupportDir.isEmpty) return;
+  static Future<void> _rewrite() {
+    if (FmEnv.appSupportDir.isEmpty) return Future<void>.value();
     final buffer = StringBuffer();
     for (final record in _records.values) {
       buffer.writeln(jsonEncode(record.toJson()));
     }
-    try {
-      // Doğrudan üstüne yazmak yerine geçici dosya + rename: yazma yarıda
-      // kesilirse eski indeks sağlam kalır.
-      final temp = File('$path.tmp');
-      await temp.writeAsString(buffer.toString());
-      await temp.rename(path);
-      _lines = _records.length;
-    } catch (_) {}
+    final text = buffer.toString();
+    final count = _records.length;
+    return _enqueue(() async {
+      try {
+        // Doğrudan üstüne yazmak yerine geçici dosya + rename: yazma yarıda
+        // kesilirse eski indeks sağlam kalır.
+        final temp = File('$path.tmp');
+        await temp.writeAsString(text);
+        await temp.rename(path);
+        _lines = count;
+      } catch (_) {}
+    });
   }
 
   /// Testler için: bellekteki durumu sıfırlar (diske dokunmaz).
@@ -438,6 +463,7 @@ abstract final class AiIndex {
     _records.clear();
     _lines = 0;
     _suggestionCount = 0;
+    _writing = null;
     _loaded = true;
   }
 }

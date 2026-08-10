@@ -77,6 +77,10 @@ enum FmJobTargetKind {
 
   /// Bir dosya ([FmJobTarget.paths] = tek yol; kardeşleri de verilebilir).
   file,
+
+  /// AI Merkezi (toplu dosya analizi). Bildirime dokunan kullanıcı analizin
+  /// sonuçlarına — etiketler, öneriler, rapor — doğrudan iner.
+  aiHub,
 }
 
 class FmJobTarget {
@@ -101,6 +105,8 @@ class FmJobTarget {
       : this(FmJobTargetKind.similar, scopeId: scopeId, title: title);
 
   const FmJobTarget.cleanup() : this(FmJobTargetKind.cleanup);
+
+  const FmJobTarget.aiHub() : this(FmJobTargetKind.aiHub);
 
   // `const` DEĞİL: yönlendiren const kurucu, parametreden liste kuramaz.
   FmJobTarget.folder(String path)
