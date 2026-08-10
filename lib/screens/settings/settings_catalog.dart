@@ -8,6 +8,7 @@ import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import 'tiles_account.dart';
 import 'tiles_ai.dart';
+import 'tiles_ai_scope.dart';
 import 'tiles_appearance.dart';
 import 'tiles_browsing.dart';
 import 'tiles_privacy.dart';
@@ -213,6 +214,39 @@ List<SettingsCategory> settingsCategories() => [
               builder: _aiAccessTile,
             ),
           ]),
+          // Kapsam, anahtardan hemen SONRA gelir: kullanıcı analizi
+          // başlatmadan önce "nereye bakmayacak" sorusunu görmeli
+          // (2026-08-10: "kameram ile çektiğim fotoğraflara erişmesini
+          // istemiyorum").
+          SettingsSection('set.sec_ai_scope', [
+            SettingRow(
+              id: 'ai_excluded',
+              titleKey: 'aiset.excluded',
+              altKeys: ['aiset.exclude_add', 'set.sec_ai_scope'],
+              builder: _aiExcludedTile,
+            ),
+            SettingRow(
+              id: 'ai_types',
+              titleKey: 'aiset.types',
+              builder: _aiTypesTile,
+            ),
+          ]),
+          SettingsSection('set.sec_ai_privacy', [
+            SettingRow(
+              id: 'ai_privacy',
+              titleKey: 'aiset.send_text',
+              altKeys: ['aiset.send_images', 'aiset.hidden', 'aiset.excerpt'],
+              builder: _aiPrivacyTile,
+            ),
+          ]),
+          SettingsSection('set.sec_ai_budget', [
+            SettingRow(
+              id: 'ai_budget',
+              titleKey: 'aiset.budget',
+              altKeys: ['aiset.forget'],
+              builder: _aiBudgetTile,
+            ),
+          ]),
           SettingsSection('settings.memory', [
             SettingRow(
                 id: 'memory',
@@ -382,6 +416,10 @@ Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();
 Widget _startFolderTile(BuildContext _) => const StartFolderTile();
 Widget _aiAccessTile(BuildContext _) => const AiAccessTile();
 Widget _memoryTile(BuildContext _) => const MemoryTile();
+Widget _aiExcludedTile(BuildContext _) => const AiExcludedFoldersTile();
+Widget _aiTypesTile(BuildContext _) => const AiScopeTypesTile();
+Widget _aiPrivacyTile(BuildContext _) => const AiPrivacyTile();
+Widget _aiBudgetTile(BuildContext _) => const AiBudgetTile();
 Widget _accountTile(BuildContext _) => const AccountTile();
 Widget _pinTile(BuildContext _) => const PinTile();
 Widget _lockedFoldersTile(BuildContext _) => const LockedFoldersTile();

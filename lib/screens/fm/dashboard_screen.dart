@@ -11,6 +11,8 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/download_service.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/ai_analyzer.dart';
+import '../../services/fm/ai_index.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
@@ -29,6 +31,7 @@ import 'activity_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'chat_cleanup_screen.dart';
+import 'ai_hub_screen.dart';
 import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
@@ -80,6 +83,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     FsEvents.version.addListener(_onFsChanged);
+    // AI kartı analiz sayısını gösteriyor; indeks diskten okunmadan sayı 0
+    // görünürdü. Okuma bittiğinde `AiIndex.revision` kartı tazeler.
+    AiIndex.ensureLoaded();
     _boot();
   }
 
@@ -427,6 +433,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               const SizedBox(height: Gap.sm),
             ],
+            const SizedBox(height: Gap.sm),
+            _aiCard(),
             const SizedBox(height: Gap.sm),
             _categoryGrid(),
             // Kuyruk değişince (iş başladı/bitti) yalnız araç ızgarası yeniden
@@ -873,6 +881,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// (kullanıcı isteği 2026-08-05). Önce araç satırındaydı, kaydırmadan
   /// görünmüyordu; sonra büyük kutulara alındı, orada da ana bellekten
   /// uzaktaydı. Yeri artık aradığı bilgiyle yan yana.
+  /// **AI Asistan kartı** — toplu dosya analizinin giriş noktası.
+  ///
+  /// Kullanıcı kararı (2026-08-10): AI'nın yeri panoda tek bir kart, oradan
+  /// açılan tek bir merkez. Kart canlıdır: analiz sürerken ilerleme çubuğu,
+  /// bittiğinde "kaç dosya · kaç öneri" yazar — kullanıcı panodan bakınca
+  /// işin nerede olduğunu görür.
+  Widget _aiCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return ValueListenableBuilder<AiProgress>(
+      valueListenable: AiAnalyzer.progress,
+      builder: (context, progress, _) => ValueListenableBuilder<int>(
+        valueListenable: AiIndex.revision,
+        builder: (context, _, __) {
+          final analyzed = AiIndex.count;
+          final suggestions = AiIndex.suggestionCount;
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _push(const AiHubScreen()),
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_awesome, size: 26, color: scheme.primary),
+                    const SizedBox(width: Gap.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(context.t('aih.card_title'),
+                              style: Theme.of(context).textTheme.titleSmall),
+                          const SizedBox(height: 2),
+                          Text(
+                            progress.isBusy
+                                ? '${progress.done}/${progress.total} · '
+                                    '${progress.currentName}'
+                                : (analyzed == 0
+                                    ? context.t('aih.card_idle')
+                                    : context.t('aih.card_ready', {
+                                        'n': analyzed,
+                                        's': suggestions,
+                                      })),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Paper.faint(context)),
+                          ),
+                          if (progress.isBusy)
+                            Padding(
+                              padding: const EdgeInsets.only(top: Gap.xs),
+                              child: LinearProgressIndicator(
+                                value: progress.total == 0
+                                    ? null
+                                    : progress.fraction,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _analysisCard(StorageVolume volume) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
