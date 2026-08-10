@@ -7875,3 +7875,65 @@ adımı. Belge kimliği = mutlak yol (AOSP `ExternalStorageProvider` deseni).
 kaydın silinmesini, öneri güvenliğini (uzantı korunur, klasör ayıracı
 temizlenir) ve soru elemesini kilitliyor. **APK yalnız CI'da doğrulanır.**
 `graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil).
+
+## 2026-08-10 (2. tur) — Seçicideki "ok" ve kesintisiz AI (havuz)
+Aynı gün iki kullanıcı bulgusu daha:
+
+### G) "Biz çıkıyoruz ama arayüzümüze yönlendiren işaret çıkmıyor"
+Belge seçicisinin çekmecesinde **iki ayrı satır türü** var ve bu ayrım
+projede bilinmiyordu:
+- **Kök satırı** — `DocumentsProvider`dan gelir, seçicinin KENDİ arayüzünde
+  gezilir, oku yoktur. (Bu turun ilk parçasında kazanıldı: `DosyaProvider`.)
+- **Uygulama satırı** — `ACTION_GET_CONTENT` karşılayan uygulamalar; yanında
+  "uygulamada aç" oku vardır ve dokununca o uygulamanın KENDİ ekranı açılır
+  (Drive, MIUI Dosya Yöneticisi). Kullanıcının aradığı işaret buydu.
+
+Eklendi: `ci/PickerActivity.kt` + manifestte GET_CONTENT filtresi +
+`lib/screens/fm/pick_file_screen.dart` (sade seçim ekranı) +
+`lib/services/fm/picker_bridge.dart`.
+- **TUZAK (kritik):** filtre `MainActivity`'ye KONULAMAZ — o `singleTask` ve
+  Android'de singleTask bir aktivite **sonuç döndüremez**; çağıran anında
+  `RESULT_CANCELED` alır. Listede görünüp hiçbir zaman dosya veremeyen bir
+  satır çıkardı. Bu yüzden ayrı `PickerActivity` (+ `excludeFromRecents`).
+- Teslim yolu: seçilen dosya kendi sağlayıcımızın `content://` adresine
+  çevrilip `FLAG_GRANT_READ_URI_PERMISSION` ile döndürülüyor. Sağlayıcı
+  `grantUriPermissions="true"` bildirdiği için bu, `MANAGE_DOCUMENTS`
+  korumasına rağmen YALNIZ o adres için geçici okuma izni veriyor — dosya
+  kopyalanmıyor, depolamamız çağırana açılmıyor.
+- Flutter tarafı `PickerActivity`nin verdiği `/picker` başlangıç yoluyla
+  ayrılıyor; seçici kipinde iş kuyruğu/bildirim köprüsü **başlatılmıyor**
+  (çağıran uygulama beklerken saniyeler süren açılış + istenmeyen yan etki).
+- İstenen türe uymayan dosya listelenmiyor; bilinmeyen uzantı **kategori
+  ailesine** düşüyor (`image/*` isteyen bir uygulamada `.heic` görünsün diye).
+
+### H) Kesintisiz AI: 5 anahtar × 6 model havuzu
+Kullanıcı isteği: *"her modelin kotası ayrı olduğu için 6 model seçebilelim,
+kotası bittikçe diğerine geçsin; 5 tane de API anahtarı alanı olsun,
+1.sindeki tüm kotalar bitince diğerine geçsin — AI analiz başta olmak üzere
+tüm işlerde."* → `lib/services/ai_pool.dart`.
+- **Sıra: anahtar dıştan, model içten.** 1. anahtarın altı modeli tükenmeden
+  2. anahtara geçilmez (kullanıcının cümlesi birebir bu).
+- **Soğuma katlamalı** (1,5 dk → … → en çok 6 saat) ve **diske yazılır**:
+  Gemini'nin dakikalık (RPM) ve günlük sınırını ayırt eden bir bilgi yanıtta
+  gelmiyor; katlama ikisini de doğru yönetiyor. Diske yazılmazsa yeniden
+  açılışta tükenmiş modele saniyeler içinde yeniden yüklenilirdi.
+- **Soğuma kaydında API anahtarı AÇIK yazılmaz** — yalnız kısa özeti (KVKK/sır
+  hijyeni; kayıt diske gidiyor).
+- **KARAR — havuz `GeminiService`in ALT SINIFI (`PooledGemini`):** uygulamada
+  12 yerde `GeminiService` kuruluyor ve bazıları onu başka nesnelere geçiriyor
+  (`AiSlides.generate(gemini:)`, `ReadAloudAi.tidyOrOriginal(...)`). Ayrı bir
+  tür yapılsaydı 12 çağrı + o nesnelerin imzaları değişecekti. Artık tek giriş
+  noktası `AppState.gemini`; çağıran taraf havuzu bilmiyor.
+- Kalıcı hatada (içerik engeli, şema) model DEĞİŞTİRİLMİYOR: aynı isteği altı
+  modelde tekrarlamak altı kat gecikme ve token demek. 400/403'te ise o
+  anahtarın kalan modelleri atlanıyor.
+- Eski tekil `gemini_api_key`/`gemini_model` anahtarları korunuyor; listeler
+  boşsa onlardan tohumlanıyor (güncelleme sonrası kullanıcı anahtarını
+  yeniden girmek zorunda kalmasın).
+- Ayarlar > Yapay zekâ: yedek anahtarlar, model sırası (yukarı taşı/sil) ve
+  "kota durumu · sıfırla" satırı eklendi.
+
+**Doğrulama:** Linux bulut oturumunda Flutter 3.29.3 (CI ile aynı) —
+`flutter analyze` lib'de 0 sorun, **tüm test takımı yeşil**; yeni testler:
+`ai_pool_test` (9 test — sıra, soğuma, geçersiz anahtar, kalıcı hata, anahtarın
+gizliliği), `picker_request_test` (5 test — MIME süzgeci).

@@ -358,7 +358,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _longSnack(_str.t('pe.fix_needs_key'));
         return;
       }
-      gemini = GeminiService(apiKey: state.apiKey, model: state.model);
+      gemini = state.gemini;
     }
 
     await _run(() async {

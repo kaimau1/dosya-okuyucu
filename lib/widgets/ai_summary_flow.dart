@@ -73,7 +73,7 @@ class AiSummaryFlow {
     String? error;
     try {
       final gemini =
-          GeminiService(apiKey: appState.apiKey, model: appState.model);
+          appState.gemini;
       summary = await gemini.chat(
         history: [ChatTurn(fromUser: true, text: prompt)],
         fileContext: trimmed,

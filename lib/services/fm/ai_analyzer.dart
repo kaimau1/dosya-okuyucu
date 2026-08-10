@@ -32,6 +32,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
+import '../ai_pool.dart';
 import '../gemini_service.dart';
 import 'ai_extract.dart';
 import 'ai_index.dart';
@@ -143,13 +144,17 @@ abstract final class AiAnalyzer {
 
   /// Analizi başlatır. Zaten çalışıyorsa hiçbir şey yapmaz.
   ///
-  /// [apiKey] boşsa **yerel kip**: dosyalar cihazda okunur ve kural tabanlı
-  /// sınıflandırıcıdan geçer (ücretsiz, çevrimdışı, özet yok). Böylece anahtarı
-  /// olmayan kullanıcı da etiket/önem/öneri görür.
+  /// [credentials] boşsa (hiç anahtar yok) **yerel kip**: dosyalar cihazda
+  /// okunur ve kural tabanlı sınıflandırıcıdan geçer (ücretsiz, çevrimdışı,
+  /// özet yok). Böylece anahtarı olmayan kullanıcı da etiket/önem/öneri görür.
+  ///
+  /// Anahtar varsa istekler **havuzdan** gider: bir modelin kotası dolunca
+  /// sıradaki model, o anahtarın modelleri bitince sıradaki anahtar denenir
+  /// (bkz. `AiPool`). Kuyruğun kendi geri çekilmesi artık son çare — havuzda
+  /// deneyecek ikili kalmadığında devreye girer.
   static Future<void> start({
     required AiScope scope,
-    required String apiKey,
-    required String model,
+    required AiCredentials credentials,
     bool reanalyze = false,
   }) async {
     if (_running) return;
@@ -159,8 +164,7 @@ abstract final class AiAnalyzer {
     try {
       await _run(
         scope: scope,
-        apiKey: apiKey.trim(),
-        model: model,
+        credentials: credentials.normalized,
         reanalyze: reanalyze,
       );
     } catch (e) {
@@ -192,10 +196,10 @@ abstract final class AiAnalyzer {
 
   static Future<void> _run({
     required AiScope scope,
-    required String apiKey,
-    required String model,
+    required AiCredentials credentials,
     required bool reanalyze,
   }) async {
+    final aiEnabled = credentials.keys.isNotEmpty;
     progress.value = AiProgress(
       phase: AiRunPhase.collecting,
       message: _str.t('aiq.collecting'),
@@ -221,7 +225,7 @@ abstract final class AiAnalyzer {
 
     // Günlük bütçe: kullanıcı anahtarının ücretsiz kotasını tek oturumda
     // tüketmemek için. Yerel kipte (anahtarsız) bütçe uygulanmaz — maliyet yok.
-    var budgetLeft = apiKey.isEmpty
+    var budgetLeft = !aiEnabled
         ? candidates.length
         : await _remainingBudget(scope.settings.dailyFileBudget);
     final planned =
@@ -286,7 +290,7 @@ abstract final class AiAnalyzer {
       }
 
       // 2) Yerel kip ya da buluta gidecek hiçbir şey yoksa kuralla sınıflandır.
-      if (apiKey.isEmpty) {
+      if (!aiEnabled) {
         await AiIndex.putAll(
             [for (final e in batch) _localRecord(e, excerpts[e])]);
         done += batch.length;
@@ -297,8 +301,7 @@ abstract final class AiAnalyzer {
       // 3) Buluta sor.
       try {
         final records = await _askGemini(
-          apiKey: apiKey,
-          model: model,
+          credentials: credentials,
           batch: batch,
           excerpts: excerpts,
           scope: scope,
@@ -421,8 +424,7 @@ abstract final class AiAnalyzer {
 
   /// Grubu tek istekte sorar ve kayıtlara çevirir.
   static Future<List<AiRecord>> _askGemini({
-    required String apiKey,
-    required String model,
+    required AiCredentials credentials,
     required List<FsEntry> batch,
     required Map<FsEntry, AiExcerpt> excerpts,
     required AiScope scope,
@@ -445,8 +447,7 @@ abstract final class AiAnalyzer {
       buffer.writeln();
     }
 
-    final gemini = GeminiService(apiKey: apiKey, model: model);
-    final raw = await gemini.generateJson(
+    final raw = await PooledGemini(credentials).generateJson(
       systemInstruction: _systemPrompt,
       prompt: 'Aşağıdaki ${batch.length} dosyayı sınıflandır. Her dosya için '
           'sıra numarasını (idx) aynen kullan.\n\n$buffer',

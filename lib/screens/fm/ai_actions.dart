@@ -72,7 +72,7 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
   String summary;
   try {
     final gemini =
-        GeminiService(apiKey: appState.apiKey, model: appState.model);
+        appState.gemini;
     summary = await gemini.chat(
       history: [
         ChatTurn(

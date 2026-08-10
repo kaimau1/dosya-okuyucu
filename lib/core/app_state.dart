@@ -12,7 +12,9 @@ import '../models/media_open_with.dart';
 import '../models/photo_group.dart';
 import '../models/remote_connection.dart';
 import '../models/recent_file.dart';
+import '../services/ai_pool.dart';
 import '../services/firebase_service.dart';
+import '../services/gemini_service.dart';
 import '../services/fm/ai_scope.dart';
 import '../services/fm/folder_lock.dart';
 import '../services/fm/storage_stats.dart' show StorageStats;
@@ -23,6 +25,11 @@ import '../services/tts_service.dart' show TtsPrefs;
 class AppState extends ChangeNotifier {
   static const _kApiKey = 'gemini_api_key';
   static const _kModel = 'gemini_model';
+  // Kesintisiz AI: 5 anahtar + 6 model (bkz. services/ai_pool.dart).
+  // Eski tekil anahtarlar KORUNUYOR: güncelleme sonrası kullanıcının girdiği
+  // anahtar kaybolmamalı — listeler boşsa onlardan tohumlanır.
+  static const _kApiKeys = 'gemini_api_keys';
+  static const _kModels = 'gemini_models';
   static const _kThemeMode = 'theme_mode';
   static const _kLanguage = 'app_language';
   static const _kRecents = 'recent_files';
@@ -66,6 +73,12 @@ class AppState extends ChangeNotifier {
 
   String _apiKey = '';
   String _model = 'gemini-2.0-flash';
+
+  /// Sırayla denenen API anahtarları (en çok [AiCredentials.maxKeys]).
+  List<String> _apiKeys = const [];
+
+  /// Öncelik sırasıyla modeller (en çok [AiCredentials.maxModels]).
+  List<String> _models = const [];
   ThemeMode _themeMode = ThemeMode.system;
   AppLanguage _language = AppLanguage.system;
 
@@ -111,9 +124,51 @@ class AppState extends ChangeNotifier {
   /// listeden çıkarırsa bir sonraki açılışta geri gelmemeli.
   AiScopeSettings _aiScope = const AiScopeSettings();
 
+  /// Birincil anahtar — eski çağrı noktaları ve "anahtar girildi mi"
+  /// kontrolleri için. Gerçek istekler [gemini] üzerinden **havuzla** gider.
   String get apiKey => _apiKey;
   String get model => _model;
-  bool get hasApiKey => _apiKey.trim().isNotEmpty;
+  bool get hasApiKey => aiCredentials.keys.isNotEmpty;
+
+  /// Girilen tüm anahtarlar (arayüz düzenler).
+  List<String> get apiKeys => List.unmodifiable(_apiKeys);
+
+  /// Seçilen model sırası (arayüz düzenler).
+  List<String> get aiModels => List.unmodifiable(_models);
+
+  /// Havuzun kullanacağı kimlik kümesi.
+  AiCredentials get aiCredentials =>
+      AiCredentials(keys: _apiKeys, models: _models).normalized;
+
+  /// **Uygulamadaki TÜM AI işlerinin tek giriş noktası.**
+  ///
+  /// Kota dolunca sıradaki modele, o anahtarın modelleri bitince sıradaki
+  /// anahtara kendiliğinden geçer (kullanıcı isteği 2026-08-10). Çağıran taraf
+  /// bunu bilmez — elindeki nesne yine bir [GeminiService].
+  GeminiService get gemini => PooledGemini(aiCredentials);
+
+  /// Anahtar listesini yazar (boşlar ve yinelenenler ayıklanır).
+  Future<void> setApiKeys(List<String> keys) async {
+    final clean = AiCredentials(keys: keys).normalized.keys;
+    _apiKeys = clean;
+    _apiKey = clean.isEmpty ? '' : clean.first;
+    await _prefs.setStringList(_kApiKeys, clean);
+    // Eski anahtar da güncel kalsın: sürüm geri alınırsa kullanıcı anahtarsız
+    // kalmasın (ve tekil anahtarı okuyan yerler doğru değeri görsün).
+    await _prefs.setString(_kApiKey, _apiKey);
+    notifyListeners();
+  }
+
+  /// Model sırasını yazar. En az bir model kalır — hiç model yoksa AI'nın
+  /// çalışması imkânsız olurdu, o yüzden boş liste varsayılana döner.
+  Future<void> setAiModels(List<String> models) async {
+    final clean = AiCredentials(models: models).normalized.models;
+    _models = clean.isEmpty ? const ['gemini-2.0-flash'] : clean;
+    _model = _models.first;
+    await _prefs.setStringList(_kModels, _models);
+    await _prefs.setString(_kModel, _model);
+    notifyListeners();
+  }
   ThemeMode get themeMode => _themeMode;
 
   /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
@@ -377,6 +432,16 @@ class AppState extends ChangeNotifier {
     _prefs = await SharedPreferences.getInstance();
     _apiKey = _prefs.getString(_kApiKey) ?? '';
     _model = _prefs.getString(_kModel) ?? 'gemini-2.0-flash';
+    // Liste yoksa (bu sürümden önce kurulmuş uygulama) tekil değerlerden
+    // tohumlanır — kullanıcı ayarlarını yeniden girmek zorunda kalmaz.
+    _apiKeys = _prefs.getStringList(_kApiKeys) ??
+        (_apiKey.trim().isEmpty ? const [] : [_apiKey.trim()]);
+    _models = _prefs.getStringList(_kModels) ?? [_model];
+    final normalized = AiCredentials(keys: _apiKeys, models: _models).normalized;
+    _apiKeys = normalized.keys;
+    _models = normalized.models.isEmpty ? [_model] : normalized.models;
+    _apiKey = _apiKeys.isEmpty ? '' : _apiKeys.first;
+    _model = _models.first;
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = _prefs.getString(_kUiFont) ?? AppTheme.uiFontDefault;
@@ -555,16 +620,26 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Birincil anahtarı yazar (havuzun 1. sırası).
   Future<void> setApiKey(String value) async {
-    _apiKey = value.trim();
-    await _prefs.setString(_kApiKey, _apiKey);
-    notifyListeners();
+    final keys = [..._apiKeys];
+    if (keys.isEmpty) {
+      keys.add(value.trim());
+    } else {
+      keys[0] = value.trim();
+    }
+    await setApiKeys(keys);
   }
 
+  /// Birincil modeli yazar (havuzun 1. sırası).
   Future<void> setModel(String value) async {
-    _model = value.trim();
-    await _prefs.setString(_kModel, _model);
-    notifyListeners();
+    final models = [..._models];
+    if (models.isEmpty) {
+      models.add(value.trim());
+    } else {
+      models[0] = value.trim();
+    }
+    await setAiModels(models);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {

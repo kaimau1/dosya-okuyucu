@@ -220,6 +220,41 @@
             </intent-filter>
         </activity>
 
+        <!-- ── SEÇİCİ KİPİ: çekmecedeki "uygulamada aç" OKU ────────────────
+             Kullanıcı bulgusu 2026-08-10 (ikinci ekran görüntüsü): *"biz
+             çıkıyoruz ama bizim arayüzümüze yönlendiren işaret çıkmıyor."*
+             Kök satırı (aşağıdaki provider) seçicinin KENDİ arayüzünde
+             gezdirir; yanında ok olan satırlar ise `ACTION_GET_CONTENT`
+             karşılayan uygulamalardır ve dokununca o uygulamanın kendi ekranı
+             açılır. Bu aktivite o satırı sağlar.
+
+             **AYRI aktivite ŞART:** MainActivity `singleTask` ve Android'de
+             singleTask bir aktivite sonuç döndüremez (çağıran anında
+             RESULT_CANCELED alır). Filtreyi oraya koymak, listede görünüp
+             hiçbir zaman dosya veremeyen bir satır üretirdi.
+
+             `excludeFromRecents`: seçici kipi çağıran uygulamanın görevinin
+             parçasıdır; son kullanılanlarda ayrı bir "Dosya Okuyucu" kartı
+             bırakmak kullanıcıyı yarım kalmış bir ekrana geri döndürürdü. -->
+        <activity
+            android:name=".PickerActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"/>
+            <intent-filter>
+                <action android:name="android.intent.action.GET_CONTENT"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.OPENABLE"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+        </activity>
+
         <!-- ── BELGE SAĞLAYICI: "Şuradan aç" listesinde görünmek ───────────
              Kullanıcı bulgusu 2026-08-10 (ekran görüntüsüyle): *"bu listede
              bizim adımız yok"* — Android'in dosya seçicisindeki soldan açılan

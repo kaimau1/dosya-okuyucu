@@ -8,6 +8,7 @@ import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import 'tiles_account.dart';
 import 'tiles_ai.dart';
+import 'tiles_ai_pool.dart';
 import 'tiles_ai_scope.dart';
 import 'tiles_appearance.dart';
 import 'tiles_browsing.dart';
@@ -213,6 +214,24 @@ List<SettingsCategory> settingsCategories() => [
               altKeys: ['settings.model_default', 'set.cat_ai'],
               builder: _aiAccessTile,
             ),
+            SettingRow(
+              id: 'ai_backup_keys',
+              titleKey: 'aipool.backup_keys',
+              altKeys: ['aipool.add_key', 'settings.api_key'],
+              builder: _aiBackupKeysTile,
+            ),
+            SettingRow(
+              id: 'ai_model_chain',
+              titleKey: 'aipool.model_chain',
+              altKeys: ['aipool.add_model', 'settings.model_default'],
+              builder: _aiModelChainTile,
+            ),
+            SettingRow(
+              id: 'ai_pool_status',
+              titleKey: 'aipool.status',
+              altKeys: ['aipool.reset'],
+              builder: _aiPoolStatusTile,
+            ),
           ]),
           // Kapsam, anahtardan hemen SONRA gelir: kullanıcı analizi
           // başlatmadan önce "nereye bakmayacak" sorusunu görmeli
@@ -416,6 +435,9 @@ Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();
 Widget _startFolderTile(BuildContext _) => const StartFolderTile();
 Widget _aiAccessTile(BuildContext _) => const AiAccessTile();
 Widget _memoryTile(BuildContext _) => const MemoryTile();
+Widget _aiBackupKeysTile(BuildContext _) => const AiBackupKeysTile();
+Widget _aiModelChainTile(BuildContext _) => const AiModelChainTile();
+Widget _aiPoolStatusTile(BuildContext _) => const AiPoolStatusTile();
 Widget _aiExcludedTile(BuildContext _) => const AiExcludedFoldersTile();
 Widget _aiTypesTile(BuildContext _) => const AiScopeTypesTile();
 Widget _aiPrivacyTile(BuildContext _) => const AiPrivacyTile();

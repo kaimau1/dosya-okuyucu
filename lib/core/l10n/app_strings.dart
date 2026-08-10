@@ -5279,6 +5279,61 @@ const Map<String, (String, String, String)> _table = {
     'يطابق أيضًا لقطات متتالية للمشهد نفسه؛ قد تحدث مطابقات خاطئة.',
   ),
 
+  // ── Kesintisiz AI havuzu (5 anahtar × 6 model) ────────────────────────────
+  'aipool.backup_keys': ('Yedek API anahtarları', 'Backup API keys', 'مفاتيح API احتياطية'),
+  'aipool.backup_keys_sub': (
+    'Birinci anahtarın TÜM modellerinin kotası dolunca sıradaki anahtara '
+        'geçilir. En çok 5 anahtar.',
+    'When every model of the first key is out of quota, the next key is used. '
+        'Up to 5 keys.',
+    'عند نفاد حصة كل نماذج المفتاح الأول يُستخدم المفتاح التالي. حتى 5 مفاتيح.',
+  ),
+  'aipool.key_n': ('Anahtar {n}', 'Key {n}', 'المفتاح {n}'),
+  'aipool.add_key': ('Anahtar ekle', 'Add key', 'إضافة مفتاح'),
+  'aipool.show_keys': ('Anahtarı göster/gizle', 'Show/hide key', 'إظهار/إخفاء المفتاح'),
+  'aipool.model_chain': ('Model sırası', 'Model order', 'ترتيب النماذج'),
+  'aipool.model_chain_sub': (
+    'Gemini kotayı model başına sayar. Bir modelin kotası dolunca istek '
+        'sıradaki modele geçer. En çok 6 model.',
+    'Gemini counts quota per model. When one runs out the request moves to the '
+        'next model. Up to 6 models.',
+    'يحسب Gemini الحصة لكل نموذج. عند نفادها ينتقل الطلب إلى النموذج التالي. '
+        'حتى 6 نماذج.',
+  ),
+  'aipool.add_model': ('Model ekle', 'Add model', 'إضافة نموذج'),
+  'aipool.move_up': ('Yukarı taşı', 'Move up', 'نقل لأعلى'),
+  'aipool.status': ('Kota durumu', 'Quota status', 'حالة الحصة'),
+  'aipool.status_sub': (
+    '{total} kota havuzu (anahtar × model) · {cooling} tanesi şu an dolu.',
+    '{total} quota pools (key × model) · {cooling} currently exhausted.',
+    '{total} مجمّع حصص (مفتاح × نموذج) · {cooling} منها ممتلئة الآن.',
+  ),
+  'aipool.reset': ('Sıfırla', 'Reset', 'إعادة تعيين'),
+
+  // ── Seçici kipi (başka uygulama bizden dosya istedi) ──────────────────────
+  'pick.title': ('Dosya seç', 'Pick a file', 'اختر ملفًا'),
+  'pick.select_n': ('Seç ({n})', 'Select ({n})', 'اختيار ({n})'),
+  'pick.empty': (
+    'Bu klasörde uygun dosya yok.',
+    'No matching file in this folder.',
+    'لا يوجد ملف مطابق في هذا المجلد.',
+  ),
+  'pick.unreadable': (
+    'Bu klasör okunamadı.',
+    'This folder could not be read.',
+    'تعذّرت قراءة هذا المجلد.',
+  ),
+  'pick.need_permission': (
+    'Dosyaları listelemek için depolama izni gerekiyor.',
+    'Storage permission is needed to list files.',
+    'مطلوب إذن التخزين لعرض الملفات.',
+  ),
+  'pick.failed': (
+    'Dosya çağıran uygulamaya verilemedi.',
+    'The file could not be handed to the requesting app.',
+    'تعذّر تسليم الملف إلى التطبيق الطالب.',
+  ),
+
   // ── AI analiz kuyruğu (arka planda, bağlamsız — AppStrings.current) ───────
   'aiq.collecting': ('Dosyalar toplanıyor…', 'Collecting files…', 'جارٍ جمع الملفات…'),
   'aiq.all_fresh': (

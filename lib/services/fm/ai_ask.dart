@@ -43,10 +43,11 @@ abstract final class AiAsk {
 
   /// Soruyu yanıtlar. [scope] son bir kez uygulanır: kullanıcı bir klasörü
   /// analizden SONRA dışlamışsa, eski kayıtlar cevaba karışmamalı.
+  /// [gemini] havuzlu istemcidir (`AppState.gemini`): bir modelin kotası
+  /// dolduysa soru sessizce sıradaki modele/anahtara gider.
   static Future<AiAnswer> ask({
     required String question,
-    required String apiKey,
-    required String model,
+    required GeminiService gemini,
     required AiScope scope,
     List<ChatTurn> history = const [],
   }) async {
@@ -66,7 +67,6 @@ abstract final class AiAsk {
           '${r.summary.isEmpty ? '' : '\n     özet: ${r.summary}'}');
     }
 
-    final gemini = GeminiService(apiKey: apiKey, model: model);
     final raw = await gemini.generateJson(
       systemInstruction:
           'Kullanıcının telefonundaki dosyaların listesi aşağıdadır. Yalnız bu '

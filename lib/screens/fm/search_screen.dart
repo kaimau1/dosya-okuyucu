@@ -320,7 +320,7 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _aiBusy = true);
     try {
       final gemini =
-          GeminiService(apiKey: appState.apiKey, model: appState.model);
+          appState.gemini;
       final answer = await gemini.chat(history: [
         ChatTurn(fromUser: true, text: smartQueryPrompt(q, DateTime.now())),
       ]);
