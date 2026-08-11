@@ -5317,6 +5317,12 @@ const Map<String, (String, String, String)> _table = {
 
   // ── Seçici kipi (başka uygulama bizden dosya istedi) ──────────────────────
   'pick.title': ('Dosya seç', 'Pick a file', 'اختر ملفًا'),
+  'fm.categories': ('Kategoriler', 'Categories', 'الفئات'),
+  'pick.search_hint': (
+    'Tüm dosyalarda ara…',
+    'Search all files…',
+    'ابحث في كل الملفات…',
+  ),
   'pick.select_n': ('Seç ({n})', 'Select ({n})', 'اختيار ({n})'),
   'pick.empty': (
     'Bu klasörde uygun dosya yok.',
@@ -5447,6 +5453,9 @@ const Map<String, (String, String, String)> _table = {
   ),
   'aih.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
   'aih.apply_selected': ('Uygula ({n})', 'Apply ({n})', 'تطبيق ({n})'),
+  'aih.apply_one': ('Yalnız bunu uygula', 'Apply only this', 'طبّق هذا فقط'),
+  'aih.ignore_one': ('Öneriyi yok say', 'Dismiss suggestion', 'تجاهل الاقتراح'),
+  'fm.actions': ('Dosya işlemleri', 'File actions', 'إجراءات الملف'),
   'aih.applied': (
     '{ok} dosya düzenlendi, {fail} atlandı',
     '{ok} files updated, {fail} skipped',
@@ -5522,10 +5531,14 @@ const Map<String, (String, String, String)> _table = {
   ),
   'aiset.budget': ('Günlük dosya bütçesi', 'Daily file budget', 'حصة الملفات اليومية'),
   'aiset.budget_sub': (
-    'Ücretsiz Gemini kotasını tek seferde tüketmemek için günlük sınır.',
-    'Daily cap so the free Gemini quota is not burned in one run.',
-    'حد يومي كي لا تُستهلك حصة Gemini المجانية دفعة واحدة.',
+    'Analiz kendi kendine durmasın diye varsayılan sınırsız. Kota gerçekten '
+        'dolunca havuz sıradaki modele/anahtara geçer.',
+    'Unlimited by default so analysis never stops itself. When quota really '
+        'runs out the pool moves to the next model/key.',
+    'غير محدود افتراضيًا كي لا يتوقف التحليل من تلقاء نفسه. وعند نفاد الحصة '
+        'فعليًا ينتقل المجمّع إلى النموذج/المفتاح التالي.',
   ),
+  'aiset.budget_unlimited': ('Sınırsız', 'Unlimited', 'بلا حد'),
   'aiset.forget': ('AI belleğini temizle', 'Clear AI memory', 'امسح ذاكرة الذكاء الاصطناعي'),
   'aiset.forget_sub': (
     'Tüm analiz kayıtlarını siler. Dosyalara dokunulmaz.',

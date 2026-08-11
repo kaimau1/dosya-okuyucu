@@ -17,6 +17,8 @@
 /// token harcamaz.
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -36,6 +38,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../settings_screen.dart';
+import 'entry_actions.dart';
 import 'important_screen.dart';
 
 class AiHubScreen extends StatefulWidget {
@@ -542,13 +545,38 @@ class _RecordTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 12, color: faint),
       ),
-      trailing: record.importance >= AiImportance.important
-          ? Icon(Icons.star,
-              size: 18, color: Theme.of(context).colorScheme.primary)
-          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (record.importance >= AiImportance.important)
+            Icon(Icons.star,
+                size: 18, color: Theme.of(context).colorScheme.primary),
+          IconButton(
+            tooltip: context.t('fm.actions'),
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => openEntryActions(context, entry),
+          ),
+        ],
+      ),
       onTap: () => EntryOpener.open(context, record.path),
+      // Uzun basış = dosya yöneticisinin kendi işlem sayfası (sil, adlandır,
+      // taşı, paylaş, etiketle, özellikler). Kullanıcı isteği 2026-08-10:
+      // *"ai analizinde belgeleri silme düzenleme vs gibi işlemler de
+      // yapılabilmeli."* Ayrı bir menü yazmak yerine uygulamanın var olan,
+      // denenmiş sayfası kullanılıyor — davranış her yerde aynı kalsın.
+      onLongPress: () => openEntryActions(context, entry),
     );
   }
+}
+
+/// İşlem sayfasını açar ve sonrasında indeksi gerçekle eşitler.
+///
+/// Dosya silindiyse/taşındıysa kaydın öylece durması, AI Merkezi'nde artık
+/// var olmayan dosyaları göstermek demekti (dokununca "bulunamadı").
+Future<void> openEntryActions(BuildContext context, FsEntry entry) async {
+  final changed = await showEntryActions(context, entry, allowReveal: true);
+  if (!changed) return;
+  await AiIndex.pruneMissing();
 }
 
 // ── sekme 3: öneriler ───────────────────────────────────────────────────────
@@ -585,17 +613,20 @@ class _SuggestionsTabState extends State<_SuggestionsTab> {
                 itemCount: suggestions.length,
                 itemBuilder: (context, i) {
                   final record = suggestions[i];
-                  return CheckboxListTile(
-                    value: _selected.contains(record.path),
-                    onChanged: _applying
-                        ? null
-                        : (on) => setState(() {
-                              if (on == true) {
-                                _selected.add(record.path);
-                              } else {
-                                _selected.remove(record.path);
-                              }
-                            }),
+                  final picked = _selected.contains(record.path);
+                  return ListTile(
+                    leading: Checkbox(
+                      value: picked,
+                      onChanged: _applying
+                          ? null
+                          : (on) => setState(() {
+                                if (on == true) {
+                                  _selected.add(record.path);
+                                } else {
+                                  _selected.remove(record.path);
+                                }
+                              }),
+                    ),
                     title: Text(record.name,
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(
@@ -603,7 +634,49 @@ class _SuggestionsTabState extends State<_SuggestionsTab> {
                       style: TextStyle(
                           fontSize: 12, color: Paper.faint(context)),
                     ),
-                    isThreeLine: false,
+                    // Satır başına işlem: tek öneriyi uygulamak için 40
+                    // dosyalık listeyi tek tek işaretlemek zorunda kalmamalı;
+                    // beğenilmeyen öneri de listeden düşebilmeli.
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        switch (value) {
+                          case 'apply':
+                            await _apply([record], explicit: [record]);
+                          case 'ignore':
+                            await AiIndex.clearSuggestion(record.path);
+                          case 'actions':
+                            if (!context.mounted) return;
+                            await openEntryActions(
+                              context,
+                              FsEntry(
+                                path: record.path,
+                                name: record.name,
+                                isDir: false,
+                                sizeBytes: record.sizeBytes,
+                                modifiedMs: record.modifiedMs,
+                              ),
+                            );
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                            value: 'apply',
+                            child: Text(context.t('aih.apply_one'))),
+                        PopupMenuItem(
+                            value: 'ignore',
+                            child: Text(context.t('aih.ignore_one'))),
+                        PopupMenuItem(
+                            value: 'actions',
+                            child: Text(context.t('fm.actions'))),
+                      ],
+                    ),
+                    onTap: _applying
+                        ? null
+                        : () => setState(() {
+                              if (!_selected.remove(record.path)) {
+                                _selected.add(record.path);
+                              }
+                            }),
                   );
                 },
               ),
@@ -665,14 +738,16 @@ class _SuggestionsTabState extends State<_SuggestionsTab> {
   /// Sıra önemli: taşıdıktan sonra adlandırmak, hedefte ad çakışması olursa
   /// dosyayı iki kez oynatırdı. Hata alan dosya atlanır ve sayılır — 40
   /// dosyalık bir uygulamada tek hata yüzünden hiçbiri işlenmemesi kötü olurdu.
-  Future<void> _apply(List<AiRecord> all) async {
+  Future<void> _apply(List<AiRecord> all, {List<AiRecord>? explicit}) async {
     setState(() => _applying = true);
-    final targets = [
-      for (final record in all)
-        if (_selected.contains(record.path)) record
-    ];
+    final targets = explicit ??
+        [
+          for (final record in all)
+            if (_selected.contains(record.path)) record
+        ];
     var okCount = 0;
     var failCount = 0;
+    var lastError = '';
     final importantRoot = ImportantScreen.pathIn(FmEnv.primaryRoot);
 
     for (final record in targets) {
@@ -684,17 +759,26 @@ class _SuggestionsTabState extends State<_SuggestionsTab> {
         }
         if (record.suggestedFolder.isNotEmpty) {
           final dest = p.join(importantRoot, record.suggestedFolder);
+          // KÖK NEDEN (kullanıcı 2026-08-10: *"öneriler ekranında işlemleri
+          // yapmıyor, atlıyor"* — 0 düzenlendi, 312 atlandı): hedef klasör
+          // yoktu ve `FileOps.moveAll` var olmayan klasöre taşıyamayıp
+          // `succeeded: 0` dönüyordu. Tek tek öneride bunu `ai_actions`
+          // yapıyordu (`dir.create(recursive: true)`), toplu akışta unutulmuş.
+          final dir = Directory(dest);
+          if (!dir.existsSync()) await dir.create(recursive: true);
           final result = await FileOps.moveAll([path], dest);
           if (result.succeeded == 0) {
             failCount++;
+            if (result.errors.isNotEmpty) lastError = result.errors.first;
             continue;
           }
           path = p.join(dest, p.basename(path));
         }
         await AiIndex.movePath(record.path, path);
         okCount++;
-      } catch (_) {
+      } catch (e) {
         failCount++;
+        lastError = '$e';
       }
     }
 
@@ -703,8 +787,14 @@ class _SuggestionsTabState extends State<_SuggestionsTab> {
       _applying = false;
       _selected.clear();
     });
+    // Hata varsa SEBEBİ de söylenir: "312 atlandı" tek başına kullanıcıyı
+    // neyin yanlış gittiği konusunda kör bırakıyordu.
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(context.t('aih.applied', {'ok': okCount, 'fail': failCount})),
+      content: Text(
+        context.t('aih.applied', {'ok': okCount, 'fail': failCount}) +
+            (failCount > 0 && lastError.isNotEmpty ? ' · $lastError' : ''),
+      ),
+      duration: const Duration(seconds: 5),
     ));
   }
 }

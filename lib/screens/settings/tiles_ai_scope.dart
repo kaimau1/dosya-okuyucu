@@ -249,7 +249,10 @@ class AiBudgetTile extends StatelessWidget {
           icon: Icons.speed_outlined,
           title: context.t('aiset.budget'),
           subtitle: context.t('aiset.budget_sub'),
-          options: const [(100, '100'), (400, '400'), (1000, '1000')],
+          // **Varsayılan sınırsız** (kullanıcı 2026-08-10: *"anahtarımda hâlâ
+          // kotam var, sınır koymasın"*). Gerçek kotayı havuz ölçüyor; buradaki
+          // sayaç yalnız kendi isteğiyle sınır koymak isteyen için.
+          options: [(0, context.t('aiset.budget_unlimited')), (400, '400'), (1000, '1000')],
           selected: _nearest(scope.dailyFileBudget),
           onChanged: (v) => context
               .read<AppState>()
@@ -271,7 +274,7 @@ class AiBudgetTile extends StatelessWidget {
   }
 
   static int _nearest(int budget) {
-    if (budget <= 200) return 100;
+    if (budget <= 0) return 0;
     if (budget <= 700) return 400;
     return 1000;
   }

@@ -345,6 +345,18 @@ abstract final class AiIndex {
     revision.value++;
   }
 
+  /// Bir kaydın önerisini düşürür ("bu öneriyi yok say").
+  static Future<void> clearSuggestion(String filePath) async {
+    await ensureLoaded();
+    final record = _records[filePath];
+    if (record == null || !record.hasSuggestion) return;
+    _records[filePath] =
+        record.copyWith(suggestedName: '', suggestedFolder: '');
+    await _rewrite();
+    _recount();
+    revision.value++;
+  }
+
   /// Diskte artık olmayan kayıtları temizler.
   static Future<int> pruneMissing() async {
     await ensureLoaded();

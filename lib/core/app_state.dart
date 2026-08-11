@@ -64,6 +64,9 @@ class AppState extends ChangeNotifier {
   // Tek JSON anahtarı — bkz. AiScopeSettings.toJson.
   static const _kAiScope = 'ai_scope';
   static const _kAiScopeSeeded = 'ai_scope_seeded';
+  // Günlük bütçe sınırsıza çekildi (2026-08-10); eski kurulumdaki 400 bir kez
+  // temizlenir, yoksa kullanıcı hâlâ duvara çarpardı.
+  static const _kAiBudgetFreed = 'ai_budget_freed';
 
   late SharedPreferences _prefs;
 
@@ -591,6 +594,14 @@ class AppState extends ChangeNotifier {
         final decoded = jsonDecode(raw);
         if (decoded is Map<String, Object?>) {
           _aiScope = AiScopeSettings.fromJson(decoded);
+          // Tek seferlik geçiş: eski sürümün 400'lük günlük sınırı kaldırıldı.
+          if (_prefs.getBool(_kAiBudgetFreed) != true) {
+            _prefs.setBool(_kAiBudgetFreed, true);
+            if (_aiScope.dailyFileBudget == 400) {
+              _aiScope = _aiScope.copyWith(dailyFileBudget: 0);
+              _prefs.setString(_kAiScope, jsonEncode(_aiScope.toJson()));
+            }
+          }
           return;
         }
       } catch (_) {

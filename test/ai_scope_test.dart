@@ -129,6 +129,19 @@ void main() {
     });
   });
 
+  group('günlük bütçe', () {
+    test('varsayılan SINIRSIZ (0)', () {
+      // Kullanıcı 2026-08-10: "400 analizden sonra 'yarın devam' diyor ama
+      // kotam var, sınır koymasın." Gerçek kotayı AiPool ölçüyor.
+      expect(const AiScopeSettings().dailyFileBudget, 0);
+    });
+
+    test('kullanıcı isterse sınır koyabilir ve kayıt korunur', () {
+      const limited = AiScopeSettings(dailyFileBudget: 400);
+      expect(AiScopeSettings.fromJson(limited.toJson()).dailyFileBudget, 400);
+    });
+  });
+
   group('öneri güvenliği (safeName)', () {
     test('uzantı korunur', () {
       expect(AiAnalyzer.safeName('Elektrik faturası', 'IMG_1.pdf'),

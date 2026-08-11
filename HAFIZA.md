@@ -7996,3 +7996,46 @@ görmeliyim."* Analiz artık `JobQueue`ya iş olarak giriyor (`id: 'ai-analysis'
   her grupta yoklanıyor), o ana kadarki sonuçlar diskte kalıyor.
 - `start()` artık **beklemiyor**: iş kuyrukta koşuyor, arayüz `progress`
   üzerinden izliyor; kullanıcı ekranı kapatıp gidebiliyor.
+
+## 2026-08-10 (3. tur) — Kullanıcının cihaz denemesinden çıkan beş düzeltme
+Build 280 telefonda denendi; beş bulgu geldi ve beşi de kapatıldı.
+
+### K) "400'den sonra yarın devam diyor ama kotam var" → sınır kaldırıldı
+Günlük dosya bütçesi (400) havuz YOKKEN konmuş bir korumaydı. Artık `AiPool`
+kotayı gerçekten ölçüyor (dolan ikili soğumaya giriyor, sıradakine geçiliyor),
+yani uygulamanın kendi tahmini sayacı yalnız gereksiz bir duvardı.
+- Varsayılan **0 = sınırsız**. Eski kurulumdaki 400 bir kez temizleniyor
+  (`ai_budget_freed`), yoksa güncelleyen kullanıcı yine duvara çarpardı.
+- Ayarlarda seçenek duruyor (Sınırsız / 400 / 1000) — isteyen kendisi sınırlar.
+
+### L) "Öneriler ekranında işlemleri yapmıyor, atlıyor" (0 düzenlendi, 312 atlandı)
+**Kök neden:** toplu uygulama, hedef klasörü **oluşturmuyordu**.
+`FileOps.moveAll` var olmayan klasöre taşıyamayıp `succeeded: 0` dönüyor, akış
+da bunu sessizce "atlandı" diye sayıyordu. Tek dosyalık öneride bu doğruydu
+(`ai_actions.fileIntoSuggestedFolder` klasörü `create(recursive: true)` ile
+açıyor); toplu akışa taşınırken o satır unutulmuş.
+- Düzeltme: hedef klasör açılıyor **ve** hata mesajı kullanıcıya gösteriliyor.
+  "312 atlandı" tek başına kullanıcıyı kör bırakıyordu; artık sebep yazıyor.
+
+### M) AI Merkezi'nde dosya işlemleri + satır başına öneri denetimi
+Kullanıcı: *"ai analizinde belgeleri silme düzenleme vs gibi işlemler de
+yapılabilmeli"*. Satırlara uzun basış ve ⋮ düğmesi **uygulamanın kendi işlem
+sayfasını** açıyor (`showEntryActions`: aç, paylaş, adlandır, taşı, sil,
+etiketle, özellikler). Ayrı bir menü YAZILMADI — davranış her ekranda aynı
+kalsın ve tek yerde bakımı sürsün. İşlem sonrası `AiIndex.pruneMissing()` ile
+indeks gerçekle eşitleniyor (silinen dosya listede hayalet kalmıyor).
+Önerilerde satır menüsü: **yalnız bunu uygula · öneriyi yok say · dosya
+işlemleri** (`AiIndex.clearSuggestion`).
+
+### N) Seçicide ana sayfa (ok işareti artık cihaz köküne değil bize açılıyor)
+Kullanıcı: *"orada direkt cihaz hafızası menüsü açılıyor, kullanışlı değil;
+bizim ana sayfamız açılıp her türlü işleme oradan yönlendirebilmeliyiz."*
+`PickFileScreen` yeniden yazıldı: **arama** (arama dizininden, tüm depolama) ·
+**son açılanlar** · **kategoriler** (Belgeler/Görüntüler/Videolar/Ses — istenen
+türe uymayan kategori hiç gösterilmez) · **hızlı klasörler + birimler** · ve
+istenirse klasör gezinme. Geri tuşu: kategori/arama → ana sayfa, klasör → üst
+klasör, kök → iptal.
+- Ana sayfada ve arama sonucunda satırın alt yazısı dosyanın **klasörünü**
+  gösteriyor: aynı adlı iki dosyayı ayırt etmenin tek yolu bu.
+
+**Doğrulama:** Flutter 3.29.3 — `flutter analyze` 0 sorun, tüm takım yeşil.

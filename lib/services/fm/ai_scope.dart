@@ -57,7 +57,15 @@ class AiScopeSettings {
   /// Buluta giden metin özünün üst sınırı (KB).
   final int excerptKb;
 
-  /// Bir günde AI'ya gönderilebilecek en fazla dosya (ücretsiz kota koruması).
+  /// Bir günde AI'ya gönderilebilecek en fazla dosya. **0 = sınırsız.**
+  ///
+  /// Kullanıcı uyarısı (2026-08-10): *"400 analizden sonra 'bir sonraki gün
+  /// devam edin' diyor ama anahtarımda hâlâ kotam var, sınır koymasın."*
+  /// Haklı: bütçe, havuz yokken kotayı tek oturumda yakmamak için konmuş bir
+  /// korumaydı. Artık `AiPool` kotayı gerçekten ölçüyor (dolan ikili soğumaya
+  /// giriyor, sıradakine geçiliyor), yani uygulamanın kendi tahmini sayacı
+  /// yalnız gereksiz bir duvar. Varsayılan sınırsız; isteyen ayarlardan sınır
+  /// koyabilir.
   final int dailyFileBudget;
 
   const AiScopeSettings({
@@ -68,7 +76,7 @@ class AiScopeSettings {
     this.sendText = true,
     this.sendImages = false,
     this.excerptKb = 6,
-    this.dailyFileBudget = 400,
+    this.dailyFileBudget = 0,
   });
 
   /// Varsayılan türler: **belge, görsel, ses, video, arşiv**.
