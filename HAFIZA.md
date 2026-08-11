@@ -8039,3 +8039,59 @@ klasör, kök → iptal.
   gösteriyor: aynı adlı iki dosyayı ayırt etmenin tek yolu bu.
 
 **Doğrulama:** Flutter 3.29.3 — `flutter analyze` 0 sorun, tüm takım yeşil.
+
+## 2026-08-11 — AI Merkezi revizyonu: sayı değil, EYLEM
+Kullanıcı (6193 dosyalık gerçek analizden sonra): *"AI analiz ediyor ama ne işe
+yarıyor, kullanıcı ne yapacak belli değil; yaptıklarının yansıması nerede belli
+değil… analiz sonrası öneriler arka planda yapılmaya devam etmiyor; rapor
+menüsünde etkileşim yok, silinebilir adayları göremiyorum. Büyük bir revizyon
+şart."* Ekran görüntüleri üç somut hatayı da gösterdi.
+
+### O) KÖK NEDEN — "0 dosya düzenlendi, 304 atlandı"
+Hata metni açıktı: `FileSystemException: bu adda bir öğe zaten var`. Model iki
+farklı dosyaya **aynı adı** öneriyor (ekranda iki satır da
+`Derya_Soyalp_Is_Sozlesmesi.doc` diyordu) ya da önerilen ad klasörde zaten var.
+`FileOps.rename` haklı olarak hata atıyor, toplu akış da tek hatada bütün
+listeyi düşürüyordu. Artık çakışan ad `FileOps.uniquePath` ile numaralanıyor
+("ad (2).doc") — kopyala/taşı akışlarının zaten kullandığı kural.
+- Bir önceki turda bulunan "hedef klasör açılmıyor" hatası da bu akışta duruyor;
+  ikisi birlikte "hiçbir öneri uygulanmıyor" tablosunu üretiyordu.
+
+### P) Öneri uygulama artık ARKA PLANDA (`ai_apply.dart`)
+Uygulama ön planda koşuyordu; ekran kapanınca iş duruyordu. Artık `JobQueue`ya
+giriyor (`ai-suggestions`): ön plan servisi, bildirimde ilerleme, bildirimden
+iptal, sonunda "kaç dosya düzenlendi / kaç atlandı" özeti.
+
+### R) Rapor tıklanabilir oldu (`ai_buckets.dart` + `ai_files_screen.dart`)
+Rapor sayı listesiydi; hiçbir sayının arkasındaki dosyalara ulaşılamıyordu.
+- **Kova** kavramı: önemli · harcanabilir · düşük önemli · öneri · tür · tümü.
+  Her kova bir liste ekranı açıyor; listede çoklu seçim ve **toplu işlem**
+  (paylaş, taşı, sil, öneriyi uygula) var. Aynı liste (`AiFileList`) Etiketler
+  ve Öneriler sekmelerinde de kullanılıyor — tek etkileşim dili.
+- Raporun başına **eylem kartları** kondu: "N dosya için öneri hazır → Önerileri
+  aç", "N harcanabilir dosya · X GB → Listeyi aç". "Ne yapacağım" sorusunun
+  cevabı artık ekranın en üstünde, düğmesiyle birlikte.
+
+### S) İki DÜRÜSTLÜK düzeltmesi
+1. **"Silinebilir aday 5262 · 8,3 GB" yanlıştı.** Kural "önem ≤ 20" olduğu için
+   kullanıcının 3419 fotoğrafı bu kovaya düşüyordu. Fotoğrafa "sil" demek bir
+   dosya yöneticisinin verebileceği en tehlikeli tavsiye. Artık silme önerisi
+   yalnız gerçekten harcanabilir türlere (ekran görüntüsü, geçici dosya,
+   önbellek, kurulum dosyası…) veriliyor; kalan yığın **"Düşük önemli (gözden
+   geçir)"** adıyla ayrı kovada. Test bu kuralı kilitliyor (`ai_buckets_test`).
+2. **"fotoğraf 3419" ve "fotograf 413" ayrı satırdı.** `canonicalDocType`
+   Türkçe harfleri ASCII'ye indirip eşanlamları birleştiriyor; gösterimde
+   `AiBuckets.label` okunur Türkçe ad veriyor. Analiz artık kanonik türü
+   **yazıyor**, yani indeks de temiz kalıyor.
+
+### T) `asciiFold` — neden `turkishFold`dan AYRI
+`turkishFold` yalnız büyük/küçük harf katlıyor ve her karakteri tek karakterde
+tutuyor; belge içi aramanın eşleşme konumları buna bağlı (aksan atsaydı indeks
+hizası bozulurdu). Gruplama/eşleşme anahtarı için `core/text_search.dart`e
+`asciiFold` eklendi (`fotoğraf` → `fotograf`). AI sohbetinin yerel eleme
+puanlaması da buna geçti: artık "sözleşme" yazan kullanıcı `sozlesme.pdf`
+dosyasını gerçekten buluyor.
+
+**Doğrulama:** Flutter 3.29.3 — `flutter analyze` 0 sorun, tüm takım yeşil;
+yeni `ai_buckets_test` (12 test) silme güvenliğini ve tür tekilleştirmeyi
+kilitliyor.

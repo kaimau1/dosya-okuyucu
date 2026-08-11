@@ -131,11 +131,11 @@ abstract final class AiAsk {
       if (after != null && record.modifiedMs < after) continue;
 
       var score = 0;
-      final name = turkishFold(record.name);
-      final title = turkishFold(record.title);
-      final type = turkishFold(record.docType);
-      final tags = turkishFold(record.tags.join(' '));
-      final summary = turkishFold(record.summary);
+      final name = asciiFold(record.name);
+      final title = asciiFold(record.title);
+      final type = asciiFold(record.docType);
+      final tags = asciiFold(record.tags.join(' '));
+      final summary = asciiFold(record.summary);
 
       for (final term in terms) {
         final stem = _stem(term);
@@ -181,7 +181,7 @@ abstract final class AiAsk {
       'bana', 'dosya', 'dosyalar', 'dosyam', 'dosyalarim',
     };
     return [
-      for (final word in turkishFold(question).split(RegExp(r'[^a-z0-9]+')))
+      for (final word in asciiFold(question).split(RegExp(r'[^a-z0-9]+')))
         if (word.length > 2 && !stop.contains(word)) word
     ];
   }
@@ -191,7 +191,7 @@ abstract final class AiAsk {
   /// Kaba ama işe yarar: kullanıcı "geçen ay indirdiklerim" derken 30 günü
   /// kasteder; takvim ayı hassasiyeti aramada fark yaratmaz.
   static int? _sinceFromQuestion(String question) {
-    final q = turkishFold(question);
+    final q = asciiFold(question);
     final now = DateTime.now();
     int daysAgo(int d) =>
         now.subtract(Duration(days: d)).millisecondsSinceEpoch;

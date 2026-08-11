@@ -5484,6 +5484,67 @@ const Map<String, (String, String, String)> _table = {
     'تم تحليل {n} ملف · {s} اقتراح معلّق',
   ),
 
+  // ── AI kovaları, toplu işlem ve öneri uygulama ────────────────────────────
+  'aif.empty': (
+    'Bu listede dosya yok.',
+    'No files in this list.',
+    'لا ملفات في هذه القائمة.',
+  ),
+  'aif.selected_n': ('{n} seçili · {size}', '{n} selected · {size}', '{n} محدد · {size}'),
+  'aif.apply': ('Öneriyi uygula', 'Apply suggestion', 'طبّق الاقتراح'),
+  'aif.share': ('Paylaş', 'Share', 'مشاركة'),
+  'aif.move': ('Taşı', 'Move', 'نقل'),
+  'aih.report_low': (
+    'Düşük önemli (gözden geçir)',
+    'Low value (review)',
+    'أهمية منخفضة (راجعها)',
+  ),
+  'aih.apply_all': ('Tümünü uygula ({n})', 'Apply all ({n})', 'طبّق الكل ({n})'),
+  'aih.sug_hint': (
+    'Taşınanlar “Önemli Dosyalar” altındaki klasöre gider. İşlem arka planda '
+        'sürer; bildirimden izleyebilir, durdurabilirsiniz.',
+    'Moved files go under “Important Files”. The job runs in the background; '
+        'watch or stop it from the notification.',
+    'تنتقل الملفات إلى «الملفات المهمة». تجري العملية في الخلفية؛ يمكنك '
+        'متابعتها أو إيقافها من الإشعار.',
+  ),
+  'aih.card_sug_title': (
+    '{n} dosya için ad/klasör önerisi hazır',
+    'Name/folder suggestions ready for {n} files',
+    'اقتراحات الاسم/المجلد جاهزة لـ {n} ملف',
+  ),
+  'aih.card_sug_body': (
+    'Anlamsız adlandırılmış ya da yanlış klasördeki dosyalar. Seçtiklerin '
+        'düzenlenir, gerisi olduğu gibi kalır.',
+    'Badly named or misplaced files. Only what you pick is changed.',
+    'ملفات بأسماء غير مفيدة أو في مجلد خاطئ. لا يتغيّر إلا ما تختاره.',
+  ),
+  'aih.card_sug_action': ('Önerileri aç', 'Open suggestions', 'افتح الاقتراحات'),
+  'aih.card_junk_title': (
+    '{n} harcanabilir dosya · {size}',
+    '{n} disposable files · {size}',
+    '{n} ملف قابل للحذف · {size}',
+  ),
+  'aih.card_junk_body': (
+    'Ekran görüntüsü, geçici dosya ve önbellek gibi güvenle silinebilecekler. '
+        'Fotoğraf ve videolar bu listeye ALINMAZ.',
+    'Screenshots, temporary files and caches. Photos and videos are never '
+        'included.',
+    'لقطات الشاشة والملفات المؤقتة والذاكرة المؤقتة. لا تُدرج الصور والفيديو.',
+  ),
+  'aih.card_junk_action': ('Listeyi aç', 'Open list', 'افتح القائمة'),
+  'aiap.job_title': ('AI önerileri uygulanıyor', 'Applying AI suggestions', 'تطبيق اقتراحات الذكاء الاصطناعي'),
+  'aiap.started': (
+    '{n} dosya arka planda düzenleniyor',
+    'Updating {n} files in the background',
+    'يجري تحديث {n} ملف في الخلفية',
+  ),
+  'aiap.result': (
+    'Son uygulama: {ok} dosya düzenlendi, {fail} atlandı',
+    'Last run: {ok} files updated, {fail} skipped',
+    'آخر تشغيل: تم تحديث {ok} ملف وتخطّي {fail}',
+  ),
+
   // ── AI kapsam ayarları ────────────────────────────────────────────────────
   'aiset.excluded': ('Kapsam dışı klasörler', 'Excluded folders', 'مجلدات مستثناة'),
   'aiset.excluded_sub': (

@@ -17,28 +17,25 @@
 /// token harcamaz.
 library;
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
-import '../../models/fs_entry.dart';
 import '../../services/fm/ai_analyzer.dart';
+import '../../services/fm/ai_apply.dart';
 import '../../services/fm/ai_ask.dart';
+import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/ai_report.dart';
 import '../../services/fm/entry_opener.dart';
-import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/gemini_service.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/ai_file_list.dart';
 import '../settings_screen.dart';
-import 'entry_actions.dart';
+import 'ai_files_screen.dart';
 import 'important_screen.dart';
 
 class AiHubScreen extends StatefulWidget {
@@ -439,18 +436,6 @@ class _TagsTabState extends State<_TagsTab> {
     return ValueListenableBuilder<int>(
       valueListenable: AiIndex.revision,
       builder: (context, _, __) {
-        final counts = AiIndex.docTypeCounts().entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-        final records = AiIndex.where(
-          docType: _type,
-          minImportance: _onlyImportant ? AiImportance.important : 0,
-        )..sort((a, b) {
-            final byImportance = b.importance.compareTo(a.importance);
-            return byImportance != 0
-                ? byImportance
-                : b.modifiedMs.compareTo(a.modifiedMs);
-          });
-
         if (AiIndex.count == 0) {
           return _EmptyHint(
             icon: Icons.label_outline,
@@ -458,6 +443,17 @@ class _TagsTabState extends State<_TagsTab> {
             body: context.t('aih.tags_empty_sub'),
           );
         }
+        final counts = AiBuckets.typeCounts();
+        final records = _type != null
+            ? AiBuckets.of(AiBucket.docType, docType: _type)
+            : AiBuckets.of(
+                _onlyImportant ? AiBucket.important : AiBucket.all);
+        final filtered = _onlyImportant
+            ? [
+                for (final record in records)
+                  if (record.importance >= AiImportance.important) record
+              ]
+            : records;
 
         return Column(
           children: [
@@ -480,7 +476,8 @@ class _TagsTabState extends State<_TagsTab> {
                       padding:
                           const EdgeInsets.only(right: Gap.xs, top: Gap.xs),
                       child: FilterChip(
-                        label: Text('${entry.key} (${entry.value})'),
+                        label: Text(
+                            '${AiBuckets.label(entry.key)} (${entry.value})'),
                         selected: _type == entry.key,
                         onSelected: (v) =>
                             setState(() => _type = v ? entry.key : null),
@@ -490,17 +487,10 @@ class _TagsTabState extends State<_TagsTab> {
               ),
             ),
             Expanded(
-              child: records.isEmpty
-                  ? _EmptyHint(
-                      icon: Icons.filter_alt_off_outlined,
-                      title: context.t('aih.no_match'),
-                      body: '',
-                    )
-                  : ListView.builder(
-                      itemCount: records.length,
-                      itemBuilder: (context, i) =>
-                          _RecordTile(record: records[i]),
-                    ),
+              child: AiFileList(
+                records: filtered,
+                onChanged: () => setState(() {}),
+              ),
             ),
           ],
         );
@@ -509,96 +499,23 @@ class _TagsTabState extends State<_TagsTab> {
   }
 }
 
-class _RecordTile extends StatelessWidget {
-  final AiRecord record;
-  const _RecordTile({required this.record});
-
-  @override
-  Widget build(BuildContext context) {
-    final faint = Paper.faint(context);
-    // Girdi kayıttan kurulur, DİSKTEN OKUNMAZ: liste kaydırılırken her satır
-    // için `existsSync`/`statSync` çağırmak ana izlekte disk G/Ç demekti
-    // (aynı hata "son açılanlar" ekranında ekranı saniyelerce dondurmuştu,
-    // bkz. FsScan.statPaths notu). Dosya silinmişse açma denemesi zaten
-    // kullanıcıya "bulunamadı" der.
-    final entry = FsEntry(
-      path: record.path,
-      name: record.name,
-      isDir: false,
-      sizeBytes: record.sizeBytes,
-      modifiedMs: record.modifiedMs,
-    );
-    return ListTile(
-      leading: FmEntryIcon(entry: entry),
-      title: Text(
-        record.title.isEmpty ? record.name : record.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        [
-          if (record.docType.isNotEmpty) record.docType,
-          FsPaths.humanSize(record.sizeBytes),
-          if (record.summary.isNotEmpty) record.summary,
-        ].join(' · '),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontSize: 12, color: faint),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (record.importance >= AiImportance.important)
-            Icon(Icons.star,
-                size: 18, color: Theme.of(context).colorScheme.primary),
-          IconButton(
-            tooltip: context.t('fm.actions'),
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => openEntryActions(context, entry),
-          ),
-        ],
-      ),
-      onTap: () => EntryOpener.open(context, record.path),
-      // Uzun basış = dosya yöneticisinin kendi işlem sayfası (sil, adlandır,
-      // taşı, paylaş, etiketle, özellikler). Kullanıcı isteği 2026-08-10:
-      // *"ai analizinde belgeleri silme düzenleme vs gibi işlemler de
-      // yapılabilmeli."* Ayrı bir menü yazmak yerine uygulamanın var olan,
-      // denenmiş sayfası kullanılıyor — davranış her yerde aynı kalsın.
-      onLongPress: () => openEntryActions(context, entry),
-    );
-  }
-}
-
-/// İşlem sayfasını açar ve sonrasında indeksi gerçekle eşitler.
-///
-/// Dosya silindiyse/taşındıysa kaydın öylece durması, AI Merkezi'nde artık
-/// var olmayan dosyaları göstermek demekti (dokununca "bulunamadı").
-Future<void> openEntryActions(BuildContext context, FsEntry entry) async {
-  final changed = await showEntryActions(context, entry, allowReveal: true);
-  if (!changed) return;
-  await AiIndex.pruneMissing();
-}
-
 // ── sekme 3: öneriler ───────────────────────────────────────────────────────
 
-class _SuggestionsTab extends StatefulWidget {
+/// Öneriler sekmesi.
+///
+/// Uygulama artık **arka planda** koşuyor (`AiApply` → iş kuyruğu): kullanıcı
+/// 2026-08-11'de *"analiz sonrası öneriler arka planda yapılmaya devam
+/// etmiyor"* dedi — ekran kapanınca ya da uygulama arka plana alınınca iş
+/// duruyordu. Artık bildirimde ilerliyor ve buradan çıkılabiliyor.
+class _SuggestionsTab extends StatelessWidget {
   const _SuggestionsTab();
-
-  @override
-  State<_SuggestionsTab> createState() => _SuggestionsTabState();
-}
-
-class _SuggestionsTabState extends State<_SuggestionsTab> {
-  final _selected = <String>{};
-  bool _applying = false;
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: AiIndex.revision,
       builder: (context, _, __) {
-        final suggestions = AiIndex.where(onlySuggestions: true)
-          ..sort((a, b) => b.importance.compareTo(a.importance));
+        final suggestions = AiBuckets.of(AiBucket.suggestions);
         if (suggestions.isEmpty) {
           return _EmptyHint(
             icon: Icons.auto_fix_high_outlined,
@@ -608,111 +525,48 @@ class _SuggestionsTabState extends State<_SuggestionsTab> {
         }
         return Column(
           children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: suggestions.length,
-                itemBuilder: (context, i) {
-                  final record = suggestions[i];
-                  final picked = _selected.contains(record.path);
-                  return ListTile(
-                    leading: Checkbox(
-                      value: picked,
-                      onChanged: _applying
-                          ? null
-                          : (on) => setState(() {
-                                if (on == true) {
-                                  _selected.add(record.path);
-                                } else {
-                                  _selected.remove(record.path);
-                                }
-                              }),
+            ValueListenableBuilder<AiApplyResult?>(
+              valueListenable: AiApply.lastResult,
+              builder: (context, result, __) => result == null
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          Gap.md, Gap.sm, Gap.md, 0),
+                      child: Text(
+                        context.t('aiap.result', {
+                          'ok': result.changed,
+                          'fail': result.failed,
+                        }),
+                        style: TextStyle(
+                            fontSize: 12, color: Paper.faint(context)),
+                      ),
                     ),
-                    title: Text(record.name,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(
-                      _describe(context, record),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      context.t('aih.sug_hint'),
                       style: TextStyle(
                           fontSize: 12, color: Paper.faint(context)),
                     ),
-                    // Satır başına işlem: tek öneriyi uygulamak için 40
-                    // dosyalık listeyi tek tek işaretlemek zorunda kalmamalı;
-                    // beğenilmeyen öneri de listeden düşebilmeli.
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) async {
-                        switch (value) {
-                          case 'apply':
-                            await _apply([record], explicit: [record]);
-                          case 'ignore':
-                            await AiIndex.clearSuggestion(record.path);
-                          case 'actions':
-                            if (!context.mounted) return;
-                            await openEntryActions(
-                              context,
-                              FsEntry(
-                                path: record.path,
-                                name: record.name,
-                                isDir: false,
-                                sizeBytes: record.sizeBytes,
-                                modifiedMs: record.modifiedMs,
-                              ),
-                            );
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                            value: 'apply',
-                            child: Text(context.t('aih.apply_one'))),
-                        PopupMenuItem(
-                            value: 'ignore',
-                            child: Text(context.t('aih.ignore_one'))),
-                        PopupMenuItem(
-                            value: 'actions',
-                            child: Text(context.t('fm.actions'))),
-                      ],
-                    ),
-                    onTap: _applying
-                        ? null
-                        : () => setState(() {
-                              if (!_selected.remove(record.path)) {
-                                _selected.add(record.path);
-                              }
-                            }),
-                  );
-                },
+                  ),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.auto_fix_high),
+                    label: Text(context
+                        .t('aih.apply_all', {'n': suggestions.length})),
+                    onPressed: () => _applyAll(context, suggestions),
+                  ),
+                ],
               ),
             ),
-            if (_applying) const LinearProgressIndicator(),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.md),
-                child: Row(
-                  children: [
-                    TextButton(
-                      onPressed: _applying
-                          ? null
-                          : () => setState(() {
-                                if (_selected.length == suggestions.length) {
-                                  _selected.clear();
-                                } else {
-                                  _selected
-                                    ..clear()
-                                    ..addAll(suggestions.map((r) => r.path));
-                                }
-                              }),
-                      child: Text(context.t('aih.select_all')),
-                    ),
-                    const Spacer(),
-                    FilledButton.icon(
-                      icon: const Icon(Icons.check),
-                      label: Text(context.t(
-                          'aih.apply_selected', {'n': _selected.length})),
-                      onPressed: _selected.isEmpty || _applying
-                          ? null
-                          : () => _apply(suggestions),
-                    ),
-                  ],
-                ),
+            Expanded(
+              child: AiFileList(
+                records: suggestions,
+                showSuggestion: true,
+                onApply: (selected) async => _applyAll(context, selected),
               ),
             ),
           ],
@@ -721,86 +575,28 @@ class _SuggestionsTabState extends State<_SuggestionsTab> {
     );
   }
 
-  String _describe(BuildContext context, AiRecord record) {
-    final parts = <String>[];
-    if (record.suggestedName.isNotEmpty &&
-        record.suggestedName != record.name) {
-      parts.add('→ ${record.suggestedName}');
-    }
-    if (record.suggestedFolder.isNotEmpty) {
-      parts.add('→ ${record.suggestedFolder}/');
-    }
-    return parts.join('   ');
-  }
-
-  /// Seçilen önerileri uygular: önce yeniden adlandır, sonra taşı.
-  ///
-  /// Sıra önemli: taşıdıktan sonra adlandırmak, hedefte ad çakışması olursa
-  /// dosyayı iki kez oynatırdı. Hata alan dosya atlanır ve sayılır — 40
-  /// dosyalık bir uygulamada tek hata yüzünden hiçbiri işlenmemesi kötü olurdu.
-  Future<void> _apply(List<AiRecord> all, {List<AiRecord>? explicit}) async {
-    setState(() => _applying = true);
-    final targets = explicit ??
-        [
-          for (final record in all)
-            if (_selected.contains(record.path)) record
-        ];
-    var okCount = 0;
-    var failCount = 0;
-    var lastError = '';
-    final importantRoot = ImportantScreen.pathIn(FmEnv.primaryRoot);
-
-    for (final record in targets) {
-      try {
-        var path = record.path;
-        if (record.suggestedName.isNotEmpty &&
-            record.suggestedName != p.basename(path)) {
-          path = await FileOps.rename(path, record.suggestedName);
-        }
-        if (record.suggestedFolder.isNotEmpty) {
-          final dest = p.join(importantRoot, record.suggestedFolder);
-          // KÖK NEDEN (kullanıcı 2026-08-10: *"öneriler ekranında işlemleri
-          // yapmıyor, atlıyor"* — 0 düzenlendi, 312 atlandı): hedef klasör
-          // yoktu ve `FileOps.moveAll` var olmayan klasöre taşıyamayıp
-          // `succeeded: 0` dönüyordu. Tek tek öneride bunu `ai_actions`
-          // yapıyordu (`dir.create(recursive: true)`), toplu akışta unutulmuş.
-          final dir = Directory(dest);
-          if (!dir.existsSync()) await dir.create(recursive: true);
-          final result = await FileOps.moveAll([path], dest);
-          if (result.succeeded == 0) {
-            failCount++;
-            if (result.errors.isNotEmpty) lastError = result.errors.first;
-            continue;
-          }
-          path = p.join(dest, p.basename(path));
-        }
-        await AiIndex.movePath(record.path, path);
-        okCount++;
-      } catch (e) {
-        failCount++;
-        lastError = '$e';
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _applying = false;
-      _selected.clear();
-    });
-    // Hata varsa SEBEBİ de söylenir: "312 atlandı" tek başına kullanıcıyı
-    // neyin yanlış gittiği konusunda kör bırakıyordu.
+  void _applyAll(BuildContext context, List<AiRecord> records) {
+    AiApply.start(
+      records,
+      importantRoot: ImportantScreen.pathIn(FmEnv.primaryRoot),
+    );
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-        context.t('aih.applied', {'ok': okCount, 'fail': failCount}) +
-            (failCount > 0 && lastError.isNotEmpty ? ' · $lastError' : ''),
-      ),
-      duration: const Duration(seconds: 5),
+      content: Text(context.t('aiap.started', {'n': records.length})),
     ));
   }
 }
 
 // ── sekme 4: rapor ──────────────────────────────────────────────────────────
 
+/// **Rapor** — analizin "ee, şimdi ne olacak?" sorusuna cevabı.
+///
+/// Kullanıcı (2026-08-11): *"AI analiz ediyor ama ne işe yarıyor, kullanıcı ne
+/// yapacak belli değil… rapor menüsünde etkileşim yok."* Eski rapor sayı
+/// listesiydi: hiçbir satıra dokunulamıyor, hiçbir sayı bir eyleme
+/// bağlanmıyordu. Yeni rapor iki katman:
+/// 1. **Eylem kartları** — yapılacak iş varsa en üstte, düğmesiyle birlikte.
+/// 2. **Kova satırları** — her sayı tıklanabilir; dokununca o dosyaların
+///    listesi (çoklu seçim + toplu işlem) açılır.
 class _ReportTab extends StatelessWidget {
   const _ReportTab();
 
@@ -809,59 +605,190 @@ class _ReportTab extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: AiIndex.revision,
       builder: (context, _, __) {
-        final report = AiReport.build(AiIndex.all());
-        if (report.analyzed == 0) {
+        final all = AiIndex.all();
+        final analyzed = [
+          for (final record in all)
+            if (record.analyzedMs > 0) record
+        ];
+        if (analyzed.isEmpty) {
           return _EmptyHint(
             icon: Icons.insights_outlined,
             title: context.t('aih.report_empty'),
             body: context.t('aih.report_empty_sub'),
           );
         }
+
+        final important =
+            AiBuckets.of(AiBucket.important, source: analyzed);
+        final disposable =
+            AiBuckets.of(AiBucket.disposable, source: analyzed);
+        final lowValue = AiBuckets.of(AiBucket.lowValue, source: analyzed);
+        final suggestions =
+            AiBuckets.of(AiBucket.suggestions, source: analyzed);
+        final types = AiBuckets.typeCounts(analyzed);
+
         return ListView(
-          padding: const EdgeInsets.all(Gap.md),
+          padding: const EdgeInsets.fromLTRB(0, Gap.sm, 0, Gap.xl),
           children: [
+            // ── Yapılacak işler ──────────────────────────────────────────
+            if (suggestions.isNotEmpty)
+              _ActionCard(
+                icon: Icons.auto_fix_high,
+                title: context.t('aih.card_sug_title', {'n': suggestions.length}),
+                body: context.t('aih.card_sug_body'),
+                actionLabel: context.t('aih.card_sug_action'),
+                onAction: () => _openBucket(
+                    context, AiBucket.suggestions, context.t('aih.tab_suggestions')),
+              ),
+            if (disposable.isNotEmpty)
+              _ActionCard(
+                icon: Icons.cleaning_services_outlined,
+                title: context.t('aih.card_junk_title', {
+                  'n': disposable.length,
+                  'size': FsPaths.humanSize(AiBuckets.totalBytes(disposable)),
+                }),
+                body: context.t('aih.card_junk_body'),
+                actionLabel: context.t('aih.card_junk_action'),
+                onAction: () => _openBucket(context, AiBucket.disposable,
+                    context.t('aih.report_junk')),
+              ),
+
+            const SizedBox(height: Gap.sm),
+            // ── Kovalar (hepsi tıklanabilir) ─────────────────────────────
             _ReportRow(
               icon: Icons.folder_open,
               label: context.t('aih.report_analyzed'),
-              value: '${report.analyzed}',
-              sub: FsPaths.humanSize(report.totalBytes),
+              value: '${analyzed.length}',
+              sub: FsPaths.humanSize(AiBuckets.totalBytes(analyzed)),
+              onTap: () => _openBucket(
+                  context, AiBucket.all, context.t('aih.report_analyzed')),
             ),
             _ReportRow(
               icon: Icons.star_outline,
               label: context.t('aih.report_important'),
-              value: '${report.important.length}',
+              value: '${important.length}',
+              onTap: () => _openBucket(context, AiBucket.important,
+                  context.t('aih.report_important')),
             ),
             _ReportRow(
               icon: Icons.delete_outline,
               label: context.t('aih.report_junk'),
-              value: '${report.junk.length}',
-              sub: FsPaths.humanSize(report.junkBytes),
+              value: '${disposable.length}',
+              sub: FsPaths.humanSize(AiBuckets.totalBytes(disposable)),
+              onTap: () => _openBucket(
+                  context, AiBucket.disposable, context.t('aih.report_junk')),
+            ),
+            _ReportRow(
+              icon: Icons.inbox_outlined,
+              label: context.t('aih.report_low'),
+              value: '${lowValue.length}',
+              sub: FsPaths.humanSize(AiBuckets.totalBytes(lowValue)),
+              onTap: () => _openBucket(
+                  context, AiBucket.lowValue, context.t('aih.report_low')),
             ),
             _ReportRow(
               icon: Icons.auto_fix_high_outlined,
               label: context.t('aih.report_suggestions'),
-              value: '${report.suggestions.length}',
+              value: '${suggestions.length}',
+              onTap: () => _openBucket(context, AiBucket.suggestions,
+                  context.t('aih.tab_suggestions')),
             ),
             const Divider(height: Gap.lg),
-            Text(context.t('aih.report_types'),
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: Gap.sm),
-            for (final entry in report.byType.take(12))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              child: Text(context.t('aih.report_types'),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            for (final entry in types.take(15))
               ListTile(
                 dense: true,
-                title: Text(entry.key),
-                trailing: Text('${entry.value}'),
+                title: Text(AiBuckets.label(entry.key)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${entry.value}'),
+                    const SizedBox(width: Gap.xs),
+                    const Icon(Icons.chevron_right, size: 18),
+                  ],
+                ),
+                onTap: () => _openBucket(
+                  context,
+                  AiBucket.docType,
+                  AiBuckets.label(entry.key),
+                  docType: entry.key,
+                ),
               ),
-            if (report.important.isNotEmpty) ...[
-              const Divider(height: Gap.lg),
-              Text(context.t('aih.report_important'),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              for (final record in report.important.take(10))
-                _RecordTile(record: record),
-            ],
           ],
         );
       },
+    );
+  }
+
+  static void _openBucket(
+    BuildContext context,
+    AiBucket bucket,
+    String title, {
+    String? docType,
+  }) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) =>
+          AiFilesScreen(bucket: bucket, title: title, docType: docType),
+    ));
+  }
+}
+
+/// Üstte duran "şunu yapabilirsin" kartı.
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  const _ActionCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, Gap.xs),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: scheme.primary),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(body,
+                      style: TextStyle(
+                          fontSize: 12, color: Paper.faint(context))),
+                  const SizedBox(height: Gap.xs),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: FilledButton.tonal(
+                      onPressed: onAction,
+                      child: Text(actionLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -871,12 +798,14 @@ class _ReportRow extends StatelessWidget {
   final String label;
   final String value;
   final String? sub;
+  final VoidCallback? onTap;
 
   const _ReportRow({
     required this.icon,
     required this.label,
     required this.value,
     this.sub,
+    this.onTap,
   });
 
   @override
@@ -888,8 +817,16 @@ class _ReportRow extends StatelessWidget {
             : Text(sub!,
                 style:
                     TextStyle(fontSize: 12, color: Paper.faint(context))),
-        trailing: Text(value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w600)),
+            if (onTap != null) const Icon(Icons.chevron_right),
+          ],
+        ),
+        onTap: onTap,
       );
 }
 

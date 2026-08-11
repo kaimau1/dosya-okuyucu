@@ -34,6 +34,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
 import '../ai_pool.dart';
 import '../gemini_service.dart';
+import 'ai_buckets.dart';
 import 'ai_extract.dart';
 import 'ai_index.dart';
 import 'ai_scope.dart';
@@ -586,7 +587,10 @@ abstract final class AiAnalyzer {
       title: (ai['baslik'] as String? ?? '').trim(),
       summary: (ai['ozet'] as String? ?? '').trim(),
       tags: tags.take(4).toList(),
-      docType: (ai['tur'] as String? ?? '').trim().toLowerCase(),
+      // Tür KANONİK yazılır: model bir dosyaya "fotoğraf", ötekine "fotograf"
+      // diyor ve rapor ikisini ayrı satır sayıyordu (kullanıcı 2026-08-11:
+      // ekranda "fotoğraf 3419" ve "fotograf 413" yan yanaydı).
+      docType: AiBuckets.canonicalDocType(ai['tur'] as String? ?? ''),
       importance: ((ai['onem'] as num?)?.toInt() ?? 0).clamp(0, 100),
       // Uzantısı değişen bir "öneri" dosyayı bozar; koruyoruz.
       suggestedName: safeName(suggested, entry.name),
@@ -613,7 +617,7 @@ abstract final class AiAnalyzer {
       title: '',
       summary: '',
       tags: confident ? [guess.type.label] : const [],
-      docType: confident ? guess.type.label.toLowerCase() : '',
+      docType: confident ? AiBuckets.canonicalDocType(guess.type.label) : '',
       importance: confident ? _localImportance(guess.type) : 0,
       suggestedFolder: confident ? guess.type.folder : '',
       // Yerel geçiş de "analiz edildi" sayılır: aynı dosya her turda yeniden

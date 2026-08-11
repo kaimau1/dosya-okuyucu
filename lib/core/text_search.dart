@@ -23,6 +23,28 @@ String turkishFold(String s) {
   return sb.toString();
 }
 
+/// Türkçe harfleri **ASCII** karşılığına indirger: `fotoğraf` → `fotograf`.
+///
+/// [turkishFold]dan farkı ve neden ayrı bir fonksiyon: `turkishFold` yalnız
+/// büyük/küçük harf katlar ve her karakteri **tek** karakterde tutar, çünkü
+/// belge içi aramanın eşleşme konumları kaynak metinle hizalı kalmak zorunda.
+/// Bu fonksiyon karakterleri DEĞİŞTİRİR — hizayı bozar, o yüzden belge içi
+/// aramada kullanılamaz. Kullanım yeri: **eşleşme/gruplama anahtarı** üretmek
+/// (AI'nın verdiği "fotoğraf" ile "fotograf" türlerinin aynı kovaya düşmesi,
+/// "sözleşme" yazan kullanıcının "sozlesme.pdf" dosyasını bulması).
+String asciiFold(String s) {
+  const map = {
+    'ğ': 'g', 'ü': 'u', 'ş': 's', 'ı': 'i', 'ö': 'o', 'ç': 'c',
+    'â': 'a', 'î': 'i', 'û': 'u', 'ê': 'e', 'é': 'e', 'á': 'a',
+  };
+  final folded = turkishFold(s);
+  final sb = StringBuffer();
+  for (final ch in folded.split('')) {
+    sb.write(map[ch] ?? ch);
+  }
+  return sb.toString();
+}
+
 /// [needle]'ın [haystack] içindeki tüm başlangıç indekslerini döndürür.
 /// Büyük/küçük harf duyarsız (Türkçe katlamalı) ve çakışmasız. [limit] üstünde
 /// durur (çok büyük belgede donmayı önler). İndeksler kaynak metne göredir.
