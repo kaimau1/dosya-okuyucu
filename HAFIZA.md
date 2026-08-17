@@ -8290,5 +8290,21 @@ bekleme; ÜÇÜNCÜ deneme geçilmiyor (kesinti kalıcıysa iş yine kırmızı 
 sürümün yayımlanmadığı gizlenmemeli). Sürüm notu `dist/RELEASE_NOTES.md`e
 yazılıp üç denemede `body_path` ile PAYLAŞILIYOR — metni üç yere kopyalamak,
 biri güncellenince sessizce ayrışırdı.
-**Not:** APK derlemesi bu iki kırmızı koşuda da BAŞARILIYDI; artifact
-(`dosya-okuyucu-apk`) yüklenmişti ve koşu sayfasından indirilebiliyordu.
+**Not:** APK derlemesi bu kırmızı koşularda da BAŞARILIYDI; artifact
+yüklenmişti ve koşu sayfasından indirilebiliyordu.
+
+**build-291 — geri çekilmeli deneme ÇALIŞTI ama kesinti sürüyordu:**
+18:14:08 → 503, sleep 90 → 18:15:38 → 503, sleep 240 → 18:19:44 → 503.
+Yani Releases API ~40 dakika kapalıydı; tasarım doğru, ortam bozuktu.
+
+**TUZAK — boş commit CI'yi TETİKLEMİYOR:** `paths-ignore: '**.md'` varken
+`git commit --allow-empty` push'u iş akışını başlatmıyor (değişen dosya yok →
+yol süzgeci hiçbir şeyle eşleşmiyor). Yeniden tetiklemek için gerçek bir
+non-.md değişiklik gerekiyor.
+
+**TUZAK — artifact'ı bu oturuma indiremiyoruz:** GitHub artifact'ları
+`*.blob.core.windows.net`te duruyor ve ortamın ağ politikası oraya çıkışı
+engelliyor (`CONNECT tunnel failed, 403`). Yani "APK'yı ben indirip
+kullanıcıya vereyim" yolu KAPALI; kullanıcı koşu sayfasından indirmeli.
+Bu yüzden artifact'lar mimariye göre AYRILDI: kesinti anında telefonda
+101 MB'lık ortak zip yerine yalnız kendi APK'sı (91 MB) iniyor.

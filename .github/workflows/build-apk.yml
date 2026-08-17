@@ -365,11 +365,23 @@ jobs:
             >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Artifact yükle
+      # Artifact'lar mimariye göre AYRI (2026-08-17). Release adımı GitHub
+      # kesintisinde düşebiliyor (bkz. aşağıdaki üç denemenin notu) ve o zaman
+      # tek indirme yolu artifact kalıyor. Tek artifact'te iki APK birleşince
+      # telefonda 101 MB'lık bir zip indirip içinden doğru dosyayı seçmek
+      # gerekiyordu; ayrı olunca herkes yalnız kendi APK'sını (91 MB) indiriyor.
+      - name: Artifact yükle (64-bit — herkesin indireceği)
         uses: actions/upload-artifact@v4
         with:
           name: dosya-okuyucu-apk
-          path: dist/*.apk
+          path: dist/dosya-okuyucu.apk
+          if-no-files-found: error
+
+      - name: Artifact yükle (32-bit — yalnız çok eski cihazlar)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dosya-okuyucu-apk-32bit
+          path: dist/dosya-okuyucu-32bit-armeabi-v7a.apk
           if-no-files-found: error
 
       # Sürüm notu DOSYAYA yazılır: aşağıdaki üç deneme aynı metni
