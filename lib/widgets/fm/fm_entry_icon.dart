@@ -9,6 +9,7 @@ import '../../models/fs_entry.dart';
 import '../../services/file_service.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/apk_icon.dart';
+import '../../services/fm/image_sniff.dart';
 import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../file_type_icon.dart';
@@ -212,6 +213,22 @@ class FmEntryIcon extends StatelessWidget {
       );
     }
 
+    // **Uzantısız görseller** (kullanıcı 2026-08-17: *"burada görselleri
+    // göremiyorum"*). WhatsApp önbelleğinden gelen kopyaların adında nokta
+    // yok → `FmCategory.other` → küçük resim hiç denenmiyordu. İmza baytlarına
+    // bakıp gerçekten görselse küçük resim gösteriliyor (bkz. `ImageSniff`).
+    if (thumbsOn &&
+        category == FmCategory.other &&
+        entry.extension.isEmpty &&
+        !entry.isDir) {
+      return _SniffedImage(
+        path: entry.path,
+        size: size,
+        radius: radius,
+        fallback: _badge(context, category),
+      );
+    }
+
     return _badge(context, category);
   }
 
@@ -236,6 +253,70 @@ class FmEntryIcon extends StatelessWidget {
       width: size,
       height: size,
       child: Icon(icon, color: tint, size: size * 0.92),
+    );
+  }
+}
+
+/// Uzantısı olmayan bir dosyayı, **imzası görsel diyorsa** küçük resim olarak
+/// çizer; demiyorsa (ya da bakılana kadar) [fallback] glifi kalır.
+class _SniffedImage extends StatefulWidget {
+  final String path;
+  final double size;
+  final double radius;
+  final Widget fallback;
+
+  const _SniffedImage({
+    required this.path,
+    required this.size,
+    required this.fallback,
+    this.radius = Radii.control,
+  });
+
+  @override
+  State<_SniffedImage> createState() => _SniffedImageState();
+}
+
+class _SniffedImageState extends State<_SniffedImage> {
+  // Önbellekte varsa İLK karede doğru çizilir (kaydırırken yanıp sönme olmaz).
+  late bool? _isImage = ImageSniff.cached(widget.path);
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isImage == null) _check();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SniffedImage old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) {
+      _isImage = ImageSniff.cached(widget.path);
+      if (_isImage == null) _check();
+    }
+  }
+
+  Future<void> _check() async {
+    final path = widget.path;
+    final result = await ImageSniff.check(path);
+    if (!mounted || path != widget.path) return;
+    setState(() => _isImage = result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isImage != true) return widget.fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: Image.file(
+        File(widget.path),
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.cover,
+        cacheWidth: (widget.size * 3).round(),
+        filterQuality: FilterQuality.low,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => widget.fallback,
+      ),
     );
   }
 }

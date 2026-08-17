@@ -133,10 +133,14 @@ abstract final class ApkIcon {
         bestScore = score;
         best = entry;
       }
-      if (best == null) return null;
-      final content = best.content;
-      if (content is! List<int> || content.isEmpty) return null;
-      return Uint8List.fromList(content);
+      if (best != null) {
+        final content = best.content;
+        if (content is List<int> && content.isNotEmpty) {
+          return Uint8List.fromList(content);
+        }
+      }
+      // Ad eşleşmedi → **ada bakmayan** yedek arama (bkz. [_squareIconFallback]).
+      return _squareIconFallback(archive);
     } catch (_) {
       return null;
     } finally {
@@ -144,6 +148,84 @@ abstract final class ApkIcon {
         input?.closeSync();
       } catch (_) {}
     }
+  }
+
+  /// **Ada bakmayan yedek:** `res/` altındaki KARE ve simge boyutundaki en
+  /// büyük PNG.
+  ///
+  /// *Niye gerekli:* ad eşlemesi (`ic_launcher`…) her APK'da tutmuyor. Kaynak
+  /// küçültme (`shrinkResources`) açık derlenmiş uygulamalarda AAPT2 kaynak
+  /// dosyalarının yolunu KISALTIYOR: `res/mipmap-xxxhdpi-v4/ic_launcher.png`
+  /// → `res/hQ.png`. O zaman ada bakan her eşleme boşa çıkar ve kullanıcı
+  /// yine düz Android glifi görür (2026-08-17 cihaz denemesi).
+  ///
+  /// Bu yedek YALNIZ ad eşlemesi başarısızken koşar; yani en kötü ihtimalle
+  /// bugünkü davranışa (glif) döneriz, daha kötüsüne değil.
+  ///
+  /// Sınırlar bilinçli — yanlış bir görsel seçmemek için:
+  /// * yalnız `res/` altı, yalnız PNG (boyutu başlıktan okunabiliyor),
+  /// * **kare** olmalı (uygulama simgeleri karedir; afiş/arka plan değildir),
+  /// * kenar 48–512 px arası (ikonun ölçüsü; ekran görüntüsü değil),
+  /// * sıkıştırılmış boyutu [_fallbackMaxBytes] altındaki girdiler açılır —
+  ///   90 MB'lık bir APK'da her PNG'yi açmak listeyi kastırırdı,
+  /// * en çok [_fallbackMaxProbe] aday denenir.
+  static const int _fallbackMaxBytes = 400 * 1024;
+  static const int _fallbackMaxProbe = 40;
+
+  static Uint8List? _squareIconFallback(Archive archive) {
+    final candidates = <ArchiveFile>[];
+    for (final entry in archive.files) {
+      if (!entry.isFile) continue;
+      final name = entry.name.toLowerCase();
+      if (!name.startsWith('res/') || !name.endsWith('.png')) continue;
+      if (entry.size <= 0 || entry.size > _fallbackMaxBytes) continue;
+      candidates.add(entry);
+    }
+    // Büyükten küçüğe: en keskin simge önce denensin.
+    candidates.sort((a, b) => b.size.compareTo(a.size));
+
+    Uint8List? best;
+    var bestSide = 0;
+    var probed = 0;
+    for (final entry in candidates) {
+      if (probed >= _fallbackMaxProbe) break;
+      probed++;
+      final content = entry.content;
+      if (content is! List<int> || content.length < 24) continue;
+      final bytes = Uint8List.fromList(content);
+      final size = pngSize(bytes);
+      if (size == null) continue;
+      final (w, h) = size;
+      if (w != h || w < 48 || w > 512) continue;
+      if (w > bestSide) {
+        bestSide = w;
+        best = bytes;
+      }
+    }
+    return best;
+  }
+
+  /// PNG başlığındaki (IHDR) genişlik/yükseklik — PNG değilse null.
+  ///
+  /// İmza (8 bayt) + uzunluk (4) + "IHDR" (4) + genişlik (4) + yükseklik (4).
+  /// Tüm görüntüyü ÇÖZMEDEN ölçü okumak için: kod çözme, kare olmayan onlarca
+  /// adayı elemek uğruna yapılacak en pahalı iş olurdu.
+  static (int, int)? pngSize(Uint8List bytes) {
+    if (bytes.length < 24) return null;
+    const signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    for (var i = 0; i < signature.length; i++) {
+      if (bytes[i] != signature[i]) return null;
+    }
+    if (bytes[12] != 0x49 ||
+        bytes[13] != 0x48 ||
+        bytes[14] != 0x44 ||
+        bytes[15] != 0x52) {
+      return null; // IHDR değil
+    }
+    int be32(int o) =>
+        (bytes[o] << 24) | (bytes[o + 1] << 16) | (bytes[o + 2] << 8) |
+            bytes[o + 3];
+    return (be32(16), be32(20));
   }
 
   /// Bir zip yolunun "bu uygulamanın simgesi" olma puanı; 0 = aday değil.

@@ -105,9 +105,36 @@
                 <data android:mimeType="image/*" />
                 <!-- 2026-07-25: video/ses artık uygulama içinde oynatılıyor
                      (video_player/ExoPlayer) → "birlikte aç" listesinde
-                     çıkmamız anlamlı. `*/*` hâlâ YOK (apk/zip kirliliği). -->
+                     çıkmamız anlamlı. `*/*` hâlâ YOK (apk kirliliği). -->
                 <data android:mimeType="video/*" />
                 <data android:mimeType="audio/*" />
+                <!-- **ARŞİVLER** (kullanıcı 2026-08-17: *"zip rar açarken
+                     seçenekler arasında yokuz"*). Bir .zip'e dokununca
+                     "Şununla aç" listesinde RAR, Google Files ve Dosya
+                     Yöneticisi vardı ama biz yoktuk — oysa uygulamanın kendi
+                     arşiv görüntüleyicisi var (`ArchiveScreen` + `ArchiveOps`;
+                     zip/rar/7z/tar/gz açar, `EntryOpener` arşivi oraya
+                     yönlendirir).
+
+                     Kök neden: zip/rar desenleri YALNIZ aşağıdaki http/https
+                     "indirme bağlantısı" süzgecindeydi; yerel bir dosyayı açan
+                     `content:`/`file:` süzgecinde hiçbir arşiv MIME türü yoktu.
+
+                     Aynı tür için birden çok ad dolaşıyor (Android sürümüne ve
+                     dosyayı veren uygulamaya göre değişir) — hepsi yazılmalı,
+                     yoksa bazı cihazlarda yine listede çıkmayız. -->
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="multipart/x-zip" />
+                <data android:mimeType="application/vnd.rar" />
+                <data android:mimeType="application/x-rar-compressed" />
+                <data android:mimeType="application/x-rar" />
+                <data android:mimeType="application/x-7z-compressed" />
+                <data android:mimeType="application/x-tar" />
+                <data android:mimeType="application/gzip" />
+                <data android:mimeType="application/x-gzip" />
+                <data android:mimeType="application/x-bzip2" />
+                <data android:mimeType="application/java-archive" />
             </intent-filter>
 
             <!-- **İNDİRME BAĞLANTISINA DOKUNULUNCA SEÇENEK OLARAK ÇIKMAK.**
@@ -214,9 +241,36 @@
                 <data android:mimeType="image/*" />
                 <!-- 2026-07-25: video/ses artık uygulama içinde oynatılıyor
                      (video_player/ExoPlayer) → "birlikte aç" listesinde
-                     çıkmamız anlamlı. `*/*` hâlâ YOK (apk/zip kirliliği). -->
+                     çıkmamız anlamlı. `*/*` hâlâ YOK (apk kirliliği). -->
                 <data android:mimeType="video/*" />
                 <data android:mimeType="audio/*" />
+                <!-- **ARŞİVLER** (kullanıcı 2026-08-17: *"zip rar açarken
+                     seçenekler arasında yokuz"*). Bir .zip'e dokununca
+                     "Şununla aç" listesinde RAR, Google Files ve Dosya
+                     Yöneticisi vardı ama biz yoktuk — oysa uygulamanın kendi
+                     arşiv görüntüleyicisi var (`ArchiveScreen` + `ArchiveOps`;
+                     zip/rar/7z/tar/gz açar, `EntryOpener` arşivi oraya
+                     yönlendirir).
+
+                     Kök neden: zip/rar desenleri YALNIZ aşağıdaki http/https
+                     "indirme bağlantısı" süzgecindeydi; yerel bir dosyayı açan
+                     `content:`/`file:` süzgecinde hiçbir arşiv MIME türü yoktu.
+
+                     Aynı tür için birden çok ad dolaşıyor (Android sürümüne ve
+                     dosyayı veren uygulamaya göre değişir) — hepsi yazılmalı,
+                     yoksa bazı cihazlarda yine listede çıkmayız. -->
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="multipart/x-zip" />
+                <data android:mimeType="application/vnd.rar" />
+                <data android:mimeType="application/x-rar-compressed" />
+                <data android:mimeType="application/x-rar" />
+                <data android:mimeType="application/x-7z-compressed" />
+                <data android:mimeType="application/x-tar" />
+                <data android:mimeType="application/gzip" />
+                <data android:mimeType="application/x-gzip" />
+                <data android:mimeType="application/x-bzip2" />
+                <data android:mimeType="application/java-archive" />
             </intent-filter>
         </activity>
 

@@ -8308,3 +8308,50 @@ engelliyor (`CONNECT tunnel failed, 403`). Yani "APK'yı ben indirip
 kullanıcıya vereyim" yolu KAPALI; kullanıcı koşu sayfasından indirmeli.
 Bu yüzden artifact'lar mimariye göre AYRILDI: kesinti anında telefonda
 101 MB'lık ortak zip yerine yalnız kendi APK'sı (91 MB) iniyor.
+
+---
+
+## 2026-08-17 (üçüncü tur) — cihazda görülen üç eksik
+
+### A) "zip/rar açarken seçenekler arasında yokuz" (`ci/AndroidManifest.xml`)
+Bir `.zip`e dokununca "Şununla aç" listesinde RAR, Google Files, Dosya
+Yöneticisi vardı ama biz yoktuk — oysa uygulamanın kendi arşiv görüntüleyicisi
+var (`ArchiveScreen` + `ArchiveOps`; `EntryOpener` arşivi oraya yönlendiriyor).
+**Kök neden:** zip/rar desenleri YALNIZ http/https "indirme bağlantısı"
+süzgecindeydi; yerel dosyayı açan `content:`/`file:` VIEW süzgecinde hiçbir
+arşiv MIME türü yoktu. Hem VIEW hem SEND süzgecine 12 arşiv MIME'i eklendi.
+**Not:** aynı tür için birden çok ad dolaşıyor (`application/zip`,
+`application/x-zip-compressed`, `multipart/x-zip`; `application/vnd.rar`,
+`application/x-rar-compressed`, `application/x-rar`) — Android sürümüne ve
+dosyayı veren uygulamaya göre değişiyor, hepsi yazılmalı.
+
+### B) APK simgeleri yine görünmüyordu → ADA BAKMAYAN yedek (`apk_icon.dart`)
+İlk sürüm yalnız ad eşlemesi yapıyordu (`ic_launcher`…). `shrinkResources`
+açık derlenmiş APK'larda AAPT2 kaynak yollarını KISALTIYOR
+(`res/mipmap-xxxhdpi-v4/ic_launcher.png` → `res/hQ.png`) ve ada bakan her
+eşleme boşa çıkıyor. Yedek arama eklendi: `res/` altındaki **kare**, kenarı
+48–512 px arası en büyük PNG. Ölçü, PNG başlığından (IHDR) okunuyor — tüm
+görüntüyü çözmeden. Yedek YALNIZ ad eşlemesi başarısızken koşuyor, yani en
+kötü ihtimalle bugünkü davranışa (Android glifi) dönülüyor.
+**Sınırlar:** yalnız `res/`, yalnız PNG, sıkıştırılmış boyutu 400 KB altı, en
+çok 40 aday — 90 MB'lık bir APK'da her PNG'yi açmak listeyi kastırırdı.
+**DOĞRULANMADI:** cihazda test edilemedi (bu oturumda Android SDK yok ve
+artifact indirme ağ politikasıyla kapalı). Testler sentetik APK'larla yazıldı.
+
+### C) Uzantısız görseller küçük resimsizdi (`image_sniff.dart`)
+"Birebir kopyalar" ekranında WhatsApp önbelleğinden gelen kopyalar
+(`0dc1773b99bd9094f44c5c713c66b30f` — nokta yok) düz glifle görünüyordu; yan
+yana duran `.jpg` kopyası küçük resimliydi, yani kullanıcı hangisini sileceğini
+GÖREMİYORDU. Kök neden: `FsEntry.category` yalnız uzantıya bakıyor → uzantısız
+dosya `FmCategory.other` → küçük resim hiç denenmiyor.
+`ImageSniff` 12 bayt okuyup imzaya bakıyor (PNG/JPEG/GIF/BMP/WEBP/HEIC),
+sonucu önbellekliyor; `cached()` senkron olduğu için kaydırırken yanıp sönme
+olmuyor.
+**TUZAK:** `ftyp` tek başına yetmez — **mp4 de `ftyp` ile başlıyor**. Yalnız
+görsel markaları (heic/heix/mif1/heif) kabul ediliyor, yoksa her video
+`Image.file`a verilip hata üretirdi. Test bunu kilitliyor.
+
+### D) İndirilenler ekranı simge ölçüsünde geride kalmıştı
+`FmEntryIcon(entry: entry)` varsayılan 44'te duruyordu; simgeler 68'e
+çıkarılınca bu ekran ötekilerin yarısı kadar görünüyordu. Artık
+`FmLayout.list.iconSizeFor(0)` — ölçü tek kaynaktan.

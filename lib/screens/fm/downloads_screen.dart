@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/file_age.dart';
+import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
@@ -365,7 +366,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 if (!_selected.remove(entry.path)) _selected.add(entry.path);
               }),
             )
-          : FmEntryIcon(entry: entry),
+          // Simge ölçüsü liste düzeniyle AYNI kaynaktan: bu ekran düzen
+          // seçicisi taşımıyor ve varsayılan 44'te kalmıştı — 2026-08-17'de
+          // simgeler büyütülünce (68) burası geride kaldı, indirilenler
+          // listesindeki APK/PDF kapakları ötekilerin yarısı kadar görünüyordu.
+          : FmEntryIcon(entry: entry, size: FmLayout.list.iconSizeFor(0)),
       title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [

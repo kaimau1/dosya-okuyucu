@@ -8,6 +8,38 @@ import 'package:path/path.dart' as p;
 
 import 'support/temp_dir.dart';
 
+/// Gerçek bir PNG üretir (IHDR ölçüsü okunabilsin diye baytlar sahte olamaz).
+Uint8List realPng(int w, int h) {
+  final ihdr = BytesBuilder()
+    ..add(_be32(w))
+    ..add(_be32(h))
+    ..add([8, 6, 0, 0, 0]);
+  final raw = BytesBuilder();
+  for (var y = 0; y < h; y++) {
+    raw.addByte(0);
+    for (var x = 0; x < w; x++) {
+      raw.add([255, 0, 0, 255]);
+    }
+  }
+  final out = BytesBuilder()
+    ..add([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+    ..add(_chunk('IHDR', ihdr.toBytes()))
+    ..add(_chunk('IDAT', const ZLibEncoder().encode(raw.toBytes())))
+    ..add(_chunk('IEND', const []));
+  return out.toBytes();
+}
+
+List<int> _be32(int v) => [(v >> 24) & 255, (v >> 16) & 255, (v >> 8) & 255, v & 255];
+
+List<int> _chunk(String type, List<int> data) {
+  final body = <int>[...type.codeUnits, ...data];
+  return [
+    ..._be32(data.length),
+    ...body,
+    ..._be32(getCrc32(body)),
+  ];
+}
+
 /// Tek pikselli geçerli bir PNG (baytları önemli değil, gerçek zip girdisi
 /// olması yeterli).
 final _png = Uint8List.fromList([
@@ -99,6 +131,82 @@ void main() {
 
     test('olmayan dosya null döner', () {
       expect(ApkIcon.readIconBytes(p.join(dir.path, 'yok.apk')), isNull);
+    });
+  });
+
+  group('ad eşleşmeyince KARE PNG yedeği', () {
+    late Directory dir;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('apk_icon_fb');
+      ApkIcon.debugReset();
+    });
+
+    tearDown(() => removeTempDir(dir));
+
+    String writeApk(String name, Map<String, Uint8List> entries) {
+      final archive = Archive();
+      for (final e in entries.entries) {
+        archive.addFile(ArchiveFile(e.key, e.value.length, e.value));
+      }
+      final path = p.join(dir.path, name);
+      File(path).writeAsBytesSync(ZipEncoder().encode(archive)!);
+      return path;
+    }
+
+    test('PNG ölçüsü başlıktan okunur', () {
+      expect(ApkIcon.pngSize(realPng(192, 192)), (192, 192));
+      expect(ApkIcon.pngSize(realPng(320, 120)), (320, 120));
+      // PNG olmayan bayt dizisi
+      expect(ApkIcon.pngSize(Uint8List.fromList(List.filled(64, 7))), isNull);
+    });
+
+    /// `shrinkResources` açık derlenmiş APK'larda AAPT2 kaynak yollarını
+    /// KISALTIYOR (`res/mipmap-xxxhdpi-v4/ic_launcher.png` → `res/hQ.png`);
+    /// ada bakan eşleme o zaman boşa çıkıyor.
+    test('kısaltılmış yolda bile kare simge bulunur', () {
+      final path = writeApk('kisaltilmis.apk', {
+        'res/hQ.png': realPng(192, 192),
+        'res/aB.png': realPng(320, 120), // afiş — kare değil, elenmeli
+        'classes.dex': Uint8List.fromList([9, 9, 9]),
+      });
+      final bytes = ApkIcon.readIconBytes(path);
+      expect(bytes, isNotNull);
+      expect(ApkIcon.pngSize(bytes!), (192, 192));
+    });
+
+    test('en KESKİN kare simge seçilir', () {
+      final path = writeApk('coklu.apk', {
+        'res/a.png': realPng(48, 48),
+        'res/b.png': realPng(192, 192),
+        'res/c.png': realPng(96, 96),
+      });
+      expect(ApkIcon.pngSize(ApkIcon.readIconBytes(path)!), (192, 192));
+    });
+
+    test('kare olmayan / ölçü dışı görseller seçilmez', () {
+      final path = writeApk('afis.apk', {
+        'res/banner.png': realPng(320, 120),
+        'res/kucuk.png': realPng(16, 16), // 48 altı: simge değil
+        'res/dev.png': realPng(1024, 1024), // 512 üstü: ekran görüntüsü
+      });
+      expect(ApkIcon.readIconBytes(path), isNull);
+    });
+
+    test('res/ DIŞINDAKİ kare PNG seçilmez', () {
+      final path = writeApk('assets.apk', {
+        'assets/flutter_assets/logo.png': realPng(192, 192),
+      });
+      expect(ApkIcon.readIconBytes(path), isNull);
+    });
+
+    test('ad eşleşmesi yedeğe TERCİH edilir', () {
+      final path = writeApk('adli.apk', {
+        'res/mipmap-xxxhdpi-v4/ic_launcher.png': realPng(96, 96),
+        'res/zz.png': realPng(192, 192), // daha büyük ama adsız
+      });
+      // Ad eşleşen 96'lık kazanmalı: dosyanın kendi beyanı, tahminden üstün.
+      expect(ApkIcon.pngSize(ApkIcon.readIconBytes(path)!), (96, 96));
     });
   });
 }
