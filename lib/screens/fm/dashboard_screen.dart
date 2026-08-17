@@ -65,7 +65,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   static StorageIndex? _cachedIndex;
   static int _cachedAtMs = 0;
 
@@ -82,6 +83,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     FsEvents.version.addListener(_onFsChanged);
     // AI kartı analiz sayısını gösteriyor; indeks diskten okunmadan sayı 0
     // görünürdü. Okuma bittiğinde `AiIndex.revision` kartı tazeler.
@@ -91,8 +93,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
     super.dispose();
+  }
+
+  /// Uygulama arka plandan dönünce sıcak klasörler yeniden taranır.
+  ///
+  /// Kullanıcı isteği (2026-08-17): *"uygulama açılır açılmaz arka planda
+  /// güncellenmeli, her seferinde ben açtığımda 1 sn önce eklenen bir görsel
+  /// belge ses her ne varsa görmeliyim"*. İnsanlar uygulamayı kapatmıyor:
+  /// WhatsApp'tan bir belge indirip buraya DÖNÜYOR. `initState` o dönüşte
+  /// çalışmadığı için tazeleme yaşam döngüsüne de bağlandı.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_catchUp());
   }
 
   @override
@@ -120,6 +135,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _hasAccess = access);
     if (_cachedIndex != null) {
       await _loadTrash();
+      // Süreç ayakta ama kullanıcı arada dosya eklemiş olabilir.
+      unawaited(_catchUp());
       return;
     }
     // Uygulama yeni açıldı: diskteki arama dizininden panoyu **anında** kur
@@ -128,6 +145,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (await _restoreFromIndex()) {
       await _loadTrash();
       await _loadFolderSizes();
+      // Dizin diskten geldi: en son taramadan BU YANA eklenenler eksik.
+      // Sıcak klasör yakalaması onları hemen getirir — tam tarama (aşağıda,
+      // koşullu) dakikalar sürebilir, kullanıcı o kadar bekleyemez.
+      unawaited(_catchUp());
       // Dizin bayatsa (uygulama dışında dosya değişmiş olabilir) sessizce
       // tazele — kullanıcı bu sırada panoyu kullanmaya devam eder.
       // `isStale` = BİZİM yaptığımız bir dosya işlemi sonucu bayat: kullanıcı
@@ -142,6 +163,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
     await _scan();
+  }
+
+  /// **Sıcak klasör yakalaması** — pano her açıldığında/öne geldiğinde koşar.
+  ///
+  /// Tam tarama dakikalar sürdüğü için 12 saatte bir koşuyor; arada eklenen
+  /// dosyalar o zamana kadar panoda görünmüyordu (kullanıcı 2026-08-17:
+  /// *"kaçmamalı hiçbir şey"*). Bu tarama yalnız kameranın/indirmelerin/
+  /// mesajlaşmanın yazdığı birkaç ağacı gezer — saniyenin altında biter, her
+  /// açılışta koşabilir. Bulunanlar indekse katılır (bkz.
+  /// [StorageIndex.mergeFresh]) ve arama dizini bayat işaretlenir.
+  bool _catchingUp = false;
+
+  Future<void> _catchUp() async {
+    if (_catchingUp || _scanning || !mounted) return;
+    _catchingUp = true;
+    try {
+      await FmEnv.ensureInit();
+      final roots = <String>[
+        for (final f in StorageStats.standardFolders(FmEnv.primaryRoot)) f.path,
+      ];
+      if (roots.isEmpty) return;
+      final fresh = await FsScan.freshFiles(roots);
+      if (!mounted || fresh.isEmpty) return;
+      final merged = _index.mergeFresh(fresh);
+      if (identical(merged, _index)) return;
+      _cachedIndex = merged;
+      setState(() => _index = merged);
+    } finally {
+      _catchingUp = false;
+    }
   }
 
   /// Dizin bu süreden eskiyse arka planda tazelenir. Uygulama dışında
@@ -542,10 +593,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(Gap.sm),
       decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerLow : const Color(0xFFFDFBF6),
+        // Kağıt tokenlarından (elle hex yazılmıyor — 2026-08-17'de kağıt
+        // beyazlatılınca bu iki hex geride kalıp kutuyu sararmış gösterdi).
+        color: isDark ? scheme.surfaceContainerLow : Paper.card,
         borderRadius: BorderRadius.circular(Radii.card),
         border: Border.all(
-          color: isDark ? scheme.outlineVariant : const Color(0xFFE6DECC),
+          color: isDark ? scheme.outlineVariant : Paper.rule,
         ),
       ),
       child: child,
@@ -595,8 +648,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _categoryGrid() {
     final importantPath = ImportantScreen.pathIn(FmEnv.primaryRoot);
     final importantStat = _importantStat(importantPath);
+    final download = p.join(FmEnv.primaryRoot, 'Download');
     final tiles = <FmTileData>[
-      // Kullanıcının kendi seçtiği dosyalar — ilk sırada, en sık dönülecek yer.
+      // **İndirilenler — EN BAŞTA, büyük kutu** (kullanıcı isteği 2026-08-17:
+      // *"indirilenler çok kolay erişilebilmeli"*, *"indirilenleri kolay
+      // erişilebilir grid kart yap ve en başa koy"*). Araç satırındaki küçük
+      // simgeler arasındaydı; oysa telefona inen her şey (APK, fatura, ekran
+      // görüntüsü, belge) önce oraya düşüyor — panoya gelme sebeplerinin
+      // birincisi. Boyut ölçülmüşse alt satırda yazar.
+      FmTileData(
+        icon: Icons.download_rounded,
+        color: const Color(0xFF1565C0),
+        label: context.t('fm.downloads'),
+        subtitle: _folderSizes[download] != null
+            ? FsPaths.humanSize(_folderSizes[download]!)
+            : '',
+        onTap: () {
+          final path = downloadsPathIn(FmEnv.primaryRoot);
+          if (path != null) {
+            _push(DownloadsScreen(path: path));
+          } else {
+            _snack(context.t('fm.downloads_missing'));
+          }
+        },
+      ),
+      // Kullanıcının kendi seçtiği dosyalar — en sık dönülecek ikinci yer.
       FmTileData(
         icon: Icons.star_outline,
         color: FmColors.folder,
@@ -708,7 +784,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// **Araçlar** — küçük, kartsız simgeler. Alt yazı yalnız gerçek bilgi
   /// taşıdığında yazılır ("3 sürüyor"), dolgu metin konmaz.
   List<FmTileData> _tools() {
-    final download = p.join(FmEnv.primaryRoot, 'Download');
     final downloading = DownloadService.instance.activeTasks.length;
     final queue = JobQueue.instance;
     final runningJobs = queue.activeJobs.length;
@@ -769,22 +844,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (mounted) setState(() {});
         },
       ),
-      FmTileData(
-        icon: Icons.download_outlined,
-        color: OfficeColors.neutral,
-        label: context.t('fm.downloads'),
-        subtitle: _folderSizes[download] != null
-            ? FsPaths.humanSize(_folderSizes[download]!)
-            : '',
-        onTap: () {
-          final path = downloadsPathIn(FmEnv.primaryRoot);
-          if (path != null) {
-            _push(DownloadsScreen(path: path));
-          } else {
-            _snack(context.t('fm.downloads_missing'));
-          }
-        },
-      ),
+      // (İndirilenler klasörü 2026-08-17'de buradan yukarıdaki BÜYÜK kutu
+      // ızgarasına, ilk sıraya taşındı. Buradaki "İndir" kutusu farklı bir
+      // şey: indirme YÖNETİCİSİ — süren indirmeler ve kuyruk.)
       FmTileData(
         icon: Icons.cleaning_services_outlined,
         color: const Color(0xFF00838F),

@@ -16,10 +16,12 @@ import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/search_index.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
 import '../../services/fm/smart_query.dart';
 import '../../services/gemini_service.dart';
+import '../../widgets/fm/drag_select.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
+import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 
@@ -41,6 +43,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
+  final _scroll = ScrollController();
   Timer? _debounce;
   List<FsEntry> _results = const [];
   bool _searching = false;
@@ -65,6 +68,34 @@ class _SearchScreenState extends State<SearchScreen> {
   /// Kaçıncı arama olduğunu sayar: geç dönen eski sonuç yenisini ezmesin.
   int _queryToken = 0;
 
+  /// **Çoklu seçim** (kullanıcı isteği 2026-08-17: *"ararken tümünü seç vs.
+  /// olmalı"*). Aramanın sonucu çoğu zaman "şu 40 dosyayı sil/taşı/paylaş"
+  /// demek; ekran o ana kadar tek tek açmaktan başkasına izin vermiyordu.
+  /// Kategori ve galeri ekranlarıyla AYNI kalıp: uzun basış seçimi açar,
+  /// üstte sayaç + tümünü seç, altta [FmSelectionBar].
+  final Set<String> _selected = {};
+
+  bool get _selecting => _selected.isNotEmpty;
+
+  void _toggle(FsEntry e) => setState(() {
+        if (!_selected.remove(e.path)) _selected.add(e.path);
+      });
+
+  void _toggleSelectAll(List<FsEntry> visible) {
+    setState(() {
+      if (visible.every((e) => _selected.contains(e.path))) {
+        _selected.removeAll(visible.map((e) => e.path));
+      } else {
+        _selected.addAll(visible.map((e) => e.path));
+      }
+    });
+  }
+
+  /// Seçili girdiler — SAYAÇ ile EYLEM aynı kümeyi görsün diye görünen
+  /// listeden süzülür (süzgeç değişince seçim dışarıda kalmış olabilir).
+  List<FsEntry> _selectedIn(List<FsEntry> visible) =>
+      [for (final e in visible) if (_selected.contains(e.path)) e];
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +118,7 @@ class _SearchScreenState extends State<SearchScreen> {
     SearchIndex.revision.removeListener(_onIndexChanged);
     _debounce?.cancel();
     _controller.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -181,6 +213,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final results = _filtered;
+    if (_selecting) return _selectionScaffold(results);
     return Scaffold(
       appBar: AppBar(
         title: TextField(
@@ -251,6 +284,55 @@ class _SearchScreenState extends State<SearchScreen> {
           _indexBanner(),
           if (_searched && _results.isNotEmpty) _resultSummary(results.length),
           Expanded(child: _body(results)),
+        ],
+      ),
+    );
+  }
+
+  /// Seçim kipindeki ekran: sade sayaç + "tümünü seç" üstte, eylemler altta.
+  ///
+  /// Ayrı bir `Scaffold` DEĞİL, aynı gövde farklı üst çubukla — arama alanı
+  /// seçim sırasında gizlenir (klavye açılıp seçimi bozmasın) ama sonuçlar
+  /// yerinde kalır, liste zıplamaz.
+  Widget _selectionScaffold(List<FsEntry> results) {
+    final selected = _selectedIn(results);
+    final allSelected =
+        results.isNotEmpty && results.every((e) => _selected.contains(e.path));
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => setState(_selected.clear),
+        ),
+        title: Text(context.t('ph.selected_of',
+            {'n': selected.length, 'total': results.length})),
+        actions: [
+          IconButton(
+            tooltip: context
+                .t(allSelected ? 'ph.clear_selection' : 'ph.select_all'),
+            icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
+            onPressed: () => _toggleSelectAll(results),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          _body(results),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: FmSelectionBar(
+              selected: selected,
+              onChanged: () async {
+                // "Arka plana al" ekranı kapatmış olabilir (bkz. kategori
+                // ekranındaki aynı not).
+                if (!mounted) return;
+                setState(_selected.clear);
+                await _run(_controller.text);
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -395,32 +477,62 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       );
     }
-    return ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, i) {
-        final e = results[i];
-        return ListTile(
-          leading: FmEntryIcon(entry: e),
-          title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(
-            e.isDir
-                ? p.dirname(e.path)
-                : '${FsPaths.humanSize(e.sizeBytes)} · ${p.dirname(e.path)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          onTap: () => _open(e),
-          onLongPress: () async {
-            await showEntryActions(
-              context,
-              e,
-              allowReveal: true,
-              onReveal: _reveal,
-            );
-            if (mounted) _run(_controller.text);
-          },
-        );
-      },
+    // Uzun basış seçimi açar, basılı tutup kaydırmak aralık seçer — kategori
+    // ve galeri ekranlarındaki jestin AYNISI (kullanıcı bir kez öğrenir).
+    return DragSelectArea(
+      scrollController: _scroll,
+      isSelected: (i) =>
+          i >= 0 && i < results.length && _selected.contains(results[i].path),
+      onSelectRange: (a, b, sel) => setState(() {
+        for (var i = a; i <= b; i++) {
+          if (i < 0 || i >= results.length) continue;
+          if (sel) {
+            _selected.add(results[i].path);
+          } else {
+            _selected.remove(results[i].path);
+          }
+        }
+      }),
+      child: ListView.builder(
+        controller: _scroll,
+        // Seçim çubuğu gövdenin ÜSTÜNE bindirmeli çizilir; son satır altında
+        // kalmasın diye sabit boşluk (çubuk yokken de aynı → liste zıplamaz).
+        padding: const EdgeInsets.only(bottom: 88),
+        itemCount: results.length,
+        itemBuilder: (context, i) {
+          final e = results[i];
+          return DragSelectItem(
+            index: i,
+            child: FmEntryListTile(
+              entry: e,
+              selected: _selected.contains(e.path),
+              selecting: _selecting,
+              subtitle: e.isDir
+                  ? p.dirname(e.path)
+                  : '${FsPaths.humanSize(e.sizeBytes)} · ${p.dirname(e.path)}',
+              onTap: () {
+                if (_selecting) {
+                  _toggle(e);
+                } else {
+                  _open(e);
+                }
+              },
+              onCheck: () => _toggle(e),
+              onMore: _selecting
+                  ? null
+                  : () async {
+                      await showEntryActions(
+                        context,
+                        e,
+                        allowReveal: true,
+                        onReveal: _reveal,
+                      );
+                      if (mounted) _run(_controller.text);
+                    },
+            ),
+          );
+        },
+      ),
     );
   }
 

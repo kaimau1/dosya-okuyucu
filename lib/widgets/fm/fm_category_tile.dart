@@ -115,49 +115,45 @@ class FmCategoryTile extends StatelessWidget {
     final dark = theme.brightness == Brightness.dark;
     final tint =
         dark ? Color.lerp(data.color, Colors.white, 0.25)! : data.color;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: data.onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.sm),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Builder(builder: (context) {
-                final box = Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    // Dikkat çeken kutuda zemin biraz daha koyu: animasyon
-                    // dursa bile (erişilebilirlik) kutu ayırt edilebilir kalır.
-                    color: tint.withValues(
-                        alpha: data.pulse ? (dark ? 0.34 : 0.22) : (dark ? 0.22 : 0.13)),
-                    borderRadius: BorderRadius.circular(Radii.control),
-                  ),
-                  child: Icon(data.icon, color: tint),
-                );
-                return data.pulse
-                    ? _PulsingIcon(key: pulseKey, child: box)
-                    : box;
-              }),
-              const SizedBox(height: Gap.sm),
-              Text(
-                data.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
+    // **Çerçevesiz, büyük simge** (kullanıcı 2026-08-17: *"dashboard
+    // simgelerin çerçevesini kaldır, büyük sade simgeler haline gelsinler"*).
+    // Eskiden 44 dp'lik yuvarlak köşeli renkli bir kutunun içinde 24 dp'lik
+    // bir glif vardı: kutu gliften büyüktü, göz önce kutuyu görüyordu. Artık
+    // glifin kendisi 38 dp — aynı yerde bir buçuk kat büyük ve daha sakin.
+    // Kartın kendisi de kalktı: 12 renkli kutu yan yana duvar gibi görünüyordu.
+    final icon = Icon(data.icon, color: tint, size: 38);
+    return InkWell(
+      onTap: data.onTap,
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            data.pulse ? _PulsingIcon(key: pulseKey, child: icon) : icon,
+            const SizedBox(height: Gap.xs),
+            Text(
+              data.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            // Alt satır yalnız BİLGİ taşıyorsa (araç ızgarasındaki kuralla
+            // aynı): dört sütunda dolgu metin satırı boşa yer yiyor.
+            if (data.subtitle.isNotEmpty)
               Text(
                 data.subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -165,22 +161,34 @@ class FmCategoryTile extends StatelessWidget {
 }
 
 /// Kutuların ızgarası (pano ve Önemli Dosyalar aynı ölçüleri kullanır).
+///
+/// **Dört sütun** (kullanıcı 2026-08-17: *"3 değil 4 kolon olsun"*). Sabit
+/// sütun sayısı, `maxCrossAxisExtent` değil: 150 dp'lik üst sınır dar
+/// telefonda 2, geniş telefonda 3 sütun üretiyordu — kullanıcının gördüğü
+/// düzen cihazına göre değişiyordu. Çok geniş ekranda (tablet) hücre
+/// büyümesin diye sütun sayısı genişlikle artar.
 class FmCategoryGrid extends StatelessWidget {
   final List<FmTileData> tiles;
   const FmCategoryGrid({super.key, required this.tiles});
 
   @override
-  Widget build(BuildContext context) => GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 150,
-          childAspectRatio: 0.95,
-          mainAxisSpacing: Gap.sm,
-          crossAxisSpacing: Gap.sm,
-        ),
-        itemCount: tiles.length,
-        itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final columns =
+              (constraints.maxWidth / 110).floor().clamp(4, 8);
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              childAspectRatio: 0.86,
+              mainAxisSpacing: Gap.xs,
+              crossAxisSpacing: Gap.xs,
+            ),
+            itemCount: tiles.length,
+            itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
+          );
+        },
       );
 }
 
@@ -205,9 +213,11 @@ class FmToolGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      // Araç satırı da dört sütun: içerik ızgarasıyla aynı hizada dursun
+      // (iki farklı sütun genişliği pano boyunca zikzak yapıyordu).
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 110,
-        childAspectRatio: 0.9,
+        maxCrossAxisExtent: 96,
+        childAspectRatio: 0.86,
         mainAxisSpacing: Gap.xs,
         crossAxisSpacing: Gap.xs,
       ),
@@ -220,11 +230,14 @@ class FmToolGrid extends StatelessWidget {
           onTap: tool.onTap,
           borderRadius: BorderRadius.circular(Radii.control),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+            padding: const EdgeInsets.symmetric(vertical: Gap.xs),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(tool.icon, color: tint, size: 26),
+                // 26 → 30 (kullanıcı 2026-08-17: *"simge boyutları büyümeli"*);
+                // içerik kutularının 38'inden bir kademe küçük kalıyor,
+                // ağırlık hiyerarşisi korunuyor.
+                Icon(tool.icon, color: tint, size: 30),
                 const SizedBox(height: Gap.xs),
                 Text(
                   tool.label,

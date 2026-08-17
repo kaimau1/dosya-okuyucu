@@ -196,6 +196,28 @@ abstract final class FsScan {
       _run(_indexFromRowsSync, _IndexArgs(const [], perCategory,
           searchIndexPath));
 
+  /// **Sıcak klasörlerin hızlı taraması** — kameranın, indirmelerin, mesajlaşma
+  /// medyasının bulunduğu birkaç klasörde son eklenen dosyaları toplar.
+  ///
+  /// Kullanıcı isteği (2026-08-17): *"son açılanlar ve yeni dosyalar sürekli
+  /// güncel tutulmalı … her seferinde ben açtığımda 1 sn önce eklenen bir
+  /// görsel belge ses her ne varsa görmeliyim, kaçmamalı hiçbir şey"*.
+  ///
+  /// *Niye tam tarama DEĞİL:* 100 bin dosyalı bir telefonda tüm ağacı yürümek
+  /// dakikalar sürüyor ve pili yiyor — bu yüzden [index] yalnız 12 saatte bir
+  /// koşuyordu, arada eklenen dosyalar panoya hiç yansımıyordu. Yeni dosyalar
+  /// **rastgele yerlere düşmez**: kamera DCIM'e, indirmeler Download'a,
+  /// WhatsApp kendi klasörüne yazar. O birkaç ağacı gezmek saniyenin altında
+  /// sürüyor ve her açılışta koşabiliyor.
+  ///
+  /// [sinceMs] verilirse yalnız o andan sonra değişenler döner.
+  static Future<List<FsEntry>> freshFiles(
+    List<String> roots, {
+    int sinceMs = 0,
+    int limit = 400,
+  }) =>
+      _run(_freshFilesSync, _FreshArgs(roots, sinceMs, limit));
+
   /// [fn]'i mümkünse arka plan isolate'inde çalıştırır; olmazsa ana izlekte.
   static Future<R> _run<A, R>(R Function(A) fn, A arg) async {
     try {
@@ -276,6 +298,61 @@ class StorageIndex {
   /// [c] null ise genel en büyükler, değilse o kategorinin en büyükleri.
   List<FsEntry> largestOf(FmCategory? c) =>
       c == null ? largest : (largestByCategory[c] ?? const []);
+
+  /// [FsScan.freshFiles] ile bulunan **yeni** dosyaları indekse katar.
+  ///
+  /// Kullanıcı isteği (2026-08-17): pano bir saniye önce eklenen dosyayı da
+  /// göstermeli. Tam tarama pahalı olduğu için sıcak klasörler ayrıca taranıyor
+  /// ve sonucu buradan indekse işleniyor: hem "Yeni Dosyalar" listesine hem de
+  /// kategori listelerine ve sayaçlara.
+  ///
+  /// Zaten bilinen yollar (yol karşılaştırmasıyla) **iki kez sayılmaz** — aynı
+  /// dosya her açılışta yeniden bulunacağı için sayaçlar şişerdi.
+  StorageIndex mergeFresh(List<FsEntry> fresh) {
+    if (fresh.isEmpty) return this;
+    final known = <String>{
+      for (final e in recent) e.path,
+      for (final list in byCategory.values)
+        for (final e in list) e.path,
+    };
+    final added = [for (final e in fresh) if (!known.contains(e.path)) e];
+    if (added.isEmpty) return this;
+
+    List<FsEntry> prepend(List<FsEntry> base, List<FsEntry> extra, int cap) {
+      final out = [...extra, ...base];
+      out.sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+      return out.length > cap ? out.sublist(0, cap) : out;
+    }
+
+    final nextByCategory = {
+      for (final entry in byCategory.entries) entry.key: entry.value,
+    };
+    final nextStats = {for (final e in stats.entries) e.key: e.value};
+    for (final category in FmCategory.values) {
+      final mine = [for (final e in added) if (e.category == category) e];
+      if (mine.isEmpty) continue;
+      nextByCategory[category] =
+          prepend(byCategory[category] ?? const [], mine, 800);
+      final old = stats[category] ?? const CategoryStat(0, 0);
+      nextStats[category] = CategoryStat(
+        old.count + mine.length,
+        old.bytes + mine.fold<int>(0, (s, e) => s + e.sizeBytes),
+      );
+    }
+
+    return StorageIndex(
+      stats: nextStats,
+      byCategory: nextByCategory,
+      largest: largest,
+      largestByCategory: largestByCategory,
+      recent: prepend(recent, added, 800),
+      totalFiles: totalFiles + added.length,
+      totalBytes:
+          totalBytes + added.fold<int>(0, (s, e) => s + e.sizeBytes),
+      skipped: skipped,
+      searchIndexRows: searchIndexRows,
+    );
+  }
 }
 
 // ── isolate'te koşan saf fonksiyonlar ───────────────────────────────────────
@@ -351,6 +428,33 @@ List<FsEntry> _collectSync(_CollectArgs args) {
       (entry) {
         if (hits.length >= args.limit) return;
         if (category != null && entry.category != category) return;
+        hits.add(entry);
+      },
+      () {},
+      stop: () => hits.length >= args.limit,
+    );
+  }
+  return _finishCollect(hits);
+}
+
+class _FreshArgs {
+  final List<String> roots;
+  final int sinceMs;
+  final int limit;
+  const _FreshArgs(this.roots, this.sinceMs, this.limit);
+}
+
+List<FsEntry> _freshFilesSync(_FreshArgs args) {
+  final hits = <FsEntry>[];
+  final seen = <String>{};
+  for (final root in args.roots) {
+    final dir = Directory(root);
+    if (!dir.existsSync()) continue;
+    walkFiles(
+      dir,
+      (entry) {
+        if (entry.modifiedMs < args.sinceMs) return;
+        if (!seen.add(entry.path)) return;
         hits.add(entry);
       },
       () {},

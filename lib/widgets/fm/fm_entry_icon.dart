@@ -48,6 +48,66 @@ abstract final class FmColors {
         FmCategory.document => Icons.description_rounded,
         FmCategory.other => Icons.insert_drive_file_rounded,
       };
+
+  // ── uzantıya ve klasör adına özel simgeler ────────────────────────────────
+  //
+  // Kullanıcı isteği (2026-08-17): *"APK dosyaları vs hepsinin simgesi
+  // görülmeli, ne kadar görünebilirse o kadar iyi"* ve *"klasörlerde de
+  // simgeleri daha güzel yap … bize özgü yap"*.
+  //
+  // Kategori simgesi kaba bir ayrım yapıyordu: bir `.zip`, bir `.apk` ve bir
+  // `.epub` "Diğer"in ya da "Arşiv"in aynı gliftiyle görünüyordu. Aşağıdaki
+  // tablo sık karşılaşılan türleri kendi glifine ve kendi rengine ayırır.
+  // Taklit DEĞİL: başka bir dosya yöneticisinin çizimleri kopyalanmadı,
+  // Material glif ailesinden bu uygulamanın paletine oturan bir eşleme
+  // kuruldu.
+
+  /// Uzantıya özel glif + renk (yoksa null → kategori glifi kullanılır).
+  static (IconData, Color)? forExtension(String ext) => switch (ext) {
+        'apk' || 'xapk' || 'apks' || 'aab' => (Icons.android_rounded, apk),
+        'zip' || 'rar' || '7z' || 'tar' || 'gz' || 'bz2' || 'xz' || 'zst' =>
+          (Icons.folder_zip_rounded, archive),
+        'epub' || 'mobi' || 'azw' || 'azw3' || 'fb2' =>
+          (Icons.menu_book_rounded, const Color(0xFF8D5524)),
+        'ttf' || 'otf' || 'woff' || 'woff2' =>
+          (Icons.font_download_rounded, const Color(0xFF5C4B8A)),
+        'json' || 'xml' || 'yaml' || 'yml' || 'html' || 'htm' || 'css' ||
+        'js' || 'ts' || 'dart' || 'py' || 'java' || 'kt' || 'c' || 'cpp' ||
+        'sh' =>
+          (Icons.code_rounded, const Color(0xFF3A6EA5)),
+        'iso' || 'img' || 'dmg' => (Icons.album_rounded, const Color(0xFF5B6670)),
+        'torrent' => (Icons.swap_vert_circle_rounded, const Color(0xFF2E7D5B)),
+        'db' || 'sqlite' || 'sql' =>
+          (Icons.storage_rounded, const Color(0xFF6E6555)),
+        'log' || 'ini' || 'cfg' || 'conf' =>
+          (Icons.receipt_long_rounded, other),
+        'vcf' => (Icons.contact_page_rounded, const Color(0xFF3A6EA5)),
+        'ics' => (Icons.event_note_rounded, const Color(0xFFB07C2A)),
+        _ => null,
+      };
+
+  /// Bilinen klasörün kendi glifi (yoksa null → düz klasör).
+  ///
+  /// Ad karşılaştırması küçük harfe indirilmiş TAM ad üzerinden yapılır:
+  /// "Download" klasörü ile "Download Manager Logs" farklı şeyler, ikincisine
+  /// indirme oku çizmek yanıltıcı olurdu.
+  static IconData? forFolderName(String name) => switch (name.toLowerCase()) {
+        'download' || 'downloads' || 'indirilenler' =>
+          Icons.download_rounded,
+        'dcim' || 'camera' || 'kamera' => Icons.photo_camera_rounded,
+        'pictures' || 'images' || 'resimler' || 'görüntüler' =>
+          Icons.photo_library_rounded,
+        'movies' || 'video' || 'videos' || 'videolar' =>
+          Icons.video_library_rounded,
+        'music' || 'müzik' || 'audio' || 'ses' => Icons.library_music_rounded,
+        'documents' || 'belgeler' => Icons.folder_copy_rounded,
+        'whatsapp' || 'telegram' || 'signal' => Icons.forum_rounded,
+        'android' || 'system' || 'data' => Icons.settings_rounded,
+        'screenshots' || 'ekran görüntüleri' => Icons.screenshot_rounded,
+        'backup' || 'backups' || 'yedek' => Icons.backup_rounded,
+        'fonts' => Icons.font_download_rounded,
+        _ => null,
+      };
 }
 
 /// Bir girdinin ikonu. Görsellerde gerçek küçük resim (thumbnail) gösterilir;
@@ -142,14 +202,27 @@ class FmEntryIcon extends StatelessWidget {
     return _badge(context, category);
   }
 
+  /// Kategori glifinden **daha özel** bir glif varsa onu kullanır: uzantıya
+  /// özel (apk/zip/epub/font/kod…) ya da bilinen klasör adı (İndirilenler,
+  /// DCIM, WhatsApp…). Bkz. [FmColors.forExtension] / [FmColors.forFolderName].
   Widget _badge(BuildContext context, FmCategory category) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = FmColors.forCategory(category);
+    var icon = FmColors.iconFor(category);
+    var base = FmColors.forCategory(category);
+    if (entry.isDir) {
+      icon = FmColors.forFolderName(entry.name) ?? icon;
+    } else {
+      final special = FmColors.forExtension(entry.extension);
+      if (special != null) {
+        icon = special.$1;
+        base = special.$2;
+      }
+    }
     final tint = dark ? Color.lerp(base, Colors.white, 0.25)! : base;
     return SizedBox(
       width: size,
       height: size,
-      child: Icon(FmColors.iconFor(category), color: tint, size: size * 0.92),
+      child: Icon(icon, color: tint, size: size * 0.92),
     );
   }
 }

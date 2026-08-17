@@ -7,12 +7,21 @@ import '../models/document.dart';
 /// çizgisiyle yapılır. Renkler tek yerden gelir; ekranlara elle hex yazılmaz.
 abstract final class Paper {
   // Açık tema — kağıt
-  static const bg = Color(0xFFFBF8F1); // sayfa
-  static const card = Color(0xFFF6F1E6); // kart, kategori kutusu
-  static const band = Color(0xFFF1EADC); // iş şeridi, seçim çubuğu, özet
-  static const well = Color(0xFFEFE7D7); // metin kutusu / simge kutusu dolgusu
-  static const rule = Color(0xFFDCD3C0); // kenarlık ve ayraç (cetvel)
-  static const edge = Color(0xFFC8BEA9); // ikincil kenarlık, çubuk zemini
+  //
+  // **Beyaza yaklaştırıldı** (kullanıcı 2026-08-17: *"kağıt temasını biraz
+  // beyazlaştıralım, dosya uygulamasına uymadı tam kağıt teması"*). Kağıdın
+  // sıcaklığı KALIYOR — mavi-gri bir Material yüzeyine dönmedi — ama krem
+  // doygunluğu yarıya indi. Sebep: bir okuyucuda sarımsı zemin gözü
+  // dinlendirir, bir DOSYA YÖNETİCİSİNDE ise fotoğraf küçük resimlerinin ve
+  // renkli tür simgelerinin yanında zemin "sararmış" görünüyordu. Basamak
+  // sırası (bg → card → band → well → rule → edge) korundu: hiyerarşi aynı,
+  // yalnız her basamak daha açık.
+  static const bg = Color(0xFFFDFCF9); // sayfa
+  static const card = Color(0xFFFAF8F2); // kart, kategori kutusu
+  static const band = Color(0xFFF6F3EA); // iş şeridi, seçim çubuğu, özet
+  static const well = Color(0xFFF2EEE3); // metin kutusu / simge kutusu dolgusu
+  static const rule = Color(0xFFE7E1D3); // kenarlık ve ayraç (cetvel)
+  static const edge = Color(0xFFD3CBB9); // ikincil kenarlık, çubuk zemini
   static const ink = Color(0xFF262219); // başlık ve gövde
   static const inkSoft = Color(0xFF6E6555); // alt satır, ikincil metin
   static const inkFaint = Color(0xFF8A8071); // yol, sayaç, zaman damgası
@@ -38,8 +47,8 @@ abstract final class Paper {
 
   /// Belge sayfasının kendisi — koyu temada da AÇIK kalır (okunan metin ters
   /// çevrilmez, yalnız çevresi koyar). Kenarlığı [pageEdge].
-  static const page = Color(0xFFFBF8F1);
-  static const pageEdge = Color(0xFFD2C8B4);
+  static const page = Color(0xFFFDFCF9);
+  static const pageEdge = Color(0xFFDFD8C8);
 
   /// **Belgenin kendi yüzeyi** — Excel hücresi, düz metin sayfası.
   ///
@@ -95,7 +104,7 @@ class OfficeColors {
   static Color canvas(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
           ? Paper.bgDark
-          : const Color(0xFFEFE9DC);
+          : const Color(0xFFF1EEE6);
 }
 
 /// Ölçü token'ları: 4/8dp ritmi. Ekranlara serbest sayı yazmak yerine buradan

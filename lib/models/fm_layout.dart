@@ -85,7 +85,13 @@ extension FmLayoutInfo on FmLayout {
   /// Bu yüzden hücre genişliğinin neredeyse tamamı ikona ayrılır; ad iki
   /// satırda altına yazılır.
   double iconSizeFor(double cellWidth) {
-    if (!isGrid) return this == FmLayout.detail ? 56 : 44;
+    // Liste satırındaki simge 44 → 52 (kullanıcı 2026-08-17: *"simge boyutları
+    // büyümeli"*, *"APK dosyaları vs hepsinin simgesi görülmeli, ne kadar
+    // görünebilirse o kadar iyi"*). 52 dp'de küçük resim (fotoğraf kapağı, PDF
+    // kapak sayfası, video karesi) neyin ne olduğunu ADI OKUNMADAN anlatıyor;
+    // 44'te aynı kapak "renkli bir leke"ydi. Satır yüksekliği `ListTile`ın
+    // kendi asgarisinin (56) içinde kalıyor → liste uzamıyor.
+    if (!isGrid) return this == FmLayout.detail ? 64 : 52;
     // Hücre kenarındaki iç boşluk (2×4) düşülür; kalanın tamamı ikondur.
     final usable = cellWidth - 8;
     return usable.clamp(48.0, 160.0);
