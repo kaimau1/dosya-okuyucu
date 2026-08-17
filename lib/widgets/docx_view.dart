@@ -397,10 +397,19 @@ class DocxViewState extends State<DocxView> {
         //
         // SOLDA duruyor: sağ altta ekranın AI düğmesi (FAB) var ve düğmeler
         // onun altında kalıyordu (2026-08-01 kullanıcı ekran görüntüsü).
+        //
+        // **Sistem çubuğu payı (2026-08-17 kullanıcı ekran görüntüsü:
+        // "büyüteç işaretleri telefonun kendi araç çubuğunun altında
+        // kalıyor").** `OfficeShell` alt sistem çubuğunun payını yalnız
+        // `bottomBar` VARKEN bırakıyor; düzenleme sırasında o çubuk gizleniyor
+        // (klavye + biçim şeridi zaten yer kaplıyor) ve gövde ekranın en altına
+        // kadar uzuyor — alttaki uzaklaştır düğmesi geri/ana menü çubuğunun
+        // altında kalıyordu. `paddingOf` klavye açıkken kendiliğinden 0 olur
+        // (insets payı yutar), yani klavyeliyken düğmeler fazladan yükselmez.
         if (_error == null)
           Positioned(
             left: 12,
-            bottom: 12,
+            bottom: 12 + MediaQuery.paddingOf(context).bottom,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

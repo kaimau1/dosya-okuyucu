@@ -532,7 +532,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            bottom: 12,
+                            // Zoom düğmeleriyle aynı sistem çubuğu payı
+                            // (bkz. DocxView'daki not) — rozet de aynı şeritte.
+                            bottom: 12 + MediaQuery.paddingOf(context).bottom,
                             child: Center(child: _pageBadge()),
                           ),
                         if (_finding)

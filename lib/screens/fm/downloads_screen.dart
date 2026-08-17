@@ -359,18 +359,22 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
     return ListTile(
       selected: selected,
-      leading: _selecting
-          ? Checkbox(
-              value: selected,
-              onChanged: (_) => setState(() {
-                if (!_selected.remove(entry.path)) _selected.add(entry.path);
-              }),
-            )
-          // Simge ölçüsü liste düzeniyle AYNI kaynaktan: bu ekran düzen
-          // seçicisi taşımıyor ve varsayılan 44'te kalmıştı — 2026-08-17'de
-          // simgeler büyütülünce (68) burası geride kaldı, indirilenler
-          // listesindeki APK/PDF kapakları ötekilerin yarısı kadar görünüyordu.
-          : FmEntryIcon(entry: entry, size: FmLayout.list.iconSizeFor(0)),
+      // Simge ölçüsü liste düzeniyle AYNI kaynaktan: bu ekran düzen
+      // seçicisi taşımıyor ve varsayılan 44'te kalmıştı — 2026-08-17'de
+      // simgeler büyütülünce (68) burası geride kaldı, indirilenler
+      // listesindeki APK/PDF kapakları ötekilerin yarısı kadar görünüyordu.
+      //
+      // Seçim açıkken önizleme KAYBOLMAZ (2026-08-17, ikinci ekran görüntüsü):
+      // onay rozeti kapağın köşesine biner (bkz. [FmSelectableIcon]).
+      leading: FmSelectableIcon(
+        entry: entry,
+        size: FmLayout.list.iconSizeFor(0),
+        selecting: _selecting,
+        selected: selected,
+        onCheck: () => setState(() {
+          if (!_selected.remove(entry.path)) _selected.add(entry.path);
+        }),
+      ),
       title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [

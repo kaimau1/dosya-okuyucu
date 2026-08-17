@@ -119,12 +119,16 @@ abstract final class FsScan {
   /// [searchIndexPath] verilirse **aynı yürüyüşte** arama dizini de yazılır
   /// (bkz. `SearchIndex`): panonun taraması zaten tüm ağacı geziyor, aramanın
   /// ikinci kez gezmesi saf israftı.
+  /// [statFolders] verilirse o klasörlerin **eksiksiz** dosya sayısı ve
+  /// boyutu da aynı yürüyüşte toplanır (bkz. [StorageIndex.folderStats]).
   static Future<StorageIndex> index(
     List<String> roots, {
     int perCategory = 800,
     String? searchIndexPath,
+    List<String> statFolders = const [],
   }) =>
-      _run(_indexSync, _IndexArgs(roots, perCategory, searchIndexPath));
+      _run(_indexSync,
+          _IndexArgs(roots, perCategory, searchIndexPath, statFolders));
 
   /// Bir kategorinin (ya da tüm dosyaların) **eksiksiz** listesi — arama
   /// dizininden, diske girilmeden.
@@ -192,9 +196,10 @@ abstract final class FsScan {
   static Future<StorageIndex?> indexFromRows(
     String searchIndexPath, {
     int perCategory = 800,
+    List<String> statFolders = const [],
   }) =>
-      _run(_indexFromRowsSync, _IndexArgs(const [], perCategory,
-          searchIndexPath));
+      _run(_indexFromRowsSync,
+          _IndexArgs(const [], perCategory, searchIndexPath, statFolders));
 
   /// **Sıcak klasörlerin hızlı taraması** — kameranın, indirmelerin, mesajlaşma
   /// medyasının bulunduğu birkaç klasörde son eklenen dosyaları toplar.
@@ -259,6 +264,16 @@ class StorageIndex {
   /// Son değiştirilen dosyalar (tüm kategoriler karışık).
   final List<FsEntry> recent;
 
+  /// **İstenen klasörlerin eksiksiz sayımı** (yol → sayı + bayt).
+  ///
+  /// *Niye gerekli (2026-08-17 hatası):* pano "Önemli Dosyalar" kutusu bu sayıyı
+  /// [recent] + [largest] listelerini süzerek çıkarıyordu. O iki liste kırpık
+  /// (300 ve 200 girdi) ve **tüm depolamanın** en yenisi/en büyüğü; içlerine
+  /// düşen "Önemli Dosyalar" girdisi bir avuç oluyordu. Kullanıcının 99 öğelik,
+  /// 7 GB'lık klasörü kutuda **"5,1 MB (15)"** görünüyordu. Sayım artık
+  /// yürüyüşün kendisinden geliyor: yaklaşıklık yok, ek tarama da yok.
+  final Map<String, CategoryStat> folderStats;
+
   /// Taranan toplam dosya sayısı ve bayt (analiz özeti).
   final int totalFiles;
   final int totalBytes;
@@ -276,6 +291,7 @@ class StorageIndex {
     required this.largest,
     this.largestByCategory = const {},
     required this.recent,
+    this.folderStats = const {},
     required this.totalFiles,
     required this.totalBytes,
     required this.skipped,
@@ -294,6 +310,10 @@ class StorageIndex {
 
   CategoryStat stat(FmCategory c) => stats[c] ?? const CategoryStat(0, 0);
   List<FsEntry> files(FmCategory c) => byCategory[c] ?? const [];
+
+  /// [path] klasörünün eksiksiz sayımı; bu klasör istenmemişse null
+  /// (çağıran "sayı bilinmiyor" der, tahmin ETMEZ).
+  CategoryStat? folderStat(String path) => folderStats[p.normalize(path)];
 
   /// [c] null ise genel en büyükler, değilse o kategorinin en büyükleri.
   List<FsEntry> largestOf(FmCategory? c) =>
@@ -340,12 +360,26 @@ class StorageIndex {
       );
     }
 
+    // Klasör sayımları da taze dosyalarla ilerler — yoksa kamera/indirme
+    // klasöründeki yeni dosya panonun kutusunda görünmezdi.
+    final nextFolders = {for (final e in folderStats.entries) e.key: e.value};
+    for (final folder in folderStats.keys) {
+      final mine = [for (final e in added) if (FsPaths.isInside(folder, e.path)) e];
+      if (mine.isEmpty) continue;
+      final old = folderStats[folder] ?? const CategoryStat(0, 0);
+      nextFolders[folder] = CategoryStat(
+        old.count + mine.length,
+        old.bytes + mine.fold<int>(0, (s, e) => s + e.sizeBytes),
+      );
+    }
+
     return StorageIndex(
       stats: nextStats,
       byCategory: nextByCategory,
       largest: largest,
       largestByCategory: largestByCategory,
       recent: prepend(recent, added, 800),
+      folderStats: nextFolders,
       totalFiles: totalFiles + added.length,
       totalBytes:
           totalBytes + added.fold<int>(0, (s, e) => s + e.sizeBytes),
@@ -370,7 +404,11 @@ class _IndexArgs {
 
   /// Boş değilse arama dizini de bu yola yazılır.
   final String? searchIndexPath;
-  const _IndexArgs(this.roots, this.perCategory, [this.searchIndexPath]);
+
+  /// Eksiksiz sayım istenen klasörler (bkz. [StorageIndex.folderStats]).
+  final List<String> statFolders;
+  const _IndexArgs(this.roots, this.perCategory,
+      [this.searchIndexPath, this.statFolders = const []]);
 }
 
 class _CollectArgs {
@@ -407,7 +445,7 @@ List<FsEntry> _collectFromIndexSync(_CollectArgs args) {
   final category = args.category;
   final rootPrefix = args.root == null ? null : p.normalize(args.root!);
   final hits = <FsEntry>[];
-  _forEachIndexRow(path, (entry) {
+  forEachIndexRow(path, (entry) {
     if (entry.isDir) return true;
     if (category != null && entry.category != category) return true;
     if (rootPrefix != null && !FsPaths.isInside(rootPrefix, entry.path)) {
@@ -487,7 +525,7 @@ List<FsEntry> _statPathsSync(List<String> paths) {
 /// Parça parça okunur (64 KB): 100 bin satırlık dizini tek String'e almak
 /// isolate'i onlarca MB şişirirdi. UTF-8'de satırsonu baytı (0x0A) çok baytlı
 /// bir dizinin içinde ASLA geçmez → baytları satırsonundan bölmek güvenlidir.
-void _forEachIndexRow(String path, bool Function(FsEntry) onRow) {
+void forEachIndexRow(String path, bool Function(FsEntry) onRow) {
   final file = File(path);
   if (!file.existsSync()) return;
   final raf = file.openSync();
@@ -545,7 +583,7 @@ List<FsEntry> _searchSync(_SearchArgs args) {
 }
 
 StorageIndex _indexSync(_IndexArgs args) {
-  final acc = _IndexAccumulator(args.perCategory);
+  final acc = _IndexAccumulator(args.perCategory, args.statFolders);
 
   // Arama dizini: aynı yürüyüşten beslenir. Yazma başarısız olursa (izin/yer)
   // tarama devam eder, yalnız dizin oluşmaz — pano çalışmaya devam etmeli.
@@ -580,9 +618,9 @@ StorageIndex? _indexFromRowsSync(_IndexArgs args) {
   if (path == null) return null;
   final file = File(path);
   if (!file.existsSync()) return null;
-  final acc = _IndexAccumulator(args.perCategory);
+  final acc = _IndexAccumulator(args.perCategory, args.statFolders);
   var rows = 0;
-  _forEachIndexRow(path, (entry) {
+  forEachIndexRow(path, (entry) {
     acc.add(entry);
     rows++;
     return true;
@@ -596,6 +634,12 @@ StorageIndex? _indexFromRowsSync(_IndexArgs args) {
 /// sayım/sıralama mantığı **tek yerde** dursun diye ayrıldı.
 class _IndexAccumulator {
   final int perCategory;
+
+  /// Eksiksiz sayımı istenen klasörler (normalize edilmiş yollar).
+  final List<String> statFolders;
+  final Map<String, int> _folderCounts = {};
+  final Map<String, int> _folderBytes = {};
+
   final Map<FmCategory, int> _counts = {};
   final Map<FmCategory, int> _bytes = {};
   final Map<FmCategory, _TopN> _tops = {};
@@ -610,7 +654,8 @@ class _IndexAccumulator {
   int _totalBytes = 0;
   int _skipped = 0;
 
-  _IndexAccumulator(this.perCategory);
+  _IndexAccumulator(this.perCategory, [List<String> folders = const []])
+      : statFolders = [for (final f in folders) p.normalize(f)];
 
   /// Okunamayan klasör sayacı ([walkFiles]'ın `onDenied` geri çağrısı).
   void denied() => _skipped++;
@@ -634,6 +679,13 @@ class _IndexAccumulator {
         .add(entry);
     _largest.add(entry);
     _recent.add(entry);
+    // Klasör sayımı: liste pratikte tek elemanlı (Önemli Dosyalar), yürüyüşe
+    // ölçülebilir bir maliyet eklemiyor.
+    for (final folder in statFolders) {
+      if (!FsPaths.isInside(folder, entry.path)) continue;
+      _folderCounts[folder] = (_folderCounts[folder] ?? 0) + 1;
+      _folderBytes[folder] = (_folderBytes[folder] ?? 0) + entry.sizeBytes;
+    }
   }
 
   StorageIndex build({required int searchIndexRows}) => StorageIndex(
@@ -647,6 +699,13 @@ class _IndexAccumulator {
           for (final e in _largestTops.entries) e.key: e.value.result(),
         },
         recent: _recent.result(),
+        // Klasör istendiyse içi boş bile olsa yazılır: "0 dosya" ile
+        // "sayılmadı" ayrı şeyler (bkz. [StorageIndex.folderStat]).
+        folderStats: {
+          for (final folder in statFolders)
+            folder: CategoryStat(
+                _folderCounts[folder] ?? 0, _folderBytes[folder] ?? 0),
+        },
         totalFiles: _totalFiles,
         totalBytes: _totalBytes,
         skipped: _skipped,

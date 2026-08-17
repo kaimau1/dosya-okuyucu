@@ -58,7 +58,28 @@ KART_YARICAP = 180   # eski tam ikonun köşe yarıçapı (1024 üzerinden, %17,
 # DAİRE maskesi (Pixel) bu ölçüde hâlâ köşeleri tıraşlar — sığması için 59,6dp'ye
 # inmek gerekirdi, yani kullanıcının "boyutu güzel" dediği simgenin %14 küçüğü.
 # Bilinçli seçim: hedef cihaz MIUI, eski simge de aynı davranıştaydı.
-# Denetim: tool/../ (bkz. HAFIZA 2026-08-09) — maskecheck ölçümü.
+#
+# ── 2026-08-17: SAYFA GENİŞLETİLDİ (uzun kenar AYNI kaldı) ───────────────────
+# Kullanıcı, telefonundaki Notlar simgesiyle karşılaştırıp *"simgemiz Notlar
+# uygulaması gibi büyük olsun, doldursun alanı"* dedi. İkisi de aynı ortak dile
+# göre çizildiği (uzun kenar 66dp) hâlde bizimki KÜÇÜK görünüyordu: çünkü
+# kısıtlanan ölçü uzun kenar, gözün büyüklük olarak okuduğu şey ise ALAN.
+# Sayfamız dar-uzundu (286:352 → 53,6 × 66 dp), Notlar'ınki kareye yakın.
+#
+# Çözüm uzun kenarı büyütmek DEĞİL (orası maskeye dayanmış durumda), sayfayı
+# GENİŞLETMEK: 286 → 320 yarı-genişlik, köşe yarıçapı 70 → 110. Yuvarlaklık
+# şart — genişleyen sayfanın köşeleri squircle'a dayanıyor, yarıçapı büyütmek
+# onları içeri çekip aynı payı geri kazandırıyor.
+#   eski 286:352 r70  → 53,6 × 66 dp = 3538 dp²
+#   yeni 320:352 r110 → 60,0 × 66 dp = 3960 dp²  (+%12 alan, +%12 genişlik)
+# Maske payı ölçüldü (süperelips |x/R|^n+|y/R|^n=1, R=36dp; n=3,2 yukarıdaki
+# 67,1dp ölçümünü yeniden üreten sıkı model, n=4 gevşek model):
+#   eski şekil  n=3,2 → en çok 67,02dp (66'da pay +1,02)
+#   yeni şekil  n=3,2 → en çok 66,73dp (66'da pay +0,73), n=4 → 69,20dp
+# Yani yeni şekil, cihazda doğrulanmış eski şekille aynı pay sınıfında kalıyor;
+# kırpılan yüzey iki modelde de %0,00 ölçüldü.
+# Satır genişlikleri sayfayla birlikte büyütüldü (sağ kenar boşluğu 124 birim
+# sabit) — yoksa geniş sayfanın sağ yarısı boş kalır, simge "yarım" görünürdü.
 
 
 def _lerp(a, b, t):
@@ -102,11 +123,11 @@ SPINE = (0x1E, 0x3B, 0x70)     # sırt bandı (accent'in koyusu)
 LINE = (0xFF, 0xFF, 0xFF)      # oyulmuş satırlar = zemin
 
 # --- Sayfanın büyüklüğü ------------------------------------------------------
-# Sayfanın taban ölçüsü (ölçek 1.0'da, 1024'lük tuvalde): 572 x 704, köşe 140.
-# Köşe yarıçapı 30 → 70: küçük yarıçapta sayfanın köşeleri squircle maskesini
-# deliyordu (yukarıdaki nota bak); yuvarlatma köşeleri içeri çekiyor ve aynı
-# maskede 2,4dp daha büyük bir sayfaya izin veriyor.
-HW0, HH0, RAD0 = 286.0, 352.0, 70.0
+# Sayfanın taban ölçüsü (ölçek 1.0'da, 1024'lük tuvalde): 640 x 704, köşe 220.
+# Köşe yarıçapı 30 → 70 → 110: küçük yarıçapta sayfanın köşeleri squircle
+# maskesini deliyordu (yukarıdaki nota bak); yuvarlatma köşeleri içeri çekiyor
+# ve aynı maskede daha geniş bir sayfaya izin veriyor.
+HW0, HH0, RAD0 = 320.0, 352.0, 110.0
 
 # Adaptive ön-plan: sayfa yüksekliği tam ISARET_DP olacak ölçek.
 #   704 * FG_SCALE = ISARET_DP / TUVAL_DP * N  →  0.9298…
@@ -129,11 +150,11 @@ def draw_glyph(buf, scale=1.0):
     # kalın ve kısa; kalanlar gövde. Sol kenarları sırt bandının sağında.
     tx = spine_x1 + 44 * scale
     lines = [
-        (cy - 168 * scale, 268 * scale, 34 * scale),
-        (cy - 74 * scale, 330 * scale, 22 * scale),
-        (cy - 6 * scale, 330 * scale, 22 * scale),
-        (cy + 62 * scale, 330 * scale, 22 * scale),
-        (cy + 130 * scale, 196 * scale, 22 * scale),
+        (cy - 168 * scale, 323 * scale, 34 * scale),
+        (cy - 74 * scale, 398 * scale, 22 * scale),
+        (cy - 6 * scale, 398 * scale, 22 * scale),
+        (cy + 62 * scale, 398 * scale, 22 * scale),
+        (cy + 130 * scale, 236 * scale, 22 * scale),
     ]
 
     for y in range(N):

@@ -8362,3 +8362,108 @@ taşıyor (kağıt temasının kuralı zaten buydu: gölge değil cetvel çizgis
 `FmEntryIcon(entry: entry)` varsayılan 44'te duruyordu; simgeler 68'e
 çıkarılınca bu ekran ötekilerin yarısı kadar görünüyordu. Artık
 `FmLayout.list.iconSizeFor(0)` — ölçü tek kaynaktan.
+
+---
+
+## 2026-08-17 (dördüncü tur) — cihazda görülen altı eksik
+
+Kullanıcı altı madde bildirdi (ekran görüntüleriyle): seçim sırasında
+önizlemelerin kaybolması, simgenin küçük durması, Görüntüler ekranında donma,
+"Önemli Dosyalar" sayısının yanlış olması, yeni Word belgesine yazı
+yazılamaması ve bellek analizinde klasör kırılımı olmaması.
+
+### A) Seçimde ÖNİZLEME kayboluyordu (`fm_entry_icon.dart` · `FmSelectableIcon`)
+Seçim açılınca satırın başındaki `FmEntryIcon` yerine düz bir `Checkbox`
+konuyordu — yani dosyaların ayırt edilmesinin EN ÇOK gerektiği anda PDF
+kapağı / fotoğraf / APK simgesi kayboluyor, geriye yalnız ad kalıyordu.
+Kullanıcının ekran görüntüsünde yan yana duran `tk_Riad_righteous.pdf` ve
+`tk_Riad_righteous.doc` arasında hangisini seçtiği gözle doğrulanamıyordu.
+Yeni ortak öğe önizlemeyi bırakır, üstüne ızgara hücresindekiyle **aynı dilde**
+bir onay rozeti biner (seçili dolu daire / seçilmemiş boş halka, ikisi de
+gölgeli — altında koyu bir fotoğraf olabilir).
+Uygulandığı yerler: liste satırı (`FmEntryListTile`), İndirilenler, bellek
+analizi, YZ dosya listesi. Yinelenenler ekranında onay kutusu KALDI (silme
+akışında anlamı net) ama önizleme 32 → 44 büyütüldü.
+
+### B) Simge küçük duruyordu → sayfa GENİŞLETİLDİ (`tool/gen_icon.py`)
+*"Notlar uygulaması gibi büyük olsun, doldursun alanı."* İki simge de ortak
+dile göre çizilmiş (uzun kenar 66dp) olmasına rağmen bizimki küçük
+görünüyordu: **kısıtlanan ölçü uzun kenar, gözün büyüklük olarak okuduğu şey
+ALAN.** Sayfamız dar-uzundu (53,6 × 66 dp), Notlar'ınki kareye yakın.
+Uzun kenar maskeye dayandığı için BÜYÜTÜLMEDİ; sayfa genişletildi:
+286:352 r70 → **320:352 r110** (60,0 × 66 dp, +%12 alan ve genişlik).
+Köşe yarıçapını büyütmek şart — genişleyen sayfanın köşeleri squircle'a
+dayanıyor, yuvarlatma onları içeri çekip payı geri kazandırıyor.
+Maske payı ölçüldü (süperelips, R=36dp; n=3,2 önceki "67,1dp" ölçümünü yeniden
+üreten sıkı model): eski şekil 67,02dp, yeni şekil 66,73dp → 66'da pay +0,73.
+Kırpılan yüzey iki modelde de %0,00. Satır genişlikleri de büyütüldü (sağ
+kenar boşluğu 124 birim sabit), yoksa geniş sayfanın sağı boş kalırdı.
+
+### C) Görüntüler ekranı: donma ve boş hücreler — ÜÇ ayrı kök neden
+1. **`Image.file` baytları Dart yığınına kopyalıyordu** (`FileImage` içinde
+   `readAsBytes()`). 6476 fotoğraflı bir galeride ekrandaki ~40 hücre = tek
+   kaydırmada yüzlerce MB geçici ayırma: çöp toplayıcı ana izleği durduruyor
+   (donma) ve bellek baskısı altında bazı çözümler hiç tamamlanmıyor (boş
+   hücreler). Yeni `FmFileImage` sağlayıcısı `ui.ImmutableBuffer.fromFilePath`
+   kullanıyor — dosya **motorun belleğine** okunur, Dart yığınına tek bayt
+   girmez, küçültme çözme sırasında yapılır. Testle kilitlendi (400×200 kaynak
+   `cacheWidth:100` ile 100×50 çözülüyor; küçük kaynak BÜYÜTÜLMÜYOR).
+2. **Süzgeç iki kez uygulanıyordu:** liste için bir, "kaç kopya gizlendi"
+   sayısı için bir daha. Pahalı olan `matches` (etiket + açılma geçmişi)
+   6500 dosyada her yeniden çizimde 13 bin kez koşuyordu. Artık eleme bir kez,
+   kopya gizleme onun SONUCUNA uygulanıyor, sayı farktan çıkıyor.
+3. **Grup başına iki sliver:** `CustomScrollView` slivers listesini kısaltmaz.
+   "Gün" ölçeğinde binden fazla grup = her yeniden çizimde (her seçim
+   dokunuşunda!) iki binden fazla sliver kurulup yerleştiriliyordu. 120 grubu
+   aşan galeri artık TEK `SliverList`'te satır satır çiziliyor: başlıklar
+   kalıyor, yalnız **yapışkanlıkları** gidiyor. Bilinçli takas — yapışkan
+   başlık konfor, akıcı kaydırma şart.
+**TUZAK:** `Image`ın `width`/`height`'ı yalnız asıl kareye uygulanır,
+`frameBuilder`ın döndürdüğü yer tutucuya DEĞİL. `SizedBox.expand` bir yer
+tutucu `ListTile.leading` gibi sınırsız yükseklikli yuvada çizim hatası verir
+— ve yalnız resim henüz çözülmemişken, yani tam da ilk kaydırmada. Yer tutucu
+ölçüyü dışarıdan alıyor; test bu yolu kilitliyor.
+
+### D) "Önemli Dosyalar 5,1 MB (15)" — sayı listelerden SÜZÜLÜYORDU
+Pano kutusu sayıyı `recent` (en yeni 300) + `largest` (en büyük 200)
+listelerini süzerek çıkarıyordu. O listeler TÜM depolamanın en yenisi/en
+büyüğü; klasörden içlerine ancak bir avuç dosya düşüyordu. Kullanıcının 99
+öğelik, 7 GB'lık klasörü kutuda "5,1 MB (15)" görünüyordu.
+`StorageIndex.folderStats` eklendi: istenen klasörlerin eksiksiz sayımı
+**yürüyüşün kendisinden** geliyor (`FsScan.index(..., statFolders: [...])` ve
+aynısı dizinden kurmada). Ek tarama yok, yaklaşıklık yok. İstenmeyen klasör
+için `folderStat` **null** döner — "0 dosya" ile "sayılmadı" ayrı şeyler.
+
+### E) Yeni Word belgesine yazı yazılamıyordu — `<w:sectPr/>` BOŞTU
+`BlankDocs.blankDocx` sayfa boyu (`w:pgSz`) ve kenar boşluğu (`w:pgMar`)
+yazmıyordu. Word kendi varsayılanıyla açıyor, ama sayfa görünümünü çizen
+gömülü motor (docx-preview) ölçüyü BELGEDEN okuyor: ölçü yoksa sayfa
+çizilmiyor, ekran WebView'ın zemin rengiyle (#F3F2F1) boş kalıyor ve
+dokunulacak bir paragraf olmadığı için yazı yazılamıyordu. Ayrıca `<p>` sayısı
+0 çıkıp eşleme sigortası (`_onParagraphCount`) canlı düzenlemeyi kapatıyordu.
+Paket artık A4 `sectPr` + `word/_rels/document.xml.rels` + `styles.xml`
+(Calibri 11pt varsayılanı) taşıyor. `viewer.html`e `focusStart()` eklendi:
+düzenleme açılınca imleç ilk paragrafa konur, klavye açılır — boş belgede
+"dokunulacak yazı" olmaması sorunu.
+
+### F) Büyüteç düğmeleri sistem çubuğunun altında kalıyordu
+`OfficeShell` alt sistem çubuğunun payını yalnız `bottomBar` VARKEN bırakıyor;
+düzenleme sırasında o çubuk gizleniyor ve gövde ekranın en altına uzanıyor.
+`DocxView`in zoom düğmeleri ve Word'ün sayfa rozeti `bottom: 12` ile
+geri/ana menü çubuğunun altına düşüyordu. Pay `MediaQuery.paddingOf(context)
+.bottom` ile ekleniyor — klavye açıkken kendiliğinden 0 olur (insets payı
+yutar), yani klavyeliyken düğmeler fazladan yükselmez.
+
+### G) YENİ — Klasör haritası (`folder_usage.dart` + `folder_map_screen.dart`)
+Bellek analizi yalnız **türe göre** kırıyordu: "53 GB video" diyor ama hangi
+klasörü temizleyeceğini söylemiyor. Harita klasörleri boyuta göre sıralar,
+oransal çubuk ve **cihaz kapasitesine göre** yüzde yazar, içine girilir.
+Ölçüm arama dizininden gelir (dizin zaten her dosyanın yolunu ve boyutunu
+tutuyor → ağacı yeniden yürümek yok); dizin yoksa yalnız o dalın altı
+diskten yürünür, tüm depolama değil.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze lib` 0 sorun,
+**1690 test yeşil** (yeni: klasör haritası 6, seçim önizlemesi 4, dosya
+görüntü sağlayıcısı 6, düz zaman ekseni 1, boş .docx sayfa ölçüsü 1,
+`statFolders` 1). `graphify update .` bu bulut oturumunda çalıştırılamadı
+(araç kurulu değil) — yerelde çalıştırılmalı.

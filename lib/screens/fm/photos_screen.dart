@@ -138,6 +138,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
   String? _visibleKey;
   List<_Section>? _sectionsCache;
   String? _sectionsKey;
+  List<_Row>? _rowsCache;
+  String? _rowsKey;
   Map<MediaBucket, int>? _bucketCache;
   Map<String, int>? _extCache;
   Map<ChatMediaKind, int>? _chatKindCache;
@@ -215,21 +217,27 @@ class _PhotosScreenState extends State<PhotosScreen> {
     // bağlıdır (apply listedeki İLK kopyayı tutar).
     final sorted =
         FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
-    final list = _filter.apply(sorted,
+    // **Süzgeç TEK kez uygulanır** (2026-08-17 donma bulgusu). Eskiden liste
+    // için bir, "kaç kopya gizlendi" sayısı için bir daha uygulanıyordu: 6500
+    // fotoğraflı bir galeride pahalı olan `matches` (etiket + açılma geçmişi
+    // aramaları) her yeniden çizimde 13 bin kez koşuyordu. Artık eleme bir
+    // kez yapılıyor, kopya gizleme onun SONUCUNA uygulanıyor ve gizlenen sayı
+    // farktan çıkıyor — sonuç birebir aynı, iş yarı yarıya.
+    final matched = _filter.withHideDuplicates(false).apply(sorted,
         query: _query,
         tagsOf: FileTags.forPath,
         openedAtOf: OpenHistory.forPath);
-    // Kaç kopya gizlendi? (Süzgeci kopyasız hâliyle uygulayıp farkı alırız.)
-    _hiddenDuplicates = _filter.hideDuplicates
-        ? _filter
-                .withHideDuplicates(false)
-                .apply(sorted,
-                    query: _query,
-                    tagsOf: FileTags.forPath,
-                    openedAtOf: OpenHistory.forPath)
-                .length -
-            list.length
-        : 0;
+    final List<FsEntry> list;
+    if (_filter.hideDuplicates) {
+      final seen = <String>{};
+      list = [
+        for (final e in matched)
+          if (seen.add(duplicateKey(e))) e,
+      ];
+    } else {
+      list = matched;
+    }
+    _hiddenDuplicates = matched.length - list.length;
     _visibleCache = list;
     _visibleKey = key;
     return list;
@@ -765,6 +773,20 @@ class _PhotosScreenState extends State<PhotosScreen> {
     ];
   }
 
+  /// Zaman ekseninde **yapışkan başlıklı** çizimin üst sınırı.
+  ///
+  /// Her grup iki sliver demek (başlık + ızgara) ve `CustomScrollView`
+  /// slivers listesini KISALTMAZ: 6500 fotoğraflı bir galeride "Gün" ölçeği
+  /// binden fazla gruba çıkıyor, yani her yeniden çizimde (her seçim
+  /// dokunuşunda!) iki binden fazla sliver kuruluyor ve viewport hepsini
+  /// yerleştirmek zorunda kalıyordu — kullanıcı bunu "donma" olarak
+  /// bildirdi (2026-08-17).
+  ///
+  /// Bu sayının ÜSTÜNDE düz (tek sliver, satır satır) çizime geçilir:
+  /// başlıklar aynen kalır, yalnız **yapışkanlığı** kaybederler. Takas
+  /// bilinçli — yapışkan başlık bir konfor, akıcı kaydırma şart.
+  static const _maxStickySections = 120;
+
   Widget _timeline(
     List<_Section> sections,
     List<FsEntry> visible,
@@ -776,6 +798,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
           final columns = layout.columns;
           final cell =
               (constraints.maxWidth - spacing * (columns - 1)) / columns;
+          if (sections.length > _maxStickySections) {
+            return _flatTimeline(sections, visible, columns, cell, spacing);
+          }
           return CustomScrollView(
             controller: _scroll,
             slivers: [
@@ -801,30 +826,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
                         crossAxisSpacing: spacing,
                       ),
                       delegate: SliverChildBuilderDelegate(
-                        (context, i) {
-                          final e = section.files[i];
-                          return DragSelectItem(
-                            index: section.startIndex + i,
-                            child: _PhotoTile(
-                              entry: e,
-                              size: cell,
-                              selected: _selected.contains(e.path),
-                              selecting: _selecting,
-                              onTap: () {
-                                if (_selecting) {
-                                  _toggle(e);
-                                } else {
-                                  _open(e, visible);
-                                }
-                              },
-                              onMore: () async {
-                                await showEntryActions(context, e,
-                                    allowReveal: true, onReveal: _reveal);
-                                _dropMissing();
-                              },
-                            ),
-                          );
-                        },
+                        (context, i) => _tileAt(
+                            section.files[i], section.startIndex + i, cell, visible),
                         childCount: section.files.length,
                       ),
                     ),
@@ -838,11 +841,135 @@ class _PhotosScreenState extends State<PhotosScreen> {
         },
       );
 
+  /// Çok gruplu galeride düz çizim: **tek** `SliverList`, satır satır.
+  ///
+  /// Satırlar önceden hesaplanır ([_rows]) ve yalnız ekranda görünenler
+  /// kurulur — grup sayısı ne olursa olsun bellekteki sliver sayısı BİR.
+  Widget _flatTimeline(
+    List<_Section> sections,
+    List<FsEntry> visible,
+    int columns,
+    double cell,
+    double spacing,
+  ) {
+    final rows = _rows(sections, columns);
+    return CustomScrollView(
+      controller: _scroll,
+      slivers: [
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, i) {
+              final row = rows[i];
+              final section = sections[row.section];
+              if (row.isHeader) {
+                return SizedBox(
+                  height: _SectionHeaderDelegate.height,
+                  child: _SectionHeaderDelegate(
+                    title: section.title,
+                    count: section.files.length,
+                    selecting: _selecting,
+                    allSelected:
+                        section.files.every((e) => _selected.contains(e.path)),
+                    onToggle: () => _toggleSection(section),
+                    background: Theme.of(context).colorScheme.surface,
+                  ).build(context, 0, false),
+                );
+              }
+              return Padding(
+                padding: EdgeInsets.only(bottom: spacing),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var c = 0; c < columns; c++)
+                      Padding(
+                        padding: EdgeInsetsDirectional.only(
+                            end: c == columns - 1 ? 0 : spacing),
+                        child: SizedBox(
+                          width: cell,
+                          height: cell,
+                          // Son satır eksik kalabilir: boş yer tutucu, yoksa
+                          // hücreler genişleyip ızgara bozulurdu.
+                          child: row.first + c < section.files.length
+                              ? _tileAt(
+                                  section.files[row.first + c],
+                                  section.startIndex + row.first + c,
+                                  cell,
+                                  visible,
+                                )
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+            childCount: rows.length,
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 88)),
+      ],
+    );
+  }
+
+  /// Düz çizimin satır planı (başlık satırları + ızgara satırları).
+  /// Bölümler/sütun sayısı değişmedikçe yeniden kurulmaz.
+  List<_Row> _rows(List<_Section> sections, int columns) {
+    final key = '${identityHashCode(sections)}|${sections.length}|$columns';
+    final cached = _rowsCache;
+    if (cached != null && _rowsKey == key) return cached;
+    final out = <_Row>[];
+    for (var s = 0; s < sections.length; s++) {
+      out.add(_Row(s, -1));
+      final n = sections[s].files.length;
+      for (var i = 0; i < n; i += columns) {
+        out.add(_Row(s, i));
+      }
+    }
+    _rowsCache = out;
+    _rowsKey = key;
+    return out;
+  }
+
+  /// Tek hücre — iki çizim yolu da aynı kaynaktan kurar.
+  Widget _tileAt(
+      FsEntry e, int flatIndex, double cell, List<FsEntry> visible) {
+    return DragSelectItem(
+      index: flatIndex,
+      child: _PhotoTile(
+        entry: e,
+        size: cell,
+        selected: _selected.contains(e.path),
+        selecting: _selecting,
+        onTap: () {
+          if (_selecting) {
+            _toggle(e);
+          } else {
+            _open(e, visible);
+          }
+        },
+        onMore: () async {
+          await showEntryActions(context, e, allowReveal: true, onReveal: _reveal);
+          _dropMissing();
+        },
+      ),
+    );
+  }
+
   void _reveal(String path) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => BrowserScreen(path: path),
     ));
   }
+}
+
+/// Düz çizimdeki bir satır: [section] numaralı grubun ya başlığı ([first] < 0)
+/// ya da o gruptaki [first] indeksinden başlayan ızgara satırı.
+class _Row {
+  final int section;
+  final int first;
+  const _Row(this.section, this.first);
+
+  bool get isHeader => first < 0;
 }
 
 /// Yapışkan grup başlığı. Yükseklik sabittir (min = max) — değişken yükseklikli
@@ -864,11 +991,14 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.background,
   });
 
-  @override
-  double get minExtent => 44;
+  /// Başlık yüksekliği — düz çizim de aynı sayıyı kullanır.
+  static const height = 44.0;
 
   @override
-  double get maxExtent => 44;
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
 
   @override
   Widget build(

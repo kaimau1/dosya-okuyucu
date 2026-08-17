@@ -352,7 +352,9 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
       ),
       subtitle: Text(p.dirname(file.path),
           maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: FmEntryIcon(entry: file, size: 32),
+      // Önizleme 32 → 44: hangi kopyanın silineceğine bakarken ayırt edici
+      // olan tek şey bu kare (adlar ve boyutlar zaten birebir aynı).
+      trailing: FmEntryIcon(entry: file, size: 44),
       onTap: () => EntryOpener.open(context, file.path),
       onLongPress: () async {
         await showEntryActions(context, file);

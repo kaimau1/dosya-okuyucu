@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +11,7 @@ import '../../services/fm/image_sniff.dart';
 import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../file_type_icon.dart';
+import 'fm_file_image.dart';
 
 /// Dosya yöneticisi ikon paleti. Office dörtlüsü [OfficeColors]'tan gelir
 /// (liste ve şerit aynı tonu kullansın diye — bkz. HAFIZA 2026-07-24 tutarsızlık
@@ -192,16 +191,26 @@ class FmEntryIcon extends StatelessWidget {
     if (thumbsOn && category == FmCategory.image) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: Image.file(
-          File(entry.path),
+        child: Image(
+          // [FmFileImage] (Image.file DEĞİL): tam boyutlu fotoğraf Dart
+          // yığınına kopyalanmadan çözülür — 6 bin fotoğraflık galeride
+          // donmanın ve boş kalan hücrelerin kök nedeni buydu (bkz. sınıfın
+          // başındaki not, 2026-08-17).
+          image: FmFileImage(
+            entry.path,
+            // Bellek koruması: 4000px'lik bir fotoğrafı 44dp'lik kutuya tam
+            // çözünürlükte açmak listeyi şişirir (= decode boyutu).
+            cacheWidth: (size * 3).round(),
+          ),
           width: size,
           height: size,
           fit: BoxFit.cover,
-          // Bellek koruması: 4000px'lik bir fotoğrafı 44dp'lik kutuya tam
-          // çözünürlükte açmak listeyi şişirir (cacheWidth = decode boyutu).
-          cacheWidth: (size * 3).round(),
           filterQuality: FilterQuality.low,
           gaplessPlayback: true,
+          // Çözülene kadar hücre BOŞ kalmasın: soluk bir zemin, sonra resim
+          // yumuşak geçişle gelir. Bomboş beyaz kare kullanıcıya "yüklenmedi"
+          // değil "burada bir şey yok" diyordu.
+          frameBuilder: _placeholder(size),
           // Açılamayan resim: dosya silinmiş olabilir (Galeri/WhatsApp
           // temizliği). Bildir — gerçekten yoksa listeden düşürülür, duruyorsa
           // (bozuk dosya) rozet kalır. Bkz. FsEvents.reportUnreadable.
@@ -257,6 +266,112 @@ class FmEntryIcon extends StatelessWidget {
   }
 }
 
+/// Küçük resim çözülene kadar **soluk bir kare** çizer.
+///
+/// Çözme anlık değil (özellikle ilk kaydırmada, on binlerce fotoğrafta): yer
+/// tutucu olmadan hücre bomboş kalıyor ve kullanıcı bunu "resimler
+/// görünmüyor" diye okuyor (2026-08-17 bildirimi).
+///
+/// **Ölçü dışarıdan verilir, `SizedBox.expand` DEĞİL:** `Image`ın `width`/
+/// `height`'ı yalnız asıl kareye uygulanır, `frameBuilder`ın döndürdüğü
+/// parçaya değil. Kendi başına genişleyen bir yer tutucu, `ListTile`ın
+/// `leading` yuvası gibi yüksekliği SINIRSIZ bir yerde çizim hatası verirdi.
+///
+/// Geçiş animasyonu bilinçli olarak YOK: her hücreye bir `AnimatedSwitcher`
+/// koymak binlerce fotoğraflık ızgarada tam da düzeltmeye çalıştığımız
+/// maliyeti geri getirirdi.
+ImageFrameBuilder _placeholder(double size) => (
+      BuildContext context,
+      Widget child,
+      int? frame,
+      bool wasSynchronouslyLoaded,
+    ) {
+      if (wasSynchronouslyLoaded || frame != null) return child;
+      return SizedBox(
+        width: size,
+        height: size,
+        child: ColoredBox(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+      );
+    };
+
+/// Seçim modunda satırın başındaki öğe: **önizleme + üzerinde onay rozeti**.
+///
+/// Kullanıcı isteği (2026-08-17, ekran görüntüsü): *"yanlış seçim yaparken
+/// önizlemeler görülmeli"*. Eskiden seçim açılınca [FmEntryIcon] yerine düz bir
+/// [Checkbox] konuyordu — yani seçim yapılırken, yani dosyaların birbirinden
+/// AYIRT EDİLMESİNİN en çok gerektiği anda, PDF kapağı / fotoğraf / APK simgesi
+/// kayboluyor ve geriye yalnız ad kalıyordu. Aynı adlı iki dosyada (bir `.pdf`
+/// bir `.doc`) hangisinin seçildiği gözle doğrulanamıyordu.
+///
+/// Rozet ızgara hücresindekiyle ([FmEntryGridTile]) aynı dili konuşur: seçili
+/// dolu daire, seçilmemiş boş halka; ikisi de gölgeli çünkü altında koyu bir
+/// fotoğraf olabilir.
+class FmSelectableIcon extends StatelessWidget {
+  final FsEntry entry;
+  final double size;
+  final bool selecting;
+  final bool selected;
+
+  /// Rozete/önizlemeye dokunma. Null ise dokunuş üst satıra geçer.
+  final VoidCallback? onCheck;
+  final double radius;
+
+  const FmSelectableIcon({
+    super.key,
+    required this.entry,
+    required this.selecting,
+    required this.selected,
+    this.size = 44,
+    this.onCheck,
+    this.radius = Radii.control,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = FmEntryIcon(entry: entry, size: size, radius: radius);
+    if (!selecting) return icon;
+    final scheme = Theme.of(context).colorScheme;
+    // Rozet önizlemenin en çok %42'sini kaplar ve köşede durur: ortada
+    // dursaydı tam da ayırt edici ayrıntının (kapak sayfasının başlığı,
+    // fotoğraftaki yüz) üstüne otururdu.
+    final badge = (size * 0.42).clamp(16.0, 24.0);
+    return GestureDetector(
+      onTap: onCheck,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          children: [
+            Positioned.fill(child: icon),
+            if (selected)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(radius),
+                  ),
+                ),
+              ),
+            PositionedDirectional(
+              end: 0,
+              bottom: 0,
+              child: Icon(
+                selected ? Icons.check_circle : Icons.circle_outlined,
+                size: badge,
+                color: selected ? scheme.primary : Colors.white,
+                shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Uzantısı olmayan bir dosyayı, **imzası görsel diyorsa** küçük resim olarak
 /// çizer; demiyorsa (ya da bakılana kadar) [fallback] glifi kalır.
 class _SniffedImage extends StatefulWidget {
@@ -307,14 +422,15 @@ class _SniffedImageState extends State<_SniffedImage> {
     if (_isImage != true) return widget.fallback;
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
-      child: Image.file(
-        File(widget.path),
+      child: Image(
+        image: FmFileImage(widget.path,
+            cacheWidth: (widget.size * 3).round()),
         width: widget.size,
         height: widget.size,
         fit: BoxFit.cover,
-        cacheWidth: (widget.size * 3).round(),
         filterQuality: FilterQuality.low,
         gaplessPlayback: true,
+        frameBuilder: _placeholder(widget.size),
         errorBuilder: (_, __, ___) => widget.fallback,
       ),
     );
@@ -372,14 +488,13 @@ class _ApkIconImageState extends State<_ApkIconImage> {
     if (icon == null) return widget.fallback;
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
-      child: Image.file(
-        File(icon),
+      child: Image(
+        image: FmFileImage(icon, cacheWidth: (widget.size * 3).round()),
         width: widget.size,
         height: widget.size,
         // `contain`: uygulama simgeleri kare ama kenar boşluklu olabiliyor;
         // `cover` onları kırpıp gliften bir parça koparırdı.
         fit: BoxFit.contain,
-        cacheWidth: (widget.size * 3).round(),
         filterQuality: FilterQuality.medium,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => widget.fallback,
@@ -442,14 +557,13 @@ class _PdfThumbState extends State<_PdfThumb> {
     if (thumb == null) return widget.fallback;
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
-      child: Image.file(
-        File(thumb),
+      child: Image(
+        image: FmFileImage(thumb, cacheWidth: (widget.size * 3).round()),
         width: widget.size,
         height: widget.size,
         // `contain`: sayfa oranı korunsun, kırpılmasın — kırpılmış bir kapak
         // yanlış belgeymiş gibi görünür.
         fit: BoxFit.contain,
-        cacheWidth: (widget.size * 3).round(),
         filterQuality: FilterQuality.low,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => widget.fallback,
@@ -516,12 +630,11 @@ class _VideoThumbState extends State<_VideoThumb> {
       child: Stack(
         fit: StackFit.passthrough,
         children: [
-          Image.file(
-            File(thumb),
+          Image(
+            image: FmFileImage(thumb, cacheWidth: (widget.size * 3).round()),
             width: widget.size,
             height: widget.size,
             fit: BoxFit.cover,
-            cacheWidth: (widget.size * 3).round(),
             filterQuality: FilterQuality.low,
             gaplessPlayback: true,
             errorBuilder: (_, __, ___) => widget.fallback,

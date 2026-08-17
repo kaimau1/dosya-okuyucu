@@ -209,6 +209,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  /// Taramada eksiksiz sayılması istenen klasörler. Şimdilik tek üye:
+  /// Önemli Dosyalar kutusu gerçek sayıyı buradan okur (bkz. `_importantStat`).
+  List<String> get _statFolders => [
+        ImportantScreen.pathIn(FmEnv.primaryRoot),
+      ];
+
   /// Dizin bu süreden eskiyse arka planda tazelenir. Uygulama dışında
   /// (galeri, WhatsApp…) biriken dosyalar sonsuza dek görünmez kalmasın.
   static const _maxIndexAge = Duration(hours: 12);
@@ -221,7 +227,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<bool> _restoreFromIndex() async {
     await SearchIndex.ensureLoaded();
     if (!SearchIndex.isReady) return false;
-    final index = await FsScan.indexFromRows(SearchIndex.indexPath);
+    final index = await FsScan.indexFromRows(
+      SearchIndex.indexPath,
+      statFolders: _statFolders,
+    );
     if (index == null) return false;
     _cachedIndex = index;
     _cachedAtMs = SearchIndex.builtAtMs;
@@ -269,6 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmEnv.volumeRoots,
       searchIndexPath:
           FmEnv.appSupportDir.isEmpty ? null : SearchIndex.indexPath,
+      statFolders: _statFolders,
     );
     await SearchIndex.adoptBuilt(index.searchIndexRows);
     _cachedIndex = index;
@@ -1027,20 +1037,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  /// Önemli Dosyalar kutusunun sayıları — pano indeksinden süzülür (ek tarama
-  /// yok). Klasör yoksa null → kutuda "Oluştur" yazar.
+  /// Önemli Dosyalar kutusunun sayıları — pano indeksinden (ek tarama yok).
+  /// Klasör yoksa null → kutuda "Oluştur" yazar.
+  ///
+  /// **Sayım taramanın kendisinden gelir** ([StorageIndex.folderStat]).
+  /// Eskiden "en yeni 300" + "en büyük 200" listeleri süzülüyordu: o listeler
+  /// TÜM depolamanın en yenisi/en büyüğü olduğu için klasörden içlerine ancak
+  /// bir avuç dosya düşüyor, 99 öğelik 7 GB'lık klasör kutuda "5,1 MB (15)"
+  /// görünüyordu (kullanıcı ekran görüntüsü 2026-08-17).
   CategoryStat? _importantStat(String path) {
     if (!Directory(path).existsSync()) return null;
-    var count = 0;
-    var bytes = 0;
-    for (final entry in _index.recent.followedBy(_index.largest)) {
-      if (!FsPaths.isInside(path, entry.path)) continue;
-      count++;
-      bytes += entry.sizeBytes;
-    }
-    // İndeks yalnız "en yeni/en büyük" listeleri tutar; klasör bu listelere
-    // hiç girmemişse sayı 0 çıkar — o zaman sayı yerine yönlendirme yazılır.
-    return count == 0 ? const CategoryStat(0, 0) : CategoryStat(count, bytes);
+    return _index.folderStat(path) ?? const CategoryStat(0, 0);
   }
 
   void _snack(String message) {

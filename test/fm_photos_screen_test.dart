@@ -51,6 +51,32 @@ void main() {
     expect(find.text('1'), findsOneWidget);
   });
 
+  testWidgets('ÇOK gruplu galeri düz çizilir (donma kök nedeni)',
+      (tester) async {
+    // 2026-08-17 kullanıcı bulgusu: 6476 fotoğraflı galeride "yüklenme
+    // sorunu, donma ve görülmeme". Her gün grubu İKİ sliver demek ve
+    // `CustomScrollView` slivers listesini kısaltmaz — binden fazla grupta
+    // her yeniden çizim (her seçim dokunuşu!) iki binden fazla sliver kurup
+    // yerleştiriyordu. Sınırı aşan galeri artık TEK sliver'da, satır satır
+    // çizilir: başlıklar kalır, yalnız yapışkanlıkları gider.
+    final files = [
+      for (var i = 0; i < 200; i++)
+        photo('f$i.jpg', DateTime(2026, 1, 1).subtract(Duration(days: i))),
+    ];
+    await tester.pumpWidget(harness(files));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    // Yapışkan başlık yolu KAPALI (sınır aşıldı), ızgara ise çiziliyor.
+    expect(find.byType(SliverPersistentHeader), findsNothing);
+    expect(find.byType(FmEntryIcon), findsWidgets);
+
+    // Kaydırma da patlamamalı (satır planı yanlışsa burada çöker).
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('gruplama çipleri ve arama düğmesi görünür', (tester) async {
     await tester.pumpWidget(harness([photo('a.jpg', DateTime(2026, 3, 4))]));
     await tester.pump();

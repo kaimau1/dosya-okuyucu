@@ -22,6 +22,7 @@ import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
+import 'folder_map_screen.dart';
 import 'installed_apps_screen.dart';
 import 'entry_actions.dart';
 
@@ -182,6 +183,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   bool get _isSearch => _query.trim().length >= 2;
+
+  /// Ana belleğin kapasitesi (klasör haritasındaki yüzdelerin paydası).
+  /// Okunamıyorsa 0 → harita kendi toplamına göre yüzde yazar.
+  int get _primaryCapacity {
+    for (final v in widget.volumes) {
+      if (v.isPrimary && v.hasStats) return v.capacityBytes;
+    }
+    return 0;
+  }
 
   @override
   void dispose() {
@@ -364,6 +374,29 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   ),
                 ),
                 const SizedBox(height: Gap.sm),
+                // **Klasör haritası** (kullanıcı isteği 2026-08-17, ekran
+                // görüntüsü): tür kırılımı "53 GB video" diyor ama hangi
+                // klasörü temizleyeceğini söylemiyor. Harita klasörleri
+                // boyuta göre sıralar ve içine inilir.
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    leading: const Icon(Icons.donut_large),
+                    title: Text(context.t('fmap.title')),
+                    subtitle: Text(context.t('fmap.note')),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => FolderMapScreen(
+                        path: FmEnv.primaryRoot,
+                        // Yüzdeler cihazın toplam belleğine göre yazılsın —
+                        // "%11" dediğimizde kullanıcının anladığı bu.
+                        capacityBytes: _primaryCapacity,
+                        title: context.t('fmap.title'),
+                      ),
+                    )),
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
                 _appsCard(),
                 const SizedBox(height: Gap.lg),
                 Text(context.t('ana.by_type'),
@@ -488,12 +521,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               selected: _selected.contains(e.path),
-              leading: _selecting
-                  ? Checkbox(
-                      value: _selected.contains(e.path),
-                      onChanged: (_) => _toggle(e),
-                    )
-                  : FmEntryIcon(entry: e),
+              leading: FmSelectableIcon(
+                entry: e,
+                selecting: _selecting,
+                selected: _selected.contains(e.path),
+                onCheck: () => _toggle(e),
+              ),
               title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
                 '${FsPaths.humanSize(e.sizeBytes)} · '

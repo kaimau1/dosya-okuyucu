@@ -117,6 +117,29 @@ void main() {
       expect(hits.map((e) => e.name), contains('İSTANBUL notlari.txt'));
     });
 
+    test('statFolders: klasörün EKSİKSİZ sayısı ve boyutu', () async {
+      // Pano "Önemli Dosyalar" kutusu bu sayıyı "en yeni 300 + en büyük 200"
+      // listelerini süzerek çıkarıyordu; o listeler tüm depolamanın en
+      // yenisi/en büyüğü olduğu için 99 öğelik bir klasör "15" görünüyordu
+      // (kullanıcı ekran görüntüsü 2026-08-17).
+      final klasor = Directory(p.join(tmp.path, 'Önemli Dosyalar'))
+        ..createSync();
+      File(p.join(klasor.path, 'a.txt')).writeAsStringSync('12345');
+      File(p.join(klasor.path, 'b.txt')).writeAsStringSync('123');
+      Directory(p.join(klasor.path, 'alt')).createSync();
+      File(p.join(klasor.path, 'alt', 'c.txt')).writeAsStringSync('1');
+
+      final index = await FsScan.index([tmp.path], statFolders: [klasor.path]);
+      final stat = index.folderStat(klasor.path);
+      expect(stat, isNotNull);
+      expect(stat!.count, 3); // alt klasördeki de sayılır
+      expect(stat.bytes, 9);
+
+      // İstenmeyen klasör için null döner — "0 dosya" ile "sayılmadı" ayrı
+      // şeyler; çağıran tahmin ETMEMELİ.
+      expect(index.folderStat(p.join(tmp.path, 'alt')), isNull);
+    });
+
     test('index: kategori sayıları ve toplam boyut', () async {
       final index = await FsScan.index([tmp.path]);
       expect(index.stat(FmCategory.document).count, 2); // pdf + txt

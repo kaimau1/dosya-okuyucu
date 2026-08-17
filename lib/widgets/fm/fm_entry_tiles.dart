@@ -52,15 +52,15 @@ class FmEntryListTile extends StatelessWidget {
       contentPadding: layout == FmLayout.detail
           ? const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs)
           : null,
-      leading: selecting
-          ? SizedBox(
-              width: iconSize,
-              child: Checkbox(
-                value: selected,
-                onChanged: onCheck == null ? null : (_) => onCheck!(),
-              ),
-            )
-          : FmEntryIcon(entry: entry, size: iconSize),
+      // Seçim açıkken de ÖNİZLEME durur (onay rozeti üstüne biner) — bkz.
+      // [FmSelectableIcon]: "yanlış seçim yaparken önizlemeler görülmeli".
+      leading: FmSelectableIcon(
+        entry: entry,
+        size: iconSize,
+        selecting: selecting,
+        selected: selected,
+        onCheck: onCheck,
+      ),
       title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       // Boyut + yol monospace: alt alta gelen boyutlar hizalanıyor ve uzun
       // yollarda rakam/eğik çizgi karışmıyor (2026-08-04 kağıt teması).

@@ -221,11 +221,35 @@
     });
     cachedParas = EDIT ? paraList() : null;
     if (!EDIT && document.activeElement) document.activeElement.blur();
+    // Düzenleme açılınca imleç İLK paragrafa konur ve klavye açılır.
+    // (2026-08-17: yeni/boş belgede dokunulacak yazı yok — boş bir paragrafın
+    // yüksekliği bir satır kadar ve tam ortasına isabet ettirmek gerekiyordu;
+    // kullanıcı "düzenle ekranında yazı yazılmıyor" diye bildirdi.)
+    if (EDIT) focusStart();
     // Flutter, paragraf sayısını kendi listesiyle karşılaştırıp eşleşmezse
     // düzenlemeyi kapatır (yanlış paragrafa yazma sigortası).
     if (EDIT && window.Kalem) {
       window.Kalem.postMessage(JSON.stringify({ n: cachedParas.length }));
     }
+  }
+
+  // İmleci belgenin ilk paragrafının başına koyar ve düzenlenebilir kapsayıcıya
+  // odak verir → Android klavyesi açılır. Paragraf yoksa (bozuk/boş çizim)
+  // sessizce vazgeçilir; çağıran zaten paragraf sayısını da bildiriyor.
+  function focusStart() {
+    var paras = cachedParas && cachedParas.length ? cachedParas : paraList();
+    var host = articles()[0];
+    if (!host) return;
+    try {
+      host.focus({ preventScroll: true });
+      if (!paras.length) return;
+      var range = document.createRange();
+      range.setStart(paras[0], 0);
+      range.collapse(true);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { /* seçim API'si yoksa: odak yeter */ }
   }
 
   // Yapı beklenmedik şekilde değiştiyse (sigorta): sayıyı yeniden bildir.

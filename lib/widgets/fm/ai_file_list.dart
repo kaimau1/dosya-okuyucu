@@ -110,9 +110,12 @@ class _AiFileListState extends State<AiFileList> {
     ].join(' · ');
 
     return ListTile(
-      leading: _selecting
-          ? Checkbox(value: picked, onChanged: (_) => _toggle(record))
-          : FmEntryIcon(entry: entry),
+      leading: FmSelectableIcon(
+        entry: entry,
+        selecting: _selecting,
+        selected: picked,
+        onCheck: () => _toggle(record),
+      ),
       title: Text(
         record.title.isEmpty ? record.name : record.title,
         maxLines: 1,

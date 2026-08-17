@@ -1241,6 +1241,24 @@ const Map<String, (String, String, String)> _table = {
     'يعثر على الملفات المتطابقة تمامًا، ويبقي نسخة واحدة وينقل الباقي إلى المهملات',
   ),
 
+  // ── Klasör haritası (bellek analizi → hangi klasör ne kadar yer kaplıyor) ──
+  'fmap.title': ('Klasör haritası', 'Folder map', 'خريطة المجلدات'),
+  'fmap.note': (
+    'Klasörleri boyuta göre sıralar; içine girerek yerin nerede gittiğini bulun',
+    'Ranks folders by size; drill in to find where the space went',
+    'يرتّب المجلدات حسب الحجم؛ ادخل إليها لمعرفة أين ذهبت المساحة',
+  ),
+  'fmap.summary': (
+    '{n} dosya · {size}',
+    '{n} files · {size}',
+    '{n} ملف · {size}',
+  ),
+  'fmap.empty': (
+    'Bu klasörde ölçülecek dosya yok.',
+    'No files to measure in this folder.',
+    'لا توجد ملفات لقياسها في هذا المجلد.',
+  ),
+
   // ── Çöp kutusu ────────────────────────────────────────────────────────────
   'trash.title': ('Geri Dönüşüm Kutusu', 'Recycle Bin', 'سلة المحذوفات'),
   'trash.empty': ('Çöp kutusu boş', 'The trash is empty', 'سلة المهملات فارغة'),
