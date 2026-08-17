@@ -862,6 +862,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
               final row = rows[i];
               final section = sections[row.section];
               if (row.isHeader) {
+                // Başlık İKİ çizim yolunda da AYNI kaynaktan gelsin diye
+                // delegenin kendi `build`'i çağrılıyor: yapışkan ve düz
+                // görünüm biri değişince ayrışmasın.
                 return SizedBox(
                   height: _SectionHeaderDelegate.height,
                   child: _SectionHeaderDelegate(
@@ -877,18 +880,20 @@ class _PhotosScreenState extends State<PhotosScreen> {
               }
               return Padding(
                 padding: EdgeInsets.only(bottom: spacing),
+                // `Expanded` + `Row.spacing`: genişlik SATIRIN kendisinden
+                // bölünür. Hücre genişliğini elle yazmak (cell) kayan nokta
+                // artığı yüzünden "RenderFlex overflowed by 0.0001 pixels"
+                // riski taşırdı; bölme burada tam.
                 child: Row(
+                  spacing: spacing,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (var c = 0; c < columns; c++)
-                      Padding(
-                        padding: EdgeInsetsDirectional.only(
-                            end: c == columns - 1 ? 0 : spacing),
+                      Expanded(
                         child: SizedBox(
-                          width: cell,
                           height: cell,
                           // Son satır eksik kalabilir: boş yer tutucu, yoksa
-                          // hücreler genişleyip ızgara bozulurdu.
+                          // kalan hücreler genişleyip ızgara bozulurdu.
                           child: row.first + c < section.files.length
                               ? _tileAt(
                                   section.files[row.first + c],
