@@ -11,7 +11,6 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/download_service.dart';
 import '../../services/fm/file_ops.dart';
-import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
@@ -24,6 +23,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/new_document_sheet.dart';
 import '../../widgets/scan_flow.dart';
 import '../../widgets/section_header.dart';
 import 'analysis_screen.dart';
@@ -31,7 +31,6 @@ import 'activity_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'chat_cleanup_screen.dart';
-import 'ai_hub_screen.dart';
 import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
@@ -40,6 +39,7 @@ import 'remote/remote_connections_screen.dart';
 import '../settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
+import 'new_files_screen.dart';
 import 'jobs_screen.dart';
 import 'op_history_screen.dart';
 import 'open_history_screen.dart';
@@ -484,8 +484,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               const SizedBox(height: Gap.sm),
             ],
-            const SizedBox(height: Gap.sm),
-            _aiCard(),
+            // (AI Asistan kartı 2026-08-17'de KALKTI: kullanıcı *"ai asistan
+            // yazısı sağ alttaki ai düğmesi alanına entegre et, ana ekran
+            // temizlensin"* dedi. Analiz sayısı ve bekleyen öneri sayısı artık
+            // alt gezinme çubuğundaki AI sekmesinin rozetinde — bkz.
+            // `home_screen.dart`. Kart, panonun en üstünde tam genişlik
+            // kaplıyordu ve dosya aramaya gelen kullanıcının önüne giriyordu.)
             const SizedBox(height: Gap.sm),
             _categoryGrid(),
             // Kuyruk değişince (iş başladı/bitti) yalnız araç ızgarası yeniden
@@ -707,25 +711,17 @@ class _DashboardScreenState extends State<DashboardScreen>
           files: _index.files(FmCategory.apk),
         )),
       ),
-      // **Yeni dosyalar** — pano önbelleği yalnız en yeni 300 dosyayı tutar;
-      // ekran anında onunla açılır, EKSİKSİZ liste `loadAll` ile arka planda
-      // gelir ve tarihe göre sıralanır. Eskiden `loadAll` yoktu: "yeni
-      // dosyalar" 300'de kesiliyordu ve kullanıcı dünkü bir dosyayı orada
-      // bulamıyordu (istek 2026-08-09: *"son açılanlar ve yeni dosyalar ...
-      // eksiksiz çalışmalı"*).
+      // **Yeni dosyalar** — bkz. `NewFilesScreen`. Simge `fiber_new` idi:
+      // Material o glifi "NEW" YAZISI olarak çiziyor, dört sütunlu ızgarada
+      // tek harf yığını gibi duruyordu (kullanıcı 2026-08-17: *"yeni dosyalar
+      // klasörünün simgesini değiştir"*). Gelen kutusu oku, "az önce buraya
+      // düştü" fikrini glifle anlatıyor.
       FmTileData(
-        icon: Icons.fiber_new_outlined,
+        icon: Icons.move_to_inbox_rounded,
         color: const Color(0xFF8D6E63),
         label: context.t('fm.new_files'),
-        subtitle: context.t('count.files', {'n': _index.recent.length}),
-        onTap: () => _push(CategoryScreen(
-          title: context.t('fm.new_files'),
-          files: _index.recent,
-          loadAll: () => MediaLibrary.categoryFiles(
-            null,
-            lockedFolders: context.read<AppState>().fmLockedFolders,
-          ),
-        )),
+        subtitle: context.t('fm.new_files_note'),
+        onTap: () => _push(const NewFilesScreen()),
       ),
       // **Son açılanlar — büyük kutu.** Araçlar satırındaki 12 küçük simgenin
       // arasındaydı ve kaydırmadan görünmüyordu; oysa "dün baktığım dosya"
@@ -844,6 +840,17 @@ class _DashboardScreenState extends State<DashboardScreen>
           if (mounted) setState(() {});
         },
       ),
+      // **Yeni belge** — boş Word/Excel/metin oluşturur. 2026-08-17'ye kadar
+      // "Son belgeler" sekmesinin içindeydi; o sekme kullanıcı isteğiyle alt
+      // gezinme çubuğundan kalkınca akış buraya alındı. Kaldırılan şey
+      // belgelerin LİSTESİYDİ, oluşturma değil.
+      FmTileData(
+        icon: Icons.note_add_outlined,
+        color: OfficeColors.word,
+        label: context.t('home.new_document_title'),
+        subtitle: '',
+        onTap: () => showNewDocumentSheet(context),
+      ),
       // (İndirilenler klasörü 2026-08-17'de buradan yukarıdaki BÜYÜK kutu
       // ızgarasına, ilk sıraya taşındı. Buradaki "İndir" kutusu farklı bir
       // şey: indirme YÖNETİCİSİ — süren indirmeler ve kuyruk.)
@@ -943,78 +950,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// (kullanıcı isteği 2026-08-05). Önce araç satırındaydı, kaydırmadan
   /// görünmüyordu; sonra büyük kutulara alındı, orada da ana bellekten
   /// uzaktaydı. Yeri artık aradığı bilgiyle yan yana.
-  /// **AI Asistan kartı** — toplu dosya analizinin giriş noktası.
-  ///
-  /// Kullanıcı kararı (2026-08-10): AI'nın yeri panoda tek bir kart, oradan
-  /// açılan tek bir merkez. Kart canlıdır: analiz sürerken ilerleme çubuğu,
-  /// bittiğinde "kaç dosya · kaç öneri" yazar — kullanıcı panodan bakınca
-  /// işin nerede olduğunu görür.
-  Widget _aiCard() {
-    final scheme = Theme.of(context).colorScheme;
-    return ValueListenableBuilder<AiProgress>(
-      valueListenable: AiAnalyzer.progress,
-      builder: (context, progress, _) => ValueListenableBuilder<int>(
-        valueListenable: AiIndex.revision,
-        builder: (context, _, __) {
-          final analyzed = AiIndex.count;
-          final suggestions = AiIndex.suggestionCount;
-          return Card(
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => _push(const AiHubScreen()),
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.md),
-                child: Row(
-                  children: [
-                    Icon(Icons.auto_awesome, size: 26, color: scheme.primary),
-                    const SizedBox(width: Gap.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(context.t('aih.card_title'),
-                              style: Theme.of(context).textTheme.titleSmall),
-                          const SizedBox(height: 2),
-                          Text(
-                            progress.isBusy
-                                ? '${progress.done}/${progress.total} · '
-                                    '${progress.currentName}'
-                                : (analyzed == 0
-                                    ? context.t('aih.card_idle')
-                                    : context.t('aih.card_ready', {
-                                        'n': analyzed,
-                                        's': suggestions,
-                                      })),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Paper.faint(context)),
-                          ),
-                          if (progress.isBusy)
-                            Padding(
-                              padding: const EdgeInsets.only(top: Gap.xs),
-                              child: LinearProgressIndicator(
-                                value: progress.total == 0
-                                    ? null
-                                    : progress.fraction,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _analysisCard(StorageVolume volume) {
     final scheme = Theme.of(context).colorScheme;
     return Card(

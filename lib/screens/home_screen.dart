@@ -4,31 +4,29 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
-import '../core/theme.dart';
-import '../models/document.dart';
-import '../models/recent_file.dart';
-import '../services/blank_docs.dart';
 import '../models/download_task.dart';
-import '../services/file_service.dart';
+import '../services/fm/ai_analyzer.dart';
+import '../services/fm/ai_index.dart';
 import '../services/fm/entry_opener.dart';
-import '../widgets/file_type_icon.dart';
 import '../widgets/fm/job_progress_bar.dart';
-import '../widgets/scan_flow.dart';
-import '../widgets/section_header.dart';
 import 'chat_screen.dart';
 import 'fm/browser_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'fm/download_manager_screen.dart';
-import 'fm/drive_screen.dart';
-import 'pdf_tools_screen.dart';
-import 'settings_screen.dart';
+import 'fm/new_files_screen.dart';
 
 /// Uygulama kabuğu: alt gezinme çubuğuyla üç bölme —
-/// **Dosyalar** (dosya yöneticisi panosu), **Son belgeler**, **AI**.
+/// **Dosyalar** (dosya yöneticisi panosu), **Yeni Dosyalar**, **AI**.
+///
+/// Ortadaki sekme 2026-08-17'ye kadar "Son belgeler"di (uygulamada açılmış
+/// belgeler + boş belge oluşturma). Kullanıcı: *"son belgeleri kaldır, yerine
+/// yeni dosyaları koy; son belgelere gerek yok"*. Gerekçe tutarlı: bu bir
+/// **dosya yöneticisi**, ve "az önce telefona ne düştü?" sorusu "geçen hafta
+/// hangi Word'ü açmıştım?"tan çok daha sık soruluyor. Açılmış belgeler
+/// kaybolmuyor — panodaki **Son açılanlar** kutusu aynı kaydı gösteriyor.
 ///
 /// Kabuk aynı zamanda "birlikte aç"/paylaş ile gelen dosyaları yakalar; bu iş
 /// eskiden son-belgeler ekranındaydı, artık hangi sekme açık olursa olsun
@@ -134,7 +132,9 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // active: pano yalnız görünürken yeniden tarar (bkz. FsEvents).
           DashboardScreen(active: _tab == 0),
-          const RecentDocsScreen(),
+          // active: `IndexedStack` çocuğu ayakta tutar; sekmeye dönünce liste
+          // kendini tazelesin (bkz. `NewFilesScreen.active`).
+          NewFilesScreen(active: _tab == 1),
           const ChatScreen(),
         ],
       ),
@@ -156,13 +156,18 @@ class _HomeScreenState extends State<HomeScreen> {
             label: context.t('home.tab_files'),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.history_outlined),
-            selectedIcon: const Icon(Icons.history),
-            label: context.t('home.tab_recent'),
+            icon: const Icon(Icons.move_to_inbox_outlined),
+            selectedIcon: const Icon(Icons.move_to_inbox),
+            label: context.t('fm.new_files'),
           ),
+          // **AI sekmesi durumu taşır** (kullanıcı 2026-08-17: *"ai asistan
+          // yazısı sağ alttaki ai düğmesi alanına entegre et, ana ekran
+          // temizlensin"*). Panodaki tam genişlikli AI kartı kalktı; analiz
+          // sürerken sekmede ilerleme halkası, bekleyen öneri varsa sayı
+          // rozeti çıkıyor. Bilgi aynı, kapladığı yer sıfır.
           NavigationDestination(
-            icon: const Icon(Icons.smart_toy_outlined),
-            selectedIcon: const Icon(Icons.smart_toy),
+            icon: const _AiTabIcon(selected: false),
+            selectedIcon: const _AiTabIcon(selected: true),
             label: context.t('home.tab_ai'),
           ),
         ],
@@ -173,616 +178,49 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// "Son belgeler" sekmesi: uygulamada açılmış belgeler + hızlı dosya açma ve
-/// yeni belge oluşturma (eski ana ekranın işlevleri).
-class RecentDocsScreen extends StatefulWidget {
-  const RecentDocsScreen({super.key});
-
-  @override
-  State<RecentDocsScreen> createState() => _RecentDocsScreenState();
-}
-
-class _RecentDocsScreenState extends State<RecentDocsScreen> {
-  final _fileService = FileService();
-  bool _loading = false;
-  String _query = '';
-
-  /// Tür süzgeci (null = tümü). Kategori ekranındaki belge çipleriyle aynı
-  /// mantık — son belgelerde de "yalnız PDF'lerim" en sık istenen daraltma.
-  DocKind? _kind;
-
-  Future<void> _openNew() async {
-    // Çeviri tablosu await'ten ÖNCE alınır: `context` asenkron boşluktan
-    // sonra kullanılamaz (ekran bu arada kapanmış olabilir).
-    final s = AppStrings.of(context);
-    setState(() => _loading = true);
-    try {
-      final path = await _fileService.pickFilePath();
-      if (path == null) return;
-      if (!mounted) return;
-      await EntryOpener.open(context, path);
-    } catch (e) {
-      _showError(s.t('home.open_error', {'error': e}));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _showError(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  /// "Yeni belge" seçim sayfası (Word / Excel / Metin oluşturur).
-  void _newDocument() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(ctx.t('home.new_document_title'),
-                    style: Theme.of(ctx).textTheme.titleMedium),
-              ),
-            ),
-            _newTile(ctx, DocKind.word, ctx.t('home.new_word'), '.docx', 'docx'),
-            _newTile(ctx, DocKind.spreadsheet, ctx.t('home.new_excel'), '.xlsx',
-                'xlsx'),
-            _newTile(ctx, DocKind.text, ctx.t('home.new_text'), '.txt', 'txt'),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _newTile(BuildContext ctx, DocKind kind, String title, String sub,
-      String type) {
-    return ListTile(
-      leading: FileTypeIcon(kind: kind),
-      title: Text(title),
-      subtitle: Text(sub),
-      onTap: () {
-        Navigator.pop(ctx);
-        _createAndOpen(type);
-      },
-    );
-  }
-
-  Future<void> _createAndOpen(String type) async {
-    final s = AppStrings.of(context);
-    setState(() => _loading = true);
-    try {
-      final path = await BlankDocs.create(type);
-      if (!mounted) return;
-      await EntryOpener.open(context, path);
-    } catch (e) {
-      _showError(s.t('home.create_error', {'error': e}));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _cycleTheme(AppState appState) {
-    final next = switch (appState.themeMode) {
-      ThemeMode.system => ThemeMode.light,
-      ThemeMode.light => ThemeMode.dark,
-      ThemeMode.dark => ThemeMode.system,
-    };
-    appState.setThemeMode(next);
-  }
-
-  (IconData, String) _themeIcon(ThemeMode mode) => switch (mode) {
-        ThemeMode.system =>
-          (Icons.brightness_auto_outlined, context.t('home.theme_system')),
-        ThemeMode.light =>
-          (Icons.light_mode_outlined, context.t('home.theme_light')),
-        ThemeMode.dark =>
-          (Icons.dark_mode_outlined, context.t('home.theme_dark')),
-      };
+/// AI sekmesinin simgesi — **canlı durum taşır**.
+///
+/// Panodaki AI kartının yerini aldı (2026-08-17). Üç hâl:
+/// * analiz sürüyorsa simgenin çevresinde ince bir ilerleme halkası,
+/// * bekleyen öneri varsa sayı rozeti,
+/// * ikisi de yoksa düz simge (gürültü yok).
+class _AiTabIcon extends StatelessWidget {
+  final bool selected;
+  const _AiTabIcon({required this.selected});
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    final recents = appState.recents;
-    final q = _query.trim().toLowerCase();
-    final byQuery = q.isEmpty
-        ? recents
-        : recents.where((r) => r.name.toLowerCase().contains(q)).toList();
-    final filtered = _kind == null
-        ? byQuery
-        : byQuery
-            .where((r) => FileService.kindForExtension(r.extension) == _kind)
-            .toList();
-    final (themeIc, themeTip) = _themeIcon(appState.themeMode);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.t('home.tab_recent')),
-        actions: [
-          IconButton(
-            tooltip: context.t('home.pdf_tools'),
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: () => PdfToolsScreen.open(context),
-          ),
-          IconButton(
-            tooltip: context.t('home.new_document'),
-            icon: const Icon(Icons.note_add_outlined),
-            onPressed: _newDocument,
-          ),
-          IconButton(
-            tooltip: themeTip,
-            icon: Icon(themeIc),
-            onPressed: () => _cycleTheme(appState),
-          ),
-          IconButton(
-            tooltip: context.t('common.settings'),
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+    final icon = Icon(selected ? Icons.smart_toy : Icons.smart_toy_outlined);
+    return ValueListenableBuilder<AiProgress>(
+      valueListenable: AiAnalyzer.progress,
+      builder: (context, progress, _) => ValueListenableBuilder<int>(
+        valueListenable: AiIndex.revision,
+        builder: (context, _, __) {
+          final pending = AiIndex.suggestionCount;
+          if (progress.isBusy) {
+            return Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
               children: [
-                // Hızlı erişim ŞERİDİ — liste boşken de durur (kullanıcı
-                // isteği 2026-08-05: *"Drive daha kolay erişilebilmeli, şu an
-                // zor bulunuyor"*). Drive eskiden yalnız Dosyalar sekmesinin
-                // araç ızgarasındaydı; en sık kullanılan dört kapı artık
-                // açılış sekmesinde tek dokunuş.
-                _quickAccess(),
-                Expanded(
-                  child: recents.isEmpty
-                      ? _EmptyState(
-                          onOpen: _openNew, hasApiKey: appState.hasApiKey)
-                      : Column(
-                          children: [
-                            // Arama KOŞULSUZ görünür (eskiden
-                            // `recents.length > 4`): yeri listenin uzunluğuna
-                            // göre değişen bir kutu ezberlenemiyordu.
-                            _searchBar(),
-                            _kindChips(byQuery),
-                            Expanded(
-                              child: filtered.isEmpty
-                                  ? const _NoMatch()
-                                  : _RecentList(
-                                      recents: filtered,
-                                      onTap: _openSafely,
-                                      onRemove: (r) =>
-                                          appState.removeRecent(r.path),
-                                      onShare: _share,
-                                      onShowPath: _showPath,
-                                    ),
-                            ),
-                          ],
-                        ),
+                SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    value: progress.total == 0 ? null : progress.fraction,
+                  ),
                 ),
+                icon,
               ],
-            ),
-      // Belge tarama uygulamanın vitrin özelliği: dosya açmanın hemen üstünde,
-      // kendi düğmesiyle duruyor.
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'scan',
-            onPressed: () => ScanFlow.run(context),
-            icon: const Icon(Icons.document_scanner_outlined),
-            label: Text(context.t('home.scan')),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'open',
-            onPressed: _openNew,
-            icon: const Icon(Icons.folder_open),
-            label: Text(context.t('home.open_file')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Son dosya açılırken hata olursa (ör. dosya taşınmış) kullanıcıyı bilgilendir.
-  Future<void> _openSafely(RecentFile r) async {
-    final s = AppStrings.of(context);
-    try {
-      await EntryOpener.open(context, r.path);
-    } catch (e) {
-      _showError(s.t('home.open_error_moved', {'name': r.name}));
-    }
-  }
-
-  Future<void> _share(RecentFile r) async {
-    if (!File(r.path).existsSync()) {
-      _showError(AppStrings.of(context).t('home.open_error_moved', {
-        'name': r.name,
-      }));
-      return;
-    }
-    await Share.shareXFiles([XFile(r.path)], text: r.name);
-  }
-
-  void _showPath(RecentFile r) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: MonoText(r.path, maxLines: 3, size: 12)),
-    );
-  }
-
-  /// Tür çipleri — sayılarla. Sıfır olan tür hiç çizilmez: boş bir süzgeç
-  /// dokunulacak bir şey gibi durup hiçbir şey yapmıyordu.
-  Widget _kindChips(List<RecentFile> pool) {
-    const kinds = [
-      DocKind.pdf,
-      DocKind.word,
-      DocKind.spreadsheet,
-      DocKind.slides,
-      DocKind.text,
-    ];
-    final counts = <DocKind, int>{};
-    for (final r in pool) {
-      final k = FileService.kindForExtension(r.extension);
-      counts[k] = (counts[k] ?? 0) + 1;
-    }
-    final shown = kinds.where((k) => (counts[k] ?? 0) > 0).toList();
-    if (shown.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          _chip(context.t('enum.size_any'), pool.length, _kind == null,
-              () => setState(() => _kind = null)),
-          for (final k in shown)
-            _chip(k.label, counts[k] ?? 0, _kind == k,
-                () => setState(() => _kind = _kind == k ? null : k)),
-        ],
-      ),
-    );
-  }
-
-  Widget _chip(String label, int count, bool selected, VoidCallback onTap) =>
-      Padding(
-        padding: const EdgeInsets.only(right: Gap.sm),
-        child: ChoiceChip(
-          selected: selected,
-          onSelected: (_) => onTap(),
-          label: Text('$label  $count'),
-        ),
-      );
-
-  /// Dört kapılık yatay hızlı erişim: Tara · Drive · PDF araçları · Yeni.
-  Widget _quickAccess() {
-    final items = [
-      (
-        Icons.document_scanner_outlined,
-        const Color(0xFF7B1FA2),
-        context.t('home.scan'),
-        () => ScanFlow.run(context),
-      ),
-      (
-        Icons.cloud_outlined,
-        const Color(0xFF0F9D58),
-        'Google Drive',
-        () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DriveScreen()),
-            ),
-      ),
-      (
-        Icons.picture_as_pdf_outlined,
-        const Color(0xFFC62828),
-        context.t('home.pdf_tools'),
-        () => PdfToolsScreen.open(context),
-      ),
-      (
-        Icons.note_add_outlined,
-        const Color(0xFF1565C0),
-        context.t('home.new_document'),
-        _newDocument,
-      ),
-    ];
-    return SizedBox(
-      height: 96,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
-        itemBuilder: (context, i) {
-          final (icon, color, label, onTap) = items[i];
-          return Card(
-            margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              child: SizedBox(
-                width: 108,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: color.withValues(alpha: 0.14),
-                      child: Icon(icon, size: 20, color: color),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            );
+          }
+          if (pending <= 0) return icon;
+          return Badge(
+            label: Text('$pending'),
+            child: icon,
           );
         },
       ),
     );
-  }
-
-  Widget _searchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      child: TextField(
-        onChanged: (v) => setState(() => _query = v),
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          isDense: true,
-          hintText: context.t('home.search_recent'),
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _query.isEmpty
-              ? null
-              : IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => setState(() => _query = ''),
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NoMatch extends StatelessWidget {
-  const _NoMatch();
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Text(context.t('home.no_match'),
-            style: Theme.of(context).textTheme.bodyMedium),
-      );
-}
-
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onOpen;
-  final bool hasApiKey;
-  const _EmptyState({required this.onOpen, required this.hasApiKey});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Center(
-      child: SingleChildScrollView(
-        // Büyük sistem yazı tipinde/yatay modda taşmasın diye kaydırılabilir.
-        padding: const EdgeInsets.all(Gap.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(Radii.sheet),
-              ),
-              child: Icon(Icons.folder_copy_outlined,
-                  size: 40, color: scheme.onPrimaryContainer),
-            ),
-            const SizedBox(height: Gap.lg),
-            Text(context.t('home.empty_title'),
-                style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.center),
-            const SizedBox(height: Gap.sm),
-            Text(
-              context.t('home.empty_body'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: Gap.lg),
-            FilledButton.icon(
-              onPressed: onOpen,
-              icon: const Icon(Icons.folder_open),
-              label: Text(context.t('home.empty_cta')),
-            ),
-            if (!hasApiKey) ...[
-              const SizedBox(height: Gap.md),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: Gap.md, vertical: Gap.sm),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(Radii.control),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.lightbulb_outline,
-                        size: 18, color: scheme.onSurfaceVariant),
-                    const SizedBox(width: Gap.sm),
-                    Flexible(
-                      child: Text(
-                        context.t('home.empty_ai_hint'),
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentList extends StatelessWidget {
-  final List<RecentFile> recents;
-  final void Function(RecentFile) onTap;
-  final void Function(RecentFile) onRemove;
-  final void Function(RecentFile) onShare;
-  final void Function(RecentFile) onShowPath;
-
-  const _RecentList({
-    required this.recents,
-    required this.onTap,
-    required this.onRemove,
-    required this.onShare,
-    required this.onShowPath,
-  });
-
-  /// Başlık (String) ve satır (RecentFile) karışık tek liste. Gün grupları
-  /// "ne zaman açmıştım" sorusuna satır içi göreli zamandan daha hızlı cevap
-  /// verir; göreli zaman satırda kalmaya devam eder.
-  List<Object> _withGroups(BuildContext context) {
-    final now = DateTime.now();
-    final todayStart =
-        DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
-    final weekStart = todayStart - const Duration(days: 6).inMilliseconds;
-    final out = <Object>[];
-    String? current;
-    for (final r in recents) {
-      final label = r.openedAtMs >= todayStart
-          ? context.t('recent.group_today')
-          : (r.openedAtMs >= weekStart
-              ? context.t('recent.group_week')
-              : context.t('recent.group_older'));
-      if (label != current) {
-        out.add(label);
-        current = label;
-      }
-      out.add(r);
-    }
-    return out;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final items = _withGroups(context);
-    return ListView.builder(
-      // Alt boşluk FAB'ın altında kalan son kartı kurtarır (sabit öğe ile
-      // kaydırma içeriği çakışmasın).
-      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 96),
-      itemCount: items.length,
-      itemBuilder: (context, i) {
-        final item = items[i];
-        if (item is String) {
-          return SectionHeader(
-            item,
-            padding: EdgeInsets.only(top: i == 0 ? Gap.xs : Gap.md,
-                bottom: Gap.sm),
-          );
-        }
-        final r = item as RecentFile;
-        final kind = FileService.kindForExtension(r.extension);
-        return Padding(
-          padding: const EdgeInsets.only(bottom: Gap.sm),
-          child: Dismissible(
-          key: ValueKey(r.path + r.openedAtMs.toString()),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: Gap.lg),
-            decoration: BoxDecoration(
-              color: scheme.errorContainer,
-              borderRadius: BorderRadius.circular(Radii.card),
-            ),
-            child: Icon(Icons.delete_outline, color: scheme.onErrorContainer),
-          ),
-          onDismissed: (_) => onRemove(r),
-          child: Card(
-            clipBehavior: Clip.antiAlias,
-            child: ListTile(
-              leading: FileTypeIcon(kind: kind),
-              title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: MonoText(
-                  '${kind.label} · ${_size(r.sizeBytes)} · '
-                  '${_relTime(context, r.openedAtMs)}',
-                  size: 11,
-                ),
-              ),
-              // Kaydırarak silme KALIYOR ama tek keşif yolu olmaktan çıktı:
-              // gizli bir hareketin arkasındaki dört eylem artık görünür.
-              trailing: PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert,
-                    size: 20, color: scheme.onSurfaceVariant),
-                onSelected: (v) => switch (v) {
-                  'open' => onTap(r),
-                  'share' => onShare(r),
-                  'path' => onShowPath(r),
-                  _ => onRemove(r),
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                      value: 'open', child: Text(ctx.t('common.open'))),
-                  PopupMenuItem(
-                      value: 'share', child: Text(ctx.t('common.share'))),
-                  PopupMenuItem(
-                      value: 'path', child: Text(ctx.t('recent.show_path'))),
-                  PopupMenuItem(
-                      value: 'remove', child: Text(ctx.t('recent.remove'))),
-                ],
-              ),
-              onTap: () => onTap(r),
-            ),
-          ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _relTime(BuildContext context, int ms) {
-    if (ms <= 0) return '';
-    final d = DateTime.now()
-        .difference(DateTime.fromMillisecondsSinceEpoch(ms));
-    if (d.inMinutes < 1) return context.t('home.time_now');
-    if (d.inMinutes < 60) return context.t('home.time_minutes', {'n': d.inMinutes});
-    if (d.inHours < 24) return context.t('home.time_hours', {'n': d.inHours});
-    if (d.inDays < 7) return context.t('home.time_days', {'n': d.inDays});
-    if (d.inDays < 30) {
-      return context.t('home.time_weeks', {'n': (d.inDays / 7).floor()});
-    }
-    if (d.inDays < 365) {
-      return context.t('home.time_months', {'n': (d.inDays / 30).floor()});
-    }
-    return context.t('home.time_years', {'n': (d.inDays / 365).floor()});
-  }
-
-  String _size(int bytes) {
-    if (bytes <= 0) return '—';
-    const units = ['B', 'KB', 'MB', 'GB'];
-    var size = bytes.toDouble();
-    var unit = 0;
-    while (size >= 1024 && unit < units.length - 1) {
-      size /= 1024;
-      unit++;
-    }
-    return '${size.toStringAsFixed(size < 10 && unit > 0 ? 1 : 0)} ${units[unit]}';
   }
 }

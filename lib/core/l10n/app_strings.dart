@@ -827,6 +827,11 @@ const Map<String, (String, String, String)> _table = {
   'fm.drive_subtitle': ('Buluttaki dosyalar', 'Files in the cloud', 'الملفات في السحابة'),
   'fm.memory_analysis': ('Bellek Analizi', 'Storage analysis', 'تحليل التخزين'),
   'fm.new_files': ('Yeni Dosyalar', 'New files', 'ملفات جديدة'),
+  'fm.new_files_note': (
+    'Son gelenler',
+    'Latest arrivals',
+    'أحدث الملفات',
+  ),
   'fm.scan_document': ('Belge Tara', 'Scan a document', 'مسح مستند'),
   'fm.duplicates_title': ('Yinelenen dosyalar', 'Duplicate files', 'ملفات مكررة'),
   'fm.enter_password': ('Parola gir', 'Enter password', 'أدخل كلمة المرور'),

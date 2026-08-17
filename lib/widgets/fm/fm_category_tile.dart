@@ -121,7 +121,10 @@ class FmCategoryTile extends StatelessWidget {
     // bir glif vardı: kutu gliften büyüktü, göz önce kutuyu görüyordu. Artık
     // glifin kendisi 38 dp — aynı yerde bir buçuk kat büyük ve daha sakin.
     // Kartın kendisi de kalktı: 12 renkli kutu yan yana duvar gibi görünüyordu.
-    final icon = Icon(data.icon, color: tint, size: 38);
+    // 38 → 46 (ikinci tur: *"simgeleri olabildiğince büyüt"*). Dört sütunda
+    // hücre ~76 dp; 46 dp glif hücrenin genişliğinin %60'ı — daha büyüğü
+    // etiketi sıkıştırırdı.
+    final icon = Icon(data.icon, color: tint, size: 46);
     return InkWell(
       onTap: data.onTap,
       borderRadius: BorderRadius.circular(Radii.card),
@@ -234,10 +237,9 @@ class FmToolGrid extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 26 → 30 (kullanıcı 2026-08-17: *"simge boyutları büyümeli"*);
-                // içerik kutularının 38'inden bir kademe küçük kalıyor,
-                // ağırlık hiyerarşisi korunuyor.
-                Icon(tool.icon, color: tint, size: 30),
+                // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının 46'sından
+                // bir kademe küçük kalıyor, ağırlık hiyerarşisi korunuyor.
+                Icon(tool.icon, color: tint, size: 34),
                 const SizedBox(height: Gap.xs),
                 Text(
                   tool.label,

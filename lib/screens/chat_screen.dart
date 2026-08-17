@@ -15,6 +15,7 @@ import '../services/file_service.dart';
 import '../services/gemini_service.dart';
 import '../services/markdown_export.dart';
 import '../widgets/markdown_text.dart';
+import 'fm/ai_hub_screen.dart';
 import 'settings_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -224,6 +225,20 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('chat.title')),
+        // **AI Merkezi buradan açılır** (2026-08-17). Panodaki tam genişlikli
+        // "AI Asistan" kartı kaldırıldı (kullanıcı: *"ai asistan yazısı sağ
+        // alttaki ai düğmesi alanına entegre et, ana ekran temizlensin"*);
+        // merkezin tek kapısı artık AI sekmesinin kendisi. Analiz sayısı ve
+        // bekleyen öneri rozeti alt gezinme çubuğundaki simgede.
+        actions: [
+          IconButton(
+            tooltip: context.t('aih.card_title'),
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AiHubScreen()),
+            ),
+          ),
+        ],
         // **Rozet şeridi**: hangi modelle konuşulduğunu görmek için Ayarlar'a
         // gitmek gerekiyordu; bağlam dosyası da yalnız başlıkta bir satırdı.
         bottom: PreferredSize(

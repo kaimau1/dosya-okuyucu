@@ -43,7 +43,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   /// Sürükleyerek seçimde kenarda otomatik kaydırma için.
   final ScrollController _scroll = ScrollController();
   bool _loading = true;
-  _DlSort _sort = _DlSort.oldest;
+  /// **Varsayılan: en yeni önce** (kullanıcı 2026-08-17: *"indirilenlerde en
+  /// güncelden en eskiye sıralanmalı, şu an tam tersi varsayılan"*).
+  ///
+  /// Eskiden "en eski önce"ydi çünkü bu ekran "yer aç" gözüyle tasarlanmıştı:
+  /// en eski indirmeler silinecek adaylardı. Ama insanlar buraya çoğu zaman
+  /// **az önce indirdikleri** dosyayı açmaya geliyor; onu bulmak için 38
+  /// satır kaydırmak gerekiyordu. Eski dosyalar sıralamadan bir dokunuş uzakta
+  /// (ve "çok eski" uyarısı zaten ayrı gösteriliyor).
+  _DlSort _sort = _DlSort.newest;
 
   final _searchController = TextEditingController();
   bool _searching = false;

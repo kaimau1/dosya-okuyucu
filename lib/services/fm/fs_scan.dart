@@ -445,7 +445,13 @@ class _FreshArgs {
 }
 
 List<FsEntry> _freshFilesSync(_FreshArgs args) {
-  final hits = <FsEntry>[];
+  // **`stop:` ile kesmek YANLIŞ olurdu.** Yürüyüş dizin sırasında ilerler,
+  // tarih sırasında değil: DCIM'de 7000 fotoğraf varken ilk 100'de durmak
+  // "rastgele 100 dosya"yı en yeniler sanmak demekti — kullanıcının az önce
+  // çektiği kare listeye hiç girmeyebilirdi. Onun yerine ağaç sonuna kadar
+  // gezilir ama bellekte yalnız **en yeni [_FreshArgs.limit]** tutulur
+  // (sınırlı bellek, tam doğruluk).
+  final top = _TopN(args.limit, (a, b) => b.modifiedMs.compareTo(a.modifiedMs));
   final seen = <String>{};
   for (final root in args.roots) {
     final dir = Directory(root);
@@ -455,13 +461,12 @@ List<FsEntry> _freshFilesSync(_FreshArgs args) {
       (entry) {
         if (entry.modifiedMs < args.sinceMs) return;
         if (!seen.add(entry.path)) return;
-        hits.add(entry);
+        top.add(entry);
       },
       () {},
-      stop: () => hits.length >= args.limit,
     );
   }
-  return _finishCollect(hits);
+  return _finishCollect(top.result().toList());
 }
 
 List<FsEntry> _pruneMissingSync(List<FsEntry> entries) =>

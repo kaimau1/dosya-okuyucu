@@ -50,6 +50,15 @@ class CategoryScreen extends StatefulWidget {
   /// açılsın diye önce o gösterilir, tam liste gelince yerine geçer.
   final Future<List<FsEntry>> Function()? loadAll;
 
+  /// [loadAll] sonucu listenin **yerine geçsin mi**?
+  ///
+  /// Varsayılan davranış "yalnız daha uzunsa değiştir": pano önbelleği kırpık
+  /// olduğu için tam liste daima daha uzundur ve kırpık listenin üstüne
+  /// yazması istenir. Ama sabit sınırlı bir liste tazeleniyorsa (bkz.
+  /// `NewFilesScreen` — hep 100 dosya) uzunluk aynı kalır ve taze sonuç
+  /// sessizce yutulurdu.
+  final bool replaceOnLoad;
+
   const CategoryScreen({
     super.key,
     required this.title,
@@ -57,6 +66,7 @@ class CategoryScreen extends StatefulWidget {
     this.gridDefault = false,
     this.showDocKinds = false,
     this.loadAll,
+    this.replaceOnLoad = false,
   });
 
   @override
@@ -139,7 +149,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       final all = await loader();
       if (!mounted) return;
       setState(() {
-        if (all.length > _files.length) _files = all;
+        if (widget.replaceOnLoad || all.length > _files.length) _files = all;
         _loadingAll = false;
       });
     } catch (_) {

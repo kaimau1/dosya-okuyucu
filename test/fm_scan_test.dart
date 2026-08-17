@@ -341,4 +341,49 @@ void main() {
       expect(merged.recent.map((e) => e.name), ['yeni.pdf', 'eski.pdf']);
     });
   });
+
+  group('sıcak klasör taraması (freshFiles)', () {
+    late Directory dir;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('fresh_files');
+    });
+
+    tearDown(() => removeTempDir(dir));
+
+    /// Sınır, yürüyüş sırasına göre KESMEZ: ağaç sonuna kadar gezilir ve
+    /// bellekte en yeniler tutulur. Eskiden `stop:` ile kesiliyordu — 7000
+    /// fotoğraflı bir DCIM'de kullanıcının az önce çektiği kare listeye hiç
+    /// girmeyebilirdi.
+    test('sınır varken bile EN YENİLER döner', () async {
+      // 20 dosya; en yeni olanlar dizin sırasında SONA yazılıyor.
+      for (var i = 0; i < 20; i++) {
+        final f = File(p.join(dir.path, 'dosya_$i.txt'))..writeAsStringSync('x');
+        f.setLastModifiedSync(
+            DateTime.fromMillisecondsSinceEpoch(1700000000000 + i * 60000));
+      }
+      final hits = await FsScan.freshFiles([dir.path], limit: 5);
+      expect(hits.length, 5);
+      // En yeni beş: dosya_19 … dosya_15, yeniden eskiye sıralı.
+      expect(hits.map((e) => e.name),
+          ['dosya_19.txt', 'dosya_18.txt', 'dosya_17.txt', 'dosya_16.txt',
+           'dosya_15.txt']);
+    });
+
+    test('sinceMs eski dosyaları eler', () async {
+      final eski = File(p.join(dir.path, 'eski.txt'))..writeAsStringSync('x');
+      eski.setLastModifiedSync(DateTime.fromMillisecondsSinceEpoch(1000));
+      final yeni = File(p.join(dir.path, 'yeni.txt'))..writeAsStringSync('x');
+      yeni.setLastModifiedSync(
+          DateTime.fromMillisecondsSinceEpoch(1700000000000));
+
+      final hits = await FsScan.freshFiles([dir.path], sinceMs: 1600000000000);
+      expect(hits.map((e) => e.name), ['yeni.txt']);
+    });
+
+    test('olmayan kök çökmez', () async {
+      final hits = await FsScan.freshFiles([p.join(dir.path, 'yok')]);
+      expect(hits, isEmpty);
+    });
+  });
 }

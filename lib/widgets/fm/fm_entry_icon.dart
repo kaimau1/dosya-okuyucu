@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/file_service.dart';
 import '../../services/fm/fs_events.dart';
+import '../../services/fm/apk_icon.dart';
 import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../file_type_icon.dart';
@@ -165,6 +166,18 @@ class FmEntryIcon extends StatelessWidget {
       return icon;
     }
 
+    // APK: **uygulamanın kendi simgesi** (kullanıcı 2026-08-17). Çıkarılana
+    // kadar (ve çıkarılamazsa — bozuk/uyarlanabilir-simgeli kurulum dosyası)
+    // Android glifi kalır. Bkz. `services/fm/apk_icon.dart`.
+    if (thumbsOn && category == FmCategory.apk) {
+      return _ApkIconImage(
+        path: entry.path,
+        size: size,
+        radius: radius,
+        fallback: _badge(context, category),
+      );
+    }
+
     // Video: native küçük resim (film karesi) — üretilene kadar/olmazsa ikon.
     if (thumbsOn && category == FmCategory.video) {
       return _VideoThumb(
@@ -223,6 +236,73 @@ class FmEntryIcon extends StatelessWidget {
       width: size,
       height: size,
       child: Icon(icon, color: tint, size: size * 0.92),
+    );
+  }
+}
+
+/// APK'nın kendi uygulama simgesi: önbellekten gelir, yoksa arka planda
+/// çıkarılır. [_PdfThumb] / [_VideoThumb] ile aynı kalıp — üretim bitene kadar
+/// (ve çıkarılamazsa) [fallback] görünür, liste asla boş kutu göstermez.
+class _ApkIconImage extends StatefulWidget {
+  final String path;
+  final double size;
+  final double radius;
+  final Widget fallback;
+
+  const _ApkIconImage({
+    required this.path,
+    required this.size,
+    required this.fallback,
+    this.radius = Radii.control,
+  });
+
+  @override
+  State<_ApkIconImage> createState() => _ApkIconImageState();
+}
+
+class _ApkIconImageState extends State<_ApkIconImage> {
+  String? _icon;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ApkIconImage old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) {
+      _icon = null;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final path = widget.path;
+    final result = await ApkIcon.forApk(path);
+    if (!mounted || path != widget.path) return;
+    setState(() => _icon = result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = _icon;
+    if (icon == null) return widget.fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: Image.file(
+        File(icon),
+        width: widget.size,
+        height: widget.size,
+        // `contain`: uygulama simgeleri kare ama kenar boşluklu olabiliyor;
+        // `cover` onları kırpıp gliften bir parça koparırdı.
+        fit: BoxFit.contain,
+        cacheWidth: (widget.size * 3).round(),
+        filterQuality: FilterQuality.medium,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => widget.fallback,
+      ),
     );
   }
 }

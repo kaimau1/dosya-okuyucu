@@ -8189,3 +8189,78 @@ bırakıp kutuyu sarı gösteriyordu.
 
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 sorun,
 `flutter test` 1644 test yeşil (yeni: 3 biçim devralma + 3 `mergeFresh`).
+
+---
+
+## 2026-08-17 (ikinci tur) — cihaz denemesinden gelen yedi madde
+
+Aynı gün, build-287 APK'sı denendikten sonra gelen ikinci liste.
+
+### A) KÖK NEDEN — `freshFiles`in sınırı YANLIŞ kesiyordu
+Sabahki turda eklenen sıcak klasör taraması `stop: () => hits.length >= limit`
+ile duruyordu. Yürüyüş **dizin sırasında** ilerler, tarih sırasında değil:
+7000 fotoğraflı bir DCIM'de ilk 100'de durmak "rastgele 100 dosya"yı en
+yeniler sanmak demekti — kullanıcının az önce çektiği kare listeye hiç
+girmeyebilirdi. ("hâlâ çok geç güncelleniyor" şikâyetinin bir parçası buydu.)
+**Çözüm:** ağaç sonuna kadar gezilir, bellekte yalnız en yeni N tutulur
+(`_TopN`). Test bunu kilitliyor (`fm_scan_test` → "sınır varken bile EN
+YENİLER döner").
+
+### B) `NewFilesScreen` — yeni ekran
+Eskiden kutu `CategoryScreen`i `MediaLibrary.categoryFiles(null)` ile
+besliyordu: **tüm depolama** (kullanıcıda 12 010 dosya), hem yavaş hem bayat.
+Artık yalnız sıcak klasörler taranıyor ve **en yeni 100** gösteriliyor.
+- **TUZAK — `IndexedStack` çocuğu `initState`i bir kez koşar:** alt gezinme
+  çubuğunda duran ekran, sekmeye her dönüşte açılıştaki bayat listeyi
+  gösterirdi. `active` bayrağı + `didUpdateWidget` + `AppLifecycleState
+  .resumed` üçlüsüyle tazeleniyor (panonun `_catchUp`'ıyla aynı kalıp).
+- **TUZAK — `CategoryScreen` listesini `initState`te kopyalar:** sonraki
+  `widget.files` değişimlerini görmez. Taze liste gerçekten değiştiyse
+  `ValueKey(_revision)` ile yeniden kuruluyor; değişmediyse anahtar SABİT
+  kalıyor (yoksa her tazeleme kaydırma konumunu ve seçimi sıfırlardı).
+- `CategoryScreen.replaceOnLoad`: varsayılan "yalnız daha uzunsa değiştir"
+  sabit sınırlı listede taze sonucu sessizce yutuyordu.
+
+### C) Alt gezinme: "Son belgeler" → "Yeni Dosyalar"
+Kullanıcı: *"son belgeleri kaldır, yerine yeni dosyaları koy"*. Açılmış
+belgeler kaybolmadı — panodaki **Son açılanlar** kutusu aynı kaydı gösteriyor.
+- **DİKKAT (sessiz kayıp önlendi):** `RecentDocsScreen` yalnız listeyi değil
+  **boş belge oluşturmayı** da barındırıyordu (Word/Excel/metin). Sekmeyi
+  silmek onu erişilemez bırakacaktı; kimse onu kaldırmayı istemedi. Akış
+  `widgets/new_document_sheet.dart`e taşındı ve panonun araç satırına
+  "Yeni belge" kutusu olarak kondu. `RecentDocsScreen` (≈620 satır) silindi.
+
+### D) AI kartı → AI sekmesinin rozeti
+Kullanıcı: *"ai asistan yazısı sağ alttaki ai düğmesi alanına entegre et, ana
+ekran temizlensin"*. Panodaki tam genişlikli kart kalktı. Alt çubuktaki AI
+simgesi durum taşıyor: analiz sürerken ilerleme halkası, bekleyen öneri varsa
+sayı rozeti, ikisi de yoksa düz simge. AI Merkezi'nin kapısı artık AI
+sekmesinin üst çubuğundaki yıldız düğmesi (`chat_screen`).
+
+### E) APK'ların kendi simgeleri (`services/fm/apk_icon.dart`)
+İndirilenlerde on kurulum dosyası aynı yeşil Android glifiyle görünüyordu.
+- **Niye `installed_apps` paketi DEĞİL:** o paket **kurulu** uygulamaların
+  simgesini paket adından verir; buradaki dosyaların çoğu kurulu değil ve
+  paket adını öğrenmek için zaten APK'yı açmak gerekirdi.
+- **Nasıl:** APK bir zip; `res/mipmap-*/ic_launcher.png` yol adına göre
+  puanlanıp (ad × yoğunluk) en keskin aday seçiliyor. İkili `AndroidManifest
+  .xml` ayrıştırıcısı YAZILMADI — `mipmap-anydpi-v26/ic_launcher.xml`
+  (uyarlanabilir simge) atlanıyor, yanında neredeyse hep bir PNG bulunuyor.
+- `InputFileStream` (archive_io): 95 MB'lık bir APK'yı `readAsBytes` ile
+  açmak düşük bellekli cihazı öldürürdü; yalnız zip dizini ve seçilen girdi
+  okunuyor. Ayrıştırma izolatta, sonuç diskte önbellekte (PDF/video küçük
+  resimleriyle aynı `ThumbnailCache.cacheName` kuralı), simgesi bulunamayan
+  dosya işaretlenip bir daha denenmiyor.
+
+### F) Ölçüler ve varsayılanlar
+- Liste simgesi 52 → **68** dp (kullanıcı: *"olabildiğince büyüt"*, *"yüzde 30
+  büyüt"*). `ListTile`ın 56 dp asgarisi aşılıyor, satır uzuyor — bilinçli takas.
+- Pano kutusu glifi 38 → 46, araç glifi 30 → 34.
+- **İndirilenler varsayılan sıralaması "en eski" → "en yeni"**. Ekran "yer aç"
+  gözüyle tasarlanmıştı (silinecek adaylar önce); oysa insanlar buraya çoğu
+  zaman **az önce indirdikleri** dosyayı açmaya geliyor.
+- "Yeni Dosyalar" simgesi `fiber_new` idi — Material onu "NEW" YAZISI olarak
+  çiziyor, dört sütunlu ızgarada harf yığını gibi duruyordu. `move_to_inbox`.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 sorun,
+`flutter test` 1658 test yeşil (yeni: 8 APK simgesi + 3 `freshFiles`).
