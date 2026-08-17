@@ -368,6 +368,44 @@ class XlsxSheet {
     return layout.rowStyles[r] ?? layout.colStyles[c] ?? 0;
   }
 
+  /// Yeni yazılan bir hücrenin görünümünü **komşusundan** devralması için
+  /// örnek hücre (yoksa null).
+  ///
+  /// Niye gerekli (kullanıcı 2026-08-17: *"çerçeveler gibi şeyler as te olduğu
+  /// gibi kayboluyor siliniyor biz düzenleme yapınca"*, *"yazı fontu tipi
+  /// tutmuyor kolona ve satıra göre otomatik aynı olmalı"*): dosyadaki bir
+  /// tablonun boş bir hücresine yazınca [XlsxEditor.setCell] o hücre için
+  /// `styleIndex: 0` (varsayılan) bir kayıt kuruyordu. Sonuç: kenarlıklar
+  /// silinmiş, yazı tipi sütunun geri kalanından farklı görünüyordu — hem
+  /// ekranda hem kaydedilen dosyada.
+  ///
+  /// Excel'in davranışı: yeni hücre **sütunun/satırın** biçimini alır. Sıra:
+  /// 1. Aynı sütunda YUKARIDAKİ en yakın hücre (tablonun gövdesi),
+  /// 2. aynı sütunda AŞAĞIDAKİ en yakın hücre (başlığın altına yazma),
+  /// 3. aynı satırda SOLDAKİ en yakın hücre (satırı sağa uzatma).
+  ///
+  /// Tarama [_inheritScan] hücreyle sınırlı: 100 bin satırlık bir dosyada her
+  /// yazımda tüm sütunu gezmek yazmayı gözle görülür yavaşlatırdı.
+  static const int _inheritScan = 64;
+
+  (int, int)? inheritTemplateAt(int r, int c) {
+    for (var d = 1; d <= _inheritScan; d++) {
+      final up = r - d;
+      if (up >= 0 && layout.cells.containsKey(cellKey(up, c))) return (up, c);
+    }
+    for (var d = 1; d <= _inheritScan; d++) {
+      final down = r + d;
+      if (layout.cells.containsKey(cellKey(down, c))) return (down, c);
+    }
+    for (var d = 1; d <= _inheritScan; d++) {
+      final left = c - d;
+      if (left >= 0 && layout.cells.containsKey(cellKey(r, left))) {
+        return (r, left);
+      }
+    }
+    return null;
+  }
+
   XlsxCellStyle? styleAt(int r, int c) {
     final ov = _overrides[cellKey(r, c)];
     if (ov != null) return ov;
@@ -748,10 +786,27 @@ class XlsxEditor {
     final key = cellKey(rowIndex, colIndex);
     final old = layout.cells[key];
     final number = double.tryParse(value);
+    // Hücre kaydı YOKSA görünüm komşudan devralınır — yoksa tablonun boş bir
+    // gözüne yazmak kenarlığı ve yazı tipini siliyordu (bkz.
+    // [XlsxSheet.inheritTemplateAt]). `styleCopies` izi kaydetmede de aynı
+    // biçimi yazar (bkz. `XlsxSavePatch._applyStyleCopies`); açık bir biçim
+    // yapıştırması bu izin ÜSTÜNE yazar, sıra korunur.
+    var styleIndex = old?.styleIndex ?? 0;
+    if (old == null) {
+      final template = sheet.inheritTemplateAt(rowIndex, colIndex);
+      if (template != null) {
+        styleIndex = sheet.styleIndexAt(template.$1, template.$2);
+        if (styleIndex != 0) {
+          sheet.styleCopies[(rowIndex, colIndex)] = template;
+        }
+      } else {
+        styleIndex = layout.rowStyles[rowIndex] ?? layout.colStyles[colIndex] ?? 0;
+      }
+    }
     layout.cells[key] = XlsxCell(
       row: rowIndex,
       col: colIndex,
-      styleIndex: old?.styleIndex ?? 0,
+      styleIndex: styleIndex,
       number: (value.startsWith('=') || number == null) ? null : number,
       text: (value.startsWith('=') || number != null) ? null : value,
       formula: value.length > 1 && value.startsWith('=')

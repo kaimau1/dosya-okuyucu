@@ -2131,6 +2131,8 @@ const Map<String, (String, String, String)> _table = {
   'excel.zoom_out': ('Uzaklaştır', 'Zoom out', 'تصغير'),
   'excel.zoom_reset': ('Yakınlaştırmayı sıfırla (%100)', 'Reset zoom (100%)',
       'إعادة ضبط التكبير (100%)'),
+  'excel.ribbon_hide': ('Şeridi gizle', 'Hide ribbon', 'إخفاء الشريط'),
+  'excel.ribbon_show': ('Şeridi göster', 'Show ribbon', 'إظهار الشريط'),
   'excel.font_default': ('Yazı tipi', 'Font', 'الخط'),
   'excel.undo_font': ('yazı tipi', 'font', 'الخط'),
   'excel.sort_needs_range': (

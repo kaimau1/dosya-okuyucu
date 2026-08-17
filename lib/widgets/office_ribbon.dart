@@ -88,14 +88,25 @@ class OfficeRibbon extends StatefulWidget {
   final Widget? trailing;
   final bool onBrand;
 
+  /// **Sıkışık kip** — sekme şeridi ve simge sırası bir kademe kısalır
+  /// (84 → 68 dp). Kullanıcı 2026-08-17: *"excelde üst bilgi alanı çok
+  /// kalabalık ve prime alanı kaplıyor kompactlaşmalı"*. Telefonda ızgaraya
+  /// kalan yükseklik değerlidir; simgeler 20 dp kalır, yalnız çevrelerindeki
+  /// boşluk kısılır — dokunma hedefi 40 dp'nin altına DÜŞMEZ.
+  final bool compact;
+
   /// Şerit yüksekliği — `PreferredSize` kullanan ekranlar için hesaplanır.
-  static double heightFor(int tabCount) => tabCount > 1 ? 84 : 48;
+  static double heightFor(int tabCount, {bool compact = false}) {
+    final rows = compact ? 40.0 : 48.0;
+    return tabCount > 1 ? rows + (compact ? 28 : 36) : rows;
+  }
 
   const OfficeRibbon({
     super.key,
     required this.tabs,
     this.trailing,
     this.onBrand = false,
+    this.compact = false,
   });
 
   @override
@@ -121,7 +132,7 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
           children: [
             if (tabs.length > 1)
               SizedBox(
-                height: 34,
+                height: widget.compact ? 28 : 34,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -146,7 +157,7 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                         child: Text(
                           tabs[i].label,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: widget.compact ? 12 : 13,
                             fontWeight:
                                 active ? FontWeight.w700 : FontWeight.w500,
                             color: active
@@ -160,7 +171,7 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                 ),
               ),
             SizedBox(
-              height: 48,
+              height: widget.compact ? 40 : 48,
               child: Row(
                 children: [
                   Expanded(

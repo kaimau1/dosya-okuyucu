@@ -109,6 +109,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   final _cellField = TextEditingController();
   bool _editing = false;
 
+  /// Formül çubuğunun odağı. Hücre parmakla yazılamayacak kadar küçükse
+  /// düzenleme HÜCREDE değil burada açılır (bkz. [_select]).
+  final _barFocus = FocusNode();
+
   double _zoom = 1;
 
   /// Şeritteki −/%/+ düğmeleri pinch ile AYNI ölçeği sürer.
@@ -185,6 +189,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   /// altındaki hücreyi bulmak için gerekiyor (`_cellAtGlobal`).
   final _gridAreaKey = GlobalKey();
 
+  /// Şerit açık mı? (Kullanıcı 2026-08-17: *"üst bilgi alanı … prime alanı
+  /// kaplıyor"*.) Kapatınca ızgaraya 68 dp daha kalır; formül çubuğundaki
+  /// çift yönlü okla açılır. Veri girerken kapalı, biçim verirken açık —
+  /// kullanıcı kendi ritmine göre seçer.
+  bool _ribbonOpen = true;
+
+  /// Başlık kenarından sürükleyerek boyutlandırma sürüyor mu (ve neyi)?
+  /// `null` = sürükleme yok. Sürüklerken canlı ölçü rozeti gösterilir.
+  int? _resizeCol;
+  int? _resizeRow;
+  double _resizeStart = 0;
+
   @override
   void initState() {
     super.initState();
@@ -196,6 +212,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   @override
   void dispose() {
     _cellField.dispose();
+    _barFocus.dispose();
     _findField.dispose();
     _hBody.dispose();
     _hTop.dispose();
@@ -502,10 +519,37 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       _syncField();
       _cellField.selection =
           TextSelection.collapsed(offset: _cellField.text.length);
-      setState(() => _editing = true);
+      _beginEdit(r, c);
       return;
     }
     _jumpTo(r, c);
+  }
+
+  /// Bir hücreye **yazmaya** başlar.
+  ///
+  /// Kullanıcı 2026-08-17: *"karelere veri girişi çok zor"*, *"yazarken çıkan
+  /// mavi alan gereksiz ve çok dar"*. Sebebi: 15 puntoluk (≈20 dp) bir satırda
+  /// hücrenin İÇİNE açılan yazı alanı parmakla imleç konulamayacak kadar
+  /// inceydi ve seçim tutamakları hücrenin dışına taşıyordu.
+  ///
+  /// Çözüm Excel Mobile'ınkiyle aynı: hücre yazmak için yeterince büyükse
+  /// yerinde düzenlenir; küçükse düzenleme **formül çubuğuna** taşınır (orası
+  /// gerektiğinde üç satıra kadar büyür). İki durumda da hedef hücre seçili
+  /// kalır, kullanıcı nereye yazdığını görür.
+  static const double _inCellMinHeight = 30;
+  static const double _inCellMinWidth = 72;
+
+  void _beginEdit(int r, int c) {
+    final sheet = _sheet;
+    final tooSmall = sheet == null ||
+        sheet.rowHeight(r) * _zoom < _inCellMinHeight ||
+        sheet.colWidth(c) * _zoom < _inCellMinWidth;
+    if (tooSmall) {
+      setState(() => _editing = false);
+      _barFocus.requestFocus();
+      return;
+    }
+    setState(() => _editing = true);
   }
 
   /// Seçimi taşır — [_select]'in aksine aynı hücreye ikinci kez gelince
@@ -548,20 +592,37 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   bool get _hasRange => _anchorRow != _selRow || _anchorCol != _selCol;
 
+  /// Açık düzenlemeyi **kaydeder**. Formül çubuğuna yazılmış ama onaylanmamış
+  /// metin de buradan geçer.
+  ///
+  /// Kullanıcı 2026-08-17: *"tik işaretine basmadan kaydolmuyor"*. Eskiden ilk
+  /// satır `if (!_editing) return;` idi: hücre İÇİNDE düzenleme açık değilken
+  /// (yani formül çubuğuna yazılmışken) yazılan metin sessizce atılıyordu —
+  /// başka bir hücreye dokunmak `_syncField()` ile üstüne yazıyordu. Artık
+  /// bayraktan bağımsız olarak, alandaki metin hücrenin değerinden FARKLIYSA
+  /// yazılır; Excel'in davranışı da budur (imleci taşımak girişi onaylar).
   void _endEdit() {
-    if (!_editing) return;
     final changed = _cellField.text != _valueAt(_selRow, _selCol);
+    final wasEditing = _editing;
     _editing = false;
     if (changed) {
       _applyCell(_cellField.text);
-    } else {
+    } else if (wasEditing) {
       setState(() {});
     }
   }
 
+  /// Enter: girişi yazar, ALT hücreye geçer ve **yazmaya devam eder**.
+  ///
+  /// Eskiden `_select` çağrılıyordu: seçim iniyordu ama düzenleme kapanıyor,
+  /// klavye her satırda kapanıp açılıyordu. Bir sütuna arka arkaya veri girmek
+  /// (kullanıcı 2026-08-17: *"karelere veri girişi çok zor"*) bu yüzden her
+  /// satırda iki fazladan dokunuş istiyordu. Excel'de Enter zinciri kesmez.
   void _commitAndMoveDown(int rowCount) {
     _endEdit();
-    if (_selRow + 1 < rowCount) _select(_selRow + 1, _selCol);
+    if (_selRow + 1 >= rowCount) return;
+    _jumpTo(_selRow + 1, _selCol);
+    _beginEdit(_selRow, _selCol);
   }
 
   void _applyCell(String value) =>
@@ -1068,7 +1129,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                     _cellBar(),
                     _formulaSuggestions(),
                     _formulaPreview(),
-                    _ribbon(),
+                    if (_ribbonOpen) _ribbon(),
                     Expanded(
                       child: PinchZoomArea(
                         minZoom: 0.3,
@@ -1142,42 +1203,87 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Seçim adresi (tek hücre ya da aralık) — "Ad Kutusu".
+  String get _selectionLabel => _hasRange
+      ? '${XlsxRange.colName(math.min(_anchorCol, _selCol))}'
+          '${math.min(_anchorRow, _selRow) + 1}:'
+          '${XlsxRange.colName(math.max(_anchorCol, _selCol))}'
+          '${math.max(_anchorRow, _selRow) + 1}'
+      : '${XlsxRange.colName(_selCol)}${_selRow + 1}';
+
+  /// Alandaki metin hücrenin değerinden farklı mı (onaylanmamış giriş var mı)?
+  bool get _hasPendingInput =>
+      _cellField.text != _valueAt(_selRow, _selCol);
+
+  /// **Formül çubuğu** — tek satır, sıkışık.
+  ///
+  /// Kullanıcı 2026-08-17: *"yazarken çıkan mavi alan gereksiz ve çok dar"* +
+  /// *"üst bilgi alanı çok kalabalık"*. Değişenler:
+  /// * Çerçeveli (`OutlineInputBorder`) kutu gitti — odaklanınca çevresinde
+  ///   beliren mavi hat kadar yer kaplayan ikinci bir çerçeveydi. Yerine
+  ///   yüzey tonunda, çerçevesiz bir alan geldi.
+  /// * Yükseklik 50 → 38 dp; ✓ ve ✗ **yalnız onaylanmamış giriş varken**
+  ///   çıkar (Excel de böyle yapar), yer boşuna durmaz.
+  /// * Yazarken alan **büyür** (en çok 3 satır): uzun bir hücre metnini tek
+  ///   satırlık bir yarıkta düzenlemek imkânsızdı.
+  /// * Şeridi açıp kapatan çift yönlü ok sağda: ızgaraya 68 dp daha yer.
   Widget _cellBar() {
     final scheme = Theme.of(context).colorScheme;
+    final pending = _hasPendingInput;
     return Container(
-      color: scheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.fromLTRB(6, 2, 2, 2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 62,
-            child: Text(
-              _hasRange
-                  ? '${XlsxRange.colName(math.min(_anchorCol, _selCol))}'
-                      '${math.min(_anchorRow, _selRow) + 1}:'
-                      '${XlsxRange.colName(math.max(_anchorCol, _selCol))}'
-                      '${math.max(_anchorRow, _selRow) + 1}'
-                  : '${XlsxRange.colName(_selCol)}${_selRow + 1}',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+          // Ad Kutusu: dokununca "Hücreye git" (Excel'de de yazılabilir bir
+          // alandır; telefonda diyalog daha güvenli).
+          InkWell(
+            onTap: _editor == null ? null : _showGoTo,
+            borderRadius: BorderRadius.circular(Radii.control),
+            child: Container(
+              width: 62,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(Radii.control),
+              ),
+              child: Text(
+                _selectionLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              ),
             ),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: TextField(
               controller: _cellField,
-              onSubmitted: _applyCell,
+              focusNode: _barFocus,
+              onSubmitted: (_) {
+                final sheet = _sheet;
+                if (sheet == null) {
+                  _applyCell(_cellField.text);
+                  return;
+                }
+                _commitAndMoveDown(_rowCount(sheet));
+              },
               onChanged: (_) => setState(() {}),
               textInputAction: TextInputAction.done,
+              minLines: 1,
+              maxLines: pending ? 3 : 1,
               style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 isDense: true,
-                border: const OutlineInputBorder(),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 hintText: context.t('excel.cell_content'),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               ),
             ),
           ),
@@ -1185,7 +1291,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           if (_validationOptions().isNotEmpty)
             PopupMenuButton<String>(
               tooltip: context.t('excel.pick_from_list'),
-              icon: const Icon(Icons.arrow_drop_down_circle_outlined),
+              icon: const Icon(Icons.arrow_drop_down_circle_outlined, size: 20),
+              padding: EdgeInsets.zero,
               onSelected: (v) {
                 _cellField.text = v;
                 _applyCell(v);
@@ -1195,10 +1302,39 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                   PopupMenuItem(value: o, child: Text(o)),
               ],
             ),
+          // ✗ / ✓ yalnız onaylanmamış giriş varken. (Kaydetmek için ✓'e basmak
+          // ZORUNLU DEĞİL — başka hücreye geçmek de yazar, bkz. `_endEdit`.)
+          if (pending) ...[
+            IconButton(
+              tooltip: context.t('common.cancel'),
+              visualDensity: VisualDensity.compact,
+              iconSize: 20,
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                _editing = false;
+                _syncField();
+                setState(() {});
+              },
+            ),
+            IconButton(
+              tooltip: context.t('common.apply'),
+              visualDensity: VisualDensity.compact,
+              iconSize: 20,
+              color: OfficeColors.excel,
+              icon: const Icon(Icons.check),
+              onPressed: () {
+                _editing = false;
+                _applyCell(_cellField.text);
+              },
+            ),
+          ],
           IconButton(
-            tooltip: context.t('common.apply'),
-            icon: const Icon(Icons.check),
-            onPressed: () => _applyCell(_cellField.text),
+            tooltip: context.t(_ribbonOpen ? 'excel.ribbon_hide' : 'excel.ribbon_show'),
+            visualDensity: VisualDensity.compact,
+            iconSize: 20,
+            icon: Icon(
+                _ribbonOpen ? Icons.expand_less : Icons.expand_more),
+            onPressed: () => setState(() => _ribbonOpen = !_ribbonOpen),
           ),
         ],
       ),
@@ -1222,8 +1358,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: scheme.surfaceContainerHighest,
-      padding: const EdgeInsets.only(left: 68, right: 8, bottom: 6),
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.only(left: 68, right: 8, bottom: 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -1304,12 +1440,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: scheme.surfaceContainerHighest,
-      padding: const EdgeInsets.fromLTRB(70, 0, 12, 6),
+      color: scheme.surfaceContainerHigh,
+      padding: const EdgeInsets.fromLTRB(70, 0, 12, 4),
       child: Text(
         '= $result',
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 12,
           color: scheme.primary,
           fontWeight: FontWeight.w600,
         ),
@@ -1574,6 +1710,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final merged = _sheet?.mergeAt(_selRow, _selCol) != null;
 
     return OfficeRibbon(
+      compact: true,
       tabs: [
         RibbonTab(context.t('excel.tab_home'), [
           RibbonChip(
@@ -2995,58 +3132,160 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     );
   }
 
+  /// Başlık kenarındaki **boyutlandırma tutamağının** dokunma genişliği.
+  /// Excel'de fare imleci 3-4 px'lik bir hatta değişir; parmak o hattı
+  /// vuramaz. 18 dp Material'in en küçük dokunma hedefinin yarısı ama tutamak
+  /// başlığın İÇİNDE, kenara yaslı duruyor — daha genişi başlığa dokunup
+  /// sütunu seçmeyi zorlaştırırdı.
+  static const double _resizeGrip = 18;
+
+  /// Sütun genişliğini/satır yüksekliğini **sürükleyerek** değiştirir.
+  ///
+  /// Kullanıcı 2026-08-17: *"sütun genişliği ayarlama çok zor, satır yüksekliği
+  /// ayarlama çok zor"*. Eskiden tek yol başlığa uzun basıp açılan kaydırıcılı
+  /// diyalogdu: hem keşfedilemiyordu hem de sonucu ancak "Uygula"dan sonra
+  /// görülüyordu. Artık Excel'deki gibi kenar sürükleniyor ve genişlik ANINDA
+  /// büyüyor. Diyalog kalıyor (uzun basış) — sayısal kesinlik isteyen için.
+  ///
+  /// [_resizeGrip] genişliğindeki tutamak `Positioned` ile başlığın sağ/alt
+  /// kenarına yaslanır; `HitTestBehavior.opaque` sayesinde sürükleme jesti
+  /// altındaki "sütunu seç" dokunuşunu yutar.
+  Widget _resizeGripFor({int? col, int? row}) {
+    final sheet = _sheet;
+    if (sheet == null) return const SizedBox.shrink();
+    final isCol = col != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // Yatay/dikey ayrı tanıyıcı: sütun tutamağı YALNIZ yatay sürüklemeyi
+      // üstlenir, dikey kaydırma ızgaraya geçer (ve tersi).
+      onHorizontalDragStart: !isCol
+          ? null
+          : (_) {
+              _endEdit();
+              _resizeCol = col;
+              _resizeStart = sheet.layout.colWidthChars(col);
+            },
+      onHorizontalDragUpdate: !isCol
+          ? null
+          : (d) {
+              if (_resizeCol == null) return;
+              // Piksel → karakter: Excel'in sütun birimi ~7 px'lik "0" genişliği.
+              _resizeStart =
+                  (_resizeStart + d.delta.dx / (7 * _zoom)).clamp(0.0, 255.0);
+              sheet.setColWidthChars(col, _resizeStart);
+              _dirty = true;
+              _gridVersion++;
+              setState(() {});
+            },
+      onHorizontalDragEnd: !isCol ? null : (_) => setState(() => _resizeCol = null),
+      onHorizontalDragCancel: !isCol ? null : () => setState(() => _resizeCol = null),
+      onVerticalDragStart: isCol
+          ? null
+          : (_) {
+              _endEdit();
+              _resizeRow = row;
+              _resizeStart = sheet.layout.rowHeightPt(row!);
+            },
+      onVerticalDragUpdate: isCol
+          ? null
+          : (d) {
+              if (_resizeRow == null) return;
+              // Piksel → punto: 1 pt ≈ 4/3 px.
+              _resizeStart =
+                  (_resizeStart + d.delta.dy * 0.75 / _zoom).clamp(0.0, 409.0);
+              sheet.setRowHeightPt(row!, _resizeStart);
+              _dirty = true;
+              _gridVersion++;
+              setState(() {});
+            },
+      onVerticalDragEnd: isCol ? null : (_) => setState(() => _resizeRow = null),
+      onVerticalDragCancel: isCol ? null : () => setState(() => _resizeRow = null),
+      child: Align(
+        alignment: isCol ? Alignment.centerRight : Alignment.bottomCenter,
+        child: Container(
+          width: isCol ? 2 : double.infinity,
+          height: isCol ? double.infinity : 2,
+          margin: EdgeInsets.only(right: isCol ? 1 : 0, bottom: isCol ? 0 : 1),
+          color: (isCol ? _resizeCol == col : _resizeRow == row)
+              ? OfficeColors.excel
+              : Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+        ),
+      ),
+    );
+  }
+
   Widget _colHeader(XlsxSheet sheet, int c) {
     final scheme = Theme.of(context).colorScheme;
     final active = _inSelection(_selRow, c) ||
         (c >= math.min(_anchorCol, _selCol) &&
             c <= math.max(_anchorCol, _selCol));
-    return GestureDetector(
-      onTap: () {
-        _endEdit();
-        setState(() {
-          _anchorRow = 0;
-          _anchorCol = c;
-          _selRow = math.max(0, sheet.maxRows - 1);
-          _selCol = c;
-        });
-      },
-      onLongPress: () => _showSizeDialog(col: c),
-      child: Container(
-        width: sheet.colWidth(c) * _zoom,
-        height: _headerH * _zoom,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active
-              ? OfficeColors.excel.withValues(alpha: 0.22)
-              : scheme.surfaceContainerHighest,
-          border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(XlsxRange.colName(c),
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 11 * _zoom)),
-              ),
-            ),
-            // Otomatik süzgeç oku: dosyada `<autoFilter>` varsa ve bu sütun
-            // aralığındaysa çizilir. Eskiden yalnız OKUNUP kaydediliyordu,
-            // tıklanamıyordu (KALANLAR maddesi).
-            if (_filterCoversColumn(sheet, c))
-              GestureDetector(
-                onTap: () => _showColumnFilter(sheet, c),
-                child: Icon(
-                  sheet.isColFiltered(c)
-                      ? Icons.filter_alt
-                      : Icons.arrow_drop_down,
-                  size: 12 * _zoom,
+    final width = sheet.colWidth(c) * _zoom;
+    final height = _headerH * _zoom;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                _endEdit();
+                setState(() {
+                  _anchorRow = 0;
+                  _anchorCol = c;
+                  _selRow = math.max(0, sheet.maxRows - 1);
+                  _selCol = c;
+                });
+              },
+              onLongPress: () => _showSizeDialog(col: c),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active
+                      ? OfficeColors.excel.withValues(alpha: 0.22)
+                      : scheme.surfaceContainerHighest,
+                  border: Border.all(
+                      color: Theme.of(context).dividerColor, width: 0.5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(XlsxRange.colName(c),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11 * _zoom)),
+                      ),
+                    ),
+                    // Otomatik süzgeç oku: dosyada `<autoFilter>` varsa ve bu
+                    // sütun aralığındaysa çizilir.
+                    if (_filterCoversColumn(sheet, c))
+                      GestureDetector(
+                        onTap: () => _showColumnFilter(sheet, c),
+                        child: Icon(
+                          sheet.isColFiltered(c)
+                              ? Icons.filter_alt
+                              : Icons.arrow_drop_down,
+                          size: 12 * _zoom,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+          // Sağ kenardaki sürükleme tutamağı — dar sütunda başlığın yarısından
+          // fazlasını kaplamasın (yoksa sütun seçilemez olurdu).
+          Positioned(
+            top: 0,
+            bottom: 0,
+            right: 0,
+            width: math.min(_resizeGrip, math.max(8, width * 0.45)),
+            child: _resizeGripFor(col: c),
+          ),
+        ],
       ),
     );
   }
@@ -3178,33 +3417,51 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final scheme = Theme.of(context).colorScheme;
     final active = r >= math.min(_anchorRow, _selRow) &&
         r <= math.max(_anchorRow, _selRow);
-    return GestureDetector(
-      onTap: () {
-        _endEdit();
-        setState(() {
-          _anchorRow = r;
-          _anchorCol = 0;
-          _selRow = r;
-          _selCol = math.max(0, sheet.maxCols - 1);
-        });
-      },
-      onLongPress: () => _showSizeDialog(row: r),
-      child: Container(
-        width: _rowHeaderW * _zoom,
-        height: sheet.rowHeight(r) * _zoom,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active
-              ? OfficeColors.excel.withValues(alpha: 0.22)
-              : scheme.surfaceContainerHighest,
-          border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text('${r + 1}',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, fontSize: 11 * _zoom)),
-        ),
+    final width = _rowHeaderW * _zoom;
+    final height = sheet.rowHeight(r) * _zoom;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                _endEdit();
+                setState(() {
+                  _anchorRow = r;
+                  _anchorCol = 0;
+                  _selRow = r;
+                  _selCol = math.max(0, sheet.maxCols - 1);
+                });
+              },
+              onLongPress: () => _showSizeDialog(row: r),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active
+                      ? OfficeColors.excel.withValues(alpha: 0.22)
+                      : scheme.surfaceContainerHighest,
+                  border: Border.all(
+                      color: Theme.of(context).dividerColor, width: 0.5),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('${r + 1}',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 11 * _zoom)),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: math.min(_resizeGrip, math.max(6, height * 0.45)),
+            child: _resizeGripFor(row: r),
+          ),
+        ],
       ),
     );
   }

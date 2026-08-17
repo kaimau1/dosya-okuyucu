@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as xl show Border, BorderStyle;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -323,6 +324,68 @@ void main() {
     final st2 = again.sheets.first.styleAt(1, 0)!;
     expect(st2.bold, isTrue);
     expect(st2.italic, isTrue);
+  });
+
+  // ── biçim devralma ────────────────────────────────────────────────────────
+
+  /// Kullanıcı 2026-08-17: *"çerçeveler gibi şeyler as te olduğu gibi
+  /// kayboluyor siliniyor biz düzenleme yapınca"* ve *"yazı fontu tipi tutmuyor
+  /// kolona ve satıra göre otomatik aynı olmalı"*.
+  ///
+  /// Kök neden: `setCell` boş bir hücre için `styleIndex: 0` (varsayılan) kayıt
+  /// kuruyordu — kenarlık, yazı tipi, dolgu hepsi sıfırlanıyordu.
+  group('yeni yazılan hücre biçimi komşusundan devralır', () {
+    Uint8List borderedColumn() {
+      final excel = Excel.createExcel();
+      final sheet = excel[excel.getDefaultSheet()!];
+      final style = CellStyle(
+        bold: true,
+        fontFamily: getFontFamily(FontFamily.Courier_New),
+        leftBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
+        rightBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
+        topBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
+        bottomBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
+      );
+      for (final ref in ['A1', 'A2', 'A3']) {
+        sheet.cell(CellIndex.indexByString(ref)).value = TextCellValue(ref);
+        sheet.cell(CellIndex.indexByString(ref)).cellStyle = style;
+      }
+      return Uint8List.fromList(excel.encode()!);
+    }
+
+    test('sütunun boş gözüne yazınca kenarlık ve yazı tipi KORUNUR', () {
+      final e = XlsxEditor.parse(borderedColumn());
+      final s = e.sheets.first;
+      // A4 boş: dosyada hücre kaydı yok.
+      expect(s.rawAt(3, 0), isEmpty);
+
+      e.setCell(s.name, 3, 0, 'yeni');
+
+      final st = s.styleAt(3, 0)!;
+      expect(st.bold, isTrue, reason: 'yazı tipi sütunla aynı olmalı');
+      expect(st.border?.bottom?.visible, isTrue,
+          reason: 'tablonun çerçevesi silinmemeli');
+    });
+
+    test('devralınan biçim KAYDEDİLEN dosyada da durur', () {
+      final e = XlsxEditor.parse(borderedColumn());
+      final s = e.sheets.first;
+      e.setCell(s.name, 3, 0, 'yeni');
+
+      final again = XlsxEditor.parse(e.save());
+      final st = again.sheets.first.styleAt(3, 0)!;
+      expect(again.sheets.first.rawAt(3, 0), 'yeni');
+      expect(st.bold, isTrue);
+      expect(st.border?.bottom?.visible, isTrue);
+    });
+
+    test('var olan hücrenin biçimi devralmadan ETKİLENMEZ', () {
+      final e = XlsxEditor.parse(_sampleXlsx());
+      final s = e.sheets.first;
+      // A1 kalın+kırmızı; üstüne yazmak kendi biçimini korumalı.
+      e.setCell(s.name, 0, 0, 'Başka');
+      expect(s.styleAt(0, 0)?.bold, isTrue);
+    });
   });
 
   // ── ölçü sadakati ─────────────────────────────────────────────────────────

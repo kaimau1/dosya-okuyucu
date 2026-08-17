@@ -266,7 +266,10 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '42');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
-    expect(find.text('42'), findsWidgets);
+    // Enter girişi yazar VE alt hücreye geçer (2026-08-17: ard arda veri
+    // girişi) — bu yüzden eski değer artık ekranda yok, formül çubuğunda da
+    // yazılan metin değil ALT hücrenin değeri durur.
+    expect(find.text('%15'), findsNothing);
 
     expect(buttonFor(Icons.undo).onPressed, isNotNull);
     await tester.tap(find.byIcon(Icons.undo));
