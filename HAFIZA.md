@@ -8351,6 +8351,13 @@ olmuyor.
 görsel markaları (heic/heix/mif1/heif) kabul ediliyor, yoksa her video
 `Image.file`a verilip hata üretirdi. Test bunu kilitliyor.
 
+### C2) Kağıt İKİNCİ kez beyazlatıldı
+Cihazda görünce *"genel rengi biraz daha beyazlat"*. `bg` FDFCF9 → FEFEFC,
+`card` FAF8F2 → FCFBF7, `band`/`well`/`rule`/`edge` ve `page`/`pageEdge`/
+`OfficeColors.canvas` bir kademe daha açıldı. Basamak SIRASI korundu; `bg` ile
+`card` farkı artık çok ince — ayrımı kartın zemini değil `rule` kenarlığı
+taşıyor (kağıt temasının kuralı zaten buydu: gölge değil cetvel çizgisi).
+
 ### D) İndirilenler ekranı simge ölçüsünde geride kalmıştı
 `FmEntryIcon(entry: entry)` varsayılan 44'te duruyordu; simgeler 68'e
 çıkarılınca bu ekran ötekilerin yarısı kadar görünüyordu. Artık
