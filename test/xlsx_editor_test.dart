@@ -363,7 +363,7 @@ void main() {
 
       final st = s.styleAt(3, 0)!;
       expect(st.bold, isTrue, reason: 'yazı tipi sütunla aynı olmalı');
-      expect(st.border?.bottom?.visible, isTrue,
+      expect(st.border.bottom.visible, isTrue,
           reason: 'tablonun çerçevesi silinmemeli');
     });
 
@@ -376,7 +376,7 @@ void main() {
       final st = again.sheets.first.styleAt(3, 0)!;
       expect(again.sheets.first.rawAt(3, 0), 'yeni');
       expect(st.bold, isTrue);
-      expect(st.border?.bottom?.visible, isTrue);
+      expect(st.border.bottom.visible, isTrue);
     });
 
     test('var olan hücrenin biçimi devralmadan ETKİLENMEZ', () {

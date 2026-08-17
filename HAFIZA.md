@@ -8095,3 +8095,97 @@ dosyasını gerçekten buluyor.
 **Doğrulama:** Flutter 3.29.3 — `flutter analyze` 0 sorun, tüm takım yeşil;
 yeni `ai_buckets_test` (12 test) silme güvenliğini ve tür tekilleştirmeyi
 kilitliyor.
+
+---
+
+## 2026-08-17 — Excel kullanılabilirliği + pano/simge turu
+
+Kullanıcı cihaz denemesinden gelen liste (Excel'de yedi madde, uygulama
+genelinde altı madde). Kararlar ve kök nedenler:
+
+### A) KÖK NEDEN — "çerçeveler kayboluyor, yazı tipi tutmuyor" (`xlsx_editor.dart`)
+`setCell` boş bir hücre için `styleIndex: 0` (varsayılan) kayıt kuruyordu.
+Dosyadaki bir tablonun boş gözüne yazınca hücre kaydı DOĞUYOR ve o kayıt
+`styleAt`in satır/sütun stiline düşme yolunu kapatıyor → kenarlık siliniyor,
+yazı tipi sütunun geri kalanından farklı çıkıyordu. Hem ekranda hem
+kaydedilen dosyada.
+- **Çözüm:** `XlsxSheet.inheritTemplateAt` — yeni hücre biçimini komşusundan
+  devralır. Sıra: aynı sütunda üstteki → alttaki → aynı satırda soldaki
+  (en çok 64 hücre taranır, yazma yavaşlamasın). Bulunan örnek hücre
+  `styleCopies`e de yazılır, böylece KAYDETMEDE `XlsxSavePatch` aynı `s`yi
+  koyuyor.
+- **Sıra önemli:** `_editCells` önce `setCell`, sonra `copyCellFormat`
+  çağırıyor → kullanıcının açık biçim yapıştırması devralmanın üstüne biner.
+- Test: `xlsx_editor_test` → "yeni yazılan hücre biçimi komşusundan devralır"
+  (3 test; biri kaydet-yeniden aç turunu kapsıyor).
+- **TUZAK (test):** `excel` paketinin `Border`/`BorderStyle` adları
+  `flutter/material.dart` ile çakışıyor → `import ... as xl show Border,
+  BorderStyle` gerekiyor.
+
+### B) "tik işaretine basmadan kaydolmuyor"
+`_endEdit`in ilk satırı `if (!_editing) return;` idi. `_editing` yalnız
+HÜCRE İÇİ düzenlemede true; formül çubuğuna yazılan metin bu yüzden sessizce
+atılıyor, başka hücreye dokunmak `_syncField()` ile üstüne yazıyordu. Artık
+bayraktan bağımsız: alandaki metin hücrenin değerinden farklıysa yazılır.
+✓/✗ düğmeleri de yalnız onaylanmamış giriş varken çıkıyor (Excel gibi).
+
+### C) Üst alan kompaktlaştı
+- `OfficeRibbon.compact`: 84 → 68 dp (sekme 34→28, sıra 48→40).
+- Formül çubuğu 50 → 38 dp; `OutlineInputBorder` kalktı (odakta beliren mavi
+  hat "gereksiz ve çok dar" şikâyetinin kaynağıydı), yazarken alan üç satıra
+  kadar büyüyor. Ad Kutusu artık tıklanınca "Hücreye git" açıyor.
+- Şerit formül çubuğundaki çift yönlü okla kapatılabiliyor → ızgaraya +68 dp.
+
+### D) Ölçü ve veri girişi
+- Sütun/satır başlığının kenarında **sürükleme tutamağı** (18 dp, dar
+  başlıkta genişliğin %45'iyle sınırlı). Diyalog uzun basışta kalıyor.
+  Yatay/dikey tanıyıcılar ayrı: sütun tutamağı dikey kaydırmayı yutmuyor.
+- Enter girişi yazıp ALT hücreye geçiyor **ve yazmaya devam ediyor** (klavye
+  kapanmıyor) — bir sütuna arka arkaya veri girmek eskiden her satırda iki
+  fazladan dokunuş istiyordu.
+- Hücre 30 dp'den kısa ya da 72 dp'den darsa düzenleme hücre içinde değil
+  **formül çubuğunda** açılıyor (Excel Mobile'ın davranışı): 15 puntoluk bir
+  satırda hücre içi alan parmakla imleç konulamayacak kadar inceydi.
+
+### E) Yeni dosyalar artık kaçmıyor (`fs_scan.dart` + `dashboard_screen.dart`)
+Tam tarama pahalı olduğu için 12 saatte bir koşuyordu; arada eklenen dosya
+panoya hiç yansımıyordu. **Sıcak klasör taraması** eklendi:
+`FsScan.freshFiles` yalnız DCIM/Download/Pictures/Movies/Music/Documents/
+WhatsApp ağaçlarını gezer (saniyenin altında), sonucu
+`StorageIndex.mergeFresh` ile indekse katılır — hem "Yeni Dosyalar" listesine
+hem kategori listelerine hem sayaçlara. Pano açılışında VE
+`AppLifecycleState.resumed`da koşuyor (insanlar uygulamayı kapatmıyor,
+WhatsApp'tan belge indirip geri DÖNÜYOR).
+- **Çift sayma tuzağı:** aynı dosya her açılışta yeniden bulunacağı için
+  `mergeFresh` bilinen yolları eler; test bunu kilitliyor (`fm_scan_test`).
+
+### F) Pano ve simge dili
+- Kategori kutularının çerçevesi ve kartı kalktı: 44 dp kutu içinde 24 dp glif
+  yerine **38 dp sade glif**. Izgara **sabit 4 sütun**
+  (`SliverGridDelegateWithFixedCrossAxisCount`); eski `maxCrossAxisExtent: 150`
+  cihaz genişliğine göre 2-3 sütun üretiyordu, kullanıcının gördüğü düzen
+  telefonuna göre değişiyordu.
+- **İndirilenler** araç satırından ızgaranın İLK sırasına terfi etti.
+- `FmColors.forExtension` / `forFolderName`: apk·zip·epub·font·kod·iso·
+  torrent·vcf·ics kendi glifi ve rengi; bilinen klasörler (İndirilenler, DCIM,
+  WhatsApp, Ekran görüntüleri…) kendi glifi. Taklit değil — Material
+  ailesinden bu paletin eşlemesi.
+- Liste simgesi 44 → 52 dp (`FmLayout.iconSizeFor`); `ListTile`ın 56 dp
+  asgarisinin içinde kaldığı için satır uzamıyor.
+
+### G) Aramada çoklu seçim (`search_screen.dart`)
+Arama sonucu çoğu zaman "şu 40 dosyayı sil/taşı/paylaş" demek; ekran tek tek
+açmaktan başkasına izin vermiyordu. Kategori/galeri ile **aynı kalıp**:
+`DragSelectArea` + `FmEntryListTile` + `FmSelectionBar`, üstte sayaç ve
+"tümünü seç".
+
+### H) Kağıt teması beyazlatıldı (`theme.dart`)
+Krem doygunluğu yarıya indi, basamak sırası (bg → card → band → well → rule →
+edge) korundu. *Niye:* okuyucuda sarımsı zemin gözü dinlendirir ama dosya
+yöneticisinde fotoğraf küçük resimlerinin ve renkli tür simgelerinin yanında
+zemin "sararmış" görünüyor. `dashboard_screen`deki iki kaçak hex
+(`0xFFFDFBF6`, `0xFFE6DECC`) de tokenlara bağlandı — beyazlatma onları geride
+bırakıp kutuyu sarı gösteriyordu.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 sorun,
+`flutter test` 1644 test yeşil (yeni: 3 biçim devralma + 3 `mergeFresh`).

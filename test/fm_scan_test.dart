@@ -278,4 +278,67 @@ void main() {
           ['/a/9.jpg', '/a/1.jpg']);
     });
   });
+
+  group('yeni dosyaların indekse katılması (mergeFresh)', () {
+    FsEntry file(String path, {int ms = 0, int size = 10}) => FsEntry(
+          path: path,
+          name: p.basename(path),
+          isDir: false,
+          sizeBytes: size,
+          modifiedMs: ms,
+        );
+
+    /// Kullanıcı isteği 2026-08-17: pano bir saniye önce eklenen dosyayı da
+    /// göstermeli. Sıcak klasör taraması bulur, bu birleştirme indekse işler.
+    test('yeni dosya "Yeni Dosyalar"a, kategorisine ve sayaca girer', () {
+      const base = StorageIndex(
+        stats: {FmCategory.image: CategoryStat(1, 10)},
+        byCategory: {},
+        largest: [],
+        recent: [],
+        totalFiles: 1,
+        totalBytes: 10,
+        skipped: 0,
+      );
+      final merged = base.mergeFresh([file('/a/yeni.jpg', ms: 5000, size: 40)]);
+
+      expect(merged.recent.single.path, '/a/yeni.jpg');
+      expect(merged.files(FmCategory.image).single.path, '/a/yeni.jpg');
+      expect(merged.stat(FmCategory.image).count, 2);
+      expect(merged.stat(FmCategory.image).bytes, 50);
+      expect(merged.totalFiles, 2);
+    });
+
+    test('zaten bilinen dosya İKİ KEZ sayılmaz', () {
+      final known = file('/a/eski.jpg', ms: 1000);
+      final base = StorageIndex(
+        stats: const {FmCategory.image: CategoryStat(1, 10)},
+        byCategory: {FmCategory.image: [known]},
+        largest: const [],
+        recent: [known],
+        totalFiles: 1,
+        totalBytes: 10,
+        skipped: 0,
+      );
+      // Sıcak klasör taraması aynı dosyayı her açılışta yeniden bulur.
+      final merged = base.mergeFresh([known]);
+      expect(identical(merged, base), isTrue);
+      expect(merged.stat(FmCategory.image).count, 1);
+    });
+
+    test('birleştirilen liste yeniden eskiye sıralı kalır', () {
+      final old = file('/a/eski.pdf', ms: 1000);
+      final base = StorageIndex(
+        stats: const {},
+        byCategory: {FmCategory.document: [old]},
+        largest: const [],
+        recent: [old],
+        totalFiles: 1,
+        totalBytes: 10,
+        skipped: 0,
+      );
+      final merged = base.mergeFresh([file('/a/yeni.pdf', ms: 9000)]);
+      expect(merged.recent.map((e) => e.name), ['yeni.pdf', 'eski.pdf']);
+    });
+  });
 }
