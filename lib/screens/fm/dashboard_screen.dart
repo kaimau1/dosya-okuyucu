@@ -175,8 +175,22 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// [StorageIndex.mergeFresh]) ve arama dizini bayat işaretlenir.
   bool _catchingUp = false;
 
+  /// En son ne zaman yakalama yapıldı — **kısıtlama** için.
+  ///
+  /// `AppLifecycleState.resumed` sanılandan çok daha sık geliyor: izin
+  /// penceresi, paylaşım sayfası, ekranın kapanıp açılması, bildirim
+  /// panelinin çekilmesi… Her birinde sıcak klasörleri baştan yürümek
+  /// (DCIM + WhatsApp = on binlerce `stat`) kullanıcının *"performans sorunu
+  /// yaşamadan yapmalısın"* şartını çiğnerdi. Aşağı çekerek yenileme ve tam
+  /// tarama bu kısıtlamadan **etkilenmez** — onlar kullanıcının açık isteği.
+  static const _catchUpEvery = Duration(seconds: 20);
+  int _lastCatchUpMs = 0;
+
   Future<void> _catchUp() async {
     if (_catchingUp || _scanning || !mounted) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastCatchUpMs < _catchUpEvery.inMilliseconds) return;
+    _lastCatchUpMs = now;
     _catchingUp = true;
     try {
       await FmEnv.ensureInit();

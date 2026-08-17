@@ -8264,3 +8264,20 @@ sekmesinin üst çubuğundaki yıldız düğmesi (`chat_screen`).
 
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 sorun,
 `flutter test` 1658 test yeşil (yeni: 8 APK simgesi + 3 `freshFiles`).
+
+### G) Sıcak klasör yakalaması KISITLANDI (aynı gün, ikinci tur sonrası)
+`AppLifecycleState.resumed` sanılandan çok daha sık geliyor: izin penceresi,
+paylaşım sayfası, ekranın kapanıp açılması, bildirim panelinin çekilmesi.
+`freshFiles` artık ağacı **sonuna kadar** yürüdüğü için (bkz. A) her resume'da
+DCIM + WhatsApp = on binlerce `stat` demekti — kullanıcının *"performans sorunu
+yaşamadan yapmalısın"* şartını çiğnerdi. Hem panoda hem `NewFilesScreen`de
+20 saniyelik kısıtlama var. **Aşağı çekerek yenileme etkilenmiyor**
+(`CategoryScreen` doğrudan `_scan`ı çağırıyor) — o kullanıcının açık isteği.
+
+### H) TUZAK — CI kırmızısı her zaman KOD değildir
+build-288: APK derlendi ve imzalandı, **GitHub Release adımı** 503 aldı
+("No server is currently available"), üç denemede de. Yani hata GitHub
+tarafındaydı, üründe değil. Bu oturumda `rerun-failed-jobs` ve
+`workflow_dispatch` için yetki YOK (403 "Resource not accessible by
+integration") → yeniden derleme ancak main'e yeni bir push ile tetiklenebiliyor.
+`paths-ignore: '**.md'` yüzünden yalnız HAFIZA'ya yazmak da tetiklemiyor.

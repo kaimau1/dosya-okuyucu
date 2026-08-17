@@ -85,8 +85,20 @@ class _NewFilesScreenState extends State<NewFilesScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // WhatsApp'tan belge indirip uygulamaya dönen kullanıcı onu burada
     // görmeli — "kaçmamalı hiçbir şey".
-    if (state == AppLifecycleState.resumed && widget.active) unawaited(_load());
+    //
+    // **Kısıtlanmış:** `resumed` sanılandan çok daha sık geliyor (izin
+    // penceresi, paylaşım sayfası, ekranın kapanıp açılması). Her birinde
+    // sıcak klasörleri baştan yürümek gereksiz pil ve G/Ç demek. Aşağı
+    // çekerek yenileme bu kısıtlamadan etkilenmez (`CategoryScreen` doğrudan
+    // `_scan`ı çağırır) — o kullanıcının açık isteği.
+    if (state != AppLifecycleState.resumed || !widget.active) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastLoadMs < _reloadEvery.inMilliseconds) return;
+    unawaited(_load());
   }
+
+  static const _reloadEvery = Duration(seconds: 20);
+  int _lastLoadMs = 0;
 
   Future<List<FsEntry>> _scan() async {
     await FmEnv.ensureInit();
@@ -100,6 +112,7 @@ class _NewFilesScreenState extends State<NewFilesScreen>
   Future<void> _load() async {
     if (_scanning) return;
     _scanning = true;
+    _lastLoadMs = DateTime.now().millisecondsSinceEpoch;
     try {
       final files = await _scan();
       if (!mounted) return;
