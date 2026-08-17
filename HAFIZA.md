@@ -8281,3 +8281,14 @@ tarafındaydı, üründe değil. Bu oturumda `rerun-failed-jobs` ve
 `workflow_dispatch` için yetki YOK (403 "Resource not accessible by
 integration") → yeniden derleme ancak main'e yeni bir push ile tetiklenebiliyor.
 `paths-ignore: '**.md'` yüzünden yalnız HAFIZA'ya yazmak da tetiklemiyor.
+
+**Düzeltme (build-290 da aynı 503'e düştü):** Release adımı artık GERİ
+ÇEKİLMELİ üç deneme. `softprops/action-gh-release` kendi içinde üç kez deniyor
+ama toplam ~2 SANİYE içinde — dakikalarca süren bir kesintiye karşı işe
+yaramıyor. İlk iki deneme `continue-on-error`, aralarında 90 sn ve 240 sn
+bekleme; ÜÇÜNCÜ deneme geçilmiyor (kesinti kalıcıysa iş yine kırmızı yanmalı,
+sürümün yayımlanmadığı gizlenmemeli). Sürüm notu `dist/RELEASE_NOTES.md`e
+yazılıp üç denemede `body_path` ile PAYLAŞILIYOR — metni üç yere kopyalamak,
+biri güncellenince sessizce ayrışırdı.
+**Not:** APK derlemesi bu iki kırmızı koşuda da BAŞARILIYDI; artifact
+(`dosya-okuyucu-apk`) yüklenmişti ve koşu sayfasından indirilebiliyordu.

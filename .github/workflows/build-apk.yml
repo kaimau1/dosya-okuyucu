@@ -372,37 +372,100 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
 
+      # Sürüm notu DOSYAYA yazılır: aşağıdaki üç deneme aynı metni
+      # `body_path` ile paylaşsın diye. (Metni her adımda tekrarlamak, biri
+      # güncellenip diğerleri unutulduğunda sessizce ayrışırdı.)
+      - name: Sürüm notunu hazırla
+        run: |
+          cat > dist/RELEASE_NOTES.md <<'NOTES'
+          Otomatik derlenen, imzalı Android APK.
+
+          **Yenilikler (bu sürümde):**
+          - “Birlikte aç” / paylaş: WhatsApp/Gmail/Dosyalar’dan gelen dosyayı doğrudan açar
+          - Geniş dosya türü desteği + içerik tanıma (uzantısız metin dosyaları dahil)
+          - Her yerde yakınlaştır/uzaklaştır (görsel: pinch + çift-dokun + düğme), döndürme
+          - Belge içi arama (Bul), metinde yazı boyutu, PDF sayfa göstergesi
+          - Office düzenleme: Word biçim, Excel satır/sütun + formül + sayı biçimleri, PowerPoint slayt işlemleri
+          - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
+          - Özel uygulama ikonu
+
+          Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
+          dönüştürme, paylaşım, Gemini AI sohbet, Firebase senkron (yapılandırıldığında).
+
+          **Hangi dosyayı indirmeliyim?** → `dosya-okuyucu.apk`
+          (2016 sonrası tüm telefonlar; 64-bit / arm64-v8a).
+          Yalnızca çok eski 32-bit bir cihazda kurulmuyorsa
+          `dosya-okuyucu-32bit-armeabi-v7a.apk` dosyasını deneyin.
+
+          APK'lar bu sürümden itibaren mimariye göre **ayrı** derleniyor:
+          tek dosyada üç mimarinin kütüphaneleri taşındığı için boyut
+          gereksiz yere ~3 katıydı. İşlev aynı, indirme çok daha küçük.
+
+          Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir.
+          NOTES
+
+      # ── Release: GERİ ÇEKİLMELİ üç deneme ────────────────────────────────
+      #
+      # 2026-08-17 (build 288 ve 290): APK derlendi, imzalandı ve artifact'e
+      # yüklendi ama Release adımı ÜÇ kez 503 aldı ("No server is currently
+      # available") ve iş kırmızı yandı. Sorun bizde değil, GitHub'ın Releases
+      # API'sindeydi. `softprops/action-gh-release` kendi içinde üç kez dener
+      # ama toplam ~2 SANİYE içinde — dakikalarca süren bir kesintiye karşı
+      # hiçbir işe yaramıyor.
+      #
+      # İlk iki deneme `continue-on-error` ile sessizce geçilir, aralarında
+      # gerçek bir bekleme vardır. ÜÇÜNCÜ deneme geçilmez: kesinti kalıcıysa
+      # iş yine kırmızı yanar — sürümün yayımlanmadığını gizlemek istemiyoruz.
       - name: GitHub Release oluştur
+        id: release1
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-build-${{ github.run_number }}
           name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
           make_latest: true
-          body: |
-            Otomatik derlenen, imzalı Android APK.
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/dosya-okuyucu.apk
+            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            **Yenilikler (bu sürümde):**
-            - “Birlikte aç” / paylaş: WhatsApp/Gmail/Dosyalar’dan gelen dosyayı doğrudan açar
-            - Geniş dosya türü desteği + içerik tanıma (uzantısız metin dosyaları dahil)
-            - Her yerde yakınlaştır/uzaklaştır (görsel: pinch + çift-dokun + düğme), döndürme
-            - Belge içi arama (Bul), metinde yazı boyutu, PDF sayfa göstergesi
-            - Office düzenleme: Word biçim, Excel satır/sütun + formül + sayı biçimleri, PowerPoint slayt işlemleri
-            - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
-            - Özel uygulama ikonu
+      - name: Release 503 aldı — bekle ve yeniden dene
+        if: steps.release1.outcome == 'failure'
+        run: sleep 90
 
-            Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
-            dönüştürme, paylaşım, Gemini AI sohbet, Firebase senkron (yapılandırıldığında).
+      - name: GitHub Release oluştur (2. deneme)
+        id: release2
+        if: steps.release1.outcome == 'failure'
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-build-${{ github.run_number }}
+          name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          make_latest: true
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/dosya-okuyucu.apk
+            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            **Hangi dosyayı indirmeliyim?** → `dosya-okuyucu.apk`
-            (2016 sonrası tüm telefonlar; 64-bit / arm64-v8a).
-            Yalnızca çok eski 32-bit bir cihazda kurulmuyorsa
-            `dosya-okuyucu-32bit-armeabi-v7a.apk` dosyasını deneyin.
+      - name: Release hâlâ olmadı — son kez bekle
+        if: steps.release1.outcome == 'failure' && steps.release2.outcome == 'failure'
+        run: sleep 240
 
-            APK'lar bu sürümden itibaren mimariye göre **ayrı** derleniyor:
-            tek dosyada üç mimarinin kütüphaneleri taşındığı için boyut
-            gereksiz yere ~3 katıydı. İşlev aynı, indirme çok daha küçük.
-
-            Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir.
+      # Son deneme: burada başarısızlık İŞİ KIRAR (bilinçli).
+      - name: GitHub Release oluştur (son deneme)
+        if: steps.release1.outcome == 'failure' && steps.release2.outcome == 'failure'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-build-${{ github.run_number }}
+          name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          make_latest: true
+          body_path: dist/RELEASE_NOTES.md
           files: |
             dist/dosya-okuyucu.apk
             dist/dosya-okuyucu-32bit-armeabi-v7a.apk
