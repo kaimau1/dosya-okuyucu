@@ -45,7 +45,10 @@ class FmEntryListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final iconSize = layout.iconSizeFor(0);
+    // Tema ailesi simge ölçeğini de belirler (2026-08-25): "İş programı"nda
+    // %22 küçük, "Modern"de %12 büyük — kullanıcı temayı seçerken boyutu da
+    // seçmiş oluyor.
+    final iconSize = layout.iconSizeFor(0) * context.fmIconScale;
     return ListTile(
       selected: selected,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
@@ -126,8 +129,12 @@ class FmEntryGridTile extends StatelessWidget {
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final iconSize = (constraints.maxHeight - _labelHeight)
-                .clamp(16.0, constraints.maxWidth);
+            // Hücrenin boyu ikon + ad şeridi kadar; tema ölçeği ikonu
+            // BÜYÜTÜRSE üst sınır yine hücrenin kendisi olmalı, yoksa
+            // "Modern" ailesinde ızgara satırı taşardı.
+            final room = constraints.maxHeight - _labelHeight;
+            final iconSize = (room * context.fmIconScale)
+                .clamp(16.0, constraints.maxWidth < room ? constraints.maxWidth : room);
             return Stack(
               children: [
                 Column(

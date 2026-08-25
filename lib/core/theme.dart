@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/document.dart';
+import 'skin.dart';
 
 /// Kağıt teması (2026-08-04, claude.ai/design "Sekiz ekran Flutter tasarımı"
 /// devir notu): zemin kağıt, metin mürekkep, ayrım gölgeyle değil CETVEL
@@ -67,14 +68,21 @@ abstract final class Paper {
           ? const Color(0xFF141210)
           : Colors.white;
 
+  /// Etkin temanın paleti. Tema uzantısı yoksa (test/izole widget) kağıt.
+  static SkinPalette paletteOf(BuildContext context) =>
+      AppSkinData.of(context).palette;
+
   /// Üçüncül mürekkep: yol, sayaç, zaman damgası. Gövde metninden bir kademe
   /// soluk — kağıtta "kurşun kalem" tonu.
-  static Color faint(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? inkFaintDark : inkFaint;
+  ///
+  /// **Sabit `inkFaint` DEĞİL, temanın kendi tonu** (2026-08-25): tema aileleri
+  /// gelince kağıdın kurşun kalem grisi "Modern"in morumsu zemininde yabancı
+  /// duruyordu. 42 çağrı yeri var; hepsinin doğru rengi alması ancak burayı
+  /// temaya bağlamakla oluyor.
+  static Color faint(BuildContext context) => paletteOf(context).inkFaint;
 
   /// Başarılı/tamamlandı rengi (hata `colorScheme.error`den gelir).
-  static Color success(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? okDark : ok;
+  static Color success(BuildContext context) => paletteOf(context).ok;
 }
 
 /// Office marka kimliği: dosya türüne göre üst şerit rengi ve belgenin
@@ -135,8 +143,6 @@ abstract final class Radii {
 /// ölçeği (serif başlık / sans gövde), tek yarıçap hiyerarşisi, gölge yerine
 /// yüzey-tonu + ince kenarlık, her iki temada da eşit okunurluk.
 class AppTheme {
-  static const Color _seed = Color(0xFF3B6EF6);
-
   /// Başlık serifi ve gövde sans'ı zaten APK'da gömülü (slayt sadakati için
   /// eklenmişlerdi) — kağıt teması için yeni font indirilmedi, boyut artmadı.
   static const String fontHeading = 'Tinos';
@@ -192,59 +198,89 @@ class AppTheme {
   /// [bodyFont] kullanıcının seçtiği aile ([uiFontDefault] ya da null =
   /// tasarımın kendi karışımı). Aile verilirse başlıklar ve veri satırları da
   /// onunla çizilir.
-  static ThemeData light({String? bodyFont}) =>
-      _base(Brightness.light, bodyFont: bodyFont);
-  static ThemeData dark({String? bodyFont}) =>
-      _base(Brightness.dark, bodyFont: bodyFont);
+  static ThemeData light({
+    String? bodyFont,
+    AppSkin skin = AppSkin.paper,
+    String? background,
+  }) =>
+      _base(Brightness.light,
+          bodyFont: bodyFont, skin: skin, background: background);
 
-  static ThemeData _base(Brightness brightness, {String? bodyFont}) {
+  static ThemeData dark({
+    String? bodyFont,
+    AppSkin skin = AppSkin.paper,
+    String? background,
+  }) =>
+      _base(Brightness.dark,
+          bodyFont: bodyFont, skin: skin, background: background);
+
+  static ThemeData _base(
+    Brightness brightness, {
+    String? bodyFont,
+    AppSkin skin = AppSkin.paper,
+    String? background,
+  }) {
     // Seçilen aile HER YERE: başlık ve veri satırları da. Gezgin listesinde
     // gövde metni yok (ad = başlık stili, tarih = tek aralıklı); yalnız
     // gövdeyi değiştiren bir ayar orada hiçbir şeyi değiştirmiyordu.
     final body = bodyFont ?? fontBody;
     final heading = body;
     final mono = body;
-    final isDark = brightness == Brightness.dark;
-    // Tohum korunur (türetilen ikincil/üçüncül roller ondan gelir) ama kağıt
-    // hissini bozan mavi-gri YÜZEYLER elle geçersiz kılınır.
+    // "Gece" ailesinin açık karşılığı yok: sistem açık moddayken bile koyu
+    // kalır (bkz. AppSkin.forcesDark). Yoksa kullanıcı OLED temayı seçtiği
+    // hâlde gündüz beyaz ekran görürdü.
+    final isDark = brightness == Brightness.dark || skin.forcesDark;
+    final effective = isDark ? Brightness.dark : Brightness.light;
+    final metrics = SkinMetrics.of(skin);
+    var palette = SkinPalette.of(skin, effective);
+    final bgChoice = AppBackground.byId(background);
+    if (!bgChoice.isDefault) {
+      palette = palette.withBackground(isDark ? bgChoice.dark : bgChoice.light);
+    }
+    // Tohum korunur (türetilen ikincil/üçüncül roller ondan gelir) ama ailenin
+    // kimliğini bozan türetilmiş YÜZEYLER elle geçersiz kılınır.
     final scheme = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: brightness,
+      seedColor: palette.accent,
+      brightness: effective,
     ).copyWith(
-      primary: isDark ? Paper.accentDark : Paper.accent,
-      onPrimary: isDark ? const Color(0xFF13202F) : Colors.white,
-      primaryContainer: isDark ? Paper.accentWellDark : Paper.accentWell,
-      onPrimaryContainer: isDark ? const Color(0xFFD7E2F5) : Paper.accent,
-      // Çip, sekme ve rozet dolguları da buradan gelir — tohumun mavi-grisi
-      // kağıtta yabancı duruyordu (kabul ölçütü: hiçbir ekranda Material'ın
-      // türetilmiş yüzeyi kalmayacak).
-      secondary: isDark ? Paper.accentDark : Paper.accent,
-      onSecondary: isDark ? const Color(0xFF13202F) : Colors.white,
-      secondaryContainer: isDark ? Paper.accentWellDark : Paper.accentWell,
-      onSecondaryContainer: isDark ? const Color(0xFFD7E2F5) : Paper.accent,
-      tertiary: isDark ? Paper.inkSoftDark : Paper.inkSoft,
-      onTertiary: isDark ? Paper.bgDark : Colors.white,
-      tertiaryContainer: isDark ? Paper.bandDark : Paper.band,
-      onTertiaryContainer: isDark ? Paper.inkDark : Paper.ink,
-      surface: isDark ? Paper.bgDark : Paper.bg,
-      onSurface: isDark ? Paper.inkDark : Paper.ink,
-      inverseSurface: isDark ? Paper.inkDark : Paper.ink,
-      onInverseSurface: isDark ? Paper.bgDark : Paper.bg,
-      inversePrimary: isDark ? Paper.accent : Paper.accentDark,
-      onSurfaceVariant: isDark ? Paper.inkSoftDark : Paper.inkSoft,
-      surfaceContainerLowest: isDark ? const Color(0xFF141109) : Colors.white,
-      surfaceContainerLow: isDark ? Paper.cardDark : Paper.card,
-      surfaceContainer: isDark ? const Color(0xFF262117) : Paper.card,
-      surfaceContainerHigh: isDark ? Paper.bandDark : Paper.band,
-      surfaceContainerHighest: isDark ? Paper.wellDark : Paper.well,
-      outline: isDark ? Paper.edgeDark : Paper.edge,
-      outlineVariant: isDark ? Paper.ruleDark : Paper.rule,
-      error: isDark ? Paper.dangerDark : Paper.danger,
+      primary: palette.accent,
+      onPrimary: palette.onAccent,
+      primaryContainer: palette.accentWell,
+      onPrimaryContainer: isDark ? palette.ink : palette.accent,
+      // Çip, sekme ve rozet dolguları da buradan gelir — tohumun türettiği
+      // mavi-gri yüzey her ailede yabancı duruyordu (kabul ölçütü: hiçbir
+      // ekranda Material'ın kendi türetilmiş yüzeyi kalmayacak).
+      secondary: palette.accent,
+      onSecondary: palette.onAccent,
+      secondaryContainer: palette.accentWell,
+      onSecondaryContainer: isDark ? palette.ink : palette.accent,
+      tertiary: palette.inkSoft,
+      onTertiary: isDark ? palette.bg : Colors.white,
+      tertiaryContainer: palette.band,
+      onTertiaryContainer: palette.ink,
+      surface: palette.bg,
+      onSurface: palette.ink,
+      inverseSurface: palette.ink,
+      onInverseSurface: palette.bg,
+      inversePrimary: palette.accentWell,
+      onSurfaceVariant: palette.inkSoft,
+      surfaceContainerLowest:
+          isDark ? _darken(palette.bg, 0.35) : _lighten(palette.card, 0.6),
+      surfaceContainerLow: palette.card,
+      surfaceContainer: palette.card,
+      surfaceContainerHigh: palette.band,
+      surfaceContainerHighest: palette.well,
+      outline: palette.edge,
+      outlineVariant: palette.rule,
+      error: palette.danger,
       onError: isDark ? const Color(0xFF2A0F0C) : Colors.white,
-      errorContainer: isDark ? const Color(0xFF6B231B) : const Color(0xFFF6E0DC),
-      onErrorContainer:
-          isDark ? const Color(0xFFF7DCD8) : const Color(0xFF4A130E),
-      surfaceTint: Colors.transparent, // gölge/ton yok: kağıt düz durur
+      errorContainer: isDark
+          ? Color.lerp(palette.danger, Colors.black, 0.6)
+          : Color.lerp(palette.danger, Colors.white, 0.85),
+      onErrorContainer: isDark
+          ? Color.lerp(palette.danger, Colors.white, 0.7)
+          : Color.lerp(palette.danger, Colors.black, 0.55),
+      surfaceTint: Colors.transparent, // gölge/ton yok: yüzey düz durur
     );
     final text = _textTheme(scheme, body, heading);
 
@@ -256,8 +292,14 @@ class AppTheme {
       // Tema DIŞINDA kalan yazı tipleri de seçime uysun: tarih/boyut satırları
       // (`MonoText`) ve hücre yazıları koda gömülü 'monospace' kullanıyordu ve
       // ayardan hiç etkilenmiyordu.
-      extensions: [AppFonts(body: body, heading: heading, mono: mono)],
+      extensions: [
+        AppFonts(body: body, heading: heading, mono: mono),
+        AppSkinData(skin: skin, palette: palette, metrics: metrics),
+      ],
       scaffoldBackgroundColor: scheme.surface,
+      // Yoğunluk ailenin kimliğinin yarısı: aynı palet sıkı satırda "iş
+      // programı", rahat satırda "modern" görünüyor.
+      visualDensity: metrics.density,
       splashFactory: InkRipple.splashFactory,
 
       appBarTheme: AppBarTheme(
@@ -279,17 +321,17 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.card),
+          borderRadius: BorderRadius.circular(metrics.radiusCard),
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
 
       listTileTheme: ListTileThemeData(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.card),
+          borderRadius: BorderRadius.circular(metrics.radiusCard),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
+        contentPadding: EdgeInsets.symmetric(
+            horizontal: Gap.md, vertical: metrics.rowPadding),
         titleTextStyle: text.titleMedium,
         subtitleTextStyle: text.bodySmall?.copyWith(
           color: scheme.onSurfaceVariant,
@@ -303,7 +345,7 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
           textStyle: text.labelLarge,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.control),
+            borderRadius: BorderRadius.circular(metrics.radiusControl),
           ),
         ),
       ),
@@ -311,7 +353,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           minimumSize: const Size(48, 44),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.control),
+            borderRadius: BorderRadius.circular(metrics.radiusControl),
           ),
         ),
       ),
@@ -320,7 +362,7 @@ class AppTheme {
           minimumSize: const Size(64, 48),
           side: BorderSide(color: scheme.outline),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.control),
+            borderRadius: BorderRadius.circular(metrics.radiusControl),
           ),
         ),
       ),
@@ -336,7 +378,7 @@ class AppTheme {
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.card),
+          borderRadius: BorderRadius.circular(metrics.radiusCard),
         ),
       ),
 
@@ -357,15 +399,15 @@ class AppTheme {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(Radii.control),
+          borderRadius: BorderRadius.circular(metrics.radiusControl),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(Radii.control),
+          borderRadius: BorderRadius.circular(metrics.radiusControl),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(Radii.control),
+          borderRadius: BorderRadius.circular(metrics.radiusControl),
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
       ),
@@ -374,7 +416,7 @@ class AppTheme {
         elevation: 0,
         backgroundColor: scheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.sheet),
+          borderRadius: BorderRadius.circular(metrics.radiusSheet),
           side: BorderSide(color: scheme.outlineVariant),
         ),
         titleTextStyle: text.headlineSmall,
@@ -384,16 +426,16 @@ class AppTheme {
         backgroundColor: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           borderRadius:
-              BorderRadius.vertical(top: Radius.circular(Radii.sheet)),
+              BorderRadius.vertical(top: Radius.circular(metrics.radiusSheet)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         insetPadding: const EdgeInsets.all(Gap.md),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.control),
+          borderRadius: BorderRadius.circular(metrics.radiusControl),
         ),
         contentTextStyle:
             text.bodyMedium?.copyWith(color: scheme.onInverseSurface),
@@ -408,7 +450,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         side: BorderSide(color: scheme.outlineVariant),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.control),
+          borderRadius: BorderRadius.circular(metrics.radiusControl),
         ),
       ),
 
@@ -417,12 +459,12 @@ class AppTheme {
         thumbColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
               ? scheme.onPrimary
-              : (isDark ? Paper.inkSoftDark : Colors.white),
+              : (isDark ? palette.inkSoft : Colors.white),
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
               ? scheme.primary
-              : (isDark ? Paper.ruleDark : const Color(0xFFE1D8C5)),
+              : palette.edge,
         ),
         trackOutlineColor: WidgetStateProperty.all(scheme.outline),
       ),
@@ -432,7 +474,7 @@ class AppTheme {
         color: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.card),
+          borderRadius: BorderRadius.circular(metrics.radiusCard),
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
@@ -513,4 +555,68 @@ class AppFonts extends ThemeExtension<AppFonts> {
   @override
   AppFonts lerp(ThemeExtension<AppFonts>? other, double t) =>
       other is AppFonts && t >= 0.5 ? other : this;
+}
+
+
+/// Rengi koyulaştırır/açar — tema kurulurken ara basamak türetmek için.
+Color _darken(Color c, double t) => Color.lerp(c, Colors.black, t) ?? c;
+Color _lighten(Color c, double t) => Color.lerp(c, Colors.white, t) ?? c;
+
+/// Etkin tema ailesi — widget'lar palet, ölçü ve simge ölçeğini buradan okur.
+///
+/// `Theme.of(context).colorScheme` renkleri zaten taşıyor; burada TAŞINMAYAN
+/// şeyler var: simge ölçeği, satır sıklığı ve ailenin kimliği ([AppSkin]).
+/// Bunlar `ColorScheme`e sığmıyor ama ekranların ihtiyacı — dosya simgesini
+/// çizen widget "İş programı ailesindeyim, %22 küçült" diyebilmeli.
+class AppSkinData extends ThemeExtension<AppSkinData> {
+  final AppSkin skin;
+  final SkinPalette palette;
+  final SkinMetrics metrics;
+
+  const AppSkinData({
+    required this.skin,
+    required this.palette,
+    required this.metrics,
+  });
+
+  /// Tema uzantısı yoksa (test, izole widget) kağıt ailesi varsayılır —
+  /// metinsiz/renksiz çizmektense uygulamanın kendi kimliği doğru.
+  static AppSkinData of(BuildContext context) =>
+      Theme.of(context).extension<AppSkinData>() ??
+      AppSkinData(
+        skin: AppSkin.paper,
+        palette: SkinPalette.of(
+            AppSkin.paper, Theme.of(context).brightness),
+        metrics: SkinMetrics.of(AppSkin.paper),
+      );
+
+  @override
+  AppSkinData copyWith({
+    AppSkin? skin,
+    SkinPalette? palette,
+    SkinMetrics? metrics,
+  }) =>
+      AppSkinData(
+        skin: skin ?? this.skin,
+        palette: palette ?? this.palette,
+        metrics: metrics ?? this.metrics,
+      );
+
+  /// Aile ARA DEĞER ALMAZ: "yarı modern" diye bir tema yok, geçişin ortasında
+  /// hedefe atlanır (aynı kural [AppFonts]'ta da geçerli).
+  @override
+  AppSkinData lerp(ThemeExtension<AppSkinData>? other, double t) =>
+      other is AppSkinData && t >= 0.5 ? other : this;
+}
+
+/// Ekranların kısayolu: `context.fmIconScale` — dosya/klasör simgeleri bu
+/// çarpanla çizilir, böylece tema ailesi simge boyutunu gerçekten değiştirir.
+extension SkinContext on BuildContext {
+  double get fmIconScale => AppSkinData.of(this).metrics.iconScale;
+
+  /// Ailenin glif stili: çizgi mi (outlined) dolu mu (rounded)?
+  bool get fmOutlinedIcons => AppSkinData.of(this).metrics.outlinedIcons;
+
+  /// Ailenin kart köşe yarıçapı — koda gömülü [Radii.card] yerine.
+  double get fmCardRadius => AppSkinData.of(this).metrics.radiusCard;
 }

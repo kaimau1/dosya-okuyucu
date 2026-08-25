@@ -199,16 +199,31 @@ void main() {
     late Directory tmp;
     late String indexPath;
 
+    late String dcim;
+    late String pictures;
+
     /// 1000 video + 50 görsel satırlık dizin: pano indeksinin kategori başına
     /// 800'lük sınırının ötesine geçildiğini kanıtlar (hata 2026-07-29:
     /// "videolarda tüm videolar görünmüyor").
+    ///
+    /// **Dosyalar diskte GERÇEKTEN oluşturulur** (2026-08-25): `collectFromIndex`
+    /// artık dizindeki satırın karşılığı diskte duruyor mu diye bakıyor —
+    /// çöpe atılan dosya kategori listelerinde hayalet olarak kalmasın diye
+    /// (bkz. `_collectFromIndexSync`). Uydurma yollarla kurulan bir kurgu bu
+    /// süzgeçten geçemezdi ve test gerçeği ölçmez olurdu.
     setUp(() {
       tmp = Directory.systemTemp.createTempSync('fm_collect_test');
       indexPath = p.join(tmp.path, 'search_index.tsv');
+      dcim = p.join(tmp.path, 'DCIM');
+      pictures = p.join(tmp.path, 'Pictures');
+      Directory(dcim).createSync(recursive: true);
+      Directory(pictures).createSync(recursive: true);
       final rows = StringBuffer();
       for (var i = 0; i < 1000; i++) {
+        final path = p.join(dcim, 'klip_$i.mp4');
+        File(path).writeAsStringSync('v');
         rows.writeln(encodeIndexRow(FsEntry(
-          path: '/depo/DCIM/klip_$i.mp4',
+          path: path,
           name: 'klip_$i.mp4',
           isDir: false,
           sizeBytes: 1000 + i,
@@ -216,16 +231,18 @@ void main() {
         )));
       }
       for (var i = 0; i < 50; i++) {
+        final path = p.join(pictures, 'foto_$i.jpg');
+        File(path).writeAsStringSync('i');
         rows.writeln(encodeIndexRow(FsEntry(
-          path: '/depo/Pictures/foto_$i.jpg',
+          path: path,
           name: 'foto_$i.jpg',
           isDir: false,
           sizeBytes: 10,
           modifiedMs: 5000 + i,
         )));
       }
-      rows.writeln(encodeIndexRow(const FsEntry(
-        path: '/depo/DCIM',
+      rows.writeln(encodeIndexRow(FsEntry(
+        path: dcim,
         name: 'DCIM',
         isDir: true,
         sizeBytes: 0,
@@ -251,13 +268,26 @@ void main() {
           category: FmCategory.image);
       expect(images.length, 50);
 
-      final inDcim = await FsScan.collectFromIndex(indexPath,
-          root: '/depo/DCIM');
+      final inDcim = await FsScan.collectFromIndex(indexPath, root: dcim);
       expect(inDcim.length, 1000);
 
       final limited = await FsScan.collectFromIndex(indexPath,
           category: FmCategory.video, limit: 10);
       expect(limited.length, 10);
+    });
+
+    /// **Çöpe atılan dosya kategori listesinde kalmaz** (kullanıcı hatası
+    /// 2026-08-25: *"çöpe atılan şeyler bir süre sonra hem çöpte hem
+    /// görüntüler hem dosyalarda … görülüyor"*). Dizin satırı duruyor ama
+    /// dosya diskte yok → liste onu göstermemeli.
+    test('diskte olmayan satır (silinmiş/çöpe atılmış) listeye girmez',
+        () async {
+      File(p.join(pictures, 'foto_0.jpg')).deleteSync();
+      File(p.join(pictures, 'foto_1.jpg')).deleteSync();
+      final images = await FsScan.collectFromIndex(indexPath,
+          category: FmCategory.image);
+      expect(images.length, 48);
+      expect(images.map((e) => e.name), isNot(contains('foto_0.jpg')));
     });
 
     test('dizin yoksa boş liste döner (çağıran diske düşer)', () async {

@@ -4,6 +4,8 @@
 /// dün" gibi göreli başlıkların yanlış güne kayması sessizce fark edilmesin.
 library;
 
+import 'file_age.dart';
+
 enum PhotoGroup { day, month, year }
 
 extension PhotoGroupLabel on PhotoGroup {
@@ -80,9 +82,9 @@ String photoGroupTitle(int millis, PhotoGroup group, {DateTime? now}) {
           ? _months[d.month - 1]
           : '${_months[d.month - 1]} ${d.year}';
     case PhotoGroup.day:
-      final days = DateTime(today.year, today.month, today.day)
-          .difference(DateTime(d.year, d.month, d.day))
-          .inDays;
+      // Gün farkı TEK yerden (bkz. `calendarDaysBetween`): yaz saati
+      // geçişinde `.difference().inDays` 0 yerine -1/1 verebiliyordu.
+      final days = calendarDaysBetween(d, today);
       if (days == 0) return 'Bugün';
       if (days == 1) return 'Dün';
       final base = d.year == today.year

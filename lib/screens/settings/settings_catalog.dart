@@ -117,15 +117,32 @@ List<SettingsCategory> settingsCategories() => [
           final lang = s.language == AppLanguage.system
               ? context.t('settings.language_system')
               : s.language.nativeLabel;
-          return '$theme · $lang';
+          return '${context.t(s.appSkin.labelKey)} · $theme · $lang';
         },
         sections: const [
           SettingsSection('set.sec_theme', [
+            SettingRow(
+              id: 'skin',
+              titleKey: 'skin.title',
+              altKeys: [
+                'skin.paper',
+                'skin.light',
+                'skin.modern',
+                'skin.office',
+                'skin.night',
+              ],
+              builder: _skinTile,
+            ),
             SettingRow(
               id: 'theme',
               titleKey: 'settings.theme',
               altKeys: ['settings.theme_dark', 'settings.theme_light'],
               builder: _themeTile,
+            ),
+            SettingRow(
+              id: 'background',
+              titleKey: 'bgc.title',
+              builder: _backgroundTile,
             ),
           ]),
           SettingsSection('set.sec_text', [
@@ -422,6 +439,8 @@ List<SettingsCategory> settingsCategories() => [
 // `const` bir `SettingRow` listesi kurabilmek için üst düzey işlevler
 // (kapanış/lambda `const` olamaz).
 Widget _themeTile(BuildContext _) => const ThemeTile();
+Widget _skinTile(BuildContext _) => const AppSkinTile();
+Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
 Widget _fontTile(BuildContext _) => const UiFontTile();
 Widget _textSizeTile(BuildContext _) => const UiTextSizeTile();
 Widget _languageTile(BuildContext _) => const LanguageTile();

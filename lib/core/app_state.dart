@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_language.dart';
+import 'skin.dart';
 import 'theme.dart';
 import '../models/fm_layout.dart';
 import '../models/fs_entry.dart';
@@ -31,6 +32,8 @@ class AppState extends ChangeNotifier {
   static const _kApiKeys = 'gemini_api_keys';
   static const _kModels = 'gemini_models';
   static const _kThemeMode = 'theme_mode';
+  static const _kAppSkin = 'app_skin';
+  static const _kBackground = 'app_background';
   static const _kLanguage = 'app_language';
   static const _kRecents = 'recent_files';
   static const _kMemory = 'ai_memory';
@@ -83,6 +86,14 @@ class AppState extends ChangeNotifier {
   /// Öncelik sırasıyla modeller (en çok [AiCredentials.maxModels]).
   List<String> _models = const [];
   ThemeMode _themeMode = ThemeMode.system;
+
+  /// Tema ailesi (kağıt / açık / modern / iş programı / gece). `ThemeMode`
+  /// ile diktir: aile kimliği, mod parlaklığı seçer — bkz. [AppSkin].
+  AppSkin _appSkin = AppSkin.paper;
+
+  /// Seçili hazır arka plan rengi (`AppBackground.id`); 'default' = ailenin
+  /// kendi zemini.
+  String _background = 'default';
   AppLanguage _language = AppLanguage.system;
 
   /// Arayüz yazı tipi. Varsayılan `AppTheme.uiFontDefault` = tasarımın kendi
@@ -173,6 +184,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
   ThemeMode get themeMode => _themeMode;
+
+  /// Etkin tema ailesi.
+  AppSkin get appSkin => _appSkin;
+
+  /// Etkin arka plan rengi kimliği.
+  String get background => _background;
 
   /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
   AppLanguage get language => _language;
@@ -446,6 +463,8 @@ class AppState extends ChangeNotifier {
     _apiKey = _apiKeys.isEmpty ? '' : _apiKeys.first;
     _model = _models.first;
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
+    _appSkin = AppSkin.byName(_prefs.getString(_kAppSkin));
+    _background = AppBackground.byId(_prefs.getString(_kBackground)).id;
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = _prefs.getString(_kUiFont) ?? AppTheme.uiFontDefault;
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
@@ -656,6 +675,18 @@ class AppState extends ChangeNotifier {
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     await _prefs.setString(_kThemeMode, mode.name);
+    notifyListeners();
+  }
+
+  Future<void> setAppSkin(AppSkin skin) async {
+    _appSkin = skin;
+    await _prefs.setString(_kAppSkin, skin.name);
+    notifyListeners();
+  }
+
+  Future<void> setBackground(String id) async {
+    _background = AppBackground.byId(id).id;
+    await _prefs.setString(_kBackground, _background);
     notifyListeners();
   }
 

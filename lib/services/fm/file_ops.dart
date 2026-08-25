@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'path_side_index.dart';
+import 'search_index.dart';
 
 /// Hedefte aynı adlı dosya varsa ne yapılacağı.
 enum FmConflict {
@@ -200,6 +201,11 @@ abstract final class FileOps {
         errors.add('$name: ${_msg(e)}');
       }
     }
+    // Taşımada ESKİ yol dizinde kalmasın (kopyalamada kaynak yerinde duruyor,
+    // dokunulmaz). Yeni yol bir sonraki tam kurulumda dizine girer.
+    if (move && transfers.isNotEmpty) {
+      await SearchIndex.forget([for (final t in transfers) t.source]);
+    }
     if (succeeded > 0) FsEvents.changed();
     return FmOpResult(
       succeeded: succeeded,
@@ -390,6 +396,7 @@ abstract final class FileOps {
     void Function(FmProgress)? onProgress,
   }) async {
     final errors = <String>[];
+    final gone = <String>[];
     var done = 0;
     var ok = 0;
     for (final path in paths) {
@@ -403,12 +410,17 @@ abstract final class FileOps {
           await File(path).delete();
         }
         ok++;
+        gone.add(path);
       } catch (e) {
         errors.add('$name: ${_msg(e)}');
       }
       done++;
     }
     onProgress?.call(FmProgress(done, paths.length, ''));
+    // Silinen dosya arama dizininde KALMASIN: dizin yalnız "bayat"
+    // işaretlenirse hayalet satır kategori listelerinde ve pano sayılarında
+    // günlerce yaşıyordu (bkz. `SearchIndex.forget`).
+    if (gone.isNotEmpty) await SearchIndex.forget(gone);
     if (ok > 0) FsEvents.changed();
     return FmOpResult(succeeded: ok, errors: errors);
   }

@@ -147,9 +147,21 @@ class DosyaOkuyucuApp extends StatelessWidget {
       title: 'Dosya Okuyucu',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(bodyFont: appState.uiFont),
-      darkTheme: AppTheme.dark(bodyFont: appState.uiFont),
-      themeMode: appState.themeMode,
+      theme: AppTheme.light(
+        bodyFont: appState.uiFont,
+        skin: appState.appSkin,
+        background: appState.background,
+      ),
+      darkTheme: AppTheme.dark(
+        bodyFont: appState.uiFont,
+        skin: appState.appSkin,
+        background: appState.background,
+      ),
+      // "Gece (OLED)" ailesinin açık karşılığı yok: seçiliyken sistem açık
+      // modda olsa da koyu kalır, yoksa kullanıcı OLED temayı seçtiği hâlde
+      // gündüz beyaz ekran görürdü.
+      themeMode:
+          appState.appSkin.forcesDark ? ThemeMode.dark : appState.themeMode,
       // **Yazı boyutu her telefonda AYNI** (kullanıcı isteği 2026-08-07):
       // Android'in "Yazı tipi boyutu" ayarı normalde her uygulamayı büyütür;
       // aynı ekran bir telefonda ferah, ötekinde taşmış görünüyordu. Sistem

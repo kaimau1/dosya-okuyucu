@@ -8,6 +8,7 @@ import 'file_ops.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'path_side_index.dart';
+import 'search_index.dart';
 
 /// Çöp kutusundaki tek bir kayıt.
 class TrashItem {
@@ -108,6 +109,7 @@ class TrashService {
     void Function(FmProgress)? onProgress,
   }) async {
     final errors = <String>[];
+    final gone = <String>[];
     var ok = 0;
     var done = 0;
     for (final path in paths) {
@@ -238,12 +240,24 @@ class TrashService {
               : 'çöp kaydı yazılamadı ($e); dosya şurada: $storedAt');
         }
         ok++;
+        gone.add(path);
       } catch (e) {
         errors.add('$name: $e');
       }
       done++;
     }
     onProgress?.call(FmProgress(done, paths.length, ''));
+    // **Çöpe atılan dosya arama dizininden de düşer** (kullanıcı hatası
+    // 2026-08-25: *"çöpe atılan şeyler bir süre sonra hem çöpte hem
+    // görüntüler hem dosyalarda hem son açılanlar hem yeni dosyalarda
+    // görülüyor"*). Dizini yalnız bayat işaretlemek yetmiyordu: bayat dizin
+    // ancak arama ekranı açılınca yeniden kuruluyor, o zamana kadar aynı
+    // dosya hem çöpte hem kategori listelerinde görünüyordu.
+    //
+    // Geri yüklemede (bkz. [restore]) satır dizine geri YAZILMAZ; dosya
+    // eski yolunda gerçekten durduğu için bir sonraki kurulumda kendiliğinden
+    // döner, arada da diskten tarayan yollar (gezgin) onu zaten gösterir.
+    if (gone.isNotEmpty) await SearchIndex.forget(gone);
     if (ok > 0) FsEvents.changed();
     return FmOpResult(succeeded: ok, errors: errors);
   }

@@ -8467,3 +8467,108 @@ diskten yürünür, tüm depolama değil.
 görüntü sağlayıcısı 6, düz zaman ekseni 1, boş .docx sayfa ölçüsü 1,
 `statFolders` 1). `graphify update .` bu bulut oturumunda çalıştırılamadı
 (araç kurulu değil) — yerelde çalıştırılmalı.
+
+---
+
+## 2026-08-25 — Tema aileleri + dört cihaz hatası (gün hesabı, hayalet dosya, kayan düğme, AI analizin bulunmazlığı)
+
+Kullanıcı ekran görüntüsüyle birlikte dört hata ve iki istek bildirdi. İstekler
+uygulanmadan önce **soruldu** (kullanıcı: *"bana sorular sorup anla"*) ve
+alınan cevaplar aşağıdaki kararların dayanağı.
+
+### A) KARAR — "Kağıt" bir MOD değil bir AİLE; `AppSkin` eklendi (`lib/core/skin.dart`)
+Kullanıcı haklıydı: *"şuan ki tema açık ama bu aslında kağıt teması"*. 2026-08-04'ten
+beri "açık tema" diye sunulan şey kağıt/mürekkep kimliğiydi; nötr bir açık tema
+isteyen kullanıcının seçebileceği bir şey yoktu.
+
+`ThemeMode` (sistem/açık/koyu) **parlaklık** sorusunun cevabı, `AppSkin`
+**kimlik** sorusunun. İkisi diktir — "Modern"in de açığı ve koyusu var. Tek bir
+listede birleştirmek ("Kağıt / Açık / Koyu / Modern…") kullanıcıya "modern
+seçersem karanlık mod gider mi?" sorusunu sordururdu.
+
+Beş aile: **Kağıt** (eski kimlik, birebir korundu), **Açık** (nötr beyaz),
+**Modern** (mor vurgu, büyük yuvarlaklık), **İş programı** (keskin köşe, sıkı
+satır), **Gece/OLED** (saf siyah, açık karşılığı YOK → `forcesDark`).
+"Premium" kullanıcı tarafından seçilmedi, yapılmadı.
+
+**Aile neyi değiştirir (kullanıcı kararı): renk + simge boyutu + yoğunluk.**
+Yalnız renk değiştiren bir tema listesi "boyanmış aynı uygulama" olurdu.
+`SkinMetrics` köşe yarıçapını, simge ölçeğini (`context.fmIconScale`), satır
+iç boşluğunu ve `VisualDensity`'yi taşır; `SkinPalette` 14 renk basamağını.
+
+**Tuzak — `Paper.faint(context)` 42 çağrı yerinde:** kağıdın kurşun kalem grisi
+sabit hex'ti ve "Modern"in morumsu zemininde yabancı duruyordu. Tek tek
+değiştirmek yerine `Paper.faint`/`success` temanın uzantısından
+(`AppSkinData`) okuyacak hâle getirildi — 42 çağrı yeri dokunulmadan doğru
+rengi aldı.
+
+### B) Arka plan rengi: 12 HAZIR renk, serbest çark DEĞİL (kullanıcı kararı)
+Serbest renk seçici okunamayan bir ekran üretebiliyor. Hazır palette bile
+kullanıcı açık ailede "gece mavisi" seçebildiği için `SkinPalette.withBackground`
+iki iş yapar: (1) kart/şerit/kuyu basamaklarını yeni zemine göre **birlikte**
+kaydırır — yalnız `bg`i değiştirmek hiyerarşiyi TERSİNE çeviriyordu, kart
+sayfadan koyu görünüyordu; (2) mürekkep zeminden yeterince ayrışmıyorsa zıt uca
+çevirir.
+
+### C) BUG — "bugün/dün" 24 saatlik dilime göre sayılıyordu (`models/file_age.dart`)
+`daysBetween` = `(toMs - fromMs) / 86400000`. Bu "kaç kez 24 saat geçti"
+sorusunun cevabı; insanın sorduğu soru bu değil. **Dün 23:00'te** indirilen
+dosya **bu sabah 08:00'de** "bugün" yazıyordu (arada 9 saat), oysa gece yarısı
+geçilmişti. Artık `calendarDaysBetween` iki damganın **gün başlarını** çıkarır
+ve yaz saati geçişini (23/25 saatlik gün) yutmak için öğlene çekip fark alır.
+`photo_group.dart` ve `installed_apps_service.dart` de aynı tek kaynağa bağlandı.
+
+### D) BUG (KÖK NEDEN) — çöpe atılan dosya kategori listelerinde hayalet olarak yaşıyordu
+Kullanıcı: *"çöpe atılan şeyler bir süre sonra hem çöpte hem görüntüler hem
+dosyalarda hem son açılanlar hem yeni dosyalarda görülüyor"*.
+
+Arama dizini (`SearchIndex`) diskin bir FOTOĞRAFI. Silme onu yalnız **bayat**
+işaretliyordu ve bayat dizin ancak kullanıcı ARAMA ekranını açınca yeniden
+kuruluyor — hiç aramayan kullanıcıda hayalet satır günlerce yaşıyor
+("bir süre sonra" dediği tam bu). `SearchIndex.query` dönen satırları
+`e.exists` ile süzüyordu ama `MediaLibrary.categoryFiles` → `collectFromIndex`
+yolu **süzmüyordu**; "Görüntüler" ızgarası ve pano sayıları hayaletleri
+gösteriyordu.
+
+İki katmanlı düzeltme:
+1. **`SearchIndex.forget(paths)`** — çöpe atma, kalıcı silme ve taşımada o
+   satırlar dizinden çıkarılır (geçici dosyaya yazıp `rename`: iş yarıda
+   kesilirse dizin yarım kalmasın). Klasör silindiyse altındaki tüm satırlar da.
+2. **`_collectFromIndexSync` varlık süzgeci** — ağ: dosya BAŞKA bir uygulama
+   (galeri, WhatsApp) tarafından silinmişse `forget` çağrılmaz. `existsSync`
+   maliyeti yalnız kategori eşleşenlere ödenir ve iş zaten isolate'te.
+
+Geri yüklemede satır dizine geri yazılmaz: dosya eski yolunda gerçekten
+durduğu için bir sonraki kurulumda kendiliğinden döner, arada gezgin onu
+diskten zaten gösterir.
+
+### E) BUG — ilerleme penceresinde "Arka plana al" düğmesi kayıyordu
+`AlertDialog` genişliğini İÇERİĞİNDEN alır; içerikteki en geniş şey o an
+işlenen **dosyanın adı**. Ad her dosyada değişince pencere her karede yeniden
+ölçülüyor, düğmeler sağa sola kayıyor ve kullanıcı basmaya çalışırken düğme
+yerinden gidiyordu. **`maxLines: 1` yetmiyor** — tek satır da olsa İSTENEN
+genişlik adın uzunluğu kadardır. Çözüm: içerik sabit genişlikli bir `SizedBox`
+içinde (ekranın %78'i, 240–420 dp arası).
+
+### F) İSTEK — AI analizi bulunamıyordu → ayrı "Analiz" sekmesi (ilk sekme)
+Analiz her şeyin ÖN KOŞULU (etiket/öneri/rapor/sohbet analiz edilmiş dosya
+olmadan boş) ama başlatma düğmesi sekme çubuğunun bile üstündeki ince durum
+şeridinin sağ ucundaydı. İlk kez giren kullanıcı dört boş sekme görüp "AI
+çalışmıyor" sanıyordu. Yeni ilk sekme: ne işe yaradığını anlatan kart +
+56 dp'lik tam genişlik "Analizi başlat" + ilerleme + kapsam ayarı.
+
+### G) İSTEK — pano: renk açıklaması kalktı, Bellek Analizi büyük simge oldu
+*"Diğer, Videolar, Görüntüler"* alt yazıları üç turda küçülmüştü ama sorun
+boyut değil VARLIĞIYDI: kartın altındaki yazı sırası üstteki kapasite
+bilgisinden çok yer kaplıyor ve göze ondan önce çarpıyordu. Çubuk oranı zaten
+gösteriyor; hangi kategorinin ne tuttuğu **Bellek Analizi** ekranının işi ve o
+düğme hemen yanında. Analiz kutusu: 26 dp soluk çizgi glif → **42 dp vurgu
+renginde ortalanmış simge**, "Kullanılan %60" alt satırı kalktı (aynı sayı
+soldaki kartta hem çemberde hem yazıyla zaten var). Kapasite satırı **iki
+satıra** bölündü: cihazda "307 GB / 512 GB · 20…" diye kırpılıyordu, yani
+kullanıcının aradığı sayı (kaç GB boş) görünmeyen yarıya düşüyordu.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze` 0 sorun,
+**1710 test yeşil** (yeni: tema aileleri 11, takvim günü 8, hayalet satır 1).
+`graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil) —
+yerelde çalıştırılmalı.

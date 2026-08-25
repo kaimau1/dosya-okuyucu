@@ -178,6 +178,41 @@ abstract final class SearchIndex {
     if (_stale && !isBuilding) unawaited(rebuild());
   }
 
+  /// **Verilen yolları dizinden düşürür** (dosya çöpe taşındı / kalıcı silindi
+  /// / taşındı).
+  ///
+  /// KÖK NEDEN (kullanıcı hatası 2026-08-25: *"çöpe atılan şeyler bir süre
+  /// sonra hem çöpte hem görüntüler hem dosyalarda hem son açılanlar hem yeni
+  /// dosyalarda görülüyor"*): dizin diskin bir fotoğrafıydı ve silme onu
+  /// yalnız **bayat** işaretliyordu. Bayat dizin ise ancak kullanıcı ARAMA
+  /// ekranını açınca yeniden kuruluyor; hiç aramayan kullanıcıda hayalet satır
+  /// günlerce yaşıyor ("bir süre sonra" dediği tam bu) ve panodaki kategori
+  /// sayıları da o satırları sayıyordu.
+  ///
+  /// Tüm dizini yeniden taramak (dakikalar) yerine düz dosyadan o satırları
+  /// çıkarmak yeterli: 10 MB'lık bir dosyayı bir kez okuyup yazmak isolate'te
+  /// göz açıp kapayıncaya kadar sürüyor. Klasör silindiyse **altındaki tüm
+  /// satırlar** da düşer.
+  ///
+  /// Dizin bayatlığı DEĞİŞMEZ: burada yalnız silinenler düşürülüyor, yeni
+  /// eklenenler hâlâ tam yeniden kurulumu bekliyor.
+  static Future<void> forget(Iterable<String> paths) async {
+    final targets = paths.map(p.normalize).toSet();
+    if (targets.isEmpty) return;
+    await ensureLoaded();
+    if (!isReady || _dir.isEmpty) return;
+    try {
+      final left = await compute(
+        _forgetSync,
+        _ForgetArgs(indexPath: indexPath, paths: targets.toList()),
+      );
+      if (left < 0) return; // dosya okunamadı: dizin olduğu gibi kalsın
+      _entryCount = left;
+      await _writeMeta();
+      revision.value++;
+    } catch (_) {}
+  }
+
   /// Dizini siler (ayarlardan "dizini temizle").
   static Future<void> clear() async {
     await ensureLoaded();
@@ -360,4 +395,56 @@ List<FsEntry> _querySync(_QueryArgs args) {
     raf.closeSync();
   }
   return hits;
+}
+
+
+class _ForgetArgs {
+  final String indexPath;
+  final List<String> paths;
+  const _ForgetArgs({required this.indexPath, required this.paths});
+}
+
+/// Dizin dosyasını satır satır kopyalar, [_ForgetArgs.paths] altında kalan
+/// satırları atar. Kalan satır sayısını döndürür; dosya yoksa/okunamazsa −1.
+///
+/// **Geçici dosyaya yazıp `rename`:** yerinde yazmak, iş yarıda kesilirse
+/// (uygulama öldürüldü, disk doldu) dizini yarım bırakırdı. `rename` aynı
+/// klasörde atomik.
+int _forgetSync(_ForgetArgs args) {
+  final file = File(args.indexPath);
+  if (!file.existsSync()) return -1;
+  final tmp = File('${args.indexPath}.tmp');
+  var kept = 0;
+  try {
+    final out = tmp.openSync(mode: FileMode.write);
+    try {
+      // Tampon: satır başına `writeStringSync` 100 bin sistem çağrısı demekti.
+      final buffer = StringBuffer();
+      for (final line in file.readAsLinesSync()) {
+        final entry = decodeIndexRow(line);
+        if (entry == null) continue;
+        final path = p.normalize(entry.path);
+        final dropped = args.paths.any(
+          (t) => p.equals(t, path) || p.isWithin(t, path),
+        );
+        if (dropped) continue;
+        buffer.writeln(line);
+        kept++;
+        if (buffer.length > 256 * 1024) {
+          out.writeStringSync(buffer.toString());
+          buffer.clear();
+        }
+      }
+      if (buffer.isNotEmpty) out.writeStringSync(buffer.toString());
+    } finally {
+      out.closeSync();
+    }
+    tmp.renameSync(args.indexPath);
+    return kept;
+  } catch (_) {
+    try {
+      if (tmp.existsSync()) tmp.deleteSync();
+    } catch (_) {}
+    return -1;
+  }
 }

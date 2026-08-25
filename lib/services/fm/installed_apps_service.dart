@@ -5,6 +5,7 @@ import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../models/file_age.dart';
 import 'app_storage_service.dart';
 
 /// Yüklü bir uygulama + son kullanım bilgisi.
@@ -41,9 +42,16 @@ class InstalledAppEntry {
   int get totalBytes => size?.totalBytes ?? 0;
 
   /// Kaç gündür açılmadı? Bilinmiyorsa null.
+  ///
+  /// Gün sayımı **takvim günü** (gece 00:00), 24 saatlik dilim değil — dün
+  /// 23:50'de açılan uygulama bu sabah "bugün" değil "1 gün" görünmeli
+  /// (bkz. [calendarDaysBetween], kullanıcı hatası 2026-08-25).
   int? idleDays(int nowMs) {
     if (!usageKnown || lastUsedMs <= 0) return null;
-    return ((nowMs - lastUsedMs) / 86400000).floor();
+    return calendarDaysBetween(
+      DateTime.fromMillisecondsSinceEpoch(lastUsedMs),
+      DateTime.fromMillisecondsSinceEpoch(nowMs),
+    );
   }
 }
 

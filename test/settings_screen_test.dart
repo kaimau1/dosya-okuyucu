@@ -63,8 +63,9 @@ void main() {
   testWidgets('kart mevcut değeri gösterir (açmadan ne ayarlı görülüyor)',
       (tester) async {
     await _pump(tester);
-    // Varsayılan tema "Sistem", dil "Sistem" → kartta ikisi de yazar.
-    expect(find.text('Sistem · Sistem'), findsOneWidget);
+    // Varsayılan tema ailesi "Kağıt", mod "Sistem", dil "Sistem" → üçü de
+    // kartta yazar (aile 2026-08-25'te eklendi: `AppSkin`).
+    expect(find.text('Kağıt · Sistem · Sistem'), findsOneWidget);
   });
 
   /// **Kök neden testi:** eski arama BÖLÜM başlığına bakıyordu; "küçük resim"
@@ -115,8 +116,13 @@ void main() {
     expect(find.byType(SettingsCategoryScreen), findsOneWidget);
     // Tema, yazı ve dil AYNI kategoride: üçü de "uygulama bana nasıl görünsün"
     // sorusunun cevabı (eskiden dil ayrı bir bölümdü).
+    expect(find.text('Tema ailesi'), findsOneWidget);
     expect(find.text('Tema'), findsOneWidget);
     expect(find.text('Yazı tipi'), findsOneWidget);
+    // Kategori 2026-08-25'te "Tema ailesi" ve "Arka plan rengi" satırlarıyla
+    // uzadı; "Dil" artık ilk ekranın altında kalıyor, kaydırıp bakıyoruz.
+    await tester.scrollUntilVisible(find.text('Dil'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Dil'), findsOneWidget);
   });
 

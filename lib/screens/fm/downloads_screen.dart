@@ -368,7 +368,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       // onay rozeti kapağın köşesine biner (bkz. [FmSelectableIcon]).
       leading: FmSelectableIcon(
         entry: entry,
-        size: FmLayout.list.iconSizeFor(0),
+        size: FmLayout.list.iconSizeFor(0) * context.fmIconScale,
         selecting: _selecting,
         selected: selected,
         onCheck: () => setState(() {

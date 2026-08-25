@@ -47,7 +47,16 @@ class AiHubScreen extends StatefulWidget {
 
 class _AiHubScreenState extends State<AiHubScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 4, vsync: this);
+  /// **Beş sekme, ilki "Analiz"** (kullanıcı hatası 2026-08-25: *"ai kısmında
+  /// ai ile dosya analizini bulmak çok zor"*).
+  ///
+  /// KÖK NEDEN: analiz her şeyin ÖN KOŞULU (etiket, öneri, rapor ve sohbet
+  /// analiz edilmiş dosya olmadan boş) ama başlatma düğmesi sekmelerin
+  /// üstündeki ince durum çubuğunun sağ ucunda küçük bir düğmeydi. Uygulamaya
+  /// ilk kez giren kullanıcı dört boş sekme görüyor, "AI çalışmıyor" sanıyordu.
+  /// Artık açılışta gelen sekme analizin kendisi: ne işe yaradığını anlatan
+  /// bir kart ve ekranın yarısı kadar bir "Analizi başlat" düğmesi.
+  late final TabController _tabs = TabController(length: 5, vsync: this);
 
   @override
   void initState() {
@@ -78,6 +87,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           tabs: [
+            Tab(text: context.t('aih.tab_analysis')),
             Tab(text: context.t('aih.tab_chat')),
             Tab(text: context.t('aih.tab_tags')),
             Tab(text: context.t('aih.tab_suggestions')),
@@ -92,6 +102,7 @@ class _AiHubScreenState extends State<AiHubScreen>
             child: TabBarView(
               controller: _tabs,
               children: const [
+                _AnalysisTab(),
                 _ChatTab(),
                 _TagsTab(),
                 _SuggestionsTab(),
@@ -227,7 +238,173 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
-// ── sekme 1: sohbet ─────────────────────────────────────────────────────────
+// ── sekme 1: analiz ─────────────────────────────────────────────────────────
+
+/// **Analiz sekmesi** — "AI ile dosya analizi"nin bulunur hâli.
+///
+/// Kullanıcı hatası (2026-08-25): *"ai kısmında ai ile dosya analizini bulmak
+/// çok zor"*. Doğruydu: başlatma düğmesi [_StatusBar]'ın sağ ucunda, sekme
+/// çubuğunun bile üstünde duran küçük bir düğmeydi ve ekranın geri kalanı
+/// analiz koşmadan boş görünüyordu.
+///
+/// Bu sekme üç soruyu sırayla cevaplar: **ne işe yarar**, **ne kadarı bitti**,
+/// **nasıl başlatılır**. Kapsam ayarı da burada — "hangi klasörler okunuyor"
+/// sorusu analizi başlatmadan önce sorulan bir soru, ayarların derinlerinde
+/// değil.
+class _AnalysisTab extends StatelessWidget {
+  const _AnalysisTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<AiProgress>(
+      valueListenable: AiAnalyzer.progress,
+      builder: (context, progress, _) => ValueListenableBuilder<int>(
+        valueListenable: AiIndex.revision,
+        builder: (context, _, __) => _body(context, progress),
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context, AiProgress progress) {
+    final theme = Theme.of(context);
+    final faint = Paper.faint(context);
+    final state = context.watch<AppState>();
+    return ListView(
+      padding: const EdgeInsets.all(Gap.md),
+      children: [
+        // Ne işe yaradığı ÖNCE gelir: kullanıcı düğmeye basmadan önce ne
+        // olacağını bilmeli (dosyaları okuyacağız, token harcayacağız).
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.auto_awesome,
+                        size: 28, color: theme.colorScheme.primary),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Text(context.t('aih.analysis_what'),
+                          style: theme.textTheme.titleMedium),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Gap.sm),
+                Text(context.t('aih.analysis_body'),
+                    style: theme.textTheme.bodyMedium),
+                const SizedBox(height: Gap.sm),
+                Text(context.t('aih.analysis_manual'),
+                    style: TextStyle(fontSize: 12, color: faint)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.md),
+
+        // Sayaç: kaç dosya analiz edildi / şu an ne oluyor.
+        Text(
+          progress.isBusy
+              ? '${context.t('aih.analysis_running')} · '
+                  '${progress.done}/${progress.total}'
+              : context.t('aih.analyzed', {'n': AiIndex.count}),
+          style: theme.textTheme.titleLarge,
+        ),
+        if (progress.isBusy) ...[
+          const SizedBox(height: Gap.sm),
+          LinearProgressIndicator(
+            value: progress.total == 0 ? null : progress.fraction,
+          ),
+          const SizedBox(height: Gap.xs),
+          Text(
+            progress.message.isNotEmpty
+                ? progress.message
+                : progress.currentName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: faint),
+          ),
+        ],
+        const SizedBox(height: Gap.md),
+
+        // Asıl düğme: tam genişlik, 56 dp. "Bulunması zor" şikâyetinin cevabı
+        // burada — ekranın ortasında, adı üstünde yazan tek eylem.
+        if (progress.isBusy)
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: Icon(progress.phase == AiRunPhase.paused
+                      ? Icons.play_arrow
+                      : Icons.pause),
+                  label: Text(context.t(progress.phase == AiRunPhase.paused
+                      ? 'aih.resume'
+                      : 'aih.pause')),
+                  onPressed: () => progress.phase == AiRunPhase.paused
+                      ? AiAnalyzer.resume()
+                      : AiAnalyzer.pause(),
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.stop),
+                  label: Text(context.t('aih.stop')),
+                  onPressed: AiAnalyzer.cancel,
+                ),
+              ),
+            ],
+          )
+        else
+          SizedBox(
+            height: 56,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.auto_awesome),
+              label: Text(context
+                  .t(AiIndex.count == 0 ? 'aih.start' : 'aih.continue')),
+              onPressed: () => _start(context, reanalyze: false),
+            ),
+          ),
+        if (!progress.isBusy && AiIndex.count > 0) ...[
+          const SizedBox(height: Gap.sm),
+          TextButton(
+            onPressed: () => _start(context, reanalyze: true),
+            child: Text(context.t('aih.reanalyze')),
+          ),
+        ],
+        if (!progress.isBusy && !state.hasApiKey) ...[
+          const SizedBox(height: Gap.sm),
+          Text(context.t('aih.no_key_note'),
+              style: TextStyle(fontSize: 12, color: faint)),
+        ],
+        const SizedBox(height: Gap.md),
+
+        // Kapsam: "hangi klasörler okunuyor" — başlatmadan önce sorulan soru.
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.tune),
+          title: Text(context.t('aih.analysis_scope')),
+          subtitle: Text(context.t('aih.scope_summary',
+              {'n': state.aiScope.excludedFolders.length})),
+          onTap: () => openSettingsCategory(context, 'ai'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _start(BuildContext context, {required bool reanalyze}) async {
+    final state = context.read<AppState>();
+    // Analiz uzun sürer ve ekran kapanabilir; state okumaları burada bitiyor.
+    await AiAnalyzer.start(
+      scope: state.aiScopeRules,
+      credentials: state.aiCredentials,
+      reanalyze: reanalyze,
+    );
+  }
+}
+
+// ── sekme 2: sohbet ─────────────────────────────────────────────────────────
 
 class _ChatMsg {
   final bool fromUser;

@@ -39,7 +39,12 @@ abstract final class FmColors {
         FmCategory.other => other,
       };
 
-  static IconData iconFor(FmCategory c) => switch (c) {
+  /// Kategori glifi. [outlined] tema ailesinden gelir (2026-08-25): "İş
+  /// programı" ve "Gece" ailelerinde dolu glifler ekranı ağırlaştırıyordu,
+  /// çizgi glif aynı bilgiyi daha sakin veriyor. Aynı kategori, aynı yer —
+  /// yalnız çizim ağırlığı değişiyor.
+  static IconData iconFor(FmCategory c, {bool outlined = false}) =>
+      outlined ? _outlined(c) : switch (c) {
         FmCategory.folder => Icons.folder_rounded,
         FmCategory.image => Icons.image_rounded,
         FmCategory.video => Icons.movie_rounded,
@@ -48,6 +53,17 @@ abstract final class FmColors {
         FmCategory.apk => Icons.android_rounded,
         FmCategory.document => Icons.description_rounded,
         FmCategory.other => Icons.insert_drive_file_rounded,
+      };
+
+  static IconData _outlined(FmCategory c) => switch (c) {
+        FmCategory.folder => Icons.folder_outlined,
+        FmCategory.image => Icons.image_outlined,
+        FmCategory.video => Icons.movie_outlined,
+        FmCategory.audio => Icons.music_note_outlined,
+        FmCategory.archive => Icons.folder_zip_outlined,
+        FmCategory.apk => Icons.android_outlined,
+        FmCategory.document => Icons.description_outlined,
+        FmCategory.other => Icons.insert_drive_file_outlined,
       };
 
   // ── uzantıya ve klasör adına özel simgeler ────────────────────────────────
@@ -246,7 +262,7 @@ class FmEntryIcon extends StatelessWidget {
   /// DCIM, WhatsApp…). Bkz. [FmColors.forExtension] / [FmColors.forFolderName].
   Widget _badge(BuildContext context, FmCategory category) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    var icon = FmColors.iconFor(category);
+    var icon = FmColors.iconFor(category, outlined: context.fmOutlinedIcons);
     var base = FmColors.forCategory(category);
     if (entry.isDir) {
       icon = FmColors.forFolderName(entry.name) ?? icon;

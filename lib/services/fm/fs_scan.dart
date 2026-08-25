@@ -439,6 +439,24 @@ List<FsEntry> _finishCollect(List<FsEntry> hits) {
   return hits;
 }
 
+/// **KÖK NEDEN — "çöpe attığım dosya hâlâ Görüntüler'de görünüyor"**
+/// (kullanıcı hatası 2026-08-25: *"çöpe atılan şeyler bir süre sonra hem
+/// çöpte hem görüntüler hem dosyalarda hem son açılanlar hem yeni dosyalarda
+/// görülüyor"*).
+///
+/// Arama dizini (`SearchIndex`) diskin bir FOTOĞRAFI; dosya çöpe taşınınca
+/// dizindeki eski satır orada durmaya devam ediyor. `SearchIndex.query` bunu
+/// biliyordu ve dönen satırları `e.exists` ile süzüyordu — ama kategori
+/// listeleri (`MediaLibrary.categoryFiles` → buraya) süzmüyordu. Sonuç: aynı
+/// dosya hem çöp kutusunda hem "Görüntüler" ızgarasında.
+///
+/// Dizin bayatlığı bunu tek başına çözmüyor: bayat dizin yalnız arama ekranı
+/// açılınca yeniden kuruluyor, kullanıcı oraya hiç girmezse hayalet satır
+/// günlerce yaşıyor ("bir süre sonra" dediği tam bu).
+///
+/// `existsSync` maliyeti KATEGORİ EŞLEŞENLERE ödenir (yürüyüş yine tüm
+/// satırları okur ama stat yalnız listeye girecek olanlara yapılır) ve bu iş
+/// zaten bir isolate'te koşuyor — ana izlek etkilenmez.
 List<FsEntry> _collectFromIndexSync(_CollectArgs args) {
   final path = args.indexPath;
   if (path == null) return const [];
@@ -451,6 +469,7 @@ List<FsEntry> _collectFromIndexSync(_CollectArgs args) {
     if (rootPrefix != null && !FsPaths.isInside(rootPrefix, entry.path)) {
       return true;
     }
+    if (!entry.exists) return true; // silinmiş/çöpe taşınmış: hayalet satır
     hits.add(entry);
     return hits.length < args.limit;
   });

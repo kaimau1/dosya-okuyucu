@@ -5171,6 +5171,59 @@ const Map<String, (String, String, String)> _table = {
     'معدل التحديث والفحص التلقائي وفهرس البحث والذاكرة المؤقتة',
   ),
   'set.sec_theme': ('Tema', 'Theme', 'السمة'),
+
+  // ── tema aileleri (2026-08-25) ──────────────────────────────────────────
+  'skin.title': ('Tema ailesi', 'Theme style', 'نمط السمة'),
+  'skin.paper': ('Kağıt', 'Paper', 'ورقي'),
+  'skin.paper_sub': (
+    'Kağıt zemin, mürekkep metin, cetvel çizgileri',
+    'Paper ground, ink text, ruled lines',
+    'خلفية ورقية ونص حبري وخطوط مسطرة',
+  ),
+  'skin.light': ('Açık', 'Light', 'فاتح'),
+  'skin.light_sub': (
+    'Nötr beyaz — kağıdın sıcaklığı olmadan',
+    'Neutral white, without the paper warmth',
+    'أبيض محايد بدون دفء الورق',
+  ),
+  'skin.modern': ('Modern', 'Modern', 'عصري'),
+  'skin.modern_sub': (
+    'Canlı mor vurgu, yuvarlak köşeler, büyük simgeler',
+    'Vivid purple accent, round corners, large icons',
+    'لون بنفسجي زاهٍ وزوايا دائرية وأيقونات كبيرة',
+  ),
+  'skin.office': ('İş programı', 'Business', 'برنامج عمل'),
+  'skin.office_sub': (
+    'Keskin köşeler, küçük simgeler, sıkı satırlar',
+    'Sharp corners, small icons, dense rows',
+    'زوايا حادة وأيقونات صغيرة وصفوف مكثفة',
+  ),
+  'skin.night': ('Gece (OLED)', 'Night (OLED)', 'ليلي (OLED)'),
+  'skin.night_sub': (
+    'Saf siyah zemin — pil dostu, gece okunur',
+    'Pure black ground: battery friendly, easy at night',
+    'خلفية سوداء نقية موفرة للبطارية ومريحة ليلاً',
+  ),
+  'skin.forces_dark': (
+    'Bu tema her zaman koyu çalışır',
+    'This theme always stays dark',
+    'تبقى هذه السمة داكنة دائماً',
+  ),
+
+  // ── arka plan rengi ─────────────────────────────────────────────────────
+  'bgc.title': ('Arka plan rengi', 'Background colour', 'لون الخلفية'),
+  'bgc.default': ('Temanın kendi', 'Theme default', 'افتراضي السمة'),
+  'bgc.white': ('Beyaz', 'White', 'أبيض'),
+  'bgc.paper': ('Kağıt', 'Paper', 'ورقي'),
+  'bgc.sand': ('Kum', 'Sand', 'رملي'),
+  'bgc.rose': ('Gül', 'Rose', 'وردي'),
+  'bgc.mint': ('Nane', 'Mint', 'نعناعي'),
+  'bgc.ice': ('Buz mavisi', 'Ice blue', 'أزرق ثلجي'),
+  'bgc.lilac': ('Leylak', 'Lilac', 'ليلكي'),
+  'bgc.grey': ('Gri', 'Grey', 'رمادي'),
+  'bgc.olive': ('Zeytin', 'Olive', 'زيتوني'),
+  'bgc.navy': ('Gece mavisi', 'Navy', 'كحلي'),
+  'bgc.black': ('Siyah', 'Black', 'أسود'),
   'set.sec_text': ('Yazı', 'Text', 'النص'),
   'set.sec_language': ('Dil', 'Language', 'اللغة'),
   'set.sec_lists': ('Listeler', 'Lists', 'القوائم'),
@@ -5403,7 +5456,40 @@ const Map<String, (String, String, String)> _table = {
 
   // ── AI Merkezi (toplu dosya analizi) ──────────────────────────────────────
   'aih.title': ('AI Merkezi', 'AI Hub', 'مركز الذكاء الاصطناعي'),
+  'aih.tab_analysis': ('Analiz', 'Analysis', 'التحليل'),
   'aih.tab_chat': ('Sohbet', 'Chat', 'محادثة'),
+  'aih.analysis_what': (
+    'Dosya analizi ne yapar?',
+    'What does file analysis do?',
+    'ماذا يفعل تحليل الملفات؟',
+  ),
+  'aih.analysis_body': (
+    'Telefondaki belge, fotoğraf ve indirmeleri okuyup her birine tür '
+        've önem verir. Sonra "geçen ay indirdiğim faturalar nerede" diye '
+        'sorabilir, resmî evrakı tek listede görebilir, anlamsız adları ve '
+        'yanlış klasörleri toplu düzeltebilirsin.',
+    'It reads the documents, photos and downloads on your phone and gives '
+        'each one a type and an importance. After that you can ask "where '
+        'are the invoices I downloaded last month", see all official '
+        'paperwork in one list, and fix meaningless names and wrong folders '
+        'in bulk.',
+    'يقرأ المستندات والصور والتنزيلات على هاتفك ويمنح كلاً منها نوعاً '
+        'وأهمية. بعدها يمكنك السؤال عن ملفاتك، ورؤية الأوراق الرسمية في '
+        'قائمة واحدة، وإصلاح الأسماء والمجلدات الخاطئة دفعة واحدة.',
+  ),
+  'aih.analysis_manual': (
+    'Analiz kendiliğinden başlamaz — sen başlatana kadar hiçbir dosya '
+        'okunmaz, hiç token harcanmaz.',
+    'Analysis never starts on its own: no file is read and no token is '
+        'spent until you start it.',
+    'لا يبدأ التحليل تلقائياً: لا يُقرأ أي ملف ولا يُستهلك أي رمز حتى تبدأه.',
+  ),
+  'aih.analysis_scope': ('Kapsamı ayarla', 'Set the scope', 'اضبط النطاق'),
+  'aih.analysis_running': (
+    'Analiz sürüyor',
+    'Analysis is running',
+    'التحليل قيد التشغيل',
+  ),
   'aih.tab_tags': ('Etiketler', 'Tags', 'الوسوم'),
   'aih.tab_suggestions': ('Öneriler', 'Suggestions', 'اقتراحات'),
   'aih.tab_report': ('Rapor', 'Report', 'تقرير'),

@@ -124,7 +124,8 @@ class FmCategoryTile extends StatelessWidget {
     // 38 → 46 (ikinci tur: *"simgeleri olabildiğince büyüt"*). Dört sütunda
     // hücre ~76 dp; 46 dp glif hücrenin genişliğinin %60'ı — daha büyüğü
     // etiketi sıkıştırırdı.
-    final icon = Icon(data.icon, color: tint, size: 46);
+    // 46 taban ölçü; tema ailesi bunu ölçekler (bkz. SkinMetrics.iconScale).
+    final icon = Icon(data.icon, color: tint, size: 46 * context.fmIconScale);
     return InkWell(
       onTap: data.onTap,
       borderRadius: BorderRadius.circular(Radii.card),
@@ -239,7 +240,7 @@ class FmToolGrid extends StatelessWidget {
               children: [
                 // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının 46'sından
                 // bir kademe küçük kalıyor, ağırlık hiyerarşisi korunuyor.
-                Icon(tool.icon, color: tint, size: 34),
+                Icon(tool.icon, color: tint, size: 34 * context.fmIconScale),
                 const SizedBox(height: Gap.xs),
                 Text(
                   tool.label,

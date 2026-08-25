@@ -495,7 +495,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ),
                       const SizedBox(width: Gap.sm),
-                      SizedBox(width: 118, child: _analysisCard(v)),
+                      SizedBox(width: 126, child: _analysisCard(v)),
                     ],
                   ),
                 )
@@ -960,7 +960,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   FmTileData _categoryTile(FmCategory category, {bool grid = false}) {
     final stat = _index.stat(category);
     return FmTileData(
-      icon: FmColors.iconFor(category),
+      icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
       color: FmColors.forCategory(category),
       label: category.label,
       subtitle: stat.count == 0
@@ -976,34 +976,36 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// uzaktaydı. Yeri artık aradığı bilgiyle yan yana.
   Widget _analysisCard(StorageVolume volume) {
     final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    // **Büyük simge, ortalanmış, tek kelime** (kullanıcı isteği 2026-08-25:
+    // *"bellek analizi simgesini büyük simge yap ve yazıları düzenle"*).
+    //
+    // Eski hâlde 26 dp'lik soluk bir çizgi glif sola yaslanmış, altında iki
+    // satır yazı vardı: kutu bir DÜĞME olduğu hâlde bir bilgi kartı gibi
+    // duruyordu ve göz onu ana bellek kartının küçük eki sanıyordu. Artık
+    // ağırlık simgede: 42 dp, vurgu renginde, ortada. "Kullanılan %60" alt
+    // satırı KALKTI — aynı sayı soldaki kartta zaten hem çemberde hem
+    // yazıyla var, burada üçüncü kez tekrarlanıyordu.
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
         child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Gap.sm, vertical: Gap.md),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(Icons.pie_chart_outline,
-                  size: 26, color: scheme.onSurfaceVariant),
+              Icon(Icons.donut_large,
+                  size: 42 * context.fmIconScale, color: scheme.primary),
               const SizedBox(height: Gap.sm),
               Text(
                 context.t('fm.storage_analysis'),
-                style: Theme.of(context).textTheme.titleSmall,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: theme.textTheme.titleSmall,
               ),
-              if (volume.hasStats) ...[
-                const SizedBox(height: 2),
-                Text(
-                  context.t('fm.used_percent',
-                      {'n': (volume.usedFraction * 100).round()}),
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Paper.faint(context)),
-                ),
-              ],
             ],
           ),
         ),
@@ -1224,17 +1226,35 @@ class _VolumeCard extends StatelessWidget {
                     Text(volume.displayLabel(context.t),
                         style: theme.textTheme.titleMedium),
                     const SizedBox(height: 2),
-                    // Aradığı sayı "kaç GB boş" — dolu/toplam ikilisi bunu
-                    // kafadan çıkarmayı gerektiriyordu, ayrıca yazılıyor.
+                    // **İKİ SATIR** (kullanıcı 2026-08-25: *"yazıları
+                    // düzenle"*). Tek satırda "307 GB / 512 GB · 205 GB boş"
+                    // yazıyordu ve yanındaki analiz kutusu daralttığı için
+                    // cihazda "307 GB / 512 GB · 20…" diye KIRPILIYORDU —
+                    // yani kullanıcının asıl aradığı sayı (kaç GB boş) tam da
+                    // görünmeyen yarıya düşüyordu.
+                    //
+                    // Birim ilk sayıdan atıldı: "307 / 512 GB" aynı şeyi
+                    // söylüyor, iki kez "GB" yazmak yer harcıyordu.
                     volume.hasStats
-                        ? MonoText(
-                            // Kapasite ONDALIK (telefonun üstünde yazan sayı).
-                            '${FsPaths.humanCapacity(volume.usedBytes)} / '
-                            '${FsPaths.humanCapacity(volume.capacityBytes)}  ·  '
-                            '${context.t('fm.free_bytes', {
-                                  'v': FsPaths.humanCapacity(volume.freeBytes),
-                                })}',
-                            size: 12,
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              MonoText(
+                                // Kapasite ONDALIK (telefonun üstünde yazan
+                                // sayı).
+                                '${FsPaths.humanCapacity(volume.usedBytes)}'
+                                ' / '
+                                '${FsPaths.humanCapacity(volume.capacityBytes)}',
+                                size: 12,
+                              ),
+                              MonoText(
+                                context.t('fm.free_bytes', {
+                                  'v':
+                                      FsPaths.humanCapacity(volume.freeBytes),
+                                }),
+                                size: 12,
+                              ),
+                            ],
                           )
                         : MonoText(volume.path, size: 12),
                   ],
@@ -1290,45 +1310,17 @@ class _VolumeCard extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: Gap.xs),
-        // Renk açıklaması TEK SATIR (kullanıcı isteği 2026-08-06: *"ana bellek
-        // kısmında alt maddeleri çok yer kaplıyor"*). Eskiden altı madde iki
-        // satıra taşıyordu. Artık yalnız **payı görülebilir** olanlar (≥ %1)
-        // ve en büyük dörde kadar yazılır; "Boş" hiç yazılmaz — çubuktaki
-        // dolgusuz kısım zaten o. Küçük paylar çubukta duruyor, sayısı
-        // "Bellek Analizi" ekranında.
-        Wrap(
-          spacing: Gap.sm,
-          runSpacing: Gap.xs,
-          children: [
-            for (final part in _legendParts(parts, total))
-              _legend(context, part.color, part.label),
-          ],
-        ),
+        // **Renk açıklaması KALKTI** (kullanıcı isteği 2026-08-25: *"işaretlediğim
+        // yerdeki 'Diğer, Videolar, Görüntüler' gibi alt yazıları kaldır"*).
+        //
+        // Üç turda küçüldü ama sorun boyutu değil VARLIĞIYDI: kartın altındaki
+        // yazı sırası, üstteki "Ana bellek / 307 GB / 512 GB" bilgisinden daha
+        // çok yer kaplıyor ve göze ondan önce çarpıyordu — oysa hangi rengin
+        // ne olduğu panoda sorulan bir soru değil. Çubuğun kendisi oranı zaten
+        // gösteriyor; hangi kategorinin ne kadar tuttuğu **Bellek Analizi**
+        // ekranının işi ve o düğme hemen yanında duruyor.
       ],
     );
   }
 
-  /// Açıklamaya yazılacak paylar: yüzdesi görülebilir olanlar (≥ %1), en
-  /// büyükten küçüğe, en çok dört tane. Amaç tek satıra sığmak.
-  List<({Color color, String label, int bytes})> _legendParts(
-    List<({Color color, String label, int bytes})> parts,
-    int total,
-  ) {
-    final visible = parts.where((p) => p.bytes * 100 >= total).toList()
-      ..sort((a, b) => b.bytes.compareTo(a.bytes));
-    return visible.take(4).toList();
-  }
-
-  Widget _legend(BuildContext context, Color color, String label) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 8, height: 8, color: color),
-          const SizedBox(width: Gap.xs),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: Paper.faint(context)),
-          ),
-        ],
-      );
 }
