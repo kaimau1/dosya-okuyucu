@@ -8572,3 +8572,86 @@ kullanıcının aradığı sayı (kaç GB boş) görünmeyen yarıya düşüyord
 **1710 test yeşil** (yeni: tema aileleri 11, takvim günü 8, hayalet satır 1).
 `graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil) —
 yerelde çalıştırılmalı.
+
+---
+
+## 2026-08-27 — "Yeni Dosyalar"ın kör noktası + Uygulamalar'ın yeri + türe özel sayfa
+
+Kullanıcı üç ekran görüntüsüyle geldi: (1) WhatsApp'tan gelen bir PDF "Belgeler"de
+duruyor ama "Yeni Dosyalar"da yok; (2) pano kart ızgarasının boş kalan hücresi
+işaretlenip araç ızgarasındaki "Uygulamalar" simgesi gösterildi; (3) Bellek
+Analizi'nde "Uygulamalar" kartı ve "Türlere göre" listesi birlikte daire içine
+alındı.
+
+### A) KÖK NEDEN — sıcak klasör listesi Android 11 öncesinden kalmış
+*"yeni dosyalar da örnek SS'te olan 660 evler yazan dosya yeni olmasına rağmen
+yok"*. Dosyanın yolu ekran görüntüsünde yazıyor:
+`/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents/`.
+
+- "Yeni Dosyalar" ve panonun yakalama taraması (`FsScan.freshFiles`) yalnız
+  **sıcak klasörleri** geziyor; o liste `StorageStats.standardFolders` idi ve
+  oradaki WhatsApp girdisi **kökteki** `/storage/emulated/0/WhatsApp` klasörünü
+  arıyor. Android 11 kapsamlı depolamadan beri WhatsApp/Telegram/Signal medyayı
+  `Android/media/<paket>/` altına yazıyor → o ağaç **hiç taranmıyordu**.
+- Kullanıcının gördüğü çelişki tam olarak buradan: **tam tarama** ağacın
+  tamamını gezdiği için dosya "Belgeler"de görünüyor, ama o tarama 12 saatte bir
+  koşuyor; arada gelen her mesaj eki "Yeni Dosyalar"a hiç düşmüyordu.
+- **Çözüm:** `StorageStats.hotFolders(root)` — standart klasörler + `Android/media`
+  (tek kök olarak; altındaki paket klasörleri yürüyüşe kendiliğinden giriyor,
+  yeni bir uygulama kurulunca listeyi güncellemek gerekmiyor) + `Telegram`,
+  `Bluetooth`, `Recordings`. `Android/data` ve `Android/obb` **bilinçli olarak
+  YOK**: Android 11'den beri okunamıyorlar, denemek yalnız yavaşlatır.
+- **İkinci, daha sessiz neden:** liste sınırı 100'dü. 9243 dosyalı bir telefonda
+  yoğun bir günün kare sayısı üç haneli; öğlen inen bir PDF akşam olmadan
+  pencereden düşüyordu. Sınır **300**. Tarama maliyeti DEĞİŞMİYOR — ağaç yine
+  sonuna kadar geziliyor, bellekte yalnız en yeni N tutuluyor (`_TopN`).
+- Regresyon testi: `Android/media/com.whatsapp/.../660 EVLER.pdf` kurulup
+  `hotFolders` + `freshFiles` ile bulunuyor.
+
+### B) Uygulamalar araç ızgarasından büyük kutulara terfi etti
+Kart ızgarası dört sütunlu ve 11 kutu vardı: son satır üç doluydu, dördüncü
+hücre boş bakıyordu — kullanıcının işaretlediği yer. Kutu sayısı 12'ye çıkınca
+ızgara tam kapanıyor. Gerekçe Drive/Çöp kutusu/Son açılanlarla aynı: 12 küçük
+simgenin arasında kaybolan bir kapı, aranan bir kapıysa büyük kutu olmalı.
+
+- Alt yazıda **ölçülmüş toplam** yazıyor (`InstalledAppsService.summary`, 5 dk
+  önbellekli — Bellek Analizi de aynı önbellekten besleniyor, ekran artık anında
+  açılıyor). Ölçüm "Kullanım erişimi" iznine bağlı; **izin yokken sayı
+  UYDURULMAZ**, alt satır boş kalır. Yükleme panonun açılışını beklemez
+  (yüzlerce binder çağrısı → `unawaited`).
+
+### C) Bellek Analizi: Uygulamalar artık "Türlere göre"nin içinde
+*"uygulamalarında işaretli alanda göster ayrı olarak değil"*. Ayrı karttayken
+42 GB'lık uygulama yığını 55 GB'lık videoyla **karşılaştırılamıyordu**; oysa
+ekranın o bölümünün tek işi "yerim nereye gitti?". Artık aynı listenin son
+satırı, aynı ölçekte bir çubukla.
+
+- Çubukların paydası (`maxBytes`) uygulamalar toplamına da bakıyor — yoksa
+  42 GB'lık satır 55 GB'lık videonun yanında taşardı.
+- **Kaynak farkı bilinçli:** diğer çubuklar dosya taramasından, bu satır
+  `StorageStatsManager`dan geliyor; toplamları birim doluluğuna eşit olmak
+  zorunda değil (uygulama verisi taranan ağacın dışında).
+- Satırın altında en büyük üç uygulama ve önbellek toplamı yazıyor — eski
+  kartta olan bilgi kaybedilmedi.
+
+### D) Türe dokununca kendi sayfası açılıyor (boyuta göre sıralı)
+*"türlerin üzerine tıklayınca ona özel sayfa açılsın ve içerikler boyutlarına
+göre sıralanıp gösterilsin"*.
+
+- **Eskiden:** dokunuş yalnız ekranın çok aşağısındaki "En büyük dosyalar"
+  listesinin kapsamını değiştiriyordu. Kullanıcı aynı sayfada kalıyor, dokunuşun
+  bir şey yaptığı fark bile edilmiyordu; üstelik o liste kategorinin **en büyük
+  200** dosyasıyla sınırlı, yani "Belgeler"in tamamı hiçbir zaman görünmüyordu.
+- **Şimdi:** `CategoryScreen` açılıyor — `initialSort: FmSort.size`, azalan.
+  Kırpık pano önbelleği anında, tam liste `MediaLibrary.categoryFiles` ile
+  arkadan (kategori ekranlarının her yerdeki düzeni). Süzme/çoklu seçim/toplu
+  silme zaten orada, yeniden yazılmadı.
+- Kapsam çipleri **kaldırılmadı**: onlar hâlâ "en büyük dosyalar" listesini
+  yerinde daraltıyor. İki ayrı soru, iki ayrı yol.
+- Çubuklar artık birer düğme olduğu için sağ uçlarında `chevron` var —
+  dokunulabilir olduğu hiçbir yerden anlaşılmıyordu.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `flutter analyze lib` 0 sorun,
+**1711 test yeşil** (yeni: sıcak klasör Android/media regresyonu 1).
+`graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil) —
+yerelde çalıştırılmalı.

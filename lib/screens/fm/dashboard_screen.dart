@@ -15,6 +15,7 @@ import '../../services/fm/ai_index.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/media_library.dart';
 import '../../services/fm/search_index.dart';
@@ -76,6 +77,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _trashCount = 0;
   final Map<String, int> _folderSizes = {};
 
+  /// Yüklü uygulamaların toplam boyutu — "Uygulamalar" kutusunun alt yazısı.
+  /// Ölçüm "Kullanım erişimi" iznine bağlı (bkz. `AppStorageService`); izin
+  /// yokken `null` kalır ve kutuda sayı YAZILMAZ — sıfır yazmak "hiç yer
+  /// kaplamıyor" demek olurdu.
+  int? _appsBytes;
+
   /// Dosya sistemi değişti mi (sil/kopyala/taşı…) — tarama bayat.
   bool _stale = false;
   int _seenFsVersion = FsEvents.version.value;
@@ -89,6 +96,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     // görünürdü. Okuma bittiğinde `AiIndex.revision` kartı tazeler.
     AiIndex.ensureLoaded();
     _boot();
+    unawaited(_loadAppsSize());
+  }
+
+  /// Uygulama boyutları platform kanalından gelir (yüzlerce binder çağrısı),
+  /// o yüzden panonun açılışını beklemez: arka planda gelir, gelince kutunun
+  /// alt yazısı dolar. Sonuç `InstalledAppsService` içinde 5 dakika saklandığı
+  /// için Bellek Analizi ekranı da bundan sonra anında açılır.
+  Future<void> _loadAppsSize() async {
+    final summary = await InstalledAppsService.summary();
+    if (!mounted || !summary.hasData) return;
+    setState(() => _appsBytes = summary.totalBytes);
   }
 
   @override
@@ -194,9 +212,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _catchingUp = true;
     try {
       await FmEnv.ensureInit();
-      final roots = <String>[
-        for (final f in StorageStats.standardFolders(FmEnv.primaryRoot)) f.path,
-      ];
+      final roots = StorageStats.hotFolders(FmEnv.primaryRoot);
       if (roots.isEmpty) return;
       final fresh = await FsScan.freshFiles(roots);
       if (!mounted || fresh.isEmpty) return;
@@ -772,6 +788,23 @@ class _DashboardScreenState extends State<DashboardScreen>
         subtitle: context.t('fm.drive_subtitle'),
         onTap: () => _push(const DriveScreen()),
       ),
+      // **Uygulamalar — büyük kutuların SONUNCUSU** (kullanıcı isteği
+      // 2026-08-27: araç ızgarasındaki simge işaretlenip kart ızgarasının boş
+      // kalan hücresi gösterildi). Yeri rastgele değil: ızgara dört sütunlu ve
+      // bu kutudan önce 11 kutu vardı — son satır üç doluydu, dördüncü hücre
+      // boş bakıyordu. Kutu sayısı 12'ye çıkınca ızgara tam kapanıyor.
+      // Alt yazı ölçülmüş toplamı gösterir (Bellek Analizi'ndeki sayının
+      // aynısı); ölçüm "Kullanım erişimi" iznine bağlı olduğu için izin yokken
+      // sayı UYDURULMAZ, alt satır boş bırakılır.
+      FmTileData(
+        icon: Icons.android,
+        color: FmColors.apk,
+        label: context.t('fm.apps'),
+        subtitle: _appsBytes == null
+            ? ''
+            : FsPaths.humanSize(_appsBytes!),
+        onTap: () => _push(const InstalledAppsScreen()),
+      ),
     ];
     return FmCategoryGrid(tiles: tiles);
   }
@@ -931,13 +964,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
         )),
       ),
-      FmTileData(
-        icon: Icons.android,
-        color: FmColors.apk,
-        label: context.t('fm.apps'),
-        subtitle: '',
-        onTap: () => _push(const InstalledAppsScreen()),
-      ),
+      // (Uygulamalar 2026-08-27'de buradan yukarıdaki BÜYÜK kutu ızgarasına
+      // taşındı — kullanıcı isteği, ekran görüntüsünde araç ızgarasındaki
+      // simge işaretlenip kart ızgarasının boş kalan dördüncü hücresi
+      // gösterildi. Gerekçe Drive/Çöp kutusu/Son açılanlarla aynı: yüklü
+      // uygulamalar hem yer analizinin hem de "neyi kaldırsam" sorusunun
+      // kapısı, 12 küçük simgenin arasında kayboluyordu.)
       FmTileData(
         icon: Icons.history_toggle_off,
         color: const Color(0xFF6D4C41),

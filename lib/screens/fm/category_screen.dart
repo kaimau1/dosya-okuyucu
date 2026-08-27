@@ -59,6 +59,18 @@ class CategoryScreen extends StatefulWidget {
   /// sessizce yutulurdu.
   final bool replaceOnLoad;
 
+  /// Ekran hangi sıralamayla açılsın (varsayılan: tarih, yeniden eskiye).
+  ///
+  /// Bellek Analizi'ndeki tür çubuklarından açılan liste **boyuta göre** açılır
+  /// (kullanıcı isteği 2026-08-27: *"türlerin üzerine tıklayınca ona özel sayfa
+  /// açılsın ve içerikler boyutlarına göre sıralanıp gösterilsin"*). Kullanıcı
+  /// içeride sıralamayı değiştirebilir — bu yalnız açılış değeri.
+  final FmSort initialSort;
+
+  /// [initialSort] azalan mı? Boyutta "en büyük üstte", tarihte "en yeni
+  /// üstte" demek.
+  final bool initialDescending;
+
   const CategoryScreen({
     super.key,
     required this.title,
@@ -67,6 +79,8 @@ class CategoryScreen extends StatefulWidget {
     this.showDocKinds = false,
     this.loadAll,
     this.replaceOnLoad = false,
+    this.initialSort = FmSort.date,
+    this.initialDescending = true,
   });
 
   @override
@@ -81,8 +95,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
   /// anda mount edilmez → tek denetleyici yeter).
   final ScrollController _scroll = ScrollController();
   late FmLayout _layout = widget.gridDefault ? FmLayout.grid3 : FmLayout.list;
-  FmSort _sort = FmSort.date;
-  bool _desc = true;
+  late FmSort _sort = widget.initialSort;
+  late bool _desc = widget.initialDescending;
 
   /// Tarih/boyut/kaynak/tür süzgeci (kaynak çipleriyle aynı alanı yazar).
   FmFilter _filter = FmFilter.none;

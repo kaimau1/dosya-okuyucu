@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 
+import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
@@ -12,6 +14,7 @@ import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/installed_apps_service.dart';
+import '../../services/fm/media_library.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_stats.dart';
@@ -20,6 +23,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
+import 'category_screen.dart';
 import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
 import 'folder_map_screen.dart';
@@ -75,7 +79,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   FmSort _sort = FmSort.size;
   bool _desc = true;
 
-  /// Kategori süzgeci (Türlere göre çubuklarına dokununca da ayarlanır).
+  /// **Aşağıdaki "en büyük dosyalar" listesinin** kapsamı; kapsam çipleriyle
+  /// ayarlanır. 2026-08-27'den beri "Türlere göre" çubukları bunu DEĞİŞTİRMEZ
+  /// — onlar artık türün kendi sayfasını açıyor (bkz. [_openType]).
   FmCategory? _category;
 
   /// Depolama eğilimi ("bu hafta +2,1 GB · en çok Videolar").
@@ -110,70 +116,79 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     setState(() => _apps = summary);
   }
 
-  /// **Uygulamalar** kartı — diğer dosya yöneticilerinin analizindeki
-  /// "Uygulamalar 63 GB" kutusunun karşılığı. Bizde hiç yoktu: `df` uygulama
-  /// başına kırılım bilmiyor, `Android/data` klasörü de Android 11'den beri
-  /// okunamıyor; sayı ancak `StorageStatsManager` köprüsünden geliyor
-  /// (`ci/MainActivity.kt`).
-  Widget _appsCard() {
+  /// **Uygulamalar satırı** — "Türlere göre" listesinin İÇİNDE, ayrı bir kart
+  /// olarak DEĞİL (kullanıcı isteği 2026-08-27: *"bellek analizinde
+  /// uygulamaları da işaretli alanda göster, ayrı olarak değil"*).
+  ///
+  /// *Niye doğru yer orası:* ekranın bu bölümü "yerim nereye gitti?" sorusunu
+  /// yanıtlıyor ve uygulamalar o pastanın en büyük dilimlerinden biri (bu
+  /// cihazda 42 GB — Videolar'dan sonra ikinci). Ayrı bir kartta dururken
+  /// çubuklarla karşılaştırılamıyordu: kullanıcı 42 GB'ın 55 GB'lık videoya
+  /// göre nerede durduğunu ancak aynı ölçekte görebilir.
+  ///
+  /// Sayı ölçülemediğinde (Kullanım erişimi izni yok) satır hiç çizilmez —
+  /// "0 B" yazmak "uygulamalar yer kaplamıyor" demek olurdu.
+  ///
+  /// **Kaynak farkı bilinçli:** diğer çubuklar dosya taramasından, bu satır
+  /// `StorageStatsManager`dan geliyor; ikisinin toplamı birim doluluğuna eşit
+  /// olmak zorunda değil (uygulama verisi taranan ağacın dışında).
+  Widget _appsBar(int maxBytes) {
     final apps = _apps;
     if (apps == null) return const SizedBox.shrink();
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const InstalledAppsScreen())),
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.android),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Text(context.t('fm.apps'),
-                        style: Theme.of(context).textTheme.titleMedium),
-                  ),
-                  Text(FsPaths.humanSize(apps.totalBytes),
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-              for (final (name, bytes) in apps.top)
-                Padding(
-                  padding: const EdgeInsets.only(top: Gap.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ),
-                      Text(FsPaths.humanSize(bytes),
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-              if (apps.cacheBytes > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: Gap.sm),
-                  child: Text(
-                    context.t('ana.cache_total',
-                        {'v': FsPaths.humanSize(apps.cacheBytes)}),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: Paper.faint(context)),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
+    return _CategoryBar(
+      label: context.t('fm.apps'),
+      icon: Icons.android,
+      bytes: apps.totalBytes,
+      // Sayaç yerine en büyük uygulamalar yazıyor: "kaç uygulama" bir yer açma
+      // kararına katkı vermiyor, "hangisi büyük" veriyor.
+      countLabel: apps.top.isEmpty
+          ? null
+          : [for (final (name, _) in apps.top) name].join(' · '),
+      fraction: maxBytes <= 0 ? 0 : apps.totalBytes / maxBytes,
+      color: FmColors.apk,
+      detail: apps.cacheBytes > 0
+          ? context.t('ana.cache_total',
+              {'v': FsPaths.humanSize(apps.cacheBytes)})
+          : null,
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const InstalledAppsScreen())),
     );
+  }
+
+  /// **Türe özel sayfa** — "Türlere göre" çubuğuna dokununca açılır
+  /// (kullanıcı isteği 2026-08-27: *"türlerin üzerine tıklayınca ona özel sayfa
+  /// açılsın ve içerikler boyutlarına göre sıralanıp gösterilsin"*).
+  ///
+  /// **Eskiden ne oluyordu:** dokunuş yalnız aşağıdaki "En büyük dosyalar"
+  /// listesinin kapsamını değiştiriyordu. Kullanıcı çubuğa basıp aynı sayfada
+  /// kalıyor, değişen tek şey ekranın çok aşağısındaki bir liste oluyordu —
+  /// dokunuşun bir şey yaptığı bile fark edilmiyordu. Üstelik o liste
+  /// kategorinin **en büyük 200** dosyasıyla sınırlı, yani "Belgeler"in tamamı
+  /// hiçbir zaman görünmüyordu.
+  ///
+  /// **Şimdi:** kendi sayfası açılıyor, **boyuta göre azalan** sıralı ve
+  /// eksiksiz — kırpık pano önbelleği anında gösteriliyor, tam liste
+  /// `loadAll` ile arkadan geliyor (kategori ekranlarının her yerdeki
+  /// düzeni). Süzme, çoklu seçim ve toplu silme `CategoryScreen`de hazır;
+  /// burada yeniden yazılmıyor.
+  ///
+  /// Aşağıdaki kapsam çipleri kaldırılmadı: onlar hâlâ "en büyük dosyalar"
+  /// listesini yerinde daraltıyor — iki ayrı soru, iki ayrı yol.
+  void _openType(FmCategory category) {
+    final locked = context.read<AppState>().fmLockedFolders;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => CategoryScreen(
+        title: context.t(category.labelKey),
+        // Anında görünen kırpık liste: bu kategorinin en büyükleri (zaten
+        // boyuta göre sıralı, yani ilk kare de doğru sırada).
+        files: _largest[category] ?? widget.index.files(category),
+        loadAll: () =>
+            MediaLibrary.categoryFiles(category, lockedFolders: locked),
+        showDocKinds: category == FmCategory.document,
+        initialSort: FmSort.size,
+        initialDescending: true,
+      ),
+    ));
   }
 
   Future<void> _loadTrend() async {
@@ -293,7 +308,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         .where((c) => c != FmCategory.folder && index.stat(c).bytes > 0)
         .toList()
       ..sort((a, b) => index.stat(b).bytes.compareTo(index.stat(a).bytes));
-    final maxBytes = categories.isEmpty ? 1 : index.stat(categories.first).bytes;
+    // Ölçek paydası: en büyük TÜR ve uygulamalar toplamının büyüğü.
+    // Uygulamalar satırı aynı listeye girdiği için (bkz. [_appsBar]) payda ona
+    // da bakmalı — yoksa 42 GB'lık satır 55 GB'lık videonun yanında taşardı.
+    final maxBytes = [
+      if (categories.isNotEmpty) index.stat(categories.first).bytes,
+      if (_apps != null) _apps!.totalBytes,
+      1,
+    ].reduce((a, b) => a > b ? a : b);
     final visible = _visible;
 
     return Scaffold(
@@ -396,8 +418,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     )),
                   ),
                 ),
-                const SizedBox(height: Gap.sm),
-                _appsCard(),
                 const SizedBox(height: Gap.lg),
                 Text(context.t('ana.by_type'),
                     style: Theme.of(context).textTheme.titleMedium),
@@ -413,16 +433,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             // düzenlemede klasör adı üretiyor), ekranda gösterilen
                             // ad ondan bağımsız olmalı.
                             label: context.t(c.labelKey),
+                            icon: FmColors.iconFor(c,
+                                outlined: context.fmOutlinedIcons),
                             bytes: index.stat(c).bytes,
                             count: index.stat(c).count,
                             fraction: index.stat(c).bytes / maxBytes,
                             color: FmColors.forCategory(c),
-                            selected: _category == c,
-                            // Çubuğa dokunmak listeyi o türe daraltır: "en büyük
-                            // videolarım hangileri" en sık sorulan soru.
-                            onTap: () => setState(
-                                () => _category = _category == c ? null : c),
+                            // Çubuğa dokunmak o türün KENDİ SAYFASINI açar.
+                            onTap: () => _openType(c),
                           ),
+                        // Uygulamalar aynı listenin son satırı — ayrı kart değil
+                        // (bkz. [_appsBar]).
+                        _appsBar(maxBytes),
                         if (categories.isEmpty)
                           Text(context.t('ana.no_scan')),
                       ],
@@ -711,27 +733,50 @@ class _VolumeBar extends StatelessWidget {
   }
 }
 
+/// "Türlere göre" listesinin bir satırı: tür adı, boyut, oran çubuğu.
+///
+/// Satırın tamamı bir DÜĞME (kendi sayfasını açar), o yüzden sağ uçta bir
+/// `chevron` var: eskiden satır yalnız aşağıdaki listeyi süzüyordu ve
+/// dokunulabilir olduğu hiçbir yerden anlaşılmıyordu.
 class _CategoryBar extends StatelessWidget {
   final String label;
+
+  /// Satırın başındaki tür simgesi. Kategori kutularıyla aynı glif ve renk —
+  /// aynı şeyin iki ekranda farklı görünmesi kullanıcıyı ikinci kez
+  /// öğrenmeye zorlar.
+  final IconData? icon;
+
   final int bytes;
-  final int count;
+
+  /// Dosya sayısı. Uygulamalar satırında anlamsız (bkz. [countLabel]).
+  final int? count;
+
+  /// Sayı yerine yazılacak metin (uygulamalar satırı en büyük üç uygulamayı
+  /// yazıyor).
+  final String? countLabel;
+
+  /// Çubuğun altındaki ek satır ("bunun 7,3 GB kadarı önbellek…").
+  final String? detail;
+
   final double fraction;
   final Color color;
-  final bool selected;
   final VoidCallback? onTap;
 
   const _CategoryBar({
     required this.label,
     required this.bytes,
-    required this.count,
     required this.fraction,
     required this.color,
-    this.selected = false,
+    this.icon,
+    this.count,
+    this.countLabel,
+    this.detail,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final small = Theme.of(context).textTheme.bodySmall;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -741,20 +786,20 @@ class _CategoryBar extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (selected) ...[
-                  Icon(Icons.filter_alt, size: 16, color: color),
-                  const SizedBox(width: Gap.xs),
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: color),
+                  const SizedBox(width: Gap.sm),
                 ],
-                Expanded(
-                  child: Text(
-                    label,
-                    style: selected
-                        ? const TextStyle(fontWeight: FontWeight.w700)
-                        : null,
-                  ),
+                Expanded(child: Text(label)),
+                Text(
+                  count != null
+                      ? '${FsPaths.humanSize(bytes)} · $count'
+                      : FsPaths.humanSize(bytes),
+                  style: small,
                 ),
-                Text('${FsPaths.humanSize(bytes)} · $count',
-                    style: Theme.of(context).textTheme.bodySmall),
+                if (onTap != null)
+                  Icon(Icons.chevron_right,
+                      size: 18, color: Paper.faint(context)),
               ],
             ),
             const SizedBox(height: Gap.xs),
@@ -768,6 +813,16 @@ class _CategoryBar extends StatelessWidget {
                     Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
             ),
+            if (countLabel != null || detail != null)
+              Padding(
+                padding: const EdgeInsets.only(top: Gap.xs),
+                child: Text(
+                  [countLabel, detail].whereType<String>().join(' — '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: small?.copyWith(color: Paper.faint(context)),
+                ),
+              ),
           ],
         ),
       ),

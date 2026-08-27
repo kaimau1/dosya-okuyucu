@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
+import 'package:dosya_okuyucu/services/fm/storage_stats.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'support/temp_dir.dart';
@@ -437,6 +438,29 @@ void main() {
     test('olmayan kök çökmez', () async {
       final hits = await FsScan.freshFiles([p.join(dir.path, 'yok')]);
       expect(hits, isEmpty);
+    });
+
+    /// **Regresyon — 2026-08-27:** kullanıcının WhatsApp'tan gelen "660 EVLER
+    /// ESNEKLİ.pdf" dosyası "Yeni Dosyalar"da hiç görünmüyordu. Yolu
+    /// `Android/media/com.whatsapp/…` altındaydı; sıcak klasör listesi ise
+    /// yalnız KÖKTEKİ eski `WhatsApp` klasörünü tanıyordu (Android 11 kapsamlı
+    /// depolamadan önceki yer). Tam tarama dosyayı buluyordu — bu yüzden
+    /// "Belgeler"de görünüp "Yeni Dosyalar"da görünmüyordu.
+    test('sıcak klasörler Android/media ağacını kapsar', () async {
+      Directory(p.join(dir.path, 'Download')).createSync();
+      final waDocs = Directory(p.join(dir.path, 'Android', 'media',
+          'com.whatsapp', 'WhatsApp', 'Media', 'WhatsApp Documents'))
+        ..createSync(recursive: true);
+
+      final roots = StorageStats.hotFolders(dir.path);
+      expect(roots, contains(p.join(dir.path, 'Download')));
+      expect(roots, contains(p.join(dir.path, 'Android', 'media')));
+      // Var olmayan klasör listeye girmez (boşuna `stat` yapılmasın).
+      expect(roots, isNot(contains(p.join(dir.path, 'DCIM'))));
+
+      File(p.join(waDocs.path, '660 EVLER.pdf')).writeAsStringSync('x');
+      final hits = await FsScan.freshFiles(roots);
+      expect(hits.map((e) => e.name), contains('660 EVLER.pdf'));
     });
   });
 }

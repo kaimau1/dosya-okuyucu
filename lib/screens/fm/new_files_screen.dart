@@ -21,15 +21,15 @@ import 'category_screen.dart';
 /// saniyelerce "yükleniyor" kalıyor ve gelen liste dünden kalma indeksten
 /// besleniyordu — yani hem yavaş hem bayat.
 ///
-/// **Şimdi:** yalnız sıcak klasörler ([StorageStats.standardFolders])
+/// **Şimdi:** yalnız sıcak klasörler ([StorageStats.hotFolders])
 /// geziliyor ve bellekte **en yeni [limit] dosya** tutuluyor. Tarama izolatta.
 /// Ekran her görünür olduğunda ve uygulama arka plandan döndüğünde
 /// kendiliğinden tazeleniyor.
 ///
-/// *Niye 100 yeterli:* bu ekranın sorusu "az önce ne geldi?". 12 bin dosyalık
-/// tam liste o sorunun cevabı değil, kategori ekranlarının işi. Daha eskiye
-/// inmek isteyen Görüntüler/Belgeler/Videolar kutularından eksiksiz listeye
-/// ulaşıyor.
+/// *Niye kırpık liste yeterli:* bu ekranın sorusu "az önce ne geldi?". 12 bin
+/// dosyalık tam liste o sorunun cevabı değil, kategori ekranlarının işi. Daha
+/// eskiye inmek isteyen Görüntüler/Belgeler/Videolar kutularından eksiksiz
+/// listeye ulaşıyor.
 class NewFilesScreen extends StatefulWidget {
   /// Sekme görünür mü? (Alt gezinme çubuğunda `IndexedStack` içinde duruyor:
   /// çocuk bir kez kurulup ayakta kalıyor, `initState` yalnız uygulama
@@ -40,7 +40,14 @@ class NewFilesScreen extends StatefulWidget {
   const NewFilesScreen({super.key, this.active = true});
 
   /// Kaç dosya gösterilecek.
-  static const int limit = 100;
+  ///
+  /// **100 → 300 (2026-08-27):** kullanıcının telefonunda 9243 dosya var ve
+  /// yoğun bir günde kameraya + WhatsApp'a düşen kare sayısı üç haneli. 100'lük
+  /// pencere o gün öğlen inen bir PDF'i akşam olmadan listeden ATIYORDU —
+  /// ekranın sorusu "az önce ne geldi?" olsa da kullanıcının ölçüsü "bugün ne
+  /// geldi?". Tarama maliyeti değişmiyor (ağaç yine sonuna kadar geziliyor,
+  /// bellekte yalnız en yeni N tutuluyor); artan tek şey listenin uzunluğu.
+  static const int limit = 300;
 
   @override
   State<NewFilesScreen> createState() => _NewFilesScreenState();
@@ -102,9 +109,7 @@ class _NewFilesScreenState extends State<NewFilesScreen>
 
   Future<List<FsEntry>> _scan() async {
     await FmEnv.ensureInit();
-    final roots = [
-      for (final f in StorageStats.standardFolders(FmEnv.primaryRoot)) f.path,
-    ];
+    final roots = StorageStats.hotFolders(FmEnv.primaryRoot);
     if (roots.isEmpty) return const [];
     return FsScan.freshFiles(roots, limit: NewFilesScreen.limit);
   }
@@ -145,7 +150,7 @@ class _NewFilesScreenState extends State<NewFilesScreen>
     // `CategoryScreen`de zaten var — kopyalamak yerine besleniyor.
     // `replaceOnLoad`: aşağı çekince gelen taze liste **yerine geçer**;
     // varsayılan "yalnız daha uzunsa değiştir" burada yanlış olurdu
-    // (uzunluk hep 100'de sabit).
+    // (uzunluk [NewFilesScreen.limit]'te sabit).
     return CategoryScreen(
       key: ValueKey(_revision),
       title: context.t('fm.new_files'),

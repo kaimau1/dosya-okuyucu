@@ -219,6 +219,40 @@ abstract final class StorageStats {
   static bool _isUuid(String name) =>
       RegExp(r'^[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}$').hasMatch(name);
 
+  /// **Sıcak klasörler** — "yeni dosya buraya düşer" denebilecek ağaçlar.
+  /// `FsScan.freshFiles` bu listeyi gezer ("Yeni Dosyalar" ekranı ve panonun
+  /// yakalama taraması).
+  ///
+  /// **Kök neden — 2026-08-27 kullanıcı hatası:** *"yeni dosyalarda örnek ekran
+  /// görüntüsündeki 660 EVLER dosyası yeni olmasına rağmen yok"*. O dosyanın
+  /// yolu `/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/
+  /// WhatsApp Documents/…`. Sıcak klasör listesi [standardFolders] idi ve
+  /// oradaki WhatsApp girdisi **kökteki eski** `/storage/emulated/0/WhatsApp`
+  /// klasörünü arıyor. Android 11 kapsamlı depolamadan beri WhatsApp (ve
+  /// Telegram, Signal, Viber…) medyasını `Android/media/<paket>/` altına
+  /// yazıyor; o klasör hiçbir zaman taranmıyordu. Tam tarama ağacın tamamını
+  /// gezdiği için dosya "Belgeler" kategorisinde GÖRÜNÜYOR, ama 12 saatte bir
+  /// koşan o tarama arasında gelen her mesaj eki "Yeni Dosyalar"a hiç
+  /// düşmüyordu — kullanıcının gördüğü çelişki tam olarak buydu.
+  ///
+  /// `Android/media` tek kök olarak veriliyor: altındaki her paket klasörü
+  /// yürüyüşe kendiliğinden giriyor, yeni bir mesajlaşma uygulaması kurulunca
+  /// listeyi güncellemek gerekmiyor. (`Android/data` ve `Android/obb` DEĞİL —
+  /// onlar Android 11'den beri okunamıyor, denemek yalnız yavaşlatır.)
+  static List<String> hotFolders(String root) {
+    final out = <String>[
+      for (final f in standardFolders(root)) f.path,
+    ];
+    // Kapsamlı depolama sonrası mesajlaşma/medya uygulamalarının yazdığı yer.
+    const extras = ['Android/media', 'Telegram', 'Bluetooth', 'Recordings'];
+    for (final rel in extras) {
+      final path = p.join(root, p.joinAll(rel.split('/')));
+      if (out.contains(path)) continue;
+      if (Directory(path).existsSync()) out.add(path);
+    }
+    return out;
+  }
+
   /// Kullanıcıya gösterilecek standart klasörler (varsa).
   static List<({String label, String path, String icon})> standardFolders(
       String root) {
