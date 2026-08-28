@@ -316,7 +316,14 @@ jobs:
 
       # main'de ayrı bir `test` işi koşmuyor (bkz. yukarıdaki `if`), bu yüzden
       # kapı burada da duruyor — yoksa main'e analyze'sız kod girerdi.
+      #
+      # **DENEME SÜRÜMÜNDE BAĞLAYICI DEĞİL:** başka bir Flutter sürümü
+      # denenirken (`flutter_version` girdisi) kullanımdan kaldırma uyarıları
+      # BEKLENEN şeydir — 3.44.9'da 24 tane var ve hepsi uyarı, hata değil.
+      # Kapı orada da bağlasaydı deneme, asıl merak edilen yere (Android
+      # derleme zinciri: AGP/Gradle/Kotlin/NDK) hiç ulaşamadan dururdu.
       - name: Statik çözümleme (analyze)
+        continue-on-error: ${{ env.FLUTTER_VERSION != '3.29.3' }}
         run: flutter analyze
 
       - name: Testler (pptx render)

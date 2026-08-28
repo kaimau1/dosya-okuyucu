@@ -54,4 +54,17 @@ void main() {
   test('okunamayan dosya null döner (0:00 UYDURULMAZ)', () async {
     expect(await MediaDuration.forVideo('/olmayan/dosya.mp4'), isNull);
   });
+
+  /// Ölçüm eşzamanlılığı sınırlı olmalı: 100 videolu bir ızgarada 40 native
+  /// çağrıyı birden salmak platform izleğini tıkıyor, kaydırma takılıyordu.
+  test('eşzamanlı ölçüm sınırı kilitlenmeye yol açmaz', () async {
+    // Hepsi okunamayan yol → ölçüm hızlıca null döner; buradaki asıl soru
+    // semaforun her yolda (hata dahil) serbest bırakılıp bırakılmadığı.
+    final results = await Future.wait([
+      for (var i = 0; i < 12; i++) MediaDuration.forVideo('/yok/$i.mp4'),
+    ]);
+    expect(results, everyElement(isNull));
+    // Sınır sızdırmışsa bu çağrı sonsuza kadar beklerdi.
+    expect(await MediaDuration.forVideo('/yok/son.mp4'), isNull);
+  });
 }

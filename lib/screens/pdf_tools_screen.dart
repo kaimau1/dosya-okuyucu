@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
+import '../services/ocr_service.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
 import 'scan_review_screen.dart';
@@ -243,6 +244,70 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       (b) => PdfTools.addWatermarkInBackground(b,
           text: text, password: pw, fontBytes: fontBytes),
     );
+  }
+
+  /// **Sayfaları görsel (PNG) olarak dışa aktar** (2026-08-28).
+  ///
+  /// "PDF'i JPG yap" bir PDF aracından en çok istenen dönüşümlerden biri
+  /// (sunum/sosyal medya/mesajla gönderme). Belge zaten pdfrx ile açık
+  /// olduğundan yeni bir bağımlılık gerekmedi; render `OcrService`in
+  /// kullandığı yolun aynısı (1600 px genişliğe ölçekli).
+  ///
+  /// Seçili sayfa varsa yalnız onlar, yoksa tüm belge. **Sınır 30 sayfa:**
+  /// her sayfa tam boyutlu bir bitmap; 300 sayfalık bir kitabı tek seferde
+  /// açmak belleği şişirir ve paylaşım penceresi zaten o kadar dosyayı
+  /// taşıyamaz. Aşarsa kullanıcıya sayfa seçmesi söylenir.
+  Future<void> _exportImages() async {
+    final bytes = _bytes;
+    if (bytes == null || _busy) return;
+    final total = await _pageCount();
+    final pages = _selected.isEmpty
+        ? List.generate(total, (i) => i)
+        : (_selected.toList()..sort());
+    if (pages.length > 30) {
+      _snack(_str.t('pt.export_images_limit', {'n': 30}));
+      return;
+    }
+    setState(() => _busyLabel = '${_str.t('pt.op_export_images')}…');
+    final password = _password;
+    try {
+      final document = await PdfDocument.openData(
+        bytes,
+        passwordProvider: password == null ? null : () async => password,
+      );
+      final files = <XFile>[];
+      try {
+        for (final index in pages) {
+          final rendered = await OcrService.renderPageToPng(
+              document.pages[index],
+              tag: 'export');
+          if (rendered == null) continue;
+          // Paylaşım penceresinde dosya adı görünüyor: "belge-3.png" gibi
+          // anlamlı olsun, "ocr_page_export_3.png" değil.
+          final name =
+              '${p.basenameWithoutExtension(widget.path)}-${index + 1}.png';
+          final target = File(p.join(
+              Directory.systemTemp.path, name));
+          await File(rendered.path).rename(target.path);
+          files.add(XFile(target.path));
+        }
+      } finally {
+        await document.dispose();
+      }
+      if (files.isEmpty) {
+        if (mounted) _snack(_str.t('pt.export_images_failed'));
+        return;
+      }
+      await Share.shareXFiles(files,
+          text: _str.t('pt.export_images_count', {'n': files.length}));
+    } catch (e) {
+      if (mounted) {
+        _snack(_str.t('pt.op_failed',
+            {'label': _str.t('pt.op_export_images'), 'error': e}));
+      }
+    } finally {
+      if (mounted) setState(() => _busyLabel = '');
+    }
   }
 
   /// Sayfa kopyalayan işlemler vurguları taşıyamaz — kullanıcı bilmeden
@@ -555,6 +620,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 'compress' => _compress(),
                 'numbers' => _addPageNumbers(),
                 'watermark' => _addWatermark(),
+                'images' => _exportImages(),
                 'lock' => _setPassword(),
                 'unlock' => _removePassword(),
                 'share' => _share(),
@@ -574,6 +640,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 PopupMenuItem(
                     value: 'watermark',
                     child: Text(context.t('pt.watermark'))),
+                PopupMenuItem(
+                    value: 'images',
+                    child: Text(context.t('pt.export_images'))),
                 if (_password == null)
                   PopupMenuItem(
                       value: 'lock', child: Text(context.t('pt.set_password')))

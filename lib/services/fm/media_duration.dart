@@ -37,6 +37,16 @@ abstract final class MediaDuration {
   /// birkaç kez çizilebiliyor).
   static final Map<String, Future<Duration?>> _inFlight = {};
 
+  /// Aynı anda en fazla kaç ölçüm koşar.
+  ///
+  /// Ölçüm native `MediaMetadataRetriever` açıyor; 100 videolu bir klasörde
+  /// ızgara açılır açılmaz 40 çağrıyı birden salmak platform izleğini
+  /// tıkıyor ve kaydırma takılıyordu. Küçük resimler zaten sırayla geliyor;
+  /// süre onlardan hızlı olmak zorunda değil.
+  static const _maxConcurrent = 3;
+  static int _running = 0;
+  static final List<Completer<void>> _waiting = [];
+
   static Future<void>? _loadFuture;
   static bool _dirty = false;
   static Timer? _saveTimer;
@@ -72,6 +82,7 @@ abstract final class MediaDuration {
   }
 
   static Future<Duration?> _measure(String path, String key) async {
+    await _acquire();
     try {
       final info = await VideoCompress.getMediaInfo(path);
       final ms = info.duration;
@@ -82,7 +93,28 @@ abstract final class MediaDuration {
     } catch (_) {
       // Bozuk/desteklenmeyen dosya: rozet çizilmez, liste bozulmaz.
       return null;
+    } finally {
+      _release();
     }
+  }
+
+  static Future<void> _acquire() {
+    if (_running < _maxConcurrent) {
+      _running++;
+      return Future<void>.value();
+    }
+    final completer = Completer<void>();
+    _waiting.add(completer);
+    return completer.future;
+  }
+
+  static void _release() {
+    if (_waiting.isNotEmpty) {
+      // Sıradaki devralır: sayaç düşmez, yerini o alır.
+      _waiting.removeAt(0).complete();
+      return;
+    }
+    _running--;
   }
 
   static void _remember(String key, int seconds) {
@@ -146,6 +178,8 @@ abstract final class MediaDuration {
     _loadFuture = null;
     _saveTimer?.cancel();
     _dirty = false;
+    _running = 0;
+    _waiting.clear();
   }
 
   /// Testler için: ölçüm yapmadan önbelleğe süre koyar.
