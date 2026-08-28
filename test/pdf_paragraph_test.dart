@@ -255,15 +255,15 @@ void main() {
     });
 
     test('yazı tipinde olmayan harf reddedilir', () {
-      final limited = PdfFontAccess(
+      const limited = PdfFontAccess(
         encodings: {
           'F1': PdfFontEncoding(
-            toUnicode: const {65: 'A', 66: 'B', 32: ' '},
-            fromUnicode: const {'A': 65, 'B': 66, ' ': 32},
+            toUnicode: {65: 'A', 66: 'B', 32: ' '},
+            fromUnicode: {'A': 65, 'B': 66, ' ': 32},
             codeBytes: 1,
           ),
         },
-        metrics: const {'F1': halfEm},
+        metrics: {'F1': halfEm},
       );
       const content = 'BT /F1 10 Tf 1 0 0 1 50 700 Tm (AAAA) Tj ET';
       final paragraph = findParagraphs([latin1.encode(content)], limited).single;

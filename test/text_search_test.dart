@@ -53,7 +53,7 @@ void main() {
 
     test('Türkçe büyük/küçük harf duyarsız', () {
       // "İstanbul" ararken "İSTANBUL" ve "istanbul" bulunur.
-      final t = 'İSTANBUL ve istanbul';
+      const t = 'İSTANBUL ve istanbul';
       expect(findAll(t, 'istanbul').length, 2);
     });
 
@@ -64,7 +64,7 @@ void main() {
     });
 
     test('indeks kaynak metne göre doğru', () {
-      final t = 'aXbXc';
+      const t = 'aXbXc';
       expect(findAll(t, 'x'), [1, 3]);
     });
 

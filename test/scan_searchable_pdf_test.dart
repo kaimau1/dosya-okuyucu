@@ -74,9 +74,9 @@ void main() {
         [image.path],
         ocrLinesPerPage: [
           [
-            OcrLine('Sour Cream & Chive', const ui.Rect.fromLTWH(0, 0, 80, 12)),
-            OcrLine('İçindekiler: Buğday Unu',
-                const ui.Rect.fromLTWH(0, 14, 90, 12)),
+            const OcrLine('Sour Cream & Chive', ui.Rect.fromLTWH(0, 0, 80, 12)),
+            const OcrLine('İçindekiler: Buğday Unu',
+                ui.Rect.fromLTWH(0, 14, 90, 12)),
           ],
         ],
       );
@@ -105,10 +105,10 @@ void main() {
     test('satırlar sayfa sayfa düz metne dönüşür', () {
       final pages = DocumentScanner.textPages([
         [
-          OcrLine('birinci satır', const ui.Rect.fromLTWH(0, 0, 10, 10)),
-          OcrLine('ikinci satır', const ui.Rect.fromLTWH(0, 10, 10, 10)),
+          const OcrLine('birinci satır', ui.Rect.fromLTWH(0, 0, 10, 10)),
+          const OcrLine('ikinci satır', ui.Rect.fromLTWH(0, 10, 10, 10)),
         ],
-        [OcrLine('ikinci sayfa', const ui.Rect.fromLTWH(0, 0, 10, 10))],
+        [const OcrLine('ikinci sayfa', ui.Rect.fromLTWH(0, 0, 10, 10))],
       ]);
 
       expect(pages, hasLength(2));
@@ -121,9 +121,9 @@ void main() {
     /// "— Sayfa 2 —" başlığı, tanıma başarısız oldu bilgisini gizlerdi.
     test('boş sayfa atlanır, numaralar kayar değil', () {
       final pages = DocumentScanner.textPages([
-        [OcrLine('var', const ui.Rect.fromLTWH(0, 0, 10, 10))],
+        [const OcrLine('var', ui.Rect.fromLTWH(0, 0, 10, 10))],
         const <OcrLine>[],
-        [OcrLine('üçüncüde var', const ui.Rect.fromLTWH(0, 0, 10, 10))],
+        [const OcrLine('üçüncüde var', ui.Rect.fromLTWH(0, 0, 10, 10))],
       ]);
 
       expect(pages.map((p) => p.number), [1, 3]);
@@ -132,8 +132,8 @@ void main() {
     test('yalnız boşluk içeren satırlar düşer', () {
       final pages = DocumentScanner.textPages([
         [
-          OcrLine('  ', const ui.Rect.fromLTWH(0, 0, 10, 10)),
-          OcrLine(' gerçek ', const ui.Rect.fromLTWH(0, 10, 10, 10)),
+          const OcrLine('  ', ui.Rect.fromLTWH(0, 0, 10, 10)),
+          const OcrLine(' gerçek ', ui.Rect.fromLTWH(0, 10, 10, 10)),
         ],
       ]);
 

@@ -172,7 +172,7 @@ void main() {
 
     test('bozuk satırlar atlanır, sağlamlar sayılır', () async {
       final path = p.join(tmp.path, 'kirik.tsv');
-      final saglam = FsEntry(
+      const saglam = FsEntry(
         path: '/depo/rapor.pdf',
         name: 'rapor.pdf',
         isDir: false,

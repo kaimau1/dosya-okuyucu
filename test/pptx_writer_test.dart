@@ -156,7 +156,7 @@ void main() {
 
     test('tek satırlık uzun paragraf ÖNCEKİ slayta madde olur', () {
       // Yoksa her cümle için bir slayt açılır ve yüzlerce slayt çıkar.
-      final long = 'Bu cümle yetmiş karakterden uzun olduğu için başlık '
+      const long = 'Bu cümle yetmiş karakterden uzun olduğu için başlık '
           'sayılmaz ve bir öncekine madde olarak eklenmelidir.';
       final slides = TextToSlides.split('Konu\nilk madde\n\n$long');
       expect(slides.length, 1);

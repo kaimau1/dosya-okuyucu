@@ -18,7 +18,7 @@ void main() {
         pageHeight: 200,
         imageScale: 2,
         lines: [
-          [OcrWordBox('Ab', const Rect.fromLTRB(20, 40, 60, 60))],
+          [const OcrWordBox('Ab', Rect.fromLTRB(20, 40, 60, 60))],
         ],
       )!;
 
@@ -52,8 +52,8 @@ void main() {
         imageScale: 1,
         lines: [
           [
-            OcrWordBox('ev', const Rect.fromLTRB(0, 10, 20, 20)),
-            OcrWordBox('is', const Rect.fromLTRB(30, 10, 50, 20)),
+            const OcrWordBox('ev', Rect.fromLTRB(0, 10, 20, 20)),
+            const OcrWordBox('is', Rect.fromLTRB(30, 10, 50, 20)),
           ],
         ],
       )!;
@@ -73,8 +73,8 @@ void main() {
         pageHeight: 100,
         imageScale: 1,
         lines: [
-          [OcrWordBox('bir', const Rect.fromLTRB(0, 0, 30, 10))],
-          [OcrWordBox('iki', const Rect.fromLTRB(0, 20, 30, 30))],
+          [const OcrWordBox('bir', Rect.fromLTRB(0, 0, 30, 10))],
+          [const OcrWordBox('iki', Rect.fromLTRB(0, 20, 30, 30))],
         ],
       )!;
 
@@ -101,7 +101,7 @@ void main() {
           pageHeight: 100,
           imageScale: 1,
           lines: [
-            [OcrWordBox('', const Rect.fromLTRB(0, 0, 10, 10))],
+            [const OcrWordBox('', Rect.fromLTRB(0, 0, 10, 10))],
             [],
           ],
         ),
@@ -116,9 +116,9 @@ void main() {
         imageScale: 1,
         lines: [
           [
-            OcrWordBox('ab', const Rect.fromLTRB(0, 10, 22, 20)),
+            const OcrWordBox('ab', Rect.fromLTRB(0, 10, 22, 20)),
             // Sol kenarı önceki kutunun sağının SOLUNDA (örtüşme).
-            OcrWordBox('cd', const Rect.fromLTRB(20, 10, 40, 20)),
+            const OcrWordBox('cd', Rect.fromLTRB(20, 10, 40, 20)),
           ],
         ],
       )!;

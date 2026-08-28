@@ -53,7 +53,7 @@ void main() {
     });
 
     test('tablo başlık + satır çözülür', () {
-      final md = '| Ad | Yaş |\n| --- | --- |\n| Ali | 30 |\n| Ay | 25 |';
+      const md = '| Ad | Yaş |\n| --- | --- |\n| Ali | 30 |\n| Ay | 25 |';
       final blocks = parseMarkdown(md);
       expect(blocks.first.type, MdBlockType.table);
       expect(blocks.first.rows, hasLength(3)); // başlık + 2 satır

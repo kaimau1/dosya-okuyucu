@@ -33,8 +33,8 @@ void main() {
     });
 
     test('dışlanan klasör içeriği buluta da gitmez', () {
-      final scope = AiScope(
-        settings: const AiScopeSettings(
+      const scope = AiScope(
+        settings: AiScopeSettings(
           excludedFolders: ['$root/Gizli'],
           sendText: true,
           sendImages: true,
@@ -45,8 +45,8 @@ void main() {
     });
 
     test('kilitli klasör (PIN) otomatik kapsam dışı', () {
-      final scope = AiScope(
-        settings: const AiScopeSettings(),
+      const scope = AiScope(
+        settings: AiScopeSettings(),
         lockedFolders: ['$root/Onemli'],
       );
       expect(scope.allowsFile(_file('$root/Onemli/kimlik.pdf')), isFalse);

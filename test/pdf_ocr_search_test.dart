@@ -102,7 +102,7 @@ void main() {
 
   test('OCR bütçesi: sınır üstü sayfalar sayılır, sessiz kesme yok', () async {
     final doc = FakeOcrDoc();
-    final total = PdfOcrSearch.maxFreshOcrPages + 2;
+    const total = PdfOcrSearch.maxFreshOcrPages + 2;
     for (var i = 1; i <= total; i++) {
       FakeOcrPage(pageNumber: i, doc: doc);
     }

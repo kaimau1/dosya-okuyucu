@@ -52,7 +52,7 @@ void main() {
       try {
         final data = pdf.sublist(start, end);
         out.writeln(latin1.decode(
-            ZLibDecoder().decodeBytes(data),
+            const ZLibDecoder().decodeBytes(data),
             allowInvalid: true));
       } catch (_) {
         // Sıkıştırılmamış ya da font/resim akışı — atla.

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show Offset;
 
 import 'package:dosya_okuyucu/services/perspective.dart';
 import 'package:flutter_test/flutter_test.dart';

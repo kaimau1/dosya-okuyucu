@@ -16,6 +16,11 @@ on:
     paths-ignore:
       - '**.md'
   workflow_dispatch:
+    inputs:
+      aab:
+        description: 'Play için AAB da üret (imzalı, yalnız artifact)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,6 +44,14 @@ jobs:
 
       - name: Bağımlılıklar
         run: flutter pub get
+
+      # KAPI (2026-08-28): analyze artık CI'nin durduğu bir adım. Daha önce
+      # yalnız yerelde koşuyordu ve 41 uyarı birikmişti (hepsi eski test
+      # dosyalarında); temizlendi ve kapı kondu ki bir daha birikmesin.
+      # `flutter analyze` info seviyesinde de sıfır dışı çıkar — yani bu adım
+      # "hiç uyarı yok" demektir, "hata yok" değil.
+      - name: Statik çözümleme (analyze)
+        run: flutter analyze
 
       - name: Testler
         run: flutter test
@@ -260,6 +273,11 @@ jobs:
           echo "--- üretilen mipmap'ler ---"
           ls -R android/app/src/main/res/mipmap-* 2>/dev/null | head -40 || true
 
+      # main'de ayrı bir `test` işi koşmuyor (bkz. yukarıdaki `if`), bu yüzden
+      # kapı burada da duruyor — yoksa main'e analyze'sız kod girerdi.
+      - name: Statik çözümleme (analyze)
+        run: flutter analyze
+
       - name: Testler (pptx render)
         run: flutter test
 
@@ -345,6 +363,49 @@ jobs:
           "$APKSIGNER" verify --print-certs \
             build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
             | grep -iE "SHA-256|SHA-1|Signer #1 cert" | head -5
+
+      # ── PLAY İÇİN AAB (isteğe bağlı, elle tetiklemede) ──────────────────
+      # Google Play yeni uygulamalarda APK KABUL ETMİYOR; yükleme birimi
+      # `.aab`. Bunu her push'ta üretmek ikinci bir AOT derlemesi (~5 dk)
+      # demek — mağaza başvurusu henüz yapılmadığı için İSTEK ÜZERİNE
+      # üretiliyor: Actions > Run workflow > "Play için AAB da üret".
+      #
+      # İmza `jarsigner` ile: `apksigner` yalnız APK imzalar, AAB bir jar'dır.
+      # Aynı keystore kullanılır — Play App Signing'e verilecek YÜKLEME
+      # anahtarı ile APK'ların imzası aynı kalsın (ileride mağaza ve GitHub
+      # sürümleri arasında imza karmaşası çıkmasın).
+      #
+      # NOT: AAB Release'e EKLENMİYOR, yalnız artifact olarak kalıyor —
+      # kullanıcı bir `.aab` dosyasını telefonuna kuramaz, indirenlerin
+      # kafasını karıştırırdı.
+      - name: AAB derle ve imzala (Play yükleme birimi)
+        if: ${{ inputs.aab }}
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
+          BUILD_NAME: 0.1.0
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          set -e
+          flutter build appbundle --release \
+            --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
+            --target-platform android-arm,android-arm64,android-x64
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          jarsigner -keystore release.jks \
+            -storepass "$KS_PASS" -keypass "$KS_PASS" \
+            -sigalg SHA256withRSA -digestalg SHA-256 \
+            "$AAB" dosyaokuyucu
+          jarsigner -verify "$AAB" > /dev/null && echo "AAB imzası doğrulandı"
+          mkdir -p dist
+          cp "$AAB" dist/dosya-okuyucu.aab
+          ls -lh dist/dosya-okuyucu.aab
+
+      - name: AAB'yi yükle (artifact)
+        if: ${{ inputs.aab }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dosya-okuyucu-aab
+          path: dist/dosya-okuyucu.aab
+          retention-days: 14
 
       # arm64 SADE adı alır (`dosya-okuyucu.apk`): 2016 sonrası pratikte her
       # telefon arm64-v8a. Kullanıcı her zamanki dosyayı indirmeye devam etsin,

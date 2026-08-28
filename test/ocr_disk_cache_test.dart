@@ -17,10 +17,10 @@ void main() {
         imageScale: 2,
         lines: [
           [
-            OcrWordBox('Merhaba', const Rect.fromLTRB(20, 40, 160, 60)),
-            OcrWordBox('dünya', const Rect.fromLTRB(170, 40, 260, 60)),
+            const OcrWordBox('Merhaba', Rect.fromLTRB(20, 40, 160, 60)),
+            const OcrWordBox('dünya', Rect.fromLTRB(170, 40, 260, 60)),
           ],
-          [OcrWordBox('ikinci', const Rect.fromLTRB(20, 80, 120, 100))],
+          [const OcrWordBox('ikinci', Rect.fromLTRB(20, 80, 120, 100))],
         ],
       )!;
 

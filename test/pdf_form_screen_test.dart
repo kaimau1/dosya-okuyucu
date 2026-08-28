@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui' show Rect;
 
 import 'package:dosya_okuyucu/screens/pdf_form_screen.dart';
 import 'package:flutter/material.dart';

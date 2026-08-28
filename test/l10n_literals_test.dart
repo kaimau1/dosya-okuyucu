@@ -101,7 +101,7 @@ final _literal = RegExp(r"'([^'\\\n]{2,})'");
 /// `-lar/-de/-den/-in/-ma` gibi **düz ASCII** eklerin açtığı deliği kapatır.
 final _turkish = RegExp(
   '[çğıöşüÇĞİÖŞÜ]|'
-  r'\b(?:' + _stems + r')(?:' + _suffixes + r'){0,2}\b',
+  r'\b(?:' '$_stems' r')(?:' '$_suffixes' r'){0,2}\b',
   caseSensitive: false,
 );
 

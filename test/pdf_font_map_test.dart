@@ -166,7 +166,7 @@ end
           '<< /Type /Font /Subtype /Type0 /BaseFont /ABCDEF+Times '
           '/Encoding /Identity-H /DescendantFonts [7 0 R] '
           '/ToUnicode 6 0 R >>');
-      final cmapCompressed = ZLibEncoder().encode(latin1.encode(toUnicode));
+      final cmapCompressed = const ZLibEncoder().encode(latin1.encode(toUnicode));
       offsets[6] = out.length;
       out
         ..add(latin1.encode('6 0 obj\n<< /Filter /FlateDecode '

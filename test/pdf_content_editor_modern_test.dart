@@ -63,7 +63,7 @@ void main() {
     final objStmData =
         latin1.encode('${header.toString()}\n${bodyBuffer.toString()}');
     final first = header.toString().length + 1;
-    final objStmCompressed = ZLibEncoder().encode(objStmData);
+    final objStmCompressed = const ZLibEncoder().encode(objStmData);
     offsets[6] = out.length;
     out
       ..add(latin1.encode('6 0 obj\n<< /Type /ObjStm /N ${inner.length} '
@@ -95,7 +95,7 @@ void main() {
     entry(2, 6, indexInStream[5]!);
     entry(1, offsets[6]!, 0);
     entry(1, xrefOffset, 0);
-    final xrefCompressed = ZLibEncoder().encode(entries.takeBytes());
+    final xrefCompressed = const ZLibEncoder().encode(entries.takeBytes());
 
     out
       ..add(latin1.encode('7 0 obj\n<< /Type /XRef /Size 8 /Index [0 8] '

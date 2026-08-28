@@ -20,10 +20,10 @@ Uint8List _sampleXlsx() {
     fontColorHex: ExcelColor.red,
     horizontalAlign: HorizontalAlign.Center,
   );
-  sheet.cell(CellIndex.indexByString('A2')).value = IntCellValue(42);
-  sheet.cell(CellIndex.indexByString('B2')).value = DoubleCellValue(3.50);
+  sheet.cell(CellIndex.indexByString('A2')).value = const IntCellValue(42);
+  sheet.cell(CellIndex.indexByString('B2')).value = const DoubleCellValue(3.50);
   sheet.cell(CellIndex.indexByString('C2')).value =
-      DateCellValue(year: 2026, month: 7, day: 21);
+      const DateCellValue(year: 2026, month: 7, day: 21);
 
   sheet.setColumnWidth(0, 25);
   sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('C1'));
