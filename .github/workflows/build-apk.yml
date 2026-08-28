@@ -21,9 +21,27 @@ on:
         description: 'Play için AAB da üret (imzalı, yalnız artifact)'
         type: boolean
         default: false
+      flutter_version:
+        description: 'Denenecek Flutter sürümü (varsayılan 3.29.3)'
+        type: string
+        default: '3.29.3'
 
 permissions:
   contents: write
+
+# SÜRÜM DUVARI DENEMESİ (2026-08-28): Flutter sürümü artık tek yerde ve elle
+# tetiklemede DEĞİŞTİRİLEBİLİR. Amaç, targetSdk 36'ya (Play'in şartı) geçişi
+# main'i kırmadan ölçmek: `Run workflow` > "Denenecek Flutter sürümü" =
+# 3.44.9 ile deneme derlemesi yapılır, yeşilse varsayılan buraya taşınır.
+# Push'ta `inputs` boştur → varsayılan 3.29.3 kullanılır, davranış değişmez.
+#
+# Ölçüldü (bulut oturumu, 2026-08-28): 3.44.9 ile `pub get` bağımlılıkların
+# HİÇBİRİNİ değiştirmeden çözülüyor ve **1730 testin tamamı yeşil**; kalan
+# 24 uyarının hepsi kullanımdan kaldırma (Radio/DropdownButtonFormField/
+# Matrix4.translate). Yani duvar sanıldığı kadar yüksek değil — belirsiz olan
+# tek şey Android derleme zinciri (AGP 9.0.1, Gradle 9.1, Kotlin 2.3.20).
+env:
+  FLUTTER_VERSION: ${{ inputs.flutter_version || '3.29.3' }}
 
 jobs:
   # ── Ucuz doğrulama: yalnızca feature dallarında (main'de apk işi zaten test
@@ -40,7 +58,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.29.3'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
       - name: Bağımlılıklar
         run: flutter pub get
@@ -82,7 +100,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.29.3'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
       # Gradle/pub bağımlılıklarını koşular arası önbelleğe al: ilk build sonrası
       # indirmeler diskten gelir → hem ~2-4 dk hızlanır hem de ağ stall'ına (build
@@ -179,6 +197,13 @@ jobs:
             # Kurulu sürümü seçmek hem bu kırılganlığı kaldırıyor hem de her
             # derlemede ~500 MB indirmeyi atlıyor. Hiç NDK yoksa eski sabit
             # sürüme düşülür (o zaman indirme kaçınılmaz).
+            # 2026-08-28: yeni şablonlar (3.44.9) satırı `ndkVersion =
+            # flutter.ndkVersion` olarak YAZIYOR — eski `grep -q ndkVersion`
+            # kontrolü "zaten var" deyip geçiyordu ve Gradle, runner'da
+            # kurulu OLMAYAN bir NDK'yı (28.2.x) indirmeye kalkıyordu (build
+            # 152'yi kıran hatanın aynısı). Önce sembolik değeri değiştir,
+            # satır hiç yoksa ekle.
+            sed -i -E "s/ndkVersion[[:space:]]*=?[[:space:]]*flutter\.ndkVersion/ndkVersion = \"$NDK_VERSION\"/" "$f"
             grep -q 'ndkVersion' "$f" || \
               sed -i "0,/android {/s//android {\n    ndkVersion = \"$NDK_VERSION\"/" "$f"
           done
@@ -241,9 +266,25 @@ jobs:
           # okuyamaz (aynı hata sınıfı, ters yön). Kotlin 2.2 Gradle eklentisi
           # Gradle 7.6.3+ ve AGP 7.3+ istiyor — şablonda Gradle 8.10.2 /
           # AGP 8.7.0 var, ikisi de fazlasıyla karşılıyor.
+          #
+          # 2026-08-28: yama artık **SADECE YÜKSELTİYOR**. Yeni Flutter
+          # şablonları (3.44.9 → Kotlin 2.3.20) zaten 2.2.0'ın üstünde;
+          # koşulsuz `sed` orada sürümü DÜŞÜRÜR ve yukarıdaki hatanın aynısını
+          # ters yönden geri getirirdi. Karşılaştırma `sort -V` ile yapılır.
+          MIN_KOTLIN=2.2.0
           for f in android/settings.gradle android/settings.gradle.kts; do
             [ -f "$f" ] || continue
-            sed -i -E 's/(id[( ]"org\.jetbrains\.kotlin\.android"\)? version )"[0-9.]+"/\1"2.2.0"/' "$f"
+            CUR=$(sed -nE 's/.*id[( ]"org\.jetbrains\.kotlin\.android"\)? version "([0-9.]+)".*/\1/p' "$f" | head -1)
+            if [ -z "$CUR" ]; then
+              echo "$f: kotlin.android sürümü bulunamadı, atlanıyor"; continue
+            fi
+            LOWEST=$(printf '%s\n%s\n' "$CUR" "$MIN_KOTLIN" | sort -V | head -1)
+            if [ "$CUR" = "$MIN_KOTLIN" ] || [ "$LOWEST" = "$MIN_KOTLIN" ]; then
+              echo "$f: Kotlin $CUR zaten >= $MIN_KOTLIN, dokunulmuyor"
+            else
+              echo "$f: Kotlin $CUR → $MIN_KOTLIN"
+              sed -i -E 's/(id[( ]"org\.jetbrains\.kotlin\.android"\)? version )"[0-9.]+"/\1"'"$MIN_KOTLIN"'"/' "$f"
+            fi
           done
           echo "--- kotlin eklenti sürümü ---"
           grep -R "kotlin.android" android/settings.gradle* || true
