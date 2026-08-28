@@ -2,6 +2,7 @@ package com.dosyaokuyucu.dosya_okuyucu
 
 import android.app.AppOpsManager
 import android.app.usage.StorageStatsManager
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -59,6 +60,18 @@ class MainActivity : FlutterActivity() {
                             val sizes = appSizes(packages)
                             Handler(Looper.getMainLooper()).post {
                                 result.success(sizes)
+                            }
+                        }.start()
+                    }
+
+                    // Son AÇILMA zamanı. Ağır olabilir (yüzlerce paket) →
+                    // arka izlek.
+                    "lastUsed" -> {
+                        val days = call.argument<Int>("days") ?: 730
+                        Thread {
+                            val map = lastUsed(days)
+                            Handler(Looper.getMainLooper()).post {
+                                result.success(map)
                             }
                         }.start()
                     }
@@ -147,6 +160,51 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /**
+     * Paket → **son açılma zamanı** (epoch ms). Hiç açılmamış / veri yoksa
+     * pakete hiç yer verilmez.
+     *
+     * **Niçin platform kanalı (kullanıcı hatası 2026-08-28: "açtığım birçok
+     * şey 'hiç açılmadı' görünüyor"):** `app_usage` eklentisi `lastForeground`
+     * diye `UsageStats.getLastTimeForegroundServiceUsed()` döndürüyor — bu
+     * "son açılma" DEĞİL, uygulamanın en son ne zaman **ön plan servisi**
+     * çalıştırdığı. WhatsApp/Telegram/Termux servis çalıştırdığı için doğru
+     * görünüyordu; Hepsiburada, Çeviri, Copilot gibi servis çalıştırmayan
+     * uygulamalar 0 dönüyor ve listede "hiç açılmadı" yazıyordu. Doğru alan
+     * `getLastTimeUsed()`; Android 10+ ise `getLastTimeVisible()` ile de
+     * karşılaştırılır (ekranda görünme, ön plana gelmenin daha dar tanımı).
+     *
+     * `queryAndAggregateUsageStats` pencere içindeki kovaları paket başına
+     * BİRLEŞTİRİR; `getLastTimeUsed` birleştirilmiş değerin en büyüğüdür.
+     * Pencere varsayılan 730 gün: Android kullanım verisini bundan uzun
+     * tutmuyor, daha geniş istemek boşuna.
+     */
+    private fun lastUsed(days: Int): Map<String, Long> {
+        val out = HashMap<String, Long>()
+        if (!hasUsageAccess()) return out
+        val usm = try {
+            getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        } catch (e: Exception) {
+            return out
+        }
+        val end = System.currentTimeMillis()
+        val start = end - days.toLong() * 24L * 60L * 60L * 1000L
+        try {
+            for ((pkg, stats) in usm.queryAndAggregateUsageStats(start, end)) {
+                var last = stats.lastTimeUsed
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    last = maxOf(last, stats.lastTimeVisible)
+                }
+                // Kova sınırından gelen anlamsız değerleri ele: pencereden
+                // ÖNCEKİ bir zaman damgası "kullanılmadı" demektir.
+                if (last > start) out[pkg] = last
+            }
+        } catch (e: Exception) {
+            // İzin geri alınmış ya da ROM desteklemiyor → boş harita.
+        }
+        return out
     }
 
     /**

@@ -32,6 +32,15 @@ GoogleService-Info.plist
 local.properties
 *.log
 
+# İMZA ANAHTARI — asla depoya girmesin (2026-08-28). SIGNING.md artık anahtarı
+# YERELDE ürettiriyor (`release.jks` + base64'ü); depo public olduğu için bu
+# dosyaların kazara commit edilmesi, uygulamayı bizim imzamızla güncelleme
+# yetkisini herkese vermek demek olurdu.
+*.jks
+*.jks.b64
+*.keystore
+key.properties
+
 # graphify: rapor+graf commitlenir, cache ve tarihli yedekler commitlenmez
 graphify-out/cache/
 graphify-out/20*/

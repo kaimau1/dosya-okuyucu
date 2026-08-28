@@ -226,7 +226,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
   Widget _row(InstalledAppEntry app, int now) {
     final idle = app.idleDays(now);
     final level = idleLevelFor(idle, usageKnown: app.usageKnown);
-    final (color, badge) = _style(level, idle);
+    final (color, badge) = _style(level, idle, app, now);
     final scheme = Theme.of(context).colorScheme;
 
     return ListTile(
@@ -294,7 +294,8 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
 
   /// Renk + rozet metni. Kullanıcının "uzun süre kullanılmayanlar
   /// renklendirilmeli" isteği burada karşılanıyor.
-  (Color?, String) _style(AppIdleLevel level, int? idle) {
+  (Color?, String) _style(
+      AppIdleLevel level, int? idle, InstalledAppEntry app, int now) {
     final scheme = Theme.of(context).colorScheme;
     return switch (level) {
       AppIdleLevel.active => (
@@ -305,7 +306,14 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
       AppIdleLevel.stale => (const Color(0xFFEF6C00), context.t('apps.days_ago', {'n': idle})),
       AppIdleLevel.forgotten => (
           scheme.error,
-          idle == null ? context.t('apps.never_opened') : context.t('apps.days_ago', {'n': idle})
+          idle != null
+              ? context.t('apps.days_ago', {'n': idle})
+              // Kayıt yok: uygulama kayıt penceresinden (2 yıl) daha eskiyse
+              // "hiç açılmadı" demek uydurma olur — Android o kadar geriye
+              // veri tutmuyor (bkz. InstalledAppEntry.neverOpened).
+              : context.t(app.neverOpened(now)
+                  ? 'apps.never_opened'
+                  : 'apps.long_ago'),
         ),
       AppIdleLevel.unknown => (scheme.onSurfaceVariant, '—'),
     };

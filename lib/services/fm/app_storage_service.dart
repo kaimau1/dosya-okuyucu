@@ -96,6 +96,33 @@ abstract final class AppStorageService {
     }
   }
 
+  /// Paket → **son açılma zamanı** (epoch ms). Hiç açılmamış paket sonuçta
+  /// YER ALMAZ; kanal yoksa/izin yoksa boş harita döner.
+  ///
+  /// Kaynak `UsageStats.getLastTimeUsed()` (bkz. `ci/MainActivity.kt`).
+  /// `app_usage` eklentisinin `lastForeground` alanı bu DEĞİLDİ — o, son
+  /// **ön plan servisi** zamanıdır ve servis çalıştırmayan uygulamalarda 0
+  /// döner (kullanıcı hatası 2026-08-28: "açtığım birçok şey 'hiç açılmadı'
+  /// görünüyor").
+  static Future<Map<String, int>> lastUsed({int days = 730}) async {
+    if (_available == false) return const {};
+    try {
+      final raw = await _channel
+          .invokeMapMethod<String, dynamic>('lastUsed', {'days': days});
+      _available = true;
+      if (raw == null) return const {};
+      final out = <String, int>{};
+      raw.forEach((pkg, value) {
+        if (value is num && value > 0) out[pkg] = value.toInt();
+      });
+      return out;
+    } catch (_) {
+      // Eski APK'da bu yöntem yok (`notImplemented`) — kanalı ölü saymıyoruz,
+      // boyut sorgusu hâlâ çalışabilir.
+      return const {};
+    }
+  }
+
   /// Testlerde sahte kanal kurulduktan sonra "yok" damgasını temizler.
   static void resetForTest() => _available = null;
 }

@@ -22,6 +22,7 @@ import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
+import '../../widgets/crash_notice.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/new_document_sheet.dart';
@@ -484,6 +485,11 @@ class _DashboardScreenState extends State<DashboardScreen>
           // Drive" kartının yazısı düğmelerin altında kalıyordu.
           padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 136),
           children: [
+            // Çökme uyarısı EN ÜSTTE ve yalnız çökme olduysa (kendini gizler):
+            // hata kaydını Ayarlar'da bırakmak kimsenin bakmayacağı bir yere
+            // koymak olurdu — geri bildirim döngüsü ancak kullanıcı olayı
+            // gördüğünde kuruluyor (bkz. widgets/crash_notice.dart).
+            const CrashNoticeBanner(),
             if (!_hasAccess) _permissionCard(),
             if (_scanning) ...[
               const LinearProgressIndicator(minHeight: 3),

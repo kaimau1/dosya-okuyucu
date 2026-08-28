@@ -41,6 +41,25 @@ class InstalledAppEntry {
   /// Uygulama + veri (önbellek dahil). Bilinmiyorsa 0 — SIRALAMA için.
   int get totalBytes => size?.totalBytes ?? 0;
 
+  /// Android'in kullanım verisini tuttuğu en uzun süre (gün).
+  ///
+  /// Bunun ötesi SORULAMAZ: sistem eski kovaları siliyor. Bu yüzden "kayıt
+  /// yok" ile "hiç açılmadı" aynı şey DEĞİL — bkz. [neverOpened].
+  static const usageRetentionDays = 730;
+
+  /// Kayıt yokken **gerçekten hiç açılmamış** mı, yoksa kullanım verisi
+  /// tutulan süreden daha mı eski?
+  ///
+  /// Uygulama kayıt penceresinden SONRA kurulduysa ve hiç kullanım kaydı
+  /// yoksa "hiç açılmadı" doğrudur. Daha eski bir kurulumda ise dürüst cevap
+  /// "2 yıldan uzun süredir açılmadı"; "hiç açılmadı" demek uydurma olurdu.
+  bool neverOpened(int nowMs) {
+    if (!usageKnown || lastUsedMs > 0) return false;
+    final windowStart =
+        nowMs - usageRetentionDays * 24 * 60 * 60 * 1000;
+    return installedAtMs <= 0 || installedAtMs >= windowStart;
+  }
+
   /// Kaç gündür açılmadı? Bilinmiyorsa null.
   ///
   /// Gün sayımı **takvim günü** (gece 00:00), 24 saatlik dilim değil — dün
@@ -125,10 +144,26 @@ abstract final class InstalledAppsService {
     return granted;
   }
 
-  /// paket → son ön plana gelme (ms). İzin yoksa boş harita (ve ayar sayfası
-  /// açılır — çağıran bunu bilerek çağırır).
+  /// paket → **son açılma** (ms). İzin yoksa boş harita.
+  ///
+  /// **KÖK NEDEN (kullanıcı hatası 2026-08-28: "açtığım birçok şey 'hiç
+  /// açılmadı' görünüyor").** Eskiden tek kaynak `app_usage` eklentisiydi ve
+  /// onun `lastForeground` alanı `UsageStats.getLastTimeForegroundServiceUsed()`
+  /// — yani son **ön plan servisi** zamanı, son açılma DEĞİL. WhatsApp,
+  /// Telegram, Termux gibi servis çalıştıran uygulamalar doğru görünüyordu;
+  /// Hepsiburada, Çeviri, Copilot, getir gibi çalıştırmayanlar 0 dönüyor ve
+  /// listede "hiç açılmadı" yazıyordu — kullanıcı o uygulamaları açmış olsa
+  /// bile.
+  ///
+  /// Artık **önce kendi platform kanalımız** sorulur (`getLastTimeUsed()` +
+  /// Android 10'da `getLastTimeVisible()`, bkz. `ci/MainActivity.kt`).
+  /// Eklenti YEDEK olarak duruyor: kanalın olmadığı bir yapıda (eski APK)
+  /// hiç veri göstermemektense eksik veri göstermek yeğdir.
   static Future<Map<String, int>> _lastUsedByPackage(
       {int windowDays = 365}) async {
+    final fromChannel = await AppStorageService.lastUsed(
+        days: windowDays < 730 ? 730 : windowDays);
+    if (fromChannel.isNotEmpty) return fromChannel;
     try {
       final now = DateTime.now();
       final usage = await AppUsage()
@@ -161,7 +196,11 @@ abstract final class InstalledAppsService {
     }
 
     // İzin bayrağı kapalıysa sorgu YAPILMAZ (yoksa ayar sayfası açılırdı).
-    var usageKnown = await hasUsagePermission();
+    // Kendi kanalımız izni GERÇEKTEN sorabiliyor (`AppOpsManager`); bayrak
+    // yalnız kanalın olmadığı yapılar için yedek kaldı — izin ayarlardan geri
+    // alındığında bayrak yanlış "açık" kalabiliyordu.
+    var usageKnown = await AppStorageService.hasUsageAccess() ||
+        await hasUsagePermission();
     var usage = const <String, int>{};
     if (usageKnown) {
       usage = await _lastUsedByPackage(windowDays: usageWindowDays);

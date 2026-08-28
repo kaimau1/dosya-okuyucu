@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +10,7 @@ import '../../services/file_service.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/apk_icon.dart';
 import '../../services/fm/image_sniff.dart';
+import '../../services/fm/media_duration.dart';
 import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../file_type_icon.dart';
@@ -611,6 +614,12 @@ class _VideoThumb extends StatefulWidget {
 class _VideoThumbState extends State<_VideoThumb> {
   String? _thumb;
 
+  /// Süre rozeti (kullanıcı isteği 2026-08-28: *"videolarda dk ve sn'si
+  /// önizlemedeyken sağ alt köşesinde yazmalı"*). Küçük resimden AYRI
+  /// yükleniyor: ikisi farklı native çağrı ve süre gelmeden küçük resmi
+  /// bekletmek listeyi geciktirirdi.
+  String? _duration;
+
   @override
   void initState() {
     super.initState();
@@ -623,18 +632,26 @@ class _VideoThumbState extends State<_VideoThumb> {
     // Liste öğesi geri dönüştürülüp başka videoya bağlanabilir.
     if (old.path != widget.path) {
       _thumb = null;
+      _duration = null;
       _load();
     }
   }
 
   Future<void> _load() async {
     final path = widget.path;
+    unawaited(_loadDuration(path));
     final result = await ThumbnailCache.forVideo(path,
         size: (widget.size * 2).round().clamp(96, 512));
     if (!mounted || path != widget.path) return;
     // Küçük resim üretilemedi: dosya silinmiş olabilir (bkz. FsEvents).
     if (result == null) FsEvents.reportUnreadable(path);
     setState(() => _thumb = result);
+  }
+
+  Future<void> _loadDuration(String path) async {
+    final duration = await MediaDuration.forVideo(path);
+    if (!mounted || path != widget.path || duration == null) return;
+    setState(() => _duration = MediaDuration.format(duration));
   }
 
   @override
@@ -676,6 +693,37 @@ class _VideoThumbState extends State<_VideoThumb> {
               ],
             ),
           ),
+          // **Süre — SAĞ ALT köşe** (oynat rozetinin karşı köşesi, çakışmaz).
+          // Küçük hücrelerde (liste satırı, 44 px) yazı okunmaz ve karenin
+          // yarısını kaplardı; eşik altında çizilmez — rozetin işi bilgi
+          // vermek, karartmak değil.
+          if (_duration != null && widget.size >= 56)
+            PositionedDirectional(
+              end: widget.size * 0.05,
+              bottom: widget.size * 0.05,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.62),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  child: Text(
+                    _duration!,
+                    // Yazı boyutu hücreyle ölçekleniyor; kullanıcının uygulama
+                    // içi yazı ölçeği rozeti taşırmasın diye `textScaler`
+                    // burada sabitleniyor.
+                    textScaler: TextScaler.noScaling,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: (widget.size * 0.14).clamp(9.0, 13.0),
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -34,6 +34,9 @@ import 'package:path_provider/path_provider.dart';
 abstract final class CrashLog {
   static const _fileName = 'crash_log.json';
 
+  /// "Buraya kadarını gördüm" işareti (son okunan kaydın zamanı).
+  static const _seenFileName = 'crash_log_seen.txt';
+
   /// En fazla kaç kayıt tutulur (en yenisi başta). Sınır YOKSA dosya sessizce
   /// büyür: bir çizim hatası saniyede onlarca kez tekrarlanabilir.
   static const maxRecords = 20;
@@ -120,6 +123,49 @@ abstract final class CrashLog {
     }
   }
 
+  /// **Kullanıcının HENÜZ GÖRMEDİĞİ kayıt sayısı.**
+  ///
+  /// Kayıt tutmak tek başına geri bildirim döngüsü kurmuyor: kimse kendi
+  /// isteğiyle Ayarlar > Hakkında'ya bakmaz. Uygulama bir çökmeden sonra
+  /// açıldığında panoda bir kez, kapatılabilir bir satır gösteriliyor
+  /// (`CrashNoticeBanner`); "görüldü" işareti son okunan kaydın zamanı.
+  ///
+  /// Zaman damgası kullanılıyor, sayaç değil: kayıt listesi 20'de dolup
+  /// başından kırpıldığı için "kaç tane vardı" güvenilir değil.
+  static Future<int> unseenCount() async {
+    final records = await load();
+    if (records.isEmpty) return 0;
+    final seen = await _readSeenStamp();
+    if (seen == null) return records.length;
+    return records.where((r) => r.time.isAfter(seen)).length;
+  }
+
+  /// En yeni kaydı "görüldü" olarak işaretler.
+  static Future<void> markSeen() async {
+    final records = await load();
+    if (records.isEmpty) return;
+    try {
+      final dir = await _resolveDir();
+      if (dir == null) return;
+      await File(p.join(dir, _seenFileName))
+          .writeAsString(records.first.time.toIso8601String(), flush: true);
+    } catch (_) {
+      // İşaret konulamazsa en kötü ihtimalle uyarı bir kez daha görünür.
+    }
+  }
+
+  static Future<DateTime?> _readSeenStamp() async {
+    try {
+      final dir = await _resolveDir();
+      if (dir == null) return null;
+      final file = File(p.join(dir, _seenFileName));
+      if (!await file.exists()) return null;
+      return DateTime.tryParse((await file.readAsString()).trim());
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Kayıtlar — en yenisi başta. Dosya yoksa/bozuksa boş liste.
   static Future<List<CrashRecord>> load() async {
     try {
@@ -144,6 +190,11 @@ abstract final class CrashLog {
       if (dir == null) return;
       final file = File(p.join(dir, _fileName));
       if (await file.exists()) await file.delete();
+      // İşaret de silinir: kalırsa temizlemeden SONRA gelen bir kayıt,
+      // zamanı eski işaretin gerisinde kalırsa "görülmüş" sayılabilirdi
+      // (cihaz saati geri alınmış olabilir).
+      final seen = File(p.join(dir, _seenFileName));
+      if (await seen.exists()) await seen.delete();
     } catch (_) {
       // Yok sayılır — temizleme bir kolaylık, kritik yol değil.
     }

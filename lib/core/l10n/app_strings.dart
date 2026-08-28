@@ -1135,6 +1135,33 @@ const Map<String, (String, String, String)> _table = {
   'apps.color_legend': ('Renk = kullanılmama süresi', 'Colour = time unused', 'اللون = مدة عدم الاستخدام'),
   'apps.never_opened': ('hiç açılmadı', 'never opened', 'لم يُفتح قط'),
   'apps.today': ('bugün', 'today', 'اليوم'),
+  // Kullanım verisi tutulan pencereden (2 yıl) daha eski kurulumlarda kayıt
+  // olmayabilir; "hiç açılmadı" demek uydurma olurdu (2026-08-28).
+  // Çökme sonrası panoda görünen tek satır (2026-08-28).
+  'crash.notice': (
+    'Uygulama beklenmedik şekilde hata verdi ({n} kayıt). Raporu gör.',
+    'The app hit an unexpected error ({n} reports). See the report.',
+    'واجه التطبيق خطأً غير متوقع ({n} سجل). اعرض التقرير.',
+  ),
+  // ── PDF: sayfa numarası ve filigran (2026-08-28) ────────────────────────
+  'pt.page_numbers': ('Sayfa numarası ekle', 'Add page numbers', 'إضافة أرقام الصفحات'),
+  'pt.pn_skip_first': ('Kapak sayfasını atla', 'Skip the cover page', 'تخطّي صفحة الغلاف'),
+  'pt.pn_skip_first_sub': (
+    'İlk sayfa numarasız kalır, numara 2\'den başlar',
+    'The first page stays unnumbered; numbering starts at 2',
+    'تبقى الصفحة الأولى بلا رقم ويبدأ الترقيم من ٢',
+  ),
+  'pt.pn_with_total': ('"3 / 12" biçiminde', 'Use the "3 / 12" format', 'بصيغة «٣ / ١٢»'),
+  'pt.pn_right': ('Sağ alta hizala', 'Align to the bottom right', 'محاذاة إلى أسفل اليمين'),
+  'pt.op_page_numbers': ('Sayfa numarası ekleniyor', 'Adding page numbers', 'جارٍ إضافة أرقام الصفحات'),
+  'pt.watermark': ('Filigran ekle', 'Add watermark', 'إضافة علامة مائية'),
+  'pt.watermark_hint': ('Örn. TASLAK, KOPYA', 'e.g. DRAFT, COPY', 'مثال: مسودة، نسخة'),
+  'pt.op_watermark': ('Filigran ekleniyor', 'Adding watermark', 'جارٍ إضافة العلامة المائية'),
+  'apps.long_ago': (
+    '2 yıldan uzun',
+    'over 2 years',
+    'أكثر من سنتين',
+  ),
   'apps.days_ago': ('{n} gün önce', '{n} days ago', 'قبل {n} يوم'),
   'apps.usage_needed': (
     'Son açılma tarihleri için izin gerekli',

@@ -94,6 +94,41 @@ void main() {
     expect(text, contains('görünür hata'));
   });
 
+  group('görülmemiş kayıt sayacı (panodaki uyarı satırı)', () {
+    test('hiç kayıt yoksa 0', () async {
+      expect(await CrashLog.unseenCount(), 0);
+    });
+
+    test('yeni kayıtlar görülmemiş sayılır', () async {
+      await CrashLog.record(StateError('bir'), StackTrace.fromString('#0 a'));
+      await CrashLog.record(StateError('iki'), StackTrace.fromString('#0 b'));
+      expect(await CrashLog.unseenCount(), 2);
+    });
+
+    test('görüldü işaretinden sonra sıfırlanır', () async {
+      await CrashLog.record(StateError('bir'), StackTrace.fromString('#0 a'));
+      await CrashLog.markSeen();
+      expect(await CrashLog.unseenCount(), 0);
+    });
+
+    test('işaretten SONRA gelen kayıt yine görünür', () async {
+      await CrashLog.record(StateError('eski'), StackTrace.fromString('#0 a'));
+      await CrashLog.markSeen();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await CrashLog.record(StateError('yeni'), StackTrace.fromString('#0 b'));
+      expect(await CrashLog.unseenCount(), 1);
+    });
+
+    test('temizlemek işareti de siler (sonraki kayıt görülmüş sayılmaz)',
+        () async {
+      await CrashLog.record(StateError('bir'), StackTrace.fromString('#0 a'));
+      await CrashLog.markSeen();
+      await CrashLog.clear();
+      await CrashLog.record(StateError('iki'), StackTrace.fromString('#0 b'));
+      expect(await CrashLog.unseenCount(), 1);
+    });
+  });
+
   test('JSON biçimi ileri/geri dönüşümlüdür', () {
     // `DateTime` const olamaz → kayıt da const değil.
     final record = CrashRecord(
