@@ -327,6 +327,16 @@ List<SettingsCategory> settingsCategories() => [
               : context.t('fmset.pin_sub_unset');
         },
         sections: const [
+          // Politika en üstte: kullanıcı "gizlilik" başlığına girdiğinde
+          // aradığı ilk şey çoğu zaman "verim ne oluyor" sorusunun cevabı.
+          SettingsSection('settings.privacy_policy', [
+            SettingRow(
+              id: 'privacy_policy',
+              titleKey: 'settings.privacy_policy',
+              altKeys: ['settings.privacy_policy_sub'],
+              builder: _privacyPolicyTile,
+            ),
+          ]),
           SettingsSection('set.sec_lock', [
             SettingRow(
               id: 'pin',
@@ -431,6 +441,12 @@ List<SettingsCategory> settingsCategories() => [
           SettingsSection('settings.about', [
             SettingRow(
                 id: 'about', titleKey: 'settings.about', builder: _aboutTile),
+            SettingRow(
+              id: 'crash_log',
+              titleKey: 'settings.crash_log',
+              altKeys: ['settings.crash_log_sub'],
+              builder: _crashLogTile,
+            ),
           ]),
         ],
       ),
@@ -476,3 +492,5 @@ Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _thumbCacheTile(BuildContext _) => const ThumbCacheTile();
 Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
+Widget _crashLogTile(BuildContext _) => const CrashLogTile();
+Widget _privacyPolicyTile(BuildContext _) => const PrivacyPolicyTile();

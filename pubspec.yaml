@@ -274,6 +274,11 @@ flutter:
   assets:
     - assets/
     - assets/word/
+    # Gizlilik politikası (tr/en/ar). Uygulama İÇİNDEN okunabilmesi şart:
+    # mağazadan/GitHub'dan kuran kullanıcı depoyu görmez ve politikayı
+    # okumak için internete çıkmak zorunda kalmamalı. Depodaki
+    # docs/GIZLILIK.md aynı dosyalara işaret eder — tek kaynak.
+    - assets/privacy/
 
   # Slayt sadakati: PowerPoint fontlarının (Calibri/Arial/Times) metrik-uyumlu,
   # dağıtılabilir açık kaynak karşılıkları. Eşleme pptx_render._mapFamily'de.

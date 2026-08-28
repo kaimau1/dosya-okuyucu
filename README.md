@@ -40,6 +40,19 @@ ve paylaşım özellikleriyle.
 - 🔁 Formatlar arası zengin dönüşüm (PDF↔Word↔Slayt)
 - 📚 AI’ın PDF’lerden otomatik slayt üretmesi (genişletilmiş)
 
+## Gizlilik
+
+Uygulama veri toplamaz: reklam ve kullanım takibi yoktur, dosyalarınızı
+toplayan bir sunucumuz yoktur. Veri cihazdan yalnız sizin başlattığınız bir
+işlemle çıkar (Gemini, Drive, ağ depolama…) ve hangi işlemin neyi nereye
+gönderdiği politikada tek tek yazılıdır:
+[Türkçe](assets/privacy/tr.md) · [English](assets/privacy/en.md) ·
+[العربية](assets/privacy/ar.md) — uygulama içinde: **Ayarlar → Gizlilik**.
+
+Beklenmedik bir hata olursa teknik özeti **yalnız cihazınızda** bir dosyaya
+yazılır (Ayarlar → Hakkında → **Hata kayıtları**); hiçbir yere kendiliğinden
+gönderilmez, paylaşmak sizin elinizdedir.
+
 ## Yapay zeka anahtarı
 
 Ayarlar → **Gemini API anahtarı** alanına kendi anahtarınızı girin

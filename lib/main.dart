@@ -22,9 +22,16 @@ import 'services/fm/job_queue.dart';
 import 'services/fm/job_store.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
+import 'services/crash_log.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // **Hata yakalayıcı EN BAŞTA** (2026-08-28): bundan sonraki her satır —
+  // seçici kipi dahil — kapsam içinde olsun. Uygulama mağazadan değil GitHub
+  // Releases'ten dağıtıldığı için kullanıcının telefonundaki bir çökmeyi
+  // öğrenmenin başka yolu yoktu; kayıt cihazda kalır, kullanıcı Ayarlar >
+  // Hata kayıtları'ndan görüp isterse paylaşır (bkz. services/crash_log.dart).
+  CrashLog.install();
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

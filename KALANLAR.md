@@ -19,6 +19,30 @@
 >    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
 >    (split-per-abi/AAB). Her biri kendi başına bir tur.
 
+- [ ] **MAĞAZA YOLU (2026-08-28 durum değerlendirmesi) — sırayla, her biri
+      kendi turu.** Dört temel bu turda yapıldı (artan versionCode, imza
+      sızıntısının kapatılması, hata kaydı, gizlilik politikası). Kalanlar:
+      (a) **targetSdk 36** — Play 31 Ağu 2026'dan itibaren istiyor; bizim CI
+      Flutter **3.29.3**'e çivili (targetSdk 35) ve pubspec'teki onlarca
+      sürüm sabiti "3.35+ ister" diyor → **sürüm duvarını yıkma turu**,
+      takvim aleyhimize, en acil madde;
+      (b) **AAB** çıktısı + `android/` klasörünün depoya alınması (Play yeni
+      uygulamada APK kabul etmiyor; her derlemede `flutter create` üretmek
+      Play imza/sürüm yönetimi için kırılgan);
+      (c) **izin diyeti / Play varyantı (flavor):** `QUERY_ALL_PACKAGES` +
+      `PACKAGE_USAGE_STATS` (Uygulamalar ekranı) ve
+      `REQUEST_INSTALL_PACKAGES` + `.apk` intent'leri Play'de yüksek red
+      riski — bunlar yalnız GitHub sürümünde kalsın;
+      (d) **Drive kapsamı `drive` → `drive.file`** (yayına almak yıllık
+      ücretli CASA denetimi istiyor — bkz. HAFIZA 2026-08-05);
+      (e) **boyut:** ~91 MB/ABI; ffmpeg (~39 MB) isteğe bağlı indirilen
+      modüle, ML Kit unbundled, font altkümesi kırpılsın → hedef < 35 MB;
+      (f) **Veri Güvenliği formu** `assets/privacy/tr.md`in 1-2. bölümünden
+      doldurulacak;
+      (g) `flutter analyze` CI kapısı — önce eski test dosyalarındaki 41
+      `prefer_const_*` info'su temizlenmeli (analyze info'da da sıfır dışı
+      çıkıyor, kapı bugün eklenirse CI kırmızı olur).
+
 - [ ] **Slayt ↔ PDF cihaz doğrulaması (kullanıcı)** — 2026-08-08:
       (a) bir `.pptx` aç → alt çubukta **PDF** → üretilen PDF'te slaytlar
       **ekrandakiyle birebir** mi (şekiller, renkler, görseller yerinde mi),

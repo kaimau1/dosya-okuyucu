@@ -424,6 +424,43 @@ const Map<String, (String, String, String)> _table = {
     'Dosya Okuyucu • الإصدار 0.1.0\n'
         'قارئ/محرر ملفات سريع وبسيط يدعم صيغًا متعددة.',
   ),
+  // ── Gizlilik politikası ve hata kayıtları (2026-08-28) ──────────────────
+  'settings.privacy_policy': (
+    'Gizlilik politikası',
+    'Privacy policy',
+    'سياسة الخصوصية',
+  ),
+  'settings.privacy_policy_sub': (
+    'Hangi veri nerede kalır, ne zaman cihazdan çıkar',
+    'What stays on the device and when anything leaves it',
+    'ما الذي يبقى على الجهاز ومتى يغادره',
+  ),
+  'settings.crash_log': ('Hata kayıtları', 'Crash reports', 'سجلّات الأعطال'),
+  'settings.crash_log_sub': (
+    'Cihazda tutulur, kendiliğinden gönderilmez',
+    'Kept on the device, never sent automatically',
+    'تُحفظ على الجهاز ولا تُرسل تلقائيًا',
+  ),
+  'settings.crash_log_count': ('{n} kayıt', '{n} reports', '{n} سجل'),
+  'settings.crash_log_empty': (
+    'Kayıt yok — uygulama bu cihazda hiç hata vermedi.',
+    'No reports — the app has not failed on this device.',
+    'لا توجد سجلّات — لم يُخفق التطبيق على هذا الجهاز.',
+  ),
+  'settings.crash_log_note': (
+    'Bu metin YALNIZ cihazınızda durur. Paylaş dediğinizde ne gönderdiğinizi '
+        'görebilmeniz için tamamı burada gösterilir; hata mesajı dosya adı '
+        'içerebilir.',
+    'This text stays on your device only. It is shown in full so you can see '
+        'what you would send; an error message may contain a file name.',
+    'يبقى هذا النص على جهازك فقط. ويُعرض كاملًا لترى ما سترسله؛ فقد تتضمّن '
+        'رسالة الخطأ اسم ملف.',
+  ),
+  'settings.crash_log_cleared': (
+    'Hata kayıtları silindi',
+    'Crash reports deleted',
+    'تم حذف سجلّات الأعطال',
+  ),
   'settings.oss': ('Açık kaynak bileşenler', 'Open-source components', 'المكوّنات مفتوحة المصدر'),
   'settings.oss_sub': (
     'FFmpeg (LGPL v3) ve diğer lisanslar',

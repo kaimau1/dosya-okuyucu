@@ -8655,3 +8655,101 @@ göre sıralanıp gösterilsin"*.
 **1711 test yeşil** (yeni: sıcak klasör Android/media regresyonu 1).
 `graphify update .` bu bulut oturumunda çalıştırılamadı (araç kurulu değil) —
 yerelde çalıştırılmalı.
+
+## 2026-08-28 — Yayın öncesi dört temel: sürüm numarası, imza sızıntısı, hata kaydı, gizlilik politikası
+
+**Bağlam.** Kullanıcı: *"neler yapabiliriz, neleri düzeltmeliyiz… 6 ay sonra
+batmışız neden başarısız olurduk"*. Yapılan durum değerlendirmesinin sonucu:
+batış nedeni kod kalitesi değil, **dağıtım kanalı yokluğu, geri bildirim
+döngüsü yokluğu ve odak yokluğu** olurdu. Kullanıcı bunlardan (a) şıkkını —
+hemen yapılabilir dört düşük riskli madde — seçti. Bu tur o dört madde.
+
+### A) `versionCode` artık SABİT DEĞİL (yayının önündeki sessiz duvar)
+`pubspec.yaml` `version: 0.1.0+1` idi ve hiç değişmiyordu → her APK
+**versionCode 1** taşıyordu. Android bir güncellemeyi ancak bu sayı ARTARSA
+kabul eder; yani mağaza yolu **ikinci yüklemede** tıkanacaktı, GitHub'dan
+kurulumda da "aynı sürüm" karışıklığı vardı.
+
+- Çözüm CI'da: `flutter build apk --build-name=0.1.0
+  --build-number=${{ github.run_number }}`. Sayı Release etiketiyle
+  (`v0.1.0-build-<n>`) BİREBİR aynı — bir APK'nın hangi koşudan geldiği
+  tek bakışta belli.
+- `pubspec.yaml` bilerek ELLENMEDİ: sürüm numarasının iki yerde yaşaması
+  (biri unutulur) bu tuzağın kendisiydi. Tek kaynak = koşu sayacı.
+- `--split-per-abi` ile Flutter'ın Gradle eklentisi her mimariye
+  `abi*1000 + numara` verir; armeabi/arm64 birbirini ezmez (Play çoklu APK
+  kuralı da bunu ister).
+
+### B) İMZA ANAHTARI ARTIK LOG'A BASILMIYOR (güvenlik mayını temizlendi)
+Workflow, `ANDROID_KEYSTORE_B64` secret'ı yoksa bir anahtar üretip
+**base64'ünü iş akışı loguna yazdırıyordu** — ve depo 2026-07-23'te public
+yapılmıştı. O logu gören herkes uygulamayı BİZİM İMZAMIZLA imzalayabilir,
+kullanıcıya sahte bir "güncelleme" kurdurabilirdi (parola da yedek sabit
+değerdi). Yazdırma kaldırıldı; anahtar artık **yerelde** üretiliyor
+(SIGNING.md yeniden yazıldı). CI'daki geçici anahtar yalnız o derlemeyi
+imzalar ve dışarı çıkmaz; kullanıcı `::warning::` ile uyarılır.
+
+### C) Hata (çökme) kaydı — kör uçuş bitti · `services/crash_log.dart`
+Uygulama GitHub Releases'ten dağıtılıyor ve **hiçbir hata bildirimi yoktu**:
+kullanıcının telefonundaki bir çökmeyi öğrenmenin yolu yoktu; tüm doğrulama
+KALANLAR'daki ~27 "cihaz doğrulaması (kullanıcı)" maddesine, yani tek bir
+telefona bağlıydı.
+
+- **Crashlytics/Sentry EKLENMEDİ (bilinçli):** ikisi de bir sunucu ucu ister
+  (Crashlytics `google-services.json` — depoda yok, uygulama yerel modda;
+  Sentry bir DSN) ve **sürüm duvarını** (Flutter 3.29.3) zorlayacak yeni bir
+  bağımlılık demek. Uzak uç geldiğinde bu katmana bir "gönderici" takılır,
+  yakalama ve biçim aynı kalır.
+- İki kanal birden kuruluyor: `FlutterError.onError` (çizim/widget) ve
+  `PlatformDispatcher.onError` (yakalanmamış asenkron). `runZonedGuarded`
+  SEÇİLMEDİ — `main()`i zona sarmak `WidgetsFlutterBinding` ve testlerde
+  bilinen tuzaklar üretiyor. **Önceki işleyiciler korunuyor**, yoksa debug'da
+  konsol çıktısı kaybolurdu.
+- `main()`in EN BAŞINDA kuruluyor (seçici kipi de kapsansın).
+- Kayıt uygulamanın özel dizininde JSON: son **20** kayıt, yığın izi 40 satıra
+  kırpılı, **aynı hata tekrarlarsa yeni satır değil sayaç** (bir çizim hatası
+  saniyede onlarca kez gelebilir → 20 kaydın hepsi tek hatayla dolardı).
+- **Kaydedici hiçbir koşulda FIRLATMAZ** (testle sabit): hata kaydedicinin
+  uygulamayı çökertmesi en kötü sonuç olurdu.
+- `FmEnv.appSupportDir`e BAĞLANMADI: o `ensureInit()` beklerken ilk kareden
+  önceki bir çökme kaydedilemezdi; dizin `path_provider`dan doğrudan alınır.
+- Arayüz: Ayarlar > Hakkında > **Hata kayıtları** (`CrashLogScreen`) — metin
+  KISALTILMADAN gösterilir, kullanıcı görerek paylaşır/temizler.
+
+### D) Gizlilik politikası — üç dilde, uygulamanın İÇİNDE
+Yoktu. Hem mağaza başvurusunun ön koşulu hem de bu uygulamanın en çok soru
+doğuran yönlerinin ("AI dosyalarımı okuyor mu", "tüm dosyalara erişim niye")
+yazılı cevabı.
+
+- Metin `assets/privacy/{tr,en,ar}.md` — **tek kaynak**: aynı dosya hem
+  uygulamada gösteriliyor hem GitHub'da okunabiliyor (`docs/GIZLILIK.md`
+  oraya işaret eder; mağazanın isteyeceği "privacy policy URL" de o adres).
+- Uygulama içinde gösterme kararı: politikayı okumak için kullanıcıyı
+  internete çıkarmak çelişki olurdu.
+- **`flutter_markdown` paketi EKLENMEDİ:** sürüm duvarı yüzünden tek bir
+  belge için bağımsızlık riski alınmadı; `core/policy_doc.dart` belgenin
+  gerçekten kullandığı alt kümeyi (başlık/paragraf/madde/tablo) ayrıştırır ve
+  bilinmeyen işaretleme metni KAYBETMEZ.
+- **Tablolar telefonda sütun sütun çizilmiyor:** ikinci sütun uzun cümleler;
+  dar ekranda okunmazdı. Her satır bir kart (başlık koyu, açıklama altında)
+  ve tablonun BAŞLIK satırı düşürülüyor (bağlamsız bir kart olurdu).
+- İçerik koda göre yazıldı, pazarlama metni değil: cihazda kalanlar; cihazdan
+  çıkanlar (Gemini + kendi anahtarı, Drive, Firebase, NAS, indirme, ML Kit
+  model indirme, paylaşım) tablo hâlinde; izinler ve nedenleri; hata
+  kayıtlarının yerel olduğu. **OCR/tarama/çeviri cihazda** olduğu açıkça
+  yazılı.
+
+### Yapılmadı (bilerek, kapsam dışı)
+- `flutter analyze` CI kapısı: analyze şu an 41 **info** üretiyor (hepsi eski
+  test dosyalarında, `prefer_const_*`) ve `flutter analyze` info'da da sıfır
+  dışı çıkıyor → kapıyı bugün eklemek CI'yi kırmış olurdu. Önce o 41 madde
+  temizlenmeli, sonra kapı.
+- Mağaza yolunun asıl duvarları (targetSdk 36 için Flutter yükseltmesi, AAB,
+  Play varyantında `QUERY_ALL_PACKAGES`/`REQUEST_INSTALL_PACKAGES` diyeti,
+  Drive kapsamının `drive.file`a dönmesi, 91 MB boyut) — ayrı turlar.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile birebir) bu bulut oturumunda indirildi;
+`flutter analyze` yeni kodda **0 sorun**, **1730 test yeşil** (9 atlandı —
+canlı NAS sunucusu yok). Yeni testler: `crash_log_test.dart` (10),
+`policy_doc_test.dart` (9; üç dilin de politikasının var ve tam olduğunu
+kilitler). `graphify update .` bu ortamda çalıştırılamadı (araç kurulu değil).

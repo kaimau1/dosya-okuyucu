@@ -9,7 +9,10 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/crash_log.dart';
 import '../../services/fm/search_index.dart';
+import 'crash_log_screen.dart';
+import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
 
 /// Ekranın yüksek tazeleme hızı (90/120 Hz).
@@ -183,6 +186,73 @@ class _VolumesTileState extends State<VolumesTile> {
             if (mounted) setState(() {});
           },
         ),
+      );
+}
+
+/// Gizlilik politikası — uygulamanın İÇİNDE, üç dilde, çevrimdışı.
+///
+/// (2026-08-28) Politika hem mağaza başvurusunun ön koşulu hem de bu
+/// uygulamanın en çok soru doğuran yönünün ("AI dosyalarımı okuyor mu?",
+/// "tüm dosyalara erişim niye?") yazılı cevabı. Metin `assets/privacy/`
+/// altında, depodaki kopyayla aynı dosyadır.
+class PrivacyPolicyTile extends StatelessWidget {
+  const PrivacyPolicyTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: Icons.privacy_tip_outlined,
+        title: context.t('settings.privacy_policy'),
+        subtitle: context.t('settings.privacy_policy_sub'),
+        wrapSubtitle: true,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+              builder: (_) => const PrivacyPolicyScreen()),
+        ),
+      );
+}
+
+/// Hata kayıtları — kaç kayıt var, dokununca tamamı.
+///
+/// Sayıyı satırda göstermek bilinçli: kullanıcı "uygulama çöküyor" derken
+/// buraya bakıp kaç kez olduğunu görebiliyor; biz de rapor isterken tek
+/// bir yer tarif ediyoruz (Ayarlar > Hakkında > Hata kayıtları).
+class CrashLogTile extends StatefulWidget {
+  const CrashLogTile({super.key});
+
+  @override
+  State<CrashLogTile> createState() => _CrashLogTileState();
+}
+
+class _CrashLogTileState extends State<CrashLogTile> {
+  int? _count;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final records = await CrashLog.load();
+    if (mounted) setState(() => _count = records.length);
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: Icons.bug_report_outlined,
+        title: context.t('settings.crash_log'),
+        subtitle: context.t('settings.crash_log_sub'),
+        wrapSubtitle: true,
+        value: _count == null
+            ? null
+            : context.t('settings.crash_log_count', {'n': _count}),
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const CrashLogScreen()),
+          );
+          // Ekranda "Temizle" denmiş olabilir — dönüşte sayı tazelenir.
+          await _refresh();
+        },
       );
 }
 
