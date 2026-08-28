@@ -39,9 +39,19 @@
       modüle, ML Kit unbundled, font altkümesi kırpılsın → hedef < 35 MB;
       (f) **Veri Güvenliği formu** `assets/privacy/tr.md`in 1-2. bölümünden
       doldurulacak;
-      (g) `flutter analyze` CI kapısı — önce eski test dosyalarındaki 41
-      `prefer_const_*` info'su temizlenmeli (analyze info'da da sıfır dışı
-      çıkıyor, kapı bugün eklenirse CI kırmızı olur).
+      (g) ~~`flutter analyze` CI kapısı~~ **BİTTİ** (2026-08-28).
+
+- [ ] **Flutter 3.44.9 DENEME DERLEMESİ (kullanıcı tetikleyecek)** —
+      2026-08-28: Actions > **Run workflow** > "Denenecek Flutter sürümü" =
+      `3.44.9`. Ölçüldü: bağımlılıklar değişmeden çözülüyor, 1730 test yeşil,
+      yalnız 24 kullanımdan-kaldırma uyarısı var; belirsiz olan **Android
+      derleme zinciri** (AGP 9.0.1 / Gradle 9.1 / Kotlin 2.3.20 / NDK 28).
+      Yeşil çıkarsa `FLUTTER_VERSION` varsayılanı 3.44.9'a taşınır → targetSdk
+      **36** (Play'in 31 Ağu 2026 şartı) kendiliğinden gelir ve yereldeki
+      sürümle CI aynı olur. Ardından 24 uyarının temizlenmesi ayrı bir tur
+      (`RadioGroup`, `DropdownButtonFormField.initialValue`,
+      `Matrix4.translateByDouble/scaleByDouble`) — bunlar 3.29.3'te DERLENMEZ,
+      yani ancak varsayılan taşındıktan sonra yapılabilir.
 
 - [ ] **Slayt ↔ PDF cihaz doğrulaması (kullanıcı)** — 2026-08-08:
       (a) bir `.pptx` aç → alt çubukta **PDF** → üretilen PDF'te slaytlar

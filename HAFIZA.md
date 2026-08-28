@@ -8753,3 +8753,101 @@ yazılı cevabı.
 canlı NAS sunucusu yok). Yeni testler: `crash_log_test.dart` (10),
 `policy_doc_test.dart` (9; üç dilin de politikasının var ve tam olduğunu
 kilitler). `graphify update .` bu ortamda çalıştırılamadı (araç kurulu değil).
+
+## 2026-08-28 (II) — Kalite kapısı, sürüm duvarı ÖLÇÜMÜ, üç kullanıcı isteği
+
+### A) CI'ye analyze kapısı + istek üzerine AAB
+- `flutter analyze` artık iki işte de bir adım. Kapıyı koyabilmek için biriken
+  **41 uyarı** temizlendi (hepsi eski TEST dosyalarında, `prefer_const_*` /
+  `unnecessary_import` / bir string birleştirme); ürün kodu değişmedi.
+  `dart fix --apply test` + tek elle düzeltme.
+- **AAB** (Play'in yükleme birimi) `Run workflow > "Play için AAB da üret"`
+  ile üretiliyor. Her push'ta ikinci bir AOT derlemesi (~5 dk) yakmamak için
+  isteğe bağlı; `jarsigner` ile imzalanıyor (apksigner AAB imzalamaz) ve
+  yalnız artifact olarak kalıyor — Release'e konsa indiren telefonuna kuramaz.
+- `.gitignore`: `*.jks`, `*.jks.b64`, `*.keystore`, `key.properties`.
+  SIGNING.md artık anahtarı yerelde ürettiriyor; kazara commit ölümcül olurdu.
+
+### B) SÜRÜM DUVARI ÖLÇÜLDÜ — sanıldığı kadar yüksek DEĞİL
+Bulut oturumunda Flutter **3.44.9** indirildi (kullanıcının yerel serisi) ve
+deponun kopyasında koşturuldu:
+- `flutter pub get` **hiçbir bağımlılığı değiştirmeden** çözüldü. pubspec'teki
+  onlarca "bu paket 3.35+ ister → CI kırılır" notu bir alt sınır sorunuydu;
+  eski sürümler yeni Flutter'da da çözülüyor.
+- `flutter test`: **1730 testin tamamı yeşil**.
+- `flutter analyze`: 24 uyarı, **hepsi kullanımdan kaldırma** (Radio'nun
+  `groupValue`/`onChanged` → `RadioGroup`, `DropdownButtonFormField.value` →
+  `initialValue`, `Matrix4.translate/scale` → `translateByDouble/scaleByDouble`,
+  `TextDirection.index`). Hata YOK. Dokuz dosya: viewer_screen, slide_canvas,
+  image_gallery_screen, slideshow_screen, organize_screen, tts_voice_sheet,
+  fm_layout_sheet, remote_edit_screen, pdf_form_screen, tiles_ai,
+  dashboard_screen, sheet_text_measure.
+- 3.44.9 şablonu: **compileSdk/targetSdk 36** (Play'in şartı), minSdk 24
+  (bizim yamamızla aynı), AGP 9.0.1, Gradle 9.1.0, Kotlin 2.3.20.
+- **Belirsiz kalan tek şey Android derleme zinciri.** Bu yüzden Flutter sürümü
+  workflow'da parametre yapıldı (`Run workflow > Denenecek Flutter sürümü`);
+  varsayılan 3.29.3, deneme yeşil çıkarsa varsayılan taşınacak.
+- İki yama sürümden bağımsız hâle getirildi ve **iki şablonda da yerelde
+  çalıştırılarak** doğrulandı: Kotlin artık yalnız YÜKSELTİYOR (koşulsuz sed
+  2.3.20'yi 2.2.0'a düşürüp build 119 hatasını ters yönden geri getirirdi),
+  NDK yaması `flutter.ndkVersion` sembolünü de değiştiriyor (eski `grep -q`
+  kontrolü sembolik satırı "var" sayıp geçiyordu → Gradle kurulu olmayan
+  NDK'yı indirmeye kalkıyordu, build 152'yi kıran hata sınıfı).
+
+### C) "hiç açılmadı" YANLIŞTI — `app_usage`ın alanı yanlış alandı
+Kullanıcı ekran görüntüsüyle: *"açtığım birçok şey hiç açılmadı görülüyor"*.
+**Kök neden:** `app_usage` paketinin `lastForeground` alanı
+`UsageStats.getLastTimeForegroundServiceUsed()` döndürüyor — son **ön plan
+servisi** zamanı, son açılma değil (paketin `Stats.java`sında görülebilir).
+WhatsApp/Telegram/Termux servis çalıştırdığı için doğru görünüyordu; servis
+çalıştırmayan (Hepsiburada, Çeviri, Copilot, getir, oyunlar) her uygulama 0
+dönüyor ve listede "hiç açılmadı" yazıyordu.
+- Doğrusu `getLastTimeUsed()`; Android 10+ `getLastTimeVisible()` ile de
+  karşılaştırılıyor. Köprü **zaten var olan** kanalımıza eklendi
+  (`ci/MainActivity.kt` → `lastUsed`), yeni paket gerekmedi.
+  `queryAndAggregateUsageStats` kovaları paket başına birleştiriyor.
+- İzin artık `AppOpsManager` ile GERÇEKTEN sorulabiliyor; eski
+  SharedPreferences bayrağı izin geri alınınca yanlış "açık" kalıyordu.
+- **Dürüstlük kuralı:** Android kullanım verisini ~2 yıl tutuyor. Bu
+  pencereden ESKİ bir kurulumda kayıt yoksa "hiç açılmadı" demek uydurma
+  olurdu → "2 yıldan uzun" (`apps.long_ago`). "Hiç açılmadı" yalnız uygulama
+  pencere içinde kurulmuşsa yazılıyor (`InstalledAppEntry.neverOpened`).
+
+### D) Video süresi rozeti (`MediaDuration`)
+*"videolarda dk ve sn'si önizlemedeyken sağ alt köşesinde yazmalı"*.
+- Süre `VideoCompress.getMediaInfo` ile (zaten bağımlılık, native
+  MediaMetadataRetriever), `yol|mtime → saniye` olarak JSON'da önbellekli;
+  yazma 2 sn toplanıyor, kayıt 4000'de kırpılıyor.
+- Küçük resimden **AYRI** yükleniyor: aynı anda beklemek kareyi geciktirirdi.
+- Rozet sağ altta (oynat rozeti sol altta — çakışmıyor), `size >= 56` altında
+  çizilmiyor (44 px'lik liste satırında okunmaz, kareyi karartırdı),
+  `TextScaler.noScaling` (uygulama içi yazı ölçeği rozeti taşırmasın).
+- Ölçülemeyen dosyada rozet YOK — "0:00" yazmak yanlış bilgi olurdu.
+
+### E) PDF: sayfa numarası + filigran (`PdfTools`)
+*"pdf özelliklerini araştır ve geliştir"*. Var olan araçların hepsi belgeyi
+yeniden DÜZENLİYORDU (birleştir/böl/döndür/sil/sırala/sıkıştır/parola/imza/
+form/OCR); sayfaya bir şey **yazan** araç yoktu.
+- `addPageNumbers`: kapağı atla, `3 / 12` biçimi, sağ alt hizalama; 24 pt
+  kenar boşluğu. Varsayılan = en sık istenen hâl (ortada, 1'den, sade sayı).
+- `addWatermark`: çapraz (-38°), %12 saydam, yazı boyutu sayfa köşegenine göre
+  ölçekli (A4'te de makbuzda da aynı oranda). `graphics.save/restore` ŞART —
+  saydamlık sonraki çizimlere sızarsa arkasından basılan sayfa numarası da
+  soluk çıkardı (testle sabit).
+- **TUZAK — Türkçe:** gömülü standart PDF fontları WinAnsi kodlamasında ve
+  `ş/ğ/ı/İ` orada YOK. Arayüz `assets/fonts/Carlito-Bold.ttf` baytlarını
+  geçiyor (`PdfTrueTypeFont`); servis saf Dart kalsın diye asset okuma
+  ekranda, servis parametreyle alıyor.
+
+### F) Çökme uyarısı panoda
+Hata kaydını (2026-08-28 I) yalnız Ayarlar'a koymak, kimsenin bakmayacağı bir
+yere koymaktı — geri bildirim döngüsü kurulmazdı. Çökmeden sonraki açılışta
+panonun en üstünde tek satır görünüyor; "görüldü" işareti son okunan kaydın
+ZAMANI (sayaç değil: liste 20'de kırpıldığı için sayı güvenilmez).
+
+**Doğrulama:** Flutter 3.29.3 — `flutter analyze` **0 sorun**, **1751 test
+yeşil** (yeni: `pdf_stamp_test` 10, `media_duration_test` 6, `crash_log_test`
++5, `policy_doc_test` 9). CI #305 (parametrik sürüm + yamalar) YEŞİL.
+**Açık iş:** 3.44.9 deneme derlemesini kullanıcı tetiklemeli (Actions > Run
+workflow > "Denenecek Flutter sürümü" = 3.44.9) — oturumun GitHub yetkisi
+workflow_dispatch'e izin vermiyor (403).
