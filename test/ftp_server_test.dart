@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/remote/ftp_server.dart';
+import 'package:dosya_okuyucu/services/fm/remote/ftp_tree.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ftpconnect/ftpconnect.dart';
 import 'package:path/path.dart' as p;
@@ -195,10 +196,30 @@ void main() {
         FTPConnect('127.0.0.1',
             port: server.boundPort, user: user, pass: pass, timeout: 10);
 
+    test('KÖK telefondaki kutuları gösterir', () async {
+      // 2026-08-29 kullanıcı isteği: PC'de kök artık ham Android klasörleri
+      // değil, telefondaki kategorilerin aynısı.
+      final ftp = client();
+      expect(await ftp.connect(), isTrue);
+      final names =
+          (await ftp.listDirectoryContent()).map((e) => e.name).toSet();
+      expect(names, containsAll([FtpTree.storageFolder, 'Belgeler',
+          'Resimler', 'Videolar', 'Ses', 'Arsivler', 'Uygulamalar']));
+      // Adların hepsi ASCII: eski istemciler Türkçe karakterleri bozuyor ve
+      // bozuk adla gönderilen CWD hiçbir kutuyla eşleşmiyor.
+      for (final name in names) {
+        expect(name.codeUnits.every((c) => c < 128), isTrue, reason: name);
+      }
+      // Gerçek klasörler kökte DEĞİL — hepsi "Telefon Belleği"nin altında.
+      expect(names, isNot(contains('klasor')));
+      await ftp.disconnect();
+    });
+
     test('giriş + listeleme + indirme çalışıyor', () async {
       final ftp = client();
       expect(await ftp.connect(), isTrue);
       await ftp.setTransferType(TransferType.binary);
+      expect(await ftp.changeDirectory(FtpTree.storageFolder), isTrue);
 
       final entries = await ftp.listDirectoryContent();
       final names = entries.map((e) => e.name).toSet();
@@ -233,8 +254,9 @@ void main() {
       final ftp = client();
       expect(await ftp.connect(), isTrue);
       await ftp.setTransferType(TransferType.binary);
+      expect(await ftp.changeDirectory(FtpTree.storageFolder), isTrue);
       expect(await ftp.changeDirectory('klasor'), isTrue);
-      expect(await ftp.currentDirectory(), '/klasor');
+      expect(await ftp.currentDirectory(), '/${FtpTree.storageFolder}/klasor');
 
       final target = File('${root.path}/ic_inen.txt');
       expect(await ftp.downloadFile('ic.txt', target), isTrue);
@@ -247,6 +269,7 @@ void main() {
       expect(await ftp.connect(), isTrue);
       await ftp.setTransferType(TransferType.binary);
 
+      expect(await ftp.changeDirectory(FtpTree.storageFolder), isTrue);
       final local = File('${root.path}/yuklenecek.txt')
         ..writeAsStringSync('yeni içerik');
       expect(
@@ -267,6 +290,7 @@ void main() {
       final ftp = client();
       expect(await ftp.connect(), isTrue);
       await ftp.setTransferType(TransferType.binary);
+      expect(await ftp.changeDirectory(FtpTree.storageFolder), isTrue);
       final target = File('${root.path}/ikili_inen.bin');
       expect(await ftp.downloadFile('ikili.bin', target), isTrue);
       expect(target.readAsBytesSync(), bytes);
@@ -359,13 +383,20 @@ void main() {
       // çıkılmaz: PWD hâlâ "/".
       await send('CWD ../..');
       expect(await send('PWD'), contains('"/"'));
-      // Kökteki dosya hâlâ görünüyor → gerçekten kökteyiz.
-      expect(await send('SIZE a.txt'), '213 3');
+      // Kutunun içinden de yukarı çıkış kökte durur.
+      await send('CWD /${FtpTree.storageFolder}');
+      await send('CWD ../../../..');
+      expect(await send('PWD'), contains('"/"'));
+      // Kökte OLMAYAN bir ad açılmaz: kök artık seçilmiş kutulardan ibaret.
+      expect(await send('CWD /etc'), startsWith('550'));
+      // Kutunun altındaki gerçek dosya görünüyor.
+      expect(await send('SIZE /${FtpTree.storageFolder}/a.txt'), '213 3');
     });
 
     test('SIZE ve MDTM yanıtları', () async {
       await send('USER u');
       await send('PASS p');
+      await send('CWD /${FtpTree.storageFolder}');
       expect(await send('SIZE a.txt'), '213 3');
       expect(await send('MDTM a.txt'), matches(RegExp(r'^213 \d{14}$')));
     });
@@ -404,6 +435,7 @@ void main() {
     test('MLST makine okunur tek satır verir', () async {
       await send('USER u');
       await send('PASS p');
+      await send('CWD /${FtpTree.storageFolder}');
       // 250- ile başlayan çok satırlı yanıt; son satır "250 End".
       control.write('MLST a.txt\r\n');
       await control.flush();
@@ -489,6 +521,8 @@ void main() {
       await readUntilCode();
       await send('USER u');
       await send('PASS p');
+      // Gerçek dosyalar "Telefon Belleği" kutusunun altında (2026-08-29).
+      await send('CWD /${FtpTree.storageFolder}');
     }
 
     setUp(() {

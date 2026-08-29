@@ -171,7 +171,11 @@ class FtpService extends ChangeNotifier {
   // ── başlat / durdur ───────────────────────────────────────────────────────
 
   /// Paylaşımı açar. Başarısızlıkta [error] dolar ve durum kapalı kalır.
-  Future<void> start() async {
+  ///
+  /// [lockedFolders] kilitli klasörlerin yolları: PC'deki kategori kutularına
+  /// HİÇ girmezler. Ayarlardan okunduğu için çağıran (ekran) veriyor —
+  /// servis katmanı `AppState`e bağlanmasın diye.
+  Future<void> start({List<String> lockedFolders = const []}) async {
     if (_server != null || _busy) return;
     _busy = true;
     _error = null;
@@ -196,6 +200,7 @@ class FtpService extends ChangeNotifier {
       password: _password,
       allowWrite: _allowWrite,
       showHidden: _showHidden,
+      lockedFolders: lockedFolders,
     )..onClients = _onClients;
     try {
       await server.start();

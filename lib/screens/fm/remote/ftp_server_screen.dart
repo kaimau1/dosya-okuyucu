@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/app_state.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme.dart';
 import '../../../services/fm/fm_env.dart';
@@ -60,7 +62,9 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     if (_service.running) {
       await _service.stop();
     } else {
-      await _service.start();
+      // Kilitli klasörler PC'deki kategori kutularında GÖRÜNMEZ.
+      await _service.start(
+          lockedFolders: context.read<AppState>().fmLockedFolders.toList());
       final error = _service.error;
       if (error != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -93,6 +97,14 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
             child: Text(
               context.t('ftpd.description'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+            child: Text(
+              context.t('ftpd.folders_hint'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

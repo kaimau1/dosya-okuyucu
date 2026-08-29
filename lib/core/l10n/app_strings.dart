@@ -1704,6 +1704,17 @@ const Map<String, (String, String, String)> _table = {
     '{n} computer(s) connected',
     '{n} حاسوب متصل',
   ),
+  'ftpd.folders_hint': (
+    'PC\'de telefondaki kutuları görürsünüz: Belgeler, Resimler, Videolar, '
+        'Ses, Arsivler, Uygulamalar, Indirilenler, Kamera — ve tüm dosyalar '
+        'için "Telefon".',
+    'On the PC you will see the same boxes as on the phone: Belgeler, '
+        'Resimler, Videolar, Ses, Arsivler, Uygulamalar, Indirilenler, Kamera '
+        '— plus "Telefon" for everything.',
+    'على الحاسوب سترى نفس الصناديق الموجودة على الهاتف: المستندات والصور '
+        'والفيديو والصوت والأرشيف والتطبيقات والتنزيلات والكاميرا — بالإضافة '
+        'إلى "Telefon" لكل الملفات.',
+  ),
   'ftpd.notification_hint': (
     'Açık kaldığı sürece bildirim panelinde görünür; uygulamayı kapatınca '
         'kendiliğinden durur.',

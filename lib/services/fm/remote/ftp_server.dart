@@ -5,6 +5,9 @@ import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
+import '../../../models/fs_entry.dart';
+import 'ftp_tree.dart';
+
 /// Telefonu **FTP sunucusuna** çevirir: PC'den tarayıcı ya da herhangi bir FTP
 /// istemcisiyle telefondaki dosyalara erişilir.
 ///
@@ -45,6 +48,22 @@ class FtpServer {
   /// İstemci sayısı değişince çağrılır (arayüzdeki "1 cihaz bağlı" satırı).
   void Function(int clients)? onClients;
 
+  /// PC'de görünen **kategorili kök** (Belgeler, Görüntüler, Videolar…).
+  /// Bkz. [FtpTree] — kullanıcı isteği 2026-08-29.
+  late final FtpTree tree = FtpTree(
+    realRoot: rootDirectory,
+    lockedFolders: lockedFolders,
+    showHidden: showHidden,
+    collect: collectCategory,
+  );
+
+  /// Kutu içeriğini toplayan işlev (testlerde değiştirilebilir; null ise
+  /// gerçek kitaplık kullanılır — bkz. [FtpTree.collect]).
+  final Future<List<FsEntry>> Function(FmCategory category)? collectCategory;
+
+  /// Kilitli klasörler: kategori kutularına HİÇ girmezler.
+  final List<String> lockedFolders;
+
   FtpServer({
     required this.rootDirectory,
     this.username = '',
@@ -52,6 +71,8 @@ class FtpServer {
     this.port = 2121,
     this.allowWrite = false,
     this.showHidden = false,
+    this.lockedFolders = const [],
+    this.collectCategory,
   });
 
   ServerSocket? _server;
@@ -450,7 +471,7 @@ class _FtpSession {
         await _makeDirectory(argument);
       case 'RNFR':
         _renameFrom = argument;
-        _send(server.resolve(_cwd, argument) == null
+        _send(_realPath(await _node(argument)) == null
             ? '550 Yol yok'
             : '350 Yeni ad bekleniyor');
       case 'RNTO':
@@ -461,6 +482,36 @@ class _FtpSession {
       default:
         _send('502 Desteklenmeyen komut');
     }
+  }
+
+  /// Sanal yolu çözer: kök kutusu mu, kategori mi, gerçek klasör/dosya mı.
+  Future<FtpNode> _node(String argument) =>
+      server.tree.resolve(FtpServer.normalizeVirtual(_cwd, argument));
+
+  /// Bir düğümün GERÇEK disk yolu (yoksa null).
+  ///
+  /// Gerçek klasörler için kök hapsi burada uygulanıyor
+  /// ([FtpServer.resolve]); kategori kutusundaki dosyanın yolu zaten kökün
+  /// içinden taranarak geldi ama aynı denetimden yine de geçiriliyor.
+  String? _realPath(FtpNode node) => switch (node.kind) {
+        FtpNodeKind.real => node.relative == null
+            ? null
+            : server.resolve('/', node.relative!),
+        FtpNodeKind.categoryFile => node.realPath == null
+            ? null
+            : server.resolve('/', p.relative(node.realPath!,
+                from: server.rootDirectory)),
+        _ => null,
+      };
+
+  /// Hedef, diskte karşılığı olmayan bir kutunun içinde mi (kök ya da
+  /// kategori)? Yazma hatalarında kullanıcıya doğru yönlendirmeyi yapmak için.
+  bool _virtualParent(String argument) {
+    final virtual = FtpServer.normalizeVirtual(_cwd, argument);
+    final parent = p.posix.dirname(virtual);
+    if (parent == '/' || parent == '.') return true;
+    final head = parent.split('/').where((s) => s.isNotEmpty).first;
+    return FtpTree.categoryFolders.containsKey(head);
   }
 
   /// `192.168.1.25` → `192.168.1.` (aynı /24 ağda mıyız denetimi için).
@@ -478,13 +529,26 @@ class _FtpSession {
 
   Future<void> _changeDirectory(String argument) async {
     final virtual = FtpServer.normalizeVirtual(_cwd, argument);
-    final real = server.resolve(_cwd, argument);
-    if (real == null || !Directory(real).existsSync()) {
+    final node = await _node(argument);
+    // Kök ve kategori kutuları sanal: diskte karşılıkları yok ama klasör
+    // gibi gezilirler.
+    final ok = switch (node.kind) {
+      FtpNodeKind.root || FtpNodeKind.category => true,
+      _ => _dirPath(node) != null,
+    };
+    if (!ok) {
       _send('550 Klasör yok');
       return;
     }
     _cwd = virtual;
     _send('250 Klasör değişti');
+  }
+
+  /// Düğüm gerçek bir KLASÖR ise yolu.
+  String? _dirPath(FtpNode node) {
+    final real = _realPath(node);
+    if (real == null || !Directory(real).existsSync()) return null;
+    return real;
   }
 
   /// Pasif dinleyici açar. Port 0 → işletim sistemi boş bir port seçer;
@@ -542,7 +606,20 @@ class _FtpSession {
   }
 
   Future<void> _machineSingle(String argument) async {
-    final real = server.resolve(_cwd, argument.isEmpty ? '.' : argument);
+    final target = argument.isEmpty ? '.' : argument;
+    final node = await _node(target);
+    // Sanal klasör (kök ya da kategori kutusu): diskte karşılığı yok.
+    if (node.kind == FtpNodeKind.root || node.kind == FtpNodeKind.category) {
+      final name = node.kind == FtpNodeKind.root
+          ? '/'
+          : p.posix.basename(FtpServer.normalizeVirtual(_cwd, target));
+      _send('250-Listing');
+      _send(' ${FtpServer.machineLine(name,
+          isDir: true, size: 0, modified: DateTime.now())}');
+      _send('250 End');
+      return;
+    }
+    final real = _realPath(node);
     if (real == null) {
       _send('550 Yol yok');
       return;
@@ -555,7 +632,9 @@ class _FtpSession {
     final stat = FileStat.statSync(real);
     _send('250-Listing');
     _send(' ${FtpServer.machineLine(
-      p.basename(real),
+      // Kategori kutusundaki dosya, kutudaki (benzersizleştirilmiş) adıyla
+      // bildirilir — istemcinin istediği ad bu.
+      p.posix.basename(FtpServer.normalizeVirtual(_cwd, target)),
       isDir: isDir,
       size: isDir ? 0 : stat.size,
       modified: stat.modified,
@@ -566,37 +645,37 @@ class _FtpSession {
   Future<void> _list(String argument, {required _ListFormat format}) async {
     // Bazı istemciler `LIST -la` gönderir; seçenekler yol değildir.
     final cleaned = argument.startsWith('-') ? '' : argument;
-    final real = server.resolve(_cwd, cleaned.isEmpty ? '.' : cleaned);
-    if (real == null || !Directory(real).existsSync()) {
-      _send('550 Klasör yok');
-      return;
+    final node = await _node(cleaned.isEmpty ? '.' : cleaned);
+    // Satırlar veri kanalı AÇILMADAN ÖNCE hazırlanır: kategori kutusunu
+    // toplamak (ilk seferde disk taraması) saniyeler sürebiliyor ve bu sırada
+    // açık bir veri soketini bekletmek istemcide zaman aşımına yol açardı.
+    final List<_Row> rows;
+    switch (node.kind) {
+      case FtpNodeKind.root:
+        rows = _rootRows();
+      case FtpNodeKind.category:
+        rows = await _categoryRows(node.category!);
+      default:
+        final real = _dirPath(node);
+        if (real == null) {
+          _send('550 Klasör yok');
+          return;
+        }
+        rows = _directoryRows(real);
     }
     _send('150 Liste geliyor');
     final data = await _acceptData();
     if (data == null) return;
     try {
-      final entries = Directory(real).listSync(followLinks: false);
       final buffer = StringBuffer();
-      for (final entry in entries) {
-        final name = p.basename(entry.path);
-        if (!server.showHidden && FtpServer.isHidden(name)) continue;
-        if (format == _ListFormat.names) {
-          buffer.write('$name\r\n');
-          continue;
-        }
-        FileStat stat;
-        try {
-          stat = entry.statSync();
-        } catch (_) {
-          continue;
-        }
-        final isDir = entry is Directory;
-        final size = entry is File ? stat.size : 0;
-        buffer.write(format == _ListFormat.machine
-            ? FtpServer.machineLine(name,
-                isDir: isDir, size: size, modified: stat.modified)
-            : FtpServer.listLine(name,
-                isDir: isDir, size: size, modified: stat.modified));
+      for (final row in rows) {
+        buffer.write(switch (format) {
+          _ListFormat.names => row.name,
+          _ListFormat.machine => FtpServer.machineLine(row.name,
+              isDir: row.isDir, size: row.size, modified: row.modified),
+          _ListFormat.unix => FtpServer.listLine(row.name,
+              isDir: row.isDir, size: row.size, modified: row.modified),
+        });
         buffer.write('\r\n');
       }
       data.add(utf8.encode(buffer.toString()));
@@ -609,8 +688,51 @@ class _FtpSession {
     }
   }
 
+  /// Kök: telefonun panosundaki kutular (bkz. [FtpTree]).
+  List<_Row> _rootRows() {
+    final now = DateTime.now();
+    return [
+      for (final item in server.tree.rootItems())
+        _Row(item.name, isDir: true, size: 0, modified: now),
+    ];
+  }
+
+  /// Kategori kutusunun içi — düz dosya listesi.
+  Future<List<_Row>> _categoryRows(String folder) async {
+    final files = await server.tree.categoryEntries(folder);
+    return [
+      for (final entry in files.entries)
+        _Row(entry.key,
+            isDir: false,
+            size: entry.value.sizeBytes,
+            modified: DateTime.fromMillisecondsSinceEpoch(
+                entry.value.modifiedMs)),
+    ];
+  }
+
+  /// Gerçek klasörün içi.
+  List<_Row> _directoryRows(String real) {
+    final rows = <_Row>[];
+    for (final entry in Directory(real).listSync(followLinks: false)) {
+      final name = p.basename(entry.path);
+      if (!server.showHidden && FtpServer.isHidden(name)) continue;
+      FileStat stat;
+      try {
+        stat = entry.statSync();
+      } catch (_) {
+        continue;
+      }
+      final isDir = entry is Directory;
+      rows.add(_Row(name,
+          isDir: isDir,
+          size: entry is File ? stat.size : 0,
+          modified: stat.modified));
+    }
+    return rows;
+  }
+
   Future<void> _retrieve(String argument) async {
-    final real = server.resolve(_cwd, argument);
+    final real = _realPath(await _node(argument));
     // `REST` işaretçisi HER aktarımda tüketilir: bir sonraki indirmeye
     // sızarsa dosyanın başı eksik iner (sessiz bozulma).
     final from = _restart;
@@ -641,9 +763,15 @@ class _FtpSession {
     final from = _restart;
     _restart = 0;
     if (!_requireWrite()) return;
-    final real = server.resolve(_cwd, argument);
+    final node = await _node(argument);
+    final real = _realPath(node);
     if (real == null) {
-      _send('550 Geçersiz yol');
+      // Kategori kutuları TOPLAMA görünümü: diskte bir klasör değiller, oraya
+      // yazmak "hangi klasöre?" sorusunu cevapsız bırakırdı. Kullanıcı gerçek
+      // bir klasöre (Telefon Belleği / İndirilenler…) yükler.
+      _send(_virtualParent(argument)
+          ? '550 Bu kutuya yazılamaz; "${FtpTree.storageFolder}" altına yükleyin'
+          : '550 Geçersiz yol');
       return;
     }
     final file = File(real);
@@ -676,7 +804,7 @@ class _FtpSession {
   }
 
   Future<void> _size(String argument) async {
-    final real = server.resolve(_cwd, argument);
+    final real = _realPath(await _node(argument));
     if (real == null || !File(real).existsSync()) {
       _send('550 Dosya yok');
       return;
@@ -685,7 +813,7 @@ class _FtpSession {
   }
 
   Future<void> _modifiedTime(String argument) async {
-    final real = server.resolve(_cwd, argument);
+    final real = _realPath(await _node(argument));
     if (real == null || !File(real).existsSync()) {
       _send('550 Dosya yok');
       return;
@@ -698,7 +826,9 @@ class _FtpSession {
 
   Future<void> _delete(String argument, {required bool directory}) async {
     if (!_requireWrite()) return;
-    final real = server.resolve(_cwd, argument);
+    // Kategori kutusundaki dosya SİLİNEBİLİR: kutu bir görünüm, dosya gerçek.
+    // Kutunun kendisi silinemez (gerçek bir klasör değil) → yol çözülmez.
+    final real = _realPath(await _node(argument));
     if (real == null) {
       _send('550 Geçersiz yol');
       return;
@@ -709,6 +839,8 @@ class _FtpSession {
       } else {
         File(real).deleteSync();
       }
+      // Kutu içeriği değişti; bir sonraki listede tazelensin.
+      server.tree.invalidate();
       _send('250 Silindi');
     } catch (e) {
       _send('550 Silinemedi: $e');
@@ -717,9 +849,11 @@ class _FtpSession {
 
   Future<void> _makeDirectory(String argument) async {
     if (!_requireWrite()) return;
-    final real = server.resolve(_cwd, argument);
+    final real = _realPath(await _node(argument));
     if (real == null) {
-      _send('550 Geçersiz yol');
+      _send(_virtualParent(argument)
+          ? '550 Bu kutuda klasör oluşturulamaz'
+          : '550 Geçersiz yol');
       return;
     }
     try {
@@ -732,8 +866,8 @@ class _FtpSession {
 
   Future<void> _renameTo(String argument) async {
     if (!_requireWrite()) return;
-    final from = server.resolve(_cwd, _renameFrom);
-    final to = server.resolve(_cwd, argument);
+    final from = _realPath(await _node(_renameFrom));
+    final to = _realPath(await _node(argument));
     if (from == null || to == null) {
       _send('550 Geçersiz yol');
       return;
@@ -744,11 +878,23 @@ class _FtpSession {
       } else {
         File(from).renameSync(to);
       }
+      server.tree.invalidate();
       _send('250 Adı değişti');
     } catch (e) {
       _send('550 Değiştirilemedi: $e');
     }
   }
+}
+
+/// Listelenecek tek satır — gerçek klasörden de sanal kutudan da gelebilir.
+class _Row {
+  final String name;
+  final bool isDir;
+  final int size;
+  final DateTime modified;
+
+  const _Row(this.name,
+      {required this.isDir, required this.size, required this.modified});
 }
 
 /// Liste komutlarının çıktı biçimi.

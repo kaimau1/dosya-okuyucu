@@ -9038,3 +9038,55 @@ Kullanıcı, aynı gün derlenen APK'yı Windows Gezgini'nde denedi ve hata ald�
   bildirdiği adres:porta **fiilen bağlanılabildiğini** ölçen bütünleşik test
   (yanıtı ayrıştırıp `Socket.connect` deniyor) — biçim doğru ama adres yanlış
   olduğunda yakalayan tek denetim bu.
+
+## 2026-08-29 (IV) — PC'de kök artık telefondaki kategorilerin aynısı
+Kullanıcı: *"bilgisayarda açınca da telefondaki dosyaları telefondaki gibi
+Belgeler, Görüntüler, Videolar, İndirilenler vs şeklinde aynı kategorizasyonda
+görelim, bulması kolay olsun."*
+
+- **Önceki durum:** FTP kökü doğrudan `/storage/emulated/0` idi. PC'de `Android`,
+  `MIUI`, `com.whatsapp`, `.thumbnails` gibi 40 küsur klasör görünüyor;
+  kullanıcının aradığı faturayı bulması için Android'in klasör düzenini bilmesi
+  gerekiyordu.
+- **Yeni:** `services/fm/remote/ftp_tree.dart` — kök SEÇİLMİŞ kutulardan ibaret:
+  `Telefon` (gerçek kökün tamamı), `Indirilenler`, `Kamera`, ve sanal kutular
+  `Resimler / Videolar / Ses / Belgeler / Arsivler / Uygulamalar`.
+  Sanal kutular `MediaLibrary.categoryFiles` ile telefonun HER YERİNDEN
+  toplanıyor (telefondaki kategori ekranının aynısı, düz liste).
+  **Hiçbir şey kaybolmuyor:** gerçek ağacın tamamı `Telefon`un altında.
+- **Kökte gerçek klasör listelenmiyor** — bunun yan faydası ad çakışmasının
+  imkânsız olması: "Belgeler" adlı gerçek bir klasör sanal kutuyu gölgeleyemiyor.
+
+### TUZAK — kutu adları AKSANSIZ olmak zorunda
+İlk tur adlar düzgün Türkçeydi (`Görüntüler`, `Arşivler`, `Telefon Belleği`).
+Test istemcisi (`ftpconnect`) LIST çıktısını **latin-1** çözdüğü için
+`ArÅivler` görüldü. Bu kozmetik değil: bozuk adla gönderilen `CWD` hiçbir
+kutuyla eşleşmez, yani **klasör hiç açılmaz**. Windows Gezgini de UTF-8'i
+güvenilir çözmüyor (FEAT'te `UTF8` duyurulsa bile). Adlar bu yüzden ASCII:
+`Resimler`, `Arsivler`, `Indirilenler`, `Telefon`. Aksansız Türkçe okunur;
+bozuk kodlanmış Türkçe hem okunmaz hem çalışmaz. Test bunu kilitliyor
+(kök adlarının hepsi `< 128` olmalı).
+
+### Diğer kararlar
+- **Kök hapsi tek yerde kaldı:** sanal katman `FtpNode.relative` (köke göre yol)
+  döndürüyor, mutlak yolu ve "kökün dışına çıkılmadı mı" denetimini yine
+  `FtpServer.resolve` yapıyor. İki ayrı güvenlik kontrolü olmasın.
+- **Aynı adlı dosyalar:** bir kutuda iki `IMG_1.jpg` olabiliyor (DCIM + Pictures).
+  FTP'de bir klasörde aynı ad iki kez olamaz; ikincisi `IMG_1 (2).jpg` oluyor —
+  numaralandırma UZANTIDAN ÖNCE ki dosya PC'de doğru programla açılsın.
+- **Önbellek (30 sn) + uçuştaki isteğin paylaşılması:** PC bir klasörü açarken
+  LIST'ten sonra dosya başına SIZE/MDTM gönderiyor; her komutta yeniden tarasak
+  4 bin fotoğraflık kutu kullanılamaz olurdu. Silme/yeniden adlandırma
+  önbelleği düşürüyor.
+- **Liste satırları veri kanalı AÇILMADAN ÖNCE hazırlanıyor:** ilk taramanın
+  saniyeler sürebildiği durumda açık bir veri soketini bekletmek istemcide
+  zaman aşımına yol açıyordu.
+- **Kilitli klasörler kutulara girmiyor** (`lockedFolders` ekrandan servise,
+  oradan ağaca geçiyor): kilitli klasördeki fotoğraf PC'de "Resimler"de
+  görünseydi kilit hiçbir işe yaramazdı.
+- **Sanal kutuya YAZILAMAZ** (STOR/MKD): kutu bir toplama görünümü, "hangi
+  gerçek klasöre?" sorusu cevapsız. Hata mesajı kullanıcıyı `Telefon`a
+  yönlendiriyor. Kutudaki dosya SİLİNEBİLİR — o gerçek bir dosya.
+- **Test edilebilirlik:** kutu toplayıcısı (`FtpTree.collect`) dışarıdan
+  veriliyor; gerçek toplayıcı arama dizinine ve tüm diski taramaya bağlı,
+  testte ağacın kendisi ölçülüyor.
