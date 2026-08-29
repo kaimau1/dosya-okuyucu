@@ -280,8 +280,10 @@ göre sıralı**:
 - [ ] **"Ağdan erişim" cihaz doğrulaması (kullanıcı)** — 2026-08-29'da
       yeniden yazıldı. Pano → araçlar → **Ağdan erişim** → **BAŞLAT** →
       (a) ekranda `ftp://<ip>:2121`, kullanıcı adı ve parola yazıyor mu,
-      (b) PC'nin dosya gezginine bu adres yazılınca dosyalar listeleniyor,
-      inip yükleniyor mu, (c) **uygulamadan çıkıp başka ekranda gezerken /
+      (b) PC'nin dosya gezginine bu adres yazılınca **kök telefondaki
+      kutuları** gösteriyor mu (Telefon · Indirilenler · Kamera · Resimler ·
+      Videolar · Ses · Belgeler · Arsivler · Uygulamalar), kutulara girince
+      dosyalar listeleniyor, inip yükleniyor mu, (c) **uygulamadan çıkıp başka ekranda gezerken /
       ekran kapalıyken aktarım sürüyor mu** (asıl düzeltilen şey bu),
       (d) bildirim panelinde kalıcı bildirim duruyor ve dokununca ekrana
       götürüyor mu, (e) panonun üstündeki "Ağdan erişim açık" şeridi
