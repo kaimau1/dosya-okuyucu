@@ -240,32 +240,43 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     final scheme = Theme.of(context).colorScheme;
     final accent = Paper.success(context);
     final addresses = _service.addresses;
+    final webAddresses = _service.webAddresses;
     return Column(
       children: [
-        if (addresses.isEmpty)
+        if (addresses.isEmpty && webAddresses.isEmpty)
           Text(
             context.t('ftpd.no_address'),
             textAlign: TextAlign.center,
             style: TextStyle(color: scheme.error),
           )
-        else
-          // Adres: ekranın en büyük, en dikkat çeken öğesi — kullanıcının
-          // PC'ye yazacağı tek şey bu. Dokununca panoya kopyalanır.
-          for (final address in addresses)
-            InkWell(
-              onTap: () => _copy(address),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-                child: Text(
-                  address,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: accent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ),
+        else ...[
+          // **Tarayıcı adresi ÖNCE ve en büyük.** Kullanıcı hatası
+          // 2026-08-29: FTP adresini PC'ye yazınca Gezgin listeliyor ama
+          // dosyaya çift tıklayınca adresi tarayıcıya devrediyor ve Chromium
+          // tabanlı tarayıcılar FTP'yi 2021'de kaldırdığı için hiçbir şey
+          // olmuyordu. `http://` adresi her tarayıcıda çalışıyor ve dosyayı
+          // ya sekmede açıyor ya indiriyor (bkz. HttpShareServer).
+          if (webAddresses.isNotEmpty) ...[
+            _addressBlock(
+              context,
+              label: context.t('ftpd.web_label'),
+              hint: context.t('ftpd.web_hint'),
+              addresses: webAddresses,
+              color: accent,
+              primary: true,
             ),
+            const SizedBox(height: Gap.md),
+          ],
+          if (addresses.isNotEmpty)
+            _addressBlock(
+              context,
+              label: context.t('ftpd.ftp_label'),
+              hint: context.t('ftpd.ftp_hint'),
+              addresses: addresses,
+              color: scheme.onSurfaceVariant,
+              primary: false,
+            ),
+        ],
         const SizedBox(height: Gap.md),
         _field(context, context.t('nas.user'), _service.username, accent),
         const SizedBox(height: Gap.sm),
@@ -278,12 +289,8 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
           ),
         ],
         Divider(height: Gap.lg, color: scheme.outlineVariant),
-        Text(
-          context.t('ftpd.hint'),
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: Gap.xs),
+        // Genel "adresi gezginine yaz" cümlesi KALKTI: artık her adresin
+        // kendi ipucu var ve hangisinin ne işe yaradığı orada yazıyor.
         Text(
           '${context.t('ftpd.shared_folder')}: ${FmEnv.primaryRoot}',
           textAlign: TextAlign.center,
@@ -295,6 +302,52 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
         FilledButton.tonal(
           onPressed: _service.busy ? null : _toggle,
           child: Text(context.t('ftpd.stop')),
+        ),
+      ],
+    );
+  }
+
+  /// Bir adres bloğu: küçük başlık, adres(ler) ve ne işe yaradığı.
+  ///
+  /// [primary] olan (tarayıcı) büyük ve renkli; ikincil (FTP) daha sakin —
+  /// ikisi aynı ağırlıkta olsaydı kullanıcı yine yanlış olanı seçerdi.
+  Widget _addressBlock(
+    BuildContext context, {
+    required String label,
+    required String hint,
+    required List<String> addresses,
+    required Color color,
+    required bool primary,
+  }) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Text(label.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              letterSpacing: 0.8,
+            )),
+        for (final address in addresses)
+          InkWell(
+            // Dokununca panoya kopyalanır: kullanıcı adresi PC'ye elle
+            // yazmak zorunda kalmasın.
+            onTap: () => _copy(address),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+              child: Text(
+                address,
+                textAlign: TextAlign.center,
+                style: (primary
+                        ? theme.textTheme.headlineSmall
+                        : theme.textTheme.titleMedium)
+                    ?.copyWith(color: color, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        Text(
+          hint,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall,
         ),
       ],
     );

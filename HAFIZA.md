@@ -9225,3 +9225,68 @@ bir parmak mesafesinde durmasın; metni yine dürüst (çöp kutusu kapalıysa
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı), `analyze` 0 sorun, **1861 test
 yeşil** (yeni: `fm_tool_grid_test`, `overlay_bar_title_test`,
 `fm_entry_actions_sheet_test`, `fm_analysis_header_test`).
+
+## 2026-08-29 (Z) — Uygulamayı APK olarak paylaşma + ağ paylaşımına tarayıcı kapısı
+Kullanıcı: *"yüklü olan bir uygulamayı — Google Play'den olur başka bir
+kaynaktan olur — APK'ya dönüştürüp başka birisine yükleyebilmesi için paylaşma
+özelliği getirelim"* ve *"herhangi bir belgeyi ağda paylaşıp bilgisayarımda
+açmaya çalıştığımda Microsoft Edge açılıyor, dosya açılmıyor; ama dosyayı
+kopyalayıp bilgisayarıma atabiliyorum ve o zaman açılıyor"*.
+
+### A) APK paylaşma — `services/fm/apk_export.dart` + `ci/MainActivity.kt`
+- **"Dönüştürme" diye bir şey yok:** kurulu her uygulama diskte zaten APK.
+  Yaptığımız iş onu BULMAK, okunur bir ada kopyalamak ve paylaşmak. Yeniden
+  paketleme/imzalama YOK → kopyalanan dosya bit bit özgün APK, imzası geçerli.
+- **Tek native ihtiyaç yolun kendisi:** `/data/app/~~<rastgele>/<paket>-<rastgele>/
+  base.apk` — içindeki iki rastgele parça yüzünden TAHMİN EDİLEMEZ ve Android
+  11'den beri `/data/app` listelenemiyor. `PackageManager.getApplicationInfo`
+  → yeni kanal yöntemi `apkPaths`. (Kanal zaten vardı: `dosya_okuyucu/app_storage`.)
+- **PARÇALI KURULUM (App Bundle) bu işin asıl inceliği:** Play'den kurulan
+  uygulamalar `base.apk` + `split_config.arm64_v8a` + `…xxhdpi` + `…tr` olarak
+  duruyor. Kod base'de ama **native kütüphaneler ve kaynaklar parçalarda**;
+  yalnız base.apk paylaşmak karşı tarafta "uygulama yüklenmedi" ya da açılışta
+  çökme demek. Bu yüzden parçalı uygulamada varsayılan çıktı bütün parçaları
+  taşıyan **`.apks`** (ZIP; "Split APKs Installer" biçimi) ve kullanıcıya ne
+  olduğu AÇIKÇA yazan bir pencere çıkıyor — "yalnız base.apk" da seçilebiliyor.
+- Paylaşım kopyası uygulama verisinde bir klasöre çıkıyor ve **her seferinde
+  önce boşaltılıyor**: `share_plus` dosyayı zaten kendi önbelleğine kopyalıyor,
+  yani bizim kopya paylaşımdan sonra ölü. Biriktirmek kullanıcının yerini "Yer
+  aç"ın göremeyeceği bir yerde yerdi.
+- **TEST BULDU:** ad üretimi `'///'` gibi bir uygulama adında `___.apk`
+  üretiyordu (`sanitizeName` eğik çizgiyi `_` yapıyor, `isEmpty` denetimi
+  yetmiyor). Ölçüt artık "en az bir harf/rakam", yoksa paket adına düşülüyor.
+
+### B) Ağda paylaşılan belge PC'de açılmıyordu — KÖK NEDEN protokoldü
+- Paylaşım yalnız **FTP** konuşuyordu. Windows Gezgini FTP'yi kendi biliyor —
+  bu yüzden listeleme ve KOPYALAMA çalışıyordu — ama bir dosyaya çift
+  tıklandığında `ftp://…` adresini varsayılan tarayıcıya devrediyor ve
+  **Chromium tabanlı tarayıcılar FTP desteğini 2021'de (sürüm 88) tamamen
+  kaldırdı.** Edge o adresle hiçbir şey yapamıyor: kullanıcının gördüğü
+  "tarayıcı açılıyor ama dosya açılmıyor" tam olarak bu.
+- **Çözüm: `services/fm/remote/http_share_server.dart`** — aynı sanal ağaç
+  ([FtpTree]) bir de HTTP'den sunuluyor (varsayılan 8080). `http://` her
+  tarayıcıda, her cihazda çalışıyor.
+  - Doğru MIME (`services/fm/mime_types.dart`, Drive ile ORTAK tablo) →
+    PDF/görüntü/video sekmede açılıyor.
+  - Tarayıcının gösteremediği tür (Word, Excel, ZIP, APK)
+    `Content-Disposition: attachment` ile iniyor → Windows dosyayı KENDİ
+    uygulamasıyla açıyor. Kullanıcının "kopyalayınca açılıyor" dediği davranış
+    artık tek tıkla.
+  - `Range` desteği (206) — onsuz tarayıcıda video ileri sarılamaz.
+  - Türkçe adlar için `filename*=UTF-8''…` (RFC 5987); `filename="…"` yalnız
+    ASCII taşıyor ve "Fatura Şubat.pdf" oradan geçerse ad bozuluyor.
+  - Yalnız GET/HEAD: tarayıcı sekmesinden yanlışlıkla silme olmasın; yazma
+    FTP'de kalıyor. Kök hapsi ve kimlik doğrulama **paylaşılan `FtpServer`
+    nesnesinden** (`realPathOf` oturumdan sunucuya taşındı) — ikinci bir kopya
+    olsaydı biri düzeltilip diğeri açık kalabilirdi.
+- **TUZAK — `Uri.path` yüzde kaçışlarını ÇÖZMEZ** (test yakaladı): sunucu
+  `/Telefon/Rapor%20%C5%9Eubat.docx` yolunu aynen arıyordu ve **boşluklu ya da
+  Türkçe harfli her dosya 404** dönüyordu, yani pratikte dosyaların çoğu.
+  Doğrusu `Uri.pathSegments` (her parçayı UTF-8 çözer).
+- 8080 doluysa paylaşımın tamamı düşmüyor: FTP çalışır, tarayıcı adresi
+  görünmez. Ekranda ve bildirimde artık ÖNCE `http://` adresi var; her adresin
+  altında ne işe yaradığı yazıyor (FTP satırında tarayıcıların FTP'yi
+  desteklemediği de).
+
+**Doğrulama:** Flutter 3.29.3, `analyze` 0 sorun, **1894 test yeşil** (yeni:
+`fm_apk_export_test`, `http_share_server_test`).

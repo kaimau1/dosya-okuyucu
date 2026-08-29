@@ -85,6 +85,10 @@ class MainActivity : FlutterActivity() {
                     // belge/CI logundaki değer eski bir anahtara ait olabilir.
                     "appSignatureSha1" -> result.success(appSignatureSha1())
 
+                    // Kurulu bir uygulamanın APK dosyalarının YOLU — "APK
+                    // olarak paylaş" akışının tek native ihtiyacı.
+                    "apkPaths" -> result.success(apkPaths(call.argument<String>("package")))
+
                     else -> result.notImplemented()
                 }
             }
@@ -319,6 +323,49 @@ class MainActivity : FlutterActivity() {
             java.security.MessageDigest.getInstance("SHA-1")
                 .digest(first.toByteArray())
                 .joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Kurulu paketin APK dosyaları: temel APK + (varsa) bölünmüş parçalar.
+     *
+     * **Niye platform kanalı:** APK'nın diskteki yeri yalnız `PackageManager`
+     * tarafından biliniyor (`ApplicationInfo.sourceDir`). Yol
+     * `/data/app/~~<rastgele>/<paket>-<rastgele>/base.apk` biçiminde ve
+     * içindeki iki rastgele parça yüzünden TAHMİN EDİLEMEZ; üstelik Android
+     * 11'den beri `/data/app` listelenemiyor. Dart tarafı yolu öğrendikten
+     * sonra dosyayı normal okuyabiliyor (APK'lar 644, herkes okuyabilir) —
+     * yani kopyalama/paylaşma işi native tarafta değil, Dart'ta.
+     *
+     * **`splitSourceDirs` neden döndürülüyor:** Play'den kurulan çoğu
+     * uygulama App Bundle'dır; cihazda `base.apk` + `split_config.arm64_v8a`
+     * + `split_config.xxhdpi` … olarak durur. Yalnız `base.apk`ı paylaşmak
+     * karşı tarafta "uygulama yüklenmedi" demek olabilir. Parçaları da
+     * döndürüyoruz ki Dart tarafı kullanıcıya DOĞRUSUNU söyleyebilsin
+     * (bkz. `services/fm/apk_export.dart`).
+     *
+     * Paket yoksa / okunamıyorsa `null` — arayüz "APK bulunamadı" der,
+     * uydurma bir yol denemez.
+     */
+    private fun apkPaths(pkg: String?): Map<String, Any?>? {
+        if (pkg.isNullOrEmpty()) return null
+        return try {
+            val info = packageManager.getApplicationInfo(pkg, 0)
+            val source = info.sourceDir ?: return null
+            val splits = info.splitSourceDirs?.filterNotNull() ?: emptyList()
+            val version = try {
+                packageManager.getPackageInfo(pkg, 0).versionName ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+            mapOf(
+                "source" to source,
+                "splits" to splits,
+                "label" to packageManager.getApplicationLabel(info).toString(),
+                "versionName" to version
+            )
         } catch (e: Exception) {
             null
         }

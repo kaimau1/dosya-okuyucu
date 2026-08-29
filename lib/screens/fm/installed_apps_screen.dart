@@ -1,11 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../core/theme.dart';
+import '../../services/fm/apk_export.dart';
+import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
+import '../../widgets/fm/fm_progress_dialog.dart';
+import 'downloads_screen.dart' show downloadsPathIn;
+import 'entry_actions.dart' show shareEntries;
 
 /// Sıralama ölçütü.
 enum _AppSort { size, idle, name, installed }
@@ -342,6 +350,19 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
               title: Text(context.t('apps.app_info')),
               onTap: () => Navigator.pop(ctx, 'settings'),
             ),
+            // **APK olarak paylaş** (kullanıcı isteği 2026-08-29). Uygulama
+            // zaten APK olarak duruyor; yaptığımız iş onu bulup okunur bir
+            // adla paylaşmak — yeniden paketleme yok, imza bozulmuyor.
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: Text(context.t('apk.share')),
+              onTap: () => Navigator.pop(ctx, 'apk_share'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.download_outlined),
+              title: Text(context.t('apk.save')),
+              onTap: () => Navigator.pop(ctx, 'apk_save'),
+            ),
             ListTile(
               leading: Icon(Icons.delete_outline,
                   color: Theme.of(ctx).colorScheme.error),
@@ -360,10 +381,111 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
         await InstalledAppsService.open(app.packageName);
       case 'settings':
         InstalledAppsService.openSettings(app.packageName);
+      case 'apk_share':
+        await _exportApk(app, share: true);
+      case 'apk_save':
+        await _exportApk(app, share: false);
       case 'uninstall':
         await InstalledAppsService.uninstall(app.packageName);
         // Sistem kaldırma penceresi kapanınca liste tazelensin.
         if (mounted) await _load();
     }
   }
+
+  /// APK'yı çıkarır ve paylaşır ya da İndirilenler'e kaydeder.
+  ///
+  /// **Paylaşırken hedef uygulamanın önbelleği:** paylaşım için dosyanın
+  /// kalıcı olması gerekmiyor ve kullanıcının İndirilenler klasörünü
+  /// paylaştığı her uygulamanın APK'sıyla doldurmak istemeyiz. "Kaydet"
+  /// bilinçli olarak AYRI bir eylem ve İndirilenler'e yazar.
+  Future<void> _exportApk(InstalledAppEntry app, {required bool share}) async {
+    final source = await AppStorageService.apkPathsOf(app.packageName);
+    if (!mounted) return;
+    if (source == null) {
+      _snack(context.t('apk.not_found'));
+      return;
+    }
+
+    // Parçalı kurulumda kullanıcıya SORULUR: tek base.apk karşı tarafta
+    // kurulmayabilir (bkz. ApkExport sınıf notu). Sessizce base.apk paylaşmak
+    // "paylaştım ama kurulmadı" demek olurdu.
+    var includeSplits = true;
+    if (source.isSplit) {
+      final choice = await _askSplit(source.splitPaths.length + 1);
+      if (choice == null || !mounted) return;
+      includeSplits = choice;
+    }
+
+    final destDir = share
+        ? p.join(FmEnv.appSupportDir, 'apk')
+        : (downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot);
+    if (share) {
+      // Paylaşma klasörü her seferinde BOŞALTILIR: APK'lar 100 MB'ı geçebilir
+      // ve `share_plus` dosyayı zaten kendi önbelleğine kopyalıyor, yani bu
+      // kopya paylaşımdan sonra ölü. Biriktirmek kullanıcının yerini sessizce
+      // yerdi — üstelik "Yer aç"ın göremeyeceği bir yerde (uygulama verisi).
+      try {
+        final dir = Directory(destDir);
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+      } catch (_) {}
+    }
+    try {
+      final path = await showFmProgress<String>(
+        context,
+        title: context.t('apk.extracting'),
+        cancellable: false,
+        task: (report, _) => ApkExport.extract(
+          source,
+          destDir,
+          includeSplits: includeSplits,
+          appName: app.name,
+          packageName: app.packageName,
+        ),
+      );
+      if (!mounted) return;
+      if (share) {
+        await shareEntries([path]);
+      } else {
+        _snack(context.t('apk.saved', {'name': p.basename(path)}));
+      }
+    } catch (e) {
+      if (mounted) _snack(context.t('apk.failed', {'error': e}));
+    }
+  }
+
+  /// Parçalı kurulumda ne paylaşılsın? `true` = hepsi (.apks), `false` =
+  /// yalnız base.apk, `null` = vazgeçildi.
+  Future<bool?> _askSplit(int parts) => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.t('apk.split_title')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(ctx.t('apk.split_body', {'n': parts})),
+              const SizedBox(height: Gap.sm),
+              Text(ctx.t('apk.split_note'),
+                  style: Theme.of(ctx).textTheme.bodySmall),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ctx.t('apk.split_base')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ctx.t('apk.split_all')),
+            ),
+          ],
+        ),
+      );
+
+  void _snack(String message) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(message)));
 }

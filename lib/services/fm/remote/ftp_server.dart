@@ -177,6 +177,24 @@ class FtpServer {
     return relative.isEmpty ? rootDirectory : '$rootDirectory/$relative';
   }
 
+  /// Bir düğümün GERÇEK disk yolu (yoksa null).
+  ///
+  /// **Kök hapsi burada uygulanıyor** ([resolve]); kategori kutusundaki
+  /// dosyanın yolu zaten kökün içinden taranarak geldi ama aynı denetimden
+  /// yine de geçiriliyor.
+  ///
+  /// `FtpServer`da (oturumda değil): HTTP paylaşımı da aynı ağaçtan aynı
+  /// yolları çözüyor ve **aynı hapsi** kullanmak zorunda — iki kopya olsaydı
+  /// biri düzeltilip diğeri açık kalabilirdi.
+  String? realPathOf(FtpNode node) => switch (node.kind) {
+        FtpNodeKind.real =>
+          node.relative == null ? null : resolve('/', node.relative!),
+        FtpNodeKind.categoryFile => node.realPath == null
+            ? null
+            : resolve('/', p.relative(node.realPath!, from: rootDirectory)),
+        _ => null,
+      };
+
   /// Sanal yolu (`/` kökten) [resolve] için normalize eder.
   static String normalizeVirtual(String cwd, String requested) {
     final virtual = requested.startsWith('/')
@@ -488,21 +506,9 @@ class _FtpSession {
   Future<FtpNode> _node(String argument) =>
       server.tree.resolve(FtpServer.normalizeVirtual(_cwd, argument));
 
-  /// Bir düğümün GERÇEK disk yolu (yoksa null).
-  ///
-  /// Gerçek klasörler için kök hapsi burada uygulanıyor
-  /// ([FtpServer.resolve]); kategori kutusundaki dosyanın yolu zaten kökün
-  /// içinden taranarak geldi ama aynı denetimden yine de geçiriliyor.
-  String? _realPath(FtpNode node) => switch (node.kind) {
-        FtpNodeKind.real => node.relative == null
-            ? null
-            : server.resolve('/', node.relative!),
-        FtpNodeKind.categoryFile => node.realPath == null
-            ? null
-            : server.resolve('/', p.relative(node.realPath!,
-                from: server.rootDirectory)),
-        _ => null,
-      };
+  /// Bir düğümün GERÇEK disk yolu — kök hapsi dahil (bkz.
+  /// [FtpServer.realPathOf]; HTTP paylaşımı da aynı yolu kullanıyor).
+  String? _realPath(FtpNode node) => server.realPathOf(node);
 
   /// Hedef, diskte karşılığı olmayan bir kutunun içinde mi (kök ya da
   /// kategori)? Yazma hatalarında kullanıcıya doğru yönlendirmeyi yapmak için.

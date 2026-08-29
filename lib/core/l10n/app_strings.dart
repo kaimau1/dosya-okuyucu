@@ -1188,6 +1188,56 @@ const Map<String, (String, String, String)> _table = {
   'apps.show_system': ('Sistem uygulamalarını göster', 'Show system apps', 'إظهار تطبيقات النظام'),
   'apps.hide_system': ('Sistem uygulamalarını gizle', 'Hide system apps', 'إخفاء تطبيقات النظام'),
   'apps.uninstall': ('Kaldır', 'Uninstall', 'إلغاء التثبيت'),
+
+  // ── Uygulamayı APK olarak paylaşma (kullanıcı isteği 2026-08-29) ─────────
+  'apk.share': ('APK olarak paylaş', 'Share as APK', 'مشاركة كملف APK'),
+  'apk.save': (
+    'APK\'yı İndirilenler\'e kaydet',
+    'Save APK to Downloads',
+    'حفظ APK في التنزيلات',
+  ),
+  'apk.extracting': ('APK hazırlanıyor…', 'Preparing APK…', 'جارٍ تحضير APK…'),
+  'apk.not_found': (
+    'Bu uygulamanın APK dosyası okunamadı.',
+    'The APK file of this app could not be read.',
+    'تعذّرت قراءة ملف APK لهذا التطبيق.',
+  ),
+  'apk.failed': ('APK çıkarılamadı: {error}', 'Could not extract APK: {error}',
+      'تعذّر استخراج APK: {error}'),
+  'apk.saved': ('{name} kaydedildi', '{name} saved', 'تم حفظ {name}'),
+  // Parçalı (App Bundle) kurulum uyarısı — dürüstlük meselesi: yalnız
+  // base.apk paylaşmak karşı tarafta "uygulama yüklenmedi" demek olabilir.
+  'apk.split_title': (
+    'Bu uygulama parçalı kurulmuş',
+    'This app is installed in parts',
+    'هذا التطبيق مثبَّت على أجزاء',
+  ),
+  'apk.split_body': (
+    'Play\'den kurulan uygulamalar base.apk + ekran/dil/işlemci parçaları '
+        'olarak durur ({n} parça). Kod base.apk\'ta ama kütüphaneler ve '
+        'kaynaklar parçalarda: tek başına base.apk karşı tarafta '
+        'kurulmayabilir ya da açılır açılmaz çökebilir.',
+    'Apps installed from Play are stored as base.apk plus screen/language/CPU '
+        'parts ({n} parts). The code is in base.apk but the libraries and '
+        'resources are in the parts: base.apk alone may fail to install or '
+        'crash on launch.',
+    'التطبيقات المثبتة من Play تُخزَّن كـ base.apk مع أجزاء الشاشة واللغة '
+        'والمعالج ({n} أجزاء). الشيفرة في base.apk لكن المكتبات والموارد في '
+        'الأجزاء: قد لا يُثبَّت base.apk وحده أو ينهار عند التشغيل.',
+  ),
+  'apk.split_all': (
+    'Tümü (.apks — önerilen)',
+    'All parts (.apks — recommended)',
+    'كل الأجزاء (.apks — موصى به)',
+  ),
+  'apk.split_base': ('Yalnız base.apk', 'base.apk only', 'base.apk فقط'),
+  'apk.split_note': (
+    '.apks dosyası bütün parçaları taşır; karşı tarafta "Split APKs Installer" '
+        'gibi bir kurulum aracıyla açılır.',
+    'An .apks file carries every part; the receiver installs it with a tool '
+        'such as “Split APKs Installer”.',
+    'يحمل ملف .apks كل الأجزاء؛ يثبّته المستلم بأداة مثل «Split APKs Installer».',
+  ),
   'apps.app_info': ('Uygulama bilgisi (sistem ayarı)', 'App info (system settings)', 'معلومات التطبيق (إعدادات النظام)'),
   'apps.color_legend': ('Renk = kullanılmama süresi', 'Colour = time unused', 'اللون = مدة عدم الاستخدام'),
   'apps.never_opened': ('hiç açılmadı', 'never opened', 'لم يُفتح قط'),
@@ -1734,6 +1784,29 @@ const Map<String, (String, String, String)> _table = {
     'Yukarıdaki adresi PC\'de bir dosya gezginine yazın.',
     'Type the address above into a file explorer on your PC.',
     'اكتب العنوان أعلاه في مستكشف الملفات على حاسوبك.',
+  ),
+  // İki kapı, tek paylaşım: tarayıcı (her cihaz, dosyayı AÇAR) ve FTP
+  // (Gezgin, sürükle-bırak yazma). Bkz. HttpShareServer — kullanıcı hatası
+  // 2026-08-29: "Edge açılıyor ama dosya açılmıyor".
+  'ftpd.web_label': ('Tarayıcıda aç', 'Open in a browser', 'افتح في المتصفح'),
+  'ftpd.web_hint': (
+    'Bu adresi PC\'de tarayıcıya yazın: dosyalara tıklayınca açılır ya da iner.',
+    'Type this address into a browser on your PC: click a file to open or '
+        'download it.',
+    'اكتب هذا العنوان في متصفح حاسوبك: اضغط على ملف ليُفتح أو يُنزَّل.',
+  ),
+  'ftpd.ftp_label': (
+    'Dosya gezgini (FTP)',
+    'File explorer (FTP)',
+    'مستكشف الملفات (FTP)',
+  ),
+  'ftpd.ftp_hint': (
+    'Gezgin\'e yazın: sürükleyip bırakarak kopyalayın. Tarayıcılar FTP\'yi '
+        'artık desteklemiyor — dosyayı açmak için üstteki adresi kullanın.',
+    'Type it into Explorer to copy by drag and drop. Browsers no longer '
+        'support FTP — use the address above to open a file.',
+    'اكتبه في المستكشف للنسخ بالسحب والإفلات. المتصفحات لم تعد تدعم FTP — '
+        'استخدم العنوان أعلاه لفتح ملف.',
   ),
   'ftpd.random_password': (
     'Rastgele şifre',

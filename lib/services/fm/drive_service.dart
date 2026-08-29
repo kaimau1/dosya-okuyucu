@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 import '../../models/drive_file.dart';
+import 'mime_types.dart';
 
 /// Google Drive erişimi — **düz REST** (Drive v3).
 ///
@@ -301,32 +302,11 @@ class DriveService {
 
   /// Uzantıdan MIME. Bilinmeyen için `application/octet-stream` — Drive
   /// dosyayı yine kabul eder.
-  static String mimeForName(String name) {
-    final dot = name.lastIndexOf('.');
-    final ext = dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
-    return switch (ext) {
-      'pdf' => 'application/pdf',
-      'docx' =>
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'xlsx' =>
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'pptx' =>
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'doc' => 'application/msword',
-      'xls' => 'application/vnd.ms-excel',
-      'ppt' => 'application/vnd.ms-powerpoint',
-      'txt' || 'md' || 'csv' => 'text/plain',
-      'json' => 'application/json',
-      'zip' => 'application/zip',
-      'png' => 'image/png',
-      'jpg' || 'jpeg' => 'image/jpeg',
-      'webp' => 'image/webp',
-      'gif' => 'image/gif',
-      'mp3' => 'audio/mpeg',
-      'mp4' => 'video/mp4',
-      _ => 'application/octet-stream',
-    };
-  }
+  ///
+  /// Tablo ortak ([MimeTypes]): ağ paylaşımının HTTP sunucusu da aynı türleri
+  /// kullanıyor, iki kopya tutulursa biri geride kalır.
+  static String mimeForName(String name) => MimeTypes.forName(name);
+
 
   // ── çağrılar ──────────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ import '../../../core/l10n/app_strings.dart';
 import '../fm_env.dart';
 import '../notification_hub.dart';
 import 'ftp_server.dart';
+import 'http_share_server.dart';
 
 /// "Ağdan erişim" — telefonu ağdaki bilgisayarlardan görünür kılan paylaşımın
 /// **uygulama ömrü boyunca yaşayan** sahibi.
@@ -64,6 +65,12 @@ class FtpService extends ChangeNotifier {
 
   FtpServer? _server;
 
+  /// **Tarayıcı kapısı.** FTP ile birlikte açılıp birlikte kapanıyor: iki ayrı
+  /// düğme, kullanıcının hangi adresi kime vereceğini düşünmesi demekti.
+  /// Kullanıcı hatası 2026-08-29 (*"ağdaki belgeyi bilgisayarda açamıyorum,
+  /// Edge açılıyor"*) — kök neden ve gerekçe [HttpShareServer]'da.
+  HttpShareServer? _http;
+
   /// Paylaşım açık mı.
   bool get running => _server != null;
 
@@ -71,6 +78,11 @@ class FtpService extends ChangeNotifier {
   /// hepsi listelenir, yerel ağ adresi başa alınır.
   List<String> _addresses = const [];
   List<String> get addresses => _addresses;
+
+  /// `http://192.168.1.68:8080` — **tarayıcıya yazılacak** adres(ler).
+  /// Ekranda ÖNCE bu gösteriliyor: her cihazda çalışan kapı bu.
+  List<String> _webAddresses = const [];
+  List<String> get webAddresses => _webAddresses;
 
   int _clients = 0;
 
@@ -206,6 +218,19 @@ class FtpService extends ChangeNotifier {
       await server.start();
       _server = server;
       _addresses = sortAddresses(await FtpServer.addresses(server.boundPort));
+      // HTTP kapısı FTP'den SONRA ve **kırılgan olmayan** biçimde açılıyor:
+      // 8080 başka bir uygulamada doluysa (yaygın) paylaşımın tamamı
+      // başarısız olmamalı — FTP çalışır, tarayıcı adresi görünmez.
+      final http = HttpShareServer(share: server);
+      try {
+        await http.start();
+        _http = http;
+        _webAddresses =
+            sortAddresses(await HttpShareServer.addresses(http.boundPort));
+      } catch (_) {
+        _http = null;
+        _webAddresses = const [];
+      }
       _clients = 0;
       _busy = false;
       notifyListeners();
@@ -225,8 +250,12 @@ class FtpService extends ChangeNotifier {
     _busy = true;
     notifyListeners();
     _server = null;
+    final http = _http;
+    _http = null;
     await server.stop();
+    await http?.stop();
     _addresses = const [];
+    _webAddresses = const [];
     _clients = 0;
     _busy = false;
     notifyListeners();
@@ -252,7 +281,11 @@ class FtpService extends ChangeNotifier {
   Future<void> _postNotification() async {
     if (!running) return;
     final str = AppStrings.current;
-    final address = _addresses.isEmpty ? '' : _addresses.first;
+    // Bildirimde de ÖNCE tarayıcı adresi: kullanıcı oradan kopyalayıp PC'ye
+    // yazıyor ve `http://` her cihazda çalışıyor.
+    final address = _webAddresses.isNotEmpty
+        ? _webAddresses.first
+        : (_addresses.isEmpty ? '' : _addresses.first);
     final body = [
       if (address.isNotEmpty) address,
       '${str.t('nas.user')}: $_user  ·  ${str.t('nas.password')}: $_password',
@@ -293,7 +326,8 @@ class FtpService extends ChangeNotifier {
   @visibleForTesting
   static List<String> sortAddresses(List<String> addresses) {
     int rank(String a) {
-      final host = a.replaceFirst('ftp://', '');
+      // Şema soyulur: aynı sıralama hem `ftp://` hem `http://` için geçerli.
+      final host = a.replaceFirst(RegExp(r'^[a-z]+://'), '');
       if (host.startsWith('192.168.')) return 0;
       if (host.startsWith('10.')) return 1;
       final m = RegExp(r'^172\.(\d+)\.').firstMatch(host);

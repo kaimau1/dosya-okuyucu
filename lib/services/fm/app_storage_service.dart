@@ -123,6 +123,62 @@ abstract final class AppStorageService {
     }
   }
 
+  /// Kurulu bir uygulamanın **APK dosyalarının yolu** (temel + parçalar).
+  ///
+  /// Kanal yoksa, paket bulunamazsa ya da yol okunamıyorsa `null` — arayüz
+  /// "APK bulunamadı" der. Yolu uydurmak (`/data/app/<paket>/base.apk`)
+  /// İMKÂNSIZ: gerçek yol iki rastgele parça içeriyor (bkz. ci/MainActivity.kt).
+  static Future<ApkSource?> apkPathsOf(String packageName) async {
+    try {
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+          'apkPaths', {'package': packageName});
+      if (raw == null) return null;
+      final source = raw['source'];
+      if (source is! String || source.isEmpty) return null;
+      return ApkSource(
+        sourcePath: source,
+        splitPaths: [
+          for (final s in (raw['splits'] as List? ?? const []))
+            if (s is String && s.isNotEmpty) s,
+        ],
+        label: raw['label'] is String ? raw['label'] as String : '',
+        versionName:
+            raw['versionName'] is String ? raw['versionName'] as String : '',
+      );
+    } catch (_) {
+      // Eski APK'da bu yöntem yok (`notImplemented`) — kanalı ölü saymıyoruz,
+      // boyut sorgusu hâlâ çalışabilir.
+      return null;
+    }
+  }
+
   /// Testlerde sahte kanal kurulduktan sonra "yok" damgasını temizler.
   static void resetForTest() => _available = null;
+}
+
+/// Kurulu bir uygulamanın diskteki APK dosyaları.
+class ApkSource {
+  /// `base.apk` — uygulamanın kodu ve manifest'i.
+  final String sourcePath;
+
+  /// Bölünmüş parçalar (`split_config.arm64_v8a.apk`, `split_config.tr.apk`…).
+  /// Play'den App Bundle olarak kurulan uygulamalarda dolu olur.
+  final List<String> splitPaths;
+
+  final String label;
+  final String versionName;
+
+  const ApkSource({
+    required this.sourcePath,
+    this.splitPaths = const [],
+    this.label = '',
+    this.versionName = '',
+  });
+
+  /// Uygulama parçalı mı kurulmuş? (Paylaşma akışının verdiği kararın girdisi:
+  /// tek `base.apk` karşı tarafta kurulmayabilir.)
+  bool get isSplit => splitPaths.isNotEmpty;
+
+  /// Paylaşılacak bütün dosyalar (temel + parçalar).
+  List<String> get allPaths => [sourcePath, ...splitPaths];
 }
