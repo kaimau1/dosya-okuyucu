@@ -9090,3 +9090,58 @@ bozuk kodlanmış Türkçe hem okunmaz hem çalışmaz. Test bunu kilitliyor
 - **Test edilebilirlik:** kutu toplayıcısı (`FtpTree.collect`) dışarıdan
   veriliyor; gerçek toplayıcı arama dizinine ve tüm diski taramaya bağlı,
   testte ağacın kendisi ölçülüyor.
+
+## 2026-08-29 (V) — PDF: klavye açılmıyordu, vurgu kaldırılamıyordu, çubuklar kötüydü
+Kullanıcı (ekran görüntüleriyle): *"pdf'de düzenle deyince klavye açılmıyor"*,
+*"vurgula gibi işlerde vurgu kaldır vb işlemler yok"*, *"düzenlerken vs açılan
+araç menüleri çok zarif yetersiz ve kötü görünüyor, üzerlerine çalış."*
+
+### A) Klavye açılmıyordu — `autofocus` yeterli değil
+- **Kök neden:** yerinde düzenleme kutusu pdfrx'in **sayfa katmanında**
+  (`pageOverlaysBuilder`) çiziliyor ve o katman kaydırma/yakınlaştırma/sayfa
+  yeniden çiziminde **yeniden kuruluyor**. `autofocus` yalnız widget'ın İLK
+  kurulumunda çalışır; katman hemen ardından yeniden kurulunca odak düşüyor ve
+  klavye ya hiç açılmıyor ya açılıp kapanıyordu.
+- **Çözüm:** odak düğümü (`FocusNode`) artık `ViewerScreen`de — yani yeniden
+  kurulan ağacın DIŞINDA. Düzenleme açılırken ilk kareden sonra
+  (`addPostFrameCallback`) açıkça isteniyor; AI ile yeniden yazımdan dönünce de
+  geri alınıyor. Aynı düğüm hangi `TextField` çizilirse ona bağlanıyor.
+- **Ders:** pdfrx sayfa katmanına konan hiçbir widget'ta `autofocus` /
+  `initState` yan etkisine güvenilmez — katmanın ömrü sayfanın ömrü değil.
+
+### B) Vurgu kaldırma — `PdfAnnotator.removeHighlights`
+- Vurgu eklenebiliyor ama kaldırılamıyordu: yanlış yeri vurgulayanın tek çaresi
+  dosyayı kaydetmeden çıkmaktı, o da aradaki TÜM düzeltmeleri götürüyordu.
+- Seçime **değen** (kesişen) metin-işaretleme annotation'ları siliniyor; tam
+  kapsama aranmıyor çünkü kullanıcı vurgulu metnin bir kelimesini seçip
+  "kaldır" diyor. Yalnız `PdfTextMarkupAnnotation` siliniyor — imza/form
+  alanına dokunulmuyor.
+- **TUZAK:** koleksiyondan silerken **sondan başa** gidilmeli; baştan gidilirse
+  silme sonrası indeks kayıyor ve aradaki annotation atlanıyor.
+- **Not (paket gerçeği):** Syncfusion 31.x'te ayrı bir "loaded" sınıfı YOK —
+  belgeden okunan vurgular da `PdfTextMarkupAnnotation` olarak geliyor
+  (`_getAnnotation` dağıtımı highlight/underline/strikeOut/squiggly'yi
+  `_createMarkupAnnotation`e yolluyor). `PdfLoadedTextMarkupAnnotation` diye
+  bir tür aranmamalı.
+- Silinecek bir şey yoksa dosya **yeniden kaydedilmiyor** (aynı baytlar döner).
+
+### C) Araç çubukları — `widgets/pdf_action_bars.dart`
+- **Eski hâl:** zemin `Colors.black.withValues(alpha: 0.78)` (her temada aynı,
+  kağıt temada yabancı bir blok); dört `TextButton.icon` tek `Wrap` içinde, dar
+  ekranda alt satıra taşıyor; renk noktaları düğmeler arasında kayboluyor;
+  "Vazgeç / AI / Uygula" üçü de aynı ağırlıkta, asıl eylem belirsiz.
+- **Yeni:** tema yüzeyi + ince kenarlık + yumuşak gölge; eylemler **eşit paylı**
+  (`Expanded`) ve etiketler tek satır + ellipsis → taşma yapısal olarak
+  imkânsız; "Uygula" dolu düğme.
+- **Renk kutucuğuna dokunmak DOĞRUDAN vurguluyor** (önce renk seç → sonra
+  "Vurgula"ya bas iki adımı kalktı); aynı satırın sonunda **silgi**.
+- Renk sırası `Wrap` içinde ortalı: yatay kaydırma denendi ama kaydırılabilir
+  alan daima tam genişliği kapladığı için içerik sola yapışıyordu.
+- **Ayrı dosyaya taşındı ki ÖLÇÜLEBİLSİN:** `ViewerScreen`in özel metotlarıyken
+  dar ekranda taşıyor mu test edilemiyordu. `pdf_action_bars_test.dart`
+  320/360/412 dp'de ve 1,4 yazı ölçeğinde çiziyor.
+- **TUZAK (test):** `FilledButton.icon` bir ALT SINIF döndürüyor
+  (`_FilledButtonWithIcon`); `find.byType(FilledButton)` tam tür eşlediği için
+  bulamıyor — `find.byWidgetPredicate((w) => w is FilledButton)` gerekiyor.
+
+**Doğrulama:** Flutter 3.29.3, analyze 0 sorun, 1839 test yeşil.

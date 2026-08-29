@@ -41,6 +41,7 @@ import '../widgets/ai_slides_flow.dart';
 import '../widgets/doc_action_bar.dart';
 import '../widgets/office_shell.dart';
 import 'fm/entry_actions.dart';
+import '../widgets/pdf_action_bars.dart';
 import '../widgets/pdf_inline_editor.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/pdf_select_layer.dart';
@@ -140,6 +141,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Yerinde düzenleme kutusunun metni. Kutu sayfanın üzerinde, düğme çubuğu
   /// ekranın altında; ikisi de aynı denetleyiciyi okusun diye burada.
   TextEditingController? _pdfEditCtl;
+
+  /// Yerinde düzenleme kutusunun **kalıcı** odak düğümü.
+  ///
+  /// Kullanıcı hatası (2026-08-29): *"pdf'de düzenle deyince klavye
+  /// açılmıyor."* Kök neden: kutu pdfrx'in SAYFA KATMANI üzerinde çiziliyor
+  /// ve o katman kaydırma/yakınlaştırma/sayfa yeniden çiziminde yeniden
+  /// kuruluyor. `autofocus` yalnız widget'ın İLK kurulumunda çalışır; katman
+  /// hemen ardından yeniden kurulunca odak düşüyor ve klavye ya hiç
+  /// açılmıyor ya da açılıp kapanıyordu.
+  ///
+  /// Odak düğümü artık burada — yani yeniden kurulan ağacın DIŞINDA — ve
+  /// düzenleme açılırken ilk kareden sonra açıkça isteniyor. Aynı düğüm
+  /// hangi `TextField` çizilirse ona bağlanıyor, klavye ayakta kalıyor.
+  FocusNode? _pdfEditFocus;
 
   /// **Özgün baytların yedeği** — düzenleme sürerken tutulan geçici dosya.
   ///
@@ -354,6 +369,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _ocrSearch?.dispose();
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     _pdfEditCtl?.dispose();
+    _pdfEditFocus?.dispose();
     _restoreOriginal();
     super.dispose();
   }
@@ -1320,150 +1336,42 @@ class _ViewerScreenState extends State<ViewerScreen> {
     });
   }
 
-  /// Seçim çubuğu: **Vurgula / Kopyala / Düzenle / Çevir** ve vurgu renkleri.
-  /// Yalnız seçim varken görünür.
-  Widget _selectionBar() {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.78),
-      borderRadius: BorderRadius.circular(24),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 6, bottom: 2),
-              child: Text(
-                _shorten(_pdfSelection, 28),
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final argb in _highlightColors) _colorDot(argb),
-                const SizedBox(width: 4),
-                TextButton.icon(
-                  onPressed: _highlightPdf,
-                  icon: const Icon(Icons.border_color,
-                      color: Colors.white, size: 18),
-                  label: Text(context.t('vw.highlight'),
-                      style: const TextStyle(color: Colors.white)),
-                ),
-                TextButton.icon(
-                  onPressed: _copyPdfSelection,
-                  icon: const Icon(Icons.copy, color: Colors.white, size: 18),
-                  label: Text(context.t('common.copy'),
-                      style: const TextStyle(color: Colors.white)),
-                ),
-                // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa
-                // düzeni korunur (tam belge AI düzenlemesinden farkı bu).
-                // OCR seçiminde düğme ARTIK VAR (2026-08-06: "taranmış belge
-                // deyip düzenleme yaptırmıyor"): PDF düzenleyicisine gider —
-                // orada OCR satırının üstüne yazılır (PdfScannedRetype).
-                TextButton.icon(
-                  onPressed:
-                      _pdfSelFromOcr ? _openPdfEditor : _startInlineEdit,
-                  icon: const Icon(Icons.edit_outlined,
-                      color: Colors.white, size: 18),
-                  label: Text(context.t('common.edit'),
-                      style: const TextStyle(color: Colors.white)),
-                ),
-                TextButton.icon(
-                  onPressed: () => TranslateFlow.run(context, _pdfSelection,
-                      title: context.t('vw.selected_text')),
-                  icon:
-                      const Icon(Icons.translate, color: Colors.white, size: 18),
-                  label: Text(context.t('common.translate'),
-                      style: const TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  /// Seçim çubuğu — tasarımı ve taşma güvencesi [PdfSelectionBar]'da.
+  Widget _selectionBar() => PdfSelectionBar(
+        preview: _shorten(_pdfSelection, 34),
+        colors: _highlightColors,
+        selectedColor: _highlightColor,
+        onHighlight: (argb) {
+          setState(() => _highlightColor = argb);
+          _highlightPdf();
+        },
+        onRemoveHighlight: _removeHighlight,
+        onCopy: _copyPdfSelection,
+        // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa düzeni korunur
+        // (tam belge AI düzenlemesinden farkı bu). OCR seçiminde PDF
+        // düzenleyicisine gider — orada OCR satırının üstüne yazılır
+        // (2026-08-06: "taranmış belge deyip düzenleme yaptırmıyor").
+        onEdit: _pdfSelFromOcr ? _openPdfEditor : _startInlineEdit,
+        onTranslate: () => TranslateFlow.run(context, _pdfSelection,
+            title: context.t('vw.selected_text')),
+        highlightTooltip: context.t('vw.highlight_hint'),
+        removeTooltip: context.t('vw.highlight_remove'),
+        copyLabel: context.t('common.copy'),
+        editLabel: context.t('common.edit'),
+        translateLabel: context.t('common.translate'),
+      );
 
-  /// Yerinde düzenleme çubuğu: **Vazgeç / AI ile düzelt / Uygula.**
-  ///
-  /// KÖK NEDEN — niye sayfanın üzerinde değil de ekranın altında
-  /// (2026-07-26 kullanıcı bulgusu: *"x, onay, ai işaretlerine tıklanmıyor"*):
-  /// `linkHandlerParams` verilince pdfrx TÜM görüntüyü kaplayan translucent bir
-  /// `GestureDetector` kurar ve bunu sayfa katmanlarının ÜSTÜNE koyar. Hit-test
-  /// yolunda bizden önce geldiği için tap tanıyıcısı arenaya önce girer;
-  /// kimse erken kazanmayınca `GestureArenaManager.sweep()` **ilk üyeyi**
-  /// seçer → sayfa katmanındaki hiçbir düğme ateşlenmez. (Metin kutusu
-  /// çalışıyordu: metin alanı tanıyıcısı arenayı erken kazanır.)
-  ///
-  /// İlk çözüm "düzenleme açıkken köprüyü kapat" idi; ama bu, düzenleme her
-  /// açılıp kapandığında `PdfViewerParams`'ı değiştiriyordu. Çubuk buraya
-  /// alınınca köprü hiç kapanmıyor: burası pdfrx'in TAMAMEN dışında, üstteki
-  /// Stack'te, dolayısıyla dokunuşu doğal olarak ilk o alıyor. Ek fayda:
-  /// çubuk sayfa kenarına taşıp kırpılmıyor ve klavyenin hemen üstünde duruyor.
-  Widget _editBar() {
-    Widget button(IconData icon, String label, VoidCallback? onPressed) =>
-        TextButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon,
-              color: onPressed == null ? Colors.white38 : Colors.white,
-              size: 20),
-          label: Text(label,
-              style: TextStyle(
-                  color: onPressed == null ? Colors.white38 : Colors.white)),
-        );
-
-    return Material(
-      color: Colors.black.withValues(alpha: 0.82),
-      borderRadius: BorderRadius.circular(24),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            button(Icons.close, context.t('common.cancel'),
-                _pdfEditBusy ? null : _cancelInlineEdit),
-            button(Icons.auto_fix_high, 'AI',
-                _pdfEditBusy ? null : _rewriteInlineEdit),
-            if (_pdfEditBusy)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                ),
-              )
-            else
-              button(Icons.check, context.t('common.apply'), _submitInlineEdit),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Seçilebilir vurgu rengi noktası; seçili olan beyaz halkalı.
-  Widget _colorDot(int argb) {
-    final selected = _highlightColor == argb;
-    return GestureDetector(
-      onTap: () => setState(() => _highlightColor = argb),
-      child: Container(
-        width: 26,
-        height: 26,
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        decoration: BoxDecoration(
-          color: Color(argb),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? Colors.white : Colors.white24,
-            width: selected ? 2.5 : 1,
-          ),
-        ),
-      ),
-    );
-  }
+  /// Yerinde düzenleme çubuğu — bkz. [PdfEditBar] (niye ekranın altında
+  /// olduğu da orada yazılı).
+  Widget _editBar() => PdfEditBar(
+        busy: _pdfEditBusy,
+        onCancel: _cancelInlineEdit,
+        onRewrite: _rewriteInlineEdit,
+        onApply: _submitInlineEdit,
+        cancelLabel: context.t('common.cancel'),
+        aiLabel: context.t('vw.ai_fix'),
+        applyLabel: context.t('common.apply'),
+      );
 
   static String _shorten(String s, int max) {
     final t = s.replaceAll('\n', ' ').trim();
@@ -1487,6 +1395,38 @@ class _ViewerScreenState extends State<ViewerScreen> {
   ///
   /// ponytail: annotate+save ana izlekte. Büyük PDF'te takılırsa xlsx gibi
   /// `compute`'a taşınır (bkz. HAFIZA 2026-07-22 XLSX isolate).
+  /// Seçime değen vurguları siler (kullanıcı 2026-08-29: *"vurgu kaldır vb
+  /// işlemler yok"*). Seçim vurgunun bir parçasına denk gelse yeter.
+  Future<void> _removeHighlight() async {
+    final rects = _pdfSelRects;
+    final page = _pdfSelPage;
+    if (rects.isEmpty || page < 1) return;
+    try {
+      final bytes = await _fileService.readBytes(widget.doc.path);
+      final (out, removed) = await PdfAnnotator.removeHighlights(
+        bytes: bytes,
+        pageIndex: page - 1,
+        pdfRects: rects,
+      );
+      if (!mounted) return;
+      if (removed == 0) {
+        // Seçim kalsın: kullanıcı biraz kaydırıp yeniden deneyebilsin.
+        _snack(context.t('vw.highlight_none_here'));
+        return;
+      }
+      setState(() {
+        _pdfSelection = '';
+        _pdfSelRects = const [];
+      });
+      await _writePending(out);
+      if (mounted) {
+        _snack(context.t('vw.highlight_removed', {'n': removed}));
+      }
+    } catch (e) {
+      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
+    }
+  }
+
   /// PDF araçları ekranı; kaydedilerek dönülürse dosya değişmiştir → pdfrx
   /// aynı yolu "eşit" saydığı için remount ile yeniden okutulur.
   Future<void> _openPdfTools() async {
@@ -1734,6 +1674,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final text = _pdfSelection.trim();
     if (rects.isEmpty || page < 1 || text.isEmpty) return;
     _pdfEditCtl?.dispose();
+    _pdfEditFocus?.dispose();
+    _pdfEditFocus = FocusNode(debugLabel: 'pdf-inline-edit');
+    // Kutu bir sonraki karede çiziliyor; odak ondan SONRA isteniyor.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusInlineEdit());
     setState(() {
       // Metin baştan seçili: kullanıcı doğrudan yazmaya başlayabilir
       // (Word'de bir kelimeye çift tıklamak gibi).
@@ -1754,10 +1698,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _cancelInlineEdit() {
     FocusScope.of(context).unfocus();
     _pdfEditCtl?.dispose();
+    _pdfEditFocus?.dispose();
     setState(() {
       _pdfEdit = null;
       _pdfEditCtl = null;
+      _pdfEditFocus = null;
     });
+  }
+
+  /// Klavyeyi açar (ve düşen odağı geri alır).
+  void _focusInlineEdit() {
+    final node = _pdfEditFocus;
+    if (node == null || !mounted || _pdfEdit == null) return;
+    if (!node.hasFocus) node.requestFocus();
   }
 
   /// Alt çubuktaki ✓ (ve klavyenin "bitti" tuşu).
@@ -1773,6 +1726,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final result = await showAiRewriteSheet(context, ctl.text);
     if (result != null && result.isNotEmpty && mounted) {
       setState(() => ctl.text = result);
+    }
+    // AI sayfası kapanınca odak kutuya geri döner; yoksa kullanıcı yazmaya
+    // devam etmek için kutuya bir kez daha dokunmak zorunda kalıyordu.
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusInlineEdit());
     }
   }
 
@@ -1807,7 +1765,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (!mounted) return;
       if (applied != null) {
         _pdfEditCtl?.dispose();
+        _pdfEditFocus?.dispose();
         _pdfEditCtl = null;
+        _pdfEditFocus = null;
       }
       setState(() {
         _pdfEditBusy = false;
@@ -2431,13 +2391,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   pageOverlaysBuilder: (context, pageRect, page) => [
                     if (_pdfEdit != null &&
                         _pdfEdit!.page == page.pageNumber &&
-                        _pdfEditCtl != null)
+                        _pdfEditCtl != null &&
+                        _pdfEditFocus != null)
                       PdfInlineEditor(
                         page: page,
                         pageSize: pageRect.size,
                         rects: _pdfEdit!.rects,
                         original: _pdfEdit!.original,
                         controller: _pdfEditCtl!,
+                        focusNode: _pdfEditFocus!,
                         busy: _pdfEditBusy,
                         onSubmit: _submitInlineEdit,
                       )

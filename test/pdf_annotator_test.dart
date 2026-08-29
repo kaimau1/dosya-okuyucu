@@ -140,4 +140,103 @@ void main() {
       expect(identical(out, src), isTrue);
     });
   });
+
+  /// **Vurgu KALDIRMA** (kullanıcı 2026-08-29: *"vurgu kaldır vb işlemler
+  /// yok"*). Eklenen vurgu geri alınamıyordu; yanlış yeri vurgulayanın tek
+  /// çaresi kaydetmeden çıkmaktı — o da aradaki tüm düzeltmeleri götürüyordu.
+  group('removeHighlights', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    Future<List<int>> blankPage() async {
+      final doc = PdfDocument();
+      doc.sections!.add()
+        ..pageSettings = (PdfPageSettings(const Size(400, 600))
+          ..margins.all = 0)
+        ..pages.add();
+      final bytes = await doc.save();
+      doc.dispose();
+      return bytes;
+    }
+
+    /// Sayfadaki metin-işaretleme annotation sayısı.
+    int markupCount(List<int> pdf) {
+      final doc = PdfDocument(inputBytes: pdf);
+      try {
+        var n = 0;
+        for (var i = 0; i < doc.pages[0].annotations.count; i++) {
+          if (doc.pages[0].annotations[i] is PdfTextMarkupAnnotation) n++;
+        }
+        return n;
+      } finally {
+        doc.dispose();
+      }
+    }
+
+    Future<List<int>> withHighlight(PdfRect rect) async => PdfAnnotator
+        .addHighlight(
+      bytes: await blankPage(),
+      pageIndex: 0,
+      pdfRects: [rect],
+      colorArgb: 0xFFFFF176,
+    );
+
+    test('seçime DEĞEN vurgu silinir', () async {
+      final src = await withHighlight(const PdfRect(50, 580, 150, 560));
+      expect(markupCount(src), 1);
+
+      final (out, removed) = await PdfAnnotator.removeHighlights(
+        bytes: src,
+        pageIndex: 0,
+        // Vurgunun bir parçasına denk gelen seçim yeterli: kullanıcı vurgulu
+        // metnin tek kelimesini seçip "kaldır" diyebilmeli.
+        pdfRects: const [PdfRect(60, 575, 90, 565)],
+      );
+      expect(removed, 1);
+      expect(markupCount(out), 0);
+    });
+
+    test('DEĞMEYEN vurgu durur, dosya değiştirilmez', () async {
+      final src = await withHighlight(const PdfRect(50, 580, 150, 560));
+
+      final (out, removed) = await PdfAnnotator.removeHighlights(
+        bytes: src,
+        pageIndex: 0,
+        pdfRects: const [PdfRect(50, 200, 150, 180)],
+      );
+      expect(removed, 0);
+      // Silinecek bir şey yoksa yeniden kaydedilmiyor (gereksiz yazma yok).
+      expect(identical(out, src), isTrue);
+      expect(markupCount(src), 1);
+    });
+
+    test('birden çok vurgudan YALNIZ değen silinir', () async {
+      var bytes = await withHighlight(const PdfRect(50, 580, 150, 560));
+      bytes = await PdfAnnotator.addHighlight(
+        bytes: bytes,
+        pageIndex: 0,
+        pdfRects: const [PdfRect(50, 300, 150, 280)],
+        colorArgb: 0xFF81C784,
+      );
+      expect(markupCount(bytes), 2);
+
+      final (out, removed) = await PdfAnnotator.removeHighlights(
+        bytes: bytes,
+        pageIndex: 0,
+        pdfRects: const [PdfRect(55, 575, 100, 565)],
+      );
+      expect(removed, 1);
+      expect(markupCount(out), 1);
+    });
+
+    test('boş seçimde dosya DEĞİŞTİRİLMEZ', () async {
+      final src = await withHighlight(const PdfRect(50, 580, 150, 560));
+      final (out, removed) = await PdfAnnotator.removeHighlights(
+        bytes: src,
+        pageIndex: 0,
+        pdfRects: const [],
+      );
+      expect(removed, 0);
+      expect(identical(out, src), isTrue);
+    });
+  });
 }

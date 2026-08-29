@@ -33,6 +33,7 @@ class PdfInlineEditor extends StatelessWidget {
     required this.rects,
     required this.original,
     required this.controller,
+    required this.focusNode,
     required this.onSubmit,
     this.busy = false,
   });
@@ -50,6 +51,13 @@ class PdfInlineEditor extends StatelessWidget {
   /// Metin denetleyicisi **dışarıda** (ViewerScreen) tutuluyor: alttaki
   /// düğme çubuğu da aynı metni okuyor.
   final TextEditingController controller;
+
+  /// Odak düğümü de **dışarıda** — ve sebebi denetleyiciden farklı:
+  /// bu katman pdfrx tarafından kaydırma/yakınlaştırmada yeniden kuruluyor.
+  /// `autofocus` yalnız ilk kurulumda çalıştığı için klavye açılmıyordu
+  /// (kullanıcı hatası 2026-08-29). Düğüm ağacın dışında yaşayınca yeniden
+  /// kurulan `TextField` aynı odağa bağlanıyor ve klavye ayakta kalıyor.
+  final FocusNode focusNode;
 
   /// Klavyenin "bitti" tuşu — tek satırlık metinde doğrudan uygular.
   final VoidCallback onSubmit;
@@ -139,7 +147,7 @@ class PdfInlineEditor extends StatelessWidget {
               ),
               child: TextField(
                 controller: controller,
-                autofocus: true,
+                focusNode: focusNode,
                 enabled: !busy,
                 maxLines: multiline ? null : 1,
                 keyboardType:
