@@ -204,6 +204,79 @@ class FtpServer {
   /// `PASV` yanıtındaki adres alanı: `h1,h2,h3,h4,p1,p2`.
   static String pasvTuple(String ipv4, int port) =>
       '${ipv4.replaceAll('.', ',')},${port >> 8},${port & 0xFF}';
+
+  /// Yerel arayüz adresleri — `PASV` yedeği için önbellekte tutulur
+  /// ([pasvIp] her aktarımda çağrılıyor, her seferinde arayüz taramak israf).
+  List<String>? _interfaces;
+
+  /// **`PASV` yanıtında bildirilecek IPv4** (2026-08-29 cihaz hatası).
+  ///
+  /// Kullanıcı Windows Gezgini'nde şu hatayı aldı:
+  /// `227 Entering Passive Mode (0,0,0,0,156,65)` → "bu klasör açılırken bir
+  /// hata oluştu". Sebep: adres olarak kontrol bağlantısının `socket.address`i
+  /// veriliyordu; Android'de bu, bağlantının gerçek yerel adresi DEĞİL,
+  /// dinleyicinin bağlandığı adres (`InternetAddress.anyIPv4` = `0.0.0.0`)
+  /// olarak geliyor. İstemci de veri kanalı için `0.0.0.0`'a bağlanmaya
+  /// çalışıp vazgeçiyor: giriş ve gezinme çalışıyor, **hiçbir listeleme ya da
+  /// aktarım çalışmıyordu**.
+  ///
+  /// Sıra:
+  /// 1. Kontrol bağlantısının yerel adresi kullanılabilir ise o (birden çok
+  ///    arayüzlü telefonda — Wi-Fi + hotspot — istemcinin ulaştığı adres bu).
+  /// 2. Değilse istemciyle **aynı ağdaki** arayüz adresi (önce /24, sonra /16
+  ///    eşleşmesi): hotspot'tan bağlanan PC'ye Wi-Fi adresini vermek işe
+  ///    yaramazdı.
+  /// 3. O da yoksa ilk döngüsel-olmayan adres; hiç yoksa istemcinin kendi
+  ///    gördüğü adrese düşülür (loopback denemesi, boş yanıttan iyidir).
+  ///
+  /// Saf fonksiyon → birim testli.
+  static String pasvIp({
+    required String local,
+    required String remote,
+    required List<String> interfaces,
+  }) {
+    bool usable(String ip) =>
+        ip.isNotEmpty && ip != '0.0.0.0' && ip.contains('.');
+    if (usable(local)) return local;
+    // Döngüsel istemci (aynı cihazdaki bir uygulama, testler): loopback ver.
+    if (remote.startsWith('127.')) return '127.0.0.1';
+    List<String> parts(String ip) => ip.split('.');
+    final target = parts(remote);
+    for (final depth in [3, 2]) {
+      if (target.length < depth) break;
+      for (final candidate in interfaces) {
+        final c = parts(candidate);
+        if (c.length < depth) continue;
+        if (List.generate(depth, (i) => c[i] == target[i])
+            .every((same) => same)) {
+          return candidate;
+        }
+      }
+    }
+    for (final candidate in interfaces) {
+      if (usable(candidate) && !candidate.startsWith('127.')) return candidate;
+    }
+    return usable(remote) ? remote : '127.0.0.1';
+  }
+
+  /// [pasvIp] için arayüz adreslerini toplar. [refresh] verildiğinde önbellek
+  /// atlanır: ağ değişmiş (Wi-Fi'dan hotspot'a geçilmiş) olabilir.
+  Future<List<String>> interfaceAddresses({bool refresh = false}) async {
+    if (!refresh && _interfaces != null) return _interfaces!;
+    try {
+      final list = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+        includeLinkLocal: false,
+      );
+      return _interfaces = [
+        for (final i in list)
+          for (final a in i.addresses) a.address,
+      ];
+    } catch (_) {
+      return _interfaces = const [];
+    }
+  }
 }
 
 /// Tek bir istemci oturumu (kontrol bağlantısı).
@@ -390,6 +463,13 @@ class _FtpSession {
     }
   }
 
+  /// `192.168.1.25` → `192.168.1.` (aynı /24 ağda mıyız denetimi için).
+  static String _networkPrefix(String ip) {
+    final parts = ip.split('.');
+    if (parts.length < 3) return ip;
+    return '${parts[0]}.${parts[1]}.${parts[2]}.';
+  }
+
   bool _requireWrite() {
     if (server.allowWrite) return true;
     _send('550 Yazma kapalı');
@@ -418,10 +498,23 @@ class _FtpSession {
     if (extended) {
       _send('229 Entering Extended Passive Mode (|||$port|)');
     } else {
-      // Adres olarak KONTROL bağlantısının yerel adresi verilir: telefonun
-      // birden çok arayüzü olabilir (Wi-Fi + hotspot) ve istemcinin ulaştığı
-      // adres hangisiyse veri kanalı da o olmalı.
-      final ip = socket.address.address;
+      // Adres seçimi [FtpServer.pasvIp]'de — `socket.address` Android'de
+      // `0.0.0.0` dönüyor ve istemci veri kanalını hiç kuramıyordu.
+      final remote = socket.remoteAddress.address;
+      var ip = FtpServer.pasvIp(
+        local: socket.address.address,
+        remote: remote,
+        interfaces: await server.interfaceAddresses(),
+      );
+      // Önbellekteki arayüzler istemcinin ağıyla hiç eşleşmediyse (telefon
+      // Wi-Fi'dan hotspot'a geçmiş olabilir) liste bir kez tazelenir.
+      if (!ip.startsWith(_networkPrefix(remote))) {
+        ip = FtpServer.pasvIp(
+          local: socket.address.address,
+          remote: remote,
+          interfaces: await server.interfaceAddresses(refresh: true),
+        );
+      }
       _send('227 Entering Passive Mode (${FtpServer.pasvTuple(ip, port)})');
     }
   }

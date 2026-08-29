@@ -84,6 +84,81 @@ void main() {
       expect(line, contains('Jan  5 09:07'));
     });
 
+    // ── 2026-08-29 cihaz hatası ───────────────────────────────────────────
+    // Windows Gezgini: "227 Entering Passive Mode (0,0,0,0,156,65)" → klasör
+    // açılmıyor. Android'de `socket.address` bağlantının yerel adresini değil
+    // dinleyicinin bağlandığı adresi (0.0.0.0) veriyor; istemci veri kanalını
+    // kuramıyordu. Giriş ve gezinme çalıştığı için hata "izin sorunu" gibi
+    // görünüyordu.
+    group('PASV adresi', () {
+      test('kullanılabilir yerel adres olduğu gibi kullanılır', () {
+        expect(
+          FtpServer.pasvIp(
+            local: '192.168.1.68',
+            remote: '192.168.1.25',
+            interfaces: const ['10.0.0.5'],
+          ),
+          '192.168.1.68',
+        );
+      });
+
+      test('0.0.0.0 yerine İSTEMCİYLE AYNI AĞDAKİ arayüz seçilir', () {
+        expect(
+          FtpServer.pasvIp(
+            local: '0.0.0.0',
+            remote: '192.168.1.25',
+            interfaces: const ['10.0.0.5', '192.168.1.68'],
+          ),
+          '192.168.1.68',
+        );
+      });
+
+      test('/24 tutmazsa /16 eşleşmesine düşülür', () {
+        expect(
+          FtpServer.pasvIp(
+            local: '0.0.0.0',
+            remote: '192.168.43.25',
+            interfaces: const ['10.0.0.5', '192.168.1.68'],
+          ),
+          '192.168.1.68',
+        );
+      });
+
+      test('hiç eşleşme yoksa ilk döngüsel-olmayan adres', () {
+        expect(
+          FtpServer.pasvIp(
+            local: '0.0.0.0',
+            remote: '8.8.8.8',
+            interfaces: const ['127.0.0.1', '10.0.0.5'],
+          ),
+          '10.0.0.5',
+        );
+      });
+
+      test('döngüsel istemciye loopback verilir', () {
+        expect(
+          FtpServer.pasvIp(
+            local: '0.0.0.0',
+            remote: '127.0.0.1',
+            interfaces: const [],
+          ),
+          '127.0.0.1',
+        );
+      });
+
+      test('hiçbir arayüz yoksa bile 0.0.0.0 DÖNMEZ', () {
+        // Asıl hata buydu: istemciye bağlanamayacağı bir adres vermek.
+        for (final remote in ['192.168.1.25', '10.0.0.9', '8.8.8.8']) {
+          expect(
+            FtpServer.pasvIp(
+                local: '0.0.0.0', remote: remote, interfaces: const []),
+            isNot('0.0.0.0'),
+            reason: remote,
+          );
+        }
+      });
+    });
+
     test('PASV adres alanı doğru kodlanır', () {
       // 2121 = 8*256 + 73
       expect(FtpServer.pasvTuple('192.168.1.37', 2121), '192,168,1,37,8,73');
@@ -293,6 +368,27 @@ void main() {
       await send('PASS p');
       expect(await send('SIZE a.txt'), '213 3');
       expect(await send('MDTM a.txt'), matches(RegExp(r'^213 \d{14}$')));
+    });
+
+    test('PASV yanıtı bağlanılabilir bir adres verir (0,0,0,0 DEĞİL)',
+        () async {
+      await send('USER u');
+      await send('PASS p');
+      final reply = await send('PASV');
+      expect(reply, startsWith('227'));
+      expect(reply, isNot(contains('(0,0,0,0')));
+      // Verilen adres:porta gerçekten bağlanılabiliyor mu — bildirilen adres
+      // doğru değilse istemci tam da kullanıcının aldığı hatayı alır.
+      final numbers = RegExp(r'\((\d+(?:,\d+){5})\)')
+          .firstMatch(reply)!
+          .group(1)!
+          .split(',')
+          .map(int.parse)
+          .toList();
+      final host = numbers.take(4).join('.');
+      final data = await Socket.connect(host, numbers[4] * 256 + numbers[5],
+          timeout: const Duration(seconds: 5));
+      data.destroy();
     });
 
     test('EPSV genişletilmiş pasif mod yanıtı verir', () async {

@@ -9007,3 +9007,34 @@ Kullanıcı (ekran görüntüleriyle, biri başka bir dosya yöneticisinden):
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı), `flutter analyze` lib+test 0 sorun,
 tüm test paketi yeşil (yeni: `fm_glyph_test`, `network_share_test`,
 `ftp_server_test`e 8 yeni durum).
+
+## 2026-08-29 (III) — PC'de "FTP Klasörü Hatası": PASV adresi `0.0.0.0` çıkıyordu
+Kullanıcı, aynı gün derlenen APK'yı Windows Gezgini'nde denedi ve hata aldı:
+
+    227 Entering Passive Mode (0,0,0,0,156,65)
+    "FTP Sunucusu'nda bu klasör açılırken bir hata oluştu."
+
+- **Kök neden:** `_openPassive` PASV yanıtındaki adresi `socket.address.address`
+  ile veriyordu. Dart'ta bir dinleyiciden kabul edilen sokette bu, bağlantının
+  gerçek yerel adresi DEĞİL, dinleyicinin bağlandığı adres olarak geliyor —
+  ve biz `InternetAddress.anyIPv4`e bağlandığımız için `0.0.0.0`. İstemci veri
+  kanalını `0.0.0.0`'a kurmaya çalışıp vazgeçiyor.
+- **Niye "izin hatası" gibi göründü:** kontrol kanalı (giriş, CWD, PWD) sorunsuz
+  çalışıyor; yalnız VERİ kanalı kurulamıyor. Windows'un mesajı da "erişim
+  izniniz olduğundan emin olun" diyor. Yani listeleme/indirme/yükleme —
+  özelliğin tamamı — çalışmıyordu, ama hata kimlik doğrulamayı işaret ediyordu.
+- **Çözüm:** `FtpServer.pasvIp(local:, remote:, interfaces:)` saf fonksiyonu.
+  Sıra: (1) yerel adres kullanılabilirse o, (2) değilse İSTEMCİYLE aynı ağdaki
+  arayüz (önce /24, sonra /16 — hotspot'tan bağlanan PC'ye Wi-Fi adresini
+  vermek işe yaramaz), (3) ilk döngüsel-olmayan adres, (4) son çare istemcinin
+  gördüğü adres. **Hiçbir durumda `0.0.0.0` dönmüyor** (test edildi).
+  Arayüz listesi `FtpServer.interfaceAddresses()`te önbellekli; seçilen adres
+  istemcinin /24'üyle tutmazsa (telefon Wi-Fi'dan hotspot'a geçmiş olabilir)
+  liste bir kez tazeleniyor.
+- **Ders:** `dart:io`'da `Socket.address` bir SUNUCU soketinden kabul edilen
+  bağlantıda güvenilir bir "benim adresim" kaynağı değil. Bir protokol
+  yanıtında adres bildirilecekse arayüz listesinden doğrulanmalı.
+- **Test:** `pasvIp` için altı birim durumu + gerçek sunucuda PASV yanıtının
+  bildirdiği adres:porta **fiilen bağlanılabildiğini** ölçen bütünleşik test
+  (yanıtı ayrıştırıp `Socket.connect` deniyor) — biçim doğru ama adres yanlış
+  olduğunda yakalayan tek denetim bu.
