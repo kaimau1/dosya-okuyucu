@@ -2,6 +2,8 @@ package com.dosyaokuyucu.dosya_okuyucu
 
 import android.app.AppOpsManager
 import android.app.usage.StorageStatsManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
@@ -190,19 +192,73 @@ class MainActivity : FlutterActivity() {
             return out
         }
         val end = System.currentTimeMillis()
-        val start = end - days.toLong() * 24L * 60L * 60L * 1000L
-        try {
-            for ((pkg, stats) in usm.queryAndAggregateUsageStats(start, end)) {
-                var last = stats.lastTimeUsed
+        val day = 24L * 60L * 60L * 1000L
+        val floor = end - days.toLong() * day
+
+        fun keep(pkg: String?, time: Long) {
+            if (pkg.isNullOrEmpty() || time <= floor) return
+            if (time > (out[pkg] ?: 0L)) out[pkg] = time
+        }
+
+        fun merge(stats: Collection<UsageStats>?) {
+            if (stats == null) return
+            for (s in stats) {
+                var last = s.lastTimeUsed
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    last = maxOf(last, stats.lastTimeVisible)
+                    last = maxOf(last, s.lastTimeVisible)
                 }
-                // Kova sınırından gelen anlamsız değerleri ele: pencereden
-                // ÖNCEKİ bir zaman damgası "kullanılmadı" demektir.
-                if (last > start) out[pkg] = last
+                keep(s.packageName, last)
+            }
+        }
+
+        // **BİRDEN ÇOK KOVA TÜRÜ TARANIR — 2026-08-29 düzeltmesi.**
+        // İlk sürüm yalnız `queryAndAggregateUsageStats(730 gün)` soruyordu;
+        // o çağrı `INTERVAL_BEST` seçiyor ve 2 yıllık bir aralıkta YILLIK
+        // kovaya düşüyor. Yıllık kova birçok ROM'da (özellikle MIUI) budanmış
+        // geliyor: kullanıcının haftalar önce açtığı Termux, Copilot, getir
+        // gibi uygulamalar sonuçta HİÇ yer almıyor ve listede yine "hiç
+        // açılmadı" yazıyordu. Kovaların geriye dönük derinliği farklı
+        // (günlük ~7 gün, haftalık ~4 hafta, aylık ~6 ay, yıllık ~2 yıl);
+        // hepsi ayrı ayrı sorulup **en büyük zaman damgası** alınıyor.
+        val windows = listOf(
+            UsageStatsManager.INTERVAL_DAILY to 8L,
+            UsageStatsManager.INTERVAL_WEEKLY to 35L,
+            UsageStatsManager.INTERVAL_MONTHLY to 200L,
+            UsageStatsManager.INTERVAL_YEARLY to days.toLong(),
+            UsageStatsManager.INTERVAL_BEST to days.toLong(),
+        )
+        for ((interval, span) in windows) {
+            try {
+                merge(usm.queryUsageStats(interval, end - span * day, end))
+            } catch (e: Exception) {
+                // Bu kova bu ROM'da yoksa diğerleri yine çalışır.
+            }
+        }
+        try {
+            merge(usm.queryAndAggregateUsageStats(floor, end).values)
+        } catch (e: Exception) {
+        }
+
+        // **Olay günlüğü — son günlerin EN GÜVENİLİR kaynağı.** Kova
+        // istatistikleri gün sonunda yazılıyor; bugün açılan bir uygulama
+        // kovalarda henüz görünmeyebiliyor. `queryEvents` ham olay akışı
+        // olduğu için "bugün" ve "1 gün önce" ancak burada doğru çıkıyor.
+        try {
+            val events = usm.queryEvents(end - 8L * day, end)
+            val event = UsageEvents.Event()
+            val foreground = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                UsageEvents.Event.ACTIVITY_RESUMED
+            } else {
+                @Suppress("DEPRECATION")
+                UsageEvents.Event.MOVE_TO_FOREGROUND
+            }
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == foreground) {
+                    keep(event.packageName, event.timeStamp)
+                }
             }
         } catch (e: Exception) {
-            // İzin geri alınmış ya da ROM desteklemiyor → boş harita.
         }
         return out
     }

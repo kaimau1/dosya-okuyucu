@@ -49,15 +49,53 @@ SettingsCategory _category(String id) =>
     settingsCategories().firstWhere((c) => c.id == id);
 
 void main() {
-  testWidgets('ayarlar TEK ekranda, sekiz kategori kartı olarak duruyor',
+  testWidgets('ayarlar TEK ekranda, YEDİ kategori kartı olarak duruyor',
       (tester) async {
     await _pump(tester);
-    // Kategoriler kartlar hâlinde; ana ekran açık bölümlerin üst üste yığıldığı
-    // üç ekran boyu bir liste değil.
-    expect(settingsCategories().length, 8);
+    // 2026-08-29: sekizden yediye indi. "Hesap & Senkron" tek satırlık ayrı
+    // bir kategoriydi → Gizlilik'e; "Çöp kutusu" ve "Pil/başarım" dörder
+    // satırdı ve ikisi de "yer ve hız" sorusuna bakıyordu → tek kategori.
+    // Yerine gerçekten eksik olan bir kategori geldi: Okuma ve sesli okuma.
+    expect(settingsCategories().length, 7);
     expect(find.text('Görünüm ve dil'), findsOneWidget);
     expect(find.text('Dosya listeleri'), findsOneWidget);
     expect(find.text('Yapay zekâ'), findsOneWidget);
+  });
+
+  test('birleştirilen kategoriler kayıp satır bırakmadı', () {
+    final ids = {
+      for (final c in settingsCategories())
+        for (final r in c.rows) r.id,
+    };
+    // Eski sekiz kategorideki HER satır yeni yapıda da var (birleşme kayıp
+    // demek olmamalı — kullanıcı isteği: "bize özellik kaybettirme").
+    for (final id in [
+      'skin', 'theme', 'background', 'ui_font', 'ui_text_size', 'language',
+      'list_layout', 'default_sort', 'show_hidden', 'thumbnails',
+      'photo_grid', 'photo_group', 'media_open_with', 'start_folder',
+      'api_key', 'ai_backup_keys', 'ai_model_chain', 'ai_pool_status',
+      'ai_excluded', 'ai_types', 'ai_privacy', 'ai_budget', 'memory',
+      'account', 'privacy_policy', 'pin', 'locked_folders', 'full_access',
+      'usage_access', 'use_trash', 'confirm_delete', 'trash_auto',
+      'empty_trash', 'high_refresh', 'auto_rescan', 'search_index',
+      'thumb_cache', 'volumes', 'about', 'crash_log',
+    ]) {
+      expect(ids, contains(id), reason: '$id kategorilerden düşmüş');
+    }
+    // Yeni: sesli okuma ayarları artık Ayarlar'da (eskiden yalnız okuyucu
+    // ekranının içindeki alt sayfadan ulaşılabiliyordu).
+    expect(ids, contains('tts_voice'));
+    expect(ids, contains('tts_ai_read'));
+  });
+
+  test('gelişmiş bölümler işaretli ve içleri dolu', () {
+    final advanced = [
+      for (final c in settingsCategories())
+        for (final s in c.sections)
+          if (s.advanced) ...s.rows.map((r) => r.id),
+    ];
+    // Uzman işi satırlar Gelişmiş'e indi ama SİLİNMEDİ.
+    expect(advanced, containsAll(['ai_model_chain', 'ai_budget', 'volumes']));
   });
 
   testWidgets('kart mevcut değeri gösterir (açmadan ne ayarlı görülüyor)',
@@ -99,6 +137,37 @@ void main() {
     await tester.tap(find.byType(Switch));
     await tester.pump();
     expect(state.fmThumbnails, isFalse);
+  });
+
+  /// **2026-08-29 arama turu.** Kullanıcı: *"ayar arama iyi çalışmalı"*.
+  testWidgets('arama Türkçe harf yazılmadan da bulur', (tester) async {
+    await _pump(tester);
+    await tester.enterText(find.byType(TextField).first, 'kucuk resim');
+    await tester.pump();
+    expect(find.text('Küçük resimler'), findsOneWidget);
+  });
+
+  testWidgets('arayüz Türkçeyken İNGİLİZCE adıyla da bulunur',
+      (tester) async {
+    await _pump(tester);
+    await tester.enterText(find.byType(TextField).first, 'thumbnail');
+    await tester.pump();
+    expect(find.text('Küçük resimler'), findsOneWidget);
+  });
+
+  testWidgets('gelişmiş bölümdeki ayar da aramada çıkar', (tester) async {
+    // Gelişmiş SAKLAMAK değil sıralamak içindi; arama onları da bulmalı.
+    await _pump(tester);
+    await tester.enterText(find.byType(TextField).first, 'model');
+    await tester.pump();
+    expect(find.text('Model sırası'), findsWidgets);
+  });
+
+  testWidgets('açıklamada geçen sözcük de ayarı bulur', (tester) async {
+    await _pump(tester);
+    await tester.enterText(find.byType(TextField).first, 'gizli');
+    await tester.pump();
+    expect(find.text('Gizli dosyaları göster'), findsOneWidget);
   });
 
   testWidgets('eşleşme yoksa açıkça söylenir', (tester) async {
@@ -196,5 +265,14 @@ void main() {
     await reloaded.init();
     expect(reloaded.autoRescan, isFalse);
     expect(reloaded.highRefreshRate, isFalse);
+  });
+
+  test('eski kategori kimlikleri yeni sayfaya eşleniyor', () {
+    // Ekranlardaki "ayarlara git" bağlantıları eski kimliklerle yazılmıştı;
+    // birleştirme sonrası hâlâ doğru sayfayı açmalı.
+    final ids = settingsCategories().map((c) => c.id).toSet();
+    expect(ids, containsAll(['appearance', 'browsing', 'reading', 'ai',
+        'privacy', 'storage', 'about']));
+    expect(ids.contains('trash'), isFalse);
   });
 }

@@ -46,17 +46,25 @@ class SettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final faint = Paper.faint(context);
     return ListTile(
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-      title: Text(title),
+      // Kart içindeki satırlar: yatay boşluk 16, dikey 6 — grup kartının
+      // kenarıyla hizalı (2026-08-29 tasarımı; ListTile varsayılanı kartın
+      // içinde sola yapışık duruyordu).
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
+      leading: Icon(icon, color: theme.colorScheme.primary),
+      title: Text(title, style: theme.textTheme.bodyLarge),
       subtitle: subtitle == null
           ? null
           : Text(
               subtitle!,
               maxLines: wrapSubtitle ? 3 : 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: faint),
+              // Sabit punto YOK: kullanıcının uygulama içi yazı ölçeği
+              // (Ayarlar > Yazı boyutu) burada da geçerli olmalı.
+              style: theme.textTheme.bodySmall?.copyWith(color: faint),
             ),
       trailing: trailing ??
           (value == null
@@ -71,7 +79,10 @@ class SettingTile extends StatelessWidget {
                         textAlign: TextAlign.end,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: faint),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: faint,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     if (onTap != null)
@@ -102,12 +113,17 @@ class SettingSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SwitchListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
         secondary: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(title),
+        title: Text(title, style: Theme.of(context).textTheme.bodyLarge),
         subtitle: subtitle == null
             ? null
             : Text(subtitle!,
-                style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Paper.faint(context))),
         value: value,
         onChanged: onChanged,
       );
@@ -144,18 +160,24 @@ class SettingChoice<T> extends StatelessWidget {
           children: [
             Row(
               children: [
+                // 22 + 16 + 18 = 56: `ListTile`ın metin sütunuyla birebir
+                // aynı hiza. Bir dp'lik kayma bile alt alta dizilen satırlarda
+                // "hizasız" görünüyordu (2026-08-29).
                 Icon(icon,
-                    size: 20, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: Gap.md),
+                    size: 22, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: Gap.md + 2),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title),
+                      Text(title,
+                          style: Theme.of(context).textTheme.bodyLarge),
                       if (subtitle != null)
                         Text(subtitle!,
-                            style: TextStyle(
-                                fontSize: 12, color: Paper.faint(context))),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Paper.faint(context))),
                     ],
                   ),
                 ),

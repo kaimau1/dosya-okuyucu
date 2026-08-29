@@ -126,6 +126,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // **GERİ TUŞU ÖNCE ANA SEKMEYE DÖNER** (kullanıcı 2026-08-29: *"yeni
+    // dosyalar / ai sekmelerinde geri yapınca uygulamadan çıkıyor, ana ekrana
+    // dönmeli önce"*). Android'de gezinme çubuğu olan uygulamalarda beklenen
+    // davranış budur: geri, sekme yığınını çözer, ancak KÖK sekmede uygulamayı
+    // kapatır. `canPop` yalnız 0. sekmede true — orada sistem normal çıkışı
+    // yapar (yığında başka sayfa varsa Navigator zaten onu açar).
+    return PopScope(
+      canPop: _tab == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _tab == 0) return;
+        setState(() => _tab = 0);
+      },
+      child: _scaffold(context),
+    );
+  }
+
+  Widget _scaffold(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _tab,

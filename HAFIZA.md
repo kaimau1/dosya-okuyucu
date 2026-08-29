@@ -8851,3 +8851,68 @@ yeşil** (yeni: `pdf_stamp_test` 10, `media_duration_test` 6, `crash_log_test`
 **Açık iş:** 3.44.9 deneme derlemesini kullanıcı tetiklemeli (Actions > Run
 workflow > "Denenecek Flutter sürümü" = 3.44.9) — oturumun GitHub yetkisi
 workflow_dispatch'e izin vermiyor (403).
+
+## 2026-08-29 — Ayarların yeniden tasarımı + üç cihaz bulgusu
+
+### A) "hiç açılmadı" İKİNCİ tur: tek kova yetmiyormuş
+2026-08-28'de kaynak `getLastTimeForegroundServiceUsed()`ten `getLastTimeUsed()`e
+çevrilmişti ve kısmen düzeldi (Çeviri, Trendyol, Telegram doğru tarihi gösterdi)
+ama Termux, Copilot, getir, soundcore hâlâ "hiç açılmadı" diyordu — üstelik
+Termux önceki sürümde "20 gün önce" gösteriyordu.
+
+**Kök neden:** tek çağrı `queryAndAggregateUsageStats(730 gün)` yapılıyordu; o
+çağrı `INTERVAL_BEST` seçiyor ve iki yıllık aralıkta **YILLIK kovaya** düşüyor.
+Yıllık kova birçok ROM'da (özellikle MIUI) budanmış geliyor, paket sonuçta hiç
+yer almıyor. Çözüm: **beş kova ayrı ayrı sorulup en büyük zaman damgası
+alınıyor** (günlük 8 gün, haftalık 35, aylık 200, yıllık 730, BEST 730) +
+**`queryEvents` ile son 8 günün ham olay akışı** (kovalar gün sonunda yazıldığı
+için "bugün açıldı" ancak olay günlüğünde görünüyor).
+
+### B) Pano: ana bellek kartındaki boşluk
+İki kutu `IntrinsicHeight` ile eşit yüksekliğe zorlanıyor; analiz kutusu
+(42 dp simge + 16 dp dikey boşluk) soldaki karttan uzun olduğu için ana bellek
+kartının altında kocaman bir boşluk kalıyordu. Analiz kutusu 34 dp simge + 8 dp
+boşluğa indi, ana bellek kartı dikeyde 12 dp'ye indi ve içeriği **dikeyde
+ortalanıyor** (artan yer alta yığılmıyor).
+
+### C) Geri tuşu sekmeden çıkarıyordu
+`HomeScreen` `PopScope(canPop: _tab == 0)` ile sarıldı: Yeni Dosyalar/AI
+sekmesinde geri **önce Dosyalar sekmesine** döner, kökte sistem çıkışı yapar.
+
+### D) AYARLAR — baştan tasarım (kullanıcı: "her detayıyla premium ve basit")
+**1. Arama yeniden yazıldı** (`core/settings_search.dart`, saf + testli):
+- **Türkçe duyarsız**: `fold` ı/İ/ş/ğ/ü/ö/ç → temel harf. `toLowerCase`
+  KULLANILAMAZDI: Dart `İ`yi iki kod birimine (i + birleşen nokta) çeviriyor ve
+  karşılaştırma sessizce bozuluyordu.
+- **Üç dilde birden arıyor** (`AppStrings.variants`): arayüz Türkçe'yken
+  "thumbnail" yazan da bulur.
+- **Alt başlıklar da aranıyor**; sorgu kelimelere bölünür ve HEPSİ geçmelidir.
+- **Sonuçlar puana göre sıralı** (başlıkta > açıklamada, başta > ortada) —
+  eskiden kategori sırasına göre geliyordu, aranan ayar üçüncü sırada kalıyordu.
+
+**2. Kategoriler 8 → 7, hiçbir satır kaybolmadan** (testle sabit):
+- "Hesap & Senkron" tek satırlık ayrı kategoriydi → **Gizlilik ve hesap**.
+- "Çöp kutusu" + "Pil, hız ve bakım" ikisi de "yer ve hız" sorusuydu →
+  **Depolama ve başarım**.
+- **YENİ: "Okuma ve sesli okuma"** — `TtsPrefs` (ses/hız/perde) ve "AI
+  yanıtlarını sesli oku" uygulamada VARDI ama yalnız okuyucu ekranının
+  içindeki alt sayfadan ulaşılabiliyordu; Ayarlar'da hiç yoktu. Aynı alt sayfa
+  (`TtsVoiceSheet`) buradan da açılıyor — ikinci bir arayüz yazılmadı.
+- Eski kategori kimlikleri (`trash`, `performance`, `account`)
+  `openSettingsCategory`ta **eşleniyor**: ekranlardaki derin bağlantılar
+  kırılmadı.
+
+**3. "Gelişmiş" bölümler** (`SettingsAdvancedGroup`): model sırası, yedek
+anahtar havuzu, havuz durumu, günlük bütçe, arama dizini, küçük resim
+önbelleği, birimler. Kapalı gelir, başlığa dokununca açılır. **Saklamak değil
+sıralamak:** aramada normal satır gibi çıkarlar (testle sabit).
+
+**4. Görünüm:** her bölüm kendi kartında (`SettingsGroup` — `surfaceContainerLow`,
+ince kenarlık, satır araları 56 dp girintili hairline). Kategori kartında simge
+artık %12 vurgu dolgulu 44 dp'lik kutuda; ad kalın, açıklama sakin, mevcut değer
+vurgu renginde altta. Arama kutusu dolgulu ve tam yuvarlak (kenarlıksız).
+Satır tipografisi **sabit puntolardan tema stillerine** geçti — uygulama içi
+yazı ölçeği artık ayar satırlarında da geçerli.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **1772 test yeşil**
+(yeni: `settings_search_test` 13, `settings_screen_test` 18'e çıktı).

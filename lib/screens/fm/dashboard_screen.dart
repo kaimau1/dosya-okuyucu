@@ -657,8 +657,14 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _permissionCard() => Card(
         child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
+          // Dikeyde 16 → 12: kart zaten çember + iki satır + çubuk taşıyor,
+          // fazlası yan kutuyla arasındaki boşluğu büyütüyordu (2026-08-29).
+          padding: const EdgeInsets.symmetric(
+              horizontal: Gap.md, vertical: Gap.sm + 4),
           child: Column(
+            // Yan kutu daha uzunsa artan yer ALTA yığılmasın, iki yana
+            // eşit dağılsın — kullanıcının işaretlediği boşluğun kaynağı buydu.
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -1029,15 +1035,22 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: InkWell(
         onTap: () => _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
         child: Padding(
+          // **YÜKSEKLİK 2026-08-29'da KISALDI** (kullanıcı: *"ana bellek ve
+          // bellek analizi kısmında gereksiz alt boşluk var"*). İki kutu
+          // `IntrinsicHeight` ile aynı yüksekliğe zorlanıyor; analiz kutusu
+          // (42 dp simge + 16 dp dikey iç boşluk) soldaki karttan uzun
+          // kaldığı için ana bellek kartının ALTINDA kocaman bir boşluk
+          // oluşuyordu. Simge 34 dp'ye, dikey boşluk 8'e indi — kutu hâlâ
+          // rahat okunuyor, boşluk kapandı.
           padding: const EdgeInsets.symmetric(
-              horizontal: Gap.sm, vertical: Gap.md),
+              horizontal: Gap.sm, vertical: Gap.sm),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(Icons.donut_large,
-                  size: 42 * context.fmIconScale, color: scheme.primary),
-              const SizedBox(height: Gap.sm),
+                  size: 34 * context.fmIconScale, color: scheme.primary),
+              const SizedBox(height: Gap.xs),
               Text(
                 context.t('fm.storage_analysis'),
                 textAlign: TextAlign.center,
@@ -1302,7 +1315,7 @@ class _VolumeCard extends StatelessWidget {
             ],
           ),
               if (volume.hasStats) ...[
-                const SizedBox(height: Gap.md),
+                const SizedBox(height: Gap.sm + 2),
                 _breakdownBar(context),
               ],
             ],

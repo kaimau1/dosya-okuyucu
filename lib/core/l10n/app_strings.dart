@@ -57,6 +57,17 @@ class AppStrings {
     return text;
   }
 
+  /// Bir anahtarın **üç dildeki** karşılığı.
+  ///
+  /// Ayar araması için var (2026-08-29): arayüz Türkçe'yken "thumbnail" yazan
+  /// kullanıcı da ayarı bulabilsin. Anahtar yoksa boş liste — çağıran arama
+  /// yaparken bunu sessizce atlar (arama kırılmamalı).
+  static List<String> variants(String key) {
+    final entry = _table[key];
+    if (entry == null) return const [];
+    return [entry.$1, entry.$2, entry.$3];
+  }
+
   /// Tablodaki tüm anahtarlar (test ve denetim için).
   static Iterable<String> get keys => _table.keys;
 }
@@ -5247,6 +5258,60 @@ const Map<String, (String, String, String)> _table = {
     'Refresh rate, auto scan, search index, cache',
     'معدل التحديث والفحص التلقائي وفهرس البحث والذاكرة المؤقتة',
   ),
+  // ── Ayarların 2026-08-29 yeniden tasarımı ───────────────────────────────
+  'set.cat_reading': ('Okuma ve sesli okuma', 'Reading & speech', 'القراءة والنطق'),
+  'set.cat_reading_sub': (
+    'Sesli okuma sesi, hızı ve AI yanıtlarının okunması',
+    'Speech voice, speed and reading AI answers aloud',
+    'صوت النطق وسرعته وقراءة إجابات الذكاء الاصطناعي',
+  ),
+  'set.cat_storage': ('Depolama ve başarım', 'Storage & performance', 'التخزين والأداء'),
+  'set.cat_storage_sub': (
+    'Çöp kutusu, silme onayı, hız ve bakım',
+    'Trash, delete confirmation, speed and upkeep',
+    'سلة المهملات وتأكيد الحذف والسرعة والصيانة',
+  ),
+  'set.sec_tts': ('Sesli okuma', 'Speech', 'النطق'),
+  'set.tts_voice': ('Ses ve hız', 'Voice and speed', 'الصوت والسرعة'),
+  'set.tts_voice_sub': (
+    'Cihazdaki sesler arasından seç, hız ve perdeyi ayarla (dinleyerek)',
+    'Pick from the voices on your device, set speed and pitch (with preview)',
+    'اختر من أصوات جهازك واضبط السرعة والطبقة (مع معاينة)',
+  ),
+  'set.tts_default_voice': ('Cihaz varsayılanı', 'Device default', 'افتراضي الجهاز'),
+  'set.tts_summary': ('Sesli okuma {x}x', 'Speech {x}x', 'النطق {x}x'),
+  'set.tts_ai_read': (
+    'AI yanıtlarını sesli oku',
+    'Read AI answers aloud',
+    'اقرأ إجابات الذكاء الاصطناعي بصوت',
+  ),
+  'set.tts_ai_read_sub': (
+    'Yanıt gelir gelmez okunmaya başlar',
+    'Starts speaking as soon as the answer arrives',
+    'يبدأ النطق فور وصول الإجابة',
+  ),
+  'set.sec_advanced': ('Gelişmiş', 'Advanced', 'إعدادات متقدمة'),
+  'set.advanced_hint': (
+    'Nadiren gerekir — bir kez ayarlanır',
+    'Rarely needed — set once',
+    'نادرًا ما تحتاجها — تُضبط مرة واحدة',
+  ),
+  'set.trash_off': ('Kalıcı silme', 'Delete permanently', 'حذف نهائي'),
+  'set.refresh_60': ('60 Hz', '60 Hz', '60 هرتز'),
+  'set.ai_no_key': ('Anahtar yok', 'No key', 'لا يوجد مفتاح'),
+  'set.ai_key_count': ('{n} anahtar', '{n} keys', '{n} مفتاح'),
+  'set.api_key_sub': (
+    'Gemini API anahtarınız — cihazda saklanır',
+    'Your Gemini API key — stored on the device',
+    'مفتاح Gemini الخاص بك — يُحفظ على الجهاز',
+  ),
+  'set.results_count': ('{n} sonuç', '{n} results', '{n} نتيجة'),
+  // Aramanın yakaladığı eşanlamlar (ekranda GÖRÜNMEZ, yalnız arama içindir).
+  'set.kw_dark': ('karanlık gece dark night', 'dark night mode', 'وضع داكن ليلي'),
+  'set.kw_font': ('yazı tipi punto büyüklük font size', 'font typeface size', 'الخط الحجم'),
+  'set.kw_speak': ('sesli oku konuş seslendir tts speech', 'speak voice tts read aloud', 'نطق صوت قراءة'),
+  'set.kw_gemini': ('gemini api anahtar token', 'gemini api key token', 'مفتاح gemini'),
+  'set.kw_days': ('gün süre otomatik days', 'days auto period', 'أيام تلقائي'),
   'set.sec_theme': ('Tema', 'Theme', 'السمة'),
 
   // ── tema aileleri (2026-08-25) ──────────────────────────────────────────
