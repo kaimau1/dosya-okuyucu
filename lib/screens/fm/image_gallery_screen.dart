@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/image_budget.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
@@ -141,19 +142,27 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
             opacity: _chromeVisible ? 1 : 0,
             duration: const Duration(milliseconds: 150),
             child: AppBar(
-              backgroundColor: Colors.black.withValues(alpha: 0.6),
+              // Perde 0,6 → 0,72: beyaz/parlak bir fotoğrafın üstünde dosya
+              // adı eriyip gidiyordu (kullanıcı 2026-08-29).
+              backgroundColor: Colors.black.withValues(alpha: 0.72),
               foregroundColor: Colors.white,
+              // Temanın çubuk altı cetveli fotoğrafın üstünde yersiz.
+              shape: const Border(),
               title: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Stil [OverlayBar]'dan: `foregroundColor: Colors.white`
+                  // başlığı beyaz YAPMIYOR (kök neden orada yazılı) — ad
+                  // temanın koyu `titleLarge` rengiyle çiziliyordu.
                   Text(entry.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 16)),
+                      style: OverlayBar.title(context)),
                   Text(
                     '${_index + 1}/${_paths.length} · '
                     '${FsPaths.humanSize(entry.sizeBytes)}',
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    style: OverlayBar.subtitle(context),
                   ),
                 ],
               ),

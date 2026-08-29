@@ -620,3 +620,48 @@ extension SkinContext on BuildContext {
   /// Ailenin kart köşe yarıçapı — koda gömülü [Radii.card] yerine.
   double get fmCardRadius => AppSkinData.of(this).metrics.radiusCard;
 }
+
+/// **Koyu zemin üstünde duran çubuklar** için başlık/alt başlık stilleri
+/// (video oynatıcı, görsel galerisi, Office kabuğu).
+///
+/// KÖK NEDEN (kullanıcı 2026-08-29, ekran görüntüsü işaretli: *"video ve
+/// görsellerde dosya adı zor görülüyor"*): bu çubuklar `AppBar`a
+/// `foregroundColor: Colors.white` veriyordu ama **başlık beyaz olmuyordu.**
+/// Flutter'da `foregroundColor` yalnız `titleTextStyle` RENKSİZ olduğunda
+/// devreye girer; bizim [AppTheme] `appBarTheme.titleTextStyle: titleLarge`
+/// veriyor ve `titleLarge` Material tipografisinden gelen **koyu** rengi
+/// taşıyor. Sonuç: simgeler beyaz, dosya adı neredeyse siyah — siyah zemin
+/// üzerinde okunmuyordu (ekran görüntüsünde ölçülen renk `#1D1B20`).
+///
+/// Bu yüzden koyu çubukların başlığı stilini BURADAN alır; `foregroundColor`a
+/// güvenmek aynı hatayı sessizce geri getirir.
+class OverlayBar {
+  /// Başlık: beyaz, hafif gölgeli (parlak bir video karesi üstünde de okunur).
+  static TextStyle title(BuildContext context) =>
+      (Theme.of(context).appBarTheme.titleTextStyle ??
+              Theme.of(context).textTheme.titleLarge ??
+              const TextStyle())
+          .copyWith(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        shadows: const [
+          Shadow(color: Color(0xCC000000), blurRadius: 6),
+        ],
+      );
+
+  /// **Dolu marka renginin** üstünde (Office kabuğu): yalnız RENK düzeltilir,
+  /// ölçü/yazı tipi temadan kalır — orada perde yok, gölgeye de gerek yok.
+  static TextStyle onBrand(BuildContext context) =>
+      (Theme.of(context).appBarTheme.titleTextStyle ??
+              Theme.of(context).textTheme.titleLarge ??
+              const TextStyle())
+          .copyWith(color: Colors.white);
+
+  /// Alt satır (sayaç, boyut): beyazın kısılmışı, aynı gölgeyle.
+  static TextStyle subtitle(BuildContext context) => TextStyle(
+        color: Colors.white.withValues(alpha: 0.85),
+        fontSize: 12,
+        shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 6)],
+      );
+}

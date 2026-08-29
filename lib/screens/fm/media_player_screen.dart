@@ -567,16 +567,31 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
       );
 
   /// Videonun üstünde yüzen başlık çubuğu (Scaffold slotu değil — bkz. build).
+  ///
+  /// **Dosya adı** (kullanıcı 2026-08-29, işaretli ekran görüntüsü: *"video ve
+  /// görsellerde dosya adı zor görülüyor"*):
+  /// - Rengi [OverlayBar.title]'dan gelir — `foregroundColor: Colors.white`
+  ///   başlığı beyaz YAPMIYORDU (kök neden orada yazılı).
+  /// - Perde koyulaştı ve aşağı uzatıldı: yarı saydam siyahın altında kalan
+  ///   parlak bir video karesi adı yutuyordu.
+  /// - Ad artık iki satıra kadar sarabiliyor ve altında süre/sıra bilgisi var;
+  ///   "AHBS_Egitim_Videosu_1080.mp4" tek satıra sığmıyordu, üstelik dört
+  ///   eylem simgesi başlığa kalan yeri iyice daraltıyordu.
   Widget _topBar() {
+    final position = _playlist.length > 1
+        ? '${_index + 1}/${_playlist.length} · ${p.extension(_current).replaceFirst('.', '').toUpperCase()}'
+        : p.extension(_current).replaceFirst('.', '').toUpperCase();
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black.withValues(alpha: 0.75),
+            Colors.black.withValues(alpha: 0.88),
+            Colors.black.withValues(alpha: 0.45),
             Colors.transparent,
           ],
+          stops: const [0, 0.65, 1],
         ),
       ),
       child: SafeArea(
@@ -585,18 +600,27 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
           backgroundColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
+          // Temanın çubuk altı cetveli burada YANLIŞ: videonun üstünde yüzen
+          // saydam bir çubuğu ikiye bölen açık gri bir çizgi çiziyordu.
+          shape: const Border(),
           foregroundColor: Colors.white,
-          title: Text(p.basename(_current),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          actions: [
-            if (_playlist.length > 1)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: Gap.sm),
-                  child: Text('${_index + 1}/${_playlist.length}',
-                      style: const TextStyle(color: Colors.white70)),
-                ),
+          titleSpacing: 0,
+          toolbarHeight: 64,
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.basename(_current),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: OverlayBar.title(context),
               ),
+              if (position.isNotEmpty)
+                Text(position, style: OverlayBar.subtitle(context)),
+            ],
+          ),
+          actions: [
             if (!_isAudio) _subtitleMenu(),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),

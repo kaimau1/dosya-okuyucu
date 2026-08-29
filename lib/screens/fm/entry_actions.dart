@@ -55,8 +55,26 @@ enum _EntryAction {
   properties,
 }
 
-/// Uzun basınca açılan işlem sayfası. Dosya sistemi değiştiyse `true` döner
-/// (çağıran listeyi yeniler).
+/// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
+/// `true` döner (çağıran listeyi yeniler).
+///
+/// **İKİ SÜTUNLU, BÖLÜMLÜ** (kullanıcı isteği 2026-08-29: *"3 noktaya basınca
+/// çıkan ayarlar çok yılın olmuş, yeniden sıralanmalı ve düzenlenmeli,
+/// gerekirse 2 sütunlu olabilir"*).
+///
+/// **Eski hâl neden kötüydü:** 20'ye yakın işlem tek sütun `ListTile` olarak
+/// alt alta diziliydi. Ekrana ancak 11'i sığıyordu — "Sil", "Özellikler",
+/// "Etiketle" görmek için kaydırmak gerekiyordu ve hiçbir gruplama yoktu:
+/// "Drive'a yükle" ile "Panoya kes" aynı ağırlıkta, arka arkaya duruyordu.
+/// Uzun etiketler ("Sıkıştır (ZIP / 7z, parolalı)") satırı dolduruyordu.
+///
+/// **Yeni hâl:** işlemler dört bölüme ayrıldı (aç/paylaş · taşı/kopyala ·
+/// dosya işlemleri · AI) ve iki sütuna dizildi; parantezli açıklamalar
+/// etiketin ALTINDA soluk bir ipucu satırı oldu. Aynı yükseklikte iki kat çok
+/// işlem görünüyor, kaydırma çoğu dosyada hiç gerekmiyor.
+///
+/// **Sil ayrı ve en altta**, tam genişlikte ve hata renginde: ızgaranın içinde
+/// olsaydı "Kopyala"nın yanında, yanlış dokunuşa bir parmak mesafede dururdu.
 Future<bool> showEntryActions(
   BuildContext context,
   FsEntry entry, {
@@ -66,101 +84,114 @@ Future<bool> showEntryActions(
 }) async {
   final appState = context.read<AppState>();
   final isArchive = ArchiveOps.canExtract(entry.path);
+  final isMedia =
+      entry.category == FmCategory.image || entry.category == FmCategory.video;
 
   final action = await showModalBottomSheet<_EntryAction>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
+    // Uzun listede sayfa ekranı tamamen kaplamasın: üstte kalan şerit
+    // "arkada bir şey var, buradan kapatabilirim" der.
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+    ),
     builder: (ctx) => SafeArea(
       child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ListTile(
-              leading: FmEntryIcon(entry: entry, size: 40),
-              title: Text(entry.name,
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text(entry.isDir
-                  ? '${ctx.t('fm.folder')} · ${FsPaths.humanDate(entry.modifiedMs)}'
-                  : '${FsPaths.humanSize(entry.sizeBytes)} · '
-                      '${FsPaths.humanDate(entry.modifiedMs)}'),
-            ),
-            const Divider(),
-            _tile(ctx, Icons.open_in_new, context.t('common.open'), _EntryAction.open),
-            if (!entry.isDir)
-              _tile(ctx, Icons.apps, context.t('fm.open_with_other'),
-                  _EntryAction.openWith),
-            if (!entry.isDir)
-              _tile(ctx, Icons.share_outlined, context.t('common.share'), _EntryAction.share),
-            if (!entry.isDir)
-              _tile(ctx, Icons.cloud_upload_outlined, context.t('drive.upload_action'),
-                  _EntryAction.driveUpload),
-            // Tek adımlı akış EN ÜSTTE (kullanıcı isteği 2026-07-29:
+            _sheetHeader(ctx, entry),
+            _section(ctx, ctx.t('ea.sec_open'), [
+              _act(ctx, Icons.open_in_new, ctx.t('common.open'),
+                  _EntryAction.open),
+              if (!entry.isDir)
+                _act(ctx, Icons.apps, ctx.t('fm.open_with_other'),
+                    _EntryAction.openWith),
+              if (!entry.isDir)
+                _act(ctx, Icons.share_outlined, ctx.t('common.share'),
+                    _EntryAction.share),
+              if (!entry.isDir)
+                _act(ctx, Icons.cloud_upload_outlined,
+                    ctx.t('drive.upload_action'), _EntryAction.driveUpload),
+              if (allowReveal)
+                _act(ctx, Icons.my_location, ctx.t('fm.reveal'),
+                    _EntryAction.reveal),
+            ]),
+            // Tek adımlı akış ÖNCE (kullanıcı isteği 2026-07-29:
             // "taşıma/kopyalama şu an çok zor"): hedefi burada seç, iş bitsin.
-            // Pano (kopyala/kes + git + yapıştır) altta, ileri kullanım için.
-            _tile(ctx, Icons.drive_file_move_outline, context.t('fm.move_to'),
-                _EntryAction.moveTo),
-            _tile(ctx, Icons.folder_copy_outlined, context.t('fm.copy_to'),
-                _EntryAction.copyTo),
-            _tile(ctx, Icons.copy_outlined, context.t('fm.clip_copy'),
-                _EntryAction.copy),
-            _tile(ctx, Icons.content_cut, context.t('fm.clip_cut'), _EntryAction.cut),
-            _tile(ctx, Icons.drive_file_rename_outline, context.t('fm.rename'),
-                _EntryAction.rename),
-            if (isArchive)
-              _tile(ctx, Icons.folder_zip_outlined, context.t('fm.show_archive'),
-                  _EntryAction.openArchive),
-            if (isArchive)
-              _tile(ctx, Icons.unarchive_outlined, context.t('fm.extract_here'),
-                  _EntryAction.extract),
-            _tile(ctx, Icons.archive_outlined, context.t('fm.compress_pw'),
-                _EntryAction.zip),
-            if (entry.isDir)
-              _tile(
-                ctx,
-                appState.isBookmarked(entry.path)
-                    ? Icons.star
-                    : Icons.star_border,
-                appState.isBookmarked(entry.path)
-                    ? context.t('fm.unfavorite')
-                    : 'Favorilere ekle',
-                _EntryAction.bookmark,
-              ),
-            _tile(ctx, Icons.star_outline, context.t('fm.copy_to_important'),
-                _EntryAction.important),
-            // AI/tanıma: belgede özet, görselde metin tanıma + sınıflandırma.
-            if (!entry.isDir &&
-                entry.category != FmCategory.image &&
-                entry.category != FmCategory.video &&
-                entry.category != FmCategory.audio)
-              _tile(ctx, Icons.auto_awesome, context.t('fm.ai_summary'),
-                  _EntryAction.aiSummary),
-            if (entry.category == FmCategory.image)
-              _tile(ctx, Icons.document_scanner_outlined,
-                  context.t('fm.image_insight'), _EntryAction.imageInsight),
-            // Boyut düşürme ve etiketleme eskiden YALNIZ çoklu seçim çubuğunda
-            // vardı: kullanıcı tek bir fotoğrafa uzun basınca bulamıyordu
-            // (2026-07-29 sadakat denetimi). Aynı işler burada da duruyor.
-            if (!entry.isDir &&
-                (entry.category == FmCategory.image ||
-                    entry.category == FmCategory.video))
-              _tile(ctx, Icons.photo_size_select_large,
-                  context.t('fm.resize'), _EntryAction.resize),
-            if (!entry.isDir)
-              _tile(ctx, Icons.sell_outlined, context.t('fm.tag'),
-                  _EntryAction.tag),
-            if (allowReveal)
-              _tile(ctx, Icons.my_location, context.t('fm.reveal'), _EntryAction.reveal),
-            _tile(ctx, Icons.info_outline, context.t('fm.properties'),
-                _EntryAction.properties),
-            _tile(
-                ctx,
-                Icons.delete_outline,
-                // Etiket ayarı okur: çöp kutusu kapalıyken "çöp kutusuna"
-                // yazmak tutulmayan bir sözdür (bkz. [deleteActionText]).
-                'Sil (${context.read<AppState>().fmUseTrash ? 'çöp kutusuna' : 'KALICI'})',
-                _EntryAction.delete,
-                danger: true),
+            // Pano (kopyala/kes + git + yapıştır) arkasında, ileri kullanım
+            // için — aynı bölümde ama ikinci satırda.
+            _section(ctx, ctx.t('ea.sec_move'), [
+              _act(ctx, Icons.drive_file_move_outline, ctx.t('fm.move'),
+                  _EntryAction.moveTo,
+                  hint: ctx.t('ea.pick_folder')),
+              _act(ctx, Icons.folder_copy_outlined, ctx.t('fm.copy'),
+                  _EntryAction.copyTo,
+                  hint: ctx.t('ea.pick_folder')),
+              _act(ctx, Icons.copy_outlined, ctx.t('fm.clip_copy'),
+                  _EntryAction.copy,
+                  hint: ctx.t('ea.clip_hint')),
+              _act(ctx, Icons.content_cut, ctx.t('fm.clip_cut'),
+                  _EntryAction.cut,
+                  hint: ctx.t('ea.clip_hint')),
+              _act(ctx, Icons.star_outline, ctx.t('fm.copy_to_important'),
+                  _EntryAction.important),
+            ]),
+            _section(ctx, ctx.t('ea.sec_file'), [
+              _act(ctx, Icons.drive_file_rename_outline, ctx.t('fm.rename'),
+                  _EntryAction.rename),
+              if (isArchive)
+                _act(ctx, Icons.folder_zip_outlined, ctx.t('fm.show_archive'),
+                    _EntryAction.openArchive),
+              if (isArchive)
+                _act(ctx, Icons.unarchive_outlined, ctx.t('fm.extract_here'),
+                    _EntryAction.extract),
+              _act(ctx, Icons.archive_outlined, ctx.t('ea.compress'),
+                  _EntryAction.zip,
+                  hint: ctx.t('ea.compress_hint')),
+              if (!entry.isDir)
+                _act(ctx, Icons.sell_outlined, ctx.t('ea.tag'),
+                    _EntryAction.tag,
+                    hint: ctx.t('ea.tag_hint')),
+              if (entry.isDir)
+                _act(
+                  ctx,
+                  appState.isBookmarked(entry.path)
+                      ? Icons.star
+                      : Icons.star_border,
+                  appState.isBookmarked(entry.path)
+                      ? ctx.t('fm.unfavorite')
+                      : ctx.t('fm.favorite'),
+                  _EntryAction.bookmark,
+                ),
+              _act(ctx, Icons.info_outline, ctx.t('fm.properties'),
+                  _EntryAction.properties),
+            ]),
+            // AI/tanıma ve dönüştürme: belgede özet, görselde metin tanıma,
+            // medyada boyut düşürme. Boyut düşürme ve etiketleme eskiden
+            // YALNIZ çoklu seçim çubuğundaydı: kullanıcı tek bir fotoğrafa
+            // uzun basınca bulamıyordu (2026-07-29 sadakat denetimi).
+            _section(ctx, ctx.t('ea.sec_ai'), [
+              if (!entry.isDir &&
+                  entry.category != FmCategory.image &&
+                  entry.category != FmCategory.video &&
+                  entry.category != FmCategory.audio)
+                _act(ctx, Icons.auto_awesome, ctx.t('fm.ai_summary'),
+                    _EntryAction.aiSummary),
+              if (entry.category == FmCategory.image)
+                _act(ctx, Icons.document_scanner_outlined,
+                    ctx.t('ea.image_insight'), _EntryAction.imageInsight,
+                    hint: ctx.t('ea.image_insight_hint')),
+              if (!entry.isDir && isMedia)
+                _act(ctx, Icons.photo_size_select_large, ctx.t('ea.resize'),
+                    _EntryAction.resize,
+                    hint: ctx.t('ea.resize_hint')),
+            ]),
+            const SizedBox(height: Gap.md),
+            _deleteButton(ctx, appState.fmUseTrash),
             const SizedBox(height: Gap.sm),
           ],
         ),
@@ -169,7 +200,6 @@ Future<bool> showEntryActions(
   );
 
   if (action == null || !context.mounted) return false;
-
   switch (action) {
     case _EntryAction.open:
       if (entry.isDir) {
@@ -261,18 +291,168 @@ Future<bool> showEntryActions(
   }
 }
 
-Widget _tile(
+/// Sayfanın başlığı: dosyanın kendisi (simge, ad, boyut/tarih).
+Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm),
+      child: Row(
+        children: [
+          FmEntryIcon(entry: entry, size: 40),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(entry.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(ctx).textTheme.titleMedium),
+                Text(
+                  entry.isDir
+                      ? '${ctx.t('fm.folder')} · '
+                          '${FsPaths.humanDate(entry.modifiedMs)}'
+                      : '${FsPaths.humanSize(entry.sizeBytes)} · '
+                          '${FsPaths.humanDate(entry.modifiedMs)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+/// Bir bölüm: küçük başlık + iki sütunlu ızgara. Hiç işlemi kalmayan bölüm
+/// (koşullar elediyse) HİÇ çizilmez — başlığın altı boş kalmaz.
+Widget _section(BuildContext ctx, String title, List<Widget> actions) {
+  final items = actions;
+  if (items.isEmpty) return const SizedBox.shrink();
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, Gap.md, 4, Gap.xs),
+        child: Text(
+          title.toUpperCase(),
+          style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                letterSpacing: 0.8,
+              ),
+        ),
+      ),
+      // Izgara ELLE satırlanıyor (GridView değil): `GridView` sabit bir
+      // en-boy oranı ister, oysa hücre yüksekliği metne bağlı — büyük yazı
+      // ölçeğinde sabit oran taşma demek. `IntrinsicHeight` iki hücreyi
+      // satırın en uzununa eşitliyor, tek hücreli satır tek sütun kalıyor.
+      for (var i = 0; i < items.length; i += 2)
+        Padding(
+          padding: const EdgeInsets.only(bottom: Gap.xs),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: items[i]),
+                const SizedBox(width: Gap.xs),
+                Expanded(
+                  child: i + 1 < items.length
+                      ? items[i + 1]
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ),
+    ],
+  );
+}
+
+/// Izgaranın bir hücresi: simge + etiket (+ soluk ipucu satırı).
+Widget _act(
   BuildContext ctx,
   IconData icon,
   String label,
   _EntryAction action, {
-  bool danger = false,
+  String? hint,
 }) {
-  final color = danger ? Theme.of(ctx).colorScheme.error : null;
-  return ListTile(
-    leading: Icon(icon, color: color),
-    title: Text(label, style: color == null ? null : TextStyle(color: color)),
-    onTap: () => Navigator.pop(ctx, action),
+  final scheme = Theme.of(ctx).colorScheme;
+  return Material(
+    color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+    borderRadius: BorderRadius.circular(Radii.control),
+    child: InkWell(
+      onTap: () => Navigator.pop(ctx, action),
+      borderRadius: BorderRadius.circular(Radii.control),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Gap.sm, vertical: Gap.sm + 2),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: scheme.primary),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(ctx).textTheme.bodyMedium),
+                  if (hint != null)
+                    Text(hint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            )),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// **Sil** — tam genişlikte, hata renginde, ızgaranın dışında.
+///
+/// Etiket ayarı okur: çöp kutusu kapalıyken "çöp kutusuna" yazmak tutulmayan
+/// bir sözdür (bkz. [deleteActionText]).
+Widget _deleteButton(BuildContext ctx, bool useTrash) {
+  final scheme = Theme.of(ctx).colorScheme;
+  return Material(
+    color: scheme.errorContainer.withValues(alpha: 0.55),
+    borderRadius: BorderRadius.circular(Radii.control),
+    child: InkWell(
+      onTap: () => Navigator.pop(ctx, _EntryAction.delete),
+      borderRadius: BorderRadius.circular(Radii.control),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md, vertical: Gap.sm + 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline, color: scheme.error),
+            const SizedBox(width: Gap.sm),
+            Flexible(
+              child: Text(
+                useTrash
+                    ? ctx.t('ea.delete_trash')
+                    : ctx.t('ea.delete_permanent'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(ctx)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(color: scheme.error),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 

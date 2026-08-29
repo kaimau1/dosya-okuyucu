@@ -12,6 +12,13 @@ class FmTileData {
   final String subtitle;
   final VoidCallback onTap;
 
+  /// **Kullanım sayacının anahtarı** (yalnız araç ızgarasında anlamlı).
+  ///
+  /// Ekrandaki etiket DEĞİL: etiket çeviriye göre değişiyor ("Yer aç" /
+  /// "Free space"), sayaç ise dil değişince sıfırlanmamalı. Boş bırakılırsa
+  /// kutu sayılmaz (kategori kutuları kendi sırasını korur).
+  final String id;
+
   /// Kutu **dikkat çeksin mi** — simge yavaşça nefes alır.
   ///
   /// Kullanıcı isteği 2026-07-31: *"çöp kutusunu bulmak çok zor … doluysa
@@ -25,8 +32,20 @@ class FmTileData {
     required this.label,
     required this.subtitle,
     required this.onTap,
+    this.id = '',
     this.pulse = false,
   });
+
+  /// Yalnız dokunmayı saran kopya (pano, sayacı artırmak için kullanır).
+  FmTileData withTap(VoidCallback onTap) => FmTileData(
+        icon: icon,
+        color: color,
+        label: label,
+        subtitle: subtitle,
+        onTap: onTap,
+        id: id,
+        pulse: pulse,
+      );
 }
 
 /// Simgeyi yavaşça büyütüp küçülten kutu ("dolu" göstergesi).
@@ -175,11 +194,17 @@ class FmCategoryGrid extends StatelessWidget {
   final List<FmTileData> tiles;
   const FmCategoryGrid({super.key, required this.tiles});
 
+  /// İki ızgaranın (içerik + araçlar) **ortak** sütun sayısı.
+  ///
+  /// Eskiden araç ızgarası `maxCrossAxisExtent: 96` ile ayrı hesaplıyordu:
+  /// 480 dp'lik bir ekranda içerik 4, araçlar 5 sütun çiziyor ve pano boyunca
+  /// sütunlar birbirini tutmuyordu. Tek kaynak → tek hiza.
+  static int columnsFor(double width) => (width / 110).floor().clamp(4, 8);
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final columns =
-              (constraints.maxWidth / 110).floor().clamp(4, 8);
+          final columns = columnsFor(constraints.maxWidth);
           return GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -210,61 +235,96 @@ class FmToolGrid extends StatelessWidget {
   final List<FmTileData> tools;
   const FmToolGrid({super.key, required this.tools});
 
+  /// **Hücre yüksekliği ÖLÇÜLÜR, orandan gelmez.**
+  ///
+  /// Sabit en-boy oranı + sabit punto = büyütülmüş yazı ölçeğinde
+  /// `RenderFlex overflowed` (aynı ders `fm_entry_tiles`de de var). Burada
+  /// yükseklik simgeden ve etiketin GERÇEK satır yüksekliğinden toplanıyor;
+  /// ölçek 1,0'da da 2,0'da da hücre metne yetiyor.
+  static double cellHeight(BuildContext context, {required bool withSubtitle}) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final icon = 34 * context.fmIconScale;
+    // İki satırlık etiket: "Yeni belge oluştur", "Sohbet medyası" kırpılmak
+    // yerine alt satıra iniyor (kullanıcı 2026-08-29: etiketler "…" ile
+    // bitiyordu, hangi aracın ne olduğu okunmuyordu).
+    final label = scaler.scale(11) * 1.25 * 2;
+    final sub = withSubtitle ? scaler.scale(10) * 1.25 : 0.0;
+    return icon + Gap.xs + label + sub + Gap.sm * 2;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      // Araç satırı da dört sütun: içerik ızgarasıyla aynı hizada dursun
-      // (iki farklı sütun genişliği pano boyunca zikzak yapıyordu).
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 96,
-        childAspectRatio: 0.86,
-        mainAxisSpacing: Gap.xs,
-        crossAxisSpacing: Gap.xs,
-      ),
-      itemCount: tools.length,
-      itemBuilder: (context, i) {
-        final tool = tools[i];
-        final tint =
-            dark ? Color.lerp(tool.color, Colors.white, 0.3)! : tool.color;
-        return InkWell(
-          onTap: tool.onTap,
-          borderRadius: BorderRadius.circular(Radii.control),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının 46'sından
-                // bir kademe küçük kalıyor, ağırlık hiyerarşisi korunuyor.
-                Icon(tool.icon, color: tint, size: 34 * context.fmIconScale),
-                const SizedBox(height: Gap.xs),
-                Text(
-                  tool.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelSmall,
-                ),
-                // Alt yazı yalnız BİLGİ taşıyorsa yazılır ("3 sürüyor",
-                // "12 öğe"); "Ayrıntılar" gibi dolgu metinler gürültüdür.
-                if (tool.subtitle.isNotEmpty)
-                  Text(
-                    tool.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 10,
-                    ),
-                  ),
-              ],
-            ),
+    // Alt yazı satırı ızgaranın TAMAMI için ayrılır: yalnız "İşlemler"in alt
+    // yazısı varken o hücre uzun, komşusu kısa kalıyor ve satır tırtıklı
+    // görünüyordu. Hiçbirinde yoksa satır hiç açılmaz.
+    final withSubtitle = tools.any((t) => t.subtitle.isNotEmpty);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = FmCategoryGrid.columnsFor(constraints.maxWidth);
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisExtent: cellHeight(context, withSubtitle: withSubtitle),
+            mainAxisSpacing: Gap.xs,
+            crossAxisSpacing: Gap.xs,
           ),
+          itemCount: tools.length,
+          itemBuilder: (context, i) {
+            final tool = tools[i];
+            final tint =
+                dark ? Color.lerp(tool.color, Colors.white, 0.3)! : tool.color;
+            return InkWell(
+              onTap: tool.onTap,
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının
+                    // 46'sından bir kademe küçük kalıyor, ağırlık hiyerarşisi
+                    // korunuyor.
+                    Icon(tool.icon, color: tint, size: 34 * context.fmIconScale),
+                    const SizedBox(height: Gap.xs),
+                    // `Flexible`: hesaplanan yükseklik yine de yetmezse metin
+                    // taşmak yerine kırpılır — ızgara hiçbir ölçekte kırmızı
+                    // şeritler göstermez.
+                    Flexible(
+                      child: Text(
+                        tool.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(height: 1.15, fontSize: 11),
+                      ),
+                    ),
+                    // Alt yazı yalnız BİLGİ taşıyorsa yazılır ("3 sürüyor",
+                    // "12 öğe"); "Ayrıntılar" gibi dolgu metinler gürültüdür.
+                    if (tool.subtitle.isNotEmpty)
+                      Flexible(
+                        child: Text(
+                          tool.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );

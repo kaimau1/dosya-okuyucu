@@ -699,6 +699,39 @@ const Map<String, (String, String, String)> _table = {
   ),
 
   // ── Dosya yöneticisi: girdi işlemleri (uzun basış) ────────────────────────
+  // İşlem sayfasının bölüm başlıkları ve KISA etiketleri (iki sütunlu
+  // ızgarada uzun etiket ikinci satıra taşıp kutuyu şişiriyordu; parantezli
+  // açıklama artık etiketin altında soluk ipucu satırı).
+  'ea.sec_open': ('Aç ve paylaş', 'Open & share', 'فتح ومشاركة'),
+  'ea.sec_move': ('Taşı ve kopyala', 'Move & copy', 'نقل ونسخ'),
+  'ea.sec_file': ('Dosya işlemleri', 'File actions', 'إجراءات الملف'),
+  'ea.sec_ai': ('AI ve dönüştür', 'AI & convert', 'الذكاء الاصطناعي والتحويل'),
+  'ea.pick_folder': ('klasör seç', 'pick folder', 'اختر مجلدًا'),
+  'ea.compress': ('Sıkıştır', 'Compress', 'ضغط'),
+  'ea.compress_hint': (
+    'ZIP · 7z · parolalı',
+    'ZIP · 7z · password',
+    'ZIP · 7z · بكلمة مرور',
+  ),
+  'ea.resize': ('Boyut düşür', 'Reduce size', 'تصغير الحجم'),
+  'ea.resize_hint': (
+    'çözünürlük / kare sayısı',
+    'resolution / frame rate',
+    'الدقة / معدل الإطارات',
+  ),
+  'ea.tag': ('Etiketle', 'Tag', 'وسم'),
+  'ea.tag_hint': ('kişi / grup', 'person / group', 'شخص / مجموعة'),
+  'ea.image_insight': (
+    'Görselde ne var?',
+    'What is in this image?',
+    'ما الموجود في الصورة؟',
+  ),
+  'ea.image_insight_hint': ('metin tanı', 'recognize text', 'تعرّف على النص'),
+  'ea.clip_hint': ('yapıştırmak için', 'to paste later', 'للصق لاحقًا'),
+  // Sil düğmesinin metni DÜRÜST olmak zorunda: çöp kutusu kapalıyken
+  // "çöp kutusuna" yazmak tutulmayan bir sözdür (bkz. deleteActionText).
+  'ea.delete_trash': ('Sil — çöp kutusuna', 'Delete — to trash', 'حذف — إلى المهملات'),
+  'ea.delete_permanent': ('KALICI SİL', 'DELETE PERMANENTLY', 'حذف نهائي'),
   'fm.open_with_other': ('Başka uygulamayla aç', 'Open with another app', 'فتح بتطبيق آخر'),
   'fm.move_to': ('Taşı…  (klasör seç)', 'Move…  (pick folder)', 'نقل…  (اختر مجلدًا)'),
   'fm.copy_to': ('Kopyala…  (klasör seç)', 'Copy…  (pick folder)', 'نسخ…  (اختر مجلدًا)'),
@@ -4955,6 +4988,14 @@ const Map<String, (String, String, String)> _table = {
     'Growing fastest: {category} ',
     'الأسرع نموًا: {category} ',
   ),
+  'an.free_headline': ('{size} boş', '{size} free', '{size} حر'),
+  'an.used_of': (
+    '{used} / {total} kullanıldı',
+    '{used} / {total} used',
+    '{used} / {total} مستخدَم',
+  ),
+  'an.other_used': ('Diğer', 'Other', 'أخرى'),
+  'an.tools': ('Araçlar', 'Tools', 'الأدوات'),
   'an.volume_usage': (
     '{used} / {total} kullanıldı (%{percent}) · {free} boş',
     '{used} / {total} used ({percent}%) · {free} free',

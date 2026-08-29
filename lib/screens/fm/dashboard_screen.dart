@@ -23,6 +23,7 @@ import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
+import '../../services/fm/tool_usage.dart';
 import '../../widgets/crash_notice.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -98,6 +99,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     // AI kartı analiz sayısını gösteriyor; indeks diskten okunmadan sayı 0
     // görünürdü. Okuma bittiğinde `AiIndex.revision` kartı tazeler.
     AiIndex.ensureLoaded();
+    // Araç sırası kullanım sayaçlarından geliyor; sayaçlar diskten gelene
+    // kadar ızgara yazılış sırasında çizilir, sonra bir kez tazelenir.
+    ToolUsage.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     _boot();
     unawaited(_loadAppsSize());
   }
@@ -555,7 +561,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               animation: Listenable.merge(
                   [JobQueue.instance, FtpService.instance]),
               builder: (context, _) {
-                final tools = _tools();
+                final tools = _rankedTools();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -643,7 +649,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  /// Araç ızgarasının hafif çerçevesi: 13 kartsız simge kağıt zeminde
+  /// Araç ızgarasının hafif çerçevesi: kartsız simgeler kağıt zeminde
   /// yüzüyordu, dokunma alanının nerede bittiği belirsizdi. Çerçeve kategori
   /// kutularından DAHA HAFİF (bir ton açık zemin + ince kenarlık) — ağırlık
   /// hiyerarşisi korunuyor, araçlar içerik kutularının önüne geçmiyor.
@@ -922,6 +928,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   /// **Araçlar** — küçük, kartsız simgeler. Alt yazı yalnız gerçek bilgi
   /// taşıdığında yazılır ("3 sürüyor"), dolgu metin konmaz.
+  ///
+  /// Buradaki sıra **yazılış sırası**; ekrandaki sıra kullanımdan gelir
+  /// (bkz. [_rankedTools]). Yeni bir araç listenin neresine yazılırsa, hiç
+  /// dokunulmadığı sürece orada durur.
   List<FmTileData> _tools() {
     final downloading = DownloadService.instance.activeTasks.length;
     final queue = JobQueue.instance;
@@ -937,6 +947,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ? Icons.autorenew
             : Icons.playlist_add_check_circle_outlined,
         color: const Color(0xFF2E7D32),
+        id: 'jobs',
         label: context.t('fm.jobs'),
         subtitle: runningJobs > 0
             ? context.t('fm.jobs_running', {'n': runningJobs})
@@ -955,8 +966,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.history_edu_outlined,
         color: const Color(0xFF6A4C93),
+        id: 'activity',
         label: context.t('act.title'),
-        subtitle: context.t('act.subtitle'),
+        // Alt yazı KALKTI (2026-08-29): "Ürettiğiniz dosyalar" bir sayaç
+        // değil, dört sütunda "Üretiğiniz dosyal…" diye kırpılan bir dolgu
+        // metindi. Araç ızgarasının kuralı: alt satır yalnız CANLI bilgi.
+        subtitle: '',
         onTap: () => _push(const ActivityScreen()),
       ),
       // Ağ depolama (NAS): Drive'ın yanında — ikisi de "telefonun dışındaki
@@ -964,6 +979,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.dns_outlined,
         color: const Color(0xFF5E35B1),
+        id: 'network_storage',
         label: context.t('fm.network_storage'),
         subtitle: '',
         onTap: () => _push(const RemoteConnectionsScreen()),
@@ -981,6 +997,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         color: FtpService.instance.running
             ? const Color(0xFF00796B)
             : const Color(0xFF00897B),
+        id: 'ftp_server',
         label: context.t('ftpd.title'),
         subtitle: FtpService.instance.running
             ? context.t('ftpd.running')
@@ -996,6 +1013,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.download_for_offline_outlined,
         color: const Color(0xFF1565C0),
+        id: 'download',
         label: context.t('fm.download'),
         subtitle: downloading > 0
             ? context.t('fm.jobs_running', {'n': downloading})
@@ -1012,6 +1030,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.note_add_outlined,
         color: OfficeColors.word,
+        id: 'new_document',
         label: context.t('home.new_document_title'),
         subtitle: '',
         onTap: () => showNewDocumentSheet(context),
@@ -1022,6 +1041,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.cleaning_services_outlined,
         color: const Color(0xFF00838F),
+        id: 'free_space',
         label: context.t('fm.free_space'),
         subtitle: '',
         onTap: () => _push(CleanupScreen(index: _index)),
@@ -1032,6 +1052,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.forum_outlined,
         color: const Color(0xFF2E7D32),
+        id: 'chat_cleanup',
         label: context.t('cj.title'),
         subtitle: '',
         onTap: () => openChatCleanupScreen(context),
@@ -1042,6 +1063,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.auto_awesome_motion_outlined,
         color: const Color(0xFF00897B),
+        id: 'similar_images',
         label: context.t('fm.similar_images'),
         subtitle: '',
         onTap: () {
@@ -1066,6 +1088,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.auto_awesome_motion,
         color: const Color(0xFF5E35B1),
+        id: 'organize',
         label: context.t('fm.organize'),
         subtitle: '',
         onTap: () => _push(OrganizeScreen(
@@ -1081,6 +1104,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       FmTileData(
         icon: Icons.history_toggle_off,
         color: const Color(0xFF6D4C41),
+        id: 'recent_ops',
         label: context.t('fm.recent_ops'),
         subtitle: '',
         onTap: () => _push(const OpHistoryScreen()),
@@ -1095,6 +1119,30 @@ class _DashboardScreenState extends State<DashboardScreen>
       // kaybolması, silinen dosyayı kurtaramamak demekti.
     ];
     return tools;
+  }
+
+  /// **Araçlar kullanıma göre sıralı** (kullanıcı isteği 2026-08-29: *"araçlar
+  /// alanı kullanıma göre sıralanmalı"*).
+  ///
+  /// Sıra [rankByUsage] ile hesaplanır: çok açılan önce, eşitlikte
+  /// [_tools]'taki yazılış sırası korunur — hiç dokunulmamış araçlar birbirine
+  /// göre yer değiştirmez, kullanıcı ızgarayı her açtığında aynı yerde bulur.
+  /// Hiç kayıt yokken liste bire bir yazıldığı gibi kalır.
+  ///
+  /// Sayaç, aracın KENDİ `onTap`ı sarılarak artıyor; diske yazmayı beklemeden
+  /// ekran açılır (`unawaited`) — araç ekranının açılması bir dosya yazmasına
+  /// takılmamalı.
+  List<FmTileData> _rankedTools() {
+    final tools = _tools();
+    final order =
+        rankByUsage([for (final t in tools) t.id], ToolUsage.counts);
+    return [
+      for (final i in order)
+        tools[i].withTap(() {
+          unawaited(ToolUsage.record(tools[i].id));
+          tools[i].onTap();
+        }),
+    ];
   }
 
   FmTileData _categoryTile(FmCategory category, {bool grid = false}) {

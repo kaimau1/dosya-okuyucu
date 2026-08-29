@@ -9145,3 +9145,83 @@ araç menüleri çok zarif yetersiz ve kötü görünüyor, üzerlerine çalış
   bulamıyor — `find.byWidgetPredicate((w) => w is FilledButton)` gerekiyor.
 
 **Doğrulama:** Flutter 3.29.3, analyze 0 sorun, 1839 test yeşil.
+
+## 2026-08-29 (Y) — Pano araçları, bellek analizi, işlem sayfası, oynatıcı başlığı
+Kullanıcı (dört ekran görüntüsüyle): *"araçlar alanı kullanıma göre sıralamalı
+ve tasarımı düzeltilmeli"*, *"bellek analizi üst kısım özellikle yılın şeklinde
+duruyor, daha modern bir tasarıma geçmeli tüm sayfa"*, *"3 noktaya basınca
+çıkan ayarlar çok yılın olmuş, yeniden sıralanmalı ve düzenlenmeli, gerekirse
+2 sütunlu olabilir"*, *"video ve görsellerde işaretli yerde dosya adı zor
+görülüyor"*.
+
+### A) KÖK NEDEN — `foregroundColor: Colors.white` başlığı beyaz YAPMIYOR
+Oynatıcının üst çubuğu beyaz zorluyordu ama kullanıcının ekran görüntüsünde
+ölçtüğümüz piksel `#1D1B20` çıktı: simgeler beyaz, **dosya adı neredeyse
+siyah** — siyah zeminde okunmuyor.
+- **Neden:** Flutter'da `AppBar.foregroundColor` yalnız `titleTextStyle`
+  RENKSİZ olduğunda başlığa geçer. Bizim `AppTheme` ise
+  `appBarTheme.titleTextStyle: text.titleLarge` veriyor ve `titleLarge`
+  Material tipografisinden gelen koyu rengi taşıyor. Yani tema, widget'ta
+  yazılan beyazı sessizce eziyordu.
+- **Çözüm:** `OverlayBar.title/subtitle/onBrand` (core/theme.dart). Koyu zemin
+  üstündeki her çubuk başlığını buradan alır; gölge de burada (parlak bir video
+  karesinin üstünde de okunsun). Marka renkli Office kabuğu `onBrand` kullanır
+  — orada yalnız renk düzeltilir, ölçü temadan kalır.
+- **Bekçi:** `overlay_bar_title_test` — (1) temanın stilinin gerçekten koyu bir
+  renk taşıdığını, (2) `OverlayBar.title`ın beyaz + gölgeli çizdiğini,
+  (3) `foregroundColor`ın TEK BAŞINA beyaz yapmadığını (tuzak hâlâ duruyor mu),
+  (4) **kaynak taraması:** `foregroundColor: Colors.white` yazan her dosya
+  `OverlayBar` da kullanmalı — yeni bir koyu çubuk aynı tuzağa sessizce
+  düşmesin.
+- Oynatıcıda ayrıca: perde koyulaştı (0,75 → 0,88 + iki duraklı geçiş), ad iki
+  satıra sarabiliyor, altında tür/sıra satırı var ve temanın **çubuk altı
+  cetveli** kaldırıldı (`shape: const Border()`) — videonun üstünde yüzen
+  saydam çubuğu ikiye bölen açık gri çizgi oydu.
+
+### B) Araçlar kullanıma göre sıralı — `services/fm/tool_usage.dart`
+- Sayaçlar `appSupportDir/tool_usage.json` (OpenHistory deseni: paylaşılan
+  yükleme Future'ı, yoksa ilk `record` boş belleğin üstüne yazıp geçmişi
+  silerdi).
+- Sıra **saf** bir fonksiyondan: `rankByUsage(ids, counts)` — çok kullanılan
+  önce, **eşitlikte yazılış sırası** korunur. Yani hiç dokunulmamış araçlar
+  birbirine göre hiç oynamaz; ilk kurulumda ızgara elle düşünülmüş sırasında
+  kalır. Sayaç anahtarı ETİKET DEĞİL (`id`): etiket dile göre değişiyor, sayaç
+  dil değişince sıfırlanmamalı.
+- Tasarım: etiketler artık iki satıra sarıyor ("Yeni belge oluşt…",
+  "Sohbet medyası…" diye kırpılıyorlardı); hücre yüksekliği **ölçülüyor**
+  (`FmToolGrid.cellHeight`, gerçek `textScaler`dan) — sabit en-boy oranı +
+  sabit punto büyük yazı ölçeğinde `RenderFlex overflowed` demekti.
+  "Yaptıklarım"ın dolgu alt yazısı kalktı.
+- **BULUNAN HATA:** araç ızgarası `maxCrossAxisExtent: 96`, kategori ızgarası
+  `genişlik/110` kullanıyordu; yorum "aynı hizada" diyor ama 500 dp'lik bir
+  ekranda biri 4 diğeri 5 sütun çiziyordu. Tek kaynak: `FmCategoryGrid.columnsFor`.
+
+### C) Bellek analizi — manşet "ne kadar yerim kaldı"
+- `_VolumeCard`: kalan yer **manşet** (headlineSmall), kullanılan/toplam onun
+  altında ikincil, sağ üstte yüzde rozeti (%75 turuncu, %90 kırmızı). Eskiden
+  ekranın en önemli sayısı 12 puntoluk gri bir satırın içinde üç sayının
+  arasındaydı.
+- Doluluk çubuğu artık **tür renkleriyle dilimli** (`_CapacityBar`): "%60 dolu"
+  diyen çubuk artık neyin doldurduğunu da söylüyor. Ölçülemeyen kalan
+  "Diğer" dilimi olarak duruyor — toplamı tutturmak için uydurulmuş sayı yok.
+  **`flex` tam sayı** (onbinde bir çözünürlük): oranı elle piksele çevirmek
+  kayan nokta artığı yüzünden "overflowed by 0.0001 pixels" riskiydi.
+- Eğilim satırı ayrı karttan çıkıp hacim kartının içine girdi; üç analiz aracı
+  (Yer aç · Yinelenenler · Klasör haritası) üç ayrı karttan tek karta indi,
+  açıklamalar tek satır. Ekranın ilk sayfası artık asıl veriye yetiyor.
+
+### D) İşlem sayfası (⋮) iki sütunlu ve bölümlü
+20'ye yakın işlem tek sütun `ListTile`dı; ekrana 11'i sığıyor, "Sil" ve
+"Özellikler" kaydırma gerektiriyordu. Şimdi dört bölüm (aç/paylaş ·
+taşı/kopyala · dosya işlemleri · AI) ve iki sütun; parantezli açıklamalar
+etiketin altında soluk ipucu satırı ("klasör seç", "ZIP · 7z · parolalı").
+**Sil ızgaranın dışında**, tam genişlikte, hata renginde — "Kopyala"nın yanında
+bir parmak mesafesinde durmasın; metni yine dürüst (çöp kutusu kapalıysa
+"KALICI SİL").
+- **TUZAK (test):** `flutter_test` varsayılan olarak `en` seçiyor; Türkçe metin
+  arayan doğrulama sessizce hep boş dönüyordu. Ekranı Türkçe doğrulayan testler
+  `locale: Locale('tr')` + `supportedLocales` vermeli.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı), `analyze` 0 sorun, **1861 test
+yeşil** (yeni: `fm_tool_grid_test`, `overlay_bar_title_test`,
+`fm_entry_actions_sheet_test`, `fm_analysis_header_test`).

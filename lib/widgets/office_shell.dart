@@ -43,6 +43,11 @@ class OfficeShell extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.light,
+        // Başlık stili [OverlayBar]'dan: `foregroundColor` tek başına yetmez,
+        // temanın `titleTextStyle`ı KOYU bir renk taşıyor ve marka renginin
+        // (Word mavisi, Excel yeşili) üstünde okunmuyordu — video oynatıcıda
+        // ortaya çıkan aynı kök neden.
+        titleTextStyle: OverlayBar.onBrand(context),
         title: Text('$title${dirty ? ' •' : ''}',
             overflow: TextOverflow.ellipsis),
         actions: actions,

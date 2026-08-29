@@ -487,7 +487,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
             PopupMenuItem(
               value: 'star',
-              child: Text(starred ? context.t('fm.unfavorite') : 'Favorilere ekle'),
+              child: Text(starred
+                  ? context.t('fm.unfavorite')
+                  : context.t('fm.favorite')),
             ),
             PopupMenuItem(
               value: 'lock',
