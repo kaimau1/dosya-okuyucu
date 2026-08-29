@@ -13,6 +13,7 @@ import '../../services/fm/download_service.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/remote/ftp_service.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/installed_apps_service.dart';
@@ -37,6 +38,7 @@ import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
+import 'remote/ftp_server_screen.dart';
 import 'remote/remote_connections_screen.dart';
 import '../settings_screen.dart';
 import 'important_screen.dart';
@@ -490,6 +492,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             // koymak olurdu — geri bildirim döngüsü ancak kullanıcı olayı
             // gördüğünde kuruluyor (bkz. widgets/crash_notice.dart).
             const CrashNoticeBanner(),
+            // **Paylaşım açıkken panonun en üstünde bir şerit** (kullanıcı
+            // isteği 2026-08-29: *"çalışırken uygulama içinde … görülmeli"*).
+            // Bildirim paneli telefonun dışı; bu şerit uygulamanın içi. Telefonu
+            // ağa açık bırakmak bir daha "unutulacak" bir şey olmasın.
+            _networkShareBanner(),
             if (!_hasAccess) _permissionCard(),
             if (_scanning) ...[
               const LinearProgressIndicator(minHeight: 3),
@@ -543,7 +550,10 @@ class _DashboardScreenState extends State<DashboardScreen>
             // ("1 sürüyor" / "3 biten") — kullanıcı ana ekrandan bakınca
             // işleminin durduğunu ya da bittiğini görebilsin.
             AnimatedBuilder(
-              animation: JobQueue.instance,
+              // "Ağdan erişim" kutusunun alt yazısı da canlı: paylaşım
+              // açılınca/kapanınca ızgara yeniden çizilir.
+              animation: Listenable.merge(
+                  [JobQueue.instance, FtpService.instance]),
               builder: (context, _) {
                 final tools = _tools();
                 return Column(
@@ -821,6 +831,70 @@ class _DashboardScreenState extends State<DashboardScreen>
     return FmCategoryGrid(tiles: tiles);
   }
 
+  /// Ağ paylaşımı açıkken panonun en üstünde duran şerit. Kapalıyken hiç
+  /// çizilmez (boş bir "kapalı" satırı yer israfı olurdu).
+  Widget _networkShareBanner() {
+    return AnimatedBuilder(
+      animation: FtpService.instance,
+      builder: (context, _) {
+        final service = FtpService.instance;
+        if (!service.running) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        final address =
+            service.addresses.isEmpty ? '' : service.addresses.first;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: Gap.sm),
+          child: Material(
+            color: scheme.primaryContainer,
+            borderRadius: BorderRadius.circular(context.fmCardRadius),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(context.fmCardRadius),
+              onTap: () => _push(const FtpServerScreen()),
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.sm),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_tethering,
+                        color: scheme.onPrimaryContainer),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            context.t('ftpd.open_action'),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(color: scheme.onPrimaryContainer),
+                          ),
+                          if (address.isNotEmpty)
+                            Text(
+                              address,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: scheme.onPrimaryContainer),
+                            ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => service.stop(),
+                      child: Text(context.t('common.close')),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   /// **Çöp kutusu — yüzen düğme** (kullanıcı isteği 2026-08-06: *"çöp kutusu
   /// da grid kart yerine klasör eklenin yanında yüzen buton olsun"*).
   ///
@@ -886,13 +960,35 @@ class _DashboardScreenState extends State<DashboardScreen>
         onTap: () => _push(const ActivityScreen()),
       ),
       // Ağ depolama (NAS): Drive'ın yanında — ikisi de "telefonun dışındaki
-      // dosyalar". FTP/FTPS/SFTP/SMB/WebDAV ve PC'den erişim burada.
+      // dosyalar". FTP/FTPS/SFTP/SMB/WebDAV bağlantıları burada.
       FmTileData(
         icon: Icons.dns_outlined,
         color: const Color(0xFF5E35B1),
         label: context.t('fm.network_storage'),
         subtitle: '',
         onTap: () => _push(const RemoteConnectionsScreen()),
+      ),
+      // **Ağdan erişim — panoda kendi kutusu** (kullanıcı isteği 2026-08-29:
+      // *"kolay erişilebilir, pratik olmalı"*). Eskiden Ağ depolama ekranının
+      // SAĞ ÜST KÖŞESİNDEKİ bir simgenin arkasındaydı: panodan üç dokunuş ve
+      // hiçbir yerde adı geçmiyordu. Ters yön de önemli: paylaşım açıkken alt
+      // yazı bunu söylüyor, kullanıcı telefonunun ağa açık olduğunu panoya
+      // bakınca görüyor.
+      FmTileData(
+        icon: FtpService.instance.running
+            ? Icons.wifi_tethering
+            : Icons.phonelink_outlined,
+        color: FtpService.instance.running
+            ? const Color(0xFF00796B)
+            : const Color(0xFF00897B),
+        label: context.t('ftpd.title'),
+        subtitle: FtpService.instance.running
+            ? context.t('ftpd.running')
+            : '',
+        onTap: () async {
+          await _push(const FtpServerScreen());
+          if (mounted) setState(() {});
+        },
       ),
       // (Google Drive 2026-08-05'te buradan yukarıdaki BÜYÜK kart ızgarasına
       // terfi etti — çöp kutusuyla aynı gerekçe: küçük simge kalabalığında

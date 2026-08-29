@@ -13,8 +13,8 @@ import '../../services/fm/image_sniff.dart';
 import '../../services/fm/media_duration.dart';
 import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
-import '../file_type_icon.dart';
 import 'fm_file_image.dart';
+import 'fm_glyph.dart';
 
 /// Dosya yöneticisi ikon paleti. Office dörtlüsü [OfficeColors]'tan gelir
 /// (liste ve şerit aynı tonu kullansın diye — bkz. HAFIZA 2026-07-24 tutarsızlık
@@ -128,10 +128,78 @@ abstract final class FmColors {
         'fonts' => Icons.font_download_rounded,
         _ => null,
       };
+
+  // ── çizilen simgeler (2026-08-29) ─────────────────────────────────────────
+  //
+  // Kullanıcı bulgusu: *"dosya ve klasör simgeleri çok daha iyi olmalı, şu an
+  // çok yapmacık."* Yukarıdaki tablolar (renk + glif) DURUYOR; değişen, o
+  // bilginin nasıl çizildiği: tek renk düz Material glifi yerine gerçek klasör
+  // gövdesi / kıvrık köşeli kağıt ([FmGlyph]). Tablolar korundu çünkü pano
+  // kutucukları ve süzgeç çipleri hâlâ düz glif kullanıyor — orada bir kağıt
+  // çizimi değil, kategori işareti gerekiyor.
+
+  /// Uzantıdan **şerit yazısı**: `PDF`, `DOCX`, `ZIP`…
+  ///
+  /// Boş dönerse şerit hiç çizilmez (kağıdın ortasına glif konur). Uzun ya da
+  /// harf-dışı karakter içeren "uzantılar" (`backup2024`, `part-001`) gerçek
+  /// tür değildir; şeride yazılırsa bilgi değil gürültü olurlar.
+  static String labelForExtension(String ext) {
+    final e = ext.trim().toLowerCase();
+    if (e.isEmpty || e.length > 8) return '';
+    if (!RegExp(r'^[a-z0-9]+$').hasMatch(e)) return '';
+    return (e.length <= 4 ? e : e.substring(0, 3)).toUpperCase();
+  }
+
+  /// Bir girdinin çizim reçetesi. Renk/glif seçimi yukarıdaki tablolardan
+  /// gelir; burada yalnız hangisinin kazandığı ve kağıda ne yazılacağı
+  /// kararlaştırılır.
+  static FmGlyphSpec glyphFor(
+    FsEntry entry, {
+    bool outlined = false,
+    bool dark = false,
+  }) {
+    if (entry.isDir) {
+      return FmGlyphSpec(
+        folder: true,
+        color: folder,
+        // Bilinen klasörün glifi klasörün YERİNE geçmez, gövdesine biner.
+        overlay: forFolderName(entry.name),
+        outlined: outlined,
+        dark: dark,
+      );
+    }
+    final ext = entry.extension.toLowerCase();
+    final special = forExtension(ext);
+    final Color color;
+    IconData? overlay;
+    if (special != null) {
+      color = special.$2;
+      overlay = special.$1;
+    } else if (entry.category == FmCategory.document) {
+      // Belge markası şeritle AYNI tonu kullanır (Word mavisi, Excel yeşili,
+      // PDF kırmızısı) — liste ile editör başlığı aynı rengi konuşsun.
+      color = OfficeColors.forKind(FileService.iconKindForExtension(ext));
+    } else {
+      color = forCategory(entry.category);
+      overlay = iconFor(entry.category, outlined: outlined);
+    }
+    final label = labelForExtension(ext);
+    return FmGlyphSpec(
+      folder: false,
+      color: color,
+      // Uzantı şeride yazıldığında glif GEREKSİZ: aynı bilgiyi iki kez
+      // söyleyip kağıdı kalabalıklaştırırdı. Glif yalnız uzantısız dosyada.
+      overlay: label.isEmpty ? overlay : null,
+      label: label,
+      outlined: outlined,
+      dark: dark,
+    );
+  }
 }
 
 /// Bir girdinin ikonu. Görsellerde gerçek küçük resim (thumbnail) gösterilir;
-/// belgelerde mevcut [FileTypeIcon] (Word mavisi / Excel yeşili …).
+/// üretilemeyen/üretilmemiş her şeyde uygulamanın kendi çizilmiş simgesi
+/// ([FmGlyph]: klasör gövdesi ya da uzantısı yazılı kağıt).
 ///
 /// **Çerçeve YOKTUR** (kullanıcı isteği 2026-07-25: "dış çerçeve olmasın direkt
 /// simge olsun"): glif kutunun ~%92'sini kaplar, arkasında dolgu/kenarlık
@@ -163,13 +231,11 @@ class FmEntryIcon extends StatelessWidget {
         thumbnails && (context.select<AppState, bool>((s) => s.fmThumbnails));
 
     if (category == FmCategory.document) {
-      final icon = FileTypeIcon(
-        // Simge türü: .xls/.doc gibi ESKİ biçimler de kendi markalarıyla
-        // görünsün (editör yönlendirmesi ayrı bir soru — bkz.
-        // `iconKindForExtension`).
-        kind: FileService.iconKindForExtension(entry.extension),
-        size: size,
-      );
+      // Belgeler de aynı ÇİZİLMİŞ kağıdı kullanır (2026-08-29): marka rengi
+      // `iconKindForExtension`'dan gelir (.xls/.doc gibi eski biçimler de
+      // kendi tonuyla görünür), şeritte uzantı yazar — "DOCX" yazan mavi
+      // kağıt, Word glifinden daha kesin bilgi veriyor.
+      final icon = _badge(context, category);
       // PDF: **kapak sayfası** küçük resmi. On tane faturanın hangisinin
       // hangisi olduğu eskiden yalnız dosya adından anlaşılıyordu; hepsi aynı
       // kırmızı simgeyle görünüyordu. Üretilene kadar (ve üretilemezse —
@@ -260,27 +326,18 @@ class FmEntryIcon extends StatelessWidget {
     return _badge(context, category);
   }
 
-  /// Kategori glifinden **daha özel** bir glif varsa onu kullanır: uzantıya
-  /// özel (apk/zip/epub/font/kod…) ya da bilinen klasör adı (İndirilenler,
-  /// DCIM, WhatsApp…). Bkz. [FmColors.forExtension] / [FmColors.forFolderName].
+  /// Girdinin **çizilmiş** simgesi: gerçek klasör gövdesi ya da kıvrık köşeli,
+  /// uzantısı yazılı kağıt (bkz. [FmGlyph], 2026-08-29 — *"simgeler çok
+  /// yapmacık"*). Renk/glif seçimi [FmColors.glyphFor]'da.
   Widget _badge(BuildContext context, FmCategory category) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    var icon = FmColors.iconFor(category, outlined: context.fmOutlinedIcons);
-    var base = FmColors.forCategory(category);
-    if (entry.isDir) {
-      icon = FmColors.forFolderName(entry.name) ?? icon;
-    } else {
-      final special = FmColors.forExtension(entry.extension);
-      if (special != null) {
-        icon = special.$1;
-        base = special.$2;
-      }
-    }
-    final tint = dark ? Color.lerp(base, Colors.white, 0.25)! : base;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Icon(icon, color: tint, size: size * 0.92),
+    return FmGlyph(
+      size: size,
+      spec: FmColors.glyphFor(
+        entry,
+        outlined: context.fmOutlinedIcons,
+        dark: dark,
+      ),
     );
   }
 }

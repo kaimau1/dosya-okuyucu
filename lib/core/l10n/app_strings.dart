@@ -1662,21 +1662,60 @@ const Map<String, (String, String, String)> _table = {
     'تم الرفع إلى الخادم.',
   ),
 
-  // ── PC'den telefona FTP sunucusu ──────────────────────────────────────────
-  'ftpd.title': ('PC\'den eriş (FTP)', 'Access from PC (FTP)', 'الوصول من الحاسوب (FTP)'),
+  // ── Ağdan erişim (telefon = FTP sunucusu) ─────────────────────────────────
+  //
+  // Ad 2026-08-29'da "PC'den eriş (FTP)"ten "Ağdan erişim"e çevrildi: kullanıcı
+  // panoda aradığı şeyi "FTP" diye aramıyor. Protokol adı ekranın içinde,
+  // adresin kendisinde (ftp://…) zaten yazılı.
+  'ftpd.title': ('Ağdan erişim', 'Network access', 'الوصول عبر الشبكة'),
   'ftpd.description': (
-    'Telefonu FTP sunucusuna çevirir: PC\'nizin dosya gezgininden ya da '
-        'tarayıcısından aşağıdaki adresi açarak telefondaki dosyalara '
-        'ulaşabilirsiniz. Telefon ve PC AYNI Wi-Fi ağında olmalı.',
-    'Turns the phone into an FTP server: open the address below in your PC\'s '
-        'file explorer or browser to reach the files on the phone. The phone '
+    'Telefondaki dosyalara ağdaki bilgisayardan ulaşın. Başlatın, aşağıdaki '
+        'adresi PC\'de bir dosya gezginine yazın. Telefon ve PC AYNI Wi-Fi '
+        'ağında olmalı.',
+    'Reach the files on this phone from a computer on the network. Start it, '
+        'then type the address below into a file explorer on the PC. The phone '
         'and the PC must be on the SAME Wi-Fi network.',
-    'يحوّل الهاتف إلى خادم FTP: افتح العنوان أدناه في مستكشف الملفات أو المتصفح '
-        'على حاسوبك للوصول إلى ملفات الهاتف. يجب أن يكون الهاتف والحاسوب على '
+    'الوصول إلى ملفات الهاتف من حاسوب على الشبكة. ابدأ الخدمة ثم اكتب العنوان '
+        'أدناه في مستكشف الملفات على الحاسوب. يجب أن يكون الهاتف والحاسوب على '
         'نفس شبكة Wi-Fi.',
   ),
-  'ftpd.start': ('Başlat', 'Start', 'ابدأ'),
-  'ftpd.stop': ('Durdur', 'Stop', 'أوقف'),
+  'ftpd.intro': (
+    'Ağdan dosyalara erişmek için hizmeti başlatın.',
+    'Start the service to reach the files over the network.',
+    'ابدأ الخدمة للوصول إلى الملفات عبر الشبكة.',
+  ),
+  'ftpd.hint': (
+    'Yukarıdaki adresi PC\'de bir dosya gezginine yazın.',
+    'Type the address above into a file explorer on your PC.',
+    'اكتب العنوان أعلاه في مستكشف الملفات على حاسوبك.',
+  ),
+  'ftpd.random_password': (
+    'Rastgele şifre',
+    'Random password',
+    'كلمة مرور عشوائية',
+  ),
+  'ftpd.show_hidden': (
+    'Gizli dosyaları göster',
+    'Show hidden files',
+    'إظهار الملفات المخفية',
+  ),
+  'ftpd.clients': (
+    '{n} bilgisayar bağlı',
+    '{n} computer(s) connected',
+    '{n} حاسوب متصل',
+  ),
+  'ftpd.notification_hint': (
+    'Açık kaldığı sürece bildirim panelinde görünür; uygulamayı kapatınca '
+        'kendiliğinden durur.',
+    'It stays visible in the notification panel while on, and stops by itself '
+        'when you close the app.',
+    'تبقى ظاهرة في لوحة الإشعارات أثناء التشغيل، وتتوقف تلقائيًا عند إغلاق '
+        'التطبيق.',
+  ),
+  'ftpd.open_action': ('Ağdan erişim açık', 'Network access is on', 'الوصول عبر الشبكة مفعّل'),
+  'ftpd.advanced': ('Gelişmiş', 'Advanced', 'إعدادات متقدمة'),
+  'ftpd.start': ('BAŞLAT', 'START', 'ابدأ'),
+  'ftpd.stop': ('HİZMETİ DURDUR', 'STOP THE SERVICE', 'أوقف الخدمة'),
   'ftpd.running': ('Çalışıyor', 'Running', 'قيد التشغيل'),
   'ftpd.stopped': ('Durdu', 'Stopped', 'متوقف'),
   'ftpd.address': ('Adres', 'Address', 'العنوان'),

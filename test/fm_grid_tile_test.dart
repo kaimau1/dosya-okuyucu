@@ -2,6 +2,7 @@ import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/models/fm_layout.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_entry_tiles.dart';
+import 'package:dosya_okuyucu/widgets/fm/fm_glyph.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_layout_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,7 +63,9 @@ void main() {
   testWidgets('ikon hücrenin büyük bölümünü kaplar (3 sütun)', (tester) async {
     await tester.pumpWidget(harness(FmLayout.grid3));
     final tileSize = tester.getSize(find.byType(FmEntryGridTile).first);
-    final iconBox = tester.getSize(find.byIcon(Icons.folder_rounded).first);
+    // 2026-08-29: düz Material glifi yerine ÇİZİLEN simge ([FmGlyph]);
+    // ölçülen şey değişmedi — simgenin hücreye göre büyüklüğü.
+    final iconBox = tester.getSize(find.byType(FmGlyph).first);
     // Eski sabit 56 dp'lik ikona karşılık artık hücrenin yarısından büyük.
     expect(iconBox.width, greaterThan(tileSize.width * 0.5));
   });

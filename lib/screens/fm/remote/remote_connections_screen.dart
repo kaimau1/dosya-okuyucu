@@ -138,9 +138,12 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
       appBar: AppBar(
         title: Text(context.t('nas.title')),
         actions: [
+          // "Ağdan erişim" 2026-08-29'da panoya kendi kutusu olarak taşındı;
+          // burada da duruyor (ağ işleri aynı yerde toplansın), ama artık tek
+          // kapısı bu köşe değil.
           IconButton(
             tooltip: context.t('ftpd.title'),
-            icon: const Icon(Icons.computer_outlined),
+            icon: const Icon(Icons.phonelink_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const FtpServerScreen()),
             ),

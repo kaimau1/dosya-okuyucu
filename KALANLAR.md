@@ -277,14 +277,23 @@ göre sıralı**:
 - [ ] **SMB'de port değiştirilemez (paket sınırı).** `smb_connect` bağlanırken
       445'i sabit kullanıyor, verilen portu yok sayıyor; form alanı bu yüzden
       SMB'de kapalı. Farklı portta SMB gerekirse paket çatallanmalı.
-- [ ] **PC'den FTP cihaz doğrulaması (kullanıcı)** — Ağ depolama → sağ üst
-      bilgisayar simgesi → **Başlat** → PC'nin dosya gezginine/tarayıcısına
-      yazılan `ftp://<ip>:2121` adresi açılıyor mu, kullanıcı adı/parola
-      soruluyor mu, dosyalar listelenip indiriliyor mu, **Yazmaya izin ver**
-      kapalıyken PC'den silme reddediliyor mu.
-- [ ] **FTP sunucusu arka planda çalışmıyor (bilinçli).** Ekrandan çıkınca
-      duruyor: kullanıcı telefonunu ağa açtığını unutmasın. İstenirse ön plan
-      servisi + kalıcı bildirim gerekir (manifest'e servis eklenmesi lazım).
+- [ ] **"Ağdan erişim" cihaz doğrulaması (kullanıcı)** — 2026-08-29'da
+      yeniden yazıldı. Pano → araçlar → **Ağdan erişim** → **BAŞLAT** →
+      (a) ekranda `ftp://<ip>:2121`, kullanıcı adı ve parola yazıyor mu,
+      (b) PC'nin dosya gezginine bu adres yazılınca dosyalar listeleniyor,
+      inip yükleniyor mu, (c) **uygulamadan çıkıp başka ekranda gezerken /
+      ekran kapalıyken aktarım sürüyor mu** (asıl düzeltilen şey bu),
+      (d) bildirim panelinde kalıcı bildirim duruyor ve dokununca ekrana
+      götürüyor mu, (e) panonun üstündeki "Ağdan erişim açık" şeridi
+      görünüyor ve **Kapat** çalışıyor mu, (f) *Yazma izni* kutusu kapalıyken
+      PC'den silme reddediliyor mu, (g) *Gizli dosyaları göster* kapalıyken
+      `.` ile başlayan klasörler PC'de görünmüyor mu, (h) uygulamayı son
+      kullanılanlardan kapatınca paylaşım ve bildirim kayboluyor mu.
+- [x] ~~**FTP sunucusu arka planda çalışmıyor (bilinçli).**~~ → 2026-08-29:
+      kullanıcı bunu bir HATA olarak bildirdi, karar geri alındı. Sunucu artık
+      `FtpService`te yaşıyor ve ön plan servisiyle arka planda sürüyor;
+      "unutma" riskinin karşılığı kapatmak değil GÖRÜNÜRLÜK oldu (kalıcı
+      bildirim + pano şeridi). Bkz. HAFIZA 2026-08-29 (II).
 - [ ] **Dil desteği cihaz doğrulaması (kullanıcı)** — 2026-07-30: Ayarlar →
       **Dil** → English / العربية seç → (a) ana ekran, alt sekmeler, Ayarlar,
       Excel ve Word ekranları o dilde mi, (b) **Arapça'da arayüz sağdan sola**

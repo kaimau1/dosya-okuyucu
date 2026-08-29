@@ -12,6 +12,7 @@ import 'core/l10n/app_strings.dart';
 import 'core/theme.dart';
 import 'screens/fm/job_navigation.dart';
 import 'screens/fm/jobs_screen.dart';
+import 'screens/fm/remote/ftp_server_screen.dart';
 import 'screens/fm/resize_actions.dart';
 import 'screens/fm/pick_file_screen.dart';
 import 'screens/home_screen.dart';
@@ -20,6 +21,8 @@ import 'services/fm/fm_env.dart';
 import 'services/fm/job_notifications.dart';
 import 'services/fm/job_queue.dart';
 import 'services/fm/job_store.dart';
+import 'services/fm/notification_hub.dart';
+import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
 import 'services/crash_log.dart';
@@ -56,17 +59,21 @@ Future<void> main() async {
   // köprüsü. Bildirim izni verilmezse ya da eklenti kurulamazsa sessizce
   // geçilir — işler yine çalışır, yalnız bildirim görünmez.
   final jobNotifications = JobNotifications();
-  // Bildirime dokunulunca işin **ilgili yerine** gidilir (istek 2026-07-31).
+  // Bildirime dokunulunca **ilgili yere** gidilir (istek 2026-07-31).
   // Gezinme kökten yapılır: bildirim uygulamanın hangi ekranında olursa olsun
   // gelebilir ve o anki `context` bilinmiyor.
-  jobNotifications.onTap = (jobId) => _openJobFromNotification(jobId);
-  unawaited(jobNotifications.init().then((_) {
+  final hub = NotificationHub.instance;
+  hub.onTap = _openFromNotification;
+  unawaited(hub.init().then((_) {
+    // Süreç öldürülüp yeniden açıldıysa "Ağdan erişim açık" diyen bir bildirim
+    // asılı kalmış olabilir — paylaşım o bildirimle birlikte ölmüştü.
+    unawaited(FtpService.instance.clearStaleNotification());
     // Uygulama bildirime dokunularak AÇILDIYSA yanıt `onTap`tan önce
     // gelmiş olabilir; ilk kareden sonra tüketilir (Navigator o an hazır).
-    final pending = jobNotifications.takePendingJobId();
+    final pending = hub.takePendingPayload();
     if (pending == null) return;
     WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _openJobFromNotification(pending));
+        (_) => _openFromNotification(pending));
   }));
   JobQueue.instance.reporter = jobNotifications;
   // Dosya taşınınca/adı değişince YOL ANAHTARLI yan kayıtlar da taşınmalı:
@@ -123,13 +130,20 @@ Future<void> _restoreJobs() async {
 /// bildirimi) ekran açmak için tek yol.
 final navigatorKey = GlobalKey<NavigatorState>();
 
-/// Bildirimden gelen iş kimliğini ekrana çevirir. İş kuyrukta yoksa (uygulama
-/// yeniden başlamış, kuyruk bellekte) İşlemler ekranı açılır — boş bir
-/// dokunuştansa listeye götürmek daha iyi.
-void _openJobFromNotification(String jobId) {
+/// Bildirimin yükünü ekrana çevirir. Yük ya bir iş kimliği ya da "Ağdan
+/// erişim"in sahiplik kimliği ([FtpService.owner]).
+///
+/// İş kuyrukta yoksa (uygulama yeniden başlamış, kuyruk bellekte) İşlemler
+/// ekranı açılır — boş bir dokunuştansa listeye götürmek daha iyi.
+void _openFromNotification(String payload) {
   final context = navigatorKey.currentContext;
   if (context == null) return;
-  final job = JobQueue.instance.find(jobId);
+  if (payload == FtpService.owner) {
+    unawaited(Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const FtpServerScreen())));
+    return;
+  }
+  final job = JobQueue.instance.find(payload);
   if (job == null) {
     unawaited(openJobsScreen(context));
     return;

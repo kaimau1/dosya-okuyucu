@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
@@ -33,7 +34,16 @@ class FtpServer {
   /// telefona bakmak isteyen kullanıcı, yanlışlıkla silme riskini istemez.
   final bool allowWrite;
 
+  /// Nokta ile başlayan dosya/klasörler listelensin mi. Varsayılan **kapalı**:
+  /// `.thumbnails`, `.nomedia`, uygulama önbellek klasörleri PC'de klasörü
+  /// çöplüğe çeviriyor ve kullanıcının aradığı şey değil (2026-08-29 —
+  /// "Ağdan erişim" ekranındaki *Gizli dosyaları göster* kutusu bunu açar).
+  final bool showHidden;
+
   final int port;
+
+  /// İstemci sayısı değişince çağrılır (arayüzdeki "1 cihaz bağlı" satırı).
+  void Function(int clients)? onClients;
 
   FtpServer({
     required this.rootDirectory,
@@ -41,12 +51,28 @@ class FtpServer {
     this.password = '',
     this.port = 2121,
     this.allowWrite = false,
+    this.showHidden = false,
   });
 
   ServerSocket? _server;
   final _clients = <_FtpSession>[];
 
   bool get running => _server != null;
+
+  /// O an bağlı istemci (kontrol bağlantısı) sayısı.
+  int get clientCount => _clients.length;
+
+  /// Gizli mi: nokta ile başlayan ad. Saf fonksiyon → birim testli.
+  static bool isHidden(String name) => name.startsWith('.');
+
+  /// **Rastgele parola.** "Ağdan erişim" ekranının varsayılanı: kullanıcı
+  /// hiçbir şey yazmadan başlatabilsin, ama paylaşım da parolasız kalmasın
+  /// (aynı Wi-Fi'daki herkes telefonun tüm dosyalarını görebilirdi).
+  /// Altı hane yeter: parola tek oturum yaşıyor ve ağ yerel.
+  static String randomPassword([Random? random]) {
+    final r = random ?? Random.secure();
+    return List.generate(6, (_) => r.nextInt(10)).join();
+  }
 
   /// Sunucunun gerçekten bağlandığı port (0 verilmişse işletim sistemi seçer).
   int get boundPort => _server?.port ?? port;
@@ -76,7 +102,11 @@ class FtpServer {
       (socket) {
         final session = _FtpSession(this, socket);
         _clients.add(session);
-        session.done.whenComplete(() => _clients.remove(session));
+        onClients?.call(_clients.length);
+        session.done.whenComplete(() {
+          _clients.remove(session);
+          onClients?.call(_clients.length);
+        });
       },
       onError: (_) {},
       cancelOnError: false,
@@ -189,6 +219,11 @@ class _FtpSession {
   String _pendingUser = '';
   String _renameFrom = '';
 
+  /// `REST` ile bildirilen kaldığı yer (bir sonraki aktarımda kullanılır ve
+  /// sıfırlanır). Kesilen bir indirmeyi baştan başlatmamak için: 4 GB'lık bir
+  /// videoyu Wi-Fi koptu diye yeniden indirmek kabul edilemez.
+  int _restart = 0;
+
   /// Pasif mod dinleyicisi — bir sonraki veri aktarımı burayı kullanır.
   ServerSocket? _pasv;
 
@@ -273,6 +308,9 @@ class _FtpSession {
         _send(' SIZE');
         _send(' MDTM');
         _send(' EPSV');
+        // Kaldığı yerden devam (RETR için): duyurulmazsa istemci kesilen
+        // aktarımı baştan başlatır.
+        _send(' REST STREAM');
         // MLSD duyurulmazsa modern istemciler LIST'e düşer; duyurulup
         // uygulanmazsa (ilk yazımdaki hata) istemci 502 alıp listelemeyi
         // tamamen bırakır — `ftpconnect` varsayılan olarak MLSD kullanıyor.
@@ -311,8 +349,26 @@ class _FtpSession {
         await _size(argument);
       case 'MDTM':
         await _modifiedTime(argument);
+      case 'REST':
+        final offset = int.tryParse(argument.trim());
+        if (offset == null || offset < 0) {
+          _send('501 Geçersiz konum');
+        } else {
+          _restart = offset;
+          _send('350 $offset konumundan devam');
+        }
       case 'STOR':
         await _store(argument);
+      case 'APPE':
+        await _store(argument, append: true);
+      case 'ABOR':
+        // Veri bağlantısını istemci zaten kapatıyor; bizim işimiz bekleyen
+        // pasif dinleyiciyi bırakmak, yoksa 20 sn boyunca askıda kalırdı.
+        try {
+          await _pasv?.close();
+        } catch (_) {}
+        _pasv = null;
+        _send('226 Durduruldu');
       case 'DELE':
         await _delete(argument, directory: false);
       case 'RMD' || 'XRMD':
@@ -430,6 +486,7 @@ class _FtpSession {
       final buffer = StringBuffer();
       for (final entry in entries) {
         final name = p.basename(entry.path);
+        if (!server.showHidden && FtpServer.isHidden(name)) continue;
         if (format == _ListFormat.names) {
           buffer.write('$name\r\n');
           continue;
@@ -461,15 +518,23 @@ class _FtpSession {
 
   Future<void> _retrieve(String argument) async {
     final real = server.resolve(_cwd, argument);
+    // `REST` işaretçisi HER aktarımda tüketilir: bir sonraki indirmeye
+    // sızarsa dosyanın başı eksik iner (sessiz bozulma).
+    final from = _restart;
+    _restart = 0;
     if (real == null || !File(real).existsSync()) {
       _send('550 Dosya yok');
+      return;
+    }
+    if (from > File(real).lengthSync()) {
+      _send('554 Konum dosyanın dışında');
       return;
     }
     _send('150 Dosya gönderiliyor');
     final data = await _acceptData();
     if (data == null) return;
     try {
-      await data.addStream(File(real).openRead());
+      await data.addStream(File(real).openRead(from));
       await data.flush();
       _send('226 Aktarım bitti');
     } catch (e) {
@@ -479,20 +544,34 @@ class _FtpSession {
     }
   }
 
-  Future<void> _store(String argument) async {
+  Future<void> _store(String argument, {bool append = false}) async {
+    final from = _restart;
+    _restart = 0;
     if (!_requireWrite()) return;
     final real = server.resolve(_cwd, argument);
     if (real == null) {
       _send('550 Geçersiz yol');
       return;
     }
+    final file = File(real);
+    // **Yüklemede `REST` yalnız "dosyanın sonundan devam" için kabul edilir.**
+    // Ortadan yazmak `RandomAccessFile` ister; yarım desteklemek, istemcinin
+    // 350 alıp yanlış yere yazmasına ve dosyayı sessizce bozmasına yol açardı.
+    var mode = append ? FileMode.writeOnlyAppend : FileMode.writeOnly;
+    if (from > 0) {
+      final size = file.existsSync() ? file.lengthSync() : 0;
+      if (from != size) {
+        _send('554 Yüklemede yalnız dosyanın sonundan devam edilebilir');
+        return;
+      }
+      mode = FileMode.writeOnlyAppend;
+    }
     _send('150 Dosya alınıyor');
     final data = await _acceptData();
     if (data == null) return;
     try {
-      final file = File(real);
       await file.parent.create(recursive: true);
-      final sink = file.openWrite();
+      final sink = file.openWrite(mode: mode);
       await sink.addStream(data);
       await sink.close();
       _send('226 Aktarım bitti');

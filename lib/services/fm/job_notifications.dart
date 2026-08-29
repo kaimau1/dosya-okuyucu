@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../core/l10n/app_strings.dart';
 import 'job_queue.dart';
+import 'notification_hub.dart';
 
 /// [JobQueue]'nun **sistem bildirimi + ön plan servisi** köprüsü.
 ///
@@ -37,6 +38,12 @@ import 'job_queue.dart';
 /// listesinden uygulamayı kapatmak işi yine durdurur. Bunun sebebi işin
 /// uygulamanın Dart izolatında koşması: etkinlik yok edilince izolat da ölür,
 /// ayakta kalan bir servis yalnız ölü bir bildirim gösterirdi.
+///
+/// **2026-08-29:** servisi artık doğrudan bu sınıf değil [NotificationHub]
+/// başlatıp durduruyor. Sebebi "Ağdan erişim"in (FTP sunucusu) aynı servise
+/// ihtiyaç duyması: iki bağımsız `stopForegroundService()` çağrısı
+/// birbirinin arka plan korumasını düşürürdü. Bu sınıf artık servisin
+/// **bir sahibi**.
 class JobNotifications implements JobReporter {
   static const _channelId = 'fm_jobs';
   static const _channelName = 'Dosya işlemleri';
@@ -50,81 +57,20 @@ class JobNotifications implements JobReporter {
   /// yeni bir bildirim bırakırdı. 0 OLAMAZ (eklenti reddediyor).
   static const _serviceNotificationId = 90301;
 
-  final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
+  /// Servisin sahiplik kimliği ([NotificationHub.acquireService]).
+  static const _owner = 'jobs';
 
-  /// Bildirime **dokunulduğunda** çağrılır (iş kimliğiyle).
-  ///
-  /// Kullanıcı isteği 2026-07-31: *"bildirimlere tıklayınca da ilgili yere
-  /// götürsün"*. Eskiden `initialize`a hiç yanıt işleyicisi verilmiyordu:
-  /// bildirime dokunmak yalnız uygulamayı öne alıyor, kullanıcı hangi ekrandan
-  /// çıkmışsa oraya dönüyordu.
-  ///
-  /// **Niye burada bir geri çağrı, niye doğrudan gezinme:** bu dosya servis
-  /// katmanı; `Navigator`ı buradan sürmek servisleri ekranlara bağlardı ve
-  /// bildirim eklentisi olmadan test edilemez hâle getirirdi. Kancayı `main`
-  /// takıyor.
-  void Function(String jobId)? onTap;
+  final NotificationHub _hub = NotificationHub.instance;
 
-  bool _ready = false;
-  bool _tried = false;
-
-  /// Ön plan servisi ayakta mı? (Başlatma isteği yalnız bir kez gider; sonraki
-  /// ilerlemeler aynı bildirimi `show` ile günceller — servis intent'i her
+  /// Sahiplik alındı mı? (Servis isteği yalnız bir kez gider; sonraki
+  /// ilerlemeler aynı bildirimi `show` ile günceller — servis intent'ini her
   /// 140 ms'de bir yeniden göndermek gereksiz yük olurdu.)
-  bool _serviceRunning = false;
+  bool _held = false;
 
   /// Eklentiyi ilklendirir ve (Android 13+) bildirim izni ister.
   /// Başarısızlık **sessizdir**: bildirim olmadan da işler sürer.
-  Future<void> init() async {
-    if (_tried) return;
-    _tried = true;
-    try {
-      await _plugin.initialize(
-        const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        ),
-        onDidReceiveNotificationResponse: _handleResponse,
-      );
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      await android?.requestNotificationsPermission();
-      _ready = true;
-      // Uygulama KAPALIYKEN bildirime dokunulduysa yanıt `initialize`
-      // geri çağrısına düşmez; başlatma ayrıntılarından okunur. Kanca henüz
-      // takılmamış olabilir (main sırayla kuruyor) → beklemede tutulur.
-      final launch = await _plugin.getNotificationAppLaunchDetails();
-      final payload = launch?.notificationResponse?.payload;
-      if ((launch?.didNotificationLaunchApp ?? false) &&
-          payload != null &&
-          payload.isNotEmpty) {
-        _pendingJobId = payload;
-      }
-    } catch (_) {
-      _ready = false;
-    }
-  }
-
-  /// Uygulama bildirimden açıldıysa o işin kimliği (bir kez okunur).
-  String? _pendingJobId;
-
-  /// Bildirimden açılışı tüketir — `main` ilk kare çizildikten sonra sorar.
-  String? takePendingJobId() {
-    final id = _pendingJobId;
-    _pendingJobId = null;
-    return id;
-  }
-
-  void _handleResponse(NotificationResponse response) {
-    final payload = response.payload;
-    if (payload == null || payload.isEmpty) return;
-    final handler = onTap;
-    if (handler == null) {
-      _pendingJobId = payload;
-      return;
-    }
-    handler(payload);
-  }
+  /// (Kurulumun kendisi [NotificationHub]'da; birden çok kez çağrılabilir.)
+  Future<void> init() => _hub.init();
 
   /// İş kimliğinden kararlı bildirim numarası (FNV-1a; `crypto` eklemeye
   /// değmez — projede aynı yaklaşım küçük resim önbelleğinde de kullanılıyor).
@@ -183,56 +129,25 @@ class JobNotifications implements JobReporter {
 
   @override
   Future<void> onProgress(FmJob job) async {
-    if (!_ready) return;
-    final title = job.title;
-    final body = bodyOf(job);
-    final details = _runningDetails(job);
-
-    if (!_serviceRunning) {
-      try {
-        final android = _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-        if (android != null) {
-          await android.startForegroundService(
-            _serviceNotificationId,
-            title,
-            body,
-            notificationDetails: details,
-            // Yük = iş kimliği: dokunulunca gezinme katmanı işi bulup
-            // "ilgili yer"e götürür.
-            payload: job.id,
-            // START_NOT_STICKY: süreç ölürse Android servisi geri getirmesin —
-            // geri gelen servis, işi olmayan bir bildirimden ibaret olurdu.
-            startType: AndroidServiceStartType.startNotSticky,
-            foregroundServiceTypes: const {
-              AndroidServiceForegroundType.foregroundServiceTypeDataSync,
-            },
-          );
-          _serviceRunning = true;
-          return;
-        }
-      } catch (_) {
-        // Servis başlatılamadı (izin yok, Android 12+ arka plan kısıtı, eski
-        // sürüm…). Düz bildirime düşülür: iş yine sürer, yalnız arka planda
-        // dondurulma koruması olmaz. Bir daha denenmez ki her ilerlemede
-        // yeniden hata üretmesin.
-        _serviceRunning = true;
-      }
-    }
-    // Servis ayaktayken aynı kimliğe `show` bildirimi GÜNCELLER (Android'de
-    // notify(sameId) ön plan bildiriminin üstüne yazar).
-    await _plugin.show(
-      _serviceNotificationId,
-      title,
-      body,
-      NotificationDetails(android: details),
+    final notice = FgNotice(
+      id: _serviceNotificationId,
+      title: job.title,
+      body: bodyOf(job),
+      details: _runningDetails(job),
+      // Yük = iş kimliği: dokunulunca gezinme katmanı işi bulup "ilgili
+      // yer"e götürür.
       payload: job.id,
     );
+    if (!_held) {
+      _held = true;
+      await _hub.acquireService(_owner, notice);
+      return;
+    }
+    await _hub.updateService(_owner, notice);
   }
 
   @override
   Future<void> onFinished(FmJob job) async {
-    if (!_ready) return;
     final id = notificationId(job.id);
     // İptal edilen ve GERİYE İZ BIRAKMAYAN iş için bildirim gürültü: kaldırılır.
     //
@@ -242,9 +157,7 @@ class JobNotifications implements JobReporter {
     // kullanıcının bunu öğrenmesinin son yolunu da kapatıyordu (2026-07-29
     // sadakat denetimi, 2. tur). Bu yüzden ayrıntısı olan iptal gösterilir.
     if (job.status == JobStatus.cancelled && job.detail.isEmpty) {
-      try {
-        await _plugin.cancel(id);
-      } catch (_) {}
+      await _hub.cancel(id);
       return;
     }
     final str = AppStrings.current;
@@ -257,42 +170,30 @@ class JobNotifications implements JobReporter {
     // servis bildirimi `stopForegroundService` ile silinecek ve sonucu da
     // beraberinde götürürdü ("başarılı mı oldu göremiyorum" şikâyetinin ta
     // kendisi). Böylece sonuç, servis kapansa da ekranda kalır.
-    await _plugin.show(
+    await _hub.show(
       id,
       job.title,
       body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDescription,
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          ongoing: false,
-          autoCancel: true,
-          styleInformation: BigTextStyleInformation(body),
-        ),
+      AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        ongoing: false,
+        autoCancel: true,
+        styleInformation: BigTextStyleInformation(body),
       ),
       payload: job.id,
     );
   }
 
-  /// Kuyruk boşaldı → ön plan servisi (ve onun bildirimi) kapanır.
+  /// Kuyruk boşaldı → sahiplik bırakılır. Servisi başka sahip (örn. "Ağdan
+  /// erişim") tutuyorsa servis ayakta kalır; kimse tutmuyorsa durur.
   @override
   Future<void> onIdle() async {
-    if (!_serviceRunning) return;
-    _serviceRunning = false;
-    if (!_ready) return;
-    try {
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.stopForegroundService();
-    } catch (_) {}
-    // Servis durdurulunca bildirimi Android kaldırır; kalıntı ihtimaline karşı
-    // (bazı cihazlarda ongoing bildirim asılı kalıyor) açıkça da silinir.
-    try {
-      await _plugin.cancel(_serviceNotificationId);
-    } catch (_) {}
+    if (!_held) return;
+    _held = false;
+    await _hub.releaseService(_owner);
   }
 }

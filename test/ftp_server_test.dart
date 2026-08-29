@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -317,6 +318,172 @@ void main() {
       }
       expect(collected.any((l) => l.contains('type=file')), isTrue);
       expect(collected.any((l) => l.contains('size=3')), isTrue);
+    });
+  });
+
+  // ── 2026-08-29: "Ağdan erişim" turu ────────────────────────────────────────
+  group('gizli dosyalar / kaldığı yerden devam', () {
+    late Directory root;
+    late FtpServer server;
+    late Socket control;
+    late Stream<String> lines;
+
+    Future<String> readUntilCode() async {
+      await for (final line in lines) {
+        if (RegExp(r'^\d{3} ').hasMatch(line)) return line;
+      }
+      return '';
+    }
+
+    Future<String> send(String command) async {
+      control.write('$command\r\n');
+      await control.flush();
+      return readUntilCode();
+    }
+
+    int pasvPort(String reply) {
+      final numbers = RegExp(r'\((\d+(?:,\d+){5})\)')
+          .firstMatch(reply)!
+          .group(1)!
+          .split(',')
+          .map(int.parse)
+          .toList();
+      return numbers[4] * 256 + numbers[5];
+    }
+
+    /// PASV açıp veri kanalından geleni toplar (LIST/RETR).
+    ///
+    /// **Dinleme komuttan ÖNCE kurulur:** `lines` yayın (broadcast) akışı;
+    /// komut yazıldıktan sonra abone olunursa sunucunun "150" yanıtı
+    /// kaçırılıyor ve test 30 sn askıda kalıyordu.
+    Future<String> transfer(String command) async {
+      final port = pasvPort(await send('PASV'));
+      final replies = <String>[];
+      final both = Completer<void>();
+      final sub = lines.listen((line) {
+        if (!RegExp(r'^\d{3} ').hasMatch(line)) return;
+        replies.add(line);
+        if (replies.length == 2 && !both.isCompleted) both.complete();
+      });
+      control.write('$command\r\n');
+      await control.flush();
+      final data = await Socket.connect('127.0.0.1', port);
+      final body = await data.cast<List<int>>().transform(utf8.decoder).join();
+      await both.future; // 150 + 226
+      await sub.cancel();
+      return body;
+    }
+
+    Future<void> connect({bool showHidden = false}) async {
+      server = FtpServer(
+        rootDirectory: root.path,
+        username: 'u',
+        password: 'p',
+        port: 0,
+        allowWrite: true,
+        showHidden: showHidden,
+      );
+      await server.start();
+      control = await Socket.connect('127.0.0.1', server.boundPort);
+      lines = control
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      await readUntilCode();
+      await send('USER u');
+      await send('PASS p');
+    }
+
+    setUp(() {
+      root = Directory.systemTemp.createTempSync('ftp_opts');
+      File('${root.path}/gorunur.txt').writeAsStringSync('0123456789');
+      File('${root.path}/.gizli').writeAsStringSync('x');
+    });
+
+    tearDown(() async {
+      control.destroy();
+      await server.stop();
+      removeTempDir(root);
+    });
+
+    test('gizli dosyalar VARSAYILAN olarak listelenmez', () async {
+      await connect();
+      final listing = await transfer('LIST');
+      expect(listing, contains('gorunur.txt'));
+      expect(listing, isNot(contains('.gizli')));
+    });
+
+    test('"Gizli dosyaları göster" açıkken listelenir', () async {
+      await connect(showHidden: true);
+      final listing = await transfer('LIST');
+      expect(listing, contains('.gizli'));
+    });
+
+    test('REST ile indirme kaldığı yerden devam eder', () async {
+      await connect();
+      expect(await send('REST 4'), startsWith('350'));
+      // Dosya "0123456789"; 4. bayttan sonrası gelmeli.
+      expect(await transfer('RETR gorunur.txt'), '456789');
+    });
+
+    test('REST işaretçisi bir sonraki aktarıma SIZMAZ', () async {
+      // Kök neden olabilecek sessiz bozulma: işaretçi tüketilmezse ikinci
+      // indirme de eksik iner ve kimse fark etmez.
+      await connect();
+      await send('REST 4');
+      await transfer('RETR gorunur.txt');
+      expect(await transfer('RETR gorunur.txt'), '0123456789');
+    });
+
+    test('dosyanın dışındaki REST konumu reddedilir', () async {
+      await connect();
+      await send('REST 99');
+      expect(await send('RETR gorunur.txt'), startsWith('554'));
+    });
+
+    test('yüklemede REST yalnız dosyanın SONUNDAN kabul edilir', () async {
+      await connect();
+      await send('REST 3');
+      expect(await send('STOR gorunur.txt'), startsWith('554'));
+      // Dosya bozulmadı.
+      expect(File('${root.path}/gorunur.txt').readAsStringSync(),
+          '0123456789');
+    });
+
+    test('APPE dosyanın sonuna ekler', () async {
+      await connect();
+      final port = pasvPort(await send('PASV'));
+      final replies = <String>[];
+      final both = Completer<void>();
+      final sub = lines.listen((line) {
+        if (!RegExp(r'^\d{3} ').hasMatch(line)) return;
+        replies.add(line);
+        if (replies.length == 2 && !both.isCompleted) both.complete();
+      });
+      control.write('APPE gorunur.txt\r\n');
+      await control.flush();
+      final data = await Socket.connect('127.0.0.1', port);
+      data.add(utf8.encode('AB'));
+      await data.flush();
+      await data.close();
+      await both.future;
+      await sub.cancel();
+      expect(File('${root.path}/gorunur.txt').readAsStringSync(),
+          '0123456789AB');
+    });
+  });
+
+  group('paylaşım yardımcıları', () {
+    test('gizli ad tanımı nokta ile başlar', () {
+      expect(FtpServer.isHidden('.nomedia'), isTrue);
+      expect(FtpServer.isHidden('nomedia'), isFalse);
+    });
+
+    test('rastgele parola altı HANE', () {
+      for (var i = 0; i < 20; i++) {
+        expect(FtpServer.randomPassword(), matches(RegExp(r'^\d{6}$')));
+      }
     });
   });
 }

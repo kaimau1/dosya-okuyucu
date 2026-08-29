@@ -8916,3 +8916,94 @@ yazı ölçeği artık ayar satırlarında da geçerli.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **1772 test yeşil**
 (yeni: `settings_search_test` 13, `settings_screen_test` 18'e çıktı).
+
+## 2026-08-29 (II) — Çizilen dosya/klasör simgeleri + "Ağdan erişim" turu
+Kullanıcı (ekran görüntüleriyle, biri başka bir dosya yöneticisinden):
+1. *"dosya ve klasör simgeleri çok daha iyi olmalı, şu an çok yapmacık"*,
+2. *"ağdan erişim örnektekiler gibi çok basit olmalı … kullanıcı bir şey
+   yapmıyor sadece başlatıyor … kolay erişilebilir, pratik, anlaşılır olmalı,
+   düzgün çalışmalı, arka planda da çalışmalı, çalışırken uygulama içinde ve
+   bildirim panelinde görülmeli."*
+
+### A) Simgeler: Material glifi → `CustomPainter` (`widgets/fm/fm_glyph.dart`)
+- **Kök neden:** her satırda tek renk, düz bir Material glifi kutunun %92'sini
+  kaplıyordu (`Icons.folder_rounded` vb.). On satır yan yana aynı okra lekesinin
+  tekrarı oluyordu; derinlik, malzeme, tür ayrımı yoktu.
+- **Yeni çizim** (birim karede tanımlı → 24 px ile 96 px arasında aynı oranlar):
+  - **klasör** = arkada sekme + önde degradeli gövde + aradan görünen kağıt ucu
+    + üst kenarda ışık çizgisi. Bilinen klasörün glifi (İndirilenler, DCIM,
+    WhatsApp…) klasörün YERİNE geçmez, gövdesine beyaz olarak biner.
+  - **dosya** = kıvrık köşeli (dog-ear) kağıt + metin satırları + altta
+    **uzantıyı YAZAN renkli şerit** (PDF, DOCX, ZIP, APK…). Belgeler de aynı
+    kağıdı kullanıyor; marka rengi `iconKindForExtension`'dan geliyor, yani
+    `FileTypeIcon` liste satırlarından çıktı (başka ekranlarda duruyor).
+  - çizgi glifli tema ailelerinde (`fmOutlinedIcons`) aynı biçimlerin kontur
+    hâli çiziliyor; koyu temada kağıt beyaz değil, rengin çok koyu karışımı.
+- **Renk/glif tabloları DEĞİŞMEDİ** (`FmColors.forExtension` /
+  `forFolderName`); değişen yalnız o bilginin nasıl çizildiği. Pano kutucukları
+  ve süzgeç çipleri hâlâ düz glif kullanıyor — orada kağıt çizmek yanlış olurdu.
+- **Şeride yazılmayan "uzantılar":** 8 harften uzun ya da harf/rakam dışı
+  karakter içerenler (`part-001`, `backup2024`) gerçek tür değil; şeritte
+  gürültü olurlardı (`labelForExtension`, test edildi).
+- **REDDEDİLEN yol:** hazır ikon paketi (Font Awesome vb.) — yeni bağımlılık +
+  APK şişmesi ve hâlâ "başkasının dili". Başka uygulamanın çizimleri
+  KOPYALANMADI, biçimler uygulamanın kendi paletinden türetildi.
+- **Doğrulama yöntemi (işe yaradı, tekrar kullanılabilir):** geçici bir
+  `testWidgets` + `RepaintBoundary.toImage` ile simgeler PNG'ye basılıp GÖZLE
+  bakıldı (44/88/24 px, açık+koyu+kontur). İlk turda sekme çok küçüktü ve kağıt
+  ucu görünmüyordu; ölçüler ona göre düzeltildi. **Tuzak:** `flutter_test`te
+  yazı Ahem ile çiziliyor (şerit yazısı beyaz kutu görünür) — Material ikon
+  fontu `FontLoader` ile yüklenmeli, `flutter/services.dart` import'u şart.
+
+### B) "Ağdan erişim" — ekrandan servise taşındı
+- **Kök neden (arka planda çalışmıyordu):** sunucu `FtpServerScreen`in
+  `State`'inde yaşıyordu ve `dispose` onu durduruyordu. 2026-07-24'te bu
+  "bilinçli sınır" diye yazılmıştı (*kullanıcı telefonunu ağa açtığını
+  unutmasın*) ve KALANLAR'a öyle girmişti. **Karar geri alındı:** PC'den 3 GB
+  kopyalarken telefonda başka bir ekrana geçmek aktarımı kesiyordu; sınır
+  özelliği kullanılamaz yapıyordu.
+- **Unutma korkusunun yeni karşılığı KAPATMAK değil GÖRÜNÜRLÜK:** kalıcı
+  (kaydırarak silinemeyen) sistem bildirimi — adres + kullanıcı + parola
+  üstünde yazılı, dokununca ekrana götürüyor; panonun en üstünde canlı şerit
+  ("Ağdan erişim açık" + adres + Kapat); araç ızgarasındaki kutunun alt yazısı.
+  Servis `stopWithTask="true"`: uygulamayı son kullanılanlardan kapatmak
+  paylaşımı da kapatır.
+- **Yeni: `services/fm/notification_hub.dart` — ön plan servisinin SAHİPLERİ
+  sayılıyor.** Eklentinin `stopForegroundService()`i tek servisi durduruyor;
+  iş kuyruğu (2026-07-30'dan beri) ve ağ paylaşımı ikisi de ona muhtaç. Biri
+  ötekinden habersiz `stop` çağırsaydı, paylaşımı kapatmak süren bir video
+  küçültmenin arka plan korumasını sessizce düşürürdü. Servis ilk sahiple
+  başlar, SON sahip bırakınca durur. **Sahiplik devri durdur-başlat ile:**
+  ön plan bildirimi servis ön plandayken `cancel` ile silinemiyor.
+  (`JobNotifications` artık kendi eklenti nesnesini tutmuyor, hub'ın sahibi.)
+- **Ekran sadeleşti:** eskiden kullanıcı adı + parola YAZMAK ve yazma iznine
+  karar vermek gerekiyordu. Şimdi kapalıyken üç onay kutusu (rastgele şifre /
+  gizli dosyalar / yazma izni) ve tek BAŞLAT; açıkken adres, kullanıcı, parola
+  ve HİZMETİ DURDUR. Elle kimlik isteyen için *Gelişmiş* katlanır bölüm —
+  seçenek kaldırılmadı, yoldan çekildi.
+- **Yazma izni varsayılanı KAPALI → AÇIK.** Gerekçe değişti: özellik artık
+  "PC'den bakayım" değil "telefon ile PC arasında taşıyayım"; salt-okunur
+  paylaşımda PC'den telefona dosya atmak imkânsız. Ne demek olduğu kutunun
+  altında bir satırla yazılı.
+- **Erişim:** panodaki araç ızgarasında kendi kutusu ("Ağdan erişim"). Eskiden
+  Ağ depolama ekranının SAĞ ÜST köşesindeki simgenin arkasındaydı — panodan üç
+  dokunuş ve hiçbir yerde adı geçmiyordu. Ad da değişti: kullanıcı aradığı şeyi
+  "FTP" diye aramıyor.
+- **Sunucu tarafı düzeltmeleri** (`ftp_server.dart`):
+  - `REST` (kaldığı yerden devam) — duyurulmadığı için kesilen bir indirme
+    baştan başlıyordu. İşaretçi HER aktarımda tüketiliyor: sızarsa ikinci
+    dosya eksik iner ve kimse fark etmez (test edildi).
+  - Yüklemede `REST` yalnız dosyanın SONUNDAN kabul ediliyor (`554` aksi
+    hâlde) + `APPE`. Ortadan yazmak `RandomAccessFile` ister; yarım destek
+    dosyayı sessizce bozardı.
+  - `ABOR` bekleyen pasif dinleyiciyi bırakıyor (yoksa 20 sn askıda kalıyordu).
+  - Gizli dosyalar (`.` ile başlayan) varsayılan olarak LİSTELENMİYOR;
+    ekrandaki kutu açıyor.
+  - `randomPassword()` — altı hane, her açılışta yeni.
+- **TUZAK (test):** `lines` yayın (broadcast) akışında, veri aktarımı testinde
+  dinleme komuttan ÖNCE kurulmalı; sonra abone olunca sunucunun `150` yanıtı
+  kaçıyor ve test 30 sn askıda kalıyor.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı), `flutter analyze` lib+test 0 sorun,
+tüm test paketi yeşil (yeni: `fm_glyph_test`, `network_share_test`,
+`ftp_server_test`e 8 yeni durum).
