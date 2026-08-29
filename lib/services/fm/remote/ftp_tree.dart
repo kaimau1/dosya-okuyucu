@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../../../models/fs_entry.dart';
+import '../folder_lock.dart';
 import '../media_library.dart';
 
 /// FTP kökündeki bir girdinin türü.
@@ -103,11 +104,20 @@ class FtpTree {
   /// toplayıcı arama dizinine ve tüm diski taramaya bağlı).
   final Future<List<FsEntry>> Function(FmCategory category)? collect;
 
+  /// **Taze dosya taraması** — sıcak klasörlerde son eklenenler.
+  ///
+  /// Üretimde [FtpServer] gerçek tarayıcıyı ([FsScan.freshFiles]) veriyor.
+  /// Verilmezse taze katman KAPALI kalır (eski davranış) — `collect`in
+  /// aksine burada varsayılan olarak diske inmiyoruz: bu sınıf testlerde
+  /// gerçek dosya sistemi olmadan da kurulabilmeli.
+  final Future<List<FsEntry>> Function()? freshScan;
+
   FtpTree({
     required this.realRoot,
     this.lockedFolders = const [],
     this.showHidden = false,
     this.collect,
+    this.freshScan,
   });
 
   // ── Kutu adları neden AKSANSIZ ────────────────────────────────────────────
@@ -140,9 +150,28 @@ class FtpTree {
   };
 
   /// Gerçek klasöre giden kutular: klasör adı adayları (cihaza göre değişir).
+  ///
+  /// **Ekran görüntüleri kendi kutusunda** (kullanıcı isteği 2026-08-29:
+  /// *"ayrı bir ekran görüntüleri klasörü de olsun, orada"*). Klasörün yeri
+  /// ROM'a göre değişiyor: AOSP `Pictures/Screenshots`, MIUI/One UI
+  /// `DCIM/Screenshots`, bazı ROM'larda kökte `Screenshots`. İlk BULUNAN
+  /// alınıyor; hiçbiri yoksa kutu listelenmiyor (açılmayan klasör göstermek
+  /// kullanıcıyı yanıltır).
+  ///
+  /// Bu kutular **gerçek klasör** olduğu için her listelemede diskten
+  /// okunuyorlar: bir saniye önce alınmış ekran görüntüsü anında görünür —
+  /// sanal kutuların (Resimler, Belgeler…) tersine, orada arama dizini
+  /// devrede (bkz. [_collect]).
   static const _realFolders = <String, List<String>>{
     'Indirilenler': ['Download', 'Downloads', 'İndirilenler'],
     'Kamera': ['DCIM'],
+    'Ekran Goruntuleri': [
+      'Pictures/Screenshots',
+      'DCIM/Screenshots',
+      'Screenshots',
+      'Pictures/Screenshot',
+      'DCIM/Screenshot',
+    ],
   };
 
   /// Kökte gösterilecek kutular. Gerçek klasörü olmayan (cihazda bulunmayan)
@@ -163,7 +192,9 @@ class FtpTree {
 
   String? _firstExisting(List<String> candidates) {
     for (final name in candidates) {
-      final path = p.normalize(p.join(realRoot, name));
+      // `joinAll(split('/'))`: aday iç içe olabiliyor ("Pictures/Screenshots")
+      // ve düz `join` ayracı platforma göre çevirmez.
+      final path = p.normalize(p.join(realRoot, p.joinAll(name.split('/'))));
       if (Directory(path).existsSync()) return path;
     }
     return null;
@@ -226,6 +257,14 @@ class FtpTree {
   /// taramak 4 bin fotoğraflık bir kutuyu kullanılamaz yapardı.
   static const cacheTtl = Duration(seconds: 30);
 
+  /// **Taze taramanın** kendi (çok daha kısa) aralığı.
+  ///
+  /// Ayrı olması bilinçli: pahalı olan iş arama dizinini okuyup binlerce
+  /// girdiyi ayıklamak; sıcak klasörleri taramak (DCIM, Pictures, Download…)
+  /// bunun yanında ucuz. İkisi aynı TTL'de olsaydı yeni bir ekran görüntüsü
+  /// yarım dakika görünmezdi.
+  static const freshTtl = Duration(seconds: 5);
+
   /// Kutunun içeriği: `dosya adı → girdi`.
   Future<Map<String, FsEntry>> categoryEntries(String folder) {
     final at = _cachedAt[folder];
@@ -233,7 +272,8 @@ class FtpTree {
     if (cached != null &&
         at != null &&
         DateTime.now().difference(at) < cacheTtl) {
-      return Future.value(cached);
+      // Dizin anlık taze olmasa da YENİ dosyalar her seferinde katılıyor.
+      return _withFresh(folder, cached);
     }
     // Aynı anda gelen ikinci istek aynı taramayı beklesin: PC bir klasörü
     // açarken paralel komut gönderebiliyor.
@@ -254,7 +294,97 @@ class FtpTree {
     }
     _cache[folder] = map;
     _cachedAt[folder] = DateTime.now();
-    return map;
+    return _withFresh(folder, map);
+  }
+
+  // ── taze dosyalar ─────────────────────────────────────────────────────────
+  //
+  // **KULLANICI HATASI 2026-08-29:** *"ağ paylaşımına dosyalar anlık düşmüyor,
+  // yeni bir ekran görüntüsü aldım ama bulamadım."*
+  //
+  // Kök neden: sanal kutular arama dizininden doluyor
+  // (`MediaLibrary.categoryFiles` → `SearchIndex`). Dizin ise yalnız
+  // UYGULAMANIN KENDİ işlemlerinde ([FsEvents]) bayat işaretleniyor; ekran
+  // görüntüsünü alan sistemdir, uygulama değil. Yani dizin bayat bile
+  // sayılmıyordu ve yeni dosya kutuda HİÇ görünmüyordu — 30 saniye değil,
+  // bir sonraki tam taramaya kadar.
+  //
+  // Çözüm panonun 2026-08-17'de aldığı kararın aynısı (bkz.
+  // `StorageIndex.withFresh`): sıcak klasörler ayrıca ve ucuza taranıp
+  // sonuç listeye katılıyor.
+
+  List<FsEntry>? _fresh;
+  DateTime? _freshAt;
+  Future<List<FsEntry>>? _freshInFlight;
+
+  Future<List<FsEntry>> _recentFiles() {
+    if (freshScan == null) return Future.value(const []);
+    final at = _freshAt;
+    final cached = _fresh;
+    if (cached != null &&
+        at != null &&
+        DateTime.now().difference(at) < freshTtl) {
+      return Future.value(cached);
+    }
+    return _freshInFlight ??= _scanFresh().whenComplete(() {
+      _freshInFlight = null;
+    });
+  }
+
+  Future<List<FsEntry>> _scanFresh() async {
+    final files = await freshScan!.call();
+    _fresh = files;
+    _freshAt = DateTime.now();
+    return files;
+  }
+
+  Future<Map<String, FsEntry>> _withFresh(
+      String folder, Map<String, FsEntry> indexed) async {
+    final category = categoryFolders[folder];
+    if (category == null) return indexed;
+    return mergeFresh(
+      indexed,
+      await _recentFiles(),
+      category: category,
+      showHidden: showHidden,
+      lockedFolders: lockedFolders,
+    );
+  }
+
+  /// Dizinden gelen listeye **taze dosyaları** katar. Saf fonksiyon:
+  /// kategori süzgeci, kilitli klasör kuralı ve ad çakışması diske
+  /// dokunmadan doğrulanabilsin diye.
+  ///
+  /// Aynı dosya iki kez GÖRÜNMEZ: ölçüt yol (ad değil — iki farklı klasörde
+  /// aynı adlı iki dosya kutuda ikisi de yer alır, ikincisi `(2)` ile).
+  static Map<String, FsEntry> mergeFresh(
+    Map<String, FsEntry> indexed,
+    List<FsEntry> fresh, {
+    required FmCategory category,
+    required bool showHidden,
+    List<String> lockedFolders = const [],
+  }) {
+    final known = {for (final e in indexed.values) e.path};
+    final extras = FolderLock.filterOut(
+      [
+        for (final e in fresh)
+          if (!e.isDir &&
+              e.category == category &&
+              !known.contains(e.path) &&
+              (showHidden || !p.basename(e.path).startsWith('.')))
+            e,
+      ],
+      lockedFolders,
+      (e) => e.path,
+    );
+    if (extras.isEmpty) return indexed;
+    // Yeni harita: önbellekteki harita DEĞİŞTİRİLMEZ, yoksa taze girdiler
+    // önbelleğe yapışır ve dosya silinse bile listede kalırdı.
+    final merged = <String, FsEntry>{...indexed};
+    for (final entry in extras) {
+      merged[uniqueName(merged.containsKey, entry.name)] = entry;
+    }
+    return merged;
   }
 
   /// Çakışan adı benzersizleştirir: `fatura.pdf` → `fatura (2).pdf`.
@@ -276,5 +406,7 @@ class FtpTree {
   void invalidate() {
     _cache.clear();
     _cachedAt.clear();
+    _fresh = null;
+    _freshAt = null;
   }
 }

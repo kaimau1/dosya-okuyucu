@@ -6,6 +6,8 @@ import 'dart:math';
 import 'package:path/path.dart' as p;
 
 import '../../../models/fs_entry.dart';
+import '../fs_scan.dart';
+import '../storage_stats.dart';
 import 'ftp_tree.dart';
 
 /// Telefonu **FTP sunucusuna** çevirir: PC'den tarayıcı ya da herhangi bir FTP
@@ -55,7 +57,18 @@ class FtpServer {
     lockedFolders: lockedFolders,
     showHidden: showHidden,
     collect: collectCategory,
+    // **Taze dosya katmanı** (kullanıcı hatası 2026-08-29: *"yeni aldığım
+    // ekran görüntüsünü paylaşımda bulamadım"*). Sanal kutular arama
+    // dizininden doluyor ve dizin sistemin yazdığı dosyalardan haberdar
+    // değil; sıcak klasörler ayrıca taranıp listeye katılıyor — panonun
+    // 2026-08-17'de aldığı kararın aynısı.
+    freshScan: freshFiles ??
+        () => FsScan.freshFiles(StorageStats.hotFolders(rootDirectory),
+            limit: 400),
   );
+
+  /// Taze dosya tarayıcısı (testlerde değiştirilebilir).
+  final Future<List<FsEntry>> Function()? freshFiles;
 
   /// Kutu içeriğini toplayan işlev (testlerde değiştirilebilir; null ise
   /// gerçek kitaplık kullanılır — bkz. [FtpTree.collect]).
@@ -73,6 +86,7 @@ class FtpServer {
     this.showHidden = false,
     this.lockedFolders = const [],
     this.collectCategory,
+    this.freshFiles,
   });
 
   ServerSocket? _server;

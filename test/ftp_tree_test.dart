@@ -24,13 +24,17 @@ void main() {
 
   FtpTree tree({
     List<FsEntry> images = const [],
+    List<FsEntry> fresh = const [],
+    List<String> lockedFolders = const [],
     bool showHidden = false,
   }) =>
       FtpTree(
         realRoot: root.path,
         showHidden: showHidden,
+        lockedFolders: lockedFolders,
         collect: (category) async =>
             category == FmCategory.image ? images : const [],
+        freshScan: () async => fresh,
       );
 
   setUp(() {
@@ -48,6 +52,31 @@ void main() {
       expect(names.first, FtpTree.storageFolder);
       expect(names, containsAll(['Indirilenler', 'Kamera', 'Belgeler',
           'Resimler', 'Videolar', 'Ses', 'Arsivler', 'Uygulamalar']));
+    });
+
+    test('EKRAN GÖRÜNTÜLERİ kendi kutusunda (kullanıcı isteği 2026-08-29)',
+        () {
+      // Klasör yokken kutu da yok.
+      expect(tree().rootItems().map((i) => i.name),
+          isNot(contains('Ekran Goruntuleri')));
+
+      Directory('${root.path}/Pictures/Screenshots')
+          .createSync(recursive: true);
+      final item = tree()
+          .rootItems()
+          .firstWhere((i) => i.name == 'Ekran Goruntuleri');
+      // GERÇEK klasör: her listelemede diskten okunur, yani bir saniye önce
+      // alınan ekran görüntüsü anında görünür (sanal kutuların tersine).
+      expect(item.realPath, '${root.path}/Pictures/Screenshots');
+      expect(item.category, isNull);
+    });
+
+    test('ekran görüntüsü klasörü ROM\'a göre DCIM altında da olabilir', () {
+      Directory('${root.path}/DCIM/Screenshots').createSync(recursive: true);
+      final item = tree()
+          .rootItems()
+          .firstWhere((i) => i.name == 'Ekran Goruntuleri');
+      expect(item.realPath, '${root.path}/DCIM/Screenshots');
     });
 
     test('cihazda OLMAYAN klasör kutusu listelenmez', () {
@@ -153,6 +182,83 @@ void main() {
               .keys
               .length,
           2);
+    });
+
+    group('taze dosyalar (kullanıcı hatası 2026-08-29)', () {
+      // *"Ağ paylaşımına dosyalar anlık düşmüyor, yeni bir ekran görüntüsü
+      // aldım ama bulamadım."* Kök neden: sanal kutular arama dizininden
+      // doluyor, dizin ise yalnız UYGULAMANIN kendi işlemlerinde bayat
+      // işaretleniyor — ekran görüntüsünü alan sistem. Yeni dosya kutuda
+      // 30 saniye değil, bir sonraki TAM TARAMAYA kadar görünmüyordu.
+
+      test('dizinde olmayan YENİ dosya kutuya katılır', () async {
+        final t = tree(
+          images: [file('${root.path}/DCIM/eski.jpg')],
+          fresh: [file('${root.path}/Pictures/Screenshots/yeni.png')],
+        );
+        final files = await t.categoryEntries('Resimler');
+        expect(files.keys, containsAll(['eski.jpg', 'yeni.png']));
+        // Çözümleme de çalışmalı: PC dosyayı listede görüp indirebilmeli.
+        final node = await t.resolve('/Resimler/yeni.png');
+        expect(node.kind, FtpNodeKind.categoryFile);
+        expect(node.realPath, '${root.path}/Pictures/Screenshots/yeni.png');
+      });
+
+      test('başka kategorinin taze dosyası bu kutuya girmez', () async {
+        final t = tree(
+          images: const [],
+          fresh: [file('${root.path}/Download/rapor.pdf')],
+        );
+        expect((await t.categoryEntries('Resimler')).keys, isEmpty);
+      });
+
+      test('dizinde ZATEN olan dosya iki kez görünmez', () async {
+        final same = '${root.path}/DCIM/a.jpg';
+        final t = tree(images: [file(same)], fresh: [file(same)]);
+        expect((await t.categoryEntries('Resimler')).length, 1);
+      });
+
+      test('kilitli klasördeki taze dosya kutuya SIZMAZ', () async {
+        // Kilit, dizinden gelen listede uygulanıyor; taze katman onu
+        // atlatan bir arka kapı olmamalı.
+        final t = tree(
+          images: const [],
+          fresh: [file('${root.path}/Ozel/gizli.jpg')],
+          lockedFolders: ['${root.path}/Ozel'],
+        );
+        expect((await t.categoryEntries('Resimler')).keys, isEmpty);
+      });
+
+      test('gizli taze dosya varsayılan olarak katılmaz', () async {
+        final t = tree(
+          images: const [],
+          fresh: [file('${root.path}/DCIM/.gizli.jpg')],
+        );
+        expect((await t.categoryEntries('Resimler')).keys, isEmpty);
+      });
+
+      test('taze dosya ÖNBELLEĞE yapışmaz', () async {
+        // Taze liste her çağrıda yeniden karılıyor; önbellekteki haritaya
+        // yazılsaydı dosya silindikten sonra da listede kalırdı.
+        var fresh = [file('${root.path}/DCIM/gecici.jpg')];
+        final t = FtpTree(
+          realRoot: root.path,
+          collect: (c) async => const [],
+          freshScan: () async => fresh,
+        );
+        expect((await t.categoryEntries('Resimler')).keys, ['gecici.jpg']);
+        fresh = const [];
+        t.invalidate();
+        expect((await t.categoryEntries('Resimler')).keys, isEmpty);
+      });
+
+      test('taze tarayıcı VERİLMEZSE eski davranış sürer', () async {
+        final t = FtpTree(
+          realRoot: root.path,
+          collect: (c) async => [file('${root.path}/DCIM/a.jpg')],
+        );
+        expect((await t.categoryEntries('Resimler')).keys, ['a.jpg']);
+      });
     });
 
     test('içerik önbellekten gelir, her komutta yeniden taranmaz', () async {

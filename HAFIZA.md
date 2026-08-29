@@ -9290,3 +9290,43 @@ kopyalayıp bilgisayarıma atabiliyorum ve o zaman açılıyor"*.
 
 **Doğrulama:** Flutter 3.29.3, `analyze` 0 sorun, **1894 test yeşil** (yeni:
 `fm_apk_export_test`, `http_share_server_test`).
+
+## 2026-08-29 (Ç) — Ağ paylaşımında yeni dosyalar görünmüyordu + Ekran görüntüleri kutusu
+Kullanıcı: *"ağ paylaşımına sanki dosyalar anlık düşmüyor, mesela yeni bir ekran
+görüntüsü aldım ama bulamadım; ayrı bir ekran görüntüleri klasörü de olsun
+orada."*
+
+### KÖK NEDEN — dizin "bayat" bile sayılmıyordu
+Sanal kutular (Resimler, Belgeler, Videolar…) `MediaLibrary.categoryFiles` →
+`SearchIndex` üzerinden doluyor. `SearchIndex` ise yalnız **uygulamanın kendi
+işlemlerinde** (`FsEvents`: kopyala/taşı/sil) bayat işaretleniyor. Ekran
+görüntüsünü alan SİSTEM, uygulama değil — yani `FsEvents` hiç tetiklenmiyor,
+dizin taze sanılıyor ve yeni dosya kutuda **30 saniye değil, bir sonraki tam
+taramaya kadar** görünmüyordu. `FtpTree.cacheTtl` (30 sn) suçlu sanılıp
+düşürülseydi hiçbir şey değişmezdi; sorun önbellekte değil KAYNAKTAYDI.
+
+### Çözüm — panonun 2026-08-17'de aldığı kararın aynısı
+`FtpTree` artık dizinden gelen listeye **sıcak klasör taramasını** katıyor
+(`StorageStats.hotFolders` + `FsScan.freshFiles`, `StorageIndex.withFresh` ile
+aynı desen).
+- **İki ayrı TTL:** dizin okuması 30 sn (pahalı: binlerce girdi), taze tarama
+  5 sn (ucuz: DCIM/Pictures/Download…). Tek TTL'de yeni dosya yine yarım dakika
+  beklerdi.
+- `mergeFresh` **saf fonksiyon**: kategori süzgeci, kilitli klasör kuralı,
+  gizli dosya kuralı ve ad çakışması diske dokunmadan test ediliyor. Kilitli
+  klasör önemli: taze katman kilidi atlatan bir arka kapı OLMAMALI.
+- Taze girdiler önbellek haritasına **yazılmıyor** (kopya harita): yazılsaydı
+  silinen dosya listede kalırdı.
+- Tarayıcı dışarıdan veriliyor (`freshScan`); verilmezse katman kapalı —
+  `FtpTree` gerçek dosya sistemi olmadan da kurulabilsin diye. Üretimde
+  `FtpServer` gerçek tarayıcıyı bağlıyor.
+
+### Ekran Goruntuleri kutusu
+Kökte yeni bir **gerçek klasör** kutusu. Yeri ROM'a göre değişiyor: AOSP
+`Pictures/Screenshots`, MIUI/One UI `DCIM/Screenshots`, bazılarında kökte
+`Screenshots` — ilk bulunan alınıyor, hiçbiri yoksa kutu listelenmiyor.
+Gerçek klasör olduğu için **her listelemede diskten** okunuyor: bir saniye önce
+alınan ekran görüntüsü anında görünüyor (dizin devrede değil). Ad yine ASCII
+(bkz. FTP kod sayfası tuzağı).
+
+**Doğrulama:** analyze 0 sorun, **1903 test yeşil**.
