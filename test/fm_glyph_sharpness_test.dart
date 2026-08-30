@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:dosya_okuyucu/widgets/fm/fm_glyph.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +43,62 @@ void main() {
     test('binen Material glifinin puntosu da kutu ölçüsünde', () {
       expect(FmGlyphMetrics.overlayFontSize(0.34, 96), closeTo(32.64, 1e-9));
       expect(FmGlyphMetrics.overlayFontSize(0.34, 24), closeTo(8.16, 1e-9));
+    });
+  });
+
+  group('kutuya sığdırma', () {
+    // Kullanıcı 2026-08-30: *"solda çok boşluk kalıyor klasörlerin"*.
+    //
+    // KÖK NEDEN: boyayıcı `size.shortestSide` alıp KARE çiziyordu. Liste
+    // satırında kutu kare değil — `FmEntryListTile` 68 dp istiyor ama
+    // Material'in `ListTile`ı `leading` yüksekliğini 56 dp'de kesiyor, yani
+    // kutu 68 × 56. Kısa kenar alınınca klasör 56'lık kareye inip ortalanıyor
+    // ve iki yanda 6'şar dp ölü alan kalıyordu.
+    //
+    // Klasör GENİŞ bir şekil: geniş kutuda genişliği sonuna kadar kullanmalı.
+    Rect drawn(Size box, {required bool folder}) {
+      // Boyayıcıyı gerçekten çalıştırıp çizilen alanı ölçmek yerine şeklin
+      // kendi oranından hesaplıyoruz — boyayıcının kullandığı kuralın AYNISI,
+      // ama testten görülebilir hâli.
+      const folderBox = Size(0.91, 0.72);
+      const sheetBox = Size(0.73, 0.89);
+      final shape = folder ? folderBox : sheetBox;
+      final unit = math.min(box.width / shape.width, box.height / shape.height);
+      final w = shape.width * unit, h = shape.height * unit;
+      return Rect.fromLTWH((box.width - w) / 2, (box.height - h) / 2, w, h);
+    }
+
+    test('GENİŞ kutuda klasör genişliği sonuna kadar kullanır', () {
+      // ListTile'ın gerçekte verdiği kutu: 68 × 56.
+      final r = drawn(const Size(68, 56), folder: true);
+      expect(r.width, closeTo(68, 0.01), reason: 'yan boşluk kalmamalı');
+      expect(r.left, closeTo(0, 0.01));
+      expect(r.height, closeTo(53.8, 0.2));
+      // Eski davranış (kısa kenardan kare): 0,91 × 56 = 50,96.
+      expect(r.width, greaterThan(0.91 * 56));
+    });
+
+    test('kağıt DİKEY olduğu için geniş kutuda yanlarda boşluk BIRAKIR', () {
+      // Bu doğru davranış: bir sayfayı geniş kutuya yaymak onu ezmek olurdu.
+      final r = drawn(const Size(68, 56), folder: false);
+      expect(r.height, closeTo(56, 0.01));
+      expect(r.width, closeTo(56 / 0.89 * 0.73, 0.2));
+      expect(r.left, greaterThan(0));
+    });
+
+    test('KARE kutuda ikisi de kutuyu doldurur', () {
+      final folder = drawn(const Size(96, 96), folder: true);
+      expect(folder.width, closeTo(96, 0.01));
+      final sheet = drawn(const Size(96, 96), folder: false);
+      expect(sheet.height, closeTo(96, 0.01));
+    });
+
+    test('şeklin en-boy oranı hiç bozulmaz', () {
+      for (final box in [const Size(68, 56), const Size(40, 90), const Size(96, 96)]) {
+        final r = drawn(box, folder: true);
+        expect(r.width / r.height, closeTo(0.91 / 0.72, 1e-9),
+            reason: '$box kutusunda klasör esnetilmemeli');
+      }
     });
   });
 

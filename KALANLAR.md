@@ -19,6 +19,16 @@
 >    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
 >    (split-per-abi/AAB). Her biri kendi başına bir tur.
 
+- [ ] **Liste simgesi 68 dp'ye YÜKSELEMİYOR — `ListTile` tavanı** (2026-08-30).
+      `FmEntryListTile` 68 dp istiyor; Material'in `ListTile`'ı `leading`
+      yuvasını `maxHeight: 56` ile kesiyor (yoğun satırda 48). Şekil artık
+      kutuya kendi oranıyla sığıyor (klasör genişliği 51 → 68 dp, yan boşluk
+      sıfır) ama YÜKSEKLİK hâlâ 56'da duruyor. Aşmak için `leading` yuvası
+      bırakılıp satır kendi `Row`'umuzla kurulmalı (seçili zemin, şekil, ink,
+      başlık/alt satır stilleri ve trailing elle taşınacak) — gözatıcı,
+      kategori, arama ve "son açılanlar" listelerinin hepsini etkiliyor,
+      o yüzden ayrı tur.
+
 - [ ] **Sayfanın SON paragrafında taşma denetimi yok** (2026-08-30 bulgusu,
       yerinde çeviri turunda çıktı). `findParagraphs`, paragrafın altında
       başka satır yoksa `roomBelow`u `double.infinity` veriyor: sayfanın son

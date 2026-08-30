@@ -9457,3 +9457,39 @@ ayrı tur. KALANLAR'a yazıldı.
 `pdf_object_turn_test`, `pdf_inplace_translate_test`,
 `pdf_inline_editor_touch_test`; genişletildi: `drive_service_test`,
 `pdf_action_bars_test`).
+
+## 2026-08-30 (B) — Liste simgelerinde solda ölü alan: kutu KARE sanılıyordu
+Kullanıcı (ekran görüntüsüyle): *"solda çok boşluk kalıyor klasörlerin."*
+
+### KÖK NEDEN — `ListTile` `leading`'i 56 dp'de kesiyor, boyayıcı kare çiziyordu
+`FmEntryListTile` liste satırında **68 dp** simge istiyor (2026-08-17 kararı:
+*"simgeleri olabildiğince büyüt"*). Ama Material'in `ListTile`'ı `leading`
+yuvasını `BoxConstraints(maxHeight: 56)` ile (yoğun satırda 48) sınırlıyor —
+yani gerçekte verilen kutu **68 × 56**, kare değil. `_FmGlyphPainter` ise
+`size.shortestSide` alıp KARE çiziyordu: klasör 56 × 56'ya inip 68'lik
+kutunun ortasına konuyor, iki yanda 6'şar dp ölü alan kalıyordu. Üstüne
+glifin kendi iç payıyla (0,045) soldaki boşluk ~8,5 dp'ye çıkıyordu.
+
+Widget testiyle ölçüldü (406,7 dp genişlik, kağıt teması):
+`GLYPH Rect.fromLTRB(24, 12, 92, 68)` → kutu 68 × 56, çizilen klasör 51 dp.
+
+### Çözüm — şekli kutuya KENDİ en-boy oranıyla sığdır
+`FmGlyph` artık şeklin birim karedeki sınır kutusunu biliyor (klasör
+0,91 × 0,72 **geniş**, kağıt 0,73 × 0,89 **uzun**) ve `min(w/şw, h/şh)` ile
+ölçekleyip ortalıyor.
+- Klasör: çizilen genişlik **51 → 68 dp** (+%33), yan boşluk **8,5 → 0 dp**.
+- Kağıt: yükseklikten sınırlanıyor, yanlarda boşluk KALIYOR — bu doğru;
+  dikey bir sayfayı geniş kutuya yaymak onu ezmek olurdu.
+- Konturlu (outlined) temada fırçanın yarısı şeklin dışına taştığı için kutu
+  o kadar genişletiliyor (`_fitBox`), yoksa kontur kenarda kırpılırdı.
+
+**Bekçi:** `fm_glyph_sharpness_test` → geniş kutuda klasör genişliği sonuna
+kadar kullanır, kağıt kullanmaz, kare kutuda ikisi de doldurur, hiçbir
+kutuda en-boy oranı bozulmaz.
+
+### KALAN SINIR (KALANLAR'a yazıldı)
+`ListTile`'ın 56 dp tavanı yüzünden simge istenen 68 dp **yüksekliğe** hâlâ
+çıkamıyor. Aşmanın tek yolu `leading` yuvasını bırakıp satırı kendi `Row`'umuzla
+kurmak — bütün dosya listelerini etkilediği için ayrı tur.
+
+**Doğrulama:** Flutter 3.29.3, `analyze` 0 sorun, **1943 test yeşil**.

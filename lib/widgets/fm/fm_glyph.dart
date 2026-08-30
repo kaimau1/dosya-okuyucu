@@ -35,6 +35,8 @@
 /// (bkz. `SkinContext.fmOutlinedIcons`): aynı biçim, daha sakin ağırlık.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Bir dosya/klasör simgesinin çizim reçetesi. Widget'lar bunu [FmGlyph]'e
@@ -132,20 +134,59 @@ class _FmGlyphPainter extends CustomPainter {
 
   const _FmGlyphPainter(this.spec);
 
+  /// Klasör çiziminin birim karedeki sınır kutusu (sekmenin tepesinden
+  /// gövdenin altına) — **geniş**: 0,91 × 0,72.
+  static const _folderBox = Rect.fromLTRB(_l, _tabTop, _r, _bottom);
+
+  /// Kağıt çiziminin sınır kutusu — **uzun**: 0,73 × 0,89.
+  static const _sheetBox = Rect.fromLTRB(_pl, _pt, _pr, _pb);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final side = size.shortestSide;
-    if (side <= 0) return;
+    if (size.width <= 0 || size.height <= 0) return;
+
+    // **Şekil kutuya KENDİ en-boy oranıyla sığdırılır** (kullanıcı 2026-08-30:
+    // *"solda çok boşluk kalıyor klasörlerin"*).
+    //
+    // KÖK NEDEN: burada `size.shortestSide` alınıp KARE çiziliyordu. Liste
+    // satırında kutu kare DEĞİL: `FmEntryListTile` 68 dp istiyor ama
+    // Material'in `ListTile`ı `leading` yuvasının yüksekliğini 56 dp'de
+    // (yoğun satırda 48) kesiyor — yani kutu 68 × 56. Kısa kenar alınınca
+    // çizim 56 × 56'lık bir kareye iniyor ve 68'lik kutunun ORTASINA
+    // konuyordu: solda ve sağda 6'şar dp ölü alan, üstelik klasör istenen
+    // boydan %18 küçük.
+    //
+    // Klasör doğası gereği GENİŞ bir şekil (0,91 × 0,72), kağıt ise UZUN
+    // (0,73 × 0,89). Kutuya kendi oranıyla sığdırılınca klasör 68 dp'lik
+    // genişliği baştan sona kullanıyor (yan boşluk sıfır, %33 daha geniş),
+    // kağıt ise yüksekliği kullanıyor ve yanlarda boşluk KALIYOR — bu doğru,
+    // çünkü bir sayfa dikeydir; geniş kutuyu doldurmak onu ezmek olurdu.
+    final box = _fitBox;
+    final unit = math.min(size.width / box.width, size.height / box.height);
+    if (unit <= 0) return;
     canvas.save();
-    // Kare olmayan kutuda ortala (ızgara hücresi kareye yakın ama tam değil).
-    canvas.translate((size.width - side) / 2, (size.height - side) / 2);
-    canvas.scale(side);
+    // Şeklin sınır kutusu kutunun ortasına oturur.
+    canvas.translate(
+      (size.width - box.width * unit) / 2 - box.left * unit,
+      (size.height - box.height * unit) / 2 - box.top * unit,
+    );
+    canvas.scale(unit);
     if (spec.folder) {
-      _paintFolder(canvas, side);
+      _paintFolder(canvas, unit);
     } else {
-      _paintSheet(canvas, side);
+      _paintSheet(canvas, unit);
     }
     canvas.restore();
+  }
+
+  /// Sığdırılacak kutu — konturlu çizimde fırçanın yarısı şeklin DIŞINA
+  /// taştığı için kutu o kadar genişletilir, yoksa kontur kenarda kırpılırdı.
+  Rect get _fitBox {
+    final base = spec.folder ? _folderBox : _sheetBox;
+    final bleed = spec.outlined
+        ? 0.031 // kontur fırçası 0,062
+        : (spec.folder ? 0.0 : 0.014); // kağıdın ince kenarlığı 0,028
+    return bleed == 0 ? base : base.inflate(bleed);
   }
 
   // ── klasör ────────────────────────────────────────────────────────────────
