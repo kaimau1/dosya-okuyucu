@@ -178,7 +178,11 @@ class PdfInlineEditor extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (pad > 0 || hpad > 0)
+          // Pay yalnız KÜÇÜK (tek satırlık) kutuda gerekiyor: çok satırlı
+          // bir paragraf kutusu zaten parmakla rahat isabet edilecek
+          // yükseklikte ve orada yan dokunuşu tek satırlık ölçümle
+          // eşlemek imleci yanlış satıra koyardı.
+          if (pad > 0)
             Positioned(
               left: box.left - hpad,
               top: box.top - pad,
