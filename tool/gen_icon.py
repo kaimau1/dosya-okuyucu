@@ -1,252 +1,384 @@
 #!/usr/bin/env python3
-"""Dosya Okuyucu uygulama ikonunu üretir (harici bağımlılık yok, sadece zlib).
+"""Dosya Okuyucu uygulama ikonunu üretir.
 
-Çıktı:
-  assets/icon/icon.png        1024x1024 tam ikon (beyaz yuvarlak kart + sayfa)
-  assets/icon/foreground.png  1024x1024 şeffaf ön-plan (adaptive için)
+Çıktı (hepsi 1024×1024):
+  assets/icon/icon.png        tam ikon — degrade karo + işaret (eski Android,
+                              mağaza görseli)
+  assets/icon/background.png  adaptive ZEMİN katmanı (köşegen degrade, taşma)
+  assets/icon/foreground.png  adaptive ÖN PLAN katmanı (şeffaf, yalnız işaret)
+
+Çalıştır:  python3 tool/gen_icon.py
+Gerekli:   numpy   (yalnız bu araç için; CI bu betiği KOŞMAZ — derlemede
+           `flutter_launcher_icons` yukarıdaki hazır PNG'leri kullanır.)
 
 --------------------------------------------------------------------------
-ORTAK SİMGE DİLİ (2026-08-09) — üç uygulamada birebir aynı kurallar
+2026-08-30 — TASARIM DEĞİŞTİ, ORTAK SİMGE DİLİNDEN BİLİNÇLİ SAPMA
 --------------------------------------------------------------------------
-Dosya Okuyucu · Notlar · Ezan Vakti aynı ana ekranda yan yana duruyor. Üçü de
-şu dili konuşur:
+Önceki sürüm üç uygulamanın (Dosya Okuyucu · Notlar · Ezan Vakti) paylaştığı
+dile uyuyordu: düz beyaz zemin, tek renk DOLU silüet, ayrıntılar beyazla
+oyulmuş, gradyan ve gölge YOK.
 
-  1. ZEMİN düz **beyaz** (#FFFFFF). Gradyan yok, gölge yok, doku yok.
-     (Ezan Vakti'nin zemininden alındı — kullanıcı kararı.)
-  2. İŞARET tek renk **dolu silüet**; ayrıntılar zemin rengiyle (beyaz)
-     OYULUR, ayrı bir renk eklenmez.
-  3. BOYUT: işaretin sınır kutusunun uzun kenarı **66dp / 108dp** tuval —
-     adaptive maskenin gösterdiği 72dp'lik alanın %92'si, yani çerçeve
-     incecik kalır. (Dosya Okuyucu'nun cömert ölçüsünden alındı.)
-     Kare/dairesel işaretler keyline kuralıyla 0.95 katsayıyla küçültülür,
-     yoksa dar-uzun bir işaretten gözle daha iri görünürler.
-  4. İşaretin sınır kutusu tuvalin MERKEZİNE oturur.
-  5. Eski (API<26) tam ikon: aynı beyaz kart, köşe yarıçapı %17,6, işaret
-     tuval yüksekliğinin %82'si.
+Kullanıcı 2026-08-30'da bu kuralı kendi isteğiyle bıraktı: önce "güzel bir
+klasör simgesi, olabildiğince büyük", sonra "daha 3 boyutlu ve detaylandır",
+en sonunda elindeki bir referans görseli gösterip "direk aynısını yap" dedi.
+Sonuç: turkuaz→mavi köşegen degrade karo, lacivert arka kapak, klasörden
+çıkan eğik belge (üstünde dişli), yeşil bulut, turuncu onay işareti, öne
+devrik parlak mavi ön kapak ve üstünde beyaz ok.
 
-Bu dosyadaki sayılar 3. ve 5. maddenin Dosya Okuyucu'daki karşılığıdır;
-Notlar'da `assets/icon/src/*.svg`, Ezan Vakti'nde
-`app/src/main/res/drawable/ic_launcher_*.xml` aynı ölçüleri kullanır.
---------------------------------------------------------------------------
+Yani Dosya Okuyucu artık o üçlünün simge ailesinde DEĞİL. Bu bir kusur değil,
+kaydedilmiş bir karar; başka bir tur "neden uymuyor" diye bakmasın.
 
-Tasarım: beyaz zeminde mürekkep mavisi bir SAYFA; sol kenarında daha koyu bir
-SIRT bandı ("dosya/klasör" çağrışımı), sağında beyaz oyulmuş bir başlık satırı
-ve dört gövde satırı. Eski kağıt temalı sürümde sayfa beyaza yakındı
-(`Paper.page`); zemin beyaza dönünce görünmez kalacağı için silüet TERSİNE
-çevrildi — kütle artık mavi, satırlar beyaz. Kenarlar analitik kapsama ile
-yumuşatılır (anti-aliasing).
+KORUNAN tek kural — İŞARETİN BOYU MASKEDEN ÖLÇÜLÜR (eski 3. madde):
+Adaptive ikonun 108 dp'lik tuvalinin ortadaki 72 dp'si garanti görünür ama
+maskeler kare değil. İşaretin sığabileceği en büyük ölçek, MIUI'nin squircle
+maskesi (süperelips |x/R|^n + |y/R|^n = 1, R = 36 dp, n = 3,2 — deponun
+2026-08-09'daki 67,1 dp ölçümünü yeniden üreten sıkı model) altında SAYISAL
+olarak aranıyor: `max_fit()`. Elle "66 yazalım" yok; şekil değişirse ölçü
+kendiliğinden düzeliyor.
+
+BİLİNEN SINIR (eskiden de böyleydi, bilinçli): daire maskesinde (Pixel)
+köşeler tıraşlanıyor. Sığdırmak için işareti ~%14 küçültmek gerekirdi; hedef
+cihaz MIUI ve kullanıcı "olabildiğince büyük" dedi.
+
+İKİNCİ SINIR (kullanıcıya söylendi): 48 px ve altında (bazı başlatıcılar,
+bildirim simgesi) dişli/bulut/onay ayrıntıları okunmaz hâle geliyor. Referans
+kompozisyonun bedeli bu.
 """
+import math
+import os
 import struct
 import zlib
-import math
 
-N = 1024
+import numpy as np
 
-# --- Ortak dilin sayıları (yukarıdaki 3. ve 5. madde) ------------------------
-GORUNUR_DP = 72.0    # adaptive maskenin garanti gösterdiği alan
-TUVAL_DP = 108.0     # adaptive tuval
-ISARET_DP = 66.0     # işaretin uzun kenarı (GORUNUR_DP'nin %92'si)
-ESKI_ORAN = 0.82     # eski tam ikonda işaret / tuval yüksekliği
-KART_YARICAP = 180   # eski tam ikonun köşe yarıçapı (1024 üzerinden, %17,6)
+N = 1024                 # çıktı kenarı
+DESIGN = 1000.0          # tasarım uzayı kenarı
+TUVAL_DP = 108.0         # adaptive tuval
+GORUNUR_DP = 72.0        # maskenin garanti gösterdiği alan
+KART_YARICAP = 180       # eski tam ikonun köşe yarıçapı (1024 üzerinden)
+KART_ORAN = 0.74         # tam ikonda işaret / tuval
+# 0,86 denendi ve TAŞTI: işaretin altındaki zemin gölgesi (aşağı %3 kaydırık +
+# bulanık) işaretin sınır kutusunun DIŞINA çıkıyor, kartın alt kenarında
+# kırpılıyordu. Kutu değil gölgeli görüntü sığmalı → oran düşürüldü.
 
-# NEDEN 66 ve 69 DEĞİL: maskeler 108dp tuvalin ortadaki 72dp'sine uygulanır ama
-# hepsi KARE değil. Sayfa 69dp'de MIUI'nin squircle'ında köşelerinden kırpılıyor
-# (ölçüldü: yüzeyin %1,6'sı) ve düz bir kesik gibi görünüyordu — eski tasarımda
-# zemin tuvali baştan başa doldurduğu için bu görünmüyordu, işaret tek başına
-# kalınca görünür oldu. Sayfa oranıyla (286:352, köşe 70) squircle'a sığan en
-# büyük ölçü 67,1dp; 66 seçildi ki 1,1dp pay kalsın.
-# DAİRE maskesi (Pixel) bu ölçüde hâlâ köşeleri tıraşlar — sığması için 59,6dp'ye
-# inmek gerekirdi, yani kullanıcının "boyutu güzel" dediği simgenin %14 küçüğü.
-# Bilinçli seçim: hedef cihaz MIUI, eski simge de aynı davranıştaydı.
-#
-# ── 2026-08-17: SAYFA GENİŞLETİLDİ (uzun kenar AYNI kaldı) ───────────────────
-# Kullanıcı, telefonundaki Notlar simgesiyle karşılaştırıp *"simgemiz Notlar
-# uygulaması gibi büyük olsun, doldursun alanı"* dedi. İkisi de aynı ortak dile
-# göre çizildiği (uzun kenar 66dp) hâlde bizimki KÜÇÜK görünüyordu: çünkü
-# kısıtlanan ölçü uzun kenar, gözün büyüklük olarak okuduğu şey ise ALAN.
-# Sayfamız dar-uzundu (286:352 → 53,6 × 66 dp), Notlar'ınki kareye yakın.
-#
-# Çözüm uzun kenarı büyütmek DEĞİL (orası maskeye dayanmış durumda), sayfayı
-# GENİŞLETMEK: 286 → 320 yarı-genişlik, köşe yarıçapı 70 → 110. Yuvarlaklık
-# şart — genişleyen sayfanın köşeleri squircle'a dayanıyor, yarıçapı büyütmek
-# onları içeri çekip aynı payı geri kazandırıyor.
-#   eski 286:352 r70  → 53,6 × 66 dp = 3538 dp²
-#   yeni 320:352 r110 → 60,0 × 66 dp = 3960 dp²  (+%12 alan, +%12 genişlik)
-# Maske payı ölçüldü (süperelips |x/R|^n+|y/R|^n=1, R=36dp; n=3,2 yukarıdaki
-# 67,1dp ölçümünü yeniden üreten sıkı model, n=4 gevşek model):
-#   eski şekil  n=3,2 → en çok 67,02dp (66'da pay +1,02)
-#   yeni şekil  n=3,2 → en çok 66,73dp (66'da pay +0,73), n=4 → 69,20dp
-# Yani yeni şekil, cihazda doğrulanmış eski şekille aynı pay sınıfında kalıyor;
-# kırpılan yüzey iki modelde de %0,00 ölçüldü.
-# Satır genişlikleri sayfayla birlikte büyütüldü (sağ kenar boşluğu 124 birim
-# sabit) — yoksa geniş sayfanın sağ yarısı boş kalır, simge "yarım" görünürdü.
+# ── palet ──────────────────────────────────────────────────────────────────
+BG_TL = (0x3E, 0x9F, 0xB8)      # karo sol üst
+BG_TR = (0x86, 0xD9, 0xE8)      # karo sağ üst (en açık)
+BG_BL = (0x14, 0x5F, 0x8A)      # karo sol alt (en koyu)
+BG_BR = (0x2E, 0x93, 0xB0)      # karo sağ alt
 
+NAVY = (0x12, 0x2B, 0x5E)       # arka kapak + bütün konturlar
+NAVY_D = (0x0C, 0x1D, 0x44)
+BLUE_T = (0x3C, 0x8B, 0xF0)     # ön kapak üstü
+BLUE_B = (0x14, 0x46, 0xC8)     # ön kapak altı
+BLUE_L = (0x6F, 0xB5, 0xFF)     # ön kapak iç üst ışığı
+PAPER = (0xFA, 0xFC, 0xFF)
+GREEN = (0x35, 0xB7, 0x53)
+ORANGE = (0xF5, 0x8A, 0x24)
+WHITE = (0xFF, 0xFF, 0xFF)
 
-def _lerp(a, b, t):
-    return a + (b - a) * t
+# ── geometri (tasarım uzayı 0..1000) ───────────────────────────────────────
+BACK = (500, 644, 452, 336, 74)                  # arka kapak: cx,cy,hw,hh,r
+FRONT_TOP, FRONT_BOT = 465, 980
+FRONT_HW_TOP, FRONT_HW_BOT = 470, 392            # üstü geniş, altı dar (devrik)
+FRONT_R = 84
+STROKE = 26                                       # lacivert kontur kalınlığı
+
+DOC = (414, 292, 203, 232, 26)
+DOC_ANGLE = -11.0
+GEAR = (414, 212, 78)
+CLOUD = (650, 368)
+CHECK = (846, 392)
+ARROW_Y = 745
 
 
-def _blend(dst, src, a):
-    """src (r,g,b) rengini dst pikseline a kapsamayla karıştırır (alpha over)."""
-    dr, dg, db, da = dst
-    sr, sg, sb = src
-    out_a = a + da * (1 - a)
-    if out_a <= 0:
-        return (0.0, 0.0, 0.0, 0.0)
-    r = (sr * a + dr * da * (1 - a)) / out_a
-    g = (sg * a + dg * da * (1 - a)) / out_a
-    b = (sb * a + db * da * (1 - a)) / out_a
-    return (r, g, b, out_a)
-
-
-def _rrect_sdf(px, py, cx, cy, hw, hh, r):
+# ── SDF yardımcıları ───────────────────────────────────────────────────────
+def rrect(x, y, cx, cy, hw, hh, r):
     """Yuvarlak dikdörtgenin işaretli uzaklığı (negatif = iç)."""
-    dx = abs(px - cx) - (hw - r)
-    dy = abs(py - cy) - (hh - r)
-    ox, oy = max(dx, 0.0), max(dy, 0.0)
-    outside = math.sqrt(ox * ox + oy * oy)
-    inside = min(max(dx, dy), 0.0)
-    return outside + inside - r
+    dx = np.abs(x - cx) - (hw - r)
+    dy = np.abs(y - cy) - (hh - r)
+    return (np.hypot(np.maximum(dx, 0.0), np.maximum(dy, 0.0))
+            + np.minimum(np.maximum(dx, dy), 0.0) - r)
 
 
-def _cov(sdf):
-    """İşaretli uzaklığı 1px yumuşatmayla kapsamaya çevirir."""
-    return min(max(0.5 - sdf, 0.0), 1.0)
+def halfplane(x, y, a, b, c):
+    """a*x + b*y - c <= 0 tarafı iç."""
+    return (a * x + b * y - c) / math.hypot(a, b)
 
 
-# --- Palet -------------------------------------------------------------------
-# Zemin ortak dilden gelir (beyaz). Kütle rengi uygulamanın kendi vurgusudur
-# (`lib/core/theme.dart#Paper.accent`), sırt onun koyu tonu, satırlar zemin.
-BG = (0xFF, 0xFF, 0xFF)        # ortak zemin
-PAGE = (0x2E, 0x5A, 0xA8)      # Paper.accent — sayfa kütlesi
-SPINE = (0x1E, 0x3B, 0x70)     # sırt bandı (accent'in koyusu)
-LINE = (0xFF, 0xFF, 0xFF)      # oyulmuş satırlar = zemin
+def seg(x, y, x0, y0, x1, y1, ht, grow=0.0):
+    """İki nokta arasında yuvarlak uçlu çubuk (kapsül).
 
-# --- Sayfanın büyüklüğü ------------------------------------------------------
-# Sayfanın taban ölçüsü (ölçek 1.0'da, 1024'lük tuvalde): 640 x 704, köşe 220.
-# Köşe yarıçapı 30 → 70 → 110: küçük yarıçapta sayfanın köşeleri squircle
-# maskesini deliyordu (yukarıdaki nota bak); yuvarlatma köşeleri içeri çekiyor
-# ve aynı maskede daha geniş bir sayfaya izin veriyor.
-HW0, HH0, RAD0 = 320.0, 352.0, 110.0
-
-# Adaptive ön-plan: sayfa yüksekliği tam ISARET_DP olacak ölçek.
-#   704 * FG_SCALE = ISARET_DP / TUVAL_DP * N  →  0.9298…
-# (2026-08-09 öncesinde bu sayı elle 0.93'e yuvarlanmıştı; artık türetiliyor,
-#  ortak dilin 69dp'si değişirse tek yerden değişsin.)
-FG_SCALE = (ISARET_DP / TUVAL_DP * N) / (2 * HH0)
-
-# Eski (API<26) tam ikon: maske yok, kart köşeleri burada çizilir.
-ICON_SCALE = (ESKI_ORAN * N) / (2 * HH0)
+    Döndürme matrisi yerine uç noktalar yazılıyor: işaret hatası imkânsız.
+    (Onay işareti bir kez döndürmeyle kurulmuştu ve iki kol birleşip beyaz
+    bir kutuya dönüşmüştü — bu yüzden kapsüle geçildi.)
+    """
+    px, py = x - x0, y - y0
+    bx, by = x1 - x0, y1 - y0
+    t = np.clip((px * bx + py * by) / (bx * bx + by * by), 0.0, 1.0)
+    return np.hypot(px - bx * t, py - by * t) - (ht + grow)
 
 
-def draw_glyph(buf, scale=1.0):
-    """Sayfa + sırt bandı + oyulmuş satırları buf'a çizer (tuval merkezli)."""
-    cx, cy = N / 2, N / 2
-    hw, hh, rad = HW0 * scale, HH0 * scale, RAD0 * scale
-    spine_w = 74 * scale
-    spine_x1 = cx - hw + spine_w  # sırt bandının sağ sınırı
-
-    # Oyulmuş satırlar: (merkez-y, genişlik, kalınlık). İlki "başlık" — daha
-    # kalın ve kısa; kalanlar gövde. Sol kenarları sırt bandının sağında.
-    tx = spine_x1 + 44 * scale
-    lines = [
-        (cy - 168 * scale, 323 * scale, 34 * scale),
-        (cy - 74 * scale, 398 * scale, 22 * scale),
-        (cy - 6 * scale, 398 * scale, 22 * scale),
-        (cy + 62 * scale, 398 * scale, 22 * scale),
-        (cy + 130 * scale, 236 * scale, 22 * scale),
-    ]
-
-    for y in range(N):
-        row = buf[y]
-        py = y + 0.5
-        if py < cy - hh - 2 or py > cy + hh + 2:
-            continue
-        for x in range(N):
-            px = x + 0.5
-            if px < cx - hw - 2 or px > cx + hw + 2:
-                continue
-
-            # Sayfa kütlesi
-            pc = _cov(_rrect_sdf(px, py, cx, cy, hw, hh, rad))
-            if pc <= 0:
-                continue
-            row[x] = _blend(row[x], PAGE, pc)
-
-            # Sol sırt bandı: sayfanın içi ∩ (x < spine_x1)
-            sc = min(pc, _cov(px - spine_x1))
-            if sc > 0:
-                row[x] = _blend(row[x], SPINE, sc)
-
-            # Oyulmuş satırlar (uçları yuvarlak)
-            for ly, lw, lh in lines:
-                lc = _rrect_sdf(px, py, tx + lw / 2, ly, lw / 2, lh / 2, lh / 2)
-                lc = min(_cov(lc), pc)
-                if lc > 0:
-                    row[x] = _blend(row[x], LINE, lc)
+def union(*s):
+    out = s[0]
+    for t in s[1:]:
+        out = np.minimum(out, t)
+    return out
 
 
-def new_buffer():
-    return [[(0.0, 0.0, 0.0, 0.0) for _ in range(N)] for _ in range(N)]
+def inter(*s):
+    out = s[0]
+    for t in s[1:]:
+        out = np.maximum(out, t)
+    return out
 
 
-def fill_card(buf, radius):
-    """Beyaz kart: yuvarlak köşeli, tuvali dolduran zemin."""
-    cx = cy = N / 2
-    for y in range(N):
-        py = y + 0.5
-        row = buf[y]
-        for x in range(N):
-            c = _cov(_rrect_sdf(x + 0.5, py, cx, cy, N / 2, N / 2, radius))
-            if c > 0:
-                row[x] = _blend(row[x], BG, c)
+def rot(x, y, cx, cy, deg):
+    a = math.radians(deg)
+    ca, sa = math.cos(a), math.sin(a)
+    dx, dy = x - cx, y - cy
+    return cx + dx * ca + dy * sa, cy - dx * sa + dy * ca
 
 
-def write_png(path, buf):
+# ── parçalar ───────────────────────────────────────────────────────────────
+def back_sdf(x, y):
+    return rrect(x, y, *BACK)
+
+
+def front_sdf(x, y, grow=0.0):
+    """Öne devrik ön kapak: üstü geniş, altı dar bir yamuk."""
+    cy = (FRONT_TOP + FRONT_BOT) / 2
+    hh = (FRONT_BOT - FRONT_TOP) / 2 + grow
+    hw = FRONT_HW_TOP + grow
+    f = rrect(x, y, 500, cy, hw, hh, FRONT_R)
+    m = (FRONT_HW_TOP - FRONT_HW_BOT) / (FRONT_BOT - FRONT_TOP)
+    f = inter(f, halfplane(x, y, -1.0, m, m * (FRONT_TOP - grow) - (500 - hw)))
+    f = inter(f, halfplane(x, y, 1.0, m, m * (FRONT_TOP - grow) + (500 + hw)))
+    return f
+
+
+def doc_sdf(x, y, grow=0.0):
+    rx, ry = rot(x, y, DOC[0], DOC[1], DOC_ANGLE)
+    return rrect(rx, ry, DOC[0], DOC[1], DOC[2] + grow, DOC[3] + grow, DOC[4])
+
+
+def gear_sdf(x, y):
+    """Sekiz dişli çark; belge eğik olduğu için onunla birlikte dönüyor."""
+    cx, cy, r = GEAR
+    x, y = rot(x, y, DOC[0], DOC[1], DOC_ANGLE)
+    d = np.hypot(x - cx, y - cy) - r * 0.66
+    for i in range(8):
+        rx, ry = rot(x, y, cx, cy, i * 45.0)
+        d = np.minimum(d, rrect(rx, ry, cx, cy - r * 0.78,
+                                r * 0.20, r * 0.30, r * 0.10))
+    return np.maximum(d, -(np.hypot(x - cx, y - cy) - r * 0.27))
+
+
+def cloud_sdf(x, y, grow=0.0):
+    cx, cy = CLOUD
+    d = np.hypot(x - (cx - 50), y - (cy - 4)) - (54 + grow)
+    d = np.minimum(d, np.hypot(x - (cx + 4), y - (cy - 36)) - (66 + grow))
+    d = np.minimum(d, np.hypot(x - (cx + 62), y - (cy + 2)) - (50 + grow))
+    d = np.minimum(d, rrect(x, y, cx + 4, cy + 24, 104 + grow, 28 + grow, 28))
+    return d
+
+
+def check_sdf(x, y, grow=0.0):
+    """Onay işareti: dipteki köşeden çıkan kısa sol ve uzun sağ kol."""
+    vx, vy = CHECK
+    return union(seg(x, y, vx, vy, vx - 48, vy - 45, 20, grow),
+                 seg(x, y, vx, vy, vx + 72, vy - 99, 20, grow))
+
+
+def arrow_sdf(x, y):
+    """Kapağın üstündeki beyaz "⇒": gövde + baş, üstünde kısa çizgi."""
+    tipx, tipy = 640, ARROW_Y
+    return union(
+        seg(x, y, 330, ARROW_Y, tipx - 8, ARROW_Y, 19),
+        seg(x, y, tipx, tipy, tipx - 62, tipy - 62, 19),
+        seg(x, y, tipx, tipy, tipx - 62, tipy + 62, 19),
+        seg(x, y, 330, ARROW_Y - 66, 520, ARROW_Y - 66, 19),
+    )
+
+
+def silhouette(x, y):
+    """İşaretin dış hattı — ölçek ve maske hesabı bunun üzerinden."""
+    return union(back_sdf(x, y), front_sdf(x, y, STROKE),
+                 doc_sdf(x, y, STROKE), cloud_sdf(x, y, STROKE),
+                 check_sdf(x, y, STROKE))
+
+
+# ── maskeye sığan en büyük ölçek ───────────────────────────────────────────
+def max_fit(n=3.2, samples=900):
+    """Süperelips maskesine sığan en büyük ölçü (uzun kenar, genişlik, boy).
+
+    Şeklin her iç noktası p için, ölçek s ile s·p maskede kalmalı:
+      s^n · (|px/R|^n + |py/R|^n) <= 1  →  s <= (…)^(-1/n)
+    En küçüğü alınır.
+    """
+    g = np.linspace(-250, 1250, samples)
+    X, Y = np.meshgrid(g, g)
+    ins = silhouette(X, Y) <= 0
+    xs = (X[ins] - DESIGN / 2) / DESIGN
+    ys = (Y[ins] - DESIGN / 2) / DESIGN
+    rad = GORUNUR_DP / 2
+    q = (np.abs(xs) / rad) ** n + (np.abs(ys) / rad) ** n
+    s = float((1.0 / q.max()) ** (1.0 / n))
+    box = (X[ins].min(), Y[ins].min(), X[ins].max(), Y[ins].max())
+    w = (box[2] - box[0]) / DESIGN * s
+    h = (box[3] - box[1]) / DESIGN * s
+    return max(w, h), w, h, box
+
+
+# ── bulanıklık (gölgeler için) ─────────────────────────────────────────────
+def _box_blur(a, r):
+    k = 2 * r + 1
+    pad = np.pad(a, r, mode='edge')
+    c = np.cumsum(pad, axis=0)
+    a2 = (c[k - 1:, :] - np.vstack([np.zeros((1, pad.shape[1])), c[:-k, :]])) / k
+    c = np.cumsum(a2, axis=1)
+    return (c[:, k - 1:] - np.hstack([np.zeros((a2.shape[0], 1)), c[:, :-k]])) / k
+
+
+def blur(a, r, passes=3):
+    """Üç kutu geçişi ≈ gauss. Yarıçap 1'in altındaysa dokunma."""
+    if r < 1:
+        return a
+    out = a
+    for _ in range(passes):
+        out = _box_blur(out, r)
+    return out
+
+
+# ── çizim ──────────────────────────────────────────────────────────────────
+def gradient(size):
+    """Karonun köşegen degradesi (sol üst → sağ alt, sağ üst en açık)."""
+    yy, xx = np.mgrid[0:size, 0:size]
+    u = (xx / max(size - 1, 1))[..., None]
+    v = (yy / max(size - 1, 1))[..., None]
+    top = np.array(BG_TL, float) * (1 - u) + np.array(BG_TR, float) * u
+    bot = np.array(BG_BL, float) * (1 - u) + np.array(BG_BR, float) * u
+    return top * (1 - v) + bot * v
+
+
+def vgrad(top, bottom, ys, y0, y1):
+    t = np.clip((ys - y0) / max(y1 - y0, 1e-6), 0, 1)[..., None]
+    return (np.array(top, float)[None, None, :] * (1 - t)
+            + np.array(bottom, float)[None, None, :] * t)
+
+
+def draw(size, mark_px, *, background, card_radius=None):
+    """İkonu çizer. [background] False ise yalnız işaret (şeffaf ön plan)."""
+    img = np.zeros((size, size, 4))
+    yy, xx = np.mgrid[0:size, 0:size]
+
+    if background:
+        img[:, :, :3] = gradient(size)
+        if card_radius is None:
+            img[:, :, 3] = 1.0
+        else:
+            img[:, :, 3] = np.clip(
+                0.5 - rrect(xx + .5, yy + .5, size / 2, size / 2,
+                            size / 2, size / 2, card_radius), 0, 1)
+
+    _, _, _, box = max_fit()
+    s = mark_px / max(box[2] - box[0], box[3] - box[1])
+    ox = size / 2 - (box[0] + box[2]) / 2 * s
+    oy = size / 2 - (box[1] + box[3]) / 2 * s
+    DX = (xx + .5 - ox) / s
+    DY = (yy + .5 - oy) / s
+
+    def cov(sdf):
+        return np.clip(0.5 - sdf * s, 0, 1)      # 1 px yumuşatma
+
+    def put(colour, c):
+        col = colour if isinstance(colour, np.ndarray) else \
+            np.array(colour, float)[None, None, :]
+        a = c[..., None]
+        img[:, :, :3] = img[:, :, :3] * (1 - a) + col * a
+        img[:, :, 3] = np.clip(img[:, :, 3] + c, 0, 1)
+
+    def shade(mask, amount):
+        a = (mask * amount)[..., None]
+        img[:, :, :3] = img[:, :, :3] * (1 - a)
+
+    # 0) zemin gölgesi — klasör karonun üstünde duruyor hissi.
+    #    Yalnız zemin varken; şeffaf ön planda gölge YOK, çünkü adaptive
+    #    ikonlarda gölgeyi sistem kendisi ekliyor (çift gölge olurdu).
+    if background:
+        drop = blur(np.roll(cov(silhouette(DX, DY)), int(size * 0.030), axis=0),
+                    max(1, int(size * 0.030)))
+        shade(drop * 0.42, 0.55)
+
+    # 1) arka kapak
+    put(vgrad(NAVY, NAVY_D, yy, oy, oy + mark_px), cov(back_sdf(DX, DY)))
+
+    # 2) belge: lacivert kontur + beyaz gövde + dişli
+    put(NAVY, cov(doc_sdf(DX, DY, STROKE)))
+    put(PAPER, cov(doc_sdf(DX, DY)))
+    put(NAVY, cov(gear_sdf(DX, DY)))
+
+    # 3) bulut ve onay işareti (beyaz kontur + renk)
+    put(WHITE, cov(cloud_sdf(DX, DY, STROKE)))
+    put(GREEN, cov(cloud_sdf(DX, DY)))
+    put(WHITE, cov(check_sdf(DX, DY, STROKE)))
+    put(ORANGE, cov(check_sdf(DX, DY)))
+
+    # 4) ön kapak: lacivert kontur, mavi gövde, iç üst kenarda ışık şeridi
+    put(NAVY, cov(front_sdf(DX, DY, STROKE)))
+    c_front = cov(front_sdf(DX, DY))
+    put(vgrad(BLUE_T, BLUE_B, yy, oy + mark_px * .45, oy + mark_px), c_front)
+    hl = inter(rrect(DX, DY, 500, FRONT_TOP + 52, FRONT_HW_TOP - 86, 18, 18),
+               front_sdf(DX, DY))
+    put(BLUE_L, cov(hl) * 0.75)
+
+    # 5) beyaz ok — kapağın dışına taşmasın
+    put(WHITE, np.minimum(cov(arrow_sdf(DX, DY)), c_front))
+    return img
+
+
+# ── PNG yazma (zlib dışında bağımlılık yok) ────────────────────────────────
+def write_png(path, img):
+    h, w = img.shape[:2]
+    arr = np.clip(np.round(np.dstack([img[:, :, :3], img[:, :, 3] * 255])),
+                  0, 255).astype(np.uint8)
     raw = bytearray()
-    for y in range(N):
-        raw.append(0)  # filter type 0
-        row = buf[y]
-        for x in range(N):
-            r, g, b, a = row[x]
-            raw.append(int(max(0, min(255, round(r)))))
-            raw.append(int(max(0, min(255, round(g)))))
-            raw.append(int(max(0, min(255, round(b)))))
-            raw.append(int(max(0, min(255, round(a * 255)))))
+    for y in range(h):
+        raw.append(0)                       # filter type 0
+        raw += arr[y].tobytes()
 
     def chunk(typ, data):
         c = struct.pack(">I", len(data)) + typ + data
-        c += struct.pack(">I", zlib.crc32(typ + data) & 0xFFFFFFFF)
-        return c
+        return c + struct.pack(">I", zlib.crc32(typ + data) & 0xFFFFFFFF)
 
-    sig = b"\x89PNG\r\n\x1a\n"
-    ihdr = struct.pack(">IIBBBBB", N, N, 8, 6, 0, 0, 0)  # RGBA 8-bit
-    idat = zlib.compress(bytes(raw), 9)
     with open(path, "wb") as f:
-        f.write(sig)
-        f.write(chunk(b"IHDR", ihdr))
-        f.write(chunk(b"IDAT", idat))
+        f.write(b"\x89PNG\r\n\x1a\n")
+        f.write(chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)))
+        f.write(chunk(b"IDAT", zlib.compress(bytes(raw), 9)))
         f.write(chunk(b"IEND", b""))
 
 
 def main():
-    import os
     os.makedirs("assets/icon", exist_ok=True)
+    long_dp, w, h, _ = max_fit()
+    mark = N * (long_dp / TUVAL_DP)
 
-    # Tam ikon (API<26 + mağaza görseli): beyaz yuvarlak kart + sayfa.
-    icon = new_buffer()
-    fill_card(icon, KART_YARICAP)
-    draw_glyph(icon, scale=ICON_SCALE)
-    write_png("assets/icon/icon.png", icon)
+    # Tam ikon (eski Android + mağaza görseli): degrade kart + işaret.
+    write_png("assets/icon/icon.png",
+              draw(N, N * KART_ORAN, background=True,
+                   card_radius=KART_YARICAP))
 
-    # Adaptive ön-plan: şeffaf zemin (zemin rengi pubspec'ten gelir), gölge yok.
-    fg = new_buffer()
-    draw_glyph(fg, scale=FG_SCALE)
-    write_png("assets/icon/foreground.png", fg)
+    # Adaptive zemin: köşegen degrade, tuvali baştan başa doldurur.
+    bg = np.zeros((N, N, 4))
+    bg[:, :, :3] = gradient(N)
+    bg[:, :, 3] = 1.0
+    write_png("assets/icon/background.png", bg)
 
-    yuk = 2 * HH0 * FG_SCALE / N * TUVAL_DP
-    print(f"yazıldı: assets/icon/icon.png, assets/icon/foreground.png "
-          f"(ön-plan işaret yüksekliği {yuk:.1f}dp / {TUVAL_DP:.0f}dp)")
+    # Adaptive ön plan: şeffaf zemin, yalnız işaret.
+    write_png("assets/icon/foreground.png", draw(N, mark, background=False))
+
+    print(f"yazıldı: assets/icon/{{icon,background,foreground}}.png  "
+          f"(işaret {w:.1f} × {h:.1f} dp / {TUVAL_DP:.0f} dp tuval)")
 
 
 if __name__ == "__main__":

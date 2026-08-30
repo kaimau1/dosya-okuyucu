@@ -9493,3 +9493,64 @@ kutuda en-boy oranı bozulmaz.
 kurmak — bütün dosya listelerini etkilediği için ayrı tur.
 
 **Doğrulama:** Flutter 3.29.3, `analyze` 0 sorun, **1943 test yeşil**.
+
+## 2026-08-30 (C) — Uygulama simgesi klasöre döndü + adaptive ön plandaki %16 inset
+Kullanıcı: *"uygulama simgemizi güzel bir klasör simgesi yapalım olabildiğince
+büyük olsun"* → beş aday gösterildi → *"1 ama daha 3 boyutlu bir tasarım ve
+detaylandır, renk olarak mavi şart değil"* → elindeki bir referans görselini
+gösterip *"direk aynısını yap"*, ardından *"tik işaretini küçült, bulut işaretini
+azıcık daha görünür yap, büyütme ama yukarı aktar çok az"*.
+
+### A) KÖK NEDEN — simge küçük görünüyordu: `flutter_launcher_icons`'un INSET'i
+Paket ön plana **varsayılan %16 inset** uyguluyor
+(`adaptive_icon_foreground_inset` = 16) ve ürettiği `ic_launcher.xml` içine
+`<inset android:inset="16%">` yazıyor. Yani `gen_icon.py` tuvale 66 dp diye
+çizse de cihazda **66 × 0,68 ≈ 45 dp** görünüyordu.
+- Kullanıcının 2026-08-17'de *"simgemiz Notlar gibi büyük olsun, doldursun
+  alanı"* demesinin sebebi buydu. O turda şekil GENİŞLETİLEREK (+%12 alan)
+  belirti tedavi edilmiş, asıl çarpan görülmemişti.
+- Düzeltme tek satır: `pubspec.yaml` → `adaptive_icon_foreground_inset: 0`.
+  İkinci bir küçültmeye gerek yok, çünkü `gen_icon.py` işaretin boyunu ZATEN
+  maskeye göre ölçüyor (`max_fit`, süperelips n=3,2).
+- **Doğrulandı gözle değil ÜRETİLEN KAYNAKLA:** yerelde `flutter create` ile
+  android iskeleti kurulup `dart run flutter_launcher_icons` koşuldu, çıkan
+  `drawable-xxxhdpi/ic_launcher_{background,foreground}.png` birleştirilip iki
+  maskeyle kırpıldı. Önce `inset="16%"`, sonra `inset="0%"` görüldü.
+
+### B) Tasarım — ortak simge dilinden BİLİNÇLİ sapma
+Yeni simge: turkuaz→mavi köşegen degrade karo, lacivert arka kapak, klasörden
+çıkan eğik belge (üstünde dişli), yeşil bulut, turuncu onay işareti, öne devrik
+parlak mavi ön kapak (lacivert konturlu, iç üst kenarında ışık) ve beyaz "⇒".
+- 2026-08-09'da kurulan üçlü dil (Dosya Okuyucu · Notlar · Ezan Vakti: düz
+  beyaz zemin, tek renk dolu silüet, gradyan/gölge yok) **artık geçerli
+  değil** — Dosya Okuyucu o aileden çıktı. Karar kullanıcının; gerekçesiyle
+  birlikte `tool/gen_icon.py` başlığında yazılı ki sonraki turlar "neden
+  uymuyor" diye aramasın.
+- Zemin düz renk olmadığı için `adaptive_icon_background` artık bir RENK değil
+  **dosya yolu**: `assets/icon/background.png`. Üç katman üretiliyor
+  (icon / background / foreground).
+
+### C) Üretici (`tool/gen_icon.py`) yeniden yazıldı
+- Artık **numpy** kullanıyor. Eski "harici bağımlılık yok" kuralı bırakıldı:
+  degrade + üç geçişli bulanıklık + ~10 katman, saf Python'da 1024²'lik tuvalde
+  dakikalar sürerdi. Güvenli, çünkü **CI bu betiği koşmuyor** — derlemede
+  `flutter_launcher_icons` hazır PNG'leri kullanıyor.
+- Bütün parçalar SDF: yuvarlak dikdörtgen, yarı-düzlem (devrik kapağın yamuğu),
+  **kapsül** (`seg`) ve daire birleşimleri (bulut, dişli).
+- **TUZAK:** onay işareti önce döndürülmüş dikdörtgenlerle kurulmuştu; iki kol
+  `grow` (beyaz kontur) ile şişince birleşip **beyaz bir kutuya** dönüştü.
+  Kapsüle (iki uç noktası yazılan çubuk) geçilince hem düzeldi hem de işaret
+  hatası imkânsızlaştı.
+- **TUZAK:** tam ikonda işaret oranı 0,86 iken TAŞTI — zemin gölgesi (aşağı
+  %3 kaydırık + bulanık) işaretin sınır kutusunun dışına çıkıyor ve kartın alt
+  kenarında kırpılıyordu. Sığması gereken şey kutu değil GÖLGELİ görüntü →
+  oran 0,74.
+- İşaret ölçüsü: **61,2 × 63,0 dp / 108 dp** (maskeye sığan en büyük).
+
+### Bilinen sınırlar (kullanıcıya söylendi)
+- Daire maskesinde (Pixel) köşeler tıraşlanıyor — eski simgede de böyleydi.
+- 48 px ve altında dişli/bulut/onay okunmaz hâle geliyor; referans
+  kompozisyonun bedeli bu.
+
+**Doğrulama:** Flutter 3.29.3, `analyze` 0 sorun, **1943 test yeşil**;
+`flutter_launcher_icons` yerelde koşturulup üretilen kaynaklar gözle denetlendi.

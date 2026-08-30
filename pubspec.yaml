@@ -340,18 +340,29 @@ flutter:
         - asset: assets/fonts/JetBrainsMono-Variable.ttf
 
 # Uygulama ikonu: assets/icon/ altındaki PNG'lerden CI'da üretilir
-# (dart run flutter_launcher_icons). PNG'lerin kaynağı `tool/gen_icon.py`
-# (harici bağımlılık yok).
+# (dart run flutter_launcher_icons). PNG'lerin kaynağı `tool/gen_icon.py`.
 #
-# 2026-08-09: Notlar ve Ezan Vakti ile ORTAK SİMGE DİLİ'ne geçirildi — düz
-# beyaz zemin, tek renk dolu işaret, ayrıntılar zeminden oyuk, işaretin uzun
-# kenarı 66dp/108dp. Kurallar ve gerekçeleri `tool/gen_icon.py` başlığında.
-# Zemin artık gradyan değil, düz beyaz; bu yüzden sayfa da beyazdan mürekkep
-# mavisine döndü (beyaz sayfa beyaz zeminde görünmezdi).
+# 2026-08-30: KLASÖR ikonuna geçildi (kullanıcı kararı). Zemin artık düz beyaz
+# DEĞİL, turkuaz→mavi köşegen degrade bir GÖRSEL — bu yüzden
+# `adaptive_icon_background` bir renk değil dosya yolu. Üç katman:
+#   icon.png        eski Android + mağaza görseli (degrade kart + işaret)
+#   background.png  adaptive zemin (degrade, tuvali baştan başa doldurur)
+#   foreground.png  adaptive ön plan (şeffaf, yalnız klasör)
+# Tasarımın gerekçesi ve ölçüleri `tool/gen_icon.py` başlığında; 2026-08-09'da
+# kurulan ortak simge dilinden BİLİNÇLİ sapma olduğu da orada yazılı.
 flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
   min_sdk_android: 23
-  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background: "assets/icon/background.png"
   adaptive_icon_foreground: "assets/icon/foreground.png"
+  # KÖK NEDEN (2026-08-30): `flutter_launcher_icons` ön plana VARSAYILAN
+  # olarak %16 inset uyguluyor (`adaptive_icon_foreground_inset` = 16) ve
+  # ürettiği `ic_launcher.xml` içine `<inset android:inset="16%">` yazıyor.
+  # Yani tuvale 66 dp diye çizilen işaret cihazda 66 × 0,68 ≈ 45 dp oluyordu —
+  # kullanıcının iki kez "simge küçük, alanı doldurmuyor" demesinin sebebi
+  # buydu; o turlarda şekil genişletilerek BELİRTİ tedavi edilmişti.
+  # `tool/gen_icon.py` işaretin boyunu zaten maskeye göre ölçüyor (max_fit),
+  # yani ikinci bir küçültmeye gerek yok: inset sıfırlanıyor.
+  adaptive_icon_foreground_inset: 0
