@@ -8,6 +8,7 @@ import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../services/pdf/pdf_form.dart';
 import '../widgets/pdf_save_dialog.dart';
+import '../core/snack.dart';
 
 /// **PDF formu doldurma** — belgenin kendi alanları düzenlenebilir bir liste
 /// olarak açılır, doldurulur ve dosyaya yazılır.
@@ -111,8 +112,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.t('pf.failed', {'error': e}))));
+      showSnack(context, context.t('pf.failed', {'error': e}));
     }
   }
 

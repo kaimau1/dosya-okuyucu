@@ -19,6 +19,31 @@
 >    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
 >    (split-per-abi/AAB). Her biri kendi başına bir tur.
 
+- [ ] **Sayfanın SON paragrafında taşma denetimi yok** (2026-08-30 bulgusu,
+      yerinde çeviri turunda çıktı). `findParagraphs`, paragrafın altında
+      başka satır yoksa `roomBelow`u `double.infinity` veriyor: sayfanın son
+      paragrafı uzayınca (çeviri özgününden %20 uzun olabiliyor) sayfa
+      kenarının ALTINA taşıyor ve hiçbir uyarı çıkmıyor. `pageBox` zaten elde
+      olduğu için düzeltmesi kolay (`roomBelow = son taban çizgisi − sayfa
+      altı`), ama paragraf düzenlemenin GENEL davranışını değiştiriyor
+      (mevcut `pdf_paragraph_test`/`pdf_reflow_test` beklentileri) → ayrı tur.
+
+- [ ] **cihaz doğrulaması (kullanıcı) — 2026-08-30 turu.** Bu turda değişenler
+      yalnız CI'da derlendi; telefonda bakılacaklar: (a) dosya listesinde
+      simgelerin üstündeki uzantı yazısı ("XLSX", "DOCX") artık NET mi —
+      bulanıklığın kök nedeni yazının birim karede dizilmesiydi; (b) Drive'da
+      büyük bir dosya indirirken "Arka plana al" ve "Durdur" çalışıyor mu,
+      durdurulan indirme klasörde yarım dosya BIRAKMIYOR mu; (c) PDF'te
+      yerinde düzenlemede satırın biraz üstüne/altına dokunmak imleci o
+      sütuna taşıyor mu, ◀ ▶ okları tek karakter ilerletiyor mu; (d) art arda
+      çıkan uyarı şeritleri artık sıra beklemeden birbirinin yerine geçip
+      kendiliğinden kayboluyor mu; (e) PDF düzenleyicide görsel seçip
+      döndür/ayna — görsel merkezinde dönüyor mu, iki kez döndürülebiliyor
+      mu; (f) **PDF çevir → "belgenin kendisi"** — çıkan belge özgününün
+      düzeninde mi, kaç paragrafın atlandığı doğru mu yazıyor (Türkçe→Arapça
+      gibi bir çiftte gömülü font harfleri taşımadığı için çoğu paragrafın
+      atlanması BEKLENEN davranış).
+
 - [ ] **MAĞAZA YOLU (2026-08-28 durum değerlendirmesi) — sırayla, her biri
       kendi turu.** Dört temel bu turda yapıldı (artan versionCode, imza
       sızıntısının kapatılması, hata kaydı, gizlilik politikası). Kalanlar:

@@ -16,6 +16,7 @@ import '../services/ocr_service.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
 import 'scan_review_screen.dart';
+import '../core/snack.dart';
 
 /// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
 /// döndür, ayrıca parola ve sıkıştırma.
@@ -559,7 +560,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    showSnack(context, m);
   }
 
   Future<bool> _confirmLeave() async {

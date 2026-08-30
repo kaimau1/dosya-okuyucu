@@ -18,6 +18,7 @@ import '../../services/fm/similar_finder.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
+import '../../core/snack.dart';
 
 /// **Benzer fotoğraf/videolar** — algısal parmak iziyle bulunan kümeler.
 ///
@@ -215,12 +216,12 @@ class _SimilarScreenState extends State<SimilarScreen> {
     // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final str = AppStrings.of(context);
     if (!appState.hasApiKey) {
-      messenger.showSnackBar(SnackBar(content: Text(str.t('sim.need_key'))));
+      showSnackOn(messenger, str.t('sim.need_key'));
       return;
     }
     // En çok 6 görsel: daha fazlası hem pahalı hem yanıtı bulanıklaştırır.
     final chosen = group.files.take(6).toList();
-    messenger.showSnackBar(SnackBar(content: Text(str.t('sim.sending'))));
+    showSnackOn(messenger, str.t('sim.sending'));
     final previews = <({String name, Uint8List bytes})>[];
     for (final f in chosen) {
       final bytes = await _previewFor(f);
@@ -228,8 +229,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
     }
     if (!mounted) return;
     if (previews.length < 2) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(str.t('sim.too_few_previews'))));
+      showSnackOn(messenger, str.t('sim.too_few_previews'));
       return;
     }
     try {
@@ -255,7 +255,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
       );
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Gemini: $e')));
+        showSnackOn(messenger, 'Gemini: $e');
       }
     }
   }

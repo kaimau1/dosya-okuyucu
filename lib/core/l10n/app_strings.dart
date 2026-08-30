@@ -1050,6 +1050,13 @@ const Map<String, (String, String, String)> _table = {
   ),
   'vw.highlight_hint': ('Vurgula', 'Highlight', 'تمييز'),
   'vw.ai_fix': ('AI ile düzelt', 'Fix with AI', 'تصحيح بالذكاء الاصطناعي'),
+  'vw.caret_left': ('İmleci sola al', 'Move caret left', 'تحريك المؤشر لليسار'),
+  'vw.caret_right': (
+    'İmleci sağa al',
+    'Move caret right',
+    'تحريك المؤشر لليمين'
+  ),
+  'vw.select_all_text': ('Tümünü seç', 'Select all', 'تحديد الكل'),
   'vw.highlight_failed': ('Vurgulama başarısız: {error}', 'Highlighting failed: {error}', 'فشل التمييز: {error}'),
   'vw.word_count': ('Sözcük sayısı / bilgi', 'Word count / info', 'عدد الكلمات / معلومات'),
   'vw.word': ('Sözcük', 'Words', 'كلمات'),
@@ -1925,6 +1932,16 @@ const Map<String, (String, String, String)> _table = {
   'drive.upload_failed': ('Drive\'a yüklenemedi.', 'Upload to Drive failed.', 'فشل الرفع إلى Drive.'),
   'drive.download_failed': ('Dosya indirilemedi.', 'Could not download the file.', 'تعذّر تنزيل الملف.'),
   'drive.downloading': ('Drive\'dan indiriliyor…', 'Downloading from Drive…', 'جارٍ التنزيل من Drive…'),
+  'drive.ready_offscreen': (
+    'İndirildi, açmak için dokunun:',
+    'Downloaded — tap it to open:',
+    'تم التنزيل — انقر لفتحه:'
+  ),
+  'drive.download_stopped': (
+    'İndirme durduruldu.',
+    'Download stopped.',
+    'تم إيقاف التنزيل.'
+  ),
   // Kalıcı silme DEĞİL (2026-08-06): dosya Drive'ın çöp kutusuna gider ve
   // 30 gün geri alınabilir — metin de bunu söylemeli.
   'drive.delete_confirm': (
@@ -2887,6 +2904,18 @@ const Map<String, (String, String, String)> _table = {
   ),
   'pe.image_deleted': ('Görsel silindi', 'Image deleted', 'تم حذف الصورة'),
   'pe.image_moved': ('Görsel taşındı', 'Image moved', 'تم نقل الصورة'),
+  'pe.image_turned': ('Görsel döndürüldü', 'Image rotated', 'تم تدوير الصورة'),
+  'pe.image_mirrored': (
+    'Görsel aynalandı',
+    'Image mirrored',
+    'تم عكس الصورة'
+  ),
+  'pe.mirror_h': (
+    'Yatay ayna (sağ-sol)',
+    'Mirror horizontally',
+    'عكس أفقي'
+  ),
+  'pe.mirror_v': ('Dikey ayna (alt-üst)', 'Mirror vertically', 'عكس رأسي'),
   'pe.pick_to_remove': (
     'Kaldırılacak öğe seçin',
     'Select the items to remove',
@@ -3031,9 +3060,12 @@ const Map<String, (String, String, String)> _table = {
     'لا توجد صور مضمّنة في هذه الصفحة.',
   ),
   'pe.hint_image': (
-    'Görsele dokunup seçin; sürükleyerek taşıyın, köşeden boyutlandırın.',
-    'Tap an image to select it; drag to move, resize from a corner.',
-    'اضغط على صورة لتحديدها؛ اسحب للنقل، وغيّر الحجم من الزاوية.',
+    'Görsele dokunup seçin; sürükleyerek taşıyın, köşeden boyutlandırın, '
+        'alttaki çubuktan döndürün ya da aynalayın.',
+    'Tap an image to select it; drag to move, resize from a corner, or use '
+        'the bar below to rotate and mirror it.',
+    'اضغط على صورة لتحديدها؛ اسحب للنقل، وغيّر الحجم من الزاوية، أو استخدم '
+        'الشريط أدناه للتدوير والعكس.',
   ),
   'pe.hint_background': (
     'Her sayfada yinelenen öğeler aşağıda. Kaldırmak istediklerinizi seçin.',
@@ -4687,6 +4719,59 @@ const Map<String, (String, String, String)> _table = {
     'Durduruldu — {total} sayfanın {n} tanesi çevrildi.',
     'Stopped — {n} of {total} pages were translated.',
     'تم الإيقاف — تُرجمت {n} من {total} صفحة.',
+  ),
+  'tf.mode_title': (
+    'Çeviri nasıl olsun?',
+    'How should the translation come out?',
+    'كيف تريد نتيجة الترجمة؟'
+  ),
+  'tf.mode_inplace': (
+    'Belgenin kendisi (düzeni koruyarak)',
+    'The document itself (same layout)',
+    'المستند نفسه (بالتنسيق ذاته)'
+  ),
+  'tf.mode_inplace_hint': (
+    'Yazı tipi, punto ve sayfa düzeni aynı kalır; yalnız yazılar hedef '
+    'dilde olur. Sonuç yeni bir PDF olarak kaydedilir.',
+    'Font, size and page layout stay the same; only the words change. '
+    'The result is saved as a new PDF.',
+    'يبقى الخط والحجم وتنسيق الصفحة كما هو؛ تتغيّر الكلمات فقط. '
+    'تُحفظ النتيجة كملف PDF جديد.'
+  ),
+  'tf.mode_text': (
+    'Metin olarak (okumak / kopyalamak için)',
+    'As plain text (to read or copy)',
+    'كنص عادي (للقراءة أو النسخ)'
+  ),
+  'tf.mode_text_hint': (
+    'Taranmış sayfalar da (OCR ile) çevrilir, ama sonuç düz metindir.',
+    'Scanned pages are included (via OCR), but the result is plain text.',
+    'تشمل الصفحات الممسوحة ضوئيًا (عبر OCR)، لكن النتيجة نص عادي.'
+  ),
+  'tf.inplace_done': (
+    '{n} paragraf çevrildi ({pages} sayfa).',
+    'Translated {n} paragraphs across {pages} pages.',
+    'تُرجمت {n} فقرة في {pages} صفحة.'
+  ),
+  'tf.inplace_partial': (
+    '{n} paragraf çevrildi; {skipped} tanesi belgeye yazılamadı '
+    '(yazı tipi hedef dilin harflerini taşımıyor ya da metin sayfaya '
+    'sığmıyor) ve olduğu gibi kaldı.',
+    'Translated {n} paragraphs; {skipped} could not be written back '
+    '(the embedded font lacks the target letters, or the text no longer '
+    'fits) and were left unchanged.',
+    'تُرجمت {n} فقرة؛ تعذّرت كتابة {skipped} منها (الخط المضمّن لا يحتوي '
+    'حروف اللغة الهدف أو أن النص لم يعد يتّسع) وبقيت كما هي.'
+  ),
+  'tf.inplace_none': (
+    'Hiçbir paragraf belgeye yazılamadı ({n} denendi): belgeye gömülü yazı '
+    'tipi hedef dilin harflerini taşımıyor olabilir. "Metin olarak çevir" '
+    'bu belgede çalışır.',
+    'No paragraph could be written back ({n} tried): the fonts embedded in '
+    'this document may not carry the target language\'s letters. '
+    '"Translate as text" works for this document.',
+    'تعذّرت إعادة كتابة أي فقرة ({n} محاولة): قد لا تحتوي الخطوط المضمّنة '
+    'حروف اللغة الهدف. خيار «الترجمة كنص» يعمل مع هذا المستند.'
   ),
 
   // ── Otomatik düzenleme ekranı ─────────────────────────────────────────────

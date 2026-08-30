@@ -9,6 +9,7 @@ import '../services/scan_deskew.dart';
 import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
 import 'scan_edit_screen.dart';
+import '../core/snack.dart';
 
 /// Tarama sonrası **önizleme/düzeltme** ekranı.
 ///
@@ -143,9 +144,8 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     if (ok) await _applyFilter(index, _filters[index], silent: true);
     if (!mounted) return;
     setState(() => _busy = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(context.t(ok ? 'sr.straightened' : 'sr.straighten_noop')),
-    ));
+    showSnack(
+        context, context.t(ok ? 'sr.straightened' : 'sr.straighten_noop'));
   }
 
   /// Kullanıcının dokunduğu filtreyi uygular.
@@ -206,8 +206,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
       return true;
     } catch (e) {
       if (!mounted || silent) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.t('scan.filter_failed', {'error': e}))));
+      showSnack(context, context.t('scan.filter_failed', {'error': e}));
       return false;
     }
   }
@@ -251,9 +250,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(
-                content: Text(context.t('sr.rotate_failed', {'error': e}))));
+        showSnack(context, context.t('sr.rotate_failed', {'error': e}));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -262,9 +259,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
 
   void _removeCurrent() {
     if (_pages.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t('sr.last_page'))),
-      );
+      showSnack(context, context.t('sr.last_page'));
       return;
     }
     setState(() {

@@ -17,6 +17,7 @@ import '../services/markdown_export.dart';
 import '../widgets/markdown_text.dart';
 import 'fm/ai_hub_screen.dart';
 import 'settings_screen.dart';
+import '../core/snack.dart';
 
 class ChatScreen extends StatefulWidget {
   /// Açık dosyanın metni (opsiyonel bağlam).
@@ -61,9 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.t('home.open_error', {'error': e}))),
-      );
+      showSnack(context, s.t('home.open_error', {'error': e}));
     }
   }
 
@@ -162,9 +161,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _saveToMemory(String text) async {
     await context.read<AppState>().addMemory(text);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t('chat.saved_to_memory'))),
-      );
+      showSnack(context, context.t('chat.saved_to_memory'));
     }
   }
 
@@ -202,9 +199,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(str.t('chat.export_failed', {'error': e}))),
-        );
+        showSnack(context, str.t('chat.export_failed', {'error': e}));
       }
     }
   }
@@ -213,9 +208,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _copyPlain(String text) async {
     await Clipboard.setData(ClipboardData(text: stripMarkdown(text)));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t('chat.copied'))),
-      );
+      showSnack(context, context.t('chat.copied'));
     }
   }
 

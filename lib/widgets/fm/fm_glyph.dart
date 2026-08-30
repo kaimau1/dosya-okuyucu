@@ -84,6 +84,27 @@ class FmGlyphSpec {
   int get hashCode => Object.hash(folder, color, overlay, label, outlined, dark);
 }
 
+/// Çizim ölçüleri — **cihaz pikseli** cinsinden, birim karede değil.
+///
+/// Ayrı bir sınıf olmasının tek nedeni ölçülebilirlik: bulanıklığın kök nedeni
+/// (bkz. `_FmGlyphPainter._withDeviceScale`) puntoların birim karede — 0,20
+/// gibi — verilmesiydi. Buradaki fonksiyonlar `side` ile çarpıyor ve test
+/// bunu doğrudan doğruluyor; bir sonraki düzenlemede biri "0,20" yazıp
+/// geçemesin.
+abstract final class FmGlyphMetrics {
+  /// Uzantı şeridindeki yazının puntosu (3 harf: %20, daha uzunu: %15,5).
+  static double labelFontSize(String label, double side) =>
+      (label.length <= 3 ? 0.20 : 0.155) * side;
+
+  /// Şerit yazısının harf aralığı.
+  static double labelLetterSpacing(String label, double side) =>
+      (label.length <= 3 ? 0.004 : 0.0) * side;
+
+  /// Kağıda/klasöre binen Material glifinin puntosu. [unit] birim karedeki
+  /// oran (klasörde 0,34, uzantısız kağıtta 0,30).
+  static double overlayFontSize(double unit, double side) => unit * side;
+}
+
 /// [FmGlyphSpec]'i çizen widget. Kare kutuya sığar, kutunun tamamını kullanır.
 class FmGlyph extends StatelessWidget {
   final FmGlyphSpec spec;
@@ -301,29 +322,35 @@ class _FmGlyphPainter extends CustomPainter {
     canvas.drawRRect(band, Paint()..color = spec.color);
     if (side < 28) return;
 
-    final painter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          // Uzantı uzadıkça küçülür (3 harf: 0.20 · 4 harf: 0.155).
-          fontSize: label.length <= 3 ? 0.20 : 0.155,
-          height: 1.0,
-          letterSpacing: label.length <= 3 ? 0.004 : 0.0,
+    // Yazı **gerçek punto ile** dizilir (bkz. [_withDeviceScale]): birim
+    // karedeki 0,20'lik punto büyütülerek çizilseydi bulanık çıkardı.
+    _withDeviceScale(canvas, side, () {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            // Uzantı uzadıkça küçülür (3 harf: 0.20 · 4 harf: 0.155).
+            fontSize: FmGlyphMetrics.labelFontSize(label, side),
+            height: 1.0,
+            letterSpacing: FmGlyphMetrics.labelLetterSpacing(label, side),
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-    )..layout();
-    // Yazı şeride sığmıyorsa (uzun uzantı) yatayda sıkıştırılır — taşıp
-    // şeridin dışına çıkmasındansa bir tık dar yazılması yeğdir.
-    final available = band.width - 0.06;
-    canvas.save();
-    canvas.translate(band.left + band.width / 2, band.top + band.height / 2);
-    if (painter.width > available) canvas.scale(available / painter.width, 1);
-    painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
-    canvas.restore();
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      // Yazı şeride sığmıyorsa (uzun uzantı) yatayda sıkıştırılır — taşıp
+      // şeridin dışına çıkmasındansa bir tık dar yazılması yeğdir.
+      final available = (band.width - 0.06) * side;
+      canvas.save();
+      canvas.translate((band.left + band.width / 2) * side,
+          (band.top + band.height / 2) * side);
+      if (painter.width > available) canvas.scale(available / painter.width, 1);
+      painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
+      canvas.restore();
+      painter.dispose();
+    });
   }
 
   /// Material glifini birim karede çizer (ikon fontu → [TextPainter]).
@@ -333,21 +360,49 @@ class _FmGlyphPainter extends CustomPainter {
     if (icon == null) return;
     // Çok küçük kutuda glif okunmaz; klasörün kendi biçimi zaten bilgi veriyor.
     if (side < 22) return;
-    final painter = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(icon.codePoint),
-        style: TextStyle(
-          color: color,
-          fontSize: glyphSize,
-          fontFamily: icon.fontFamily,
-          package: icon.fontPackage,
-          height: 1.0,
+    _withDeviceScale(canvas, side, () {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(icon.codePoint),
+          style: TextStyle(
+            color: color,
+            // Punto birim karede değil GERÇEK ölçüde (bkz. [_withDeviceScale]).
+            fontSize: FmGlyphMetrics.overlayFontSize(glyphSize, side),
+            fontFamily: icon.fontFamily,
+            package: icon.fontPackage,
+            height: 1.0,
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(canvas,
-        center - Offset(painter.width / 2, painter.height / 2));
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(canvas,
+          center * side - Offset(painter.width / 2, painter.height / 2));
+      painter.dispose();
+    });
+  }
+
+  /// Birim kare ölçeğini **geçici olarak geri alır**: gövde içinde koordinatlar
+  /// ve puntolar yeniden gerçek (logical) pikselle ifade edilir.
+  ///
+  /// KÖK NEDEN (kullanıcı 2026-08-30: *"simgeler çok bulanık"*): biçimler
+  /// birim karede (0..1) tanımlı ve `canvas.scale(side)` ile büyütülüyor.
+  /// **Yollar** için bu kusursuz — vektör, ölçekten bağımsız keskin. Ama
+  /// YAZI öyle değil: metin bir glif atlasına rasterleştirilip doku olarak
+  /// çiziliyor ve atlas, düzenin punto'suna göre üretiliyor. 0,20 puntoluk
+  /// bir yazıyı 44-96 kat büyütmek, 0,2 pikselde pişmiş bir dokuyu gerdirmek
+  /// demekti — Impeller'ın yazı ölçeğini üstten kısması (yaklaşık 48×) buna
+  /// tuz biber ekiyordu. Sonuç: kağıdın kenarları jilet gibi, üstündeki
+  /// "XLSX" bulanık.
+  ///
+  /// Çözüm ölçeği kaldırmak değil (yollar ondan faydalanıyor), yalnız yazının
+  /// süresince geri almak: punto `0,20 × side` olarak veriliyor, konum da
+  /// `× side` ile taşınıyor. Ekranda BİREBİR aynı yeri kaplıyor, ama atlas
+  /// gerçek boyutta pişiyor.
+  static void _withDeviceScale(Canvas canvas, double side, VoidCallback body) {
+    canvas.save();
+    canvas.scale(1 / side);
+    body();
+    canvas.restore();
   }
 
   @override

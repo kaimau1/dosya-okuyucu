@@ -9,6 +9,7 @@ import '../services/pdf/pdf_ocr_text.dart';
 import '../services/read_aloud_ai.dart';
 import '../services/tts_service.dart';
 import '../widgets/tts_voice_sheet.dart';
+import '../core/snack.dart';
 
 /// **Okuma görünümü** — PDF'i (taranmış olsa bile) bir e-kitap gibi sunar
 /// (2026-08-06 kullanıcı isteği: *"tarandıktan sonra PDF'i okutmak
@@ -282,18 +283,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (action != 'ai') return;
     final next = !state.ttsAiRead;
     if (next && !state.hasApiKey) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(AppStrings.current.t('tts.ai_needs_key'))));
+      showSnackOn(messenger, AppStrings.current.t('tts.ai_needs_key'));
       return;
     }
     await state.setTtsAiRead(next);
     // Anahtar değişince önceki toparlamalar geçersiz (biri ham, biri işlenmiş
     // metin okurdu).
     _narration.clear();
-    messenger.showSnackBar(SnackBar(
-      content: Text(AppStrings.current
-          .t(next ? 'tts.ai_read_on' : 'tts.ai_read_off')),
-    ));
+    showSnackOn(messenger, AppStrings.current
+          .t(next ? 'tts.ai_read_on' : 'tts.ai_read_off'));
   }
 
   PopupMenuItem<_ReaderTheme> _themeItem(_ReaderTheme value, String label) =>

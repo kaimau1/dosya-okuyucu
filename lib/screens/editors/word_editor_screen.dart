@@ -20,6 +20,7 @@ import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
+import '../../core/snack.dart';
 
 /// Word ekranı: belge **gerçek sayfa düzeniyle** açılır (docx-preview) ve
 /// kalem moduna geçince **sayfanın üzerinde** düzenlenir — popup/sekme yok.
@@ -134,8 +135,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       _dirty = false;
       // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.t('common.saved_hint'))));
+        showSnack(context, context.t('common.saved_hint'));
         setState(() {});
       }
     } catch (e) {
@@ -153,7 +153,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    showSnack(context, m);
   }
 
   /// Mobil akış ↔ sayfa görünümü. Kalıcı değil: belge her açılışta Word'deki

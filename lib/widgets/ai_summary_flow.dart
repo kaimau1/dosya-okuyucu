@@ -7,6 +7,7 @@ import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 import 'markdown_text.dart';
+import '../core/snack.dart';
 
 /// Özetin ne kadar ayrıntılı olacağı.
 ///
@@ -202,6 +203,6 @@ class AiSummaryFlow {
   }
 
   static void _snack(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showSnack(context, msg);
   }
 }

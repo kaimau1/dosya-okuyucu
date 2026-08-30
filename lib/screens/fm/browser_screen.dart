@@ -27,6 +27,7 @@ import 'archive_screen.dart';
 import 'entry_actions.dart';
 import 'organize_screen.dart';
 import 'search_screen.dart';
+import '../../core/snack.dart';
 
 /// Klasör gözatıcısı: listeleme, çoklu seçim, kopyala/kes/yapıştır, yeni
 /// klasör/dosya, sıralama, ızgara/liste, favoriler.
@@ -321,8 +322,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 
   // ── arayüz ────────────────────────────────────────────────────────────────

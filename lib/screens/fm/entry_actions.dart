@@ -28,6 +28,7 @@ import 'drive_screen.dart';
 import 'folder_picker_screen.dart';
 import 'important_screen.dart';
 import 'resize_actions.dart';
+import '../../core/snack.dart';
 
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
 /// ekranları ve arama sonuçları AYNI davranışı paylaşsın diye tek dosyada.
@@ -706,7 +707,7 @@ Future<bool> moveOrCopyEntries(
   final where = p.basename(dest);
   final count = result.succeeded;
   final verb = strings.t(move ? 'fm.verb_moved' : 'fm.verb_copied');
-  messenger.showSnackBar(SnackBar(
+  showSnackBarReplacing(messenger, SnackBar(
     // Mesaj GERÇEĞİ söyler: kaç tanesi oldu, kaç tanesi olmadı, iptal edildi mi.
     //
     // Eskiden hata varken yalnız ilk hata metni yazılıyordu ("Bazı öğeler
@@ -983,6 +984,5 @@ String _parentOf(String path) {
 }
 
 void _snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  showSnack(context, message);
 }

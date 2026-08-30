@@ -26,6 +26,7 @@ import '../../widgets/fm/fm_search_field.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 import 'similar_screen.dart';
+import '../../core/snack.dart';
 
 /// **Fotoğraflar** — Google Fotoğraflar tarzı zaman ekseni.
 ///
@@ -461,8 +462,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final messenger = ScaffoldMessenger.of(context);
     // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final str = AppStrings.of(context);
-    messenger.showSnackBar(
-        SnackBar(content: Text(str.t('ph.verifying'))));
+    showSnackOn(messenger, str.t('ph.verifying'));
     final groups = await DuplicateFinder.scanPaths(candidates);
     if (!mounted) return;
 
@@ -473,8 +473,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
       extras.addAll(sorted.skip(1));
     }
     if (extras.isEmpty) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(str.t('ph.not_identical'))));
+      showSnackOn(messenger, str.t('ph.not_identical'));
       return;
     }
     final bytes = extras.fold<int>(0, (sum, e) => sum + e.sizeBytes);

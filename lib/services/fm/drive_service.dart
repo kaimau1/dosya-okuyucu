@@ -472,6 +472,7 @@ class DriveService {
     DriveFile file,
     String toDirectory, {
     void Function(int received, int? total)? onProgress,
+    bool Function()? isCancelled,
   }) async {
     final headers = await _requireHeaders();
     // `Client()` http.runWithClient bölgesine saygılıdır — testlerdeki
@@ -493,9 +494,17 @@ class DriveService {
       final target = File('$toDirectory/${file.localName()}');
       await target.parent.create(recursive: true);
       final sink = target.openWrite();
+      var stopped = false;
       try {
         var received = 0;
         await for (final chunk in res.stream) {
+          // İptal **parça sınırında** yoklanır: akışı ortasından kesmek
+          // yerine o parçayı yazmayıp çıkıyoruz — yarım yazılmış bir bayt
+          // dizisi kalmasın diye. Dosyanın kendisi zaten aşağıda siliniyor.
+          if (isCancelled != null && isCancelled()) {
+            stopped = true;
+            break;
+          }
           sink.add(chunk);
           received += chunk.length;
           onProgress?.call(received, total);
@@ -503,6 +512,15 @@ class DriveService {
         await sink.flush();
       } finally {
         await sink.close();
+      }
+      if (stopped) {
+        // **Yarım dosya BIRAKILMAZ.** Kullanıcı indirmeyi durdurduğunda
+        // klasörde açılmayan, bozuk ama tam boyutlu görünen bir PDF kalması
+        // en kötü sonuç olurdu: dosya "inmiş" görünür, açılınca hata verir.
+        try {
+          await target.delete();
+        } catch (_) {}
+        throw const DriveDownloadCancelled();
       }
       return target;
     } finally {
@@ -689,4 +707,16 @@ class DriveException implements Exception {
   @override
   String toString() =>
       'DriveException(${error.name}${detail == null ? '' : ': $detail'})';
+}
+
+/// Kullanıcı indirmeyi **durdurdu** — hata değil.
+///
+/// Ayrı bir tür olması şart: `DriveException` olsaydı ekran "İndirilemedi:
+/// …" diye kırmızı bir uyarı gösterirdi. Kullanıcının kendi bastığı düğmeye
+/// hata mesajıyla cevap vermek, olmayan bir sorun uydurmak olurdu.
+class DriveDownloadCancelled implements Exception {
+  const DriveDownloadCancelled();
+
+  @override
+  String toString() => 'İndirme durduruldu';
 }

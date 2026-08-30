@@ -9,6 +9,7 @@ import '../core/l10n/app_strings.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/signature_pad.dart';
+import '../core/snack.dart';
 
 /// **PDF imzalama** — imzayı sayfa üzerinde sürükleyip boyutlandır, bas.
 ///
@@ -98,9 +99,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
       Navigator.of(context).pop(outcome.overwritten);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(
-                content: Text(AppStrings.current.t('sg.failed', {'error': e}))));
+        showSnack(context, AppStrings.current.t('sg.failed', {'error': e}));
         setState(() => _busy = false);
       }
     }

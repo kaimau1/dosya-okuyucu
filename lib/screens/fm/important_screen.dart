@@ -19,6 +19,7 @@ import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
+import '../../core/snack.dart';
 
 /// **Önemli Dosyalar** — kullanıcının kendi seçtiği dosyaların toplandığı
 /// klasör, ana sayfadaki kategorizasyonun aynısıyla.
@@ -174,8 +175,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 
   Future<void> _push(Widget screen) async {

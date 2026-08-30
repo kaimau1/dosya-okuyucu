@@ -16,6 +16,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/gemini_service.dart';
 import '../../services/ocr_service.dart';
 import 'important_screen.dart';
+import '../../core/snack.dart';
 
 /// Dosya üzerinde **AI ve tanıma** işlemleri: belge özeti, görselden metin
 /// tanıma + otomatik sınıflandırma.
@@ -178,8 +179,7 @@ Future<bool> fileIntoSuggestedFolder(
 }
 
 void _snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  showSnack(context, message);
 }
 
 class _Busy extends StatelessWidget {

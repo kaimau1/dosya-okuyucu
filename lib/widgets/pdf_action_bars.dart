@@ -304,9 +304,29 @@ class PdfEditBar extends StatelessWidget {
   final VoidCallback onRewrite;
   final VoidCallback onApply;
 
+  /// İmleci bir karakter sola/sağa taşır ve metnin tamamını seçer.
+  ///
+  /// **Niye düğme** (kullanıcı 2026-08-30: *"imleç zor hareket ediyor"*):
+  /// yerinde düzenleme kutusu belgenin kendi puntosunda çiziliyor — gövde
+  /// metninde 10-14 dp. O boyda bir yazının İÇİNDE parmakla tek karakter
+  /// ilerlemek pratikte mümkün değil; sürükleme tutamacı da yazıdan büyük
+  /// olduğu için altındaki harfi kapatıyor. Kutunun dokunma payı büyütüldü
+  /// (bkz. `PdfInlineEditor`) ama "bir harf sola" isteğinin kesin karşılığı
+  /// klavye okları; telefon klavyesinde ok tuşu yok, o yüzden burada.
+  ///
+  /// Null verilirse satır hiç çizilmez (çubuk eski hâline döner).
+  final VoidCallback? onCaretLeft;
+  final VoidCallback? onCaretRight;
+  final VoidCallback? onSelectAll;
+
   final String cancelLabel;
   final String aiLabel;
   final String applyLabel;
+
+  /// İmleç satırının ipuçları (sola / sağa / tümünü seç).
+  final String caretLeftLabel;
+  final String caretRightLabel;
+  final String selectAllLabel;
 
   const PdfEditBar({
     super.key,
@@ -317,14 +337,51 @@ class PdfEditBar extends StatelessWidget {
     required this.cancelLabel,
     required this.aiLabel,
     required this.applyLabel,
+    this.onCaretLeft,
+    this.onCaretRight,
+    this.onSelectAll,
+    this.caretLeftLabel = '',
+    this.caretRightLabel = '',
+    this.selectAllLabel = '',
   });
+
+  /// İmleç satırı: ◀ ▶ ve "tümünü seç". Simge düğmeleri **sabit ölçülü**
+  /// (48 dp'lik dokunma hedefi) ve sayıca üç — dar ekranda da taşmaz.
+  Widget _caretRow() => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            tooltip: caretLeftLabel.isEmpty ? null : caretLeftLabel,
+            onPressed: busy ? null : onCaretLeft,
+            icon: const Icon(Icons.keyboard_arrow_left),
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            tooltip: caretRightLabel.isEmpty ? null : caretRightLabel,
+            onPressed: busy ? null : onCaretRight,
+            icon: const Icon(Icons.keyboard_arrow_right),
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            tooltip: selectAllLabel.isEmpty ? null : selectAllLabel,
+            onPressed: busy ? null : onSelectAll,
+            icon: const Icon(Icons.select_all),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      );
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final caret = onCaretLeft != null || onCaretRight != null;
     return PdfFloatingCard(
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          if (caret) _caretRow(),
+          Row(
+            children: [
           // İkisi eşit paylı, etiketler ellipsis: dar ekranda taşmaz.
           PdfBarAction(
             icon: Icons.close,
@@ -363,6 +420,8 @@ class PdfEditBar extends StatelessWidget {
                       ),
                     ),
             ),
+          ),
+            ],
           ),
         ],
       ),

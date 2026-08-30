@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:share_plus/share_plus.dart';
@@ -17,10 +16,13 @@ import '../../services/fm/drive_service.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
+import '../../services/fm/file_ops.dart' show FmProgress;
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/file_type_icon.dart';
 import '../../widgets/fm/fm_entry_icon.dart' show FmColors;
+import '../../widgets/fm/fm_progress_dialog.dart';
 import 'folder_picker_screen.dart';
+import '../../core/snack.dart';
 
 /// Google Drive ekranı — **gezilebilir dosya yöneticisi** (2026-08-05).
 ///
@@ -340,8 +342,17 @@ class _DriveScreenState extends State<DriveScreen> {
   /// belli değil"). Toplam boyut bilinmiyorsa (Google biçimi `export` ile
   /// iner) çubuk belirsiz akar ama inen MB yine yazılır.
   Future<void> _open(DriveFile file) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ready = context.t('drive.ready_offscreen');
     final local = await _localCopy(file);
-    if (local == null || !mounted) return;
+    if (local == null) return;
+    // İndirme arka plana alındıysa kullanıcı bu ekranda olmayabilir. Sessizce
+    // yutmuyoruz: dosya indi ve önbellekte duruyor, bir sonraki dokunuşta
+    // anında açılacak — bunu SÖYLÜYORUZ.
+    if (!mounted) {
+      showSnackOn(messenger, '$ready ${file.name}'.trim());
+      return;
+    }
     await EntryOpener.open(context, local.path);
   }
 
@@ -378,53 +389,75 @@ class _DriveScreenState extends State<DriveScreen> {
       ),
     );
     if (target == null || !mounted) return;
+    // Sonuç mesajı ekrandan bağımsız gösterilir: indirme arka plana alınıp
+    // kullanıcı Drive'dan çıkmış olabilir, ama dosya klasöre indi ve bunu
+    // bilmesi gerekiyor.
+    final messenger = ScaffoldMessenger.of(context);
+    final done = context.t('drive.downloaded', {'folder': target});
     final local = await _downloadTo(file, target);
-    if (local == null || !mounted) return;
+    if (local == null) return;
     // Gezgin/pano ANINDA tazelensin diye sinyal: yoksa kullanıcı klasöre
     // gidip "inmemiş" sanırdı.
     FsEvents.changed();
-    _snack(context.t('drive.downloaded', {'folder': target}));
+    showSnackOn(messenger, done);
   }
 
   /// İndirme penceresiyle birlikte tek indirme adımı. Hata kullanıcıya
   /// bildirilir, null döner.
+  ///
+  /// KÖK NEDEN — niye ortak [showFmProgress] (kullanıcı 2026-08-30:
+  /// *"Drive'da bir şeyler inerken durdur yok, arka planda devam etmiyor,
+  /// iptal seçeneği yok"*): burası kendi penceresini kuruyordu ve o pencere
+  /// `barrierDismissible: false` + **düğmesiz**ti. 200 MB'lık bir videoyu
+  /// yanlışlıkla indirmeye başlayan kullanıcının tek çıkışı uygulamayı
+  /// kapatmaktı; indirme sürerken de Drive ekranında kilitli kalıyordu.
+  ///
+  /// Uygulamanın kopyala/taşı/sıkıştır işlerinde bunun çözümü zaten vardı —
+  /// "Arka plana al" + "Durdur" + kalıcı ilerleme şeridi. Kendi penceremizi
+  /// düzeltmek yerine o ortak pencereye geçtik: davranış tek yerde, indirme
+  /// de artık diğer uzun işlerle aynı dili konuşuyor.
   Future<File?> _downloadTo(DriveFile file, String dir) async {
     final failed = context.t('drive.download_failed');
-    final progress = ValueNotifier<(int, int?)>((
-      0,
-      file.sizeBytes > 0 && file.exportAs == null ? file.sizeBytes : null
-    ));
-    var dialogUp = true;
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _DownloadDialog(name: file.name, progress: progress),
-    ).then((_) => dialogUp = false));
-    void closeDialog() {
-      if (dialogUp && mounted) {
-        dialogUp = false;
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-    }
-
+    final stopped = context.t('drive.download_stopped');
+    // Ekrandan bağımsız yaşayan messenger: kullanıcı indirmeyi arka plana
+    // alıp Drive ekranından çıkarsa da sonucu görmeli.
+    final messenger = ScaffoldMessenger.of(context);
+    // Toplam boyut Drive üstverisinden; Google biçimleri `export` ile indiği
+    // için önceden bilinmiyor (0 → belirsiz çubuk).
+    final knownTotal =
+        file.sizeBytes > 0 && file.exportAs == null ? file.sizeBytes : 0;
     try {
-      final local = await _drive.download(
-        file,
-        dir,
-        onProgress: (received, total) => progress.value = (received, total),
+      return await showFmProgress<File?>(
+        context,
+        title: context.t('drive.downloading'),
+        describe: _downloadLabel,
+        task: (report, isCancelled) async {
+          report(FmProgress(0, knownTotal, file.name));
+          return _drive.download(
+            file,
+            dir,
+            onProgress: (received, total) =>
+                report(FmProgress(received, total ?? knownTotal, file.name)),
+            isCancelled: isCancelled,
+          );
+        },
       );
-      if (!mounted) return null;
-      closeDialog();
-      return local;
+    } on DriveDownloadCancelled {
+      showSnackOn(messenger, stopped);
+      return null;
     } catch (e) {
-      if (!mounted) return null;
-      closeDialog();
-      _snack('$failed ${_detail(e)}');
+      showSnackOn(messenger, '$failed ${_detail(e)}');
       return null;
     }
-    // Not: `progress` bilerek dispose EDİLMİYOR — pencerenin kapanış animasyonu
-    // sürerken ValueListenableBuilder hâlâ dinliyor olabilir; kısa ömürlü
-    // nesneyi çöp toplayıcıya bırakmak güvenli olan.
+  }
+
+  /// İlerleme satırı: "11,8 MB / 27,7 MB · %42" (toplam bilinmiyorsa yalnız
+  /// inen miktar — kullanıcı en azından işin CANLI olduğunu görür).
+  static String _downloadLabel(FmProgress p) {
+    if (p.total <= 0) return FsPaths.humanSize(p.done);
+    final pct = (p.done * 100 / p.total).clamp(0, 100).round();
+    return '${FsPaths.humanSize(p.done)} / ${FsPaths.humanSize(p.total)}'
+        ' · %$pct';
   }
 
   /// "Bağlantısı olan herkes görüntüleyebilir" izni verip bağlantıyı paylaşır.
@@ -611,8 +644,7 @@ class _DriveScreenState extends State<DriveScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(m.trim())));
+    showSnack(context, m.trim());
   }
 
   @override
@@ -1133,7 +1165,7 @@ Future<void> uploadToDrive(BuildContext context, String path,
       // Sessizce vazgeçmek "yükledim sandım" yaratıyordu: giriş neden
       // olmadıysa kullanıcı onu görsün (kullanıcı hatası 2026-07-30).
       if (result.error != DriveSignInError.cancelled && context.mounted) {
-        messenger.showSnackBar(SnackBar(
+        showSnackBarReplacing(messenger, SnackBar(
           content: Text(context.t(_DriveScreenState._signInKeyFor(
               result.error ?? DriveSignInError.failed))),
           duration: const Duration(seconds: 8),
@@ -1142,63 +1174,12 @@ Future<void> uploadToDrive(BuildContext context, String path,
       return;
     }
   }
-  messenger.showSnackBar(SnackBar(content: Text(uploading)));
+  showSnackOn(messenger, uploading);
   try {
     final file = await drive.upload(File(path));
-    messenger
-        .showSnackBar(SnackBar(content: Text('$done ${file.name}'.trim())));
+    showSnackOn(messenger, '$done ${file.name}'.trim());
   } catch (e) {
     final detail = e is DriveException && e.detail != null ? e.detail! : '';
-    messenger.showSnackBar(SnackBar(content: Text('$failed $detail'.trim())));
-  }
-}
-
-/// İndirme ilerleme penceresi: dosya adı + çubuk + "12,3 MB / 29,0 MB · %42".
-/// Toplam bilinmiyorsa çubuk belirsiz akar, yalnız inen miktar yazılır —
-/// kullanıcı en azından işlemin CANLI olduğunu görür.
-class _DownloadDialog extends StatelessWidget {
-  final String name;
-  final ValueListenable<(int, int?)> progress;
-
-  const _DownloadDialog({required this.name, required this.progress});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(context.t('drive.downloading'),
-          style: Theme.of(context).textTheme.titleMedium),
-      content: ValueListenableBuilder<(int, int?)>(
-        valueListenable: progress,
-        builder: (context, value, _) {
-          final (received, total) = value;
-          final pct = total != null && total > 0
-              ? (received * 100 / total).clamp(0, 100).round()
-              : null;
-          final label = total != null && total > 0
-              ? '${FsPaths.humanSize(received)} / ${FsPaths.humanSize(total)} · %$pct'
-              : FsPaths.humanSize(received);
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 14),
-              LinearProgressIndicator(
-                value: total != null && total > 0
-                    ? (received / total).clamp(0.0, 1.0)
-                    : null,
-                minHeight: 6,
-                borderRadius: BorderRadius.circular(3),
-              ),
-              const SizedBox(height: 8),
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          );
-        },
-      ),
-    );
+    showSnackOn(messenger, '$failed $detail'.trim());
   }
 }

@@ -65,6 +65,39 @@ class PdfInlineEditor extends StatelessWidget {
   /// Kaydetme sürerken kutu kilitlenir.
   final bool busy;
 
+  /// Bir parmağın rahatça isabet ettirebileceği en küçük yükseklik (Material
+  /// dokunma hedefi 48 dp; burada kutu zaten yazının üstünde durduğu için
+  /// 44 yetiyor ve komşu satırları daha az örtüyor).
+  static const double _minTouch = 44;
+
+  /// Kutunun DIŞINA (dokunma payına) gelen dokunuşta imleci o sütuna taşır.
+  ///
+  /// Yalnız yerleştirir; klavye zaten açık ve odak kutuda. `dx` kutunun
+  /// solundan itibaren, yani metnin kendi başlangıcından ölçülüdür.
+  void _placeCaret(double dx, double fontSize) {
+    final text = controller.text;
+    if (text.isEmpty) return;
+    if (!focusNode.hasFocus) focusNode.requestFocus();
+    // Aynı biçimle ölçülür — kutunun içindeki yazının birebir aynısı, yoksa
+    // imleç dokunulan harfin yanına değil birkaç harf ötesine düşerdi.
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(fontSize: fontSize, height: 1.0),
+      ),
+      strutStyle:
+          StrutStyle(fontSize: fontSize, height: 1.0, forceStrutHeight: true),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final position =
+        painter.getPositionForOffset(Offset(dx, fontSize / 2));
+    painter.dispose();
+    controller.selection = TextSelection.collapsed(
+      offset: position.offset.clamp(0, text.length),
+      affinity: position.affinity,
+    );
+  }
+
   /// Seçili satırların ekran dikdörtgeni (hepsini kapsayan).
   Rect? get _box {
     Rect? out;
@@ -122,12 +155,46 @@ class PdfInlineEditor extends StatelessWidget {
     // fazlası komşu yazıyı beyaza boyardı; gerisi kutunun içinde kayar.
     final width = (box.width + 14).clamp(48.0, pageSize.width - box.left);
 
+    // **Dokunma alanı yazıdan BÜYÜK** (kullanıcı 2026-08-30: *"imleç zor
+    // hareket ediyor, tıklayınca orayı odaklamıyor"*).
+    //
+    // KÖK NEDEN: kutu yazının TAM ölçüsündeydi. Gövde metni %100
+    // yakınlaştırmada 10-14 dp yüksekliğinde çiziliyor; yani dokunulabilir
+    // hedef bir parmağın (Material'in kendi ölçüsüyle 48 dp) dörtte biri
+    // kadardı. Satırın bir iki piksel üstüne ya da altına gelen dokunuş
+    // `TextField`e HİÇ ulaşmıyor, altındaki pdfrx katmanına düşüyordu:
+    // kullanıcı ekrana basıyor, imleç kıpırdamıyor.
+    //
+    // Çözüm yazıyı büyütmek DEĞİL (o zaman "sanki o yazıya aitmiş gibi"
+    // ilkesi bozulurdu): kutunun çevresine saydam bir dokunma payı konuyor.
+    // Yazının kendisi ve beyaz kapak eskisi gibi tam yerinde duruyor —
+    // değişen yalnız dokunuşun nereye kadar sayıldığı.
+    final pad = multiline ? 0.0 : ((_minTouch - box.height) / 2).clamp(0.0, 18.0);
+    const hpad = 10.0;
+
     // Positioned.fill: katman sayfanın tamamını kaplar, içindeki konumlar
     // doğrudan sayfa koordinatı olur (PdfSelectLayer ile aynı düzen).
     return Positioned.fill(
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          if (pad > 0 || hpad > 0)
+            Positioned(
+              left: box.left - hpad,
+              top: box.top - pad,
+              width: width + hpad * 2,
+              height: box.height + pad * 2,
+              // Yığında metin kutusunun ALTINDA: dokunuş önce kutunun
+              // kendisine gider (isabetli dokunuşta Flutter'ın kendi imleç
+              // yerleştirmesi çalışır), yalnız kutunun DIŞINA düşen — ama
+              // paya giren — dokunuşlar buraya gelir.
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (d) =>
+                    _placeCaret(d.localPosition.dx - hpad, fontSize),
+                child: const SizedBox.expand(),
+              ),
+            ),
           Positioned(
             left: box.left,
             top: box.top,

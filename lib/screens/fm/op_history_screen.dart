@@ -7,6 +7,7 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/op_history.dart';
 import 'browser_screen.dart';
+import '../../core/snack.dart';
 
 /// **Son işlemler** — "neyi nereye taşımıştım?" ve toplu geri alma.
 ///
@@ -54,14 +55,12 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
     if (complete) await OpHistory.remove(record);
     if (!mounted) return;
     setState(() => _busy.remove(record.whenMs));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(complete
+    showSnack(context, complete
           ? context.t('oph.undone', {'n': result.succeeded})
           : context.t('oph.undo_partial', {
               'n': result.succeeded,
               'total': record.transfers.length,
-            })),
-    ));
+            }));
     await _load();
   }
 

@@ -16,6 +16,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/ai_file_list.dart';
 import 'important_screen.dart';
+import '../../core/snack.dart';
 
 class AiFilesScreen extends StatefulWidget {
   final AiBucket bucket;
@@ -80,10 +81,8 @@ class _AiFilesScreenState extends State<AiFilesScreen> {
                         ImportantScreen.pathIn(FmEnv.primaryRoot),
                   );
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(context
-                        .t('aiap.started', {'n': selected.length})),
-                  ));
+                  showSnack(context, context
+                        .t('aiap.started', {'n': selected.length}));
                 }
               : null,
         ),

@@ -12,6 +12,7 @@ import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/remote/remote_fs.dart';
 import '../../../services/fm/remote/remote_fs_factory.dart';
 import 'remote_edit_screen.dart';
+import '../../../core/snack.dart';
 
 /// Uzak sunucu gezgini: listeler, indirip açar, yükler, siler.
 ///
@@ -282,7 +283,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    showSnack(context, m);
   }
 
   @override

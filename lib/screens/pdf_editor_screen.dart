@@ -17,6 +17,7 @@ import '../services/scan_ai_fix.dart';
 import '../services/scan_text_fix.dart';
 import '../widgets/pdf_edit_overlay.dart';
 import '../widgets/pdf_save_dialog.dart';
+import '../core/snack.dart';
 
 /// **Tek PDF düzenleme ekranı** — metin, görsel, filigran ve sayfa işlerinin
 /// hepsi burada (2026-07-27 kullanıcı isteği: *"tüm bu işler tek bir pdf
@@ -415,6 +416,31 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     });
   }
 
+  /// Seçili görseli **kendi merkezinde** döndürür / aynalar (kullanıcı
+  /// 2026-08-30). Sayfa döndürmeden ayrı: burada yalnız o görsel oynar.
+  Future<void> _turnObject(
+    int index, {
+    int quarterTurns = 0,
+    bool flipH = false,
+    bool flipV = false,
+  }) async {
+    await _run(() async {
+      final out = await PdfPageEdit.turnObjectInBackground(
+        await _workBytes(),
+        pageIndex: _page - 1,
+        objectIndex: index,
+        quarterTurns: quarterTurns,
+        flipH: flipH,
+        flipV: flipV,
+      );
+      await _apply(
+          out,
+          _str.t(quarterTurns != 0
+              ? 'pe.image_turned'
+              : 'pe.image_mirrored'));
+    });
+  }
+
   Future<void> _removeBackground() async {
     if (_backgroundPicked.isEmpty) {
       _snack(_str.t('pe.pick_to_remove'));
@@ -761,24 +787,56 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         ],
       );
 
+  /// Seçili görselin araç çubuğu.
+  ///
+  /// **İki satır** (kullanıcı 2026-08-30 — *"döndür seçenekleri olmalı, ayna
+  /// görüntüsü seçeneği olmalı"*): üstte biçim işleri (sola/sağa döndür,
+  /// yatay/dikey ayna) simge düğmeleriyle, altta sil/seçimi bırak. Dört
+  /// yeni eylemi eski tek satıra eklemek 320 dp'lik bir ekranda etiketleri
+  /// üst üste bindirirdi; simgeler ipuçlarıyla (tooltip) adlandırıldı.
   Widget _objectToolbar() {
     final index = _selectedObject!;
+    Widget turn(IconData icon, String key, {int turns = 0, bool h = false, bool v = false}) =>
+        IconButton(
+          tooltip: context.t(key),
+          onPressed: _busy
+              ? null
+              : () => _turnObject(index,
+                  quarterTurns: turns, flipH: h, flipV: v),
+          icon: Icon(icon),
+          visualDensity: VisualDensity.compact,
+        );
     return Card(
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextButton.icon(
-              onPressed: _busy ? null : () => _deleteObject(index),
-              icon: const Icon(Icons.delete_outline),
-              label: Text(context.t('common.delete')),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                turn(Icons.rotate_90_degrees_ccw, 'pe.rot_left', turns: -1),
+                turn(Icons.rotate_90_degrees_cw, 'pe.rot_right', turns: 1),
+                turn(Icons.flip, 'pe.mirror_h', h: true),
+                turn(Icons.flip_camera_android_outlined, 'pe.mirror_v',
+                    v: true),
+              ],
             ),
-            TextButton.icon(
-              onPressed: () => setState(() => _selectedObject = null),
-              icon: const Icon(Icons.close),
-              label: Text(context.t('pe.clear_selection')),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton.icon(
+                  onPressed: _busy ? null : () => _deleteObject(index),
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text(context.t('common.delete')),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => _selectedObject = null),
+                  icon: const Icon(Icons.close),
+                  label: Text(context.t('pe.clear_selection')),
+                ),
+              ],
             ),
           ],
         ),
@@ -968,14 +1026,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 
   /// Uzun açıklamalar (reddetme gerekçeleri) kaybolmadan okunabilsin.
   void _longSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
       content: Text(message),
       duration: const Duration(seconds: 8),
       showCloseIcon: true,

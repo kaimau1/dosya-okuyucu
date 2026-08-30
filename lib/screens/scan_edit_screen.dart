@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/doc_edges.dart';
 import '../services/perspective.dart';
+import '../core/snack.dart';
 
 /// Taranan bir sayfanın **köşelerini elle ayarlama** ekranı.
 ///
@@ -164,9 +165,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(
-              content: Text(AppStrings.current.t('se.failed', {'error': e}))));
+      showSnack(context, AppStrings.current.t('se.failed', {'error': e}));
     }
   }
 

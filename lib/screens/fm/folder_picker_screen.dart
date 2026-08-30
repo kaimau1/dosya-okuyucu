@@ -14,6 +14,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'important_screen.dart';
+import '../../core/snack.dart';
 
 /// **Hedef klasör seçici** — "şu dosyaları nereye koyayım?" sorusunun tek
 /// ekranlık cevabı.
@@ -119,10 +120,8 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       _enter(created); // yeni klasörün içine gir: hedef büyük olasılıkla burası
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(
-              content: Text(
-                  AppStrings.current.t('fp.create_failed', {'error': e}))));
+      showSnack(context,
+          AppStrings.current.t('fp.create_failed', {'error': e}));
     }
   }
 
@@ -192,10 +191,8 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         if (!dir.existsSync()) await dir.create(recursive: true);
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(
-                content: Text(
-                    AppStrings.current.t('fp.create_failed', {'error': e}))));
+        showSnack(context,
+            AppStrings.current.t('fp.create_failed', {'error': e}));
         return;
       }
     }

@@ -362,6 +362,37 @@ void main() {
       expect(ticks.last.$2, 4, reason: 'toplam Content-Length\'ten gelmeli');
     });
 
+    test('durdurulunca YARIM DOSYA bırakmaz', () async {
+      // Kullanıcı 2026-08-30: *"Drive'da bir şeyler inerken durdur yok"*.
+      // Durdurma eklendi; asıl tuzak sonrası: yarım inmiş dosya klasörde
+      // kalırsa kullanıcı onu "inmiş" sanır ve açınca bozuk PDF görür.
+      final dir = await Directory.systemTemp.createTemp('drive_dl_cancel');
+      addTearDown(() => removeTempDir(dir));
+      const pdf =
+          DriveFile(id: 'a', name: 'rapor.pdf', mimeType: 'application/pdf');
+      await expectLater(
+        _withMock(
+          () => _service().download(pdf, dir.path, isCancelled: () => true),
+          (_) async => http.Response.bytes([1, 2, 3, 4], 200),
+        ),
+        throwsA(isA<DriveDownloadCancelled>()),
+      );
+      expect(File('${dir.path}/rapor.pdf').existsSync(), isFalse);
+    });
+
+    test('durdurulmadıysa dosya normal iner (kanca yanlış tetiklenmesin)',
+        () async {
+      final dir = await Directory.systemTemp.createTemp('drive_dl_ok');
+      addTearDown(() => removeTempDir(dir));
+      const pdf =
+          DriveFile(id: 'a', name: 'rapor.pdf', mimeType: 'application/pdf');
+      final file = await _withMock(
+        () => _service().download(pdf, dir.path, isCancelled: () => false),
+        (_) async => http.Response.bytes([1, 2, 3, 4], 200),
+      );
+      expect(file.readAsBytesSync(), [1, 2, 3, 4]);
+    });
+
     test('ilerlemede toplam yoksa üstverideki boyut kullanılır', () {
       // Content-Length'i olmayan yanıtı MockClient ile kurmak zor; en azından
       // hata YOLU akan indirmede de sınıflandırılmalı.

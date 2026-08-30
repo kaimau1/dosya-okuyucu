@@ -17,6 +17,7 @@ import '../../services/fm/job_queue.dart';
 import '../../services/fm/path_side_index.dart';
 import '../../services/fm/video_transcode.dart';
 import '../../widgets/fm/media_resize_sheet.dart';
+import '../../core/snack.dart';
 
 /// Seçili fotoğraf/videoları **boyut düşürme kuyruğuna** koyar.
 ///
@@ -39,7 +40,7 @@ Future<bool> startResizeJob(
   // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
   final str = AppStrings.of(context);
   if (media.isEmpty) {
-    messenger.showSnackBar(SnackBar(content: Text(str.t('ra.media_only'))));
+    showSnackOn(messenger, str.t('ra.media_only'));
     return false;
   }
 
@@ -87,12 +88,11 @@ Future<bool> startResizeJob(
   // BEKLİYOR — ikisinde de "başladı" demek yanlıştı (2026-07-29 denetimi).
   // Nereden takip edileceği YAZILIR: kullanıcı hatası 2026-07-30 — "nerede ne
   // oluyor göremiyorum". Şerit + ana ekrandaki İşlemler kutusu, ikisi de.
-  messenger.showSnackBar(SnackBar(
-      content: Text(str.t(alreadyRunning
+  showSnackOn(messenger, str.t(alreadyRunning
           ? 'ra.already_running'
           : job.status == JobStatus.queued && JobQueue.instance.hasActive
               ? 'ra.queued'
-              : 'ra.started'))));
+              : 'ra.started'));
   return true;
 }
 

@@ -17,6 +17,7 @@ import '../widgets/translate_flow.dart';
 import 'fm/folder_picker_screen.dart';
 import 'scan_edit_screen.dart';
 import 'scan_review_screen.dart';
+import '../core/snack.dart';
 
 /// **Tarama sonucu** — taranan belge ve tanınan metin, yan yana iki sekmede.
 ///
@@ -466,6 +467,5 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     }
   }
 
-  void _snack(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) => showSnack(context, msg);
 }

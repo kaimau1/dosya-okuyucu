@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
+import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 
@@ -16,6 +17,11 @@ import '../../services/fm/file_ops.dart';
 /// kapanır, iş sürmeye devam eder ve kullanıcı bu sırada başka işlem yapabilir
 /// (2026-07-26 bulgusu: "çöp kutusu boşaltılırken başka işlem yapamıyorum").
 /// Sonuç yine çağırana döner — çağıran bildirimi kendi gösterir.
+///
+/// [describe] verilirse sayaç satırı ("3 / 12") onun döndürdüğü metinle
+/// yazılır. Gerekçe: [FmProgress.done]/[FmProgress.total] her işte "dosya"
+/// saymıyor — indirmede **bayt** sayıyor ve "12345678 / 29000000" diye bir
+/// satır kimseye bir şey anlatmaz ("11,8 MB / 27,7 MB · %42" anlatır).
 Future<T> showFmProgress<T>(
   BuildContext context, {
   required String title,
@@ -25,6 +31,7 @@ Future<T> showFmProgress<T>(
   ) task,
   bool cancellable = true,
   bool backgroundable = true,
+  String Function(FmProgress)? describe,
 }) async {
   final progress = ValueNotifier<FmProgress>(const FmProgress(0, 0, ''));
   var cancelled = false;
@@ -71,6 +78,9 @@ Future<T> showFmProgress<T>(
     // şeridi kaydırıp kapattıysa `finally` BAŞKASININ mesajını süpürüyordu
     // (2026-07-29 sadakat denetimi, 4. tur). `controller.close()` yalnız bu
     // şeridi kapatır.
+    // Kalıcı şerit: kısa bildirimler bunu SÜPÜRMESİN (bkz. core/snack.dart —
+    // yeni bildirim normalde bekleyenin yerine geçer).
+    beginStickySnack();
     barController = messenger.showSnackBar(SnackBar(
       duration: const Duration(days: 1),
       content: ValueListenableBuilder<FmProgress>(
@@ -85,9 +95,12 @@ Future<T> showFmProgress<T>(
             const SizedBox(width: Gap.md),
             Expanded(
               child: Text(
-                value.total > 0
-                    ? '$title · ${value.done} / ${value.total}'
-                    : '$title…',
+                switch ((describe?.call(value), value.total)) {
+                  (final String d, _) when d.isNotEmpty => '$title · $d',
+                  (_, final int t) when t > 0 =>
+                    '$title · ${value.done} / ${value.total}',
+                  _ => '$title…',
+                },
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -161,7 +174,10 @@ Future<T> showFmProgress<T>(
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(ctx).textTheme.bodySmall,
                 ),
-                  if (value.total > 0)
+                  if (describe != null)
+                    Text(describe(value),
+                        style: Theme.of(ctx).textTheme.bodySmall)
+                  else if (value.total > 0)
                     Text('${value.done} / ${value.total}',
                         style: Theme.of(ctx).textTheme.bodySmall),
                 ],
@@ -197,7 +213,11 @@ Future<T> showFmProgress<T>(
     closeDialog();
     // Kalıcı şerit yalnız bu iş için gösterildiyse kaldırılır; başka bir
     // bildirimi (ör. kullanıcının okumadığı bir sonuç mesajı) süpürmeyelim.
-    barController?.close();
+    final bar = barController;
+    if (bar != null) {
+      bar.close();
+      endStickySnack();
+    }
     progress.dispose();
   }
 }

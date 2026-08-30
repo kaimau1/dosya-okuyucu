@@ -37,6 +37,7 @@ import '../../widgets/fm/ai_file_list.dart';
 import '../settings_screen.dart';
 import 'ai_files_screen.dart';
 import 'important_screen.dart';
+import '../../core/snack.dart';
 
 class AiHubScreen extends StatefulWidget {
   const AiHubScreen({super.key});
@@ -483,8 +484,7 @@ class _ChatTabState extends State<_ChatTab> {
     });
   }
 
-  void _snack(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  void _snack(String message) => showSnack(context, message);
 
   @override
   Widget build(BuildContext context) {
@@ -757,9 +757,7 @@ class _SuggestionsTab extends StatelessWidget {
       records,
       importantRoot: ImportantScreen.pathIn(FmEnv.primaryRoot),
     );
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(context.t('aiap.started', {'n': records.length})),
-    ));
+    showSnack(context, context.t('aiap.started', {'n': records.length}));
   }
 }
 

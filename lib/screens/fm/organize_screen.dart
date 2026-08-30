@@ -13,6 +13,7 @@ import '../../services/fm/op_history.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
+import '../../core/snack.dart';
 
 /// **Otomatik düzenle** — dağınık bir klasörü tek dokunuşla türe/tarihe/kaynağa
 /// göre alt klasörlere ayırır.
@@ -130,11 +131,9 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
       ));
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(errors.isEmpty
+    showSnack(context, errors.isEmpty
           ? context.t('org.done', {'n': transfers.length})
-          : context.t('org.partial', {'error': errors.first})),
-    ));
+          : context.t('org.partial', {'error': errors.first}));
     await _load();
   }
 

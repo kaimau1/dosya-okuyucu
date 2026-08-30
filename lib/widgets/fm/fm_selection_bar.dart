@@ -9,6 +9,7 @@ import '../../screens/fm/entry_actions.dart';
 import '../../screens/fm/resize_actions.dart';
 import 'batch_rename_sheet.dart';
 import 'tag_picker_sheet.dart';
+import '../../core/snack.dart';
 
 /// Çoklu seçim yapılınca ekranın altında beliren **eylem çubuğu**.
 ///
@@ -160,12 +161,11 @@ class FmSelectionBar extends StatelessWidget {
               if (await copyToImportant(context, _paths)) await onChanged();
             case 'clip_copy':
               appState.setClipboard(_paths, cut: false);
-              messenger.showSnackBar(
-                  SnackBar(content: Text(clipCopied)));
+              showSnackOn(messenger, clipCopied);
               await onChanged();
             case 'clip_cut':
               appState.setClipboard(_paths, cut: true);
-              messenger.showSnackBar(SnackBar(content: Text(clipCut)));
+              showSnackOn(messenger, clipCut);
               await onChanged();
             case 'zip':
               final dest = zipDestDir;

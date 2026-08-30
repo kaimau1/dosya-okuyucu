@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/batch_rename.dart';
 import '../../services/fm/file_ops.dart';
+import '../../core/snack.dart';
 
 /// **Toplu yeniden adlandırma** sayfası: kalıp yaz → **canlı önizleme** → uygula.
 ///
@@ -74,15 +75,13 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
     }
     if (!mounted) return;
     setState(() => _running = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(errors.isEmpty
+    showSnack(context, errors.isEmpty
           ? context.t('br.done', {'n': ok})
           : context.t('br.partial', {
               'n': ok,
               'fail': errors.length,
               'first': errors.first,
-            })),
-    ));
+            }));
     if (mounted) Navigator.pop(context, ok > 0);
   }
 

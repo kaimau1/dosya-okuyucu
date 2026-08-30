@@ -5,6 +5,7 @@ import '../models/document.dart';
 import '../services/blank_docs.dart';
 import '../services/fm/entry_opener.dart';
 import 'file_type_icon.dart';
+import '../core/snack.dart';
 
 /// **Yeni belge oluştur** — boş Word / Excel / metin dosyası kurup açar.
 ///
@@ -65,8 +66,6 @@ Future<void> _createAndOpen(BuildContext context, String type) async {
     if (!navigator.mounted) return;
     await EntryOpener.open(navigator.context, path);
   } catch (e) {
-    messenger.showSnackBar(
-      SnackBar(content: Text(s.t('home.create_error', {'error': e}))),
-    );
+    showSnackOn(messenger, s.t('home.create_error', {'error': e}));
   }
 }

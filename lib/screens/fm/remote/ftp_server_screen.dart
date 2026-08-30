@@ -7,6 +7,7 @@ import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme.dart';
 import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/remote/ftp_service.dart';
+import '../../../core/snack.dart';
 
 /// **Ağdan erişim** — telefondaki dosyalara ağdaki bilgisayardan ulaşma.
 ///
@@ -67,10 +68,8 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
           lockedFolders: context.read<AppState>().fmLockedFolders.toList());
       final error = _service.error;
       if (error != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              context.t('ftpd.start_failed').replaceAll('{error}', error)),
-        ));
+        showSnack(context,
+            context.t('ftpd.start_failed').replaceAll('{error}', error));
       }
     }
   }
@@ -79,8 +78,7 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     final copied = context.t('ftpd.copied');
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(copied)));
+    showSnack(context, copied);
   }
 
   @override

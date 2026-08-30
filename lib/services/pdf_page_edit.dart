@@ -17,6 +17,7 @@ import 'pdf/pdf_objects.dart';
 import 'pdf/pdf_page_context.dart';
 import 'pdf/pdf_paragraph.dart';
 import 'pdf/pdf_paragraph_layout.dart';
+import 'pdf/pdf_syntax.dart' show multiplyMatrix;
 import 'pdf/pdf_xobject.dart';
 
 export 'pdf/pdf_page_context.dart' show PdfPageRefused;
@@ -56,6 +57,26 @@ class PdfPageOutline {
     pageWidth: 0,
     pageHeight: 0,
   );
+}
+
+/// Toplu paragraf değiştirmenin sonucu (bkz. [PdfPageEdit.replaceParagraphs]).
+class PdfParagraphBatch {
+  /// Yeni belge baytları (hiçbir şey uygulanmadıysa girdinin aynısı).
+  final List<int> bytes;
+
+  /// Yerine yazılan paragraf sayısı.
+  final int applied;
+
+  /// Yazılamayıp atlanan paragraf sayısı — kullanıcıya DÜRÜSTÇE söylenir:
+  /// "tamamı çevrildi" demek, sayfada olduğu gibi kalmış bir paragraf varken
+  /// yanlış olurdu.
+  final int skipped;
+
+  const PdfParagraphBatch({
+    required this.bytes,
+    required this.applied,
+    required this.skipped,
+  });
 }
 
 abstract final class PdfPageEdit {
@@ -168,6 +189,139 @@ abstract final class PdfPageEdit {
     verify(out, bytes, changedPages: const {});
     return out;
   }
+
+  /// **Bir sayfadaki birden çok paragrafı tek geçişte** değiştirir.
+  ///
+  /// [texts] paragraf indeksi → yeni metin. Yerine yazılamayan paragraf
+  /// (yazı tipi hedef dilin harflerini taşımıyor, metin sayfaya sığmıyor,
+  /// matrisi alışılmadık…) **atlanır**, iş durmaz — kaç tanesinin olduğu ve
+  /// kaç tanesinin atlandığı geri döner.
+  ///
+  /// Niye tek geçiş: yerinde çeviri (bkz. `PdfInPlaceTranslate`) 40 paragraflı
+  /// bir sayfada [replaceParagraph]'ı 40 kez çağırsaydı belge 40 kez açılıp
+  /// kaydedilirdi — her kayıt bir artımlı güncelleme, yani dosya her seferinde
+  /// büyür ve doğrulama 40 kez koşar (sayfa başına dakikalar).
+  ///
+  /// **Sondan başa** uygulanır: paragrafların bayt aralıkları özgün akışa
+  /// göre; bir paragrafı yeniden yazmak KENDİSİNDEN SONRAKİ aralıkları
+  /// kaydırır, öncekileri kaydırmaz. Ters sırada gidilince elde kalan
+  /// aralıklar hep geçerli (`rewriteParagraph` ayrıca aralığı doğruluyor).
+  static PdfParagraphBatch replaceParagraphs(
+    List<int> bytes, {
+    required int pageIndex,
+    required Map<int, String> texts,
+  }) {
+    final page = PdfPageContext.open(bytes, pageIndex);
+    final paragraphs = page.paragraphs();
+    final byStream = <int, List<int>>{};
+    var skipped = 0;
+    for (final entry in texts.entries) {
+      final index = entry.key;
+      if (index < 0 || index >= paragraphs.length) {
+        skipped++;
+        continue;
+      }
+      final text = entry.value.trim();
+      // Değişmeyen paragraf atlanmış SAYILMAZ: çevirinin kaynakla aynı çıkması
+      // (sayılar, kısaltmalar, özel adlar) başarısızlık değil.
+      if (text.isEmpty || text == paragraphs[index].text.trim()) continue;
+      byStream.putIfAbsent(paragraphs[index].streamIndex, () => []).add(index);
+    }
+
+    var applied = 0;
+    final updates = <int, List<int>>{};
+    for (final entry in byStream.entries) {
+      var content = page.contents[entry.key];
+      final indexes = entry.value
+        ..sort((a, b) =>
+            paragraphs[b].spanStart.compareTo(paragraphs[a].spanStart));
+      var touched = false;
+      for (final index in indexes) {
+        try {
+          content = rewriteParagraph(
+            content: content,
+            paragraph: paragraphs[index],
+            newText: texts[index]!.trim(),
+            fonts: page.fonts,
+          );
+          applied++;
+          touched = true;
+        } catch (_) {
+          // Tek paragrafın reddi sayfanın tamamını düşürmez.
+          skipped++;
+        }
+      }
+      if (touched) updates[entry.key] = content;
+    }
+    if (updates.isEmpty) {
+      return PdfParagraphBatch(bytes: bytes, applied: 0, skipped: skipped);
+    }
+    final out = page.writeMany(updates);
+    verify(out, bytes, changedPages: {pageIndex});
+    return PdfParagraphBatch(bytes: out, applied: applied, skipped: skipped);
+  }
+
+  static Future<PdfParagraphBatch> replaceParagraphsInBackground(
+    List<int> bytes, {
+    required int pageIndex,
+    required Map<int, String> texts,
+  }) =>
+      _guard(() => Isolate.run(
+          () => replaceParagraphs(bytes, pageIndex: pageIndex, texts: texts)));
+
+  /// [objectIndex] görselini **kendi merkezinde** döndürür / aynalar.
+  ///
+  /// Sayfanın `/Rotate` girdisiyle karıştırılmasın: o SAYFAYI çevirir, bu
+  /// yalnız seçili görseli. Yan yatmış bir tarama, ters çekilmiş bir imza ya
+  /// da ayna görüntüsü istenen bir logo için gereken bu.
+  static List<int> turnObject(
+    List<int> bytes, {
+    required int pageIndex,
+    required int objectIndex,
+    int quarterTurns = 0,
+    bool flipH = false,
+    bool flipV = false,
+  }) {
+    if (quarterTurns % 4 == 0 && !flipH && !flipV) {
+      throw const PdfPageRefused('Görselde değişecek bir şey yok.');
+    }
+    final page = PdfPageContext.open(bytes, pageIndex);
+    final object = _objectAt(page, objectIndex);
+    final turn = objectTurn(
+      centerX: object.left + object.width / 2,
+      centerY: object.bottom + object.height / 2,
+      quarterTurns: quarterTurns,
+      flipH: flipH,
+      flipV: flipV,
+    );
+    // Dönüşüm görselin KENDİ dönüşümünün üstüne biner: önce görsel nereye
+    // çiziliyorsa oraya, sonra sayfa uzayında döndürme/aynalama.
+    final content = placeObjectMatrix(
+      page.contents[object.streamIndex],
+      object,
+      multiplyMatrix(object.ctm, turn),
+    );
+    final out = page.write(object.streamIndex, content);
+    verify(out, bytes, changedPages: const {});
+    return out;
+  }
+
+  static Future<List<int>> turnObjectInBackground(
+    List<int> bytes, {
+    required int pageIndex,
+    required int objectIndex,
+    int quarterTurns = 0,
+    bool flipH = false,
+    bool flipV = false,
+  }) =>
+      _guard(() => Isolate.run(() => turnObject(
+            bytes,
+            pageIndex: pageIndex,
+            objectIndex: objectIndex,
+            quarterTurns: quarterTurns,
+            flipH: flipH,
+            flipV: flipV,
+          )));
 
   static Future<List<int>> deleteObjectInBackground(
     List<int> bytes, {

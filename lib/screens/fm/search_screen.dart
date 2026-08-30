@@ -24,6 +24,7 @@ import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
+import '../../core/snack.dart';
 
 /// Klasör altında özyinelemeli dosya arama (Türkçe-duyarlı).
 ///
@@ -395,8 +396,7 @@ class _SearchScreenState extends State<SearchScreen> {
     // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final str = AppStrings.of(context);
     if (!appState.hasApiKey) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(str.t('srch.need_key'))));
+      showSnack(context, str.t('srch.need_key'));
       return;
     }
     setState(() => _aiBusy = true);
@@ -413,15 +413,12 @@ class _SearchScreenState extends State<SearchScreen> {
         if (parsed != null) _smart = parsed;
       });
       if (parsed == null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(str.t('srch.ai_fallback'))));
+        showSnack(context, str.t('srch.ai_fallback'));
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _aiBusy = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(
-              content: Text(str.t('srch.ai_error', {'error': e}))));
+      showSnack(context, str.t('srch.ai_error', {'error': e}));
     }
   }
 

@@ -5,8 +5,11 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../services/doc_translate.dart';
+import '../services/pdf_translate_doc.dart';
 import '../services/ocr_service.dart';
 import '../services/translate_service.dart';
+import 'pdf_save_dialog.dart';
+import '../core/snack.dart';
 
 /// Akış sırasında ilerlemeyi yazan ve **iptal isteğini taşıyan** tutamak.
 ///
@@ -53,6 +56,112 @@ class TranslateFlow {
       context,
       title: title ?? str.t('tf.title'),
       load: (_) async => [OcrPage(1, source)],
+    );
+  }
+
+  /// **PDF'i kendi düzeninde çevirir** — sonuç metin sayfası değil, aynı
+  /// belgenin hedef dildeki hâli (bkz. [PdfInPlaceTranslate]).
+  ///
+  /// Kullanıcı isteği 2026-08-30: *"çevir özelliği PDF'i aynı formata çevirip
+  /// sanki aynı belge diğer dildeymiş gibi yazabilmeli."*
+  ///
+  /// Akış metin çevirisiyle aynı iskeleti kullanır (dil seç → model indir →
+  /// durdurulabilir ilerleme), sonu farklı: çevrilen baytlar `savePdfWithChoice`
+  /// ile kaydediliyor (üzerine yaz / kopya / klasör seç) ve hemen açılabiliyor.
+  static Future<void> runPdfInPlace(
+    BuildContext context, {
+    required String path,
+    required List<int> bytes,
+    required int pageCount,
+  }) async {
+    final str = AppStrings.of(context);
+    final pair = await TranslateService.lastPair();
+    if (!context.mounted) return;
+    final chosen = await _pickLanguages(context, pair.$1, pair.$2);
+    if (chosen == null || !context.mounted) return;
+    final (from, to) = chosen;
+    await TranslateService.savePair(from, to);
+    if (!context.mounted) return;
+
+    final progress = TranslateProgress(str.t('tf.preparing'));
+    _showProgress(context, progress);
+
+    PdfTranslateOutcome? outcome;
+    String? error;
+    try {
+      for (final lang in {from, to}) {
+        if (progress.cancelled) break;
+        if (!await TranslateService.isModelReady(lang)) {
+          progress.status('${str.t('tf.downloading', {
+                'lang': TranslateService.languages[lang],
+              })}\n${str.t('tf.first_use')}');
+          await TranslateService.downloadModel(lang);
+        }
+      }
+      if (!progress.cancelled) {
+        // Çevirmen TEK bir kez açılır ve sonunda kapatılır: her paragraf için
+        // yeniden kurmak yüzlerce paragraflık bir belgede saniyeler yer.
+        final translator = TranslateService.translator(from: from, to: to);
+        try {
+          outcome = await PdfInPlaceTranslate.run(
+            bytes: bytes,
+            pageCount: pageCount,
+            translate: (text) => TranslateService.translateWith(
+              translator,
+              text,
+              cancelled: () => progress.cancelled,
+            ),
+            onPage: (done, total) => progress.status(str.t(
+                'tf.page_translating', {'n': done + 1, 'total': total})),
+            cancelled: () => progress.cancelled,
+          );
+        } finally {
+          await translator.close();
+        }
+      }
+    } catch (e) {
+      error = '$e';
+    }
+
+    if (!context.mounted) {
+      progress.dispose();
+      return;
+    }
+    Navigator.of(context).pop(); // ilerleme penceresi
+    final cancelled = progress.cancelled;
+    progress.dispose();
+
+    if (error != null) {
+      _snack(context, str.t('tf.failed', {'error': error}));
+      return;
+    }
+    final result = outcome;
+    if (result == null || !result.changed) {
+      // Durduruldu, çevrilecek paragraf yok ya da hiçbiri belgeye yazılamadı —
+      // üçü ayrı şey, üçü de ayrı söyleniyor.
+      _snack(
+        context,
+        cancelled
+            ? str.t('tf.stopped')
+            : (result != null && result.skipped > 0)
+                ? str.t('tf.inplace_none', {'n': result.skipped})
+                : str.t('tf.empty_result'),
+      );
+      return;
+    }
+
+    // Not DÜRÜST: kaç paragraf çevrildi, kaçı olduğu gibi kaldı.
+    final note = result.skipped > 0
+        ? str.t('tf.inplace_partial',
+            {'n': result.translated, 'skipped': result.skipped})
+        : str.t('tf.inplace_done',
+            {'n': result.translated, 'pages': result.pages});
+    if (cancelled) _snack(context, str.t('tf.stopped'));
+    await savePdfWithChoice(
+      context,
+      originalPath: path,
+      bytes: result.bytes,
+      note: note,
     );
   }
 
@@ -329,7 +438,6 @@ class TranslateFlow {
   }
 
   static void _snack(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    showSnack(context, msg);
   }
 }

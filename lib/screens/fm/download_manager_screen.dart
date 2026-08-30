@@ -16,6 +16,7 @@ import '../../services/fm/storage_permission.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 import 'folder_picker_screen.dart';
+import '../../core/snack.dart';
 
 /// **İndirmeler** — bağlantıdan indirme kuyruğu ve geçmişi.
 ///
@@ -79,8 +80,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     final url = extractUrl(data?.text ?? '');
     if (!mounted) return;
     if (url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.t('dl.no_link'))));
+      showSnack(context, context.t('dl.no_link'));
       return;
     }
     await startDownloadFlow(context, url);
@@ -293,8 +293,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
             case 'copy':
               await Clipboard.setData(ClipboardData(text: task.url));
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(copiedMsg)));
+                showSnack(context, copiedMsg);
               }
           }
         },
@@ -357,10 +356,8 @@ Future<void> startDownloadFlow(BuildContext context, String rawUrl) async {
   await DownloadService.instance
       .enqueue(target, destDir: dest, fileName: suggestedName);
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(context.t(
-        'dl.started', {'name': suggestedName ?? p.basename(target)})),
-  ));
+  showSnack(context, context.t(
+        'dl.started', {'name': suggestedName ?? p.basename(target)}));
 }
 
 Future<GithubRelease?> _fetchRelease(BuildContext context, String apiUrl) async {

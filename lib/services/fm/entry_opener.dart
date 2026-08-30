@@ -25,6 +25,7 @@ import '../file_service.dart';
 import 'archive_ops.dart';
 import 'fs_events.dart';
 import 'open_history.dart';
+import '../../core/snack.dart';
 
 /// Bir dosyanın hangi ekranda açılacağı. Saf karar fonksiyonu
 /// ([EntryOpener.routeFor]) olduğu için birim testiyle sabitlenir.
@@ -316,8 +317,7 @@ abstract final class EntryOpener {
   }
 
   static void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 }
 

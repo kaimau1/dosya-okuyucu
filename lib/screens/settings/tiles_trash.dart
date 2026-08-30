@@ -8,6 +8,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'settings_widgets.dart';
+import '../../core/snack.dart';
 
 /// Silinen dosya çöp kutusuna mı gitsin?
 class UseTrashTile extends StatelessWidget {
@@ -131,8 +132,7 @@ class _EmptyTrashTileState extends State<EmptyTrashTile> {
           FmEnv.trash.empty(onProgress: report, isCancelled: isCancelled),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(result.hasError
+    showSnack(context, result.hasError
           ? str.t('fmset.empty_partial',
               {'ok': result.succeeded, 'fail': result.errors.length})
           : result.cancelled
@@ -140,8 +140,7 @@ class _EmptyTrashTileState extends State<EmptyTrashTile> {
               : str.t('fmset.empty_done', {
                   'ok': result.succeeded,
                   'size': FsPaths.humanSize(freed),
-                })),
-    ));
+                }));
     await _refresh();
   }
 

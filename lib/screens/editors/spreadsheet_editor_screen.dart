@@ -34,6 +34,7 @@ import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/sheet_cell.dart';
 import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
+import '../../core/snack.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -961,12 +962,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       unawaited(ActivityLog.add(ActivityKind.documentEdit, target));
       _dirty = false;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(widget.savePath == null
+        showSnack(context, widget.savePath == null
               ? context.t('common.saved_hint')
               : context.t('excel.saved_as_xlsx',
-                  {'name': p.basename(target)})),
-        ));
+                  {'name': p.basename(target)}));
         setState(() {});
       }
     } catch (e) {
@@ -1081,7 +1080,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    showSnack(context, m);
   }
 
   // ── arayüz ────────────────────────────────────────────────────────────────

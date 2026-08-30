@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/crash_log.dart';
+import '../../core/snack.dart';
 
 /// **Hata kayıtları ekranı** — cihazda tutulan çökme/hata raporlarını AYNEN
 /// gösterir, kullanıcı isterse paylaşır ya da siler.
@@ -45,9 +46,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
     await CrashLog.clear();
     if (!mounted) return;
     setState(() => _records = const []);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.t('settings.crash_log_cleared'))),
-    );
+    showSnack(context, context.t('settings.crash_log_cleared'));
   }
 
   @override

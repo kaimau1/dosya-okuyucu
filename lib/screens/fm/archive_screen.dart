@@ -16,6 +16,7 @@ import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
+import '../../core/snack.dart';
 
 /// Arşiv görüntüleyici: RAR / 7z / ZIP / TAR içeriğini **çıkarmadan** listeler,
 /// tek dosyayı önizler, tamamını ya da seçilen dosyayı çıkarır.
@@ -105,7 +106,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         ),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
         content: Text(context.t('fm.extracted_to', {'name': p.basename(target)})),
         action: SnackBarAction(
           label: context.t('common.open'),
@@ -183,8 +184,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 
   List<ArchiveItem> get _visible {

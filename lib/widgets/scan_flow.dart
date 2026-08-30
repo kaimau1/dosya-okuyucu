@@ -7,6 +7,7 @@ import '../services/document_scanner.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/ocr_service.dart';
 import '../services/scan_title.dart';
+import '../core/snack.dart';
 
 /// Belge tarama akışı: kamera/tarayıcı arayüzü → OCR (hep) → akıllı ad →
 /// tek PDF → Belgeler dizinine kaydet → sonuç ekranı.
@@ -125,6 +126,6 @@ class ScanFlow {
   }
 
   static void _snack(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showSnack(context, msg);
   }
 }

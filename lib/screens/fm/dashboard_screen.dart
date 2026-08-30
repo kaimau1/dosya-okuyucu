@@ -53,6 +53,7 @@ import 'photos_screen.dart';
 import 'search_screen.dart';
 import 'similar_screen.dart';
 import 'trash_screen.dart';
+import '../../core/snack.dart';
 
 /// Dosya yöneticisi panosu: depolama doluluğu, kategoriler, favoriler,
 /// hızlı klasörler ve çöp kutusu — tek ekranda.
@@ -271,15 +272,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     await FmEnv.ensureInit(force: true);
     await _scan();
     if (!granted && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+      showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
           content: Text(context.t('fm.permission_denied')),
           action: SnackBarAction(
             label: context.t('common.settings'),
             onPressed: StoragePermission.openSettings,
           ),
-        ),
-      );
+        ),);
     }
   }
 
@@ -1248,8 +1247,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 }
 

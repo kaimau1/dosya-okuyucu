@@ -9330,3 +9330,130 @@ alınan ekran görüntüsü anında görünüyor (dizin devrede değil). Ad yine
 (bkz. FTP kod sayfası tuzağı).
 
 **Doğrulama:** analyze 0 sorun, **1903 test yeşil**.
+
+## 2026-08-30 (A) — Bulanık simgeler, Drive indirmesi, PDF imleci, uyarı kuyruğu, görsel döndürme, yerinde çeviri
+Kullanıcı (ekran görüntüsüyle, altı madde): *"drive'da bir şeyler inerken
+durdur yok arka planda devam etmiyor iptal seçeneği yok"*, *"PDF de yazı
+düzenlerken imleç zor hareket ediyor tıklayınca orayı odaklamıyor"*,
+*"düzenlerken uyarı yazıları gitmiyor elle kapatmak gerekiyor"*, *"düzenlemede
+görsel kısmında döndür seçenekleri olmalı ayna görüntüsü seçeneği olmalı"*,
+*"çevir özelliği PDF'yi aynı formata çevirip sanki aynı belge diğer dildeymiş
+gibi yazabilmeli"*, *"simgeler çok bulanık"*.
+
+### A) KÖK NEDEN — simgeler bulanıktı: birim karede PUNTO verilemez
+`FmGlyph` her şeyi birim karede (0..1) çizip `canvas.scale(side)` ile
+büyütüyor. **Yollar** için kusursuz (vektör, ölçekten bağımsız keskin) ama
+**yazı** öyle değil: metin bir glif atlasına rasterleştirilip doku olarak
+çiziliyor ve atlas DÜZENİN puntosuna göre pişiyor. Şerit yazısı `fontSize:
+0.20`, binen Material glifi `0.34` ile diziliyordu — yani doku 0,2 pikselde
+pişip 44-96 kat geriliyordu. Impeller'ın yazı ölçeğini üstten kısması
+(~48×) bunu daha da kötüleştiriyor: 3× DPR'li bir telefonda gerçek ölçek
+~300, atlas 48'de üretiliyor → 6 kat gerilme. Ekran görüntüsünde kağıdın
+kenarı jilet gibi, üstündeki "XLSX" bulanıktı — ayrım tam da bu.
+- **Çözüm** ölçeği kaldırmak değil (yollar ondan faydalanıyor), yalnız yazının
+  süresince geri almak: `_withDeviceScale` `canvas.scale(1/side)` yapıyor,
+  punto `0,20 × side` ve konum `× side` veriliyor. Ekranda BİREBİR aynı yer,
+  ama atlas gerçek boyutta pişiyor.
+- **Bekçi:** ölçüler `FmGlyphMetrics`e çıkarıldı (`labelFontSize` vb.) ve
+  `fm_glyph_sharpness_test` puntonun `side` ile ölçeklendiğini doğruluyor —
+  biri yeniden `fontSize: 0.20` yazarsa test kırılır.
+
+### B) KÖK NEDEN — "uyarı yazıları gitmiyor": SnackBar KUYRUĞU
+`ScaffoldMessenger` şeritleri sıraya alır; ikincisi birincinin 4 saniyesi
+dolana kadar beklemek zorunda. PDF'te yerinde düzenleme bir işlemde birden
+çok bildirim üretebiliyor ("değiştirildi" → "metin taşıyor" → "kilit
+kaldırıldı" → kaydetme sonucu) ve ekranın altı — düzenleme çubuğunun tam
+durduğu yer — 12-16 saniye kapalı kalıyordu. Kullanıcı bunu "şeritler
+bitmiyor, tek tek kaydırıp atmak gerekiyor" diye okuyor. Depoda
+**`hideCurrentSnackBar` hiç geçmiyordu**: tek bir ekranın kusuru değil, genel
+davranıştı.
+- **`core/snack.dart`:** `showSnack` / `showSnackOn` / `showSnackBarReplacing`
+  önce `removeCurrentSnackBar()` çağırıyor → yeni bildirim eskisinin YERİNE
+  geçiyor. Bilgi ömrü 3 sn, düğmeli 6 sn.
+- `hide` DEĞİL `remove`: `hideCurrentSnackBar` kapanış animasyonunu bekletir
+  ve yeni şerit yine kuyruğa girer, yani gecikme aynen kalırdı.
+- **Kalıcı şerit istisnası:** `showFmProgress`in arka plan çubuğu (bir gün)
+  süpürülmemeli. `beginStickySnack`/`endStickySnack` sayacı açıkken
+  değiştirme kapanıyor, eski (kuyruk) davranışa düşülüyor.
+- 49 dosyadaki 86 çağrı bu yoldan geçirildi (mekanik dönüşüm + `analyze`).
+
+### C) Drive indirmesi — kendi penceresi yerine ORTAK ilerleme penceresi
+`_DownloadDialog` `barrierDismissible: false` ve **düğmesizdi**: 200 MB'lık
+bir videoyu yanlışlıkla indirmeye başlayan kullanıcının tek çıkışı uygulamayı
+kapatmaktı, indirme sürerken Drive ekranında da kilitli kalıyordu.
+- Uygulamada bu sorunun çözümü zaten vardı: `showFmProgress` (kopyala/taşı/
+  sıkıştır) — "Arka plana al" + "Durdur" + kalıcı ilerleme şeridi. Kendi
+  penceremizi düzeltmek yerine oraya geçtik; pencere silindi.
+- `showFmProgress`e **`describe`** eklendi: `done`/`total` her işte "dosya"
+  saymıyor, indirmede BAYT sayıyor — "12345678 / 29000000" kimseye bir şey
+  anlatmaz, "11,8 MB / 27,7 MB · %42" anlatır.
+- `DriveService.download` `isCancelled` alıyor; iptal **parça sınırında**
+  yoklanıyor ve **yarım dosya SİLİNİYOR** (`DriveDownloadCancelled`). Yarım
+  inmiş bir PDF klasörde kalsaydı kullanıcı onu "inmiş" sanar, açınca bozuk
+  bulurdu. `DriveException` değil ayrı bir tür: kullanıcının kendi bastığı
+  düğmeye "İndirilemedi" diye kırmızı uyarı vermek olmayan bir sorun
+  uydurmak olurdu.
+- Sonuç mesajları ekrandan bağımsız `messenger` ile: arka plana alıp Drive'dan
+  çıkan kullanıcı da dosyanın indiğini görüyor.
+
+### D) PDF yerinde düzenlemede imleç — hedef yazı kadardı
+Kutu belgenin kendi ölçüsündeydi: gövde metni %100 yakınlaştırmada 10-14 dp.
+Yani dokunulabilir hedef bir parmağın (Material 48 dp) dörtte biri; satırın
+birkaç piksel üstüne/altına gelen dokunuş `TextField`e HİÇ ulaşmıyor,
+altındaki pdfrx katmanına düşüyordu — "tıklayınca orayı odaklamıyor" tam
+olarak bu.
+- Yazıyı büyütmek yol değil ("sanki o yazıya aitmiş gibi" ilkesi). Kutunun
+  çevresine **saydam dokunma payı** kondu (44 dp'ye tamamlanacak kadar);
+  paya gelen dokunuş `TextPainter.getPositionForOffset` ile imleci o sütuna
+  taşıyor. Beyaz kapak ve yazı TAM eski yerinde — komşu satır örtülmüyor.
+- Pay, metin kutusunun **altında** duruyor: isabetli dokunuşta Flutter'ın
+  kendi imleç yerleştirmesi çalışıyor, yalnız dışa düşenler bize geliyor.
+- Ayrıca çubuğa **◀ ▶ ve "Tümünü seç"** eklendi: telefon klavyesinde ok tuşu
+  yok ve 10 dp'lik yazıda parmakla tek karakter ilerlemek pratikte imkânsız.
+
+### E) Görselde döndürme + ayna (`pe.mode_image`)
+Görsel modunda yalnız taşı/boyutlandır ve sil vardı. `objectTurn` görselin
+**kendi merkezinde** çeyrek tur / yatay / dikey ayna matrisi üretiyor,
+`placeObjectMatrix` onu mevcut `cm`'in ÜSTÜNE biniyor.
+- **Merkez etrafında:** köşe sabit tutulsaydı 90° dönen görsel sayfadan taşar
+  ya da komşu öğenin üstüne binerdi.
+- **Kutudan yeniden kurmak yerine çarpım:** kutudan kurulan dik bir matris,
+  özgün `cm`'i eğik olan bir görseli sessizce düzeltirdi — ve döndürülmüş bir
+  görsel bir daha döndürülemezdi (`rotated` bayrağı yanıyor). Çarpımla art
+  arda dört döndürme başlangıca dönüyor; test bunu doğruluyor.
+
+### F) YENİ — PDF'i KENDİ DÜZENİNDE çevirme (`services/pdf_translate_doc.dart`)
+"Çevir" belgenin metnini toplayıp kaydırılabilir bir metin sayfasında
+gösteriyordu: tablo, sütun, başlık hiyerarşisi, imza yeri — hepsi düz metne
+iniyordu. Artık PDF'te çeviri **soruyor**: "belgenin kendisi (düzeni koruyarak)"
+ya da "metin olarak".
+- Yerinde yol: sayfa sayfa `PdfPageEdit.outline` → paragrafları çevir →
+  **`PdfPageEdit.replaceParagraphs`** (YENİ, toplu). Yazı tipi, punto, renk,
+  satır aralığı, girinti, yaslama ve sayfadaki her şey korunuyor.
+- `replaceParagraphs` **sondan başa** uyguluyor: bir paragrafı yeniden yazmak
+  yalnız KENDİSİNDEN SONRAKİ bayt aralıklarını kaydırır. Tek sayfa açılışı +
+  tek doğrulama; paragraf başına `replaceParagraph` çağırmak 40 paragraflı bir
+  sayfada 40 artımlı güncelleme (dosya her seferinde büyür) demekti.
+- **Dürüst sınırlar, kullanıcıya da yazılıyor:** belgeye gömülü font hedef
+  dilin harflerini taşımıyorsa (Latin font → Arapça) o paragraf ATLANIR ve
+  özgün hâliyle kalır; sığmayan paragraf da atlanır. Kaç tanesinin çevrildiği
+  ve kaçının atlandığı sayılıp `savePdfWithChoice`ın notuna yazılıyor —
+  "tamamı çevrildi" gibi doğrulanmamış bir şey söylenmiyor.
+- Çevirmen **tek kez** açılıp sonunda kapatılıyor (paragraf başına kurmak
+  yüzlerce paragraflık belgede saniyeler yer).
+- **Test kancası `inBackground: false`:** `flutter_test` içinde `Isolate.run`
+  tamamlanmıyor (bkz. 2026-07-25 §F); üretimde daima izolatta.
+
+### BULUNAN AMA DOKUNULMAYAN — sayfanın SON paragrafında taşma denetimi yok
+`findParagraphs` `roomBelow`u, paragrafın altında başka satır yoksa
+`double.infinity` veriyor. Yani sayfanın son paragrafı uzayınca sayfa
+kenarının ALTINA taşabiliyor ve hiçbir uyarı çıkmıyor (yerinde çeviride
+uzayan bir son paragraf böyle kaybolabilir). `pageBox` elde olduğu için
+düzeltmesi kolay ama paragraf düzenlemenin genel davranışını değiştiriyor →
+ayrı tur. KALANLAR'a yazıldı.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı), `flutter analyze` 0 sorun,
+**1939 test yeşil** (yeni: `fm_glyph_sharpness_test`, `snack_queue_test`,
+`pdf_object_turn_test`, `pdf_inplace_translate_test`,
+`pdf_inline_editor_touch_test`; genişletildi: `drive_service_test`,
+`pdf_action_bars_test`).

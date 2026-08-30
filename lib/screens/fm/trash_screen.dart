@@ -12,6 +12,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/section_header.dart';
 import '../settings_screen.dart';
+import '../../core/snack.dart';
 
 /// Geri Dönüşüm Kutusu: silinen dosyaları geri yükle ya da kalıcı sil.
 class TrashScreen extends StatefulWidget {
@@ -143,7 +144,7 @@ class _TrashScreenState extends State<TrashScreen> {
       message = str.t('tr.emptied',
           {'n': result.succeeded, 'size': FsPaths.humanSize(total)});
     }
-    messenger.showSnackBar(SnackBar(content: Text(message)));
+    showSnackOn(messenger, message);
     if (mounted) _load();
   }
 
@@ -184,14 +185,13 @@ class _TrashScreenState extends State<TrashScreen> {
             'first': result.errors.first,
           })
         : str.t('trash.restore_all_done', {'n': result.succeeded});
-    messenger.showSnackBar(SnackBar(content: Text(message)));
+    showSnackOn(messenger, message);
     if (mounted) _load();
   }
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 
   @override

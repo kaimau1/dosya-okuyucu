@@ -9,6 +9,7 @@ import '../services/ai_slides.dart';
 import '../services/conversion_service.dart';
 import '../services/pptx_writer.dart';
 import '../services/text_to_slides.dart';
+import '../core/snack.dart';
 
 /// Çıktı biçimi.
 enum SlidesFormat {
@@ -183,7 +184,6 @@ class AiSlidesFlow {
   }
 
   static void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 }

@@ -13,6 +13,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/section_header.dart';
 import 'browser_screen.dart';
 import 'job_navigation.dart';
+import '../../core/snack.dart';
 
 /// **İşlemler ekranı** — uzun süren her işin nerede olduğu, başarılı mı
 /// olduğu ve **ne ürettiği** tek yerde.
@@ -205,10 +206,8 @@ class _JobCard extends StatelessWidget {
   /// düzeltmeye çalıştığımız şikâyetin ta kendisiydi.
   void _resume(BuildContext context, FmJob job) {
     final resumed = JobQueue.instance.resume(job.id);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(context.t(
-          resumed == null ? 'jb.resume_failed' : 'jb.resume_started')),
-    ));
+    showSnack(context, context.t(
+          resumed == null ? 'jb.resume_failed' : 'jb.resume_started'));
   }
 
   IconData get _icon => switch (job.status) {

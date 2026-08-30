@@ -54,6 +54,7 @@ import 'pdf_form_screen.dart';
 import 'pdf_sign_screen.dart';
 import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
+import '../core/snack.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
 /// annotation'ı altındaki metni boyamaz (çarpımsal harman), renk okunurluğu bozmaz.
@@ -329,7 +330,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _offerFormFilling() async {
     if (!await PdfFormFiller.looksLikeForm(widget.doc.path)) return;
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
       content: Text(context.t('vw.form_detected')),
       duration: const Duration(seconds: 6),
       action: SnackBarAction(
@@ -917,6 +918,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _snack(context.t('vw.pdf_loading'));
         return;
       }
+      // **İki farklı iş, ikisi de "çeviri"** (kullanıcı 2026-08-30): biri
+      // okumak/kopyalamak için metin, öteki *belgenin kendisi* hedef dilde.
+      // Hangisinin istendiği belgeden anlaşılamaz — soruyoruz.
+      final inPlace = await _askTranslateMode();
+      if (inPlace == null || !mounted) return;
+      if (inPlace) {
+        // Bekleyen düzenleme varsa önce çözülür: çeviri DİSKTEKİ baytları
+        // okuyor, kaydedilmemiş bir düzeltme sessizce kaybolmasın.
+        if (!await _confirmLeavePending() || !mounted) return;
+        final bytes = await _fileService.readBytes(widget.doc.path);
+        if (!mounted) return;
+        await TranslateFlow.runPdfInPlace(
+          context,
+          path: widget.doc.path,
+          bytes: bytes,
+          pageCount: pdf.pages.length,
+        );
+        return;
+      }
       await TranslateFlow.runDocument(
         context,
         title: doc.name,
@@ -957,6 +977,42 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     await TranslateFlow.run(context, text, title: doc.name);
   }
+
+  /// "Belgenin kendisi mi, metin mi?" — PDF çevirisinde tek soru.
+  ///
+  /// Vazgeçilirse null; true = yerinde (düzeni koruyan) çeviri.
+  Future<bool?> _askTranslateMode() => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.t('tf.mode_title')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.picture_as_pdf_outlined),
+                title: Text(ctx.t('tf.mode_inplace')),
+                subtitle: Text(ctx.t('tf.mode_inplace_hint')),
+                onTap: () => Navigator.pop(ctx, true),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.subject),
+                title: Text(ctx.t('tf.mode_text')),
+                subtitle: Text(ctx.t('tf.mode_text_hint')),
+                onTap: () => Navigator.pop(ctx, false),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel')),
+            ),
+          ],
+        ),
+      );
 
   bool get _hasText =>
       (_textController?.text.trim().isNotEmpty ?? false) ||
@@ -1004,7 +1060,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    showSnack(context, m);
   }
 
   String _stem(String name) {
@@ -1368,10 +1424,52 @@ class _ViewerScreenState extends State<ViewerScreen> {
         onCancel: _cancelInlineEdit,
         onRewrite: _rewriteInlineEdit,
         onApply: _submitInlineEdit,
+        onCaretLeft: () => _moveCaret(-1),
+        onCaretRight: () => _moveCaret(1),
+        onSelectAll: _selectAllInlineEdit,
         cancelLabel: context.t('common.cancel'),
         aiLabel: context.t('vw.ai_fix'),
         applyLabel: context.t('common.apply'),
+        caretLeftLabel: context.t('vw.caret_left'),
+        caretRightLabel: context.t('vw.caret_right'),
+        selectAllLabel: context.t('vw.select_all_text'),
       );
+
+  /// İmleci [delta] karakter kaydırır (çubuktaki ◀ ▶).
+  ///
+  /// Seçim varsa önce **daraltılır**: kullanıcı bir kelimeyi seçmişken sağ oka
+  /// bastığında beklenen şey seçimin ucuna gitmek, seçimin silinmesi değil —
+  /// masaüstü klavye davranışının aynısı.
+  void _moveCaret(int delta) {
+    final ctl = _pdfEditCtl;
+    if (ctl == null) return;
+    final selection = ctl.selection;
+    final length = ctl.text.length;
+    final int from;
+    if (!selection.isValid) {
+      from = delta < 0 ? 0 : length;
+    } else if (!selection.isCollapsed) {
+      from = delta < 0 ? selection.start : selection.end;
+      ctl.selection = TextSelection.collapsed(offset: from);
+      _focusInlineEdit();
+      return;
+    } else {
+      from = selection.baseOffset;
+    }
+    ctl.selection =
+        TextSelection.collapsed(offset: (from + delta).clamp(0, length));
+    _focusInlineEdit();
+  }
+
+  /// Kutudaki metnin tamamını seçer — "hepsini silip baştan yaz" en sık
+  /// yapılan düzeltme ve minik yazıda üç kez dokunmak zor.
+  void _selectAllInlineEdit() {
+    final ctl = _pdfEditCtl;
+    if (ctl == null) return;
+    ctl.selection =
+        TextSelection(baseOffset: 0, extentOffset: ctl.text.length);
+    _focusInlineEdit();
+  }
 
   static String _shorten(String s, int max) {
     final t = s.replaceAll('\n', ' ').trim();

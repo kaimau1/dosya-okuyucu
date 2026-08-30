@@ -26,6 +26,7 @@ import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
+import '../../core/snack.dart';
 
 /// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir; bir metin
 /// kutusuna dokunmak o kutunun yazılarını düzenlemeyi açar. Kaydederken orijinal
@@ -152,8 +153,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
       _dirty = false;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.t('common.saved_hint'))));
+        showSnack(context, context.t('common.saved_hint'));
         setState(() {});
       }
     } catch (e) {
@@ -278,7 +278,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    showSnack(context, m);
   }
 
   // ── Konum, "slayta git" ve arama ──────────────────────────────────────────

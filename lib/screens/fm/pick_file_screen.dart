@@ -35,6 +35,7 @@ import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/section_header.dart';
+import '../../core/snack.dart';
 
 /// Ekranın hangi görünümde olduğu.
 enum _PickView { home, folder, category, search }
@@ -219,8 +220,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
   Future<void> _deliver(List<String> paths) async {
     final ok = await PickerBridge.deliver(paths);
     if (ok || !mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(context.t('pick.failed'))));
+    showSnack(context, context.t('pick.failed'));
   }
 
   Future<void> _onTapEntry(FsEntry entry) async {

@@ -14,6 +14,7 @@ import '../../services/fm/installed_apps_service.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'downloads_screen.dart' show downloadsPathIn;
 import 'entry_actions.dart' show shareEntries;
+import '../../core/snack.dart';
 
 /// Sıralama ölçütü.
 enum _AppSort { size, idle, name, installed }
@@ -65,9 +66,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
     final granted = await InstalledAppsService.requestUsagePermission();
     if (!mounted) return;
     if (!granted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.t('ia.permission_hint')),
-      ));
+      showSnack(context, context.t('ia.permission_hint'));
     }
     await _load();
   }
@@ -486,6 +485,5 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
         ),
       );
 
-  void _snack(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  void _snack(String message) => showSnack(context, message);
 }

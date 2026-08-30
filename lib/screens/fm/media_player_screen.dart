@@ -14,6 +14,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/subtitles.dart';
 import 'entry_actions.dart';
+import '../../core/snack.dart';
 
 /// Uygulama içi **video ve ses** oynatıcı.
 ///
@@ -299,8 +300,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSnack(context, message);
   }
 
   /// [position] anında ekranda olması gereken metin (yoksa boş).

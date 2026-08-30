@@ -9,6 +9,7 @@ import '../core/l10n/app_strings.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/activity_log.dart';
 import '../services/pdf_save.dart';
+import '../core/snack.dart';
 
 /// Kaydetme sonucunun çağırana söylediği şey.
 class PdfSaveOutcome {
@@ -58,8 +59,7 @@ Future<PdfSaveOutcome?> savePdfWithChoice(
     }
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Kaydedilemedi: $e')));
+      showSnack(context, 'Kaydedilemedi: $e');
     }
     return null;
   }
@@ -94,7 +94,7 @@ Future<String> _writeInto(
 /// Nereye kaydedildiğini söyler; kopyaysa klasörü de yazar ve "AÇ" sunar.
 void _announce(BuildContext context, String written, bool overwritten) {
   final messenger = ScaffoldMessenger.of(context);
-  messenger.showSnackBar(SnackBar(
+  showSnackBarReplacing(messenger, SnackBar(
     duration: const Duration(seconds: 8),
     content: Text(
       overwritten

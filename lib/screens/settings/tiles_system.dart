@@ -14,6 +14,7 @@ import '../../services/fm/search_index.dart';
 import 'crash_log_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
+import '../../core/snack.dart';
 
 /// Ekranın yüksek tazeleme hızı (90/120 Hz).
 ///
@@ -96,11 +97,9 @@ class _SearchIndexTileState extends State<SearchIndexTile> {
     final count = await SearchIndex.rebuild();
     if (!mounted) return;
     setState(() => _busy = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(count == 0
+    showSnack(context, count == 0
           ? str.t('fmset.index_failed')
-          : str.t('fmset.index_built', {'n': count})),
-    ));
+          : str.t('fmset.index_built', {'n': count}));
   }
 
   @override
@@ -145,10 +144,9 @@ class ThumbCacheTile extends StatelessWidget {
               }
             }
           } catch (_) {}
-          messenger.showSnackBar(SnackBar(
-              content: Text(removed == 0
+          showSnackOn(messenger, removed == 0
                   ? str.t('fmset.thumbs_none')
-                  : str.t('fmset.thumbs_cleared', {'n': removed}))));
+                  : str.t('fmset.thumbs_cleared', {'n': removed}));
         },
       );
 }

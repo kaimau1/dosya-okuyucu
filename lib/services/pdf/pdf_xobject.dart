@@ -222,9 +222,59 @@ List<int> placeObject(
   required double bottom,
   required double width,
   required double height,
-}) {
-  final target = <double>[width, 0, 0, height, left, bottom];
+}) =>
+    placeObjectMatrix(
+        content, object, <double>[width, 0, 0, height, left, bottom]);
 
+/// Görseli **kendi merkezinde** çeyrek tur döndüren / aynalayan sayfa uzayı
+/// dönüşümü.
+///
+/// Kullanıcı isteği 2026-08-30: *"düzenlemede görsel kısmında döndür
+/// seçenekleri olmalı, ayna görüntüsü seçeneği olmalı."* Görsel modunda
+/// şimdiye kadar yalnız taşı/boyutlandır ve sil vardı; yan yatmış bir tarama
+/// ya da ters çekilmiş bir imza için elde hiçbir şey yoktu.
+///
+/// **Niye merkez etrafında:** köşe sabit tutulsaydı 90° dönen bir görsel
+/// sayfadan taşar ya da başka bir öğenin üstüne binerdi. Merkez sabitken
+/// dikdörtgenin eni ve boyu yer değiştirir, ortası olduğu yerde kalır —
+/// kullanıcının "döndür"den beklediği şey budur.
+///
+/// **Niye YERİNDEKİ dönüşümle çarpım, niye kutudan yeniden kurmuyoruz:**
+/// görselin özgün `cm`'i eğik/aynalanmış olabilir ve kutudan kurulan dik
+/// bir matris onu sessizce düzeltirdi. Buradaki matris mevcut dönüşümün
+/// ÜSTÜNE biniyor; art arda dört kez döndürmek başlangıç durumuna geri
+/// getiriyor (kayıp yok).
+///
+/// [quarterTurns] pozitif = saat yönü (PDF'te y yukarı olduğu için matris
+/// −90°'dir). Aynalama önce, döndürme sonra uygulanır.
+List<double> objectTurn({
+  required double centerX,
+  required double centerY,
+  int quarterTurns = 0,
+  bool flipH = false,
+  bool flipV = false,
+}) {
+  var core = <double>[1, 0, 0, 1, 0, 0];
+  if (flipH) core = multiplyMatrix(core, const [-1, 0, 0, 1, 0, 0]);
+  if (flipV) core = multiplyMatrix(core, const [1, 0, 0, -1, 0, 0]);
+  final turns = ((quarterTurns % 4) + 4) % 4;
+  for (var i = 0; i < turns; i++) {
+    core = multiplyMatrix(core, const [0, -1, 1, 0, 0, 0]);
+  }
+  // Merkeze taşı → döndür/aynala → geri taşı.
+  return multiplyMatrix(
+    multiplyMatrix(<double>[1, 0, 0, 1, -centerX, -centerY], core),
+    <double>[1, 0, 0, 1, centerX, centerY],
+  );
+}
+
+/// [object]'i **verilen tam dönüşümle** çizer ([placeObject]'in matris alan
+/// hâli). [target] birim kareyi (görselin kendi uzayı) sayfaya oturtur.
+List<int> placeObjectMatrix(
+  List<int> content,
+  PdfPageObject object,
+  List<double> target,
+) {
   if (object.clipped) {
     // Akışın sonundaki dönüşüm kimlik olmayabilir (üst düzeyde dengelenmemiş
     // bir `cm` kalmış olabilir); istenen sayfa koordinatını tutturmak için
