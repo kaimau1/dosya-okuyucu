@@ -9,6 +9,7 @@ import '../../../models/fs_entry.dart';
 import '../fs_scan.dart';
 import '../storage_stats.dart';
 import 'ftp_tree.dart';
+import 'share_scope.dart';
 
 /// Telefonu **FTP sunucusuna** çevirir: PC'den tarayıcı ya da herhangi bir FTP
 /// istemcisiyle telefondaki dosyalara erişilir.
@@ -50,12 +51,28 @@ class FtpServer {
   /// İstemci sayısı değişince çağrılır (arayüzdeki "1 cihaz bağlı" satırı).
   void Function(int clients)? onClients;
 
+  /// **Paylaşım kapsamı** — hangi kutular ağda görünüyor (bkz. [ShareScope]).
+  ///
+  /// Açıkken değiştirilebiliyor: kullanıcı bir klasörü paylaşımdan çıkarmak
+  /// için sunucuyu kapatıp açmak (yani süren bir kopyalamayı kesmek)
+  /// zorunda kalmasın. Yeni kapsam ağaca geçirilip önbellek düşürülüyor.
+  ShareScope _scope;
+
+  ShareScope get scope => _scope;
+
+  set scope(ShareScope value) {
+    _scope = value;
+    tree.scope = value;
+    tree.invalidate();
+  }
+
   /// PC'de görünen **kategorili kök** (Belgeler, Görüntüler, Videolar…).
   /// Bkz. [FtpTree] — kullanıcı isteği 2026-08-29.
   late final FtpTree tree = FtpTree(
     realRoot: rootDirectory,
     lockedFolders: lockedFolders,
     showHidden: showHidden,
+    scope: _scope,
     collect: collectCategory,
     // **Taze dosya katmanı** (kullanıcı hatası 2026-08-29: *"yeni aldığım
     // ekran görüntüsünü paylaşımda bulamadım"*). Sanal kutular arama
@@ -87,7 +104,8 @@ class FtpServer {
     this.lockedFolders = const [],
     this.collectCategory,
     this.freshFiles,
-  });
+    ShareScope scope = ShareScope.all,
+  }) : _scope = scope;
 
   ServerSocket? _server;
   final _clients = <_FtpSession>[];

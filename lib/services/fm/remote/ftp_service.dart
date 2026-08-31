@@ -9,6 +9,8 @@ import '../fm_env.dart';
 import '../notification_hub.dart';
 import 'ftp_server.dart';
 import 'http_share_server.dart';
+import 'ftp_tree.dart';
+import 'share_scope.dart';
 
 /// "Ağdan erişim" — telefonu ağdaki bilgisayarlardan görünür kılan paylaşımın
 /// **uygulama ömrü boyunca yaşayan** sahibi.
@@ -62,6 +64,8 @@ class FtpService extends ChangeNotifier {
   static const _kAllowWrite = 'ftpd_allow_write';
   static const _kUser = 'ftpd_user';
   static const _kPassword = 'ftpd_password';
+  static const _kShareMode = 'ftpd_share_mode';
+  static const _kShareBoxes = 'ftpd_share_boxes';
 
   FtpServer? _server;
 
@@ -109,6 +113,7 @@ class FtpService extends ChangeNotifier {
   bool _allowWrite = true;
   String _user = 'pc';
   String _password = '';
+  ShareScope _scope = ShareScope.all;
 
   /// Her başlatmada yeni parola üretilsin mi (varsayılan **açık**).
   bool get randomPassword => _randomPassword;
@@ -128,6 +133,10 @@ class FtpService extends ChangeNotifier {
   String get username => _user;
   String get password => _password;
 
+  /// **Paylaşım kapsamı** — hangi klasörler ağda görünüyor (kullanıcı isteği
+  /// 2026-08-31, gerekçe [ShareScope]'ta). Varsayılan: hepsi.
+  ShareScope get shareScope => _scope;
+
   Future<SharedPreferences> _ensurePrefs() async {
     final prefs = _prefs ??= await SharedPreferences.getInstance();
     return prefs;
@@ -145,7 +154,39 @@ class FtpService extends ChangeNotifier {
     // Paylaşım kapalıyken gösterilen parola: son kullanılan (rastgele kipte
     // başlatınca üzerine yazılır). Boşsa ilk başlatmada üretilir.
     if (!running) _password = prefs.getString(_kPassword) ?? '';
+    _scope = _readScope(prefs);
     notifyListeners();
+  }
+
+  /// Kapsamı ayarlardan okur. **Kayıt yoksa hepsi** (`boxes: null`): eski
+  /// kurulumlar ve ilk açılış, 2026-08-31 öncesindeki davranışı görür.
+  static ShareScope _readScope(SharedPreferences prefs) {
+    final mode = prefs.getString(_kShareMode) == 'sharedOnly'
+        ? ShareMode.sharedOnly
+        : ShareMode.boxes;
+    final boxes = prefs.getStringList(_kShareBoxes);
+    return ShareScope(mode: mode, boxes: boxes?.toSet());
+  }
+
+  /// Kapsamı değiştirir. Paylaşım AÇIKKEN de çağrılabilir: yeni kapsam
+  /// sunucuya anında geçer (kapatıp açmak, süren bir kopyalamayı keserdi).
+  Future<void> setShareScope(ShareScope scope) async {
+    _scope = scope;
+    _server?.scope = scope;
+    notifyListeners();
+    final prefs = await _ensurePrefs();
+    await prefs.setString(
+        _kShareMode, scope.mode == ShareMode.sharedOnly ? 'sharedOnly' : 'boxes');
+    if (scope.boxes == null) {
+      await prefs.remove(_kShareBoxes);
+    } else {
+      await prefs.setStringList(_kShareBoxes, scope.boxes!.toList());
+    }
+    // Yeni kapsamda "Paylaşılan" varsa klasörü hazırla: kullanıcı ekranda
+    // seçtiği anda telefonda da görsün, dosya atabilsin.
+    if (scope.allows(ShareScope.sharedBox)) {
+      await FtpTree.ensureSharedFolder(FmEnv.primaryRoot);
+    }
   }
 
   Future<void> setRandomPassword(bool value) async {
@@ -206,6 +247,11 @@ class FtpService extends ChangeNotifier {
       _password = FtpServer.randomPassword();
       await (await _ensurePrefs()).setString(_kPassword, _password);
     }
+    // "Paylaşılan" kutusu paylaşımda ise klasörü ÖNCE kur: PC'de görünüp
+    // açılmayan bir klasör, hiç görünmemesinden kötü.
+    if (_scope.allows(ShareScope.sharedBox)) {
+      await FtpTree.ensureSharedFolder(FmEnv.primaryRoot);
+    }
     final server = FtpServer(
       rootDirectory: FmEnv.primaryRoot,
       username: _user,
@@ -213,6 +259,7 @@ class FtpService extends ChangeNotifier {
       allowWrite: _allowWrite,
       showHidden: _showHidden,
       lockedFolders: lockedFolders,
+      scope: _scope,
     )..onClients = _onClients;
     try {
       await server.start();

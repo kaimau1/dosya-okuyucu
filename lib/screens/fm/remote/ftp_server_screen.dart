@@ -5,8 +5,10 @@ import 'package:provider/provider.dart';
 import '../../../core/app_state.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme.dart';
-import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/remote/ftp_service.dart';
+import '../../../services/fm/remote/ftp_tree.dart';
+import '../../../services/fm/remote/share_scope.dart';
+import 'share_folders_screen.dart';
 import '../../../core/snack.dart';
 
 /// **Ağdan erişim** — telefondaki dosyalara ağdaki bilgisayardan ulaşma.
@@ -133,12 +135,50 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     );
   }
 
+  /// **Paylaşılacak klasörler** satırı — hem kapalıyken hem açıkken görünür.
+  /// Alt yazı kapsamı tek cümlede söylüyor; dokunmak seçim ekranını açıyor.
+  Widget _foldersTile(BuildContext context) {
+    final scope = _service.shareScope;
+    final empty = scope.isEmpty;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.folder_shared_outlined),
+      title: Text(context.t('ftpd.folders_title')),
+      subtitle: Text(
+        _scopeSummary(context, scope),
+        style: empty
+            ? TextStyle(color: Theme.of(context).colorScheme.error)
+            : null,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const ShareFoldersScreen(),
+      )),
+    );
+  }
+
+  /// "Tümü paylaşılıyor" · "4 klasör paylaşılıyor" · "Yalnız Paylaşılan
+  /// klasörü" · "Hiçbir klasör seçilmedi".
+  static String _scopeSummary(BuildContext context, ShareScope scope) {
+    if (scope.mode == ShareMode.sharedOnly) {
+      return context.t('ftpd.mode_shared');
+    }
+    final boxes = scope.boxes;
+    if (boxes == null || boxes.length == FtpTree.allBoxes.length) {
+      return context.t('ftpd.folders_all');
+    }
+    if (boxes.isEmpty) return context.t('ftpd.folders_none');
+    return context.t('ftpd.folders_count', {'n': boxes.length});
+  }
+
   // ── kapalı ────────────────────────────────────────────────────────────────
 
   Widget _idleBody(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
+        _foldersTile(context),
+        Divider(height: Gap.lg, color: scheme.outlineVariant),
         // İki seçenek — hiçbirine dokunmadan başlatılabilir.
         _check(
           context,
@@ -289,13 +329,12 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
         Divider(height: Gap.lg, color: scheme.outlineVariant),
         // Genel "adresi gezginine yaz" cümlesi KALKTI: artık her adresin
         // kendi ipucu var ve hangisinin ne işe yaradığı orada yazıyor.
-        Text(
-          '${context.t('ftpd.shared_folder')}: ${FmEnv.primaryRoot}',
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        //
+        // Kökün yolu (`/storage/emulated/0`) yerine **kapsam** yazıyor:
+        // paylaşımın tamamı artık seçilebilir olduğu için kullanıcının
+        // görmesi gereken şey "neresi paylaşılıyor" (2026-08-31). Açıkken de
+        // değiştirilebilir — kapsam sunucuya anında geçiyor.
+        _foldersTile(context),
         const SizedBox(height: Gap.md),
         FilledButton.tonal(
           onPressed: _service.busy ? null : _toggle,

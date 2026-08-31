@@ -17,6 +17,8 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
+import '../../services/fm/remote/ftp_tree.dart';
+import '../../services/fm/remote/share_scope.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -48,6 +50,7 @@ enum _EntryAction {
   openArchive,
   bookmark,
   important,
+  sharedFolder,
   aiSummary,
   imageInsight,
   resize,
@@ -140,6 +143,12 @@ Future<bool> showEntryActions(
                   hint: ctx.t('ea.clip_hint')),
               _act(ctx, Icons.star_outline, ctx.t('fm.copy_to_important'),
                   _EntryAction.important),
+              // "Paylaşılan"a kopyala (kullanıcı isteği 2026-08-31): ağ
+              // paylaşımının dar kapsamlı kutusu. Taşımak değil KOPYALAMAK —
+              // dosya kullanıcının bildiği yerde kalmalı.
+              _act(ctx, Icons.folder_shared_outlined,
+                  ctx.t('fm.copy_to_shared'), _EntryAction.sharedFolder,
+                  hint: ctx.t('ea.shared_hint')),
             ]),
             _section(ctx, ctx.t('ea.sec_file'), [
               _act(ctx, Icons.drive_file_rename_outline, ctx.t('fm.rename'),
@@ -264,6 +273,9 @@ Future<bool> showEntryActions(
 
     case _EntryAction.important:
       return copyToImportant(context, [entry.path]);
+
+    case _EntryAction.sharedFolder:
+      return copyToShared(context, [entry.path]);
 
     case _EntryAction.aiSummary:
       await showAiSummary(context, entry);
@@ -781,6 +793,47 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
         : context.t('fm.important_copied', {
             'n': paths.length,
             'folder': ImportantScreen.folderName,
+          }),
+  );
+  return true;
+}
+
+/// Seçilenleri **"Paylaşılan"** klasörüne kopyalar (klasör yoksa kurulur).
+///
+/// Kullanıcı isteği (2026-08-31): *"ayrı olarak paylaşılan klasörü olsun,
+/// kişi göndermek istediği şeyi oraya atsın ve sadece o klasör paylaşılır …
+/// dosyaların 3 nokta ayarında paylaşılan'a kopyala seçeneği olsun."*
+///
+/// Ağ paylaşımı bu klasörü ayrı bir kutu olarak sunuyor ([ShareScope]);
+/// "Yalnız Paylaşılan klasörü" kipinde ağda GÖRÜNEN tek yer burası.
+///
+/// **Kopya, taşıma değil** — "Önemli Dosyalar"daki karar ile aynı gerekçe:
+/// dosyayı PC'ye göndermek, onu kullanıcının bildiği yerden (DCIM, Belgeler)
+/// koparmamalı.
+Future<bool> copyToShared(BuildContext context, List<String> paths) async {
+  if (paths.isEmpty) return false;
+  final dest = FtpTree.sharedFolderPath(FmEnv.primaryRoot);
+  if (!await FtpTree.ensureSharedFolder(FmEnv.primaryRoot)) {
+    if (context.mounted) {
+      _snack(context, context.t('fm.folder_create_failed', {'error': dest}));
+    }
+    return false;
+  }
+  if (!context.mounted) return false;
+  final result = await showFmProgress<FmOpResult>(
+    context,
+    title: context.t('fm.copying_shared'),
+    task: (report, isCancelled) => FileOps.copyAll(paths, dest,
+        onProgress: report, isCancelled: isCancelled),
+  );
+  if (!context.mounted) return true;
+  _snack(
+    context,
+    result.hasError
+        ? context.t('fm.copy_failed', {'error': result.errors.first})
+        : context.t('fm.important_copied', {
+            'n': paths.length,
+            'folder': ShareScope.sharedFolderName,
           }),
   );
   return true;

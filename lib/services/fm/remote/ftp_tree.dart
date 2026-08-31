@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../../models/fs_entry.dart';
 import '../folder_lock.dart';
 import '../media_library.dart';
+import 'share_scope.dart';
 
 /// FTP kökündeki bir girdinin türü.
 enum FtpNodeKind {
@@ -83,6 +84,13 @@ class FtpRootItem {
 /// tamamen biz belirlediğimiz için "Belgeler" adlı gerçek bir klasör sanal
 /// kutuyu gölgeleyemiyor.
 ///
+/// ## Hangi kutular görünür — [ShareScope]
+/// Kullanıcı isteği (2026-08-31): *"ağ paylaşımında hangi klasörlerin
+/// paylaşılacağını seçelim, bir de ayrı olarak paylaşılan klasörü olsun."*
+/// Kök artık **seçilen** kutulardan ibaret; `Paylasilan` kutusu da burada
+/// (telefonda `Paylaşılan` klasörü). Süzgeç hem [rootItems]'ta hem
+/// [resolve]'da: birincisi gizler, ikincisi girişi kapatır.
+///
 /// ## Sanal kutuların içi
 /// [MediaLibrary.categoryFiles] ile toplanır (arama dizini hazırsa diske hiç
 /// inilmez). Liste **düz**dür — telefondaki kategori ekranının aynısı.
@@ -98,6 +106,13 @@ class FtpTree {
 
   /// Nokta ile başlayan dosyalar da toplansın mı.
   final bool showHidden;
+
+  /// **Paylaşım kapsamı** — hangi kutular ağda görünüyor (bkz. [ShareScope]).
+  ///
+  /// `final` DEĞİL: kullanıcı paylaşım açıkken kapsamı değiştirebiliyor ve
+  /// bunun için sunucuyu kapatıp açmak (yani süren bir kopyalamayı kesmek)
+  /// gerekmemeli. Değiştiren taraf [invalidate] çağırır.
+  ShareScope scope;
 
   /// Kutu içeriğini toplayan işlev. Üretimde [MediaLibrary.categoryFiles];
   /// testlerde sahte bir liste verilebilsin diye dışarıdan alınıyor (gerçek
@@ -118,6 +133,7 @@ class FtpTree {
     this.showHidden = false,
     this.collect,
     this.freshScan,
+    this.scope = ShareScope.all,
   });
 
   // ── Kutu adları neden AKSANSIZ ────────────────────────────────────────────
@@ -174,17 +190,62 @@ class FtpTree {
     ],
   };
 
+  /// Seçilebilecek bütün kutular — ayar ekranı bu listeyi gösteriyor.
+  ///
+  /// Sıra ekrandaki sıra: önce "Paylaşılan" (yeni ve en dar kapsam), sonra
+  /// telefonun tamamı, sonra gerçek klasörler, en sonda sanal kutular.
+  static List<String> get allBoxes => [
+        ShareScope.sharedBox,
+        storageFolder,
+        ..._realFolders.keys,
+        ...categoryFolders.keys,
+      ];
+
+  /// "Paylaşılan" klasörünün telefondaki gerçek yolu.
+  static String sharedFolderPath(String realRoot) =>
+      p.join(realRoot, ShareScope.sharedFolderName);
+
+  /// Klasörü kurar (varsa dokunmaz). Paylaşım açılırken çağrılıyor: kutu
+  /// listede görünüp AÇILMAMASI, olmayan bir klasör göstermekten de kötü.
+  /// Kurulamazsa `false` — çağıran kullanıcıya söyler.
+  static Future<bool> ensureSharedFolder(String realRoot) async {
+    try {
+      final dir = Directory(sharedFolderPath(realRoot));
+      if (!dir.existsSync()) await dir.create(recursive: true);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Kökte gösterilecek kutular. Gerçek klasörü olmayan (cihazda bulunmayan)
   /// kutu listelenmez — açılmayan bir klasör göstermek kullanıcıyı yanıltır.
+  ///
+  /// **Kapsam süzgeci burada** ([ShareScope]): seçilmemiş kutu listelenmez.
+  /// Yalnız gizlemek yetmezdi — [resolve] de aynı süzgeci uyguluyor, yoksa
+  /// adresi elle yazan biri gizli kutuya yine girerdi.
   List<FtpRootItem> rootItems() {
-    final items = <FtpRootItem>[
-      FtpRootItem(storageFolder, realPath: realRoot),
-    ];
+    final items = <FtpRootItem>[];
+    if (scope.allows(ShareScope.sharedBox)) {
+      final path = sharedFolderPath(realRoot);
+      // Yalnız-Paylaşılan kipinde klasör henüz kurulmamış olsa da listelenir:
+      // kök boş görünseydi kullanıcı "paylaşım bozuk" derdi. Kurulumu
+      // paylaşımı başlatan taraf üstleniyor ([ensureSharedFolder]).
+      if (scope.mode == ShareMode.sharedOnly ||
+          Directory(path).existsSync()) {
+        items.add(FtpRootItem(ShareScope.sharedBox, realPath: path));
+      }
+    }
+    if (scope.allows(storageFolder)) {
+      items.add(FtpRootItem(storageFolder, realPath: realRoot));
+    }
     for (final entry in _realFolders.entries) {
+      if (!scope.allows(entry.key)) continue;
       final path = _firstExisting(entry.value);
       if (path != null) items.add(FtpRootItem(entry.key, realPath: path));
     }
     for (final entry in categoryFolders.entries) {
+      if (!scope.allows(entry.key)) continue;
       items.add(FtpRootItem(entry.key, category: entry.value));
     }
     return items;
@@ -217,6 +278,9 @@ class FtpTree {
 
     final category = categoryFolders[head];
     if (category != null) {
+      // Kapsam dışı kutu ÇÖZÜLMEZ: gizlemek tek başına güvenlik değil,
+      // adresi bilen biri `/Belgeler/fatura.pdf` yazarak girerdi.
+      if (!scope.allows(head)) return FtpNode.notFound;
       if (rest.isEmpty) {
         return FtpNode(FtpNodeKind.category, category: head);
       }

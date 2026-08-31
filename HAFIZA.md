@@ -9554,3 +9554,92 @@ parlak mavi ön kapak (lacivert konturlu, iç üst kenarında ışık) ve beyaz 
 
 **Doğrulama:** Flutter 3.29.3, `analyze` 0 sorun, **1943 test yeşil**;
 `flutter_launcher_icons` yerelde koşturulup üretilen kaynaklar gözle denetlendi.
+
+## 2026-08-31 — Ağ paylaşımı artık "hep ya hiç" değil: klasör seçimi + "Paylaşılan" klasörü
+Kullanıcı: *"ağ paylaşımında hangi klasörlerin paylaşılacağını seçelim, bir de
+ayrı olarak paylaşılan klasörü olsun, kişi göndermek istediği şeyi oraya atsın
+ve sadece o klasör paylaşır … paylaşılacak klasör seçimi tümünü seç kaldır
+seçeneği olmalı, dosyaların 3 nokta ayarında paylaşılan'a kopyala seçeneği
+olsun."*
+
+### A) Sorun — paylaşımın kapsamı YOKTU
+"Ağdan erişim" açıldığı anda telefonun **tamamı** (`/Telefon` kutusu) ve bütün
+kategori kutuları aynı Wi-Fi'daki herkese açılıyordu. "Şu iki dosyayı PC'ye
+atayım" diyen kullanıcı aynı hareketle bütün fotoğraflarını, belgelerini ve
+uygulama klasörlerini de açmış oluyordu; tek çare işi bitince paylaşımı hemen
+kapatmaktı. Kilitli klasör süzgeci (2026-08-29) yalnızca kategori kutularını
+koruyordu — `/Telefon` altından her şeye yine ulaşılıyordu.
+
+### B) Çözüm — `ShareScope` (yeni: `lib/services/fm/remote/share_scope.dart`)
+İki kip:
+- **`ShareMode.boxes`** — kutular tek tek seçilir. `boxes: null` = **hepsi**
+  (varsayılan): eski kurulumlar ve ilk açılış 2026-08-31 öncesindeki davranışı
+  görüyor, hiçbir kullanıcı sessizce paylaşımını kaybetmiyor.
+- **`ShareMode.sharedOnly`** — yalnız **"Paylaşılan"** klasörü. Kip kutu
+  seçimini **EZER**: kullanıcı "yalnız Paylaşılan" dediyse eski işaretler geri
+  sızmıyor.
+
+**`boxes == null` ile `boxes == {}` bilinçli olarak AYRI:** "hiç seçmedim"
+(→ hepsi) ile "hepsini kaldırdım" (→ hiçbiri) aynı şey değil. Boş kümeyi
+"hepsi" saymak, kullanıcının bilerek kapattığı paylaşımı geri açardı.
+
+### C) Kapsam İKİ katmanda uygulanıyor — gizlemek güvenlik değil
+`FtpTree` içinde tek yerde, ama iki noktada:
+1. `rootItems()` — seçilmemiş kutu **listelenmiyor**,
+2. `resolve()` — seçilmemiş kutu **çözülmüyor**.
+
+İkincisi olmadan özellik yalnızca gizleme olurdu: adresi bilen biri tarayıcıya
+`http://…:8080/Belgeler/fatura.pdf` yazıp dosyayı yine indirirdi. FTP oturumu
+da HTTP paylaşımı da aynı ağacı kullandığı için tek süzgeç ikisini birden
+kapatıyor (iki kopya olsaydı biri düzeltilip diğeri açık kalabilirdi).
+
+### D) "Paylaşılan" klasörü — diskte aksanlı, ağda aksansız
+- Telefondaki gerçek klasör: `<kök>/Paylaşılan` (`ShareScope.sharedFolderName`).
+  Kullanıcı bunu dosya yöneticisinde doğru yazımıyla görüyor — "Önemli
+  Dosyalar" klasöründeki kararın aynısı.
+- Ağda görünen kutu adı: **`Paylasilan`** (`ShareScope.sharedBox`). Gerekçe
+  2026-08-29'da yazılmıştı ve hâlâ geçerli: kök kutu adları FTP'de istemcinin
+  kod sayfasıyla çözülüyor, Türkçe harf taşıyan kutu Windows Gezgini'nde hem
+  bozuk görünüyor hem de AÇILMIYOR. İki adın ayrılması yeni bir şey değil —
+  `Indirilenler` kutusu da gerçekte `Download`.
+- Klasör **paylaşım başlarken** ve **kapsam değişince** kuruluyor
+  (`FtpTree.ensureSharedFolder`). `sharedOnly` kipinde kutu, klasör henüz
+  yokken de listeleniyor: boş bir kök kullanıcıya "paylaşım bozuk" dedirtirdi.
+
+### E) Kapsam AÇIKKEN değişiyor — sunucuyu kapatıp açmadan
+`FtpServer.scope` bir `set`: yeni kapsamı ağaca geçirip önbelleği düşürüyor,
+`FtpService.setShareScope` de açık sunucuya anında yansıtıyor. Alternatif
+(kapat-aç) süren bir kopyalamayı keserdi — 2026-08-29'da "arka planda da
+çalışmalı" diye düzeltilen sorunun aynısını geri getirirdi.
+Ekranda **kaydet düğmesi yok**: her dokunuş kalıcı.
+
+### F) Ekranlar
+- **Yeni:** `lib/screens/fm/remote/share_folders_screen.dart`. Üstte iki kip
+  (radyo), altta kutu listesi, listenin başında **üç durumlu "Tümünü seç"**
+  satırı — hepsi/hiçbiri/bir kısmı ayrı görünüyor ve tek dokunuşla hepsi
+  seçilip bırakılıyor (kullanıcının açıkça istediği "tümünü seç kaldır").
+  `sharedOnly` kipinde liste gizlenmiyor, **sönükleşiyor**: kipin ne yaptığı
+  görünür kalsın. Kutular çevrilmiş adla, altında "Bilgisayarda: Ekran
+  Goruntuleri" — kullanıcı PC'deki klasörle telefondakini eşleştirebilsin.
+- **Ağdan erişim ekranı:** hem kapalıyken hem açıkken "Paylaşılacak klasörler"
+  satırı; alt yazı kapsamı söylüyor ("Tümü paylaşılıyor" · "4 klasör
+  paylaşılıyor" · "Yalnız Paylaşılan klasörü" · hata renginde "Hiçbir klasör
+  seçilmedi"). Açık durumdaki eski `"Paylaşılan klasör: /storage/emulated/0"`
+  satırının yerini aldı: kök yolu artık kullanıcıya bir şey söylemiyor,
+  **kapsam** söylüyor.
+- **⋮ menüsü ve çoklu seçim çubuğu:** *Paylaşılan'a kopyala*
+  (`copyToShared`). **Taşıma değil kopyalama** — dosyayı PC'ye göndermek, onu
+  kullanıcının bildiği yerden (DCIM, Belgeler) koparmamalı; "Önemli Dosyalar"
+  ile aynı gerekçe. Çoklu seçimde de var: birkaç dosya göndermek için tek tek
+  ⋮ açmak saçma olurdu.
+
+### Yeni testler
+`share_scope_test.dart` (kapsam mantığı, kök süzgeci, **çözülmeyen** kapsam
+dışı yol, canlı kapsam devri) ve `share_folders_screen_test.dart` (tümünü
+seç/kaldır, tek kutu, kip geçişi).
+**TUZAK — widget testinde tembel liste:** `ListView` varsayılan 800×600 tuvalde
+kutuların yarısını hiç kurmuyor; `findsNWidgets` ekranı değil TUVALİ ölçüyordu.
+`tester.view.physicalSize` büyütülerek çözüldü.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı), `analyze` 0 sorun,
+**1959 test yeşil**.

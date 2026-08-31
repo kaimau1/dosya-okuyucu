@@ -684,6 +684,15 @@ const Map<String, (String, String, String)> _table = {
     'Copy to important files',
     'نسخ إلى الملفات المهمة',
   ),
+  // "Paylaşılan"a kopyala — ağ paylaşımının dar kapsamlı kutusu (kullanıcı
+  // isteği 2026-08-31: *"dosyaların 3 nokta ayarında paylaşılan'a kopyala
+  // seçeneği olsun"*). Taşımak DEĞİL kopyalamak: dosya kullanıcının bildiği
+  // yerde (DCIM, Belgeler) kalmalı — "Önemli dosyalar"daki karar ile aynı.
+  'fm.copy_to_shared': (
+    'Paylaşılan\'a kopyala',
+    'Copy to Shared',
+    'نسخ إلى المشترك',
+  ),
   'fm.properties': ('Özellikler', 'Properties', 'الخصائص'),
   'fm.more_actions': ('Diğer işlemler', 'More actions', 'إجراءات أخرى'),
   'fm.more': ('Daha fazla', 'More', 'المزيد'),
@@ -728,6 +737,11 @@ const Map<String, (String, String, String)> _table = {
   ),
   'ea.image_insight_hint': ('metin tanı', 'recognize text', 'تعرّف على النص'),
   'ea.clip_hint': ('yapıştırmak için', 'to paste later', 'للصق لاحقًا'),
+  'ea.shared_hint': (
+    'ağdan paylaşılır',
+    'shared over the network',
+    'يُشارَك عبر الشبكة',
+  ),
   // Sil düğmesinin metni DÜRÜST olmak zorunda: çöp kutusu kapalıyken
   // "çöp kutusuna" yazmak tutulmayan bir sözdür (bkz. deleteActionText).
   'ea.delete_trash': ('Sil — çöp kutusuna', 'Delete — to trash', 'حذف — إلى المهملات'),
@@ -845,6 +859,11 @@ const Map<String, (String, String, String)> _table = {
     'Önemli dosyalara kopyalanıyor',
     'Copying to important files',
     'جارٍ النسخ إلى الملفات المهمة',
+  ),
+  'fm.copying_shared': (
+    'Paylaşılan klasörüne kopyalanıyor',
+    'Copying to the Shared folder',
+    'جارٍ النسخ إلى مجلد المشترك',
   ),
   'fm.extracted_to': (
     '“{name}” klasörüne çıkarıldı.',
@@ -1833,13 +1852,16 @@ const Map<String, (String, String, String)> _table = {
   'ftpd.folders_hint': (
     'PC\'de telefondaki kutuları görürsünüz: Belgeler, Resimler, Videolar, '
         'Ses, Arsivler, Uygulamalar, Indirilenler, Kamera — ve tüm dosyalar '
-        'için "Telefon".',
+        'için "Telefon". Hangilerinin paylaşılacağını yukarıdan seçebilir, '
+        'yalnız "Paylaşılan" klasörünü de paylaşabilirsiniz.',
     'On the PC you will see the same boxes as on the phone: Belgeler, '
         'Resimler, Videolar, Ses, Arsivler, Uygulamalar, Indirilenler, Kamera '
-        '— plus "Telefon" for everything.',
+        '— plus "Telefon" for everything. You can pick which ones are shared '
+        'above, or share only the "Paylasilan" folder.',
     'على الحاسوب سترى نفس الصناديق الموجودة على الهاتف: المستندات والصور '
         'والفيديو والصوت والأرشيف والتطبيقات والتنزيلات والكاميرا — بالإضافة '
-        'إلى "Telefon" لكل الملفات.',
+        'إلى "Telefon" لكل الملفات. يمكنك اختيار ما يُشارك من الأعلى، أو '
+        'مشاركة مجلد "Paylasilan" فقط.',
   ),
   'ftpd.notification_hint': (
     'Açık kaldığı sürece bildirim panelinde görünür; uygulamayı kapatınca '
@@ -1875,7 +1897,82 @@ const Map<String, (String, String, String)> _table = {
     'Username is empty: ANYONE ON THE SAME NETWORK can connect without a password.',
     'اسم المستخدم فارغ: يمكن لأي شخص على نفس الشبكة الاتصال بدون كلمة مرور.',
   ),
-  'ftpd.shared_folder': ('Paylaşılan klasör', 'Shared folder', 'المجلد المشترك'),
+
+  // ── Paylaşılacak klasör seçimi (kullanıcı isteği 2026-08-31) ─────────────
+  //
+  // *"ağ paylaşımında hangi klasörlerin paylaşılacağını seçelim, bir de ayrı
+  // olarak paylaşılan klasörü olsun, kişi göndermek istediği şeyi oraya
+  // atsın ve sadece o klasör paylaşılır."* Gerekçe: paylaşım o güne dek hep
+  // ya hep yoktu — iki dosya göndermek için telefonun tamamı ağa açılıyordu.
+  'ftpd.folders_title': (
+    'Paylaşılacak klasörler',
+    'Folders to share',
+    'المجلدات المشتركة',
+  ),
+  'ftpd.folders_all': ('Tümü paylaşılıyor', 'Everything is shared', 'كل شيء مشترك'),
+  'ftpd.folders_count': (
+    '{n} klasör paylaşılıyor',
+    '{n} folder(s) shared',
+    'مشاركة {n} مجلد',
+  ),
+  'ftpd.folders_none': (
+    'Hiçbir klasör seçilmedi',
+    'No folder selected',
+    'لم يتم اختيار أي مجلد',
+  ),
+  'ftpd.folders_none_warning': (
+    'Hiçbir klasör seçili değil: paylaşım açılsa da bilgisayarda boş görünür.',
+    'No folder is selected: even when the share is on, the PC will see nothing.',
+    'لم يتم اختيار أي مجلد: حتى عند تشغيل المشاركة، لن يرى الحاسوب شيئًا.',
+  ),
+  'ftpd.mode_boxes': (
+    'Seçtiğim klasörler',
+    'The folders I choose',
+    'المجلدات التي أختارها',
+  ),
+  'ftpd.mode_boxes_desc': (
+    'Aşağıdan işaretlediğiniz klasörler paylaşılır; kalanlar ağda görünmez.',
+    'Only the folders you tick below are shared; the rest stay invisible.',
+    'تتم مشاركة المجلدات المحددة أدناه فقط؛ ويبقى الباقي غير مرئي.',
+  ),
+  'ftpd.mode_shared': (
+    'Yalnız Paylaşılan klasörü',
+    'Only the Shared folder',
+    'مجلد "المشترك" فقط',
+  ),
+  'ftpd.mode_shared_desc': (
+    'Göndermek istediğinizi "Paylaşılan" klasörüne atın; telefonun geri kalanı '
+        'ağda hiç görünmez.',
+    'Drop what you want to send into the "Shared" folder; the rest of the phone '
+        'is not visible on the network at all.',
+    'ضع ما تريد إرساله في مجلد "المشترك"؛ ولن يظهر باقي الهاتف على الشبكة.',
+  ),
+  'ftpd.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'ftpd.clear_all': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
+  'ftpd.box_on_pc': (
+    'Bilgisayarda: {name}',
+    'On the PC: {name}',
+    'على الحاسوب: {name}',
+  ),
+  'ftpd.box_shared': ('Paylaşılan', 'Shared', 'المشترك'),
+  'ftpd.box_storage': ('Telefonun tamamı', 'The whole phone', 'كل الهاتف'),
+  'ftpd.box_downloads': ('İndirilenler', 'Downloads', 'التنزيلات'),
+  'ftpd.box_camera': ('Kamera', 'Camera', 'الكاميرا'),
+  'ftpd.box_screenshots': ('Ekran görüntüleri', 'Screenshots', 'لقطات الشاشة'),
+  'ftpd.box_images': ('Resimler', 'Images', 'الصور'),
+  'ftpd.box_videos': ('Videolar', 'Videos', 'الفيديو'),
+  'ftpd.box_audio': ('Ses', 'Audio', 'الصوت'),
+  'ftpd.box_documents': ('Belgeler', 'Documents', 'المستندات'),
+  'ftpd.box_archives': ('Arşivler', 'Archives', 'الأرشيف'),
+  'ftpd.box_apps': ('Uygulamalar', 'Apps', 'التطبيقات'),
+  'ftpd.shared_folder_hint': (
+    'Telefonda "Paylaşılan" klasörü. Bir dosyanın ⋮ menüsünden '
+        '"Paylaşılan\'a kopyala" ile buraya atabilirsiniz.',
+    'The "Paylaşılan" folder on the phone. Use "Copy to Shared" in a file\'s '
+        '⋮ menu to put something here.',
+    'مجلد "Paylaşılan" على الهاتف. استخدم "نسخ إلى المشترك" من قائمة ⋮ للملف '
+        'لوضع شيء هنا.',
+  ),
   'ftpd.copied': ('Adres kopyalandı.', 'Address copied.', 'تم نسخ العنوان.'),
   'ftpd.start_failed': (
     'Sunucu başlatılamadı: {error}',

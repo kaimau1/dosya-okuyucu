@@ -159,6 +159,10 @@ class FmSelectionBar extends StatelessWidget {
           switch (value) {
             case 'important':
               if (await copyToImportant(context, _paths)) await onChanged();
+            case 'shared':
+              // Çoklu seçimde de var: kullanıcı PC'ye birden çok dosya
+              // göndermek isterse tek tek ⋮ açması saçma olurdu.
+              if (await copyToShared(context, _paths)) await onChanged();
             case 'clip_copy':
               appState.setClipboard(_paths, cut: false);
               showSnackOn(messenger, clipCopied);
@@ -200,6 +204,8 @@ class FmSelectionBar extends StatelessWidget {
           PopupMenuItem(
               value: 'important',
               child: Text(context.t('fm.copy_to_important'))),
+          PopupMenuItem(
+              value: 'shared', child: Text(context.t('fm.copy_to_shared'))),
           PopupMenuItem(
               value: 'clip_copy', child: Text(context.t('fm.clip_copy'))),
           PopupMenuItem(
