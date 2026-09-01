@@ -181,7 +181,12 @@ class PdfEditOverlay extends StatelessWidget {
       color: color,
       // Döndürülmüş görselde köşe tutamağı yanıltıcı olurdu: kutu sayfaya
       // hizalı ama görsel değil. Yalnız taşımaya izin veriliyor.
-      resizable: !object.rotated,
+      //
+      // Paylaşılan bir çizim bloğunun (form XObject) içindeki görsel de
+      // sürüklenmez: kutusu GÖSTERİLİR — kullanıcı görselin var olduğunu
+      // görmeli — ama taşımak diğer sayfaları da değiştirirdi.
+      resizable: !object.rotated && object.editable,
+      movable: object.editable,
       onCommit: (screenRect) => onObjectChanged(index, _toPage(screenRect)),
     );
   }
@@ -192,12 +197,16 @@ class _MovableObject extends StatefulWidget {
   final Rect initial;
   final Color color;
   final bool resizable;
+
+  /// Sürüklenebilir mi? (Paylaşılan çizim bloğundaki görselde false.)
+  final bool movable;
   final ValueChanged<Rect> onCommit;
 
   const _MovableObject({
     super.key,
     required this.initial,
     required this.color,
+    this.movable = true,
     required this.resizable,
     required this.onCommit,
   });
@@ -239,16 +248,19 @@ class _MovableObjectState extends State<_MovableObject> {
                   _handle / 2, _handle / 2, _rect.width, _rect.height),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onPanUpdate: _move,
-                onPanEnd: (_) => widget.onCommit(_rect),
+                onPanUpdate: widget.movable ? _move : null,
+                onPanEnd:
+                    widget.movable ? (_) => widget.onCommit(_rect) : null,
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: widget.color, width: 2),
                     color: widget.color.withValues(alpha: 0.12),
                   ),
                   child: Center(
-                    child: Icon(Icons.open_with,
-                        color: widget.color.withValues(alpha: 0.8), size: 20),
+                    child: Icon(
+                        widget.movable ? Icons.open_with : Icons.lock_outline,
+                        color: widget.color.withValues(alpha: 0.8),
+                        size: 20),
                   ),
                 ),
               ),

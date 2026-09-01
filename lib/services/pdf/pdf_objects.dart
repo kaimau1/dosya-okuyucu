@@ -258,8 +258,14 @@ class PdfFile {
   Map<String, int> xobjectRefs(PdfObject page) => resourceRefs(page, 'XObject');
 
   /// Sayfanın `/Resources /<kategori>` sözlüğü: kaynak adı → nesne numarası.
-  Map<String, int> resourceRefs(PdfObject page, String category) {
-    final resources = _resourcesOf(page);
+  Map<String, int> resourceRefs(PdfObject page, String category) =>
+      resourceRefsIn(_resourcesOf(page), category);
+
+  /// Bir kaynak sözlüğü METNİNDEN kategori başvuruları.
+  ///
+  /// Sayfa dışı kapsamlar (form XObject'in kendi `/Resources`'u) için ayrı:
+  /// form içindeki `/Im1` sayfanın değil FORMUN tablosunda aranır.
+  Map<String, int> resourceRefsIn(String? resources, String category) {
     if (resources == null) return const {};
     final dict = _subDictionary(resources, category);
     if (dict == null) return const {};
@@ -268,6 +274,53 @@ class PdfFile {
           in RegExp(r'/([^\s/<>\[\]]+)\s+(\d+)\s+\d+\s+R').allMatches(dict))
         m.group(1)!: int.parse(m.group(2)!),
     };
+  }
+
+  /// Bir nesnenin (genelde form XObject) kendi `/Resources` sözlüğünün metni.
+  /// Satır içi olabilir ya da başvuru olabilir; ikisi de çözülür.
+  String? resourcesOfObject(PdfObject obj) {
+    final inline = _subDictionary(obj.dict, 'Resources');
+    if (inline != null) return inline;
+    final ref = pdfRef(obj.dict, 'Resources');
+    if (ref != null && objects[ref] != null) return objects[ref]!.dict;
+    return null;
+  }
+
+  /// [objectNumber]'a belgedeki sözlüklerden KAÇ kez başvuruluyor?
+  ///
+  /// Bir form XObject'i düzenlemeden önce sorulur: 1'den büyükse o form başka
+  /// yerlerde de kullanılıyordur ve akışını değiştirmek onları da değiştirir.
+  int referenceCount(int objectNumber) {
+    final pattern = RegExp('(?<![0-9])$objectNumber\\s+\\d+\\s+R(?![a-zA-Z0-9])');
+    var count = 0;
+    for (final obj in objects.values) {
+      count += pattern.allMatches(obj.dict).length;
+    }
+    return count;
+  }
+
+  /// [objectNumber] XObject'ini kaç SAYFA çiziyor? (Kaynak sözlüğü sayfalar
+  /// arasında miras yoluyla paylaşılıyorsa [referenceCount] 1 der ama form
+  /// yine de birden çok sayfada görünür — yazmadan önceki son kapı budur.)
+  int pagesUsingXObject(int objectNumber) {
+    var count = 0;
+    for (final page in pages) {
+      if (_xobjectReachable(_resourcesOf(page), objectNumber, 0)) count++;
+    }
+    return count;
+  }
+
+  bool _xobjectReachable(String? resources, int target, int depth) {
+    if (resources == null || depth > 6) return false;
+    for (final number in resourceRefsIn(resources, 'XObject').values) {
+      if (number == target) return true;
+      final obj = objects[number];
+      if (obj == null || pdfName(obj.dict, 'Subtype') == 'Image') continue;
+      if (_xobjectReachable(resourcesOfObject(obj), target, depth + 1)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Sayfanın çizim alanı `[sol, alt, sağ, üst]` (miras izlenir). Bulunamazsa

@@ -196,6 +196,42 @@ void main() {
       expect(size, 4);
     });
 
+    // **2026-09-01 kullanıcı bulgusu: "ufacık yazdı".** Seçim kutusu yalnız
+    // gliflerin kapladığı yerdir (10 puntoluk bir rakam satırında ~7 birim);
+    // ölçüm ise satır yüksekliğini (punto × 1.2) verir. İkisini doğrudan
+    // karşılaştıran eski kod, sığan tek satırlık bir metni bile küçültüyordu.
+    test('tek satır özgün puntoda kalır (kutu glif yüksekliğinde olsa bile)',
+        () {
+      final size = fitFontSize(
+        '17',
+        boxSize: const Size(40, 7), // 10 puntoluk rakamların kapladığı kutu
+        startSize: 10,
+        measure: measure,
+      );
+      expect(size, 10);
+    });
+
+    test('gerçekten sarmalanan metin yine küçülür', () {
+      final size = fitFontSize(
+        'çok uzun bir metin ' * 20,
+        boxSize: const Size(60, 8),
+        startSize: 10,
+        measure: measure,
+      );
+      expect(size, lessThan(10));
+    });
+
+    test('taban punto verilirse onun altına inilmez', () {
+      final size = fitFontSize(
+        'x' * 100000,
+        boxSize: const Size(50, 10),
+        startSize: 10,
+        minSize: 8, // "gerçek punto biliniyor, %20'den fazla küçülme"
+        measure: measure,
+      );
+      expect(size, 8);
+    });
+
     test('boş metin ölçüme hiç gitmez', () {
       var called = false;
       final size = fitFontSize(

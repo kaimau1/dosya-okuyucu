@@ -15,6 +15,7 @@ import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import 'fm_file_image.dart';
 import 'fm_glyph.dart';
+import '../../services/fm/storage_stats.dart';
 
 /// Dosya yöneticisi ikon paleti. Office dörtlüsü [OfficeColors]'tan gelir
 /// (liste ve şerit aynı tonu kullansın diye — bkz. HAFIZA 2026-07-24 tutarsızlık
@@ -786,3 +787,14 @@ class _VideoThumbState extends State<_VideoThumb> {
     );
   }
 }
+
+/// Bir depolama biriminin simgesi (ana bellek · SD kart · USB).
+///
+/// Tek yerde: eskiden üç ekran "birincil değilse SD kart" diyordu ve takılan
+/// bir USB bellek SD kart simgesiyle görünüyordu (kullanıcı bulgusu
+/// 2026-09-01).
+IconData volumeIcon(StorageVolume volume) => switch (volume.iconName) {
+      'smartphone' => Icons.smartphone,
+      'usb' => Icons.usb,
+      _ => Icons.sd_card,
+    };

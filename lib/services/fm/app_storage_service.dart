@@ -152,6 +152,31 @@ abstract final class AppStorageService {
     }
   }
 
+  /// Uygulamayı **başlatan** intent'in eylemi; okununca temizlenir.
+  ///
+  /// Tek kullanıcısı USB akışı: Android, bellek takılınca "hangi uygulamayla
+  /// açayım?" diye soruyor ve bizi seçince uygulama
+  /// `android.hardware.usb.action.USB_DEVICE_ATTACHED` ile açılıyor. O eylemin
+  /// verisi (URI) olmadığı için `receive_sharing_intent` hiçbir şey getirmiyor;
+  /// bu köprü olmasa uygulama sıradan bir açılış gibi panoya düşerdi.
+  ///
+  /// Kanal yoksa (masaüstü, test, eski APK) null döner.
+  static Future<String?> launchAction() async {
+    try {
+      return await _channel.invokeMethod<String>('launchAction');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Uygulama bir **USB bellek takılması** yüzünden mi açıldı?
+  static Future<bool> launchedByUsb() async =>
+      await launchAction() == usbAttachedAction;
+
+  /// Android'in USB takılma eylemi (manifest'teki intent filtresiyle aynı).
+  static const usbAttachedAction =
+      'android.hardware.usb.action.USB_DEVICE_ATTACHED';
+
   /// Testlerde sahte kanal kurulduktan sonra "yok" damgasını temizler.
   static void resetForTest() => _available = null;
 }

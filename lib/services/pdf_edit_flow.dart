@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../core/l10n/app_strings.dart';
 import 'pdf_content_editor.dart';
+import 'pdf_page_edit.dart';
 import 'pdf_tools.dart';
 
 /// Uygulanmış (ama HENÜZ KAYDEDİLMEMİŞ) bir metin değişikliği.
@@ -135,7 +136,18 @@ class PdfEditFlow {
       if (!context.mounted) return null;
       final useOverlay = await _askOverlayFallback(context, refusal.message);
       if (useOverlay != true || !context.mounted) return null;
-      out = await _overlayReplace(bytes, pageIndex, rawRects, newText);
+      // Punto: belgenin kendi puntosunu ölç (seçimin ortasındaki metinden).
+      // Ölçülemezse null geçilir ve eski kutu-yüksekliği tahmini kullanılır.
+      double? size;
+      if (nearRect != null) {
+        size = await PdfPageEdit.pointSizeAtInBackground(
+          bytes,
+          pageIndex,
+          (nearRect[0] + nearRect[2]) / 2,
+          (nearRect[1] + nearRect[3]) / 2,
+        );
+      }
+      out = await _overlayReplace(bytes, pageIndex, rawRects, newText, size);
       note = strings.t('pf.stamped');
     }
 
@@ -144,7 +156,7 @@ class PdfEditFlow {
 
   /// Yedek yol: eski yazının üstünü kapatıp yenisini çiz.
   static Future<List<int>> _overlayReplace(List<int> bytes, int pageIndex,
-      List<List<double>> rawRects, String newText) async {
+      List<List<double>> rawRects, String newText, double? fontSize) async {
     // Türkçe çizebilen gömülü font — standart Helvetica ğ/ş/ı çizemez.
     final font = (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
         .buffer
@@ -155,6 +167,7 @@ class PdfEditFlow {
       rawRects: rawRects,
       newText: newText,
       fontBytes: font,
+      fontSize: fontSize,
     );
   }
 

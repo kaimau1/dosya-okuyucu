@@ -163,6 +163,19 @@ jobs:
           echo "--- MainActivity ---"; head -5 "$DIR/MainActivity.kt"
           find android/app/src/main -name 'MainActivity.*'
 
+      - name: USB OTG süzgeci (res/xml) — "USB takıldı, açayım mı?" penceresi
+        run: |
+          set -e
+          # Manifest'teki
+          #   <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+          #              android:resource="@xml/usb_device_filter"/>
+          # bu dosyayı arar; kopyalanmazsa derleme "resource xml/usb_device_filter
+          # not found" ile KIRILIR. `flutter create` res/xml üretmiyor.
+          mkdir -p android/app/src/main/res/xml
+          cp ci/usb_device_filter.xml android/app/src/main/res/xml/usb_device_filter.xml
+          echo "--- usb_device_filter.xml ---"
+          grep -c "usb-device" android/app/src/main/res/xml/usb_device_filter.xml
+
       - name: Proguard kuralları (ML Kit R8 "missing class" düzeltmesi)
         run: |
           set -e

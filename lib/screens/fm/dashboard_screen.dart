@@ -12,6 +12,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/download_service.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/ai_index.dart';
+import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/remote/ftp_service.dart';
 import '../../services/fm/fs_events.dart';
@@ -24,6 +25,7 @@ import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../services/fm/tool_usage.dart';
+import '../../services/fm/volume_watcher.dart';
 import '../../widgets/crash_notice.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -77,6 +79,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   static int _cachedAtMs = 0;
 
   StorageIndex _index = _cachedIndex ?? StorageIndex.empty;
+
+  /// Takılan/çıkarılan harici bellekleri izler.
+  final VolumeWatcher _volumes = VolumeWatcher();
+  StreamSubscription<VolumeChange>? _volumeSub;
+
   bool _scanning = false;
   bool _hasAccess = true;
   int _trashCount = 0;
@@ -107,6 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
     _boot();
     unawaited(_loadAppsSize());
+    _startVolumeWatch();
   }
 
   /// Uygulama boyutları platform kanalından gelir (yüzlerce binder çağrısı),
@@ -123,7 +131,66 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
+    unawaited(_volumeSub?.cancel());
+    unawaited(_volumes.dispose());
     super.dispose();
+  }
+
+  /// **Harici bellek izleme** (kullanıcı isteği 2026-09-01: *"harici USB
+  /// taktığımda göremiyorum onu uygulamamızda görebilmeliyiz, otomatik
+  /// tanımalı"*).
+  ///
+  /// Pano açıkken takılan bir USB/SD anında listeye giriyor ve kullanıcıya
+  /// "Aç" düğmeli bir şerit gösteriliyor — uygulamayı kapatıp açmak gerekmez.
+  void _startVolumeWatch() {
+    _volumeSub = _volumes.changes.listen((change) {
+      if (!mounted) return;
+      setState(() {}); // birim listesi tazelendi (FmEnv.volumes)
+      final attached =
+          change.attached.where((v) => v.isRemovable).toList();
+      if (attached.isNotEmpty) {
+        final volume = attached.first;
+        showSnack(
+          context,
+          context.t('fm.usb_attached',
+              {'volume': volume.displayLabel(context.t)}),
+          action: SnackBarAction(
+            label: context.t('fm.usb_open'),
+            onPressed: () => unawaited(_push(BrowserScreen(path: volume.path))),
+          ),
+        );
+      } else if (change.detached.isNotEmpty) {
+        showSnack(context, context.t('fm.usb_detached'));
+      }
+    });
+    _volumes.start();
+    unawaited(_openUsbIfLaunchedByIt());
+  }
+
+  /// Uygulama **USB takılması yüzünden** açıldıysa doğrudan o belleği aç.
+  ///
+  /// Kullanıcı isteği (2026-09-01): *"diğer bir uygulama açık olmasa bile USB
+  /// takıldığında otomatik algılayıp 'açayım mı' diye popup bildirim
+  /// gönderdi"*. O pencerede bizi seçen kullanıcı panoyu değil BELLEĞİ görmek
+  /// ister; panoda bırakıp "şuraya bak" demek yarım iş olurdu.
+  ///
+  /// Birim henüz bağlanmamış olabilir (Android takma ile bağlama arasında bir
+  /// süre geçiriyor) → kısa aralıklarla birkaç kez bakılır, sonra vazgeçilir.
+  Future<void> _openUsbIfLaunchedByIt() async {
+    if (!await AppStorageService.launchedByUsb()) return;
+    for (var attempt = 0; attempt < 6; attempt++) {
+      await _volumes.rescan();
+      final usb = FmEnv.volumes
+          .where((v) => v.kind == StorageKind.usb)
+          .firstOrNull;
+      if (usb != null) {
+        if (!mounted) return;
+        await _push(BrowserScreen(path: usb.path));
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+    }
   }
 
   /// Uygulama arka plandan dönünce sıcak klasörler yeniden taranır.
@@ -135,7 +202,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// çalışmadığı için tazeleme yaşam döngüsüne de bağlandı.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_catchUp());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_catchUp());
+      // Uygulama arka plandayken takılan bellek de görülsün; izleme arka
+      // planda durduruluyor (boşuna pil harcamasın).
+      _volumes.start();
+      unawaited(_volumes.rescan());
+      // Uygulama AÇIKKEN USB takılıp "Dosya Okuyucu ile aç" seçilirse
+      // Android yeni bir intent gönderir (singleTask) ve `initState`
+      // çalışmaz — eylemi burada da soruyoruz. Eylem okununca native
+      // tarafta temizlendiği için iki kez tetiklenmez.
+      unawaited(_openUsbIfLaunchedByIt());
+    } else if (state == AppLifecycleState.paused) {
+      _volumes.stop();
+    }
   }
 
   @override
@@ -1404,7 +1484,7 @@ class _VolumeCard extends StatelessWidget {
                       ),
                     ),
                     Icon(
-                      volume.isPrimary ? Icons.smartphone : Icons.sd_card,
+                      volumeIcon(volume),
                       size: 22,
                       color: scheme.onSurfaceVariant,
                     ),

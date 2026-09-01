@@ -104,6 +104,18 @@ class PdfParagraphRun {
   final String? fontName;
   final double fontSize;
 
+  /// Metin matrisinin ölçek bileşenleri (`Tm`'in a ve d'si).
+  ///
+  /// **Niye ŞART (kullanıcı bulgusu 2026-09-01: "yazı puntosu tutmadı…
+  /// ufacık yazdı"):** ekrandaki punto `Tf`nin sayısı DEĞİL, `Tf × Tm ölçeği`.
+  /// HTML→PDF üreticilerinin (e-Nabız, e-Devlet çıktıları, fatura sistemleri)
+  /// çoğu `/F1 1 Tf` yazıp puntoyu tamamen `Tm`e koyar. Ölçeği taşımayan eski
+  /// kod bütün koşuları "1 punto" sanıyor, paragrafı tek ölçekte (ilk satırın
+  /// ölçeğinde) yeniden yazıyordu: 9 puntoluk bir hücreye 6 puntoluk komşusunun
+  /// ölçeği uygulanınca yazı küçülüyordu.
+  final double scaleX;
+  final double scaleY;
+
   /// O an geçerli renk operatörünün HAM baytları (`1 0 0 rg` gibi). Boşsa
   /// paragrafın başındaki renk geçerlidir ve yeniden yazmaya gerek yoktur.
   final List<int> colorBytes;
@@ -117,7 +129,15 @@ class PdfParagraphRun {
     required this.fontSize,
     required this.colorBytes,
     required this.state,
+    this.scaleX = 1,
+    this.scaleY = 1,
   });
+
+  /// **Görünen** punto (sayfa birimi): `Tf` puntosu × matris ölçeği.
+  double get sizeY => fontSize * scaleY.abs();
+
+  /// Yatay em genişliği (sayfa birimi) — kelime arası eşiği bununla ölçülür.
+  double get sizeX => fontSize * scaleX.abs();
 
   PdfParagraphRun withText(String value) => PdfParagraphRun(
         text: value,
@@ -125,12 +145,16 @@ class PdfParagraphRun {
         fontSize: fontSize,
         colorBytes: colorBytes,
         state: state,
+        scaleX: scaleX,
+        scaleY: scaleY,
       );
 
   /// Biçim aynı mı? (Metin hariç.)
   bool sameStyleAs(PdfParagraphRun other) =>
       fontName == other.fontName &&
       (fontSize - other.fontSize).abs() < 1e-6 &&
+      (scaleX - other.scaleX).abs() < 1e-6 &&
+      (scaleY - other.scaleY).abs() < 1e-6 &&
       _sameBytes(colorBytes, other.colorBytes) &&
       (state.charSpacing - other.state.charSpacing).abs() < 1e-6 &&
       (state.wordSpacing - other.state.wordSpacing).abs() < 1e-6 &&
@@ -170,6 +194,10 @@ class PdfParagraphLine {
     required this.fontSize,
     required this.opIndexes,
   });
+
+  /// **Görünen** punto: `Tf` puntosu × matris dikey ölçeği (bkz.
+  /// [PdfParagraphRun.sizeY] — aynı tuzak).
+  double get sizeY => fontSize * (matrix.length > 3 ? matrix[3].abs() : 1);
 }
 
 /// Sayfada bulunmuş bir paragraf.
@@ -373,6 +401,12 @@ class _OpInfo {
   double get fontSize => op.state.fontSize;
   double get scaleX => op.matrix[0];
   double get scaleY => op.matrix[3];
+
+  /// **Görünen** punto (sayfa birimi). Gruplama ve satır aralığı kararları
+  /// bununla verilir; ham `Tf` puntosu tek başına yanıltıcıdır (bkz.
+  /// [PdfParagraphRun.scaleX]).
+  double get sizeY => fontSize * scaleY.abs();
+  double get sizeX => fontSize * scaleX.abs();
 }
 
 /// Renk belirleyen operatörler — paragraf yeniden yazılırken koşuyla birlikte
@@ -501,7 +535,7 @@ List<List<_OpInfo>> _groupIntoLines(List<_OpInfo> ops) {
   for (final op in sorted) {
     final last = lines.isEmpty ? null : lines.last;
     if (last != null) {
-      final tolerance = last.first.fontSize * _baselineTolerance;
+      final tolerance = last.first.sizeY * _baselineTolerance;
       if ((last.first.baselineY - op.baselineY).abs() <= tolerance) {
         last.add(op);
         continue;
@@ -541,8 +575,11 @@ List<List<List<_OpInfo>>> _groupIntoParagraphs(List<List<_OpInfo>> lines) {
 
 bool _continuesParagraph(List<List<_OpInfo>> group, List<_OpInfo> line) {
   final previous = group.last;
-  final fontSize = previous.first.fontSize;
-  if ((line.first.fontSize - fontSize).abs() > 0.51) return false;
+  // Görünen punto (Tf × Tm ölçeği): `Tf 1` yazıp puntoyu matrise koyan
+  // üreticilerde ham `Tf` puntosu her satırda 1'dir ve farklı boydaki
+  // satırlar (tablo hücresi, dipnot) tek paragrafa girerdi.
+  final fontSize = previous.first.sizeY;
+  if ((line.first.sizeY - fontSize).abs() > 0.51) return false;
 
   // Farklı `cm` dönüşümü altındaki satırlar aynı koordinat uzayında değil;
   // tek paragraf sayılırlarsa hem sınırlar hem yeniden dizme yanlış olur.
@@ -582,7 +619,7 @@ bool _continuesParagraph(List<List<_OpInfo>> group, List<_OpInfo> line) {
   // Sol kenar hizası: gövde satırları hizalı olmalı. İlk satır girintili
   // olabilir, o yüzden karşılaştırma ikinci satırdan itibaren sıkılaşır.
   final reference = group.length == 1 ? aLeft : _minStart(group[1]);
-  if ((bLeft - reference).abs() > fontSize * _leftEdgeTolerance) {
+  if ((bLeft - reference).abs() > previous.first.sizeX * _leftEdgeTolerance) {
     // İlk satırdan sonraki ilk satır girinti/asılı girinti olabilir.
     if (group.length != 1) return false;
   }
@@ -627,6 +664,8 @@ PdfParagraph? _buildParagraph({
       fontSize: info.fontSize,
       colorBytes: info.colorBytes,
       state: info.op.state,
+      scaleX: info.scaleX,
+      scaleY: info.scaleY,
     );
     if (runs.isNotEmpty && runs.last.sameStyleAs(candidate)) {
       runs[runs.length - 1] = runs.last.withText(runs.last.text + text);
@@ -647,7 +686,7 @@ PdfParagraph? _buildParagraph({
       if (o > 0) {
         // Aynı satırda iki operatör arası boşluk kelime arası mı?
         final gap = info.startX - line[o - 1].endX;
-        final threshold = info.fontSize * info.scaleX.abs() * _wordGapEm;
+        final threshold = info.sizeX * _wordGapEm;
         final already = buffer.toString().endsWith(' ');
         if (!already && gap > threshold) push(' ', info);
       }
@@ -670,12 +709,9 @@ PdfParagraph? _buildParagraph({
       ),
   ];
 
-  final fontSize = lines.first.fontSize;
-  final scaleY = flat.first.scaleY.abs();
-
   // Satır aralığı: ölçülmüş gerçek değer (TL operatörüne güvenmiyoruz —
   // üreticiler çoğu zaman satırı mutlak Tm ile koyar, TL'yi hiç yazmaz).
-  var leading = fontSize * 1.2 * scaleY;
+  var leading = lines.first.sizeY * 1.2;
   if (lines.length >= 2) {
     var total = 0.0;
     for (var i = 1; i < lines.length; i++) {
@@ -708,12 +744,12 @@ PdfParagraph? _buildParagraph({
     final y = other.first.baselineY;
     if (y >= bottomBaseline - 1e-6) continue;
     if (group.any((l) => identical(l, other))) continue;
-    final top = y + other.first.fontSize * other.first.scaleY.abs() * 0.75;
+    final top = y + other.first.sizeY * 0.75;
     if (top > nextTop) nextTop = top;
   }
   final roomBelow = nextTop == double.negativeInfinity
       ? double.infinity
-      : (bottomBaseline - fontSize * scaleY * 0.25) - nextTop;
+      : (bottomBaseline - lines.last.sizeY * 0.25) - nextTop;
 
   // Aralıktaki `q`/`Q` çiftlerinin silinebilmesinin ön koşulu. Aynı dönüşüm
   // koşulunu burada TEKRAR aramıyoruz: farklı `cm` altındaki satırlar zaten
@@ -721,8 +757,8 @@ PdfParagraph? _buildParagraph({
   // kırpmalı bir bloğu komşusuyla birleştirmek yazıyı kestirir.
   final uniformGraphics = flat.every((o) => !o.clipped);
 
-  final ascent = fontSize * scaleY * 0.85;
-  final descent = fontSize * scaleY * 0.25;
+  final ascent = lines.first.sizeY * 0.85;
+  final descent = lines.last.sizeY * 0.25;
 
   // Sınırlar SAYFA uzayında olmalı (dokunma eşlemesi için); düzen hesapları
   // ise metin uzayında kalır. Dört köşeyi de çevirip en küçük/en büyüğü almak,

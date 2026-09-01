@@ -299,6 +299,7 @@ class PdfTools {
     int backgroundArgb = 0xFFFFFFFF,
     int colorArgb = 0xFF000000,
     String? password,
+    double? fontSize,
   }) async {
     if (rawRects.isEmpty) throw ArgumentError('Değiştirilecek alan yok');
     final doc = PdfDocument(inputBytes: bytes, password: password);
@@ -328,11 +329,20 @@ class PdfTools {
         g.drawRectangle(brush: brush, bounds: r.inflate(0.75));
       }
 
+      // Punto: belgenin KENDİ puntosu biliniyorsa o (çağıran ölçüyor, bkz.
+      // `PdfPageEdit.pointSizeAt`); bilinmiyorsa kutu yüksekliğinden tahmin.
+      final start = fontSize != null && fontSize > 0
+          ? fontSize
+          : fittedStartSize(rects);
       final size = fitFontSize(
         newText,
         boxSize: bounds.size,
-        startSize: fittedStartSize(rects),
-        measure: (text, fontSize, width) => PdfTrueTypeFont(fontBytes, fontSize)
+        startSize: start,
+        // Gerçek punto biliniyorken %20'den fazla küçültme YOK: biraz taşan
+        // ama okunur bir yazı, kutuya sığdırılmış ama okunmayan bir yazıdan
+        // iyidir (kullanıcı bulgusu 2026-09-01: "ufacık yazdı").
+        minSize: fontSize != null && fontSize > 0 ? fontSize * 0.8 : 4,
+        measure: (text, pt, width) => PdfTrueTypeFont(fontBytes, pt)
             .measureString(text,
                 layoutArea: Size(width, 0),
                 format: PdfStringFormat(wordWrap: PdfWordWrapType.word))
@@ -608,6 +618,7 @@ class PdfTools {
     int backgroundArgb = 0xFFFFFFFF,
     int colorArgb = 0xFF000000,
     String? password,
+    double? fontSize,
   }) =>
       _bg(() => replaceText(
             bytes,
@@ -618,6 +629,7 @@ class PdfTools {
             backgroundArgb: backgroundArgb,
             colorArgb: colorArgb,
             password: password,
+            fontSize: fontSize,
           ));
 
   /// İşi ayrı isolate'te koşturur.
@@ -726,9 +738,18 @@ double fitFontSize(
   if (text.trim().isEmpty || boxSize.width <= 0 || boxSize.height <= 0) {
     return startSize;
   }
+  // **TEK SATIR PAYI (2026-09-01).** Kutu, gliflerin kapladığı yerdir; ölçüm
+  // ise SATIR yüksekliğini (üst çıkıntı + alt çıkıntı + satır arası) verir ve
+  // bu her zaman kutudan büyüktür. İkisini doğrudan karşılaştıran eski kod
+  // sığan bir metni bile küçültüyordu: 10 puntoluk bir hücreye yazılan "17"
+  // ~6.5 puntoya iniyordu (kullanıcı: "ufacık yazdı"). Bir satırın özgün
+  // puntoda her zaman sığdığı varsayılıyor — zaten oradaki yazı da sığıyordu.
+  final budget = boxSize.height > startSize * 1.25
+      ? boxSize.height
+      : startSize * 1.25;
   var size = startSize;
   while (size > minSize) {
-    if (measure(text, size, boxSize.width) <= boxSize.height) return size;
+    if (measure(text, size, boxSize.width) <= budget) return size;
     size -= step;
   }
   return minSize;

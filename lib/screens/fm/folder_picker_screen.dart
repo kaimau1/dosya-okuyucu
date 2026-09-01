@@ -308,7 +308,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         for (final v in FmEnv.volumes)
           IconButton(
             tooltip: v.label,
-            icon: Icon(v.isPrimary ? Icons.smartphone : Icons.sd_card),
+            icon: Icon(volumeIcon(v)),
             onPressed: () => _enter(v.path),
           ),
       ],

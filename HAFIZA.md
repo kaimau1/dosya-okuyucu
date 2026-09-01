@@ -9643,3 +9643,117 @@ kutuların yarısını hiç kurmuyor; `findsNWidgets` ekranı değil TUVALİ öl
 
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı), `analyze` 0 sorun,
 **1959 test yeşil**.
+
+## 2026-09-01 — PDF puntosu, form XObject'teki görseller ve USB/harici bellek
+
+Kullanıcı bildirimi (üç ekran görüntüsüyle, e-Nabız tahlil PDF'i):
+*"Bu tür PDF'leri düzenlerken yazı puntosu tutmadı, mesela bir kan değerine 17
+yazdım ufacık yazdı. Ayrıca görselleri tam tanıyamadı."* ve *"harici USB
+taktığımda göremiyorum… USB takıldığında otomatik algılayıp açayım mı diye
+popup bildirim gönderdi, bizde de sorunsuz tanınmalı… 3 nokta ayarlarında
+harici belleğe kopyala şeklinde basit bir kısayol da olmalı."*
+
+### A) "Punto tutmadı" — KÖK NEDEN: punto `Tf`de değil `Tm`de
+Ekrandaki punto **`Tf` puntosu × metin matrisi ölçeği**dir. HTML→PDF
+üreticilerinin çoğu (e-Nabız, e-Devlet çıktıları, fatura sistemleri)
+`/F1 1 Tf` yazıp puntoyu tamamen `Tm`e koyuyor. Eski kod `op.state.fontSize`i
+punto sanıyordu; sonuçları:
+1. **Gruplama yanlış:** 6 ve 9 puntoluk iki hücre "ikisi de 1 punto" sayılıp
+   TEK paragrafa giriyordu (`_continuesParagraph`).
+2. **Yeniden yazma yanlış:** `_emit` bütün koşuları **paragrafın ilk
+   satırının** matrisiyle yazıyordu → 9 puntoluk hücre 6 ölçeğine düşüyordu.
+   Kullanıcının gördüğü "ufacık yazdı" tam olarak bu.
+
+**Yapılan:** `PdfParagraphRun`/`PdfParagraphLine`/`_OpInfo` artık `scaleX`,
+`scaleY` ve `sizeY = fontSize × |scaleY|` taşıyor. Gruplama, satır aralığı,
+kelime arası ve sınır hesapları GÖRÜNEN puntoyla yapılıyor; `_emit` her koşuyu
+**kendi matrisiyle** yazıyor. Ölçüm de metin uzayından **sayfa uzayına**
+taşındı (`_advanceOf` artık `× run.scaleX`), `_wrap`ten ölçek bölmesi kalktı.
+
+**Ek özellik:** paragraf düzenleme penceresinde **Punto kutusu** (± düğmeleri).
+`rewriteParagraph(pointSize:)` oranı koruyarak ölçekliyor (paragrafta birden
+çok boy varsa hepsi aynı çarpanla). Büyütmede satır aralığı da büyüyor ve
+altta yer yoksa REDDEDİLİYOR — sayfa düzeni bozulmuyor. `paragraphPointSize`
+paragrafın puntosunu "en çok karakterin yazıldığı koşu"dan okuyor (ilk koşu
+"mg/dL" gibi küçük bir birim olabilir).
+
+### B) Üstü-kapatma yedeğinde İKİNCİ punto hatası
+`fitFontSize` seçim kutusunun yüksekliğiyle **satır yüksekliği** ölçümünü
+doğrudan karşılaştırıyordu. Kutu yalnız gliflerin kapladığı yer (~0.7 em),
+ölçüm ise üst+alt çıkıntı + satır arası (~1.2 em) → sığan tek satırlık bir
+metin bile küçültülüyordu (10 punto → ~6.5).
+**Yapılan:** (a) tek satır payı — bütçe `max(kutu, başlangıç × 1.25)`;
+(b) `PdfPageEdit.pointSizeAt` ile belgenin KENDİ puntosu ölçülüp
+`PdfTools.replaceText(fontSize:)`e veriliyor; ölçülebildiğinde taban punto
+`%80` (biraz taşan okunur yazı > sığdırılmış okunmaz yazı).
+
+### C) "Görselleri tam tanıyamadı" — form XObject'in içine BAKILMIYORDU
+`findPageObjects` form XObject'leri baştan eliyordu ("çizim alanı birim kare
+değil kendi `/BBox`'ı"). Ama antet logolarının çoğu (`/Fm0 Do`) tam olarak
+orada; e-Nabız sayfasında iki logo varken "Bu sayfada gömülü görsel yok"
+yazıyordu.
+**Yapılan:** `PdfXObjectNode` ağacı (`PdfPageContext.xobjectTree`) — form'un
+`/Matrix`i, kendi `/Resources`u ve çözülmüş akışı taşınıyor; tarama forma
+**iniyor** (derinlik sınırı 6, döngüye karşı). Görselin sayfa kutusu
+`form.Matrix × ctm` ile doğru çıkıyor.
+- `PdfPageObject.formObject` düzenleme hedefini söylüyor (0 = sayfa akışı,
+  aksi hâlde o form nesnesinin akışı); `PdfPageContext.writeObject` yönlendiriyor.
+- **Paylaşılan form düzenlenmez:** `referenceCount > 1` ya da
+  `pagesUsingXObject > 1` ise kutu GÖSTERİLİR ama sürüklenmez (kilit simgesi)
+  ve silme/taşıma reddedilir — akışı değiştirmek diğer sayfaları da değiştirirdi.
+- Miras yoluyla paylaşılan kaynak sözlüğü `referenceCount`u kandırabildiği
+  için yazmadan önce `pagesUsingXObject` ile ikinci kapı var.
+
+### D) USB / harici bellek
+- **Tür ayrımı:** USB ile SD kart ikisi de `/storage/<UUID>` altına bağlanıyor;
+  ayırt eden tek şey `/proc/mounts`taki aygıt adı. `StorageStats.kindOf` saf
+  fonksiyon (birim testli): `vold/public:8,*` ve `/dev/block/sd*` → USB,
+  `public:179,*` ve `mmcblk*` → SD kart, `/mnt/usb` → USB, bilinmiyorsa SD
+  (eski davranış). `StorageVolume.kind` + `iconName` → tek `volumeIcon()`
+  yardımcısı; üç ekran "birincil değilse SD kart" demeyi bıraktı.
+- **Yeni kökler:** `/storage`ın yanına `/mnt/media_rw` ve `/mnt/usb`. Aynı
+  aygıt iki kökten görünürse bir kez eklenir (temel ada göre).
+- **Sıcak takma (`VolumeWatcher`):** birim listesi açılışta BİR KEZ
+  kuruluyordu; uygulama açıkken takılan USB'yi hiçbir ekran görmüyordu.
+  Artık `/storage` (ve diğer kökler) `Directory.watch` ile izleniyor + 5 sn'lik
+  yedek yoklama. **Yoklama UCUZ:** yalnız bağlama noktası ADLARI (`listSync`)
+  karşılaştırılıyor; pahalı tarama (`df` süreç başlatıyor) yalnız ad kümesi
+  değişince koşuyor. Uygulama arka plana alınınca izleme duruyor.
+  Pano takılınca "USB bellek takıldı — Aç" şeridi gösteriyor.
+- **REDDEDİLEN yol:** `ACTION_MEDIA_MOUNTED` BroadcastReceiver — platform
+  kanalı + receiver demek ve CI `android/`ı her derlemede yeniden ürettiği
+  için kalıcı bakım borcu. Dosya sistemi izleme aynı işi saf Dart'ta yapıyor.
+- **"Açayım mı?" penceresi (uygulama kapalıyken):** kaynağı
+  `USB_DEVICE_ATTACHED` intent filtresi. `ci/AndroidManifest.xml`e filtre +
+  `<uses-feature android.hardware.usb.host required="false"/>` (required=true
+  Play'de USB'siz cihazlarda uygulamayı GİZLERDİ) ve
+  `ci/usb_device_filter.xml` (`<usb-device class="8"/>` — yalnız yığın
+  depolama; süzgeçsiz her klavye/fare/yazıcıda sorulurdu). CI'da yeni adım
+  dosyayı `android/app/src/main/res/xml/`e kopyalıyor — **kopyalanmazsa
+  derleme "resource xml/usb_device_filter not found" ile KIRILIR.**
+- **Cold launch USB'ye iniyor:** `USB_DEVICE_ATTACHED`ın verisi (URI) YOK,
+  bu yüzden `receive_sharing_intent` hiçbir şey getirmiyordu ve uygulama
+  sıradan bir açılış gibi panoya düşüyordu. `MainActivity.launchAction`
+  kanalı (okununca temizlenir) + `AppStorageService.launchedByUsb()`; pano
+  `initState`te VE `resumed`da soruyor (singleTask → `onNewIntent`).
+  Birim geç bağlanabildiği için 6 kez 700 ms aralıkla bakılıyor.
+- **⋮ → "Harici belleğe kopyala"** (`copyToExternal`): yalnız takılı VE
+  yazılabilir birim varken görünür. Tek birimde soru yok, birden çoksa seçim
+  sayfası. Hedef birimin kökü değil altındaki `Dosya Okuyucu` klasörü —
+  kullanıcının USB düzenini bozmamak için. Taşıma değil KOPYALAMA ("Önemli
+  Dosyalar"/"Paylaşılan" ile aynı gerekçe).
+
+### Yeni testler
+`pdf_xobject_form_test.dart` (form içi görsel, `/Matrix` ölçeği, paylaşılan
+form kilidi, döngü sınırı), `storage_volume_kind_test.dart` (USB/SD ayrımı,
+tam bağlama noktası eşleşmesi, bozuk satır), `volume_watcher_test.dart`
+(ucuz yoklama, hedef klasör), `pdf_paragraph_test.dart`e "punto (Tm ölçeği)"
+grubu, `pdf_replace_text_test.dart`e tek satır payı.
+
+**TUZAK — `findPageObjects`te ağaç kipi:** kaynak ağacı verildiğinde ağaçta
+OLMAYAN bir ad artık çizilmiyor. Önce "resources boşsa eski yola düş" diye
+yazılmıştı ve formun İÇİNDE (children boş) bilinmeyen bir kaynak görsel
+sanılıyordu — testte yakalandı.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı), `analyze` 0 sorun,
+**1988 test yeşil**.

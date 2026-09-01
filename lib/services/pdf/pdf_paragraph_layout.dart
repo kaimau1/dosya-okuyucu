@@ -66,11 +66,17 @@ class _LaidLine {
 ///
 /// Paragrafın DIŞINDAKİ baytlara dokunulmaz. Yapılamıyorsa açıklamalı bir
 /// [PdfParagraphRefused] atar — çağıran mesajı doğrudan kullanıcıya gösterir.
+///
+/// [pointSize] verilirse paragrafın **puntosu** da değişir (kullanıcı isteği
+/// 2026-09-01: *"yazı puntosu tutmadı"*). Oran korunur: paragrafta birden çok
+/// boy varsa hepsi aynı çarpanla ölçeklenir, kalın/ince ayrımı bozulmaz.
+/// Verilmezse her koşu KENDİ özgün puntosunda kalır.
 List<int> rewriteParagraph({
   required List<int> content,
   required PdfParagraph paragraph,
   required String newText,
   required PdfFontAccess fonts,
+  double? pointSize,
 }) {
   if (newText.trim().isEmpty) {
     throw const PdfParagraphRefused(
@@ -79,12 +85,29 @@ List<int> rewriteParagraph({
 
   _checkSpan(content, paragraph);
 
-  final matrix = paragraph.lines.first.matrix;
-  final scaleX = matrix[0];
-  if (scaleX <= 0) {
+  // Her koşunun ölçeği ayrı ayrı denetlenir: paragraf artık koşu başına
+  // kendi matrisiyle yazılıyor, tek bir satırın matrisine bakmak yetmez.
+  if (paragraph.lines.first.matrix[0] <= 0 ||
+      paragraph.runs.any((r) => r.scaleX <= 0 || r.scaleY == 0)) {
     throw const PdfParagraphRefused(
         'Bu paragrafın metin matrisi alışılmadık (aynalanmış ya da sıfır '
         'ölçekli). Yeniden dizmek yazıyı bozardı.');
+  }
+
+  // Punto çarpanı: istenen boy / paragrafın şu anki (görünen) boyu.
+  var scale = 1.0;
+  if (pointSize != null && pointSize > 0) {
+    final current = paragraphPointSize(paragraph);
+    if (current <= 0) {
+      throw const PdfParagraphRefused(
+          'Bu paragrafın puntosu ölçülemedi; boyut değiştirilemiyor.');
+    }
+    scale = pointSize / current;
+    if (scale < 0.1 || scale > 10) {
+      throw const PdfParagraphRefused(
+          'İstenen punto paragrafın özgün boyuna göre aşırı; sayfayı '
+          'bozmamak için yapılmadı.');
+    }
   }
 
   final runs = paragraph.runs;
@@ -99,41 +122,52 @@ List<int> rewriteParagraph({
   final runOfChar = _mapRuns(paragraph.text, paragraph.runOfChar, newText);
 
   // 2) Kelimelere böl ve ölç.
-  final words = _splitWords(newText, runOfChar, runs, fonts);
+  final words = _splitWords(newText, runOfChar, runs, fonts, scale);
   if (words.isEmpty) {
     throw const PdfParagraphRefused('Paragraf boş bırakılamaz.');
   }
 
   // 3) Satırlara sar.
-  final spaceAdvance = _spaceAdvance(runs.first, fonts);
+  final spaceAdvance = _spaceAdvance(runs.first, fonts) * scale;
   final laid = _wrap(
     words: words,
     paragraph: paragraph,
-    scaleX: scaleX,
     spaceAdvance: spaceAdvance,
   );
 
-  // 4) Satır sayısı arttıysa altta yer var mı?
-  final extra = laid.length - paragraph.lineCount;
-  if (extra > 0) {
-    final needed = extra * paragraph.leading;
-    if (needed > paragraph.roomBelow) {
-      final fits = (paragraph.roomBelow / paragraph.leading).floor();
-      final missing = extra - (fits < 0 ? 0 : fits);
-      throw PdfParagraphRefused(
-        'Metin sayfaya sığmıyor: $missing satır fazla geliyor ve altta yer '
-        'yok. Sayfa düzenini bozmamak için değişiklik yapılmadı — metni biraz '
-        'kısaltıp yeniden deneyin.',
-      );
-    }
+  // Punto büyüdüyse satır aralığı da büyümeli, yoksa satırlar üst üste biner.
+  // Küçülmede özgün aralık korunur: sayfadaki diğer içerik yerinde duruyor,
+  // satırları birbirine yaklaştırmak hizayı bozardı.
+  final leading =
+      scale > 1 ? paragraph.leading * scale : paragraph.leading;
+
+  // 4) Paragraf uzadıysa (satır eklendi ya da punto büyüdü) altta yer var mı?
+  //
+  // Gereken dikey yer, yeni son satırın taban çizgisinin özgün son satırın
+  // taban çizgisine göre ne kadar AŞAĞI indiğidir: satır sayısı değişmese de
+  // punto büyüyünce satır aralığı büyür ve paragraf aşağı taşar.
+  final needed = (laid.length - 1) * leading -
+      (paragraph.lineCount - 1) * paragraph.leading;
+  if (needed > paragraph.roomBelow) {
+    final extra = laid.length - paragraph.lineCount;
+    throw PdfParagraphRefused(
+      extra > 0
+          ? 'Metin sayfaya sığmıyor: $extra satır fazla geliyor ve altta yer '
+              'yok. Sayfa düzenini bozmamak için değişiklik yapılmadı — metni '
+              'biraz kısaltıp yeniden deneyin.'
+          : 'Bu punto paragrafı alttaki içeriğin üstüne taşırıyor. Sayfa '
+              'düzenini bozmamak için değişiklik yapılmadı — daha küçük bir '
+              'punto seçin.',
+    );
   }
 
   // 5) Operatörleri üret ve aralığı değiştir.
   final generated = _emit(
     laid: laid,
     paragraph: paragraph,
-    matrix: matrix,
     fonts: fonts,
+    scale: scale,
+    leading: leading,
   );
 
   final out = List<int>.of(content)
@@ -258,6 +292,7 @@ List<_Word> _splitWords(
   List<int> runOfChar,
   List<PdfParagraphRun> runs,
   PdfFontAccess fonts,
+  double scale,
 ) {
   final words = <_Word>[];
   var i = 0;
@@ -270,7 +305,7 @@ List<_Word> _splitWords(
     while (i < text.length && !_isSpace(text.codeUnitAt(i))) {
       i++;
     }
-    words.add(_Word(_segmentsOf(text, start, i, runOfChar, runs, fonts)));
+    words.add(_Word(_segmentsOf(text, start, i, runOfChar, runs, fonts, scale)));
   }
   return words;
 }
@@ -282,6 +317,7 @@ List<_Segment> _segmentsOf(
   List<int> runOfChar,
   List<PdfParagraphRun> runs,
   PdfFontAccess fonts,
+  double scale,
 ) {
   final out = <_Segment>[];
   var from = start;
@@ -293,14 +329,19 @@ List<_Segment> _segmentsOf(
     }
     final run = runs[runIndex];
     final piece = text.substring(from, to);
-    out.add(_Segment(run, piece, _advanceOf(run, piece, fonts)));
+    out.add(_Segment(run, piece, _advanceOf(run, piece, fonts) * scale));
     from = to;
   }
   return out;
 }
 
-/// Bir metnin metin uzayındaki ilerleyişi. Ölçülemiyorsa reddedilir —
-/// yanlış ölçüp sayfayı bozmaktansa dokunmamak.
+/// Bir metnin **sayfa uzayındaki** ilerleyişi (matris yatay ölçeği dahil).
+/// Ölçülemiyorsa reddedilir — yanlış ölçüp sayfayı bozmaktansa dokunmamak.
+///
+/// Niye sayfa uzayı: bir paragrafın koşuları FARKLI `Tm` ölçeğinde olabilir
+/// (bkz. [PdfParagraphRun.scaleX]). Eskiden ölçüm metin uzayında yapılıp en
+/// sonda tek bir ölçekle (ilk satırınkiyle) çarpılıyordu; farklı ölçekli
+/// koşularda hem genişlik hem punto yanlış çıkıyordu.
 double _advanceOf(PdfParagraphRun run, String text, PdfFontAccess fonts) {
   final glyphs = fonts.measure(run.fontName, text);
   if (glyphs == null) {
@@ -320,7 +361,7 @@ double _advanceOf(PdfParagraphRun run, String text, PdfFontAccess fonts) {
   final tx = glyphs.width1000 / 1000 * run.fontSize +
       glyphs.glyphCount * state.charSpacing +
       glyphs.spaceCount * state.wordSpacing;
-  return tx * state.horizScale;
+  return tx * state.horizScale * run.scaleX;
 }
 
 /// Kelime arası boşluğun ilerleyişi.
@@ -331,12 +372,13 @@ double _advanceOf(PdfParagraphRun run, String text, PdfFontAccess fonts) {
 double _spaceAdvance(PdfParagraphRun run, PdfFontAccess fonts) {
   final glyphs = fonts.measure(run.fontName, ' ');
   if (glyphs == null || glyphs.width1000 <= 0) {
-    return run.fontSize * 0.25 * run.state.horizScale;
+    return run.fontSize * 0.25 * run.state.horizScale * run.scaleX;
   }
   return (glyphs.width1000 / 1000 * run.fontSize +
           glyphs.glyphCount * run.state.charSpacing +
           glyphs.spaceCount * run.state.wordSpacing) *
-      run.state.horizScale;
+      run.state.horizScale *
+      run.scaleX;
 }
 
 /// Kelimeleri özgün sütun genişliğine göre satırlara sarar (açgözlü — Word'ün
@@ -344,19 +386,19 @@ double _spaceAdvance(PdfParagraphRun run, PdfFontAccess fonts) {
 List<_LaidLine> _wrap({
   required List<_Word> words,
   required PdfParagraph paragraph,
-  required double scaleX,
   required double spaceAdvance,
 }) {
-  // Kullanılabilir genişlik ilerleyiş birimindedir (matris e-uzayı / scaleX).
+  // Genişlikler artık SAYFA uzayında (bkz. [_advanceOf]); paragrafın kenar
+  // koordinatları da öyle, o yüzden ölçek bölmesi yok.
   //
   // Ortalı paragraf kendi dar kutusuna değil, sayfanın metin SÜTUNUNA sarılır:
   // "DAĞITIM" gibi kısa bir başlık uzayınca alt alta iki kelimelik satırlara
   // bölünmesin.
   double availableFor(int lineIndex) {
-    if (paragraph.centered) return paragraph.columnWidth / scaleX;
+    if (paragraph.centered) return paragraph.columnWidth;
     final startX =
         lineIndex == 0 ? paragraph.firstLineX : paragraph.bodyLeftX;
-    return (paragraph.rightX - startX) / scaleX;
+    return paragraph.rightX - startX;
   }
 
   final rows = <List<_Word>>[];
@@ -389,7 +431,7 @@ List<_LaidLine> _wrap({
     if (paragraph.centered) {
       final natural = row.fold<double>(0, (sum, w) => sum + w.advance) +
           spaceAdvance * (row.length - 1);
-      startX = paragraph.centerX - natural * scaleX / 2;
+      startX = paragraph.centerX - natural / 2;
     }
 
     // İki yana yaslama: son satır ASLA yaslanmaz (Word de yaslamaz).
@@ -415,16 +457,13 @@ List<_LaidLine> _wrap({
 List<int> _emit({
   required List<_LaidLine> laid,
   required PdfParagraph paragraph,
-  required List<double> matrix,
   required PdfFontAccess fonts,
+  required double scale,
+  required double leading,
 }) {
   final buffer = <int>[];
   void write(String s) => buffer.addAll(s.codeUnits);
 
-  final a = matrix[0];
-  final b = matrix[1];
-  final c = matrix[2];
-  final d = matrix[3];
   final baseY = paragraph.lines.first.baselineY;
 
   String? lastFont;
@@ -433,7 +472,7 @@ List<int> _emit({
 
   for (var i = 0; i < laid.length; i++) {
     final line = laid[i];
-    final y = baseY - i * paragraph.leading;
+    final y = baseY - i * leading;
     var x = line.startX;
 
     for (var w = 0; w < line.words.length; w++) {
@@ -454,8 +493,16 @@ List<int> _emit({
           lastSize = run.fontSize;
         }
 
-        write('${writePdfNumber(a)} ${writePdfNumber(b)} ${writePdfNumber(c)} '
-            '${writePdfNumber(d)} ${writePdfNumber(x)} ${writePdfNumber(y)} Tm\n');
+        // **Matris koşunun KENDİSİNDEN gelir** (eskiden paragrafın ilk
+        // satırınınki bütün koşulara uygulanıyordu). Punto `Tf × Tm ölçeği`
+        // olduğu için ilk satırın ölçeğini dayatmak, farklı boydaki koşuları
+        // sessizce o boya çekiyordu — kullanıcının gördüğü "ufacık yazdı".
+        // Eğik/döndürülmüş metin paragrafa hiç girmiyor (bkz. `isRotated`),
+        // o yüzden b ve c sıfırdır.
+        final a = run.scaleX * scale;
+        final d = run.scaleY * scale;
+        write('${writePdfNumber(a)} 0 0 ${writePdfNumber(d)} '
+            '${writePdfNumber(x)} ${writePdfNumber(y)} Tm\n');
 
         final bytes = fonts.encode(run.fontName, segment.text);
         if (bytes == null) {
@@ -469,12 +516,36 @@ List<int> _emit({
             : writeLiteralString(bytes));
         write(' Tj\n');
 
-        x += segment.advance * a;
+        x += segment.advance;
       }
-      if (w < line.words.length - 1) x += line.spaceAdvance * a;
+      if (w < line.words.length - 1) x += line.spaceAdvance;
     }
   }
   return buffer;
+}
+
+/// Paragrafın **görünen** puntosu (sayfa birimi): en çok karakterin yazıldığı
+/// koşunun boyu.
+///
+/// Niye "en çok karakter" ve niye ilk koşu değil: bir hücrede birim ("mg/dL")
+/// ya da üst simge küçük bir koşu olabilir; ilkine bakmak kullanıcıya
+/// paragrafın gerçek puntosunu yanlış gösterirdi.
+double paragraphPointSize(PdfParagraph paragraph) {
+  if (paragraph.runs.isEmpty) {
+    return paragraph.lines.isEmpty ? 0 : paragraph.lines.first.sizeY;
+  }
+  final weight = <double, int>{};
+  for (final run in paragraph.runs) {
+    final size = run.sizeY;
+    if (size <= 0) continue;
+    weight[size] = (weight[size] ?? 0) + run.text.trim().length;
+  }
+  if (weight.isEmpty) return 0;
+  var best = weight.keys.first;
+  for (final entry in weight.entries) {
+    if (entry.value > (weight[best] ?? 0)) best = entry.key;
+  }
+  return best;
 }
 
 bool _sameBytes(List<int> a, List<int> b) {

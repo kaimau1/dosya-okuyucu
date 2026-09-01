@@ -3,6 +3,19 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+/// Bir depolama biriminin TÜRÜ — simge, ad ve "harici belleğe kopyala"
+/// kısayolu buna bakar.
+enum StorageKind {
+  /// Telefonun kendi belleği.
+  internal,
+
+  /// Takılabilir hafıza kartı (microSD).
+  sdCard,
+
+  /// USB OTG ile takılan bellek / disk.
+  usb,
+}
+
 /// Bir depolama birimi (dahili bellek, SD kart, USB).
 class StorageVolume {
   final String path;
@@ -24,6 +37,11 @@ class StorageVolume {
   final int totalBytes;
   final int freeBytes;
 
+  /// Birimin türü. USB ile SD kartı ayırmak şart: ikisi de `/storage/<UUID>`
+  /// altına bağlanıyor ama kullanıcı için apayrı şeyler — "harici belleğe
+  /// kopyala" kısayolu USB'yi (ya da kartı) ADIYLA sunabilsin diye.
+  final StorageKind kind;
+
   const StorageVolume({
     required this.path,
     required this.isPrimary,
@@ -31,7 +49,33 @@ class StorageVolume {
     this.labelKey,
     this.totalBytes = 0,
     this.freeBytes = 0,
+    this.kind = StorageKind.internal,
   });
+
+  /// Telefonun kendi belleği DIŞINDA bir birim mi? ("Harici belleğe kopyala"
+  /// tam olarak bunları hedefler.)
+  bool get isRemovable => kind != StorageKind.internal;
+
+  /// Ekranda kullanılacak Material simge adı — arayüz katmanı bunu
+  /// `IconData`ya çevirir (bu dosya saf Dart, `material` içe aktarmaz).
+  String get iconName => switch (kind) {
+        StorageKind.internal => 'smartphone',
+        StorageKind.sdCard => 'sd_card',
+        StorageKind.usb => 'usb',
+      };
+
+  /// Yazılabilir mi? Salt okunur bağlanmış bir birime kopyalamayı önermek
+  /// kullanıcıyı boşuna uğraştırırdı.
+  bool get isWritable {
+    try {
+      final probe = File(p.join(path, '.dosyaokuyucu_write_test'));
+      probe.writeAsStringSync('');
+      probe.deleteSync();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Ekranda gösterilecek ad. [t] genelde `context.t`.
   String displayLabel(String Function(String) t) =>
@@ -85,6 +129,7 @@ class StorageVolume {
         label: label,
         labelKey: labelKey,
         isPrimary: isPrimary,
+        kind: kind,
         totalBytes: totalBytes ?? this.totalBytes,
         freeBytes: freeBytes ?? this.freeBytes,
       );
@@ -103,6 +148,13 @@ abstract final class StorageStats {
   /// Android'de birincil depolamanın klasik yolu.
   static const primaryPath = '/storage/emulated/0';
 
+  /// Takılabilir birimlerin bağlandığı KÖKLER.
+  ///
+  /// `/storage` her cihazda var; `/mnt/media_rw` (Android'in ham bağlama
+  /// noktası) ve `/mnt/usb` (bazı üreticilerin USB OTG yolu) yedek. Birden
+  /// çok kök aynı aygıtı gösterebilir; aynı **temel ad** iki kez eklenmez.
+  static const removableRoots = ['/storage', '/mnt/media_rw', '/mnt/usb'];
+
   /// Kullanılabilir birimleri bulur (doluluk bilgisi doldurulmuş olarak).
   static Future<List<StorageVolume>> volumes() async {
     final out = <StorageVolume>[];
@@ -113,33 +165,48 @@ abstract final class StorageStats {
           path: primary, labelKey: 'fm.vol_internal', isPrimary: true));
     }
 
-    // Takılabilir birimler: /storage altında UUID adlı (ör. 1A2B-3C4D) klasörler.
-    try {
-      for (final entity in Directory('/storage').listSync(followLinks: false)) {
+    // Bağlama tablosu: USB'yi SD karttan ancak bu ayırt eder (ikisi de
+    // `/storage/<UUID>` altına bağlanıyor). Okunamazsa tür tahmini yapılır.
+    final mounts = readMounts();
+
+    final seen = <String>{for (final v in out) p.basename(v.path)};
+    for (final root in removableRoots) {
+      final dir = Directory(root);
+      if (!dir.existsSync()) continue;
+      List<FileSystemEntity> entries;
+      try {
+        entries = dir.listSync(followLinks: false);
+      } catch (_) {
+        continue; // kök listelenemiyor (izin yok) — sıradaki köke geç
+      }
+      for (final entity in entries) {
         final name = p.basename(entity.path);
         if (name == 'emulated' || name == 'self' || name == 'container') {
           continue;
         }
         if (entity is! Directory) continue;
         if (out.any((v) => v.path == entity.path)) continue;
+        if (!seen.add(name)) continue; // aynı aygıt başka kökten eklendi
         try {
           entity.listSync().take(1).toList(); // okunabiliyor mu?
         } catch (_) {
           continue;
         }
-        // UUID adlı birim takılabilir bir karttır ve "1A2B-3C4D" kullanıcıya
+        final kind = kindOf(entity.path, mounts);
+        // UUID adlı birim takılabilir bir aygıttır ve "1A2B-3C4D" kullanıcıya
         // hiçbir şey anlatmaz → çevrilen ad. Adı olan birim kendi adıyla
         // gösterilir (o ad kullanıcının verisi, çevrilmez).
-        final isCard = _isUuid(name);
+        final anonymous = _isUuid(name);
         out.add(StorageVolume(
           path: entity.path,
-          label: isCard ? '' : name,
-          labelKey: isCard ? 'fm.vol_sdcard' : null,
+          label: anonymous ? '' : name,
+          labelKey: anonymous
+              ? (kind == StorageKind.usb ? 'fm.vol_usb' : 'fm.vol_sdcard')
+              : null,
           isPrimary: false,
+          kind: kind,
         ));
       }
-    } catch (_) {
-      // /storage listelenemiyor (emülatör/masaüstü) — birincil yeter
     }
 
     // Doluluk bilgisini doldur.
@@ -151,6 +218,55 @@ abstract final class StorageStats {
           : v.copyWith(totalBytes: usage.$1, freeBytes: usage.$2));
     }
     return filled;
+  }
+
+  /// `/proc/mounts` satırları (okunamazsa boş).
+  ///
+  /// Niye ham dosya: `mount` komutu her ROM'da çalıştırılamıyor ama
+  /// `/proc/mounts` her Linux'ta okunabilir ve tek `readAsStringSync`.
+  static List<String> readMounts() {
+    for (final path in const ['/proc/mounts', '/proc/self/mounts']) {
+      try {
+        final text = File(path).readAsStringSync();
+        if (text.trim().isNotEmpty) return text.split('\n');
+      } catch (_) {
+        // sıradaki yolu dene
+      }
+    }
+    return const [];
+  }
+
+  /// Bir bağlama noktasının TÜRÜ — **saf fonksiyon** (birim testli).
+  ///
+  /// Karar zinciri, en güvenilirden en zayıfa:
+  /// 1. Bağlama tablosunda bu noktayı besleyen AYGIT adı: `/dev/block/sd*`
+  ///    ya da `vold/public:8,*` → USB (SCSI/USB yığın depolama);
+  ///    `mmcblk*` / `vold/public:179,*` → SD kart (MMC).
+  /// 2. Yol `/mnt/usb` altındaysa → USB.
+  /// 3. Hiçbiri değilse SD kart varsayılır: bugüne kadarki davranış buydu ve
+  ///    yanlış tahminin bedeli yalnız simge/ad.
+  static StorageKind kindOf(String mountPoint, List<String> mounts) {
+    for (final line in mounts) {
+      final parts = line.trim().split(RegExp(r'\s+'));
+      if (parts.length < 2) continue;
+      final device = parts[0];
+      // Bağlama noktası TAM eşleşmeli: `/storage/1A2B` ile `/storage/1A2B-3C4D`
+      // karışmasın.
+      if (parts[1] != mountPoint) continue;
+      final vold = RegExp(r'/dev/block/vold/public:(\d+),').firstMatch(device);
+      if (vold != null) {
+        // 179 = MMC (SD kart), 8 = SCSI disk (USB yığın depolama).
+        final major = int.tryParse(vold.group(1)!);
+        if (major == 179) return StorageKind.sdCard;
+        if (major == 8) return StorageKind.usb;
+      }
+      if (RegExp(r'/dev/block/(sd[a-z]|sr\d)').hasMatch(device)) {
+        return StorageKind.usb;
+      }
+      if (device.contains('mmcblk')) return StorageKind.sdCard;
+    }
+    if (mountPoint.startsWith('/mnt/usb')) return StorageKind.usb;
+    return StorageKind.sdCard;
   }
 
   /// Birincil depolamanın kökü. Önce klasik yol, olmazsa uygulamanın harici

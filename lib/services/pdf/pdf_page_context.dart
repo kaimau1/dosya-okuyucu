@@ -9,6 +9,7 @@ library;
 import 'pdf_objects.dart';
 import 'pdf_paragraph.dart';
 import 'pdf_syntax.dart';
+import 'pdf_xobject.dart';
 
 /// Düzenleme yapılamadı — mesaj doğrudan kullanıcıya gösterilebilir.
 class PdfPageRefused implements Exception {
@@ -39,7 +40,7 @@ class PdfPageContext {
   /// `[sol, alt, sağ, üst]` — sayfa (kullanıcı) uzayında çizim alanı.
   final List<double>? mediaBox;
 
-  const PdfPageContext._({
+  PdfPageContext._({
     required this.file,
     required this.page,
     required this.pageIndex,
@@ -113,9 +114,120 @@ class PdfPageContext {
     return box[2] - box[0];
   }
 
+  /// Sayfanın XObject kaynak AĞACI (form XObject'lerin içi dahil).
+  ///
+  /// Antet logolarının çoğu bir form XObject'in içinde çizilir; düz kaynak
+  /// listesi onları görmez (bkz. [PdfXObjectNode]).
+  late final Map<String, PdfXObjectNode> xobjectTree =
+      _buildXObjectTree(file.xobjectRefs(page), 0);
+
+  Map<String, PdfXObjectNode> _buildXObjectTree(
+      Map<String, int> refs, int depth) {
+    final out = <String, PdfXObjectNode>{};
+    if (depth > 6) return out;
+    for (final entry in refs.entries) {
+      final obj = file.objects[entry.value];
+      if (obj == null) continue;
+      final isImage = pdfName(obj.dict, 'Subtype') == 'Image';
+      if (isImage) {
+        out[entry.key] =
+            PdfXObjectNode(isImage: true, objectNumber: entry.value);
+        continue;
+      }
+      // Form: içeriğini çöz, `/Matrix`ini oku, kendi kaynaklarına in.
+      List<int> content;
+      try {
+        content = obj.isStream ? file.decodeStream(obj) : const [];
+      } catch (_) {
+        content = const [];
+      }
+      if (content.isEmpty) continue;
+      out[entry.key] = PdfXObjectNode(
+        isImage: false,
+        objectNumber: entry.value,
+        content: content,
+        matrix: _matrixOf(obj.dict),
+        children: _buildXObjectTree(
+          file.resourceRefsIn(file.resourcesOfObject(obj), 'XObject'),
+          depth + 1,
+        ),
+        refCount: file.referenceCount(entry.value),
+      );
+    }
+    return out;
+  }
+
+  /// Form XObject'in `/Matrix`i (yoksa birim matris).
+  static List<double> _matrixOf(String dict) {
+    final body = pdfArray(dict, 'Matrix');
+    if (body == null) return const [1, 0, 0, 1, 0, 0];
+    final numbers = RegExp(r'[+-]?[0-9]*\.?[0-9]+')
+        .allMatches(body)
+        .map((m) => double.tryParse(m.group(0)!) ?? 0)
+        .toList();
+    return numbers.length >= 6
+        ? numbers.sublist(0, 6)
+        : const [1, 0, 0, 1, 0, 0];
+  }
+
   /// [streamIndex] akışını [newContent] ile değiştiren yeni belge baytları.
   List<int> write(int streamIndex, List<int> newContent) =>
       writeMany({streamIndex: newContent});
+
+  /// Bir **form XObject'in** akışını değiştirir (içindeki görseli taşımak /
+  /// silmek için).
+  ///
+  /// Form başka yerlerden de kullanılıyorsa reddedilir: akışını değiştirmek
+  /// o sayfaları da sessizce değiştirirdi.
+  List<int> writeFormObject(int objectNumber, List<int> newContent) {
+    final obj = file.objects[objectNumber];
+    if (obj == null || !obj.isStream) {
+      throw const PdfPageRefused(
+          'Bu görselin bulunduğu form nesnesi okunamadı.');
+    }
+    if (file.referenceCount(objectNumber) > 1 ||
+        file.pagesUsingXObject(objectNumber) > 1) {
+      throw const PdfPageRefused(
+        'Bu görsel, belgede birden çok yerde kullanılan bir çizim bloğunun '
+        'içinde. Düzenlemek diğer sayfaları da değiştirirdi, bu yüzden '
+        'yapılmadı.',
+      );
+    }
+    return file.writeUpdatedStreams({obj: newContent});
+  }
+
+  /// Bir görselin çizim akışı: sayfa akışı ya da içinde bulunduğu form.
+  List<int> contentOf(PdfPageObject object) => object.formObject == 0
+      ? contents[object.streamIndex]
+      : (xobjectTree.isEmpty
+          ? contents[object.streamIndex]
+          : _formContent(object.formObject));
+
+  List<int> _formContent(int objectNumber) {
+    List<int>? found;
+    void walk(Map<String, PdfXObjectNode> nodes) {
+      for (final node in nodes.values) {
+        if (found != null) return;
+        if (!node.isImage && node.objectNumber == objectNumber) {
+          found = node.content;
+          return;
+        }
+        if (!node.isImage) walk(node.children);
+      }
+    }
+
+    walk(xobjectTree);
+    if (found == null) {
+      throw const PdfPageRefused('Görselin çizim bloğu bulunamadı.');
+    }
+    return found!;
+  }
+
+  /// Bir görselin değiştirilmiş akışını doğru hedefe yazar.
+  List<int> writeObject(PdfPageObject object, List<int> newContent) =>
+      object.formObject == 0
+          ? write(object.streamIndex, newContent)
+          : writeFormObject(object.formObject, newContent);
 
   /// Birden çok akışı tek eklemede günceller.
   List<int> writeMany(Map<int, List<int>> updates) {

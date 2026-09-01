@@ -286,6 +286,75 @@ void main() {
     });
   });
 
+  // ── PUNTO (kullanıcı bulgusu 2026-09-01: "yazı puntosu tutmadı… ufacık
+  //    yazdı") ────────────────────────────────────────────────────────────
+  //
+  // e-Nabız / e-Devlet / fatura çıktılarının çoğu HTML→PDF üreticisinden
+  // çıkıyor ve punto `Tf`de DEĞİL `Tm` ölçeğinde duruyor (`/F1 1 Tf` +
+  // `9 0 0 9 … Tm`). Eski kod `Tf` sayısını punto sanıyordu.
+  group('punto (Tm ölçeği)', () {
+    // Aynı sütunda iki hücre: üstteki 6 punto, alttaki 9 punto — ikisi de
+    // `Tf 1`. Ham `Tf` puntosuna bakan kod ikisini de "1 punto" sayıp tek
+    // paragrafa topluyor ve alttakini üsttekinin ölçeğinde yazıyordu.
+    const twoSizes = 'BT /F1 1 Tf '
+        '6 0 0 6 50 700 Tm (AAAA) Tj '
+        '9 0 0 9 50 680 Tm (BBBB) Tj '
+        'ET';
+
+    test('farklı Tm ölçeği ayrı paragraf sayılır', () {
+      final paragraphs = parse(twoSizes);
+      expect(paragraphs, hasLength(2));
+      expect(paragraphPointSize(paragraphs.first), closeTo(6, 1e-6));
+      expect(paragraphPointSize(paragraphs.last), closeTo(9, 1e-6));
+    });
+
+    test('yeniden yazarken koşunun KENDİ ölçeği korunur', () {
+      final paragraph = parse(twoSizes).last; // 9 puntoluk hücre
+      final out = rewrite(twoSizes, paragraph, 'CCCC');
+      // 9 puntoluk hücre 9 ölçeğiyle yazılmalı (6'ya düşerse "ufacık" olur).
+      expect(out, contains('9 0 0 9 50 680 Tm'));
+      expect(out, isNot(contains('6 0 0 6 50 680 Tm')));
+    });
+
+    test('paragrafın puntosu ölçülebiliyor', () {
+      // Klasik yol: punto `Tf`de, matris birim.
+      expect(paragraphPointSize(parse(threeLines).single), closeTo(10, 1e-6));
+    });
+
+    test('punto değiştirilince matris ölçeklenir, konum korunur', () {
+      const single = 'BT /F1 10 Tf 1 0 0 1 50 700 Tm (AAAA) Tj ET';
+      final paragraph = parse(single).single;
+      final out = latin1.decode(
+        rewriteParagraph(
+          content: latin1.encode(single),
+          paragraph: paragraph,
+          newText: '17',
+          fonts: fonts,
+          pointSize: 20,
+        ),
+        allowInvalid: true,
+      );
+      // 10 punto → 20: matris ölçeği 2 olur, taban çizgisi yerinde kalır.
+      expect(out, contains('2 0 0 2 50 700 Tm'));
+      expect(out, contains('/F1 10 Tf'));
+    });
+
+    test('aşırı punto reddedilir (belge bozulmasın)', () {
+      const single = 'BT /F1 10 Tf 1 0 0 1 50 700 Tm (AAAA) Tj ET';
+      final paragraph = parse(single).single;
+      expect(
+        () => rewriteParagraph(
+          content: latin1.encode(single),
+          paragraph: paragraph,
+          newText: 'AAAA',
+          fonts: fonts,
+          pointSize: 500,
+        ),
+        throwsA(isA<PdfParagraphRefused>()),
+      );
+    });
+  });
+
   group('iki yana yaslama', () {
     test('son satır hariç boşluklar sağ kenara kadar dağıtılır', () {
       // İki satır, ikisi de 50–90 arası (40 birim = 8 harf).

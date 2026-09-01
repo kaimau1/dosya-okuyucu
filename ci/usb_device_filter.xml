@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  USB OTG süzgeci — hangi aygıt takılınca "Dosya Okuyucu ile aç?" sorulsun.
+
+  Kullanıcı isteği (2026-09-01): "USB hard disk, her türlü şey, SD kart vs.
+  kişi kolayca erişebilmeli."
+
+  Yalnız YIĞIN DEPOLAMA (Mass Storage, USB sınıfı 8) listeleniyor. Süzgeç
+  konmasaydı Android her USB aygıtında (klavye, fare, ses kartı, yazıcı,
+  şarj cihazı) bizi soruyordu — kullanıcıyı çileden çıkarırdı.
+
+  Alt sınıflar bilerek YAZILMADI: yığın depolama aygıtları SCSI şeffaf
+  komut kümesi (0x06) kullanır ama ucuz belleklerin bir kısmı 0x01/0x05
+  bildiriyor. Sınıf düzeyinde eşleşmek hepsini kapsıyor.
+
+  Bu dosya CI'da `android/app/src/main/res/xml/usb_device_filter.xml`e
+  kopyalanır (flutter create android/ klasörünü her derlemede yeniden
+  ürettiği için elle düzenlenmiş bir kopya silinirdi) — bkz.
+  .github/workflows/build-apk.yml ve ci/AndroidManifest.xml.
+-->
+<resources>
+    <usb-device class="8" />
+</resources>

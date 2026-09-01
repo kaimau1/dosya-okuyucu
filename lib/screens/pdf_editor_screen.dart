@@ -241,9 +241,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   Future<void> _editParagraph(int index) async {
     if (index < 0 || index >= _outline.paragraphs.length) return;
     final paragraph = _outline.paragraphs[index];
-    final newText = await _askParagraphText(paragraph.text);
-    if (newText == null || !mounted) return;
-    if (newText.trim() == paragraph.text.trim()) return;
+    final currentSize = paragraphPointSize(paragraph);
+    final answer = await _askParagraphText(
+      paragraph.text,
+      pointSize: currentSize > 0 ? currentSize : null,
+    );
+    if (answer == null || !mounted) return;
+    final newText = answer.text;
+    final size = answer.size;
+    final sizeChanged =
+        size != null && size > 0 && (size - currentSize).abs() > 0.05;
+    if (newText.trim() == paragraph.text.trim() && !sizeChanged) return;
 
     await _run(() async {
       final out = await PdfPageEdit.replaceParagraphInBackground(
@@ -251,6 +259,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         pageIndex: _page - 1,
         paragraphIndex: index,
         newText: newText.trim(),
+        pointSize: sizeChanged ? size : null,
       );
       await _apply(out, _str.t('pe.paragraph_updated'));
     });
@@ -322,8 +331,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   Future<void> _editScannedLine(int index) async {
     if (index < 0 || index >= _scannedLines.length) return;
     final line = _scannedLines[index];
-    final newText = await _askParagraphText(line.text);
-    if (newText == null || !mounted) return;
+    final answer = await _askParagraphText(line.text);
+    if (answer == null || !mounted) return;
+    final newText = answer.text;
     await _run(() async {
       final out = await PdfScannedRetype.apply(
         bytes: await _workBytes(),
@@ -953,9 +963,23 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// Özgün metin ÜSTTE, soluk ve salt okunur duruyor — kullanıcı neyi
   /// değiştirdiğini gözden kaçırmasın (isteğin birebir karşılığı: *"orjinal
   /// arka planda duruyor"*).
-  Future<String?> _askParagraphText(String original) {
+  /// Paragraf düzenleme penceresi: metin **ve** punto.
+  ///
+  /// [pointSize] paragrafın ölçülmüş görünen puntosudur; verilirse kullanıcı
+  /// onu da değiştirebilir (kullanıcı isteği 2026-09-01: *"yazı puntosu
+  /// tutmadı… ufacık yazdı"*). Verilmezse (taranmış sayfa satırı) yalnız
+  /// metin sorulur ve dönen `size` null olur.
+  Future<({String text, double? size})?> _askParagraphText(
+    String original, {
+    double? pointSize,
+  }) {
     final controller = TextEditingController(text: original);
-    return showDialog<String>(
+    // Punto kutusu: ölçülen değer bir tık yuvarlanır (9.9998 → 10).
+    final rounded =
+        pointSize == null ? null : (pointSize * 10).roundToDouble() / 10;
+    final sizeController = TextEditingController(
+        text: rounded == null ? '' : _trimZero(rounded));
+    return showDialog<({String text, double? size})>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(ctx.t('pe.edit_paragraph')),
@@ -992,6 +1016,37 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   border: const OutlineInputBorder(),
                 ),
               ),
+              if (rounded != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: sizeController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: InputDecoration(
+                          labelText: ctx.t('pe.font_size'),
+                          helperText: ctx.t('pe.font_size_help'),
+                          isDense: true,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: ctx.t('pe.font_smaller'),
+                      icon: const Icon(Icons.text_decrease),
+                      onPressed: () => _nudgeSize(sizeController, -0.5),
+                    ),
+                    IconButton(
+                      tooltip: ctx.t('pe.font_bigger'),
+                      icon: const Icon(Icons.text_increase),
+                      onPressed: () => _nudgeSize(sizeController, 0.5),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -1000,13 +1055,32 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: Text(ctx.t('common.cancel'))),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
+            onPressed: () => Navigator.pop(ctx, (
+              text: controller.text,
+              size: rounded == null
+                  ? null
+                  : double.tryParse(sizeController.text.replaceAll(',', '.')),
+            )),
             child: Text(ctx.t('common.apply')),
           ),
         ],
       ),
-    ).whenComplete(controller.dispose);
+    ).whenComplete(() {
+      controller.dispose();
+      sizeController.dispose();
+    });
   }
+
+  /// Punto kutusunu [delta] kadar oynatır (± düğmeleri).
+  void _nudgeSize(TextEditingController c, double delta) {
+    final current = double.tryParse(c.text.replaceAll(',', '.')) ?? 10;
+    final next = (current + delta).clamp(2.0, 200.0);
+    c.text = _trimZero((next * 10).roundToDouble() / 10);
+  }
+
+  /// `10.0` → `10`, `10.5` → `10.5`.
+  static String _trimZero(double v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toString();
 
   Future<bool?> _confirm(String title, String message) => showDialog<bool>(
         context: context,

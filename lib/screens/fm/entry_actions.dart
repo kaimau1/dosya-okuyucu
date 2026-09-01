@@ -19,6 +19,8 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/remote/ftp_tree.dart';
 import '../../services/fm/remote/share_scope.dart';
+import '../../services/fm/storage_stats.dart';
+import '../../services/fm/volume_watcher.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -51,6 +53,7 @@ enum _EntryAction {
   bookmark,
   important,
   sharedFolder,
+  externalDrive,
   aiSummary,
   imageInsight,
   resize,
@@ -90,6 +93,14 @@ Future<bool> showEntryActions(
   final isArchive = ArchiveOps.canExtract(entry.path);
   final isMedia =
       entry.category == FmCategory.image || entry.category == FmCategory.video;
+
+  // Takılı harici bellekler (USB / SD). Menü kurulmadan ÖNCE okunuyor:
+  // `isWritable` diske dokunuyor ve build içinde çağrılmamalı.
+  final externals = VolumeWatcher.copyTargets();
+  final hasExternal = externals.isNotEmpty;
+  final externalHint = externals.length == 1
+      ? externals.single.displayLabel(context.t)
+      : context.t('fm.external_pick_hint');
 
   final action = await showModalBottomSheet<_EntryAction>(
     context: context,
@@ -149,6 +160,16 @@ Future<bool> showEntryActions(
               _act(ctx, Icons.folder_shared_outlined,
                   ctx.t('fm.copy_to_shared'), _EntryAction.sharedFolder,
                   hint: ctx.t('ea.shared_hint')),
+              // **Harici belleğe kopyala** (kullanıcı isteği 2026-09-01:
+              // *"bir harici bellek takıldığında telefondaki bir belgeye
+              // tıklayıp 3 nokta ayarlarında harici belleğe kopyala şeklinde
+              // basit bir kısayol da olmalı"*). Yalnız takılı ve YAZILABİLİR
+              // bir birim varken görünür: yokken çıkması, dokunup "hedef yok"
+              // yemek demekti.
+              if (hasExternal)
+                _act(ctx, Icons.usb, ctx.t('fm.copy_to_external'),
+                    _EntryAction.externalDrive,
+                    hint: externalHint),
             ]),
             _section(ctx, ctx.t('ea.sec_file'), [
               _act(ctx, Icons.drive_file_rename_outline, ctx.t('fm.rename'),
@@ -248,6 +269,9 @@ Future<bool> showEntryActions(
       _snack(context,
           context.t('fm.entry_clip_cut', {'name': entry.name}));
       return false;
+
+    case _EntryAction.externalDrive:
+      return copyToExternal(context, [entry.path]);
 
     case _EntryAction.rename:
       return renameEntry(context, entry);
@@ -793,6 +817,83 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
         : context.t('fm.important_copied', {
             'n': paths.length,
             'folder': ImportantScreen.folderName,
+          }),
+  );
+  return true;
+}
+
+/// Seçilenleri **takılı harici belleğe** (USB / SD kart) kopyalar.
+///
+/// Kullanıcı isteği (2026-09-01): *"bir harici bellek takıldığında
+/// telefondaki bir belgeye tıklayıp 3 nokta ayarlarında harici belleğe
+/// kopyala şeklinde basit bir kısayol da olmalı."*
+///
+/// Birden çok birim takılıysa hangisine gideceği SORULUR (tek birimde soru
+/// yok — kısayolun anlamı tek dokunuş). Hedef, birimin kökü değil altındaki
+/// `Dosya Okuyucu` klasörü: kullanıcının USB düzenini bozmamak için.
+///
+/// Liste menü kurulurken tazelendiği için "takılı ama listede yok" durumu
+/// oluşmaz; yine de kopyalamadan hemen önce bir kez daha bakılıyor — kullanıcı
+/// menü açıkken belleği çıkarmış olabilir.
+Future<bool> copyToExternal(BuildContext context, List<String> paths) async {
+  if (paths.isEmpty) return false;
+  final targets = VolumeWatcher.copyTargets();
+  if (targets.isEmpty) {
+    _snack(context, context.t('fm.external_none'));
+    return false;
+  }
+
+  StorageVolume? volume = targets.first;
+  if (targets.length > 1) {
+    volume = await showModalBottomSheet<StorageVolume>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final v in targets)
+              ListTile(
+                leading: Icon(
+                    v.kind == StorageKind.usb ? Icons.usb : Icons.sd_card),
+                title: Text(v.displayLabel(ctx.t)),
+                subtitle: Text(v.path),
+                onTap: () => Navigator.pop(ctx, v),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  if (volume == null || !context.mounted) return false;
+
+  final dest = VolumeWatcher.targetFolder(volume);
+  try {
+    final dir = Directory(dest);
+    if (!dir.existsSync()) await dir.create(recursive: true);
+  } catch (e) {
+    if (context.mounted) {
+      _snack(context, context.t('fm.folder_create_failed', {'error': e}));
+    }
+    return false;
+  }
+  if (!context.mounted) return false;
+
+  final label = volume.displayLabel(context.t);
+  final result = await showFmProgress<FmOpResult>(
+    context,
+    title: context.t('fm.copying_external', {'volume': label}),
+    task: (report, isCancelled) => FileOps.copyAll(paths, dest,
+        onProgress: report, isCancelled: isCancelled),
+  );
+  if (!context.mounted) return true;
+  _snack(
+    context,
+    result.hasError
+        ? context.t('fm.copy_failed', {'error': result.errors.first})
+        : context.t('fm.external_copied', {
+            'n': paths.length,
+            'volume': label,
           }),
   );
   return true;

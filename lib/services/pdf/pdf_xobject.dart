@@ -16,6 +16,48 @@ library;
 
 import 'pdf_syntax.dart';
 
+/// Sayfanın (ya da bir form XObject'in) XObject kaynak ağacındaki bir düğüm.
+///
+/// **Niye ağaç ve niye gerekti (kullanıcı bulgusu 2026-09-01: "görselleri tam
+/// tanıyamadı"):** e-Nabız/e-Devlet çıktıları, LibreOffice ve Word'ün PDF
+/// dışa aktarımı, çoğu HTML→PDF üreticisi antet logosunu doğrudan sayfaya
+/// değil bir **form XObject**'in (`/Subtype /Form`) içine koyar; sayfa akışı
+/// yalnız `/Fm0 Do` der. Eski kod form XObject'leri kapsam dışı bırakıyordu
+/// (kutuları yanlış hesaplanır diye) ve böyle sayfalarda "Bu sayfada gömülü
+/// görsel yok" diyordu — oysa sayfanın tepesinde iki logo duruyordu.
+///
+/// Form'un kendi `/Matrix`'i ve kendi `/Resources`'u var; ikisi de burada
+/// taşınıyor, böylece içerideki görselin SAYFA uzayındaki kutusu doğru çıkar.
+class PdfXObjectNode {
+  /// `/Subtype /Image` mi? (Değilse form.)
+  final bool isImage;
+
+  /// Kaynağın nesne numarası — düzenleme hedefi bu akıştır.
+  final int objectNumber;
+
+  /// Form ise: çözülmüş içerik akışı.
+  final List<int> content;
+
+  /// Form ise: `/Matrix` (yoksa birim matris).
+  final List<double> matrix;
+
+  /// Form ise: kendi XObject kaynakları (iç içe formlar için).
+  final Map<String, PdfXObjectNode> children;
+
+  /// Bu kaynağa belgede kaç yerden başvuruluyor? 1'den büyükse düzenlemek
+  /// BAŞKA sayfaları da değiştirirdi → yalnız gösterilir, düzenlenmez.
+  final int refCount;
+
+  const PdfXObjectNode({
+    required this.isImage,
+    required this.objectNumber,
+    this.content = const [],
+    this.matrix = const [1, 0, 0, 1, 0, 0],
+    this.children = const {},
+    this.refCount = 1,
+  });
+}
+
 /// Sayfada çizilmiş bir görsel.
 class PdfPageObject {
   /// Hangi içerik akışında çizildiği.
@@ -62,6 +104,8 @@ class PdfPageObject {
     required this.height,
     required this.rotated,
     this.clipped = false,
+    this.formObject = 0,
+    this.editable = true,
   });
 
   double get right => left + width;
@@ -74,6 +118,18 @@ class PdfPageObject {
       y >= bottom - pad &&
       y <= top + pad;
 
+  /// Görsel bir **form XObject'in içinde** çizildiyse o formun nesne numarası;
+  /// doğrudan sayfa akışındaysa 0. Düzenleme hedefini bu belirler:
+  /// 0 → `contents[streamIndex]`, aksi hâlde o nesnenin akışı.
+  final int formObject;
+
+  /// Bu görsel taşınabilir/silinebilir mi?
+  ///
+  /// İçinde bulunduğu form belgede birden çok yerden kullanılıyorsa false:
+  /// düzenlemek diğer sayfaları da değiştirirdi. Kutusu yine gösterilir —
+  /// kullanıcı görselin VAR olduğunu görmeli, sadece dokunamamalı.
+  final bool editable;
+
   /// Kabaca sayfanın tamamını kaplıyor mu? (Arka plan/filigran adayı.)
   bool coversPage(double pageWidth, double pageHeight) =>
       pageWidth > 0 &&
@@ -84,29 +140,57 @@ class PdfPageObject {
 
 /// Sayfanın içerik akışlarındaki görselleri bulur.
 ///
-/// [imageNames] görüntü (`/Subtype /Image`) olan kaynakların adları. Form
-/// XObject'ler DIŞARIDA bırakılır: onların çizim alanı birim kare değil kendi
-/// `/BBox`'ıdır, kutuyu yanlış hesaplardık.
+/// [imageNames] görüntü (`/Subtype /Image`) olan kaynakların adları — eski,
+/// düz yol (form XObject'ler görülmez).
+///
+/// [resources] verilirse **form XObject'lerin içine de girilir** (bkz.
+/// [PdfXObjectNode]): antet logoları, arma ve karekodların büyük kısmı orada
+/// duruyor ve düz yol onları hiç görmüyordu. Verildiğinde [imageNames] yok
+/// sayılır — hangi kaynağın görüntü olduğunu ağaç zaten söylüyor.
 List<PdfPageObject> findPageObjects(
   List<List<int>> contents, {
   Set<String> imageNames = const {},
+  Map<String, PdfXObjectNode> resources = const {},
 }) {
   final out = <PdfPageObject>[];
   for (var s = 0; s < contents.length; s++) {
-    out.addAll(_objectsInStream(contents[s], s, imageNames));
+    out.addAll(_objectsInStream(
+      contents[s],
+      s,
+      imageNames,
+      resources,
+      tree: resources.isNotEmpty,
+      formObject: 0,
+      base: const [1, 0, 0, 1, 0, 0],
+      editable: true,
+      depth: 0,
+    ));
   }
   return out;
 }
+
+/// İç içe form XObject taramasında derinlik sınırı — bozuk/döngüsel bir
+/// belgede sonsuz özyinelemeye girmemek için.
+const _maxFormDepth = 6;
 
 List<PdfPageObject> _objectsInStream(
   List<int> content,
   int streamIndex,
   Set<String> imageNames,
-) {
+  Map<String, PdfXObjectNode> resources, {
+  /// Kaynak ağacı verildi mi? Verildiyse ağaçta OLMAYAN bir ad çizilmez —
+  /// eski `imageNames` tahminine düşmek, formun içindeki bilinmeyen bir
+  /// kaynağı görsel sanmaya yol açardı.
+  required bool tree,
+  required int formObject,
+  required List<double> base,
+  required bool editable,
+  required int depth,
+}) {
   final scan = scanContent(content);
   final out = <PdfPageObject>[];
 
-  var ctm = <double>[1, 0, 0, 1, 0, 0];
+  var ctm = List<double>.of(base);
   // Kırpma da grafik durumunun parçası: `q` ile yığına girer, `Q` ile kalkar.
   var clipped = false;
   final stack = <(List<double>, bool)>[];
@@ -132,8 +216,36 @@ List<PdfPageObject> _objectsInStream(
       case 'Do':
         final name = _nameOperandOf(content, event);
         if (name == null) continue;
-        if (imageNames.isNotEmpty && !imageNames.contains(name)) continue;
-        out.add(_objectAt(streamIndex, name, event, ctm, clipped));
+        final node = resources[name];
+        if (node == null) {
+          if (tree) continue;
+          if (imageNames.isNotEmpty && !imageNames.contains(name)) continue;
+          out.add(_objectAt(streamIndex, name, event, ctm, clipped,
+              formObject: formObject, editable: editable));
+          continue;
+        }
+        if (node.isImage) {
+          out.add(_objectAt(streamIndex, name, event, ctm, clipped,
+              formObject: formObject, editable: editable));
+          continue;
+        }
+        // Form XObject: içine gir. Formun `/Matrix`'i, çizim anındaki
+        // dönüşümün ÖNÜNE çarpılır (PDF 8.10.2) — içerideki görselin sayfa
+        // kutusu ancak böyle doğru çıkar.
+        if (depth >= _maxFormDepth || node.content.isEmpty) continue;
+        out.addAll(_objectsInStream(
+          node.content,
+          streamIndex,
+          imageNames,
+          node.children,
+          tree: true,
+          formObject: node.objectNumber,
+          base: multiplyMatrix(node.matrix, ctm),
+          // Form birden çok yerden kullanılıyorsa içindekiler düzenlenemez:
+          // akışını değiştirmek onu kullanan DİĞER sayfaları da değiştirirdi.
+          editable: editable && node.refCount <= 1,
+          depth: depth + 1,
+        ));
     }
   }
   return out;
@@ -144,8 +256,10 @@ PdfPageObject _objectAt(
   String name,
   PdfContentEvent event,
   List<double> ctm,
-  bool clipped,
-) {
+  bool clipped, {
+  int formObject = 0,
+  bool editable = true,
+}) {
   // Görsel birim kareyi doldurur; dört köşeyi çevirip kutuyu buluyoruz.
   final corners = [
     applyMatrix(ctm, 0, 0),
@@ -172,6 +286,8 @@ PdfPageObject _objectAt(
     height: top - bottom,
     rotated: ctm[1].abs() > 1e-6 || ctm[2].abs() > 1e-6,
     clipped: clipped,
+    formObject: formObject,
+    editable: editable,
   );
 }
 

@@ -32,6 +32,25 @@
     <!-- APK dosyasına dokununca kurulum ekranını açabilmek için. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
+    <!-- ── USB OTG (harici bellek) ─────────────────────────────────────────
+         Kullanıcı isteği (2026-09-01): *"harici USB taktığımda göremiyorum…
+         diğer bir uygulama açık olmasa bile USB takıldığında otomatik algılayıp
+         'açayım mı' diye popup bildirim gönderdi, bizde de sorunsuz tanınmalı."*
+
+         O açılır pencerenin kaynağı aşağıdaki `USB_DEVICE_ATTACHED` intent
+         filtresidir: Android, takılan aygıtı karşılayabilecek uygulamaları
+         listeler. Filtre olmadan uygulama o listede HİÇ görünmüyordu.
+
+         `required="false"` ŞART: USB ana makine (host) desteği olmayan
+         cihazlarda Play Store uygulamayı gizlerdi. Dosya okuyucu USB'siz de
+         tam çalışıyor.
+
+         Not: dosyalara erişim bu filtreden GELMİYOR — Android USB belleği
+         kendisi `/storage/<UUID>` altına bağlıyor ve okuma/yazma
+         MANAGE_EXTERNAL_STORAGE ile yapılıyor (bkz. `StorageStats.volumes`).
+         Filtre yalnız "takıldı, açayım mı?" akışı için. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false"/>
+
     <!-- Belge tarayıcı (kamera). Tarayıcı eklentisi kendi manifest'inde kamerayı
          ZORUNLU özellik (required="true") olarak bildiriyor; öyle kalırsa Play
          Store uygulamayı kamerasız cihazlarda (bazı tabletler, Chromebook)
@@ -74,6 +93,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- USB bellek/disk takıldı: Android "hangi uygulamayla açayım?"
+                 diye sorar ve bu filtre bizi o listeye koyar. Hangi aygıtlarda
+                 tetikleneceğini `res/xml/usb_device_filter.xml` belirler
+                 (yığın depolama sınıfı) — süzgeç olmadan her USB aygıtında
+                 (klavye, ses kartı, yazıcı) sorulurdu. -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/usb_device_filter"/>
 
             <!-- "Birlikte aç": başka uygulamalardan gelen dosyaları görüntüle
                  (WhatsApp/Gmail/Dosyalar → Dosya Okuyucu).

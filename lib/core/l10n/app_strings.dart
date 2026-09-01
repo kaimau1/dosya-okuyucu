@@ -2468,6 +2468,41 @@ const Map<String, (String, String, String)> _table = {
   // diskin kendi adı (ör. "SAMSUNG") çevrilmez — o kullanıcının verisidir.
   'fm.vol_internal': ('Ana bellek', 'Internal storage', 'الذاكرة الداخلية'),
   'fm.vol_sdcard': ('SD kart', 'SD card', 'بطاقة SD'),
+  'fm.vol_usb': ('USB bellek', 'USB drive', 'محرك USB'),
+  'fm.copy_to_external': (
+    'Harici belleğe kopyala',
+    'Copy to external drive',
+    'نسخ إلى محرك خارجي',
+  ),
+  'fm.external_pick_hint': ('USB / SD kart', 'USB / SD card', 'USB / بطاقة SD'),
+  'fm.external_none': (
+    'Takılı harici bellek yok. USB belleği ya da SD kartı takıp yeniden '
+    'deneyin.',
+    'No external drive is attached. Plug in a USB drive or SD card and try '
+    'again.',
+    'لا يوجد محرك خارجي متصل. أدخل محرك USB أو بطاقة SD وحاول مرة أخرى.',
+  ),
+  'fm.copying_external': (
+    '{volume} birimine kopyalanıyor…',
+    'Copying to {volume}…',
+    'جارٍ النسخ إلى {volume}…',
+  ),
+  'fm.external_copied': (
+    '{n} öğe {volume} birimine kopyalandı (Dosya Okuyucu klasörü).',
+    '{n} item(s) copied to {volume} (Dosya Okuyucu folder).',
+    'تم نسخ {n} عنصر إلى {volume} (مجلد Dosya Okuyucu).',
+  ),
+  'fm.usb_attached': (
+    '{volume} takıldı — açmak için dokunun.',
+    '{volume} attached — tap to open.',
+    'تم توصيل {volume} — اضغط للفتح.',
+  ),
+  'fm.usb_detached': (
+    'Harici bellek çıkarıldı.',
+    'External drive removed.',
+    'تمت إزالة المحرك الخارجي.',
+  ),
+  'fm.usb_open': ('Aç', 'Open', 'فتح'),
   'fm.quick_untouched': (
     '{n} aydır açılmamış',
     'Not opened in {n} months',
@@ -3195,6 +3230,15 @@ const Map<String, (String, String, String)> _table = {
     'The font, size and page layout are preserved.',
     'يُحافظ على الخط والحجم وتخطيط الصفحة.',
   ),
+  'pe.font_size': ('Punto', 'Font size', 'حجم الخط'),
+  'pe.font_size_help': (
+    'Belgedeki ölçülen punto. Değiştirirseniz paragrafın tamamı ölçeklenir.',
+    'The measured size from the document. Changing it scales the whole '
+        'paragraph.',
+    'الحجم المقاس من المستند. تغييره يقيس الفقرة بأكملها.',
+  ),
+  'pe.font_smaller': ('Küçült', 'Smaller', 'أصغر'),
+  'pe.font_bigger': ('Büyüt', 'Bigger', 'أكبر'),
 
   // ── Slayt düzenleyici ─────────────────────────────────────────────────────
   'sl.play': ('Oynat', 'Play', 'تشغيل'),

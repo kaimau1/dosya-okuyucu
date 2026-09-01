@@ -22,6 +22,7 @@ import 'pdf/pdf_xobject.dart';
 
 export 'pdf/pdf_page_context.dart' show PdfPageRefused;
 export 'pdf/pdf_paragraph.dart' show PdfParagraph, PdfParagraphRefused;
+export 'pdf/pdf_paragraph_layout.dart' show paragraphPointSize;
 export 'pdf/pdf_xobject.dart' show PdfPageObject;
 
 /// Sayfanın düzenlenebilir içeriği — editör ekranı bunu bir kez alır.
@@ -85,13 +86,44 @@ abstract final class PdfPageEdit {
     final page = PdfPageContext.open(bytes, pageIndex);
     return PdfPageOutline(
       paragraphs: page.paragraphs(),
-      objects: findPageObjects(page.contents, imageNames: page.imageNames),
+      objects: findPageObjects(
+        page.contents,
+        imageNames: page.imageNames,
+        resources: page.xobjectTree,
+      ),
       mediaBox: page.mediaBox,
       pageWidth: page.pageWidth,
       pageHeight: page.pageHeight,
       scanned: page.isScannedPage,
     );
   }
+
+  /// Sayfada verilen NOKTAYI kapsayan metnin **görünen puntosu** (sayfa
+  /// birimi); orada metin yoksa null.
+  ///
+  /// Niye var: üstü-kapatma yedeği (bkz. `PdfTools.replaceText`) puntoyu
+  /// seçim KUTUSUNUN yüksekliğinden tahmin ediyordu ve sistematik olarak
+  /// küçük çıkıyordu — kutu yalnız gliflerin kapladığı yer, punto (em) ondan
+  /// büyük. Kullanıcının gördüğü "bir kan değerine 17 yazdım, ufacık yazdı"
+  /// bunun ikinci kaynağıydı. Belgenin kendi puntosu okunabiliyorsa tahmin
+  /// etmeye gerek yok.
+  static double? pointSizeAt(List<int> bytes, int pageIndex, double x, double y) {
+    try {
+      final page = PdfPageContext.open(bytes, pageIndex);
+      for (final paragraph in page.paragraphs()) {
+        if (!paragraph.contains(x, y)) continue;
+        final size = paragraphPointSize(paragraph);
+        if (size > 0) return size;
+      }
+    } catch (_) {
+      // Ayrıştırılamayan belge: çağıran kutu yüksekliği tahminine döner.
+    }
+    return null;
+  }
+
+  static Future<double?> pointSizeAtInBackground(
+          List<int> bytes, int pageIndex, double x, double y) =>
+      Isolate.run(() => pointSizeAt(bytes, pageIndex, x, y));
 
   /// Arka planda — büyük belgede ayrıştırma ana izleği kilitlemesin.
   static Future<PdfPageOutline> outlineInBackground(
@@ -102,11 +134,15 @@ abstract final class PdfPageEdit {
   ///
   /// Paragrafın dışındaki baytlara dokunulmaz: font, punto, renk, satır
   /// aralığı ve sayfa düzeni korunur, metin yeniden sarılır.
+  ///
+  /// [pointSize] verilirse paragrafın puntosu da değişir; verilmezse her
+  /// koşu kendi özgün puntosunda kalır.
   static List<int> replaceParagraph(
     List<int> bytes, {
     required int pageIndex,
     required int paragraphIndex,
     required String newText,
+    double? pointSize,
   }) {
     final page = PdfPageContext.open(bytes, pageIndex);
     final paragraphs = page.paragraphs();
@@ -116,7 +152,9 @@ abstract final class PdfPageEdit {
           'yeniden deneyin.');
     }
     final paragraph = paragraphs[paragraphIndex];
-    if (paragraph.text.trim() == newText.trim()) {
+    final sizeChanged = pointSize != null &&
+        (pointSize - paragraphPointSize(paragraph)).abs() > 0.05;
+    if (paragraph.text.trim() == newText.trim() && !sizeChanged) {
       throw const PdfPageRefused('Metin değişmedi.');
     }
 
@@ -125,6 +163,7 @@ abstract final class PdfPageEdit {
       paragraph: paragraph,
       newText: newText,
       fonts: page.fonts,
+      pointSize: sizeChanged ? pointSize : null,
     );
 
     final out = page.write(paragraph.streamIndex, content);
@@ -137,12 +176,14 @@ abstract final class PdfPageEdit {
     required int pageIndex,
     required int paragraphIndex,
     required String newText,
+    double? pointSize,
   }) =>
       _guard(() => Isolate.run(() => replaceParagraph(
             bytes,
             pageIndex: pageIndex,
             paragraphIndex: paragraphIndex,
             newText: newText,
+            pointSize: pointSize,
           )));
 
   /// [objectIndex] görselini siler (sayfadan kaldırır).
@@ -153,11 +194,9 @@ abstract final class PdfPageEdit {
   }) {
     final page = PdfPageContext.open(bytes, pageIndex);
     final object = _objectAt(page, objectIndex);
-    final content = deleteObjectDraw(
-      page.contents[object.streamIndex],
-      object,
-    );
-    final out = page.write(object.streamIndex, content);
+    _requireEditable(object);
+    final content = deleteObjectDraw(page.contentOf(object), object);
+    final out = page.writeObject(object, content);
     verify(out, bytes, changedPages: const {});
     return out;
   }
@@ -177,15 +216,16 @@ abstract final class PdfPageEdit {
     }
     final page = PdfPageContext.open(bytes, pageIndex);
     final object = _objectAt(page, objectIndex);
+    _requireEditable(object);
     final content = placeObject(
-      page.contents[object.streamIndex],
+      page.contentOf(object),
       object,
       left: left,
       bottom: bottom,
       width: width,
       height: height,
     );
-    final out = page.write(object.streamIndex, content);
+    final out = page.writeObject(object, content);
     verify(out, bytes, changedPages: const {});
     return out;
   }
@@ -287,6 +327,7 @@ abstract final class PdfPageEdit {
     }
     final page = PdfPageContext.open(bytes, pageIndex);
     final object = _objectAt(page, objectIndex);
+    _requireEditable(object);
     final turn = objectTurn(
       centerX: object.left + object.width / 2,
       centerY: object.bottom + object.height / 2,
@@ -297,11 +338,11 @@ abstract final class PdfPageEdit {
     // Dönüşüm görselin KENDİ dönüşümünün üstüne biner: önce görsel nereye
     // çiziliyorsa oraya, sonra sayfa uzayında döndürme/aynalama.
     final content = placeObjectMatrix(
-      page.contents[object.streamIndex],
+      page.contentOf(object),
       object,
       multiplyMatrix(object.ctm, turn),
     );
-    final out = page.write(object.streamIndex, content);
+    final out = page.writeObject(object, content);
     verify(out, bytes, changedPages: const {});
     return out;
   }
@@ -406,14 +447,29 @@ abstract final class PdfPageEdit {
       _guard(() => Isolate.run(() => removeBackground(bytes, indexes)));
 
   static PdfPageObject _objectAt(PdfPageContext page, int index) {
-    final objects =
-        findPageObjects(page.contents, imageNames: page.imageNames);
+    final objects = findPageObjects(
+      page.contents,
+      imageNames: page.imageNames,
+      resources: page.xobjectTree,
+    );
     if (index < 0 || index >= objects.length) {
       throw const PdfPageRefused(
           'Görsel bulunamadı (belge değişmiş olabilir). Sayfayı yenileyip '
           'yeniden deneyin.');
     }
     return objects[index];
+  }
+
+  /// Paylaşılan bir çizim bloğunun içindeki görsel düzenlenemez: akışını
+  /// değiştirmek onu kullanan diğer sayfaları da değiştirirdi. Kutusu yine
+  /// gösteriliyor — kullanıcı görselin var olduğunu görmeli.
+  static void _requireEditable(PdfPageObject object) {
+    if (object.editable) return;
+    throw const PdfPageRefused(
+      'Bu görsel, belgede birden çok yerde kullanılan bir çizim bloğunun '
+      'içinde. Düzenlemek diğer sayfaları da değiştirirdi, bu yüzden '
+      'yapılmadı.',
+    );
   }
 
   /// Karşılaştırmanın sayfa sınırı — çok sayfalı belgede tam karşılaştırma

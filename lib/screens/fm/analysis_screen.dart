@@ -747,7 +747,7 @@ class _VolumeCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(volume.isPrimary ? Icons.smartphone : Icons.sd_card,
+                Icon(volumeIcon(volume),
                     size: 18, color: scheme.onSurfaceVariant),
                 const SizedBox(width: Gap.sm),
                 Expanded(

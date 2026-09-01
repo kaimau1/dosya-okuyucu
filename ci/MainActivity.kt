@@ -36,6 +36,32 @@ import io.flutter.plugin.common.MethodChannel
  */
 class MainActivity : FlutterActivity() {
 
+    /**
+     * Uygulamayı BAŞLATAN intent'in eylemi — Dart tarafı bir kez okuyup
+     * temizler (bkz. `launchAction` kanal yöntemi).
+     *
+     * **Niye gerekli (kullanıcı isteği 2026-09-01):** USB bellek takılınca
+     * Android "hangi uygulamayla açayım?" diye soruyor ve kullanıcı bizi
+     * seçince uygulama `USB_DEVICE_ATTACHED` eylemiyle açılıyor. O eylemin
+     * verisi (URI) YOK, dolayısıyla `receive_sharing_intent` hiçbir şey
+     * getirmiyor ve uygulama sıradan bir açılış gibi panoya düşüyordu.
+     * Bu köprü sayesinde Dart tarafı "USB yüzünden açıldım" diyebiliyor ve
+     * doğrudan takılan belleği açıyor.
+     */
+    private var launchAction: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        launchAction = intent?.action
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // `singleTask`: uygulama açıkken USB takılıp seçilirse yeni intent
+        // buradan gelir, `onCreate` bir daha çalışmaz.
+        launchAction = intent.action
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -88,6 +114,14 @@ class MainActivity : FlutterActivity() {
                     // Kurulu bir uygulamanın APK dosyalarının YOLU — "APK
                     // olarak paylaş" akışının tek native ihtiyacı.
                     "apkPaths" -> result.success(apkPaths(call.argument<String>("package")))
+
+                    // Uygulamayı başlatan intent eylemi; okununca TEMİZLENİR
+                    // (aynı açılış iki kez "USB takıldı" saymasın).
+                    "launchAction" -> {
+                        val action = launchAction
+                        launchAction = null
+                        result.success(action)
+                    }
 
                     else -> result.notImplemented()
                 }
