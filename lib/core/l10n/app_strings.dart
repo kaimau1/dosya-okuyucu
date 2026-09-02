@@ -2476,6 +2476,15 @@ const Map<String, (String, String, String)> _table = {
   ),
   'fm.external_count': ('{n} birim', '{n} drives', '{n} محركات'),
   'fm.external_none_short': ('Takılı değil', 'Not attached', 'غير متصل'),
+  'fm.external_unusable': (
+    '{name} takılı ama Android onu uygulamalara açmadı (bağlanmamış). '
+    'Bildirim panelindeki USB bildirimine dokunup "Dosya aktarımı" seçin ya da '
+    'belleği çıkarıp yeniden takın.',
+    '{name} is attached but Android has not mounted it for apps. Tap the USB '
+    'notification and choose "File transfer", or unplug and plug it back in.',
+    '{name} متصل لكن أندرويد لم يوصّله للتطبيقات. اضغط إشعار USB واختر "نقل '
+    'الملفات"، أو افصله وأعد توصيله.',
+  ),
   'fm.external_usb_count': ('{n} USB', '{n} USB', '{n} USB'),
   'fm.external_card_count': ('{n} SD kart', '{n} SD card', '{n} بطاقة SD'),
   'fm.copy_to_external': (

@@ -177,8 +177,86 @@ abstract final class AppStorageService {
   static const usbAttachedAction =
       'android.hardware.usb.action.USB_DEVICE_ATTACHED';
 
+  /// **Android'in kendi depolama birimi listesi** (`StorageManager`).
+  ///
+  /// Kanal yoksa (masaüstü, test, eski APK) boş döner ve çağıran kendi
+  /// `/storage` taramasını kullanır — bkz. `StorageStats.volumes`.
+  static Future<List<PlatformVolume>> storageVolumes() async {
+    try {
+      final raw = await _channel.invokeMethod<List<dynamic>>('storageVolumes');
+      if (raw == null) return const [];
+      return [
+        for (final item in raw)
+          if (item is Map) PlatformVolume.fromMap(item),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// **USB takıldı** olayını dinler (native → Dart itmesi).
+  ///
+  /// Niye gerekli: uygulama zaten ön plandayken Android'in "USB cihazı için
+  /// bir uygulama seçin" penceresinden bizi seçmek yeni bir `resumed` yaşam
+  /// döngüsü olayı üretmiyor; eylemi yalnız `resumed`da soran kod hiçbir şey
+  /// yapmıyordu (kullanıcı 2026-09-02: *"basıyorum tepki vermiyor"*).
+  static void setUsbAttachedHandler(void Function()? onAttached) {
+    if (onAttached == null) {
+      _channel.setMethodCallHandler(null);
+      return;
+    }
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'usbAttached') onAttached();
+      return null;
+    });
+  }
+
   /// Testlerde sahte kanal kurulduktan sonra "yok" damgasını temizler.
   static void resetForTest() => _available = null;
+}
+
+/// Android'in bildirdiği bir depolama birimi (`StorageManager.StorageVolume`).
+class PlatformVolume {
+  /// Birimin dosya yolu; Android vermiyorsa null (bağlanmamış olabilir).
+  final String? path;
+
+  /// Kullanıcıya gösterilen ad ("SD kart", "USB sürücü", üretici adı…).
+  final String description;
+
+  final bool isPrimary;
+  final bool isRemovable;
+
+  /// `mounted`, `unmounted`, `mounted_ro`, `ejecting`… Bağlı değilse birim
+  /// FİZİKSEL olarak takılıdır ama kullanılamaz — kullanıcıya "yok" demek
+  /// yerine bunu söyleyebiliriz.
+  final String state;
+
+  /// Birimin UUID'si (bağlama noktası adıyla aynı olur).
+  final String? uuid;
+
+  const PlatformVolume({
+    this.path,
+    this.description = '',
+    this.isPrimary = false,
+    this.isRemovable = false,
+    this.state = '',
+    this.uuid,
+  });
+
+  factory PlatformVolume.fromMap(Map<dynamic, dynamic> m) => PlatformVolume(
+        path: m['path'] as String?,
+        description: (m['description'] as String?) ?? '',
+        isPrimary: m['isPrimary'] == true,
+        isRemovable: m['isRemovable'] == true,
+        state: (m['state'] as String?) ?? '',
+        uuid: m['uuid'] as String?,
+      );
+
+  /// Okunabilir durumda mı? (`mounted` ya da salt okunur `mounted_ro`.)
+  bool get isMounted => state == 'mounted' || state == 'mounted_ro';
+
+  /// Yalnız okunabiliyor mu?
+  bool get isReadOnly => state == 'mounted_ro';
 }
 
 /// Kurulu bir uygulamanın diskteki APK dosyaları.

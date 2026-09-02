@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'app_storage_service.dart';
 import 'fm_env.dart';
 import 'storage_stats.dart';
 
@@ -173,6 +174,28 @@ class VolumeWatcher {
         for (final v in FmEnv.volumes)
           if (v.isRemovable && v.isWritable) v,
       ];
+
+  /// Android bir harici birim BİLİYOR ama kullanılamıyor mu?
+  ///
+  /// Kullanıcı hatası 2026-09-02: bellek takılıyken uygulama "Takılı harici
+  /// bellek yok" diyordu. İki ayrı durum var ve kullanıcıya aynı cümleyi
+  /// söylemek yanlış:
+  /// * gerçekten hiçbir şey takılı değil → "takıp yeniden deneyin";
+  /// * takılı ama bağlanmamış / yolu verilmemiş → bu yanlışı söylemek
+  ///   kullanıcıyı "bozuk" hissine sokuyor. Sebebi söylemek gerekiyor.
+  ///
+  /// Bulunan birimin adını döner; öyle bir birim yoksa null.
+  static Future<String?> attachedButUnusable() async {
+    for (final pv in await AppStorageService.storageVolumes()) {
+      if (pv.isPrimary || !pv.isRemovable) continue;
+      final path = pv.path;
+      final usable = pv.isMounted && path != null && path.isNotEmpty;
+      if (usable) continue;
+      final name = pv.description.trim();
+      return name.isEmpty ? (pv.uuid ?? '?') : name;
+    }
+    return null;
+  }
 
   /// Kopyalanacak dosyanın harici bellekteki hedef klasörü.
   ///

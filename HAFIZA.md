@@ -9892,3 +9892,66 @@ seçtiriyor. Kutu sıralamanın dışında, başa sabit.
 klasörleri, standart klasörsüz birimde kök, yinelenmeme, var olmayan birim).
 
 **Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **1997 test yeşil**.
+
+## 2026-09-02 (dördüncü tur) — USB "görünmüyor": yol TAHMİN etmek yanlış yolmuş
+
+Kullanıcı, iki ekran görüntüsüyle: *"şu an bellek takılı ama görmüyor uygulama,
+basıyorum tepki vermiyor"* — Android'in "USB cihazı için bir uygulama seçin"
+penceresinde **biz de listedeyiz** (manifest filtresi ÇALIŞIYOR), ama bize
+dokununca hiçbir şey olmuyor ve panodaki kutu "Takılı değil" diyor.
+
+### A) KÖK NEDEN — `/storage` altını listeleyerek birim aramak
+Dart tarafı birimleri **tahmin ediyordu**: `/storage`, `/mnt/media_rw`,
+`/mnt/usb` altındaki klasörleri listeleyip UUID adlı olanları birim sayıyordu.
+Bu SD kartta çalışıyor ama **USB OTG'de üreticiye göre değişiyor**: kimi ROM
+`/storage/<UUID>`e bağlıyor, kimi uygulamaya kapalı `/mnt/media_rw/<UUID>`ye,
+kimi de hiç bağlamayıp aygıtı doğrudan seçilen uygulamaya veriyor. Tahmin
+tutmayınca "hiç birim yok" çıkıyordu.
+
+**Yapılan:** artık **Android'e SORULUYOR** —
+`StorageManager.getStorageVolumes()` (`ci/MainActivity.kt` → `storageVolumes`).
+İşletim sisteminin gerçek listesi: yol, açıklama, birincil mi, çıkarılabilir
+mi, **durum** (`mounted`/`unmounted`/…) ve UUID. Yol taraması yedek olarak
+duruyor (masaüstü, test, kanalsız eski APK).
+`getDirectory()` API 30+; 24-29'da gizli `getPath()` yansımayla okunuyor.
+
+### B) "Basıyorum tepki vermiyor"
+Uygulama **zaten ön plandayken** seçiciden bizi seçmek yeni bir `resumed`
+yaşam döngüsü olayı ÜRETMİYOR. Dart tarafı `launchAction`ı yalnız `initState`
+ve `resumed`da soruyordu → hiçbir şey olmuyordu.
+**Yapılan:** native taraf artık olayı İTİYOR — `onNewIntent`te eylem
+`USB_DEVICE_ATTACHED` ise `channel.invokeMethod("usbAttached")`. Dart tarafı
+`AppStorageService.setUsbAttachedHandler` ile dinliyor.
+
+### C) "Takılı değil" DÜRÜST DEĞİLDİ
+Birim fiziksel olarak takılı ama Android bağlamamışsa "yok" demek kullanıcıyı
+"uygulama bozuk" hissine sokuyor. `VolumeWatcher.attachedButUnusable()`
+Android'in listesinde çıkarılabilir ama bağlanmamış bir birim arıyor; varsa
+mesaj sebebi söylüyor ("… takılı ama Android onu uygulamalara açmadı;
+bildirim panelindeki USB bildirimine dokunup 'Dosya aktarımı' seçin").
+
+### D) "2 SD kart / 2 USB takılırsa ne olacak?"
+UUID adlı birimlerin adı çeviriden geliyordu ("SD kart") → iki kart takılınca
+listede yan yana iki özdeş "SD kart" duruyor, hangisinin hangisi olduğu
+anlaşılmıyordu (kopyalama hedefinde yanlışını seçmek işten değildi).
+`StorageStats.disambiguate` (saf, testli): aynı ada düşenlere bağlama noktası
+adı ekleniyor → "SD kart (1A2B-3C4D)". **Tek başına duran birim dokunulmuyor**
+— çoğu kullanıcı tek kart takıyor, ona UUID göstermek gürültü olurdu.
+
+### E) Kategori ekranlarında BİRİM SÜZGECİ
+Kullanıcı: *"SD kart takılı olduğunda Görüntüler, Videolar, Belgeler
+içeriğinde SD karttakileri göster seçeneği ve filtresi de olmalı."*
+`FmFilter.volumeRoots` (boş = tümü) + `matchesVolume` (önek eşlemesi).
+Çipler ortak `FmQuickFilters` satırına eklendi → Görüntüler, Videolar,
+Belgeler, galeri ve arama HEPSİ bir çırpıda kazandı. Çipler yalnız **birden
+çok birim** varken çiziliyor; sayısı sıfır olan birim çizilmiyor ama
+SEÇİLİYSE kalıyor (yoksa kullanıcı seçtiği çipi kaybedip listeyi boş görürdü).
+
+**TUZAK — önek eşlemesi:** `/storage/1A2B` öneki `/storage/1A2B-3C4D` yolunu
+da tutar; iki ayrı kart birbirine karışırdı. Ayırıcı eklenerek karşılaştırılıyor.
+**TUZAK (yakalandı, kullanıcıya gitmedi):** `matchesVolume` ilk yazımda
+`'\$root/'` yazılmıştı — Dart'ta bu ARAYA DEĞER KOYMAZ, düz metindir. Süzgeç
+hiçbir dosyayı eşlemiyordu; çipe basınca liste boş kalacaktı. Yeni birim
+testleri anında düşürdü.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **2009 test yeşil**.

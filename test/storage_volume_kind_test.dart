@@ -148,6 +148,71 @@ void main() {
     });
   });
 
+  // **"2 tane SD kart, 2 tane USB takılırsa ne olacak?" (kullanıcı 2026-09-02)**
+  //
+  // UUID adlı birimlerin adı çeviriden geliyor ("SD kart"); iki kart takılınca
+  // listede yan yana iki özdeş "SD kart" duruyordu ve hangisinin hangisi
+  // olduğu anlaşılmıyordu — "harici belleğe kopyala"da yanlışını seçmek işten
+  // değildi.
+  group('disambiguate — aynı ada düşen birimler', () {
+    test('iki SD kart bağlama noktası adıyla ayrılır', () {
+      final out = StorageStats.disambiguate(const [
+        StorageVolume(
+            path: '/storage/1A2B-3C4D',
+            isPrimary: false,
+            labelKey: 'fm.vol_sdcard',
+            kind: StorageKind.sdCard),
+        StorageVolume(
+            path: '/storage/9F8E-7D6C',
+            isPrimary: false,
+            labelKey: 'fm.vol_sdcard',
+            kind: StorageKind.sdCard),
+      ]);
+      expect(out[0].displayLabel((k) => 'SD kart'), 'SD kart (1A2B-3C4D)');
+      expect(out[1].displayLabel((k) => 'SD kart'), 'SD kart (9F8E-7D6C)');
+    });
+
+    test('TEK birim dokunulmadan kalır (gereksiz UUID gürültüsü yok)', () {
+      final out = StorageStats.disambiguate(const [
+        StorageVolume(
+            path: '/storage/emulated/0',
+            isPrimary: true,
+            labelKey: 'fm.vol_internal'),
+        StorageVolume(
+            path: '/storage/1A2B-3C4D',
+            isPrimary: false,
+            labelKey: 'fm.vol_sdcard',
+            kind: StorageKind.sdCard),
+      ]);
+      expect(out[1].displayLabel((k) => 'SD kart'), 'SD kart');
+    });
+
+    test('aynı ETİKETLİ iki USB de ayrılır', () {
+      final out = StorageStats.disambiguate(const [
+        StorageVolume(
+            path: '/storage/AAAA', isPrimary: false, label: 'SAMSUNG',
+            kind: StorageKind.usb),
+        StorageVolume(
+            path: '/storage/BBBB', isPrimary: false, label: 'SAMSUNG',
+            kind: StorageKind.usb),
+      ]);
+      expect(out[0].displayLabel((k) => k), 'SAMSUNG (AAAA)');
+      expect(out[1].displayLabel((k) => k), 'SAMSUNG (BBBB)');
+    });
+
+    test('USB ile SD kart karışmaz (farklı ad, ek yok)', () {
+      final out = StorageStats.disambiguate(const [
+        StorageVolume(
+            path: '/storage/AAAA', isPrimary: false,
+            labelKey: 'fm.vol_usb', kind: StorageKind.usb),
+        StorageVolume(
+            path: '/storage/BBBB', isPrimary: false,
+            labelKey: 'fm.vol_sdcard', kind: StorageKind.sdCard),
+      ]);
+      expect(out.every((v) => v.nameSuffix.isEmpty), isTrue);
+    });
+  });
+
   group('StorageVolume', () {
     test('takılabilir birim ana bellekten ayrılır', () {
       const internal = StorageVolume(path: '/storage/emulated/0', isPrimary: true);

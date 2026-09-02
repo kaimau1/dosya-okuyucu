@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.hardware.usb.UsbManager
 import android.os.storage.StorageManager
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -50,6 +51,9 @@ class MainActivity : FlutterActivity() {
      */
     private var launchAction: String? = null
 
+    /** Dart tarafına olay ITMEK için (native → Dart). */
+    private var channel: MethodChannel? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launchAction = intent?.action
@@ -60,11 +64,20 @@ class MainActivity : FlutterActivity() {
         // `singleTask`: uygulama açıkken USB takılıp seçilirse yeni intent
         // buradan gelir, `onCreate` bir daha çalışmaz.
         launchAction = intent.action
+        // **Dart'a HABER VER (kullanıcı hatası 2026-09-02: "basıyorum tepki
+        // vermiyor").** Uygulama zaten ön plandayken seçiciden bizi seçmek
+        // yeni bir `resumed` yaşam döngüsü olayı ÜRETMİYOR; Dart tarafı
+        // eylemi yalnız `resumed`da sorduğu için hiçbir şey olmuyordu.
+        // Şimdi olay itiliyor: sormayı beklemek yerine söylüyoruz.
+        if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+            channel?.invokeMethod("usbAttached", null)
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        channel!!
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "hasUsageAccess" -> result.success(hasUsageAccess())
@@ -122,6 +135,9 @@ class MainActivity : FlutterActivity() {
                         launchAction = null
                         result.success(action)
                     }
+
+                    // **Android'in KENDİ birim listesi.**
+                    "storageVolumes" -> result.success(storageVolumes())
 
                     else -> result.notImplemented()
                 }
@@ -403,6 +419,64 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             null
         }
+    }
+
+    /**
+     * Cihazdaki depolama birimleri — **Android'in kendi listesi.**
+     *
+     * **Niye platform kanalı şart oldu (kullanıcı hatası 2026-09-02: USB
+     * takılıyken uygulama "Takılı harici bellek yok" diyordu):** Dart tarafı
+     * birimleri `/storage` altını LİSTELEYEREK tahmin ediyordu. Bu, SD kartta
+     * çalışıyor ama USB OTG'de üreticiye göre değişiyor: kimi ROM `/storage/
+     * <UUID>` altına bağlıyor, kimi `/mnt/media_rw/<UUID>` (uygulamaya kapalı),
+     * kimi hiç bağlamayıp aygıtı doğrudan uygulamaya veriyor. Tahmin etmek
+     * yerine SORMAK gerekiyordu: `StorageManager.getStorageVolumes()` işletim
+     * sisteminin gerçek listesidir.
+     *
+     * Her birim için yol, açıklama, birincil mi, çıkarılabilir mi ve DURUM
+     * döner. Durum önemli: "mounted" değilse birim fiziksel olarak takılı ama
+     * kullanılamıyordur — kullanıcıya "yok" demek yerine bunu söyleyebiliriz.
+     *
+     * `getDirectory()` API 30+; daha eski Android'de gizli `getPath()`
+     * yansımayla okunur (API 24-29'da başka yol yok, alan adı yıllardır
+     * değişmedi). Bulunamazsa yol null döner ve Dart tarafı kendi
+     * taramasındaki yolu kullanır.
+     */
+    private fun storageVolumes(): List<Map<String, Any?>> {
+        val out = ArrayList<Map<String, Any?>>()
+        val sm = try {
+            getSystemService(Context.STORAGE_SERVICE) as StorageManager
+        } catch (e: Exception) {
+            return out
+        }
+        val volumes = try {
+            sm.storageVolumes
+        } catch (e: Exception) {
+            return out
+        }
+        for (v in volumes) {
+            val path = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    v.directory?.absolutePath
+                } else {
+                    @Suppress("DiscouragedPrivateApi")
+                    v.javaClass.getMethod("getPath").invoke(v) as? String
+                }
+            } catch (e: Exception) {
+                null
+            }
+            out.add(
+                mapOf(
+                    "path" to path,
+                    "description" to try { v.getDescription(this) } catch (e: Exception) { null },
+                    "isPrimary" to v.isPrimary,
+                    "isRemovable" to v.isRemovable,
+                    "state" to try { v.state } catch (e: Exception) { null },
+                    "uuid" to try { v.uuid } catch (e: Exception) { null }
+                )
+            )
+        }
+        return out
     }
 
     private companion object {

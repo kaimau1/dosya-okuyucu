@@ -131,6 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
+    AppStorageService.setUsbAttachedHandler(null);
     unawaited(_volumeSub?.cancel());
     unawaited(_volumes.dispose());
     super.dispose();
@@ -165,6 +166,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
     _volumes.start();
     unawaited(_openUsbIfLaunchedByIt());
+    // Uygulama ZATEN ön plandayken seçiciden bizi seçmek `resumed` üretmiyor;
+    // native taraf olayı itiyor (kullanıcı 2026-09-02: "basıyorum tepki
+    // vermiyor").
+    AppStorageService.setUsbAttachedHandler(() {
+      if (!mounted) return;
+      unawaited(_openUsbIfLaunchedByIt(force: true));
+    });
   }
 
   /// Uygulama **USB takılması yüzünden** açıldıysa doğrudan o belleği aç.
@@ -176,8 +184,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   ///
   /// Birim henüz bağlanmamış olabilir (Android takma ile bağlama arasında bir
   /// süre geçiriyor) → kısa aralıklarla birkaç kez bakılır, sonra vazgeçilir.
-  Future<void> _openUsbIfLaunchedByIt() async {
-    if (!await AppStorageService.launchedByUsb()) return;
+  Future<void> _openUsbIfLaunchedByIt({bool force = false}) async {
+    if (!force && !await AppStorageService.launchedByUsb()) return;
     for (var attempt = 0; attempt < 6; attempt++) {
       await _volumes.rescan();
       final usb = FmEnv.volumes
@@ -185,12 +193,19 @@ class _DashboardScreenState extends State<DashboardScreen>
           .firstOrNull;
       if (usb != null) {
         if (!mounted) return;
-        await _push(BrowserScreen(path: usb.path));
+        await _push(BrowserScreen(
+            path: usb.path, title: usb.displayLabel(context.t)));
         return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
     }
+    // Altı denemede bağlanmadı: sessiz kalmak "dokundum, hiçbir şey olmadı"
+    // demek. Sebebi söyle.
+    final stuck = await VolumeWatcher.attachedButUnusable();
+    if (!mounted || stuck == null) return;
+    showSnack(context, context.t('fm.external_unusable', {'name': stuck}),
+        duration: kSnackAction);
   }
 
   /// Uygulama arka plandan dönünce sıcak klasörler yeniden taranır.
@@ -1280,7 +1295,17 @@ class _DashboardScreenState extends State<DashboardScreen>
         return _openExternal(fresh);
       }
       if (!mounted) return;
-      showSnack(context, context.t('fm.external_none'));
+      // Android bir birim BİLİYOR ama bağlamamışsa bunu söyle — "yok" demek
+      // yanlış olur ve kullanıcı uygulamayı bozuk sanır.
+      final stuck = await VolumeWatcher.attachedButUnusable();
+      if (!mounted) return;
+      showSnack(
+        context,
+        stuck == null
+            ? context.t('fm.external_none')
+            : context.t('fm.external_unusable', {'name': stuck}),
+        duration: kSnackAction,
+      );
       return;
     }
     var volume = volumes.first;

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'app_storage_service.dart';
+
 /// Bir depolama biriminin TÜRÜ — simge, ad ve "harici belleğe kopyala"
 /// kısayolu buna bakar.
 enum StorageKind {
@@ -50,6 +52,7 @@ class StorageVolume {
     this.totalBytes = 0,
     this.freeBytes = 0,
     this.kind = StorageKind.internal,
+    this.nameSuffix = '',
   });
 
   /// Telefonun kendi belleği DIŞINDA bir birim mi? ("Harici belleğe kopyala"
@@ -77,9 +80,26 @@ class StorageVolume {
     }
   }
 
+  /// Aynı ada düşen ikinci/üçüncü birimi ayırt eden ek (bağlama noktası adı,
+  /// ör. `1A2B-3C4D`). Boşsa ek yok. Bkz. [StorageStats.disambiguate].
+  final String nameSuffix;
+
   /// Ekranda gösterilecek ad. [t] genelde `context.t`.
-  String displayLabel(String Function(String) t) =>
-      labelKey == null ? label : t(labelKey!);
+  String displayLabel(String Function(String) t) {
+    final base = labelKey == null ? label : t(labelKey!);
+    return nameSuffix.isEmpty ? base : '$base ($nameSuffix)';
+  }
+
+  StorageVolume withSuffix(String suffix) => StorageVolume(
+        path: path,
+        label: label,
+        labelKey: labelKey,
+        isPrimary: isPrimary,
+        kind: kind,
+        totalBytes: totalBytes,
+        freeBytes: freeBytes,
+        nameSuffix: suffix,
+      );
 
   /// **Cihazın üstünde yazan** kapasite (512 GB gibi) — `df`in verdiği dosya
   /// sistemi boyutu değil.
@@ -132,6 +152,7 @@ class StorageVolume {
         kind: kind,
         totalBytes: totalBytes ?? this.totalBytes,
         freeBytes: freeBytes ?? this.freeBytes,
+        nameSuffix: nameSuffix,
       );
 }
 
@@ -170,6 +191,38 @@ abstract final class StorageStats {
     final mounts = readMounts();
 
     final seen = <String>{for (final v in out) p.basename(v.path)};
+
+    // **ÖNCE ANDROID'E SOR** (kullanıcı hatası 2026-09-02: USB takılıyken
+    // uygulama "Takılı harici bellek yok" diyordu).
+    //
+    // `/storage` altını listeleyerek tahmin etmek SD kartta çalışıyor ama USB
+    // OTG'de üreticiye göre değişiyor: kimi ROM `/storage/<UUID>`e bağlıyor,
+    // kimi uygulamaya kapalı `/mnt/media_rw/<UUID>`ye, kimi hiç bağlamıyor.
+    // `StorageManager` işletim sisteminin GERÇEK listesidir; tahmin yerine
+    // onu kullanıyoruz ve yol taraması yalnız yedek olarak kalıyor
+    // (masaüstü, test, kanalın olmadığı eski APK).
+    for (final pv in await AppStorageService.storageVolumes()) {
+      final path = pv.path;
+      if (path == null || path.isEmpty) continue;
+      if (pv.isPrimary) continue; // birincil zaten yukarıda eklendi
+      if (!pv.isMounted) continue; // takılı ama kullanılamıyor
+      if (out.any((v) => v.path == path)) continue;
+      if (!seen.add(p.basename(path))) continue;
+      final kind = kindOf(path, mounts);
+      // Android'in verdiği ad ("USB sürücü", "SAMSUNG") UUID'den iyidir;
+      // yoksa türe göre çevrilen ada düşülür.
+      final described = pv.description.trim();
+      final anonymous = described.isEmpty || _isUuid(described);
+      out.add(StorageVolume(
+        path: path,
+        label: anonymous ? '' : described,
+        labelKey: anonymous
+            ? (kind == StorageKind.usb ? 'fm.vol_usb' : 'fm.vol_sdcard')
+            : null,
+        isPrimary: false,
+        kind: kind,
+      ));
+    }
     for (final root in removableRoots) {
       for (final entity in entriesOf(root)) {
         final name = p.basename(entity.path);
@@ -209,7 +262,37 @@ abstract final class StorageStats {
           ? v
           : v.copyWith(totalBytes: usage.$1, freeBytes: usage.$2));
     }
-    return filled;
+    return disambiguate(filled);
+  }
+
+  /// **Aynı ada düşen birimleri ayırt eder** — saf fonksiyon (birim testli).
+  ///
+  /// Kullanıcı sorusu 2026-09-02: *"2 tane SD kart, 2 tane USB takılırsa ne
+  /// olacak?"* UUID adlı birimlerin adı çeviriden geliyor ("SD kart"); iki
+  /// kart takılınca listede yan yana iki "SD kart" duruyordu ve hangisinin
+  /// hangisi olduğu ANLAŞILMIYORDU — üstelik "harici belleğe kopyala"da
+  /// yanlışını seçmek işten değildi.
+  ///
+  /// Çözüm: aynı ada düşen birimlerin ikincisinden itibaren bağlama noktası
+  /// adı (UUID) eklenir → "SD kart (1A2B-3C4D)". Tek başına duran birim
+  /// dokunulmadan kalır: çoğu kullanıcı tek kart takıyor ve ona UUID
+  /// göstermek gereksiz gürültü olurdu.
+  ///
+  /// Adı olan birimler (etiketli USB: "SAMSUNG") zaten ayrık; onlara da aynı
+  /// kural uygulanır, çünkü iki özdeş marka bellek aynı etiketi taşıyabilir.
+  static List<StorageVolume> disambiguate(List<StorageVolume> volumes) {
+    final counts = <String, int>{};
+    for (final v in volumes) {
+      final key = v.labelKey ?? 'label:${v.label}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return [
+      for (final v in volumes)
+        if ((counts[v.labelKey ?? 'label:${v.label}'] ?? 0) > 1)
+          v.withSuffix(p.basename(v.path))
+        else
+          v,
+    ];
   }
 
   /// Bir kökün girdileri; kök yoksa ya da OKUNAMIYORSA boş liste.

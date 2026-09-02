@@ -5,7 +5,9 @@ import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
+import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
+import '../../services/fm/storage_stats.dart';
 
 /// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
 ///
@@ -207,7 +209,13 @@ class _Counts {
   final int untouched;
   final int openedWithin;
   final int large;
-  const _Counts(this.buckets, this.untouched, this.openedWithin, this.large);
+
+  /// Birim çipleri: (birim, o birimdeki dosya sayısı). Tek birim varsa boş —
+  /// "Ana bellek" tek başına hiçbir şey süzmez, yalnız yer kaplardı.
+  final List<(StorageVolume, int)> volumes;
+
+  const _Counts(this.buckets, this.untouched, this.openedWithin, this.large,
+      this.volumes);
 }
 
 class _FmQuickFiltersState extends State<FmQuickFilters> {
@@ -222,6 +230,8 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
   String get _key => '${identityHashCode(widget.source)}|'
       '${widget.source.length}|${widget.filter.signature}|'
       '${widget.untouchedDays}|${widget.showBuckets}|'
+      // Birim listesi takma/çıkarmayla değişir; çipler o an tazelenmeli.
+      '${FmEnv.volumes.map((v) => v.path).join(',')}|'
       '${OpenHistory.revision}';
 
   _Counts get _counts {
@@ -266,6 +276,25 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     }
     buckets.sort((a, b) => b.$2.compareTo(a.$2));
 
+    // **Birim çipleri** (kullanıcı isteği 2026-09-02: *"SD kart takılı
+    // olduğunda Görüntüler, Videolar, Belgeler içeriğinde SD karttakileri
+    // göster seçeneği ve filtresi de olmalı"*).
+    //
+    // Yalnız BİRDEN ÇOK birim varken çizilir: tek birimli bir telefonda
+    // "Ana bellek" çipi hiçbir şey süzmez, sadece satırda yer kaplardı.
+    // Sayısı sıfır olan birim de çizilmez (SD kartta hiç video yoksa
+    // "Videolar"da SD kart çipi çıkmasın) — ama SEÇİLİYSE kalır, yoksa
+    // kullanıcı seçtiği çipi kaybedip listeyi boş görürdü.
+    final volumes = <(StorageVolume, int)>[];
+    if (FmEnv.volumes.length > 1) {
+      for (final v in FmEnv.volumes) {
+        final selected = f.volumeRoots.contains(v.path);
+        final probe = selected ? f : f.toggleVolumeRoot(v.path);
+        final n = _countWith(probe);
+        if (n > 0 || selected) volumes.add((v, n));
+      }
+    }
+
     return _Counts(
       buckets,
       _countWith(f.untouchedDays == null
@@ -277,6 +306,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
       _countWith(f.sizeRange == FmSizeRange.large
           ? f
           : f.withSizeRange(FmSizeRange.large)),
+      volumes,
     );
   }
 
@@ -286,6 +316,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     final f = widget.filter;
     final months = widget.untouchedDays ~/ 30;
     if (counts.buckets.isEmpty &&
+        counts.volumes.isEmpty &&
         counts.untouched == 0 &&
         counts.openedWithin == 0 &&
         counts.large == 0 &&
@@ -297,6 +328,17 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     return FmFilterBar(
       children: [
         ...widget.leading,
+        // **Birim çipleri EN BAŞTA** (ekrana özel bileşenlerden hemen sonra):
+        // "bu dosyalar nerede duruyor" sorusu, "ne zaman açıldı"dan önce
+        // gelir — SD kart takan kullanıcının ilk yaptığı ayrım budur.
+        for (final (volume, count) in counts.volumes)
+          FmChip(
+            label: volume.displayLabel(context.t),
+            count: count,
+            selected: f.volumeRoots.contains(volume.path),
+            onTap: () =>
+                widget.onChanged(widget.filter.toggleVolumeRoot(volume.path)),
+          ),
         // "Son 6 ayda açılanlar" ÖNCE: kullanıcının aradığı dosya çoğunlukla
         // yakında dokunduğu dosyadır; "açılmamışlar" yer açma işidir.
         if (counts.openedWithin > 0 || f.openedWithinDays != null)

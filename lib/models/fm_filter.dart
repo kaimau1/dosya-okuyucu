@@ -156,6 +156,19 @@ class FmFilter {
   /// değildi: "açılmamışlar" vardı, "açılanlar" hiç yoktu.
   final int? openedWithinDays;
 
+  /// **Hangi depolama birimlerinde arayalım?** Yol önekleri; **boş = tümü.**
+  ///
+  /// Kullanıcı isteği 2026-09-02: *"SD kart takılı olduğunda Görüntüler,
+  /// Videolar, Belgeler içeriğinde SD karttakileri göster seçeneği ve
+  /// filtresi de olmalı."* Kategori listeleri bütün birimlerin dosyalarını
+  /// tek listede karıştırıyordu; hangi fotoğrafın kartta hangisinin telefonda
+  /// olduğunu görmenin yolu yoktu.
+  ///
+  /// Önek eşlemesi yapılıyor (yol `<kök>/` ile başlıyor mu) — birim kökleri
+  /// `/storage/emulated/0` ve `/storage/1A2B-3C4D` gibi ayrık ağaçlar olduğu
+  /// için bu kesin sonuç verir.
+  final Set<String> volumeRoots;
+
   const FmFilter({
     this.buckets = const {},
     this.extensions = const {},
@@ -169,6 +182,7 @@ class FmFilter {
     this.tags = const {},
     this.untouchedDays,
     this.openedWithinDays,
+    this.volumeRoots = const {},
   });
 
   static const none = FmFilter();
@@ -192,6 +206,7 @@ class FmFilter {
     bool clearUntouched = false,
     int? openedWithinDays,
     bool clearOpenedWithin = false,
+    Set<String>? volumeRoots,
   }) =>
       FmFilter(
         buckets: buckets ?? this.buckets,
@@ -211,7 +226,32 @@ class FmFilter {
         openedWithinDays: clearOpenedWithin
             ? null
             : (openedWithinDays ?? this.openedWithinDays),
+        volumeRoots: volumeRoots ?? this.volumeRoots,
       );
+
+  FmFilter withVolumeRoots(Set<String> value) => _copy(volumeRoots: value);
+
+  /// Birimi ekler/çıkarır (çip dokunuşu).
+  FmFilter toggleVolumeRoot(String root) {
+    final next = {...volumeRoots};
+    if (!next.remove(root)) next.add(root);
+    return withVolumeRoots(next);
+  }
+
+  /// [path] seçili birimlerden birinde mi? (Seçim yoksa her yol geçer.)
+  ///
+  /// Ayırıcı ekleyerek karşılaştırıyoruz: `/storage/AAAA` öneki
+  /// `/storage/AAAA-BBBB` yolunu da tutardı — iki ayrı kart birbirine
+  /// karışırdı.
+  bool matchesVolume(String path) {
+    if (volumeRoots.isEmpty) return true;
+    for (final root in volumeRoots) {
+      if (path == root) return true;
+      final prefix = root.endsWith('/') ? root : '$root/';
+      if (path.startsWith(prefix)) return true;
+    }
+    return false;
+  }
 
   /// "Şu kadar gündür açılmamış" ölçütünü açar/kapatır (null = kapat).
   /// Açarken karşıt ölçüt ([openedWithinDays]) silinir — ikisi birlikte hiçbir
@@ -287,7 +327,8 @@ class FmFilter {
       (direction == ChatDirection.any ? 0 : 1) +
       (tags.isEmpty ? 0 : 1) +
       (untouchedDays == null ? 0 : 1) +
-      (openedWithinDays == null ? 0 : 1);
+      (openedWithinDays == null ? 0 : 1) +
+      (volumeRoots.isEmpty ? 0 : 1);
 
   bool get isActive => activeCount > 0;
 
@@ -309,6 +350,7 @@ class FmFilter {
         tags.toList()..sort(),
         untouchedDays,
         openedWithinDays,
+        volumeRoots.toList()..sort(),
       ].join('|');
 
   /// Tarih ölçütünün gerçek zaman penceresi.
@@ -379,6 +421,7 @@ class FmFilter {
   }) {
     final q = turkishFold(query.trim());
     if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
+    if (!matchesVolume(entry.path)) return false;
     if (buckets.isNotEmpty && !buckets.contains(bucketForPath(entry.path))) {
       return false;
     }
