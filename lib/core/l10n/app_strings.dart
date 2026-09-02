@@ -109,6 +109,7 @@ const Map<String, (String, String, String)> _table = {
   'common.cancel': ('Vazgeç', 'Cancel', 'إلغاء'),
   'common.yes': ('Evet', 'Yes', 'نعم'),
   'common.no': ('Hayır', 'No', 'لا'),
+  'common.details': ('Ayrıntı', 'Details', 'التفاصيل'),
   'common.close': ('Kapat', 'Close', 'إغلاق'),
   'common.save': ('Kaydet', 'Save', 'حفظ'),
   'common.delete': ('Sil', 'Delete', 'حذف'),
@@ -2527,6 +2528,12 @@ const Map<String, (String, String, String)> _table = {
   'saf.granted': ('Klasör izniyle', 'Via folder permission', 'بإذن المجلد'),
   // ── USB teşhis ekranı ────────────────────────────────────────────────
   // Kararlar tek cümlelik: kullanıcı ekranı okuyup NE YAPACAĞINI bilsin.
+  'usb.eject': ('Güvenle çıkar', 'Safely remove', 'إزالة آمنة'),
+  'usb.eject_done': (
+    'Bellek bırakıldı — şimdi çıkarabilirsiniz.',
+    'The drive was released — you can unplug it now.',
+    'تم تحرير المحرك — يمكنك فصله الآن.',
+  ),
   'usb.diag_title': ('USB teşhisi', 'USB diagnostics', 'تشخيص USB'),
   'usb.diag_sub': (
     'Takılı belleği hangi kanalın gördüğünü ölçer ve ne yapılacağını söyler.',
@@ -2628,6 +2635,16 @@ const Map<String, (String, String, String)> _table = {
   // Mesaj bir ÇIKIŞ YOLU söylüyor (kullanıcı 2026-09-02: bellek takılıyken
   // "Android açmadı" demek elinde yapacak bir şey bırakmıyordu). Şeridin
   // "Klasör seç" düğmesi seçiciyi doğrudan o birimin üstünde açar.
+  'fm.external_unusable_short': (
+    '{name} takılı ama Android dosya yolu vermiyor.',
+    '{name} is attached but Android exposes no file path.',
+    '{name} متصل لكن أندرويد لا يوفّر مسارًا.',
+  ),
+  'fm.external_unusable_title': (
+    '{name} açılamıyor',
+    'Cannot open {name}',
+    'تعذّر فتح {name}',
+  ),
   'fm.external_unusable': (
     '{name} takılı ama Android onu dosya yolu olarak vermiyor. "Klasör seç" '
     'ile belleği seçerseniz uygulama ona kalıcı olarak erişir; seçicide de '

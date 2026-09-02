@@ -10449,3 +10449,29 @@ tekrar ve karışık mantığı donanımsız test ediliyor.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2117 test yeşil**,
 `tool/check_kotlin.sh` temiz.
+
+## 2026-09-02 (on dördüncü tur) — Güvenle çıkar, kısa şerit, uçtan uca test
+
+### Güvenle çıkar — YALNIZ ham USB'de
+Yazma geldiği için bu artık bir güvenlik meselesi: yarıda kalan yazma bozuk
+dosya bırakır. Menü öğesi yalnız `UsbFs`te çıkıyor — Android'in bağladığı bir
+birimi uygulama çıkaramaz, oraya düğme koymak çalışmayan bir söz vermek olurdu.
+
+### Uzun şerit → kısa şerit + "Ayrıntı" penceresi
+"Takılı ama açılamıyor" mesajı dört satırlık bir paragraftı ve şerit altı
+saniyede kayboluyordu; kimse okuyamıyordu. Şerit tek cümle; açıklamanın tamamı
+kapanmayan bir pencerede ve pencerede iki çıkış yolu var ("Klasör seç",
+"USB teşhisi").
+
+### `test/usb_fs_test.dart` — Kotlin hariç HER katman
+`UsbFs` gezgin ekranının gördüğü yüz. Sentetik FAT32 imajı üstünde
+RemoteFs → UsbFs → FatFileSystem → BlockDevice zincirinin tamamı sürülüyor:
+listeleme, indirme (içerik birebir), YÜKLEME (belleğe gerçekten yazılıyor ve
+geri okunuyor), klasör açma, yeniden adlandırma, silme, doluluk.
+
+Ayrıca belgelenen bir sınır: **gezilmemiş klasör açılamaz.** FAT'ta bir
+klasörün tutamağı ilk kümesidir ve yoldan HESAPLANAMAZ; uydurma bir tutamakla
+rastgele bir kümeyi dizin sanmak felaket olurdu. Ekran yalnız gezerek
+öğrendiği klasörleri açıyor ve bu test onu koruyor.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2125 test yeşil**.

@@ -292,15 +292,46 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
       return;
     }
+    // **Kısa şerit + "Ayrıntı"** (dışarıdan bakış 2026-09-02): eski mesaj
+    // dört satırlık bir paragraftı ve şerit altı saniyede kayboluyordu —
+    // kimse okuyamıyordu. Şerit artık tek cümle; açıklamanın tamamı, isteyen
+    // için, kapanmayan bir pencerede.
     showSnack(
       context,
-      context.t('fm.external_unusable', {'name': stuck.name}),
+      context.t('fm.external_unusable_short', {'name': stuck.name}),
       duration: kSnackAction,
       action: SnackBarAction(
-        label: context.t('saf.pick'),
-        onPressed: () => unawaited(_openViaSaf(volume: stuck.key)),
+        label: context.t('common.details'),
+        onPressed: () => unawaited(_showStuckDetail(stuck)),
       ),
     );
+  }
+
+  /// Takılı ama açılamayan bellek: ne olduğu ve iki çıkış yolu.
+  Future<void> _showStuckDetail(UnusableVolume stuck) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('fm.external_unusable_title', {'name': stuck.name})),
+        content: SingleChildScrollView(
+          child: Text(ctx.t('fm.external_unusable', {'name': stuck.name})),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.close'))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, 'diag'),
+              child: Text(ctx.t('usb.diag_title'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, 'saf'),
+              child: Text(ctx.t('saf.pick'))),
+        ],
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'diag') return _openDiagnostics();
+    await _openViaSaf(volume: stuck.key);
   }
 
   /// Uygulama arka plandan dönünce sıcak klasörler yeniden taranır.

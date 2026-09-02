@@ -444,6 +444,14 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
                       value: 'mkdir',
                       child: Text(context.t('nas.new_folder'))),
                 ],
+                // **Güvenle çıkar YALNIZ ham USB'de.** Android'in bağladığı
+                // bir birimi uygulama çıkaramaz; oraya düğme koymak
+                // çalışmayan bir söz vermek olurdu.
+                if (_fs is UsbFs) ...[
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                      value: 'eject', child: Text(context.t('usb.eject'))),
+                ],
               ],
             ),
           ],
@@ -453,7 +461,29 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
     );
   }
 
+  /// **Güvenle çıkar:** aygıt bırakılır ve ekran kapanır.
+  ///
+  /// Yazma yaptıysak bu bir güvenlik meselesi: yarıda kalan bir yazma
+  /// bozuk dosya bırakır. Aygıtı bıraktığımızı SÖYLEMEK de şart — kullanıcı
+  /// "çıkarabilir miyim?" sorusunun cevabını uygulamadan almalı.
+  Future<void> _eject() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final done = context.t('usb.eject_done');
+    try {
+      await _fs.close();
+    } catch (_) {
+      // Kapatılamadı — yine de ekrandan çıkıyoruz; aygıt zaten gitmiş olabilir.
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    showSnackOn(messenger, done, duration: kSnackAction);
+  }
+
   void _onMenu(String value) {
+    if (value == 'eject') {
+      unawaited(_eject());
+      return;
+    }
     if (value == 'upload') {
       unawaited(_upload());
       return;
