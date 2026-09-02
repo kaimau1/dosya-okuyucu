@@ -604,8 +604,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         child: _VolumeCard(
                           volume: v,
                           index: _index,
-                          onTap: () => _push(
-                              BrowserScreen(path: v.path, title: v.label)),
+                          onTap: () => _push(BrowserScreen(
+                              path: v.path,
+                              title: v.displayLabel(context.t))),
                         ),
                       ),
                       const SizedBox(width: Gap.sm),
@@ -617,8 +618,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 _VolumeCard(
                   volume: v,
                   index: _index,
-                  onTap: () =>
-                      _push(BrowserScreen(path: v.path, title: v.label)),
+                  // `label` UUID adlı bir birimde BOŞTUR (ad çeviriden gelir)
+                  // — tarayıcı başlığı boş açılıyordu.
+                  onTap: () => _push(BrowserScreen(
+                      path: v.path, title: v.displayLabel(context.t))),
                 ),
               const SizedBox(height: Gap.sm),
             ],
@@ -1211,17 +1214,89 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Sayaç, aracın KENDİ `onTap`ı sarılarak artıyor; diske yazmayı beklemeden
   /// ekran açılır (`unawaited`) — araç ekranının açılması bir dosya yazmasına
   /// takılmamalı.
+  /// **Harici Bellek kutusu** — yalnız takılı bellek varken.
+  ///
+  /// Kullanıcı sorusu 2026-09-02: *"USB takıldığında daha sonra nasıl
+  /// açacağız, ana menüde bir yer göremedim."* Birim kartı listenin en
+  /// üstünde duruyor ve takılınca bir şerit çıkıyor, ama şerit geçici; geri
+  /// dönülebilecek KALICI bir giriş noktası yoktu.
+  ///
+  /// Takılı bellek yokken kutu hiç çizilmiyor: her zaman duran ama çoğu zaman
+  /// "bellek yok" diyen bir kutu ızgarada yer kaplamaktan başka bir şey
+  /// yapmazdı.
+  FmTileData? _externalTile() {
+    final externals = [
+      for (final v in FmEnv.volumes)
+        if (v.isRemovable) v,
+    ];
+    if (externals.isEmpty) return null;
+    return FmTileData(
+      icon: externals.any((v) => v.kind == StorageKind.usb)
+          ? Icons.usb
+          : Icons.sd_card,
+      color: const Color(0xFFEF6C00),
+      id: 'external_storage',
+      label: context.t('fm.external_storage'),
+      // Alt yazı CANLI bilgi (ızgaranın kuralı): tek birimde adı ve boş alanı,
+      // birden çoksa kaç tane olduğu.
+      subtitle: externals.length == 1
+          ? (externals.single.hasStats
+              ? '${externals.single.displayLabel(context.t)} · '
+                  '${FsPaths.humanSize(externals.single.freeBytes)} boş'
+              : externals.single.displayLabel(context.t))
+          : context.t('fm.external_count', {'n': externals.length}),
+      onTap: () => _openExternal(externals),
+    );
+  }
+
+  /// Harici belleği açar: tek birimde doğrudan, birden çoksa seçtirerek.
+  Future<void> _openExternal(List<StorageVolume> volumes) async {
+    var volume = volumes.first;
+    if (volumes.length > 1) {
+      final picked = await showModalBottomSheet<StorageVolume>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final v in volumes)
+                ListTile(
+                  leading: Icon(volumeIcon(v)),
+                  title: Text(v.displayLabel(ctx.t)),
+                  subtitle: Text(v.hasStats
+                      ? '${FsPaths.humanSize(v.freeBytes)} boş · ${v.path}'
+                      : v.path),
+                  onTap: () => Navigator.pop(ctx, v),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      volume = picked;
+    }
+    await _push(BrowserScreen(
+        path: volume.path, title: volume.displayLabel(context.t)));
+  }
+
   List<FmTileData> _rankedTools() {
     final tools = _tools();
     final order =
         rankByUsage([for (final t in tools) t.id], ToolUsage.counts);
-    return [
+    final ranked = [
       for (final i in order)
         tools[i].withTap(() {
           unawaited(ToolUsage.record(tools[i].id));
           tools[i].onTap();
         }),
     ];
+    // Harici bellek kutusu SIRALAMAYA GİRMEZ, hep başa sabitlenir: kullanım
+    // sayacına girseydi sık kullanılan araçlar onu aşağı iterdi ve kullanıcı
+    // belleği tam takmışken yine arayacaktı. Kutu zaten yalnız bellek
+    // takılıyken var — geçici ve o an ilgili olan şey en görünür yerde durur.
+    final external = _externalTile();
+    return external == null ? ranked : [external, ...ranked];
   }
 
   FmTileData _categoryTile(FmCategory category, {bool grid = false}) {
@@ -1418,7 +1493,22 @@ class _VolumeCard extends StatelessWidget {
   /// Kategori paylı yığın çubuğu: "98,4/128 GB" tek başına NEYİN yer
   /// kapladığını söylemiyordu. Kalan (ölçülemeyen sistem/uygulama verisi)
   /// "diğer" payına yazılır — çubuk her zaman doluluğu kadar dolar.
-  List<({Color color, String label, int bytes})> _breakdown() {
+  ///
+  /// **Yalnız ANA bellekte kırılım var (2026-09-02).** [index] telefonun
+  /// taramasıdır; takılan bir USB'nin kartında o sayıları göstermek, USB'de
+  /// olmayan fotoğrafları USB'de varmış gibi çizerdi. Harici bellekte tek
+  /// pay: "kullanılan" — doluluk doğru, uydurma kırılım yok.
+  List<({Color color, String label, int bytes})> _breakdown(
+      BuildContext context) {
+    if (!volume.isPrimary) {
+      return [
+        (
+          color: FmColors.other,
+          label: context.t('fm.used'),
+          bytes: volume.usedBytes,
+        ),
+      ];
+    }
     final image = index.stat(FmCategory.image).bytes;
     final video = index.stat(FmCategory.video).bytes;
     final document = index.stat(FmCategory.document).bytes;
@@ -1551,7 +1641,7 @@ class _VolumeCard extends StatelessWidget {
   /// (dolgu yok) — "boş yer" görsel olarak da boşluk.
   Widget _breakdownBar(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final parts = _breakdown().where((p) => p.bytes > 0).toList();
+    final parts = _breakdown(context).where((p) => p.bytes > 0).toList();
     final free = volume.freeBytes;
     final total = volume.capacityBytes <= 0 ? 1 : volume.capacityBytes;
     return Column(

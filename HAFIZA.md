@@ -9803,3 +9803,49 @@ döndürdü, fırlatmadı**. Testlere ulaşılabilir durumlar (yok / araya dosya
 giren yol / kök bir dosya / gerçek klasör / gerçek kökler) eklendi.
 
 **Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **1993 test yeşil**.
+
+## 2026-09-02 (ikinci tur) — Harici bellek: nereden açılacak?
+
+Kullanıcı: *"USB takıldığında daha sonra nasıl açacağız, ana menüde bir yer
+göremedim"* ve ekran görüntüsüyle: *"şu kısımda 'harici bellek takılı
+16GB/5GB dolu' gibi bir alanla buradan da açılabilsin, burada sadece takılı
+olduğunda çıkacak bir alan olacak."*
+
+**İstenen yer ZATEN doğru yerdi.** Birim kartları panonun en üstünde, ana
+bellek kartının hemen altında ve kategori ızgarasının üstünde çiziliyor
+(`for (final v in volumes)` döngüsü, `_categoryGrid()`ten önce). Kullanıcının
+daireyle işaretlediği boşluk tam olarak orası. Önceki ekran görüntüsünde
+hiçbir kart görünmemesinin sebebi özellik eksikliği değil, aynı gün
+düzeltilen çökmeydi: `FmEnv.volumes` boş kalıyordu.
+
+Yine de üç gerçek eksik vardı:
+
+### A) Kalıcı giriş noktası yoktu
+Takılınca çıkan şerit GEÇİCİ. Araçlar ızgarasına **"Harici Bellek"** kutusu
+eklendi: yalnız takılı bellek varken çiziliyor, alt yazısı canlı (tek birimde
+"USB bellek · 5,2 GB boş", birden çoksa "2 birim"), dokununca birimi açıyor
+(birden çoksa seçtiriyor).
+**Sıralamaya GİRMİYOR, başa sabitleniyor** (`_rankedTools` ranked listenin
+önüne ekliyor): kullanım sayacına girseydi sık kullanılan araçlar onu aşağı
+iterdi ve kullanıcı belleği tam takmışken yine arardı. Takılı bellek yokken
+kutu hiç yok — her zaman duran ama çoğu zaman "bellek yok" diyen bir kutu
+ızgarada yer kaplamaktan başka bir şey yapmazdı.
+
+### B) TUZAK — kırılım çubuğu harici bellekte YANILTICIYDI
+`_VolumeCard._breakdown()` `index.stat(...)` kullanıyor; o **telefonun**
+tarama indeksi. Takılan bir USB'nin kartında telefondaki fotoğraf/video
+paylarını çizmek, USB'de olmayan dosyaları USB'de varmış gibi göstermek
+demekti. Artık kırılım YALNIZ ana bellekte; harici bellekte tek pay
+("Kullanılan") — doluluk doğru, uydurma kırılım yok.
+
+### C) UUID adlı birimde tarayıcı başlığı BOŞTU
+`onTap` `title: v.label` geçiyordu; `label` UUID adlı birimde boş string
+(ad `labelKey` üzerinden çeviriden geliyor). `displayLabel(context.t)` ile
+düzeltildi — hem ana bellek hem harici birim kartında.
+
+**TUZAK — sabit metin testi.** İlk yazımda pay etiketi `'Kullanılan'` düz
+string'di; projenin arayüzde sabit Türkçe metni yakalayan testi bunu anında
+düşürdü. `fm.used` anahtarı eklendi. (Bu test iyi çalışıyor: çeviri borcunu
+biriktirmeden yakalıyor.)
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **1993 test yeşil**.

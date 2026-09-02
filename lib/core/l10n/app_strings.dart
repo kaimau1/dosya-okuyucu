@@ -2469,6 +2469,12 @@ const Map<String, (String, String, String)> _table = {
   'fm.vol_internal': ('Ana bellek', 'Internal storage', 'الذاكرة الداخلية'),
   'fm.vol_sdcard': ('SD kart', 'SD card', 'بطاقة SD'),
   'fm.vol_usb': ('USB bellek', 'USB drive', 'محرك USB'),
+  'fm.external_storage': (
+    'Harici Bellek',
+    'External drive',
+    'محرك خارجي',
+  ),
+  'fm.external_count': ('{n} birim', '{n} drives', '{n} محركات'),
   'fm.copy_to_external': (
     'Harici belleğe kopyala',
     'Copy to external drive',
@@ -2515,6 +2521,7 @@ const Map<String, (String, String, String)> _table = {
   ),
   'fm.storage_analysis': ('Bellek Analizi', 'Storage analysis', 'تحليل التخزين'),
   'fm.used_percent': ('Kullanılan %{n}', '{n}% used', 'مستخدَم %{n}'),
+  'fm.used': ('Kullanılan', 'Used', 'مستخدَم'),
   'apps.sort_size': ('Boyuta göre', 'By size', 'حسب الحجم'),
   'apps.storage_settings': (
     'Depolama ve önbellek',
