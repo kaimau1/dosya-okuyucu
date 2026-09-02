@@ -66,6 +66,8 @@ class VolumeWatcher {
     _known = {for (final v in FmEnv.volumes) v.path};
 
     for (final root in StorageStats.removableRoots) {
+      // `existsSync()` okunamayan bir kökte FIRLATIR (bkz.
+      // `StorageStats.entriesOf`) — bu yüzden varlık denetimi de try içinde.
       try {
         final dir = Directory(root);
         if (!dir.existsSync()) continue;
@@ -75,7 +77,7 @@ class VolumeWatcher {
               cancelOnError: false,
             ));
       } catch (_) {
-        // Bu ROM'da izlenemiyor — yoklama yine çalışıyor.
+        // Bu kök izlenemiyor (yok ya da izin yok) — yoklama yine çalışıyor.
       }
     }
 
@@ -110,16 +112,12 @@ class VolumeWatcher {
   static Set<String> mountNames({List<String>? roots}) {
     final out = <String>{};
     for (final root in roots ?? StorageStats.removableRoots) {
-      try {
-        final dir = Directory(root);
-        if (!dir.existsSync()) continue;
-        for (final entity in dir.listSync(followLinks: false)) {
-          final name = p.basename(entity.path);
-          if (name == 'self' || name == 'container') continue;
-          out.add('$root/$name');
-        }
-      } catch (_) {
-        // Bu kök listelenemiyor — diğerleri yine sayılır.
+      // Okunamayan kök (izin yok) burada boş liste döner ve FIRLATMAZ —
+      // varlık denetimi de o korumanın içinde (bkz. `StorageStats.entriesOf`).
+      for (final entity in StorageStats.entriesOf(root)) {
+        final name = p.basename(entity.path);
+        if (name == 'self' || name == 'container') continue;
+        out.add('$root/$name');
       }
     }
     return out;

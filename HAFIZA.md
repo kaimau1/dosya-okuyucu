@@ -9757,3 +9757,49 @@ sanılıyordu — testte yakalandı.
 
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı), `analyze` 0 sorun,
 **1988 test yeşil**.
+
+## 2026-09-02 — ÇÖKME: `existsSync()` izin hatasında FIRLATIR (dün eklenen kök)
+
+Kullanıcı: *"verileri görmedi güncellemeden sonra."* Pano "Depolama
+taranıyor…" ekranında asılı kaldı, hiçbir kategori dolmadı. Hata kaydı:
+
+    FileSystemException: Exists failed, path = '/mnt/media_rw'
+    (OS Error: Permission denied, errno = 13)
+    #0 _Directory.existsSync  #1 StorageStats.volumes
+    #2 FmEnv.ensureInit       #3 _DashboardScreenState._scan
+
+**Kök neden.** Dün USB için `removableRoots`a `/mnt/media_rw` eklendi.
+O klasör telefonda **VAR** ama `media_rw` grubuna ait ve uygulama `/mnt`
+içinde gezinemiyor. Bu durumda `Directory.existsSync()` **`false` DÖNMÜYOR,
+fırlatıyor** — "var mı?" sorusunun kendisi izin istiyor. Kod
+`if (!dir.existsSync()) continue;` satırını `try` bloğunun DIŞINA koymuştu;
+`listSync` korunuyordu ama `existsSync` korunmuyordu. Tek bir istisna
+`volumes()` → `ensureInit()` → `_scan()` zincirini komple düşürdü ve
+`_ready` hiç true olmadı: dosya yöneticisinin TAMAMI kullanılamaz oldu.
+
+**Ders — bir kök eklemek "sadece bir yol eklemek" değildir.** Var olmayan bir
+yol zararsız (`false` döner); **okunamayan** bir yol zararlıdır. Yeni bir kök
+eklerken sorulacak soru "bu klasör var mı" değil, "bu klasörün varlığını
+sorabiliyor muyum".
+
+**Düzeltme.**
+- `StorageStats.entriesOf(root)`: varlık denetimi + listeleme TEK `try`
+  içinde, tek yerde. Çağıran korunmayı unutamaz. `volumes()` ve
+  `VolumeWatcher.mountNames()` artık bunu kullanıyor.
+- `VolumeWatcher.start()`teki `existsSync` de zaten `try` içindeydi, yorumla
+  işaretlendi (niye orada durması gerektiği görünsün).
+- `FmEnv.ensureInit`: `primaryRoot()` ve `volumes()` ayrı ayrı sarmalandı.
+  **Birim taraması dosya yöneticisini ASLA durduramaz** — en kötü ihtimalle
+  eksik birim listesi, hiç açılmayan uygulama değil. Boş kalırsa zaten ana
+  bellek yedeği devreye giriyor.
+
+**DOĞRULAMA — gerçek EACCES ile.** Test kök kullanıcı olarak koştuğu için
+çekirdek izin denetimini atlıyor ve hata birim testinde ÜRETİLEMİYOR
+(`chmod 000` kökü etkilemiyor; ENOTDIR/ENAMETOOLONG Dart'ta `false` dönüyor,
+fırlatmıyor). Bu yüzden doğrulama ayrı yapıldı: `dart compile exe` ile küçük
+bir ikili derlenip `setpriv --reuid=65534` (nobody) ile 0700 bir klasörün
+altına bakıldı → ham `existsSync` **fırlattı**, `entriesOf` **0 girdi
+döndürdü, fırlatmadı**. Testlere ulaşılabilir durumlar (yok / araya dosya
+giren yol / kök bir dosya / gerçek klasör / gerçek kökler) eklendi.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **1993 test yeşil**.

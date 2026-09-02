@@ -171,15 +171,7 @@ abstract final class StorageStats {
 
     final seen = <String>{for (final v in out) p.basename(v.path)};
     for (final root in removableRoots) {
-      final dir = Directory(root);
-      if (!dir.existsSync()) continue;
-      List<FileSystemEntity> entries;
-      try {
-        entries = dir.listSync(followLinks: false);
-      } catch (_) {
-        continue; // kök listelenemiyor (izin yok) — sıradaki köke geç
-      }
-      for (final entity in entries) {
+      for (final entity in entriesOf(root)) {
         final name = p.basename(entity.path);
         if (name == 'emulated' || name == 'self' || name == 'container') {
           continue;
@@ -218,6 +210,29 @@ abstract final class StorageStats {
           : v.copyWith(totalBytes: usage.$1, freeBytes: usage.$2));
     }
     return filled;
+  }
+
+  /// Bir kökün girdileri; kök yoksa ya da OKUNAMIYORSA boş liste.
+  ///
+  /// **TUZAK — `existsSync()` de fırlatır (kullanıcı çökmesi 2026-09-02):**
+  /// `/mnt/media_rw` telefonda VAR ama `media_rw` grubuna ait; uygulama `/mnt`
+  /// içinde gezinemediği için `Directory('/mnt/media_rw').existsSync()`
+  /// `false` DÖNMÜYOR, `FileSystemException: Exists failed … Permission
+  /// denied (errno = 13)` fırlatıyor. O çağrı `try`nin dışında kaldığı için
+  /// `volumes()` çöküyor, `FmEnv.ensureInit` çöküyor ve dosya yöneticisi
+  /// "Depolama taranıyor…" ekranında asılı kalıyordu.
+  ///
+  /// Bu yüzden varlık denetimi ve listeleme TEK yerde ve tek `try` içinde:
+  /// çağıranın ayrıca korunmasına gerek yok, unutması da mümkün değil.
+  static List<FileSystemEntity> entriesOf(String root) {
+    try {
+      final dir = Directory(root);
+      if (!dir.existsSync()) return const [];
+      return dir.listSync(followLinks: false);
+    } catch (_) {
+      // Yok, okunamıyor ya da varlığı bile sorulamıyor — bu kök yok sayılır.
+      return const [];
+    }
   }
 
   /// `/proc/mounts` satırları (okunamazsa boş).

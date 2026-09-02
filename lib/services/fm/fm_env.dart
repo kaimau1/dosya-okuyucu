@@ -23,8 +23,22 @@ abstract final class FmEnv {
     } catch (_) {
       appSupportDir = '';
     }
-    primaryRoot = await StorageStats.primaryRoot() ?? StorageStats.primaryPath;
-    volumes = await StorageStats.volumes();
+    try {
+      primaryRoot =
+          await StorageStats.primaryRoot() ?? StorageStats.primaryPath;
+    } catch (_) {
+      primaryRoot = StorageStats.primaryPath;
+    }
+    // **Birim taraması dosya yöneticisini ASLA durduramaz** (kullanıcı çökmesi
+    // 2026-09-02): burada bir istisna kaçtığında `ensureInit` yarıda kalıyor,
+    // `_ready` false kalıyor ve pano sonsuza dek "Depolama taranıyor…"
+    // gösteriyordu. Tarama en kötü ihtimalle eksik kalmalı, hiç açılmamak
+    // değil — ana bellek yedeği aşağıda zaten var.
+    try {
+      volumes = await StorageStats.volumes();
+    } catch (_) {
+      volumes = const [];
+    }
     if (volumes.isEmpty) {
       volumes = [
         StorageVolume(
