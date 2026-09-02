@@ -119,6 +119,10 @@ abstract final class UsbImage {
     setFat(0, fat32 ? 0x0FFFFFF8 : 0xFFF8);
     setFat(1, fat32 ? 0x0FFFFFFF : 0xFFFF);
     final endMark = fat32 ? 0x0FFFFFFF : 0xFFFF;
+    // **FAT32'de kök dizin 2. kümededir ve zinciri İŞARETLENMELİDİR.**
+    // İşaretlenmezse o küme "boş" görünür; yazma katmanı onu ilk dosyaya
+    // dağıtır ve kök dizini ezer (gerçek biçimlendiriciler de bunu yazar).
+    if (fat32) setFat(2, endMark);
 
     // İlk boş küme: FAT32'de 2 kökün kendisi.
     var nextFree = fat32 ? 3 : 2;

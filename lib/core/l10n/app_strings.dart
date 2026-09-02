@@ -2510,11 +2510,12 @@ const Map<String, (String, String, String)> _table = {
   ),
   'usb.open_raw': ('Belleği doğrudan aç', 'Open the drive directly', 'افتح المحرك مباشرة'),
   'usb.open_raw_hint': (
-    'Android bağlamasa da uygulama belleği kendi sürer. Şimdilik salt okunur: '
-    'dosyalar açılır ve kopyalanır, belleğe yazılmaz.',
+    'Android bağlamasa da uygulama belleği kendi sürer. FAT32/FAT16 belleklere '
+    'yazma da açık; exFAT ve NTFS şimdilik salt okunur.',
     'The app drives the device itself even if Android did not mount it. '
-    'Read-only for now: files open and copy out, nothing is written back.',
-    'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. للقراءة فقط حاليًا.',
+    'Writing works on FAT32/FAT16; exFAT and NTFS are read-only for now.',
+    'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. الكتابة متاحة على '
+    'FAT32/FAT16 فقط.',
   ),
   'usb.open_raw_failed_title': (
     'Bellek açılamadı',
@@ -2523,9 +2524,9 @@ const Map<String, (String, String, String)> _table = {
   ),
   'usb.open_raw_failed': (
     'Bellek doğrudan açılamadı: izin verilmedi ya da biçimi tanınmadı '
-    '(FAT32/exFAT destekleniyor).',
+    '(FAT16/FAT32/exFAT/NTFS destekleniyor).',
     'Could not open the drive directly: permission denied or unknown format '
-    '(FAT32/exFAT are supported).',
+    '(FAT16/FAT32/exFAT/NTFS are supported).',
     'تعذّر فتح المحرك مباشرة: رُفض الإذن أو تنسيق غير معروف.',
   ),
   'usb.diag_copied': ('Rapor panoya kopyalandı', 'Report copied', 'تم نسخ التقرير'),

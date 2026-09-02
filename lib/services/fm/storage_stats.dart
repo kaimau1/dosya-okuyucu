@@ -368,6 +368,17 @@ abstract final class StorageStats {
     }
   }
 
+  /// `Directory.existsSync` **fırlatabilir** (izin verilmeyen kökte EACCES) —
+  /// hata kaydı 2026-09-02: dosya yöneticisi bu yüzden komple düşmüştü.
+  /// Varlık denetimi her yerde bu kapıdan geçiyor.
+  static bool dirExists(String path) {
+    try {
+      return Directory(path).existsSync();
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// **Bağlama tablosundaki takılabilir birimler** — saf fonksiyon (testli).
   ///
   /// `/proc/mounts` her Linux'ta okunabilir ve bir birim GERÇEKTEN bağlıysa
@@ -454,7 +465,7 @@ abstract final class StorageStats {
   /// klasöründen (`…/Android/data/<paket>/files`) türetilir, o da yoksa
   /// uygulama belgeler klasörü (masaüstü/test).
   static Future<String?> primaryRoot() async {
-    if (Directory(primaryPath).existsSync()) return primaryPath;
+    if (dirExists(primaryPath)) return primaryPath;
     try {
       final ext = await getExternalStorageDirectory();
       if (ext != null) {
@@ -551,7 +562,7 @@ abstract final class StorageStats {
     for (final root in roots) {
       final folders = hotFolders(root);
       if (folders.isEmpty) {
-        if (Directory(root).existsSync()) out.add(root);
+        if (dirExists(root)) out.add(root);
         continue;
       }
       for (final f in folders) {
@@ -570,7 +581,7 @@ abstract final class StorageStats {
     for (final rel in extras) {
       final path = p.join(root, p.joinAll(rel.split('/')));
       if (out.contains(path)) continue;
-      if (Directory(path).existsSync()) out.add(path);
+      if (dirExists(path)) out.add(path);
     }
     return out;
   }
@@ -590,7 +601,7 @@ abstract final class StorageStats {
     final out = <({String label, String path, String icon})>[];
     for (final (label, dir, icon) in candidates) {
       final path = p.join(root, dir);
-      if (Directory(path).existsSync()) {
+      if (dirExists(path)) {
         out.add((label: label, path: path, icon: icon));
       }
     }

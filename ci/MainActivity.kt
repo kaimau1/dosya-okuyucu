@@ -208,6 +208,26 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "usbmsWrite" -> {
+                        val lba = (call.argument<Number>("lba") ?: 0).toLong()
+                        val data = call.argument<ByteArray>("data")
+                        val mass = usbMass
+                        if (mass == null || !mass.isOpen || data == null) {
+                            result.success(false)
+                        } else {
+                            Thread {
+                                val ok = try {
+                                    mass.write(lba, data)
+                                } catch (e: Exception) {
+                                    false
+                                }
+                                Handler(Looper.getMainLooper()).post {
+                                    result.success(ok)
+                                }
+                            }.start()
+                        }
+                    }
+
                     "usbmsClose" -> {
                         usbMass?.close()
                         usbMass = null

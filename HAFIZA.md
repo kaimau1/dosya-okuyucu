@@ -10236,3 +10236,50 @@ kodlanmış çalıştırma listeli, `$INDEX_ROOT`'lu.
   biçim mi?" sorusu ancak böyle cevaplanıyor.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2083 test yeşil**.
+
+## 2026-09-02 (dokuzuncu tur) — FAT'a YAZMA + çökme sınıfının kapatılması
+
+Kullanıcı: *"her türlü desteği sağlayalım, fat32 NTFS ne varsa okuyalım
+yazalım, premium süper bir okuma programı olalım."*
+
+### Yazma — FAT16/FAT32 (exFAT ve NTFS bilerek DIŞARIDA)
+Yazmanın okumadan farkı: **hata kalıcı.** Yanlış yazılan bir tablo belleğin
+tamamını kaybettirir. Bu yüzden en anlaşılır biçimle başlandı ve her işlem
+şu değişmezleri koruyor:
+
+1. **Bütün FAT kopyaları** güncelleniyor (yalnız birincisi yazılırsa Windows
+   belleği "onarılması gerekiyor" durumuna sokar);
+2. **Önce veri, sonra dizin girdisi** — yarıda kesilen işlem "var görünen ama
+   boş" dosya bırakmasın;
+3. **Önce girdi silinir, sonra zincir boşaltılır** — tersi araya giren bir
+   yazmanın aynı kümeleri kapmasına, iki dosyanın üst üste binmesine yol açar;
+4. **Yarım kalan yazma geri alınır**: akış hata verirse ayrılan kümeler geri
+   veriliyor, girdi hiç yazılmıyor (adı olmayan ama yer kaplayan kayıp küme
+   kalmasın);
+5. FAT32'de **üst 4 bit ayrılmıştır**, korunuyor; `..` girdisi kökü
+   gösteriyorsa küme numarası **0** yazılıyor (FAT kuralı).
+
+Akışlı yazma (`writeFileStream`) şart: 2 GB'lık videoyu belleğe alıp yazmak
+uygulamayı öldürürdü. Uzun ad (LFN) girdileri sağlama toplamıyla yazılıyor —
+tutmazsa Windows uzun adı yok sayar ve dosya `BELGE~1.PDF` görünür.
+
+### TUZAK — kök kümesi "boş" görünebilir
+Sentetik imajda FAT[2] işaretlenmemişti; yazma katmanı kök kümesini boş sanıp
+ilk dosyaya dağıttı ve **kök dizin ezildi** (bütün dosyalar bir anda kayboldu,
+testler yakaladı). İki düzeltme: üretici artık kök zincirini işaretliyor VE
+`_allocate` kök kümesini asla dağıtmıyor (bozuk biçimlendirilmiş gerçek
+bellekler de böyle olabilir).
+
+### Çökme sınıfı kapatıldı — `existsSync` her yerde korunuyor
+Hata kaydından: `/mnt/media_rw` üzerinde `existsSync` EACCES fırlatıyor ve
+dosya yöneticisini komple düşürüyordu. `StorageStats.dirExists` eklendi ve
+dosyadaki bütün çıplak `Directory(...).existsSync()` çağrıları ondan geçiyor.
+
+### Native yazma
+`WRITE(10)` (CDB 0x2A) + yazma korumasında (duyu anahtarı 7) yeniden denemeden
+vazgeçme. Okumadaki gibi 128 sektörlük parçalar: tek seferde büyük istek bazı
+belleklerde sessizce kırpılıyor ve YARIM yazılmış sektör bırakıyor.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2095 test yeşil**
+(12'si yeni yazma testi; ölçüt "çağrı patlamadı" değil, imajın yeniden
+okunduğunda tutarlı olması).

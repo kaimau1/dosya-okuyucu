@@ -20,6 +20,17 @@ abstract class BlockDevice {
   /// çözümlemek sessiz bozulma demektir).
   Future<Uint8List> readBlocks(int lba, int count);
 
+  /// Aygıta YAZILABİLİR mi? Varsayılan hayır: yazma yeteneği açıkça
+  /// gerçeklenmeden hiçbir katman diske dokunamasın.
+  bool get writable => false;
+
+  /// [lba] sektöründen başlayarak [data]'yı yazar.
+  ///
+  /// [data] uzunluğu [blockSize]'ın katı olmalıdır — yarım sektör yazmak
+  /// dosya sisteminde tanımsız bir durum bırakır.
+  Future<void> writeBlocks(int lba, Uint8List data) =>
+      throw const BlockDeviceException('Bu aygıt salt okunur');
+
   /// Aygıtı kapatır (kaynakları bırakır).
   Future<void> close() async {}
 }
@@ -58,7 +69,25 @@ class MemoryBlockDevice extends BlockDevice {
       throw BlockDeviceException(
           'okuma aygıtın dışında: lba=$lba adet=$count (toplam $blockCount)');
     }
-    return Uint8List.sublistView(bytes, start, end);
+    // **Kopya döner.** Görünüm (`sublistView`) dönseydi çağıran, yazdığı
+    // tamponu değiştirdiğinde imajı da değiştirirdi ve testler gerçeği
+    // yansıtmazdı.
+    return Uint8List.fromList(bytes.sublist(start, end));
+  }
+
+  @override
+  bool get writable => true;
+
+  @override
+  Future<void> writeBlocks(int lba, Uint8List data) async {
+    if (data.length % blockSize != 0) {
+      throw const BlockDeviceException('yazma sektör katı değil');
+    }
+    final start = lba * blockSize;
+    if (lba < 0 || start + data.length > bytes.length) {
+      throw BlockDeviceException('yazma aygıtın dışında: lba=$lba');
+    }
+    bytes.setRange(start, start + data.length, data);
   }
 }
 
@@ -85,6 +114,20 @@ class PartitionBlockDevice extends BlockDevice {
           'okuma bölümün dışında: lba=$lba adet=$count (bölüm $blockCount)');
     }
     return parent.readBlocks(firstLba + lba, count);
+  }
+
+  @override
+  bool get writable => parent.writable;
+
+  @override
+  Future<void> writeBlocks(int lba, Uint8List data) {
+    final count = data.length ~/ blockSize;
+    if (lba < 0 || lba + count > blockCount) {
+      // Bölüm sınırının dışına yazmak KOMŞU BÖLÜMÜ bozar; bu denetim
+      // olmadan bir hesap hatası bütün diski riske atardı.
+      throw BlockDeviceException('yazma bölümün dışında: lba=$lba');
+    }
+    return parent.writeBlocks(firstLba + lba, data);
   }
 
   @override
@@ -127,6 +170,24 @@ class CachedBlockDevice extends BlockDevice {
     _order.add(lba);
     if (_order.length > capacity) _cache.remove(_order.removeAt(0));
     return data;
+  }
+
+  @override
+  bool get writable => inner.writable;
+
+  /// **Yazılan sektörler önbellekten DÜŞÜRÜLÜR.**
+  ///
+  /// Yoksa FAT tablosuna yazdıktan sonra eski kopyayı okur, boş sandığımız
+  /// kümeyi ikinci kez dağıtır ve iki dosyayı birbirinin üstüne yazardık —
+  /// sessiz veri kaybının en kötü türü.
+  @override
+  Future<void> writeBlocks(int lba, Uint8List data) async {
+    final count = data.length ~/ blockSize;
+    for (var i = 0; i < count; i++) {
+      _cache.remove(lba + i);
+      _order.remove(lba + i);
+    }
+    await inner.writeBlocks(lba, data);
   }
 
   @override

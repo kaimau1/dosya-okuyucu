@@ -98,6 +98,44 @@ class UsbBlockDevice extends BlockDevice {
     return data;
   }
 
+  /// Ham USB'ye **yazılabilir**; dosya sistemi katmanı buna göre karar
+  /// veriyor (FAT yazıyor, exFAT/NTFS şimdilik yazmıyor).
+  @override
+  bool get writable => true;
+
+  @override
+  Future<void> writeBlocks(int lba, Uint8List data) async {
+    if (data.isEmpty) return;
+    if (data.length % blockSize != 0) {
+      throw const BlockDeviceException('yazma sektör katı değil');
+    }
+    // Okumadaki gibi parçalanıyor: tek seferde çok büyük istek bazı
+    // belleklerde sessizce kırpılıyor ve YARIM yazılmış sektör bırakıyor.
+    final perChunk = maxBlocksPerRead * blockSize;
+    var offset = 0;
+    while (offset < data.length) {
+      final end = (offset + perChunk) > data.length
+          ? data.length
+          : offset + perChunk;
+      final chunk = Uint8List.sublistView(data, offset, end);
+      final bool ok;
+      try {
+        ok = await _channel.invokeMethod<bool>('usbmsWrite', {
+              'lba': lba + offset ~/ blockSize,
+              'data': chunk,
+            }) ??
+            false;
+      } catch (e) {
+        throw BlockDeviceException('USB yazma hatası: $e');
+      }
+      if (!ok) {
+        throw BlockDeviceException(
+            'USB yazma reddedildi (lba=${lba + offset ~/ blockSize})');
+      }
+      offset = end;
+    }
+  }
+
   @override
   Future<void> close() async {
     try {

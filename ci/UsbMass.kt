@@ -249,6 +249,42 @@ class UsbMass(private val context: Context) {
         return if (status == STATUS_OK) out else null
     }
 
+    /**
+     * `WRITE(10)` — [lba] sektöründen itibaren [data] yazar.
+     *
+     * **Yazma bilinçli olarak SON eklendi ve dar tutuldu:** yanlış yazılan
+     * bir FAT tablosu kullanıcının bütün belleğini kaybettirir. Dosya
+     * sistemi mantığı Dart tarafında ve sentetik imajlarla test edilmiş
+     * durumda; burası yalnız "şu sektörlere şu baytları koy" köprüsü.
+     */
+    fun write(lba: Long, data: ByteArray): Boolean {
+        if (!isOpen || blockSize == 0) return false
+        if (data.isEmpty() || data.size % blockSize != 0) return false
+        val count = data.size / blockSize
+        val cdb = ByteArray(10)
+        cdb[0] = 0x2A // WRITE(10)
+        cdb[2] = ((lba shr 24) and 0xFF).toByte()
+        cdb[3] = ((lba shr 16) and 0xFF).toByte()
+        cdb[4] = ((lba shr 8) and 0xFF).toByte()
+        cdb[5] = (lba and 0xFF).toByte()
+        cdb[7] = ((count shr 8) and 0xFF).toByte()
+        cdb[8] = (count and 0xFF).toByte()
+        var status = transfer(cdb, data, data.size, dataIn = false)
+        if (status == STATUS_FAILED) {
+            val sense = requestSense()
+            if (sense != null) {
+                val key = sense[2].toInt() and 0x0F
+                // 7 = yazma korumalı: yeniden denemenin anlamı yok.
+                if (key == 7) {
+                    error = "Bellek yazma korumalı"
+                    return false
+                }
+            }
+            status = transfer(cdb, data, data.size, dataIn = false)
+        }
+        return status == STATUS_OK
+    }
+
     /** Aygıtta kaç mantıksal birim var? (Kart okuyucularda >0.) */
     private fun getMaxLun(): Int {
         val conn = connection ?: return 0

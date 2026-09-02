@@ -133,9 +133,10 @@ class UsbFs extends RemoteFs {
   @override
   Future<void> close() => device.close();
 
-  /// Salt okunur: yazma düğmeleri arayüzde sönük görünür.
+  /// Yazma, dosya sistemi destekliyorsa açık (FAT16/FAT32). exFAT ve NTFS
+  /// şimdilik salt okunur — arayüzdeki düğmeler ona göre sönüyor.
   @override
-  bool get canWrite => false;
+  bool get canWrite => fs.writable;
 
   @override
   Future<List<RemoteEntry>> list(String path) async {
@@ -202,27 +203,98 @@ class UsbFs extends RemoteFs {
     return file;
   }
 
-  // ── Yazma yok (ilk tur) ────────────────────────────────────────────────
+  // ── Yazma (FAT16/FAT32) ────────────────────────────────────────────────
+
+  /// Bir yolun ait olduğu klasörün tutamağı; bilinmiyorsa hata.
+  ///
+  /// Tutamaklar gezinti sırasında öğreniliyor (FAT'ta bir klasörün tutamağı
+  /// ilk kümesidir ve yoldan HESAPLANAMAZ).
+  Object _dirHandle(String path) {
+    final key = path.isEmpty ? '/' : path;
+    final handle = _handles[key];
+    if (handle == null) {
+      throw const RemoteException(RemoteError.notFound,
+          detail: 'Klasör bulunamadı (önce açılmalı).');
+    }
+    return handle;
+  }
+
+  String _parentOf(String path) {
+    final cut = path.lastIndexOf('/');
+    if (cut <= 0) return '/';
+    return path.substring(0, cut);
+  }
+
+  RemoteException _wrap(Object e) => e is UsbFsException
+      ? RemoteException(RemoteError.denied, detail: e.message)
+      : (e is BlockDeviceException
+          ? RemoteException(RemoteError.unreachable, detail: e.message)
+          : RemoteException(RemoteError.unknown, detail: '$e'));
 
   @override
-  Future<void> upload(File local, String remoteDir, {String? name}) async =>
-      throw const RemoteException(RemoteError.denied,
-          detail: 'Ham USB erişimi şimdilik salt okunur.');
+  Future<void> upload(File local, String remoteDir, {String? name}) async {
+    final target = name ?? local.uri.pathSegments.last;
+    try {
+      // **Akışla yazılıyor:** 2 GB'lık bir videoyu önce belleğe almak
+      // uygulamayı öldürürdü.
+      final length = await local.length();
+      await fs.writeFileStream(
+          _dirHandle(remoteDir), target, local.openRead(), length);
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
 
   @override
-  Future<void> delete(RemoteEntry entry) async =>
-      throw const RemoteException(RemoteError.denied,
-          detail: 'Ham USB erişimi şimdilik salt okunur.');
+  Future<void> delete(RemoteEntry entry) async {
+    try {
+      final parent = _dirHandle(_parentOf(entry.path));
+      await fs.deleteEntry(
+          parent,
+          UsbEntry(
+            name: entry.name,
+            isDir: entry.isDir,
+            id: _handles[entry.path] ?? 0,
+            sizeBytes: entry.sizeBytes,
+          ));
+      _handles.remove(entry.path);
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
 
   @override
-  Future<void> makeDirectory(String path) async =>
-      throw const RemoteException(RemoteError.denied,
-          detail: 'Ham USB erişimi şimdilik salt okunur.');
+  Future<void> makeDirectory(String path) async {
+    try {
+      final cut = path.lastIndexOf('/');
+      final parent = _dirHandle(cut <= 0 ? '/' : path.substring(0, cut));
+      final name = path.substring(cut + 1);
+      final created = await fs.createDirectory(parent, name);
+      _handles[path] = created.id;
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
 
   @override
-  Future<void> rename(RemoteEntry entry, String newName) async =>
-      throw const RemoteException(RemoteError.denied,
-          detail: 'Ham USB erişimi şimdilik salt okunur.');
+  Future<void> rename(RemoteEntry entry, String newName) async {
+    try {
+      final parent = _dirHandle(_parentOf(entry.path));
+      await fs.renameEntry(
+        parent,
+        UsbEntry(
+          name: entry.name,
+          isDir: entry.isDir,
+          id: _handles[entry.path] ?? 0,
+          sizeBytes: entry.sizeBytes,
+        ),
+        newName,
+      );
+      _handles.remove(entry.path);
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
 }
 
 

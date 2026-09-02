@@ -42,6 +42,46 @@ abstract class UsbFileSystem {
 
   /// Bir dosyanın içeriği — parça parça (büyük video belleğe sığmaz).
   Stream<Uint8List> openRead(UsbEntry entry);
+
+  // ── Yazma (gerçekleyen dosya sistemlerinde) ────────────────────────────
+  //
+  // Varsayılan "hayır": yazma yeteneği açıkça gerçeklenmeden hiçbir katman
+  // diske dokunamasın. NTFS bilerek salt okunur (bkz. `NtfsFileSystem`);
+  // bir NTFS tablosunu yanlış yazmak diskin tamamını kaybettirir ve doğru
+  // yazmak günlük (journal) tutmayı gerektirir.
+
+  /// Bu dosya sistemine yazılabilir mi?
+  bool get writable => false;
+
+  /// [dirId] altında [name] adlı dosyayı [data] içeriğiyle oluşturur
+  /// (aynı adlı varsa üzerine yazar) ve girdisini döner.
+  Future<UsbEntry> writeFile(Object dirId, String name, Uint8List data) =>
+      throw const UsbFsException('Bu biçimde yazma desteklenmiyor');
+
+  /// Akıştan yazar — **büyük dosyanın tek yolu**.
+  ///
+  /// 2 GB'lık bir videoyu [writeFile] ile yazmak, önce onu tümüyle belleğe
+  /// almak demektir: telefon uygulamayı öldürür. Burada küme küme
+  /// tüketiliyor. [totalLength] önceden bilinmeli (yer ayırmak için).
+  Future<UsbEntry> writeFileStream(
+    Object dirId,
+    String name,
+    Stream<List<int>> data,
+    int totalLength,
+  ) =>
+      throw const UsbFsException('Bu biçimde yazma desteklenmiyor');
+
+  /// [dirId] altında klasör açar; yeni klasörün tutamağını döner.
+  Future<UsbEntry> createDirectory(Object dirId, String name) =>
+      throw const UsbFsException('Bu biçimde yazma desteklenmiyor');
+
+  /// [entry]'yi siler ([dirId] onun bulunduğu klasör).
+  Future<void> deleteEntry(Object dirId, UsbEntry entry) =>
+      throw const UsbFsException('Bu biçimde yazma desteklenmiyor');
+
+  /// [entry]'yi yeniden adlandırır (veri taşınmaz, yalnız girdi değişir).
+  Future<void> renameEntry(Object dirId, UsbEntry entry, String newName) =>
+      throw const UsbFsException('Bu biçimde yazma desteklenmiyor');
 }
 
 /// Dosya sistemi tanınamadığında/bozuk olduğunda.
