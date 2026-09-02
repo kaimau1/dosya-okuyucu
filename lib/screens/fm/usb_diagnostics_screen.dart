@@ -6,7 +6,9 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../services/fm/remote/usb_fs.dart';
 import '../../services/fm/usb/usb_report.dart';
+import 'remote/remote_browser_screen.dart';
 
 /// **USB teşhis ekranı** — tahmini bitiren ölçüm.
 ///
@@ -31,6 +33,7 @@ class UsbDiagnosticsScreen extends StatefulWidget {
 class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
   UsbReport? _report;
   var _loading = true;
+  var _opening = false;
 
   @override
   void initState() {
@@ -45,6 +48,28 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
     final done = context.t('usb.diag_copied');
     await Clipboard.setData(ClipboardData(text: report.toText()));
     showSnackOn(messenger, done);
+  }
+
+  /// Belleği **doğrudan sürerek** açar (Android bağlamamış olsa da).
+  ///
+  /// İzin penceresi kullanıcıya çıkar; verilmezse ya da biçim tanınmazsa
+  /// sebebi söylenir — sessizce boş bir ekran açmak en kötüsü olurdu.
+  Future<void> _openRaw() async {
+    setState(() => _opening = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final failed = context.t('usb.open_raw_failed');
+    final fs = await UsbFs.open();
+    if (!mounted) return;
+    setState(() => _opening = false);
+    if (fs == null) {
+      showSnackOn(messenger, failed, duration: kSnackAction);
+      return;
+    }
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RemoteBrowserScreen(connection: fs.connection, fs: fs),
+    ));
+    // Gezgin kapandı: aygıtı bırak (başka uygulama da kullanabilsin).
+    await fs.close();
   }
 
   Future<void> _load() async {
@@ -82,6 +107,27 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
               padding: const EdgeInsets.all(Gap.md),
               children: [
                 _verdictCard(report!),
+                // **Ham sürücüyü DENE.** Ölçüm "Android bağlamadı" diyorsa
+                // tek çare bu; diyagnostik ekranı ölçümü gösterip kullanıcıyı
+                // yalnız bırakmamalı.
+                if (report.devices.any((d) => d.isDrivable)) ...[
+                  const SizedBox(height: Gap.sm),
+                  FilledButton.icon(
+                    onPressed: _opening ? null : () => unawaited(_openRaw()),
+                    icon: _opening
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.usb),
+                    label: Text(context.t('usb.open_raw')),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: Gap.xs),
+                    child: Text(context.t('usb.open_raw_hint'),
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                ],
                 const SizedBox(height: Gap.md),
                 _section(context.t('usb.diag_devices'), [
                   '${context.t('usb.diag_host')}: '

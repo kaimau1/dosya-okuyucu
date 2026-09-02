@@ -157,6 +157,10 @@ jobs:
           # Seçici kipi aktivitesi ("Şuradan aç" çekmecesindeki ok işareti).
           # Manifest'teki <activity android:name=".PickerActivity"> bunu arar.
           cp ci/PickerActivity.kt "$DIR/PickerActivity.kt"
+          # Ham USB yığın depolama sürücüsü (SCSI Bulk-Only Transport).
+          # MainActivity ondan `UsbMass(...)` diye örnek üretiyor; kopyalanmazsa
+          # derleme "unresolved reference" ile kırılır.
+          cp ci/UsbMass.kt "$DIR/UsbMass.kt"
           # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
           # kalırsa "duplicate class" hatası verir.
           rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java

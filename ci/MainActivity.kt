@@ -58,6 +58,9 @@ class MainActivity : FlutterActivity() {
     /** SAF klasör seçimi sonucunu bekleyen çağrı. */
     private var pendingPick: MethodChannel.Result? = null
 
+    /** Açık ham USB belleği (varsa) — bkz. `UsbMass`. */
+    private var usbMass: UsbMass? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launchAction = intent?.action
@@ -178,6 +181,38 @@ class MainActivity : FlutterActivity() {
                     "usbHostSupported" -> result.success(
                         packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST)
                     )
+
+                    // ── Ham USB yığın depolama (salt okunur) ────────────
+                    //
+                    // Android belleği HİÇ bağlamadığında tek yol bu. Dosya
+                    // sistemi çözümlemesi Dart tarafında; burası yalnız
+                    // "sektör oku" köprüsü (bkz. ci/UsbMass.kt).
+                    "usbmsOpen" -> {
+                        val name = call.argument<String>("device")
+                        openUsbMass(name, result)
+                    }
+
+                    "usbmsRead" -> {
+                        val lba = (call.argument<Number>("lba") ?: 0).toLong()
+                        val count = (call.argument<Number>("count") ?: 1).toInt()
+                        val mass = usbMass
+                        if (mass == null || !mass.isOpen) {
+                            result.success(null)
+                        } else {
+                            // Toplu okuma bir SCSI komutu = milisaniyeler;
+                            // ana izlekte yapılırsa arayüz donar.
+                            Thread {
+                                val data = try { mass.read(lba, count) } catch (e: Exception) { null }
+                                Handler(Looper.getMainLooper()).post { result.success(data) }
+                            }.start()
+                        }
+                    }
+
+                    "usbmsClose" -> {
+                        usbMass?.close()
+                        usbMass = null
+                        result.success(true)
+                    }
 
                     // ── SAF (Storage Access Framework) ──────────────────
                     "safPickTree" -> {
@@ -622,6 +657,54 @@ class MainActivity : FlutterActivity() {
             if (readableDir(guess)) return guess
         }
         return null
+    }
+
+    /**
+     * Ham USB belleği açar: gerekiyorsa İZİN ister, sonra aygıtı sürer.
+     *
+     * İzin penceresi kullanıcıyı beklettiği için akış asenkron; açma ve SCSI
+     * komutları da arka izlekte (bulk aktarım ana izlekte arayüzü dondurur).
+     * Sonuç `{blockSize, blockCount}` ya da başarısızlıkta `null`.
+     */
+    private fun openUsbMass(deviceName: String?, result: MethodChannel.Result) {
+        val um = try {
+            getSystemService(Context.USB_SERVICE) as UsbManager
+        } catch (e: Exception) {
+            result.success(null); return
+        }
+        val device = try {
+            um.deviceList.values.firstOrNull {
+                deviceName == null || it.deviceName == deviceName
+            }
+        } catch (e: Exception) {
+            null
+        }
+        if (device == null) {
+            result.success(null); return
+        }
+        val mass = UsbMass(this)
+        mass.requestPermission(device) { granted ->
+            if (!granted) {
+                result.success(null)
+                return@requestPermission
+            }
+            Thread {
+                val ok = try { mass.open(device) } catch (e: Exception) { false }
+                val payload = if (ok) {
+                    usbMass?.close()
+                    usbMass = mass
+                    mapOf(
+                        "blockSize" to mass.blockSize,
+                        "blockCount" to mass.blockCount,
+                        "device" to device.deviceName
+                    )
+                } else {
+                    mass.close()
+                    null
+                }
+                Handler(Looper.getMainLooper()).post { result.success(payload) }
+            }.start()
+        }
     }
 
     /**

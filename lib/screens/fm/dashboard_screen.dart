@@ -26,6 +26,8 @@ import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../services/fm/tool_usage.dart';
 import '../../services/fm/remote/saf_fs.dart';
+import '../../services/fm/remote/usb_fs.dart';
+import '../../services/fm/usb/usb_host.dart';
 import '../../services/fm/volume_watcher.dart';
 import 'remote/remote_browser_screen.dart';
 import 'usb_diagnostics_screen.dart';
@@ -1461,25 +1463,38 @@ class _DashboardScreenState extends State<DashboardScreen>
         return _openExternal(fresh);
       }
       if (!mounted) return;
-      // Yol yoluyla bulunamadı. **SAF'a düş:** kullanıcı daha önce klasör
-      // izni verdiyse doğrudan aç, vermediyse teklif et. Android 11+ üzerinde
-      // takılabilir belleğe erişmenin herkese açık yolu bu (bkz. `SafFs`).
-      // Seçici, Android'in bildiği birimin üstünde açılsın (bulunabilirse).
-      final stuck = await VolumeWatcher.attachedButUnusable();
+      // **Android'in bağlamadığı ama SÜRÜLEBİLİR bir bellek** varsa akış
+      // burada bitmez: aşağıdaki sayfa onu da (ham USB olarak) sunuyor.
+      // Doğrudan SAF penceresine atlamak, o belleği hiç göstermeden
+      // kullanıcıyı seçiciyle baş başa bırakırdı.
+      final raw = (await UsbHost.devices()).where((d) => d.isDrivable);
       if (!mounted) return;
-      if (await _openViaSaf(volume: stuck?.key)) return;
-      if (!mounted) return;
-      // Android bir birim BİLİYOR ama bağlamamışsa bunu söyle — "yok" demek
-      // yanlış olur ve kullanıcı uygulamayı bozuk sanır.
-      await _reportStuckExternal();
-      return;
+      if (raw.isEmpty) {
+        // Yol yoluyla bulunamadı. **SAF'a düş:** kullanıcı daha önce klasör
+        // izni verdiyse doğrudan aç, vermediyse teklif et. Android 11+
+        // üzerinde takılabilir belleğe erişmenin herkese açık yolu bu.
+        // Seçici, Android'in bildiği birimin üstünde açılsın.
+        final stuck = await VolumeWatcher.attachedButUnusable();
+        if (!mounted) return;
+        if (await _openViaSaf(volume: stuck?.key)) return;
+        if (!mounted) return;
+        // Android bir birim BİLİYOR ama bağlamamışsa bunu söyle — "yok"
+        // demek yanlış olur ve kullanıcı uygulamayı bozuk sanır.
+        await _reportStuckExternal();
+        return;
+      }
     }
     // **Klasör izniyle eklenen bellekler de listede** (kullanıcı 2026-09-02:
     // başka bir dosya yöneticisi USB'yi böyle ekleyip gösteriyor). Yol yoluyla
     // görünen bir SD kart dururken izinli USB'yi gizlemek, kullanıcıyı onu
     // yeniden eklemeye zorlardı.
     final saf = _safRoots;
-    if (volumes.length == 1 && saf.isEmpty) {
+    // **Android'in bağlamadığı bir bellek varsa onu da sun** — sürülebilir
+    // (Bulk-Only SCSI) bir aygıt duruyorsa uygulama onu kendi sürebiliyor.
+    final drivable =
+        (await UsbHost.devices()).where((d) => d.isDrivable).toList();
+    if (!mounted) return;
+    if (volumes.length == 1 && saf.isEmpty && drivable.isEmpty) {
       final only = volumes.single;
       return _push(
           BrowserScreen(path: only.path, title: only.displayLabel(context.t)));
@@ -1517,6 +1532,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                 title: Text(ctx.t('saf.pick')),
                 onTap: () => Navigator.pop(ctx, 'pick'),
               ),
+              // Android bağlamadıysa: belleği doğrudan sür (salt okunur).
+              for (final d in drivable)
+                ListTile(
+                  leading: const Icon(Icons.usb),
+                  title: Text(d.displayName),
+                  subtitle: Text(ctx.t('usb.open_raw')),
+                  onTap: () => Navigator.pop(ctx, 'raw:${d.name}'),
+                ),
               // Bellek görünmüyorsa tahmin yürütmek yerine ÖLÇ.
               ListTile(
                 leading: const Icon(Icons.troubleshoot),
@@ -1535,9 +1558,31 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     if (picked is SafRoot) return _openSafRoot(picked);
     if (picked == 'diag') return _openDiagnostics();
+    if (picked is String && picked.startsWith('raw:')) {
+      return _openRawUsb(picked.substring(4));
+    }
     final stuck = await VolumeWatcher.attachedButUnusable();
     if (!mounted) return;
     await _openViaSaf(volume: stuck?.key);
+  }
+
+  /// **Ham USB:** Android belleği bağlamadıysa uygulama onu kendi sürer.
+  ///
+  /// Salt okunur (bkz. `UsbFs`): dosyalar açılır ve kopyalanır, belleğe
+  /// yazılmaz. Açılamazsa sebebi söylenir — sessizce boş ekran açmak yerine.
+  Future<void> _openRawUsb(String deviceName) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final failed = context.t('usb.open_raw_failed');
+    final fs = await UsbFs.open(deviceName: deviceName);
+    if (!mounted) return;
+    if (fs == null) {
+      showSnackOn(messenger, failed, duration: kSnackAction);
+      return;
+    }
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RemoteBrowserScreen(connection: fs.connection, fs: fs),
+    ));
+    await fs.close();
   }
 
   /// USB teşhis ekranı — hangi kanalın ne dediğini ham hâliyle gösterir.

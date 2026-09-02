@@ -10097,3 +10097,68 @@ büyük bir iş. Kotlin tarafı bu depoda test EDİLEMİYOR (CI yalnız derler);
 `canList`, ve sahte kanalla `volumes()`: durumu `unknown` ama gezilebilen birim
 listeye GİRER, gezilemeyen GİRMEZ, uygulama klasöründen türetilen kök de birim
 sayılır, aynı birim iki kanaldan gelse bir kez eklenir.
+
+## 2026-09-02 (yedinci tur) — Ölçüm + HAM USB YIĞIN DEPOLAMA SÜRÜCÜSÜ
+
+Kullanıcı: *"kendi USB yığın depolama sürücümüzü yazmak bunu yapsak
+garantiye alsak işimizi"* → seçim: **teşhis ekranı + sürücüye hemen başla.**
+
+### A) Niye önce ÖLÇÜM (ve niye yine de sürücü yazıldı)
+Ham sürücü YALNIZ tek bir durumda işe yarar ve o durumu ölçmeden yazılan kod
+boşa gidebilir:
+* Android belleği bağlamış, yol vermiyor → **klasör izni (SAF) yeter**;
+* Android hiç bağlamamış → **tek çare ham sürücü**;
+* Aygıt yığın depolama değil → yapılacak şey yok.
+
+Üstelik bellek Android tarafından BAĞLIYKEN ham sürücü zaten çalışmaz:
+aygıtı çekirdek/vold tutar, `claimInterface` başarısız döner. Yani sürücü tam
+da "bağlı ama göremiyoruz" durumunda İŞE YARAMAZ. Kullanıcı yine de ikisini
+birden istedi; ölçüm ekranı kararı kesinleştirsin diye önce o yazıldı.
+
+**`UsbReport.decide`** (saf, testli) altı kanalı tek karara indiriyor;
+`rawDriverWouldHelp` "bu cihazda ham sürücü işe yarar mı" sorusunun cevabı.
+Ekran: Ayarlar > Bakım > USB teşhisi + harici bellek sayfasındaki satır.
+"Raporu kopyala" ölçümü düz metin veriyor.
+
+### B) Ham sürücü — sınır bilerek çizildi
+**Kotlin (`ci/UsbMass.kt`) yalnız bir KÖPRÜ:** izin iste → arayüzü sahiplen
+(sınıf 8, protokol 0x50 = Bulk-Only) → uçları bul → `TEST UNIT READY`,
+`READ CAPACITY(10)`, `READ(10)`. Hepsi CBW/CSW akışı. **Yazma YOK** (`WRITE`
+komutu hiç yazılmadı): yanlış yazılan bir FAT tablosu kullanıcının bütün
+belleğini kaybettirir, yanlış okuma en fazla dosyayı açmaz.
+
+**Riskin tamamı saf Dart tarafında** (`lib/services/fm/usb/`), çünkü orası
+cihazsız test edilebiliyor (CI Kotlin'i yalnız DERLER):
+* `BlockDevice` soyutlaması + `MemoryBlockDevice` (testlerin tabanı),
+  `PartitionBlockDevice` (bölümün 0. sektörü), `CachedBlockDevice`
+  (FAT zincirini izlerken aynı sektörü tekrar tekrar okumamak — USB'de her
+  okuma bir SCSI komutu);
+* `PartitionTable`: MBR + GPT + **süper disket** (tablo yok, dosya sistemi
+  0. sektörde — kameraların/fabrika biçimlendirmesinin yaptığı budur;
+  tabloyu şart koşan bir sürücü o belleklerde "boş" derdi);
+* `FatFileSystem`: FAT12/16/32, **sürüm küme sayısından** belirleniyor
+  (standart böyle), LFN (uzun ad) birleştirme, zincir izleme;
+* `ExfatFileSystem`: **64 GB'lık bellekler fabrikadan exFAT çıkar** —
+  yalnız FAT32 okuyan bir sürücü tam da şikâyet edilen bellekte çalışmazdı.
+  `NoFatChain` bayrağı: bitişik dosyada FAT hiç okunmuyor.
+* `UsbFs implements RemoteFs` → **yeni gezgin ekranı YAZILMADI** (SAF'ta
+  olduğu gibi); "indir-aç" akışıyla bütün biçim desteği ilk günden çalışıyor.
+  `canWrite=false`.
+
+### C) TUZAK — eksik veriyle dosya sistemi çözümlemek
+`UsbBlockDevice` istenen bayt gelmezse **fırlatıyor**. Kırpılmış veriyi kabul
+etmek kullanıcıya "yarısı doğru" dosya vermek olurdu; yarım inen dosya da
+siliniyor (kullanıcı onu açıp bozuk sanmasın). Tek okumanın üst sınırı 128
+sektör: bazı bellekler daha büyük isteği sessizce kırpıyor.
+
+### D) Testler — `test/helpers/usb_image.dart` + `usb_filesystem_test.dart`
+Gerçek yapıların birebir aynısı **sentetik imajlar** üretiliyor (BPB, FAT
+zinciri, 32 baytlık dizin girdileri, ters sıralı LFN parçaları, exFAT
+0x85/0xC0/0xC1 üçlüsü). 19 test: FAT32 (uzun Türkçe ad, çok kümeli dosya,
+tarih), FAT16 (kök sabit alanda), exFAT (bitişik ve zincirli), MBR/GPT/süper
+disket, bölüm sınırı, önbellek.
+
+**Kapsam sınırı:** Kotlin köprüsü ve gerçek aygıtla konuşma bu depoda test
+EDİLEMİYOR; ancak cihazda görülür. Ölçüm ekranı bu yüzden var.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2065 test yeşil**.

@@ -2508,6 +2508,21 @@ const Map<String, (String, String, String)> _table = {
     'Measures which channel sees the attached drive and says what to do.',
     'يقيس أي قناة ترى المحرك المتصل ويخبرك بما ينبغي فعله.',
   ),
+  'usb.open_raw': ('Belleği doğrudan aç', 'Open the drive directly', 'افتح المحرك مباشرة'),
+  'usb.open_raw_hint': (
+    'Android bağlamasa da uygulama belleği kendi sürer. Şimdilik salt okunur: '
+    'dosyalar açılır ve kopyalanır, belleğe yazılmaz.',
+    'The app drives the device itself even if Android did not mount it. '
+    'Read-only for now: files open and copy out, nothing is written back.',
+    'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. للقراءة فقط حاليًا.',
+  ),
+  'usb.open_raw_failed': (
+    'Bellek doğrudan açılamadı: izin verilmedi ya da biçimi tanınmadı '
+    '(FAT32/exFAT destekleniyor).',
+    'Could not open the drive directly: permission denied or unknown format '
+    '(FAT32/exFAT are supported).',
+    'تعذّر فتح المحرك مباشرة: رُفض الإذن أو تنسيق غير معروف.',
+  ),
   'usb.diag_copied': ('Rapor panoya kopyalandı', 'Report copied', 'تم نسخ التقرير'),
   'usb.diag_devices': ('Takılı aygıtlar', 'Attached devices', 'الأجهزة المتصلة'),
   'usb.diag_host': ('USB ana makine (OTG)', 'USB host (OTG)', 'مضيف USB'),
