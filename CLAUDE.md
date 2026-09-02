@@ -39,6 +39,10 @@ android iskeleti → AndroidManifest'e INTERNET izni + app adı → minSdk 23 pa
   **Bulut (Linux) oturumunda da doğrulama yapılabilir:** Flutter 3.29.3 (CI ile aynı
   sürüm) indirilip `pub get / analyze / test` koşturulur — ayrıntı ve tuzaklar
   HAFIZA 2026-07-25 §F. Kör push etme.
+  **`ci/*.kt` değiştiyse `tool/check_kotlin.sh` koştur** (kotlinc + Android
+  taslakları; yoksa sessizce atlar). Kotlin yalnız CI'da derleniyordu ve tek
+  satırlık bir tür hatası 13 dakikalık bir derleme turunu yakıyordu — bkz.
+  HAFIZA 2026-09-02 (on birinci tur).
 - **Commit mesajı sonu:** `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
   ve `Claude-Session:` satırı.
 - Bilinen derleme tuzakları (CardThemeData, platform klasörleri, keystore) → **HAFIZA.md**

@@ -416,7 +416,10 @@ class UsbMass(private val context: Context) {
 
     private fun readCapacity16(): Boolean {
         val cdb = ByteArray(16)
-        cdb[0] = 0x9E
+        // **0x7F üstü sabitler Byte'a SIĞMAZ** (Kotlin'de Byte işaretli):
+        // `cdb[0] = 0x9E` derlenmez, açıkça çevrilmeli. Yerel denetleyici
+        // (`tool/check_kotlin.sh`) bunu yakaladı; CI o satıra hiç gelmemişti.
+        cdb[0] = 0x9E.toByte()
         cdb[1] = 0x10 // SERVICE ACTION IN / READ CAPACITY(16)
         cdb[13] = 32
         val data = ByteArray(32)
@@ -452,7 +455,12 @@ class UsbMass(private val context: Context) {
         cbw.putInt(thisTag)
         cbw.putInt(length)
         // Veri yokken yön biti anlamsızdır (standart: yok sayılır).
-        cbw.put(if (length > 0 && dataIn) 0x80.toByte() else 0x00)
+        //
+        // **Kotlin tuzağı (CI 331 kırmızı):** `if (…) 0x80.toByte() else 0x00`
+        // ifadesinin türü Byte DEĞİL Int olur (dallardan biri Int sabiti) ve
+        // `put(Byte)` çağrısı derlenmez. Sabit atamalarda (`cdb[0] = 0x28`)
+        // sorun çıkmaz, çünkü orada beklenen tür bellidir.
+        cbw.put(if (length > 0 && dataIn) 0x80.toByte() else 0.toByte())
         cbw.put(lun.toByte())
         cbw.put(cdb.size.toByte())
         cbw.put(cdb)

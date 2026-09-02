@@ -10330,3 +10330,31 @@ yanlış yapmak diskin tamamını kaybettirir. Okuma tarafında sıkıştırılm
 şifreli (EFS) dosyalar da desteklenmiyor — çöp veri vermektense hata.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2104 test yeşil**.
+
+## 2026-09-02 (on birinci tur) — Kotlin artık YERELDE derleniyor
+
+CI 331 kırmızı: `ci/UsbMass.kt` derlenmedi. Tek satır —
+`cbw.put(if (…) 0x80.toByte() else 0x00)` — ifadenin türü Byte değil **Int**
+oluyor (dallardan biri Int sabiti) ve `put(Byte)` çağrısı derlenmiyor. Sabit
+ATAMALARINDA (`cdb[0] = 0x28`) sorun yok, çünkü beklenen tür bellidir.
+
+**Asıl mesele tek satır değil, DÖNGÜ:** `ci/*.kt` bu depoda hiç derlenmiyordu.
+Tek derleyici CI'daydı ve hata ancak 13 dakikalık APK derlemesinin sonunda
+ortaya çıkıyordu.
+
+### Yapılan — `tool/check_kotlin.sh` + Android taslakları
+`ci/UsbMass.kt` Flutter'a HİÇ bağlı değil (yalnız Android çerçevesi), bu
+yüzden `tool/kotlin_stubs/` altındaki birkaç taslak sınıfla kotlinc'e tür
+denetimi yaptırılabiliyor. Betik kotlinc yoksa sessizce atlıyor (0 döner).
+
+**Karşılığını ANINDA verdi:** ikinci bir hata daha yakalandı —
+`cdb[0] = 0x9E` derlenmez, çünkü Kotlin'de Byte işaretlidir ve 0x7F üstü
+sabitler sığmaz (`0x9E.toByte()` gerekiyor). CI o satıra hiç gelmemişti;
+düzeltilmeseydi bir tur daha yanacaktı.
+
+Betiğin kendisi de sınandı: bozuk dosyada 1, temiz dosyada 0 dönüyor (her
+zaman "temiz" diyen bir denetleyici, denetleyici değildir).
+
+**Kapsam sınırı:** `MainActivity.kt` denetlenmiyor — Flutter gömme sınıflarını
+kullanıyor ve onları taslaklamak SDK'yı taklit etmeye dönüşürdü; orası CI'da
+derleniyor.
