@@ -106,6 +106,48 @@ void main() {
     });
   });
 
+  // **SD kart / USB kapsamı (kullanıcı 2026-09-02: "SD kart desteği olan
+  // telefonlarda uyumumuz yok, SD kartı kullananlar ne yapacak").**
+  //
+  // "Yeni Dosyalar" ve panonun yakalama taraması yalnız ana belleğin sıcak
+  // klasörlerini geziyordu; kamerası SD karta çeken bir telefonda yeni
+  // fotoğraflar oraya düşüyor ve listede HİÇ görünmüyordu.
+  group('hotFoldersForAll — bütün birimler', () {
+    test('her birimin standart klasörleri toplanır', () {
+      final a = Directory.systemTemp.createTempSync('vol_a');
+      final b = Directory.systemTemp.createTempSync('vol_b');
+      addTearDown(() {
+        a.deleteSync(recursive: true);
+        b.deleteSync(recursive: true);
+      });
+      Directory('${a.path}/DCIM').createSync();
+      Directory('${b.path}/Download').createSync();
+
+      final folders = StorageStats.hotFoldersForAll([a.path, b.path]);
+      expect(folders, contains('${a.path}/DCIM'));
+      expect(folders, contains('${b.path}/Download'));
+    });
+
+    test('standart klasörü olmayan birimde KÖK sıcak klasör sayılır', () {
+      // Tipik USB belleğin içinde DCIM/Download yoktur; dosyalar köktedir.
+      final usb = Directory.systemTemp.createTempSync('vol_usb');
+      addTearDown(() => usb.deleteSync(recursive: true));
+      expect(StorageStats.hotFoldersForAll([usb.path]), [usb.path]);
+    });
+
+    test('aynı klasör iki kez eklenmez', () {
+      final a = Directory.systemTemp.createTempSync('vol_dup');
+      addTearDown(() => a.deleteSync(recursive: true));
+      Directory('${a.path}/DCIM').createSync();
+      final folders = StorageStats.hotFoldersForAll([a.path, a.path]);
+      expect(folders.where((f) => f.endsWith('/DCIM')), hasLength(1));
+    });
+
+    test('var olmayan birim çökertmez', () {
+      expect(StorageStats.hotFoldersForAll(const ['/kesinlikle/yok']), isEmpty);
+    });
+  });
+
   group('StorageVolume', () {
     test('takılabilir birim ana bellekten ayrılır', () {
       const internal = StorageVolume(path: '/storage/emulated/0', isPrimary: true);

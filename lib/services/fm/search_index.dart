@@ -249,8 +249,8 @@ abstract final class SearchIndex {
     await ensureLoaded();
     if (!isReady) {
       final hits = q.isEmpty
-          ? await FsScan.collect([root ?? FmEnv.primaryRoot], limit: limit)
-          : await FsScan.search(root ?? FmEnv.primaryRoot, q, limit: limit);
+          ? await FsScan.collect(_rootsOf(root), limit: limit)
+          : await _searchRoots(_rootsOf(root), q, limit);
       return _postFilter(hits, category, includeDirs);
     }
     try {
@@ -269,10 +269,31 @@ abstract final class SearchIndex {
       // kadar stat çağrısı — göz açıp kapayıncaya kadar).
       return rows.where((e) => e.exists).toList();
     } catch (_) {
-      final hits =
-          await FsScan.search(root ?? FmEnv.primaryRoot, q, limit: limit);
+      final hits = await _searchRoots(_rootsOf(root), q, limit);
       return _postFilter(hits, category, includeDirs);
     }
+  }
+
+  /// Dizin hazır değilken hangi kökler gezilecek?
+  ///
+  /// [root] null = "tüm depolama" → **bütün birimler** (SD kart ve USB dahil).
+  /// Eskiden burada `FmEnv.primaryRoot` vardı: dizin bayat/eksikken yapılan
+  /// arama yalnız ana belleği geziyordu ve SD karttaki dosyalar hiç
+  /// bulunmuyordu (kullanıcı 2026-09-02: *"SD kart desteği olan telefonlarda
+  /// uyumumuz yok"*). Dizinin kendisi zaten `FmEnv.volumeRoots` yürüyüşünden
+  /// besleniyor; yedek yolun ondan dar olması tutarsızlıktı.
+  static List<String> _rootsOf(String? root) =>
+      root == null ? FmEnv.volumeRoots : [root];
+
+  /// Birden çok kökte arar ve sonuçları birleştirir ([limit]'e kadar).
+  static Future<List<FsEntry>> _searchRoots(
+      List<String> roots, String query, int limit) async {
+    final out = <FsEntry>[];
+    for (final root in roots) {
+      if (out.length >= limit) break;
+      out.addAll(await FsScan.search(root, query, limit: limit - out.length));
+    }
+    return out;
   }
 
   static List<FsEntry> _postFilter(

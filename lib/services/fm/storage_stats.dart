@@ -370,6 +370,31 @@ abstract final class StorageStats {
   /// yürüyüşe kendiliğinden giriyor, yeni bir mesajlaşma uygulaması kurulunca
   /// listeyi güncellemek gerekmiyor. (`Android/data` ve `Android/obb` DEĞİL —
   /// onlar Android 11'den beri okunamıyor, denemek yalnız yavaşlatır.)
+  /// **Bütün birimlerin** sıcak klasörleri (ana bellek + SD kart + USB).
+  ///
+  /// Kullanıcı 2026-09-02: *"SD kart desteği olan telefonlarda uyumumuz yok,
+  /// SD kartı kullananlar ne yapacak."* "Yeni Dosyalar" ve panonun yakalama
+  /// taraması yalnız `primaryRoot`un sıcak klasörlerini geziyordu; kamerası
+  /// SD karta çeken bir telefonda yeni fotoğraflar oraya düşüyor ve listede
+  /// HİÇ görünmüyordu.
+  ///
+  /// Takılabilir bir birimde standart klasör olmayabilir (USB'de DCIM yok);
+  /// o zaman birimin KÖKÜ sıcak klasör sayılır — dosyalar oraya atılır.
+  static List<String> hotFoldersForAll(List<String> roots) {
+    final out = <String>[];
+    for (final root in roots) {
+      final folders = hotFolders(root);
+      if (folders.isEmpty) {
+        if (Directory(root).existsSync()) out.add(root);
+        continue;
+      }
+      for (final f in folders) {
+        if (!out.contains(f)) out.add(f);
+      }
+    }
+    return out;
+  }
+
   static List<String> hotFolders(String root) {
     final out = <String>[
       for (final f in standardFolders(root)) f.path,

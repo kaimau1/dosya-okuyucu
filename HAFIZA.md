@@ -9849,3 +9849,46 @@ düşürdü. `fm.used` anahtarı eklendi. (Bu test iyi çalışıyor: çeviri bo
 biriktirmeden yakalıyor.)
 
 **Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **1993 test yeşil**.
+
+## 2026-09-02 (üçüncü tur) — SD kart uyumu: kapsam ana bellekle SINIRLIYDI
+
+Kullanıcı: *"araçlardaki kalıcı olsun hep görülsün, birden fazla bağlı şey
+olabilir harici USB, SD kart hepsi görülebilmeli, özellikle SD kart desteği
+olan telefonlarda uyumumuz yok, SD kartı kullananlar ne yapacak."*
+
+### A) KÖK BULGU — üç yerde "yalnız ana bellek" varsayımı
+Tarama (`FsScan.index`) zaten `FmEnv.volumeRoots` üzerinden geçiyordu, yani
+kategori sayıları SD kartı KAPSIYORDU. Ama etrafındaki üç yol kapsamıyordu:
+
+1. **Arama.** Pano `SearchScreen(root: FmEnv.primaryRoot)` açıyordu ve
+   `SearchIndex.query` kök önekiyle süzüyordu → kutuda "Tüm dosyalarda ara"
+   yazmasına rağmen SD karttaki hiçbir dosya bulunmuyordu. Ayrıca dizin
+   hazır değilken yedek yol (`FsScan.search(root ?? primaryRoot)`) da yalnız
+   ana belleği geziyordu. `SearchScreen.root` artık **nullable = tüm
+   depolama**; yedek yol `_rootsOf(null) = FmEnv.volumeRoots` ile çok köklü.
+2. **"Yeni Dosyalar" + panonun yakalama taraması.**
+   `StorageStats.hotFolders(FmEnv.primaryRoot)` → kamerası SD karta çeken bir
+   telefonda yeni fotoğraflar hiç görünmüyordu. Yeni
+   `hotFoldersForAll(roots)`: her birimin sıcak klasörleri; **standart klasörü
+   olmayan birimde (tipik USB) birimin KÖKÜ** sıcak klasör sayılıyor.
+3. **Hızlı klasörler.** Yalnız ana belleğin DCIM/Download/… çipleri vardı.
+   Artık takılabilir birimlerin standart klasörleri de çip oluyor ve çip
+   birimin adıyla etiketleniyor ("Kamera · SD kart") — aynı adlı iki klasör
+   karışmasın.
+
+### B) Harici Bellek kutusu artık KALICI
+İlk yazımda kutu yalnız takılıyken çiziliyordu; gerekçem "boş kutu yer
+kaplar" idi. Kullanıcı aksini istedi ve gerekçesi daha güçlü: kutu ancak HEP
+orada durursa kullanıcı nereye bakacağını öğrenir — yalnız takılıyken beliren
+bir kutu, aranacak yeri takılma anına bağlar. Boşken "Takılı değil" diyor,
+dokununca **önce bir kez taze tarıyor** (kullanıcı belleği tam o an takmış
+olabilir; "takılı değil" demek aslında takılıyken en can sıkıcı yanıt) ve
+gerçekten yoksa açıklıyor.
+Alt yazı çoklu birimi sayıyor ("1 USB · 1 SD kart"); dokununca listeleyip
+seçtiriyor. Kutu sıralamanın dışında, başa sabit.
+
+### Yeni testler
+`storage_volume_kind_test.dart` → `hotFoldersForAll` grubu (her birimin
+klasörleri, standart klasörsüz birimde kök, yinelenmeme, var olmayan birim).
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **1997 test yeşil**.

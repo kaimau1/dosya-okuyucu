@@ -109,7 +109,8 @@ class _NewFilesScreenState extends State<NewFilesScreen>
 
   Future<List<FsEntry>> _scan() async {
     await FmEnv.ensureInit();
-    final roots = StorageStats.hotFolders(FmEnv.primaryRoot);
+    // Bütün birimler (SD kart / USB dahil) — bkz. `hotFoldersForAll`.
+    final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
     if (roots.isEmpty) return const [];
     return FsScan.freshFiles(roots, limit: NewFilesScreen.limit);
   }

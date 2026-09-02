@@ -2475,6 +2475,9 @@ const Map<String, (String, String, String)> _table = {
     'محرك خارجي',
   ),
   'fm.external_count': ('{n} birim', '{n} drives', '{n} محركات'),
+  'fm.external_none_short': ('Takılı değil', 'Not attached', 'غير متصل'),
+  'fm.external_usb_count': ('{n} USB', '{n} USB', '{n} USB'),
+  'fm.external_card_count': ('{n} SD kart', '{n} SD card', '{n} بطاقة SD'),
   'fm.copy_to_external': (
     'Harici belleğe kopyala',
     'Copy to external drive',

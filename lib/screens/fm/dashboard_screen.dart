@@ -302,7 +302,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     _catchingUp = true;
     try {
       await FmEnv.ensureInit();
-      final roots = StorageStats.hotFolders(FmEnv.primaryRoot);
+      // Bütün birimler: kamerası SD karta çeken telefonda yeni fotoğraflar
+      // oraya düşüyor ve eskiden yakalama taramasına hiç girmiyordu.
+      final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
       if (roots.isEmpty) return;
       final fresh = await FsScan.freshFiles(roots);
       if (!mounted || fresh.isEmpty) return;
@@ -516,8 +518,10 @@ class _DashboardScreenState extends State<DashboardScreen>
             padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
             child: InkWell(
               borderRadius: BorderRadius.circular(Radii.control),
+              // Kök YOK = tüm depolama (SD kart ve USB dahil). Eskiden
+              // `FmEnv.primaryRoot` geçiliyordu; kutuda "Tüm dosyalarda ara"
+              // yazmasına rağmen SD karttaki dosyalar hiç bulunmuyordu.
               onTap: () => _push(SearchScreen(
-                root: FmEnv.primaryRoot,
                 rootLabel: context.t('fm.all_files'),
               )),
               child: Container(
@@ -1214,43 +1218,71 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Sayaç, aracın KENDİ `onTap`ı sarılarak artıyor; diske yazmayı beklemeden
   /// ekran açılır (`unawaited`) — araç ekranının açılması bir dosya yazmasına
   /// takılmamalı.
-  /// **Harici Bellek kutusu** — yalnız takılı bellek varken.
+  /// **Harici Bellek kutusu — HER ZAMAN görünür** (kullanıcı isteği
+  /// 2026-09-02: *"araçlardaki kalıcı olsun hep görülsün"*).
   ///
-  /// Kullanıcı sorusu 2026-09-02: *"USB takıldığında daha sonra nasıl
-  /// açacağız, ana menüde bir yer göremedim."* Birim kartı listenin en
-  /// üstünde duruyor ve takılınca bir şerit çıkıyor, ama şerit geçici; geri
-  /// dönülebilecek KALICI bir giriş noktası yoktu.
+  /// İlk yazımda kutu yalnız takılı bellek varken çiziliyordu; gerekçem "boş
+  /// bir kutu yer kaplar" idi. Kullanıcı aksini istedi ve haklı bir sebebi
+  /// var: kutu ancak HEP orada durursa kullanıcı nereye bakacağını öğrenir —
+  /// yalnız takılıyken beliren bir kutu, aranacak yeri de takılma anına
+  /// bağlıyor. Takılı bellek yokken kutu "Takılı değil" diyor ve dokununca
+  /// ne yapılacağını anlatıyor.
   ///
-  /// Takılı bellek yokken kutu hiç çizilmiyor: her zaman duran ama çoğu zaman
-  /// "bellek yok" diyen bir kutu ızgarada yer kaplamaktan başka bir şey
-  /// yapmazdı.
-  FmTileData? _externalTile() {
+  /// Birden çok birim (USB + SD kart aynı anda) desteklenir: alt yazı hepsini
+  /// sayar, dokununca listeleyip seçtirir.
+  FmTileData _externalTile() {
     final externals = [
       for (final v in FmEnv.volumes)
         if (v.isRemovable) v,
     ];
-    if (externals.isEmpty) return null;
+    final usb = externals.where((v) => v.kind == StorageKind.usb).length;
+    final cards = externals.length - usb;
     return FmTileData(
-      icon: externals.any((v) => v.kind == StorageKind.usb)
-          ? Icons.usb
-          : Icons.sd_card,
-      color: const Color(0xFFEF6C00),
+      icon: externals.isEmpty
+          ? Icons.sd_card_outlined
+          : (usb > 0 ? Icons.usb : Icons.sd_card),
+      color: externals.isEmpty
+          ? const Color(0xFF9E9E9E)
+          : const Color(0xFFEF6C00),
       id: 'external_storage',
       label: context.t('fm.external_storage'),
       // Alt yazı CANLI bilgi (ızgaranın kuralı): tek birimde adı ve boş alanı,
-      // birden çoksa kaç tane olduğu.
-      subtitle: externals.length == 1
-          ? (externals.single.hasStats
-              ? '${externals.single.displayLabel(context.t)} · '
-                  '${FsPaths.humanSize(externals.single.freeBytes)} boş'
-              : externals.single.displayLabel(context.t))
-          : context.t('fm.external_count', {'n': externals.length}),
+      // birden çoksa türe göre sayısı, hiç yoksa "Takılı değil".
+      subtitle: switch (externals.length) {
+        0 => context.t('fm.external_none_short'),
+        1 => externals.single.hasStats
+            ? '${externals.single.displayLabel(context.t)} · '
+                '${FsPaths.humanSize(externals.single.freeBytes)} boş'
+            : externals.single.displayLabel(context.t),
+        _ => [
+            if (usb > 0) context.t('fm.external_usb_count', {'n': usb}),
+            if (cards > 0) context.t('fm.external_card_count', {'n': cards}),
+          ].join(' · '),
+      },
       onTap: () => _openExternal(externals),
     );
   }
 
   /// Harici belleği açar: tek birimde doğrudan, birden çoksa seçtirerek.
+  /// Hiç takılı değilse ne yapılacağını anlatır (kutu artık hep görünür).
   Future<void> _openExternal(List<StorageVolume> volumes) async {
+    if (volumes.isEmpty) {
+      // Kullanıcı belleği tam o an takmış olabilir — söylemeden önce BİR KEZ
+      // taze bak. "Takılı değil" demek, aslında takılıyken en can sıkıcı yanıt.
+      await _volumes.rescan();
+      final fresh = [
+        for (final v in FmEnv.volumes)
+          if (v.isRemovable) v,
+      ];
+      if (fresh.isNotEmpty) {
+        if (!mounted) return;
+        setState(() {});
+        return _openExternal(fresh);
+      }
+      if (!mounted) return;
+      showSnack(context, context.t('fm.external_none'));
+      return;
+    }
     var volume = volumes.first;
     if (volumes.length > 1) {
       final picked = await showModalBottomSheet<StorageVolume>(
@@ -1295,8 +1327,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     // sayacına girseydi sık kullanılan araçlar onu aşağı iterdi ve kullanıcı
     // belleği tam takmışken yine arayacaktı. Kutu zaten yalnız bellek
     // takılıyken var — geçici ve o an ilgili olan şey en görünür yerde durur.
-    final external = _externalTile();
-    return external == null ? ranked : [external, ...ranked];
+    return [_externalTile(), ...ranked];
   }
 
   FmTileData _categoryTile(FmCategory category, {bool grid = false}) {
@@ -1363,7 +1394,24 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _quickFolders() {
-    final folders = StorageStats.standardFolders(FmEnv.primaryRoot);
+    final folders = [
+      for (final f in StorageStats.standardFolders(FmEnv.primaryRoot))
+        (label: f.label, path: f.path, volume: ''),
+      // **Takılabilir birimlerin standart klasörleri de burada** (kullanıcı
+      // 2026-09-02: *"SD kartı kullananlar ne yapacak"*). Kamerası SD karta
+      // çeken bir telefonda DCIM ana bellekte DEĞİL kartta; hızlı klasörler
+      // yalnız ana belleğe bakınca kullanıcının en çok girdiği klasör listede
+      // hiç yoktu. Çip birimin adıyla etiketleniyor — aynı adlı iki "Kamera"
+      // birbirine karışmasın.
+      for (final v in FmEnv.volumes)
+        if (v.isRemovable)
+          for (final f in StorageStats.standardFolders(v.path))
+            (
+              label: f.label,
+              path: f.path,
+              volume: v.displayLabel(context.t),
+            ),
+    ];
     if (folders.isEmpty) {
       return Text(context.t('fm.no_standard_folders'));
     }
@@ -1376,13 +1424,20 @@ class _DashboardScreenState extends State<DashboardScreen>
         // panonun açılışını saniyelerce geciktirirdi, bilinçli olarak yapılmadı.
         for (final f in folders)
           ActionChip(
-            avatar: const Icon(Icons.folder_outlined, size: 18),
+            avatar: Icon(
+                f.volume.isEmpty ? Icons.folder_outlined : Icons.sd_storage,
+                size: 18),
             label: Text(
-              _folderSizes[f.path] != null
-                  ? '${f.label} · ${FsPaths.humanSize(_folderSizes[f.path]!)}'
-                  : f.label,
+              [
+                f.label,
+                if (f.volume.isNotEmpty) f.volume,
+                if (_folderSizes[f.path] != null)
+                  FsPaths.humanSize(_folderSizes[f.path]!),
+              ].join(' · '),
             ),
-            onPressed: () => _push(BrowserScreen(path: f.path, title: f.label)),
+            onPressed: () => _push(BrowserScreen(
+                path: f.path,
+                title: f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}')),
           ),
       ],
     );

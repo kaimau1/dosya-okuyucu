@@ -34,9 +34,14 @@ import '../../core/snack.dart';
 /// yoksa ilk arama canlı taramaya düşer (kullanıcı beklemez) ve arka planda
 /// dizin kurulur.
 class SearchScreen extends StatefulWidget {
-  final String root;
+  /// Aramanın kökü; **null = tüm depolama** (ana bellek + SD kart + USB).
+  ///
+  /// Panodan gelen arama artık null geçiyor: eskiden `FmEnv.primaryRoot`
+  /// geçiliyordu ve "Tüm dosyalarda ara" yazmasına rağmen SD karttaki
+  /// dosyalar sonuçlara HİÇ girmiyordu (kullanıcı 2026-09-02).
+  final String? root;
   final String? rootLabel;
-  const SearchScreen({super.key, required this.root, this.rootLabel});
+  const SearchScreen({super.key, this.root, this.rootLabel});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -223,7 +228,12 @@ class _SearchScreenState extends State<SearchScreen> {
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: context.t('srch.in_hint',
-                {'name': widget.rootLabel ?? p.basename(widget.root)}),
+                {
+                  'name': widget.rootLabel ??
+                      (widget.root == null
+                          ? context.t('fm.all_files')
+                          : p.basename(widget.root!))
+                }),
             border: InputBorder.none,
             filled: false,
           ),
