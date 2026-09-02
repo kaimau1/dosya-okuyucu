@@ -231,6 +231,54 @@ class FatFileSystem extends UsbFileSystem {
     }
   }
 
+  /// **Doluluk** — FAT32'de FSInfo sektöründen, diğerlerinde FAT sayımıyla.
+  ///
+  /// FAT32'nin 1. sektöründe (FSInfo) boş küme sayısı YAZILIDIR; tek okuma
+  /// yetiyor. FAT16'da böyle bir alan yok, tablo taranıyor — ama tablo küçük
+  /// (en çok 128 KB), toplu okunuyor. FAT12/FAT16'da bile bu, birim başına
+  /// birkaç yüz milisaniye; kullanıcı doluluk halkasını görüyor.
+  @override
+  Future<(int, int)?> usage() async {
+    final total = clusterCount * clusterSize;
+    if (total <= 0) return null;
+    try {
+      if (kind == FatKind.fat32) {
+        final info = await device.readBlocks(1, 1);
+        final d = ByteData.sublistView(info);
+        // İmzalar: 0x41615252 (başta), 0x61417272 (yapı), 0xAA550000 (son).
+        if (d.getUint32(0, Endian.little) == 0x41615252 &&
+            d.getUint32(484, Endian.little) == 0x61417272) {
+          final freeClusters = d.getUint32(488, Endian.little);
+          if (freeClusters != 0xFFFFFFFF && freeClusters <= clusterCount) {
+            return (total, freeClusters * clusterSize);
+          }
+        }
+      }
+      // FSInfo yok ya da güvenilmez: tabloyu say.
+      var free = 0;
+      final entriesPerSector = kind == FatKind.fat32
+          ? bytesPerSector ~/ 4
+          : (kind == FatKind.fat16 ? bytesPerSector ~/ 2 : 0);
+      if (entriesPerSector == 0) return (total, 0);
+      for (var sector = 0; sector < fatSize; sector += 64) {
+        final take = (sector + 64) > fatSize ? fatSize - sector : 64;
+        final data = await device.readBlocks(reservedSectors + sector, take);
+        final view = ByteData.sublistView(data);
+        for (var i = 0; i < take * entriesPerSector; i++) {
+          final c = sector * entriesPerSector + i;
+          if (c < 2 || c > clusterCount + 1) continue;
+          final value = kind == FatKind.fat32
+              ? view.getUint32(i * 4, Endian.little) & 0x0FFFFFFF
+              : view.getUint16(i * 2, Endian.little);
+          if (value == 0) free++;
+        }
+      }
+      return (total, free * clusterSize);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── YAZMA ───────────────────────────────────────────────────────────────
   //
   // Kullanıcı isteği 2026-09-02: *"fat32, NTFS ne varsa okuyalım yazalım."*

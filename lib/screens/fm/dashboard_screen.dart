@@ -95,7 +95,15 @@ class _DashboardScreenState extends State<DashboardScreen>
   List<SafRoot> _safRoots = const [];
 
   /// Android'in bağlamadığı ama uygulamanın sürebileceği USB aygıtları.
-  List<UsbDevice> _rawUsbCards = const [];
+  List<UsbDevice> _rawUsbDevices = const [];
+
+  /// Ham aygıt ilk ne zaman görüldü? (İlk saniyelerde kart gösterilmiyor —
+  /// Android'in bağlaması bitsin.)
+  DateTime? _rawUsbSeenAt;
+
+  /// USB otomatik açma: sürüyor mu ve en son ne zaman açıldı?
+  bool _usbOpening = false;
+  DateTime? _lastUsbOpen;
 
   bool _scanning = false;
   bool _hasAccess = true;
@@ -199,7 +207,32 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Birim henüz bağlanmamış olabilir (Android takma ile bağlama arasında bir
   /// süre geçiriyor) → kısa aralıklarla birkaç kez bakılır, sonra vazgeçilir.
   Future<void> _openUsbIfLaunchedByIt({bool force = false}) async {
-    if (!force && !await AppStorageService.launchedByUsb()) return;
+    // **TEK AÇILIŞ** (kullanıcı 2026-09-02: *"üst üste 2 kez otomatik
+    // açılıyor"*). İki yol aynı takılmayı haber veriyor: native itme
+    // (`usbAttached`) ve uygulama öne gelince okunan `launchAction`. İkisi de
+    // ekranı açınca bellek üst üste iki kez açılıyordu.
+    if (_usbOpening) return;
+    final last = _lastUsbOpen;
+    if (last != null &&
+        DateTime.now().difference(last) < const Duration(seconds: 20)) {
+      return;
+    }
+    if (force) {
+      // Native itme geldiyse bekleyen eylemi TÜKET: yoksa uygulama öne
+      // gelince ikinci kez tetiklenirdi.
+      unawaited(AppStorageService.launchAction());
+    } else if (!await AppStorageService.launchedByUsb()) {
+      return;
+    }
+    _usbOpening = true;
+    try {
+      await _usbOpenFlow();
+    } finally {
+      _usbOpening = false;
+    }
+  }
+
+  Future<void> _usbOpenFlow() async {
     for (var attempt = 0; attempt < 6; attempt++) {
       await _volumes.rescan();
       // **Tür değil, TAKILABİLİRLİK aranıyor** (kullanıcı ekran görüntüsü
@@ -211,6 +244,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final usb = FmEnv.volumes.where((v) => v.isRemovable).firstOrNull;
       if (usb != null) {
         if (!mounted) return;
+        _lastUsbOpen = DateTime.now();
         await _push(BrowserScreen(
             path: usb.path, title: usb.displayLabel(context.t)));
         return;
@@ -225,6 +259,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         (await UsbHost.devices()).where((d) => d.isDrivable).toList();
     if (!mounted) return;
     if (drivable.isNotEmpty) {
+      _lastUsbOpen = DateTime.now();
       await _openRawUsb(drivable.first.name);
       return;
     }
@@ -1394,16 +1429,43 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _loadRawUsb() async {
     final devices = await UsbHost.devices();
     if (!mounted) return;
-    final covered = FmEnv.volumes.any((v) => v.isRemovable) ||
-        _safRoots.isNotEmpty;
+    final drivable = [
+      for (final d in devices)
+        if (d.isDrivable) d,
+    ];
     setState(() {
-      _rawUsbCards = covered
-          ? const []
-          : [
-              for (final d in devices)
-                if (d.isDrivable) d,
-            ];
+      if (drivable.isEmpty) {
+        _rawUsbSeenAt = null;
+      } else {
+        _rawUsbSeenAt ??= DateTime.now();
+      }
+      _rawUsbDevices = drivable;
     });
+  }
+
+  /// Panoda çizilecek ham USB kartları.
+  ///
+  /// **TUZAK (kullanıcı ekran görüntüsü 2026-09-02):** aynı bellek panoda İKİ
+  /// KEZ çıkıyordu — "VendorCo USB sürücüsü" (bağlanmış birim) ve "USB Disk
+  /// 2.0" (ham aygıt). Sebep: karar aygıt listesi okunduğu ANDA veriliyor ve
+  /// saklanıyordu; Android belleği saniyeler sonra bağlayınca karar
+  /// eskiyordu ama kart öylece kalıyordu. Karar artık ÇİZİM anında
+  /// veriliyor: bağlanmış bir takılabilir birim ya da klasör izni varsa ham
+  /// kart hiç çizilmiyor.
+  ///
+  /// Ayrıca ilk saniyelerde ham kartı hiç göstermiyoruz: Android bağlamayı
+  /// bitirmeden aygıtın ham adını ("USB Disk 2.0") göstermek, iki saniye
+  /// sonra gerçek adıyla ("VendorCo USB sürücüsü") beliren aynı belleğin
+  /// yanında kafa karıştırıyor.
+  List<UsbDevice> get _rawUsbCards {
+    if (FmEnv.volumes.any((v) => v.isRemovable)) return const [];
+    if (_safRoots.isNotEmpty) return const [];
+    final seen = _rawUsbSeenAt;
+    if (seen != null &&
+        DateTime.now().difference(seen) < const Duration(seconds: 6)) {
+      return const [];
+    }
+    return _rawUsbDevices;
   }
 
   /// **SAF yolu** — klasör izniyle harici belleğe erişim.

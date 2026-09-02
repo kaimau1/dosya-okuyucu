@@ -108,7 +108,19 @@ class NotificationHub {
     return payload;
   }
 
+  /// Bildirimdeki DÜĞMEYE basıldığında çağrılır (eylem kimliğiyle).
+  ///
+  /// Ayrı bir kanca: bildirime dokunmak ekranı açar, düğmeye basmak ise
+  /// (ör. müzik duraklat) ekran açmadan iş yapar. İkisini aynı geri çağrıya
+  /// bağlamak "duraklat"a basınca uygulamanın açılması demek olurdu.
+  void Function(String actionId, String? payload)? onAction;
+
   void _handleResponse(NotificationResponse response) {
+    final actionId = response.actionId;
+    if (actionId != null && actionId.isNotEmpty) {
+      onAction?.call(actionId, response.payload);
+      return;
+    }
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
     final handler = onTap;
@@ -177,7 +189,14 @@ class NotificationHub {
 
   /// [owner] adına ön plan servisini ister. Servis zaten ayaktaysa yalnız
   /// bildirim gösterilir/güncellenir.
-  Future<void> acquireService(String owner, FgNotice notice) async {
+  /// [types] verilmezse veri eşitleme türü kullanılır. **Ses çalarken
+  /// `mediaPlayback` ŞART:** Android 15 veri eşitleme servislerini günde
+  /// birkaç saatle sınırlıyor; müzik o sınıra girerse çalarken susardı.
+  Future<void> acquireService(
+    String owner,
+    FgNotice notice, {
+    Set<AndroidServiceForegroundType>? types,
+  }) async {
     _owners[owner] = notice;
     if (!_ready) return;
     if (_serviceOwner == null) {
@@ -195,9 +214,10 @@ class NotificationHub {
           // START_NOT_STICKY: süreç ölürse Android servisi geri getirmesin —
           // geri gelen servis, işi olmayan bir bildirimden ibaret olurdu.
           startType: AndroidServiceStartType.startNotSticky,
-          foregroundServiceTypes: const {
-            AndroidServiceForegroundType.foregroundServiceTypeDataSync,
-          },
+          foregroundServiceTypes: types ??
+              const {
+                AndroidServiceForegroundType.foregroundServiceTypeDataSync,
+              },
         );
         return;
       } catch (_) {

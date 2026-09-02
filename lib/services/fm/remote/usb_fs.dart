@@ -129,6 +129,9 @@ class UsbFs extends RemoteFs {
     }
   }
 
+  /// Birimin (toplam, boş) baytı — gezgin başlığında gösteriliyor.
+  Future<(int, int)?> usage() => fs.usage();
+
   @override
   Future<void> connect() async {}
 

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/l10n/app_strings.dart';
+import '../../../models/fs_entry.dart';
 import '../../../models/remote_connection.dart';
 import '../../../services/file_service.dart';
 import '../../../services/fm/entry_opener.dart';
@@ -11,6 +13,9 @@ import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/remote/remote_fs.dart';
 import '../../../services/fm/remote/remote_fs_factory.dart';
+import '../../../services/fm/remote/usb_fs.dart';
+import '../../../widgets/fm/fm_entry_icon.dart';
+import '../browser_screen.dart';
 import 'remote_edit_screen.dart';
 import '../../../core/snack.dart';
 
@@ -41,6 +46,27 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
   String? _error;
   bool _connected = false;
 
+  /// **Seçili girdilerin yolları.** Kullanıcı isteği 2026-09-02 (dışarıdan
+  /// bakış): USB'den "şu 30 fotoğrafı telefona kopyala" yapılamıyordu —
+  /// çoklu seçim yoktu ve tek dosya için bile "kopyala" eylemi yoktu.
+  final Set<String> _selected = {};
+
+  bool get _selecting => _selected.isNotEmpty;
+
+  /// Klasör içi süzme metni (boşsa süzme yok).
+  String _filter = '';
+  bool _searching = false;
+
+  /// Sıralama ölçütü ve yönü.
+  _RemoteSort _sort = _RemoteSort.name;
+  bool _ascending = true;
+
+  /// Toplu iş sürerken ilerleme ("3/12"); yoksa null.
+  String? _progress;
+
+  /// Ham USB'de birimin doluluğu ("47,4 GB / 62 GB"); bilinmiyorsa boş.
+  String _usage = '';
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +84,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
       await _fs.connect();
       _connected = true;
       await _load(_path);
+      unawaited(_loadUsage());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -87,6 +114,58 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
         _error = errorTextFor(context, e);
       });
     }
+  }
+
+  /// Ekranda gösterilecek liste: süzülmüş ve sıralanmış.
+  ///
+  /// Klasörler HER ZAMAN önce gelir (boyuta göre sıralarken bile): dosya
+  /// yöneticisinde gezinti klasörlerden geçer, onları büyüklüğe göre araya
+  /// serpiştirmek gezinmeyi zorlaştırır.
+  List<RemoteEntry> get _visible => sortEntries(
+        _filter.trim().isEmpty
+            ? _entries
+            : [
+                for (final e in _entries)
+                  if (e.name.toLowerCase().contains(_filter.trim().toLowerCase()))
+                    e,
+              ],
+        _sort,
+        ascending: _ascending,
+      );
+
+  /// **Saf sıralama** (testli).
+  static List<RemoteEntry> sortEntries(
+    List<RemoteEntry> entries,
+    _RemoteSort sort, {
+    required bool ascending,
+  }) {
+    final out = [...entries];
+    out.sort((a, b) {
+      if (a.isDir != b.isDir) return a.isDir ? -1 : 1;
+      final int c;
+      switch (sort) {
+        case _RemoteSort.name:
+          c = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case _RemoteSort.size:
+          c = a.sizeBytes.compareTo(b.sizeBytes);
+        case _RemoteSort.date:
+          c = a.modifiedMs.compareTo(b.modifiedMs);
+      }
+      if (c != 0) return ascending ? c : -c;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return out;
+  }
+
+  /// Ham USB'de doluluğu okur (yalnız bir kez; pahalı değil ama boşuna da
+  /// tekrarlanmasın). Diğer protokollerde kapasite kavramı yok.
+  Future<void> _loadUsage() async {
+    final fs = _fs;
+    if (fs is! UsbFs) return;
+    final usage = await fs.usage();
+    if (!mounted || usage == null) return;
+    setState(() => _usage =
+        '${FsPaths.humanSize(usage.$1 - usage.$2)} / ${FsPaths.humanSize(usage.$1)}');
   }
 
   bool get _atRoot => _path == widget.connection.rootPath || _path == '/';
@@ -297,9 +376,20 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
         if (!didPop) _up();
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.connection.name,
-              maxLines: 1, overflow: TextOverflow.ellipsis),
+        appBar: _selecting
+            ? _selectionAppBar()
+            : AppBar(
+          title: _searching
+              ? TextField(
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: context.t('nas.filter_hint'),
+                  ),
+                  onChanged: (v) => setState(() => _filter = v),
+                )
+              : Text(widget.connection.name,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(28),
             child: Padding(
@@ -307,7 +397,8 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
                   start: 16, end: 16, bottom: 8),
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
-                child: Text(_path,
+                child: Text(
+                    _usage.isEmpty ? _path : '$_path  ·  $_usage',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall),
@@ -316,17 +407,36 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
           ),
           actions: [
             IconButton(
+              tooltip: context.t('nas.filter_hint'),
+              icon: Icon(_searching ? Icons.search_off : Icons.search),
+              onPressed: () => setState(() {
+                _searching = !_searching;
+                if (!_searching) _filter = '';
+              }),
+            ),
+            IconButton(
               tooltip: context.t('common.refresh'),
               icon: const Icon(Icons.refresh),
               onPressed: _busy ? null : () => _load(_path),
             ),
-            if (_connected && _fs.canWrite)
-              PopupMenuButton<String>(
-                onSelected: (v) {
-                  if (v == 'upload') _upload();
-                  if (v == 'mkdir') _newFolder();
-                },
-                itemBuilder: (_) => [
+            PopupMenuButton<String>(
+              onSelected: _onMenu,
+              itemBuilder: (_) => [
+                // Sıralama HER protokolde var (salt okunur bellekte de):
+                // 4000 dosyalı bir USB'de sırasız liste kullanılamaz.
+                for (final sort in _RemoteSort.values)
+                  CheckedPopupMenuItem(
+                    value: 'sort_${sort.name}',
+                    checked: _sort == sort,
+                    child: Text(context.t('nas.sort_${sort.name}')),
+                  ),
+                CheckedPopupMenuItem(
+                  value: 'asc',
+                  checked: _ascending,
+                  child: Text(context.t('nas.sort_ascending')),
+                ),
+                if (_connected && _fs.canWrite) ...[
+                  const PopupMenuDivider(),
                   PopupMenuItem(
                       value: 'upload',
                       child: Text(context.t('nas.upload_here'))),
@@ -334,12 +444,209 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
                       value: 'mkdir',
                       child: Text(context.t('nas.new_folder'))),
                 ],
-              ),
+              ],
+            ),
           ],
         ),
         body: _body(),
       ),
     );
+  }
+
+  void _onMenu(String value) {
+    if (value == 'upload') {
+      unawaited(_upload());
+      return;
+    }
+    if (value == 'mkdir') {
+      unawaited(_newFolder());
+      return;
+    }
+    if (value == 'asc') return setState(() => _ascending = !_ascending);
+    for (final sort in _RemoteSort.values) {
+      if (value == 'sort_${sort.name}') {
+        setState(() => _sort = sort);
+        return;
+      }
+    }
+  }
+
+  /// Seçim kipindeki başlık çubuğu.
+  ///
+  /// **"Telefona kopyala" salt okunur bellekte de var** (kullanıcı 2026-09-02
+  /// dışarıdan bakış): kopyalamak yazma gerektirmez, oysa eski menü tamamen
+  /// `canWrite`e bağlıydı ve NTFS bir diskte uzun basış hiçbir şey yapmıyordu.
+  AppBar _selectionAppBar() => AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => setState(_selected.clear),
+        ),
+        title: Text('${_selected.length}'),
+        actions: [
+          IconButton(
+            tooltip: context.t('fm.select_all'),
+            icon: const Icon(Icons.select_all),
+            onPressed: () => setState(() {
+              final all = _visible.map((e) => e.path).toSet();
+              if (_selected.containsAll(all)) {
+                _selected.clear();
+              } else {
+                _selected.addAll(all);
+              }
+            }),
+          ),
+          IconButton(
+            tooltip: context.t('nas.copy_to_phone'),
+            icon: const Icon(Icons.download),
+            onPressed: _busy ? null : () => unawaited(_copyToPhone()),
+          ),
+          if (_fs.canWrite) ...[
+            if (_selected.length == 1)
+              IconButton(
+                tooltip: context.t('nas.rename'),
+                icon: const Icon(Icons.drive_file_rename_outline),
+                onPressed: _busy
+                    ? null
+                    : () => _rename(_entryOf(_selected.first)!),
+              ),
+            IconButton(
+              tooltip: context.t('common.delete'),
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _busy ? null : () => unawaited(_deleteSelected()),
+            ),
+          ],
+        ],
+      );
+
+  RemoteEntry? _entryOf(String path) {
+    for (final e in _entries) {
+      if (e.path == path) return e;
+    }
+    return null;
+  }
+
+  /// **Seçilenleri telefona kopyalar** — USB'nin bir numaralı kullanım amacı.
+  ///
+  /// Hedef `İndirilenler/Dosya Okuyucu`: kullanıcının ULAŞABİLECEĞİ bir yer.
+  /// (Dosyayı açmak da kopyalıyor ama uygulamanın özel klasörüne; oraya
+  /// kullanıcı giremez, dolayısıyla "kopyaladım" sayılmaz.)
+  ///
+  /// Klasörler bu turda atlanıyor ve sayısı kullanıcıya SÖYLENİYOR — sessizce
+  /// atlamak "kopyaladım sandım" demek olurdu.
+  Future<void> _copyToPhone() async {
+    final targets = [
+      for (final path in _selected)
+        if (_entryOf(path) case final e?) e,
+    ];
+    final files = [for (final e in targets) if (!e.isDir) e];
+    final skippedDirs = targets.length - files.length;
+    if (files.isEmpty) {
+      _snack(context.t('nas.copy_only_files'));
+      return;
+    }
+    final dir = p.join(FmEnv.primaryRoot, 'Download', 'Dosya Okuyucu');
+    final messenger = ScaffoldMessenger.of(context);
+    final okText = context.t('nas.copied_to_phone');
+    final openText = context.t('common.open');
+    final skippedText = context.t('nas.copy_skipped_dirs');
+    setState(() {
+      _busy = true;
+      _progress = '0/${files.length}';
+    });
+    var done = 0;
+    String? failed;
+    try {
+      await Directory(dir).create(recursive: true);
+      for (final entry in files) {
+        try {
+          await _fs.download(entry, _uniquePath(dir, entry.name));
+          done++;
+        } catch (e) {
+          failed ??= entry.name;
+        }
+        if (!mounted) return;
+        setState(() => _progress = '$done/${files.length}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+        });
+      }
+    }
+    if (!mounted) return;
+    setState(_selected.clear);
+    final parts = <String>[
+      '$okText ($done/${files.length})',
+      if (skippedDirs > 0) '$skippedDirs $skippedText',
+      if (failed != null) '· $failed',
+    ];
+    showSnackOn(
+      messenger,
+      parts.join(' '),
+      duration: kSnackAction,
+      action: SnackBarAction(
+        label: openText,
+        onPressed: () => unawaited(Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => BrowserScreen(path: dir)))),
+      ),
+    );
+  }
+
+  /// Aynı adlı dosyanın ÜSTÜNE YAZMAZ: `ad (2).jpg` üretir.
+  static String _uniquePath(String dir, String name) {
+    var candidate = p.join(dir, name);
+    if (!File(candidate).existsSync()) return candidate;
+    final base = p.basenameWithoutExtension(name);
+    final ext = p.extension(name);
+    for (var i = 2; i < 1000; i++) {
+      candidate = p.join(dir, '$base ($i)$ext');
+      if (!File(candidate).existsSync()) return candidate;
+    }
+    return candidate;
+  }
+
+  Future<void> _deleteSelected() async {
+    final entries = [
+      for (final path in _selected)
+        if (_entryOf(path) case final e?) e,
+    ];
+    if (entries.isEmpty) return;
+    // Tek dosyada ADIYLA sor: "1 öğe silinsin mi?" demek, yanlış dosyayı
+    // seçmiş kullanıcıya hiçbir şey söylemez.
+    if (entries.length == 1) {
+      await _delete(entries.first);
+      if (mounted) setState(_selected.clear);
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('common.delete')),
+        content: Text(ctx.t('nas.delete_many', {'n': '${entries.length}'})),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ctx.t('common.delete'))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    for (final entry in entries) {
+      try {
+        await _fs.delete(entry);
+      } catch (_) {
+        // tek dosya silinemedi — kalanlara devam
+      }
+    }
+    if (!mounted) return;
+    setState(_selected.clear);
+    await _load(_path);
   }
 
   Widget _body() {
@@ -370,6 +677,22 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
 
     return Column(
       children: [
+        // Toplu iş sürerken kaç dosya bitti? Sessiz bir bekleme, kullanıcıya
+        // "takıldı mı?" dedirtiyordu.
+        if (_progress != null)
+          LinearProgressIndicator(
+            value: _progressValue,
+            minHeight: 3,
+          ),
+        if (_progress != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text('${context.t('nas.copying')} $_progress',
+                  style: Theme.of(context).textTheme.bodySmall),
+            ),
+          ),
         if (isSmbRoot)
           Container(
             width: double.infinity,
@@ -379,32 +702,47 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
                 style: Theme.of(context).textTheme.bodySmall),
           ),
         Expanded(
-          child: _entries.isEmpty
-              ? Center(child: Text(context.t('nas.empty_folder')))
+          child: _visible.isEmpty
+              ? Center(
+                  child: Text(_filter.trim().isEmpty
+                      ? context.t('nas.empty_folder')
+                      : context.t('nas.no_match')))
               : RefreshIndicator(
                   onRefresh: () => _load(_path),
                   child: ListView.separated(
-                    itemCount: _entries.length + (_atRoot ? 0 : 1),
+                    itemCount: _visible.length + (_atRoot ? 0 : 1),
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, i) {
                       if (!_atRoot && i == 0) {
                         return ListTile(
                           leading: const Icon(Icons.arrow_upward),
                           title: const Text('..'),
-                          onTap: _up,
+                          onTap: _selecting ? null : _up,
                         );
                       }
-                      final entry = _entries[_atRoot ? i : i - 1];
+                      final entry = _visible[_atRoot ? i : i - 1];
+                      final selected = _selected.contains(entry.path);
+                      // **Tür simgesi ve rengi** (kullanıcı 2026-09-02
+                      // dışarıdan bakış): jenerik "dosya" simgesi listeyi
+                      // okunmaz yapıyordu; yerel gezginle aynı dil.
+                      final category = FsEntry.categoryForExtension(
+                          p.extension(entry.name).replaceFirst('.', ''),
+                          isDir: entry.isDir);
                       return ListTile(
-                        leading: Icon(entry.isDir
-                            ? Icons.folder_outlined
-                            : Icons.insert_drive_file_outlined),
+                        selected: selected,
+                        leading: selected
+                            ? const Icon(Icons.check_circle)
+                            : Icon(FmColors.iconFor(category),
+                                color: FmColors.forCategory(category)),
                         title: Text(entry.name,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(_subtitle(entry)),
-                        onTap: () => _open(entry),
-                        onLongPress:
-                            _fs.canWrite ? () => _entryMenu(entry) : null,
+                        onTap: () => _selecting
+                            ? _toggle(entry)
+                            : _open(entry),
+                        // Uzun basış HER ZAMAN seçim başlatır (salt okunur
+                        // bellekte de): kopyalamak yazma gerektirmiyor.
+                        onLongPress: () => _toggle(entry),
                       );
                     },
                   ),
@@ -414,6 +752,20 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
     );
   }
 
+  /// İlerleme çubuğunun değeri ("3/12" → 0.25); okunamazsa belirsiz çubuk.
+  double? get _progressValue {
+    final parts = _progress?.split('/');
+    if (parts == null || parts.length != 2) return null;
+    final done = int.tryParse(parts[0]);
+    final total = int.tryParse(parts[1]);
+    if (done == null || total == null || total == 0) return null;
+    return done / total;
+  }
+
+  void _toggle(RemoteEntry entry) => setState(() {
+        if (!_selected.remove(entry.path)) _selected.add(entry.path);
+      });
+
   String _subtitle(RemoteEntry entry) {
     final parts = <String>[
       if (!entry.isDir) FsPaths.humanSize(entry.sizeBytes),
@@ -422,35 +774,6 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
     return parts.join(' · ');
   }
 
-  void _entryMenu(RemoteEntry entry) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: Text(ctx.t('nas.rename')),
-              onTap: () {
-                Navigator.pop(ctx);
-                _rename(entry);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: Text(ctx.t('common.delete')),
-              onTap: () {
-                Navigator.pop(ctx);
-                _delete(entry);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// İndirilen kopyayı uygulamanın görüntüleyici/editör zincirinde açar.
@@ -489,3 +812,7 @@ Future<void> Function(BuildContext context, String path) openLocalFile =
 /// (platform kanalı yok), testler bunu sahtesiyle değiştiriyor.
 Future<String?> Function() pickLocalFile =
     () => FileService().pickFilePath();
+
+
+/// Uzak/USB gezgininde sıralama ölçütü.
+enum _RemoteSort { name, size, date }

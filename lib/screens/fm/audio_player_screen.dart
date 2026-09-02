@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
+import '../../services/fm/audio_playback.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/audio_tags.dart';
@@ -15,7 +15,7 @@ import '../../services/fm/fs_scan.dart';
 import 'entry_actions.dart';
 
 /// Çalma sırası davranışı.
-enum RepeatMode { off, one, all }
+
 
 /// Müzik çalar: klasördeki ses dosyalarını çalar, sıradakine geçer,
 /// tekrar/karışık destekler.
@@ -43,93 +43,50 @@ class AudioPlayerScreen extends StatefulWidget {
 }
 
 class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
-  final _player = AudioPlayer();
-  final _subs = <StreamSubscription<dynamic>>[];
+  /// **Durum artık ekranda DEĞİL** (kullanıcı isteği 2026-09-02: *"arka
+  /// planda oynat seçeneği olmalı, müzik programları gibi"*). Ekran yalnız
+  /// servisi izliyor; çıkınca müzik devam ediyor.
+  AudioPlayback get _p => AudioPlayback.instance;
 
-  late List<String> _playlist;
-  late int _index;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-  bool _playing = false;
   bool _dragging = false;
-  double _speed = 1.0;
-  RepeatMode _repeat = RepeatMode.off;
-  bool _shuffle = false;
-  String? _error;
 
-  /// Çalan parçanın etiketleri (ID3/MP4). Okunamazsa boş kalır ve ekran
-  /// eskisi gibi dosya adını gösterir.
-  AudioTags _tags = AudioTags.empty;
-
-  String get _current => _playlist[_index];
+  /// Sürüklerken çubuğun takip ettiği geçici konum.
+  Duration _dragPosition = Duration.zero;
 
   @override
   void initState() {
     super.initState();
-    _playlist = widget.playlist.isEmpty ? [widget.path] : [...widget.playlist];
-    _index = _playlist.indexOf(widget.path);
-    if (_index < 0) {
-      _playlist.insert(0, widget.path);
-      _index = 0;
+    _p.addListener(_onChange);
+    // Aynı dosya zaten çalıyorsa baştan başlatma: kullanıcı bildirimden
+    // ekrana döndüğünde parça sıfırlanmamalı.
+    if (_p.current != widget.path) {
+      unawaited(_p.open(widget.path, list: widget.playlist));
     }
-
-    _subs.addAll([
-      _player.onPositionChanged.listen((d) {
-        if (!_dragging && mounted) setState(() => _position = d);
-      }),
-      _player.onDurationChanged.listen((d) {
-        if (mounted) setState(() => _duration = d);
-      }),
-      _player.onPlayerStateChanged.listen((s) {
-        if (mounted) setState(() => _playing = s == PlayerState.playing);
-      }),
-      _player.onPlayerComplete.listen((_) => _onComplete()),
-    ]);
-
-    _play(_current);
   }
 
   @override
   void dispose() {
-    for (final s in _subs) {
-      s.cancel();
-    }
-    _player.dispose();
+    _p.removeListener(_onChange);
+    // **Oynatıcı KAPATILMIYOR.** Eskiden burada `player.dispose()` vardı ve
+    // ekrandan çıkan kullanıcı müziği de kapatmış oluyordu.
     super.dispose();
   }
 
-  Future<void> _play(String path) async {
-    setState(() {
-      _error = null;
-      _position = Duration.zero;
-      _duration = Duration.zero;
-      // Yeni parçaya geçerken ÖNCEKİNİN kapağı/adı ekranda kalmasın.
-      _tags = AudioTags.empty;
-    });
-    // Etiket okuma çalmayı BEKLETMEZ: dosyanın başından en çok 2 MB okunuyor
-    // ama yavaş bir SD kartta bu da hissedilir. Ses hemen başlar, kapak ve
-    // sanatçı bilgisi geldiğinde yerine oturur.
-    unawaited(_loadTags(path));
-    try {
-      await _player.stop();
-      await _player.play(DeviceFileSource(path));
-      await _player.setPlaybackRate(_speed);
-    } catch (e) {
-      if (mounted) {
-        setState(
-            () => _error = AppStrings.current.t('mp.audio_failed', {'error': e}));
-      }
-    }
+  void _onChange() {
+    if (mounted) setState(() {});
   }
 
-  /// Etiketleri okur ve ekrana yansıtır. Bu sırada kullanıcı başka parçaya
-  /// geçmiş olabilir — sonuç o zaman ATILIR, yoksa yeni parçanın üstüne eski
-  /// kapak binerdi.
-  Future<void> _loadTags(String path) async {
-    final tags = await AudioTagReader.read(path);
-    if (!mounted || path != _current) return;
-    setState(() => _tags = tags);
-  }
+  Duration get _position => _dragging ? _dragPosition : _p.position;
+  Duration get _duration => _p.duration;
+  bool get _playing => _p.playing;
+  double get _speed => _p.speed;
+  RepeatMode get _repeat => _p.repeat;
+  bool get _shuffle => _p.shuffle;
+  String? get _error => _p.error;
+  AudioTags get _tags => _p.tags;
+  List<String> get _playlist => _p.playlist;
+  int get _index => _p.index;
+  String get _current => _p.current;
 
   /// Kapak yoksa (ya da açılamazsa) gösterilen nota kutusu.
   Widget _coverFallback(ColorScheme scheme) => Container(
@@ -138,51 +95,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             size: 84, color: scheme.onPrimaryContainer),
       );
 
-  void _onComplete() {
-    if (_repeat == RepeatMode.one) {
-      _play(_current);
-      return;
-    }
-    if (_shuffle && _playlist.length > 1) {
-      final rnd = Random(DateTime.now().microsecondsSinceEpoch);
-      var next = _index;
-      while (next == _index) {
-        next = rnd.nextInt(_playlist.length);
-      }
-      _skipTo(next);
-      return;
-    }
-    if (_index < _playlist.length - 1) {
-      _skipTo(_index + 1);
-    } else if (_repeat == RepeatMode.all) {
-      _skipTo(0);
-    }
-  }
+  void _skipTo(int index) => unawaited(_p.skipTo(index));
 
-  void _skipTo(int index) {
-    if (index < 0 || index >= _playlist.length) return;
-    setState(() => _index = index);
-    _play(_current);
-  }
+  Future<void> _toggle() => _p.toggle();
 
-  Future<void> _toggle() async {
-    if (_playing) {
-      await _player.pause();
-    } else {
-      await _player.resume();
-    }
-  }
+  Future<void> _seekBy(int seconds) => _p.seekBy(seconds);
 
-  Future<void> _seekBy(int seconds) async {
-    final target = _position + Duration(seconds: seconds);
-    await _player.seek(target < Duration.zero ? Duration.zero : target);
-  }
-
-  Future<void> _setSpeed(double speed) async {
-    _speed = speed;
-    await _player.setPlaybackRate(speed);
-    if (mounted) setState(() {});
-  }
+  Future<void> _setSpeed(double speed) => _p.setSpeed(speed);
 
   static String _fmt(Duration d) {
     final h = d.inHours;
@@ -312,12 +231,18 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                           .clamp(0, max(_duration.inMilliseconds, 1))
                           .toDouble(),
                       max: max(_duration.inMilliseconds, 1).toDouble(),
-                      onChangeStart: (_) => _dragging = true,
-                      onChanged: (v) => setState(
-                          () => _position = Duration(milliseconds: v.round())),
+                      onChangeStart: (_) {
+                        // Sürüklerken servis konumu ekrana yansımasın, yoksa
+                        // parmak çubuğu çekerken çubuk geri zıplar.
+                        _dragging = true;
+                        _p.setDragging(true);
+                      },
+                      onChanged: (v) => setState(() =>
+                          _dragPosition = Duration(milliseconds: v.round())),
                       onChangeEnd: (v) async {
                         _dragging = false;
-                        await _player.seek(Duration(milliseconds: v.round()));
+                        _p.setDragging(false);
+                        await _p.seek(Duration(milliseconds: v.round()));
                       },
                     ),
                   ),
@@ -333,7 +258,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   isSelected: _shuffle,
                   icon: const Icon(Icons.shuffle),
                   selectedIcon: Icon(Icons.shuffle, color: scheme.primary),
-                  onPressed: () => setState(() => _shuffle = !_shuffle),
+                  onPressed: () => _p.setShuffle(!_shuffle),
                 ),
                 IconButton(
                   tooltip: context.t('common.previous'),
@@ -380,12 +305,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                         : Icons.repeat,
                     color: scheme.primary,
                   ),
-                  onPressed: () => setState(() {
-                    _repeat = switch (_repeat) {
-                      RepeatMode.off => RepeatMode.all,
-                      RepeatMode.all => RepeatMode.one,
-                      RepeatMode.one => RepeatMode.off,
-                    };
+                  onPressed: () => _p.setRepeat(switch (_repeat) {
+                    RepeatMode.off => RepeatMode.all,
+                    RepeatMode.all => RepeatMode.one,
+                    RepeatMode.one => RepeatMode.off,
                   }),
                 ),
               ],

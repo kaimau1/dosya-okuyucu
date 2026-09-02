@@ -21,6 +21,7 @@ import 'services/fm/fm_env.dart';
 import 'services/fm/job_notifications.dart';
 import 'services/fm/job_queue.dart';
 import 'services/fm/job_store.dart';
+import 'services/fm/audio_playback.dart';
 import 'services/fm/notification_hub.dart';
 import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/open_history.dart';
@@ -64,6 +65,10 @@ Future<void> main() async {
   // gelebilir ve o anki `context` bilinmiyor.
   final hub = NotificationHub.instance;
   hub.onTap = _openFromNotification;
+  // Bildirimdeki düğmeler (müzik duraklat/sonraki/kapat) ekran AÇMADAN iş
+  // yapar; dokunmakla aynı kancaya bağlanamaz.
+  hub.onAction = (actionId, _) =>
+      unawaited(AudioPlayback.instance.handleAction(actionId));
   unawaited(hub.init().then((_) {
     // Süreç öldürülüp yeniden açıldıysa "Ağdan erişim açık" diyen bir bildirim
     // asılı kalmış olabilir — paylaşım o bildirimle birlikte ölmüştü.

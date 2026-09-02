@@ -43,6 +43,14 @@ abstract class UsbFileSystem {
   /// Bir dosyanın içeriği — parça parça (büyük video belleğe sığmaz).
   Stream<Uint8List> openRead(UsbEntry entry);
 
+  /// Birimin (toplam, boş) bayt bilgisi; bilinemiyorsa null.
+  ///
+  /// Kullanıcı 2026-09-02 (dışarıdan bakış): yerel birimlerde doluluk halkası
+  /// var, USB'de hiçbir şey yoktu — "bu belleğe sığar mı?" sorusunun cevabı
+  /// yoktu. Hesap PAHALI OLMAMALI: FAT32'de FSInfo sektörü, exFAT'ta ayırma
+  /// haritası tek okumada cevap veriyor.
+  Future<(int, int)?> usage() async => null;
+
   // ── Yazma (gerçekleyen dosya sistemlerinde) ────────────────────────────
   //
   // Varsayılan "hayır": yazma yeteneği açıkça gerçeklenmeden hiçbir katman

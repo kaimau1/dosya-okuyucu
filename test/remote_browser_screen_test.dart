@@ -28,10 +28,17 @@ const _connection = RemoteConnection(
 
 /// Ağa çıkmayan sahte uzak dosya sistemi.
 class FakeFs extends RemoteFs {
-  FakeFs(super.connection, {this.failOnConnect, this.failOnList});
+  FakeFs(super.connection,
+      {this.failOnConnect, this.failOnList, this.writable = true});
 
   final RemoteError? failOnConnect;
   final RemoteError? failOnList;
+
+  /// Salt okunur bellek taklidi (NTFS/exFAT ham USB).
+  final bool writable;
+
+  @override
+  bool get canWrite => writable;
 
   final Map<String, List<RemoteEntry>> tree = {
     '/': const [
@@ -152,19 +159,60 @@ void main() {
     expect(find.textContaining('boş'), findsOneWidget);
   });
 
-  testWidgets('uzun basış menüsünden silme onaylanınca çağrılır',
-      (tester) async {
+  // **Uzun basış artık SEÇİM başlatıyor** (2026-09-02): eski menü tamamen
+  // `canWrite`e bağlıydı ve salt okunur bir USB'de uzun basış hiçbir şey
+  // yapmıyordu — oysa "telefona kopyala" yazma gerektirmiyor.
+  testWidgets('seçip silme onaylanınca çağrılır', (tester) async {
     final fs = FakeFs(_connection);
     await _pump(tester, fs);
     await tester.longPress(find.text('rapor.pdf'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sil'));
+    await tester.tap(find.byIcon(Icons.delete_outline));
     await tester.pumpAndSettle();
     // Onay penceresi: onaylanmadan silinmemeli.
     expect(fs.deleted, isEmpty);
     await tester.tap(find.text('Tamam'));
     await tester.pumpAndSettle();
     expect(fs.deleted, ['/rapor.pdf']);
+  });
+
+  testWidgets('seçim kipi: sayaç, tümünü seç ve çıkış', (tester) async {
+    final fs = FakeFs(_connection);
+    await _pump(tester, fs);
+    await tester.longPress(find.text('rapor.pdf'));
+    await tester.pumpAndSettle();
+    expect(find.text('1'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.select_all));
+    await tester.pumpAndSettle();
+    expect(find.text('1'), findsNothing, reason: 'hepsi seçildi, sayı arttı');
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.select_all), findsNothing);
+  });
+
+  testWidgets('SALT OKUNUR bellekte de seçim ve "telefona kopyala" var',
+      (tester) async {
+    // Eski davranışta uzun basış `canWrite` false olduğu için ölüydü.
+    final fs = FakeFs(_connection, writable: false);
+    await _pump(tester, fs);
+    await tester.longPress(find.text('rapor.pdf'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.download), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline), findsNothing,
+        reason: 'yazma yok: silme düğmesi de olmamalı');
+  });
+
+  testWidgets('klasörde süzme listeyi daraltır', (tester) async {
+    final fs = FakeFs(_connection);
+    await _pump(tester, fs);
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'rapor');
+    await tester.pumpAndSettle();
+    expect(find.text('rapor.pdf'), findsOneWidget);
+    expect(find.text('belgeler'), findsNothing);
   });
 
   testWidgets('yeni klasör tam yolla oluşturulur', (tester) async {

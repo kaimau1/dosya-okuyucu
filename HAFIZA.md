@@ -10383,3 +10383,69 @@ karşımıza çıkar.)
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2105 test yeşil**,
 `tool/check_kotlin.sh` temiz.
+
+## 2026-09-02 (on üçüncü tur) — Kullanılabilirlik turu + arka planda müzik
+
+Kullanıcı: *"hepsini sırayla tek oturumda yap"* + ekran görüntüsüyle iki hata
++ *"müziklerde arka planda oynat seçeneği olmalı."*
+
+### A) Aynı bellek panoda İKİ KEZ görünüyordu
+"VendorCo USB sürücüsü" (bağlanmış birim) ve "USB Disk 2.0" (ham aygıt) alt
+alta duruyordu. Kök neden: ham kart kararı aygıt listesi okunduğu ANDA
+verilip SAKLANIYORDU; Android belleği saniyeler sonra bağlayınca karar
+eskiyor ama kart kalıyordu. Karar artık ÇİZİM anında veriliyor (getter) ve
+ilk 6 saniye ham kart hiç gösterilmiyor — Android bağlamayı bitirsin, aygıtın
+ham adı ("USB Disk 2.0") kullanıcıyı yanıltmasın.
+
+### B) Bellek üst üste İKİ KEZ açılıyordu
+İki yol aynı takılmayı haber veriyor: native itme (`usbAttached`) ve öne
+gelince okunan `launchAction`. İkisi de ekranı açıyordu. Artık tek kapı:
+`_usbOpening` kilidi + son açılıştan sonra 20 sn sessizlik, ve native itme
+geldiğinde bekleyen `launchAction` TÜKETİLİYOR.
+
+### C) Uzak/USB gezgini ikinci sınıftı — birleştirildi
+Yerel gezginde çoklu seçim, sıralama, tür simgeleri vardı; USB'de düz liste.
+Eklenenler: **çoklu seçim**, **"telefona kopyala"** (İndirilenler/Dosya
+Okuyucu'ya, aynı adı EZMEDEN "ad (2)" üreterek, ilerleme çubuğuyla, sonunda
+"Aç" düğmesiyle), klasör içi süzme, ada/boyuta/tarihe göre sıralama, tür
+renkli simgeler, ham USB'de **doluluk** ("47,4 GB / 62 GB").
+
+**TUZAK — menü `canWrite`e bağlıydı:** salt okunur bir NTFS diskte uzun basış
+HİÇBİR ŞEY yapmıyordu; oysa kopyalamak yazma gerektirmez. Artık uzun basış
+her zaman seçim başlatıyor, yazma düğmeleri ayrıca gizleniyor.
+
+**Doluluk ucuz okunuyor:** FAT32'de FSInfo sektörü (tek okuma), exFAT'ta
+ayırma haritası (~1 MB), FAT16'da tablo taraması (küçük).
+
+### D) Çeviri anahtarı bekçisi (`l10n_keys_used_test`)
+`ctx.t('nas.delete')` yazıldı, öyle bir anahtar yoktu. Hata ancak o ekranın
+widget testinde çıktı; testi olmayan bir ekranda kullanıcının telefonunda
+çıkardı (yayında anahtarın kendisi ekrana yazılır). Yeni test kaynaktaki her
+düz `t('...')` çağrısını tabloyla karşılaştırıyor; ayrıca dinamik kurulan
+`usb.verdict_*` anahtarlarının hepsi tek tek sınanıyor. Bekçi bozuk anahtarla
+denendi: kırmızı yanıyor.
+
+### E) Arka planda müzik (yeni istek)
+Kök neden: bütün oynatıcı durumu EKRANIN state'indeydi ve `dispose`ta
+`player.dispose()` çağrılıyordu — ekrandan çıkan kullanıcı müziği de
+kapatıyordu. `AudioPlayback` servisi (ChangeNotifier singleton) durumu aldı;
+ekran yalnız izleyici.
+
+- **Süreç neden yaşıyor:** MIUI arka plandaki süreci donduruyor. İndirme
+  kuyruğu için zaten olan ön plan servisi (`NotificationHub`) çalarken
+  tutuluyor — **yeni bağımlılık yok**. Servis türü `mediaPlayback` (manifest
+  + izin eklendi): Android 15 `dataSync` servislerini günlük saatle
+  sınırlıyor, müzik o sınıra girse çalarken susardı.
+- Bildirimde **Duraklat / Sonraki / Kapat** düğmeleri: `NotificationHub`a
+  `onAction` kancası eklendi (dokunmak ekranı açar, düğme ekran açmadan iş
+  yapar — ikisi aynı kancaya bağlanamaz).
+- Duraklatınca servis BIRAKILIYOR (duran oynatıcı için süreci ayakta tutmak
+  pil yakar), bildirim kalıcı olmaktan çıkıyor.
+
+**TUZAK — `AudioPlayer()` kurucusu platform kanalına dokunuyor:** testte
+servise erişmek bile `MissingPluginException` fırlatıyordu. Oynatıcı artık
+GEÇ kuruluyor; `engineEnabled`/`notificationsEnabled` kancalarıyla sıra,
+tekrar ve karışık mantığı donanımsız test ediliyor.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2117 test yeşil**,
+`tool/check_kotlin.sh` temiz.

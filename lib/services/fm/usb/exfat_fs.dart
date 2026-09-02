@@ -181,6 +181,29 @@ class ExfatFileSystem extends UsbFileSystem {
     return '';
   }
 
+  /// **Doluluk** — ayırma haritasındaki sıfır bitleri sayılıyor.
+  ///
+  /// Harita 64 GB'lık bir bellekte bile ~1 MB; tek okumada geliyor ve bit
+  /// sayımı anlık. exFAT'ta başka bir "boş alan" alanı YOK.
+  @override
+  Future<(int, int)?> usage() async {
+    final total = clusterCount * clusterSize;
+    if (total <= 0) return null;
+    try {
+      await _ensureMeta();
+      final bitmap = await _readBitmap();
+      var free = 0;
+      for (var c = 0; c < clusterCount; c++) {
+        final byte = c ~/ 8;
+        if (byte >= bitmap.length) break;
+        if (bitmap[byte] & (1 << (c % 8)) == 0) free++;
+      }
+      return (total, free * clusterSize);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── YAZMA ───────────────────────────────────────────────────────────────
   //
   // Kullanıcı isteği 2026-09-02: *"ne varsa okuyalım yazalım."* exFAT, FAT'tan

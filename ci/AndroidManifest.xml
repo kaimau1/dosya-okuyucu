@@ -12,6 +12,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <!-- **Arka planda müzik** (kullanıcı isteği 2026-09-02). Android 15 veri
+         eşitleme servislerini günlük birkaç saatle sınırlıyor; müzik o sınıra
+         girerse çalarken susardı. Ses için ayrı tür ve ayrı izin gerekiyor. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <!-- ── Dosya yöneticisi izinleri ───────────────────────────────────────
@@ -382,7 +386,7 @@
              ayakta kalan servis yalnız donmuş bir bildirim gösterirdi. -->
         <service
             android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="dataSync|mediaPlayback"
             android:exported="false"
             android:stopWithTask="true" />
 
