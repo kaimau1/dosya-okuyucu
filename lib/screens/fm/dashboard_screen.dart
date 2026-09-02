@@ -28,6 +28,7 @@ import '../../services/fm/tool_usage.dart';
 import '../../services/fm/remote/saf_fs.dart';
 import '../../services/fm/volume_watcher.dart';
 import 'remote/remote_browser_screen.dart';
+import 'usb_diagnostics_screen.dart';
 import '../../widgets/crash_notice.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -225,7 +226,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     final stuck = await VolumeWatcher.attachedButUnusable();
     if (!mounted) return;
     if (stuck == null) {
-      showSnack(context, context.t('fm.external_none'), duration: kSnackAction);
+      // "Yok" derken bile ölçüme bir kapı bırak: kullanıcı belleğin takılı
+      // olduğunu biliyor ve bizim neyi göremediğimizi görmek istiyor.
+      showSnack(
+        context,
+        context.t('fm.external_none'),
+        duration: kSnackAction,
+        action: SnackBarAction(
+          label: context.t('usb.diag_title'),
+          onPressed: () => unawaited(_openDiagnostics()),
+        ),
+      );
       return;
     }
     showSnack(
@@ -1506,6 +1517,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                 title: Text(ctx.t('saf.pick')),
                 onTap: () => Navigator.pop(ctx, 'pick'),
               ),
+              // Bellek görünmüyorsa tahmin yürütmek yerine ÖLÇ.
+              ListTile(
+                leading: const Icon(Icons.troubleshoot),
+                title: Text(ctx.t('usb.diag_title')),
+                onTap: () => Navigator.pop(ctx, 'diag'),
+              ),
             ],
           ),
         ),
@@ -1517,10 +1534,15 @@ class _DashboardScreenState extends State<DashboardScreen>
           path: picked.path, title: picked.displayLabel(context.t)));
     }
     if (picked is SafRoot) return _openSafRoot(picked);
+    if (picked == 'diag') return _openDiagnostics();
     final stuck = await VolumeWatcher.attachedButUnusable();
     if (!mounted) return;
     await _openViaSaf(volume: stuck?.key);
   }
+
+  /// USB teşhis ekranı — hangi kanalın ne dediğini ham hâliyle gösterir.
+  Future<void> _openDiagnostics() =>
+      _push(const UsbDiagnosticsScreen());
 
   /// İzin verilmiş bir SAF ağacını gezgin ekranında açar.
   Future<void> _openSafRoot(SafRoot root) async {

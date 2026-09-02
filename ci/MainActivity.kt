@@ -171,6 +171,14 @@ class MainActivity : FlutterActivity() {
                     // kökler — `/storage` listelenemese de birimi yakalar.
                     "externalFilesRoots" -> result.success(externalFilesRoots())
 
+                    // **Ham USB aygıt listesi** (teşhis + ham sürücünün girdisi).
+                    "usbDevices" -> result.success(usbDevices())
+
+                    // Cihazın USB ana makine (host/OTG) desteği var mı?
+                    "usbHostSupported" -> result.success(
+                        packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST)
+                    )
+
                     // ── SAF (Storage Access Framework) ──────────────────
                     "safPickTree" -> {
                         pendingPick = result
@@ -614,6 +622,71 @@ class MainActivity : FlutterActivity() {
             if (readableDir(guess)) return guess
         }
         return null
+    }
+
+    /**
+     * **Takılı USB aygıtları** — Android'in birim listesinden BAĞIMSIZ kaynak.
+     *
+     * Kullanıcı 2026-09-02: bellek takılı, başka uygulama görüyor, biz
+     * göremiyoruz. `StorageManager` sustuğunda "hiç aygıt yok mu, yoksa aygıt
+     * var da Android mi bağlamadı?" sorusunun cevabı YALNIZ burada:
+     * `UsbManager` çekirdeğin gördüğü aygıtı listeler, bağlansa da
+     * bağlanmasa da.
+     *
+     * Yığın depolama arayüzü = sınıf 8. Alt sınıf/protokol de veriliyor:
+     * ham sürücü ancak protokol 0x50 (Bulk-Only Transport) ile konuşabilir.
+     *
+     * `serialNumber` BİLEREK okunmuyor: API 29+ üzerinde aygıt izni yokken
+     * `SecurityException` fırlatıyor ve teşhis ekranını çökertirdi.
+     */
+    private fun usbDevices(): List<Map<String, Any?>> {
+        val out = ArrayList<Map<String, Any?>>()
+        val um = try {
+            getSystemService(Context.USB_SERVICE) as UsbManager
+        } catch (e: Exception) {
+            return out
+        }
+        val devices = try { um.deviceList } catch (e: Exception) { return out }
+        for (d in devices.values) {
+            val interfaces = ArrayList<Map<String, Any?>>()
+            var massStorage = false
+            try {
+                for (i in 0 until d.interfaceCount) {
+                    val itf = d.getInterface(i)
+                    if (itf.interfaceClass == 8) massStorage = true
+                    interfaces.add(
+                        mapOf(
+                            "class" to itf.interfaceClass,
+                            "subclass" to itf.interfaceSubclass,
+                            "protocol" to itf.interfaceProtocol,
+                            "endpoints" to itf.endpointCount
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // arayüzler okunamadı — aygıt yine listelensin
+            }
+            out.add(
+                mapOf(
+                    "name" to d.deviceName,
+                    "vendorId" to d.vendorId,
+                    "productId" to d.productId,
+                    "deviceClass" to d.deviceClass,
+                    "manufacturer" to try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                            d.manufacturerName else null
+                    } catch (e: Exception) { null },
+                    "product" to try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                            d.productName else null
+                    } catch (e: Exception) { null },
+                    "interfaces" to interfaces,
+                    "isMassStorage" to massStorage,
+                    "hasPermission" to try { um.hasPermission(d) } catch (e: Exception) { false }
+                )
+            )
+        }
+        return out
     }
 
     /** Yol GERÇEKTEN listelenebiliyor mu? (izin yoksa `listFiles()` null döner) */

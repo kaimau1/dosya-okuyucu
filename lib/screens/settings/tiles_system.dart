@@ -11,6 +11,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
 import '../../services/fm/search_index.dart';
+import '../fm/usb_diagnostics_screen.dart';
 import 'crash_log_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
@@ -184,6 +185,28 @@ class _VolumesTileState extends State<VolumesTile> {
             if (mounted) setState(() {});
           },
         ),
+      );
+}
+
+/// **USB teşhisi** — "bellek takılı ama uygulama görmüyor" sorusunun ölçümü.
+///
+/// Kullanıcı 2026-09-02: başka bir dosya yöneticisi belleği listeliyor, biz
+/// göremiyoruz. Ekran altı kanalın (UsbManager, StorageManager,
+/// getExternalFilesDirs, /proc/mounts, /storage, klasör izinleri) ham
+/// cevabını ve tek cümlelik kararı gösteriyor. Ayarlarda duruyor: sorun
+/// yaşayan kullanıcı onu aramaya buraya bakar.
+class UsbDiagnosticsTile extends StatelessWidget {
+  const UsbDiagnosticsTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: Icons.usb,
+        title: context.t('usb.diag_title'),
+        subtitle: context.t('usb.diag_sub'),
+        wrapSubtitle: true,
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const UsbDiagnosticsScreen(),
+        )),
       );
 }
 

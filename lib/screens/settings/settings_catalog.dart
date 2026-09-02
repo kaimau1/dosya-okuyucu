@@ -488,6 +488,13 @@ List<SettingsCategory> settingsCategories() => [
                 id: 'volumes',
                 titleKey: 'fmset.volumes',
                 builder: _volumesTile),
+            // "Bellek takılı ama görünmüyor" sorununun ÖLÇÜMÜ; sorun yaşayan
+            // kullanıcı çareyi ayarlarda arar.
+            SettingRow(
+                id: 'usb_diagnostics',
+                titleKey: 'usb.diag_title',
+                subtitleKey: 'usb.diag_sub',
+                builder: _usbDiagnosticsTile),
           ], advanced: true),
         ],
       ),
@@ -560,6 +567,7 @@ Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _thumbCacheTile(BuildContext _) => const ThumbCacheTile();
 Widget _volumesTile(BuildContext _) => const VolumesTile();
+Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();

@@ -2500,6 +2500,85 @@ const Map<String, (String, String, String)> _table = {
   ),
   'saf.pick': ('Klasör seç', 'Pick folder', 'اختر مجلدًا'),
   'saf.granted': ('Klasör izniyle', 'Via folder permission', 'بإذن المجلد'),
+  // ── USB teşhis ekranı ────────────────────────────────────────────────
+  // Kararlar tek cümlelik: kullanıcı ekranı okuyup NE YAPACAĞINI bilsin.
+  'usb.diag_title': ('USB teşhisi', 'USB diagnostics', 'تشخيص USB'),
+  'usb.diag_sub': (
+    'Takılı belleği hangi kanalın gördüğünü ölçer ve ne yapılacağını söyler.',
+    'Measures which channel sees the attached drive and says what to do.',
+    'يقيس أي قناة ترى المحرك المتصل ويخبرك بما ينبغي فعله.',
+  ),
+  'usb.diag_copied': ('Rapor panoya kopyalandı', 'Report copied', 'تم نسخ التقرير'),
+  'usb.diag_devices': ('Takılı aygıtlar', 'Attached devices', 'الأجهزة المتصلة'),
+  'usb.diag_host': ('USB ana makine (OTG)', 'USB host (OTG)', 'مضيف USB'),
+  'usb.diag_no_device': ('Takılı aygıt yok', 'No device attached', 'لا يوجد جهاز'),
+  'usb.diag_mass': ('yığın depolama', 'mass storage', 'تخزين'),
+  'usb.diag_drivable': ('sürülebilir', 'drivable', 'قابل للتشغيل'),
+  'usb.diag_permission': ('izin', 'permission', 'إذن'),
+  'usb.diag_readable': ('okunabilir', 'readable', 'قابل للقراءة'),
+  'usb.diag_saf': ('Klasör izinleri', 'Folder permissions', 'أذونات المجلدات'),
+  'usb.diag_usable': ('Gezilebilen birimler', 'Browsable volumes', 'وحدات قابلة للتصفح'),
+  'usb.verdict_usable': ('Her şey yolunda', 'All good', 'كل شيء جيد'),
+  'usb.verdict_usable_hint': (
+    'Harici bellek görülüyor ve geziliyor.',
+    'The external drive is visible and browsable.',
+    'المحرك الخارجي مرئي وقابل للتصفح.',
+  ),
+  'usb.verdict_mountedNoPath': (
+    'Bellek bağlı, ama dosya yolu verilmiyor',
+    'Drive is mounted, but no file path is exposed',
+    'المحرك موصّل لكن لا يوفَّر مسار ملف',
+  ),
+  'usb.verdict_mountedNoPath_hint': (
+    'Android belleği bağlamış; erişim için klasör izni (Klasör seç) yeterli. '
+    'Ham USB sürücüsüne gerek yok.',
+    'Android has mounted the drive; folder permission (Pick folder) is enough. '
+    'A raw USB driver is not needed.',
+    'وصّل أندرويد المحرك؛ إذن المجلد كافٍ ولا حاجة لمشغّل USB خام.',
+  ),
+  'usb.verdict_attachedNotMounted': (
+    'Bellek takılı ama Android onu HİÇ bağlamamış',
+    'Drive attached but Android never mounted it',
+    'المحرك متصل لكن أندرويد لم يوصّله إطلاقًا',
+  ),
+  'usb.verdict_attachedNotMounted_hint': (
+    'Ne yol var, ne birim, ne de klasör seçicide görünür. Bu durumda tek '
+    'çözüm uygulamanın belleği doğrudan sürmesi (ham USB yığın depolama).',
+    'No path, no volume, and it will not appear in the folder picker either. '
+    'The only fix is driving the device directly (raw USB mass storage).',
+    'لا مسار ولا وحدة ولا ظهور في المنتقي. الحل الوحيد تشغيل الجهاز مباشرة.',
+  ),
+  'usb.verdict_notMassStorage': (
+    'Takılı aygıt bir bellek değil',
+    'The attached device is not storage',
+    'الجهاز المتصل ليس وحدة تخزين',
+  ),
+  'usb.verdict_notMassStorage_hint': (
+    'Klavye, ses kartı, şarj gibi bir aygıt görünüyor.',
+    'A keyboard, audio card or charger-like device is attached.',
+    'يظهر جهاز مثل لوحة مفاتيح أو بطاقة صوت.',
+  ),
+  'usb.verdict_noDevice': (
+    'Takılı bellek yok',
+    'No drive attached',
+    'لا يوجد محرك متصل',
+  ),
+  'usb.verdict_noDevice_hint': (
+    'Hiçbir kanal bir aygıt görmüyor. Belleği takıp yeniden ölçün.',
+    'No channel sees a device. Attach the drive and measure again.',
+    'لا ترى أي قناة جهازًا. أعد التوصيل وقس مجددًا.',
+  ),
+  'usb.verdict_noHostSupport': (
+    'Cihaz USB ana makine (OTG) desteklemiyor',
+    'This device has no USB host (OTG) support',
+    'لا يدعم الجهاز مضيف USB',
+  ),
+  'usb.verdict_noHostSupport_hint': (
+    'Bu telefon USB belleği hiç okuyamaz; yazılımla çözülebilecek bir şey '
+    'değil.',
+    'This phone cannot read USB drives at all; software cannot fix that.',
+    'لا يمكن لهذا الهاتف قراءة محركات USB إطلاقًا.',
+  ),
   // Mesaj bir ÇIKIŞ YOLU söylüyor (kullanıcı 2026-09-02: bellek takılıyken
   // "Android açmadı" demek elinde yapacak bir şey bırakmıyordu). Şeridin
   // "Klasör seç" düğmesi seçiciyi doğrudan o birimin üstünde açar.
