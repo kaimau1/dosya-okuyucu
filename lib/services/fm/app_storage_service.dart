@@ -370,7 +370,7 @@ class SafRoot {
   ///
   /// Çözümlenemezse boş dize (o zaman eşleştirme yapılmaz, kart çizilir).
   String get volumeId {
-    final marker = '/tree/';
+    const marker = '/tree/';
     final at = uri.indexOf(marker);
     if (at < 0) return '';
     final id = Uri.decodeComponent(uri.substring(at + marker.length));
