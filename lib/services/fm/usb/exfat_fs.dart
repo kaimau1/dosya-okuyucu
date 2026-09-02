@@ -572,6 +572,17 @@ class ExfatFileSystem extends UsbFileSystem {
     var raw = Uint8List.fromList(await _readDirectory(dir));
     var start = _findFreeSlots(raw, needed);
     if (start < 0) {
+      // **Bitişik (NoFatChain) bir klasör UZATILAMAZ.**
+      //
+      // Öyle bir klasörün kümeleri FAT'ta yazmaz; yeri "ilk küme + boy"dan
+      // hesaplanır. Sonuna bir küme eklersek hesap onu da bitişik sanar ve
+      // BAŞKA BİR DOSYANIN kümesine yazarız. Doğru çözüm klasörü zincirliye
+      // çevirmek ve bayrağını EBEVEYNİNDEKİ girdide düzeltmek; o girdi
+      // burada elimizde yok. Sessizce bozmaktansa dürüstçe hata veriyoruz.
+      if (dir.noFatChain) {
+        throw const UsbFsException(
+            'Bu klasör dolu ve büyütülemiyor (bitişik yerleşim)');
+      }
       final chain = await clustersOf(dir,
           byteLength: dir.sizeBytes > 0 ? dir.sizeBytes : raw.length);
       final extra = await _allocateClusters(1);

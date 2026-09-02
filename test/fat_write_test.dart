@@ -185,6 +185,8 @@ void main() {
     });
   });
 
+  _bulkScanTest();
+
   group('uzun ad sağlaması', () {
     test('sağlama toplamı 8.3 adından hesaplanır', () {
       // Windows uzun adı ancak sağlama tutarsa gösterir; tutmazsa dosya
@@ -210,4 +212,49 @@ class _ReadOnly extends BlockDevice {
   @override
   Future<Uint8List> readBlocks(int lba, int count) =>
       inner.readBlocks(lba, count);
+}
+
+/// **Toplu FAT taraması** — gerçek donanımda süreyi belirleyen şey.
+///
+/// FAT'ı küme küme sormak 64 GB'lık bir bellekte (8 milyon küme) on binlerce
+/// ayrı USB okuması demekti; her biri ~1 ms olduğu için tek bir dosya yazmak
+/// dakikalar sürerdi. Bu test aygıta giden okuma SAYISINI ölçüyor: davranış
+/// aynı kalmalı ama maliyet düşük olmalı.
+void _bulkScanTest() {
+  test('boş küme araması aygıta AZ SAYIDA okuma yapar', () async {
+    final image = UsbImage.fat32();
+    final counting = _CountingDevice(MemoryBlockDevice(image));
+    final fs = await FatFileSystem.open(counting);
+    counting.reads = 0;
+    await fs.writeFile(fs.rootId, 'a.txt', Uint8List.fromList([1, 2, 3]));
+    // Tek tek sorulsaydı yüzlerce okuma olurdu (66000 kümelik imaj).
+    expect(counting.reads, lessThan(80),
+        reason: 'toplu okuma yapılmıyorsa burası patlar');
+  });
+}
+
+class _CountingDevice extends BlockDevice {
+  final BlockDevice inner;
+  var reads = 0;
+
+  _CountingDevice(this.inner);
+
+  @override
+  int get blockSize => inner.blockSize;
+
+  @override
+  int get blockCount => inner.blockCount;
+
+  @override
+  bool get writable => inner.writable;
+
+  @override
+  Future<Uint8List> readBlocks(int lba, int count) {
+    reads++;
+    return inner.readBlocks(lba, count);
+  }
+
+  @override
+  Future<void> writeBlocks(int lba, Uint8List data) =>
+      inner.writeBlocks(lba, data);
 }

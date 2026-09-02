@@ -10358,3 +10358,28 @@ zaman "temiz" diyen bir denetleyici, denetleyici değildir).
 **Kapsam sınırı:** `MainActivity.kt` denetlenmiyor — Flutter gömme sınıflarını
 kullanıyor ve onları taslaklamak SDK'yı taklit etmeye dönüşürdü; orası CI'da
 derleniyor.
+
+## 2026-09-02 (on ikinci tur) — Gerçek donanımda ısıracak iki nokta
+
+Testler yeşilken de bakmak gerekiyor: sentetik imajda ölçülmeyen iki şey var.
+
+### A) FAT boş küme araması TOPLU okumaya çevrildi
+`_allocate` FAT'ı küme küme soruyordu. 64 GB'lık bir bellekte (≈8 milyon
+küme) bu, en kötü hâlde on binlerce ayrı USB okuması demek; her biri ~1 ms
+olduğu için **tek bir dosya yazmak dakikalar sürerdi**. Artık FAT 64
+sektörlük öbekler hâlinde okunuyor (sektör başına 128 FAT32 girdisi).
+Regresyon testi aygıta giden okuma SAYISINI ölçüyor — toplu okuma kalkarsa
+test düşer. (FAT12 girdileri bayt sınırına oturmadığı için eski yolda kaldı;
+FAT12 yalnız disketlerde ve birkaç MB'lık kartlarda var.)
+
+### B) exFAT'ta BİTİŞİK klasör uzatılamaz — dürüstçe hata
+`NoFatChain` bayraklı bir klasörün kümeleri FAT'ta yazmaz; yeri "ilk küme +
+boy"dan hesaplanır. Sonuna küme eklersek hesap onu da bitişik sanar ve
+**başka bir dosyanın kümesine yazarız**. Doğru çözüm klasörü zincirliye
+çevirip bayrağını EBEVEYNİNDEKİ girdide düzeltmek; o girdi o noktada elimizde
+yok. Sessizce bozmaktansa hata veriliyor. (Bizim açtığımız klasörler ve kök
+zincirli olduğu için pratikte yalnız Windows'un açtığı dolu bir klasörde
+karşımıza çıkar.)
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2105 test yeşil**,
+`tool/check_kotlin.sh` temiz.

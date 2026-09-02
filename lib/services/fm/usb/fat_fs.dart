@@ -316,12 +316,47 @@ class FatFileSystem extends UsbFileSystem {
     if (count <= 0) return const [];
     final free = <int>[];
     final last = clusterCount + 1; // küme numaraları 2..count+1
-    for (var c = 2; c <= last && free.length < count; c++) {
-      // **Kök kümesi ASLA dağıtılmaz.** Bozuk/eksik biçimlendirilmiş bir
-      // bellekte FAT'ta kök zinciri işaretsiz kalabiliyor; "boş" sanıp
-      // dağıtmak kök dizini ezerdi (bütün dosyalar bir anda kaybolur).
-      if (kind == FatKind.fat32 && c == rootCluster) continue;
-      if (await nextRawEntry(c) == 0) free.add(c);
+    // **FAT TOPLU okunuyor, küme küme DEĞİL.** Tek tek sorulsaydı 64 GB'lık
+    // bir bellekte (8 milyon küme) en kötü hâlde on binlerce ayrı USB
+    // okuması gerekirdi; her biri ~1 ms olduğu için tek bir dosya yazmak
+    // dakikalar sürerdi. Sektör başına 128 (FAT32) girdi bir çırpıda geliyor.
+    const batchSectors = 64;
+    final entriesPerSector = switch (kind) {
+      FatKind.fat12 => 0, // FAT12'de girdi bayt sınırına oturmuyor
+      FatKind.fat16 => bytesPerSector ~/ 2,
+      FatKind.fat32 => bytesPerSector ~/ 4,
+    };
+    if (entriesPerSector > 0) {
+      outer:
+      for (var sector = 0; sector < fatSize; sector += batchSectors) {
+        final take = (sector + batchSectors) > fatSize
+            ? fatSize - sector
+            : batchSectors;
+        final data =
+            await device.readBlocks(reservedSectors + sector, take);
+        final view = ByteData.sublistView(data);
+        final firstCluster = sector * entriesPerSector;
+        for (var i = 0; i < take * entriesPerSector; i++) {
+          final c = firstCluster + i;
+          if (c < 2) continue;
+          if (c > last) break outer;
+          if (kind == FatKind.fat32 && c == rootCluster) continue;
+          final value = kind == FatKind.fat32
+              ? view.getUint32(i * 4, Endian.little) & 0x0FFFFFFF
+              : view.getUint16(i * 2, Endian.little);
+          if (value == 0) {
+            free.add(c);
+            if (free.length == count) break outer;
+          }
+        }
+      }
+    } else {
+      for (var c = 2; c <= last && free.length < count; c++) {
+        // **Kök kümesi ASLA dağıtılmaz.** Bozuk/eksik biçimlendirilmiş bir
+        // bellekte FAT'ta kök zinciri işaretsiz kalabiliyor; "boş" sanıp
+        // dağıtmak kök dizini ezerdi (bütün dosyalar bir anda kaybolur).
+        if (await nextRawEntry(c) == 0) free.add(c);
+      }
     }
     if (free.length < count) {
       throw const UsbFsException('Bellekte yer yok');
