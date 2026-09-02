@@ -10283,3 +10283,50 @@ belleklerde sessizce kırpılıyor ve YARIM yazılmış sektör bırakıyor.
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2095 test yeşil**
 (12'si yeni yazma testi; ölçüt "çağrı patlamadı" değil, imajın yeniden
 okunduğunda tutarlı olması).
+
+## 2026-09-02 (onuncu tur) — exFAT YAZMA + ham USB'nin arayüze tam bağlanması
+
+Kullanıcı: *"eksik bir şey bırakma, ne gerekiyorsa ne iyi olursa."*
+
+### exFAT yazma — FAT'tan ÜÇ ek yapı ister
+Üçü de atlanırsa bellek Windows'ta bozuk görünür:
+1. **Ayırma haritası (bitmap).** exFAT'ta bitişik dosyalar FAT'a hiç
+   yazılmaz (`NoFatChain`), yalnız haritada işaretlidir → boş küme yalnız
+   haritadan bulunur. Harita yoksa yazmayı REDDEDİYORUZ.
+2. **Büyük harf tablosu (upcase).** Ad karması bununla hesaplanıyor; Türkçe
+   adlarda kendi tahminimizle büyütmek yanlış karma üretir ve Windows dosyayı
+   "bulamaz". Tablonun sıkıştırması da çözülüyor (`0xFFFF` + N = "N karakter
+   kendisi gibi").
+3. **Girdi kümesi sağlaması (SetChecksum).** 2. ve 3. baytlar (sağlamanın
+   kendisi) hesaba KATILMAZ — katılırsa değer kendisine bağımlı olur.
+
+**Karar — `NoFatChain` KULLANILMIYOR:** zincir FAT'a yazılıyor. Bitişiklik
+iddiası yer arayışını zorlaştırır; zincirli dosyayı her exFAT sürücüsü okur.
+
+**TUZAK — silinen girdiyi SIFIRLAMAK:** ilk bayt 0x00 "dizin sonu" demektir;
+silinen girdiyi sıfırlamak arkasındaki bütün dosyaları görünmez yapardı.
+Doğrusu yalnız "kullanımda" bitini (7. bit) düşürmek. Test bunu koruyor.
+
+### Ham USB artık arayüzde tam bağlı
+* USB takılıp uygulama seçildiğinde ve Android altı denemede bağlamazsa
+  **kendiliğinden ham sürücü deneniyor** (izin penceresi çıkıyor). Daha önce
+  "olmadı" deyip bırakıyorduk.
+* Bağlanmamış bellek **panoda kart** (`_RawUsbCard`). Yol yoluyla ya da
+  klasör izniyle görünen bir bellek varsa kart çizilmiyor — aynı aygıtı iki
+  kez göstermek kafa karıştırır ve o durumda ham sürücü zaten çalışmaz
+  (aygıtı çekirdek tutuyor).
+* `UsbFs.canWrite` artık dosya sistemine bakıyor: FAT ve exFAT'ta yazma
+  düğmeleri açık, NTFS'te sönük.
+
+### Biçim desteği — bugünkü durum
+| Biçim | Okuma | Yazma |
+|---|---|---|
+| FAT12/16/32 | ✔ | ✔ |
+| exFAT | ✔ | ✔ |
+| NTFS | ✔ | ✘ (bilerek) |
+
+NTFS yazma bilerek yok: doğru yapmak günlük (journal) tutmayı gerektirir,
+yanlış yapmak diskin tamamını kaybettirir. Okuma tarafında sıkıştırılmış ve
+şifreli (EFS) dosyalar da desteklenmiyor — çöp veri vermektense hata.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2104 test yeşil**.

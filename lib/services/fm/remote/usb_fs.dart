@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as p;
+
 import '../../../models/remote_connection.dart';
 import '../usb/block_device.dart';
 import '../usb/exfat_fs.dart';
@@ -233,7 +235,7 @@ class UsbFs extends RemoteFs {
 
   @override
   Future<void> upload(File local, String remoteDir, {String? name}) async {
-    final target = name ?? local.uri.pathSegments.last;
+    final target = name ?? p.basename(local.path);
     try {
       // **Akışla yazılıyor:** 2 GB'lık bir videoyu önce belleğe almak
       // uygulamayı öldürürdü.

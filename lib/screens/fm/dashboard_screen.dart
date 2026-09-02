@@ -94,6 +94,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// "Takılı değil" yazmak yanlış olurdu.
   List<SafRoot> _safRoots = const [];
 
+  /// Android'in bağlamadığı ama uygulamanın sürebileceği USB aygıtları.
+  List<UsbDevice> _rawUsbCards = const [];
+
   bool _scanning = false;
   bool _hasAccess = true;
   int _trashCount = 0;
@@ -215,8 +218,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       await Future<void>.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
     }
-    // Altı denemede bağlanmadı: sessiz kalmak "dokundum, hiçbir şey olmadı"
-    // demek. Sebebi söyle — ve çıkış yolunu da ver.
+    // Altı denemede bağlanmadı. **Android bağlamıyorsa uygulama kendi
+    // sürsün:** kullanıcı "aç" dedi, ona "olmadı" demeden önce elimizdeki
+    // son yolu denemeliyiz (izin penceresi çıkar, verilirse bellek açılır).
+    final drivable =
+        (await UsbHost.devices()).where((d) => d.isDrivable).toList();
+    if (!mounted) return;
+    if (drivable.isNotEmpty) {
+      await _openRawUsb(drivable.first.name);
+      return;
+    }
+    // Sürülebilir aygıt da yok: sebebi söyle ve çıkış yolunu ver.
     await _reportStuckExternal();
   }
 
@@ -700,6 +712,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             // çizilmez (bkz. `SafRoot.volumeId`).
             for (final r in _safCards()) ...[
               _SafCard(root: r, onTap: () => unawaited(_openSafRoot(r))),
+              const SizedBox(height: Gap.sm),
+            ],
+            // **Android'in bağlamadığı bellek de KART olarak** (kullanıcı
+            // 2026-09-02: bellek ana ekranda görünmeli). Yol yoluyla ya da
+            // klasör izniyle zaten görünen bir bellek varsa kart çizilmez —
+            // aynı aygıtı iki kez göstermek kafa karıştırır.
+            for (final d in _rawUsbCards) ...[
+              _RawUsbCard(
+                device: d,
+                onTap: () => unawaited(_openRawUsb(d.name)),
+              ),
               const SizedBox(height: Gap.sm),
             ],
             // (AI Asistan kartı 2026-08-17'de KALKTI: kullanıcı *"ai asistan
@@ -1360,6 +1383,27 @@ class _DashboardScreenState extends State<DashboardScreen>
     final roots = await AppStorageService.safRoots();
     if (!mounted) return;
     setState(() => _safRoots = roots);
+    await _loadRawUsb();
+  }
+
+  /// Sürülebilir USB aygıtlarını tazeler.
+  ///
+  /// Yol yoluyla görünen takılabilir bir birim ya da klasör izni VARSA kart
+  /// çizilmiyor: Android belleği zaten bağlamış demektir ve ham sürücü hem
+  /// gereksiz hem de o durumda çalışmaz (aygıtı çekirdek tutuyor).
+  Future<void> _loadRawUsb() async {
+    final devices = await UsbHost.devices();
+    if (!mounted) return;
+    final covered = FmEnv.volumes.any((v) => v.isRemovable) ||
+        _safRoots.isNotEmpty;
+    setState(() {
+      _rawUsbCards = covered
+          ? const []
+          : [
+              for (final d in devices)
+                if (d.isDrivable) d,
+            ];
+    });
   }
 
   /// **SAF yolu** — klasör izniyle harici belleğe erişim.
@@ -1857,6 +1901,36 @@ class _SafCard extends StatelessWidget {
         title: Text(root.name,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(context.t('saf.granted')),
+        trailing: const Icon(Icons.chevron_right),
+      ),
+    );
+  }
+}
+
+/// **Ham USB kartı** — Android'in bağlamadığı ama sürebildiğimiz bellek.
+///
+/// Doluluk halkası YOK ve olamaz: kapasiteyi ancak aygıtı açtıktan sonra
+/// öğreniyoruz. Uydurma bir halka çizmektense hiç çizmemek dürüst olan.
+class _RawUsbCard extends StatelessWidget {
+  final UsbDevice device;
+  final VoidCallback onTap;
+
+  const _RawUsbCard({required this.device, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: scheme.tertiaryContainer,
+          child: Icon(Icons.usb, color: scheme.onTertiaryContainer),
+        ),
+        title: Text(device.displayName,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(context.t('usb.open_raw')),
         trailing: const Icon(Icons.chevron_right),
       ),
     );

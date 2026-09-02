@@ -208,14 +208,33 @@ abstract final class UsbImage {
             Endian.little);
     setFat(0, 0xFFFFFFF8);
     setFat(1, 0xFFFFFFFF);
+    setFat(2, 0xFFFFFFFF); // kök zinciri
 
-    var nextFree = 3; // 2 = kök
+    // **Ayırma haritası ve büyük harf tablosu** gerçek exFAT'ta ZORUNLUDUR
+    // ve yazma katmanı ikisini de arar (harita olmadan boş küme bulunamaz,
+    // tablo olmadan ad karması yanlış çıkar).
+    const bitmapCluster = 3;
+    const upcaseCluster = 4;
+    var nextFree = 5; // 2 = kök, 3 = harita, 4 = tablo
     int clusterOffset(int c) => (heapOffset + (c - 2)) * sectorSize;
+
+    final usedClusters = <int>{2, bitmapCluster, upcaseCluster};
+    setFat(bitmapCluster, 0xFFFFFFFF);
+    setFat(upcaseCluster, 0xFFFFFFFF);
+
+    // Büyük harf tablosu: ASCII kimlik + a-z büyütme (sıkıştırmasız).
+    const upcaseEntries = 128;
+    for (var ch = 0; ch < upcaseEntries; ch++) {
+      final up = (ch >= 0x61 && ch <= 0x7A) ? ch - 32 : ch;
+      view.setUint16(clusterOffset(upcaseCluster) + ch * 2, up, Endian.little);
+    }
+
     int allocate(int byteLength) {
       final need = byteLength <= 0 ? 1 : ((byteLength + 511) ~/ 512);
       final first = nextFree;
       for (var i = 0; i < need; i++) {
         setFat(first + i, i == need - 1 ? 0xFFFFFFFF : first + i + 1);
+        usedClusters.add(first + i);
       }
       nextFree += need;
       return first;
@@ -244,8 +263,20 @@ abstract final class UsbImage {
       rootRecords.add(_Rec(dir.name, true, dirCluster, 512));
     }
 
-    final rootBytes =
-        _exfatDirBytes(rootRecords, contiguous: contiguous, label: label);
+    // Haritayı doldur: kullanılan her kümenin biti 1.
+    for (final c in usedClusters) {
+      final bit = c - 2;
+      final at = clusterOffset(bitmapCluster) + bit ~/ 8;
+      image[at] = image[at] | (1 << (bit % 8));
+    }
+
+    final rootBytes = _exfatDirBytes(
+      rootRecords,
+      contiguous: contiguous,
+      label: label,
+      bitmap: (bitmapCluster, (clusterCount + 7) ~/ 8),
+      upcase: (upcaseCluster, upcaseEntries * 2),
+    );
     image.setRange(
         clusterOffset(2), clusterOffset(2) + rootBytes.length, rootBytes);
     return image;
@@ -355,9 +386,30 @@ abstract final class UsbImage {
   }
 
   /// exFAT dizin bloğu: 0x83 etiket + her kayıt için 0x85/0xC0/0xC1 üçlüsü.
-  static Uint8List _exfatDirBytes(List<_Rec> records,
-      {required bool contiguous, String label = ''}) {
+  static Uint8List _exfatDirBytes(
+    List<_Rec> records, {
+    required bool contiguous,
+    String label = '',
+    (int, int)? bitmap,
+    (int, int)? upcase,
+  }) {
     final out = BytesBuilder();
+    if (bitmap != null) {
+      final e = Uint8List(32);
+      e[0] = 0x81; // ayırma haritası
+      final v = ByteData.sublistView(e);
+      v.setUint32(20, bitmap.$1, Endian.little);
+      v.setUint64(24, bitmap.$2, Endian.little);
+      out.add(e);
+    }
+    if (upcase != null) {
+      final e = Uint8List(32);
+      e[0] = 0x82; // büyük harf tablosu
+      final v = ByteData.sublistView(e);
+      v.setUint32(20, upcase.$1, Endian.little);
+      v.setUint64(24, upcase.$2, Endian.little);
+      out.add(e);
+    }
     if (label.isNotEmpty) {
       final e = Uint8List(32);
       e[0] = 0x83;
