@@ -104,7 +104,8 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
     final failed = context.t('nas.error_unknown');
     setState(() => _busy = true);
     try {
-      final dir = p.join(FmEnv.appSupportDir, 'remote', widget.connection.id);
+      final dir =
+          p.join(FmEnv.appSupportDir, 'remote', safeCacheName(widget.connection.id));
       final local = await _fs.download(entry, p.join(dir, entry.name));
       // Düzenleme geri yazımının ölçütü: dosyanın açılmadan ÖNCEKİ hâli.
       // Boyut + değiştirilme damgası birlikte alınıyor; yalnız damga
@@ -457,6 +458,28 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
 /// Değiştirilebilir bir işlev: widget testinde gerçek görüntüleyici
 /// açılamaz (dosya ayrıştırma + platform kanalı ister), testler bunu
 /// sahtesiyle değiştirip "kullanıcı düzenledi" durumunu taklit ediyor.
+/// **Bağlantı kimliğini klasör adı yapar** — saf, testli.
+///
+/// Kullanıcı hatası 2026-09-02 (ekran görüntüsü): ham USB'den bir mp3
+/// açılınca *"Bu ses dosyası çalınamadı: MEDIA_ERROR_UNKNOWN"* çıkıyordu.
+/// Kök neden dosya değil, YOL: indirilen kopya `…/remote/<bağlantı kimliği>/`
+/// altına yazılıyor ve kimlik `usb:USB` (SAF'ta `saf:content://…`) gibi
+/// **iki nokta ve eğik çizgi** içeriyor. Android'in MediaPlayer'ı böyle bir
+/// yolu adres (URI) sanıp reddediyor; SAF'ta ise eğik çizgiler yolu
+/// beklenmedik alt klasörlere bölüyordu.
+///
+/// Harf, rakam, `.`, `-` ve `_` dışındaki her şey `_` oluyor; ad boş kalırsa
+/// `baglanti` deniyor (boş klasör adı yol birleştirmeyi bozardı).
+String safeCacheName(String id) {
+  final cleaned = id
+      .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')
+      // Art arda gelenler tek alt çizgiye iner: `content://` üç karakter,
+      // üç alt çizgi olarak kalsaydı ad gereksiz çirkin olurdu.
+      .replaceAll(RegExp(r'_{2,}'), '_');
+  final trimmed = cleaned.replaceAll(RegExp(r'^_+|_+$'), '');
+  return trimmed.isEmpty ? 'baglanti' : trimmed;
+}
+
 Future<void> Function(BuildContext context, String path) openLocalFile =
     (context, path) => EntryOpener.open(context, path);
 

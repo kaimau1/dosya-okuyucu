@@ -25,19 +25,36 @@ class UsbBlockDevice extends BlockDevice {
 
   /// Aygıtı açar (gerekiyorsa kullanıcıdan izin ister).
   ///
-  /// İzin verilmez ya da aygıt sürülemezse `null`. [deviceName] boşsa ilk
-  /// bulunan aygıt denenir.
-  static Future<UsbBlockDevice?> open({String? deviceName}) async {
+  /// Başarısızlıkta [UsbOpenResult.device] null olur ve [UsbOpenResult.error]
+  /// + [UsbOpenResult.steps] sebebi söyler. Kullanıcı hatası 2026-09-02: ilk
+  /// sürümde yalnız "açılamadı" deniyordu ve ekran görüntüsünden "izin mi,
+  /// sahiplenme mi, SCSI mi, biçim mi?" AYIRT EDİLEMİYORDU.
+  static Future<UsbOpenResult> open({String? deviceName}) async {
     try {
       final raw = await _channel
           .invokeMapMethod<String, dynamic>('usbmsOpen', {'device': deviceName});
-      if (raw == null) return null;
+      if (raw == null) {
+        return const UsbOpenResult(error: 'Aygıt bulunamadı');
+      }
+      final steps = [
+        for (final s in (raw['steps'] as List? ?? const []))
+          if (s != null) '$s',
+      ];
+      if (raw['ok'] != true) {
+        return UsbOpenResult(
+            error: '${raw['error'] ?? 'Bilinmeyen hata'}', steps: steps);
+      }
       final size = (raw['blockSize'] as num?)?.toInt() ?? 0;
       final count = (raw['blockCount'] as num?)?.toInt() ?? 0;
-      if (size <= 0 || count <= 0) return null;
-      return UsbBlockDevice._(size, count, '${raw['device'] ?? ''}');
-    } catch (_) {
-      return null;
+      if (size <= 0 || count <= 0) {
+        return UsbOpenResult(error: 'Kapasite okunamadı', steps: steps);
+      }
+      return UsbOpenResult(
+        device: UsbBlockDevice._(size, count, '${raw['device'] ?? ''}'),
+        steps: steps,
+      );
+    } catch (e) {
+      return UsbOpenResult(error: 'Kanal hatası: $e');
     }
   }
 
@@ -89,4 +106,26 @@ class UsbBlockDevice extends BlockDevice {
       // kanal yoksa kapatılacak bir şey de yok
     }
   }
+}
+
+
+/// Ham USB açma denemesinin sonucu — başarısızlıkta da SEBEP taşır.
+class UsbOpenResult {
+  /// Açıldıysa aygıt; açılamadıysa null.
+  final UsbBlockDevice? device;
+
+  /// Tek cümlelik sebep (açıldıysa boş).
+  final String error;
+
+  /// Native tarafın adım adım günlüğü (arayüz gösteriyor, kullanıcı
+  /// gönderiyor, biz nerede takıldığını görüyoruz).
+  final List<String> steps;
+
+  const UsbOpenResult({
+    this.device,
+    this.error = '',
+    this.steps = const [],
+  });
+
+  bool get ok => device != null;
 }

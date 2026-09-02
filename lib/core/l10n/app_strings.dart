@@ -2516,6 +2516,11 @@ const Map<String, (String, String, String)> _table = {
     'Read-only for now: files open and copy out, nothing is written back.',
     'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. للقراءة فقط حاليًا.',
   ),
+  'usb.open_raw_failed_title': (
+    'Bellek açılamadı',
+    'Could not open the drive',
+    'تعذّر فتح المحرك',
+  ),
   'usb.open_raw_failed': (
     'Bellek doğrudan açılamadı: izin verilmedi ya da biçimi tanınmadı '
     '(FAT32/exFAT destekleniyor).',

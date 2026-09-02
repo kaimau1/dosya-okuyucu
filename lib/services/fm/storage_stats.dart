@@ -420,13 +420,20 @@ abstract final class StorageStats {
   /// 3. Hiçbiri değilse SD kart varsayılır: bugüne kadarki davranış buydu ve
   ///    yanlış tahminin bedeli yalnız simge/ad.
   static StorageKind kindOf(String mountPoint, List<String> mounts) {
+    final name = p.basename(mountPoint);
     for (final line in mounts) {
       final parts = line.trim().split(RegExp(r'\s+'));
       if (parts.length < 2) continue;
       final device = parts[0];
-      // Bağlama noktası TAM eşleşmeli: `/storage/1A2B` ile `/storage/1A2B-3C4D`
-      // karışmasın.
-      if (parts[1] != mountPoint) continue;
+      // **Aynı aygıt iki noktada durur** (kullanıcı ölçümü 2026-09-02):
+      // `/mnt/media_rw/8A07-470A` (gerçek aygıt: `/dev/block/vold/public:8,1`
+      // → USB) ve `/storage/8A07-470A` (`/dev/fuse` — tür bilgisi YOK).
+      // Yalnız tam eşleşme arayınca fuse satırı bulunuyor, aygıt adı hiçbir
+      // şey söylemiyor ve USB bellek "SD kart" olarak etiketleniyordu.
+      // Temel ad eşleşmesi ikisini de aynı aygıt sayar; tam eşleşme yine
+      // önce denenir.
+      final exact = parts[1] == mountPoint;
+      if (!exact && (name.isEmpty || p.basename(parts[1]) != name)) continue;
       final vold = RegExp(r'/dev/block/vold/public:(\d+),').firstMatch(device);
       if (vold != null) {
         // 179 = MMC (SD kart), 8 = SCSI disk (USB yığın depolama).

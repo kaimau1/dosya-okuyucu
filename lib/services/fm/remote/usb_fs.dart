@@ -5,6 +5,7 @@ import '../../../models/remote_connection.dart';
 import '../usb/block_device.dart';
 import '../usb/exfat_fs.dart';
 import '../usb/fat_fs.dart';
+import '../usb/ntfs_fs.dart';
 import '../usb/partition_table.dart';
 import '../usb/usb_block_device.dart';
 import '../usb/usb_fs_types.dart';
@@ -59,15 +60,21 @@ class UsbFs extends RemoteFs {
 
   /// **Belleği açar:** aygıtı sürer, bölümü bulur, dosya sistemini tanır.
   ///
-  /// Sıra önemli: exFAT önce denenir (imzası kesin), sonra FAT. Hiçbiri
-  /// tutmazsa `null` — çağıran kullanıcıya "biçim tanınmadı" der; sessizce
-  /// boş klasör göstermek yanlış olurdu.
-  static Future<UsbFs?> open({String? deviceName}) async {
-    final raw = await UsbBlockDevice.open(deviceName: deviceName);
-    if (raw == null) return null;
+  /// Sıra önemli: exFAT ve NTFS imzalarından tanınır, FAT en sona kalır
+  /// (BPB alanları en gevşek olan o). Hiçbiri tutmazsa sonuçta [UsbFs] YOK
+  /// ama SEBEP var: hangi adımda takıldığımız kullanıcıya söyleniyor.
+  static Future<UsbOpenOutcome> open({String? deviceName}) async {
+    final result = await UsbBlockDevice.open(deviceName: deviceName);
+    final raw = result.device;
+    if (raw == null) {
+      return UsbOpenOutcome(error: result.error, steps: result.steps);
+    }
+    final steps = [...result.steps];
     final device = CachedBlockDevice(raw);
     try {
-      for (final part in await PartitionTable.read(device)) {
+      final parts = await PartitionTable.read(device);
+      steps.add('bölüm sayısı: ${parts.length}');
+      for (final part in parts) {
         final view = PartitionBlockDevice(
           device,
           part.firstLba,
@@ -75,30 +82,48 @@ class UsbFs extends RemoteFs {
               ? device.blockCount - part.firstLba
               : part.blockCount,
         );
-        final fs = await _probe(view);
+        final probe = await _probe(view);
+        steps.add('bölüm @${part.firstLba}: ${probe.$2}');
+        final fs = probe.$1;
         if (fs == null) continue;
         final name = fs.label.trim().isEmpty
             ? (part.name.trim().isEmpty ? 'USB' : part.name.trim())
             : fs.label.trim();
-        return UsbFs(fs: fs, device: device, label: name);
+        return UsbOpenOutcome(
+          fs: UsbFs(fs: fs, device: device, label: name),
+          steps: steps,
+        );
       }
-    } catch (_) {
-      // Bölüm tablosu ya da dosya sistemi okunamadı.
+      await device.close();
+      return UsbOpenOutcome(
+        error: 'Biçim tanınmadı (FAT16/FAT32/exFAT/NTFS destekleniyor)',
+        steps: steps,
+      );
+    } catch (e) {
+      await device.close();
+      return UsbOpenOutcome(error: 'Bellek okunamadı: $e', steps: steps);
     }
-    await device.close();
-    return null;
   }
 
-  static Future<UsbFileSystem?> _probe(BlockDevice device) async {
+  /// Bir bölümdeki dosya sistemini tanır; ikinci değer günlük satırıdır.
+  static Future<(UsbFileSystem?, String)> _probe(BlockDevice device) async {
     try {
-      return await ExfatFileSystem.open(device);
+      final fs = await ExfatFileSystem.open(device);
+      return (fs, 'exFAT');
     } catch (_) {
-      // exFAT değil — FAT dene.
+      // exFAT değil
     }
     try {
-      return await FatFileSystem.open(device);
+      final fs = await NtfsFileSystem.open(device);
+      return (fs, 'NTFS');
     } catch (_) {
-      return null;
+      // NTFS değil
+    }
+    try {
+      final fs = await FatFileSystem.open(device);
+      return (fs, 'FAT (${fs.kind.name})');
+    } catch (e) {
+      return (null, 'tanınmadı ($e)');
     }
   }
 
@@ -198,4 +223,20 @@ class UsbFs extends RemoteFs {
   Future<void> rename(RemoteEntry entry, String newName) async =>
       throw const RemoteException(RemoteError.denied,
           detail: 'Ham USB erişimi şimdilik salt okunur.');
+}
+
+
+/// Ham USB açma denemesinin sonucu: ya dosya sistemi, ya SEBEP.
+///
+/// "Açılamadı" demek yetmiyordu (kullanıcı ölçümü 2026-09-02): izin mi,
+/// arayüz sahiplenme mi, SCSI mi, biçim mi? [steps] her adımı taşıyor ve
+/// arayüz onu gösteriyor.
+class UsbOpenOutcome {
+  final UsbFs? fs;
+  final String error;
+  final List<String> steps;
+
+  const UsbOpenOutcome({this.fs, this.error = '', this.steps = const []});
+
+  bool get ok => fs != null;
 }

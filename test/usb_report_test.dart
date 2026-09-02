@@ -15,7 +15,8 @@ void main() {
     bool mass = false,
     bool anyDevice = false,
     bool usable = false,
-    bool androidKnows = false,
+    bool androidMounted = false,
+    bool androidUnmounted = false,
     bool mounted = false,
     bool saf = false,
   }) =>
@@ -24,7 +25,8 @@ void main() {
         massStorageAttached: mass,
         anyDevice: anyDevice || mass,
         usableVolume: usable,
-        androidKnowsVolume: androidKnows,
+        androidMountedVolume: androidMounted,
+        androidKnowsUnmountedVolume: androidUnmounted,
         mountedSomewhere: mounted,
         safGranted: saf,
       );
@@ -32,7 +34,7 @@ void main() {
   group('UsbReport.decide', () {
     test('gezilebilen birim varsa her şey yolunda (diğer sinyaller susturur)',
         () {
-      expect(decide(usable: true, mass: true, androidKnows: true),
+      expect(decide(usable: true, mass: true, androidMounted: true),
           UsbVerdict.usable);
     });
 
@@ -40,8 +42,23 @@ void main() {
       expect(decide(saf: true, mass: true), UsbVerdict.mountedNoPath);
     });
 
-    test('Android birimi biliyorsa yol vermese de SAF çalışır', () {
-      expect(decide(mass: true, androidKnows: true), UsbVerdict.mountedNoPath);
+    test('Android birimi BAĞLAMIŞSA yol vermese de SAF çalışır', () {
+      expect(
+          decide(mass: true, androidMounted: true), UsbVerdict.mountedNoPath);
+    });
+
+    // **Kullanıcı ölçümü 2026-09-02 (ekran görüntüsü).** Cihazda birim
+    // listedeydi ama "yol yok · unmounted · okunabilir ✘"; /proc/mounts,
+    // /storage ve klasör izinleri boştu. Karar "bağlı, SAF yeter" çıkıyordu
+    // ve kullanıcıyı çıkışı olmayan bir kapıya yolluyordu: bağlanmamış birim
+    // klasör seçicide de görünmez.
+    test('LİSTEDE olup BAĞLANMAMIŞ birim "bağlı" sayılmaz → ham sürücü', () {
+      expect(decide(mass: true, androidUnmounted: true),
+          UsbVerdict.attachedNotMounted);
+    });
+
+    test('aygıt listesi sussa da bağlanmamış birim aynı sonucu verir', () {
+      expect(decide(androidUnmounted: true), UsbVerdict.attachedNotMounted);
     });
 
     test('bağlama tablosunda görünüyorsa yine bağlıdır', () {

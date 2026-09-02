@@ -404,6 +404,303 @@ abstract final class UsbImage {
   }
 }
 
+/// **Sentetik NTFS imajı üreticisi.**
+///
+/// NTFS'in üç ayrı yapısı burada gerçek disklerdeki gibi kuruluyor:
+/// düzeltme dizisi (fixup), çalıştırma listesi (data runs) ve dizin indeksi.
+/// Üçü de sessiz bozulmanın en kolay olduğu yerler; sentetik imaj olmadan
+/// ancak gerçek bir diskle sınanabilirlerdi.
+abstract final class NtfsImage {
+  static const sectorSize = 512;
+  static const sectorsPerCluster = 1;
+  static const clusterSize = sectorSize * sectorsPerCluster;
+  static const recordSize = 1024;
+
+  /// MFT'nin başladığı küme.
+  static const mftCluster = 16;
+
+  /// MFT'nin kaç küme tuttuğu. 512 baytlık kümede bir kayıt 2 küme eder;
+  /// kullanılan en yüksek kayıt numarası (16 + dosya sayısı) sığmalı, yoksa
+  /// kök dizin (5) bile "diskte bulunamadı" olurdu.
+  static const mftClusters = 64;
+
+  /// Veri kümelerinin başladığı yer (MFT'den sonra).
+  static const dataCluster = mftCluster + mftClusters;
+
+  /// Kök dizinde [files] bulunan bir NTFS imajı üretir.
+  ///
+  /// Kayıt düzeni: 0=$MFT, 3=$Volume, 5=kök dizin, 16+=dosyalar.
+  static Uint8List build({
+    List<ImgFile> files = const [],
+    String label = 'NTFS DISK',
+    bool resident = false,
+  }) {
+    const totalClusters = 512;
+    final image = Uint8List(totalClusters * clusterSize);
+    final view = ByteData.sublistView(image);
+
+    // ── Önyükleme sektörü ──
+    image[0] = 0xEB;
+    image[1] = 0x52;
+    image[2] = 0x90;
+    image.setRange(3, 11, 'NTFS    '.codeUnits);
+    view.setUint16(11, sectorSize, Endian.little);
+    image[13] = sectorsPerCluster;
+    view.setUint64(40, totalClusters * sectorsPerCluster, Endian.little);
+    view.setUint64(48, mftCluster, Endian.little);
+    view.setInt8(64, -10); // 2^10 = 1024 baytlık kayıt
+    image[510] = 0x55;
+    image[511] = 0xAA;
+
+    int recordOffset(int n) => mftCluster * clusterSize + n * recordSize;
+
+    // ── $MFT kaydı (0): kendi çalıştırması ──
+    _writeRecord(
+      image,
+      recordOffset(0),
+      isDir: false,
+      attributes: [
+        _nonResidentData(runs: [(mftCluster, mftClusters)], size:
+            mftClusters * clusterSize),
+      ],
+    );
+
+    // ── $Volume kaydı (3): etiket ──
+    _writeRecord(
+      image,
+      recordOffset(3),
+      isDir: false,
+      attributes: [_volumeName(label)],
+    );
+
+    // ── Dosya kayıtları (16+) ──
+    var nextCluster = dataCluster;
+    final entries = <_NtfsEntry>[];
+    for (var i = 0; i < files.length; i++) {
+      final f = files[i];
+      final number = 16 + i;
+      if (resident) {
+        _writeRecord(image, recordOffset(number),
+            isDir: false, attributes: [_residentData(f.data)]);
+      } else {
+        final need = (f.data.length + clusterSize - 1) ~/ clusterSize;
+        final start = nextCluster;
+        image.setRange(start * clusterSize,
+            start * clusterSize + f.data.length, f.data);
+        nextCluster += need;
+        _writeRecord(
+          image,
+          recordOffset(number),
+          isDir: false,
+          attributes: [
+            _nonResidentData(runs: [(start, need)], size: f.data.length),
+          ],
+        );
+      }
+      entries.add(_NtfsEntry(number, f.name, false, f.data.length));
+    }
+
+    // ── Kök dizin (5): $INDEX_ROOT içinde girdiler ──
+    _writeRecord(
+      image,
+      recordOffset(5),
+      isDir: true,
+      attributes: [_indexRoot(entries)],
+    );
+    return image;
+  }
+
+  /// Kaydı yazar ve **düzeltme dizisini** gerçek NTFS gibi kurar: her
+  /// sektörün son iki baytı diziye taşınır, yerine sıra numarası konur.
+  static void _writeRecord(
+    Uint8List image,
+    int offset, {
+    required bool isDir,
+    required List<Uint8List> attributes,
+  }) {
+    final record = Uint8List(recordSize);
+    final d = ByteData.sublistView(record);
+    record.setRange(0, 4, 'FILE'.codeUnits);
+    const usaOffset = 48;
+    const usaCount = recordSize ~/ sectorSize + 1;
+    d.setUint16(4, usaOffset, Endian.little);
+    d.setUint16(6, usaCount, Endian.little);
+    d.setUint16(20, 56, Endian.little); // ilk öznitelik
+    d.setUint16(22, 1, Endian.little); // sıra numarası
+    d.setUint16(24, 1, Endian.little); // bağlantı sayısı
+    d.setUint16(28, isDir ? 0x03 : 0x01, Endian.little); // kullanımda (+dizin)
+
+    var pos = 56;
+    for (final attr in attributes) {
+      record.setRange(pos, pos + attr.length, attr);
+      pos += attr.length;
+    }
+    d.setUint32(pos, 0xFFFFFFFF, Endian.little); // öznitelik sonu
+    d.setUint32(24, pos + 8, Endian.little);
+
+    // Düzeltme dizisi: sıra numarası 0x0001.
+    record[usaOffset] = 0x01;
+    record[usaOffset + 1] = 0x00;
+    for (var i = 1; i < usaCount; i++) {
+      final end = i * sectorSize - 2;
+      record[usaOffset + i * 2] = record[end];
+      record[usaOffset + i * 2 + 1] = record[end + 1];
+      record[end] = 0x01;
+      record[end + 1] = 0x00;
+    }
+    image.setRange(offset, offset + recordSize, record);
+  }
+
+  static Uint8List _residentData(Uint8List content) {
+    final length = 24 + content.length;
+    final padded = (length + 7) & ~7;
+    final attr = Uint8List(padded);
+    final d = ByteData.sublistView(attr);
+    d.setUint32(0, 0x80, Endian.little);
+    d.setUint32(4, padded, Endian.little);
+    attr[8] = 0; // yerleşik
+    d.setUint16(20, 24, Endian.little); // içerik ofseti
+    d.setUint32(16, content.length, Endian.little);
+    attr.setRange(24, 24 + content.length, content);
+    return attr;
+  }
+
+  static Uint8List _nonResidentData({
+    required List<(int, int)> runs,
+    required int size,
+  }) {
+    final runBytes = _encodeRuns(runs);
+    final length = (64 + runBytes.length + 7) & ~7;
+    final attr = Uint8List(length);
+    final d = ByteData.sublistView(attr);
+    d.setUint32(0, 0x80, Endian.little);
+    d.setUint32(4, length, Endian.little);
+    attr[8] = 1; // yerleşik değil
+    d.setUint16(32, 64, Endian.little); // çalıştırma listesi ofseti
+    d.setUint64(48, size, Endian.little); // gerçek boyut
+    attr.setRange(64, 64 + runBytes.length, runBytes);
+    return attr;
+  }
+
+  /// Çalıştırma listesini gerçek NTFS kodlamasıyla yazar (göreli, işaretli).
+  static Uint8List _encodeRuns(List<(int, int)> runs) {
+    final out = <int>[];
+    var previous = 0;
+    for (final run in runs) {
+      final delta = run.$1 - previous;
+      previous = run.$1;
+      final lengthBytes = _bytesFor(run.$2, signed: false);
+      final offsetBytes = _bytesFor(delta, signed: true);
+      out.add((offsetBytes << 4) | lengthBytes);
+      for (var i = 0; i < lengthBytes; i++) {
+        out.add((run.$2 >> (8 * i)) & 0xFF);
+      }
+      for (var i = 0; i < offsetBytes; i++) {
+        out.add((delta >> (8 * i)) & 0xFF);
+      }
+    }
+    out.add(0);
+    return Uint8List.fromList(out);
+  }
+
+  static int _bytesFor(int value, {required bool signed}) {
+    var n = 1;
+    var v = value;
+    while (n < 8) {
+      final bits = 8 * n - (signed ? 1 : 0);
+      final limit = 1 << bits;
+      if (v.abs() < limit) break;
+      n++;
+    }
+    return n;
+  }
+
+  static Uint8List _volumeName(String label) {
+    final content = Uint8List(label.length * 2);
+    for (var i = 0; i < label.length; i++) {
+      content[i * 2] = label.codeUnitAt(i) & 0xFF;
+      content[i * 2 + 1] = label.codeUnitAt(i) >> 8;
+    }
+    final length = (24 + content.length + 7) & ~7;
+    final attr = Uint8List(length);
+    final d = ByteData.sublistView(attr);
+    d.setUint32(0, 0x60, Endian.little); // $VOLUME_NAME
+    d.setUint32(4, length, Endian.little);
+    d.setUint32(16, content.length, Endian.little);
+    d.setUint16(20, 24, Endian.little);
+    attr.setRange(24, 24 + content.length, content);
+    return attr;
+  }
+
+  /// $INDEX_ROOT: dizin başlığı + girdiler + "son girdi" işareti.
+  static Uint8List _indexRoot(List<_NtfsEntry> entries) {
+    final body = <int>[];
+    for (final e in entries) {
+      body.addAll(_indexEntry(e));
+    }
+    // Son girdi: anahtarsız, yalnız bayrak.
+    final last = Uint8List(16);
+    ByteData.sublistView(last)
+      ..setUint16(8, 16, Endian.little)
+      ..setUint16(12, 0x02, Endian.little);
+    body.addAll(last);
+
+    final content = Uint8List(16 + 16 + body.length);
+    final d = ByteData.sublistView(content);
+    d.setUint32(0, 0x30, Endian.little); // anahtar türü $FILE_NAME
+    d.setUint32(8, 4096, Endian.little); // dizin blok boyu
+    content[12] = 1;
+    // Dizin düğümü başlığı (16. bayttan itibaren)
+    d.setUint32(16, 16, Endian.little); // girdiler ofseti (düğüme göre)
+    d.setUint32(20, 16 + body.length, Endian.little);
+    d.setUint32(24, 16 + body.length, Endian.little);
+    content.setRange(32, 32 + body.length, body);
+
+    final length = (24 + content.length + 7) & ~7;
+    final attr = Uint8List(length);
+    final a = ByteData.sublistView(attr);
+    a.setUint32(0, 0x90, Endian.little); // $INDEX_ROOT
+    a.setUint32(4, length, Endian.little);
+    a.setUint32(16, content.length, Endian.little);
+    a.setUint16(20, 24, Endian.little);
+    attr.setRange(24, 24 + content.length, content);
+    return attr;
+  }
+
+  static Uint8List _indexEntry(_NtfsEntry e) {
+    final nameChars = e.name.codeUnits;
+    final keyLength = 66 + nameChars.length * 2;
+    final entryLength = (16 + keyLength + 7) & ~7;
+    final entry = Uint8List(entryLength);
+    final d = ByteData.sublistView(entry);
+    d.setUint64(0, e.recordNumber, Endian.little); // dosya referansı
+    d.setUint16(8, entryLength, Endian.little);
+    d.setUint16(10, keyLength, Endian.little);
+    // Anahtar = $FILE_NAME içeriği (16. bayttan itibaren)
+    const key = 16;
+    d.setUint64(key + 0, 5, Endian.little); // ebeveyn = kök
+    // 1 Ocak 2020 12:00 UTC → FILETIME
+    const fileTime = 132230160000000000;
+    d.setUint64(key + 24, fileTime, Endian.little); // değiştirilme
+    d.setUint64(key + 48, e.size, Endian.little); // gerçek boyut
+    d.setUint32(key + 56, e.isDir ? 0x10000000 : 0x20, Endian.little);
+    entry[key + 64] = nameChars.length;
+    entry[key + 65] = 1; // Win32 adı (DOS değil)
+    for (var i = 0; i < nameChars.length; i++) {
+      d.setUint16(key + 66 + i * 2, nameChars[i], Endian.little);
+    }
+    return entry;
+  }
+}
+
+class _NtfsEntry {
+  final int recordNumber;
+  final String name;
+  final bool isDir;
+  final int size;
+  _NtfsEntry(this.recordNumber, this.name, this.isDir, this.size);
+}
+
 class _Rec {
   final String name;
   final bool isDir;

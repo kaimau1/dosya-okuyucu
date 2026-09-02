@@ -685,22 +685,42 @@ class MainActivity : FlutterActivity() {
         val mass = UsbMass(this)
         mass.requestPermission(device) { granted ->
             if (!granted) {
-                result.success(null)
+                result.success(
+                    mapOf(
+                        "ok" to false,
+                        "error" to "İzin verilmedi",
+                        "steps" to mass.steps.toList()
+                    )
+                )
                 return@requestPermission
             }
             Thread {
-                val ok = try { mass.open(device) } catch (e: Exception) { false }
+                val ok = try {
+                    mass.open(device)
+                } catch (e: Exception) {
+                    mass.steps.add("istisna: ${e.message}")
+                    false
+                }
+                // **Başarısızlıkta da GÜNLÜK dönüyor.** İlk turda yalnız
+                // `null` dönüyordu ve kullanıcının ekran görüntüsünden
+                // "izin mi, sahiplenme mi, SCSI mi?" ayırt edilemiyordu.
                 val payload = if (ok) {
                     usbMass?.close()
                     usbMass = mass
                     mapOf(
+                        "ok" to true,
                         "blockSize" to mass.blockSize,
                         "blockCount" to mass.blockCount,
-                        "device" to device.deviceName
+                        "device" to device.deviceName,
+                        "steps" to mass.steps.toList()
                     )
                 } else {
                     mass.close()
-                    null
+                    mapOf(
+                        "ok" to false,
+                        "error" to (mass.error ?: "Bilinmeyen hata"),
+                        "steps" to mass.steps.toList()
+                    )
                 }
                 Handler(Looper.getMainLooper()).post { result.success(payload) }
             }.start()

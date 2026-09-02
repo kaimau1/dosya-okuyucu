@@ -10162,3 +10162,77 @@ disket, bölüm sınırı, önbellek.
 EDİLEMİYOR; ancak cihazda görülür. Ölçüm ekranı bu yüzden var.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2065 test yeşil**.
+
+## 2026-09-02 (sekizinci tur) — Ölçüm karşılık verdi: 3 gerçek hata + NTFS
+
+Kullanıcı iki bellekle ölçüm gönderdi. **Teşhis ekranı işini yaptı:** ilki
+"aygıt var, Android hiç bağlamamış", ikincisi "her şey yolunda". Aradaki fark
+üç ayrı hatayı ortaya çıkardı.
+
+### A) TEŞHİS KARARI YANLIŞTI — "listede var" ≠ "bağlı"
+İlk bellekte ekran *"Bellek bağlı, ham sürücüye gerek yok"* diyordu; oysa
+`StorageManager` satırı **"yol yok · unmounted · okunabilir ✘"**, `/proc/mounts`
+ve `/storage` bomboştu. `androidKnowsVolume` ölçütü birimin LİSTELENMESİNİ
+"bağlamış" saymıştı. Bağlanmamış birim klasör seçicide de görünmez → kullanıcı
+çıkışı olmayan bir kapıya yollanıyordu. Ölçüt artık `androidMountedVolume`
+(mounted ya da fiilen okunabilir); ayrıca `androidKnowsUnmountedVolume` girdisi
+"aygıt listesi sussa bile bağlama yok" durumunu yakalıyor.
+
+### B) YANLIŞ ALARM — `/mnt/media_rw` asla gezilemez
+İkinci bellekte bellek `/storage/8A07-470A` altında AÇILIYORDU ama uygulama
+yine *"takılı ama Android yol vermiyor"* uyarısı veriyordu. Kök neden:
+`attachedButUnusable` bağlama tablosundaki `/mnt/media_rw/8A07-470A` satırını
+görüp "gezilemiyor" diyordu — o yol uygulamalara **hiçbir zaman** açılmaz,
+Android oraya bağlayıp bize `/storage/...` üzerinden verir. Artık gezilebilen
+bir yolu olan aygıtın (temel ad eşleşmesi) başka satırları susturuluyor.
+
+### C) "USB takıldı → aç" akışı belleği GÖRMÜYORDU
+`_openUsbIfLaunchedByIt` yalnız `kind == usb` birim arıyordu; oysa bu bellek
+"SD kart" olarak etiketlenmişti. İki düzeltme:
+* akış artık **takılabilir** her birimi kabul ediyor (tür değil, işlev);
+* `kindOf` **temel ad** eşleşmesi de yapıyor: `/storage/<UUID>` satırında aygıt
+  `/dev/fuse` (tür bilgisi yok), gerçek aygıt `/mnt/media_rw/<UUID>` satırında
+  (`vold/public:8,*` → USB). Yalnız tam eşleşme arayınca her USB "SD kart"
+  görünüyordu.
+
+### D) TUZAK — indirilen kopyanın KLASÖR ADI dosyayı bozuyordu
+Ham USB'den bir mp3 açılınca *"MEDIA_ERROR_UNKNOWN"*. Dosya sağlamdı; sorun
+YOLDU: kopya `…/remote/<bağlantı kimliği>/` altına yazılıyor ve kimlik
+`usb:USB` (SAF'ta `saf:content://…`). **İki nokta** yüzünden Android'in
+oynatıcısı yolu adres sanıyor, SAF'ta **eğik çizgiler** yolu alt klasörlere
+bölüyordu. `safeCacheName` (saf, testli) yalnız harf/rakam/`._-` bırakıyor.
+
+### E) NTFS OKUMA (kullanıcı isteği: *"NTFS bile okuyalım"*)
+`NtfsFileSystem` — salt okunur, saf Dart:
+* önyükleme sektörü → **$MFT'nin kendi çalıştırmaları** (yumurta-tavuk: MFT
+  de bir MFT kaydıdır; büyük disklerde parçalıdır, tek küme varsaymak yanlış);
+* **düzeltme dizisi (fixup)**: her sektörün son iki baytı diskte sıra
+  numarasıyla değiştirilmiştir — uygulamazsak her 512 baytta iki bayt bozuk
+  okunur ve dosya adları/çalıştırma listeleri sessizce bozulurdu;
+* **çalıştırma listesi**: konum bir öncekine GÖRELİ ve İŞARETLİ; mutlak
+  sanılsaydı dosyalar diskin rastgele yerinden okunurdu. Konum alanı yoksa
+  öbek seyrektir (sıfır döner, diskten okunmaz);
+* dizin: `$INDEX_ROOT` (küçük dizin) + `$INDEX_ALLOCATION`'daki "INDX"
+  blokları; DOS (8.3) ad alanı ELENİYOR, uzun ad gösteriliyor;
+* kayıt İÇİNDE duran küçük dosyalar (resident `$DATA`) da okunuyor;
+* **sıkıştırılmış ve şifreli (EFS) dosyalar DESTEKLENMİYOR** — çöp veri
+  vermektense hata veriyoruz.
+
+Sentetik NTFS imaj üreticisi (`NtfsImage`): gerçek MFT kayıtları, fixup'lı,
+kodlanmış çalıştırma listeli, `$INDEX_ROOT`'lu.
+
+### F) Ham sürücü ilk denemede AÇILAMADI → sağlamlaştırma
+İzin verilmişti ama açılmıyordu ve sebep bilinmiyordu. Artık:
+* `GET MAX LUN` + **LUN taraması** (kart okuyucuda LUN 0 boş yuva olabilir),
+* `INQUIRY`,
+* `TEST UNIT READY` + **`REQUEST SENSE`** — yeni takılan bellek ilk komuta
+  "Unit Attention" ile CHECK CONDITION döner ve bu ancak REQUEST SENSE ile
+  temizlenir; ilk turda eksik olan buydu,
+* faz hatasında **sıfırlama kurtarması** (Bulk-Only Reset + iki ucun
+  HALT'ını temizleme),
+* `READ CAPACITY(16)` yedeği (2 TB üstü),
+* **adım adım günlük**: her adım Dart'a dönüyor ve başarısızlıkta
+  kullanıcıya gösteriliyor (kopyalanabilir). "İzin mi, sahiplenme mi, SCSI mi,
+  biçim mi?" sorusu ancak böyle cevaplanıyor.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2083 test yeşil**.

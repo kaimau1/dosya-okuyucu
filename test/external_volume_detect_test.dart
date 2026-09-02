@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/app_storage_service.dart';
 import 'package:dosya_okuyucu/services/fm/storage_stats.dart';
+import 'package:dosya_okuyucu/screens/fm/remote/remote_browser_screen.dart'
+    show safeCacheName;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -120,6 +122,8 @@ void main() {
     });
   });
 
+  _secondStickRegressions();
+
   group('SafRoot.volumeId', () {
     // Aynı belleği hem yol hem klasör izniyle görüyorsak panoda İKİ kart
     // çizilmemeli; eşleştirme bu kimlikten yapılıyor.
@@ -203,6 +207,67 @@ void main() {
       filesRoots = [tmp.path];
       final found = await StorageStats.volumes();
       expect(found.where((v) => v.path == tmp.path).length, 1);
+    });
+  });
+}
+
+/// **Kullanıcı ekran görüntüsü 2026-09-02 (ikinci bellek).**
+///
+/// Bellek `/storage/8A07-470A` altında BAĞLIYDI ve uygulama onu gezebiliyordu;
+/// buna rağmen "takılı ama Android yol vermiyor" uyarısı çıkıyor ve tür "SD
+/// kart" görünüyordu. İki ayrı kök neden, ikisi de burada sınanıyor.
+void _secondStickRegressions() {
+  group('kindOf — aynı aygıt iki bağlama noktasında', () {
+    test('fuse satırı tür söylemez; media_rw satırı USB der', () {
+      // Gerçek `/proc/mounts` satırları (cihazdan): fuse görünümünde aygıt
+      // adı tür bilgisi taşımıyor, gerçek aygıt media_rw satırında.
+      const mounts = [
+        '/dev/block/vold/public:8,1 /mnt/media_rw/8A07-470A vfat rw 0 0',
+        '/dev/fuse /storage/8A07-470A fuse rw 0 0',
+      ];
+      expect(StorageStats.kindOf('/storage/8A07-470A', mounts),
+          StorageKind.usb,
+          reason: 'temel ad eşleşmesi olmadan "SD kart" sanılıyordu');
+    });
+
+    test('SD kart yine SD kart kalır (major 179)', () {
+      const mounts = [
+        '/dev/block/vold/public:179,1 /mnt/media_rw/AAAA-BBBB vfat rw 0 0',
+        '/dev/fuse /storage/AAAA-BBBB fuse rw 0 0',
+      ];
+      expect(StorageStats.kindOf('/storage/AAAA-BBBB', mounts),
+          StorageKind.sdCard);
+    });
+
+    test('farklı aygıtlar birbirine karışmaz', () {
+      const mounts = [
+        '/dev/block/vold/public:8,1 /mnt/media_rw/1111-1111 vfat rw 0 0',
+        '/dev/block/vold/public:179,1 /mnt/media_rw/2222-2222 vfat rw 0 0',
+      ];
+      expect(StorageStats.kindOf('/storage/1111-1111', mounts),
+          StorageKind.usb);
+      expect(StorageStats.kindOf('/storage/2222-2222', mounts),
+          StorageKind.sdCard);
+    });
+  });
+
+  group('safeCacheName — indirilen kopyanın klasör adı', () {
+    // Ham USB'den açılan bir mp3 "MEDIA_ERROR_UNKNOWN" veriyordu: yerel kopya
+    // `…/remote/usb:USB/` altına yazılıyordu ve iki nokta üst üste yüzünden
+    // Android'in oynatıcısı yolu adres sanıyordu.
+    test('iki nokta ve eğik çizgi temizlenir', () {
+      expect(safeCacheName('usb:USB'), 'usb_USB');
+      expect(safeCacheName('saf:content://com.android/tree/1A2B%3A'),
+          'saf_content_com.android_tree_1A2B_3A');
+    });
+
+    test('harf, rakam, nokta, tire ve alt çizgi korunur', () {
+      expect(safeCacheName('ftp-192.168.1.5_21'), 'ftp-192.168.1.5_21');
+    });
+
+    test('boş kalan ad yerine sabit bir ad kullanılır', () {
+      expect(safeCacheName('://'), 'baglanti');
+      expect(safeCacheName(''), 'baglanti');
     });
   });
 }

@@ -56,13 +56,15 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
   /// sebebi söylenir — sessizce boş bir ekran açmak en kötüsü olurdu.
   Future<void> _openRaw() async {
     setState(() => _opening = true);
-    final messenger = ScaffoldMessenger.of(context);
-    final failed = context.t('usb.open_raw_failed');
-    final fs = await UsbFs.open();
+    final outcome = await UsbFs.open();
     if (!mounted) return;
     setState(() => _opening = false);
+    final fs = outcome.fs;
     if (fs == null) {
-      showSnackOn(messenger, failed, duration: kSnackAction);
+      // **Sebep gösteriliyor, sonra da adım adım günlük.** İlk turda yalnız
+      // "açılamadı" deniyordu ve kullanıcının ekran görüntüsünden "izin mi,
+      // sahiplenme mi, SCSI mi, biçim mi?" ayırt edilemiyordu.
+      await _showFailure(outcome);
       return;
     }
     await Navigator.of(context).push(MaterialPageRoute(
@@ -70,6 +72,47 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
     ));
     // Gezgin kapandı: aygıtı bırak (başka uygulama da kullanabilsin).
     await fs.close();
+  }
+
+  /// Açma başarısızlığını sebep + günlükle gösterir; günlük kopyalanabilir.
+  Future<void> _showFailure(UsbOpenOutcome outcome) async {
+    final text = [
+      outcome.error,
+      '',
+      ...outcome.steps,
+    ].join('\n');
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('usb.open_raw_failed_title')),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(outcome.error,
+                  style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: Gap.sm),
+              for (final step in outcome.steps)
+                Text('• $step', style: Theme.of(ctx).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: Text(ctx.t('fm.copy')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.t('common.ok')),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _load() async {

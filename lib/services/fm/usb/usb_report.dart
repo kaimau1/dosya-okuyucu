@@ -73,8 +73,13 @@ class UsbReport {
         massStorageAttached: devices.any((d) => d.isMassStorage),
         anyDevice: devices.isNotEmpty,
         usableVolume: usableVolumes.isNotEmpty,
-        androidKnowsVolume: platformVolumes
-            .any((v) => !v.isPrimary && v.isRemovable),
+        // **BAĞLI birim** — listelenmiş olması yetmez (aşağıya bakın).
+        androidMountedVolume: platformVolumes.any(
+            (v) => !v.isPrimary && v.isRemovable && (v.isMounted || v.readable)),
+        // Android birimi BİLİYOR ama bağlamamış: SAF de çalışmaz, çünkü
+        // sistem belge sağlayıcısı ancak bağlı birimi gösterir.
+        androidKnowsUnmountedVolume: platformVolumes.any((v) =>
+            !v.isPrimary && v.isRemovable && !v.isMounted && !v.readable),
         mountedSomewhere: mountPoints.isNotEmpty || filesRoots.length > 1,
         safGranted: safRoots.isNotEmpty,
       );
@@ -89,17 +94,32 @@ class UsbReport {
     required bool massStorageAttached,
     required bool anyDevice,
     required bool usableVolume,
-    required bool androidKnowsVolume,
+    required bool androidMountedVolume,
     required bool mountedSomewhere,
     required bool safGranted,
+    bool androidKnowsUnmountedVolume = false,
   }) {
     if (usableVolume) return UsbVerdict.usable;
     if (safGranted) return UsbVerdict.mountedNoPath;
-    // Android birimi biliyor ya da bir yere bağlamış: yol vermiyor olabilir
-    // ama SAF çalışır. Ham sürücü bu durumda GEREKSİZ.
-    if (androidKnowsVolume || mountedSomewhere) return UsbVerdict.mountedNoPath;
+    // **TUZAK (kullanıcı ölçümü 2026-09-02, ekran görüntüsü):** birimin
+    // `StorageManager` listesinde GÖRÜNMESİ "bağlamış" demek DEĞİL. Cihazda
+    // "VendorCo USB sürücüsü · yol yok · unmounted" duruyordu ve karar
+    // "bağlı, SAF yeter" çıkıyordu — oysa `/proc/mounts`, `/storage` ve
+    // klasör izinleri BOŞTU. Bağlanmamış birim seçicide de görünmez, yani
+    // SAF önerisi kullanıcıyı çıkışı olmayan bir kapıya yolluyordu.
+    // Ölçüt artık "bağlı mı" (mounted ya da fiilen okunabilir).
+    if (androidMountedVolume || mountedSomewhere) {
+      return UsbVerdict.mountedNoPath;
+    }
     if (massStorageAttached) {
-      // Aygıt duruyor, depolama, ama Android hiçbir şey bağlamamış.
+      // Aygıt duruyor, depolama, ama hiçbir yere bağlanmamış.
+      return hostSupported
+          ? UsbVerdict.attachedNotMounted
+          : UsbVerdict.noHostSupport;
+    }
+    // Aygıt listesi susmuş olabilir (izin/kısıt), ama Android bağlanmamış bir
+    // birim biliyorsa durum yine aynı: bağlama YOK.
+    if (androidKnowsUnmountedVolume) {
       return hostSupported
           ? UsbVerdict.attachedNotMounted
           : UsbVerdict.noHostSupport;

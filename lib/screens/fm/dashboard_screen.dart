@@ -199,9 +199,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!force && !await AppStorageService.launchedByUsb()) return;
     for (var attempt = 0; attempt < 6; attempt++) {
       await _volumes.rescan();
-      final usb = FmEnv.volumes
-          .where((v) => v.kind == StorageKind.usb)
-          .firstOrNull;
+      // **Tür değil, TAKILABİLİRLİK aranıyor** (kullanıcı ekran görüntüsü
+      // 2026-09-02): bellek `/storage/8A07-470A` altında bağlanmıştı ama
+      // bağlama tablosundaki aygıt satırı `/dev/fuse` olduğu için türü
+      // "SD kart" tahmin edilmişti. `kind == usb` şartı yüzünden akış onu
+      // hiç görmedi ve altı denemenin sonunda "takılı ama yol vermiyor"
+      // diye YANLIŞ uyarı verdi — bellek gayet açılabilir durumdayken.
+      final usb = FmEnv.volumes.where((v) => v.isRemovable).firstOrNull;
       if (usb != null) {
         if (!mounted) return;
         await _push(BrowserScreen(
@@ -1571,12 +1575,22 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Salt okunur (bkz. `UsbFs`): dosyalar açılır ve kopyalanır, belleğe
   /// yazılmaz. Açılamazsa sebebi söylenir — sessizce boş ekran açmak yerine.
   Future<void> _openRawUsb(String deviceName) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final failed = context.t('usb.open_raw_failed');
-    final fs = await UsbFs.open(deviceName: deviceName);
+    final outcome = await UsbFs.open(deviceName: deviceName);
     if (!mounted) return;
+    final fs = outcome.fs;
     if (fs == null) {
-      showSnackOn(messenger, failed, duration: kSnackAction);
+      // Sebep + adım günlüğü teşhis ekranında; şerit oraya yönlendiriyor.
+      showSnack(
+        context,
+        outcome.error.isEmpty
+            ? context.t('usb.open_raw_failed')
+            : outcome.error,
+        duration: kSnackAction,
+        action: SnackBarAction(
+          label: context.t('usb.diag_title'),
+          onPressed: () => unawaited(_openDiagnostics()),
+        ),
+      );
       return;
     }
     await Navigator.of(context).push(MaterialPageRoute(

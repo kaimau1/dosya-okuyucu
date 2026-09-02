@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dosya_okuyucu/services/fm/usb/block_device.dart';
 import 'package:dosya_okuyucu/services/fm/usb/exfat_fs.dart';
 import 'package:dosya_okuyucu/services/fm/usb/fat_fs.dart';
+import 'package:dosya_okuyucu/services/fm/usb/ntfs_fs.dart';
 import 'package:dosya_okuyucu/services/fm/usb/partition_table.dart';
 import 'package:dosya_okuyucu/services/fm/usb/usb_fs_types.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -137,6 +138,8 @@ void main() {
     });
   });
 
+  _ntfsTests();
+
   group('PartitionTable', () {
     test('süper disket: tablo YOK, dosya sistemi 0. sektörde', () async {
       final image = UsbImage.fat32(files: [ImgFile('a.txt', hello)]);
@@ -252,4 +255,119 @@ class _CountingDevice extends BlockDevice {
     reads++;
     return inner.readBlocks(lba, count);
   }
+}
+
+/// **NTFS okuma** — kullanıcı isteği 2026-09-02: *"NTFS bile okuyalım."*
+/// Harici diskler (USB kutular) fabrikadan çoğu zaman NTFS gelir.
+void _ntfsTests() {
+  final small = List<int>.generate(200, (i) => (i * 3) % 256);
+  final big = List<int>.generate(2500, (i) => (i * 11) % 256);
+
+  group('NTFS', () {
+    test('etiket okunur ve kök listelenir', () async {
+      final image = NtfsImage.build(
+        label: 'SEYAHAT DISK',
+        files: [ImgFile('rapor.pdf', small), ImgFile('film.mkv', big)],
+      );
+      final fs = await NtfsFileSystem.open(MemoryBlockDevice(image));
+      expect(fs.label, 'SEYAHAT DISK');
+      final root = await fs.listDir(fs.rootId);
+      expect(root.map((e) => e.name), containsAll(['rapor.pdf', 'film.mkv']));
+      expect(
+          root.firstWhere((e) => e.name == 'film.mkv').sizeBytes, big.length);
+    });
+
+    test('çalıştırma listesinden dosya birebir okunur', () async {
+      final image = NtfsImage.build(files: [ImgFile('film.mkv', big)]);
+      final fs = await NtfsFileSystem.open(MemoryBlockDevice(image));
+      final root = await fs.listDir(fs.rootId);
+      final entry = root.firstWhere((e) => e.name == 'film.mkv');
+      expect(await readAll(fs.openRead(entry)), big);
+    });
+
+    test('KAYDIN İÇİNDE duran küçük dosya da okunur (resident \$DATA)',
+        () async {
+      final image =
+          NtfsImage.build(resident: true, files: [ImgFile('not.txt', small)]);
+      final fs = await NtfsFileSystem.open(MemoryBlockDevice(image));
+      final root = await fs.listDir(fs.rootId);
+      final entry = root.firstWhere((e) => e.name == 'not.txt');
+      expect(await readAll(fs.openRead(entry)), small);
+    });
+
+    test('Türkçe uzun ad bozulmaz', () async {
+      final image = NtfsImage.build(
+          files: [ImgFile('çok uzun türkçe belge adı.docx', small)]);
+      final fs = await NtfsFileSystem.open(MemoryBlockDevice(image));
+      final root = await fs.listDir(fs.rootId);
+      expect(root.single.name, 'çok uzun türkçe belge adı.docx');
+    });
+
+    test('değiştirilme tarihi FILETIME\'dan çözülür', () async {
+      final image = NtfsImage.build(files: [ImgFile('a.txt', small)]);
+      final fs = await NtfsFileSystem.open(MemoryBlockDevice(image));
+      final root = await fs.listDir(fs.rootId);
+      final dt = DateTime.fromMillisecondsSinceEpoch(root.single.modifiedMs)
+          .toUtc();
+      expect(dt.year, 2020);
+      expect(dt.month, 1);
+    });
+
+    test('FAT imajı NTFS olarak açılmaz', () {
+      final image = UsbImage.fat32(files: [ImgFile('a.txt', small)]);
+      expect(() => NtfsFileSystem.open(MemoryBlockDevice(image)),
+          throwsA(isA<UsbFsException>()));
+    });
+  });
+
+  group('NTFS saf çözümleyiciler', () {
+    test('çalıştırma listesi GÖRELİ ve İŞARETLİ konum çözer', () {
+      // 0x21 0x08 0x00 0x14 → 8 küme, LCN 0x1400; sonra 0x11 0x04 0xF0 →
+      // 4 küme, önceki LCN - 16. Mutlak sanılsaydı dosya diskin bambaşka
+      // yerinden okunurdu.
+      final bytes = Uint8List.fromList(
+          [0x21, 0x08, 0x00, 0x14, 0x11, 0x04, 0xF0, 0x00]);
+      final runs = NtfsFileSystem.parseRunList(bytes, 0);
+      expect(runs.length, 2);
+      expect(runs[0].lcn, 0x1400);
+      expect(runs[0].clusters, 8);
+      expect(runs[1].lcn, 0x1400 - 16);
+      expect(runs[1].clusters, 4);
+    });
+
+    test('konum alanı yoksa öbek SEYREKTİR (diskten okunmaz)', () {
+      final runs =
+          NtfsFileSystem.parseRunList(Uint8List.fromList([0x01, 0x05, 0x00]), 0);
+      expect(runs.single.sparse, isTrue);
+      expect(runs.single.clusters, 5);
+    });
+
+    test('düzeltme dizisi (fixup) sektör sonlarını GERİ YAZAR', () {
+      final record = Uint8List(1024);
+      record.setRange(0, 4, 'FILE'.codeUnits);
+      final d = ByteData.sublistView(record);
+      d.setUint16(4, 48, Endian.little); // dizi ofseti
+      d.setUint16(6, 3, Endian.little); // sıra + 2 sektör
+      record[48] = 0xAA; // sıra numarası
+      record[49] = 0xBB;
+      record[50] = 0x11; // 1. sektörün gerçek son iki baytı
+      record[51] = 0x22;
+      record[52] = 0x33;
+      record[53] = 0x44;
+      record[510] = 0xAA; // diskteki hâli: sıra numarası yazılı
+      record[511] = 0xBB;
+      record[1022] = 0xAA;
+      record[1023] = 0xBB;
+      final fixed =
+          NtfsFileSystem.applyFixups(record, bytesPerSector: 512);
+      expect([fixed[510], fixed[511]], [0x11, 0x22]);
+      expect([fixed[1022], fixed[1023]], [0x33, 0x44]);
+    });
+
+    test('FILETIME epoch ms\'ye çevrilir', () {
+      // 1601'den 1970'e 11.644.473.600 saniye.
+      expect(NtfsFileSystem.fileTimeToMs(116444736000000000), 0);
+      expect(NtfsFileSystem.fileTimeToMs(0), 0);
+    });
+  });
 }

@@ -207,14 +207,32 @@ class VolumeWatcher {
   /// `StorageStats.volumes`). Dönen [UnusableVolume.key] klasör seçicisini
   /// doğrudan o birimin üstünde açmaya yarar.
   static Future<UnusableVolume?> attachedButUnusable() async {
+    // **Gezilebilen aygıtların temel adları** (`8A07-470A` gibi).
+    //
+    // TUZAK (kullanıcı ekran görüntüsü 2026-09-02): bellek `/storage/8A07-470A`
+    // altında gayet güzel açılıyorken uygulama *"takılı ama Android yol
+    // vermiyor"* uyarısı çıkarıyordu. İki kaynak da AYNI aygıtı iki farklı
+    // yoldan gösteriyor: `StorageManager` yolu boş bir kayıt, bağlama
+    // tablosu ise `/mnt/media_rw/8A07-470A` (uygulamalara HİÇBİR zaman
+    // açılmaz — Android oraya bağlayıp bize `/storage/...` üzerinden verir).
+    // Aynı aygıtın gezilebilen bir yolu varsa şikâyet edecek bir şey yok.
+    final browsable = <String>{
+      for (final v in FmEnv.volumes)
+        if (StorageStats.canList(v.path)) p.basename(v.path).toLowerCase(),
+    };
+
     for (final pv in await AppStorageService.storageVolumes()) {
       if (pv.isPrimary || !pv.isRemovable) continue;
       final path = pv.path;
       if (path != null && path.isNotEmpty && StorageStats.canList(path)) {
         continue; // gezilebiliyor → sorun yok
       }
-      final described = pv.description.trim();
       final uuid = pv.uuid ?? '';
+      if (uuid.isNotEmpty && browsable.contains(uuid.toLowerCase())) continue;
+      if (path != null && browsable.contains(p.basename(path).toLowerCase())) {
+        continue;
+      }
+      final described = pv.description.trim();
       return UnusableVolume(
         name: described.isEmpty ? (uuid.isEmpty ? '?' : uuid) : described,
         key: uuid.isNotEmpty ? uuid : (path ?? ''),
@@ -225,6 +243,7 @@ class VolumeWatcher {
     for (final point in StorageStats.removableMountPoints(
         StorageStats.readMounts())) {
       if (StorageStats.canList(point)) continue;
+      if (browsable.contains(p.basename(point).toLowerCase())) continue;
       return UnusableVolume(name: p.basename(point), key: point);
     }
     return null;
