@@ -96,6 +96,21 @@ abstract class RemoteFs {
   /// klasör oluşturulamaz gibi) — arayüz düğmeyi söndürebilsin diye.
   bool get canWrite => true;
 
+  // ── gezinti (gerçeklemeye göre değişebilir) ─────────────────────────────
+  //
+  // **Niye örnek metodu ve niye statik olanların üstünde:** ekran eskiden
+  // doğrudan `RemoteFs.parentOf` / `RemoteFs.join` çağırıyordu; bunlar YOL
+  // kesen saf işlevler. FTP/SFTP/SMB/WebDAV'da doğru, ama SAF'ta (bkz.
+  // `SafFs`) girdilerin yolu değil URI'si var ve bir çocuğun ebeveyni
+  // URI'den HESAPLANAMAZ. Varsayılan gerçekleme eski davranışın aynısı;
+  // SAF bunları geçersiz kılıyor.
+
+  /// [path] klasörünün üst klasörü ("yukarı" düğmesi).
+  String parentPath(String path) => parentOf(path);
+
+  /// [dir] altındaki [name] için tam yol/URI.
+  String childPath(String dir, String name) => join(dir, name);
+
   // ── yol yardımcıları (saf, test edilebilir) ─────────────────────────────
 
   /// `/a/b` + `c` → `/a/b/c`. Çift ayraç üretmez, kökü bozmaz.

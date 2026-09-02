@@ -25,7 +25,9 @@ import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../services/fm/tool_usage.dart';
+import '../../services/fm/remote/saf_fs.dart';
 import '../../services/fm/volume_watcher.dart';
+import 'remote/remote_browser_screen.dart';
 import '../../widgets/crash_notice.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -83,6 +85,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Takılan/çıkarılan harici bellekleri izler.
   final VolumeWatcher _volumes = VolumeWatcher();
   StreamSubscription<VolumeChange>? _volumeSub;
+
+  /// Klasör izni verilmiş SAF ağaçları (yol yoluyla görünmeyen bellekler).
+  /// Kutunun alt yazısı bunu da sayar: izin verilmiş bir USB dururken
+  /// "Takılı değil" yazmak yanlış olurdu.
+  List<SafRoot> _safRoots = const [];
 
   bool _scanning = false;
   bool _hasAccess = true;
@@ -165,6 +172,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
     });
     _volumes.start();
+    unawaited(_loadSafRoots());
     unawaited(_openUsbIfLaunchedByIt());
     // Uygulama ZATEN ön plandayken seçiciden bizi seçmek `resumed` üretmiyor;
     // native taraf olayı itiyor (kullanıcı 2026-09-02: "basıyorum tepki
@@ -223,6 +231,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // planda durduruluyor (boşuna pil harcamasın).
       _volumes.start();
       unawaited(_volumes.rescan());
+      unawaited(_loadSafRoots());
       // Uygulama AÇIKKEN USB takılıp "Dosya Okuyucu ile aç" seçilirse
       // Android yeni bir intent gönderir (singleTask) ve `initState`
       // çalışmaz — eylemi burada da soruyoruz. Eylem okununca native
@@ -1252,11 +1261,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     ];
     final usb = externals.where((v) => v.kind == StorageKind.usb).length;
     final cards = externals.length - usb;
+    // Yol yoluyla görünmeyen ama klasör izni verilmiş bellekler de "takılı"
+    // sayılır — izinli bir USB dururken "Takılı değil" yazmak yanlış olurdu.
+    final granted = _safRoots.length;
+    final anything = externals.isNotEmpty || granted > 0;
     return FmTileData(
-      icon: externals.isEmpty
+      icon: !anything
           ? Icons.sd_card_outlined
-          : (usb > 0 ? Icons.usb : Icons.sd_card),
-      color: externals.isEmpty
+          : (usb > 0 || externals.isEmpty ? Icons.usb : Icons.sd_card),
+      color: !anything
           ? const Color(0xFF9E9E9E)
           : const Color(0xFFEF6C00),
       id: 'external_storage',
@@ -1264,7 +1277,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Alt yazı CANLI bilgi (ızgaranın kuralı): tek birimde adı ve boş alanı,
       // birden çoksa türe göre sayısı, hiç yoksa "Takılı değil".
       subtitle: switch (externals.length) {
-        0 => context.t('fm.external_none_short'),
+        0 => granted == 0
+            ? context.t('fm.external_none_short')
+            : (granted == 1
+                ? _safRoots.single.name
+                : context.t('fm.external_count', {'n': granted})),
         1 => externals.single.hasStats
             ? '${externals.single.displayLabel(context.t)} · '
                 '${FsPaths.humanSize(externals.single.freeBytes)} boş'
@@ -1276,6 +1293,96 @@ class _DashboardScreenState extends State<DashboardScreen>
       },
       onTap: () => _openExternal(externals),
     );
+  }
+
+  Future<void> _loadSafRoots() async {
+    final roots = await AppStorageService.safRoots();
+    if (!mounted) return;
+    setState(() => _safRoots = roots);
+  }
+
+  /// **SAF yolu** — klasör izniyle harici belleğe erişim.
+  ///
+  /// Android bazı cihazlarda (özellikle USB OTG'de) belleği dosya YOLU olarak
+  /// vermiyor; `/storage` altında hiçbir şey görünmüyor. Android 11+ üzerinde
+  /// herkese açık çözüm SAF: kullanıcı bir kez klasörü seçer, uygulama kalıcı
+  /// izin alır ve o ağacı gezer.
+  ///
+  /// Daha önce izin verilmiş bir ağaç varsa SORULMADAN açılır — izin bir kez
+  /// alınır, her seferinde seçtirmek eziyet olurdu. Yoksa ne olduğu ve ne
+  /// yapılacağı anlatılıp teklif edilir.
+  ///
+  /// Bir şey açıldıysa true döner (çağıran "takılı değil" demesin).
+  Future<bool> _openViaSaf() async {
+    var roots = await AppStorageService.safRoots();
+    if (roots.isEmpty) {
+      if (!mounted) return false;
+      final accept = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.t('saf.title')),
+          content: SingleChildScrollView(child: Text(ctx.t('saf.body'))),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(ctx.t('common.cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(ctx.t('saf.pick'))),
+          ],
+        ),
+      );
+      if (accept != true) return false;
+      final picked = await AppStorageService.safPickTree();
+      if (picked == null) return false;
+      roots = await AppStorageService.safRoots();
+      if (roots.isEmpty) return false;
+    }
+
+    var root = roots.first;
+    if (roots.length > 1) {
+      if (!mounted) return false;
+      final chosen = await showModalBottomSheet<SafRoot>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final r in roots)
+                ListTile(
+                  leading: const Icon(Icons.folder_special_outlined),
+                  title: Text(r.name),
+                  onTap: () => Navigator.pop(ctx, r),
+                ),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: Text(ctx.t('saf.pick')),
+                onTap: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (chosen == null) {
+        final picked = await AppStorageService.safPickTree();
+        if (picked == null) return false;
+        final fresh = await AppStorageService.safRoots();
+        if (fresh.isEmpty) return false;
+        root = fresh.firstWhere((r) => r.uri == picked,
+            orElse: () => fresh.first);
+      } else {
+        root = chosen;
+      }
+    }
+
+    if (!mounted) return false;
+    unawaited(_loadSafRoots()); // kutunun alt yazısı hemen doğrulansın
+    final fs = SafFs(rootUri: root.uri, rootName: root.name);
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RemoteBrowserScreen(connection: fs.connection, fs: fs),
+    ));
+    return true;
   }
 
   /// Harici belleği açar: tek birimde doğrudan, birden çoksa seçtirerek.
@@ -1294,6 +1401,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         setState(() {});
         return _openExternal(fresh);
       }
+      if (!mounted) return;
+      // Yol yoluyla bulunamadı. **SAF'a düş:** kullanıcı daha önce klasör
+      // izni verdiyse doğrudan aç, vermediyse teklif et. Android 11+ üzerinde
+      // takılabilir belleğe erişmenin herkese açık yolu bu (bkz. `SafFs`).
+      if (await _openViaSaf()) return;
       if (!mounted) return;
       // Android bir birim BİLİYOR ama bağlamamışsa bunu söyle — "yok" demek
       // yanlış olur ve kullanıcı uygulamayı bozuk sanır.

@@ -93,7 +93,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
 
   Future<void> _up() async {
     if (_atRoot) return;
-    await _load(RemoteFs.parentOf(_path));
+    await _load(_fs.parentPath(_path));
   }
 
   Future<void> _open(RemoteEntry entry) async {
@@ -178,7 +178,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
 
     _snack(uploading);
     try {
-      await _fs.upload(local, RemoteFs.parentOf(entry.path),
+      await _fs.upload(local, _fs.parentPath(entry.path),
           name: entry.name);
       if (!mounted) return;
       _snack(done);
@@ -217,7 +217,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
         await _prompt(context.t('nas.new_folder'), context.t('nas.folder_name'), '');
     if (name == null || name.trim().isEmpty) return;
     try {
-      await _fs.makeDirectory(RemoteFs.join(_path, name.trim()));
+      await _fs.makeDirectory(_fs.childPath(_path, name.trim()));
       await _load(_path);
     } catch (e) {
       if (mounted) _snack(errorTextFor(context, e));

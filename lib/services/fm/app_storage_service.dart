@@ -211,8 +211,156 @@ abstract final class AppStorageService {
     });
   }
 
+  // ── SAF (Storage Access Framework) ────────────────────────────────────
+  //
+  // Android 11+ üzerinde takılabilir belleğe (USB/SD) erişmenin herkese açık
+  // yolu: kullanıcı bir kez klasörü seçer, uygulama KALICI izin alır.
+  // Ayrıntı ve sınırlar: `ci/MainActivity.kt` içindeki SAF bölümü.
+
+  /// Klasör seçiciyi açar; seçilen ağacın URI'sini döner (vazgeçilirse null).
+  static Future<String?> safPickTree() async {
+    try {
+      return await _channel.invokeMethod<String>('safPickTree');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Daha önce izin verilmiş ağaçlar.
+  static Future<List<SafRoot>> safRoots() async {
+    try {
+      final raw = await _channel.invokeMethod<List<dynamic>>('safRoots');
+      return [
+        for (final item in raw ?? const [])
+          if (item is Map) SafRoot.fromMap(item),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Bir ağacın iznini geri verir (listeden kaldırır).
+  static Future<bool> safForget(String uri) async {
+    try {
+      return await _channel.invokeMethod<bool>('safForget', {'uri': uri}) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<List<SafEntry>> safList(String uri) async {
+    try {
+      final raw =
+          await _channel.invokeMethod<List<dynamic>>('safList', {'uri': uri});
+      return [
+        for (final item in raw ?? const [])
+          if (item is Map) SafEntry.fromMap(item),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<bool> safCopyToFile(String uri, String dest) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+              'safCopyToFile', {'uri': uri, 'dest': dest}) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<String?> safCopyFromFile(
+    String parentUri,
+    String sourcePath,
+    String name, {
+    String mime = '',
+  }) async {
+    try {
+      return await _channel.invokeMethod<String>('safCopyFromFile', {
+        'parent': parentUri,
+        'src': sourcePath,
+        'name': name,
+        'mime': mime,
+      });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<bool> safDelete(String uri) async {
+    try {
+      return await _channel.invokeMethod<bool>('safDelete', {'uri': uri}) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<String?> safMkdir(String parentUri, String name) async {
+    try {
+      return await _channel.invokeMethod<String>(
+          'safMkdir', {'parent': parentUri, 'name': name});
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<String?> safRename(String uri, String name) async {
+    try {
+      return await _channel
+          .invokeMethod<String>('safRename', {'uri': uri, 'name': name});
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Testlerde sahte kanal kurulduktan sonra "yok" damgasını temizler.
   static void resetForTest() => _available = null;
+}
+
+/// İzin verilmiş bir SAF ağacı (kullanıcının seçtiği klasör).
+class SafRoot {
+  final String uri;
+  final String name;
+  final bool writable;
+  const SafRoot({required this.uri, required this.name, this.writable = true});
+
+  factory SafRoot.fromMap(Map<dynamic, dynamic> m) => SafRoot(
+        uri: '${m['uri'] ?? ''}',
+        name: '${m['name'] ?? '?'}',
+        writable: m['writable'] != false,
+      );
+}
+
+/// SAF ağacındaki bir girdi.
+class SafEntry {
+  final String uri;
+  final String name;
+  final bool isDir;
+  final int sizeBytes;
+  final int modifiedMs;
+  final String mime;
+
+  const SafEntry({
+    required this.uri,
+    required this.name,
+    required this.isDir,
+    this.sizeBytes = 0,
+    this.modifiedMs = 0,
+    this.mime = '',
+  });
+
+  factory SafEntry.fromMap(Map<dynamic, dynamic> m) => SafEntry(
+        uri: '${m['uri'] ?? ''}',
+        name: '${m['name'] ?? ''}',
+        isDir: m['isDir'] == true,
+        sizeBytes: (m['size'] as num?)?.toInt() ?? 0,
+        modifiedMs: (m['modified'] as num?)?.toInt() ?? 0,
+        mime: '${m['mime'] ?? ''}',
+      );
 }
 
 /// Android'in bildirdiği bir depolama birimi (`StorageManager.StorageVolume`).

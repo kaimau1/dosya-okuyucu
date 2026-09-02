@@ -9955,3 +9955,72 @@ hiçbir dosyayı eşlemiyordu; çipe basınca liste boş kalacaktı. Yeni birim
 testleri anında düşürdü.
 
 **Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **2009 test yeşil**.
+
+## 2026-09-02 (beşinci tur) — SAF: klasör izniyle harici bellek
+
+Kullanıcı, önceki turun sonundaki uyarıya karşılık: *"bunu yapalım riske
+atmayalım."*
+
+### Uyarı yine de kayda geçiyor
+SAF **her derde deva değil**: ancak Android birimi BAĞLADIYSA (mount) ve
+sistem belge sağlayıcısına verdiyse çalışır. Kullanıcının ekran görüntüsündeki
+"USB cihazı için bir uygulama seçin" penceresi, Android'in belleği ham USB
+aygıtı olarak dağıttığının işareti — bağlamadıysa klasör seçicide de
+görünmez. O durumda tek çare kendi USB yığın depolama sürücümüzü yazmaktır
+(SCSI/BBB + FAT/exFAT ayrıştırma, native kütüphane) — ayrı ve çok daha büyük
+bir iş, ve CI `android/`ı her derlemede yeniden ürettiği için bakım borcu
+yüksek. Bu yüzden SAF önce denenmeli; sonuç ölçülünce karar verilir.
+
+### Yapılan — ve niye ucuza geldi
+`RemoteFs` arayüzü (FTP/SFTP/SMB/WebDAV) tam olarak SAF'ın şekline uyuyor:
+listele · indir · yükle · sil · klasör aç · yeniden adlandır. `RemoteBrowserScreen`
+de `fs` parametresiyle enjekte edilebiliyor. Bu yüzden **yeni gezgin ekranı
+YAZILMADI**: `SafFs implements RemoteFs` yeterli oldu ve "indir-aç-geri yükle"
+akışı sayesinde bütün biçim desteği (PDF, Office, görsel, video) ilk günden
+çalışıyor.
+
+**Native (`ci/MainActivity.kt`):** `safPickTree` (ACTION_OPEN_DOCUMENT_TREE +
+`takePersistableUriPermission`), `safRoots`, `safForget`, `safList`,
+`safCopyToFile`, `safCopyFromFile`, `safDelete`, `safMkdir`, `safRename`.
+
+- **`DocumentFile` KULLANILMADI, `DocumentsContract` kullanıldı.** İlki
+  `androidx.documentfile` paketinde ve yeni bir Gradle bağımlılığı demek; CI
+  `android/`ı yeniden ürettiği için oraya eklenen her bağımlılık bakım borcu.
+  `DocumentsContract` çerçevenin kendisinde.
+- **`docUriOf` tuzağı:** `createDocument`/`renameDocument`/`deleteDocument`
+  ağaç kökünü değil BELGE URI'sini ister; ağaç kökü verilirse çağrı sessizce
+  başarısız olur. Çeviri tek yerde.
+- **Listeleme tek sorgu:** `DocumentFile.listFiles()` girdi başına ayrı sorgu
+  yapar ve yüzlerce dosyalı klasörde saniyeler sürer; sütunlar tek
+  `ContentResolver.query` ile çekiliyor.
+- **Aynı adlı belge önce siliniyor:** SAF üstüne yazmaz, "ad (1)" üretir ve
+  kullanıcı iki kopya görür. Çakışma sorusu Dart tarafında zaten soruluyor.
+
+### TUZAK — URI yol DEĞİLDİR
+Gezgin ekranı `RemoteFs.parentOf` / `RemoteFs.join` **statiklerini** doğrudan
+çağırıyordu; bunlar yol keser. SAF'ta bir çocuğun ebeveyni URI'den
+HESAPLANAMAZ (son parça belge kimliğidir, ebeveyn değil) — "yukarı" düğmesi
+çöp URI üretirdi. Çözüm: `parentPath`/`childPath` **örnek metodu** yapıldı
+(varsayılan gerçekleme eski davranışın aynısı), `SafFs` geçersiz kılıyor ve
+ebeveynleri gezinti sırasında öğrenip saklıyor. Ekran artık `_fs.parentPath`
+çağırıyor. Bilinmeyen ebeveyn KÖK'e düşüyor: kullanıcı ağacın dışına çıkamaz.
+
+`childPath` ayracı `/`: dosya/klasör adı hiçbir dosya sisteminde `/`
+içeremediği için son `/` her zaman doğru yerde böler (`makeDirectory` buna
+dayanıyor).
+
+### Arayüz
+"Harici Bellek" kutusu yol yoluyla bir şey bulamazsa **SAF'a düşüyor**: izin
+verilmiş ağaç varsa SORULMADAN açılıyor (izin bir kez alınır), yoksa ne olduğu
+ve ne yapılacağı anlatılıp teklif ediliyor. Kutunun alt yazısı SAF izinlerini
+de sayıyor — izinli bir USB dururken "Takılı değil" yazmak yanlış olurdu.
+
+### Yeni testler
+`saf_fs_test.dart`: bilinmeyen ebeveyn köke düşüyor, kökün ebeveyni kök,
+**taban sınıfın yol kesmesinin URI'de yanlış cevap verdiği** açıkça
+gösteriliyor, `childPath` bölünmesi, sahte bağlantı kaydı, parola yazılmıyor.
+
+**Kapsam sınırı — dürüstçe:** Kotlin tarafı bu depoda test edilemiyor (CI
+yalnız DERLER). SAF akışının gerçekten çalıştığı ancak cihazda görülür.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **2015 test yeşil**.

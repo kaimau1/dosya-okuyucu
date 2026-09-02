@@ -16,6 +16,7 @@ import android.os.Looper
 import android.os.Process
 import android.hardware.usb.UsbManager
 import android.os.storage.StorageManager
+import android.provider.DocumentsContract
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -54,6 +55,9 @@ class MainActivity : FlutterActivity() {
     /** Dart tarafına olay ITMEK için (native → Dart). */
     private var channel: MethodChannel? = null
 
+    /** SAF klasör seçimi sonucunu bekleyen çağrı. */
+    private var pendingPick: MethodChannel.Result? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launchAction = intent?.action
@@ -72,6 +76,30 @@ class MainActivity : FlutterActivity() {
         if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
             channel?.invokeMethod("usbAttached", null)
         }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQ_PICK_TREE) return
+        val pending = pendingPick ?: return
+        pendingPick = null
+        val uri = if (resultCode == RESULT_OK) data?.data else null
+        if (uri == null) {
+            pending.success(null)
+            return
+        }
+        // **Kalıcı izin ŞART.** Alınmazsa izin uygulama kapanınca düşer ve
+        // kullanıcı her açılışta klasörü yeniden seçmek zorunda kalır.
+        try {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        } catch (e: Exception) {
+            // Bazı sağlayıcılar kalıcı izin vermiyor; oturum boyu yine çalışır.
+        }
+        pending.success(uri.toString())
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -138,6 +166,75 @@ class MainActivity : FlutterActivity() {
 
                     // **Android'in KENDİ birim listesi.**
                     "storageVolumes" -> result.success(storageVolumes())
+
+                    // ── SAF (Storage Access Framework) ──────────────────
+                    "safPickTree" -> {
+                        pendingPick = result
+                        try {
+                            startActivityForResult(
+                                Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                                    .addFlags(
+                                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                                            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                                    ),
+                                REQ_PICK_TREE
+                            )
+                        } catch (e: Exception) {
+                            pendingPick = null
+                            result.success(null)
+                        }
+                    }
+
+                    "safRoots" -> result.success(safRoots())
+
+                    "safForget" -> {
+                        result.success(safForget(call.argument<String>("uri")))
+                    }
+
+                    "safList" -> {
+                        val uri = call.argument<String>("uri")
+                        Thread {
+                            val rows = safList(uri)
+                            Handler(Looper.getMainLooper()).post { result.success(rows) }
+                        }.start()
+                    }
+
+                    "safCopyToFile" -> {
+                        val uri = call.argument<String>("uri")
+                        val dest = call.argument<String>("dest")
+                        Thread {
+                            val ok = safCopyToFile(uri, dest)
+                            Handler(Looper.getMainLooper()).post { result.success(ok) }
+                        }.start()
+                    }
+
+                    "safCopyFromFile" -> {
+                        val parent = call.argument<String>("parent")
+                        val src = call.argument<String>("src")
+                        val name = call.argument<String>("name")
+                        val mime = call.argument<String>("mime")
+                        Thread {
+                            val uri = safCopyFromFile(parent, src, name, mime)
+                            Handler(Looper.getMainLooper()).post { result.success(uri) }
+                        }.start()
+                    }
+
+                    "safDelete" -> result.success(safDelete(call.argument<String>("uri")))
+
+                    "safMkdir" -> result.success(
+                        safMkdir(
+                            call.argument<String>("parent"),
+                            call.argument<String>("name")
+                        )
+                    )
+
+                    "safRename" -> result.success(
+                        safRename(
+                            call.argument<String>("uri"),
+                            call.argument<String>("name")
+                        )
+                    )
 
                     else -> result.notImplemented()
                 }
@@ -479,7 +576,237 @@ class MainActivity : FlutterActivity() {
         return out
     }
 
+    // ── SAF (Storage Access Framework) ──────────────────────────────────
+    //
+    // **Niye gerekti (kullanıcı 2026-09-02):** USB bellek takılıyken Android
+    // onu dosya YOLU olarak vermiyor (bkz. `storageVolumes` notu). Android
+    // 11+ üzerinde takılabilir belleğe erişmenin herkese açık yolu SAF'tır:
+    // kullanıcı bir kez klasörü seçer, uygulama kalıcı izin alır ve o ağacı
+    // `DocumentsContract` üzerinden okuyup yazar.
+    //
+    // **Sınır — dürüstçe:** SAF ancak Android birimi BAĞLADIYSA (mount) ve
+    // sistem belge sağlayıcısına verdiyse çalışır. Android hiç bağlamadıysa
+    // seçicide de görünmez; o durumda tek çare aygıtı ham USB olarak sürmek
+    // (kendi yığın depolama sürücümüzü yazmak) olurdu — o ayrı ve çok daha
+    // büyük bir iş.
+
+    /**
+     * Bir ağaç ya da belge URI'sinden **belge** URI'si üretir.
+     *
+     * `DocumentsContract.createDocument`/`renameDocument` ağaç kökünü değil
+     * BELGE URI'sini ister; ağaç kökü verildiğinde çağrı sessizce başarısız
+     * olur. Tek yerde çevirmek bu tuzağı kapatıyor.
+     *
+     * **Niye `DocumentFile` YOK:** o sınıf `androidx.documentfile` paketinde
+     * ve yeni bir Gradle bağımlılığı demek. CI `android/` iskeletini her
+     * derlemede yeniden ürettiği için oraya eklenen her bağımlılık bakım
+     * borcudur (bkz. HAFIZA). `DocumentsContract` çerçevenin kendisinde.
+     */
+    private fun docUriOf(uri: Uri): Uri {
+        return try {
+            // Belge URI'siyse kimliği doğrudan verir.
+            DocumentsContract.buildDocumentUriUsingTree(
+                uri, DocumentsContract.getDocumentId(uri)
+            )
+        } catch (e: Exception) {
+            DocumentsContract.buildDocumentUriUsingTree(
+                uri, DocumentsContract.getTreeDocumentId(uri)
+            )
+        }
+    }
+
+    /** Bir belgenin görünen adı (yoksa null). */
+    private fun displayNameOf(uri: Uri): String? {
+        return try {
+            contentResolver.query(
+                uri,
+                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null, null, null
+            )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Kalıcı izin alınmış ağaçlar: uri + görünen ad. */
+    private fun safRoots(): List<Map<String, Any?>> {
+        val out = ArrayList<Map<String, Any?>>()
+        try {
+            for (perm in contentResolver.persistedUriPermissions) {
+                if (!perm.isReadPermission) continue
+                val uri = perm.uri
+                val name = displayNameOf(docUriOf(uri))
+                out.add(
+                    mapOf(
+                        "uri" to uri.toString(),
+                        "name" to (name ?: uri.lastPathSegment ?: "?"),
+                        "writable" to perm.isWritePermission
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            // izin listesi okunamadı — boş dön
+        }
+        return out
+    }
+
+    private fun safForget(uri: String?): Boolean {
+        if (uri.isNullOrEmpty()) return false
+        return try {
+            contentResolver.releasePersistableUriPermission(
+                Uri.parse(uri),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Bir belge (ya da ağaç kökü) altındaki girdiler.
+     *
+     * `DocumentsContract` ile tek sorgu: `DocumentFile.listFiles()` her girdi
+     * için AYRI sorgu yapıyor ve yüzlerce dosyalı bir klasörde saniyeler
+     * sürüyor. Sütunları tek seferde çekmek aynı işi bir sorguda bitirir.
+     */
+    private fun safList(uriString: String?): List<Map<String, Any?>> {
+        val out = ArrayList<Map<String, Any?>>()
+        if (uriString.isNullOrEmpty()) return out
+        try {
+            val uri = Uri.parse(uriString)
+            // Ağaç kökü mü yoksa alt belge mi? İkisinde de çocuk URI'si
+            // "ağaç + belge kimliği" ile kurulur.
+            val docId = try {
+                DocumentsContract.getDocumentId(uri)
+            } catch (e: Exception) {
+                DocumentsContract.getTreeDocumentId(uri)
+            }
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(uri, docId)
+            contentResolver.query(
+                children,
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    DocumentsContract.Document.COLUMN_SIZE,
+                    DocumentsContract.Document.COLUMN_LAST_MODIFIED
+                ),
+                null, null, null
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val id = c.getString(0) ?: continue
+                    val mime = c.getString(2) ?: ""
+                    out.add(
+                        mapOf(
+                            "uri" to DocumentsContract.buildDocumentUriUsingTree(uri, id)
+                                .toString(),
+                            "name" to (c.getString(1) ?: id),
+                            "isDir" to (mime == DocumentsContract.Document.MIME_TYPE_DIR),
+                            "size" to (if (c.isNull(3)) 0L else c.getLong(3)),
+                            "modified" to (if (c.isNull(4)) 0L else c.getLong(4)),
+                            "mime" to mime
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // Okunamadı — boş liste; Dart tarafı "klasör açılamadı" der.
+        }
+        return out
+    }
+
+    /** SAF belgesini yerel dosyaya kopyalar (aç/indir akışı). */
+    private fun safCopyToFile(uriString: String?, dest: String?): Boolean {
+        if (uriString.isNullOrEmpty() || dest.isNullOrEmpty()) return false
+        return try {
+            contentResolver.openInputStream(Uri.parse(uriString))?.use { input ->
+                java.io.File(dest).outputStream().use { output ->
+                    input.copyTo(output, 64 * 1024)
+                }
+            } != null
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Yerel dosyayı SAF klasörüne yazar; oluşan belgenin URI'si döner. */
+    private fun safCopyFromFile(
+        parent: String?,
+        src: String?,
+        name: String?,
+        mime: String?
+    ): String? {
+        if (parent.isNullOrEmpty() || src.isNullOrEmpty() || name.isNullOrEmpty()) {
+            return null
+        }
+        return try {
+            val parentDoc = docUriOf(Uri.parse(parent))
+            // Aynı adlı belge varsa ÜSTÜNE yazmıyoruz: SAF yeni bir
+            // "ad (1)" üretir ve kullanıcı iki kopya görür. Önce siliyoruz —
+            // kopyalama akışının çakışma sorusu Dart tarafında zaten soruldu.
+            for (child in safList(parent)) {
+                if (child["name"] == name) {
+                    safDelete(child["uri"] as? String)
+                    break
+                }
+            }
+            val doc = DocumentsContract.createDocument(
+                contentResolver,
+                parentDoc,
+                if (mime.isNullOrEmpty()) "application/octet-stream" else mime,
+                name
+            ) ?: return null
+            contentResolver.openOutputStream(doc)?.use { output ->
+                java.io.File(src).inputStream().use { input ->
+                    input.copyTo(output, 64 * 1024)
+                }
+            }
+            doc.toString()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun safDelete(uriString: String?): Boolean {
+        if (uriString.isNullOrEmpty()) return false
+        return try {
+            DocumentsContract.deleteDocument(
+                contentResolver, docUriOf(Uri.parse(uriString))
+            )
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun safMkdir(parent: String?, name: String?): String? {
+        if (parent.isNullOrEmpty() || name.isNullOrEmpty()) return null
+        return try {
+            DocumentsContract.createDocument(
+                contentResolver,
+                docUriOf(Uri.parse(parent)),
+                DocumentsContract.Document.MIME_TYPE_DIR,
+                name
+            )?.toString()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun safRename(uriString: String?, name: String?): String? {
+        if (uriString.isNullOrEmpty() || name.isNullOrEmpty()) return null
+        return try {
+            DocumentsContract.renameDocument(
+                contentResolver, docUriOf(Uri.parse(uriString)), name
+            )?.toString()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private companion object {
         const val CHANNEL = "dosya_okuyucu/app_storage"
+        const val REQ_PICK_TREE = 7301
     }
 }

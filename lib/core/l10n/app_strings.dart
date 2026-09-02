@@ -2476,6 +2476,29 @@ const Map<String, (String, String, String)> _table = {
   ),
   'fm.external_count': ('{n} birim', '{n} drives', '{n} محركات'),
   'fm.external_none_short': ('Takılı değil', 'Not attached', 'غير متصل'),
+  'saf.title': (
+    'Harici belleğe klasör izniyle eriş',
+    'Access the drive with folder permission',
+    'الوصول إلى المحرك بإذن المجلد',
+  ),
+  'saf.body': (
+    'Bu cihazda Android, takılan belleği dosya yolu olarak vermiyor; bu yüzden '
+    'listede görünmüyor. Android\'in klasör seçicisinden belleği (ya da içindeki '
+    'bir klasörü) seçerseniz uygulama ona kalıcı olarak erişebilir: gezme, açma, '
+    'kopyalama, silme ve yeniden adlandırma çalışır.\n\n'
+    'Seçicide belleği göremiyorsanız Android onu hiç bağlamamış demektir; o '
+    'durumda bildirim panelindeki USB bildirimini kontrol edin.',
+    'On this device Android does not expose the attached drive as a file path, '
+    'so it does not show up in the list. If you pick the drive (or a folder in '
+    'it) from Android\'s folder picker, the app gets lasting access: browsing, '
+    'opening, copying, deleting and renaming all work.\n\n'
+    'If the drive is not in the picker either, Android has not mounted it — '
+    'check the USB notification in the shade.',
+    'على هذا الجهاز لا يوفّر أندرويد المحرك المتصل كمسار ملف، لذلك لا يظهر في '
+    'القائمة. اختر المحرك (أو مجلدًا فيه) من منتقي المجلدات ليحصل التطبيق على '
+    'وصول دائم.\n\nإن لم يظهر المحرك في المنتقي فلم يوصّله أندرويد.',
+  ),
+  'saf.pick': ('Klasör seç', 'Pick folder', 'اختر مجلدًا'),
   'fm.external_unusable': (
     '{name} takılı ama Android onu uygulamalara açmadı (bağlanmamış). '
     'Bildirim panelindeki USB bildirimine dokunup "Dosya aktarımı" seçin ya da '
