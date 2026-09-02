@@ -205,9 +205,16 @@ abstract final class StorageStats {
       final path = pv.path;
       if (path == null || path.isEmpty) continue;
       if (pv.isPrimary) continue; // birincil zaten yukarıda eklendi
-      if (!pv.isMounted) continue; // takılı ama kullanılamıyor
+      // **`state`e TEK BAŞINA güvenilmez** (kullanıcı hatası 2026-09-02):
+      // `StorageVolume.getState()` birimi uygulamaya görünen listede yolla
+      // arıyor, bulamazsa `unknown` diyor — bağlı bir USB'de bile. Elemeyi
+      // duruma bakarak yapınca başka dosya yöneticilerinin listelediği belleğe
+      // biz "Takılı değil" diyorduk. Artık son söz DOSYA SİSTEMİNİN:
+      // durumu iyi DEĞİLSE bile yol listelenebiliyorsa birim vardır.
+      if (!pv.isUsable && !canList(path)) continue;
       if (out.any((v) => v.path == path)) continue;
       if (!seen.add(p.basename(path))) continue;
+      if (!canList(path)) continue; // gezilemeyen birim listeye girmez
       final kind = kindOf(path, mounts);
       // Android'in verdiği ad ("USB sürücü", "SAMSUNG") UUID'den iyidir;
       // yoksa türe göre çevrilen ada düşülür.
@@ -223,6 +230,36 @@ abstract final class StorageStats {
         kind: kind,
       ));
     }
+
+    // **İZİN GEREKTİRMEYEN kanal:** uygulamanın kendi klasörü bağlı her
+    // birimde vardır (`/storage/<UUID>/Android/data/<paket>/files`), o yüzden
+    // `/storage` listelenemeyen ROM'larda bile birimi buradan yakalıyoruz.
+    // Bağlama tablosu da (aynı `mount` çıktısı) ayrıca taranıyor: kimi ROM
+    // belleği `/mnt/usb/...` gibi `/storage` dışına bağlıyor.
+    final extra = <String>[
+      ...await AppStorageService.externalFilesRoots(),
+      ...removableMountPoints(mounts),
+    ];
+    for (final path in extra) {
+      if (path == primary) continue;
+      if (out.any((v) => v.path == path)) continue;
+      final name = p.basename(path);
+      if (name == 'emulated' || name == 'self' || name == 'container') continue;
+      if (!canList(path)) continue;
+      if (!seen.add(name)) continue;
+      final kind = kindOf(path, mounts);
+      final anonymous = _isUuid(name);
+      out.add(StorageVolume(
+        path: path,
+        label: anonymous ? '' : name,
+        labelKey: anonymous
+            ? (kind == StorageKind.usb ? 'fm.vol_usb' : 'fm.vol_sdcard')
+            : null,
+        isPrimary: false,
+        kind: kind,
+      ));
+    }
+
     for (final root in removableRoots) {
       for (final entity in entriesOf(root)) {
         final name = p.basename(entity.path);
@@ -316,6 +353,45 @@ abstract final class StorageStats {
       // Yok, okunamıyor ya da varlığı bile sorulamıyor — bu kök yok sayılır.
       return const [];
     }
+  }
+
+  /// Yol GERÇEKTEN gezilebiliyor mu? (varlık denetimi de fırlatabilir —
+  /// bkz. [entriesOf]; bu yüzden tek `try` içinde.)
+  static bool canList(String path) {
+    try {
+      final dir = Directory(path);
+      if (!dir.existsSync()) return false;
+      dir.listSync(followLinks: false).take(1).toList();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// **Bağlama tablosundaki takılabilir birimler** — saf fonksiyon (testli).
+  ///
+  /// `/proc/mounts` her Linux'ta okunabilir ve bir birim GERÇEKTEN bağlıysa
+  /// orada görünür; `/storage` klasörünü listeleyememek ya da
+  /// `StorageManager`ın `unknown` demesi bunu değiştirmez. Yalnız
+  /// [removableRoots] altındaki TEK parçalı bağlama noktaları döner
+  /// (`/storage/1A2B-3C4D` evet, `/storage/emulated/0` hayır).
+  static List<String> removableMountPoints(List<String> mounts) {
+    final out = <String>[];
+    for (final line in mounts) {
+      final parts = line.trim().split(RegExp(r'\s+'));
+      if (parts.length < 2) continue;
+      // `/proc/mounts` boşlukları `\040` olarak kaçırır.
+      final point = parts[1].replaceAll(r'\040', ' ');
+      for (final root in removableRoots) {
+        if (!point.startsWith('$root/')) continue;
+        final rest = point.substring(root.length + 1);
+        if (rest.isEmpty || rest.contains('/')) continue;
+        if (rest == 'emulated' || rest == 'self' || rest == 'container') break;
+        if (!out.contains(point)) out.add(point);
+        break;
+      }
+    }
+    return out;
   }
 
   /// `/proc/mounts` satırları (okunamazsa boş).

@@ -194,6 +194,27 @@ abstract final class AppStorageService {
     }
   }
 
+  /// **Bağlı birimlerin kökleri** — uygulamaya ait klasörden türetilir.
+  ///
+  /// `getExternalFilesDirs()` bağlı HER birimde uygulamaya ait bir klasör
+  /// döndürür ve o klasör hiçbir izin gerektirmez; `/storage` listelenemeyen
+  /// ROM'larda takılı SD/USB'yi yakalamanın en güvenilir yolu budur
+  /// (bkz. `ci/MainActivity.kt` → `externalFilesRoots`).
+  ///
+  /// Kanal yoksa boş liste.
+  static Future<List<String>> externalFilesRoots() async {
+    try {
+      final raw =
+          await _channel.invokeMethod<List<dynamic>>('externalFilesRoots');
+      return [
+        for (final item in raw ?? const [])
+          if (item is String && item.isNotEmpty) item,
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// **USB takıldı** olayını dinler (native → Dart itmesi).
   ///
   /// Niye gerekli: uygulama zaten ön plandayken Android'in "USB cihazı için
@@ -218,9 +239,14 @@ abstract final class AppStorageService {
   // Ayrıntı ve sınırlar: `ci/MainActivity.kt` içindeki SAF bölümü.
 
   /// Klasör seçiciyi açar; seçilen ağacın URI'sini döner (vazgeçilirse null).
-  static Future<String?> safPickTree() async {
+  ///
+  /// [volume] verilirse (birimin UUID'si ya da yolu) seçici **doğrudan o
+  /// birimin köküne** konumlanır — kullanıcı hatası 2026-09-02: seçicide
+  /// takılı USB'yi bulamıyordu (bkz. `ci/MainActivity.kt` → `pickTreeIntent`).
+  static Future<String?> safPickTree({String? volume}) async {
     try {
-      return await _channel.invokeMethod<String>('safPickTree');
+      return await _channel
+          .invokeMethod<String>('safPickTree', {'volume': volume});
     } catch (_) {
       return null;
     }
@@ -333,6 +359,24 @@ class SafRoot {
         name: '${m['name'] ?? '?'}',
         writable: m['writable'] != false,
       );
+
+  /// Ağacın ait olduğu **birimin kimliği** (`1A2B-3C4D`, `primary`) — saf,
+  /// testli.
+  ///
+  /// Ağaç URI'si `…/tree/1A2B-3C4D%3AKlasor` biçimindedir; ilk `:` öncesi
+  /// birimin kimliğidir ve bağlama noktasının adıyla aynıdır. Aynı belleği
+  /// hem yol hem klasör izniyle görüyorsak panoda İKİ KEZ göstermemek için
+  /// gerekiyor.
+  ///
+  /// Çözümlenemezse boş dize (o zaman eşleştirme yapılmaz, kart çizilir).
+  String get volumeId {
+    final marker = '/tree/';
+    final at = uri.indexOf(marker);
+    if (at < 0) return '';
+    final id = Uri.decodeComponent(uri.substring(at + marker.length));
+    final colon = id.indexOf(':');
+    return colon < 0 ? id : id.substring(0, colon);
+  }
 }
 
 /// SAF ağacındaki bir girdi.
@@ -382,6 +426,14 @@ class PlatformVolume {
   /// Birimin UUID'si (bağlama noktası adıyla aynı olur).
   final String? uuid;
 
+  /// Native taraf yolu GERÇEKTEN listeleyebildi mi?
+  ///
+  /// [state]e güvenilmez: `StorageVolume.getState()` birimi uygulamaya görünen
+  /// listede yolla arar, bulamazsa `unknown` der — bağlı bir USB'de bile.
+  /// Dosya sistemi ise yalan söyleyemez (bkz. `ci/MainActivity.kt` →
+  /// `readableDir`).
+  final bool readable;
+
   const PlatformVolume({
     this.path,
     this.description = '',
@@ -389,6 +441,7 @@ class PlatformVolume {
     this.isRemovable = false,
     this.state = '',
     this.uuid,
+    this.readable = false,
   });
 
   factory PlatformVolume.fromMap(Map<dynamic, dynamic> m) => PlatformVolume(
@@ -398,10 +451,16 @@ class PlatformVolume {
         isRemovable: m['isRemovable'] == true,
         state: (m['state'] as String?) ?? '',
         uuid: m['uuid'] as String?,
+        readable: m['readable'] == true,
       );
 
   /// Okunabilir durumda mı? (`mounted` ya da salt okunur `mounted_ro`.)
   bool get isMounted => state == 'mounted' || state == 'mounted_ro';
+
+  /// **Kullanılabilir mi?** Android "bağlı" diyorsa ya da yol fiilen
+  /// listelenebiliyorsa evet. İkinci koşul şart: durumu `unknown` çıkan bağlı
+  /// USB'ler yüzünden kullanıcıya "Takılı değil" diyorduk.
+  bool get isUsable => (isMounted || readable) && (path?.isNotEmpty ?? false);
 
   /// Yalnız okunabiliyor mu?
   bool get isReadOnly => state == 'mounted_ro';

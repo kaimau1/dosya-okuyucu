@@ -10024,3 +10024,76 @@ gösteriliyor, `childPath` bölünmesi, sahte bağlantı kaydı, parola yazılm�
 yalnız DERLER). SAF akışının gerçekten çalıştığı ancak cihazda görülür.
 
 **Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **2015 test yeşil**.
+
+## 2026-09-02 (altıncı tur) — USB hâlâ görünmüyordu: `state` YALAN SÖYLÜYOR
+
+Kullanıcı üç ekran görüntüsüyle geldi: **başka bir dosya yöneticisi** takılı
+belleği ana ekranda kart olarak listeliyor ("TYPEC 64 · 47,4 GB / 62 GB"),
+bizde ise "Harici Bellek — Takılı değil" yazıyor ve şerit *"Kingston USB
+sürücüsü takılı ama Android onu uygulamalara açmadı"* diyordu. Yani bellek
+GERÇEKTEN bağlıydı; eleyen bizim kodumuzdu.
+
+### KÖK NEDEN — `StorageVolume.getState()` bağlı birimde de `unknown` diyebilir
+Beşinci turda eklenen süzgeç `if (!pv.isMounted) continue;` idi. AOSP'de:
+
+* `getDirectory()` = `when (state) { MOUNTED, MOUNTED_RO -> mPath; else -> null }`
+* `getState()` → `Environment.getExternalStorageState(mPath)` → birimi
+  **uygulamaya görünen listede YOLLA arar**; bulamazsa `unknown` döner.
+
+Bu yüzden bağlı bir USB'de bile hem `state` hem `directory` boş gelebiliyor.
+Biz de o birimi "takılı ama bağlanmamış" sayıp listeden atıyorduk — üstelik
+`description` alanı bu durumda birim etiketini ("TYPEC 64") değil aygıt adını
+("Kingston USB sürücüsü") verdiği için mesaj da tuhaf görünüyordu.
+
+**Ders: tek bir Android sinyaline dayanmak yanlış. Son söz DOSYA SİSTEMİNİN.**
+
+### Yapılan — dört kanaldan tarama, hepsinde tek ölçüt: gezilebiliyor mu?
+1. `StorageManager` (eskisi gibi) — ama yol artık sırayla `getDirectory()` →
+   gizli `getPath()` → gizli `getPathFile()` → `/storage/<uuid>` denenerek
+   bulunuyor ve native taraf yolu fiilen deniyor (`readableDir`: `isDirectory
+   && canRead && listFiles() != null`). Sonuç `readable` alanı olarak geliyor;
+   `PlatformVolume.isUsable = (isMounted || readable) && yol var`.
+2. **`getExternalFilesDirs()`** (yeni, `externalFilesRoots`): bağlı HER birimde
+   uygulamanın kendi klasörü vardır (`/storage/<UUID>/Android/data/<paket>/…`)
+   ve o klasör **hiçbir izin gerektirmez**. `/storage` listelenemeyen ROM'larda
+   birimi yakalamanın en güvenilir yolu; yolun `/Android/` öncesi birimin kökü.
+3. **`/proc/mounts`** (`removableMountPoints`, saf + testli): takılabilir
+   köklerin altındaki TEK parçalı bağlama noktaları. Bir birim gerçekten
+   bağlıysa burada görünür; `/storage/emulated/0` ve alt klasörler elenir.
+4. `/storage` klasör taraması (eski yedek).
+
+Her adayda `StorageStats.canList` çalışıyor: **gezilemeyen birim listeye
+GİRMİYOR** (kullanıcıya boş bir klasör açmak, "yok" demekten beter olurdu).
+
+### Klasör izni (SAF) tarafı — "diğer uygulama bu şekilde ekliyor"
+- Seçici artık **doğrudan o birimin üstünde** açılıyor:
+  `StorageVolume.createOpenDocumentTreeIntent()` (API 29+; birim UUID'si ya da
+  yolu Dart'tan geliyor). Kullanıcı seçicide belleği aramak zorunda değil —
+  şikâyetin yarısı buydu.
+- "Takılı ama açılamıyor" şeridine **"Klasör seç" düğmesi** eklendi. Eski
+  mesaj yalnız Android'i suçluyordu ve kullanıcının elinde yapacak bir şey
+  bırakmıyordu ("hata alıyoruz").
+- İzin verilmiş ağaçlar artık **panoda kart** (`_SafCard`) ve harici bellek
+  seçme sayfasında satır. Yol yoluyla görünen birimle aynıysa iki kez
+  çizilmiyor — `SafRoot.volumeId` ağaç URI'sinden (`…/tree/1A2B-3C4D%3A…`)
+  birim kimliğini çıkarıyor. SAF kartında **doluluk halkası YOK**: SAF bir
+  ağaç verir, kapasiteyi vermez; uydurma halka çizmek yanlış olurdu.
+
+### TUZAK — kaydırılarak kapatılan sayfa ile "Klasör seç" satırı
+Harici bellek seçme sayfası `pop(ctx)` ile kapanıyordu; kullanıcı sayfayı
+aşağı kaydırıp kapattığında da aynı `null` geliyor ve seçici KENDİLİĞİNDEN
+açılıyordu. Satır artık `pop(ctx, 'pick')` diyor.
+
+### Kapsam sınırı — dürüstçe
+Android belleği hiç bağlamamışsa (ham USB aygıtı olarak dağıtıyorsa) bu turun
+hiçbir kanalı onu göremez; seçicide de görünmez. O durumun tek çözümü kendi
+USB yığın depolama sürücümüzü yazmaktır (SCSI/BBB + FAT/exFAT) — hâlâ ayrı ve
+büyük bir iş. Kotlin tarafı bu depoda test EDİLEMİYOR (CI yalnız derler);
+`ci/MainActivity.kt` değişiklikleri ancak cihazda doğrulanır.
+
+### Yeni testler — `test/external_volume_detect_test.dart`
+`PlatformVolume.isUsable` (durum `unknown` + okunabilir → kullanılabilir),
+`removableMountPoints` (birincil ve alt klasörler elenir, tekrar yok),
+`canList`, ve sahte kanalla `volumes()`: durumu `unknown` ama gezilebilen birim
+listeye GİRER, gezilemeyen GİRMEZ, uygulama klasöründen türetilen kök de birim
+sayılır, aynı birim iki kanaldan gelse bir kez eklenir.

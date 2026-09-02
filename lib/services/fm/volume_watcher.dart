@@ -7,6 +7,22 @@ import 'app_storage_service.dart';
 import 'fm_env.dart';
 import 'storage_stats.dart';
 
+/// Android'in BİLDİĞİ ama gezilemeyen bir harici birim.
+///
+/// Kullanıcıya "Takılı değil" demek yanlış olurdu: bellek takılı, yalnız
+/// Android onu dosya yolu olarak vermiyor. [key] (UUID ya da yol) klasör
+/// seçicisini doğrudan o birimin üstünde açmak için kullanılır —
+/// `AppStorageService.safPickTree(volume: key)`.
+class UnusableVolume {
+  /// Kullanıcıya gösterilecek ad ("Kingston USB sürücüsü").
+  final String name;
+
+  /// Klasör seçiciyi konumlandıran anahtar: birimin UUID'si ya da yolu.
+  final String key;
+
+  const UnusableVolume({required this.name, required this.key});
+}
+
 /// Takılan/çıkarılan bir birim.
 class VolumeChange {
   /// Yeni takılan birimler (USB bellek, SD kart).
@@ -184,15 +200,32 @@ class VolumeWatcher {
   /// * takılı ama bağlanmamış / yolu verilmemiş → bu yanlışı söylemek
   ///   kullanıcıyı "bozuk" hissine sokuyor. Sebebi söylemek gerekiyor.
   ///
-  /// Bulunan birimin adını döner; öyle bir birim yoksa null.
-  static Future<String?> attachedButUnusable() async {
+  /// Bulunan birimi döner; öyle bir birim yoksa null.
+  ///
+  /// "Kullanılamıyor" ölçütü artık `state` DEĞİL, gezilebilirlik: durumu
+  /// `unknown` çıkan bağlı bir USB de listeleniyorsa sorun yoktur (bkz.
+  /// `StorageStats.volumes`). Dönen [UnusableVolume.key] klasör seçicisini
+  /// doğrudan o birimin üstünde açmaya yarar.
+  static Future<UnusableVolume?> attachedButUnusable() async {
     for (final pv in await AppStorageService.storageVolumes()) {
       if (pv.isPrimary || !pv.isRemovable) continue;
       final path = pv.path;
-      final usable = pv.isMounted && path != null && path.isNotEmpty;
-      if (usable) continue;
-      final name = pv.description.trim();
-      return name.isEmpty ? (pv.uuid ?? '?') : name;
+      if (path != null && path.isNotEmpty && StorageStats.canList(path)) {
+        continue; // gezilebiliyor → sorun yok
+      }
+      final described = pv.description.trim();
+      final uuid = pv.uuid ?? '';
+      return UnusableVolume(
+        name: described.isEmpty ? (uuid.isEmpty ? '?' : uuid) : described,
+        key: uuid.isNotEmpty ? uuid : (path ?? ''),
+      );
+    }
+    // `StorageManager` susuyor olabilir; bağlama tablosunda görünen ama
+    // gezilemeyen bir birim de aynı durumdur (izin/bağlama sorunu).
+    for (final point in StorageStats.removableMountPoints(
+        StorageStats.readMounts())) {
+      if (StorageStats.canList(point)) continue;
+      return UnusableVolume(name: p.basename(point), key: point);
     }
     return null;
   }

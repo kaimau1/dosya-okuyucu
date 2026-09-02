@@ -2499,14 +2499,20 @@ const Map<String, (String, String, String)> _table = {
     'وصول دائم.\n\nإن لم يظهر المحرك في المنتقي فلم يوصّله أندرويد.',
   ),
   'saf.pick': ('Klasör seç', 'Pick folder', 'اختر مجلدًا'),
+  'saf.granted': ('Klasör izniyle', 'Via folder permission', 'بإذن المجلد'),
+  // Mesaj bir ÇIKIŞ YOLU söylüyor (kullanıcı 2026-09-02: bellek takılıyken
+  // "Android açmadı" demek elinde yapacak bir şey bırakmıyordu). Şeridin
+  // "Klasör seç" düğmesi seçiciyi doğrudan o birimin üstünde açar.
   'fm.external_unusable': (
-    '{name} takılı ama Android onu uygulamalara açmadı (bağlanmamış). '
-    'Bildirim panelindeki USB bildirimine dokunup "Dosya aktarımı" seçin ya da '
-    'belleği çıkarıp yeniden takın.',
-    '{name} is attached but Android has not mounted it for apps. Tap the USB '
-    'notification and choose "File transfer", or unplug and plug it back in.',
-    '{name} متصل لكن أندرويد لم يوصّله للتطبيقات. اضغط إشعار USB واختر "نقل '
-    'الملفات"، أو افصله وأعد توصيله.',
+    '{name} takılı ama Android onu dosya yolu olarak vermiyor. "Klasör seç" '
+    'ile belleği seçerseniz uygulama ona kalıcı olarak erişir; seçicide de '
+    'yoksa bildirim panelindeki USB bildiriminden "Dosya aktarımı" seçin.',
+    '{name} is attached but Android does not expose it as a file path. Tap '
+    '"Pick folder" and choose the drive for lasting access; if it is not in '
+    'the picker either, choose "File transfer" in the USB notification.',
+    '{name} متصل لكن أندرويد لا يوفّره كمسار ملف. اضغط "اختر مجلدًا" وحدد '
+    'المحرك للوصول الدائم؛ وإن لم يظهر في المنتقي فاختر "نقل الملفات" من '
+    'إشعار USB.',
   ),
   'fm.external_usb_count': ('{n} USB', '{n} USB', '{n} USB'),
   'fm.external_card_count': ('{n} SD kart', '{n} SD card', '{n} بطاقة SD'),

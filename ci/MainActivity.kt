@@ -167,17 +167,16 @@ class MainActivity : FlutterActivity() {
                     // **Android'in KENDİ birim listesi.**
                     "storageVolumes" -> result.success(storageVolumes())
 
+                    // Bağlı birimlerin uygulamaya ait klasöründen türetilen
+                    // kökler — `/storage` listelenemese de birimi yakalar.
+                    "externalFilesRoots" -> result.success(externalFilesRoots())
+
                     // ── SAF (Storage Access Framework) ──────────────────
                     "safPickTree" -> {
                         pendingPick = result
                         try {
                             startActivityForResult(
-                                Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                                    .addFlags(
-                                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                                            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-                                    ),
+                                pickTreeIntent(call.argument<String>("volume")),
                                 REQ_PICK_TREE
                             )
                         } catch (e: Exception) {
@@ -552,16 +551,8 @@ class MainActivity : FlutterActivity() {
             return out
         }
         for (v in volumes) {
-            val path = try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    v.directory?.absolutePath
-                } else {
-                    @Suppress("DiscouragedPrivateApi")
-                    v.javaClass.getMethod("getPath").invoke(v) as? String
-                }
-            } catch (e: Exception) {
-                null
-            }
+            val uuid = try { v.uuid } catch (e: Exception) { null }
+            val path = volumePath(v, uuid)
             out.add(
                 mapOf(
                     "path" to path,
@@ -569,11 +560,95 @@ class MainActivity : FlutterActivity() {
                     "isPrimary" to v.isPrimary,
                     "isRemovable" to v.isRemovable,
                     "state" to try { v.state } catch (e: Exception) { null },
-                    "uuid" to try { v.uuid } catch (e: Exception) { null }
+                    "uuid" to uuid,
+                    // **Gerçekten okunabiliyor mu?** `state` yalan söyleyebilir
+                    // (bkz. `volumePath`); dosya sistemi söyleyemez.
+                    "readable" to readableDir(path)
                 )
             )
         }
         return out
+    }
+
+    /**
+     * Bir birimin dosya YOLU — Android'in tek bir cevabına GÜVENİLMEZ.
+     *
+     * Kullanıcı hatası 2026-09-02 (ekran görüntüsü): başka bir dosya yöneticisi
+     * takılı USB belleği ("TYPEC 64", 47,4/62 GB) listeliyordu, biz "Takılı
+     * değil" diyorduk. Sebep: `StorageVolume.getDirectory()` AOSP'de
+     *
+     *     when (state) { MOUNTED, MOUNTED_READ_ONLY -> mPath; else -> null }
+     *
+     * ve `getState()` birimi UYGULAMAYA GÖRÜNEN listede yolla arayıp bulamazsa
+     * `unknown` döner. Yani bağlı bir USB'de bile `directory` null çıkabiliyor
+     * — biz de o birimi "bağlanmamış" sayıp eliyorduk.
+     *
+     * Bu yüzden sırayla: `getDirectory()` → gizli `getPath()`/`getPathFile()`
+     * (durum denetimi YOK, ham alanı verir) → `/storage/<uuid>`. Bulunan yol
+     * ayrıca dosya sistemine SORULUR ([readableDir]).
+     */
+    private fun volumePath(v: android.os.storage.StorageVolume, uuid: String?): String? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                v.directory?.absolutePath?.let { return it }
+            } catch (e: Exception) {
+                // sıradaki yola düş
+            }
+        }
+        try {
+            @Suppress("DiscouragedPrivateApi")
+            (v.javaClass.getMethod("getPath").invoke(v) as? String)
+                ?.takeIf { it.isNotEmpty() }?.let { return it }
+        } catch (e: Exception) {
+            // gizli API kaldırılmış olabilir
+        }
+        try {
+            @Suppress("DiscouragedPrivateApi")
+            (v.javaClass.getMethod("getPathFile").invoke(v) as? java.io.File)
+                ?.absolutePath?.takeIf { it.isNotEmpty() }?.let { return it }
+        } catch (e: Exception) {
+            // gizli API kaldırılmış olabilir
+        }
+        if (!uuid.isNullOrEmpty()) {
+            val guess = "/storage/$uuid"
+            if (readableDir(guess)) return guess
+        }
+        return null
+    }
+
+    /** Yol GERÇEKTEN listelenebiliyor mu? (izin yoksa `listFiles()` null döner) */
+    private fun readableDir(path: String?): Boolean {
+        if (path.isNullOrEmpty()) return false
+        return try {
+            val f = java.io.File(path)
+            f.isDirectory && f.canRead() && f.listFiles() != null
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * **Uygulamaya ait klasörden türetilen birim kökleri.**
+     *
+     * `getExternalFilesDirs()` BAĞLI her birimde uygulamaya ait bir klasör
+     * döndürür (`/storage/1A2B-3C4D/Android/data/<paket>/files`). O klasör
+     * uygulamanın kendisinindir: hiçbir izin gerektirmez ve `/storage`
+     * listelenemeyen ROM'larda bile gelir. Yolun `/Android/` öncesi birimin
+     * KÖKÜDÜR — böylece `StorageManager` sussa da bağlı bir SD/USB'yi
+     * yakalıyoruz.
+     */
+    private fun externalFilesRoots(): List<String> {
+        val out = LinkedHashSet<String>()
+        val dirs = ArrayList<java.io.File?>()
+        try { dirs.addAll(getExternalFilesDirs(null)) } catch (e: Exception) {}
+        try { dirs.addAll(externalCacheDirs) } catch (e: Exception) {}
+        for (dir in dirs) {
+            val path = try { dir?.absolutePath } catch (e: Exception) { null } ?: continue
+            val idx = path.indexOf("/Android/")
+            if (idx <= 0) continue
+            out.add(path.substring(0, idx))
+        }
+        return out.toList()
     }
 
     // ── SAF (Storage Access Framework) ──────────────────────────────────
@@ -629,6 +704,45 @@ class MainActivity : FlutterActivity() {
     }
 
     /** Kalıcı izin alınmış ağaçlar: uri + görünen ad. */
+    /**
+     * Klasör seçici intent'i — mümkünse **doğrudan o birimin üstünde** açılır.
+     *
+     * Kullanıcı hatası 2026-09-02: seçicide takılı USB'yi bulamıyordu.
+     * `StorageVolume.createOpenDocumentTreeIntent()` (API 29+) seçiciyi tam o
+     * birimin köküne konumlandırır — kullanıcı çekmecede aramak zorunda
+     * kalmaz. Birim adı verilmezse (ya da eşleşmezse) sıradan
+     * `ACTION_OPEN_DOCUMENT_TREE`ye düşülür; davranış eskisi gibi kalır.
+     *
+     * [volume] birimin UUID'si ya da yolu olabilir (Dart tarafı hangisini
+     * biliyorsa onu yollar).
+     */
+    private fun pickTreeIntent(volume: String?): Intent {
+        val fallback = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+        if (!volume.isNullOrEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val sm = getSystemService(Context.STORAGE_SERVICE) as StorageManager
+                val match = sm.storageVolumes.firstOrNull { v ->
+                    val uuid = try { v.uuid } catch (e: Exception) { null }
+                    uuid == volume || volumePath(v, uuid) == volume
+                }
+                if (match != null) {
+                    return match.createOpenDocumentTreeIntent().addFlags(
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                    )
+                }
+            } catch (e: Exception) {
+                // Seçiciyi konumlandıramadık — sıradan seçici yine açılır.
+            }
+        }
+        return fallback.addFlags(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+        )
+    }
+
     private fun safRoots(): List<Map<String, Any?>> {
         val out = ArrayList<Map<String, Any?>>()
         try {

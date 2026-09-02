@@ -209,11 +209,34 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (!mounted) return;
     }
     // Altı denemede bağlanmadı: sessiz kalmak "dokundum, hiçbir şey olmadı"
-    // demek. Sebebi söyle.
+    // demek. Sebebi söyle — ve çıkış yolunu da ver.
+    await _reportStuckExternal();
+  }
+
+  /// Bellek takılı ama gezilemiyorsa **sebebi + çıkış yolu**.
+  ///
+  /// Kullanıcı hatası 2026-09-02: mesaj yalnız "Android onu uygulamalara
+  /// açmadı" diyordu; kullanıcının elinde yapacak bir şey kalmıyordu ("hata
+  /// alıyoruz"). Oysa çıkış yolu var: klasör izni (SAF). Şeridin düğmesi
+  /// seçiciyi DOĞRUDAN o birimin üstünde açıyor.
+  ///
+  /// Hiç birim bilinmiyorsa "takılı değil" der (yalan değil, gerçekten yok).
+  Future<void> _reportStuckExternal() async {
     final stuck = await VolumeWatcher.attachedButUnusable();
-    if (!mounted || stuck == null) return;
-    showSnack(context, context.t('fm.external_unusable', {'name': stuck}),
-        duration: kSnackAction);
+    if (!mounted) return;
+    if (stuck == null) {
+      showSnack(context, context.t('fm.external_none'), duration: kSnackAction);
+      return;
+    }
+    showSnack(
+      context,
+      context.t('fm.external_unusable', {'name': stuck.name}),
+      duration: kSnackAction,
+      action: SnackBarAction(
+        label: context.t('saf.pick'),
+        onPressed: () => unawaited(_openViaSaf(volume: stuck.key)),
+      ),
+    );
   }
 
   /// Uygulama arka plandan dönünce sıcak klasörler yeniden taranır.
@@ -651,6 +674,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                   onTap: () => _push(BrowserScreen(
                       path: v.path, title: v.displayLabel(context.t))),
                 ),
+              const SizedBox(height: Gap.sm),
+            ],
+            // **Klasör izniyle eklenen bellekler de KART olarak** (kullanıcı
+            // 2026-09-02, ekran görüntüsüyle: başka bir dosya yöneticisi
+            // takılı USB'yi "bu şekilde ekliyor" ve ana ekranda gösteriyor).
+            // Yol yoluyla görünen bir birim varsa aynı bellek iki kez
+            // çizilmez (bkz. `SafRoot.volumeId`).
+            for (final r in _safCards()) ...[
+              _SafCard(root: r, onTap: () => unawaited(_openSafRoot(r))),
               const SizedBox(height: Gap.sm),
             ],
             // (AI Asistan kartı 2026-08-17'de KALKTI: kullanıcı *"ai asistan
@@ -1295,6 +1327,18 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  /// Panoda kart olarak çizilecek SAF ağaçları: yol yoluyla ZATEN görünen
+  /// birimler elenir (aynı bellek iki kart olmasın).
+  List<SafRoot> _safCards() {
+    final byPath = {
+      for (final v in FmEnv.volumes) p.basename(v.path).toLowerCase(),
+    };
+    return [
+      for (final r in _safRoots)
+        if (!byPath.contains(r.volumeId.toLowerCase())) r,
+    ];
+  }
+
   Future<void> _loadSafRoots() async {
     final roots = await AppStorageService.safRoots();
     if (!mounted) return;
@@ -1313,7 +1357,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// yapılacağı anlatılıp teklif edilir.
   ///
   /// Bir şey açıldıysa true döner (çağıran "takılı değil" demesin).
-  Future<bool> _openViaSaf() async {
+  ///
+  /// [volume] verilirse (birimin UUID'si ya da yolu) seçici doğrudan o birimin
+  /// köküne konumlanır — kullanıcı hatası 2026-09-02: seçicide takılı USB'yi
+  /// bulamıyordu.
+  Future<bool> _openViaSaf({String? volume}) async {
     var roots = await AppStorageService.safRoots();
     if (roots.isEmpty) {
       if (!mounted) return false;
@@ -1333,7 +1381,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
       if (accept != true) return false;
-      final picked = await AppStorageService.safPickTree();
+      final picked = await AppStorageService.safPickTree(volume: volume);
       if (picked == null) return false;
       roots = await AppStorageService.safRoots();
       if (roots.isEmpty) return false;
@@ -1365,7 +1413,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
       if (chosen == null) {
-        final picked = await AppStorageService.safPickTree();
+        final picked = await AppStorageService.safPickTree(volume: volume);
         if (picked == null) return false;
         final fresh = await AppStorageService.safRoots();
         if (fresh.isEmpty) return false;
@@ -1405,27 +1453,35 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Yol yoluyla bulunamadı. **SAF'a düş:** kullanıcı daha önce klasör
       // izni verdiyse doğrudan aç, vermediyse teklif et. Android 11+ üzerinde
       // takılabilir belleğe erişmenin herkese açık yolu bu (bkz. `SafFs`).
-      if (await _openViaSaf()) return;
+      // Seçici, Android'in bildiği birimin üstünde açılsın (bulunabilirse).
+      final stuck = await VolumeWatcher.attachedButUnusable();
+      if (!mounted) return;
+      if (await _openViaSaf(volume: stuck?.key)) return;
       if (!mounted) return;
       // Android bir birim BİLİYOR ama bağlamamışsa bunu söyle — "yok" demek
       // yanlış olur ve kullanıcı uygulamayı bozuk sanır.
-      final stuck = await VolumeWatcher.attachedButUnusable();
-      if (!mounted) return;
-      showSnack(
-        context,
-        stuck == null
-            ? context.t('fm.external_none')
-            : context.t('fm.external_unusable', {'name': stuck}),
-        duration: kSnackAction,
-      );
+      await _reportStuckExternal();
       return;
     }
-    var volume = volumes.first;
-    if (volumes.length > 1) {
-      final picked = await showModalBottomSheet<StorageVolume>(
-        context: context,
-        showDragHandle: true,
-        builder: (ctx) => SafeArea(
+    // **Klasör izniyle eklenen bellekler de listede** (kullanıcı 2026-09-02:
+    // başka bir dosya yöneticisi USB'yi böyle ekleyip gösteriyor). Yol yoluyla
+    // görünen bir SD kart dururken izinli USB'yi gizlemek, kullanıcıyı onu
+    // yeniden eklemeye zorlardı.
+    final saf = _safRoots;
+    if (volumes.length == 1 && saf.isEmpty) {
+      final only = volumes.single;
+      return _push(
+          BrowserScreen(path: only.path, title: only.displayLabel(context.t)));
+    }
+
+    // `'pick'` = "Klasör seç"; `StorageVolume` = yol birimi; `SafRoot` =
+    // izinli ağaç. Sayfanın kaydırılarak kapatılması `null` verir ve HİÇBİR
+    // şey açmaz — dizeyle ayrılmasının sebebi bu.
+    final picked = await showModalBottomSheet<Object>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1438,15 +1494,40 @@ class _DashboardScreenState extends State<DashboardScreen>
                       : v.path),
                   onTap: () => Navigator.pop(ctx, v),
                 ),
+              for (final r in saf)
+                ListTile(
+                  leading: const Icon(Icons.folder_special_outlined),
+                  title: Text(r.name),
+                  subtitle: Text(ctx.t('saf.granted')),
+                  onTap: () => Navigator.pop(ctx, r),
+                ),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: Text(ctx.t('saf.pick')),
+                onTap: () => Navigator.pop(ctx, 'pick'),
+              ),
             ],
           ),
         ),
-      );
-      if (picked == null || !mounted) return;
-      volume = picked;
+      ),
+    );
+    if (!mounted || picked == null) return;
+    if (picked is StorageVolume) {
+      return _push(BrowserScreen(
+          path: picked.path, title: picked.displayLabel(context.t)));
     }
-    await _push(BrowserScreen(
-        path: volume.path, title: volume.displayLabel(context.t)));
+    if (picked is SafRoot) return _openSafRoot(picked);
+    final stuck = await VolumeWatcher.attachedButUnusable();
+    if (!mounted) return;
+    await _openViaSaf(volume: stuck?.key);
+  }
+
+  /// İzin verilmiş bir SAF ağacını gezgin ekranında açar.
+  Future<void> _openSafRoot(SafRoot root) async {
+    final fs = SafFs(rootUri: root.uri, rootName: root.name);
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RemoteBrowserScreen(connection: fs.connection, fs: fs),
+    ));
   }
 
   List<FmTileData> _rankedTools() {
@@ -1668,6 +1749,37 @@ class _NewFolderDialogState extends State<_NewFolderDialog> {
               onPressed: _submit, child: Text(context.t('fm.create'))),
         ],
       );
+}
+
+/// **Klasör izniyle eklenen bellek kartı.**
+///
+/// Yol yoluyla görünen birimlerin kartında doluluk halkası var; burada YOK ve
+/// olamaz: SAF bir ağaç verir, aygıtın kapasitesini vermez. Uydurma bir halka
+/// çizmektense hiç çizmemek dürüst olan.
+class _SafCard extends StatelessWidget {
+  final SafRoot root;
+  final VoidCallback onTap;
+
+  const _SafCard({required this.root, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: scheme.surfaceContainerHighest,
+          child: Icon(Icons.usb, color: scheme.onSurfaceVariant),
+        ),
+        title: Text(root.name,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(context.t('saf.granted')),
+        trailing: const Icon(Icons.chevron_right),
+      ),
+    );
+  }
 }
 
 class _VolumeCard extends StatelessWidget {
