@@ -73,6 +73,11 @@ class AudioPlayback extends ChangeNotifier {
       }),
       created.onPlayerStateChanged.listen((s) {
         playing = s == PlayerState.playing;
+        if (playing) {
+          _startTicker();
+        } else {
+          _stopTicker();
+        }
         unawaited(_refreshNotification());
         notifyListeners();
       }),
@@ -94,6 +99,12 @@ class AudioPlayback extends ChangeNotifier {
 
   /// Kullanıcı çubuğu sürüklerken konum güncellemesi ekrana yansımasın.
   bool _dragging = false;
+
+  /// Bildirimdeki süreyi tazeleyen sayaç (yalnız çalarken çalışır).
+  Timer? _tick;
+
+  /// Bildirimde en son yazılan saniye — aynı saniyeyi tekrar yazmamak için.
+  int _lastShownSecond = -1;
 
   bool get hasTrack => playlist.isNotEmpty;
 
@@ -253,6 +264,7 @@ class AudioPlayback extends ChangeNotifier {
 
   /// Çalmayı bitirir ve bildirimi/servisi bırakır.
   Future<void> stop() async {
+    _stopTicker();
     if (engineEnabled && _engine != null) await _player.stop();
     playing = false;
     playlist = const [];
@@ -286,6 +298,43 @@ class AudioPlayback extends ChangeNotifier {
       case actionStop:
         await stop();
     }
+  }
+
+  /// **Bildirimde geçen/toplam süre** (kullanıcı 2026-09-02: *"ilerleme
+  /// süreci gösteren yapı olmalı"*).
+  ///
+  /// Sürüklenebilir çubuk (YouTube'daki gibi) bir MediaSession ister ve onu
+  /// bu eklenti vermiyor — uydurma bir çubuk çizmek yerine süreyi METİN
+  /// olarak yazıyoruz ve beş saniyede bir tazeliyoruz. Beş saniye bilinçli:
+  /// her saniye bildirim güncellemek pil yakar, beş saniye insan gözüne
+  /// "akıyor" görünüyor.
+  void _startTicker() {
+    _tick?.cancel();
+    _tick = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!playing) return;
+      final second = position.inSeconds;
+      if (second == _lastShownSecond) return;
+      _lastShownSecond = second;
+      unawaited(_refreshNotification());
+    });
+  }
+
+  void _stopTicker() {
+    _tick?.cancel();
+    _tick = null;
+  }
+
+  /// `1:52 / 3:35` — bildirimde gösterilen süre.
+  static String formatSpan(Duration position, Duration total) {
+    String fmt(Duration d) {
+      final h = d.inHours;
+      final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+      final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+      return h > 0 ? '$h:$m:$s' : '$m:$s';
+    }
+
+    if (total <= Duration.zero) return fmt(position);
+    return '${fmt(position)} / ${fmt(total)}';
   }
 
   Future<void> _refreshNotification() async {
@@ -335,9 +384,9 @@ class AudioPlayback extends ChangeNotifier {
           ),
         ],
       );
-      final body = tags.subtitle.isEmpty
-          ? p.basename(current)
-          : tags.subtitle;
+      final where =
+          tags.subtitle.isEmpty ? p.basename(current) : tags.subtitle;
+      final body = '$where  ·  ${formatSpan(position, duration)}';
       // **Ön plan servisi ancak ÇALARKEN tutulur.** Duraklatılmış bir
       // oynatıcı için süreci ayakta tutmak pil yakar. Servis bildirimi
       // zaten aynı bildirimdir (hub onu kendisi gösteriyor).
@@ -400,6 +449,7 @@ class AudioPlayback extends ChangeNotifier {
 
   @override
   void dispose() {
+    _stopTicker();
     for (final s in _subs) {
       unawaited(s.cancel());
     }

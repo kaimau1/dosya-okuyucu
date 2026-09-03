@@ -10525,3 +10525,20 @@ Android medya sunucusu ölünce oynatıcı nesnesi kullanılamaz hâle geliyor v
 deneniyor.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2125 test yeşil**.
+
+## 2026-09-02 (on altıncı tur) — Bildirimde süre (çubuğun dürüst karşılığı)
+
+Kullanıcı bildirimde "ilerleme süreci gösteren yapı" istedi (YouTube örneği).
+**Sürüklenebilir çubuk bir MediaSession ister** ve `flutter_local_notifications`
+onu vermiyor; uydurma bir çubuk çizmek yerine geçen/toplam süre METİN olarak
+yazılıyor (`1:52 / 3:35`) ve beş saniyede bir tazeleniyor.
+
+Beş saniye bilinçli: her saniye bildirim güncellemek pil yakar, beş saniye
+gözle "akıyor" görünüyor. Sayaç yalnız ÇALARKEN dönüyor; duraklatınca ve
+durdurunca iptal ediliyor.
+
+Gerçek çubuk isteniyorsa yol `audio_service` paketi (MediaSession + kilit
+ekranı + kulaklık düğmeleri). Yeni bağımlılık ve manifest servisi demek;
+kullanıcı isterse ayrı tur.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2128 test yeşil**.

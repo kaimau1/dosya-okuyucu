@@ -74,6 +74,34 @@ void main() {
     expect(player.index, 0);
   });
 
+  group('bildirimde süre', () {
+    // Sürüklenebilir çubuk MediaSession ister (bu eklentide yok); süre METİN
+    // olarak yazılıyor. Biçim bozulursa bildirimde "0:00 / 0:00" gibi anlamsız
+    // bir şey görünürdü.
+    test('saat gerekmiyorsa dakika:saniye', () {
+      expect(
+          AudioPlayback.formatSpan(
+              const Duration(minutes: 1, seconds: 52),
+              const Duration(minutes: 3, seconds: 35)),
+          '01:52 / 03:35');
+    });
+
+    test('bir saati aşınca saat de yazılır', () {
+      expect(
+          AudioPlayback.formatSpan(
+              const Duration(hours: 1, minutes: 2, seconds: 3),
+              const Duration(hours: 2)),
+          '1:02:03 / 2:00:00');
+    });
+
+    test('toplam süre bilinmiyorsa yalnız geçen süre', () {
+      expect(
+          AudioPlayback.formatSpan(
+              const Duration(seconds: 42), Duration.zero),
+          '00:42');
+    });
+  });
+
   test('bildirim eylemleri tanınır', () {
     // Kimlikler `main`de bildirime bağlanıyor; adları değişirse düğmeler
     // sessizce çalışmaz olurdu.
