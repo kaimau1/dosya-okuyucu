@@ -2528,6 +2528,16 @@ const Map<String, (String, String, String)> _table = {
   'saf.granted': ('Klasör izniyle', 'Via folder permission', 'بإذن المجلد'),
   // ── USB teşhis ekranı ────────────────────────────────────────────────
   // Kararlar tek cümlelik: kullanıcı ekranı okuyup NE YAPACAĞINI bilsin.
+  'usb.eject_mounted_hint': (
+    'Android\'in bağladığı bir belleği uygulama söküp çıkaramaz (herkese '
+    'açık bir yol yok). Bildirim panelindeki USB/SD bildiriminde "Çıkar" '
+    'düğmesi vardır; uygulamanın kendi sürdüğü bellekte ise gezgin '
+    'ekranındaki ⋮ menüsünde "Güvenle çıkar" çalışır.',
+    'The app cannot unmount a drive that Android mounted (there is no public '
+    'API). Use the "Eject" button in the USB/SD notification; for a drive the '
+    'app drives itself, use "Safely remove" in the browser\'s ⋮ menu.',
+    'لا يمكن للتطبيق فصل محرك وصّله أندرويد. استخدم زر "إخراج" في إشعار USB.',
+  ),
   'usb.eject': ('Güvenle çıkar', 'Safely remove', 'إزالة آمنة'),
   'usb.eject_done': (
     'Bellek bırakıldı — şimdi çıkarabilirsiniz.',

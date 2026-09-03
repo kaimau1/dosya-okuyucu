@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -100,6 +101,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Ham aygıt ilk ne zaman görüldü? (İlk saniyelerde kart gösterilmiyor —
   /// Android'in bağlaması bitsin.)
   DateTime? _rawUsbSeenAt;
+
+  /// Küçük yüzen düğmeler görünür mü? (Aşağı kaydırırken çekiliyorlar.)
+  bool _fabsVisible = true;
 
   /// USB otomatik açma: sürüyor mu ve en son ne zaman açıldı?
   bool _usbOpening = false;
@@ -712,7 +716,21 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       body: RefreshIndicator(
         onRefresh: _scan,
-        child: ListView(
+        child: NotificationListener<ScrollNotification>(
+          // **Kaydırırken küçük düğmeler ÇEKİLİYOR** (kullanıcı ekran
+          // görüntüsü 2026-09-02: çöp kutusu ve yeni klasör düğmeleri
+          // "Uygulamalar" karesinin üstünde duruyordu). Yüzen düğmeler
+          // tanım gereği içeriğin üstünde; çare onları kalıcı olarak
+          // kaldırmak değil, kullanıcı LİSTEYE bakarken çekilmeleri.
+          // Parmak yukarı kaydırınca (geri gelirken) yeniden beliriyorlar.
+          onNotification: (n) {
+            if (n is UserScrollNotification) {
+              final show = n.direction != ScrollDirection.reverse;
+              if (show != _fabsVisible) setState(() => _fabsVisible = show);
+            }
+            return false;
+          },
+          child: ListView(
           // Alt boşluk FAB yığınını (küçük düğme sırası + "Belge Tara") aşar:
           // 2026-08-06'da Gap.xl (32) yetmiyordu ve son satırdaki "Google
           // Drive" kartının yazısı düğmelerin altında kalıyordu.
@@ -753,6 +771,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           onTap: () => _push(BrowserScreen(
                               path: v.path,
                               title: v.displayLabel(context.t))),
+                          onLongPress: () => unawaited(_volumeMenu(v)),
                         ),
                       ),
                       const SizedBox(width: Gap.sm),
@@ -768,6 +787,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   // — tarayıcı başlığı boş açılıyordu.
                   onTap: () => _push(BrowserScreen(
                       path: v.path, title: v.displayLabel(context.t))),
+                  onLongPress: () => unawaited(_volumeMenu(v)),
                 ),
               const SizedBox(height: Gap.sm),
             ],
@@ -856,15 +876,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             ],
           ],
         ),
+        ),
       ),
-      // **Belge Tara ana ekranda sabit yüzen düğme** (kullanıcı isteği
-      // 2026-07-29: "dosya tara ana ekranda olmalı yüzen fix buton olarak").
-      // Daha önce yalnız "Son belgeler" sekmesindeydi — uygulamanın vitrin
-      // özelliği, açılış ekranında görünmüyordu. Kaydırırken kaybolmaz
-      // (FAB gövdenin üstünde durur, listenin içinde değil).
-      //
-      // Sıra bilinçli: taramanın etiketli/geniş düğmesi ALTTA (başparmağa en
-      // yakın), yeni klasör küçük düğme olarak üstte — ikisi de kalsın diye.
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -872,18 +885,29 @@ class _DashboardScreenState extends State<DashboardScreen>
           // Çöp kutusu ile klasör ekleme YAN YANA: ikisi de küçük, ikisi de
           // "bir şey yap" düğmesi; alt alta dizilseler taramanın geniş
           // düğmesini ekranın yarısına kadar iterlerdi.
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _trashFab(),
-              const SizedBox(width: Gap.sm),
-              FloatingActionButton.small(
-                heroTag: 'fm_new_folder',
-                onPressed: _newFolderFlow,
-                tooltip: context.t('fm.new_folder'),
-                child: const Icon(Icons.create_new_folder_outlined),
+          AnimatedSlide(
+            offset: _fabsVisible ? Offset.zero : const Offset(0, 0.4),
+            duration: const Duration(milliseconds: 180),
+            child: AnimatedOpacity(
+              opacity: _fabsVisible ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: IgnorePointer(
+                ignoring: !_fabsVisible,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _trashFab(),
+                    const SizedBox(width: Gap.sm),
+                    FloatingActionButton.small(
+                      heroTag: 'fm_new_folder',
+                      onPressed: _newFolderFlow,
+                      tooltip: context.t('fm.new_folder'),
+                      child: const Icon(Icons.create_new_folder_outlined),
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
           const SizedBox(height: Gap.sm),
           FloatingActionButton.extended(
@@ -1707,6 +1731,80 @@ class _DashboardScreenState extends State<DashboardScreen>
     await _openViaSaf(volume: stuck?.key);
   }
 
+  /// Birim kartına UZUN BASINCA açılan menü.
+  ///
+  /// Kullanıcı 2026-09-02: *"güvenle çıkarı bulamadım; hem ana ekranda
+  /// üzerine basılı tutunca çıkmalı hem de içerideki üç noktada olmalı"* ve
+  /// *"USB ve SD kartlarda da bellek analizi yapabilelim"*. İkisi de burada.
+  Future<void> _volumeMenu(StorageVolume volume) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(volumeIcon(volume)),
+              title: Text(volume.displayLabel(ctx.t)),
+              subtitle: Text(volume.hasStats
+                  ? '${FsPaths.humanSize(volume.freeBytes)} boş · ${volume.path}'
+                  : volume.path),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.folder_open),
+              title: Text(ctx.t('common.open')),
+              onTap: () => Navigator.pop(ctx, 'open'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.donut_small),
+              title: Text(ctx.t('fm.memory_analysis')),
+              onTap: () => Navigator.pop(ctx, 'analysis'),
+            ),
+            if (volume.isRemovable)
+              ListTile(
+                leading: const Icon(Icons.eject),
+                title: Text(ctx.t('usb.eject')),
+                onTap: () => Navigator.pop(ctx, 'eject'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'open':
+        await _push(BrowserScreen(
+            path: volume.path, title: volume.displayLabel(context.t)));
+      case 'analysis':
+        // **Analiz artık her birimde** — eskiden yalnız ana bellekteydi.
+        await _push(AnalysisScreen(index: _index, volumes: [volume]));
+      case 'eject':
+        await _ejectVolume(volume);
+    }
+  }
+
+  /// **Güvenle çıkar.**
+  ///
+  /// Android'in bağladığı bir birimi uygulama SÖKEMEZ (herkese açık API yok);
+  /// orada dürüst olan, ne yapılacağını söylemek. Ham USB'de (uygulamanın
+  /// kendi sürdüğü bellek) gerçekten bırakabiliyoruz.
+  Future<void> _ejectVolume(StorageVolume volume) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('usb.eject')),
+        content: Text(ctx.t('usb.eject_mounted_hint')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.close'))),
+        ],
+      ),
+    );
+  }
+
   /// **Ham USB:** Android belleği bağlamadıysa uygulama onu kendi sürer.
   ///
   /// Salt okunur (bkz. `UsbFs`): dosyalar açılır ve kopyalanır, belleğe
@@ -2036,10 +2134,15 @@ class _VolumeCard extends StatelessWidget {
   /// Kırılım çubuğunun verisi. Tarama zaten yapıldı — ek maliyet yok.
   final StorageIndex index;
   final VoidCallback onTap;
+
+  /// Uzun basış menüsü (analiz, güvenle çıkar).
+  final VoidCallback? onLongPress;
+
   const _VolumeCard({
     required this.volume,
     required this.index,
     required this.onTap,
+    this.onLongPress,
   });
 
   /// Kategori paylı yığın çubuğu: "98,4/128 GB" tek başına NEYİN yer
@@ -2103,6 +2206,7 @@ class _VolumeCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(Gap.md),
           child: Column(

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
@@ -191,9 +190,12 @@ class UsbFs extends RemoteFs {
         id: handle,
         sizeBytes: entry.sizeBytes,
       );
-      await for (final Uint8List chunk in fs.openRead(source)) {
-        sink.add(chunk);
-      }
+      // **`addStream` KULLANILIYOR, `add` DEĞİL.** `sink.add` geri basınç
+      // uygulamaz: okuma yazmadan hızlıysa parçalar bellekte birikir ve
+      // büyük bir dosyada uygulama şişip donar (kullanıcı 2026-09-02:
+      // *"USB'den dosya kopyalayınca siyah ekran oldu ve dondu"*).
+      // `addStream` diske yazma yetişene kadar okumayı bekletir.
+      await sink.addStream(fs.openRead(source));
     } on BlockDeviceException catch (e) {
       await sink.close();
       // Yarım inen dosyayı BIRAKMA: kullanıcı onu açtığında bozuk sanır.

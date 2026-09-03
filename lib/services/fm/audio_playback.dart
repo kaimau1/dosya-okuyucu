@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -8,6 +9,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import 'audio_tags.dart';
+import 'fm_env.dart';
 import 'notification_hub.dart';
 
 /// Tekrar kipi (kapalı / tek parça / liste).
@@ -118,6 +120,20 @@ class AudioPlayback extends ChangeNotifier {
     await _play(current);
   }
 
+  /// Android medya sunucusu ölürse (`MEDIA_ERROR_SERVER_DIED`) oynatıcı
+  /// nesnesi ARTIK KULLANILAMAZ; yenisini kurmak gerekiyor. Hata kaydı
+  /// 2026-09-02: bu olduğunda çalma sessizce ölüyordu.
+  Future<void> _recreateEngine() async {
+    for (final s in _subs) {
+      unawaited(s.cancel());
+    }
+    _subs.clear();
+    try {
+      await _engine?.dispose();
+    } catch (_) {}
+    _engine = null;
+  }
+
   Future<void> _play(String path) async {
     error = null;
     position = Duration.zero;
@@ -133,6 +149,17 @@ class AudioPlayback extends ChangeNotifier {
       await _player.play(DeviceFileSource(path));
       await _player.setPlaybackRate(speed);
     } catch (e) {
+      // Medya sunucusu öldüyse oynatıcıyı yenileyip BİR KEZ daha dene.
+      if ('$e'.contains('SERVER_DIED')) {
+        await _recreateEngine();
+        try {
+          await _player.play(DeviceFileSource(path));
+          await _player.setPlaybackRate(speed);
+          return;
+        } catch (_) {
+          // ikinci deneme de olmadı — aşağıdaki mesaja düş
+        }
+      }
       error = AppStrings.current.t('mp.audio_failed', {'error': e});
       notifyListeners();
     }
@@ -268,6 +295,12 @@ class AudioPlayback extends ChangeNotifier {
     if (!hub.ready) return;
     final str = AppStrings.current;
     try {
+      // **Medya biçimli bildirim** (kullanıcı 2026-09-02: *"premium
+      // uygulamalardaki gibi oynat/durdur düğmesi olmalı, örneğin YouTube"*).
+      // `MediaStyleInformation` bildirime medya görünümünü veriyor: kapak
+      // solda büyük, düğmeler daraltılmış görünümde de duruyor. Eskiden düz
+      // bildirimdi ve MIUI daraltılmışken düğmeleri hiç göstermiyordu.
+      final cover = await _coverFile();
       final details = AndroidNotificationDetails(
         _channelId,
         str.t('mp.channel_name'),
@@ -278,6 +311,12 @@ class AudioPlayback extends ChangeNotifier {
         autoCancel: false,
         onlyAlertOnce: true,
         showWhen: false,
+        largeIcon: cover == null ? null : FilePathAndroidBitmap(cover),
+        // Daraltılmış görünümde İLK İKİ düğme (duraklat, sonraki) görünür.
+        styleInformation: const MediaStyleInformation(
+          htmlFormatContent: false,
+          htmlFormatTitle: false,
+        ),
         actions: [
           AndroidNotificationAction(
             actionToggle,
@@ -327,6 +366,24 @@ class AudioPlayback extends ChangeNotifier {
       }
     } catch (_) {
       // Bildirim kurulamadı — çalma yine sürüyor, sessizce geçiyoruz.
+    }
+  }
+
+  /// Kapak resmini bildirimin okuyabileceği bir DOSYAYA yazar.
+  ///
+  /// Bildirim eklentisi ham bayt kabul etmiyor, dosya yolu istiyor. Tek bir
+  /// dosya kullanılıyor ve her parçada üzerine yazılıyor — kapaklar
+  /// uygulamanın klasöründe birikmesin.
+  Future<String?> _coverFile() async {
+    final bytes = tags.cover;
+    if (bytes == null || bytes.isEmpty) return null;
+    if (FmEnv.appSupportDir.isEmpty) return null;
+    try {
+      final file = File('${FmEnv.appSupportDir}/audio_cover.jpg');
+      await file.writeAsBytes(bytes, flush: true);
+      return file.path;
+    } catch (_) {
+      return null;
     }
   }
 

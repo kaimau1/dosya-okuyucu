@@ -21,6 +21,7 @@ import 'services/fm/fm_env.dart';
 import 'services/fm/job_notifications.dart';
 import 'services/fm/job_queue.dart';
 import 'services/fm/job_store.dart';
+import 'screens/fm/audio_player_screen.dart';
 import 'services/fm/audio_playback.dart';
 import 'services/fm/notification_hub.dart';
 import 'services/fm/remote/ftp_service.dart';
@@ -146,6 +147,21 @@ void _openFromNotification(String payload) {
   if (payload == FtpService.owner) {
     unawaited(Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const FtpServerScreen())));
+    return;
+  }
+  // **Müzik bildirimi ÇALAN PARÇAYA götürür** (kullanıcı 2026-09-02:
+  // *"üzerine tıklayınca müzik dosyasına değil işlemler sayfasına gidiyor"*).
+  // Yük tanınmayınca akış "iş bildirimi" varsayıp işlemler ekranını açıyordu.
+  if (payload.startsWith('audio:')) {
+    final path = payload.substring(6);
+    if (path.isNotEmpty) {
+      unawaited(Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => AudioPlayerScreen(
+          path: path,
+          playlist: AudioPlayback.instance.playlist,
+        ),
+      )));
+    }
     return;
   }
   final job = JobQueue.instance.find(payload);

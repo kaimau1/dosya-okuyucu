@@ -10475,3 +10475,53 @@ rastgele bir kümeyi dizin sanmak felaket olurdu. Ekran yalnız gezerek
 öğrendiği klasörleri açıyor ve bu test onu koruyor.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2125 test yeşil**.
+
+## 2026-09-02 (on beşinci tur) — Kullanıcı bulguları: müzik bildirimi, donma, çıkarma
+
+Kullanıcı dört ekran görüntüsü + hata kaydı gönderdi.
+
+### A) Müzik bildirimi "premium" değildi
+* **Düğmeler görünmüyordu:** düz bildirimdi; MIUI daraltılmış görünümde
+  eylemleri gizliyor. Artık `MediaStyleInformation` + **kapak resmi**
+  (etiketten okunan kapak dosyaya yazılıp `largeIcon` olarak veriliyor —
+  eklenti ham bayt kabul etmiyor). Daraltılmışken bile ilk iki düğme duruyor.
+* **Dokununca İŞLEMLER ekranı açılıyordu:** `main`deki yönlendirici yükü
+  tanımayınca "bu bir iş bildirimi" varsayıp işlemler ekranını açıyordu.
+  `audio:` öneki artık çalan parçayı açıyor.
+
+**Sınır — dürüstçe:** bildirimdeki SÜRÜKLENEBİLİR ilerleme çubuğu (YouTube'daki
+gibi) MediaSession ister; onu `flutter_local_notifications` vermiyor,
+`audio_service` paketi gerekir. Kapak + düğmeler + kalıcı bildirim var,
+çubuk yok.
+
+### B) USB'den kopyalarken uygulama dondu (siyah ekran)
+`sink.add` **geri basınç uygulamaz**: USB okuması diske yazmadan hızlı
+olduğunda parçalar bellekte birikiyor; büyük dosyada uygulama şişip donuyor.
+`sink.addStream` yazma yetişene kadar okumayı bekletiyor. (Aynı desen
+FTP/Drive'da da var ama oralarda hız ağ ile sınırlı; USB'de değil.)
+
+### C) "Güvenle çıkar" bulunamıyordu
+Yalnız ham USB gezgininin ⋮ menüsündeydi. Artık **birim kartına uzun basınca**
+açılan menüde. Android'in bağladığı birimi uygulama SÖKEMEZ (herkese açık API
+yok) — orada dürüst olan ne yapılacağını söylemek: pencere, bildirimdeki
+"Çıkar" düğmesini gösteriyor.
+
+### D) USB ve SD kartta bellek analizi
+Analiz yalnız ana bellekte açılıyordu. Uzun basış menüsünde her birim için
+"Bellek Analizi" var (`AnalysisScreen` tek birimle açılıyor).
+
+### E) Oynatıcı düğmeleri sistem çubuğunun altında kalıyordu
+"Son açılanlar"dan doğrudan açıldığında alt gezinme çubuğunun payı yoktu.
+`SafeArea(top: false)` payı ekranın kendisine koyuyor.
+
+### F) Yüzen düğmeler içeriği kapatıyordu
+Çöp kutusu ve yeni klasör düğmeleri "Uygulamalar" karesinin üstünde duruyordu.
+Aşağı kaydırırken çekiliyorlar, parmak yukarı gidince geri geliyorlar
+(kaldırmak yerine: ikisi de sık kullanılıyor).
+
+### G) `MEDIA_ERROR_SERVER_DIED`
+Android medya sunucusu ölünce oynatıcı nesnesi kullanılamaz hâle geliyor ve
+çalma sessizce ölüyordu. Artık oynatıcı yeniden kuruluyor ve bir kez daha
+deneniyor.
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2125 test yeşil**.
