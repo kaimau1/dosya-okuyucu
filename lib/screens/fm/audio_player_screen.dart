@@ -12,6 +12,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/audio_tags.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 
 /// Çalma sırası davranışı.
@@ -52,9 +53,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   /// Sürüklerken çubuğun takip ettiği geçici konum.
   Duration _dragPosition = Duration.zero;
 
+  /// Tam oynatıcı açıkken ekran altı mini çubuk gizlenir.
+  VoidCallback? _unhideBar;
+
   @override
   void initState() {
     super.initState();
+    _unhideBar = MiniPlayerBar.hide();
     _p.addListener(_onChange);
     // Aynı dosya zaten çalıyorsa baştan başlatma: kullanıcı bildirimden
     // ekrana döndüğünde parça sıfırlanmamalı.
@@ -65,6 +70,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
   @override
   void dispose() {
+    _unhideBar?.call();
     _p.removeListener(_onChange);
     // **Oynatıcı KAPATILMIYOR.** Eskiden burada `player.dispose()` vardı ve
     // ekrandan çıkan kullanıcı müziği de kapatmış oluyordu.

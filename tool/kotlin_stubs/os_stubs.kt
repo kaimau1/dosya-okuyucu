@@ -11,5 +11,10 @@ object Build {
         const val S = 31
         const val R = 30
         const val Q = 29
+        const val O = 26
+        const val N = 24
+        const val M = 23
     }
 }
+
+interface IBinder

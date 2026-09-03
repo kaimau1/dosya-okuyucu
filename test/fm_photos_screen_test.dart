@@ -94,17 +94,22 @@ void main() {
   });
 
   /// Kök neden testi (2026-07-29): pano önbelleği kategori başına 800 dosyayla
-  /// sınırlı; ekran açıldıktan sonra EKSİKSİZ liste gelip yerine geçmeli.
-  testWidgets('tam liste gelince kırpılmış liste değişir', (tester) async {
+  /// sınırlı; ekran açıldıktan sonra EKSİKSİZ liste gelmeli.
+  ///
+  /// 2026-09-03'te davranış "yerine geç"ten "BİRLEŞTİR"e çevrildi: eksiksiz
+  /// liste arama dizininden geliyor ve dizin bayatsa yeni dosyaları
+  /// içermiyor. Yerine geçseydi az önce çekilen ekran görüntüsü gözün önünde
+  /// kaybolurdu — kullanıcının bildirdiği *"görülüp geri gidiyor"* hatası.
+  testWidgets('tam liste gelir ve elimizdekiyle BİRLEŞİR', (tester) async {
     final day = DateTime(2026, 3, 4, 10);
     final short = [photo('a.jpg', day)];
     final full = [
       for (var i = 0; i < 5; i++) photo('foto_$i.jpg', day),
     ];
     await tester.pumpWidget(harness(short, loadAll: () async => full));
-    // Yükleyici tamamlanınca kırpılmış liste yerini tam listeye bırakır.
     await tester.pump();
-    expect(find.text('5 / 5 dosya'), findsOneWidget);
+    // 5 (dizinden) + 1 (panodan gelen, dizinde olmayan taze dosya).
+    expect(find.text('6 / 6 dosya'), findsOneWidget);
     expect(find.text('1 / 1 dosya'), findsNothing);
     expect(tester.takeException(), isNull);
   });

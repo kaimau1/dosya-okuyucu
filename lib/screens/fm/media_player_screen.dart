@@ -8,11 +8,12 @@ import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
 import '../../core/l10n/app_strings.dart';
-import '../../core/screen_awake.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/subtitles.dart';
+import '../../services/fm/video_playback.dart';
+import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
 
@@ -43,17 +44,41 @@ class MediaPlayerScreen extends StatefulWidget {
   State<MediaPlayerScreen> createState() => _MediaPlayerScreenState();
 }
 
-class _MediaPlayerScreenState extends State<MediaPlayerScreen>
-    with WidgetsBindingObserver {
-  VideoPlayerController? _controller;
-  late List<String> _playlist;
-  late int _index;
-  bool _loading = true;
-  String? _error;
+class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
+  /// **Oynatıcı artık ekranda DEĞİL** (kullanıcı isteği 2026-09-03: *"hem
+  /// bildirim hem ekran altı"*). Ekran yalnız servisi izliyor; çıkınca video
+  /// (mini çubukta) devam ediyor — sesin 2026-09-02'de yaşadığı taşınmanın
+  /// aynısı.
+  VideoPlayback get _p => VideoPlayback.instance;
+
+  VideoPlayerController? get _controller => _p.controller;
+  List<String> get _playlist => _p.playlist;
+  int get _index => _p.index;
+  bool get _loading => _p.loading;
+  String? get _error => _p.error;
+  double get _speed => _p.speed;
+
+  /// Tam oynatıcı açıkken ekran altı mini çubuk gizlenir.
+  VoidCallback? _unhideBar;
+
   bool _controlsVisible = true;
   bool _landscape = false;
-  double _speed = 1.0;
   Timer? _hideTimer;
+
+  /// Servis her durum değişiminde haber veriyor; ekran o an yeniden çizilir.
+  void _onService() {
+    if (!mounted) return;
+    setState(() {});
+    if (_p.playing) _scheduleHide();
+    // Yeni dosyaya geçildiyse altyazılar da yenilenmeli.
+    if (_subtitlesFor != _p.current) {
+      _subtitlesFor = _p.current;
+      unawaited(_loadSubtitles());
+    }
+  }
+
+  /// Altyazıları en son hangi dosya için yüklediğimiz.
+  String? _subtitlesFor;
 
   /// Şu anki dosyanın yanında bulunan altyazı dosyaları.
   List<SubtitleTrack> _subtitles = const [];
@@ -68,34 +93,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
   /// sesle tutmayabiliyor; kullanıcı ileri/geri kaydırabilsin.
   int _subtitleOffsetMs = 0;
 
-  /// Uygulama arkaya alındığı için mi duraklattık? (Kullanıcı duraklattıysa
-  /// dönüşte kendiliğinden başlamamalı.)
-  bool _pausedByLifecycle = false;
 
-  /// Son bilinen oynatma durumu — yalnız DEĞİŞİMİNDE ekran yeniden çizilir.
-  bool _wasPlaying = false;
+  /// Ekranı açık tutan kilit ve uygulama yaşam döngüsü (arkaya alınınca
+  /// duraklat) artık **serviste**: oynatma ekrandan uzun yaşadığı için
+  /// kararları da onun vermesi gerekiyor (bkz. [VideoPlayback]).
 
-  /// Ekranı açık tutan kilidi bırakan işlev; kilit yokken null.
-  ///
-  /// **Yalnız GERÇEKTEN OYNARKEN tutulur.** Uzun bir filmde kimse ekrana
-  /// dokunmaz ve Android görüntüyü 30 saniyede karartırdı (KALANLAR maddesi).
-  /// Ama wakelock pil harcar: duraklatınca, video bitince, uygulama arkaya
-  /// alınınca ve ekran kapanınca bırakılıyor. Ses dosyasında hiç alınmıyor —
-  /// müzik dinlerken ekranın sönmesi istenen davranış.
-  VoidCallback? _awake;
-
-  void _syncAwake(bool playing) {
-    final wanted = playing && !_isAudio;
-    if (wanted == (_awake != null)) return;
-    if (wanted) {
-      _awake = ScreenAwake.request();
-    } else {
-      _awake?.call();
-      _awake = null;
-    }
-  }
-
-  String get _current => _playlist[_index];
+  String get _current => _p.current;
   bool get _isAudio =>
       FsEntry.categoryForExtension(p.extension(_current).replaceFirst('.', ''))
           == FmCategory.audio;
@@ -103,106 +106,27 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _playlist = widget.playlist.isEmpty ? [widget.path] : widget.playlist;
-    _index = _playlist.indexOf(widget.path);
-    if (_index < 0) {
-      _playlist = [widget.path, ..._playlist];
-      _index = 0;
+    _unhideBar = MiniPlayerBar.hide();
+    _p.addListener(_onService);
+    _subtitlesFor = widget.path;
+    // Aynı dosya zaten açıksa baştan başlatma: kullanıcı mini çubuktan ya da
+    // bildirimden ekrana döndüğünde video sıfırlanmamalı.
+    if (_p.current != widget.path || _p.controller == null) {
+      unawaited(_p.open(widget.path, list: widget.playlist));
     }
-    _load();
+    unawaited(_loadSubtitles());
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _syncAwake(false);
+    _unhideBar?.call();
+    _p.removeListener(_onService);
     _hideTimer?.cancel();
-    _controller?.removeListener(_onTick);
-    _controller?.dispose();
+    // **Oynatıcı KAPATILMIYOR** — ekran altı mini çubuk onu sürdürüyor.
     // Ekranı serbest bırak (tam ekranda yatay kilitlemiş olabiliriz).
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
-  }
-
-  /// **PİL — uygulama arkaya alınınca video DURUR.**
-  ///
-  /// Sınıfın başındaki not "arkaya alınınca çalma durur" diyordu; Android'de
-  /// bu DOĞRU DEĞİL: `video_player` ExoPlayer'ı sürer ve ekran kapalıyken bile
-  /// kareleri çözmeye devam eder (görüntü kimseye gösterilmeden). Bir saatlik
-  /// filmde bu, telefonu cebe koyduktan sonra da süren tam güçte video kod
-  /// çözme demek — uygulamanın en pahalı pil kaçağı buydu.
-  ///
-  /// Ses oynatıcı (`AudioPlayerScreen`) bilerek DIŞARIDA: müziğin arka planda
-  /// sürmesi istenen davranış, video için değil.
-  ///
-  /// `inactive` kasten yok sayılıyor: bildirim gölgesini aşağı çekmek ya da
-  /// izin penceresi de o durumu üretir, orada duraklatmak izlemeyi bölerdi.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    final c = _controller;
-    if (c == null) return;
-    switch (state) {
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-      case AppLifecycleState.detached:
-        if (c.value.isPlaying) {
-          _pausedByLifecycle = true;
-          unawaited(c.pause());
-        }
-        // Arkadayken ekranı açık tutmanın anlamı yok.
-        _syncAwake(false);
-      case AppLifecycleState.resumed:
-        if (_pausedByLifecycle) {
-          _pausedByLifecycle = false;
-          unawaited(c.play());
-        }
-      case AppLifecycleState.inactive:
-        break;
-    }
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    final old = _controller;
-    old?.removeListener(_onTick);
-
-    final controller = VideoPlayerController.file(File(_current));
-    try {
-      await controller.initialize();
-      await controller.setPlaybackSpeed(_speed);
-      await controller.play();
-    } catch (e) {
-      await controller.dispose();
-      await old?.dispose();
-      if (!mounted) return;
-      setState(() {
-        _controller = null;
-        _loading = false;
-        _error = AppStrings.current.t('mp.video_failed', {'error': e});
-      });
-      return;
-    }
-    await old?.dispose();
-    if (!mounted) {
-      await controller.dispose();
-      return;
-    }
-    unawaited(_loadSubtitles());
-    controller.addListener(_onTick);
-    _wasPlaying = controller.value.isPlaying;
-    _syncAwake(_wasPlaying);
-    _pausedByLifecycle = false;
-    setState(() {
-      _controller = controller;
-      _loading = false;
-    });
-    _scheduleHide();
   }
 
   // ── Altyazı ────────────────────────────────────────────────────────────
@@ -334,64 +258,22 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen>
     return lines.reversed.join('\n');
   }
 
-  /// Dosya bitince sıradakine geç.
-  ///
-  /// **Burada `setState` YOK (2026-08-07 pil/başarım denetimi).** Eskiden her
-  /// konum güncellemesinde (saniyede iki kez, denetleyici böyle yayınlar) TÜM
-  /// ekran yeniden kuruluyordu: üst çubuk, degradeler, açılır menüler ve
-  /// videonun bulunduğu ağaç. Konum çubuğu artık kendi
-  /// `ValueListenableBuilder`ında tazeleniyor (bkz. [build]) → yeniden çizilen
-  /// alan ekranın tamamı değil, yalnız alt kontroller.
-  void _onTick() {
-    final c = _controller;
-    if (c == null || !mounted) return;
-    final v = c.value;
-    if (v.position >= v.duration &&
-        v.duration > Duration.zero &&
-        !v.isPlaying) {
-      if (_index < _playlist.length - 1) {
-        _skip(1);
-        return;
-      }
-    }
-    // Oynat/duraklat DEĞİŞİMİ kontrollerin gizlenme zamanlayıcısını ve
-    // (kontroller kapalıysa) ekranın kalanını ilgilendirir — nadir olay.
-    if (v.isPlaying != _wasPlaying) {
-      _wasPlaying = v.isPlaying;
-      _syncAwake(v.isPlaying);
-      if (v.isPlaying) _scheduleHide();
-      setState(() {});
-    }
-  }
-
-  void _skip(int delta) {
-    final next = _index + delta;
-    if (next < 0 || next >= _playlist.length) return;
-    setState(() => _index = next);
-    _load();
-  }
+  /// Sıradaki/önceki dosya, oynat/duraklat, sarma ve hız — hepsi **serviste**
+  /// (`VideoPlayback`). Ekran yalnız düğmeyi basıyor: aynı işlemler mini
+  /// çubuktan ve bildirimden de geliyor, tek bir yerde olmaları şart.
+  void _skip(int delta) => unawaited(_p.skip(delta));
 
   void _togglePlay() {
-    final c = _controller;
-    if (c == null) return;
-    c.value.isPlaying ? c.pause() : c.play();
+    unawaited(_p.toggle());
     _scheduleHide();
-    setState(() {});
   }
 
   void _seekBy(int seconds) {
-    final c = _controller;
-    if (c == null) return;
-    final target = c.value.position + Duration(seconds: seconds);
-    c.seekTo(target < Duration.zero ? Duration.zero : target);
+    unawaited(_p.seekBy(seconds));
     _scheduleHide();
   }
 
-  Future<void> _setSpeed(double speed) async {
-    _speed = speed;
-    await _controller?.setPlaybackSpeed(speed);
-    if (mounted) setState(() {});
-  }
+  Future<void> _setSpeed(double speed) => _p.setSpeed(speed);
 
   void _toggleLandscape() {
     _landscape = !_landscape;

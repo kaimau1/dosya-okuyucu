@@ -161,6 +161,11 @@ jobs:
           # MainActivity ondan `UsbMass(...)` diye örnek üretiyor; kopyalanmazsa
           # derleme "unresolved reference" ile kırılır.
           cp ci/UsbMass.kt "$DIR/UsbMass.kt"
+          # Medya oturumu + ön plan servisi (bildirimdeki ilerleme çubuğu).
+          # Manifest'teki <service android:name=".MediaService"> bunu arar ve
+          # MainActivity `MediaBridge`i çağırıyor; kopyalanmazsa derleme
+          # "unresolved reference" ile kırılır.
+          cp ci/MediaSession.kt "$DIR/MediaSession.kt"
           # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
           # kalırsa "duplicate class" hatası verir.
           rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java

@@ -185,15 +185,31 @@ class _PhotosScreenState extends State<PhotosScreen> {
     try {
       final all = await loader();
       if (!mounted) return;
-      // Kısa liste dönerse (dizin bozuk/boş) elimizdekini KORU: kullanıcıya
-      // gösterilen dosya sayısı azalmamalı.
+      // **Değiştirme değil BİRLEŞTİRME** (kullanıcı 2026-09-03: *"yeni
+      // aldığım ekran görüntüleri hemen görülmüyor, sanki görülüp geri
+      // gidiyor"*). Ekran panonun TAZE listesiyle açılıyor; eksiksiz liste
+      // arama dizininden geliyor ve dizin bayatsa YENİ dosyaları içermiyor.
+      // Eskiden uzun liste kısa listenin yerine geçtiği için az önce çekilen
+      // ekran görüntüsü gözün önünde kayboluyordu. Artık iki liste yolla
+      // teke indirilip birleştiriliyor: gösterilen hiçbir dosya kaybolmaz.
       setState(() {
-        if (all.length > _files.length) _files = all;
+        _files = _mergeByPath(_files, all);
         _loadingAll = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loadingAll = false);
     }
+  }
+
+  /// İki listeyi yola göre teke indirir; ilkinin sırası korunur.
+  static List<FsEntry> _mergeByPath(List<FsEntry> current, List<FsEntry> more) {
+    if (current.isEmpty) return more;
+    final seen = {for (final e in current) e.path};
+    final out = [...current];
+    for (final e in more) {
+      if (seen.add(e.path)) out.add(e);
+    }
+    return out;
   }
 
   Future<void> _dropMissing() async {

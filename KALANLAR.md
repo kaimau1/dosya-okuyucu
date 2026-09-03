@@ -545,10 +545,17 @@ göre sıralı**:
       oynatıcı: çalma listesi, kaydırma, hız, tam ekran. Cihazda doğrulanacak:
       büyük mkv/HEVC oynatma, tam ekran yatay geçişi, ses dosyasında arka planda
       çalma (arka plan servisi YOK — ekran kapanınca durur, istenirse audio_service).
-- [ ] **Ses: bildirim/kilit ekranı kontrolleri yok** — audioplayers ekran kapalıyken
-      çalmayı sürdürür ama ön plan servisi olmadığı için sistem bellek baskısında
-      süreci öldürebilir ve bildirimden kontrol edilemez. Çözüm `just_audio_background`
-      (manifest'te activity sınıfı değişir → APK'da sınıf doğrulayan CI adımı şart).
+- [x] ~~**Ses: bildirim/kilit ekranı kontrolleri yok**~~ → **YAPILDI
+      2026-09-03:** `ci/MediaSession.kt` — çerçevenin kendi
+      `android.media.session.MediaSession`i (API 21+, **yeni paket yok**).
+      Bildirimde sürüklenebilir ilerleme çubuğu, kilit ekranı kontrolleri,
+      kulaklık düğmeleri; ön plan servisi (`MediaService`,
+      `foregroundServiceType="mediaPlayback"`) süreci çalarken ayakta tutuyor.
+      Aynı oturumu video oynatıcı da kullanıyor. Paket yolları
+      (`just_audio_background`/`audio_service`) REDDEDİLDİ: ikisi de kendi
+      Activity/Service yaşam döngüsünü dayatıyor, bizde `MainActivity` elle
+      bakımlı ve çalma motoru Dart tarafında kalmalı. Ayrıntı: HAFIZA
+      2026-09-03 §A.
 - [x] ~~**Ses: ID3 kapak resmi / albüm-sanatçı bilgisi okunmuyor**~~ →
       **YAPILDI 2026-08-08:** `services/fm/audio_tags.dart` (saf Dart,
       bağımlılık yok) — ID3v2.2/2.3/2.4 + MP4/M4A `ilst`. Çalarda kapak

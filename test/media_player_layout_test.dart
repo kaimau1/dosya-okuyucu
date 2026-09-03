@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/screens/fm/media_player_screen.dart';
+import 'package:dosya_okuyucu/services/fm/video_playback.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_player/video_player.dart';
@@ -30,8 +31,18 @@ void main() {
   late _FakeVideoPlayerPlatform platform;
 
   setUp(() {
+    // Oynatıcı artık ekranda değil SERVİSTE (`VideoPlayback`) ve servis bir
+    // tekil nesne: bir önceki testten kalan denetleyici bu testin sahte
+    // platformuna ait olmadığı için "açılışta oynamıyor" gibi görünürdü.
+    VideoPlayback.notificationsEnabled = false; // testte bildirim/oturum yok
     platform = _FakeVideoPlayerPlatform();
     VideoPlayerPlatform.instance = platform;
+  });
+
+  tearDown(() {
+    // Sıfırlama TESTİN SONUNDA: denetleyiciyi kapatan çağrı hâlâ bu testin
+    // sahte platformuna gitmeli.
+    VideoPlayback.instance.debugReset();
   });
 
   testWidgets('kontroller açılıp kapanınca görüntü yerinden oynamaz',
@@ -70,6 +81,10 @@ void main() {
     expect(tester.getRect(find.byType(VideoPlayer)), withControls);
 
     // Ekranı kaldır: controller'ın periyodik konum zamanlayıcısı iptal olsun.
+    // **Oynatıcı ekrandan uzun yaşıyor** (ekran altı mini çubuk onu
+    // sürdürüyor): test bitmeden AÇIKÇA kapatılmalı, yoksa denetleyicinin
+    // konum zamanlayıcısı asılı kalır ve flutter_test haklı olarak yakınır.
+    VideoPlayback.instance.debugReset();
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
@@ -100,6 +115,10 @@ void main() {
     await tester.pump();
     expect(platform.playing, isTrue, reason: 'dönünce kaldığı yerden sürer');
 
+    // **Oynatıcı ekrandan uzun yaşıyor** (ekran altı mini çubuk onu
+    // sürdürüyor): test bitmeden AÇIKÇA kapatılmalı, yoksa denetleyicinin
+    // konum zamanlayıcısı asılı kalır ve flutter_test haklı olarak yakınır.
+    VideoPlayback.instance.debugReset();
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
@@ -124,6 +143,10 @@ void main() {
     expect(platform.playing, isFalse,
         reason: 'duraklatılmış videoyu dönüşte başlatmak kullanıcıyı şaşırtır');
 
+    // **Oynatıcı ekrandan uzun yaşıyor** (ekran altı mini çubuk onu
+    // sürdürüyor): test bitmeden AÇIKÇA kapatılmalı, yoksa denetleyicinin
+    // konum zamanlayıcısı asılı kalır ve flutter_test haklı olarak yakınır.
+    VideoPlayback.instance.debugReset();
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });

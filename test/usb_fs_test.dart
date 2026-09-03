@@ -55,12 +55,35 @@ void main() {
     expect(children.single.name, 'kedi.jpg');
   });
 
-  test('GEZİLMEMİŞ klasör açılamaz (tutamak yoldan hesaplanamaz)', () async {
-    // FAT'ta bir klasörün tutamağı ilk kümesidir; yoldan türetilemez. Ekran
-    // yalnız gezerek öğrendiği klasörleri açabilir — uydurma bir tutamakla
-    // rastgele bir kümeyi dizin sanmak felaket olurdu.
-    expect(() => fs.list('/HicGorulmedi'),
-        throwsA(isA<RemoteException>()));
+  /// **Gezilmemiş klasör artık AÇILABİLİYOR** (2026-09-03).
+  ///
+  /// FAT'ta bir klasörün tutamağı ilk kümesidir ve yoldan HESAPLANAMAZ;
+  /// eskiden ekran yalnız gezerek öğrendiği klasörleri açabiliyordu ve yer
+  /// imi / arama sonucu / "son açılanlar" üzerinden gelen her yol "önce
+  /// açılmalı" hatasıyla ölüyordu. Çözüm hesap değil YÜRÜYÜŞ: kökten
+  /// başlayıp yolun her parçasını listeleyerek tutamak öğreniliyor.
+  test('hiç gezilmemiş klasör KÖKTEN YÜRÜNEREK açılır', () async {
+    // Hiçbir şey listelenmeden, doğrudan derin yola gidiliyor.
+    final children = await fs.list('/Fotoğraflar');
+    expect(children.single.name, 'kedi.jpg');
+  });
+
+  test('gerçekten olmayan klasör yine hata verir (uydurma tutamak YOK)',
+      () async {
+    expect(() => fs.list('/HicGorulmedi'), throwsA(isA<RemoteException>()));
+    expect(await fs.resolve('/Fotoğraflar/yok/derin'), isNull);
+  });
+
+  test('gezilmemiş dosya doğrudan indirilebilir', () async {
+    // Girdiyi listeden almadan, yalnız YOLUYLA (yer imi/arama sonucu gibi).
+    const entry = RemoteEntry(
+      name: 'kedi.jpg',
+      path: '/Fotoğraflar/kedi.jpg',
+      isDir: false,
+      sizeBytes: 4,
+    );
+    final local = await fs.download(entry, '${tmp.path}/kedi.jpg');
+    expect(local.readAsBytesSync(), [1, 2, 3, 4]);
   });
 
   test('dosya telefona indirilir (içerik birebir)', () async {

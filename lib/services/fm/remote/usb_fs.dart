@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'package:path/path.dart' as p;
 
 import '../../../models/remote_connection.dart';
@@ -145,7 +147,7 @@ class UsbFs extends RemoteFs {
   @override
   Future<List<RemoteEntry>> list(String path) async {
     final key = path.isEmpty ? '/' : path;
-    final handle = _handles[key];
+    final handle = _handles[key] ?? await resolve(key);
     if (handle == null) {
       throw const RemoteException(RemoteError.notFound,
           detail: 'Klasör bulunamadı.');
@@ -175,7 +177,7 @@ class UsbFs extends RemoteFs {
 
   @override
   Future<File> download(RemoteEntry entry, String localPath) async {
-    final handle = _handles[entry.path];
+    final handle = _handles[entry.path] ?? await resolve(entry.path);
     if (handle == null) {
       throw const RemoteException(RemoteError.notFound,
           detail: 'Dosya bulunamadı.');
@@ -212,18 +214,56 @@ class UsbFs extends RemoteFs {
 
   // ── Yazma (FAT16/FAT32) ────────────────────────────────────────────────
 
-  /// Bir yolun ait olduğu klasörün tutamağı; bilinmiyorsa hata.
-  ///
-  /// Tutamaklar gezinti sırasında öğreniliyor (FAT'ta bir klasörün tutamağı
-  /// ilk kümesidir ve yoldan HESAPLANAMAZ).
-  Object _dirHandle(String path) {
+  /// Bir yolun ait olduğu klasörün tutamağı; bulunamazsa hata.
+  Future<Object> _dirHandle(String path) async {
     final key = path.isEmpty ? '/' : path;
-    final handle = _handles[key];
+    final handle = _handles[key] ?? await resolve(key);
     if (handle == null) {
       throw const RemoteException(RemoteError.notFound,
-          detail: 'Klasör bulunamadı (önce açılmalı).');
+          detail: 'Klasör bulunamadı.');
     }
     return handle;
+  }
+
+  /// **Bir yolu KÖKTEN YÜRÜYEREK çözer** ve öğrendiği tutamakları saklar.
+  ///
+  /// Kök neden (2026-09-02'de sınır olarak yazılmıştı, şimdi kalkıyor):
+  /// FAT/exFAT'ta bir klasörün tutamağı ilk KÜMESİDİR ve yoldan
+  /// HESAPLANAMAZ; ekran yalnız gezerek öğrendiği klasörleri açabiliyordu.
+  /// Yer imi, arama sonucu, "son açılanlar" ya da yeniden takılan bir bellek
+  /// üzerinden gelen her yol "Klasör bulunamadı (önce açılmalı)" diyordu —
+  /// kullanıcının hiçbir şey yapamadığı, açıklanamaz bir hata.
+  ///
+  /// Çözüm hesap değil **yürüyüş**: kökten başlayıp her parçanın klasörünü
+  /// listeleyerek tutamağı öğreniyoruz. Maliyet yolun derinliği kadar dizin
+  /// okuması (pratikte 2-4) ve yalnız tutamak BİLİNMİYORSA ödeniyor;
+  /// öğrenilen her tutamak saklanıyor.
+  ///
+  /// Uydurma bir tutamakla rastgele bir kümeyi dizin sanmak felaket olurdu —
+  /// bu yüzden yürüyüş gerçek listelemeye dayanıyor, tahmine değil.
+  @visibleForTesting
+  Future<Object?> resolve(String path) async {
+    final key = path.isEmpty ? '/' : path;
+    final cached = _handles[key];
+    if (cached != null) return cached;
+    final parts = key.split('/').where((s) => s.isNotEmpty).toList();
+    var current = '/';
+    for (final part in parts) {
+      final parent = _handles[current];
+      if (parent == null) return null;
+      final childPath = current == '/' ? '/$part' : '$current/$part';
+      if (!_handles.containsKey(childPath)) {
+        // Klasörü listelemek çocuklarının tutamağını `_handles`a yazıyor.
+        try {
+          await list(current);
+        } catch (_) {
+          return null;
+        }
+        if (!_handles.containsKey(childPath)) return null;
+      }
+      current = childPath;
+    }
+    return _handles[key];
   }
 
   String _parentOf(String path) {
@@ -246,7 +286,7 @@ class UsbFs extends RemoteFs {
       // uygulamayı öldürürdü.
       final length = await local.length();
       await fs.writeFileStream(
-          _dirHandle(remoteDir), target, local.openRead(), length);
+          await _dirHandle(remoteDir), target, local.openRead(), length);
     } catch (e) {
       throw _wrap(e);
     }
@@ -255,13 +295,13 @@ class UsbFs extends RemoteFs {
   @override
   Future<void> delete(RemoteEntry entry) async {
     try {
-      final parent = _dirHandle(_parentOf(entry.path));
+      final parent = await _dirHandle(_parentOf(entry.path));
       await fs.deleteEntry(
           parent,
           UsbEntry(
             name: entry.name,
             isDir: entry.isDir,
-            id: _handles[entry.path] ?? 0,
+            id: _handles[entry.path] ?? await resolve(entry.path) ?? 0,
             sizeBytes: entry.sizeBytes,
           ));
       _handles.remove(entry.path);
@@ -274,7 +314,7 @@ class UsbFs extends RemoteFs {
   Future<void> makeDirectory(String path) async {
     try {
       final cut = path.lastIndexOf('/');
-      final parent = _dirHandle(cut <= 0 ? '/' : path.substring(0, cut));
+      final parent = await _dirHandle(cut <= 0 ? '/' : path.substring(0, cut));
       final name = path.substring(cut + 1);
       final created = await fs.createDirectory(parent, name);
       _handles[path] = created.id;
@@ -286,13 +326,13 @@ class UsbFs extends RemoteFs {
   @override
   Future<void> rename(RemoteEntry entry, String newName) async {
     try {
-      final parent = _dirHandle(_parentOf(entry.path));
+      final parent = await _dirHandle(_parentOf(entry.path));
       await fs.renameEntry(
         parent,
         UsbEntry(
           name: entry.name,
           isDir: entry.isDir,
-          id: _handles[entry.path] ?? 0,
+          id: _handles[entry.path] ?? await resolve(entry.path) ?? 0,
           sizeBytes: entry.sizeBytes,
         ),
         newName,

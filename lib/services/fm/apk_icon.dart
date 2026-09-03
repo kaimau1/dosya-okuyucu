@@ -4,9 +4,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart' show compute;
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'apk_resources.dart';
 import 'thumbnail_cache.dart';
 
 /// Bir **.apk dosyasının kendi uygulama simgesini** çıkarır ve diskte
@@ -23,16 +25,23 @@ import 'thumbnail_cache.dart';
 /// sürümler, başkasından gelen kurulumlar) ve dosyanın paket adını öğrenmek
 /// için zaten APK'yı açmak gerekirdi.
 ///
-/// **Nasıl:** APK bir zip. Simge `res/mipmap-*/ic_launcher.png` (ya da
-/// `drawable-*`) yolunda durur. İkili `AndroidManifest.xml`i çözümlemek yerine
-/// yol adına göre aday PNG'ler toplanıp **en yüksek çözünürlüklü** olan
-/// seçiliyor. Bu, ikili XML ayrıştırıcısı yazmadan pratikteki APK'ların büyük
-/// çoğunluğunu kapsıyor.
+/// **Nasıl (2026-09-03'ten beri): Android ne yapıyorsa o.** Manifest'teki
+/// `application@icon` bir KAYNAK KİMLİĞİDİR; `resources.arsc` o kimliği dosya
+/// yoluna çevirir (bkz. `apk_resources.dart`). Ada bakan eski sezgisel yol
+/// yedekte duruyor ama artık ikinci sırada.
+///
+/// **Niye gerekti (kullanıcı 2026-09-03: *"bizim uygulamanın simgesi
+/// görülmüyor"*):** kaynak küçültmesiyle derlenen APK'larda AAPT2 yolları
+/// KISALTIYOR — bizim kendi simgemiz `res/o-.png` adıyla duruyor. Ada bakan
+/// eşleme boşa çıkıyor, ada bakmayan yedek ise "en büyük kare PNG" diye
+/// uyarlanabilir simgenin **zemin katmanını** (düz degrade) seçiyordu:
+/// kullanıcının listede gördüğü boş turkuaz kare buydu.
+///
+/// **Uyarlanabilir simge:** kimlik bir XML'e çıkarsa (`mipmap-anydpi-v26`)
+/// katmanlar (zemin + ön plan) çözülüp BİRLEŞTİRİLİYOR, başlatıcıdaki gibi
+/// ortadan kırpılıp köşeleri yuvarlanıyor. Katman vektörse eski yola düşülür.
 ///
 /// **Sınırlar bilinçli:**
-/// - Yalnız PNG/WEBP alınır. `mipmap-anydpi-v26/ic_launcher.xml` (uyarlanabilir
-///   simge) ikili XML'dir; onu çözmek ayrı bir ayrıştırıcı demek. O dosyaların
-///   yanında neredeyse her zaman bir PNG de bulunur, seçim ondan yapılır.
 /// - Simge bulunamayan APK **işaretlenir ve bir daha denenmez**: her
 ///   kaydırmada 90 MB'lık bir zip'in dizinini yeniden okumak listeyi kastırır.
 /// - Ayrıştırma arka plan izolatında (`compute`): zip merkezî dizinini okumak
@@ -124,6 +133,10 @@ abstract final class ApkIcon {
     try {
       input = InputFileStream(path);
       final archive = ZipDecoder().decodeBuffer(input);
+      // 1) Doğru yol: manifest + kaynak tablosu (ad kısaltmasından etkilenmez).
+      final resolved = iconFromResources(archive);
+      if (resolved != null && resolved.isNotEmpty) return resolved;
+      // 2) Ada bakan eski eşleme (tablosu okunamayan/çok eski APK'lar).
       ArchiveFile? best;
       var bestScore = 0;
       for (final entry in archive.files) {
@@ -148,6 +161,170 @@ abstract final class ApkIcon {
         input?.closeSync();
       } catch (_) {}
     }
+  }
+
+  /// **Manifest + `resources.arsc` ile simge.** Bulunamazsa null (çağıran
+  /// sezgisel yollara düşer).
+  static Uint8List? iconFromResources(Archive archive) {
+    final manifest = _entryBytes(archive, 'AndroidManifest.xml');
+    final table = _entryBytes(archive, 'resources.arsc');
+    if (manifest == null || table == null) return null;
+    final resources = ArscTable.parse(table);
+    if (resources == null) return null;
+    final elements = AndroidBinaryXml.parse(manifest);
+    var iconId = 0;
+    for (final element in elements) {
+      if (element.name != 'application') continue;
+      final icon =
+          element.byResId[AndroidBinaryXml.attrIcon] ?? element.byName['icon'];
+      if (icon != null && icon.isReference) iconId = icon.data;
+      // Yuvarlak simge yalnız yedek: kare simge listelerde daha tanıdık.
+      if (iconId == 0) {
+        final round = element.byResId[AndroidBinaryXml.attrRoundIcon] ??
+            element.byName['roundIcon'];
+        if (round != null && round.isReference) iconId = round.data;
+      }
+      break;
+    }
+    if (iconId == 0) return null;
+
+    // Önce raster: başlatıcının da çizdiği hazır simge.
+    final raster = resources.bestFile(iconId, xml: false);
+    final rasterBytes = raster == null ? null : _entryBytes(archive, raster);
+    if (rasterBytes != null && rasterBytes.isNotEmpty) return rasterBytes;
+
+    // Sonra uyarlanabilir simge (XML katmanları).
+    final xmlPath = resources.bestFile(iconId);
+    if (xmlPath == null || !xmlPath.toLowerCase().endsWith('.xml')) return null;
+    final xmlBytes = _entryBytes(archive, xmlPath);
+    if (xmlBytes == null) return null;
+    return composeAdaptive(archive, resources, xmlBytes);
+  }
+
+  /// Uyarlanabilir simgeyi başlatıcıdaki gibi çizer: zemin + ön plan üst üste,
+  /// sonra **ortadan kırpma** ve yuvarlatılmış köşe.
+  ///
+  /// Ölçüler Android'in tanımından: tuval 108 dp, görünen alan ortadaki 72 dp
+  /// (dışarıdaki 18'er dp maskenin altında kalır). Kırpmasaydık katmanların
+  /// kenar boşluğu yüzünden simge listede minicik görünürdü.
+  static Uint8List? composeAdaptive(
+    Archive archive,
+    ArscTable resources,
+    Uint8List xmlBytes,
+  ) {
+    final elements = AndroidBinaryXml.parse(xmlBytes);
+    img.Image? background;
+    img.Image? foreground;
+    int? backgroundColor;
+    for (final element in elements) {
+      final isBackground = element.name == 'background';
+      final isForeground = element.name == 'foreground';
+      if (!isBackground && !isForeground) continue;
+      final drawable = element.byResId[AndroidBinaryXml.attrDrawable] ??
+          element.byName['drawable'];
+      if (drawable == null) continue;
+      img.Image? layer;
+      int? color;
+      if (drawable.isReference) {
+        final file = resources.bestFile(drawable.data, xml: false);
+        final bytes = file == null ? null : _entryBytes(archive, file);
+        layer = bytes == null ? null : _decode(bytes);
+        color = colorOf(resources, drawable.data);
+      } else if (drawable.type >= typeColorFirst &&
+          drawable.type <= typeColorLast) {
+        color = drawable.data;
+      }
+      if (isBackground) {
+        background = layer;
+        backgroundColor = color;
+      } else {
+        foreground = layer;
+      }
+    }
+    // Ön plan çizilemiyorsa (vektör katman) tek başına zemin YANILTICI olurdu:
+    // düz bir renk kutusu — tam da düzeltmeye çalıştığımız görüntü.
+    if (foreground == null) return null;
+
+    final side = foreground.width > 0 ? foreground.width : 216;
+    final canvas = img.Image(width: side, height: side, numChannels: 4);
+    if (backgroundColor != null) {
+      img.fill(canvas, color: _argb(backgroundColor));
+    }
+    if (background != null) {
+      img.compositeImage(canvas, background,
+          dstX: 0, dstY: 0, dstW: side, dstH: side);
+    }
+    img.compositeImage(canvas, foreground,
+        dstX: 0, dstY: 0, dstW: side, dstH: side);
+
+    // Görünen alan: ortadaki 72/108.
+    final visible = (side * 72 / 108).round();
+    final inset = ((side - visible) / 2).round();
+    final cropped = img.copyCrop(canvas,
+        x: inset, y: inset, width: visible, height: visible);
+    roundCorners(cropped, cropped.width * 0.22);
+    return Uint8List.fromList(img.encodePng(cropped));
+  }
+
+  /// `Res_value`nin renk türleri (ARGB8 … RGB4).
+  static const typeColorFirst = 0x1c;
+  static const typeColorLast = 0x1f;
+
+  /// Kaynak bir RENK ise ARGB değeri (uyarlanabilir simgenin zemini sık sık
+  /// düz renktir), değilse null.
+  static int? colorOf(ArscTable resources, int resId) {
+    for (final value in resources.lookup(resId)) {
+      if (value.dataType >= typeColorFirst && value.dataType <= typeColorLast) {
+        return value.data;
+      }
+    }
+    return null;
+  }
+
+  static img.Color _argb(int argb) => img.ColorRgba8(
+        (argb >> 16) & 0xFF,
+        (argb >> 8) & 0xFF,
+        argb & 0xFF,
+        (argb >> 24) & 0xFF,
+      );
+
+  /// Köşeleri yuvarlar (maskenin dışındaki pikseller saydamlaşır).
+  static void roundCorners(img.Image image, double radius) {
+    final r = radius.clamp(0, image.width / 2).toDouble();
+    if (r <= 0) return;
+    for (var y = 0; y < image.height; y++) {
+      for (var x = 0; x < image.width; x++) {
+        final dx = x < r
+            ? r - x - 0.5
+            : (x >= image.width - r ? x - (image.width - r) + 0.5 : 0.0);
+        final dy = y < r
+            ? r - y - 0.5
+            : (y >= image.height - r ? y - (image.height - r) + 0.5 : 0.0);
+        if (dx <= 0 || dy <= 0) continue;
+        if (dx * dx + dy * dy <= r * r) continue;
+        image.getPixel(x, y).a = 0;
+      }
+    }
+  }
+
+  static img.Image? _decode(Uint8List bytes) {
+    try {
+      return img.decodeImage(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Uint8List? _entryBytes(Archive archive, String name) {
+    for (final entry in archive.files) {
+      if (!entry.isFile || entry.name != name) continue;
+      final content = entry.content;
+      if (content is List<int> && content.isNotEmpty) {
+        return Uint8List.fromList(content);
+      }
+      return null;
+    }
+    return null;
   }
 
   /// **Ada bakmayan yedek:** `res/` altındaki KARE ve simge boyutundaki en

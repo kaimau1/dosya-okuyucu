@@ -6,7 +6,8 @@
 # Byte değil Int olur) ancak CI'da, 13 dakikalık bir APK derlemesinin SONUNDA
 # ortaya çıktı. Bu betik aynı hatayı saniyeler içinde yakalar.
 #
-# Kapsam — dürüstçe: yalnız `ci/UsbMass.kt`. O dosya Flutter'a HİÇ bağlı değil
+# Kapsam — dürüstçe: `ci/UsbMass.kt` ve `ci/MediaSession.kt`. İkisi de
+# Flutter'a HİÇ bağlı değil
 # (yalnız Android çerçevesini kullanıyor), bu yüzden birkaç taslakla
 # denetlenebiliyor. `MainActivity.kt` Flutter gömme sınıflarını kullanıyor;
 # onu taslaklamak gerçek SDK'yı taklit etmeye dönüşürdü — orası CI'da derleniyor.
@@ -25,11 +26,12 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -nowarn -d "$OUT" \
   "$ROOT/tool/kotlin_stubs/"*.kt \
-  "$ROOT/ci/UsbMass.kt" 2>&1 | tee "$OUT/log"
+  "$ROOT/ci/UsbMass.kt" \
+  "$ROOT/ci/MediaSession.kt" 2>&1 | tee "$OUT/log"
 # kotlinc sürümüne göre "e: …" ya da "dosya:satır: error: …" yazıyor;
 # ikisini de yakala (yalnız birini aramak hatayı sessizce kaçırırdı).
 if grep -qE "^e: |: error: " "$OUT/log"; then
   echo "KOTLIN HATASI — yukarıya bakın."
   exit 1
 fi
-echo "Kotlin tür denetimi temiz (ci/UsbMass.kt)."
+echo "Kotlin tür denetimi temiz (ci/UsbMass.kt, ci/MediaSession.kt)."

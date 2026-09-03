@@ -390,6 +390,27 @@
             android:exported="false"
             android:stopWithTask="true" />
 
+        <!-- ── MEDYA OTURUMUNUN ÖN PLAN SERVİSİ ────────────────────────────
+             Kullanıcı isteği 2026-09-03: *"MediaSession yapalım … bildirim
+             çubuğunda düzgün çalışsın, Spotify/YouTube Music gibi."*
+             Bildirimdeki sürüklenebilir ilerleme çubuğunu, kilit ekranı
+             kontrollerini ve kulaklık düğmelerini ancak bir `MediaSession`
+             verir; oturumun bildirimi de bir ön plan servisine bağlı olmalı
+             (yoksa MIUI süreci dondurur ve müzik susar).
+
+             `mediaPlayback` türü ŞART: Android 15 `dataSync` servislerini
+             günlük saatle sınırlıyor, müzik o sınıra girerdi.
+
+             stopWithTask="true" — çalar Dart izolatında yaşıyor; uygulama
+             görev listesinden atılınca izolat ölür, ayakta kalan servis
+             yalnız donmuş bir bildirim gösterirdi (aynı gerekçe iş
+             kuyruğunun servisinde de yazılı). -->
+        <service
+            android:name=".MediaService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false"
+            android:stopWithTask="true" />
+
         <!-- Flutter v2 gömme (embedding) işareti. -->
         <meta-data
             android:name="flutterEmbedding"

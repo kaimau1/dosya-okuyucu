@@ -58,12 +58,16 @@ class MainActivity : FlutterActivity() {
     /** SAF klasör seçimi sonucunu bekleyen çağrı. */
     private var pendingPick: MethodChannel.Result? = null
 
+    /** Medya oturumu kanalı (bildirim → Dart eylemleri). */
+    private var mediaChannel: MethodChannel? = null
+
     /** Açık ham USB belleği (varsa) — bkz. `UsbMass`. */
     private var usbMass: UsbMass? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launchAction = intent?.action
+        MediaBridge.rememberPayload(intent?.getStringExtra(MediaBridge.EXTRA_PAYLOAD))
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -71,6 +75,13 @@ class MainActivity : FlutterActivity() {
         // `singleTask`: uygulama açıkken USB takılıp seçilirse yeni intent
         // buradan gelir, `onCreate` bir daha çalışmaz.
         launchAction = intent.action
+        // Medya bildirimine dokunuldu: çalan parçaya git (uygulama zaten
+        // açıksa `onCreate` çalışmaz, yük buradan gelir).
+        val mediaPayload = intent.getStringExtra(MediaBridge.EXTRA_PAYLOAD)
+        if (!mediaPayload.isNullOrEmpty()) {
+            MediaBridge.rememberPayload(mediaPayload)
+            mediaChannel?.invokeMethod("open", mediaPayload)
+        }
         // **Dart'a HABER VER (kullanıcı hatası 2026-09-02: "basıyorum tepki
         // vermiyor").** Uygulama zaten ön plandayken seçiciden bizi seçmek
         // yeni bir `resumed` yaşam döngüsü olayı ÜRETMİYOR; Dart tarafı
@@ -301,6 +312,61 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        configureMediaChannel(flutterEngine)
+    }
+
+    /**
+     * **Medya oturumu köprüsü** (kullanıcı isteği 2026-09-03: *"MediaSession
+     * yapalım … Spotify YouTube Music gibi"*).
+     *
+     * Dart tarafı çalar ve durumu buraya iter; `MediaBridge` oturumu,
+     * bildirimi ve ön plan servisini yönetir. Kullanıcının bildirimde/kilit
+     * ekranında yaptığı her dokunuş `media` kanalıyla Dart'a geri döner —
+     * çalma kararını yine Dart verir, native taraf hiçbir şey çalmaz.
+     */
+    private fun configureMediaChannel(flutterEngine: FlutterEngine) {
+        val media = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, MEDIA_CHANNEL
+        )
+        mediaChannel = media
+        MediaBridge.onAction = { action, value ->
+            // Oturum geri çağrıları BAŞKA izlekten gelebilir; MethodChannel
+            // yalnız ana izlekten çağrılabilir.
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    mediaChannel?.invokeMethod(
+                        "action", mapOf("action" to action, "value" to value)
+                    )
+                } catch (e: Exception) {
+                    // Dart tarafı ölmüşse (uygulama kapatılmış) yapacak bir
+                    // şey yok; bildirim zaten servisle birlikte kalkacak.
+                }
+            }
+        }
+        media.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "update" -> {
+                    val args = call.arguments as? Map<*, *>
+                    if (args == null) {
+                        result.success(false)
+                    } else {
+                        @Suppress("UNCHECKED_CAST")
+                        MediaBridge.update(this, args as Map<String, Any?>)
+                        result.success(true)
+                    }
+                }
+
+                "clear" -> {
+                    MediaBridge.clear(this)
+                    result.success(true)
+                }
+
+                // Uygulama bildirime dokunularak açıldıysa çalan parçanın yolu.
+                "takePayload" -> result.success(MediaBridge.takePayload())
+
+                else -> result.notImplemented()
+            }
+        }
     }
 
     /**
@@ -1117,6 +1183,7 @@ class MainActivity : FlutterActivity() {
 
     private companion object {
         const val CHANNEL = "dosya_okuyucu/app_storage"
+        const val MEDIA_CHANNEL = "dosya_okuyucu/media_session"
         const val REQ_PICK_TREE = 7301
     }
 }

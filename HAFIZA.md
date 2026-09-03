@@ -10542,3 +10542,118 @@ ekranı + kulaklık düğmeleri). Yeni bağımlılık ve manifest servisi demek;
 kullanıcı isterse ayrı tur.
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, **2128 test yeşil**.
+
+## 2026-09-03 (on yedinci tur) — MediaSession, ekran altı çubuk, APK simgesi
+
+Kullanıcı beş şey istedi: (1) seslerde **gerçek MediaSession** ("premium alan,
+Spotify/YouTube Music gibi"), (2) uygulama içinde **ekran altı oynatma
+çubuğu**, (3) aynısı **video** için, (4) *"bizim uygulamanın simgesi
+dosyalarda görülmüyor"*, (5) *"yeni aldığım ekran görüntüleri hemen
+görülmüyor, sanki görülüp geri gidiyor"*. Ayrıca USB/SD tarafının otonom
+geliştirilmesi.
+
+### A) MediaSession — bildirimdeki çubuk artık GERÇEK
+2026-09-02'de dürüstçe "sürüklenebilir çubuk `flutter_local_notifications`
+ile olmaz, `audio_service` gerekir" yazılmıştı. **Üçüncü bir yol seçildi:**
+`ci/MediaSession.kt` — çerçevenin kendi `android.media.session.MediaSession`
+API'si (API 21+), **yeni paket yok, derleme zinciri oynamıyor**.
+
+* Çubuğu çizen şey `PlaybackState`in konum + hız alanı: sistem konumu kendisi
+  ilerletiyor, kullanıcı sürükleyince `onSeekTo` geliyor. Bunun için bir
+  oturum TOKENI şart; `MediaStyleInformation` yalnız görünümü taklit ediyordu.
+* `MediaService` (manifest'e eklendi, `foregroundServiceType="mediaPlayback"`,
+  `stopWithTask="true"`) oturumun bildirimini taşıyor. Çalarken ön planda,
+  duraklatınca `STOP_FOREGROUND_DETACH` ile bildirim kalıyor ama süreç
+  tutulmuyor (pil).
+* **Bildirim yalnız GÖRÜNEN bir şey değişince yeniden çiziliyor** (imza
+  karşılaştırması). Konum her saniye gidiyor ama yalnız `setPlaybackState`
+  olarak — saniyede bir bildirim çizmek MIUI'de gölgeyi titretiyor.
+* Kapak: Dart yazdığı dosyanın yolunu veriyor, native taraf `inSampleSize` ile
+  512 px'e düşürüp çözüyor (3000×3000 albüm kapağını her parçada tam çözmek
+  düşük bellekli telefonu öldürür).
+* `MediaBridge.onAction` → MethodChannel → Dart. Oturumun SAHİBİ
+  (`MediaSession.owner`: `audio`/`video`) eylemin hangi çalara gideceğini
+  söylüyor; tek oturumu iki çalar paylaşıyor.
+* Eski `flutter_local_notifications` yolu **yedek olarak duruyor**: kanal
+  yoksa (masaüstü/test) ya da servis başlatılamazsa oraya düşülüyor.
+* `tool/check_kotlin.sh` artık `MediaSession.kt`i de tür denetiminden
+  geçiriyor (`tool/kotlin_stubs/` genişletildi). Dosya Flutter'a HİÇ bağlı
+  değil — bu yüzden `MainActivity::class.java` yerine paket yöneticisinin
+  açılış intent'i kullanıldı.
+
+### B) Ekran altı mini çubuk (`widgets/mini_player_bar.dart`)
+`MaterialApp.builder`da, gezinti ağacının DIŞINDA: hangi ekranda olursak
+olalım altta duruyor. İçeriğin ÜSTÜNE binmiyor — `Column`da altına ekleniyor
+ve alt sistem çubuğunun payını kendisi üstleniyor (içerikten `removeBottom`).
+Tam oynatıcı açıkken **sayaçla** gizleniyor (iki oynatıcı üst üste
+açılabiliyor; `bool` olsaydı içteki kapanınca çubuk erken geri gelirdi).
+
+**TUZAK:** çubuk servisleri KENDİSİ dinlemeli. Sarmalayıcıdaki
+`const MiniPlayerBar()` her seferinde aynı widget nesnesi olduğu için Flutter
+alt ağacı yeniden çizmiyordu — duraklatınca düğme oynat simgesine dönmüyordu.
+
+### C) Video oynatıcı servise taşındı (`services/fm/video_playback.dart`)
+`VideoPlayerController` ekranın `State`indeydi ve `dispose`ta kapatılıyordu;
+mini çubuk ve bildirim için oynatıcının ekrandan uzun yaşaması gerekiyor
+(sesin 2026-09-02'de yaşadığı taşınmanın aynısı). Ekran artık yalnız izleyici.
+
+* Pil kararı KORUNDU: uygulama arkaya alınınca video duruyor. Tek istisna
+  kullanıcının açık isteği — bildirimden "Çal"a basmak `backgroundAllowed`
+  yapıyor ve o oturumda duraklatma devreye girmiyor.
+* Bildirim kapağı videonun ilk karesi (`ThumbnailCache`).
+* **TUZAK (test):** oynatıcı ekrandan uzun yaşadığı için testin sonunda
+  AÇIKÇA kapatılmalı, yoksa denetleyicinin konum zamanlayıcısı "A Timer is
+  still pending" diye patlıyor. `debugReset()` **await ETMİYOR**:
+  `VideoPlayerController.dispose()` sahte saatte beklenirse test askıda
+  kalıyor (aynı sınıf tuzak: 2026-07-25 §F). Zamanlayıcıyı asıl kapatan
+  `pause()` ve o eşzamanlı iş görüyor.
+
+### D) APK simgesi — kök neden bulundu ve doğru yol yapıldı
+**Kanıt:** kendi APK'mız (build 339) indirilip açıldı. `res/` altındaki 447
+girdinin adları KISALTILMIŞ (`res/-B.png`, `res/o-.png`): kaynak küçültmesi
+(shrinkResources) açık derlendiği için AAPT2 yolları kısaltıyor. Ada bakan
+eşleme (`ic_launcher`) boşa çıkıyor, ada bakmayan yedek ise "en büyük kare
+PNG" diye uyarlanabilir simgenin **zemin katmanını** (düz turkuaz degrade)
+seçiyordu — kullanıcının listede gördüğü boş kare tam olarak buydu.
+
+Çözüm Android'in yaptığını yapmak (`services/fm/apk_resources.dart`):
+ikili `AndroidManifest.xml`den `application@icon` **kaynak kimliği**
+(bizde 0x7f0c0000) → `resources.arsc` → dosya yolu (`res/o-.png`, 640 dpi).
+Gerçek APK üstünde ölçüldü: 192×192 doğru simge çıkıyor.
+
+* Kimlik bir XML'e çıkarsa (uyarlanabilir simge) katmanlar birleştiriliyor,
+  108 dp tuvalin görünen 72 dp'si kırpılıp köşeleri yuvarlanıyor.
+* Ön plan vektörse birleştirme YAPILMIYOR: tek başına zemini "simge" diye
+  sunmak tam da düzeltilen hatayı geri getirirdi.
+* Eski iki sezgisel yol (ad puanı + kare PNG) yedekte duruyor.
+* **Biçim tuzağı:** `ResXMLTree_attrExt`teki `attributeStart` o yapının
+  başından ölçülür (düğüm başlığından değil) ve `ResTable_config`te yoğunluk
+  14. bayttadır (`size` alanı unutulursa hep 0 okunur). İkisi de ilk yazımda
+  yanlıştı; gerçek APK üstünde yakalandı.
+* Test fikstürü olarak gerçek APK KONULMADI (tek başına `resources.arsc`
+  400 KB): `test/support/apk_binaries.dart` ikili biçimleri elle üretiyor —
+  hem küçük hem biçimi belgeliyor.
+
+### E) "Yeni ekran görüntüsü görünüp kayboluyor" — kök neden
+Kategori ekranı önce **panonun taze taramasıyla** açılıyor (yeni ekran
+görüntüsü orada), sonra `MediaLibrary.categoryFiles` **arama dizininden**
+gelen daha uzun listeyi onun YERİNE koyuyordu. Dizin ise yalnız uygulama
+İÇİNDEN yapılan değişikliklerde bayatlıyor: ekran görüntüsü alan, kamerayla
+çeken, WhatsApp'tan indiren başka uygulama kimseye haber vermiyor. Sonuç:
+dosya bir görünüp kayboluyordu.
+
+İki düzeltme:
+1. `MediaLibrary.freshTail` — dizin kurulduktan SONRA eklenen dosyalar sıcak
+   klasörlerden (DCIM, Ekran Görüntüleri, İndirilenler, `Android/media/…`)
+   taranıp listeye ekleniyor. Tam tarama değil: o birkaç ağaç saniyenin
+   altında geziliyor (aynı tarama "Yeni Dosyalar"da zaten vardı).
+2. Ekranlar (`photos_screen`, `category_screen`) listeyi **değiştirmiyor,
+   BİRLEŞTİRİYOR**. Gösterilen hiçbir dosya kaybolmuyor.
+
+### F) USB: gezilmemiş klasör artık açılabiliyor
+2026-09-02'de sınır olarak yazılmıştı ("tutamak yoldan hesaplanamaz").
+Doğru çözüm hesap değil **yürüyüş**: `UsbFs.resolve` kökten başlayıp yolun her
+parçasını listeleyerek tutamağı öğreniyor (maliyet yalnız tutamak
+bilinmiyorsa, derinlik kadar dizin okuması). Yer imi, arama sonucu, "son
+açılanlar" ve yeniden takılan bellekten gelen yollar artık çalışıyor;
+uydurma tutamak hâlâ YOK — olmayan klasör yine hata veriyor.

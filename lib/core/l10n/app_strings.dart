@@ -4479,6 +4479,7 @@ const Map<String, (String, String, String)> _table = {
   'mp.play': ('Çal', 'Play', 'تشغيل'),
   'mp.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
   'mp.next': ('Sonraki', 'Next', 'التالي'),
+  'mp.previous': ('Önceki', 'Previous', 'السابق'),
   'mp.background_on': (
     'Arka planda çalmaya devam eder',
     'Keeps playing in the background',

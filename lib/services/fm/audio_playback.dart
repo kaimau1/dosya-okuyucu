@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import '../../core/l10n/app_strings.dart';
 import 'audio_tags.dart';
 import 'fm_env.dart';
+import 'media_session.dart';
 import 'notification_hub.dart';
 
 /// Tekrar kipi (kapalı / tek parça / liste).
@@ -289,13 +290,26 @@ class AudioPlayback extends ChangeNotifier {
   static const actionStop = 'audio_stop';
 
   /// Bildirimdeki düğmeye basıldı.
-  Future<void> handleAction(String actionId) async {
+  ///
+  /// İki kaynak var ve ikisi de buraya düşüyor: eski `flutter_local_
+  /// notifications` düğmeleri (`audio_*`) ve **medya oturumu** (`play`,
+  /// `pause`, `next`, `previous`, `seek`, `stop` — kilit ekranı, kulaklık ve
+  /// bildirimdeki sürüklenebilir çubuk da dahil).
+  Future<void> handleAction(String actionId, [int value = 0]) async {
     switch (actionId) {
       case actionToggle:
+      case 'play':
+      case 'pause':
         await toggle();
       case actionNext:
+      case 'next':
         await next();
+      case 'previous':
+        await previous();
+      case 'seek':
+        await seek(Duration(milliseconds: value));
       case actionStop:
+      case 'stop':
         await stop();
     }
   }
@@ -310,10 +324,17 @@ class AudioPlayback extends ChangeNotifier {
   /// "akıyor" görünüyor.
   void _startTicker() {
     _tick?.cancel();
-    _tick = Timer.periodic(const Duration(seconds: 5), (_) {
+    // **Bir saniye — ama iki farklı iş.** Medya oturumu varken tazeleme
+    // yalnız `PlaybackState`in konumunu güncelliyor (ucuz binder çağrısı,
+    // bildirim yeniden ÇİZİLMİYOR — çubuğu sistem kendisi akıtıyor). Oturum
+    // yoksa eski yola düşülüyor ve orada bildirim gerçekten yeniden
+    // çiziliyor: beş saniyeden sık çizmek MIUI'de gölgeyi titretir ve pil
+    // yakar.
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!playing) return;
       final second = position.inSeconds;
       if (second == _lastShownSecond) return;
+      if (!MediaSession.supported && second % 5 != 0) return;
       _lastShownSecond = second;
       unawaited(_refreshNotification());
     });
@@ -340,9 +361,46 @@ class AudioPlayback extends ChangeNotifier {
   Future<void> _refreshNotification() async {
     if (!notificationsEnabled) return;
     if (!hasTrack) return _clearNotification();
+    final str = AppStrings.current;
+    // **Önce gerçek medya oturumu** (Android): sürüklenebilir çubuk, kilit
+    // ekranı ve kulaklık düğmeleri oradan geliyor. Kanal yoksa/başarısızsa
+    // aşağıdaki eski bildirim yoluna düşülür — çalma her koşulda sürer.
+    if (MediaSession.supported) {
+      final cover = await _coverFile();
+      final ok = await MediaSession.update(
+        title: title,
+        subtitle: tags.subtitle.isEmpty ? p.basename(current) : tags.subtitle,
+        album: tags.album,
+        position: position,
+        duration: duration,
+        playing: playing,
+        speed: speed,
+        hasNext: playlist.length > 1,
+        hasPrevious: playlist.length > 1,
+        cover: cover,
+        payload: 'audio:$current',
+        owner: 'audio',
+        labels: {
+          'play': str.t('mp.play'),
+          'pause': str.t('mp.pause'),
+          'next': str.t('mp.next'),
+          'previous': str.t('mp.previous'),
+          'stop': str.t('common.close'),
+        },
+      );
+      if (ok) {
+        // Eski yolun bildirimi/servisi kalmışsa bırakılır: iki bildirim
+        // birden asılı kalmasın.
+        if (_held) {
+          _held = false;
+          await NotificationHub.instance.releaseService(_owner);
+          await NotificationHub.instance.cancel(_notificationId);
+        }
+        return;
+      }
+    }
     final hub = NotificationHub.instance;
     if (!hub.ready) return;
-    final str = AppStrings.current;
     try {
       // **Medya biçimli bildirim** (kullanıcı 2026-09-02: *"premium
       // uygulamalardaki gibi oynat/durdur düğmesi olmalı, örneğin YouTube"*).
@@ -438,6 +496,7 @@ class AudioPlayback extends ChangeNotifier {
 
   Future<void> _clearNotification() async {
     if (!notificationsEnabled) return;
+    await MediaSession.clear(owner: 'audio');
     try {
       if (_held) {
         _held = false;

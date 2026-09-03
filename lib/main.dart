@@ -23,7 +23,11 @@ import 'services/fm/job_queue.dart';
 import 'services/fm/job_store.dart';
 import 'screens/fm/audio_player_screen.dart';
 import 'services/fm/audio_playback.dart';
+import 'services/fm/media_session.dart';
 import 'services/fm/notification_hub.dart';
+import 'services/fm/video_playback.dart';
+import 'widgets/mini_player_bar.dart';
+import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
@@ -70,6 +74,24 @@ Future<void> main() async {
   // yapar; dokunmakla aynı kancaya bağlanamaz.
   hub.onAction = (actionId, _) =>
       unawaited(AudioPlayback.instance.handleAction(actionId));
+  // **Medya oturumu** (bildirimdeki sürüklenebilir çubuk, kilit ekranı,
+  // kulaklık düğmeleri). Eylem, oturumu en son süren çalara gider: tek oturum
+  // var ve ses ile video onu paylaşıyor.
+  MediaSession.onAction = (action, value) {
+    if (MediaSession.owner == 'video') {
+      unawaited(VideoPlayback.instance.handleAction(action, value));
+    } else {
+      unawaited(AudioPlayback.instance.handleAction(action, value));
+    }
+  };
+  MediaSession.onOpen = _openFromNotification;
+  MediaSession.install();
+  // Uygulama medya bildirimine dokunularak açıldıysa doğrudan o dosyaya git.
+  unawaited(MediaSession.takePayload().then((payload) {
+    if (payload == null || payload.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openFromNotification(payload));
+  }));
   unawaited(hub.init().then((_) {
     // Süreç öldürülüp yeniden açıldıysa "Ağdan erişim açık" diyen bir bildirim
     // asılı kalmış olabilir — paylaşım o bildirimle birlikte ölmüştü.
@@ -164,6 +186,19 @@ void _openFromNotification(String payload) {
     }
     return;
   }
+  // Video bildirimi de kendi oynatıcısına götürür (aynı gerekçe).
+  if (payload.startsWith('video:')) {
+    final path = payload.substring(6);
+    if (path.isNotEmpty) {
+      unawaited(Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => MediaPlayerScreen(
+          path: path,
+          playlist: VideoPlayback.instance.playlist,
+        ),
+      )));
+    }
+    return;
+  }
   final job = JobQueue.instance.find(payload);
   if (job == null) {
     unawaited(openJobsScreen(context));
@@ -219,7 +254,13 @@ class DosyaOkuyucuApp extends StatelessWidget {
         data: MediaQuery.of(context).copyWith(
           textScaler: TextScaler.linear(appState.uiTextScale),
         ),
-        child: child ?? const SizedBox.shrink(),
+        // **Ekran altı mini oynatma çubuğu**: çalan ses/video hangi ekranda
+        // olursak olalım altta görünür (kullanıcı isteği 2026-09-03).
+        // Seçici kipinde YOK: başka bir uygulama bizden dosya isterken
+        // ekranın altına oynatıcı koymak yersiz olurdu.
+        child: picker
+            ? (child ?? const SizedBox.shrink())
+            : MiniPlayerBar.wrap(child ?? const SizedBox.shrink()),
       ),
       // Dil: seçim `system` ise `locale` null bırakılır — Flutter cihazın
       // dilini `supportedLocales` ile eşleştirir, tutmazsa listenin İLKİNE

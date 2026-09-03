@@ -163,12 +163,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
       final all = await loader();
       if (!mounted) return;
       setState(() {
-        if (widget.replaceOnLoad || all.length > _files.length) _files = all;
+        // `replaceOnLoad` listeyi gerçekten DEĞİŞTİRMEK isteyen ekranlar için
+        // (ör. daraltılmış bir kapsamdan tam kapsama geçiş). Onun dışında
+        // **birleştiriliyor**: eksiksiz liste arama dizininden geliyor ve
+        // dizin bayatsa yeni dosyaları içermiyor — yerine geçseydi az önce
+        // eklenen dosya listeden düşerdi (kullanıcı 2026-09-03: *"görülüp
+        // geri gidiyor"*).
+        _files = widget.replaceOnLoad ? all : _mergeByPath(_files, all);
         _loadingAll = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loadingAll = false);
     }
+  }
+
+  /// İki listeyi yola göre teke indirir; ilkinin sırası korunur.
+  static List<FsEntry> _mergeByPath(List<FsEntry> current, List<FsEntry> more) {
+    if (current.isEmpty) return more;
+    final seen = {for (final e in current) e.path};
+    final out = [...current];
+    for (final e in more) {
+      if (seen.add(e.path)) out.add(e);
+    }
+    return out;
   }
 
   @override
