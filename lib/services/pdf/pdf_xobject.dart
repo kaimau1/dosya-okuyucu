@@ -130,6 +130,10 @@ class PdfPageObject {
   /// kullanıcı görselin VAR olduğunu görmeli, sadece dokunamamalı.
   final bool editable;
 
+  /// **Satır içi görsel mi?** (`BI … ID … EI`) Kaynak tablosunda adı yoktur
+  /// ve düzenlenemez; arayüz kutusunu gösterir, araç çubuğunu açmaz.
+  bool get isInline => name == _inlineImageName;
+
   /// Kabaca sayfanın tamamını kaplıyor mu? (Arka plan/filigran adayı.)
   bool coversPage(double pageWidth, double pageHeight) =>
       pageWidth > 0 &&
@@ -173,6 +177,10 @@ List<PdfPageObject> findPageObjects(
 /// belgede sonsuz özyinelemeye girmemek için.
 const _maxFormDepth = 6;
 
+/// Satır içi görsellerin kaynak adı yoktur; listede ayırt edilebilsin diye
+/// bu ad veriliyor (`PdfPageObject.isInline` bunun üstünden çalışır).
+const _inlineImageName = '<inline>';
+
 List<PdfPageObject> _objectsInStream(
   List<int> content,
   int streamIndex,
@@ -213,6 +221,16 @@ List<PdfPageObject> _objectsInStream(
       case 'W':
       case 'W*':
         clipped = true;
+      case 'BI':
+        // **Satır içi görsel** — kaynak tablosunda adı yoktur, verisi
+        // doğrudan akışın içindedir. Kutusu yine de biliniyor (birim kare +
+        // o anki matris), bu yüzden kullanıcıya GÖSTERİLİYOR; ama
+        // düzenlenmiyor: baytlarını yerinde değiştirmek için akışı yeniden
+        // kodlamak gerekir ve bu, kazandığından çok riski olan bir iş.
+        // Görmek yine de görmemekten iyi (kullanıcı bulgusu 2026-09-04:
+        // "sayfada iki görsel var, uygulama 'görsel yok' diyor").
+        out.add(_objectAt(streamIndex, _inlineImageName, event, ctm, clipped,
+            formObject: formObject, editable: false));
       case 'Do':
         final name = _nameOperandOf(content, event);
         if (name == null) continue;

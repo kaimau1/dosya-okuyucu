@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/app_version.dart';
+
 /// **Çökme/hata günlüğü — cihazda, gönderimsiz.**
 ///
 /// ## Kök neden (2026-08-28 durum değerlendirmesi)
@@ -53,9 +55,12 @@ abstract final class CrashLog {
   static bool _installed = false;
 
   /// Uygulama sürümü — raporun tek başına anlamlı olması için (kullanıcı
-  /// "hangi sürümde" sorusuna cevap veremez). `pubspec.yaml`taki `version:`
-  /// ile aynı tutulmalı.
-  static const appVersion = '0.1.0';
+  /// "hangi sürümde" sorusuna cevap veremez).
+  ///
+  /// Tek kaynak `lib/core/app_version.dart`; CI her derlemede yama numarasını
+  /// artırıyor, yani rapordaki numara artık GERÇEKTEN o derlemeyi gösteriyor
+  /// (2026-09-04'e kadar elle yazılmış "0.1.0" sabitiydi ve 340 derleme
+  /// boyunca değişmemişti — hangi APK'dan geldiği anlaşılmıyordu).
 
   /// Yakalayıcıları kurar. `main()`in en başında, `runApp`tan ÖNCE çağrılır.
   ///
@@ -203,7 +208,7 @@ abstract final class CrashLog {
   /// Paylaşılacak/kopyalanacak düz metin. Kullanıcı bunu ekranda AYNEN görür.
   static String asShareText(List<CrashRecord> records) {
     final buffer = StringBuffer()
-      ..writeln('Dosya Okuyucu $appVersion — hata kaydı')
+      ..writeln('Dosya Okuyucu $appVersionFull — hata kaydı')
       ..writeln('Platform: ${Platform.operatingSystem} '
           '${Platform.operatingSystemVersion}')
       ..writeln('Kayıt sayısı: ${records.length}')

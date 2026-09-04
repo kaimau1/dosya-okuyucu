@@ -245,17 +245,43 @@ class AudioPlayback extends ChangeNotifier {
     await skipTo(index - 1);
   }
 
+  /// **Oynatıcıya yapılan her çağrı fırlayabilir** (hata kaydı 2026-09-04:
+  /// `PlatformException(AndroidAudioError, MEDIA_ERROR_SERVER_DIED …)` ve
+  /// `Failed to set source`). Bunlar bir düğmeye basıldığında `unawaited`
+  /// bir `Future`da patlıyor, kimse yakalamıyor ve **yakalanmamış asenkron
+  /// hata** olarak kayda düşüyordu — kullanıcı için "düğmeye bastım, hiçbir
+  /// şey olmadı" demek.
+  ///
+  /// Artık tek kapı: hata yakalanır, medya sunucusu ölmüşse oynatıcı
+  /// YENİLENİR (o nesne artık kullanılamaz) ve durum kullanıcıya
+  /// [error] üstünden söylenir.
+  Future<void> _guard(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      if ('$e'.contains('SERVER_DIED')) {
+        await _recreateEngine();
+        // Yenilenen oynatıcıda parça yok: kullanıcı "oynat"a basınca
+        // kaldığı yerden devam etsin diye kaynağı yeniden kuruyoruz.
+        try {
+          await _play(current);
+          return;
+        } catch (_) {
+          // aşağıdaki mesaja düş
+        }
+      }
+      error = AppStrings.current.t('mp.audio_failed', {'error': e});
+      notifyListeners();
+    }
+  }
+
   Future<void> toggle() async {
     if (!engineEnabled) {
       playing = !playing;
       notifyListeners();
       return;
     }
-    if (playing) {
-      await _player.pause();
-    } else {
-      await _player.resume();
-    }
+    await _guard(() => playing ? _player.pause() : _player.resume());
   }
 
   Future<void> seek(Duration target) async {
@@ -264,7 +290,7 @@ class AudioPlayback extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    await _player.seek(position);
+    await _guard(() => _player.seek(position));
   }
 
   Future<void> seekBy(int seconds) =>
@@ -272,7 +298,7 @@ class AudioPlayback extends ChangeNotifier {
 
   Future<void> setSpeed(double value) async {
     speed = value;
-    if (engineEnabled) await _player.setPlaybackRate(value);
+    if (engineEnabled) await _guard(() => _player.setPlaybackRate(value));
     notifyListeners();
   }
 
@@ -347,7 +373,14 @@ class AudioPlayback extends ChangeNotifier {
       PlaybackPositions.record(current, position, duration);
       unawaited(PlaybackPositions.save());
     }
-    if (engineEnabled && _engine != null) await _player.stop();
+    // Ölü oynatıcıda `stop()` da fırlatır; durdurmak İSTEDİĞİMİZ için
+    // hatayı yutuyoruz — aşağıdaki temizlik her hâlükârda çalışmalı
+    // (yoksa çubuk ekranda kalırdı).
+    if (engineEnabled && _engine != null) {
+      try {
+        await _player.stop();
+      } catch (_) {}
+    }
     playing = false;
     playlist = const [];
     position = Duration.zero;

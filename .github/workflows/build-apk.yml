@@ -87,8 +87,13 @@ jobs:
       github.ref == 'refs/heads/main' ||
       contains(github.event.head_commit.message, '[release-apk]')
     steps:
+      # `fetch-depth: 20` — sürüm notundaki "bu derlemedeki değişiklikler"
+      # listesi `git log`dan geliyor; varsayılan sığ kopyada (derinlik 1)
+      # yalnız tek commit görünürdü.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
 
       - name: Java kurulumu
         uses: actions/setup-java@v4
@@ -115,6 +120,38 @@ jobs:
           key: gradle-pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
           restore-keys: |
             gradle-pub-${{ runner.os }}-
+
+      # ── SÜRÜM NUMARASI ────────────────────────────────────────────────
+      #
+      # Kullanıcı isteği 2026-09-04: *"sürüm numaramız sürekli 0.1, bunu
+      # değiştir ve her güncellemede ilerlesin"*. Numara üç yerde ayrı ayrı
+      # elle yazılıydı (`pubspec.yaml`, `CrashLog.appVersion`, Hakkında
+      # metni) ve hiçbiri güncellenmediği için uygulama 340 derlemedir
+      # "0.1.0" diyordu — kullanıcı hangi APK'yı kurduğunu bilemiyordu.
+      #
+      # Artık TEK kaynak `lib/core/app_version.dart`: ana/ara numara orada
+      # elle duruyor, YAMA numarası CI'nın koşu sayacından geliyor. Aynı
+      # numara `versionName`, `versionCode`, Release etiketi ve uygulamanın
+      # içinde yazan sürüm — dördü birden aynı. Depodaki dosyaya
+      # DOKUNULMUYOR (yalnız derleme kopyası `sed`leniyor), yani main'e
+      # geri yazan bir adım ve sonsuz döngü riski yok.
+      - name: Sürüm numarasını belirle
+        id: version
+        run: |
+          set -e
+          F=lib/core/app_version.dart
+          MAJOR=$(sed -nE 's/^const appVersionMajor = ([0-9]+);/\1/p' "$F")
+          MINOR=$(sed -nE 's/^const appVersionMinor = ([0-9]+);/\1/p' "$F")
+          PATCH=${{ github.run_number }}
+          NAME="$MAJOR.$MINOR.$PATCH"
+          sed -i -E "s/^const appVersionPatch = [0-9]+;/const appVersionPatch = $PATCH;/" "$F"
+          sed -i -E "s/^const appBuildNumber = [0-9]+;/const appBuildNumber = $PATCH;/" "$F"
+          sed -i -E "s/^version: [0-9]+\.[0-9]+\.[0-9]+\+[0-9]+/version: $NAME+$PATCH/" pubspec.yaml
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "BUILD_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$PATCH" >> "$GITHUB_ENV"
+          echo "Sürüm: $NAME (build $PATCH)"
+          grep -n "appVersion" "$F"
 
       - name: Platform iskeletini üret (android)
         run: |
@@ -364,12 +401,11 @@ jobs:
       # yalnız emülatörde işe yarar, gerçek telefonda kimse kullanmaz (ve bir
       # AOT derlemesi eksildiği için süre biraz kısalır).
       #
-      # SÜRÜM NUMARASI (2026-08-28): `pubspec.yaml`taki `version: 0.1.0+1`
-      # SABİTTİ; her derleme aynı `versionCode 1` ile çıkıyordu. Android bir
-      # güncellemeyi ancak versionCode ARTARSA kabul eder (mağaza yolu ikinci
-      # yüklemede tıkanırdı; APK ile de "aynı sürüm" kurulumları karışıyordu).
-      # Artık numara CI'nın koşu sayacından gelir — tekdüze artar ve yayınlanan
-      # Release etiketiyle (`v0.1.0-build-<run_number>`) BİREBİR aynıdır.
+      # SÜRÜM NUMARASI: `BUILD_NAME`/`BUILD_NUMBER` yukarıdaki "Sürüm
+      # numarasını belirle" adımında hesaplanıp `$GITHUB_ENV`e yazıldı
+      # (`<ana>.<ara>.<koşu numarası>`). Android bir güncellemeyi ancak
+      # versionCode ARTARSA kabul eder; koşu sayacı tekdüze artıyor ve
+      # yayınlanan Release etiketiyle BİREBİR aynı.
       # `--split-per-abi` ile Flutter'ın Gradle eklentisi her mimariye ayrı bir
       # versionCode (abi*1000 + numara) verir; mimariler birbirini ezmez.
       - name: APK derle (release, ABI'ye göre bölünmüş)
@@ -379,9 +415,6 @@ jobs:
             --target-platform android-arm,android-arm64
           echo "--- üretilen APK'lar ---"
           ls -lh build/app/outputs/flutter-apk/*.apk
-        env:
-          BUILD_NAME: 0.1.0
-          BUILD_NUMBER: ${{ github.run_number }}
 
       - name: İmza anahtarını hazırla (secret varsa kalıcı, yoksa üret)
         env:
@@ -457,8 +490,6 @@ jobs:
         if: ${{ inputs.aab }}
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
-          BUILD_NAME: 0.1.0
-          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           set -e
           flutter build appbundle --release \
@@ -540,17 +571,30 @@ jobs:
       # güncellenip diğerleri unutulduğunda sessizce ayrışırdı.)
       - name: Sürüm notunu hazırla
         run: |
-          cat > dist/RELEASE_NOTES.md <<'NOTES'
+          set -e
+          # Sürüm başlığı ve BU derlemeye giren commit'ler (2026-09-04):
+          # not metni aylardır aynıydı, yani iki release'i birbirinden
+          # ayırmanın hiçbir yolu yoktu. Artık her sürüm kendi numarasını ve
+          # son değişikliklerini taşıyor.
+          {
+            echo "**Sürüm ${BUILD_NAME}** (derleme ${BUILD_NUMBER}) —"
+            echo "\`$(git rev-parse --short HEAD)\`"
+            echo
+            echo "**Bu derlemedeki son değişiklikler:**"
+            git log -8 --pretty='- %s' | sed 's/Co-Authored-By.*//'
+            echo
+          } > dist/RELEASE_NOTES.md
+          cat >> dist/RELEASE_NOTES.md <<'NOTES'
           Otomatik derlenen, imzalı Android APK.
 
-          **Yenilikler (bu sürümde):**
+          **Uygulama neler yapıyor:**
           - “Birlikte aç” / paylaş: WhatsApp/Gmail/Dosyalar’dan gelen dosyayı doğrudan açar
+          - Dosya yöneticisi: pano, gezgin, arama, USB/SD bellek, çöp kutusu
           - Geniş dosya türü desteği + içerik tanıma (uzantısız metin dosyaları dahil)
-          - Her yerde yakınlaştır/uzaklaştır (görsel: pinch + çift-dokun + düğme), döndürme
           - Belge içi arama (Bul), metinde yazı boyutu, PDF sayfa göstergesi
           - Office düzenleme: Word biçim, Excel satır/sütun + formül + sayı biçimleri, PowerPoint slayt işlemleri
+          - Ses/video oynatıcı: bildirim denetimi, ekran altı çubuk, kaldığın yerden devam
           - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
-          - Özel uygulama ikonu
 
           Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
           dönüştürme, paylaşım, Gemini AI sohbet, Firebase senkron (yapılandırıldığında).
@@ -584,8 +628,8 @@ jobs:
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-build-${{ github.run_number }}
-          name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          tag_name: v${{ steps.version.outputs.name }}
+          name: Dosya Okuyucu v${{ steps.version.outputs.name }}
           make_latest: true
           body_path: dist/RELEASE_NOTES.md
           files: |
@@ -605,8 +649,8 @@ jobs:
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-build-${{ github.run_number }}
-          name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          tag_name: v${{ steps.version.outputs.name }}
+          name: Dosya Okuyucu v${{ steps.version.outputs.name }}
           make_latest: true
           body_path: dist/RELEASE_NOTES.md
           files: |
@@ -625,8 +669,8 @@ jobs:
         if: steps.release1.outcome == 'failure' && steps.release2.outcome == 'failure'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-build-${{ github.run_number }}
-          name: Dosya Okuyucu v0.1.0 (build ${{ github.run_number }})
+          tag_name: v${{ steps.version.outputs.name }}
+          name: Dosya Okuyucu v${{ steps.version.outputs.name }}
           make_latest: true
           body_path: dist/RELEASE_NOTES.md
           files: |

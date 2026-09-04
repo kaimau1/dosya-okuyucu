@@ -282,14 +282,26 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     await _load();
   }
 
+  /// **Oynatıcı çağrıları fırlayabilir** — medya sunucusu ölmüş, dosya
+  /// çıkarılmış USB'de ya da kod çözücü düşmüş olabilir. Bu çağrılar düğme
+  /// dokunuşundan `unawaited` başlıyor; yakalanmayan hata uygulamayı
+  /// düşürüyordu (ses tarafındaki eşi: hata kaydı 2026-09-04).
+  ///
+  /// Yakalanan hata ekrana [error] olarak yazılır; oynatıcının kendisi
+  /// bozulduysa kullanıcı dosyayı yeniden açarak kurtarır.
+  Future<void> _guard(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      error = AppStrings.current.t('mp.video_failed', {'error': e});
+      notifyListeners();
+    }
+  }
+
   Future<void> toggle() async {
     final c = _controller;
     if (c == null) return;
-    if (c.value.isPlaying) {
-      await c.pause();
-    } else {
-      await c.play();
-    }
+    await _guard(() => c.value.isPlaying ? c.pause() : c.play());
     notifyListeners();
   }
 
@@ -300,8 +312,10 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     var value = target;
     if (value < Duration.zero) value = Duration.zero;
     if (total > Duration.zero && value > total) value = total;
-    await c.seekTo(value);
-    await _refreshSession();
+    await _guard(() async {
+      await c.seekTo(value);
+      await _refreshSession();
+    });
   }
 
   Future<void> seekBy(int seconds) =>
@@ -309,7 +323,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> setSpeed(double value) async {
     speed = value;
-    await _controller?.setPlaybackSpeed(value);
+    final c = _controller;
+    if (c != null) await _guard(() => c.setPlaybackSpeed(value));
     notifyListeners();
   }
 

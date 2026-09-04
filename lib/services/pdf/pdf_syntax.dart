@@ -290,8 +290,30 @@ PdfContentScan scanContent(List<int> content, {PdfMeasure? measure}) {
     }
 
     // Operatör.
+    //
+    // **Satır içi görsel** (`BI … ID <ikili veri> EI`): ikili veri normal
+    // sözdizimi DEĞİL, atlanmak zorunda. Ama atlanan yer bir olay olarak
+    // kaydediliyor (kullanıcı bulgusu 2026-09-04): satır içi görsel taşıyan
+    // sayfada düzenleyici "bu sayfada gömülü görsel yok" diyordu, oysa
+    // görsel oradaydı — yalnız `/Do` ile çizilmiş bir XObject değildi.
+    // Olayın `end`i `EI`den sonrasıdır, yani çizim aralığı tam.
     if (word == 'BI') {
-      i = _skipInlineImage(content, i);
+      final endOfImage = _skipInlineImage(content, i);
+      events.add(PdfContentEvent(
+        op: 'BI',
+        operandStart: operandStart < 0 ? start : operandStart,
+        operatorStart: start,
+        end: endOfImage,
+        numbers: const [],
+        numberRanges: const [],
+        strings: const [],
+        fontName: currentFont,
+        matrix: List.of(tm),
+        lineMatrix: List.of(tlm),
+        state: state,
+        xKnown: xKnown,
+      ));
+      i = endOfImage;
       resetOperands();
       continue;
     }

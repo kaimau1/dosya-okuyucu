@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/app_navigator.dart';
 import 'core/app_state.dart';
 import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
@@ -159,10 +160,6 @@ Future<void> _restoreJobs() async {
     // Kalıcılık bir güvence ağı; okunamıyorsa uygulama yine çalışır.
   }
 }
-
-/// Uygulamanın kök gezinme anahtarı — `context`i olmayan yerlerden (sistem
-/// bildirimi) ekran açmak için tek yol.
-final navigatorKey = GlobalKey<NavigatorState>();
 
 /// Bildirimin yükünü ekrana çevirir. Yük ya bir iş kimliği ya da "Ağdan
 /// erişim"in sahiplik kimliği ([FtpService.owner]).

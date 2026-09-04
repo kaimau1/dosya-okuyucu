@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dosya_okuyucu/core/app_version.dart';
 import 'package:dosya_okuyucu/services/crash_log.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -90,7 +91,7 @@ void main() {
   test('paylaşım metni sürümü ve tüm kayıtları içerir', () async {
     await CrashLog.record(StateError('görünür hata'), StackTrace.fromString('#0'));
     final text = CrashLog.asShareText(await CrashLog.load());
-    expect(text, contains(CrashLog.appVersion));
+    expect(text, contains(appVersionFull));
     expect(text, contains('görünür hata'));
   });
 

@@ -429,11 +429,11 @@ const Map<String, (String, String, String)> _table = {
   'settings.google_sign_in': ('Google ile giriş', 'Sign in with Google', 'الدخول عبر Google'),
   'settings.about': ('Hakkında', 'About', 'حول'),
   'settings.about_body': (
-    'Dosya Okuyucu • sürüm 0.1.0\n'
+    'Dosya Okuyucu • sürüm {version}\n'
         'Çok formatlı, hızlı ve sade dosya okuyucu/düzenleyici.',
-    'Dosya Okuyucu • version 0.1.0\n'
+    'Dosya Okuyucu • version {version}\n'
         'A fast, simple multi-format file reader/editor.',
-    'Dosya Okuyucu • الإصدار 0.1.0\n'
+    'Dosya Okuyucu • الإصدار {version}\n'
         'قارئ/محرر ملفات سريع وبسيط يدعم صيغًا متعددة.',
   ),
   // ── Gizlilik politikası ve hata kayıtları (2026-08-28) ──────────────────
@@ -3516,6 +3516,31 @@ const Map<String, (String, String, String)> _table = {
     'Değiştirmek istediğiniz paragrafa dokunun.',
     'Tap the paragraph you want to change.',
     'اضغط على الفقرة التي تريد تغييرها.',
+  ),
+  // Görsel VAR ama hiçbiri düzenlenemiyor (paylaşılan çizim bloğu ya da
+  // satır içi görsel). Eskiden bu durumda da "görsel yok" yazıyordu ve
+  // kullanıcı gözüyle gördüğü şeyin yokmuş gibi anlatılmasına haklı olarak
+  // güvenmiyordu (2026-09-04).
+  'pe.hint_image_locked': (
+    'Bu sayfadaki görseller yerinde sabit: gösteriliyor ama düzenlenemiyor '
+        '(belgede paylaşılan çizim bloğu ya da satır içi görsel).',
+    'The images on this page are fixed in place: shown but not editable '
+        '(a shared drawing block or an inline image).',
+    'الصور في هذه الصفحة ثابتة: تُعرض لكن لا يمكن تحريرها (كتلة رسم مشتركة '
+        'أو صورة مضمّنة في المحتوى).',
+  ),
+  'pe.object_locked': (
+    'Bu görsel düzenlenemiyor; yalnız yeri gösteriliyor.',
+    'This image cannot be edited; only its position is shown.',
+    'لا يمكن تحرير هذه الصورة؛ يُعرض موضعها فقط.',
+  ),
+  // Sayfa çözümlemesi reddedildiğinde şerit KALICI olarak bunu yazar.
+  // Eskiden yalnız bir anlık uyarı çıkıyor, sonra "bu sayfada metin/görsel
+  // yok" yazısı kalıyordu — yani hata, boş sayfa gibi görünüyordu.
+  'pe.hint_failed': (
+    'Bu sayfa çözümlenemedi: {error}',
+    'This page could not be analyzed: {error}',
+    'تعذّر تحليل هذه الصفحة: {error}',
   ),
   'pe.hint_image_none': (
     'Bu sayfada gömülü görsel yok.',

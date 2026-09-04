@@ -6,6 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/crash_log.dart';
 import '../../core/snack.dart';
+import '../../core/app_version.dart';
 
 /// **Hata kayıtları ekranı** — cihazda tutulan çökme/hata raporlarını AYNEN
 /// gösterir, kullanıcı isterse paylaşır ya da siler.
@@ -39,7 +40,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
     final records = _records;
     if (records == null || records.isEmpty) return;
     await Share.share(CrashLog.asShareText(records),
-        subject: 'Dosya Okuyucu ${CrashLog.appVersion} — hata kaydı');
+        subject: 'Dosya Okuyucu $appVersionFull — hata kaydı');
   }
 
   Future<void> _clear() async {

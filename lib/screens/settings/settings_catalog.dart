@@ -5,7 +5,6 @@ import '../../core/app_state.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/settings_search.dart';
-import '../../services/crash_log.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import 'tiles_account.dart';
@@ -18,6 +17,7 @@ import 'tiles_privacy.dart';
 import 'tiles_reading.dart';
 import 'tiles_system.dart';
 import 'tiles_trash.dart';
+import '../../core/app_version.dart';
 
 /// **Ayarların tek kaynağı.**
 ///
@@ -515,7 +515,7 @@ List<SettingsCategory> settingsCategories() => [
         icon: Icons.info_outline,
         titleKey: 'settings.about',
         subtitleKey: 'settings.about_sub',
-        summary: (context) => 'v${CrashLog.appVersion}',
+        summary: (context) => 'v$appVersionName',
         sections: const [
           SettingsSection('settings.about', [
             SettingRow(

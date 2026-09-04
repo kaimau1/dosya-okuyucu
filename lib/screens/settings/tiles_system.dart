@@ -16,6 +16,7 @@ import 'crash_log_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
 import '../../core/snack.dart';
+import '../../core/app_version.dart';
 
 /// Ekranın yüksek tazeleme hızı (90/120 Hz).
 ///
@@ -286,7 +287,8 @@ class AboutTile extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
-            child: Text(context.t('settings.about_body'),
+            child: Text(
+                context.t('settings.about_body', {'version': appVersionFull}),
                 style: Theme.of(context).textTheme.bodySmall),
           ),
           // LGPL v3 ATIF YÜKÜMLÜLÜĞÜ: uygulama FFmpeg kütüphanelerini

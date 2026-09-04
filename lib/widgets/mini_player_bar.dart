@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
+import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../screens/fm/audio_player_screen.dart';
@@ -56,6 +58,31 @@ class MiniPlayerBar extends StatefulWidget {
   State<MiniPlayerBar> createState() => _MiniPlayerBarState();
 }
 
+/// **TUZAK — bildirim bir YAPI turunun ortasında gelebilir** (2026-09-04).
+///
+/// Tam oynatıcı ekranları açılırken `initState`te `MiniPlayerBar.hide()`
+/// çağırıyor; bu da `hidden` bildiricisini değiştiriyor. O ekran bir yapı
+/// (build) turunda kurulduğu için dinleyici doğrudan `setState` çağırınca
+/// Flutter *"setState() or markNeedsBuild() called during build"* diye
+/// patlıyordu — yani çalarken tam oynatıcıyı açmak hata üretiyordu.
+///
+/// Çözüm: yapı/yerleşim turunun ortasındaysak yeniden çizim KAREDEN SONRAYA
+/// bırakılıyor. Öteki hâllerde (kullanıcı duraklattı, parça bitti) davranış
+/// aynı: anında.
+void _rebuildSafely(State<StatefulWidget> state) {
+  if (!state.mounted) return;
+  // ignore: invalid_use_of_protected_member
+  void rebuild() => state.setState(() {});
+  if (SchedulerBinding.instance.schedulerPhase ==
+      SchedulerPhase.persistentCallbacks) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (state.mounted) rebuild();
+    });
+    return;
+  }
+  rebuild();
+}
+
 /// İçerik + çubuk. Çubuk yokken içerik hiç sarılmaz (fazladan bir `Column`
 /// bile her ekranın yerleşimini yeniden ölçmek demek).
 class _MiniPlayerHost extends StatefulWidget {
@@ -87,9 +114,7 @@ class _MiniPlayerHostState extends State<_MiniPlayerHost> {
     super.dispose();
   }
 
-  void _onChange() {
-    if (mounted) setState(() {});
-  }
+  void _onChange() => _rebuildSafely(this);
 
   bool get _visible {
     if (MiniPlayerBar.hidden.value > 0) return false;
@@ -144,9 +169,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
     super.dispose();
   }
 
-  void _onChange() {
-    if (mounted) setState(() {});
-  }
+  void _onChange() => _rebuildSafely(this);
 
   /// Video çalıyorsa çubuk onu gösterir: kullanıcı en son onu açmıştır.
   bool get _isVideo => _video.hasVideo;
@@ -171,11 +194,25 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
 
   Future<void> _close() => _isVideo ? _video.close() : _audio.stop();
 
+  /// **TUZAK — çubuğun kendi `context`inde Navigator YOK** (kullanıcı
+  /// çökmesi 2026-09-04: `Null check operator used on a null value`,
+  /// `Navigator.of` → `_MiniPlayerBarState._openFull`).
+  ///
+  /// Çubuk bilinçli olarak `MaterialApp.builder` içinde duruyor (bkz. sınıf
+  /// açıklaması), yani gezinti ağacının **DIŞINDA**. `Navigator.of(context)`
+  /// yukarı doğru arar, hiçbir `Navigator` bulamaz ve `!` ile çöker —
+  /// çubuğa her dokunuşta uygulama kapanıyordu.
+  ///
+  /// Çözüm: uygulamanın kök `navigatorKey`i (zaten `main.dart`ta var ve
+  /// `MaterialApp`a veriliyor). Anahtar bağlı değilse (test, seçici kipi)
+  /// sessizce hiçbir şey yapılmıyor — çökmek yerine dokunuş boşa gider.
   void _openFull() {
     final path = _isVideo ? _video.current : _audio.current;
     if (path.isEmpty) return;
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
     final playlist = _isVideo ? _video.playlist : _audio.playlist;
-    unawaited(Navigator.of(context).push(MaterialPageRoute(
+    unawaited(nav.push(MaterialPageRoute(
       builder: (_) => _isVideo
           ? MediaPlayerScreen(path: path, playlist: playlist)
           : AudioPlayerScreen(path: path, playlist: playlist),
@@ -283,19 +320,30 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      tooltip: context
-                          .t(_playing ? 'mp.pause' : 'mp.play'),
-                      icon: Icon(
-                        _playing ? Icons.pause : Icons.play_arrow,
-                        size: 30,
+                    // **TUZAK — burada `tooltip:` KULLANILAMAZ** (2026-09-04).
+                    // `Tooltip` gösterilirken bir `Overlay` ister; çubuk
+                    // `MaterialApp.builder`da, yani Navigator'ın (ve onun
+                    // Overlay'inin) DIŞINDA duruyor. Uzun basınca hata
+                    // veriyordu. Erişilebilirlik için `Semantics` etiketi
+                    // aynı işi görüyor ve Overlay istemiyor.
+                    Semantics(
+                      label: context.t(_playing ? 'mp.pause' : 'mp.play'),
+                      button: true,
+                      child: IconButton(
+                        icon: Icon(
+                          _playing ? Icons.pause : Icons.play_arrow,
+                          size: 30,
+                        ),
+                        onPressed: () => unawaited(_toggle()),
                       ),
-                      onPressed: () => unawaited(_toggle()),
                     ),
-                    IconButton(
-                      tooltip: context.t('common.close'),
-                      icon: const Icon(Icons.close),
-                      onPressed: () => unawaited(_close()),
+                    Semantics(
+                      label: context.t('common.close'),
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => unawaited(_close()),
+                      ),
                     ),
                   ],
                 ),

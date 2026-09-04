@@ -10881,3 +10881,110 @@ geçirmek olurdu; kopyalama yalnız düğmeye basılınca oluyor.
 **2212 test yeşil** (27 yeni; 9 atlanan önceden var olan),
 `tool/check_kotlin.sh` üç Kotlin dosyasında temiz. Bir önceki turun APK'sı
 (build 341) CI'da yeşil derlendi ve yayımlandı.
+
+## 2026-09-04 (yirminci tur) — PDF çözümlemesi, sürüm numarası, üç çökme
+
+Kullanıcı: *"PDF kısmında düzeltmeler lazım, ayrıca otonom olarak araştır ve
+geliştir"*, *"sürüm numaramız sürekli 0.1, bunu değiştir ve her güncellemede
+ilerlesin"* + 5 kayıtlı hata (ekran görüntüsüyle birlikte).
+
+### A) KÖK NEDEN — "sayfada ne metin ne görsel var" diyen PDF
+Ekran görüntüsünde sayfada **iki büyük görsel** duruyor, düzenleyici
+"Bu sayfada gömülü görsel yok" **ve** "düzenlenebilir metin bulunamadı"
+diyor. İki sessiz hata birden çıktı, ikisi de `pdf_objects.dart`ta:
+
+1. **`/Filter [/FlateDecode]` (dizi yazımı) okunmuyordu.** `pdfName` yalnız
+   `/Filter /Ad` biçimini tanıyor; dizi yazımında `null` dönüyor ve
+   `decodeStream` *"filtre yok"* varsayıp **sıkıştırılmış baytları içerik
+   akışı gibi** geri veriyordu. Ayrıştırıcı o çöpte hiçbir operatör bulamıyor
+   → sayfa boş görünüyor, **hata da vermiyor**. Üreticilerin yarısı filtreyi
+   dizi olarak yazar.
+2. **`/Resources << /XObject 12 0 R >>` (dolaylı kategori sözlüğü).**
+   `resourceRefsIn` yalnız satır içi `<< … >>` yazımını tanıyordu; dolaylı
+   yazımda kaynak tablosu boş çıkıyor, sayfa "görselsiz" oluyordu.
+   Ghostscript, tarayıcı sürücüleri ve "yazdır → PDF" çıktıları böyle yazar.
+
+Aynı turda `decodeStream` genişledi: **filtre zinciri** (dizi sırayla),
+`LZWDecode` / `ASCII85Decode` / `ASCIIHexDecode` / `RunLengthDecode`
+(`lib/services/pdf/pdf_filters.dart`, hepsi saf ve testli) ve
+`/DecodeParms /Predictor` (PNG süzgeçleri + TIFF). **Tanınmayan filtrede
+artık FIRLATILIYOR** — eskiden ham bayt dönüyordu; sessizce çöp veriyle
+"düzenledim" demektense reddetmek yeğdir.
+
+### B) Yapıdaki öteki sessiz boşluklar
+* **`/Contents 6 0 R` → dolaylı DİZİ**: içerik birden çok akışa bölünmüşse
+  dizi ayrı bir nesne olabilir. Eskiden "Bu sayfanın içeriği okunamadı".
+* **Ters yazılmış `/MediaBox [0 600 400 0]`**: PDF bunu yasaklamıyor,
+  okuyucunun düzeltmesini bekliyor. Düzeltmeyince sayfa yüksekliği NEGATİF
+  çıkıyor ve hem paragraf taşma sınırı hem görsel yerleştirme bozuluyordu.
+* **Satır içi görseller (`BI … ID … EI`)** artık kutusuyla LİSTELENİYOR
+  (`PdfPageObject.isInline`, `editable: false`): gözle görülen bir görsele
+  "yok" demek en kötü cevaptı. Düzenlenmiyor — baytlarını yerinde
+  değiştirmek akışı yeniden kodlamak demek, kazandığından çok riski var.
+
+### C) Arayüz: "yok" ile "çözümlenemedi" artık ayrı
+Sayfa çözümlemesi reddedilince sebep bir anlık şeritte geçip gidiyor,
+geriye "bu sayfada bir şey yok" mesajı kalıyordu — yani **hata, boş sayfa
+gibi görünüyordu**. Artık sebep şeritte KALICI (`pe.hint_failed`).
+Ayrıca görsellerin hepsi kilitliyse ayrı bir metin (`pe.hint_image_locked`)
+ve kilitli görsel seçilince çalışmayan döndür/sil düğmeleri yerine tek
+satırlık açıklama (`pe.object_locked`).
+
+### D) SÜRÜM NUMARASI — artık her derlemede ilerliyor
+Numara üç yerde ayrı ayrı elle yazılıydı (`pubspec.yaml`,
+`CrashLog.appVersion`, Hakkında metni) ve hiçbiri güncellenmediği için
+uygulama **340 derlemedir "0.1.0"** diyordu; kullanıcı hangi APK'yı
+kurduğunu bilemiyordu (hata raporunun başlığı da öyle).
+
+Tek kaynak: **`lib/core/app_version.dart`**. Ana/ara numara orada elle,
+**yama numarası CI'nın koşu sayacından** (`Sürüm numarasını belirle` adımı
+`sed`liyor). Aynı numara `versionName`, `versionCode`, Release etiketi
+(`v1.0.<koşu>`) ve uygulamanın içinde yazan sürüm — dördü birden aynı.
+Depodaki dosyaya dokunulmuyor (yalnız derleme kopyası), yani main'e geri
+yazan adım ve sonsuz döngü riski yok.
+`package_info_plus` bilinçli olarak EKLENMEDİ: CI'da `flutter create` ile
+üretilen Android iskeleti bu projenin en kırılgan yeri.
+Sürüm notu da artık numarayı, commit'i ve son 8 değişikliği yazıyor
+(`fetch-depth: 20` bu yüzden).
+
+### E) Üç çökme — biri kullanıcının kaydından, İKİSİ yeni testin bulduğu
+1. **`Navigator.of` → `Null check operator used on a null value`**
+   (kullanıcı kaydı, `mini_player_bar.dart:178`). Çubuk bilinçli olarak
+   `MaterialApp.builder`da, yani **gezinti ağacının DIŞINDA**;
+   `Navigator.of(context)` hiçbir `Navigator` bulamayıp `!` ile çöküyordu —
+   çubuğa her dokunuş uygulamayı kapatıyordu. Kök `navigatorKey` kullanılıyor
+   (yeni `lib/core/app_navigator.dart`; `main.dart`tan taşındı ki widget'lar
+   uygulamanın tamamını içeri almasın).
+2. **`Tooltip` → `No Overlay widget found`.** Aynı sebep: `Overlay`
+   Navigator'ın içinde. Uzun basınca hata veriyordu. `tooltip:` yerine
+   `Semantics(label:)` — aynı erişilebilirlik, Overlay istemiyor.
+3. **`setState() called during build`.** Tam oynatıcı ekranı `initState`te
+   `MiniPlayerBar.hide()` çağırıyor, o da `hidden` bildiricisini
+   değiştiriyor; dinleyici bir YAPI turunun ortasında `setState` çağırınca
+   Flutter patlıyordu — yani çalarken tam oynatıcıyı açmak hata üretiyordu.
+   `_rebuildSafely`: yapı turundaysak yeniden çizim kareden sonraya bırakılır.
+
+**TUZAK — testin yerleşimi ürününkinden farklıysa hata görünmez.** Eski
+`mini_player_bar_test` çubuğu `MaterialApp(home:)` içine koyuyordu; ORADA
+Navigator ve Overlay VAR. Üç hata da ancak test ürünün gerçek yerleşimini
+(`MaterialApp(builder:)`) kurunca ortaya çıktı. Yeni testler o yerleşimi
+kullanıyor.
+
+### F) Oynatıcı çağrıları artık yakalanıyor
+Hata kaydındaki `PlatformException(AndroidAudioError, MEDIA_ERROR_SERVER_DIED)`
+ve `Failed to set source` düğmeden `unawaited` başlayan `Future`larda
+patlıyor, kimse yakalamıyordu → **yakalanmamış asenkron hata**; kullanıcı
+için "bastım, bir şey olmadı". `toggle/seek/setSpeed` (ses ve video) tek
+kapıdan (`_guard`) geçiyor: hata ekrana yazılıyor, medya sunucusu ölmüşse
+oynatıcı yenilenip parça kaldığı yerden kuruluyor. `stop()` de ölü
+oynatıcıda fırlıyordu; hata yutuluyor çünkü temizlik her hâlükârda
+çalışmalı (yoksa çubuk ekranda kalırdı).
+
+**Not:** kaydın `/mnt/media_rw` (`FileSystemException: Exists failed`)
+maddeleri 2026-09-02 tarihli ve o gün zaten düzeltilmişti
+(`StorageStats.entriesOf` / `dirExists` tek `try` içinde) — kullanıcının
+telefonundaki APK o düzeltmeden eskiydi.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` lib+test 0 sorun,
+**2230 test yeşil** (18 yeni; 9 atlanan önceden var olan). `ci/*.kt`
+değişmedi, Kotlin denetimi gerekmedi.

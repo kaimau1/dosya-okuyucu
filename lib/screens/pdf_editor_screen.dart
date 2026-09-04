@@ -84,6 +84,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   int _page = 1;
   int _pageCount = 0;
   PdfPageOutline _outline = PdfPageOutline.empty;
+
+  /// Sayfa çözümlemesi REDDEDİLDİYSE sebebi (şeritte kalıcı olarak yazar).
+  ///
+  /// Kullanıcı bulgusu 2026-09-04: bir belgede hem "gömülü görsel yok" hem
+  /// "düzenlenebilir metin yok" yazıyordu, oysa sayfada iki büyük görsel
+  /// duruyordu. Çözümleme aslında HATA vermişti; hata bir anlık şeritte
+  /// geçip gidiyor, geriye "boş sayfa" mesajı kalıyordu. Artık sebep ekranda
+  /// duruyor — kullanıcı da, biz de neyin olmadığını görebiliyoruz.
+  String? _outlineError;
   List<PdfBackgroundEntry> _background = const [];
   final Set<int> _backgroundPicked = {};
 
@@ -169,6 +178,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _outline = outline;
         _selectedObject = null;
         _error = null;
+        _outlineError = null;
         // Taranmış aday iki türlü olur: (1) hiç metin yok, (2) metin VAR ama
         // görünmez — "aranabilir PDF"in OCR katmanı (kullanıcı bulgusu
         // 2026-08-06: aranabilir tarattığı belgede düzeltme çubuğu hiç
@@ -178,10 +188,20 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         }
       });
     } on PdfPageRefused catch (e) {
-      if (mounted) setState(() => _outline = PdfPageOutline.empty);
+      if (mounted) {
+        setState(() {
+          _outline = PdfPageOutline.empty;
+          _outlineError = e.message;
+        });
+      }
       _snack(e.message);
     } catch (e) {
-      if (mounted) setState(() => _outline = PdfPageOutline.empty);
+      if (mounted) {
+        setState(() {
+          _outline = PdfPageOutline.empty;
+          _outlineError = '$e';
+        });
+      }
       _snack(_str.t('pe.outline_failed', {'error': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -741,17 +761,29 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   /// Kullanıcı ne yapacağını bilsin: her modda tek cümlelik yönerge.
   Widget _hintBar() {
-    final text = context.t(switch (_mode) {
-      _EditMode.text => _outline.paragraphs.isEmpty
-          ? (_scannedPages.contains(_page) && PdfOcrText.isSupported
-              ? 'pe.hint_text_scanned'
-              : 'pe.hint_text_none')
-          : 'pe.hint_text',
-      _EditMode.image =>
-        _outline.objects.isEmpty ? 'pe.hint_image_none' : 'pe.hint_image',
-      _EditMode.background => 'pe.hint_background',
-      _EditMode.page => 'pe.hint_page',
-    });
+    final failure = _outlineError;
+    // Çözümleme reddedildiyse "burada bir şey yok" DEMEK yanlış olur: sebebi
+    // yazıyoruz (2026-09-04).
+    final text = failure != null &&
+            (_mode == _EditMode.text || _mode == _EditMode.image)
+        ? context.t('pe.hint_failed', {'error': failure})
+        : context.t(switch (_mode) {
+            _EditMode.text => _outline.paragraphs.isEmpty
+                ? (_scannedPages.contains(_page) && PdfOcrText.isSupported
+                    ? 'pe.hint_text_scanned'
+                    : 'pe.hint_text_none')
+                : 'pe.hint_text',
+            _EditMode.image => switch (_outline.objects) {
+                [] => 'pe.hint_image_none',
+                // Görselin hepsi kilitliyse "dokunup seçin" demek boşuna bir
+                // davet olurdu.
+                final list when list.every((o) => !o.editable) =>
+                  'pe.hint_image_locked',
+                _ => 'pe.hint_image',
+              },
+            _EditMode.background => 'pe.hint_background',
+            _EditMode.page => 'pe.hint_page',
+          });
     return Container(
       width: double.infinity,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -806,6 +838,35 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// üst üste bindirirdi; simgeler ipuçlarıyla (tooltip) adlandırıldı.
   Widget _objectToolbar() {
     final index = _selectedObject!;
+    // Kilitli görselde (paylaşılan çizim bloğu / satır içi görsel) döndürme
+    // ve silme düğmeleri çalışmıyordu; basınca reddeden bir mesaj çıkıyordu.
+    // Artık hiç GÖSTERİLMİYOR — çalışmayan düğme, olmayan düğmeden kötüdür.
+    final locked = index >= 0 &&
+        index < _outline.objects.length &&
+        !_outline.objects[index].editable;
+    if (locked) {
+      return Card(
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(context.t('pe.object_locked'),
+                    style: const TextStyle(fontSize: 13)),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedObject = null),
+                child: Text(context.t('pe.clear_selection')),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     Widget turn(IconData icon, String key, {int turns = 0, bool h = false, bool v = false}) =>
         IconButton(
           tooltip: context.t(key),

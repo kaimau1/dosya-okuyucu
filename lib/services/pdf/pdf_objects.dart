@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 import 'pdf_dict.dart';
+import 'pdf_filters.dart';
 import 'pdf_font_map.dart';
 import 'pdf_font_metrics.dart';
 
@@ -143,12 +144,196 @@ class PdfFile {
   bool get isEncrypted => RegExp(r'/Encrypt\b').hasMatch(trailerText);
 
   /// Akışın çözülmüş (filtresi açılmış) baytları.
+  ///
+  /// **Kullanıcı bulgusu 2026-09-04 — "PDF'te düzeltmeler lazım":** bir
+  /// belgede düzenleyici hem *"Bu sayfada gömülü görsel yok"* hem de *"Bu
+  /// sayfada düzenlenebilir metin bulunamadı"* diyordu, oysa sayfada iki
+  /// büyük görsel duruyordu. Sebep buradaydı: filtre **dizi** yazıldığında
+  /// (`/Filter [/FlateDecode]` — üreticilerin yarısı böyle yazar)
+  /// [pdfName] null dönüyordu ve kod *"filtre yok"* varsayıp **sıkıştırılmış
+  /// baytları ham içerik akışı gibi** geri veriyordu. Ayrıştırıcı o çöpte
+  /// hiçbir operatör bulamıyor, sayfa boş görünüyordu — hata da vermiyordu,
+  /// yani en kötü türden bir sessiz başarısızlık.
+  ///
+  /// Üç şey değişti:
+  /// 1. Filtre **zinciri** destekleniyor (dizi, sırayla uygulanır).
+  /// 2. Metin akışlarında gerçekten karşılaşılan öteki filtreler eklendi:
+  ///    `LZWDecode`, `ASCII85Decode`, `ASCIIHexDecode`, `RunLengthDecode` —
+  ///    ve `/DecodeParms /Predictor` (PNG/TIFF ön kestirimi).
+  /// 3. **Tanınmayan filtrede artık FIRLATILIYOR** (eskiden ham bayt
+  ///    dönüyordu). Çağıranların hepsi hatayı yakalayıp işlemi reddediyor;
+  ///    bozuk veriyle "başarıyla düzenledim" demektense reddetmek yeğdir.
   List<int> decodeStream(PdfObject obj) {
-    final data = obj.rawData(bytes);
-    final filter = pdfName(obj.dict, 'Filter');
-    if (filter == null) return data;
-    if (filter == 'FlateDecode') return const ZLibDecoder().decodeBytes(data);
-    throw UnsupportedError('Desteklenmeyen akış filtresi: /$filter');
+    var data = obj.rawData(bytes);
+    final filters = _filterChain(obj.dict);
+    if (filters.isEmpty) return data;
+    final parms = _decodeParmsChain(obj.dict, filters.length);
+    for (var i = 0; i < filters.length; i++) {
+      data = _applyFilter(filters[i], data, parms[i]);
+    }
+    return data;
+  }
+
+  /// `/Filter` — tek ad ya da dizi; her iki yazım da aynı listeye çıkar.
+  static List<String> _filterChain(String dict) {
+    final array = pdfArray(dict, 'Filter');
+    if (array != null) {
+      return [
+        for (final m in RegExp(r'/([A-Za-z0-9]+)').allMatches(array))
+          m.group(1)!,
+      ];
+    }
+    final single = pdfName(dict, 'Filter');
+    return single == null ? const [] : [single];
+  }
+
+  /// `/DecodeParms` — filtre başına bir sözlük metni (yoksa null).
+  /// Dizi yazımında sıra `/Filter` ile birebir eşleşir; `null` girdiler
+  /// (parametresiz filtreler) yerinde korunur.
+  static List<String?> _decodeParmsChain(String dict, int count) {
+    final out = List<String?>.filled(count, null);
+    final array = pdfArray(dict, 'DecodeParms');
+    if (array != null) {
+      // İç içe sözlükler girdi SAYILMAMALI: bir girdiyi okuduktan sonra
+      // tarama onun bitişinden devam ediyor.
+      var i = 0;
+      var at = 0;
+      while (at < array.length && i < count) {
+        if (at + 1 < array.length && array[at] == '<' && array[at + 1] == '<') {
+          final body = _dictionaryAt(array, at);
+          if (body == null) break;
+          out[i] = body;
+          at += body.length;
+          i++;
+          continue;
+        }
+        if (array.startsWith('null', at)) {
+          at += 4;
+          i++;
+          continue;
+        }
+        at++;
+      }
+      return out;
+    }
+    final single = _subDictionary(dict, 'DecodeParms');
+    if (single != null && count > 0) out[0] = single;
+    return out;
+  }
+
+  /// [from] konumundaki `<<` ile başlayan sözlüğün metni (iç içe sayar).
+  static String? _dictionaryAt(String text, int from) {
+    var depth = 0;
+    for (var i = from; i + 1 < text.length; i++) {
+      if (text[i] == '<' && text[i + 1] == '<') {
+        depth++;
+        i++;
+      } else if (text[i] == '>' && text[i + 1] == '>') {
+        depth--;
+        i++;
+        if (depth == 0) return text.substring(from, i + 1);
+      }
+    }
+    return null;
+  }
+
+  static List<int> _applyFilter(String filter, List<int> data, String? parms) {
+    switch (filter) {
+      case 'FlateDecode':
+      case 'Fl':
+        return _unpredict(const ZLibDecoder().decodeBytes(data), parms);
+      case 'LZWDecode':
+      case 'LZW':
+        return _unpredict(
+            pdfLzwDecode(data, early: pdfInt(parms ?? '', 'EarlyChange') ?? 1),
+            parms);
+      case 'ASCII85Decode':
+      case 'A85':
+        return pdfAscii85Decode(data);
+      case 'ASCIIHexDecode':
+      case 'AHx':
+        return pdfAsciiHexDecode(data);
+      case 'RunLengthDecode':
+      case 'RL':
+        return pdfRunLengthDecode(data);
+      case 'Crypt':
+        return data; // /Identity dışı zaten şifreli belge demek (reddediliyor)
+      default:
+        // Görüntü filtreleri (DCTDecode/JPXDecode/CCITTFaxDecode/JBIG2Decode)
+        // burada BİLİNÇLİ olarak desteklenmiyor: içerik akışı değiller ve
+        // çözülmüş görüntü baytıyla yapacağımız bir şey yok.
+        throw UnsupportedError('Desteklenmeyen akış filtresi: /$filter');
+    }
+  }
+
+  /// PNG/TIFF **ön kestirimi** (`/Predictor`) geri alınır.
+  ///
+  /// XRef akışlarında neredeyse zorunlu, içerik akışlarında da görülüyor.
+  /// Geri alınmazsa çözülmüş baytlar satır satır kaymış çıkar ve ayrıştırıcı
+  /// yine boş sayfa görür.
+  static List<int> _unpredict(List<int> data, String? parms) {
+    if (parms == null) return data;
+    final predictor = pdfInt(parms, 'Predictor') ?? 1;
+    if (predictor <= 1) return data;
+    final colors = pdfInt(parms, 'Colors') ?? 1;
+    final bpc = pdfInt(parms, 'BitsPerComponent') ?? 8;
+    final columns = pdfInt(parms, 'Columns') ?? 1;
+    final bpp = ((colors * bpc + 7) ~/ 8).clamp(1, 32);
+    final rowLength = (columns * colors * bpc + 7) ~/ 8;
+    if (rowLength <= 0) return data;
+
+    // TIFF (2) — yalnız 8 bitlik hâli yaygın; ötekini olduğu gibi bırakıyoruz.
+    if (predictor == 2) {
+      if (bpc != 8) return data;
+      final out = List<int>.of(data);
+      for (var row = 0; row + rowLength <= out.length; row += rowLength) {
+        for (var i = bpp; i < rowLength; i++) {
+          out[row + i] = (out[row + i] + out[row + i - bpp]) & 0xFF;
+        }
+      }
+      return out;
+    }
+
+    // PNG (10-15): her satırın başında bir süzgeç baytı vardır.
+    final out = <int>[];
+    final prior = List<int>.filled(rowLength, 0);
+    var at = 0;
+    while (at + 1 <= data.length - 1) {
+      final tag = data[at];
+      at++;
+      final row = List<int>.filled(rowLength, 0);
+      final take = rowLength <= data.length - at ? rowLength : data.length - at;
+      for (var i = 0; i < take; i++) {
+        row[i] = data[at + i];
+      }
+      at += take;
+      for (var i = 0; i < rowLength; i++) {
+        final left = i >= bpp ? row[i - bpp] : 0;
+        final up = prior[i];
+        final upLeft = i >= bpp ? prior[i - bpp] : 0;
+        row[i] = switch (tag) {
+          0 => row[i],
+          1 => (row[i] + left) & 0xFF,
+          2 => (row[i] + up) & 0xFF,
+          3 => (row[i] + (left + up) ~/ 2) & 0xFF,
+          4 => (row[i] + _paeth(left, up, upLeft)) & 0xFF,
+          _ => row[i],
+        };
+      }
+      out.addAll(row);
+      prior.setAll(0, row);
+      if (take < rowLength) break;
+    }
+    return out;
+  }
+
+  static int _paeth(int a, int b, int c) {
+    final p = a + b - c;
+    final pa = (p - a).abs();
+    final pb = (p - b).abs();
+    final pc = (p - c).abs();
+    if (pa <= pb && pa <= pc) return a;
+    return pb <= pc ? b : c;
   }
 
   /// Sayfa nesneleri, belgedeki sırayla. Sayfa ağacı yürünemezse boş.
@@ -184,7 +369,18 @@ class PdfFile {
   /// [page] sayfasının içerik akışı nesneleri, sırayla.
   List<PdfObject> contentsOf(PdfObject page) {
     final single = pdfRef(page.dict, 'Contents');
-    final refs = single != null ? [single] : pdfRefArray(page.dict, 'Contents');
+    var refs = single != null ? [single] : pdfRefArray(page.dict, 'Contents');
+    // **`/Contents 7 0 R` DİZİYİ gösteriyor olabilir** — sayfanın içeriği
+    // birden çok akışa bölünmüşse dizi ayrı bir nesne olarak yazılabilir
+    // (PDF'te her nesne dolaylı olabilir). Eskiden bu belgede içerik "boş"
+    // çıkıyor ve düzenleyici *"Bu sayfanın içeriği okunamadı"* diyordu.
+    if (refs.length == 1) {
+      final target = objects[refs.first];
+      if (target != null && !target.isStream) {
+        final inner = pdfRefArrayBody(target.dict);
+        if (inner.isNotEmpty) refs = inner;
+      }
+    }
     return [
       for (final ref in refs)
         if (objects[ref] != null && objects[ref]!.isStream) objects[ref]!,
@@ -267,7 +463,17 @@ class PdfFile {
   /// form içindeki `/Im1` sayfanın değil FORMUN tablosunda aranır.
   Map<String, int> resourceRefsIn(String? resources, String category) {
     if (resources == null) return const {};
-    final dict = _subDictionary(resources, category);
+    // **Kategori sözlüğü DOLAYLI da olabilir** (kullanıcı bulgusu
+    // 2026-09-04): `/Resources << /XObject 12 0 R >>` de geçerli PDF'tir ve
+    // Ghostscript, birçok tarayıcı sürücüsü ile "yazdır → PDF" çıktıları
+    // böyle yazar. Eski kod yalnız satır içi `<< … >>` yazımını tanıyordu,
+    // dolaylı yazımda kaynak tablosu BOŞ çıkıyor ve sayfa "görselsiz"
+    // görünüyordu.
+    var dict = _subDictionary(resources, category);
+    if (dict == null) {
+      final ref = pdfRef(resources, category);
+      if (ref != null) dict = objects[ref]?.dict;
+    }
     if (dict == null) return const {};
     return {
       for (final m
@@ -335,7 +541,15 @@ class PdfFile {
               .allMatches(body)
               .map((m) => double.tryParse(m.group(0)!) ?? 0)
               .toList();
-          if (numbers.length >= 4) return numbers.sublist(0, 4);
+          if (numbers.length >= 4) {
+            // **Kutu ters yazılmış olabilir** (`[0 842 595 0]` — PDF bunu
+            // yasaklamaz, okuyucunun düzeltmesini bekler). Düzeltmezsek
+            // sayfa yüksekliği NEGATİF çıkıyor ve hem paragraf taşma sınırı
+            // hem de görsel yerleştirme sessizce bozuluyordu.
+            final x = [numbers[0], numbers[2]]..sort();
+            final y = [numbers[1], numbers[3]]..sort();
+            return [x[0], y[0], x[1], y[1]];
+          }
         }
       }
       final parent = pdfRef(node.dict, 'Parent');

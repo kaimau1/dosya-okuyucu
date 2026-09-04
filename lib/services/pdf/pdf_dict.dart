@@ -34,6 +34,20 @@ List<int> pdfRefArray(String dict, String key) {
       .toList();
 }
 
+/// Bir nesnenin gövdesi **doğrudan bir dizi** ise (`[3 0 R 4 0 R]`) içindeki
+/// başvurular. Sözlük değil, dizi olan nesneler için — `/Contents`in dolaylı
+/// yazımında gerekiyor.
+List<int> pdfRefArrayBody(String body) {
+  final open = body.indexOf('[');
+  if (open < 0) return const [];
+  final close = body.lastIndexOf(']');
+  if (close <= open) return const [];
+  return RegExp(r'(\d+)\s+\d+\s+R')
+      .allMatches(body.substring(open + 1, close))
+      .map((r) => int.parse(r.group(1)!))
+      .toList();
+}
+
 /// `/Anahtar [ … ]` dizisinin İÇ metni (köşeli parantezler hariç).
 ///
 /// İç içe diziler sayılır: `/W [ 3 [ 250 333 ] 10 20 500 ]` gibi CID genişlik
