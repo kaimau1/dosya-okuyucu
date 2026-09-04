@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -375,6 +376,152 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     if (mounted) _selection.value = {to};
   }
 
+  /// **Sayfayı istenen konuma taşı** (kullanıcı isteği 2026-09-03).
+  ///
+  /// Tek adımlık ileri/geri düğmeleri duruyor (bir komşuyla yer değiştirmek
+  /// en sık iş) ama 200 sayfalık bir belgede 60. sayfayı başa almak 60
+  /// dokunuş demekti. Burada hedef sayfa numarası soruluyor.
+  Future<void> _moveTo() async {
+    if (_selected.length != 1) return;
+    final from = _selected.first;
+    final total = await _pageCount();
+    if (!mounted) return;
+    final controller = TextEditingController(text: '${from + 1}');
+    final target = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('pt.move_to')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: ctx.t('pt.move_to_hint', {'n': '$total'}),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(ctx, int.tryParse(controller.text.trim())),
+            child: Text(ctx.t('common.ok')),
+          ),
+        ],
+      ),
+    );
+    if (target == null || target < 1 || target > total) return;
+    final to = target - 1;
+    if (to == from) return;
+    if (!await _confirmAnnotationLoss(_str.t('pt.op_move_page'))) return;
+    final pw = _password;
+    await _apply(_str.t('pt.op_move'),
+        (b) => PdfTools.movePageInBackground(b, from: from, to: to, password: pw));
+    if (mounted) _selection.value = {to};
+  }
+
+  /// Seçili sayfaları hemen arkalarına çoğaltır.
+  Future<void> _duplicateSelected() async {
+    if (_selected.isEmpty) return;
+    if (!await _confirmAnnotationLoss(_str.t('pt.op_duplicate'))) return;
+    final pages = _selected.toList();
+    final pw = _password;
+    await _apply(_str.t('pt.op_duplicate'),
+        (b) => PdfTools.duplicatePagesInBackground(b, pages, password: pw));
+  }
+
+  /// Belgeyi ters sıraya çevirir (ters taranmış belgelerin tek adımlık çözümü).
+  Future<void> _reverse() async {
+    if (!await _confirmAnnotationLoss(_str.t('pt.op_reverse'))) return;
+    final pw = _password;
+    await _apply(_str.t('pt.op_reverse'),
+        (b) => PdfTools.reversePagesInBackground(b, password: pw));
+  }
+
+  /// Seçili sayfadan ÖNCE (seçim yoksa sona) boş sayfa ekler.
+  ///
+  /// Yerinde çalışıyor: vurgular korunuyor, bu yüzden uyarı sorulmuyor.
+  Future<void> _insertBlank() async {
+    final total = await _pageCount();
+    final at = _selected.isEmpty ? total : _selected.reduce((a, b) => a < b ? a : b);
+    final pw = _password;
+    await _apply(_str.t('pt.op_insert_blank'),
+        (b) => PdfTools.insertBlankPageInBackground(b, index: at, password: pw));
+  }
+
+  /// Belgeyi N sayfalık parçalara böler ve **ayrı dosyalar** olarak yazar.
+  Future<void> _splitEvery() async {
+    final total = await _pageCount();
+    if (total < 2) {
+      _snack(_str.t('pt.split_too_short'));
+      return;
+    }
+    if (!mounted) return;
+    final size = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.t('pt.split_every')),
+        children: [
+          for (final n in const [1, 2, 5, 10])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, n),
+              child: Text(ctx.t('pt.split_size', {'n': '$n'})),
+            ),
+        ],
+      ),
+    );
+    if (size == null) return;
+    final bytes = _bytes;
+    if (bytes == null) return;
+    final pw = _password;
+    setState(() => _busyLabel = '${_str.t('pt.op_split')}…');
+    try {
+      final parts = await PdfTools.splitEvery(bytes, size: size, password: pw);
+      final dir = p.dirname(widget.path);
+      final base = p.basenameWithoutExtension(widget.path);
+      final written = <String>[];
+      for (var i = 0; i < parts.length; i++) {
+        // Var olan dosyanın üstüne YAZMA: kullanıcının belgesi gitmesin.
+        var target = p.join(dir, '$base-${i + 1}.pdf');
+        var n = 1;
+        while (File(target).existsSync()) {
+          target = p.join(dir, '$base-${i + 1}($n).pdf');
+          n++;
+        }
+        await File(target).writeAsBytes(parts[i], flush: true);
+        written.add(target);
+      }
+      if (mounted) _snack(_str.t('pt.split_done', {'n': written.length}));
+    } catch (e) {
+      if (mounted) {
+        _snack(_str.t('pt.op_failed',
+            {'label': _str.t('pt.op_split'), 'error': e}));
+      }
+    } finally {
+      if (mounted) setState(() => _busyLabel = '');
+    }
+  }
+
+  /// Tüm sayfaları seçer / seçimi kaldırır.
+  Future<void> _selectAll() async {
+    final total = await _pageCount();
+    if (!mounted) return;
+    _selection.value = _selected.length == total
+        ? <int>{}
+        : {for (var i = 0; i < total; i++) i};
+  }
+
+  /// Seçimi tersine çevirir ("üç sayfa hariç hepsini sil" için tek dokunuş).
+  Future<void> _invertSelection() async {
+    final total = await _pageCount();
+    if (!mounted) return;
+    _selection.value = {
+      for (var i = 0; i < total; i++)
+        if (!_selected.contains(i)) i,
+    };
+  }
+
   Future<void> _mergeOther() async {
     final res = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -604,6 +751,23 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
           title: Text(p.basename(widget.path),
               maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
+            // Tümünü seç / seçimi ters çevir: 200 sayfalık bir belgede tek
+            // tek dokunmak (eski tek yol) kullanılabilir bir şey değildi.
+            ValueListenableBuilder<Set<int>>(
+              valueListenable: _selection,
+              builder: (context, selection, _) => IconButton(
+                tooltip: context.t(selection.isEmpty
+                    ? 'pt.select_all'
+                    : 'pt.invert_selection'),
+                icon: Icon(selection.isEmpty
+                    ? Icons.select_all
+                    : Icons.flip_to_back),
+                onPressed: _busy
+                    ? null
+                    : () => unawaited(
+                        selection.isEmpty ? _selectAll() : _invertSelection()),
+              ),
+            ),
             IconButton(
               tooltip: context.t('common.undo'),
               icon: const Icon(Icons.undo),
@@ -618,6 +782,11 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
               onSelected: (v) => switch (v) {
                 'scan' => _scanAndAppend(),
                 'merge' => _mergeOther(),
+                'move_to' => _moveTo(),
+                'duplicate' => _duplicateSelected(),
+                'insert_blank' => _insertBlank(),
+                'reverse' => _reverse(),
+                'split' => _splitEvery(),
                 'compress' => _compress(),
                 'numbers' => _addPageNumbers(),
                 'watermark' => _addWatermark(),
@@ -628,6 +797,26 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 _ => null,
               },
               itemBuilder: (_) => [
+                // **Sayfa düzeni işlemleri en üstte** (kullanıcı isteği
+                // 2026-09-03): en sık istenen şey sayfaları düzeltmek.
+                PopupMenuItem(
+                  value: 'move_to',
+                  enabled: _selection.value.length == 1,
+                  child: Text(context.t('pt.move_to')),
+                ),
+                PopupMenuItem(
+                  value: 'duplicate',
+                  enabled: _selection.value.isNotEmpty,
+                  child: Text(context.t('pt.op_duplicate')),
+                ),
+                PopupMenuItem(
+                    value: 'insert_blank',
+                    child: Text(context.t('pt.op_insert_blank'))),
+                PopupMenuItem(
+                    value: 'reverse', child: Text(context.t('pt.op_reverse'))),
+                PopupMenuItem(
+                    value: 'split', child: Text(context.t('pt.split_every'))),
+                const PopupMenuDivider(),
                 PopupMenuItem(
                     value: 'scan', child: Text(context.t('pt.scan_append'))),
                 PopupMenuItem(

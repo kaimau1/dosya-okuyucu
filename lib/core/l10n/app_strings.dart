@@ -2552,12 +2552,95 @@ const Map<String, (String, String, String)> _table = {
   ),
   'usb.open_raw': ('Belleği doğrudan aç', 'Open the drive directly', 'افتح المحرك مباشرة'),
   'usb.open_raw_hint': (
-    'Android bağlamasa da uygulama belleği kendi sürer. FAT32/FAT16 belleklere '
-    'yazma da açık; exFAT ve NTFS şimdilik salt okunur.',
+    'Android bağlamasa da uygulama belleği kendi sürer. FAT16/FAT32 ve exFAT '
+    'belleklerde okuma da yazma da açık; NTFS salt okunur.',
     'The app drives the device itself even if Android did not mount it. '
-    'Writing works on FAT32/FAT16; exFAT and NTFS are read-only for now.',
-    'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. الكتابة متاحة على '
-    'FAT32/FAT16 فقط.',
+    'FAT16/FAT32 and exFAT can be read and written; NTFS is read-only.',
+    'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. القراءة والكتابة '
+    'متاحتان على FAT16/FAT32 و exFAT؛ أما NTFS فللقراءة فقط.',
+  ),
+  'pt.move_to': ('Sayfayı taşı…', 'Move page to…', 'نقل الصفحة إلى…'),
+  'pt.move_to_hint': (
+    'Hedef sayfa numarası (1-{n})',
+    'Target page number (1-{n})',
+    'رقم الصفحة الهدف (1-{n})',
+  ),
+  'pt.op_duplicate': ('Sayfayı çoğalt', 'Duplicate page', 'تكرار الصفحة'),
+  'pt.op_insert_blank': ('Boş sayfa ekle', 'Insert blank page', 'إدراج صفحة فارغة'),
+  'pt.op_reverse': ('Sırayı ters çevir', 'Reverse page order', 'عكس ترتيب الصفحات'),
+  'pt.op_split': ('Bölme', 'Splitting', 'تقسيم'),
+  'pt.split_every': ('Parçalara böl…', 'Split into parts…', 'تقسيم إلى أجزاء…'),
+  'pt.split_size': (
+    '{n} sayfalık parçalar',
+    'Parts of {n} pages',
+    'أجزاء من {n} صفحة',
+  ),
+  'pt.split_done': (
+    '{n} dosya yazıldı (belgenin yanına).',
+    '{n} files written next to the document.',
+    'تمت كتابة {n} ملفات بجانب المستند.',
+  ),
+  'pt.split_too_short': (
+    'Bölmek için en az iki sayfa gerekir.',
+    'Splitting needs at least two pages.',
+    'يتطلب التقسيم صفحتين على الأقل.',
+  ),
+  'pt.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'pt.invert_selection': ('Seçimi ters çevir', 'Invert selection', 'عكس التحديد'),
+  'mp.float_window': (
+    'Ekran üstünde oynat',
+    'Play in a floating window',
+    'تشغيل في نافذة عائمة',
+  ),
+  'mp.float_permission': (
+    'Video başka uygulamaların üstünde küçük bir pencerede oynayabilir. '
+    'Bunun için Android\'in "Diğer uygulamaların üzerinde göster" iznini '
+    'vermeniz gerekiyor; ayar ekranını şimdi açalım mı?',
+    'The video can keep playing in a small window on top of other apps. '
+    'Android needs the "Display over other apps" permission for that — '
+    'shall we open the settings screen?',
+    'يمكن تشغيل الفيديو في نافذة صغيرة فوق التطبيقات الأخرى. يتطلب ذلك إذن '
+    '"العرض فوق التطبيقات الأخرى". هل نفتح الإعدادات؟',
+  ),
+  'mp.float_failed': (
+    'Yüzen pencere açılamadı.',
+    'The floating window could not be opened.',
+    'تعذّر فتح النافذة العائمة.',
+  ),
+  'mp.zoom_fill': ('Ekranı doldur', 'Fill the screen', 'ملء الشاشة'),
+  'mp.zoom_fit': ('Ekrana sığdır', 'Fit to screen', 'ملاءمة الشاشة'),
+  'mp.resumed_at': (
+    '{time} konumundan devam ediliyor',
+    'Resuming from {time}',
+    'المتابعة من {time}',
+  ),
+  'mp.restart': ('Baştan başlat', 'Start over', 'ابدأ من جديد'),
+  'mp.sleep_timer': ('Uyku zamanlayıcısı', 'Sleep timer', 'مؤقّت النوم'),
+  'mp.sleep_off': ('Kapalı', 'Off', 'مغلق'),
+  'mp.sleep_minutes': ('{n} dakika', '{n} minutes', '{n} دقيقة'),
+  'mp.sleep_active': (
+    '{time} sonra duracak',
+    'Stopping in {time}',
+    'سيتوقف بعد {time}',
+  ),
+  'usb.diag_uas_only': (
+    'Bu bellek yalnız UAS (USB 3) taşıması bildiriyor — uygulamanın '
+    'sürücüsü Bulk-Only konuşur. Klasör izniyle (Klasör seç) erişilebilir.',
+    'This drive only reports the UAS (USB 3) transport — the app driver '
+    'speaks Bulk-Only. Folder permission (Pick folder) still works.',
+    'يعلن هذا المحرك عن نقل UAS فقط؛ استخدم إذن المجلد.',
+  ),
+  'usb.diag_cbi_only': (
+    'Bu bellek çok eski bir taşıma (CBI) bildiriyor — uygulamanın sürücüsü '
+    'Bulk-Only konuşur.',
+    'This drive reports a legacy transport (CBI) — the app driver speaks '
+    'Bulk-Only.',
+    'يعلن هذا المحرك عن نقل قديم (CBI).',
+  ),
+  'usb.write_protected': (
+    'Bellek yazma korumalı (donanım anahtarı) — yalnız okunabilir.',
+    'The drive is write-protected in hardware — read-only.',
+    'المحرك محمي ضد الكتابة (مفتاح الجهاز) — للقراءة فقط.',
   ),
   'usb.open_raw_failed_title': (
     'Bellek açılamadı',

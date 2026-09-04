@@ -150,6 +150,38 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
+
+  /// **Çift dokunuşla sarma ve tek dokunuşun GECİKMEMESİ** (2026-09-03).
+  ///
+  /// `onDoubleTap` kullanılsaydı tek dokunuş, çift dokunuş süresi dolana
+  /// kadar bekletilirdi: kontroller geç açılır, altındaki düğmeler geç
+  /// basardı. Bu test iki şeyi birden sabitliyor: dokunuş ANINDA iş görüyor
+  /// ve hızlı ikinci dokunuş kenarda sarma yapıyor.
+  testWidgets('kenarda hızlı ikinci dokunuş sarar, tek dokunuş gecikmez',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: MediaPlayerScreen(path: video.path)),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    // Kontroller açık başlıyor; tek dokunuş ONLARI ANINDA kapatmalı.
+    expect(find.byType(AppBar), findsOneWidget);
+    await tester.tapAt(const Offset(400, 300));
+    await tester.pump();
+    expect(find.byType(AppBar), findsNothing, reason: 'dokunuş beklemesin');
+    expect(platform.seeks, isEmpty, reason: 'tek dokunuş sarma değil');
+
+    // Sağ kenarda hızlı ikinci dokunuş: 10 sn ileri.
+    await tester.tapAt(const Offset(700, 300));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(platform.seeks.length, 1, reason: 'ikinci dokunuş sarmalı');
+    expect(platform.seeks.single, greaterThan(Duration.zero));
+
+    VideoPlayback.instance.debugReset();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }
 
 /// Gerçek ExoPlayer yerine testte kullanılan sahte oynatma motoru:
@@ -204,8 +236,13 @@ class _FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   @override
   Future<void> setVolume(int playerId, double volume) async {}
 
+  /// Sarma istekleri: çift dokunuşla sarma testi buna bakıyor.
+  final List<Duration> seeks = <Duration>[];
+
   @override
-  Future<void> seekTo(int playerId, Duration position) async {}
+  Future<void> seekTo(int playerId, Duration position) async {
+    seeks.add(position);
+  }
 
   @override
   Future<void> setPlaybackSpeed(int playerId, double speed) async {}

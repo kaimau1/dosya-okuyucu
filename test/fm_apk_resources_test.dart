@@ -207,5 +207,55 @@ void main() {
       // DEĞİL, eski yedeğin bulduğu 108 px'lik ham katman.
       expect(ApkIcon.pngSize(bytes!), (108, 108));
     });
+
+    /// **Kullanıcının 2026-09-03'te bildirdiği kalan hata:** ön plan bir
+    /// VEKTÖR çizim olduğunda (Android Studio'nun ürettiği her varsayılan
+    /// simge böyle) birleştirme vazgeçiyor, geriye zemin katmanı ya da
+    /// hiçbir şey kalıyordu — listede boş kare. Artık vektör çiziliyor.
+    test('vektör ön planlı uyarlanabilir simge çizilir', () {
+      const backgroundId = 0x7F020000;
+      const foregroundId = 0x7F020001;
+      final path = writeApk('vektor_on_plan.apk', {
+        'AndroidManifest.xml': ApkBinaries.manifest(iconResId: iconId),
+        'resources.arsc': ApkBinaries.table(files: {
+          iconId: [(ArscTable.anyDensity, 'res/ic.xml')],
+          backgroundId: [(640, 'res/bg.png')],
+          foregroundId: [(ArscTable.anyDensity, 'res/fg.xml')],
+        }),
+        'res/ic.xml': ApkBinaries.adaptiveIcon(
+          backgroundResId: backgroundId,
+          foregroundResId: foregroundId,
+        ),
+        'res/bg.png': realPng(108, 108),
+        'res/fg.xml': ApkBinaries.vectorDrawable(
+          pathData: 'M4,4 L20,4 L20,20 L4,20 Z',
+          fillColor: 0xFFFF0000,
+        ),
+      });
+      final bytes = ApkIcon.readIconBytes(path);
+      expect(bytes, isNotNull);
+      final size = ApkIcon.pngSize(bytes!);
+      expect(size, isNotNull);
+      expect(size!.$1, size.$2, reason: 'simge kare olmalı');
+      // Kırpılmış uyarlanabilir simge: 192'nin görünen 72/108'i = 128.
+      expect(size.$1, 128, reason: 'vektör ön plan 192 px çizilip kırpıldı');
+    });
+
+    /// Simge kimliği doğrudan bir vektöre çıkıyorsa (uyarlanabilir simge
+    /// katmanı değil, simgenin kendisi) o da çizilmeli.
+    test('doğrudan vektör simge çizilir', () {
+      final path = writeApk('duz_vektor.apk', {
+        'AndroidManifest.xml': ApkBinaries.manifest(iconResId: iconId),
+        'resources.arsc': ApkBinaries.table(files: {
+          iconId: [(ArscTable.anyDensity, 'res/ic.xml')],
+        }),
+        'res/ic.xml': ApkBinaries.vectorDrawable(
+          pathData: 'M2,2 L22,2 L22,22 L2,22 Z',
+        ),
+      });
+      final bytes = ApkIcon.readIconBytes(path);
+      expect(bytes, isNotNull);
+      expect(ApkIcon.pngSize(bytes!), (192, 192));
+    });
   });
 }

@@ -108,6 +108,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
   Future<void> _setSpeed(double speed) => _p.setSpeed(speed);
 
+  /// Uyku zamanlayıcısının geri sayımı (`12:30`).
+  static String _fmtSleep(Duration d) => _fmt(d);
+
   static String _fmt(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -123,6 +126,20 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('mp.now_playing')),
+        // Kurulu zamanlayıcı geri sayımı başlıkta: menüyü açmadan görünsün.
+        bottom: _p.sleepRemaining == null
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(20),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    context.t('mp.sleep_active',
+                        {'time': _fmtSleep(_p.sleepRemaining!)}),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ),
         actions: [
           PopupMenuButton<double>(
             tooltip: context.t('mp.speed'),
@@ -132,6 +149,30 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
                 PopupMenuItem(
                     value: s, child: Text('${s}x${s == _speed ? '  ✓' : ''}')),
+            ],
+          ),
+          // **Uyku zamanlayıcısı** (kullanıcı isteği 2026-09-03, premium):
+          // gece dinlerken uyuyan telefon sabaha kadar çalmasın. Kurulu
+          // zamanlayıcı simgede ve alt yazıda görünür — "kapattım mı?" diye
+          // düşünmek zorunda kalınmasın.
+          PopupMenuButton<int>(
+            tooltip: context.t('mp.sleep_timer'),
+            icon: Icon(_p.sleepRemaining == null
+                ? Icons.bedtime_outlined
+                : Icons.bedtime),
+            onSelected: (minutes) => setState(() => _p.setSleepTimer(
+                minutes <= 0 ? null : Duration(minutes: minutes))),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 0,
+                child: Text('${context.t('mp.sleep_off')}'
+                    '${_p.sleepRemaining == null ? '  ✓' : ''}'),
+              ),
+              for (final m in const [15, 30, 45, 60, 90])
+                PopupMenuItem(
+                  value: m,
+                  child: Text(context.t('mp.sleep_minutes', {'n': '$m'})),
+                ),
             ],
           ),
           IconButton(

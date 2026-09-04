@@ -18,6 +18,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
+    <!-- **Ekran üstünde yüzen video oynatıcı** (kullanıcı isteği 2026-09-03:
+         *"ekran üstünde ekran video oynatıcı sistemi yapalım"*). Başka
+         uygulamaların üstünde pencere açmak bu izni ister; izin normal bir
+         izin penceresiyle DEĞİL, kullanıcının Ayarlar'da elle açtığı özel bir
+         anahtarla veriliyor (uygulama o ekrana yönlendiriyor). İzin yoksa
+         yüzen oynatıcı düğmesi kullanıcıyı ayara götürüyor; uygulamanın geri
+         kalanı etkilenmiyor. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+
     <!-- ── Dosya yöneticisi izinleri ───────────────────────────────────────
          Android 11+ (API 30): bir dosya yöneticisinin tüm depolamayı
          gezebilmesi için MANAGE_EXTERNAL_STORAGE gerekir; klasik READ izni
@@ -407,6 +416,18 @@
              kuyruğunun servisinde de yazılı). -->
         <service
             android:name=".MediaService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false"
+            android:stopWithTask="true" />
+
+        <!-- ── YÜZEN OYNATICI SERVİSİ ──────────────────────────────────────
+             Pencere `WindowManager` ile çiziliyor ve videoyu servis süründe
+             (MediaPlayer) oynatıyor; uygulama arkada olsa da ses kesilmesin
+             diye ön plan servisi. `stopWithTask="true"` ŞART: kullanıcı
+             uygulamayı görevlerden atınca ekranda sahipsiz bir pencere
+             kalmasın. -->
+        <service
+            android:name=".FloatingPlayerService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false"
             android:stopWithTask="true" />

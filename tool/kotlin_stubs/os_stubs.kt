@@ -18,3 +18,15 @@ object Build {
 }
 
 interface IBinder
+
+class Looper {
+    companion object {
+        fun getMainLooper(): Looper = Looper()
+    }
+}
+
+class Handler(looper: Looper? = null) {
+    fun post(runnable: Runnable): Boolean = true
+    fun postDelayed(runnable: Runnable, delayMillis: Long): Boolean = true
+    fun removeCallbacks(runnable: Runnable) {}
+}

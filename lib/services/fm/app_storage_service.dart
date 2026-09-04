@@ -221,13 +221,33 @@ abstract final class AppStorageService {
   /// bir uygulama seçin" penceresinden bizi seçmek yeni bir `resumed` yaşam
   /// döngüsü olayı üretmiyor; eylemi yalnız `resumed`da soran kod hiçbir şey
   /// yapmıyordu (kullanıcı 2026-09-02: *"basıyorum tepki vermiyor"*).
-  static void setUsbAttachedHandler(void Function()? onAttached) {
-    if (onAttached == null) {
+  ///
+  /// [onChanged] **canlı yayın** (2026-09-03): uygulama önde dururken bir
+  /// bellek takılınca/çıkarılınca native taraf (`registerVolumeWatch`) olayı
+  /// itiyor. Kullanıcı ölçümü: *"usb takıldığında ana menüde hızlı biçimde
+  /// sayfa güncellenip eklenmeli, çok geç düşüyor."* Eskiden tek haber kaynağı
+  /// `/storage` klasörünü 5 saniyede bir yoklayan zamanlayıcıydı ve Android
+  /// belleği BAĞLAMAMIŞSA o yoklama hiçbir zaman görmüyordu.
+  ///
+  /// [attached] true = takıldı/bağlandı, false = çıkarıldı.
+  static void setUsbAttachedHandler(
+    void Function()? onAttached, {
+    void Function(bool attached)? onChanged,
+  }) {
+    if (onAttached == null && onChanged == null) {
       _channel.setMethodCallHandler(null);
       return;
     }
     _channel.setMethodCallHandler((call) async {
-      if (call.method == 'usbAttached') onAttached();
+      switch (call.method) {
+        case 'usbAttached':
+          onAttached?.call();
+        case 'usbChanged':
+          final args = call.arguments;
+          final attached =
+              args is Map ? args['attached'] == true : true;
+          onChanged?.call(attached);
+      }
       return null;
     });
   }

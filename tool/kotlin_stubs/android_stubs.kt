@@ -26,6 +26,7 @@ class UsbEndpoint {
 
 class UsbInterface {
     val id: Int = 0
+    val alternateSetting: Int = 0
     val interfaceClass: Int = 0
     val interfaceSubclass: Int = 0
     val interfaceProtocol: Int = 0
@@ -46,6 +47,7 @@ class UsbDevice {
 
 class UsbDeviceConnection {
     fun claimInterface(itf: UsbInterface, force: Boolean): Boolean = true
+    fun setInterface(itf: UsbInterface): Boolean = true
     fun releaseInterface(itf: UsbInterface): Boolean = true
     fun close() {}
     fun bulkTransfer(

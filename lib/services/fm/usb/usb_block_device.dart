@@ -21,7 +21,20 @@ class UsbBlockDevice extends BlockDevice {
   /// Sürülen aygıtın sistem adı (`/dev/bus/usb/001/002`).
   final String deviceName;
 
-  UsbBlockDevice._(this.blockSize, this.blockCount, this.deviceName);
+  /// Bellek **donanımdan** yazma korumalı mı (kart okuyucu anahtarı vb.)?
+  ///
+  /// Ölçümü native taraf yapıyor (`MODE SENSE`); burada yalnız taşınıyor.
+  /// Korumalıysa [writable] false döner ve dosya sistemi katmanı yazma
+  /// düğmelerini hiç açmaz — kullanıcı yarım kalan bir kopyalamayla
+  /// karşılaşmasın.
+  final bool writeProtected;
+
+  UsbBlockDevice._(
+    this.blockSize,
+    this.blockCount,
+    this.deviceName, {
+    this.writeProtected = false,
+  });
 
   /// Aygıtı açar (gerekiyorsa kullanıcıdan izin ister).
   ///
@@ -50,7 +63,12 @@ class UsbBlockDevice extends BlockDevice {
         return UsbOpenResult(error: 'Kapasite okunamadı', steps: steps);
       }
       return UsbOpenResult(
-        device: UsbBlockDevice._(size, count, '${raw['device'] ?? ''}'),
+        device: UsbBlockDevice._(
+          size,
+          count,
+          '${raw['device'] ?? ''}',
+          writeProtected: raw['writeProtected'] == true,
+        ),
         steps: steps,
       );
     } catch (e) {
@@ -65,20 +83,54 @@ class UsbBlockDevice extends BlockDevice {
   /// komut başına maliyeti amorti ediyor.
   static const maxBlocksPerRead = 128;
 
+  /// **Uyarlanan parça boyutu** (sektör).
+  ///
+  /// Kullanıcı bulgusu 2026-09-03: bazı bellekler/OTG kabloları 64 KB'lık
+  /// isteği sessizce kırpıyor ve o noktadan sonra HER okuma hata veriyordu —
+  /// bellek "bozuk" görünüyordu, oysa yalnız istek büyüktü. Artık ilk hatada
+  /// parça yarıya iniyor (128 → 64 → … → 1) ve başarılı boyut aygıt kapanana
+  /// kadar korunuyor: yavaşlama bir kez ödeniyor, okuma çalışıyor.
+  int _chunk = maxBlocksPerRead;
+
+  /// Şu an kullanılan parça boyutu (test ve teşhis için).
+  int get chunkBlocks => _chunk;
+
   @override
   Future<Uint8List> readBlocks(int lba, int count) async {
     if (count <= 0) return Uint8List(0);
     final out = BytesBuilder(copy: false);
     var done = 0;
     while (done < count) {
-      final chunk = (count - done) > maxBlocksPerRead
-          ? maxBlocksPerRead
-          : (count - done);
-      final data = await _readOnce(lba + done, chunk);
+      final remaining = count - done;
+      final chunk = remaining > _chunk ? _chunk : remaining;
+      final data = await _readAdaptive(lba + done, chunk);
       out.add(data);
       done += chunk;
     }
     return out.takeBytes();
+  }
+
+  /// Bir parçayı okur; kırpılırsa parçayı KÜÇÜLTÜP yeniden dener.
+  ///
+  /// Küçültme kalıcı ([_chunk]): aynı aygıt aynı sınırı bir sonraki okumada
+  /// da koyacak, her seferinde büyük isteyip hata yemenin anlamı yok.
+  Future<Uint8List> _readAdaptive(int lba, int count) async {
+    try {
+      return await _readOnce(lba, count);
+    } on BlockDeviceException {
+      if (count <= 1) rethrow;
+      final smaller = count ~/ 2;
+      if (smaller < _chunk) _chunk = smaller;
+      final out = BytesBuilder(copy: false);
+      var done = 0;
+      while (done < count) {
+        final remaining = count - done;
+        final piece = remaining > smaller ? smaller : remaining;
+        out.add(await _readAdaptive(lba + done, piece));
+        done += piece;
+      }
+      return out.takeBytes();
+    }
   }
 
   Future<Uint8List> _readOnce(int lba, int count) async {
@@ -98,10 +150,10 @@ class UsbBlockDevice extends BlockDevice {
     return data;
   }
 
-  /// Ham USB'ye **yazılabilir**; dosya sistemi katmanı buna göre karar
-  /// veriyor (FAT yazıyor, exFAT/NTFS şimdilik yazmıyor).
+  /// Ham USB'ye **yazılabilir** — donanım koruması yoksa. Dosya sistemi
+  /// katmanı buna göre karar veriyor (FAT ve exFAT yazıyor, NTFS okuyor).
   @override
-  bool get writable => true;
+  bool get writable => !writeProtected;
 
   @override
   Future<void> writeBlocks(int lba, Uint8List data) async {

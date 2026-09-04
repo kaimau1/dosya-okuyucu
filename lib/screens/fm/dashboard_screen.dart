@@ -29,6 +29,7 @@ import '../../services/fm/tool_usage.dart';
 import '../../services/fm/remote/saf_fs.dart';
 import '../../services/fm/remote/usb_fs.dart';
 import '../../services/fm/usb/usb_host.dart';
+import '../../services/fm/video_playback.dart';
 import '../../services/fm/volume_watcher.dart';
 import 'remote/remote_browser_screen.dart';
 import 'usb_diagnostics_screen.dart';
@@ -105,6 +106,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Küçük yüzen düğmeler görünür mü? (Aşağı kaydırırken çekiliyorlar.)
   bool _fabsVisible = true;
 
+  /// Takılma yayını üstüne yayın gelmesin (aynı anda tek tazeleme turu).
+  bool _usbBroadcastBusy = false;
+
+  /// Ham USB kartının bekleme süresi dolunca ekranı tazeleyen zamanlayıcı.
+  Timer? _rawUsbGraceTimer;
+
   /// USB otomatik açma: sürüyor mu ve en son ne zaman açıldı?
   bool _usbOpening = false;
   DateTime? _lastUsbOpen;
@@ -157,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
     AppStorageService.setUsbAttachedHandler(null);
+    _rawUsbGraceTimer?.cancel();
     unawaited(_volumeSub?.cancel());
     unawaited(_volumes.dispose());
     super.dispose();
@@ -195,10 +203,43 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Uygulama ZATEN ön plandayken seçiciden bizi seçmek `resumed` üretmiyor;
     // native taraf olayı itiyor (kullanıcı 2026-09-02: "basıyorum tepki
     // vermiyor").
-    AppStorageService.setUsbAttachedHandler(() {
-      if (!mounted) return;
-      unawaited(_openUsbIfLaunchedByIt(force: true));
-    });
+    AppStorageService.setUsbAttachedHandler(
+      () {
+        if (!mounted) return;
+        unawaited(_openUsbIfLaunchedByIt(force: true));
+      },
+      // **Canlı yayın** (kullanıcı 2026-09-03: *"usb takıldığında ana menüde
+      // hızlı biçimde sayfa güncellenip eklenmeli, çok geç düşüyor"*).
+      // Çekirdek yayını takılmanın İLK anında geliyor — 5 saniyelik
+      // `/storage` yoklamasını beklemiyoruz.
+      onChanged: (attached) => unawaited(_onUsbBroadcast(attached)),
+    );
+  }
+
+  /// **Takılma/çıkarılma yayını geldi** — listeyi hemen tazele.
+  ///
+  /// Android takmayı (`USB_DEVICE_ATTACHED`) ve bağlamayı (`MEDIA_MOUNTED`)
+  /// ayrı anlarda haber veriyor; ilki hemen, ikincisi saniyeler sonra gelir.
+  /// Bu yüzden ilk yayında bir kez değil, kısa aralıklarla birkaç kez
+  /// bakılıyor: bellek bağlanır bağlanmaz kart yerine geçsin. Bağlanmışsa
+  /// erken çıkılıyor (boşuna tarama yok).
+  Future<void> _onUsbBroadcast(bool attached) async {
+    if (_usbBroadcastBusy) return;
+    _usbBroadcastBusy = true;
+    try {
+      for (var attempt = 0; attempt < 5; attempt++) {
+        await _volumes.rescan();
+        await _loadRawUsb();
+        if (!mounted) return;
+        setState(() {});
+        if (!attached) return;
+        if (FmEnv.volumes.any((v) => v.isRemovable)) return;
+        await Future<void>.delayed(const Duration(milliseconds: 900));
+        if (!mounted) return;
+      }
+    } finally {
+      _usbBroadcastBusy = false;
+    }
   }
 
   /// Uygulama **USB takılması yüzünden** açıldıysa doğrudan o belleği aç.
@@ -359,6 +400,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       // çalışmaz — eylemi burada da soruyoruz. Eylem okununca native
       // tarafta temizlendiği için iki kez tetiklenmez.
       unawaited(_openUsbIfLaunchedByIt());
+      // Yüzen video penceresi uygulama kapalıyken kapatılmış olabilir:
+      // konumu al ki uygulama içi oynatıcı kaldığı yerden sürsün.
+      unawaited(VideoPlayback.instance.syncFloating());
     } else if (state == AppLifecycleState.paused) {
       _volumes.stop();
     }
@@ -1491,11 +1535,25 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() {
       if (drivable.isEmpty) {
         _rawUsbSeenAt = null;
+        _rawUsbGraceTimer?.cancel();
+        _rawUsbGraceTimer = null;
       } else {
         _rawUsbSeenAt ??= DateTime.now();
       }
       _rawUsbDevices = drivable;
     });
+    // **Bekleme süresi dolunca kimse ekranı tazelemiyordu** (kullanıcı
+    // 2026-09-03: *"çok geç düşüyor"*): kart ancak bir sonraki tam tarama
+    // ya da başka bir `setState` ile beliriyordu — pratikte kullanıcı
+    // ekrana dokunana kadar hiç. Süre dolunca bir kez çiziyoruz.
+    final seen = _rawUsbSeenAt;
+    if (seen != null && _rawUsbGraceTimer == null) {
+      final left = _rawUsbGrace - DateTime.now().difference(seen);
+      _rawUsbGraceTimer = Timer(left.isNegative ? Duration.zero : left, () {
+        _rawUsbGraceTimer = null;
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   /// Panoda çizilecek ham USB kartları.
@@ -1516,12 +1574,19 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (FmEnv.volumes.any((v) => v.isRemovable)) return const [];
     if (_safRoots.isNotEmpty) return const [];
     final seen = _rawUsbSeenAt;
-    if (seen != null &&
-        DateTime.now().difference(seen) < const Duration(seconds: 6)) {
+    if (seen != null && DateTime.now().difference(seen) < _rawUsbGrace) {
       return const [];
     }
     return _rawUsbDevices;
   }
+
+  /// Ham kartı göstermeden önce Android'in bağlamasına tanınan süre.
+  ///
+  /// Altı saniyeydi (2026-09-02) ve kullanıcı 2026-09-03'te *"çok geç
+  /// düşüyor"* dedi. Üç saniye hâlâ çift kartı önlüyor (Android bağlayacaksa
+  /// bunu ilk saniyelerde yapıyor) ama bekleme gözle "takıldı, tanındı"
+  /// hissini bozmuyor.
+  static const _rawUsbGrace = Duration(seconds: 3);
 
   /// **SAF yolu** — klasör izniyle harici belleğe erişim.
   ///

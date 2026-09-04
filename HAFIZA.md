@@ -10657,3 +10657,139 @@ parçasını listeleyerek tutamağı öğreniyor (maliyet yalnız tutamak
 bilinmiyorsa, derinlik kadar dizin okuması). Yer imi, arama sonucu, "son
 açılanlar" ve yeniden takılan bellekten gelen yollar artık çalışıyor;
 uydurma tutamak hâlâ YOK — olmayan klasör yine hata veriyor.
+
+## 2026-09-03 (on sekizinci tur) — USB sertleştirme, vektör simge, yüzen oynatıcı
+
+Kullanıcı sekiz şey istedi: (1) *"bu usbde sorun oldu düzeltelim"* (ekran
+görüntüsü: Kingston DT microDuo 3C, Android HİÇ bağlamamış), (2) *"diğer USB
+türlerinde de sorunsuzluk"*, (3) video/müzikte premium geliştirmeler,
+(4) *"usb takıldığında ana menüde hızlı biçimde sayfa güncellenip eklenmeli,
+çok geç düşüyor"*, (5) *"hâlâ eski apklarda simgeler görülmüyor, yenisinde
+görülmüş"*, (6) PDF düzenleme araçlarında geliştirmeler, (7) *"ekran üstünde
+ekran video oynatıcı sistemi"*, (8) genel iyileştirme, tek oturum.
+
+### A) "Çok geç düşüyor" — kök neden: HİÇBİR kanal itmiyordu
+Uygulama ÖN PLANDAYKEN takılan bir belleği hiçbir şey haber vermiyordu.
+`usbAttached` yalnız "USB için uygulama seç" penceresinden gelen yeni
+intent'te tetikleniyordu; onun dışında tek haber kaynağı `/storage` klasörünü
+**5 saniyede bir** yoklayan zamanlayıcıydı — ve Android belleği bağlamamışsa
+o yoklama HİÇ görmüyordu (bağlanmamış aygıt `/storage`'a düşmez).
+
+* `MainActivity.registerVolumeWatch` (onStart/onStop): `USB_DEVICE_ATTACHED`,
+  `USB_DEVICE_DETACHED` + `MEDIA_MOUNTED/UNMOUNTED/EJECT/REMOVED/BAD_REMOVAL`
+  (bu ikinciler `file:` şeması olmadan HİÇBİR şey yakalamaz — sessiz tuzak).
+  Olay `usbChanged` diye Dart'a itiliyor; arka planda dinlenmiyor (pil).
+* Pano yayında birim listesini + ham aygıt listesini hemen tazeliyor ve
+  bağlanana kadar 0.9 sn aralıkla en çok 5 kez bakıyor: çekirdek yayını
+  takılma anında, Android'in bağlaması saniyeler sonra geliyor.
+* **İkinci kök neden:** ham USB kartı için 6 saniyelik bekleme vardı ve süre
+  dolunca ekranı kimse yeniden çizmiyordu — kart ancak başka bir `setState`
+  ile beliriyordu (pratikte kullanıcı ekrana dokunana kadar hiç). Süre 3
+  saniyeye indi ve dolduğunda bir kez çizen zamanlayıcı kondu.
+
+### B) USB sürücüsü — UAS'lı belleklerde arayüz seçimi
+Kingston DT microDuo 3C gibi USB 3.x bellekler **iki** arayüz bildiriyor:
+UAS (protokol 0x62) ve klasik Bulk-Only (0x50). Eski kod listede EN SON
+gördüğü 0x50'yi alıyordu ve alternatif ayarı hiç seçmiyordu.
+* Aday seçimi: sınıf 8 + protokol 0x50, uçları OLAN aday kazanıyor;
+  `alternateSetting != 0` ise `setInterface` ile açıkça seçiliyor (yoksa uçlar
+  hazır olmuyor ve ilk komut sessizce zaman aşımına düşüyor).
+* Hiç BOT yoksa sebep AÇIK: "yalnız UAS bildiriyor" / "yalnız CBI" — teşhis
+  ekranı da bunu yazıyor. "sürülebilir: ✘" tek başına hiçbir şey söylemiyordu.
+* `MODE SENSE(6)` ile **donanım yazma koruması** ölçülüyor; korumalıysa
+  `UsbBlockDevice.writable` false → dosya sistemi yazma düğmelerini hiç
+  açmıyor ve gezgin başlığında sebep yazıyor.
+* **Uyarlanan okuma parçası:** bazı bellek/OTG kablosu ikilileri 64 KB isteği
+  sessizce kırpıyor ve o noktadan sonra her okuma hata veriyordu (bellek
+  "bozuk" görünüyordu). Artık ilk hatada parça yarıya iniyor (128→64→…→1) ve
+  başarılı boyut aygıt kapanana kadar korunuyor.
+
+### C) Arayüzdeki metin YALAN söylüyordu (exFAT)
+"Belleği doğrudan aç" altında hâlâ *"FAT32/FAT16'ya yazma açık; exFAT ve NTFS
+salt okunur"* yazıyordu — oysa exFAT yazma 2026-09-02'de yazıldı ve testi
+yeşil. Kullanıcının ekranda okuduğu şey gerçekle çelişiyordu. Metin
+düzeltildi (NTFS gerçekten salt okunur ve öyle yazıyor).
+
+### D) Eski APK simgeleri — kök neden VEKTÖR ön plandı
+2026-09-03'te kaynak kimliği yolu doğru kurulmuştu ama bir kapı kapalıydı:
+uyarlanabilir simgenin ön planı bir **vektör çizim** olduğunda birleştirme
+"çizemiyorum" deyip vazgeçiyordu. Android Studio'nun ürettiği hemen her
+varsayılan simge böyle → kullanıcının listede gördüğü boş kare.
+
+`lib/services/fm/vector_drawable.dart`: ikili XML **ağacı** (`parseTree` —
+düz eleman listesi `<group>` altındaki yolun dönüşümünü kaybediyordu) +
+VectorDrawable çizici.
+* Yol verisinin tamamı: M/L/H/V/C/S/Q/T/A/Z, bağıl sürümler, ayraçsız
+  sayılar ("M0 0L10-5"), eliptik yay uç→merkez dönüşümü.
+* Kendi tarayıcı (scanline) doldurucumuz: `dart:ui` yolu izolatta çizim
+  yapamaz (simge çıkarma `compute` içinde) ve tek simge için paket eklemek
+  derleme zincirini oynatmak olurdu. Kenar yumuşatma üç kat üst örnekleme +
+  **önceden çarpılmış saydamlıkla** kutu süzgeci (düz ortalama kenarları
+  kirletiyor).
+* Sarmalayıcı çizimler (`<inset>`, `<bitmap>`, `<layer-list>`) de izleniyor;
+  degradeli dolgu durak renklerinin ORTALAMASIYLA yaklaşılıyor (düz renk bir
+  simge, hiç simge olmamasından iyi).
+* Ölçüt piksel: dolu kare gerçekten dolu mu, evenOdd deliği delik mi, grup
+  ötelemesi şekli taşıyor mu (`fm_vector_drawable_test`, 13 test) + uçtan uca
+  "vektör ön planlı uyarlanabilir simge" ve "doğrudan vektör simge".
+
+### E) Ekran üstünde yüzen oynatıcı (`ci/FloatingPlayer.kt`)
+`WindowManager` + `TYPE_APPLICATION_OVERLAY` penceresi, içinde `SurfaceView` +
+çerçevenin kendi `MediaPlayer`ı. Sürükleme, sağ alt çeyrekten boyutlandırma,
+çift dokunuşla üç hazır boy, ±10 sn, sürüklenebilir çubuk, hız, sessiz,
+"uygulamaya dön" ve kapat.
+* **Niye Flutter değil:** Flutter tek bir `FlutterView` çiziyor ve uygulama
+  arkaya alınınca çizim duruyor; ikinci bir motor sunumu derleme zincirini
+  oynatmak demekti.
+* **Niye Android PiP değil:** PiP yalnız kendi Activity'mizi küçültüyor,
+  başka uygulamaya geçilince kapanıyor ve kendi düğmelerimizi koyamıyoruz.
+* Simgeler **Unicode karakter**: CI `res/` klasörünü her derlemede yeniden
+  üretiyor, kendi çizim kaynağımız yok.
+* Servis ön planda (`mediaPlayback`) + `stopWithTask="true"`: uygulama
+  görevlerden atılınca ekranda sahipsiz pencere kalmasın.
+* Pencere kapanınca/uygulamaya dönünce KONUM Dart'a gidiyor; uygulama
+  kapalıysa native tarafta bekliyor (`takePending`) ve açılışta soruluyor.
+  Pencere açıkken uygulama içi oynatıcı duraklıyor — iki oynatıcının aynı
+  anda ses vermesi kullanıcının duyacağı ilk hata olurdu.
+* Bildirim metni **Dart'tan** geliyor: native tarafa gömülü Türkçe cümle
+  İngilizce kullanana Türkçe görünürdü.
+
+### F) Oynatıcı premium ekleri
+* `PlaybackPositions` — "kaldığın yerden devam": ilk 30 sn ve son %5
+  kaydedilmiyor (jenerikte "devam et?" sormak ve bitmiş filmi ortadan açmak
+  iki ayrı can sıkıntısı), 1 dakikadan kısa dosyalar hiç, en çok 300 kayıt.
+  Ekran "23:10 konumundan devam ediliyor" diyor ve "Baştan başlat" veriyor —
+  sessizce ortadan başlamak "video bozuk mu?" dedirtiyordu.
+* Video: **çift dokunuşla ±10 sn** (kenarlar) / oynat-duraklat (orta),
+  **dikey kaydırmayla ses** (oynatıcının kendi sesi — sistem sesi bir eklenti
+  ister), **ekranı doldur** kipi (20:9 telefonda 16:9 filmin şeritleri).
+* Ses: **uyku zamanlayıcısı** (15/30/45/60/90 dk), geri sayım başlıkta.
+
+### G) PDF araçları
+`movePage` (istenen sayfa numarasına taşı — tek adımlık düğmeler 200
+sayfalık belgede işkenceydi), `duplicatePages` (kopya hemen arkasına),
+`insertBlankPage` (**yerinde**, vurgular korunuyor; ölçü komşu sayfadan),
+`reversePages`, `splitEvery` (dosyalar belgenin yanına, var olanın üstüne
+YAZMADAN), "tümünü seç / seçimi ters çevir".
+
+### H) Kotlin tür denetimi artık yüzen oynatıcıyı da kapsıyor
+`tool/check_kotlin.sh` üç dosyayı derliyor; `tool/kotlin_stubs/` görünüm,
+widget, MediaPlayer, kaynak/ekran ölçüsü ve Drawable taslaklarıyla genişledi.
+Bu tur `UsbInterface.alternateSetting` ve `setInterface` de taslaklandı.
+
+### I) TUZAK — `onDoubleTap` TEK dokunuşu geciktiriyor
+Çift dokunuşla sarma ilk yazılışta `GestureDetector.onDoubleTap` ile
+yapılmıştı. Aynı ağaçta bir çift dokunuş tanıyıcısı varken tek dokunuş,
+çift dokunuş süresi (~300 ms) dolana kadar **bekletiliyor**: kontroller geç
+açılıyor ve altındaki oynat/duraklat düğmesi bile geç basıyordu. İki var olan
+widget testi (`media_player_layout_test`) bunu anında yakaladı — kör push
+edilseydi kullanıcı "oynatıcı ağırlaştı" diyecekti.
+
+**Çözüm:** çift dokunuş elle ölçülüyor (`onTapUp` + son dokunuş zamanı).
+Her dokunuş anında iş görüyor; iki dokunuş kontrolleri iki kez çevirdiği için
+görüntü de yerinde kalıyor. Yeni test bunu sabitliyor ("kenarda hızlı ikinci
+dokunuş sarar, tek dokunuş gecikmez").
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` lib+test 0 sorun,
+**2185 test yeşil** (9 atlanan önceden var olan), `tool/check_kotlin.sh`
+(kotlinc 2.0.21) üç Kotlin dosyasında temiz.

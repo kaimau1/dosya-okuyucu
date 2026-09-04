@@ -13,3 +13,14 @@ object BitmapFactory {
 
     fun decodeFile(path: String?, options: Options? = null): Bitmap? = null
 }
+
+object Color {
+    const val BLACK = -16777216
+    const val WHITE = -1
+
+    fun argb(alpha: Int, red: Int, green: Int, blue: Int): Int = 0
+}
+
+object PixelFormat {
+    const val TRANSLUCENT = -3
+}

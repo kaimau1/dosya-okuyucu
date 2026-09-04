@@ -11,6 +11,7 @@ import '../../core/l10n/app_strings.dart';
 import 'audio_tags.dart';
 import 'fm_env.dart';
 import 'media_session.dart';
+import 'playback_positions.dart';
 import 'notification_hub.dart';
 
 /// Tekrar kipi (kapalı / tek parça / liste).
@@ -66,6 +67,10 @@ class AudioPlayback extends ChangeNotifier {
       created.onPositionChanged.listen((d) {
         if (_dragging) return;
         position = d;
+        // **Kaldığı yerden devam** (2026-09-03): uzun kayıtlarda (sesli
+        // kitap, ders, podcast) baştan başlamak en çok konuşulan eksikti.
+        // Kural `PlaybackPositions`ta; kısa parçalar kaydedilmiyor.
+        PlaybackPositions.record(current, d, duration);
         notifyListeners();
       }),
       created.onDurationChanged.listen((d) {
@@ -95,6 +100,17 @@ class AudioPlayback extends ChangeNotifier {
   double speed = 1.0;
   RepeatMode repeat = RepeatMode.off;
   bool shuffle = false;
+
+  /// Bu parça kayıtlı bir konumdan mı başladı? (Ekran kısaca yazıyor.)
+  Duration? resumedFrom;
+
+  /// **Uyku zamanlayıcısı** — kalan süre; kapalıysa null.
+  ///
+  /// Kullanıcı isteği 2026-09-03 ("premium geliştirmeler"): gece müzik
+  /// dinlerken uyuyan telefonu sabaha kadar çalar bırakmasın. Süre dolunca
+  /// çalma DURDURULUYOR (duraklatma değil): bildirim de kalksın.
+  Duration? sleepRemaining;
+  Timer? _sleepTimer;
   String? error;
   AudioTags tags = AudioTags.empty;
 
@@ -160,6 +176,13 @@ class AudioPlayback extends ChangeNotifier {
       await _player.stop();
       await _player.play(DeviceFileSource(path));
       await _player.setPlaybackRate(speed);
+      final resume = PlaybackPositions.positionOf(path);
+      if (resume != null) {
+        resumedFrom = resume;
+        await _player.seek(resume);
+      } else {
+        resumedFrom = null;
+      }
     } catch (e) {
       // Medya sunucusu öldüyse oynatıcıyı yenileyip BİR KEZ daha dene.
       if ('$e'.contains('SERVER_DIED')) {
@@ -264,8 +287,44 @@ class AudioPlayback extends ChangeNotifier {
   }
 
   /// Çalmayı bitirir ve bildirimi/servisi bırakır.
+  /// Uyku zamanlayıcısını kurar; [duration] null ise iptal eder.
+  ///
+  /// Kalan süre saniyede bir güncelleniyor (ekran geri sayımı gösteriyor).
+  void setSleepTimer(Duration? duration) {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    if (duration == null || duration <= Duration.zero) {
+      sleepRemaining = null;
+      notifyListeners();
+      return;
+    }
+    sleepRemaining = duration;
+    _sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final left = (sleepRemaining ?? Duration.zero) - const Duration(seconds: 1);
+      if (left <= Duration.zero) {
+        timer.cancel();
+        _sleepTimer = null;
+        sleepRemaining = null;
+        unawaited(stop());
+        return;
+      }
+      sleepRemaining = left;
+      notifyListeners();
+    });
+    notifyListeners();
+  }
+
   Future<void> stop() async {
     _stopTicker();
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    sleepRemaining = null;
+    // Bırakılan konum diske YAZILSIN: uygulama kapansa da "kaldığın yerden"
+    // çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
+    if (current.isNotEmpty) {
+      PlaybackPositions.record(current, position, duration);
+      unawaited(PlaybackPositions.save());
+    }
     if (engineEnabled && _engine != null) await _player.stop();
     playing = false;
     playlist = const [];

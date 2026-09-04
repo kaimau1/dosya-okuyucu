@@ -154,6 +154,114 @@ abstract final class ApkBinaries {
     ]);
   }
 
+  /// **Vektör çizim** (`<vector><path/></vector>`) ikili XML'i.
+  ///
+  /// Gerçek APK'lardaki simgelerin çoğu böyle; çizici (`VectorDrawable`)
+  /// bunun üstünde sınanıyor. Bitiş (END) düğümleri de yazılıyor: ağaç
+  /// çözümleyicisi iç içeliği onlarla kuruyor.
+  static Uint8List vectorDrawable({
+    required String pathData,
+    int fillColor = 0xFF102030,
+    double viewportWidth = 24,
+    double viewportHeight = 24,
+    String? groupTranslate,
+  }) {
+    final strings = <String>[
+      'viewportWidth',
+      'viewportHeight',
+      'pathData',
+      'fillColor',
+      'translateX',
+      'vector',
+      'path',
+      'group',
+      pathData,
+      _fmt(viewportWidth),
+      _fmt(viewportHeight),
+      if (groupTranslate != null) groupTranslate,
+    ];
+    final pool = stringPool(strings);
+    int idx(String s) => strings.indexOf(s);
+
+    Uint8List start(String name, List<Uint8List> attrs) {
+      final attrBytes = BytesBuilder();
+      for (final a in attrs) {
+        attrBytes.add(a);
+      }
+      final bytes = attrBytes.toBytes();
+      return Uint8List.fromList([
+        ..._u16(0x0102),
+        ..._u16(16),
+        ..._u32(16 + 20 + bytes.length),
+        ..._u32(1),
+        ..._u32(0xFFFFFFFF),
+        ..._u32(0xFFFFFFFF),
+        ..._u32(idx(name)),
+        ..._u16(20),
+        ..._u16(20),
+        ..._u16(bytes.length ~/ 20),
+        ..._u16(0),
+        ..._u16(0),
+        ..._u16(0),
+        ...bytes,
+      ]);
+    }
+
+    Uint8List end(String name) => Uint8List.fromList([
+          ..._u16(0x0103),
+          ..._u16(16),
+          ..._u32(24),
+          ..._u32(1),
+          ..._u32(0xFFFFFFFF),
+          ..._u32(0xFFFFFFFF),
+          ..._u32(idx(name)),
+        ]);
+
+    final vectorStart = start('vector', [
+      _attribute(
+          nameIndex: idx('viewportWidth'),
+          dataType: 0x03,
+          data: idx(_fmt(viewportWidth))),
+      _attribute(
+          nameIndex: idx('viewportHeight'),
+          dataType: 0x03,
+          data: idx(_fmt(viewportHeight))),
+    ]);
+    final pathStart = start('path', [
+      _attribute(
+          nameIndex: idx('pathData'), dataType: 0x03, data: idx(pathData)),
+      // 0x1c = ARGB8888 renk değeri.
+      _attribute(nameIndex: idx('fillColor'), dataType: 0x1c, data: fillColor),
+    ]);
+    final body = BytesBuilder()..add(vectorStart);
+    if (groupTranslate != null) {
+      body.add(start('group', [
+        _attribute(
+            nameIndex: idx('translateX'),
+            dataType: 0x03,
+            data: idx(groupTranslate)),
+      ]));
+    }
+    body
+      ..add(pathStart)
+      ..add(end('path'));
+    if (groupTranslate != null) body.add(end('group'));
+    body.add(end('vector'));
+    final bodyBytes = body.toBytes();
+
+    final total = 8 + pool.length + bodyBytes.length;
+    return Uint8List.fromList([
+      ..._u16(0x0003),
+      ..._u16(8),
+      ..._u32(total),
+      ...pool,
+      ...bodyBytes,
+    ]);
+  }
+
+  static String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
   /// Tek paketli bir kaynak tablosu.
   ///
   /// [files] her kaynak için `kimlik → (yoğunluk, yol)` listesi verir; yollar

@@ -171,6 +171,57 @@ void main() {
           [100, 120, 130]);
     });
 
+    /// **Sayfa taşıma** (kullanıcı isteği 2026-09-03): tek adım ileri/geri
+    /// düğmeleri 200 sayfalık bir belgede işkenceydi. Hedef indeks
+    /// TAŞIMADAN SONRAKİ listede beklenen yerdir.
+    test('movePage: sayfa istenen konuma gider', () async {
+      final src = await _makePdf([100, 110, 120, 130]);
+
+      expect(await _widths(await PdfTools.movePage(src, from: 0, to: 2)),
+          [110, 120, 100, 130]);
+      expect(await _widths(await PdfTools.movePage(src, from: 3, to: 0)),
+          [130, 100, 110, 120]);
+      // Aynı yere taşımak listeyi bozmuyor.
+      expect(await _widths(await PdfTools.movePage(src, from: 1, to: 1)),
+          [100, 110, 120, 130]);
+      expect(() => PdfTools.movePage(src, from: 9, to: 0), throwsRangeError);
+    });
+
+    test('reversePages: sıra tersine döner', () async {
+      final src = await _makePdf([100, 110, 120]);
+      expect(await _widths(await PdfTools.reversePages(src)),
+          [120, 110, 100]);
+    });
+
+    test('duplicatePages: kopya HEMEN ARKASINA girer', () async {
+      final src = await _makePdf([100, 110, 120]);
+      expect(await _widths(await PdfTools.duplicatePages(src, [1])),
+          [100, 110, 110, 120]);
+      expect(await _widths(await PdfTools.duplicatePages(src, [0, 2])),
+          [100, 100, 110, 120, 120]);
+      expect(() => PdfTools.duplicatePages(src, []), throwsArgumentError);
+    });
+
+    test('insertBlankPage: araya ve sona boş sayfa', () async {
+      final src = await _makePdf([100, 110]);
+      final middle = await PdfTools.insertBlankPage(src, index: 1);
+      expect((await _widths(middle)).length, 3);
+      // Yeni sayfa komşusunun ölçüsünde: yazdırmada tek başına bozuk çıkmasın.
+      expect((await _widths(middle))[1], 100);
+      final end = await PdfTools.insertBlankPage(src, index: 2);
+      expect((await _widths(end)).length, 3);
+    });
+
+    test('splitEvery: belge parçalara bölünür, son parça kısa olabilir',
+        () async {
+      final src = await _makePdf([100, 110, 120, 130, 140]);
+      final parts = await PdfTools.splitEvery(src, size: 2);
+      expect(parts.length, 3);
+      expect(await _widths(parts.first), [100, 110]);
+      expect(await _widths(parts.last), [140]);
+      expect(() => PdfTools.splitEvery(src, size: 0), throwsArgumentError);
+    });
+
     test('selectPages: olmayan sayfa ve boş seçim hata verir', () async {
       final src = await _makePdf([100, 110]);
       expect(() => PdfTools.selectPages(src, [5]), throwsRangeError);

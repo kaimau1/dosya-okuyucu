@@ -61,6 +61,18 @@ class UsbMass(private val context: Context) {
     var blockCount = 0L
         private set
 
+    /**
+     * Bellek **donanımdan** yazma korumalı mı? (Kart okuyucularda küçük
+     * anahtar, bazı belleklerde üretici kilidi.)
+     *
+     * Niye açıkça ölçülüyor: korumalı bir belleğe yazmayı denemek her
+     * seferinde CHECK CONDITION + REQUEST SENSE turu demek. Bunu ÖNCEDEN
+     * bilirsek arayüz "yapıştır" düğmesini hiç açmıyor ve kullanıcı yarım
+     * kalan bir kopyalamayla karşılaşmıyor.
+     */
+    var writeProtected = false
+        private set
+
     val isOpen: Boolean get() = connection != null
 
     private var permissionCallback: ((Boolean) -> Unit)? = null
@@ -130,37 +142,60 @@ class UsbMass(private val context: Context) {
         error = null
         val um = context.getSystemService(Context.USB_SERVICE) as UsbManager
 
+        // **Aygıtın TÜM arayüzleri + alternatif ayarları taranıyor.**
+        //
+        // Kullanıcı bulgusu 2026-09-03 (Kingston DT microDuo 3C): USB 3.x
+        // bellekler çoğu zaman İKİ arayüz bildirir — UAS (protokol 0x62,
+        // hızlı ama apayrı bir uygulama ister) ve klasik Bulk-Only (0x50).
+        // İlk sürüm listede EN SON gördüğü 0x50'yi seçiyordu; aygıt UAS'ı
+        // sonra bildirdiğinde ya da BOT alternatif bir ayarda durduğunda
+        // ya yanlış arayüz ya da hiçbiri seçiliyordu. Artık:
+        // * yalnız sınıf 8 arayüzler aday,
+        // * protokol 0x50 olan İLK aday seçiliyor (BOT),
+        // * alternatif ayar 0 değilse `setInterface` ile açıkça seçiliyor,
+        // * hiç BOT yoksa sebep AÇIKÇA söyleniyor (UAS mı, başka mı).
         var itf: UsbInterface? = null
+        var uasSeen = false
+        var massSeen = false
         for (i in 0 until device.interfaceCount) {
             val cand = device.getInterface(i)
+            val alt = try { cand.alternateSetting } catch (e: Exception) { 0 }
             log(
-                "arayüz $i: sınıf=${cand.interfaceClass} " +
-                    "alt=${cand.interfaceSubclass} " +
+                "arayüz $i (id=${cand.id} alt=$alt): sınıf=${cand.interfaceClass} " +
+                    "altsınıf=${cand.interfaceSubclass} " +
                     "protokol=0x${Integer.toHexString(cand.interfaceProtocol)}"
             )
-            if (cand.interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE &&
-                cand.interfaceProtocol == 0x50
-            ) {
-                itf = cand
+            if (cand.interfaceClass != UsbConstants.USB_CLASS_MASS_STORAGE) continue
+            massSeen = true
+            if (cand.interfaceProtocol == 0x62) uasSeen = true
+            if (cand.interfaceProtocol != 0x50) continue
+            val current = itf
+            itf = when {
+                current == null -> cand
+                // Elimizdeki adayın uçları eksikse (bazı aygıtlar 0.
+                // alternatifi uçsuz bildiriyor) uçları olan aday kazanır.
+                bulkPairOf(current) == null && bulkPairOf(cand) != null -> cand
+                else -> current
             }
         }
         if (itf == null) {
-            error = "Yığın depolama (Bulk-Only) arayüzü yok"
+            error = when {
+                uasSeen ->
+                    "Bu bellek yalnız UAS (USB 3) konuşuyor; Bulk-Only arayüzü yok"
+                massSeen -> "Yığın depolama var ama Bulk-Only (0x50) arayüzü yok"
+                else -> "Yığın depolama arayüzü yok (bu bir bellek değil)"
+            }
             return false
         }
+        if (uasSeen) log("not: aygıt UAS da bildiriyor, Bulk-Only seçildi")
 
-        var bulkIn: UsbEndpoint? = null
-        var bulkOut: UsbEndpoint? = null
-        for (i in 0 until itf.endpointCount) {
-            val ep = itf.getEndpoint(i)
-            if (ep.type != UsbConstants.USB_ENDPOINT_XFER_BULK) continue
-            if (ep.direction == UsbConstants.USB_DIR_IN) bulkIn = ep
-            else bulkOut = ep
-        }
-        if (bulkIn == null || bulkOut == null) {
+        val pair = bulkPairOf(itf)
+        if (pair == null) {
             error = "Toplu (bulk) uç bulunamadı"
             return false
         }
+        val bulkIn = pair.first
+        val bulkOut = pair.second
         log("uçlar: in=${bulkIn.address} out=${bulkOut.address}")
 
         val conn = try {
@@ -180,6 +215,19 @@ class UsbMass(private val context: Context) {
             return false
         }
         log("claimInterface: ok")
+        // **Alternatif ayar açıkça seçilmeli.** Aygıt varsayılan olarak 0.
+        // ayardadır; BOT arayüzü başka bir alternatifteyse (UAS'lı bellekler
+        // sık sık böyle bildiriyor) uçlar hazır olmaz ve ilk komut sessizce
+        // zaman aşımına düşerdi.
+        val altSetting = try { itf.alternateSetting } catch (e: Exception) { 0 }
+        if (altSetting != 0) {
+            val ok = try {
+                conn.setInterface(itf)
+            } catch (e: Exception) {
+                false
+            }
+            log("setInterface(alt=$altSetting): ${if (ok) "ok" else "BAŞARISIZ"}")
+        }
 
         connection = conn
         usbInterface = itf
@@ -203,6 +251,8 @@ class UsbMass(private val context: Context) {
                 continue
             }
             log("LUN $candidate: $blockSize B x $blockCount sektör")
+            writeProtected = modeSenseWriteProtected()
+            if (writeProtected) log("bellek YAZMA KORUMALI (donanım anahtarı)")
             return true
         }
         error = error ?: "Bellek hazır değil (birim yanıt vermiyor)"
@@ -225,6 +275,7 @@ class UsbMass(private val context: Context) {
         outEndpoint = null
         blockSize = 0
         blockCount = 0
+        writeProtected = false
     }
 
     /** `READ(10)` — [lba] sektöründen [count] sektör. */
@@ -259,6 +310,10 @@ class UsbMass(private val context: Context) {
      */
     fun write(lba: Long, data: ByteArray): Boolean {
         if (!isOpen || blockSize == 0) return false
+        if (writeProtected) {
+            error = "Bellek yazma korumalı"
+            return false
+        }
         if (data.isEmpty() || data.size % blockSize != 0) return false
         val count = data.size / blockSize
         val cdb = ByteArray(10)
@@ -283,6 +338,44 @@ class UsbMass(private val context: Context) {
             status = transfer(cdb, data, data.size, dataIn = false)
         }
         return status == STATUS_OK
+    }
+
+    /** Arayüzün toplu (bulk) IN/OUT uç ikilisi; ikisi de yoksa null. */
+    private fun bulkPairOf(itf: UsbInterface): Pair<UsbEndpoint, UsbEndpoint>? {
+        var bulkIn: UsbEndpoint? = null
+        var bulkOut: UsbEndpoint? = null
+        for (i in 0 until itf.endpointCount) {
+            val ep = itf.getEndpoint(i)
+            if (ep.type != UsbConstants.USB_ENDPOINT_XFER_BULK) continue
+            if (ep.direction == UsbConstants.USB_DIR_IN) {
+                if (bulkIn == null) bulkIn = ep
+            } else {
+                if (bulkOut == null) bulkOut = ep
+            }
+        }
+        val i = bulkIn
+        val o = bulkOut
+        return if (i != null && o != null) Pair(i, o) else null
+    }
+
+    /**
+     * `MODE SENSE(6)` — aygıt başlığındaki yazma koruma biti (0x80).
+     *
+     * Desteklemeyen bellekler CHECK CONDITION döner; o durumda "korumalı
+     * değil" kabul ediliyor (yazma denemesi zaten kendi hatasını verir).
+     */
+    private fun modeSenseWriteProtected(): Boolean {
+        val cdb = ByteArray(6)
+        cdb[0] = 0x1A
+        cdb[2] = 0x3F // tüm sayfalar
+        cdb[4] = 12
+        val data = ByteArray(12)
+        if (transfer(cdb, data, 12, dataIn = true) != STATUS_OK) {
+            requestSense()
+            return false
+        }
+        // 0: veri uzunluğu, 1: ortam türü, 2: aygıt başlığı (bit 7 = WP).
+        return (data[2].toInt() and 0x80) != 0
     }
 
     /** Aygıtta kaç mantıksal birim var? (Kart okuyucularda >0.) */

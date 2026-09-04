@@ -139,10 +139,17 @@ class UsbFs extends RemoteFs {
   @override
   Future<void> close() => device.close();
 
-  /// Yazma, dosya sistemi destekliyorsa açık (FAT16/FAT32). exFAT ve NTFS
-  /// şimdilik salt okunur — arayüzdeki düğmeler ona göre sönüyor.
+  /// Yazma, dosya sistemi destekliyorsa açık (FAT16/FAT32 **ve exFAT**).
+  /// NTFS salt okunur — arayüzdeki düğmeler ona göre sönüyor.
   @override
   bool get canWrite => fs.writable;
+
+  /// Bellek **donanımdan** yazma korumalı mı (kart okuyucu anahtarı)?
+  ///
+  /// `canWrite` false olduğunda sebebi ayırt etmek için: biçim mi (NTFS)
+  /// yoksa donanım mı? Kullanıcıya "exFAT yazamıyoruz" demek yanlış olurdu,
+  /// asıl sebep belleğin üstündeki küçük anahtarken.
+  bool get hardwareWriteProtected => !device.writable;
 
   @override
   Future<List<RemoteEntry>> list(String path) async {

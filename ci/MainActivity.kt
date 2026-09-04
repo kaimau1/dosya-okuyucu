@@ -5,8 +5,10 @@ import android.app.usage.StorageStatsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -61,6 +63,9 @@ class MainActivity : FlutterActivity() {
     /** Medya oturumu kanalı (bildirim → Dart eylemleri). */
     private var mediaChannel: MethodChannel? = null
 
+    /** Yüzen oynatıcı kanalı (pencere → Dart olayları). */
+    private var floatingChannel: MethodChannel? = null
+
     /** Açık ham USB belleği (varsa) — bkz. `UsbMass`. */
     private var usbMass: UsbMass? = null
 
@@ -89,6 +94,102 @@ class MainActivity : FlutterActivity() {
         // Şimdi olay itiliyor: sormayı beklemek yerine söylüyoruz.
         if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
             channel?.invokeMethod("usbAttached", null)
+        }
+    }
+
+    /**
+     * **Canlı USB/birim izleyicisi** — takılma anında Dart'a haber verir.
+     *
+     * Kullanıcı ölçümü 2026-09-03: *"usb takıldığında ana menüde hızlı biçimde
+     * sayfa güncellenip eklenmeli, çok geç düşüyor."* Kök neden: uygulama
+     * ÖN PLANDAYKEN takılan bir belleği hiçbir kanal İTMİYORDU. `usbAttached`
+     * yalnız "USB için uygulama seç" penceresinden bizi seçince (yeni intent)
+     * geliyordu; onun dışında Dart tarafı `/storage` klasörünü 5 saniyede bir
+     * yoklayan zamanlayıcıyı bekliyordu — ve Android belleği bağlamamışsa o
+     * yoklama HİÇ görmüyordu (bağlanmamış aygıt `/storage`'a düşmez).
+     *
+     * Çekirdeğin yayını (`USB_DEVICE_ATTACHED`) takılmanın ilk anında gelir;
+     * Android'in bağlaması (`MEDIA_MOUNTED`) saniyeler sonra gelir. İkisi de
+     * dinleniyor: birincisi ham sürücü kartını, ikincisi bağlanan birimi
+     * anında ekrana koyuyor.
+     *
+     * Yalnız uygulama ÖNDEYKEN kayıtlı (onStart/onStop): arka planda yayın
+     * dinlemek pil harcar ve zaten kimse ekranı görmüyor.
+     */
+    private var usbReceiver: BroadcastReceiver? = null
+
+    override fun onStart() {
+        super.onStart()
+        registerVolumeWatch()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterVolumeWatch()
+    }
+
+    private fun registerVolumeWatch() {
+        if (usbReceiver != null) return
+        val rec = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val action = intent.action ?: return
+                // Yayın herhangi bir izlekten gelebilir; MethodChannel ANA
+                // izlek ister (yoksa "Methods marked with @UiThread" çöker).
+                Handler(Looper.getMainLooper()).post {
+                    channel?.invokeMethod(
+                        "usbChanged",
+                        mapOf(
+                            "action" to action,
+                            "attached" to (
+                                action == UsbManager.ACTION_USB_DEVICE_ATTACHED ||
+                                    action == Intent.ACTION_MEDIA_MOUNTED
+                                )
+                        )
+                    )
+                }
+            }
+        }
+        val usbFilter = IntentFilter().apply {
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        // Bağlama yayınları `file:` şemalı veri taşır; şema eklenmezse süzgeç
+        // HİÇBİR şey yakalamaz (sessiz hata — bu yüzden ayrı süzgeç).
+        val mediaFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_MEDIA_MOUNTED)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+            addAction(Intent.ACTION_MEDIA_EJECT)
+            addAction(Intent.ACTION_MEDIA_REMOVED)
+            addAction(Intent.ACTION_MEDIA_BAD_REMOVAL)
+            addDataScheme("file")
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                // Android 13+ bayrak ŞART. Sistem yayınları için EXPORTED
+                // doğru olan: NOT_EXPORTED bazı ROM'larda yayını hiç
+                // ulaştırmıyor ve hata da vermiyor.
+                registerReceiver(rec, usbFilter, Context.RECEIVER_EXPORTED)
+                registerReceiver(rec, mediaFilter, Context.RECEIVER_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(rec, usbFilter)
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(rec, mediaFilter)
+            }
+            usbReceiver = rec
+        } catch (e: Exception) {
+            // Kaydedilemedi: eski yoklama yolu (Dart tarafı) yine çalışıyor.
+            usbReceiver = null
+        }
+    }
+
+    private fun unregisterVolumeWatch() {
+        val rec = usbReceiver ?: return
+        usbReceiver = null
+        try {
+            unregisterReceiver(rec)
+        } catch (e: Exception) {
+            // Zaten kaydı yok.
         }
     }
 
@@ -313,6 +414,117 @@ class MainActivity : FlutterActivity() {
                 }
             }
         configureMediaChannel(flutterEngine)
+        configureFloatingChannel(flutterEngine)
+    }
+
+    /**
+     * **Ekran üstünde yüzen oynatıcı köprüsü** (kullanıcı isteği 2026-09-03:
+     * *"ekran üstünde ekran video oynatıcı sistemi yapalım"*).
+     *
+     * Dart "şu videoyu şu konumdan yüzen pencerede aç" der; pencere kapanınca
+     * ya da kullanıcı "uygulamaya dön" deyince konum geri gelir ve video
+     * uygulamada kaldığı yerden sürer. Pencereyi çizen ve MediaPlayer'ı süren
+     * `ci/FloatingPlayer.kt`; burası yalnız kanal.
+     */
+    private fun configureFloatingChannel(flutterEngine: FlutterEngine) {
+        val floating = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, FLOATING_CHANNEL
+        )
+        floatingChannel = floating
+        FloatingBridge.onEvent = { event, position ->
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    floatingChannel?.invokeMethod(
+                        "event",
+                        mapOf("event" to event, "position" to position)
+                    )
+                } catch (e: Exception) {
+                    // Dart ölmüşse olay `takePending` ile sorulacak.
+                }
+            }
+        }
+        floating.setMethodCallHandler { call, result ->
+            when (call.method) {
+                // İzin verilmiş mi? ("Diğer uygulamaların üzerinde göster")
+                "permission" -> result.success(canDrawOverlays())
+
+                // İzin ekranını aç (kullanıcı elle verir; geri dönüş yok,
+                // Dart öne gelince yeniden soruyor).
+                "requestPermission" -> {
+                    try {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:$packageName")
+                        )
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+
+                "open" -> {
+                    val path = call.argument<String>("path")
+                    if (path.isNullOrEmpty() || !canDrawOverlays()) {
+                        result.success(false)
+                    } else {
+                        val intent = Intent(this, FloatingPlayerService::class.java)
+                        intent.action = FloatingBridge.ACTION_OPEN
+                        intent.putExtra(FloatingBridge.EXTRA_PATH, path)
+                        intent.putExtra(
+                            FloatingBridge.EXTRA_TITLE,
+                            call.argument<String>("title") ?: ""
+                        )
+                        intent.putExtra(
+                            FloatingBridge.EXTRA_SUBTITLE,
+                            call.argument<String>("subtitle") ?: ""
+                        )
+                        intent.putExtra(
+                            FloatingBridge.EXTRA_POSITION,
+                            (call.argument<Number>("position") ?: 0).toLong()
+                        )
+                        try {
+                            // Ön plan servisi: uygulama arkaya alınınca ses
+                            // kesilmesin. Android 8+ ayrı çağrı istiyor.
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                startForegroundService(intent)
+                            } else {
+                                startService(intent)
+                            }
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
+                }
+
+                "close" -> {
+                    try {
+                        stopService(Intent(this, FloatingPlayerService::class.java))
+                    } catch (e: Exception) {
+                    }
+                    result.success(true)
+                }
+
+                "running" -> result.success(FloatingBridge.running)
+
+                // Uygulama kapalıyken kapanan pencerenin son konumu.
+                "takePending" -> result.success(FloatingBridge.takePending())
+
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun canDrawOverlays(): Boolean = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else {
+            true
+        }
+    } catch (e: Exception) {
+        false
     }
 
     /**
@@ -798,6 +1010,9 @@ class MainActivity : FlutterActivity() {
                         "blockSize" to mass.blockSize,
                         "blockCount" to mass.blockCount,
                         "device" to device.deviceName,
+                        // Donanım yazma koruması: arayüz yazma düğmelerini
+                        // hiç açmasın (bkz. UsbMass.writeProtected).
+                        "writeProtected" to mass.writeProtected,
                         "steps" to mass.steps.toList()
                     )
                 } else {
@@ -1184,6 +1399,7 @@ class MainActivity : FlutterActivity() {
     private companion object {
         const val CHANNEL = "dosya_okuyucu/app_storage"
         const val MEDIA_CHANNEL = "dosya_okuyucu/media_session"
+        const val FLOATING_CHANNEL = "dosya_okuyucu/floating"
         const val REQ_PICK_TREE = 7301
     }
 }

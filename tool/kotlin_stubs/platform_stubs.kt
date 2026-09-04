@@ -7,6 +7,7 @@ open class Intent(action: String? = null) {
     var action: String? = action
     fun putExtra(name: String, value: String?): Intent = this
     fun getStringExtra(name: String): String? = null
+    fun getLongExtra(name: String, default: Long): Long = default
     fun setPackage(name: String?): Intent = this
     fun addFlags(flags: Int): Intent = this
     fun getBooleanExtra(name: String, default: Boolean): Boolean = default
@@ -21,7 +22,10 @@ open class Intent(action: String? = null) {
     }
 }
 
-class IntentFilter(action: String? = null)
+class IntentFilter(action: String? = null) {
+    fun addAction(action: String) {}
+    fun addDataScheme(scheme: String) {}
+}
 
 abstract class BroadcastReceiver {
     abstract fun onReceive(context: Context, intent: Intent)
@@ -35,7 +39,10 @@ open class Context {
     val packageManager: android.content.pm.PackageManager =
         android.content.pm.PackageManager()
 
+    val resources: android.content.res.Resources = android.content.res.Resources()
+
     fun getSystemService(name: String): Any? = null
+    fun startActivity(intent: Intent) {}
     fun startService(intent: Intent): Any? = null
     fun startForegroundService(intent: Intent): Any? = null
     fun stopService(intent: Intent): Boolean = true
@@ -52,5 +59,7 @@ open class Context {
         const val NOTIFICATION_SERVICE = "notification"
         const val STORAGE_SERVICE = "storage"
         const val RECEIVER_NOT_EXPORTED = 4
+        const val RECEIVER_EXPORTED = 2
+        const val WINDOW_SERVICE = "window"
     }
 }

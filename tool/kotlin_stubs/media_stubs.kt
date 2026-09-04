@@ -76,5 +76,6 @@ open class Service : android.content.Context() {
     companion object {
         const val START_NOT_STICKY = 2
         const val STOP_FOREGROUND_DETACH = 2
+        const val STOP_FOREGROUND_REMOVE = 1
     }
 }

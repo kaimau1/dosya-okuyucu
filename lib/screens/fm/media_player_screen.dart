@@ -11,6 +11,8 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/floating_video.dart';
+import '../../services/fm/playback_positions.dart';
 import '../../services/fm/subtitles.dart';
 import '../../services/fm/video_playback.dart';
 import '../../widgets/mini_player_bar.dart';
@@ -65,16 +67,61 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   bool _landscape = false;
   Timer? _hideTimer;
 
+  /// **Ekranı doldur** (kırparak) — 20:9 telefonda 16:9 filmin siyah
+  /// şeritlerini kaldırır. Varsayılan kapalı: kırpma bir tercihtir, kimsenin
+  /// görüntüsü habersiz kesilmemeli.
+  bool _zoomFill = false;
+
+  /// Son dokunuşun zamanı — ikinci dokunuşu (sarma) elle ölçmek için.
+  DateTime? _lastTapAt;
+
+  /// Dikey kaydırmayla ayarlanan ses; gösterge görünürken dolu.
+  double? _volumeHint;
+  Timer? _volumeTimer;
+
+  /// Oynatıcının o anki sesi (0-1). `VideoPlayerValue.volume` başlangıçta 1.
+  double _volume = 1;
+
   /// Servis her durum değişiminde haber veriyor; ekran o an yeniden çizilir.
   void _onService() {
     if (!mounted) return;
     setState(() {});
     if (_p.playing) _scheduleHide();
+    _maybeShowResumeNote();
     // Yeni dosyaya geçildiyse altyazılar da yenilenmeli.
     if (_subtitlesFor != _p.current) {
       _subtitlesFor = _p.current;
       unawaited(_loadSubtitles());
     }
+  }
+
+  /// "Kaldığın yerden devam" bildirimini hangi dosya için gösterdiğimiz.
+  String? _resumeNoticeFor;
+
+  /// **Devam bildirimi** (kullanıcı isteği 2026-09-03, premium oynatıcı).
+  ///
+  /// Sessizce ortadan başlamak kullanıcıyı şaşırtır ("video bozuk mu?");
+  /// bir cümle + tek dokunuşluk "baştan başlat" hem haber veriyor hem geri
+  /// dönüş yolu bırakıyor.
+  void _maybeShowResumeNote() {
+    final at = _p.resumedFrom;
+    final path = _p.current;
+    if (at == null || path.isEmpty || _resumeNoticeFor == path) return;
+    _resumeNoticeFor = path;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showSnack(
+        context,
+        context.t('mp.resumed_at', {'time': _fmt(at)}),
+        action: SnackBarAction(
+          label: context.t('mp.restart'),
+          onPressed: () {
+            PlaybackPositions.clear(path);
+            unawaited(_p.seek(Duration.zero));
+          },
+        ),
+      );
+    });
   }
 
   /// Altyazıları en son hangi dosya için yüklediğimiz.
@@ -122,6 +169,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _unhideBar?.call();
     _p.removeListener(_onService);
     _hideTimer?.cancel();
+    _volumeTimer?.cancel();
     // **Oynatıcı KAPATILMIYOR** — ekran altı mini çubuk onu sürdürüyor.
     // Ekranı serbest bırak (tam ekranda yatay kilitlemiş olabiliriz).
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
@@ -273,6 +321,123 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _scheduleHide();
   }
 
+  /// Ekrana dokunuş: kontrolleri çevirir; kenarda HIZLI ikinci dokunuş sarar.
+  void _handleTap(TapUpDetails details) {
+    setState(() => _controlsVisible = !_controlsVisible);
+    if (_controlsVisible) _scheduleHide();
+    if (_isAudio) return;
+    final width = MediaQuery.of(context).size.width;
+    final side = width <= 0 ? 0.5 : details.localPosition.dx / width;
+    final now = DateTime.now();
+    final previous = _lastTapAt;
+    _lastTapAt = now;
+    if (previous == null ||
+        now.difference(previous) > const Duration(milliseconds: 320)) {
+      return;
+    }
+    // İkinci dokunuş: ortada değilse sar. (Ortası ayrıldı — parmağın nereye
+    // düştüğüne göre yanlış iş yapmak en can sıkıcısı.)
+    _lastTapAt = null;
+    if (side < 0.4) {
+      _seekBy(-10);
+    } else if (side > 0.6) {
+      _seekBy(10);
+    }
+  }
+
+  /// Dikey kaydırma sesi değiştirir (yukarı = yüksek).
+  void _handleVolumeDrag(DragUpdateDetails details) {
+    final c = _controller;
+    if (c == null) return;
+    final height = MediaQuery.of(context).size.height;
+    final next = (_volume - details.delta.dy / (height * 0.6)).clamp(0.0, 1.0);
+    _volume = next;
+    unawaited(c.setVolume(next));
+    _volumeTimer?.cancel();
+    setState(() => _volumeHint = next);
+  }
+
+  /// Göstergeyi kısa süre sonra gizler (kaydırma bitti).
+  void _hideVolumeSoon() {
+    _volumeTimer?.cancel();
+    _volumeTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => _volumeHint = null);
+    });
+  }
+
+  Widget _volumeBadge() {
+    final value = _volumeHint ?? 1;
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(Radii.sheet),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              value == 0
+                  ? Icons.volume_off
+                  : (value < 0.5 ? Icons.volume_down : Icons.volume_up),
+              color: Colors.white,
+            ),
+            const SizedBox(width: Gap.sm),
+            SizedBox(
+              width: 90,
+              child: LinearProgressIndicator(
+                value: value,
+                backgroundColor: Colors.white24,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: Gap.sm),
+            Text('${(value * 100).round()}%',
+                style: const TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// **Ekran üstüne al** — video başka uygulamaların üstünde sürsün.
+  ///
+  /// İzin yoksa kullanıcı ayara yönlendiriliyor: "olmadı" deyip bırakmak,
+  /// kullanıcının elinde yapacak bir şey bırakmamak demek olurdu.
+  Future<void> _popOut() async {
+    if (!await FloatingVideo.hasPermission()) {
+      if (!mounted) return;
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.t('mp.float_window')),
+          content: Text(ctx.t('mp.float_permission')),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(ctx.t('common.cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(ctx.t('common.open'))),
+          ],
+        ),
+      );
+      if (go != true) return;
+      await FloatingVideo.requestPermission();
+      return;
+    }
+    final ok = await _p.popOut();
+    if (!mounted) return;
+    if (!ok) {
+      _toast(context.t('mp.float_failed'));
+      return;
+    }
+    // Pencere açıldı: tam ekran oynatıcıdan çık, kullanıcı istediği
+    // uygulamaya geçebilsin.
+    Navigator.of(context).maybePop();
+  }
+
   Future<void> _setSpeed(double speed) => _p.setSpeed(speed);
 
   void _toggleLandscape() {
@@ -319,16 +484,29 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
         // opaque: varsayılan `deferToChild` ile yalnız görüntünün kendisi
         // dokunmayı yakalıyordu.
         behavior: HitTestBehavior.opaque,
-        onTap: () {
-          setState(() => _controlsVisible = !_controlsVisible);
-          if (_controlsVisible) _scheduleHide();
-        },
+        // **Çift dokunuş = sarma** (kullanıcı isteği 2026-09-03, premium
+        // oynatıcı): solda 10 sn geri, sağda 10 sn ileri, ortada dokunuş
+        // yine kontrolleri açıp kapatıyor.
+        //
+        // **`onDoubleTap` KULLANILMIYOR — bilinçli.** Aynı ağaçta bir çift
+        // dokunuş tanıyıcısı varken TEK dokunuş, çift dokunuş süresi
+        // (~300 ms) dolana kadar BEKLETİLİR: kontroller geç açılıyor ve
+        // altındaki oynat/duraklat düğmesi bile gecikiyordu (iki widget
+        // testi bunu yakaladı). Onun yerine ikinci dokunuş elle ölçülüyor —
+        // her dokunuş anında iş görüyor. İki dokunuş kontrolleri iki kez
+        // çevirdiği için görüntü de yerinde kalıyor (aç-kapa = değişmedi).
+        onTapUp: _handleTap,
         // Sağa/sola kaydırma: çalma listesinde önceki/sonraki dosya.
         onHorizontalDragEnd: (details) {
           final v = details.primaryVelocity ?? 0;
           if (v < -250) _skip(1);
           if (v > 250) _skip(-1);
         },
+        // **Dikey kaydırma = ses** (oynatıcının kendi sesi; sistem sesi bir
+        // eklenti ister ve tek bir kaydırma için derleme zincirini oynatmak
+        // yasak — bkz. HAFIZA). Gösterge kaydırma boyunca ekranda.
+        onVerticalDragUpdate: _isAudio ? null : _handleVolumeDrag,
+        onVerticalDragEnd: (_) => _hideVolumeSoon(),
         child: Stack(
           children: [
             Positioned.fill(child: _surface(c, value)),
@@ -344,6 +522,13 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                   valueListenable: c,
                   builder: (_, live, __) => _captionLayer(live.position),
                 ),
+              ),
+            if (_volumeHint != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 80,
+                child: IgnorePointer(child: _volumeBadge()),
               ),
             if (_controlsVisible)
               Positioned(left: 0, right: 0, top: 0, child: _topBar()),
@@ -503,6 +688,18 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
             ],
           ),
           actions: [
+            if (!_isAudio) ...[
+              IconButton(
+                tooltip: context.t('mp.float_window'),
+                icon: const Icon(Icons.picture_in_picture_alt),
+                onPressed: _popOut,
+              ),
+              IconButton(
+                tooltip: context.t(_zoomFill ? 'mp.zoom_fit' : 'mp.zoom_fill'),
+                icon: Icon(_zoomFill ? Icons.fit_screen : Icons.crop_free),
+                onPressed: () => setState(() => _zoomFill = !_zoomFill),
+              ),
+            ],
             if (!_isAudio) _subtitleMenu(),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),
@@ -599,6 +796,23 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       );
     }
 
+    // **Yakınlaştırma (en-boy doldurma):** telefonun ekranı 20:9, filmlerin
+    // çoğu 16:9 — üstte altta siyah şerit kalıyor. `cover` görüntüyü ekrana
+    // yayıyor (kenarlardan kırparak). Seçim kullanıcıda: iki kip arasında
+    // üst çubuktaki düğme geçiş yaptırıyor.
+    if (_zoomFill) {
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: value.size.width,
+            height: value.size.height,
+            child: VideoPlayer(c),
+          ),
+        ),
+      );
+    }
     return Center(
       child: AspectRatio(
         aspectRatio: value.aspectRatio,

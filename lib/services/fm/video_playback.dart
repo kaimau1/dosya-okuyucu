@@ -7,7 +7,9 @@ import 'package:video_player/video_player.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/screen_awake.dart';
+import 'floating_video.dart';
 import 'media_session.dart';
+import 'playback_positions.dart';
 import 'thumbnail_cache.dart';
 
 /// **Video oynatma servisi** — oynatıcı artık ekranın değil, uygulamanın.
@@ -52,6 +54,15 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   /// Uygulama arkaya alındığı için mi duraklattık? (Kullanıcı duraklattıysa
   /// dönüşte kendiliğinden başlamamalı.)
   bool _pausedByLifecycle = false;
+
+  /// Bu dosya kayıtlı bir konumdan mı başladı? (Ekran "23:10'dan devam
+  /// ediliyor" diye kısa bir bilgi gösteriyor; kullanıcı baştan başlamak
+  /// isterse tek dokunuşla dönebilsin.)
+  Duration? resumedFrom;
+
+  /// Yüzen pencere açıkken uygulama içi oynatıcı susar; kapanınca konum
+  /// buradan geri geliyor.
+  bool floatingActive = false;
 
   bool _observing = false;
   VoidCallback? _awake;
@@ -98,6 +109,16 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await controller.initialize();
       await controller.setPlaybackSpeed(speed);
+      // **Kaldığı yerden devam** (kullanıcı isteği 2026-09-03): yarım
+      // bırakılan bir filmi baştan açmak oynatıcıların en çok konuşulan
+      // eksiği. Kural `PlaybackPositions`ta: ilk 30 sn ve son %5 kaydedilmez.
+      final resume = PlaybackPositions.positionOf(path);
+      if (resume != null && resume < controller.value.duration) {
+        await controller.seekTo(resume);
+        resumedFrom = resume;
+      } else {
+        resumedFrom = null;
+      }
       await controller.play();
     } catch (e) {
       await controller.dispose();
@@ -182,6 +203,9 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     final c = _controller;
     if (c == null) return;
     final v = c.value;
+    if (v.isPlaying) {
+      PlaybackPositions.record(current, v.position, v.duration);
+    }
     if (v.position >= v.duration &&
         v.duration > Duration.zero &&
         !v.isPlaying) {
@@ -247,6 +271,14 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     _stopTicker();
     _syncAwake(false);
     final c = _controller;
+    if (c != null && current.isNotEmpty) {
+      PlaybackPositions.record(current, c.value.position, c.value.duration);
+      unawaited(PlaybackPositions.save());
+    }
+    if (floatingActive) {
+      floatingActive = false;
+      unawaited(FloatingVideo.close());
+    }
     _controller = null;
     playlist = const [];
     index = 0;
@@ -282,6 +314,65 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
       case 'stop':
         await close();
     }
+  }
+
+  // ── Ekran üstünde yüzen pencere ────────────────────────────────────────
+
+  /// **Videoyu ekran üstüne al** (kullanıcı isteği 2026-09-03).
+  ///
+  /// Uygulama içi oynatıcı duraklatılır ve video, başka uygulamaların
+  /// üstünde duran küçük bir pencerede AYNI KONUMDAN sürer. İki oynatıcının
+  /// aynı anda ses vermesi kullanıcının duyacağı ilk hata olurdu.
+  ///
+  /// İzin yoksa false döner — çağıran ekranı kullanıcıyı izin ayarına
+  /// yönlendiriyor.
+  Future<bool> popOut() async {
+    if (!hasVideo) return false;
+    final path = current;
+    final at = position;
+    final ok = await FloatingVideo.open(
+      path: path,
+      position: at,
+      title: title,
+      subtitle: AppStrings.current.t('mp.float_window'),
+    );
+    if (!ok) return false;
+    floatingActive = true;
+    _listenFloating();
+    await _controller?.pause();
+    // Bildirim/oturum da susmalı: çalan şey artık pencere.
+    await _clearSession();
+    notifyListeners();
+    return true;
+  }
+
+  /// Pencere olaylarını bir kez bağlar.
+  void _listenFloating() {
+    FloatingVideo.setHandler((event, at) {
+      floatingActive = false;
+      // Pencere kapandı ya da "uygulamaya dön" denildi: konumu al, kaydet
+      // ve uygulama içi oynatıcıyı oraya taşı.
+      PlaybackPositions.record(current, at, duration);
+      unawaited(seek(at));
+      if (event == 'expand') unawaited(_controller?.play());
+      // Bildirim/oturum geri gelsin: pencereye geçerken susturulmuştu.
+      unawaited(_refreshSession());
+      notifyListeners();
+    });
+  }
+
+  /// Uygulama açılırken: pencere biz kapalıyken kapandıysa konumu al.
+  Future<void> syncFloating() async {
+    _listenFloating();
+    final pending = await FloatingVideo.takePending();
+    if (pending == null) return;
+    floatingActive = false;
+    final (_, at) = pending;
+    if (current.isNotEmpty) {
+      PlaybackPositions.record(current, at, duration);
+      await seek(at);
+    }
+    notifyListeners();
   }
 
   // ── Medya oturumu ───────────────────────────────────────────────────────
@@ -356,6 +447,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     backgroundAllowed = false;
     _cover = null;
     _wasPlaying = false;
+    resumedFrom = null;
+    floatingActive = false;
     c?.removeListener(_onTick);
     unawaited(c?.pause());
     unawaited(c?.dispose());

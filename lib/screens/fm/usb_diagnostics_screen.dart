@@ -180,7 +180,11 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
                     '${d.displayName}  (${d.vendorHex}:${d.productHex})\n'
                         '${context.t('usb.diag_mass')}: ${d.isMassStorage ? '✔' : '✘'} · '
                         '${context.t('usb.diag_drivable')}: ${d.isDrivable ? '✔' : '✘'} · '
-                        '${context.t('usb.diag_permission')}: ${d.hasPermission ? '✔' : '✘'}',
+                        '${context.t('usb.diag_permission')}: ${d.hasPermission ? '✔' : '✘'}'
+                        // Sürülemiyorsa SEBEP yazılıyor: "✘" tek başına
+                        // kullanıcıya hiçbir şey söylemiyordu (2026-09-03).
+                        '${d.isUasOnly ? '\n${context.t('usb.diag_uas_only')}' : ''}'
+                        '${d.isCbiOnly ? '\n${context.t('usb.diag_cbi_only')}' : ''}',
                 ]),
                 _section('StorageManager', [
                   if (report.platformVolumes.isEmpty) '—',

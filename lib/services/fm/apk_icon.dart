@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'apk_resources.dart';
 import 'thumbnail_cache.dart';
+import 'vector_drawable.dart';
 
 /// Bir **.apk dosyasının kendi uygulama simgesini** çıkarır ve diskte
 /// önbelleğe alır.
@@ -193,13 +194,90 @@ abstract final class ApkIcon {
     final rasterBytes = raster == null ? null : _entryBytes(archive, raster);
     if (rasterBytes != null && rasterBytes.isNotEmpty) return rasterBytes;
 
-    // Sonra uyarlanabilir simge (XML katmanları).
+    // Sonra XML: uyarlanabilir simge katmanları ya da doğrudan vektör.
     final xmlPath = resources.bestFile(iconId);
     if (xmlPath == null || !xmlPath.toLowerCase().endsWith('.xml')) return null;
     final xmlBytes = _entryBytes(archive, xmlPath);
     if (xmlBytes == null) return null;
-    return composeAdaptive(archive, resources, xmlBytes);
+    final adaptive = composeAdaptive(archive, resources, xmlBytes);
+    if (adaptive != null) return adaptive;
+    // **Uyarlanabilir değil, doğrudan vektör simge** (eski uygulamaların
+    // çoğu böyle): tek başına çizilir.
+    final vector = _renderDrawable(archive, resources, xmlBytes);
+    if (vector == null) return null;
+    return Uint8List.fromList(img.encodePng(vector));
   }
+
+  /// **Bir çizim kaynağını görüntüye çevirir** — raster, vektör ya da sarmalayıcı.
+  ///
+  /// Uyarlanabilir simgenin katmanı üç şeyden biri olabilir ve üçü de gerçek
+  /// APK'larda karşımıza çıkıyor:
+  /// 1. hazır PNG/WebP,
+  /// 2. **vektör çizim** (`<vector>`) — Android Studio'nun ürettiği her
+  ///    varsayılan simge böyle; eskiden burada vazgeçiliyordu,
+  /// 3. sarmalayıcı XML (`<inset>`, `<bitmap>`, `<layer-list>`) — içindeki
+  ///    asıl çizime gönderme yapar.
+  ///
+  /// [depth] sonsuz döngüyü keser (kendini gösteren bozuk kaynaklar var).
+  static img.Image? _drawableImage(
+    Archive archive,
+    ArscTable resources,
+    int resId, {
+    int depth = 0,
+  }) {
+    if (depth > 4) return null;
+    final raster = resources.bestFile(resId, xml: false);
+    final rasterBytes = raster == null ? null : _entryBytes(archive, raster);
+    if (rasterBytes != null && rasterBytes.isNotEmpty) {
+      final decoded = _decode(rasterBytes);
+      if (decoded != null) return decoded;
+    }
+    final xmlPath = resources.bestFile(resId);
+    if (xmlPath == null || !xmlPath.toLowerCase().endsWith('.xml')) return null;
+    final xmlBytes = _entryBytes(archive, xmlPath);
+    if (xmlBytes == null) return null;
+    return _renderDrawable(archive, resources, xmlBytes, depth: depth);
+  }
+
+  /// Bir XML çizimi görüntüye çevirir (vektör ya da sarmalayıcı).
+  static img.Image? _renderDrawable(
+    Archive archive,
+    ArscTable resources,
+    Uint8List xmlBytes, {
+    int depth = 0,
+  }) {
+    final tree = AndroidBinaryXml.parseTree(xmlBytes);
+    if (tree.isEmpty) return null;
+    if (VectorDrawable.isVector(tree)) {
+      final image = VectorDrawable.parse(
+        tree,
+        resolveColor: (id) => colorOf(resources, id),
+      );
+      if (image == null) return null;
+      return VectorDrawable.rasterize(image, size: _iconSide);
+    }
+    // Sarmalayıcı: ilk çizim göndermesini izle (`<bitmap android:src>`,
+    // `<inset android:drawable>`, `<layer-list><item android:drawable>`).
+    for (final node in tree) {
+      for (final candidate in [node, ...node.descendants('item')]) {
+        for (final key in const ['drawable', 'src']) {
+          final attr = candidate.element.byName[key] ??
+              (key == 'drawable'
+                  ? candidate.element.byResId[AndroidBinaryXml.attrDrawable]
+                  : null);
+          if (attr == null || !attr.isReference) continue;
+          final inner =
+              _drawableImage(archive, resources, attr.data, depth: depth + 1);
+          if (inner != null) return inner;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Çizilen simgenin kenarı (px). 192, xxxhdpi bir başlatıcı simgesidir:
+  /// listede keskin, bellekte küçük.
+  static const _iconSide = 192;
 
   /// Uyarlanabilir simgeyi başlatıcıdaki gibi çizer: zemin + ön plan üst üste,
   /// sonra **ortadan kırpma** ve yuvarlatılmış köşe.
@@ -226,9 +304,10 @@ abstract final class ApkIcon {
       img.Image? layer;
       int? color;
       if (drawable.isReference) {
-        final file = resources.bestFile(drawable.data, xml: false);
-        final bytes = file == null ? null : _entryBytes(archive, file);
-        layer = bytes == null ? null : _decode(bytes);
+        // **Katman artık VEKTÖR de olabilir** (2026-09-03): eskiden yalnız
+        // hazır raster aranıyordu ve vektör ön planlı simgelerde birleştirme
+        // vazgeçiyordu — kullanıcının listede gördüğü boş kare buydu.
+        layer = _drawableImage(archive, resources, drawable.data);
         color = colorOf(resources, drawable.data);
       } else if (drawable.type >= typeColorFirst &&
           drawable.type <= typeColorLast) {
@@ -245,7 +324,7 @@ abstract final class ApkIcon {
     // düz bir renk kutusu — tam da düzeltmeye çalıştığımız görüntü.
     if (foreground == null) return null;
 
-    final side = foreground.width > 0 ? foreground.width : 216;
+    final side = foreground.width > 0 ? foreground.width : _iconSide;
     final canvas = img.Image(width: side, height: side, numChannels: 4);
     if (backgroundColor != null) {
       img.fill(canvas, color: _argb(backgroundColor));

@@ -168,6 +168,17 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
         '${FsPaths.humanSize(usage.$1 - usage.$2)} / ${FsPaths.humanSize(usage.$1)}');
   }
 
+  /// Donanımdan yazma korumalı bir bellekte başlıkta gösterilen uyarı.
+  ///
+  /// Kullanıcı hatası 2026-09-03: yazma düğmeleri sönük duruyordu ve neden
+  /// söndükleri hiçbir yerde yazmıyordu ("bu usbde sorun oldu"). Korumalı bir
+  /// bellekte sebep artık başlıkta.
+  String get _readOnlyNote {
+    final fs = _fs;
+    if (fs is! UsbFs || !fs.hardwareWriteProtected) return '';
+    return context.t('usb.write_protected');
+  }
+
   bool get _atRoot => _path == widget.connection.rootPath || _path == '/';
 
   Future<void> _up() async {
@@ -398,7 +409,12 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: Text(
-                    _usage.isEmpty ? _path : '$_path  ·  $_usage',
+                    // Yol her zaman görünür; uyarı ve doluluk yanına ekleniyor.
+                    [
+                      _path,
+                      if (_usage.isNotEmpty) _usage,
+                      if (_readOnlyNote.isNotEmpty) _readOnlyNote,
+                    ].join('  ·  '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall),

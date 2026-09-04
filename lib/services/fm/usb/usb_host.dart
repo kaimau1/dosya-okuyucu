@@ -35,6 +35,16 @@ class UsbInterface {
   /// Protokolde esneklik YOK: 0x50 dışındaki taşımalar (CBI, UAS) apayrı
   /// bir uygulama ister.
   bool get isBulkOnlyScsi => isMassStorage && protocol == 0x50;
+
+  /// **UAS** (USB Attached SCSI, protokol 0x62) — USB 3 belleklerin hızlı
+  /// taşıması. Sürücümüz bunu konuşmuyor; aynı aygıt genelde bir de
+  /// Bulk-Only arayüz bildirir ve sürücü onu seçer (bkz. `ci/UsbMass.kt`).
+  bool get isUas => isMassStorage && protocol == 0x62;
+
+  /// **CBI** (Control/Bulk/Interrupt, 0x00/0x01) — çok eski bellekler ve
+  /// disket sürücüleri. Sürücümüz konuşmuyor; teşhis ekranı bunu ayırt
+  /// edebilsin diye ayrı ad verildi ("tanınmadı" demek yanlış olurdu).
+  bool get isCbi => isMassStorage && (protocol == 0x00 || protocol == 0x01);
 }
 
 /// Çekirdeğin gördüğü bir USB aygıtı.
@@ -83,6 +93,17 @@ class UsbDevice {
 
   /// Ham sürücüyle sürülebilir mi?
   bool get isDrivable => interfaces.any((i) => i.isBulkOnlyScsi);
+
+  /// Bellek ama **yalnız UAS** konuşuyor: sürülemez ve sebebi budur.
+  ///
+  /// Kullanıcıya "tanınmadı" demek yanlış olurdu — aygıt gayet tanındı,
+  /// yalnız taşıması bizim konuşmadığımız bir taşıma. Teşhis ekranı bunu
+  /// açıkça yazıyor (kullanıcı 2026-09-03: *"diğer USB türlerinde de
+  /// sorunsuzluk istiyorum"*).
+  bool get isUasOnly => !isDrivable && interfaces.any((i) => i.isUas);
+
+  /// Bellek ama yalnız CBI konuşuyor (çok eski aygıtlar).
+  bool get isCbiOnly => !isDrivable && interfaces.any((i) => i.isCbi);
 
   /// Kullanıcıya gösterilecek ad: üretici + ürün, yoksa VID:PID.
   String get displayName {

@@ -166,6 +166,11 @@ jobs:
           # MainActivity `MediaBridge`i çağırıyor; kopyalanmazsa derleme
           # "unresolved reference" ile kırılır.
           cp ci/MediaSession.kt "$DIR/MediaSession.kt"
+          # Ekran üstünde yüzen video oynatıcı (WindowManager penceresi +
+          # MediaPlayer). Manifest'teki <service android:name=
+          # ".FloatingPlayerService"> ve MainActivity'deki `FloatingBridge`
+          # bunu arar; kopyalanmazsa derleme "unresolved reference" ile kırılır.
+          cp ci/FloatingPlayer.kt "$DIR/FloatingPlayer.kt"
           # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
           # kalırsa "duplicate class" hatası verir.
           rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java

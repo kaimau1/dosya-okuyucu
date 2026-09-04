@@ -41,9 +41,47 @@ class AxmlAttribute {
 
   static const typeReference = 0x01;
   static const typeString = 0x03;
+  static const typeFloat = 0x04;
+  static const typeDimension = 0x05;
+  static const typeFraction = 0x06;
+  static const typeIntFirst = 0x10;
+  static const typeIntLast = 0x1f;
 
   /// Bu öznitelik bir kaynağa gönderme mi (ve kimliği sıfırdan farklı mı)?
   bool get isReference => type == typeReference && data != 0;
+
+  /// **Sayısal değeri** — kayan nokta, ölçü (dp/sp), oran, tam sayı ya da
+  /// sayı yazan bir dizge. Sayı değilse null.
+  ///
+  /// Vektör çizimler için gerekli (`viewportWidth="24"`, `strokeWidth="1.5"`,
+  /// `rotation="45"`): aynı alan bir APK'da float, ötekinde dizge geliyor.
+  double? get asDouble {
+    switch (type) {
+      case typeFloat:
+        final buffer = ByteData(4)..setUint32(0, data, Endian.little);
+        return buffer.getFloat32(0, Endian.little);
+      case typeDimension:
+      case typeFraction:
+        // `Res_value` karmaşık sayısı: üst 24 bit mantis, 4-5. bitler taban.
+        const mantissa = 1.0 / (1 << 8);
+        const radix = [
+          mantissa,
+          mantissa / (1 << 7),
+          mantissa / (1 << 15),
+          mantissa / (1 << 23),
+        ];
+        return (data & 0xFFFFFF00).toSigned(32) * radix[(data >> 4) & 3];
+      case typeString:
+        final text = string;
+        if (text == null) return null;
+        // "24dp" / "1.5sp" → sayı kısmı.
+        final match = RegExp(r'^-?[0-9]*\.?[0-9]+').firstMatch(text.trim());
+        return match == null ? null : double.tryParse(match.group(0)!);
+      default:
+        if (type >= typeIntFirst && type <= typeIntLast) return data.toDouble();
+        return null;
+    }
+  }
 }
 
 /// İkili XML'de bir başlangıç elemanı.
@@ -60,17 +98,61 @@ class AxmlElement {
   const AxmlElement(this.name, this.byResId, this.byName);
 }
 
+/// İkili XML ağacında bir düğüm: eleman + çocukları.
+///
+/// Vektör çizimler (`<vector><group><path/></group></vector>`) için gerekli;
+/// düz eleman listesi grubun dönüşümünü hangi yolun taşıdığını kaybeder.
+class AxmlNode {
+  final AxmlElement element;
+  final List<AxmlNode> children = [];
+
+  AxmlNode(this.element);
+
+  String get name => element.name;
+
+  /// Adı [name] olan ilk çocuk (yoksa null).
+  AxmlNode? child(String name) {
+    for (final c in children) {
+      if (c.name == name) return c;
+    }
+    return null;
+  }
+
+  /// Ağacın tamamında adı [name] olan düğümler (kendisi dahil).
+  Iterable<AxmlNode> descendants(String name) sync* {
+    if (this.name == name) yield this;
+    for (final c in children) {
+      yield* c.descendants(name);
+    }
+  }
+}
+
 /// Android'in ikili XML biçimi (AXML).
 abstract final class AndroidBinaryXml {
   static const _chunkStringPool = 0x0001;
   static const _chunkXml = 0x0003;
   static const _chunkResourceMap = 0x0180;
   static const _chunkStartElement = 0x0102;
+  static const _chunkEndElement = 0x0103;
 
   /// Android çerçevesinin öznitelik kimlikleri (yalnız kullandıklarımız).
   static const attrIcon = 0x01010002;
   static const attrRoundIcon = 0x0101052c;
   static const attrDrawable = 0x01010199;
+
+  /// Belgeyi **ağaç olarak** okur (iç içe elemanlar korunur).
+  ///
+  /// Niye gerekli (2026-09-03): vektör çizimlerde (`<vector>`) anlam iç içe
+  /// duruyor — `<group>` altındaki `<path>` grubun dönüşümünü taşır ve düz
+  /// bir liste bunu kaybeder. [parse] düz liste döndürmeye devam ediyor;
+  /// simge arayan eski yollar onu kullanıyor.
+  static List<AxmlNode> parseTree(Uint8List bytes) {
+    try {
+      return _parseTree(bytes);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   /// Belgedeki başlangıç elemanlarını sırayla döndürür. Biçim tanınmazsa boş.
   static List<AxmlElement> parse(Uint8List bytes) {
@@ -117,6 +199,54 @@ abstract final class AndroidBinaryXml {
       offset += size;
     }
     return out;
+  }
+
+  static List<AxmlNode> _parseTree(Uint8List bytes) {
+    final data = ByteData.sublistView(bytes);
+    if (bytes.length < 8) return const [];
+    if (data.getUint16(0, Endian.little) != _chunkXml) return const [];
+    final headerSize = data.getUint16(2, Endian.little);
+    final total = data.getUint32(4, Endian.little);
+    final end = total < bytes.length ? total : bytes.length;
+
+    List<String> strings = const [];
+    List<int> resourceMap = const [];
+    final roots = <AxmlNode>[];
+    final stack = <AxmlNode>[];
+
+    var offset = headerSize;
+    while (offset + 8 <= end) {
+      final type = data.getUint16(offset, Endian.little);
+      final chunkHeader = data.getUint16(offset + 2, Endian.little);
+      final size = data.getUint32(offset + 4, Endian.little);
+      if (size < 8) break;
+      switch (type) {
+        case _chunkStringPool:
+          strings = readStringPool(bytes, offset);
+        case _chunkResourceMap:
+          final count = (size - chunkHeader) ~/ 4;
+          resourceMap = [
+            for (var i = 0; i < count; i++)
+              data.getUint32(offset + chunkHeader + 4 * i, Endian.little),
+          ];
+        case _chunkStartElement:
+          final element =
+              _readElement(data, offset, chunkHeader, strings, resourceMap);
+          if (element != null) {
+            final node = AxmlNode(element);
+            if (stack.isEmpty) {
+              roots.add(node);
+            } else {
+              stack.last.children.add(node);
+            }
+            stack.add(node);
+          }
+        case _chunkEndElement:
+          if (stack.isNotEmpty) stack.removeLast();
+      }
+      offset += size;
+    }
+    return roots;
   }
 
   static AxmlElement? _readElement(
