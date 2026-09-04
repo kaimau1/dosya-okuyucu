@@ -99,6 +99,33 @@ void main() {
     });
   });
 
+  group('sayfa alt sınırı', () {
+    /// **2026-08-30 bulgusu, 2026-09-04'te kapandı.** Altında başka satır
+    /// olmayan paragrafa eskiden `double.infinity` yer veriliyordu: çeviri
+    /// gibi metni uzatan bir işlem sayfanın ALTINA taşıyor ve hiçbir uyarı
+    /// çıkmıyordu.
+    test('son paragrafın yeri sayfa kutusuyla sınırlı', () {
+      // Sayfanın en altında (y=40) tek satırlık bir paragraf.
+      const lastLine = 'BT /F1 10 Tf 1 0 0 1 50 40 Tm (AAAA) Tj ET';
+      final withBox =
+          parse(lastLine, pageBox: [0, 0, 595, 842]).single;
+      expect(withBox.roomBelow.isFinite, isTrue,
+          reason: 'kutu biliniyorsa sınır da bilinir');
+      expect(withBox.roomBelow, lessThan(30),
+          reason: 'sayfanın dibindeki satırın altında yer kalmadı');
+
+      // Kutu verilmezse (eski çağıranlar) davranış korunuyor.
+      expect(parse(lastLine).single.roomBelow, double.infinity);
+    });
+
+    test('sayfanın ortasındaki son paragrafta yer VAR', () {
+      const midLine = 'BT /F1 10 Tf 1 0 0 1 50 400 Tm (AAAA) Tj ET';
+      final paragraph = parse(midLine, pageBox: [0, 0, 595, 842]).single;
+      expect(paragraph.roomBelow, greaterThan(300),
+          reason: 'sayfanın yarısı boşken satır eklenebilmeli');
+    });
+  });
+
   group('yeniden dizme', () {
     test('kısalan kelime satırı bozmaz, konum aynı kalır', () {
       final paragraph = parse(threeLines).single;

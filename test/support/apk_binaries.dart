@@ -52,11 +52,20 @@ abstract final class ApkBinaries {
   /// `application` elemanı olan minik bir ikili manifest.
   ///
   /// [iconResId] `android:icon` özniteliğinin gösterdiği kaynak kimliği.
-  static Uint8List manifest({required int iconResId, int? roundIconResId}) {
+  static Uint8List manifest({
+    required int iconResId,
+    int? roundIconResId,
+    String? packageName,
+  }) {
     // Havuzun BAŞI öznitelik adlarıdır: kaynak eşlemi (resource map) o
     // indisleri kimliğe çeviriyor.
     final names = <String>['icon', if (roundIconResId != null) 'roundIcon'];
-    final strings = [...names, 'manifest', 'application'];
+    final strings = [
+      ...names,
+      'manifest',
+      'application',
+      if (packageName != null) ...['package', packageName],
+    ];
     final pool = stringPool(strings);
     // Kaynak eşlemi ÖZNİTELİK kimliklerini taşır (android:icon = 0x01010002),
     // özniteliğin değerini değil — ikisini karıştırmak `byResId`i boş bırakır.
@@ -91,7 +100,34 @@ abstract final class ApkBinaries {
       ..add(_u16(0))
       ..add(_u16(0))
       ..add(attrBytes);
-    final body = element.toBytes();
+    final bodyBuilder = BytesBuilder();
+    if (packageName != null) {
+      // `<manifest package="…">` — paket adı KAYNAK DEĞİL düz dizgedir
+      // (dataType 0x03) ve kaynak eşleminde yeri yoktur; ada göre okunur.
+      final packageAttr = _attribute(
+        nameIndex: strings.indexOf('package'),
+        dataType: 0x03,
+        data: strings.indexOf(packageName),
+      );
+      bodyBuilder.add(Uint8List.fromList([
+        ..._u16(0x0102),
+        ..._u16(16),
+        ..._u32(16 + 20 + packageAttr.length),
+        ..._u32(1),
+        ..._u32(0xFFFFFFFF),
+        ..._u32(0xFFFFFFFF),
+        ..._u32(strings.indexOf('manifest')),
+        ..._u16(20),
+        ..._u16(20),
+        ..._u16(1),
+        ..._u16(0),
+        ..._u16(0),
+        ..._u16(0),
+        ...packageAttr,
+      ]));
+    }
+    bodyBuilder.add(element.toBytes());
+    final body = bodyBuilder.toBytes();
 
     final total = 8 + pool.length + resourceMap.length + body.length;
     return Uint8List.fromList([

@@ -66,7 +66,15 @@ class UsbFs extends RemoteFs {
   /// Sıra önemli: exFAT ve NTFS imzalarından tanınır, FAT en sona kalır
   /// (BPB alanları en gevşek olan o). Hiçbiri tutmazsa sonuçta [UsbFs] YOK
   /// ama SEBEP var: hangi adımda takıldığımız kullanıcıya söyleniyor.
-  static Future<UsbOpenOutcome> open({String? deviceName}) async {
+  /// [partitionIndex] verilirse **o bölüm** açılır (bölüm tablosundaki sıra);
+  /// verilmezse tanınan İLK bölüm. Tanınan bütün bölümler
+  /// [UsbOpenOutcome.volumes] içinde döner — çok bölümlü belleklerde
+  /// kullanıcı ötekine geçebilsin (2026-09-04: eskiden ilk bölüm dışındaki
+  /// hiçbir şeye erişilemiyordu ve sebebi de yazmıyordu).
+  static Future<UsbOpenOutcome> open({
+    String? deviceName,
+    int? partitionIndex,
+  }) async {
     final result = await UsbBlockDevice.open(deviceName: deviceName);
     final raw = result.device;
     if (raw == null) {
@@ -77,7 +85,10 @@ class UsbFs extends RemoteFs {
     try {
       final parts = await PartitionTable.read(device);
       steps.add('bölüm sayısı: ${parts.length}');
-      for (final part in parts) {
+      final volumes = <UsbVolumeInfo>[];
+      UsbFs? chosen;
+      for (var i = 0; i < parts.length; i++) {
+        final part = parts[i];
         final view = PartitionBlockDevice(
           device,
           part.firstLba,
@@ -92,15 +103,27 @@ class UsbFs extends RemoteFs {
         final name = fs.label.trim().isEmpty
             ? (part.name.trim().isEmpty ? 'USB' : part.name.trim())
             : fs.label.trim();
-        return UsbOpenOutcome(
-          fs: UsbFs(fs: fs, device: device, label: name),
-          steps: steps,
-        );
+        volumes.add(UsbVolumeInfo(
+          index: i,
+          label: name,
+          format: probe.$2,
+          firstLba: part.firstLba,
+        ));
+        final wanted = partitionIndex == null ? chosen == null : partitionIndex == i;
+        if (wanted && chosen == null) {
+          chosen = UsbFs(fs: fs, device: device, label: name);
+        }
+      }
+      if (chosen != null) {
+        return UsbOpenOutcome(fs: chosen, steps: steps, volumes: volumes);
       }
       await device.close();
       return UsbOpenOutcome(
-        error: 'Biçim tanınmadı (FAT16/FAT32/exFAT/NTFS destekleniyor)',
+        error: volumes.isEmpty
+            ? 'Biçim tanınmadı (FAT16/FAT32/exFAT/NTFS destekleniyor)'
+            : 'İstenen bölüm açılamadı',
         steps: steps,
+        volumes: volumes,
       );
     } catch (e) {
       await device.close();
@@ -258,19 +281,40 @@ class UsbFs extends RemoteFs {
     for (final part in parts) {
       final parent = _handles[current];
       if (parent == null) return null;
-      final childPath = current == '/' ? '/$part' : '$current/$part';
+      var childPath = current == '/' ? '/$part' : '$current/$part';
       if (!_handles.containsKey(childPath)) {
         // Klasörü listelemek çocuklarının tutamağını `_handles`a yazıyor.
+        final List<RemoteEntry> children;
         try {
-          await list(current);
+          children = await list(current);
         } catch (_) {
           return null;
         }
-        if (!_handles.containsKey(childPath)) return null;
+        if (!_handles.containsKey(childPath)) {
+          // **Büyük/küçük harf duyarsız eşleşme** (2026-09-04): FAT ve exFAT
+          // adı olduğu gibi saklar ama Windows/Android aynı adı farklı
+          // yazımla kaydedebiliyor ("DCIM" ↔ "dcim"). Yer imi ya da "son
+          // açılanlar" listesindeki yol tek harf yüzünden "klasör
+          // bulunamadı" veriyordu — dosya duruyorken.
+          final lower = part.toLowerCase();
+          RemoteEntry? match;
+          for (final child in children) {
+            if (child.name.toLowerCase() == lower) {
+              match = child;
+              break;
+            }
+          }
+          if (match == null) return null;
+          childPath = match.path;
+        }
       }
       current = childPath;
     }
-    return _handles[key];
+    // Yürüyüş farklı yazımla bitmiş olabilir ("/FOTO" → "/Foto"): bulunan
+    // tutamak İSTENEN yola da yazılıyor, ikinci çağrı yeniden yürümesin.
+    final handle = _handles[current];
+    if (handle != null && current != key) _handles[key] = handle;
+    return handle;
   }
 
   String _parentOf(String path) {
@@ -362,7 +406,40 @@ class UsbOpenOutcome {
   final String error;
   final List<String> steps;
 
-  const UsbOpenOutcome({this.fs, this.error = '', this.steps = const []});
+  /// Bellekte TANINAN bütün bölümler (çok bölümlü kurulumlar).
+  final List<UsbVolumeInfo> volumes;
+
+  const UsbOpenOutcome({
+    this.fs,
+    this.error = '',
+    this.steps = const [],
+    this.volumes = const [],
+  });
 
   bool get ok => fs != null;
+
+  /// Kullanıcıya "başka bölüm de var" demeye değer mi?
+  bool get hasOtherVolumes => volumes.length > 1;
+}
+
+/// Tanınan bir bölüm — çok bölümlü belleklerde seçim listesi için.
+class UsbVolumeInfo {
+  /// Bölüm tablosundaki sıra ([UsbFs.open]'a bu veriliyor).
+  final int index;
+
+  /// Birimin etiketi ("KURULUM", "TYPEC 64" …).
+  final String label;
+
+  /// Tanınan biçim ("exFAT", "NTFS", "FAT (fat32)").
+  final String format;
+
+  /// Bölümün başladığı sektör (teşhis günlüğünde de görünüyor).
+  final int firstLba;
+
+  const UsbVolumeInfo({
+    required this.index,
+    required this.label,
+    required this.format,
+    required this.firstLba,
+  });
 }

@@ -160,12 +160,18 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       _selection.value = <int>{};
     } catch (e) {
       if (mounted) {
-        _snack(_str.t('pt.op_failed', {'label': label, 'error': e}));
+        // Hata metni KOPYALANABİLİR: kullanıcı ekran görüntüsü almadan
+        // aktarabilsin (2026-09-04).
+        _snackError(_str.t('pt.op_failed', {'label': label, 'error': e}));
       }
     } finally {
       if (mounted) setState(() => _busyLabel = '');
     }
   }
+
+  /// Kopyalanabilir hata şeridi (uzun teknik mesajlar için).
+  void _snackError(String message) =>
+      showSnack(context, message, copyable: true);
 
   Future<int> _pageCount() =>
       PdfTools.pageCount(_bytes!, password: _password);
@@ -959,6 +965,31 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                       // child: seçim değişince YENİDEN KURULMAZ — küçük resmin
                       // pdfium render'ı seçim dokunuşunda tekrarlanmasın.
                       child!,
+                      // **Dönük sayfa rozeti** (2026-09-04): küçük resim
+                      // döndürülmüş hâlini gösteriyor ama sayfanın KENDİ
+                      // açısının değiştiği (ve kaydedileceği) hiçbir yerde
+                      // yazmıyordu — "döndürdüm mü, döndürmedim mi?" sorusu
+                      // ancak kaydedip yeniden açarak cevaplanıyordu.
+                      if (document.pages[index].rotation.index != 0)
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '${document.pages[index].rotation.index * 90}°',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 10),
+                              ),
+                            ),
+                          ),
+                        ),
                       if (selected)
                         Align(
                           alignment: Alignment.topRight,

@@ -29,14 +29,16 @@
       kategori, arama ve "son açılanlar" listelerinin hepsini etkiliyor,
       o yüzden ayrı tur.
 
-- [ ] **Sayfanın SON paragrafında taşma denetimi yok** (2026-08-30 bulgusu,
-      yerinde çeviri turunda çıktı). `findParagraphs`, paragrafın altında
-      başka satır yoksa `roomBelow`u `double.infinity` veriyor: sayfanın son
-      paragrafı uzayınca (çeviri özgününden %20 uzun olabiliyor) sayfa
-      kenarının ALTINA taşıyor ve hiçbir uyarı çıkmıyor. `pageBox` zaten elde
-      olduğu için düzeltmesi kolay (`roomBelow = son taban çizgisi − sayfa
-      altı`), ama paragraf düzenlemenin GENEL davranışını değiştiriyor
-      (mevcut `pdf_paragraph_test`/`pdf_reflow_test` beklentileri) → ayrı tur.
+- [ ] **cihaz doğrulaması (kullanıcı) — 2026-09-04 turu.** Telefonda
+      bakılacaklar: (a) uzun bir PDF'i yarıda bırak, kapat, yeniden aç →
+      kaldığın SAYFADAN açılıyor ve "Baştan başla" şeridi çıkıyor mu;
+      (b) Ayarlar > Gezinme > "Listede klasör boyutu"nu aç → klasör
+      satırlarında boyut beliriyor, kaydırma akıcı kalıyor mu; (c) dosya
+      seçince başlıkta toplam boyut doğru mu; (d) aramada son sorgular çip
+      olarak geliyor, çarpıyla siliniyor mu; (e) videoda A-B tekrar:
+      düğmeye iki kez basıp aralığın döndüğünü gör; (f) müzikte karışık
+      kipini aç, uygulamayı kapat-aç → kip KORUNUYOR mu; (g) çok bölümlü bir
+      USB bellekte "Bölüm seç" şeridi çıkıyor ve öteki bölüm açılıyor mu.
 
 - [ ] **cihaz doğrulaması (kullanıcı) — 2026-08-30 turu.** Bu turda değişenler
       yalnız CI'da derlendi; telefonda bakılacaklar: (a) dosya listesinde
@@ -615,8 +617,6 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       GET_CONTENT/OPEN_DOCUMENT intent'i karşılamak).
 - [ ] **SD karta yazma (SAF)** — Android bazı cihazlarda ikincil birime doğrudan
       yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli.
-- [ ] **Klasör boyutlarını liste içinde göstermek** (şu an yalnız Özellikler'de,
-      istek üzerine hesaplanıyor — her satırda hesaplamak pahalı).
 
 ## PDF turu sonrası kalanlar (2026-07-26, 2. tur sonrası güncel)
 - [ ] **Cihaz doğrulaması bekliyor:** vurgulama, uzun basışla metin seçimi,

@@ -2559,6 +2559,34 @@ const Map<String, (String, String, String)> _table = {
     'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. القراءة والكتابة '
     'متاحتان على FAT16/FAT32 و exFAT؛ أما NTFS فللقراءة فقط.',
   ),
+  'fmset.folder_sizes': (
+    'Listede klasör boyutu',
+    'Folder sizes in the list',
+    'أحجام المجلدات في القائمة',
+  ),
+  'fmset.folder_sizes_sub': (
+    'Görünen klasörler arka planda ölçülür; büyük ağaçlarda gecikebilir.',
+    'Visible folders are measured in the background; large trees take longer.',
+    'تُقاس المجلدات الظاهرة في الخلفية؛ قد تستغرق الأشجار الكبيرة وقتًا.',
+  ),
+  'fmset.resume': (
+    'Kaldığın yerden devam',
+    'Resume where you left off',
+    'المتابعة من حيث توقفت',
+  ),
+  'fmset.resume_sub': (
+    'Video/ses konumu ve belge sayfası hatırlansın.',
+    'Remember playback position and document page.',
+    'تذكّر موضع التشغيل وصفحة المستند.',
+  ),
+  'srch.recent': ('Son aramalar', 'Recent searches', 'عمليات البحث الأخيرة'),
+  'srch.clear_history': ('Geçmişi temizle', 'Clear history', 'مسح السجل'),
+  'vw.resumed_page': (
+    '{n}. sayfadan devam ediliyor',
+    'Resuming from page {n}',
+    'المتابعة من الصفحة {n}',
+  ),
+  'vw.restart_doc': ('Baştan başla', 'Start over', 'ابدأ من جديد'),
   'pt.move_to': ('Sayfayı taşı…', 'Move page to…', 'نقل الصفحة إلى…'),
   'pt.move_to_hint': (
     'Hedef sayfa numarası (1-{n})',
@@ -2587,6 +2615,20 @@ const Map<String, (String, String, String)> _table = {
   ),
   'pt.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
   'pt.invert_selection': ('Seçimi ters çevir', 'Invert selection', 'عكس التحديد'),
+  'mp.loop_mark_a': ('A-B tekrar: A işaretle', 'A-B repeat: mark A', 'تكرار A-B: علّم A'),
+  'mp.loop_mark_b': ('A-B tekrar: B işaretle', 'A-B repeat: mark B', 'تكرار A-B: علّم B'),
+  'mp.loop_off': ('A-B tekrarı kaldır', 'Clear A-B repeat', 'إلغاء تكرار A-B'),
+  'mp.loop_a_set': (
+    'Başlangıç (A) işaretlendi',
+    'Start point (A) marked',
+    'تم تعليم نقطة البداية (A)',
+  ),
+  'mp.loop_on': (
+    'A-B tekrar açık — aralık sürekli dönüyor.',
+    'A-B repeat on — the range keeps looping.',
+    'تكرار A-B مفعّل — يتكرر المقطع باستمرار.',
+  ),
+  'mp.loop_cleared': ('A-B tekrar kapatıldı', 'A-B repeat cleared', 'أُلغي تكرار A-B'),
   'mp.float_window': (
     'Ekran üstünde oynat',
     'Play in a floating window',
@@ -2623,6 +2665,12 @@ const Map<String, (String, String, String)> _table = {
     'Stopping in {time}',
     'سيتوقف بعد {time}',
   ),
+  'usb.multi_volume': (
+    'Bu bellekte {n} bölüm var; ilki açıldı.',
+    'This drive has {n} volumes; the first one was opened.',
+    'يحتوي هذا المحرك على {n} أقسام؛ تم فتح الأول.',
+  ),
+  'usb.pick_volume': ('Bölüm seç', 'Choose a volume', 'اختر قسمًا'),
   'usb.diag_uas_only': (
     'Bu bellek yalnız UAS (USB 3) taşıması bildiriyor — uygulamanın '
     'sürücüsü Bulk-Only konuşur. Klasör izniyle (Klasör seç) erişilebilir.',

@@ -689,6 +689,28 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
           ),
           actions: [
             if (!_isAudio) ...[
+              // **A-B tekrar** — aynı yeri defalarca izlemek (dil, gitar,
+              // spor) elle geri sarmakla yapılıyordu.
+              IconButton(
+                tooltip: context.t(switch (_p.loopStage) {
+                  0 => 'mp.loop_mark_a',
+                  1 => 'mp.loop_mark_b',
+                  _ => 'mp.loop_off',
+                }),
+                icon: Icon(
+                  _p.loopStage == 0 ? Icons.repeat_outlined : Icons.repeat_on,
+                  color: _p.loopStage == 0 ? null : Colors.amberAccent,
+                ),
+                onPressed: () {
+                  _p.markLoopPoint();
+                  _toast(context.t(switch (_p.loopStage) {
+                    1 => 'mp.loop_a_set',
+                    2 => 'mp.loop_on',
+                    _ => 'mp.loop_cleared',
+                  }));
+                  _scheduleHide();
+                },
+              ),
               IconButton(
                 tooltip: context.t('mp.float_window'),
                 icon: const Icon(Icons.picture_in_picture_alt),

@@ -25,6 +25,7 @@ import '../services/conversion_service.dart';
 import '../services/doc_translate.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/reading_positions.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
 import '../services/pdf/page_arrival.dart';
@@ -310,8 +311,53 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
       unawaited(_offerFormFilling());
+      unawaited(_restoreReadingPage());
     }
     if (doc.kind == DocKind.image) _imgTx.addListener(_onImgTransform);
+  }
+
+  /// **Kaldığın sayfadan devam** (2026-09-04).
+  ///
+  /// 400 sayfalık bir kitap her açılışta 1. sayfadan başlıyordu; kullanıcı
+  /// kaldığı yeri her seferinde elle arıyordu. Kayıt `ReadingPositions`ta;
+  /// kural orada (ilk/son sayfa ve kısa belgeler kaydedilmez).
+  ///
+  /// Sayfa `initialPageNumber` ile veriliyor: görüntüleyici kurulmadan ÖNCE
+  /// bilinmesi gerekiyor, sonradan atlamak kullanıcıya bir sıçrama gösterirdi.
+  Future<void> _restoreReadingPage() async {
+    if (!context.mounted) return;
+    if (!context.read<AppState>().resumePosition) return;
+    await ReadingPositions.ensureLoaded();
+    final page = ReadingPositions.pageOf(widget.doc.path);
+    if (!mounted || page == null || page <= 1) return;
+    setState(() {
+      _pdfPage = page;
+      _resumedPage = page;
+    });
+  }
+
+  /// Devam edilen sayfa (bir kez şerit gösterilir), yoksa null.
+  int? _resumedPage;
+
+  /// "42. sayfadan devam ediliyor · Baştan başla" şeridi.
+  ///
+  /// Sessizce ortadan açmak "belge bozuk mu?" dedirtiyor; bir cümle + tek
+  /// dokunuşluk geri dönüş yolu bırakılıyor.
+  void _showResumeNotice() {
+    final page = _resumedPage;
+    if (page == null || !mounted) return;
+    _resumedPage = null;
+    showSnack(
+      context,
+      context.t('vw.resumed_page', {'n': '$page'}),
+      action: SnackBarAction(
+        label: context.t('vw.restart_doc'),
+        onPressed: () {
+          ReadingPositions.clear(widget.doc.path);
+          _pdfController.goToPage(pageNumber: 1);
+        },
+      ),
+    );
   }
 
   @override
@@ -360,6 +406,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   @override
   void dispose() {
+    // Bekleyen okuma konumu diske yazılsın: uygulama kapansa da "kaldığın
+    // sayfa" çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
+    unawaited(ReadingPositions.save());
     _pdfEdgeScrollTimer?.cancel();
     _textController?.dispose();
     _imgTx.removeListener(_onImgTransform);
@@ -2478,10 +2527,21 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       setState(() => _pdfCount = document.pages.length);
                     }
                     _extractPdfText(document);
+                    // Belge çizildikten SONRA haber ver: açılışta gösterilen
+                    // şerit ilk kareyle birlikte kayboluyordu.
+                    WidgetsBinding.instance
+                        .addPostFrameCallback((_) => _showResumeNotice());
                   },
                   onPageChanged: (page) {
                     if (mounted && page != null) {
                       setState(() => _pdfPage = page);
+                      // Kaldığın yerden devam: kayıt kuralları
+                      // `ReadingPositions`ta (ilk/son sayfa ve kısa belge
+                      // kaydedilmez), yazma gecikmeli.
+                      if (context.read<AppState>().resumePosition) {
+                        ReadingPositions.record(
+                            widget.doc.path, page, _pageCount);
+                      }
                     }
                   },
                   // Yerinde düzenleme açıkken seçim katmanı kurulmaz: kutunun

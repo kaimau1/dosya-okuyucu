@@ -276,13 +276,35 @@ class AudioPlayback extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// **Kip değişimini kalıcı yazan kanca** (2026-09-04).
+  ///
+  /// Karışık ve tekrar kipleri uygulama kapanınca sıfırlanıyordu: "hep
+  /// karışık dinlerim" diyen kullanıcı her açılışta yeniden basıyordu.
+  /// Servis `AppState`i tanımıyor (bilinçli); ayarı yazan kanca dışarıdan
+  /// takılıyor.
+  static void Function(bool shuffle, int repeat)? persistModes;
+
   void setRepeat(RepeatMode mode) {
     repeat = mode;
+    persistModes?.call(shuffle, mode.index);
     notifyListeners();
   }
 
   void setShuffle(bool value) {
     shuffle = value;
+    persistModes?.call(value, repeat.index);
+    notifyListeners();
+  }
+
+  /// Kayıtlı kipleri geri yükler (açılışta `AppState` çağırıyor).
+  ///
+  /// Kancayı TETİKLEMEZ: geri yükleme bir kullanıcı eylemi değil, aynı
+  /// değeri diske yeniden yazmanın anlamı yok.
+  void restoreModes({required bool shuffle, required int repeat}) {
+    this.shuffle = shuffle;
+    if (repeat >= 0 && repeat < RepeatMode.values.length) {
+      this.repeat = RepeatMode.values[repeat];
+    }
     notifyListeners();
   }
 

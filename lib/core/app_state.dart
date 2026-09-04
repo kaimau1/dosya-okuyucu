@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +14,9 @@ import '../models/media_open_with.dart';
 import '../models/photo_group.dart';
 import '../models/remote_connection.dart';
 import '../models/recent_file.dart';
+import '../services/fm/audio_playback.dart';
+import '../services/fm/playback_positions.dart';
+import '../services/fm/reading_positions.dart';
 import '../services/ai_pool.dart';
 import '../services/firebase_service.dart';
 import '../services/gemini_service.dart';
@@ -54,6 +58,10 @@ class AppState extends ChangeNotifier {
   static const _kFmConfirmDelete = 'fm_confirm_delete';
   static const _kFmTrashAutoDays = 'fm_trash_auto_days';
   static const _kFmStartFolder = 'fm_start_folder';
+  static const _kResumePosition = 'resume_position';
+  static const _kFmFolderSizes = 'fm_folder_sizes';
+  static const _kMediaShuffle = 'media_shuffle';
+  static const _kMediaRepeat = 'media_repeat';
   static const _kRemotes = 'fm_remote_connections';
   static const _kUiFont = 'ui_font';
   static const _kUiTextScale = 'ui_text_scale';
@@ -261,6 +269,10 @@ class AppState extends ChangeNotifier {
   List<String> _clipboard = [];
   bool _clipboardCut = false;
   bool _fmThumbnails = true;
+  bool _resumePosition = true;
+  bool _fmFolderSizes = false;
+  bool _mediaShuffle = false;
+  int _mediaRepeat = 0;
   bool _fmUseTrash = true;
   bool _fmConfirmDelete = true;
   int _fmTrashAutoDays = 0;
@@ -320,6 +332,52 @@ class AppState extends ChangeNotifier {
 
   /// Çöp kutusu kaç günde bir kendini temizlesin (0 = kapalı).
   int get fmTrashAutoDays => _fmTrashAutoDays;
+
+  /// **"Kaldığın yerden devam"** — video/ses konumu ve belge sayfası
+  /// hatırlansın mı? (2026-09-04)
+  ///
+  /// Kapalıysa hiçbir şey KAYDEDİLMEZ ve var olan kayıtlar kullanılmaz:
+  /// "hatırlama" isteyen kullanıcı bunu kapatınca dosyaların baştan
+  /// açılacağını bekler.
+  bool get resumePosition => _resumePosition;
+
+  /// Dosya listesinde klasörlerin boyutu gösterilsin mi? (Varsayılan KAPALI:
+  /// büyük bir klasör ağacını ölçmek diski gezmek demektir; isteyen açar.)
+  bool get fmFolderSizes => _fmFolderSizes;
+
+  /// Medya oynatıcının karışık kipi (uygulama kapansa da korunur).
+  bool get mediaShuffle => _mediaShuffle;
+
+  /// Medya oynatıcının tekrar kipi: 0 kapalı, 1 liste, 2 tek parça.
+  int get mediaRepeat => _mediaRepeat;
+
+  Future<void> setResumePosition(bool value) async {
+    _resumePosition = value;
+    PlaybackPositions.enabled = value;
+    ReadingPositions.enabled = value;
+    await _prefs.setBool(_kResumePosition, value);
+    notifyListeners();
+  }
+
+  Future<void> setFmFolderSizes(bool value) async {
+    _fmFolderSizes = value;
+    await _prefs.setBool(_kFmFolderSizes, value);
+    notifyListeners();
+  }
+
+  /// Oynatıcı kipleri: ekran değil SERVİS çağırıyor (kip orada değişiyor),
+  /// bu yüzden `notifyListeners` yok — ayar ekranı bunları göstermiyor ve
+  /// her parça değişiminde tüm arayüzü yeniden çizmenin anlamı olmazdı.
+  Future<void> setMediaModes({bool? shuffle, int? repeat}) async {
+    if (shuffle != null) {
+      _mediaShuffle = shuffle;
+      await _prefs.setBool(_kMediaShuffle, shuffle);
+    }
+    if (repeat != null) {
+      _mediaRepeat = repeat;
+      await _prefs.setInt(_kMediaRepeat, repeat);
+    }
+  }
 
   Future<void> setFmThumbnails(bool value) async {
     _fmThumbnails = value;
@@ -497,6 +555,19 @@ class AppState extends ChangeNotifier {
     _fmSortDesc = _prefs.getBool(_kFmSortDesc) ?? false;
     _fmShowHidden = _prefs.getBool(_kFmHidden) ?? false;
     _fmThumbnails = _prefs.getBool(_kFmThumbs) ?? true;
+    _resumePosition = _prefs.getBool(_kResumePosition) ?? true;
+    // Servisler `AppState`i tanımıyor; anahtar oraya buradan geçiyor.
+    PlaybackPositions.enabled = _resumePosition;
+    ReadingPositions.enabled = _resumePosition;
+    _fmFolderSizes = _prefs.getBool(_kFmFolderSizes) ?? false;
+    _mediaShuffle = _prefs.getBool(_kMediaShuffle) ?? false;
+    _mediaRepeat = _prefs.getInt(_kMediaRepeat) ?? 0;
+    // Oynatıcı kipleri: servis `AppState`i tanımıyor, değer buradan gidiyor
+    // ve değişimi geri yazan kanca burada takılıyor.
+    AudioPlayback.instance
+        .restoreModes(shuffle: _mediaShuffle, repeat: _mediaRepeat);
+    AudioPlayback.persistModes = (shuffle, repeat) =>
+        unawaited(setMediaModes(shuffle: shuffle, repeat: repeat));
     _fmUseTrash = _prefs.getBool(_kFmUseTrash) ?? true;
     _fmConfirmDelete = _prefs.getBool(_kFmConfirmDelete) ?? true;
     _fmTrashAutoDays = _prefs.getInt(_kFmTrashAutoDays) ?? 0;

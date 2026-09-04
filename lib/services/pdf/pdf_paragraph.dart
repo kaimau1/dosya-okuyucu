@@ -632,6 +632,12 @@ double _minStart(List<_OpInfo> line) =>
 double _maxEnd(List<_OpInfo> line) =>
     line.map((o) => o.endX).reduce((a, b) => a > b ? a : b);
 
+/// Sayfanın alt kenarında bırakılan pay (pt).
+///
+/// Sıfır yazılsaydı metin tam kâğıdın kenarına dayanabilirdi; yazıcıların
+/// çoğu son 18 pt'yi zaten basmıyor.
+const double _pageBottomMargin = 18;
+
 PdfParagraph? _buildParagraph({
   required List<int> content,
   required int streamIndex,
@@ -747,9 +753,19 @@ PdfParagraph? _buildParagraph({
     final top = y + other.first.sizeY * 0.75;
     if (top > nextTop) nextTop = top;
   }
-  final roomBelow = nextTop == double.negativeInfinity
+  // **Sayfanın SON paragrafında da sınır var** (2026-08-30 bulgusu,
+  // 2026-09-04'te kapandı): altında başka satır yoksa eskiden
+  // `double.infinity` veriliyordu ve paragraf uzayınca (çeviri özgününden
+  // %20 uzun olabiliyor) yazı sayfa kenarının ALTINA taşıyor, hiçbir uyarı
+  // çıkmıyordu. Sınır artık çizim kutusunun ALT kenarı; kutu bilinmiyorsa
+  // (eski çağıranlar) eski davranış korunuyor.
+  final floorY = pageBox != null && pageBox.length >= 4
+      ? pageBox[1] + _pageBottomMargin
+      : double.negativeInfinity;
+  final limitY = nextTop > floorY ? nextTop : floorY;
+  final roomBelow = limitY == double.negativeInfinity
       ? double.infinity
-      : (bottomBaseline - lines.last.sizeY * 0.25) - nextTop;
+      : (bottomBaseline - lines.last.sizeY * 0.25) - limitY;
 
   // Aralıktaki `q`/`Q` çiftlerinin silinebilmesinin ön koşulu. Aynı dönüşüm
   // koşulunu burada TEKRAR aramıyoruz: farklı `cm` altındaki satırlar zaten

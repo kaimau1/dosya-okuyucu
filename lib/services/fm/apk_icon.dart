@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
+import 'package:installed_apps/installed_apps.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -80,6 +81,9 @@ abstract final class ApkIcon {
     final dir = Directory(p.join(base.path, 'apk_icons'));
     if (!dir.existsSync()) await dir.create(recursive: true);
     _dir = dir;
+    // Budama uygulama başına BİR KEZ: her simge isteğinde dizin listelemek
+    // uzun bir listede pahalı olurdu.
+    _pruneCache(dir);
     return dir;
   }
 
@@ -95,12 +99,23 @@ abstract final class ApkIcon {
       );
       if (File(dest).existsSync()) return dest;
 
-      Uint8List? bytes;
+      Map<String, Object?> found;
       try {
-        bytes = await compute(readIconBytes, path);
+        found = await compute(readIconOrPackage, path);
       } catch (_) {
         // İzolat üretilemedi (bazı cihazlarda düşük bellek) → ana izlek.
-        bytes = readIconBytes(path);
+        found = readIconOrPackage(path);
+      }
+      var bytes = found['icon'] as Uint8List?;
+      if (bytes == null || bytes.isEmpty) {
+        // **Kurulu uygulama yedeği** (2026-09-04). Bazı APK'larda simge
+        // gerçekten YOK: mağaza paketlerinin (App Bundle) `base.apk`ında
+        // mipmap kaynakları bulunmaz, yoğunluğa göre ayrılmış
+        // `split_config.*.apk` dosyasındadır. O dosya elimizde olmadığı için
+        // çıkarma haklı olarak boş dönüyor ve kullanıcı yine düz glif
+        // görüyordu. Paket KURULUYSA sistemin çizdiği simge zaten doğru
+        // simgedir; onu kullanıyoruz.
+        bytes = await _installedIcon(found['package'] as String?);
       }
       if (bytes == null || bytes.isEmpty) {
         _markFailed(path);
@@ -111,6 +126,85 @@ abstract final class ApkIcon {
     } catch (_) {
       _markFailed(path);
       return null;
+    }
+  }
+
+  /// Kurulu bir paketin simgesi (yoksa null).
+  ///
+  /// `installed_apps` PackageManager'a soruyor; masaüstünde/testte kanal
+  /// olmadığı için zarifçe null döner.
+  static Future<Uint8List?> _installedIcon(String? packageName) async {
+    if (packageName == null || packageName.isEmpty) return null;
+    try {
+      final info = await InstalledApps.getAppInfo(packageName);
+      final icon = info?.icon;
+      return (icon != null && icon.isNotEmpty) ? icon : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Zip'ten simge baytları **ve** paket adı (izolatta koşar).
+  ///
+  /// Paket adı simge bulunamadığında gerekiyor (kurulu uygulama yedeği);
+  /// aynı zip açılışında okunuyor — ikinci kez açmak 90 MB'lık bir dosyada
+  /// gereksiz saniyeler demekti.
+  static Map<String, Object?> readIconOrPackage(String path) {
+    if (!File(path).existsSync()) return const {};
+    InputFileStream? input;
+    try {
+      input = InputFileStream(path);
+      final archive = ZipDecoder().decodeBuffer(input);
+      return {
+        'icon': iconBytesFrom(archive),
+        'package': packageOf(archive),
+      };
+    } catch (_) {
+      return const {};
+    } finally {
+      try {
+        input?.closeSync();
+      } catch (_) {}
+    }
+  }
+
+  /// Manifest'teki `package` özniteliği (uygulamanın kimliği).
+  static String? packageOf(Archive archive) {
+    final manifest = _entryBytes(archive, 'AndroidManifest.xml');
+    if (manifest == null) return null;
+    for (final element in AndroidBinaryXml.parse(manifest)) {
+      if (element.name != 'manifest') continue;
+      final value = element.byName['package']?.string;
+      if (value != null && value.contains('.')) return value;
+    }
+    return null;
+  }
+
+  /// **Önbellek budama** — çıkarılan simgeler süresiz birikmesin.
+  ///
+  /// Her APK için bir PNG yazılıyor ve dosya adı dosyanın zaman damgasını
+  /// taşıdığı için aynı APK'nın her yeni sürümü YENİ bir dosya oluyor.
+  /// İndirilenler klasörünü karıştıran bir kullanıcıda bu, yüzlerce küçük
+  /// dosya demek. En eski dokunulanlar siliniyor.
+  static const _cacheLimit = 200;
+
+  static void _pruneCache(Directory dir) {
+    try {
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.png'))
+          .toList();
+      if (files.length <= _cacheLimit) return;
+      files.sort((a, b) =>
+          a.statSync().modified.compareTo(b.statSync().modified));
+      for (final file in files.take(files.length - _cacheLimit)) {
+        try {
+          file.deleteSync();
+        } catch (_) {}
+      }
+    } catch (_) {
+      // Budanamadı: önbellek biraz büyük kalır, işlev bozulmaz.
     }
   }
 
@@ -125,6 +219,31 @@ abstract final class ApkIcon {
 
   /// Zip'ten en iyi simge adayının baytları (izolatta koşar; testte de
   /// doğrudan çağrılabilsin diye açık).
+  /// Açık bir arşivden simge baytları (zip'i açan çağıran).
+  static Uint8List? iconBytesFrom(Archive archive) {
+    // 1) Doğru yol: manifest + kaynak tablosu (ad kısaltmasından etkilenmez).
+    final resolved = iconFromResources(archive);
+    if (resolved != null && resolved.isNotEmpty) return resolved;
+    // 2) Ada bakan eski eşleme (tablosu okunamayan/çok eski APK'lar).
+    ArchiveFile? best;
+    var bestScore = 0;
+    for (final entry in archive.files) {
+      if (!entry.isFile) continue;
+      final score = scoreIconPath(entry.name);
+      if (score <= bestScore) continue;
+      bestScore = score;
+      best = entry;
+    }
+    if (best != null) {
+      final content = best.content;
+      if (content is List<int> && content.isNotEmpty) {
+        return Uint8List.fromList(content);
+      }
+    }
+    // Ad eşleşmedi → **ada bakmayan** yedek arama (bkz. [_squareIconFallback]).
+    return _squareIconFallback(archive);
+  }
+
   static Uint8List? readIconBytes(String path) {
     if (!File(path).existsSync()) return null;
     // `InputFileStream`: APK'nın tamamı belleğe ALINMAZ, yalnız zip dizini ve
@@ -133,28 +252,7 @@ abstract final class ApkIcon {
     InputFileStream? input;
     try {
       input = InputFileStream(path);
-      final archive = ZipDecoder().decodeBuffer(input);
-      // 1) Doğru yol: manifest + kaynak tablosu (ad kısaltmasından etkilenmez).
-      final resolved = iconFromResources(archive);
-      if (resolved != null && resolved.isNotEmpty) return resolved;
-      // 2) Ada bakan eski eşleme (tablosu okunamayan/çok eski APK'lar).
-      ArchiveFile? best;
-      var bestScore = 0;
-      for (final entry in archive.files) {
-        if (!entry.isFile) continue;
-        final score = scoreIconPath(entry.name);
-        if (score <= bestScore) continue;
-        bestScore = score;
-        best = entry;
-      }
-      if (best != null) {
-        final content = best.content;
-        if (content is List<int> && content.isNotEmpty) {
-          return Uint8List.fromList(content);
-        }
-      }
-      // Ad eşleşmedi → **ada bakmayan** yedek arama (bkz. [_squareIconFallback]).
-      return _squareIconFallback(archive);
+      return iconBytesFrom(ZipDecoder().decodeBuffer(input));
     } catch (_) {
       return null;
     } finally {
@@ -293,11 +391,13 @@ abstract final class ApkIcon {
     final elements = AndroidBinaryXml.parse(xmlBytes);
     img.Image? background;
     img.Image? foreground;
+    img.Image? monochrome;
     int? backgroundColor;
     for (final element in elements) {
       final isBackground = element.name == 'background';
       final isForeground = element.name == 'foreground';
-      if (!isBackground && !isForeground) continue;
+      final isMonochrome = element.name == 'monochrome';
+      if (!isBackground && !isForeground && !isMonochrome) continue;
       final drawable = element.byResId[AndroidBinaryXml.attrDrawable] ??
           element.byName['drawable'];
       if (drawable == null) continue;
@@ -316,12 +416,21 @@ abstract final class ApkIcon {
       if (isBackground) {
         background = layer;
         backgroundColor = color;
-      } else {
+      } else if (isForeground) {
         foreground = layer;
+      } else {
+        monochrome = layer;
       }
     }
     // Ön plan çizilemiyorsa (vektör katman) tek başına zemin YANILTICI olurdu:
     // düz bir renk kutusu — tam da düzeltmeye çalıştığımız görüntü.
+    if (foreground == null && monochrome != null) {
+      // **Tek renkli katman yedeği** (2026-09-04): Android 13'ten beri
+      // uygulamalar `<monochrome>` bildiriyor (temalı simgeler). Ön plan
+      // çizilemediğinde bu katman hâlâ uygulamanın ŞEKLİNİ taşıyor —
+      // düz bir renk kutusundan çok daha iyi.
+      foreground = monochrome;
+    }
     if (foreground == null) return null;
 
     final side = foreground.width > 0 ? foreground.width : _iconSide;

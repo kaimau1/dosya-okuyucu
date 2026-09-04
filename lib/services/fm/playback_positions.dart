@@ -31,6 +31,14 @@ abstract final class PlaybackPositions {
   /// Dosyanın bu oranından sonrası "bitti" sayılır.
   static const endFraction = 0.95;
 
+  /// **Ayar anahtarı** (`AppState.resumePosition`) — kapalıyken hiçbir şey
+  /// kaydedilmez ve var olan kayıt kullanılmaz.
+  ///
+  /// Servis katmanı `AppState`e bağlanmasın diye bayrak burada duruyor;
+  /// değeri ayar yüklenince/değişince `AppState` yazıyor. Kapatan kullanıcı
+  /// dosyaların baştan açılmasını bekler — okumayı da kapatmak şart.
+  static bool enabled = true;
+
   static final Map<String, _Entry> _byPath = {};
   static Future<void>? _loadFuture;
   static Timer? _saveTimer;
@@ -67,6 +75,7 @@ abstract final class PlaybackPositions {
 
   /// [path] için kayıtlı konum (yoksa null).
   static Duration? positionOf(String path) {
+    if (!enabled) return null;
     final entry = _byPath[path];
     if (entry == null) return null;
     return Duration(milliseconds: entry.position);
@@ -87,7 +96,7 @@ abstract final class PlaybackPositions {
   /// Diske yazma **geciktirilir**: konum saniyede bir güncelleniyor ve her
   /// seferinde dosya yazmak boşuna disk aşındırır.
   static void record(String path, Duration position, Duration duration) {
-    if (path.isEmpty) return;
+    if (!enabled || path.isEmpty) return;
     if (duration <= const Duration(minutes: 1)) return;
     if (position < minPosition) {
       // Başa sarıldıysa eski kaydı DÜŞÜR: kullanıcı baştan izlemeye karar

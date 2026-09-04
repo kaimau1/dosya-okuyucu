@@ -14,6 +14,7 @@ import '../../services/fm/archive_ops.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/folder_size_cache.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/paste_conflict.dart';
 import '../../widgets/fm/drag_select.dart';
@@ -70,13 +71,54 @@ class _BrowserScreenState extends State<BrowserScreen> {
     super.initState();
     // Kilit denetimi ilk kareden sonra (context.read için mount gerekir).
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkLock());
+    FolderSizeCache.revision.addListener(_onFolderSize);
     _load();
   }
 
   @override
   void dispose() {
+    FolderSizeCache.revision.removeListener(_onFolderSize);
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Bir klasörün boyutu ölçüldü → o satırın alt yazısı tazelensin.
+  void _onFolderSize() {
+    if (mounted) setState(() {});
+  }
+
+  /// Seçili DOSYALARIN toplam boyutu.
+  ///
+  /// Klasörler sayılmıyor: bir klasörün boyutu ancak altındaki her şey
+  /// gezilerek bulunur ve seçim çubuğunda anlık bir sayı gerekiyor — ölçülen
+  /// klasör varsa (bkz. [FolderSizeCache]) o da toplanıyor.
+  int get _selectionBytes {
+    var total = 0;
+    for (final e in _entries) {
+      if (!_selected.contains(e.path)) continue;
+      if (e.isDir) {
+        total += FolderSizeCache.sizeOf(e.path) ?? 0;
+      } else {
+        total += e.sizeBytes;
+      }
+    }
+    return total;
+  }
+
+  /// Klasör satırının alt yazısı: tarih, ayar açıksa **boyut da**.
+  ///
+  /// Ölçüm ekranda görünen klasör için İSTENİYOR (bkz. [FolderSizeCache]);
+  /// gelene kadar yalnız tarih yazıyor — "…" gibi bir yer tutucu, listede
+  /// her kaydırmada titreşen bir metin demek olurdu.
+  String _folderSubtitle(FsEntry entry) {
+    final date = FsPaths.humanDate(entry.modifiedMs);
+    if (!context.read<AppState>().fmFolderSizes) return date;
+    final size = FolderSizeCache.sizeOf(entry.path);
+    if (size == null) {
+      FolderSizeCache.request(entry.path);
+      return date;
+    }
+    return '${FsPaths.humanSize(size)} · $date';
   }
 
   /// Kilit denetimi: klasör kilitliyse PIN sorulur, yanlışsa geri çıkılır.
@@ -517,7 +559,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
         icon: const Icon(Icons.close),
         onPressed: () => setState(_selected.clear),
       ),
-      title: Text(context.t('fm.selected_count', {'n': _selected.length, 'total': _entries.length})),
+      // **Seçimin toplam boyutu** (2026-09-04): "12 dosya seçtim, USB'ye
+      // sığar mı?" sorusunun cevabı hiçbir yerde yoktu; kullanıcı dosyaları
+      // tek tek Özellikler'den toplamak zorundaydı.
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(context.t('fm.selected_count',
+              {'n': _selected.length, 'total': _entries.length})),
+          if (_selectionBytes > 0)
+            Text(
+              FsPaths.humanSize(_selectionBytes),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+        ],
+      ),
       actions: [
         if (_selected.length == 1) ...[
           IconButton(
@@ -660,7 +717,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               selecting: _selecting,
               showChevron: true,
               subtitle: e.isDir
-                  ? FsPaths.humanDate(e.modifiedMs)
+                  ? _folderSubtitle(e)
                   : '${FsPaths.humanSize(e.sizeBytes)} · '
                       '${FsPaths.humanDate(e.modifiedMs)}',
               onTap: () => _openEntry(e),

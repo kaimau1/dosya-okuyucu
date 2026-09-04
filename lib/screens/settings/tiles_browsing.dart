@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
+import '../../services/fm/folder_size_cache.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
@@ -143,6 +144,47 @@ class ThumbnailsTile extends StatelessWidget {
       subtitle: context.t('fmset.thumbnails_sub'),
       value: appState.fmThumbnails,
       onChanged: appState.setFmThumbnails,
+    );
+  }
+}
+
+/// **Listede klasör boyutu** (2026-09-04).
+///
+/// Varsayılan KAPALI: bir klasörün boyutu ancak altındaki her şey gezilerek
+/// bulunur. Açıkken yalnız ekranda görünen klasörler ölçülüyor
+/// (`FolderSizeCache`), kapatılınca ölçüler bellekten düşüyor.
+class FolderSizesTile extends StatelessWidget {
+  const FolderSizesTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SettingSwitch(
+      icon: Icons.folder_open_outlined,
+      title: context.t('fmset.folder_sizes'),
+      subtitle: context.t('fmset.folder_sizes_sub'),
+      value: appState.fmFolderSizes,
+      onChanged: (value) async {
+        await appState.setFmFolderSizes(value);
+        if (!value) FolderSizeCache.clear();
+      },
+    );
+  }
+}
+
+/// **Kaldığın yerden devam** — video/ses konumu ve belge sayfası.
+class ResumePositionTile extends StatelessWidget {
+  const ResumePositionTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SettingSwitch(
+      icon: Icons.play_circle_outline,
+      title: context.t('fmset.resume'),
+      subtitle: context.t('fmset.resume_sub'),
+      value: appState.resumePosition,
+      onChanged: appState.setResumePosition,
     );
   }
 }

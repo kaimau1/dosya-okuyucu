@@ -11,9 +11,11 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/audio_tags.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/playback_positions.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
+import '../../core/snack.dart';
 
 /// Çalma sırası davranışı.
 
@@ -79,6 +81,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
   void _onChange() {
     if (mounted) setState(() {});
+    _maybeShowResumeNote();
   }
 
   Duration get _position => _dragging ? _dragPosition : _p.position;
@@ -101,6 +104,32 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       );
 
   void _skipTo(int index) => unawaited(_p.skipTo(index));
+
+  /// "Kaldığın yerden devam" bildirimini hangi parça için gösterdiğimiz.
+  String? _resumeNoticeFor;
+
+  /// Sessizce ortadan başlamak "dosya bozuk mu?" dedirtiyor: bir cümle + tek
+  /// dokunuşluk "baştan başlat" (video tarafındakinin aynısı).
+  void _maybeShowResumeNote() {
+    final at = _p.resumedFrom;
+    final path = _current;
+    if (at == null || path.isEmpty || _resumeNoticeFor == path) return;
+    _resumeNoticeFor = path;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showSnack(
+        context,
+        context.t('mp.resumed_at', {'time': _fmt(at)}),
+        action: SnackBarAction(
+          label: context.t('mp.restart'),
+          onPressed: () {
+            PlaybackPositions.clear(path);
+            unawaited(_p.seek(Duration.zero));
+          },
+        ),
+      );
+    });
+  }
 
   Future<void> _toggle() => _p.toggle();
 

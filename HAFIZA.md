@@ -10793,3 +10793,91 @@ dokunuş sarar, tek dokunuş gecikmez").
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` lib+test 0 sorun,
 **2185 test yeşil** (9 atlanan önceden var olan), `tool/check_kotlin.sh`
 (kotlinc 2.0.21) üç Kotlin dosyasında temiz.
+
+## 2026-09-04 (on dokuzuncu tur) — otonom denetim: 22 madde
+
+Kullanıcı *"otonom olarak araştır ve geliştirmeler yap, en az 20 madde, tek
+oturumda bitir"* dedi. Önce **araştırma**: sızıntı taraması (dinleyici/
+zamanlayıcı/abonelik dengesi — temiz çıktı, `spreadsheet_editor` ve
+`viewer_screen`de dengesiz görünen `addListener`ların karşılığı denetleyici
+`dispose`ları), sonra kullanıcının GÖRDÜĞÜ eksikler ve `KALANLAR.md`.
+
+### A) Kaldığın yerden devam — belgeler de (yeni `ReadingPositions`)
+Video/ses 2026-09-03'te kapanmıştı ama belgeler her açılışta 1. sayfadan
+başlıyordu: 400 sayfalık bir kitapta kullanıcı kaldığı yeri elle arıyordu.
+* Kayıt uygulamanın dizininde JSON; ilk sayfa, son sayfa ve dört sayfadan
+  kısa belgeler KAYDEDİLMİYOR (yanlış yerde "devam" demek, hiç dememekten
+  can sıkıcı).
+* Sayfa `initialPageNumber` ile veriliyor — görüntüleyici kurulmadan önce
+  bilinmesi gerekiyor, sonradan atlamak kullanıcıya sıçrama gösterirdi.
+* Ayar: **Ayarlar > Gezinme > "Kaldığın yerden devam"**. Kapalıyken hiçbir
+  şey kaydedilmiyor ve var olan kayıt da kullanılmıyor. Servisler
+  `AppState`i tanımıyor (bilinçli), bayrak `PlaybackPositions.enabled` /
+  `ReadingPositions.enabled` üstünden geçiyor.
+
+### B) Arama geçmişi (yeni `SearchHistory`)
+Arama ekranı her açılışta boştu; aynı sorgu ("bordro 2026") her seferinde
+baştan yazılıyordu. Son 20 sorgu çip olarak, tek tek ve toplu silinebilir.
+**Yalnız "bitirilmiş" sorgular giriyor** — arama düğmesine basılan ya da
+sonucundan bir dosya açılan sorgular; her tuş vuruşu kaydedilseydi geçmiş
+"f", "fa", "fat" ön ekleriyle dolardı.
+
+### C) Dosya yöneticisi
+* **Seçimin toplam boyutu** seçim çubuğunda: "12 dosya seçtim, USB'ye sığar
+  mı?" sorusunun cevabı hiçbir yerde yoktu.
+* **Listede klasör boyutu** (KALANLAR maddesi kapandı) — yeni
+  `FolderSizeCache`: yalnız ekranda görünen klasör ölçülüyor, eşzamanlılık 2,
+  sıra SONDAN işleniyor (ekranda duran klasör yukarıda kalmıştan önemli),
+  ölçülemeyen yol bir daha denenmiyor, `FsEvents` gelince hepsi düşüyor
+  (bayat boyut, hiç boyut göstermemekten kötü). Ayar varsayılan KAPALI.
+
+### D) USB
+* **Çok bölümlü bellek**: eskiden yalnız İLK tanınan bölüm açılıyordu ve
+  ötekilerin varlığı hiçbir yerde yazmıyordu — kullanıcı "dosyalarım
+  kayboldu" görüyordu. `UsbFs.open(partitionIndex:)` + tanınan bölümlerin
+  listesi + panoda "Bölüm seç" şeridi.
+* **Harf duyarsız yol çözümleme**: FAT/exFAT adı olduğu gibi saklar; yer imi
+  ya da "son açılanlar" kaydındaki yazım farklıysa ("DCIM" ↔ "dcim") tek harf
+  yüzünden "klasör bulunamadı" çıkıyordu. Yürüyüş artık listedeki adla
+  harf duyarsız eşleşiyor — **uydurma tutamak yok**, eşleşme gerçek girdiye
+  dayanıyor (`ğ` ↔ `g` bir yazım farkı DEĞİL, testle sabit).
+
+### E) APK simgeleri (üçüncü tur)
+* **Kurulu uygulama yedeği**: mağaza paketlerinin (App Bundle) `base.apk`ında
+  mipmap kaynakları YOKTUR — yoğunluğa göre ayrılmış `split_config.*.apk`
+  dosyasındadır. O dosya elimizde olmadığı için çıkarma haklı olarak boş
+  dönüyordu. Paket adı manifestten okunuyor (`packageOf`) ve paket
+  KURULUYSA sistemin simgesi kullanılıyor.
+* `<monochrome>` katmanı ön plan çizilemediğinde yedek (Android 13+ temalı
+  simgeler) — düz renk kutusundan çok daha iyi.
+* Simge önbelleği **budanıyor** (200 dosya): dosya adı zaman damgası taşıdığı
+  için aynı APK'nın her sürümü yeni bir PNG bırakıyordu.
+
+### F) PDF
+* **Sayfanın son paragrafında taşma denetimi** (KALANLAR maddesi kapandı):
+  altında satır olmayan paragrafa `double.infinity` yer veriliyordu ve metin
+  uzayınca sayfa kenarının ALTINA taşıyordu. Sınır artık çizim kutusunun alt
+  kenarı + 18 pt pay; kutu bilinmiyorsa eski davranış korunuyor.
+* Araç ızgarasında **dönük sayfa rozeti** (90°/180°/270°): küçük resim dönük
+  görünüyordu ama sayfanın kendi açısının değiştiği hiçbir yerde yazmıyordu.
+
+### G) Oynatıcı
+* **A-B tekrar** (video): A → B → kapat. Ters aralık düzeltiliyor (kullanıcı
+  geri sarıp işaretlemiş olabilir; ters aralık hiçbir şey çalmazdı).
+* **Karışık/tekrar kipi kalıcı**: "hep karışık dinlerim" diyen kullanıcı her
+  açılışta düğmeye basıyordu. Servis `AppState`i tanımıyor; değişimi yazan
+  kanca (`AudioPlayback.persistModes`) dışarıdan takılıyor ve GERİ YÜKLEME
+  kancayı tetiklemiyor (aynı değeri diske yeniden yazmanın anlamı yok).
+* Sesde de "kaldığın yerden devam" şeridi (videodakinin aynısı).
+
+### H) Genel
+Hata şeritleri **kopyalanabilir** (`showSnack(..., copyable: true)`):
+"Bellek okunamadı: FormatException…" gibi mesajları aktarmak için ekran
+görüntüsü gerekiyordu. **Panoya habersiz yazma YOK** — ilk denemede USB hata
+şeridinde otomatik kopyalama vardı, kullanıcının panosunu habersiz ele
+geçirmek olurdu; kopyalama yalnız düğmeye basılınca oluyor.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` lib+test 0 sorun,
+**2212 test yeşil** (27 yeni; 9 atlanan önceden var olan),
+`tool/check_kotlin.sh` üç Kotlin dosyasında temiz. Bir önceki turun APK'sı
+(build 341) CI'da yeşil derlendi ve yayımlandı.

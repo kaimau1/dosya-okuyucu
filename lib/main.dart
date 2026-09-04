@@ -22,6 +22,7 @@ import 'services/fm/job_notifications.dart';
 import 'services/fm/job_queue.dart';
 import 'services/fm/job_store.dart';
 import 'services/fm/playback_positions.dart';
+import 'services/fm/reading_positions.dart';
 import 'screens/fm/audio_player_screen.dart';
 import 'services/fm/audio_playback.dart';
 import 'services/fm/media_session.dart';
@@ -153,6 +154,7 @@ Future<void> _restoreJobs() async {
     // "Kaldığın yerden devam" kaydı da burada yükleniyor: oynatıcı açılana
     // kadar zaman var ve açılışta diskten okumak ilk kareyi geciktirmesin.
     await PlaybackPositions.ensureLoaded();
+    await ReadingPositions.ensureLoaded();
   } catch (_) {
     // Kalıcılık bir güvence ağı; okunamıyorsa uygulama yine çalışır.
   }

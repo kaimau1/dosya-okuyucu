@@ -127,6 +127,23 @@ void main() {
     expect(fs.canWrite, isTrue);
   });
 
+  /// **Harf duyarsız yol çözümleme** (2026-09-04). FAT/exFAT adı olduğu gibi
+  /// saklar; yer imi ya da "son açılanlar" kaydındaki yazım farklı olabilir
+  /// ("FOTOĞRAFLAR" ↔ "Fotoğraflar") ve tek harf yüzünden "klasör bulunamadı"
+  /// çıkıyordu — klasör gayet yerinde dururken.
+  test('yol farklı yazımla da çözülür (büyük/küçük harf)', () async {
+    final entries = await fs.list('/fotoğraflar'.toUpperCase());
+    expect(entries.map((e) => e.name), contains('kedi.jpg'));
+  });
+
+  test('harf duyarsızlık VAR OLMAYAN klasörü uydurmuyor', () async {
+    expect(
+      () => fs.list('/FOTOGRAFLAR'),
+      throwsA(isA<RemoteException>()),
+      reason: 'ğ ↔ g bir yazım farkı değil, başka bir ad',
+    );
+  });
+
   test('doluluk okunur ve akla yatkın', () async {
     final usage = await fs.usage();
     expect(usage, isNotNull);

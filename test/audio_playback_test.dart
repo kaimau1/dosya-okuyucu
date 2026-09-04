@@ -102,6 +102,39 @@ void main() {
     });
   });
 
+  /// **Kip kalıcılığı** (2026-09-04): "hep karışık dinlerim" diyen kullanıcı
+  /// her açılışta düğmeye yeniden basıyordu. Servis `AppState`i tanımıyor;
+  /// değişimi yazan kanca dışarıdan takılıyor.
+  group('karışık/tekrar kipinin kalıcılığı', () {
+    tearDown(() => AudioPlayback.persistModes = null);
+
+    test('kip değişimi kancayı çağırır', () {
+      final calls = <(bool, int)>[];
+      AudioPlayback.persistModes = (s, r) => calls.add((s, r));
+
+      player.setShuffle(true);
+      player.setRepeat(RepeatMode.one);
+
+      expect(calls, [(true, 0), (true, RepeatMode.one.index)]);
+    });
+
+    test('geri yükleme kancayı ÇAĞIRMAZ (aynı değeri yeniden yazma)', () {
+      var calls = 0;
+      AudioPlayback.persistModes = (_, __) => calls++;
+
+      player.restoreModes(shuffle: true, repeat: RepeatMode.all.index);
+
+      expect(player.shuffle, isTrue);
+      expect(player.repeat, RepeatMode.all);
+      expect(calls, 0);
+    });
+
+    test('bozuk kayıtlı değer kipi bozmaz', () {
+      player.restoreModes(shuffle: false, repeat: 99);
+      expect(player.repeat, RepeatMode.off);
+    });
+  });
+
   test('bildirim eylemleri tanınır', () {
     // Kimlikler `main`de bildirime bağlanıyor; adları değişirse düğmeler
     // sessizce çalışmaz olurdu.

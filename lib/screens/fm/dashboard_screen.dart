@@ -1874,8 +1874,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   ///
   /// Salt okunur (bkz. `UsbFs`): dosyalar açılır ve kopyalanır, belleğe
   /// yazılmaz. Açılamazsa sebebi söylenir — sessizce boş ekran açmak yerine.
-  Future<void> _openRawUsb(String deviceName) async {
-    final outcome = await UsbFs.open(deviceName: deviceName);
+  Future<void> _openRawUsb(String deviceName, {int? partitionIndex}) async {
+    final outcome =
+        await UsbFs.open(deviceName: deviceName, partitionIndex: partitionIndex);
     if (!mounted) return;
     final fs = outcome.fs;
     if (fs == null) {
@@ -1893,10 +1894,49 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
       return;
     }
+    // **Çok bölümlü bellek** (2026-09-04): eskiden yalnız İLK tanınan bölüm
+    // açılıyordu ve ötekilerin varlığı hiçbir yerde yazmıyordu — kullanıcı
+    // "dosyalarım kayboldu" görüyordu. Şerit hem haber veriyor hem geçiş
+    // yolu bırakıyor.
+    if (outcome.hasOtherVolumes) {
+      showSnack(
+        context,
+        context.t('usb.multi_volume', {'n': '${outcome.volumes.length}'}),
+        duration: kSnackAction,
+        action: SnackBarAction(
+          label: context.t('usb.pick_volume'),
+          onPressed: () => unawaited(_pickUsbVolume(deviceName, outcome)),
+        ),
+      );
+    }
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => RemoteBrowserScreen(connection: fs.connection, fs: fs),
     ));
     await fs.close();
+  }
+
+  /// Tanınan bölümler arasından seçtirir ve seçileni açar.
+  Future<void> _pickUsbVolume(String deviceName, UsbOpenOutcome outcome) async {
+    final choice = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.t('usb.pick_volume')),
+        children: [
+          for (final v in outcome.volumes)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, v.index),
+              child: ListTile(
+                leading: const Icon(Icons.usb),
+                title: Text(v.label),
+                subtitle: Text('${v.format} · @${v.firstLba}'),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return;
+    await _openRawUsb(deviceName, partitionIndex: choice);
   }
 
   /// USB teşhis ekranı — hangi kanalın ne dediğini ham hâliyle gösterir.

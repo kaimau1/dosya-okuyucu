@@ -64,6 +64,41 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   /// buradan geri geliyor.
   bool floatingActive = false;
 
+  /// **A-B tekrar** — işaretlenen iki nokta arası sürekli döner.
+  ///
+  /// Niye (2026-09-04, premium oynatıcı turu): bir dersin/hareketin aynı
+  /// yerini defalarca izlemek (dil çalışması, gitar, spor) elle geri sarmakla
+  /// yapılıyordu. [loopStart] doluyken [loopEnd] boşsa "A işaretlendi"
+  /// demektir; ikisi de doluyken döngü çalışır.
+  Duration? loopStart;
+  Duration? loopEnd;
+
+  /// Sıradaki A-B dokunuşunun ne yapacağı (arayüz metni için).
+  ///
+  /// 0 = A işaretle, 1 = B işaretle, 2 = döngüyü kaldır.
+  int get loopStage =>
+      loopStart == null ? 0 : (loopEnd == null ? 1 : 2);
+
+  /// A → B → kapat sırasıyla ilerler.
+  void markLoopPoint() {
+    switch (loopStage) {
+      case 0:
+        loopStart = position;
+        loopEnd = null;
+      case 1:
+        final start = loopStart ?? Duration.zero;
+        final here = position;
+        // B, A'dan önceyse ikisi yer değiştirir: kullanıcı geri sarıp
+        // işaretlemiş olabilir ve "ters aralık" hiçbir şey çalmazdı.
+        loopStart = here < start ? here : start;
+        loopEnd = here < start ? start : here;
+      default:
+        loopStart = null;
+        loopEnd = null;
+    }
+    notifyListeners();
+  }
+
   bool _observing = false;
   VoidCallback? _awake;
   Timer? _tick;
@@ -94,6 +129,10 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     }
     playlist = next;
     index = at;
+    // Döngü İŞARETLERİ dosyaya aittir: yeni dosyada eski aralık anlamsız
+    // (ve çoğu zaman dosyanın süresinden uzun) olurdu.
+    loopStart = null;
+    loopEnd = null;
     await _load();
   }
 
@@ -205,6 +244,14 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     final v = c.value;
     if (v.isPlaying) {
       PlaybackPositions.record(current, v.position, v.duration);
+    }
+    // A-B tekrar: B'ye gelince A'ya dön. Konum dinleyicisi saniyede birkaç
+    // kez geldiği için sıçrama gözle "kesintisiz" görünüyor.
+    final end = loopEnd;
+    final start = loopStart;
+    if (end != null && start != null && v.position >= end) {
+      unawaited(seek(start));
+      return;
     }
     if (v.position >= v.duration &&
         v.duration > Duration.zero &&
@@ -449,6 +496,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     _wasPlaying = false;
     resumedFrom = null;
     floatingActive = false;
+    loopStart = null;
+    loopEnd = null;
     c?.removeListener(_onTick);
     unawaited(c?.pause());
     unawaited(c?.dispose());

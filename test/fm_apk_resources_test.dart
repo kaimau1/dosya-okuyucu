@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:dosya_okuyucu/services/fm/apk_icon.dart';
 import 'package:dosya_okuyucu/services/fm/apk_resources.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -239,6 +239,27 @@ void main() {
       expect(size!.$1, size.$2, reason: 'simge kare olmalı');
       // Kırpılmış uyarlanabilir simge: 192'nin görünen 72/108'i = 128.
       expect(size.$1, 128, reason: 'vektör ön plan 192 px çizilip kırpıldı');
+    });
+
+    /// **Paket adı** simge bulunamadığında gerekiyor: mağaza paketlerinin
+    /// `base.apk`ında mipmap kaynakları yoktur (yoğunluk splitindedir) ve o
+    /// durumda kurulu uygulamanın simgesi kullanılıyor (2026-09-04).
+    test('manifestten paket adı okunur', () {
+      final path = writeApk('paketli.apk', {
+        'AndroidManifest.xml': ApkBinaries.manifest(
+          iconResId: iconId,
+          packageName: 'com.ornek.uygulama',
+        ),
+        'resources.arsc': ApkBinaries.table(files: {
+          iconId: [(640, 'res/o-.png')],
+        }),
+        'res/o-.png': realPng(192, 192),
+      });
+      final archive =
+          ZipDecoder().decodeBuffer(InputFileStream(path));
+      expect(ApkIcon.packageOf(archive), 'com.ornek.uygulama');
+      // Simge yolu paket adı eklenince de bozulmuyor.
+      expect(ApkIcon.pngSize(ApkIcon.readIconBytes(path)!), (192, 192));
     });
 
     /// Simge kimliği doğrudan bir vektöre çıkıyorsa (uyarlanabilir simge

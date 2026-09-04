@@ -27,6 +27,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'l10n/app_strings.dart';
 
 /// Kaç tane **kalıcı** şerit ekranda? (Bkz. [beginStickySnack].)
 int _sticky = 0;
@@ -55,14 +58,33 @@ const Duration kSnackAction = Duration(seconds: 6);
 /// [context] bir `ScaffoldMessenger` altında olmalı (uygulamanın her ekranı
 /// öyle). Asenkron boşluktan sonra çağrılacaksa `messenger`ı önceden alıp
 /// [showSnackOn] kullanın — `context` o an ölmüş olabilir.
+/// [copyable] verilirse şeride **"Kopyala"** düğmesi konur ve mesaj panoya
+/// alınabilir (2026-09-04).
+///
+/// Niye: hata mesajlarının çoğu tek dokunuşta kaybolan tek satırlık
+/// metinler ("Bellek okunamadı: FormatException…"). Kullanıcı onu bize
+/// aktarmak için ekran görüntüsü almak zorunda kalıyordu; artık kopyalayıp
+/// yapıştırabiliyor. Kendi eylemi olan şeritlerde ([action]) kopyalama
+/// düğmesi konmaz — bir şeritte tek eylem yeri var ve oradaki eylem daha
+/// önemli.
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnack(
   BuildContext context,
   String message, {
   SnackBarAction? action,
   Duration? duration,
-}) =>
-    showSnackOn(ScaffoldMessenger.of(context), message,
-        action: action, duration: duration);
+  bool copyable = false,
+}) {
+  final effective = action ??
+      (copyable
+          ? SnackBarAction(
+              label: AppStrings.of(context).t('common.copy'),
+              onPressed: () =>
+                  Clipboard.setData(ClipboardData(text: message)),
+            )
+          : null);
+  return showSnackOn(ScaffoldMessenger.of(context), message,
+      action: effective, duration: duration);
+}
 
 /// [showSnack]'in messenger alan hâli (asenkron akışlar için).
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackOn(

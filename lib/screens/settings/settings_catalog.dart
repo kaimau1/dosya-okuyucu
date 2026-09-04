@@ -228,6 +228,16 @@ List<SettingsCategory> settingsCategories() => [
                 titleKey: 'fmset.show_hidden',
                 subtitleKey: 'fmset.show_hidden_sub',
                 builder: _showHiddenTile),
+            SettingRow(
+                id: 'folder_sizes',
+                titleKey: 'fmset.folder_sizes',
+                subtitleKey: 'fmset.folder_sizes_sub',
+                builder: _folderSizesTile),
+            SettingRow(
+                id: 'resume_position',
+                titleKey: 'fmset.resume',
+                subtitleKey: 'fmset.resume_sub',
+                builder: _resumePositionTile),
           ]),
           SettingsSection('set.sec_photos', [
             SettingRow(
@@ -540,6 +550,8 @@ Widget _listLayoutTile(BuildContext _) => const ListLayoutTile();
 Widget _defaultSortTile(BuildContext _) => const DefaultSortTile();
 Widget _showHiddenTile(BuildContext _) => const ShowHiddenTile();
 Widget _thumbnailsTile(BuildContext _) => const ThumbnailsTile();
+Widget _folderSizesTile(BuildContext _) => const FolderSizesTile();
+Widget _resumePositionTile(BuildContext _) => const ResumePositionTile();
 Widget _photoGridTile(BuildContext _) => const PhotoGridTile();
 Widget _photoGroupTile(BuildContext _) => const PhotoGroupTile();
 Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();

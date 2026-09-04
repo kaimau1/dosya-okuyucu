@@ -15,6 +15,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
+import '../../services/fm/search_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/smart_query.dart';
 import '../../services/gemini_service.dart';
@@ -117,6 +118,10 @@ class _SearchScreenState extends State<SearchScreen> {
     // Ekran açılırken dizin hazırlanır; kullanıcı yazana kadar çoğu zaman
     // hazır olur, olmazsa canlı taramaya düşülür.
     SearchIndex.ensureBuilt();
+    // Geçmiş, kullanıcı yazmaya başlamadan önce (boş ekranda) gösteriliyor.
+    SearchHistory.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -238,7 +243,13 @@ class _SearchScreenState extends State<SearchScreen> {
             filled: false,
           ),
           onChanged: _onChanged,
-          onSubmitted: _run,
+          onSubmitted: (q) {
+            // **Geçmişe yalnız "bitirilmiş" sorgular giriyor** (arama
+            // düğmesi ya da bir sonucu açmak): her tuş vuruşunu kaydetmek
+            // listeyi "f", "fa", "fat" gibi ön eklerle doldururdu.
+            unawaited(SearchHistory.record(q));
+            unawaited(_run(q));
+          },
         ),
         actions: [
           if (_controller.text.isNotEmpty)
@@ -477,11 +488,54 @@ class _SearchScreenState extends State<SearchScreen> {
       final message = context.t(!_searched
           ? 'srch.empty_hint'
           : (_searching ? 'srch.searching' : 'srch.no_result'));
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Text(message, textAlign: TextAlign.center),
-        ),
+      final history = SearchHistory.queries;
+      return ListView(
+        padding: const EdgeInsets.all(Gap.lg),
+        children: [
+          Text(message, textAlign: TextAlign.center),
+          // **Son aramalar** — sorgu kutusu boşken gösteriliyor: bir sonuç
+          // listesinin üstüne geçmiş koymak, kullanıcının baktığı şeyi
+          // aşağı iterdi.
+          if (history.isNotEmpty && _controller.text.trim().isEmpty) ...[
+            const SizedBox(height: Gap.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(context.t('srch.recent'),
+                      style: Theme.of(context).textTheme.titleSmall),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await SearchHistory.clear();
+                    if (mounted) setState(() {});
+                  },
+                  child: Text(context.t('srch.clear_history')),
+                ),
+              ],
+            ),
+            const SizedBox(height: Gap.xs),
+            Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.xs,
+              children: [
+                for (final q in history)
+                  InputChip(
+                    label: Text(q),
+                    avatar: const Icon(Icons.history, size: 18),
+                    onPressed: () {
+                      _controller.text = q;
+                      unawaited(SearchHistory.record(q));
+                      unawaited(_run(q));
+                    },
+                    onDeleted: () async {
+                      await SearchHistory.remove(q);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ],
       );
     }
     // Uzun basış seçimi açar, basılı tutup kaydırmak aralık seçer — kategori
@@ -544,6 +598,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _open(FsEntry entry) async {
+    // Bir sonucu açmak, sorgunun İŞE YARADIĞININ kanıtı: geçmişe o an
+    // giriyor (arama düğmesine basmayan kullanıcı da geçmişini görsün).
+    unawaited(SearchHistory.record(_controller.text));
     if (entry.isDir) {
       _reveal(entry.path);
       return;
