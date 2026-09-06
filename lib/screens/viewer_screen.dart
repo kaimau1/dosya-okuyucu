@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/busy_dialog.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
 import '../core/l10n/app_strings.dart';
@@ -817,7 +818,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
     final progress = ValueNotifier<String>(
         withOcr ? context.t('vw.scanning_text') : context.t('vw.pdf_preparing'));
-    _showProgressDialog(progress);
+    final busy = _showProgressDialog(progress);
 
     String? path;
     String? error;
@@ -833,8 +834,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     } catch (e) {
       error = '$e';
     }
+    busy.close(); // ilerleme penceresi
     if (!mounted) return;
-    Navigator.of(context).pop(); // ilerleme penceresi
 
     if (error != null) {
       _snack(context.t('vw.pdf_failed', {'error': error}));
@@ -843,10 +844,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
     await Share.shareXFiles([XFile(path!)], text: context.t('vw.pdf_exported'));
   }
 
-  void _showProgressDialog(ValueNotifier<String> progress) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
+  /// İlerleme penceresi — kapatma tutamağıyla birlikte.
+  ///
+  /// Tutamak şart: `Navigator.pop` "bu pencereyi kapat" demek değil, "en
+  /// üsttekini kapat" demektir. Kullanıcı iş sürerken geri tuşuna bastıysa
+  /// pencere zaten gitmiştir ve o `pop` **görüntüleyici sayfasını** kapatırdı
+  /// (bkz. `core/busy_dialog.dart`).
+  BusyDialog _showProgressDialog(ValueNotifier<String> progress) {
+    return showBusyDialog(
+      context,
       builder: (_) => AlertDialog(
         content: Row(
           children: [
@@ -1998,7 +2004,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       return;
     }
     final progress = ValueNotifier<String>(context.t('vw.preparing'));
-    _showProgressDialog(progress);
+    final busy = _showProgressDialog(progress);
 
     String text = '';
     String? error;
@@ -2017,8 +2023,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     } catch (e) {
       error = '$e';
     }
+    busy.close(); // ilerleme penceresi
     if (!mounted) return;
-    Navigator.of(context).pop(); // ilerleme penceresi
 
     if (error != null) {
       _snack(context.t('vw.ocr_failed', {'error': error}));

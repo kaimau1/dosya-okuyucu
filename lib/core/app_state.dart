@@ -58,6 +58,7 @@ class AppState extends ChangeNotifier {
   static const _kFmConfirmDelete = 'fm_confirm_delete';
   static const _kFmTrashAutoDays = 'fm_trash_auto_days';
   static const _kFmStartFolder = 'fm_start_folder';
+  static const _kPeerName = 'peer_device_name';
   static const _kResumePosition = 'resume_position';
   static const _kFmFolderSizes = 'fm_folder_sizes';
   static const _kMediaShuffle = 'media_shuffle';
@@ -135,6 +136,9 @@ class AppState extends ChangeNotifier {
   /// klasörde tutan kullanıcı her açılışta panodan oraya tıklaya tıklaya
   /// gidiyordu. Boşken hiçbir şey değişmez — pano yine ilk ekran.
   String _fmStartFolder = '';
+
+  /// Yakındaki cihaza gönderirken karşı tarafta görünecek ad.
+  String _peerName = '';
   List<RecentFile> _recents = [];
   List<String> _memory = [];
 
@@ -222,6 +226,19 @@ class AppState extends ChangeNotifier {
 
   /// Açılışta girilecek klasör; boş ise pano gösterilir.
   String get fmStartFolder => _fmStartFolder;
+
+  /// **Cihaz adı** — "Yakındaki cihaza gönder"de karşı tarafın gördüğü ad.
+  ///
+  /// Boşsa ekranlar okunur bir varsayılan üretir; burada boş bırakmak
+  /// "kullanıcı henüz seçmedi" demek ve o ayrımı korumak gerekiyor (ad
+  /// kaydedilmiş mi, yoksa varsayılan mı gösteriliyor).
+  String get peerName => _peerName;
+
+  Future<void> setPeerName(String name) async {
+    _peerName = name.trim();
+    await _prefs.setString(_kPeerName, _peerName);
+    notifyListeners();
+  }
 
   Future<void> setFmStartFolder(String path) async {
     _fmStartFolder = path;
@@ -572,6 +589,7 @@ class AppState extends ChangeNotifier {
     _fmConfirmDelete = _prefs.getBool(_kFmConfirmDelete) ?? true;
     _fmTrashAutoDays = _prefs.getInt(_kFmTrashAutoDays) ?? 0;
     _fmStartFolder = _prefs.getString(_kFmStartFolder) ?? '';
+    _peerName = _prefs.getString(_kPeerName) ?? '';
     _remotes = (_prefs.getStringList(_kRemotes) ?? [])
         .map(RemoteConnection.tryDecode)
         .whereType<RemoteConnection>()

@@ -92,7 +92,7 @@ class FmSelectionBar extends StatelessWidget {
                   context,
                   Icons.share_outlined,
                   context.t('common.share'),
-                  () => shareEntries(_paths),
+                  () => shareEntriesFrom(context, _paths),
                 ),
               _action(
                 context,

@@ -6,6 +6,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/busy_dialog.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -192,17 +193,17 @@ abstract final class EntryOpener {
 
     final appState = context.read<AppState>();
     final navigator = Navigator.of(context);
-    _showBusy(context);
+    final busy = _showBusy(context);
     LoadedDoc doc;
     try {
       doc = await _fileService.load(path);
     } catch (e) {
-      if (context.mounted) navigator.pop(); // yükleniyor penceresini kapat
+      busy.close(); // yükleniyor penceresini kapat
       if (context.mounted) _snack(context, 'Dosya açılamadı: $e');
       return;
     }
+    busy.close();
     if (!context.mounted) return;
-    navigator.pop();
 
     unawaited(OpenHistory.record(path));
     await appState.addRecent(RecentFile(
@@ -289,10 +290,18 @@ abstract final class EntryOpener {
 
   /// Yükleniyor penceresi — çıplak spinner değil, NE olduğunu söyleyen bir
   /// kart (2026-08-06 kullanıcı bulgusu: "açılıyor mu ne oluyor belli değil").
-  static void _showBusy(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
+  ///
+  /// Pencereyi kapatacak **tutamak** döner. Eskiden kapatma
+  /// `navigator.pop()` idi ve bu, kullanıcının bildirdiği kararan ekranın en
+  /// kısa yoluydu: büyük bir PDF yüklenirken kullanıcı beklemekten sıkılıp
+  /// geri tuşuna basıyor (geri tuşu `barrierDismissible: false`a rağmen
+  /// çalışır), pencere kapanıyor; belge yüklenince gelen `pop` bu kez
+  /// **dosya listesini** kapatıyordu. İki kez tekrarlayınca `Navigator`
+  /// boşalıyor, ekran kararıyor ve uygulamayı öldürmekten başka çare
+  /// kalmıyordu (bkz. `core/busy_dialog.dart`).
+  static BusyDialog _showBusy(BuildContext context) {
+    return showBusyDialog(
+      context,
       builder: (ctx) => Center(
         child: Material(
           borderRadius: BorderRadius.circular(16),

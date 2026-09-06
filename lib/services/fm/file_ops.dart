@@ -135,7 +135,13 @@ abstract final class FileOps {
     var done = 0;
     var skipped = 0;
     var succeeded = 0;
-    final total = _countFiles(sources);
+    // Sayım ANA İZLEĞİ KİLİTLEMEZ (kullanıcı isteği 2026-09-06: "kopyalama
+    // taşıma çok pratik ve hızlı olmalı"). Eskiden `_countFiles` bütün ağacı
+    // — 20 000 girdiye kadar — tek hamlede, senkron geziyordu; yavaş bir SD
+    // kartta ya da binlerce fotoğraflu bir klasörde ilerleme penceresi ilk
+    // karesini bile çizemeden uygulama saniyelerce donuyordu. Kullanıcının
+    // gördüğü şey "kopyalamaya bastım, uygulama kilitlendi"ydi.
+    final total = await _countFiles(sources);
 
     for (final src in sources) {
       if (isCancelled?.call() ?? false) {
@@ -520,9 +526,20 @@ abstract final class FileOps {
   /// İlerleme yüzdesi için dosya sayısı (klasörler özyinelemeli sayılır).
   /// Çok büyük ağaçlarda sayım da pahalıdır → 20 bin dosyada durur, ilerleme
   /// çubuğu yaklaşık olur (işlemin kendisi tam yapılır).
-  static int _countFiles(List<String> sources) {
+  /// Kopyalanacak dosya sayısı — ilerleme çubuğunun paydası.
+  ///
+  /// **Arada nefes alır.** Dizin listeleme (`listSync`) tek tek hızlıdır ama
+  /// binlerce klasörde toplamı saniyeleri bulur; hepsi tek `await`siz blokta
+  /// koşarsa Flutter o süre boyunca KARE ÇİZEMEZ (ilerleme penceresi bile
+  /// görünmez, dokunuşlar birikir). Her 256 girdide bir olay döngüsüne
+  /// dönülüyor: toplam süre aynı, ama uygulama boyunca yanıt veriyor.
+  ///
+  /// Tek tek dosyalar (en sık durum: kullanıcı üç dosya seçti) hiç dizin
+  /// gezmez — o yolda `await` de yok, bedeli sıfır.
+  static Future<int> _countFiles(List<String> sources) async {
     var n = 0;
-    void walk(String path, int depth) {
+    var steps = 0;
+    Future<void> walk(String path, int depth) async {
       if (n >= 20000 || depth > 24) return;
       final dir = Directory(path);
       if (dir.existsSync()) {
@@ -533,7 +550,8 @@ abstract final class FileOps {
           return;
         }
         for (final c in children) {
-          walk(c.path, depth + 1);
+          if (++steps % 256 == 0) await Future<void>.delayed(Duration.zero);
+          await walk(c.path, depth + 1);
         }
       } else {
         n++;
@@ -541,7 +559,7 @@ abstract final class FileOps {
     }
 
     for (final s in sources) {
-      walk(s, 0);
+      await walk(s, 0);
     }
     return n == 0 ? sources.length : n;
   }

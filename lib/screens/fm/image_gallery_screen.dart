@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/busy_dialog.dart';
 import '../../core/image_budget.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -93,7 +94,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     setState(() {
       _paths.removeAt(_index);
       if (_paths.isEmpty) {
-        Navigator.of(context).pop();
+        popOwnPage(context);
         return;
       }
       _index = _index.clamp(0, _paths.length - 1);
@@ -170,7 +171,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 IconButton(
                   tooltip: context.t('common.share'),
                   icon: const Icon(Icons.share_outlined),
-                  onPressed: () => shareEntries([_current]),
+                  onPressed: () => shareEntriesFrom(context, [_current]),
                 ),
                 IconButton(
                   tooltip: context.t('common.delete'),

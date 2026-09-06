@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
+import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 import 'markdown_text.dart';
@@ -55,9 +56,11 @@ class AiSummaryFlow {
         ? 'ai.sum_prompt_short'
         : 'ai.sum_prompt_detailed');
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
+    // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
+    // `Navigator.pop`, pencere ortada yoksa (kullanıcı geri tuşuna bastı)
+    // arkadaki SAYFAYI kapatıyor ve tek sayfa kaldıysa ekran kararıyordu.
+    final busy = showBusyDialog(
+      context,
       builder: (ctx) => AlertDialog(
         content: Row(
           children: [
@@ -83,8 +86,7 @@ class AiSummaryFlow {
       error = '$e';
     }
 
-    if (!context.mounted) return;
-    Navigator.of(context).pop(); // ilerleme penceresi
+    busy.close(); // ilerleme penceresi
     if (!context.mounted) return;
 
     if (error != null || summary == null) {

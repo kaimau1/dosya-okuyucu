@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/document.dart';
+import 'page_transitions.dart';
 import 'skin.dart';
 
 /// Kağıt teması (2026-08-04, claude.ai/design "Sekiz ekran Flutter tasarımı"
@@ -478,8 +479,25 @@ class AppTheme {
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
-      // ponytail: sayfa geçişi Flutter'ın M3 varsayılanına (ZoomPageTransitions)
-      // bırakıldı — Android-native ve geri hareketiyle uyumlu.
+      // **Sayfa geçişi** artık M3 varsayılanı (ZoomPageTransitions) DEĞİL:
+      // o geçiş 300 ms sürüyor, iki sayfayı birden soluklaştırıyor
+      // (`saveLayer`) ve başlarken sayfanın anlık görüntüsünü alıyor — dosya
+      // listesi gibi yüzlerce küçük parçalı bir sayfada geçişin başındaki
+      // takılmanın kaynağı buydu. Yerine yalnız kaydırma (transform)
+      // kullanan, 220 ms'lik geçiş kondu; gerekçe ve ölçüler
+      // `core/page_transitions.dart` içinde.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FastPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: FastPageTransitionsBuilder(),
+          TargetPlatform.linux: FastPageTransitionsBuilder(),
+          TargetPlatform.windows: FastPageTransitionsBuilder(),
+          // iOS/macOS'ta sistemin kendi kenardan geri hareketi korunuyor:
+          // orada Cupertino geçişi bir alışkanlık, değiştirmek yabancı durur.
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
     );
   }
 

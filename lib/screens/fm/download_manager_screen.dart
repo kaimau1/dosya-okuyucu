@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../../core/busy_dialog.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/download_task.dart';
@@ -361,9 +362,10 @@ Future<void> startDownloadFlow(BuildContext context, String rawUrl) async {
 }
 
 Future<GithubRelease?> _fetchRelease(BuildContext context, String apiUrl) async {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
+  // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
+  // `Navigator.pop`, pencere ortada yoksa arkadaki SAYFAYI kapatıyordu.
+  final busy = showBusyDialog(
+    context,
     builder: (ctx) => AlertDialog(
       content: Row(
         children: [
@@ -384,11 +386,11 @@ Future<GithubRelease?> _fetchRelease(BuildContext context, String apiUrl) async 
         'user-agent': 'DosyaOkuyucu/1.0',
       },
     );
-    if (context.mounted) Navigator.pop(context);
+    busy.close();
     if (response.statusCode >= 400) return null;
     return parseGithubRelease(response.body);
   } catch (_) {
-    if (context.mounted) Navigator.pop(context);
+    busy.close();
     return null;
   }
 }

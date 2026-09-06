@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../screens/scan_result_screen.dart';
 import '../screens/scan_review_screen.dart';
@@ -43,7 +44,7 @@ class ScanFlow {
 
     final progress = ValueNotifier<String>(AppStrings.current
         .t('sf.ocr_progress', {'n': 1, 'total': pages.length}));
-    _showProgress(context, progress);
+    final busy = _showProgress(context, progress);
 
     String? path;
     String? error;
@@ -69,8 +70,8 @@ class ScanFlow {
       error = '$e';
     }
 
+    busy.close(); // ilerleme penceresi
     if (!context.mounted) return null;
-    Navigator.of(context).pop(); // ilerleme penceresi
 
     if (error != null || path == null) {
       _snack(context, AppStrings.current.t('sf.save_failed', {'error': error}));
@@ -102,11 +103,16 @@ class ScanFlow {
     return path;
   }
 
-  static void _showProgress(
+  /// İlerleme penceresini açar ve **onu kapatacak tutamağı** döner.
+  ///
+  /// Tutamak şart: `Navigator.pop` "en üsttekini kapat" demek, "bu pencereyi
+  /// kapat" demek değil. Kullanıcı iş sürerken geri tuşuna basmışsa pencere
+  /// çoktan gitmiş olur ve o `pop` arkadaki SAYFAYI kapatırdı — tek sayfa
+  /// kalmışsa ekran kararır (bkz. `core/busy_dialog.dart`).
+  static BusyDialog _showProgress(
       BuildContext context, ValueNotifier<String> progress) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
+    return showBusyDialog(
+      context,
       builder: (_) => AlertDialog(
         content: Row(
           children: [

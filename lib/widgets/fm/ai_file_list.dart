@@ -238,7 +238,7 @@ class _AiFileListState extends State<AiFileList> {
                         },
                       ),
                     _barButton(Icons.share_outlined, context.t('aif.share'),
-                        () => shareEntries(_selected.toList())),
+                        () => shareEntriesFrom(context, _selected.toList())),
                     _barButton(
                       Icons.drive_file_move_outlined,
                       context.t('aif.move'),

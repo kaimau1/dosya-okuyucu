@@ -662,6 +662,120 @@ const Map<String, (String, String, String)> _table = {
     'تم إلغاء العملية (بقيت العناصر المنقولة في مكانها).',
   ),
 
+  // ── Çizim hatası kurtarma ekranı (bkz. widgets/app_error_screen.dart) ─────
+  'err.render_failed': (
+    'Bu ekran çizilemedi',
+    'This screen could not be drawn',
+    'تعذر رسم هذه الشاشة',
+  ),
+  'err.render_logged': (
+    'Hata kaydedildi (Ayarlar > Hata kayıtları).\nÖnceki ekrana dönebilirsiniz.',
+    'The error was logged (Settings > Error logs).\nYou can go back to the '
+        'previous screen.',
+    'تم تسجيل الخطأ (الإعدادات > سجلات الأخطاء).\nيمكنك العودة إلى الشاشة '
+        'السابقة.',
+  ),
+  'err.go_back': ('Geri dön', 'Go back', 'رجوع'),
+  'err.go_home': ('Ana ekran', 'Home', 'الشاشة الرئيسية'),
+
+  // ── Yakındaki cihaza gönder (iki Dosya Okuyucu arası) ─────────────────────
+  'peer.title': ('Yakındaki cihaz', 'Nearby device', 'جهاز قريب'),
+  'peer.send_action': (
+    'Yakındaki cihaza gönder',
+    'Send to nearby device',
+    'إرسال إلى جهاز قريب',
+  ),
+  'peer.send_hint': (
+    'Aynı Wi-Fi\'deki Dosya Okuyucu\'ya doğrudan',
+    'Straight to Dosya Okuyucu on the same Wi-Fi',
+    'مباشرة إلى Dosya Okuyucu على نفس شبكة Wi-Fi',
+  ),
+  'peer.tab_send': ('Gönder', 'Send', 'إرسال'),
+  'peer.tab_receive': ('Al', 'Receive', 'استقبال'),
+  'peer.searching': ('Cihazlar aranıyor…', 'Looking for devices…', 'جارٍ البحث عن الأجهزة…'),
+  'peer.search_again': ('Yeniden ara', 'Search again', 'إعادة البحث'),
+  'peer.none_found': (
+    'Cihaz bulunamadı. Karşı telefonda Dosya Okuyucu > Yakındaki cihaz > Al '
+    'ekranı açık olmalı ve iki cihaz aynı Wi-Fi ağında olmalı.',
+    'No device found. On the other phone open Dosya Okuyucu > Nearby device > '
+    'Receive, and make sure both are on the same Wi-Fi network.',
+    'لم يتم العثور على جهاز. افتح في الهاتف الآخر Dosya Okuyucu > جهاز قريب > '
+    'استقبال، وتأكد من أن الجهازين على نفس شبكة Wi-Fi.',
+  ),
+  'peer.files_to_send': (
+    '{n} dosya gönderilecek',
+    '{n} file(s) to send',
+    'سيتم إرسال {n} ملف',
+  ),
+  'peer.sending': ('Gönderiliyor', 'Sending', 'جارٍ الإرسال'),
+  'peer.sent': (
+    '{n} dosya {name} cihazına gönderildi',
+    'Sent {n} file(s) to {name}',
+    'تم إرسال {n} ملف إلى {name}',
+  ),
+  'peer.send_failed': (
+    'Gönderilemedi: {error}',
+    'Could not send: {error}',
+    'تعذر الإرسال: {error}',
+  ),
+  'peer.send_stopped': (
+    'Durduruldu ({n} dosya gitti)',
+    'Stopped ({n} file(s) sent)',
+    'تم الإيقاف (تم إرسال {n} ملف)',
+  ),
+  'peer.receiving_on': (
+    'Alınmaya hazır',
+    'Ready to receive',
+    'جاهز للاستقبال',
+  ),
+  'peer.receiving_off': ('Kapalı', 'Off', 'مغلق'),
+  'peer.receive_explain': (
+    'Bu ekran açıkken aynı Wi-Fi ağındaki Dosya Okuyucu\'lar bu cihaza dosya '
+    'gönderebilir. Ekranı kapatınca kapanır.',
+    'While this screen is open, Dosya Okuyucu apps on the same Wi-Fi can send '
+    'files here. It closes when you leave the screen.',
+    'أثناء فتح هذه الشاشة، يمكن لتطبيقات Dosya Okuyucu على نفس شبكة Wi-Fi '
+    'إرسال ملفات إلى هنا. يتوقف عند مغادرة الشاشة.',
+  ),
+  'peer.receive_warning': (
+    'Aktarım şifrelenmez — halka açık ağlarda kullanmayın.',
+    'Transfers are not encrypted — avoid public networks.',
+    'النقل غير مشفر — تجنب الشبكات العامة.',
+  ),
+  'peer.save_to': ('Kayıt yeri: {path}', 'Saved to: {path}', 'مكان الحفظ: {path}'),
+  'peer.change_folder': ('Klasörü değiştir', 'Change folder', 'تغيير المجلد'),
+  'peer.device_name': ('Bu cihazın adı', 'This device\'s name', 'اسم هذا الجهاز'),
+  'peer.received': ('{name} alındı', 'Received {name}', 'تم استلام {name}'),
+  'peer.received_from': ('{name} · {from} cihazından', '{name} · from {from}', '{name} · من {from}'),
+  'peer.nothing_received': (
+    'Henüz dosya gelmedi.',
+    'No files yet.',
+    'لا توجد ملفات بعد.',
+  ),
+  'peer.address_hint': (
+    'Cihaz görünmüyorsa karşı taraftaki adresi elle yazın',
+    'If the device does not appear, type its address manually',
+    'إذا لم يظهر الجهاز، اكتب عنوانه يدويًا',
+  ),
+  'peer.address': ('Adres (192.168.1.42)', 'Address (192.168.1.42)', 'العنوان (192.168.1.42)'),
+  'peer.connect': ('Bağlan', 'Connect', 'اتصال'),
+  'peer.not_found_at': (
+    'Bu adreste Dosya Okuyucu bulunamadı',
+    'No Dosya Okuyucu found at that address',
+    'لم يتم العثور على Dosya Okuyucu على هذا العنوان',
+  ),
+  'peer.folders_skipped': (
+    'Klasörler atlandı ({n} tane) — önce sıkıştırın.',
+    '{n} folder(s) skipped — compress them first.',
+    'تم تخطي {n} مجلد — اضغطها أولاً.',
+  ),
+  'peer.this_device': ('Bu cihaz: {name}', 'This device: {name}', 'هذا الجهاز: {name}'),
+  'peer.other_apps': (
+    'WhatsApp, Bluetooth, e-posta…',
+    'WhatsApp, Bluetooth, email…',
+    'واتساب، بلوتوث، بريد…',
+  ),
+
   // ── Dosya yöneticisi: seçim çubuğu ────────────────────────────────────────
   'fm.copy': ('Kopyala', 'Copy', 'نسخ'),
   'fm.clip_copy': ('Panoya kopyala', 'Copy to clipboard', 'نسخ إلى الحافظة'),

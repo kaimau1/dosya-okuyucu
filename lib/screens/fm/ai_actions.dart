@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/busy_dialog.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -41,11 +42,11 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
     return;
   }
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => _Busy(str.t('aia.reading_doc')),
-  );
+  // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
+  // `Navigator.pop(context)`, kullanıcı bu sırada geri tuşuna bastıysa
+  // pencereyi değil ARKADAKİ SAYFAYI kapatıyordu.
+  final busy = showBusyDialog(context,
+      builder: (_) => _Busy(str.t('aia.reading_doc')));
 
   String text;
   try {
@@ -55,13 +56,13 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
       text = await OcrService.recognizeImageFile(entry.path);
     }
   } catch (e) {
-    if (context.mounted) Navigator.pop(context);
+    busy.close();
     if (context.mounted) _snack(context, str.t('aia.read_failed', {'error': e}));
     return;
   }
 
   if (text.trim().length < 20) {
-    if (context.mounted) Navigator.pop(context);
+    busy.close();
     if (context.mounted) {
       _snack(context, str.t('aia.no_text'));
     }
@@ -84,15 +85,14 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
       fileContext: trimmed,
     );
   } catch (e) {
-    if (context.mounted) Navigator.pop(context);
+    busy.close();
     if (context.mounted) {
       _snack(context, str.t('aia.summary_failed', {'error': e}));
     }
     return;
   }
 
-  if (!context.mounted) return;
-  Navigator.pop(context); // yükleniyor penceresi
+  busy.close(); // yükleniyor penceresi
   if (!context.mounted) return;
 
   // Yerel sınıflandırma da ücretsiz geldiği için birlikte gösterilir.
@@ -114,22 +114,18 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
 Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
   // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
   final str = AppStrings.of(context);
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => _Busy(str.t('aia.reading_image')),
-  );
+  final busy = showBusyDialog(context,
+      builder: (_) => _Busy(str.t('aia.reading_image')));
 
   String text;
   try {
     text = await OcrService.recognizeImageFile(entry.path);
   } catch (e) {
-    if (context.mounted) Navigator.pop(context);
+    busy.close();
     if (context.mounted) _snack(context, str.t('aia.ocr_failed', {'error': e}));
     return;
   }
-  if (!context.mounted) return;
-  Navigator.pop(context);
+  busy.close();
   if (!context.mounted) return;
 
   final guess = classifyDocumentText(text, fileName: entry.name);

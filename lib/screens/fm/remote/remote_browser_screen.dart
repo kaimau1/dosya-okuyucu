@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../core/busy_dialog.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../models/fs_entry.dart';
 import '../../../models/remote_connection.dart';
@@ -491,7 +492,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
       // Kapatılamadı — yine de ekrandan çıkıyoruz; aygıt zaten gitmiş olabilir.
     }
     if (!mounted) return;
-    Navigator.of(context).pop();
+    popOwnPage(context);
     showSnackOn(messenger, done, duration: kSnackAction);
   }
 

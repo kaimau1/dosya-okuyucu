@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
+import '../core/busy_dialog.dart';
 import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/ai_slides.dart';
@@ -54,9 +55,10 @@ class AiSlidesFlow {
     String? error;
 
     if (useAi) {
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
+      // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
+      // `Navigator.pop`, pencere ortada yoksa arkadaki SAYFAYI kapatıyordu.
+      final busy = showBusyDialog(
+        context,
         builder: (ctx) => AlertDialog(
           content: Row(
             children: [
@@ -85,8 +87,7 @@ class AiSlidesFlow {
       } catch (e) {
         error = '$e';
       }
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
+      busy.close();
       if (!context.mounted) return;
       if (error != null || plan == null) {
         _snack(context, str.t('ais.failed', {'error': error ?? ''}));

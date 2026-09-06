@@ -10,6 +10,7 @@ import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
@@ -122,7 +123,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
         final pw = await _askPassword(
             _str.t('pt.locked_title'), _str.t('pt.enter_password'));
         if (pw == null) {
-          if (mounted) Navigator.of(context).pop();
+          if (mounted) popOwnPage(context);
           return;
         }
         await PdfTools.pageCount(bytes, password: pw);

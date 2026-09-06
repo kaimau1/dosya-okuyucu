@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/doc_translate.dart';
 import '../services/pdf_translate_doc.dart';
@@ -84,7 +85,7 @@ class TranslateFlow {
     if (!context.mounted) return;
 
     final progress = TranslateProgress(str.t('tf.preparing'));
-    _showProgress(context, progress);
+    final busy = _showProgress(context, progress);
 
     PdfTranslateOutcome? outcome;
     String? error;
@@ -123,11 +124,11 @@ class TranslateFlow {
       error = '$e';
     }
 
+    busy.close(); // ilerleme penceresi
     if (!context.mounted) {
       progress.dispose();
       return;
     }
-    Navigator.of(context).pop(); // ilerleme penceresi
     final cancelled = progress.cancelled;
     progress.dispose();
 
@@ -189,7 +190,7 @@ class TranslateFlow {
     if (!context.mounted) return;
 
     final progress = TranslateProgress(str.t('tf.preparing'));
-    _showProgress(context, progress);
+    final busy = _showProgress(context, progress);
 
     List<OcrPage> result = const [];
     var sourcePages = 0;
@@ -222,11 +223,11 @@ class TranslateFlow {
       error = '$e';
     }
 
+    busy.close(); // ilerleme penceresi
     if (!context.mounted) {
       progress.dispose();
       return;
     }
-    Navigator.of(context).pop(); // ilerleme penceresi
     final cancelled = progress.cancelled;
     progress.dispose();
 
@@ -323,11 +324,15 @@ class TranslateFlow {
   /// İlerleme penceresi — **durdurulabilir**: 200 sayfalık taranmış bir belge
   /// on dakika sürebiliyor ve eskiden pencerenin kapatılmasının hiçbir yolu
   /// yoktu (`barrierDismissible: false`, düğme yok).
-  static void _showProgress(
+  ///
+  /// Pencereyi kapatan **tutamak** döner: `Navigator.pop` en üstteki rotayı
+  /// kapatır, bu pencereyi değil. Kullanıcı iş sürerken geri tuşuna basmışsa
+  /// (geri tuşu `barrierDismissible: false`a rağmen çalışır) o `pop` arkadaki
+  /// SAYFAYI kapatıyordu — bkz. `core/busy_dialog.dart`.
+  static BusyDialog _showProgress(
       BuildContext context, TranslateProgress progress) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
+    return showBusyDialog(
+      context,
       builder: (ctx) => AlertDialog(
         content: Row(
           children: [

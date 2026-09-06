@@ -30,6 +30,7 @@ import 'ai_actions.dart';
 import 'archive_screen.dart';
 import 'drive_screen.dart';
 import 'folder_picker_screen.dart';
+import 'remote/peer_share_screen.dart';
 import 'important_screen.dart';
 import 'resize_actions.dart';
 import '../../core/snack.dart';
@@ -245,7 +246,7 @@ Future<bool> showEntryActions(
       return false;
 
     case _EntryAction.share:
-      await shareEntries([entry.path]);
+      await shareEntriesFrom(context, [entry.path]);
       return false;
 
     case _EntryAction.driveUpload:
@@ -699,6 +700,20 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
 Future<void> shareEntries(List<String> paths) async {
   if (paths.isEmpty) return;
   await Share.shareXFiles(paths.map((p) => XFile(p)).toList());
+}
+
+/// "Paylaş" düğmesinin gerçek akışı: **önce nasıl** diye sorar.
+///
+/// Kullanıcı isteği (2026-09-06): *"paylaş dendiğinde iki dosya okuyucusu
+/// arasında hızlı dosya paylaşımı özelliği yapalım."* Seçim penceresi iki yol
+/// sunuyor — aynı Wi-Fi'deki başka bir Dosya Okuyucu'ya doğrudan gönderme
+/// (hızlı, boyut sınırı yok, yeniden sıkıştırma yok) ve sistemin kendi
+/// paylaşım sayfası. Yakındaki cihaz seçilmezse davranış eskisiyle birebir
+/// aynı: sistem paylaşımı açılır.
+Future<void> shareEntriesFrom(BuildContext context, List<String> paths) async {
+  if (paths.isEmpty) return;
+  if (await showShareChoice(context, paths)) return; // yakındaki cihaza gitti
+  await shareEntries(paths);
 }
 
 /// **Taşı/Kopyala akışı:** hedef klasör seçtirir, işi ilerleme penceresiyle

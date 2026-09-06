@@ -10988,3 +10988,114 @@ telefonundaki APK o düzeltmeden eskiydi.
 **Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` lib+test 0 sorun,
 **2230 test yeşil** (18 yeni; 9 atlanan önceden var olan). `ci/*.kt`
 değişmedi, Kotlin denetimi gerekmedi.
+
+---
+
+## 2026-09-06 (yirmi birinci tur) — KARARAN EKRANIN kök nedeni, yakındaki cihaza gönderme, geçiş performansı
+
+Kullanıcı: *"kopyala gibi işlemler yapıldıktan sonra ekran kararıyor kapatıp
+açmak gerekiyor uygulamayı, geri önceki ekrana dönmeli, diğer akışları da
+kontrol et · dosya kopyalama taşıma paylaşma çok pratik ve hızlı olmalı,
+ayrıca paylaş dendiğinde iki dosya okuyucusu arasında hızlı dosya paylaşımı
+özelliği yapalım · geçiş animasyonları ve alan geçişlerinde performans
+iyileştirmesi yap."*
+
+### A) KÖK NEDEN — `Navigator.pop` "şu pencereyi kapat" DEMEK DEĞİL
+
+Uygulamanın on bir ayrı yerinde aynı kalıp vardı:
+
+```dart
+showDialog(context: context, builder: ...);   // "çalışıyor" penceresi
+final sonuc = await uzunIs();
+Navigator.of(context).pop();                  // pencereyi kapat (SANIYORDUK)
+```
+
+`pop` bir pencereyi değil **yığının en üstündekini** kapatır. Pencere o an
+orada değilse o `pop` **arkadaki SAYFAYI** kapatıyordu. Pencere üç yoldan
+ortadan kalkabiliyor ve üçü de sıradan:
+
+1. **Geri tuşu.** `barrierDismissible: false` yalnız *perdeye dokunmayı*
+   engeller, **geri tuşunu engellemez**. Büyük bir PDF yüklenirken bekleyen
+   kullanıcının ilk yaptığı şey geri tuşuna basmak.
+2. **İş, pencere ilk karesini çizmeden bitiyor.** Küçük dosyada kopyalama
+   milisaniyeler sürüyor; `fm_progress_dialog` bunun için `dialogContext`
+   null'ken bayrak yakıp pencereyi bir kare sonra KENDİNE kapattırıyordu — o
+   gecikmiş `pop`un neyin üstüne düştüğünün garantisi yoktu.
+3. **Araya başka pencere giriyor** (hata sorusu, çakışma sorusu).
+
+Sayfa yığındaki tek sayfaysa `Navigator` boşalıyor: Flutter çizecek bir şey
+bulamıyor, ekran kararıyor, geri tuşu da işlemiyor (kapatacak rota yok).
+Kullanıcının "kapatıp açmak gerekiyor" dediği durum tam olarak bu.
+
+**Çözüm — pencereyi KİMLİĞİYLE kapat.** Yeni `lib/core/busy_dialog.dart`:
+`showBusyDialog` rotayı çağırana veriyor, `BusyDialog.close()` yalnız o
+rotayı kaldırıyor (gitmişse hiçbir şey yapmıyor; üstüne başka rota bindiyse
+`removeRoute` ile aradan çekiyor). Bu tutamak **hiçbir koşulda** arkadaki
+sayfayı kapatamaz.
+
+Dönüştürülen akışlar (hepsi aynı hataya açıktı): dosya işlemleri ilerleme
+penceresi (`fm_progress_dialog` → kopyala/taşı/sil/sıkıştır/çıkar/Drive
+indirme hepsi buradan geçiyor), **dosya açma** (`entry_opener` — kararan
+ekranın en kısa yolu buydu), AI özet, AI görsel içgörü, AI slayt, belge
+tarama, çeviri (iki yer), görüntüleyici PDF/OCR (iki yer), slayt→PDF, sürüm
+indirme.
+
+Ayrıca "kendi sayfasını kapatan" üç yer (`pdf_tools`, `image_gallery`,
+`remote_browser`) `popOwnPage` ile korundu: rota en üstte değilse hiçbir şey
+yapılmıyor.
+
+### B) İkinci ve üçüncü savunma hattı
+- **`NavigatorStackGuard`** (`lib/core/navigator_guard.dart`): yığın yine de
+  boşalırsa kök ekran geri konuyor. Uygulamada 110'dan fazla `pop` var ve her
+  yeni akış bir tane daha ekliyor; hatanın SONUCU (kararan ekran) artık
+  yapısal olarak imkânsız. Gözlemci `State`te yaşıyor — `build` içinde
+  yaratılsaydı her tema/dil değişiminde sayaç sıfırlanırdı.
+- **`ErrorWidget.builder` → `AppErrorScreen`**: release derlemesinde bir
+  `build` hatasının yerine Flutter'ın koyduğu şey **yazısız gri/siyah bir
+  dikdörtgen**. Ağacın tepesine yakın bir hatada (ör. `MaterialApp.builder`
+  içindeki mini oynatıcı) bu, bütün ekranı kaplayan kararmış bir yüzeydir.
+  Yerine ne olduğunu söyleyen ve **Geri dön / Ana ekran** düğmeleri olan bir
+  kart kondu. Metinleri `AppStrings.current`ten okuyor, `context.t`den
+  DEĞİL: buraya düşme sebebimiz ağacın çizilememesi olabilir.
+
+### C) Yakındaki cihaza gönderme (iki Dosya Okuyucu arası)
+`lib/services/fm/remote/peer_share.dart` — **yeni paket YOK**, saf `dart:io`:
+- **Bulma:** UDP yayını (`255.255.255.255` *ve* alt ağın kendi yayın adresi —
+  bazı ROM'lar/yönlendiriciler birini yutuyor), soru 900 ms'de bir üç kez
+  tekrarlanıyor (UDP güvenilir değil).
+- **Aktarım:** HTTP `POST /al?ad=…`, dosya akış hâlinde (2 GB'lık video
+  belleğe alınmıyor), tek `HttpClient` ile bağlantı yeniden kullanılıyor.
+- **Güvenlik:** sunucu yalnız "Al" ekranı açıkken yaşıyor; yol istekten
+  ALINMIYOR (yalnız ad, o da `sanitizeName`den geçiyor → `../../` imkânsız);
+  aynı adlı dosya ezilmiyor; yarım kalan dosya siliniyor.
+- Arayüz: `peer_share_screen.dart` — tek ekran, iki sekme (Gönder/Al). Aynı
+  ekranda olmalarının sebebi deneyimsel: en sık hata karşı tarafın "Al"
+  ekranını açmamış olması.
+- "Paylaş" artık önce **nasıl** diye soruyor: yakındaki cihaz (üstte) ya da
+  sistemin paylaşım sayfası. Sistem paylaşımı kaldırılmadı.
+- **REDDEDİLEN yol:** `nearby_connections`/`wifi_direct` paketleri — yeni
+  Android izinleri (konum!), yeni sürüm duvarı, CI'da yeni derleme riski.
+
+### D) Geçiş ve kopyalama performansı
+- **Sayfa geçişi** M3 varsayılanından (`ZoomPageTransitions`, 300 ms) alındı:
+  o geçiş iki sayfayı birden **soluklaştırıyor** (her karede `saveLayer`) ve
+  başlarken sayfanın **anlık görüntüsünü** alıyor — dosya listesi gibi
+  yüzlerce küçük parçalı bir sayfada geçişin başındaki takılmanın kaynağı bu.
+  Yerine yalnız **dönüşüm** kullanan `FastPageTransitionsBuilder` (220 ms /
+  geri dönüşte 170 ms) kondu. iOS/macOS'ta Cupertino geçişi korundu.
+- **Kopyalama artık başlarken donmuyor.** `FileOps._countFiles` bütün ağacı
+  (20 000 girdiye kadar) tek hamlede senkron geziyordu; yavaş bir SD kartta
+  ilerleme penceresi ilk karesini bile çizemeden uygulama saniyelerce
+  kilitleniyordu. Sayım her 256 girdide olay döngüsüne dönüyor: toplam süre
+  aynı, uygulama boyunca yanıt veriyor. Tek tek dosyalarda (en sık durum) hiç
+  dizin gezilmiyor, bedeli sıfır.
+
+### E) Tuzak — `l10n_literals_test` yeni ekranı da denetliyor
+Kurtarma ekranına yazılan "Bu ekran çizilemedi" testi kırdı (kaynakta sabit
+Türkçe metin). Doğrusu da bu: hata ekranı da üç dilli. `AppStrings.current`
+düz bir statik tablo olduğu için `Localizations` aramadan çalışıyor.
+
+**Doğrulama:** Flutter 3.29.3 (CI ile aynı) — `analyze` 0 sorun, tüm test
+takımı yeşil (17 yeni test: `busy_dialog_test`, `navigator_guard_test`,
+`peer_share_test` — gerçek soketle geri döngü üzerinden aktarım —,
+`page_transitions_test`). `ci/*.kt` değişmedi.

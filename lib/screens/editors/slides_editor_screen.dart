@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/busy_dialog.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
@@ -180,16 +181,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     if (editor == null || editor.slides.isEmpty) return;
 
     final progress = ValueNotifier<String>('');
-    var closed = false;
-    void close() {
-      if (closed) return;
-      closed = true;
-      Navigator.of(context, rootNavigator: true).pop();
-    }
-
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
+    // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`). Eskiden
+    // kapatma `Navigator.pop` idi: pencere ortada değilse (kullanıcı geri
+    // tuşuna bastı) o `pop` arkadaki SAYFAYI kapatıyordu.
+    final busy = showBusyDialog(
+      context,
       builder: (_) => AlertDialog(
         content: Row(
           children: [
@@ -205,7 +201,8 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
           ],
         ),
       ),
-    ));
+    );
+    void close() => busy.close();
 
     final dir = await Directory.systemTemp.createTemp('slayt-pdf');
     try {

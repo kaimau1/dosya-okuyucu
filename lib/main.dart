@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_navigator.dart';
+import 'core/navigator_guard.dart';
 import 'core/app_state.dart';
 import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
@@ -29,6 +30,7 @@ import 'services/fm/audio_playback.dart';
 import 'services/fm/media_session.dart';
 import 'services/fm/notification_hub.dart';
 import 'services/fm/video_playback.dart';
+import 'widgets/app_error_screen.dart';
 import 'widgets/mini_player_bar.dart';
 import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
@@ -44,6 +46,13 @@ Future<void> main() async {
   // öğrenmenin başka yolu yoktu; kayıt cihazda kalır, kullanıcı Ayarlar >
   // Hata kayıtları'ndan görüp isterse paylaşır (bkz. services/crash_log.dart).
   CrashLog.install();
+  // **Kararan ekranın ikinci savunma hattı** (kullanıcı hatası 2026-09-06).
+  // Bir `build` hatasında Flutter o widget'ın yerine `ErrorWidget` koyar ve
+  // release derlemesinde bu, yazısız düz bir dikdörtgendir. Hata ağacın
+  // tepesine yakınsa bütün ekranı kaplar; kullanıcı kararmış bir ekran görüp
+  // uygulamayı öldürmek zorunda kalır. Yerine ne olduğunu söyleyen ve GERİ
+  // DÖNME yolu veren bir kart konuyor (hata yine `CrashLog`a yazılıyor).
+  ErrorWidget.builder = (details) => AppErrorScreen(details: details);
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -214,18 +223,35 @@ void _openFromNotification(String payload) {
 /// Kotlin tarafındaki değerle birebir aynı olmalı (bkz. ci/PickerActivity.kt).
 const pickerRoute = '/picker';
 
-class DosyaOkuyucuApp extends StatelessWidget {
+class DosyaOkuyucuApp extends StatefulWidget {
   /// Seçici kipinde mi açıldı? (Ana ekran yerine dosya seçme ekranı.)
   final bool picker;
 
   const DosyaOkuyucuApp({super.key, this.picker = false});
 
   @override
+  State<DosyaOkuyucuApp> createState() => _DosyaOkuyucuAppState();
+}
+
+/// **Durumlu olmasının tek sebebi gezinti gözlemcisi.** `MaterialApp` tema,
+/// dil, yazı ölçeği gibi her ayar değişiminde yeniden kuruluyor; gözlemciyi
+/// `build` içinde yaratmak onu her seferinde SIFIRDAN yaratmak, yani rota
+/// sayacını sıfırlamak demekti (sonra gelen ilk `pop` sayacı eksiye düşürüp
+/// kurtarmayı boş yere tetiklerdi). Tek örnek burada, `State`te yaşıyor.
+class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
+  late final _stackGuard = NavigatorStackGuard((_) =>
+      widget.picker ? const PickFileScreen() : const HomeScreen());
+
+  @override
   Widget build(BuildContext context) {
+    final picker = widget.picker;
     final appState = context.watch<AppState>();
     return MaterialApp(
       title: 'Dosya Okuyucu',
       navigatorKey: navigatorKey,
+      // Yığın boşalırsa (bir yerde bir sayfa fazladan kapatıldıysa) kök ekran
+      // geri konur — kararan ekran yerine ana ekran (bkz. navigator_guard).
+      navigatorObservers: [_stackGuard],
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(
         bodyFont: appState.uiFont,

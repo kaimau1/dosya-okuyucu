@@ -1,7 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
+import '../../core/busy_dialog.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -35,15 +34,10 @@ Future<T> showFmProgress<T>(
 }) async {
   final progress = ValueNotifier<FmProgress>(const FmProgress(0, 0, ''));
   var cancelled = false;
-  // Pencerenin hâlâ ekranda olup olmadığı. `closed` KULLANICI ya da bitiş
-  // tarafından senkron olarak işaretlenir; `showDialog`'un `.then`'ine
-  // güvenmek yarış yaratırdı (geç gelen `pop` yanlış sayfayı kapatabilirdi).
-  var closed = false;
   /// Arka plan şeridinin denetleyicisi — hem "şerit gösterildi mi?" bilgisi
   /// hem de onu (ve YALNIZ onu) kapatma yolu. Ayrı bir `backgrounded` bayrağı
   /// tutulmuyordu: iki gerçeği tek yerde tutmak ikisinin ayrışmasını önler.
   ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? barController;
-  BuildContext? dialogContext;
   // Ekrandan bağımsız yaşayan (MaterialApp seviyesindeki) messenger: arka
   // plana alınan iş için kalıcı şerit burada gösterilir, kullanıcı başka
   // sayfaya geçse bile görünür kalır.
@@ -53,17 +47,26 @@ Future<T> showFmProgress<T>(
   // kural).
   final stopLabel = AppStrings.of(context).t('common.stop');
 
-  // Kapatma İSTEĞİ ile kapatma EYLEMİ ayrı tutulur. Eskiden tek bayrak vardı ve
-  // eylemden önce yakılıyordu: iş pencere ilk karesini çizmeden biterse
-  // (`dialogContext` hâlâ null) bayrak yanmış oluyor, pencere sonradan açılıp
-  // bir daha ASLA kapanmıyordu. Sıkıştırma düzeldikten sonra küçük dosyalarda
-  // iş anında bittiği için bu tuzak artık gerçekten tetikleniyordu.
-  void closeDialog() {
-    closed = true;
-    final ctx = dialogContext;
-    dialogContext = null;
-    if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
-  }
+  // Pencereyi **kimliğiyle** kapatan tutamak (bkz. `core/busy_dialog.dart`).
+  //
+  // Eskiden pencere `showDialog` ile açılıyor, kapatmak için de o pencerenin
+  // `context`inde `Navigator.pop()` çağrılıyordu. İki ayrı tuzak vardı ve
+  // ikisi de kullanıcının bildirdiği **kararan ekranı** üretiyordu:
+  //
+  // 1. İş, pencere ilk karesini çizmeden biterse (küçük dosyada kopyalama
+  //    milisaniyeler sürüyor) kapatacak `context` henüz yoktu; pencere
+  //    sonradan açılıp bir kare sonra KENDİNİ kapatıyordu. O gecikmiş `pop`
+  //    araya giren bir başka pencereye — ya da sayfanın kendisine —
+  //    denk gelebiliyordu.
+  // 2. `Navigator.pop` "şu pencereyi kapat" demek değildir, "en üsttekini
+  //    kapat" demektir. Pencere gitmişse arkadaki SAYFA kapanır; sayfa
+  //    yığındaki tek sayfaysa `Navigator` boşalır ve ekran kararır.
+  //
+  // [BusyDialog] rotanın kendisini tuttuğu için ikisi de imkânsız: rota
+  // gitmişse hiçbir şey yapmaz, üstünde başka rota varsa yalnız kendini
+  // yığından çeker.
+  BusyDialog? dialog;
+  void closeDialog() => dialog?.close();
 
   /// Arka plana alındığında ekranın altında kalan **kalıcı** ilerleme şeridi.
   ///
@@ -115,18 +118,9 @@ Future<T> showFmProgress<T>(
     ));
   }
 
-  unawaited(showDialog<void>(
-    context: context,
-    barrierDismissible: false,
+  dialog = showBusyDialog(
+    context,
     builder: (ctx) {
-      // İş, pencere çizilmeden önce bittiyse hemen kapan.
-      if (closed) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (ctx.mounted) Navigator.of(ctx).pop();
-        });
-        return const SizedBox.shrink();
-      }
-      dialogContext = ctx;
       return PopScope(
         canPop: false,
         child: AlertDialog(
@@ -205,7 +199,7 @@ Future<T> showFmProgress<T>(
         ),
       );
     },
-  ));
+  );
 
   try {
     return await task((p) => progress.value = p, () => cancelled);

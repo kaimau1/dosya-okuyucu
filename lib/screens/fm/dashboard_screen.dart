@@ -49,6 +49,7 @@ import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
 import 'remote/ftp_server_screen.dart';
+import 'remote/peer_share_screen.dart';
 import 'remote/remote_connections_screen.dart';
 import '../settings_screen.dart';
 import 'important_screen.dart';
@@ -1322,6 +1323,19 @@ class _DashboardScreenState extends State<DashboardScreen>
           await _push(const FtpServerScreen());
           if (mounted) setState(() {});
         },
+      ),
+      // **Yakındaki cihaz** (kullanıcı isteği 2026-09-06: *"iki dosya
+      // okuyucusu arasında hızlı dosya paylaşımı"*). Gönderme "Paylaş"
+      // düğmesinin içinde; buradaki kutu ALICI taraf için: dosyayı bekleyen
+      // kişinin "Al" ekranını açabileceği tek yer burası. Ağ kutularının
+      // yanında duruyor, çünkü aynı ailedendir.
+      FmTileData(
+        icon: Icons.send_to_mobile_outlined,
+        color: const Color(0xFF00838F),
+        id: 'peer_share',
+        label: context.t('peer.title'),
+        subtitle: '',
+        onTap: () => _push(const PeerShareScreen()),
       ),
       // (Google Drive 2026-08-05'te buradan yukarıdaki BÜYÜK kart ızgarasına
       // terfi etti — çöp kutusuyla aynı gerekçe: küçük simge kalabalığında
