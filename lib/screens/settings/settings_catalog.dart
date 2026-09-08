@@ -12,6 +12,7 @@ import 'tiles_ai.dart';
 import 'tiles_ai_pool.dart';
 import 'tiles_ai_scope.dart';
 import 'tiles_appearance.dart';
+import 'tiles_backup.dart';
 import 'tiles_browsing.dart';
 import 'tiles_privacy.dart';
 import 'tiles_reading.dart';
@@ -407,6 +408,14 @@ List<SettingsCategory> settingsCategories() => [
               altKeys: ['fmset.pin_change', 'fmset.sec_privacy'],
               builder: _pinTile,
             ),
+            // Uygulama kilidi PIN'in HEMEN ALTINDA: aynı sayıyı kullanıyor
+            // ve PIN kurulmadan açılamıyor, yani sırası bir yönerge.
+            SettingRow(
+              id: 'app_lock',
+              titleKey: 'lock.app_title',
+              subtitleKey: 'lock.app_sub_on',
+              builder: _appLockTile,
+            ),
             SettingRow(
                 id: 'locked_folders',
                 titleKey: 'fmset.unlock',
@@ -498,6 +507,21 @@ List<SettingsCategory> settingsCategories() => [
                 id: 'volumes',
                 titleKey: 'fmset.volumes',
                 builder: _volumesTile),
+            // **Ayar yedeği** (2026-09-06): uygulama mağazadan değil
+            // Releases'ten geliyor, yani Android'in otomatik yedeği bir
+            // güvence değil.
+            SettingRow(
+              id: 'settings_backup',
+              titleKey: 'backup.title',
+              subtitleKey: 'backup.sub',
+              builder: _settingsBackupTile,
+            ),
+            SettingRow(
+              id: 'settings_restore',
+              titleKey: 'backup.restore',
+              subtitleKey: 'backup.restore_sub',
+              builder: _settingsRestoreTile,
+            ),
             // "Bellek takılı ama görünmüyor" sorununun ÖLÇÜMÜ; sorun yaşayan
             // kullanıcı çareyi ayarlarda arar.
             SettingRow(
@@ -567,6 +591,7 @@ Widget _aiPrivacyTile(BuildContext _) => const AiPrivacyTile();
 Widget _aiBudgetTile(BuildContext _) => const AiBudgetTile();
 Widget _accountTile(BuildContext _) => const AccountTile();
 Widget _pinTile(BuildContext _) => const PinTile();
+Widget _appLockTile(BuildContext _) => const AppLockTile();
 Widget _lockedFoldersTile(BuildContext _) => const LockedFoldersTile();
 Widget _fullAccessTile(BuildContext _) => const FullAccessTile();
 Widget _usageAccessTile(BuildContext _) => const UsageAccessTile();
@@ -579,6 +604,8 @@ Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _thumbCacheTile(BuildContext _) => const ThumbCacheTile();
 Widget _volumesTile(BuildContext _) => const VolumesTile();
+Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
+Widget _settingsRestoreTile(BuildContext _) => const SettingsRestoreTile();
 Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();

@@ -63,4 +63,56 @@ void main() {
       expect(TextDecode.encodeCp1254('Д'), [0x3F]);
     });
   });
+
+  group('UTF-16 (2026-09-06 denetim turu)', () {
+    // Windows Not Defteri'nin "Unicode" seçeneği ve Excel'in "Unicode Metin"
+    // dışa aktarması UTF-16 LE yazıyor. Eskiden strict UTF-8 patlıyor,
+    // cp1254'e düşülüyor ve her harfin arasına görünmez bir NUL giriyordu.
+    List<int> utf16le(String text) => [
+          0xFF, 0xFE,
+          for (final unit in text.codeUnits) ...[unit & 0xFF, unit >> 8],
+        ];
+    List<int> utf16be(String text) => [
+          0xFE, 0xFF,
+          for (final unit in text.codeUnits) ...[unit >> 8, unit & 0xFF],
+        ];
+
+    test('küçük-endian UTF-16 doğru çözülür', () {
+      expect(TextDecode.decode(utf16le('Merhaba şğıİÖÇ')), 'Merhaba şğıİÖÇ');
+    });
+
+    test('büyük-endian UTF-16 doğru çözülür', () {
+      expect(TextDecode.decode(utf16be('Satır1\nSatır2')), 'Satır1\nSatır2');
+    });
+
+    test('çözülen metinde NUL YOK (eski hatanın izi)', () {
+      final out = TextDecode.decode(utf16le('abc'));
+      expect(out.contains('\u0000'), isFalse);
+      expect(out.length, 3);
+    });
+
+    test('BOM temizleniyor', () {
+      expect(TextDecode.decode(utf16le('x')).codeUnitAt(0), 0x78);
+    });
+
+    test('yalnız BOM olan dosya boş metin verir', () {
+      expect(TextDecode.decode([0xFF, 0xFE]), '');
+    });
+
+    test('kodlama adı ekranda gösterilebilir', () {
+      expect(TextDecode.describeEncoding(utf16le('a')), 'UTF-16 LE');
+      expect(TextDecode.describeEncoding(utf16be('a')), 'UTF-16 BE');
+      expect(TextDecode.describeEncoding([0xEF, 0xBB, 0xBF, 0x61]),
+          'UTF-8 (BOM)');
+      expect(TextDecode.describeEncoding('düz'.codeUnits.isEmpty ? [] : [0x61]),
+          'UTF-8');
+      // 0xFE tek başına geçerli UTF-8 değil → cp1254 varsayılıyor.
+      expect(TextDecode.describeEncoding([0x61, 0xFE]), 'Windows-1254');
+    });
+
+    test('UTF-16 SANILMAYAN düz metin bozulmaz', () {
+      // 0xFF ile başlamayan her şey eski yoldan gider.
+      expect(TextDecode.decode('merhaba'.codeUnits), 'merhaba');
+    });
+  });
 }

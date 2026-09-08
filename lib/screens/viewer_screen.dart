@@ -13,6 +13,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/busy_dialog.dart';
+import '../core/line_endings.dart';
+import '../core/pretty_format.dart';
+import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
 import '../core/l10n/app_strings.dart';
@@ -240,6 +243,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   // Belge içi arama (metin görüntüleyici).
   bool _findOpen = false;
+
+  /// Değiştirme satırı açık mı (2026-09-06 denetim turu). Arama vardı,
+  /// **değiştirme yoktu**: bir metin dosyasındaki 200 tarihi düzeltmek
+  /// isteyen kullanıcı tek tek elle yazmak zorundaydı.
+  bool _replaceOpen = false;
+  final _replaceCtl = TextEditingController();
+
+  /// Satır numaraları görünsün mü (kod/kayıt dosyalarında "347. satırda hata"
+  /// diyen bir mesajı takip edebilmek için).
+  bool _lineNumbers = false;
+
+  /// Satırlar kaydırılsın mı? Kayıt dosyalarında (uzun tek satırlar)
+  /// kaydırmayı KAPATIP yatay kaydırmak okumayı kolaylaştırıyor.
+  bool _wrapLines = true;
+
+  /// Dosyanın ÖZGÜN satır sonu biçimi. Windows'ta üretilmiş bir dosyayı
+  /// (CRLF) düzenleyip `\n` ile kaydetmek dosyanın tamamını değiştirmek
+  /// demekti — `.bat`, `.csv`, `.ini` dosyaları bundan bozuluyordu.
+  LineEnding _lineEnding = LineEnding.lf;
   final _findCtl = TextEditingController();
   final FocusNode _textFocus = FocusNode();
   List<int> _matchStarts = const [];
@@ -306,7 +328,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
         doc.kind == DocKind.slides) {
-      _textController = TextEditingController(text: doc.plainText);
+      // Satır sonu biçimi burada ÖĞRENİLİYOR ve kaydederken geri
+      // uygulanıyor: düzenleyici (`TextField`) her satır sonunu `\n`e
+      // indirger, yani biçimi burada tutmazsak kaydetme onu kalıcı olarak
+      // değiştirirdi (bkz. `core/line_endings.dart`).
+      _lineEnding = LineEndings.detect(doc.plainText);
+      _textController =
+          TextEditingController(text: LineEndings.toLf(doc.plainText));
     }
     if (doc.kind == DocKind.pdf) {
       _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
@@ -415,6 +443,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _imgTx.removeListener(_onImgTransform);
     _imgTx.dispose();
     _findCtl.dispose();
+    _replaceCtl.dispose();
     _textFocus.dispose();
     _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _ocrSearch?.dispose();
@@ -679,12 +708,27 @@ class _ViewerScreenState extends State<ViewerScreen> {
           ? (_findCtl.text.trim().isEmpty ? '' : 'yok')
           : '${_matchPos + 1}/$count';
     }
+    // Değiştirme satırı YALNIZ düzenlenebilir metinde: PDF'te ve salt-okunur
+    // belgede "değiştir" düğmesi sunmak, basılınca hiçbir şey yapmayan bir
+    // düğme olurdu.
+    final canReplace = !_isPdf && (widget.doc.isEditableText);
     return PreferredSize(
-      preferredSize: const Size.fromHeight(52),
+      preferredSize: Size.fromHeight(_replaceOpen && canReplace ? 100 : 52),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-        child: Row(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(
           children: [
+            if (canReplace)
+              IconButton(
+                tooltip: context.t('vw.show_replace'),
+                visualDensity: VisualDensity.compact,
+                icon: Icon(_replaceOpen
+                    ? Icons.find_replace
+                    : Icons.find_replace_outlined),
+                onPressed: () =>
+                    setState(() => _replaceOpen = !_replaceOpen),
+              ),
             // "Sayfaya git" arama çubuğunun içinde (2026-07-26 kullanıcı
             // isteği): üst çubukta ayrı bir düğme yerine, aramayla aynı
             // "belgede gezinme" kutusunda.
@@ -727,8 +771,146 @@ class _ViewerScreenState extends State<ViewerScreen> {
             ),
           ],
         ),
+        if (_replaceOpen && canReplace) _replaceRow(count),
+        ]),
       ),
     );
+  }
+
+  /// Arama çubuğunun altındaki **değiştirme** satırı.
+  ///
+  /// İki düğme, iki farklı iş: "Değiştir" o an seçili eşleşmeyi (kullanıcı
+  /// tek tek bakarak ilerlemek isteyebilir), "Tümünü değiştir" hepsini.
+  /// İkincisi kaç değişiklik yaptığını SÖYLER — sessizce dönen bir metin,
+  /// hiçbir şeyin değişmediği durumu gizlerdi.
+  Widget _replaceRow(int count) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _replaceCtl,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: context.t('vw.replace_with'),
+                prefixIcon: const Icon(Icons.edit_outlined, size: 20),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: count == 0 ? null : _replaceCurrent,
+            child: Text(context.t('vw.replace_one')),
+          ),
+          TextButton(
+            onPressed: count == 0 ? null : _replaceAll,
+            child: Text(context.t('vw.replace_all')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Seçili eşleşmeyi değiştirir ve aramayı tazeler.
+  void _replaceCurrent() {
+    final ctl = _textController;
+    if (ctl == null || _matchPos < 0 || _matchPos >= _matchStarts.length) return;
+    final start = _matchStarts[_matchPos];
+    final wanted = _matchPos; // değişimden sonra aynı sıradaki eşleşmeye dön
+    ctl.text = TextReplace.replaceAt(
+        ctl.text, start, _matchLen, _replaceCtl.text);
+    setState(() => _dirty = true);
+    _runFind(_findCtl.text);
+    if (_matchStarts.isNotEmpty) {
+      setState(() => _matchPos = wanted.clamp(0, _matchStarts.length - 1));
+      _selectMatch(focus: false);
+    }
+  }
+
+  /// Tüm eşleşmeleri değiştirir.
+  void _replaceAll() {
+    final ctl = _textController;
+    if (ctl == null) return;
+    final result =
+        TextReplace.replaceAll(ctl.text, _findCtl.text.trim(), _replaceCtl.text);
+    if (result.count == 0) {
+      _snack(context.t('vw.replace_none'));
+      return;
+    }
+    ctl.text = result.text;
+    setState(() => _dirty = true);
+    _runFind(_findCtl.text);
+    _snack(context.t('vw.replaced', {'n': result.count}));
+  }
+
+  /// **JSON/XML biçimlendirme.** Metin düzenleyicide değişiyor; dosya ancak
+  /// kullanıcı kaydederse değişir. Çözümlenemeyen dosyada metne DOKUNULMAZ —
+  /// bozuk bir JSON'u "düzeltmeye" çalışmak veri kaybı olurdu.
+  void _prettify() {
+    final ctl = _textController;
+    if (ctl == null) return;
+    final formatted =
+        PrettyFormat.pretty(ctl.text, p.extension(widget.doc.path));
+    if (formatted == ctl.text) {
+      _snack(context.t('vw.prettify_failed'));
+      return;
+    }
+    ctl.text = formatted;
+    setState(() => _dirty = true);
+    _snack(context.t('vw.prettify_done'));
+  }
+
+  /// **Satıra git** — uzun bir kayıt/kod dosyasında "347. satır" demek
+  /// mümkün olmalı. Eskiden tek yol parmakla kaydırmaktı.
+  Future<void> _askGoToLine() async {
+    final ctl = _textController;
+    if (ctl == null) return;
+    final total = LineEndings.toLf(ctl.text).split('\n').length;
+    final controller = TextEditingController();
+    final line = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('vw.goto_line')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: ctx.t('vw.line_number', {'max': total}),
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, int.tryParse(v)),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(ctx, int.tryParse(controller.text)),
+            child: Text(ctx.t('common.ok')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (line == null || line < 1) return;
+    // Satır başlangıcının karakter indeksi: n-1 satır sonu geçilir.
+    final text = ctl.text;
+    var offset = 0;
+    for (var i = 1; i < line; i++) {
+      final next = text.indexOf('\n', offset);
+      if (next == -1) {
+        offset = text.length;
+        break;
+      }
+      offset = next + 1;
+    }
+    ctl.selection = TextSelection.collapsed(offset: offset);
+    _textFocus.requestFocus();
   }
 
   void _handleImgDoubleTap() {
@@ -761,7 +943,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final str = AppStrings.of(context);
     try {
       if (doc.kind == DocKind.text) {
-        await _fileService.saveText(doc.path, text);
+        // Özgün satır sonu geri uygulanıyor (CRLF dosyası CRLF kalsın).
+        await _fileService.saveText(
+            doc.path, LineEndings.apply(text, _lineEnding));
         _dirty = false;
         _snack(str.t('common.saved'));
       } else {
@@ -1089,6 +1273,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
             _statRow(context.t('vw.chars_nospace'), s.charactersNoSpaces),
             _statRow(context.t('vw.line'), s.lines),
             _statRow(context.t('vw.paragraph'), s.paragraphs),
+            // **Satır sonu biçimi** (2026-09-06): Windows'tan gelen bir
+            // dosyayı düzenleyen kullanıcı, kaydettiğinde dosyanın tamamının
+            // "değişmiş" görünmesinin sebebini burada görüyor. Biçim
+            // korunuyor (bkz. `core/line_endings.dart`), bu satır da neyin
+            // korunduğunu söylüyor.
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(context.t('vw.line_ending')),
+                  Text(switch (_lineEnding) {
+                    LineEnding.crlf => 'CRLF (Windows)',
+                    LineEnding.cr => 'CR',
+                    LineEnding.lf => 'LF (Unix)',
+                  }),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
@@ -1249,6 +1452,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'slides':
                 _exportSlides();
                 break;
+              case 'goto_line':
+                unawaited(_askGoToLine());
+                break;
+              case 'line_numbers':
+                setState(() => _lineNumbers = !_lineNumbers);
+                break;
+              case 'wrap':
+                setState(() => _wrapLines = !_wrapLines);
+                break;
+              case 'prettify':
+                _prettify();
+                break;
               case 'stats':
                 _showStats();
                 break;
@@ -1288,7 +1503,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 break;
             }
           },
-          itemBuilder: (_) => [
+          itemBuilder: (_) {
+            // Metin gibi davranan belgeler: satır kavramı olanlar.
+            final isTextLike = doc.kind == DocKind.text ||
+                doc.kind == DocKind.word ||
+                doc.kind == DocKind.slides;
+            return [
             if (doc.kind == DocKind.pdf) ...[
               // "Sayfaya git" üç yerde birden: burada (etiketli, bulunabilir),
               // arama çubuğunda ve alttaki sayfa rozetine dokununca. Kullanıcı
@@ -1340,13 +1560,47 @@ class _ViewerScreenState extends State<ViewerScreen> {
             if (_hasText)
               PopupMenuItem(
                   value: 'stats', child: Text(context.t('vw.word_count'))),
+            // **Satıra git / satır numaraları** (2026-09-06 denetim turu):
+            // uzun bir kayıt ya da kod dosyasında "347. satır" demenin bir
+            // yolu yoktu; tek çare parmakla kaydırmaktı.
+            if (isTextLike) ...[
+              PopupMenuItem(
+                  value: 'goto_line', child: Text(context.t('vw.goto_line'))),
+              PopupMenuItem(
+                value: 'line_numbers',
+                child: Row(
+                  children: [
+                    Icon(
+                      _lineNumbers
+                          ? Icons.check_box_outlined
+                          : Icons.check_box_outline_blank,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(context.t('vw.line_numbers')),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'wrap',
+                child: Text(context
+                    .t(_wrapLines ? 'vw.wrap_off' : 'vw.wrap_on')),
+              ),
+              // **JSON/XML biçimlendirme**: bu dosyalar gerçek hayatta tek
+              // satır geliyor (API cevabı, yedek dökümü) ve ekranda tek bir
+              // upuzun satır olarak görünüyordu.
+              if (PrettyFormat.supports(p.extension(doc.path)))
+                PopupMenuItem(
+                    value: 'prettify', child: Text(context.t('vw.prettify'))),
+            ],
             // Belgeyi okurken "bunu Önemli Dosyalar'a taşıyayım" demek için
             // görüntüleyiciyi kapatıp dosyayı listede aramak gerekmesin
             // (kullanıcı isteği 2026-07-29: "her türlü dosyada bu olmalı").
             PopupMenuItem(
                 value: 'fileops',
                 child: Text(context.t('vw.file_ops'))),
-          ],
+            ];
+          },
         ),
       ],
       body: _ttsTotal == 0
@@ -1392,7 +1646,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       ],
       if (doc.isEditableText) ...[
         DocAction(Icons.edit_outlined, context.t('common.edit'), _textFocus.requestFocus),
-        DocAction(Icons.save_outlined, 'Kaydet', _save),
+        DocAction(Icons.save_outlined, context.t('common.save'), _save),
       ],
       DocAction(
           Icons.translate, context.t('common.translate'), _translateDocument),
@@ -2676,6 +2930,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
           editable: doc.isEditableText,
           fontSize: _fontSize,
           fontFamily: _fontFamily,
+          lineNumbers: _lineNumbers,
+          wrapLines: _wrapLines,
           onChanged: () {
             if (!_dirty) setState(() => _dirty = true);
           },
@@ -2730,6 +2986,14 @@ class _TextEditor extends StatelessWidget {
 
   /// `null` = temanın gövde yazı tipi.
   final String? fontFamily;
+
+  /// Solda satır numarası şeridi (2026-09-06 denetim turu): kayıt ve kod
+  /// dosyalarında "347. satırda hata" diyen bir mesajı takip edebilmek için.
+  final bool lineNumbers;
+
+  /// Satırlar sarılsın mı? Kapalıyken uzun satır yatay kaydırılıyor —
+  /// kayıt dosyalarında sütun hizası bozulmadan okunuyor.
+  final bool wrapLines;
   final VoidCallback onChanged;
   const _TextEditor({
     required this.controller,
@@ -2737,11 +3001,122 @@ class _TextEditor extends StatelessWidget {
     required this.editable,
     required this.fontSize,
     required this.onChanged,
+    this.lineNumbers = false,
+    this.wrapLines = true,
     this.fontFamily,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (!lineNumbers) return _field(context);
+    // **Numaralar ve metin AYNI kaydırmayı paylaşır.** İki ayrı kaydırılabilir
+    // alan yapılsaydı senkron tutmak gerekirdi (ve bir kaydırma denetleyicisi
+    // iki `Scrollable`a bağlanamaz). Çözüm: tek bir kaydırma alanı, içinde
+    // yan yana iki sütun — numaralar metinle birlikte, aynı satır
+    // yüksekliğiyle kayıyor.
+    return Container(
+      color: Paper.docSurface(context),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (_, value, __) {
+                final count = value.text.split('\n').length;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (var i = 1; i <= count; i++)
+                        Text(
+                          '\$i',
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            height: 1.5,
+                            // Tek aralıklı yazı tipi: numaralar sağa hizalı
+                            // olsa bile orantılı yazıda basamaklar oynuyor.
+                            fontFamily: 'monospace',
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            Expanded(child: _field(context, scrollable: false)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _field(BuildContext context, {bool scrollable = true}) {
+    // **Kaydırma kapalı**: uzun satır sarılmıyor, yatay kaydırılıyor.
+    // `TextField` tek başına yatay kaydırmayı satır SARMADAN yapamıyor
+    // (`maxLines: null` sarmayı zorunlu kılar); çözüm alanı yatay bir
+    // kaydırma kutusuna koyup ona geniş bir genişlik vermek.
+    if (!wrapLines) {
+      return Container(
+        color: Paper.docSurface(context),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            // Ekranın üç katı: en uzun kayıt satırları bile sığıyor, sonsuz
+            // genişlik ise ölçülemez (Flutter yerleşimi patlar).
+            width: MediaQuery.sizeOf(context).width * 3,
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              readOnly: !editable,
+              onChanged: (_) => onChanged(),
+              maxLines: null,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                filled: false,
+              ),
+              style: TextStyle(
+                fontSize: fontSize,
+                height: 1.5,
+                fontFamily: fontFamily,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Paper.inkDark
+                    : Paper.ink,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (!scrollable) {
+      return TextField(
+        controller: controller,
+        focusNode: focusNode,
+        readOnly: !editable,
+        onChanged: (_) => onChanged(),
+        maxLines: null,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.zero,
+          filled: false,
+        ),
+        style: TextStyle(
+          fontSize: fontSize,
+          height: 1.5,
+          fontFamily: fontFamily,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Paper.inkDark
+              : Paper.ink,
+        ),
+      );
+    }
     return Container(
       // Metin sayfası BEYAZ: kağıt teması uygulamanın kabuğuna ait, belgenin
       // içine değil (2026-08-07 kullanıcı isteği — "txt de öyle").

@@ -42,6 +42,11 @@ void main() {
   test('sanitizeName: yol ayracı ve kontrol karakteri temizlenir', () {
     expect(FileOps.sanitizeName(' a/b.txt '), 'a_b.txt');
     expect(FileOps.sanitizeName('..'), '');
+    // FAT32/exFAT ve Windows sondaki nokta/boşluğu kabul etmiyor: USB belleğe
+    // kopyalama sessizce başarısız oluyordu (2026-09-06 denetim turu).
+    expect(FileOps.sanitizeName('Rapor.'), 'Rapor');
+    expect(FileOps.sanitizeName('Rapor . . '), 'Rapor');
+    expect(FileOps.sanitizeName('rapor.pdf'), 'rapor.pdf');
   });
 
   test('copyAll: dosya kopyalanır, kaynak yerinde kalır', () async {

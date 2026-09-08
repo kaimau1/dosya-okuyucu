@@ -373,8 +373,10 @@ abstract final class FileOps {
       } on FileSystemException {
         // farklı bölüm (SD kart / OTG): kopyala + sil
       }
-      final sourceSize = file.statSync().size;
+      final stat = file.statSync();
+      final sourceSize = stat.size;
       await file.copy(target);
+      await _keepModified(target, stat.modified);
       // KAYNAK, KOPYA DOĞRULANMADAN SİLİNMEZ. Sıra zaten doğruydu (kopya önce),
       // ama boyut karşılaştırması yoktu: kısa yazmayı hata olarak bildirmeyen
       // bir bağlama noktasında (sdcardfs/FUSE/MTP) tek sağlam kopyayı silmek
@@ -391,9 +393,29 @@ abstract final class FileOps {
       }
       await file.delete();
     } else {
+      final modified = file.statSync().modified;
       await file.copy(target);
+      await _keepModified(target, modified);
     }
     return target;
+  }
+
+  /// **Kopyanın tarihi kaynağınkiyle aynı kalır.**
+  ///
+  /// Kök neden (2026-09-06 denetim turu): `File.copy` hedefe *şimdi*yi
+  /// yazıyor. Sonucu kullanıcının doğrudan gördüğü bir bozulma: 800 fotoğrafı
+  /// USB belleğe kopyalayan biri, hepsinin tarihini "bugün" buluyor —
+  /// tarihe göre sıralama, "geçen yaz çektiklerim", galeri gruplaması ve
+  /// yedeğin kendisi anlamını yitiriyor. Taşımada da aynı: aynı bölümde
+  /// `rename` tarihi korur ama SD karta taşıma kopyala+sil yoluna düşüyor.
+  ///
+  /// Başarısızlık **yutuluyor**: FAT32/exFAT ve bazı MTP bağlamaları tarih
+  /// yazmayı desteklemiyor. Kopya orada, doğru ve eksiksiz; tarihi
+  /// koruyamadık diye işlemi hataya düşürmek kullanıcıya bir şey kazandırmaz.
+  static Future<void> _keepModified(String target, DateTime modified) async {
+    try {
+      await File(target).setLastModified(modified);
+    } catch (_) {}
   }
 
   /// Kalıcı silme (çöp kutusuna göndermeden). Klasörler özyinelemeli silinir.
@@ -521,11 +543,14 @@ abstract final class FileOps {
   static String sanitizeName(String name) => name
       .trim()
       .replaceAll(RegExp(r'[/\\\x00-\x1f]'), '_')
-      .replaceAll(RegExp(r'^\.+$'), '');
+      .replaceAll(RegExp(r'^\.+$'), '')
+      // **Sondaki nokta ve boşluklar kırpılır** (2026-09-06 denetim turu):
+      // FAT32/exFAT (USB bellek, SD kart) ve Windows böyle bir adı KABUL
+      // ETMİYOR. "Rapor." adlı bir dosyayı belleğe kopyalamak sessizce
+      // başarısız oluyordu; ad Android tarafında geçerli olduğu için de
+      // sorunun nereden geldiği anlaşılmıyordu.
+      .replaceAll(RegExp(r'[. ]+$'), '');
 
-  /// İlerleme yüzdesi için dosya sayısı (klasörler özyinelemeli sayılır).
-  /// Çok büyük ağaçlarda sayım da pahalıdır → 20 bin dosyada durur, ilerleme
-  /// çubuğu yaklaşık olur (işlemin kendisi tam yapılır).
   /// Kopyalanacak dosya sayısı — ilerleme çubuğunun paydası.
   ///
   /// **Arada nefes alır.** Dizin listeleme (`listSync`) tek tek hızlıdır ama

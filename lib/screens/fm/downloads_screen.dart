@@ -106,9 +106,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       case _DlSort.largest:
         list.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
       case _DlSort.name:
-        list.sort((a, b) => FsScan.nameKey(a.name).compareTo(
-              FsScan.nameKey(b.name),
-            ));
+        list.sort((a, b) => FsScan.compareNames(a.name, b.name));
     }
     return list;
   }

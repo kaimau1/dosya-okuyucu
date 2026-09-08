@@ -59,6 +59,8 @@ class AppState extends ChangeNotifier {
   static const _kFmTrashAutoDays = 'fm_trash_auto_days';
   static const _kFmStartFolder = 'fm_start_folder';
   static const _kPeerName = 'peer_device_name';
+  static const _kAppLock = 'app_lock_on';
+  static const _kPeerRecent = 'peer_recent_devices';
   static const _kResumePosition = 'resume_position';
   static const _kFmFolderSizes = 'fm_folder_sizes';
   static const _kMediaShuffle = 'media_shuffle';
@@ -139,6 +141,12 @@ class AppState extends ChangeNotifier {
 
   /// Yakındaki cihaza gönderirken karşı tarafta görünecek ad.
   String _peerName = '';
+
+  /// Uygulama açılışında PIN sorulsun mu (2026-09-06 denetim turu).
+  bool _appLock = false;
+
+  /// Son gönderilen cihazlar — `ad|adres|port` biçiminde.
+  List<String> _peerRecent = [];
   List<RecentFile> _recents = [];
   List<String> _memory = [];
 
@@ -233,6 +241,34 @@ class AppState extends ChangeNotifier {
   /// "kullanıcı henüz seçmedi" demek ve o ayrımı korumak gerekiyor (ad
   /// kaydedilmiş mi, yoksa varsayılan mı gösteriliyor).
   String get peerName => _peerName;
+
+  /// **Uygulama kilidi** — açılışta PIN sorar.
+  ///
+  /// Klasör kilidinin PIN'ini paylaşır: iki ayrı PIN tutmak kullanıcıya iki
+  /// şey ezberletirdi ve tehdit modeli aynı (telefonu eline alan biri).
+  /// PIN yokken açılamaz — [fmHasLockPin] false ise ayar da false kalır,
+  /// yoksa kullanıcı kendini dışarıda bırakırdı.
+  bool get appLock => _appLock && fmHasLockPin;
+
+  Future<void> setAppLock(bool value) async {
+    _appLock = value && fmHasLockPin;
+    await _prefs.setBool(_kAppLock, _appLock);
+    notifyListeners();
+  }
+
+  /// **Son cihazlar** — yayın bulamadığında elle adres yazmayı bir dokunuşa
+  /// indiriyor. Aynı iki telefon arasında gönderim tekrarlanan bir iş.
+  List<String> get peerRecent => List.unmodifiable(_peerRecent);
+
+  Future<void> rememberPeer(String name, String host, int port) async {
+    final entry = '$name|$host|$port';
+    _peerRecent
+      ..removeWhere((e) => e.split('|').skip(1).join('|') == '$host|$port')
+      ..insert(0, entry);
+    if (_peerRecent.length > 5) _peerRecent = _peerRecent.sublist(0, 5);
+    await _prefs.setStringList(_kPeerRecent, _peerRecent);
+    notifyListeners();
+  }
 
   Future<void> setPeerName(String name) async {
     _peerName = name.trim();
@@ -590,6 +626,8 @@ class AppState extends ChangeNotifier {
     _fmTrashAutoDays = _prefs.getInt(_kFmTrashAutoDays) ?? 0;
     _fmStartFolder = _prefs.getString(_kFmStartFolder) ?? '';
     _peerName = _prefs.getString(_kPeerName) ?? '';
+    _appLock = _prefs.getBool(_kAppLock) ?? false;
+    _peerRecent = _prefs.getStringList(_kPeerRecent) ?? [];
     _remotes = (_prefs.getStringList(_kRemotes) ?? [])
         .map(RemoteConnection.tryDecode)
         .whereType<RemoteConnection>()

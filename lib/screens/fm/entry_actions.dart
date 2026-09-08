@@ -13,6 +13,12 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/archive_ops.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/content_search.dart';
+import '../../services/fm/exif_reader.dart';
+import '../../services/fm/file_digest.dart';
+import '../../services/fm/file_split.dart';
+import '../../services/fm/image_rotate.dart';
+import '../../services/text_decode.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
@@ -61,6 +67,9 @@ enum _EntryAction {
   tag,
   reveal,
   properties,
+  rotate,
+  split,
+  join,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -92,6 +101,11 @@ Future<bool> showEntryActions(
 }) async {
   final appState = context.read<AppState>();
   final isArchive = ArchiveOps.canExtract(entry.path);
+  final canRotate = !entry.isDir && ImageRotate.canRotate(entry.path);
+  // Bölmenin anlamlı olduğu alt sınır: 1 MB'ın altındaki bir dosyayı bölmek
+  // kullanıcıya iş çıkarmaktan başka bir şey yapmaz.
+  final canSplit = !entry.isDir && entry.sizeBytes > 1024 * 1024;
+  final isPart = !entry.isDir && FileSplit.baseNameOf(entry.path) != null;
   final isMedia =
       entry.category == FmCategory.image || entry.category == FmCategory.video;
 
@@ -199,6 +213,21 @@ Future<bool> showEntryActions(
                       : ctx.t('fm.favorite'),
                   _EntryAction.bookmark,
                 ),
+              // **Döndür** (2026-09-06 denetim turu): yan çekilmiş bir
+              // fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu.
+              if (canRotate)
+                _act(ctx, Icons.rotate_90_degrees_cw_outlined,
+                    ctx.t('ea.rotate'), _EntryAction.rotate,
+                    hint: ctx.t('ea.rotate_hint')),
+              // **Böl / birleştir**: FAT32 biçimli USB bellek ve SD kartlar
+              // 4 GB'tan büyük tek dosya kabul etmiyor; kullanıcının
+              // yapabileceği hiçbir şey yoktu.
+              if (canSplit)
+                _act(ctx, Icons.call_split, ctx.t('ea.split'),
+                    _EntryAction.split, hint: ctx.t('ea.split_hint')),
+              if (isPart)
+                _act(ctx, Icons.merge, ctx.t('ea.join'), _EntryAction.join,
+                    hint: ctx.t('ea.join_hint')),
               _act(ctx, Icons.info_outline, ctx.t('fm.properties'),
                   _EntryAction.properties),
             ]),
@@ -326,6 +355,176 @@ Future<bool> showEntryActions(
     case _EntryAction.properties:
       await showProperties(context, entry);
       return false;
+
+    case _EntryAction.rotate:
+      return rotateImageEntry(context, entry);
+
+    case _EntryAction.split:
+      return splitEntry(context, entry);
+
+    case _EntryAction.join:
+      return joinEntry(context, entry);
+  }
+}
+
+/// **İki dosyanın SHA-256 özetini karşılaştırır.**
+///
+/// Niye (2026-09-06 denetim turu): kullanıcının klasörlerinde aynı dosyanın
+/// iki kopyası biriktiğinde ("rapor.pdf", "rapor (1).pdf") hangisini
+/// silebileceğini anlamanın bir yolu yoktu. Boyut eşitliği yetmez — aynı
+/// boyutta farklı iki belge olabilir. Özet eşleşiyorsa dosyalar birebir
+/// aynıdır.
+Future<void> compareTwoFiles(BuildContext context, List<String> paths) async {
+  if (paths.length != 2) return;
+  final strings = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final digests = await showFmProgress<List<String>>(
+    context,
+    title: strings.t('fm.compare_running'),
+    backgroundable: false,
+    describe: (value) => value.total > 0
+        ? '${FsPaths.humanSize(value.done)} / ${FsPaths.humanSize(value.total)}'
+        : '',
+    task: (report, isCancelled) async {
+      final out = <String>[];
+      for (final path in paths) {
+        if (isCancelled()) return const <String>[];
+        out.add(await FileDigest.sha256Of(
+          path,
+          isCancelled: isCancelled,
+          onProgress: (done, total) =>
+              report(FmProgress(done, total, p.basename(path))),
+        ));
+      }
+      return out;
+    },
+  );
+  if (digests.length != 2 || digests.any((d) => d.isEmpty)) return;
+  showSnackBarReplacing(
+    messenger,
+    SnackBar(
+      content: Text(digests[0] == digests[1]
+          ? strings.t('fm.compare_same')
+          : strings.t('fm.compare_diff')),
+    ),
+  );
+}
+
+/// **Görseli 90° sağa döndürüp yeni dosya olarak kaydeder.**
+///
+/// Özgün dosyanın üzerine YAZILMAZ: bir döndürme yanlış yöne gittiğinde geri
+/// dönüşü olmalı ve JPEG yeniden kodlandığı için üzerine yazmak kaliteyi
+/// geri alınamaz biçimde düşürürdü.
+Future<bool> rotateImageEntry(BuildContext context, FsEntry entry) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final strings = AppStrings.of(context);
+  showSnackOn(messenger, strings.t('rotate.working'));
+  try {
+    final out = await ImageRotate.rotate(entry.path, quarterTurns: 1);
+    showSnackBarReplacing(
+      messenger,
+      SnackBar(content: Text(strings.t('rotate.done', {'name': p.basename(out)}))),
+    );
+    return true;
+  } catch (e) {
+    showSnackBarReplacing(
+      messenger,
+      SnackBar(content: Text(strings.t('rotate.failed', {'error': e}))),
+    );
+    return false;
+  }
+}
+
+/// **Dosyayı parçalara böler.** Önce boyut sorulur.
+Future<bool> splitEntry(BuildContext context, FsEntry entry) async {
+  final strings = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final size = await showModalBottomSheet<int>(
+    context: context,
+    showDragHandle: true,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: Text(ctx.t('split.pick_size'),
+                style: Theme.of(ctx).textTheme.titleSmall),
+          ),
+          for (final preset in FileSplit.presets.entries)
+            ListTile(
+              leading: const Icon(Icons.call_split),
+              title: Text(preset.key),
+              // Dosyadan BÜYÜK bir parça boyutu tek parça üretirdi: seçeneği
+              // sunmak yerine sönükleştiriyoruz.
+              enabled: entry.sizeBytes > preset.value,
+              onTap: () => Navigator.pop(ctx, preset.value),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (size == null || !context.mounted) return false;
+  if (entry.sizeBytes <= size) {
+    showSnackOn(messenger, strings.t('split.too_small'));
+    return false;
+  }
+  final parts = await showFmProgress<List<String>>(
+    context,
+    title: strings.t('split.working'),
+    describe: (value) => value.total > 0
+        ? '${FsPaths.humanSize(value.done)} / ${FsPaths.humanSize(value.total)}'
+        : '',
+    task: (report, isCancelled) => FileSplit.split(
+      entry.path,
+      partBytes: size,
+      isCancelled: isCancelled,
+      onProgress: (done, total) =>
+          report(FmProgress(done, total, p.basename(entry.path))),
+    ),
+  );
+  showSnackBarReplacing(
+    messenger,
+    SnackBar(
+      content: Text(parts.isEmpty
+          ? strings.t('split.cancelled')
+          : strings.t('split.done', {'n': parts.length})),
+    ),
+  );
+  return parts.isNotEmpty;
+}
+
+/// **Parçaları birleştirir.** Kullanıcı hangi parçaya dokunursa dokunsun
+/// tamamı toplanır (bkz. [FileSplit.join]).
+Future<bool> joinEntry(BuildContext context, FsEntry entry) async {
+  final strings = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final out = await showFmProgress<String>(
+      context,
+      title: strings.t('join.working'),
+      describe: (value) => value.total > 0
+          ? '${FsPaths.humanSize(value.done)} / '
+              '${FsPaths.humanSize(value.total)}'
+          : '',
+      task: (report, isCancelled) => FileSplit.join(
+        entry.path,
+        isCancelled: isCancelled,
+        onProgress: (done, total) =>
+            report(FmProgress(done, total, p.basename(entry.path))),
+      ),
+    );
+    if (out.isEmpty) return false;
+    showSnackBarReplacing(
+      messenger,
+      SnackBar(content: Text(strings.t('join.done', {'name': p.basename(out)}))),
+    );
+    return true;
+  } catch (e) {
+    showSnackBarReplacing(
+      messenger,
+      SnackBar(content: Text(strings.t('join.failed', {'error': e}))),
+    );
+    return false;
   }
 }
 
@@ -529,6 +728,14 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
   );
   controller.dispose();
   if (newName == null || newName.trim().isEmpty) return false;
+  if (!context.mounted) return false;
+  // **Uzantı değişiyorsa sor** (2026-09-06 denetim turu). Uzantıyı silmek ya
+  // da değiştirmek dosyayı "bilinmeyen tür" yapıyor: uygulama onu bir daha
+  // doğru görüntüleyicide açamıyor ve kullanıcı dosyanın bozulduğunu
+  // sanıyor. Adın kendisini düzeltirken uzantıyı yanlışlıkla silmek kolay.
+  if (!entry.isDir && !await _confirmExtensionChange(context, entry.name, newName)) {
+    return false;
+  }
   try {
     await FileOps.rename(entry.path, newName);
     return true;
@@ -538,6 +745,34 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
     }
     return false;
   }
+}
+
+/// Uzantı değişiyorsa kullanıcıya sorar. Değişmiyorsa (ya da ekran
+/// kapandıysa) doğrudan `true`.
+Future<bool> _confirmExtensionChange(
+    BuildContext context, String oldName, String newName) async {
+  final oldExt = p.extension(oldName).toLowerCase();
+  final newExt = p.extension(newName.trim()).toLowerCase();
+  if (oldExt == newExt) return true;
+  final answer = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(ctx.t('fm.ext_changed_title')),
+      content: Text(ctx.t('fm.ext_changed_body', {
+        'old': oldExt.isEmpty ? '—' : oldExt,
+        'new': newExt.isEmpty ? '—' : newExt,
+      })),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.t('fm.ext_changed_keep'))),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.t('fm.ext_changed_go'))),
+      ],
+    ),
+  );
+  return answer ?? false;
 }
 
 /// Seçilenleri siler. Ayarlara göre çöp kutusuna taşır ya da kalıcı siler;
@@ -1053,6 +1288,27 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
   int? _folderSize;
   bool _calculating = false;
 
+  /// Hesaplanmış SHA-256 özeti (2026-09-06 denetim turu).
+  ///
+  /// **İSTEK ÜZERİNE** hesaplanıyor: 4 GB'lık bir videoyu okumak saniyeler
+  /// sürer ve özelliklere bakan kullanıcıların çoğu özeti merak etmiyor.
+  /// Pencere açılışında başlatmak, her dokunuşta diski baştan sona okumak
+  /// olurdu.
+  String? _digest;
+  bool _hashing = false;
+  double _hashProgress = 0;
+
+  /// Fotoğrafın EXIF künyesi (varsa). Dosya küçük bir başlık kadar okunuyor,
+  /// o yüzden pencere açılırken başlatılabiliyor.
+  ExifData? _exif;
+
+  /// Metin dosyasının kodlaması ("UTF-8", "UTF-16 LE", "Windows-1254").
+  ///
+  /// Niye görünür olmalı (2026-09-06): kullanıcı bozuk görünen bir dosyada
+  /// "bu neden böyle" diye soruyor; cevabı kodlama. Yalnız ilk baytlar
+  /// okunuyor.
+  String? _encoding;
+
   /// Son açılma zamanı (bizim kaydımız). Kullanıcı isteği 2026-07-29:
   /// *"son açılma tarihi TÜM DOSYALAR içinde yapılabilmeli"* — ayrı ekranın
   /// yanında dosyanın kendi özelliklerinde de görünmesi gerekiyor, çünkü
@@ -1066,6 +1322,56 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
   void initState() {
     super.initState();
     _loadOpenedAt();
+    _loadExif();
+    _loadEncoding();
+  }
+
+  Future<void> _loadEncoding() async {
+    final entry = widget.entry;
+    if (entry.isDir || entry.category != FmCategory.document) return;
+    if (!ContentSearch.isSearchable(entry.path)) return;
+    try {
+      final head = await File(entry.path).openRead(0, 64).first;
+      if (!mounted) return;
+      setState(() => _encoding = TextDecode.describeEncoding(head));
+    } catch (_) {
+      // Okunamayan dosya için satır hiç çizilmiyor.
+    }
+  }
+
+  Future<void> _loadExif() async {
+    final entry = widget.entry;
+    if (entry.isDir || entry.category != FmCategory.image) return;
+    final data = await ExifReader.read(entry.path);
+    if (!mounted || data.isEmpty) return;
+    setState(() => _exif = data);
+  }
+
+  /// SHA-256'yı hesaplar. Pencere kapanırsa iş de durur (`mounted`): açık
+  /// olmayan bir pencere için diski okumaya devam etmenin anlamı yok.
+  Future<void> _computeDigest() async {
+    setState(() {
+      _hashing = true;
+      _hashProgress = 0;
+    });
+    final value = await FileDigest.sha256Of(
+      widget.entry.path,
+      isCancelled: () => !mounted,
+      onProgress: (done, total) {
+        if (!mounted || total <= 0) return;
+        final next = done / total;
+        // Her blokta setState çağırmak yerine %1'lik adımlarda: 4 GB'lık
+        // dosyada 4000 yeniden çizim, hesaplamanın kendisinden pahalı.
+        if (next - _hashProgress >= 0.01) {
+          setState(() => _hashProgress = next);
+        }
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _digest = value;
+      _hashing = false;
+    });
   }
 
   Future<void> _loadOpenedAt() async {
@@ -1074,14 +1380,51 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
     setState(() => _openedAtMs = OpenHistory.forPath(widget.entry.path));
   }
 
+  /// Klasörün içindeki dosya ve klasör sayısı (2026-09-06 denetim turu).
+  ///
+  /// Boyut tek başına "bu klasörde ne kadar iş var" sorusunu yanıtlamıyor:
+  /// 2 GB bir video da olabilir, 40 000 küçük dosya da — ve ikisi kopyalarken
+  /// bambaşka sürüyor.
+  ({int files, int dirs})? _counts;
+
   Future<void> _calculate() async {
     setState(() => _calculating = true);
     final size = await FsScan.folderSize(widget.entry.path);
+    final counts = await _countChildren(widget.entry.path);
     if (!mounted) return;
     setState(() {
       _folderSize = size;
+      _counts = counts;
       _calculating = false;
     });
+  }
+
+  /// Özyinelemeli sayım — arada nefes alır (binlerce girdide arayüz donmasın).
+  static Future<({int files, int dirs})> _countChildren(String root) async {
+    var files = 0;
+    var dirs = 0;
+    var steps = 0;
+    Future<void> walk(Directory dir, int depth) async {
+      if (depth > 24) return;
+      List<FileSystemEntity> children;
+      try {
+        children = dir.listSync(followLinks: false);
+      } catch (_) {
+        return;
+      }
+      for (final child in children) {
+        if (++steps % 256 == 0) await Future<void>.delayed(Duration.zero);
+        if (child is Directory) {
+          dirs++;
+          await walk(child, depth + 1);
+        } else {
+          files++;
+        }
+      }
+    }
+
+    await walk(Directory(root), 0);
+    return (files: files, dirs: dirs);
   }
 
   @override
@@ -1094,12 +1437,12 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _row('Ad', e.name),
+            _row(context.t('prop.name'), e.name),
             _row(context.t('fm.type'), e.isDir ? context.t('fm.folder') : e.category.label),
-            if (!e.isDir) _row('Boyut', FsPaths.humanSize(e.sizeBytes)),
+            if (!e.isDir) _row(context.t('prop.size'), FsPaths.humanSize(e.sizeBytes)),
             if (e.isDir)
               _row(
-                'Boyut',
+                context.t('prop.size'),
                 _folderSize != null
                     ? FsPaths.humanSize(_folderSize!)
                     : (_calculating ? context.t('fm.computing') : context.t('fm.not_computed')),
@@ -1109,7 +1452,16 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
             // "hiç açılmadı" ile "bilmiyorum"u karıştırırdı.
             if (_openedAtMs != null)
               _row(context.t('fm.last_opened'), FsPaths.humanDate(_openedAtMs!)),
-            _row('Konum', e.path),
+            _row(context.t('prop.location'), e.path),
+            if (_counts != null)
+              _row(
+                context.t('prop.contents'),
+                context.t('prop.contents_value',
+                    {'files': _counts!.files, 'dirs': _counts!.dirs}),
+              ),
+            if (_encoding != null) _row(context.t('prop.encoding'), _encoding!),
+            if (!e.isDir) ..._digestSection(context),
+            if (_exif != null) ..._exifSection(context, _exif!),
           ],
         ),
       ),
@@ -1119,6 +1471,13 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
             onPressed: _calculating ? null : _calculate,
             child: Text(context.t('fm.calc_size')),
           ),
+        TextButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: e.name));
+            Navigator.pop(context);
+          },
+          child: Text(context.t('prop.copy_name')),
+        ),
         TextButton(
           onPressed: () {
             Clipboard.setData(ClipboardData(text: e.path));
@@ -1132,6 +1491,90 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
         ),
       ],
     );
+  }
+
+  /// **Özet satırı** — "indirdiğim dosya bozuk mu?" sorusunun cevabı.
+  ///
+  /// Hesaplanmadan önce bir düğme, hesaplanırken ilerleme, sonra dokununca
+  /// panoya kopyalanan bir değer. Değer `SelectableText`: kullanıcı yayıncının
+  /// sitesindeki özetle GÖZLE de karşılaştırabilmeli.
+  List<Widget> _digestSection(BuildContext context) {
+    if (_digest != null) {
+      return [
+        InkWell(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: _digest!));
+            _snack(context, context.t('prop.digest_copied'));
+          },
+          child: _row(context.t('prop.digest'), _digest!),
+        ),
+      ];
+    }
+    if (_hashing) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.t('prop.digest'),
+                  style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 4),
+              LinearProgressIndicator(
+                  value: _hashProgress > 0 ? _hashProgress : null),
+            ],
+          ),
+        ),
+      ];
+    }
+    return [
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          onPressed: _computeDigest,
+          icon: const Icon(Icons.tag, size: 18),
+          label: Text(context.t('prop.compute_digest')),
+        ),
+      ),
+    ];
+  }
+
+  /// Fotoğrafın künyesi. **Konum (GPS) BİLİNÇLİ OLARAK YOK** — bkz.
+  /// `services/fm/exif_reader.dart`.
+  List<Widget> _exifSection(BuildContext context, ExifData exif) {
+    final rows = <Widget>[
+      const SizedBox(height: 8),
+      Text(context.t('prop.photo_info'),
+          style: Theme.of(context).textTheme.titleSmall),
+    ];
+    void add(String label, String? value) {
+      if (value == null || value.isEmpty) return;
+      rows.add(_row(label, value));
+    }
+
+    add(context.t('prop.taken_at'),
+        exif.taken == null ? null : FsPaths.humanDate(
+            exif.taken!.millisecondsSinceEpoch));
+    add(context.t('prop.camera'), exif.camera);
+    add(context.t('prop.lens'), exif.lens);
+    if (exif.width != null && exif.height != null) {
+      add(context.t('prop.resolution'), '${exif.width} × ${exif.height}');
+    }
+    add(context.t('prop.iso'), exif.iso?.toString());
+    add(context.t('prop.exposure'), exif.exposureLabel);
+    add(context.t('prop.aperture'),
+        exif.aperture == null ? null : 'f/${exif.aperture!.toStringAsFixed(1)
+            .replaceAll('.', ',')}');
+    add(context.t('prop.focal'),
+        exif.focalLength == null ? null : '${exif.focalLength!.round()} mm');
+    add(
+      context.t('prop.flash'),
+      exif.flash == null
+          ? null
+          : (exif.flash! ? context.t('prop.flash_on') : context.t('prop.flash_off')),
+    );
+    add(context.t('prop.software'), exif.software);
+    return rows;
   }
 
   Widget _row(String label, String value) => Padding(

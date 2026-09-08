@@ -662,6 +662,267 @@ const Map<String, (String, String, String)> _table = {
     'تم إلغاء العملية (بقيت العناصر المنقولة في مكانها).',
   ),
 
+  // ── Denetim turu 2026-09-06: özet, EXIF, bölme, boş klasör, yedek ─────────
+  'peer.speed': ('{done} / {total} · {speed}/sn', '{done} / {total} · {speed}/s', '{done} / {total} · {speed}/ث'),
+
+  'fm.ext_changed_title': ('Uzantı değişiyor', 'Extension is changing', 'الامتداد يتغير'),
+  'fm.ext_changed_body': (
+    '"{old}" → "{new}". Uzantı dosyanın türünü belirler; değiştirirsen dosya '
+    'yanlış uygulamada açılabilir ya da hiç açılmayabilir.',
+    '"{old}" → "{new}". The extension decides the file type; changing it may '
+    'open the file in the wrong app, or not at all.',
+    '"{old}" ← "{new}". يحدد الامتداد نوع الملف؛ قد يفتح الملف في تطبيق خاطئ '
+    'أو لا يفتح إطلاقًا.',
+  ),
+  'fm.ext_changed_keep': ('Uzantıyı koru', 'Keep the extension', 'الاحتفاظ بالامتداد'),
+  'fm.ext_changed_go': ('Yine de değiştir', 'Change anyway', 'التغيير على أي حال'),
+
+  'clean.free_amount': ('{size} yer aç', 'Free up {size}', 'توفير {size}'),
+  'prop.contents': ('İçerik', 'Contents', 'المحتويات'),
+  'prop.contents_value': (
+    '{files} dosya, {dirs} klasör',
+    '{files} files, {dirs} folders',
+    '{files} ملف، {dirs} مجلد',
+  ),
+  'fm.compare_digest': ('İki dosya aynı mı?', 'Are the two files identical?', 'هل الملفان متطابقان؟'),
+  'fm.compare_running': ('Karşılaştırılıyor', 'Comparing', 'جارٍ المقارنة'),
+  'fm.compare_same': (
+    'Dosyalar AYNI (SHA-256 eşleşti)',
+    'The files are IDENTICAL (SHA-256 matched)',
+    'الملفان متطابقان (تطابقت SHA-256)',
+  ),
+  'fm.compare_diff': (
+    'Dosyalar FARKLI',
+    'The files are DIFFERENT',
+    'الملفان مختلفان',
+  ),
+  'lock.app_wait': (
+    'Çok fazla deneme — {n} saniye bekleyin',
+    'Too many attempts — wait {n} seconds',
+    'محاولات كثيرة — انتظر {n} ثانية',
+  ),
+
+  'dl.verify': ('Özeti doğrula (SHA-256)', 'Verify checksum (SHA-256)', 'التحقق من البصمة (SHA-256)'),
+  'dl.verify_paste': (
+    'Yayıncının verdiği SHA-256 özetini yapıştırın',
+    'Paste the SHA-256 checksum published by the source',
+    'الصق بصمة SHA-256 التي نشرها المصدر',
+  ),
+  'dl.verify_running': ('Dosya okunuyor…', 'Reading the file…', 'جارٍ قراءة الملف…'),
+  'dl.verify_ok': (
+    'Özet TUTUYOR — dosya bozulmamış',
+    'Checksum MATCHES — the file is intact',
+    'البصمة مطابقة — الملف سليم',
+  ),
+  'dl.verify_bad': (
+    'Özet TUTMUYOR — dosya eksik ya da değiştirilmiş',
+    'Checksum does NOT match — the file is incomplete or altered',
+    'البصمة غير مطابقة — الملف ناقص أو مُعدّل',
+  ),
+
+  'prop.encoding': ('Kodlama', 'Encoding', 'الترميز'),
+
+  'vw.prettify': ('Biçimlendir (JSON/XML)', 'Format (JSON/XML)', 'تنسيق (JSON/XML)'),
+  'vw.prettify_done': ('Biçimlendirildi', 'Formatted', 'تم التنسيق'),
+  'vw.prettify_failed': (
+    'Bu dosya çözümlenemedi — metin değiştirilmedi',
+    'Could not parse this file — the text was left as is',
+    'تعذّر تحليل هذا الملف — لم يتم تغيير النص',
+  ),
+  'vw.wrap_on': ('Satırları kaydır', 'Wrap lines', 'التفاف الأسطر'),
+  'vw.wrap_off': ('Satırları kaydırma', "Don't wrap lines", 'عدم التفاف الأسطر'),
+
+  'srch.in_content': ('Dosya içinde ara', 'Search inside files', 'البحث داخل الملفات'),
+  'srch.content_running': ('Dosyaların içine bakılıyor…', 'Looking inside files…', 'جارٍ البحث داخل الملفات…'),
+  'srch.content_hits': ('{n} eşleşme · {line}. satır', '{n} matches · line {line}', '{n} تطابق · السطر {line}'),
+  'srch.content_none': (
+    'İçinde bu metin geçen dosya bulunamadı (yalnız metin biçimlerine bakılır).',
+    'No file contains that text (only text formats are searched).',
+    'لا يوجد ملف يحتوي على هذا النص (يتم البحث في الصيغ النصية فقط).',
+  ),
+  'srch.content_hint': (
+    'Yalnız metin biçimleri (.txt .csv .log .json .md …), dosya başına 2 MB',
+    'Text formats only (.txt .csv .log .json .md …), 2 MB per file',
+    'الصيغ النصية فقط (.txt .csv .log .json .md …)، 2 ميغابايت لكل ملف',
+  ),
+
+  'report.folder': ('Klasör', 'Folder', 'مجلد'),
+  'report.header': (
+    'Ad;Tür;Boyut (bayt);Değiştirilme',
+    'Name;Type;Size (bytes);Modified',
+    'الاسم;النوع;الحجم (بايت);التعديل',
+  ),
+  'report.summary': (
+    '{dirs} klasör, {files} dosya',
+    '{dirs} folders, {files} files',
+    '{dirs} مجلد، {files} ملف',
+  ),
+
+  'mp.playlist_save': ('Çalma listesini kaydet', 'Save playlist', 'حفظ قائمة التشغيل'),
+  'mp.playlist_open': ('Çalma listesi aç', 'Open playlist', 'فتح قائمة تشغيل'),
+  'mp.playlist_saved': ('{name} kaydedildi', 'Saved {name}', 'تم حفظ {name}'),
+  'mp.playlist_loaded': (
+    '{n} parça yüklendi ({missing} bulunamadı)',
+    '{n} tracks loaded ({missing} missing)',
+    'تم تحميل {n} مقطع ({missing} غير موجود)',
+  ),
+  'mp.playlist_empty': (
+    'Listede çalınabilir dosya yok',
+    'No playable files in the list',
+    'لا توجد ملفات قابلة للتشغيل في القائمة',
+  ),
+  'mp.playlist_name': ('Liste adı', 'Playlist name', 'اسم القائمة'),
+  'mp.sub_delay_saved': (
+    'Altyazı gecikmesi bu dosya için hatırlanacak',
+    'Subtitle delay will be remembered for this file',
+    'سيتم تذكّر تأخير الترجمة لهذا الملف',
+  ),
+
+  'peer.code_label': ('Eşleştirme kodu', 'Pairing code', 'رمز الاقتران'),
+  'peer.code_ask': (
+    'Karşı cihazda yazan 4 haneli kodu girin',
+    'Enter the 4-digit code shown on the other device',
+    'أدخل الرمز المكوّن من 4 أرقام الظاهر على الجهاز الآخر',
+  ),
+  'peer.code_wrong': (
+    'Kod yanlış — dosya gönderilmedi',
+    'Wrong code — nothing was sent',
+    'الرمز غير صحيح — لم يتم الإرسال',
+  ),
+  'peer.code_on': (
+    'Kod istensin (aynı ağdaki herkes gönderemesin)',
+    'Require a code (so not everyone on the network can send)',
+    'اطلب رمزًا (حتى لا يتمكن الجميع على الشبكة من الإرسال)',
+  ),
+  'peer.folder_zipping': (
+    'Klasör sıkıştırılıyor',
+    'Compressing folder',
+    'جارٍ ضغط المجلد',
+  ),
+  'peer.folders_zipped': (
+    '{n} klasör ZIP olarak gönderiliyor',
+    'Sending {n} folder(s) as ZIP',
+    'يتم إرسال {n} مجلد كملف ZIP',
+  ),
+  'peer.notify_title': ('Dosya alındı', 'File received', 'تم استلام ملف'),
+  'peer.recent_devices': ('Son cihazlar', 'Recent devices', 'الأجهزة الأخيرة'),
+
+  'backup.title': ('Ayarları yedekle', 'Back up settings', 'نسخ الإعدادات احتياطيًا'),
+  'backup.sub': (
+    'Tema, dil, yer imleri ve tercihler tek dosyaya. API anahtarları ve '
+    'PIN\'ler yedeğe GİRMEZ.',
+    'Theme, language, bookmarks and preferences in one file. API keys and '
+    'PINs are NOT included.',
+    'السمة واللغة والإشارات المرجعية والتفضيلات في ملف واحد. مفاتيح API '
+    'ورموز PIN غير مضمّنة.',
+  ),
+  'backup.saved': ('Yedek kaydedildi: {name}', 'Backup saved: {name}', 'تم حفظ النسخة: {name}'),
+  'backup.failed': ('Yedeklenemedi: {error}', 'Backup failed: {error}', 'فشل النسخ: {error}'),
+  'backup.restore': ('Yedekten geri yükle', 'Restore from backup', 'استعادة من نسخة'),
+  'backup.restore_sub': (
+    'Yedekteki ayarlar geri gelir; yedekte olmayanlar olduğu gibi kalır.',
+    'Settings from the backup are restored; anything not in it stays as is.',
+    'تُستعاد الإعدادات من النسخة؛ ما ليس فيها يبقى كما هو.',
+  ),
+  'backup.restored': (
+    '{n} ayar geri yüklendi. Bazıları uygulama yeniden açılınca geçerli olur.',
+    '{n} settings restored. Some take effect after restarting the app.',
+    'تمت استعادة {n} إعداد. يسري بعضها بعد إعادة تشغيل التطبيق.',
+  ),
+  'backup.restore_failed': (
+    'Geri yüklenemedi: {error}',
+    'Restore failed: {error}',
+    'فشلت الاستعادة: {error}',
+  ),
+  'lock.app_title': ('Uygulama kilidi', 'App lock', 'قفل التطبيق'),
+  'lock.app_sub_on': (
+    'Uygulama açılırken PIN sorulur.',
+    'A PIN is asked when the app opens.',
+    'يُطلب رمز PIN عند فتح التطبيق.',
+  ),
+  'lock.app_sub_off': (
+    'Kapalı — uygulama doğrudan açılıyor.',
+    'Off — the app opens directly.',
+    'مغلق — يفتح التطبيق مباشرة.',
+  ),
+  'lock.app_prompt': ('PIN girin', 'Enter PIN', 'أدخل رمز PIN'),
+  'lock.app_wrong': ('PIN yanlış', 'Wrong PIN', 'رمز PIN غير صحيح'),
+  'lock.app_needs_pin': (
+    'Önce bir PIN belirleyin (Gizlilik > Klasör kilidi PIN\'i).',
+    'Set a PIN first (Privacy > Folder lock PIN).',
+    'عيّن رمز PIN أولاً (الخصوصية > رمز قفل المجلد).',
+  ),
+
+  'vw.replace_with': ('Şununla değiştir', 'Replace with', 'استبدال بـ'),
+  'vw.replace_one': ('Değiştir', 'Replace', 'استبدال'),
+  'vw.replace_all': ('Tümünü değiştir', 'Replace all', 'استبدال الكل'),
+  'vw.replaced': ('{n} değişiklik yapıldı', '{n} replacements made', 'تم إجراء {n} استبدال'),
+  'vw.replace_none': ('Değiştirilecek bir şey bulunamadı', 'Nothing to replace', 'لا يوجد ما يُستبدل'),
+  'vw.show_replace': ('Değiştirmeyi aç/kapat', 'Toggle replace', 'إظهار/إخفاء الاستبدال'),
+  'vw.goto_line': ('Satıra git', 'Go to line', 'الانتقال إلى سطر'),
+  'vw.line_number': ('Satır numarası (1-{max})', 'Line number (1-{max})', 'رقم السطر (1-{max})'),
+  'vw.line_numbers': ('Satır numaraları', 'Line numbers', 'أرقام الأسطر'),
+  'vw.line_ending': ('Satır sonu', 'Line ending', 'نهاية السطر'),
+
+  'ea.rotate': ('Döndür', 'Rotate', 'تدوير'),
+  'ea.rotate_hint': ('90° sağa · yeni dosya', '90° right · new file', '90° يمينًا · ملف جديد'),
+  'ea.split': ('Parçalara böl', 'Split into parts', 'تقسيم إلى أجزاء'),
+  'ea.split_hint': ('FAT32 / e-posta sınırı', 'FAT32 / email limit', 'حد FAT32 / البريد'),
+  'ea.join': ('Parçaları birleştir', 'Join parts', 'دمج الأجزاء'),
+  'ea.join_hint': ('.001 .002 …', '.001 .002 …', '.001 .002 …'),
+  'split.title': ('Parçalara böl', 'Split into parts', 'تقسيم إلى أجزاء'),
+  'split.pick_size': ('Parça boyutu', 'Part size', 'حجم الجزء'),
+  'split.working': ('Bölünüyor', 'Splitting', 'جارٍ التقسيم'),
+  'split.done': ('{n} parça oluştu', '{n} parts created', 'تم إنشاء {n} جزء'),
+  'split.cancelled': ('Bölme durduruldu', 'Splitting stopped', 'تم إيقاف التقسيم'),
+  'split.too_small': (
+    'Dosya seçilen parça boyutundan küçük — bölmeye gerek yok.',
+    'The file is smaller than the chosen part size — no need to split.',
+    'الملف أصغر من حجم الجزء المختار — لا حاجة للتقسيم.',
+  ),
+  'join.working': ('Birleştiriliyor', 'Joining', 'جارٍ الدمج'),
+  'join.done': ('{name} oluştu', '{name} created', 'تم إنشاء {name}'),
+  'join.failed': ('Birleştirilemedi: {error}', 'Could not join: {error}', 'تعذر الدمج: {error}'),
+  'rotate.working': ('Döndürülüyor…', 'Rotating…', 'جارٍ التدوير…'),
+  'rotate.done': ('{name} kaydedildi', 'Saved {name}', 'تم حفظ {name}'),
+  'rotate.failed': ('Döndürülemedi: {error}', 'Could not rotate: {error}', 'تعذر التدوير: {error}'),
+  'fm.empty_folders': ('Boş klasörleri temizle', 'Clean empty folders', 'تنظيف المجلدات الفارغة'),
+  'fm.empty_scanning': ('Boş klasörler aranıyor…', 'Looking for empty folders…', 'جارٍ البحث عن المجلدات الفارغة…'),
+  'fm.empty_none': ('Boş klasör yok.', 'No empty folders.', 'لا توجد مجلدات فارغة.'),
+  'fm.empty_found': (
+    '{n} boş klasör bulundu. Silinsin mi?',
+    '{n} empty folders found. Delete them?',
+    'تم العثور على {n} مجلد فارغ. هل تريد حذفها؟',
+  ),
+  'fm.empty_deleted': ('{n} boş klasör silindi', '{n} empty folders deleted', 'تم حذف {n} مجلد فارغ'),
+  'fm.export_list': ('Listeyi dışa aktar', 'Export listing', 'تصدير القائمة'),
+  'fm.export_text': ('Metin (.txt)', 'Text (.txt)', 'نص (.txt)'),
+  'fm.export_csv': ('Tablo (.csv)', 'Spreadsheet (.csv)', 'جدول (.csv)'),
+  'fm.export_done': ('{name} kaydedildi', 'Saved {name}', 'تم حفظ {name}'),
+
+  'prop.name': ('Ad', 'Name', 'الاسم'),
+  'prop.size': ('Boyut', 'Size', 'الحجم'),
+  'prop.location': ('Konum', 'Location', 'الموقع'),
+  'prop.digest': ('Özet (SHA-256)', 'Checksum (SHA-256)', 'البصمة (SHA-256)'),
+  'prop.digest_md5': ('Özet (MD5)', 'Checksum (MD5)', 'البصمة (MD5)'),
+  'prop.compute_digest': ('Özeti hesapla', 'Compute checksum', 'حساب البصمة'),
+  'prop.computing_digest': ('Hesaplanıyor…', 'Computing…', 'جارٍ الحساب…'),
+  'prop.digest_copied': ('Özet panoya kopyalandı', 'Checksum copied', 'تم نسخ البصمة'),
+  'prop.photo_info': ('Fotoğraf bilgileri', 'Photo details', 'تفاصيل الصورة'),
+  'prop.taken_at': ('Çekim tarihi', 'Taken', 'تاريخ الالتقاط'),
+  'prop.camera': ('Kamera', 'Camera', 'الكاميرا'),
+  'prop.lens': ('Objektif', 'Lens', 'العدسة'),
+  'prop.resolution': ('Çözünürlük', 'Resolution', 'الدقة'),
+  'prop.iso': ('ISO', 'ISO', 'ISO'),
+  'prop.exposure': ('Poz', 'Exposure', 'التعريض'),
+  'prop.aperture': ('Diyafram', 'Aperture', 'فتحة العدسة'),
+  'prop.focal': ('Odak uzaklığı', 'Focal length', 'البعد البؤري'),
+  'prop.flash': ('Flaş', 'Flash', 'الفلاش'),
+  'prop.flash_on': ('Kullanıldı', 'Fired', 'تم استخدامه'),
+  'prop.flash_off': ('Kullanılmadı', 'Did not fire', 'لم يُستخدم'),
+  'prop.software': ('Yazılım', 'Software', 'البرنامج'),
+  'prop.copy_name': ('Adı kopyala', 'Copy name', 'نسخ الاسم'),
+
   // ── Çizim hatası kurtarma ekranı (bkz. widgets/app_error_screen.dart) ─────
   'err.render_failed': (
     'Bu ekran çizilemedi',
@@ -763,11 +1024,6 @@ const Map<String, (String, String, String)> _table = {
     'Bu adreste Dosya Okuyucu bulunamadı',
     'No Dosya Okuyucu found at that address',
     'لم يتم العثور على Dosya Okuyucu على هذا العنوان',
-  ),
-  'peer.folders_skipped': (
-    'Klasörler atlandı ({n} tane) — önce sıkıştırın.',
-    '{n} folder(s) skipped — compress them first.',
-    'تم تخطي {n} مجلد — اضغطها أولاً.',
   ),
   'peer.this_device': ('Bu cihaz: {name}', 'This device: {name}', 'هذا الجهاز: {name}'),
   'peer.other_apps': (

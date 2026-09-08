@@ -9,6 +9,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/image_rotate.dart';
 import '../../services/fm/fs_scan.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
@@ -191,12 +192,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                         if (mounted) setState(() {});
                       case 'info':
                         await showProperties(context, _currentEntry);
+                      case 'rotate':
+                        // Yan çekilmiş fotoğrafı düzeltmenin uygulama içinde
+                        // hiçbir yolu yoktu (2026-09-06 denetim turu).
+                        if (await rotateImageEntry(context, _currentEntry)) {
+                          _statCache.remove(_current);
+                          if (mounted) setState(() {});
+                        }
                     }
                   },
                   itemBuilder: (_) => [
                     PopupMenuItem(
                         value: 'viewer',
                         child: Text(context.t('gal.open_in_viewer'))),
+                    if (ImageRotate.canRotate(_current))
+                      PopupMenuItem(
+                          value: 'rotate', child: Text(context.t('ea.rotate'))),
                     PopupMenuItem(
                         value: 'actions',
                         child: Text(context.t('gal.other_actions'))),

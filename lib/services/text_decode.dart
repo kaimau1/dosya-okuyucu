@@ -8,9 +8,20 @@ import 'dart:convert';
 /// görünmez `U+FEFF` yapışıyordu (round-trip bozulması). Bu modül ikisini de
 /// çözer: BOM temizlenir, UTF-8 başarısızsa Windows-1254'e düşülür.
 class TextDecode {
-  /// Ham baytları metne çevirir. Sıra: baştaki UTF-8 BOM (EF BB BF) atılır →
-  /// strict UTF-8 → başarısızsa Windows-1254 (Türkçe). Kalan `U+FEFF` de silinir.
+  /// Ham baytları metne çevirir.
+  ///
+  /// Sıra: **UTF-16 BOM** (FF FE / FE FF) → UTF-8 BOM atılır → strict UTF-8 →
+  /// başarısızsa Windows-1254 (Türkçe). Kalan `U+FEFF` de silinir.
+  ///
+  /// **UTF-16 desteği 2026-09-06 denetim turunda eklendi.** Windows'ta Not
+  /// Defteri'nin "Unicode" seçeneği ve pek çok dışa aktarma (Excel'in
+  /// "Unicode Metin"i, bazı kayıt dosyaları) UTF-16 LE yazıyor. Eskiden bu
+  /// dosyalar strict UTF-8'de patlıyor, cp1254'e düşüyor ve **her harfin
+  /// arasına görünmez bir NUL giren** okunamaz bir metin çıkıyordu —
+  /// kullanıcı için "dosya bozuk".
   static String decode(List<int> raw) {
+    final utf16 = _decodeUtf16(raw);
+    if (utf16 != null) return stripBom(utf16);
     final bytes = _stripBomBytes(raw);
     String out;
     try {
@@ -19,6 +30,45 @@ class TextDecode {
       out = decodeCp1254(bytes);
     }
     return stripBom(out);
+  }
+
+  /// Bu bir UTF-16 dosyası mı? Öyleyse çözülmüş metin, değilse null.
+  ///
+  /// **Yalnız BOM'a bakılıyor.** BOM'suz UTF-16'yı tahmin etmek (tek sayılı
+  /// konumlarda NUL saymak) düz metinde yanlış pozitif üretebiliyor ve bir
+  /// metin dosyasını yanlış çözmek, hiç çözememekten kötü.
+  static String? _decodeUtf16(List<int> b) {
+    if (b.length < 2) return null;
+    final little = b[0] == 0xFF && b[1] == 0xFE;
+    final big = b[0] == 0xFE && b[1] == 0xFF;
+    if (!little && !big) return null;
+    final units = <int>[];
+    for (var i = 2; i + 1 < b.length; i += 2) {
+      units.add(little ? (b[i] | (b[i + 1] << 8)) : ((b[i] << 8) | b[i + 1]));
+    }
+    try {
+      return String.fromCharCodes(units);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Baytların hangi kodlamada olduğunu **söyler** (ekranda göstermek için).
+  static String describeEncoding(List<int> raw) {
+    if (raw.length >= 2 && raw[0] == 0xFF && raw[1] == 0xFE) return 'UTF-16 LE';
+    if (raw.length >= 2 && raw[0] == 0xFE && raw[1] == 0xFF) return 'UTF-16 BE';
+    if (raw.length >= 3 &&
+        raw[0] == 0xEF &&
+        raw[1] == 0xBB &&
+        raw[2] == 0xBF) {
+      return 'UTF-8 (BOM)';
+    }
+    try {
+      utf8.decode(_stripBomBytes(raw));
+      return 'UTF-8';
+    } on FormatException {
+      return 'Windows-1254';
+    }
   }
 
   /// Baştaki görünmez BOM (`U+FEFF`) karakterini siler.

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
 
+import '../../core/natural_sort.dart';
 import '../../core/text_search.dart';
 import '../../models/fs_entry.dart';
 
@@ -58,7 +59,7 @@ abstract final class FsScan {
     int cmp(FsEntry a, FsEntry b) {
       if (foldersFirst && a.isDir != b.isDir) return a.isDir ? -1 : 1;
       final r = switch (by) {
-        FmSort.name => nameKey(a.name).compareTo(nameKey(b.name)),
+        FmSort.name => compareNames(a.name, b.name),
         FmSort.date => a.modifiedMs.compareTo(b.modifiedMs),
         FmSort.size => a.sizeBytes.compareTo(b.sizeBytes),
         FmSort.type => a.extension.compareTo(b.extension),
@@ -66,7 +67,7 @@ abstract final class FsScan {
       // Eşitlikte ada göre kararlı sırala (aynı boyutlu/tarihli dosyalar
       // yenilemeler arasında yer değiştirmesin).
       if (r != 0) return descending ? -r : r;
-      return nameKey(a.name).compareTo(nameKey(b.name));
+      return compareNames(a.name, b.name);
     }
 
     list.sort(cmp);
@@ -98,6 +99,19 @@ abstract final class FsScan {
     }
     return sb.toString();
   }
+
+  /// İki dosya adını **insanın beklediği** sırada karşılaştırır.
+  ///
+  /// İki katman: önce [nameKey] (Türkçe harfleri temel karşılığına indirger,
+  /// büyük/küçük harf farkını kaldırır), sonra [naturalCompare] (sayı
+  /// bloklarını SAYI olarak karşılaştırır).
+  ///
+  /// İkincisi 2026-09-06'da eklendi: `'1' < '9'` olduğu için `Bölüm 10`
+  /// listede `Bölüm 9`'un önüne düşüyordu. Telefondaki gerçek dosya adları
+  /// (`IMG_9.jpg` / `IMG_10.jpg`, `Ders 2` / `Ders 11`) tam olarak bu
+  /// biçimde, yani numaralı her klasör yanlış sıradaydı.
+  static int compareNames(String a, String b) =>
+      naturalCompare(nameKey(a), nameKey(b));
 
   /// Bir klasörün toplam boyutu (özyinelemeli). Arka plan isolate'inde.
   static Future<int> folderSize(String path) => _run(_folderSizeSync, path);

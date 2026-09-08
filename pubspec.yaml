@@ -22,6 +22,12 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
 
+  # SHA-256 / MD5 özeti (dosya özellikleri ekranı, "indirdiğim dosya bozuk mu"
+  # sorusunun tek dürüst cevabı). Zaten bağımlılık ağacında vardı (3.0.7);
+  # DOĞRUDAN kullandığımız için burada AÇIKÇA yazılıyor — dolaylı bir paketin
+  # bir gün ağaçtan düşmesi derlemeyi kırardı. Saf Dart, eklenti yok.
+  crypto: ^3.0.0
+
   # Dosya seçme / yol
   file_picker: ^8.1.2
   path_provider: ^2.1.4

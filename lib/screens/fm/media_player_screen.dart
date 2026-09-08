@@ -14,6 +14,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/floating_video.dart';
 import '../../services/fm/playback_positions.dart';
 import '../../services/fm/subtitles.dart';
+import '../../services/fm/subtitle_delays.dart';
 import '../../services/fm/video_playback.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
@@ -206,7 +207,10 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     if (!mounted || path != _current) return;
     setState(() {
       _subtitles = found;
-      _subtitleOffsetMs = 0;
+      // Gecikme dosya BAŞINA hatırlanıyor (2026-09-06): bir dizinin altyazısı
+      // kaymışsa her bölümde kaymış olur; kullanıcı her açılışta aynı beş
+      // dokunuşu tekrarlıyordu.
+      _subtitleOffsetMs = SubtitleDelays.forPath(path);
     });
     if (found.isEmpty) {
       setState(() {
@@ -591,8 +595,10 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
               await _pickSubtitle();
             case '_later':
               setState(() => _subtitleOffsetMs -= 500);
+              SubtitleDelays.set(_current, _subtitleOffsetMs);
             case '_sooner':
               setState(() => _subtitleOffsetMs += 500);
+              SubtitleDelays.set(_current, _subtitleOffsetMs);
             default:
               await _selectSubtitle(value);
           }

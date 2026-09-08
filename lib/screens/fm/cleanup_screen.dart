@@ -295,7 +295,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   icon: const Icon(Icons.cleaning_services_outlined),
                   label: Text(chosen.isEmpty
                       ? context.t('clean.pick_one')
-                      : '${FsPaths.humanSize(cleanupTotal(chosen))} yer aç'),
+                      : context.t('clean.free_amount', {
+                          'size': FsPaths.humanSize(cleanupTotal(chosen)),
+                        })),
                 ),
               ),
             ),

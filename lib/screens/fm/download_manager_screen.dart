@@ -8,12 +8,15 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/download_task.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/file_digest.dart';
+import '../../services/fm/file_ops.dart';
 import '../../services/fm/download_service.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/github_release.dart';
 import '../../services/fm/storage_permission.dart';
+import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 import 'folder_picker_screen.dart';
@@ -291,6 +294,8 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
                       BrowserScreen(path: p.dirname(task.destPath)),
                 ));
               }
+            case 'verify':
+              if (mounted) await _verifyDigest(context, task.destPath);
             case 'copy':
               await Clipboard.setData(ClipboardData(text: task.url));
               if (mounted) {
@@ -310,12 +315,73 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
             PopupMenuItem(value: 'open', child: Text(context.t('common.open'))),
             PopupMenuItem(
                 value: 'folder', child: Text(context.t('dl.open_folder'))),
+            // **Özet doğrulama** (2026-09-06 denetim turu): "indirme
+            // tamamlandı" yazısı bir TEMENNİDİR — yarım inmiş bir APK da,
+            // bir baytı bozulmuş bir yedek de aynı yazıyı gösterir.
+            // Yayıncılar (GitHub Releases dahil) SHA-256 yayımlıyor.
+            PopupMenuItem(
+                value: 'verify', child: Text(context.t('dl.verify'))),
           ],
           PopupMenuItem(value: 'copy', child: Text(context.t('dl.copy_link'))),
           PopupMenuItem(value: 'remove', child: Text(context.t('dl.remove'))),
         ],
       );
   }
+}
+
+/// İndirilen dosyanın SHA-256 özetini hesaplar ve kullanıcının yapıştırdığı
+/// özetle karşılaştırır.
+///
+/// Karşılaştırma boşluk ve büyük/küçük harf farkına takılmıyor: özet bir
+/// siteden **kopyalanıp yapıştırılıyor** ve araya boşluk karışması olağan.
+Future<void> _verifyDigest(BuildContext context, String path) async {
+  final strings = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final controller = TextEditingController();
+  final expected = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(ctx.t('dl.verify')),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLines: 2,
+        decoration: InputDecoration(hintText: ctx.t('dl.verify_paste')),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.t('common.cancel'))),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(ctx.t('common.ok'))),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (expected == null || expected.trim().isEmpty || !context.mounted) return;
+  final actual = await showFmProgress<String>(
+    context,
+    title: strings.t('dl.verify_running'),
+    backgroundable: false,
+    describe: (value) => value.total > 0
+        ? '${FsPaths.humanSize(value.done)} / ${FsPaths.humanSize(value.total)}'
+        : '',
+    task: (report, isCancelled) => FileDigest.sha256Of(
+      path,
+      isCancelled: isCancelled,
+      onProgress: (done, total) =>
+          report(FmProgress(done, total, p.basename(path))),
+    ),
+  );
+  if (actual.isEmpty) return; // iptal
+  showSnackOn(
+    messenger,
+    FileDigest.sameDigest(actual, expected)
+        ? strings.t('dl.verify_ok')
+        : strings.t('dl.verify_bad'),
+    duration: kSnackAction,
+  );
 }
 
 /// **İndirme akışı:** bağlantıyı çözümler, GitHub sürümüyse dosya seçtirir,

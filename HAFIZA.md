@@ -11099,3 +11099,82 @@ düz bir statik tablo olduğu için `Localizations` aramadan çalışıyor.
 takımı yeşil (17 yeni test: `busy_dialog_test`, `navigator_guard_test`,
 `peer_share_test` — gerçek soketle geri döngü üzerinden aktarım —,
 `page_transitions_test`). `ci/*.kt` değişmedi.
+
+---
+
+## 2026-09-06 (yirmi ikinci tur) — otonom denetim: 50 madde
+
+Kullanıcı: *"uygulamayı incele, 50 farklı eksik veya geliştirilmesi veya
+eklenmesi gereken madde bul, gerçekten çalışacak şekilde ekle."*
+
+Aşağıdakilerin **beşi gerçek hata** (kullanıcının telefonunda yanlış sonuç
+üretiyordu), gerisi eksik özellik ve çeviri boşluğu. Tam liste commit
+mesajında; burada yalnız *niye* ve *tuzaklar*.
+
+### A) GERÇEK HATALAR
+
+**1. Kopyalanan dosyanın TARİHİ kayboluyordu.** `File.copy` hedefe *şimdi*yi
+yazıyor. 800 fotoğrafı USB belleğe kopyalayan kullanıcı hepsinin tarihini
+"bugün" buluyordu: tarihe göre sıralama, galeri gruplaması ve yedeğin
+kendisi anlamını yitiriyordu. Taşımada da aynı — aynı bölümde `rename`
+tarihi korur ama SD karta taşıma kopyala+sil yoluna düşüyor.
+`FileOps._keepModified` kopyadan sonra `setLastModified` çağırıyor; hata
+YUTULUYOR (FAT32/exFAT ve bazı MTP bağlamaları tarih yazmayı
+desteklemiyor — kopya doğru, tarihi koruyamamak işlemi hataya
+düşürmemeli).
+
+**2. UTF-16 metin dosyaları okunamıyordu.** Windows Not Defteri'nin
+"Unicode" seçeneği ve Excel'in "Unicode Metin" dışa aktarması UTF-16 LE
+yazıyor. `TextDecode` strict UTF-8'de patlıyor, cp1254'e düşüyor ve **her
+harfin arasına görünmez bir NUL giren** okunamaz bir metin üretiyordu.
+Artık BOM'a bakılıp (FF FE / FE FF) doğru çözülüyor. **BOM'suz UTF-16
+tahmin EDİLMİYOR**: tek sayılı konumlarda NUL saymak düz metinde yanlış
+pozitif üretiyor ve bir metni yanlış çözmek hiç çözememekten kötü.
+
+**3. Sıralama sayıları görmüyordu.** `'1' < '9'` olduğu için `Bölüm 10`
+listede `Bölüm 9`'un önüne düşüyordu — telefondaki gerçek adlar
+(`IMG_9.jpg`/`IMG_10.jpg`, `Ders 2`/`Ders 11`) tam olarak bu biçimde, yani
+numaralı her klasör yanlış sıradaydı. Yeni `core/natural_sort.dart` ad
+anahtarını harf/sayı bloklarına ayırıp sayıları SAYI olarak karşılaştırıyor;
+`FsScan.compareNames` iki katmanı (Türkçe harf katlama + doğal sıra)
+birleştiriyor.
+
+**4. FAT32'de sondaki nokta.** `sanitizeName` sondaki nokta ve boşluğu
+bırakıyordu; `Rapor.` adlı bir dosyayı USB belleğe kopyalamak sessizce
+başarısız oluyor ve sebebi anlaşılmıyordu (ad Android tarafında geçerli).
+
+**5. Uzantı sessizce siliniyordu.** Yeniden adlandırmada uzantı değişince
+uyarı yoktu: `rapor.pdf` → `rapor` yazan kullanıcı dosyayı "bilinmeyen tür"
+yapıyor ve bozulduğunu sanıyordu.
+
+### B) YENİ SERVİSLER (saf Dart, test edilebilir)
+`file_digest` (SHA-256/MD5, akış hâlinde — 4 GB'lık videoyu belleğe
+almadan), `file_split` (böl/birleştir, eksik parça denetimiyle),
+`empty_folders`, `folder_report` (metin/CSV), `exif_reader` (**yeni paket
+YOK**, 150 satır; **GPS bilinçli olarak okunmuyor** — konum KVKK kapsamında
+kişisel veri ve ekrana yazmak, paylaşılan bir ekran görüntüsüne evin
+konumunu eklemek olurdu), `image_rotate`, `playlist_m3u`, `content_search`,
+`subtitle_delays`, `settings_backup`, `core/text_replace`,
+`core/natural_sort`, `core/line_endings`, `core/pretty_format`.
+
+### C) TUZAKLAR — bu turda yakalananlar
+- **`AppState.init()` `testWidgets` içinde ASILI KALIR** (HAFIZA 2026-07-25
+  §F'nin aynısı): gerçek asenkron iş sahte saat zonunda tamamlanmıyor,
+  test 10 dakika sonra zaman aşımına düşüyor. Çözüm `tester.runAsync`.
+- **`MaterialApp` testinde `GlobalCupertinoLocalizations.delegate` eksikse**
+  `tr` yerelinde çizim HATA fırlatıyor ve test "beklenmedik" biçimde
+  kırılıyor (mesaj yerelleştirmeyi işaret ediyor, ekranı değil).
+- **`TextStats` ve `_showStats` zaten VARDI** (`core/text_search.dart`,
+  görüntüleyici). Yenisini yazmak `ambiguous_import` verdi; doğrusu var
+  olana satır sonu satırını eklemekti. Ders: yeni bir yardımcı yazmadan
+  önce `grep`.
+- **`l10n_literals_test` yeni ekranları da denetliyor** — kurtarma ekranına
+  yazılan Türkçe metin testi kırdı (geçen tur), bu tur da aynı bekçi çalıştı.
+- `Sink` **implements** edilmeli, `extends` değil (`crypto`nun parçalı
+  arayüzü için kendi biriktiricimiz).
+
+### D) `crypto` artık DOĞRUDAN bağımlılık
+Zaten ağaçtaydı (3.0.7, dolaylı). Doğrudan kullandığımız için pubspec'e
+açıkça yazıldı: dolaylı bir paketin bir gün ağaçtan düşmesi derlemeyi
+kırardı. Klasör kilidinin kendi FNV-1a özeti DEĞİŞTİRİLMEDİ — değiştirmek
+kullanıcıların kurulu PIN'lerini geçersiz kılardı.

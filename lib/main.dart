@@ -25,12 +25,14 @@ import 'services/fm/job_queue.dart';
 import 'services/fm/job_store.dart';
 import 'services/fm/playback_positions.dart';
 import 'services/fm/reading_positions.dart';
+import 'services/fm/subtitle_delays.dart';
 import 'screens/fm/audio_player_screen.dart';
 import 'services/fm/audio_playback.dart';
 import 'services/fm/media_session.dart';
 import 'services/fm/notification_hub.dart';
 import 'services/fm/video_playback.dart';
 import 'widgets/app_error_screen.dart';
+import 'widgets/app_lock_gate.dart';
 import 'widgets/mini_player_bar.dart';
 import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
@@ -165,6 +167,7 @@ Future<void> _restoreJobs() async {
     // kadar zaman var ve açılışta diskten okumak ilk kareyi geciktirmesin.
     await PlaybackPositions.ensureLoaded();
     await ReadingPositions.ensureLoaded();
+    await SubtitleDelays.ensureLoaded();
   } catch (_) {
     // Kalıcılık bir güvence ağı; okunamıyorsa uygulama yine çalışır.
   }
@@ -303,7 +306,14 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: picker ? const PickFileScreen() : const HomeScreen(),
+      // **Uygulama kilidi** ana ekranın üstünde bir perde (2026-09-06):
+      // uygulama açıldığında telefondaki HER ŞEYİ gösteriyor ve kendisi
+      // korumasızdı. Seçici kipinde YOK: başka bir uygulama bizden dosya
+      // isterken araya PIN sokmak, o akışı kilitler (ve seçici zaten tek bir
+      // dosya için açılıyor).
+      home: picker
+          ? const PickFileScreen()
+          : const AppLockGate(child: HomeScreen()),
     );
   }
 }

@@ -194,9 +194,21 @@ class FmSelectionBar extends StatelessWidget {
               if (selected.length == 1 && context.mounted) {
                 await showProperties(context, selected.first);
               }
+            case 'compare':
+              // **İki dosya aynı mı?** (2026-09-06 denetim turu.) Aynı adı
+              // taşıyan iki kopya ("rapor.pdf" ve "rapor (1).pdf") gerçekten
+              // aynı mı, yoksa biri güncel mi — kullanıcının bunu anlamasının
+              // hiçbir yolu yoktu; boyut eşitliği yeterli değil.
+              if (selected.length == 2 && context.mounted) {
+                await compareTwoFiles(context, _paths);
+              }
           }
         },
         itemBuilder: (_) => [
+          if (selected.length == 2 && !_anyDir)
+            PopupMenuItem(
+                value: 'compare',
+                child: Text(context.t('fm.compare_digest'))),
           if (_anyMedia)
             PopupMenuItem(
                 value: 'resize', child: Text(context.t('fm.resize'))),

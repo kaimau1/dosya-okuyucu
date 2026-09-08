@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/remote/peer_share.dart';
@@ -155,6 +156,86 @@ void main() {
 
     expect(result.cancelled, isTrue);
     expect(result.sent, lessThan(3));
+  });
+
+  group('Eşleştirme kodu', () {
+    test('doğru kod kabul edilir', () async {
+      final receiver = PeerReceiver(
+        deviceName: 'A',
+        saveDir: inbox.path,
+        pairingCode: '4271',
+      );
+      await receiver.start();
+      addTearDown(receiver.stop);
+      final source = File(p.join(temp.path, 'k.txt'))
+        ..writeAsStringSync('içerik');
+      final peer = Peer(
+          name: 'A', host: '127.0.0.1', port: receiver.port, needsCode: true);
+
+      final ok = await PeerSender.send(peer, [source.path],
+          senderName: 'G', pairingCode: '4271');
+      expect(ok.sent, 1);
+      expect(ok.wrongCode, isFalse);
+    });
+
+    test('yanlış kodda dosya YAZILMAZ', () async {
+      final receiver = PeerReceiver(
+        deviceName: 'A',
+        saveDir: inbox.path,
+        pairingCode: '4271',
+      );
+      await receiver.start();
+      addTearDown(receiver.stop);
+      final source = File(p.join(temp.path, 'k.txt'))
+        ..writeAsStringSync('içerik');
+      final peer = Peer(
+          name: 'A', host: '127.0.0.1', port: receiver.port, needsCode: true);
+
+      final bad = await PeerSender.send(peer, [source.path],
+          senderName: 'G', pairingCode: '0000');
+      expect(bad.wrongCode, isTrue);
+      expect(bad.sent, 0);
+      // Gövde hiç okunmadı: klasörde dosya YOK.
+      expect(inbox.listSync(), isEmpty);
+    });
+
+    test('kodsuz alıcıya kod göndermek zarar vermez', () async {
+      final receiver = await startReceiver();
+      addTearDown(receiver.stop);
+      final source = File(p.join(temp.path, 'k.txt'))..writeAsStringSync('x');
+      final peer = Peer(name: 'A', host: '127.0.0.1', port: receiver.port);
+      final r = await PeerSender.send(peer, [source.path],
+          senderName: 'G', pairingCode: '1234');
+      expect(r.sent, 1);
+    });
+
+    test('/kim ucu kod İSTENDİĞİNİ söyler ama kodu VERMEZ', () async {
+      final receiver = PeerReceiver(
+        deviceName: 'A',
+        saveDir: inbox.path,
+        pairingCode: '9876',
+      );
+      await receiver.start();
+      addTearDown(receiver.stop);
+      final peer = await PeerSender.probe('127.0.0.1', port: receiver.port);
+      expect(peer!.needsCode, isTrue);
+
+      final client = HttpClient();
+      final request = await client
+          .getUrl(Uri.parse('http://127.0.0.1:${receiver.port}/kim'));
+      final response = await request.close();
+      final body = await response.transform(const Utf8Decoder()).join();
+      client.close();
+      expect(body.contains('9876'), isFalse,
+          reason: 'kod yayınlanırsa kodun anlamı kalmaz');
+    });
+
+    test('kod dört haneli üretilir', () {
+      for (var i = 0; i < 50; i++) {
+        final code = PeerReceiver.newCode();
+        expect(code, matches(RegExp(r'^\d{4}$')));
+      }
+    });
   });
 
   test('alt ağ yayın adresi', () {

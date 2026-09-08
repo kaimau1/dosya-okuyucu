@@ -46,6 +46,40 @@ class PinTile extends StatelessWidget {
   }
 }
 
+/// **Uygulama kilidi** — açılışta PIN sorar (2026-09-06 denetim turu).
+///
+/// Klasör kilidinin PIN'iyle aynı: iki ayrı PIN ezberletmek yerine tek bir
+/// sayı. PIN kurulu değilse anahtar açılamaz ve altındaki satır bunu SÖYLER —
+/// sessizce kapalı kalan bir anahtar "bozuk" görünürdü.
+class AppLockTile extends StatelessWidget {
+  const AppLockTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SwitchListTile(
+      secondary: const Icon(Icons.phonelink_lock_outlined),
+      title: Text(context.t('lock.app_title')),
+      subtitle: Text(
+        !appState.fmHasLockPin
+            ? context.t('lock.app_needs_pin')
+            : context.t(
+                appState.appLock ? 'lock.app_sub_on' : 'lock.app_sub_off'),
+      ),
+      value: appState.appLock,
+      onChanged: !appState.fmHasLockPin
+          ? null
+          : (value) async {
+              // Kilidi KAPATIRKEN de PIN sorulur: telefonu eline alan biri
+              // ayarlardan tek dokunuşla kapatabilseydi kilit anlamsız olurdu.
+              if (!value && !await askPin(context)) return;
+              if (!context.mounted) return;
+              await context.read<AppState>().setAppLock(value);
+            },
+    );
+  }
+}
+
 /// Kilitli klasörlerin listesi (boşsa hiç çizilmez).
 class LockedFoldersTile extends StatelessWidget {
   const LockedFoldersTile({super.key});

@@ -12,6 +12,8 @@ import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/content_search.dart';
+import '../../services/fm/fm_env.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
@@ -61,6 +63,14 @@ class _SearchScreenState extends State<SearchScreen> {
   /// "aramada sıralama seçenekleri lazım · aranan şeyler arama filtresi de
   /// olmalı").
   FmFilter _filter = FmFilter.none;
+
+  /// **Dosya içinde arama** açık mı (2026-09-06 denetim turu).
+  ///
+  /// Ayrı bir kip, ad aramasının yanında bir seçenek değil: içeri bakmak
+  /// dosyaları OKUMAK demek ve saniyeler sürebiliyor. Kullanıcı bunu
+  /// bilerek istemeli.
+  bool _inContent = false;
+  List<ContentHit> _contentHits = const [];
   FmSort _sort = FmSort.date;
   bool _desc = true;
 
@@ -155,6 +165,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (q.length < 2) {
       setState(() {
         _results = const [];
+        _contentHits = const [];
         _searched = false;
         _searching = false;
         _smart = null;
@@ -162,6 +173,10 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
     final token = ++_queryToken;
+    if (_inContent) {
+      await _runContent(q, token);
+      return;
+    }
     // Cümleyi çözümle: kalan metin dizinde aranır, ölçütler süzgece geçer.
     final smart = _smartOn ? parseSmartQuery(q) : null;
     setState(() {
@@ -183,6 +198,54 @@ class _SearchScreenState extends State<SearchScreen> {
       _searching = false;
       _searched = true;
     });
+  }
+
+  /// Dosyaların İÇİNDE arama. Ad araması dizinden gelir (anlık); bu ise
+  /// diski okur, o yüzden ayrı bir yol ve kendi durdurma ölçütü var.
+  Future<void> _runContent(String query, int token) async {
+    setState(() {
+      _searching = true;
+      _smart = null;
+    });
+    final hits = await ContentSearch.search(
+      widget.root ?? FmEnv.primaryRoot,
+      query,
+      // Sorgu değişirse tarama kendini durdursun: kullanıcı yazmaya devam
+      // ederken eski taramanın diski okumaya devam etmesi hem yavaş hem
+      // yanlış sonuç demek.
+      isCancelled: () => token != _queryToken,
+    );
+    if (!mounted || token != _queryToken) return;
+    setState(() {
+      _contentHits = hits;
+      _results = [
+        for (final hit in hits)
+          if (FsEntry.ofPath(hit.path) case final entry?) entry,
+      ];
+      _searching = false;
+      _searched = true;
+    });
+  }
+
+  /// Bir yolun içerik eşleşmesi (alt satırda "3 eşleşme · 12. satır").
+  ContentHit? _contentHitOf(String path) {
+    for (final hit in _contentHits) {
+      if (hit.path == path) return hit;
+    }
+    return null;
+  }
+
+  /// Sonuç satırının alt yazısı: içerik aramasında eşleşme, ad aramasında
+  /// boyut ve klasör.
+  String _subtitleFor(FsEntry e) {
+    if (e.isDir) return p.dirname(e.path);
+    final hit = _inContent ? _contentHitOf(e.path) : null;
+    if (hit != null) {
+      final head = AppStrings.of(context)
+          .t('srch.content_hits', {'n': hit.total, 'line': hit.line});
+      return '$head · ${hit.snippet}';
+    }
+    return '${FsPaths.humanSize(e.sizeBytes)} · ${p.dirname(e.path)}';
   }
 
   List<FsEntry> get _filtered {
@@ -467,6 +530,23 @@ class _SearchScreenState extends State<SearchScreen> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
           children: [
+            // **Dosya içinde ara** çipi en başta: kullanıcı adı bulamayınca
+            // ilk buraya bakıyor.
+            Padding(
+              padding: const EdgeInsets.only(right: Gap.sm),
+              child: FilterChip(
+                avatar: const Icon(Icons.manage_search, size: 18),
+                label: Text(context.t('srch.in_content')),
+                selected: _inContent,
+                onSelected: (value) {
+                  setState(() {
+                    _inContent = value;
+                    _contentHits = const [];
+                  });
+                  _run(_controller.text);
+                },
+              ),
+            ),
             for (final entry in <(String, FmCategory?)>[
               ('flt.all', null),
               for (final c in FmCategory.values) (c.labelKey, c),
@@ -568,9 +648,10 @@ class _SearchScreenState extends State<SearchScreen> {
               entry: e,
               selected: _selected.contains(e.path),
               selecting: _selecting,
-              subtitle: e.isDir
-                  ? p.dirname(e.path)
-                  : '${FsPaths.humanSize(e.sizeBytes)} · ${p.dirname(e.path)}',
+              // İçerik aramasında alt satır **eşleşmeyi** gösteriyor:
+              // "3 eşleşme · 12. satır · …fatura no: 2024/17…". Boyut ve
+              // klasör orada işe yaramaz; kullanıcı METNİ arıyor.
+              subtitle: _subtitleFor(e),
               onTap: () {
                 if (_selecting) {
                   _toggle(e);

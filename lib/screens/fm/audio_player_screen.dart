@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
+import '../../services/fm/file_ops.dart';
+import '../../services/fm/playlist_m3u.dart';
 import '../../services/fm/audio_playback.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -202,6 +205,30 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   value: m,
                   child: Text(context.t('mp.sleep_minutes', {'n': '$m'})),
                 ),
+            ],
+          ),
+          // **Çalma listesi** (2026-09-06 denetim turu): sıra uygulama
+          // kapanınca yok oluyordu; kullanıcı 40 parçalık listeyi her gün
+          // yeniden kuruyordu. M3U evrensel biçim — VLC, Poweramp, araba
+          // teybi, hepsi okuyor.
+          PopupMenuButton<String>(
+            tooltip: context.t('mp.playlist_save'),
+            icon: const Icon(Icons.playlist_play),
+            onSelected: (value) async {
+              if (value == 'save') {
+                await _savePlaylist();
+              } else {
+                await _openPlaylist();
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'save',
+                enabled: _playlist.isNotEmpty,
+                child: Text(context.t('mp.playlist_save')),
+              ),
+              PopupMenuItem(
+                  value: 'open', child: Text(context.t('mp.playlist_open'))),
             ],
           ),
           IconButton(
@@ -405,6 +432,87 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   }
 
   /// Sıradaki parçalar (dokununca o parçaya atlar).
+  /// Çalma listesini `.m3u8` olarak yazar (parçaların yanına).
+  ///
+  /// Yollar GÖRELİ yazılıyor: liste telefondan bilgisayara kopyalandığında da
+  /// çalışsın (bkz. `services/fm/playlist_m3u.dart`).
+  Future<void> _savePlaylist() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final controller = TextEditingController(
+        text: p.basename(p.dirname(_current)));
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('mp.playlist_save')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: ctx.t('mp.playlist_name')),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: Text(ctx.t('common.save'))),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.trim().isEmpty) return;
+    try {
+      final dir = p.dirname(_current);
+      final target = FileOps.uniquePath(p.join(
+          dir, '${FileOps.sanitizeName(name)}${PlaylistM3u.extension}'));
+      await PlaylistM3u.write(target, [
+        for (final path in _playlist)
+          PlaylistEntry(path: path, title: p.basenameWithoutExtension(path)),
+      ]);
+      showSnackOn(messenger,
+          strings.t('mp.playlist_saved', {'name': p.basename(target)}));
+    } catch (e) {
+      showSnackOn(messenger, '$e');
+    }
+  }
+
+  /// Bir `.m3u`/`.m3u8` dosyasını açar ve çalmaya başlar.
+  ///
+  /// **Bulunamayan parçalar sayılıyor ve söyleniyor**: listeyi sessizce
+  /// kısaltmak, kullanıcının sildiği/taşıdığı dosyaları fark etmemesi demek.
+  Future<void> _openPlaylist() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final picked = await FilePicker.platform.pickFiles(type: FileType.any);
+      final path = picked?.files.single.path;
+      if (path == null) return;
+      final entries = await PlaylistM3u.read(path);
+      final existing = [
+        for (final entry in entries)
+          if (File(entry.path).existsSync()) entry.path,
+      ];
+      if (existing.isEmpty) {
+        showSnackOn(messenger, strings.t('mp.playlist_empty'));
+        return;
+      }
+      await _p.open(existing.first, list: existing);
+      if (!mounted) return;
+      setState(() {});
+      showSnackOn(
+        messenger,
+        strings.t('mp.playlist_loaded', {
+          'n': existing.length,
+          'missing': entries.length - existing.length,
+        }),
+      );
+    } catch (e) {
+      showSnackOn(messenger, '$e');
+    }
+  }
+
   Widget _playlistView() => SizedBox(
         height: 132,
         child: ListView.builder(

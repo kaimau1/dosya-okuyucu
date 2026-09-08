@@ -12,9 +12,11 @@ import '../../models/fs_entry.dart';
 import '../../services/blank_docs.dart';
 import '../../services/fm/archive_ops.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/empty_folders.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/folder_size_cache.dart';
+import '../../services/fm/folder_report.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/paste_conflict.dart';
 import '../../widgets/fm/drag_select.dart';
@@ -289,6 +291,97 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _load();
   }
 
+  /// **Boş klasörleri temizle** (2026-09-06 denetim turu).
+  ///
+  /// Yer kazandırmazlar ama listeyi kirletirler: silinen uygulamaların
+  /// bıraktığı `Android/data/...`, medyası silinmiş WhatsApp klasörleri,
+  /// "hepsini sil" sonrası kalan tarih klasörleri. Kullanıcı dosyasını
+  /// ararken onlarca boş klasörün içine girip çıkıyordu.
+  ///
+  /// Silmeden ÖNCE kaç tane olduğu soruluyor: sessizce silmek, kullanıcının
+  /// bilerek boş bıraktığı bir klasörü de götürebilirdi.
+  Future<void> _cleanEmptyFolders() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final found = await showFmProgress<List<String>>(
+      context,
+      title: strings.t('fm.empty_scanning'),
+      backgroundable: false,
+      task: (report, isCancelled) => EmptyFolders.find(
+        widget.path,
+        isCancelled: isCancelled,
+        onScan: (path) => report(FmProgress(0, 0, p.basename(path))),
+      ),
+    );
+    if (!mounted) return;
+    if (found.isEmpty) {
+      showSnackOn(messenger, strings.t('fm.empty_none'));
+      return;
+    }
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.t('fm.empty_folders')),
+        content: Text(strings.t('fm.empty_found', {'n': found.length})),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ctx.t('common.cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ctx.t('common.delete'))),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    final deleted = await EmptyFolders.deleteAll(found);
+    if (!mounted) return;
+    showSnackOn(messenger, strings.t('fm.empty_deleted', {'n': deleted}));
+    _load();
+  }
+
+  /// **Klasör listesini dosyaya yaz** (2026-09-06 denetim turu).
+  ///
+  /// "Bu klasörde neler var" sorusunun ekran DIŞINA çıkan bir cevabı yoktu;
+  /// kullanıcı ekran görüntüsü alıyordu. Metin mesaja yapıştırmak, CSV
+  /// Excel'de sıralayıp süzmek için.
+  Future<void> _exportListing() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final csv = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: Text(ctx.t('fm.export_text')),
+              onTap: () => Navigator.pop(ctx, false),
+            ),
+            ListTile(
+              leading: const Icon(Icons.table_chart_outlined),
+              title: Text(ctx.t('fm.export_csv')),
+              onTap: () => Navigator.pop(ctx, true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (csv == null || !mounted) return;
+    try {
+      final out = await FolderReport.save(widget.path, _entries, csv: csv);
+      if (!mounted) return;
+      showSnackOn(messenger,
+          strings.t('fm.export_done', {'name': p.basename(out)}));
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      showSnackOn(messenger, '$e');
+    }
+  }
+
   Future<void> _newFolder() async {
     // Hata metni await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final createFailed = context.t('fm.folder_create_failed');
@@ -502,6 +595,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 _load();
               case 'select_all':
                 _toggleSelectAll();
+              case 'empty_folders':
+                await _cleanEmptyFolders();
+              case 'export_list':
+                await _exportListing();
               case 'refresh':
                 _load();
             }
@@ -542,6 +639,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
             PopupMenuItem(
                 value: 'organize', child: Text(context.t('fm.auto_organize'))),
             PopupMenuItem(value: 'select_all', child: Text(context.t('fm.select_all'))),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+                value: 'empty_folders',
+                child: Text(context.t('fm.empty_folders'))),
+            PopupMenuItem(
+                value: 'export_list', child: Text(context.t('fm.export_list'))),
             PopupMenuItem(
                 value: 'refresh', child: Text(context.t('common.refresh'))),
           ],

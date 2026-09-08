@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
@@ -87,7 +88,15 @@ class Peer {
   final String host;
   final int port;
 
-  const Peer({required this.name, required this.host, required this.port});
+  /// Alıcı eşleştirme kodu istiyor mu? (Kodun KENDİSİ yayınlanmaz.)
+  final bool needsCode;
+
+  const Peer({
+    required this.name,
+    required this.host,
+    required this.port,
+    this.needsCode = false,
+  });
 
   /// Liste tekilleştirme anahtarı: aynı cihaz iki arayüzden (Wi-Fi + hotspot)
   /// cevap verebilir.
@@ -115,6 +124,16 @@ class PeerReceiver {
   /// Gelen dosyaların yazılacağı klasör.
   final String saveDir;
 
+  /// **Eşleştirme kodu** — boşsa kod istenmez.
+  ///
+  /// Niye eklendi (2026-09-06 denetim turu): alıcı ekranı açıkken aynı ağdaki
+  /// HERKES dosya gönderebiliyordu. Ev ağında sorun değil ama yurtta, ofiste
+  /// ya da bir kafede bu, telefonun İndirilenler klasörünü herkese açmak
+  /// demek. Kod dört hane: kısa çünkü karşı tarafa okunacak, ve ağdaki
+  /// birinin denemesini pratik olmaktan çıkarmaya yetiyor (yanlış kod
+  /// gönderilen dosyayı ALMADAN reddediyor).
+  final String pairingCode;
+
   /// Bir dosya tamamlandığında çağrılır (yol, gönderen adı).
   final void Function(String path, String from)? onReceived;
 
@@ -124,9 +143,15 @@ class PeerReceiver {
   PeerReceiver({
     required this.deviceName,
     required this.saveDir,
+    this.pairingCode = '',
     this.onReceived,
     this.onProgress,
   });
+
+  /// Rastgele dört haneli kod. `Random.secure` DEĞİL: bu bir sır değil,
+  /// ekranda yazan ve karşı tarafa okunan bir eşleştirme numarası.
+  static String newCode() =>
+      (1000 + Random().nextInt(9000)).toString();
 
   HttpServer? _http;
   RawDatagramSocket? _udp;
@@ -195,6 +220,10 @@ class PeerReceiver {
           'magic': PeerShare._magic,
           'name': deviceName,
           'port': port,
+          // Kod İSTENİYOR mu — kodun kendisi DEĞİL. Kodu yayınlamak onu
+          // anlamsız kılardı; gönderen yalnız "kod sorulacak" bilgisini alıp
+          // kullanıcıya kutuyu gösteriyor.
+          'code': pairingCode.isNotEmpty,
         }));
         try {
           socket.send(reply, packet.address, packet.port);
@@ -217,12 +246,22 @@ class PeerReceiver {
           'magic': PeerShare._magic,
           'name': deviceName,
           'port': port,
+          'code': pairingCode.isNotEmpty,
         }));
         await response.close();
         return;
       }
       if (request.method != 'POST' || request.uri.path != '/al') {
         response.statusCode = HttpStatus.notFound;
+        await response.close();
+        return;
+      }
+      // **Kod denetimi gövdeyi OKUMADAN**: yanlış kodla gelen 2 GB'lık bir
+      // dosyayı diske yazıp sonra silmek hem yer hem zaman kaybı olurdu.
+      if (pairingCode.isNotEmpty &&
+          request.uri.queryParameters['kod'] != pairingCode) {
+        response.statusCode = HttpStatus.forbidden;
+        response.write('kod');
         await response.close();
         return;
       }
@@ -308,6 +347,7 @@ abstract final class PeerSender {
           name: '${data['name'] ?? '?'}',
           host: packet.address.address,
           port: (data['port'] as num?)?.toInt() ?? PeerShare.transferPort,
+          needsCode: data['code'] == true,
         );
         if (seen.add(peer.key)) controller.add(peer);
       });
@@ -357,6 +397,7 @@ abstract final class PeerSender {
         name: '${data['name'] ?? host}',
         host: host,
         port: (data['port'] as num?)?.toInt() ?? port,
+        needsCode: data['code'] == true,
       );
     } catch (_) {
       return null;
@@ -374,6 +415,7 @@ abstract final class PeerSender {
     Peer peer,
     List<String> paths, {
     required String senderName,
+    String pairingCode = '',
     void Function(String name, int sentBytes, int totalBytes)? onProgress,
     bool Function()? isCancelled,
   }) async {
@@ -405,6 +447,7 @@ abstract final class PeerSender {
           final uri = peer.base.replace(path: '/al', queryParameters: {
             'ad': name,
             'kim': senderName,
+            if (pairingCode.isNotEmpty) 'kod': pairingCode,
           });
           final request = await client.postUrl(uri);
           request.contentLength = length;
@@ -417,6 +460,13 @@ abstract final class PeerSender {
           }
           final response = await request.close();
           await response.drain<void>();
+          if (response.statusCode == HttpStatus.forbidden) {
+            // Yanlış kod: kalan dosyaları denemenin anlamı yok, hepsi aynı
+            // cevabı alacak. Hata metni de "HTTP 403" değil, kullanıcının
+            // düzeltebileceği bir şey söylüyor.
+            return PeerSendResult(
+                sent: sent, errors: const [], wrongCode: true);
+          }
           if (response.statusCode != HttpStatus.ok) {
             errors.add('$name: HTTP ${response.statusCode}');
           } else {
@@ -439,10 +489,15 @@ class PeerSendResult {
   final List<String> errors;
   final bool cancelled;
 
+  /// Alıcı kodu reddetti — kullanıcıya "HTTP 403" değil, kodu yeniden
+  /// sormak gerekiyor.
+  final bool wrongCode;
+
   const PeerSendResult({
     this.sent = 0,
     this.errors = const [],
     this.cancelled = false,
+    this.wrongCode = false,
   });
 
   bool get hasError => errors.isNotEmpty;
