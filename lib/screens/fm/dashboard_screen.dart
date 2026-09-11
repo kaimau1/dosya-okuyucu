@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
@@ -2339,13 +2340,25 @@ class _VolumeCard extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    SizedBox(
-                      width: 52,
-                      height: 52,
-                      child: CircularProgressIndicator(
-                        value: volume.hasStats ? volume.usedFraction : 0,
+                    // Dilimli doluluk halkası: her kategorinin rengiyle.
+                    // Tarama yapılmamışsa / istatistik yoksa boş halka.
+                    CustomPaint(
+                      size: const Size(52, 52),
+                      painter: _RingPainter(
+                        slices: volume.hasStats
+                            ? _breakdown(context)
+                                .where((p) => p.bytes > 0)
+                                .map((p) => (
+                                      color: p.color,
+                                      bytes: p.bytes,
+                                    ))
+                                .toList()
+                            : const [],
+                        total: volume.hasStats
+                            ? volume.capacityBytes
+                            : 1,
+                        trackColor: scheme.surfaceContainerHighest,
                         strokeWidth: 6,
-                        backgroundColor: scheme.surfaceContainerHighest,
                       ),
                     ),
                     Icon(
@@ -2461,4 +2474,75 @@ class _VolumeCard extends StatelessWidget {
     );
   }
 
+}
+
+/// Dilimli doluluk halkası boyayıcısı.
+///
+/// `slices` listesindeki her dilim kendi rengiyle saat yönünde çizilir;
+/// geri kalan açı `trackColor` (boş alan) rengiyle tamamlanır.
+/// `total` ≤ 0 ise tüm çember `trackColor` ile çizilir.
+class _RingPainter extends CustomPainter {
+  final List<({Color color, int bytes})> slices;
+  final int total;
+  final Color trackColor;
+  final double strokeWidth;
+
+  const _RingPainter({
+    required this.slices,
+    required this.total,
+    required this.trackColor,
+    this.strokeWidth = 6,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide - strokeWidth) / 2;
+    const startAngle = -math.pi / 2; // 12 o'clock
+    const fullSweep = 2 * math.pi;
+
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    // Arka plan halkası (her zaman tam çember).
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      fullSweep,
+      false,
+      trackPaint,
+    );
+
+    if (total <= 0 || slices.isEmpty) return;
+
+    // Dilimler saat yönünde üst üste çizilir.
+    var currentAngle = startAngle;
+    for (final s in slices) {
+      final sweep = (s.bytes / total).clamp(0.0, 1.0) * fullSweep;
+      if (sweep <= 0) continue;
+      final paint = Paint()
+        ..color = s.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.butt;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        currentAngle,
+        sweep,
+        false,
+        paint,
+      );
+      currentAngle += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.slices != slices ||
+      old.total != total ||
+      old.trackColor != trackColor ||
+      old.strokeWidth != strokeWidth;
 }
