@@ -181,6 +181,17 @@ abstract final class AppStorageService {
     }
   }
 
+  /// Son "Birlikte aç" bir **düzenleme/işaretleme** isteği miydi (Chrome'un
+  /// PDF görüntüleyicisindeki kalem düğmesi → `ANNOTATE`, ya da `EDIT`)?
+  /// Okununca temizlenir. Kanal yoksa false.
+  static Future<bool> takeEditRequest() async {
+    try {
+      return await _channel.invokeMethod<bool>('takeEditRequest') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Uygulama bir **USB bellek takılması** yüzünden mi açıldı?
   static Future<bool> launchedByUsb() async =>
       await launchAction() == usbAttachedAction;

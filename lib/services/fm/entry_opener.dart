@@ -126,10 +126,14 @@ abstract final class EntryOpener {
 
   /// [path]'i açar. [siblings] verilirse (aynı klasördeki dosyalar) görseller
   /// kaydırmalı galeride, medya dosyaları çalma listesiyle oynatıcıda açılır.
+  ///
+  /// [startInk]: PDF açılır açılmaz kalem ekranı gelsin (Chrome'un PDF
+  /// görüntüleyicisindeki kalem düğmesi → `ANNOTATE`; bkz. `PdfInkScreen`).
   static Future<void> open(
     BuildContext context,
     String path, {
     List<String>? siblings,
+    bool startInk = false,
   }) async {
     if (!File(path).existsSync()) {
       _snack(context, context.t('open.not_found'));
@@ -213,13 +217,14 @@ abstract final class EntryOpener {
       openedAtMs: DateTime.now().millisecondsSinceEpoch,
     ));
     if (!context.mounted) return;
-    await navigator.push(MaterialPageRoute(builder: (_) => screenFor(doc)));
+    await navigator.push(MaterialPageRoute(
+        builder: (_) => screenFor(doc, startInk: startInk)));
   }
 
   /// Yüklenmiş belgeye uygun ekran. (Salt-okunur içerik OOXML editörlerine
   /// gitmez — bkz. HAFIZA 2026-07-21 legacy notu.)
-  static Widget screenFor(LoadedDoc doc) {
-    if (doc.readOnly) return ViewerScreen(doc: doc);
+  static Widget screenFor(LoadedDoc doc, {bool startInk = false}) {
+    if (doc.readOnly) return ViewerScreen(doc: doc, startInk: startInk);
     switch (doc.kind) {
       case DocKind.spreadsheet:
         return SpreadsheetEditorScreen(
@@ -235,7 +240,7 @@ abstract final class EntryOpener {
         return SlidesEditorScreen(
             path: doc.path, name: doc.name, plainText: doc.plainText);
       default:
-        return ViewerScreen(doc: doc);
+        return ViewerScreen(doc: doc, startInk: startInk);
     }
   }
 

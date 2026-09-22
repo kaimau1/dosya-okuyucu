@@ -181,6 +181,24 @@
                 <data android:mimeType="application/java-archive" />
             </intent-filter>
 
+            <!-- **"KALEMLE DÜZENLE" / "DÜZENLE" SEÇENEĞİ OLARAK ÇIKMAK.**
+                 Kullanıcı 2026-09-22: Chrome'un PDF görüntüleyicisindeki kalem
+                 düğmesine basınca listede Edge vardı, biz yoktuk. O düğme
+                 (androidx.pdf `AnnotationUtils`) `android.intent.action.ANNOTATE`
+                 + `application/pdf` gönderir; diğer uygulamaların "Düzenle"si
+                 `EDIT`. Yukarıdaki süzgeç yalnız VIEW'ı tuttuğu için listeye
+                 hiç girmiyorduk. `MainActivity` bu eylemleri eklentinin
+                 anladığı VIEW'a çevirir ve dosyayı doğrudan kalem ekranında
+                 açtırır (`PdfInkScreen`). -->
+            <intent-filter>
+                <action android:name="android.intent.action.ANNOTATE" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+
             <!-- **İNDİRME BAĞLANTISINA DOKUNULUNCA SEÇENEK OLARAK ÇIKMAK.**
                  Chrome/DuckDuckGo'da doğrudan bir dosya bağlantısına
                  dokunulduğunda Android "hangi uygulamayla?" diye sorar; bu

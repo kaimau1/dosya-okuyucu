@@ -44,6 +44,7 @@ import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
+import 'pdf_ink_screen.dart';
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/ai_slides_flow.dart';
 import '../widgets/doc_action_bar.dart';
@@ -75,7 +76,12 @@ const List<int> _highlightColors = [
 
 class ViewerScreen extends StatefulWidget {
   final LoadedDoc doc;
-  const ViewerScreen({super.key, required this.doc});
+
+  /// PDF hazır olunca kalem ekranını kendiliğinden aç (başka uygulamanın
+  /// "düzenle/işaretle" düğmesiyle gelindi — bkz. [PdfInkScreen]).
+  final bool startInk;
+
+  const ViewerScreen({super.key, required this.doc, this.startInk = false});
 
   @override
   State<ViewerScreen> createState() => _ViewerScreenState();
@@ -1659,6 +1665,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final isImage = doc.kind == DocKind.image;
     return DocActionBar([
       if (doc.kind == DocKind.pdf) ...[
+        // Kalem: elle çiz, fosforlu, yazı, silgi (bkz. [PdfInkScreen]).
+        DocAction(Icons.draw_outlined, context.t('ink.pen'), _openInk),
         DocAction(Icons.edit_document, context.t('vw.editor'), _openPdfEditor),
         DocAction(Icons.construction, context.t('vw.tools'), _openPdfTools),
       ],
@@ -1681,6 +1689,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (!isImage) DocAction(Icons.print_outlined, context.t('vw.print'), _print),
     ]);
   }
+
+  /// Kalem ekranı; özgün dosyanın üzerine yazıldıysa görüntüleyici tazelenir.
+  Future<void> _openInk() async {
+    if (!await _confirmLeavePending() || !mounted) return;
+    final overwritten = await PdfInkScreen.open(
+      context,
+      widget.doc.path,
+      initialPage: _livePdfPage() ?? _pdfPage,
+    );
+    if (overwritten == true && mounted) await _reloadPdf();
+  }
+
+  /// [ViewerScreen.startInk] bir kez uygulanır.
+  bool _inkStarted = false;
 
   /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
   Future<void> _openPdfEditor() async {
@@ -2839,6 +2861,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     // şerit ilk kareyle birlikte kayboluyordu.
                     WidgetsBinding.instance
                         .addPostFrameCallback((_) => _showResumeNotice());
+                    if (widget.startInk && !_inkStarted) {
+                      _inkStarted = true;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) _openInk();
+                      });
+                    }
                   },
                   onPageChanged: (page) {
                     if (mounted && page != null) {

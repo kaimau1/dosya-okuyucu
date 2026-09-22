@@ -12,6 +12,7 @@ import '../core/snack.dart';
 import '../models/download_task.dart';
 import '../services/fm/ai_analyzer.dart';
 import '../services/fm/ai_index.dart';
+import '../services/fm/app_storage_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/incoming_files.dart';
 import '../widgets/fm/job_progress_bar.dart';
@@ -129,13 +130,20 @@ class _HomeScreenState extends State<HomeScreen> {
     // da düşer) ve oradan açılır. Bkz. [IncomingFiles].
     final messenger = ScaffoldMessenger.of(context);
     final strings = AppStrings.of(context);
+    // "Kalemle düzenle" (Chrome'un PDF kalem düğmesi) ile gelindiyse belge
+    // doğrudan kalem ekranında açılır — bkz. `PdfInkScreen`.
+    final edit = await AppStorageService.takeEditRequest();
     final kept = await IncomingFiles.keepIfFromBrowser(path);
     if (!mounted) return;
     if (kept != null && !kept.alreadyThere) {
       showSnackOn(messenger,
           strings.t('dl.from_browser', {'name': p.basename(kept.path)}));
     }
-    await EntryOpener.open(context, kept?.path ?? path);
+    final target = kept?.path ?? path;
+    // `startInk` yalnız PDF yüklenince uygulanır (görüntüleyicinin
+    // `onViewerReady`'si) — uzantısız önbellek adında da çalışsın diye
+    // burada uzantıya bakılmıyor.
+    await EntryOpener.open(context, target, startInk: edit);
   }
 
   @override

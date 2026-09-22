@@ -11215,3 +11215,31 @@ kullanıcıların kurulu PIN'lerini geçersiz kılardı.
    zaten kendi klasörlerinde; İndirilenler kopyalarla dolardı. Onlar için "İndir".
    Not: `MainActivity.kt` yerelde derlenmiyor (`tool/check_kotlin.sh` kapsamı dışı);
    değişiklik tek satırlık `referrer?.host`, CI derlemesinde doğrulanır.
+
+## 2026-09-22 (2) — Chrome'un PDF kalem düğmesi → bizim kalem ekranımız
+- **Kullanıcı:** Chrome PDF görüntüleyicisindeki kalem düğmesine basınca listede Edge
+  çıkıyor, biz çıkmıyorduk; "her türlü kalem düzenlemesi + kolay kaydetme" istendi.
+- **KÖK NEDEN (iki katman):** (1) o düğme (androidx.pdf `AnnotationUtils`)
+  `android.intent.action.ANNOTATE` + `application/pdf` gönderir, yalnız OKUMA izniyle;
+  manifestte yalnız VIEW vardı → listeye girmiyorduk. (2) `receive_sharing_intent`
+  yalnız VIEW/SEND/SEND_MULTIPLE işliyor → süzgeç eklense de dosya Dart'a ulaşmazdı.
+- **Çözüm:** manifest'e ANNOTATE + EDIT (pdf) süzgeci; `MainActivity.asViewIntent`
+  eylemi `super.onCreate`/`super.onNewIntent`'ten ÖNCE VIEW'a çevirir, isteği
+  `editRequest`'te tutar (`takeEditRequest`, okununca temizlenir; her başka intent
+  bayrağı düşürür). Dart: `EntryOpener.open(startInk:)` → `ViewerScreen.startInk` →
+  `onViewerReady`'de `PdfInkScreen`.
+- **`PdfInkScreen`** (yeni, `lib/screens/pdf_ink_screen.dart`): kalem / fosforlu
+  (çarpım karışımı, %35) / yazı (Carlito, Türkçe) / silgi (darbe bütün silinir) /
+  kaydır; geri al-yinele; iki parmak yakınlaştırır, ikinci parmak yarım darbeyi iptal
+  eder. İzler `applyPdfMarks` (`lib/services/pdf/pdf_markup.dart`) ile sayfa
+  içeriğine VEKTÖR yazılır (annotation değil: her görüntüleyicide/yazdırmada görünür).
+  Konum/kalınlık/yazı boyu sayfaya ORAN — zoom'dan bağımsız, kaydedince aynı kalınlık.
+  Kaydet: dosya özel önbellekteyse sorulmadan İndirilenler'e; değilse
+  `savePdfWithChoice`. Görüntüleyicinin alt çubuğunda "Kalem" düğmesi de var.
+- **Test yakaladı (telefonda çökecekti):** (a) metin penceresinin denetleyicisi
+  `showDialog` döner dönmez dispose ediliyordu → kapanış animasyonunda "used after
+  disposed"; pencere kendi StatefulWidget'ına taşındı. (b) Araç çubuğu 432 dp'de 53 px
+  taşıyordu (silgi ipucu) → sağ kısım `FittedBox`/`Expanded`. Test kancası:
+  `PdfInkScreen.testPageSizes` (pdfium'suz çizim).
+- **Tuzak:** Syncfusion'da eklenmiş sayfaya `page.rotation` atamak kalıcı olmuyor;
+  döndürülmüş test sayfası `doc.pageSettings.rotate` ile üretilir.

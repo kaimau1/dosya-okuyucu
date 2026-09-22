@@ -64,6 +64,13 @@ class MainActivity : FlutterActivity() {
      */
     private var launchReferrer: String? = null
 
+    /**
+     * Son intent bir **düzenleme/işaretleme** isteği miydi (`ANNOTATE` /
+     * `EDIT`)? Dart okuyunca temizlenir (`takeEditRequest`) ve PDF doğrudan
+     * kalem ekranında açılır. Bkz. [asViewIntent].
+     */
+    private var editRequest = false
+
     /** Dart tarafına olay ITMEK için (native → Dart). */
     private var channel: MethodChannel? = null
 
@@ -80,6 +87,8 @@ class MainActivity : FlutterActivity() {
     private var usbMass: UsbMass? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Eklentiler intent'i `super.onCreate` içinde okur → çeviri ÖNCE.
+        asViewIntent(intent)
         super.onCreate(savedInstanceState)
         launchAction = intent?.action
         launchReferrer = callerPackage()
@@ -90,6 +99,7 @@ class MainActivity : FlutterActivity() {
         // Eklentiler (`receive_sharing_intent`) intent'i `super` içinde işler;
         // gönderen uygulama ondan ÖNCE yazılsın ki Dart sorduğunda hazır olsun.
         launchReferrer = callerPackage()
+        asViewIntent(intent)
         super.onNewIntent(intent)
         // `singleTask`: uygulama açıkken USB takılıp seçilirse yeni intent
         // buradan gelir, `onCreate` bir daha çalışmaz.
@@ -109,6 +119,24 @@ class MainActivity : FlutterActivity() {
         if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
             channel?.invokeMethod("usbAttached", null)
         }
+    }
+
+    /**
+     * **Düzenleme isteğini görüntüleme isteğine çevirir.**
+     *
+     * Chrome'un PDF görüntüleyicisindeki kalem düğmesi
+     * `android.intent.action.ANNOTATE`, bazı uygulamalar `ACTION_EDIT`
+     * gönderir. `receive_sharing_intent` yalnız VIEW/SEND tanıyor — eylem
+     * olduğu gibi kalsa dosya Dart'a HİÇ ulaşmazdı. Eylem VIEW yapılır
+     * (veri ve okuma izni aynı kalır), "düzenle" isteği [editRequest]'te
+     * saklanır. Diğer her intent bayrağı düşürür: bayat bir istek sonraki
+     * sıradan açılışı kalem ekranına götürmesin.
+     */
+    private fun asViewIntent(intent: Intent?) {
+        val action = intent?.action
+        val edit = action == ACTION_ANNOTATE || action == Intent.ACTION_EDIT
+        editRequest = edit
+        if (edit) intent?.action = Intent.ACTION_VIEW
     }
 
     /** `android-app://com.android.chrome` → `com.android.chrome`. */
@@ -305,6 +333,14 @@ class MainActivity : FlutterActivity() {
                     // Temizlenmez: aynı paylaşımı hem ilk açılış hem akış
                     // sorabilir.
                     "launchReferrer" -> result.success(launchReferrer)
+
+                    // Düzenleme isteği (bkz. [asViewIntent]); okununca
+                    // temizlenir.
+                    "takeEditRequest" -> {
+                        val edit = editRequest
+                        editRequest = false
+                        result.success(edit)
+                    }
 
                     // **Android'in KENDİ birim listesi.**
                     "storageVolumes" -> result.success(storageVolumes())
@@ -1428,5 +1464,8 @@ class MainActivity : FlutterActivity() {
         const val MEDIA_CHANNEL = "dosya_okuyucu/media_session"
         const val FLOATING_CHANNEL = "dosya_okuyucu/floating"
         const val REQ_PICK_TREE = 7301
+
+        /** androidx.pdf'in kalem düğmesinin eylemi (SDK'da sabiti yok). */
+        const val ACTION_ANNOTATE = "android.intent.action.ANNOTATE"
     }
 }
