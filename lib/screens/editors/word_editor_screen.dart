@@ -12,6 +12,7 @@ import '../../core/theme.dart';
 import '../../core/undo_stack.dart';
 import '../../models/document.dart';
 import '../../services/fm/activity_log.dart';
+import '../../services/fm/save_to_downloads.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
@@ -19,6 +20,7 @@ import '../../widgets/docx_view.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/translate_flow.dart';
+import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
 
@@ -141,6 +143,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     } catch (e) {
       _snack(saveFailed.replaceAll('{error}', '$e'));
     }
+  }
+
+  /// Editörün o anki içeriğini İndirilenler'e yazar (bkz. [SaveToDownloads]).
+  Future<void> _download() async {
+    final editor = _editor;
+    if (editor == null) return;
+    await runDownloadAction(
+        context, () => SaveToDownloads.saveBytes(widget.name, editor.save()));
   }
 
   Future<void> _export() async {
@@ -453,6 +463,11 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                   editor == null ? null : _save),
               DocAction(Icons.share_outlined, context.t('common.share'),
                   editor == null ? null : _export),
+              // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
+              // İndirilenler'e (bkz. [SaveToDownloads]).
+              if (showDownloadAction(widget.path))
+                DocAction(Icons.download_outlined, context.t('common.download'),
+                    editor == null ? null : _download),
               DocAction(
                 Icons.translate,
                 context.t('common.translate'),

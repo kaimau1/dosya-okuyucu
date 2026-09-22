@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/snack.dart';
 import '../models/download_task.dart';
 import '../services/fm/ai_analyzer.dart';
 import '../services/fm/ai_index.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/incoming_files.dart';
 import '../widgets/fm/job_progress_bar.dart';
 import 'chat_screen.dart';
 import 'fm/browser_screen.dart';
@@ -121,7 +124,18 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
       return;
     }
-    await EntryOpener.open(context, path);
+    // Tarayıcıda açılan dosya yalnız özel önbelleğimizde kalıyordu ve
+    // kullanıcı onu bir daha bulamıyordu → İndirilenler'e (Yeni Dosyalar'a
+    // da düşer) ve oradan açılır. Bkz. [IncomingFiles].
+    final messenger = ScaffoldMessenger.of(context);
+    final strings = AppStrings.of(context);
+    final kept = await IncomingFiles.keepIfFromBrowser(path);
+    if (!mounted) return;
+    if (kept != null && !kept.alreadyThere) {
+      showSnackOn(messenger,
+          strings.t('dl.from_browser', {'name': p.basename(kept.path)}));
+    }
+    await EntryOpener.open(context, kept?.path ?? path);
   }
 
   @override

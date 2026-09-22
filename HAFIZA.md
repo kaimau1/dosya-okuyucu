@@ -11188,3 +11188,30 @@ kullanıcıların kurulu PIN'lerini geçersiz kılardı.
   `package:flutter/foundation.dart` içe aktarılmalı (analyze yakaladı).
 - PR yorumundaki "merge'ü yeni dalda yap" önerisi alınmadı: kural TEK DAL `main`;
   geri dönüş için git geçmişi + `v0.1.0-build-N` sürümleri yeterli.
+
+## 2026-09-22 — Üç kullanıcı isteği: sayfa numarası, "İndir", tarayıcıdan açılan PDF
+1. **PDF sayfa numarası geri kalıyordu (ekrana sığınca).** KÖK NEDEN: pdfrx güncel
+   sayfayı "kesişim / sayfanın kendi alanı" oranı en büyük olan diye seçiyor ve
+   EŞİTLİKTE İLKİNİ tutuyor. Birden çok sayfa tam göründüğünde hepsi %100 → hep en
+   üstteki; belgenin sonunda bile "8/10". Çözüm `lib/services/pdf/current_page.dart`
+   (`PdfViewerParams.calculateCurrentPageNumber`): tek sayfa öndeyse pdfrx ile
+   aynı; eşitlikte son ekranlık kaydırma boyunca adaylar sırayla gezilir, en sonda
+   son sayfa. "Sayfaya git"/arama/içindekiler/bağlantı hedefi (`_pdfJumpTarget`)
+   eşitlikte korunur, kullanıcı dokununca (`onInteractionStart`) düşer.
+   **Tuzak:** özel fonksiyon verilince pdfrx kendi `_gotoTargetPageNumber`
+   korumasını KULLANMIYOR — hedef korumasını biz tutmak zorundayız.
+2. **"İndir" düğmesi** (görüntüleyici + Word/Excel/Slayt editörleri):
+   `SaveToDownloads` → `Download/` köküne kopya; aynı ad + aynı içerik varsa ikinci
+   kopya yok, farklıysa `ad (1).pdf`. Düğme yalnız dosya kullanıcının göremediği
+   yerdeyse çıkar (`isPrivateCopy`: birim kökleri dışı ya da `Android/data`).
+   KÖK NEDEN: "Birlikte aç" dosyası `receive_sharing_intent` ile ÖZEL önbelleğe
+   kopyalanıyor; tek kalıcılaştırma yolu "Paylaş" dolambacıydı.
+3. **Tarayıcıdan açılan PDF kayboluyordu.** `MainActivity` artık
+   `Activity.getReferrer()`'ı tutuyor (`launchReferrer` kanal yöntemi; onNewIntent'te
+   `super`'den ÖNCE yazılıyor). `IncomingFiles.keepIfFromBrowser`: gönderen tarayıcıysa
+   ve dosya özel önbellekteyse İndirilenler'e kopyalanır ve ORADAN açılır → Yeni
+   Dosyalar'a düşer, işaretler/kaldığı sayfa kalıcı dosyaya bağlanır.
+   **Reddedilen yol:** her "Birlikte aç"ta otomatik kopya — WhatsApp/Gmail dosyaları
+   zaten kendi klasörlerinde; İndirilenler kopyalarla dolardı. Onlar için "İndir".
+   Not: `MainActivity.kt` yerelde derlenmiyor (`tool/check_kotlin.sh` kapsamı dışı);
+   değişiklik tek satırlık `referrer?.host`, CI derlemesinde doğrulanır.

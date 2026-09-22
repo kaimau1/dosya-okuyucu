@@ -54,6 +54,16 @@ class MainActivity : FlutterActivity() {
      */
     private var launchAction: String? = null
 
+    /**
+     * Bizi son açan uygulamanın paket adı (`Activity.getReferrer()`), ör.
+     * `com.android.chrome`. Dart tarafı "Birlikte aç" ile gelen dosyanın
+     * TARAYICIDAN gelip gelmediğini buradan anlar: tarayıcıda açılan PDF
+     * yalnız bizim özel önbelleğimize kopyalanıyor ve kullanıcı onu bir daha
+     * bulamıyordu (kullanıcı 2026-09-22) — tarayıcıdan gelen İndirilenler'e
+     * kaydediliyor. Bilinemezse null.
+     */
+    private var launchReferrer: String? = null
+
     /** Dart tarafına olay ITMEK için (native → Dart). */
     private var channel: MethodChannel? = null
 
@@ -72,10 +82,14 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launchAction = intent?.action
+        launchReferrer = callerPackage()
         MediaBridge.rememberPayload(intent?.getStringExtra(MediaBridge.EXTRA_PAYLOAD))
     }
 
     override fun onNewIntent(intent: Intent) {
+        // Eklentiler (`receive_sharing_intent`) intent'i `super` içinde işler;
+        // gönderen uygulama ondan ÖNCE yazılsın ki Dart sorduğunda hazır olsun.
+        launchReferrer = callerPackage()
         super.onNewIntent(intent)
         // `singleTask`: uygulama açıkken USB takılıp seçilirse yeni intent
         // buradan gelir, `onCreate` bir daha çalışmaz.
@@ -96,6 +110,14 @@ class MainActivity : FlutterActivity() {
             channel?.invokeMethod("usbAttached", null)
         }
     }
+
+    /** `android-app://com.android.chrome` → `com.android.chrome`. */
+    private fun callerPackage(): String? =
+        try {
+            referrer?.host
+        } catch (e: Exception) {
+            null
+        }
 
     /**
      * **Canlı USB/birim izleyicisi** — takılma anında Dart'a haber verir.
@@ -278,6 +300,11 @@ class MainActivity : FlutterActivity() {
                         launchAction = null
                         result.success(action)
                     }
+
+                    // Bizi son açan uygulama (bkz. [launchReferrer]).
+                    // Temizlenmez: aynı paylaşımı hem ilk açılış hem akış
+                    // sorabilir.
+                    "launchReferrer" -> result.success(launchReferrer)
 
                     // **Android'in KENDİ birim listesi.**
                     "storageVolumes" -> result.success(storageVolumes())

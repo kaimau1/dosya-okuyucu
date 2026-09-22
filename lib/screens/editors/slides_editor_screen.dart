@@ -13,6 +13,7 @@ import '../../core/text_search.dart';
 import '../../models/document.dart';
 import '../../services/conversion_service.dart';
 import '../../services/fm/activity_log.dart';
+import '../../services/fm/save_to_downloads.dart';
 import '../../services/ocr_service.dart' show OcrLine;
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
@@ -25,6 +26,7 @@ import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_canvas.dart';
 import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';
+import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
 import '../../core/snack.dart';
@@ -160,6 +162,14 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     } catch (e) {
       _snack(AppStrings.current.t('common.save_failed', {'error': e}));
     }
+  }
+
+  /// Editörün o anki içeriğini İndirilenler'e yazar (bkz. [SaveToDownloads]).
+  Future<void> _download() async {
+    final editor = _editor;
+    if (editor == null) return;
+    await runDownloadAction(
+        context, () => SaveToDownloads.saveBytes(widget.name, editor.save()));
   }
 
   Future<void> _export() async {
@@ -522,6 +532,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                     editor == null ? null : _exportPdf),
                 DocAction(Icons.share_outlined, context.t('common.share'),
                     editor == null ? null : _export),
+                // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
+                // İndirilenler'e (bkz. [SaveToDownloads]).
+                if (showDownloadAction(widget.path))
+                  DocAction(Icons.download_outlined, context.t('common.download'),
+                      editor == null ? null : _download),
                 DocAction(
                   Icons.translate,
                   context.t('common.translate'),

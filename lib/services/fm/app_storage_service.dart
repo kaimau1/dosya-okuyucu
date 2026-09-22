@@ -169,6 +169,18 @@ abstract final class AppStorageService {
     }
   }
 
+  /// Bizi son açan uygulamanın paket adı (ör. `com.android.chrome`).
+  ///
+  /// "Birlikte aç" ile gelen dosyanın tarayıcıdan gelip gelmediğini anlamak
+  /// için — bkz. `IncomingFiles`. Kanal yoksa ya da Android söylemezse null.
+  static Future<String?> launchReferrer() async {
+    try {
+      return await _channel.invokeMethod<String>('launchReferrer');
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Uygulama bir **USB bellek takılması** yüzünden mi açıldı?
   static Future<bool> launchedByUsb() async =>
       await launchAction() == usbAttachedAction;

@@ -32,6 +32,8 @@ import '../services/fm/entry_opener.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
+import '../services/fm/save_to_downloads.dart';
+import '../services/pdf/current_page.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
@@ -41,6 +43,7 @@ import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
+import '../widgets/download_action.dart';
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/ai_slides_flow.dart';
 import '../widgets/doc_action_bar.dart';
@@ -87,6 +90,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   // Görüntüleme durumu (okuma konforu).
   int _pdfPage = 1;
+
+  /// Az önce kodla gidilen sayfa ("sayfaya git", arama, içindekiler,
+  /// bağlantı). Birden çok sayfa ekrana tam sığdığında rozet bu sayfayı
+  /// göstersin diye tutulur; kullanıcı ekrana dokununca düşer
+  /// (bkz. [currentPdfPage]).
+  int? _pdfJumpTarget;
 
   /// Belgenin sayfa sayısı (`onViewerReady`'de okunur).
   int _pdfCount = 0;
@@ -383,6 +392,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         label: context.t('vw.restart_doc'),
         onPressed: () {
           ReadingPositions.clear(widget.doc.path);
+          _pdfJumpTarget = 1;
           _pdfController.goToPage(pageNumber: 1);
         },
       ),
@@ -630,10 +640,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
         final o = _ocrSearch!;
         o.currentIndex = e.index; // vurgu turuncuya döner
         final m = o.matches[e.index];
+        _pdfJumpTarget = m.pageNumber;
         _pdfController.goToRectInsidePage(
             pageNumber: m.pageNumber, rect: m.bounds);
       } else {
         _ocrSearch?.currentIndex = -1;
+        _pdfJumpTarget = e.page;
         _pdfSearcher?.goToMatchOfIndex(e.index);
       }
       return;
@@ -1075,6 +1087,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Paylaş / yazdır: PDF'te GÖRÜLEN hâli gönderilir — bekleyen düzenlemeler
   /// çalışma kopyasındadır, özgün dosya henüz eski hâlindedir.
+  /// Dosyayı İndirilenler'e kopyalar. Bekleyen düzenleme varsa önce sorulur
+  /// (kaydedilmeyen işaretler kopyaya girmezdi).
+  Future<void> _download() async {
+    if (!await _confirmLeavePending() || !mounted) return;
+    if (_dirty && widget.doc.isEditableText) await _save();
+    if (!mounted) return;
+    await runDownloadAction(
+        context, () => SaveToDownloads.saveFile(widget.doc.path));
+  }
+
   Future<void> _share() async {
     await Share.shareXFiles([XFile(widget.doc.path)]);
   }
@@ -1651,6 +1673,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
       DocAction(
           Icons.translate, context.t('common.translate'), _translateDocument),
       DocAction(Icons.share_outlined, context.t('common.share'), _share),
+      // Başka uygulamadan açılan dosya özel önbellekte duruyor; paylaş
+      // dolambacı olmadan İndirilenler'e (bkz. [SaveToDownloads]).
+      if (showDownloadAction(widget.doc.path))
+        DocAction(Icons.download_outlined, context.t('common.download'),
+            _download),
       if (!isImage) DocAction(Icons.print_outlined, context.t('vw.print'), _print),
     ]);
   }
@@ -1890,6 +1917,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final linkFailedE = context.t('vw.link_failed_e');
     final dest = link.dest;
     if (dest != null) {
+      _pdfJumpTarget = dest.pageNumber;
       await _pdfController.goToDest(dest);
       return;
     }
@@ -1963,6 +1991,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   ? null
                   : () {
                       Navigator.pop(ctx);
+                      _pdfJumpTarget = node.dest!.pageNumber;
                       _pdfController.goToDest(node.dest);
                     },
             );
@@ -2522,6 +2551,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
     await _goToPdfPage(page.clamp(1, count), count);
   }
 
+  /// pdfrx'in güncel sayfa tahmini yerine bizimki (bkz. [currentPdfPage]).
+  int? _currentPdfPage(
+    Rect visibleRect,
+    List<Rect> pageRects,
+    PdfViewerController controller,
+  ) =>
+      currentPdfPage(
+        visibleRect: visibleRect,
+        pageRects: pageRects,
+        preferred: _pdfJumpTarget,
+      );
+
   /// pdfrx'in o an bildirdiği sayfa (bağlı değilse null).
   int? _livePdfPage() {
     try {
@@ -2594,6 +2635,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// sürüyor) pdfrx null denetimiyle FIRLATIR — bu yakalanmazsa ekranda hiçbir
   /// şey olmuyor ve düğme bozuk sanılıyordu.
   Future<bool> _tryGoToPage(int target, {required bool animate}) async {
+    _pdfJumpTarget = target;
     try {
       await _pdfController.goToPage(
         pageNumber: target,
@@ -2753,6 +2795,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                   // düzeni kullanılır — gereksiz yere devralmıyoruz.
                   layoutPages: _pdfColumns == 1 ? null : _layoutPdfColumns,
+                  // Güncel sayfa: sayfalar ekrana sığınca rozet geri
+                  // kalıyordu (bkz. [currentPdfPage]).
+                  calculateCurrentPageNumber: _currentPdfPage,
+                  // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
+                  // tercihi artık geçerli değil.
+                  onInteractionStart: (_) => _pdfJumpTarget = null,
                   // Arama eşleşmelerini sayfada vurgula: metin katmanı
                   // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                   // (Faz 2) — renkler aynı, kullanıcı fark görmez.

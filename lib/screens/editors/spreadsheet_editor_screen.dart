@@ -21,6 +21,7 @@ import '../../core/sheet_text_measure.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../services/fm/activity_log.dart';
+import '../../services/fm/save_to_downloads.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
@@ -33,6 +34,7 @@ import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/sheet_cell.dart';
 import '../../widgets/translate_flow.dart';
+import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
 
@@ -973,6 +975,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     }
   }
 
+  /// Editörün o anki içeriğini İndirilenler'e yazar (bkz. [SaveToDownloads]).
+  /// Eski `.xls` açıldıysa içerik `.xlsx`tir; ad da kaydetme hedefinden.
+  Future<void> _download() async {
+    _endEdit();
+    final editor = _editor;
+    if (editor == null) return;
+    final name = widget.savePath == null
+        ? widget.name
+        : p.basename(widget.savePath!);
+    await runDownloadAction(
+        context, () => SaveToDownloads.saveBytes(name, editor.save()));
+  }
+
   Future<void> _export() async {
     final editor = _editor;
     if (editor == null) return;
@@ -1156,6 +1171,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                 editor == null ? null : _save),
             DocAction(Icons.share_outlined, context.t('common.share'),
                 editor == null ? null : _export),
+            // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
+            // İndirilenler'e (bkz. [SaveToDownloads]).
+            if (showDownloadAction(widget.savePath ?? widget.path))
+              DocAction(Icons.download_outlined, context.t('common.download'),
+                  editor == null ? null : _download),
             DocAction(Icons.table_view_outlined, 'CSV',
                 editor == null ? null : _exportCsv),
             DocAction(
