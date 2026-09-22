@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:path/path.dart' as p;
@@ -2541,7 +2542,7 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RingPainter old) =>
-      old.slices != slices ||
+      !listEquals(old.slices, slices) ||
       old.total != total ||
       old.trackColor != trackColor ||
       old.strokeWidth != strokeWidth;

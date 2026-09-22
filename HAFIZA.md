@@ -11178,3 +11178,13 @@ Zaten ağaçtaydı (3.0.7, dolaylı). Doğrudan kullandığımız için pubspec'
 açıkça yazıldı: dolaylı bir paketin bir gün ağaçtan düşmesi derlemeyi
 kırardı. Klasör kilidinin kendi FNV-1a özeti DEĞİŞTİRİLMEDİ — değiştirmek
 kullanıcıların kurulu PIN'lerini geçersiz kılardı.
+
+## 2026-09-22 — PR #51 (melihsenel38): dilimli doluluk halkası alındı
+- Pano birim kartındaki tek renkli `CircularProgressIndicator` → `_RingPainter`
+  (kategorilere göre dilimli halka, alttaki `_breakdownBar` ile aynı renkler).
+- Eklenen düzeltme: `shouldRepaint` `old.slices != slices` diyordu; liste her
+  build'de yeniden kurulduğu için daima true → `listEquals` ile içerik karşılaştırması.
+  **Tuzak:** `listEquals` `material.dart` üzerinden gelmiyor, ayrıca
+  `package:flutter/foundation.dart` içe aktarılmalı (analyze yakaladı).
+- PR yorumundaki "merge'ü yeni dalda yap" önerisi alınmadı: kural TEK DAL `main`;
+  geri dönüş için git geçmişi + `v0.1.0-build-N` sürümleri yeterli.
