@@ -317,6 +317,7 @@ class _SearchScreenState extends State<SearchScreen> {
         actions: [
           if (_controller.text.isNotEmpty)
             IconButton(
+              tooltip: context.t('common.clear'),
               icon: const Icon(Icons.clear),
               onPressed: () {
                 _controller.clear();
@@ -386,6 +387,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
+          tooltip: context.t('common.clear_selection'),
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
         ),

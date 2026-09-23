@@ -606,6 +606,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   PreferredSizeWidget _searchBar() => AppBar(
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: const Icon(Icons.arrow_back),
           onPressed: () => setState(() {
             _searching = false;
@@ -621,6 +622,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
         actions: [
           if (_query.isNotEmpty)
             IconButton(
+              tooltip: context.t('common.clear'),
               icon: const Icon(Icons.clear),
               onPressed: () => setState(() {
                 _query = '';
@@ -639,6 +641,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
           List<FsEntry> visible, List<FsEntry> selectedEntries) =>
       AppBar(
         leading: IconButton(
+          tooltip: context.t('common.clear_selection'),
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
         ),

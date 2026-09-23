@@ -187,6 +187,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
       appBar: AppBar(
         leading: _searching
             ? IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => setState(() {
                   _searching = false;

@@ -743,10 +743,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
               ),
               IconButton(
+                tooltip: context.t('common.previous'),
                 icon: const Icon(Icons.keyboard_arrow_up),
                 onPressed: _hitCount == 0 ? null : () => _stepHit(-1),
               ),
               IconButton(
+                tooltip: context.t('common.next'),
                 icon: const Icon(Icons.keyboard_arrow_down),
                 onPressed: _hitCount == 0 ? null : () => _stepHit(1),
               ),
@@ -757,6 +759,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 onPressed: () => setState(() => _replacing = !_replacing),
               ),
               IconButton(
+                tooltip: context.t('common.close'),
                 icon: const Icon(Icons.close),
                 onPressed: _toggleFind,
               ),

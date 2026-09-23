@@ -525,6 +525,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
   /// `canWrite`e bağlıydı ve NTFS bir diskte uzun basış hiçbir şey yapmıyordu.
   AppBar _selectionAppBar() => AppBar(
         leading: IconButton(
+          tooltip: context.t('common.clear_selection'),
           icon: const Icon(Icons.close),
           onPressed: () => setState(_selected.clear),
         ),

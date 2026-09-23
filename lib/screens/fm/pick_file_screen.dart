@@ -319,6 +319,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
                   suffixIcon: _search.text.isEmpty
                       ? null
                       : IconButton(
+                          tooltip: context.t('common.clear'),
                           icon: const Icon(Icons.clear),
                           onPressed: () {
                             _search.clear();

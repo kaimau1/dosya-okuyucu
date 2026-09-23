@@ -181,6 +181,13 @@ const Map<String, (String, String, String)> _table = {
   'common.retry': ('Yeniden dene', 'Retry', 'إعادة المحاولة'),
   'common.rescan': ('Yeniden tara', 'Rescan', 'إعادة الفحص'),
   'common.clear': ('Temizle', 'Clear', 'مسح'),
+  'common.clear_selection': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
+  'common.send': ('Gönder', 'Send', 'إرسال'),
+  'common.remove_bookmark': (
+    'Yer imini kaldır',
+    'Remove bookmark',
+    'إزالة الإشارة المرجعية',
+  ),
   'common.new': ('Yeni', 'New', 'جديد'),
   'common.oldest': ('en eski', 'oldest', 'الأقدم'),
   'common.best': ('en iyi', 'best', 'الأفضل'),

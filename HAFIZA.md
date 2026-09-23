@@ -11325,3 +11325,58 @@ Cihazda bakılacaklar: (a) müzik çalarken bildirim çubuğu akıyor mu, sarın
 hız değişince doğru yere atlıyor mu, kilit ekranından "10 sn ileri" ileri mi
 gidiyor, (b) parça değişince bildirim kapağı değişiyor mu, (c) fotoğraflı bir
 sunum PDF'e aktarılınca görseller duruyor mu.
+
+## 2026-09-23 (2) — Tasarım denetimi: veri güvenliği, disk düzeni, erişilebilirlik
+Kullanıcı: *"başka tasarımsal değerlendirmeler yap tüm alanlarda olabilir
+düzenle ve main'e pushla apk derlet"*. (Bir önceki kayıttaki RAM/pil turu da
+bu push'la main'e alındı.)
+
+### A) VERİ GÜVENLİĞİ — kaydedilmemiş PDF düzenlemesi, çökmede dosyada KALIYORDU
+Görüntüleyici PDF düzenlemelerini ÖZGÜN dosyanın üstüne yazıyor, özgünü
+geçici yedekte tutup yalnız `dispose`ta geri yazıyordu. Süreç öldürülürse
+(düşük bellek, çökme) `dispose` çalışmaz: kullanıcının dosyası KAYDETMEDİĞİ
+düzenlemelerle kalıyor, yedek de geçici klasörde sahipsiz.
+- `PdfEditJournal` (`services/fm/pdf_edit_journal.dart`): ilk yazıştan önce
+  `özgün → yedek` kaydı; düzgün kapanınca ve "üzerine yaz" seçilince silinir.
+  Açılışta (`TempSweep.runOnce` → `recover`) kalan kayıtlar geri yüklenir.
+- **TUZAK — canlı oturum:** uygulama bir PDF'le açılıp açılış işleri bitmeden
+  düzenleme başlarsa günlükte o kayıt olur; `recover` onu ezmemeli. Süreç
+  içi `_live` kümesi bu yüzden var.
+- Özgün yedekten ESKİYSE geri yazılmaz (üstüne biz yazmamışız demek).
+- **"Üzerine yaz"da günlük silinmeli:** yoksa çökme sonrası kaydedilmiş
+  düzenleme GERİ alınırdı.
+- Yedek ve geri yazma artık `File.copy` (eskiden `readAsBytes` →
+  `writeAsBytes`: büyük PDF'te PDF boyu Dart belleği + `dispose`ta ana
+  izlekte senkron okuma). PDF düzenleyicinin çalışma kopyası ve her geri
+  alma noktası da aynı şekilde.
+
+### B) Disk düzeni — `DiskCache` + `TempSweep` (`services/fm/disk_housekeeping.dart`)
+- **PDF kapak önbelleğinin HİÇ sınırı yoktu** (her PDF'in her sürümü/boyu
+  yeni dosya). Artık 400.
+- Video küçük resmi (600) ve APK simgesi (200) budamaları sıralama
+  karşılaştırıcısının İÇİNDE `statSync` çağırıyordu (600 dosyada ~12 000
+  sistem çağrısı, ANA izlekte, ilk küçük resim anında). Ortak `DiskCache`:
+  dosya başına tek `stat`, izolatta.
+- **Geçici dosyalar hiç silinmiyordu:** taramada her düzeltme/döndürme/filtre
+  YENİ dosya yazıyor (görsel önbelleği yüzünden bilerek), OCR sayfa PNG'leri,
+  düzenleyici kopyaları, arşiv önizlemeleri, gönderme ZIP'leri. `TempSweep`
+  açılıştan 20 sn sonra izolatta, **yalnız ad kalıbıyla bizim olduğunu
+  tanıdığı** ve 3 günden eski girdileri siler. **Bilinçli:** geçici klasördeki
+  eklenti dosyalarına (paylaşılan dosya kopyası, seçici önbelleği) dokunulmaz
+  — "son açılanlar" onlara işaret edebilir.
+- Klasörün yaşı İÇİNDEKİ en yeni dosyadır (süren düzenleme oturumu genç
+  kalsın). Not: Dart'ta klasörün `setLastModified`i YOK — testler de bu
+  yüzden dosya zamanıyla kuruluyor.
+
+### C) Erişilebilirlik — 33 simge düğmesinde `tooltip` yoktu
+TalkBack'te yalnız "düğme" okunuyor, uzun basınca bir şey söylemiyordu (bul
+çubuğu önceki/sonraki, seçimi kaldır, geri, temizle, oynat/duraklat, gönder,
+daha fazla…). Geri/daha fazla için Flutter'ın kendi yerelleştirilmiş
+metinleri (`MaterialLocalizations`), kalanlar için yeni `common.clear_selection`,
+`common.send`, `common.remove_bookmark`. **Bekçi:** `icon_button_tooltip_test`
+kaynağı tarıyor; `Semantics(label:)` ile sarılı düğme (mini oynatıcı) kabul.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, tüm takım yeşil
+(+11 test: `disk_housekeeping_test`, `icon_button_tooltip_test`).
+Cihazda bakılacak: görüntüleyicide bir PDF'e vurgu ekleyip kaydetmeden
+uygulamayı görev yöneticisinden öldür → yeniden açınca dosya özgün hâlinde mi.

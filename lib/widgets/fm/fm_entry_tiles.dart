@@ -68,15 +68,19 @@ class FmEntryListTile extends StatelessWidget {
       // Boyut + yol monospace: alt alta gelen boyutlar hizalanıyor ve uzun
       // yollarda rakam/eğik çizgi karışmıyor (2026-08-04 kağıt teması).
       subtitle: MonoText(subtitle),
-      trailing: _trailing(scheme),
+      trailing: _trailing(context, scheme),
       onTap: onTap,
     );
   }
 
-  Widget? _trailing(ColorScheme scheme) {
+  Widget? _trailing(BuildContext context, ColorScheme scheme) {
     final more = onMore == null
         ? null
-        : IconButton(icon: const Icon(Icons.more_vert), onPressed: onMore);
+        : IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+            onPressed: onMore,
+          );
     if (showChevron && entry.isDir && !selecting) {
       return Row(
         mainAxisSize: MainAxisSize.min,

@@ -380,6 +380,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     onPressed: () => _seekBy(-10),
                   ),
                   IconButton(
+                    tooltip: context.t(_playing ? 'mp.pause' : 'mp.play'),
                     iconSize: 56,
                     icon:
                         Icon(_playing ? Icons.pause_circle : Icons.play_circle),

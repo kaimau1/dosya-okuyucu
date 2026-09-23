@@ -923,6 +923,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
                   onTap: () => _push(BrowserScreen(path: path)),
                   trailing: IconButton(
+                    tooltip: context.t('common.remove_bookmark'),
                     icon: const Icon(Icons.close),
                     onPressed: () => appState.toggleBookmark(path),
                   ),

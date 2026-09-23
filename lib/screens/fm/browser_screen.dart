@@ -659,6 +659,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   PreferredSizeWidget _selectionBar(BuildContext context, List<FsEntry> visible) {
     return AppBar(
       leading: IconButton(
+        tooltip: context.t('common.clear_selection'),
         icon: const Icon(Icons.close),
         onPressed: () => setState(_selected.clear),
       ),

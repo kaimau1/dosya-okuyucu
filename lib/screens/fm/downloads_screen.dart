@@ -138,6 +138,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       appBar: _selecting
           ? AppBar(
               leading: IconButton(
+                tooltip: context.t('common.clear_selection'),
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(_selected.clear),
               ),
@@ -163,6 +164,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           : _searching
               ? AppBar(
                   leading: IconButton(
+                    tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () => setState(() {
                       _searching = false;

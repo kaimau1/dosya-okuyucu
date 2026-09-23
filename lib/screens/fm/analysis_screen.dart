@@ -322,6 +322,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       appBar: _selecting
           ? AppBar(
               leading: IconButton(
+                tooltip: context.t('common.clear_selection'),
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(_selected.clear),
               ),
@@ -582,6 +583,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               trailing: _selecting
                   ? null
                   : IconButton(
+                      tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
                       icon: const Icon(Icons.more_vert),
                       onPressed: () async {
                         await showEntryActions(
@@ -684,6 +686,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           suffixIcon: _query.isEmpty
               ? null
               : IconButton(
+                  tooltip: context.t('common.clear'),
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();

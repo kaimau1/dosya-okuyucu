@@ -919,6 +919,7 @@ class _DriveScreenState extends State<DriveScreen> {
             // metni tek tek silmeden bulunduğu klasöre dönemezdi.
             suffixIcon: _searching
                 ? IconButton(
+                    tooltip: context.t('common.clear'),
                     icon: const Icon(Icons.close),
                     onPressed: () {
                       _searchController.clear();

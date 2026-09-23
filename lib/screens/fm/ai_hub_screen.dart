@@ -527,6 +527,7 @@ class _ChatTabState extends State<_ChatTab> {
                 ),
                 const SizedBox(width: Gap.sm),
                 IconButton.filled(
+                  tooltip: context.t('common.send'),
                   onPressed: _busy ? null : _send,
                   icon: const Icon(Icons.send),
                 ),

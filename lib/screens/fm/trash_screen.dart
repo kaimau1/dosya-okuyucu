@@ -202,6 +202,7 @@ class _TrashScreenState extends State<TrashScreen> {
       appBar: _searching
           ? AppBar(
               leading: IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => setState(() {
                   _searching = false;

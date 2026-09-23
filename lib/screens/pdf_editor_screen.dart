@@ -144,9 +144,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     try {
       final dir = await Directory.systemTemp.createTemp('pdf_editor');
       final work = p.join(dir.path, p.basename(widget.path));
-      await File(work).writeAsBytes(
-          await File(widget.path).readAsBytes(),
-          flush: true);
+      // `copy`: dosya Dart belleğine alınmadan kopyalanır (2026-09-23).
+      await File(widget.path).copy(work);
       if (!mounted) return;
       setState(() {
         _workDir = dir;
@@ -232,8 +231,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   Future<void> _apply(List<int> bytes, String note) async {
     final path = _workPath!;
     final snapshot = p.join(_workDir!.path, 'undo_${_undo.length}.pdf');
-    await File(snapshot).writeAsBytes(await File(path).readAsBytes(),
-        flush: true);
+    // Geri alma noktası: her adımda bütün PDF'i belleğe okuyup yazmak yerine
+    // çekirdek kopyası (büyük belgede adım başına bir PDF boyu bellek).
+    await File(path).copy(snapshot);
     _undo.add(snapshot);
 
     await File(path).writeAsBytes(bytes, flush: true);
@@ -247,8 +247,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   Future<void> _undoLast() async {
     if (_undo.isEmpty) return;
     final snapshot = _undo.removeLast();
-    await File(_workPath!)
-        .writeAsBytes(await File(snapshot).readAsBytes(), flush: true);
+    await File(snapshot).copy(_workPath!);
     await PdfReload.reloadFile(_workPath!);
     if (!mounted) return;
     setState(() => _dirty = _undo.isNotEmpty);

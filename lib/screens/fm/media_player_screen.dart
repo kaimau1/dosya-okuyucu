@@ -917,6 +917,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                     onPressed: () => _seekBy(-10),
                   ),
                   IconButton(
+                    tooltip: context.t(value.isPlaying ? 'mp.pause' : 'mp.play'),
                     iconSize: 48,
                     color: Colors.white,
                     icon: Icon(value.isPlaying

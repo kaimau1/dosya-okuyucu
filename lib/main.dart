@@ -18,6 +18,7 @@ import 'screens/fm/remote/ftp_server_screen.dart';
 import 'screens/fm/resize_actions.dart';
 import 'screens/fm/pick_file_screen.dart';
 import 'screens/home_screen.dart';
+import 'services/fm/disk_housekeeping.dart';
 import 'services/fm/file_tags.dart';
 import 'services/fm/fm_env.dart';
 import 'services/fm/job_notifications.dart';
@@ -162,6 +163,9 @@ Future<void> main() async {
 Future<void> _restoreJobs() async {
   try {
     await FmEnv.ensureInit();
+    // Yarıda kalmış PDF düzenlemesini geri yükle + eski geçici dosyaları
+    // süpür (bkz. PdfEditJournal, TempSweep). Beklenmez.
+    unawaited(TempSweep.runOnce());
     JobQueue.instance.restore(await JobStore.load());
     // "Kaldığın yerden devam" kaydı da burada yükleniyor: oynatıcı açılana
     // kadar zaman var ve açılışta diskten okumak ilk kareyi geciktirmesin.

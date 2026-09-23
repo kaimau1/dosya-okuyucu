@@ -5,6 +5,8 @@ import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'disk_housekeeping.dart';
+
 /// Video küçük resimlerini üretir ve **diskte** önbelleğe alır.
 ///
 /// *Niye disk önbelleği:* küçük resim çıkarmak (native MediaMetadataRetriever)
@@ -107,20 +109,13 @@ abstract final class ThumbnailCache {
     }
   }
 
-  /// Önbellek sınırı: 600 dosyayı aşınca en eskiler silinir (oturumda bir kez).
+  /// Önbellek sınırı: 600 dosyayı aşınca en eskiler silinir (oturumda bir
+  /// kez, izolatta — bkz. [DiskCache]).
+  static const cacheLimit = 600;
+
   static Future<void> _prune(Directory dir) async {
     if (_pruned) return;
     _pruned = true;
-    try {
-      final files = dir.listSync().whereType<File>().toList();
-      if (files.length <= 600) return;
-      files.sort((a, b) =>
-          a.statSync().modified.compareTo(b.statSync().modified));
-      for (final f in files.take(files.length - 600)) {
-        try {
-          f.deleteSync();
-        } catch (_) {}
-      }
-    } catch (_) {}
+    await DiskCache.prune(dir.path, cacheLimit);
   }
 }

@@ -29,6 +29,7 @@ import '../services/conversion_service.dart';
 import '../services/doc_translate.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/pdf_edit_journal.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
@@ -482,9 +483,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (_pdfBackupPath == null) {
       final dir = await Directory.systemTemp.createTemp('dosya_okuyucu_edit');
       final backup = p.join(dir.path, p.basename(widget.doc.path));
-      await File(backup)
-          .writeAsBytes(await File(widget.doc.path).readAsBytes(), flush: true);
+      // `copy`: dosya Dart belleğine alınmadan çekirdekte kopyalanır (80 MB'lık
+      // bir PDF'te eskiden 80 MB'lık geçici bir bayt dizisi oluşuyordu).
+      await File(widget.doc.path).copy(backup);
       _pdfBackupPath = backup;
+      // Uygulama bu ekrandayken öldürülürse `dispose` çalışmaz; günlük,
+      // açılışta özgünün geri yüklenmesini sağlar (bkz. PdfEditJournal).
+      PdfEditJournal.add(widget.doc.path, backup);
     }
     await File(widget.doc.path).writeAsBytes(bytes, flush: true);
     if (!mounted) return;
@@ -506,15 +511,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
     try {
       final file = File(backup);
       if (!_pdfKeepEdits && file.existsSync()) {
-        File(widget.doc.path).writeAsBytesSync(file.readAsBytesSync(),
-            flush: true);
+        // Belleğe almadan çekirdek kopyası (bkz. `_writePending`).
+        file.copySync(widget.doc.path);
       }
       if (file.existsSync()) file.deleteSync();
       final dir = file.parent;
       if (dir.existsSync() && dir.listSync().isEmpty) dir.deleteSync();
+      PdfEditJournal.remove(widget.doc.path);
     } catch (_) {
-      // Yedek geri yazılamadı — dosya kilitli olabilir; kullanıcıya
-      // gösterilecek bir şey yok, belge zaten ekranda göründüğü gibi.
+      // Yedek geri yazılamadı — dosya kilitli olabilir; günlük kaydı KALIR
+      // ve bir sonraki açılışta yeniden denenir.
     }
   }
 
@@ -544,7 +550,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (outcome == null) return false;
     // "Üzerine yaz" ise dosya zaten güncel — yedek atılır. Kopya/klasör
     // seçildiyse özgün belge ekrandan çıkarken eski hâline döndürülür.
-    if (outcome.overwritten) _pdfKeepEdits = true;
+    if (outcome.overwritten) {
+      _pdfKeepEdits = true;
+      // Kullanıcı kaydetti: çökme sonrası geri yükleme artık YANLIŞ olur
+      // (kaydettiği düzenlemeyi geri alırdı).
+      PdfEditJournal.remove(widget.doc.path);
+    }
     if (mounted) setState(() => _pdfDirty = false);
     return true;
   }

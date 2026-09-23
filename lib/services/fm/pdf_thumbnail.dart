@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import 'disk_housekeeping.dart';
 import 'thumbnail_cache.dart';
 
 /// PDF'in **ilk sayfasını** küçük resim olarak üretir ve diskte önbelleğe alır.
@@ -33,6 +34,9 @@ abstract final class PdfThumbnail {
 
   static Directory? _dir;
 
+  /// Diskte tutulan en çok kapak sayısı.
+  static const cacheLimit = 400;
+
   /// Yalnız test: durumu sıfırlar.
   static void debugReset() {
     _inFlight.clear();
@@ -59,6 +63,10 @@ abstract final class PdfThumbnail {
     final dir = Directory(p.join(base.path, 'pdf_thumbs'));
     if (!dir.existsSync()) await dir.create(recursive: true);
     _dir = dir;
+    // **Sınır** (2026-09-23): bu önbelleğin hiç budaması yoktu; her PDF'in
+    // her sürümü/boyu yeni dosya olarak sonsuza dek birikiyordu. Oturumda
+    // bir kez, izolatta.
+    unawaited(DiskCache.prune(dir.path, cacheLimit));
     return dir;
   }
 

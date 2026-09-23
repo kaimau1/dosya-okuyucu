@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'apk_resources.dart';
+import 'disk_housekeeping.dart';
 import 'thumbnail_cache.dart';
 import 'vector_drawable.dart';
 
@@ -189,23 +190,8 @@ abstract final class ApkIcon {
   static const _cacheLimit = 200;
 
   static void _pruneCache(Directory dir) {
-    try {
-      final files = dir
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.png'))
-          .toList();
-      if (files.length <= _cacheLimit) return;
-      files.sort((a, b) =>
-          a.statSync().modified.compareTo(b.statSync().modified));
-      for (final file in files.take(files.length - _cacheLimit)) {
-        try {
-          file.deleteSync();
-        } catch (_) {}
-      }
-    } catch (_) {
-      // Budanamadı: önbellek biraz büyük kalır, işlev bozulmaz.
-    }
+    // İzolatta ve dosya başına tek `stat` (bkz. [DiskCache]).
+    unawaited(DiskCache.prune(dir.path, _cacheLimit, extension: '.png'));
   }
 
   static void _markFailed(String path) {

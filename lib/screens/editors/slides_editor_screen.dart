@@ -621,16 +621,19 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
                 IconButton(
+                  tooltip: context.t('common.previous'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.keyboard_arrow_up),
                   onPressed: _hits.isEmpty ? null : () => _stepHit(-1),
                 ),
                 IconButton(
+                  tooltip: context.t('common.next'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.keyboard_arrow_down),
                   onPressed: _hits.isEmpty ? null : () => _stepHit(1),
                 ),
                 IconButton(
+                  tooltip: context.t('common.close'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.close),
                   onPressed: _toggleFind,
