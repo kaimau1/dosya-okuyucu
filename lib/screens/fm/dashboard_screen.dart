@@ -396,8 +396,21 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Uygulama arka plandayken takılan bellek de görülsün; izleme arka
       // planda durduruluyor (boşuna pil harcamasın).
       _volumes.start();
-      unawaited(_volumes.rescan());
-      unawaited(_loadSafRoots());
+      // **Birim taraması kısıtlı** (2026-09-23 pil denetimi): `resumed`
+      // yalnız arkadan dönüşte değil, bildirim perdesi çekilip bırakılınca,
+      // izin ya da paylaşım penceresi kapanınca da geliyor. Her birinde
+      // birim başına `df` süreci + SAF/USB kanal çağrıları yapılıyordu.
+      // Uygulama gerçekten arkaya gittiyse her zaman; yoksa en çok
+      // [_resumeRescanEvery]'de bir. (Takılma/çıkarma zaten canlı yayınla
+      // ve 5 sn'lik yoklamayla ayrıca yakalanıyor.)
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (_wentBackground ||
+          now - _lastResumeRescanMs >= _resumeRescanEvery.inMilliseconds) {
+        _lastResumeRescanMs = now;
+        unawaited(_volumes.rescan());
+        unawaited(_loadSafRoots());
+      }
+      _wentBackground = false;
       // Uygulama AÇIKKEN USB takılıp "Dosya Okuyucu ile aç" seçilirse
       // Android yeni bir intent gönderir (singleTask) ve `initState`
       // çalışmaz — eylemi burada da soruyoruz. Eylem okununca native
@@ -406,10 +419,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Yüzen video penceresi uygulama kapalıyken kapatılmış olabilir:
       // konumu al ki uygulama içi oynatıcı kaldığı yerden sürsün.
       unawaited(VideoPlayback.instance.syncFloating());
-    } else if (state == AppLifecycleState.paused) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _wentBackground = true;
       _volumes.stop();
     }
   }
+
+  /// Uygulama `hidden`/`paused`a düştü mü (yalnız `inactive` değil)?
+  bool _wentBackground = false;
+  int _lastResumeRescanMs = 0;
+  static const _resumeRescanEvery = Duration(seconds: 15);
 
   @override
   void didUpdateWidget(covariant DashboardScreen old) {

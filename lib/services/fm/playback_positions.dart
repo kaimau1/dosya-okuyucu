@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
@@ -121,10 +122,23 @@ abstract final class PlaybackPositions {
     if (_byPath.remove(path) != null) _scheduleSave();
   }
 
+  /// **Kısma, erteleme DEĞİL** (2026-09-23 denetimi). Eskiden her kayıtta
+  /// zamanlayıcı iptal edilip yeniden kuruluyordu; konum saniyede birkaç kez
+  /// geldiği için çalma sürdükçe zamanlayıcı HİÇ dolmuyordu — iki saatlik bir
+  /// sesli kitap boyunca diske tek satır yazılmıyor, süreç öldürülürse konum
+  /// kayboluyordu (üstelik saniyede birkaç zamanlayıcı kurulup atılıyordu).
+  /// Artık bekleyen bir yazma varsa yenisi kurulmuyor: çalarken en çok
+  /// [saveEvery]'de bir yazılıyor.
   static void _scheduleSave() {
-    _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(seconds: 3), () => unawaited(save()));
+    _saveTimer ??= Timer(saveEvery, () => unawaited(save()));
   }
+
+  /// Çalarken diske yazma aralığı.
+  static const saveEvery = Duration(seconds: 10);
+
+  /// Yalnız test: bekleyen bir yazma var mı?
+  @visibleForTesting
+  static bool get savePending => _saveTimer != null;
 
   /// Bekleyen kaydı hemen diske yazar (oynatıcı kapanırken çağrılıyor).
   static Future<void> save() async {

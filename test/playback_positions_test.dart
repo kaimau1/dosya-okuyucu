@@ -82,4 +82,20 @@ void main() {
     expect(PlaybackPositions.positionOf('/yok/dosya.mp4'), isNull);
     expect(PlaybackPositions.progressOf('/yok/dosya.mp4'), isNull);
   });
+
+  // 2026-09-23 pil/bellek denetimi: yazma ERTELENİYORDU (her kayıtta
+  // zamanlayıcı yeniden kuruluyordu) ve konum saniyede birkaç kez geldiği
+  // için çalma sürdükçe diske hiç yazılmıyordu.
+  testWidgets('bekleyen yazma varken yeni kayıt zamanlayıcıyı ERTELEMEZ',
+      (tester) async {
+    // Disk yok: `save` zamanlayıcıyı bırakıp hemen döner (sahte saatte
+    // gerçek dosya G/Ç'si tamamlanmaz — HAFIZA 2026-07-25 §F).
+    FmEnv.appSupportDir = '';
+    PlaybackPositions.record(film, const Duration(minutes: 10), total);
+    await tester.pump(PlaybackPositions.saveEvery - const Duration(seconds: 1));
+    PlaybackPositions.record(film, const Duration(minutes: 11), total);
+    await tester.pump(const Duration(seconds: 1));
+    // Zamanlayıcı ilk kayıttan itibaren saydı ve doldu.
+    expect(PlaybackPositions.savePending, isFalse);
+  });
 }

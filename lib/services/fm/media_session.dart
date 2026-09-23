@@ -50,6 +50,17 @@ abstract final class MediaSession {
   /// sahiptir — kullanıcının gördüğü bildirim de zaten onunki.
   static String owner = '';
 
+  /// Çalarken konumun yeniden gönderilme aralığı.
+  ///
+  /// **Pil (2026-09-23 denetimi):** ses ve video oturumu eskiden SANİYEDE BİR
+  /// tazeliyordu — ekran kapalı müzik dinlerken bile her saniye Dart'ı
+  /// uyandıran bir zamanlayıcı, kanal çağrısı ve (seste) diske `flush`lı kapak
+  /// yazımı. Gereksizdi: `PlaybackState` konumu ve hızı taşıyor, sistem çubuğu
+  /// KENDİSİ ilerletiyor. Konum artık durum değişince (çal/duraklat, sarma,
+  /// hız, parça, süre) gidiyor; bu seyrek tazeleme yalnız olası kaymayı
+  /// düzeltmek için.
+  static const resyncEvery = Duration(seconds: 30);
+
   /// Köprü kullanılabilir mi?
   static bool get supported {
     if (!enabled || _unavailable) return false;

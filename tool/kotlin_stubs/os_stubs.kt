@@ -30,3 +30,8 @@ class Handler(looper: Looper? = null) {
     fun postDelayed(runnable: Runnable, delayMillis: Long): Boolean = true
     fun removeCallbacks(runnable: Runnable) {}
 }
+
+object SystemClock {
+    @JvmStatic
+    fun elapsedRealtime(): Long = 0L
+}

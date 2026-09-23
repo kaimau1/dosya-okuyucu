@@ -11243,3 +11243,85 @@ kullanıcıların kurulu PIN'lerini geçersiz kılardı.
   `PdfInkScreen.testPageSizes` (pdfium'suz çizim).
 - **Tuzak:** Syncfusion'da eklenmiş sayfaya `page.rotation` atamak kalıcı olmuyor;
   döndürülmüş test sayfası `doc.pageSettings.rotate` ile üretilir.
+
+## 2026-09-23 — RAM ve pil denetimi (ikinci tur)
+Kullanıcı: *"uygulama ram performansı ve pil performansı hakkında detaylı
+araştırma yap ve eksikleri tespit et … düzelt"*. İlk denetim 2026-08-07 (7)'de
+yapılmıştı (galeri `cacheWidth`, video arka planda durma, pano nefesi, Pil ve
+başarım ayarları); bu tur o zamandan beri eklenen kodu (MediaSession, mini
+oynatıcı, slayt, kaldığı yerden devam) taradı. Zaten doğru olanlar (yeniden
+bakılmasın): `Timer.periodic`lerin hepsi ya iş süresince ya ekran açıkken
+yaşıyor; `image` paketiyle çözme izolatta; hayat döngüsü gözlemcileri doğru;
+`_failed` kümeleri sınırlı; bayt/bitmap tutan kendi önbelleğimiz yok.
+
+### A) EN BÜYÜĞÜ — müzik çalarken SANİYEDE BİR üç pahalı iş
+`AudioPlayback._startTicker` medya oturumunu her saniye tazeliyordu ve her
+tazelemede: (1) etiketteki kapak `audio_cover.jpg`ye **`flush: true` ile
+yeniden yazılıyordu** (fsync; ekran kapalı bir saatlik dinlemede 3600 disk
+yazımı), (2) Kotlin `setMetadata` kapak bitmap'ini (512 px ≈ 1 MB) binder'dan
+sistem sürecine kopyalıyordu, (3) Dart her saniye uyanıyordu. Video da aynı
+saniyelik sayaçtaydı. Gereksizdi: `PlaybackState(konum, hız)` çubuğu sistemin
+kendisine ilerletiyor (Kotlin yorumunda zaten yazıyordu).
+- Sayaç artık `MediaSession.resyncEvery` (30 sn, yalnız kayma düzeltmesi).
+  Konum durum değişince gidiyor: çal/duraklat, **sarma, hız, süre gelişi,
+  kaldığı yerden devam**. Bunların dördü eskiden saniyelik sayaca güveniyordu
+  → sayacı seyrekleştirirken hepsine açık tazeleme eklendi (unutulursa çubuk
+  30 sn yanlış yerde durur).
+- Kotlin: `setMetadata` yalnız başlık/alt yazı/albüm/süre/kapak (yol +
+  `lastModified`) değişince. Yeni oturumda imza sıfırlanıyor.
+- **TUZAK — Kotlin `onFastForward/onRewind` `positionMs`e göre sarıyordu:**
+  konum artık saniyede bir gelmediği için "10 sn ileri" bayat konumdan GERİ
+  atlatırdı. `livePositionMs()` sistemin yaptığını yapıyor (konum + geçen
+  süre × hız, süreyle kırpılmış).
+- **GERÇEK HATA (yan bulgu):** kapak hep aynı `audio_cover.jpg` adına
+  yazıldığı için Kotlin'in bitmap önbelleği (yol anahtarlı) parça değişince
+  ESKİ kapağı veriyordu — bildirimde bir önceki albümün kapağı kalıyordu.
+  Kapak artık yalnız baytlar değişince yazılıyor ve iki ad
+  (`audio_cover_0/1.jpg`) sırayla kullanılıyor; Kotlin önbelleği ayrıca
+  `lastModified`e bakıyor.
+
+### B) Mini oynatıcı kapağı TAM çözünürlükte (bellek)
+44 dp'lik kutuya `Image.memory` `cacheWidth`siz: ID3 kapağı çoğu zaman
+1000–3000 px → 3000² × 4 ≈ **36 MB**, mini çubuk çalma boyunca ekranda
+durduğu için hiç bırakılmıyordu. `cacheWidth: 44 × dpr`.
+
+### C) Slayt görselleri TAM çözünürlükte (bellek)
+PPTX'e gömülü kamera fotoğrafları 4000×3000 çözülüyordu (~48 MB / görsel).
+`slideImageProvider` (`widgets/slide_canvas.dart`): `ResizeImage`, uzun kenar
+≤ 2560, `ResizeImagePolicy.fit`. **TUZAK:** `SlideSnapshot` PDF'e aktarmadan
+önce görselleri `precacheImage` ile önbelleğe alıyor; anahtar tuvalinkinden
+farklı olursa slayt PDF'e GÖRSELSİZ basılır (sessiz bozulma). İkisi aynı
+işlevi kullanıyor; `slide_image_budget_test` anahtar eşitliğini sabitliyor.
+**TUZAK (test yakaladı):** `ResizeImage` nesnesi `==` TANIMLAMIYOR — iki
+sağlayıcı eşit görünmez. Önbellek sağlayıcıya değil `obtainKey`in anahtarına
+bakar; eşitlik testi o anahtar üzerinden yazılmalı.
+
+### D) Mini oynatıcı KABI her konum bildiriminde yeniden kuruluyordu
+`_MiniPlayerHost` bütün uygulamayı sarıyor ve ses çalarken ~5 Hz gelen konum
+bildiriminde `setState` yapıyordu. Artık yalnız "çubuk var mı" değişince;
+ilerleme çizgisi çubuğun kendi dinleyicisinde. (Klavye koşulu `MediaQuery`
+bağımlılığıyla kendiliğinden yeniden kurduruyor, dinleyiciye konmadı.)
+
+### E) "Kaldığı yerden devam" çalarken HİÇ diske yazılmıyordu
+`PlaybackPositions._scheduleSave` bir ERTELEMEYDİ (her kayıtta zamanlayıcı
+iptal + yeniden kurulum). Konum saniyede birkaç kez geldiği için zamanlayıcı
+çalma boyunca hiç dolmuyordu: iki saatlik sesli kitapta süreç öldürülürse
+konum kayboluyordu (bir de saniyede birkaç zamanlayıcı çöpü). Artık KISMA:
+bekleyen yazma varsa yenisi kurulmuyor, en çok `saveEvery` (10 sn) aralıkla.
+
+### F) Pano: her `resumed`da birim taraması
+`resumed` bildirim perdesi çekilip bırakılınca, izin/paylaşım penceresi
+kapanınca da geliyor; her birinde birim başına `df` + SAF/USB kanal
+çağrıları yapılıyordu. Artık uygulama gerçekten `hidden/paused`a düştüyse her
+zaman, yoksa en çok 15 sn'de bir. `_catchUp` zaten 20 sn kısıtlıydı.
+
+**Bilinçli YAPILMAYAN:** tarama inceleme ekranlarında `cacheWidth` — sayfalar
+`ScanEnhance` ile zaten 2480 px'e iniyor, dikey A4'ün genişliği ~1750 px;
+kazanç yok denecek kadar az, yakınlaştırmada keskinlik riski var.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, tüm takım yeşil (2386 + 3 yeni);
+`tool/check_kotlin.sh` (kotlinc 2.0.21, `SystemClock` taslağı eklendi) temiz.
+Cihazda bakılacaklar: (a) müzik çalarken bildirim çubuğu akıyor mu, sarınca /
+hız değişince doğru yere atlıyor mu, kilit ekranından "10 sn ileri" ileri mi
+gidiyor, (b) parça değişince bildirim kapağı değişiyor mu, (c) fotoğraflı bir
+sunum PDF'e aktarılınca görseller duruyor mu.

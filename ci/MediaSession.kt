@@ -15,6 +15,8 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
+import java.io.File
 
 /**
  * **Gerçek MediaSession** — bildirimdeki sürüklenebilir ilerleme çubuğu,
@@ -80,6 +82,8 @@ object MediaBridge {
     private var album: String = ""
     private var durationMs: Long = 0
     private var positionMs: Long = 0
+    /** [positionMs]'in alındığı an (`elapsedRealtime`) — bkz. [livePositionMs]. */
+    private var positionAtMs: Long = 0
     private var playing: Boolean = false
     private var speed: Float = 1f
     private var hasNext: Boolean = false
@@ -99,9 +103,18 @@ object MediaBridge {
     /** Son çizilen bildirimin imzası — aynı içerik iki kez çizilmesin. */
     private var lastSignature: String? = null
 
+    /**
+     * Oturuma en son verilen metadata'nın imzası. Metadata kapak BITMAP'ini
+     * taşıyor (512 px ≈ 1 MB) ve her `setMetadata` onu binder'dan sistem
+     * sürecine kopyalıyor; yalnız başlık/kapak/süre değişince gönderilir.
+     */
+    private var lastMetaSignature: String? = null
+
     /** Çözülmüş kapak (yol → bitmap); her tazelemede diskten okumak pahalı. */
     private var coverBitmap: Bitmap? = null
     private var coverBitmapPath: String? = null
+    /** Çözülen kapak dosyasının değişme zamanı — aynı yola yeni kapak yazılırsa. */
+    private var coverBitmapStamp: Long = 0
 
     /** Oturum ayakta mı (Dart tarafı ve testler için). */
     val active: Boolean
@@ -121,6 +134,7 @@ object MediaBridge {
         album = args["album"] as? String ?: ""
         durationMs = (args["duration"] as? Number)?.toLong() ?: 0L
         positionMs = (args["position"] as? Number)?.toLong() ?: 0L
+        positionAtMs = SystemClock.elapsedRealtime()
         playing = args["playing"] as? Boolean ?: false
         speed = (args["speed"] as? Number)?.toFloat() ?: 1f
         hasNext = args["hasNext"] as? Boolean ?: false
@@ -134,7 +148,13 @@ object MediaBridge {
         val app = context.applicationContext
         ensureChannel(app)
         val session = ensureSession(app)
-        session.setMetadata(buildMetadata(app))
+        val metaSignature = listOf(
+            title, subtitle, album, durationMs, coverPath ?: "", coverStamp()
+        ).joinToString("|")
+        if (metaSignature != lastMetaSignature) {
+            session.setMetadata(buildMetadata(app))
+            lastMetaSignature = metaSignature
+        }
         session.setPlaybackState(buildState())
         if (!session.isActive) session.isActive = true
 
@@ -163,6 +183,7 @@ object MediaBridge {
     fun clear(context: Context) {
         val app = context.applicationContext
         lastSignature = null
+        lastMetaSignature = null
         playing = false
         try {
             app.stopService(Intent(app, MediaService::class.java))
@@ -227,11 +248,11 @@ object MediaBridge {
             }
 
             override fun onFastForward() {
-                onAction?.invoke(ACTION_SEEK, positionMs + 10_000L)
+                onAction?.invoke(ACTION_SEEK, livePositionMs() + 10_000L)
             }
 
             override fun onRewind() {
-                val target = positionMs - 10_000L
+                val target = livePositionMs() - 10_000L
                 onAction?.invoke(ACTION_SEEK, if (target < 0) 0 else target)
             }
         })
@@ -245,7 +266,33 @@ object MediaBridge {
             )
         }
         session = created
+        // Yeni oturumun metadata'sı yok: imza sıfırlanmalı ki gönderilsin.
+        lastMetaSignature = null
         return created
+    }
+
+    /**
+     * Şu anki konum. Dart artık konumu saniyede bir DEĞİL yalnız durum
+     * değişince gönderiyor (pil); aradaki süreyi sistemin çubuğu nasıl
+     * ilerletiyorsa biz de öyle ilerletiriz — yoksa "10 sn ileri" en son
+     * gönderilen konuma göre sarıp GERİ atlatırdı.
+     */
+    private fun livePositionMs(): Long {
+        if (!playing) return positionMs
+        val elapsed = SystemClock.elapsedRealtime() - positionAtMs
+        val live = positionMs + (elapsed * speed).toLong()
+        return if (durationMs > 0 && live > durationMs) durationMs else live
+    }
+
+    /** Kapak dosyasının değişme zamanı (yoksa 0). */
+    private fun coverStamp(): Long {
+        val path = coverPath
+        if (path.isNullOrEmpty()) return 0
+        return try {
+            File(path).lastModified()
+        } catch (e: Exception) {
+            0
+        }
     }
 
     private fun buildMetadata(context: Context): MediaMetadata {
@@ -298,7 +345,8 @@ object MediaBridge {
             coverBitmapPath = null
             return null
         }
-        if (path == coverBitmapPath) return coverBitmap
+        val stamp = coverStamp()
+        if (path == coverBitmapPath && stamp == coverBitmapStamp) return coverBitmap
         val decoded = try {
             val bounds = BitmapFactory.Options()
             bounds.inJustDecodeBounds = true
@@ -316,6 +364,7 @@ object MediaBridge {
         }
         coverBitmap = decoded
         coverBitmapPath = if (decoded == null) null else path
+        coverBitmapStamp = stamp
         return decoded
     }
 

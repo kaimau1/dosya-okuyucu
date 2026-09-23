@@ -325,6 +325,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     speed = value;
     final c = _controller;
     if (c != null) await _guard(() => c.setPlaybackSpeed(value));
+    // Hız, sistemin çubuğu ilerletme hızıdır — değişince bildirilmeli.
+    unawaited(_refreshSession());
     notifyListeners();
   }
 
@@ -442,7 +444,10 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   void _startTicker() {
     _tick?.cancel();
     if (!notificationsEnabled) return;
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+    // Saniyede bir DEĞİL: sistem çubuğu `PlaybackState`in hızından kendisi
+    // ilerletiyor; konum durum değişince (çal/duraklat, sarma, hız) gidiyor.
+    // Bu sayaç yalnız kaymayı düzeltir (bkz. [MediaSession.resyncEvery]).
+    _tick = Timer.periodic(MediaSession.resyncEvery, (_) {
       if (!playing) return;
       unawaited(_refreshSession());
     });

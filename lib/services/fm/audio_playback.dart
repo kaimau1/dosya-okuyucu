@@ -74,7 +74,11 @@ class AudioPlayback extends ChangeNotifier {
         notifyListeners();
       }),
       created.onDurationChanged.listen((d) {
+        final changed = d != duration;
         duration = d;
+        // Süre çoğu zaman çalma başladıktan SONRA geliyor; çubuğun sağ ucu
+        // buradan çiziliyor (eskiden saniyelik tazeleme bunu örtüyordu).
+        if (changed) unawaited(_refreshNotification());
         notifyListeners();
       }),
       created.onPlayerStateChanged.listen((s) {
@@ -122,6 +126,14 @@ class AudioPlayback extends ChangeNotifier {
 
   /// Bildirimde en son yazılan saniye — aynı saniyeyi tekrar yazmamak için.
   int _lastShownSecond = -1;
+
+  /// Kapak dosyasına en son yazılan baytlar ve dosyanın yolu.
+  ///
+  /// Kapak her tazelemede diske (üstelik `flush` ile) YENİDEN yazılıyordu —
+  /// çalarken saniyede bir. Artık yalnız kapak değişince yazılıyor.
+  Uint8List? _coverBytes;
+  String? _coverPath;
+  int _coverSerial = 0;
 
   bool get hasTrack => playlist.isNotEmpty;
 
@@ -180,6 +192,9 @@ class AudioPlayback extends ChangeNotifier {
       if (resume != null) {
         resumedFrom = resume;
         await _player.seek(resume);
+        position = resume;
+        // Bildirim çubuğu 0'dan değil kalınan yerden aksın.
+        unawaited(_refreshNotification());
       } else {
         resumedFrom = null;
       }
@@ -291,6 +306,8 @@ class AudioPlayback extends ChangeNotifier {
       return;
     }
     await _guard(() => _player.seek(position));
+    // Sistem çubuğu kendisi ilerletiyor; sarınca yeni konumu hemen söyle.
+    unawaited(_refreshNotification());
   }
 
   Future<void> seekBy(int seconds) =>
@@ -299,6 +316,8 @@ class AudioPlayback extends ChangeNotifier {
   Future<void> setSpeed(double value) async {
     speed = value;
     if (engineEnabled) await _guard(() => _player.setPlaybackRate(value));
+    // Hız, sistemin konumu ilerletme hızıdır — değişince bildirilmeli.
+    unawaited(_refreshNotification());
     notifyListeners();
   }
 
@@ -438,17 +457,22 @@ class AudioPlayback extends ChangeNotifier {
   /// "akıyor" görünüyor.
   void _startTicker() {
     _tick?.cancel();
-    // **Bir saniye — ama iki farklı iş.** Medya oturumu varken tazeleme
-    // yalnız `PlaybackState`in konumunu güncelliyor (ucuz binder çağrısı,
-    // bildirim yeniden ÇİZİLMİYOR — çubuğu sistem kendisi akıtıyor). Oturum
-    // yoksa eski yola düşülüyor ve orada bildirim gerçekten yeniden
-    // çiziliyor: beş saniyeden sık çizmek MIUI'de gölgeyi titretir ve pil
-    // yakar.
+    // **İki farklı iş.** Medya oturumu varken çubuğu sistem kendisi
+    // akıtıyor; konum yalnız durum değişince gidiyor, sayaç yalnız kaymayı
+    // düzeltiyor ([MediaSession.resyncEvery]). Oturum yoksa eski yola
+    // düşülüyor ve orada bildirim gerçekten yeniden çiziliyor: beş saniyeden
+    // sık çizmek MIUI'de gölgeyi titretir ve pil yakar.
+    if (MediaSession.supported) {
+      _tick = Timer.periodic(MediaSession.resyncEvery, (_) {
+        if (playing) unawaited(_refreshNotification());
+      });
+      return;
+    }
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!playing) return;
       final second = position.inSeconds;
       if (second == _lastShownSecond) return;
-      if (!MediaSession.supported && second % 5 != 0) return;
+      if (second % 5 != 0) return;
       _lastShownSecond = second;
       unawaited(_refreshNotification());
     });
@@ -599,9 +623,18 @@ class AudioPlayback extends ChangeNotifier {
     final bytes = tags.cover;
     if (bytes == null || bytes.isEmpty) return null;
     if (FmEnv.appSupportDir.isEmpty) return null;
+    if (identical(bytes, _coverBytes) && _coverPath != null) return _coverPath;
+    // **Her kapak YENİ ad alır.** Tek bir `audio_cover.jpg`nin üstüne
+    // yazıldığında native taraf yolu aynı gördüğü için önbellekteki ESKİ
+    // bitmap'i kullanıyordu: parça değişince bildirimde bir önceki albümün
+    // kapağı kalıyordu. İki ad sırayla kullanılıyor — ardışık iki kapağın
+    // yolu hep farklı, diskte de en çok iki dosya kalıyor.
     try {
-      final file = File('${FmEnv.appSupportDir}/audio_cover.jpg');
+      final file = File(
+          '${FmEnv.appSupportDir}/audio_cover_${++_coverSerial % 2}.jpg');
       await file.writeAsBytes(bytes, flush: true);
+      _coverBytes = bytes;
+      _coverPath = file.path;
       return file.path;
     } catch (_) {
       return null;

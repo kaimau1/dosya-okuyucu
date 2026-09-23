@@ -98,7 +98,8 @@ class SlideSnapshot {
       // Bozuk/desteklenmeyen görsel yüzünden tüm aktarma düşmemeli: tuval
       // zaten `errorBuilder` ile o şekli boş bırakıyor.
       try {
-        await precacheImage(MemoryImage(b), context);
+        // Tuvalin kullandığı sağlayıcının AYNISI (bkz. slideImageProvider).
+        await precacheImage(slideImageProvider(b), context);
       } catch (_) {
         // yok say — o şekil boş çizilir
       }

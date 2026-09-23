@@ -114,17 +114,36 @@ class _MiniPlayerHostState extends State<_MiniPlayerHost> {
     super.dispose();
   }
 
-  void _onChange() => _rebuildSafely(this);
+  /// **Yalnız görünürlük değişince yeniden kur** (2026-09-23 başarım
+  /// denetimi). Bu kap BÜTÜN uygulamayı sarıyor; ses çalarken konum
+  /// saniyede ~5 kez bildiriliyor ve kap her seferinde yeniden kuruluyordu.
+  /// İlerleme çizgisi çubuğun kendi işi ([_MiniPlayerBarState] servisleri
+  /// ayrıca dinliyor); kabın tek sorusu "çubuk var mı".
+  void _onChange() {
+    final wanted = _wanted;
+    if (wanted == _shown) return;
+    _rebuildSafely(this);
+  }
 
-  bool get _visible {
+  /// Son yapıda çubuk istenmiş miydi (klavye hariç — o `MediaQuery`
+  /// bağımlılığıyla kendiliğinden yeniden kurduruyor).
+  bool? _shown;
+
+  bool get _wanted {
     if (MiniPlayerBar.hidden.value > 0) return false;
-    // Klavye açıkken çubuk, yazılan alanın üstüne oturup ekranı daraltırdı.
-    if (MediaQuery.of(context).viewInsets.bottom > 0) return false;
     // **Video ekran üstündeki yüzen penceredeyse çubuk gizli** (2026-09-03):
     // çubuktaki "oynat" ikinci bir oynatıcıyı başlatır ve iki ses üst üste
     // binerdi — kullanıcının duyacağı ilk hata bu olurdu.
     if (_video.floatingActive && !_audio.hasTrack) return false;
     return _video.hasVideo || _audio.hasTrack;
+  }
+
+  bool get _visible {
+    final wanted = _wanted;
+    _shown = wanted;
+    if (!wanted) return false;
+    // Klavye açıkken çubuk, yazılan alanın üstüne oturup ekranı daraltırdı.
+    return MediaQuery.of(context).viewInsets.bottom <= 0;
   }
 
   @override
@@ -226,6 +245,11 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
         cover,
         width: 44,
         height: 44,
+        // **44 piksellik kutu için 44 piksel çöz.** Etiketteki kapak çoğu
+        // zaman 1000–3000 px; `cacheWidth` verilmezse TAM çözülüyordu
+        // (3000×3000 ≈ 36 MB) ve mini çubuk çalma boyunca ekranda durduğu
+        // için bu bitmap hiç bırakılmıyordu (2026-09-23 bellek denetimi).
+        cacheWidth: (44 * MediaQuery.devicePixelRatioOf(context)).round(),
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => _artFallback(scheme),

@@ -6,6 +6,27 @@ import 'package:flutter/material.dart';
 import '../services/pptx_render.dart';
 import 'chart_painter.dart';
 
+/// Slayt görsellerinin çözüleceği en uzun kenar (piksel).
+///
+/// **Bellek (2026-09-23 denetimi):** PPTX'teki fotoğraflar çoğu zaman kamera
+/// çözünürlüğünde (4000×3000) gömülü ve `Image.memory` onları TAM çözüyordu —
+/// görsel başına ~48 MB; fotoğraflı bir destede birkaç slayt gezinmek düşük
+/// bellekli telefonda uygulamayı öldürmeye yetiyordu. Slayt en büyük ekranda
+/// (ve PDF'e 2× aktarmada: 960 pt → 1920 px) bu kadar pikselden fazlasını
+/// göstermiyor.
+const slideImageMaxEdge = 2560;
+
+/// Slayt görselinin sağlayıcısı. **Tek kaynak:** [SlideCanvas] ve PDF'e
+/// aktarmadaki önbelleğe alma (`SlideSnapshot`) AYNI anahtarı kullanmalı —
+/// ayrı anahtar, aktarmada görselin önbellekte bulunamayıp slaydın
+/// görselsiz basılması demekti.
+ImageProvider slideImageProvider(Uint8List bytes) => ResizeImage(
+      MemoryImage(bytes),
+      width: slideImageMaxEdge,
+      height: slideImageMaxEdge,
+      policy: ResizeImagePolicy.fit,
+    );
+
 /// Bir slaytı orijinal tasarımıyla (arka plan, şekiller, görseller, biçimli
 /// metin) çizer. Ölçü birimi punto; [FittedBox] ile kullanılabilir genişliğe
 /// orantılı olarak ölçeklenir — yani her ekranda PowerPoint'teki yerleşimin
@@ -58,8 +79,8 @@ class SlideCanvas extends StatelessWidget {
                   ),
                   child: slide.backgroundImage == null
                       ? null
-                      : Image.memory(
-                          slide.backgroundImage!,
+                      : Image(
+                          image: slideImageProvider(slide.backgroundImage!),
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const SizedBox(),
                         ),
@@ -524,8 +545,8 @@ class _CroppedImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final img = Image.memory(
-      bytes,
+    final img = Image(
+      image: slideImageProvider(bytes),
       fit: BoxFit.fill,
       errorBuilder: (_, __, ___) => const SizedBox(),
     );
