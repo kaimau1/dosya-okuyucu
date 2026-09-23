@@ -28,6 +28,7 @@ import '../../services/formula_engine.dart';
 import '../../services/sheet_edit.dart';
 import '../../services/xlsx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
@@ -1109,6 +1110,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       kind: DocKind.spreadsheet,
       title: widget.name,
       dirty: _dirty,
+      subtitle: visibleSheets.length >= 2
+          ? context.t('shell.sheets', {'n': visibleSheets.length})
+          : null,
       // Kaydet/Paylaş/CSV/Çevir ALT çubukta; burada yalnız karşılığı olmayanlar
       // kalır (2026-07-28 kullanıcı isteği: tekrar eden düğmeler kalksın).
       actions: [
@@ -1187,7 +1191,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           ]),
         ],
       ),
-      fab: FloatingActionButton(
+      fab: DocAiButton(
+        kind: DocKind.spreadsheet,
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(
             fileContext: widget.plainText,
@@ -1195,7 +1200,6 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           ),
         )),
         tooltip: context.t('common.ai'),
-        child: const Icon(Icons.smart_toy_outlined),
       ),
     );
   }
@@ -2054,6 +2058,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           Icons.wrap_text,
           context.t('excel.wrap_text'),
           () => _applyWrap(!(_sheet?.styleAt(_selRow, _selCol)?.wrap ?? false)),
+          selected: _sheet?.styleAt(_selRow, _selCol)?.wrap ?? false,
         ),
         DocMoreItem(
           Icons.merge_type,
@@ -2071,7 +2076,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         DocMoreItem(Icons.keyboard_arrow_down,
             context.t('excel.insert_row_below'), () => _insertRow(below: true)),
         DocMoreItem(
-            Icons.delete_outline, context.t('excel.delete_row'), _deleteRow),
+            Icons.delete_outline, context.t('excel.delete_row'), _deleteRow,
+            danger: true),
         DocMoreItem(Icons.height, context.t('excel.row_height'),
             () => _showSizeDialog(row: _selRow)),
       ]),
@@ -2081,7 +2087,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         DocMoreItem(Icons.keyboard_arrow_right,
             context.t('excel.insert_col_right'), () => _insertColumn(right: true)),
         DocMoreItem(
-            Icons.delete_outline, context.t('excel.delete_col'), _deleteColumn),
+            Icons.delete_outline, context.t('excel.delete_col'), _deleteColumn,
+            danger: true),
         DocMoreItem(Icons.straighten, context.t('excel.column_width'),
             () => _showSizeDialog(col: _selCol)),
       ]),
@@ -2400,7 +2407,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         DocMoreItem(Icons.drive_file_rename_outline,
             context.t('excel.rename_sheet'), () => _renameSheet(sheet)),
         DocMoreItem(Icons.delete_outline, context.t('excel.delete_sheet'),
-            () => _deleteSheet(sheet)),
+            () => _deleteSheet(sheet),
+            danger: true),
       ]),
     ]);
   }
@@ -2602,70 +2610,34 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   }
 
   Widget _findBar() {
-    final scheme = Theme.of(context).colorScheme;
     final typed = _findField.text.trim().isNotEmpty;
     final counter = !typed
         ? ''
         : _hits.isEmpty
-            ? 'yok'
+            ? context.t('find.none')
             : '${_hitIndex + 1}/${_hits.length}'
                 '${_hits.length >= _maxHits ? '+' : ''}';
-    return Container(
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _findField,
-              autofocus: true,
-              onChanged: _runFind,
-              onSubmitted: (_) => _stepHit(1),
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                isDense: true,
-                border: const OutlineInputBorder(),
-                hintText: context.t('excel.find_in_sheet'),
-                prefixIcon: const Icon(Icons.search, size: 18),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 32, minHeight: 32),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(counter,
-              style:
-                  TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-          IconButton(
-            tooltip: context.t('common.previous'),
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.keyboard_arrow_up),
-            onPressed: _hits.isEmpty ? null : () => _stepHit(-1),
-          ),
-          IconButton(
-            tooltip: context.t('common.next'),
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.keyboard_arrow_down),
-            onPressed: _hits.isEmpty ? null : () => _stepHit(1),
-          ),
-          IconButton(
-            tooltip: context.t('common.close'),
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.close),
-            onPressed: _toggleFind,
-          ),
-        ],
-      ),
+    return DocFindBar(
+      controller: _findField,
+      hint: context.t('excel.find_in_sheet'),
+      countLabel: counter,
+      onChanged: _runFind,
+      onSubmitted: (_) => _stepHit(1),
+      onPrev: _hits.isEmpty ? null : () => _stepHit(-1),
+      onNext: _hits.isEmpty ? null : () => _stepHit(1),
+      onClose: _toggleFind,
     );
   }
+
 
   /// Bul çubuğunun ikinci satırı: **değiştir**.
   Widget _replaceBar() {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: scheme.surfaceContainerHigh,
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
       padding: const EdgeInsets.fromLTRB(8, 0, 4, 6),
       child: Row(
         children: [
@@ -2673,15 +2645,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             child: TextField(
               controller: _replaceField,
               style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                isDense: true,
-                border: const OutlineInputBorder(),
-                hintText: context.t('excel.replace_with'),
-                prefixIcon: const Icon(Icons.find_replace, size: 18),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 32, minHeight: 32),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              decoration: DocFindBar.decoration(
+                context,
+                hint: context.t('excel.replace_with'),
+                icon: Icons.find_replace,
               ),
             ),
           ),
@@ -2698,6 +2665,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       ),
     );
   }
+
 
   /// Etkin eşleşmedeki metni değiştirir ve bir sonrakine geçer.
   void _replaceCurrent() {

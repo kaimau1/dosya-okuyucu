@@ -49,6 +49,8 @@ import 'pdf_ink_screen.dart';
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/ai_slides_flow.dart';
 import '../widgets/doc_action_bar.dart';
+import '../widgets/doc_find_bar.dart';
+import '../widgets/doc_more_sheet.dart';
 import '../widgets/office_shell.dart';
 import 'fm/entry_actions.dart';
 import '../widgets/pdf_action_bars.dart';
@@ -422,14 +424,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _offerFormFilling() async {
     if (!await PdfFormFiller.looksLikeForm(widget.doc.path)) return;
     if (!mounted) return;
-    showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
-      content: Text(context.t('vw.form_detected')),
-      duration: const Duration(seconds: 6),
-      action: SnackBarAction(
-        label: context.t('vw.fill_form'),
-        onPressed: _fillPdfForm,
-      ),
-    ));
+    showSnackBarReplacing(
+        ScaffoldMessenger.of(context),
+        SnackBar(
+          content: Text(context.t('vw.form_detected')),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: context.t('vw.fill_form'),
+            onPressed: _fillPdfForm,
+          ),
+        ));
   }
 
   /// Arayıcılar (pdfrx + OCR) eşleşme bulup ilerledikçe sayaç/konum etiketini
@@ -444,8 +448,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
           s != null &&
           s.currentIndex != null &&
           s.matches.isNotEmpty) {
-        _findEntry = (ocr: false, index: s.currentIndex!,
-            page: s.matches[s.currentIndex!].pageNumber);
+        _findEntry = (
+          ocr: false,
+          index: s.currentIndex!,
+          page: s.matches[s.currentIndex!].pageNumber
+        );
       }
     });
   }
@@ -462,7 +469,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _findCtl.dispose();
     _replaceCtl.dispose();
     _textFocus.dispose();
-    _pdfSearcher?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
+    _pdfSearcher
+        ?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _ocrSearch?.dispose();
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     _pdfEditCtl?.dispose();
@@ -678,7 +686,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Geçerli eşleşmeyi metin alanında seçer; [focus] ise oraya kaydırır.
   void _selectMatch({required bool focus}) {
     final ctl = _textController;
-    if (ctl == null || _matchPos < 0 || _matchPos >= _matchStarts.length) return;
+    if (ctl == null || _matchPos < 0 || _matchPos >= _matchStarts.length) {
+      return;
+    }
     final start = _matchStarts[_matchPos];
     ctl.selection = TextSelection(
       baseOffset: start,
@@ -721,20 +731,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
           (_ocrSearch?.isSearching ?? false);
       count = entries.length;
       if (count > 0) {
-        final pos =
-            _findEntry == null ? -1 : entries.indexOf(_findEntry!);
+        final pos = _findEntry == null ? -1 : entries.indexOf(_findEntry!);
         final head = pos >= 0 ? '${pos + 1}/$count' : '$count';
         // OCR hâlâ sayfa tarıyorsa üç nokta: sayı büyümeye devam edebilir.
         label = busy ? '$head…' : head;
       } else if (busy) {
         label = context.t('vw.searching');
       } else {
-        label = _findCtl.text.trim().isEmpty ? '' : 'yok';
+        label = _findCtl.text.trim().isEmpty ? '' : context.t('find.none');
       }
     } else {
       count = _matchStarts.length;
       label = count == 0
-          ? (_findCtl.text.trim().isEmpty ? '' : 'yok')
+          ? (_findCtl.text.trim().isEmpty ? '' : context.t('find.none'))
           : '${_matchPos + 1}/$count';
     }
     // Değiştirme satırı YALNIZ düzenlenebilir metinde: PDF'te ve salt-okunur
@@ -742,25 +751,29 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // düğme olurdu.
     final canReplace = !_isPdf && (widget.doc.isEditableText);
     return PreferredSize(
-      preferredSize: Size.fromHeight(_replaceOpen && canReplace ? 100 : 52),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Row(
-          children: [
+      preferredSize: Size.fromHeight(_replaceOpen && canReplace ? 108 : 56),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        DocFindBar(
+          controller: _findCtl,
+          hint: context.t('vw.find_in_doc'),
+          countLabel: label,
+          onChanged: _runFind,
+          onSubmitted: (_) => _jumpMatch(1),
+          onPrev: count == 0 ? null : () => _jumpMatch(-1),
+          onNext: count == 0 ? null : () => _jumpMatch(1),
+          leading: [
             if (canReplace)
               IconButton(
                 tooltip: context.t('vw.show_replace'),
                 visualDensity: VisualDensity.compact,
+                isSelected: _replaceOpen,
                 icon: Icon(_replaceOpen
                     ? Icons.find_replace
                     : Icons.find_replace_outlined),
-                onPressed: () =>
-                    setState(() => _replaceOpen = !_replaceOpen),
+                onPressed: () => setState(() => _replaceOpen = !_replaceOpen),
               ),
             // "Sayfaya git" arama çubuğunun içinde (2026-07-26 kullanıcı
-            // isteği): üst çubukta ayrı bir düğme yerine, aramayla aynı
-            // "belgede gezinme" kutusunda.
+            // isteği): aramayla aynı "belgede gezinme" kutusunda.
             if (_isPdf)
               IconButton(
                 tooltip: context.t('vw.goto_page_short'),
@@ -768,41 +781,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 icon: const Icon(Icons.numbers),
                 onPressed: _askGoToPage,
               ),
-            Expanded(
-              child: TextField(
-                controller: _findCtl,
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-                onChanged: _runFind,
-                onSubmitted: (_) => _jumpMatch(1),
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: context.t('vw.find_in_doc'),
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 10),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-            IconButton(
-              tooltip: context.t('common.previous'),
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_up),
-              onPressed: count == 0 ? null : () => _jumpMatch(-1),
-            ),
-            IconButton(
-              tooltip: context.t('common.next'),
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_down),
-              onPressed: count == 0 ? null : () => _jumpMatch(1),
-            ),
           ],
         ),
-        if (_replaceOpen && canReplace) _replaceRow(count),
-        ]),
-      ),
+        if (_replaceOpen && canReplace)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+            child: _replaceRow(count),
+          ),
+      ]),
     );
   }
 
@@ -814,19 +800,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// hiçbir şeyin değişmediği durumu gizlerdi.
   Widget _replaceRow(int count) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: EdgeInsets.zero,
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _replaceCtl,
               textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: context.t('vw.replace_with'),
-                prefixIcon: const Icon(Icons.edit_outlined, size: 20),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              decoration: DocFindBar.decoration(
+                context,
+                hint: context.t('vw.replace_with'),
+                icon: Icons.edit_outlined,
               ),
             ),
           ),
@@ -847,11 +831,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Seçili eşleşmeyi değiştirir ve aramayı tazeler.
   void _replaceCurrent() {
     final ctl = _textController;
-    if (ctl == null || _matchPos < 0 || _matchPos >= _matchStarts.length) return;
+    if (ctl == null || _matchPos < 0 || _matchPos >= _matchStarts.length) {
+      return;
+    }
     final start = _matchStarts[_matchPos];
     final wanted = _matchPos; // değişimden sonra aynı sıradaki eşleşmeye dön
-    ctl.text = TextReplace.replaceAt(
-        ctl.text, start, _matchLen, _replaceCtl.text);
+    ctl.text =
+        TextReplace.replaceAt(ctl.text, start, _matchLen, _replaceCtl.text);
     setState(() => _dirty = true);
     _runFind(_findCtl.text);
     if (_matchStarts.isNotEmpty) {
@@ -864,8 +850,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _replaceAll() {
     final ctl = _textController;
     if (ctl == null) return;
-    final result =
-        TextReplace.replaceAll(ctl.text, _findCtl.text.trim(), _replaceCtl.text);
+    final result = TextReplace.replaceAll(
+        ctl.text, _findCtl.text.trim(), _replaceCtl.text);
     if (result.count == 0) {
       _snack(context.t('vw.replace_none'));
       return;
@@ -918,8 +904,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: Text(ctx.t('common.cancel'))),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(ctx, int.tryParse(controller.text)),
+            onPressed: () => Navigator.pop(ctx, int.tryParse(controller.text)),
             child: Text(ctx.t('common.ok')),
           ),
         ],
@@ -951,10 +936,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
         ..translate(-pos.dx * 2, -pos.dy * 2)
         ..scale(3.0);
     }
-  }
-
-  void _changeFont(double delta) {
-    setState(() => _fontSize = (_fontSize + delta).clamp(10.0, 32.0));
   }
 
   /// Görseli düğmeyle yakınlaştırır/uzaklaştırır (pinch ve çift-dokunmaya ek).
@@ -1013,8 +994,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.t('vw.image_to_pdf')),
-        content: Text(context.t('vw.image_to_pdf_body') +
-            context.t('vw.ocr_in_pdf')),
+        content: Text(
+            context.t('vw.image_to_pdf_body') + context.t('vw.ocr_in_pdf')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -1029,8 +1010,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
     if (withOcr == null || !mounted) return;
 
-    final progress = ValueNotifier<String>(
-        withOcr ? context.t('vw.scanning_text') : context.t('vw.pdf_preparing'));
+    final progress = ValueNotifier<String>(withOcr
+        ? context.t('vw.scanning_text')
+        : context.t('vw.pdf_preparing'));
     final busy = _showProgressDialog(progress);
 
     String? path;
@@ -1042,8 +1024,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       progress.value = pdfPreparing;
       final bytes =
           await _conversion.imageToPdf(widget.doc.path, ocrLines: lines);
-      path = await _conversion.writeToTemp(
-          '${_stem(widget.doc.name)}.pdf', bytes);
+      path =
+          await _conversion.writeToTemp('${_stem(widget.doc.name)}.pdf', bytes);
     } catch (e) {
       error = '$e';
     }
@@ -1388,33 +1370,21 @@ class _ViewerScreenState extends State<ViewerScreen> {
       title: doc.name,
       dirty: _dirty || _pdfDirty,
       tabBar: _findOpen ? _findBar() : null,
+      subtitle: _isPdf && _pageCount > 0
+          ? context.t('shell.pages', {'n': _pageCount})
+          : null,
+      // 2026-09-23 tasarım turu: üst çubukta en çok üç simge + "daha fazla".
+      // Sayfa düzeni (1/2/4 sütun), görsel yakınlaştırma ve üç ayrı yazı
+      // düğmesi (küçült/büyüt/yazı tipi) buradan kalktı: sütunlar ve
+      // yakınlaştırma "Daha fazla" sayfasının Görünüm grubunda, yazı ayarları
+      // tek bir "Aa" düğmesinin açtığı okuma ayarları sayfasında.
       actions: [
         if (doc.kind == DocKind.pdf) ...[
-          PopupMenuButton<int>(
-            tooltip: context.t('vw.page_layout'),
-            icon: Icon(_pdfColumns == 1
-                ? Icons.view_agenda_outlined
-                : (_pdfColumns == 2
-                    ? Icons.view_column_outlined
-                    : Icons.grid_view_outlined)),
-            onSelected: _setPdfColumns,
-            itemBuilder: (_) => [
-              PopupMenuItem(value: 1, child: Text(context.t('vw.one_column'))),
-              PopupMenuItem(value: 2, child: Text(context.t('vw.two_columns'))),
-              PopupMenuItem(value: 4, child: Text(context.t('vw.four_columns'))),
-            ],
-          ),
           IconButton(
             tooltip: context.t('vw.toc'),
             icon: const Icon(Icons.toc),
             onPressed: _showOutline,
           ),
-          // Sayfa döndürme üst çubuktan ÜÇ NOKTAYA taşındı (2026-08-02):
-          // dar telefonda 7 eylem başlığa yer bırakmıyordu ve iki ikon
-          // birbirinin aynası olduğu için hangisinin ne yaptığı anlaşılmıyordu.
-          // Menüde etiketli ve seyrek kullanılan bir iş için doğru yer.
-          // Gece/gündüz düğmesi üst çubuktan ÜÇ NOKTAYA taşındı
-          // (2026-07-26 kullanıcı isteği) — üst çubuk kalabalıktı.
           if (_pdfDirty)
             IconButton(
               tooltip: context.t('vw.save_edits'),
@@ -1425,221 +1395,27 @@ class _ViewerScreenState extends State<ViewerScreen> {
         if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
             tooltip: context.t('vw.find_in_doc_short'),
+            isSelected: _findOpen,
             icon: Icon(_findOpen ? Icons.search_off : Icons.search),
             onPressed: _toggleFind,
           ),
-        if (doc.kind == DocKind.image) ...[
-          IconButton(
-            tooltip: context.t('vw.zoom_out'),
-            icon: const Icon(Icons.zoom_out),
-            onPressed: () => _zoomImg(1 / 1.4),
-          ),
-          IconButton(
-            tooltip: context.t('vw.zoom_in'),
-            icon: const Icon(Icons.zoom_in),
-            onPressed: () => _zoomImg(1.4),
-          ),
+        if (doc.kind == DocKind.image)
           IconButton(
             tooltip: context.t('vw.rotate'),
             icon: const Icon(Icons.rotate_right),
             onPressed: () =>
                 setState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
           ),
-        ],
-        if (_textController != null) ...[
+        if (_textController != null)
           IconButton(
-            tooltip: context.t('vw.text_smaller'),
-            icon: const Icon(OfficeIcons.fontShrink),
-            onPressed: () => _changeFont(-2),
+            tooltip: context.t('vw.reading_settings'),
+            icon: const Icon(Icons.text_format),
+            onPressed: _showReadingSettings,
           ),
-          IconButton(
-            tooltip: context.t('vw.text_bigger'),
-            icon: const Icon(OfficeIcons.fontGrow),
-            onPressed: () => _changeFont(2),
-          ),
-          // Yazı TİPİ de değişebilsin (2026-08-07 kullanıcı isteği: "yazı
-          // boyutu ve font değiştirme"). Boyut zaten vardı, aile yoktu.
-          PopupMenuButton<String>(
-            tooltip: context.t('word.font_family'),
-            icon: const Icon(OfficeIcons.fontFamily),
-            onSelected: (f) =>
-                setState(() => _fontFamily = f.isEmpty ? null : f),
-            itemBuilder: (_) => [
-              for (final f in _readerFonts)
-                CheckedPopupMenuItem(
-                  value: f.$2,
-                  checked: (_fontFamily ?? '') == f.$2,
-                  child: Text(f.$1,
-                      style: TextStyle(
-                          fontFamily: f.$2.isEmpty ? null : f.$2)),
-                ),
-            ],
-          ),
-        ],
-        // "Kaydet", "Paylaş", "Yazdır", "PDF araçları" ve görselde "Metni tanı"
-        // / "PDF'e dönüştür" buradan KALDIRILDI: hepsi alt eylem çubuğunda
-        // etiketli duruyor (2026-07-28 kullanıcı isteği).
-        PopupMenuButton<String>(
-          onSelected: (v) {
-            switch (v) {
-              case 'ocr':
-                _runOcr();
-                break;
-              case 'pdf':
-                _exportPdf();
-                break;
-              case 'slides':
-                _exportSlides();
-                break;
-              case 'goto_line':
-                unawaited(_askGoToLine());
-                break;
-              case 'line_numbers':
-                setState(() => _lineNumbers = !_lineNumbers);
-                break;
-              case 'wrap':
-                setState(() => _wrapLines = !_wrapLines);
-                break;
-              case 'prettify':
-                _prettify();
-                break;
-              case 'stats':
-                _showStats();
-                break;
-              case 'sign':
-                _signPdf();
-                break;
-              case 'form':
-                _fillPdfForm();
-                break;
-              case 'aiedit':
-                _aiEditPdf();
-                break;
-              case 'night':
-                setState(() => _pdfNight = !_pdfNight);
-                break;
-              case 'gotopage':
-                _askGoToPage();
-                break;
-              case 'reader':
-                final pdf = _pdfDoc;
-                if (pdf != null) {
-                  ReaderScreen.open(context,
-                      document: pdf, title: widget.doc.name);
-                }
-                break;
-              case 'rotl':
-                _rotateCurrentPage(-1);
-                break;
-              case 'rotr':
-                _rotateCurrentPage(1);
-                break;
-              case 'speak':
-                _toggleSpeech();
-                break;
-              case 'fileops':
-                _fileActions();
-                break;
-            }
-          },
-          itemBuilder: (_) {
-            // Metin gibi davranan belgeler: satır kavramı olanlar.
-            final isTextLike = doc.kind == DocKind.text ||
-                doc.kind == DocKind.word ||
-                doc.kind == DocKind.slides;
-            return [
-            if (doc.kind == DocKind.pdf) ...[
-              // "Sayfaya git" üç yerde birden: burada (etiketli, bulunabilir),
-              // arama çubuğunda ve alttaki sayfa rozetine dokununca. Kullanıcı
-              // 2026-07-26'da yalnız arama çubuğundakini bulamadığını söyledi
-              // ("nerede olduğu anlaşılmıyor, kişiler bulamaz").
-              PopupMenuItem(
-                  value: 'gotopage',
-                  child: Text(context.t('vw.goto_page'))),
-              // E-kitap okuma görünümü (2026-08-06 isteği): taranmış PDF'te
-              // bile sayfanın METNİ akar — OCR arka planda, sayfa görüntüsü
-              // yerine kitap gibi okunur.
-              PopupMenuItem(
-                  value: 'reader',
-                  enabled: _pdfDoc != null,
-                  child: Text(context.t('reader.open'))),
-              PopupMenuItem(
-                value: 'night',
-                child: Text(context
-                    .t(_pdfNight ? 'vw.night_off' : 'vw.night_on')),
-              ),
-              PopupMenuItem(
-                value: 'rotl',
-                enabled: !_pdfBusy,
-                child: Text(context.t('vw.rotate_left')),
-              ),
-              PopupMenuItem(
-                value: 'rotr',
-                enabled: !_pdfBusy,
-                child: Text(context.t('vw.rotate_right')),
-              ),
-              PopupMenuItem(
-                  value: 'aiedit', child: Text(context.t('vw.ai_edit'))),
-              PopupMenuItem(value: 'sign', child: Text(context.t('vw.sign'))),
-              PopupMenuItem(
-                  value: 'form', child: Text(context.t('vw.fill_form'))),
-              PopupMenuItem(
-                  value: 'ocr', child: Text(context.t('vw.ocr'))),
-            ],
-            if (_ttsTotal == 0)
-              PopupMenuItem(
-                  value: 'speak', child: Text(context.t('vw.speak'))),
-            // "Çevir" buradan KALDIRILDI: alt eylem çubuğunda etiketli duruyor
-            // (2026-07-31 — "tek butonla" isteği; menüde de tutmak aynı işi
-            // iki yere koymak olurdu).
-            if (doc.kind != DocKind.image)
-              PopupMenuItem(value: 'pdf', child: Text(context.t('vw.to_pdf'))),
-            PopupMenuItem(
-                value: 'slides', child: Text(context.t('vw.to_slides'))),
-            if (_hasText)
-              PopupMenuItem(
-                  value: 'stats', child: Text(context.t('vw.word_count'))),
-            // **Satıra git / satır numaraları** (2026-09-06 denetim turu):
-            // uzun bir kayıt ya da kod dosyasında "347. satır" demenin bir
-            // yolu yoktu; tek çare parmakla kaydırmaktı.
-            if (isTextLike) ...[
-              PopupMenuItem(
-                  value: 'goto_line', child: Text(context.t('vw.goto_line'))),
-              PopupMenuItem(
-                value: 'line_numbers',
-                child: Row(
-                  children: [
-                    Icon(
-                      _lineNumbers
-                          ? Icons.check_box_outlined
-                          : Icons.check_box_outline_blank,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(context.t('vw.line_numbers')),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'wrap',
-                child: Text(context
-                    .t(_wrapLines ? 'vw.wrap_off' : 'vw.wrap_on')),
-              ),
-              // **JSON/XML biçimlendirme**: bu dosyalar gerçek hayatta tek
-              // satır geliyor (API cevabı, yedek dökümü) ve ekranda tek bir
-              // upuzun satır olarak görünüyordu.
-              if (PrettyFormat.supports(p.extension(doc.path)))
-                PopupMenuItem(
-                    value: 'prettify', child: Text(context.t('vw.prettify'))),
-            ],
-            // Belgeyi okurken "bunu Önemli Dosyalar'a taşıyayım" demek için
-            // görüntüleyiciyi kapatıp dosyayı listede aramak gerekmesin
-            // (kullanıcı isteği 2026-07-29: "her türlü dosyada bu olmalı").
-            PopupMenuItem(
-                value: 'fileops',
-                child: Text(context.t('vw.file_ops'))),
-            ];
-          },
+        IconButton(
+          tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+          icon: const Icon(Icons.more_vert),
+          onPressed: () => _showMore(doc),
         ),
       ],
       body: _ttsTotal == 0
@@ -1656,10 +1432,282 @@ class _ViewerScreenState extends State<ViewerScreen> {
       bottomBar: _actionBar(doc),
       // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
       // kapatıyordu; etiket tooltip'e taşındı.
-      fab: FloatingActionButton(
+      fab: DocAiButton(
+        kind: doc.kind,
         onPressed: _openChat,
         tooltip: hasApiKey ? context.t('common.ai') : 'AI (anahtar gerekli)',
-        child: const Icon(Icons.smart_toy_outlined),
+      ),
+    );
+  }
+
+  /// **"Daha fazla" sayfası** — eskiden 15 satırlık düz bir açılır menüydü
+  /// (simgesiz, grupsuz; "Gece modu" ile "Gece modunu kapat" gibi aynı
+  /// ayarın iki ayrı metni). Artık konusuna göre gruplu, simgeli ızgara;
+  /// açık/kapalı ayarlar onay işaretiyle durumunu gösterir.
+  void _showMore(LoadedDoc doc) {
+    // Metin gibi davranan belgeler: satır kavramı olanlar.
+    final isTextLike = doc.kind == DocKind.text ||
+        doc.kind == DocKind.word ||
+        doc.kind == DocKind.slides;
+    final isPdf = doc.kind == DocKind.pdf;
+    final isImage = doc.kind == DocKind.image;
+    DocMoreSheet.show(
+      context,
+      header: DocTitle(
+        kind: doc.kind,
+        title: doc.name,
+        subtitle: isPdf && _pageCount > 0
+            ? context.t('shell.pages', {'n': _pageCount})
+            : null,
+      ),
+      [
+        if (isPdf)
+          DocMoreGroup(context.t('dm.view'), [
+            // "Sayfaya git" üç yerde birden: burada (etiketli, bulunabilir),
+            // arama çubuğunda ve alttaki sayfa rozetine dokununca (2026-07-26:
+            // "nerede olduğu anlaşılmıyor, kişiler bulamaz").
+            DocMoreItem(Icons.numbers, context.t('vw.goto_page'), _askGoToPage),
+            // E-kitap okuma görünümü (2026-08-06): taranmış PDF'te bile
+            // sayfanın METNİ akar.
+            DocMoreItem(
+              Icons.chrome_reader_mode_outlined,
+              context.t('reader.open'),
+              _pdfDoc == null
+                  ? null
+                  : () => ReaderScreen.open(context,
+                      document: _pdfDoc!, title: widget.doc.name),
+            ),
+            DocMoreItem(Icons.dark_mode_outlined, context.t('vw.night_on'),
+                () => setState(() => _pdfNight = !_pdfNight),
+                selected: _pdfNight),
+            DocMoreItem(Icons.view_agenda_outlined, context.t('vw.one_column'),
+                () => _setPdfColumns(1),
+                selected: _pdfColumns == 1),
+            DocMoreItem(Icons.view_column_outlined, context.t('vw.two_columns'),
+                () => _setPdfColumns(2),
+                selected: _pdfColumns == 2),
+            DocMoreItem(Icons.grid_view_outlined, context.t('vw.four_columns'),
+                () => _setPdfColumns(4),
+                selected: _pdfColumns == 4),
+          ]),
+        if (isPdf)
+          DocMoreGroup(context.t('dm.page'), [
+            DocMoreItem(Icons.rotate_left, context.t('vw.rotate_left'),
+                _pdfBusy ? null : () => _rotateCurrentPage(-1)),
+            DocMoreItem(Icons.rotate_right, context.t('vw.rotate_right'),
+                _pdfBusy ? null : () => _rotateCurrentPage(1)),
+          ]),
+        if (isPdf)
+          DocMoreGroup(context.t('dm.edit_sign'), [
+            DocMoreItem(
+                Icons.auto_fix_high, context.t('vw.ai_edit'), _aiEditPdf),
+            DocMoreItem(Icons.draw_outlined, context.t('vw.sign'), _signPdf),
+            DocMoreItem(Icons.assignment_outlined, context.t('vw.fill_form'),
+                _fillPdfForm),
+            DocMoreItem(
+                Icons.document_scanner_outlined, context.t('vw.ocr'), _runOcr),
+          ]),
+        if (isImage)
+          DocMoreGroup(context.t('dm.view'), [
+            DocMoreItem(
+                Icons.zoom_in, context.t('vw.zoom_in'), () => _zoomImg(1.4)),
+            DocMoreItem(Icons.zoom_out, context.t('vw.zoom_out'),
+                () => _zoomImg(1 / 1.4)),
+            DocMoreItem(
+                Icons.rotate_right,
+                context.t('vw.rotate'),
+                () => setState(
+                    () => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4)),
+          ]),
+        if (isTextLike)
+          DocMoreGroup(context.t('dm.text'), [
+            // **Satıra git / satır numaraları** (2026-09-06 denetim turu):
+            // uzun bir kayıt ya da kod dosyasında "347. satır" demenin bir
+            // yolu yoktu; tek çare parmakla kaydırmaktı.
+            DocMoreItem(Icons.low_priority, context.t('vw.goto_line'),
+                () => unawaited(_askGoToLine())),
+            DocMoreItem(
+                Icons.format_list_numbered,
+                context.t('vw.line_numbers'),
+                () => setState(() => _lineNumbers = !_lineNumbers),
+                selected: _lineNumbers),
+            DocMoreItem(Icons.wrap_text, context.t('vw.wrap_on'),
+                () => setState(() => _wrapLines = !_wrapLines),
+                selected: _wrapLines),
+            // **JSON/XML biçimlendirme**: bu dosyalar gerçek hayatta tek
+            // satır geliyor (API cevabı, yedek dökümü).
+            if (PrettyFormat.supports(p.extension(doc.path)))
+              DocMoreItem(
+                  Icons.data_object, context.t('vw.prettify'), _prettify),
+            if (_hasText)
+              DocMoreItem(Icons.analytics_outlined, context.t('vw.word_count'),
+                  _showStats),
+          ]),
+        DocMoreGroup(context.t('dm.convert'), [
+          if (_ttsTotal == 0)
+            DocMoreItem(Icons.record_voice_over_outlined, context.t('vw.speak'),
+                _toggleSpeech),
+          // "Çevir" burada YOK: alt eylem çubuğunda etiketli duruyor
+          // (2026-07-31 — "tek butonla" isteği).
+          if (!isImage)
+            DocMoreItem(Icons.picture_as_pdf_outlined, context.t('vw.to_pdf'),
+                _exportPdf),
+          DocMoreItem(Icons.slideshow_outlined, context.t('vw.to_slides'),
+              _exportSlides),
+          if (_hasText && !isTextLike)
+            DocMoreItem(Icons.analytics_outlined, context.t('vw.word_count'),
+                _showStats),
+        ]),
+        // Belgeyi okurken "bunu Önemli Dosyalar'a taşıyayım" demek için
+        // görüntüleyiciyi kapatıp dosyayı listede aramak gerekmesin
+        // (2026-07-29: "her türlü dosyada bu olmalı").
+        DocMoreGroup(context.t('dm.file'), [
+          DocMoreItem(Icons.drive_file_move_outline, context.t('vw.file_ops'),
+              _fileActions),
+        ]),
+      ],
+    );
+  }
+
+  /// **Okuma ayarları ("Aa")** — yazı boyutu, yazı tipi, satır numarası ve
+  /// satır kaydırma tek sayfada, ANINDA önizlemeli (Kindle/Apple Books dili).
+  ///
+  /// Eskiden üst çubukta üç ayrı simge vardı (küçült, büyüt, yazı tipi
+  /// menüsü) ve boyutun kaç olduğu hiçbir yerde yazmıyordu.
+  void _showReadingSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      // Sayfa açıkken belge görünür kalsın: değişiklik arkada canlı izlenir.
+      barrierColor: Colors.black12,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheet) {
+          void apply(VoidCallback f) {
+            setState(f);
+            setSheet(() {});
+          }
+
+          final theme = Theme.of(context);
+          final scheme = theme.colorScheme;
+          Widget label(String text) => Padding(
+                padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                child: Text(
+                  text,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+          return SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(context.t('vw.reading_settings'),
+                      style: theme.textTheme.titleLarge),
+                  label(context.t('vw.text_size')),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          tooltip: context.t('vw.text_smaller'),
+                          icon: const Icon(OfficeIcons.fontShrink),
+                          onPressed: _fontSize <= 10
+                              ? null
+                              : () => apply(() => _fontSize =
+                                  (_fontSize - 1).clamp(10.0, 32.0)),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: _fontSize,
+                            min: 10,
+                            max: 32,
+                            divisions: 22,
+                            label: '${_fontSize.round()}',
+                            onChanged: (v) => apply(() => _fontSize = v),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: context.t('vw.text_bigger'),
+                          icon: const Icon(OfficeIcons.fontGrow),
+                          onPressed: _fontSize >= 32
+                              ? null
+                              : () => apply(() => _fontSize =
+                                  (_fontSize + 1).clamp(10.0, 32.0)),
+                        ),
+                        SizedBox(
+                          width: 36,
+                          child: Text(
+                            '${_fontSize.round()}',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  label(context.t('word.font_family')),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final f in _readerFonts)
+                        ChoiceChip(
+                          label: Text(
+                            f.$2.isEmpty ? context.t('vw.font_default') : f.$1,
+                            style: TextStyle(
+                                fontFamily: f.$2.isEmpty ? null : f.$2),
+                          ),
+                          selected: (_fontFamily ?? '') == f.$2,
+                          showCheckmark: false,
+                          onSelected: (_) => apply(
+                              () => _fontFamily = f.$2.isEmpty ? null : f.$2),
+                        ),
+                    ],
+                  ),
+                  label(context.t('vw.layout')),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        SwitchListTile(
+                          secondary: const Icon(Icons.format_list_numbered),
+                          title: Text(context.t('vw.line_numbers')),
+                          value: _lineNumbers,
+                          onChanged: (v) => apply(() => _lineNumbers = v),
+                        ),
+                        SwitchListTile(
+                          secondary: const Icon(Icons.wrap_text),
+                          title: Text(context.t('vw.wrap_on')),
+                          value: _wrapLines,
+                          onChanged: (v) => apply(() => _wrapLines = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1682,11 +1730,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
         DocAction(Icons.construction, context.t('vw.tools'), _openPdfTools),
       ],
       if (isImage) ...[
-        DocAction(Icons.document_scanner_outlined, context.t('vw.ocr_short'), _runOcr),
-        DocAction(Icons.picture_as_pdf_outlined, context.t('vw.to_pdf'), _exportPdf),
+        DocAction(Icons.document_scanner_outlined, context.t('vw.ocr_short'),
+            _runOcr),
+        DocAction(
+            Icons.picture_as_pdf_outlined, context.t('vw.to_pdf'), _exportPdf),
       ],
       if (doc.isEditableText) ...[
-        DocAction(Icons.edit_outlined, context.t('common.edit'), _textFocus.requestFocus),
+        DocAction(Icons.edit_outlined, context.t('common.edit'),
+            _textFocus.requestFocus),
         DocAction(Icons.save_outlined, context.t('common.save'), _save),
       ],
       DocAction(
@@ -1695,9 +1746,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // Başka uygulamadan açılan dosya özel önbellekte duruyor; paylaş
       // dolambacı olmadan İndirilenler'e (bkz. [SaveToDownloads]).
       if (showDownloadAction(widget.doc.path))
-        DocAction(Icons.download_outlined, context.t('common.download'),
-            _download),
-      if (!isImage) DocAction(Icons.print_outlined, context.t('vw.print'), _print),
+        DocAction(
+            Icons.download_outlined, context.t('common.download'), _download),
+      if (!isImage)
+        DocAction(Icons.print_outlined, context.t('vw.print'), _print),
     ]);
   }
 
@@ -1835,8 +1887,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void _selectAllInlineEdit() {
     final ctl = _pdfEditCtl;
     if (ctl == null) return;
-    ctl.selection =
-        TextSelection(baseOffset: 0, extentOffset: ctl.text.length);
+    ctl.selection = TextSelection(baseOffset: 0, extentOffset: ctl.text.length);
     _focusInlineEdit();
   }
 
@@ -2049,9 +2100,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     final text = _documentText;
     if (text.trim().isEmpty) {
-      _snack(_isPdf
-          ? context.t('vw.no_readable_text')
-          : 'Okunacak metin yok');
+      _snack(_isPdf ? context.t('vw.no_readable_text') : 'Okunacak metin yok');
       return;
     }
     final service = TtsService(prefs: context.read<AppState>().ttsPrefs)
@@ -2074,40 +2123,86 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Sesli okuma çubuğu — okuma sürerken belgenin altında durur.
   Widget _speechBar() {
-    return Material(
-      color: Theme.of(context).colorScheme.secondaryContainer,
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            IconButton(
-              tooltip: context.t(
-                  _ttsPlaying ? 'common.pause' : 'common.resume'),
-              icon: Icon(_ttsPlaying ? Icons.pause : Icons.play_arrow),
-              onPressed: _toggleSpeech,
-            ),
-            Expanded(
-              child: Text(
-                  context.t('vw.speaking',
-                      {'n': _ttsIndex + 1, 'total': _ttsTotal}),
-                  style: Theme.of(context).textTheme.bodyMedium),
-            ),
-            IconButton(
-              tooltip: context.t('tts.voice_settings'),
-              icon: const Icon(Icons.record_voice_over_outlined),
-              onPressed: () async {
-                await TtsVoiceSheet.show(context);
-                // Okuma sürerken ses değiştirilebilsin: yeni tercih sonraki
-                // parçadan itibaren geçerli olur.
-                if (mounted) _tts?.prefs = context.read<AppState>().ttsPrefs;
-              },
-            ),
-            IconButton(
-              tooltip: context.t('common.stop'),
-              icon: const Icon(Icons.stop),
-              onPressed: _stopSpeech,
-            ),
-          ],
+    // Mini oynatıcı kartı (2026-09-23 tasarım turu): düz renkli bir şerit
+    // yerine belgenin üstünde yüzen yuvarlak kart + ilerleme çizgisi — kaçıncı
+    // parçada olunduğu sayı okumadan da görülür.
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final progress =
+        _ttsTotal == 0 ? 0.0 : ((_ttsIndex + 1) / _ttsTotal).clamp(0.0, 1.0);
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+        child: Material(
+          color: scheme.surfaceContainerHigh,
+          elevation: 4,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 4, 4),
+                child: Row(
+                  children: [
+                    IconButton.filled(
+                      tooltip: context
+                          .t(_ttsPlaying ? 'common.pause' : 'common.resume'),
+                      icon: Icon(_ttsPlaying ? Icons.pause : Icons.play_arrow),
+                      onPressed: _toggleSpeech,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(context.t('vw.speak'),
+                              style: theme.textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          Text(
+                            context.t('vw.speak_part',
+                                {'n': _ttsIndex + 1, 'total': _ttsTotal}),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: context.t('tts.voice_settings'),
+                      icon: const Icon(Icons.tune),
+                      onPressed: () async {
+                        await TtsVoiceSheet.show(context);
+                        // Okuma sürerken ses değiştirilebilsin: yeni tercih
+                        // sonraki parçadan itibaren geçerli olur.
+                        if (mounted) {
+                          _tts?.prefs = context.read<AppState>().ttsPrefs;
+                        }
+                      },
+                    ),
+                    IconButton(
+                      tooltip: context.t('common.stop'),
+                      icon: const Icon(Icons.stop_rounded),
+                      onPressed: _stopSpeech,
+                    ),
+                  ],
+                ),
+              ),
+              LinearProgressIndicator(
+                value: progress,
+                minHeight: 3,
+                backgroundColor: scheme.surfaceContainerHighest,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2151,8 +2246,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // Metin baştan seçili: kullanıcı doğrudan yazmaya başlayabilir
       // (Word'de bir kelimeye çift tıklamak gibi).
       _pdfEditCtl = TextEditingController(text: text)
-        ..selection =
-            TextSelection(baseOffset: 0, extentOffset: text.length);
+        ..selection = TextSelection(baseOffset: 0, extentOffset: text.length);
       _pdfEdit = _InlineEdit(
         page: page,
         rects: rects,
@@ -2523,7 +2617,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     var target = _pdfPage.toDouble();
     final controller = TextEditingController(text: '$_pdfPage')
-      ..selection = TextSelection(baseOffset: 0, extentOffset: '$_pdfPage'.length);
+      ..selection =
+          TextSelection(baseOffset: 0, extentOffset: '$_pdfPage'.length);
 
     int resolve() {
       final typed = int.tryParse(controller.text.trim());
@@ -2672,9 +2767,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     try {
       await _pdfController.goToPage(
         pageNumber: target,
-        duration: animate
-            ? const Duration(milliseconds: 200)
-            : Duration.zero,
+        duration: animate ? const Duration(milliseconds: 200) : Duration.zero,
       );
       return true;
     } catch (_) {
@@ -2732,16 +2825,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Kaydırma çubuğunun topuzu: üstünde güncel sayfa numarası.
   Widget _scrollThumb(int? pageNumber) {
+    // Kenara yapışık "sekme": sağ kenarda düz, içe bakan tarafı yuvarlak —
+    // tutulup sürüklenebileceği biçiminden okunur.
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: Theme.of(context).colorScheme.primary,
-      borderRadius: BorderRadius.circular(10),
-      elevation: 2,
+      color: scheme.primary,
+      elevation: 3,
+      shadowColor: Colors.black38,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(
+          left: Radius.circular(20),
+          right: Radius.circular(6),
+        ),
+      ),
       child: Center(
         child: Text(
           '${pageNumber ?? _pdfPage}',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
-            fontWeight: FontWeight.w600,
+            color: scheme.onPrimary,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ),
@@ -2751,29 +2854,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF sayfa numarası rozeti — aynı zamanda "sayfaya git" düğmesi.
   ///
   /// Simge ve "git" yazısı bilerek duruyor: rozet eskiden düz metindi ve
-  /// kullanıcı dokunulabilir olduğunu anlamıyordu.
+  /// kullanıcı dokunulabilir olduğunu anlamıyordu. Görünüm ortak [DocPill].
   Widget _pageBadge(String text) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 6, 14, 6),
-      decoration: BoxDecoration(
-        // Kağıt teması: saf siyah yerine mürekkep tonu (rgba(38,34,25,.72)).
-        color: const Color(0xB8262219),
-        borderRadius: BorderRadius.circular(Radii.control),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.unfold_more, color: Colors.white, size: 16),
-          const SizedBox(width: 6),
-          Text(text,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontFamily: AppFonts.of(context).mono,
-              )),
-        ],
-      ),
-    );
+    return DocPill(text: text, icon: Icons.unfold_more, onTap: _askGoToPage);
   }
 
   Widget _buildBody(LoadedDoc doc) {
@@ -2793,183 +2876,184 @@ class _ViewerScreenState extends State<ViewerScreen> {
           child: Focus(
             autofocus: true,
             child: Stack(
-          children: [
-            Positioned.fill(
-              // pdfrx (pdfium). Metin seçimi: paketin SelectionArea'sı Android'de
-              // güvenilir çalışmadığı için sayfa üzerine kendi seçim katmanımız
-              // (PdfSelectLayer) biner. Katman DAİMA açıktır ve parmağı ASLA
-              // yutmaz: uzun basış seçer, tek parmak kaydırır, iki parmak
-              // yakınlaştırır. (Eski "sürükleyerek seç" modu kaldırıldı —
-              // açıkken `panEnabled: false` yapıyordu ve kullanıcı sayfayı
-              // kaydıramıyor/yakınlaştıramıyordu; bkz. HAFIZA 2026-07-26.)
-              //
-              // Dosya yolu HİÇ DEĞİŞMEZ (2026-07-26, 9. tur): düzenlemeler
-              // dosyanın kendisine yazılıp [PdfReload] ile tazeleniyor. Yolu
-              // geçici bir çalışma kopyasına çevirmek pdfrx'e belgeyi baştan
-              // yükletiyor ve görüntüleyiciyi kararsızlaştırıyordu ("sayfa
-              // geçemiyorum, zoom yapamıyorum"). Özgün baytlar yedekte duruyor.
-              //
-              // Gece modu: sayfa görüntüsü renk matrisiyle terslenir. Dosyaya
-              // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
-              child: _nightFilter(
-                child: PdfViewer.file(
-                doc.path,
-                controller: _pdfController,
-                initialPageNumber: _pdfPage,
-                params: PdfViewerParams(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
-                  // Sürükleyerek seçim sürerken pan kapalı: parmak/fare
-                  // seçimi büyütür, sayfa kaymaz (Chrome davranışı).
-                  // InteractiveViewer bu bayrağı HER olayda okuduğu için jest
-                  // ortasında kapatmak da işler; belge yeniden YÜKLENMEZ
-                  // (pdfrx yalnız documentRef değişiminde yükler).
-                  panEnabled: !_pdfSelecting,
-                  // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
-                  // düzeni kullanılır — gereksiz yere devralmıyoruz.
-                  layoutPages: _pdfColumns == 1 ? null : _layoutPdfColumns,
-                  // Güncel sayfa: sayfalar ekrana sığınca rozet geri
-                  // kalıyordu (bkz. [currentPdfPage]).
-                  calculateCurrentPageNumber: _currentPdfPage,
-                  // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
-                  // tercihi artık geçerli değil.
-                  onInteractionStart: (_) => _pdfJumpTarget = null,
-                  // Arama eşleşmelerini sayfada vurgula: metin katmanı
-                  // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
-                  // (Faz 2) — renkler aynı, kullanıcı fark görmez.
-                  pagePaintCallbacks: [
-                    if (_pdfSearcher != null)
-                      _pdfSearcher!.pageTextMatchPaintCallback,
-                    if (_ocrSearch != null) _paintOcrSearchMatches,
-                  ],
-                  // Sağ kenarda sürüklenebilir kaydırma çubuğu: uzun belgede
-                  // sayfa sayfa kaydırmak yerine tutup atlanır, üstünde de
-                  // güncel sayfa numarası yazar.
-                  viewerOverlayBuilder: (context, size, handleLinkTap) => [
-                    PdfViewerScrollThumb(
+              children: [
+                Positioned.fill(
+                  // pdfrx (pdfium). Metin seçimi: paketin SelectionArea'sı Android'de
+                  // güvenilir çalışmadığı için sayfa üzerine kendi seçim katmanımız
+                  // (PdfSelectLayer) biner. Katman DAİMA açıktır ve parmağı ASLA
+                  // yutmaz: uzun basış seçer, tek parmak kaydırır, iki parmak
+                  // yakınlaştırır. (Eski "sürükleyerek seç" modu kaldırıldı —
+                  // açıkken `panEnabled: false` yapıyordu ve kullanıcı sayfayı
+                  // kaydıramıyor/yakınlaştıramıyordu; bkz. HAFIZA 2026-07-26.)
+                  //
+                  // Dosya yolu HİÇ DEĞİŞMEZ (2026-07-26, 9. tur): düzenlemeler
+                  // dosyanın kendisine yazılıp [PdfReload] ile tazeleniyor. Yolu
+                  // geçici bir çalışma kopyasına çevirmek pdfrx'e belgeyi baştan
+                  // yükletiyor ve görüntüleyiciyi kararsızlaştırıyordu ("sayfa
+                  // geçemiyorum, zoom yapamıyorum"). Özgün baytlar yedekte duruyor.
+                  //
+                  // Gece modu: sayfa görüntüsü renk matrisiyle terslenir. Dosyaya
+                  // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
+                  child: _nightFilter(
+                    child: PdfViewer.file(
+                      doc.path,
                       controller: _pdfController,
-                      orientation: ScrollbarOrientation.right,
-                      thumbSize: const Size(44, 40),
-                      thumbBuilder: (ctx, thumbSize, pageNumber, controller) =>
-                          _scrollThumb(pageNumber),
-                    ),
-                  ],
-                  // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
-                  linkHandlerParams: PdfLinkHandlerParams(
-                    onLinkTap: _onPdfLink,
-                    linkColor: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.15),
-                  ),
-                  onViewerReady: (document, controller) {
-                    _pdfDoc = document;
-                    if (mounted) {
-                      setState(() => _pdfCount = document.pages.length);
-                    }
-                    _extractPdfText(document);
-                    // Belge çizildikten SONRA haber ver: açılışta gösterilen
-                    // şerit ilk kareyle birlikte kayboluyordu.
-                    WidgetsBinding.instance
-                        .addPostFrameCallback((_) => _showResumeNotice());
-                    if (widget.startInk && !_inkStarted) {
-                      _inkStarted = true;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) _openInk();
-                      });
-                    }
-                  },
-                  onPageChanged: (page) {
-                    if (mounted && page != null) {
-                      setState(() => _pdfPage = page);
-                      // Kaldığın yerden devam: kayıt kuralları
-                      // `ReadingPositions`ta (ilk/son sayfa ve kısa belge
-                      // kaydedilmez), yazma gecikmeli.
-                      if (context.read<AppState>().resumePosition) {
-                        ReadingPositions.record(
-                            widget.doc.path, page, _pageCount);
-                      }
-                    }
-                  },
-                  // Yerinde düzenleme açıkken seçim katmanı kurulmaz: kutunun
-                  // içindeki dokunuşları yutar, imleç konumlandırılamazdı.
-                  pageOverlaysBuilder: (context, pageRect, page) => [
-                    if (_pdfEdit != null &&
-                        _pdfEdit!.page == page.pageNumber &&
-                        _pdfEditCtl != null &&
-                        _pdfEditFocus != null)
-                      PdfInlineEditor(
-                        page: page,
-                        pageSize: pageRect.size,
-                        rects: _pdfEdit!.rects,
-                        original: _pdfEdit!.original,
-                        controller: _pdfEditCtl!,
-                        focusNode: _pdfEditFocus!,
-                        busy: _pdfEditBusy,
-                        onSubmit: _submitInlineEdit,
-                      )
-                    else if (_pdfEdit == null)
-                      PdfSelectLayer(
-                        page: page,
-                        pageSize: pageRect.size,
-                        // Tek etkin seçim: seçim hangi sayfadaysa öbür
-                        // sayfaların katmanları kendi vurgusunu bırakır.
-                        activeSelectionPage:
-                            _pdfSelection.isEmpty ? 0 : _pdfSelPage,
-                        onSelected: (t, rects, pageNo, preceding, fromOcr) {
+                      initialPageNumber: _pdfPage,
+                      params: PdfViewerParams(
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        // Sürükleyerek seçim sürerken pan kapalı: parmak/fare
+                        // seçimi büyütür, sayfa kaymaz (Chrome davranışı).
+                        // InteractiveViewer bu bayrağı HER olayda okuduğu için jest
+                        // ortasında kapatmak da işler; belge yeniden YÜKLENMEZ
+                        // (pdfrx yalnız documentRef değişiminde yükler).
+                        panEnabled: !_pdfSelecting,
+                        // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
+                        // düzeni kullanılır — gereksiz yere devralmıyoruz.
+                        layoutPages:
+                            _pdfColumns == 1 ? null : _layoutPdfColumns,
+                        // Güncel sayfa: sayfalar ekrana sığınca rozet geri
+                        // kalıyordu (bkz. [currentPdfPage]).
+                        calculateCurrentPageNumber: _currentPdfPage,
+                        // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
+                        // tercihi artık geçerli değil.
+                        onInteractionStart: (_) => _pdfJumpTarget = null,
+                        // Arama eşleşmelerini sayfada vurgula: metin katmanı
+                        // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
+                        // (Faz 2) — renkler aynı, kullanıcı fark görmez.
+                        pagePaintCallbacks: [
+                          if (_pdfSearcher != null)
+                            _pdfSearcher!.pageTextMatchPaintCallback,
+                          if (_ocrSearch != null) _paintOcrSearchMatches,
+                        ],
+                        // Sağ kenarda sürüklenebilir kaydırma çubuğu: uzun belgede
+                        // sayfa sayfa kaydırmak yerine tutup atlanır, üstünde de
+                        // güncel sayfa numarası yazar.
+                        viewerOverlayBuilder: (context, size, handleLinkTap) =>
+                            [
+                          PdfViewerScrollThumb(
+                            controller: _pdfController,
+                            orientation: ScrollbarOrientation.right,
+                            thumbSize: const Size(44, 40),
+                            thumbBuilder:
+                                (ctx, thumbSize, pageNumber, controller) =>
+                                    _scrollThumb(pageNumber),
+                          ),
+                        ],
+                        // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
+                        linkHandlerParams: PdfLinkHandlerParams(
+                          onLinkTap: _onPdfLink,
+                          linkColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.15),
+                        ),
+                        onViewerReady: (document, controller) {
+                          _pdfDoc = document;
                           if (mounted) {
-                            setState(() {
-                              _pdfSelection = t;
-                              _pdfSelRects = rects;
-                              _pdfSelPage = t.isEmpty ? 0 : pageNo;
-                              _pdfSelPreceding = preceding;
-                              _pdfSelFromOcr = fromOcr;
+                            setState(() => _pdfCount = document.pages.length);
+                          }
+                          _extractPdfText(document);
+                          // Belge çizildikten SONRA haber ver: açılışta gösterilen
+                          // şerit ilk kareyle birlikte kayboluyordu.
+                          WidgetsBinding.instance
+                              .addPostFrameCallback((_) => _showResumeNotice());
+                          if (widget.startInk && !_inkStarted) {
+                            _inkStarted = true;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) _openInk();
                             });
                           }
                         },
-                        onSelectingChanged: (s) {
-                          if (mounted && _pdfSelecting != s) {
-                            setState(() => _pdfSelecting = s);
+                        onPageChanged: (page) {
+                          if (mounted && page != null) {
+                            setState(() => _pdfPage = page);
+                            // Kaldığın yerden devam: kayıt kuralları
+                            // `ReadingPositions`ta (ilk/son sayfa ve kısa belge
+                            // kaydedilmez), yazma gecikmeli.
+                            if (context.read<AppState>().resumePosition) {
+                              ReadingPositions.record(
+                                  widget.doc.path, page, _pageCount);
+                            }
                           }
                         },
-                        onDragAt: _onPdfSelDragAt,
+                        // Yerinde düzenleme açıkken seçim katmanı kurulmaz: kutunun
+                        // içindeki dokunuşları yutar, imleç konumlandırılamazdı.
+                        pageOverlaysBuilder: (context, pageRect, page) => [
+                          if (_pdfEdit != null &&
+                              _pdfEdit!.page == page.pageNumber &&
+                              _pdfEditCtl != null &&
+                              _pdfEditFocus != null)
+                            PdfInlineEditor(
+                              page: page,
+                              pageSize: pageRect.size,
+                              rects: _pdfEdit!.rects,
+                              original: _pdfEdit!.original,
+                              controller: _pdfEditCtl!,
+                              focusNode: _pdfEditFocus!,
+                              busy: _pdfEditBusy,
+                              onSubmit: _submitInlineEdit,
+                            )
+                          else if (_pdfEdit == null)
+                            PdfSelectLayer(
+                              page: page,
+                              pageSize: pageRect.size,
+                              // Tek etkin seçim: seçim hangi sayfadaysa öbür
+                              // sayfaların katmanları kendi vurgusunu bırakır.
+                              activeSelectionPage:
+                                  _pdfSelection.isEmpty ? 0 : _pdfSelPage,
+                              onSelected:
+                                  (t, rects, pageNo, preceding, fromOcr) {
+                                if (mounted) {
+                                  setState(() {
+                                    _pdfSelection = t;
+                                    _pdfSelRects = rects;
+                                    _pdfSelPage = t.isEmpty ? 0 : pageNo;
+                                    _pdfSelPreceding = preceding;
+                                    _pdfSelFromOcr = fromOcr;
+                                  });
+                                }
+                              },
+                              onSelectingChanged: (s) {
+                                if (mounted && _pdfSelecting != s) {
+                                  setState(() => _pdfSelecting = s);
+                                }
+                              },
+                              onDragAt: _onPdfSelDragAt,
+                            ),
+                        ],
                       ),
-                  ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-            if (_pageCount > 0 && _pdfEdit == null)
-              Positioned(
-                bottom: 16,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: InkWell(
-                    onTap: _askGoToPage,
-                    borderRadius: BorderRadius.circular(20),
-                    // Rozet İngilizce/Arapça arayüzde de çevrilmeli — eskiden
-                    // "— sayfaya git" kısmı koda gömülü Türkçeydi.
-                    child: _pageBadge('$_pdfPage / $_pageCount · '
-                        '${context.t('vw.goto_page_short')}'),
+                if (_pageCount > 0 && _pdfEdit == null)
+                  Positioned(
+                    bottom: 16,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      // Rozet İngilizce/Arapça arayüzde de çevrilmeli — eskiden
+                      // "— sayfaya git" kısmı koda gömülü Türkçeydi.
+                      child: _pageBadge('$_pdfPage / $_pageCount · '
+                          '${context.t('vw.goto_page_short')}'),
+                    ),
                   ),
-                ),
-              ),
-            if (_pdfEdit == null && _pdfSelection.trim().isNotEmpty)
-              Positioned(
-                bottom: 64,
-                left: 8,
-                right: 8,
-                child: Center(child: _selectionBar()),
-              ),
-            if (_pdfEdit != null)
-              Positioned(
-                bottom: 16,
-                left: 8,
-                right: 8,
-                child: Center(child: _editBar()),
-              ),
-          ],
+                if (_pdfEdit == null && _pdfSelection.trim().isNotEmpty)
+                  Positioned(
+                    bottom: 64,
+                    left: 8,
+                    right: 8,
+                    child: Center(child: _selectionBar()),
+                  ),
+                if (_pdfEdit != null)
+                  Positioned(
+                    bottom: 16,
+                    left: 8,
+                    right: 8,
+                    child: Center(child: _editBar()),
+                  ),
+              ],
             ),
           ),
         );
@@ -3032,8 +3116,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.insert_drive_file_outlined,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.outline),
+                    size: 64, color: Theme.of(context).colorScheme.outline),
                 const SizedBox(height: 12),
                 Text(
                   doc.plainText.isNotEmpty
@@ -3104,7 +3187,7 @@ class _TextEditor extends StatelessWidget {
     return Container(
       color: Paper.docSurface(context),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(0, 12, 16, 16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3112,8 +3195,16 @@ class _TextEditor extends StatelessWidget {
               valueListenable: controller,
               builder: (_, value, __) {
                 final count = value.text.split('\n').length;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 10),
+                // Numara şeridi metinden ince bir cetvelle ayrılır (kod
+                // düzenleyicilerinin "gutter"ı).
+                final scheme = Theme.of(context).colorScheme;
+                return Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.only(left: 12, right: 10),
+                  decoration: BoxDecoration(
+                    border:
+                        Border(right: BorderSide(color: scheme.outlineVariant)),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -3126,7 +3217,7 @@ class _TextEditor extends StatelessWidget {
                             // Tek aralıklı yazı tipi: numaralar sağa hizalı
                             // olsa bile orantılı yazıda basamaklar oynuyor.
                             fontFamily: 'monospace',
-                            color: Theme.of(context).colorScheme.outline,
+                            color: scheme.outline,
                           ),
                         ),
                     ],
@@ -3149,7 +3240,7 @@ class _TextEditor extends StatelessWidget {
     if (!wrapLines) {
       return Container(
         color: Paper.docSurface(context),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
@@ -3207,28 +3298,36 @@ class _TextEditor extends StatelessWidget {
     return Container(
       // Metin sayfası BEYAZ: kağıt teması uygulamanın kabuğuna ait, belgenin
       // içine değil (2026-08-07 kullanıcı isteği — "txt de öyle").
+      //
+      // 2026-09-23: kenar boşluğu 12 → 20 (okuma uygulamalarının rahat
+      // sütunu) ve geniş ekranda satır uzunluğu ~80 karakterde sınırlı —
+      // tablette ekran boyu uzanan satırı göz takip edemiyordu.
       color: Paper.docSurface(context),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        readOnly: !editable,
-        onChanged: (_) => onChanged(),
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: editable ? context.t('vw.doc_content') : null,
-          filled: false,
-        ),
-        style: TextStyle(
-          fontSize: fontSize,
-          height: 1.5,
-          fontFamily: fontFamily,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Paper.inkDark
-              : Paper.ink,
+      alignment: Alignment.topCenter,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 820),
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          readOnly: !editable,
+          onChanged: (_) => onChanged(),
+          maxLines: null,
+          expands: true,
+          textAlignVertical: TextAlignVertical.top,
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            hintText: editable ? context.t('vw.doc_content') : null,
+            filled: false,
+          ),
+          style: TextStyle(
+            fontSize: fontSize,
+            height: 1.5,
+            fontFamily: fontFamily,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Paper.inkDark
+                : Paper.ink,
+          ),
         ),
       ),
     );
@@ -3258,8 +3357,9 @@ class _SpreadsheetView extends StatelessWidget {
     }
     final scheme = Theme.of(context).colorScheme;
     final divider = Theme.of(context).dividerColor;
-    final maxCols =
-        table.fold<int>(0, (m, row) => row.length > m ? row.length : m).clamp(1, 64);
+    final maxCols = table
+        .fold<int>(0, (m, row) => row.length > m ? row.length : m)
+        .clamp(1, 64);
     const rowHeaderW = 46.0;
     const colW = 120.0;
     const cellH = 34.0;
@@ -3282,7 +3382,8 @@ class _SpreadsheetView extends StatelessWidget {
           height: cellH,
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(border: Border.all(color: divider, width: 0.5)),
+          decoration:
+              BoxDecoration(border: Border.all(color: divider, width: 0.5)),
           child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
         );
 

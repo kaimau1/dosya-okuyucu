@@ -11380,3 +11380,87 @@ kaynağı tarıyor; `Semantics(label:)` ile sarılı düğme (mini oynatıcı) k
 (+11 test: `disk_housekeeping_test`, `icon_button_tooltip_test`).
 Cihazda bakılacak: görüntüleyicide bir PDF'e vurgu ekleyip kaydetmeden
 uygulamayı görev yöneticisinden öldür → yeniden açınca dosya özgün hâlinde mi.
+
+## 2026-09-23 (3) — Belge ekranlarının görsel dili baştan (PDF, Word, Slayt, Excel, not, görsel)
+Kullanıcı: *"PDF görüntüleme sayfamız, Word, slayt, Excel, not, görseller
+hepsinin kullanıcı arayüzü ve görünümü çok basit görünüyor, şu anki tasarım
+standartlarına uymuyor … tasarımda tam yetki … düzenleme araçları, arama
+menüleri, ayarlar her detay"*. Değişiklik ORTAK bileşenlerde yapıldı ki
+altı belge türü birlikte değişsin (ekran ekran boya = tekrar ayrışma).
+
+### KARAR — üst çubuk artık NÖTR yüzey (dolu marka rengi bant KALKTI)
+`OfficeShell` 2026-07-22'den beri M365 2018 dilindeydi: dosya türü renginde
+dolu AppBar + beyaz simgeler + başlık sonunda " •". Bugünün belge
+uygulamaları (Acrobat, Drive, yeni M365) üst çubuğu nötr tutar; kimlik küçük
+renkli rozetle verilir. Yeni başlık (`DocTitle`): çerçeveli tür simgesi +
+dosya adı + bilgi satırı ("PDF · 28 sayfa", "Slayt · 12 slayt") +
+kaydedilmemişse marka renginde "● Kaydedilmedi". `OfficeShell.subtitle`
+eklendi. Koyu temada marka tonu `OfficeColors.tint` ile %25 açılır.
+- **TUZAK:** Word biçim şeridi `onBrand: true` ile BEYAZ simge çiziyordu ve
+  renk menüsü/Bitti düğmesi `Colors.white` gömülüydü → nötr çubukta beyaz
+  üstüne beyaz olurdu. Hepsi temadan alınıyor; `onBrand` parametresi
+  şeritte duruyor ama hiçbir ekran kullanmıyor.
+
+### Yeni ortak bileşenler
+- `DocActionBar` → **dock**: simge üstte (hap vurgulu), etiket altta, en çok
+  2 satır. Sığıyorsa eşit pay; sığmıyorsa kaydırmalı ve son düğme YARIM
+  görünecek genişlikte (kaydırılabildiği gözle anlaşılsın).
+  `DocAction(active:)` kip düğmeleri için.
+- `DocMoreSheet` → **gruplu ızgara** (4 sütun, telefonda; genişte 5-6):
+  yuvarlak simge kutusu + etiket. `DocMoreItem(selected:)` aç/kapa ayarı
+  (vurgu dolgusu + köşede onay), `danger:` silme işleri (kırmızı).
+  `show(..., header:)` başlığa dosya kimliği koyar.
+- `DocFindBar` (`widgets/doc_find_bar.dart`) — dört ekranın dört ayrı arama
+  satırı (kimi çerçeveli, kimi çizgisiz) tek bileşene indi: hap alan, sayaç
+  alanın içinde rozet, ‹ › ve kapat. `DocFindBar.decoration` değiştir
+  satırında da kullanılıyor. Sayaç "yok" (Türkçe gömülüydü!) → `find.none`.
+- `DocPill` — sayfa/slayt/zoom rozetleri (üç ekranda üç ayrı siyah kutu:
+  `black54`, mürekkep tonu, farklı yarıçap) tek bileşen: ters yüzey rengi,
+  tam yuvarlak, gölgeli. `tapKey` → slayt testinin `badgeKey`i korunuyor.
+- `DocAiButton` — AI FAB: robot başı (`smart_toy`) → parıltı
+  (`auto_awesome`), belgenin marka renginden vurguya degrade.
+  `OfficeIcons.ai` da parıltıya döndü.
+- `OfficeRibbon` sekmeleri alt çizgili metin → hap (etkin sekme dolgulu);
+  `trailing` ("Bitti") önünde ince ayraç.
+
+### Görüntüleyici (`viewer_screen.dart`)
+- Üst çubuk en çok 3 simge + ⋮: PDF'te 1/2/4 sütun menüsü, görselde
+  yakınlaştır/uzaklaştır, metinde küçült/büyüt/yazı tipi (üç simge) kalktı.
+- ⋮ artık açılır menü DEĞİL, `DocMoreSheet`: Görünüm (sayfaya git, okuma
+  görünümü, gece modu, sütunlar — seçili olan işaretli), Sayfa (döndür),
+  Düzenle ve imzala, Metin (satıra git, satır no., kaydırma, biçimlendir,
+  sayım), Dönüştür ve dinle, Dosya. "Gece modu / Gece modunu kapat" gibi
+  İKİ METİNLİ tek ayar yerine tek etiket + onay durumu.
+- **"Aa" okuma ayarları sayfası** (`_showReadingSettings`): yazı boyutu
+  kaydırıcı + ± (boyut SAYIYLA yazıyor; eskiden hiçbir yerde yazmıyordu),
+  yazı tipi çipleri (her çip kendi yazı tipiyle), satır no./kaydırma
+  anahtarları. Perde `black12`: belge arkada canlı görünür.
+- Sesli okuma şeridi → yüzen mini oynatıcı kartı + ilerleme çizgisi.
+- Metin sayfası: kenar boşluğu 12 → 20, geniş ekranda satır ≤ 820 dp
+  (tablette ekran boyu satır okunmuyordu); satır no. şeridi cetvelle ayrık.
+- PDF kaydırma başparmağı kenara yapışık sekme biçiminde.
+
+### Galeri (`image_gallery_screen.dart`)
+Düz %72 siyah bant → üst/alt DEGRADE perde; altta etiketli eylem sırası
+(Paylaş · Döndür · Araçlar · Bilgi · Sil — eskiden paylaş/sil dışındakiler
+⋮ içinde gizliydi); birden çok görselde küçük resim şeridi (48 dp ×
+dpr `cacheWidth`, `ListView` — yalnız görünenler çözülür).
+- **Korunan kural:** çubuklar gövdenin ÜSTÜNE biner, yalnız saydamlık
+  değişir (2026-07-30 "zıplama" hatası). `appBar` artık hiç yok; üst perde
+  `Stack` içinde, `MediaQuery.padding.top` elle ekleniyor.
+
+### Bilinçli YAPILMAYAN
+- PDF seçim/düzenleme çubukları (`pdf_action_bars.dart`) 2026-08-29'da
+  zaten bu dile getirilmişti; dokunulmadı.
+- Excel sayfa sekmeleri (ChoiceChip) zaten hap biçimindeydi.
+- `dart format` görüntüleyici ve Word dosyalarını baştan biçimlendirdi (diff
+  büyük görünür; mantık değişikliği yukarıdakilerden ibaret).
+- **TUZAK (test yakaladı):** şeride alt cetvel `decoration: Border` ile
+  konunca yükseklik 1 px arttı ve `OfficeRibbon.heightFor` (PreferredSize
+  sözleşmesi) bozuldu. Cetvel `foregroundDecoration`da — yerleşime girmez.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun, tüm takım yeşil
+(2398; canlı sunucu testleri her zamanki gibi atlandı). Cihazda bakılacak:
+koyu temada üst çubuk rozeti/“Kaydedilmedi” okunuyor mu; dar telefonda
+PDF alt dock'u (6-7 düğme) yarım düğmeyle kaydırılabildiğini belli ediyor mu;
+galeride küçük resim şeridi kaydırırken takılıyor mu.

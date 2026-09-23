@@ -63,7 +63,7 @@ abstract final class OfficeIcons {
   static const save = Icons.save_outlined;
   static const share = Icons.share_outlined;
   static const translate = Icons.translate;
-  static const ai = Icons.smart_toy_outlined;
+  static const ai = Icons.auto_awesome;
   static const zoomIn = Icons.zoom_in;
   static const zoomOut = Icons.zoom_out;
   static const goTo = Icons.my_location;
@@ -123,46 +123,60 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
     final index = _tab < tabs.length ? _tab : 0;
     final fg = widget.onBrand ? Colors.white : scheme.onSurface;
 
+    // 2026-09-23 tasarım turu: sekmeler alt çizgili düz metin değil, HAP
+    // (M3 "segmented" dili): etkin sekme vurgu dolgusuyla okunur, parmakla
+    // hedeflemesi kolay. Şerit zemini kabukla aynı yüzeyde + alt cetvel.
     return RibbonStyle(
       onBrand: widget.onBrand,
       child: Container(
-        color: widget.onBrand ? Colors.transparent : scheme.surfaceContainerHigh,
+        color: widget.onBrand ? Colors.transparent : scheme.surface,
+        // Cetvel ÖN süslemede: `decoration` kenarlığı yüksekliğe 1 px ekler
+        // ve `heightFor` sözleşmesini (PreferredSize) bozardı.
+        foregroundDecoration: widget.onBrand
+            ? null
+            : BoxDecoration(
+                border:
+                    Border(bottom: BorderSide(color: scheme.outlineVariant))),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (tabs.length > 1)
               SizedBox(
-                height: widget.compact ? 28 : 34,
+                height: widget.compact ? 28 : 36,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: EdgeInsets.fromLTRB(8, widget.compact ? 2 : 4, 8, 0),
                   itemCount: tabs.length,
                   itemBuilder: (_, i) {
                     final active = i == index;
-                    return InkWell(
-                      onTap: () => setState(() => _tab = i),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              width: 2,
-                              color: active
-                                  ? (widget.onBrand ? Colors.white : scheme.primary)
-                                  : Colors.transparent,
+                    final activeBg = widget.onBrand
+                        ? Colors.white24
+                        : scheme.primaryContainer;
+                    final activeFg = widget.onBrand
+                        ? Colors.white
+                        : scheme.onPrimaryContainer;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Material(
+                        color: active ? activeBg : Colors.transparent,
+                        shape: const StadiumBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => setState(() => _tab = i),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            alignment: Alignment.center,
+                            child: Text(
+                              tabs[i].label,
+                              style: TextStyle(
+                                fontSize: widget.compact ? 12 : 13,
+                                fontWeight:
+                                    active ? FontWeight.w700 : FontWeight.w600,
+                                color: active
+                                    ? activeFg
+                                    : fg.withValues(alpha: 0.7),
+                              ),
                             ),
-                          ),
-                        ),
-                        child: Text(
-                          tabs[i].label,
-                          style: TextStyle(
-                            fontSize: widget.compact ? 12 : 13,
-                            fontWeight:
-                                active ? FontWeight.w700 : FontWeight.w500,
-                            color: active
-                                ? fg
-                                : fg.withValues(alpha: 0.65),
                           ),
                         ),
                       ),
@@ -177,14 +191,25 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: tabs[index].items,
                       ),
                     ),
                   ),
-                  if (widget.trailing != null) widget.trailing!,
+                  if (widget.trailing != null) ...[
+                    // Kayan simgelerle sabit düğme arasına ince ayraç: "Bitti"
+                    // simge sırasının bir parçası sanılmasın.
+                    Container(
+                      width: 1,
+                      height: 24,
+                      color: widget.onBrand
+                          ? Colors.white38
+                          : scheme.outlineVariant,
+                    ),
+                    widget.trailing!,
+                  ],
                 ],
               ),
             ),
@@ -206,7 +231,8 @@ class RibbonStyle extends InheritedWidget {
       false;
 
   @override
-  bool updateShouldNotify(RibbonStyle oldWidget) => oldWidget.onBrand != onBrand;
+  bool updateShouldNotify(RibbonStyle oldWidget) =>
+      oldWidget.onBrand != onBrand;
 }
 
 /// Şerit düğmesi (simge + isteğe bağlı etkin durum).
@@ -233,14 +259,16 @@ class RibbonButton extends StatelessWidget {
       decoration: active
           ? BoxDecoration(
               color: onBrand ? Colors.white24 : scheme.primaryContainer,
-              borderRadius: BorderRadius.circular(Radii.control),
+              borderRadius: BorderRadius.circular(12),
             )
           : null,
       child: IconButton(
         tooltip: tooltip,
         visualDensity: VisualDensity.compact,
         iconSize: 20,
-        color: onBrand ? Colors.white : null,
+        color: onBrand
+            ? Colors.white
+            : (active ? scheme.onPrimaryContainer : scheme.onSurface),
         icon: Icon(icon),
         onPressed: onTap,
       ),
@@ -313,8 +341,9 @@ class RibbonChip extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: onBrand ? Colors.white24 : scheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(Radii.control),
+            color: onBrand ? Colors.white24 : scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(10),
+            border: onBrand ? null : Border.all(color: scheme.outlineVariant),
           ),
           constraints: const BoxConstraints(maxWidth: 150),
           child: Row(

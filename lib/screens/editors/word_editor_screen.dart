@@ -15,6 +15,7 @@ import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/docx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/doc_find_bar.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/docx_view.dart';
 import '../../widgets/office_ribbon.dart';
@@ -98,10 +99,20 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   /// **adlandırılmış** vurgularına birebir eşleşecek şekilde seçildi (bkz.
   /// `DocxEditor._highlightNames`), yoksa `w:shd` yedeğine düşerlerdi.
   static const _highlightPalette = <String>[
-    'FFFF00', '00FF00', '00FFFF', 'FF00FF', 'C0C0C0',
+    'FFFF00',
+    '00FF00',
+    '00FFFF',
+    'FF00FF',
+    'C0C0C0',
   ];
   static const _textColorPalette = <String>[
-    '000000', 'C00000', 'FF0000', '0070C0', '00B050', '7030A0', '808080',
+    '000000',
+    'C00000',
+    'FF0000',
+    '0070C0',
+    '00B050',
+    '7030A0',
+    '808080',
   ];
 
   @override
@@ -187,8 +198,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     if (webCount == ours) return;
     _viewKey.currentState?.setEditing(false);
     setState(() => _editing = false);
-    _snack(context.t(
-        'word.live_edit_unsafe', {'web': webCount, 'ours': ours}));
+    _snack(context.t('word.live_edit_unsafe', {'web': webCount, 'ours': ours}));
   }
 
   void _onEdited(int i, List<RunSeg> segs) {
@@ -387,6 +397,8 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       kind: DocKind.word,
       title: widget.name,
       dirty: _dirty,
+      subtitle:
+          _pageCount > 0 ? context.t('shell.pages', {'n': _pageCount}) : null,
       // Üst çubukta yalnız ALTTA KARŞILIĞI OLMAYANLAR kalır (2026-07-28
       // kullanıcı isteği: "bazı işlevler hem altta hem üstte var, gerek yok").
       // İstisna: düzenleme sırasında alt çubuk gizlendiği için Kaydet burada.
@@ -437,8 +449,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 ? PopupMenuItem(
                     value: 'page', child: Text(context.t('word.page_view')))
                 : PopupMenuItem(
-                    value: 'plain',
-                    child: Text(context.t('word.text_editor'))),
+                    value: 'plain', child: Text(context.t('word.text_editor'))),
           ],
         ),
       ],
@@ -455,8 +466,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
               if (!_plainMode)
                 DocAction(
                   _flow ? Icons.description_outlined : Icons.smartphone,
-                  context.t(
-                      _flow ? 'word.page_layout' : 'word.mobile_flow'),
+                  context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
                   editor == null ? null : _toggleFlow,
                 ),
               DocAction(Icons.save_outlined, context.t('common.save'),
@@ -554,13 +564,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                           ),
                         if (_finding)
                           Positioned(
-                            top: 0, left: 0, right: 0, child: _findBar()),
+                              top: 0, left: 0, right: 0, child: _findBar()),
                       ],
                     ),
       // Klavye/biçim çubuğu varken FAB araya girmesin.
       fab: _editing
           ? null
-          : FloatingActionButton(
+          : DocAiButton(
+              kind: DocKind.word,
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => ChatScreen(
                   fileContext: widget.plainText,
@@ -568,35 +579,23 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 ),
               )),
               tooltip: context.t('common.ai'),
-              child: const Icon(Icons.smart_toy_outlined),
             ),
     );
   }
 
   /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage].
   Widget _pageBadge() {
-    return Material(
-      color: Colors.black54,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: _showGoToPage,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          child: Text(
-            context.t('word.page_of', {'n': _page, 'total': _pageCount}),
-            style: const TextStyle(
-                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ),
+    return DocPill(
+      text: context.t('word.page_of', {'n': _page, 'total': _pageCount}),
+      icon: Icons.unfold_more,
+      onTap: _showGoToPage,
     );
   }
 
   /// M365 mobil tarzı biçim çubuğu: yazı tipi/punto + B / I / U + bitti.
   /// Word'ün biçim şeridi. Simgeler ve düzen **Excel/Slayt ile ortak**
   /// (`OfficeRibbon` + `OfficeIcons`, 2026-08-07): aynı iş üç uygulamada da
-  /// aynı simge. Renkli üst çubuğun üstünde durduğu için `onBrand`.
+  /// aynı simge. (2026-09-23: üst çubuk artık nötr — `onBrand` kalktı.)
   PreferredSizeWidget _formatBar() {
     Widget btn(String cmd, IconData icon, bool active, String tip) =>
         RibbonButton(icon, tip,
@@ -605,7 +604,6 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     return PreferredSize(
       preferredSize: Size.fromHeight(OfficeRibbon.heightFor(1)),
       child: OfficeRibbon(
-        onBrand: true,
         tabs: [
           RibbonTab('', [
             _fontMenu(),
@@ -646,12 +644,14 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         // düğmesi kaybolmamalı.
         trailing: Padding(
           padding: const EdgeInsets.only(right: 8),
-          child: TextButton.icon(
+          child: FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
             onPressed: _toggleEdit,
-            icon:
-                const Icon(Icons.keyboard_hide, color: Colors.white, size: 18),
-            label: Text(context.t('word.done'),
-                style: const TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.check, size: 18),
+            label: Text(context.t('word.done')),
           ),
         ),
       ),
@@ -664,7 +664,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
       void Function(String?) onPick) {
     return PopupMenuButton<String>(
       tooltip: tip,
-      icon: Icon(icon, size: 20, color: Colors.white),
+      icon: Icon(icon, size: 20),
       onSelected: (v) => onPick(v == 'none' ? null : v),
       itemBuilder: (_) => [
         for (final hex in palette)
@@ -713,82 +713,62 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   Widget _findBar() {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surfaceContainerHigh,
+      color: scheme.surface,
+      elevation: 0,
+      shape: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _findCtrl,
-                  autofocus: true,
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    hintText: context.t('common.search'),
-                  ),
-                  onSubmitted: _runFind,
-                  onChanged: (v) {
-                    if (v.isEmpty) _onFindCount(0);
-                  },
-                ),
-              ),
-              Text(
-                _hitCount == 0
-                    ? context.t('srch.no_result')
-                    : '${_hitIndex + 1}/$_hitCount',
-                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
-              ),
-              IconButton(
-                tooltip: context.t('common.previous'),
-                icon: const Icon(Icons.keyboard_arrow_up),
-                onPressed: _hitCount == 0 ? null : () => _stepHit(-1),
-              ),
-              IconButton(
-                tooltip: context.t('common.next'),
-                icon: const Icon(Icons.keyboard_arrow_down),
-                onPressed: _hitCount == 0 ? null : () => _stepHit(1),
-              ),
+          DocFindBar(
+            controller: _findCtrl,
+            hint: context.t('common.search'),
+            countLabel: _findCtrl.text.isEmpty
+                ? ''
+                : (_hitCount == 0
+                    ? context.t('find.none')
+                    : '${_hitIndex + 1}/$_hitCount'),
+            onSubmitted: _runFind,
+            onChanged: (v) {
+              if (v.isEmpty) _onFindCount(0);
+            },
+            onPrev: _hitCount == 0 ? null : () => _stepHit(-1),
+            onNext: _hitCount == 0 ? null : () => _stepHit(1),
+            onClose: _toggleFind,
+            trailing: [
               IconButton(
                 tooltip: context.t('excel.replace'),
+                visualDensity: VisualDensity.compact,
                 isSelected: _replacing,
                 icon: const Icon(Icons.find_replace),
                 onPressed: () => setState(() => _replacing = !_replacing),
               ),
-              IconButton(
-                tooltip: context.t('common.close'),
-                icon: const Icon(Icons.close),
-                onPressed: _toggleFind,
-              ),
             ],
           ),
           if (_replacing)
-            Row(
-              children: [
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _replaceCtrl,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      hintText: context.t('excel.replace_with'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 4, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _replaceCtrl,
+                      decoration: DocFindBar.decoration(
+                        context,
+                        hint: context.t('excel.replace_with'),
+                        icon: Icons.find_replace,
+                      ),
                     ),
                   ),
-                ),
-                TextButton(
-                  onPressed: _replaceCurrent,
-                  child: Text(context.t('excel.replace')),
-                ),
-                TextButton(
-                  onPressed: _replaceAll,
-                  child: Text(context.t('excel.replace_all')),
-                ),
-                const SizedBox(width: 4),
-              ],
+                  TextButton(
+                    onPressed: _replaceCurrent,
+                    child: Text(context.t('excel.replace')),
+                  ),
+                  TextButton(
+                    onPressed: _replaceAll,
+                    child: Text(context.t('excel.replace_all')),
+                  ),
+                ],
+              ),
             ),
         ],
       ),
@@ -970,12 +950,15 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         child: Row(
           children: [
             toggle(OfficeIcons.bold, context.t('common.bold'),
-                sel?.bold ?? false,
-                () => toggleBool((p) => p.bold = !p.bold)),
-            toggle(OfficeIcons.italic, context.t('common.italic'),
+                sel?.bold ?? false, () => toggleBool((p) => p.bold = !p.bold)),
+            toggle(
+                OfficeIcons.italic,
+                context.t('common.italic'),
                 sel?.italic ?? false,
                 () => toggleBool((p) => p.italic = !p.italic)),
-            toggle(OfficeIcons.underline, context.t('common.underline'),
+            toggle(
+                OfficeIcons.underline,
+                context.t('common.underline'),
                 sel?.underline ?? false,
                 () => toggleBool((p) => p.underline = !p.underline)),
             _sep(scheme),
@@ -985,14 +968,17 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
                 sel?.align == 'center', () => setAlign('center')),
             toggle(OfficeIcons.alignRight, context.t('common.align_right'),
                 sel?.align == 'right', () => setAlign('right')),
-            toggle(OfficeIcons.alignJustify,
-                context.t('common.align_justify'),
+            toggle(OfficeIcons.alignJustify, context.t('common.align_justify'),
                 sel?.align == 'both', () => setAlign('both')),
             _sep(scheme),
-            toggle(OfficeIcons.bullets, context.t('word.bullet_list'),
+            toggle(
+                OfficeIcons.bullets,
+                context.t('word.bullet_list'),
                 sel != null && hasBullet(sel.text),
                 () => applyList(numbered: false)),
-            toggle(OfficeIcons.numbering, context.t('word.numbered_list'),
+            toggle(
+                OfficeIcons.numbering,
+                context.t('word.numbered_list'),
                 sel != null && hasNumber(sel.text),
                 () => applyList(numbered: true)),
             _sep(scheme),
@@ -1081,8 +1067,8 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     final paras = _editor?.paragraphs ?? const <DocxParagraph>[];
     if (_sel != null && !paras.any((p) => identical(p, _sel))) _sel = null;
     setState(() => _dirty = true);
-    _snack(context.t(undone ? 'word.undone' : 'word.redone',
-        {'what': context.t(label)}));
+    _snack(context
+        .t(undone ? 'word.undone' : 'word.redone', {'what': context.t(label)}));
   }
 
   Widget _paragraphField(DocxParagraph para) {
@@ -1119,35 +1105,35 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     return Directionality(
       textDirection: para.rtl ? TextDirection.rtl : TextDirection.ltr,
       child: Container(
-      margin: EdgeInsets.only(bottom: para.heading ? 10 : 6),
-      decoration: BoxDecoration(
-        border: BorderDirectional(
-          start: BorderSide(
-            color: selected ? theme.colorScheme.primary : Colors.transparent,
-            width: 3,
+        margin: EdgeInsets.only(bottom: para.heading ? 10 : 6),
+        decoration: BoxDecoration(
+          border: BorderDirectional(
+            start: BorderSide(
+              color: selected ? theme.colorScheme.primary : Colors.transparent,
+              width: 3,
+            ),
           ),
         ),
-      ),
-      padding: const EdgeInsetsDirectional.only(start: 6),
-      child: TextFormField(
-        key: ObjectKey(para),
-        initialValue: para.text,
-        onTap: () {
-          if (!identical(_sel, para)) setState(() => _sel = para);
-        },
-        onChanged: (v) {
-          para.text = v;
-          if (!_dirty) setState(() => _dirty = true);
-        },
-        style: style,
-        textAlign: _textAlign(para),
-        maxLines: null,
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
+        padding: const EdgeInsetsDirectional.only(start: 6),
+        child: TextFormField(
+          key: ObjectKey(para),
+          initialValue: para.text,
+          onTap: () {
+            if (!identical(_sel, para)) setState(() => _sel = para);
+          },
+          onChanged: (v) {
+            para.text = v;
+            if (!_dirty) setState(() => _dirty = true);
+          },
+          style: style,
+          textAlign: _textAlign(para),
+          maxLines: null,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
         ),
-      ),
       ),
     );
   }

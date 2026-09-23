@@ -210,7 +210,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'zzzyok');
     await tester.pump();
-    expect(find.text('yok'), findsOneWidget);
+    expect(find.text('Sonuç yok'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close));
     await tester.pump();

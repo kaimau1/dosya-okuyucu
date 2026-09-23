@@ -112,6 +112,15 @@ class OfficeColors {
     }
   }
 
+  /// Marka rengi, temaya göre: koyu temada koyu marka tonları koyu zeminde
+  /// söner — %25 açılır (dosya türü simgesiyle aynı kural, 3:1 kontrast).
+  static Color tint(BuildContext context, DocKind kind) {
+    final c = forKind(kind);
+    return Theme.of(context).brightness == Brightness.dark
+        ? Color.lerp(c, Colors.white, 0.25)!
+        : c;
+  }
+
   /// Belge kanvası: sayfanın/ızgaranın arkasındaki çalışma alanı — beyaz
   /// sayfanın öne çıkması için kağıdın bir kademe koyusu.
   static Color canvas(BuildContext context) =>

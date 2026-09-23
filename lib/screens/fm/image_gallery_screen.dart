@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/busy_dialog.dart';
@@ -115,128 +116,362 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     ));
   }
 
+  Future<void> _rotate() async {
+    // Yan çekilmiş fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu
+    // (2026-09-06 denetim turu).
+    if (await rotateImageEntry(context, _currentEntry)) {
+      _statCache.remove(_current);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _otherActions() async {
+    await showEntryActions(context, _currentEntry);
+    // Yeniden adlandırma/taşıma dosyayı değiştirmiş olabilir: ölçüm önbelleği
+    // bayat kalmasın.
+    _statCache.remove(_current);
+    if (mounted) setState(() {});
+  }
+
+  void _jumpTo(int i) {
+    if (i == _index) return;
+    _pages.jumpToPage(i);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_paths.isEmpty) return const SizedBox.shrink();
     final entry = _currentEntry;
+    final padding = MediaQuery.paddingOf(context);
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      // GÖVDE ÇUBUĞUN ALTINDAN GEÇER — kullanıcı hatası 2026-07-30:
-      // "resimlerde üzerine tıklayınca zıplama oluyor".
-      //
-      // Eskiden çubuk gizlenirken `appBar: null` veriliyordu: Scaffold'un
-      // gövdesi o anda ~80 piksel uzuyor, `BoxFit.contain` görseli yeniden
-      // ölçekliyor ve resim gözle görülür biçimde ZIPLIYORDU (her dokunuşta
-      // iki kez: gizlerken ve gösterirken). Artık çubuk her zaman gövdenin
-      // ÜSTÜNE biniyor, gövdenin ölçüsü hiç değişmiyor; görünürlük yalnız
-      // saydamlıkla ayarlanıyor — yerleşim sabit, zıplama yok.
-      extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        // Yükseklik SABİT (gizliyken de): Scaffold'un gövdeye verdiği alan
-        // değişmediği sürece görsel yerinde kalır.
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: IgnorePointer(
-          // Gizliyken dokunuşları yutmasın: ekranın üst şeridine dokunmak
-          // görünmez çubuğu değil, resmi tetiklemeli.
+    // 2026-09-23 tasarım turu (kullanıcı: *"görseller … çok basit görünüyor"*).
+    // Eski ekran: düz %72 siyah üst şerit + ⋮ menüsü; paylaş/sil dışında her
+    // şey menüde gizliydi. Bugünün galeri dili (Google Foto, iOS Fotoğraflar):
+    // * Üstte ve altta DEGRADE perde — fotoğrafın kenarını kesen bir bant yok.
+    // * Altta etiketli eylem sırası: Paylaş · Döndür · Araçlar · Bilgi · Sil.
+    // * Birden çok görselde küçük resim şeridi: sağa sola kaydırmadan atla.
+    //
+    // Çubuklar gövdenin ÜSTÜNE biner, görünürlük yalnız saydamlıkla değişir:
+    // gövdenin ölçüsü hiç değişmez → dokununca görsel ZIPLAMAZ (kullanıcı
+    // hatası 2026-07-30: "resimlerde üzerine tıklayınca zıplama oluyor" —
+    // `appBar: null` ile gövde ~80 px uzuyor, görsel yeniden ölçekleniyordu).
+    Widget chrome({required Widget child}) => IgnorePointer(
+          // Gizliyken dokunuşları yutmasın: görünmez çubuğa değil resme gitsin.
           ignoring: !_chromeVisible,
           child: AnimatedOpacity(
             opacity: _chromeVisible ? 1 : 0,
-            duration: const Duration(milliseconds: 150),
-            child: AppBar(
-              // Perde 0,6 → 0,72: beyaz/parlak bir fotoğrafın üstünde dosya
-              // adı eriyip gidiyordu (kullanıcı 2026-08-29).
-              backgroundColor: Colors.black.withValues(alpha: 0.72),
-              foregroundColor: Colors.white,
-              // Temanın çubuk altı cetveli fotoğrafın üstünde yersiz.
-              shape: const Border(),
-              title: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Stil [OverlayBar]'dan: `foregroundColor: Colors.white`
-                  // başlığı beyaz YAPMIYOR (kök neden orada yazılı) — ad
-                  // temanın koyu `titleLarge` rengiyle çiziliyordu.
-                  Text(entry.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: OverlayBar.title(context)),
-                  Text(
-                    '${_index + 1}/${_paths.length} · '
-                    '${FsPaths.humanSize(entry.sizeBytes)}',
-                    style: OverlayBar.subtitle(context),
-                  ),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  tooltip: context.t('common.share'),
-                  icon: const Icon(Icons.share_outlined),
-                  onPressed: () => shareEntriesFrom(context, [_current]),
-                ),
-                IconButton(
-                  tooltip: context.t('common.delete'),
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: _delete,
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (v) async {
-                    switch (v) {
-                      case 'viewer':
-                        _openInViewer();
-                      case 'actions':
-                        await showEntryActions(context, _currentEntry);
-                        // Yeniden adlandırma/taşıma dosyayı değiştirmiş
-                        // olabilir: ölçüm önbelleği bayat kalmasın.
-                        _statCache.remove(_current);
-                        if (mounted) setState(() {});
-                      case 'info':
-                        await showProperties(context, _currentEntry);
-                      case 'rotate':
-                        // Yan çekilmiş fotoğrafı düzeltmenin uygulama içinde
-                        // hiçbir yolu yoktu (2026-09-06 denetim turu).
-                        if (await rotateImageEntry(context, _currentEntry)) {
-                          _statCache.remove(_current);
-                          if (mounted) setState(() {});
-                        }
-                    }
+            duration: const Duration(milliseconds: 180),
+            child: child,
+          ),
+        );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: PageView.builder(
+                controller: _pages,
+                physics: _zoomed
+                    ? const NeverScrollableScrollPhysics()
+                    : const PageScrollPhysics(),
+                onPageChanged: (i) => setState(() {
+                  _index = i;
+                  _zoomed = false;
+                }),
+                itemCount: _paths.length,
+                itemBuilder: (context, i) => _ZoomableImage(
+                  path: _paths[i],
+                  onTap: () => setState(() => _chromeVisible = !_chromeVisible),
+                  onZoomChanged: (zoomed) {
+                    if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
                   },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                        value: 'viewer',
-                        child: Text(context.t('gal.open_in_viewer'))),
-                    if (ImageRotate.canRotate(_current))
-                      PopupMenuItem(
-                          value: 'rotate', child: Text(context.t('ea.rotate'))),
-                    PopupMenuItem(
-                        value: 'actions',
-                        child: Text(context.t('gal.other_actions'))),
-                    PopupMenuItem(
-                        value: 'info', child: Text(context.t('fm.properties'))),
-                  ],
+                ),
+              ),
+            ),
+            // ── Üst perde: geri, ad, konum/boyut, daha fazla ──────────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: chrome(
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xCC000000), Color(0x00000000)],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(4, padding.top + 4, 4, 28),
+                    child: Row(
+                      children: [
+                        const BackButton(color: Colors.white),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Stil [OverlayBar]'dan: `foregroundColor`
+                              // başlığı beyaz YAPMIYOR (kök neden orada).
+                              Text(entry.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: OverlayBar.title(context)),
+                              Text(
+                                '${_index + 1}/${_paths.length} · '
+                                '${FsPaths.humanSize(entry.sizeBytes)}',
+                                style: OverlayBar.subtitle(context),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          onSelected: (v) async {
+                            switch (v) {
+                              case 'viewer':
+                                _openInViewer();
+                              case 'actions':
+                                await _otherActions();
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            PopupMenuItem(
+                                value: 'viewer',
+                                child: Text(context.t('gal.open_in_viewer'))),
+                            PopupMenuItem(
+                                value: 'actions',
+                                child: Text(context.t('gal.other_actions'))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // ── Alt perde: küçük resim şeridi + eylemler ──────────────────
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: chrome(
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [Color(0xE6000000), Color(0x00000000)],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(8, 32, 8, padding.bottom + 6),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_paths.length > 1)
+                          _FilmStrip(
+                            paths: _paths,
+                            index: _index,
+                            onPick: _jumpTo,
+                          ),
+                        Row(
+                          children: [
+                            _GalleryAction(
+                              icon: Icons.share_outlined,
+                              label: context.t('common.share'),
+                              onTap: () => shareEntriesFrom(context, [_current]),
+                            ),
+                            if (ImageRotate.canRotate(_current))
+                              _GalleryAction(
+                                icon: Icons.rotate_right,
+                                label: context.t('ea.rotate'),
+                                onTap: _rotate,
+                              ),
+                            _GalleryAction(
+                              icon: Icons.document_scanner_outlined,
+                              label: context.t('gal.tools'),
+                              onTap: _openInViewer,
+                            ),
+                            _GalleryAction(
+                              icon: Icons.info_outline,
+                              label: context.t('gal.info'),
+                              onTap: () =>
+                                  showProperties(context, _currentEntry),
+                            ),
+                            _GalleryAction(
+                              icon: Icons.delete_outline,
+                              label: context.t('common.delete'),
+                              onTap: _delete,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Galerinin alt eylem düğmesi: beyaz simge + küçük etiket (koyu perde üstü).
+class _GalleryAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _GalleryAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 24),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    shadows: [Shadow(color: Color(0x99000000), blurRadius: 4)],
+                  ),
                 ),
               ],
             ),
           ),
         ),
       ),
-      body: PageView.builder(
-        controller: _pages,
-        physics: _zoomed
-            ? const NeverScrollableScrollPhysics()
-            : const PageScrollPhysics(),
-        onPageChanged: (i) => setState(() {
-          _index = i;
-          _zoomed = false;
-        }),
-        itemCount: _paths.length,
-        itemBuilder: (context, i) => _ZoomableImage(
-          path: _paths[i],
-          onTap: () => setState(() => _chromeVisible = !_chromeVisible),
-          onZoomChanged: (zoomed) {
-            if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
-          },
-        ),
+    );
+  }
+}
+
+/// Küçük resim şeridi — geçerli görsel ortalanır ve beyaz çerçeveyle işaretli.
+///
+/// Bellek: her küçük resim 48 dp × cihaz yoğunluğu genişlikte çözülür
+/// (12 MP'lik fotoğraf tam açılsa 48 MB olurdu); şerit `ListView.builder`
+/// olduğu için yalnız görünenler çözülür.
+class _FilmStrip extends StatefulWidget {
+  final List<String> paths;
+  final int index;
+  final ValueChanged<int> onPick;
+
+  const _FilmStrip({
+    required this.paths,
+    required this.index,
+    required this.onPick,
+  });
+
+  @override
+  State<_FilmStrip> createState() => _FilmStripState();
+}
+
+class _FilmStripState extends State<_FilmStrip> {
+  static const _item = 48.0;
+  static const _gap = 6.0;
+  final _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _center(jump: true));
+  }
+
+  @override
+  void didUpdateWidget(_FilmStrip old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) _center();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _center({bool jump = false}) {
+    if (!mounted || !_scroll.hasClients) return;
+    final pos = _scroll.position;
+    final target = (widget.index * (_item + _gap) -
+            (pos.viewportDimension - _item) / 2)
+        .clamp(0.0, pos.maxScrollExtent);
+    if (jump) {
+      _scroll.jumpTo(target);
+    } else {
+      _scroll.animateTo(target,
+          duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return SizedBox(
+      height: _item + 12,
+      child: ListView.separated(
+        controller: _scroll,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        itemCount: widget.paths.length,
+        separatorBuilder: (_, __) => const SizedBox(width: _gap),
+        itemBuilder: (context, i) {
+          final active = i == widget.index;
+          return GestureDetector(
+            onTap: () => widget.onPick(i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: _item,
+              height: _item,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: active ? Colors.white : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Opacity(
+                  opacity: active ? 1 : 0.6,
+                  child: Image.file(
+                    File(widget.paths[i]),
+                    fit: BoxFit.cover,
+                    cacheWidth: (_item * dpr).round(),
+                    errorBuilder: (_, __, ___) =>
+                        const ColoredBox(color: Color(0xFF222222)),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

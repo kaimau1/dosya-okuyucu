@@ -20,6 +20,7 @@ import '../../services/pptx_render.dart';
 import '../../services/slides_pdf.dart';
 import '../../widgets/ai_summary_flow.dart';
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/doc_find_bar.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
@@ -465,6 +466,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         kind: DocKind.slides,
         title: widget.name,
         dirty: _dirty,
+        subtitle: (editor?.slides.length ?? 0) > 0
+            ? context.t('shell.slides', {'n': editor!.slides.length})
+            : null,
         // Bütün eylemler ALT çubukta (2026-07-28 kullanıcı isteği: aynı işlev
         // iki yerde durmasın). İstisna: metin kutusu düzenlenirken alt çubuk
         // gizlendiği için Kaydet buraya çıkar; arama da altta karşılığı
@@ -546,7 +550,8 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
               ]),
         fab: editing
             ? null
-            : FloatingActionButton(
+            : DocAiButton(
+                kind: DocKind.slides,
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => ChatScreen(
                     fileContext: widget.plainText,
@@ -554,7 +559,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                   ),
                 )),
                 tooltip: context.t('common.ai'),
-                child: const Icon(Icons.smart_toy_outlined),
               ),
       ),
     );
@@ -562,24 +566,14 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   /// "Slayt 3 / 12" rozeti — dokununca [_showGoToSlide].
   Widget _slideBadge(int total) {
-    return Material(
-      color: Colors.black54,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        key: SlidesEditorScreen.badgeKey,
-        borderRadius: BorderRadius.circular(16),
-        onTap: _showGoToSlide,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          child: Text(
-            context.t('sl.slide_of', {'n': _currentSlide, 'total': total}),
-            style: const TextStyle(
-                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ),
+    return DocPill(
+      tapKey: SlidesEditorScreen.badgeKey,
+      text: context.t('sl.slide_of', {'n': _currentSlide, 'total': total}),
+      icon: Icons.unfold_more,
+      onTap: _showGoToSlide,
     );
   }
+
 
   /// Arama çubuğu — Excel'in "Bul"uyla aynı kurgu: yaz, ‹ › ile eşleşmeler
   /// arasında gez, sayaç kaçıncı eşleşmede olduğunu söyler.
@@ -587,83 +581,71 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     final scheme = Theme.of(context).colorScheme;
     final hit = _hitIndex >= 0 && _hitIndex < _hits.length ? _hits[_hitIndex] : null;
     return Material(
-      color: scheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _findCtrl,
-                    autofocus: true,
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      hintText: context.t('sl.search_hint'),
+      color: scheme.surface,
+      shape: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DocFindBar(
+            controller: _findCtrl,
+            hint: context.t('sl.search_hint'),
+            countLabel: _findCtrl.text.trim().isEmpty
+                ? ''
+                : _hits.isEmpty
+                    ? context.t('sl.no_match')
+                    : context.t('sl.match_pos', {
+                        'n': _hitIndex + 1,
+                        'total': '${_hits.length}${_hitLimit ? '+' : ''}',
+                      }),
+            onChanged: _runSearch,
+            onSubmitted: (_) => _stepHit(1),
+            onPrev: _hits.isEmpty ? null : () => _stepHit(-1),
+            onNext: _hits.isEmpty ? null : () => _stepHit(1),
+            onClose: _toggleFind,
+          ),
+          // Eşleşmenin BAĞLAMI: slaytın üstünde vurgulama yapamıyoruz
+          // (kanvas biçimli metin çiziyor), o yüzden bulunan yer buradan
+          // okunur — yoksa "3/12" sayacı hangi metni bulduğunu söylemezdi.
+          if (hit != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    onChanged: _runSearch,
-                    onSubmitted: (_) => _stepHit(1),
+                    child: Text(
+                      context.t('sl.slide_of', {
+                        'n': hit.section + 1,
+                        'total': _slideCount,
+                      }),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
                   ),
-                ),
-                Text(
-                  _findCtrl.text.trim().isEmpty
-                      ? ''
-                      : _hits.isEmpty
-                          ? context.t('sl.no_match')
-                          : context.t('sl.match_pos', {
-                              'n': _hitIndex + 1,
-                              'total': '${_hits.length}${_hitLimit ? '+' : ''}',
-                            }),
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-                IconButton(
-                  tooltip: context.t('common.previous'),
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.keyboard_arrow_up),
-                  onPressed: _hits.isEmpty ? null : () => _stepHit(-1),
-                ),
-                IconButton(
-                  tooltip: context.t('common.next'),
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.keyboard_arrow_down),
-                  onPressed: _hits.isEmpty ? null : () => _stepHit(1),
-                ),
-                IconButton(
-                  tooltip: context.t('common.close'),
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.close),
-                  onPressed: _toggleFind,
-                ),
-              ],
-            ),
-            // Eşleşmenin BAĞLAMI: slaytın üstünde vurgulama yapamıyoruz
-            // (kanvas biçimli metin çiziyor), o yüzden bulunan yer buradan
-            // okunur — yoksa "3/12" sayacı hangi metni bulduğunu söylemezdi.
-            if (hit != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 2),
-                  child: Text(
-                    '${context.t('sl.slide_of', {
-                          'n': hit.section + 1,
-                          'total': _slideCount,
-                        })} · ${hit.snippet}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      hit.snippet,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
-                ),
+                ],
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
+
 
   Widget _buildSlides(PptxEditor editor) {
     if (editor.slides.isEmpty) {
@@ -1170,8 +1152,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
   Widget _formatBar() {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      elevation: 8,
-      color: scheme.surfaceContainerHighest,
+      elevation: 0,
+      color: scheme.surface,
+      shape: Border(top: BorderSide(color: scheme.outlineVariant)),
       // Scaffold.resizeToAvoidBottomInset (varsayılan) body'yi klavyenin üstüne
       // sıkıştırır → çubuk zaten klavyenin hemen üstünde durur; ek viewInsets
       // payı çift sayardı. SafeArea klavye kapalıyken alt çentiği korur.
