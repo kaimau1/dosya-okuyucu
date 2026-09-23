@@ -485,7 +485,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ));
             },
           ),
-          const Divider(height: 1),
           Expanded(
             child: _locked
                 ? Center(
@@ -819,7 +818,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
               layout: layout,
               selected: _selected.contains(e.path),
               selecting: _selecting,
-              showChevron: true,
               subtitle: e.isDir
                   ? _folderSubtitle(e)
                   : '${FsPaths.humanSize(e.sizeBytes)} · '
@@ -926,7 +924,10 @@ class _Breadcrumb extends StatelessWidget {
     for (final v in FmEnv.volumes) {
       if (FsPaths.isInside(v.path, remainder)) {
         rootPath = p.normalize(v.path);
-        rootLabel = v.label;
+        // `label` birincil bellekte BOŞ (ad çeviriden gelir): kökte yol
+        // çubuğu boş bir şerit olarak görünüyordu (kullanıcı ekran
+        // görüntüsü 2026-09-23). Panodaki kartla aynı ad kaynağı.
+        rootLabel = v.displayLabel(context.t);
         break;
       }
     }
@@ -944,32 +945,68 @@ class _Breadcrumb extends StatelessWidget {
       }
     }
 
-    return SizedBox(
-      height: 44,
+    // Birimin KÖKÜNDE yol çubuğu gösterilmez: tek parçası başlıkla aynı
+    // ("Ana bellek") — 45 dp'lik bir şerit yalnız tekrar ediyordu.
+    if (segments.length < 2) return const SizedBox.shrink();
+
+    // Hap biçimli yol parçaları (2026-09-23 tasarım turu): üst klasörler
+    // dokunulabilir haplar, bulunulan klasör dolgulu hap.
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      alignment: Alignment.centerLeft,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         reverse: true, // uzun yolda son klasör görünür kalsın
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 8),
         itemCount: segments.length,
         itemBuilder: (context, i) {
           final seg = segments[segments.length - 1 - i];
           final isLast = i == 0;
+          final isRoot = i == segments.length - 1;
           return Row(
             children: [
-              if (!isLast)
+              if (!isRoot)
                 Icon(Icons.chevron_right,
                     size: 18, color: scheme.onSurfaceVariant),
-              TextButton(
-                onPressed: isLast ? null : () => onTap(seg.path),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 36),
-                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-                  foregroundColor: isLast ? scheme.onSurface : scheme.primary,
-                ),
-                child: Text(
-                  seg.label,
-                  style: TextStyle(
-                      fontWeight: isLast ? FontWeight.w600 : FontWeight.w400),
+              Material(
+                color: isLast
+                    ? scheme.primaryContainer
+                    : scheme.surfaceContainerHigh,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: isLast ? null : () => onTap(seg.path),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isRoot) ...[
+                          Icon(Icons.smartphone_rounded,
+                              size: 15,
+                              color: isLast
+                                  ? scheme.onPrimaryContainer
+                                  : scheme.onSurfaceVariant),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          seg.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                isLast ? FontWeight.w700 : FontWeight.w500,
+                            color: isLast
+                                ? scheme.onPrimaryContainer
+                                : scheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],

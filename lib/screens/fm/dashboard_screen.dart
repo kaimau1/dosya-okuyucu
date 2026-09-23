@@ -966,11 +966,21 @@ class _DashboardScreenState extends State<DashboardScreen>
                   children: [
                     _trashFab(),
                     const SizedBox(width: Gap.sm),
+                    // Tonlu yüzey (2026-09-23 tasarım turu): asıl eylem
+                    // "Belge Tara"nın yanında ikinci bir dolu mavi düğme
+                    // göze iki "birincil" eylem gösteriyordu.
                     FloatingActionButton.small(
                       heroTag: 'fm_new_folder',
                       onPressed: _newFolderFlow,
                       tooltip: context.t('fm.new_folder'),
-                      child: const Icon(Icons.create_new_folder_outlined),
+                      backgroundColor: scheme.surfaceContainerHigh,
+                      foregroundColor: scheme.onSurface,
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: scheme.outlineVariant),
+                      ),
+                      child: const Icon(Icons.create_new_folder_rounded),
                     ),
                   ],
                 ),
@@ -978,10 +988,15 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
           const SizedBox(height: Gap.sm),
+          // Aşağı kaydırılırken etiket katlanır, yalnız simge kalır: liste
+          // okunurken düğme içeriğin üstünü daha az kapatır.
           FloatingActionButton.extended(
             heroTag: 'fm_scan_doc',
             onPressed: () => ScanFlow.run(context),
-            icon: const Icon(Icons.document_scanner_outlined),
+            isExtended: _fabsVisible,
+            tooltip: context.t('fm.scan_document'),
+            elevation: 3,
+            icon: const Icon(Icons.document_scanner_rounded),
             label: Text(context.t('fm.scan_document')),
           ),
         ],
@@ -1070,7 +1085,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // birincisi. Boyut ölçülmüşse alt satırda yazar.
       FmTileData(
         icon: Icons.download_rounded,
-        color: const Color(0xFF1565C0),
+        color: const Color(0xFF2F6FE0),
         label: context.t('fm.downloads'),
         subtitle: _folderSizes[download] != null
             ? FsPaths.humanSize(_folderSizes[download]!)
@@ -1086,8 +1101,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       // Kullanıcının kendi seçtiği dosyalar — en sık dönülecek ikinci yer.
       FmTileData(
-        icon: Icons.star_outline,
-        color: FmColors.folder,
+        icon: Icons.star_rounded,
+        color: const Color(0xFFF2A600),
         label: ImportantScreen.folderName,
         subtitle: importantStat == null
             ? context.t('fm.create')
@@ -1107,8 +1122,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       _categoryTile(FmCategory.archive),
       // Kurulum dosyaları ayrı kutuda (kullanıcı isteği 2026-07-25).
       FmTileData(
-        icon: Icons.archive_outlined,
-        color: const Color(0xFF00897B),
+        icon: Icons.install_mobile_rounded,
+        color: const Color(0xFF0E9C8A),
         label: context.t('fm.apk_files'),
         subtitle: _index.stat(FmCategory.apk).count == 0
             ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
@@ -1126,7 +1141,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // düştü" fikrini glifle anlatıyor.
       FmTileData(
         icon: Icons.move_to_inbox_rounded,
-        color: const Color(0xFF8D6E63),
+        color: const Color(0xFFE8742A),
         label: context.t('fm.new_files'),
         subtitle: context.t('fm.new_files_note'),
         onTap: () => _push(const NewFilesScreen()),
@@ -1137,8 +1152,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       // *"... kolay erişilebilir olmalı"*). Çöp kutusu ve Drive ile aynı
       // terfi hikâyesi.
       FmTileData(
-        icon: Icons.history,
-        color: const Color(0xFF3949AB),
+        icon: Icons.history_rounded,
+        color: const Color(0xFF5A5FD6),
         label: context.t('fm.recent_opened'),
         subtitle: context.t('fm.recent_opened_note'),
         onTap: () => _push(const OpenHistoryScreen()),
@@ -1150,8 +1165,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       // olmayı hak ediyor. Ağ depolama (NAS) araçlarda kalıyor — o, kuran
       // birinin bildiği bir yer; Drive ise herkesin aradığı.
       FmTileData(
-        icon: Icons.cloud_outlined,
-        color: const Color(0xFF0F9D58),
+        icon: Icons.cloud_rounded,
+        color: const Color(0xFF1FA463),
         label: 'Google Drive',
         subtitle: context.t('fm.drive_subtitle'),
         onTap: () => _push(const DriveScreen()),
@@ -1165,7 +1180,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // aynısı); ölçüm "Kullanım erişimi" iznine bağlı olduğu için izin yokken
       // sayı UYDURULMAZ, alt satır boş bırakılır.
       FmTileData(
-        icon: Icons.android,
+        icon: Icons.android_rounded,
         color: FmColors.apk,
         label: context.t('fm.apps'),
         subtitle: _appsBytes == null
@@ -1260,9 +1275,19 @@ class _DashboardScreenState extends State<DashboardScreen>
       tooltip: full
           ? context.t('fm.trash_count', {'n': _trashCount})
           : context.t('fm.trash_empty'),
-      backgroundColor: full ? const Color(0xFFE65100) : null,
-      foregroundColor: full ? Colors.white : null,
-      child: Icon(full ? Icons.delete : Icons.delete_outline),
+      backgroundColor: full
+          ? const Color(0xFFE65100)
+          : Theme.of(context).colorScheme.surfaceContainerHigh,
+      foregroundColor:
+          full ? Colors.white : Theme.of(context).colorScheme.onSurface,
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: full
+            ? BorderSide.none
+            : BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Icon(full ? Icons.delete_rounded : Icons.delete_outline_rounded),
     );
   }
 

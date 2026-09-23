@@ -48,6 +48,47 @@ class FmTileData {
       );
 }
 
+/// **Degrade simge** — pano kutularının ve araçların ortak glifi.
+///
+/// 2026-09-23 tasarım turu: çerçevesiz büyük simgeler (2026-08-17 kullanıcı
+/// kararı) KALIYOR; değişen, simgenin kendisi. Düz tek renk Material glifi
+/// dosya listesindeki çizilmiş, degradeli klasörlerin yanında "yapıştırma"
+/// duruyordu. Şimdi aynı malzeme dili: üstten açık, alttan koyu tonlu geçiş —
+/// klasör simgesiyle aynı ışık yönü. Çizgi (outlined) tema ailelerinde düz
+/// kalır: o ailelerin sakin ağırlığı bilinçli.
+class FmTintedIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  const FmTintedIcon({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = Icon(icon, color: color, size: size);
+    if (context.fmOutlinedIcons) return glyph;
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (rect) => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.lerp(color, Colors.white, 0.28)!,
+          color,
+          Color.lerp(color, Colors.black, 0.18)!,
+        ],
+        stops: const [0, 0.5, 1],
+      ).createShader(rect),
+      child: glyph,
+    );
+  }
+}
+
 /// Simgeyi yavaşça büyütüp küçülten kutu ("dolu" göstergesi).
 ///
 /// Erişilebilirlik: cihazda animasyonlar kapalıysa (`disableAnimations`) hiç
@@ -144,7 +185,8 @@ class FmCategoryTile extends StatelessWidget {
     // hücre ~76 dp; 46 dp glif hücrenin genişliğinin %60'ı — daha büyüğü
     // etiketi sıkıştırırdı.
     // 46 taban ölçü; tema ailesi bunu ölçekler (bkz. SkinMetrics.iconScale).
-    final icon = Icon(data.icon, color: tint, size: 46 * context.fmIconScale);
+    final icon = FmTintedIcon(
+        icon: data.icon, color: tint, size: 46 * context.fmIconScale);
     return InkWell(
       onTap: data.onTap,
       borderRadius: BorderRadius.circular(Radii.card),
@@ -160,8 +202,8 @@ class FmCategoryTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: theme.textTheme.labelMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700, letterSpacing: 0),
             ),
             // Alt satır yalnız BİLGİ taşıyorsa (araç ızgarasındaki kuralla
             // aynı): dört sütunda dolgu metin satırı boşa yer yiyor.
@@ -290,7 +332,10 @@ class FmToolGrid extends StatelessWidget {
                     // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının
                     // 46'sından bir kademe küçük kalıyor, ağırlık hiyerarşisi
                     // korunuyor.
-                    Icon(tool.icon, color: tint, size: 34 * context.fmIconScale),
+                    FmTintedIcon(
+                        icon: tool.icon,
+                        color: tint,
+                        size: 34 * context.fmIconScale),
                     const SizedBox(height: Gap.xs),
                     // `Flexible`: hesaplanan yükseklik yine de yetmezse metin
                     // taşmak yerine kırpılır — ızgara hiçbir ölçekte kırmızı

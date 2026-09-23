@@ -24,13 +24,20 @@ abstract final class FmColors {
   // Kağıt teması (2026-08-04): kağıt zeminde parlak renkler bağırıyordu —
   // hepsi bir kademe koyulaştırıldı (koyu temada aşağıdaki beyaza doğru
   // lerp mantığı korunuyor).
-  static const folder = Color(0xFFB07C2A); // klasör okrası
-  static const image = Color(0xFF7A4A93);
-  static const video = Color(0xFFA6382F);
-  static const audio = Color(0xFF1E6F66);
-  static const archive = Color(0xFF6B4B39);
-  static const apk = Color(0xFF3E7A3C);
-  static const other = Color(0xFF6E6555);
+  //
+  // **2026-09-23 tasarım turu:** kağıt zemin iki turda neredeyse beyaza
+  // çekildikten sonra (2026-08-17) koyulaştırılmış palet çamurlu kalıyordu —
+  // klasör okrası kahverengi, video kiremit, arşiv toprak rengi görünüyordu
+  // (kullanıcı: *"klasörler ve simgeleri gelişebilir"*). Renkler bugünün dosya
+  // uygulamalarının doygunluğuna çekildi; klasör kahverengi-okradan sıcak
+  // KEHRİBARA geçti. Koyu temadaki beyaza lerp kuralı aynı.
+  static const folder = Color(0xFFE39B2E); // klasör kehribarı
+  static const image = Color(0xFF8B4FD1);
+  static const video = Color(0xFFD9433B);
+  static const audio = Color(0xFF12998A);
+  static const archive = Color(0xFF9C6B45);
+  static const apk = Color(0xFF3A9A4A);
+  static const other = Color(0xFF76808C);
 
   static Color forCategory(FmCategory c) => switch (c) {
         FmCategory.folder => folder,
@@ -632,18 +639,42 @@ class _PdfThumbState extends State<_PdfThumb> {
   Widget build(BuildContext context) {
     final thumb = _thumb;
     if (thumb == null) return widget.fallback;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.radius),
-      child: Image(
-        image: FmFileImage(thumb, cacheWidth: (widget.size * 3).round()),
-        width: widget.size,
-        height: widget.size,
-        // `contain`: sayfa oranı korunsun, kırpılmasın — kırpılmış bir kapak
-        // yanlış belgeymiş gibi görünür.
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.low,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => widget.fallback,
+    // **Kağıt sayfası gibi çizilir** (2026-09-23 tasarım turu, kullanıcı
+    // ekran görüntüsü: Belgeler listesi). Kapak kutuya `contain` ile
+    // oturuyordu ama çerçevesi yoktu: beyaz sayfa beyaz zeminde eriyor,
+    // listede yalnız yüzen birkaç yazı satırı görünüyordu. Artık sayfanın
+    // KENDİ boyunda ince kenarlık + hafif gölge: satırda gerçek bir belge
+    // kapağı duruyor. Kutu kare kalıyor (satır hizası bozulmaz); sayfa
+    // oranı korunuyor (kırpılmış kapak yanlış belgeymiş gibi görünür).
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: Center(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: scheme.outlineVariant, width: 0.8),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1F000000),
+                blurRadius: 4,
+                offset: Offset(0, 1.5),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3.5),
+            child: Image(
+              image: FmFileImage(thumb, cacheWidth: (widget.size * 3).round()),
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.low,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) => widget.fallback,
+            ),
+          ),
+        ),
       ),
     );
   }

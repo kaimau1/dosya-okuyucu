@@ -16,6 +16,7 @@ import '../../services/fm/content_search.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/search_history.dart';
 import '../../services/fm/search_index.dart';
@@ -245,7 +246,9 @@ class _SearchScreenState extends State<SearchScreen> {
           .t('srch.content_hits', {'n': hit.total, 'line': hit.line});
       return '$head · ${hit.snippet}';
     }
-    return '${FsPaths.humanSize(e.sizeBytes)} · ${p.dirname(e.path)}';
+    return FmLocation.subtitle(
+        e.path, e.sizeBytes, e.modifiedMs, AppStrings.of(context).t,
+        volumes: FmEnv.volumes);
   }
 
   List<FsEntry> get _filtered {

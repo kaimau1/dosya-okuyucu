@@ -11464,3 +11464,51 @@ dpr `cacheWidth`, `ListView` — yalnız görünenler çözülür).
 koyu temada üst çubuk rozeti/“Kaydedilmedi” okunuyor mu; dar telefonda
 PDF alt dock'u (6-7 düğme) yarım düğmeyle kaydırılabildiğini belli ediyor mu;
 galeride küçük resim şeridi kaydırırken takılıyor mu.
+
+## 2026-09-23 (4) — Pano, klasör listesi ve Belgeler: simge ve düzen turu
+APK 354 kurulumda "paket geçersiz" dedi → APK doğrulandı (GitHub özetiyle
+aynı, zip sağlam, v2+v3 imza, sertifika 353 ile aynı, fark yalnız sürüm
+kodu); indirme yarım kalmıştı, yeniden indirince kuruldu. **Ders:** bu
+hatada önce derlemeyi değil indirmeyi şüphelen; APK'yı `releases/download`
+adresinden çekip `sha256`yı release `digest`iyle karşılaştırmak yetiyor.
+
+Kullanıcı (üç ekran görüntüsüyle): *"ana sayfa düzeni ve simgeler, klasörler
+ve düzenleri simgeleri, belgeler düzen ve simgeler gelişebilir"*.
+
+### HATA — klasör ekranında başlığın altında BOŞ şerit
+`_Breadcrumb` kökün adını `v.label`dan alıyordu; birincil bellekte `label`
+BOŞ (ad `labelKey` çevirisinden gelir). Kökte tek parçalı yol çubuğu boş
+44 dp'lik bir şerit olarak çiziliyordu. Artık `displayLabel(context.t)`;
+kökte (tek parça = başlığın tekrarı) çubuk hiç çizilmiyor; alt klasörlerde
+hap biçimli parçalar (bulunulan klasör dolgulu).
+
+### Klasör satırı: ⋮ ve › birlikte → yalnız ⋮
+Satırın tamamı zaten klasörü açıyor; iki simge sağ kenarı kalabalıklaştırıyordu.
+
+### Palet — `FmColors` canlandı, klasör okradan KEHRİBARA
+Kağıt zemini 2026-08-17'de iki turda beyaza çekilmişti; 2026-08-04'te kağıt
+için koyulaştırılan palet beyaz zeminde çamurlu kaldı (klasör kahverengi
+görünüyordu). Klasör `#B07C2A` → `#E39B2E`; görsel/video/ses/arşiv/APK aynı
+doygunluğa. Uygulama simgesi (`tool/gen_icon.py` PNG'leri) DEĞİŞMEDİ.
+
+### Pano simgeleri — çerçevesiz KALDI, malzeme değişti
+2026-08-17 kararı (*"çerçevesini kaldır, büyük sade simgeler"*) korunuyor.
+Yeni `FmTintedIcon`: glif üstten-sola açık, alta koyu degrade (klasör
+çiziminin ışık yönü) — liste simgeleriyle aynı dil. Çizgi (outlined) tema
+ailelerinde düz kalır. Tek glif ailesi: hepsi `_rounded` dolu
+(`star_outline` → `star_rounded`; APK kutusu `archive_outlined` idi — arşiv
+simgesiyle karışıyordu → `install_mobile_rounded`).
+Yüzen düğmeler: yeni klasör + boş çöp kutusu TONLU yüzey (yanlarında ikinci
+bir dolu mavi düğme vardı); "Belge Tara" aşağı kaydırınca simgeye katlanır.
+
+### Belgeler (kategori + arama) — alt yazıda yol yerine KAYNAK
+`/storage/emulated/0/Android/media/co…` her satırda aynıydı ve bir şey
+söylemiyordu. `FmLocation` (`services/fm/fm_location.dart`, saf, testli):
+"115 KB · WhatsApp · 18 Eyl" — kaynak `bucketForPath`'ten (WhatsApp,
+İndirilenler, Kamera…), bilinmeyende dosyanın klasörünün adı, birim
+kökündeyse birimin adı; tarih bu yılsa yılsız.
+PDF kapakları artık kâğıt sayfası gibi: kendi boyunda ince kenarlık + hafif
+gölge (beyaz sayfa beyaz zeminde eriyordu).
+
+**Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, 2402 test yeşil
+(+3 `fm_location_test`).

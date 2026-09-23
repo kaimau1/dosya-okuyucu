@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -14,6 +13,8 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/open_history.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
@@ -564,8 +565,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
               layout: _layout,
               selected: _selected.contains(e.path),
               selecting: _selecting,
-              subtitle: '${FsPaths.humanSize(e.sizeBytes)} · '
-                  '${p.dirname(e.path)}',
+              // Tam yol yerine kaynak adı ("WhatsApp", "İndirilenler") —
+              // bkz. [FmLocation] (2026-09-23 tasarım turu).
+              subtitle: FmLocation.subtitle(
+                  e.path, e.sizeBytes, e.modifiedMs, context.t,
+                  volumes: FmEnv.volumes),
               onTap: () {
                 if (_selecting) {
                   _toggle(e);
