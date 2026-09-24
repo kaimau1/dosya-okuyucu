@@ -1490,6 +1490,7 @@ const Map<String, (String, String, String)> _table = {
   ),
   'vw.highlight_hint': ('Vurgula', 'Highlight', 'تمييز'),
   'vw.ai_fix': ('AI ile düzelt', 'Fix with AI', 'تصحيح بالذكاء الاصطناعي'),
+  'vw.inline_edit_title': ('Metni düzenle', 'Edit text', 'تحرير النص'),
   'vw.caret_left': ('İmleci sola al', 'Move caret left', 'تحريك المؤشر لليسار'),
   'vw.caret_right': (
     'İmleci sağa al',

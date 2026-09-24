@@ -15,6 +15,16 @@
 /// **eşit paylı** yerleştiriyor (taşma matematiksel olarak imkânsız) ve asıl
 /// eylemi dolu düğmeyle ayırıyor.
 ///
+/// ## İkinci tur (2026-09-24)
+/// Kullanıcı: *"işaretli alan güzel görünmüyor, basit bir uygulama gibi
+/// görülüyor."* Düz gri kart, çıplak simge+yazı eylemler ve kalem simgesinin
+/// yanında sıralanmış noktalar "taslak" gibi duruyordu. Şimdi:
+/// - kart temanın en açık yüzeyi + katmanlı yumuşak gölge, 24 dp köşe;
+/// - başlık satırı: tırnak rozeti + seçilen metin + **kapat (×)** — seçimden
+///   çıkmanın tek yolu eskiden sayfada boş bir yere dokunmaktı;
+/// - renkler kendi hap zemininde, seçili renkte ✓, silgi ayraçla ayrık;
+/// - eylemler tonlu karo; asıl eylem (Düzenle) vurgu renginde.
+///
 /// ## Niye ayrı dosya
 /// İkisi de `ViewerScreen`in içindeki özel metotlardı, yani dar ekranda taşıp
 /// taşmadıkları ölçülemiyordu. Buraya alınınca `pdf_action_bars_test.dart`
@@ -23,77 +33,47 @@ library;
 
 import 'package:flutter/material.dart';
 
-/// Ortak kap: tema yüzeyi, yumuşak gölge, ince kenarlık.
+/// Ortak kap: tema yüzeyi, katmanlı yumuşak gölge, ince kenarlık.
 class PdfFloatingCard extends StatelessWidget {
   final Widget child;
 
   const PdfFloatingCard({super.key, required this.child});
 
+  static const double radius = 24;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surfaceContainerHighest,
-      elevation: 6,
-      shadowColor: Colors.black26,
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: Container(
+    final dark = scheme.brightness == Brightness.dark;
+    return ConstrainedBox(
+      // Tablette/yatayda boydan boya uzayan bir şerit değil, kart kalsın.
+      constraints: const BoxConstraints(maxWidth: 520),
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: scheme.outlineVariant),
+          color: dark ? scheme.surfaceContainerHigh : scheme.surface,
+          borderRadius: BorderRadius.circular(radius),
+          border:
+              Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: dark ? 0.45 : 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: dark ? 0.30 : 0.06),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-        child: child,
-      ),
-    );
-  }
-}
-
-/// Çubuktaki eylem: simge üstte, etiket altında.
-///
-/// **Eşit paylı** ([Expanded]) ve etiket tek satır + ellipsis: uzun çeviriler
-/// (Arapça "ترجمة", İngilizce "Translate") dar ekranda taşırmıyor.
-class PdfBarAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  const PdfBarAction({
-    super.key,
-    required this.icon,
-    required this.label,
-    this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final tint = onPressed == null
-        ? scheme.onSurface.withValues(alpha: 0.38)
-        : scheme.onSurface;
-    return Expanded(
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: tint),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: tint),
-              ),
-            ],
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: BorderRadius.circular(radius),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: child,
           ),
         ),
       ),
@@ -101,15 +81,83 @@ class PdfBarAction extends StatelessWidget {
   }
 }
 
-/// Metin seçilince çıkan çubuk: **renk kutucukları + silgi**, altında
-/// Kopyala / Düzenle / Çevir.
+/// Çubuktaki eylem: tonlu karo, simge üstte, etiket altında.
+///
+/// **Eşit paylı** ([Expanded]) ve etiket tek satır + ellipsis: uzun çeviriler
+/// (Arapça "ترجمة", İngilizce "Translate") dar ekranda taşırmıyor.
+/// [emphasized] asıl eylemi vurgu renginde çizer.
+class PdfBarAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool emphasized;
+
+  const PdfBarAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onPressed,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
+    final bg = emphasized
+        ? scheme.primaryContainer
+        : scheme.surfaceContainerHighest.withValues(alpha: 0.7);
+    final fg = emphasized ? scheme.onPrimaryContainer : scheme.onSurface;
+    final iconColor = emphasized ? scheme.onPrimaryContainer : scheme.primary;
+    final fade = enabled ? 1.0 : 0.38;
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Material(
+          color: bg,
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            child: Opacity(
+              opacity: fade,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 22, color: iconColor),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: fg,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Metin seçilince çıkan çubuk: başlık (seçilen metin + kapat), **renk
+/// kutucukları + silgi**, altında Kopyala / Düzenle / Çevir.
 class PdfSelectionBar extends StatelessWidget {
   /// Seçilen metnin kısaltılmış hâli (tırnak içinde gösterilir).
   final String preview;
 
   final List<int> colors;
 
-  /// Son kullanılan renk — halkalı çizilir.
+  /// Son kullanılan renk — halkalı ve ✓ ile çizilir.
   final int selectedColor;
 
   /// Renk kutucuğuna dokunulunca. **Doğrudan vurgular:** eskiden önce renk
@@ -125,11 +173,15 @@ class PdfSelectionBar extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onTranslate;
 
+  /// Seçimi kapatır (×). Null verilirse düğme çizilmez.
+  final VoidCallback? onClose;
+
   final String highlightTooltip;
   final String removeTooltip;
   final String copyLabel;
   final String editLabel;
   final String translateLabel;
+  final String closeTooltip;
 
   const PdfSelectionBar({
     super.key,
@@ -146,6 +198,8 @@ class PdfSelectionBar extends StatelessWidget {
     required this.copyLabel,
     required this.editLabel,
     required this.translateLabel,
+    this.onClose,
+    this.closeTooltip = '',
   });
 
   @override
@@ -156,31 +210,62 @@ class PdfSelectionBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (preview.isNotEmpty)
+          if (preview.isNotEmpty || onClose != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-              child: Text(
-                preview,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
                     ),
+                    child: Icon(Icons.format_quote_rounded,
+                        size: 16, color: scheme.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                  if (onClose != null)
+                    IconButton(
+                      tooltip: closeTooltip.isEmpty ? null : closeTooltip,
+                      onPressed: onClose,
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        foregroundColor: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
             ),
-          // **Wrap, Row değil:** kutucuklar ortalanır ve sığmazsa (yeni renk
-          // eklenirse, çok dar ekranda) alt satıra iner — taşıp kırmızı
-          // şerit vermez. Yatay kaydırma denendi ama kaydırılabilir alan
-          // daima tam genişliği kaplıyor, yani içerik sola yapışıyordu.
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
+          // Renkler kendi hap zemininde. **Wrap, Row değil:** kutucuklar
+          // ortalanır ve sığmazsa (yeni renk eklenirse, çok dar ekranda) alt
+          // satıra iner — taşıp kırmızı şerit vermez.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Icon(Icons.border_color,
+                  padding: const EdgeInsets.only(right: 6, left: 2),
+                  child: Icon(Icons.border_color_rounded,
                       size: 18, color: scheme.onSurfaceVariant),
                 ),
                 for (final argb in colors)
@@ -190,36 +275,40 @@ class PdfSelectionBar extends StatelessWidget {
                     tooltip: highlightTooltip,
                     onTap: () => onHighlight(argb),
                   ),
-                const SizedBox(width: 6),
+                Container(
+                  width: 1,
+                  height: 22,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  color: scheme.outlineVariant,
+                ),
                 Tooltip(
                   message: removeTooltip,
                   child: InkResponse(
                     onTap: onRemoveHighlight,
                     radius: 22,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: scheme.outlineVariant),
-                      ),
-                      child: Icon(Icons.format_color_reset,
-                          size: 18, color: scheme.onSurfaceVariant),
+                    child: SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: Icon(Icons.format_color_reset_rounded,
+                          size: 20, color: scheme.onSurfaceVariant),
                     ),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Divider(height: 1, color: scheme.outlineVariant),
-          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               PdfBarAction(
-                  icon: Icons.copy_rounded, label: copyLabel, onPressed: onCopy),
+                  icon: Icons.content_copy_rounded,
+                  label: copyLabel,
+                  onPressed: onCopy),
               PdfBarAction(
-                  icon: Icons.edit_outlined, label: editLabel, onPressed: onEdit),
+                  icon: Icons.edit_rounded,
+                  label: editLabel,
+                  onPressed: onEdit,
+                  emphasized: true),
               PdfBarAction(
                   icon: Icons.translate_rounded,
                   label: translateLabel,
@@ -248,31 +337,43 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final color = Color(argb);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Tooltip(
         message: tooltip,
         child: InkResponse(
           onTap: onTap,
           radius: 22,
-          child: Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? scheme.primary : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: Color(argb),
-                shape: BoxShape.circle,
-                border: Border.all(color: scheme.outlineVariant),
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: selected ? 28 : 24,
+                height: selected ? 28 : 24,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected
+                        ? scheme.primary
+                        : Colors.black.withValues(alpha: 0.08),
+                    width: selected ? 2.5 : 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.45),
+                      blurRadius: selected ? 8 : 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: selected
+                    ? const Icon(Icons.check_rounded,
+                        size: 16, color: Colors.black87)
+                    : null,
               ),
             ),
           ),
@@ -343,32 +444,42 @@ class PdfEditBar extends StatelessWidget {
     this.caretLeftLabel = '',
     this.caretRightLabel = '',
     this.selectAllLabel = '',
+    this.title = '',
   });
 
-  /// İmleç satırı: ◀ ▶ ve "tümünü seç". Simge düğmeleri **sabit ölçülü**
-  /// (48 dp'lik dokunma hedefi) ve sayıca üç — dar ekranda da taşmaz.
-  Widget _caretRow() => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            tooltip: caretLeftLabel.isEmpty ? null : caretLeftLabel,
-            onPressed: busy ? null : onCaretLeft,
-            icon: const Icon(Icons.keyboard_arrow_left),
-            visualDensity: VisualDensity.compact,
-          ),
-          IconButton(
-            tooltip: caretRightLabel.isEmpty ? null : caretRightLabel,
-            onPressed: busy ? null : onCaretRight,
-            icon: const Icon(Icons.keyboard_arrow_right),
-            visualDensity: VisualDensity.compact,
-          ),
-          IconButton(
-            tooltip: selectAllLabel.isEmpty ? null : selectAllLabel,
-            onPressed: busy ? null : onSelectAll,
-            icon: const Icon(Icons.select_all),
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
+  /// Başlık satırındaki kısa açıklama ("Metni düzenle"). Boşsa çizilmez.
+  final String title;
+
+  /// İmleç denetimi: ◀ ▶ ve "tümünü seç" tek bir hap içinde. Simge
+  /// düğmeleri **sabit ölçülü** ve sayıca üç — dar ekranda da taşmaz.
+  Widget _caretPill(ColorScheme scheme) => Container(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: caretLeftLabel.isEmpty ? null : caretLeftLabel,
+              onPressed: busy ? null : onCaretLeft,
+              icon: const Icon(Icons.keyboard_arrow_left),
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              tooltip: caretRightLabel.isEmpty ? null : caretRightLabel,
+              onPressed: busy ? null : onCaretRight,
+              icon: const Icon(Icons.keyboard_arrow_right),
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              tooltip: selectAllLabel.isEmpty ? null : selectAllLabel,
+              onPressed: busy ? null : onSelectAll,
+              icon: const Icon(Icons.select_all),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
       );
 
   @override
@@ -378,49 +489,98 @@ class PdfEditBar extends StatelessWidget {
     return PdfFloatingCard(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (caret) _caretRow(),
-          Row(
-            children: [
-          // İkisi eşit paylı, etiketler ellipsis: dar ekranda taşmaz.
-          PdfBarAction(
-            icon: Icons.close,
-            label: cancelLabel,
-            onPressed: busy ? null : onCancel,
-          ),
-          PdfBarAction(
-            icon: Icons.auto_fix_high,
-            label: aiLabel,
-            onPressed: busy ? null : onRewrite,
-          ),
-          // **Asıl eylem DOLU düğme:** üçü de düz metin düğmesiyken hangisinin
-          // asıl eylem olduğu belli değildi.
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: busy
-                  ? Center(
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: scheme.primary),
+          if (caret || title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  if (title.isNotEmpty) ...[
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
                       ),
-                    )
-                  : FilledButton.icon(
-                      onPressed: onApply,
-                      icon: const Icon(Icons.check, size: 18),
-                      label: Text(
-                        applyLabel,
+                      child: Icon(Icons.edit_note_rounded,
+                          size: 18, color: scheme.primary),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      ),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(color: scheme.onSurface),
                       ),
                     ),
+                  ] else
+                    const Spacer(),
+                  if (caret) _caretPill(scheme),
+                  if (!caret || title.isEmpty) const Spacer(),
+                ],
+              ),
             ),
-          ),
+          Row(
+            children: [
+              // İkisi eşit paylı tonlu karo, etiketler ellipsis: dar ekranda
+              // taşmaz.
+              PdfBarAction(
+                icon: Icons.close_rounded,
+                label: cancelLabel,
+                onPressed: busy ? null : onCancel,
+              ),
+              PdfBarAction(
+                icon: Icons.auto_fix_high_rounded,
+                label: aiLabel,
+                onPressed: busy ? null : onRewrite,
+              ),
+              // **Asıl eylem DOLU düğme**, karolardan geniş.
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: SizedBox(
+                    height: 58,
+                    child: busy
+                        ? Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: scheme.primary),
+                            ),
+                          )
+                        : FilledButton.icon(
+                            onPressed: onApply,
+                            icon: const Icon(Icons.check_rounded, size: 20),
+                            label: Text(
+                              applyLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            style: FilledButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              textStyle: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
             ],
           ),
         ],

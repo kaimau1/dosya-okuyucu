@@ -11571,3 +11571,55 @@ eksikleri gider, hataları düzelt, görsel tasarımı düzenle, ek özellik ekl
 grafik güncellenmedi. Cihazda bakılacak: uygulamalar özet kartı dar ekranda
 üç kutu sığıyor mu; Arapça (RTL) AI sohbet balonlarının sivri köşesi doğru
 tarafta mı.
+
+## 2026-09-24 (2) — PDF yerinde düzenleme: klavye, "Uygula", görünüm
+Kullanıcı (ekran görüntüleriyle): *"düzenleme alanında klavye ilk basınca
+açılıyor ancak sonra açılmıyor, değişiklik yapılamıyor, uygulaya basmak
+işlevsiz; işaretli alan (seçim çubuğu) basit bir uygulama gibi görünüyor."*
+
+### HATALAR (kök nedenleriyle)
+- **"Uygula" işlevsiz — AI düğmesi (FAB) üstüne biniyordu.** `DocAiButton`
+  Scaffold FAB'ı; düzenleme/seçim çubuğunun sağ ucunu örtüyordu, "Uygula"ya
+  basan parmak AI sohbetine gidiyordu. Çubuk açıkken FAB gizli
+  (`_pdfBarShown`). Sayfa rozeti de seçim çubuğunun altından yarım
+  görünüyordu → çubuk açıkken gizli.
+- **Boş kutuda "Uygula" sessizce hiçbir şey yapmıyordu** (`trim().isNotEmpty`
+  şartı). Tümünü seçip silen kullanıcı takılıyordu. Boş = metni sil;
+  `PdfContentEditor` boşla değiştirmeyi zaten destekliyor (testli).
+- **Klavye bir kez kapanınca bir daha açılmıyordu.** Geri tuşu klavyeyi
+  kapatır ama odak kutuda KALIR; `if (!hasFocus) requestFocus()` hiçbir şey
+  yapmıyordu. Kutuya dokunmak da kurtarmıyordu: pdfrx'in köprü katmanı
+  (sayfa katmanlarının ÜSTÜNDE translucent tap tanıyıcısı) arenaya önce
+  giriyor, TextField'ın "dokununca klavyeyi aç"ı ateşlenmiyordu.
+  Çözüm: `PdfInlineEditor.showKeyboard` → `EditableTextState.requestKeyboard()`
+  (odak yoksa ister, varsa bağlantıyı açar/klavyeyi gösterir); kutunun içi ve
+  dokunma payı ham `Listener` (`_TapToType`) — arenaya girmez, her dokunuşta
+  klavyeyi açar, tek/kısa dokunuşta imleci o harfe koyar (çift dokunuş ve
+  uzun basış TextField'a bırakılır). Test pdfrx katmanını taklit ediyor;
+  düzeltme kapatılınca kırmızı olduğu doğrulandı.
+- **Temanın kutu süsü düzenleme kutusuna sızıyordu.** `border: none` yetmez:
+  `focusedBorder/enabledBorder/filled` temadan (`inputDecorationTheme`)
+  geliyor → yazının etrafında kalın mavi yuvarlak çerçeve + gri dolgu; metin
+  silinince sayfayı kesen mavi çizgi. Hepsi açıkça `none`, `filled: false`.
+  **TUZAK:** tema dekorasyonu olan uygulamada "çıplak" TextField istiyorsan
+  tüm border alanlarını tek tek ver.
+- **Yazı tipi temadan geliyordu** (arayüzde tek aralıklı font seçiliyse PDF
+  üstünde daktilo yazısı). Kutu artık `Arimo` (Arial metriği).
+- **Seçim bırakılınca mavi seçim + tutamaçlar sayfada kalıyordu** (vurgula /
+  vurgu kaldır sonrası çubuk kapanıyor, seçim duruyordu). `PdfSelectLayer`
+  artık `activeSelectionPage` bu sayfa → 0 geçişinde sessizce temizliyor.
+- Klavye açılınca pdfrx sayfayı kendi hizalıyor (`_goToPage`), alt yarıdaki
+  satır klavyenin arkasında kalıyordu → `onViewSizeChanged` (tear-off; params
+  eşitliği bozulmasın) ile satır + çubuk payı `ensureVisible`.
+
+### Tasarım
+Seçim çubuğu: başlık (tırnak rozeti + seçilen metin + **×** kapat), renkler
+kendi hap zemininde (seçilide ✓ ve halka), silgi ayraçla ayrık, eylemler
+tonlu karo, asıl eylem (Düzenle) vurgu renginde. Düzenleme çubuğu: "Metni
+düzenle" başlığı + ◀ ▶ ⬚ hapı; Vazgeç / AI tonlu karo, Uygula geniş dolu
+düğme. Kart 24 dp köşe, en fazla 520 dp, katmanlı gölge.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun, 2411 test yeşil
+(+4 `pdf_inline_editor_touch_test` klavye grubu, +1 `pdf_select_layer`).
+Cihazda bakılacak: geri tuşuyla klavye kapatıp kutuya dokununca açılıyor mu;
+sayfanın altındaki satırda klavye açılınca satır görünür kalıyor mu.

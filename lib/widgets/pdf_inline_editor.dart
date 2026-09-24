@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -36,7 +37,64 @@ class PdfInlineEditor extends StatelessWidget {
     required this.focusNode,
     required this.onSubmit,
     this.busy = false,
+    this.fieldKey,
   });
+
+  /// `TextField`in anahtarı — `ViewerScreen` imleç düğmelerinden sonra
+  /// klavyeyi yeniden açabilmek için alanın içindeki `EditableText`e
+  /// ulaşıyor (bkz. [showKeyboard]).
+  final GlobalKey? fieldKey;
+
+  /// Yazı tipi: **Arimo** (Arial/Helvetica metriği), arayüzün yazı tipi DEĞİL.
+  ///
+  /// Kutu temadan yazı tipi devralıyordu: kullanıcı arayüzde tek aralıklı
+  /// bir yazı tipi seçmişse PDF'in üstünde daktilo yazısı çıkıyordu
+  /// (2026-09-24 ekran görüntüsü). PDF'lerin ezici çoğunluğu Arial/Helvetica
+  /// ailesinde; punto zaten genişliğe göre ölçülerek bulunuyor.
+  static const String fontFamily = 'Arimo';
+
+  /// Kutunun çevresindeki saydam dokunma payı (testler bununla buluyor).
+  static const Key padKey = ValueKey('pdf-inline-edit-pad');
+
+  /// **Klavyeyi AÇ — odak zaten kutudaysa bile.**
+  ///
+  /// KÖK NEDEN (kullanıcı 2026-09-24: *"klavye ilk basınca açılıyor ancak
+  /// sonra açılmıyor, değişiklik yapılamıyor"*): klavye Android'in geri
+  /// tuşuyla ya da kaydırırken kapanınca odak kutuda KALIYOR. Eski kod
+  /// `if (!hasFocus) requestFocus()` diyordu → odak zaten var, hiçbir şey
+  /// olmuyordu. Kutuya dokunmak da kurtarmıyordu: pdfrx'in köprü katmanı
+  /// (sayfa katmanlarının ÜSTÜNDE, translucent bir tap tanıyıcısı) dokunma
+  /// arenasına önce giriyor ve `TextField`in kendi "dokununca klavyeyi aç"
+  /// işleyicisi çoğu kez ateşlenmiyordu.
+  ///
+  /// `EditableTextState.requestKeyboard` iki durumu da kapsıyor: odak yoksa
+  /// ister, varsa giriş bağlantısını açar/klavyeyi yeniden gösterir.
+  static void showKeyboard(BuildContext? fieldContext, FocusNode focusNode) {
+    final editable = fieldContext == null ? null : _findEditable(fieldContext);
+    if (editable != null && editable.mounted) {
+      editable.requestKeyboard();
+    } else if (!focusNode.hasFocus) {
+      focusNode.requestFocus();
+    }
+  }
+
+  static EditableTextState? _findEditable(BuildContext context) {
+    EditableTextState? found;
+    void visit(Element e) {
+      if (found != null) return;
+      if (e is StatefulElement && e.state is EditableTextState) {
+        found = e.state as EditableTextState;
+        return;
+      }
+      e.visitChildElements(visit);
+    }
+
+    if (context is StatefulElement && context.state is EditableTextState) {
+      return context.state as EditableTextState;
+    }
+    (context as Element).visitChildElements(visit);
+    return found;
+  }
 
   final PdfPage page;
 
@@ -70,33 +128,47 @@ class PdfInlineEditor extends StatelessWidget {
   /// 44 yetiyor ve komşu satırları daha az örtüyor).
   static const double _minTouch = 44;
 
-  /// Kutunun DIŞINA (dokunma payına) gelen dokunuşta imleci o sütuna taşır.
+  /// Dokunulan noktaya imleci taşır.
   ///
-  /// Yalnız yerleştirir; klavye zaten açık ve odak kutuda. `dx` kutunun
-  /// solundan itibaren, yani metnin kendi başlangıcından ölçülüdür.
-  void _placeCaret(double dx, double fontSize) {
+  /// İki yerden çağrılıyor: kutunun DIŞINDAKİ dokunma payından (yalnız
+  /// sütun anlamlı) ve kutunun İÇİNDEN ([_TapToType]) — içeride
+  /// `TextField`in kendi imleç yerleştirmesi arenayı pdfrx'e kaptırınca hiç
+  /// çalışmıyordu. [offset] kutunun sol-üst köşesinden, yani metnin kendi
+  /// başlangıcından ölçülüdür.
+  void _placeCaret(Offset offset, double fontSize, double maxWidth) {
     final text = controller.text;
     if (text.isEmpty) return;
-    if (!focusNode.hasFocus) focusNode.requestFocus();
     // Aynı biçimle ölçülür — kutunun içindeki yazının birebir aynısı, yoksa
     // imleç dokunulan harfin yanına değil birkaç harf ötesine düşerdi.
     final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(fontSize: fontSize, height: 1.0),
-      ),
-      strutStyle:
-          StrutStyle(fontSize: fontSize, height: 1.0, forceStrutHeight: true),
+      text: TextSpan(text: text, style: _style(fontSize)),
+      strutStyle: _strut(fontSize),
       textDirection: TextDirection.ltr,
-    )..layout();
-    final position =
-        painter.getPositionForOffset(Offset(dx, fontSize / 2));
+      maxLines: original.contains('\n') ? null : 1,
+    )..layout(maxWidth: original.contains('\n') ? maxWidth : double.infinity);
+    final position = painter.getPositionForOffset(offset);
     painter.dispose();
     controller.selection = TextSelection.collapsed(
       offset: position.offset.clamp(0, text.length),
       affinity: position.affinity,
     );
   }
+
+  static TextStyle _style(double fontSize) => TextStyle(
+        fontFamily: fontFamily,
+        fontSize: fontSize,
+        // height 1.0: satır kutusu puntoyla aynı kalsın, yazı özgün satırın
+        // üstünde/altında kaymasın.
+        height: 1.0,
+        color: Colors.black,
+      );
+
+  static StrutStyle _strut(double fontSize) => StrutStyle(
+        fontFamily: fontFamily,
+        fontSize: fontSize,
+        height: 1.0,
+        forceStrutHeight: true,
+      );
 
   /// Seçili satırların ekran dikdörtgeni (hepsini kapsayan).
   Rect? get _box {
@@ -132,7 +204,7 @@ class PdfInlineEditor extends StatelessWidget {
     final painter = TextPainter(
       text: TextSpan(
         text: original,
-        style: TextStyle(fontSize: base, height: 1.0),
+        style: _style(base),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
@@ -169,7 +241,8 @@ class PdfInlineEditor extends StatelessWidget {
     // ilkesi bozulurdu): kutunun çevresine saydam bir dokunma payı konuyor.
     // Yazının kendisi ve beyaz kapak eskisi gibi tam yerinde duruyor —
     // değişen yalnız dokunuşun nereye kadar sayıldığı.
-    final pad = multiline ? 0.0 : ((_minTouch - box.height) / 2).clamp(0.0, 18.0);
+    final pad =
+        multiline ? 0.0 : ((_minTouch - box.height) / 2).clamp(0.0, 18.0);
     const hpad = 10.0;
 
     // Positioned.fill: katman sayfanın tamamını kaplar, içindeki konumlar
@@ -192,10 +265,18 @@ class PdfInlineEditor extends StatelessWidget {
               // kendisine gider (isabetli dokunuşta Flutter'ın kendi imleç
               // yerleştirmesi çalışır), yalnız kutunun DIŞINA düşen — ama
               // paya giren — dokunuşlar buraya gelir.
-              child: GestureDetector(
+              //
+              // Ham işaretçi olayı (Listener), `GestureDetector` değil: tap
+              // tanıyıcısı pdfrx'in köprü tanıyıcısına arenayı kaptırınca
+              // hızlı dokunuşta hiç ateşlenmiyordu.
+              child: _TapToType(
+                key: padKey,
+                enabled: !busy,
                 behavior: HitTestBehavior.opaque,
-                onTapDown: (d) =>
-                    _placeCaret(d.localPosition.dx - hpad, fontSize),
+                onTap: (local) => _placeCaret(
+                    Offset(local.dx - hpad, fontSize / 2), fontSize, width),
+                onShowKeyboard: (ctx) =>
+                    showKeyboard(fieldKey?.currentContext, focusNode),
                 child: const SizedBox.expand(),
               ),
             ),
@@ -216,40 +297,129 @@ class PdfInlineEditor extends StatelessWidget {
                   bottom: BorderSide(color: scheme.primary, width: 1.2),
                 ),
               ),
-              child: TextField(
-                controller: controller,
-                focusNode: focusNode,
+              child: _TapToType(
                 enabled: !busy,
-                maxLines: multiline ? null : 1,
-                keyboardType:
-                    multiline ? TextInputType.multiline : TextInputType.text,
-                textInputAction:
-                    multiline ? TextInputAction.newline : TextInputAction.done,
-                onSubmitted: multiline ? null : (_) => onSubmit(),
-                cursorColor: scheme.primary,
-                cursorWidth: 1.4,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  // height 1.0: satır kutusu puntoyla aynı kalsın, yazı
-                  // özgün satırın üstünde/altında kaymasın.
-                  height: 1.0,
-                  color: Colors.black,
-                ),
-                strutStyle: StrutStyle(
-                  fontSize: fontSize,
-                  height: 1.0,
-                  forceStrutHeight: true,
-                ),
-                decoration: const InputDecoration(
-                  isCollapsed: true,
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
+                onTap: (local) {
+                  _placeCaret(local, fontSize, width);
+                },
+                onShowKeyboard: (ctx) =>
+                    showKeyboard(fieldKey?.currentContext ?? ctx, focusNode),
+                child: TextField(
+                  key: fieldKey,
+                  controller: controller,
+                  focusNode: focusNode,
+                  enabled: !busy,
+                  maxLines: multiline ? null : 1,
+                  keyboardType:
+                      multiline ? TextInputType.multiline : TextInputType.text,
+                  textInputAction: multiline
+                      ? TextInputAction.newline
+                      : TextInputAction.done,
+                  onSubmitted: multiline ? null : (_) => onSubmit(),
+                  cursorColor: scheme.primary,
+                  cursorWidth: 1.4,
+                  style: _style(fontSize),
+                  strutStyle: _strut(fontSize),
+                  // **Temanın kutu süsü BURADA İSTENMİYOR.** Yalnız
+                  // `border: none` vermek yetmiyordu: `focusedBorder`,
+                  // `enabledBorder` ve `filled` temadan geliyor, yani
+                  // odaklanınca yazının etrafında kalın mavi, yuvarlak bir
+                  // çerçeve ve gri dolgu çıkıyordu; metin silinince de
+                  // sayfayı boydan boya kesen mavi bir çizgiye dönüşüyordu
+                  // (kullanıcı ekran görüntüleri 2026-09-24).
+                  decoration: const InputDecoration(
+                    isCollapsed: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Kutunun içindeki dokunuşu **ham işaretçi olayından** yakalar.
+///
+/// `Listener` dokunma arenasına girmez: pdfrx'in köprü tanıyıcısı arenayı
+/// kazansa da bu olay yine gelir. Tek, kısa bir dokunuşta imleci o noktaya
+/// koyar ve klavyeyi açar. `TextField` arenayı kazanırsa kendi yerleştirmesi
+/// bizimkinden SONRA çalışır ve aynı yere koyar — çakışmaz.
+///
+/// Çift dokunuş (kelime seçimi) ve uzun basış (seçim tutamaçları) bozulmasın
+/// diye yalnız tek ve kısa dokunuşlarda imleç taşınır; klavye her durumda
+/// açılır.
+class _TapToType extends StatefulWidget {
+  const _TapToType({
+    super.key,
+    this.behavior = HitTestBehavior.translucent,
+    required this.child,
+    required this.enabled,
+    required this.onTap,
+    required this.onShowKeyboard,
+  });
+
+  final HitTestBehavior behavior;
+  final Widget child;
+  final bool enabled;
+  final void Function(Offset local) onTap;
+  final void Function(BuildContext context) onShowKeyboard;
+
+  @override
+  State<_TapToType> createState() => _TapToTypeState();
+}
+
+class _TapToTypeState extends State<_TapToType> {
+  Offset? _downAt;
+  DateTime? _downTime;
+  DateTime? _lastTap;
+  bool _moved = false;
+
+  static const _longPress = Duration(milliseconds: 350);
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: widget.behavior,
+      onPointerDown: (e) {
+        _downAt = e.position;
+        _downTime = DateTime.now();
+        _moved = false;
+      },
+      onPointerMove: (e) {
+        final at = _downAt;
+        if (at != null && (e.position - at).distance > kTouchSlop) {
+          _moved = true;
+        }
+      },
+      onPointerUp: (e) {
+        final down = _downTime;
+        _downAt = null;
+        _downTime = null;
+        if (!widget.enabled || down == null || _moved) return;
+        final now = DateTime.now();
+        final quick = now.difference(down) < _longPress;
+        final last = _lastTap;
+        final secondTap =
+            last != null && down.difference(last) < kDoubleTapTimeout;
+        _lastTap = now;
+        if (quick && !secondTap) widget.onTap(e.localPosition);
+        widget.onShowKeyboard(context);
+      },
+      onPointerCancel: (_) {
+        _downAt = null;
+        _downTime = null;
+      },
+      child: widget.child,
     );
   }
 }

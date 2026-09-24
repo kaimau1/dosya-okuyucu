@@ -243,6 +243,20 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
         _anchor = null;
         _extent = null;
       });
+      return;
+    }
+    // Seçim bu sayfadaydı ve ekran onu BIRAKTI (vurgulandı, vurgusu
+    // kaldırıldı, düzenlemeye geçildi ya da çubuk kapatıldı): mavi seçim ve
+    // tutamaçlar sayfada asılı kalıyordu, çubuk ise kaybolmuştu — kullanıcı
+    // seçimin hâlâ etkin olduğunu sanıyordu. Rapor yok: ekran zaten biliyor.
+    if (old.activeSelectionPage == widget.page.pageNumber &&
+        widget.activeSelectionPage == 0 &&
+        _hasSelection &&
+        _selectedText.isNotEmpty) {
+      setState(() {
+        _anchor = null;
+        _extent = null;
+      });
     }
   }
 

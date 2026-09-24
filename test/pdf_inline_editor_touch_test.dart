@@ -61,7 +61,7 @@ void main() {
       (tester) async {
     await pump(tester);
     // Yazının kendisi 10 dp; dokunma alanı en az 40 dp olmalı.
-    final target = tester.getSize(find.byType(GestureDetector).first);
+    final target = tester.getSize(find.byKey(PdfInlineEditor.padKey));
     expect(target.height, greaterThanOrEqualTo(40),
         reason: 'satır 10 dp; pay olmadan parmak isabet ettiremez');
     expect(target.width, greaterThan(80));
@@ -82,7 +82,7 @@ void main() {
 
     // Satırın hemen ÜSTÜNE (yazının dışına ama payın içine) dokun: eskiden
     // bu dokunuş kutuya hiç ulaşmıyordu.
-    final target = tester.getRect(find.byType(GestureDetector).first);
+    final target = tester.getRect(find.byKey(PdfInlineEditor.padKey));
     await tester.tapAt(Offset(60, target.top + 4));
     await tester.pump();
 
@@ -94,11 +94,156 @@ void main() {
   testWidgets('boş kutuda dokunuş imleci oynatmaz (çökmez)', (tester) async {
     controller.text = '';
     await pump(tester);
-    final target = tester.getRect(find.byType(GestureDetector).first);
+    final target = tester.getRect(find.byKey(PdfInlineEditor.padKey));
     await tester.tapAt(Offset(60, target.top + 4));
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(controller.selection.baseOffset, lessThanOrEqualTo(0));
+  });
+
+  group('klavye (2026-09-24)', keyboardGroup);
+}
+
+/// **"Klavye ilk basınca açılıyor, sonra açılmıyor; değişiklik yapılamıyor"**
+/// — kullanıcı 2026-09-24. Klavye geri tuşuyla kapanınca odak kutuda
+/// kalıyordu; kutuya dokunmak klavyeyi yeniden açmıyordu çünkü pdfrx'in
+/// köprü katmanı (sayfa katmanlarının ÜSTÜNDE translucent bir tap
+/// tanıyıcısı) dokunuşu kazanıyordu. Aşağıda o katman birebir taklit ediliyor.
+void keyboardGroup() {
+  const pageSize = Size(200, 100);
+  const line = PdfRect(10, 60, 90, 50);
+
+  Future<(TextEditingController, FocusNode, GlobalKey)> pumpWithLinkLayer(
+      WidgetTester tester) async {
+    final controller = TextEditingController(text: 'Merhaba dunya');
+    final focusNode = FocusNode();
+    final fieldKey = GlobalKey();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: pageSize.width,
+          height: pageSize.height,
+          child: Stack(
+            children: [
+              PdfInlineEditor(
+                page: _FakePage(),
+                pageSize: pageSize,
+                rects: const [line],
+                original: 'Merhaba dunya',
+                controller: controller,
+                focusNode: focusNode,
+                fieldKey: fieldKey,
+                onSubmit: () {},
+              ),
+              // pdfrx `linkHandlingOverlay`: tüm görüntüyü kaplayan,
+              // translucent, onTapUp'lı GestureDetector — sayfa
+              // katmanlarının ÜSTÜNDE.
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTapUp: (_) {},
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+    return (controller, focusNode, fieldKey);
+  }
+
+  testWidgets('klavye kapandıktan sonra kutuya dokununca YENİDEN açılır',
+      (tester) async {
+    final (_, focusNode, fieldKey) = await pumpWithLinkLayer(tester);
+    PdfInlineEditor.showKeyboard(fieldKey.currentContext, focusNode);
+    await tester.pump();
+    expect(focusNode.hasFocus, isTrue);
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    // Android geri tuşu: klavye kapanır, odak kutuda kalır.
+    tester.testTextInput.hide();
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(focusNode.hasFocus, isTrue);
+
+    await tester.tapAt(tester.getCenter(find.byType(TextField)));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.testTextInput.isVisible, isTrue,
+        reason: 'dokunuş köprü katmanına kaybedilse de klavye açılmalı');
+  });
+
+  testWidgets(
+      'odak kutudayken showKeyboard klavyeyi yeniden gösterir '
+      '(◀ ▶ / tümünü seç düğmeleri)', (tester) async {
+    final (_, focusNode, fieldKey) = await pumpWithLinkLayer(tester);
+    PdfInlineEditor.showKeyboard(fieldKey.currentContext, focusNode);
+    await tester.pump();
+    tester.testTextInput.hide();
+    await tester.pump();
+
+    PdfInlineEditor.showKeyboard(fieldKey.currentContext, focusNode);
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue);
+  });
+
+  testWidgets('kutuya dokunuş imleci dokunulan harfe koyar', (tester) async {
+    final (controller, focusNode, fieldKey) = await pumpWithLinkLayer(tester);
+    PdfInlineEditor.showKeyboard(fieldKey.currentContext, focusNode);
+    await tester.pump();
+    controller.selection =
+        TextSelection(baseOffset: 0, extentOffset: controller.text.length);
+
+    final field = tester.getRect(find.byType(TextField));
+    await tester.tapAt(Offset(field.left + field.width * 0.6, field.center.dy));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(controller.selection.isCollapsed, isTrue);
+    expect(controller.selection.baseOffset, greaterThan(0));
+    expect(controller.selection.baseOffset, lessThan(controller.text.length));
+  });
+
+  testWidgets('temanın çerçevesi/dolgusu kutuya SIZMAZ', (tester) async {
+    // Tema: dolgulu + odakta kalın yuvarlak çerçeve (uygulamanın teması gibi).
+    final controller = TextEditingController(text: 'Merhaba dunya');
+    final focusNode = FocusNode();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey,
+          focusedBorder: OutlineInputBorder(),
+          enabledBorder: OutlineInputBorder(),
+        ),
+      ),
+      home: Scaffold(
+        body: SizedBox(
+          width: pageSize.width,
+          height: pageSize.height,
+          child: Stack(children: [
+            PdfInlineEditor(
+              page: _FakePage(),
+              pageSize: pageSize,
+              rects: const [line],
+              original: 'Merhaba dunya',
+              controller: controller,
+              focusNode: focusNode,
+              onSubmit: () {},
+            ),
+          ]),
+        ),
+      ),
+    ));
+    focusNode.requestFocus();
+    await tester.pump();
+    final decorator =
+        tester.widget<InputDecorator>(find.byType(InputDecorator));
+    final d = decorator.decoration;
+    expect(d.filled, isFalse);
+    expect(d.focusedBorder, InputBorder.none);
+    expect(d.enabledBorder, InputBorder.none);
   });
 }
 

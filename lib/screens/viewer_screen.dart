@@ -180,6 +180,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// hangi `TextField` çizilirse ona bağlanıyor, klavye ayakta kalıyor.
   FocusNode? _pdfEditFocus;
 
+  /// Yerinde düzenleme alanının anahtarı: imleç düğmeleri ve AI dönüşünden
+  /// sonra klavyeyi odak zaten kutudayken de yeniden açabilmek için
+  /// (bkz. [PdfInlineEditor.showKeyboard]).
+  final GlobalKey _pdfEditFieldKey = GlobalKey(debugLabel: 'pdf-inline-field');
+
   /// **Özgün baytların yedeği** — düzenleme sürerken tutulan geçici dosya.
   ///
   /// Kullanıcı isteği (2026-07-26): *"canlı metin düzenlerken her seferinde
@@ -1432,13 +1437,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
       bottomBar: _actionBar(doc),
       // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
       // kapatıyordu; etiket tooltip'e taşındı.
-      fab: DocAiButton(
-        kind: doc.kind,
-        onPressed: _openChat,
-        tooltip: hasApiKey ? context.t('common.ai') : 'AI (anahtar gerekli)',
-      ),
+      // Metin seçiliyken ve yerinde düzenlemede AI düğmesi GİZLİ: seçim/
+      // düzenleme çubuğunun sağ ucunun üstüne biniyordu ve "Uygula"ya basan
+      // parmak aslında AI sohbetini açıyordu (kullanıcı 2026-09-24:
+      // "uygulaya basmak işlevsiz"). Çubukta zaten "AI ile düzelt" var.
+      fab: _pdfBarShown
+          ? null
+          : DocAiButton(
+              kind: doc.kind,
+              onPressed: _openChat,
+              tooltip:
+                  hasApiKey ? context.t('common.ai') : 'AI (anahtar gerekli)',
+            ),
     );
   }
+
+  /// PDF'in üstünde seçim ya da düzenleme çubuğu açık mı?
+  bool get _pdfBarShown =>
+      widget.doc.kind == DocKind.pdf &&
+      (_pdfEdit != null || _pdfSelection.trim().isNotEmpty);
 
   /// **"Daha fazla" sayfası** — eskiden 15 satırlık düz bir açılır menüydü
   /// (simgesiz, grupsuz; "Gece modu" ile "Gece modunu kapat" gibi aynı
@@ -1836,6 +1853,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
         copyLabel: context.t('common.copy'),
         editLabel: context.t('common.edit'),
         translateLabel: context.t('common.translate'),
+        onClose: () => setState(() {
+          _pdfSelection = '';
+          _pdfSelRects = const [];
+        }),
+        closeTooltip: context.t('common.close'),
       );
 
   /// Yerinde düzenleme çubuğu — bkz. [PdfEditBar] (niye ekranın altında
@@ -1854,6 +1876,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         caretLeftLabel: context.t('vw.caret_left'),
         caretRightLabel: context.t('vw.caret_right'),
         selectAllLabel: context.t('vw.select_all_text'),
+        title: context.t('vw.inline_edit_title'),
       );
 
   /// İmleci [delta] karakter kaydırır (çubuktaki ◀ ▶).
@@ -2269,17 +2292,59 @@ class _ViewerScreenState extends State<ViewerScreen> {
     });
   }
 
+  /// Görüntü küçüldü (klavye açıldı): düzenlenen satırı görünür alana getir.
+  ///
+  /// pdfrx görüntü boyu değişince sayfayı kendi başına hizalıyor
+  /// (`_goToPage`); sayfanın alt yarısındaki bir satır bu hizalamayla
+  /// klavyenin ve düzenleme çubuğunun ARKASINDA kalıyordu — kullanıcı ne
+  /// yazdığını göremiyordu. Bu geri çağrı pdfrx'in hizalamasından SONRA gelir.
+  void _onPdfViewSizeChanged(
+      Size viewSize, Size? oldSize, PdfViewerController controller) {
+    final edit = _pdfEdit;
+    if (edit == null || oldSize == null || viewSize.height >= oldSize.height) {
+      return;
+    }
+    try {
+      Rect? area;
+      for (final r in edit.rects) {
+        final rect = controller.calcRectForRectInsidePage(
+            pageNumber: edit.page, rect: r);
+        area = area == null ? rect : area.expandToInclude(rect);
+      }
+      if (area == null) return;
+      // Alt çubuk (~150 dp) satırın altına düşmesin diye pay; belge
+      // koordinatında olduğu için yakınlaştırmaya bölünüyor.
+      final zoom = controller.currentZoom <= 0 ? 1.0 : controller.currentZoom;
+      controller.ensureVisible(
+        Rect.fromLTRB(area.left, area.top - 24 / zoom, area.right,
+            area.bottom + 170 / zoom),
+      );
+    } catch (_) {
+      // Görüntüleyici henüz hazır değilse sessizce atla.
+    }
+  }
+
   /// Klavyeyi açar (ve düşen odağı geri alır).
+  ///
+  /// Odak zaten kutudaysa da klavyeyi GÖSTERİR: eskiden
+  /// `if (!hasFocus) requestFocus()` idi ve klavye geri tuşuyla kapandıktan
+  /// sonra ◀ ▶ / "tümünü seç" klavyeyi bir daha açmıyordu (2026-09-24).
   void _focusInlineEdit() {
     final node = _pdfEditFocus;
     if (node == null || !mounted || _pdfEdit == null) return;
-    if (!node.hasFocus) node.requestFocus();
+    PdfInlineEditor.showKeyboard(_pdfEditFieldKey.currentContext, node);
   }
 
   /// Alt çubuktaki ✓ (ve klavyenin "bitti" tuşu).
+  ///
+  /// **Boş kutu = metni sil.** Eskiden boş metinde hiçbir şey olmuyordu:
+  /// kullanıcı "tümünü seç" + sil yapıp Uygula'ya basıyor, çubuk tepki
+  /// vermiyordu ("uygulaya basmak işlevsiz", 2026-09-24). İçerik düzenleyici
+  /// boşla değiştirmeyi zaten destekliyor (`pdf_content_editor_test`).
   void _submitInlineEdit() {
-    final text = _pdfEditCtl?.text ?? '';
-    if (text.trim().isNotEmpty) _applyInlineEdit(text);
+    final ctl = _pdfEditCtl;
+    if (ctl == null) return;
+    _applyInlineEdit(ctl.text);
   }
 
   /// Kutudaki metni AI'a yeniden yazdırır.
@@ -2919,6 +2984,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
                         // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
                         // tercihi artık geçerli değil.
                         onInteractionStart: (_) => _pdfJumpTarget = null,
+                        // Klavye açılınca düzenlenen satır görünür kalsın
+                        // (tear-off: params eşitliği her karede bozulmasın).
+                        onViewSizeChanged: _onPdfViewSizeChanged,
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
@@ -2994,6 +3062,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                               focusNode: _pdfEditFocus!,
                               busy: _pdfEditBusy,
                               onSubmit: _submitInlineEdit,
+                              fieldKey: _pdfEditFieldKey,
                             )
                           else if (_pdfEdit == null)
                             PdfSelectLayer(
@@ -3027,7 +3096,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     ),
                   ),
                 ),
-                if (_pageCount > 0 && _pdfEdit == null)
+                // Seçim çubuğu açıkken rozet gizli: çubuğun altından yarım
+                // görünüyordu ("1 / 1 · sayfaya git" kartın altına sıkışmıştı).
+                if (_pageCount > 0 && !_pdfBarShown)
                   Positioned(
                     bottom: 16,
                     left: 0,
@@ -3041,7 +3112,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   ),
                 if (_pdfEdit == null && _pdfSelection.trim().isNotEmpty)
                   Positioned(
-                    bottom: 64,
+                    bottom: 16,
                     left: 8,
                     right: 8,
                     child: Center(child: _selectionBar()),

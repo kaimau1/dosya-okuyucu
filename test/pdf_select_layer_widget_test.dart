@@ -236,7 +236,8 @@ void main() {
     // Hiç dokunmadan bekle: sayfa arka planda sessizce tanınmalı.
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
-    expect(ocrCalls, 1, reason: 'OCR kullanıcı beklemeden kendiliğinden koşmalı');
+    expect(ocrCalls, 1,
+        reason: 'OCR kullanıcı beklemeden kendiliğinden koşmalı');
     expect(find.text('Metin tanınıyor…'), findsNothing,
         reason: 'otomatik tur görünmez olmalı (çip yalnız beklerken)');
 
@@ -300,6 +301,29 @@ void main() {
         reason: 'seçim 2. sayfaya geçti: bu katman vurgusunu bırakmalı');
     expect(selections.length, before,
         reason: 'sessiz bırakma: rapor YOK (devralanın seçimi ezilmesin)');
+  });
+
+  // Kullanıcı 2026-09-24: vurgula / vurgu kaldır / düzenle sonrası çubuk
+  // kapanıyor ama mavi seçim ve tutamaçlar sayfada asılı kalıyordu.
+  testWidgets(
+      'ekran seçimi BIRAKINCA (aktif sayfa 0) vurgu ve tutamaçlar gider',
+      (tester) async {
+    final page = _FakePage(text: lineText('Merhaba dünya'));
+    await pumpLayer(tester, page);
+
+    final g = await tester.startGesture(const Offset(15, 45));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g.up();
+    await tester.pump();
+    // Ekran seçimi devraldı (bu sayfa etkin)…
+    await pumpLayer(tester, page, activeSelectionPage: 1, fresh: false);
+    expect(handleDots(), findsNWidgets(2));
+
+    final before = selections.length;
+    // …sonra bıraktı (ör. vurgulandı).
+    await pumpLayer(tester, page, activeSelectionPage: 0, fresh: false);
+    expect(handleDots(), findsNothing);
+    expect(selections.length, before, reason: 'sessiz bırakma: rapor YOK');
   });
 
   testWidgets('sürükleme sırasında kenar kaydırma konumları bildirilir',
