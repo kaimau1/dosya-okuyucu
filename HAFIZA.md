@@ -11639,3 +11639,24 @@ maskeleriyle simüle edildi (MIUI squircle n=3,2, daire, 48-56 px):
   (numpy gerekli); CI yalnız `flutter_launcher_icons` koşuyor.
 - **Ders:** "olabildiğince büyük" isteği sıfır pay demek değil — maske
   sınırına değen işaret büyük değil KIRPIK görünür.
+
+## 2026-09-24 (4) — Uygulama simgesi BAŞTAN tasarlandı
+Kullanıcı: *"simgeyi baştan tasarla, main'e merge et, APK derlensin."*
+(3. turdaki pay/dişli düzeltmesi yetmedi — kullanıcı yeni tasarım istedi.)
+- **Yeni:** kıvrık köşeli beyaz belge (3 satır, ilki çivit→mavi vurgulu) +
+  sağ altta turuncu→pembe dört köşeli AI parıltısı (+ küçük altın parıltı),
+  çivit→mor→camgöbeği köşegen degrade zemin, sol üstte hafif ışık.
+- **Neden:** klasör simgesi on parçalıydı (kapak, belge, dişli, bulut, onay,
+  ok…); 48 px'te karışıyordu. Tek fikir = tek bakışta okunur. Parıltı,
+  uygulama içindeki AI düğmesiyle (`auto_awesome`) aynı dil.
+- **Yeni katman:** `assets/icon/monochrome.png` → pubspec
+  `adaptive_icon_monochrome` — Android 13+ "temalı simgeler" açıkken simge
+  artık duvar kâğıdı rengine boyanıyor (eskiden temalı simgede düz kalıyordu).
+- Üretici `tool/gen_icon.py` yeniden yazıldı: SDF + 3×3 süper-örnekleme
+  (yıldızın kapalı-form SDF'si yok). `MASKE_PAYI = 0.86`, işaret
+  50,1 × 54,5 dp / 108 dp. ~25 sn sürer.
+- **Doğrulama:** yerel kopyada `flutter create` + `dart run
+  flutter_launcher_icons` → `ic_launcher.xml` inset %0 + `<monochrome>`
+  katmanı üretildi; squircle/daire/48 px önizlemeleri gözle denetlendi.
+- 2026-08-30 klasör kararı ve "ortak simge ailesinden sapma" notu artık
+  tarihsel; güncel gerekçe `gen_icon.py` başlığında.
