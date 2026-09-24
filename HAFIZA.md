@@ -11660,3 +11660,15 @@ Kullanıcı: *"simgeyi baştan tasarla, main'e merge et, APK derlensin."*
   katmanı üretildi; squircle/daire/48 px önizlemeleri gözle denetlendi.
 - 2026-08-30 klasör kararı ve "ortak simge ailesinden sapma" notu artık
   tarihsel; güncel gerekçe `gen_icon.py` başlığında.
+
+## 2026-09-24 (5) — APK #361 kırmızı: kararsız test (`hub_settings_tour_test`)
+"uygulama sayacı arayüz dilinde yazar" testi yüklemenin bitmesini SABİT 10
+tur bekliyordu; `InstalledAppsScreen._load` platform kanalından gerçek
+asenkron çağrılar yapıyor. Aynı commit özellik dalında (#360) geçti, main'de
+(#361) kırıldı; yerelde de 4 koşudan 1'inde kırılmıştı. Artık sayaç görünene
+dek (≤ ~2 sn) bekliyor.
+**TUZAK:** `runAsync` + sabit tur sayısı = CI hızına bağlı test. Beklenen
+koşulu döngü şartına koy, tur sayısına değil.
+**Bulma yolu:** CI log indirme adresi (blob.core.windows.net) bu oturumun
+proxy'sinde 403; `get_job_logs` büyük `tail_lines` ile dosyaya düşüyor, orada
+`❌` aranır.

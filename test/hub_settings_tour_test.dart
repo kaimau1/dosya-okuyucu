@@ -88,8 +88,15 @@ void main() {
     await tester.pumpWidget(
         _wrap(AppState(), const InstalledAppsScreen(), locale: 'en'));
     // Eklenti test ortamında yok → liste boş döner; yükleme bitene dek bekle.
-    for (var i = 0; i < 10; i++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    //
+    // KARARSIZDI (2026-09-24, APK #361 bu yüzden kırmızı): sabit 10 tur
+    // bekleniyordu, ama yükleme platform kanalından GERÇEK asenkron
+    // çağrılar yapıyor (liste + kullanım izni). Yavaş CI makinesinde 10 tur
+    // bazen yetmiyor, ekran "yükleniyor"da kalıyordu. Artık sayaç görünene
+    // dek bekleniyor (en çok ~2 sn gerçek süre).
+    for (var i = 0; i < 400 && find.text('0 apps').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)));
       await tester.pump();
     }
     expect(tester.takeException(), isNull);
