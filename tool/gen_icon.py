@@ -56,7 +56,17 @@ DESIGN = 1000.0          # tasarım uzayı kenarı
 TUVAL_DP = 108.0         # adaptive tuval
 GORUNUR_DP = 72.0        # maskenin garanti gösterdiği alan
 KART_YARICAP = 180       # eski tam ikonun köşe yarıçapı (1024 üzerinden)
-KART_ORAN = 0.74         # tam ikonda işaret / tuval
+KART_ORAN = 0.70         # tam ikonda işaret / tuval
+# 2026-09-24: 0,74'te klasör kartın kenarına fazla yakındı; maske payıyla
+# (aşağıda) aynı oranda küçültüldü ki iki ikon aynı görünsün.
+
+# **Maske payı** (2026-09-24, kullanıcı: "uygulama simgesini düzelt").
+# `max_fit` işareti maskeye SIFIR payla sığdırıyordu: MIUI'de klasör kenara
+# değiyor, daire maskede (Pixel, Samsung) yanları ve altı KESİLİYORDU; belge
+# de üst kenara yapışıktı — simge "sıkışık, kırpık" görünüyordu. İşaret artık
+# maskenin %88'ine sığdırılıyor: squircle'da her yanda nefes payı kalıyor,
+# dairede yalnız yuvarlak köşeler hafifçe değiyor (gövde kesilmiyor).
+MASKE_PAYI = 0.88
 # 0,86 denendi ve TAŞTI: işaretin altındaki zemin gölgesi (aşağı %3 kaydırık +
 # bulanık) işaretin sınır kutusunun DIŞINA çıkıyor, kartın alt kenarında
 # kırpılıyordu. Kutu değil gölgeli görüntü sığmalı → oran düşürüldü.
@@ -166,12 +176,15 @@ def gear_sdf(x, y):
     """Sekiz dişli çark; belge eğik olduğu için onunla birlikte dönüyor."""
     cx, cy, r = GEAR
     x, y = rot(x, y, DOC[0], DOC[1], DOC_ANGLE)
-    d = np.hypot(x - cx, y - cy) - r * 0.66
+    # Gövde dolgun, dişler gövdeye GÖMÜLÜ (2026-09-24): eskiden gövde
+    # ince bir halkaydı ve dişler ondan kopuk duruyordu — dişli değil
+    # güneş/yıldız gibi okunuyordu.
+    d = np.hypot(x - cx, y - cy) - r * 0.74
     for i in range(8):
-        rx, ry = rot(x, y, cx, cy, i * 45.0)
-        d = np.minimum(d, rrect(rx, ry, cx, cy - r * 0.78,
-                                r * 0.20, r * 0.30, r * 0.10))
-    return np.maximum(d, -(np.hypot(x - cx, y - cy) - r * 0.27))
+        rx, ry = rot(x, y, cx, cy, i * 45.0 + 22.5)
+        d = np.minimum(d, rrect(rx, ry, cx, cy - r * 0.80,
+                                r * 0.22, r * 0.26, r * 0.07))
+    return np.maximum(d, -(np.hypot(x - cx, y - cy) - r * 0.30))
 
 
 def cloud_sdf(x, y, grow=0.0):
@@ -221,7 +234,7 @@ def max_fit(n=3.2, samples=900):
     ins = silhouette(X, Y) <= 0
     xs = (X[ins] - DESIGN / 2) / DESIGN
     ys = (Y[ins] - DESIGN / 2) / DESIGN
-    rad = GORUNUR_DP / 2
+    rad = GORUNUR_DP / 2 * MASKE_PAYI
     q = (np.abs(xs) / rad) ** n + (np.abs(ys) / rad) ** n
     s = float((1.0 / q.max()) ** (1.0 / n))
     box = (X[ins].min(), Y[ins].min(), X[ins].max(), Y[ins].max())

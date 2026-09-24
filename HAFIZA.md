@@ -11623,3 +11623,19 @@ düğme. Kart 24 dp köşe, en fazla 520 dp, katmanlı gölge.
 (+4 `pdf_inline_editor_touch_test` klavye grubu, +1 `pdf_select_layer`).
 Cihazda bakılacak: geri tuşuyla klavye kapatıp kutuya dokununca açılıyor mu;
 sayfanın altındaki satırda klavye açılınca satır görünür kalıyor mu.
+
+## 2026-09-24 (3) — Uygulama simgesi: maske payı + dişli
+Kullanıcı: *"uygulama simgesini de düzelt."* (ayrıntı vermedi). Simge cihaz
+maskeleriyle simüle edildi (MIUI squircle n=3,2, daire, 48-56 px):
+- **KÖK NEDEN — sıkışık/kırpık görünüm:** `max_fit()` işareti maskeye SIFIR
+  payla sığdırıyordu → MIUI'de klasör kenara değiyor, daire maskede yanlar ve
+  alt kesiliyor, belge üst kenara yapışık. `MASKE_PAYI = 0.88` (işaret 61×63 →
+  53,8×55,4 dp); tam ikon `KART_ORAN` 0,74 → 0,70. Dairede yalnız yuvarlak alt
+  köşeler hafifçe değiyor, gövde kesilmiyor.
+- **Dişli yıldız/güneş gibi okunuyordu:** ince halka + kopuk dişler → dolgun
+  gövde, dişler gövdeye gömülü, 22,5° kaydırılmış.
+- Tasarımın kendisi (2026-08-30 kullanıcı kararı: klasör, degrade, bulut,
+  onay, ⇒) DEĞİŞMEDİ. PNG'ler `python3 tool/gen_icon.py` ile yeniden üretildi
+  (numpy gerekli); CI yalnız `flutter_launcher_icons` koşuyor.
+- **Ders:** "olabildiğince büyük" isteği sıfır pay demek değil — maske
+  sınırına değen işaret büyük değil KIRPIK görünür.
