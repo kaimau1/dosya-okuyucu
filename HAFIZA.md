@@ -11512,3 +11512,62 @@ gölge (beyaz sayfa beyaz zeminde eriyordu).
 
 **Doğrulama:** Flutter 3.29.3 — analyze 0 sorun, 2402 test yeşil
 (+3 `fm_location_test`).
+
+## 2026-09-24 — Bellek analizi, Uygulamalar, AI Merkezi ve Ayarlar turu
+Kullanıcı: *"bellek analizi kısmı, ayarlar, uygulamalar sayfası, ai sayfası —
+eksikleri gider, hataları düzelt, görsel tasarımı düzenle, ek özellik ekle"*.
+
+### HATALAR (kök nedenleriyle)
+- **AI sohbeti sekme değişince siliniyordu.** `TabBarView` görünmeyen
+  sekmenin durumunu atıyor; `_ChatTab`/`_TagsTab` artık
+  `AutomaticKeepAliveClientMixin`. **TUZAK (test yazarken):** odaktaki
+  `EditableText` kendini zaten canlı tutuyor — test odağı bırakmadan sekme
+  değiştirirse keep-alive OLMADAN da geçer. Test önce `unfocus` ediyor;
+  düzeltme geri alınınca kırmızı olduğu doğrulandı.
+- **AI Analiz sekmesinde iki "Analizi başlat" düğmesi** (durum çubuğu +
+  sekmenin büyük düğmesi). Durum çubuğu artık yalnız diğer sekmelerde.
+- **Uygulamalar: "N uygulama" Türkçe sabitti** (EN/AR arayüzde de Türkçe) →
+  `apps.count`.
+- **Uygulamalar: izin kartı yanlış kalıyordu.** Ekran izni yalnız kalıcı
+  bayraktan okuyordu; izin Android ayarlarından doğrudan verildiğinde liste
+  son kullanım verisiyle gelirken kart duruyordu. Artık listenin kendi
+  `usageKnown`'ı esas. İzin sayfasından dönünce liste kendiliğinden tazelenir
+  (`didChangeAppLifecycleState`); kanal varsa doğrudan
+  `openUsageAccessSettings` (`AppStorageService.channelAvailable`).
+- **Bellek analizi: arama sırasında tür çipleri gizliydi** ama seçili tür
+  sonuçları süzmeye devam ediyordu → "sonuç yok" yanılgısı. Çipler aramada da
+  görünüyor (aramada tüm türler).
+- **Bellek analizi: seçim çubuğu son satırları örtüyordu** (Stack) → seçimde
+  alt boşluk 96 dp.
+
+### Eklenenler / tasarım
+- Bellek analizi: doluluk çubuğuna **lejant** (gri dilim = "Sistem ve diğer",
+  eski kullanılmayan `an.other_used` anahtarı yeniden adlandı); seçim
+  başlığında **seçilenlerin toplam boyutu**; en büyük dosyalarda tam yol
+  yerine `FmLocation` kaynağı; **aşağı çekip yenile** (uygulama boyutları
+  `summary(force: true)` ile 5 dk önbelleği atlar).
+- Uygulamalar: özet kartı (toplam · önbellek · 30+ gün kullanılmayan —
+  dokununca süzer), "Tümü / 30+ gün kullanılmayan" çipleri, satırda en
+  büyüğe oranlı boyut çubuğu, sıralama menüsünde işaretli seçim, eylem
+  sayfasında boyut kırılımı (uygulama/veri/önbellek) + kurulum tarihi +
+  "paket adını kopyala" + "depolama ve önbellek"; kaldırma sonrası sessiz
+  tazeleme; aşağı çekip yenile.
+- AI Merkezi: degrade kahraman kartı + bulut/yerel kip satırı; analiz
+  bitince 2×2 özet kutucukları (önemli · çöp adayı · öneri · sohbet) ilgili
+  sekmeyi açar (analiz sürerken çizilmez — her dosyada tüm dizini saymasın);
+  sohbette örnek soru çipleri, analiz yoksa "önce analiz" düğmesi,
+  "yazıyor…" balonu, hata balonu (errorContainer), konuşmayı temizle,
+  çok satırlı hap giriş kutusu; etiketlerde yeniden analizden sonra yok olan
+  tür süzgeci düşüyor.
+- Ayarlar: her kategori kendi renginde (`SettingsCategory.color`, FmColors
+  ailesi); kategori sayfasında renkli başlık kartı; ana ekranda **tek
+  satırlık hızlı tema seçici** (Açık/Koyu/Otomatik). İlk denemede kimlik
+  kartı + seçici birlikteydi → 800×600 test yüzeyinde "Yapay zekâ" kartını
+  ekran dışına itti; tek satıra indirildi (kategoriler ekran dışına
+  itilmemeli).
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun, tüm takım yeşil
+(2406, +4 `hub_settings_tour_test`). `graphify` bu oturumda kurulu değildi,
+grafik güncellenmedi. Cihazda bakılacak: uygulamalar özet kartı dar ekranda
+üç kutu sığıyor mu; Arapça (RTL) AI sohbet balonlarının sivri köşesi doğru
+tarafta mı.

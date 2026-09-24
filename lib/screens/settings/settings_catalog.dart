@@ -120,9 +120,15 @@ class SettingsCategory {
   /// Kategoriyi açmadan ne ayarlı olduğunu görebilmek için.
   final String Function(BuildContext) summary;
 
+  /// Kategorinin kimlik rengi (kartın simge kutusu, sayfanın başlık kartı).
+  /// Yedi kartın hepsi aynı vurgu renginde duruyordu; göz aradığı kategoriyi
+  /// ancak yazıyı okuyarak bulabiliyordu. Renkler `FmColors` ailesinden.
+  final Color color;
+
   const SettingsCategory({
     required this.id,
     required this.icon,
+    this.color = const Color(0xFF3E6FD8),
     required this.titleKey,
     required this.subtitleKey,
     required this.sections,
@@ -140,6 +146,7 @@ List<SettingsCategory> settingsCategories() => [
       // ── 1. GÖRÜNÜM VE DİL ────────────────────────────────────────────────
       SettingsCategory(
         id: 'appearance',
+        color: const Color(0xFF8B4FD1),
         icon: Icons.palette_outlined,
         titleKey: 'set.cat_appearance',
         subtitleKey: 'set.cat_appearance_sub',
@@ -200,6 +207,7 @@ List<SettingsCategory> settingsCategories() => [
       // ── 2. DOSYA LİSTELERİ ───────────────────────────────────────────────
       SettingsCategory(
         id: 'browsing',
+        color: const Color(0xFFE39B2E),
         icon: Icons.view_list_outlined,
         titleKey: 'set.cat_browsing',
         subtitleKey: 'set.cat_browsing_sub',
@@ -270,6 +278,7 @@ List<SettingsCategory> settingsCategories() => [
       // kullanıcı bir belge açmadan sesini seçemiyordu.
       SettingsCategory(
         id: 'reading',
+        color: const Color(0xFF12998A),
         icon: Icons.record_voice_over_outlined,
         titleKey: 'set.cat_reading',
         subtitleKey: 'set.cat_reading_sub',
@@ -299,6 +308,7 @@ List<SettingsCategory> settingsCategories() => [
       // ── 4. YAPAY ZEKÂ ────────────────────────────────────────────────────
       SettingsCategory(
         id: 'ai',
+        color: const Color(0xFF3E6FD8),
         icon: Icons.auto_awesome_outlined,
         titleKey: 'set.cat_ai',
         subtitleKey: 'set.cat_ai_sub',
@@ -381,6 +391,7 @@ List<SettingsCategory> settingsCategories() => [
       // erişiyor" (birleştirme, 2026-08-29).
       SettingsCategory(
         id: 'privacy',
+        color: const Color(0xFF3A9A4A),
         icon: Icons.shield_outlined,
         titleKey: 'set.cat_privacy',
         subtitleKey: 'set.cat_privacy_sub',
@@ -448,6 +459,7 @@ List<SettingsCategory> settingsCategories() => [
       // bakım işleri (dizin, önbellek, birimler) Gelişmiş'e indi.
       SettingsCategory(
         id: 'storage',
+        color: const Color(0xFFD9433B),
         icon: Icons.speed_outlined,
         titleKey: 'set.cat_storage',
         subtitleKey: 'set.cat_storage_sub',
@@ -536,6 +548,7 @@ List<SettingsCategory> settingsCategories() => [
       // ── 7. HAKKINDA ──────────────────────────────────────────────────────
       SettingsCategory(
         id: 'about',
+        color: const Color(0xFF76808C),
         icon: Icons.info_outline,
         titleKey: 'settings.about',
         subtitleKey: 'settings.about_sub',

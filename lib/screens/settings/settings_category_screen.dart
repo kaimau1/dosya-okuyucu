@@ -29,12 +29,29 @@ class SettingsCategoryScreen extends StatelessWidget {
         children: [
           // Kategorinin ne olduğu tek satır, sakin: sayfanın başında kullanıcı
           // "doğru yerde miyim" sorusunu bir bakışta cevaplayabilmeli.
+          // Başlık kartı kategorinin kendi renginde — ana listedeki kartla
+          // aynı simge ve renk, yani "doğru yere geldim" bir bakışta.
           Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.md + 4, Gap.md, Gap.md, 0),
-            child: Text(
-              context.t(category.subtitleKey),
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Paper.faint(context)),
+            padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 0),
+            child: Container(
+              padding: const EdgeInsets.all(Gap.md),
+              decoration: BoxDecoration(
+                color: category.color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(Radii.card + 2),
+              ),
+              child: Row(
+                children: [
+                  Icon(category.icon, color: category.color, size: 28),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Text(
+                      context.t(category.subtitleKey),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: Paper.faint(context)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           for (final section in normal)

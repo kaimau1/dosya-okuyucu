@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../core/app_state.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
@@ -97,11 +100,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Kategori kartları — ana görünüm.
+  /// Kategori kartları — ana görünüm. En üstte hızlı tema seçici
+  /// ([_QuickHeader]).
   Widget _categoryList(List<SettingsCategory> categories) => ListView.builder(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
-        itemCount: categories.length,
-        itemBuilder: (context, i) => _CategoryCard(category: categories[i]),
+        itemCount: categories.length + 1,
+        itemBuilder: (context, i) => i == 0
+            ? const _QuickHeader()
+            : _CategoryCard(category: categories[i - 1]),
       );
 
   /// **Arama sonuçları — 2026-08-29.**
@@ -129,8 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.search_off,
-                  size: 48, color: Paper.faint(context)),
+              Icon(Icons.search_off, size: 48, color: Paper.faint(context)),
               const SizedBox(height: Gap.sm),
               Text(context.t('set.no_match'), textAlign: TextAlign.center),
             ],
@@ -224,14 +229,23 @@ class _CategoryCard extends StatelessWidget {
               children: [
                 // Simge kutusu: 44 dp, %12 vurgu dolgusu. Sabit ölçü, kartlar
                 // alt alta dizilince simgeler tek bir sütun gibi okunuyor.
+                // Kategori kendi renginde, üstten-sola açık degrade: pano
+                // simgeleriyle (`FmTintedIcon`) aynı ışık dili.
                 Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.12),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        category.color.withValues(alpha: 0.22),
+                        category.color.withValues(alpha: 0.12),
+                      ],
+                    ),
                     borderRadius: BorderRadius.circular(Radii.control),
                   ),
-                  child: Icon(category.icon, size: 22, color: scheme.primary),
+                  child: Icon(category.icon, size: 22, color: category.color),
                 ),
                 const SizedBox(width: Gap.md),
                 Expanded(
@@ -269,6 +283,48 @@ class _CategoryCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// **Ana ayar ekranının başlığı** — en sık değiştirilen ayar için kısa yol:
+/// açık / koyu / otomatik tema. Tema üç dokunuş derinlikteydi (Ayarlar →
+/// Görünüm → Tema → seçim); gece göz kamaştıran bir ekranı koyuya çevirmek
+/// tek dokunuş olmalı. Ayrıntılı tema ailesi seçimi yerinde duruyor.
+///
+/// Bilinçli olarak TEK satır: kategori kartlarını ekranın dışına itmemeli.
+class _QuickHeader extends StatelessWidget {
+  const _QuickHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm + 2),
+      child: SegmentedButton<ThemeMode>(
+        showSelectedIcon: false,
+        style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        segments: [
+          ButtonSegment(
+            value: ThemeMode.light,
+            icon: const Icon(Icons.light_mode_outlined, size: 18),
+            label: Text(context.t('settings.theme_light')),
+          ),
+          ButtonSegment(
+            value: ThemeMode.dark,
+            icon: const Icon(Icons.dark_mode_outlined, size: 18),
+            label: Text(context.t('settings.theme_dark')),
+          ),
+          ButtonSegment(
+            value: ThemeMode.system,
+            icon: const Icon(Icons.brightness_auto_outlined, size: 18),
+            label: Text(context.t('set.theme_auto')),
+          ),
+        ],
+        selected: {state.themeMode},
+        onSelectionChanged: (v) =>
+            context.read<AppState>().setThemeMode(v.first),
       ),
     );
   }

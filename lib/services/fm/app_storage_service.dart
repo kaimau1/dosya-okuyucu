@@ -41,6 +41,10 @@ abstract final class AppStorageService {
   /// Kanal bu cihazda çalışıyor mu (bir kez ölçülür).
   static bool? _available;
 
+  /// Kanal yanıt verdi mi? Yalnız bir çağrı ([hasUsageAccess] gibi) yapıldıktan
+  /// sonra anlamlı; öncesinde `false`.
+  static bool get channelAvailable => _available ?? false;
+
   static Future<bool> hasUsageAccess() async {
     try {
       final ok = await _channel.invokeMethod<bool>('hasUsageAccess');

@@ -244,10 +244,12 @@ abstract final class InstalledAppsService {
   static DateTime? _summaryAt;
   static const _summaryTtl = Duration(minutes: 5);
 
-  static Future<AppStorageSummary> summary({int top = 3}) async {
+  static Future<AppStorageSummary> summary(
+      {int top = 3, bool force = false}) async {
     final cached = _summaryCache;
     final at = _summaryAt;
-    if (cached != null &&
+    if (!force &&
+        cached != null &&
         at != null &&
         DateTime.now().difference(at) < _summaryTtl) {
       return cached;

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -12,6 +11,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/media_library.dart';
@@ -63,7 +63,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   late final Map<FmCategory?, List<FsEntry>> _largest = {
     null: [...widget.index.largest],
     for (final c in FmCategory.values)
-      if (widget.index.largestOf(c).isNotEmpty) c: [...widget.index.largestOf(c)],
+      if (widget.index.largestOf(c).isNotEmpty)
+        c: [...widget.index.largestOf(c)],
   };
 
   final _searchController = TextEditingController();
@@ -110,8 +111,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     });
   }
 
-  Future<void> _loadApps() async {
-    final summary = await InstalledAppsService.summary();
+  Future<void> _loadApps({bool force = false}) async {
+    final summary = await InstalledAppsService.summary(force: force);
     if (!mounted || !summary.hasData) return;
     setState(() => _apps = summary);
   }
@@ -147,8 +148,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       fraction: maxBytes <= 0 ? 0 : apps.totalBytes / maxBytes,
       color: FmColors.apk,
       detail: apps.cacheBytes > 0
-          ? context.t('ana.cache_total',
-              {'v': FsPaths.humanSize(apps.cacheBytes)})
+          ? context
+              .t('ana.cache_total', {'v': FsPaths.humanSize(apps.cacheBytes)})
           : null,
       onTap: () => Navigator.of(context)
           .push(MaterialPageRoute(builder: (_) => const InstalledAppsScreen())),
@@ -326,10 +327,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(_selected.clear),
               ),
-              title: Text(context.t('ph.selected_of', {
-                'n': _selected.length,
-                'total': visible.length,
-              })),
+              // Seçilenlerin TOPLAM boyutu başlıkta: bu ekranın sorusu "ne
+              // kadar yer açarım" — sayı tek başına bunu söylemiyordu.
+              title: Text(
+                '${context.t('ph.selected_of', {
+                      'n': _selected.length,
+                      'total': visible.length,
+                    })} · ${FsPaths.humanSize(_selectedBytes(visible))}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               actions: [
                 IconButton(
                   tooltip: context.t('ph.select_all'),
@@ -350,256 +357,277 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       // (`bottomNavigationBar` kullanılırsa liste zıplıyor).
       body: Stack(
         children: [
-          ListView(
-            padding:
-                const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.xl),
-            children: [
-              _searchField(),
-              if (_searching) ...[
-                const SizedBox(height: Gap.sm),
-                const LinearProgressIndicator(minHeight: 2),
-              ],
-              const SizedBox(height: Gap.md),
-              if (!_isSearch) ...[
-                for (final v in widget.volumes) ...[
-                  _VolumeCard(
-                    volume: v,
-                    // Dilimler yalnız TARANAN birimde çizilir: SD kartın
-                    // kırılımı elimizde yok, orada düz bir doluluk çubuğu
-                    // dürüst olanı.
-                    slices: v.isPrimary ? _slices(categories) : const [],
-                    // Eğilim satırı kartın İÇİNDE: ayrı bir kart olarak tek
-                    // cümle için tam bir kutu harcıyordu ve "ana bellek"
-                    // kartıyla arasında hiçbir görsel bağ yoktu.
-                    trend: v.isPrimary ? _trend : null,
-                  ),
-                  const SizedBox(height: Gap.md),
+          RefreshIndicator(
+            onRefresh: _pullRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              // Seçim çubuğu listenin ÜSTÜNE biniyor (Stack); alt boşluk onun
+              // boyu kadar büyümezse son satırlar çubuğun altında kalıp
+              // seçilemiyordu.
+              padding: EdgeInsets.fromLTRB(
+                  Gap.md, Gap.md, Gap.md, _selecting ? 96 : Gap.xl),
+              children: [
+                _searchField(),
+                if (_searching) ...[
+                  const SizedBox(height: Gap.sm),
+                  const LinearProgressIndicator(minHeight: 2),
                 ],
-                // **Araçlar tek kartta, ayrı ayrı üç kart değil** (kullanıcı
-                // 2026-08-29: *"üst kısım özellikle yılın şeklinde duruyor"*).
-                // Üç ayrı kart, her biri iki satır açıklamayla, ekranın
-                // yarısını yiyor ve asıl veriyi ("Türlere göre") ekranın
-                // dışına itiyordu. Açıklamalar tek satıra indi.
-                Text(context.t('an.tools'),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          letterSpacing: 0.8,
-                        )),
-                const SizedBox(height: Gap.xs),
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      _ToolRow(
-                        icon: Icons.auto_fix_high,
-                        color: const Color(0xFF00838F),
-                        title: context.t('ana.free_space'),
-                        note: context.t('ana.free_space_note'),
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => CleanupScreen(index: widget.index),
-                        )),
-                      ),
-                      const Divider(height: 1),
-                      _ToolRow(
-                        icon: Icons.cleaning_services_outlined,
-                        color: const Color(0xFF2E7D32),
-                        title: context.t('ana.find_dupes'),
-                        note: context.t('ana.find_dupes_note'),
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) =>
-                              DuplicatesScreen(roots: FmEnv.volumeRoots),
-                        )),
-                      ),
-                      const Divider(height: 1),
-                      // **Klasör haritası** (kullanıcı isteği 2026-08-17,
-                      // ekran görüntüsü): tür kırılımı "53 GB video" diyor ama
-                      // hangi klasörü temizleyeceğini söylemiyor. Harita
-                      // klasörleri boyuta göre sıralar ve içine inilir.
-                      _ToolRow(
-                        icon: Icons.donut_large,
-                        color: const Color(0xFF6A4C93),
-                        title: context.t('fmap.title'),
-                        note: context.t('fmap.note'),
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => FolderMapScreen(
-                            path: FmEnv.primaryRoot,
-                            // Yüzdeler cihazın toplam belleğine göre yazılsın
-                            // — "%11" dediğimizde kullanıcının anladığı bu.
-                            capacityBytes: _primaryCapacity,
-                            title: context.t('fmap.title'),
-                          ),
-                        )),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: Gap.lg),
-                Text(context.t('ana.by_type'),
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: Gap.sm),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Gap.md),
+                const SizedBox(height: Gap.md),
+                if (!_isSearch) ...[
+                  for (final v in widget.volumes) ...[
+                    _VolumeCard(
+                      volume: v,
+                      // Dilimler yalnız TARANAN birimde çizilir: SD kartın
+                      // kırılımı elimizde yok, orada düz bir doluluk çubuğu
+                      // dürüst olanı.
+                      slices: v.isPrimary ? _slices(categories) : const [],
+                      // Eğilim satırı kartın İÇİNDE: ayrı bir kart olarak tek
+                      // cümle için tam bir kutu harcıyordu ve "ana bellek"
+                      // kartıyla arasında hiçbir görsel bağ yoktu.
+                      trend: v.isPrimary ? _trend : null,
+                    ),
+                    const SizedBox(height: Gap.md),
+                  ],
+                  // **Araçlar tek kartta, ayrı ayrı üç kart değil** (kullanıcı
+                  // 2026-08-29: *"üst kısım özellikle yılın şeklinde duruyor"*).
+                  // Üç ayrı kart, her biri iki satır açıklamayla, ekranın
+                  // yarısını yiyor ve asıl veriyi ("Türlere göre") ekranın
+                  // dışına itiyordu. Açıklamalar tek satıra indi.
+                  Text(context.t('an.tools'),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            letterSpacing: 0.8,
+                          )),
+                  const SizedBox(height: Gap.xs),
+                  Card(
+                    clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
-                        for (final c in categories)
-                          _CategoryBar(
-                            // Çeviri anahtarı: `c.label` Türkçe SABİT (otomatik
-                            // düzenlemede klasör adı üretiyor), ekranda gösterilen
-                            // ad ondan bağımsız olmalı.
-                            label: context.t(c.labelKey),
-                            icon: FmColors.iconFor(c,
-                                outlined: context.fmOutlinedIcons),
-                            bytes: index.stat(c).bytes,
-                            count: index.stat(c).count,
-                            fraction: index.stat(c).bytes / maxBytes,
-                            color: FmColors.forCategory(c),
-                            // Çubuğa dokunmak o türün KENDİ SAYFASINI açar.
-                            onTap: () => _openType(c),
-                          ),
-                        // Uygulamalar aynı listenin son satırı — ayrı kart değil
-                        // (bkz. [_appsBar]).
-                        _appsBar(maxBytes),
-                        if (categories.isEmpty)
-                          Text(context.t('ana.no_scan')),
+                        _ToolRow(
+                          icon: Icons.auto_fix_high,
+                          color: const Color(0xFF00838F),
+                          title: context.t('ana.free_space'),
+                          note: context.t('ana.free_space_note'),
+                          onTap: () =>
+                              Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => CleanupScreen(index: widget.index),
+                          )),
+                        ),
+                        const Divider(height: 1),
+                        _ToolRow(
+                          icon: Icons.cleaning_services_outlined,
+                          color: const Color(0xFF2E7D32),
+                          title: context.t('ana.find_dupes'),
+                          note: context.t('ana.find_dupes_note'),
+                          onTap: () =>
+                              Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) =>
+                                DuplicatesScreen(roots: FmEnv.volumeRoots),
+                          )),
+                        ),
+                        const Divider(height: 1),
+                        // **Klasör haritası** (kullanıcı isteği 2026-08-17,
+                        // ekran görüntüsü): tür kırılımı "53 GB video" diyor ama
+                        // hangi klasörü temizleyeceğini söylemiyor. Harita
+                        // klasörleri boyuta göre sıralar ve içine inilir.
+                        _ToolRow(
+                          icon: Icons.donut_large,
+                          color: const Color(0xFF6A4C93),
+                          title: context.t('fmap.title'),
+                          note: context.t('fmap.note'),
+                          onTap: () =>
+                              Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => FolderMapScreen(
+                              path: FmEnv.primaryRoot,
+                              // Yüzdeler cihazın toplam belleğine göre yazılsın
+                              // — "%11" dediğimizde kullanıcının anladığı bu.
+                              capacityBytes: _primaryCapacity,
+                              title: context.t('fmap.title'),
+                            ),
+                          )),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: Gap.lg),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _isSearch ? context.t('ana.results') : context.t('ana.largest'),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  Text(
-                    // Kapsam seçiliyse O kapsamın toplamı yazar — başlığın
-                    // altındaki sayı ekrandaki listeyle aynı şeyi anlatmalı.
-                    _isSearch
-                        ? context.t('ana.result_count', {'n': visible.length})
-                        : context.t('ana.total_summary', {
-                            'n': _category == null
-                                ? index.totalFiles
-                                : index.stat(_category!).count,
-                            'size': FsPaths.humanSize(_category == null
-                                ? index.totalBytes
-                                : index.stat(_category!).bytes),
-                          }),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-          ),
-          // **Kapsam çipleri.** "Tümü" ilk açılışta seçili görünsün diye var:
-          // genel en büyükler pratikte hep video olduğu için kullanıcı ekranı
-          // "videolar süzgeci açık gelmiş" sanıyordu (2026-08-09). Artık hangi
-          // kapsamda olduğu yazıyor ve her kapsam KENDİ en büyüklerini açıyor.
-          if (!_isSearch && categories.isNotEmpty)
-            SizedBox(
-              height: 44,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: Gap.sm),
-                    child: ChoiceChip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(context.t('ana.scope_all')),
-                      selected: _category == null,
-                      onSelected: (_) => setState(() => _category = null),
-                    ),
-                  ),
-                  for (final c in categories)
-                    if ((_largest[c] ?? const []).isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(right: Gap.sm),
-                        child: ChoiceChip(
-                          visualDensity: VisualDensity.compact,
-                          label: Text(context.t(c.labelKey)),
-                          selected: _category == c,
-                          onSelected: (_) => setState(() => _category = c),
-                        ),
+                  const SizedBox(height: Gap.lg),
+                  Text(context.t('ana.by_type'),
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: Gap.sm),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(Gap.md),
+                      child: Column(
+                        children: [
+                          for (final c in categories)
+                            _CategoryBar(
+                              // Çeviri anahtarı: `c.label` Türkçe SABİT (otomatik
+                              // düzenlemede klasör adı üretiyor), ekranda gösterilen
+                              // ad ondan bağımsız olmalı.
+                              label: context.t(c.labelKey),
+                              icon: FmColors.iconFor(c,
+                                  outlined: context.fmOutlinedIcons),
+                              bytes: index.stat(c).bytes,
+                              count: index.stat(c).count,
+                              fraction: index.stat(c).bytes / maxBytes,
+                              color: FmColors.forCategory(c),
+                              // Çubuğa dokunmak o türün KENDİ SAYFASINI açar.
+                              onTap: () => _openType(c),
+                            ),
+                          // Uygulamalar aynı listenin son satırı — ayrı kart değil
+                          // (bkz. [_appsBar]).
+                          _appsBar(maxBytes),
+                          if (categories.isEmpty)
+                            Text(context.t('ana.no_scan')),
+                        ],
                       ),
-                ],
-              ),
-            ),
-          if (_filter.isActive)
-            Padding(
-              padding: const EdgeInsets.only(top: Gap.xs),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: InputChip(
-                  label: Text(
-                      context.t('ana.filter_count', {'n': _filter.activeCount})),
-                  onDeleted: () => setState(() => _filter = FmFilter.none),
-                ),
-              ),
-            ),
-          const SizedBox(height: Gap.sm),
-          if (visible.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(Gap.lg),
-              child: Center(
-                child: Text(
-                  _searching
-                      ? context.t('ana.searching')
-                      : (_isSearch
-                          ? context.t('ana.no_result')
-                          : context.t('ana.no_files')),
-                ),
-              ),
-            ),
-          // 200 sınırı bilinçli: "en büyük dosyalar" listesi zaten sıralı,
-          // aşağısı yer açma kararına katkı vermiyor.
-          for (final e in visible.take(200))
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              selected: _selected.contains(e.path),
-              leading: FmSelectableIcon(
-                entry: e,
-                selecting: _selecting,
-                selected: _selected.contains(e.path),
-                onCheck: () => _toggle(e),
-              ),
-              title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(
-                '${FsPaths.humanSize(e.sizeBytes)} · '
-                '${FsPaths.humanDate(e.modifiedMs)} · ${p.dirname(e.path)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              // Seçim açıkken dokunmak SEÇER (dosyayı açmaz) — her liste
-              // ekranında aynı kural.
-              onTap: () => _selecting
-                  ? _toggle(e)
-                  : EntryOpener.open(context, e.path),
-              onLongPress: () => _toggle(e),
-              trailing: _selecting
-                  ? null
-                  : IconButton(
-                      tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-                      icon: const Icon(Icons.more_vert),
-                      onPressed: () async {
-                        await showEntryActions(
-                          context,
-                          e,
-                          allowReveal: true,
-                          onReveal: (path) => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => BrowserScreen(path: path)),
-                          ),
-                        );
-                        await _refreshAlive();
-                      },
                     ),
-              ),
-            ],
+                  ),
+                  const SizedBox(height: Gap.lg),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _isSearch
+                            ? context.t('ana.results')
+                            : context.t('ana.largest'),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    Text(
+                      // Kapsam seçiliyse O kapsamın toplamı yazar — başlığın
+                      // altındaki sayı ekrandaki listeyle aynı şeyi anlatmalı.
+                      _isSearch
+                          ? context.t('ana.result_count', {'n': visible.length})
+                          : context.t('ana.total_summary', {
+                              'n': _category == null
+                                  ? index.totalFiles
+                                  : index.stat(_category!).count,
+                              'size': FsPaths.humanSize(_category == null
+                                  ? index.totalBytes
+                                  : index.stat(_category!).bytes),
+                            }),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                // **Kapsam çipleri.** "Tümü" ilk açılışta seçili görünsün diye var:
+                // genel en büyükler pratikte hep video olduğu için kullanıcı ekranı
+                // "videolar süzgeci açık gelmiş" sanıyordu (2026-08-09). Artık hangi
+                // kapsamda olduğu yazıyor ve her kapsam KENDİ en büyüklerini açıyor.
+                // Arama sırasında da GÖRÜNÜR: kapsam arama sonuçlarını da süzüyor;
+                // eskiden çipler aramada gizleniyordu ve önceden seçilmiş bir tür
+                // sonuçları görünmez biçimde daraltıyordu ("dosya yok" sanılıyordu).
+                if (categories.isNotEmpty)
+                  SizedBox(
+                    height: 44,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: Gap.sm),
+                          child: ChoiceChip(
+                            visualDensity: VisualDensity.compact,
+                            label: Text(context.t('ana.scope_all')),
+                            selected: _category == null,
+                            onSelected: (_) => setState(() => _category = null),
+                          ),
+                        ),
+                        for (final c in categories)
+                          if (_isSearch || (_largest[c] ?? const []).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(right: Gap.sm),
+                              child: ChoiceChip(
+                                visualDensity: VisualDensity.compact,
+                                label: Text(context.t(c.labelKey)),
+                                selected: _category == c,
+                                onSelected: (_) =>
+                                    setState(() => _category = c),
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
+                if (_filter.isActive)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Gap.xs),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: InputChip(
+                        label: Text(context
+                            .t('ana.filter_count', {'n': _filter.activeCount})),
+                        onDeleted: () =>
+                            setState(() => _filter = FmFilter.none),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: Gap.sm),
+                if (visible.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(Gap.lg),
+                    child: Center(
+                      child: Text(
+                        _searching
+                            ? context.t('ana.searching')
+                            : (_isSearch
+                                ? context.t('ana.no_result')
+                                : context.t('ana.no_files')),
+                      ),
+                    ),
+                  ),
+                // 200 sınırı bilinçli: "en büyük dosyalar" listesi zaten sıralı,
+                // aşağısı yer açma kararına katkı vermiyor.
+                for (final e in visible.take(200))
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    selected: _selected.contains(e.path),
+                    leading: FmSelectableIcon(
+                      entry: e,
+                      selecting: _selecting,
+                      selected: _selected.contains(e.path),
+                      onCheck: () => _toggle(e),
+                    ),
+                    title: Text(e.name,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    // Tam yol yerine KAYNAK ("WhatsApp", "İndirilenler"): yolun
+                    // ekrana sığan kısmı hep aynı başlangıçtı (bkz. [FmLocation]).
+                    subtitle: Text(
+                      FmLocation.subtitle(
+                          e.path, e.sizeBytes, e.modifiedMs, context.t,
+                          volumes: FmEnv.volumes),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // Seçim açıkken dokunmak SEÇER (dosyayı açmaz) — her liste
+                    // ekranında aynı kural.
+                    onTap: () => _selecting
+                        ? _toggle(e)
+                        : EntryOpener.open(context, e.path),
+                    onLongPress: () => _toggle(e),
+                    trailing: _selecting
+                        ? null
+                        : IconButton(
+                            tooltip: MaterialLocalizations.of(context)
+                                .moreButtonTooltip,
+                            icon: const Icon(Icons.more_vert),
+                            onPressed: () async {
+                              await showEntryActions(
+                                context,
+                                e,
+                                allowReveal: true,
+                                onReveal: (path) => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          BrowserScreen(path: path)),
+                                ),
+                              );
+                              await _refreshAlive();
+                            },
+                          ),
+                  ),
+              ],
+            ),
           ),
           Positioned(
             left: 0,
@@ -616,6 +644,26 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ],
       ),
     );
+  }
+
+  /// Aşağı çekip yenile: uygulama boyutları (önbelleği atlayarak), eğilim
+  /// ve silinmiş dosyalar. Tam tarama panonun işi; burada yalnız bu ekranın
+  /// kendi tuttuğu veriler tazelenir.
+  Future<void> _pullRefresh() async {
+    await Future.wait([
+      _loadApps(force: true),
+      _loadTrend(),
+      _refreshAlive(),
+    ]);
+  }
+
+  /// Seçili dosyaların toplam boyutu.
+  int _selectedBytes(List<FsEntry> visible) {
+    var total = 0;
+    for (final e in _selectedEntries(visible)) {
+      total += e.sizeBytes;
+    }
+    return total;
   }
 
   /// Seçimi açar/kapatır.
@@ -638,8 +686,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// Seçili yolların GÖRÜNEN listedeki karşılıkları. Eylem çubuğu ile sayaç
   /// aynı kümeyi kullanır; süzgeç değişip bir dosya listeden düşerse seçim de
   /// onu kapsamaz.
-  List<FsEntry> _selectedEntries(List<FsEntry> visible) =>
-      [for (final e in visible) if (_selected.contains(e.path)) e];
+  List<FsEntry> _selectedEntries(List<FsEntry> visible) => [
+        for (final e in visible)
+          if (_selected.contains(e.path)) e
+      ];
 
   /// **Doluluk çubuğunun dilimleri** — tür kırılımı ana bellek çubuğunun
   /// İÇİNDE.
@@ -660,19 +710,30 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       final bytes = index.stat(c).bytes;
       if (bytes <= 0) continue;
       scanned += bytes;
-      out.add(_Slice(bytes: bytes, color: FmColors.forCategory(c)));
+      out.add(_Slice(
+          bytes: bytes,
+          color: FmColors.forCategory(c),
+          label: context.t(c.labelKey)));
     }
     final apps = _apps;
     if (apps != null && apps.totalBytes > 0) {
       scanned += apps.totalBytes;
-      out.add(_Slice(bytes: apps.totalBytes, color: FmColors.apk));
+      out.add(_Slice(
+          bytes: apps.totalBytes,
+          color: FmColors.apk,
+          label: context.t('fm.apps')));
     }
     if (out.isEmpty) return const [];
     // Kalan kullanılan alan (ölçülemeyen): nötr ton.
     for (final v in widget.volumes) {
       if (!v.isPrimary || !v.hasStats) continue;
       final rest = v.usedBytes - scanned;
-      if (rest > 0) out.add(_Slice(bytes: rest, color: const Color(0xFF9E9E9E)));
+      if (rest > 0) {
+        out.add(_Slice(
+            bytes: rest,
+            color: const Color(0xFF9E9E9E),
+            label: context.t('an.other_used')));
+      }
     }
     return out;
   }
@@ -705,7 +766,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 class _Slice {
   final int bytes;
   final Color color;
-  const _Slice({required this.bytes, required this.color});
+
+  /// Lejantta yazan ad ("Videolar", "Sistem ve diğer").
+  final String label;
+  const _Slice({required this.bytes, required this.color, this.label = ''});
 }
 
 /// **Ana bellek kartı** — ekranın ilk gördüğü şey.
@@ -768,8 +832,8 @@ class _VolumeCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(Radii.control),
                     ),
                     child: Text('%$percent',
-                        style: theme.textTheme.labelMedium
-                            ?.copyWith(color: warn, fontWeight: FontWeight.w700)),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                            color: warn, fontWeight: FontWeight.w700)),
                   ),
               ],
             ),
@@ -805,6 +869,13 @@ class _VolumeCard extends StatelessWidget {
                 capacity: volume.capacityBytes,
                 slices: slices,
               ),
+              // **Lejant** — renkli dilimler neyin ne olduğunu söylemiyordu;
+              // özellikle gri "sistem ve diğer" dilimi hiçbir yerde
+              // açıklanmıyordu ve kullanıcı onu "boş alan" sanabiliyordu.
+              if (slices.isNotEmpty) ...[
+                const SizedBox(height: Gap.sm),
+                _SliceLegend(slices: slices),
+              ],
             ],
             if (trend?.hasData ?? false) ...[
               const SizedBox(height: Gap.md),
@@ -815,6 +886,43 @@ class _VolumeCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Doluluk çubuğunun lejantı: en büyük dilimler (en çok 6) + boyutları.
+class _SliceLegend extends StatelessWidget {
+  final List<_Slice> slices;
+  const _SliceLegend({required this.slices});
+
+  @override
+  Widget build(BuildContext context) {
+    final small = Theme.of(context).textTheme.bodySmall;
+    // Taranan türler zaten büyükten küçüğe; "diğer" en sonda kalsın diye
+    // yeniden sıralanmaz, yalnız kırpılır.
+    final shown =
+        slices.length <= 6 ? slices : [...slices.take(5), slices.last];
+    return Wrap(
+      spacing: Gap.md,
+      runSpacing: Gap.xs,
+      children: [
+        for (final s in shown)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: s.color,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(width: Gap.xs + 2),
+              Text('${s.label} ${FsPaths.humanSize(s.bytes)}', style: small),
+            ],
+          ),
+      ],
     );
   }
 }
@@ -1088,8 +1196,7 @@ class _CategoryBar extends StatelessWidget {
                 value: fraction.clamp(0.02, 1).toDouble(),
                 minHeight: 6,
                 color: color,
-                backgroundColor:
-                    theme.colorScheme.surfaceContainerHighest,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
               ),
             ),
             if (countLabel != null || detail != null)

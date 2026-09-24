@@ -6085,7 +6085,7 @@ const Map<String, (String, String, String)> _table = {
     '{used} / {total} used',
     '{used} / {total} مستخدَم',
   ),
-  'an.other_used': ('Diğer', 'Other', 'أخرى'),
+  'an.other_used': ('Sistem ve diğer', 'System & other', 'النظام وغيره'),
   'an.tools': ('Araçlar', 'Tools', 'الأدوات'),
   'an.volume_usage': (
     '{used} / {total} kullanıldı (%{percent}) · {free} boş',
@@ -7068,4 +7068,70 @@ const Map<String, (String, String, String)> _table = {
   'enum.op_delete': ('Silme', 'Delete', 'حذف'),
   'enum.op_rename': ('Yeniden adlandırma', 'Rename', 'إعادة تسمية'),
   'enum.op_organize': ('Otomatik düzenleme', 'Auto-organize', 'تنظيم تلقائي'),
+
+  // ── 2026-09-24: bellek analizi / uygulamalar / AI / ayarlar turu ─────────
+  'apps.sort_menu': ('Sırala ve göster', 'Sort and show', 'الترتيب والعرض'),
+  'apps.filter_unused': (
+    '{n}+ gün kullanılmayan',
+    'Unused {n}+ days',
+    'غير مستخدم منذ {n}+ يومًا',
+  ),
+  'apps.count': ('{n} uygulama', '{n} apps', '{n} تطبيق'),
+  'apps.no_unused': (
+    'Uzun süredir kullanılmayan uygulama yok.',
+    'No apps have gone unused for long.',
+    'لا توجد تطبيقات غير مستخدمة منذ مدة طويلة.',
+  ),
+  'apps.stat_cache': ('Önbellek', 'Cache', 'ذاكرة التخزين المؤقت'),
+  'apps.stat_unused': (
+    '{n}+ gün açılmadı',
+    'Not opened {n}+ days',
+    'لم يُفتح منذ {n}+ يومًا',
+  ),
+  'apps.stat_unused_size': (
+    'kullanılmayan · {size}',
+    'unused · {size}',
+    'غير مستخدم · {size}',
+  ),
+  'apps.size_app': ('Uygulama', 'App', 'التطبيق'),
+  'apps.size_data': ('Veri', 'Data', 'البيانات'),
+  'apps.installed_on': ('Kuruldu', 'Installed', 'تاريخ التثبيت'),
+  'apps.copy_package': ('Paket adını kopyala', 'Copy package name', 'نسخ اسم الحزمة'),
+  'apps.package_copied': ('Paket adı kopyalandı', 'Package name copied', 'تم نسخ اسم الحزمة'),
+  'aih.mode_cloud': (
+    'Gemini ile: tür, önem ve kısa özet çıkarılır.',
+    'With Gemini: type, importance and a short summary.',
+    'مع Gemini: النوع والأهمية وملخص قصير.',
+  ),
+  'aih.mode_local': (
+    'Yerel kip (anahtar yok): yalnız tür ve önem tahmini, özet yok.',
+    'Local mode (no key): type and importance only, no summaries.',
+    'الوضع المحلي (بلا مفتاح): النوع والأهمية فقط، دون ملخصات.',
+  ),
+  'aih.chat_clear': ('Konuşmayı temizle', 'Clear conversation', 'مسح المحادثة'),
+  'aih.chat_need_analysis': (
+    'Sohbet analiz edilmiş dosyalarda arar. Önce analizi başlat.',
+    'Chat searches analysed files. Start the analysis first.',
+    'تبحث المحادثة في الملفات المحلَّلة. ابدأ التحليل أولًا.',
+  ),
+  'aih.chat_try': (
+    'Şunlardan birini dene ya da kendi sorunu yaz:',
+    'Try one of these or type your own question:',
+    'جرّب أحد هذه الأسئلة أو اكتب سؤالك:',
+  ),
+  'aih.ex1': (
+    'Geçen ay indirdiğim faturalar',
+    'Invoices I downloaded last month',
+    'الفواتير التي نزّلتها الشهر الماضي',
+  ),
+  'aih.ex2': ('Kimlik belgelerim nerede?', 'Where are my ID documents?', 'أين وثائق هويتي؟'),
+  'aih.ex3': (
+    'Silebileceğim gereksiz dosyalar',
+    'Unneeded files I can delete',
+    'ملفات غير ضرورية يمكنني حذفها',
+  ),
+  'aih.ex4': ('Sözleşmelerim', 'My contracts', 'عقودي'),
+  'aih.thinking': ('Dosyalarına bakıyorum…', 'Looking through your files…', 'أبحث في ملفاتك…'),
+  'aih.ask_files': ('Dosyalara sor', 'Ask your files', 'اسأل ملفاتك'),
+  'set.theme_auto': ('Otomatik', 'Auto', 'تلقائي'),
 };

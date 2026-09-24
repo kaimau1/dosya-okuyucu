@@ -98,16 +98,29 @@ class _AiHubScreenState extends State<AiHubScreen>
       ),
       body: Column(
         children: [
-          const _StatusBar(),
+          // Durum çubuğu Analiz sekmesinde GİZLİ: o sekme aynı sayacı ve aynı
+          // "Başlat" düğmesini büyük hâliyle zaten gösteriyor — eskiden ekranda
+          // iki "Analizi başlat" düğmesi alt alta duruyordu.
+          AnimatedBuilder(
+            animation: _tabs,
+            builder: (context, _) => AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _tabs.index == 0
+                  ? const SizedBox(width: double.infinity)
+                  : const _StatusBar(),
+            ),
+          ),
           Expanded(
             child: TabBarView(
               controller: _tabs,
-              children: const [
-                _AnalysisTab(),
-                _ChatTab(),
-                _TagsTab(),
-                _SuggestionsTab(),
-                _ReportTab(),
+              children: [
+                _AnalysisTab(onOpenTab: (i) => _tabs.animateTo(i)),
+                _ChatTab(onOpenAnalysis: () => _tabs.animateTo(0)),
+                const _TagsTab(),
+                const _SuggestionsTab(),
+                const _ReportTab(),
               ],
             ),
           ),
@@ -164,8 +177,8 @@ class _StatusBar extends StatelessWidget {
                           ? progress.message
                           : (progress.isBusy
                               ? progress.currentName
-                              : context.t('aih.scope_summary',
-                                  {'n': excluded})),
+                              : context
+                                  .t('aih.scope_summary', {'n': excluded})),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 12, color: faint),
@@ -194,8 +207,8 @@ class _StatusBar extends StatelessWidget {
               ] else
                 FilledButton.icon(
                   icon: const Icon(Icons.auto_awesome),
-                  label: Text(context.t(
-                      AiIndex.count == 0 ? 'aih.start' : 'aih.continue')),
+                  label: Text(context
+                      .t(AiIndex.count == 0 ? 'aih.start' : 'aih.continue')),
                   onPressed: () => _start(context, reanalyze: false),
                 ),
             ],
@@ -253,7 +266,11 @@ class _StatusBar extends StatelessWidget {
 /// sorusu analizi başlatmadan önce sorulan bir soru, ayarların derinlerinde
 /// değil.
 class _AnalysisTab extends StatelessWidget {
-  const _AnalysisTab();
+  /// Özet kutucuklarından ilgili sekmeye geçiş (1 sohbet, 2 etiketler,
+  /// 3 öneriler, 4 rapor).
+  final ValueChanged<int> onOpenTab;
+
+  const _AnalysisTab({required this.onOpenTab});
 
   @override
   Widget build(BuildContext context) {
@@ -275,31 +292,72 @@ class _AnalysisTab extends StatelessWidget {
       children: [
         // Ne işe yaradığı ÖNCE gelir: kullanıcı düğmeye basmadan önce ne
         // olacağını bilmeli (dosyaları okuyacağız, token harcayacağız).
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(Gap.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.auto_awesome,
-                        size: 28, color: theme.colorScheme.primary),
-                    const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: Text(context.t('aih.analysis_what'),
-                          style: theme.textTheme.titleMedium),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: Gap.sm),
-                Text(context.t('aih.analysis_body'),
-                    style: theme.textTheme.bodyMedium),
-                const SizedBox(height: Gap.sm),
-                Text(context.t('aih.analysis_manual'),
-                    style: TextStyle(fontSize: 12, color: faint)),
+        // Vurgu renginden yumuşak bir degrade: ekranın "kahraman" kartı.
+        Container(
+          padding: const EdgeInsets.all(Gap.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(Radii.card + 4),
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [
+                theme.colorScheme.primary.withValues(alpha: 0.16),
+                theme.colorScheme.tertiary.withValues(alpha: 0.10),
               ],
             ),
+            border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.18)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.circular(Radii.control),
+                    ),
+                    child: Icon(Icons.auto_awesome,
+                        size: 24, color: theme.colorScheme.onPrimary),
+                  ),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Text(context.t('aih.analysis_what'),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.sm),
+              Text(context.t('aih.analysis_body'),
+                  style: theme.textTheme.bodyMedium),
+              const SizedBox(height: Gap.sm),
+              Row(
+                children: [
+                  Icon(
+                      state.hasApiKey
+                          ? Icons.cloud_done_outlined
+                          : Icons.offline_bolt_outlined,
+                      size: 16,
+                      color: faint),
+                  const SizedBox(width: Gap.xs),
+                  Expanded(
+                    child: Text(
+                        context.t(state.hasApiKey
+                            ? 'aih.mode_cloud'
+                            : 'aih.mode_local'),
+                        style: TextStyle(fontSize: 12, color: faint)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(context.t('aih.analysis_manual'),
+                  style: TextStyle(fontSize: 12, color: faint)),
+            ],
           ),
         ),
         const SizedBox(height: Gap.md),
@@ -362,8 +420,8 @@ class _AnalysisTab extends StatelessWidget {
             height: 56,
             child: FilledButton.icon(
               icon: const Icon(Icons.auto_awesome),
-              label: Text(context
-                  .t(AiIndex.count == 0 ? 'aih.start' : 'aih.continue')),
+              label: Text(
+                  context.t(AiIndex.count == 0 ? 'aih.start' : 'aih.continue')),
               onPressed: () => _start(context, reanalyze: false),
             ),
           ),
@@ -380,6 +438,16 @@ class _AnalysisTab extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: faint)),
         ],
         const SizedBox(height: Gap.md),
+
+        // **Özet kutucukları** — analiz bittikten sonra "ee, ne buldu?"
+        // sorusunun cevabı bu sekmede de görünsün; dokununca ilgili sekme.
+        // Analiz SÜRERKEN çizilmez: ilerleme her dosyada tetikleniyor ve
+        // kovalar tüm dizini dolaşıyor — binlerce kaydı saniyede onlarca kez
+        // saymaya değmez; sonuç analiz bitince görünür.
+        if (AiIndex.count > 0 && !progress.isBusy) ...[
+          _AnalysisStats(onOpenTab: onOpenTab),
+          const SizedBox(height: Gap.md),
+        ],
 
         // Kapsam: "hangi klasörler okunuyor" — başlatmadan önce sorulan soru.
         ListTile(
@@ -411,17 +479,32 @@ class _ChatMsg {
   final bool fromUser;
   final String text;
   final List<AiRecord> sources;
-  const _ChatMsg(this.fromUser, this.text, {this.sources = const []});
+
+  /// Hata cevabı (anahtar/kota/ağ): balon uyarı renginde çizilir — eskiden
+  /// hata metni sıradan bir cevap gibi görünüyordu.
+  final bool error;
+  const _ChatMsg(this.fromUser, this.text,
+      {this.sources = const [], this.error = false});
 }
 
 class _ChatTab extends StatefulWidget {
-  const _ChatTab();
+  /// Henüz analiz yoksa boş ekrandaki düğme Analiz sekmesine götürür.
+  final VoidCallback onOpenAnalysis;
+
+  const _ChatTab({required this.onOpenAnalysis});
 
   @override
   State<_ChatTab> createState() => _ChatTabState();
 }
 
-class _ChatTabState extends State<_ChatTab> {
+/// `AutomaticKeepAliveClientMixin`: **sohbet sekme değişince silinmesin.**
+/// `TabBarView` görünmeyen sekmelerin durumunu atıyor; kullanıcı bir kaynak
+/// dosyaya bakmak için Etiketler'e geçip döndüğünde bütün konuşma
+/// kayboluyordu.
+class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   final _messages = <_ChatMsg>[];
@@ -434,8 +517,8 @@ class _ChatTabState extends State<_ChatTab> {
     super.dispose();
   }
 
-  Future<void> _send() async {
-    final question = _controller.text.trim();
+  Future<void> _send([String? preset]) async {
+    final question = (preset ?? _controller.text).trim();
     if (question.isEmpty || _busy) return;
     final state = context.read<AppState>();
     if (!state.hasApiKey) {
@@ -463,10 +546,10 @@ class _ChatTabState extends State<_ChatTab> {
       });
     } on GeminiException catch (e) {
       if (!mounted) return;
-      setState(() => _messages.add(_ChatMsg(false, e.message)));
+      setState(() => _messages.add(_ChatMsg(false, e.message, error: true)));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _messages.add(_ChatMsg(false, '$e')));
+      setState(() => _messages.add(_ChatMsg(false, '$e', error: true)));
     } finally {
       if (mounted) setState(() => _busy = false);
       _scrollToEnd();
@@ -488,39 +571,54 @@ class _ChatTabState extends State<_ChatTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final faint = Paper.faint(context);
     return Column(
       children: [
         Expanded(
           child: _messages.isEmpty
-              ? _EmptyHint(
-                  icon: Icons.forum_outlined,
-                  title: context.t('aih.chat_empty'),
-                  body: context.t('aih.chat_empty_sub'),
-                )
+              ? _chatEmpty(context)
               : ListView.builder(
                   controller: _scroll,
                   padding: const EdgeInsets.all(Gap.md),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, i) => _Bubble(message: _messages[i]),
+                  itemCount: _messages.length + (_busy ? 1 : 0),
+                  itemBuilder: (context, i) => i == _messages.length
+                      ? const _TypingBubble()
+                      : _Bubble(message: _messages[i]),
                 ),
         ),
-        if (_busy) const LinearProgressIndicator(),
         SafeArea(
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, Gap.sm),
             child: Row(
               children: [
+                // Konuşmayı temizle — yalnız mesaj varken.
+                if (_messages.isNotEmpty)
+                  IconButton(
+                    tooltip: context.t('aih.chat_clear'),
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    onPressed: _busy ? null : () => setState(_messages.clear),
+                  ),
                 Expanded(
                   child: TextField(
                     controller: _controller,
                     textInputAction: TextInputAction.send,
+                    minLines: 1,
+                    maxLines: 4,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
                       hintText: context.t('aih.chat_hint'),
                       hintStyle: TextStyle(color: faint, fontSize: 13),
-                      border: const OutlineInputBorder(),
+                      filled: true,
+                      fillColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: Gap.md, vertical: Gap.sm + 2),
                       isDense: true,
                     ),
                   ),
@@ -536,6 +634,96 @@ class _ChatTabState extends State<_ChatTab> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Boş sohbet: ne sorulabileceğini gösteren **örnek soru çipleri** (dokununca
+  /// gönderilir). Henüz analiz yoksa sohbet hiçbir şey bulamaz — bunu baştan
+  /// söyler ve Analiz sekmesine götürür.
+  Widget _chatEmpty(BuildContext context) {
+    final theme = Theme.of(context);
+    final faint = Paper.faint(context);
+    final noIndex = AiIndex.count == 0;
+    return ListView(
+      padding: const EdgeInsets.all(Gap.lg),
+      children: [
+        const SizedBox(height: Gap.lg),
+        Icon(Icons.forum_outlined, size: 48, color: faint),
+        const SizedBox(height: Gap.md),
+        Text(context.t('aih.chat_empty'),
+            textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
+        const SizedBox(height: Gap.xs),
+        Text(
+          context.t(noIndex ? 'aih.chat_need_analysis' : 'aih.chat_try'),
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: faint),
+        ),
+        const SizedBox(height: Gap.md),
+        if (noIndex)
+          Center(
+            child: FilledButton.tonalIcon(
+              icon: const Icon(Icons.auto_awesome),
+              label: Text(context.t('aih.tab_analysis')),
+              onPressed: widget.onOpenAnalysis,
+            ),
+          )
+        else
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final key in const [
+                'aih.ex1',
+                'aih.ex2',
+                'aih.ex3',
+                'aih.ex4'
+              ])
+                ActionChip(
+                  avatar: const Icon(Icons.chat_bubble_outline, size: 16),
+                  label: Text(context.t(key)),
+                  onPressed: _busy ? null : () => _send(context.t(key)),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+/// Cevap beklenirken karşı tarafın balonu: "yazıyor…" göstergesi. Eskiden
+/// yalnız giriş kutusunun üstünde ince bir çizgi vardı; göz orada değildi.
+class _TypingBubble extends StatelessWidget {
+  const _TypingBubble();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: Gap.sm),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md, vertical: Gap.sm + 2),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: scheme.primary),
+            ),
+            const SizedBox(width: Gap.sm),
+            Text(context.t('aih.thinking'),
+                style: TextStyle(fontSize: 13, color: Paper.faint(context))),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -556,21 +744,40 @@ class _Bubble extends StatelessWidget {
         padding: const EdgeInsets.all(Gap.md),
         constraints: const BoxConstraints(maxWidth: 520),
         decoration: BoxDecoration(
-          color: message.fromUser
-              ? scheme.primaryContainer
-              : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          color: message.error
+              ? scheme.errorContainer
+              : (message.fromUser
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHighest),
+          // Konuşan tarafın köşesi sivri: kimin söylediği renkten önce
+          // biçimden okunuyor.
+          borderRadius: BorderRadiusDirectional.only(
+            topStart: const Radius.circular(16),
+            topEnd: const Radius.circular(16),
+            bottomStart: Radius.circular(message.fromUser ? 16 : 4),
+            bottomEnd: Radius.circular(message.fromUser ? 4 : 16),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SelectableText(message.text),
+            if (message.error)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Gap.xs),
+                child: Icon(Icons.error_outline,
+                    size: 18, color: scheme.onErrorContainer),
+              ),
+            SelectableText(
+              message.text,
+              style: message.error
+                  ? TextStyle(color: scheme.onErrorContainer)
+                  : null,
+            ),
             if (message.sources.isNotEmpty) ...[
               const SizedBox(height: Gap.sm),
               Text(
                 context.t('aih.sources'),
-                style: TextStyle(
-                    fontSize: 11, color: Paper.faint(context)),
+                style: TextStyle(fontSize: 11, color: Paper.faint(context)),
               ),
               const SizedBox(height: Gap.xs),
               Wrap(
@@ -581,10 +788,8 @@ class _Bubble extends StatelessWidget {
                     ActionChip(
                       avatar: const Icon(Icons.insert_drive_file_outlined,
                           size: 16),
-                      label: Text(source.name,
-                          overflow: TextOverflow.ellipsis),
-                      onPressed: () =>
-                          EntryOpener.open(context, source.path),
+                      label: Text(source.name, overflow: TextOverflow.ellipsis),
+                      onPressed: () => EntryOpener.open(context, source.path),
                     ),
                 ],
               ),
@@ -605,12 +810,16 @@ class _TagsTab extends StatefulWidget {
   State<_TagsTab> createState() => _TagsTabState();
 }
 
-class _TagsTabState extends State<_TagsTab> {
+class _TagsTabState extends State<_TagsTab> with AutomaticKeepAliveClientMixin {
   String? _type;
   bool _onlyImportant = false;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return ValueListenableBuilder<int>(
       valueListenable: AiIndex.revision,
       builder: (context, _, __) {
@@ -622,10 +831,14 @@ class _TagsTabState extends State<_TagsTab> {
           );
         }
         final counts = AiBuckets.typeCounts();
+        // Yeniden analizden sonra seçili tür artık yoksa süzgeç düşer: çipi
+        // görünmeyen bir süzgeç listeyi sebepsizce boşaltırdı.
+        if (_type != null && !counts.any((e) => e.key == _type)) {
+          _type = null;
+        }
         final records = _type != null
             ? AiBuckets.of(AiBucket.docType, docType: _type)
-            : AiBuckets.of(
-                _onlyImportant ? AiBucket.important : AiBucket.all);
+            : AiBuckets.of(_onlyImportant ? AiBucket.important : AiBucket.all);
         final filtered = _onlyImportant
             ? [
                 for (final record in records)
@@ -708,8 +921,8 @@ class _SuggestionsTab extends StatelessWidget {
               builder: (context, result, __) => result == null
                   ? const SizedBox.shrink()
                   : Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          Gap.md, Gap.sm, Gap.md, 0),
+                      padding:
+                          const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
                       child: Text(
                         context.t('aiap.result', {
                           'ok': result.changed,
@@ -727,14 +940,14 @@ class _SuggestionsTab extends StatelessWidget {
                   Expanded(
                     child: Text(
                       context.t('aih.sug_hint'),
-                      style: TextStyle(
-                          fontSize: 12, color: Paper.faint(context)),
+                      style:
+                          TextStyle(fontSize: 12, color: Paper.faint(context)),
                     ),
                   ),
                   FilledButton.icon(
                     icon: const Icon(Icons.auto_fix_high),
-                    label: Text(context
-                        .t('aih.apply_all', {'n': suggestions.length})),
+                    label: Text(
+                        context.t('aih.apply_all', {'n': suggestions.length})),
                     onPressed: () => _applyAll(context, suggestions),
                   ),
                 ],
@@ -794,10 +1007,8 @@ class _ReportTab extends StatelessWidget {
           );
         }
 
-        final important =
-            AiBuckets.of(AiBucket.important, source: analyzed);
-        final disposable =
-            AiBuckets.of(AiBucket.disposable, source: analyzed);
+        final important = AiBuckets.of(AiBucket.important, source: analyzed);
+        final disposable = AiBuckets.of(AiBucket.disposable, source: analyzed);
         final lowValue = AiBuckets.of(AiBucket.lowValue, source: analyzed);
         final suggestions =
             AiBuckets.of(AiBucket.suggestions, source: analyzed);
@@ -810,11 +1021,12 @@ class _ReportTab extends StatelessWidget {
             if (suggestions.isNotEmpty)
               _ActionCard(
                 icon: Icons.auto_fix_high,
-                title: context.t('aih.card_sug_title', {'n': suggestions.length}),
+                title:
+                    context.t('aih.card_sug_title', {'n': suggestions.length}),
                 body: context.t('aih.card_sug_body'),
                 actionLabel: context.t('aih.card_sug_action'),
-                onAction: () => _openBucket(
-                    context, AiBucket.suggestions, context.t('aih.tab_suggestions')),
+                onAction: () => _openBucket(context, AiBucket.suggestions,
+                    context.t('aih.tab_suggestions')),
               ),
             if (disposable.isNotEmpty)
               _ActionCard(
@@ -825,8 +1037,8 @@ class _ReportTab extends StatelessWidget {
                 }),
                 body: context.t('aih.card_junk_body'),
                 actionLabel: context.t('aih.card_junk_action'),
-                onAction: () => _openBucket(context, AiBucket.disposable,
-                    context.t('aih.report_junk')),
+                onAction: () => _openBucket(
+                    context, AiBucket.disposable, context.t('aih.report_junk')),
               ),
 
             const SizedBox(height: Gap.sm),
@@ -913,6 +1125,125 @@ class _ReportTab extends StatelessWidget {
   }
 }
 
+/// Analiz sekmesindeki özet kutucukları: önemli · çöp adayı · öneri ·
+/// analiz edilen. Her biri ilgili sekmeyi açar.
+class _AnalysisStats extends StatelessWidget {
+  final ValueChanged<int> onOpenTab;
+  const _AnalysisStats({required this.onOpenTab});
+
+  @override
+  Widget build(BuildContext context) {
+    final analyzed = [
+      for (final record in AiIndex.all())
+        if (record.analyzedMs > 0) record
+    ];
+    final important = AiBuckets.of(AiBucket.important, source: analyzed);
+    final disposable = AiBuckets.of(AiBucket.disposable, source: analyzed);
+    final suggestions = AiBuckets.of(AiBucket.suggestions, source: analyzed);
+    final tiles = [
+      _StatTile(
+        icon: Icons.star_rounded,
+        color: const Color(0xFFE39B2E),
+        value: '${important.length}',
+        label: context.t('aih.report_important'),
+        onTap: () => onOpenTab(2),
+      ),
+      _StatTile(
+        icon: Icons.delete_sweep_rounded,
+        color: const Color(0xFFD9433B),
+        value: '${disposable.length}',
+        label: disposable.isEmpty
+            ? context.t('aih.report_junk')
+            : '${context.t('aih.report_junk')} · '
+                '${FsPaths.humanSize(AiBuckets.totalBytes(disposable))}',
+        onTap: () => onOpenTab(4),
+      ),
+      _StatTile(
+        icon: Icons.auto_fix_high_rounded,
+        color: const Color(0xFF8B4FD1),
+        value: '${suggestions.length}',
+        label: context.t('aih.report_suggestions'),
+        onTap: () => onOpenTab(3),
+      ),
+      _StatTile(
+        icon: Icons.forum_rounded,
+        color: const Color(0xFF12998A),
+        value: '${analyzed.length}',
+        label: context.t('aih.ask_files'),
+        onTap: () => onOpenTab(1),
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, c) {
+        // Dar telefonda 2×2, genişte tek sıra.
+        final perRow = c.maxWidth >= 560 ? 4 : 2;
+        final w = (c.maxWidth - Gap.sm * (perRow - 1)) / perRow;
+        return Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.sm,
+          children: [
+            for (final t in tiles) SizedBox(width: w, child: t),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String value;
+  final String label;
+  final VoidCallback onTap;
+
+  const _StatTile({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.sm + 4),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 26),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(value,
+                        maxLines: 1,
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: Paper.faint(context))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Üstte duran "şunu yapabilirsin" kartı.
 class _ActionCard extends StatelessWidget {
   final IconData icon;
@@ -949,8 +1280,8 @@ class _ActionCard extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(body,
-                      style: TextStyle(
-                          fontSize: 12, color: Paper.faint(context))),
+                      style:
+                          TextStyle(fontSize: 12, color: Paper.faint(context))),
                   const SizedBox(height: Gap.xs),
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
@@ -991,14 +1322,13 @@ class _ReportRow extends StatelessWidget {
         subtitle: sub == null
             ? null
             : Text(sub!,
-                style:
-                    TextStyle(fontSize: 12, color: Paper.faint(context))),
+                style: TextStyle(fontSize: 12, color: Paper.faint(context))),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(value,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w600)),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             if (onTap != null) const Icon(Icons.chevron_right),
           ],
         ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
@@ -31,7 +32,8 @@ class InstalledAppsScreen extends StatefulWidget {
   State<InstalledAppsScreen> createState() => _InstalledAppsScreenState();
 }
 
-class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
+class _InstalledAppsScreenState extends State<InstalledAppsScreen>
+    with WidgetsBindingObserver {
   List<InstalledAppEntry> _apps = const [];
   bool _loading = true;
   bool _usageKnown = false;
@@ -41,17 +43,49 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
   _AppSort _sort = _AppSort.size;
   String _query = '';
 
+  /// Yalnız 30+ gündür açılmayanlar (özet kartındaki sayıya dokununca da
+  /// açılır). Yer açmak isteyen kullanıcının asıl listesi bu.
+  bool _onlyUnused = false;
+
+  /// Kullanıcı izin sayfasına gitti mi? Döndüğünde ([didChangeAppLifecycleState])
+  /// liste kendiliğinden tazelenir — eskiden izni verip dönen kullanıcı hâlâ
+  /// izin kartını görüyor, elle yenilemek zorunda kalıyordu.
+  bool _awaitingPermission = false;
+
+  static const _unusedDays = 30;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _awaitingPermission) {
+      _awaitingPermission = false;
+      _load();
+    }
+  }
+
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) setState(() => _loading = true);
     final apps =
         await InstalledAppsService.list(includeSystemApps: _showSystem);
-    final permission = await InstalledAppsService.hasUsagePermission();
+    // **İzin durumu listenin KENDİSİNDEN okunur.** Eskiden yalnız kalıcı
+    // bayraka bakılıyordu; izin Android ayarlarından doğrudan verildiğinde
+    // (bayrak hiç açılmadan) liste son kullanım verisiyle gelirken üstte hâlâ
+    // "izin gerekli" kartı duruyordu.
+    final permission = apps.isNotEmpty
+        ? apps.first.usageKnown
+        : await InstalledAppsService.hasUsagePermission();
     if (!mounted) return;
     setState(() {
       _apps = apps;
@@ -61,8 +95,19 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
   }
 
   Future<void> _grant() async {
-    // İzin yoksa eklenti Android'in "Kullanım erişimi" sayfasını açar;
-    // kullanıcı verip döndüğünde bu çağrı veriyle döner.
+    // Kendi kanalımız izni GERÇEKTEN sorabiliyor (`AppOpsManager`).
+    if (await AppStorageService.hasUsageAccess()) {
+      await _load();
+      return;
+    }
+    if (AppStorageService.channelAvailable) {
+      // Doğrudan "Kullanım erişimi" sayfası; dönüşte liste kendiliğinden
+      // tazelenir ([didChangeAppLifecycleState]).
+      _awaitingPermission = true;
+      await AppStorageService.openUsageAccessSettings();
+      return;
+    }
+    // Kanal yoksa (eski yapı) eklentinin yolu: sorgu ayar sayfasını açar.
     final granted = await InstalledAppsService.requestUsagePermission();
     if (!mounted) return;
     if (!granted) {
@@ -71,14 +116,21 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
     await _load();
   }
 
+  bool _isUnused(InstalledAppEntry a, int now) {
+    if (!a.usageKnown) return false;
+    final idle = a.idleDays(now);
+    return idle == null || idle >= _unusedDays;
+  }
+
   List<InstalledAppEntry> get _visible {
     final now = DateTime.now().millisecondsSinceEpoch;
     final q = turkishFold(_query.trim());
     final list = _apps
         .where((a) =>
-            q.isEmpty ||
-            turkishFold(a.name).contains(q) ||
-            a.packageName.contains(q))
+            (!_onlyUnused || _isUnused(a, now)) &&
+            (q.isEmpty ||
+                turkishFold(a.name).contains(q) ||
+                a.packageName.toLowerCase().contains(q)))
         .toList();
     list.sort((a, b) {
       switch (_sort) {
@@ -106,6 +158,11 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
   Widget build(BuildContext context) {
     final apps = _visible;
     final now = DateTime.now().millisecondsSinceEpoch;
+    // Satırlardaki boyut çubuğunun paydası: GÖRÜNEN en büyük uygulama.
+    var maxBytes = 0;
+    for (final a in apps) {
+      if (a.totalBytes > maxBytes) maxBytes = a.totalBytes;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -117,6 +174,8 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
             onPressed: _loading ? null : _load,
           ),
           PopupMenuButton<String>(
+            tooltip: context.t('apps.sort_menu'),
+            icon: const Icon(Icons.sort),
             onSelected: (v) async {
               switch (v) {
                 case 'size':
@@ -132,20 +191,30 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
                   await _load();
               }
             },
+            // Seçili ölçüt İŞARETLİ: eskiden menü hangi sıralamanın açık
+            // olduğunu söylemiyordu.
             itemBuilder: (_) => [
-              PopupMenuItem(
-                  value: 'size', child: Text(context.t('apps.sort_size'))),
-              PopupMenuItem(
-                  value: 'idle', child: Text(context.t('apps.sort_idle'))),
-              PopupMenuItem(value: 'name', child: Text(context.t('apps.sort_name'))),
-              PopupMenuItem(
-                  value: 'installed', child: Text(context.t('apps.sort_installed'))),
+              CheckedPopupMenuItem(
+                  value: 'size',
+                  checked: _sort == _AppSort.size,
+                  child: Text(context.t('apps.sort_size'))),
+              CheckedPopupMenuItem(
+                  value: 'idle',
+                  checked: _sort == _AppSort.idle,
+                  child: Text(context.t('apps.sort_idle'))),
+              CheckedPopupMenuItem(
+                  value: 'name',
+                  checked: _sort == _AppSort.name,
+                  child: Text(context.t('apps.sort_name'))),
+              CheckedPopupMenuItem(
+                  value: 'installed',
+                  checked: _sort == _AppSort.installed,
+                  child: Text(context.t('apps.sort_installed'))),
               const PopupMenuDivider(),
-              PopupMenuItem(
+              CheckedPopupMenuItem(
                 value: 'system',
-                child: Text(_showSystem
-                    ? context.t('apps.hide_system')
-                    : context.t('apps.show_system')),
+                checked: _showSystem,
+                child: Text(context.t('apps.show_system')),
               ),
             ],
           ),
@@ -153,44 +222,153 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                if (!_usageKnown) _permissionCard(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: context.t('fm.search_apps'),
-                      prefixIcon: const Icon(Icons.search),
-                    ),
-                    onChanged: (v) => setState(() => _query = v),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(Gap.sm),
-                  child: Row(
-                    children: [
-                      Text('${apps.length} uygulama',
-                          style: Theme.of(context).textTheme.bodySmall),
-                      const Spacer(),
-                      if (_usageKnown)
-                        Text(context.t('apps.color_legend'),
-                            style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: apps.isEmpty
-                      ? Center(child: Text(context.t('apps.not_found')))
-                      : ListView.builder(
-                          itemCount: apps.length,
-                          itemBuilder: (context, i) => _row(apps[i], now),
+          : RefreshIndicator(
+              onRefresh: () => _load(quiet: true),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (!_usageKnown)
+                          _permissionCard()
+                        else
+                          _summaryCard(now),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                              Gap.md, Gap.sm, Gap.md, 0),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: context.t('fm.search_apps'),
+                              prefixIcon: const Icon(Icons.search),
+                            ),
+                            onChanged: (v) => setState(() => _query = v),
+                          ),
                         ),
-                ),
-              ],
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                              Gap.md, Gap.xs, Gap.md, Gap.xs),
+                          child: Row(
+                            children: [
+                              if (_usageKnown) ...[
+                                ChoiceChip(
+                                  visualDensity: VisualDensity.compact,
+                                  label: Text(context.t('ana.scope_all')),
+                                  selected: !_onlyUnused,
+                                  onSelected: (_) =>
+                                      setState(() => _onlyUnused = false),
+                                ),
+                                const SizedBox(width: Gap.sm),
+                                ChoiceChip(
+                                  visualDensity: VisualDensity.compact,
+                                  label: Text(context.t('apps.filter_unused',
+                                      {'n': _unusedDays})),
+                                  selected: _onlyUnused,
+                                  onSelected: (_) =>
+                                      setState(() => _onlyUnused = true),
+                                ),
+                              ],
+                              const Spacer(),
+                              Text(context.t('apps.count', {'n': apps.length}),
+                                  style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1),
+                      ],
+                    ),
+                  ),
+                  if (apps.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(Gap.lg),
+                          child: Text(
+                            context.t(_onlyUnused
+                                ? 'apps.no_unused'
+                                : 'apps.not_found'),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.only(bottom: Gap.xl),
+                      sliver: SliverList.builder(
+                        itemCount: apps.length,
+                        itemBuilder: (context, i) =>
+                            _row(apps[i], now, maxBytes),
+                      ),
+                    ),
+                ],
+              ),
             ),
+    );
+  }
+
+  /// **Özet kartı** — listenin tepesinde üç sayı: toplam boyut, silinmesi
+  /// güvenli önbellek ve kullanılmayan uygulama sayısı. Liste 150 satır;
+  /// "toplamda ne kadar ve nereden başlamalıyım" sorusu hiçbir yerde
+  /// cevaplanmıyordu. Kullanılmayanlar kutusuna dokunmak süzgeci açar.
+  Widget _summaryCard(int now) {
+    var total = 0;
+    var cache = 0;
+    var unused = 0;
+    var unusedBytes = 0;
+    for (final a in _apps) {
+      total += a.totalBytes;
+      cache += a.size?.cacheBytes ?? 0;
+      if (_isUnused(a, now)) {
+        unused++;
+        unusedBytes += a.totalBytes;
+      }
+    }
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatBox(
+              icon: Icons.apps_rounded,
+              color: const Color(0xFF3A9A4A),
+              value: total > 0 ? FsPaths.humanSize(total) : '${_apps.length}',
+              label: total > 0
+                  ? context.t('apps.count', {'n': _apps.length})
+                  : context.t('fm.apps'),
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: _StatBox(
+              icon: Icons.cleaning_services_rounded,
+              color: const Color(0xFF12998A),
+              value: cache > 0 ? FsPaths.humanSize(cache) : '—',
+              label: context.t('apps.stat_cache'),
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: _StatBox(
+              icon: Icons.bedtime_rounded,
+              color: unused > 0 ? const Color(0xFFEF6C00) : scheme.primary,
+              value: '$unused',
+              label: unusedBytes > 0
+                  ? context.t('apps.stat_unused_size',
+                      {'size': FsPaths.humanSize(unusedBytes)})
+                  : context.t('apps.stat_unused', {'n': _unusedDays}),
+              selected: _onlyUnused,
+              onTap: unused == 0
+                  ? null
+                  : () => setState(() => _onlyUnused = !_onlyUnused),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -217,7 +395,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
                   context.t('apps.usage_body'),
                 ),
                 Align(
-                  alignment: Alignment.centerRight,
+                  alignment: AlignmentDirectional.centerEnd,
                   child: FilledButton.tonalIcon(
                     onPressed: _grant,
                     icon: const Icon(Icons.settings),
@@ -230,38 +408,43 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
         ),
       );
 
-  Widget _row(InstalledAppEntry app, int now) {
+  Widget _row(InstalledAppEntry app, int now, int maxBytes) {
     final idle = app.idleDays(now);
     final level = idleLevelFor(idle, usageKnown: app.usageKnown);
     final (color, badge) = _style(level, idle, app, now);
     final scheme = Theme.of(context).colorScheme;
 
     return ListTile(
-      leading: SizedBox(
-        width: 44,
-        height: 44,
-        child: app.icon != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(Radii.control),
-                child: Image.memory(app.icon!, gaplessPlayback: true),
-              )
-            : Container(
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(Radii.control),
-                ),
-                child: const Icon(Icons.android),
-              ),
-      ),
+      leading: _AppIcon(app: app),
       title: Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       // Boyut EN ÖNE: listenin varsayılan sıralaması da bu ve kullanıcı
       // "hangisi yerimi yiyor" diye bakıyor.
-      subtitle: Text(
-        app.size == null
-            ? '${app.packageName} · v${app.versionName}'
-            : '${FsPaths.humanSize(app.totalBytes)} · v${app.versionName}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            app.size == null
+                ? '${app.packageName} · v${app.versionName}'
+                : '${FsPaths.humanSize(app.totalBytes)} · v${app.versionName}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          // **Boyut çubuğu** — en büyük uygulamaya oranla. Sayıları tek tek
+          // okumadan "hangisi büyük" bir bakışta görünsün.
+          if (app.size != null && maxBytes > 0) ...[
+            const SizedBox(height: Gap.xs),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: (app.totalBytes / maxBytes).clamp(0.02, 1).toDouble(),
+                minHeight: 3,
+                color: color ?? scheme.primary,
+                backgroundColor: scheme.surfaceContainerHighest,
+              ),
+            ),
+          ],
+        ],
       ),
       // Kurulum tarihi buradan KALKTI: depolama düğmesiyle yan yana satırı
       // taşırıyordu ve zaten uzun basış menüsünde duruyor.
@@ -288,7 +471,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
           IconButton(
             tooltip: context.t('apps.storage_settings'),
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.folder_special_outlined),
+            icon: const Icon(Icons.cleaning_services_outlined, size: 20),
             onPressed: () =>
                 AppStorageService.openAppStorageSettings(app.packageName),
           ),
@@ -307,10 +490,18 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
     return switch (level) {
       AppIdleLevel.active => (
           const Color(0xFF2E7D32),
-          idle == 0 ? context.t('apps.today') : context.t('apps.days_ago', {'n': idle})
+          idle == 0
+              ? context.t('apps.today')
+              : context.t('apps.days_ago', {'n': idle})
         ),
-      AppIdleLevel.quiet => (const Color(0xFF827717), context.t('apps.days_ago', {'n': idle})),
-      AppIdleLevel.stale => (const Color(0xFFEF6C00), context.t('apps.days_ago', {'n': idle})),
+      AppIdleLevel.quiet => (
+          const Color(0xFF827717),
+          context.t('apps.days_ago', {'n': idle})
+        ),
+      AppIdleLevel.stale => (
+          const Color(0xFFEF6C00),
+          context.t('apps.days_ago', {'n': idle})
+        ),
       AppIdleLevel.forgotten => (
           scheme.error,
           idle != null
@@ -318,9 +509,8 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
               // Kayıt yok: uygulama kayıt penceresinden (2 yıl) daha eskiyse
               // "hiç açılmadı" demek uydurma olur — Android o kadar geriye
               // veri tutmuyor (bkz. InstalledAppEntry.neverOpened).
-              : context.t(app.neverOpened(now)
-                  ? 'apps.never_opened'
-                  : 'apps.long_ago'),
+              : context.t(
+                  app.neverOpened(now) ? 'apps.never_opened' : 'apps.long_ago'),
         ),
       AppIdleLevel.unknown => (scheme.onSurfaceVariant, '—'),
     };
@@ -335,8 +525,42 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: Text(app.name),
-              subtitle: Text(app.packageName),
+              leading: _AppIcon(app: app),
+              title: Text(app.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text('${app.packageName} · v${app.versionName}'),
+            ),
+            // Boyut kırılımı ve tarihler: kaldırma kararından önce "ne
+            // kaybederim, ne kazanırım" sorusunun cevabı.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+              child: Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.xs,
+                children: [
+                  if (app.size != null) ...[
+                    _InfoChip(
+                        label: context.t('apps.size_app'),
+                        value: FsPaths.humanSize(app.size!.appBytes)),
+                    _InfoChip(
+                        label: context.t('apps.size_data'),
+                        value: FsPaths.humanSize(
+                            app.size!.dataBytes - app.size!.cacheBytes < 0
+                                ? 0
+                                : app.size!.dataBytes - app.size!.cacheBytes)),
+                    _InfoChip(
+                        label: context.t('apps.stat_cache'),
+                        value: FsPaths.humanSize(app.size!.cacheBytes)),
+                  ],
+                  if (app.installedAtMs > 0)
+                    _InfoChip(
+                        label: context.t('apps.installed_on'),
+                        value: FsPaths.humanDate(app.installedAtMs)
+                            .split(' ')
+                            .take(3)
+                            .join(' ')),
+                ],
+              ),
             ),
             const Divider(),
             ListTile(
@@ -348,6 +572,16 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
               leading: const Icon(Icons.info_outline),
               title: Text(context.t('apps.app_info')),
               onTap: () => Navigator.pop(ctx, 'settings'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cleaning_services_outlined),
+              title: Text(context.t('apps.storage_settings')),
+              onTap: () => Navigator.pop(ctx, 'storage'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: Text(context.t('apps.copy_package')),
+              onTap: () => Navigator.pop(ctx, 'copy'),
             ),
             // **APK olarak paylaş** (kullanıcı isteği 2026-08-29). Uygulama
             // zaten APK olarak duruyor; yaptığımız iş onu bulup okunur bir
@@ -380,14 +614,20 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
         await InstalledAppsService.open(app.packageName);
       case 'settings':
         InstalledAppsService.openSettings(app.packageName);
+      case 'storage':
+        await AppStorageService.openAppStorageSettings(app.packageName);
+      case 'copy':
+        await Clipboard.setData(ClipboardData(text: app.packageName));
+        if (mounted) _snack(context.t('apps.package_copied'));
       case 'apk_share':
         await _exportApk(app, share: true);
       case 'apk_save':
         await _exportApk(app, share: false);
       case 'uninstall':
         await InstalledAppsService.uninstall(app.packageName);
-        // Sistem kaldırma penceresi kapanınca liste tazelensin.
-        if (mounted) await _load();
+        // Sistem kaldırma penceresi kapanınca liste tazelensin — sessizce
+        // (tüm ekranı döner çarka çevirmeden, kaydırma yeri korunur).
+        if (mounted) await _load(quiet: true);
     }
   }
 
@@ -486,4 +726,121 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen> {
       );
 
   void _snack(String message) => showSnack(context, message);
+}
+
+/// Uygulama simgesi (yoksa nötr kutu içinde Android glifi).
+class _AppIcon extends StatelessWidget {
+  final InstalledAppEntry app;
+  const _AppIcon({required this.app});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: app.icon != null
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: Image.memory(app.icon!,
+                  gaplessPlayback: true, cacheWidth: 132),
+            )
+          : Container(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(Radii.control),
+              ),
+              child: const Icon(Icons.android),
+            ),
+    );
+  }
+}
+
+/// Özet kartının kutucuğu: renkli simge, büyük sayı, küçük açıklama.
+class _StatBox extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String value;
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _StatBox({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+    this.selected = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected
+          ? color.withValues(alpha: 0.16)
+          : theme.colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.card),
+        side: BorderSide(
+          color: selected
+              ? color.withValues(alpha: 0.6)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.sm + 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(height: Gap.xs),
+              Text(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: Paper.faint(context))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Eylem sayfasındaki "etiket: değer" hapı.
+class _InfoChip extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(Radii.control),
+      ),
+      child: Text.rich(
+        TextSpan(children: [
+          TextSpan(
+              text: '$label ', style: TextStyle(color: Paper.faint(context))),
+          TextSpan(
+              text: value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ]),
+        style: theme.textTheme.bodySmall,
+      ),
+    );
+  }
 }
