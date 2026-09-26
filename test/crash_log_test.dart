@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/core/app_version.dart';
 import 'package:dosya_okuyucu/services/crash_log.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -146,6 +147,48 @@ void main() {
     expect(back.count, 4);
     expect(back.context, 'c');
     expect(back.time, record.time);
+  });
+
+  /// Kullanıcı ekran görüntüsü (2026-09-26): panoda "Uygulama beklenmedik
+  /// şekilde hata verdi" uyarısı; kayıt bozuk bir görsel DOSYASININ
+  /// çözülememesiydi ("resolving an image codec · Invalid image data"). Hücre
+  /// zaten simgesine düşüyor — bu bir uygulama hatası değil.
+  test('görsel çözme hatası kaydedilmez, öteki hatalar kaydedilir', () {
+    FlutterErrorDetails details(String library, String context) =>
+        FlutterErrorDetails(
+          exception: Exception('Invalid image data'),
+          library: library,
+          context: ErrorDescription(context),
+        );
+    expect(
+        CrashLog.shouldRecord(
+            details('image resource service', 'resolving an image codec')),
+        isFalse);
+    expect(
+        CrashLog.shouldRecord(
+            details('image resource service', 'resolving an image frame')),
+        isFalse);
+    // Aynı hizmette BAŞKA bağlam ya da başka kütüphanede aynı bağlam: kayıt.
+    expect(
+        CrashLog.shouldRecord(
+            details('image resource service', 'building an image provider')),
+        isTrue);
+    expect(
+        CrashLog.shouldRecord(
+            details('widgets library', 'resolving an image codec')),
+        isTrue);
+  });
+
+  test('eski sürümün yazdığı görsel çözme kaydı uyarı ÇIKARMAZ', () async {
+    await CrashLog.record(Exception('Invalid image data'),
+        StackTrace.fromString('#4 FmFileImage._load'),
+        context: 'resolving an image codec', kind: 'flutter');
+    await CrashLog.record(StateError('gerçek hata'), StackTrace.current,
+        context: 'building Foo');
+    final records = await CrashLog.load();
+    expect(records, hasLength(1));
+    expect(records.single.error, contains('gerçek hata'));
+    expect(await CrashLog.unseenCount(), 1);
   });
 }
 

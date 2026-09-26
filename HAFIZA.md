@@ -12033,3 +12033,27 @@ açılışında küçük resimden tam çözünürlüğe geçişte titreme olup o
 *"main'e merge et, APK derlensin"* → main hızlı ileri (422a367 → f332597),
 **v1.0.368** yayımlandı (arm64 APK 77,6 MB — önceki 77,5 MB; galeri turu
 boyutu etkilemedi).
+
+## 2026-09-26 (4) — Panodaki "hata verdi" uyarısı: bozuk görsel ≠ çökme
+Kullanıcı (öteki telefondan ekran görüntüsü, Hata kayıtları): *"dosya okuyucu
+hata verdi diğer telefonda sonra açıldı"*. Kayıt: **2026-09-10** · flutter ·
+"resolving an image codec" · `Exception: Invalid image data` ·
+`FmFileImage._load`. Yani bugünkü sürümden 16 gün önce yazılmış, görülmemiş
+TEK kayıt; güncellemeden sonra panoda kırmızı `CrashNoticeBanner` ("Uygulama
+beklenmedik şekilde hata verdi") onu gösterdi. Uygulama çökmemişti (bugüne
+tarihli hiçbir kayıt yok).
+
+**Kök neden:** galeri telefondaki her görseli çözüyor; bozuk / yarım inmiş /
+0 baytlık / uzantısı yanlış bir dosya çözülemeyince hücre zaten simgesine
+düşüyor (`errorBuilder`). Ama hücre o an ekrandan çıkmışsa (hızlı kaydırma —
+yeni tutamaçla daha da olağan) görsel akışının hata dinleyicisi kalmıyor ve
+Flutter hatayı `FlutterError.onError`a gönderiyor → kaydedici çökme sanıyordu.
+
+**Düzeltme (`CrashLog`):** `library == 'image resource service'` VE bağlam
+"resolving an image codec" / "resolving an image frame" / "image failed to
+precache" ise kaydedilmez (konsola yine yazılır; SDK dizeleri 3.29.3
+`image_stream.dart`/`image.dart`dan doğrulandı). `load()` eski sürümlerin
+yazdığı bu türden kayıtları da düşürür — yoksa güncellemeden sonra uyarı yine
+çıkardı. Görsel hizmetindeki BAŞKA bağlamlar ve başka kütüphanelerde aynı
+bağlam eskisi gibi kaydedilir. Test: `crash_log_test` (+2).
+**Ders:** "uygulama hata verdi" raporunda önce kaydın TARİHİNE bak.

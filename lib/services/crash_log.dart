@@ -80,8 +80,10 @@ abstract final class CrashLog {
     _installed = true;
     final previousFlutterError = FlutterError.onError;
     FlutterError.onError = (details) {
-      unawaited(record(details.exception, details.stack,
-          context: details.context?.toDescription(), kind: 'flutter'));
+      if (shouldRecord(details)) {
+        unawaited(record(details.exception, details.stack,
+            context: details.context?.toDescription(), kind: 'flutter'));
+      }
       previousFlutterError?.call(details);
     };
     final previousPlatformError = PlatformDispatcher.instance.onError;
@@ -92,6 +94,36 @@ abstract final class CrashLog {
       return previousPlatformError?.call(error, stack) ?? true;
     };
   }
+
+  /// **Kullanıcı dosyasının çözülememesi uygulama hatası DEĞİLDİR**
+  /// (2026-09-26, kullanıcı ekran görüntüsü: panoda kırmızı "Uygulama
+  /// beklenmedik şekilde hata verdi" şeridi; kayıt "resolving an image codec
+  /// · Exception: Invalid image data · FmFileImage._load").
+  ///
+  /// Kök neden: galeri telefondaki HER görseli çözmeye çalışıyor; bozuk,
+  /// yarım inmiş (WhatsApp), 0 baytlık ya da uzantısı yanlış bir dosya
+  /// çözülemeyince hücre zaten kendi simgesine düşüyor (`errorBuilder`). Ama
+  /// hücre o an ekrandan çıkmışsa — hızlı kaydırmada olağan — görsel akışının
+  /// hata dinleyicisi kalmıyor ve Flutter hatayı GENEL işleyiciye
+  /// (`FlutterError.onError`) gönderiyor. Kaydedici bunu çökme sanıp panoda
+  /// uyarı gösteriyordu; kullanıcı "uygulama hata verdi" okudu, oysa uygulama
+  /// hiçbir şey kaybetmemişti.
+  ///
+  /// Görsel yükleme hizmetinin "kodek/kare çözülemedi" ve "önbelleğe
+  /// alınamadı" hataları kaydedilmez (konsola yine yazılır). Başka bağlamdaki
+  /// her hata — görsel hizmetinde olsa bile — eskisi gibi kaydedilir.
+  static bool isBenignImageFailure(String? context) {
+    final c = context?.trim();
+    return c == 'resolving an image codec' ||
+        c == 'resolving an image frame' ||
+        c == 'image failed to precache';
+  }
+
+  /// [FlutterError.onError]'dan gelen hata kayda değer mi?
+  @visibleForTesting
+  static bool shouldRecord(FlutterErrorDetails details) =>
+      !(details.library == 'image resource service' &&
+          isBenignImageFailure(details.context?.toDescription()));
 
   /// Bir hatayı kaydeder. **Hiçbir koşulda fırlatmaz:** hata kaydedicinin
   /// kendisi hata verirse (disk dolu, izin yok) uygulamayı çökertmek en kötü
@@ -183,6 +215,10 @@ abstract final class CrashLog {
       return data
           .whereType<Map<String, dynamic>>()
           .map(CrashRecord.fromJson)
+          // Eski sürümlerin yazdığı görsel çözme kayıtları da düşer: yoksa
+          // güncellemeden sonra panodaki uyarı onlar yüzünden yine çıkardı
+          // (bkz. [isBenignImageFailure]).
+          .where((r) => !isBenignImageFailure(r.context))
           .toList();
     } catch (_) {
       return [];
