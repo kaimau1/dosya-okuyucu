@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +10,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
 import '../../services/fm/search_index.dart';
 import '../fm/usb_diagnostics_screen.dart';
+import 'app_footprint_screen.dart';
 import 'crash_log_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
@@ -122,34 +121,23 @@ class _SearchIndexTileState extends State<SearchIndexTile> {
       );
 }
 
-/// Video küçük resim önbelleğini temizler.
-class ThumbCacheTile extends StatelessWidget {
-  const ThumbCacheTile({super.key});
+/// **Uygulamanın kapladığı alan** — kırılım ve temizlik ekranına giriş.
+///
+/// Eskiden burada yalnız "küçük resim önbelleğini temizle" vardı (Gelişmiş'in
+/// içinde); oysa asıl yer tutanlar paylaşımla gelen kopyalar, seçici
+/// kopyaları, Drive önbelleği ve dil modelleriydi ve hiçbiri görünmüyordu
+/// (kullanıcı 2026-09-26: *"550 MB okuyor, neden"*).
+class AppFootprintTile extends StatelessWidget {
+  const AppFootprintTile({super.key});
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.cleaning_services_outlined,
-        title: context.t('fmset.clear_thumbs'),
-        subtitle: context.t('fmset.clear_thumbs_sub'),
-        onTap: () async {
-          final str = AppStrings.of(context);
-          final messenger = ScaffoldMessenger.of(context);
-          final dir = Directory('${FmEnv.appSupportDir}/../cache/video_thumbs');
-          var removed = 0;
-          try {
-            if (dir.existsSync()) {
-              for (final f in dir.listSync()) {
-                try {
-                  f.deleteSync(recursive: true);
-                  removed++;
-                } catch (_) {}
-              }
-            }
-          } catch (_) {}
-          showSnackOn(messenger, removed == 0
-                  ? str.t('fmset.thumbs_none')
-                  : str.t('fmset.thumbs_cleared', {'n': removed}));
-        },
+        icon: Icons.pie_chart_outline,
+        title: context.t('foot.title'),
+        subtitle: context.t('foot.tile_sub'),
+        wrapSubtitle: true,
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const AppFootprintScreen())),
       );
 }
 

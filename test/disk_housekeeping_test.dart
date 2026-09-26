@@ -74,8 +74,9 @@ void main() {
       final liveDir = make('pdf_editor456/work.pdf', age: old).parent;
       make('pdf_editor456/undo_0.pdf');
       final scanNew = make('fatura_duzeltildi_1695000009999.png');
-      // Eklentinin (paylaşılan dosya kopyası) dosyası: son açılanlar ona
-      // işaret edebilir — ne kadar eski olursa olsun dokunulmaz.
+      // Eklentinin (paylaşılan dosya kopyası) dosyası: önbellek kökü olarak
+      // işaretlenmeyen bir kökte dokunulmaz (önbellek kökündeki 7 günlük
+      // süpürme `app_footprint_test`te).
       final foreign = make('rapor.pdf', age: old);
       final foreignDir = make('file_picker/x.pdf', age: old).parent;
 

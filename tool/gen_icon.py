@@ -2,48 +2,56 @@
 """Dosya Okuyucu uygulama ikonunu üretir.
 
 Çıktı (hepsi 1024×1024):
-  assets/icon/icon.png        tam ikon — degrade karo + işaret (eski Android,
-                              mağaza görseli)
-  assets/icon/background.png  adaptive ZEMİN katmanı (köşegen degrade, taşma)
+  assets/icon/icon.png        tam ikon — zeminli yuvarlak karo + işaret (eski
+                              Android, mağaza görseli)
+  assets/icon/background.png  adaptive ZEMİN katmanı (tuvali baştan başa doldurur)
   assets/icon/foreground.png  adaptive ÖN PLAN katmanı (şeffaf, yalnız işaret)
   assets/icon/monochrome.png  Android 13+ "temalı simge" katmanı (tek renk
                               silüet; sistem duvar kâğıdı rengine boyar)
 
-Çalıştır:  python3 tool/gen_icon.py
+Çalıştır:  python3 tool/gen_icon.py [klasor|klasor_mavi|belge]
+           python3 tool/gen_icon.py --onizleme <çıktı.png>   (üç varyant yan yana)
 Gerekli:   numpy   (yalnız bu araç için; CI bu betiği KOŞMAZ — derlemede
            `flutter_launcher_icons` yukarıdaki hazır PNG'leri kullanır.)
 
 --------------------------------------------------------------------------
-2026-09-24 — BAŞTAN TASARIM (kullanıcı: "simgeyi baştan tasarla")
+2026-09-26 — KLASİK SİMGE (kullanıcı: "simgemiz olmamış, daha klasik bir şey
+istiyorum")
 --------------------------------------------------------------------------
-Önceki klasör simgesi (2026-08-30) on parçalıydı: arka kapak, eğik belge,
-dişli, bulut, onay, devrik ön kapak, ok… 48 px'te dişli/bulut/onay birbirine
-karışıyor, ana ekranda "ne olduğu belli olmayan mavi bir kutu" gibi
-duruyordu. Maskeye sıfır payla sığdırıldığı için de kenarları kırpılıyordu.
+2026-09-24'teki "belge + AI parıltısı, çivit→mor degrade" simgesi bir "AI
+uygulaması" gibi okunuyordu; dosya uygulaması gibi değil. Yeni simge herkesin
+tanıdığı dili konuşur: **sarı (kehribar) klasör + içinden görünen kâğıtlar**
+— Windows Gezgini'nden eski Android dosya yöneticilerine kadar "dosyalarım"
+demenin klasik yolu. Uygulama artık hem okuyucu hem dosya yöneticisi; klasör
+ikisini birden taşır (kâğıt = belge, klasör = dosyalar).
 
-Yeni simge TEK FİKİR: **kıvrık köşeli beyaz belge + AI parıltısı.**
-- Belge: uygulamanın asıl işi (her formatı açmak, okumak, düzenlemek).
-  Üç satır — ilki vurgu renginde (seçili/düzenlenen satır).
-- Parıltı (dört köşeli yıldız): AI özellikleri; uygulamanın içindeki AI
-  düğmesinin simgesiyle (`auto_awesome`) aynı dil, sıcak turuncu→pembe.
-- Zemin: çivit→mor→camgöbeği köşegen degrade; beyaz belge üstünde en yüksek
-  karşıtlıkla okunur, 48 px'te de silüet tek bakışta seçilir.
+- Zemin: beyazdan çok açık griye inen sade degrade — sarı klasör en yüksek
+  karşıtlıkla onun üstünde okunur; renkli degrade zemin yok.
+- Klasör ÜÇ parça: arka kapak (sekmeli, koyu kehribar), iki kâğıt (biri
+  kremsi, biri beyaz; üstünde iki satır), ön kapak (açık sarı → kehribar).
+  2026-08-30 klasörünün dişli/bulut/onay/ok gibi süsleri BİLİNÇLİ yok:
+  48 px'te karışıyordu (o turun dersi).
+- Varyantlar (`VARYANT`): `klasor` (varsayılan, sarı), `klasor_mavi` (aynı
+  çizim mavi tonlarda), `belge` (mavi zemin üstünde kıvrık köşeli klasik
+  sayfa). Kullanıcı başka birini seçerse yalnız bu satır değişir.
 
 Ölçü kuralı (korunuyor): İŞARETİN BOYU MASKEDEN ÖLÇÜLÜR. `max_fit()`
 MIUI squircle maskesinin (süperelips n = 3,2, R = 36 dp) MASKE_PAYI kadarına
 sığan en büyük ölçeği sayısal olarak arar. Pay sıfır OLMAMALI — kenara değen
 işaret büyük değil kırpık görünür (2026-09-24 dersi).
 
-Çizim yöntemi: her parça bir nokta→içeride mi fonksiyonu; kenar yumuşatma
-SS×SS süper-örnekleme ile (SDF'si kapalı formda olmayan yıldız için de aynı
-yol çalışsın diye).
+Çizim yöntemi: her parça bir işaretli uzaklık (SDF) ya da nokta→içeride mi
+fonksiyonu; kenar yumuşatma SS×SS süper-örnekleme ile.
 """
 import math
 import os
 import struct
+import sys
 import zlib
 
 import numpy as np
+
+VARYANT = "klasor"       # klasor | klasor_mavi | belge
 
 N = 1024                 # çıktı kenarı
 SS = 3                   # süper-örnekleme (kenar yumuşatma)
@@ -52,38 +60,63 @@ TUVAL_DP = 108.0         # adaptive tuval
 GORUNUR_DP = 72.0        # maskenin garanti gösterdiği alan
 MASKE_PAYI = 0.86        # işaret maskenin bu oranına sığar (nefes payı)
 KART_YARICAP = 224       # tam ikonun köşe yarıçapı (1024 üzerinden)
-KART_ORAN = 0.66         # tam ikonda işaretin uzun kenarı / tuval
+KART_ORAN = 0.70         # tam ikonda işaretin uzun kenarı / tuval
 
-# ── palet ──────────────────────────────────────────────────────────────────
-BG_TL = (0x5B, 0x4B, 0xF0)      # çivit (sol üst)
-BG_MID = (0x6D, 0x3F, 0xE0)     # mor (orta)
-BG_BR = (0x14, 0xB8, 0xD6)      # camgöbeği (sağ alt)
-PAPER_T = (0xFF, 0xFF, 0xFF)
-PAPER_B = (0xEE, 0xF1, 0xFB)    # kâğıdın altı çok hafif soğuk gri
-FOLD = (0xD5, 0xDB, 0xF2)       # kıvrık köşenin arka yüzü
-LINE = (0xC4, 0xCB, 0xE4)       # sıradan satır
-ACCENT_L = (0x5B, 0x4B, 0xF0)   # vurgulu satır (zeminle aynı aile)
-ACCENT_R = (0x2A, 0x9D, 0xF4)
-SPARK_T = (0xFF, 0xC2, 0x3D)    # parıltı: altın → turuncu → pembe
-SPARK_B = (0xFF, 0x4F, 0x8B)
+# ── paletler ───────────────────────────────────────────────────────────────
+PALETLER = {
+    "klasor": dict(
+        bg_t=(0xFF, 0xFF, 0xFF), bg_b=(0xE9, 0xEE, 0xF5),
+        back_t=(0xF0, 0xA2, 0x0B), back_b=(0xD4, 0x82, 0x00),
+        front_t=(0xFF, 0xD6, 0x4A), front_b=(0xFB, 0xB0, 0x14),
+        lip=(0xFF, 0xE8, 0x95),
+        paper=(0xFF, 0xFF, 0xFF), paper2=(0xF3, 0xEC, 0xDC),
+        line=(0xC9, 0xCF, 0xDA),
+    ),
+    "klasor_mavi": dict(
+        bg_t=(0xFF, 0xFF, 0xFF), bg_b=(0xE9, 0xEE, 0xF5),
+        back_t=(0x2F, 0x6B, 0xD8), back_b=(0x1D, 0x4E, 0xB0),
+        front_t=(0x6C, 0xA6, 0xFF), front_b=(0x37, 0x7C, 0xF0),
+        lip=(0xA8, 0xCB, 0xFF),
+        paper=(0xFF, 0xFF, 0xFF), paper2=(0xE6, 0xEC, 0xF6),
+        line=(0xC9, 0xCF, 0xDA),
+    ),
+    "belge": dict(
+        bg_t=(0x3A, 0x7B, 0xEA), bg_b=(0x1A, 0x4F, 0xB8),
+        paper=(0xFF, 0xFF, 0xFF), paper_b=(0xEE, 0xF2, 0xFA),
+        fold=(0xC9, 0xD5, 0xEE), line=(0xB9, 0xC3, 0xD8),
+        accent=(0x2F, 0x6B, 0xD8),
+    ),
+}
 
-# ── geometri (tasarım uzayı 0..1000) ───────────────────────────────────────
-DOC_L, DOC_T, DOC_R, DOC_B = 250, 170, 700, 790
-DOC_RAD = 64
-FOLD_S = 150                     # kıvrık köşenin kenarı
-LINES = [  # (y, x0, x1, vurgulu mu)
-    (430, 330, 610, True),
-    (530, 330, 620, False),
-    (630, 330, 520, False),
+# ── klasör geometrisi (tasarım uzayı 0..1000) ──────────────────────────────
+F_L, F_R = 130, 870              # klasörün yanları
+BACK_T, F_B = 250, 810           # arka kapağın üstü, klasörün altı
+TAB_R, TAB_T = 430, 185          # sekmenin sağ ucu ve üstü
+TAB_SLOPE = 70                   # sekmenin eğik kenarının yatay payı
+FRONT_T = 420                    # ön kapağın üstü
+F_RAD = 56                       # köşe yarıçapı
+PAPERS = [  # (l, t, r, b, eğim°, renk anahtarı)
+    (220, 300, 800, 700, -4.0, "paper2"),
+    (200, 330, 770, 720, 2.5, "paper"),
 ]
-LINE_HT = 26                     # satır yarı kalınlığı
-SPARK = (720, 700, 200)          # büyük parıltı: cx, cy, yarıçap
-SPARK2 = (810, 470, 72)          # küçük parıltı
-SPARK_N = 0.55                   # süperelips üssü (<1 → sivri dört köşe)
-RING = 30                        # parıltının zeminle arasındaki boşluk halkası
+P_RAD = 22
+P_LINES = [(385, 290, 640), (445, 290, 560)]   # (y, x0, x1) — ön kâğıtta
+P_LINE_HT = 13
+
+# ── belge geometrisi ───────────────────────────────────────────────────────
+D_L, D_T, D_R, D_B = 250, 150, 750, 850
+D_RAD = 48
+D_FOLD = 170
+D_LINES = [  # (y, x0, x1, vurgulu mu)
+    (430, 330, 670, True),
+    (520, 330, 670, False),
+    (610, 330, 670, False),
+    (700, 330, 540, False),
+]
+D_LINE_HT = 22
 
 
-# ── şekiller (nokta içeride mi?) ───────────────────────────────────────────
+# ── şekiller (işaretli uzaklık: <= 0 içeride) ──────────────────────────────
 def rrect(x, y, l, t, r, b, rad):
     cx, cy = (l + r) / 2, (t + b) / 2
     hw, hh = (r - l) / 2, (b - t) / 2
@@ -93,25 +126,18 @@ def rrect(x, y, l, t, r, b, rad):
             + np.minimum(np.maximum(dx, dy), 0) - rad)
 
 
-def doc_sdf(x, y, grow=0.0):
-    """Sağ üst köşesi 45° kesik yuvarlak dikdörtgen."""
-    d = rrect(x, y, DOC_L - grow, DOC_T - grow, DOC_R + grow, DOC_B + grow,
-              DOC_RAD + grow)
-    # kesik: x - y >= DOC_R - FOLD_S - DOC_T tarafı dışarıda
-    c = (DOC_R - FOLD_S) - DOC_T
-    cut = ((x - y) - c) / math.sqrt(2) - grow
-    return np.maximum(d, cut)
+def rotated(x, y, cx, cy, deg):
+    """(x, y)'yi (cx, cy) çevresinde -deg döndürür (şekli +deg döndürmek)."""
+    a = math.radians(deg)
+    dx, dy = x - cx, y - cy
+    return (cx + dx * math.cos(a) + dy * math.sin(a),
+            cy - dx * math.sin(a) + dy * math.cos(a))
 
 
-def fold_in(x, y):
-    """Kıvrık köşenin arka yüzü: kesikle belgenin içine katlanan üçgen."""
-    x0, y0 = DOC_R - FOLD_S, DOC_T          # kesiğin üst ucu
-    x1, y1 = DOC_R, DOC_T + FOLD_S          # kesiğin alt ucu
-    # üçgen: (x0,y0) (x1,y1) (x0,y1), köşe hafif yuvarlak görünsün diye
-    # dik köşe 18 birim içeri
-    inside = (x >= x0) & (y <= y1) & ((x - y) <= (x0 - y0))
-    corner = np.hypot(x - x0, y - y1) >= 0
-    return inside & corner
+def half_plane(x, y, x0, y0, x1, y1):
+    """(x0,y0)→(x1,y1) doğrusunun SAĞI (ekran koordinatında) dışarısı."""
+    dx, dy = x1 - x0, y1 - y0
+    return ((x - x0) * dy - (y - y0) * dx) / math.hypot(dx, dy)
 
 
 def seg(x, y, x0, y0, x1, y1, ht):
@@ -121,25 +147,55 @@ def seg(x, y, x0, y0, x1, y1, ht):
     return np.hypot(px - bx * t, py - by * t) - ht
 
 
-def spark_in(x, y, cx, cy, r, grow=0.0):
-    """Dört köşeli parıltı: |x/R|^n + |y/R|^n <= 1, n < 1."""
-    if grow:
-        # halka: şekli dışa doğru büyütmek için hem yarıçap hem de
-        # merkeze yakın "boğaz" kalınlığı artırılır
-        r = r + grow
-    u = np.abs(x - cx) / r
-    v = np.abs(y - cy) / r
-    inside = u ** SPARK_N + v ** SPARK_N <= 1.0
-    if grow:
-        inside |= np.hypot(x - cx, y - cy) <= r * 0.30
-    return inside
+# klasör parçaları
+def back_sdf(x, y):
+    body = rrect(x, y, F_L, BACK_T, F_R, F_B, F_RAD)
+    # Sekmenin alt ucu gövdenin DÜZ sol kenarına iner: ikisinin yuvarlak
+    # köşesi aynı yüksekliğe düşerse sol kenarda çentik kalıyordu.
+    tab = rrect(x, y, F_L, TAB_T, TAB_R + TAB_SLOPE, BACK_T + F_RAD + 100, 40)
+    slope = half_plane(x, y, TAB_R, TAB_T, TAB_R + TAB_SLOPE, BACK_T)
+    return np.minimum(body, np.maximum(tab, slope))
+
+
+def paper_sdf(x, y, i):
+    l, t, r, b, deg, _ = PAPERS[i]
+    rx, ry = rotated(x, y, (l + r) / 2, (t + b) / 2, deg)
+    return rrect(rx, ry, l, t, r, b, P_RAD)
+
+
+def paper_line_sdf(x, y, k):
+    l, t, r, b, deg, _ = PAPERS[1]
+    rx, ry = rotated(x, y, (l + r) / 2, (t + b) / 2, deg)
+    yy, x0, x1 = P_LINES[k]
+    return seg(rx, ry, x0, yy, x1, yy, P_LINE_HT)
+
+
+def front_sdf(x, y):
+    return rrect(x, y, F_L, FRONT_T, F_R, F_B, F_RAD)
+
+
+# belge parçaları
+def doc_sdf(x, y):
+    d = rrect(x, y, D_L, D_T, D_R, D_B, D_RAD)
+    c = (D_R - D_FOLD) - D_T
+    cut = ((x - y) - c) / math.sqrt(2)
+    return np.maximum(d, cut)
+
+
+def doc_fold_in(x, y):
+    x0, y0 = D_R - D_FOLD, D_T
+    y1 = D_T + D_FOLD
+    return (x >= x0) & (y <= y1) & ((x - y) <= (x0 - y0))
 
 
 def mark_in(x, y):
     """İşaretin tüm silüeti (ölçek ve maske hesabı için)."""
-    return ((doc_sdf(x, y) <= 0)
-            | spark_in(x, y, *SPARK, grow=RING)
-            | spark_in(x, y, *SPARK2, grow=RING))
+    if VARYANT == "belge":
+        return doc_sdf(x, y) <= 0
+    ins = (back_sdf(x, y) <= 0) | (front_sdf(x, y) <= 0)
+    for i in range(len(PAPERS)):
+        ins |= paper_sdf(x, y, i) <= 0
+    return ins
 
 
 # ── maskeye sığan en büyük ölçek ───────────────────────────────────────────
@@ -183,24 +239,21 @@ def down(mask):
     return m.reshape(N, SS, N, SS).mean(axis=(1, 3))
 
 
-def background_rgb(size):
-    """Üç duraklı köşegen degrade + sol üstte hafif ışık."""
-    yy, xx = np.mgrid[0:size, 0:size] / max(size - 1, 1)
-    t = ((xx + yy) / 2)[..., None]
-    a, m, b = (np.array(c, float) for c in (BG_TL, BG_MID, BG_BR))
-    first = a + (m - a) * np.clip(t / 0.5, 0, 1)
-    rgb = np.where(t < 0.5, first, m + (b - m) * np.clip((t - 0.5) / 0.5, 0, 1))
-    glow = np.exp(-(((xx - 0.18) ** 2 + (yy - 0.12) ** 2) / 0.10))[..., None]
-    return rgb * (1 - 0.18 * glow) + 255 * 0.18 * glow
-
-
 def lerp_rows(top, bottom, t):
     t = np.clip(t, 0, 1)[..., None]
     return np.array(top, float) * (1 - t) + np.array(bottom, float) * t
 
 
+def background_rgb(size):
+    """Yukarıdan aşağı sade degrade (klasik: tek ton, ışık oyunu yok)."""
+    pal = PALETLER[VARYANT]
+    yy = (np.mgrid[0:size, 0:size][0] / max(size - 1, 1))
+    return lerp_rows(pal["bg_t"], pal["bg_b"], yy)
+
+
 # ── çizim ──────────────────────────────────────────────────────────────────
 def draw(mark_px, *, background, card_radius=None, mono=False):
+    pal = PALETLER[VARYANT]
     img = np.zeros((N, N, 4))
     if background:
         img[:, :, :3] = background_rgb(N)
@@ -232,52 +285,80 @@ def draw(mark_px, *, background, card_radius=None, mono=False):
         """Tek renk katmanda deliği gerçekten deler (alfa düşer)."""
         img[:, :, 3] = img[:, :, 3] * (1 - c)
 
-    doc = down(doc_sdf(X, Y) <= 0)
-    fold = down(fold_in(X, Y)) * doc
-    lines = [down(seg(X, Y, x0, y, x1, y, LINE_HT) <= 0) for y, x0, x1, _ in LINES]
-    ring = np.clip(down(spark_in(X, Y, *SPARK, grow=RING))
-                   + down(spark_in(X, Y, *SPARK2, grow=RING)), 0, 1)
-    spark = np.clip(down(spark_in(X, Y, *SPARK))
-                    + down(spark_in(X, Y, *SPARK2)), 0, 1)
+    def shade(c, amount):
+        """Alttaki pikselleri koyulaştırır (gölge)."""
+        img[:, :, :3] *= (1 - amount * c)[..., None]
 
-    if mono:
-        # Temalı simge: belge dolu, satırlar ve parıltı halkası oyuk,
-        # parıltı dolu. Tek renk (beyaz); rengi sistem verir.
-        white = (255, 255, 255)
-        put(white, doc)
-        for c in lines:
-            cut(c)
-        cut(fold * 0.55)
-        cut(ring)
-        put(white, spark)
+    if VARYANT == "belge":
+        doc = down(doc_sdf(X, Y) <= 0)
+        fold = down(doc_fold_in(X, Y)) * doc
+        lines = [down(seg(X, Y, x0, y, x1, y, D_LINE_HT) <= 0)
+                 for y, x0, x1, _ in D_LINES]
+        if mono:
+            put((255, 255, 255), doc)
+            for c in lines:
+                cut(c)
+            cut(fold * 0.55)
+            return img
+        if background:
+            shade(blur(np.roll(doc, int(N * 0.02), axis=0),
+                       max(1, int(N * 0.024))), 0.28)
+        put(lerp_rows(pal["paper"], pal["paper_b"], (GY - D_T) / (D_B - D_T)),
+            doc)
+        fold_sh = blur(np.roll(np.roll(fold, int(s * 10), axis=1),
+                               int(s * 14), axis=0), max(1, int(s * 12)))
+        shade(fold_sh * doc * (1 - fold), 0.16)
+        put(pal["fold"], fold)
+        for (y, x0, x1, accent), c in zip(D_LINES, lines):
+            put(pal["accent"] if accent else pal["line"], c)
         return img
 
-    # 0) belgenin gölgesi (yalnız zeminli tam ikonda; adaptive'de sistem
-    #    kendi gölgesini ekler, çift gölge olmasın)
-    if background:
-        sh = blur(np.roll(doc, int(N * 0.022), axis=0), max(1, int(N * 0.026)))
-        img[:, :, :3] *= (1 - 0.30 * sh)[..., None]
+    # ── klasör ──
+    back = down(back_sdf(X, Y) <= 0)
+    papers = [down(paper_sdf(X, Y, i) <= 0) for i in range(len(PAPERS))]
+    plines = [down(paper_line_sdf(X, Y, k) <= 0) for k in range(len(P_LINES))]
+    front = down(front_sdf(X, Y) <= 0)
+    # ön kapağın üst kenarında ince açık şerit (kapağın kalınlığı)
+    lip = down((front_sdf(X, Y) <= 0) & (Y <= FRONT_T + 16)) * front
 
-    # 1) kâğıt: yukarıdan aşağı çok hafif soğuyan beyaz
-    put(lerp_rows(PAPER_T, PAPER_B, (GY - DOC_T) / (DOC_B - DOC_T)), doc)
-    # 2) kıvrık köşe: arka yüz + altına düşen yumuşak gölge
-    fold_shadow = blur(np.roll(np.roll(fold, int(s * 10), axis=1),
-                               int(s * 14), axis=0), max(1, int(s * 12)))
-    img[:, :, :3] *= (1 - 0.18 * fold_shadow * doc * (1 - fold))[..., None]
-    put(FOLD, fold)
-    # 3) satırlar
-    for (y, x0, x1, accent), c in zip(LINES, lines):
-        col = lerp_rows(ACCENT_L, ACCENT_R, (GX - x0) / (x1 - x0)) \
-            if accent else LINE
-        put(col, c)
-    # 4) parıltı: halka zemin rengini geri getirmez — belgeyi "oyar" gibi
-    #    görünsün diye kâğıt yerine ZEMİN rengi / şeffaflık kullanılır
+    if mono:
+        # Temalı simge: tek renk. Parçaları ayıran şey renk değil BOŞLUK:
+        # kâğıtların çevresinde ince bir oyuk, ön kapağın üstünde düz bir
+        # yarık. (İlk denemede yarık kapağın yuvarlak köşelerini izliyordu ve
+        # silüetin yan kenarlarında kavisli çentikler bırakıyordu.)
+        white = (255, 255, 255)
+        put(white, back)
+        # Oyuk kâğıtların BİRLEŞİMİNİN çevresinde: tek tek çizilince iki
+        # kâğıdın kenarları birbirini kesip kalabalık görünüyordu.
+        both = np.minimum(paper_sdf(X, Y, 0), paper_sdf(X, Y, 1))
+        cut(down(both <= 14))
+        put(white, down(both <= 0))
+        slit = down((Y > FRONT_T - 22) & (Y <= FRONT_T)
+                    & (X > F_L + F_RAD) & (X < F_R - F_RAD))
+        cut(slit)
+        put(white, front)
+        return img
+
+    silhouette = np.clip(back + front, 0, 1)
     if background:
-        put(background_rgb(N), ring * doc)
-    else:
-        cut(ring * doc)
-    put(lerp_rows(SPARK_T, SPARK_B, (GY - (SPARK[1] - SPARK[2]))
-                  / (2 * SPARK[2])), spark)
+        shade(blur(np.roll(silhouette, int(N * 0.02), axis=0),
+                   max(1, int(N * 0.024))), 0.22)
+
+    put(lerp_rows(pal["back_t"], pal["back_b"], (GY - TAB_T) / (F_B - TAB_T)),
+        back)
+    for (l, t, r, b, deg, key), c in zip(PAPERS, papers):
+        # kâğıdın arkasına (klasörün içine) düşen yumuşak gölge
+        shade(blur(np.roll(c, int(s * 8), axis=0), max(1, int(s * 10)))
+              * (1 - c), 0.20)
+        put(pal[key], c)
+    for c in plines:
+        put(pal["line"], c * papers[1])
+    # ön kapağın kâğıtlara düşen gölgesi (kapak öne çıksın)
+    shade(blur(np.roll(front, -int(s * 10), axis=0), max(1, int(s * 14)))
+          * (1 - front), 0.22)
+    put(lerp_rows(pal["front_t"], pal["front_b"], (GY - FRONT_T)
+                  / (F_B - FRONT_T)), front)
+    put(pal["lip"], lip * 0.85)
     return img
 
 
@@ -302,13 +383,42 @@ def write_png(path, img):
         f.write(chunk(b"IEND", b""))
 
 
+def full_icon():
+    return draw(N * KART_ORAN, background=True, card_radius=KART_YARICAP)
+
+
 def main():
+    global VARYANT
+    args = sys.argv[1:]
+    if args and args[0] == "--onizleme":
+        out = args[1] if len(args) > 1 else "onizleme.png"
+        tiles = []
+        for v in PALETLER:
+            VARYANT = v
+            tiles.append(full_icon())
+        gap = 48
+        sheet = np.zeros((N + 2 * gap, len(tiles) * (N + gap) + gap, 4))
+        sheet[:, :, :3] = 200
+        sheet[:, :, 3] = 1
+        for i, t in enumerate(tiles):
+            x = gap + i * (N + gap)
+            a = t[:, :, 3:4]
+            region = sheet[gap:gap + N, x:x + N, :3]
+            sheet[gap:gap + N, x:x + N, :3] = region * (1 - a) + t[:, :, :3] * a
+        write_png(out, sheet)
+        print(f"önizleme: {out}  ({', '.join(PALETLER)})")
+        return
+    if args:
+        if args[0] not in PALETLER:
+            raise SystemExit(f"bilinmeyen varyant: {args[0]} "
+                             f"(seçenekler: {', '.join(PALETLER)})")
+        VARYANT = args[0]
+
     os.makedirs("assets/icon", exist_ok=True)
     long_dp, w, h, _ = max_fit()
     mark = N * (long_dp / TUVAL_DP)
 
-    write_png("assets/icon/icon.png",
-              draw(N * KART_ORAN, background=True, card_radius=KART_YARICAP))
+    write_png("assets/icon/icon.png", full_icon())
     bg = np.zeros((N, N, 4))
     bg[:, :, :3] = background_rgb(N)
     bg[:, :, 3] = 1.0
@@ -317,8 +427,9 @@ def main():
     write_png("assets/icon/monochrome.png",
               draw(mark, background=False, mono=True))
 
-    print(f"yazıldı: assets/icon/{{icon,background,foreground,monochrome}}.png"
-          f"  (işaret {w:.1f} × {h:.1f} dp / {TUVAL_DP:.0f} dp tuval)")
+    print(f"yazıldı ({VARYANT}): assets/icon/{{icon,background,foreground,"
+          f"monochrome}}.png  (işaret {w:.1f} × {h:.1f} dp / "
+          f"{TUVAL_DP:.0f} dp tuval)")
 
 
 if __name__ == "__main__":

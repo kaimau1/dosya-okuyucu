@@ -78,7 +78,7 @@ void main() {
       'account', 'privacy_policy', 'pin', 'locked_folders', 'full_access',
       'usage_access', 'use_trash', 'confirm_delete', 'trash_auto',
       'empty_trash', 'high_refresh', 'auto_rescan', 'search_index',
-      'thumb_cache', 'volumes', 'about', 'crash_log',
+      'app_footprint', 'volumes', 'about', 'crash_log',
     ]) {
       expect(ids, contains(id), reason: '$id kategorilerden düşmüş');
     }

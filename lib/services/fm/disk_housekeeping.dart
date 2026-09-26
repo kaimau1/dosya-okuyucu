@@ -67,13 +67,29 @@ abstract final class DiskCache {
 /// Android önbelleği ancak depolama DARALINCA boşaltır; o zamana kadar
 /// uygulamanın "önbellek" boyutu yüzlerce MB'a çıkabiliyordu.
 ///
-/// **Yalnız BİZİM ürettiğimizi tanıdığımız** girdiler silinir (ad kalıbıyla):
-/// geçici klasörde eklentilerin dosyaları da var (paylaşılan dosyanın kopyası,
-/// seçicinin önbelleği) ve "son açılanlar" onlara işaret edebilir. Üç günden
-/// yeni hiçbir şeye dokunulmaz — açık bir düzenleme ya da süren bir tarama
-/// o kadar eski olamaz.
+/// **BİZİM ürettiğimizi tanıdığımız** girdiler (ad kalıbıyla) üç günde
+/// silinir. Üç günden yeni hiçbir şeye dokunulmaz — açık bir düzenleme ya da
+/// süren bir tarama o kadar eski olamaz.
+///
+/// **Eklentilerin kopyaları** (2026-09-26, kullanıcı: *"uygulama 550 MB
+/// okuyor"*) — `receive_sharing_intent` "Birlikte aç"/paylaş ile gelen her
+/// dosyanın TAMAMINI önbellek köküne, `file_picker` seçilen her dosyayı
+/// `file_picker/<zaman>/` altına kopyalıyor; ikisi de hiç silmiyor. Eskiden
+/// "son açılanlar onlara işaret edebilir" diye hiç dokunulmuyordu ve
+/// WhatsApp'tan açılan her video önbellekte sonsuza dek duruyordu. Artık
+/// [pluginMaxAge] (7 gün) sonra siliniyorlar: özgünü gönderen uygulamada
+/// duruyor, "son açılanlar" olmayan dosyayı zaten listelemiyor, kalıcı
+/// istenen dosya için görüntüleyicide "İndir" var. Yalnız Android'de ve
+/// yalnız ÖNBELLEK kökünde (`pluginCopies: true`) yapılır — başka geçici
+/// köklerdeki (masaüstünde `/tmp`!) yabancı dosyalara dokunulmaz.
 abstract final class TempSweep {
   static const maxAge = Duration(days: 3);
+
+  /// Paylaşım/seçici kopyalarının ömrü.
+  static const pluginMaxAge = Duration(days: 7);
+
+  /// `file_picker` eklentisinin önbellek klasörü.
+  static const pickerDir = 'file_picker';
 
   /// Tamamen bize ait klasörlerin ad önekleri (`createTemp` ile açılanlar).
   static const ownDirPrefixes = [
@@ -101,13 +117,17 @@ abstract final class TempSweep {
 
   /// [root] altındaki eski geçici girdileri siler; silinen sayıyı döner.
   /// [keep] içindeki yollara (ve onları içeren klasörlere) dokunulmaz.
-  static int sweepSync(String root, int nowMs, {Set<String> keep = const {}}) {
+  /// [pluginCopies] true ise (yalnız önbellek kökü için) eklentilerin
+  /// kopyaları da [pluginMaxAge]'den eskiyse silinir.
+  static int sweepSync(String root, int nowMs,
+      {Set<String> keep = const {}, bool pluginCopies = false}) {
     final cutoff = nowMs - maxAge.inMilliseconds;
+    final pluginCutoff = nowMs - pluginMaxAge.inMilliseconds;
     var removed = 0;
     // Klasörün yaşı İÇİNDEKİ en yeni dosyadır: süren bir düzenleme oturumu
     // (geri alma noktası yazıldıkça) klasörü genç tutar. Boş klasörde
     // klasörün kendi zamanı.
-    bool old(FileSystemEntity e) {
+    bool olderThan(FileSystemEntity e, int limitMs) {
       try {
         if (e is Directory) {
           var newest = -1;
@@ -116,13 +136,15 @@ abstract final class TempSweep {
             final t = child.statSync().modified.millisecondsSinceEpoch;
             if (t > newest) newest = t;
           }
-          if (newest >= 0) return newest < cutoff;
+          if (newest >= 0) return newest < limitMs;
         }
-        return e.statSync().modified.millisecondsSinceEpoch < cutoff;
+        return e.statSync().modified.millisecondsSinceEpoch < limitMs;
       } catch (_) {
         return false;
       }
     }
+
+    bool old(FileSystemEntity e) => olderThan(e, cutoff);
 
     bool kept(String path) =>
         keep.any((k) => k == path || p.isWithin(path, k));
@@ -151,7 +173,25 @@ abstract final class TempSweep {
         }
         continue;
       }
-      if (!isOwn(name, isDirectory: isDir)) continue;
+      if (pluginCopies && isDir && name == pickerDir) {
+        for (final child in list(entity)) {
+          if (!kept(child.path) && olderThan(child, pluginCutoff)) {
+            delete(child);
+          }
+        }
+        continue;
+      }
+      if (!isOwn(name, isDirectory: isDir)) {
+        // Kökteki yabancı DOSYA = paylaşımla gelen kopya. Yabancı KLASÖRLER
+        // (WebView, başka eklentilerin önbellekleri) onların işi.
+        if (pluginCopies &&
+            !isDir &&
+            !kept(entity.path) &&
+            olderThan(entity, pluginCutoff)) {
+          delete(entity);
+        }
+        continue;
+      }
       if (kept(entity.path) || !old(entity)) continue;
       delete(entity);
     }
@@ -175,13 +215,19 @@ abstract final class TempSweep {
       await Future<void>.delayed(sweepDelay);
       final keep = PdfEditJournal.backups();
       final roots = <String>{Directory.systemTemp.path};
+      String? cacheRoot;
       try {
-        roots.add((await getTemporaryDirectory()).path);
+        cacheRoot = (await getTemporaryDirectory()).path;
+        roots.add(cacheRoot);
       } catch (_) {}
       final now = DateTime.now().millisecondsSinceEpoch;
+      final isAndroid = Platform.isAndroid;
       await Isolate.run(() {
         for (final root in roots) {
-          sweepSync(root, now, keep: keep);
+          // Eklenti kopyaları YALNIZ Android'in uygulamaya ait önbelleğinde:
+          // masaüstünde bu kök `/tmp` / `%TEMP%` — başka programların dosyası.
+          sweepSync(root, now,
+              keep: keep, pluginCopies: isAndroid && root == cacheRoot);
         }
       });
     } catch (_) {

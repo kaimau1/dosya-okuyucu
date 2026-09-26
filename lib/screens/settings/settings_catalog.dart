@@ -473,6 +473,16 @@ List<SettingsCategory> settingsCategories() => [
           return '$trash · $refresh';
         },
         sections: const [
+          // İlk sırada: "uygulama neden bu kadar yer tutuyor" sorusunun
+          // cevabı Gelişmiş'in içinde saklanmamalı (2026-09-26).
+          SettingsSection('foot.section', [
+            SettingRow(
+                id: 'app_footprint',
+                titleKey: 'foot.title',
+                subtitleKey: 'foot.tile_sub',
+                altKeys: ['fmset.clear_thumbs', 'foot.kw_cache'],
+                builder: _appFootprintTile),
+          ]),
           SettingsSection('fmset.sec_delete', [
             SettingRow(
                 id: 'use_trash',
@@ -510,11 +520,6 @@ List<SettingsCategory> settingsCategories() => [
                 id: 'search_index',
                 titleKey: 'fmset.index',
                 builder: _searchIndexTile),
-            SettingRow(
-                id: 'thumb_cache',
-                titleKey: 'fmset.clear_thumbs',
-                subtitleKey: 'fmset.clear_thumbs_sub',
-                builder: _thumbCacheTile),
             SettingRow(
                 id: 'volumes',
                 titleKey: 'fmset.volumes',
@@ -615,7 +620,7 @@ Widget _emptyTrashTile(BuildContext _) => const EmptyTrashTile();
 Widget _highRefreshTile(BuildContext _) => const HighRefreshTile();
 Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
-Widget _thumbCacheTile(BuildContext _) => const ThumbCacheTile();
+Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
 Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _settingsRestoreTile(BuildContext _) => const SettingsRestoreTile();

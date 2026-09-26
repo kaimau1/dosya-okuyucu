@@ -3,10 +3,10 @@ import 'dart:typed_data';
 
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 
 import 'conversion_service.dart';
+import 'docs_home.dart';
 import 'fm/file_ops.dart';
 import 'fm/fs_events.dart';
 import 'ocr_service.dart';
@@ -125,13 +125,8 @@ class DocumentScanner {
 
   /// Yeni belgelerle aynı yer (bkz. `BlankDocs`): kullanıcı taramasını "Son
   /// belgeler"de ve dosya yöneticisinde aynı klasörde bulsun.
-  static Future<Directory> defaultDir() async {
-    try {
-      return await getApplicationDocumentsDirectory();
-    } catch (_) {
-      return await getApplicationSupportDirectory();
-    }
-  }
+  /// Ana bellekte `Documents/Dosya Okuyucu` (bkz. [DocsHome]).
+  static Future<Directory> defaultDir() => DocsHome.resolve();
 
   static String _stamp() {
     final d = DateTime.now();

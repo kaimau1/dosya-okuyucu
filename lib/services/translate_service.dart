@@ -35,8 +35,29 @@ class TranslateService {
       _models.isModelDownloaded(lang.bcpCode);
 
   /// Dil modelini indirir (Wi-Fi şartı yok). Zaten varsa hızlıca döner.
+  ///
+  /// `isWifiRequired: false` AÇIKÇA verilmeli (2026-09-26): eklentinin
+  /// varsayılanı `true` — yorum "Wi-Fi şartı yok" derken ML Kit mobil veride
+  /// indirmeyi Wi-Fi gelene dek BEKLETİYORDU ve ilerleme penceresi hiç
+  /// kapanmıyordu.
   static Future<void> downloadModel(TranslateLanguage lang) =>
-      _models.downloadModel(lang.bcpCode);
+      _models.downloadModel(lang.bcpCode, isWifiRequired: false);
+
+  /// İndirilmiş dil modellerini siler; silinen sayıyı döner. İngilizce
+  /// atlanır: ML Kit'te çevirinin ara dili, silinmesi bir sonraki çeviride
+  /// yeniden indirme demek. Model bir sonraki çeviride kendiliğinden yeniden
+  /// iner — silmek bir özelliği kapatmaz, yalnız yer açar.
+  static Future<int> deleteDownloadedModels() async {
+    var deleted = 0;
+    for (final lang in languages.keys) {
+      if (lang == TranslateLanguage.english) continue;
+      try {
+        if (!await _models.isModelDownloaded(lang.bcpCode)) continue;
+        if (await _models.deleteModel(lang.bcpCode)) deleted++;
+      } catch (_) {}
+    }
+    return deleted;
+  }
 
   /// [text]'i satır yapısını (paragraf/boş satır) koruyarak çevirir.
   /// [onProgress] her satır öncesi (işlenen, toplam) ile çağrılır.

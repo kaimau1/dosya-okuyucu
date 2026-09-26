@@ -2,7 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import 'docs_home.dart';
 
 /// Düzenlenmiş PDF'i nereye yazacağımız.
 enum PdfSaveMode {
@@ -68,13 +69,7 @@ class PdfSave {
     return candidate;
   }
 
-  static Future<Directory> _documentsDir() async {
-    try {
-      return await getApplicationDocumentsDirectory();
-    } catch (_) {
-      return await getApplicationSupportDirectory();
-    }
-  }
+  static Future<Directory> _documentsDir() => DocsHome.resolve();
 
   /// Uint8List kısayolu (çağıranlar çoğunlukla bunu tutuyor).
   static Future<String> writeBytes(

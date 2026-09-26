@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:excel/excel.dart' as xls;
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-/// SÄ±fÄ±rdan boÅŸ Office/metin belgeleri Ã¼retir (gerÃ§ek bir Office programÄ± gibi
-/// "Yeni" oluÅŸturabilmek iÃ§in). Ãœretilen dosyalar geÃ§erli OOXML olduÄŸundan hem
-/// bizim editÃ¶rlerimizde hem Word/Excel'de aÃ§Ä±lÄ±r.
+import 'docs_home.dart';
+
+/// Sıfırdan boş Office/metin belgeleri üretir (gerçek bir Office programı gibi
+/// "Yeni" oluşturabilmek için). Üretilen dosyalar geçerli OOXML olduğundan hem
+/// bizim editörlerimizde hem Word/Excel'de açılır.
 class BlankDocs {
-  /// Yeni boÅŸ belgeyi belgeler dizinine yazÄ±p yolunu dÃ¶ndÃ¼rÃ¼r.
+  /// Yeni boş belgeyi belgeler dizinine yazıp yolunu döndürür.
   /// [kind] = 'docx' | 'xlsx' | 'txt'
   static Future<String> create(String kind) async {
     final dir = await _targetDir();
@@ -28,21 +29,16 @@ class BlankDocs {
         name = 'Yeni Metin $ts.txt';
         bytes = const <int>[];
       default:
-        throw ArgumentError('bilinmeyen tÃ¼r: $kind');
+        throw ArgumentError('bilinmeyen tür: $kind');
     }
     final path = p.join(dir.path, name);
     await File(path).writeAsBytes(bytes);
     return path;
   }
 
-  static Future<Directory> _targetDir() async {
-    // Belgeler dizini; olmazsa uygulama destek dizinine dÃ¼ÅŸ.
-    try {
-      return await getApplicationDocumentsDirectory();
-    } catch (_) {
-      return await getApplicationSupportDirectory();
-    }
-  }
+  /// Ana bellekte `Documents/Dosya Okuyucu` (bkz. [DocsHome]); yazılamazsa
+  /// uygulamanın kendi belgeler klasörü.
+  static Future<Directory> _targetDir() => DocsHome.resolve();
 
   static String _stamp() {
     final d = DateTime.now();
@@ -50,13 +46,13 @@ class BlankDocs {
     return '${d.year}${two(d.month)}${two(d.day)}-${two(d.hour)}${two(d.minute)}${two(d.second)}';
   }
 
-  /// BoÅŸ ama geÃ§erli .xlsx (excel paketi Ã¼retir; tek sayfa).
+  /// Boş ama geçerli .xlsx (excel paketi üretir; tek sayfa).
   static List<int> blankXlsx() {
     final excel = xls.Excel.createExcel();
     return excel.encode() ?? const <int>[];
   }
 
-  /// BoÅŸ ama geÃ§erli .docx (tek boÅŸ paragraf). Minimal OOXML paket.
+  /// Boş ama geçerli .docx (tek boş paragraf). Minimal OOXML paket.
   ///
   /// **SAYFA ÖLÇÜSÜ ZORUNLU (2026-08-17 hatası).** Paket eskiden `<w:sectPr/>`
   /// yazıyordu: bölümün sayfa boyu (`w:pgSz`) ve kenar boşluğu (`w:pgMar`) yok

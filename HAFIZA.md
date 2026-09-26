@@ -11672,3 +11672,114 @@ koşulu döngü şartına koy, tur sayısına değil.
 **Bulma yolu:** CI log indirme adresi (blob.core.windows.net) bu oturumun
 proxy'sinde 403; `get_job_logs` büyük `tail_lines` ile dosyaya düşüyor, orada
 `❌` aranır.
+
+## 2026-09-26 — Klasik simge, "550 MB" kök nedeni, harici bellek durumu
+Kullanıcı (dört madde): *"uygulama simgemiz olmamış, daha klasik bir şey
+istiyorum; uygulamamız yüklenince 550 MB okuyor, neden; harici bellek okuma
+yazma ne durumda; uygulama için düşüncelerin."*
+
+### A) Simge — SARI KLASÖR (klasik), belge+AI parıltısı bırakıldı
+- `tool/gen_icon.py` yeniden yazıldı: arka kapak (sekmeli, koyu kehribar) +
+  iki kâğıt (biri kremsi, ön kâğıtta bir satır) + ön kapak (açık sarı →
+  kehribar, üst kenarda ince açık şerit). Zemin beyaz → çok açık gri; renkli
+  degrade zemin YOK. 2026-08-30 klasörünün süsleri (dişli/bulut/onay/ok)
+  bilerek yok — 48 px'te karışıyordu.
+- **`VARYANT`** sabiti: `klasor` (seçili) · `klasor_mavi` · `belge` (mavi
+  zemin + kıvrık köşeli sayfa). `python3 tool/gen_icon.py <varyant>` ile
+  değiştirilir; `--onizleme <png>` üçünü yan yana çizer. Kullanıcı başkasını
+  seçerse tek komut.
+- Temalı (monochrome) katmanda parçaları ayıran şey BOŞLUK: kâğıtların
+  BİRLEŞİMİNİN çevresinde oyuk + ön kapağın üstünde DÜZ yarık.
+  **TUZAK:** yarık kapağın yuvarlak köşelerini izleyince silüetin yan
+  kenarlarında kavisli çentik bırakıyordu; kâğıtlar tek tek oyulunca
+  kenarları birbirini kesip kalabalıklaşıyordu.
+- **TUZAK:** sekmenin alt ucu gövdenin köşe yuvarlaması hizasında bitince sol
+  kenarda çentik kalıyordu → sekme gövdenin DÜZ kenarına kadar uzatıldı.
+- İşaret 55,3 × 46,7 dp / 108 dp (MASKE_PAYI 0,86). Squircle'da pay var;
+  dairede klasörün yuvarlak köşeleri sınıra değiyor (bilinen ödün, eskisi de
+  böyleydi).
+
+### B) "550 MB" — ÖLÇÜLDÜ: APK 93,5 MB, geri kalanı VERİ + ÖNBELLEK
+v1.0.362 arm64 APK'sı indirilip açıldı. `extractNativeLibs=false` (kütüphaneler
+sıkıştırmasız, kurulumda ÇIKARILMIYOR) — yani kurulu "uygulama" boyutu ≈ APK +
+ART derlemesi (~110-130 MB). APK'nın içi:
+| Parça | MB |
+|---|---|
+| libapp.so (Dart kodumuz) | 21,6 |
+| libtranslate_jni.so (ML Kit çeviri) | 16,4 |
+| ffmpeg (avcodec/avfilter/avformat/…; yalnız video yeniden boyutlandırma) | 15,5 |
+| libmlkit_google_ocr_pipeline.so + OCR modelleri (gömülü OCR) | 12,4 |
+| libflutter.so | 11,1 |
+| pdfium (.so 5,0 + **pdfium.wasm 2,0 — Android'de İŞE YARAMAZ**, web için) | 7,0 |
+| fontlar (18 dosya) | 4,2 |
+| dex | 3,5 |
+550 MB'ın ~420 MB'ı bu yüzden veri/önbellek. Kodda SINIRSIZ büyüyen üç yol:
+1. **`receive_sharing_intent`** "Birlikte aç"/paylaş ile gelen her dosyanın
+   TAMAMINI `cache/` köküne kopyalıyor (eklenti kaynağı:
+   `FileDirectory.getDataColumn` → `File(context.cacheDir, fileName)`), hiç
+   silmiyor. `TempSweep` "son açılanlar işaret edebilir" diye bilerek
+   dokunmuyordu.
+2. **`file_picker`** seçilen her dosyayı `cache/file_picker/<zaman>/` altına
+   kopyalıyor; `clearTemporaryFiles` hiç çağrılmıyordu.
+3. **Drive önbelleği** 400 MB'a kadar `files/drive` altında — Android'in
+   "önbelleği temizle"si ona dokunmaz.
+Ayrıca **taramalar / "Yeni belge" / yazılamayan yerdeki PDF kopyası**
+`getApplicationDocumentsDirectory` = `app_flutter/` (GİZLİ) klasörüne
+gidiyordu: kullanıcının dosyası "uygulama verisi" sayılıyor, uygulama
+kaldırılınca siliniyor, bilgisayarda/başka uygulamada görünmüyordu.
+
+**Yapılanlar:**
+- `TempSweep.pluginMaxAge` = 7 gün: önbellek KÖKÜNDEKİ yabancı dosyalar ve
+  `file_picker/` alt klasörleri açılışta süpürülüyor (`pluginCopies: true`
+  YALNIZ Android'in önbellek kökü için). Yabancı KLASÖRLERE (WebView vb.)
+  dokunulmuyor. "Son açılanlar" olmayan dosyayı zaten süzüyor.
+- Yeni `services/fm/app_footprint.dart` + **Ayarlar > Depolama ve başarım >
+  "Uygulamanın kapladığı alan"** (ilk bölüm, Gelişmiş'te DEĞİL): uygulamanın
+  kendi klasörleri kova kova ölçülüyor (paylaşım kopyaları, seçici
+  kopyaları, küçük resimler, geçici, Drive, dil modelleri, uygulama içi
+  belgeler, ayarlar/dizinler); "Önbelleği temizle" ilk beşini boşaltıyor,
+  "Dil modellerini sil" ML Kit API'siyle (`deleteModel`, klasörü altından
+  silmek ML Kit kaydını bozardı). Belgelere hiçbir düğme dokunmaz; "Uygulama
+  içindeki belgeler" satırı gezgini o klasörde açar (taşımak için). Eski
+  "küçük resim önbelleğini temizle" satırı bunun içine katıldı
+  (`thumb_cache` → `app_footprint`).
+- Yeni `services/docs_home.dart`: yeni taramalar/belgeler artık
+  **`Documents/Dosya Okuyucu/`** (yazma ÖLÇÜLEREK; olmazsa eski gizli
+  klasör). `BlankDocs`, `DocumentScanner.defaultDir`, `PdfSave` bunu kullanıyor.
+  ESKİ dosyalar kendiliğinden TAŞINMADI (son açılanlar/okuma yerleri eski
+  yola bağlı) — kullanıcı kırılım ekranından açıp taşıyabilir.
+- **HATA (yan bulgu):** `TranslateService.downloadModel` yorumu "Wi-Fi şartı
+  yok" diyordu ama eklentinin varsayılanı `isWifiRequired: true` → mobil
+  veride model indirmesi Wi-Fi gelene dek asılı kalıyordu. Açıkça `false`.
+- `blank_docs.dart`taki bozuk kodlanmış Türkçe (`SÄ±fÄ±rdan`) düzeltildi.
+
+**TUZAKLAR:**
+- **Masaüstünde `getTemporaryDirectory()` = `/tmp` / `%TEMP%`.** İlk yazımda
+  hem kırılım ekranının temizliği hem 7 günlük süpürme orada başka
+  programların dosyalarını silecekti. `FootprintRoots.resolve()` Android
+  dışında null; `pluginCopies` yalnız `Platform.isAndroid`.
+- Önbellek kökündeki klasörlerin KENDİSİ silinmez, yalnız içi:
+  `ThumbnailCache._dir` yolu oturum boyunca bellekte tutuyor, klasör giderse
+  yeniden başlatılana dek küçük resim yazılamazdı.
+- Widget testinde `AppStorageService.sizesOf` (platform kanalı) sahte saatte
+  HİÇ dönmüyor → ekran sonsuza dek "yükleniyor". Çağrı yalnız Android'de.
+
+### C) Harici bellek — bugünkü durum (değişiklik yok, değerlendirme)
+- Ana bellek: MANAGE_EXTERNAL_STORAGE ile tam okuma/yazma.
+- Android'in bağladığı SD/USB (`/storage/<UUID>`): dört kanaldan bulunuyor,
+  okuma var; Android 11+ "tüm dosyalar" izniyle yol üzerinden yazma çoğu
+  cihazda çalışıyor, çalışmayanda SAF klasör izni (`SafFs`: yükle/sil/klasör/
+  yeniden adlandır) var.
+- Android'in bağlamadığı USB: kendi ham sürücümüz — FAT12/16/32 + exFAT
+  okuma+YAZMA, NTFS yalnız okuma (bilerek; günlüksüz yazma diski kaybettirir).
+- Açık: `Android/data|obb` (Android 11+ kapalı, çözüm yok); Android ≤10'da
+  yazılan medya için MediaStore taraması yok (11+'da FUSE kendisi yapıyor);
+  KALANLAR'daki "SD karta yazma (SAF)" maddesi kısmen `SafFs` ile karşılanmış.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun; **2419 test yeşil** (+8 yeni:
+`app_footprint_test`, `app_footprint_screen_test`).
+`graphify` bu oturumda kurulu değil, grafik güncellenmedi. Simge PNG'leri
+`python3 tool/gen_icon.py` ile üretildi, squircle/daire/temalı/48 px
+önizlemeleri gözle denetlendi. Cihazda bakılacak: Ayarlar > Depolama >
+"Uygulamanın kapladığı alan" gerçek kırılımı (550 MB'ın nereden geldiğini bu
+ekran söyleyecek); yeni tarama `Belgeler/Dosya Okuyucu`ya düşüyor mu.
