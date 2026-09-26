@@ -11874,3 +11874,8 @@ derlenemiyor — özellik dalında işaretli commit ile CI APK derlemesi +
 "APK içeriği denetimi" adımıyla doğrulandı (sonuç aşağıda / commit geçmişinde).
 Cihazda bakılacak: ilk taramada OCR modeli iniyor mu (Play Hizmetleri),
 geri tuşu her ekranda eskisi gibi mi (targetSdk 36), panoda 8 araç + "Tümü".
+**CI sonucu:** özellik dalı #365 (işaretli commit) yeşil — "APK içeriği
+denetimi" geçti (wasm yok, gömülü OCR yok, targetSdk 36), Release adımları
+ATLANDI (main koşulu çalışıyor). Kullanıcı *"main'e merge et, APK
+derlensin"* → main hızlı ileri, #366 yeşil, **v1.0.366** yayımlandı.
+**Boyut:** arm64 APK 93,5 → **77,5 MB** (−16 MB), 32-bit 96,8 → 85,1 MB.
