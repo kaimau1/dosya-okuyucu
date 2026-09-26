@@ -457,11 +457,38 @@ class AppTheme {
         color: scheme.outlineVariant,
       ),
 
+      // **Çipler tonlu hap** (2026-09-26, kullanıcı: *"üstteki filtreler tüm
+      // alanlarda pek güzel değil"*). Eskiden gri çerçeveli, köşeli kutu —
+      // yan yana dizilince form alanı gibi duruyordu. Artık çerçevesiz, tam
+      // yuvarlak, soluk yüzey tonunda; seçili olan vurgu tonunda ve kalın.
+      // Galeri/kategori şeridindeki `FmChip` ile aynı biçim dili (o, gezinme
+      // şeridi olduğu için seçiliyi DOLU birincil renkle daha güçlü gösterir).
+      // Renk ve simge rolleri Material'ın seçili/seçilmemiş varsayılanlarında
+      // kaldı: avatarlı çiplerde simge zıtlığı bozulmasın.
       chipTheme: ChipThemeData(
-        side: BorderSide(color: scheme.outlineVariant),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(metrics.radiusControl),
+        side: BorderSide.none,
+        shape: const StadiumBorder(),
+        color: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return scheme.surfaceContainerHigh;
+          }
+          if (states.contains(WidgetState.selected)) {
+            return scheme.secondaryContainer;
+          }
+          return scheme.surfaceContainerHighest;
+        }),
+        labelStyle: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: WidgetStateColor.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return scheme.onSurface.withValues(alpha: 0.38);
+            }
+            return states.contains(WidgetState.selected)
+                ? scheme.onSecondaryContainer
+                : scheme.onSurface;
+          }),
         ),
+        checkmarkColor: scheme.onSecondaryContainer,
       ),
 
       switchTheme: SwitchThemeData(

@@ -10,10 +10,39 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
+import '../../models/photo_group.dart';
 import '../../services/fm/image_rotate.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/fm_file_image.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
+
+/// Izgara hücresi ile galeri sayfasının ortak kahraman (Hero) etiketi:
+/// fotoğraf hücreden büyüyerek açılır, kapanınca hücresine döner.
+String fmMediaHeroTag(String path) => 'fm-media:$path';
+
+/// Galerinin rotası (2026-09-26 galeri turu).
+///
+/// **Saydam** (`opaque: false`) ve SOLARAK gelir: fotoğraf hücreden büyürken
+/// (Hero) arkadaki siyah yumuşakça belirir; aşağı kaydırıp kapatırken siyah
+/// incelir ve altta ızgara görünür — Google Foto'daki his. Eskiden standart
+/// sayfa geçişiyle sağdan kayıyordu: fotoğraf ile açılan sayfa arasında
+/// görsel bir bağ yoktu.
+Route<void> imageGalleryRoute({
+  required List<String> paths,
+  required int initialIndex,
+}) =>
+    PageRouteBuilder<void>(
+      opaque: false,
+      transitionDuration: const Duration(milliseconds: 260),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (_, __, ___) =>
+          ImageGalleryScreen(paths: paths, initialIndex: initialIndex),
+      transitionsBuilder: (_, animation, __, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+        child: child,
+      ),
+    );
 
 /// Galeri: aynı klasördeki görselleri **sağa/sola kaydırarak** gezme.
 ///
@@ -37,7 +66,8 @@ class ImageGalleryScreen extends StatefulWidget {
   State<ImageGalleryScreen> createState() => _ImageGalleryScreenState();
 }
 
-class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
+class _ImageGalleryScreenState extends State<ImageGalleryScreen>
+    with SingleTickerProviderStateMixin {
   late final PageController _pages =
       PageController(initialPage: widget.initialIndex);
   late final List<String> _paths = [...widget.paths];
@@ -47,11 +77,86 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   /// Yakınlaştırılmış sayfa varken sayfa geçişi kilitlenir.
   bool _zoomed = false;
 
+  // ── Aşağı kaydırıp kapatma (2026-09-26) ───────────────────────────────────
+  /// Sayfanın dikey kayması (aşağı artı). Sürükleme bitince ya kapanır ya da
+  /// [_snap] ile 0'a yaylanır.
+  double _dragDy = 0;
+  bool _dragging = false;
+  double _snapFrom = 0;
+  late final AnimationController _snap;
+
+  @override
+  void initState() {
+    super.initState();
+    _snap = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addListener(() {
+        final t = Curves.easeOutCubic.transform(_snap.value);
+        setState(() => _dragDy = _snapFrom * (1 - t));
+      });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _precacheAround(_index);
+    });
+  }
+
   @override
   void dispose() {
+    _snap.dispose();
     _pages.dispose();
     super.dispose();
   }
+
+  /// Komşu sayfaları önceden çözer: sağa/sola geçişte görsel HAZIR gelir
+  /// (Google Foto'daki anında geçiş). Anahtar sayfanın kendi çözme
+  /// genişliğiyle aynı (`ImageBudget.forViewport`, ölçek 1) — önbellekte
+  /// aynı kayıt kullanılır, ikinci kez çözülmez.
+  void _precacheAround(int i) {
+    final media = MediaQuery.maybeOf(context);
+    if (media == null) return;
+    final width = ImageBudget.forViewport(
+      logicalWidth: media.size.width,
+      devicePixelRatio: media.devicePixelRatio,
+      scale: 1,
+    );
+    for (final j in [i + 1, i - 1]) {
+      if (j < 0 || j >= _paths.length) continue;
+      precacheImage(
+        FmFileImage(_paths[j], cacheWidth: width),
+        context,
+        onError: (_, __) {},
+      );
+    }
+  }
+
+  void _onDragStart(DragStartDetails d) {
+    _snap.stop();
+    setState(() => _dragging = true);
+  }
+
+  void _onDragUpdate(DragUpdateDetails d) {
+    // Yukarı sürükleme dirençli (bilgi sayfası için kısa bir çekiş yeter;
+    // görsel yukarı uçup gitmesin).
+    final dy = d.primaryDelta ?? d.delta.dy;
+    setState(() => _dragDy += _dragDy + dy < 0 ? dy * 0.35 : dy);
+  }
+
+  void _onDragEnd(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    setState(() => _dragging = false);
+    if (_dragDy > 110 || (v > 900 && _dragDy > 0)) {
+      popOwnPage(context);
+      return;
+    }
+    final showInfo = _dragDy < -60 || (v < -900 && _dragDy < 0);
+    _snapFrom = _dragDy;
+    _snap.forward(from: 0);
+    if (showInfo) showProperties(context, _currentEntry);
+  }
+
+  /// Sürüklemenin ilerlemesi (0 → 1): arka plan inceltmesi ve küçülme.
+  double _dragProgress(double height) =>
+      height <= 0 ? 0 : (_dragDy / (height * 0.55)).clamp(0.0, 1.0);
 
   String get _current => _paths[_index];
 
@@ -143,6 +248,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     if (_paths.isEmpty) return const SizedBox.shrink();
     final entry = _currentEntry;
     final padding = MediaQuery.paddingOf(context);
+    final height = MediaQuery.sizeOf(context).height;
+    final progress = _dragProgress(height);
+    // Sürüklerken çubuklar hızla söner (fotoğrafla birlikte kaymasınlar).
+    final chromeOpacity = _chromeVisible && !_dragging && _dragDy.abs() < 1
+        ? 1.0
+        : 0.0;
 
     // 2026-09-23 tasarım turu (kullanıcı: *"görseller … çok basit görünüyor"*).
     // Eski ekran: düz %72 siyah üst şerit + ⋮ menüsü; paylaş/sil dışında her
@@ -157,41 +268,75 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     // `appBar: null` ile gövde ~80 px uzuyor, görsel yeniden ölçekleniyordu).
     Widget chrome({required Widget child}) => IgnorePointer(
           // Gizliyken dokunuşları yutmasın: görünmez çubuğa değil resme gitsin.
-          ignoring: !_chromeVisible,
+          ignoring: chromeOpacity == 0,
           child: AnimatedOpacity(
-            opacity: _chromeVisible ? 1 : 0,
+            opacity: chromeOpacity,
             duration: const Duration(milliseconds: 180),
             child: child,
           ),
         );
 
+    // Başlık ZAMAN (Google Foto): "Bugün · 18:44". "e8e4fcfccc…jpg" gibi
+    // karma dosya adları bir şey anlatmıyordu; ad alt satırda duruyor.
+    final title = entry.modifiedMs > 0
+        ? photoMomentTitle(entry.modifiedMs)
+        : entry.name;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: Colors.black,
+        // Rota saydam: siyah zemin burada, sürüklendikçe incelir ve arkadaki
+        // ızgara görünür.
+        backgroundColor: Colors.transparent,
         body: Stack(
           children: [
             Positioned.fill(
-              child: PageView.builder(
-                controller: _pages,
-                physics: _zoomed
-                    ? const NeverScrollableScrollPhysics()
-                    : const PageScrollPhysics(),
-                onPageChanged: (i) => setState(() {
-                  _index = i;
-                  _zoomed = false;
-                }),
-                itemCount: _paths.length,
-                itemBuilder: (context, i) => _ZoomableImage(
-                  path: _paths[i],
-                  onTap: () => setState(() => _chromeVisible = !_chromeVisible),
-                  onZoomChanged: (zoomed) {
-                    if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
-                  },
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 1 - progress),
+              ),
+            ),
+            Positioned.fill(
+              child: GestureDetector(
+                // Yakınlaştırılmışken dikey sürükleme resmi kaydırır; kapatma
+                // yalnız tam görünümde (yoksa yakınlaştırılmış fotoğrafta
+                // aşağı bakmak ekranı kapatırdı).
+                onVerticalDragStart: _zoomed ? null : _onDragStart,
+                onVerticalDragUpdate: _zoomed ? null : _onDragUpdate,
+                onVerticalDragEnd: _zoomed ? null : _onDragEnd,
+                child: Transform.translate(
+                  offset: Offset(0, _dragDy),
+                  child: Transform.scale(
+                    scale: 1 - progress * 0.22,
+                    child: PageView.builder(
+                      controller: _pages,
+                      physics: _zoomed || _dragging
+                          ? const NeverScrollableScrollPhysics()
+                          : const PageScrollPhysics(),
+                      onPageChanged: (i) {
+                        setState(() {
+                          _index = i;
+                          _zoomed = false;
+                        });
+                        _precacheAround(i);
+                      },
+                      itemCount: _paths.length,
+                      itemBuilder: (context, i) => _ZoomableImage(
+                        path: _paths[i],
+                        heroTag: fmMediaHeroTag(_paths[i]),
+                        onTap: () =>
+                            setState(() => _chromeVisible = !_chromeVisible),
+                        onZoomChanged: (zoomed) {
+                          if (zoomed != _zoomed) {
+                            setState(() => _zoomed = zoomed);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-            // ── Üst perde: geri, ad, konum/boyut, daha fazla ──────────────
+            // ── Üst perde: geri, zaman, sıra/boyut/ad, daha fazla ──────────
             Positioned(
               top: 0,
               left: 0,
@@ -218,13 +363,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                             children: [
                               // Stil [OverlayBar]'dan: `foregroundColor`
                               // başlığı beyaz YAPMIYOR (kök neden orada).
-                              Text(entry.name,
+                              Text(title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: OverlayBar.title(context)),
                               Text(
                                 '${_index + 1}/${_paths.length} · '
-                                '${FsPaths.humanSize(entry.sizeBytes)}',
+                                '${FsPaths.humanSize(entry.sizeBytes)} · '
+                                '${entry.name}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: OverlayBar.subtitle(context),
                               ),
                             ],
@@ -460,10 +608,16 @@ class _FilmStripState extends State<_FilmStrip> {
                 borderRadius: BorderRadius.circular(8),
                 child: Opacity(
                   opacity: active ? 1 : 0.6,
-                  child: Image.file(
-                    File(widget.paths[i]),
+                  child: Image(
+                    // Izgaranın çözdüğü küçük resim önbellekteyse o (disk
+                    // okuması yok); değilse kademeli küçük bir çözme.
+                    // `Image.file` DEĞİL: baytları Dart yığınına kopyalıyordu
+                    // (bkz. `FmFileImage`).
+                    image: fmCachedThumb(widget.paths[i]) ??
+                        FmFileImage(widget.paths[i],
+                            cacheWidth: fmThumbWidth(_item, dpr)),
                     fit: BoxFit.cover,
-                    cacheWidth: (_item * dpr).round(),
+                    gaplessPlayback: true,
                     errorBuilder: (_, __, ___) =>
                         const ColoredBox(color: Color(0xFF222222)),
                   ),
@@ -478,8 +632,16 @@ class _FilmStripState extends State<_FilmStrip> {
 }
 
 /// Tek görsel: çift dokunuşla ve iki parmakla yakınlaştırma.
+///
+/// **İlk kare anında** (2026-09-26): ızgaranın çözdüğü küçük resim
+/// önbellekteyse (`fmCachedThumb`) tam çözünürlük gelene kadar o çizilir —
+/// eskiden açılışta bir an siyah ekran görünüyordu. Aynı küçük resim görselin
+/// en-boy oranını da EŞZAMANLI verir: kahraman (Hero) kutusu görselin tam
+/// kendisi olur ve hücreden büyüme geçişi kırpılmış kareden tam fotoğrafa
+/// kesintisiz akar.
 class _ZoomableImage extends StatefulWidget {
   final String path;
+  final String? heroTag;
   final VoidCallback onTap;
   final void Function(bool zoomed) onZoomChanged;
 
@@ -487,6 +649,7 @@ class _ZoomableImage extends StatefulWidget {
     required this.path,
     required this.onTap,
     required this.onZoomChanged,
+    this.heroTag,
   });
 
   @override
@@ -502,6 +665,20 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   /// fotoğrafta 48 MB bitmap demekti.
   int _decodeWidth = ImageBudget.minWidth;
 
+  /// Izgaradan kalan küçük resim (önbellekte duruyorsa) — ilk kare.
+  late final FmFileImage? _thumb = fmCachedThumb(widget.path);
+
+  /// Görselin en-boy oranı; bilinene kadar null (kutu ekranı kaplar).
+  late double? _aspect = _initialAspect();
+
+  double? _initialAspect() {
+    final thumb = _thumb;
+    return thumb == null ? null : fmCachedAspect(thumb);
+  }
+
+  ImageStream? _aspectStream;
+  ImageStreamListener? _aspectListener;
+
   @override
   void initState() {
     super.initState();
@@ -510,6 +687,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
 
   @override
   void dispose() {
+    _stopAspect();
     _tx.removeListener(_onTransform);
     _tx.dispose();
     super.dispose();
@@ -542,6 +720,33 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _syncDecodeWidth(_tx.value.getMaxScaleOnAxis());
+    _watchAspect();
+  }
+
+  /// En-boy oranı küçük resimden gelmediyse tam görsel çözülünce öğrenilir
+  /// (kapanıştaki kahraman geçişi de görselin tam kutusundan başlasın diye).
+  void _watchAspect() {
+    if (_aspect != null || _aspectStream != null) return;
+    final stream = FmFileImage(widget.path, cacheWidth: _decodeWidth)
+        .resolve(createLocalImageConfiguration(context));
+    final listener = ImageStreamListener((info, _) {
+      final w = info.image.width;
+      final h = info.image.height;
+      info.dispose();
+      if (!mounted || w <= 0 || h <= 0) return;
+      setState(() => _aspect = w / h);
+      // Dinleyici kendi çağrısı içinde kaldırılmasın: bir sonraki karede.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _stopAspect());
+    }, onError: (_, __) {});
+    _aspectStream = stream;
+    _aspectListener = listener;
+    stream.addListener(listener);
+  }
+
+  void _stopAspect() {
+    final listener = _aspectListener;
+    if (listener != null) _aspectStream?.removeListener(listener);
+    _aspectListener = null;
   }
 
   void _handleDoubleTap() {
@@ -559,6 +764,32 @@ class _ZoomableImageState extends State<_ZoomableImage> {
 
   @override
   Widget build(BuildContext context) {
+    final aspect = _aspect;
+    // Oran biliniyorsa kutu görselin tam kendisidir → `cover` = `contain`
+    // (kırpma yok), kahraman geçişinde ise kare hücreden tam fotoğrafa
+    // kesintisiz açılır. Bilinmiyorsa kutu ekranı kaplar, görsel sığdırılır.
+    final fit = aspect == null ? BoxFit.contain : BoxFit.cover;
+    final thumb = _thumb;
+    Widget image = Image(
+      // `Image.file` DEĞİL: dosyayı Dart yığınına kopyalıyordu (bkz.
+      // `FmFileImage`, 2026-08-17 donma kök nedeni).
+      image: FmFileImage(widget.path, cacheWidth: _decodeWidth),
+      fit: fit,
+      // Yeni çözünürlük gelene kadar eskisi ekranda kalsın: yoksa her
+      // kademede görsel bir kare boyunca kayboluyordu.
+      gaplessPlayback: true,
+      frameBuilder: thumb == null
+          ? null
+          : (context, child, frame, sync) => frame == null && !sync
+              ? Image(image: thumb, fit: fit, gaplessPlayback: true)
+              : child,
+      errorBuilder: (_, __, ___) => Center(
+        child: Text(context.t('vw.image_failed'),
+            style: const TextStyle(color: Colors.white70)),
+      ),
+    );
+    final tag = widget.heroTag;
+    if (tag != null) image = Hero(tag: tag, child: image);
     return GestureDetector(
       onTap: widget.onTap,
       onDoubleTapDown: (d) => _doubleTapAt = d,
@@ -567,22 +798,17 @@ class _ZoomableImageState extends State<_ZoomableImage> {
         transformationController: _tx,
         minScale: 1,
         maxScale: 6,
-        child: Center(
-          child: Image.file(
-            File(widget.path),
-            fit: BoxFit.contain,
-            // Bellek/pil: ekranda görünecek kadar piksel çöz (bkz.
-            // ImageBudget). Kaynak bundan küçükse Flutter değeri kendiliğinden
-            // kaynağa kısar — küçük görsel büyütülüp şişmez.
-            cacheWidth: _decodeWidth,
-            // Yeni çözünürlük gelene kadar eskisi ekranda kalsın: yoksa her
-            // kademede görsel bir kare boyunca kayboluyordu.
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => Center(
-              child: Text(context.t('vw.image_failed'),
-                  style: const TextStyle(color: Colors.white70)),
-            ),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final box = constraints.biggest;
+            final ratio = aspect ??
+                (box.height > 0 && box.width.isFinite
+                    ? box.width / box.height
+                    : 1.0);
+            return Center(
+              child: AspectRatio(aspectRatio: ratio, child: image),
+            );
+          },
         ),
       ),
     );

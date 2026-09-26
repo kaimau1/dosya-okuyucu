@@ -83,3 +83,53 @@ class FmFileImage extends ImageProvider<FmFileImage> {
   @override
   String toString() => 'FmFileImage("$path", cacheWidth: $cacheWidth)';
 }
+
+/// Küçük resim çözme genişlikleri (piksel), kademeli (2026-09-26).
+///
+/// Eskiden her hücre `hücre × 3` genişlikte çözülüyordu: 3 sütunda 392, 4
+/// sütunda 294 … her ölçü önbellekte AYRI kayıt. Kademeye yuvarlamanın iki
+/// kazancı var: (1) aynı fotoğraf liste satırında ve ızgarada aynı kaydı
+/// paylaşır, (2) görüntüleyici ızgaranın çözdüğü küçük resmi önbellekte
+/// **bulabilir** ([fmCachedThumb]) ve ilk kareyi anında onunla çizer.
+const fmThumbBuckets = <int>[96, 128, 192, 256, 320, 384, 448, 512, 640, 768];
+
+/// [logicalSize] dp'lik bir kutu için çözme genişliği ([devicePixelRatio]
+/// yoğunluğunda), bir üst kademeye yuvarlanmış.
+int fmThumbWidth(double logicalSize, double devicePixelRatio) {
+  final ratio = devicePixelRatio.isFinite && devicePixelRatio > 0
+      ? devicePixelRatio
+      : 3.0;
+  final want = (logicalSize * ratio).ceil();
+  for (final b in fmThumbBuckets) {
+    if (b >= want) return b;
+  }
+  return fmThumbBuckets.last;
+}
+
+/// [path]'in önbellekte (çözülmüş ya da çözülmekte) duran EN BÜYÜK küçük
+/// resmi; yoksa null. Yeni çözme BAŞLATMAZ — yalnız bakar.
+FmFileImage? fmCachedThumb(String path) {
+  final cache = PaintingBinding.instance.imageCache;
+  for (final b in fmThumbBuckets.reversed) {
+    final provider = FmFileImage(path, cacheWidth: b);
+    if (cache.statusForKey(provider).tracked) return provider;
+  }
+  return null;
+}
+
+/// Önbellekte TAMAMLANMIŞ görselin en-boy oranı (genişlik / yükseklik);
+/// henüz çözülmüyorsa ya da çözülüyorsa null. Eşzamanlıdır: tamamlanmış
+/// kayıt dinleyiciye aynı çağrı içinde verilir.
+double? fmCachedAspect(ImageProvider<Object> provider) {
+  double? aspect;
+  final stream = provider.resolve(ImageConfiguration.empty);
+  final listener = ImageStreamListener((info, _) {
+    final w = info.image.width;
+    final h = info.image.height;
+    info.dispose();
+    if (w > 0 && h > 0) aspect = w / h;
+  }, onError: (_, __) {});
+  stream.addListener(listener);
+  stream.removeListener(listener);
+  return aspect;
+}

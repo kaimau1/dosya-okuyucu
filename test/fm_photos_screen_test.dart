@@ -1,16 +1,19 @@
 import 'package:dosya_okuyucu/core/app_state.dart';
+import 'package:dosya_okuyucu/models/fm_layout.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
+import 'package:dosya_okuyucu/models/photo_group.dart';
 import 'package:dosya_okuyucu/screens/fm/photos_screen.dart';
+import 'package:dosya_okuyucu/widgets/fm/drag_select.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_entry_icon.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_quick_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-/// **Niye bu test var:** Fotoğraflar ekranı yapışkan başlıklı sliver
-/// gruplarından (`SliverMainAxisGroup` + `SliverPersistentHeader`) oluşuyor.
-/// Yanlış kurulmuş bir sliver ağacı yalnız ÇİZİM anında patlar — bu ekran
-/// hiçbir testten pump edilmezse hata ancak telefonda görülürdü.
+/// **Niye bu test var:** Fotoğraflar ekranı bir sliver ağacı (yüzen
+/// `SliverAppBar` + tek `SliverVariedExtentList`). Yanlış kurulmuş bir sliver
+/// ağacı yalnız ÇİZİM anında patlar — bu ekran hiçbir testten pump edilmezse
+/// hata ancak telefonda görülürdü.
 void main() {
   FsEntry photo(String name, DateTime when) => FsEntry(
         path: '/depo/DCIM/$name',
@@ -23,9 +26,10 @@ void main() {
   Widget harness(
     List<FsEntry> files, {
     Future<List<FsEntry>> Function()? loadAll,
+    AppState? state,
   }) =>
       ChangeNotifierProvider<AppState>.value(
-        value: AppState(),
+        value: state ?? AppState(),
         child: MaterialApp(
           home: PhotosScreen(
               title: 'Görüntüler', files: files, loadAll: loadAll),
@@ -39,26 +43,63 @@ void main() {
     await tester.pumpWidget(harness([
       photo('a.jpg', today),
       photo('b.jpg', today),
-      photo('c.jpg', yesterday),
+      photo('c.jpg', today),
+      photo('d.jpg', yesterday),
     ]));
     await tester.pump();
 
     expect(tester.takeException(), isNull);
     expect(find.text('Bugün'), findsOneWidget);
     expect(find.text('Dün'), findsOneWidget);
-    // Başlık sayacı: bugün 2, dün 1.
-    expect(find.text('2'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
+    // Satırı dolduran grubun başlığında sayı yazar (bugün 3). Satırı
+    // dolduramayan "Dün" başka küçük gruplarla satır paylaşan kısa etiket.
+    expect(find.text('3'), findsOneWidget);
   });
 
-  testWidgets('ÇOK gruplu galeri düz çizilir (donma kök nedeni)',
+  /// Kullanıcının Videolar ekran görüntüsü: her gün 1-2 video vardı ve her
+  /// gün kendi başlığıyla yarı boş bir satır kaplıyordu. Satırı dolduramayan
+  /// ardışık günler artık AYNI satırı paylaşır, her birinin kısa etiketi
+  /// kendi hücrelerinin üstünde (Google Foto'daki gibi).
+  testWidgets('küçük günler aynı satırı paylaşır', (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day, 10);
+    await tester.pumpWidget(harness([
+      photo('a.jpg', today),
+      photo('b.jpg', today.subtract(const Duration(days: 1))),
+      photo('c.jpg', today.subtract(const Duration(days: 9))),
+    ]));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    final icons = find.byType(FmEntryIcon);
+    expect(icons, findsNWidgets(3));
+    // Üçü de TEK satırda (aynı yükseklikte).
+    final y0 = tester.getTopLeft(icons.at(0)).dy;
+    expect(tester.getTopLeft(icons.at(1)).dy, y0);
+    expect(tester.getTopLeft(icons.at(2)).dy, y0);
+    // Etiketler hücrelerinin üstünde: "Dün" ikinci hücreyle aynı hizada.
+    expect(find.text('Bugün'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('Dün')).dx,
+        greaterThan(tester.getTopLeft(icons.at(1)).dx));
+    expect(tester.getTopLeft(find.text('Dün')).dx,
+        lessThan(tester.getTopLeft(icons.at(2)).dx));
+
+    // Seçimde her etiket kendi grubunu seçer.
+    await tester.longPress(icons.at(0));
+    await tester.pump();
+    await tester.tap(find.text('Dün'));
+    await tester.pump();
+    expect(find.text('2 / 3 seçildi'), findsOneWidget);
+  });
+
+  testWidgets('ÇOK gruplu galeri TEK listede çizilir (donma kök nedeni)',
       (tester) async {
     // 2026-08-17 kullanıcı bulgusu: 6476 fotoğraflı galeride "yüklenme
-    // sorunu, donma ve görülmeme". Her gün grubu İKİ sliver demek ve
+    // sorunu, donma ve görülmeme". Her gün grubu İKİ sliver demekti ve
     // `CustomScrollView` slivers listesini kısaltmaz — binden fazla grupta
     // her yeniden çizim (her seçim dokunuşu!) iki binden fazla sliver kurup
-    // yerleştiriyordu. Sınırı aşan galeri artık TEK sliver'da, satır satır
-    // çizilir: başlıklar kalır, yalnız yapışkanlıkları gider.
+    // yerleştiriyordu. 2026-09-26'dan beri grup sayısı NE OLURSA OLSUN tek
+    // `SliverVariedExtentList` (satır yükseklikleri bilinir → hızlı tutamaç
+    // doğrudan atlar); grup başına sliver hiç yok.
     final files = [
       for (var i = 0; i < 200; i++)
         photo('f$i.jpg', DateTime(2026, 1, 1).subtract(Duration(days: i))),
@@ -67,24 +108,156 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
-    // Yapışkan başlık yolu KAPALI (sınır aşıldı), ızgara ise çiziliyor.
-    expect(find.byType(SliverPersistentHeader), findsNothing);
+    expect(find.byType(SliverVariedExtentList), findsOneWidget);
+    expect(find.byType(SliverMainAxisGroup), findsNothing);
     expect(find.byType(FmEntryIcon), findsWidgets);
 
     // Kaydırma da patlamamalı (satır planı yanlışsa burada çöker).
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
     await tester.pump();
     expect(tester.takeException(), isNull);
+
+    // Listenin ORTASINA doğrudan atlama (hızlı tutamacın yaptığı): ara
+    // satırlar kurulmadan hedefteki grup çizilir.
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    final position = scrollable.position;
+    position.jumpTo(position.maxScrollExtent / 2);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(FmEntryIcon), findsWidgets);
   });
 
-  testWidgets('gruplama çipleri ve arama düğmesi görünür', (tester) async {
-    await tester.pumpWidget(harness([photo('a.jpg', DateTime(2026, 3, 4))]));
+  testWidgets('kaydırınca hızlı kaydırma tutamacı belirir', (tester) async {
+    final files = [
+      for (var i = 0; i < 300; i++)
+        photo('f$i.jpg', DateTime(2026, 1, 1).subtract(Duration(days: i))),
+    ];
+    await tester.pumpWidget(harness(files));
+    await tester.pump();
+    double thumbOpacity() {
+      final thumb = find.byIcon(Icons.unfold_more);
+      if (thumb.evaluate().isEmpty) return 0;
+      return tester
+          .widget<AnimatedOpacity>(find
+              .ancestor(of: thumb, matching: find.byType(AnimatedOpacity))
+              .first)
+          .opacity;
+    }
+
+    // Duran ekranda tutamaç görünmez (fotoğrafın üstünde kalıcı çubuk yok).
+    expect(thumbOpacity(), 0);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -800));
+    await tester.pump();
+    expect(find.byIcon(Icons.unfold_more), findsOneWidget);
+    expect(thumbOpacity(), 1);
+
+    // Tutamaç sürüklenince liste doğrudan o noktaya atlar ve balonda ay
+    // yazar ("Ağustos 2025" gibi — yıl HER ZAMAN yazılır).
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    final before = scrollable.position.pixels;
+    final gesture =
+        await tester.startGesture(tester.getCenter(find.byIcon(Icons.unfold_more)));
+    await gesture.moveBy(const Offset(0, 40));
+    await gesture.moveBy(const Offset(0, 120));
+    await tester.pump();
+    expect(scrollable.position.pixels, greaterThan(before + 200));
+    expect(find.textContaining(RegExp(r'^[^ ]+ 20\d\d$')), findsWidgets);
+    await gesture.up();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    // Hareketsiz 1,5 sn sonra söner (sayaç test bitmeden dolsun).
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(thumbOpacity(), 0);
+  });
+
+  testWidgets('ölçek pili menüsünden gün/ay/yıl seçilir', (tester) async {
+    final state = AppState();
+    await tester.pumpWidget(harness([
+      photo('a.jpg', DateTime(2025, 3, 4)),
+      photo('b.jpg', DateTime(2025, 3, 9)),
+    ], state: state));
     await tester.pump();
 
+    // Pil o anki ölçeği YAZAR; öteki ikisi menüde.
     expect(find.text('Gün'), findsOneWidget);
+    expect(find.byIcon(Icons.search), findsOneWidget);
+    await tester.tap(find.text('Gün'));
+    await tester.pumpAndSettle();
     expect(find.text('Ay'), findsOneWidget);
     expect(find.text('Yıl'), findsOneWidget);
-    expect(find.byIcon(Icons.search), findsOneWidget);
+
+    await tester.tap(find.text('Ay'));
+    await tester.pumpAndSettle();
+    expect(state.fmPhotoGroup, PhotoGroup.month);
+    // İki gün TEK ay grubunda birleşti.
+    expect(find.text('Mart 2025'), findsOneWidget);
+    expect(find.textContaining('4 Mart'), findsNothing);
+  });
+
+  /// 2026-09-26 galeri turu: Google Foto'daki iki parmak jesti. Parmakları
+  /// açmak bir basamak YAKLAŞTIRIR (daha az sütun), sıkıştırmak uzaklaştırır;
+  /// 5 sütunda gruplama da aya geçer (her güne başlık, fotoğraftan çok başlık
+  /// gösterirdi).
+  testWidgets('iki parmakla yakınlaştırma sütun sayısını değiştirir',
+      (tester) async {
+    final state = AppState();
+    final day = DateTime(2026, 3, 4, 10);
+    final files = [
+      for (var i = 0; i < 60; i++)
+        photo('p$i.jpg', day.subtract(Duration(hours: i * 7))),
+    ];
+    await tester.pumpWidget(harness(files, state: state));
+    await tester.pump();
+    expect(state.fmPhotoLayout, FmLayout.grid3);
+
+    // Aç (spread): 3 → 2 sütun.
+    final center = tester.getCenter(find.byType(CustomScrollView));
+    var a = await tester.startGesture(center - const Offset(40, 0));
+    var b = await tester.startGesture(center + const Offset(40, 0));
+    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await a.moveBy(const Offset(-10, 0));
+      await b.moveBy(const Offset(10, 0));
+      await tester.pump();
+    }
+    await a.up();
+    await b.up();
+    await tester.pumpAndSettle();
+    expect(state.fmPhotoLayout, FmLayout.grid2);
+    expect(tester.takeException(), isNull);
+
+    // Sıkıştır (pinch) iki kez: 2 → 3 → 4 sütun.
+    a = await tester.startGesture(center - const Offset(150, 0));
+    b = await tester.startGesture(center + const Offset(150, 0));
+    await tester.pump();
+    for (var i = 0; i < 14; i++) {
+      await a.moveBy(const Offset(10, 0));
+      await b.moveBy(const Offset(-10, 0));
+      await tester.pump();
+    }
+    await a.up();
+    await b.up();
+    await tester.pumpAndSettle();
+    expect(state.fmPhotoLayout.columns, greaterThanOrEqualTo(4));
+    expect(tester.takeException(), isNull);
+  });
+
+  /// **Kök neden testi (2026-09-26):** hücrede çift dokunuş dinleyicisi
+  /// vardı; Flutter tek dokunuşu çift dokunuş süresi (~300 ms) dolana kadar
+  /// bekletiyordu → her fotoğraf açılışı gecikiyordu. Dokunuş artık AYNI
+  /// karede işlenir (burada dosya diskte yok → "bulunamadı" bildirimi).
+  testWidgets('hücreye dokunmak beklemeden açar (çift dokunuş gecikmesi yok)',
+      (tester) async {
+    await tester.pumpWidget(harness([
+      photo('a.jpg', DateTime(2026, 3, 4)),
+      photo('b.jpg', DateTime(2026, 3, 4)),
+    ]));
+    await tester.pump();
+    await tester.tap(find.byType(FmEntryIcon).first);
+    await tester.pump(); // SIFIR süre: çift dokunuş zaman aşımı beklenmiyor
+    expect(find.textContaining('Dosya bulunamadı'), findsOneWidget);
   });
 
   testWidgets('boş listede bilgilendirme gösterilir', (tester) async {
@@ -109,8 +282,10 @@ void main() {
     await tester.pumpWidget(harness(short, loadAll: () async => full));
     await tester.pump();
     // 5 (dizinden) + 1 (panodan gelen, dizinde olmayan taze dosya).
-    expect(find.text('6 / 6 dosya'), findsOneWidget);
-    expect(find.text('1 / 1 dosya'), findsNothing);
+    // Hepsi görünüyorsa alt başlık "6 dosya · boyut" (eski "6 / 6 dosya"
+    // tekrarı kalktı); süzgeç bir kısmını gizleyince "N / M dosya".
+    expect(find.textContaining('6 dosya'), findsOneWidget);
+    expect(find.textContaining('1 dosya'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -120,7 +295,7 @@ void main() {
     await tester.pumpWidget(harness(short, loadAll: () async => const []));
     await tester.pump();
     await tester.pump();
-    expect(find.text('2 / 2 dosya'), findsOneWidget);
+    expect(find.textContaining('2 dosya'), findsOneWidget);
   });
 
   /// WhatsApp aynı görseli birkaç klasöre yazıyor; galeride "aynı resimden
@@ -154,7 +329,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Göster'));
     await tester.pumpAndSettle();
-    expect(find.text('4 / 4 dosya'), findsOneWidget);
+    expect(find.textContaining('4 dosya'), findsOneWidget);
     expect(find.text('2 kopya gizli'), findsNothing);
   });
 
@@ -193,11 +368,11 @@ void main() {
     expect(find.descendant(of: bar, matching: find.text('1 kopya gizli')),
         findsOneWidget);
 
-    // Izgara şeridin hemen altında başlar: arada yalnız yapışkan grup başlığı
-    // (44 dp) var — üçüncü bir satır sıkışırsa bu fark büyür.
+    // Izgara şeridin hemen altında başlar: arada yalnız grup başlığı (52 dp)
+    // var — üçüncü bir satır sıkışırsa bu fark büyür.
     final barBottom = tester.getBottomLeft(bar).dy;
     final gridTop = tester.getTopLeft(find.byType(FmEntryIcon).first).dy;
-    expect(gridTop - barBottom, lessThan(50));
+    expect(gridTop - barBottom, lessThan(60));
   });
 
   testWidgets('süzgeç düğmesi var ve tarih/boyut seçenekleri açılır',
@@ -247,9 +422,12 @@ void main() {
 
     // Karonun kendisi (özel sınıf) yerine içindeki önizleme aranıyor:
     // uzun basış DragSelectArea'da yakalanıyor ve basılan NOKTA karonun
-    // üstünde olmalı, yoksa seçim hiç başlamaz.
+    // üstünde olmalı, yoksa seçim hiç başlamaz. Konum ise hücre KUTUSUNDAN
+    // (DragSelectItem) ölçülür: seçilen önizleme bilinçli olarak içe küçülür
+    // (Google Foto hissi, yalnız dönüşüm) — ölçülen şey ızgaranın kaymaması.
     final firstTile = find.byType(FmEntryIcon).first;
-    final before = tester.getTopLeft(firstTile);
+    final firstCell = find.byType(DragSelectItem).first;
+    final before = tester.getTopLeft(firstCell);
 
     await tester.longPress(firstTile);
     await tester.pump();
@@ -257,7 +435,8 @@ void main() {
     // Seçim kipi gerçekten açıldı mı?
     expect(find.textContaining('seçildi'), findsOneWidget);
     // ...ve karo yerinde mi?
-    expect(tester.getTopLeft(firstTile), before);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(firstCell), before);
 
     // Üst satırlar seçim sırasında da DURUR (kaybolan satır = zıplama).
     expect(find.text('Gün'), findsOneWidget);

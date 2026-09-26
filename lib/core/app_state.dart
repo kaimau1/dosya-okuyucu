@@ -518,6 +518,25 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Galerinin sütun sayısı ve zaman ölçeği BİRLİKTE (iki parmakla
+  /// yakınlaştırma, 2026-09-26).
+  ///
+  /// Öteki ayarlayıcılardan farkı: ekran **aynı karede** yeniden çizilsin
+  /// diye önce bildirir, sonra diske yazar. Yakınlaştırmada kaydırma ofseti
+  /// yeni düzene göre hemen düzeltiliyor; bildirim diskten sonra gelseydi bir
+  /// kare boyunca eski düzen yeni ofsette görünür (ızgara titrer). Kalıcılık
+  /// hatası (ör. testte başlatılmamış tercih deposu) görünümü bozmaz.
+  Future<void> setFmPhotoView(FmLayout layout, PhotoGroup group) async {
+    if (layout == _fmPhotoLayout && group == _fmPhotoGroup) return;
+    _fmPhotoLayout = layout;
+    _fmPhotoGroup = group;
+    notifyListeners();
+    try {
+      await _prefs.setString(_kFmPhotoLayout, layout.name);
+      await _prefs.setString(_kFmPhotoGroup, group.name);
+    } catch (_) {}
+  }
+
   Future<void> setFmMediaOpenWith(MediaOpenWith value) async {
     _fmMediaOpenWith = value;
     await _prefs.setString(_kFmMediaOpenWith, value.name);

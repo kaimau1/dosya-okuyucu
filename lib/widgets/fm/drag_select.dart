@@ -39,6 +39,12 @@ class DragSelectArea extends StatefulWidget {
   final bool enabled;
   final Widget child;
 
+  /// Kenarda otomatik kaydırma bölgesinin alanın kenarından ne kadar içeride
+  /// başladığı. Üst çubuğu kaydırılan alanın İÇİNDE olan ekranlar (galerinin
+  /// yüzen başlığı) üst payı verir: yoksa kaydırma bölgesi başlığın altında
+  /// kalır ve parmak başlığa varmadan liste yukarı kaymaz.
+  final EdgeInsets autoScrollInsets;
+
   const DragSelectArea({
     super.key,
     required this.isSelected,
@@ -47,6 +53,7 @@ class DragSelectArea extends StatefulWidget {
     this.scrollController,
     this.onEnd,
     this.enabled = true,
+    this.autoScrollInsets = EdgeInsets.zero,
   });
 
   @override
@@ -156,11 +163,13 @@ class _DragSelectAreaState extends State<DragSelectArea> {
       }
       final dy = box.globalToLocal(pointer).dy;
       const zone = 72.0; // kenardan bu kadar yakınsa kaydır
+      final top = widget.autoScrollInsets.top;
+      final bottom = box.size.height - widget.autoScrollInsets.bottom;
       double delta = 0;
-      if (dy < zone) {
-        delta = -(zone - dy) * 0.35;
-      } else if (dy > box.size.height - zone) {
-        delta = (dy - (box.size.height - zone)) * 0.35;
+      if (dy < top + zone) {
+        delta = -(top + zone - dy).clamp(0.0, zone * 2) * 0.35;
+      } else if (dy > bottom - zone) {
+        delta = (dy - (bottom - zone)).clamp(0.0, zone * 2) * 0.35;
       }
       if (delta == 0) return;
       final target = (ctrl.offset + delta)

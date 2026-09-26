@@ -56,6 +56,12 @@ Future<void> main() async {
   // uygulamayı öldürmek zorunda kalır. Yerine ne olduğunu söyleyen ve GERİ
   // DÖNME yolu veren bir kart konuyor (hata yine `CrashLog`a yazılıyor).
   ErrorWidget.builder = (details) => AppErrorScreen(details: details);
+  // **Görsel önbelleği 100 → 160 MB** (2026-09-26 galeri turu). Galeride
+  // bir fotoğraf açılınca tam ekran çözüm (≈12 MB) önbellekteki küçük
+  // resimleri itiyordu; geri dönünce ızgara boş hücrelerle yeniden
+  // çözülüyordu. Sınır yalnız bir tavan: sistem bellek baskısı bildirince
+  // Flutter önbelleği kendisi boşaltır (`PaintingBinding.handleMemoryPressure`).
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 160 << 20;
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

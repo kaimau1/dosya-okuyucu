@@ -186,11 +186,12 @@ abstract final class EntryOpener {
     }
     if (route == OpenRoute.gallery && group.length > 1) {
       unawaited(OpenHistory.record(path));
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ImageGalleryScreen(
-          paths: group,
-          initialIndex: group.indexOf(path),
-        ),
+      // Saydam, solarak gelen rota: fotoğraf ızgaradaki hücresinden büyüyerek
+      // açılır (Hero) ve aşağı kaydırınca hücresine dönerek kapanır
+      // (2026-09-26 galeri turu, bkz. `imageGalleryRoute`).
+      await Navigator.of(context).push(imageGalleryRoute(
+        paths: group,
+        initialIndex: group.indexOf(path),
       ));
       return;
     }

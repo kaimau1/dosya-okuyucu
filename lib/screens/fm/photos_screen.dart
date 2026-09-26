@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -9,6 +13,7 @@ import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
+import '../../models/photo_grid_plan.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/duplicate_finder.dart';
@@ -18,13 +23,13 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_fast_scroller.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
-import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
-import 'browser_screen.dart';
 import 'entry_actions.dart';
+import 'image_gallery_screen.dart' show fmMediaHeroTag;
 import 'similar_screen.dart';
 import '../../core/snack.dart';
 
@@ -33,15 +38,27 @@ import '../../core/snack.dart';
 /// Kullanıcı isteği (2026-07-25): "görsellerde Google Fotoğraflar gibi
 /// görünebilir; aylara, yıllara, günlere göre ayırma."
 ///
-/// Tasarım notları:
-/// - Dosyalar **değiştirilme tarihine göre** yeniden eskiye gruplanır; her
-///   grup yapışkan (pinned) bir başlıkla ayrılır → uzun listede hangi güne
-///   bakıldığı hep görünür.
-/// - Küçük resimler **tam kare** çizilir (ad yazılmaz, çerçeve yoktur):
-///   fotoğraf ızgarasında dosya adı gürültüdür, göz resme bakar.
-/// - Seçim, sürükleyerek seçim ve "gruptaki hepsini seç" desteklenir; seçim
-///   indeksi gruplar boyunca DÜZ (flat) yürür, yoksa parmakla sürüklerken
-///   grup sınırında aralık hesabı kopardı.
+/// 2026-09-26 galeri turu (kullanıcı: *"Fotoğraflar ve videolar alanlarımızı
+/// daha modern, büyük şirketlerinki gibi daha işlevsel ve göze hitap edecek
+/// şekilde … akıcılık ön planda, performans önemli … bizim iyi olduğumuz
+/// şeyler var, diğerlerinin iyi oldukları var, harmanlayalım"*). Bizden
+/// kalanlar: kaynak çipleri, kopya gizleme, benzer görüntüler, sürükleyerek
+/// seçim, "üstündekileri/altındakileri seç". Büyüklerden alınanlar:
+/// - **Yüzen üst çubuk** — aşağı kaydırınca kaybolur, yukarı kaydırınca geri
+///   gelir: ekranın tamamı fotoğrafa kalır (seçim ve aramada sabit durur).
+/// - **Hızlı kaydırma tutamacı** — sağ kenarda, ay balonu ve yıl işaretleriyle.
+/// - **İki parmakla yakınlaştırma** — sütun sayısı ve gün/ay/yıl ölçeği
+///   birlikte değişir; parmağın altındaki fotoğraf yerinde kalır.
+/// - **Anında açılış** — hücreye dokunmak artık 300 ms beklemiyor (çift
+///   dokunuş dinleyicisi kaldırıldı) ve fotoğraf hücreden büyüyerek açılır.
+/// - Seçilen hücre içe küçülür, köşesi yuvarlanır (Google Foto'daki his).
+///
+/// Çizim TEK `SliverVariedExtentList` ile yapılır (bkz. `PhotoGridPlan`):
+/// satır yükseklikleri önceden bilindiği için liste herhangi bir ofsete
+/// doğrudan atlar ve bellekte grup sayısından bağımsız olarak tek sliver
+/// durur. 2026-08-17'deki "donma" kök nedeni (grup başına iki sliver) böylece
+/// her galeri boyunda ortadan kalktı; yapışkan başlıkların yerini kaydırma
+/// tutamacının ay balonu aldı.
 class PhotosScreen extends StatefulWidget {
   final String title;
   final List<FsEntry> files;
@@ -84,14 +101,20 @@ class PhotosScreen extends StatefulWidget {
 /// Bir zaman grubu: başlık + o gruba düşen dosyalar (düz indeksleriyle).
 class _Section {
   final String title;
+
+  /// Satırı başka gruplarla paylaşırken hücrelerin üstüne sığan kısa etiket
+  /// ("23 Eyl"); bkz. `PhotoGridPlan` paylaşılan satırlar.
+  final String shortTitle;
   final List<FsEntry> files;
 
   /// Grubun ilk dosyasının düz listedeki indeksi.
   final int startIndex;
-  const _Section(this.title, this.files, this.startIndex);
+  const _Section(this.title, this.files, this.startIndex, {String? shortTitle})
+      : shortTitle = shortTitle ?? title;
 }
 
-class _PhotosScreenState extends State<PhotosScreen> {
+class _PhotosScreenState extends State<PhotosScreen>
+    with SingleTickerProviderStateMixin {
   late List<FsEntry> _files = [...widget.files];
   final Set<String> _selected = {};
   final ScrollController _scroll = ScrollController();
@@ -109,6 +132,20 @@ class _PhotosScreenState extends State<PhotosScreen> {
   String _query = '';
 
   bool get _selecting => _selected.isNotEmpty;
+
+  // ── Yerleşim sabitleri ────────────────────────────────────────────────────
+  /// Grup başlığı satırı. Google Foto'daki gibi ferah: başlık fotoğraflardan
+  /// ayrı bir "bölüm" gibi okunsun, ızgaraya yapışık bir etiket gibi değil.
+  static const _headerExtent = 52.0;
+
+  /// Hücreler arası boşluk (kenar boşluğu yok: ızgara ekranı doldurur).
+  static const _spacing = 2.0;
+
+  static const _toolbarHeight = 64.0;
+
+  /// Listenin sonundaki pay: alt eylem çubuğu bindirmeli çizilir; son satır
+  /// onun altında kalmasın (çubuk yokken de aynı → zıplamaz).
+  static const _bottomSpacer = 88.0;
 
   /// Seçili **ve ekranda görünen** girdiler.
   ///
@@ -137,10 +174,14 @@ class _PhotosScreenState extends State<PhotosScreen> {
   // (kullanıcı 2026-07-29: "uygulama biraz kasmaya başladı").
   List<FsEntry>? _visibleCache;
   String? _visibleKey;
+  int _visibleBytes = 0;
   List<_Section>? _sectionsCache;
   String? _sectionsKey;
-  List<_Row>? _rowsCache;
-  String? _rowsKey;
+  PhotoGridPlan? _plan;
+  String? _planKey;
+  List<_Section> _lastSections = const [];
+  List<FmScrollTick>? _ticksCache;
+  PhotoGridPlan? _ticksPlan;
   Map<MediaBucket, int>? _bucketCache;
   Map<String, int>? _extCache;
   Map<ChatMediaKind, int>? _chatKindCache;
@@ -149,6 +190,29 @@ class _PhotosScreenState extends State<PhotosScreen> {
   /// Süzgeç yüzünden gizlenen kopya sayısı (ekranda yazılır).
   int _hiddenDuplicates = 0;
 
+  /// Son yerleşimin ölçüleri (yakınlaştırma ve tutamaç hesapları için).
+  double _gridWidth = 0;
+  double _cell = 0;
+  double _appBarExtent = 0;
+  double _topPadding = 0;
+
+  // ── İki parmakla yakınlaştırma ────────────────────────────────────────────
+  final Map<int, Offset> _touches = {};
+
+  /// Pinch başladığında (ya da son basamaktan sonra) parmaklar arası mesafe.
+  /// null değilse pinch sürüyor → kaydırma kilitli.
+  double? _pinchBase;
+
+  /// Basamak geçişinin görsel ölçeği: yeni düzen önce ESKİ boyunda çizilir,
+  /// sonra 1'e büyür/küçülür (parmakların ortasından). Yalnız satırların
+  /// `Transform`u dinler — ekran yeniden kurulmaz.
+  final ValueNotifier<double> _zoomScale = ValueNotifier(1);
+  Offset _zoomFocal = Offset.zero;
+  double _zoomFrom = 1;
+  // `late final` + initState: tembel ilklendirilse ilk erişim `dispose`ta
+  // olabilir ve orada Ticker kurmak "deactivated widget" hatası verir.
+  late final AnimationController _zoomAnim;
+
   /// Zaman ekseni yalnız TARİHE göre sıralamada anlamlıdır: ada göre sıralı
   /// bir listeyi güne bölmek başlıkları rastgele tekrar ettirirdi.
   bool get _timelineMode => _sort == FmSort.date;
@@ -156,6 +220,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
   @override
   void initState() {
     super.initState();
+    _zoomAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+    )..addListener(() {
+        final t = Curves.easeOutCubic.transform(_zoomAnim.value);
+        _zoomScale.value = lerpDouble(_zoomFrom, 1, t)!;
+      });
     FsEvents.version.addListener(_dropMissing);
     // Etiketler (kişi/grup süzgeci) diskten okunur; hazır olunca çipler
     // görünsün diye yeniden çizilir.
@@ -174,6 +245,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
     FsEvents.version.removeListener(_dropMissing);
     _searchController.dispose();
     _scroll.dispose();
+    _zoomAnim.dispose();
+    _zoomScale.dispose();
     super.dispose();
   }
 
@@ -219,7 +292,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
     if (!mounted) return;
     setState(() {
       _files = alive;
-      _selected.removeWhere((s) => !_files.any((e) => e.path == s));
+      final paths = {for (final e in alive) e.path};
+      _selected.removeWhere((s) => !paths.contains(s));
     });
   }
 
@@ -255,44 +329,85 @@ class _PhotosScreenState extends State<PhotosScreen> {
       list = matched;
     }
     _hiddenDuplicates = matched.length - list.length;
+    _visibleBytes = list.fold<int>(0, (sum, e) => sum + e.sizeBytes);
     _visibleCache = list;
     _visibleKey = key;
     return list;
   }
 
   /// Düz listeyi zaman gruplarına böler (sıra korunur → indeksler düz kalır).
-  /// Sonuç önbelleklenir: gruplama listenin tamamını gezer.
-  List<_Section> _sections(List<FsEntry> visible, PhotoGroup group) {
-    final cacheKey =
-        '${identityHashCode(visible)}|${visible.length}|${group.name}';
+  /// [group] null ise (tarih dışı sıralama) tek grup döner. Sonuç
+  /// önbelleklenir: gruplama listenin tamamını gezer, üstelik plan önbelleği
+  /// grupların KİMLİĞİNE bakar — her çizimde yeni liste dönseydi satır planı
+  /// her karede baştan kurulurdu.
+  List<_Section> _sections(List<FsEntry> visible, PhotoGroup? group) {
+    final flatTitle = group == null
+        ? context.t('ph.sorted_header', {
+            'n': visible.length,
+            'sort': '${context.t(_sort.labelKey)} ${_desc ? '↓' : '↑'}',
+          })
+        : '';
+    final cacheKey = '${identityHashCode(visible)}|${visible.length}|'
+        '${group?.name}|$flatTitle';
     final cached = _sectionsCache;
     if (cached != null && _sectionsKey == cacheKey) return cached;
     final out = <_Section>[];
-    String? key;
-    var buffer = <FsEntry>[];
-    var start = 0;
-    for (var i = 0; i < visible.length; i++) {
-      final e = visible[i];
-      final k = photoGroupKey(e.modifiedMs, group);
-      if (k != key) {
-        if (buffer.isNotEmpty) {
-          out.add(_Section(
-              photoGroupTitle(buffer.first.modifiedMs, group), buffer, start));
+    if (group == null) {
+      if (visible.isNotEmpty) out.add(_Section(flatTitle, visible, 0));
+    } else {
+      String? key;
+      var buffer = <FsEntry>[];
+      var start = 0;
+      for (var i = 0; i < visible.length; i++) {
+        final e = visible[i];
+        final k = photoGroupKey(e.modifiedMs, group);
+        if (k != key) {
+          if (buffer.isNotEmpty) out.add(_timeSection(buffer, start, group));
+          key = k;
+          buffer = [];
+          start = i;
         }
-        key = k;
-        buffer = [];
-        start = i;
+        buffer.add(e);
       }
-      buffer.add(e);
-    }
-    if (buffer.isNotEmpty) {
-      out.add(_Section(
-          photoGroupTitle(buffer.first.modifiedMs, group), buffer, start));
+      if (buffer.isNotEmpty) out.add(_timeSection(buffer, start, group));
     }
     _sectionsCache = out;
     _sectionsKey = cacheKey;
     return out;
   }
+
+  static _Section _timeSection(
+          List<FsEntry> files, int start, PhotoGroup group) =>
+      _Section(
+        photoGroupTitle(files.first.modifiedMs, group),
+        files,
+        start,
+        shortTitle: photoGroupShortTitle(files.first.modifiedMs, group),
+      );
+
+  /// Satır planı — gruplar, sütun sayısı ve satır yüksekliği değişmedikçe
+  /// yeniden kurulmaz. Zaman ekseninde satırı dolduramayan ardışık gruplar
+  /// satırı PAYLAŞIR (bkz. `PhotoGridPlan`): günde bir-iki video çeken
+  /// kullanıcının ekranı yarı boş satırlardan oluşuyordu.
+  PhotoGridPlan _planFor(List<_Section> sections, int columns, double rowExtent) {
+    final key = '${identityHashCode(sections)}|${sections.length}|$columns|'
+        '${rowExtent.toStringAsFixed(3)}|$_timelineMode';
+    final cached = _plan;
+    if (cached != null && _planKey == key) return cached;
+    final plan = PhotoGridPlan.build(
+      sectionSizes: [for (final s in sections) s.files.length],
+      columns: columns,
+      headerExtent: _headerExtent,
+      rowExtent: rowExtent,
+      packSmall: _timelineMode,
+    );
+    _plan = plan;
+    _planKey = key;
+    return plan;
+  }
+
+  double _cellFor(int columns, double width) =>
+      (width - _spacing * (columns - 1)) / columns;
 
   void _toggle(FsEntry e) => setState(() {
         if (!_selected.remove(e.path)) _selected.add(e.path);
@@ -358,6 +473,18 @@ class _PhotosScreenState extends State<PhotosScreen> {
         siblings: visible.map((x) => x.path).toList(),
       );
 
+  void _clearSearchAndSelection() {
+    setState(() {
+      if (_selecting) {
+        _selected.clear();
+      } else {
+        _searching = false;
+        _query = '';
+        _searchController.clear();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
@@ -368,34 +495,321 @@ class _PhotosScreenState extends State<PhotosScreen> {
     // listede her kullanımda yeniden gezmek seçim çubuğunu kastırırdı
     // (kullanıcı 2026-07-29: "uygulama biraz kasmaya başladı").
     final selectedEntries = _selectedEntries;
-    final sections = _timelineMode
-        ? _sections(visible, group)
-        : [_Section('${visible.length} dosya · ${_sort.label}', visible, 0)];
+    final sections = _sections(visible, _timelineMode ? group : null);
+    _lastSections = sections;
+    final padding = MediaQuery.paddingOf(context);
+    _topPadding = padding.top;
+    // SliverAppBar'ın kaydırma eksenindeki boyu (maxExtent) — satırların
+    // ekrandaki yerini hesaplayan her şey bunu kullanır.
+    _appBarExtent = padding.top + _toolbarHeight + kFmFilterBarHeight;
+    final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: _selecting
-          ? _selectionBar(visible, selectedEntries)
-          : (_searching ? _searchBar() : _normalBar(appState)),
-      // **Stack**, bottomNavigationBar DEĞİL: alt çubuk görünür/kaybolur
-      // olduğunda gövdenin yüksekliği değişirse ızgara yeniden yerleşiyor ve
-      // liste zıplıyordu (kullanıcı hatası 2026-07-29: "seçince sayfa
-      // zıplıyor"). Üste bindirince görünüm alanı sabit kalır.
-      //
-      // **Üstteki satırlar seçim sırasında da DURUR** (2026-07-29, ikinci
-      // rapor: "video basılı tutup seçtiğimde zıplama oluyor"). Alt panel
-      // bindirmeli çizildiği için zıplatmıyordu; asıl neden bu satırların
-      // `!_selecting` ile kaybolup ızgarayı yukarı çekmesiydi. Kalmaları
-      // ayrıca işe yarıyor: seçim yaparken kaynağa/güne göre daraltılabiliyor.
-      body: Stack(
+    return PopScope(
+      // Geri tuşu önce seçimi/aramayı kapatır (Google Foto davranışı);
+      // ekranı ancak ondan sonra kapatır.
+      canPop: !_selecting && !_searching,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _clearSearchAndSelection();
+      },
+      child: Scaffold(
+        // **Stack**, bottomNavigationBar DEĞİL: alt çubuk görünür/kaybolur
+        // olduğunda gövdenin yüksekliği değişirse ızgara yeniden yerleşiyor ve
+        // liste zıplıyordu (kullanıcı hatası 2026-07-29: "seçince sayfa
+        // zıplıyor"). Üste bindirince görünüm alanı sabit kalır.
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: LayoutBuilder(builder: (context, constraints) {
+                _gridWidth = constraints.maxWidth;
+                final columns = layout.columns;
+                _cell = _cellFor(columns, constraints.maxWidth);
+                final plan = _planFor(sections, columns, _cell + _spacing);
+                return Listener(
+                  onPointerDown: _pointerDown,
+                  onPointerMove: _pointerMove,
+                  onPointerUp: (e) => _pointerEnd(e.pointer),
+                  onPointerCancel: (e) => _pointerEnd(e.pointer),
+                  child: DragSelectArea(
+                    scrollController: _scroll,
+                    autoScrollInsets: EdgeInsets.only(
+                        top: _selecting || _searching ? _appBarExtent : 0),
+                    isSelected: (i) =>
+                        i >= 0 &&
+                        i < visible.length &&
+                        _selected.contains(visible[i].path),
+                    onSelectRange: (a, b, sel) =>
+                        _selectRange(visible, a, b, sel),
+                    child: CustomScrollView(
+                      controller: _scroll,
+                      // Pinch sürerken ızgara kaymasın: iki parmağın hareketi
+                      // aynı zamanda bir kaydırma sayılırdı.
+                      physics: _pinchBase != null
+                          ? const NeverScrollableScrollPhysics()
+                          : null,
+                      slivers: [
+                        _appBar(appState, group, visible, selectedEntries),
+                        if (visible.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _emptyState(),
+                          )
+                        else
+                          SliverVariedExtentList(
+                            itemExtentBuilder: (index, _) =>
+                                index < plan.rowCount ? plan.extentOf(index) : null,
+                            delegate: SliverChildBuilderDelegate(
+                              (context, i) =>
+                                  _row(plan, i, sections, visible, _cell),
+                              childCount: plan.rowCount,
+                              // Satır durumu saklanmaz: geri dönen satır
+                              // önbellekten anında kurulur, bellekte binlerce
+                              // canlı satır birikmez.
+                              addAutomaticKeepAlives: false,
+                            ),
+                          ),
+                        SliverToBoxAdapter(
+                          child:
+                              SizedBox(height: _bottomSpacer + padding.bottom),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+            // Durum çubuğunun altı: yüzen başlık kaybolunca fotoğraflar saat
+            // ve pil simgelerinin altından akmasın (okunmaz olurlardı).
+            if (padding.top > 0)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: padding.top,
+                child: ColoredBox(color: scheme.surface.withValues(alpha: 0.94)),
+              ),
+            Positioned.fill(
+              child: FmFastScroller(
+                controller: _scroll,
+                labelFor: _labelFor,
+                ticks: _timelineMode ? _yearTicks : null,
+                padding: EdgeInsets.only(
+                  top: padding.top + 8,
+                  bottom: (_selecting ? _bottomSpacer : 16) + padding.bottom,
+                ),
+              ),
+            ),
+            if (_selecting)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: FmSelectionBar(
+                  selected: selectedEntries,
+                  onChanged: () async {
+                    // "Arka plana al" ile ekran kapanmış olabilir:
+                    // `FmSelectionBar` işini bitirdiğinde bu State artık ölü
+                    // olabiliyor ve `setState` "called after dispose" hatası
+                    // atıyordu (2026-07-29 sadakat denetimi, 2. tur).
+                    if (!mounted) return;
+                    setState(_selected.clear);
+                    await _dropMissing();
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Üst çubuk ─────────────────────────────────────────────────────────────
+
+  /// Yüzen üst çubuk: başlık + eylemler + süzgeç şeridi.
+  ///
+  /// **Yükseklik her kipte AYNI** (normal / arama / seçim): kip değişince
+  /// ızgaranın zıplamaması buna bağlı (2026-07-29 "zıplama" hatası). Seçim ve
+  /// aramada çubuk SABİTLENİR (seçim sayacı ve arama alanı kaybolmasın);
+  /// normal gezinmede aşağı kaydırınca kaybolur, yukarı kaydırınca geri gelir.
+  Widget _appBar(AppState appState, PhotoGroup group, List<FsEntry> visible,
+      List<FsEntry> selectedEntries) {
+    final PreferredSizeWidget strip = PreferredSize(
+      preferredSize: const Size.fromHeight(kFmFilterBarHeight),
+      child: _filterStrip(appState, group),
+    );
+    if (_selecting) {
+      return SliverAppBar(
+        pinned: true,
+        toolbarHeight: _toolbarHeight,
+        leading: IconButton(
+          tooltip: context.t('common.clear_selection'),
+          icon: const Icon(Icons.close),
+          onPressed: () => setState(_selected.clear),
+        ),
+        // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]): görünen
+        // listeye daraltıldığında "8214 / 12 seçildi" gibi kendisiyle çelişen
+        // bir başlık çıkmaz.
+        title: Text(context.t('ph.selected_of',
+            {'n': selectedEntries.length, 'total': visible.length})),
+        actions: [
+          // Tek dosya seçiliyken çıkar: "üstündekileri/altındakileri de seç"
+          // (istek 2026-07-29). Birden çok seçiliyken hangi dosya "anchor"
+          // olacağı belirsizleşir, o yüzden yalnız tek seçimde gösterilir.
+          if (_selected.length == 1) ...[
+            IconButton(
+              tooltip: context.t('ph.select_above'),
+              icon: const Icon(Icons.expand_less),
+              onPressed: () => _selectFromAnchor(visible, above: true),
+            ),
+            IconButton(
+              tooltip: context.t('ph.select_below'),
+              icon: const Icon(Icons.expand_more),
+              onPressed: () => _selectFromAnchor(visible, above: false),
+            ),
+          ],
+          IconButton(
+            tooltip: context.t(visible.every((e) => _selected.contains(e.path))
+                ? 'ph.clear_selection'
+                : 'ph.select_all'),
+            icon: Icon(visible.every((e) => _selected.contains(e.path))
+                ? Icons.deselect
+                : Icons.select_all),
+            onPressed: () => _toggleSelectAll(visible),
+          ),
+        ],
+        bottom: strip,
+      );
+    }
+    if (_searching) {
+      return SliverAppBar(
+        pinned: true,
+        toolbarHeight: _toolbarHeight,
+        leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _clearSearchAndSelection,
+        ),
+        title: FmSearchField(
+          controller: _searchController,
+          hint: context.t('ph.search_in_hint', {'title': widget.title}),
+          onChanged: (v) => setState(() => _query = v),
+        ),
+        actions: [
+          if (_query.isNotEmpty)
+            IconButton(
+              tooltip: context.t('common.clear'),
+              icon: const Icon(Icons.clear),
+              onPressed: () => setState(() {
+                _query = '';
+                _searchController.clear();
+              }),
+            ),
+          // Arama açıkken de süzgeç erişilebilir: "adında tatil geçen, geçen
+          // ay çekilmiş videolar" tek adımda daralsın.
+          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
+        ],
+        bottom: strip,
+      );
+    }
+    final theme = Theme.of(context);
+    final shown = visible.length;
+    final total = _files.length;
+    final subtitle = shown == total
+        ? context.t('count.files_size',
+            {'n': shown, 'size': FsPaths.humanSize(_visibleBytes)})
+        : context.t('count.of_files', {'shown': shown, 'total': total});
+    return SliverAppBar(
+      floating: true,
+      snap: true,
+      toolbarHeight: _toolbarHeight,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Column(
+          Text(
+            widget.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          tooltip: context.t('ph.search_in', {'title': widget.title}),
+          icon: const Icon(Icons.search),
+          onPressed: () => setState(() => _searching = true),
+        ),
+        FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
+        // Nadir işler menüde: çubuk Google Foto'daki gibi sade kalsın (eskiden
+        // dört simge + iki satırlı başlık sığmak için yarışıyordu).
+        PopupMenuButton<String>(
+          tooltip: context.t('fm.more_actions'),
+          icon: const Icon(Icons.more_vert),
+          onSelected: (v) {
+            switch (v) {
+              case 'view':
+                _showViewSheet();
+              case 'similar':
+                _openSimilar();
+              case 'select':
+                _toggleSelectAll(visible);
+            }
+          },
+          itemBuilder: (ctx) => [
+            _menuItem(ctx, 'view', Icons.grid_view_rounded, ctx.t('ph.view')),
+            _menuItem(ctx, 'similar', Icons.auto_awesome_motion_outlined,
+                ctx.t('ph.similar_short')),
+            if (visible.isNotEmpty)
+              _menuItem(ctx, 'select', Icons.select_all, ctx.t('ph.select_all')),
+          ],
+        ),
+        const SizedBox(width: 4),
+      ],
+      bottom: strip,
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(
+          BuildContext ctx, String value, IconData icon, String label) =>
+      PopupMenuItem(
+        value: value,
+        child: Row(
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(width: 14),
+            Flexible(child: Text(label)),
+          ],
+        ),
+      );
+
+  void _openSimilar() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SimilarScreen(
+        files: _files,
+        title: context.t('ph.similar_title', {'title': widget.title}),
+        // Kapsam kimliği: Görüntüler / Videolar ve "tüm depolama" /
+        // "Önemli Dosyalar" taramaları aynı kuyruk işini paylaşmasın
+        // (bkz. [PhotosScreen.scopeId] ve SimilarFinder.jobIdFor).
+        scopeId: widget.scopeId ?? widget.title,
+      ),
+    ));
+  }
+
+  /// **TEK süzgeç satırı** (2026-08-09 kullanıcı: *"görüntüler ve
+  /// videolardaki işaretli üst alan çok yer kaplıyor, kompaktlaşmalı"*).
+  /// Sıra: kopya uyarısı → ölçek (ya da sıralama) → kaynaklar → süzgeçler.
+  /// Yükleme çizgisi şeridin ALTINA biner — ayrı satır açmaz.
+  Widget _filterStrip(AppState appState, PhotoGroup group) => Stack(
         children: [
-          if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
-          // **TEK süzgeç satırı** (2026-08-09 kullanıcı: *"görüntüler ve
-          // videolardaki işaretli üst alan çok yer kaplıyor, kompaktlaşmalı"*).
-          // Eskiden dört ayrı satırdı — gün/ay/yıl ölçeği, kaynak çipleri,
-          // hızlı süzgeçler, kopya uyarısı — ve birlikte ~180 dp yiyordu.
-          // Hepsi aynı yatay şeritte: ölçek → kaynaklar → süzgeçler → uyarı.
           FmQuickFilters(
             source: _files,
             filter: _filter,
@@ -406,60 +820,56 @@ class _PhotosScreenState extends State<PhotosScreen> {
               // bir uyarı ekran dışında kalabiliyor — "dosyam kayboldu"
               // hatasını önlemesi gereken bilgi görünmeden işe yaramaz.
               if (_hiddenDuplicates > 0) _duplicateChip(),
-              if (_timelineMode) _scaleToggle(appState, group),
+              if (_timelineMode) _scalePill(appState, group) else _sortChip(),
               if (widget.showSources) ..._sourceChips(),
             ],
           ),
-          Expanded(
-            child: visible.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(Gap.lg),
-                      child: Text(
-                        context.t(_loadingAll
-                            ? 'ph.loading'
-                            : (_query.trim().isEmpty && !_filter.isActive
-                                ? 'ph.empty'
-                                : 'ph.no_match')),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : DragSelectArea(
-                    scrollController: _scroll,
-                    isSelected: (i) =>
-                        i >= 0 &&
-                        i < visible.length &&
-                        _selected.contains(visible[i].path),
-                    onSelectRange: (a, b, sel) =>
-                        _selectRange(visible, a, b, sel),
-                    child: _timeline(sections, visible, layout),
-                  ),
-          ),
-        ],
-          ),
-          if (_selecting)
-            Positioned(
+          if (_loadingAll)
+            const Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: FmSelectionBar(
-                selected: selectedEntries,
-                onChanged: () async {
-                  // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
-                  // işini bitirdiğinde bu State artık ölü olabiliyor ve
-                  // `setState` "called after dispose" hatası atıyordu
-                  // (2026-07-29 sadakat denetimi, 2. tur).
-                  if (!mounted) return;
-                  setState(_selected.clear);
-                  await _dropMissing();
-                },
-              ),
+              child: LinearProgressIndicator(minHeight: 2),
             ),
         ],
-      ),
-    );
-  }
+      );
+
+  /// Gün / Ay / Yıl — **tek pil + menü** (2026-09-26).
+  ///
+  /// Eskiden şeridin başında üç bölmeli bir kutuydu; ölçek artık iki parmakla
+  /// da değişiyor ve kutu şeridin en değerli yerini (ilk 150 dp) kaplıyordu.
+  /// Pil o anki ölçeği YAZAR (gizli bir durum yok), dokununca üçü birden
+  /// menüde görünür.
+  Widget _scalePill(AppState appState, PhotoGroup group) =>
+      PopupMenuButton<PhotoGroup>(
+        tooltip: context.t('ph.view_scale'),
+        initialValue: group,
+        onSelected: (g) => appState.setFmPhotoView(appState.fmPhotoLayout, g),
+        itemBuilder: (ctx) => [
+          for (final g in PhotoGroup.values)
+            CheckedPopupMenuItem(
+              value: g,
+              checked: g == group,
+              child: Text(ctx.t(g.labelKey)),
+            ),
+        ],
+        // `FmChip` DEĞİL `FmPill`: çipin kendi dokunma tanıyıcısı menü
+        // düğmesinin dokunuşunu yutar ve menü hiç açılmazdı.
+        child: FmPill(
+          icon: Icons.calendar_month_outlined,
+          label: context.t(group.labelKey),
+          dropdown: true,
+        ),
+      );
+
+  /// Tarih dışı sıralamada ölçek yerine sıralamanın kendisi yazar
+  /// ("Ada göre ↑"); dokununca süzgeç ve sıralama sayfası açılır.
+  Widget _sortChip() => FmChip(
+        icon: Icons.sort,
+        label: '${context.t(_sort.labelKey)} ${_desc ? '↓' : '↑'}',
+        selected: false,
+        onTap: _openFilterSheet,
+      );
 
   /// Gizlenen kopyaları **gerçekten** siler.
   ///
@@ -522,7 +932,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
     }
   }
 
-  /// "N kopya gizlendi" — süzgeç satırının sonundaki **tek çip**.
+  /// "N kopya gizlendi" — süzgeç satırının başındaki **tek pil**.
   ///
   /// Sessiz gizleme "dosyam kayboldu" hatasına yol açar, o yüzden bilgi hep
   /// ekranda; ama kendi satırını hak etmiyordu (2026-08-09: üst alan çok yer
@@ -546,183 +956,92 @@ class _PhotosScreenState extends State<PhotosScreen> {
         // `FmChip` DEĞİL `FmPill`: çipin kendi jest tanıyıcısı menü düğmesinin
         // dokunuşunu yutar ve menü hiç açılmazdı.
         child: FmPill(
-          icon: Icons.copy_all_outlined,
+          icon: Icons.filter_none_rounded,
           label: context.t('ph.hidden_dupes_short', {'n': _hiddenDuplicates}),
           disabled: _selecting,
+          highlighted: !_selecting,
         ),
       );
 
-  PreferredSizeWidget _normalBar(AppState appState) => AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.title),
-            Text(
-              context.t('count.of_files',
-                  {'shown': _visible.length, 'total': _files.length}),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: context.t('ph.search_in', {'title': widget.title}),
-            icon: const Icon(Icons.search),
-            onPressed: () => setState(() => _searching = true),
-          ),
-          IconButton(
-            tooltip: context.t('ph.find_similar'),
-            icon: const Icon(Icons.auto_awesome_motion_outlined),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SimilarScreen(
-                files: _files,
-                title: context.t('ph.similar_title', {'title': widget.title}),
-                // Kapsam kimliği: Görüntüler / Videolar ve "tüm depolama" /
-                // "Önemli Dosyalar" taramaları aynı kuyruk işini paylaşmasın
-                // (bkz. [PhotosScreen.scopeId] ve SimilarFinder.jobIdFor).
-                scopeId: widget.scopeId ?? widget.title,
-              ),
-            )),
-          ),
-          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
-          IconButton(
-            tooltip: context.t('ph.layout',
-                {'name': context.t(appState.fmPhotoLayout.labelKey)}),
-            icon: Icon(fmLayoutIcon(appState.fmPhotoLayout)),
-            onPressed: () async {
-              final picked = await showFmLayoutSheet(
-                context,
-                current: appState.fmPhotoLayout,
-                title: context.t('fmset.grid_density'),
-                // Fotoğraf zaman ekseninde liste düzeni anlamsız.
-                allowLists: false,
-              );
-              if (picked != null) await appState.setFmPhotoLayout(picked);
-            },
-          ),
-        ],
-      );
-
-  PreferredSizeWidget _searchBar() => AppBar(
-        leading: IconButton(
-          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => setState(() {
-            _searching = false;
-            _query = '';
-            _searchController.clear();
-          }),
-        ),
-        title: FmSearchField(
-          controller: _searchController,
-          hint: context.t('ph.search_in_hint', {'title': widget.title}),
-          onChanged: (v) => setState(() => _query = v),
-        ),
-        actions: [
-          if (_query.isNotEmpty)
-            IconButton(
-              tooltip: context.t('common.clear'),
-              icon: const Icon(Icons.clear),
-              onPressed: () => setState(() {
-                _query = '';
-                _searchController.clear();
-              }),
-            ),
-          // Arama açıkken de süzgeç erişilebilir: "adında tatil geçen, geçen
-          // ay çekilmiş videolar" tek adımda daralsın.
-          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
-        ],
-      );
-
-  /// Seçim üst çubuğu **sade**: sayaç + tümünü seç. Eylemler alttaki
-  /// [FmSelectionBar]'da (proje kuralı: üstte yalnız altta karşılığı OLMAYAN).
-  PreferredSizeWidget _selectionBar(
-          List<FsEntry> visible, List<FsEntry> selectedEntries) =>
-      AppBar(
-        leading: IconButton(
-          tooltip: context.t('common.clear_selection'),
-          icon: const Icon(Icons.close),
-          onPressed: () => setState(_selected.clear),
-        ),
-        // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]): görünen
-        // listeye daraltıldığında "8214 / 12 seçildi" gibi kendisiyle çelişen
-        // bir başlık çıkmaz.
-        title: Text(context.t('ph.selected_of',
-            {'n': selectedEntries.length, 'total': visible.length})),
-        actions: [
-          // Tek dosya seçiliyken çıkar: "üstündekileri/altındakileri de seç"
-          // (istek 2026-07-29). Birden çok seçiliyken hangi dosya "anchor"
-          // olacağı belirsizleşir, o yüzden yalnız tek seçimde gösterilir.
-          if (_selected.length == 1) ...[
-            IconButton(
-              tooltip: context.t('ph.select_above'),
-              icon: const Icon(Icons.expand_less),
-              onPressed: () => _selectFromAnchor(visible, above: true),
-            ),
-            IconButton(
-              tooltip: context.t('ph.select_below'),
-              icon: const Icon(Icons.expand_more),
-              onPressed: () => _selectFromAnchor(visible, above: false),
-            ),
-          ],
-          IconButton(
-            tooltip: context.t(visible.every((e) => _selected.contains(e.path))
-                ? 'ph.clear_selection'
-                : 'ph.select_all'),
-            icon: Icon(visible.every((e) => _selected.contains(e.path))
-                ? Icons.deselect
-                : Icons.select_all),
-            onPressed: () => _toggleSelectAll(visible),
-          ),
-        ],
-      );
-
-  /// Gün / Ay / Yıl seçimi — Google Fotoğraflar'daki zaman ölçeği.
+  /// Görünüm sayfası: zaman ölçeği + sütun sayısı + pinch ipucu.
   ///
-  /// Üç ayrı çip yerine **tek pil içinde üç bölme**: üçü de görünür kalır
-  /// (menüye saklanan bir ölçek bulunmaz) ama satırda üç çipin yerine bir
-  /// denetimin yerini kaplar — süzgeç şeridi tek satıra ancak böyle sığdı.
-  Widget _scaleToggle(AppState appState, PhotoGroup group) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(right: Gap.sm),
-      child: Container(
-        height: kFmFilterBarHeight - 8,
-        decoration: BoxDecoration(
-          border: Border.all(color: scheme.outlineVariant),
-          borderRadius: BorderRadius.circular(Radii.control),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final g in PhotoGroup.values)
-              InkWell(
-                onTap: () => appState.setFmPhotoGroup(g),
-                child: Container(
-                  height: double.infinity,
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-                  color: group == g ? scheme.secondaryContainer : null,
-                  child: Text(
-                    context.t(g.labelKey),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          group == g ? FontWeight.w600 : FontWeight.w400,
-                      color: group == g
-                          ? scheme.onSecondaryContainer
-                          : scheme.onSurfaceVariant,
-                    ),
+  /// İki ayar tek yerde çünkü iki parmakla yakınlaştırma da ikisini BİRLİKTE
+  /// değiştiriyor; ayrı yerlerde dursalar biri değişince öteki "kendiliğinden
+  /// değişti" sanılırdı.
+  Future<void> _showViewSheet() => showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) {
+          final state = ctx.watch<AppState>();
+          final theme = Theme.of(ctx);
+          final label = theme.textTheme.labelLarge
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(ctx.t('ph.view'), style: theme.textTheme.titleMedium),
+                  const SizedBox(height: Gap.md),
+                  Text(ctx.t('ph.view_scale'), style: label),
+                  const SizedBox(height: Gap.sm),
+                  SegmentedButton<PhotoGroup>(
+                    expandedInsets: EdgeInsets.zero,
+                    showSelectedIcon: false,
+                    segments: [
+                      for (final g in PhotoGroup.values)
+                        ButtonSegment(value: g, label: Text(ctx.t(g.labelKey))),
+                    ],
+                    selected: {state.fmPhotoGroup},
+                    onSelectionChanged: (s) =>
+                        state.setFmPhotoView(state.fmPhotoLayout, s.first),
                   ),
-                ),
+                  const SizedBox(height: Gap.md),
+                  Text(ctx.t('ph.view_columns'), style: label),
+                  const SizedBox(height: Gap.sm),
+                  SegmentedButton<FmLayout>(
+                    expandedInsets: EdgeInsets.zero,
+                    showSelectedIcon: false,
+                    segments: [
+                      for (final l in FmLayout.values.where((l) => l.isGrid))
+                        ButtonSegment(
+                          value: l,
+                          icon: Icon(_columnsIcon(l.columns), size: 18),
+                          label: Text('${l.columns}'),
+                        ),
+                    ],
+                    selected: {state.fmPhotoLayout},
+                    onSelectionChanged: (s) =>
+                        state.setFmPhotoView(s.first, state.fmPhotoGroup),
+                  ),
+                  const SizedBox(height: Gap.md),
+                  Row(
+                    children: [
+                      Icon(Icons.pinch_outlined,
+                          size: 20, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Text(ctx.t('ph.pinch_hint'),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-          ],
-        ),
-      ),
-    );
-  }
+            ),
+          );
+        },
+      );
+
+  static IconData _columnsIcon(int columns) => switch (columns) {
+        2 => Icons.grid_view_rounded,
+        3 => Icons.grid_on_rounded,
+        4 => Icons.apps_rounded,
+        _ => Icons.view_comfy_rounded,
+      };
 
   /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
   Future<void> _openFilterSheet() async {
@@ -791,171 +1110,147 @@ class _PhotosScreenState extends State<PhotosScreen> {
     ];
   }
 
-  /// Zaman ekseninde **yapışkan başlıklı** çizimin üst sınırı.
-  ///
-  /// Her grup iki sliver demek (başlık + ızgara) ve `CustomScrollView`
-  /// slivers listesini KISALTMAZ: 6500 fotoğraflı bir galeride "Gün" ölçeği
-  /// binden fazla gruba çıkıyor, yani her yeniden çizimde (her seçim
-  /// dokunuşunda!) iki binden fazla sliver kuruluyor ve viewport hepsini
-  /// yerleştirmek zorunda kalıyordu — kullanıcı bunu "donma" olarak
-  /// bildirdi (2026-08-17).
-  ///
-  /// Bu sayının ÜSTÜNDE düz (tek sliver, satır satır) çizime geçilir:
-  /// başlıklar aynen kalır, yalnız **yapışkanlığı** kaybederler. Takas
-  /// bilinçli — yapışkan başlık bir konfor, akıcı kaydırma şart.
-  static const _maxStickySections = 120;
-
-  Widget _timeline(
-    List<_Section> sections,
-    List<FsEntry> visible,
-    FmLayout layout,
-  ) =>
-      LayoutBuilder(
-        builder: (context, constraints) {
-          const spacing = 2.0;
-          final columns = layout.columns;
-          final cell =
-              (constraints.maxWidth - spacing * (columns - 1)) / columns;
-          if (sections.length > _maxStickySections) {
-            return _flatTimeline(sections, visible, columns, cell, spacing);
-          }
-          return CustomScrollView(
-            controller: _scroll,
-            slivers: [
-              for (final section in sections)
-                SliverMainAxisGroup(
-                  slivers: [
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _SectionHeaderDelegate(
-                        title: section.title,
-                        count: section.files.length,
-                        selecting: _selecting,
-                        allSelected: section.files
-                            .every((e) => _selected.contains(e.path)),
-                        onToggle: () => _toggleSection(section),
-                        background: Theme.of(context).colorScheme.surface,
-                      ),
-                    ),
-                    SliverGrid(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        mainAxisSpacing: spacing,
-                        crossAxisSpacing: spacing,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) => _tileAt(
-                            section.files[i], section.startIndex + i, cell, visible),
-                        childCount: section.files.length,
-                      ),
-                    ),
-                  ],
-                ),
-              // Alt eylem çubuğu bindirmeli çizilir; son satır onun altında
-              // kalmasın diye sabit boşluk (çubuk yokken de aynı → zıplamaz).
-              const SliverToBoxAdapter(child: SizedBox(height: 88)),
+  /// Boş durum: ne olduğunu ve (süzgeç varsa) nasıl çıkılacağını söyler.
+  Widget _emptyState() {
+    final theme = Theme.of(context);
+    final filtered = _query.trim().isNotEmpty || _filter.isActive;
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_loadingAll)
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              )
+            else
+              Icon(
+                filtered
+                    ? Icons.filter_alt_off_outlined
+                    : Icons.photo_library_outlined,
+                size: 56,
+                color: muted.withValues(alpha: 0.6),
+              ),
+            const SizedBox(height: Gap.md),
+            Text(
+              context.t(_loadingAll
+                  ? 'ph.loading'
+                  : (filtered ? 'ph.no_match' : 'ph.empty')),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleSmall,
+            ),
+            if (!_loadingAll) ...[
+              const SizedBox(height: Gap.xs),
+              Text(
+                context.t(filtered ? 'ph.no_match_hint' : 'ph.empty_hint'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(color: muted),
+              ),
             ],
-          );
-        },
-      );
-
-  /// Çok gruplu galeride düz çizim: **tek** `SliverList`, satır satır.
-  ///
-  /// Satırlar önceden hesaplanır ([_rows]) ve yalnız ekranda görünenler
-  /// kurulur — grup sayısı ne olursa olsun bellekteki sliver sayısı BİR.
-  Widget _flatTimeline(
-    List<_Section> sections,
-    List<FsEntry> visible,
-    int columns,
-    double cell,
-    double spacing,
-  ) {
-    final rows = _rows(sections, columns);
-    return CustomScrollView(
-      controller: _scroll,
-      slivers: [
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, i) {
-              final row = rows[i];
-              final section = sections[row.section];
-              if (row.isHeader) {
-                // Başlık İKİ çizim yolunda da AYNI kaynaktan gelsin diye
-                // delegenin kendi `build`'i çağrılıyor: yapışkan ve düz
-                // görünüm biri değişince ayrışmasın.
-                return SizedBox(
-                  height: _SectionHeaderDelegate.height,
-                  child: _SectionHeaderDelegate(
-                    title: section.title,
-                    count: section.files.length,
-                    selecting: _selecting,
-                    allSelected:
-                        section.files.every((e) => _selected.contains(e.path)),
-                    onToggle: () => _toggleSection(section),
-                    background: Theme.of(context).colorScheme.surface,
-                  ).build(context, 0, false),
-                );
-              }
-              return Padding(
-                padding: EdgeInsets.only(bottom: spacing),
-                // `Expanded` + `Row.spacing`: genişlik SATIRIN kendisinden
-                // bölünür. Hücre genişliğini elle yazmak (cell) kayan nokta
-                // artığı yüzünden "RenderFlex overflowed by 0.0001 pixels"
-                // riski taşırdı; bölme burada tam.
-                child: Row(
-                  spacing: spacing,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var c = 0; c < columns; c++)
-                      Expanded(
-                        child: SizedBox(
-                          height: cell,
-                          // Son satır eksik kalabilir: boş yer tutucu, yoksa
-                          // kalan hücreler genişleyip ızgara bozulurdu.
-                          child: row.first + c < section.files.length
-                              ? _tileAt(
-                                  section.files[row.first + c],
-                                  section.startIndex + row.first + c,
-                                  cell,
-                                  visible,
-                                )
-                              : null,
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
-            childCount: rows.length,
-          ),
+            if (_filter.isActive && !_loadingAll) ...[
+              const SizedBox(height: Gap.md),
+              FilledButton.tonalIcon(
+                onPressed: () => setState(() => _filter =
+                    FmFilter(hideDuplicates: _filter.hideDuplicates)),
+                icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                label: Text(context.t('ph.clear_filters')),
+              ),
+            ],
+          ],
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 88)),
-      ],
+      ),
     );
   }
 
-  /// Düz çizimin satır planı (başlık satırları + ızgara satırları).
-  /// Bölümler/sütun sayısı değişmedikçe yeniden kurulmaz.
-  List<_Row> _rows(List<_Section> sections, int columns) {
-    final key = '${identityHashCode(sections)}|${sections.length}|$columns';
-    final cached = _rowsCache;
-    if (cached != null && _rowsKey == key) return cached;
-    final out = <_Row>[];
-    for (var s = 0; s < sections.length; s++) {
-      out.add(_Row(s, -1));
-      final n = sections[s].files.length;
-      for (var i = 0; i < n; i += columns) {
-        out.add(_Row(s, i));
-      }
+  // ── Izgara ────────────────────────────────────────────────────────────────
+
+  /// Planın [i]. satırı: grup başlığı ya da bir sıra hücre. Her satır
+  /// yakınlaştırma geçişinin ölçeğini dinler (bkz. [_ZoomRow]).
+  Widget _row(PhotoGridPlan plan, int i, List<_Section> sections,
+      List<FsEntry> visible, double cell) {
+    final segments = plan.rowSegments[i];
+    final Widget child;
+    if (segments != null &&
+        segments.length == 1 &&
+        segments.first.span == plan.columns) {
+      final section = sections[segments.first.section];
+      child = _SectionHeader(
+        title: section.title,
+        count: section.files.length,
+        selecting: _selecting,
+        allSelected: section.files.every((e) => _selected.contains(e.path)),
+        onToggle: () => _toggleSection(section),
+      );
+    } else if (segments != null) {
+      // Satırı paylaşan gruplar: her etiket KENDİ hücrelerinin tam üstünde
+      // (sütun konumu ve genişliği hücrelerle birebir aynı hesaplanır).
+      child = Stack(
+        children: [
+          for (final seg in segments)
+            Positioned(
+              left: seg.column * (cell + _spacing),
+              width: seg.span * cell + (seg.span - 1) * _spacing,
+              top: 0,
+              bottom: 0,
+              child: _PackedLabel(
+                // Tek hücrelik yerde kısa etiket ("23 Eyl"); iki ve üstünde
+                // tam başlık sığar.
+                title: seg.span >= 2
+                    ? sections[seg.section].title
+                    : sections[seg.section].shortTitle,
+                selecting: _selecting,
+                allSelected: sections[seg.section]
+                    .files
+                    .every((e) => _selected.contains(e.path)),
+                onToggle: () => _toggleSection(sections[seg.section]),
+              ),
+            ),
+        ],
+      );
+    } else {
+      final first = plan.rowFlatStart[i];
+      final count = plan.rowCellCount[i];
+      child = Padding(
+        padding: const EdgeInsets.only(bottom: _spacing),
+        // `Expanded` + `Row.spacing`: genişlik SATIRIN kendisinden bölünür.
+        // Hücre genişliğini elle yazmak (cell) kayan nokta artığı yüzünden
+        // "RenderFlex overflowed by 0.0001 pixels" riski taşırdı.
+        child: Row(
+          spacing: _spacing,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var c = 0; c < plan.columns; c++)
+              Expanded(
+                child: SizedBox(
+                  height: cell,
+                  // Son satır eksik kalabilir: boş yer tutucu, yoksa kalan
+                  // hücreler genişleyip ızgara bozulurdu.
+                  child: c < count && first + c < visible.length
+                      ? _tileAt(visible[first + c], first + c, cell, visible)
+                      : null,
+                ),
+              ),
+          ],
+        ),
+      );
     }
-    _rowsCache = out;
-    _rowsKey = key;
-    return out;
+    return _ZoomRow(
+      scale: _zoomScale,
+      focal: () => _zoomFocal,
+      viewportTop: () =>
+          _appBarExtent +
+          plan.rowOffset[i] -
+          (_scroll.hasClients ? _scroll.offset : 0),
+      child: child,
+    );
   }
 
-  /// Tek hücre — iki çizim yolu da aynı kaynaktan kurar.
-  Widget _tileAt(
-      FsEntry e, int flatIndex, double cell, List<FsEntry> visible) {
+  /// Tek hücre.
+  Widget _tileAt(FsEntry e, int flatIndex, double cell, List<FsEntry> visible) {
     return DragSelectItem(
       index: flatIndex,
       child: _PhotoTile(
@@ -963,6 +1258,15 @@ class _PhotosScreenState extends State<PhotosScreen> {
         size: cell,
         selected: _selected.contains(e.path),
         selecting: _selecting,
+        // Yalnız GÖRSELLER galeride büyüyerek açılır (videonun oynatıcısı
+        // ayrı bir ekran, orada eşleşen kahraman yok).
+        heroTag: e.category == FmCategory.image ? fmMediaHeroTag(e.path) : null,
+        // **Tek dokunuş ANINDA** açar (2026-09-26). Eskiden hücrede çift
+        // dokunuş dinleyicisi (eylem sayfası) vardı; Flutter tek dokunuşu çift
+        // dokunuş süresi (~300 ms) dolana kadar BEKLETİYOR — her fotoğraf
+        // açılışı bu yüzden gecikiyordu (aynı tuzak: HAFIZA 2026-09-03 I).
+        // Tek dosyanın eylemleri uzun basış → alt çubuktan ve görüntüleyicinin
+        // "Diğer işlemler" menüsünden erişilebilir.
         onTap: () {
           if (_selecting) {
             _toggle(e);
@@ -970,117 +1274,330 @@ class _PhotosScreenState extends State<PhotosScreen> {
             _open(e, visible);
           }
         },
-        onMore: () async {
-          await showEntryActions(context, e, allowReveal: true, onReveal: _reveal);
-          _dropMissing();
-        },
       ),
     );
   }
 
-  void _reveal(String path) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => BrowserScreen(path: path),
-    ));
+  // ── Hızlı kaydırma tutamacı ───────────────────────────────────────────────
+
+  /// Ekranın üstündeki (başlık kaybolmuşsa durum çubuğunun hemen altındaki)
+  /// satırın adı: tarihe göre sıralıysa "Eylül 2025", ada göre ilk harf,
+  /// boyuta göre boyut.
+  String? _labelFor(double offset) {
+    final plan = _plan;
+    final sections = _lastSections;
+    if (plan == null || plan.rowCount == 0 || sections.isEmpty) return null;
+    final visible = _visibleCache ?? const <FsEntry>[];
+    final listY = offset + _topPadding + 12 - _appBarExtent;
+    final row = plan.rowAt(math.max(0, listY));
+    final segs = plan.rowSegments[row];
+    final FsEntry e;
+    if (segs != null) {
+      final s = segs.first.section;
+      if (s >= sections.length || sections[s].files.isEmpty) return null;
+      e = sections[s].files.first;
+    } else {
+      final index = plan.rowFlatStart[row];
+      if (index < 0 || index >= visible.length) return null;
+      e = visible[index];
+    }
+    return switch (_sort) {
+      FmSort.date => photoMonthYearTitle(e.modifiedMs),
+      FmSort.size => FsPaths.humanSize(e.sizeBytes),
+      _ => e.name.isEmpty ? null : e.name.characters.first.toUpperCase(),
+    };
+  }
+
+  /// Her yılın ilk grubunun ofseti (tutamaç sürüklenirken kenarda yazar).
+  List<FmScrollTick> _yearTicks() {
+    final plan = _plan;
+    if (plan == null) return const [];
+    final cached = _ticksCache;
+    if (cached != null && identical(_ticksPlan, plan)) return cached;
+    final sections = _lastSections;
+    final ticks = <FmScrollTick>[];
+    int? lastYear;
+    for (var s = 0; s < sections.length && s < plan.sectionStarts.length; s++) {
+      final files = sections[s].files;
+      if (files.isEmpty) continue;
+      final year = DateTime.fromMillisecondsSinceEpoch(files.first.modifiedMs).year;
+      if (year == lastYear) continue;
+      lastYear = year;
+      ticks.add(FmScrollTick(_appBarExtent + plan.sectionOffset(s), '$year'));
+    }
+    _ticksCache = ticks;
+    _ticksPlan = plan;
+    return ticks;
+  }
+
+  // ── İki parmakla yakınlaştırma ────────────────────────────────────────────
+
+  double _touchDistance() {
+    final pts = _touches.values.toList(growable: false);
+    return (pts[0] - pts[1]).distance;
+  }
+
+  Offset _touchFocal() {
+    final pts = _touches.values.toList(growable: false);
+    return (pts[0] + pts[1]) / 2;
+  }
+
+  void _pointerDown(PointerDownEvent e) {
+    _touches[e.pointer] = e.localPosition;
+    if (_touches.length == 2) {
+      // Kaydırma kilidi devreye girsin (physics değişir).
+      setState(() => _pinchBase = _touchDistance());
+    }
+  }
+
+  void _pointerMove(PointerMoveEvent e) {
+    if (!_touches.containsKey(e.pointer)) return;
+    _touches[e.pointer] = e.localPosition;
+    final base = _pinchBase;
+    if (base == null || base <= 0 || _touches.length != 2) return;
+    final ratio = _touchDistance() / base;
+    // Eşikler bilinçli olarak simetrik değil: parmakları açmak (yaklaşmak)
+    // sıkıştırmaktan daha geniş bir harekettir.
+    if (ratio > 1.22) {
+      _stepZoom(-1, _touchFocal());
+    } else if (ratio < 0.84) {
+      _stepZoom(1, _touchFocal());
+    }
+  }
+
+  void _pointerEnd(int pointer) {
+    _touches.remove(pointer);
+    if (_pinchBase != null && _touches.length < 2) {
+      setState(() => _pinchBase = null);
+    }
+  }
+
+  /// Yakınlaştırma merdiveninde bir basamak ilerler ([dir] -1: yaklaş, +1:
+  /// uzaklaş) ve **parmağın altındaki fotoğrafı yerinde tutar**.
+  ///
+  /// Yeni düzenin satır planı çizimden ÖNCE burada kurulur ve kaydırma ofseti
+  /// hemen ona göre ayarlanır: ayar bir sonraki kareye kalsaydı bir kare
+  /// boyunca yeni düzen eski ofsette görünür, ızgara titrerdi. Aynı sebeple
+  /// ayar `setFmPhotoView` ile yapılır (önce bildirir, sonra diske yazar).
+  void _stepZoom(int dir, Offset focal) {
+    // Aynı pinch içinde bir sonraki basamak için parmakların yeniden
+    // açılması/kapanması gerekir.
+    _pinchBase = _touchDistance();
+    final appState = context.read<AppState>();
+    final cur = nearestPhotoZoomStep(
+        appState.fmPhotoLayout.columns, appState.fmPhotoGroup.name);
+    final next = cur + dir;
+    if (next < 0 || next >= photoZoomLadder.length || _gridWidth <= 0) return;
+    final step = photoZoomLadder[next];
+    final newLayout = FmLayout.values.firstWhere(
+        (l) => l.isGrid && l.columns == step.columns,
+        orElse: () => appState.fmPhotoLayout);
+    final newGroup = PhotoGroupLabel.byName(step.group);
+
+    final oldPlan = _plan;
+    final oldCell = _cell;
+    int? anchor;
+    var within = 0.0;
+    if (oldPlan != null && _scroll.hasClients && oldPlan.rowCount > 0) {
+      final listY = _scroll.offset + focal.dy - _appBarExtent;
+      if (listY >= 0) {
+        anchor = oldPlan.indexAt(listY, focal.dx, _gridWidth);
+        final top = anchor == null ? null : oldPlan.offsetOfIndex(anchor);
+        if (top != null) {
+          within = ((listY - top) / oldPlan.rowExtent).clamp(0.0, 1.0);
+        }
+      }
+    }
+
+    final visible = _visible;
+    final newSections = _sections(visible, _timelineMode ? newGroup : null);
+    final newCell = _cellFor(step.columns, _gridWidth);
+    final newPlan = _planFor(newSections, step.columns, newCell + _spacing);
+    appState.setFmPhotoView(newLayout, newGroup);
+
+    if (anchor != null && _scroll.hasClients) {
+      final rowTop = newPlan.offsetOfIndex(anchor);
+      if (rowTop != null) {
+        final pos = _scroll.position;
+        final maxExtent = math.max(
+            0.0,
+            _appBarExtent +
+                newPlan.extent +
+                _bottomSpacer +
+                MediaQuery.paddingOf(context).bottom -
+                pos.viewportDimension);
+        final target = (_appBarExtent +
+                rowTop +
+                within * newPlan.rowExtent -
+                focal.dy)
+            .clamp(0.0, maxExtent);
+        _scroll.jumpTo(target);
+      }
+    }
+
+    // Geçiş: yeni düzen önce eski hücre boyunda çizilir, sonra yerine oturur.
+    if (oldCell > 0 && newCell > 0) {
+      _zoomFocal = focal;
+      _zoomFrom = oldCell / newCell;
+      _zoomScale.value = _zoomFrom;
+      _zoomAnim.forward(from: 0);
+    }
+    HapticFeedback.selectionClick();
   }
 }
 
-/// Düz çizimdeki bir satır: [section] numaralı grubun ya başlığı ([first] < 0)
-/// ya da o gruptaki [first] indeksinden başlayan ızgara satırı.
-class _Row {
-  final int section;
-  final int first;
-  const _Row(this.section, this.first);
+/// Yakınlaştırma geçişi sırasında satırı parmakların ortası etrafında ölçekler.
+///
+/// Tüm ekran değil yalnız SATIRLAR ölçeklenir: üst çubuk ve süzgeç şeridi
+/// yerinde durur. Her satır aynı odak etrafında aynı ölçekle dönüştüğü için
+/// satırlar birbirine göre kaymaz — görüntü tek bir yüzey gibi büyür/küçülür.
+/// Ölçek 1 iken dönüşüm birim matristir (yerleşim ve çizim maliyeti yok);
+/// ağaç yapısı hep aynı kalır → hücreler yeniden kurulmaz.
+class _ZoomRow extends StatelessWidget {
+  final ValueNotifier<double> scale;
+  final Offset Function() focal;
+  final double Function() viewportTop;
+  final Widget child;
 
-  bool get isHeader => first < 0;
+  const _ZoomRow({
+    required this.scale,
+    required this.focal,
+    required this.viewportTop,
+    required this.child,
+  });
+
+  static final _identity = Matrix4.identity();
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<double>(
+        valueListenable: scale,
+        child: child,
+        builder: (context, s, child) {
+          if (s == 1) return Transform(transform: _identity, child: child);
+          final f = focal();
+          final ox = f.dx;
+          final oy = f.dy - viewportTop();
+          final m = Matrix4.translationValues(ox, oy, 0)
+            ..multiply(Matrix4.diagonal3Values(s, s, 1))
+            ..multiply(Matrix4.translationValues(-ox, -oy, 0));
+          return Transform(transform: m, child: child);
+        },
+      );
 }
 
-/// Yapışkan grup başlığı. Yükseklik sabittir (min = max) — değişken yükseklikli
-/// pinned başlık kaydırmada zıplamaya yol açıyor.
-class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
+/// Grup başlığı: gün/ay/yıl adı + sayı; seçimde başta "grubu seç" halkası.
+///
+/// Satırı paylaşan grupların etiketiyle ([_PackedLabel]) AYNI yazı ve hiza:
+/// ikisi alt alta dururken biri büyük biri küçük olunca ızgara düzensiz
+/// görünüyordu (ilk ekran görüntüsü denemesinde yakalandı).
+class _SectionHeader extends StatelessWidget {
   final String title;
   final int count;
   final bool selecting;
   final bool allSelected;
   final VoidCallback onToggle;
-  final Color background;
 
-  const _SectionHeaderDelegate({
+  const _SectionHeader({
     required this.title,
     required this.count,
     required this.selecting,
     required this.allSelected,
     required this.onToggle,
-    required this.background,
   });
 
-  /// Başlık yüksekliği — düz çizim de aynı sayıyı kullanır.
-  static const height = 44.0;
-
   @override
-  double get minExtent => height;
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      color: background,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-      alignment: Alignment.centerLeft,
+    return Row(
+      children: [
+        Expanded(
+          child: _PackedLabel(
+            title: title,
+            selecting: selecting,
+            allSelected: allSelected,
+            onToggle: onToggle,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 14, top: 8),
+          child: Text(
+            '$count',
+            style: theme.textTheme.labelMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Satırı paylaşan küçük grubun etiketi: kısa tarih, hücrelerinin tam
+/// üstünde. Seçimde başında küçük bir "grubu seç" halkası; etiketin tamamı
+/// dokunulabilir (dar alanda ayrı bir düğme tutturmak zor).
+class _PackedLabel extends StatelessWidget {
+  final String title;
+  final bool selecting;
+  final bool allSelected;
+  final VoidCallback onToggle;
+
+  const _PackedLabel({
+    required this.title,
+    required this.selecting,
+    required this.allSelected,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final text = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.titleSmall?.copyWith(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.1,
+      ),
+    );
+    final content = Padding(
+      padding: const EdgeInsetsDirectional.only(start: 12, end: 4, top: 8),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
+          if (selecting) ...[
+            Icon(
+              allSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 18,
+              color: allSelected ? scheme.primary : scheme.onSurfaceVariant,
             ),
-          ),
-          if (selecting)
-            IconButton(
-              tooltip: context
-                  .t(allSelected ? 'ph.group_deselect' : 'ph.group_select'),
-              icon: Icon(allSelected
-                  ? Icons.check_circle
-                  : Icons.radio_button_unchecked),
-              color: allSelected ? theme.colorScheme.primary : null,
-              onPressed: onToggle,
-            )
-          else
-            Text('$count',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(width: 6),
+          ],
+          Flexible(child: text),
         ],
       ),
     );
+    if (!selecting) return content;
+    return Semantics(
+      button: true,
+      label: context.t(allSelected ? 'ph.group_deselect' : 'ph.group_select'),
+      child: InkWell(onTap: onToggle, child: content),
+    );
   }
-
-  @override
-  bool shouldRebuild(covariant _SectionHeaderDelegate old) =>
-      old.title != title ||
-      old.count != count ||
-      old.selecting != selecting ||
-      old.allSelected != allSelected ||
-      old.background != background;
 }
 
 /// Tam kare önizleme: ad yok, çerçeve yok — Google Fotoğraflar hücresi.
+///
+/// Seçilince hücre İÇE küçülür, köşeleri yuvarlanır ve arkasında vurgu tonu
+/// görünür; sol üstte dolu onay. Küçülme `AnimatedScale` ile — yalnız
+/// dönüşüm, yerleşim değişmez (seçimde ızgara zıplamaz).
 class _PhotoTile extends StatelessWidget {
   final FsEntry entry;
   final double size;
   final bool selected;
   final bool selecting;
+  final String? heroTag;
   final VoidCallback onTap;
-  final VoidCallback onMore;
 
   const _PhotoTile({
     required this.entry,
@@ -1088,36 +1605,68 @@ class _PhotoTile extends StatelessWidget {
     required this.selected,
     required this.selecting,
     required this.onTap,
-    required this.onMore,
+    this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    Widget thumb = FmEntryIcon(entry: entry, size: size, radius: 0);
+    final tag = heroTag;
+    if (tag != null) thumb = Hero(tag: tag, child: thumb);
     return GestureDetector(
       onTap: onTap,
-      // Seçim uzun basışla DragSelectArea'da başlar; ⋮ yerine ikinci dokunuş
-      // menüsü hücreyi kirletmesin diye çift dokunuş eylem sayfasını açar.
-      onDoubleTap: selecting ? null : onMore,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          FmEntryIcon(entry: entry, size: size, radius: 0),
-          if (selected)
-            Container(color: scheme.primary.withValues(alpha: 0.35)),
-          if (selecting)
-            Positioned(
-              top: 4,
-              right: 4,
-              child: Icon(
-                selected ? Icons.check_circle : Icons.circle_outlined,
-                size: 20,
-                color: selected ? scheme.primary : Colors.white,
-                shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
+      behavior: HitTestBehavior.opaque,
+      child: ColoredBox(
+        color: selected ? scheme.secondaryContainer : Colors.transparent,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            AnimatedScale(
+              scale: selected ? 0.84 : 1,
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOutCubic,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(selected ? 14 : 0),
+                clipBehavior: selected ? Clip.antiAlias : Clip.none,
+                child: thumb,
               ),
             ),
-        ],
+            if (selecting)
+              PositionedDirectional(
+                top: 6,
+                start: 6,
+                child: _CheckBadge(selected: selected),
+              ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Seçim rozeti: seçiliyse beyaz halkalı dolu onay, değilse gölgeli boş halka
+/// (altında koyu da açık da bir fotoğraf olabilir).
+class _CheckBadge extends StatelessWidget {
+  final bool selected;
+  const _CheckBadge({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? scheme.primary : Colors.black.withValues(alpha: 0.12),
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
+      ),
+      child: selected
+          ? Icon(Icons.check_rounded, size: 14, color: scheme.onPrimary)
+          : null,
     );
   }
 }

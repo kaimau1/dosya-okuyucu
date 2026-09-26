@@ -15,17 +15,32 @@ import '../../services/fm/storage_stats.dart';
 /// videolardaki işaretli üst alan çok yer kaplıyor, kompaktlaşmalı"*):
 /// Fotoğraflar ekranında üst üste **dört** satır vardı — gün/ay/yıl ölçeği,
 /// kaynak çipleri, hızlı süzgeçler ve "kopya gizlendi" uyarısı — ve birlikte
-/// ~180 dp yiyorlardı. 7559 dosyalık bir galeride ekranın üçte biri süzgeç
-/// oluyordu. Artık hepsi **tek** yatay satırda ve sıkı (compact) çizilir;
-/// üst alan 180 dp'den 38 dp'ye indi.
-const double kFmFilterBarHeight = 38;
-
-/// Süzgeç satırının tek çipi: **sıkı** (yükseklik `kFmFilterBarHeight` - 6),
-/// küçük punto, dar iç boşluk.
+/// ~180 dp yiyorlardı. Artık hepsi **tek** yatay satırda.
 ///
-/// Material'ın varsayılan `FilterChip`i 48 dp'lik dokunma hedefiyle gelir;
-/// yan yana üç satır çip bu yüzden ekranın üçte birini yiyordu. Dokunma hedefi
-/// küçülüyor ama satırın kendisi 38 dp — parmakla vurulacak kadar geniş.
+/// 2026-09-26 (kullanıcı: *"üstteki filtreler tüm alanlarda pek güzel
+/// değil"*): 38 → 46 dp. Çipler çerçeveli kutucuktan TONLU hapa döndü ve
+/// aralarına nefes payı kondu; tek satır kuralı aynen duruyor.
+const double kFmFilterBarHeight = 46;
+
+/// Çip (ve pil) yüksekliği — şeritten 12 dp kısa, üstte/altta 6 dp pay.
+const double kFmChipHeight = 34;
+
+/// Çipler arası boşluk.
+const double _kChipGap = 8;
+
+/// Süzgeç satırının tek çipi: **tonlu hap** (2026-09-26 tasarım turu).
+///
+/// Eski çip Material'ın `FilterChip`iydi: gri çerçeve, 11 dp köşeli kutu,
+/// seçiliyken açık mavi dolgu — yan yana dizilince "form alanı" gibi
+/// duruyordu ve seçili olanı bir bakışta ayırt etmek zordu. Bugünün galeri
+/// uygulamalarının (Google Foto, Samsung Galeri, YouTube) dili:
+/// * tam yuvarlak hap, **çerçevesiz**, soluk yüzey tonunda;
+/// * seçili olan **dolu birincil renk** — tek bakışta hangisinin açık olduğu
+///   anlaşılır;
+/// * sayı etiketin yanında ama SOLUK: göz önce adı okur, sayı ikincil bilgi.
+///
+/// Metin düz hâliyle `"Etiket · 12"` kalır (Text.rich) — testler ve ekran
+/// okuyucular aynı dizeyi görür.
 class FmChip extends StatelessWidget {
   final String label;
 
@@ -49,30 +64,113 @@ class FmChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final n = count ?? 0;
+    final fg = selected ? scheme.onPrimary : scheme.onSurface;
     return Padding(
-      padding: const EdgeInsets.only(right: Gap.xs),
-      child: FilterChip(
+      padding: const EdgeInsetsDirectional.only(end: _kChipGap),
+      child: Semantics(
+        button: true,
         selected: selected,
-        showCheckmark: false, // onay imi çipi ~20 dp genişletiyordu
-        avatar: icon == null ? null : Icon(icon, size: 14),
-        visualDensity: VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 0),
-        labelStyle: const TextStyle(fontSize: 12, height: 1.1),
-        label: Text(n > 0 ? '$label · $n' : label),
-        onSelected: (_) => onTap(),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          height: kFmChipHeight,
+          decoration: ShapeDecoration(
+            shape: const StadiumBorder(),
+            color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: onTap,
+              child: _ChipBody(
+                icon: icon,
+                label: label,
+                count: n > 0 ? n : null,
+                fg: fg,
+                bold: selected,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// [FmChip] ile **aynı ölçüde** ama dokunmayı YUTMAYAN pil.
+/// Çip ve pilin ortak içi: simge + ad + soluk sayı (+ isteğe bağlı ok).
+class _ChipBody extends StatelessWidget {
+  final IconData? icon;
+  final String label;
+  final int? count;
+  final Color fg;
+  final bool bold;
+  final bool dropdown;
+
+  const _ChipBody({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.fg,
+    this.bold = false,
+    this.dropdown = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 13,
+      height: 1.1,
+      color: fg,
+      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+    );
+    return Padding(
+      padding: EdgeInsetsDirectional.only(
+        start: icon == null ? 14 : 10,
+        end: dropdown ? 8 : 14,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: fg),
+            const SizedBox(width: 6),
+          ],
+          Text.rich(
+            TextSpan(
+              text: label,
+              children: [
+                if (count != null)
+                  TextSpan(
+                    text: ' · $count',
+                    style: TextStyle(
+                      color: fg.withValues(alpha: 0.62),
+                      fontWeight: FontWeight.w500,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+              ],
+            ),
+            style: style,
+            maxLines: 1,
+          ),
+          if (dropdown) ...[
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down, size: 20, color: fg),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// [FmChip] ile **aynı görünüşte** ama dokunmayı YUTMAYAN pil.
 ///
-/// `PopupMenuButton`ın çocuğu olarak kullanılır: `FilterChip`in kendi jest
+/// `PopupMenuButton`ın çocuğu olarak kullanılır: çipin kendi dokunma
 /// tanıyıcısı üstteki menü düğmesinin dokunuşunu yutar ve menü hiç açılmaz.
-/// Görünüşü çipe eş olsun diye ölçüler tek yerden (`FmChip`) kopyalanmıştır.
+/// [dropdown] sağa küçük bir ok koyar ("dokununca seçenek açılır").
 class FmPill extends StatelessWidget {
   final String label;
   final IconData? icon;
@@ -80,35 +178,48 @@ class FmPill extends StatelessWidget {
   /// Soluk çizilsin mi (ör. seçim sürerken pasif duran uyarı pili).
   final bool disabled;
 
+  /// Açılır menü oku.
+  final bool dropdown;
+
+  /// Vurgulu (seçili çiple aynı dolgu) — ör. süzgeç etkinken.
+  final bool highlighted;
+
   const FmPill({
     super.key,
     required this.label,
     this.icon,
     this.disabled = false,
+    this.dropdown = false,
+    this.highlighted = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final ink = disabled ? Paper.faint(context) : scheme.onSurfaceVariant;
+    final Color fg;
+    if (disabled) {
+      fg = Paper.faint(context);
+    } else if (highlighted) {
+      fg = scheme.onSecondaryContainer;
+    } else {
+      fg = scheme.onSurface;
+    }
     return Padding(
-      padding: const EdgeInsets.only(right: Gap.xs),
+      padding: const EdgeInsetsDirectional.only(end: _kChipGap),
       child: Container(
-        height: kFmFilterBarHeight - 8,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-        decoration: BoxDecoration(
-          border: Border.all(color: scheme.outlineVariant),
-          borderRadius: BorderRadius.circular(Radii.control),
+        height: kFmChipHeight,
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          color: highlighted
+              ? scheme.secondaryContainer
+              : scheme.surfaceContainerHighest,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: ink),
-              const SizedBox(width: Gap.xs),
-            ],
-            Text(label, style: TextStyle(fontSize: 12, color: ink)),
-          ],
+        child: _ChipBody(
+          icon: icon,
+          label: label,
+          count: null,
+          fg: fg,
+          dropdown: dropdown,
         ),
       ),
     );
@@ -132,7 +243,9 @@ class FmFilterBar extends StatelessWidget {
       height: kFmFilterBarHeight,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+        // Kenar payı ızgaranın/listenin metin hizasıyla aynı (12 dp);
+        // sondaki pay son çipin ekrana yapışmasını önler.
+        padding: const EdgeInsetsDirectional.only(start: 12, end: 4),
         children: [
           for (final child in children)
             Align(alignment: Alignment.center, child: child),

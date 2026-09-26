@@ -4329,6 +4329,29 @@ const Map<String, (String, String, String)> _table = {
   ),
   'ph.clean': ('Temizle', 'Clean up', 'تنظيف'),
   'ph.similar_title': ('Benzer: {title}', 'Similar: {title}', 'مشابه: {title}'),
+  // 2026-09-26 galeri turu.
+  'ph.similar_short': ('Benzerleri bul', 'Find similar', 'ابحث عن المتشابه'),
+  'ph.sorted_header': ('{n} dosya · {sort}', '{n} files · {sort}', '{n} ملف · {sort}'),
+  'ph.view': ('Görünüm', 'View', 'العرض'),
+  'ph.view_scale': ('Zaman ölçeği', 'Time scale', 'المقياس الزمني'),
+  'ph.view_columns': ('Sütun sayısı', 'Columns', 'عدد الأعمدة'),
+  'ph.pinch_hint': (
+    'İpucu: ızgarada iki parmakla sıkıştırarak uzaklaştır, açarak yakınlaştır.',
+    'Tip: pinch the grid with two fingers to zoom out, spread to zoom in.',
+    'تلميح: اقرص الشبكة بإصبعين للتصغير، وباعدهما للتكبير.',
+  ),
+  'ph.empty_hint': (
+    'Yeni fotoğraf ve videolar çekildikçe burada görünür.',
+    'New photos and videos appear here as they are taken.',
+    'تظهر الصور ومقاطع الفيديو الجديدة هنا فور التقاطها.',
+  ),
+  'ph.no_match_hint': (
+    'Süzgeçleri temizlemeyi dene.',
+    'Try clearing the filters.',
+    'جرّب مسح عوامل التصفية.',
+  ),
+  'ph.clear_filters': ('Süzgeçleri temizle', 'Clear filters', 'مسح عوامل التصفية'),
+  'ph.fast_scroll': ('Hızlı kaydırma tutamacı', 'Fast scroll handle', 'مقبض التمرير السريع'),
 
   // ── AI sohbeti ────────────────────────────────────────────────────────────
   'chat.export_short': ('Aktar', 'Export', 'تصدير'),

@@ -11879,3 +11879,153 @@ denetimi" geçti (wasm yok, gömülü OCR yok, targetSdk 36), Release adımları
 ATLANDI (main koşulu çalışıyor). Kullanıcı *"main'e merge et, APK
 derlensin"* → main hızlı ileri, #366 yeşil, **v1.0.366** yayımlandı.
 **Boyut:** arm64 APK 93,5 → **77,5 MB** (−16 MB), 32-bit 96,8 → 85,1 MB.
+
+## 2026-09-26 (3) — Fotoğraflar/Videolar: modern galeri turu + çipler her yerde
+Kullanıcı (5 ekran görüntüsü: bizim Videolar/Görüntüler/görüntüleyici,
+Google Foto ana ekranı ve görüntüleyicisi): *"Fotoğraflar ve videolar
+alanlarımızı daha modern, büyük şirketlerinki gibi daha işlevsel ve göze
+hitap edecek şekilde … akıcılık ön planda olmalı, performans önemli, ayrıca
+üstteki filtreler tüm alanlarda pek güzel değil, sana bırakıyorum … bizim de
+iyi olduğumuz şeyler var, diğerlerinin iyi oldukları var, harmanlayalım"* +
+main'e merge, APK derlensin.
+
+**Harmanlama kararı:** bizden KALAN — kaynak çipleri (sayılı), kopya gizleme
++ temizleme, benzer görüntüler, sürükleyerek seçim, üstündekileri/
+altındakileri seç, süzgeç sayfası. Büyüklerden ALINAN — yüzen üst çubuk,
+hızlı kaydırma tutamacı, iki parmakla yakınlaştırma, hücreden büyüyen
+görüntüleyici, aşağı kaydırıp kapatma, seçimde içe küçülen hücre, zaman
+başlıklı görüntüleyici.
+
+### A) Galeri (`photos_screen.dart`) — yapı
+- **Tek `SliverVariedExtentList`** (grup sayısı ne olursa olsun). Satır
+  planı saf Dart: `models/photo_grid_plan.dart` (başlık 52 dp, satır =
+  hücre + 2 dp; `rowAt` ikili arama, `offsetOfIndex`, `indexAt`). Satır
+  yükseklikleri bilindiği için liste herhangi bir ofsete DOĞRUDAN atlar;
+  bilinmeyen yükseklikli `SliverList` aradaki her satırı kurarak yürürdü.
+  2026-08-17'deki "120 grubu aşınca düz çizim" ikili yolu kalktı.
+- **Bilinçli takas:** yapışkan grup başlıkları gitti; yerine hızlı kaydırma
+  tutamacının ay balonu ("Eylül 2025", yıl HER ZAMAN yazılır) ve yıl
+  işaretleri geldi (Google Foto'nun kendisi de yapışkan başlık kullanmıyor).
+- **Yüzen `SliverAppBar`** (floating+snap), süzgeç şeridi `bottom`da:
+  aşağı kaydırınca kaybolur. **Seçim ve aramada SABİT** (pinned) — sayaç ve
+  arama alanı kaybolmasın. Üç kipte de yükseklik aynı (`_toolbarHeight` 64 +
+  `kFmFilterBarHeight`) → kip değişince ızgara zıplamaz (2026-07-29 kuralı).
+  Durum çubuğunun altına yüzey tonunda şerit: başlık kaybolunca fotoğraflar
+  saatin altından akmıyor.
+- Üst çubuk sade: ara · süzgeç · ⋮ (Görünüm, Benzerleri bul, Tümünü seç).
+  Alt başlık "748 dosya · 53 GB"; süzgeç bir kısmını gizleyince "N / M dosya".
+- Boş durum `SliverFillRemaining` içinde: şerit yine erişilebilir; süzgeç
+  etkinse "Süzgeçleri temizle" düğmesi.
+- `PopScope`: geri tuşu önce seçimi/aramayı kapatır.
+
+### B) İki parmakla yakınlaştırma
+- Merdiven (`photoZoomLadder`): 2·gün → 3·gün → 4·gün → 5·ay → 5·yıl.
+  Açmak (oran > 1,22) bir basamak yaklaştırır, sıkıştırmak (< 0,84)
+  uzaklaştırır; aynı pinch'te birden çok basamak geçilebilir.
+- Ham `Listener` (jest arenasına girmez; PinchZoomArea dersi), pinch
+  sürerken `NeverScrollableScrollPhysics`.
+- **Parmağın altındaki fotoğraf yerinde kalır:** eski plandan düz indeks +
+  hücre içi oran → YENİ plan çizimden ÖNCE kurulur → `jumpTo` aynı olay
+  içinde. **TUZAK:** `setFmPhotoLayout/Group` önce diske yazıp SONRA
+  bildiriyordu → bir kare boyunca eski düzen yeni ofsette çizilirdi (titreme).
+  Yeni `AppState.setFmPhotoView` önce bildirir, sonra yazar (yazma hatası
+  yutulur — testte tercih deposu yok).
+- Geçiş animasyonu yalnız SATIRLARDA (`_ZoomRow`, `ValueListenableBuilder`):
+  üst çubuk ölçeklenmez; ölçek 1'de birim matris (ağaç yapısı sabit →
+  hücreler yeniden kurulmaz).
+- Görünüm sayfası (⋮ → Görünüm): zaman ölçeği + sütun sayısı segmentli
+  düğmeler + pinch ipucu. Gün/Ay/Yıl şeritte artık tek pil ("Gün ▾", menü):
+  eski üç bölmeli kutu şeridin en değerli 150 dp'sini kaplıyordu.
+
+### B2) Küçük gruplar SATIRI PAYLAŞIR (kullanıcının Videolar görüntüsü)
+Görüntüde her gün 1-2 video vardı: her gün kendi başlığı + yarı boş satır,
+ekranın yarısı beyazdı. Artık satırı dolduramayan (eleman < sütun) ardışık
+gruplar aynı satırı paylaşır; her grubun etiketi KENDİ hücrelerinin tam
+üstünde (konum/genişlik hücrelerle birebir: `col × (hücre + 2)`), tek
+hücrelik yerde kısa etiket ("Bugün", "23 Eyl", `photoGroupShortTitle`), iki
+ve üstünde tam başlık. Satırı dolduran grup eskisi gibi tam genişlik başlık
++ sayı. Plan modeli buna göre genelleşti: ızgara satırı = (ilk düz indeks,
+hücre sayısı), başlık satırı = etiket parçaları (`PhotoHeaderSegment`). Düz
+indeksler yine ARDIŞIK (paylaşan gruplar sıradaki gruplar) → sürükleyerek
+seçim ve üstündekileri/altındakileri seç bozulmadı. Seçimde her etiket kendi
+grubunu seçer. Yalnız tarih sıralı zaman ekseninde (`packSmall`).
+- Ekran görüntüsüyle yakalanan ayrıntı: tam başlık `titleMedium`, paylaşılan
+  etiket `titleSmall` idi — alt alta biri büyük biri küçük görünüyordu. İkisi
+  tek biçimde (15 sp kalın, 12 dp girinti); tam başlık `_PackedLabel`ı sarar.
+
+### C) Hücre ve performans
+- **KÖK NEDEN — her fotoğraf açılışı ~300 ms gecikiyordu:** hücrede
+  `onDoubleTap` (eylem sayfası) vardı; Flutter tek dokunuşu çift dokunuş
+  süresi dolana kadar bekletir (aynı tuzak: 2026-09-03 I). Çift dokunuş
+  kaldırıldı; tek dosya eylemleri uzun basış → alt çubuk ve görüntüleyici
+  "Diğer işlemler"de. Test: dokunuş SIFIR süreli `pump` ile işleniyor.
+- Seçilen hücre `AnimatedScale` 0,84 + 14 dp köşe + vurgu zemini; sol üstte
+  onay rozeti. Yalnız dönüşüm → yerleşim değişmez.
+- **Küçük resim genişliği KADEMELİ** (`fmThumbWidth`, 96…768): eskiden
+  `hücre × 3` (her sütun sayısında ayrı önbellek kaydı). Kazanç: aynı foto
+  liste ve ızgarada aynı kaydı paylaşır; görüntüleyici ızgaranın küçük
+  resmini önbellekte BULUR (`fmCachedThumb`, çözme başlatmaz).
+- Görsel önbelleği 100 → 160 MB (`main.dart`): görüntüleyicinin tam ekran
+  çözümü (≈12 MB) küçük resimleri itiyor, ızgaraya dönünce boş hücreler
+  yeniden çözülüyordu. Bellek baskısında Flutter önbelleği kendisi boşaltır.
+- **Video küçük resmi hızlı savurmada ertelenir**
+  (`Scrollable.recommendDeferredLoadingForContext`, görsellerde Flutter'ın
+  kendi yaptığı): 748 videoda savururken her hücre yerel çağrı başlatıyor,
+  durulan yerdeki videolar kuyruğun sonunda kalıyordu.
+- Video rozeti TEK hap: ▶ + süre, sağ altta (2026-08-28 isteği korunarak).
+
+### D) Görüntüleyici (`image_gallery_screen.dart`)
+- `imageGalleryRoute`: **saydam** (`opaque: false`) + solarak; hücre ile
+  sayfa aynı `fmMediaHeroTag` → fotoğraf hücresinden BÜYÜYEREK açılır.
+  `EntryOpener` galeriyi artık bununla açıyor (her ekranda; kahramanı olmayan
+  ekranlarda yalnız solma).
+- **İlk kare anında:** ızgaranın küçük resmi önbellekteyse tam çözünürlük
+  gelene kadar o çizilir; aynı küçük resim en-boy oranını EŞZAMANLI verir
+  (`fmCachedAspect`) → kahraman kutusu görselin tam kendisi (`AspectRatio` +
+  `cover` = `contain`), kareden tam fotoğrafa geçiş kırpıntısız akar. Oran
+  bilinmiyorsa kutu ekranı kaplar ve tam görsel çözülünce öğrenilir.
+- **Aşağı kaydırıp kapatma:** dikey sürükleme (yakınlaştırılmışken KAPALI)
+  sayfayı kaydırıp küçültür, siyah incelir, arkada ızgara görünür; 110 px /
+  hızlı savurma kapatır (`popOwnPage`), azı yerine yaylanır. Yukarı çekiş →
+  Bilgi sayfası. Kahraman hücresine döner.
+- Komşu sayfalar önceden çözülür (`precacheImage`, sayfanın kendi anahtarı).
+- `Image.file` → `FmFileImage` (görüntüleyici + küçük resim şeridi): baytlar
+  Dart yığınına kopyalanmıyor (2026-08-17 donma kök nedeninin aynısı).
+- Başlık ZAMAN: "Bugün · 18:44" (`photoMomentTitle`); alt satır
+  "3/799 · 119 KB · ad". Karma adlar ("e8e4fcfccc….jpg") bir şey anlatmıyordu.
+- **TUZAK — `late final AnimationController … = AnimationController(vsync:
+  this)`:** tembel alan ilk kez `dispose`ta erişilirse orada Ticker kurulur →
+  "Looking up a deactivated widget's ancestor" (testte yakalandı). Denetleyici
+  `initState`te kurulur.
+- Bilinen küçük görsel kusur: başka fotoğrafa geçip aşağı sürüklerken, İLK
+  açılan fotoğrafın hücresi ızgarada boş görünür (Hero kaynak yer tutucusu,
+  Flutter davranışı); kapanınca geri gelir.
+
+### E) Çipler — "tüm alanlarda"
+- `FmChip`/`FmPill`/`FmFilterBar`: çerçeveli 11 dp kutu → **tonlu hap**
+  (çerçevesiz, `surfaceContainerHighest`); seçili **dolu birincil renk**
+  (gezinme şeridi: hangisinin açık olduğu bir bakışta); sayı soluk
+  (`"Kamera · 2474"` düz metni korunur — testler ve ekran okuyucu aynı dizeyi
+  görür). Şerit 38 → 46 dp, çipler arası 8 dp. `FmPill(dropdown:,
+  highlighted:)` eklendi.
+- Arama ve Bellek Analizi'nin üst çip satırları aynı `FmChip`e geçti.
+- Tema `chipTheme` (öteki tüm FilterChip/ChoiceChip'ler: süzgeç sayfası,
+  etkinlik, uygulamalar, benzerler, boyutlandırma…): çerçevesiz tonlu hap,
+  seçili vurgu tonu. Seçili renk bilinçli olarak `secondaryContainer`da
+  KALDI: Material'ın avatar/onay simgesi renkleri seçili duruma göre
+  varsayılandan geliyor; dolu birincil zeminde avatar simgeleri okunmazdı.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun, **2442 test
+yeşil** (9 atlanan: canlı sunucu testleri). Yeni testler:
+`photo_grid_plan_test` (ofset/indeks/merdiven/başlık), `image_gallery_
+dismiss_test` (kahramanla açılış, kısa sürükleme yaylanır, uzun sürükleme
+kapatır, yana kaydırma sayfa değiştirir), `fm_photos_screen_test`e: tek liste
++ ortaya doğrudan atlama, tutamaç görünür/sürüklenir/söner, ölçek pili
+menüsü, iki parmakla 3→2 ve 2→4+ sütun, dokunuşun beklemeden işlenmesi.
+`image_decode_budget_screen_test` `FmFileImage`in çözme genişliğini de
+tanıyor. Tasarım test ortamında gerçek yazı tipleri + örnek JPEG'lerle
+çizdirilip (RepaintBoundary.toImage, açık/koyu/seçim/seyrek/görüntüleyici)
+GÖZLE denetlendi; başlık tutarsızlığı bu sayede yakalandı. `graphify update .`
+bu bulut oturumunda çalıştırılamadı (araç kurulu değil). Cihazda bakılacak: pinch'in hissi (eşikler 1,22/0,84), tutamacın
+sağ kenarda başparmakla tutulması, koyu temada seçili çip zıtlığı, galeri
+açılışında küçük resimden tam çözünürlüğe geçişte titreme olup olmadığı.

@@ -19,6 +19,7 @@ import '../../services/fm/open_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
@@ -519,33 +520,29 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 // Arama sırasında da GÖRÜNÜR: kapsam arama sonuçlarını da süzüyor;
                 // eskiden çipler aramada gizleniyordu ve önceden seçilmiş bir tür
                 // sonuçları görünmez biçimde daraltıyordu ("dosya yok" sanılıyordu).
+                // Galeri/kategori şeridiyle aynı çip (2026-09-26).
                 if (categories.isNotEmpty)
                   SizedBox(
-                    height: 44,
+                    height: kFmFilterBarHeight,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: Gap.sm),
-                          child: ChoiceChip(
-                            visualDensity: VisualDensity.compact,
-                            label: Text(context.t('ana.scope_all')),
+                        for (final child in [
+                          FmChip(
+                            label: context.t('ana.scope_all'),
                             selected: _category == null,
-                            onSelected: (_) => setState(() => _category = null),
+                            onTap: () => setState(() => _category = null),
                           ),
-                        ),
-                        for (final c in categories)
-                          if (_isSearch || (_largest[c] ?? const []).isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(right: Gap.sm),
-                              child: ChoiceChip(
-                                visualDensity: VisualDensity.compact,
-                                label: Text(context.t(c.labelKey)),
+                          for (final c in categories)
+                            if (_isSearch ||
+                                (_largest[c] ?? const []).isNotEmpty)
+                              FmChip(
+                                label: context.t(c.labelKey),
                                 selected: _category == c,
-                                onSelected: (_) =>
-                                    setState(() => _category = c),
+                                onTap: () => setState(() => _category = c),
                               ),
-                            ),
+                        ])
+                          Align(alignment: Alignment.center, child: child),
                       ],
                     ),
                   ),

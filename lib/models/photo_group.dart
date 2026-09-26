@@ -94,3 +94,61 @@ String photoGroupTitle(int millis, PhotoGroup group, {DateTime? now}) {
       return days < 7 ? '$base ${_weekdays[d.weekday - 1]}' : base;
   }
 }
+
+/// Kaydırma tutamacının balonu için kısa ay adı + yıl ("Eylül 2025").
+///
+/// Balonda yıl HER ZAMAN yazılır (zaman ekseni başlığındaki "bu yıl"
+/// kısaltması burada yok): tutamaçla hızla inerken hangi yılda olunduğu en
+/// çok aranan bilgi.
+String photoMonthYearTitle(int millis) {
+  final d = DateTime.fromMillisecondsSinceEpoch(millis);
+  return '${_months[d.month - 1]} ${d.year}';
+}
+
+/// Görüntüleyici başlığı: gün başlığı + saat ("Bugün · 18:44",
+/// "12 Mart 2024 · 09:15"). Google Foto'daki gibi dosya adı yerine ZAMAN —
+/// "e8e4fcfccc…jpg" gibi karma adlar hiçbir şey anlatmıyordu; ad alt satırda.
+String photoMomentTitle(int millis, {DateTime? now}) {
+  final d = DateTime.fromMillisecondsSinceEpoch(millis);
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${photoGroupTitle(millis, PhotoGroup.day, now: now)} · '
+      '${two(d.hour)}:${two(d.minute)}';
+}
+
+const _monthsShort = [
+  'Oca',
+  'Şub',
+  'Mar',
+  'Nis',
+  'May',
+  'Haz',
+  'Tem',
+  'Ağu',
+  'Eyl',
+  'Eki',
+  'Kas',
+  'Ara',
+];
+
+/// Satırı paylaşan küçük grupların KISA etiketi ("Bugün", "Dün", "23 Eyl",
+/// "23 Eyl 2024", "Eyl 2024", "2024"). Bir-iki hücre genişliğine sığmalı:
+/// uzun başlık ("23 Eylül Çarşamba") orada kesilip okunmaz olurdu.
+String photoGroupShortTitle(int millis, PhotoGroup group, {DateTime? now}) {
+  final d = DateTime.fromMillisecondsSinceEpoch(millis);
+  final today = now ?? DateTime.now();
+  switch (group) {
+    case PhotoGroup.year:
+      return '${d.year}';
+    case PhotoGroup.month:
+      return d.year == today.year
+          ? _months[d.month - 1]
+          : '${_monthsShort[d.month - 1]} ${d.year}';
+    case PhotoGroup.day:
+      final days = calendarDaysBetween(d, today);
+      if (days == 0) return 'Bugün';
+      if (days == 1) return 'Dün';
+      return d.year == today.year
+          ? '${d.day} ${_monthsShort[d.month - 1]}'
+          : '${d.day} ${_monthsShort[d.month - 1]} ${d.year}';
+  }
+}

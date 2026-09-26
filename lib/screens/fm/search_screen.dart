@@ -22,6 +22,7 @@ import '../../services/fm/search_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/smart_query.dart';
 import '../../services/gemini_service.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
@@ -529,43 +530,36 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _filterChips() => SizedBox(
-        height: 48,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-          children: [
-            // **Dosya içinde ara** çipi en başta: kullanıcı adı bulamayınca
-            // ilk buraya bakıyor.
-            Padding(
-              padding: const EdgeInsets.only(right: Gap.sm),
-              child: FilterChip(
-                avatar: const Icon(Icons.manage_search, size: 18),
-                label: Text(context.t('srch.in_content')),
-                selected: _inContent,
-                onSelected: (value) {
-                  setState(() {
-                    _inContent = value;
-                    _contentHits = const [];
-                  });
-                  _run(_controller.text);
-                },
-              ),
+  /// Tür süzgeçleri — galeri ve kategori ekranlarının şeridiyle AYNI
+  /// bileşen (`FmFilterBar` + `FmChip`, 2026-09-26): kullanıcı *"üstteki
+  /// filtreler tüm alanlarda pek güzel değil"* dedi; her ekranın kendi çip
+  /// biçimi olması da bunun bir parçasıydı.
+  Widget _filterChips() => FmFilterBar(
+        children: [
+          // **Dosya içinde ara** çipi en başta: kullanıcı adı bulamayınca
+          // ilk buraya bakıyor.
+          FmChip(
+            icon: Icons.manage_search,
+            label: context.t('srch.in_content'),
+            selected: _inContent,
+            onTap: () {
+              setState(() {
+                _inContent = !_inContent;
+                _contentHits = const [];
+              });
+              _run(_controller.text);
+            },
+          ),
+          for (final entry in <(String, FmCategory?)>[
+            ('flt.all', null),
+            for (final c in FmCategory.values) (c.labelKey, c),
+          ])
+            FmChip(
+              label: context.t(entry.$1),
+              selected: _category == entry.$2,
+              onTap: () => setState(() => _category = entry.$2),
             ),
-            for (final entry in <(String, FmCategory?)>[
-              ('flt.all', null),
-              for (final c in FmCategory.values) (c.labelKey, c),
-            ])
-              Padding(
-                padding: const EdgeInsets.only(right: Gap.sm),
-                child: ChoiceChip(
-                  label: Text(context.t(entry.$1)),
-                  selected: _category == entry.$2,
-                  onSelected: (_) => setState(() => _category = entry.$2),
-                ),
-              ),
-          ],
-        ),
+        ],
       );
 
   Widget _body(List<FsEntry> results) {

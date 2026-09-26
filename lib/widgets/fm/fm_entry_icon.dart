@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -292,8 +293,11 @@ class FmEntryIcon extends StatelessWidget {
           image: FmFileImage(
             entry.path,
             // Bellek koruması: 4000px'lik bir fotoğrafı 44dp'lik kutuya tam
-            // çözünürlükte açmak listeyi şişirir (= decode boyutu).
-            cacheWidth: (size * 3).round(),
+            // çözünürlükte açmak listeyi şişirir (= decode boyutu). Genişlik
+            // KADEMELİ (bkz. `fmThumbWidth`): görüntüleyici aynı kaydı
+            // önbellekte bulup ilk kareyi anında çizebilsin.
+            cacheWidth: fmThumbWidth(
+                size, MediaQuery.maybeDevicePixelRatioOf(context) ?? 3),
           ),
           width: size,
           height: size,
@@ -728,6 +732,21 @@ class _VideoThumbState extends State<_VideoThumb> {
 
   Future<void> _load() async {
     final path = widget.path;
+    // **Hızlı savurmada bekle** (2026-09-26): 748 videoluk ızgarada parmakla
+    // savurunca saniyede onlarca hücre bir anlığına kuruluyor ve her biri
+    // yerel küçük resim + süre çağrısı başlatıyordu; kuyruk dolunca durduğun
+    // yerdeki videolar en son geliyordu. Flutter'ın görsellerde yaptığının
+    // aynısı (`ScrollAwareImageProvider`): kaydırma hızı "ertele" diyorsa bir
+    // sonraki kareye kadar bekle; hücre o arada ekrandan çıkarsa iş hiç
+    // başlamaz.
+    if (Scrollable.recommendDeferredLoadingForContext(context)) {
+      SchedulerBinding.instance.scheduleFrameCallback((_) {
+        scheduleMicrotask(() {
+          if (mounted && path == widget.path && _thumb == null) _load();
+        });
+      });
+      return;
+    }
     unawaited(_loadDuration(path));
     final result = await ThumbnailCache.forVideo(path,
         size: (widget.size * 2).round().clamp(96, 512));
@@ -761,59 +780,76 @@ class _VideoThumbState extends State<_VideoThumb> {
             gaplessPlayback: true,
             errorBuilder: (_, __, ___) => widget.fallback,
           ),
-          // **Oynat rozeti KÖŞEDE, ortada değil** (kullanıcı 2026-08-09:
-          // *"videolarda üstteki oynat butonu görüntüyü bozuyor"*). Ortadaki
-          // %42'lik daire küçük resmin tam da anlamlı yerini — yüzü, sahneyi —
-          // kapatıyordu; ızgarada video seçmek imkânsızlaşıyordu. Rozetin işi
-          // "bu bir video" demek; bunun için köşede %18 yetiyor.
+          // **Tek rozet: ▶ + süre, SAĞ ALT köşe** (2026-09-26 galeri turu).
+          // Eskiden iki ayrı rozet vardı — sol altta oynat dairesi, sağ altta
+          // süre kutusu — ve küçük hücrede ikisi birlikte karenin alt
+          // şeridini kaplıyordu. Google Foto/Samsung Galeri'deki gibi tek hap:
+          // "bu bir video" ve "ne kadar sürüyor" aynı yerde okunur.
+          // Süre sağ altta KALDI (kullanıcı isteği 2026-08-28: *"videolarda
+          // dk ve sn'si önizlemedeyken sağ alt köşesinde yazmalı"*); oynat
+          // rozeti köşede kaldı (2026-08-09: ortadaki daire yüzü kapatıyordu).
           //
           // `PositionedDirectional`: Arapça (sağdan sola) arayüzde kendiliğinden
           // karşı köşeye geçer.
           PositionedDirectional(
-            start: widget.size * 0.05,
+            end: widget.size * 0.05,
             bottom: widget.size * 0.05,
-            child: Icon(
-              Icons.play_circle_fill,
-              size: (widget.size * 0.18).clamp(12.0, 28.0),
-              color: Colors.white.withValues(alpha: 0.92),
-              // Açık zeminli karede beyaz rozet kaybolmasın.
-              shadows: const [
-                Shadow(color: Colors.black54, blurRadius: 4),
-              ],
+            child: _VideoBadge(
+              size: widget.size,
+              // Küçük hücrelerde (liste satırı, 44 px) yazı okunmaz ve karenin
+              // yarısını kaplardı; eşik altında yalnız ▶ çizilir.
+              duration: widget.size >= 56 ? _duration : null,
             ),
           ),
-          // **Süre — SAĞ ALT köşe** (oynat rozetinin karşı köşesi, çakışmaz).
-          // Küçük hücrelerde (liste satırı, 44 px) yazı okunmaz ve karenin
-          // yarısını kaplardı; eşik altında çizilmez — rozetin işi bilgi
-          // vermek, karartmak değil.
-          if (_duration != null && widget.size >= 56)
-            PositionedDirectional(
-              end: widget.size * 0.05,
-              bottom: widget.size * 0.05,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.62),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  child: Text(
-                    _duration!,
-                    // Yazı boyutu hücreyle ölçekleniyor; kullanıcının uygulama
-                    // içi yazı ölçeği rozeti taşırmasın diye `textScaler`
-                    // burada sabitleniyor.
-                    textScaler: TextScaler.noScaling,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: (widget.size * 0.14).clamp(9.0, 13.0),
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
-                  ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Video rozeti: yarı saydam hap içinde ▶ ve (biliniyorsa) süre.
+class _VideoBadge extends StatelessWidget {
+  final double size;
+  final String? duration;
+
+  const _VideoBadge({required this.size, this.duration});
+
+  @override
+  Widget build(BuildContext context) {
+    final font = (size * 0.12).clamp(9.0, 12.5);
+    final icon = (size * 0.13).clamp(11.0, 16.0);
+    final text = duration;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: text == null ? 2 : 5,
+          vertical: 2,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.play_arrow_rounded, size: icon, color: Colors.white),
+            if (text != null) ...[
+              const SizedBox(width: 1),
+              Text(
+                text,
+                // Kullanıcının uygulama içi yazı ölçeği rozeti taşırmasın.
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: font,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-            ),
-        ],
+            ],
+          ],
+        ),
       ),
     );
   }

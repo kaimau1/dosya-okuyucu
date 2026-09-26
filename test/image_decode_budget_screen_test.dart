@@ -7,6 +7,7 @@ import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/models/document.dart';
 import 'package:dosya_okuyucu/screens/fm/image_gallery_screen.dart';
 import 'package:dosya_okuyucu/screens/viewer_screen.dart';
+import 'package:dosya_okuyucu/widgets/fm/fm_file_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,11 +47,18 @@ Widget _wrap(Widget home) => MaterialApp(
     );
 
 /// Ekrandaki tek `Image` bileşeninin çözme genişliğini döndürür.
+///
+/// Galeri 2026-09-26'dan beri `Image.file` (→ `ResizeImage`) değil
+/// `FmFileImage` kullanıyor (baytlar Dart yığınına kopyalanmıyor); ikisinin
+/// çözme genişliği de sayılır — sınanan şey TAM çözünürlükte açılmaması.
 int? _decodeWidthOf(WidgetTester tester) {
   final images = tester.widgetList<Image>(find.byType(Image));
   for (final image in images) {
     final provider = image.image;
     if (provider is ResizeImage) return provider.width;
+    if (provider is FmFileImage && provider.cacheWidth != null) {
+      return provider.cacheWidth;
+    }
   }
   return null;
 }
