@@ -35,7 +35,6 @@ ve paylaşım özellikleriyle.
 
 ## Yol haritası (sonraki sürümler)
 
-- 🔐 Firebase giriş (Google/e-posta) + bulut senkron (build 2)
 - 📝 Word/Excel/Slayt için tam düzenleme & özgün formata geri yazma
 - 🔁 Formatlar arası zengin dönüşüm (PDF↔Word↔Slayt)
 - 📚 AI’ın PDF’lerden otomatik slayt üretmesi (genişletilmiş)

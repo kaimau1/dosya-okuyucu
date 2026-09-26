@@ -2,15 +2,23 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/l10n/app_strings.dart';
 import 'pdf/ocr_page_text.dart' show OcrWordBox;
 
 /// Cihaz-içi OCR (Google ML Kit, Latin alfabesi — Türkçe karakterler dahil).
 ///
-/// İnternet gerekmez; model APK ile gelir. Görsel dosyalardan ve taranmış
-/// (metin katmanı olmayan) PDF'lerden metin çıkarır. PDF sayfaları pdfium ile
+/// Tanıma cihazda, internetsiz yapılır. **Model APK'da DEĞİL** (2026-09-26):
+/// CI, eklentinin gömülü `com.google.mlkit:text-recognition` bağımlılığını
+/// Google Play Hizmetleri'nin paylaşılan modeline
+/// (`play-services-mlkit-text-recognition`, aynı API) çeviriyor — APK ~12 MB
+/// küçülüyor. Model uygulama kurulurken Play Hizmetleri'nce bir kez indiriliyor
+/// (manifestteki `com.google.mlkit.vision.DEPENDENCIES = ocr`); henüz inmediyse
+/// [OcrModelNotReady] (bkz. [_process]). Görsel dosyalardan ve taranmış (metin
+/// katmanı olmayan) PDF'lerden metin çıkarır. PDF sayfaları pdfium ile
 /// bitmap'e çizilir, geçici PNG üzerinden ML Kit'e verilir.
 /// OCR'ın bulduğu tek metin satırı ve resmin piksel koordinatındaki kutusu.
 class OcrLine {
@@ -31,7 +39,57 @@ class OcrPage {
   const OcrPage(this.number, this.text);
 }
 
+/// Metin tanıma modeli Play Hizmetleri'nce henüz indirilmedi.
+///
+/// `toString` kullanıcıya gösterilecek metni döner: çağıranların çoğu hatayı
+/// `'$e'` diye şeride yazıyor — ham ML Kit iletisi ("Waiting for the text
+/// optional module to be downloaded") yerine ne yapacağını söyleyen cümle.
+class OcrModelNotReady implements Exception {
+  const OcrModelNotReady();
+
+  @override
+  String toString() => AppStrings.current.t('ocr.model_downloading');
+}
+
 class OcrService {
+  /// ML Kit'in "model henüz inmedi" hatası mı? (Play Hizmetleri modeli.)
+  ///
+  /// Eklenti hatayı `PlatformException` olarak, mesajında ML Kit'in iletisiyle
+  /// taşıyor; kod yerine ileti aranıyor çünkü eklenti tüm hatalara aynı kodu
+  /// veriyor. Saf fonksiyon → birim testli.
+  static bool isModelDownloading(Object error) {
+    final text = error is PlatformException
+        ? '${error.message} ${error.details}'
+        : '$error';
+    final lower = text.toLowerCase();
+    return lower.contains('optional module') ||
+        lower.contains('waiting for the text');
+  }
+
+  /// İlk kullanımda model inerken yapılacak bekleme adımları (toplam ~15 sn):
+  /// indirme çoğu zaman bu sürede biter ve kullanıcı hiçbir şey fark etmez.
+  static const modelRetryDelays = [
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 3),
+    Duration(seconds: 4),
+    Duration(seconds: 5),
+  ];
+
+  /// `processImage` + "model iniyor" hatasında kısa bekleyip yeniden deneme.
+  static Future<RecognizedText> _process(
+      TextRecognizer recognizer, String path) async {
+    for (var attempt = 0;; attempt++) {
+      try {
+        return await recognizer.processImage(InputImage.fromFilePath(path));
+      } catch (e) {
+        if (!isModelDownloading(e)) rethrow;
+        if (attempt >= modelRetryDelays.length) throw const OcrModelNotReady();
+        await Future<void>.delayed(modelRetryDelays[attempt]);
+      }
+    }
+  }
+
   /// Tek OCR turunda işlenecek en fazla PDF sayfası (süre/pil koruması).
   ///
   /// "Metni tanı" sayfasının varsayılanı budur. Belge ÇEVİRİSİ bu sınırı
@@ -46,7 +104,7 @@ class OcrService {
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
       final result =
-          await recognizer.processImage(InputImage.fromFilePath(path));
+          await _process(recognizer, path);
       return result.text.trim();
     } finally {
       await recognizer.close();
@@ -64,7 +122,7 @@ class OcrService {
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
       final result =
-          await recognizer.processImage(InputImage.fromFilePath(path));
+          await _process(recognizer, path);
       return [
         for (final block in result.blocks)
           for (final line in block.lines)
@@ -87,7 +145,7 @@ class OcrService {
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
       final result =
-          await recognizer.processImage(InputImage.fromFilePath(path));
+          await _process(recognizer, path);
       return [
         for (final block in result.blocks)
           for (final line in block.lines)
@@ -144,7 +202,7 @@ class OcrService {
         if (path == null) continue;
         try {
           final result =
-              await recognizer.processImage(InputImage.fromFilePath(path));
+              await _process(recognizer, path);
           final text = result.text.trim();
           if (text.isNotEmpty) out.add(OcrPage(page.pageNumber, text));
         } finally {

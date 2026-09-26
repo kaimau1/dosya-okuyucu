@@ -59,10 +59,10 @@
 - [ ] **MAĞAZA YOLU (2026-08-28 durum değerlendirmesi) — sırayla, her biri
       kendi turu.** Dört temel bu turda yapıldı (artan versionCode, imza
       sızıntısının kapatılması, hata kaydı, gizlilik politikası). Kalanlar:
-      (a) **targetSdk 36** — Play 31 Ağu 2026'dan itibaren istiyor; bizim CI
-      Flutter **3.29.3**'e çivili (targetSdk 35) ve pubspec'teki onlarca
-      sürüm sabiti "3.35+ ister" diyor → **sürüm duvarını yıkma turu**,
-      takvim aleyhimize, en acil madde;
+      (a) ~~**targetSdk 36**~~ → **YAPILDI 2026-09-26** CI yamasıyla
+      (Flutter 3.29.3 üzerinde compileSdk/targetSdk 36; tahminli geri
+      manifestte kapalı). Flutter yükseltmesi (sürüm duvarı) ve tahminli
+      geriye geçiş hâlâ ayrı tur;
       (b) **AAB** çıktısı + `android/` klasörünün depoya alınması (Play yeni
       uygulamada APK kabul etmiyor; her derlemede `flutter create` üretmek
       Play imza/sürüm yönetimi için kırılgan);
@@ -72,8 +72,10 @@
       riski — bunlar yalnız GitHub sürümünde kalsın;
       (d) **Drive kapsamı `drive` → `drive.file`** (yayına almak yıllık
       ücretli CASA denetimi istiyor — bkz. HAFIZA 2026-08-05);
-      (e) **boyut:** ~91 MB/ABI; ffmpeg (~39 MB) isteğe bağlı indirilen
-      modüle, ML Kit unbundled, font altkümesi kırpılsın → hedef < 35 MB;
+      (e) **boyut:** ~91 MB/ABI. 2026-09-26: OCR Play Hizmetleri'ne
+      (unbundled, ~12 MB), pdfium.wasm çıkarıldı (2 MB), Firebase kaldırıldı.
+      ffmpeg (15,5 MB/ABI) KULLANICI KARARIYLA KALIYOR (video küçültmenin ana
+      motoru). Kalan aday: font altkümesi;
       (f) **Veri Güvenliği formu** `assets/privacy/tr.md`in 1-2. bölümünden
       doldurulacak;
       (g) ~~`flutter analyze` CI kapısı~~ **BİTTİ** (2026-08-28).
@@ -613,8 +615,10 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
 - [x] ~~**Varsayılan başlangıç klasörü** ayarı~~ → **YAPILDI 2026-08-08:**
       Dosya yöneticisi ayarları > **Açılış klasörü**. Boşken pano ilk ekran
       (davranış değişmedi); klasör silinmişse sessizce panoya düşer.
-- [ ] **Dosya seçici olarak davranma** (başka uygulama dosya isteyince
-      GET_CONTENT/OPEN_DOCUMENT intent'i karşılamak).
+- [x] ~~**Dosya seçici olarak davranma**~~ → madde ESKİMİŞTİ (2026-09-26
+      denetimi): 2026-08-10'da yapılmış — `ci/PickerActivity.kt`
+      (GET_CONTENT, "Şuradan aç" çekmecesindeki ok) + `ci/DosyaProvider.kt`
+      (OPEN_DOCUMENT çekmecesinde kök satırı).
 - [ ] **SD karta yazma (SAF)** — Android bazı cihazlarda ikincil birime doğrudan
       yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli.
 

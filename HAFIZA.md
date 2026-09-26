@@ -11783,3 +11783,94 @@ kaldırılınca siliniyor, bilgisayarda/başka uygulamada görünmüyordu.
 önizlemeleri gözle denetlendi. Cihazda bakılacak: Ayarlar > Depolama >
 "Uygulamanın kapladığı alan" gerçek kırılımı (550 MB'ın nereden geldiğini bu
 ekran söyleyecek); yeni tarama `Belgeler/Dosya Okuyucu`ya düşüyor mu.
+
+## 2026-09-26 (2) — Önerilerin uygulanması: Firebase gitti, OCR Play Hizmetleri'nde, targetSdk 36
+Kullanıcı: *"diğer tüm önerilerini uygula, ffmpeg kalsın."* (Önceki turun
+değerlendirmesindeki çıkarma/ekleme listesi.) ffmpeg kaldırılmadı: video
+küçültmenin ANA motoru (h264_mediacodec ile birebir ölçü + kare sayısı);
+`video_compress` yalnız kademeli yedek. Kullanıcı kararı.
+
+### A) Firebase KALDIRILDI (`firebase_core`/`firebase_auth`/`cloud_firestore`)
+- **Kök bulgu:** CI'da `google-services.json` hiç yoktu → `Firebase.
+  initializeApp()` her kullanıcıda düşüyor, uygulama "yerel mod"da, hesap
+  satırı "yerel çalışıyor" diyordu. Özellik HİÇBİR derlemede çalışmamıştı.
+- Silinen: `services/firebase_service.dart`, `settings/tiles_account.dart`,
+  Ayarlar > Gizlilik'teki "Hesap & Senkron" satırı (`account`), AppState'teki
+  bulut birleştirme/itme, 14 metin, `FIREBASE_SETUP.md`, gizlilik
+  politikasındaki (3 dil) Firebase satırı (tarih 26 Eylül 2026).
+- **KALAN:** `google_sign_in` — Drive girişi onu kullanıyor. `settings_backup`
+  teki `firebase_` gizli önek listesi zararsız, bırakıldı. Kategori takma adı
+  `account → privacy` (openSettingsCategory) eski bağlantılar için duruyor.
+
+### B) OCR modeli APK'dan çıktı (Play Hizmetleri, ~12 MB)
+- CI "targetSdk/compileSdk 36 + OCR" adımı `android/app/build.gradle(.kts)`e
+  **bağımlılık ikamesi** yazıyor: `com.google.mlkit:text-recognition` →
+  `com.google.android.gms:play-services-mlkit-text-recognition:19.0.1`
+  (aynı API/sınıf adları; eklenti kendi projesinde gömülüye karşı derleniyor,
+  ikame yalnız uygulamanın çalışma sınıf yolunda).
+- Manifest: `com.google.mlkit.vision.DEPENDENCIES = ocr` (+`tools:replace`)
+  → model KURULUMDA iner.
+- `OcrService._process`: ML Kit "Waiting for the text optional module to be
+  downloaded" (PlatformException iletisinde) → 1+2+3+4+5 sn bekleyip yeniden
+  dener, olmazsa `OcrModelNotReady` (toString = `ocr.model_downloading`).
+  Çağıranlar hatayı `'$e'` diye yazdığı için metin kendiliğinden doğru çıkıyor.
+- **Bedel (bilinçli):** Play Hizmetleri olmayan cihazda (Huawei vb.) OCR
+  çalışmaz. Belge tarayıcı zaten Play Hizmetleri'ne bağlıydı.
+- `maven.google.com` bu oturumun proxy'sinde `dl.google.com`a yönlendirip 403
+  veriyor → sürüm eşlemesi (16.0.1 ↔ 19.0.1) burada doğrulanamadı; CI
+  derlemesi ve "APK içeriği denetimi" adımı doğruluyor.
+
+### C) pdfium.wasm (2 MB) APK'dan çıktı
+`pdfrx` `assets/` KLASÖRÜNÜ bildiriyor; wasm web içindir, Android yerel
+`libpdfium.so` kullanır. Flutter 3.29'da paket varlığını dışlama yolu yok →
+CI, `pub get`ten sonra `package_config.json`dan pdfrx kökünü bulup
+`assets/pdfium.wasm`ı SİLİYOR. `.js` dosyaları bırakılıyor ki klasör boş
+kalmasın (boş/olmayan varlık klasörü derlemeyi durdururdu).
+
+### D) targetSdk 36 — Flutter yükseltmeden
+- CI: `compileSdk = 36`, `targetSdk = 36` (regex; satır bulunamazsa adım
+  KIRILIR) + `android.suppressUnsupportedCompileSdk=36` (AGP 8.7 "test
+  edilmedi" uyarısı).
+- Manifest `<application android:enableOnBackInvokedCallback="false">`:
+  Android 16'yı hedefleyince tahminli geri varsayılan açılır ve
+  `onBackPressed` çağrılmaz; mevcut geri davranışı (kararan ekran düzeltmesi
+  vb.) bozulmasın diye GEÇİCİ kapalı. Tahminli geriye geçiş ayrı tur.
+- Yeni "APK içeriği denetimi" adımı: wasm YOK, `libmlkit_google_ocr_pipeline.so`
+  YOK, `aapt2 dump badging` → targetSdk 36. Varsayılmıyor, ölçülüyor.
+
+### E) CI — Release YALNIZ main'de
+`GitHub Release oluştur` adımına `if: github.ref == 'refs/heads/main'`
+(2026-07-21 politikası buydu; koşul kaybolmuştu). `[release-apk]` işaretli
+özellik dalı commit'i artık APK'yı ARTIFACT olarak üretir, herkese açık
+"latest" sürüm basmaz. (2026-07-21 notundaki "işaret → apk+release" artık
+yalnız main için geçerli.)
+
+### F) Pano sadeleştirmesi + "Yer aç" canlı alt yazı
+- Araçlar ızgarası 13 kutuydu; panoda artık kullanım sırasına göre ilk 8
+  (`DashboardTools.visible`, harici bellek kutusu hep başta), başlıkta
+  "Tümü (13)" → yeni `screens/fm/tools_screen.dart`. Hiçbir araç kalkmadı.
+  Varsayılan (hiç kullanım yokken) görünmeyenler: sohbet temizliği, benzer
+  görüntüler, otomatik düzenle, son işlemler.
+- "Yer aç" alt yazısı: bu oturumda çözümleme yapıldıysa bulunan toplam
+  (`lastCleanupRecoverable()`, iş kuyruğundaki `cleanup_scan` sonucu).
+  Tahmin yazılmaz; çözümleme yoksa boş.
+
+### G) MediaStore taraması (Android ≤ 10)
+`FsEvents.changed([paths])` → `MediaScan.request` → yerel `mediaScan`
+(MainActivity, `SDK_INT < R` ise klasörleri açıp `MediaScannerConnection.
+scanFile`, en çok 2000 dosya, arka izlek). Kopyalama yeni yolu, taşıma eski +
+yeni, silme/çöp silinen, yeniden adlandırma eski + yeni, çöpten geri yükleme
+hedefi bildirir. 11+'da yerel taraf hiçbir şey yapmaz (FUSE kendisi görüyor).
+`MainActivity.kt` yerelde derlenmiyor — CI APK derlemesi doğruluyor.
+
+### H) Zaten yapılmış olan öneri
+"Başka uygulamalara dosya seçici olmak" 2026-08-10'da yapılmıştı
+(`PickerActivity` + `DosyaProvider`); KALANLAR'daki madde eskimişti, kapandı.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun, **2428 test yeşil** (+9:
+`ocr_model_test`, `media_scan_test`, `fm_tool_grid_test` araç sınırı/Tümü).
+Gradle yamaları (OCR ikamesi, SDK 36, wasm) ve `MainActivity.kt` yerelde
+derlenemiyor — özellik dalında işaretli commit ile CI APK derlemesi +
+"APK içeriği denetimi" adımıyla doğrulandı (sonuç aşağıda / commit geçmişinde).
+Cihazda bakılacak: ilk taramada OCR modeli iniyor mu (Play Hizmetleri),
+geri tuşu her ekranda eskisi gibi mi (targetSdk 36), panoda 8 araç + "Tümü".

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- Gemini AI / Firebase için internet. -->
+    <!-- Gemini AI, Google Drive, indirme ve ağ depolama için internet. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <!-- ── Arka planda indirme ─────────────────────────────────────────────
@@ -83,10 +83,18 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions"/>
 
+    <!-- `enableOnBackInvokedCallback="false"` (2026-09-26, targetSdk 36):
+         Android 16'yı hedefleyen uygulamada "tahminli geri" VARSAYILAN açılır
+         ve `onBackPressed` hiç çağrılmaz. Uygulamanın geri davranışı (açık
+         pencereyi kapatma, düzenlemeden çıkarken sorma, kararan ekran
+         düzeltmesi — HAFIZA 2026-09-06) eski yola göre kuruldu;
+         targetSdk yükseltmesi bu davranışı DEĞİŞTİRMESİN diye
+         geçici olarak kapalı tutuluyor. Tahminli geriye geçiş ayrı bir tur. -->
     <application
         android:label="Dosya Okuyucu"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="false"
         android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
@@ -449,6 +457,19 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="false"
             android:stopWithTask="true" />
+
+        <!-- ── OCR modeli: Google Play Hizmetleri'nden, KURULUMDA ─────────
+             2026-09-26: metin tanıma modeli artık APK'da değil (CI, gömülü
+             `com.google.mlkit:text-recognition`ı Play Hizmetleri sürümüne
+             çeviriyor — APK ~12 MB küçüldü). Bu satır Play Hizmetleri'ne
+             modeli uygulama KURULURKEN indirmesini söyler; yoksa ilk tarama
+             "model iniyor" diye beklerdi (o durum `OcrService`te karşılanıyor).
+             `tools:replace`: başka bir ML Kit kütüphanesi aynı adla bir değer
+             bildirirse birleştirme hata vermesin, bizimki geçerli olsun. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr"
+            tools:replace="android:value" />
 
         <!-- Flutter v2 gömme (embedding) işareti. -->
         <meta-data

@@ -1,6 +1,6 @@
 # Gizlilik Politikası — Dosya Okuyucu
 
-**Son güncelleme:** 28 Ağustos 2026 · **Sürüm:** 0.1.0
+**Son güncelleme:** 26 Eylül 2026 · **Sürüm:** 0.1.0
 
 ## Özet
 
@@ -32,7 +32,6 @@ Uygulamayı kaldırdığınızda bunların hepsi silinir.
 |---|---|---|
 | **Gemini AI** (sohbet, özet, analiz) | Google — `generativelanguage.googleapis.com` | Sorunuz ve AI'a açtığınız dosyanın metni. **Kendi API anahtarınızla** gider; anahtarı siz girersiniz, cihazda saklanır ve bizim sunucumuza uğramaz. |
 | **Google Drive** | Google | Yalnız siz bağlarsanız: yüklediğiniz/indirdiğiniz dosyalar ve dosya listesi |
-| **Firebase giriş & senkron** | Google | Yalnız yapılandırılmış ve giriş yapılmışsa: e-posta adresiniz ve senkronladığınız ayarlar. Yapılandırılmamışsa uygulama **yerel modda** çalışır. |
 | **Ağ depolama** (FTP/SFTP/SMB/WebDAV) | **Sizin** sunucunuz | Bağlantı bilgileri ve aktardığınız dosyalar. Bu bağlantılar bizden geçmez. |
 | **İndirme yöneticisi** | Girdiğiniz adres | İndirme isteği |
 | **Çeviri** (ML Kit) | Google | Yalnız **dil modeli ilk kez indirilirken**. Çevirinin kendisi cihazda, çevrimdışı yapılır. |

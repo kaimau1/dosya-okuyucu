@@ -43,8 +43,9 @@ Bitti — bundan sonraki tüm derlemeler aynı anahtarla imzalanır.
 
 ## Anahtar parmak izi (fingerprint)
 Her CI çalışmasında **"APK'yı imzala ve doğrula"** adımı, imza sertifikasının
-SHA-1/SHA-256 değerini loglar. Google ile giriş (Firebase) için bu SHA-1'i
-Firebase Console → Project settings → Your apps bölümüne ekleyin.
+SHA-1/SHA-256 değerini loglar. Google Drive girişi için bu SHA-1'i Google
+Cloud'daki Android OAuth istemcisine ekleyin (bkz. `docs/GOOGLE-DRIVE-KURULUM.md`;
+uygulama içinde Drive ekranı da kurulu APK'nın SHA-1'ini gösterir).
 
 ## Parola
 Keystore parolası **`ANDROID_KEYSTORE_PASSWORD` secret'ında** tutulur; workflow'da

@@ -13,7 +13,7 @@ Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici + dosya y�
 (2026-07-25: telefondaki tüm dosyalar için pano/gezgin/işlemler — `lib/services/fm/`,
 `lib/screens/fm/`; ayrıntı ve kararlar HAFIZA.md). Hem mobil hem
 masaüstü (tek Flutter kod tabanı). Gemini AI entegrasyonu, format dönüştürme,
-paylaşım, Firebase ile senkron. Piyasadaki yavaş/pahalı programlara alternatif.
+paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasadaki yavaş/pahalı programlara alternatif.
 
 > Sabit kararlar, build geçmişi, açık durum ve reddedilen yollar → **HAFIZA.md**
 

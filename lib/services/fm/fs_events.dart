@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'media_scan.dart';
+
 /// Dosya sistemi değişiklik sinyali.
 ///
 /// **Niye var (2026-07-25 hatası):** kullanıcı bir dosyayı silince pano
@@ -14,7 +16,12 @@ abstract final class FsEvents {
   /// Her değişiklikte artan sürüm numarası.
   static final ValueNotifier<int> version = ValueNotifier<int>(0);
 
-  static void changed() => version.value = version.value + 1;
+  /// [paths] verilirse (değişen dosyaların eski ve yeni yolları) Android 10
+  /// ve öncesinde galeriye de bildirilir — bkz. [MediaScan].
+  static void changed([Iterable<String> paths = const []]) {
+    version.value = version.value + 1;
+    MediaScan.request(paths);
+  }
 
   /// Küçük resmi/önizlemesi açılamayan bir dosyayı bildirir.
   ///

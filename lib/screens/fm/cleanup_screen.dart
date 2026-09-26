@@ -48,6 +48,15 @@ class CleanupScanResult {
   const CleanupScanResult(this.suggestions);
 }
 
+/// Son "Yer aç" çözümlemesinin bulduğu toplam (bu oturumda çözümleme hiç
+/// yapılmadıysa ya da henüz bitmediyse null). Panodaki "Yer aç" aracının alt
+/// yazısı buradan gelir — tahmin değil, gerçekten bulunan öneriler.
+int? lastCleanupRecoverable() {
+  final result =
+      JobQueue.instance.find(_CleanupScreenState._scanJobId)?.result;
+  return result is CleanupScanResult ? cleanupTotal(result.suggestions) : null;
+}
+
 class _CleanupScreenState extends State<CleanupScreen> {
   /// Çözümleme ve temizleme işlerinin kuyruktaki kararlı kimlikleri.
   static const _scanJobId = 'cleanup_scan';

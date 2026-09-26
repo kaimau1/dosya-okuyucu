@@ -235,7 +235,7 @@ jobs:
           cp ci/proguard-rules.pro android/app/proguard-rules.pro
           echo "--- proguard-rules.pro ---"; cat android/app/proguard-rules.pro
 
-      - name: minSdk 24 (Firebase + video küçük resmi) + NDK sürümü
+      - name: minSdk 24 (video küçük resmi) + NDK sürümü
         run: |
           set -e
           # Runner'da kurulu NDK sürümlerinden en yenisini seç.
@@ -250,8 +250,7 @@ jobs:
             [ -f "$f" ] || continue
             # 2026-07-25: 23 → 24. fc_native_video_thumbnail (video küçük
             # resmi) minSdk 24 ister; manifest birleştirici 23'te derlemeyi
-            # kesiyordu. Firebase'in istediği 23 de kapsanıyor; Android 6 payı
-            # bugün ihmal edilebilir.
+            # kesiyordu. Android 6 payı bugün ihmal edilebilir.
             sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 24/' "$f"
             # NDK sürümü: **runner'da KURULU olan** kullanılır.
             #
@@ -316,6 +315,72 @@ jobs:
           echo "--- desugaring sonrası ---"
           grep -R -A3 -E "compileOptions|coreLibraryDesugaring" android/app/build.gradle* || true
 
+      - name: targetSdk/compileSdk 36 + OCR modeli Play Hizmetleri'nden
+        run: |
+          set -e
+          # ── targetSdk 36 (2026-09-26) ─────────────────────────────────────
+          # Google Play 31 Ağustos 2026'dan beri yeni sürümlerde targetSdk 36
+          # (Android 16) istiyor. Flutter 3.29.3 şablonu 35 yazıyor; Flutter'ı
+          # yükseltmek (AGP 9 / Gradle 9 / Kotlin 2.3 zinciri) ayrı ve büyük bir
+          # tur olduğu için sayı burada yamalanıyor. AGP 8.7 compileSdk 36'yı
+          # "test edilmedi" diye uyarıyla derliyor; uyarı özelliği aşağıda
+          # susturuluyor. Davranış değişikliklerinden tahminli geri
+          # (`onBackPressed` artık çağrılmıyor) manifestte kapalı tutuluyor
+          # (`enableOnBackInvokedCallback="false"`, bkz. ci/AndroidManifest.xml).
+          #
+          # ── OCR: gömülü model yerine Play Hizmetleri ──────────────────────
+          # `google_mlkit_text_recognition` gömülü `com.google.mlkit:
+          # text-recognition` çekiyor: APK'ya ~11 MB yerel kütüphane + ~1,5 MB
+          # model. Aynı API'yi veren `play-services-mlkit-text-recognition`
+          # modeli Google Play Hizmetleri'nden (cihazdaki uygulamalar arasında
+          # ORTAK) indiriyor. Belge tarayıcı zaten Play Hizmetleri'ne bağlı.
+          # Eklentinin kendi derlemesi gömülü sürüme karşı derlenir (aynı
+          # sınıf adları); ikame yalnız uygulamanın çalışma sınıf yolunda olur.
+          python3 - <<'PY'
+          import pathlib, re
+          OCR_FROM = 'com.google.mlkit:text-recognition'
+          OCR_TO = 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
+          patched = False
+          for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
+              path = pathlib.Path(name)
+              if not path.exists():
+                  continue
+              kts = name.endswith('.kts')
+              text = path.read_text()
+              text, n1 = re.subn(
+                  r'targetSdk(Version)?\s*=?\s*flutter\.targetSdkVersion',
+                  'targetSdk = 36' if kts else 'targetSdkVersion 36', text)
+              text, n2 = re.subn(
+                  r'compileSdk(Version)?\s*=?\s*flutter\.compileSdkVersion',
+                  'compileSdk = 36' if kts else 'compileSdkVersion 36', text)
+              if n1 != 1 or n2 != 1:
+                  raise SystemExit(f'{name}: targetSdk/compileSdk satırı bulunamadı ({n1}, {n2})')
+              if kts:
+                  block = (
+                      '\nconfigurations.all {\n'
+                      '    resolutionStrategy.dependencySubstitution {\n'
+                      f'        substitute(module("{OCR_FROM}"))\n'
+                      f'            .using(module("{OCR_TO}"))\n'
+                      '            .because("OCR model comes from Google Play services, not the APK")\n'
+                      '    }\n'
+                      '}\n')
+              else:
+                  block = (
+                      '\nconfigurations.all {\n'
+                      '    resolutionStrategy.dependencySubstitution {\n'
+                      f"        substitute module('{OCR_FROM}') using module('{OCR_TO}')\n"
+                      '    }\n'
+                      '}\n')
+              path.write_text(text.rstrip() + '\n' + block)
+              patched = True
+              print(f'{name}: targetSdk/compileSdk 36, OCR ikamesi eklendi')
+          if not patched:
+              raise SystemExit('build.gradle bulunamadı')
+          PY
+          echo "android.suppressUnsupportedCompileSdk=36" >> android/gradle.properties
+          echo "--- sdk/ikame sonrası ---"
+          grep -R -n -E "targetSdk|compileSdk|dependencySubstitution|play-services-mlkit" android/app/build.gradle* || true
+
       - name: Kotlin eklenti sürümünü yükselt (flutter_tts + ffmpeg-kit metadata)
         run: |
           set -e
@@ -370,6 +435,34 @@ jobs:
 
       - name: Bağımlılıklar
         run: flutter pub get
+
+      # `pdfrx` web sürümü için pdfium'un WebAssembly derlemesini (`pdfium.wasm`,
+      # 4 MB; APK'da sıkıştırılmış 2 MB) `assets/` klasörü olarak bildiriyor ve
+      # Flutter bunu Android APK'sına da koyuyordu — Android yerel
+      # `libpdfium.so`yu kullanır, wasm HİÇ yüklenmez. Flutter 3.29 bir paketin
+      # varlığını dışarıda bırakmanın yolunu vermiyor; paket önbelleğindeki
+      # dosya derlemeden önce siliniyor. Klasör bildirildiği için yerinde
+      # kalan küçük `.js` dosyaları klasörü boş bırakmıyor (boş/olmayan
+      # varlık klasörü derlemeyi durdururdu). Aşağıdaki "APK içeriği
+      # denetimi" adımı wasm'ın gerçekten çıktığını doğruluyor.
+      - name: PDF motorunun web derlemesini çıkar (pdfium.wasm)
+        run: |
+          set -e
+          python3 - <<'PY'
+          import json, pathlib, urllib.parse
+          cfg = json.loads(pathlib.Path('.dart_tool/package_config.json').read_text())
+          roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'pdfrx']
+          if not roots:
+              print('::warning::pdfrx paketi bulunamadı, wasm silinmedi'); raise SystemExit(0)
+          root = pathlib.Path(urllib.parse.urlparse(roots[0]).path)
+          wasm = root / 'assets' / 'pdfium.wasm'
+          if wasm.exists():
+              size = wasm.stat().st_size
+              wasm.unlink()
+              print(f'silindi: {wasm} ({size / 1048576:.1f} MB)')
+          else:
+              print(f'zaten yok: {wasm}')
+          PY
 
       - name: Uygulama ikonunu üret (launcher + adaptive)
         run: |
@@ -547,6 +640,32 @@ jobs:
             >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      # 2026-09-26 boyut/hedef turu: yapılan üç değişiklik APK'da GERÇEKTEN
+      # gerçekleşti mi — derleme yeşil diye varsayılmıyor, ölçülüyor.
+      - name: APK içeriği denetimi (wasm yok, gömülü OCR yok, targetSdk 36)
+        run: |
+          set -e
+          APK=dist/dosya-okuyucu.apk
+          if unzip -l "$APK" | grep -q 'pdfium.wasm'; then
+            echo "::error::pdfium.wasm hâlâ APK'da"; exit 1
+          fi
+          if unzip -l "$APK" | grep -q 'libmlkit_google_ocr_pipeline.so'; then
+            echo "::error::Gömülü OCR kütüphanesi hâlâ APK'da (ikame çalışmadı)"; exit 1
+          fi
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          AAPT2=$(ls "$SDK"/build-tools/*/aapt2 | sort -V | tail -1)
+          TARGET=$("$AAPT2" dump badging "$APK" | sed -nE "s/.*targetSdkVersion:'([0-9]+)'.*/\1/p")
+          echo "targetSdk: $TARGET"
+          if [ "$TARGET" != "36" ]; then
+            echo "::error::targetSdk 36 değil ($TARGET)"; exit 1
+          fi
+          {
+            echo "## İçerik denetimi"
+            echo "- pdfium.wasm: yok ✔"
+            echo "- gömülü OCR (libmlkit_google_ocr_pipeline.so): yok ✔"
+            echo "- targetSdk: $TARGET ✔"
+          } >> $GITHUB_STEP_SUMMARY
+
       # Artifact'lar mimariye göre AYRI (2026-08-17). Release adımı GitHub
       # kesintisinde düşebiliyor (bkz. aşağıdaki üç denemenin notu) ve o zaman
       # tek indirme yolu artifact kalıyor. Tek artifact'te iki APK birleşince
@@ -597,7 +716,7 @@ jobs:
           - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
 
           Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
-          dönüştürme, paylaşım, Gemini AI sohbet, Firebase senkron (yapılandırıldığında).
+          dönüştürme, paylaşım, Gemini AI sohbet.
 
           **Hangi dosyayı indirmeliyim?** → `dosya-okuyucu.apk`
           (2016 sonrası tüm telefonlar; 64-bit / arm64-v8a).
@@ -623,8 +742,15 @@ jobs:
       # İlk iki deneme `continue-on-error` ile sessizce geçilir, aralarında
       # gerçek bir bekleme vardır. ÜÇÜNCÜ deneme geçilmez: kesinti kalıcıysa
       # iş yine kırmızı yanar — sürümün yayımlanmadığını gizlemek istemiyoruz.
+      # **Release YALNIZ main'de** (2026-09-26; asıl politika 2026-07-21'de
+      # böyleydi, koşul sonradan kaybolmuştu). Özellik dalındaki doğrulama
+      # derlemesi (`[release-apk]` işaretli commit) APK'yı artifact olarak
+      # üretir ama herkese açık, "en son" işaretli bir sürüm BASMAZ.
+      # release1 atlanınca ikinci/üçüncü deneme de atlanır (koşulları
+      # release1'in `failure` sonucuna bağlı).
       - name: GitHub Release oluştur
         id: release1
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:

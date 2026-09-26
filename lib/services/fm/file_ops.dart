@@ -155,7 +155,7 @@ abstract final class FileOps {
         //
         // `FsEvents.changed()` de burada çağrılır: yoksa açık ekranlar
         // taşınmış dosyaları eski yollarında göstermeye devam ediyordu.
-        if (succeeded > 0) FsEvents.changed();
+        if (succeeded > 0) FsEvents.changed(_touched(transfers, move));
         return FmOpResult(
             succeeded: succeeded,
             skipped: skipped,
@@ -212,7 +212,7 @@ abstract final class FileOps {
     if (move && transfers.isNotEmpty) {
       await SearchIndex.forget([for (final t in transfers) t.source]);
     }
-    if (succeeded > 0) FsEvents.changed();
+    if (succeeded > 0) FsEvents.changed(_touched(transfers, move));
     return FmOpResult(
       succeeded: succeeded,
       skipped: skipped,
@@ -449,9 +449,15 @@ abstract final class FileOps {
     // işaretlenirse hayalet satır kategori listelerinde ve pano sayılarında
     // günlerce yaşıyordu (bkz. `SearchIndex.forget`).
     if (gone.isNotEmpty) await SearchIndex.forget(gone);
-    if (ok > 0) FsEvents.changed();
+    if (ok > 0) FsEvents.changed(gone);
     return FmOpResult(succeeded: ok, errors: errors);
   }
+
+  /// Aktarımın galeriye bildirilecek yolları: yeni yerler, taşımada eski
+  /// yerler de (orada artık dosya yok — galeri kaydı düşmeli).
+  static List<String> _touched(List<FmTransfer> transfers, bool move) => [
+        for (final t in transfers) ...[t.dest, if (move) t.source],
+      ];
 
   /// [dir] + [name]; ayırıcı olarak [dir]'deki SON ayırıcı kullanılır.
   /// p.join platform ayırıcısı basar: Android'de fark yok ama Windows'ta
@@ -496,7 +502,7 @@ abstract final class FileOps {
         await File(via).rename(target);
       }
       await PathSideIndex.moved(path, target);
-      FsEvents.changed();
+      FsEvents.changed([path, target]);
       return target;
     }
     final dir = Directory(path);
@@ -504,12 +510,12 @@ abstract final class FileOps {
       final renamed = await dir.rename(target);
       // Etiket/açılma geçmişi yolu izler; yoksa yeniden adlandırınca kaybolur.
       await PathSideIndex.moved(path, renamed.path);
-      FsEvents.changed();
+      FsEvents.changed([path, renamed.path]);
       return renamed.path;
     }
     final renamed = await File(path).rename(target);
     await PathSideIndex.moved(path, renamed.path);
-    FsEvents.changed();
+    FsEvents.changed([path, renamed.path]);
     return renamed.path;
   }
 

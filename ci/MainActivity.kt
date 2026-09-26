@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -274,6 +275,45 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "hasUsageAccess" -> result.success(hasUsageAccess())
+
+                    // **Galeriye haber ver — yalnız Android 10 ve öncesi**
+                    // (2026-09-26). 11+'da dosya yoluyla yapılan her yazmayı
+                    // MediaStore FUSE üzerinden kendisi görüyor; öncesinde
+                    // görmüyor ve kopyalanan fotoğraf Galeri'de çıkmıyor,
+                    // silinen dosya boş kare olarak kalıyordu. Klasörler
+                    // burada açılıyor (Dart 11+'da boşuna gezmesin); tarama
+                    // arka izlekte, sonuç beklenmez.
+                    "mediaScan" -> {
+                        val paths = call.argument<List<String>>("paths")
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R &&
+                            !paths.isNullOrEmpty()
+                        ) {
+                            val context = applicationContext
+                            Thread {
+                                val files = ArrayList<String>()
+                                for (path in paths) {
+                                    if (files.size >= MEDIA_SCAN_LIMIT) break
+                                    val file = java.io.File(path)
+                                    if (file.isDirectory) {
+                                        file.walkTopDown()
+                                            .filter { it.isFile }
+                                            .take(MEDIA_SCAN_LIMIT - files.size)
+                                            .forEach { files.add(it.path) }
+                                    } else {
+                                        // Silinmiş/taşınmış yol da taranır:
+                                        // eski Android kaydı böyle düşürür.
+                                        files.add(path)
+                                    }
+                                }
+                                if (files.isNotEmpty()) {
+                                    MediaScannerConnection.scanFile(
+                                        context, files.toTypedArray(), null, null
+                                    )
+                                }
+                            }.start()
+                        }
+                        result.success(null)
+                    }
 
                     "openUsageAccessSettings" -> {
                         openUsageAccessSettings()
@@ -1461,6 +1501,8 @@ class MainActivity : FlutterActivity() {
 
     private companion object {
         const val CHANNEL = "dosya_okuyucu/app_storage"
+        /** Tek `mediaScan` isteğinde taranacak en fazla dosya. */
+        const val MEDIA_SCAN_LIMIT = 2000
         const val MEDIA_CHANNEL = "dosya_okuyucu/media_session"
         const val FLOATING_CHANNEL = "dosya_okuyucu/floating"
         const val REQ_PICK_TREE = 7301

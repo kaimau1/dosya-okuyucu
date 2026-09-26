@@ -215,10 +215,10 @@ dependencies:
   # Karşılığı: video için hedef ölçü en yakın alt kademeye eşleniyor
   # (services/fm/video_transcode.dart), fotoğrafta serbest ölçü tam çalışıyor.
 
-  # Firebase (giriş + bulut senkron) — config yoksa uygulama yerel modda çalışır
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.0
-  cloud_firestore: ^5.4.0
+  # Google Drive girişi (`DriveService`). Firebase giriş + bulut senkron
+  # (`firebase_core`/`firebase_auth`/`cloud_firestore`) 2026-09-26'da
+  # KALDIRILDI: CI derlemesinde yapılandırma dosyası hiç yoktu, yani her
+  # kullanıcıda "yerel mod"da, çalışmadan APK'ya ağırlık ekliyordu.
   google_sign_in: ^6.2.0
   # Belge tarayıcı: Google ML Kit Belge Tarayıcı sarmalayıcısı (kenar tespiti,
   # perspektif düzeltme, "taranmış" filtre — SCANNER_MODE_FULL, sonuç JPEG).

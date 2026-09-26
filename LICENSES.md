@@ -62,7 +62,7 @@ denetlenebilir:
 ## Diğer bileşenler
 
 Uygulamanın kalan bağımlılıkları (Flutter, pdfrx/PDFium, Syncfusion Flutter PDF,
-Google ML Kit, Firebase, `excel`, `archive`, `koni_archive`, `image`,
+Google ML Kit, `excel`, `archive`, `koni_archive`, `image`,
 `video_player`, `audioplayers`, `video_compress`, `flutter_local_notifications`
 ve diğerleri) izin verici (BSD/MIT/Apache 2.0) ya da ticari-kullanıma açık
 lisanslarla dağıtılmaktadır; tam liste ve sürümler `pubspec.yaml` dosyasındadır.

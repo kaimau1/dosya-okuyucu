@@ -320,7 +320,7 @@ Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
             'kodlayıcısıyla üretilir; donanım kodlayıcısı olmayan cihazlarda '
             'FFmpeg’in mpeg4 kodlayıcısına düşülür.\n\n'
             'Diğer bileşenler (Flutter, PDFium/pdfrx, Syncfusion Flutter PDF, '
-            'Google ML Kit, Firebase, excel, archive, koni_archive, image, '
+            'Google ML Kit, excel, archive, koni_archive, image, '
             'video_player, audioplayers, video_compress, '
             'flutter_local_notifications …) izin verici (BSD/MIT/Apache 2.0) '
             'ya da ticari kullanıma açık lisanslarla dağıtılır. Tam liste: '

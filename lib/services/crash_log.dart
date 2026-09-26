@@ -18,8 +18,8 @@ import '../core/app_version.dart';
 /// model çöker ve hata, mağaza yorumu olarak geri döner.
 ///
 /// ## Niçin Crashlytics/Sentry DEĞİL (şimdilik)
-/// İkisi de bir sunucu ucu ister: Crashlytics `google-services.json` (depoda
-/// yok, uygulama yerel modda çalışıyor — bkz. `firebase_service.dart`),
+/// İkisi de bir sunucu ucu ister: Crashlytics `google-services.json` ve
+/// Firebase (uygulamada Firebase yok — 2026-09-26'da kaldırıldı),
 /// Sentry ise bir DSN. Üstelik yeni bir paket, pubspec'teki sürüm duvarını
 /// (Flutter 3.29.3) zorlayacak bir bağımlılık daha demek. Bu katman **sıfır
 /// bağımlılıkla** geri bildirim döngüsünü bugün açar: kullanıcı çökmeden sonra

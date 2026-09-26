@@ -1,7 +1,10 @@
+import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/core/theme.dart';
+import 'package:dosya_okuyucu/screens/fm/tools_screen.dart';
 import 'package:dosya_okuyucu/services/fm/tool_usage.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_category_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// **Niye bu test var (2026-08-29):**
@@ -89,6 +92,47 @@ void main() {
       expect(FmCategoryGrid.columnsFor(411), 4);
       expect(FmCategoryGrid.columnsFor(500), 4);
       expect(FmCategoryGrid.columnsFor(900), 8);
+    });
+  });
+
+  // 2026-09-26 sadeleştirmesi: panoda yalnız ilk sekiz araç, tamamı
+  // "Tümü" ekranında — hiçbir araç kaybolmamalı.
+  group('DashboardTools', () {
+    test('panoda en çok sekiz araç, sıra korunur', () {
+      final all = [for (var i = 0; i < 13; i++) i];
+      expect(DashboardTools.head(all), [0, 1, 2, 3, 4, 5, 6, 7]);
+      expect(DashboardTools.head([1, 2, 3]), [1, 2, 3]);
+    });
+
+    testWidgets('Tüm araçlar ekranı HER aracı gösterir', (tester) async {
+      final tools = [
+        for (var i = 0; i < 13; i++)
+          FmTileData(
+            icon: Icons.build,
+            color: Colors.teal,
+            id: 't$i',
+            label: 'Araç $i',
+            subtitle: '',
+            onTap: () {},
+          ),
+      ];
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
+        localizationsDelegates: const [
+          AppStrings.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: ToolsScreen(tools: () => tools, listenable: ChangeNotifier()),
+      ));
+      await tester.pump();
+      expect(find.text('Araçlar'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Araç 12'), 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text('Araç 12'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 

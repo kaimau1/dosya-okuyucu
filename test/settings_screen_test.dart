@@ -75,7 +75,9 @@ void main() {
       'photo_grid', 'photo_group', 'media_open_with', 'start_folder',
       'api_key', 'ai_backup_keys', 'ai_model_chain', 'ai_pool_status',
       'ai_excluded', 'ai_types', 'ai_privacy', 'ai_budget', 'memory',
-      'account', 'privacy_policy', 'pin', 'locked_folders', 'full_access',
+      // 'account' 2026-09-26'da BİLİNÇLİ kalktı: Firebase giriş/senkronu
+      // hiçbir derlemede yapılandırılmamıştı (kullanıcı onaylı sadeleştirme).
+      'privacy_policy', 'pin', 'locked_folders', 'full_access',
       'usage_access', 'use_trash', 'confirm_delete', 'trash_auto',
       'empty_trash', 'high_refresh', 'auto_rescan', 'search_index',
       'app_footprint', 'volumes', 'about', 'crash_log',

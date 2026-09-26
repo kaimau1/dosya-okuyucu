@@ -1,6 +1,6 @@
 # Privacy Policy — Dosya Okuyucu
 
-**Last updated:** 28 August 2026 · **Version:** 0.1.0
+**Last updated:** 26 September 2026 · **Version:** 0.1.0
 
 ## Summary
 
@@ -31,7 +31,6 @@ Uninstalling the app deletes all of it.
 |---|---|---|
 | **Gemini AI** (chat, summary, analysis) | Google — `generativelanguage.googleapis.com` | Your question and the text of the file you opened for the AI. Sent with **your own API key**, which you enter, is stored on the device and never passes through a server of ours. |
 | **Google Drive** | Google | Only if you connect it: the files you upload/download and the file listing |
-| **Firebase sign-in & sync** | Google | Only if configured and signed in: your e-mail address and the settings you sync. If it is not configured the app runs in **local mode**. |
 | **Network storage** (FTP/SFTP/SMB/WebDAV) | **Your own** server | Connection details and the files you transfer. These connections do not pass through us. |
 | **Download manager** | The address you enter | The download request |
 | **Translation** (ML Kit) | Google | Only while the language model is downloaded **for the first time**. Translation itself runs offline, on the device. |

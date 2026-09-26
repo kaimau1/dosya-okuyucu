@@ -64,6 +64,7 @@ import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
 import 'similar_screen.dart';
+import 'tools_screen.dart';
 import 'trash_screen.dart';
 import '../../core/snack.dart';
 
@@ -897,14 +898,38 @@ class _DashboardScreenState extends State<DashboardScreen>
                   [JobQueue.instance, FtpService.instance]),
               builder: (context, _) {
                 final tools = _rankedTools();
+                // Panoda yalnız kullanımca ilk sekiz (2026-09-26
+                // sadeleştirmesi); tamamı "Tümü"nde. Sıralama kullanıma göre
+                // olduğu için kullanıcının açtığı araç kendiliğinden öne gelir.
+                final shown = DashboardTools.head(tools);
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     SectionHeader(context.t('fm.tools'),
-                        count: '${tools.length}',
+                        count: shown.length == tools.length
+                            ? '${tools.length}'
+                            : null,
+                        trailing: shown.length == tools.length
+                            ? null
+                            : TextButton(
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: Gap.sm),
+                                ),
+                                onPressed: () => _push(ToolsScreen(
+                                  tools: _rankedTools,
+                                  listenable: Listenable.merge([
+                                    JobQueue.instance,
+                                    FtpService.instance,
+                                  ]),
+                                )),
+                                child: Text(context.t(
+                                    'fm.all_tools', {'n': tools.length})),
+                              ),
                         padding: const EdgeInsets.only(
                             top: Gap.lg, bottom: Gap.sm)),
-                    _toolFrame(FmToolGrid(tools: tools)),
+                    _toolFrame(FmToolGrid(tools: shown)),
                   ],
                 );
               },
@@ -1421,7 +1446,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         color: const Color(0xFF00838F),
         id: 'free_space',
         label: context.t('fm.free_space'),
-        subtitle: '',
+        // CANLI bilgi (2026-09-26): bu oturumda çözümleme yapıldıysa bulduğu
+        // toplam ("2,1 GB"). Yapılmadıysa boş — tahmin yazılmaz.
+        subtitle: switch (lastCleanupRecoverable()) {
+          final int bytes when bytes > 0 => FsPaths.humanSize(bytes),
+          _ => '',
+        },
         onTap: () => _push(CleanupScreen(index: _index)),
       ),
       // Sohbet yığını ayrı bir kutu: telefonu dolduran şey çoğu kullanıcıda

@@ -372,11 +372,6 @@ const Map<String, (String, String, String)> _table = {
     'الخط والحجم متطابقان على كل الهواتف؛ إعداد حجم خط النظام لا يؤثر على '
     'التطبيق — يُغيَّر من هنا فقط.',
   ),
-  'settings.account_sub': (
-    'Oturum ve cihazlar arası senkron',
-    'Sign-in and cross-device sync',
-    'تسجيل الدخول والمزامنة بين الأجهزة',
-  ),
   'settings.ai_sub': (
     'Gemini anahtarı ve model seçimi',
     'Gemini key and model choice',
@@ -452,31 +447,6 @@ const Map<String, (String, String, String)> _table = {
     'لا توجد ملاحظات محفوظة بعد. يمكنك إضافة إجابة من محادثة الذكاء الاصطناعي '
         'عبر «حفظ في الذاكرة».',
   ),
-  'settings.account': ('Hesap & Senkron', 'Account & sync', 'الحساب والمزامنة'),
-  'settings.account_local': (
-    'Bulut senkron için Firebase henüz yapılandırılmamış. Uygulama şu an yerel '
-        'modda çalışıyor.',
-    'Firebase is not configured yet, so cloud sync is off. The app is running '
-        'in local mode.',
-    'لم يتم إعداد Firebase بعد، لذا المزامنة السحابية متوقفة. يعمل التطبيق '
-        'حاليًا في الوضع المحلي.',
-  ),
-  'settings.account_local_note': (
-    'Etkinleştirmek için depo kökündeki FIREBASE_SETUP.md adımlarını izleyin '
-        '(flutterfire configure).',
-    'To enable it, follow FIREBASE_SETUP.md in the repository root '
-        '(flutterfire configure).',
-    'لتفعيلها، اتبع خطوات FIREBASE_SETUP.md في جذر المستودع '
-        '(flutterfire configure).',
-  ),
-  'settings.signed_in': ('Giriş yapıldı', 'Signed in', 'تم تسجيل الدخول'),
-  'settings.sync_active': ('Bulut senkron aktif', 'Cloud sync is on', 'المزامنة السحابية مفعّلة'),
-  'settings.sign_out': ('Çıkış', 'Sign out', 'تسجيل الخروج'),
-  'settings.email': ('E-posta', 'Email', 'البريد الإلكتروني'),
-  'settings.password': ('Parola', 'Password', 'كلمة المرور'),
-  'settings.sign_in': ('Giriş', 'Sign in', 'تسجيل الدخول'),
-  'settings.register': ('Kayıt ol', 'Register', 'إنشاء حساب'),
-  'settings.google_sign_in': ('Google ile giriş', 'Sign in with Google', 'الدخول عبر Google'),
   'settings.about': ('Hakkında', 'About', 'حول'),
   'settings.about_body': (
     'Dosya Okuyucu • sürüm {version}\n'
@@ -534,6 +504,7 @@ const Map<String, (String, String, String)> _table = {
   'fm.all_files': ('Tüm dosyalar', 'All files', 'كل الملفات'),
   'fm.quick_folders': ('Hızlı klasörler', 'Quick folders', 'مجلدات سريعة'),
   'fm.tools': ('Araçlar', 'Tools', 'الأدوات'),
+  'fm.all_tools': ('Tümü ({n})', 'All ({n})', 'الكل ({n})'),
   'fm.recent_opened': ('Son açılanlar', 'Recently opened', 'المفتوحة مؤخرًا'),
   'fm.recent_opened_note': (
     'Her tür dosya',
@@ -3724,6 +3695,11 @@ const Map<String, (String, String, String)> _table = {
     'Open Android app settings',
     'فتح إعدادات التطبيق في أندرويد',
   ),
+  'ocr.model_downloading': (
+    'Metin tanıma modeli Google Play Hizmetleri tarafından indiriliyor. İnternete bağlı olun ve birkaç dakika sonra yeniden deneyin.',
+    'The text recognition model is being downloaded by Google Play services. Stay online and try again in a few minutes.',
+    'تقوم خدمات Google Play بتنزيل نموذج التعرّف على النص. ابقَ متصلًا بالإنترنت وأعد المحاولة بعد بضع دقائق.',
+  ),
   'fmset.volumes': ('Birimler', 'Volumes', 'وحدات التخزين'),
   'fmset.volumes_none': ('Bulunamadı', 'None found', 'لم يُعثر على شيء'),
   'fmset.general': ('Genel ayarlar', 'General settings', 'الإعدادات العامة'),
@@ -6211,17 +6187,6 @@ const Map<String, (String, String, String)> _table = {
   'jp.cancel': ('İptal', 'Cancel', 'إلغاء'),
   'jp.show': ('Göster', 'Show', 'عرض'),
 
-  // ── Firebase / giriş ──────────────────────────────────────────────────────
-  'fb.sign_in_cancelled': (
-    'Google girişi iptal edildi.',
-    'Google sign-in was cancelled.',
-    'أُلغي تسجيل الدخول عبر Google.',
-  ),
-  'fb.not_configured': (
-    'Firebase yapılandırılmamış. Ayarlar’daki kurulum adımlarını izleyin.',
-    'Firebase is not configured. Follow the setup steps in Settings.',
-    'لم يُهيّأ Firebase. اتبع خطوات الإعداد في الإعدادات.',
-  ),
 
   // ── İndirme bildirimi ─────────────────────────────────────────────────────
   'dsv.downloading': ('İndiriliyor…', 'Downloading…', 'جارٍ التنزيل…'),

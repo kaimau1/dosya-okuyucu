@@ -7,7 +7,6 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/settings_search.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
-import 'tiles_account.dart';
 import 'tiles_ai.dart';
 import 'tiles_ai_pool.dart';
 import 'tiles_ai_scope.dart';
@@ -397,11 +396,9 @@ List<SettingsCategory> settingsCategories() => [
         subtitleKey: 'set.cat_privacy_sub',
         summary: (context) {
           final s = context.watch<AppState>();
-          final lock = s.fmHasLockPin
+          return s.fmHasLockPin
               ? context.t('fmset.pin_sub_locked', {'n': s.fmLockedFolders.length})
               : context.t('fmset.pin_sub_unset');
-          if (!s.firebaseAvailable || !s.signedIn) return lock;
-          return '${s.userEmail ?? context.t('settings.signed_in')} · $lock';
         },
         sections: const [
           SettingsSection('settings.privacy_policy', [
@@ -441,14 +438,6 @@ List<SettingsCategory> settingsCategories() => [
                 id: 'usage_access',
                 titleKey: 'fmset.usage_access',
                 builder: _usageAccessTile),
-          ]),
-          SettingsSection('settings.account', [
-            SettingRow(
-              id: 'account',
-              titleKey: 'settings.account',
-              altKeys: ['settings.email', 'settings.sync_active'],
-              builder: _accountTile,
-            ),
           ]),
         ],
       ),
@@ -607,7 +596,6 @@ Widget _aiExcludedTile(BuildContext _) => const AiExcludedFoldersTile();
 Widget _aiTypesTile(BuildContext _) => const AiScopeTypesTile();
 Widget _aiPrivacyTile(BuildContext _) => const AiPrivacyTile();
 Widget _aiBudgetTile(BuildContext _) => const AiBudgetTile();
-Widget _accountTile(BuildContext _) => const AccountTile();
 Widget _pinTile(BuildContext _) => const PinTile();
 Widget _appLockTile(BuildContext _) => const AppLockTile();
 Widget _lockedFoldersTile(BuildContext _) => const LockedFoldersTile();

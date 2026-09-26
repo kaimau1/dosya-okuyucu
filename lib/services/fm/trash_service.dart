@@ -258,7 +258,7 @@ class TrashService {
     // eski yolunda gerçekten durduğu için bir sonraki kurulumda kendiliğinden
     // döner, arada da diskten tarayan yollar (gezgin) onu zaten gösterir.
     if (gone.isNotEmpty) await SearchIndex.forget(gone);
-    if (ok > 0) FsEvents.changed();
+    if (ok > 0) FsEvents.changed(gone);
     return FmOpResult(succeeded: ok, errors: errors);
   }
 
@@ -309,7 +309,7 @@ class TrashService {
     // Etiket/açılma geçmişi dosyayla birlikte eski yoluna döner.
     await PathSideIndex.moved(item.storedPath, target);
     await _removeFromIndex(item);
-    FsEvents.changed();
+    FsEvents.changed([target]);
     return target;
   }
 
