@@ -12029,3 +12029,7 @@ GÖZLE denetlendi; başlık tutarsızlığı bu sayede yakalandı. `graphify upd
 bu bulut oturumunda çalıştırılamadı (araç kurulu değil). Cihazda bakılacak: pinch'in hissi (eşikler 1,22/0,84), tutamacın
 sağ kenarda başparmakla tutulması, koyu temada seçili çip zıtlığı, galeri
 açılışında küçük resimden tam çözünürlüğe geçişte titreme olup olmadığı.
+**CI sonucu:** özellik dalı #367 (testler) ve main #368 yeşil — kullanıcı
+*"main'e merge et, APK derlensin"* → main hızlı ileri (422a367 → f332597),
+**v1.0.368** yayımlandı (arm64 APK 77,6 MB — önceki 77,5 MB; galeri turu
+boyutu etkilemedi).
