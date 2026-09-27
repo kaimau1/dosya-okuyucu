@@ -190,6 +190,8 @@ class FmSelectionBar extends StatelessWidget {
               await startResizeJob(context, selected);
             case 'tag':
               if (await showTagPicker(context, _paths)) await onChanged();
+            case 'hide':
+              if (await hideEntries(context, _paths)) await onChanged();
             case 'properties':
               if (selected.length == 1 && context.mounted) {
                 await showProperties(context, selected.first);
@@ -213,6 +215,7 @@ class FmSelectionBar extends StatelessWidget {
             PopupMenuItem(
                 value: 'resize', child: Text(context.t('fm.resize'))),
           PopupMenuItem(value: 'tag', child: Text(context.t('fm.tag'))),
+          PopupMenuItem(value: 'hide', child: Text(context.t('ea.hide'))),
           PopupMenuItem(
               value: 'important',
               child: Text(context.t('fm.copy_to_important'))),

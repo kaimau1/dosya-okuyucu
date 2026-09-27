@@ -10,6 +10,10 @@ import 'support/temp_dir.dart';
 ///
 /// Kritik davranış: KOPYA özgün dosyaya DOKUNMAMALI. Bu yanlış olsaydı
 /// kullanıcı "kopyasını kaydet" deyip belgesini kaybederdi.
+/// Geçerli görünen küçük bir PDF gövdesi ([PdfBytesCheck] denetimini geçer).
+Uint8List fakePdf(String tag) => Uint8List.fromList(
+    '%PDF-1.4\n${'.' * 70}\n$tag\n%%EOF\n'.codeUnits);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -28,32 +32,32 @@ void main() {
 
   test('overwrite: özgün dosyaya yazar, yolu aynıdır', () async {
     final written = await PdfSave.write(
-        original.path, Uint8List.fromList([9, 9]), PdfSaveMode.overwrite);
+        original.path, fakePdf('yeni'), PdfSaveMode.overwrite);
 
     expect(written, original.path);
-    expect(await original.readAsBytes(), [9, 9]);
+    expect(await original.readAsBytes(), fakePdf('yeni'));
   });
 
   test('copy: yeni dosya açar, özgün dosya DEĞİŞMEZ', () async {
     final written = await PdfSave.write(
-        original.path, Uint8List.fromList([9, 9]), PdfSaveMode.copy);
+        original.path, fakePdf('yeni'), PdfSaveMode.copy);
 
     expect(written, isNot(original.path));
     expect(p.basename(written), 'rapor (kopya).pdf');
-    expect(await File(written).readAsBytes(), [9, 9]);
+    expect(await File(written).readAsBytes(), fakePdf('yeni'));
     expect(await original.readAsBytes(), [1, 2, 3]);
   });
 
   test('copy: ad çakışırsa numaralandırır (var olanı ezmez)', () async {
     final first = await PdfSave.write(
-        original.path, Uint8List.fromList([1]), PdfSaveMode.copy);
+        original.path, fakePdf('bir'), PdfSaveMode.copy);
     final second = await PdfSave.write(
-        original.path, Uint8List.fromList([2]), PdfSaveMode.copy);
+        original.path, fakePdf('iki'), PdfSaveMode.copy);
 
     expect(p.basename(first), 'rapor (kopya).pdf');
     expect(p.basename(second), 'rapor (kopya 2).pdf');
-    expect(await File(first).readAsBytes(), [1]);
-    expect(await File(second).readAsBytes(), [2]);
+    expect(await File(first).readAsBytes(), fakePdf('bir'));
+    expect(await File(second).readAsBytes(), fakePdf('iki'));
   });
 
   test('copy hedefi hesaplanırken deneme dosyası geride bırakılmaz', () async {
@@ -65,5 +69,15 @@ void main() {
         .where((n) => n != 'rapor.pdf')
         .toList();
     expect(leftovers, isEmpty);
+  });
+
+  test('GEÇERSİZ çıktı (boş / PDF değil) özgün dosyaya YAZILMAZ', () async {
+    // 0 bayt PDF bulgusu (2026-09-27): üretici kütüphanenin boş/bozuk
+    // çıktısı kullanıcının belgesinin yerine konmamalı.
+    await expectLater(
+      PdfSave.write(original.path, Uint8List(0), PdfSaveMode.overwrite),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(await original.readAsBytes(), [1, 2, 3]);
   });
 }

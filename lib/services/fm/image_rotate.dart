@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import 'file_ops.dart';
+import 'safe_write.dart';
 import 'fs_events.dart';
 
 /// **Görseli döndür ve kaydet.**
@@ -59,7 +60,7 @@ abstract final class ImageRotate {
     final bytes = await Isolate.run(() => _rotateSync(path, turns));
     // Yazma isolate DIŞINDA: hedef yolu ana izlek belirliyor ve `uniquePath`
     // diske bakıyor; iki yerde iki kez karar vermek yarış üretirdi.
-    await File(target).writeAsBytes(bytes, flush: true);
+    await SafeWrite.bytes(target, bytes);
     FsEvents.changed();
     return target;
   }

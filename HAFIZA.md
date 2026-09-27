@@ -12057,3 +12057,135 @@ yazdığı bu türden kayıtları da düşürür — yoksa güncellemeden sonra 
 çıkardı. Görsel hizmetindeki BAŞKA bağlamlar ve başka kütüphanelerde aynı
 bağlam eskisi gibi kaydedilir. Test: `crash_log_test` (+2).
 **Ders:** "uygulama hata verdi" raporunda önce kaydın TARİHİNE bak.
+
+## 2026-09-27 — Kullanıcı turu (18 madde, 12 ekran görüntüsü): veri güvenliği, vurgu akışı, bildirimler, gezinme, AI
+Kullanıcı: PDF vurgulama/düzenleme akışı, alt uyarılar, kısayol, alt çubuk,
+kalem, kaldığı yer, simgeler, çeviri, sayfaya git, kaydırmalı kategoriler,
+ana ekran kişiselleştirme, gizleme, AI gözden geçirme + *"Main'e pushla APK
+derle"*. (Oturum dalı `claude/app-ui-ux-improvements-b4qym3` idi; CLAUDE.md
+kuralı + kullanıcının açık isteğiyle iş **main**'e gitti.)
+
+### A) KÖK NEDEN — PDF 0 bayta düştü (VERİ KAYBI)
+3239 sayfalık e-kitaba vurgu → çık/gir → dosya 0 B, pdfium
+`FPDF_GetLastError=3`. Üç yer "önce sıfırla (O_TRUNC), sonra yaz" kalıbındaydı:
+görüntüleyici her vurguda ÖZGÜN dosyanın üstüne `writeAsBytes`; ekrandan
+çıkarken özgün baytlar `dispose` içinde **ana izlekte eşzamanlı `copySync`**
+ile geri yazılıyordu (büyük dosyada saniyeler → donma → süreç öldürülünce
+yarım dosya); "üzerine yaz" kaydetmesi. Ayrıca `PopScope` `_pdfDirty`'ye
+bakıyordu ama bayrak ancak yazma BİTİNCE true oluyordu → yazma sürerken çıkış.
+- Yeni `services/fm/safe_write.dart`: `SafeWrite.bytes/copy/copySync` —
+  aynı klasörde gizli geçici dosya (`.ad.pdf.dosyaokuyucu-yaziliyor-<zaman>`)
+  → boy doğrulama → `rename` (bölünmez). Klasöre yazılamıyorsa eski yol.
+  `cleanupLeftovers` görüntüleyici açılışında artıkları siler.
+- `PdfBytesCheck.looksValid`: `%PDF` başı + son 2 KB'ta `%%EOF`; boş/bozuk
+  çıktı kullanıcının dosyasının YERİNE KONMAZ (PdfSave + görüntüleyici).
+- Görüntüleyici: geri yazma artık `PdfRestoreQueue` ile asenkron + bölünmez;
+  aynı dosya yeniden açılırsa bitmesi beklenir (`_waitingRestore`). Yazma
+  sürerken çıkış yok (`_pdfWriting`). Yedekler önbellekte değil destek
+  klasöründe (`pdf_edit_backups/`) — sistem önbelleği boşaltabilir.
+- `PdfEditJournal.recover`: özgün yok/0 B/PDF değilse **tarihe bakmadan**
+  geri yükler (eskiden "özgün yedekten yeni" şartı vardı); `only:` ile tek
+  dosya; görüntüleyici açılırken `hasStale` ise hemen kurtarır.
+- Word/Slayt/Excel/görsel döndürme kaydetmeleri de `SafeWrite`a geçti.
+- pdfrx'in mavi yığın izli hata ekranı → `errorBannerBuilder`: anlaşılır
+  kart (0 bayt / bozuk ayrımı, "Özgün hâlini geri yükle" yedek varsa,
+  yeniden dene, başka uygulamayla aç).
+- **Cihazda doğrulanamadı:** asıl tetikleyici (OOM mu, ANR sonrası öldürme mi)
+  bilinmiyor; savunma her halkada. Kullanıcıdan istenecek: aynı kitaba vurgu
+  → çık/gir; dosyanın bozulmadığını görmek.
+
+### B) Vurgu akışı baştan — "PDF kapanıp açılıyor", "yanlışlıkla vurguluyor"
+- Vurgu artık **ekranda bekler** (`_PendingMark`, `pagePaintCallbacks` ile
+  çarpımsal çizim) — belge yeniden YÜKLENMEZ, dosyaya dokunulmaz. Kaydederken
+  (ya da dosyayı değiştiren başka bir işten hemen önce `_flushPendingMarks`)
+  hepsi TEK geçişte, **izolatta** yazılır (`PdfAnnotator.addHighlightsInBackground`).
+  Eskiden her vurgu ana izlekte Syncfusion ile bütün belgeyi açıp kaydediyordu.
+- Seçim çubuğu iki kat: başlık (metin · ⋯ · ×) + Kopyala · **Vurgula** ·
+  Düzenle · Çevir. Renkler ilk bakışta YOK ("çok yer kaplıyor"); Vurgula son
+  rengi uygular ve çubuk **vurgu kipine** geçer: renkler + Geri al + Bitti.
+  ⋯: Vurguyu kaldır · AI'ya sor · Belgede ara · Paylaş.
+- Pastel palet (+turuncu), `opacity 0.55` (Syncfusion appearance'ı çarpımsal
+  ama opaklık 1'di → pembe kelimeyi kiremit kutuya çeviriyordu).
+- Seçim/düzenleme alttaki çubuğun ARKASINDA kalmasın: `_revealAboveBar`
+  (parmak kalkınca / düzenleme başlarken `ensureVisible` + çubuk payı).
+- TUZAK: yalnız vurgu kaydedilip (yedek yok) "üzerine yaz" denince
+  `_pdfKeepEdits` true kalıyordu → sonraki "kaydetme" düzenlemesi dosyada
+  kalırdı. Bayrak yalnız yedek varsa ve `_restoreOriginal` onu sıfırlıyor.
+
+### C) Bildirimler (toast) — "çok yukarıda", "gitmiyor"
+- KÖK NEDEN (gitmiyor): SnackBar zamanlayıcısını `ScaffoldMessenger` kurar;
+  (a) cihazda erişilebilirlik hizmeti açıksa (`accessibleNavigation`)
+  DÜĞMELİ şerit hiç kapanmaz, (b) yalnız rota en üstteyken sayar.
+  (yukarıda): yüzen SnackBar alt çubuk + FAB'ın üstüne oturur.
+- `core/snack.dart` baştan: `ToastLayer` (`MaterialApp.builder`'da, her rotanın
+  üstünde) — ekranın EN ALTINDA, kendi `AnimationController`ıyla süre + ince
+  geri sayım çubuğu, parmak üstündeyken durur, kaydırınca kapanır; kalıcı
+  kart (`showStickyToast`, iş ilerlemesi) ayrı yuvada. Eski API aynı
+  (`showSnack/showSnackOn/showSnackBarReplacing`), dönüş tipi `ToastHandle`.
+  Katman yoksa (testler) kök `Overlay`a eklenir. `begin/endStickySnack` kalktı.
+- "N. sayfa (toplam M)" başarı bildirimi kaldırıldı (rozet zaten söylüyor).
+
+### D) Kaldığı yer + yer imleri + sayfaya git
+- KÖK NEDEN 1: soğuk açılışta (`Birlikte aç`) `appSupportDir` boş →
+  `ReadingPositions.ensureLoaded` hiçbir şey yapmıyor, kayıt yalnız bellekte;
+  sonra `save()` belleği yazıp **öteki belgelerin konumlarını SİLİYORDU**.
+  Artık yükleme `FmEnv.ensureInit` bekler, yazmadan önce yükler, eski kayıt
+  yeniyi ezmez. KÖK NEDEN 2: sayfa `setState` ile görüntüleyici kurulduktan
+  SONRA geliyordu (pdfrx başlangıç sayfasını bir kez okur) → `_resumeReady`
+  bekçisi. Son sayfa artık kaydedilir, `minPages` 4→2, yol değişince ad+boyut.
+- `PdfBookmarks` (uygulama kaydı, belgeye yazılmaz): rozete uzun bas / ⋮ /
+  gezgin. Yıldızlı sayfada köşe kurdelesi.
+- "Sayfaya git" → `widgets/pdf_page_navigator.dart`: önizlemeli (PdfPageView),
+  kaydırıcı + basılı tutunca hızlanan ‹ ›, sayı kutusu, İlk/Son/**Önceki
+  konum**, yıldızlı sayfalar şeridi. Rozet: ilerleme halkalı "5 / 1272".
+  Sağdaki kaydırma tutamacı büyük mavi sekmeden ince yarı saydam tutamaca.
+
+### E) Diğer istekler
+- **Çeviri:** `services/lang_detect.dart` (saf Dart: yazı sistemi + ayırt
+  edici harf + sık kelime; ML Kit dil tanıma eklentisi YOK — APK ve sürüm
+  sabitlemesi). Tam akışta "Otomatik algıla" varsayılan. Seçim/Word seçimi
+  → `QuickTranslateSheet` (belgenin üstünde kart; dil kendiliğinden).
+- **AI'ya sor (seçim):** `QuickAiSheet` — Açıkla / Basitçe / Özetle /
+  Terimler + serbest soru; yanıt arayüz dilinde.
+- **Kalem:** iki parmak her araçta kaydırır+yakınlaştırır (InteractiveViewer
+  çizim araçlarında kapalı; dış `Listener` kendi matrisini kurar, kenara
+  kısılır); yakınlaşmamışken iki parmakla yukarı/aşağı = sayfa çevir; "Kaydır"
+  aracında tek parmakla.
+- **Alt çubuk:** Dosyalar · İndirilenler · Yeni Dosyalar (AI kalktı; AI
+  Merkezi panonun üst çubuğunda `AiStatusIcon` ile, sohbet AI Merkezi'nde).
+- **Kaydırmalı kategoriler:** `screens/fm/swipe_pager.dart` — pano kutusundan
+  açılan ekran PageView sayfası; sıra panonun (kullanıcının) sırası.
+- **Ana ekran kısayolu:** `ci/MainActivity.kt` `dosya_okuyucu/shortcuts`
+  kanalı (`pin/take/supported`, `requestPinShortcut` 8+, eski yayın ≤7 +
+  INSTALL_SHORTCUT izni), eylem `com.dosyaokuyucu.action.OPEN_PATH`.
+  Simge Dart'ta çizilir (uyarlanabilir 432 px, tür rengi). Uzun basış menüsü
+  + görüntüleyici ⋮. `MainActivity.kt` YEREL derlenmedi → CI doğruluyor.
+- **Gizleme:** `HiddenVault` — `.DosyaOkuyucuGizli/` (+`.nomedia`), dizin
+  kasanın içinde; "Gizli dosyalar" aracı (klasör kilidi PIN'i varsa sorar).
+  Şifreleme DEĞİL (ekranda yazılı).
+- **Ana ekran düzeni:** `DashboardLayout` (bölüm + kutu sırası/görünürlüğü,
+  SharedPreferences) + "Ana ekranı düzenle" sayfası. TUZAK: `dl.*` anahtarları
+  indirme yöneticisinindi (`dl.title` = İndirmeler) → yeni anahtarlar `dash.*`.
+- **Simgeler:** arşivler fermuarlı kağıt, biçime göre renk (ZIP/RAR/7Z/TAR).
+- **Yerinde düzenleme yazı tipi:** `PdfFontClass` (BaseFont'tan serif/sans/
+  mono + kalın/italik) → yedek yol Tinos/Carlito biçimi + taban çizgisi
+  hizası; düzenleme kutusu önizlemesi de aynı aile (≤30 MB belgede yoklanır).
+
+### F) AI gözden geçirme
+- Varsayılan model `gemini-2.0-flash` → `defaultAiModel = gemini-2.5-flash`;
+  yedek listelerden emekli 1.5 serisi çıktı.
+- `AiPool.safetyNet`: seçili modellerin HEPSİ "model yok" derse 2.5
+  Flash/Lite denenir (kota/anahtar hatasında devreye girmez).
+- Sohbet sistem istemi Türkçe'ye sabitti → arayüz dili (`ai.answer_language`).
+- Bağlam 24 000 → 120 000 karakter; PDF'ten açılan sohbette okunan sayfa
+  bağlamın başında + "Bu sayfayı özetle/açıkla" çipleri.
+- Hiçbir AI özelliği silinmedi: her biri tarihli bir kullanıcı isteğine
+  bağlı; alt çubuktan kalkan AI sekmesi dışında yer değişmedi.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun; tam takım yeşil
+(2489+; yeni: `safe_write_test`, `lang_detect_test`, `pdf_page_navigator_test`,
+`hidden_vault_test`, `dashboard_layout_test`, `pdf_font_class_test`, snack/
+ink/reading/ai_pool/pdf_action_bars eklemeleri). `graphify` bu oturumda yok.
+Cihazda bakılacak: kısayol onayı (başlatıcıya göre değişir), toast'ın dock
+üstündeki görünümü, iki parmakla kalem kaydırmasının hissi, büyük kitapta
+vurgu kaydetme süresi.

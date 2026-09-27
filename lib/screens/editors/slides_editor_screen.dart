@@ -11,6 +11,7 @@ import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../models/document.dart';
+import '../../services/fm/safe_write.dart';
 import '../../services/conversion_service.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
@@ -153,7 +154,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     if (editor == null) return;
     try {
       final bytes = editor.save();
-      await File(widget.path).writeAsBytes(bytes);
+      await SafeWrite.bytes(widget.path, bytes);
       unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
       _dirty = false;
       if (mounted) {

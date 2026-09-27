@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/doc_translate.dart';
+import '../services/lang_detect.dart';
 import '../services/pdf_translate_doc.dart';
 import '../services/ocr_service.dart';
 import '../services/translate_service.dart';
@@ -57,6 +58,7 @@ class TranslateFlow {
       context,
       title: title ?? str.t('tf.title'),
       load: (_) async => [OcrPage(1, source)],
+      sample: source,
     );
   }
 
@@ -74,13 +76,18 @@ class TranslateFlow {
     required String path,
     required List<int> bytes,
     required int pageCount,
+    String sampleText = '',
   }) async {
     final str = AppStrings.of(context);
     final pair = await TranslateService.lastPair();
     if (!context.mounted) return;
-    final chosen = await _pickLanguages(context, pair.$1, pair.$2);
+    final chosen = await _pickLanguages(context, pair.$1, pair.$2,
+        detected: LangDetect.detect(sampleText));
     if (chosen == null || !context.mounted) return;
-    final (from, to) = chosen;
+    final (pickedFrom, to) = chosen;
+    // "Otomatik": belgenin örnek metninden; bulunamazsa son kaynak dil.
+    var from = pickedFrom ?? LangDetect.detect(sampleText) ?? pair.$1;
+    if (from == to) from = pair.$1 == to ? TranslateLanguage.english : pair.$1;
     await TranslateService.savePair(from, to);
     if (!context.mounted) return;
 
@@ -172,31 +179,46 @@ class TranslateFlow {
     BuildContext context, {
     required String title,
     required TranslatePageLoader load,
+    String sample = '',
   }) =>
-      _run(context, title: title, load: load);
+      _run(context, title: title, load: load, sample: sample);
 
   static Future<void> _run(
     BuildContext context, {
     required String title,
     required TranslatePageLoader load,
+    String sample = '',
   }) async {
     final str = AppStrings.of(context);
     final pair = await TranslateService.lastPair();
     if (!context.mounted) return;
-    final chosen = await _pickLanguages(context, pair.$1, pair.$2);
+    final chosen =
+        await _pickLanguages(context, pair.$1, pair.$2, sample: sample);
     if (chosen == null || !context.mounted) return;
-    final (from, to) = chosen;
-    await TranslateService.savePair(from, to);
+    final (pickedFrom, to) = chosen;
     if (!context.mounted) return;
 
     final progress = TranslateProgress(str.t('tf.preparing'));
     final busy = _showProgress(context, progress);
 
     List<OcrPage> result = const [];
+    // Kaynak dil "otomatik" ise metin toplandıktan SONRA bulunur (taranmış
+    // belgede metin ancak OCR'dan sonra var).
+    var from = pickedFrom ?? pair.$1;
     var sourcePages = 0;
     String? error;
     try {
       // Modeller yoksa indir (tek seferlik, internet gerekir; sonrası çevrimdışı).
+      final pages = progress.cancelled ? <OcrPage>[] : await load(progress);
+      sourcePages = pages.length;
+      if (pickedFrom == null) {
+        final joined = pages.take(3).map((p) => p.text).join('\n');
+        from = LangDetect.detect(joined) ?? pair.$1;
+        if (from == to) {
+          from = pair.$1 == to ? TranslateLanguage.english : pair.$1;
+        }
+      }
+      await TranslateService.savePair(from, to);
       for (final lang in {from, to}) {
         if (progress.cancelled) break;
         if (!await TranslateService.isModelReady(lang)) {
@@ -206,8 +228,6 @@ class TranslateFlow {
           await TranslateService.downloadModel(lang);
         }
       }
-      final pages = progress.cancelled ? <OcrPage>[] : await load(progress);
-      sourcePages = pages.length;
       if (pages.isNotEmpty && !progress.cancelled) {
         result = await DocTranslate.translatePages(
           pages,
@@ -254,30 +274,28 @@ class TranslateFlow {
   }
 
   /// Kaynak/hedef dil seçimi. Kullanıcı iptal ederse null döner.
-  static Future<(TranslateLanguage, TranslateLanguage)?> _pickLanguages(
+  ///
+  /// Kaynakta **"Otomatik algıla"** (null) varsayılan (2026-09-27, kullanıcı:
+  /// *"çeviride otomatik algıla olmalı"*). [sample] verilirse algılanan dil
+  /// seçeneğin altında yazar ki kullanıcı yanlış algılamayı görsün.
+  static Future<(TranslateLanguage?, TranslateLanguage)?> _pickLanguages(
     BuildContext context,
     TranslateLanguage initialFrom,
-    TranslateLanguage initialTo,
-  ) {
-    var from = initialFrom;
+    TranslateLanguage initialTo, {
+    String sample = '',
+    TranslateLanguage? detected,
+  }) {
+    TranslateLanguage? from; // null = otomatik
     var to = initialTo;
-    return showDialog<(TranslateLanguage, TranslateLanguage)>(
+    final guess = detected ?? LangDetect.detect(sample);
+    return showDialog<(TranslateLanguage?, TranslateLanguage)>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) {
-          Widget dropdown(
-              TranslateLanguage value, ValueChanged<TranslateLanguage> onChange) {
-            return DropdownButton<TranslateLanguage>(
-              value: value,
-              isExpanded: true,
-              items: [
-                for (final e in TranslateService.languages.entries)
-                  DropdownMenuItem(value: e.key, child: Text(e.value)),
-              ],
-              onChanged: (v) => v == null ? null : onChange(v),
-            );
-          }
-
+          final autoLabel = guess == null
+              ? ctx.t('tf.auto_detect')
+              : '${ctx.t('tf.auto_detect')} · '
+                  '${TranslateService.languages[guess]}';
           return AlertDialog(
             title: Text(ctx.t('tf.lang_title')),
             content: Column(
@@ -286,13 +304,34 @@ class TranslateFlow {
                 Align(
                     alignment: Alignment.centerLeft,
                     child: Text(ctx.t('tf.source_lang'))),
-                dropdown(from, (v) => setLocal(() => from = v)),
+                DropdownButton<TranslateLanguage?>(
+                  value: from,
+                  isExpanded: true,
+                  items: [
+                    DropdownMenuItem<TranslateLanguage?>(
+                      value: null,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Flexible(
+                              child: Text(autoLabel,
+                                  overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                    ),
+                    for (final e in TranslateService.languages.entries)
+                      DropdownMenuItem<TranslateLanguage?>(
+                          value: e.key, child: Text(e.value)),
+                  ],
+                  onChanged: (v) => setLocal(() => from = v),
+                ),
                 const SizedBox(height: 8),
                 IconButton(
                   tooltip: ctx.t('tf.swap'),
                   icon: const Icon(Icons.swap_vert),
                   onPressed: () => setLocal(() {
-                    final t = from;
+                    final t = from ?? guess ?? initialFrom;
                     from = to;
                     to = t;
                   }),
@@ -300,7 +339,17 @@ class TranslateFlow {
                 Align(
                     alignment: Alignment.centerLeft,
                     child: Text(ctx.t('tf.target_lang'))),
-                dropdown(to, (v) => setLocal(() => to = v)),
+                DropdownButton<TranslateLanguage>(
+                  value: to,
+                  isExpanded: true,
+                  items: [
+                    for (final e in TranslateService.languages.entries)
+                      DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setLocal(() => to = v);
+                  },
+                ),
               ],
             ),
             actions: [

@@ -12,7 +12,10 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/archive_ops.dart';
+import '../../services/file_service.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/hidden_vault.dart';
+import '../../services/fm/home_shortcuts.dart';
 import '../../services/fm/content_search.dart';
 import '../../services/fm/exif_reader.dart';
 import '../../services/fm/file_digest.dart';
@@ -70,6 +73,8 @@ enum _EntryAction {
   rotate,
   split,
   join,
+  shortcut,
+  hide,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -149,6 +154,11 @@ Future<bool> showEntryActions(
               if (allowReveal)
                 _act(ctx, Icons.my_location, ctx.t('fm.reveal'),
                     _EntryAction.reveal),
+              // Ana ekran kısayolu (kullanıcı isteği 2026-09-27).
+              if (Platform.isAndroid)
+                _act(ctx, Icons.add_to_home_screen_rounded,
+                    ctx.t('ea.shortcut'), _EntryAction.shortcut,
+                    hint: ctx.t('ea.shortcut_hint')),
             ]),
             // Tek adımlı akış ÖNCE (kullanıcı isteği 2026-07-29:
             // "taşıma/kopyalama şu an çok zor"): hedefi burada seç, iş bitsin.
@@ -228,6 +238,9 @@ Future<bool> showEntryActions(
               if (isPart)
                 _act(ctx, Icons.merge, ctx.t('ea.join'), _EntryAction.join,
                     hint: ctx.t('ea.join_hint')),
+              _act(ctx, Icons.visibility_off_outlined, ctx.t('ea.hide'),
+                  _EntryAction.hide,
+                  hint: ctx.t('ea.hide_hint')),
               _act(ctx, Icons.info_outline, ctx.t('fm.properties'),
                   _EntryAction.properties),
             ]),
@@ -351,6 +364,13 @@ Future<bool> showEntryActions(
     case _EntryAction.reveal:
       onReveal?.call(_parentOf(entry.path));
       return false;
+
+    case _EntryAction.shortcut:
+      await addHomeShortcut(context, entry);
+      return false;
+
+    case _EntryAction.hide:
+      return hideEntries(context, [entry.path]);
 
     case _EntryAction.properties:
       await showProperties(context, entry);
@@ -1597,4 +1617,86 @@ String _parentOf(String path) {
 
 void _snack(BuildContext context, String message) {
   showSnack(context, message);
+}
+
+/// [entry] için telefonun ana ekranına kısayol ister (bkz. [HomeShortcuts]).
+///
+/// Simge dosya türünün renginde çizilir: PDF kırmızı, klasör kehribar…
+/// Başlatıcı onayı kendisi sorar; desteklemiyorsa kullanıcıya söylenir.
+Future<void> addHomeShortcut(BuildContext context, FsEntry entry) async {
+  final strings = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final IconData icon;
+  final Color color;
+  if (entry.isDir) {
+    icon = FmColors.forFolderName(entry.name) ?? Icons.folder_rounded;
+    color = FmColors.folder;
+  } else {
+    final ext = entry.extension.toLowerCase();
+    final special = FmColors.forExtension(ext);
+    if (special != null) {
+      (icon, color) = special;
+    } else if (entry.category == FmCategory.document) {
+      final kind = FileService.iconKindForExtension(ext);
+      color = OfficeColors.forKind(kind);
+      icon = switch (ext) {
+        'pdf' => Icons.picture_as_pdf_rounded,
+        'doc' || 'docx' || 'odt' || 'rtf' => Icons.article_rounded,
+        'xls' || 'xlsx' || 'csv' || 'ods' => Icons.table_chart_rounded,
+        'ppt' || 'pptx' || 'odp' => Icons.slideshow_rounded,
+        _ => Icons.description_rounded,
+      };
+    } else {
+      icon = FmColors.iconFor(entry.category);
+      color = FmColors.forCategory(entry.category);
+    }
+  }
+  if (!await HomeShortcuts.supported()) {
+    showSnackOn(messenger, strings.t('ea.shortcut_unsupported'));
+    return;
+  }
+  final ok = await HomeShortcuts.pin(
+    path: entry.path,
+    label: entry.name,
+    icon: icon,
+    color: color,
+  );
+  showSnackOn(
+      messenger,
+      ok
+          ? strings.t('ea.shortcut_requested', {'name': entry.name})
+          : strings.t('ea.shortcut_failed'));
+}
+
+/// Öğeleri gizli kasaya taşır (bkz. [HiddenVault]). Onay sorulur; bir şey
+/// gizlendiyse true (liste tazelensin).
+Future<bool> hideEntries(BuildContext context, List<String> paths) async {
+  if (paths.isEmpty) return false;
+  final strings = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: const Icon(Icons.visibility_off_outlined),
+      title: Text(ctx.t('hv.confirm_title', {'n': paths.length})),
+      content: Text(ctx.t('hv.confirm_body')),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.t('common.cancel'))),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.t('ea.hide'))),
+      ],
+    ),
+  );
+  if (ok != true) return false;
+  final result = await HiddenVault.hide(paths);
+  if (result.transfers.isNotEmpty) {
+    showSnackOn(messenger,
+        strings.t('hv.hidden_n', {'n': result.transfers.length}));
+  } else if (result.hasError) {
+    showSnackOn(messenger, result.errors.first);
+  }
+  return result.transfers.isNotEmpty;
 }

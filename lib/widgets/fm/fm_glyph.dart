@@ -63,6 +63,12 @@ class FmGlyphSpec {
   /// Koyu tema: kağıt beyazı yerine koyu yüzey kullanılır.
   final bool dark;
 
+  /// **Arşiv**: sayfanın ortasından inen fermuar (2026-09-27, kullanıcı:
+  /// *"ZIP'ler vb. dosyalar için simgeler daha güzel olabilir"*). Eskiden
+  /// arşiv, üstünde iki silik satır olan sıradan bir kağıttı — PDF'ten tek
+  /// farkı şeridin rengiydi.
+  final bool zipper;
+
   const FmGlyphSpec({
     required this.folder,
     required this.color,
@@ -70,6 +76,7 @@ class FmGlyphSpec {
     this.label = '',
     this.outlined = false,
     this.dark = false,
+    this.zipper = false,
   });
 
   @override
@@ -80,10 +87,12 @@ class FmGlyphSpec {
       other.overlay == overlay &&
       other.label == label &&
       other.outlined == outlined &&
-      other.dark == dark;
+      other.dark == dark &&
+      other.zipper == zipper;
 
   @override
-  int get hashCode => Object.hash(folder, color, overlay, label, outlined, dark);
+  int get hashCode =>
+      Object.hash(folder, color, overlay, label, outlined, dark, zipper);
 }
 
 /// Çizim ölçüleri — **cihaz pikseli** cinsinden, birim karede değil.
@@ -338,15 +347,20 @@ class _FmGlyphPainter extends CustomPainter {
 
   /// Kağıdın içi: uzantı varsa **renkli şerit + yazı**, yoksa glif/çizgiler.
   void _paintLabelOrOverlay(Canvas canvas, double side, {Color? outlinedTint}) {
-    // Metin satırları — şeridin üstünde, "bu bir belge" fikri.
-    final line = Paint()
-      ..color = spec.color.withValues(alpha: outlinedTint != null ? 0.55 : 0.38)
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 0.038;
-    for (var i = 0; i < 2; i++) {
-      final y = 0.30 + i * 0.115;
-      canvas.drawLine(
-          Offset(_pl + 0.085, y), Offset(_pr - (i == 0 ? 0.20 : 0.085), y), line);
+    if (spec.zipper) {
+      _paintZipper(canvas, outlined: outlinedTint != null);
+    } else {
+      // Metin satırları — şeridin üstünde, "bu bir belge" fikri.
+      final line = Paint()
+        ..color =
+            spec.color.withValues(alpha: outlinedTint != null ? 0.55 : 0.38)
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 0.038;
+      for (var i = 0; i < 2; i++) {
+        final y = 0.30 + i * 0.115;
+        canvas.drawLine(Offset(_pl + 0.085, y),
+            Offset(_pr - (i == 0 ? 0.20 : 0.085), y), line);
+      }
     }
 
     final label = spec.label;
@@ -392,6 +406,46 @@ class _FmGlyphPainter extends CustomPainter {
       canvas.restore();
       painter.dispose();
     });
+  }
+
+  /// Arşiv fermuarı: sayfanın üstünden şeride inen dişler + çekme ucu.
+  ///
+  /// Dişler dönüşümlü sola/sağa (gerçek fermuar gibi); rengi arşiv
+  /// biçiminin rengi (ZIP kehribar, RAR mor, 7Z arduvaz…).
+  void _paintZipper(Canvas canvas, {required bool outlined}) {
+    const x = 0.425;
+    const top = _pt + 0.02;
+    const bottom = 0.455;
+    const tooth = 0.052;
+    final teeth = Paint()..color = spec.color.withValues(alpha: 0.85);
+    // Fermuarın şeridi (dişlerin tutunduğu bant).
+    canvas.drawRRect(
+      RRect.fromLTRBR(x - 0.012, top, x + 0.012, bottom,
+          const Radius.circular(0.012)),
+      Paint()..color = spec.color.withValues(alpha: outlined ? 0.35 : 0.28),
+    );
+    var left = true;
+    for (var y = top + 0.012; y + 0.03 <= bottom; y += tooth) {
+      final r = left
+          ? Rect.fromLTWH(x - 0.07, y, 0.07, 0.03)
+          : Rect.fromLTWH(x, y, 0.07, 0.03);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(r, const Radius.circular(0.012)), teeth);
+      left = !left;
+    }
+    // Çekme ucu: altta, içi delik küçük bir plaka.
+    final pull = RRect.fromLTRBR(
+        x - 0.05, bottom - 0.01, x + 0.05, bottom + 0.075,
+        const Radius.circular(0.022));
+    canvas.drawRRect(pull, Paint()..color = spec.color);
+    canvas.drawRRect(
+      RRect.fromLTRBR(x - 0.018, bottom + 0.018, x + 0.018, bottom + 0.05,
+          const Radius.circular(0.01)),
+      Paint()
+        ..color = spec.dark
+            ? const Color(0xFF14120E)
+            : Colors.white.withValues(alpha: 0.9),
+    );
   }
 
   /// Material glifini birim karede çizer (ikon fontu → [TextPainter]).

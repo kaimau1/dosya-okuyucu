@@ -2,6 +2,9 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Gemini AI, Google Drive, indirme ve ağ depolama için internet. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Ana ekran kısayolu — YALNIZ Android 7 ve öncesi (eski başlatıcı
+         yayını). 8+ ShortcutManager.requestPinShortcut izinsiz çalışır. -->
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT"/>
 
     <!-- ── Arka planda indirme ─────────────────────────────────────────────
          Kullanıcı isteği (2026-07-29): "arka planda mutlaka devam etmeli".

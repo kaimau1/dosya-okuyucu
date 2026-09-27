@@ -18,18 +18,28 @@ import 'fm_env.dart';
 /// ikisini de bulanıklaştırır, oysa her ikisinin de tek işi var ve ikisi de
 /// on satırlık.
 ///
-/// **Ne KAYDEDİLMEZ, bilinçli:**
-/// * 1. sayfa — dönülecek bir yer yok;
-/// * son sayfa — belge bitmiş sayılır, bir dahakine baştan açılmalı;
-/// * [minPages]'ten kısa belgeler (fatura, dilekçe) — "devam" sormak gürültü.
+/// **2026-09-27 — "son açık sayfa HER ZAMAN bilinmeli"** (kullanıcı: *"PDF'lerde
+/// kaldığı yerden devam düzgün çalışmıyor"*). Üç kök neden bulundu:
+/// 1. **Soğuk açılışta kayıt yüklenmeden yazılıyordu.** Uygulama bir PDF'le
+///    ("Birlikte aç") açıldığında `appSupportDir` henüz boştu; [ensureLoaded]
+///    hiçbir şey yapmadan dönüyor, okunan sayfalar yalnız bellekte
+///    tutuluyor, sonra [save] belleği diske yazıp **öteki bütün belgelerin
+///    kaydını siliyordu.** Artık yükleme dizini kendisi hazırlar ve yazmadan
+///    önce yüklemeyi bekler; yüklenen eski kayıt bellekteki yeniyi ezmez.
+/// 2. **Son sayfa ve 4 sayfadan kısa belgeler kaydedilmiyordu** ("bitti"
+///    sayılıyordu). Kullanıcı bunu bozukluk olarak yaşadı: son sayfada
+///    bırakılan kitap baştan açılıyordu. Artık yalnız 1. sayfa kaydedilmez
+///    (orası zaten açılış yeri); açılışta "baştan başla" düğmesi var.
+/// 3. **Dosya taşınınca/yeniden adlandırılınca kayıt kayboluyordu.** Kayıt
+///    yolun yanında ad + boyutu da tutuyor; yol tutmazsa onlarla bulunur.
 abstract final class ReadingPositions {
   static const _fileName = 'reading_positions.json';
 
   /// En çok kaç belge hatırlansın (en eski dokunulan düşer).
   static const maxEntries = 400;
 
-  /// Bu sayfadan kısa belgelerde konum tutulmaz.
-  static const minPages = 4;
+  /// Bu sayfadan kısa belgelerde konum tutulmaz (tek sayfada "devam" yok).
+  static const minPages = 2;
 
   /// **Ayar anahtarı** (`AppState.resumePosition`) — kapalıyken hiçbir şey
   /// kaydedilmez ve var olan kayıt kullanılmaz.
@@ -48,12 +58,25 @@ abstract final class ReadingPositions {
   /// Diskten okur. `appSupportDir` hazır değilse **kilitlemez** — soğuk
   /// açılışta boş bir dizinle kilitlenmek, ilk yazmada tüm kaydı silerdi
   /// (bkz. `OpenHistory.ensureLoaded`).
-  static Future<void> ensureLoaded() {
-    if (FmEnv.appSupportDir.isEmpty) return Future<void>.value();
-    return _loadFuture ??= _load();
-  }
+  static Future<void> ensureLoaded() => _loadFuture ??= _load();
+
+  /// Kayıt yüklendi mi? (Görüntüleyici yüklüyse sayfayı İLK karede verir.)
+  static bool get isLoaded => _loaded;
+  static bool _loaded = false;
 
   static Future<void> _load() async {
+    if (FmEnv.appSupportDir.isEmpty) {
+      try {
+        await FmEnv.ensureInit();
+      } catch (_) {}
+    }
+    if (FmEnv.appSupportDir.isEmpty) {
+      // Hâlâ yok (test/masaüstü erken açılış): bir dahaki çağrı yeniden
+      // denesin, boş kayıtla kilitlenmesin.
+      _loadFuture = null;
+      return;
+    }
+    // Dosya yoksa da "yüklendi" sayılır (ilk kullanım) — `finally`.
     try {
       final file = File(_path);
       if (!file.existsSync()) return;
@@ -66,15 +89,38 @@ abstract final class ReadingPositions {
         final total = (value['n'] as num?)?.toInt() ?? 0;
         final at = (value['t'] as num?)?.toInt() ?? 0;
         if (page <= 1) continue;
-        _byPath['${entry.key}'] = _Entry(page, total, at);
+        final key = '${entry.key}';
+        // Yükleme gelmeden bellekte yazılmış (daha yeni) kaydı EZME.
+        final current = _byPath[key];
+        if (current != null && current.at >= at) continue;
+        _byPath[key] = _Entry(page, total, at,
+            size: (value['s'] as num?)?.toInt() ?? 0);
       }
     } catch (_) {
       // Bozuk dosya: bu bir kolaylık kaydı, uygulamayı kilitlememeli.
+    } finally {
+      _loaded = true;
     }
   }
 
   /// [path] için kayıtlı sayfa (1 tabanlı); yoksa null.
-  static int? pageOf(String path) => enabled ? _byPath[path]?.page : null;
+  ///
+  /// Yol tutmazsa (dosya taşınmış, başka uygulamadan kopyası açılmış) AYNI
+  /// ad ve boyuttaki kayda bakılır — [size] verilmişse.
+  static int? pageOf(String path, {int? size}) {
+    if (!enabled) return null;
+    final direct = _byPath[path];
+    if (direct != null) return direct.page;
+    if (size == null || size <= 0) return null;
+    final name = p.basename(path);
+    _Entry? best;
+    for (final e in _byPath.entries) {
+      if (e.value.size == size && p.basename(e.key) == name) {
+        if (best == null || e.value.at > best.at) best = e.value;
+      }
+    }
+    return best?.page;
+  }
 
   /// Okunan oran (0-1); toplam sayfa bilinmiyorsa null.
   ///
@@ -90,18 +136,21 @@ abstract final class ReadingPositions {
   ///
   /// Diske yazma geciktirilir: kullanıcı sayfa çevirdikçe çağrılıyor ve her
   /// çevirmede dosya yazmak boşuna disk aşındırır.
-  static void record(String path, int page, int totalPages) {
+  static void record(String path, int page, int totalPages, {int size = 0}) {
     if (!enabled || path.isEmpty || totalPages < minPages) return;
-    // İlk sayfa ya da son sayfa: kayıt DÜŞER. (Başa dönen kullanıcı baştan
-    // okumaya karar vermiştir; sona gelen belgeyi bitirmiştir.)
-    if (page <= 1 || page >= totalPages) {
+    // İlk sayfa: kayıt DÜŞER (başa dönen kullanıcı baştan okumaya karar
+    // vermiştir; açılış zaten orası). Son sayfa ARTIK kaydedilir.
+    if (page <= 1) {
       if (_byPath.remove(path) != null) _scheduleSave();
       return;
     }
+    final old = _byPath[path];
+    if (old != null && old.page == page && old.total == totalPages) return;
     _byPath[path] = _Entry(
       page,
       totalPages,
       DateTime.now().millisecondsSinceEpoch,
+      size: size > 0 ? size : (old?.size ?? 0),
     );
     _scheduleSave();
   }
@@ -120,7 +169,10 @@ abstract final class ReadingPositions {
   static Future<void> save() async {
     _saveTimer?.cancel();
     _saveTimer = null;
-    if (FmEnv.appSupportDir.isEmpty) return;
+    // Önce diskteki kayıt belleğe alınır: yüklenmeden yazmak öteki
+    // belgelerin konumlarını SİLERDİ (kök neden 1).
+    await ensureLoaded();
+    if (FmEnv.appSupportDir.isEmpty || !_loaded) return;
     try {
       if (_byPath.length > maxEntries) {
         final sorted = _byPath.entries.toList()
@@ -131,7 +183,12 @@ abstract final class ReadingPositions {
       }
       final data = {
         for (final e in _byPath.entries)
-          e.key: {'p': e.value.page, 'n': e.value.total, 't': e.value.at},
+          e.key: {
+            'p': e.value.page,
+            'n': e.value.total,
+            't': e.value.at,
+            if (e.value.size > 0) 's': e.value.size,
+          },
       };
       await File(_path).writeAsString(jsonEncode(data), flush: true);
     } catch (_) {
@@ -145,6 +202,7 @@ abstract final class ReadingPositions {
     _saveTimer = null;
     _byPath.clear();
     _loadFuture = null;
+    _loaded = false;
   }
 
   /// Yalnız test: kayıt sayısı.
@@ -156,5 +214,8 @@ class _Entry {
   final int total;
   final int at;
 
-  const _Entry(this.page, this.total, this.at);
+  /// Dosya boyu (bayt) — yol değişince aynı belgeyi tanımak için; 0 = yok.
+  final int size;
+
+  const _Entry(this.page, this.total, this.at, {this.size = 0});
 }

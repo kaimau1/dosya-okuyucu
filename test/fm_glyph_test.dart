@@ -72,7 +72,12 @@ void main() {
 
     test('uzantıya özel renk kategori renginden ÖNCE gelir', () {
       expect(FmColors.glyphFor(file('uygulama.apk')).color, FmColors.apk);
-      expect(FmColors.glyphFor(file('arşiv.zip')).color, FmColors.archive);
+      // Arşiv biçimleri kendi renginde (2026-09-27) ve fermuarlı çizilir.
+      expect(FmColors.glyphFor(file('arşiv.zip')).color, FmColors.zip);
+      expect(FmColors.glyphFor(file('arşiv.rar')).color, FmColors.rar);
+      expect(FmColors.glyphFor(file('a.7z')).color, FmColors.sevenZip);
+      expect(FmColors.glyphFor(file('arşiv.zip')).zipper, isTrue);
+      expect(FmColors.glyphFor(file('rapor.pdf')).zipper, isFalse);
     });
 
     test('uzantısız dosyada kategori glifi kağıdın ortasına konur', () {

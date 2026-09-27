@@ -75,17 +75,15 @@ void main() {
     expect(find.text('geri al?'), findsNothing);
   });
 
-  testWidgets('KALICI şerit varken yeni bildirim onu süpürmez',
+  testWidgets('KALICI kart varken yeni bildirim onu süpürmez',
       (tester) async {
-    // Arka plana alınmış bir işin ilerleme şeridi bir gün boyunca duruyor
+    // Arka plana alınmış bir işin ilerleme kartı iş bitene dek duruyor
     // (bkz. showFmProgress). Araya giren bir bilgi mesajı onu silseydi
-    // kullanıcının işi görünmez kalırdı.
+    // kullanıcının işi görünmez kalırdı. Artık ikisi AYRI yuvada: kısa
+    // bildirim kalıcının üstünde görünür.
+    late ToastHandle sticky;
     await tester.pumpWidget(host((context) {
-      beginStickySnack();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        duration: Duration(days: 1),
-        content: Text('kopyalanıyor'),
-      ));
+      sticky = showStickyToast(context, const Text('kopyalanıyor'));
       showSnack(context, 'araya giren');
     }));
 
@@ -93,7 +91,71 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('kopyalanıyor'), findsOneWidget);
+    expect(find.text('araya giren'), findsOneWidget);
+
+    // Kısa olan süresi dolunca gider, kalıcı kalır.
+    await tester.pump(kSnackInfo);
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('araya giren'), findsNothing);
-    endStickySnack();
+    expect(find.text('kopyalanıyor'), findsOneWidget);
+
+    sticky.close();
+    await tester.pump();
+    expect(find.text('kopyalanıyor'), findsNothing);
+  });
+
+  testWidgets('parmak kartın üstündeyken süre DURUR', (tester) async {
+    await tester.pumpWidget(host((context) => showSnack(context, 'okuyorum')));
+    await tester.tap(find.text('bas'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    final gesture =
+        await tester.startGesture(tester.getCenter(find.text('okuyorum')));
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.text('okuyorum'), findsOneWidget);
+    await gesture.up();
+    await tester.pump(); // sayım yeniden başladı
+    await tester.pump(kSnackInfo);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('okuyorum'), findsNothing);
+  });
+
+  testWidgets('kart ekranın EN ALTINDA, alt çubuk ve yüzen düğmenin üstünde '
+      'değil', (tester) async {
+    // Kullanıcı: "uyarılar çok yukarıda, alt kısma sığmalı".
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        floatingActionButton:
+            FloatingActionButton(onPressed: () {}, child: const Icon(Icons.add)),
+        bottomNavigationBar: const SizedBox(height: 80),
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showSnack(context, 'altta'),
+            child: const Text('bas'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('bas'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    final bottom = tester.getBottomLeft(find.text('altta')).dy;
+    expect(screen.height - bottom, lessThan(40));
+  });
+
+  testWidgets('geri sayım çubuğu kalan süreyle kısalır', (tester) async {
+    await tester.pumpWidget(host((context) => showSnack(context, 'sayaç')));
+    await tester.tap(find.text('bas'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    FractionallySizedBox bar() => tester.widget<FractionallySizedBox>(
+        find.byType(FractionallySizedBox).last);
+    final early = bar().widthFactor!;
+    await tester.pump(const Duration(milliseconds: 1500));
+    final later = bar().widthFactor!;
+    expect(early, greaterThan(0.9));
+    expect(later, lessThan(early));
+    await tester.pump(const Duration(seconds: 5));
   });
 }

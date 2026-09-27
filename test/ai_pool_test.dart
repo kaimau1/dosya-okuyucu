@@ -192,4 +192,30 @@ void main() {
       expect(slot.id, const AiSlot('AIzaGizliAnahtar', 'model-a').id);
     });
   });
+
+  test('EMNİYET AĞI: seçili modellerin hepsi kaldırılmışsa güncel model denenir',
+      () async {
+    // 2026-09-27: 1.5/2.0 serisi emekliye ayrılınca kurulu uygulamanın AI'sı
+    // tamamen susuyordu; kullanıcı model değiştirmeyi bilmiyor.
+    final r = recorder((key, model) => model.startsWith('model-')
+        ? GeminiException('models/$model is not found', statusCode: 404)
+        : null);
+    final result = await AiPool.run(
+        const AiCredentials(keys: ['anahtar1'], models: ['model-a', 'model-b']),
+        r.action);
+    expect(result, 'tamam');
+    expect(r.tried.last, 'anahtar1/${AiPool.safetyNet.first}');
+  });
+
+  test('emniyet ağı KOTA hatasında devreye girmez (model seçimine saygı)',
+      () async {
+    final r = recorder((key, model) => GeminiException('kota', statusCode: 429));
+    await expectLater(
+      AiPool.run(
+          const AiCredentials(keys: ['anahtar1'], models: ['model-a']),
+          r.action),
+      throwsA(isA<GeminiException>()),
+    );
+    expect(r.tried, ['anahtar1/model-a']);
+  });
 }

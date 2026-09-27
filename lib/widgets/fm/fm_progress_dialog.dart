@@ -37,11 +37,9 @@ Future<T> showFmProgress<T>(
   /// Arka plan şeridinin denetleyicisi — hem "şerit gösterildi mi?" bilgisi
   /// hem de onu (ve YALNIZ onu) kapatma yolu. Ayrı bir `backgrounded` bayrağı
   /// tutulmuyordu: iki gerçeği tek yerde tutmak ikisinin ayrışmasını önler.
-  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? barController;
-  // Ekrandan bağımsız yaşayan (MaterialApp seviyesindeki) messenger: arka
-  // plana alınan iş için kalıcı şerit burada gösterilir, kullanıcı başka
-  // sayfaya geçse bile görünür kalır.
-  final messenger = ScaffoldMessenger.of(context);
+  // Kalıcı kart uygulamanın en üst katmanında (bkz. core/snack.dart):
+  // kullanıcı başka sayfaya geçse bile görünür kalır.
+  ToastHandle? barController;
   // Metin await'ten ÖNCE alınır: şerit asenkron boşluktan sonra kuruluyor ve
   // `context` o an geçerli olmayabilir (aynı dosyadaki diğer metinlerle aynı
   // kural).
@@ -83,10 +81,9 @@ Future<T> showFmProgress<T>(
     // şeridi kapatır.
     // Kalıcı şerit: kısa bildirimler bunu SÜPÜRMESİN (bkz. core/snack.dart —
     // yeni bildirim normalde bekleyenin yerine geçer).
-    beginStickySnack();
-    barController = messenger.showSnackBar(SnackBar(
-      duration: const Duration(days: 1),
-      content: ValueListenableBuilder<FmProgress>(
+    barController = showStickyToast(
+      context.mounted ? context : null,
+      ValueListenableBuilder<FmProgress>(
         valueListenable: progress,
         builder: (_, value, __) => Row(
           children: [
@@ -111,11 +108,9 @@ Future<T> showFmProgress<T>(
           ],
         ),
       ),
-      action: cancellable
-          ? SnackBarAction(
-              label: stopLabel, onPressed: () => cancelled = true)
-          : null,
-    ));
+      actionLabel: cancellable ? stopLabel : null,
+      onAction: cancellable ? () => cancelled = true : null,
+    );
   }
 
   dialog = showBusyDialog(
@@ -207,11 +202,7 @@ Future<T> showFmProgress<T>(
     closeDialog();
     // Kalıcı şerit yalnız bu iş için gösterildiyse kaldırılır; başka bir
     // bildirimi (ör. kullanıcının okumadığı bir sonuç mesajı) süpürmeyelim.
-    final bar = barController;
-    if (bar != null) {
-      bar.close();
-      endStickySnack();
-    }
+    barController?.close();
     progress.dispose();
   }
 }

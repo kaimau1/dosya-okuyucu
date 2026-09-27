@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../core/l10n/app_strings.dart';
+import 'pdf/pdf_font_class.dart';
 import 'pdf_content_editor.dart';
 import 'pdf_page_edit.dart';
 import 'pdf_tools.dart';
@@ -136,18 +137,24 @@ class PdfEditFlow {
       if (!context.mounted) return null;
       final useOverlay = await _askOverlayFallback(context, refusal.message);
       if (useOverlay != true || !context.mounted) return null;
-      // Punto: belgenin kendi puntosunu ölç (seçimin ortasındaki metinden).
-      // Ölçülemezse null geçilir ve eski kutu-yüksekliği tahmini kullanılır.
+      // Punto VE yazı tipi: belgenin kendisinden (seçimin ortasındaki
+      // metin). Ölçülemezse null/boş geçilir: kutu yüksekliği tahmini ve
+      // sans yedek kullanılır.
       double? size;
+      var fontName = '';
       if (nearRect != null) {
-        size = await PdfPageEdit.pointSizeAtInBackground(
+        final probe = await PdfPageEdit.textStyleAtInBackground(
           bytes,
           pageIndex,
           (nearRect[0] + nearRect[2]) / 2,
           (nearRect[1] + nearRect[3]) / 2,
         );
+        size = probe.size;
+        fontName = probe.font;
       }
-      out = await _overlayReplace(bytes, pageIndex, rawRects, newText, size);
+      out = await _overlayReplace(bytes, pageIndex, rawRects, newText, size,
+          fontClass: PdfFontClass.of(fontName),
+          oldHasDescender: _hasDescender(oldText));
       note = strings.t('pf.stamped');
     }
 
@@ -155,12 +162,24 @@ class PdfEditFlow {
   }
 
   /// Yedek yol: eski yazının üstünü kapatıp yenisini çiz.
+  ///
+  /// Yazı tipi belgenin AİLESİNDEN seçilir ([PdfFontClass]: serif → Tinos,
+  /// sans → Carlito, kalın/italik biçimiyle) ve yeni yazı özgün satırın
+  /// taban çizgisine oturtulur (2026-09-27: serif kitapta düzeltilen kelime
+  /// sans, iri ve satırdan kopuk çıkıyordu).
   static Future<List<int>> _overlayReplace(List<int> bytes, int pageIndex,
-      List<List<double>> rawRects, String newText, double? fontSize) async {
+      List<List<double>> rawRects, String newText, double? fontSize,
+      {PdfFontClass fontClass = const PdfFontClass(),
+      bool oldHasDescender = false}) async {
     // Türkçe çizebilen gömülü font — standart Helvetica ğ/ş/ı çizemez.
-    final font = (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
-        .buffer
-        .asUint8List();
+    List<int> font;
+    try {
+      font = (await rootBundle.load(fontClass.assetPath)).buffer.asUint8List();
+    } catch (_) {
+      font = (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
+          .buffer
+          .asUint8List();
+    }
     return PdfTools.replaceTextInBackground(
       bytes,
       pageIndex: pageIndex,
@@ -168,8 +187,15 @@ class PdfEditFlow {
       newText: newText,
       fontBytes: font,
       fontSize: fontSize,
+      alignBaseline: true,
+      oldHasDescender: oldHasDescender,
     );
   }
+
+  /// Metinde taban çizgisinin altına inen harf var mı (g, j, p, q, y, ç, ş,
+  /// ğ, virgül…)? Seçim kutusunun altı o zaman taban çizgisi değildir.
+  static bool _hasDescender(String text) =>
+      RegExp(r'[gjpqyçşğÇŞ,;]').hasMatch(text);
 
   /// Şifre korumalı belgede: korumayı kaldırıp yerinde düzenlemeyi öner.
   ///

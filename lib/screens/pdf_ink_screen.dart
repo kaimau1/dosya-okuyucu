@@ -27,10 +27,12 @@ enum InkTool { pen, highlighter, eraser, text, hand }
 /// `android.intent.action.ANNOTATE` gönderir; manifest artık bu eylemi
 /// karşılıyor ve dosya doğrudan bu ekranda açılıyor (bkz. `MainActivity`).
 ///
-/// Hareketler: tek parmak çizer (ya da silgide siler), iki parmak
-/// yakınlaştırır; yakınlaşmışken gezinmek için "Kaydır" aracı. Sayfalar
-/// arası geçiş alt çubuktan — kaydırarak sayfa değiştirmek çizmeyle
-/// çakışırdı.
+/// Hareketler: tek parmak çizer (ya da silgide siler); **iki parmak her
+/// araçta kaydırır ve yakınlaştırır** (2026-09-27, kullanıcı: *"kalemle
+/// düzenleme yapılırken sayfayı kaydıramıyorum"* — eskiden iki parmak yalnız
+/// yakınlaştırıyordu: InteractiveViewer'ın `panEnabled: false`ı iki parmakla
+/// sürüklemeyi de kapatıyordu). Yakınlaşmamışken iki parmakla yukarı/aşağı
+/// kaydırmak sayfa çevirir; "Kaydır" aracında tek parmakla da.
 ///
 /// İzler kaydedilince sayfa içeriğine vektör olarak işlenir
 /// ([applyPdfMarks]). Dosya başka uygulamanın önbelleğinden geldiyse
@@ -113,6 +115,21 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
 
   /// Silgi sürüklemesi başlamadan önceki durum — tek geri al adımı olsun.
   List<PdfMark>? _eraseStart;
+
+  // ── İki parmak (kaydır + yakınlaştır + sayfa çevir) ─────────────────────
+  final _viewportKey = GlobalKey();
+  final Map<int, Offset> _touches = {};
+  Matrix4? _g0Matrix;
+  Offset _g0Focal = Offset.zero;
+  double _g0Dist = 1;
+  double _g0Scale = 1;
+
+  /// Yakınlaşmamışken parmakların dikey yolu (sayfa çevirme kararı için).
+  double _flipDy = 0;
+  bool _flipArmed = false;
+
+  /// "Kaydır" aracında tek parmakla sayfa çevirme.
+  Offset? _handStart;
 
   bool _busy = false;
 
@@ -393,6 +410,102 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
     });
   }
 
+  Offset _toViewport(Offset global) {
+    final box = _viewportKey.currentContext?.findRenderObject();
+    return box is RenderBox ? box.globalToLocal(global) : global;
+  }
+
+  Size get _viewportSize {
+    final box = _viewportKey.currentContext?.findRenderObject();
+    return box is RenderBox && box.hasSize ? box.size : Size.zero;
+  }
+
+  bool get _drawingTool =>
+      _tool == InkTool.pen ||
+      _tool == InkTool.highlighter ||
+      _tool == InkTool.eraser;
+
+  void _gDown(PointerDownEvent e, int pageCount) {
+    _touches[e.pointer] = e.position;
+    if (_touches.length == 1 && _tool == InkTool.hand) {
+      _handStart = e.position;
+    }
+    if (_touches.length == 2) {
+      _handStart = null;
+      final pts = _touches.values.toList();
+      _g0Focal = _toViewport((pts[0] + pts[1]) / 2);
+      _g0Dist = math.max(1, (pts[0] - pts[1]).distance);
+      _g0Matrix = _tx.value.clone();
+      _g0Scale = _g0Matrix!.getMaxScaleOnAxis();
+      _flipDy = 0;
+      _flipArmed = _g0Scale < 1.05;
+    }
+  }
+
+  void _gMove(PointerMoveEvent e) {
+    if (!_touches.containsKey(e.pointer)) return;
+    _touches[e.pointer] = e.position;
+    final start = _g0Matrix;
+    // Çizim araçlarında iki parmak hareketini biz işleriz; öteki araçlarda
+    // InteractiveViewer'ın kendisi (panEnabled/scaleEnabled açık).
+    if (_touches.length != 2 || start == null || !_drawingTool) return;
+    final pts = _touches.values.toList();
+    final focal = _toViewport((pts[0] + pts[1]) / 2);
+    final dist = (pts[0] - pts[1]).distance;
+    final scale = (_g0Scale * dist / _g0Dist).clamp(1.0, 6.0);
+    final ratio = scale / _g0Scale;
+    final next = (Matrix4.identity()
+          ..translate(focal.dx, focal.dy)
+          ..scale(ratio, ratio)
+          ..translate(-_g0Focal.dx, -_g0Focal.dy)) *
+        start;
+    _tx.value = _clampToViewport(next);
+    if (_flipArmed) {
+      // Parmaklar açılıp kapanıyorsa bu yakınlaştırmadır, sayfa çevirme değil.
+      if ((dist / _g0Dist - 1).abs() > 0.15) _flipArmed = false;
+      _flipDy = focal.dy - _g0Focal.dy;
+    }
+  }
+
+  void _gUp(PointerEvent e, int pageCount) {
+    final pos = _touches.remove(e.pointer);
+    if (_g0Matrix != null && _touches.length < 2) {
+      if (_flipArmed && _tx.value.getMaxScaleOnAxis() < 1.05) {
+        _maybeFlip(-_flipDy, pageCount);
+      }
+      _g0Matrix = null;
+      _flipArmed = false;
+    }
+    final hand = _handStart;
+    if (hand != null && _touches.isEmpty && pos != null) {
+      _handStart = null;
+      if (_tx.value.getMaxScaleOnAxis() < 1.05) {
+        _maybeFlip(hand.dy - pos.dy, pageCount);
+      }
+    }
+  }
+
+  /// [up] parmakların yukarı yolu (pozitif = sonraki sayfa).
+  void _maybeFlip(double up, int pageCount) {
+    if (up.abs() < 90) return;
+    if (up > 0 && _page < pageCount - 1) {
+      _setPage(_page + 1);
+    } else if (up < 0 && _page > 0) {
+      _setPage(_page - 1);
+    }
+  }
+
+  /// Yakınlaştırılmış sayfa görünümün dışına kaçmasın.
+  Matrix4 _clampToViewport(Matrix4 m) {
+    final size = _viewportSize;
+    final s = m.getMaxScaleOnAxis();
+    if (size.isEmpty || s <= 1.0001) return Matrix4.identity();
+    final t = m.getTranslation();
+    final tx = t.x.clamp(size.width * (1 - s), 0.0);
+    final ty = t.y.clamp(size.height * (1 - s), 0.0);
+    return m.clone()..setTranslationRaw(tx, ty, t.z);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -465,7 +578,15 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
                   child: ColoredBox(
                     color:
                         Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: _pageArea(pages[_page], pageView(_page)),
+                    // Dış dinleyici arenaya girmez: iki parmak hareketini
+                    // izler, tek parmak çizime kalır.
+                    child: Listener(
+                      onPointerDown: (e) => _gDown(e, pages.length),
+                      onPointerMove: _gMove,
+                      onPointerUp: (e) => _gUp(e, pages.length),
+                      onPointerCancel: (e) => _gUp(e, pages.length),
+                      child: _pageArea(pages[_page], pageView(_page)),
+                    ),
                   ),
                 ),
                 _toolbar(pages.length),
@@ -491,12 +612,15 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
           _tool == InkTool.eraser;
 
       return InteractiveViewer(
+        key: _viewportKey,
         transformationController: _tx,
         minScale: 1,
         maxScale: 6,
-        // Tek parmak çizerken sayfa kaymasın; iki parmak her araçta
-        // yakınlaştırır.
-        panEnabled: _tool == InkTool.hand,
+        // Çizim araçlarında InteractiveViewer'ın hareketleri KAPALI: tek
+        // parmak çizer, iki parmağı yukarıdaki dinleyici işler (kaydır +
+        // yakınlaştır). Öteki araçlarda (yazı, kaydır) olağan davranış.
+        panEnabled: _tool == InkTool.hand || _tool == InkTool.text,
+        scaleEnabled: !drawing,
         child: Center(
           child: SizedBox(
             width: fitted.width,

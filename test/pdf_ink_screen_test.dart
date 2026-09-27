@@ -146,4 +146,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
   });
+
+  testWidgets(
+      'KALEMDE iki parmak kaydırır/yakınlaştırır (kullanıcı: "kalemle '
+      'düzenlerken sayfayı kaydıramıyorum")', (tester) async {
+    await pump(tester);
+    final c = pageCenter(tester);
+    final a = await tester.startGesture(c - const Offset(60, 0), pointer: 1);
+    final b = await tester.startGesture(c + const Offset(60, 0), pointer: 2);
+    await tester.pump();
+    // Parmakları aç (yakınlaştır) ve birlikte sürükle (kaydır).
+    for (var i = 1; i <= 8; i++) {
+      await a.moveTo(c - Offset(60.0 + i * 10, i * 6.0));
+      await b.moveTo(c + Offset(60.0 + i * 10, -i * 6.0));
+      await tester.pump();
+    }
+    await a.up();
+    await b.up();
+    await tester.pump();
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    final scale = viewer.transformationController!.value.getMaxScaleOnAxis();
+    expect(scale, greaterThan(1.2));
+    // Yarım darbe kalmadı.
+    expect(strokeCount(tester), 0);
+  });
+
+  testWidgets('yakınlaşmamışken iki parmakla yukarı kaydırmak sayfa çevirir',
+      (tester) async {
+    await pump(tester);
+    expect(find.text('1 / 2'), findsOneWidget);
+    final c = pageCenter(tester);
+    final a = await tester.startGesture(c - const Offset(50, 0), pointer: 1);
+    final b = await tester.startGesture(c + const Offset(50, 0), pointer: 2);
+    for (var i = 1; i <= 8; i++) {
+      await a.moveTo(c - Offset(50, i * 20.0));
+      await b.moveTo(c + Offset(50, -i * 20.0));
+      await tester.pump();
+    }
+    await a.up();
+    await b.up();
+    await tester.pump();
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(strokeCount(tester), 0);
+  });
 }

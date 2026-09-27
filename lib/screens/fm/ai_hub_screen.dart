@@ -35,6 +35,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/ai_file_list.dart';
 import '../settings_screen.dart';
+import '../chat_screen.dart';
 import 'ai_files_screen.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
@@ -77,6 +78,14 @@ class _AiHubScreenState extends State<AiHubScreen>
       appBar: AppBar(
         title: Text(context.t('aih.title')),
         actions: [
+          // Serbest sohbet (eskiden alt çubuğun AI sekmesiydi, 2026-09-27).
+          IconButton(
+            tooltip: context.t('chat.title'),
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ChatScreen()),
+            ),
+          ),
           IconButton(
             tooltip: context.t('aih.scope_settings'),
             icon: const Icon(Icons.tune),

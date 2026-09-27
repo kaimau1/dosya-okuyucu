@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
+import 'safe_write.dart';
 
 /// **Kaydedilmemiş PDF düzenlemelerinin günlüğü** (2026-09-23 tasarım
 /// denetimi).
@@ -79,6 +80,21 @@ abstract final class PdfEditJournal {
     _write(entries);
   }
 
+  /// Yedeklerin durduğu klasör: uygulamanın KALICI destek klasörü.
+  ///
+  /// Eskiden `Directory.systemTemp` (Android'de önbellek) idi: sistem
+  /// depolama sıkışınca önbelleği kendiliğinden boşaltabilir — tam da
+  /// kurtarma gerektiğinde yedek yok olurdu. Destek klasörü yoksa (testte,
+  /// masaüstünde erken açılışta) null döner ve çağıran geçiciye düşer.
+  static String? backupRoot() =>
+      _usable ? p.join(FmEnv.appSupportDir, 'pdf_edit_backups') : null;
+
+  /// Bu dosya için yarıda kalmış (bu süreçte açılmamış) bir oturum var mı?
+  /// Görüntüleyici açılırken sorar: varsa önce kurtarma yapılmalı, yoksa
+  /// kullanıcı kaydetmediği düzenlemeleri özgün sanır.
+  static bool hasStale(String original) =>
+      !_live.contains(original) && _read().containsKey(original);
+
   /// Günlükteki yedek yolları — geçici dosya süpürücüsü bunlara dokunmaz.
   static Set<String> backups() => _read().values.toSet();
 
@@ -88,14 +104,20 @@ abstract final class PdfEditJournal {
   /// Özgün dosya yedekten ESKİYSE geri yazılmaz: bizim yazdığımız dosya
   /// yedekten sonra değişmiş olmalı; daha eskiyse yedeğin alındığı andan
   /// sonra başka biri (kullanıcı başka bir uygulamayla) üstüne yazmış
-  /// olabilir ve onun işini ezmek istemeyiz.
-  static int recover() {
+  /// olabilir ve onun işini ezmek istemeyiz. **İstisna (2026-09-27):**
+  /// özgün dosya yoksa, 0 baytsa ya da PDF gibi görünmüyorsa (yarıda kalmış
+  /// yazma) tarihe bakılmadan geri yüklenir — bozuk dosyayı korumanın
+  /// anlamı yok. Geri yazma da bölünmezdir ([SafeWrite.copySync]).
+  ///
+  /// [only] verilirse yalnız o dosyanın kaydına bakılır (görüntüleyici
+  /// açılırken).
+  static int recover({String? only}) {
     final entries = _read();
     if (entries.isEmpty) return 0;
     var restored = 0;
     final keep = <String, String>{};
     for (final e in entries.entries) {
-      if (_live.contains(e.key)) {
+      if (_live.contains(e.key) || (only != null && e.key != only)) {
         keep[e.key] = e.value;
         continue;
       }
@@ -103,12 +125,14 @@ abstract final class PdfEditJournal {
       final backup = File(e.value);
       try {
         if (!backup.existsSync()) continue; // yapacak bir şey yok
-        if (original.existsSync() &&
+        final broken = !original.existsSync() ||
+            !PdfBytesCheck.fileLooksValidSync(original.path);
+        if (!broken &&
             original.lastModifiedSync().isBefore(backup.lastModifiedSync())) {
           _deleteBackup(backup);
           continue;
         }
-        backup.copySync(original.path);
+        SafeWrite.copySync(backup.path, original.path);
         restored++;
         _deleteBackup(backup);
       } catch (_) {
@@ -131,4 +155,28 @@ abstract final class PdfEditJournal {
       if (dir.existsSync() && dir.listSync().isEmpty) dir.deleteSync();
     } catch (_) {}
   }
+}
+
+/// Süren **geri yüklemeler** (özgün baytların dosyaya geri yazılması).
+///
+/// Görüntüleyici kapanırken geri yazma artık beklenmiyor (ana izleği
+/// donduruyordu); kullanıcı aynı dosyayı hemen yeniden açarsa yeni
+/// görüntüleyici geri yazma bitmeden dosyayı okumamalı — yoksa kaydetmediği
+/// düzenlemeyi özgün sanırdı. [pendingFor] bu yüzden var.
+abstract final class PdfRestoreQueue {
+  static final Map<String, Future<void>> _pending = {};
+
+  /// [path] için [job]ı sıraya koyar (aynı dosyanın işleri art arda koşar).
+  static Future<void> run(String path, Future<void> Function() job) {
+    final previous = _pending[path] ?? Future<void>.value();
+    late final Future<void> mine;
+    mine = previous.then((_) => job()).whenComplete(() {
+      if (identical(_pending[path], mine)) _pending.remove(path);
+    });
+    _pending[path] = mine;
+    return mine;
+  }
+
+  /// [path] için süren geri yükleme (yoksa null).
+  static Future<void>? pendingFor(String path) => _pending[path];
 }

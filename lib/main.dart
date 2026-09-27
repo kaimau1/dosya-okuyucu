@@ -12,6 +12,7 @@ import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
 import 'core/l10n/app_strings.dart';
 import 'core/theme.dart';
+import 'core/snack.dart';
 import 'screens/fm/job_navigation.dart';
 import 'screens/fm/jobs_screen.dart';
 import 'screens/fm/remote/ftp_server_screen.dart';
@@ -296,13 +297,17 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
         data: MediaQuery.of(context).copyWith(
           textScaler: TextScaler.linear(appState.uiTextScale),
         ),
-        // **Ekran altı mini oynatma çubuğu**: çalan ses/video hangi ekranda
-        // olursak olalım altta görünür (kullanıcı isteği 2026-09-03).
-        // Seçici kipinde YOK: başka bir uygulama bizden dosya isterken
-        // ekranın altına oynatıcı koymak yersiz olurdu.
-        child: picker
-            ? (child ?? const SizedBox.shrink())
-            : MiniPlayerBar.wrap(child ?? const SizedBox.shrink()),
+        // **Bildirim kartları** her rotanın üstünde, ekranın en altında
+        // (2026-09-27, bkz. core/snack.dart).
+        child: ToastLayer(
+          // **Ekran altı mini oynatma çubuğu**: çalan ses/video hangi ekranda
+          // olursak olalım altta görünür (kullanıcı isteği 2026-09-03).
+          // Seçici kipinde YOK: başka bir uygulama bizden dosya isterken
+          // ekranın altına oynatıcı koymak yersiz olurdu.
+          child: picker
+              ? (child ?? const SizedBox.shrink())
+              : MiniPlayerBar.wrap(child ?? const SizedBox.shrink()),
+        ),
       ),
       // Dil: seçim `system` ise `locale` null bırakılır — Flutter cihazın
       // dilini `supportedLocales` ile eşleştirir, tutmazsa listenin İLKİNE

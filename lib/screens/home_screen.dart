@@ -10,20 +10,26 @@ import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../models/download_task.dart';
-import '../services/fm/ai_analyzer.dart';
-import '../services/fm/ai_index.dart';
 import '../services/fm/app_storage_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/incoming_files.dart';
 import '../widgets/fm/job_progress_bar.dart';
-import 'chat_screen.dart';
+import '../services/fm/fm_env.dart';
+import '../services/fm/home_shortcuts.dart';
 import 'fm/browser_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'fm/download_manager_screen.dart';
+import 'fm/downloads_screen.dart';
 import 'fm/new_files_screen.dart';
 
 /// Uygulama kabuğu: alt gezinme çubuğuyla üç bölme —
-/// **Dosyalar** (dosya yöneticisi panosu), **Yeni Dosyalar**, **AI**.
+/// **Dosyalar** (dosya yöneticisi panosu), **İndirilenler**, **Yeni Dosyalar**.
+///
+/// **2026-09-27:** AI sekmesi alt çubuktan kalktı, yerine İndirilenler geldi
+/// (kullanıcı: *"alt alandan AI'yı çıkaralım, İndirilenler kısayolu
+/// koyalım"*). AI'nın kapısı artık panonun üst çubuğundaki parıltı simgesi
+/// ([AiStatusIcon]) — analiz sürerken halka, bekleyen öneri varken rozet
+/// orada; belge ekranlarındaki AI düğmesi zaten her belgede.
 ///
 /// Ortadaki sekme 2026-08-17'ye kadar "Son belgeler"di (uygulamada açılmış
 /// belgeler + boş belge oluşturma). Kullanıcı: *"son belgeleri kaldır, yerine
@@ -49,6 +55,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+
+  /// Kurulmuş sekmeler: İndirilenler ilk kez seçilene dek kurulmaz (açılışta
+  /// klasörün tamamını taramasın).
+  final Set<int> _built = {0};
   StreamSubscription<List<SharedMediaFile>>? _intentSub;
 
   /// Açılışta "başlangıç klasörü" YALNIZ BİR KEZ açılır.
@@ -63,7 +73,32 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initShareIntake();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openStartFolder());
+    // Ana ekran kısayolları: uygulama açıkken dokunulursa itilir, kısayolla
+    // AÇILDIYSA yol bir kez sorulur (bkz. HomeShortcuts).
+    HomeShortcuts.listen(_openShortcut);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final launch = await HomeShortcuts.takeLaunchPath();
+      if (launch != null) {
+        _startFolderOpened = true; // kısayol açılış klasörünün önüne geçer
+        await _openShortcut(launch);
+        return;
+      }
+      await _openStartFolder();
+    });
+  }
+
+  /// Kısayolun gösterdiği yolu açar: klasörse gezgin, dosyaysa görüntüleyici.
+  Future<void> _openShortcut(String path) async {
+    if (!mounted) return;
+    if (Directory(path).existsSync()) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => BrowserScreen(path: path),
+      ));
+    } else if (File(path).existsSync()) {
+      await EntryOpener.open(context, path);
+    } else {
+      showSnack(context, context.t('ea.shortcut_missing'));
+    }
   }
 
   /// Ayarlardaki "açılış klasörü" doluysa doğrudan oraya girer.
@@ -171,10 +206,13 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // active: pano yalnız görünürken yeniden tarar (bkz. FsEvents).
           DashboardScreen(active: _tab == 0),
+          if (_built.contains(1)) _downloadsTab() else const SizedBox(),
           // active: `IndexedStack` çocuğu ayakta tutar; sekmeye dönünce liste
           // kendini tazelesin (bkz. `NewFilesScreen.active`).
-          NewFilesScreen(active: _tab == 1),
-          const ChatScreen(),
+          if (_built.contains(2))
+            NewFilesScreen(active: _tab == 2)
+          else
+            const SizedBox(),
         ],
       ),
       // Süren işlerin şeridi gezinme çubuğunun **üstünde**: kullanıcı hangi
@@ -187,7 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const JobProgressBar(),
           NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        onDestinationSelected: (i) => setState(() {
+          _tab = i;
+          _built.add(i);
+        }),
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.folder_outlined),
@@ -195,19 +236,14 @@ class _HomeScreenState extends State<HomeScreen> {
             label: context.t('home.tab_files'),
           ),
           NavigationDestination(
+            icon: const Icon(Icons.download_outlined),
+            selectedIcon: const Icon(Icons.download_rounded),
+            label: context.t('fm.downloads'),
+          ),
+          NavigationDestination(
             icon: const Icon(Icons.move_to_inbox_outlined),
             selectedIcon: const Icon(Icons.move_to_inbox),
             label: context.t('fm.new_files'),
-          ),
-          // **AI sekmesi durumu taşır** (kullanıcı 2026-08-17: *"ai asistan
-          // yazısı sağ alttaki ai düğmesi alanına entegre et, ana ekran
-          // temizlensin"*). Panodaki tam genişlikli AI kartı kalktı; analiz
-          // sürerken sekmede ilerleme halkası, bekleyen öneri varsa sayı
-          // rozeti çıkıyor. Bilgi aynı, kapladığı yer sıfır.
-          NavigationDestination(
-            icon: const _AiTabIcon(selected: false),
-            selectedIcon: const _AiTabIcon(selected: true),
-            label: context.t('home.tab_ai'),
           ),
         ],
           ),
@@ -215,51 +251,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-/// AI sekmesinin simgesi — **canlı durum taşır**.
-///
-/// Panodaki AI kartının yerini aldı (2026-08-17). Üç hâl:
-/// * analiz sürüyorsa simgenin çevresinde ince bir ilerleme halkası,
-/// * bekleyen öneri varsa sayı rozeti,
-/// * ikisi de yoksa düz simge (gürültü yok).
-class _AiTabIcon extends StatelessWidget {
-  final bool selected;
-  const _AiTabIcon({required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = Icon(selected ? Icons.smart_toy : Icons.smart_toy_outlined);
-    return ValueListenableBuilder<AiProgress>(
-      valueListenable: AiAnalyzer.progress,
-      builder: (context, progress, _) => ValueListenableBuilder<int>(
-        valueListenable: AiIndex.revision,
-        builder: (context, _, __) {
-          final pending = AiIndex.suggestionCount;
-          if (progress.isBusy) {
-            return Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                SizedBox(
-                  width: 30,
-                  height: 30,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    value: progress.total == 0 ? null : progress.fraction,
-                  ),
-                ),
-                icon,
-              ],
-            );
-          }
-          if (pending <= 0) return icon;
-          return Badge(
-            label: Text('$pending'),
-            child: icon,
-          );
-        },
-      ),
-    );
+  /// İndirilenler sekmesi. Klasör yoksa (ilk kurulum, alışılmadık cihaz)
+  /// kullanıcı boş bir ekranla değil açıklamayla karşılanır.
+  Widget _downloadsTab() {
+    final path = downloadsPathIn(FmEnv.primaryRoot);
+    if (path == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.t('fm.downloads'))),
+        body: Center(child: Text(context.t('fm.downloads_missing'))),
+      );
+    }
+    return DownloadsScreen(key: ValueKey(path), path: path);
   }
 }

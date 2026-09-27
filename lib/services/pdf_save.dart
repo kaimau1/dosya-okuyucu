@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 
 import 'docs_home.dart';
+import 'fm/safe_write.dart';
 
 /// Düzenlenmiş PDF'i nereye yazacağımız.
 enum PdfSaveMode {
@@ -25,8 +26,14 @@ class PdfSave {
     List<int> bytes,
     PdfSaveMode mode,
   ) async {
+    // Boş/bozuk çıktı kullanıcının dosyasının yerine KONMAZ (bkz.
+    // [PdfBytesCheck]); üzerine yazma bölünmez ([SafeWrite]).
+    if (!PdfBytesCheck.looksValid(bytes)) {
+      throw const FileSystemException(
+          'Üretilen PDF geçersiz göründü; dosyaya dokunulmadı');
+    }
     if (mode == PdfSaveMode.overwrite) {
-      await File(originalPath).writeAsBytes(bytes, flush: true);
+      await SafeWrite.bytes(originalPath, bytes);
       return originalPath;
     }
     final target = await copyTargetFor(originalPath);

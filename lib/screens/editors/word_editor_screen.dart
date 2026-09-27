@@ -11,6 +11,7 @@ import '../../core/list_prefix.dart';
 import '../../core/theme.dart';
 import '../../core/undo_stack.dart';
 import '../../models/document.dart';
+import '../../services/fm/safe_write.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/docx_editor.dart';
@@ -21,6 +22,7 @@ import '../../widgets/docx_view.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/translate_flow.dart';
+import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
@@ -140,7 +142,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     final saveFailed = context.t('word.save_failed');
     try {
       final bytes = editor.save();
-      await File(widget.path).writeAsBytes(bytes);
+      await SafeWrite.bytes(widget.path, bytes);
       // "Yaptıklarım" defteri (istek 2026-08-07): düzenlenen belge orada
       // görünsün. Beklenmez — kaydetmenin hızını defter yavaşlatmamalı.
       unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
@@ -249,10 +251,10 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
         if (!_dirty) setState(() => _dirty = true);
       });
 
-  /// Seçili metni çevirir (sonuç çeviri sayfasında gösterilir; belgeye
-  /// yazılmaz — çeviriyi belgeye gömmek ayrı bir karar).
+  /// Seçili metni çevirir — sayfanın üstünde açılan kartta, dil
+  /// kendiliğinden bulunur (bkz. [QuickTranslateSheet]); belgeye yazılmaz.
   void _translateSelection() => _withSelection((text) {
-        TranslateFlow.run(context, text, title: widget.name);
+        QuickTranslateSheet.show(context, text, title: widget.name);
       });
 
   /// Canlı görünümden gelen madde/numara işareti; kaydetmede `w:numPr` olur.

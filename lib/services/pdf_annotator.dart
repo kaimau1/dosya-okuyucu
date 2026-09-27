@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:ui' show Rect;
 
 import 'package:pdfrx/pdfrx.dart' show PdfRect;
@@ -16,8 +17,95 @@ export 'pdf_tools.dart' show pdfToSyncfusionRect;
 /// KALIR (yüksek sadakat); burada yalnız düzenlenmiş PDF baytı ÜRETİLİR
 /// (annotate → yeni bayt → dosyaya yaz → pdfrx'te yeniden aç). İki PDF yığını
 /// bilinçli yan yana. pdfrx salt-render olduğu için yazma tek yol Syncfusion.
+/// Belgeye yazılacak bir vurgu: sayfa (0 tabanlı), satır kutuları (pdfium
+/// PDF koordinatı `[sol, üst, sağ, alt]` — isolate sınırından düz sayı
+/// listesi olarak geçer) ve renk (0xAARRGGBB).
+typedef PdfHighlightSpec = ({int pageIndex, List<List<double>> rects, int color});
+
 class PdfAnnotator {
   const PdfAnnotator._();
+
+  /// Vurgunun saydamlığı. 1 (eski değer) koyu renklerde metni boğuyordu —
+  /// kullanıcının ekran görüntüsünde pembe vurgu "kavmim!" kelimesini kiremit
+  /// rengi bir kutuya çevirmişti. Çarpımsal harmanla birlikte yarı saydam:
+  /// her görüntüleyicide metin okunur kalır.
+  static const double highlightOpacity = 0.55;
+
+  /// Birden çok vurguyu TEK geçişte ve **ana izleğin dışında** yazar
+  /// (2026-09-27).
+  ///
+  /// Eskiden her vurgu ana izlekte Syncfusion ile belgenin tamamını açıp
+  /// kaydediyordu: 3239 sayfalık kitapta ekran saniyelerce donuyor, sonra
+  /// belge baştan yükleniyordu ("PDF kapanıp açılıyor gibi"). Artık vurgular
+  /// ekranda bekler ve kaydederken hepsi birlikte, izolatta yazılır.
+  static Future<List<int>> addHighlightsInBackground(
+      List<int> bytes, List<PdfHighlightSpec> marks) {
+    if (marks.isEmpty) return Future.value(bytes);
+    return Isolate.run(() => _addHighlightsSync(bytes, marks));
+  }
+
+  static Future<List<int>> _addHighlightsSync(
+      List<int> bytes, List<PdfHighlightSpec> marks) async {
+    final doc = PdfDocument(inputBytes: bytes);
+    try {
+      for (final m in marks) {
+        if (m.rects.isEmpty ||
+            m.pageIndex < 0 ||
+            m.pageIndex >= doc.pages.count) {
+          continue;
+        }
+        final page = doc.pages[m.pageIndex];
+        _addTo(page, [
+          for (final r in m.rects)
+            pdfToSyncfusionRect(
+              left: r[0],
+              pdfTop: r[1],
+              width: r[2] - r[0],
+              height: r[1] - r[3],
+              pageHeight: page.size.height,
+            ),
+        ], m.color);
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  static void _addTo(PdfPage page, List<Rect> rects, int colorArgb) {
+    if (rects.isEmpty) return;
+    var bounds = rects.first;
+    for (final r in rects.skip(1)) {
+      bounds = bounds.expandToInclude(r);
+    }
+    final annotation = PdfTextMarkupAnnotation(
+      bounds,
+      '',
+      PdfColor(
+        (colorArgb >> 16) & 0xFF,
+        (colorArgb >> 8) & 0xFF,
+        colorArgb & 0xFF,
+      ),
+      boundsCollection: rects,
+      opacity: highlightOpacity,
+    )..textMarkupAnnotationType = PdfTextMarkupAnnotationType.highlight;
+    page.annotations.add(annotation);
+  }
+
+  /// [removeHighlights]'ın izolatta koşan hâli.
+  static Future<(List<int>, int)> removeHighlightsInBackground({
+    required List<int> bytes,
+    required int pageIndex,
+    required List<List<double>> rects,
+  }) =>
+      Isolate.run(() => removeHighlights(
+            bytes: bytes,
+            pageIndex: pageIndex,
+            pdfRects: [
+              for (final r in rects)
+                PdfRect(r[0], r[1], r[2], r[3]),
+            ],
+          ));
 
   /// [bytes] PDF'inin [pageIndex] (0-tabanlı) sayfasına, [pdfRects] (pdfium PDF
   /// koordinatı — satır/parça başına bir dikdörtgen, `PdfSelectLayer`'dan gelir)
@@ -46,22 +134,7 @@ class PdfAnnotator {
             pageHeight: pageHeight,
           ),
       ];
-      // Tüm satırları kapsayan sınır kutusu = annotation /Rect; satırlar quad'lar.
-      var bounds = rects.first;
-      for (final r in rects.skip(1)) {
-        bounds = bounds.expandToInclude(r);
-      }
-      final annotation = PdfTextMarkupAnnotation(
-        bounds,
-        '',
-        PdfColor(
-          (colorArgb >> 16) & 0xFF,
-          (colorArgb >> 8) & 0xFF,
-          colorArgb & 0xFF,
-        ),
-        boundsCollection: rects,
-      )..textMarkupAnnotationType = PdfTextMarkupAnnotationType.highlight;
-      page.annotations.add(annotation);
+      _addTo(page, rects, colorArgb);
       return await doc.save();
     } finally {
       doc.dispose();

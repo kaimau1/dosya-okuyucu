@@ -23,7 +23,22 @@ class ChatScreen extends StatefulWidget {
   /// Açık dosyanın metni (opsiyonel bağlam).
   final String? fileContext;
   final String? fileName;
-  const ChatScreen({super.key, this.fileContext, this.fileName});
+
+  /// Okunmakta olan sayfanın metni ve etiketi ("Sayfa 42") — 2026-09-27.
+  ///
+  /// Uzun belgede (1272 sayfalık kitap) bağlam belgenin başından kesiliyor;
+  /// kullanıcının sorduğu şey çoğu zaman O AN baktığı sayfa. Odak metni
+  /// bağlamın EN BAŞINA konur ve "Bu sayfayı özetle / açıkla" çipleri çıkar.
+  final String? focusText;
+  final String? focusLabel;
+
+  const ChatScreen({
+    super.key,
+    this.fileContext,
+    this.fileName,
+    this.focusText,
+    this.focusLabel,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -73,6 +88,16 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  /// AI'a giden bağlam: odak sayfası (varsa) önce, sonra belgenin tamamı.
+  String? get _contextForAi {
+    final focus = widget.focusText?.trim() ?? '';
+    final doc = _ctxText;
+    // Kullanıcı (+) ile başka bir dosya seçtiyse odak artık geçersiz.
+    if (focus.isEmpty || doc != widget.fileContext) return doc;
+    return '[${widget.focusLabel ?? ''} — kullanıcının şu an okuduğu sayfa]\n'
+        '$focus\n\n[Belgenin tamamı]\n${doc ?? ''}';
+  }
+
   /// Dosya açıkken hazır komut çipleri (Özetle vb.) buradan gönderilir.
   void _quickAsk(String prompt) {
     if (_busy) return;
@@ -102,7 +127,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final reply = await service.chat(
         history: _turns,
-        fileContext: _ctxText,
+        fileContext: _contextForAi,
         memory: appState.memory,
       );
       // `mounted` ŞART: Gemini yanıtı saniyeler sürüyor ve kullanıcı bu arada
@@ -281,7 +306,14 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           // Hızlı komutlar KALICI (eskiden yalnız sohbet boşken ve yalnız
           // dosya bağlamı varken görünüyordu) — ikinci soruda da lazım.
-          _QuickBar(onQuick: _quickAsk, enabled: !_busy),
+          _QuickBar(
+            onQuick: _quickAsk,
+            enabled: !_busy,
+            pageLabel: (widget.focusText?.trim().isNotEmpty ?? false) &&
+                    _ctxText == widget.fileContext
+                ? widget.focusLabel
+                : null,
+          ),
           _Composer(
             controller: _input,
             onSend: _send,
@@ -324,7 +356,14 @@ class _ChatScreenState extends State<ChatScreen> {
 class _QuickBar extends StatelessWidget {
   final void Function(String) onQuick;
   final bool enabled;
-  const _QuickBar({required this.onQuick, required this.enabled});
+
+  /// Okunan sayfanın etiketi; verilirse "bu sayfa" çipleri başa eklenir.
+  final String? pageLabel;
+  const _QuickBar({
+    required this.onQuick,
+    required this.enabled,
+    this.pageLabel,
+  });
 
   /// Etiket ve **AI'ya gidecek istem** aynı dilden olmalı, yoksa Arapça
   /// arayüzde Türkçe istem giderdi.
@@ -342,6 +381,30 @@ class _QuickBar extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           children: [
+            if (pageLabel != null) ...[
+              Padding(
+                padding: const EdgeInsets.only(right: Gap.sm),
+                child: ActionChip(
+                  avatar: const Icon(Icons.article_outlined, size: 18),
+                  label: Text(context.t('chat.quick_page_summary')),
+                  onPressed: enabled
+                      ? () => onQuick(context.t('chat.quick_page_summary_prompt',
+                          {'page': pageLabel}))
+                      : null,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: Gap.sm),
+                child: ActionChip(
+                  avatar: const Icon(Icons.lightbulb_outline_rounded, size: 18),
+                  label: Text(context.t('chat.quick_page_explain')),
+                  onPressed: enabled
+                      ? () => onQuick(context.t('chat.quick_page_explain_prompt',
+                          {'page': pageLabel}))
+                      : null,
+                ),
+              ),
+            ],
             for (final q in quick)
               Padding(
                 padding: const EdgeInsets.only(right: Gap.sm),

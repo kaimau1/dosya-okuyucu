@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Burada gerçek telefon genişliklerinde ve büyütülmüş yazı ölçeğinde çizilip
 /// `RenderFlex overflowed` çıkmadığı doğrulanıyor.
 void main() {
-  const colors = [0xFFFFF176, 0xFF81C784, 0xFFF06292, 0xFF64B5F6];
+  const colors = [0xFFFFE066, 0xFF9BE09F, 0xFFF9A8CB, 0xFF96CDF7, 0xFFFFC07A];
 
   Widget harness(Widget bar, {double width = 360, double textScale = 1.0}) =>
       MaterialApp(
@@ -30,25 +30,42 @@ void main() {
       );
 
   PdfSelectionBar selectionBar({
-    void Function(int)? onHighlight,
+    VoidCallback? onHighlight,
+    void Function(int)? onPickColor,
+    VoidCallback? onUndo,
     VoidCallback? onRemove,
     VoidCallback? onEdit,
+    bool marking = false,
     String preview = '“NOTEBOOK”',
   }) =>
       PdfSelectionBar(
         preview: preview,
         colors: colors,
         selectedColor: colors.first,
-        onHighlight: onHighlight ?? (_) {},
-        onRemoveHighlight: onRemove ?? () {},
+        marking: marking,
+        onHighlight: onHighlight ?? () {},
+        onPickColor: onPickColor ?? (_) {},
+        onUndoHighlight: onUndo ?? () {},
+        onDone: () {},
         onCopy: () {},
         onEdit: onEdit ?? () {},
         onTranslate: () {},
-        highlightTooltip: 'Vurgula',
-        removeTooltip: 'Vurguyu kaldır',
+        moreItems: [
+          PdfBarMenuItem(
+            icon: Icons.format_color_reset_rounded,
+            label: 'Vurguyu kaldır',
+            onTap: onRemove ?? () {},
+          ),
+        ],
+        highlightLabel: 'Vurgula',
         copyLabel: 'Kopyala',
         editLabel: 'Düzenle',
         translateLabel: 'Çevir',
+        markedLabel: 'Vurgulandı',
+        undoLabel: 'Geri al',
+        doneLabel: 'Bitti',
+        colorTooltip: 'Vurgu rengi',
+        moreTooltip: 'Daha fazla',
       );
 
   PdfEditBar editBar({
@@ -118,24 +135,61 @@ void main() {
       ));
       expect(tester.takeException(), isNull);
     });
+
+    for (final width in [320.0, 360.0]) {
+      testWidgets('vurgu kipi ${width.toInt()} dp\'de taşmaz', (tester) async {
+        tester.view.physicalSize = Size(width, 720);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+            harness(selectionBar(marking: true), width: width, textScale: 1.3));
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   group('davranış', () {
-    testWidgets('renk kutucuğu DOĞRUDAN vurguluyor', (tester) async {
-      // Eskiden önce renk seçilip sonra ayrı bir "Vurgula" düğmesine basmak
-      // gerekiyordu; kilitlenen davranış tek dokunuş.
-      int? applied;
-      await tester
-          .pumpWidget(harness(selectionBar(onHighlight: (c) => applied = c)));
-      await tester.tap(find.byTooltip('Vurgula').at(1));
-      expect(applied, colors[1]);
+    testWidgets('renkler ilk bakışta YOK — vurgu menüsü yer kaplamıyor',
+        (tester) async {
+      // Kullanıcı 2026-09-27: "vurgu menüsü çok kullanılan bir şey değil,
+      // hemen karşımıza çıkıp yer kaplıyor".
+      await tester.pumpWidget(harness(selectionBar()));
+      expect(find.byTooltip('Vurgu rengi'), findsNothing);
+      expect(find.text('Vurgula'), findsOneWidget);
     });
 
-    testWidgets('silgi vurgu kaldırmayı çağırıyor', (tester) async {
+    testWidgets('Vurgula tek dokunuş; vurgu kipinde renk + Geri al + Bitti',
+        (tester) async {
+      var highlighted = 0;
+      await tester.pumpWidget(
+          harness(selectionBar(onHighlight: () => highlighted++)));
+      await tester.tap(find.text('Vurgula'));
+      expect(highlighted, 1);
+
+      int? picked;
+      var undone = 0;
+      await tester.pumpWidget(harness(selectionBar(
+        marking: true,
+        onPickColor: (c) => picked = c,
+        onUndo: () => undone++,
+      )));
+      expect(find.text('Bitti'), findsOneWidget);
+      await tester.tap(find.byTooltip('Vurgu rengi').at(2));
+      expect(picked, colors[2]);
+      await tester.tap(find.byTooltip('Geri al'));
+      expect(undone, 1);
+      // Vurgu kipinde eylem karoları yok: yanlışlıkla Düzenle'ye basılmaz.
+      expect(find.text('Düzenle'), findsNothing);
+    });
+
+    testWidgets('vurgu kaldırma ⋯ menüsünde', (tester) async {
       var removed = false;
       await tester
           .pumpWidget(harness(selectionBar(onRemove: () => removed = true)));
-      await tester.tap(find.byTooltip('Vurguyu kaldır'));
+      await tester.tap(find.byTooltip('Daha fazla'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Vurguyu kaldır'));
+      await tester.pumpAndSettle();
       expect(removed, isTrue);
     });
 

@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../core/l10n/app_strings.dart';
+
 class ChatTurn {
   final bool fromUser;
   final String text;
@@ -54,17 +56,26 @@ class GeminiService {
           'Gemini API anahtarınızı girin.');
     }
 
+    // Yanıt dili ARAYÜZ dili (2026-09-27): istem "Türkçe yanıt ver" diye
+    // sabitti; İngilizce/Arapça arayüzde de Türkçe yanıt geliyordu.
+    final lang = AppStrings.current.t('ai.answer_language');
     final systemParts = <String>[
       'Sen "Dosya Okuyucu" uygulamasının içindeki yardımcı bir yapay zekasın. '
-          'Türkçe, kısa ve net yanıt ver. Kullanıcının açtığı dosyalar üzerinde '
-          'okuma, özetleme, analiz ve düzenleme önerileri yapabilirsin.',
+          'Kullanıcı başka bir dil istemedikçe $lang, kısa ve net yanıt ver. '
+          'Kullanıcının açtığı dosyalar üzerinde okuma, özetleme, analiz ve '
+          'düzenleme önerileri yapabilirsin. Belgeden alıntı yaparken sayfa '
+          'numarası biliniyorsa belirt; belgede olmayan bilgiyi belgedeymiş '
+          'gibi sunma.',
     ];
     if (memory.isNotEmpty) {
       systemParts.add('Kalıcı hafızandaki notlar:\n- ${memory.join('\n- ')}');
     }
     if (fileContext != null && fileContext.trim().isNotEmpty) {
+      // 24 000 → 120 000 karakter (≈ 30-40 bin belirteç): güncel Gemini
+      // modellerinin bağlam penceresi bunun onlarca katı; eski sınır 400
+      // sayfalık bir kitabın yalnız ilk ~10 sayfasını gönderiyordu.
       systemParts.add('Şu an açık olan dosyanın içeriği (bağlam):\n'
-          '"""\n${_truncate(fileContext, 24000)}\n"""');
+          '"""\n${_truncate(fileContext, 120000)}\n"""');
     }
 
     final contents = history

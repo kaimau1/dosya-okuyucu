@@ -148,11 +148,19 @@ void main() {
     test('özgün yedekten ESKİYSE (üstüne biz yazmamışız) geri yazılmaz', () {
       final original =
           make('rapor.pdf', age: const Duration(hours: 1)); // bizden eski
+      // Sağlam bir PDF (2026-09-27'den beri bozuk/boş özgün tarihe
+      // bakılmadan geri yükleniyor — bkz. safe_write_test).
+      const healthy = '%PDF-1.4\n'
+          '..........................................................\n'
+          'rapor\n%%EOF\n';
+      original.writeAsStringSync(healthy);
+      original.setLastModifiedSync(
+          DateTime.now().subtract(const Duration(hours: 1)));
       final backup = make('dosya_okuyucu_edit4/rapor.pdf');
       PdfEditJournal.add(original.path, backup.path);
       PdfEditJournal.debugReset();
       expect(PdfEditJournal.recover(), 0);
-      expect(original.readAsStringSync(), 'rapor.pdf');
+      expect(original.readAsStringSync(), healthy);
       expect(PdfEditJournal.backups(), isEmpty);
     });
   });

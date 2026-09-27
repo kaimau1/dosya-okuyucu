@@ -123,7 +123,11 @@ const Map<String, (String, String, String)> _table = {
   'ink.hand': ('Kaydır', 'Move', 'تحريك'),
   'ink.redo': ('Yinele', 'Redo', 'إعادة'),
   'ink.eraser_hint': ('Silmek için üstünden geç', 'Swipe over a mark to erase', 'مرّر فوق العلامة لمسحها'),
-  'ink.hand_hint': ('İki parmakla yakınlaştır, sürükle', 'Pinch to zoom, drag to move', 'قرّب بإصبعين واسحب للتحريك'),
+  'ink.hand_hint': (
+    'Sürükle: kaydır · yukarı/aşağı: sayfa çevir. Kalemdeyken iki parmak da kaydırır.',
+    'Drag to move · swipe up/down to turn pages. With the pen, use two fingers.',
+    'اسحب للتحريك · اسحب لأعلى/لأسفل لتقليب الصفحات. مع القلم استخدم إصبعين.',
+  ),
   'ink.text_title': ('Yazı ekle', 'Add text', 'إضافة نص'),
   'ink.text_hint': ('Yazılacak metin', 'Text to place', 'النص المراد إضافته'),
   'ink.size_s': ('Küçük', 'Small', 'صغير'),
@@ -7208,4 +7212,349 @@ const Map<String, (String, String, String)> _table = {
   'aih.thinking': ('Dosyalarına bakıyorum…', 'Looking through your files…', 'أبحث في ملفاتك…'),
   'aih.ask_files': ('Dosyalara sor', 'Ask your files', 'اسأل ملفاتك'),
   'set.theme_auto': ('Otomatik', 'Auto', 'تلقائي'),
+  'vw.saving_wait': (
+    'Kaydediliyor, bir saniye…',
+    'Saving, one moment…',
+    'جارٍ الحفظ، لحظة…',
+  ),
+  'vw.ask_ai_selection': (
+    'AI\'ya sor',
+    'Ask AI',
+    'اسأل الذكاء الاصطناعي',
+  ),
+  'vw.find_selection': (
+    'Belgede ara',
+    'Find in document',
+    'ابحث في المستند',
+  ),
+  'vw.highlight_color': (
+    'Vurgu rengi',
+    'Highlight colour',
+    'لون التمييز',
+  ),
+  'common.done': (
+    'Bitti',
+    'Done',
+    'تم',
+  ),
+  'tf.auto_short': (
+    'otomatik',
+    'auto',
+    'تلقائي',
+  ),
+  'tf.auto_detect': (
+    'Otomatik algıla',
+    'Detect language',
+    'اكتشاف اللغة',
+  ),
+  'tf.detected': (
+    'Algılanan: {lang}',
+    'Detected: {lang}',
+    'اللغة المكتشفة: {lang}',
+  ),
+  'ai.answer_language': (
+    'Türkçe',
+    'English',
+    'العربية',
+  ),
+  'ai.reply_in': (
+    'Yanıtı {lang} ver.',
+    'Reply in {lang}.',
+    'أجب باللغة {lang}.',
+  ),
+  'ai.thinking': (
+    'Düşünüyor…',
+    'Thinking…',
+    'يفكر…',
+  ),
+  'ai.ask_about_hint': (
+    'Bu kısım hakkında sor…',
+    'Ask about this part…',
+    'اسأل عن هذا الجزء…',
+  ),
+  'ai.q_explain': (
+    'Açıkla',
+    'Explain',
+    'اشرح',
+  ),
+  'ai.q_explain_prompt': (
+    'Aşağıdaki bölümü açıkla: ne anlatıyor, bağlamı ne, neden önemli? Kısa ve anlaşılır ol.',
+    'Explain the passage below: what it says, its context and why it matters. Be brief and clear.',
+    'اشرح المقطع التالي: ماذا يقول، وما سياقه، ولماذا هو مهم؟ كن موجزًا وواضحًا.',
+  ),
+  'ai.q_simplify': (
+    'Basitçe anlat',
+    'Simplify',
+    'بسّط',
+  ),
+  'ai.q_simplify_prompt': (
+    'Aşağıdaki bölümü, konuyu bilmeyen birine anlatır gibi sade bir dille yeniden anlat.',
+    'Rewrite the passage below in plain language, as if explaining to someone new to the topic.',
+    'أعد صياغة المقطع التالي بلغة بسيطة كأنك تشرحه لشخص جديد على الموضوع.',
+  ),
+  'ai.q_summary': (
+    'Özetle',
+    'Summarize',
+    'لخّص',
+  ),
+  'ai.q_summary_prompt': (
+    'Aşağıdaki bölümü 2-3 maddede özetle.',
+    'Summarize the passage below in 2-3 bullet points.',
+    'لخّص المقطع التالي في 2-3 نقاط.',
+  ),
+  'ai.q_terms': (
+    'Terimler',
+    'Key terms',
+    'المصطلحات',
+  ),
+  'ai.q_terms_prompt': (
+    'Aşağıdaki bölümdeki önemli terimleri, eski/yabancı kelimeleri ve özel adları kısa anlamlarıyla listele.',
+    'List the important terms, archaic/foreign words and proper names in the passage below with short meanings.',
+    'اذكر المصطلحات المهمة والكلمات القديمة أو الأجنبية وأسماء الأعلام في المقطع التالي مع معانٍ مختصرة.',
+  ),
+  'vw.pdf_error_title': (
+    'Bu PDF açılamadı',
+    'This PDF could not be opened',
+    'تعذّر فتح ملف PDF هذا',
+  ),
+  'vw.pdf_error_empty': (
+    'Dosya boş (0 bayt). Büyük olasılıkla bir indirme ya da kaydetme yarıda kalmış.',
+    'The file is empty (0 bytes). A download or save was most likely interrupted.',
+    'الملف فارغ (0 بايت). على الأرجح انقطع تنزيل أو حفظ.',
+  ),
+  'vw.pdf_error_broken': (
+    'Dosya bozuk ya da tam inmemiş olabilir.',
+    'The file may be damaged or incompletely downloaded.',
+    'قد يكون الملف تالفًا أو لم يُنزَّل بالكامل.',
+  ),
+  'vw.pdf_error_restore': (
+    'Özgün hâlini geri yükle',
+    'Restore original',
+    'استعادة النسخة الأصلية',
+  ),
+  'pn.title': (
+    'Sayfaya git',
+    'Go to page',
+    'انتقل إلى الصفحة',
+  ),
+  'pn.position': (
+    '{n}. sayfa · toplam {total} · %{p}',
+    'Page {n} of {total} · {p}%',
+    'الصفحة {n} من {total} · {p}٪',
+  ),
+  'pn.chip_label': (
+    '{n}. sayfa, toplam {total}. Sayfaya gitmek için dokunun, yıldızlamak için basılı tutun.',
+    'Page {n} of {total}. Tap to go to a page, long-press to bookmark.',
+    'الصفحة {n} من {total}. انقر للانتقال، واضغط مطولًا لإضافة علامة.',
+  ),
+  'pn.star': (
+    'Bu sayfayı yıldızla',
+    'Bookmark this page',
+    'أضف علامة لهذه الصفحة',
+  ),
+  'pn.unstar': (
+    'Yıldızı kaldır',
+    'Remove bookmark',
+    'إزالة العلامة',
+  ),
+  'pn.starred': (
+    '{n}. sayfa yıldızlandı',
+    'Page {n} bookmarked',
+    'تمت إضافة علامة للصفحة {n}',
+  ),
+  'pn.unstarred': (
+    '{n}. sayfanın yıldızı kaldırıldı',
+    'Bookmark removed from page {n}',
+    'أُزيلت علامة الصفحة {n}',
+  ),
+  'pn.prev': (
+    'Önceki sayfa (basılı tut: hızlı)',
+    'Previous page (hold: faster)',
+    'الصفحة السابقة (اضغط مطولًا: أسرع)',
+  ),
+  'pn.next': (
+    'Sonraki sayfa (basılı tut: hızlı)',
+    'Next page (hold: faster)',
+    'الصفحة التالية (اضغط مطولًا: أسرع)',
+  ),
+  'pn.field_hint': (
+    'Sayfa (1–{total})',
+    'Page (1–{total})',
+    'الصفحة (1–{total})',
+  ),
+  'pn.first': (
+    'İlk sayfa',
+    'First page',
+    'الصفحة الأولى',
+  ),
+  'pn.last': (
+    'Son sayfa',
+    'Last page',
+    'الصفحة الأخيرة',
+  ),
+  'pn.back_to': (
+    '{n}. sayfaya dön',
+    'Back to page {n}',
+    'العودة إلى الصفحة {n}',
+  ),
+  'pn.bookmarks': (
+    'Yıldızlı sayfalar ({n})',
+    'Bookmarked pages ({n})',
+    'الصفحات المعلَّمة ({n})',
+  ),
+  'pn.bookmarks_empty': (
+    'Henüz yıldızlı sayfa yok. Okurken sayfa rozetine basılı tutarak ya da buradaki düğmeyle yıldızlayabilirsiniz.',
+    'No bookmarks yet. While reading, long-press the page badge or use the button here.',
+    'لا توجد علامات بعد. أثناء القراءة اضغط مطولًا على شارة الصفحة أو استخدم الزر هنا.',
+  ),
+  'ea.shortcut': (
+    'Ana ekrana ekle',
+    'Add to home screen',
+    'إضافة إلى الشاشة الرئيسية',
+  ),
+  'ea.shortcut_hint': (
+    'telefon ana ekranına kısayol',
+    'shortcut on your phone\'s home screen',
+    'اختصار على الشاشة الرئيسية',
+  ),
+  'ea.shortcut_unsupported': (
+    'Bu telefonun ana ekranı kısayol eklemeyi desteklemiyor.',
+    'This phone\'s launcher does not support adding shortcuts.',
+    'مشغّل هذا الهاتف لا يدعم إضافة الاختصارات.',
+  ),
+  'ea.shortcut_requested': (
+    '“{name}” için kısayol istendi — ana ekranın onay penceresinden ekleyin.',
+    'Shortcut requested for “{name}” — confirm it in your home screen\'s prompt.',
+    'طُلب اختصار لـ «{name}» — أكّده من نافذة الشاشة الرئيسية.',
+  ),
+  'ea.shortcut_failed': (
+    'Kısayol eklenemedi.',
+    'Could not add the shortcut.',
+    'تعذّرت إضافة الاختصار.',
+  ),
+  'ea.shortcut_missing': (
+    'Kısayolun gösterdiği öğe bulunamadı (taşınmış ya da silinmiş olabilir).',
+    'The item this shortcut points to was not found (it may have been moved or deleted).',
+    'تعذّر العثور على العنصر الذي يشير إليه الاختصار (ربما نُقل أو حُذف).',
+  ),
+  'ea.hide': (
+    'Gizle',
+    'Hide',
+    'إخفاء',
+  ),
+  'ea.hide_hint': (
+    'galeride ve listelerde görünmez',
+    'hidden from gallery and lists',
+    'لا يظهر في المعرض والقوائم',
+  ),
+  'hv.title': (
+    'Gizli dosyalar',
+    'Hidden files',
+    'الملفات المخفية',
+  ),
+  'hv.hidden_n': (
+    '{n} öğe gizlendi',
+    '{n} item(s) hidden',
+    'تم إخفاء {n} عنصر',
+  ),
+  'hv.restored_n': (
+    '{n} öğe geri yüklendi',
+    '{n} item(s) restored',
+    'تمت استعادة {n} عنصر',
+  ),
+  'hv.empty': (
+    'Gizli dosya yok. Bir dosyaya basılı tutup “Gizle” deyin.',
+    'No hidden files. Long-press a file and choose “Hide”.',
+    'لا توجد ملفات مخفية. اضغط مطولًا على ملف واختر «إخفاء».',
+  ),
+  'hv.restore': (
+    'Geri yükle',
+    'Restore',
+    'استعادة',
+  ),
+  'hv.note': (
+    'Gizlenen dosyalar gizli bir klasöre taşınır; galeride ve bu uygulamanın listelerinde görünmez. Şifreleme değildir.',
+    'Hidden files are moved to a hidden folder; they don\'t appear in the gallery or in this app\'s lists. This is not encryption.',
+    'تُنقل الملفات المخفية إلى مجلد مخفي؛ لا تظهر في المعرض أو في قوائم هذا التطبيق. هذا ليس تشفيرًا.',
+  ),
+  'hv.from': (
+    'Geldiği yer: {path}',
+    'From: {path}',
+    'المصدر: {path}',
+  ),
+  'hv.confirm_title': (
+    '{n} öğe gizlensin mi?',
+    'Hide {n} item(s)?',
+    'إخفاء {n} عنصر؟',
+  ),
+  'hv.confirm_body': (
+    'Öğeler gizli klasöre taşınacak. Panodaki “Gizli dosyalar”dan geri yükleyebilirsiniz.',
+    'The items will be moved to the hidden folder. Restore them from “Hidden files” on the home screen.',
+    'ستُنقل العناصر إلى المجلد المخفي. يمكنك استعادتها من «الملفات المخفية» في الشاشة الرئيسية.',
+  ),
+  'dash.reset': (
+    'Varsayılan',
+    'Reset',
+    'افتراضي',
+  ),
+  'dash.tiles': (
+    'Kutular',
+    'Tiles',
+    'المربعات',
+  ),
+  'dash.sections': (
+    'Bölümler',
+    'Sections',
+    'الأقسام',
+  ),
+  'dash.hint': (
+    'Sürükleyerek sıralayın, anahtarla gösterin/gizleyin. Değişiklik hemen uygulanır.',
+    'Drag to reorder, use the switch to show/hide. Changes apply immediately.',
+    'اسحب لإعادة الترتيب واستخدم المفتاح للإظهار/الإخفاء. تُطبّق التغييرات فورًا.',
+  ),
+  'dash.sec_storage': (
+    'Bellek kartları',
+    'Storage cards',
+    'بطاقات التخزين',
+  ),
+  'dash.sec_categories': (
+    'Kategori kutuları',
+    'Category tiles',
+    'مربعات الفئات',
+  ),
+  'dash.sec_favorites': (
+    'Favoriler',
+    'Favourites',
+    'المفضلة',
+  ),
+  'dash.title': (
+    'Ana ekranı düzenle',
+    'Customize home',
+    'تخصيص الشاشة الرئيسية',
+  ),
+  'chat.page_label': (
+    'Sayfa {n}',
+    'Page {n}',
+    'الصفحة {n}',
+  ),
+  'chat.quick_page_summary': (
+    'Bu sayfayı özetle',
+    'Summarize this page',
+    'لخّص هذه الصفحة',
+  ),
+  'chat.quick_page_summary_prompt': (
+    'Şu an okuduğum sayfayı ({page}) kısa maddelerle özetle.',
+    'Summarize the page I\'m reading now ({page}) in short bullet points.',
+    'لخّص الصفحة التي أقرؤها الآن ({page}) في نقاط قصيرة.',
+  ),
+  'chat.quick_page_explain': (
+    'Bu sayfayı açıkla',
+    'Explain this page',
+    'اشرح هذه الصفحة',
+  ),
+  'chat.quick_page_explain_prompt': (
+    'Şu an okuduğum sayfayı ({page}) sade bir dille açıkla; zor kavramları ve eski/yabancı kelimeleri anlamlarıyla ver.',
+    'Explain the page I\'m reading now ({page}) in plain language; give the meaning of difficult concepts and archaic/foreign words.',
+    'اشرح الصفحة التي أقرؤها الآن ({page}) بلغة بسيطة، مع معاني المفاهيم الصعبة والكلمات القديمة أو الأجنبية.',
+  ),
 };

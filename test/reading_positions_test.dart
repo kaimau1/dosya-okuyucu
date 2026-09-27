@@ -45,15 +45,47 @@ void main() {
         reason: 'baştan okumaya karar veren kullanıcıya "devam" sorulmaz');
   });
 
-  test('son sayfa "bitti" sayılır', () {
+  test('son sayfa da HATIRLANIR (2026-09-27: "son açık sayfa her zaman '
+      'bilinmeli")', () {
     ReadingPositions.record(book, 42, 400);
     ReadingPositions.record(book, 400, 400);
-    expect(ReadingPositions.pageOf(book), isNull);
+    expect(ReadingPositions.pageOf(book), 400);
   });
 
-  test('kısa belgede (fatura) konum tutulmaz', () {
+  test('tek sayfalık belgede konum tutulmaz, kısa belgede tutulur', () {
+    ReadingPositions.record('/belgeler/tek.pdf', 1, 1);
+    expect(ReadingPositions.pageOf('/belgeler/tek.pdf'), isNull);
     ReadingPositions.record('/belgeler/fatura.pdf', 2, 3);
-    expect(ReadingPositions.pageOf('/belgeler/fatura.pdf'), isNull);
+    expect(ReadingPositions.pageOf('/belgeler/fatura.pdf'), 2);
+  });
+
+  test('KÖK NEDEN: yüklenmeden yazılan kayıt ötekileri SİLMEZ', () async {
+    // Önceki oturumlardan kalan kayıt.
+    File('${dir.path}/reading_positions.json').writeAsStringSync(jsonEncode({
+      '/eski/kitap.pdf': {'p': 77, 'n': 300, 't': 1},
+    }));
+    // Soğuk açılış: kayıt yüklenmeden bir belge okunuyor.
+    ReadingPositions.record(book, 12, 400);
+    await ReadingPositions.save();
+    ReadingPositions.debugReset();
+    await ReadingPositions.ensureLoaded();
+    expect(ReadingPositions.pageOf('/eski/kitap.pdf'), 77);
+    expect(ReadingPositions.pageOf(book), 12);
+  });
+
+  test('yüklenen eski kayıt bellekteki YENİ konumu ezmez', () async {
+    File('${dir.path}/reading_positions.json').writeAsStringSync(jsonEncode({
+      book: {'p': 5, 'n': 400, 't': 1},
+    }));
+    ReadingPositions.record(book, 90, 400);
+    await ReadingPositions.ensureLoaded();
+    expect(ReadingPositions.pageOf(book), 90);
+  });
+
+  test('dosya taşınınca ad + boyutla bulunur', () {
+    ReadingPositions.record('/indirilenler/kitap.pdf', 33, 400, size: 12345);
+    expect(ReadingPositions.pageOf('/belgeler/kitap.pdf', size: 12345), 33);
+    expect(ReadingPositions.pageOf('/belgeler/kitap.pdf', size: 999), isNull);
   });
 
   test('diske yazılıp geri okunuyor', () async {

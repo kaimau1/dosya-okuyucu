@@ -449,6 +449,31 @@ class PdfFile {
   /// Sayfanın `/Resources /Font` sözlüğü: kaynak adı → nesne numarası.
   Map<String, int> fontRefs(PdfObject page) => resourceRefs(page, 'Font');
 
+  /// Sayfanın fontları: kaynak adı → `/BaseFont` (alt küme öneki atılmış:
+  /// `ABCDEF+TimesNewRomanPS-BoldMT` → `TimesNewRomanPS-BoldMT`). Yazı
+  /// tipinin AİLESİNİ (serif/sans, kalın/italik) tahmin etmek için.
+  Map<String, String> fontBaseNames(PdfObject page) {
+    final out = <String, String>{};
+    for (final entry in fontRefs(page).entries) {
+      final font = objects[entry.value];
+      if (font == null) continue;
+      var name = pdfName(font.dict, 'BaseFont') ?? '';
+      if (name.isEmpty) {
+        // Type0: asıl ad soyundaki fontta.
+        final descendants = pdfArray(font.dict, 'DescendantFonts');
+        final ref = descendants == null
+            ? null
+            : RegExp(r'(\d+)\s+\d+\s+R').firstMatch(descendants);
+        final child = ref == null ? null : objects[int.parse(ref.group(1)!)];
+        if (child != null) name = pdfName(child.dict, 'BaseFont') ?? '';
+      }
+      final plus = name.indexOf('+');
+      if (plus == 6) name = name.substring(7);
+      if (name.isNotEmpty) out[entry.key] = name;
+    }
+    return out;
+  }
+
   /// Sayfanın `/Resources /XObject` sözlüğü: kaynak adı → nesne numarası.
   /// Sayfadaki gömülü görseller (resim, logo, QR, karekod) burada durur.
   Map<String, int> xobjectRefs(PdfObject page) => resourceRefs(page, 'XObject');

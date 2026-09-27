@@ -4,7 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
-    show Clipboard, ClipboardData, LogicalKeyboardKey;
+    show Clipboard, ClipboardData, HapticFeedback, LogicalKeyboardKey;
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
@@ -30,16 +30,20 @@ import '../services/doc_translate.dart';
 import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/pdf_edit_journal.dart';
+import '../services/fm/pdf_bookmarks.dart';
 import '../services/fm/reading_positions.dart';
+import '../services/fm/safe_write.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/current_page.dart';
 import '../services/pdf/page_arrival.dart';
+import '../services/pdf/pdf_font_class.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_edit_flow.dart';
+import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
@@ -56,6 +60,8 @@ import 'fm/entry_actions.dart';
 import '../widgets/pdf_action_bars.dart';
 import '../widgets/pdf_inline_editor.dart';
 import '../widgets/pdf_save_dialog.dart';
+import '../widgets/quick_sheets.dart';
+import '../widgets/pdf_page_navigator.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import '../widgets/tts_voice_sheet.dart';
@@ -68,14 +74,20 @@ import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
 import '../core/snack.dart';
 
-/// PDF vurgu renkleri (0xAARRGGBB) — seçim çubuğundaki sıra. Syncfusion highlight
-/// annotation'ı altındaki metni boyamaz (çarpımsal harman), renk okunurluğu bozmaz.
+/// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
+/// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
+/// kiremit rengi bir kutuya çeviriyordu (kullanıcının ekran görüntüsü).
 const List<int> _highlightColors = [
-  0xFFFFF176, // sarı
-  0xFF81C784, // yeşil
-  0xFFF06292, // pembe
-  0xFF64B5F6, // mavi
+  0xFFFFE066, // sarı
+  0xFF9BE09F, // yeşil
+  0xFFF9A8CB, // pembe
+  0xFF96CDF7, // mavi
+  0xFFFFC07A, // turuncu
 ];
+
+/// Son kullanılan vurgu rengi — belgeler arası hatırlanır (Vurgula düğmesi
+/// bu renkle vurgular).
+int _lastHighlightColor = _highlightColors.first;
 
 class ViewerScreen extends StatefulWidget {
   final LoadedDoc doc;
@@ -162,6 +174,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Düzenleme kaydediliyor mu (kutunun düğmeleri kilitlensin).
   bool _pdfEditBusy = false;
 
+  /// Düzenlenen satırın yazı tipi sınıfı (belgeden arka planda yoklanır;
+  /// gelene dek Arimo). Kutudaki yazı belgenin ailesinde görünsün diye.
+  PdfFontClass? _pdfEditFont;
+
   /// Yerinde düzenleme kutusunun metni. Kutu sayfanın üzerinde, düğme çubuğu
   /// ekranın altında; ikisi de aynı denetleyiciyi okusun diye burada.
   TextEditingController? _pdfEditCtl;
@@ -214,7 +230,51 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _pdfKeepEdits = false;
 
   /// Vurgu rengi (0xAARRGGBB). Seçim çubuğundaki renk sırasından değişir.
-  int _highlightColor = _highlightColors.first;
+  int _highlightColor = _lastHighlightColor;
+
+  /// **Ekranda bekleyen vurgular** (2026-09-27) — henüz dosyaya yazılmadı.
+  ///
+  /// Kullanıcı: *"vurgulama yapılırken PDF kapanıp açılıyor gibi oluyor."*
+  /// Eskiden her vurgu belgenin tamamını Syncfusion ile ana izlekte açıp
+  /// kaydediyor, özgün dosyanın ÜSTÜNE yazıyor ve pdfrx'e belgeyi baştan
+  /// yükletiyordu: ekran kararıyor, 3239 sayfalık kitapta saniyelerce
+  /// donuyordu. Üstüne bu yazma zinciri dosyanın 0 bayt kalmasına da açıktı.
+  /// Şimdi vurgu yalnız çizilir ([_paintPendingMarks]) — anında, belge
+  /// yeniden yüklenmeden — ve kaydederken (ya da dosyayı değiştiren başka
+  /// bir işten hemen önce, [_flushPendingMarks]) hepsi birlikte, izolatta
+  /// yazılır.
+  final List<_PendingMark> _pendingMarks = [];
+
+  /// Az önce eklenen vurgu: seçim çubuğu "vurgu kipi"ndeyken rengi
+  /// değiştirilebilir ya da geri alınabilir.
+  _PendingMark? _lastMark;
+
+  /// Dosyaya yazma sürüyor mu? Sürerken ekrandan çıkılmaz: eskiden
+  /// `_pdfDirty` ancak yazma BİTİNCE true oluyordu ve arada geri tuşuna basan
+  /// kullanıcı yazmanın ortasında ekranı kapatabiliyordu.
+  int _pdfWriting = 0;
+
+  /// Bu dosyanın önceki oturumundan kalan geri yükleme sürüyor: belge ancak
+  /// o bitince açılır (yoksa kaydedilmemiş düzenleme özgün sanılırdı).
+  bool _waitingRestore = false;
+
+  /// Kaydedilmemiş bir şey var mı (dosyaya yazılmış düzenleme ya da ekranda
+  /// bekleyen vurgu)?
+  bool get _hasUnsaved => _pdfDirty || _pendingMarks.isNotEmpty;
+
+  /// Kaldığın yer çözüldü mü? Görüntüleyici ANCAK o zaman kurulur: pdfrx
+  /// başlangıç sayfasını belge yüklenirken bir kez okur; sonradan gelen
+  /// sayfa (eskiden `setState` ile geliyordu) önbellekteki belgede hiç
+  /// uygulanmıyordu — "kaldığı yerden devam düzgün çalışmıyor" (2026-09-27).
+  bool _resumeReady = true;
+
+  /// Dosyanın boyu (bayt) — okuma konumu ve yer imleri yol değişince de
+  /// bulunsun diye (bkz. [ReadingPositions.pageOf]).
+  int _docSize = 0;
+
+  /// Son atlayıştan (sayfaya git, arama, içindekiler) önceki sayfa —
+  /// gezginde "N. sayfaya dön".
+  int? _pageBeforeJump;
 
   /// PDF'in kaç sütun hâlinde dizileceği (1 / 2 / 4). Uzun belgelerde sayfaları
   /// yan yana görmek hem gezinmeyi hızlandırır hem tablet/yatay ekranda boşluğu
@@ -360,12 +420,31 @@ class _ViewerScreenState extends State<ViewerScreen> {
           TextEditingController(text: LineEndings.toLf(doc.plainText));
     }
     if (doc.kind == DocKind.pdf) {
+      _prepareSafeOpen();
       _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
       unawaited(_offerFormFilling());
       unawaited(_restoreReadingPage());
     }
     if (doc.kind == DocKind.image) _imgTx.addListener(_onImgTransform);
+  }
+
+  /// Belge açılmadan önce: önceki bir oturumun geri yüklemesi sürüyorsa onu
+  /// bekle; uygulama düzenleme ortasında öldürülmüşse ve açılış kurtarması
+  /// henüz koşmadıysa bu dosyanınkini şimdi yap; yarım yazmalardan kalan
+  /// gizli geçici dosyaları temizle.
+  void _prepareSafeOpen() {
+    final path = widget.doc.path;
+    if (PdfEditJournal.hasStale(path)) PdfEditJournal.recover(only: path);
+    final pending = PdfRestoreQueue.pendingFor(path);
+    if (pending != null) {
+      _waitingRestore = true;
+      pending.whenComplete(() {
+        if (!mounted) return;
+        setState(() => _waitingRestore = false);
+      });
+    }
+    unawaited(SafeWrite.cleanupLeftovers(path));
   }
 
   /// **Kaldığın sayfadan devam** (2026-09-04).
@@ -377,15 +456,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Sayfa `initialPageNumber` ile veriliyor: görüntüleyici kurulmadan ÖNCE
   /// bilinmesi gerekiyor, sonradan atlamak kullanıcıya bir sıçrama gösterirdi.
   Future<void> _restoreReadingPage() async {
-    if (!context.mounted) return;
-    if (!context.read<AppState>().resumePosition) return;
-    await ReadingPositions.ensureLoaded();
-    final page = ReadingPositions.pageOf(widget.doc.path);
-    if (!mounted || page == null || page <= 1) return;
-    setState(() {
-      _pdfPage = page;
-      _resumedPage = page;
-    });
+    try {
+      _docSize = File(widget.doc.path).lengthSync();
+    } catch (_) {}
+    unawaited(PdfBookmarks.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    }));
+    // Kayıt zaten bellekteyse sayfa İLK karede verilir.
+    if (ReadingPositions.isLoaded) {
+      _applyResumePage();
+      return;
+    }
+    _resumeReady = false;
+    try {
+      await ReadingPositions.ensureLoaded();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _applyResumePage();
+          _resumeReady = true;
+        });
+      }
+    }
+  }
+
+  void _applyResumePage() {
+    final page = ReadingPositions.pageOf(widget.doc.path, size: _docSize);
+    if (page == null || page <= 1) return;
+    _pdfPage = page;
+    _resumedPage = page;
   }
 
   /// Devam edilen sayfa (bir kez şerit gösterilir), yoksa null.
@@ -480,7 +579,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     _pdfEditCtl?.dispose();
     _pdfEditFocus?.dispose();
-    _restoreOriginal();
+    // Geri yazma ARTIK BEKLENMEZ ve ana izleği dondurmaz: eskiden burada
+    // büyük dosya eşzamanlı kopyalanıyordu (bkz. [SafeWrite]). İş kuyrukta
+    // sürer; aynı dosya yeniden açılırsa görüntüleyici onu bekler.
+    unawaited(_restoreOriginal());
     super.dispose();
   }
 
@@ -493,18 +595,34 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Görüntüleyicinin gördüğü yol hiç değişmez — tazeleme [PdfReload] ile,
   /// yani kullanıcı sayfasında ve ölçeğinde kalır.
   Future<void> _writePending(List<int> bytes) async {
-    if (_pdfBackupPath == null) {
-      final dir = await Directory.systemTemp.createTemp('dosya_okuyucu_edit');
-      final backup = p.join(dir.path, p.basename(widget.doc.path));
-      // `copy`: dosya Dart belleğine alınmadan çekirdekte kopyalanır (80 MB'lık
-      // bir PDF'te eskiden 80 MB'lık geçici bir bayt dizisi oluşuyordu).
-      await File(widget.doc.path).copy(backup);
-      _pdfBackupPath = backup;
-      // Uygulama bu ekrandayken öldürülürse `dispose` çalışmaz; günlük,
-      // açılışta özgünün geri yüklenmesini sağlar (bkz. PdfEditJournal).
-      PdfEditJournal.add(widget.doc.path, backup);
+    // Boş/bozuk çıktı kullanıcının dosyasının yerine KONMAZ.
+    if (!PdfBytesCheck.looksValid(bytes)) {
+      throw const FileSystemException('Üretilen PDF geçersiz; dosyaya dokunulmadı');
     }
-    await File(widget.doc.path).writeAsBytes(bytes, flush: true);
+    setState(() => _pdfWriting++);
+    try {
+      if (_pdfBackupPath == null) {
+        final root = PdfEditJournal.backupRoot();
+        final Directory dir;
+        if (root != null) {
+          await Directory(root).create(recursive: true);
+          dir = await Directory(root).createTemp('oturum');
+        } else {
+          dir = await Directory.systemTemp.createTemp('dosya_okuyucu_edit');
+        }
+        final backup = p.join(dir.path, p.basename(widget.doc.path));
+        // `copy`: dosya Dart belleğine alınmadan çekirdekte kopyalanır.
+        await File(widget.doc.path).copy(backup);
+        _pdfBackupPath = backup;
+        // Uygulama bu ekrandayken öldürülürse `dispose` çalışmaz; günlük,
+        // açılışta özgünün geri yüklenmesini sağlar (bkz. PdfEditJournal).
+        PdfEditJournal.add(widget.doc.path, backup);
+      }
+      // Bölünmez yazma: süreç yarıda ölse de dosya ya eski ya yeni hâlinde.
+      await SafeWrite.bytes(widget.doc.path, bytes);
+    } finally {
+      if (mounted) setState(() => _pdfWriting--);
+    }
     if (!mounted) return;
     setState(() {
       _pdfDirty = true;
@@ -515,44 +633,74 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Yedeği geri yazar (kullanıcı "üzerine yaz" demediyse) ve yedeği siler.
   ///
-  /// `dispose` içinden de çağrıldığı için eşzamanlı (sync) dosya işlemi:
-  /// ekran kapanırken bekleyecek bir `await` yok.
-  void _restoreOriginal() {
+  /// **Artık eşzamanlı değil** (2026-09-27): `dispose` içinden de çağrılıyor
+  /// ve eskiden orada büyük dosyayı ana izlekte `copySync` ile kopyalıyordu —
+  /// ekran donuyor, tam o anda öldürülen süreç kullanıcının dosyasını YARIM
+  /// bırakıyordu (0 bayt PDF bulgusu). Geri yazma bölünmez ve
+  /// [PdfRestoreQueue]'da sürer; aynı dosya yeniden açılırsa beklenir.
+  /// Başarısızsa günlük kaydı KALIR ve açılışta yeniden denenir.
+  Future<void> _restoreOriginal() {
     final backup = _pdfBackupPath;
-    if (backup == null) return;
+    if (backup == null) return Future.value();
     _pdfBackupPath = null;
-    try {
-      final file = File(backup);
-      if (!_pdfKeepEdits && file.existsSync()) {
-        // Belleğe almadan çekirdek kopyası (bkz. `_writePending`).
-        file.copySync(widget.doc.path);
+    final keep = _pdfKeepEdits;
+    _pdfKeepEdits = false;
+    final original = widget.doc.path;
+    return PdfRestoreQueue.run(original, () async {
+      try {
+        final file = File(backup);
+        if (!keep && await file.exists()) {
+          await SafeWrite.copy(backup, original);
+        }
+        if (await file.exists()) await file.delete();
+        final dir = file.parent;
+        if (await dir.exists() && await dir.list().isEmpty) {
+          await dir.delete();
+        }
+        PdfEditJournal.remove(original);
+      } catch (_) {
+        // Günlük kaydı kalır; açılışta yeniden denenir.
       }
-      if (file.existsSync()) file.deleteSync();
-      final dir = file.parent;
-      if (dir.existsSync() && dir.listSync().isEmpty) dir.deleteSync();
-      PdfEditJournal.remove(widget.doc.path);
-    } catch (_) {
-      // Yedek geri yazılamadı — dosya kilitli olabilir; günlük kaydı KALIR
-      // ve bir sonraki açılışta yeniden denenir.
-    }
+    });
   }
 
   /// Düzenlemeleri atar: özgün baytları geri yazar ve görüntüyü tazeler.
   Future<void> _discardPending() async {
-    _restoreOriginal();
+    final hadFileEdits = _pdfBackupPath != null;
+    await _restoreOriginal();
     if (!mounted) return;
     setState(() {
       _pdfDirty = false;
+      _pendingMarks.clear();
+      _lastMark = null;
       _pdfText = '';
     });
-    await _reloadPdf();
+    if (hadFileEdits) await _reloadPdf();
   }
 
   /// Bekleyen değişiklikleri kaydeder (nasıl kaydedileceğini SORARAK).
   /// Kaydedildiyse true, vazgeçildiyse false döner.
   Future<bool> _savePendingPdf() async {
-    if (!_pdfDirty) return true;
-    final bytes = await File(widget.doc.path).readAsBytes();
+    if (!_hasUnsaved) return true;
+    final marks = List<_PendingMark>.of(_pendingMarks);
+    List<int> bytes;
+    try {
+      bytes = await File(widget.doc.path).readAsBytes();
+      // Ekranda bekleyen vurgular kaydedilecek baytlara İZOLATTA işlenir;
+      // özgün dosyaya henüz dokunulmaz (kullanıcı "kopya" diyebilir).
+      if (marks.isNotEmpty) {
+        if (mounted) setState(() => _pdfWriting++);
+        try {
+          bytes = await PdfAnnotator.addHighlightsInBackground(
+              bytes, [for (final m in marks) m.spec]);
+        } finally {
+          if (mounted) setState(() => _pdfWriting--);
+        }
+      }
+    } catch (e) {
+      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
+      return false;
+    }
     if (!mounted) return false;
     final outcome = await savePdfWithChoice(
       context,
@@ -561,22 +709,66 @@ class _ViewerScreenState extends State<ViewerScreen> {
       note: context.t('vw.edits_applied'),
     );
     if (outcome == null) return false;
-    // "Üzerine yaz" ise dosya zaten güncel — yedek atılır. Kopya/klasör
-    // seçildiyse özgün belge ekrandan çıkarken eski hâline döndürülür.
     if (outcome.overwritten) {
-      _pdfKeepEdits = true;
-      // Kullanıcı kaydetti: çökme sonrası geri yükleme artık YANLIŞ olur
-      // (kaydettiği düzenlemeyi geri alırdı).
-      PdfEditJournal.remove(widget.doc.path);
+      // Kaydedildi: oturum KAPANIR. Yedek silinir, günlük düşer (çökme sonrası
+      // geri yükleme artık yanlış olurdu); sonraki düzenleme yeni bir yedekle
+      // başlar. Eskiden `_pdfKeepEdits` true kalıyordu ve kaydettikten sonra
+      // yapılıp "kaydetme" denen düzenlemeler dosyada KALIYORDU.
+      if (_pdfBackupPath != null) {
+        _pdfKeepEdits = true;
+        await _restoreOriginal(); // bayrağı da sıfırlar
+      }
+      if (marks.isNotEmpty && mounted) {
+        // Vurgular artık dosyada: belge tazelenince pdfium çizer, üstümüzdeki
+        // çizim ancak ondan SONRA kalkar (arada bir kare boş kalmasın).
+        await _reloadPdf();
+      }
     }
-    if (mounted) setState(() => _pdfDirty = false);
+    if (mounted) {
+      setState(() {
+        _pdfDirty = false;
+        _pendingMarks.removeWhere(marks.contains);
+        _lastMark = null;
+      });
+    }
     return true;
+  }
+
+  /// Bekleyen vurguları dosyaya yazar (kaydedilmemiş düzenleme olarak).
+  ///
+  /// Dosyayı değiştiren başka bir işten (yerinde metin düzenleme, sayfa
+  /// döndürme, dosyadaki vurguyu silme) HEMEN ÖNCE çağrılır: o iş dosyanın
+  /// baytlarıyla çalışır ve bekleyen vurguları bilmez.
+  Future<bool> _flushPendingMarks() async {
+    if (_pendingMarks.isEmpty) return true;
+    final marks = List<_PendingMark>.of(_pendingMarks);
+    try {
+      final bytes = await File(widget.doc.path).readAsBytes();
+      final out = await PdfAnnotator.addHighlightsInBackground(
+          bytes, [for (final m in marks) m.spec]);
+      if (!mounted) return false;
+      await _writePending(out);
+      if (mounted) {
+        setState(() {
+          _pendingMarks.removeWhere(marks.contains);
+          if (marks.contains(_lastMark)) _lastMark = null;
+        });
+      }
+      return true;
+    } catch (e) {
+      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
+      return false;
+    }
   }
 
   /// Ekrandan çıkarken / başka bir PDF aracına geçerken sorulan soru.
   /// Devam edilebilirse true döner.
   Future<bool> _confirmLeavePending() async {
-    if (!_pdfDirty) return true;
+    if (_pdfWriting > 0) {
+      _snack(context.t('vw.saving_wait'));
+      return false;
+    }
+    if (!_hasUnsaved) return true;
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1147,11 +1339,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return _textController?.text ?? widget.doc.plainText;
   }
 
-  void _openChat() {
-    Navigator.of(context).push(MaterialPageRoute(
+  /// AI sohbeti — PDF'te okunan sayfa odak bağlamı olarak gider (uzun
+  /// kitapta bağlam belgenin başından kesiliyordu; soru çoğu zaman bu sayfa).
+  Future<void> _openChat() async {
+    String? focus;
+    // Etiket await'ten ÖNCE (asenkron boşluktan sonra `context` kullanılmaz).
+    final label = context.t('chat.page_label', {'n': _pdfPage});
+    final doc = _pdfDoc;
+    if (_isPdf && doc != null && _pdfPage >= 1 && _pdfPage <= doc.pages.length) {
+      try {
+        final text = await doc.pages[_pdfPage - 1].loadText();
+        focus = text.fullText;
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ChatScreen(
         fileContext: _documentText,
         fileName: widget.doc.name,
+        focusText: focus,
+        focusLabel: label,
       ),
     ));
   }
@@ -1199,12 +1406,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
           path: widget.doc.path,
           bytes: bytes,
           pageCount: pdf.pages.length,
+          sampleText: _pdfText.length > 3000
+              ? _pdfText.substring(0, 3000)
+              : _pdfText,
         );
         return;
       }
       await TranslateFlow.runDocument(
         context,
         title: doc.name,
+        sample: _pdfText.length > 3000 ? _pdfText.substring(0, 3000) : _pdfText,
         load: (progress) => DocTranslate.collectPdfPages(
           pdf,
           onLayer: (done, total) => progress.status(
@@ -1359,7 +1570,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Bekleyen PDF düzenlemesi varken geri tuşu doğrudan çıkmaz: önce
     // "kaydetmek ister misiniz?" sorulur (2026-07-26 kullanıcı isteği).
     return PopScope(
-      canPop: !_pdfDirty,
+      canPop: !_hasUnsaved && _pdfWriting == 0,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final leave = await _confirmLeavePending();
@@ -1373,7 +1584,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return OfficeShell(
       kind: doc.kind,
       title: doc.name,
-      dirty: _dirty || _pdfDirty,
+      dirty: _dirty || _hasUnsaved,
       tabBar: _findOpen ? _findBar() : null,
       subtitle: _isPdf && _pageCount > 0
           ? context.t('shell.pages', {'n': _pageCount})
@@ -1390,7 +1601,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             icon: const Icon(Icons.toc),
             onPressed: _showOutline,
           ),
-          if (_pdfDirty)
+          if (_hasUnsaved)
             IconButton(
               tooltip: context.t('vw.save_edits'),
               icon: const Icon(Icons.save_outlined),
@@ -1484,6 +1695,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
             // arama çubuğunda ve alttaki sayfa rozetine dokununca (2026-07-26:
             // "nerede olduğu anlaşılmıyor, kişiler bulamaz").
             DocMoreItem(Icons.numbers, context.t('vw.goto_page'), _askGoToPage),
+            // Bu sayfayı yıldızla (2026-09-27) — rozete basılı tutmakla aynı.
+            DocMoreItem(
+              Icons.bookmark_add_outlined,
+              context.t('pn.star'),
+              () => _toggleBookmark(_pdfPage),
+              selected: PdfBookmarks.isMarked(widget.doc.path, _pdfPage,
+                  size: _docSize),
+            ),
             // E-kitap okuma görünümü (2026-08-06): taranmış PDF'te bile
             // sayfanın METNİ akar.
             DocMoreItem(
@@ -1581,6 +1800,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
         DocMoreGroup(context.t('dm.file'), [
           DocMoreItem(Icons.drive_file_move_outline, context.t('vw.file_ops'),
               _fileActions),
+          // Telefonun ana ekranına kısayol (2026-09-27).
+          if (Platform.isAndroid)
+            DocMoreItem(
+              Icons.add_to_home_screen_rounded,
+              context.t('ea.shortcut'),
+              () => addHomeShortcut(
+                  context, FsEntry.fromEntity(File(widget.doc.path))),
+            ),
         ]),
       ],
     );
@@ -1831,34 +2058,62 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   /// Seçim çubuğu — tasarımı ve taşma güvencesi [PdfSelectionBar]'da.
-  Widget _selectionBar() => PdfSelectionBar(
-        preview: _shorten(_pdfSelection, 34),
-        colors: _highlightColors,
-        selectedColor: _highlightColor,
-        onHighlight: (argb) {
-          setState(() => _highlightColor = argb);
-          _highlightPdf();
-        },
-        onRemoveHighlight: _removeHighlight,
-        onCopy: _copyPdfSelection,
-        // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa düzeni korunur
-        // (tam belge AI düzenlemesinden farkı bu). OCR seçiminde PDF
-        // düzenleyicisine gider — orada OCR satırının üstüne yazılır
-        // (2026-08-06: "taranmış belge deyip düzenleme yaptırmıyor").
-        onEdit: _pdfSelFromOcr ? _openPdfEditor : _startInlineEdit,
-        onTranslate: () => TranslateFlow.run(context, _pdfSelection,
-            title: context.t('vw.selected_text')),
-        highlightTooltip: context.t('vw.highlight_hint'),
-        removeTooltip: context.t('vw.highlight_remove'),
-        copyLabel: context.t('common.copy'),
-        editLabel: context.t('common.edit'),
-        translateLabel: context.t('common.translate'),
-        onClose: () => setState(() {
-          _pdfSelection = '';
-          _pdfSelRects = const [];
-        }),
-        closeTooltip: context.t('common.close'),
-      );
+  Widget _selectionBar() {
+    final marking = _lastMark != null && _pendingMarks.contains(_lastMark);
+    return PdfSelectionBar(
+      preview: _shorten(_pdfSelection, 34),
+      colors: _highlightColors,
+      selectedColor: _highlightColor,
+      marking: marking,
+      onHighlight: _highlightPdf,
+      onPickColor: _recolorLastMark,
+      onUndoHighlight: _undoLastMark,
+      onDone: _clearPdfSelection,
+      onCopy: _copyPdfSelection,
+      // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa düzeni korunur
+      // (tam belge AI düzenlemesinden farkı bu). OCR seçiminde PDF
+      // düzenleyicisine gider — orada OCR satırının üstüne yazılır
+      // (2026-08-06: "taranmış belge deyip düzenleme yaptırmıyor").
+      onEdit: _pdfSelFromOcr ? _openPdfEditor : _startInlineEdit,
+      onTranslate: _translateSelection,
+      moreItems: [
+        PdfBarMenuItem(
+          icon: Icons.format_color_reset_rounded,
+          label: context.t('vw.highlight_remove'),
+          onTap: _removeHighlight,
+        ),
+        PdfBarMenuItem(
+          icon: Icons.auto_awesome_rounded,
+          label: context.t('vw.ask_ai_selection'),
+          onTap: _askAiAboutSelection,
+        ),
+        PdfBarMenuItem(
+          icon: Icons.search_rounded,
+          label: context.t('vw.find_selection'),
+          onTap: _findSelection,
+        ),
+        PdfBarMenuItem(
+          icon: Icons.share_rounded,
+          label: context.t('common.share'),
+          onTap: () {
+            final text = cleanPdfCopyText(_pdfSelection);
+            if (text.isNotEmpty) Share.share(text);
+          },
+        ),
+      ],
+      highlightLabel: context.t('vw.highlight_hint'),
+      copyLabel: context.t('common.copy'),
+      editLabel: context.t('common.edit'),
+      translateLabel: context.t('common.translate'),
+      markedLabel: context.t('vw.highlighted'),
+      undoLabel: context.t('common.undo'),
+      doneLabel: context.t('common.done'),
+      colorTooltip: context.t('vw.highlight_color'),
+      moreTooltip: context.t('common.more'),
+      onClose: _clearPdfSelection,
+      closeTooltip: context.t('common.close'),
+    );
+  }
 
   /// Yerinde düzenleme çubuğu — bkz. [PdfEditBar] (niye ekranın altında
   /// olduğu da orada yazılı).
@@ -1930,24 +2185,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _snack(copied);
   }
 
-  /// Seçili metni PDF'e kalıcı highlight annotation olarak yazar (Syncfusion),
-  /// dosyayı günceller ve pdfrx'i yeniden yükler (vurgu görünsün). Seçim modu
-  /// açık kalır → kullanıcı üst üste vurgulayabilir.
-  ///
-  /// ponytail: annotate+save ana izlekte. Büyük PDF'te takılırsa xlsx gibi
-  /// `compute`'a taşınır (bkz. HAFIZA 2026-07-22 XLSX isolate).
   /// Seçime değen vurguları siler (kullanıcı 2026-08-29: *"vurgu kaldır vb
   /// işlemler yok"*). Seçim vurgunun bir parçasına denk gelse yeter.
+  ///
+  /// Önce EKRANDA bekleyen vurgulara bakılır (anında, dosyaya dokunmadan);
+  /// seçim onlardan birine değmiyorsa dosyadaki vurgular izolatta silinir.
   Future<void> _removeHighlight() async {
     final rects = _pdfSelRects;
     final page = _pdfSelPage;
     if (rects.isEmpty || page < 1) return;
+    final hits = _pendingMarks
+        .where((m) => m.page == page && m.touches(rects))
+        .toList();
+    if (hits.isNotEmpty) {
+      setState(() {
+        _pendingMarks.removeWhere(hits.contains);
+        if (hits.contains(_lastMark)) _lastMark = null;
+        _pdfSelection = '';
+        _pdfSelRects = const [];
+      });
+      _snack(context.t('vw.highlight_removed', {'n': hits.length}));
+      return;
+    }
+    if (_pdfWriting > 0 || !await _flushPendingMarks()) return;
     try {
       final bytes = await _fileService.readBytes(widget.doc.path);
-      final (out, removed) = await PdfAnnotator.removeHighlights(
+      final (out, removed) = await PdfAnnotator.removeHighlightsInBackground(
         bytes: bytes,
         pageIndex: page - 1,
-        pdfRects: rects,
+        rects: [for (final r in rects) [r.left, r.top, r.right, r.bottom]],
       );
       if (!mounted) return;
       if (removed == 0) {
@@ -2279,6 +2545,28 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _pdfSelection = '';
       _pdfSelRects = const [];
     });
+    // Düzenlenen satır düzenleme çubuğunun (ve birazdan klavyenin) üstünde
+    // kalsın — klavye açılınca [_onPdfViewSizeChanged] yeniden hizalar.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _revealAboveBar(page, rects, barHeight: 170);
+    });
+    _pdfEditFont = null;
+    unawaited(_probeEditFont(page, rects));
+  }
+
+  /// Düzenlenen satırın yazı tipini belgeden yoklar (arka planda). Çok büyük
+  /// belgede (e-kitap) atlanır: yalnız önizleme için bütün dosyayı
+  /// ayrıştırmaya değmez — kaydederken yedek yol zaten ölçüyor.
+  Future<void> _probeEditFont(int page, List<PdfRect> rects) async {
+    if (_docSize > 30 * 1024 * 1024 || rects.isEmpty) return;
+    try {
+      final bytes = await File(widget.doc.path).readAsBytes();
+      final r = rects.first;
+      final probe = await PdfPageEdit.textStyleAtInBackground(bytes, page - 1,
+          (r.left + r.right) / 2, (r.top + r.bottom) / 2);
+      if (!mounted || _pdfEdit == null || probe.font.isEmpty) return;
+      setState(() => _pdfEditFont = PdfFontClass.of(probe.font));
+    } catch (_) {}
   }
 
   void _cancelInlineEdit() {
@@ -2376,6 +2664,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     FocusScope.of(context).unfocus();
     setState(() => _pdfEditBusy = true);
+    // Bekleyen vurgular önce dosyaya: düzenleme dosyanın baytlarıyla çalışır.
+    if (!await _flushPendingMarks()) {
+      if (mounted) setState(() => _pdfEditBusy = false);
+      return;
+    }
+    if (!mounted) return;
     try {
       final applied = await PdfEditFlow.apply(
         context,
@@ -2417,7 +2711,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Değişiklik bekleyen düzenleme olarak durur; çıkarken bir kez sorulur —
   /// metin düzenleme ve vurgulama ile aynı akış.
   Future<void> _rotateCurrentPage(int quarterTurns) async {
-    if (_pdfBusy) return;
+    if (_pdfBusy || _pdfWriting > 0) return;
+    // Bekleyen vurgular önce dosyaya: döndürme koordinatları değiştirir.
+    if (!await _flushPendingMarks() || !mounted) return;
     final page = _livePdfPage() ?? _pdfPage;
     if (page < 1) return;
     setState(() => _pdfBusy = true);
@@ -2442,29 +2738,131 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
-  Future<void> _highlightPdf() async {
+  /// **Vurgula** — son kullanılan renkle, ANINDA, belgeyi yeniden
+  /// yüklemeden (bkz. [_pendingMarks]). Seçim kapanmaz: çubuk vurgu kipine
+  /// geçer, renk değiştirilebilir ya da tek dokunuşla geri alınabilir
+  /// (kullanıcı: *"yanlışlıkla basarsan hemen vurgulama yapılıp düzenleme
+  /// ekranı kapanıyor"*).
+  void _highlightPdf() {
     final rects = _pdfSelRects;
     final page = _pdfSelPage;
     if (rects.isEmpty || page < 1) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      final mark = _PendingMark(page, List.of(rects), _highlightColor);
+      _pendingMarks.add(mark);
+      _lastMark = mark;
+    });
+  }
+
+  /// Vurgu kipinde renk: az önceki vurgunun rengi değişir ve sonrakiler için
+  /// hatırlanır.
+  void _recolorLastMark(int argb) {
+    setState(() {
+      _highlightColor = argb;
+      _lastHighlightColor = argb;
+      _lastMark?.color = argb;
+    });
+  }
+
+  /// Vurgu kipinde Geri al.
+  void _undoLastMark() {
+    final mark = _lastMark;
+    if (mark == null) return;
+    setState(() {
+      _pendingMarks.remove(mark);
+      _lastMark = null;
+    });
+  }
+
+  /// Seçimin **yerinde** çevirisi (kart; eski üç pencereli akış yerine).
+  void _translateSelection() {
+    final text = cleanPdfCopyText(_pdfSelection);
+    if (text.isEmpty) return;
+    QuickTranslateSheet.show(context, text,
+        title: context.t('vw.selected_text'));
+  }
+
+  /// Seçim hakkında AI'ya sor (açıkla / basitleştir / özetle / terimler).
+  void _askAiAboutSelection() {
+    final text = cleanPdfCopyText(_pdfSelection);
+    if (text.isEmpty) return;
+    QuickAiSheet.show(
+      context,
+      selection: text,
+      documentName: widget.doc.name,
+      documentText: _documentText,
+    );
+  }
+
+  /// Seçilen ifadeyi belgenin TAMAMINDA arar (arama çubuğunu açar).
+  void _findSelection() {
+    final text = cleanPdfCopyText(_pdfSelection).split('\n').first.trim();
+    if (text.isEmpty) return;
+    _clearPdfSelection();
+    if (!_findOpen) _toggleFind();
+    _findCtl.text = text;
+    _runFind(text);
+  }
+
+  /// Seçimi kapatır (vurgular kalır).
+  void _clearPdfSelection() {
+    setState(() {
+      _pdfSelection = '';
+      _pdfSelRects = const [];
+      _lastMark = null;
+    });
+  }
+
+  /// Bekleyen vurguları sayfanın üstüne çizer.
+  ///
+  /// Çarpımsal harman: yazının siyahı siyah kalır, yalnız kağıt boyanır —
+  /// dosyaya yazılan vurgunun (pdfium'un çizdiği) görünümüyle aynı.
+  void _paintPendingMarks(Canvas canvas, Rect pageRect, PdfPage page) {
+    if (_pendingMarks.isEmpty) return;
+    for (final m in _pendingMarks) {
+      if (m.page != page.pageNumber) continue;
+      final paint = Paint()
+        ..color = Color(m.color)
+            .withValues(alpha: PdfAnnotator.highlightOpacity)
+        ..blendMode = BlendMode.multiply;
+      for (final r in m.rects) {
+        canvas.drawRect(
+            r.toRectInPageRect(page: page, pageRect: pageRect), paint);
+      }
+    }
+  }
+
+  /// Seçim (ya da düzenlenen satır) alttaki çubuğun ARKASINDA kalmasın.
+  ///
+  /// Kullanıcı: *"alt alanda bir yazı seçtiğimde düzenleme alanı açılınca
+  /// yazı altta kalıyor, ona göre sayfa odağı değişmeli."* Çubuk sayfanın
+  /// üstünde yüzüyor; seçilen satır ekranın alt ~yarısındaysa çubuğun altında
+  /// kalıyordu. [barHeight] kadar pay bırakılarak satır görünür alana
+  /// kaydırılır (yakınlaştırma değişmez, en az kaydırma).
+  void _revealAboveBar(int page, List<PdfRect> rects,
+      {double barHeight = 190}) {
+    if (rects.isEmpty || page < 1) return;
     try {
-      final bytes = await _fileService.readBytes(widget.doc.path);
-      final out = await PdfAnnotator.addHighlight(
-        bytes: bytes,
-        pageIndex: page - 1,
-        pdfRects: rects,
-        colorArgb: _highlightColor,
-      );
-      if (!mounted) return;
-      setState(() {
-        _pdfSelection = '';
-        _pdfSelRects = const [];
-      });
-      // Vurgu da metin düzenlemesi gibi bekleyen değişikliktir: özgün dosyaya
-      // dokunulmaz, çıkarken bir kez kaydedilir.
-      await _writePending(out);
-      if (mounted) _snack(context.t('vw.highlighted'));
-    } catch (e) {
-      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
+      Rect? area;
+      for (final r in rects) {
+        final rect =
+            _pdfController.calcRectForRectInsidePage(pageNumber: page, rect: r);
+        area = area == null ? rect : area.expandToInclude(rect);
+      }
+      if (area == null) return;
+      final zoom =
+          _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
+      final visible = _pdfController.visibleRect;
+      final want = Rect.fromLTRB(area.left, area.top - 24 / zoom, area.right,
+          area.bottom + (barHeight + 24) / zoom);
+      // Çok uzun seçim (ekrandan büyük) için kaydırma anlamsız; pdfrx o
+      // durumda yakınlaştırmayı değiştirirdi.
+      if (want.height >= visible.height) return;
+      if (want.bottom <= visible.bottom && want.top >= visible.top) return;
+      _pdfController.ensureVisible(want);
+    } catch (_) {
+      // Görüntüleyici henüz hazır değilse sessizce atla.
     }
   }
 
@@ -2680,67 +3078,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _snack(context.t('vw.still_loading'));
       return;
     }
-    var target = _pdfPage.toDouble();
-    final controller = TextEditingController(text: '$_pdfPage')
-      ..selection =
-          TextSelection(baseOffset: 0, extentOffset: '$_pdfPage'.length);
-
-    int resolve() {
-      final typed = int.tryParse(controller.text.trim());
-      return (typed ?? target.round()).clamp(1, count);
-    }
-
-    final page = await showDialog<int>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: Text(context.t('vw.goto_page_short')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: context.t('vw.page_number', {'count': count}),
-                ),
-                onChanged: (v) {
-                  final n = int.tryParse(v.trim());
-                  if (n != null) {
-                    setLocal(() => target = n.clamp(1, count).toDouble());
-                  }
-                },
-                onSubmitted: (_) => Navigator.pop(ctx, resolve()),
-              ),
-              if (count > 1)
-                Slider(
-                  value: target.clamp(1, count.toDouble()),
-                  min: 1,
-                  max: count.toDouble(),
-                  divisions: count - 1,
-                  label: '${target.round()}',
-                  onChanged: (v) => setLocal(() {
-                    target = v;
-                    controller.text = '${v.round()}';
-                  }),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(context.t('common.cancel'))),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, resolve()),
-              child: Text(context.t('common.go')),
-            ),
-          ],
-        ),
-      ),
+    final page = await PdfPageNavigator.show(
+      context,
+      document: _pdfDoc,
+      current: _pdfPage,
+      count: count,
+      previous: _pageBeforeJump,
+      bookmarks: [
+        for (final b in PdfBookmarks.of(widget.doc.path, size: _docSize)) b.page
+      ],
+      onToggleBookmark: _toggleBookmark,
     );
-    controller.dispose();
-    if (page == null) return;
+    if (page == null || !mounted) return;
     await _goToPdfPage(page.clamp(1, count), count);
   }
 
@@ -2789,6 +3138,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// başarısızsa nerede kalındığı. Sessizce yanlış yerde bırakmak, kullanıcının
   /// "çalışmıyor" deyip nedenini bilememesi demekti.
   Future<void> _goToPdfPage(int target, int total) async {
+    if (target != _pdfPage) _pageBeforeJump = _pdfPage;
     // Klavye kapanışı + düzen yerleşmesi bitmeden atlamak boşuna: pdfrx
     // görünüm boyu değişince bulunulan sayfaya geri çekiyor.
     final ready = await _waitViewerSettled();
@@ -2813,8 +3163,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (arrived) {
       // Rozet pdfrx'in tahminiyle değil, gerçekten gidilen sayfayla
       // güncellensin — yoksa "8'e gittim ama altta 7 yazıyor" olurdu.
+      // Başarı bildirimi YOK (2026-09-27): rozet zaten yeni sayfayı
+      // gösteriyor; "2. sayfa (toplam 3239)" şeridi ekranın altını boşuna
+      // kapatıyordu.
       if (_pdfPage != target) setState(() => _pdfPage = target);
-      _snack(context.t('vw.page_of', {'n': target, 'total': total}));
     } else {
       _snack(context.t('vw.page_jump_failed_total', {
         'target': target,
@@ -2888,45 +3240,182 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
-  /// Kaydırma çubuğunun topuzu: üstünde güncel sayfa numarası.
+  /// Kaydırma çubuğunun topuzu.
+  ///
+  /// 2026-09-27: eskiden sağ üstte büyük, dolu mavi bir sekmeydi ve alttaki
+  /// rozetle AYNI numarayı gösteriyordu (kullanıcının ekran görüntülerinde
+  /// "5" iki kez). Şimdi ince, yarı saydam bir tutamaç: yakalanabileceği
+  /// biçiminden (⇕) belli, numara küçük.
   Widget _scrollThumb(int? pageNumber) {
-    // Kenara yapışık "sekme": sağ kenarda düz, içe bakan tarafı yuvarlak —
-    // tutulup sürüklenebileceği biçiminden okunur.
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.primary,
-      elevation: 3,
-      shadowColor: Colors.black38,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.horizontal(
-          left: Radius.circular(20),
-          right: Radius.circular(6),
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
+      elevation: 2,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.horizontal(
+          left: Radius.circular(14),
+          right: Radius.circular(4),
         ),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
       ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.unfold_more_rounded, size: 16, color: scheme.primary),
+          Text(
+            '${pageNumber ?? _pdfPage}',
+            maxLines: 1,
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// PDF açılamadığında gösterilen kart.
+  ///
+  /// Eskiden pdfrx'in varsayılanı çıkıyordu: mavi zeminde
+  /// "PdfException: Failed to load PDF document (FPDF_GetLastError=3)" ve
+  /// yığın izi. Kullanıcı ne olduğunu, ne yapabileceğini anlamıyordu.
+  Widget _pdfErrorBanner(BuildContext context, Object error,
+      StackTrace? stackTrace, PdfDocumentRef documentRef) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    var size = -1;
+    try {
+      size = File(widget.doc.path).lengthSync();
+    } catch (_) {}
+    final canRecover = PdfEditJournal.hasStale(widget.doc.path);
+    final reason = size == 0
+        ? context.t('vw.pdf_error_empty')
+        : context.t('vw.pdf_error_broken');
+    return ColoredBox(
+      color: scheme.surface,
       child: Center(
-        child: Text(
-          '${pageNumber ?? _pdfPage}',
-          style: TextStyle(
-            color: scheme.onPrimary,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const [FontFeature.tabularFigures()],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.broken_image_outlined,
+                    size: 32, color: scheme.onErrorContainer),
+              ),
+              const SizedBox(height: 16),
+              Text(context.t('vw.pdf_error_title'),
+                  textAlign: TextAlign.center, style: text.titleMedium),
+              const SizedBox(height: 8),
+              Text(reason,
+                  textAlign: TextAlign.center,
+                  style: text.bodyMedium
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  if (canRecover)
+                    FilledButton.icon(
+                      onPressed: () async {
+                        PdfEditJournal.recover(only: widget.doc.path);
+                        await _reloadPdf();
+                      },
+                      icon: const Icon(Icons.restore_rounded),
+                      label: Text(context.t('vw.pdf_error_restore')),
+                    ),
+                  FilledButton.tonalIcon(
+                    onPressed: _reloadPdf,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: Text(context.t('common.retry')),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        EntryOpener.openExternally(context, widget.doc.path),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: Text(context.t('fm.open_with_other')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('$error',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: text.bodySmall?.copyWith(color: scheme.outline)),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// PDF sayfa numarası rozeti — aynı zamanda "sayfaya git" düğmesi.
-  ///
-  /// Simge ve "git" yazısı bilerek duruyor: rozet eskiden düz metindi ve
-  /// kullanıcı dokunulabilir olduğunu anlamıyordu. Görünüm ortak [DocPill].
-  Widget _pageBadge(String text) {
-    return DocPill(text: text, icon: Icons.unfold_more, onTap: _askGoToPage);
+  /// PDF sayfa rozeti: dokununca sayfa gezgini, uzun basınca yıldızla.
+  Widget _pageBadge() {
+    return PdfPageChip(
+      page: _pdfPage,
+      count: _pageCount,
+      bookmarked:
+          PdfBookmarks.isMarked(widget.doc.path, _pdfPage, size: _docSize),
+      onTap: _askGoToPage,
+      onLongPress: () => _toggleBookmark(_pdfPage),
+    );
+  }
+
+  /// Sayfayı yıldızlar / yıldızını kaldırır.
+  Future<bool> _toggleBookmark(int page) async {
+    HapticFeedback.selectionClick();
+    final now =
+        await PdfBookmarks.toggle(widget.doc.path, page, size: _docSize);
+    if (!mounted) return now;
+    setState(() {});
+    _snack(context.t(now ? 'pn.starred' : 'pn.unstarred', {'n': page}));
+    return now;
+  }
+
+  /// Yıldızlı sayfanın sağ üst köşesindeki kurdele.
+  Widget? _bookmarkRibbon(PdfPage page, Rect pageRect) {
+    if (!PdfBookmarks.isMarked(widget.doc.path, page.pageNumber,
+        size: _docSize)) {
+      return null;
+    }
+    final w = (pageRect.width * 0.045).clamp(12.0, 28.0);
+    return Positioned(
+      top: 0,
+      right: w,
+      child: IgnorePointer(
+        child: Icon(Icons.bookmark_rounded,
+            size: w * 1.6,
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.85)),
+      ),
+    );
   }
 
   Widget _buildBody(LoadedDoc doc) {
     switch (doc.kind) {
       case DocKind.pdf:
+        // Önceki oturumun özgün baytları geri yazılıyor: bitmeden belge
+        // açılırsa kaydedilmemiş düzenleme özgün sanılırdı.
+        if (_waitingRestore) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        // Kaldığın yer henüz okunmadı (soğuk açılış, milisaniyeler).
+        if (!_resumeReady) {
+          return ColoredBox(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest);
+        }
         // Ctrl/Cmd+C: seçili metni panoya kopyalar (masaüstü alışkanlığı —
         // Chrome'un PDF görüntüleyicisiyle aynı). Focus çevresi klavye
         // olayını alabilmek için; arama kutusu gibi alanlar açılınca odağı
@@ -2991,6 +3480,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
                         pagePaintCallbacks: [
+                          _paintPendingMarks,
                           if (_pdfSearcher != null)
                             _pdfSearcher!.pageTextMatchPaintCallback,
                           if (_ocrSearch != null) _paintOcrSearchMatches,
@@ -3003,12 +3493,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                           PdfViewerScrollThumb(
                             controller: _pdfController,
                             orientation: ScrollbarOrientation.right,
-                            thumbSize: const Size(44, 40),
+                            thumbSize: const Size(34, 46),
                             thumbBuilder:
                                 (ctx, thumbSize, pageNumber, controller) =>
                                     _scrollThumb(pageNumber),
                           ),
                         ],
+                        // pdfium'un ham yığın izli mavi ekranı yerine anlaşılır
+                        // kart (2026-09-27: 0 bayt kalan PDF bulgusu).
+                        errorBannerBuilder: _pdfErrorBanner,
                         // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
                         linkHandlerParams: PdfLinkHandlerParams(
                           onLinkTap: _onPdfLink,
@@ -3042,13 +3535,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                             // kaydedilmez), yazma gecikmeli.
                             if (context.read<AppState>().resumePosition) {
                               ReadingPositions.record(
-                                  widget.doc.path, page, _pageCount);
+                                  widget.doc.path, page, _pageCount,
+                                  size: _docSize);
                             }
                           }
                         },
                         // Yerinde düzenleme açıkken seçim katmanı kurulmaz: kutunun
                         // içindeki dokunuşları yutar, imleç konumlandırılamazdı.
                         pageOverlaysBuilder: (context, pageRect, page) => [
+                          if (_bookmarkRibbon(page, pageRect) case final r?) r,
                           if (_pdfEdit != null &&
                               _pdfEdit!.page == page.pageNumber &&
                               _pdfEditCtl != null &&
@@ -3063,6 +3558,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                               busy: _pdfEditBusy,
                               onSubmit: _submitInlineEdit,
                               fieldKey: _pdfEditFieldKey,
+                              family: _pdfEditFont?.previewFamily ??
+                                  PdfInlineEditor.fontFamily,
+                              bold: _pdfEditFont?.bold ?? false,
+                              italic: _pdfEditFont?.italic ?? false,
                             )
                           else if (_pdfEdit == null)
                             PdfSelectLayer(
@@ -3076,6 +3575,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
                                   (t, rects, pageNo, preceding, fromOcr) {
                                 if (mounted) {
                                   setState(() {
+                                    // Yeni seçim: çubuk vurgu kipinden çıkar.
+                                    _lastMark = null;
                                     _pdfSelection = t;
                                     _pdfSelRects = rects;
                                     _pdfSelPage = t.isEmpty ? 0 : pageNo;
@@ -3087,6 +3588,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
                               onSelectingChanged: (s) {
                                 if (mounted && _pdfSelecting != s) {
                                   setState(() => _pdfSelecting = s);
+                                  // Parmak kalktı: seçilen satır çubuğun
+                                  // arkasında kalmasın.
+                                  if (!s && _pdfSelection.trim().isNotEmpty) {
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                      if (mounted) {
+                                        _revealAboveBar(
+                                            _pdfSelPage, _pdfSelRects);
+                                      }
+                                    });
+                                  }
                                 }
                               },
                               onDragAt: _onPdfSelDragAt,
@@ -3106,8 +3618,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     child: Center(
                       // Rozet İngilizce/Arapça arayüzde de çevrilmeli — eskiden
                       // "— sayfaya git" kısmı koda gömülü Türkçeydi.
-                      child: _pageBadge('$_pdfPage / $_pageCount · '
-                          '${context.t('vw.goto_page_short')}'),
+                      child: _pageBadge(),
                     ),
                   ),
                 if (_pdfEdit == null && _pdfSelection.trim().isNotEmpty)
@@ -3497,6 +4008,43 @@ class _SpreadsheetView extends StatelessWidget {
 }
 
 /// Sayfa üzerinde açık olan yerinde düzenleme kutusunun durumu.
+/// Ekranda bekleyen (henüz dosyaya yazılmamış) bir vurgu.
+class _PendingMark {
+  /// 1-tabanlı sayfa numarası.
+  final int page;
+
+  /// Satır kutuları (pdfium PDF koordinatı).
+  final List<PdfRect> rects;
+
+  int color;
+
+  _PendingMark(this.page, this.rects, this.color);
+
+  /// Dosyaya yazılacak biçim (isolate sınırından geçer).
+  PdfHighlightSpec get spec => (
+        pageIndex: page - 1,
+        rects: [
+          for (final r in rects) [r.left, r.top, r.right, r.bottom]
+        ],
+        color: color,
+      );
+
+  /// [other] kutularından biri bu vurgunun bir kutusuna değiyor mu?
+  bool touches(List<PdfRect> other) {
+    for (final a in rects) {
+      for (final b in other) {
+        if (a.left < b.right &&
+            b.left < a.right &&
+            a.bottom < b.top &&
+            b.bottom < a.top) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+}
+
 class _InlineEdit {
   /// 1-tabanlı sayfa numarası.
   final int page;

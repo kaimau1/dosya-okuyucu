@@ -20,6 +20,7 @@ import '../../core/sheet_overflow.dart';
 import '../../core/sheet_text_measure.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
+import '../../services/fm/safe_write.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/csv_codec.dart';
@@ -954,11 +955,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final target = widget.savePath ?? widget.path;
     try {
       final bytes = editor.save();
-      await File(target).writeAsBytes(bytes);
+      await SafeWrite.bytes(target, bytes);
       // Çevrilmiş dosyada çalışma kopyası da tazelenir: kullanıcı kaydettikten
       // sonra düzenlemeye devam edip yine kaydedebilsin.
       if (widget.savePath != null) {
-        await File(widget.path).writeAsBytes(bytes);
+        await SafeWrite.bytes(widget.path, bytes);
       }
       // "Yaptıklarım" defteri: kaydedilen HEDEF yazılır (.xls açıldıysa
       // kullanıcının elindeki dosya .xlsx olan odur).

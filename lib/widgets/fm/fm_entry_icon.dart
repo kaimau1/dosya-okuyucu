@@ -37,6 +37,13 @@ abstract final class FmColors {
   static const video = Color(0xFFD9433B);
   static const audio = Color(0xFF12998A);
   static const archive = Color(0xFF9C6B45);
+
+  // Arşiv biçimlerinin kendi renkleri (2026-09-27): hepsi aynı toprak
+  // rengindeydi, ZIP ile RAR ayırt edilmiyordu.
+  static const zip = Color(0xFFD08A1E);
+  static const rar = Color(0xFF8250C4);
+  static const sevenZip = Color(0xFF3F5566);
+  static const tarball = Color(0xFF8D6246);
   static const apk = Color(0xFF3A9A4A);
   static const other = Color(0xFF76808C);
 
@@ -91,11 +98,20 @@ abstract final class FmColors {
   // Material glif ailesinden bu uygulamanın paletine oturan bir eşleme
   // kuruldu.
 
+  static const _archiveExt = {
+    'zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'zst'
+  };
+
   /// Uzantıya özel glif + renk (yoksa null → kategori glifi kullanılır).
   static (IconData, Color)? forExtension(String ext) => switch (ext) {
         'apk' || 'xapk' || 'apks' || 'aab' => (Icons.android_rounded, apk),
-        'zip' || 'rar' || '7z' || 'tar' || 'gz' || 'bz2' || 'xz' || 'zst' =>
-          (Icons.folder_zip_rounded, archive),
+        // Arşivler biçime göre renk alır (2026-09-27): hepsi aynı toprak
+        // rengindeydi, ZIP ile RAR ayırt edilmiyordu.
+        'zip' => (Icons.folder_zip_rounded, zip),
+        'rar' => (Icons.folder_zip_rounded, rar),
+        '7z' => (Icons.folder_zip_rounded, sevenZip),
+        'tar' || 'gz' || 'tgz' || 'bz2' || 'xz' || 'zst' =>
+          (Icons.folder_zip_rounded, tarball),
         'epub' || 'mobi' || 'azw' || 'azw3' || 'fb2' =>
           (Icons.menu_book_rounded, const Color(0xFF8D5524)),
         'ttf' || 'otf' || 'woff' || 'woff2' =>
@@ -195,6 +211,7 @@ abstract final class FmColors {
     final label = labelForExtension(ext);
     return FmGlyphSpec(
       folder: false,
+      zipper: entry.category == FmCategory.archive || _archiveExt.contains(ext),
       color: color,
       // Uzantı şeride yazıldığında glif GEREKSİZ: aynı bilgiyi iki kez
       // söyleyip kağıdı kalabalıklaştırırdı. Glif yalnız uzantısız dosyada.

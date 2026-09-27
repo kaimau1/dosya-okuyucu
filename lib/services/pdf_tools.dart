@@ -415,6 +415,8 @@ class PdfTools {
     int colorArgb = 0xFF000000,
     String? password,
     double? fontSize,
+    bool alignBaseline = false,
+    bool oldHasDescender = false,
   }) async {
     if (rawRects.isEmpty) throw ArgumentError('Değiştirilecek alan yok');
     final doc = PdfDocument(inputBytes: bytes, password: password);
@@ -464,9 +466,30 @@ class PdfTools {
             .height,
       );
 
+      final font = PdfTrueTypeFont(fontBytes, size);
+      // **Taban çizgisi hizası** (2026-09-27): yeni yazı kutunun TEPESİNE
+      // yaslanınca satırın taban çizgisinden birkaç punto aşağı/yukarı
+      // oturuyor ve komşu kelimelerden kopuk görünüyordu. Tek satırlık
+      // değişiklikte özgün taban çizgisi tahmin edilir: seçim kutusunun altı
+      // (inen harf varsa punto × 0,21 yukarısı); yazının üstü = taban −
+      // satır yüksekliği × 0,79 (Carlito/Tinos yükselme/satır oranı).
+      var top = bounds.top;
+      if (alignBaseline && !newText.contains('\n')) {
+        final lineH = font.height;
+        final measured = font
+            .measureString(newText,
+                layoutArea: Size(bounds.width, 0),
+                format: PdfStringFormat(wordWrap: PdfWordWrapType.word))
+            .height;
+        if (measured <= lineH * 1.3) {
+          final baseline =
+              bounds.bottom - (oldHasDescender ? size * 0.21 : 0.0);
+          top = baseline - lineH * 0.79;
+        }
+      }
       g.drawString(
         newText,
-        PdfTrueTypeFont(fontBytes, size),
+        font,
         brush: PdfSolidBrush(_color(colorArgb)),
         // **TUZAK (ölçüldü 2026-07-26):** `bounds`'a SINIRLI yükseklik verilir
         // ve metin bir tık taşarsa Syncfusion hiçbir şey çizmez — hata da
@@ -474,7 +497,7 @@ class PdfTools {
         // Yükseklik 0 = sınırsız: sarma genişliğe göre yapılır, sığmayan metin
         // kaybolmak yerine biraz taşar. Zaten [fitFontSize] taşmayı önlüyor;
         // bu yalnız yuvarlama farkına karşı emniyet.
-        bounds: Rect.fromLTWH(bounds.left, bounds.top, bounds.width, 0),
+        bounds: Rect.fromLTWH(bounds.left, top, bounds.width, 0),
         format: PdfStringFormat(
           wordWrap: PdfWordWrapType.word,
           lineAlignment: PdfVerticalAlignment.top,
@@ -762,6 +785,8 @@ class PdfTools {
     int colorArgb = 0xFF000000,
     String? password,
     double? fontSize,
+    bool alignBaseline = false,
+    bool oldHasDescender = false,
   }) =>
       _bg(() => replaceText(
             bytes,
@@ -773,6 +798,8 @@ class PdfTools {
             colorArgb: colorArgb,
             password: password,
             fontSize: fontSize,
+            alignBaseline: alignBaseline,
+            oldHasDescender: oldHasDescender,
           ));
 
   /// İşi ayrı isolate'te koşturur.

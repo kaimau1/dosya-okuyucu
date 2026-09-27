@@ -27,6 +27,12 @@ import '../services/tts_service.dart' show TtsPrefs;
 /// SharedPreferences ile kalıcı. (Firebase giriş/senkronu 2026-09-26'da
 /// KALDIRILDI: derlemelerde yapılandırması hiç yoktu, yani hiçbir kullanıcıda
 /// çalışmıyordu — bkz. HAFIZA.)
+
+/// Varsayılan Gemini modeli (2026-09-27: 2.0/1.5 serisi emekliye ayrıldı ya
+/// da ayrılıyor; 2.5 Flash ücretsiz katmanda en geniş kotalı güncel model).
+/// Anahtar girilince asıl liste API'den çekilir — bu yalnız başlangıç değeri.
+const defaultAiModel = 'gemini-2.5-flash';
+
 class AppState extends ChangeNotifier {
   static const _kApiKey = 'gemini_api_key';
   static const _kModel = 'gemini_model';
@@ -85,7 +91,7 @@ class AppState extends ChangeNotifier {
   late SharedPreferences _prefs;
 
   String _apiKey = '';
-  String _model = 'gemini-2.0-flash';
+  String _model = defaultAiModel;
 
   /// Sırayla denenen API anahtarları (en çok [AiCredentials.maxKeys]).
   List<String> _apiKeys = const [];
@@ -193,7 +199,7 @@ class AppState extends ChangeNotifier {
   /// çalışması imkânsız olurdu, o yüzden boş liste varsayılana döner.
   Future<void> setAiModels(List<String> models) async {
     final clean = AiCredentials(models: models).normalized.models;
-    _models = clean.isEmpty ? const ['gemini-2.0-flash'] : clean;
+    _models = clean.isEmpty ? const [defaultAiModel] : clean;
     _model = _models.first;
     await _prefs.setStringList(_kModels, _models);
     await _prefs.setString(_kModel, _model);
@@ -573,7 +579,7 @@ class AppState extends ChangeNotifier {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     _apiKey = _prefs.getString(_kApiKey) ?? '';
-    _model = _prefs.getString(_kModel) ?? 'gemini-2.0-flash';
+    _model = _prefs.getString(_kModel) ?? defaultAiModel;
     // Liste yoksa (bu sürümden önce kurulmuş uygulama) tekil değerlerden
     // tohumlanır — kullanıcı ayarlarını yeniden girmek zorunda kalmaz.
     _apiKeys = _prefs.getStringList(_kApiKeys) ??

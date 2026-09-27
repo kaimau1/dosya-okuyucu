@@ -162,6 +162,14 @@ abstract final class AiPool {
   /// 404 dönen modeller — arayüz "bu model artık yok" uyarısı gösterir.
   static final Set<String> _deadModels = {};
 
+  /// **Emniyet ağı** (2026-09-27): kullanıcının seçtiği modellerin HEPSİ
+  /// "model yok" (404 / kaldırıldı) derse aynı anahtarla bunlar denenir.
+  /// Google eski modelleri emekliye ayırdıkça (1.5 serisi 2025'te kapandı,
+  /// 2.0 sırada) kurulu uygulamanın AI'sı bir sabah tamamen susuyordu; kullanıcı
+  /// ayarlara girip model değiştirmeyi bilmiyor. Kota/anahtar hatalarında
+  /// DEVREYE GİRMEZ — kullanıcının model seçimine saygı.
+  static const safetyNet = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+
   /// Kaldırılmış/erişilemeyen olduğu görülen modeller.
   static Set<String> get deadModels => Set.unmodifiable(_deadModels);
 
@@ -416,6 +424,31 @@ abstract final class AiPool {
       }
     }
 
+    if (lastFailure == AiFailure.modelMissing) {
+      for (final model in safetyNet) {
+        if (creds.models.contains(model) || _deadModels.contains(model)) {
+          continue;
+        }
+        for (final key in creds.keys) {
+          if (skippedKeys.contains(key)) continue;
+          final slot = AiSlot(key, model);
+          if (_isCooling(slot, now)) continue;
+          try {
+            final value =
+                await action(GeminiService(apiKey: key, model: model));
+            _forgive(slot);
+            return value;
+          } on GeminiException catch (e) {
+            lastError = e;
+            if (classify(e) == AiFailure.modelMissing) {
+              _deadModels.add(model);
+              break;
+            }
+          }
+        }
+      }
+    }
+
     if (!triedAny) {
       throw GeminiException(_allCoolingMessage(creds), statusCode: 429);
     }
@@ -491,7 +524,7 @@ class PooledGemini extends GeminiService {
               ? ''
               : credentials.normalized.keys.first,
           model: credentials.normalized.models.isEmpty
-              ? 'gemini-2.0-flash'
+              ? AiPool.safetyNet.first
               : credentials.normalized.models.first,
         );
 

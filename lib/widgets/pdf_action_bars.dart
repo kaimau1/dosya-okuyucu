@@ -92,12 +92,16 @@ class PdfBarAction extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool emphasized;
 
+  /// Simgenin altına küçük renk çizgisi (Vurgula: şu anki vurgu rengi).
+  final Color? accent;
+
   const PdfBarAction({
     super.key,
     required this.icon,
     required this.label,
     this.onPressed,
     this.emphasized = false,
+    this.accent,
   });
 
   @override
@@ -122,12 +126,30 @@ class PdfBarAction extends StatelessWidget {
             child: Opacity(
               opacity: fade,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icon, size: 22, color: iconColor),
-                    const SizedBox(height: 4),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon(icon, size: 21, color: iconColor),
+                        if (accent != null)
+                          Positioned(
+                            left: 1,
+                            right: 1,
+                            bottom: -3,
+                            child: Container(
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: accent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
                     Text(
                       label,
                       maxLines: 1,
@@ -149,39 +171,75 @@ class PdfBarAction extends StatelessWidget {
   }
 }
 
-/// Metin seçilince çıkan çubuk: başlık (seçilen metin + kapat), **renk
-/// kutucukları + silgi**, altında Kopyala / Düzenle / Çevir.
+/// "Daha fazla" menüsündeki bir satır (seçim çubuğunun ⋯ düğmesi).
+class PdfBarMenuItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const PdfBarMenuItem(
+      {required this.icon, required this.label, required this.onTap});
+}
+
+/// Metin seçilince çıkan çubuk.
+///
+/// ## Üçüncü tur (2026-09-27) — renkler artık ilk bakışta YOK
+/// Kullanıcı: *"vurgu menüsü çok kullanılan bir şey değil, hemen karşımıza
+/// çıkıp yer kaplıyor"* ve *"yanlışlıkla basarsan hemen vurgulama yapılıp
+/// düzenleme ekranı kapanıyor"*. Eski çubuk üç kattı (başlık + renk hapı +
+/// eylemler) ve renk kutucuğuna değen parmak ANINDA vurgulayıp çubuğu
+/// kapatıyordu; geri almanın yolu yoktu.
+///
+/// Şimdi iki kat: başlık (metin · ⋯ · ×) ve dört eylem (Kopyala · Vurgula ·
+/// Düzenle · Çevir). **Vurgula** son kullanılan renkle vurgular ama çubuk
+/// KAPANMAZ: [marking] kipine geçer — renkler ancak o zaman görünür (rengi
+/// değiştir), yanında **Geri al** ve **Bitti**. Yanlış dokunuş tek
+/// dokunuşla geri alınır; vurgu da belgeyi yeniden yüklemeden, anında
+/// çizilir (bkz. görüntüleyicinin bekleyen vurguları).
 class PdfSelectionBar extends StatelessWidget {
   /// Seçilen metnin kısaltılmış hâli (tırnak içinde gösterilir).
   final String preview;
 
   final List<int> colors;
 
-  /// Son kullanılan renk — halkalı ve ✓ ile çizilir.
+  /// Son kullanılan renk — Vurgula düğmesindeki nokta ve seçili kutucuk.
   final int selectedColor;
 
-  /// Renk kutucuğuna dokunulunca. **Doğrudan vurgular:** eskiden önce renk
-  /// seçilip sonra ayrı bir "Vurgula" düğmesine basmak gerekiyordu — iki adım,
-  /// iki ayrı yer. Gerçek PDF okuyucularının yaptığı da tek dokunuş.
-  final void Function(int argb) onHighlight;
+  /// Vurgula (normal kip): son renkle vurgular, çubuk vurgu kipine geçer.
+  final VoidCallback onHighlight;
 
-  /// Silgi: seçime değen vurguları kaldırır (kullanıcı 2026-08-29:
-  /// *"vurgu kaldır vb işlemler yok"*).
-  final VoidCallback onRemoveHighlight;
+  /// Vurgu kipinde renk kutucuğu: az önceki vurgunun rengini değiştirir.
+  final void Function(int argb) onPickColor;
+
+  /// Vurgu kipi: az önceki vurguyu geri al.
+  final VoidCallback onUndoHighlight;
+
+  /// Vurgu kipi: bitti (seçimi kapatır, vurgu kalır).
+  final VoidCallback onDone;
+
+  /// Çubuk vurgu kipinde mi (az önce vurgulandı)?
+  final bool marking;
 
   final VoidCallback onCopy;
   final VoidCallback onEdit;
   final VoidCallback onTranslate;
 
+  /// ⋯ menüsü (vurguyu kaldır, AI'ya sor, paylaş…). Boşsa düğme çizilmez.
+  final List<PdfBarMenuItem> moreItems;
+
   /// Seçimi kapatır (×). Null verilirse düğme çizilmez.
   final VoidCallback? onClose;
 
-  final String highlightTooltip;
-  final String removeTooltip;
+  final String highlightLabel;
   final String copyLabel;
   final String editLabel;
   final String translateLabel;
   final String closeTooltip;
+  final String moreTooltip;
+  final String markedLabel;
+  final String undoLabel;
+  final String doneLabel;
+  final String colorTooltip;
 
   const PdfSelectionBar({
     super.key,
@@ -189,54 +247,98 @@ class PdfSelectionBar extends StatelessWidget {
     required this.colors,
     required this.selectedColor,
     required this.onHighlight,
-    required this.onRemoveHighlight,
+    required this.onPickColor,
+    required this.onUndoHighlight,
+    required this.onDone,
     required this.onCopy,
     required this.onEdit,
     required this.onTranslate,
-    required this.highlightTooltip,
-    required this.removeTooltip,
+    required this.highlightLabel,
     required this.copyLabel,
     required this.editLabel,
     required this.translateLabel,
+    this.marking = false,
+    this.moreItems = const [],
     this.onClose,
     this.closeTooltip = '',
+    this.moreTooltip = '',
+    this.markedLabel = '',
+    this.undoLabel = '',
+    this.doneLabel = '',
+    this.colorTooltip = '',
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return PdfFloatingCard(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (preview.isNotEmpty || onClose != null)
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.bottomCenter,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
                   Container(
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.12),
+                      color: marking
+                          ? Color(selectedColor)
+                          : scheme.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.format_quote_rounded,
-                        size: 16, color: scheme.primary),
+                    child: Icon(
+                        marking
+                            ? Icons.border_color_rounded
+                            : Icons.format_quote_rounded,
+                        size: 16,
+                        color: marking ? Colors.black87 : scheme.primary),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      preview,
+                      marking && markedLabel.isNotEmpty
+                          ? '$markedLabel · $preview'
+                          : preview,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurface,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      style: text.bodyMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
+                  if (moreItems.isNotEmpty && !marking)
+                    PopupMenuButton<int>(
+                      tooltip: moreTooltip.isEmpty ? null : moreTooltip,
+                      icon: Icon(Icons.more_horiz_rounded,
+                          size: 20, color: scheme.onSurfaceVariant),
+                      style: IconButton.styleFrom(
+                          visualDensity: VisualDensity.compact),
+                      position: PopupMenuPosition.over,
+                      onSelected: (i) => moreItems[i].onTap(),
+                      itemBuilder: (_) => [
+                        for (var i = 0; i < moreItems.length; i++)
+                          PopupMenuItem<int>(
+                            value: i,
+                            child: Row(
+                              children: [
+                                Icon(moreItems[i].icon,
+                                    size: 20, color: scheme.primary),
+                                const SizedBox(width: 12),
+                                Flexible(child: Text(moreItems[i].label)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   if (onClose != null)
                     IconButton(
                       tooltip: closeTooltip.isEmpty ? null : closeTooltip,
@@ -250,73 +352,119 @@ class PdfSelectionBar extends StatelessWidget {
                 ],
               ),
             ),
-          // Renkler kendi hap zemininde. **Wrap, Row değil:** kutucuklar
-          // ortalanır ve sığmazsa (yeni renk eklenirse, çok dar ekranda) alt
-          // satıra iner — taşıp kırmızı şerit vermez.
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            if (marking)
+              _MarkingRow(
+                colors: colors,
+                selected: selectedColor,
+                onPick: onPickColor,
+                onUndo: onUndoHighlight,
+                onDone: onDone,
+                undoLabel: undoLabel,
+                doneLabel: doneLabel,
+                colorTooltip: colorTooltip,
+              )
+            else
+              Row(
+                children: [
+                  PdfBarAction(
+                      icon: Icons.content_copy_rounded,
+                      label: copyLabel,
+                      onPressed: onCopy),
+                  PdfBarAction(
+                    icon: Icons.border_color_rounded,
+                    label: highlightLabel,
+                    onPressed: onHighlight,
+                    accent: Color(selectedColor),
+                  ),
+                  PdfBarAction(
+                      icon: Icons.edit_rounded,
+                      label: editLabel,
+                      onPressed: onEdit,
+                      emphasized: true),
+                  PdfBarAction(
+                      icon: Icons.translate_rounded,
+                      label: translateLabel,
+                      onPressed: onTranslate),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Vurgu kipinin satırı: renkler (az önceki vurgunun rengini değiştirir) +
+/// Geri al + Bitti. `Wrap` değil `Row` + `Flexible`: kutucuklar sığmazsa
+/// yatay kayar, düğmeler hep görünür kalır.
+class _MarkingRow extends StatelessWidget {
+  final List<int> colors;
+  final int selected;
+  final void Function(int) onPick;
+  final VoidCallback onUndo;
+  final VoidCallback onDone;
+  final String undoLabel;
+  final String doneLabel;
+  final String colorTooltip;
+
+  const _MarkingRow({
+    required this.colors,
+    required this.selected,
+    required this.onPick,
+    required this.onUndo,
+    required this.onDone,
+    required this.undoLabel,
+    required this.doneLabel,
+    required this.colorTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Flexible(
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 6, left: 2),
-                  child: Icon(Icons.border_color_rounded,
-                      size: 18, color: scheme.onSurfaceVariant),
-                ),
-                for (final argb in colors)
-                  _Swatch(
-                    argb: argb,
-                    selected: argb == selectedColor,
-                    tooltip: highlightTooltip,
-                    onTap: () => onHighlight(argb),
-                  ),
-                Container(
-                  width: 1,
-                  height: 22,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: scheme.outlineVariant,
-                ),
-                Tooltip(
-                  message: removeTooltip,
-                  child: InkResponse(
-                    onTap: onRemoveHighlight,
-                    radius: 22,
-                    child: SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: Icon(Icons.format_color_reset_rounded,
-                          size: 20, color: scheme.onSurfaceVariant),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final argb in colors)
+                    _Swatch(
+                      argb: argb,
+                      selected: argb == selected,
+                      tooltip: colorTooltip,
+                      onTap: () => onPick(argb),
                     ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              PdfBarAction(
-                  icon: Icons.content_copy_rounded,
-                  label: copyLabel,
-                  onPressed: onCopy),
-              PdfBarAction(
-                  icon: Icons.edit_rounded,
-                  label: editLabel,
-                  onPressed: onEdit,
-                  emphasized: true),
-              PdfBarAction(
-                  icon: Icons.translate_rounded,
-                  label: translateLabel,
-                  onPressed: onTranslate),
-            ],
+        ),
+        const SizedBox(width: 6),
+        IconButton.filledTonal(
+          tooltip: undoLabel,
+          onPressed: onUndo,
+          icon: const Icon(Icons.undo_rounded),
+        ),
+        const SizedBox(width: 4),
+        FilledButton(
+          onPressed: onDone,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
           ),
-        ],
-      ),
+          child: Text(doneLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ],
     );
   }
 }
@@ -346,13 +494,13 @@ class _Swatch extends StatelessWidget {
           onTap: onTap,
           radius: 22,
           child: SizedBox(
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 44,
             child: Center(
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                width: selected ? 28 : 24,
-                height: selected ? 28 : 24,
+                width: selected ? 30 : 24,
+                height: selected ? 30 : 24,
                 decoration: BoxDecoration(
                   color: color,
                   shape: BoxShape.circle,
@@ -362,13 +510,6 @@ class _Swatch extends StatelessWidget {
                         : Colors.black.withValues(alpha: 0.08),
                     width: selected ? 2.5 : 1,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.45),
-                      blurRadius: selected ? 8 : 3,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
                 ),
                 child: selected
                     ? const Icon(Icons.check_rounded,

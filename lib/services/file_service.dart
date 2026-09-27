@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 
 import '../models/document.dart';
 import 'csv_codec.dart';
+import 'fm/safe_write.dart';
 import 'legacy_text.dart';
 import 'office_reader.dart';
 import 'text_decode.dart';
@@ -429,8 +430,9 @@ class FileService {
 
   /// İkili içeriği [path]'e yazar (PDF vurgu annotation'ı gibi düzenlenmiş
   /// baytlar için). flush: yeniden açmadan önce disk güncel olsun.
+  /// Bölünmez: yarıda kalırsa özgün dosya yerinde durur ([SafeWrite]).
   Future<void> writeBytes(String path, List<int> bytes) =>
-      File(path).writeAsBytes(bytes, flush: true);
+      SafeWrite.bytes(path, bytes);
 
   int sizeOf(String path) {
     try {

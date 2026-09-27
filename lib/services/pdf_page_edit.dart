@@ -121,6 +121,46 @@ abstract final class PdfPageEdit {
     return null;
   }
 
+  /// Noktadaki metnin puntosu VE yazı tipinin adı (`/BaseFont`).
+  ///
+  /// Üstünü kapatma yedeği yeni yazıyı hangi aileyle (serif/sans) ve
+  /// biçimle (kalın/italik) yazacağını buradan bilir — kullanıcı bulgusu
+  /// 2026-09-27: serif bir kitapta düzeltilen kelime sans ve iri çıkıyordu.
+  static ({double? size, String font}) textStyleAt(
+      List<int> bytes, int pageIndex, double x, double y) {
+    try {
+      final page = PdfPageContext.open(bytes, pageIndex);
+      final names = page.file.fontBaseNames(page.page);
+      for (final paragraph in page.paragraphs()) {
+        if (!paragraph.contains(x, y)) continue;
+        final size = paragraphPointSize(paragraph);
+        String font = '';
+        for (final run in paragraph.runs) {
+          final n = names[run.fontName];
+          if (n != null && n.isNotEmpty) {
+            font = n;
+            break;
+          }
+        }
+        return (size: size > 0 ? size : null, font: font);
+      }
+      // Noktada ayrıştırılabilen paragraf yok (genişlik tablosu olmayan
+      // standart font vb.): sayfanın fontlarından en uzun adlı olanı —
+      // kitap sayfalarında gövde yazısı tek aileden olur, aile tahmini için
+      // yeter; punto bilinmiyor.
+      if (names.isNotEmpty) {
+        final byLength = names.values.toList()
+          ..sort((a, b) => b.length.compareTo(a.length));
+        return (size: null, font: byLength.first);
+      }
+    } catch (_) {}
+    return (size: null, font: '');
+  }
+
+  static Future<({double? size, String font})> textStyleAtInBackground(
+          List<int> bytes, int pageIndex, double x, double y) =>
+      Isolate.run(() => textStyleAt(bytes, pageIndex, x, y));
+
   static Future<double?> pointSizeAtInBackground(
           List<int> bytes, int pageIndex, double x, double y) =>
       Isolate.run(() => pointSizeAt(bytes, pageIndex, x, y));

@@ -1,29 +1,36 @@
-/// **Tek yerden geçen kısa bildirim şeridi (SnackBar).**
+/// **Tek yerden geçen kısa bildirim (toast).**
 ///
-/// KÖK NEDEN (kullanıcı 2026-08-30: *"düzenlerken uyarı yazıları gitmiyor,
-/// elle kapatmak gerekiyor"*): `ScaffoldMessenger` şeritleri **kuyruğa alır**.
-/// Aynı anda birden çok mesaj gösterilmez; ikincisi birincinin 4 saniyesi
-/// dolana kadar bekler, üçüncüsü ikincininkini… PDF'te yerinde düzenleme
-/// yaparken art arda üç dört bildirim çıkabiliyor ("değiştirildi", "metin
-/// taşıyor", "belge kilidi kaldırıldı", ardından kaydetme sonucu) ve toplam
-/// 12-16 saniye boyunca ekranın altı — yani tam da düzenleme çubuğunun
-/// durduğu yer — kapalı kalıyordu. Kullanıcının gördüğü şey buydu: şeritler
-/// bitmiyor, tek tek kaydırıp atmak gerekiyor.
+/// ## Tarihçe
+/// 1. (2026-08-30) *"Uyarı yazıları gitmiyor, elle kapatmak gerekiyor"* —
+///    `ScaffoldMessenger` şeritleri kuyruğa alıyordu; yeni bildirim eskisinin
+///    yerine geçer oldu.
+/// 2. (2026-09-27) Kullanıcı: *"alt alanda çıkan uyarılar çok yukarıda, alt
+///    kısma sığmalı ve bir geri sayım çubuğu ile otomatik kapanmalı"* +
+///    *"alttaki uyarılar gitmiyor"*. İki ayrı kök neden:
+///    - **Yukarıda:** yüzen SnackBar, Scaffold'un alt çubuğunun VE yüzen
+///      düğmenin (AI düğmesi) üstüne yerleşir. Belge ekranında bu, sayfa
+///      rozeti ve dock'un üstünde, ekranın ortasına yakın bir şerit demekti.
+///    - **Gitmiyor:** SnackBar'ın zamanlayıcısını `ScaffoldMessenger` kurar
+///      ve (a) cihazda bir erişilebilirlik hizmeti açıksa
+///      (`accessibleNavigation`) DÜĞMELİ şeritleri hiç kapatmaz, (b) yalnız
+///      mesajı gösteren rota EN ÜSTTEYKEN sayar — üstte bir sayfa/pencere
+///      açıkken süre hiç işlemez. Kalem ekranındaki "2. sayfadan devam
+///      ediliyor · Baştan başla" şeridi bu yüzden duruyordu.
 ///
-/// Uygulamanın hiçbir yerinde `hideCurrentSnackBar` çağrısı YOKTU; yani bu
-/// tek bir ekranın kusuru değil, genel davranıştı.
+/// ## Şimdi
+/// Bildirim SnackBar değil, uygulamanın en üst katmanında (`MaterialApp.
+/// builder`, bkz. [ToastLayer]) çizilen kendi kartımız:
+/// - ekranın **en altında**, sistem çubuğunun hemen üstünde (klavye açıksa
+///   onun üstünde); hiçbir ekranın alt çubuğuna/yüzen düğmesine bağlı değil;
+/// - süresini **kendisi sayar** ve altındaki ince çubuk kalan süreyi gösterir;
+///   parmak kartın üstündeyken sayım durur, kaydırınca kapanır;
+/// - yeni bildirim eskisinin yerine geçer (kuyruk yok);
+/// - uzun süren işin **kalıcı** kartı ([showStickyToast]) ayrı bir yuvada
+///   durur: araya giren kısa bildirim onu süpürmez, ÜSTÜNDE görünür.
 ///
-/// ## Kural
-/// Yeni bildirim **eskisinin yerine geçer**, arkasına dizilmez: ekranda her
-/// zaman en güncel olan durur ve kendiliğinden kaybolur. Bir bildirimin
-/// ömrü de kısaldı (bilgi 3 sn); düğmesi olan (bir eylem sunan) bildirim
-/// okunup basılabilsin diye daha uzun durur.
-///
-/// ## Ne KULLANMAZ
-/// Uzun süren işlerin kalıcı ilerleme şeridi (bkz. `showFmProgress`) buradan
-/// GEÇMEZ: onun ömrü bir gün ve işi bitince kendi denetleyicisiyle kapanıyor.
-/// Onu da "en güncel bildirim" saymak, arka plana alınan bir işin şeridini
-/// araya giren ilk bilgi mesajının süpürmesi demekti.
+/// Eski API (`showSnack`, `showSnackOn`, `showSnackBarReplacing` +
+/// `SnackBar`/`SnackBarAction`) aynen duruyor: 60'a yakın çağıran
+/// değişmeden yeni karta geçti.
 library;
 
 import 'package:flutter/material.dart';
@@ -31,43 +38,95 @@ import 'package:flutter/services.dart';
 
 import 'l10n/app_strings.dart';
 
-/// Kaç tane **kalıcı** şerit ekranda? (Bkz. [beginStickySnack].)
-int _sticky = 0;
-
-/// Kalıcı bir şerit (uzun süren işin ilerleme çubuğu) gösterildi.
-///
-/// Kalıcı şerit varken yeni bildirim onun YERİNE GEÇMEZ, eski davranışa —
-/// kuyruğa — düşer: arka plana alınmış bir işin çubuğunu araya giren ilk
-/// bilgi mesajının süpürmesi, kullanıcının işi görünmez kalırdı.
-void beginStickySnack() => _sticky++;
-
-/// Kalıcı şerit kapandı.
-void endStickySnack() {
-  if (_sticky > 0) _sticky--;
-}
-
-/// Bilgi bildiriminin ömrü — Material'in 4 sn'lik varsayılanından kısa:
-/// mesaj tek satır ve ekranın altını kapatıyor.
+/// Bilgi bildiriminin ömrü.
 const Duration kSnackInfo = Duration(seconds: 3);
 
 /// Düğmesi olan bildirimin ömrü: kullanıcı okuyup basacak.
 const Duration kSnackAction = Duration(seconds: 6);
 
+/// Giriş/çıkış canlandırması.
+const Duration _kFade = Duration(milliseconds: 200);
+
+/// Gösterilen bildirimin verisi.
+class _Toast {
+  final int id;
+  final Widget content;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  /// null = kalıcı (elle kapatılana dek).
+  final Duration? duration;
+
+  _Toast({
+    required this.id,
+    required this.content,
+    this.actionLabel,
+    this.onAction,
+    this.duration,
+  });
+}
+
+/// Bir bildirimi sonradan kapatmak için tutamak.
+class ToastHandle {
+  final int _id;
+  final bool _sticky;
+
+  const ToastHandle._(this._id, this._sticky);
+
+  /// Bu bildirimi kapatır (o an başka bildirim gösteriliyorsa ona dokunmaz).
+  void close() => _ToastCenter.close(_id, sticky: _sticky);
+}
+
+/// Bildirimlerin tek kaynağı (uygulama genelinde bir tane).
+abstract final class _ToastCenter {
+  static int _seq = 0;
+  static final transient = ValueNotifier<_Toast?>(null);
+  static final sticky = ValueNotifier<_Toast?>(null);
+
+  /// Ağaçta kaç [ToastLayer] var (uygulamada 1; testte / özel ağaçta 0).
+  static int layers = 0;
+
+  static ToastHandle show(_Toast Function(int id) build,
+      {required bool isSticky}) {
+    final toast = build(++_seq);
+    (isSticky ? sticky : transient).value = toast;
+    return ToastHandle._(toast.id, isSticky);
+  }
+
+  static void close(int id, {required bool sticky}) {
+    final slot = sticky ? _ToastCenter.sticky : transient;
+    if (slot.value?.id == id) slot.value = null;
+  }
+
+  static void clear() {
+    transient.value = null;
+    sticky.value = null;
+  }
+}
+
+/// Katman yoksa (testler, `MaterialApp.builder` dışı ağaçlar) bildirim
+/// verilen bağlamın kök `Overlay`ına geçici bir katman olarak eklenir.
+/// Yedek katmanın eklendiği `Overlay` (aynı ağaca ikinci kez eklenmesin —
+/// giriş bir sonraki karede kurulduğu için sayaç o ana dek sıfırdır).
+OverlayState? _fallbackOverlay;
+
+void _ensureLayer(BuildContext? context) {
+  if (_ToastCenter.layers > 0) return;
+  final overlay =
+      context == null ? null : Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return;
+  if (identical(overlay, _fallbackOverlay) && overlay.mounted) return;
+  _fallbackOverlay = overlay;
+  overlay.insert(
+      OverlayEntry(builder: (_) => const ToastLayer(child: SizedBox.shrink())));
+}
+
 /// [message]'ı gösterir; ekranda bekleyen bildirim varsa **onun yerine geçer**.
 ///
-/// [context] bir `ScaffoldMessenger` altında olmalı (uygulamanın her ekranı
-/// öyle). Asenkron boşluktan sonra çağrılacaksa `messenger`ı önceden alıp
-/// [showSnackOn] kullanın — `context` o an ölmüş olabilir.
-/// [copyable] verilirse şeride **"Kopyala"** düğmesi konur ve mesaj panoya
-/// alınabilir (2026-09-04).
-///
-/// Niye: hata mesajlarının çoğu tek dokunuşta kaybolan tek satırlık
-/// metinler ("Bellek okunamadı: FormatException…"). Kullanıcı onu bize
-/// aktarmak için ekran görüntüsü almak zorunda kalıyordu; artık kopyalayıp
-/// yapıştırabiliyor. Kendi eylemi olan şeritlerde ([action]) kopyalama
-/// düğmesi konmaz — bir şeritte tek eylem yeri var ve oradaki eylem daha
-/// önemli.
-ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnack(
+/// [copyable] verilirse karta **"Kopyala"** düğmesi konur ve mesaj panoya
+/// alınabilir (2026-09-04) — hata metinlerini ekran görüntüsü almadan
+/// aktarabilmek için. Kendi eylemi olan kartta ([action]) kopyalama konmaz.
+ToastHandle showSnack(
   BuildContext context,
   String message, {
   SnackBarAction? action,
@@ -78,41 +137,323 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnack(
       (copyable
           ? SnackBarAction(
               label: AppStrings.of(context).t('common.copy'),
-              onPressed: () =>
-                  Clipboard.setData(ClipboardData(text: message)),
+              onPressed: () => Clipboard.setData(ClipboardData(text: message)),
             )
           : null);
-  return showSnackOn(ScaffoldMessenger.of(context), message,
-      action: effective, duration: duration);
+  _ensureLayer(context);
+  return _showToast(Text(message), effective, duration);
 }
 
-/// [showSnack]'in messenger alan hâli (asenkron akışlar için).
-ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackOn(
+/// [showSnack]'in bağlamsız hâli (asenkron akışlar için; messenger yalnız
+/// eski imzayla uyum için alınır).
+ToastHandle showSnackOn(
   ScaffoldMessengerState messenger,
   String message, {
   SnackBarAction? action,
   Duration? duration,
 }) {
-  return showSnackBarReplacing(
-    messenger,
-    SnackBar(
-      content: Text(message),
-      duration: duration ?? (action == null ? kSnackInfo : kSnackAction),
-      action: action,
-    ),
-  );
+  _ensureLayer(messenger.mounted ? messenger.context : null);
+  return _showToast(Text(message), action, duration);
 }
 
-/// Hazır bir [SnackBar]ı aynı kuralla gösterir: bekleyen bildirim varsa onun
-/// yerine geçer. Özel içerikli (düğmeli, uzun süreli) bildirimler için.
-ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBarReplacing(
+/// Hazır bir [SnackBar]ın içeriğini, eylemini ve süresini aynı kuralla
+/// gösterir. Özel içerikli bildirimler için.
+ToastHandle showSnackBarReplacing(
   ScaffoldMessengerState messenger,
   SnackBar bar,
 ) {
-  // `remove` (`hide` DEĞİL): `hideCurrentSnackBar` kapanış animasyonunu
-  // bekletir ve o sırada yeni şerit yine kuyruğa girer — yani gecikme aynen
-  // kalırdı. `removeCurrentSnackBar` şeridi anında düşürür, yenisi hemen
-  // çizilir.
-  if (_sticky == 0) messenger.removeCurrentSnackBar();
-  return messenger.showSnackBar(bar);
+  _ensureLayer(messenger.mounted ? messenger.context : null);
+  return _showToast(bar.content, bar.action, bar.duration);
+}
+
+ToastHandle _showToast(
+    Widget content, SnackBarAction? action, Duration? duration) {
+  return _ToastCenter.show(
+    (id) => _Toast(
+      id: id,
+      content: content,
+      actionLabel: action?.label,
+      onAction: action?.onPressed,
+      duration: duration ?? (action == null ? kSnackInfo : kSnackAction),
+    ),
+    isSticky: false,
+  );
+}
+
+/// Uzun süren işin **kalıcı** kartı (ilerleme). Kısa bildirimler onu
+/// süpürmez; iş bitince dönen tutamakla kapatılır.
+ToastHandle showStickyToast(
+  BuildContext? context,
+  Widget content, {
+  String? actionLabel,
+  VoidCallback? onAction,
+}) {
+  _ensureLayer(context);
+  return _ToastCenter.show(
+    (id) => _Toast(
+      id: id,
+      content: content,
+      actionLabel: actionLabel,
+      onAction: onAction,
+    ),
+    isSticky: true,
+  );
+}
+
+/// Görünen kısa bildirimi hemen kaldırır (ör. ekran değişirken).
+void hideToast() => _ToastCenter.transient.value = null;
+
+/// Uygulamanın en üst katmanı: [child] + ekranın altında bildirim kartları.
+///
+/// `MaterialApp.builder`'da bir kez kurulur; böylece kart her rotanın,
+/// pencerenin ve alt çubuğun ÜSTÜNDE ve hep aynı yerde durur.
+class ToastLayer extends StatefulWidget {
+  final Widget child;
+
+  const ToastLayer({super.key, required this.child});
+
+  @override
+  State<ToastLayer> createState() => _ToastLayerState();
+}
+
+class _ToastLayerState extends State<ToastLayer> {
+  @override
+  void initState() {
+    super.initState();
+    _ToastCenter.layers++;
+  }
+
+  @override
+  void dispose() {
+    _ToastCenter.layers--;
+    // Ağaç söküldü (test sonu, uygulama kapanışı): asılı bildirim bir
+    // sonraki ağaçta hortlamasın.
+    if (_ToastCenter.layers <= 0) _ToastCenter.clear();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.maybeOf(context);
+    final bottom = (media?.viewInsets.bottom ?? 0) > 0
+        ? media!.viewInsets.bottom + 8
+        : (media?.viewPadding.bottom ?? 0) + 10;
+    return Stack(
+      children: [
+        Positioned.fill(child: widget.child),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: bottom,
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ValueListenableBuilder<_Toast?>(
+                      valueListenable: _ToastCenter.transient,
+                      builder: (_, toast, __) => toast == null
+                          ? const SizedBox.shrink()
+                          : _ToastCard(
+                              key: ValueKey(toast.id),
+                              toast: toast,
+                              onGone: () =>
+                                  _ToastCenter.close(toast.id, sticky: false),
+                            ),
+                    ),
+                    ValueListenableBuilder<_Toast?>(
+                      valueListenable: _ToastCenter.sticky,
+                      builder: (_, toast, __) => toast == null
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: _ToastCard(
+                                key: ValueKey(toast.id),
+                                toast: toast,
+                                onGone: () =>
+                                    _ToastCenter.close(toast.id, sticky: true),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tek kart: giriş/çıkış solması + kalan süre çubuğu.
+///
+/// Tek bir `AnimationController` kartın bütün ömrünü sürer (giriş + görünme
+/// + çıkış). Zamanlayıcı widget'ın içinde: ağaç sökülünce kendiliğinden
+/// durur (testlerde "bekleyen zamanlayıcı" kalmaz).
+class _ToastCard extends StatefulWidget {
+  final _Toast toast;
+  final VoidCallback onGone;
+
+  const _ToastCard({super.key, required this.toast, required this.onGone});
+
+  @override
+  State<_ToastCard> createState() => _ToastCardState();
+}
+
+class _ToastCardState extends State<_ToastCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _life;
+  late final Duration _total;
+
+  bool get _sticky => widget.toast.duration == null;
+
+  @override
+  void initState() {
+    super.initState();
+    final shown = widget.toast.duration ?? Duration.zero;
+    _total = _sticky ? _kFade : _kFade * 2 + shown;
+    _life = AnimationController(vsync: this, duration: _total)
+      ..addStatusListener((s) {
+        if (s == AnimationStatus.completed && !_sticky) widget.onGone();
+      })
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _life.dispose();
+    super.dispose();
+  }
+
+  double get _fadeFraction =>
+      _kFade.inMicroseconds / _total.inMicroseconds.clamp(1, 1 << 62);
+
+  double _opacity(double t) {
+    final f = _fadeFraction;
+    if (t < f) return t / f;
+    if (_sticky) return 1;
+    if (t > 1 - f) return ((1 - t) / f).clamp(0.0, 1.0);
+    return 1;
+  }
+
+  /// Kalan görünme süresi (1 → 0).
+  double _remaining(double t) {
+    final f = _fadeFraction;
+    if (_sticky) return 1;
+    final span = 1 - 2 * f;
+    if (span <= 0) return 0;
+    return (1 - (t - f) / span).clamp(0.0, 1.0);
+  }
+
+  void _pause() {
+    if (!_sticky && _life.isAnimating) _life.stop();
+  }
+
+  void _resume() {
+    if (!_sticky && !_life.isAnimating && !_life.isCompleted) _life.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final toast = widget.toast;
+    final fg = scheme.onInverseSurface;
+    return Dismissible(
+      key: ValueKey('toast-${toast.id}'),
+      direction: DismissDirection.horizontal,
+      onDismissed: (_) => widget.onGone(),
+      child: Listener(
+        onPointerDown: (_) => _pause(),
+        onPointerUp: (_) => _resume(),
+        onPointerCancel: (_) => _resume(),
+        child: AnimatedBuilder(
+          animation: _life,
+          builder: (context, child) {
+            final t = _life.value;
+            final o = _opacity(t);
+            return Opacity(
+              opacity: o,
+              child: Transform.translate(
+                offset: Offset(0, (1 - o) * 12),
+                child: child,
+              ),
+            );
+          },
+          child: Material(
+            color: scheme.inverseSurface,
+            elevation: 6,
+            shadowColor: Colors.black38,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 46),
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(
+                        start: 16, end: toast.actionLabel == null ? 16 : 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            child: DefaultTextStyle.merge(
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: fg),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              child: IconTheme.merge(
+                                data: IconThemeData(color: fg),
+                                child: toast.content,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (toast.actionLabel != null)
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              foregroundColor: scheme.inversePrimary,
+                              textStyle: theme.textTheme.labelLarge
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            onPressed: () {
+                              widget.onGone();
+                              toast.onAction?.call();
+                            },
+                            child: Text(toast.actionLabel!),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (!_sticky)
+                  AnimatedBuilder(
+                    animation: _life,
+                    builder: (_, __) => Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: FractionallySizedBox(
+                        widthFactor: _remaining(_life.value),
+                        child: Container(
+                          height: 3,
+                          color: scheme.inversePrimary.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

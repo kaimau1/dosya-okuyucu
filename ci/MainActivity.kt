@@ -10,6 +10,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -88,6 +92,8 @@ class MainActivity : FlutterActivity() {
     private var usbMass: UsbMass? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Ana ekran kısayolundan açıldıysa yol saklanır (Dart `take` ile alır).
+        rememberShortcut(intent)
         // Eklentiler intent'i `super.onCreate` içinde okur → çeviri ÖNCE.
         asViewIntent(intent)
         super.onCreate(savedInstanceState)
@@ -97,6 +103,12 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
+        // Uygulama açıkken ana ekran kısayoluna dokunuldu: Dart'a İT.
+        val shortcutPath = rememberShortcut(intent)
+        if (shortcutPath != null) {
+            pendingShortcutPath = null
+            shortcutChannel?.invokeMethod("open", shortcutPath)
+        }
         // Eklentiler (`receive_sharing_intent`) intent'i `super` içinde işler;
         // gönderen uygulama ondan ÖNCE yazılsın ki Dart sorduğunda hazır olsun.
         launchReferrer = callerPackage()
@@ -268,8 +280,108 @@ class MainActivity : FlutterActivity() {
         pending.success(uri.toString())
     }
 
+    // ── Ana ekran kısayolu (2026-09-27) ────────────────────────────────────
+    //
+    // Kullanıcı: *"PDF'ler veya klasörler için 'kısayol oluştur' seçeneği ile
+    // telefon ana ekranına kısayol koyabilmeliyiz; basılı tutunca çıkan
+    // menüde olsun."* Kısayol bizim aktivitemizi [ACTION_OPEN_PATH] + yol ile
+    // açar; Dart tarafı yolu dosyaysa görüntüleyicide, klasörse gezginde açar.
+    private var shortcutChannel: MethodChannel? = null
+    private var pendingShortcutPath: String? = null
+
+    private fun rememberShortcut(intent: Intent?): String? {
+        if (intent?.action != ACTION_OPEN_PATH) return null
+        val path = intent.getStringExtra(EXTRA_SHORTCUT_PATH)
+        if (path.isNullOrEmpty()) return null
+        pendingShortcutPath = path
+        return path
+    }
+
+    private fun setupShortcutChannel(flutterEngine: FlutterEngine) {
+        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHORTCUT_CHANNEL)
+        shortcutChannel = ch
+        ch.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "supported" -> result.success(shortcutSupported())
+                "pin" -> result.success(
+                    pinShortcut(
+                        call.argument<String>("path") ?: "",
+                        call.argument<String>("label") ?: "",
+                        call.argument<ByteArray>("icon")
+                    )
+                )
+                "take" -> {
+                    val path = pendingShortcutPath
+                    pendingShortcutPath = null
+                    result.success(path)
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun shortcutSupported(): Boolean =
+        if (Build.VERSION.SDK_INT >= 26) {
+            getSystemService(ShortcutManager::class.java)?.isRequestPinShortcutSupported == true
+        } else {
+            true
+        }
+
+    private fun pinShortcut(path: String, label: String, icon: ByteArray?): Boolean {
+        if (path.isEmpty()) return false
+        val open = Intent(this, MainActivity::class.java).apply {
+            action = ACTION_OPEN_PATH
+            putExtra(EXTRA_SHORTCUT_PATH, path)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val name = (if (label.isEmpty()) path.substringAfterLast('/') else label).take(40)
+        val bitmap = try {
+            if (icon != null) BitmapFactory.decodeByteArray(icon, 0, icon.size) else null
+        } catch (e: Exception) {
+            null
+        }
+        return try {
+            if (Build.VERSION.SDK_INT >= 26) {
+                val manager = getSystemService(ShortcutManager::class.java) ?: return false
+                if (!manager.isRequestPinShortcutSupported) return false
+                val shortcutIcon = if (bitmap != null) {
+                    Icon.createWithAdaptiveBitmap(bitmap)
+                } else {
+                    Icon.createWithResource(this, applicationInfo.icon)
+                }
+                val info = ShortcutInfo.Builder(this, "p" + Integer.toHexString(path.hashCode()))
+                    .setShortLabel(name)
+                    .setLongLabel(name)
+                    .setIcon(shortcutIcon)
+                    .setIntent(open)
+                    .build()
+                manager.requestPinShortcut(info, null)
+            } else {
+                // Android 7 ve öncesi: başlatıcının eski yayını.
+                @Suppress("DEPRECATION")
+                val add = Intent("com.android.launcher.action.INSTALL_SHORTCUT").apply {
+                    putExtra(Intent.EXTRA_SHORTCUT_INTENT, open)
+                    putExtra(Intent.EXTRA_SHORTCUT_NAME, name)
+                    if (bitmap != null) {
+                        putExtra(Intent.EXTRA_SHORTCUT_ICON, bitmap)
+                    } else {
+                        putExtra(
+                            Intent.EXTRA_SHORTCUT_ICON_RESOURCE,
+                            Intent.ShortcutIconResource.fromContext(this@MainActivity, applicationInfo.icon)
+                        )
+                    }
+                }
+                sendBroadcast(add)
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        setupShortcutChannel(flutterEngine)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel!!
             .setMethodCallHandler { call, result ->
@@ -1509,5 +1621,10 @@ class MainActivity : FlutterActivity() {
 
         /** androidx.pdf'in kalem düğmesinin eylemi (SDK'da sabiti yok). */
         const val ACTION_ANNOTATE = "android.intent.action.ANNOTATE"
+
+        /** Ana ekran kısayolunun eylemi ve yolu taşıyan ek. */
+        const val ACTION_OPEN_PATH = "com.dosyaokuyucu.action.OPEN_PATH"
+        const val EXTRA_SHORTCUT_PATH = "path"
+        const val SHORTCUT_CHANNEL = "dosya_okuyucu/shortcuts"
     }
 }

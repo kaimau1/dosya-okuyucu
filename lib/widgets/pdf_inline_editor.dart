@@ -38,6 +38,9 @@ class PdfInlineEditor extends StatelessWidget {
     required this.onSubmit,
     this.busy = false,
     this.fieldKey,
+    this.family = fontFamily,
+    this.bold = false,
+    this.italic = false,
   });
 
   /// `TextField`in anahtarı — `ViewerScreen` imleç düğmelerinden sonra
@@ -52,6 +55,13 @@ class PdfInlineEditor extends StatelessWidget {
   /// (2026-09-24 ekran görüntüsü). PDF'lerin ezici çoğunluğu Arial/Helvetica
   /// ailesinde; punto zaten genişliğe göre ölçülerek bulunuyor.
   static const String fontFamily = 'Arimo';
+
+  /// Kutunun yazı tipi ailesi (2026-09-27): belgenin fontu serif ise Tinos,
+  /// tek aralıklıysa JetBrains Mono; bilinmiyorsa [fontFamily] (Arimo).
+  /// Görüntüleyici belgeyi arka planda yoklayıp verir (`PdfFontClass`).
+  final String family;
+  final bool bold;
+  final bool italic;
 
   /// Kutunun çevresindeki saydam dokunma payı (testler bununla buluyor).
   static const Key padKey = ValueKey('pdf-inline-edit-pad');
@@ -154,8 +164,10 @@ class PdfInlineEditor extends StatelessWidget {
     );
   }
 
-  static TextStyle _style(double fontSize) => TextStyle(
-        fontFamily: fontFamily,
+  TextStyle _style(double fontSize) => TextStyle(
+        fontFamily: family,
+        fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+        fontStyle: italic ? FontStyle.italic : FontStyle.normal,
         fontSize: fontSize,
         // height 1.0: satır kutusu puntoyla aynı kalsın, yazı özgün satırın
         // üstünde/altında kaymasın.
@@ -163,8 +175,8 @@ class PdfInlineEditor extends StatelessWidget {
         color: Colors.black,
       );
 
-  static StrutStyle _strut(double fontSize) => StrutStyle(
-        fontFamily: fontFamily,
+  StrutStyle _strut(double fontSize) => StrutStyle(
+        fontFamily: family,
         fontSize: fontSize,
         height: 1.0,
         forceStrutHeight: true,

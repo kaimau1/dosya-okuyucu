@@ -57,6 +57,12 @@ import '../settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
 import 'new_files_screen.dart';
+import 'swipe_pager.dart';
+import 'hidden_files_screen.dart';
+import '../../services/fm/dashboard_layout.dart';
+import '../../widgets/fm/dashboard_layout_sheet.dart';
+import 'ai_hub_screen.dart';
+import '../../widgets/fm/ai_status_icon.dart';
 import 'jobs_screen.dart';
 import 'op_history_screen.dart';
 import 'open_history_screen.dart';
@@ -148,6 +154,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     ToolUsage.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
+    // Kullanıcının pano düzeni (sıra + göster/gizle).
+    DashboardLayout.instance.addListener(_onLayoutChanged);
+    unawaited(DashboardLayout.instance.ensureLoaded());
     _boot();
     unawaited(_loadAppsSize());
     _startVolumeWatch();
@@ -163,8 +172,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() => _appsBytes = summary.totalBytes);
   }
 
+  void _onLayoutChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    DashboardLayout.instance.removeListener(_onLayoutChanged);
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
     AppStorageService.setUsbAttachedHandler(null);
@@ -647,7 +661,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _push(Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
-  void _openCategory(FmCategory category, {bool grid = false}) {
+  Widget _categoryScreen(FmCategory category, {bool grid = false}) {
     // Pano önbelleği kategori başına en yeni 800 dosyayı tutar (hız için);
     // ekran açılır açılmaz o gösterilir, EKSİKSİZ liste `loadAll` ile arka
     // planda gelir. Kullanıcı hatası 2026-07-29: "videolarda tüm videolar
@@ -658,24 +672,23 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Görsel ve video → Google Fotoğraflar tarzı zaman ekseni (gün/ay/yıl).
     if (category == FmCategory.image || category == FmCategory.video) {
-      _push(PhotosScreen(
+      return PhotosScreen(
         title: category.label,
         // Kapsam: TÜM depolama. Önemli Dosyalar ekranı aynı başlıkla ("Görüntüler")
         // çok daha küçük bir küme açıyor — benzer tarama sonuçları karışmasın.
         scopeId: 'depolama-${category.name}',
         files: _index.files(category),
         loadAll: loadAll,
-      ));
-      return;
+      );
     }
-    _push(CategoryScreen(
+    return CategoryScreen(
       title: category.label,
       files: _index.files(category),
       gridDefault: grid,
       // Belgelerde PDF/Word/Excel/Slayt/Metin süzgeci.
       showDocKinds: category == FmCategory.document,
       loadAll: loadAll,
-    ));
+    );
   }
 
   /// Ana sayfadan klasör oluşturma (kullanıcı isteği 2026-07-29).
@@ -765,6 +778,13 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
         actions: [
+          // AI Merkezi (2026-09-27: alt çubuktaki AI sekmesi kalktı, kapısı
+          // burada — analiz halkası ve öneri rozetiyle).
+          IconButton(
+            tooltip: context.t('aih.title'),
+            icon: const AiStatusIcon(),
+            onPressed: () => _push(const AiHubScreen()),
+          ),
           IconButton(
             tooltip: context.t('common.rescan'),
             icon: const Icon(Icons.refresh),
@@ -822,141 +842,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                   style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: Gap.sm),
             ],
-            for (final v in volumes) ...[
-              // Birincil bellek kartının YANINDA "Bellek Analizi" (kullanıcı
-              // isteği 2026-08-05: "orası 2 buton olsun"). Takılabilir
-              // birimlerde analiz kutusu tekrarlanmaz — tek bir analiz ekranı
-              // var, iki kez göstermek yer kaybı olurdu.
-              if (v.isPrimary)
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _VolumeCard(
-                          volume: v,
-                          index: _index,
-                          onTap: () => _push(BrowserScreen(
-                              path: v.path,
-                              title: v.displayLabel(context.t))),
-                          onLongPress: () => unawaited(_volumeMenu(v)),
-                        ),
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      SizedBox(width: 126, child: _analysisCard(v)),
-                    ],
-                  ),
-                )
-              else
-                _VolumeCard(
-                  volume: v,
-                  index: _index,
-                  // `label` UUID adlı bir birimde BOŞTUR (ad çeviriden gelir)
-                  // — tarayıcı başlığı boş açılıyordu.
-                  onTap: () => _push(BrowserScreen(
-                      path: v.path, title: v.displayLabel(context.t))),
-                  onLongPress: () => unawaited(_volumeMenu(v)),
-                ),
-              const SizedBox(height: Gap.sm),
-            ],
-            // **Klasör izniyle eklenen bellekler de KART olarak** (kullanıcı
-            // 2026-09-02, ekran görüntüsüyle: başka bir dosya yöneticisi
-            // takılı USB'yi "bu şekilde ekliyor" ve ana ekranda gösteriyor).
-            // Yol yoluyla görünen bir birim varsa aynı bellek iki kez
-            // çizilmez (bkz. `SafRoot.volumeId`).
-            for (final r in _safCards()) ...[
-              _SafCard(root: r, onTap: () => unawaited(_openSafRoot(r))),
-              const SizedBox(height: Gap.sm),
-            ],
-            // **Android'in bağlamadığı bellek de KART olarak** (kullanıcı
-            // 2026-09-02: bellek ana ekranda görünmeli). Yol yoluyla ya da
-            // klasör izniyle zaten görünen bir bellek varsa kart çizilmez —
-            // aynı aygıtı iki kez göstermek kafa karıştırır.
-            for (final d in _rawUsbCards) ...[
-              _RawUsbCard(
-                device: d,
-                onTap: () => unawaited(_openRawUsb(d.name)),
+            // **Bölümler kullanıcının sırasıyla** (2026-09-27, bkz.
+            // DashboardLayout): bellek kartları, kutular, araçlar, favoriler,
+            // hızlı klasörler — her biri gizlenebilir.
+            for (final id in DashboardLayout.instance.sectionOrder)
+              if (DashboardLayout.instance.sectionVisible(id))
+                ..._dashSection(id, volumes, appState),
+            const SizedBox(height: Gap.lg),
+            Center(
+              child: TextButton.icon(
+                onPressed: _editLayout,
+                icon: const Icon(Icons.dashboard_customize_outlined, size: 18),
+                label: Text(context.t('dash.title')),
               ),
-              const SizedBox(height: Gap.sm),
-            ],
-            // (AI Asistan kartı 2026-08-17'de KALKTI: kullanıcı *"ai asistan
-            // yazısı sağ alttaki ai düğmesi alanına entegre et, ana ekran
-            // temizlensin"* dedi. Analiz sayısı ve bekleyen öneri sayısı artık
-            // alt gezinme çubuğundaki AI sekmesinin rozetinde — bkz.
-            // `home_screen.dart`. Kart, panonun en üstünde tam genişlik
-            // kaplıyordu ve dosya aramaya gelen kullanıcının önüne giriyordu.)
-            const SizedBox(height: Gap.sm),
-            _categoryGrid(),
-            // Kuyruk değişince (iş başladı/bitti) yalnız araç ızgarası yeniden
-            // çizilir: "İşlemler" kutusunun alt yazısı canlı sayaç
-            // ("1 sürüyor" / "3 biten") — kullanıcı ana ekrandan bakınca
-            // işleminin durduğunu ya da bittiğini görebilsin.
-            AnimatedBuilder(
-              // "Ağdan erişim" kutusunun alt yazısı da canlı: paylaşım
-              // açılınca/kapanınca ızgara yeniden çizilir.
-              animation: Listenable.merge(
-                  [JobQueue.instance, FtpService.instance]),
-              builder: (context, _) {
-                final tools = _rankedTools();
-                // Panoda yalnız kullanımca ilk sekiz (2026-09-26
-                // sadeleştirmesi); tamamı "Tümü"nde. Sıralama kullanıma göre
-                // olduğu için kullanıcının açtığı araç kendiliğinden öne gelir.
-                final shown = DashboardTools.head(tools);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SectionHeader(context.t('fm.tools'),
-                        count: shown.length == tools.length
-                            ? '${tools.length}'
-                            : null,
-                        trailing: shown.length == tools.length
-                            ? null
-                            : TextButton(
-                                style: TextButton.styleFrom(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: Gap.sm),
-                                ),
-                                onPressed: () => _push(ToolsScreen(
-                                  tools: _rankedTools,
-                                  listenable: Listenable.merge([
-                                    JobQueue.instance,
-                                    FtpService.instance,
-                                  ]),
-                                )),
-                                child: Text(context.t(
-                                    'fm.all_tools', {'n': tools.length})),
-                              ),
-                        padding: const EdgeInsets.only(
-                            top: Gap.lg, bottom: Gap.sm)),
-                    _toolFrame(FmToolGrid(tools: shown)),
-                  ],
-                );
-              },
             ),
-            if (appState.bookmarks.isNotEmpty) ...[
-              SectionHeader('Favoriler',
-                  count: '${appState.bookmarks.length}',
-                  padding:
-                      const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
-              for (final path in appState.bookmarks)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.star, color: FmColors.folder),
-                  title: Text(p.basename(path)),
-                  subtitle:
-                      Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  onTap: () => _push(BrowserScreen(path: path)),
-                  trailing: IconButton(
-                    tooltip: context.t('common.remove_bookmark'),
-                    icon: const Icon(Icons.close),
-                    onPressed: () => appState.toggleBookmark(path),
-                  ),
-                ),
-            ],
-            SectionHeader(context.t('fm.quick_folders'),
-                padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
-            _quickFolders(),
             if (_cachedAtMs > 0) ...[
               const SizedBox(height: Gap.lg),
               Center(
@@ -1097,7 +996,170 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// aşağıda daha hafif bir satırda ([_toolGrid]). Kullanıcı geri bildirimi
   /// 2026-07-29: "ana ekranda çok fazla buton olmuş, karışıklık var" — sorun
   /// sayı değil, 16 kutunun hepsinin aynı ağırlıkta bağırmasıydı.
-  Widget _categoryGrid() {
+  /// Panonun bir bölümünün parçaları (bkz. [DashboardLayout.sections]).
+  List<Widget> _dashSection(
+      String id, List<StorageVolume> volumes, AppState appState) {
+    switch (id) {
+      case 'storage':
+        return [
+        for (final v in volumes) ...[
+          // Birincil bellek kartının YANINDA "Bellek Analizi" (kullanıcı
+          // isteği 2026-08-05: "orası 2 buton olsun"). Takılabilir
+          // birimlerde analiz kutusu tekrarlanmaz — tek bir analiz ekranı
+          // var, iki kez göstermek yer kaybı olurdu.
+          if (v.isPrimary)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _VolumeCard(
+                      volume: v,
+                      index: _index,
+                      onTap: () => _push(BrowserScreen(
+                          path: v.path,
+                          title: v.displayLabel(context.t))),
+                      onLongPress: () => unawaited(_volumeMenu(v)),
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  SizedBox(width: 126, child: _analysisCard(v)),
+                ],
+              ),
+            )
+          else
+            _VolumeCard(
+              volume: v,
+              index: _index,
+              // `label` UUID adlı bir birimde BOŞTUR (ad çeviriden gelir)
+              // — tarayıcı başlığı boş açılıyordu.
+              onTap: () => _push(BrowserScreen(
+                  path: v.path, title: v.displayLabel(context.t))),
+              onLongPress: () => unawaited(_volumeMenu(v)),
+            ),
+          const SizedBox(height: Gap.sm),
+        ],
+        // **Klasör izniyle eklenen bellekler de KART olarak** (kullanıcı
+        // 2026-09-02, ekran görüntüsüyle: başka bir dosya yöneticisi
+        // takılı USB'yi "bu şekilde ekliyor" ve ana ekranda gösteriyor).
+        // Yol yoluyla görünen bir birim varsa aynı bellek iki kez
+        // çizilmez (bkz. `SafRoot.volumeId`).
+        for (final r in _safCards()) ...[
+          _SafCard(root: r, onTap: () => unawaited(_openSafRoot(r))),
+          const SizedBox(height: Gap.sm),
+        ],
+        // **Android'in bağlamadığı bellek de KART olarak** (kullanıcı
+        // 2026-09-02: bellek ana ekranda görünmeli). Yol yoluyla ya da
+        // klasör izniyle zaten görünen bir bellek varsa kart çizilmez —
+        // aynı aygıtı iki kez göstermek kafa karıştırır.
+        for (final d in _rawUsbCards) ...[
+          _RawUsbCard(
+            device: d,
+            onTap: () => unawaited(_openRawUsb(d.name)),
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
+        ];
+      case 'categories':
+        return [
+        // (AI Asistan kartı 2026-08-17'de KALKTI: kullanıcı *"ai asistan
+        // yazısı sağ alttaki ai düğmesi alanına entegre et, ana ekran
+        // temizlensin"* dedi. Analiz sayısı ve bekleyen öneri sayısı artık
+        // alt gezinme çubuğundaki AI sekmesinin rozetinde — bkz.
+        // `home_screen.dart`. Kart, panonun en üstünde tam genişlik
+        // kaplıyordu ve dosya aramaya gelen kullanıcının önüne giriyordu.)
+        const SizedBox(height: Gap.sm),
+        _categoryGrid(),
+        ];
+      case 'tools':
+        return [
+        // Kuyruk değişince (iş başladı/bitti) yalnız araç ızgarası yeniden
+        // çizilir: "İşlemler" kutusunun alt yazısı canlı sayaç
+        // ("1 sürüyor" / "3 biten") — kullanıcı ana ekrandan bakınca
+        // işleminin durduğunu ya da bittiğini görebilsin.
+        AnimatedBuilder(
+          // "Ağdan erişim" kutusunun alt yazısı da canlı: paylaşım
+          // açılınca/kapanınca ızgara yeniden çizilir.
+          animation: Listenable.merge(
+              [JobQueue.instance, FtpService.instance]),
+          builder: (context, _) {
+            final tools = _rankedTools();
+            // Panoda yalnız kullanımca ilk sekiz (2026-09-26
+            // sadeleştirmesi); tamamı "Tümü"nde. Sıralama kullanıma göre
+            // olduğu için kullanıcının açtığı araç kendiliğinden öne gelir.
+            final shown = DashboardTools.head(tools);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionHeader(context.t('fm.tools'),
+                    count: shown.length == tools.length
+                        ? '${tools.length}'
+                        : null,
+                    trailing: shown.length == tools.length
+                        ? null
+                        : TextButton(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: Gap.sm),
+                            ),
+                            onPressed: () => _push(ToolsScreen(
+                              tools: _rankedTools,
+                              listenable: Listenable.merge([
+                                JobQueue.instance,
+                                FtpService.instance,
+                              ]),
+                            )),
+                            child: Text(context.t(
+                                'fm.all_tools', {'n': tools.length})),
+                          ),
+                    padding: const EdgeInsets.only(
+                        top: Gap.lg, bottom: Gap.sm)),
+                _toolFrame(FmToolGrid(tools: shown)),
+              ],
+            );
+          },
+        ),
+        ];
+      case 'favorites':
+        return [
+        if (appState.bookmarks.isNotEmpty) ...[
+          SectionHeader('Favoriler',
+              count: '${appState.bookmarks.length}',
+              padding:
+                  const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
+          for (final path in appState.bookmarks)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.star, color: FmColors.folder),
+              title: Text(p.basename(path)),
+              subtitle:
+                  Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
+              onTap: () => _push(BrowserScreen(path: path)),
+              trailing: IconButton(
+                tooltip: context.t('common.remove_bookmark'),
+                icon: const Icon(Icons.close),
+                onPressed: () => appState.toggleBookmark(path),
+              ),
+            ),
+        ],
+        ];
+      case 'quick':
+        return [
+        SectionHeader(context.t('fm.quick_folders'),
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
+        _quickFolders(),
+        ];
+    }
+    return const [];
+  }
+
+  Widget _categoryGrid() => _arrangedGrid(_categoryTilesRaw());
+
+  Widget _arrangedGrid(List<FmTileData> tiles) => FmCategoryGrid(
+      tiles: DashboardLayout.instance.arrangeTiles(tiles, (t) => t.id));
+
+  List<FmTileData> _categoryTilesRaw() {
     final importantPath = ImportantScreen.pathIn(FmEnv.primaryRoot);
     final importantStat = _importantStat(importantPath);
     final download = p.join(FmEnv.primaryRoot, 'Download');
@@ -1109,6 +1171,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // görüntüsü, belge) önce oraya düşüyor — panoya gelme sebeplerinin
       // birincisi. Boyut ölçülmüşse alt satırda yazar.
       FmTileData(
+        id: 'downloads',
         icon: Icons.download_rounded,
         color: const Color(0xFF2F6FE0),
         label: context.t('fm.downloads'),
@@ -1116,9 +1179,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             ? FsPaths.humanSize(_folderSizes[download]!)
             : '',
         onTap: () {
-          final path = downloadsPathIn(FmEnv.primaryRoot);
-          if (path != null) {
-            _push(DownloadsScreen(path: path));
+          if (downloadsPathIn(FmEnv.primaryRoot) != null) {
+            _openSwipe('downloads');
           } else {
             _snack(context.t('fm.downloads_missing'));
           }
@@ -1126,6 +1188,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       // Kullanıcının kendi seçtiği dosyalar — en sık dönülecek ikinci yer.
       FmTileData(
+        id: 'important',
         icon: Icons.star_rounded,
         color: const Color(0xFFF2A600),
         label: ImportantScreen.folderName,
@@ -1136,7 +1199,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 : '${FsPaths.humanSize(importantStat.bytes)} '
                     '(${importantStat.count})'),
         onTap: () async {
-          await _push(const ImportantScreen());
+          await _openSwipe('important');
           if (mounted) setState(() {});
         },
       ),
@@ -1147,6 +1210,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _categoryTile(FmCategory.archive),
       // Kurulum dosyaları ayrı kutuda (kullanıcı isteği 2026-07-25).
       FmTileData(
+        id: 'apk',
         icon: Icons.install_mobile_rounded,
         color: const Color(0xFF0E9C8A),
         label: context.t('fm.apk_files'),
@@ -1154,10 +1218,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
             : '${FsPaths.humanSize(_index.stat(FmCategory.apk).bytes)} '
                 '(${_index.stat(FmCategory.apk).count})',
-        onTap: () => _push(CategoryScreen(
-          title: context.t('fm.apk_files'),
-          files: _index.files(FmCategory.apk),
-        )),
+        onTap: () => _openSwipe('apk'),
       ),
       // **Yeni dosyalar** — bkz. `NewFilesScreen`. Simge `fiber_new` idi:
       // Material o glifi "NEW" YAZISI olarak çiziyor, dört sütunlu ızgarada
@@ -1165,11 +1226,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       // klasörünün simgesini değiştir"*). Gelen kutusu oku, "az önce buraya
       // düştü" fikrini glifle anlatıyor.
       FmTileData(
+        id: 'new',
         icon: Icons.move_to_inbox_rounded,
         color: const Color(0xFFE8742A),
         label: context.t('fm.new_files'),
         subtitle: context.t('fm.new_files_note'),
-        onTap: () => _push(const NewFilesScreen()),
+        onTap: () => _openSwipe('new'),
       ),
       // **Son açılanlar — büyük kutu.** Araçlar satırındaki 12 küçük simgenin
       // arasındaydı ve kaydırmadan görünmüyordu; oysa "dün baktığım dosya"
@@ -1177,6 +1239,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // *"... kolay erişilebilir olmalı"*). Çöp kutusu ve Drive ile aynı
       // terfi hikâyesi.
       FmTileData(
+        id: 'recent',
         icon: Icons.history_rounded,
         color: const Color(0xFF5A5FD6),
         label: context.t('fm.recent_opened'),
@@ -1190,6 +1253,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // olmayı hak ediyor. Ağ depolama (NAS) araçlarda kalıyor — o, kuran
       // birinin bildiği bir yer; Drive ise herkesin aradığı.
       FmTileData(
+        id: 'drive',
         icon: Icons.cloud_rounded,
         color: const Color(0xFF1FA463),
         label: 'Google Drive',
@@ -1205,6 +1269,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // aynısı); ölçüm "Kullanım erişimi" iznine bağlı olduğu için izin yokken
       // sayı UYDURULMAZ, alt satır boş bırakılır.
       FmTileData(
+        id: 'apps',
         icon: Icons.android_rounded,
         color: FmColors.apk,
         label: context.t('fm.apps'),
@@ -1214,7 +1279,46 @@ class _DashboardScreenState extends State<DashboardScreen>
         onTap: () => _push(const InstalledAppsScreen()),
       ),
     ];
-    return FmCategoryGrid(tiles: tiles);
+    return tiles;
+  }
+
+  /// "Ana ekranı düzenle" sayfası.
+  Future<void> _editLayout() async {
+    final tiles = _categoryTilesRaw();
+    await showDashboardLayoutSheet(
+      context,
+      tiles: {
+        for (final t in tiles)
+          t.id: (label: t.label, icon: t.icon, color: t.color),
+      },
+      sections: {
+        'storage': (
+          label: context.t('dash.sec_storage'),
+          icon: Icons.sd_storage_rounded,
+          color: const Color(0xFF5B6670),
+        ),
+        'categories': (
+          label: context.t('dash.sec_categories'),
+          icon: Icons.grid_view_rounded,
+          color: const Color(0xFF2F6FE0),
+        ),
+        'tools': (
+          label: context.t('fm.tools'),
+          icon: Icons.handyman_rounded,
+          color: const Color(0xFF2E7D32),
+        ),
+        'favorites': (
+          label: context.t('dash.sec_favorites'),
+          icon: Icons.star_rounded,
+          color: const Color(0xFFF2A600),
+        ),
+        'quick': (
+          label: context.t('fm.quick_folders'),
+          icon: Icons.folder_special_rounded,
+          color: FmColors.folder,
+        ),
+      },
+    );
   }
 
   /// Ağ paylaşımı açıkken panonun en üstünde duran şerit. Kapalıyken hiç
@@ -1353,6 +1457,15 @@ class _DashboardScreenState extends State<DashboardScreen>
       // 2026-08-07: *"benim yaptıklarım kartı lazım … her şey kategorize
       // olmalı"*). İşlemler "şu an ne oluyor"u, bu kutu "ne ürettim"i
       // gösterir: küçültülen video, düzenlenen PDF, taranan belge.
+      // **Gizli dosyalar** (2026-09-27, kullanıcı: "dosyaları seçip gizleme").
+      FmTileData(
+        icon: Icons.visibility_off_outlined,
+        color: const Color(0xFF546E7A),
+        id: 'hidden',
+        label: context.t('hv.title'),
+        subtitle: '',
+        onTap: () => HiddenFilesScreen.open(context),
+      ),
       FmTileData(
         icon: Icons.history_edu_outlined,
         color: const Color(0xFF6A4C93),
@@ -2064,14 +2177,98 @@ class _DashboardScreenState extends State<DashboardScreen>
   FmTileData _categoryTile(FmCategory category, {bool grid = false}) {
     final stat = _index.stat(category);
     return FmTileData(
+      id: category.name,
       icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
       color: FmColors.forCategory(category),
       label: category.label,
       subtitle: stat.count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
           : '${FsPaths.humanSize(stat.bytes)} (${stat.count})',
-      onTap: () => _openCategory(category, grid: grid),
+      onTap: () => _openSwipe(category.name),
     );
+  }
+
+  /// Kaydırmalı gezginin sırası: panodaki kutuların sırası (kullanıcı
+  /// kutudan açtığı ekrandan sağa-sola kaydırarak komşu kategoriye geçer).
+  List<(String, SwipePage)> _swipePages() {
+    final pages = <(String, SwipePage)>[];
+    final downloads = downloadsPathIn(FmEnv.primaryRoot);
+    if (downloads != null) {
+      pages.add((
+        'downloads',
+        SwipePage(
+          label: context.t('fm.downloads'),
+          icon: Icons.download_rounded,
+          color: const Color(0xFF2F6FE0),
+          builder: (_) => DownloadsScreen(path: downloads),
+        ),
+      ));
+    }
+    pages.add((
+      'important',
+      SwipePage(
+        label: ImportantScreen.folderName,
+        icon: Icons.star_rounded,
+        color: const Color(0xFFF2A600),
+        builder: (_) => const ImportantScreen(),
+      ),
+    ));
+    for (final (category, grid) in [
+      (FmCategory.image, true),
+      (FmCategory.video, true),
+      (FmCategory.document, false),
+      (FmCategory.audio, false),
+      (FmCategory.archive, false),
+    ]) {
+      pages.add((
+        category.name,
+        SwipePage(
+          label: category.label,
+          icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
+          color: FmColors.forCategory(category),
+          builder: (_) => _categoryScreen(category, grid: grid),
+        ),
+      ));
+    }
+    pages.add((
+      'apk',
+      SwipePage(
+        label: context.t('fm.apk_files'),
+        icon: Icons.install_mobile_rounded,
+        color: const Color(0xFF0E9C8A),
+        builder: (context) => CategoryScreen(
+          title: context.t('fm.apk_files'),
+          files: _index.files(FmCategory.apk),
+        ),
+      ),
+    ));
+    pages.add((
+      'new',
+      SwipePage(
+        label: context.t('fm.new_files'),
+        icon: Icons.move_to_inbox_rounded,
+        color: const Color(0xFFE8742A),
+        builder: (_) => const NewFilesScreen(),
+      ),
+    ));
+    return pages;
+  }
+
+  Future<void> _openSwipe(String key) {
+    // Kaydırma sırası panodaki (kullanıcının dizdiği) sırayla aynı; gizlenen
+    // kutular atlanır — açılan kutu gizli olsa bile listede kalır.
+    final layout = DashboardLayout.instance;
+    final all = _swipePages();
+    final pages = [
+      for (final id in layout.tileOrder)
+        for (final e in all)
+          if (e.$1 == id && (layout.tileVisible(id) || id == key)) e,
+    ];
+    final index = pages.indexWhere((e) => e.$1 == key);
+    return _push(SwipePager(
+      pages: [for (final e in pages) e.$2],
+      initial: index < 0 ? 0 : index,
+    ));
   }
 
   /// **Bellek Analizi** — ana bellek kartının yanındaki ikinci düğme
