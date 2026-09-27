@@ -12189,3 +12189,6 @@ ink/reading/ai_pool/pdf_action_bars eklemeleri). `graphify` bu oturumda yok.
 Cihazda bakılacak: kısayol onayı (başlatıcıya göre değişir), toast'ın dock
 üstündeki görünümü, iki parmakla kalem kaydırmasının hissi, büyük kitapta
 vurgu kaydetme süresi.
+**CI sonucu:** main #371 yeşil (analyze + test + Kotlin/MainActivity derlemesi +
+APK içeriği denetimi) → **v1.0.371** yayımlandı. arm64 APK 74,4 MB (önceki
+77,6 MB), 32-bit 81,6 MB.
