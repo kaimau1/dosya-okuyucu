@@ -11,6 +11,7 @@ import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
 import 'jobs_screen.dart';
+import 'resize_compare_screen.dart';
 import 'similar_screen.dart';
 
 /// İşten **ilgili yere** gezinme — tek karar noktası.
@@ -33,6 +34,14 @@ Future<void> openJobTarget(
   final target = job.target;
   if (target != null && await _openTarget(context, target)) return;
   if (!context.mounted) return;
+  // Boyut düşürme: eski ↔ yeni karşılaştırma sayfası (2026-09-28).
+  final pairs = resizePairsOf(job.outputSources, job.outputs);
+  if (pairs.isNotEmpty) {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ResizeCompareScreen(pairs: pairs),
+    ));
+    return;
+  }
   if (await _openOutputs(context, job)) return;
   if (!context.mounted || !fallbackToJobs) return;
   await openJobsScreen(context);

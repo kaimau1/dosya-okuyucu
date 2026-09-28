@@ -94,8 +94,16 @@ Future<void> main() async {
   hub.onTap = _openFromNotification;
   // Bildirimdeki düğmeler (müzik duraklat/sonraki/kapat) ekran AÇMADAN iş
   // yapar; dokunmakla aynı kancaya bağlanamaz.
-  hub.onAction = (actionId, _) =>
-      unawaited(AudioPlayback.instance.handleAction(actionId));
+  hub.onAction = (actionId, payload) {
+    // Bildirimdeki "Durdur": yük = iş kimliği.
+    if (actionId == JobNotifications.actionCancel) {
+      if (payload != null && payload.isNotEmpty) {
+        JobQueue.instance.cancel(payload);
+      }
+      return;
+    }
+    unawaited(AudioPlayback.instance.handleAction(actionId));
+  };
   // **Medya oturumu** (bildirimdeki sürüklenebilir çubuk, kilit ekranı,
   // kulaklık düğmeleri). Eylem, oturumu en son süren çalara gider: tek oturum
   // var ve ses ile video onu paylaşıyor.

@@ -12192,3 +12192,32 @@ vurgu kaydetme süresi.
 **CI sonucu:** main #371 yeşil (analyze + test + Kotlin/MainActivity derlemesi +
 APK içeriği denetimi) → **v1.0.371** yayımlandı. arm64 APK 74,4 MB (önceki
 77,6 MB), 32-bit 81,6 MB.
+
+## 2026-09-28 — AI analiz iptali, bildirimde Durdur, eski↔yeni karşılaştırma, sohbet medyası koruması
+Kullanıcı: "iptal işe yaramıyor", "durdur/bildirimi kapat çok zor", "boyut düşürmeden
+sonra eski↔yeni karşılaştırma sayfası", "AI analizi dosya adlarını değiştirince
+WhatsApp'ta gönderilenler sohbette kayboluyor".
+- **İptal KÖK NEDENİ:** `JobQueue.cancel` yalnız işin bayrağını kaldırıyordu;
+  `AiAnalyzer` bunu grup başında yokluyordu. Dosya toplama, çıkarım, Gemini isteği ve
+  kota beklemesi sürerken düğme etkisizdi; `_sleep` de yalnız kendi statik bayrağına
+  bakıyordu. Çözüm: iş gövdesinde 250 ms'lik yoklama `handle.cancelled → cancel()`,
+  `_cancelSignal` + `_orCancel` yarışı (toplama/çıkarım/istek anında bırakılır, yarım
+  grup kaydedilmez). Şerit düğmesi basınca "Durduruluyor…" olur.
+- **Bildirim:** ön plan servisi bildirimi kaydırılamaz ve düğmesi yoktu →
+  `AndroidNotificationAction('job.cancel')` "Durdur"; `main.dart` `hub.onAction`
+  yük=iş kimliği ile `JobQueue.cancel` çağırır (ses eylemlerinden ayrı dal).
+  Cihazda bakılacak: düğme ekran kilitliyken/uygulama arka plandayken çalışıyor mu.
+- **Karşılaştırma:** `FmJob.outputSources` (çıktı→özgün, diske yazılır),
+  `ResizeCompareScreen` (fotoğraf: kaydırmalı üst üste; video: yan yana küçük resim;
+  eskiyi/yeniyi sil, ikisini tut, toplu "hepsinde eskiyi sil"). Boyut düşürme bitince
+  uygulama ön plandaysa KENDİLİĞİNDEN açılır (`_openCompareWhenDone`); arka plandaysa
+  bildirim/şerit "Göster" → `openJobTarget` aynı sayfayı açar. "Özgünü çöpe at"
+  seçiliyse eski zaten çöptedir: sayfa bunu yazar, tek görüntü gösterir.
+- **WhatsApp KÖK NEDENİ:** WhatsApp/Telegram sohbetteki medyayı DOSYA YOLUYLA
+  tutar; AI önerilerini uygulamak (`AiApply`) dosyayı yeniden adlandırıp/taşıyınca
+  balon "dosya yok" olur, geri dönüş yoktur. `ChatMediaGuard.isChatPath` (WhatsApp,
+  Telegram, Signal, Viber, WeChat): `AiRecord.hasSuggestion` bu yollarda hep false,
+  `AiApply._run` de atlar (eski kayıtlar için). Analiz (etiket/özet) yine yapılır.
+  Daha önce adı değişen dosyalar geri alınamaz (eski ad kayıtlı değil).
+- Flaky: `pdf_tools_test` "parola kaldır" (syncfusion AES, rastgele veri) tam takımda
+  bir kez düştü, tek başına 4/4 geçti; bu işle ilgisiz.

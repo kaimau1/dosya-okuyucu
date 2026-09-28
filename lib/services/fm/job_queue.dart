@@ -253,6 +253,10 @@ class FmJob {
   /// artık bu listeyi gösteriyor ve dosyalar oradan açılabiliyor.
   final List<String> outputs = [];
 
+  /// Çıktı yolu → **kaynağı** (boyut düşürmede özgün dosya). "Eski ↔ yeni"
+  /// karşılaştırma sayfası çiftleri buradan kurar (bkz. `ResizeCompareScreen`).
+  final Map<String, String> outputSources = {};
+
   /// İşin **ilgili yeri** (bkz. [FmJobTarget]). Yoksa gezinme [outputs]'a,
   /// o da yoksa İşlemler ekranına düşer.
   FmJobTarget? target;
@@ -317,6 +321,7 @@ class FmJob {
         'status': status.name,
         if (error != null) 'error': error,
         if (outputs.isNotEmpty) 'outputs': outputs,
+        if (outputSources.isNotEmpty) 'sources': outputSources,
         'startedAtMs': startedAtMs,
         'finishedAtMs': finishedAtMs,
         'dismissed': dismissed,
@@ -356,6 +361,10 @@ class FmJob {
       ..dismissed = raw['dismissed'] == true;
     for (final path in (raw['outputs'] as List? ?? const [])) {
       job.outputs.add('$path');
+    }
+    final sources = raw['sources'];
+    if (sources is Map) {
+      sources.forEach((k, v) => job.outputSources['$k'] = '$v');
     }
     return job;
   }
@@ -416,8 +425,9 @@ class JobHandle {
 
   /// İşin ürettiği bir dosyayı kaydeder — İşlemler ekranı bunları listeler ve
   /// kullanıcı oradan açar (bkz. [FmJob.outputs]).
-  void addOutput(String path) {
+  void addOutput(String path, {String? source}) {
     _job.outputs.add(path);
+    if (source != null) _job.outputSources[path] = source;
     _queue._persist(); // çıktı yolu kaybolmasın: süreç ölürse dosya öksüz kalır
     _queue._tick(_job);
   }
@@ -627,6 +637,7 @@ class JobQueue extends ChangeNotifier {
     );
     resumed.done = doneBefore;
     resumed.outputs.addAll(producedBefore);
+    resumed.outputSources.addAll(job.outputSources);
     _persist();
     return resumed;
   }
@@ -642,6 +653,9 @@ class JobQueue extends ChangeNotifier {
       job.status = JobStatus.cancelled;
       job.finishedAtMs = DateTime.now().millisecondsSinceEpoch;
       unawaited(_finish(job));
+    } else {
+      // Bildirim "Durduruluyor…" desin: düğmeye basıldığı hemen görünsün.
+      unawaited(_report(job));
     }
     notifyListeners();
     _persist();

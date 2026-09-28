@@ -18,6 +18,8 @@ import '../../services/fm/path_side_index.dart';
 import '../../services/fm/video_transcode.dart';
 import '../../widgets/fm/media_resize_sheet.dart';
 import '../../core/snack.dart';
+import '../../core/app_navigator.dart';
+import 'resize_compare_screen.dart';
 
 /// Seçili fotoğraf/videoları **boyut düşürme kuyruğuna** koyar.
 ///
@@ -83,6 +85,7 @@ Future<bool> startResizeJob(
     }),
     run: (handle) => _run(media, options, handle),
   );
+  if (!alreadyRunning) _openCompareWhenDone(id);
   // Metin durumu OKUR. Sabit "arka planda başladı" yazıyordu; oysa aynı iş zaten
   // sürüyorsa yenisi hiç açılmıyor ve kuyrukta başka bir iş varsa bu iş
   // BEKLİYOR — ikisinde de "başladı" demek yanlıştı (2026-07-29 denetimi).
@@ -94,6 +97,35 @@ Future<bool> startResizeJob(
               ? 'ra.queued'
               : 'ra.started'));
   return true;
+}
+
+/// İş bitince **eski ↔ yeni karşılaştırma sayfasını kendiliğinden açar**
+/// (kullanıcı isteği 2026-09-28). Uygulama o an ön plandaysa açılır; arka
+/// plandaysa bildirime/şeritteki "Göster"e dokununca aynı sayfa gelir.
+void _openCompareWhenDone(String id) {
+  final queue = JobQueue.instance;
+  void listener() {
+    final job = queue.find(id);
+    if (job == null) {
+      queue.removeListener(listener);
+      return;
+    }
+    if (job.status.isActive) return;
+    queue.removeListener(listener);
+    final pairs = resizePairsOf(job.outputSources, job.outputs);
+    if (pairs.isEmpty) return;
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+    // Sonuç şeridi "Göster" ile aynı sayfayı açar; burada da öyle.
+    nav.push(MaterialPageRoute(
+      builder: (_) => ResizeCompareScreen(pairs: pairs),
+    ));
+  }
+
+  queue.addListener(listener);
 }
 
 /// Seçilen dosyaların özelliklerini ölçer.
@@ -270,7 +302,7 @@ Future<void> _run(
           // Çıktı KAYDEDİLDİ → kullanıcı onu bulabilsin. İşlemler ekranı bu
           // listeyi gösterir, dosya oradan tek dokunuşla açılır (kullanıcı
           // hatası 2026-07-30: "nereye gitti, nereden açacağım bilinmiyor").
-          handle.addOutput(result.outputPath);
+          handle.addOutput(result.outputPath, source: entry.path);
           // "Yaptıklarım" defteri: küçültülen dosya, kazanılan yerle birlikte
           // (istek 2026-08-07 — "video boyutu düşürdük, düşen video orada").
           unawaited(ActivityLog.add(

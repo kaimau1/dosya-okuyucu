@@ -90,8 +90,14 @@ class _RunningBar extends StatelessWidget {
                     onPressed: () => openJobsScreen(context),
                   ),
                   TextButton(
-                    onPressed: () => JobQueue.instance.cancel(job.id),
-                    child: Text(context.t('jp.cancel')),
+                    // Basıldığı ANDA görünür geri bildirim: iş gövdesi
+                    // durmadan önce geçen saniyelerde düğme "çalışmıyor"
+                    // sanılıyordu (2026-09-28).
+                    onPressed: job.cancelRequested
+                        ? null
+                        : () => JobQueue.instance.cancel(job.id),
+                    child: Text(context.t(
+                        job.cancelRequested ? 'jp.cancelling' : 'jp.cancel')),
                   ),
                 ],
               ),

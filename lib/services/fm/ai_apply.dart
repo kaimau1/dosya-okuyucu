@@ -25,6 +25,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import 'ai_index.dart';
+import 'chat_media_guard.dart';
 import 'file_ops.dart';
 import 'job_queue.dart';
 
@@ -113,6 +114,10 @@ abstract final class AiApply {
           await AiIndex.remove(path);
           continue;
         }
+
+        // Sohbet medyası (WhatsApp/Telegram…): ad/yer değişirse sohbet dosyayı
+        // kaybeder. Eski kayıtlarda öneri durabilir → burada da durdurulur.
+        if (ChatMediaGuard.isChatPath(path)) continue;
 
         if (record.suggestedName.isNotEmpty &&
             record.suggestedName != p.basename(path)) {

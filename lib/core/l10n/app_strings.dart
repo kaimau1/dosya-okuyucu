@@ -6212,6 +6212,25 @@ const Map<String, (String, String, String)> _table = {
 
   // ── İş şeridi ─────────────────────────────────────────────────────────────
   'jp.cancel': ('İptal', 'Cancel', 'إلغاء'),
+  'rc.title': ('Eski ↔ yeni karşılaştır', 'Compare old ↔ new', 'مقارنة القديم ↔ الجديد'),
+  'rc.old': ('Eski', 'Old', 'القديم'),
+  'rc.new': ('Yeni', 'New', 'الجديد'),
+  'rc.trash_old': ('Eskiyi sil', 'Delete old', 'حذف القديم'),
+  'rc.trash_new': ('Yeniyi sil', 'Delete new', 'حذف الجديد'),
+  'rc.keep_both': ('İkisini de tut', 'Keep both', 'الاحتفاظ بكليهما'),
+  'rc.keep_all': ('Hepsini tut', 'Keep all', 'الاحتفاظ بالكل'),
+  'rc.trash_all_old': ('Hepsinde eskiyi sil', 'Delete all old', 'حذف كل القديم'),
+  'rc.confirm_all': (
+      '{n} eski dosya çöp kutusuna taşınacak. Yeni küçültülmüş dosyalar kalır.',
+      '{n} old files will be moved to the trash. The resized files stay.',
+      'سيتم نقل {n} ملفات قديمة إلى المهملات. تبقى الملفات المصغّرة.'),
+  'rc.done_snack': ('{n} eski dosya çöp kutusuna taşındı', '{n} old files moved to trash', 'تم نقل {n} ملفات قديمة إلى المهملات'),
+  'rc.old_trashed': ('Eski dosya çöp kutusunda', 'The old file is in the trash', 'الملف القديم في المهملات'),
+  'rc.new_trashed': ('Yeni dosya silindi', 'The new file was deleted', 'تم حذف الملف الجديد'),
+  'rc.open_old': ('Eskiyi aç', 'Open old', 'فتح القديم'),
+  'rc.open_new': ('Yeniyi aç', 'Open new', 'فتح الجديد'),
+  'rc.empty': ('Karşılaştırılacak dosya yok', 'Nothing to compare', 'لا يوجد ما يمكن مقارنته'),
+  'jp.cancelling': ('Durduruluyor…', 'Stopping…', 'جارٍ الإيقاف…'),
   'jp.show': ('Göster', 'Show', 'عرض'),
 
 

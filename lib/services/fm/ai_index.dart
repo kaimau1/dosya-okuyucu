@@ -28,6 +28,7 @@ import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:path/path.dart' as p;
 
 import '../../models/fs_entry.dart';
+import 'chat_media_guard.dart';
 import 'fm_env.dart';
 
 /// Bir dosya hakkında bilinenler.
@@ -85,9 +86,13 @@ class AiRecord {
   String get name => p.basename(path);
 
   /// Öneri var mı (ad ya da klasör)?
+  ///
+  /// Sohbet uygulamalarının medyasında (WhatsApp/Telegram…) **hiç öneri
+  /// yoktur**: ad/yer değişince sohbet dosyayı bulamaz (bkz. [ChatMediaGuard]).
   bool get hasSuggestion =>
-      (suggestedName.isNotEmpty && suggestedName != name) ||
-      suggestedFolder.isNotEmpty;
+      !ChatMediaGuard.isChatPath(path) &&
+      ((suggestedName.isNotEmpty && suggestedName != name) ||
+          suggestedFolder.isNotEmpty);
 
   /// Kayıt hâlâ dosyanın bugünkü hâlini mi anlatıyor?
   ///

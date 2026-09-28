@@ -136,6 +136,13 @@ abstract final class AiAnalyzer {
 
   static bool _cancelRequested = false;
   static bool _pauseRequested = false;
+
+  /// İptal anında tamamlanır: uzun süren beklemeler (toplama, ağ isteği, kota
+  /// beklemesi) bunu bekleyen bir yarışa girer → iptal **anında** işler.
+  /// Kullanıcı hatası 2026-09-28: *"iptal işe yaramıyor"* — iptal isteği yalnız
+  /// grup başında yoklanıyordu; dosya toplama / Gemini isteği / kota beklemesi
+  /// sürerken düğme hiçbir şey yapmıyordu.
+  static Completer<void> _cancelSignal = Completer<void>();
   static bool _running = false;
 
   static bool get isRunning => _running;
@@ -169,6 +176,7 @@ abstract final class AiAnalyzer {
     _running = true;
     _cancelRequested = false;
     _pauseRequested = false;
+    _cancelSignal = Completer<void>();
 
     // **Arka planda yürüsün ve bildirim panelinde görünsün** (kullanıcı isteği
     // 2026-08-10). İş kuyruğu bunu zaten yapıyor: uzun işler ÖN PLAN
@@ -183,6 +191,11 @@ abstract final class AiAnalyzer {
       detail: _str.t('aiq.collecting'),
       target: const FmJobTarget.aiHub(),
       run: (handle) async {
+        // Bildirimdeki/şeritteki/İşlemler ekranındaki iptal `handle`a düşer;
+        // onu analizin kendi iptaline burada bağlarız (250 ms yoklama).
+        final watch = Timer.periodic(const Duration(milliseconds: 250), (_) {
+          if (handle.cancelled) cancel();
+        });
         try {
           await _run(
             scope: scope,
@@ -195,6 +208,7 @@ abstract final class AiAnalyzer {
               .copyWith(phase: AiRunPhase.error, message: '$e', currentName: '');
           rethrow;
         } finally {
+          watch.cancel();
           _running = false;
         }
       },
@@ -219,6 +233,27 @@ abstract final class AiAnalyzer {
   static void cancel() {
     _cancelRequested = true;
     _pauseRequested = false;
+    if (!_cancelSignal.isCompleted) _cancelSignal.complete();
+  }
+
+  static final Object _cancelledMarker = Object();
+
+  /// [work]'u bekler ama iptal gelirse **hemen** null döner (iş arka planda
+  /// kendi hâlinde biter, sonucu atılır).
+  static Future<T?> _orCancel<T>(Future<T> work) async {
+    if (_cancelRequested) {
+      work.ignore();
+      return null;
+    }
+    final winner = await Future.any<Object?>([
+      work,
+      _cancelSignal.future.then<Object?>((_) => _cancelledMarker),
+    ]);
+    if (identical(winner, _cancelledMarker)) {
+      work.ignore();
+      return null;
+    }
+    return winner as T;
   }
 
   // ── çekirdek akış ─────────────────────────────────────────────────────────
@@ -237,11 +272,11 @@ abstract final class AiAnalyzer {
     await FmEnv.ensureInit();
     await AiIndex.ensureLoaded();
 
-    final candidates = await collectCandidates(
+    final candidates = await _orCancel(collectCandidates(
       scope: scope,
       reanalyze: reanalyze,
-    );
-    if (_cancelRequested) {
+    ));
+    if (candidates == null || _cancelRequested) {
       progress.value = const AiProgress(phase: AiRunPhase.idle);
       return;
     }
@@ -313,11 +348,14 @@ abstract final class AiAnalyzer {
         final fresh = <FsEntry, AiExcerpt>{};
         for (final entry in batch) {
           if (!scope.allowsContent(entry)) continue;
-          fresh[entry] = await AiExtract.excerpt(
+          final excerpt = await _orCancel(AiExtract.excerpt(
             entry,
             maxChars: _clampChars(scope.settings.excerptKb),
-          );
+          ));
+          if (excerpt == null) break; // iptal
+          fresh[entry] = excerpt;
         }
+        if (_cancelRequested) break;
         excerpts = fresh;
         cachedIndex = i;
         cachedExcerpts = fresh;
@@ -335,12 +373,13 @@ abstract final class AiAnalyzer {
 
       // 3) Buluta sor.
       try {
-        final records = await _askGemini(
+        final records = await _orCancel(_askGemini(
           credentials: credentials,
           batch: batch,
           excerpts: excerpts,
           scope: scope,
-        );
+        ));
+        if (records == null) break; // iptal: yarım grup kaydedilmez
         await AiIndex.putAll(records);
         done += batch.length;
         backoffStep = 0;

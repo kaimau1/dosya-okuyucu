@@ -45,6 +45,14 @@ import 'notification_hub.dart';
 /// birbirinin arka plan korumasını düşürürdü. Bu sınıf artık servisin
 /// **bir sahibi**.
 class JobNotifications implements JobReporter {
+  /// Bildirimdeki "Durdur" düğmesinin eylem kimliği (bkz. `main.dart`:
+  /// yük olarak iş kimliği gelir, `JobQueue.cancel` çağrılır).
+  ///
+  /// Kullanıcı 2026-09-28: *"bildirimi kapatmak / durdurmak çok zor"* —
+  /// ön plan servisi bildirimi kaydırınca gitmez ve üstünde hiç düğme yoktu;
+  /// iptal için uygulamayı açıp şeridi bulmak gerekiyordu.
+  static const actionCancel = 'job.cancel';
+
   static const _channelId = 'fm_jobs';
   static const _channelName = 'Dosya işlemleri';
   static const _channelDescription =
@@ -124,6 +132,15 @@ class JobNotifications implements JobReporter {
       // Uzun ayrıntı (dosya adı + % + kalan süre + motor) daraltılmış
       // bildirime sığmıyor; genişletilince tam metin görünsün.
       styleInformation: BigTextStyleInformation(bodyOf(job)),
+      actions: [
+        AndroidNotificationAction(
+          actionCancel,
+          AppStrings.current.t(job.cancelRequested
+              ? 'jp.cancelling'
+              : 'common.stop'),
+          cancelNotification: false,
+        ),
+      ],
     );
   }
 
