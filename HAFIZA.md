@@ -12221,3 +12221,4 @@ WhatsApp'ta gönderilenler sohbette kayboluyor".
   Daha önce adı değişen dosyalar geri alınamaz (eski ad kayıtlı değil).
 - Flaky: `pdf_tools_test` "parola kaldır" (syncfusion AES, rastgele veri) tam takımda
   bir kez düştü, tek başına 4/4 geçti; bu işle ilgisiz.
+**CI sonucu:** main #372 yeşil (analyze + test + Kotlin + APK) → **v1.0.372** yayımlandı.
