@@ -12402,3 +12402,5 @@ sonuç ekranı, tablo/çerçeveli belgede başlık ve imza KESİLMEDEN; "Sayfala
 değiştirip kaydetme; (c) SD kart: "Şimdi taşı" ilerlemesi, şarja takınca kendiliğinden
 çalışma (uygulama kapalıyken), şarjdan çıkınca durma, bildirim, galeride taşınan
 fotoğrafların görünmesi; Android 10 ve öncesinde `sd_readonly` uyarısı.
+**CI sonucu:** main #375 yeşil (analyze + test + Kotlin/`SdUnion.kt` dahil APK derlemesi +
+APK içeriği denetimi) → **v1.0.375** yayımlandı. arm64 APK 78,1 MB, 32-bit 85,7 MB.
