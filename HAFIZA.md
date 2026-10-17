@@ -12256,3 +12256,5 @@ bir ekosistem oluşturalım".
 l10n testleri yeşil. `ci/PickerActivity.kt` Flutter taslaklarıyla kotlinc 2.1.20'ye
 karşı derlendi (Robolectric android-all 34). Cihazda bakılacak: Notlar'dan PDF/ses
 isteyince doğrudan eşleşme listesi, "Diğer" → Notlar'da sistem seçicisi.
+**CI sonucu:** main #373 yeşil (analyze + test + APK + içerik denetimi) → **v1.0.373**
+yayımlandı. Notlar tarafı aynı gün **v1.0.448** (PR #84).
