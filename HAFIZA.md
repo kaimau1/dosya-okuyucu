@@ -12280,3 +12280,5 @@ Okuyucu içinde de UI/UX çalışmaları yap, APK derlet".
   listelerde ilk karede takılma riskini geri getirirdi); levha hareketi (3.29'da
   `sheetAnimationStyle` eğri almıyor, yalnız süre).
 - Test: `motion_test.dart` (+3).
+**CI sonucu:** main #374 yeşil (analyze + test + APK) → **v1.0.374** yayımlandı; yerel
+tam takım 3.29.3'te 2498 test yeşil. Notlar tarafı aynı tur **v1.0.450** (PR #85).
