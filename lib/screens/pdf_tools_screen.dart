@@ -16,8 +16,8 @@ import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf_tools.dart';
+import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
-import 'scan_review_screen.dart';
 import '../core/snack.dart';
 
 /// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
@@ -550,13 +550,13 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   /// sözleşme/rapor için asıl işe yarayan birleşim.
   Future<void> _scanAndAppend() async {
     final scanned = await DocumentScanner.scanPages();
-    if (scanned == null || !mounted) return;
-    // Ana tarama akışıyla aynı önizleme: yamuk sayfa belgeye girmeden düzeltilir.
-    final pages = await ScanReviewScreen.open(context, scanned);
-    if (pages == null || pages.isEmpty || !mounted) return;
+    if (scanned == null || scanned.isEmpty || !mounted) return;
     if (!await _confirmAnnotationLoss(_str.t('pt.op_scan_append'))) return;
-    // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada zaten görünür.
+    // Ana tarama akışıyla aynı hazırlık (düzleştir + netleştir, KIRPMA YOK —
+    // ML Kit sayfayı zaten kırptı, bkz. `ScanPrepare`); ara onay ekranı yok.
+    // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada görünür.
     await _apply(_str.t('pt.op_scan_append'), (b) async {
+      final pages = ScanPage.displays(await ScanPrepare.pages(scanned));
       final doc = await _conversion.imagesToPdf(pages,
           uniformPage: PdfPageFormat.a4);
       return PdfTools.mergeInBackground([b, doc]);

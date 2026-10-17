@@ -330,7 +330,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     setState(() => _controlsVisible = !_controlsVisible);
     if (_controlsVisible) _scheduleHide();
     if (_isAudio) return;
-    final width = MediaQuery.of(context).size.width;
+    final width = MediaQuery.sizeOf(context).width;
     final side = width <= 0 ? 0.5 : details.localPosition.dx / width;
     final now = DateTime.now();
     final previous = _lastTapAt;
@@ -353,7 +353,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   void _handleVolumeDrag(DragUpdateDetails details) {
     final c = _controller;
     if (c == null) return;
-    final height = MediaQuery.of(context).size.height;
+    final height = MediaQuery.sizeOf(context).height;
     final next = (_volume - details.delta.dy / (height * 0.6)).clamp(0.0, 1.0);
     _volume = next;
     unawaited(c.setVolume(next));
@@ -852,7 +852,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   Widget _controls(VideoPlayerController c, VideoPlayerValue value) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          Gap.md, Gap.sm, Gap.md, MediaQuery.of(context).padding.bottom + Gap.sm),
+          Gap.md, Gap.sm, Gap.md, MediaQuery.paddingOf(context).bottom + Gap.sm),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,

@@ -28,7 +28,7 @@ Future<CompressOptions?> showCompressSheet(BuildContext context) {
     showDragHandle: true,
     isScrollControlled: true,
     builder: (ctx) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
       child: const _CompressSheet(),
     ),
   );

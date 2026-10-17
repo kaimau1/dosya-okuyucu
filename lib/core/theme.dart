@@ -478,6 +478,13 @@ class AppTheme {
           return scheme.surfaceContainerHighest;
         }),
         labelStyle: TextStyle(
+          // Aile AÇIKÇA (2026-10-17): çip yazısı `DefaultTextStyle`ı bu
+          // stille DEĞİŞTİRİYOR; aile verilmezse temanın `fontFamily`si
+          // değil motorun varsayılanı (Roboto) çiziliyordu — kullanıcının
+          // seçtiği arayüz yazı tipi uygulamadaki BÜTÜN çiplerde (süzgeçler,
+          // klasör/tür çipleri) yok sayılıyordu.
+          fontFamily: body,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
           color: WidgetStateColor.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {

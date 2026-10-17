@@ -39,14 +39,14 @@ class FmTileData {
 
   /// Yalnız dokunmayı saran kopya (pano, sayacı artırmak için kullanır).
   FmTileData withTap(VoidCallback onTap) => FmTileData(
-    icon: icon,
-    color: color,
-    label: label,
-    subtitle: subtitle,
-    onTap: onTap,
-    id: id,
-    pulse: pulse,
-  );
+        icon: icon,
+        color: color,
+        label: label,
+        subtitle: subtitle,
+        onTap: onTap,
+        id: id,
+        pulse: pulse,
+      );
 }
 
 /// **Degrade simge** — pano kutularının ve araçların ortak glifi.
@@ -71,12 +71,65 @@ class FmTintedIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glyph = Icon(icon, color: color, size: size);
-    if (context.fmOutlinedIcons) return glyph;
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback:
-          (rect) => LinearGradient(
+    if (context.fmOutlinedIcons) return Icon(icon, color: color, size: size);
+    // **Katmansız degrade** (2026-10-17 başarım turu). Eskiden `ShaderMask`
+    // ile çiziliyordu: her simge ayrı bir ekran dışı katman (`saveLayer`)
+    // açıyor, panodaki ~15 kutu kaydırılırken her karede 15 katman
+    // birleştiriliyordu. Glif bir yazı tipi karakteri olduğu için degrade
+    // doğrudan yazının fırçasına (`foreground`) verilebiliyor — görüntü aynı,
+    // katman yok.
+    return _GradientIcon(icon, color: color, size: size);
+  }
+}
+
+/// Degradeyle boyanmış simge. `Icon`dan türer: ağaçta yine bir `Icon`dur
+/// (`find.byIcon`, erişilebilirlik), yalnız çizimi kendisi yapar.
+class _GradientIcon extends Icon {
+  const _GradientIcon(super.icon,
+      {required Color super.color, required double super.size});
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+        child: CustomPaint(
+          size: Size.square(size!),
+          painter: _GradientGlyphPainter(
+            icon!,
+            color!,
+            size!,
+            Directionality.maybeOf(context) ?? TextDirection.ltr,
+          ),
+        ),
+      );
+}
+
+/// Glifi KENDİ koordinatında çizer. `RichText` + `foreground` denendi ve
+/// yanlış çıktı: paragraf, tuvali kaydırmadan bir kaymayla çiziliyor, yani
+/// fırçanın degradesi katmanın (0,0) noktasına göre değerlendiriliyordu —
+/// ekranın ortasındaki simge degradenin koyu ucunda kalıyordu (ekran
+/// görüntüsüyle yakalandı). `CustomPaint` tuvali kutunun köşesine taşıdığı
+/// için degrade simgenin üstüne oturuyor.
+class _GradientGlyphPainter extends CustomPainter {
+  final IconData icon;
+  final Color color;
+  final double extent;
+  final TextDirection direction;
+
+  _GradientGlyphPainter(this.icon, this.color, this.extent, this.direction);
+
+  late final TextPainter _text = TextPainter(
+    textDirection: direction,
+    text: TextSpan(
+      text: String.fromCharCode(icon.codePoint),
+      style: TextStyle(
+        inherit: false,
+        fontSize: extent,
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        fontFamilyFallback: icon.fontFamilyFallback,
+        height: 1.0,
+        leadingDistribution: TextLeadingDistribution.even,
+        foreground: Paint()
+          ..shader = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
@@ -85,10 +138,25 @@ class FmTintedIcon extends StatelessWidget {
               Color.lerp(color, Colors.black, 0.18)!,
             ],
             stops: const [0, 0.5, 1],
-          ).createShader(rect),
-      child: glyph,
+          ).createShader(Rect.fromLTWH(0, 0, extent, extent)),
+      ),
+    ),
+  )..layout();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _text.paint(
+      canvas,
+      Offset((size.width - _text.width) / 2, (size.height - _text.height) / 2),
     );
   }
+
+  @override
+  bool shouldRepaint(_GradientGlyphPainter old) =>
+      old.icon != icon ||
+      old.color != color ||
+      old.extent != extent ||
+      old.direction != direction;
 }
 
 /// Simgeyi yavaşça büyütüp küçülten kutu ("dolu" göstergesi).
@@ -152,12 +220,13 @@ class _PulsingIconState extends State<_PulsingIcon>
 
   @override
   Widget build(BuildContext context) => ScaleTransition(
-    scale: Tween<double>(
-      begin: 1,
-      end: 1.14,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
-    child: widget.child,
-  );
+        scale: Tween<double>(
+          begin: 1,
+          end: 1.14,
+        ).animate(
+            CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+        child: widget.child,
+      );
 }
 
 /// Panonun kategori kutusu. **Ortak widget:** "Önemli Dosyalar" klasörü de
@@ -256,22 +325,22 @@ class FmCategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final columns = columnsFor(constraints.maxWidth);
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columns,
-          childAspectRatio: 0.86,
-          mainAxisSpacing: Gap.xs,
-          crossAxisSpacing: Gap.xs,
-        ),
-        itemCount: tiles.length,
-        itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
+        builder: (context, constraints) {
+          final columns = columnsFor(constraints.maxWidth);
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              childAspectRatio: 0.86,
+              mainAxisSpacing: Gap.xs,
+              crossAxisSpacing: Gap.xs,
+            ),
+            itemCount: tiles.length,
+            itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
+          );
+        },
       );
-    },
-  );
 }
 
 /// **Araç satırı** — kategori kutularından görsel olarak DAHA HAFİF.

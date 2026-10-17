@@ -7,7 +7,7 @@
 # ortaya çıktı. Bu betik aynı hatayı saniyeler içinde yakalar.
 #
 # Kapsam — dürüstçe: `ci/UsbMass.kt`, `ci/MediaSession.kt` ve
-# `ci/FloatingPlayer.kt`. Üçü de Flutter'a HİÇ bağlı değil
+# `ci/FloatingPlayer.kt` (+ `ANDROID_ALL_JAR` verilirse `ci/SdUnion.kt`). Üçü de Flutter'a HİÇ bağlı değil
 # (yalnız Android çerçevesini kullanıyor), bu yüzden birkaç taslakla
 # denetlenebiliyor. `MainActivity.kt` Flutter gömme sınıflarını kullanıyor;
 # onu taslaklamak gerçek SDK'yı taklit etmeye dönüşürdü — orası CI'da derleniyor.
@@ -36,3 +36,29 @@ if grep -qE "^e: |: error: " "$OUT/log"; then
   exit 1
 fi
 echo "Kotlin tür denetimi temiz (UsbMass, MediaSession, FloatingPlayer)."
+
+# ── İsteğe bağlı: GERÇEK Android API'sine karşı derleme + davranış denemesi ──
+# `ci/SdUnion.kt` (JobScheduler/JobService) taslaklarla denetlenmiyor; gerçek
+# çerçeve jar'ı verilirse (Robolectric `android-all`, Maven Central'dan) hem
+# derlenir hem de motor JVM'de gerçek dosyalarla sınanır
+# (tool/kotlin_tests/SdUnionHarness.kt). Jar yoksa sessizce atlanır.
+#   ANDROID_ALL_JAR=/yol/android-all-14-robolectric-10818077.jar tool/check_kotlin.sh
+ANDROID_JAR="${ANDROID_ALL_JAR:-}"
+if [ -z "$ANDROID_JAR" ] || [ ! -f "$ANDROID_JAR" ]; then
+  echo "ANDROID_ALL_JAR yok — SdUnion denemesi atlandı."
+  exit 0
+fi
+OUT2="$OUT/sdunion"
+mkdir -p "$OUT2"
+"$KOTLINC" -nowarn -cp "$ANDROID_JAR" -d "$OUT2" \
+  "$ROOT/ci/SdUnion.kt" \
+  "$ROOT/tool/kotlin_tests/SdUnionHarness.kt" 2>&1 | tee "$OUT/log2"
+if grep -qE "^e: |: error: " "$OUT/log2"; then
+  echo "KOTLIN HATASI (SdUnion) — yukarıya bakın."
+  exit 1
+fi
+KOTLIN_RUN="$(dirname "$(command -v "$KOTLINC")")/kotlin"
+if ! "$KOTLIN_RUN" -cp "$OUT2:$ANDROID_JAR" SdUnionHarnessKt; then
+  echo "SdUnion DENEMESİ BAŞARISIZ."
+  exit 1
+fi

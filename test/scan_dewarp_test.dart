@@ -128,4 +128,44 @@ void main() {
       );
     });
   });
+
+  /// 2026-10-17 kullanıcı: *"belge taramada kesme sorunu"*. Kıvrım açılırken
+  /// çıktı kaynakla AYNI yükseklikteydi: aşağı itilen kenar sütunlarının en
+  /// alt satırı tuvalin dışına düşüp siliniyordu (sayfa numarası, dipnot).
+  group('kıvrım açılırken içerik kesilmez', () {
+    /// Bir sütundaki koyu bantların (satırların) sayısı.
+    int runsIn(img.Image image, int x) {
+      var runs = 0;
+      var inRun = false;
+      for (var y = 0; y < image.height; y++) {
+        final dark = image.getPixel(x, y).r < 128;
+        if (dark && !inRun) runs++;
+        inRun = dark;
+      }
+      return runs;
+    }
+
+    test('sayfanın en altındaki satır kenar sütunlarda da korunur', () {
+      const width = 600, height = 800;
+      final image = img.Image(width: width, height: height, numChannels: 3);
+      img.fill(image, color: img.ColorRgb8(255, 255, 255));
+      // Satırlar sayfanın neredeyse en altına kadar iniyor (son satır 794).
+      for (var top = 2; top < height; top += 24) {
+        for (var x = 40; x < width - 40; x++) {
+          final offset = (14 * math.sin(math.pi * x / 600)).round();
+          for (var y = top; y < top + 8; y++) {
+            final yy = y + offset;
+            if (yy >= 0 && yy < height) image.setPixelRgb(x, yy, 20, 20, 20);
+          }
+        }
+      }
+      final fixed = ScanDewarp.straighten(image);
+      expect(fixed, isNotNull);
+      expect(fixed!.height, greaterThanOrEqualTo(height),
+          reason: 'tuval kayma kadar uzamalı, kısalamaz');
+      expect(runsIn(fixed, 45), runsIn(image, 45),
+          reason: 'kenar sütunundaki satırlardan biri kesildi');
+      expect(runsIn(fixed, width - 45), runsIn(image, width - 45));
+    });
+  });
 }

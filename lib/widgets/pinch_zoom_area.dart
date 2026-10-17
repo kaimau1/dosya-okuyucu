@@ -193,7 +193,7 @@ class _PinchZoomAreaState extends State<PinchZoomArea> {
         ),
         Positioned(
           left: 12,
-          bottom: MediaQuery.of(context).padding.bottom + 12,
+          bottom: MediaQuery.paddingOf(context).bottom + 12,
           child: ZoomBadge(zoom: _badge.zoom, visible: _badge.visible),
         ),
       ],

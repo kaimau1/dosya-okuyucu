@@ -297,6 +297,34 @@ class MainActivity : FlutterActivity() {
         return path
     }
 
+    /**
+     * **SD kartla birleşik depolama** (2026-10-17) — motor ve iş `ci/SdUnion.kt`
+     * içinde; burası yalnız kanal. Ayar Dart'ta tutulur, `configure` ile JSON
+     * olarak gelir; şarjdayken koşan dönemsel iş uygulama kapalıyken de çalışır.
+     */
+    private fun setupSdUnionChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SD_UNION_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                val ctx = applicationContext
+                try {
+                    when (call.method) {
+                        "configure" -> result.success(
+                            SdUnion.configure(ctx, call.argument<String>("config") ?: "")
+                        )
+                        "runNow" -> result.success(SdUnion.runNow(ctx))
+                        "stop" -> {
+                            SdUnion.stop(ctx)
+                            result.success(true)
+                        }
+                        "status" -> result.success(SdUnion.status(ctx))
+                        else -> result.notImplemented()
+                    }
+                } catch (e: Exception) {
+                    result.error("sd_union", e.message, null)
+                }
+            }
+    }
+
     private fun setupShortcutChannel(flutterEngine: FlutterEngine) {
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHORTCUT_CHANNEL)
         shortcutChannel = ch
@@ -382,6 +410,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         setupShortcutChannel(flutterEngine)
+        setupSdUnionChannel(flutterEngine)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel!!
             .setMethodCallHandler { call, result ->
@@ -1626,5 +1655,6 @@ class MainActivity : FlutterActivity() {
         const val ACTION_OPEN_PATH = "com.dosyaokuyucu.action.OPEN_PATH"
         const val EXTRA_SHORTCUT_PATH = "path"
         const val SHORTCUT_CHANNEL = "dosya_okuyucu/shortcuts"
+        const val SD_UNION_CHANNEL = "dosya_okuyucu/sd_union"
     }
 }

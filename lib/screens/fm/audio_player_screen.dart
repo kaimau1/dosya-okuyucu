@@ -331,32 +331,37 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               const Spacer(),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                child: Row(
-                  children: [
-                    Text(_fmt(_position), style: theme.textTheme.bodySmall),
-                    Expanded(
-                      child: Slider(
-                        value: _position.inMilliseconds
-                            .clamp(0, max(_duration.inMilliseconds, 1))
-                            .toDouble(),
-                        max: max(_duration.inMilliseconds, 1).toDouble(),
-                        onChangeStart: (_) {
-                          // Sürüklerken servis konumu ekrana yansımasın, yoksa
-                          // parmak çubuğu çekerken çubuk geri zıplar.
-                          _dragging = true;
-                          _p.setDragging(true);
-                        },
-                        onChanged: (v) => setState(() =>
-                            _dragPosition = Duration(milliseconds: v.round())),
-                        onChangeEnd: (v) async {
-                          _dragging = false;
-                          _p.setDragging(false);
-                          await _p.seek(Duration(milliseconds: v.round()));
-                        },
+                // Yalnız bu satır konumla yeniden kurulur (saniyede ~5 kez);
+                // ekranın geri kalanı durum değişince.
+                child: ValueListenableBuilder<Duration>(
+                  valueListenable: _p.positionListenable,
+                  builder: (context, _, __) => Row(
+                    children: [
+                      Text(_fmt(_position), style: theme.textTheme.bodySmall),
+                      Expanded(
+                        child: Slider(
+                          value: _position.inMilliseconds
+                              .clamp(0, max(_duration.inMilliseconds, 1))
+                              .toDouble(),
+                          max: max(_duration.inMilliseconds, 1).toDouble(),
+                          onChangeStart: (_) {
+                            // Sürüklerken servis konumu ekrana yansımasın, yoksa
+                            // parmak çubuğu çekerken çubuk geri zıplar.
+                            _dragging = true;
+                            _p.setDragging(true);
+                          },
+                          onChanged: (v) => setState(() => _dragPosition =
+                              Duration(milliseconds: v.round())),
+                          onChangeEnd: (v) async {
+                            _dragging = false;
+                            _p.setDragging(false);
+                            await _p.seek(Duration(milliseconds: v.round()));
+                          },
+                        ),
                       ),
-                    ),
-                    Text(_fmt(_duration), style: theme.textTheme.bodySmall),
-                  ],
+                      Text(_fmt(_duration), style: theme.textTheme.bodySmall),
+                    ],
+                  ),
                 ),
               ),
               Row(
@@ -440,8 +445,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   Future<void> _savePlaylist() async {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final controller = TextEditingController(
-        text: p.basename(p.dirname(_current)));
+    final controller =
+        TextEditingController(text: p.basename(p.dirname(_current)));
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -466,8 +471,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     if (name == null || name.trim().isEmpty) return;
     try {
       final dir = p.dirname(_current);
-      final target = FileOps.uniquePath(p.join(
-          dir, '${FileOps.sanitizeName(name)}${PlaylistM3u.extension}'));
+      final target = FileOps.uniquePath(
+          p.join(dir, '${FileOps.sanitizeName(name)}${PlaylistM3u.extension}'));
       await PlaylistM3u.write(target, [
         for (final path in _playlist)
           PlaylistEntry(path: path, title: p.basenameWithoutExtension(path)),

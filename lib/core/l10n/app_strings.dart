@@ -4938,6 +4938,16 @@ const Map<String, (String, String, String)> _table = {
     'The page already looks straight — nothing changed.',
     'تبدو الصفحة مستقيمة بالفعل — لم يتغيّر شيء.',
   ),
+  // Sayfaları düzenle ekranı (2026-10-17: tarama doğrudan kaydediliyor,
+  // düzenleme sonuç ekranından açılıyor).
+  'sr.title': ('Sayfa {n} / {total}', 'Page {n} / {total}', 'الصفحة {n} / {total}'),
+  'sr.move_earlier': ('Sayfayı öne al', 'Move the page earlier', 'نقل الصفحة إلى الأمام'),
+  'sr.move_later': ('Sayfayı arkaya al', 'Move the page later', 'نقل الصفحة إلى الخلف'),
+  'sr.order_hint': (
+    'Sırayı değiştirmek için oklara dokunun',
+    'Tap the arrows to change the order',
+    'اضغط على الأسهم لتغيير الترتيب',
+  ),
 
   // ── Açılma geçmişi ────────────────────────────────────────────────────────
   'oh.title': ('Son açılanlar', 'Recently opened', 'المفتوحة مؤخرًا'),
@@ -5329,11 +5339,17 @@ const Map<String, (String, String, String)> _table = {
   ),
   'se.working': ('Düzeltiliyor…', 'Correcting…', 'جارٍ التصحيح…'),
   'se.hint': (
-    'Mavi dikdörtgenin köşelerini sayfanın köşelerine sürükleyin. '
-        'Sayfa eğik çekildiyse de düzleştirilir.',
-    'Drag the corners of the blue rectangle onto the corners of the page. A '
-        'skewed shot is straightened too.',
-    'اسحب زوايا المستطيل الأزرق إلى زوايا الصفحة. وتُقوَّم أيضًا اللقطة المائلة.',
+    'Mavi çerçeve sayfanın tamamı — dokunmazsanız hiçbir yer kesilmez. '
+        'Kırpmak için köşeleri sürükleyin; eğik çekilen sayfa da düzleşir.',
+    'The blue frame is the whole page — nothing is cut unless you move it. '
+        'Drag the corners to crop; a skewed shot is straightened too.',
+    'الإطار الأزرق هو الصفحة كاملة — لن يُقصّ شيء ما لم تحرّكه. اسحب الزوايا '
+        'للقصّ؛ وتُقوَّم اللقطة المائلة أيضًا.',
+  ),
+  'se.use_found': (
+    'Bulunan kenarlara oturt',
+    'Snap to the detected edges',
+    'المطابقة مع الحواف المكتشفة',
   ),
   // ── Otomatik kenar bulma + belge filtreleri (istek 2026-07-30) ────────────
   'se.auto_detect': (
@@ -5407,11 +5423,188 @@ const Map<String, (String, String, String)> _table = {
     'إن نسيت كلمة المرور فلن يمكن فتح الأرشيف — لا توجد طريقة للاستعادة.',
   ),
 
+  // ── SD kartla birleşik depolama (2026-10-17) ─────────────────────────────
+  'sdu.title': ('SD kartla birleşik depolama', 'Combined storage with SD card', 'تخزين موحّد مع بطاقة SD'),
+  'sdu.section': ('SD kart', 'SD card', 'بطاقة SD'),
+  'sdu.tile_sub': (
+    'Şarj olurken eski fotoğraf ve videoları SD karta taşıyıp ana belleği boşaltır',
+    'While charging, moves old photos and videos to the SD card to free up internal storage',
+    'أثناء الشحن، ينقل الصور ومقاطع الفيديو القديمة إلى بطاقة SD لتحرير الذاكرة الداخلية',
+  ),
+  'sdu.kw': (
+    'hafıza kartı microsd taşı yedekle şarj ana bellek doldu yer aç',
+    'memory card microsd move backup charging internal storage full free space',
+    'بطاقة ذاكرة microsd نقل نسخ احتياطي شحن الذاكرة ممتلئة تحرير مساحة',
+  ),
+  'sdu.hero_title': ('İki bellek, tek depolama', 'Two memories, one storage', 'ذاكرتان، تخزين واحد'),
+  'sdu.hero_body': (
+    'Telefon şarja takılınca seçtiğiniz klasörlerin eski dosyaları SD karta, aynı '
+        'klasör yapısıyla taşınır. Listelerde ve galeride yine birlikte görünürler; '
+        'ana bellek boşalır. Şarjdan çıkınca iş durur, yarım dosya kalmaz.',
+    'When the phone is charging, old files from the folders you choose are moved '
+        'to the SD card with the same folder layout. They still show up together in '
+        'lists and the gallery, and internal storage is freed. Unplugging stops the '
+        'job without leaving half-copied files.',
+    'عند شحن الهاتف تُنقل الملفات القديمة من المجلدات التي تختارها إلى بطاقة SD '
+        'بنفس بنية المجلدات. وتظل تظهر معًا في القوائم والمعرض، وتتحرّر الذاكرة '
+        'الداخلية. يتوقف العمل عند فصل الشاحن دون ترك ملفات منسوخة جزئيًا.',
+  ),
+  'sdu.android_only': (
+    'Bu özellik yalnız Android\'de çalışır.',
+    'This feature works only on Android.',
+    'تعمل هذه الميزة على Android فقط.',
+  ),
+  'sdu.no_card': ('SD kart takılı değil', 'No SD card inserted', 'لا توجد بطاقة SD'),
+  'sdu.no_card_hint': (
+    'Telefonunuza bir microSD kart takın; kart burada kendiliğinden görünür.',
+    'Insert a microSD card into your phone; it will show up here automatically.',
+    'أدخل بطاقة microSD في هاتفك وستظهر هنا تلقائيًا.',
+  ),
+  'sdu.card_missing': (
+    'Seçili SD kart şu an takılı değil. Kart takılınca iş kaldığı yerden sürer.',
+    'The selected SD card is not inserted right now. The job continues once it is back.',
+    'بطاقة SD المحددة غير موجودة حاليًا. سيستأنف العمل عند إعادتها.',
+  ),
+  'sdu.err_readonly': (
+    'Bu telefon SD karta doğrudan yazmaya izin vermiyor (Android 10 ve öncesi ya '
+        'da "Tüm dosyalara erişim" izni kapalı). Ayarlar\'dan izni açın.',
+    'This phone does not allow writing to the SD card directly (Android 10 or '
+        'older, or "All files access" is off). Turn the permission on in Settings.',
+    'لا يسمح هذا الهاتف بالكتابة على بطاقة SD مباشرة (Android 10 أو أقدم، أو '
+        'إذن "الوصول إلى كل الملفات" مغلق). فعّل الإذن من الإعدادات.',
+  ),
+  'sdu.enable': ('Şarj olurken otomatik çalıştır', 'Run automatically while charging', 'التشغيل تلقائيًا أثناء الشحن'),
+  'sdu.enable_sub': (
+    'Uygulama kapalıyken de çalışır; pil harcamaz, şarjdan çıkınca durur.',
+    'Works even when the app is closed; it does not drain the battery and stops when unplugged.',
+    'يعمل حتى والتطبيق مغلق؛ لا يستهلك البطارية ويتوقف عند فصل الشاحن.',
+  ),
+  'sdu.sec_status': ('Durum', 'Status', 'الحالة'),
+  'sdu.sec_target': ('Hedef ve kip', 'Target and mode', 'الوجهة والوضع'),
+  'sdu.sec_what': ('Neler taşınsın', 'What to move', 'ما الذي يُنقل'),
+  'sdu.card_free': ('{free} boş · {total}', '{free} free · {total}', '{free} متاحة · {total}'),
+  'sdu.mode_move': ('Taşı', 'Move', 'نقل'),
+  'sdu.mode_copy': ('Yedekle', 'Back up', 'نسخ احتياطي'),
+  'sdu.mode_move_sub': (
+    'Dosya SD karta geçer, ana bellekte yer açılır.',
+    'Files move to the SD card and free up internal storage.',
+    'تنتقل الملفات إلى بطاقة SD وتتحرّر مساحة في الذاكرة الداخلية.',
+  ),
+  'sdu.mode_copy_sub': (
+    'Dosya ana bellekte kalır, SD karta bir kopyası alınır (değişirse tazelenir).',
+    'Files stay in internal storage and a copy is kept on the SD card (refreshed when changed).',
+    'تبقى الملفات في الذاكرة الداخلية وتُحفظ نسخة على بطاقة SD (تُحدَّث عند التغيير).',
+  ),
+  'sdu.folders': ('Klasörler', 'Folders', 'المجلدات'),
+  'sdu.f_camera': ('Kamera (DCIM)', 'Camera (DCIM)', 'الكاميرا (DCIM)'),
+  'sdu.f_pictures': ('Resimler', 'Pictures', 'الصور'),
+  'sdu.f_movies': ('Videolar', 'Movies', 'الفيديوهات'),
+  'sdu.f_music': ('Müzik', 'Music', 'الموسيقى'),
+  'sdu.f_download': ('İndirilenler', 'Downloads', 'التنزيلات'),
+  'sdu.f_documents': ('Belgeler', 'Documents', 'المستندات'),
+  'sdu.f_recordings': ('Kayıtlar', 'Recordings', 'التسجيلات'),
+  'sdu.age': ('Şu kadar eski dosyalar', 'Files older than', 'الملفات الأقدم من'),
+  'sdu.age_all': ('Hepsi', 'All', 'الكل'),
+  'sdu.age_days': ('{n} gün', '{n} days', '{n} يوم'),
+  'sdu.preview_wait': ('Hesaplanıyor…', 'Calculating…', 'جارٍ الحساب…'),
+  'sdu.preview_move': (
+    'Şu an {n} dosya · {size} taşınır',
+    '{n} files · {size} would move now',
+    'سيُنقل الآن {n} ملف · {size}',
+  ),
+  'sdu.preview_copy': (
+    'Şu an {n} dosya · {size} yedeklenir',
+    '{n} files · {size} would be backed up now',
+    'سيُنسخ الآن {n} ملف · {size}',
+  ),
+  'sdu.preview_sub': (
+    'Kartta zaten aynısı olanlar atlanır.',
+    'Files that already exist on the card are skipped.',
+    'تُتخطّى الملفات الموجودة بالفعل على البطاقة.',
+  ),
+  'sdu.notify': ('Bitince bildirim göster', 'Notify when done', 'إظهار إشعار عند الانتهاء'),
+  'sdu.rules': (
+    'Dokunulmayanlar: gizli klasörler (.thumbnails), son 10 dakikada değişen '
+        'dosyalar ve WhatsApp/Telegram gibi sohbet uygulamalarının medyası — '
+        'sohbetler dosyayı yoluyla tuttuğu için taşınınca açılmaz olurdu. Kartta '
+        'en az 1 GB boş yer bırakılır. Aynı adlı farklı bir dosya varsa yeni ad '
+        'verilir, hiçbir şeyin üzerine yazılmaz.',
+    'Left alone: hidden folders (.thumbnails), files changed in the last 10 '
+        'minutes and media of chat apps like WhatsApp/Telegram — chats keep the '
+        'file by its path, so moving it would break them. At least 1 GB is kept '
+        'free on the card. If a different file with the same name exists, a new '
+        'name is used; nothing is overwritten.',
+    'ما لا يُمسّ: المجلدات المخفية (.thumbnails) والملفات المعدّلة في آخر 10 '
+        'دقائق ووسائط تطبيقات الدردشة مثل WhatsApp/Telegram — إذ تحفظ المحادثات '
+        'الملف بمساره فيتعطّل عند نقله. يُترك 1 غيغابايت على الأقل فارغًا على '
+        'البطاقة. إن وُجد ملف مختلف بالاسم نفسه يُستخدم اسم جديد ولا يُستبدل شيء.',
+  ),
+  'sdu.charging': ('Şarjda', 'Charging', 'قيد الشحن'),
+  'sdu.not_charging': ('Şarjda değil', 'Not charging', 'غير موصول بالشاحن'),
+  'sdu.will_run_now': ('kısa süre içinde çalışır', 'will run shortly', 'سيعمل قريبًا'),
+  'sdu.will_run_charging': ('şarja takılınca çalışır', 'runs when you plug in', 'يعمل عند توصيل الشاحن'),
+  'sdu.never': ('Henüz çalışmadı.', 'Has not run yet.', 'لم يعمل بعد.'),
+  'sdu.running': (
+    'Taşınıyor… şimdiye dek {n} dosya · {size}',
+    'Moving… {n} files · {size} so far',
+    'جارٍ النقل… {n} ملف · {size} حتى الآن',
+  ),
+  'sdu.last_run': (
+    'Son çalışma {when}: {n} dosya · {size}',
+    'Last run {when}: {n} files · {size}',
+    'آخر تشغيل {when}: {n} ملف · {size}',
+  ),
+  'sdu.total': (
+    'Toplam: {n} dosya · {size}',
+    'In total: {n} files · {size}',
+    'الإجمالي: {n} ملف · {size}',
+  ),
+  'sdu.failed_n': (
+    '{n} dosya taşınamadı (bir sonraki çalışmada yeniden denenir).',
+    '{n} files could not be moved (retried next time).',
+    'تعذّر نقل {n} ملف (سيُعاد المحاولة في المرة القادمة).',
+  ),
+  'sdu.err_sd_missing': (
+    'SD kart bulunamadı — iş atlandı.',
+    'SD card not found — the job was skipped.',
+    'لم يُعثر على بطاقة SD — تم تخطي العمل.',
+  ),
+  'sdu.err_sd_full': (
+    'SD kart doldu (1 GB pay bırakılıyor) — iş durdu.',
+    'The SD card is full (1 GB is kept free) — the job stopped.',
+    'امتلأت بطاقة SD (يُترك 1 غيغابايت فارغًا) — توقف العمل.',
+  ),
+  'sdu.err_stopped': (
+    'Şarj kesildiği ya da durdurulduğu için yarıda bırakıldı; kalanı sonra taşınır.',
+    'Paused because charging stopped or it was stopped; the rest moves later.',
+    'توقّف مؤقتًا لانقطاع الشحن أو لإيقافه؛ يُنقل الباقي لاحقًا.',
+  ),
+  'sdu.run_now_move': ('Şimdi taşı', 'Move now', 'انقل الآن'),
+  'sdu.run_now_copy': ('Şimdi yedekle', 'Back up now', 'انسخ الآن'),
+  'sdu.run_started': (
+    'Başladı — uygulamayı kapatabilirsiniz.',
+    'Started — you can close the app.',
+    'بدأ — يمكنك إغلاق التطبيق.',
+  ),
+  'sdu.run_failed': (
+    'Başlatılamadı. SD kart takılı mı?',
+    'Could not start. Is the SD card inserted?',
+    'تعذّر البدء. هل بطاقة SD موجودة؟',
+  ),
+  'sdu.notify_title_move': ('SD karta taşındı', 'Moved to SD card', 'نُقل إلى بطاقة SD'),
+  'sdu.notify_title_copy': ('SD karta yedeklendi', 'Backed up to SD card', 'نُسخ إلى بطاقة SD'),
+  'sdu.notify_body': ('{n} dosya · {size}', '{n} files · {size}', '{n} ملف · {size}'),
+
   // ── Tarama akışı ──────────────────────────────────────────────────────────
   'sf.scanner_failed': (
     'Tarayıcı açılamadı: {error}\nKamera izni verilmemiş olabilir.',
     'Could not open the scanner: {error}\nCamera permission may be missing.',
     'تعذّر فتح الماسح: {error}\nقد يكون إذن الكاميرا مفقودًا.',
+  ),
+  'sf.preparing': (
+    'Sayfalar hazırlanıyor… ({n} / {total})',
+    'Preparing the pages… ({n} / {total})',
+    'جارٍ تجهيز الصفحات… ({n} / {total})',
   ),
   'sf.ocr_progress': (
     'Yazılar taranıyor… ({n} / {total} sayfa)',
@@ -5654,6 +5847,8 @@ const Map<String, (String, String, String)> _table = {
   ),
   'scr.add_pages': ('Sayfa ekle', 'Add pages', 'إضافة صفحات'),
   'scr.crop_page': ('Kenarları kırp', 'Crop edges', 'قصّ الحواف'),
+  'scr.edit_pages': ('Sayfaları düzenle', 'Edit pages', 'تحرير الصفحات'),
+  'scr.updated': ('Belge güncellendi.', 'The document was updated.', 'تم تحديث المستند.'),
   'scr.cropped': ('Sayfa düzeltildi.', 'Page adjusted.', 'تم تعديل الصفحة.'),
   'reader.open': ('Okuma görünümü', 'Reading view', 'وضع القراءة'),
   'reader.theme': ('Zemin', 'Background', 'الخلفية'),

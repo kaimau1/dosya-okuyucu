@@ -12282,3 +12282,123 @@ Okuyucu içinde de UI/UX çalışmaları yap, APK derlet".
 - Test: `motion_test.dart` (+3).
 **CI sonucu:** main #374 yeşil (analyze + test + APK) → **v1.0.374** yayımlandı; yerel
 tam takım 3.29.3'te 2498 test yeşil. Notlar tarafı aynı tur **v1.0.450** (PR #85).
+
+## 2026-10-17 (3) — SD kartla birleşik depolama (şarjda), tarama akışı baştan, seçimde kaydırma kilidi, başarım turu
+Kullanıcı: *"sadece şarj olurken çalışan SD kartı ile Birlik olarak kullan özelliği · belge
+taramada kesme sorunu ve direk kaydetmesi gerekli, baştan sona incelenmeli tüm akış ·
+fotoğraf video PDF vs seçim yapılırken sağa sola kaydırıp sayfalar arasında geçiş
+olmamalı · genel görsel, performans, akıcılık, RAM/CPU iyileştirmeleri · Main'e merge et
+APK derlensin"*. (Oturum dalı `ccr-3e6bb6a4-lsema8`; kullanıcının açık isteği + CLAUDE.md
+tek-dal kuralıyla iş main'e gitti.)
+
+### A) Seçimde kaydırma kilidi (`swipe_pager.dart`)
+- KÖK NEDEN: `SwipePager` (pano kutusundan açılan kategori sayfaları) seçim kipinden
+  habersizdi; parmak hücreden hücreye gezerken yana kayınca komşu kategoriye geçiliyordu
+  ve sayfa kurulumu tembel olduğu için o ana kadarki SEÇİM de kayboluyordu.
+- `SwipeHold` (ağaçta durduğu sürece kilit) + `SwipeLock` (bağımlılık kaydetmeyen
+  InheritedWidget). `FmSelectionBar` kendini `SwipeHold` ile sarıyor → seçim çubuğu
+  olan HER ekran (galeri, kategori, indirilenler, gözatıcı…) ayrı kod yazmadan kilitliyor.
+  İki parmak ekrandayken de kilit (galerinin pinch'i yatay sürüklemeyle yarışıyordu).
+- TUZAK: kilit çocuğun kurulumu/sökülmesi sırasında değişiyor; atada `setState` o an
+  yasak (build/finalize kilidi) → `persistentCallbacks` evresindeyse kare sonuna ertele.
+- Test: `swipe_pager_lock_test` (kilit yokken 2 test kırmızıya döndüğü doğrulandı).
+
+### B) Tarama akışı — "kesme sorunu" ve "doğrudan kaydet"
+- KÖK NEDEN 1 (çifte kırpma): ML Kit `SCANNER_MODE_FULL` sayfayı ZATEN kâğıdın kenarından
+  kırpıp perspektifini açıyor. Önizleme ekranı açılışta bunun üstüne `ScanDeskew`
+  (`DocEdges` → dörtgen → perspektif) koşturuyordu. Kırpılmış sayfada kâğıt kenarı görsel
+  sınırı olduğundan bulunamıyor; bulucu sayfanın İÇİNDEKİ en güçlü dörtgeni (tablo
+  çerçevesi, antet çizgisi, kimlik kartının iç çerçevesi) "kâğıt" sanıyor, alanı %45–98
+  olduğu için uyguluyor → çerçeve dışındaki başlık/imza/sayfa altı KESİLİYORDU.
+  **`ScanDeskew` SİLİNDİ** (testiyle). Kâğıt kenarına bakan otomatik düzeltme tarayıcı
+  çıktısında bir daha koşmamalı (reddedilen yol).
+- KÖK NEDEN 2: köşe ekranının başlangıç çerçevesi görselin %2 İÇİNDEN başlıyordu
+  (tutamaçlar ekran dışına taşmasın diye) → dokunmadan "Uygula" her kenardan %2 kesiyordu;
+  ayrıca açılıştaki kenar bulma sonucu kendiliğinden UYGULANIYORDU (aynı iç çerçeve
+  sorunu). Artık çerçeve tam sınırda (`ScanEditScreen.fullFrame`), editörün 24 dp iç payı
+  tutamaçları ekranda tutuyor; bulunan kenar yalnız ÖNERİ ("Bulunan kenarlara oturt").
+  Çerçeveye dokunulmadan "Uygula" = özgün dosya döner (yeniden örnekleme yok).
+- KÖK NEDEN 3 (kıvrım açma): `ScanDewarp._applyShifts` çıktıyı kaynakla aynı yükseklikte
+  tutuyordu → aşağı itilen kenar sütunlarının en alt satırı tuvalden düşüyordu. Tuval artık
+  en büyük kayma kadar uzuyor (test: eski kodda 33/34 satır, yenide 34/34).
+- "Doğrudan kaydet": önizleme ekranı akıştan ÇIKTI. Tarayıcı → `ScanPrepare` (tek
+  izolatta: çöz → EXIF yönü → yazıya bakan düzleştirme → netleştirme → kodla; eskiden
+  sayfa başına üç çözme/iki kodlama) → OCR → akıllı ad → kayıt → sonuç ekranı, tek ilerleme
+  penceresinde. Düzenleme sonuç ekranında: **"Sayfaları düzenle"** (filtre, döndür, sil,
+  SIRA, köşe, düzleştir; görseli değişmeyen sayfanın OCR'ı yeniden koşmaz), "Sayfa ekle"
+  de ara onaysız. PDF yeniden yazımı artık `SafeWrite` (eskiden `writeAsBytes` = önce
+  sıfırla). PDF araçlarındaki "tara ve ekle" de aynı hazırlıkla, ara ekransız.
+- Model: `ScanPage(source, display, filter)` — filtre yıkıcı değil, kaynağa uygulanır.
+- Duman testi sonuç ekranında GERÇEK taşma buldu (360 dp, 1,4× yazıda 78 px; "Konumu
+  değiştir" düğmesi esnek değildi) → Flexible + kısa etiket "Taşı" + ipucu.
+
+### C) SD kartla birleşik depolama — yalnız şarjda (`ci/SdUnion.kt`, `sd_union.dart`)
+- Yorum ("birlik olarak kullan"): Android'in "kartı dahili depolama yap" (adoptable)
+  seçeneği kartı siler, çoğu üretici kaldırdı → dosya düzeyinde birleşim. Seçilen
+  klasörlerin (varsayılan DCIM/Pictures/Movies) N günden (varsayılan 30) eski dosyaları
+  SD kartta AYNI yola taşınır; liste ve galeriler iki birimi zaten birlikte gösteriyor.
+  İkinci kip "Yedekle" (kopya; değişen dosyanın yedeği tazelenir). Kullanıcı başka bir
+  anlamı kastettiyse kip/ekran genişletilir — sorulmadı, iş özerk istendi.
+- KARAR — iş YERELDE: şarja takılınca uygulama genelde kapalı, Dart yok. `JobScheduler`
+  `setRequiresCharging(true)` + 30 dk dönem + `setPersisted` (RECEIVE_BOOT_COMPLETED
+  eklendi); şarj kesilince `onStopJob` → iptal bayrağı. "Şimdi taşı" şarj şartsız tek
+  seferlik iş. Ayar Dart'ta (SharedPreferences `sd_union_settings`), `configure` ile JSON
+  olarak gider; bildirim metinleri de Dart'tan (çeviri tablosu orada). Açılışta
+  `SdUnion.syncOnLaunch` işi yeniden kurar.
+- Taşıma bölünmez: hedefte gizli `.ad.dosyaokuyucu-tasiniyor` → fsync → boy doğrulama →
+  `rename` → kaynağı sil; tarih korunur. Yarıda kalan geçici dosyanın yolu prefs'te,
+  sonraki çalışmada silinir. Çakışma: aynı içerik (boy + baş/son 64 KB) → kaynak silinir;
+  farklı → `ad (1).jpg`, hiçbir şey ezilmez. Kartta 1 GB pay. Dokunulmayanlar: gizli
+  ad/klasör, `Android/`, sohbet medyası (`ChatMediaGuard` ile aynı kural — WhatsApp yol
+  tutar), son 10 dk'da değişen dosya. Android ≤10'da SD'ye yol üzerinden yazılamıyor →
+  `sd_readonly` uyarısı (SAF ile yazma ayrı tur).
+- Kurallar iki dilde AYNI: Kotlin `SdUnionRules` (asıl) + Dart önizleme
+  (`SdUnion.isEligible*`, "şu an N dosya · X GB taşınır"). Biri değişirse ikisi.
+- Giriş: Ayarlar > Pil, hız ve bakım > "SD kart" + panoda harici bellek menüsünde SD kart.
+- **Kotlin YERELDE gerçek API'ye karşı derlendi**: Robolectric `android-all-14` (Maven
+  Central) + `flutter_embedding_release-1.0.0-<engine>` (download.flutter.io); Google
+  Maven bu ortamda 403 → androidx `LifecycleOwner`/`Lifecycle` ve uygulama `R` için iki
+  satırlık taslak yeterli. Tüm `ci/*.kt` 0 hata. `tool/check_kotlin.sh` artık
+  `ANDROID_ALL_JAR` verilirse `SdUnion.kt`yi derleyip `tool/kotlin_tests/SdUnionHarness.kt`
+  ile motoru JVM'de GERÇEK dosyalarla sınıyor (26 denetim: taşıma, çakışma, aynı içerik,
+  yedek kipi, durdurma, kart dolu/yok, yazılmakta olan dosya).
+
+### D) Başarım / görsel turu
+- **MediaQuery daraltma (19 yer):** Word/Slayt/Excel düzenleyicileri, video oynatıcı ve
+  sayfalar `MediaQuery.of(context).padding/size/viewInsets` okuyordu → klavye açılırken
+  HER KAREDE bütün ekran yeniden kuruluyordu. `paddingOf/sizeOf/viewInsetsOf`.
+- **Ses konumu ayrı dinlenebilir değerde** (`AudioPlayback.positionListenable`): konum
+  saniyede ~5 kez geliyordu ve her seferinde müzik ekranının tamamı + mini çubuk yeniden
+  kuruluyordu. Artık yalnız çubuk/süre satırı. `position` alanı getter/setter (API aynı).
+- **Video küçük resmi kuyruğu** (`ThumbnailCache`): eklenti `Dispatchers.Default`ta
+  çekirdek sayısı kadar paralel kare çözüyordu. En çok 2 üretim, sıra SONDAN (en yeni =
+  ekrandaki hücre önce), hücre gittiyse (`wanted: () => mounted`) iş hiç başlamaz ve
+  "bozuk" sayılmaz. Süre rozeti kuyruğu (`MediaDuration`) da LIFO. Test: `thumbnail_queue_test`.
+- **Degrade simgeler katmansız** (`FmTintedIcon`): `ShaderMask` her simgede `saveLayer`
+  açıyordu (panoda ~15). TUZAK (ekran görüntüsüyle yakalandı): `RichText` + `foreground`
+  degradesi PARAGRAF değil KATMAN koordinatında değerlendiriliyor — simge ekranın ortasında
+  degradenin koyu ucunda kalıyordu. `CustomPaint` + `TextPainter` tuvali kutuya taşıdığı
+  için doğru; eskisiyle piksel düzeyinde aynı. `Icon`dan türüyor (`find.byIcon` sürüyor).
+- **GÖRSEL HATA — çipler kullanıcının yazı tipini yok sayıyordu:** temadaki
+  `chipTheme.labelStyle` aile vermiyordu; çip bu stili `DefaultTextStyle`ın YERİNE
+  koyduğu için uygulamadaki BÜTÜN çipler Roboto ile çiziliyordu. `fontFamily: body`.
+- Tarama ekranlarında sayfa görseli `cacheWidth` = ekran × dpr × 2 (≤2480); sonuç ekranında
+  sayfa gölgesi + "1 / 2" rozeti; düzenleme ekranında sıra okları.
+- TUZAK (düzen): `SettingsGroup` sütunu dar çocukları ORTALIYOR; tam genişlik isteyen
+  satır `SizedBox(width: double.infinity)` ile sarılmalı.
+- Panoda iki sabit Türkçe "boş" (`'… boş'` dize araya sokmayla l10n bekçisinden
+  kaçıyordu) → `fm.free_bytes`.
+- Görsel denetim yöntemi (bulut oturumu): geçici bir widget testinde `FontLoader` ile
+  Carlito/Inter + SDK'nın `MaterialIcons-Regular.otf`u yüklenip `RepaintBoundary.toImage`
+  ile PNG alındı; `Image.file` testte yüklenmez (sahte saat), `decodeImageFromList` yüklenir.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun; tam takım yeşil (yeni:
+`swipe_pager_lock_test`, `scan_prepare_test`, `scan_screens_smoke_test`, `sd_union_test`,
+`thumbnail_queue_test`, `scan_dewarp_test` +1). Kotlin: yukarıdaki gerçek-API derlemesi +
+JVM denemesi. `graphify` bu oturumda kurulu değil.
+**Cihazda bakılacak:** (a) galeri/kategori ekranında seçim yaparken yana kaydırma sayfa
+değiştirmiyor, seçim bitince değiştiriyor; (b) tarama: ML Kit'te "Kaydet" → doğrudan
+sonuç ekranı, tablo/çerçeveli belgede başlık ve imza KESİLMEDEN; "Sayfaları düzenle"de sıra
+değiştirip kaydetme; (c) SD kart: "Şimdi taşı" ilerlemesi, şarja takınca kendiliğinden
+çalışma (uygulama kapalıyken), şarjdan çıkınca durma, bildirim, galeride taşınan
+fotoğrafların görünmesi; Android 10 ve öncesinde `sd_readonly` uyarısı.

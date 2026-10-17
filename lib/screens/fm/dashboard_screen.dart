@@ -57,6 +57,7 @@ import '../settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
 import 'new_files_screen.dart';
+import 'sd_union_screen.dart';
 import 'swipe_pager.dart';
 import 'hidden_files_screen.dart';
 import '../../services/fm/dashboard_layout.dart';
@@ -1695,7 +1696,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 : context.t('fm.external_count', {'n': granted})),
         1 => externals.single.hasStats
             ? '${externals.single.displayLabel(context.t)} · '
-                '${FsPaths.humanSize(externals.single.freeBytes)} boş'
+                '${context.t('fm.free_bytes', {'v': FsPaths.humanSize(externals.single.freeBytes)})}'
             : externals.single.displayLabel(context.t),
         _ => [
             if (usb > 0) context.t('fm.external_usb_count', {'n': usb}),
@@ -2018,7 +2019,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               leading: Icon(volumeIcon(volume)),
               title: Text(volume.displayLabel(ctx.t)),
               subtitle: Text(volume.hasStats
-                  ? '${FsPaths.humanSize(volume.freeBytes)} boş · ${volume.path}'
+                  ? '${ctx.t('fm.free_bytes', {'v': FsPaths.humanSize(volume.freeBytes)})} · ${volume.path}'
                   : volume.path),
             ),
             const Divider(height: 1),
@@ -2032,6 +2033,15 @@ class _DashboardScreenState extends State<DashboardScreen>
               title: Text(ctx.t('fm.memory_analysis')),
               onTap: () => Navigator.pop(ctx, 'analysis'),
             ),
+            // SD kartla birleşik depolama (2026-10-17): kartın kendi
+            // menüsünde — kullanıcı "kartı nasıl kullanırım" diye burada arar.
+            if (volume.kind == StorageKind.sdCard)
+              ListTile(
+                leading: const Icon(Icons.battery_charging_full_rounded),
+                title: Text(ctx.t('sdu.title')),
+                subtitle: Text(ctx.t('sdu.tile_sub')),
+                onTap: () => Navigator.pop(ctx, 'union'),
+              ),
             if (volume.isRemovable)
               ListTile(
                 leading: const Icon(Icons.eject),
@@ -2050,6 +2060,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       case 'analysis':
         // **Analiz artık her birimde** — eskiden yalnız ana bellekteydi.
         await _push(AnalysisScreen(index: _index, volumes: [volume]));
+      case 'union':
+        await _push(const SdUnionScreen());
       case 'eject':
         await _ejectVolume(volume);
     }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 /// Kaydırmalı gezginin bir sayfası.
 class SwipePage {
@@ -28,6 +29,16 @@ class SwipePage {
 ///
 /// Sayfalar TEMBEL kurulur (`PageView.builder`): Görüntüler'in binlerce
 /// küçük resmi, kullanıcı oraya kaydırmadıkça çözülmez.
+///
+/// ## Seçim sürerken kaydırma KİLİTLİ (2026-10-17)
+/// Kullanıcı: *"fotoğraf video PDF vs seçim yapılırken sağa sola kaydırıp
+/// dosya sayfaları arasında geçiş olmamalı, seçimi zorlaştırıyor"*. Seçim
+/// kipinde parmak hücreden hücreye gezerken biraz yana kayınca komşu
+/// kategoriye geçiliyordu — ve sayfa kurulumu tembel olduğu için o ana kadar
+/// yapılan SEÇİM de kayboluyordu. Artık sayfanın içinden bir [SwipeHold]
+/// (seçim çubuğu bunu kendisi koyar) ağaçta durduğu sürece ve iki parmak
+/// ekrandayken (galerideki pinch yakınlaştırması yatay sürüklemeyle
+/// yarışıyordu) yatay geçiş kapalıdır.
 class SwipePager extends StatefulWidget {
   final List<SwipePage> pages;
   final int initial;
@@ -45,17 +56,48 @@ class _SwipePagerState extends State<SwipePager> {
   bool _hintVisible = true;
   Timer? _hintTimer;
 
+  /// Sayfaların içinden gelen kilit sayısı (bkz. [SwipeHold]).
+  final ValueNotifier<int> _holds = ValueNotifier(0);
+
+  /// Ekrandaki parmak sayısı — iki parmak = pinch, sayfa değişmesin.
+  int _pointers = 0;
+
+  bool get _locked => _holds.value > 0 || _pointers >= 2;
+
   @override
   void initState() {
     super.initState();
+    _holds.addListener(_onHoldsChanged);
     _scheduleHide(const Duration(milliseconds: 1600));
   }
 
   @override
   void dispose() {
     _hintTimer?.cancel();
+    _holds.removeListener(_onHoldsChanged);
+    _holds.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Kilit, çocuk sayfanın KURULUMU ya da SÖKÜLMESİ sırasında değişir; o an
+  /// ata öğede `setState` çağırmak yasak (build/finalize kilidi). Kare
+  /// sürüyorsa yeniden çizim karenin sonuna ertelenir.
+  void _onHoldsChanged() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    } else if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _pointerDelta(int delta) {
+    final before = _pointers >= 2;
+    _pointers = (_pointers + delta).clamp(0, 10);
+    if ((_pointers >= 2) != before) setState(() {});
   }
 
   void _scheduleHide(Duration after) {
@@ -71,17 +113,28 @@ class _SwipePagerState extends State<SwipePager> {
     final pages = widget.pages;
     return Stack(
       children: [
-        PageView.builder(
-          controller: _controller,
-          itemCount: pages.length,
-          onPageChanged: (i) {
-            setState(() {
-              _index = i;
-              _hintVisible = true;
-            });
-            _scheduleHide(const Duration(milliseconds: 1400));
-          },
-          itemBuilder: (context, i) => pages[i].builder(context),
+        Listener(
+          onPointerDown: (_) => _pointerDelta(1),
+          onPointerUp: (_) => _pointerDelta(-1),
+          onPointerCancel: (_) => _pointerDelta(-1),
+          child: SwipeLock._(
+            holds: _holds,
+            child: PageView.builder(
+              controller: _controller,
+              // Kilitliyken sürükleme tanıyıcısı hiç kurulmaz; yarıda kalan bir
+              // sürükleme PageView'un sayfa fiziğiyle en yakın sayfaya oturur.
+              physics: _locked ? const NeverScrollableScrollPhysics() : null,
+              itemCount: pages.length,
+              onPageChanged: (i) {
+                setState(() {
+                  _index = i;
+                  _hintVisible = true;
+                });
+                _scheduleHide(const Duration(milliseconds: 1400));
+              },
+              itemBuilder: (context, i) => pages[i].builder(context),
+            ),
+          ),
         ),
         // Nerede olduğunu gösteren şerit: dokunuşları YUTMAZ.
         Positioned(
@@ -146,4 +199,64 @@ class _SwipePagerState extends State<SwipePager> {
       ],
     );
   }
+}
+
+/// [SwipePager]'ın kilit kanalı — sayfalar bunu [SwipeHold] üstünden bulur.
+/// Bağımlılık kaydı YOK (`getInheritedWidgetOfExactType`): kilit sayısı
+/// değişince sayfaların yeniden kurulmasına gerek yok, yalnız gezgin
+/// fiziğini değiştirir.
+class SwipeLock extends InheritedWidget {
+  final ValueNotifier<int> holds;
+
+  const SwipeLock._({required this.holds, required super.child});
+
+  static ValueNotifier<int>? _holdsOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<SwipeLock>()?.holds;
+
+  @override
+  bool updateShouldNotify(SwipeLock oldWidget) => false;
+}
+
+/// Ağaçta durduğu sürece en yakın [SwipePager]'ın yatay geçişini kilitler.
+/// Gezgin dışında (sayfa doğrudan açıldıysa) hiçbir şey yapmaz.
+///
+/// Seçim çubuğu (`FmSelectionBar`) kendini bununla sarar: seçim başlayınca
+/// çubuk belirir → kilit; seçim bitince çubuk kalkar → kilit çözülür. Her
+/// ekranın kendi seçim durumunu gezgine bildirmesi gerekmiyor.
+class SwipeHold extends StatefulWidget {
+  final Widget child;
+
+  const SwipeHold({super.key, required this.child});
+
+  @override
+  State<SwipeHold> createState() => _SwipeHoldState();
+}
+
+class _SwipeHoldState extends State<SwipeHold> {
+  ValueNotifier<int>? _holds;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final holds = SwipeLock._holdsOf(context);
+    if (identical(holds, _holds)) return;
+    _release();
+    _holds = holds;
+    if (holds != null) holds.value++;
+  }
+
+  void _release() {
+    final holds = _holds;
+    _holds = null;
+    if (holds != null && holds.value > 0) holds.value--;
+  }
+
+  @override
+  void dispose() {
+    _release();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

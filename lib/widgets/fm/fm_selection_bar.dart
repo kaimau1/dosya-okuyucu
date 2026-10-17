@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../screens/fm/entry_actions.dart';
 import '../../screens/fm/resize_actions.dart';
+import '../../screens/fm/swipe_pager.dart';
 import 'batch_rename_sheet.dart';
 import 'tag_picker_sheet.dart';
 import '../../core/snack.dart';
@@ -50,61 +51,68 @@ class FmSelectionBar extends StatelessWidget {
   bool get _anyDir => selected.any((e) => e.isDir);
 
   /// Boyut düşürme yalnız fotoğraf/videoda anlamlı.
-  bool get _anyMedia => selected.any((e) =>
-      e.category == FmCategory.image || e.category == FmCategory.video);
+  bool get _anyMedia => selected.any(
+      (e) => e.category == FmCategory.image || e.category == FmCategory.video);
 
   @override
   Widget build(BuildContext context) {
     if (selected.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
-    return Material(
-      elevation: 8,
-      color: theme.colorScheme.surfaceContainerHigh,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _action(
-                context,
-                Icons.drive_file_move_outline,
-                context.t('fm.move'),
-                () async {
-                  if (await moveOrCopyEntries(context, _paths, move: true)) {
-                    await onChanged();
-                  }
-                },
-              ),
-              _action(
-                context,
-                Icons.folder_copy_outlined,
-                context.t('fm.copy'),
-                () async {
-                  if (await moveOrCopyEntries(context, _paths, move: false)) {
-                    await onChanged();
-                  }
-                },
-              ),
-              if (!_anyDir)
+    // Çubuk görünürken kaydırmalı kategori gezgini yana GEÇMEZ (2026-10-17
+    // kullanıcı: "seçim yapılırken sağa sola kaydırıp sayfalar arasında
+    // geçiş olmamalı") — bkz. `SwipePager`.
+    return SwipeHold(
+      child: Material(
+        elevation: 8,
+        color: theme.colorScheme.surfaceContainerHigh,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
                 _action(
                   context,
-                  Icons.share_outlined,
-                  context.t('common.share'),
-                  () => shareEntriesFrom(context, _paths),
+                  Icons.drive_file_move_outline,
+                  context.t('fm.move'),
+                  () async {
+                    if (await moveOrCopyEntries(context, _paths, move: true)) {
+                      await onChanged();
+                    }
+                  },
                 ),
-              _action(
-                context,
-                Icons.delete_outline,
-                context.t('common.delete'),
-                () async {
-                  if (await deleteEntries(context, selected)) await onChanged();
-                },
-                danger: true,
-              ),
-              _more(context),
-            ],
+                _action(
+                  context,
+                  Icons.folder_copy_outlined,
+                  context.t('fm.copy'),
+                  () async {
+                    if (await moveOrCopyEntries(context, _paths, move: false)) {
+                      await onChanged();
+                    }
+                  },
+                ),
+                if (!_anyDir)
+                  _action(
+                    context,
+                    Icons.share_outlined,
+                    context.t('common.share'),
+                    () => shareEntriesFrom(context, _paths),
+                  ),
+                _action(
+                  context,
+                  Icons.delete_outline,
+                  context.t('common.delete'),
+                  () async {
+                    if (await deleteEntries(context, selected)) {
+                      await onChanged();
+                    }
+                  },
+                  danger: true,
+                ),
+                _more(context),
+              ],
+            ),
           ),
         ),
       ),
@@ -209,11 +217,9 @@ class FmSelectionBar extends StatelessWidget {
         itemBuilder: (_) => [
           if (selected.length == 2 && !_anyDir)
             PopupMenuItem(
-                value: 'compare',
-                child: Text(context.t('fm.compare_digest'))),
+                value: 'compare', child: Text(context.t('fm.compare_digest'))),
           if (_anyMedia)
-            PopupMenuItem(
-                value: 'resize', child: Text(context.t('fm.resize'))),
+            PopupMenuItem(value: 'resize', child: Text(context.t('fm.resize'))),
           PopupMenuItem(value: 'tag', child: Text(context.t('fm.tag'))),
           PopupMenuItem(value: 'hide', child: Text(context.t('ea.hide'))),
           PopupMenuItem(
@@ -226,19 +232,16 @@ class FmSelectionBar extends StatelessWidget {
           PopupMenuItem(
               value: 'clip_cut', child: Text(context.t('fm.clip_cut'))),
           if (zipDestDir != null)
-            PopupMenuItem(
-                value: 'zip', child: Text(context.t('fm.compress'))),
+            PopupMenuItem(value: 'zip', child: Text(context.t('fm.compress'))),
           if (selected.length == 1)
-            PopupMenuItem(
-                value: 'rename', child: Text(context.t('fm.rename'))),
+            PopupMenuItem(value: 'rename', child: Text(context.t('fm.rename'))),
           if (selected.length > 1)
             PopupMenuItem(
                 value: 'batch_rename',
                 child: Text(context.t('fm.batch_rename'))),
           if (selected.length == 1)
             PopupMenuItem(
-                value: 'properties',
-                child: Text(context.t('fm.properties'))),
+                value: 'properties', child: Text(context.t('fm.properties'))),
         ],
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.sm),

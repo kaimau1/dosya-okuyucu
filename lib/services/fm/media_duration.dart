@@ -110,8 +110,11 @@ abstract final class MediaDuration {
 
   static void _release() {
     if (_waiting.isNotEmpty) {
-      // Sıradaki devralır: sayaç düşmez, yerini o alır.
-      _waiting.removeAt(0).complete();
+      // Sıradaki devralır: sayaç düşmez, yerini o alır. **En yeni istek
+      // önce** (2026-10-17): kaydırıp durunca EKRANDAKİ hücrelerin süresi
+      // gelsin; ilk istenen ilk ölçülünce, geçip gidilen hücreler sırayı
+      // tutuyordu (küçük resim kuyruğuyla aynı karar, bkz. ThumbnailCache).
+      _waiting.removeLast().complete();
       return;
     }
     _running--;

@@ -9,6 +9,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
 import '../../services/fm/search_index.dart';
+import '../fm/sd_union_screen.dart';
 import '../fm/usb_diagnostics_screen.dart';
 import 'app_footprint_screen.dart';
 import 'crash_log_screen.dart';
@@ -138,6 +139,21 @@ class AppFootprintTile extends StatelessWidget {
         wrapSubtitle: true,
         onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
             builder: (_) => const AppFootprintScreen())),
+      );
+}
+
+/// SD kartla birleşik depolama (şarjdayken taşıma) ekranına giriş.
+class SdUnionTile extends StatelessWidget {
+  const SdUnionTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: Icons.sd_card_outlined,
+        title: context.t('sdu.title'),
+        subtitle: context.t('sdu.tile_sub'),
+        wrapSubtitle: true,
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const SdUnionScreen())),
       );
 }
 

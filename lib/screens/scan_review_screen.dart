@@ -5,33 +5,38 @@ import 'package:flutter/material.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../services/perspective.dart';
-import '../services/scan_deskew.dart';
 import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
+import '../services/scan_prepare.dart';
 import 'scan_edit_screen.dart';
 import '../core/snack.dart';
 
-/// Tarama sonrası **önizleme/düzeltme** ekranı.
-///
-/// Tarayıcıdan çıkan sayfalar PDF'e dönüşmeden önce burada görülür: yamuk
-/// çıkan sayfanın köşeleri düzeltilebilir, gereksiz sayfa atılabilir, sayfa
-/// **netleştirilebilir**. Onaylanan sayfa yolları geri döndürülür (iptalde
+/// Taranmış belgenin **sayfalarını düzenleme** ekranı: filtre, döndürme,
+/// silme, sıra, köşe/kırpma, düzleştirme. Onaylanan sayfalar döner (iptalde
 /// `null`).
 ///
-/// ## Netleştirme neden AÇILIŞTA uygulanıyor
-/// Kullanıcı isteği 2026-07-30: *"yazılar netleştirilmeli"*. Filtreyi menüye
-/// gömüp beklemek, isteği karşılamamak olurdu: kullanıcı zaten "daha iyi
-/// taransın" diyor, her sayfada ayrıca düğmeye basmasını istemiyor. Bu yüzden
-/// ekran açılırken tüm sayfalara [ScanFilter.auto] uygulanıyor (gölge giderme +
-/// keskinleştirme, renk KORUNUR) ve isteyen tek dokunuşla "Özgün"e dönebiliyor.
-/// Özgün dosyalar korunuyor — filtre yıkıcı değil.
+/// ## Artık akışın ZORUNLU adımı değil (2026-10-17)
+/// Kullanıcı: *"belge taramada kesme sorunu ve direk kaydetmesi gerekli"*.
+/// Eskiden tarayıcıdan dönen her sayfa önce buraya gelir, açılışta
+/// kendiliğinden kâğıt kenarı kırpması (`ScanDeskew`) + düzleştirme +
+/// netleştirme yapılır, kullanıcı "Devam"a basınca kaydedilirdi. İki sorun
+/// vardı: ML Kit'te "Kaydet" demiş kullanıcıya ikinci bir onay ekranı, ve
+/// kırpılmış sayfanın İÇİNDEKİ çerçeveyi kâğıt sanan ikinci kırpma (başlık,
+/// imza kesiliyordu — bkz. [ScanPrepare]). Şimdi sayfalar `ScanPrepare` ile
+/// hazırlanıp doğrudan kaydediliyor; bu ekran sonuç ekranındaki
+/// "Sayfaları düzenle"den açılıyor ve hiçbir şeyi kendiliğinden kırpmıyor.
+///
+/// Filtre yıkıcı değildir: her sayfa kaynağını ([ScanPage.source]) taşır,
+/// filtre değişince kaynağa yeniden uygulanır. Köşe düzeltme/döndürme
+/// kaynağı günceller (o işlemin sonucu yeni "özgün"dür).
 class ScanReviewScreen extends StatefulWidget {
   const ScanReviewScreen({super.key, required this.pages});
 
-  final List<String> pages;
+  final List<ScanPage> pages;
 
-  static Future<List<String>?> open(BuildContext context, List<String> pages) {
-    return Navigator.of(context).push<List<String>>(
+  static Future<List<ScanPage>?> open(
+      BuildContext context, List<ScanPage> pages) {
+    return Navigator.of(context).push<List<ScanPage>>(
       MaterialPageRoute(builder: (_) => ScanReviewScreen(pages: pages)),
     );
   }
@@ -41,30 +46,21 @@ class ScanReviewScreen extends StatefulWidget {
 }
 
 class _ScanReviewScreenState extends State<ScanReviewScreen> {
-  /// Gösterilen (filtre uygulanmış olabilir) sayfa yolları.
-  late final List<String> _pages = List.of(widget.pages);
-
-  /// Filtrenin uygulanacağı KAYNAK. Filtre değiştirildiğinde zincirleme
-  /// uygulama olmaz: keskinleştirilmiş bir görseli tekrar keskinleştirmek
-  /// sayfayı gürültüye boğuyordu. Köşe düzeltme/döndürme yapılınca bu da
-  /// güncellenir (o işlem sonucu yeni "özgün"dür).
-  late final List<String> _sources = List.of(widget.pages);
-
-  /// Sayfa başına seçili filtre.
-  late final List<ScanFilter> _filters =
-      List.filled(widget.pages.length, ScanFilter.auto, growable: true);
+  late final List<ScanPage> _pages = List.of(widget.pages);
 
   final _controller = PageController();
   int _index = 0;
   bool _busy = false;
 
-  /// Açılıştaki toplu netleştirmenin ilerlemesi (null = bitti).
-  int? _preparing;
+  /// Toplu işin ("tüm sayfalara uygula") ilerlemesi (null = yok).
+  int? _batch;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareAll());
+  bool get _changed {
+    if (_pages.length != widget.pages.length) return true;
+    for (var i = 0; i < _pages.length; i++) {
+      if (_pages[i].display != widget.pages[i].display) return true;
+    }
+    return false;
   }
 
   @override
@@ -73,122 +69,68 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     super.dispose();
   }
 
-  /// Açılışta bütün sayfalar önce **kendiliğinden düzeltilir**, sonra
-  /// varsayılan filtre uygulanır. İki aşamalı, çünkü iki ayrı bozulma var:
-  ///
-  /// 1. **Kâğıt kenarına** bakan perspektif düzeltme ([ScanDeskew]) — sayfa
-  ///    kadrajda dörtgen olarak görünüyorsa yamukluğu açar.
-  /// 2. **Yazıya** bakan düzleştirme ([ScanDewarp]) — eğimi ve kitap
-  ///    kıvrımını (bombe) giderir. 2026-08-06 kullanıcı bulgusu: kendi
-  ///    kitabının sayfalarında kenar hiç görünmediği için birinci aşama
-  ///    devreye girmiyordu ve satırlar eğik/kavisli kalıyordu ("bombe
-  ///    kısımlar düzenlenmiyor", "metinleri tanımakta zorlanıyor").
-  ///
-  /// İkisi de temkinli: emin değilse sayfaya dokunmaz (bkz.
-  /// [ScanDeskew.worthApplying] ve [ScanDewarp.straighten]), elle "Köşeleri
-  /// ayarla" yolu hep açık.
-  Future<void> _prepareAll() async {
-    for (var i = 0; i < _pages.length; i++) {
-      if (!mounted) return;
-      setState(() => _preparing = i);
-      try {
-        final straightened = await ScanDeskew.autoStraighten(_sources[i]);
-        if (!mounted) return;
-        if (straightened != null) {
-          _sources[i] = straightened;
-          setState(() => _pages[i] = straightened);
-        }
-      } catch (_) {
-        // Düzeltme süs değil sigortadır: başarısızsa sayfa OLDUĞU GİBİ kalır.
-      }
-      await _flatten(i);
-      await _applyFilter(i, ScanFilter.auto, silent: true);
-    }
-    if (mounted) setState(() => _preparing = null);
-  }
-
-  /// Yazıya bakarak eğim + kıvrım düzeltme (izolatta — Sobel/örnekleme ana
-  /// izleği kilitler). Kaynak dosya güncellenir ki sonradan seçilen filtre de
-  /// düzleştirilmiş sayfaya uygulansın.
-  /// Sayfa gerçekten düzleştirildiyse true; "dokunmaya değmedi" ya da hata
-  /// olduysa false. Dönüş değeri ELLE düzleştirme için gerekli: otomatik
-  /// geçişte sessizlik doğru, düğmeye basan kullanıcıya bir şey söylenmeli.
+  /// Yazıya bakarak eğim + kıvrım düzeltme (izolatta). Kaynak güncellenir ki
+  /// sonradan seçilen filtre de düzleştirilmiş sayfaya uygulansın. Sayfa
+  /// gerçekten düzleştiyse true.
   Future<bool> _flatten(int index) async {
     try {
-      final source = _sources[index];
+      final source = _pages[index].source;
       final target = await ScanDewarp.tempTarget(source);
       final produced = await compute(
         ScanDewarp.runRequest,
         ScanStraightenRequest(sourcePath: source, targetPath: target),
       );
       if (produced == null || !mounted) return false;
-      _sources[index] = produced;
-      setState(() => _pages[index] = produced);
+      setState(() => _pages[index] =
+          _pages[index].copyWith(source: produced, display: produced));
       return true;
     } catch (_) {
-      // Aynı ilke: düzleştirilemeyen sayfa olduğu gibi kalır.
       return false;
     }
   }
 
-  /// **Elle düzleştirme** (kullanıcı isteği 2026-08-06). Açılıştaki otomatik
-  /// geçiş temkinli: emin değilse sayfaya dokunmuyor. Eğik kaldığını GÖREN
-  /// kullanıcının elinde bir düğme olmalı — yoksa tek çare taramayı baştan
-  /// yapmak. Düzleşen sayfaya seçili filtre yeniden uygulanır, yoksa sayfa
-  /// filtresiz (ham) hâline dönerdi.
+  /// **Elle düzleştirme** (kullanıcı isteği 2026-08-06): otomatik geçiş
+  /// temkinli, emin değilse sayfaya dokunmuyor; eğik kaldığını GÖREN
+  /// kullanıcının elinde bir düğme olmalı.
   Future<void> _straightenNow() async {
-    if (_busy || _preparing != null) return;
+    if (_busy) return;
     final index = _index;
     setState(() => _busy = true);
     final ok = await _flatten(index);
-    if (ok) await _applyFilter(index, _filters[index], silent: true);
+    if (ok) await _applyFilter(index, _pages[index].filter, silent: true);
     if (!mounted) return;
     setState(() => _busy = false);
     showSnack(
         context, context.t(ok ? 'sr.straightened' : 'sr.straighten_noop'));
   }
 
-  /// Kullanıcının dokunduğu filtreyi uygular.
-  ///
-  /// Kullanıcı hatası 2026-07-31: *"butonlara tıkladığımda işlemin başlayıp
-  /// başlamadığını anlayamıyorum, önce bir sessizlik sonra arka planda işlem
-  /// tamamlanınca geçiyor"*. Sebebi: [_applyFilter] görüntüyü ayrı bir
-  /// izolatta işliyor (`compute`) ve **bitene kadar ekranda hiçbir şey
-  /// değişmiyordu** — çip bile seçili görünmüyordu, çünkü seçim işaretini
-  /// sonuç geldiğinde koyuyorduk. Büyük bir sayfada bu birkaç saniye sürüyor
-  /// ve dokunuşun kaydedilmediği izlenimi veriyor.
-  ///
-  /// Artık dokunulur dokunulmaz: çip seçili işaretlenir (iyimser), üstte
-  /// belirsiz ilerleme çubuğu belirir, çipte küçük bir gösterge döner ve
-  /// diğer düğmeler kilitlenir. İş başarısız olursa seçim geri alınır.
+  /// Dokunulan filtre: çip ANINDA seçili görünür (2026-07-31 bulgusu:
+  /// "butona bastım, başladı mı anlamıyorum"), iş bitince görsel değişir,
+  /// başarısızsa seçim geri alınır.
   Future<void> _chooseFilter(int index, ScanFilter filter) async {
-    if (_busy || _preparing != null) return;
-    final previous = _filters[index];
+    if (_busy) return;
+    final previous = _pages[index];
     setState(() {
       _busy = true;
-      _filters[index] = filter;
+      _pages[index] = previous.copyWith(filter: filter);
     });
     final ok = await _applyFilter(index, filter);
     if (!mounted) return;
     setState(() {
       _busy = false;
-      if (!ok) _filters[index] = previous;
+      if (!ok) _pages[index] = previous;
     });
   }
 
-  /// [index] sayfasına [filter] uygular. Kaynak hep `_sources[index]`.
-  /// Başarılıysa true. **Meşguliyet göstergesini yönetmez** — toplu döngüler
-  /// (açılış hazırlığı, "hepsine uygula") kendi ilerlemesini gösteriyor ve
-  /// buradaki bir bayrak onlarınkini sıfırlardı.
+  /// [index] sayfasına [filter] uygular; kaynak hep `source`. Meşguliyet
+  /// göstergesini yönetmez (toplu döngüler kendi ilerlemesini gösterir).
   Future<bool> _applyFilter(int index, ScanFilter filter,
       {bool silent = false}) async {
-    final source = _sources[index];
+    final source = _pages[index].source;
     if (filter == ScanFilter.original) {
       if (!mounted) return false;
-      setState(() {
-        _filters[index] = filter;
-        _pages[index] = source;
-      });
+      setState(() => _pages[index] =
+          ScanPage(source: source, display: source, filter: filter));
       return true;
     }
     try {
@@ -199,10 +141,8 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
             sourcePath: source, targetPath: target, filter: filter),
       );
       if (!mounted) return false;
-      setState(() {
-        _filters[index] = filter;
-        _pages[index] = produced;
-      });
+      setState(() => _pages[index] =
+          ScanPage(source: source, display: produced, filter: filter));
       return true;
     } catch (e) {
       if (!mounted || silent) return false;
@@ -212,21 +152,18 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   }
 
   Future<void> _editCorners() async {
-    // Köşe düzeltme ÖZGÜN sayfa üzerinde yapılır: filtre uygulanmış (örneğin
-    // siyah-beyaza indirgenmiş) bir görseli kırpıp sonra tekrar filtrelemek
-    // kaliteyi iki kez düşürürdü.
-    final edited = await ScanEditScreen.open(context, _sources[_index]);
-    if (edited == null || !mounted) return;
+    // Köşe düzeltme KAYNAK üzerinde yapılır: filtrelenmiş (ör. siyah-beyaza
+    // indirgenmiş) görseli kırpıp yeniden filtrelemek kaliteyi iki kez
+    // düşürürdü.
     final index = _index;
-    _sources[index] = edited;
-    // Kırpılmış sayfa hemen görünür, filtre arkasından gelir; bu arada ekran
-    // "çalışıyorum" der (aşağıdaki belirsiz çubuk) — dönüşteki sessizlik de
-    // aynı şikâyetin parçasıydı.
+    final edited = await ScanEditScreen.open(context, _pages[index].source);
+    if (edited == null || !mounted) return;
+    if (edited == _pages[index].source) return; // çerçeveye dokunulmadı
     setState(() {
-      _pages[index] = edited;
+      _pages[index] = _pages[index].copyWith(source: edited, display: edited);
       _busy = true;
     });
-    await _applyFilter(index, _filters[index]);
+    await _applyFilter(index, _pages[index].filter);
     if (mounted) setState(() => _busy = false);
   }
 
@@ -235,16 +172,16 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     final index = _index;
-    final source = _sources[index];
+    final source = _pages[index].source;
     try {
       final image = await decodeImageFile(source);
       try {
         final png = await Perspective.rotateToPng(image, 1);
         final path = await writeTempPng(source, 'donduruldu', png);
         if (!mounted) return;
-        _sources[index] = path;
-        setState(() => _pages[index] = path);
-        await _applyFilter(index, _filters[index]);
+        setState(() => _pages[index] =
+            _pages[index].copyWith(source: path, display: path));
+        await _applyFilter(index, _pages[index].filter);
       } finally {
         image.dispose();
       }
@@ -264,26 +201,36 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     }
     setState(() {
       _pages.removeAt(_index);
-      _sources.removeAt(_index);
-      _filters.removeAt(_index);
       if (_index >= _pages.length) _index = _pages.length - 1;
     });
     _controller.jumpToPage(_index);
   }
 
+  /// Geçerli sayfayı bir öne/arkaya taşır (PDF'teki sıra budur).
+  void _move(int delta) {
+    final to = _index + delta;
+    if (to < 0 || to >= _pages.length) return;
+    setState(() {
+      final page = _pages.removeAt(_index);
+      _pages.insert(to, page);
+      _index = to;
+    });
+    _controller.jumpToPage(to);
+  }
+
   /// Geçerli sayfanın filtresini **tüm sayfalara** yayar.
   Future<void> _applyToAll() async {
-    final filter = _filters[_index];
+    final filter = _pages[_index].filter;
     setState(() => _busy = true);
     for (var i = 0; i < _pages.length; i++) {
-      if (i == _index) continue;
+      if (i == _index || _pages[i].filter == filter) continue;
       if (!mounted) return;
-      setState(() => _preparing = i);
+      setState(() => _batch = i);
       await _applyFilter(i, filter, silent: true);
     }
     if (mounted) {
       setState(() {
-        _preparing = null;
+        _batch = null;
         _busy = false;
       });
     }
@@ -291,116 +238,150 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final preparing = _preparing;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text('Sayfa ${_index + 1} / ${_pages.length}'),
-        actions: [
-          IconButton(
-            tooltip: context.t('sr.rotate_page'),
-            icon: const Icon(Icons.rotate_right),
-            onPressed: _busy ? null : _rotate,
-          ),
-          IconButton(
-            tooltip: context.t('sr.delete_page'),
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _busy ? null : _removeCurrent,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Toplu hazırlıkta belirli (kaçıncı sayfa), tek sayfalık işte
-          // belirsiz çubuk. Eskiden yalnız ilki vardı: tek bir filtreye
-          // dokunmak ekranda HİÇBİR iz bırakmıyordu.
-          if (preparing != null)
-            LinearProgressIndicator(
-              value: _pages.isEmpty ? null : (preparing + 1) / _pages.length,
-            )
-          else if (_busy)
-            const LinearProgressIndicator(),
-          Expanded(
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: _pages.length,
-              onPageChanged: (i) => setState(() => _index = i),
-              itemBuilder: (_, i) => InteractiveViewer(
-                minScale: 1,
-                maxScale: 5,
-                child: Center(
-                  child: Image.file(
-                    File(_pages[i]),
-                    key: ValueKey(_pages[i]),
-                    errorBuilder: (_, __, ___) => Text(
-                      context.t('sr.page_failed'),
-                      style: const TextStyle(color: Colors.white),
+    final batch = _batch;
+    final width = MediaQuery.sizeOf(context).width;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    // Bellek: 2480 px'lik sayfa tam çözülürse ~35 MB. Ekranın iki katı
+    // çözünürlük yakınlaştırmada da net, belleği yarıya indiriyor.
+    final cacheWidth = (width * dpr * 2).round().clamp(600, 2480);
+    return PopScope(
+      canPop: !_busy,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          title: Text(
+              context.t('sr.title', {'n': _index + 1, 'total': _pages.length})),
+          actions: [
+            IconButton(
+              tooltip: context.t('sr.rotate_page'),
+              icon: const Icon(Icons.rotate_right),
+              onPressed: _busy ? null : _rotate,
+            ),
+            IconButton(
+              tooltip: context.t('sr.delete_page'),
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _busy ? null : _removeCurrent,
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            if (batch != null)
+              LinearProgressIndicator(
+                value: _pages.isEmpty ? null : (batch + 1) / _pages.length,
+              )
+            else if (_busy)
+              const LinearProgressIndicator()
+            else
+              const SizedBox(height: 4),
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: _pages.length,
+                onPageChanged: (i) => setState(() => _index = i),
+                itemBuilder: (_, i) => InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 5,
+                  child: Center(
+                    child: Image.file(
+                      File(_pages[i].display),
+                      key: ValueKey(_pages[i].display),
+                      cacheWidth: cacheWidth,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) => Text(
+                        context.t('sr.page_failed'),
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          _filterRow(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Text(
-              context.t('sr.crop_hint'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-          // İki satır: üstte sayfaya müdahale eden ikili, altta tam genişlikte
-          // "Devam". Üçünü yan yana dizmek dar telefonda etiketleri taşırırdı.
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _busy ? null : _editCorners,
-                      icon: const Icon(Icons.crop_free),
-                      label: Text(context.t('sr.adjust_corners')),
+            if (_pages.length > 1) _orderRow(),
+            _filterRow(),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busy ? null : _editCorners,
+                        icon: const Icon(Icons.crop_free),
+                        label: Text(context.t('sr.adjust_corners')),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed:
-                          _busy || preparing != null ? null : _straightenNow,
-                      icon: const Icon(Icons.straighten),
-                      label: Text(context.t('sr.straighten')),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busy ? null : _straightenNow,
+                        icon: const Icon(Icons.straighten),
+                        label: Text(context.t('sr.straighten')),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _busy || preparing != null
-                      ? null
-                      : () => Navigator.of(context).pop(_pages),
-                  icon: const Icon(Icons.check),
-                  label: Text(context.t('dl.continue')),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () =>
+                            Navigator.of(context).pop(_changed ? _pages : null),
+                    icon: const Icon(Icons.check),
+                    label: Text(context.t('common.save')),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  /// Sayfa sırası: ‹ önceki konuma · sayfa noktaları · sonraki konuma ›.
+  Widget _orderRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: context.t('sr.move_earlier'),
+            color: Colors.white,
+            onPressed: _busy || _index == 0 ? null : () => _move(-1),
+            icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                context.t('sr.order_hint'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: context.t('sr.move_later'),
+            color: Colors.white,
+            onPressed:
+                _busy || _index >= _pages.length - 1 ? null : () => _move(1),
+            icon: const Icon(Icons.keyboard_double_arrow_right_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Filtre seçimi — yatay kaydırmalı çip şeridi.
   Widget _filterRow() {
-    final current = _filters.isEmpty ? ScanFilter.auto : _filters[_index];
+    final current = _pages.isEmpty ? ScanFilter.auto : _pages[_index].filter;
     return SizedBox(
       height: 52,
       child: ListView(
@@ -413,8 +394,6 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
               child: ChoiceChip(
                 label: Text(context.t(filter.labelKey)),
                 selected: current == filter,
-                // Seçili çipte çalışırken küçük gösterge: dokunuşun
-                // kaydedildiği ve işin SÜRDÜĞÜ ilk anda görünür.
                 avatar: _busy && current == filter
                     ? const SizedBox(
                         width: 14,
@@ -422,9 +401,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : null,
-                onSelected: _busy || _preparing != null
-                    ? null
-                    : (_) => _chooseFilter(_index, filter),
+                onSelected: _busy ? null : (_) => _chooseFilter(_index, filter),
               ),
             ),
           if (_pages.length > 1)
@@ -433,7 +410,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
               child: ActionChip(
                 avatar: const Icon(Icons.done_all, size: 18),
                 label: Text(context.t('scan.apply_to_all')),
-                onPressed: _busy || _preparing != null ? null : _applyToAll,
+                onPressed: _busy ? null : _applyToAll,
               ),
             ),
         ],

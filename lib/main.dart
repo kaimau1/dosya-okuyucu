@@ -24,6 +24,7 @@ import 'services/fm/file_tags.dart';
 import 'services/fm/fm_env.dart';
 import 'services/fm/job_notifications.dart';
 import 'services/fm/job_queue.dart';
+import 'services/fm/sd_union.dart';
 import 'services/fm/job_store.dart';
 import 'services/fm/playback_positions.dart';
 import 'services/fm/reading_positions.dart';
@@ -181,6 +182,9 @@ Future<void> _restoreJobs() async {
     // Yarıda kalmış PDF düzenlemesini geri yükle + eski geçici dosyaları
     // süpür (bkz. PdfEditJournal, TempSweep). Beklenmez.
     unawaited(TempSweep.runOnce());
+    // SD kartla birleşik depolama açıksa şarj işi yeniden kurulur (güncelleme
+    // sonrası da sürsün, bildirim metni geçerli dilde olsun). Beklenmez.
+    unawaited(SdUnion.syncOnLaunch());
     JobQueue.instance.restore(await JobStore.load());
     // "Kaldığın yerden devam" kaydı da burada yükleniyor: oynatıcı açılana
     // kadar zaman var ve açılışta diskten okumak ilk kareyi geciktirmesin.

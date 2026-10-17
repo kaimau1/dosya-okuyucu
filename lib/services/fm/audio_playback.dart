@@ -71,7 +71,10 @@ class AudioPlayback extends ChangeNotifier {
         // kitap, ders, podcast) baştan başlamak en çok konuşulan eksikti.
         // Kural `PlaybackPositions`ta; kısa parçalar kaydedilmiyor.
         PlaybackPositions.record(current, d, duration);
-        notifyListeners();
+        // Bütün dinleyicilere DEĞİL: konum saniyede ~5 kez geliyor ve
+        // eskiden her gelişte müzik ekranının tamamı + mini çubuk yeniden
+        // kuruluyordu. Konumu gösteren parçalar [positionListenable]'ı
+        // dinliyor (2026-10-17 CPU turu).
       }),
       created.onDurationChanged.listen((d) {
         final changed = d != duration;
@@ -98,7 +101,14 @@ class AudioPlayback extends ChangeNotifier {
 
   List<String> playlist = const [];
   int index = 0;
-  Duration position = Duration.zero;
+  /// Çalma konumu — AYRI bir dinlenebilir değerde. Konumu çizen parçalar
+  /// (çubuk, süre yazısı, mini çubuğun ilerleme çizgisi) bunu dinler;
+  /// [notifyListeners] yalnız durum değişince (çal/duraklat, parça, süre,
+  /// hız…) çağrılır.
+  final ValueNotifier<Duration> positionListenable =
+      ValueNotifier(Duration.zero);
+  Duration get position => positionListenable.value;
+  set position(Duration value) => positionListenable.value = value;
   Duration duration = Duration.zero;
   bool playing = false;
   double speed = 1.0;

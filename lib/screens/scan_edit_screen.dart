@@ -22,6 +22,19 @@ import '../core/snack.dart';
 /// eğik çekilmiş sayfa da düzelir.
 ///
 /// Sonuç yeni bir PNG dosyasına yazılır ve yolu döndürülür (iptalde `null`).
+///
+/// ## Açılışta HİÇBİR ŞEY KESİLMEZ (2026-10-17)
+/// Kullanıcı: *"belge taramada kesme sorunu"*. İki yol sayfayı kullanıcı
+/// istemeden kırpıyordu:
+/// * Başlangıç çerçevesi görselin %2 İÇİNDEN başlıyordu (tutamaçlar ekran
+///   dışına taşmasın diye). Köşelere dokunmadan "Uygula" diyen kullanıcı her
+///   kenardan %2 kaybediyordu. Artık çerçeve görselin tam sınırında; tutamaçlar
+///   editörün iç payı sayesinde yine yakalanabiliyor.
+/// * Kenar bulucu açılışta kendiliğinden UYGULANIYORDU. ML Kit sayfayı zaten
+///   kâğıdın kenarından kırpıp getirdiği için bulucu çoğu zaman sayfanın
+///   içindeki bir tabloyu/çerçeveyi buluyor; "Uygula" o çerçevenin dışını
+///   kesiyordu. Bulucu yine açılışta koşar ama sonucu yalnız **öneri** olarak
+///   gösterilir ("Kenar bulundu — oturt"); dokunulmadıkça çerçeve değişmez.
 class ScanEditScreen extends StatefulWidget {
   const ScanEditScreen({super.key, required this.imagePath});
 
@@ -31,6 +44,14 @@ class ScanEditScreen extends StatefulWidget {
     return Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => ScanEditScreen(imagePath: imagePath)),
     );
+  }
+
+  /// Başlangıç dörtgeni: görselin TAMAMI — tam sınırda. "Uygula"ya dokunmadan
+  /// basan kullanıcının sayfasından tek piksel bile gitmez.
+  static List<Offset> fullFrame(int width, int height) {
+    final w = width.toDouble();
+    final h = height.toDouble();
+    return [Offset.zero, Offset(w, 0), Offset(w, h), Offset(0, h)];
   }
 
   @override
@@ -52,6 +73,14 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
   /// söylemeden bırakmak "program çalışmadı" hissi veriyordu.)
   bool _autoFound = false;
   bool _detecting = false;
+
+  /// Açılıştaki aramanın bulduğu, henüz UYGULANMAMIŞ dörtgen (öneri).
+  List<Offset>? _suggested;
+
+  /// Tutamaçların ekran dışına taşmaması için editörün iç payı. Çerçeve artık
+  /// görselin tam sınırında başlıyor; pay olmasa kenardaki tutamacın yarısı
+  /// ekran dışında kalırdı.
+  static const _editorPad = 24.0;
 
   /// Sürüklenmekte olan köşenin İNDEKSİ (yoksa null) — büyüteç bu köşeyi
   /// izler. 2026-08-06 kullanıcı bulgusu: *"köşeleri ayarlarken eskiden ufak
@@ -82,9 +111,10 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
         _image = image;
         _corners = _fullFrame(image);
       });
-      // Ekran açılır açılmaz kenarlar aranır: kullanıcı dört köşeyi tek tek
-      // sürüklemek zorunda kalmasın (istek 2026-07-30).
-      await _autoDetect();
+      // Ekran açılır açılmaz kenarlar aranır (istek 2026-07-30: kullanıcı dört
+      // köşeyi tek tek sürüklemek zorunda kalmasın) — ama sonuç yalnız ÖNERİ:
+      // bkz. sınıf notu, "Açılışta hiçbir şey kesilmez".
+      await _autoDetect(apply: false);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     }
@@ -96,7 +126,9 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
   ///
   /// Çözümleme **izolatta**: 12 MP bir fotoğrafta Sobel + Hough ana izleği
   /// yarım saniye kilitler, ekran donuk açılırdı.
-  Future<void> _autoDetect() async {
+  ///
+  /// [apply] false ise (açılış) bulunan dörtgen yalnız öneri olarak saklanır.
+  Future<void> _autoDetect({bool apply = true}) async {
     final img = _image;
     if (img == null || _detecting) return;
     setState(() => _detecting = true);
@@ -108,36 +140,41 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
         _detecting = false;
         if (found == null) {
           _autoFound = false;
+          _suggested = null;
           return;
         }
-        _autoFound = true;
-        _corners = [
+        final corners = [
           for (final c in found)
             Offset(
               c.x.clamp(0.0, img.width.toDouble()),
               c.y.clamp(0.0, img.height.toDouble()),
             )
         ];
+        if (apply) {
+          _autoFound = true;
+          _suggested = null;
+          _corners = corners;
+        } else {
+          _suggested = corners;
+        }
       });
     } catch (_) {
       if (mounted) setState(() => _detecting = false);
     }
   }
 
-  /// Başlangıç dörtgeni: görselin tamamı, kenardan biraz içeride. Tam kenarda
-  /// başlarsa tutamaçlar ekran dışına taşar ve yakalanamaz.
-  List<Offset> _fullFrame(ui.Image img) {
-    final w = img.width.toDouble();
-    final h = img.height.toDouble();
-    final ix = w * 0.02;
-    final iy = h * 0.02;
-    return [
-      Offset(ix, iy),
-      Offset(w - ix, iy),
-      Offset(w - ix, h - iy),
-      Offset(ix, h - iy),
-    ];
+  void _useSuggestion() {
+    final suggested = _suggested;
+    if (suggested == null) return;
+    setState(() {
+      _corners = List.of(suggested);
+      _suggested = null;
+      _autoFound = true;
+    });
   }
+
+  List<Offset> _fullFrame(ui.Image img) =>
+      ScanEditScreen.fullFrame(img.width, img.height);
 
   /// Görselin ekrandaki (contain) yerleşimi: ölçek + sol-üst kayma.
   ({double scale, Offset origin}) _fit(Size viewport, ui.Image img) {
@@ -156,6 +193,12 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
   Future<void> _apply() async {
     final img = _image;
     if (img == null || _busy) return;
+    // Çerçeveye dokunulmadıysa ortada düzeltilecek bir şey yok: görseli
+    // yeniden örneklemek yalnız kaliteyi düşürürdü.
+    if (_sameQuad(_corners, _fullFrame(img))) {
+      Navigator.of(context).pop(widget.imagePath);
+      return;
+    }
     setState(() => _busy = true);
     try {
       final png = await Perspective.warpToPng(img, _corners);
@@ -229,30 +272,55 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.crop_free),
-                  label: Text(
-                      context.t(_busy ? 'se.working' : 'common.apply')),
+                  label: Text(context.t(_busy ? 'se.working' : 'common.apply')),
                 ),
               ),
             ),
     );
   }
 
-  Widget _hint() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        child: Text(
-          _detecting
-              ? context.t('se.detecting')
-              : context.t(_autoFound ? 'se.auto_found' : 'se.hint'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
-        ),
-      );
+  Widget _hint() {
+    final text = Text(
+      _detecting
+          ? context.t('se.detecting')
+          : context.t(_autoFound ? 'se.auto_found' : 'se.hint'),
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: Colors.white70, fontSize: 12),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: _suggested == null || _detecting
+          ? text
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                text,
+                const SizedBox(height: 6),
+                // Öneri: bulunan kâğıt kenarı, dokununca çerçeve oraya oturur.
+                FilledButton.tonalIcon(
+                  onPressed: _busy ? null : _useSuggestion,
+                  icon: const Icon(Icons.auto_fix_high, size: 18),
+                  label: Text(context.t('se.use_found')),
+                ),
+              ],
+            ),
+    );
+  }
 
   Widget _editor(ui.Image img) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final viewport = Size(constraints.maxWidth, constraints.maxHeight);
-        final fit = _fit(viewport, img);
+        // Görsel iç payla küçültülüp ortalanır: köşe tutamacı tam görsel
+        // sınırındayken bile 48 dp dokunma alanının tamamı ekranda kalır.
+        final viewport = Size(
+          (constraints.maxWidth - 2 * _editorPad).clamp(1.0, double.infinity),
+          (constraints.maxHeight - 2 * _editorPad).clamp(1.0, double.infinity),
+        );
+        final inner = _fit(viewport, img);
+        final fit = (
+          scale: inner.scale,
+          origin: inner.origin + const Offset(_editorPad, _editorPad),
+        );
         Offset toScreen(Offset imagePoint) =>
             fit.origin + imagePoint * fit.scale;
 
@@ -359,6 +427,14 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
 List<({double x, double y})>? _detectCorners(Uint8List bytes) =>
     DocEdges.detect(bytes);
 
+bool _sameQuad(List<Offset> a, List<Offset> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if ((a[i] - b[i]).distance > 0.5) return false;
+  }
+  return true;
+}
+
 class _QuadPainter extends CustomPainter {
   final ui.Image image;
   final List<Offset> corners;
@@ -398,7 +474,8 @@ class _QuadPainter extends CustomPainter {
       Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
       path,
     );
-    canvas.drawPath(outside, Paint()..color = Colors.black.withValues(alpha: 0.55));
+    canvas.drawPath(
+        outside, Paint()..color = Colors.black.withValues(alpha: 0.55));
     canvas.drawPath(
       path,
       Paint()

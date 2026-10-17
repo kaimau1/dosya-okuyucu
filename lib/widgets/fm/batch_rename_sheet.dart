@@ -94,10 +94,10 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom),
+            bottom: MediaQuery.viewInsetsOf(context).bottom),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.9),
+              maxHeight: MediaQuery.sizeOf(context).height * 0.9),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

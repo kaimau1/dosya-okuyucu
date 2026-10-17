@@ -472,6 +472,16 @@ List<SettingsCategory> settingsCategories() => [
                 altKeys: ['fmset.clear_thumbs', 'foot.kw_cache'],
                 builder: _appFootprintTile),
           ]),
+          // **SD kartla birleşik depolama** (2026-10-17): "ana bellek doldu"
+          // diyen kullanıcı çareyi depolama ayarlarında arar.
+          SettingsSection('sdu.section', [
+            SettingRow(
+                id: 'sd_union',
+                titleKey: 'sdu.title',
+                subtitleKey: 'sdu.tile_sub',
+                altKeys: ['sdu.kw'],
+                builder: _sdUnionTile),
+          ]),
           SettingsSection('fmset.sec_delete', [
             SettingRow(
                 id: 'use_trash',
@@ -609,6 +619,7 @@ Widget _highRefreshTile(BuildContext _) => const HighRefreshTile();
 Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
+Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
 Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _settingsRestoreTile(BuildContext _) => const SettingsRestoreTile();

@@ -208,6 +208,11 @@ jobs:
           # ".FloatingPlayerService"> ve MainActivity'deki `FloatingBridge`
           # bunu arar; kopyalanmazsa derleme "unresolved reference" ile kırılır.
           cp ci/FloatingPlayer.kt "$DIR/FloatingPlayer.kt"
+          # SD kartla birleşik depolama (şarjdayken koşan JobScheduler işi).
+          # Manifest'teki <service android:name=".SdUnionJob"> ve MainActivity'deki
+          # `SdUnion` bunu arar; kopyalanmazsa derleme "unresolved reference"
+          # ile kırılır.
+          cp ci/SdUnion.kt "$DIR/SdUnion.kt"
           # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
           # kalırsa "duplicate class" hatası verir.
           rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java

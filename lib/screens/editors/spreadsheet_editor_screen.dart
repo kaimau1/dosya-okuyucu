@@ -2887,7 +2887,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
       final padRight = cols.isEmpty
           ? 0.0
           : cols.total - (cols.startAt(last) + cols.sizeAt(last));
-      final bottomInset = MediaQuery.of(context).padding.bottom;
+      final bottomInset = MediaQuery.paddingOf(context).bottom;
 
       // **Sayfa yönü belgeden gelir, arayüz dilinden DEĞİL** (Excel de böyle:
       // Arapça Excel'de soldan sağa bir tablo yine soldan sağa açılır). Bu

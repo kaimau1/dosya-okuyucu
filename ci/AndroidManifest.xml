@@ -20,6 +20,11 @@
          girerse çalarken susardı. Ses için ayrı tür ve ayrı izin gerekiyor. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- **SD kartla birleşik depolama** (2026-10-17): şarjdayken koşan
+         dönemsel iş (`JobScheduler`, `ci/SdUnion.kt`) telefon yeniden
+         başladıktan sonra da kurulu kalsın (`setPersisted`). İzin yoksa
+         sistem işi kurmayı reddediyor. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <!-- **Ekran üstünde yüzen video oynatıcı** (kullanıcı isteği 2026-09-03:
          *"ekran üstünde ekran video oynatıcı sistemi yapalım"*). Başka
@@ -460,6 +465,16 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="false"
             android:stopWithTask="true" />
+
+        <!-- ── SD KARTLA BİRLEŞİK DEPOLAMA İŞİ ─────────────────────────────
+             Kullanıcı isteği 2026-10-17: *"sadece şarj olurken çalışan SD
+             kartı ile birlik olarak kullan özelliği"*. `JobScheduler` işi
+             (şarj şartlı, dönemsel); sistem dışında kimse bağlanamasın diye
+             BIND_JOB_SERVICE + exported="false". -->
+        <service
+            android:name=".SdUnionJob"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
 
         <!-- ── OCR modeli: Google Play Hizmetleri'nden, KURULUMDA ─────────
              2026-09-26: metin tanıma modeli artık APK'da değil (CI, gömülü

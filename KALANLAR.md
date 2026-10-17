@@ -19,6 +19,20 @@
 >    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
 >    (split-per-abi/AAB). Her biri kendi başına bir tur.
 
+- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-17 (3) turu.** (a) Galeri/kategori
+      ekranında seçim yaparken yana kaydırma sayfa DEĞİŞTİRMİYOR, seçim bitince
+      değiştiriyor mu; (b) tarama: ML Kit'te "Kaydet" → doğrudan sonuç ekranı mı,
+      tablolu/çerçeveli belgede başlık ve imza kesilmeden mi, "Sayfaları düzenle"de
+      sıra değişip kaydediliyor mu; (c) **SD kartla birleşik depolama**: "Şimdi taşı"
+      ilerlemesi, şarja takınca UYGULAMA KAPALIYKEN çalışıyor mu, şarjdan çıkınca
+      duruyor mu, bitiş bildirimi, taşınan fotoğraflar galeride görünüyor mu,
+      Android 10 ve öncesinde "yazılamıyor" uyarısı çıkıyor mu.
+- [ ] **SD birleşik depolama — sonraki adımlar (bilinçli ertelendi).** (a) SAF klasör
+      izniyle yazma (yol üzerinden yazılamayan kartlar için); (b) "yalnız ana bellek
+      %X'i aşınca" eşiği; (c) klasör seçiminde serbest klasör (şu an Android'in
+      standart ortak klasörleri). Kullanıcı "birlik olarak kullan"dan başka bir şey
+      kastettiyse ekran/kip buna göre genişletilecek.
+
 - [ ] **Liste simgesi 68 dp'ye YÜKSELEMİYOR — `ListTile` tavanı** (2026-08-30).
       `FmEntryListTile` 68 dp istiyor; Material'in `ListTile`'ı `leading`
       yuvasını `maxHeight: 56` ile kesiyor (yoğun satırda 48). Şekil artık
@@ -620,7 +634,9 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       (GET_CONTENT, "Şuradan aç" çekmecesindeki ok) + `ci/DosyaProvider.kt`
       (OPEN_DOCUMENT çekmecesinde kök satırı).
 - [ ] **SD karta yazma (SAF)** — Android bazı cihazlarda ikincil birime doğrudan
-      yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli.
+      yazmayı engeller; gerekirse `SAF` tree izni akışı eklenmeli. (2026-10-17: SD
+      birleşik depolama da yol üzerinden yazıyor; yazılamayan kartta `sd_readonly`
+      uyarısı veriyor — SAF desteği gelince oraya da bağlanmalı.)
 
 ## PDF turu sonrası kalanlar (2026-07-26, 2. tur sonrası güncel)
 - [ ] **Cihaz doğrulaması bekliyor:** vurgulama, uzun basışla metin seçimi,

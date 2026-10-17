@@ -11,7 +11,9 @@ import 'scan_enhance.dart' show ScanEnhance;
 /// **Metne bakarak** sayfa düzleştirme: eğimi (skew) ve kitap kıvrımını
 /// (bombe) düzeltir.
 ///
-/// ## Niye [ScanDeskew] yetmedi (2026-08-06 kullanıcı bulgusu)
+/// ## Niye `ScanDeskew` yetmedi (2026-08-06 kullanıcı bulgusu; o sınıf
+/// 2026-10-17'de kaldırıldı — ML Kit çıktısını ikinci kez kırpıyordu, bkz.
+/// `ScanPrepare`)
 /// Var olan düzeltme **kâğıdın kenarını** arıyor (`DocEdges` → dörtgen →
 /// perspektif). Kullanıcının kendi kitabını çektiği sayfalarda kenar ya
 /// kadrajın dışında ya da zeminle aynı renkte: dörtgen bulunamıyor, sayfa
@@ -369,12 +371,25 @@ abstract final class ScanDewarp {
       perColumn[x] = (a + (b - a) * f) * scale;
     }
 
-    final out = img.Image(width: w, height: h, numChannels: 3);
+    // **Tuval kayma kadar uzar — içerik KESİLMEZ** (2026-10-17, "taramada
+    // kesme sorunu"). Eskiden çıktı kaynakla aynı yükseklikteydi: yukarı
+    // çekilen sütunun en üst satırları, aşağı itilenin en alt satırları
+    // tuvalin dışına düşüp kayboluyordu — kıvrımlı kitap sayfasında başlık
+    // ya da sayfa numarası yarım çıkıyordu. Artık tuvalin üstüne en büyük
+    // yukarı kayma, altına en büyük aşağı kayma kadar beyaz pay ekleniyor.
+    var up = 0.0, down = 0.0;
+    for (final shift in perColumn) {
+      if (shift > up) up = shift;
+      if (-shift > down) down = -shift;
+    }
+    final top = up.ceil();
+    final outH = h + top + down.ceil();
+    final out = img.Image(width: w, height: outH, numChannels: 3);
     final src = source.getBytes(order: img.ChannelOrder.rgb);
     final dst = out.getBytes(order: img.ChannelOrder.rgb);
     for (var x = 0; x < w; x++) {
-      final shift = perColumn[x];
-      for (var y = 0; y < h; y++) {
+      final shift = perColumn[x] - top;
+      for (var y = 0; y < outH; y++) {
         final sy = y + shift;
         final o = (y * w + x) * 3;
         if (sy < 0 || sy > h - 1) {

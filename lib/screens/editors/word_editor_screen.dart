@@ -835,7 +835,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
           child: SingleChildScrollView(
             // Alt sistem çubuğu + FAB için nefes payı (edge-to-edge çakışmasın).
             padding: EdgeInsets.fromLTRB(
-                12, 20, 12, MediaQuery.of(context).padding.bottom + 88),
+                12, 20, 12, MediaQuery.paddingOf(context).bottom + 88),
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 820),

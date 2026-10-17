@@ -766,7 +766,9 @@ class _VideoThumbState extends State<_VideoThumb> {
     }
     unawaited(_loadDuration(path));
     final result = await ThumbnailCache.forVideo(path,
-        size: (widget.size * 2).round().clamp(96, 512));
+        size: (widget.size * 2).round().clamp(96, 512),
+        // Sırası geldiğinde hücre ekrandan çıkmışsa kare hiç çözülmez.
+        wanted: () => mounted && path == widget.path);
     if (!mounted || path != widget.path) return;
     // Küçük resim üretilemedi: dosya silinmiş olabilir (bkz. FsEvents).
     if (result == null) FsEvents.reportUnreadable(path);

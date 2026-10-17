@@ -681,7 +681,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                 controller: _vCtrl,
                 physics: physics,
                 padding: EdgeInsets.fromLTRB(16 * _zoom, 8 * _zoom, 16 * _zoom,
-                    MediaQuery.of(context).padding.bottom + 88),
+                    MediaQuery.paddingOf(context).bottom + 88),
                 itemCount: editor.slides.length,
                 itemBuilder: (context, i) => Center(
                   child: SizedBox(

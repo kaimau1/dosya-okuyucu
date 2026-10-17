@@ -470,7 +470,7 @@ Future<GithubAsset?> _pickAsset(
     builder: (ctx) => SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

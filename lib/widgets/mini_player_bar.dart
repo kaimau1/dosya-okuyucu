@@ -143,7 +143,7 @@ class _MiniPlayerHostState extends State<_MiniPlayerHost> {
     _shown = wanted;
     if (!wanted) return false;
     // Klavye açıkken çubuk, yazılan alanın üstüne oturup ekranı daraltırdı.
-    return MediaQuery.of(context).viewInsets.bottom <= 0;
+    return MediaQuery.viewInsetsOf(context).bottom <= 0;
   }
 
   @override
@@ -282,7 +282,11 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
             _progressLine(scheme, live.position, live.duration),
       );
     }
-    return _progressLine(scheme, _audio.position, _audio.duration);
+    return ValueListenableBuilder<Duration>(
+      valueListenable: _audio.positionListenable,
+      builder: (_, position, __) =>
+          _progressLine(scheme, position, _audio.duration),
+    );
   }
 
   Widget _progressLine(ColorScheme scheme, Duration position, Duration total) {
