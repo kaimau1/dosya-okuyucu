@@ -13,6 +13,7 @@ import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/section_header.dart';
 import '../settings_screen.dart';
 import '../../core/snack.dart';
+import '../../widgets/motion.dart';
 
 /// Geri Dönüşüm Kutusu: silinen dosyaları geri yükle ya da kalıcı sil.
 class TrashScreen extends StatefulWidget {
@@ -247,9 +248,9 @@ class _TrashScreenState extends State<TrashScreen> {
               ],
             ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : _items.isEmpty
-              ? Center(child: Text(context.t('trash.empty')))
+              ? FmEmptyState(icon: Icons.delete_outline, title: context.t('trash.empty'))
               : Column(
                   children: [
                     _summaryBand(total, shown.length),

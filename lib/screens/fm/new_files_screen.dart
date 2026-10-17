@@ -8,6 +8,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart';
 import 'category_screen.dart';
+import '../../widgets/motion.dart';
 
 /// **Yeni Dosyalar** — telefona en son düşen dosyalar.
 ///
@@ -144,7 +145,7 @@ class _NewFilesScreenState extends State<NewFilesScreen>
     if (files == null) {
       return Scaffold(
         appBar: AppBar(title: Text(context.t('fm.new_files'))),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const FmListSkeleton(),
       );
     }
     // Süzme, sıralama, ızgara/liste, çoklu seçim ve toplu işlemler

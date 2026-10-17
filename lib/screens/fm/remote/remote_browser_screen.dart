@@ -19,6 +19,7 @@ import '../../../widgets/fm/fm_entry_icon.dart';
 import '../browser_screen.dart';
 import 'remote_edit_screen.dart';
 import '../../../core/snack.dart';
+import '../../../widgets/motion.dart';
 
 /// Uzak sunucu gezgini: listeler, indirip açar, yükler, siler.
 ///
@@ -698,7 +699,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
   }
 
   Widget _body() {
-    if (_busy) return const Center(child: CircularProgressIndicator());
+    if (_busy) return const FmListSkeleton();
     if (_error != null) {
       return Center(
         child: Padding(

@@ -17,6 +17,7 @@ import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
+import '../../widgets/motion.dart';
 
 enum _DlSort { oldest, newest, largest, name }
 
@@ -232,7 +233,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       // Stack: alt eylem çubuğu gövdeyi kısaltmasın → liste zıplamaz.
       body: Stack(children: [
         _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : files.isEmpty
               ? Center(
                   child: Text(_query.trim().isEmpty

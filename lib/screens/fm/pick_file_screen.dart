@@ -48,6 +48,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/section_header.dart';
 import '../../core/snack.dart';
+import '../../widgets/motion.dart';
 
 /// Ekranın hangi görünümde olduğu.
 enum _PickView { home, folder, category, search, matches }
@@ -479,7 +480,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
   }
 
   Widget _body() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const FmListSkeleton();
     if (_error.isNotEmpty) {
       return Center(
         child: Padding(
@@ -492,11 +493,9 @@ class _PickFileScreenState extends State<PickFileScreen> {
     if (_view == _PickView.home) return _home();
     if (_view == _PickView.matches) return _matchesView();
     if (_entries.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Text(context.t('pick.empty'), textAlign: TextAlign.center),
-        ),
+      return FmEmptyState(
+        icon: Icons.folder_off_outlined,
+        title: context.t('pick.empty'),
       );
     }
     return ListView.builder(

@@ -13,6 +13,7 @@ import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
+import '../../widgets/motion.dart';
 
 /// Yinelenen dosyalar: birebir aynı içerikli dosyaları bulur, her gruptan
 /// birini bırakıp kalanları tek dokunuşla çöpe taşır.
@@ -237,7 +238,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
               ),
             )
           : _groups.isEmpty
-              ? Center(child: Text(context.t('dup.none')))
+              ? FmEmptyState(icon: Icons.verified_outlined, title: context.t('dup.none'))
               : Column(
                   children: [
                     Padding(

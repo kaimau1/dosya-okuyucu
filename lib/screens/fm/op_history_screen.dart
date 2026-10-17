@@ -8,6 +8,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/op_history.dart';
 import 'browser_screen.dart';
 import '../../core/snack.dart';
+import '../../widgets/motion.dart';
 
 /// **Son işlemler** — "neyi nereye taşımıştım?" ve toplu geri alma.
 ///
@@ -106,7 +107,7 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : _records.isEmpty
               ? Center(
                   child: Padding(

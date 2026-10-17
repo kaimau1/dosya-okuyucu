@@ -16,6 +16,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import 'downloads_screen.dart' show downloadsPathIn;
 import 'entry_actions.dart' show shareEntries;
 import '../../core/snack.dart';
+import '../../widgets/motion.dart';
 
 /// Sıralama ölçütü.
 enum _AppSort { size, idle, name, installed }
@@ -221,7 +222,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : RefreshIndicator(
               onRefresh: () => _load(quiet: true),
               child: CustomScrollView(

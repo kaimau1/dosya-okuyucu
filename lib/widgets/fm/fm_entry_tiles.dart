@@ -5,6 +5,7 @@ import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../section_header.dart';
 import 'fm_entry_icon.dart';
+import '../motion.dart';
 
 /// Dosya/klasör satırı ve ızgara hücresi — gözatıcı, kategori ve arama
 /// ekranlarının ORTAK öğeleri.
@@ -52,9 +53,10 @@ class FmEntryListTile extends StatelessWidget {
     return ListTile(
       selected: selected,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
-      contentPadding: layout == FmLayout.detail
-          ? const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs)
-          : null,
+      contentPadding:
+          layout == FmLayout.detail
+              ? const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs)
+              : null,
       // Seçim açıkken de ÖNİZLEME durur (onay rozeti üstüne biner) — bkz.
       // [FmSelectableIcon]: "yanlış seçim yaparken önizlemeler görülmeli".
       leading: FmSelectableIcon(
@@ -74,13 +76,14 @@ class FmEntryListTile extends StatelessWidget {
   }
 
   Widget? _trailing(BuildContext context, ColorScheme scheme) {
-    final more = onMore == null
-        ? null
-        : IconButton(
-            icon: const Icon(Icons.more_vert),
-            tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-            onPressed: onMore,
-          );
+    final more =
+        onMore == null
+            ? null
+            : IconButton(
+              icon: const Icon(Icons.more_vert),
+              tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+              onPressed: onMore,
+            );
     if (showChevron && entry.isDir && !selecting) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -122,63 +125,73 @@ class FmEntryGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.card),
-      child: Container(
-        decoration: BoxDecoration(
-          color:
-              selected ? scheme.primaryContainer.withValues(alpha: 0.5) : null,
-          borderRadius: BorderRadius.circular(Radii.card),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Hücrenin boyu ikon + ad şeridi kadar; tema ölçeği ikonu
-            // BÜYÜTÜRSE üst sınır yine hücrenin kendisi olmalı, yoksa
-            // "Modern" ailesinde ızgara satırı taşardı.
-            final room = constraints.maxHeight - _labelHeight;
-            final iconSize = (room * context.fmIconScale)
-                .clamp(16.0, constraints.maxWidth < room ? constraints.maxWidth : room);
-            return Stack(
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    FmEntryIcon(
-                      entry: entry,
-                      size: iconSize,
-                      // Hücre büyüdükçe köşe yarıçapı da büyür (küçük kutuda
-                      // 12 dp yuvarlaklık, 140 dp'lik kutuda ezik duruyordu).
-                      radius: (iconSize * 0.12).clamp(6.0, 20.0),
-                    ),
-                    SizedBox(
-                      height: _labelHeight,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Text(
-                          entry.name,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
+    // Basınca hafifçe çöker; seçim kipinde değil (sürükleyerek seçerken
+    // hücreler "nefes almasın").
+    return PressScale(
+      enabled: !selecting,
+      scale: 0.96,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: Container(
+          decoration: BoxDecoration(
+            color:
+                selected
+                    ? scheme.primaryContainer.withValues(alpha: 0.5)
+                    : null,
+            borderRadius: BorderRadius.circular(Radii.card),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Hücrenin boyu ikon + ad şeridi kadar; tema ölçeği ikonu
+              // BÜYÜTÜRSE üst sınır yine hücrenin kendisi olmalı, yoksa
+              // "Modern" ailesinde ızgara satırı taşardı.
+              final room = constraints.maxHeight - _labelHeight;
+              final iconSize = (room * context.fmIconScale).clamp(
+                16.0,
+                constraints.maxWidth < room ? constraints.maxWidth : room,
+              );
+              return Stack(
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FmEntryIcon(
+                        entry: entry,
+                        size: iconSize,
+                        // Hücre büyüdükçe köşe yarıçapı da büyür (küçük kutuda
+                        // 12 dp yuvarlaklık, 140 dp'lik kutuda ezik duruyordu).
+                        radius: (iconSize * 0.12).clamp(6.0, 20.0),
+                      ),
+                      SizedBox(
+                        height: _labelHeight,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text(
+                            entry.name,
+                            maxLines: 2,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                if (selecting)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Icon(
-                      selected ? Icons.check_circle : Icons.circle_outlined,
-                      size: 20,
-                      color: selected ? scheme.primary : scheme.outline,
-                    ),
+                    ],
                   ),
-              ],
-            );
-          },
+                  if (selecting)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Icon(
+                        selected ? Icons.check_circle : Icons.circle_outlined,
+                        size: 20,
+                        color: selected ? scheme.primary : scheme.outline,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/section_header.dart';
+import '../../widgets/motion.dart';
 
 /// **Yaptıklarım** — üretilen dosyaların türe göre gruplanmış defteri.
 ///
@@ -71,7 +72,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : _records.isEmpty
               ? Center(
                   child: Padding(

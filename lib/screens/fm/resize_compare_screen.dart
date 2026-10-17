@@ -15,6 +15,7 @@ import '../../services/fm/image_resize.dart';
 import '../../services/fm/path_side_index.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../../widgets/fm/fm_file_image.dart';
+import '../../widgets/motion.dart';
 
 /// Boyut düşürme sonucu: bir (eski → yeni) çifti.
 class ResizePair {
@@ -178,7 +179,7 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
         ),
       ),
       body: _items.isEmpty
-          ? Center(child: Text(context.t('rc.empty')))
+          ? FmEmptyState(icon: Icons.compare_outlined, title: context.t('rc.empty'))
           : PageView.builder(
               controller: _controller,
               itemCount: _items.length,

@@ -12258,3 +12258,25 @@ karşı derlendi (Robolectric android-all 34). Cihazda bakılacak: Notlar'dan PD
 isteyince doğrudan eşleşme listesi, "Diğer" → Notlar'da sistem seçicisi.
 **CI sonucu:** main #373 yeşil (analyze + test + APK + içerik denetimi) → **v1.0.373**
 yayımlandı. Notlar tarafı aynı gün **v1.0.448** (PR #84).
+
+## 2026-10-17 (2) — UI/UX turu: basma hissi, liste iskeletleri, boş liste yüzü
+Kullanıcı (Notlar oturumundan): "çeviri hariç devam et, olmamış kısmına; Dosya
+Okuyucu içinde de UI/UX çalışmaları yap, APK derlet".
+- **Ortak parçalar `lib/widgets/motion.dart`:** `PressScale` (Listener — jest
+  yarışmasına girmez, sürükleyerek seçme bozulmaz; 70 ms gecikme + 10 px kayma
+  iptali, kaydırırken hücreler "nefes almasın"; hızlı dokunuşta bir an çöker),
+  `PopIn` (tek seferlik giriş), `FmListSkeleton` (tek denetleyicili nabız),
+  `FmEmptyState` (simge dairesi + başlık + ipucu, süzülerek).
+- **Basma hissi:** pano kategori kutuları (0,95), araç ızgarası, dosya ızgara
+  hücreleri (0,96; seçim kipinde KAPALI). Liste satırlarında YOK (satırı
+  ölçeklemek garip duruyor; ripple yeter).
+- **Yükleme:** 14 liste ekranında ortadaki çark → `FmListSkeleton` (gözatıcı,
+  Drive, uzak gözatıcı, indirilenler, yeni dosyalar, gizli, işlem geçmişi, son
+  açılanlar, etkinlik, çöp, arşiv, uygulamalar, düzenle, seçici).
+- **Boş listeler:** çöp, kopyalar, sohbet çöpü kovası, arşiv araması,
+  karşılaştırma, seçici klasörü → `FmEmptyState`.
+- **BİLEREK DOKUNULMADI:** sayfa geçişi (`FastPageTransitionsBuilder`, 2026-09-06
+  performans kararı — Notlar'daki Cupertino geçişi burada yüzlerce parçalı
+  listelerde ilk karede takılma riskini geri getirirdi); levha hareketi (3.29'da
+  `sheetAnimationStyle` eğri almıyor, yalnız süre).
+- Test: `motion_test.dart` (+3).

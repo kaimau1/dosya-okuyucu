@@ -11,6 +11,7 @@ import '../../services/fm/open_history.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
+import '../../widgets/motion.dart';
 
 /// **Son açılanlar** — uygulamada açılan HER dosya (tür fark etmez), en son
 /// açılma zamanına göre sıralı.
@@ -145,7 +146,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : entries.isEmpty
               ? Center(
                   child: Padding(

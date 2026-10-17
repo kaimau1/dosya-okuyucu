@@ -17,6 +17,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import '../../core/snack.dart';
+import '../../widgets/motion.dart';
 
 /// Arşiv görüntüleyici: RAR / 7z / ZIP / TAR içeriğini **çıkarmadan** listeler,
 /// tek dosyayı önizler, tamamını ya da seçilen dosyayı çıkarır.
@@ -224,7 +225,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
               label: Text(context.t('arc.extract_all')),
             ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : _error != null
               ? _errorView()
               : Column(
@@ -234,7 +235,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                     const Divider(height: 1),
                     Expanded(
                       child: items.isEmpty
-                          ? Center(child: Text(context.t('arc.no_match')))
+                          ? FmEmptyState(icon: Icons.search_off, title: context.t('arc.no_match'))
                           : ListView.builder(
                               padding: const EdgeInsets.only(bottom: 96),
                               itemCount: items.length,

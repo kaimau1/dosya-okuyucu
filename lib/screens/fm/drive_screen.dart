@@ -23,6 +23,7 @@ import '../../widgets/fm/fm_entry_icon.dart' show FmColors;
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'folder_picker_screen.dart';
 import '../../core/snack.dart';
+import '../../widgets/motion.dart';
 
 /// Google Drive ekranı — **gezilebilir dosya yöneticisi** (2026-08-05).
 ///
@@ -935,7 +936,7 @@ class _DriveScreenState extends State<DriveScreen> {
       );
 
   Widget _body() {
-    if (_busy) return const Center(child: CircularProgressIndicator());
+    if (_busy) return const FmListSkeleton();
     if (!_signedIn) {
       // Kaydırılabilir: hata şeridi + kurulum kartı açıkken (ya da küçük
       // ekranda) sabit Column dikeyde taşıyordu.

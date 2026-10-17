@@ -13,6 +13,7 @@ import '../../services/fm/hidden_vault.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import 'entry_actions.dart';
+import '../../widgets/motion.dart';
 
 /// **Gizli dosyalar** — [HiddenVault]'taki öğeler (2026-09-27).
 ///
@@ -84,7 +85,7 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
         ],
       ),
       body: items == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const FmListSkeleton()
           : ListView(
               padding: const EdgeInsets.only(bottom: Gap.xl),
               children: [

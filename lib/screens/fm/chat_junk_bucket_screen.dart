@@ -8,6 +8,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import 'entry_actions.dart';
+import '../../widgets/motion.dart';
 
 /// Tek kovanın içi: ızgara, seçim ve **toplu silme**.
 ///
@@ -72,7 +73,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
           const Divider(height: 1),
           Expanded(
             child: _files.isEmpty
-                ? Center(child: Text(context.t('cj.bucket_empty')))
+                ? FmEmptyState(icon: Icons.cleaning_services_outlined, title: context.t('cj.bucket_empty'))
                 : GridView.builder(
                     padding: const EdgeInsets.all(Gap.sm),
                     gridDelegate:

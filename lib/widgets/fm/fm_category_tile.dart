@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import '../motion.dart';
 
 /// Pano kutusunun verisi (ikon, renk, başlık, alt satır, dokunma).
 class FmTileData {
@@ -38,14 +39,14 @@ class FmTileData {
 
   /// Yalnız dokunmayı saran kopya (pano, sayacı artırmak için kullanır).
   FmTileData withTap(VoidCallback onTap) => FmTileData(
-        icon: icon,
-        color: color,
-        label: label,
-        subtitle: subtitle,
-        onTap: onTap,
-        id: id,
-        pulse: pulse,
-      );
+    icon: icon,
+    color: color,
+    label: label,
+    subtitle: subtitle,
+    onTap: onTap,
+    id: id,
+    pulse: pulse,
+  );
 }
 
 /// **Degrade simge** — pano kutularının ve araçların ortak glifi.
@@ -74,16 +75,17 @@ class FmTintedIcon extends StatelessWidget {
     if (context.fmOutlinedIcons) return glyph;
     return ShaderMask(
       blendMode: BlendMode.srcIn,
-      shaderCallback: (rect) => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color.lerp(color, Colors.white, 0.28)!,
-          color,
-          Color.lerp(color, Colors.black, 0.18)!,
-        ],
-        stops: const [0, 0.5, 1],
-      ).createShader(rect),
+      shaderCallback:
+          (rect) => LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.lerp(color, Colors.white, 0.28)!,
+              color,
+              Color.lerp(color, Colors.black, 0.18)!,
+            ],
+            stops: const [0, 0.5, 1],
+          ).createShader(rect),
       child: glyph,
     );
   }
@@ -150,11 +152,12 @@ class _PulsingIconState extends State<_PulsingIcon>
 
   @override
   Widget build(BuildContext context) => ScaleTransition(
-        scale: Tween<double>(begin: 1, end: 1.14).animate(
-          CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-        ),
-        child: widget.child,
-      );
+    scale: Tween<double>(
+      begin: 1,
+      end: 1.14,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+    child: widget.child,
+  );
 }
 
 /// Panonun kategori kutusu. **Ortak widget:** "Önemli Dosyalar" klasörü de
@@ -186,39 +189,47 @@ class FmCategoryTile extends StatelessWidget {
     // etiketi sıkıştırırdı.
     // 46 taban ölçü; tema ailesi bunu ölçekler (bkz. SkinMetrics.iconScale).
     final icon = FmTintedIcon(
-        icon: data.icon, color: tint, size: 46 * context.fmIconScale);
-    return InkWell(
-      onTap: data.onTap,
-      borderRadius: BorderRadius.circular(Radii.card),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: 2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            data.pulse ? _PulsingIcon(key: pulseKey, child: icon) : icon,
-            const SizedBox(height: Gap.xs),
-            Text(
-              data.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700, letterSpacing: 0),
-            ),
-            // Alt satır yalnız BİLGİ taşıyorsa (araç ızgarasındaki kuralla
-            // aynı): dört sütunda dolgu metin satırı boşa yer yiyor.
-            if (data.subtitle.isNotEmpty)
+      icon: data.icon,
+      color: tint,
+      size: 46 * context.fmIconScale,
+    );
+    // Basınca hafifçe çöker (iOS dokunsal hissi — bkz. widgets/motion.dart).
+    return PressScale(
+      child: InkWell(
+        onTap: data.onTap,
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: 2),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              data.pulse ? _PulsingIcon(key: pulseKey, child: icon) : icon,
+              const SizedBox(height: Gap.xs),
               Text(
-                data.subtitle,
+                data.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 10,
-                  color: theme.colorScheme.onSurfaceVariant,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0,
                 ),
               ),
-          ],
+              // Alt satır yalnız BİLGİ taşıyorsa (araç ızgarasındaki kuralla
+              // aynı): dört sütunda dolgu metin satırı boşa yer yiyor.
+              if (data.subtitle.isNotEmpty)
+                Text(
+                  data.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -245,22 +256,22 @@ class FmCategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = columnsFor(constraints.maxWidth);
-          return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              childAspectRatio: 0.86,
-              mainAxisSpacing: Gap.xs,
-              crossAxisSpacing: Gap.xs,
-            ),
-            itemCount: tiles.length,
-            itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
-          );
-        },
+    builder: (context, constraints) {
+      final columns = columnsFor(constraints.maxWidth);
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          childAspectRatio: 0.86,
+          mainAxisSpacing: Gap.xs,
+          crossAxisSpacing: Gap.xs,
+        ),
+        itemCount: tiles.length,
+        itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
       );
+    },
+  );
 }
 
 /// **Araç satırı** — kategori kutularından görsel olarak DAHA HAFİF.
@@ -319,53 +330,60 @@ class FmToolGrid extends StatelessWidget {
             final tool = tools[i];
             final tint =
                 dark ? Color.lerp(tool.color, Colors.white, 0.3)! : tool.color;
-            return InkWell(
-              onTap: tool.onTap,
-              borderRadius: BorderRadius.circular(Radii.control),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: 2),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının
-                    // 46'sından bir kademe küçük kalıyor, ağırlık hiyerarşisi
-                    // korunuyor.
-                    FmTintedIcon(
+            return PressScale(
+              child: InkWell(
+                onTap: tool.onTap,
+                borderRadius: BorderRadius.circular(Radii.control),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: Gap.xs,
+                    horizontal: 2,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının
+                      // 46'sından bir kademe küçük kalıyor, ağırlık hiyerarşisi
+                      // korunuyor.
+                      FmTintedIcon(
                         icon: tool.icon,
                         color: tint,
-                        size: 34 * context.fmIconScale),
-                    const SizedBox(height: Gap.xs),
-                    // `Flexible`: hesaplanan yükseklik yine de yetmezse metin
-                    // taşmak yerine kırpılır — ızgara hiçbir ölçekte kırmızı
-                    // şeritler göstermez.
-                    Flexible(
-                      child: Text(
-                        tool.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(height: 1.15, fontSize: 11),
+                        size: 34 * context.fmIconScale,
                       ),
-                    ),
-                    // Alt yazı yalnız BİLGİ taşıyorsa yazılır ("3 sürüyor",
-                    // "12 öğe"); "Ayrıntılar" gibi dolgu metinler gürültüdür.
-                    if (tool.subtitle.isNotEmpty)
+                      const SizedBox(height: Gap.xs),
+                      // `Flexible`: hesaplanan yükseklik yine de yetmezse metin
+                      // taşmak yerine kırpılır — ızgara hiçbir ölçekte kırmızı
+                      // şeritler göstermez.
                       Flexible(
                         child: Text(
-                          tool.subtitle,
-                          maxLines: 1,
+                          tool.label,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 10,
+                            height: 1.15,
+                            fontSize: 11,
                           ),
                         ),
                       ),
-                  ],
+                      // Alt yazı yalnız BİLGİ taşıyorsa yazılır ("3 sürüyor",
+                      // "12 öğe"); "Ayrıntılar" gibi dolgu metinler gürültüdür.
+                      if (tool.subtitle.isNotEmpty)
+                        Flexible(
+                          child: Text(
+                            tool.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );

@@ -31,6 +31,7 @@ import 'entry_actions.dart';
 import 'organize_screen.dart';
 import 'search_screen.dart';
 import '../../core/snack.dart';
+import '../../widgets/motion.dart';
 
 /// Klasör gözatıcısı: listeleme, çoklu seçim, kopyala/kes/yapıştır, yeni
 /// klasör/dosya, sıralama, ızgara/liste, favoriler.
@@ -754,7 +755,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   Widget _body(List<FsEntry> entries) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const FmListSkeleton();
     if (_error != null) {
       return Center(
         child: Padding(
