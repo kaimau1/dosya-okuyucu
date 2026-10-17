@@ -18,6 +18,18 @@
 ///
 /// Seçim akışı sade tutuldu: burada dosya *seçilir*, yönetilmez. Kopyala/sil
 /// gibi işlemler çağıran uygulama beklerken risk (ve yavaşlık) demek.
+///
+/// ## Belirli bir tür istenince ana sayfa DEĞİL, o türün dosyaları
+/// Kullanıcı bulgusu 2026-10-17 (Notlar'dan PDF/ses eklerken): *"açılan dosya
+/// yöneticisi menüsünde istenen uzantıya göre filtreleme yapılmalı; şu an
+/// ana sayfa açılıyor sadece ve bulmak çok zor."* Ana sayfa `*/*` isteyen
+/// (her şeyi kabul eden) çağıran için doğru yüz; PDF isteyen bir uygulamada
+/// ise kullanıcı önce "Belgeler"e girip Word/Excel arasında PDF arıyordu.
+/// Artık istek belirliyse ([PickerRequest.isSpecific]) ekran DOĞRUDAN o
+/// türün tüm depolamadaki dosyalarıyla açılır ([_PickView.matches]): en
+/// yenisi üstte, yazdıkça süzülür, birden çok uzantıda uzantı çipleri; son
+/// açılanlar tepede. Ana sayfa ve klasörler bir dokunuş ötede ("Klasörlerde
+/// gez"); çağıran destekliyorsa "Diğer kaynaklar" sistem seçicisine geçirir.
 library;
 
 import 'package:flutter/material.dart';
@@ -38,7 +50,7 @@ import '../../widgets/section_header.dart';
 import '../../core/snack.dart';
 
 /// Ekranın hangi görünümde olduğu.
-enum _PickView { home, folder, category, search }
+enum _PickView { home, folder, category, search, matches }
 
 class PickFileScreen extends StatefulWidget {
   const PickFileScreen({super.key});
@@ -59,6 +71,16 @@ class _PickFileScreenState extends State<PickFileScreen> {
 
   List<FsEntry> _entries = const [];
   List<FsEntry> _recent = const [];
+
+  /// İstenen türün BÜTÜN dosyaları, en yenisi üstte ([_PickView.matches]).
+  /// Bir kez kurulur; geri dönüşte yeniden taranmaz.
+  List<FsEntry>? _matches;
+
+  /// Eşleşme listesinde seçili uzantı (null = tümü).
+  String? _extFilter;
+
+  /// Eşleşme listesi ada göre mi sıralı (varsayılan: en yeni üstte).
+  bool _byName = false;
   final _selected = <String>{};
   final _search = TextEditingController();
 
@@ -88,7 +110,85 @@ class _PickFileScreenState extends State<PickFileScreen> {
       _hasAccess = access;
       _path = FmEnv.primaryRoot;
     });
-    await _loadHome();
+    if (request.isSpecific) {
+      await _openMatches();
+    } else {
+      await _loadHome();
+    }
+  }
+
+  /// Seçicinin kök görünümü: belirli tür istendiyse eşleşme listesi, yoksa
+  /// ana sayfa.
+  bool get _atRoot => _request.isSpecific
+      ? _view == _PickView.matches
+      : _view == _PickView.home;
+
+  Future<void> _toRoot() async {
+    _search.clear();
+    if (_request.isSpecific) {
+      await _openMatches();
+    } else {
+      await _loadHome();
+    }
+  }
+
+  /// **İstenen türün bütün dosyaları** — belirli bir tür istendiğinde
+  /// seçicinin ilk yüzü. Dizin hazırsa ondan (isolate'te, kategoriyle
+  /// daraltılmış), değilse diski gezerek kurulur.
+  Future<void> _openMatches() async {
+    final cached = _matches;
+    if (cached != null) {
+      setState(() {
+        _view = _PickView.matches;
+        _loading = false;
+        _error = '';
+      });
+      return;
+    }
+    setState(() {
+      _view = _PickView.matches;
+      _loading = true;
+      _error = '';
+    });
+    final category = _request.category;
+    List<FsEntry> hits;
+    try {
+      await SearchIndex.ensureLoaded();
+      hits = SearchIndex.isReady
+          ? await SearchIndex.query(
+              '',
+              category: category,
+              includeDirs: false,
+              matchAll: true,
+              limit: 5000,
+            )
+          : await FsScan.collect(
+              FmEnv.volumeRoots,
+              category: category,
+              limit: 5000,
+            );
+    } catch (_) {
+      hits = const [];
+    }
+    List<FsEntry> recent = const [];
+    try {
+      await OpenHistory.ensureLoaded();
+      final paths = OpenHistory.pathsByRecency().take(40).toList();
+      recent = [
+        for (final entry in await FsScan.statPaths(paths))
+          if (!entry.isDir && _request.acceptsEntry(entry)) entry
+      ].take(5).toList();
+    } catch (_) {}
+    if (!mounted) return;
+    final matches = [
+      for (final entry in hits)
+        if (!entry.isDir && _request.acceptsEntry(entry)) entry
+    ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    setState(() {
+      _matches = matches;
+      _recent = recent;
+      _loading = false;
+    });
   }
 
   /// Ana sayfanın tek asenkron parçası: son açılan dosyalar.
@@ -195,9 +295,18 @@ class _PickFileScreenState extends State<PickFileScreen> {
 
   /// Geri: kategori/arama → ana sayfa, klasör → üst klasör, kök → iptal.
   Future<void> _onBack() async {
+    if (_atRoot) {
+      await PickerBridge.cancel();
+      return;
+    }
     if (_view == _PickView.category || _view == _PickView.search) {
       _search.clear();
       await _loadHome();
+      return;
+    }
+    if (_view == _PickView.home) {
+      // Ana sayfa yalnız belirli tür isteğinde kök değil: eşleşmelere dön.
+      await _toRoot();
       return;
     }
     if (_view == _PickView.folder) {
@@ -238,7 +347,8 @@ class _PickFileScreenState extends State<PickFileScreen> {
   }
 
   String get _titleText => switch (_view) {
-        _PickView.home => context.t('pick.title'),
+        _PickView.home || _PickView.matches =>
+          _request.title ?? context.t('pick.title'),
         _PickView.folder => p.basename(_path),
         _PickView.category =>
           context.t(_category?.labelKey ?? 'fm.all_files'),
@@ -256,17 +366,20 @@ class _PickFileScreenState extends State<PickFileScreen> {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(_view == _PickView.home ? Icons.close : Icons.arrow_back),
+            icon: Icon(_atRoot ? Icons.close : Icons.arrow_back),
             tooltip: context.t('common.cancel'),
             onPressed: _onBack,
           ),
-          title: Text(_titleText, maxLines: 1, overflow: TextOverflow.ellipsis),
+          title: _titleWidget(faint),
           actions: [
-            if (_view == _PickView.home)
-              IconButton(
-                tooltip: context.t('common.cancel'),
-                icon: const Icon(Icons.close),
-                onPressed: PickerBridge.cancel,
+            // Kardeş uygulama (Notlar) "başka bir yerden seçeceğim" diyebilsin:
+            // Drive, Galeri, sistem seçicisi — çağıran açar.
+            if (_request.otherSources)
+              TextButton.icon(
+                key: const ValueKey('pick-other-sources'),
+                onPressed: PickerBridge.otherSources,
+                icon: const Icon(Icons.apps_outlined, size: 18),
+                label: Text(context.t('pick.other_sources')),
               ),
           ],
           bottom: _view == _PickView.folder
@@ -311,10 +424,20 @@ class _PickFileScreenState extends State<PickFileScreen> {
               child: TextField(
                 controller: _search,
                 textInputAction: TextInputAction.search,
-                onSubmitted: _runSearch,
+                // Eşleşme listesinde arama YERELDE ve yazdıkça süzer (liste
+                // zaten elde); diğer görünümlerde tüm depolamada arar.
+                onChanged: (_) {
+                  if (_view == _PickView.matches) setState(() {});
+                },
+                onSubmitted: (q) {
+                  if (_view != _PickView.matches) _runSearch(q);
+                },
                 decoration: InputDecoration(
                   isDense: true,
-                  hintText: context.t('pick.search_hint'),
+                  hintText: _view == _PickView.matches &&
+                          _request.kindLabel.isNotEmpty
+                      ? context.t('pick.filter_hint', {'kind': _request.kindLabel})
+                      : context.t('pick.search_hint'),
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _search.text.isEmpty
                       ? null
@@ -323,7 +446,11 @@ class _PickFileScreenState extends State<PickFileScreen> {
                           icon: const Icon(Icons.clear),
                           onPressed: () {
                             _search.clear();
-                            _loadHome();
+                            if (_view == _PickView.matches) {
+                              setState(() {});
+                            } else {
+                              _toRoot();
+                            }
                           },
                         ),
                 ),
@@ -363,6 +490,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
       );
     }
     if (_view == _PickView.home) return _home();
+    if (_view == _PickView.matches) return _matchesView();
     if (_entries.isEmpty) {
       return Center(
         child: Padding(
@@ -376,6 +504,152 @@ class _PickFileScreenState extends State<PickFileScreen> {
       itemBuilder: (context, i) => _row(_entries[i]),
     );
   }
+
+  /// Başlık: çağıranın başlığı ("PDF seç") + altında "Notlar için · PDF".
+  Widget _titleWidget(Color faint) {
+    final title =
+        Text(_titleText, maxLines: 1, overflow: TextOverflow.ellipsis);
+    if (!(_view == _PickView.home || _view == _PickView.matches)) return title;
+    final parts = [
+      if (_request.caller case final caller?)
+        context.t('pick.for_caller', {'app': caller}),
+      if (_request.kindLabel.isNotEmpty) _request.kindLabel,
+    ];
+    if (parts.isEmpty) return title;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        title,
+        Text(
+          parts.join(' · '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 12, color: faint),
+        ),
+      ],
+    );
+  }
+
+  /// **Eşleşme listesi** — belirli tür isteğinin ilk yüzü.
+  Widget _matchesView() {
+    final all = _matches ?? const <FsEntry>[];
+    final q = _search.text.trim().toLowerCase();
+    final counts = <String, int>{};
+    for (final entry in all) {
+      final ext = entry.extension.toLowerCase();
+      counts[ext] = (counts[ext] ?? 0) + 1;
+    }
+    final filter = counts.containsKey(_extFilter) ? _extFilter : null;
+    final visible = [
+      for (final entry in all)
+        if ((filter == null || entry.extension.toLowerCase() == filter) &&
+            (q.isEmpty || entry.name.toLowerCase().contains(q)))
+          entry
+    ];
+    if (_byName) {
+      visible.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    }
+    final showRecent = q.isEmpty && filter == null && _recent.isNotEmpty;
+    final exts = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+
+    final header = <Widget>[
+      SizedBox(
+        height: 48,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+          children: [
+            if (exts.length > 1) ...[
+              _chip(
+                label: '${context.t('pick.all')} · ${all.length}',
+                selected: filter == null,
+                onTap: () => setState(() => _extFilter = null),
+              ),
+              for (final ext in exts)
+                _chip(
+                  label: '${ext.isEmpty ? '?' : ext.toUpperCase()} · '
+                      '${counts[ext]}',
+                  selected: filter == ext,
+                  onTap: () => setState(() => _extFilter = ext),
+                ),
+            ],
+            _chip(
+              label: context.t(_byName ? 'pick.sort_name' : 'pick.sort_newest'),
+              icon: Icons.swap_vert,
+              onTap: () => setState(() => _byName = !_byName),
+            ),
+            _chip(
+              label: context.t('pick.browse_folders'),
+              icon: Icons.folder_open_outlined,
+              onTap: () {
+                _search.clear();
+                _loadHome();
+              },
+            ),
+          ],
+        ),
+      ),
+      if (showRecent) ...[
+        SectionHeader(context.t('fm.recent_opened')),
+        for (final entry in _recent) _row(entry),
+      ],
+      SectionHeader(context.t('pick.matches_count', {'n': visible.length})),
+    ];
+
+    if (visible.isEmpty) {
+      return ListView(
+        children: [
+          ...header,
+          Padding(
+            padding: const EdgeInsets.all(Gap.lg),
+            child: Text(
+              context.t(all.isEmpty ? 'pick.no_matches' : 'pick.no_filter_matches'),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: () {
+                _search.clear();
+                _loadHome();
+              },
+              icon: const Icon(Icons.folder_open_outlined),
+              label: Text(context.t('pick.browse_folders')),
+            ),
+          ),
+        ],
+      );
+    }
+    // Binlerce satır olabilir: başlık + satırlar TEMBEL kurulur.
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: Gap.xl),
+      itemCount: header.length + visible.length,
+      itemBuilder: (context, i) =>
+          i < header.length ? header[i] : _row(visible[i - header.length]),
+    );
+  }
+
+  Widget _chip({
+    required String label,
+    required VoidCallback onTap,
+    bool selected = false,
+    IconData? icon,
+  }) =>
+      Padding(
+        padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+        child: Center(
+          child: FilterChip(
+            avatar: icon == null ? null : Icon(icon, size: 16),
+            label: Text(label),
+            selected: selected,
+            showCheckmark: false,
+            onSelected: (_) => onTap(),
+          ),
+        ),
+      );
 
   /// **Ana sayfa** — seçicinin asıl yüzü.
   Widget _home() {

@@ -52,14 +52,49 @@ class PickerActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     // Çağıran ne istiyor: tür süzgeci + çoklu seçim.
-                    "request" -> result.success(
-                        mapOf(
-                            "mimeType" to (intent?.type ?: "*/*"),
-                            "multiple" to (intent?.getBooleanExtra(
-                                Intent.EXTRA_ALLOW_MULTIPLE, false
-                            ) ?: false),
+                    //
+                    // EKOSİSTEM (kullanıcı isteği 2026-10-17, Notlar'dan:
+                    // "dosya eklerken açılan dosya yöneticisi istenen
+                    // uzantıya göre süzmeli, şu an ana sayfa açılıyor"):
+                    // standart EXTRA_MIME_TYPES (birden çok tür: `type` o
+                    // zaman `*/*` ya da aile olabiliyor) ve EXTRA_TITLE
+                    // okunur; kardeş uygulamalar ayrıca uzantı listesi,
+                    // kendi adı ve "Diğer kaynaklar" dönüşünü anladığını
+                    // gönderir (sözleşme aşağıda, Notlar MainActivity'de
+                    // AYNI değerler).
+                    "request" -> {
+                        val i = intent
+                        result.success(
+                            mapOf(
+                                "mimeType" to (i?.type ?: "*/*"),
+                                "mimeTypes" to (i?.getStringArrayExtra(
+                                    Intent.EXTRA_MIME_TYPES
+                                )?.toList() ?: emptyList<String>()),
+                                "extensions" to (i?.getStringArrayExtra(
+                                    EXTRA_EXTENSIONS
+                                )?.toList() ?: emptyList<String>()),
+                                "title" to i?.getStringExtra(Intent.EXTRA_TITLE),
+                                "caller" to i?.getStringExtra(EXTRA_CALLER),
+                                "otherSources" to (i?.getBooleanExtra(
+                                    EXTRA_OTHER_SOURCES_OK, false
+                                ) ?: false),
+                                "multiple" to (i?.getBooleanExtra(
+                                    Intent.EXTRA_ALLOW_MULTIPLE, false
+                                ) ?: false),
+                            )
                         )
-                    )
+                    }
+
+                    // "Diğer kaynaklar": çağıran (yalnız OTHER_SOURCES_OK
+                    // gönderen) kendi sistem seçicisini açar.
+                    "other" -> {
+                        setResult(
+                            RESULT_FIRST_USER,
+                            Intent().putExtra(EXTRA_OTHER_SOURCE, true)
+                        )
+                        finish()
+                        result.success(true)
+                    }
 
                     "pick" -> result.success(
                         deliver(call.argument<List<String>>("paths"))
@@ -117,5 +152,15 @@ class PickerActivity : FlutterActivity() {
     private companion object {
         const val CHANNEL = "dosya_okuyucu/picker"
         const val AUTHORITY = "com.dosyaokuyucu.dosya_okuyucu.documents"
+
+        // ── EKOSİSTEM SÖZLEŞMESİ (Notlar ile ortak, değerler DEĞİŞTİRİLMEZ) ──
+        /** String[]: istenen uzantılar (küçük harf, noktasız). */
+        const val EXTRA_EXTENSIONS = "com.dosyaokuyucu.extra.EXTENSIONS"
+        /** String: çağıran uygulamanın adı ("Notlar") — başlıkta gösterilir. */
+        const val EXTRA_CALLER = "com.dosyaokuyucu.extra.CALLER"
+        /** Boolean: çağıran "Diğer kaynaklar" dönüşünü anlıyor. */
+        const val EXTRA_OTHER_SOURCES_OK = "com.dosyaokuyucu.extra.OTHER_SOURCES_OK"
+        /** Sonuç ekstrası (RESULT_FIRST_USER ile): kullanıcı başka kaynak istedi. */
+        const val EXTRA_OTHER_SOURCE = "com.dosyaokuyucu.extra.OTHER_SOURCE"
     }
 }

@@ -6856,6 +6856,29 @@ const Map<String, (String, String, String)> _table = {
     'The file could not be handed to the requesting app.',
     'تعذّر تسليم الملف إلى التطبيق الطالب.',
   ),
+  // Belirli tür istendiğinde açılan eşleşme listesi (2026-10-17).
+  'pick.for_caller': ('{app} için', 'For {app}', 'لـ {app}'),
+  'pick.filter_hint': (
+    '{kind} dosyalarında ara…',
+    'Search {kind} files…',
+    'ابحث في ملفات {kind}…',
+  ),
+  'pick.matches_count': ('{n} dosya', '{n} files', '{n} ملف'),
+  'pick.all': ('Tümü', 'All', 'الكل'),
+  'pick.sort_newest': ('En yeni', 'Newest', 'الأحدث'),
+  'pick.sort_name': ('Ada göre', 'By name', 'حسب الاسم'),
+  'pick.browse_folders': ('Klasörlerde gez', 'Browse folders', 'تصفّح المجلدات'),
+  'pick.other_sources': ('Diğer', 'Other', 'أخرى'),
+  'pick.no_matches': (
+    'Bu türde dosya bulunamadı. Klasörlerde gezebilir ya da "Diğer" ile Drive/Galeri\'den seçebilirsin.',
+    'No files of this type were found. Browse folders or use "Other" for Drive/Gallery.',
+    'لم يُعثر على ملفات من هذا النوع. تصفّح المجلدات أو استخدم "أخرى" لـ Drive/المعرض.',
+  ),
+  'pick.no_filter_matches': (
+    'Aramaya uyan dosya yok.',
+    'No file matches the search.',
+    'لا يوجد ملف يطابق البحث.',
+  ),
 
   // ── AI analiz kuyruğu (arka planda, bağlamsız — AppStrings.current) ───────
   'aiq.job_title': ('AI dosya analizi', 'AI file analysis', 'تحليل الملفات بالذكاء الاصطناعي'),

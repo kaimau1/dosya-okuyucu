@@ -12222,3 +12222,37 @@ WhatsApp'ta gönderilenler sohbette kayboluyor".
 - Flaky: `pdf_tools_test` "parola kaldır" (syncfusion AES, rastgele veri) tam takımda
   bir kez düştü, tek başına 4/4 geçti; bu işle ilgisiz.
 **CI sonucu:** main #372 yeşil (analyze + test + Kotlin + APK) → **v1.0.372** yayımlandı.
+
+## 2026-10-17 — Seçici kipi: istenen türün dosyalarıyla açılış + Notlar ekosistemi
+Kullanıcı (Notlar oturumundan): "dosya eklerken PDF, ses vs. açılan dosya yöneticisi
+menüsünde istenen uzantıya göre filtreleme yapılmalı; şu an ana sayfa açılıyor ve bulmak
+çok zor; bizim dosya yöneticisi programımız yüklü ise onunla senkron ve uyumlu çalışalım,
+bir ekosistem oluşturalım".
+- **KÖK NEDEN:** `PickFileScreen` istek ne olursa olsun ANA SAYFA ile açılıyordu (son
+  açılanlar + kategori çipleri + klasörler). PDF isteyen uygulamada kullanıcı "Belgeler"e
+  girip Word/Excel arasında PDF arıyordu. Ayrıca `PickerActivity` yalnız niyetin `type`ını
+  okuyordu; birden çok tür isteyen çağıran (`image/jpeg` + `image/png`) `type`ı `*/*`
+  gönderdiği için seçici HER ŞEYİ gösteriyordu (EXTRA_MIME_TYPES okunmuyordu).
+- **Yeni:** istek belirliyse (`PickerRequest.isSpecific`) ilk görünüm `_PickView.matches`:
+  tüm depolamada o türün dosyaları (dizin hazırsa `SearchIndex.query(matchAll,
+  category)`, değilse `FsScan.collect(volumeRoots, category)`; en çok 5000), en yeni
+  üstte; yazdıkça YERELDE süzülür; birden çok uzantıda "Tümü · PDF 34 · DOCX 3" çipleri;
+  En yeni ⇄ Ada göre; "Klasörlerde gez" ana sayfaya götürür (ana sayfadan geri →
+  eşleşmelere). Son açılanlardan uygun 5 dosya tepede. `*/*` isteğinde eskisi gibi ana
+  sayfa.
+- **EKOSİSTEM SÖZLEŞMESİ** (Notlar `MainActivity` ile AYNI değerler, DEĞİŞTİRME):
+  `com.dosyaokuyucu.extra.EXTENSIONS` (String[] uzantı), `.CALLER` (çağıranın adı —
+  başlıkta "Notlar için · PDF"), `.OTHER_SOURCES_OK` (çağıran "Diğer" dönüşünü anlıyor)
+  ve sonuçta `RESULT_FIRST_USER` + `.OTHER_SOURCE=true` ("Diğer" düğmesi: çağıran kendi
+  sistem seçicisini açar). Standart `EXTRA_TITLE` başlık olur. "Diğer" düğmesi YALNIZ
+  `OTHER_SOURCES_OK` gönderen çağıranda görünür — başka bir uygulama RESULT_FIRST_USER'ı
+  sessiz iptal sanardı.
+- `PickerRequest`: `mimeTypes`, `extensions` (MIME tutmasa da uzantı listedeyse kabul),
+  `category` (tek kategoriye düşüyorsa isolate'te daraltma), `kindLabel` ("AMR · FLAC ·
+  M4A · MP3…").
+- Notlar tarafı: Dosya Okuyucu kuruluysa seçim SEÇİCİ SORULMADAN doğrudan buradan açılır
+  (`setPackage`), Notlar Ayarlar → "Dosyaları Dosya Okuyucu ile seç" ile kapatılabilir.
+**Doğrulama:** Flutter 3.29.3 — `analyze` 0 sorun; `picker_request_test` 11/11 (+6),
+l10n testleri yeşil. `ci/PickerActivity.kt` Flutter taslaklarıyla kotlinc 2.1.20'ye
+karşı derlendi (Robolectric android-all 34). Cihazda bakılacak: Notlar'dan PDF/ses
+isteyince doğrudan eşleşme listesi, "Diğer" → Notlar'da sistem seçicisi.
