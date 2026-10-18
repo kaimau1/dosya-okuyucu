@@ -59,6 +59,16 @@ void main() {
       expect(JobQueue.instance.find('sessiz'), isNotNull);
     });
 
+    test('notify:false — şeritte KALIR, yalnız sonuç bildirimi çıkmaz',
+        () async {
+      // SD karta aktarma: yerel iş kendi "bitti" bildirimini gösteriyor.
+      final job = JobQueue.instance.track(id: 'sd', title: 'SD karta taşınıyor');
+      await job.complete(detail: '12 dosya · 3 GB', notify: false);
+      expect(job.job.quietFinish, isTrue);
+      expect(job.job.dismissed, isFalse);
+      expect(JobQueue.instance.lastFinished?.id, 'sd');
+    });
+
     test('şeritten "Durdur" izlenen işe düşer', () async {
       final job = JobQueue.instance.track(id: 'durdur', title: 'Taşınıyor');
       expect(job.cancelRequested, isFalse);

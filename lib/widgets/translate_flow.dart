@@ -44,8 +44,7 @@ class TranslateProgress {
   Future<void> finish({String? error, String? detail}) async {
     final t = task;
     if (t == null) return;
-    final quiet =
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    final quiet = TrackedTask.userWatching;
     if (error != null) {
       await t.fail(error, quiet: quiet);
     } else if (cancelled) {

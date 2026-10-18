@@ -12528,3 +12528,65 @@ kırpma, menü, pano kapsülü PNG'ye çizdirilip gözle bakıldı (yöntem 2026
 kaydediliyor; stüdyoda Kırp (kenar tutamacı, büyüteç), Döndür, Filtre önizlemeleri, sıra
 sürükleme, Yeniden çek; "Fotoğraftan ekle" ile kırpma; "Uygulamanın kapladığı alan"
 ekranının en altındaki düğme artık basılabiliyor mu; dosya menüsünün yeni hâli; pano kapsülü.
+
+## 2026-10-18 (2) — Tüm uzun işler iş sisteminde: ana ekran şeridi + bildirim + kalan/geçen süre
+Kullanıcı: *"Bellek analizindeki yer aç, yinelenenleri bul gibi ve buna benzer tüm hizmetler
+arka planda çalışabilmeli; süreç bildirim ekranında ve uygulamanın ana ekranında anlık ve doğru
+görülmeli; uygulamanın yaptığı tüm işlemler ne yapıyor, ne zaman bitecek, ne kadar sürecek, ne
+olacak … eksiksiz ve rahatsız etmeyecek şekilde hem ana ekranda hem bildirim alanında gösterilmeli;
+'ne oluyor, bir şey oldu mu' soru işareti hiçbir özellikte kalmamalı"*. (1. tur v1.0.376 olarak
+derlendi; bu tur aynı dal → main.)
+
+### A) KÖK NEDEN — iki ayrı ilerleme dünyası vardı
+- `JobQueue` işleri (yer aç, yinelenenler, benzerler, AI çözümleme/uygulama, sohbet temizliği,
+  boyut düşürme) şerit + İşlemler + ön plan servisli bildirimdeydi. Ama kopyala/taşı/sil/
+  sıkıştır/çıkar/çöp (23 `showFmProgress` çağrısı), Drive'a yükleme/indirme, çeviri, PDF
+  araçları, tarama OCR'ı, gizleme, SD karta aktarma, indirmeler kuyruğun DIŞINDAYDI: "Arka plana
+  al" deyince yalnız uygulama içi bir kart kalıyordu — bildirimde ve ana ekranda iz yoktu, ön
+  plan servisi korumadığı için uygulamadan çıkınca Android işi dondurabiliyordu.
+- **KARAR — "izlenen iş" (`JobQueue.track` → `TrackedJob`):** kuyruğa GİRMEZ (sırayla koşan kuyrukta
+  küçük bir kopyalama on dakikalık AI çözümlemesinin arkasında beklerdi; bu akışlar sonucu
+  çağırana döndürüyor), yalnız şerit/İşlemler/bildirim onu görür. Kuyruk işiyle aynı anda
+  sürebilir. **REDDEDİLEN yol:** her işi kuyruğa sokmak.
+- `TrackedTask` (eşikli tutamak, `services/fm/tracked_task.dart`): iş **1,5 sn**'yi geçerse ya da
+  "Arka plana al" denirse kaydedilir (o ana kadarki ilerleme + başlangıç korunur). Küçük işte
+  bildirim aç/kapa = rahatsız etmek. `summarize(result)` FmOpResult/yol/listeden sonuç satırı.
+- **Sessiz bitiş** (`quiet`): kullanıcı sonucu penceresinde gördüyse (arka plana almadı + uygulama
+  ön planda — `TrackedTask.userWatching`) ne sonuç bildirimi ne şerit; İşlemler geçmişinde kalır.
+  `notify:false` ayrı: şeritte KALIR, yalnız bildirim çıkmaz (SD işi kendi bildirimini gösteriyor).
+- **Servis sahipliği:** ön plan servisi ancak HİÇBİR bildirimli iş kalmayınca bırakılır (eskiden
+  kuyruk boşalınca bırakılıyordu → süren kopyalamanın koruması düşerdi). Bildirimde hep EN ÖNCE
+  başlayan iş (`_notifiablePrimary`) — iki iş arasında gidip gelmez; "+N işlem daha".
+- İndirmeler `ownNotification`: eklentinin bildirimi kalır (artık `{progress} · {networkSpeed} ·
+  kalan {timeRemaining}`), iş yalnız şerit/İşlemler'de; şeritten "Durdur" indirmeyi iptal eder.
+
+### B) "Ne zaman bitecek / ne kadar sürdü"
+- `FmJob.statusLine` — şerit, bildirim (subText) ve İşlemler AYNI satır: "%42 · ~2 dk kaldı";
+  oran yoksa geçen süre ("45 sn"). Şerit saniyede bir tazelenir (zamanlayıcı yalnız iş sürerken).
+  Bildirimde Android'in canlı kronometresi (`usesChronometer` + `when`) — bildirimi her saniye
+  güncellemeden "iş yaşıyor mu" cevaplanır. Sonuçta "N sürdü" (şerit + bildirim).
+- Tahmin (`estimateRemaining`/`etaText`): ilk 3 sn ve %2 altında YOK; ham tahmin %30 ağırlıkla
+  yumuşatılır (eşit olmayan dosya boylarında zıplamasın); tahmin süresi dolup iş sürüyorsa
+  "~5 sn" demeye devam edilmez → geçen süre. `roughDuration`: 5 sn basamak, sonra dk/sa.
+- **Adım sayılı işte yüzde UYDURULMAZ:** "Yer aç" çözümlemesi "Adım 2/4 · Çöp kutusu okunuyor…"
+  (kopya araması ötekilerden çok uzun; adım/4 yüzdesi yalan olurdu).
+- Pano depolama taraması ara ilerleme vermiyor → bir önceki taramanın süresinden (prefs
+  `fm_last_scan_duration_ms`) dolan çubuk (%95'te durur) + "~8 sn kaldı" / geçen süre.
+- SD karta "Şimdi taşı": `SdUnion.runNow(settings:)` yerel işi ekrandan BAĞIMSIZ 2 sn'de bir
+  yoklar (ekran kapansa da şerit takılı kalmasın). TUZAK: iş birkaç yüz ms sonra başlar — ilk
+  yoklamada "çalışmıyor" ≠ "bitti"; `lastRun` başlatmadan sonraysa ya da 30 sn geçtiyse bitti.
+- AI özeti/sunumu, OCR, resimden PDF: `widgets/tracked_busy.dart` (`showTrackedBusy`) — pencerede
+  canlı durum satırı + aynı eşik/sessiz bitiş. Slayttan PDF BAĞLANMADI: slaytlar ekran çizim
+  hattıyla resme çevriliyor, arka planda kare çizilmez → iş "sürüyor" görünüp beklerdi.
+- Süre birimleri (`dur.*`), bildirim kanalı adı/açıklaması çeviri tablosunda (İngilizce/Arapça
+  arayüzde de Türkçe "sn/dk" yazıyordu). `FfmpegVideo.remainingText` → ortak `etaText`.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun; tam takım **2560 test yeşil** (9 atlanan: canlı sunucu).
+Yeni testler `job_tracking_test` (izlenen iş yaşam döngüsü, sessiz/notify:false, Durdur, kuyruk
+işi sürerken servis bırakılmaz, birincil iş sabit, ownNotification, ETA/yuvarlama/yumuşatma,
+eşik/promote/summarize), `tracked_busy_test` (kısa işte iz yok; uzun işte geçen süre → yüzde,
+ön planda sessiz, arka planda sonuç söylenir). TUZAK: test bağlamında `lifecycleState` null →
+`userWatching` false; test ön planı `handleAppLifecycleStateChanged(resumed)` ile kurmalı.
+**Cihazda bakılacak:** büyük kopyalama "Arka plana al" → bildirimde "%NN · ~X kaldı" + kronometre,
+uygulamadan çıkınca da sürüyor mu; indirme bildiriminde hız/kalan süre; şeritte iki iş aynı anda
+("+1 işlem daha"); AI özeti penceresinde geçen süre; SD "Şimdi taşı" şeritte sonuçla bitiyor mu.

@@ -45,7 +45,6 @@ Future<T> showFmProgress<T>(
   // çıkınca Android işi dondurmasın) görünür; kalan süre oradan hesaplanır.
   // [name] biten işin başlığı içindir ("Kopyalama tamamlandı").
   final tracked = TrackedTask(title: title, name: name, target: target);
-  var backgrounded = false;
   /// Arka plan şeridinin denetleyicisi — hem "şerit gösterildi mi?" bilgisi
   /// hem de onu (ve YALNIZ onu) kapatma yolu. Ayrı bir `backgrounded` bayrağı
   /// tutulmuyordu: iki gerçeği tek yerde tutmak ikisinin ayrışmasını önler.
@@ -202,7 +201,6 @@ Future<T> showFmProgress<T>(
             if (backgroundable)
               TextButton(
                 onPressed: () {
-                  backgrounded = true;
                   // Arka plana alınan iş HEMEN ana ekran şeridine ve
                   // bildirime geçer (eşik beklenmez).
                   tracked.promote();
@@ -225,11 +223,9 @@ Future<T> showFmProgress<T>(
     },
   );
 
-  // Kullanıcı sonucu penceresinde gördü mü? (Arka plana almadı ve uygulama
-  // ön planda.) Gördüyse sonuç bildirimi ve şerit gürültü olur.
-  bool watched() =>
-      !backgrounded &&
-      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+  // Kullanıcı sonucu penceresinde gördü mü? (Arka plana almadı — şerit
+  // yok — ve uygulama ön planda.) Gördüyse sonuç bildirimi ve şerit gürültü.
+  bool watched() => barController == null && TrackedTask.userWatching;
 
   try {
     final result = await task((p) {

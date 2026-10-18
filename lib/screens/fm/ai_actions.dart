@@ -16,6 +16,7 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/gemini_service.dart';
 import '../../services/ocr_service.dart';
+import '../../widgets/tracked_busy.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
 
@@ -44,9 +45,15 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
 
   // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
   // `Navigator.pop(context)`, kullanıcı bu sırada geri tuşuna bastıysa
-  // pencereyi değil ARKADAKİ SAYFAYI kapatıyordu.
-  final busy = showBusyDialog(context,
-      builder: (_) => _Busy(str.t('aia.reading_doc')));
+  // pencereyi değil ARKADAKİ SAYFAYI kapatıyordu. Gemini cevabı 30-40 sn
+  // sürebilir: pencerede geçen süre, uzun sürerse ana ekran şeridinde ve
+  // bildirimde de (bkz. `widgets/tracked_busy.dart`).
+  final busy = showTrackedBusy(
+    context,
+    title: str.t('ai.sum_working'),
+    name: str.t('aia.summary_title'),
+    message: str.t('aia.reading_doc'),
+  );
 
   String text;
   try {
@@ -56,18 +63,19 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
       text = await OcrService.recognizeImageFile(entry.path);
     }
   } catch (e) {
-    busy.close();
+    await busy.failed(str.t('aia.read_failed', {'error': e}));
     if (context.mounted) _snack(context, str.t('aia.read_failed', {'error': e}));
     return;
   }
 
   if (text.trim().length < 20) {
-    busy.close();
+    await busy.failed(str.t('aia.no_text'));
     if (context.mounted) {
       _snack(context, str.t('aia.no_text'));
     }
     return;
   }
+  busy.status(str.t('ai.sum_working'));
 
   final trimmed =
       text.length > _maxAiChars ? text.substring(0, _maxAiChars) : text;
@@ -85,14 +93,14 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
       fileContext: trimmed,
     );
   } catch (e) {
-    busy.close();
+    await busy.failed(str.t('aia.summary_failed', {'error': e}));
     if (context.mounted) {
       _snack(context, str.t('aia.summary_failed', {'error': e}));
     }
     return;
   }
 
-  busy.close(); // yükleniyor penceresi
+  await busy.done(); // yükleniyor penceresi
   if (!context.mounted) return;
 
   // Yerel sınıflandırma da ücretsiz geldiği için birlikte gösterilir.

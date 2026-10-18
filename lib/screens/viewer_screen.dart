@@ -12,7 +12,6 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../core/busy_dialog.dart';
 import '../core/line_endings.dart';
 import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
@@ -49,6 +48,7 @@ import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
+import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/ai_slides_flow.dart';
@@ -1208,10 +1208,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
     );
     if (withOcr == null || !mounted) return;
 
-    final progress = ValueNotifier<String>(withOcr
-        ? context.t('vw.scanning_text')
-        : context.t('vw.pdf_preparing'));
-    final busy = _showProgressDialog(progress);
+    // Canlı süre satırı + uzun sürerse ana ekran şeridi ve bildirim (bkz.
+    // `widgets/tracked_busy.dart`).
+    final busy = showTrackedBusy(
+      context,
+      title: pdfPreparing,
+      name: context.t('vw.image_pdf_job_name'),
+      message: withOcr ? context.t('vw.scanning_text') : pdfPreparing,
+    );
 
     String? path;
     String? error;
@@ -1219,7 +1223,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       final lines = withOcr
           ? await OcrService.recognizeImageLines(widget.doc.path)
           : const <OcrLine>[];
-      progress.value = pdfPreparing;
+      busy.status(pdfPreparing);
       final bytes =
           await _conversion.imageToPdf(widget.doc.path, ocrLines: lines);
       path =
@@ -1227,7 +1231,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
     } catch (e) {
       error = '$e';
     }
-    busy.close(); // ilerleme penceresi
+    if (error != null) {
+      await busy.failed(error);
+    } else {
+      await busy.done(detail: p.basename(path!));
+    }
     if (!mounted) return;
 
     if (error != null) {
@@ -1235,33 +1243,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
       return;
     }
     await Share.shareXFiles([XFile(path!)], text: context.t('vw.pdf_exported'));
-  }
-
-  /// İlerleme penceresi — kapatma tutamağıyla birlikte.
-  ///
-  /// Tutamak şart: `Navigator.pop` "bu pencereyi kapat" demek değil, "en
-  /// üsttekini kapat" demektir. Kullanıcı iş sürerken geri tuşuna bastıysa
-  /// pencere zaten gitmiştir ve o `pop` **görüntüleyici sayfasını** kapatırdı
-  /// (bkz. `core/busy_dialog.dart`).
-  BusyDialog _showProgressDialog(ValueNotifier<String> progress) {
-    return showBusyDialog(
-      context,
-      builder: (_) => AlertDialog(
-        content: Row(
-          children: [
-            const SizedBox(
-                width: 24, height: 24, child: CircularProgressIndicator()),
-            const SizedBox(width: 16),
-            Expanded(
-              child: ValueListenableBuilder<String>(
-                valueListenable: progress,
-                builder: (_, v, __) => Text(v),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// Belgeyi **düzenlenebilir bir sunuma** (.pptx) çevirir.
@@ -2877,27 +2858,43 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _snack(context.t('vw.pdf_loading'));
       return;
     }
-    final progress = ValueNotifier<String>(context.t('vw.preparing'));
-    final busy = _showProgressDialog(progress);
+    // Uzun PDF'te OCR dakikalar sürer: pencerede "Sayfa 4 / 30 · %13 · ~3 dk
+    // kaldı", 1,5 sn'yi geçince ana ekran şeridinde ve bildirimde de (bkz.
+    // `widgets/tracked_busy.dart`). Metinler await'ten önce alınır.
+    final str = AppStrings.of(context);
+    final busy = showTrackedBusy(
+      context,
+      title: str.t('vw.ocr_running'),
+      name: str.t('vw.ocr_job_name'),
+      message: str.t('vw.preparing'),
+    );
 
     String text = '';
     String? error;
     try {
       if (doc.kind == DocKind.image) {
-        progress.value = context.t('vw.ocr_running');
+        busy.status(str.t('vw.ocr_running'));
         text = await OcrService.recognizeImageFile(doc.path);
       } else if (doc.kind == DocKind.pdf) {
         text = await OcrService.recognizePdf(
           _pdfDoc!,
-          onProgress: (done, total) => progress.value = done >= total
-              ? 'Bitiriliyor…'
-              : context.t('vw.ocr_page', {'n': done + 1, 'total': total}),
+          onProgress: (done, total) => busy.status(
+            done >= total
+                ? str.t('vw.ocr_finishing')
+                : str.t('vw.ocr_page', {'n': done + 1, 'total': total}),
+            done: done,
+            total: total,
+          ),
         );
       }
     } catch (e) {
       error = '$e';
     }
-    busy.close(); // ilerleme penceresi
+    if (error != null) {
+      await busy.failed(error);
+    } else {
+      await busy.done();
+    }
     if (!mounted) return;
 
     if (error != null) {

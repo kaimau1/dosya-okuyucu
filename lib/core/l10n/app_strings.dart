@@ -1424,6 +1424,8 @@ const Map<String, (String, String, String)> _table = {
     'Building the presentation…',
     'يجري إعداد العرض التقديمي…',
   ),
+  'ais.job_done': ('{n} slayt hazır', '{n} slides ready', '{n} شريحة جاهزة'),
+  'ais.job_name': ('AI sunumu', 'AI presentation', 'العرض التقديمي بالذكاء الاصطناعي'),
   'ais.failed': (
     'Sunum hazırlanamadı: {error}',
     'Could not build the presentation: {error}',
@@ -1439,6 +1441,9 @@ const Map<String, (String, String, String)> _table = {
   'vw.ocr_short': ('Metni tanı', 'Recognize text', 'التعرّف على النص'),
   'vw.ocr_running': ('Metin tanınıyor…', 'Recognizing text…', 'جارٍ التعرّف على النص…'),
   'vw.ocr_page': ('Sayfa {n} / {total} taranıyor…', 'Scanning page {n} / {total}…', 'جارٍ فحص الصفحة {n} / {total}…'),
+  'vw.ocr_job_name': ('Metin tanıma', 'Text recognition', 'التعرّف على النص'),
+  'vw.image_pdf_job_name': ('Resimden PDF', 'Image to PDF', 'تحويل الصورة إلى PDF'),
+  'vw.ocr_finishing': ('Bitiriliyor…', 'Finishing…', 'جارٍ الإنهاء…'),
   'vw.ocr_failed': ('OCR başarısız: {error}', 'OCR failed: {error}', 'فشل التعرّف على النص: {error}'),
   'vw.ocr_none': ('Metin bulunamadı (OCR).', 'No text found (OCR).', 'لم يُعثر على نص (OCR).'),
   'vw.ocr_first': (

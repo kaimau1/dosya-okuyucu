@@ -4,10 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
-import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 import 'markdown_text.dart';
+import 'tracked_busy.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
 
@@ -60,18 +60,12 @@ class AiSummaryFlow {
     // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
     // `Navigator.pop`, pencere ortada yoksa (kullanıcı geri tuşuna bastı)
     // arkadaki SAYFAYI kapatıyor ve tek sayfa kaldıysa ekran kararıyordu.
-    final busy = showBusyDialog(
+    // Gemini cevabı 30-40 sn sürebilir: pencerede geçen süre, uzun sürerse
+    // ana ekran şeridinde ve bildirimde de (bkz. `tracked_busy.dart`).
+    final busy = showTrackedBusy(
       context,
-      builder: (ctx) => AlertDialog(
-        content: Row(
-          children: [
-            const SizedBox(
-                width: 24, height: 24, child: CircularProgressIndicator()),
-            const SizedBox(width: 16),
-            Expanded(child: Text(ctx.t('ai.sum_working'))),
-          ],
-        ),
-      ),
+      title: str.t('ai.sum_working'),
+      name: str.t('aia.summary_title'),
     );
 
     String? summary;
@@ -87,7 +81,11 @@ class AiSummaryFlow {
       error = '$e';
     }
 
-    busy.close(); // ilerleme penceresi
+    if (error != null || summary == null) {
+      await busy.failed(error ?? '-');
+    } else {
+      await busy.done();
+    }
     if (!context.mounted) return;
 
     if (error != null || summary == null) {

@@ -157,8 +157,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       name: _str.t('pt.job_name', {'label': label}),
     );
     task.report(detail: p.basename(widget.path));
-    bool watched() =>
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    bool watched() => TrackedTask.userWatching;
     try {
       final out = Uint8List.fromList(await op(current));
       await task.complete(quiet: watched());

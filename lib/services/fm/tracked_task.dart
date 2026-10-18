@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding;
 import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
@@ -55,6 +57,11 @@ class TrackedTask {
     }
   }
 
+  /// Kullanıcı şu an uygulamada mı? (Öyleyse sonucu ekranda görüyor; bitiş
+  /// sessiz olur — bkz. `quiet`.)
+  static bool get userWatching =>
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
   /// İş sistemine kaydedildi mi?
   bool get isTracked => _job != null;
 
@@ -89,12 +96,15 @@ class TrackedTask {
     if (_unit != null) _job!.report(unit: _unit);
   }
 
-  Future<void> complete({String? detail, bool quiet = false}) async {
+  /// [notify] false: sonucu başka bir bildirim söylüyor (bkz.
+  /// [TrackedJob.complete]).
+  Future<void> complete(
+      {String? detail, bool quiet = false, bool notify = true}) async {
     _end();
     final job = _job;
     if (job == null) return;
     if (target != null) job.job.target = target;
-    await job.complete(detail: detail, quiet: quiet);
+    await job.complete(detail: detail, quiet: quiet, notify: notify);
   }
 
   Future<void> fail(Object error, {bool quiet = false}) async {

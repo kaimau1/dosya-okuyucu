@@ -616,8 +616,14 @@ class TrackedJob {
   }
 
   /// Başarıyla bitti; [detail] sonucun özeti ("12 öğe kopyalandı").
-  Future<void> complete({String? detail, bool quiet = false}) =>
-      _queue._endTracked(job, JobStatus.done, detail: detail, quiet: quiet);
+  ///
+  /// [quiet]: kullanıcı sonucu ekranda gördü — ne bildirim ne şerit.
+  /// [notify] false: sonucu başka bir bildirim zaten söylüyor (ör. SD kart
+  /// işinin yerel bildirimi) — şeritte yine durur, ikinci bildirim çıkmaz.
+  Future<void> complete(
+          {String? detail, bool quiet = false, bool notify = true}) =>
+      _queue._endTracked(job, JobStatus.done,
+          detail: detail, quiet: quiet, notify: notify);
 
   Future<void> fail(Object error, {bool quiet = false}) => _queue._endTracked(
       job, JobStatus.failed, error: '$error', quiet: quiet);
@@ -868,13 +874,16 @@ class JobQueue extends ChangeNotifier {
   /// İzlenen işi bitirir: durum + son satır, sonuç bildirimi (sessiz değilse),
   /// servis sahipliği (başka iş yoksa).
   Future<void> _endTracked(FmJob job, JobStatus status,
-      {String? detail, String? error, bool quiet = false}) async {
+      {String? detail,
+      String? error,
+      bool quiet = false,
+      bool notify = true}) async {
     if (!job.status.isActive) return;
     job.status = status;
     if (detail != null) job.detail = detail;
     job.error = error;
     job.finishedAtMs = DateTime.now().millisecondsSinceEpoch;
-    job.quietFinish = quiet;
+    job.quietFinish = quiet || !notify;
     // Kullanıcı sonucu penceresinde gördüyse şeritte bir daha durmasın
     // (İşlemler geçmişinde kalır).
     if (quiet) job.dismissed = true;

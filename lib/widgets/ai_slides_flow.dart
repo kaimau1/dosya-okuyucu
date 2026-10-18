@@ -3,13 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_state.dart';
-import '../core/busy_dialog.dart';
 import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/ai_slides.dart';
 import '../services/conversion_service.dart';
 import '../services/pptx_writer.dart';
 import '../services/text_to_slides.dart';
+import 'tracked_busy.dart';
 import '../core/snack.dart';
 
 /// Çıktı biçimi.
@@ -57,18 +57,12 @@ class AiSlidesFlow {
     if (useAi) {
       // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
       // `Navigator.pop`, pencere ortada yoksa arkadaki SAYFAYI kapatıyordu.
-      final busy = showBusyDialog(
+      // Geçen süre pencerede; uzun sürerse ana ekran şeridinde ve bildirimde
+      // de (bkz. `tracked_busy.dart`).
+      final busy = showTrackedBusy(
         context,
-        builder: (ctx) => AlertDialog(
-          content: Row(
-            children: [
-              const SizedBox(
-                  width: 24, height: 24, child: CircularProgressIndicator()),
-              const SizedBox(width: 16),
-              Expanded(child: Text(ctx.t('ais.working'))),
-            ],
-          ),
-        ),
+        title: str.t('ais.working'),
+        name: str.t('ais.job_name'),
       );
       try {
         plan = await AiSlides.generate(
@@ -87,7 +81,11 @@ class AiSlidesFlow {
       } catch (e) {
         error = '$e';
       }
-      busy.close();
+      if (error != null || plan == null) {
+        await busy.failed(error ?? '-');
+      } else {
+        await busy.done(detail: str.t('ais.job_done', {'n': plan.slides.length}));
+      }
       if (!context.mounted) return;
       if (error != null || plan == null) {
         _snack(context, str.t('ais.failed', {'error': error ?? ''}));

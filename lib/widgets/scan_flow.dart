@@ -101,8 +101,7 @@ class ScanFlow {
 
     busy.close();
     progress.dispose();
-    final watched =
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    final watched = TrackedTask.userWatching;
     if (error != null || path == null) {
       await task.fail(error ?? '-', quiet: watched);
     } else {

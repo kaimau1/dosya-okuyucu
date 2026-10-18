@@ -355,7 +355,7 @@ abstract final class SdUnion {
           _ => 'job.error_generic',
         }));
       } else {
-        await task.complete(detail: detail, quiet: nativeNotified);
+        await task.complete(detail: detail, notify: !nativeNotified);
       }
     });
   }
