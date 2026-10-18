@@ -128,6 +128,7 @@ class _EmptyTrashTileState extends State<EmptyTrashTile> {
     final result = await showFmProgress<FmOpResult>(
       context,
       title: str.t('fmset.emptying'),
+      name: str.t('trash.emptying_name'),
       task: (report, isCancelled) =>
           FmEnv.trash.empty(onProgress: report, isCancelled: isCancelled),
     );

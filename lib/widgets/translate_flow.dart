@@ -13,6 +13,7 @@ import '../services/translate_service.dart';
 import 'pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
+import '../services/fm/tracked_task.dart';
 
 /// Akış sırasında ilerlemeyi yazan ve **iptal isteğini taşıyan** tutamak.
 ///
@@ -22,11 +23,38 @@ class TranslateProgress {
   final ValueNotifier<String> message;
   bool _cancelled = false;
 
-  TranslateProgress(String initial) : message = ValueNotifier(initial);
+  /// İş sistemi bağlantısı (2026-10-18): 1,5 sn'yi geçen çeviri ana ekran
+  /// şeridinde ve bildirimde "Sayfa 3 / 12 · ~2 dk kaldı" diye görünür;
+  /// oradan "Durdur" da buraya düşer. Çeviri on dakika sürebiliyor ve
+  /// eskiden uygulamadan çıkınca hiçbir yerde izi yoktu.
+  final TrackedTask? task;
 
-  bool get cancelled => _cancelled;
+  TranslateProgress(String initial, {this.task})
+      : message = ValueNotifier(initial);
+
+  bool get cancelled => _cancelled || (task?.cancelRequested ?? false);
   void cancel() => _cancelled = true;
-  void status(String text) => message.value = text;
+  void status(String text, {int? done, int? total}) {
+    message.value = text;
+    task?.report(detail: text.split('\n').first, done: done, total: total);
+  }
+
+  /// Akış bitti: sonucu iş sistemine yaz (kullanıcı uygulamadaysa sessiz —
+  /// sonucu zaten ekranda görüyor).
+  Future<void> finish({String? error, String? detail}) async {
+    final t = task;
+    if (t == null) return;
+    final quiet =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (error != null) {
+      await t.fail(error, quiet: quiet);
+    } else if (cancelled) {
+      await t.stopped(detail: detail, quiet: quiet);
+    } else {
+      await t.complete(detail: detail, quiet: quiet);
+    }
+  }
+
   void dispose() => message.dispose();
 }
 
@@ -92,7 +120,8 @@ class TranslateFlow {
     await TranslateService.savePair(from, to);
     if (!context.mounted) return;
 
-    final progress = TranslateProgress(str.t('tf.preparing'));
+    final progress = TranslateProgress(str.t('tf.preparing'),
+        task: TrackedTask(title: str.t('tf.job_title'), name: str.t('tf.title')));
     final busy = _showProgress(context, progress);
 
     PdfTranslateOutcome? outcome;
@@ -120,8 +149,10 @@ class TranslateFlow {
               text,
               cancelled: () => progress.cancelled,
             ),
-            onPage: (done, total) => progress.status(str.t(
-                'tf.page_translating', {'n': done + 1, 'total': total})),
+            onPage: (done, total) => progress.status(
+                str.t('tf.page_translating', {'n': done + 1, 'total': total}),
+                done: done,
+                total: total),
             cancelled: () => progress.cancelled,
           );
         } finally {
@@ -133,6 +164,13 @@ class TranslateFlow {
     }
 
     busy.close(); // ilerleme penceresi
+    await progress.finish(
+      error: error,
+      detail: outcome == null
+          ? null
+          : str.t('tf.inplace_done',
+              {'n': outcome.translated, 'pages': outcome.pages}),
+    );
     if (!context.mounted) {
       progress.dispose();
       return;
@@ -199,7 +237,8 @@ class TranslateFlow {
     final (pickedFrom, to) = chosen;
     if (!context.mounted) return;
 
-    final progress = TranslateProgress(str.t('tf.preparing'));
+    final progress = TranslateProgress(str.t('tf.preparing'),
+        task: TrackedTask(title: str.t('tf.job_title'), name: str.t('tf.title')));
     final busy = _showProgress(context, progress);
 
     List<OcrPage> result = const [];
@@ -234,9 +273,13 @@ class TranslateFlow {
           pages,
           from: from,
           to: to,
-          onPage: (done, total) => progress.status(total > 1
-              ? str.t('tf.page_translating', {'n': done + 1, 'total': total})
-              : str.t('tf.working')),
+          onPage: (done, total) => progress.status(
+              total > 1
+                  ? str.t('tf.page_translating',
+                      {'n': done + 1, 'total': total})
+                  : str.t('tf.working'),
+              done: done,
+              total: total),
           cancelled: () => progress.cancelled,
         );
       }
@@ -245,6 +288,12 @@ class TranslateFlow {
     }
 
     busy.close(); // ilerleme penceresi
+    await progress.finish(
+      error: error,
+      detail: result.isEmpty
+          ? null
+          : str.t('tf.job_done', {'n': result.length}),
+    );
     if (!context.mounted) {
       progress.dispose();
       return;
@@ -392,7 +441,31 @@ class TranslateFlow {
             Expanded(
               child: ValueListenableBuilder<String>(
                 valueListenable: progress.message,
-                builder: (_, v, __) => Text(v),
+                builder: (_, v, __) {
+                  // "~2 dk kaldı" — iş kaydedildikten sonra (bkz. `task`).
+                  final eta = progress.task?.statusLine ?? '';
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(v),
+                      if (eta.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            eta,
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                  color: Theme.of(ctx).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ],

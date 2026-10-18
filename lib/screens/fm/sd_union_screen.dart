@@ -122,7 +122,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
     if (settings == null) return;
     // "Şimdi taşı" kayıtlı ayarla çalışır; önce son hâl Android'e gitsin.
     await SdUnion.save(settings, strings: AppStrings.of(context));
-    final ok = await SdUnion.runNow();
+    final ok = await SdUnion.runNow(settings: settings);
     if (!mounted) return;
     if (!ok) {
       showSnack(context, context.t('sdu.run_failed'));

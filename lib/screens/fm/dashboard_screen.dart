@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
@@ -129,6 +130,27 @@ class _DashboardScreenState extends State<DashboardScreen>
   DateTime? _lastUsbOpen;
 
   bool _scanning = false;
+
+  /// Süren taramanın başlangıcı ve bir önceki taramanın süresi (tahmin için;
+  /// süreç boyunca bellekte, uygulama açılışında diskten).
+  int _scanStartedAtMs = 0;
+  static int? _lastScanDurationMs;
+  static const _scanDurationKey = 'fm_last_scan_duration_ms';
+
+  static Future<void> _rememberScanDuration(int ms) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_scanDurationKey, ms);
+    } catch (_) {}
+  }
+
+  static Future<void> _recallScanDuration() async {
+    if (_lastScanDurationMs != null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _lastScanDurationMs = prefs.getInt(_scanDurationKey);
+    } catch (_) {}
+  }
   bool _hasAccess = true;
   int _trashCount = 0;
   final Map<String, int> _folderSizes = {};
@@ -146,6 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
+    unawaited(_recallScanDuration());
     WidgetsBinding.instance.addObserver(this);
     FsEvents.version.addListener(_onFsChanged);
     // AI kartı analiz sayısını gösteriyor; indeks diskten okunmadan sayı 0
@@ -600,6 +623,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// dek yeniden taratmasın.
   Future<void> _scan({bool allowRepeat = true}) async {
     if (_scanning) return;
+    _scanStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     setState(() => _scanning = true);
     // Sürüm yürüyüşün BAŞINDA alınır. Eskiden bitişte `FsEvents.version`
     // okunuyordu: tarama sürerken (dakikalar sürebilir) yapılan bir silme/
@@ -619,6 +643,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     await SearchIndex.adoptBuilt(index.searchIndexRows);
     _cachedIndex = index;
     _cachedAtMs = DateTime.now().millisecondsSinceEpoch;
+    // Bu taramanın süresi bir sonrakinin "~N sn kaldı" tahmini olur.
+    _lastScanDurationMs = _cachedAtMs - _scanStartedAtMs;
+    unawaited(_rememberScanDuration(_lastScanDurationMs!));
     if (!mounted) return;
     final changedDuringScan = FsEvents.version.value != startedAtVersion;
     setState(() {
@@ -838,13 +865,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             // ağa açık bırakmak bir daha "unutulacak" bir şey olmasın.
             _networkShareBanner(),
             if (!_hasAccess) _permissionCard(),
-            if (_scanning) ...[
-              const LinearProgressIndicator(minHeight: 3),
-              const SizedBox(height: Gap.sm),
-              Text(context.t('fm.scanning_storage'),
-                  style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: Gap.sm),
-            ],
+            if (_scanning)
+              _ScanProgress(
+                startedAtMs: _scanStartedAtMs,
+                expectedMs: _lastScanDurationMs,
+              ),
             // **Bölümler kullanıcının sırasıyla** (2026-09-27, bkz.
             // DashboardLayout): bellek kartları, kutular, araçlar, favoriler,
             // hızlı klasörler — her biri gizlenebilir.
@@ -2882,6 +2907,73 @@ class _QuickDock extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// **Pano taramasının ilerlemesi** — "Depolama taranıyor · ~8 sn kaldı".
+///
+/// Tarama tek bir yalıtılmış yürüyüş ve ara ilerleme vermiyor; ama bir önceki
+/// taramanın süresi biliniyor (aynı telefon, aynı depolama — süre turdan tura
+/// pek değişmez). Çubuk bu süreye göre dolar (%95'te durur: tahmin aşıldıysa
+/// "bitti" demez), metin kalan ya da geçen süreyi söyler. Kullanıcı 2026-10-18:
+/// *"ne zaman bitecek, ne kadar sürecek … soru işareti kalmamalı"* — eskiden
+/// yalnız sonsuz dönen bir çubuk ve "Depolama taranıyor…" vardı.
+class _ScanProgress extends StatefulWidget {
+  final int startedAtMs;
+  final int? expectedMs;
+  const _ScanProgress({required this.startedAtMs, required this.expectedMs});
+
+  @override
+  State<_ScanProgress> createState() => _ScanProgressState();
+}
+
+class _ScanProgressState extends State<_ScanProgress> {
+  Timer? _clock;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = DateTime.now().millisecondsSinceEpoch - widget.startedAtMs;
+    final expected = widget.expectedMs;
+    // Çok kısa geçmiş taramada (önbellekten) tahmin anlamsız: süre yazılır.
+    final usable = expected != null && expected >= 2000;
+    final value =
+        usable ? (elapsed / expected).clamp(0.0, 0.95).toDouble() : null;
+    final left = usable ? expected - elapsed : 0;
+    final when = usable && left > 1000
+        ? context.t('job.eta',
+            {'time': roughDuration(Duration(milliseconds: left))})
+        : humanDuration(Duration(milliseconds: elapsed));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(value: value, minHeight: 3),
+          ),
+          const SizedBox(height: Gap.sm),
+          Text(
+            '${context.t('fm.scanning_storage')} · $when',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
       ),
     );
   }

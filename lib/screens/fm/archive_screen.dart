@@ -100,6 +100,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       final target = await showFmProgress<String>(
         context,
         title: context.t('fm.extracting'),
+        name: context.t('fm.extracting_name'),
         cancellable: false,
         task: (report, _) => ArchiveOps.extract(
           widget.path,
@@ -130,6 +131,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       final out = await showFmProgress<String>(
         context,
         title: context.t('fm.extracting'),
+        name: context.t('fm.extracting_name'),
         cancellable: false,
         task: (report, _) {
           report(FmProgress(0, 1, item.name));
@@ -164,6 +166,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       final out = await showFmProgress<String>(
         context,
         title: context.t('arc.opening'),
+        name: context.t('arc.opening_name'),
         cancellable: false,
         task: (report, _) {
           report(FmProgress(0, 1, item.name));

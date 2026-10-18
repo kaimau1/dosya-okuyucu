@@ -54,9 +54,12 @@ class JobNotifications implements JobReporter {
   static const actionCancel = 'job.cancel';
 
   static const _channelId = 'fm_jobs';
-  static const _channelName = 'Dosya işlemleri';
-  static const _channelDescription =
-      'Yer açma, kopya arama, boyut düşürme gibi süren işlerin ilerlemesi.';
+
+  /// Kanal adı/açıklaması çeviri tablosundan (Android ayarlarında görünür;
+  /// eskiden koda gömülü Türkçeydi).
+  static String get _channelName => AppStrings.current.t('job.channel_name');
+  static String get _channelDescription =>
+      AppStrings.current.t('job.channel_desc');
 
   /// Ön plan servisinin **tek** bildirim kimliği.
   ///
@@ -114,8 +117,39 @@ class JobNotifications implements JobReporter {
       ? AppStrings.current.t(job.status.labelKey)
       : job.detail;
 
+  /// Aynı anda süren öteki işlerin sayısı (birincil iş hariç).
+  static int othersRunning(FmJob job) => JobQueue.instance.activeJobs
+      .where((j) => j.id != job.id && !j.ownNotification)
+      .length;
+
+  /// Genişletilmiş bildirimin metni: ne yapılıyor + ne kadar kaldı + başka iş.
+  ///
+  /// Kullanıcı 2026-10-18: *"ne yapıyor, ne zaman bitecek, ne kadar sürecek …
+  /// bildirim alanında gösterilmeli"*. Daraltılmış bildirimde başlık + ayrıntı
+  /// görünür; durum satırı ("%42 · ~2 dk kaldı") başlık şeridinde (subText),
+  /// geçen süre Android'in kendi canlı sayacında (`usesChronometer`).
+  static String expandedText(FmJob job) {
+    final lines = <String>[bodyOf(job)];
+    final status = job.statusLine;
+    if (status.isNotEmpty) lines.add(status);
+    final others = othersRunning(job);
+    if (others > 0) {
+      lines.add(AppStrings.current.t('job.more_running', {'n': others}));
+    }
+    return lines.join('\n');
+  }
+
   AndroidNotificationDetails _runningDetails(FmJob job) {
     final indeterminate = job.progress == null;
+    final others = othersRunning(job);
+    final ratio = job.progress;
+    final left = job.remaining;
+    final sub = <String>[
+      if (ratio != null) '%${(ratio * 100).floor()}',
+      if (left != null)
+        AppStrings.current.t('job.eta', {'time': roughDuration(left)}),
+      if (others > 0) AppStrings.current.t('job.more_running', {'n': others}),
+    ].join(' · ');
     return AndroidNotificationDetails(
       _channelId,
       _channelName,
@@ -129,9 +163,16 @@ class JobNotifications implements JobReporter {
       indeterminate: indeterminate,
       maxProgress: indeterminate ? 0 : progressScale,
       progress: indeterminate ? 0 : scaledProgress(job),
-      // Uzun ayrıntı (dosya adı + % + kalan süre + motor) daraltılmış
-      // bildirime sığmıyor; genişletilince tam metin görünsün.
-      styleInformation: BigTextStyleInformation(bodyOf(job)),
+      // Başlık şeridinde "%42 · ~2 dk kaldı" ve Android'in CANLI sayacıyla
+      // geçen süre: bildirimi her saniye güncellemeden "iş yaşıyor mu,
+      // takıldı mı" sorusu cevaplanır.
+      subText: sub.isEmpty ? null : sub,
+      when: job.startedAtMs > 0 ? job.startedAtMs : null,
+      showWhen: job.startedAtMs > 0,
+      usesChronometer: job.startedAtMs > 0,
+      // Uzun ayrıntı (dosya adı + motor + kalan süre) daraltılmış bildirime
+      // sığmıyor; genişletilince tam metin görünsün.
+      styleInformation: BigTextStyleInformation(expandedText(job)),
       actions: [
         AndroidNotificationAction(
           actionCancel,
@@ -166,6 +207,12 @@ class JobNotifications implements JobReporter {
   @override
   Future<void> onFinished(FmJob job) async {
     final id = notificationId(job.id);
+    // Kullanıcı sonucu penceresinde gördü (bkz. `FmJob.quietFinish`): bir de
+    // sistem bildirimi gürültü olurdu.
+    if (job.quietFinish) {
+      await _hub.cancel(id);
+      return;
+    }
     // İptal edilen ve GERİYE İZ BIRAKMAYAN iş için bildirim gürültü: kaldırılır.
     //
     // Ama iz bırakan iptaller var: boyut düşürme durdurulduğunda o ana kadar
@@ -178,6 +225,8 @@ class JobNotifications implements JobReporter {
       return;
     }
     final str = AppStrings.current;
+    final spent = job.elapsed;
+    final took = spent == null ? null : humanDuration(spent);
     final body = switch (job.status) {
       JobStatus.failed => job.error ?? str.t('job.error_generic'),
       JobStatus.cancelled => str.t('job.stopped_detail', {'detail': job.detail}),
@@ -201,6 +250,8 @@ class JobNotifications implements JobReporter {
         priority: Priority.defaultPriority,
         ongoing: false,
         autoCancel: true,
+        // Ne kadar sürdüğü başlık şeridinde: "2 dk 10 sn sürdü".
+        subText: took == null ? null : str.t('job.took', {'time': took}),
         styleInformation: BigTextStyleInformation(body),
       ),
       payload: job.id,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -10,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/l10n/app_strings.dart';
 import 'chat_media_guard.dart';
 import 'fm_env.dart';
+import 'fs_scan.dart' show FsPaths;
+import 'tracked_task.dart';
 import 'storage_stats.dart';
 
 /// Birleşik depolamanın kipi.
@@ -281,13 +284,80 @@ abstract final class SdUnion {
   }
 
   /// Şarj şartı olmadan bir kez çalıştırır (kullanıcının açık isteği).
-  static Future<bool> runNow() async {
+  ///
+  /// [settings] verilirse iş **iş sistemine** de bağlanır ([_watchRun]): ana
+  /// ekran şeridinde ve bildirimde "SD karta taşınıyor · 1 dk 10 sn" görünür,
+  /// bitince sonucu söyler. Eskiden iş yalnız SD kart ekranı açıkken
+  /// izlenebiliyordu (kullanıcı 2026-10-18: *"ne oluyor şu anda … soru işareti
+  /// kalmamalı"*).
+  static Future<bool> runNow({SdUnionSettings? settings}) async {
     if (!Platform.isAndroid) return false;
     try {
-      return await _channel.invokeMethod<bool>('runNow') ?? false;
+      final ok = await _channel.invokeMethod<bool>('runNow') ?? false;
+      if (ok && settings != null) _watchRun(settings);
+      return ok;
     } catch (_) {
       return false;
     }
+  }
+
+  static TrackedTask? _task;
+  static Timer? _watch;
+
+  /// Yerel işi ekrandan BAĞIMSIZ izler (SD kart ekranı kapansa da şerit
+  /// takılı kalmasın): 2 sn'de bir durum sorulur; iş bitince sonuç yazılır.
+  /// Şeritten/bildirimden "Durdur" yerel işi durdurur.
+  static void _watchRun(SdUnionSettings settings) {
+    if (_task != null) return;
+    final str = AppStrings.current;
+    final copy = settings.mode == SdUnionMode.copy;
+    final task = TrackedTask(
+      title: str.t(copy ? 'sdu.job_title_copy' : 'sdu.job_title'),
+      name: str.t('sdu.job_name'),
+      threshold: Duration.zero,
+    );
+    _task = task;
+    final startedAt = DateTime.now();
+    var stopSent = false;
+    _watch = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (task.cancelRequested && !stopSent) {
+        stopSent = true;
+        await stop();
+      }
+      final st = await status();
+      if (st.running) return;
+      // İş sistem kuyruğundan birkaç yüz ms sonra başlar: ilk yoklamalarda
+      // "çalışmıyor" görmek "bitti" demek değildir. Son çalışma bu
+      // başlatmadan SONRAYSA ya da yarım dakika geçtiyse bitmiş sayılır.
+      final finishedAfterStart =
+          st.lastRun != null && st.lastRun!.isAfter(startedAt);
+      if (!finishedAfterStart &&
+          DateTime.now().difference(startedAt) < const Duration(seconds: 30)) {
+        return;
+      }
+      _watch?.cancel();
+      _watch = null;
+      _task = null;
+      final detail = str.t('sdu.notify_body', {
+        'n': st.lastMoved,
+        'size': FsPaths.humanSize(st.lastBytes),
+      });
+      // Yerel iş bir şey taşıdıysa kendi "bitti" bildirimini zaten gösterir;
+      // ikinci bir sonuç bildirimi gürültü olur (şerit yine sonucu söyler).
+      final nativeNotified = settings.notify && st.lastMoved > 0;
+      if (st.lastError == 'stopped' || task.cancelRequested) {
+        await task.stopped(detail: detail);
+      } else if (st.lastError != null) {
+        await task.fail(str.t(switch (st.lastError) {
+          'sd_missing' => 'sdu.err_sd_missing',
+          'sd_full' => 'sdu.err_sd_full',
+          'sd_readonly' => 'sdu.err_readonly',
+          _ => 'job.error_generic',
+        }));
+      } else {
+        await task.complete(detail: detail, quiet: nativeNotified);
+      }
+    });
   }
 
   static Future<void> stop() async {

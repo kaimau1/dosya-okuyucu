@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
@@ -35,16 +37,44 @@ class JobProgressBar extends StatelessWidget {
       );
 }
 
-/// İşin adı, ayrıntı satırı ("720×1280 · %42 · ~2 dk kaldı · donanım
-/// kodlayıcı") ve iptal düğmesi.
-class _RunningBar extends StatelessWidget {
+/// İşin adı, ayrıntı satırı ("720×1280 · donanım kodlayıcı"), **durum
+/// satırı** ("%42 · ~2 dk kaldı" ya da geçen süre) ve iptal düğmesi.
+///
+/// Durum satırı saniyede bir tazelenir (kullanıcı 2026-10-18: *"ne zaman
+/// bitecek, ne kadar sürecek … ana ekranda gösterilmeli"*): oranı bilinmeyen
+/// işte bile geçen süre ilerlediği için "takıldı mı?" sorusu kalmıyor.
+/// Zamanlayıcı yalnız iş sürerken ve şerit ekrandayken yaşar.
+class _RunningBar extends StatefulWidget {
   final FmJob job;
   const _RunningBar({required this.job});
 
   @override
+  State<_RunningBar> createState() => _RunningBarState();
+}
+
+class _RunningBarState extends State<_RunningBar> {
+  Timer? _clock;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final job = widget.job;
     final theme = Theme.of(context);
-    final queued = JobQueue.instance.activeJobs.length - 1;
+    final others = JobQueue.instance.activeJobs.length - 1;
+    final status = job.statusLine;
     return Material(
       color: theme.colorScheme.surfaceContainerHigh,
       child: InkWell(
@@ -67,9 +97,9 @@ class _RunningBar extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          queued > 0
+                          others > 0
                               ? context.t('jp.title_queued',
-                                  {'title': job.title, 'n': queued})
+                                  {'title': job.title, 'n': others})
                               : job.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -81,6 +111,16 @@ class _RunningBar extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall,
+                          ),
+                        if (status.isNotEmpty)
+                          Text(
+                            status,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                       ],
                     ),
@@ -128,6 +168,11 @@ class _ResultBar extends StatelessWidget {
             : context.t('jb.cancelled_detail', {'detail': job.detail}),
       _ => job.detail.isEmpty ? context.t(job.status.labelKey) : job.detail,
     };
+    // Ne kadar sürdüğü de sonucun parçası: "3 öneri · 24 GB · 45 sn sürdü".
+    final spent = job.elapsed;
+    final summaryLine = spent == null || job.status == JobStatus.failed
+        ? summary
+        : '$summary · ${context.t('job.took', {'time': humanDuration(spent)})}';
     return Material(
       color: failed
           ? scheme.errorContainer
@@ -157,7 +202,7 @@ class _ResultBar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelLarge),
-                    Text(summary,
+                    Text(summaryLine,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall),

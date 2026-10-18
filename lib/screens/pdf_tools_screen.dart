@@ -19,6 +19,7 @@ import '../services/pdf_tools.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
+import '../services/fm/tracked_task.dart';
 
 /// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
 /// döndür, ayrıca parola ve sıkıştırma.
@@ -148,8 +149,19 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final current = _bytes;
     if (current == null || _busy) return;
     setState(() => _busyLabel = '$label…');
+    // 1,5 sn'yi geçen işlem (büyük PDF'i sıkıştırma/birleştirme) ana ekran
+    // şeridinde ve bildirimde de görünür; uygulamadan çıkılırsa ön plan
+    // servisi işi korur (bkz. `TrackedTask`).
+    final task = TrackedTask(
+      title: '$label…',
+      name: _str.t('pt.job_name', {'label': label}),
+    );
+    task.report(detail: p.basename(widget.path));
+    bool watched() =>
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     try {
       final out = Uint8List.fromList(await op(current));
+      await task.complete(quiet: watched());
       if (!mounted) return;
       setState(() {
         _undo.add(current);
@@ -160,6 +172,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
       });
       _selection.value = <int>{};
     } catch (e) {
+      await task.fail(e, quiet: watched());
       if (mounted) {
         // Hata metni KOPYALANABİLİR: kullanıcı ekran görüntüsü almadan
         // aktarabilsin (2026-09-04).

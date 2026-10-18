@@ -99,6 +99,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
     await showFmProgress<void>(
       context,
       title: context.t('org.working'),
+      name: context.t('org.working_name'),
       task: (report, isCancelled) async {
         var done = 0;
         for (final entry in byFolder.entries) {

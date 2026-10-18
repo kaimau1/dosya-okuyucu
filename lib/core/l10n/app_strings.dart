@@ -1778,6 +1778,7 @@ const Map<String, (String, String, String)> _table = {
   'clean.title': ('Yer aç', 'Free up space', 'تحرير مساحة'),
   'clean.analyzing': ('Yer aç: depolama çözümleniyor', 'Free up space: analysing storage', 'تحرير مساحة: جارٍ تحليل التخزين'),
   'clean.analyzing_name': ('Yer aç: depolama çözümlemesi', 'Free up space: storage analysis', 'تحرير مساحة: تحليل التخزين'),
+  'clean.reading_index': ('Depolama okunuyor…', 'Reading storage…', 'جارٍ قراءة وحدة التخزين…'),
   'clean.reading_trash': ('Çöp kutusu okunuyor…', 'Reading the trash…', 'جارٍ قراءة المهملات…'),
   'clean.reading_downloads': ('İndirilenler inceleniyor…', 'Inspecting downloads…', 'جارٍ فحص التنزيلات…'),
   'clean.finding_dupes': (
@@ -2464,6 +2465,7 @@ const Map<String, (String, String, String)> _table = {
     'يُنزَّل بصيغة {format}',
   ),
   'drive.uploading': ('Drive\'a yükleniyor…', 'Uploading to Drive…', 'جارٍ الرفع إلى Drive…'),
+  'drive.upload_name': ("Drive'a yükleme", 'Upload to Drive', 'الرفع إلى Drive'),
   'drive.upload_done': ('Drive\'a yüklendi:', 'Uploaded to Drive:', 'تم الرفع إلى Drive:'),
   'drive.upload_failed': ('Drive\'a yüklenemedi.', 'Upload to Drive failed.', 'فشل الرفع إلى Drive.'),
   'drive.download_failed': ('Dosya indirilemedi.', 'Could not download the file.', 'تعذّر تنزيل الملف.'),
@@ -4157,6 +4159,7 @@ const Map<String, (String, String, String)> _table = {
   // ── PDF araçları ──────────────────────────────────────────────────────────
   'pt.locked_title': ('Belge parolalı', 'The document has a password', 'المستند محمي بكلمة مرور'),
   'pt.enter_password': ('Parolayı girin', 'Enter the password', 'أدخل كلمة المرور'),
+  'pt.job_name': ('PDF işlemi ({label})', 'PDF operation ({label})', 'عملية PDF ({label})'),
   'pt.op_failed': (
     '{label} başarısız: {error}',
     '{label} failed: {error}',
@@ -5621,6 +5624,9 @@ const Map<String, (String, String, String)> _table = {
   'sdu.notify_title_move': ('SD karta taşındı', 'Moved to SD card', 'نُقل إلى بطاقة SD'),
   'sdu.notify_title_copy': ('SD karta yedeklendi', 'Backed up to SD card', 'نُسخ إلى بطاقة SD'),
   'sdu.notify_body': ('{n} dosya · {size}', '{n} files · {size}', '{n} ملف · {size}'),
+  'sdu.job_title': ('SD karta taşınıyor', 'Moving to the SD card', 'جارٍ النقل إلى بطاقة SD'),
+  'sdu.job_title_copy': ('SD karta yedekleniyor', 'Backing up to the SD card', 'جارٍ النسخ الاحتياطي إلى بطاقة SD'),
+  'sdu.job_name': ('SD karta aktarma', 'Transfer to the SD card', 'النقل إلى بطاقة SD'),
 
   // ── Tarama akışı ──────────────────────────────────────────────────────────
   'sf.scanner_failed': (
@@ -5910,6 +5916,7 @@ const Map<String, (String, String, String)> _table = {
   ),
   'se.apply_crop': ('Kırp', 'Crop', 'قصّ'),
   'sf.title': ('Belge hazırlanıyor', 'Preparing the document', 'جارٍ تجهيز المستند'),
+  'sf.job_name': ('Belge tarama', 'Document scan', 'مسح المستند'),
 
   // ── Tarama sonucu ekranı ──────────────────────────────────────────────────
   'scr.title': ('Tarama sonucu', 'Scan result', 'نتيجة المسح'),
@@ -5976,6 +5983,8 @@ const Map<String, (String, String, String)> _table = {
 
   // ── Çeviri akışı ──────────────────────────────────────────────────────────
   'tf.title': ('Çeviri', 'Translation', 'الترجمة'),
+  'tf.job_title': ('Belge çevriliyor', 'Translating the document', 'جارٍ ترجمة المستند'),
+  'tf.job_done': ('{n} sayfa çevrildi', '{n} pages translated', 'تُرجمت {n} صفحة'),
   'tf.no_text': ('Çevrilecek metin yok.', 'There is no text to translate.', 'لا يوجد نص للترجمة.'),
   'tf.preparing': ('Hazırlanıyor…', 'Preparing…', 'جارٍ التحضير…'),
   'tf.first_use': (
@@ -6514,7 +6523,7 @@ const Map<String, (String, String, String)> _table = {
   ),
 
   // ── İş şeridi ─────────────────────────────────────────────────────────────
-  'jp.title_queued': ('{title} (+{n} sırada)', '{title} (+{n} queued)', '{title} (+{n} في الانتظار)'),
+  'jp.title_queued': ('{title} (+{n} işlem daha)', '{title} (+{n} more)', '{title} (+{n} عملية أخرى)'),
   'jp.cancel': ('İptal', 'Cancel', 'إلغاء'),
   'rc.title': ('Eski ↔ yeni karşılaştır', 'Compare old ↔ new', 'مقارنة القديم ↔ الجديد'),
   'rc.old': ('Eski', 'Old', 'القديم'),
@@ -6540,6 +6549,15 @@ const Map<String, (String, String, String)> _table = {
 
   // ── İndirme bildirimi ─────────────────────────────────────────────────────
   'dsv.downloading': ('İndiriliyor…', 'Downloading…', 'جارٍ التنزيل…'),
+  'dsv.job_name': ('İndirme', 'Download', 'التنزيل'),
+  'dsv.speed': ('{speed}/sn', '{speed}/s', '{speed}/ث'),
+  // Eklentinin canlı bildirimi: {progress} {networkSpeed} {timeRemaining}
+  // eklentinin kendi yer tutucuları (bizim `t()` dokunmaz).
+  'dsv.downloading_live': (
+    'İndiriliyor · {progress} · {networkSpeed} · kalan {timeRemaining}',
+    'Downloading · {progress} · {networkSpeed} · {timeRemaining} left',
+    'جارٍ التنزيل · {progress} · {networkSpeed} · متبقٍ {timeRemaining}',
+  ),
   'dsv.downloaded': ('İndirildi', 'Downloaded', 'تم التنزيل'),
   'dsv.paused': ('Duraklatıldı', 'Paused', 'متوقف مؤقتًا'),
   'dsv.failed': ('İndirilemedi', 'Download failed', 'فشل التنزيل'),
@@ -6653,6 +6671,51 @@ const Map<String, (String, String, String)> _table = {
   // ── Arka plandaki iş kuyruğu / bildirimler ────────────────────────────────
   'job.error_generic': ('Bir hata oluştu.', 'Something went wrong.', 'حدث خطأ.'),
   'job.finished': ('Tamamlandı.', 'Completed.', 'اكتمل.'),
+  'job.step': ('Adım {n}/{total} · {text}', 'Step {n}/{total} · {text}', 'الخطوة {n}/{total} · {text}'),
+  // ── Dosya işlemlerinin ad hâli ve sonuç özeti (2026-10-18, iş sistemi) ──
+  'drive.downloading_name': ("Drive'dan indirme", "Download from Drive", "التنزيل من Drive"),
+  'trash.emptying_name': ('Çöp kutusunu boşaltma', 'Emptying the trash', 'تفريغ المهملات'),
+  'trash.restore_all_name': ('Çöpten geri yükleme', 'Restoring from trash', 'الاستعادة من المهملات'),
+  'fm.extracting_name': ('Arşivden çıkarma', 'Extraction', 'الاستخراج'),
+  'arc.opening_name': ('Arşivi açma', 'Opening the archive', 'فتح الأرشيف'),
+  'apk.extracting_name': ('APK hazırlama', 'APK preparation', 'تحضير APK'),
+  'dl.verify_name': ('Dosya özeti denetimi', 'Checksum check', 'فحص المجموع الاختباري'),
+  'fm.compare_name': ('Karşılaştırma', 'Comparison', 'المقارنة'),
+  'split.name': ('Parçalara bölme', 'Splitting', 'التقسيم'),
+  'join.name': ('Parçaları birleştirme', 'Joining', 'الدمج'),
+  'fm.deleting_name': ('Silme', 'Deletion', 'الحذف'),
+  'fm.trashing_name': ('Çöp kutusuna taşıma', 'Moving to trash', 'النقل إلى المهملات'),
+  'fm.copying_important_name': ('Önemli dosyalara kopyalama', 'Copy to important files', 'النسخ إلى الملفات المهمة'),
+  'fm.copying_shared_name': ("Paylaşılan'a kopyalama", "Copy to Shared", "النسخ إلى المشترك"),
+  'peer.sending_name': ('Yakındaki cihaza gönderme', 'Sending to a nearby device', 'الإرسال إلى جهاز قريب'),
+  'fm.empty_scanning_name': ('Boş klasör araması', 'Empty folder search', 'البحث عن المجلدات الفارغة'),
+  'org.working_name': ('Otomatik düzenleme', 'Auto-organizing', 'التنظيم التلقائي'),
+  'fm.copying_name': ('Kopyalama', 'Copy', 'النسخ'),
+  'fm.moving_name': ('Taşıma', 'Move', 'النقل'),
+  'fm.copying_external_name': ('{volume} birimine kopyalama', 'Copy to {volume}', 'النسخ إلى {volume}'),
+  'fm.zipping_name': ('Sıkıştırma', 'Compression', 'الضغط'),
+  'job.op_done_n': ('{n} öğe tamam', '{n} items done', 'اكتمل {n} عنصر'),
+  'job.op_skipped': ('{n} atlandı', '{n} skipped', 'تُخطّي {n}'),
+  'job.op_errors': ('{n} hata', '{n} errors', '{n} أخطاء'),
+  'job.op_created': ('Hazır: {name}', 'Ready: {name}', 'جاهز: {name}'),
+  'job.op_items': ('{n} öğe', '{n} items', '{n} عنصر'),
+  // Süre birimleri ve kalan süre (bkz. `humanDuration`, `etaText`).
+  'dur.sec': ('{n} sn', '{n} s', '{n} ث'),
+  'dur.min': ('{n} dk', '{n} min', '{n} د'),
+  'dur.hour': ('{n} sa', '{n} h', '{n} س'),
+  'job.eta': ('~{time} kaldı', '~{time} left', 'بقي ~{time}'),
+  'job.took': ('{time} sürdü', 'took {time}', 'استغرق {time}'),
+  'job.more_running': (
+    '+{n} işlem daha',
+    '+{n} more',
+    '+{n} عملية أخرى',
+  ),
+  'job.channel_name': ('Dosya işlemleri', 'File operations', 'عمليات الملفات'),
+  'job.channel_desc': (
+    'Yer açma, kopya arama, kopyalama, boyut düşürme gibi süren işlerin ilerlemesi.',
+    'Progress of running tasks such as freeing space, finding duplicates, copying and resizing.',
+    'تقدّم المهام الجارية مثل تحرير المساحة والبحث عن النسخ والنسخ وتقليل الحجم.',
+  ),
   // Biten işin başlığı (bkz. `FmJob.shownTitle`): süren işin "-iyor"
   // başlığı bitince "tamamlandı" kipine döner.
   'job.title_done': ('{name} tamamlandı', '{name} complete', 'اكتمل: {name}'),
@@ -7849,6 +7912,10 @@ const Map<String, (String, String, String)> _table = {
     'From: {path}',
     'المصدر: {path}',
   ),
+  'hv.hiding': ('Gizleniyor', 'Hiding', 'جارٍ الإخفاء'),
+  'hv.hide_name': ('Gizleme', 'Hiding', 'الإخفاء'),
+  'hv.restoring': ('Geri getiriliyor', 'Restoring', 'جارٍ الاستعادة'),
+  'hv.restore_name': ('Gizlenenleri geri getirme', 'Restoring hidden files', 'استعادة الملفات المخفية'),
   'hv.confirm_title': (
     '{n} öğe gizlensin mi?',
     'Hide {n} item(s)?',

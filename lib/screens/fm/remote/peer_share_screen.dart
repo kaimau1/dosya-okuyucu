@@ -199,6 +199,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
     final result = await showFmProgress<PeerSendResult>(
       context,
       title: strings.t('peer.sending'),
+      name: strings.t('peer.sending_name'),
       task: (report, isCancelled) => PeerSender.send(
         peer,
         payload,

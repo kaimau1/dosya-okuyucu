@@ -13,6 +13,8 @@ import '../../services/file_service.dart';
 import '../../services/fm/app_signature.dart';
 import '../../services/fm/drive_cache.dart';
 import '../../services/fm/drive_service.dart';
+import '../../services/fm/job_queue.dart' show FmJobTarget;
+import '../../services/fm/tracked_task.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
@@ -431,6 +433,7 @@ class _DriveScreenState extends State<DriveScreen> {
       return await showFmProgress<File?>(
         context,
         title: context.t('drive.downloading'),
+        name: context.t('drive.downloading_name'),
         describe: _downloadLabel,
         task: (report, isCancelled) async {
           report(FmProgress(0, knownTotal, file.name));
@@ -1158,6 +1161,7 @@ Future<void> uploadToDrive(BuildContext context, String path,
   final drive = service ?? DriveService();
   final messenger = ScaffoldMessenger.of(context);
   final uploading = context.t('drive.uploading');
+  final uploadName = context.t('drive.upload_name');
   final done = context.t('drive.upload_done');
   final failed = context.t('drive.upload_failed');
 
@@ -1177,11 +1181,24 @@ Future<void> uploadToDrive(BuildContext context, String path,
     }
   }
   showSnackOn(messenger, uploading);
+  // **Uzun yükleme iş sisteminde** (2026-10-18): eskiden 4 saniyelik
+  // "Yükleniyor…" bildiriminden sonra sonuç gelene kadar hiçbir yerde iz
+  // yoktu — büyük dosyada "yükleniyor mu, takıldı mı?" sorusu tam buradaydı.
+  // 1,5 sn'yi geçen yükleme ana ekran şeridinde ve bildirimde geçen süresiyle
+  // görünür, bitince sonucu söyler.
+  final task = TrackedTask(
+    title: uploading,
+    name: uploadName,
+    target: FmJobTarget.files([path]),
+  );
+  task.report(detail: File(path).uri.pathSegments.last);
   try {
     final file = await drive.upload(File(path));
+    await task.complete(detail: '$done ${file.name}'.trim());
     showSnackOn(messenger, '$done ${file.name}'.trim());
   } catch (e) {
     final detail = e is DriveException && e.detail != null ? e.detail! : '';
+    await task.fail('$failed $detail'.trim());
     showSnackOn(messenger, '$failed $detail'.trim());
   }
 }

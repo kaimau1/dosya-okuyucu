@@ -364,6 +364,7 @@ Future<void> _verifyDigest(BuildContext context, String path) async {
   final actual = await showFmProgress<String>(
     context,
     title: strings.t('dl.verify_running'),
+    name: strings.t('dl.verify_name'),
     backgroundable: false,
     describe: (value) => value.total > 0
         ? '${FsPaths.humanSize(value.done)} / ${FsPaths.humanSize(value.total)}'

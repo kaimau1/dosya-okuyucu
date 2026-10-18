@@ -5,6 +5,8 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/job_queue.dart' show FmJobTarget;
+import '../../services/fm/tracked_task.dart';
 
 /// Uzun süren bir dosya işlemini ilerleme penceresiyle çalıştırır.
 ///
@@ -31,9 +33,19 @@ Future<T> showFmProgress<T>(
   bool cancellable = true,
   bool backgroundable = true,
   String Function(FmProgress)? describe,
+  String? name,
+  FmJobTarget? target,
 }) async {
   final progress = ValueNotifier<FmProgress>(const FmProgress(0, 0, ''));
   var cancelled = false;
+  // **İş sistemine bağlantı** (2026-10-18, kullanıcı: *"ne yapıyor, ne zaman
+  // bitecek, ne kadar sürecek … hem ana ekranda hem bildirim alanında"*).
+  // 1,5 sn'yi geçen ya da arka plana alınan işlem ana ekran şeridinde,
+  // İşlemler'de ve sistem bildiriminde (ön plan servisiyle — uygulamadan
+  // çıkınca Android işi dondurmasın) görünür; kalan süre oradan hesaplanır.
+  // [name] biten işin başlığı içindir ("Kopyalama tamamlandı").
+  final tracked = TrackedTask(title: title, name: name, target: target);
+  var backgrounded = false;
   /// Arka plan şeridinin denetleyicisi — hem "şerit gösterildi mi?" bilgisi
   /// hem de onu (ve YALNIZ onu) kapatma yolu. Ayrı bir `backgrounded` bayrağı
   /// tutulmuyordu: iki gerçeği tek yerde tutmak ikisinin ayrışmasını önler.
@@ -95,12 +107,16 @@ Future<T> showFmProgress<T>(
             const SizedBox(width: Gap.md),
             Expanded(
               child: Text(
-                switch ((describe?.call(value), value.total)) {
-                  (final String d, _) when d.isNotEmpty => '$title · $d',
-                  (_, final int t) when t > 0 =>
-                    '$title · ${value.done} / ${value.total}',
-                  _ => '$title…',
-                },
+                [
+                  switch ((describe?.call(value), value.total)) {
+                    (final String d, _) when d.isNotEmpty => '$title · $d',
+                    (_, final int t) when t > 0 =>
+                      '$title · ${value.done} / ${value.total}',
+                    _ => '$title…',
+                  },
+                  // Kalan süre ("~2 dk kaldı") şeritte de.
+                  if (tracked.statusLine.isNotEmpty) tracked.statusLine,
+                ].join(' · '),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -169,6 +185,15 @@ Future<T> showFmProgress<T>(
                   else if (value.total > 0)
                     Text('${value.done} / ${value.total}',
                         style: Theme.of(ctx).textTheme.bodySmall),
+                  // "%42 · ~2 dk kaldı" (işlem kaydedildikten sonra).
+                  if (tracked.statusLine.isNotEmpty)
+                    Text(
+                      tracked.statusLine,
+                      style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                            color: Theme.of(ctx).colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
                 ],
               ),
             ),
@@ -177,6 +202,10 @@ Future<T> showFmProgress<T>(
             if (backgroundable)
               TextButton(
                 onPressed: () {
+                  backgrounded = true;
+                  // Arka plana alınan iş HEMEN ana ekran şeridine ve
+                  // bildirime geçer (eşik beklenmez).
+                  tracked.promote();
                   closeDialog();
                   showBackgroundBar();
                 },
@@ -196,8 +225,35 @@ Future<T> showFmProgress<T>(
     },
   );
 
+  // Kullanıcı sonucu penceresinde gördü mü? (Arka plana almadı ve uygulama
+  // ön planda.) Gördüyse sonuç bildirimi ve şerit gürültü olur.
+  bool watched() =>
+      !backgrounded &&
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
   try {
-    return await task((p) => progress.value = p, () => cancelled);
+    final result = await task((p) {
+      progress.value = p;
+      tracked.report(
+        done: p.done,
+        total: p.total,
+        detail: [
+          if (p.currentName.isNotEmpty) p.currentName,
+          if (describe != null) describe(p),
+        ].where((t) => t.isNotEmpty).join(' · '),
+      );
+    }, () => cancelled || tracked.cancelRequested);
+    final summary = TrackedTask.summarize(result);
+    tracked.target ??= summary.target;
+    if (cancelled || tracked.cancelRequested || summary.cancelled) {
+      await tracked.stopped(detail: summary.detail, quiet: watched());
+    } else {
+      await tracked.complete(detail: summary.detail, quiet: watched());
+    }
+    return result;
+  } catch (e) {
+    await tracked.fail(e, quiet: watched());
+    rethrow;
   } finally {
     closeDialog();
     // Kalıcı şerit yalnız bu iş için gösterildiyse kaldırılır; başka bir

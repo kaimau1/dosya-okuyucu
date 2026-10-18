@@ -78,14 +78,21 @@ abstract final class HiddenVault {
       p.isWithin(root, path) || p.equals(root, path);
 
   /// Öğeleri kasaya taşır; gizlenen sayıyı ve hataları döndürür.
-  static Future<FmOpResult> hide(List<String> paths) async {
+  /// [onProgress]/[isCancelled]: SD karttan kasaya taşımak bir KOPYALAMADIR
+  /// ve büyük videoda dakikalar sürer — ilerleme penceresine bağlanır.
+  static Future<FmOpResult> hide(
+    List<String> paths, {
+    void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
     await _ensureRoot();
     final wanted = [
       for (final path in paths)
         if (!contains(path)) path
     ];
     if (wanted.isEmpty) return const FmOpResult();
-    final result = await FileOps.moveAll(wanted, root);
+    final result = await FileOps.moveAll(wanted, root,
+        onProgress: onProgress, isCancelled: isCancelled);
     if (result.transfers.isNotEmpty) {
       final index = await _readIndex();
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -120,10 +127,17 @@ abstract final class HiddenVault {
 
   /// Öğeleri geldikleri yere geri taşır (klasör yoksa kurulur; aynı adda
   /// dosya varsa "(1)" eklenir).
-  static Future<int> restore(List<HiddenItem> items) async {
+  static Future<int> restore(
+    List<HiddenItem> items, {
+    void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
     final index = await _readIndex();
     var restored = 0;
-    for (final item in items) {
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      if (isCancelled?.call() ?? false) break;
+      onProgress?.call(FmProgress(i, items.length, p.basename(item.original)));
       final parent = p.dirname(item.original);
       try {
         await Directory(parent).create(recursive: true);
@@ -147,6 +161,7 @@ abstract final class HiddenVault {
         // kasada kalır, kullanıcı yeniden deneyebilir.
       }
     }
+    onProgress?.call(FmProgress(items.length, items.length, ''));
     await _writeIndex(index);
     if (restored > 0) FsEvents.changed([for (final i in items) i.original]);
     return restored;

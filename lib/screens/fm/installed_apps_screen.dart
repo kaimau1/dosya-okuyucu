@@ -673,6 +673,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
       final path = await showFmProgress<String>(
         context,
         title: context.t('apk.extracting'),
+        name: context.t('apk.extracting_name'),
         cancellable: false,
         task: (report, _) => ApkExport.extract(
           source,

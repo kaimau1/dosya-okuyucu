@@ -256,7 +256,6 @@ abstract final class VideoTranscoder {
   }) async {
     handle?.report(detail: _line(progressPrefix,
         [AppStrings.current.t('vt.engine_preparing', {'engine': engineLabel})]));
-    final clock = Stopwatch()..start();
     try {
       await FfmpegVideo.transcode(
         source: path,
@@ -278,10 +277,12 @@ abstract final class VideoTranscoder {
         // boş kalıyordu (kullanıcı hatası 2026-07-30: "o çubuk hep boş").
         onProgress: (ratio) => handle?.report(
           unit: ratio,
+          // Yüzde ve kalan süre işin DURUM SATIRINDA (bkz. `FmJob.statusLine`
+          // — toplu işte tüm işin süresi); burada yalnız toplu işte bu
+          // dosyanın kendi yüzdesi.
           detail: _line(progressPrefix, [
             '${wanted.width}×${wanted.height}',
-            '%${(ratio * 100).round()}',
-            FfmpegVideo.remainingText(clock.elapsed, ratio),
+            if (progressPrefix != null) '%${(ratio * 100).round()}',
             engineLabel,
           ]),
         ),
@@ -372,7 +373,6 @@ abstract final class VideoTranscoder {
     int sourceDurationMs,
     String? progressPrefix,
   ) async {
-    final clock = Stopwatch()..start();
     final subscription = handle == null
         ? null
         : vc.VideoCompress.compressProgress$.subscribe((value) {
@@ -382,8 +382,7 @@ abstract final class VideoTranscoder {
             handle.report(
               unit: value / 100,
               detail: _line(progressPrefix, [
-                '%${value.toStringAsFixed(0)}',
-                FfmpegVideo.remainingText(clock.elapsed, value / 100),
+                if (progressPrefix != null) '%${value.toStringAsFixed(0)}',
                 AppStrings.current.t('vt.fallback_engine'),
               ]),
             );

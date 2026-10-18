@@ -162,6 +162,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     final result = await showFmProgress<FmOpResult>(
       context,
       title: cut ? context.t('fm.moving') : context.t('fm.copying'),
+      name: context.t(cut ? 'fm.moving_name' : 'fm.copying_name'),
       task: (report, isCancelled) => cut
           ? FileOps.moveAll(sources, _root,
               onProgress: report, isCancelled: isCancelled)

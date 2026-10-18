@@ -147,21 +147,27 @@ class _CleanupScreenState extends State<CleanupScreen> {
         // İndeks yoksa (bildirimden/işlem kartından açıldı) burada kurulur:
         // `adviseCleanup` APK ve büyük video önerilerini indeksten okuyor,
         // boş indeksle koşmak o önerileri sessizce yok sayardı.
+        // Adım sayacı ("2/4 · Çöp kutusu okunuyor…"): adımlar eşit sürmediği
+        // için yüzde/kalan süre UYDURULMAZ (kopya araması hepsinden uzun) —
+        // ama kullanıcı nerede olduğunu ve kaç adım kaldığını görür.
+        String step(int n, String key) =>
+            strings.t('job.step', {'n': n, 'total': 4, 'text': strings.t(key)});
+        handle.report(detail: step(1, 'clean.reading_index'));
         final index = widget.index ??
             await FsScan.index(FmEnv.volumeRoots);
         handle.throwIfCancelled();
 
-        handle.report(detail: strings.t('clean.reading_trash'));
+        handle.report(detail: step(2, 'clean.reading_trash'));
         final trash = await FmEnv.trash.list();
         handle.throwIfCancelled();
         final trashBytes = trash.fold<int>(0, (sum, i) => sum + i.sizeBytes);
 
-        handle.report(detail: strings.t('clean.reading_downloads'));
+        handle.report(detail: step(3, 'clean.reading_downloads'));
         final downloadPath = p.join(FmEnv.primaryRoot, 'Download');
         final downloads = await FsScan.collect([downloadPath]);
         handle.throwIfCancelled();
 
-        handle.report(detail: strings.t('clean.finding_dupes'));
+        handle.report(detail: step(4, 'clean.finding_dupes'));
         // Kopya taraması pahalıdır; yalnız burada, bir kez.
         final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
         handle.throwIfCancelled();

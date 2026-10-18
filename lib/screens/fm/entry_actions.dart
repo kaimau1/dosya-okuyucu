@@ -527,6 +527,7 @@ Future<bool> joinEntry(BuildContext context, FsEntry entry) async {
     final out = await showFmProgress<String>(
       context,
       title: strings.t('join.working'),
+      name: strings.t('join.name'),
       describe: (value) => value.total > 0
           ? '${FsPaths.humanSize(value.done)} / '
               '${FsPaths.humanSize(value.total)}'
@@ -958,6 +959,7 @@ Future<bool> deleteEntries(
     final result = await showFmProgress<FmOpResult>(
       context,
       title: context.t('fm.deleting'),
+      name: context.t('fm.deleting_name'),
       cancellable: false,
       task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
     );
@@ -977,6 +979,7 @@ Future<bool> deleteEntries(
   final result = await showFmProgress<FmOpResult>(
     context,
     title: context.t('fm.trashing'),
+    name: context.t('fm.trashing_name'),
     cancellable: false,
     task: (report, _) =>
         FmEnv.trash.moveToTrash(paths, onProgress: report),
@@ -1015,6 +1018,7 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
   final result = await showFmProgress(
     context,
     title: context.t('common.deleting'),
+    name: context.t('fm.deleting_name'),
     cancellable: false,
     task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
   );
@@ -1074,6 +1078,7 @@ Future<bool> moveOrCopyEntries(
   final result = await showFmProgress<FmOpResult>(
     context,
     title: move ? context.t('fm.moving') : context.t('fm.copying'),
+    name: context.t(move ? 'fm.moving_name' : 'fm.copying_name'),
     task: (report, isCancelled) => move
         ? FileOps.moveAll(paths, dest, onProgress: report,
             isCancelled: isCancelled)
@@ -1148,6 +1153,7 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
   final result = await showFmProgress<FmOpResult>(
     context,
     title: context.t('fm.copying_important'),
+    name: context.t('fm.copying_important_name'),
     task: (report, isCancelled) => FileOps.copyAll(paths, dest,
         onProgress: report, isCancelled: isCancelled),
   );
@@ -1225,6 +1231,7 @@ Future<bool> copyToExternal(BuildContext context, List<String> paths) async {
   final result = await showFmProgress<FmOpResult>(
     context,
     title: context.t('fm.copying_external', {'volume': label}),
+    name: context.t('fm.copying_external_name', {'volume': label}),
     task: (report, isCancelled) => FileOps.copyAll(paths, dest,
         onProgress: report, isCancelled: isCancelled),
   );
@@ -1266,6 +1273,7 @@ Future<bool> copyToShared(BuildContext context, List<String> paths) async {
   final result = await showFmProgress<FmOpResult>(
     context,
     title: context.t('fm.copying_shared'),
+    name: context.t('fm.copying_shared_name'),
     task: (report, isCancelled) => FileOps.copyAll(paths, dest,
         onProgress: report, isCancelled: isCancelled),
   );
@@ -1294,6 +1302,7 @@ Future<bool> zipEntries(
       title: options.password == null
           ? context.t('fm.zipping')
           : context.t('fm.encrypting'),
+      name: context.t('fm.zipping_name'),
       cancellable: false,
       task: (report, _) => ArchiveOps.compress(
         paths,
@@ -1328,6 +1337,7 @@ Future<bool> extractArchive(
     final target = await showFmProgress<String>(
       context,
       title: context.t('fm.extracting'),
+      name: context.t('fm.extracting_name'),
       cancellable: false,
       task: (report, _) => ArchiveOps.extract(
         archivePath,
@@ -1763,7 +1773,16 @@ Future<bool> hideEntries(BuildContext context, List<String> paths) async {
     ),
   );
   if (ok != true) return false;
-  final result = await HiddenVault.hide(paths);
+  if (!context.mounted) return false;
+  // İlerleme penceresiyle (SD karttan kasaya taşımak bir kopyalama — büyük
+  // videoda dakikalar; eskiden hiçbir şey görünmüyordu).
+  final result = await showFmProgress<FmOpResult>(
+    context,
+    title: strings.t('hv.hiding'),
+    name: strings.t('hv.hide_name'),
+    task: (report, isCancelled) => HiddenVault.hide(paths,
+        onProgress: report, isCancelled: isCancelled),
+  );
   if (result.transfers.isNotEmpty) {
     showSnackOn(messenger,
         strings.t('hv.hidden_n', {'n': result.transfers.length}));

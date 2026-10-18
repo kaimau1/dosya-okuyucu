@@ -169,6 +169,24 @@ class _JobCard extends StatelessWidget {
             if (job.status == JobStatus.running) ...[
               const SizedBox(height: Gap.sm),
               LinearProgressIndicator(value: job.progress),
+              // "%42 · ~2 dk kaldı" — geçen süre aşağıdaki satırda.
+              if (job.progress != null || job.remaining != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: Gap.xs),
+                  child: Text(
+                    [
+                      if (job.progress != null)
+                        '%${(job.progress! * 100).floor()}',
+                      if (job.remaining != null)
+                        context.t('job.eta',
+                            {'time': roughDuration(job.remaining!)}),
+                    ].join(' · '),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
             ],
             // Dosya sayacı ve süre KENDİ satırında: ikisi de `detail`in
             // içinde, uzun özet metninin arasında kayboluyordu.

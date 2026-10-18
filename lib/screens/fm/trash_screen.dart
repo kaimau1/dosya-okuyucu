@@ -129,6 +129,7 @@ class _TrashScreenState extends State<TrashScreen> {
     final result = await showFmProgress<FmOpResult>(
       context,
       title: context.t('trash.emptying'),
+      name: context.t('trash.emptying_name'),
       task: (report, isCancelled) =>
           FmEnv.trash.empty(onProgress: report, isCancelled: isCancelled),
     );
@@ -160,6 +161,7 @@ class _TrashScreenState extends State<TrashScreen> {
     final result = await showFmProgress<FmOpResult>(
       context,
       title: str.t('trash.restore_all'),
+      name: str.t('trash.restore_all_name'),
       task: (report, isCancelled) async {
         var done = 0;
         final errors = <String>[];

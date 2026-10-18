@@ -8,6 +8,8 @@ import '../screens/scan_result_screen.dart';
 import '../services/document_scanner.dart';
 import '../services/fm/activity_log.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/job_queue.dart' show FmJobTarget;
+import '../services/fm/tracked_task.dart';
 import '../services/ocr_service.dart';
 import '../services/scan_prepare.dart' show ScanPage;
 import '../services/scan_title.dart';
@@ -54,6 +56,12 @@ class ScanFlow {
       value: 0,
     ));
     final busy = _showProgress(context, progress);
+    // Çok sayfalı taramada OCR uzun sürebilir: 1,5 sn'yi geçerse ana ekran
+    // şeridinde ve bildirimde "Sayfa 4 / 12 · ~20 sn kaldı" diye görünür.
+    final task = TrackedTask(
+      title: AppStrings.current.t('sf.title'),
+      name: AppStrings.current.t('sf.job_name'),
+    );
 
     String? path;
     String? error;
@@ -66,12 +74,16 @@ class ScanFlow {
       // katmanı, stüdyonun "Metin" sekmesi ve belgenin akıllı adı.
       ocrLines = await DocumentScanner.recognizePages(
         images,
-        onProgress: (done, total) => progress.value = (
-          text: AppStrings.current.t('sf.ocr_progress',
-              {'n': (done + 1).clamp(1, total), 'total': total}),
-          // Son %15 PDF'e ayrılır: çubuk "bitti" deyip beklemesin.
-          value: 0.85 * done / total,
-        ),
+        onProgress: (done, total) {
+          final text = AppStrings.current.t('sf.ocr_progress',
+              {'n': (done + 1).clamp(1, total), 'total': total});
+          progress.value = (
+            text: text,
+            // Son %15 PDF'e ayrılır: çubuk "bitti" deyip beklemesin.
+            value: 0.85 * done / total,
+          );
+          task.report(detail: text, done: done, total: total);
+        },
       );
       textPages = DocumentScanner.textPages(ocrLines);
       progress.value =
@@ -89,6 +101,16 @@ class ScanFlow {
 
     busy.close();
     progress.dispose();
+    final watched =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (error != null || path == null) {
+      await task.fail(error ?? '-', quiet: watched);
+    } else {
+      task.target = FmJobTarget.files([path]);
+      await task.complete(
+          detail: AppStrings.current.t('sf.saved_n', {'n': pages.length}),
+          quiet: watched);
+    }
     if (!context.mounted) return path;
 
     if (error != null || path == null) {

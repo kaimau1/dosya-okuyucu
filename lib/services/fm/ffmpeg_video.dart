@@ -6,6 +6,7 @@ import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
 import 'package:ffmpeg_kit_flutter_new_min/statistics.dart';
 
 import '../../models/media_resize.dart';
+import 'job_queue.dart' show etaText;
 
 /// Videonun gerçek ölçüsü ve süresi.
 class VideoProbe {
@@ -175,18 +176,8 @@ abstract final class FfmpegVideo {
   /// uydurma yok; ilk saniyelerde (kodlayıcı ısınırken) ölçüm yanıltıcı olduğu
   /// için boş dönülür — yanlış süre yazmak hiç yazmamaktan kötü.
   /// Saf fonksiyon → birim testli.
-  static String remainingText(Duration elapsed, double ratio) {
-    if (ratio <= 0.02 || ratio >= 1) return '';
-    if (elapsed.inSeconds < 3) return '';
-    final totalMs = elapsed.inMilliseconds / ratio;
-    final leftMs = (totalMs - elapsed.inMilliseconds).round();
-    if (leftMs <= 0) return '';
-    final seconds = (leftMs / 1000).round();
-    if (seconds < 60) return '~$seconds sn kaldı';
-    final minutes = (seconds / 60).round();
-    if (minutes < 60) return '~$minutes dk kaldı';
-    return '~${(minutes / 60).round()} sa kaldı';
-  }
+  static String remainingText(Duration elapsed, double ratio) =>
+      etaText(elapsed, ratio);
 
   /// Sıkıştırma sertliğinin CRF karşılığı (x264: küçük = daha iyi kalite).
   ///

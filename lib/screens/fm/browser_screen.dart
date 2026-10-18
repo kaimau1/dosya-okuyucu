@@ -277,6 +277,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final result = await showFmProgress<FmOpResult>(
       context,
       title: cut ? context.t('fm.moving') : context.t('fm.copying'),
+      name: context.t(cut ? 'fm.moving_name' : 'fm.copying_name'),
       task: (report, isCancelled) => cut
           ? FileOps.moveAll(sources, widget.path,
               conflict: conflict, onProgress: report, isCancelled: isCancelled)

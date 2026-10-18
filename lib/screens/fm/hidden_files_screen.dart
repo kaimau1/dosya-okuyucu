@@ -15,6 +15,7 @@ import '../../widgets/fm/pin_dialog.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../widgets/fm/fm_progress_dialog.dart';
 
 /// **Gizli dosyalar** — [HiddenVault]'taki öğeler (2026-09-27).
 ///
@@ -55,7 +56,13 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
   Future<void> _restore(List<HiddenItem> items) async {
     final messenger = ScaffoldMessenger.of(context);
     final strings = AppStrings.of(context);
-    final n = await HiddenVault.restore(items);
+    final n = await showFmProgress<int>(
+      context,
+      title: strings.t('hv.restoring'),
+      name: strings.t('hv.restore_name'),
+      task: (report, isCancelled) => HiddenVault.restore(items,
+          onProgress: report, isCancelled: isCancelled),
+    );
     showSnackOn(messenger, strings.t('hv.restored_n', {'n': n}));
     await _load();
   }

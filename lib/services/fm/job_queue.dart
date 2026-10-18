@@ -280,6 +280,24 @@ class FmJob {
   /// "başarılı mı oldu göremiyorum" şikâyetinin cevabı bu.)
   bool dismissed = false;
 
+  /// Kuyruğun DIŞINDA koşan, yalnız izlenen iş mi? (bkz. [JobQueue.track]:
+  /// kopyalama/taşıma/Drive'a yükleme gibi kendi akışında koşan işler.)
+  bool tracked = false;
+
+  /// Sonuç bildirimi gösterilmesin mi? Kullanıcı işi penceresinde sonuna
+  /// kadar izlediyse sonucu zaten gördü; bir de sistem bildirimi gürültüdür.
+  bool quietFinish = false;
+
+  /// İşin KENDİ sistem bildirimi var mı? (İndirmeler: indirme eklentisi
+  /// ilerlemeyi ve sonucu kendisi bildiriyor.) Öyleyse iş yalnız şeritte ve
+  /// İşlemler'de görünür; ikinci bir bildirim açılmaz.
+  bool ownNotification = false;
+
+  /// Yumuşatılmış kalan süre tahmini (ms) ve alındığı an — bkz.
+  /// [remaining]. Her ilerleme bildiriminde [noteProgress] günceller.
+  int? _etaMs;
+  int _etaAtMs = 0;
+
   bool _cancelRequested = false;
 
   /// İş gövdesi. Kuyruğun listesiyle ayrı bir "bekleyenler" dizisi tutmak
@@ -311,6 +329,61 @@ class FmJob {
       : null;
 
   bool get cancelRequested => _cancelRequested;
+
+  /// İlerleme geldiğinde kalan süre tahminini tazeler.
+  ///
+  /// Ham tahmin (`geçen × (1 − oran) / oran`) dosya boyları eşit olmadığında
+  /// zıplar: küçük bir dosya bitince "10 sn", büyüğe gelince "4 dk". Yeni
+  /// tahmin eskisine (geçen süre kadar azaltılmış hâline) %30 ağırlıkla
+  /// karışır — sayı sakin iner, ama gerçek hız değişince yine de ona yaklaşır.
+  void noteProgress([int? nowMs]) {
+    final ratio = progress;
+    if (ratio == null || startedAtMs == 0) return;
+    final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+    final raw = estimateRemaining(Duration(milliseconds: now - startedAtMs), ratio);
+    if (raw == null) return;
+    final previous = _etaMs;
+    if (previous == null) {
+      _etaMs = raw.inMilliseconds;
+    } else {
+      final aged = previous - (now - _etaAtMs);
+      _etaMs = (aged * 0.7 + raw.inMilliseconds * 0.3).round();
+      if (_etaMs! < 0) _etaMs = 0;
+    }
+    _etaAtMs = now;
+  }
+
+  /// Kalan süre (yalnız süren ve ilerlemesi ölçülebilen işte).
+  Duration? get remaining {
+    final eta = _etaMs;
+    if (eta == null || status != JobStatus.running) return null;
+    final left = eta - (DateTime.now().millisecondsSinceEpoch - _etaAtMs);
+    // Tahmin süresi doldu ama iş sürüyor: "~5 sn" demeye devam etmek yalan;
+    // kalan süre bilinmiyor sayılır (satırda geçen süre görünür).
+    if (left <= 0) return null;
+    return Duration(milliseconds: left);
+  }
+
+  /// **Durum satırı** — süren işin "ne kadar kaldı" özeti: "%42 · ~2 dk kaldı".
+  /// Oranı bilinmeyen işte geçen süre ("45 sn"): iş canlı mı, takıldı mı
+  /// sorusu cevapsız kalmasın. Ana ekran şeridi, bildirim ve İşlemler ekranı
+  /// AYNI satırı gösterir.
+  String get statusLine {
+    if (status == JobStatus.queued) {
+      return AppStrings.current.t('enum.job_queued');
+    }
+    final parts = <String>[];
+    final ratio = progress;
+    if (ratio != null) parts.add('%${(ratio * 100).floor()}');
+    final left = remaining;
+    if (left != null) {
+      parts.add(AppStrings.current.t('job.eta', {'time': roughDuration(left)}));
+    } else {
+      final spent = elapsed;
+      if (spent != null) parts.add(humanDuration(spent));
+    }
+    return parts.join(' · ');
+  }
 
   /// **Ekranda görünen başlık** — işin DURUMUNA göre.
   ///
@@ -411,16 +484,60 @@ class FmJob {
 }
 
 /// Süre metni ("2 dk 10 sn"). Saf fonksiyon → birim testli.
+///
+/// Birimler çeviri tablosundan (eskiden "sn/dk/sa" koda gömülüydü ve
+/// İngilizce/Arapça arayüzde de Türkçe yazıyordu).
 String humanDuration(Duration d) {
-  if (d.inSeconds < 60) return '${d.inSeconds} sn';
+  final s = AppStrings.current;
+  String sec(int n) => s.t('dur.sec', {'n': n});
+  String min(int n) => s.t('dur.min', {'n': n});
+  String hour(int n) => s.t('dur.hour', {'n': n});
+  if (d.inSeconds < 60) return sec(d.inSeconds < 0 ? 0 : d.inSeconds);
   final minutes = d.inMinutes;
   final seconds = d.inSeconds % 60;
   if (minutes < 60) {
-    return seconds == 0 ? '$minutes dk' : '$minutes dk $seconds sn';
+    return seconds == 0 ? min(minutes) : '${min(minutes)} ${sec(seconds)}';
   }
   final hours = d.inHours;
   final restMinutes = minutes % 60;
-  return restMinutes == 0 ? '$hours sa' : '$hours sa $restMinutes dk';
+  return restMinutes == 0 ? hour(hours) : '${hour(hours)} ${min(restMinutes)}';
+}
+
+/// Kalan süre, kaba ve okunur: 5 sn'lik basamaklar, sonra dakika, sonra saat.
+/// Tahmin zaten kaba; "1 dk 37 sn kaldı" sahte bir kesinlik verir ve her
+/// karede titrerdi.
+String roughDuration(Duration d) {
+  final s = AppStrings.current;
+  final seconds = d.inSeconds;
+  if (seconds < 60) {
+    final rounded = ((seconds / 5).round() * 5).clamp(5, 55);
+    return s.t('dur.sec', {'n': rounded});
+  }
+  final minutes = (seconds / 60).round();
+  if (minutes < 60) return s.t('dur.min', {'n': minutes});
+  return s.t('dur.hour', {'n': (minutes / 60).round()});
+}
+
+/// Ölçülen hızdan **kalan süre** metni ("~2 dk kaldı"); tahmin güvenilir
+/// değilse boş. Saf → birim testli.
+///
+/// İlk saniyelerde ve %2'nin altında tahmin YAZILMAZ: yanlış süre yazmak hiç
+/// yazmamaktan kötü (kullanıcı "10 dk" görüp 1 dk'da bitince ya da tersi,
+/// sayaca bir daha güvenmez).
+String etaText(Duration elapsed, double ratio) {
+  final left = estimateRemaining(elapsed, ratio);
+  if (left == null) return '';
+  return AppStrings.current.t('job.eta', {'time': roughDuration(left)});
+}
+
+/// [etaText]in sayısal hâli; tahmin yoksa null.
+Duration? estimateRemaining(Duration elapsed, double ratio) {
+  if (ratio <= 0.02 || ratio >= 1) return null;
+  if (elapsed.inSeconds < 3) return null;
+  final totalMs = elapsed.inMilliseconds / ratio;
+  final leftMs = (totalMs - elapsed.inMilliseconds).round();
+  if (leftMs <= 0) return null;
+  return Duration(milliseconds: leftMs);
 }
 
 /// İşin gövdesine verilen tutamak: ilerleme bildirir, iptal isteğini okur.
@@ -446,6 +563,7 @@ class JobHandle {
     if (total != null) _job.total = total;
     if (detail != null) _job.detail = detail;
     if (unit != null) _job.unit = unit.clamp(0.0, 1.0);
+    _job.noteProgress();
     _queue._tick(_job);
   }
 
@@ -469,6 +587,44 @@ class JobHandle {
   void throwIfCancelled() {
     if (cancelled) throw const JobCancelled();
   }
+}
+
+/// [JobQueue.track]in döndürdüğü tutamak: ilerleme bildirir ve işi bitirir.
+class TrackedJob {
+  final FmJob job;
+  final JobQueue _queue;
+  TrackedJob._(this.job, this._queue);
+
+  String get id => job.id;
+
+  /// Kullanıcı şeritten / bildirimden / İşlemler'den "Durdur" dedi mi?
+  bool get cancelRequested => job.cancelRequested;
+
+  bool get isActive => job.status.isActive;
+
+  void report({int? done, int? total, String? detail, double? unit}) {
+    if (!job.status.isActive) return;
+    if (done != null && done != job.done) {
+      job.done = done;
+      job.unit = 0;
+    }
+    if (total != null) job.total = total;
+    if (detail != null) job.detail = detail;
+    if (unit != null) job.unit = unit.clamp(0.0, 1.0);
+    job.noteProgress();
+    _queue._tick(job);
+  }
+
+  /// Başarıyla bitti; [detail] sonucun özeti ("12 öğe kopyalandı").
+  Future<void> complete({String? detail, bool quiet = false}) =>
+      _queue._endTracked(job, JobStatus.done, detail: detail, quiet: quiet);
+
+  Future<void> fail(Object error, {bool quiet = false}) => _queue._endTracked(
+      job, JobStatus.failed, error: '$error', quiet: quiet);
+
+  Future<void> stopped({String? detail, bool quiet = false}) =>
+      _queue._endTracked(job, JobStatus.cancelled,
+          detail: detail ?? '', quiet: quiet);
 }
 
 /// İş gövdesinden atılırsa iş "iptal edildi" sayılır (hata değil).
@@ -558,14 +714,34 @@ class JobQueue extends ChangeNotifier {
 
   List<FmJob> get activeJobs => _jobs.where((j) => j.status.isActive).toList();
 
+  /// Süren işlerden EN ÖNCE başlayanı — şerit ve bildirim bunu gösterir
+  /// (kuyruk işi ile izlenen bir kopyalama aynı anda sürebilir; bildirim iki
+  /// iş arasında gidip gelmesin diye "birincil" iş sabit).
   FmJob? get currentJob {
+    FmJob? first;
     for (final j in _jobs) {
-      if (j.status == JobStatus.running) return j;
+      if (j.status != JobStatus.running) continue;
+      if (first == null || j.startedAtMs < first.startedAtMs) first = j;
     }
-    return null;
+    return first;
   }
 
   bool get hasActive => activeJobs.isNotEmpty;
+
+  /// Sistem bildirimini kendi gösteren işler (indirmeler) hariç süren iş var
+  /// mı? Ön plan servisi bunlar için tutulur.
+  bool get _hasNotifiable =>
+      _jobs.any((j) => j.status.isActive && !j.ownNotification);
+
+  /// Bildirimdeki birincil iş: en önce başlayan, bildirimini bize bırakan iş.
+  FmJob? get _notifiablePrimary {
+    FmJob? first;
+    for (final j in _jobs) {
+      if (j.status != JobStatus.running || j.ownNotification) continue;
+      if (first == null || j.startedAtMs < first.startedAtMs) first = j;
+    }
+    return first;
+  }
 
   /// Bitmiş işler, yeniden eskiye.
   List<FmJob> get finishedJobs => [
@@ -637,6 +813,90 @@ class JobQueue extends ChangeNotifier {
     _persist();
     unawaited(_pump());
     return job;
+  }
+
+  /// **İzlenen iş** — kuyruğa GİRMEZ, kendi akışında koşar; yalnız şerit,
+  /// İşlemler ekranı ve sistem bildirimi (ön plan servisiyle) onu görür.
+  ///
+  /// Kullanıcı 2026-10-18: *"uygulamanın yaptığı tüm işlemler ne yapıyor, ne
+  /// zaman bitecek, ne kadar sürecek, ne olacak … hem ana ekranda hem
+  /// bildirim alanında gösterilmeli"*. Kopyala/taşı/sil/sıkıştır/çıkar ve
+  /// Drive'a yükleme kuyruğun dışındaydı: "Arka plana al" deyince yalnız
+  /// uygulama içi bir şerit kalıyordu — bildirimde ve ana ekranda iz yoktu,
+  /// ön plan servisi de korumadığı için uygulamadan çıkınca Android işi
+  /// dondurabiliyordu. Kuyruğa sokmak çözüm değildi: işler sırayla koşuyor ve
+  /// küçük bir kopyalama on dakikalık bir AI çözümlemesinin arkasında
+  /// beklerdi; ayrıca bu akışlar sonucu çağırana döndürüyor.
+  ///
+  /// Dönen [TrackedJob] ile ilerleme bildirilir ve iş bitirilir; kullanıcının
+  /// şeritten/bildirimden "Durdur"u [TrackedJob.cancelRequested]e düşer.
+  TrackedJob track({
+    String? id,
+    required String title,
+    String? name,
+    String detail = '',
+    int total = 0,
+    int done = 0,
+    FmJobTarget? target,
+    int? startedAtMs,
+    bool ownNotification = false,
+  }) {
+    final jobId = id ?? 'tracked_${DateTime.now().microsecondsSinceEpoch}';
+    _jobs.removeWhere((j) => j.id == jobId && !j.status.isActive);
+    final job = FmJob(
+      id: jobId,
+      title: title,
+      name: name,
+      detail: detail,
+      total: total,
+      done: done,
+      status: JobStatus.running,
+      target: target,
+    )
+      ..tracked = true
+      ..ownNotification = ownNotification
+      ..startedAtMs = startedAtMs ?? DateTime.now().millisecondsSinceEpoch;
+    job.noteProgress();
+    _jobs.add(job);
+    _trimHistory();
+    notifyListeners();
+    _persist();
+    unawaited(_report(job));
+    return TrackedJob._(job, this);
+  }
+
+  /// İzlenen işi bitirir: durum + son satır, sonuç bildirimi (sessiz değilse),
+  /// servis sahipliği (başka iş yoksa).
+  Future<void> _endTracked(FmJob job, JobStatus status,
+      {String? detail, String? error, bool quiet = false}) async {
+    if (!job.status.isActive) return;
+    job.status = status;
+    if (detail != null) job.detail = detail;
+    job.error = error;
+    job.finishedAtMs = DateTime.now().millisecondsSinceEpoch;
+    job.quietFinish = quiet;
+    // Kullanıcı sonucu penceresinde gördüyse şeritte bir daha durmasın
+    // (İşlemler geçmişinde kalır).
+    if (quiet) job.dismissed = true;
+    _trimHistory();
+    notifyListeners();
+    _persist();
+    await _finish(job);
+    await _afterJobEnded();
+  }
+
+  /// Bir iş bitti: başka süren iş varsa servis bildirimi ONU göstersin, yoksa
+  /// servis sahipliği bırakılsın.
+  Future<void> _afterJobEnded() async {
+    final next = _notifiablePrimary;
+    if (next != null) {
+      await _report(next);
+      return;
+    }
+    if (_busy || _hasNotifiable) return;
+    try {
+      await reporter?.onIdle();
+    } catch (_) {}
   }
 
   /// Yarıda kalan / başarısız olan işi **kaldığı yerden yeniden başlatır**.
@@ -755,12 +1015,19 @@ class JobQueue extends ChangeNotifier {
         notifyListeners();
         _persist();
         await _finish(job);
+        // Aynı anda izlenen bir iş sürüyorsa servis bildirimi ona geçer.
+        final other = _notifiablePrimary;
+        if (other != null) unawaited(_report(other));
       }
     } finally {
       _busy = false;
-      try {
-        await reporter?.onIdle();
-      } catch (_) {}
+      // Servis yalnız HİÇBİR iş kalmadıysa bırakılır: kuyruk boşaldı diye
+      // süren bir kopyalamanın arka plan koruması düşmesin.
+      if (!_hasNotifiable) {
+        try {
+          await reporter?.onIdle();
+        } catch (_) {}
+      }
     }
   }
 
@@ -779,14 +1046,20 @@ class JobQueue extends ChangeNotifier {
   }
 
   Future<void> _report(FmJob job) async {
+    // Bildirimde hep BİRİNCİL iş (en önce başlayan) durur; ikinci iş kendi
+    // ilerlemesini bildirince bildirim ona atlayıp geri dönmesin.
+    final primary = _notifiablePrimary ??
+        (job.ownNotification || !job.status.isActive ? null : job);
+    if (primary == null) return; // yalnız kendi bildirimi olan işler sürüyor
     try {
-      await reporter?.onProgress(job);
+      await reporter?.onProgress(primary);
     } catch (_) {
       // Bildirim gösterilemedi (izin yok / platform desteklemiyor): iş sürsün.
     }
   }
 
   Future<void> _finish(FmJob job) async {
+    if (job.ownNotification) return; // sonucu kendi bildirimi söylüyor
     try {
       await reporter?.onFinished(job);
     } catch (_) {}

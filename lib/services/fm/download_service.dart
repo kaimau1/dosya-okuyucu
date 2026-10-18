@@ -10,6 +10,8 @@ import '../../models/download_task.dart';
 import 'file_ops.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
+import 'fs_scan.dart' show FsPaths;
+import 'job_queue.dart';
 
 /// **İndirme yöneticisi** — bağlantıdan dosya indirir, **uygulama kapalıyken
 /// bile devam eder**, ilerlemeyi bildirir, duraklatma/sürdürme yapar.
@@ -127,8 +129,10 @@ class DownloadService extends ChangeNotifier {
       // bildirimden duraklatıp sürdürebilir. Android 13+ bildirim izni
       // istenmezse indirme yine çalışır, yalnız bildirim görünmez.
       downloader.configureNotification(
+        // Canlı: yüzde, hız ve KALAN SÜRE (kullanıcı 2026-10-18: "ne zaman
+        // bitecek … bildirim alanında gösterilmeli").
         running: bg.TaskNotification(
-            '{filename}', AppStrings.current.t('dsv.downloading')),
+            '{filename}', AppStrings.current.t('dsv.downloading_live')),
         complete: bg.TaskNotification(
             '{filename}', AppStrings.current.t('dsv.downloaded')),
         paused: bg.TaskNotification(
@@ -371,8 +375,71 @@ class DownloadService extends ChangeNotifier {
     _tasks[index] = change(_tasks[index]).copyWith(
       updatedMs: DateTime.now().millisecondsSinceEpoch,
     );
+    _mirror(_tasks[index]);
     notifyListeners();
     unawaited(_persist());
+  }
+
+  // ── iş sistemine yansıtma ─────────────────────────────────────────────────
+  //
+  // Kullanıcı 2026-10-18: *"tüm işlemler … ne yapıyor, ne zaman bitecek …
+  // hem ana ekranda hem bildirim alanında gösterilmeli"*. İndirme sistem
+  // bildirimini eklentiden alıyor ama ana ekran şeridinde ve İşlemler'de
+  // görünmüyordu. Süren her indirme bir İZLENEN İŞ olarak yansıtılır
+  // (`ownNotification`: ikinci bir bildirim açılmaz — eklentininki yeter);
+  // şeritteki "Durdur" indirmeyi iptal eder.
+
+  final Map<String, TrackedJob> _mirrors = {};
+  bool _watchingJobs = false;
+
+  void _mirror(DownloadTask task) {
+    final str = AppStrings.current;
+    final existing = _mirrors[task.id];
+    final speed = task.bytesPerSecond > 0
+        ? ' · ${str.t('dsv.speed', {'speed': FsPaths.humanSize(task.bytesPerSecond)})}'
+        : '';
+    switch (task.state) {
+      case DownloadState.queued:
+      case DownloadState.running:
+        final job = existing ??
+            (_mirrors[task.id] = JobQueue.instance.track(
+              id: 'dl_${task.id}',
+              title: str.t('dsv.downloading'),
+              name: str.t('dsv.job_name'),
+              target: FmJobTarget.files([task.destPath]),
+              ownNotification: true,
+            ));
+        job.report(
+          done: task.received < 0 ? 0 : task.received,
+          total: task.hasTotal ? task.total : 0,
+          detail: '${task.fileName}$speed',
+        );
+        if (!_watchingJobs) {
+          _watchingJobs = true;
+          JobQueue.instance.addListener(_onJobs);
+        }
+      case DownloadState.completed:
+        _mirrors.remove(task.id);
+        unawaited(existing?.complete(
+            detail: '${task.fileName} · ${FsPaths.humanSize(task.received)}'));
+      case DownloadState.paused:
+        _mirrors.remove(task.id);
+        unawaited(existing?.stopped(
+            detail: '${task.fileName} · ${str.t('enum.dl_paused')}'));
+      case DownloadState.canceled:
+        _mirrors.remove(task.id);
+        unawaited(existing?.stopped(detail: task.fileName));
+      case DownloadState.failed:
+        _mirrors.remove(task.id);
+        unawaited(existing?.fail(task.error ?? str.t('dsv.failed')));
+    }
+  }
+
+  /// Şeritten / İşlemler'den "Durdur" → indirme iptal.
+  void _onJobs() {
+    for (final entry in _mirrors.entries.toList()) {
+      if (entry.value.cancelRequested) unawaited(cancel(entry.key));
+    }
   }
 
   @override
