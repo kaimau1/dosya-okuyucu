@@ -12590,3 +12590,5 @@ eşik/promote/summarize), `tracked_busy_test` (kısa işte iz yok; uzun işte ge
 **Cihazda bakılacak:** büyük kopyalama "Arka plana al" → bildirimde "%NN · ~X kaldı" + kronometre,
 uygulamadan çıkınca da sürüyor mu; indirme bildiriminde hız/kalan süre; şeritte iki iş aynı anda
 ("+1 işlem daha"); AI özeti penceresinde geçen süre; SD "Şimdi taşı" şeritte sonuçla bitiyor mu.
+**Derleme:** 1. tur → v1.0.376 (`3070774`), 2. tur → **v1.0.377** (`1261308`), "APK Derle & Release"
+#376 ve #377 yeşil (~10 dk); 64-bit `dosya-okuyucu.apk` ~78 MB, 32-bit ayrı.
