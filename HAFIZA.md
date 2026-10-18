@@ -12751,3 +12751,4 @@ graphify bu ortamda yok → `graphify update .` yerelde koşturulmalı.
 tarama açılıyor mu; günlük işin bildirimi (test için son ödemesi 2 gün sonra olan bir fatura);
 parmak iziyle kasa; QR'ı bilgisayarın/başka telefonun kamerasıyla okutup tarayıcıdan dosya
 gönderme; Anılar → İnsanlar taraması süresi; ML Kit yüz modelinin Play Hizmetleri'nden inmesi.
+**Derleme:** `4d4ba1d` → **v1.0.379**, "APK Derle & Release" #379 yeşil (~13 dk) — yerel ekler (Extras.kt, widget kaynakları, yüz modeli ikamesi) ilk denemede derlendi.
