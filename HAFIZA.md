@@ -12658,3 +12658,4 @@ graphify bu bulut oturumunda kurulu değildi → `graphify update .` koşturulma
 **Cihazda bakılacak:** rehber ilk taramada çıkıyor mu; Gün batımı rozetleri / Grafit tek renk
 panoda nasıl duruyor; bellek panosu dar telefonda kırpılmadan sığıyor mu; alt çubuğa 6 sekme
 ekleyip basılı tutma ile düzenleme.
+**Derleme:** `90be53b` → **v1.0.378**, "APK Derle & Release" #378 yeşil (~13 dk).
