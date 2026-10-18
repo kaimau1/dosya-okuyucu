@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../models/fs_entry.dart';
 import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_apply.dart';
 import '../../services/fm/ai_ask.dart';
@@ -34,6 +35,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/ai_file_list.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
 import '../settings_screen.dart';
 import '../chat_screen.dart';
 import 'ai_files_screen.dart';
@@ -790,18 +792,23 @@ class _Bubble extends StatelessWidget {
                 style: TextStyle(fontSize: 11, color: Paper.faint(context)),
               ),
               const SizedBox(height: Gap.xs),
-              Wrap(
-                spacing: Gap.xs,
-                runSpacing: Gap.xs,
-                children: [
-                  for (final source in message.sources)
-                    ActionChip(
-                      avatar: const Icon(Icons.insert_drive_file_outlined,
-                          size: 16),
-                      label: Text(source.name, overflow: TextOverflow.ellipsis),
-                      onPressed: () => EntryOpener.open(context, source.path),
-                    ),
-                ],
+              // **Önizlemeli kaynaklar** (2026-10-18, kullanıcı ekran
+              // görüntüsüyle: *"fatura diye AI'ya sordum, sadece ad verdi;
+              // direkt görüntüler önizleme şeklinde olmalı — PDF, video
+              // hepsi öyle"*). Eskiden yalnız adı yazan çipler vardı; on
+              // faturanın hangisi olduğu ancak açınca anlaşılıyordu. Şimdi
+              // her kaynak bir kart: PDF'in kapak sayfası, fotoğrafın
+              // kendisi, videonun karesi, APK'nın simgesi (gezgindeki aynı
+              // küçük resim hattı — `FmEntryIcon`), altında adı.
+              SizedBox(
+                height: 150,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: message.sources.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
+                  itemBuilder: (context, i) =>
+                      _SourcePreview(record: message.sources[i]),
+                ),
               ),
             ],
           ],
@@ -1379,6 +1386,79 @@ class _EmptyHint extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// AI cevabındaki bir kaynak dosyanın önizleme kartı.
+class _SourcePreview extends StatelessWidget {
+  final AiRecord record;
+  const _SourcePreview({required this.record});
+
+  static const _thumb = 104.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final entry = AiBuckets.entryOf(record);
+    final isVideo = entry.category == FmCategory.video;
+    return SizedBox(
+      width: _thumb,
+      child: Material(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => EntryOpener.open(context, record.path),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: _thumb,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: scheme.surfaceContainerHigh,
+                        child: Center(
+                          child: FmEntryIcon(
+                            entry: entry,
+                            size: _thumb,
+                            radius: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (isVideo)
+                      Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0x88000000),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: const Icon(Icons.play_arrow_rounded,
+                            color: Colors.white, size: 26),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
+                  child: Text(
+                    record.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(height: 1.15),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

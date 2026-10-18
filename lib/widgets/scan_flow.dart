@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
@@ -38,6 +39,7 @@ class ScanFlow {
   /// Taramayı çalıştırır. Üretilen PDF'in yolunu döndürür (iptal edilirse null).
   /// [open] true ise sonunda tarama stüdyosu açılır.
   static Future<String?> run(BuildContext context, {bool open = true}) async {
+    if (!await showTipsIfNeeded(context) || !context.mounted) return null;
     List<String>? scanned;
     try {
       scanned = await DocumentScanner.scanPages();
@@ -140,6 +142,50 @@ class ScanFlow {
     return path;
   }
 
+  static const _kTipsShown = 'scan_tips_shown';
+
+  /// Rehber kaç taramada kendiliğinden çıkar (sonra hiç çıkmaz).
+  static const tipsAutoShowLimit = 3;
+
+  /// **Taramadan önce kısa rehber** (2026-10-18, kullanıcı ekran
+  /// görüntüsüyle: *"sayfa ekle daha açıklayıcı olmalı, insanlar sayfa
+  /// eklemek için Sonraki'ye basıyor ve ekleyemiyor"*).
+  ///
+  /// Tarama ekranı Google ML Kit'in KENDİ arayüzü (bkz. `DocumentScanner`):
+  /// düğmelerine, yazılarına, yerleşimine koddan dokunulamıyor — sağ alttaki
+  /// "sayfa ekle" simgesi yazısız, "Sonraki" ise taramayı BİTİRİYOR. Yapılabilen
+  /// tek şey kullanıcıyı o ekrana girmeden önce hazırlamak: hangi düğmenin ne
+  /// yaptığı, ML Kit ekranındaki görünüşüyle çizilir. İlk [tipsAutoShowLimit]
+  /// taramada çıkar; "Bir daha gösterme" ile hemen kapanır. Ayrıca stüdyodaki
+  /// "Sayfa ekle" kutusu, Sonraki'ye erken basanın geri dönüş yolu.
+  ///
+  /// `false` = kullanıcı vazgeçti (taramaya girilmez).
+  static Future<bool> showTipsIfNeeded(BuildContext context) async {
+    var shown = 0;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      shown = prefs.getInt(_kTipsShown) ?? 0;
+    } catch (_) {}
+    if (shown >= tipsAutoShowLimit || !context.mounted) return true;
+    final result = await _showScanTips(context);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+          _kTipsShown, result == _TipsResult.never ? 999 : shown + 1);
+    } catch (_) {}
+    return result != null;
+  }
+
+  /// Rehberi her durumda gösterir. `null` = kapatıldı/vazgeçildi.
+  static Future<_TipsResult?> _showScanTips(BuildContext context) =>
+      showModalBottomSheet<_TipsResult>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: true,
+        builder: (ctx) => const _ScanTipsSheet(),
+      );
+
   /// İlerleme penceresini açar ve **onu kapatacak tutamağı** döner (bkz.
   /// `core/busy_dialog.dart` — `Navigator.pop` arkadaki sayfayı kapatabilir).
   static BusyDialog _showProgress(BuildContext context,
@@ -188,5 +234,129 @@ class ScanFlow {
 
   static void _snack(BuildContext context, String msg) {
     showSnack(context, msg);
+  }
+}
+
+enum _TipsResult { start, never }
+
+/// Rehber sayfası: ML Kit ekranının üç düğmesi, o ekrandaki görünüşleriyle.
+class _ScanTipsSheet extends StatelessWidget {
+  const _ScanTipsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    // ML Kit ekranının kendi renkleri (koyu zemin, açık mavi düğmeler):
+    // kullanıcı rehberdeki düğmeyi o ekranda AYNI görünüşle tanısın.
+    const mlDark = Color(0xFF1F1F1F);
+    const mlBlue = Color(0xFFA8C7FA);
+    const mlDeep = Color(0xFF0B57D0);
+    Widget step(Widget visual, String title, String body) => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 92, child: Center(child: visual)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: theme.textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(body,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: scheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.t('sf.tips_title'), style: theme.textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text(context.t('sf.tips_sub'),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 18),
+          step(
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.document_scanner_outlined,
+                  color: scheme.onPrimaryContainer, size: 28),
+            ),
+            context.t('sf.tip1_title'),
+            context.t('sf.tip1_body'),
+          ),
+          step(
+            // ML Kit'in "sayfa ekle" düğmesi: koyu mavi yuvarlak kare,
+            // içinde artılı sayfa — yazısız olduğu için gözden kaçıyor.
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: mlDeep.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(Icons.note_add_outlined,
+                      color: Colors.white, size: 30),
+                ),
+                const Positioned(
+                  right: -10,
+                  bottom: -10,
+                  child: Icon(Icons.touch_app_rounded,
+                      size: 30, color: Color(0xFFF57C00)),
+                ),
+              ],
+            ),
+            context.t('sf.tip2_title'),
+            context.t('sf.tip2_body'),
+          ),
+          step(
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: mlBlue,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Text(context.t('sf.tip_next_label'),
+                  style: const TextStyle(
+                      color: mlDark, fontWeight: FontWeight.w600)),
+            ),
+            context.t('sf.tip3_title'),
+            context.t('sf.tip3_body'),
+          ),
+          const SizedBox(height: 6),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(50)),
+            onPressed: () => Navigator.pop(context, _TipsResult.start),
+            icon: const Icon(Icons.document_scanner_outlined),
+            label: Text(context.t('sf.tips_start')),
+          ),
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _TipsResult.never),
+            child: Text(context.t('sf.tips_never')),
+          ),
+        ],
+      ),
+    );
   }
 }

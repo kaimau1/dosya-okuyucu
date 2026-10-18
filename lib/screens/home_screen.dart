@@ -10,17 +10,31 @@ import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../models/download_task.dart';
+import '../models/fs_entry.dart';
 import '../services/fm/app_storage_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/incoming_files.dart';
+import '../services/fm/media_library.dart';
+import '../services/fm/nav_tabs.dart';
 import '../widgets/fm/job_progress_bar.dart';
+import '../widgets/fm/nav_tabs_sheet.dart';
 import '../services/fm/fm_env.dart';
 import '../services/fm/home_shortcuts.dart';
+import 'fm/ai_hub_screen.dart';
 import 'fm/browser_screen.dart';
+import 'fm/category_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'fm/download_manager_screen.dart';
 import 'fm/downloads_screen.dart';
+import 'fm/drive_screen.dart';
+import 'fm/important_screen.dart';
+import 'fm/installed_apps_screen.dart';
+import 'fm/jobs_screen.dart';
 import 'fm/new_files_screen.dart';
+import 'fm/open_history_screen.dart';
+import 'fm/photos_screen.dart';
+import 'fm/search_screen.dart';
+import 'fm/trash_screen.dart';
 
 /// Uygulama kabuğu: alt gezinme çubuğuyla üç bölme —
 /// **Dosyalar** (dosya yöneticisi panosu), **İndirilenler**, **Yeni Dosyalar**.
@@ -38,6 +52,10 @@ import 'fm/new_files_screen.dart';
 /// hangi Word'ü açmıştım?"tan çok daha sık soruluyor. Açılmış belgeler
 /// kaybolmuyor — panodaki **Son açılanlar** kutusu aynı kaydı gösteriyor.
 ///
+/// **2026-10-18:** sekmeler artık KULLANICININ (bkz. [NavTabs]): Dosyalar
+/// sabit ilk sekme, yanına en fazla beş kısayol — Görüntüler, Belgeler, Çöp
+/// kutusu, AI… Çubuğa basılı tutmak düzenleme sayfasını açar.
+///
 /// Kabuk aynı zamanda "birlikte aç"/paylaş ile gelen dosyaları yakalar; bu iş
 /// eskiden son-belgeler ekranındaydı, artık hangi sekme açık olursa olsun
 /// çalışır.
@@ -54,11 +72,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _tab = 0;
+  /// Açık sekmenin KİMLİĞİ (konum değil: kullanıcı çubuğu yeniden dizince
+  /// açık sekme yer değiştirmesin).
+  String _tab = NavTabs.home;
 
-  /// Kurulmuş sekmeler: İndirilenler ilk kez seçilene dek kurulmaz (açılışta
-  /// klasörün tamamını taramasın).
-  final Set<int> _built = {0};
+  /// Kurulmuş sekmeler: bir sekme ilk kez seçilene dek kurulmaz (açılışta
+  /// İndirilenler klasörünün tamamını taramasın, galeri yüklenmesin).
+  final Set<String> _built = {NavTabs.home};
   StreamSubscription<List<SharedMediaFile>>? _intentSub;
 
   /// Açılışta "başlangıç klasörü" YALNIZ BİR KEZ açılır.
@@ -72,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    NavTabs.instance.addListener(_onTabsChanged);
+    unawaited(NavTabs.instance.ensureLoaded());
     _initShareIntake();
     // Ana ekran kısayolları: uygulama açıkken dokunulursa itilir, kısayolla
     // AÇILDIYSA yol bir kez sorulur (bkz. HomeShortcuts).
@@ -117,8 +139,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+  /// Açık sekme çubuktan çıkarıldıysa panoya dönülür; kurulmuş ama artık
+  /// çubukta olmayan sekmeler bırakılır (bellekte boşuna durmasın).
+  void _onTabsChanged() {
+    if (!mounted) return;
+    final tabs = NavTabs.instance.tabs;
+    setState(() {
+      if (!tabs.contains(_tab)) _tab = NavTabs.home;
+      _built.retainAll(tabs);
+      _built.add(NavTabs.home);
+    });
+  }
+
   @override
   void dispose() {
+    NavTabs.instance.removeListener(_onTabsChanged);
     _intentSub?.cancel();
     super.dispose();
   }
@@ -190,29 +225,29 @@ class _HomeScreenState extends State<HomeScreen> {
     // kapatır. `canPop` yalnız 0. sekmede true — orada sistem normal çıkışı
     // yapar (yığında başka sayfa varsa Navigator zaten onu açar).
     return PopScope(
-      canPop: _tab == 0,
+      canPop: _tab == NavTabs.home,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop || _tab == 0) return;
-        setState(() => _tab = 0);
+        if (didPop || _tab == NavTabs.home) return;
+        setState(() => _tab = NavTabs.home);
       },
       child: _scaffold(context),
     );
   }
 
   Widget _scaffold(BuildContext context) {
+    final tabs = NavTabs.instance.tabs;
+    final index = tabs.indexOf(_tab);
     return Scaffold(
       body: IndexedStack(
-        index: _tab,
+        index: index < 0 ? 0 : index,
         children: [
-          // active: pano yalnız görünürken yeniden tarar (bkz. FsEvents).
-          DashboardScreen(active: _tab == 0),
-          if (_built.contains(1)) _downloadsTab() else const SizedBox(),
-          // active: `IndexedStack` çocuğu ayakta tutar; sekmeye dönünce liste
-          // kendini tazelesin (bkz. `NewFilesScreen.active`).
-          if (_built.contains(2))
-            NewFilesScreen(active: _tab == 2)
-          else
-            const SizedBox(),
+          // Anahtar = sekme kimliği: çubuk yeniden dizilince her ekran kendi
+          // durumunu (kaydırma, seçim) korur, komşusununkini almaz.
+          for (final id in tabs)
+            KeyedSubtree(
+              key: ValueKey('tab-$id'),
+              child: _built.contains(id) ? _tabBody(id) : const SizedBox(),
+            ),
         ],
       ),
       // Süren işlerin şeridi gezinme çubuğunun **üstünde**: kullanıcı hangi
@@ -223,34 +258,107 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const JobProgressBar(),
-          NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() {
-          _tab = i;
-          _built.add(i);
-        }),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.folder_outlined),
-            selectedIcon: const Icon(Icons.folder),
-            label: context.t('home.tab_files'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.download_outlined),
-            selectedIcon: const Icon(Icons.download_rounded),
-            label: context.t('fm.downloads'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.move_to_inbox_outlined),
-            selectedIcon: const Icon(Icons.move_to_inbox),
-            label: context.t('fm.new_files'),
-          ),
-        ],
-          ),
+          // Tek sekme kaldıysa çubuk çizilmez (Material en az iki ister) —
+          // düzenleme sayfası Ayarlar'dan ve "Ana ekranı düzenle"den açılır.
+          if (tabs.length > 1)
+            // **Basılı tut = düzenle**: kullanıcı kısayolu çubuğun
+            // kendisinde arar.
+            GestureDetector(
+              onLongPress: () => showNavTabsSheet(context),
+              child: NavigationBar(
+                selectedIndex: index < 0 ? 0 : index,
+                // 5-6 sekmede etiketler sıkışıyor: yalnız seçilinin adı
+                // yazılır (Material'ın kendi önerisi).
+                labelBehavior: tabs.length > 4
+                    ? NavigationDestinationLabelBehavior.onlyShowSelected
+                    : NavigationDestinationLabelBehavior.alwaysShow,
+                onDestinationSelected: (i) => setState(() {
+                  _tab = tabs[i];
+                  _built.add(_tab);
+                }),
+                destinations: [
+                  for (final id in tabs)
+                    () {
+                      final spec = navTabSpec(context, id);
+                      return NavigationDestination(
+                        icon: Icon(spec.icon),
+                        selectedIcon: Icon(spec.selected),
+                        label: spec.label,
+                        // Boş ipucu: hedefin kendi ipucu da basılı tutmayı
+                        // dinliyor ve çubuğun "basılı tut = düzenle"sini
+                        // yutuyordu.
+                        tooltip: '',
+                      );
+                    }(),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
+
+  /// Bir sekmenin ekranı. Kategori sekmeleri panonun önbelleğiyle ANINDA
+  /// dolar, eksiksiz liste arka planda gelir (panodaki kutuyla aynı yol).
+  Widget _tabBody(String id) {
+    switch (id) {
+      case NavTabs.home:
+        // active: pano yalnız görünürken yeniden tarar (bkz. FsEvents).
+        return DashboardScreen(active: _tab == NavTabs.home);
+      case 'downloads':
+        return _downloadsTab();
+      case 'new':
+        // active: `IndexedStack` çocuğu ayakta tutar; sekmeye dönünce liste
+        // kendini tazelesin (bkz. `NewFilesScreen.active`).
+        return NewFilesScreen(active: _tab == 'new');
+      case 'image':
+      case 'video':
+        final category = id == 'image' ? FmCategory.image : FmCategory.video;
+        return PhotosScreen(
+          title: category.label,
+          scopeId: 'depolama-${category.name}',
+          files: DashboardScreen.cachedFiles(category),
+          loadAll: () => _loadAll(category),
+        );
+      case 'document':
+      case 'audio':
+      case 'archive':
+      case 'apk':
+        final category = switch (id) {
+          'document' => FmCategory.document,
+          'audio' => FmCategory.audio,
+          'archive' => FmCategory.archive,
+          _ => FmCategory.apk,
+        };
+        return CategoryScreen(
+          title: id == 'apk' ? context.t('fm.apk_files') : category.label,
+          files: DashboardScreen.cachedFiles(category),
+          showDocKinds: category == FmCategory.document,
+          loadAll: () => _loadAll(category),
+        );
+      case 'important':
+        return const ImportantScreen();
+      case 'recent':
+        return const OpenHistoryScreen();
+      case 'search':
+        return SearchScreen(rootLabel: context.t('fm.all_files'));
+      case 'ai':
+        return const AiHubScreen();
+      case 'jobs':
+        return const JobsScreen();
+      case 'trash':
+        return const TrashScreen();
+      case 'drive':
+        return const DriveScreen();
+      case 'apps':
+        return const InstalledAppsScreen();
+    }
+    return const SizedBox();
+  }
+
+  Future<List<FsEntry>> _loadAll(FmCategory category) =>
+      MediaLibrary.categoryFiles(category,
+          lockedFolders: context.read<AppState>().fmLockedFolders);
 
   /// İndirilenler sekmesi. Klasör yoksa (ilk kurulum, alışılmadık cihaz)
   /// kullanıcı boş bir ekranla değil açıklamayla karşılanır.

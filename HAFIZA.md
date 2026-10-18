@@ -12592,3 +12592,69 @@ uygulamadan çıkınca da sürüyor mu; indirme bildiriminde hız/kalan süre; �
 ("+1 işlem daha"); AI özeti penceresinde geçen süre; SD "Şimdi taşı" şeritte sonuçla bitiyor mu.
 **Derleme:** 1. tur → v1.0.376 (`3070774`), 2. tur → **v1.0.377** (`1261308`), "APK Derle & Release"
 #376 ve #377 yeşil (~10 dk); 64-bit `dosya-okuyucu.apk` ~78 MB, 32-bit ayrı.
+
+## 2026-10-18 — Tarama rehberi, 5 yeni tema + simge dilleri, bellek panosu, özelleştirilebilir alt çubuk
+
+**İstek (ekran görüntüleriyle):** *"tarama ekranında alttaki düğmeler tek alana sığmalı ve sayfa
+ekle daha açıklayıcı olmalı, insanlar sayfa eklemek için Sonraki'ye basıyor ve ekleyemiyor ·
+güzel temalar ekle ve temalar simgeleri de değiştirsin · ana sayfada üst alandaki bellek analizi
+ve ana bellek butonlarını sevmiyorum, tamamen baştan tasarla · alt alandaki hızlı erişim
+butonları değiştirilebilir olsun, sayı sınırı 6"* — sonra main'e birleştir, APK derlensin.
+
+### A) Tarama — SINIR: işaretlenen ekran ML Kit'in KENDİ arayüzü
+- "İyileştirme / Filtreler / Kırp ve döndür / Taramayı sil / Sonraki" + sağ alttaki artılı sayfa
+  düğmesi GMS belge tarayıcısının ekranı (`cunning_document_scanner` → Play Services). Düğme
+  yerleşimine/yazısına koddan dokunulamıyor (2026-07-25 §C'deki sınırın aynısı). **REDDEDİLEN
+  yol:** kendi kamera+kırpma ekranımızı yazmak (kenar tespiti modeli bakımı, ~10 kat iş).
+- Çözüm: `ScanFlow.showTipsIfNeeded` — ML Kit açılmadan ÖNCE kısa rehber; üç düğme ML Kit'teki
+  görünüşleriyle çizili (koyu mavi artılı sayfa = yeni sayfa, açık mavi "Sonraki" = BİTİRİR).
+  İlk 3 taramada kendiliğinden (`scan_tips_shown` sayacı), "Anladım, bir daha gösterme" → 999.
+  Vazgeçilirse tarama açılmaz.
+- Stüdyoda (`scan_result_screen._thumbStrip`) "+" karesi → yazılı, vurgulu **"Sayfa ekle"**
+  kutusu (84 dp, primaryContainer): Sonraki'ye erken basanın geri dönüş yolu.
+
+### B) Tema aileleri 5 → 10 ve **simge dili** (`SkinIconStyle`)
+- Yeni aileler: Okyanus (çift ton), Gün batımı (rozet), Orman (degrade, yeşil klasör),
+  Gül (çift ton), Grafit (tek renk, keskin). Her biri açık + koyu palet.
+- `SkinMetrics.outlinedIcons` alanı → `iconStyle` (gradient/outlined/badge/duotone/mono) +
+  `folderColor`; `outlinedIcons` artık getter (outlined || mono). Stil TEK yerde uygulanır:
+  `FmTintedIcon` (pano kutuları, araçlar, ayar kategorileri). Klasör rengi `FmColors.glyphFor
+  (folderColor:)` ile dosya listesindeki çizilmiş klasöre de geçer (`context.fmFolderColor`).
+- Modern artık mor klasör, İş programı mavi klasör (bilinçli: "tema simgeleri de değiştirsin").
+  Kağıt/Açık/Gece kehribar klasörde kaldı.
+- Tema seçicinin önizlemesi ailenin simge dilini ve klasör rengini çiziyor.
+
+### C) Bellek panosu (`_StorageHero`, dashboard)
+- Ana bellek kartı + yanındaki dar "Bellek Analizi" kutusu (IntrinsicHeight ile eşitlenen iki
+  kutu) KALKTI → tek, tam genişlik kart: halkanın ortasında doluluk yüzdesi, büyük sayı = **boş
+  yer**, "X / Y kullanılıyor", 8 dp kategori çubuğu, altta üç eşit eylem **Göz at · Analiz ·
+  Yer aç** (%90 dolulukta "Yer aç" dolu vurgulu). Uzun bas = birim menüsü (eskisi gibi).
+  Takılabilir birimler eski `_VolumeCard`'la kalıyor. `_analysisCard` silindi; kategori payı
+  hesabı ortak `_volumeBreakdown`.
+
+### D) Özelleştirilebilir alt çubuk (`services/fm/nav_tabs.dart`, `widgets/fm/nav_tabs_sheet.dart`)
+- `NavTabs` (prefs `nav_tabs`): Dosyalar hep ilk ve çıkarılamaz, en fazla **6** sekme,
+  bilinmeyen/tekrar atılır. 17 seçenek: İndirilenler, Yeni, Görüntüler, Videolar, Belgeler,
+  Ses, Arşiv, APK, Önemli, Son açılanlar, Ara, AI, İşlemler, Çöp, Drive, Uygulamalar.
+- `HomeScreen` artık sekmeyi KİMLİKLE tutuyor; `IndexedStack` çocukları `KeyedSubtree(ValueKey
+  (id))` — yeniden dizince durum karışmasın. Kategori sekmeleri `DashboardScreen.cachedFiles`
+  ile anında dolar, eksiksiz liste `MediaLibrary.categoryFiles` ile gelir. 5+ sekmede yalnız
+  seçilinin etiketi yazılır.
+- Düzenleme: çubuğa **basılı tut**, Ayarlar → Görünüm → "Alt çubuk kısayolları", "Ana ekranı
+  düzenle" sayfası. TUZAK: `NavigationDestination.tooltip` varsayılanı etiket ve Tooltip de
+  basılı tutmayı dinliyor → çubuğun `onLongPress`'ini yutuyordu; `tooltip: ''` verildi.
+
+### E) AI sohbetinde kaynaklar ÖNİZLEMELİ (aynı tur, ikinci istek)
+- Kullanıcı (ekran görüntüsü): *"fatura diye AI'ya sordum, sadece ad verdi; direkt görüntüler
+  önizleme şeklinde olmalı — PDF, video hepsi öyle"*. `ai_hub_screen` cevap balonundaki ad
+  çipleri → yatay kaydırılan `_SourcePreview` kartları (104 dp küçük resim + 2 satır ad).
+  Küçük resim gezginin hattından (`FmEntryIcon`): PDF kapak sayfası, fotoğraf, video karesi
+  (+ oynat işareti), APK simgesi; Excel/Word için uzantı yazılı çizilmiş kağıt.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun; yeni testler `nav_tabs_test`
+(sanitize/ekle/çıkar/sınır/sıralama/etiketler, her ailede simge çizimi), `scan_tips_test`;
+tam takım **2581 test yeşil** (9 atlanan: canlı sunucu).
+graphify bu bulut oturumunda kurulu değildi → `graphify update .` koşturulmadı (yerelde koştur).
+**Cihazda bakılacak:** rehber ilk taramada çıkıyor mu; Gün batımı rozetleri / Grafit tek renk
+panoda nasıl duruyor; bellek panosu dar telefonda kırpılmadan sığıyor mu; alt çubuğa 6 sekme
+ekleyip basılı tutma ile düzenleme.

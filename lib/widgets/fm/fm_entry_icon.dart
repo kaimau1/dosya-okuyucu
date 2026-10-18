@@ -182,11 +182,13 @@ abstract final class FmColors {
     FsEntry entry, {
     bool outlined = false,
     bool dark = false,
+    Color? folderColor,
   }) {
     if (entry.isDir) {
       return FmGlyphSpec(
         folder: true,
-        color: folder,
+        // Tema ailesi klasör rengini değiştirebilir (2026-10-18).
+        color: folderColor ?? folder,
         // Bilinen klasörün glifi klasörün YERİNE geçmez, gövdesine biner.
         overlay: forFolderName(entry.name),
         outlined: outlined,
@@ -366,6 +368,7 @@ class FmEntryIcon extends StatelessWidget {
         entry,
         outlined: context.fmOutlinedIcons,
         dark: dark,
+        folderColor: context.fmFolderColor,
       ),
     );
   }

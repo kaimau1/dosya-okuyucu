@@ -342,7 +342,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         final allowed = _allowed(dir.path);
         return ListTile(
           enabled: allowed,
-          leading: const Icon(Icons.folder, color: FmColors.folder),
+          leading: Icon(Icons.folder, color: context.fmFolderColor ?? FmColors.folder),
           title: Text(dir.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: allowed ? null : Text(context.t('picker.source_itself')),
           trailing: const Icon(Icons.chevron_right),

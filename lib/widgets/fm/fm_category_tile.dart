@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/skin.dart';
 import '../../core/theme.dart';
 import '../motion.dart';
 
@@ -62,23 +63,71 @@ class FmTintedIcon extends StatelessWidget {
   final Color color;
   final double size;
 
+  /// Simge dili; null = etkin tema ailesininki. Tema seçicinin önizlemesi
+  /// henüz seçilmemiş ailenin dilini çizebilsin diye dışarıdan verilebilir.
+  final SkinIconStyle? style;
+
+  /// [SkinIconStyle.mono]'da glifin rengi; null = temanın ikincil mürekkebi.
+  final Color? monoColor;
+
   const FmTintedIcon({
     super.key,
     required this.icon,
     required this.color,
     required this.size,
+    this.style,
+    this.monoColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (context.fmOutlinedIcons) return Icon(icon, color: color, size: size);
-    // **Katmansız degrade** (2026-10-17 başarım turu). Eskiden `ShaderMask`
-    // ile çiziliyordu: her simge ayrı bir ekran dışı katman (`saveLayer`)
-    // açıyor, panodaki ~15 kutu kaydırılırken her karede 15 katman
-    // birleştiriliyordu. Glif bir yazı tipi karakteri olduğu için degrade
-    // doğrudan yazının fırçasına (`foreground`) verilebiliyor — görüntü aynı,
-    // katman yok.
-    return _GradientIcon(icon, color: color, size: size);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    switch (style ?? context.fmIconStyle) {
+      case SkinIconStyle.outlined:
+        return Icon(icon, color: color, size: size);
+      case SkinIconStyle.mono:
+        return Icon(icon,
+            color: monoColor ?? Paper.paletteOf(context).inkSoft, size: size);
+      // Rozet ve çift ton: glif kutunun içinde küçülür, kutunun kendisi
+      // simgenin ölçüsünü taşır — ızgara hizası diğer dillerle aynı kalır.
+      case SkinIconStyle.badge:
+        return SizedBox.square(
+          dimension: size,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(size * 0.28),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(color, Colors.white, 0.18)!,
+                  Color.lerp(color, Colors.black, 0.12)!,
+                ],
+              ),
+            ),
+            child: Icon(icon, color: Colors.white, size: size * 0.56),
+          ),
+        );
+      case SkinIconStyle.duotone:
+        return SizedBox.square(
+          dimension: size,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: dark ? 0.24 : 0.15),
+            ),
+            child: Icon(icon, color: color, size: size * 0.56),
+          ),
+        );
+      case SkinIconStyle.gradient:
+        // **Katmansız degrade** (2026-10-17 başarım turu). Eskiden
+        // `ShaderMask` ile çiziliyordu: her simge ayrı bir ekran dışı katman
+        // (`saveLayer`) açıyor, panodaki ~15 kutu kaydırılırken her karede 15
+        // katman birleştiriliyordu. Glif bir yazı tipi karakteri olduğu için
+        // degrade doğrudan yazının fırçasına (`foreground`) verilebiliyor —
+        // görüntü aynı, katman yok.
+        return _GradientIcon(icon, color: color, size: size);
+    }
   }
 }
 

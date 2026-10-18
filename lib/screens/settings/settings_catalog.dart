@@ -166,6 +166,11 @@ List<SettingsCategory> settingsCategories() => [
                   'skin.modern',
                   'skin.office',
                   'skin.night',
+                  'skin.ocean',
+                  'skin.sunset',
+                  'skin.forest',
+                  'skin.rose',
+                  'skin.graphite',
                   'set.kw_dark',
                 ],
                 builder: _skinTile),
@@ -199,6 +204,15 @@ List<SettingsCategory> settingsCategories() => [
                 titleKey: 'settings.language',
                 subtitleKey: 'settings.language_note',
                 builder: _languageTile),
+          ]),
+          // Alt çubuk kısayolları (2026-10-18) — yazı tipi/dil satırlarının
+          // ALTINDA: kategori ekranındaki yerleri testlerde sabit.
+          SettingsSection('nav.section', [
+            SettingRow(
+                id: 'nav_tabs',
+                titleKey: 'nav.edit_title',
+                altKeys: ['nav.settings_sub'],
+                builder: _navTabsTile),
           ]),
         ],
       ),
@@ -584,6 +598,7 @@ String _themeModeLabel(BuildContext context, ThemeMode mode) => switch (mode) {
 Widget _themeTile(BuildContext _) => const ThemeTile();
 Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
+Widget _navTabsTile(BuildContext _) => const NavTabsTile();
 Widget _fontTile(BuildContext _) => const UiFontTile();
 Widget _textSizeTile(BuildContext _) => const UiTextSizeTile();
 Widget _languageTile(BuildContext _) => const LanguageTile();

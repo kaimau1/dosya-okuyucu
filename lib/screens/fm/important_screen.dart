@@ -273,7 +273,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
               for (final f in _subFolders)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.folder, color: FmColors.folder),
+                  leading: Icon(Icons.folder, color: context.fmFolderColor ?? FmColors.folder),
                   title: Text(f.name,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text(

@@ -678,6 +678,12 @@ extension SkinContext on BuildContext {
   /// Ailenin glif stili: çizgi mi (outlined) dolu mu (rounded)?
   bool get fmOutlinedIcons => AppSkinData.of(this).metrics.outlinedIcons;
 
+  /// Ailenin simge dili (degrade / çizgi / rozet / çift ton / tek renk).
+  SkinIconStyle get fmIconStyle => AppSkinData.of(this).metrics.iconStyle;
+
+  /// Ailenin klasör rengi (null = uygulamanın kehribarı).
+  Color? get fmFolderColor => AppSkinData.of(this).metrics.folderColor;
+
   /// Ailenin kart köşe yarıçapı — koda gömülü [Radii.card] yerine.
   double get fmCardRadius => AppSkinData.of(this).metrics.radiusCard;
 }

@@ -40,7 +40,30 @@ enum AppSkin {
 
   /// **Gece (OLED):** saf siyah zemin. Koyu temadan farkı, `#000000` pikselin
   /// OLED ekranda kapalı olması — hem pil hem gece okunurluğu.
-  night;
+  night,
+
+  // ── 2026-10-18 turu (kullanıcı: *"güzel temalar ekle ve temalar simgeleri
+  // de değiştirsin"*). Her yeni aile kendi SİMGE DİLİYLE gelir (bkz.
+  // [SkinIconStyle]) — renk değişip simgeler aynı kalınca kullanıcı temayı
+  // "boyanmış aynı uygulama" diye okuyordu.
+
+  /// **Okyanus:** camgöbeği-mavi vurgu, simgeler yumuşak renkli halkada
+  /// (çift ton), turkuaz klasörler.
+  ocean,
+
+  /// **Gün batımı:** sıcak mercan vurgu, simgeler iOS tarzı renkli rozetlerde
+  /// (beyaz glif, dolu kare), turuncu klasörler.
+  sunset,
+
+  /// **Orman:** doğal yeşil vurgu, degrade simgeler, yaprak yeşili klasörler.
+  forest,
+
+  /// **Gül:** gül pembesi vurgu, çok yuvarlak köşeler, çift ton simgeler.
+  rose,
+
+  /// **Grafit:** siyah-beyaz minimal; tek renk çizgi simgeler, gri klasörler,
+  /// keskin köşeler. Dikkat dağıtmayan "kâğıt üstünde kurşun kalem".
+  graphite;
 
   String get labelKey => switch (this) {
         AppSkin.paper => 'skin.paper',
@@ -48,6 +71,11 @@ enum AppSkin {
         AppSkin.modern => 'skin.modern',
         AppSkin.office => 'skin.office',
         AppSkin.night => 'skin.night',
+        AppSkin.ocean => 'skin.ocean',
+        AppSkin.sunset => 'skin.sunset',
+        AppSkin.forest => 'skin.forest',
+        AppSkin.rose => 'skin.rose',
+        AppSkin.graphite => 'skin.graphite',
       };
 
   String get descriptionKey => switch (this) {
@@ -56,6 +84,11 @@ enum AppSkin {
         AppSkin.modern => 'skin.modern_sub',
         AppSkin.office => 'skin.office_sub',
         AppSkin.night => 'skin.night_sub',
+        AppSkin.ocean => 'skin.ocean_sub',
+        AppSkin.sunset => 'skin.sunset_sub',
+        AppSkin.forest => 'skin.forest_sub',
+        AppSkin.rose => 'skin.rose_sub',
+        AppSkin.graphite => 'skin.graphite_sub',
       };
 
   /// Aile yalnız koyu çalışıyor mu? (Gece/OLED'in açık karşılığı yok.)
@@ -161,6 +194,11 @@ class SkinPalette {
       AppSkin.modern => dark ? _modernDark : _modernLight,
       AppSkin.office => dark ? _officeDark : _officeLight,
       AppSkin.night => _nightDark,
+      AppSkin.ocean => dark ? _oceanDark : _oceanLight,
+      AppSkin.sunset => dark ? _sunsetDark : _sunsetLight,
+      AppSkin.forest => dark ? _forestDark : _forestLight,
+      AppSkin.rose => dark ? _roseDark : _roseLight,
+      AppSkin.graphite => dark ? _graphiteDark : _graphiteLight,
     };
   }
 
@@ -326,6 +364,205 @@ class SkinPalette {
     danger: Color(0xFFFF6E6E),
     ok: Color(0xFF5FD98A),
   );
+
+  // ── Okyanus ───────────────────────────────────────────────────────────────
+  static const _oceanLight = SkinPalette(
+    bg: Color(0xFFF3F9FB),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFE6F2F6),
+    well: Color(0xFFDCEDF2),
+    rule: Color(0xFFCFE3EA),
+    edge: Color(0xFFA6C7D2),
+    ink: Color(0xFF0F2A33),
+    inkSoft: Color(0xFF4A6872),
+    inkFaint: Color(0xFF6E8C96),
+    accent: Color(0xFF0A7FA0),
+    accentWell: Color(0xFFD6EFF6),
+    onAccent: Colors.white,
+    danger: Color(0xFFD1453B),
+    ok: Color(0xFF1E8A5E),
+  );
+
+  static const _oceanDark = SkinPalette(
+    bg: Color(0xFF0D1A1F),
+    card: Color(0xFF122329),
+    band: Color(0xFF172D34),
+    well: Color(0xFF1D363E),
+    rule: Color(0xFF25434C),
+    edge: Color(0xFF4C6E79),
+    ink: Color(0xFFE2F1F5),
+    inkSoft: Color(0xFFA3C2CB),
+    inkFaint: Color(0xFF7A99A2),
+    accent: Color(0xFF5CCBE6),
+    accentWell: Color(0xFF103845),
+    onAccent: Color(0xFF03222B),
+    danger: Color(0xFFFF7B6E),
+    ok: Color(0xFF5FD3A0),
+  );
+
+  // ── Gün batımı ────────────────────────────────────────────────────────────
+  static const _sunsetLight = SkinPalette(
+    bg: Color(0xFFFFF8F4),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFFCEEE6),
+    well: Color(0xFFF8E4D9),
+    rule: Color(0xFFF0D5C6),
+    edge: Color(0xFFDDB49E),
+    ink: Color(0xFF2E1A14),
+    inkSoft: Color(0xFF76564A),
+    inkFaint: Color(0xFF9A7A6D),
+    accent: Color(0xFFD9472B),
+    accentWell: Color(0xFFFCE0D7),
+    onAccent: Colors.white,
+    danger: Color(0xFFC0262D),
+    ok: Color(0xFF3C8A4A),
+  );
+
+  static const _sunsetDark = SkinPalette(
+    bg: Color(0xFF1C1210),
+    card: Color(0xFF251815),
+    band: Color(0xFF2F1F1B),
+    well: Color(0xFF392621),
+    rule: Color(0xFF45302A),
+    edge: Color(0xFF7A5649),
+    ink: Color(0xFFF6E6DF),
+    inkSoft: Color(0xFFCFAFA3),
+    inkFaint: Color(0xFFA08679),
+    accent: Color(0xFFFF8A6B),
+    accentWell: Color(0xFF4A2219),
+    onAccent: Color(0xFF2B0D05),
+    danger: Color(0xFFFF7B7B),
+    ok: Color(0xFF7FCB8A),
+  );
+
+  // ── Orman ─────────────────────────────────────────────────────────────────
+  static const _forestLight = SkinPalette(
+    bg: Color(0xFFF5F8F2),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFEAF0E4),
+    well: Color(0xFFE0E9D8),
+    rule: Color(0xFFD2DEC7),
+    edge: Color(0xFFAFC2A0),
+    ink: Color(0xFF18241A),
+    inkSoft: Color(0xFF4F6450),
+    inkFaint: Color(0xFF738874),
+    accent: Color(0xFF2E7D4F),
+    accentWell: Color(0xFFDCEFE2),
+    onAccent: Colors.white,
+    danger: Color(0xFFB23A2E),
+    ok: Color(0xFF2E7D4F),
+  );
+
+  static const _forestDark = SkinPalette(
+    bg: Color(0xFF0F1610),
+    card: Color(0xFF151F17),
+    band: Color(0xFF1B281D),
+    well: Color(0xFF213124),
+    rule: Color(0xFF2A3D2D),
+    edge: Color(0xFF506A53),
+    ink: Color(0xFFE3EEE2),
+    inkSoft: Color(0xFFA9BFA9),
+    inkFaint: Color(0xFF7E957F),
+    accent: Color(0xFF74C98F),
+    accentWell: Color(0xFF1A3A24),
+    onAccent: Color(0xFF06200F),
+    danger: Color(0xFFE57B6E),
+    ok: Color(0xFF74C98F),
+  );
+
+  // ── Gül ───────────────────────────────────────────────────────────────────
+  static const _roseLight = SkinPalette(
+    bg: Color(0xFFFFF7F9),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFFBEAF0),
+    well: Color(0xFFF7DFE7),
+    rule: Color(0xFFEFD0DB),
+    edge: Color(0xFFD9A9BA),
+    ink: Color(0xFF2D1621),
+    inkSoft: Color(0xFF76505F),
+    inkFaint: Color(0xFF9A7483),
+    accent: Color(0xFFC2306A),
+    accentWell: Color(0xFFFBDCE8),
+    onAccent: Colors.white,
+    danger: Color(0xFFC62828),
+    ok: Color(0xFF2E7D5B),
+  );
+
+  static const _roseDark = SkinPalette(
+    bg: Color(0xFF1A1015),
+    card: Color(0xFF23161D),
+    band: Color(0xFF2D1C25),
+    well: Color(0xFF37232D),
+    rule: Color(0xFF432C37),
+    edge: Color(0xFF785564),
+    ink: Color(0xFFF5E4EB),
+    inkSoft: Color(0xFFCFA9B8),
+    inkFaint: Color(0xFFA0808D),
+    accent: Color(0xFFFF7EB0),
+    accentWell: Color(0xFF4A1A30),
+    onAccent: Color(0xFF2E0617),
+    danger: Color(0xFFFF7B7B),
+    ok: Color(0xFF6FD3A4),
+  );
+
+  // ── Grafit ────────────────────────────────────────────────────────────────
+  //
+  // Vurgu da mürekkep: renk yalnız dosyanın kendisinden (PDF kırmızısı, Excel
+  // yeşili) gelir, kabuk tamamen siyah-beyaz.
+  static const _graphiteLight = SkinPalette(
+    bg: Color(0xFFFAFAFA),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFF1F1F1),
+    well: Color(0xFFE8E8E8),
+    rule: Color(0xFFDDDDDD),
+    edge: Color(0xFFB8B8B8),
+    ink: Color(0xFF111111),
+    inkSoft: Color(0xFF555555),
+    inkFaint: Color(0xFF7A7A7A),
+    accent: Color(0xFF222222),
+    accentWell: Color(0xFFE4E4E4),
+    onAccent: Colors.white,
+    danger: Color(0xFFB3261E),
+    ok: Color(0xFF2E6B3A),
+  );
+
+  static const _graphiteDark = SkinPalette(
+    bg: Color(0xFF121212),
+    card: Color(0xFF1A1A1A),
+    band: Color(0xFF222222),
+    well: Color(0xFF2A2A2A),
+    rule: Color(0xFF333333),
+    edge: Color(0xFF5C5C5C),
+    ink: Color(0xFFEDEDED),
+    inkSoft: Color(0xFFADADAD),
+    inkFaint: Color(0xFF858585),
+    accent: Color(0xFFE8E8E8),
+    accentWell: Color(0xFF333333),
+    onAccent: Color(0xFF111111),
+    danger: Color(0xFFF28B82),
+    ok: Color(0xFF81C995),
+  );
+}
+
+/// Bir ailenin **simge dili** (2026-10-18, kullanıcı: *"temalar simgeleri de
+/// değiştirsin"*). Pano kutuları, araçlar ve ayar kategorileri aynı glifi
+/// ([FmTintedIcon]) kullanıyor; stil orada uygulanır, ekranlar bilmez.
+enum SkinIconStyle {
+  /// Üstten açık, alttan koyu degrade glif (varsayılan, çerçevesiz).
+  gradient,
+
+  /// Düz tek renk çizgi glif — sakin ağırlık (İş programı, Gece).
+  outlined,
+
+  /// iOS tarzı **rozet**: kategori renginde dolu yuvarlak kare, içinde beyaz
+  /// glif.
+  badge,
+
+  /// **Çift ton**: kategori renginin soluk halkası, içinde renkli glif.
+  duotone,
+
+  /// **Tek renk**: kategori rengi yok, glif mürekkep renginde (Grafit).
+  mono,
 }
 
 /// Bir ailenin **renk dışı** kimliği: köşe, simge ölçeği, satır sıklığı.
@@ -348,8 +585,11 @@ class SkinMetrics {
   /// bileşenler bunu dinler; kendi satırlarımız [rowPadding]'i).
   final VisualDensity density;
 
-  /// Klasör/dosya glifleri dolu mu (`rounded`) yoksa çizgi mi (`outlined`)?
-  final bool outlinedIcons;
+  /// Pano/araç simgelerinin çizim dili (bkz. [SkinIconStyle]).
+  final SkinIconStyle iconStyle;
+
+  /// Klasör gövdesinin rengi; null = uygulamanın kehribarı (`FmColors.folder`).
+  final Color? folderColor;
 
   const SkinMetrics({
     required this.radiusControl,
@@ -358,8 +598,14 @@ class SkinMetrics {
     required this.iconScale,
     required this.rowPadding,
     required this.density,
-    required this.outlinedIcons,
+    required this.iconStyle,
+    this.folderColor,
   });
+
+  /// Klasör/dosya glifleri çizgi mi (`outlined`) dolu mu (`rounded`)?
+  /// Tek renk aile de çizgi glif kullanır — dolu glif tek renkte leke olur.
+  bool get outlinedIcons =>
+      iconStyle == SkinIconStyle.outlined || iconStyle == SkinIconStyle.mono;
 
   static SkinMetrics of(AppSkin skin) => switch (skin) {
         AppSkin.paper => const SkinMetrics(
@@ -369,7 +615,7 @@ class SkinMetrics {
             iconScale: 1,
             rowPadding: 4,
             density: VisualDensity.standard,
-            outlinedIcons: false,
+            iconStyle: SkinIconStyle.gradient,
           ),
         AppSkin.light => const SkinMetrics(
             radiusControl: 12,
@@ -378,7 +624,7 @@ class SkinMetrics {
             iconScale: 1,
             rowPadding: 4,
             density: VisualDensity.standard,
-            outlinedIcons: false,
+            iconStyle: SkinIconStyle.gradient,
           ),
         // Büyük yuvarlaklık + %12 büyük simge + rahat satır.
         AppSkin.modern => const SkinMetrics(
@@ -388,7 +634,8 @@ class SkinMetrics {
             iconScale: 1.12,
             rowPadding: 8,
             density: VisualDensity.comfortable,
-            outlinedIcons: false,
+            iconStyle: SkinIconStyle.gradient,
+            folderColor: Color(0xFF7C5CFA),
           ),
         // Keskin köşe + %22 küçük simge + sıkı satır: ekrana çok satır sığar.
         AppSkin.office => const SkinMetrics(
@@ -398,7 +645,8 @@ class SkinMetrics {
             iconScale: 0.78,
             rowPadding: 0,
             density: VisualDensity.compact,
-            outlinedIcons: true,
+            iconStyle: SkinIconStyle.outlined,
+            folderColor: Color(0xFF3B78C2),
           ),
         AppSkin.night => const SkinMetrics(
             radiusControl: 12,
@@ -407,7 +655,58 @@ class SkinMetrics {
             iconScale: 1,
             rowPadding: 4,
             density: VisualDensity.standard,
-            outlinedIcons: true,
+            iconStyle: SkinIconStyle.outlined,
+          ),
+        AppSkin.ocean => const SkinMetrics(
+            radiusControl: 14,
+            radiusCard: 20,
+            radiusSheet: 28,
+            iconScale: 1.05,
+            rowPadding: 6,
+            density: VisualDensity.standard,
+            iconStyle: SkinIconStyle.duotone,
+            folderColor: Color(0xFF1FA3C6),
+          ),
+        AppSkin.sunset => const SkinMetrics(
+            radiusControl: 16,
+            radiusCard: 22,
+            radiusSheet: 30,
+            iconScale: 1,
+            rowPadding: 5,
+            density: VisualDensity.standard,
+            iconStyle: SkinIconStyle.badge,
+            folderColor: Color(0xFFF0883A),
+          ),
+        AppSkin.forest => const SkinMetrics(
+            radiusControl: 10,
+            radiusCard: 14,
+            radiusSheet: 24,
+            iconScale: 1,
+            rowPadding: 4,
+            density: VisualDensity.standard,
+            iconStyle: SkinIconStyle.gradient,
+            folderColor: Color(0xFF6E9E34),
+          ),
+        AppSkin.rose => const SkinMetrics(
+            radiusControl: 20,
+            radiusCard: 26,
+            radiusSheet: 32,
+            iconScale: 1.08,
+            rowPadding: 7,
+            density: VisualDensity.comfortable,
+            iconStyle: SkinIconStyle.duotone,
+            folderColor: Color(0xFFE0668F),
+          ),
+        // Minimal: küçük, tek renk, keskin.
+        AppSkin.graphite => const SkinMetrics(
+            radiusControl: 6,
+            radiusCard: 8,
+            radiusSheet: 16,
+            iconScale: 0.92,
+            rowPadding: 2,
+            density: VisualDensity.compact,
+            iconStyle: SkinIconStyle.mono,
+            folderColor: Color(0xFF6E6E6E),
           ),
       };
 }

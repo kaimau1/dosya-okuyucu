@@ -89,6 +89,11 @@ class DashboardScreen extends StatefulWidget {
 
   const DashboardScreen({super.key, this.active = true});
 
+  /// Panonun son taramasındaki bir kategorinin dosyaları (alt çubuğa konan
+  /// kategori sekmeleri ANINDA dolsun diye; tarama yoksa boş).
+  static List<FsEntry> cachedFiles(FmCategory category) =>
+      _DashboardScreenState._cachedIndex?.files(category) ?? const [];
+
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
@@ -1007,24 +1012,20 @@ class _DashboardScreenState extends State<DashboardScreen>
           // birimlerde analiz kutusu tekrarlanmaz — tek bir analiz ekranı
           // var, iki kez göstermek yer kaybı olurdu.
           if (v.isPrimary)
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _VolumeCard(
-                      volume: v,
-                      index: _index,
-                      onTap: () => _push(BrowserScreen(
-                          path: v.path,
-                          title: v.displayLabel(context.t))),
-                      onLongPress: () => unawaited(_volumeMenu(v)),
-                    ),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  SizedBox(width: 126, child: _analysisCard(v)),
-                ],
-              ),
+            // **Bellek panosu** (2026-10-18): ana bellek kartı ile yanındaki
+            // "Bellek Analizi" kutusu TEK kartta birleşti — bkz. [_StorageHero].
+            _StorageHero(
+              volume: v,
+              index: _index,
+              onBrowse: () => _push(BrowserScreen(
+                  path: v.path, title: v.displayLabel(context.t))),
+              onAnalysis: () => _push(
+                  AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+              onFreeSpace: () {
+                unawaited(ToolUsage.record('free_space'));
+                _push(CleanupScreen(index: _index));
+              },
+              onLongPress: () => unawaited(_volumeMenu(v)),
             )
           else
             _VolumeCard(
@@ -2246,56 +2247,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     ));
   }
 
-  /// **Bellek Analizi** — ana bellek kartının yanındaki ikinci düğme
-  /// (kullanıcı isteği 2026-08-05). Önce araç satırındaydı, kaydırmadan
-  /// görünmüyordu; sonra büyük kutulara alındı, orada da ana bellekten
-  /// uzaktaydı. Yeri artık aradığı bilgiyle yan yana.
-  Widget _analysisCard(StorageVolume volume) {
-    final scheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    // **Büyük simge, ortalanmış, tek kelime** (kullanıcı isteği 2026-08-25:
-    // *"bellek analizi simgesini büyük simge yap ve yazıları düzenle"*).
-    //
-    // Eski hâlde 26 dp'lik soluk bir çizgi glif sola yaslanmış, altında iki
-    // satır yazı vardı: kutu bir DÜĞME olduğu hâlde bir bilgi kartı gibi
-    // duruyordu ve göz onu ana bellek kartının küçük eki sanıyordu. Artık
-    // ağırlık simgede: 42 dp, vurgu renginde, ortada. "Kullanılan %60" alt
-    // satırı KALKTI — aynı sayı soldaki kartta zaten hem çemberde hem
-    // yazıyla var, burada üçüncü kez tekrarlanıyordu.
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _push(AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
-        child: Padding(
-          // **YÜKSEKLİK 2026-08-29'da KISALDI** (kullanıcı: *"ana bellek ve
-          // bellek analizi kısmında gereksiz alt boşluk var"*). İki kutu
-          // `IntrinsicHeight` ile aynı yüksekliğe zorlanıyor; analiz kutusu
-          // (42 dp simge + 16 dp dikey iç boşluk) soldaki karttan uzun
-          // kaldığı için ana bellek kartının ALTINDA kocaman bir boşluk
-          // oluşuyordu. Simge 34 dp'ye, dikey boşluk 8'e indi — kutu hâlâ
-          // rahat okunuyor, boşluk kapandı.
-          padding: const EdgeInsets.symmetric(
-              horizontal: Gap.sm, vertical: Gap.sm),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(Icons.donut_large,
-                  size: 34 * context.fmIconScale, color: scheme.primary),
-              const SizedBox(height: Gap.xs),
-              Text(
-                context.t('fm.storage_analysis'),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: theme.textTheme.titleSmall,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _quickFolders() {
     final folders = [
       for (final f in StorageStats.standardFolders(FmEnv.primaryRoot))
@@ -2497,6 +2448,353 @@ class _RawUsbCard extends StatelessWidget {
   }
 }
 
+/// Birimin kategori payları (ana bellek kartı ve bellek panosu ortak).
+List<({Color color, String label, int bytes})> _volumeBreakdown(
+  BuildContext context, StorageVolume volume, StorageIndex index) {
+  if (!volume.isPrimary) {
+    return [
+      (
+        color: FmColors.other,
+        label: context.t('fm.used'),
+        bytes: volume.usedBytes,
+      ),
+    ];
+  }
+  final image = index.stat(FmCategory.image).bytes;
+  final video = index.stat(FmCategory.video).bytes;
+  final document = index.stat(FmCategory.document).bytes;
+  final audio = index.stat(FmCategory.audio).bytes;
+  final rest = volume.usedBytes - image - video - document - audio;
+  return [
+    (
+      color: FmColors.image,
+      label: FmCategory.image.label,
+      bytes: image,
+    ),
+    (
+      color: FmColors.video,
+      label: FmCategory.video.label,
+      bytes: video,
+    ),
+    (
+      color: OfficeColors.neutral,
+      label: FmCategory.document.label,
+      bytes: document,
+    ),
+    (
+      color: FmColors.audio,
+      label: FmCategory.audio.label,
+      bytes: audio,
+    ),
+    (
+      color: FmColors.other,
+      label: FmCategory.other.label,
+      bytes: rest < 0 ? 0 : rest,
+    ),
+  ];
+}
+
+
+/// **Bellek panosu** — panonun en üstü (2026-10-18, kullanıcı ekran
+/// görüntüsüyle: *"ana sayfada üst alandaki bellek analizi ve ana bellek
+/// butonlarını sevmiyorum, tamamen baştan tasarla; yeri, konumu, şekli,
+/// boyutu tamamen serbest"*).
+///
+/// Eskiden iki ayrı kutu yan yanaydı: solda bilgi kartı (küçük halka + iki
+/// satır sayı), sağda yalnız "Bellek Analizi" yazan bir düğme. İkisi
+/// `IntrinsicHeight` ile aynı boya zorlanıyordu; sağ kutu dar olduğu için
+/// yazı kırılıyor, sol kutu sıkışıyor, kullanıcının asıl sorusu ("ne kadar
+/// yerim kaldı?") küçük gri bir satırda kalıyordu.
+///
+/// Şimdi tek, tam genişlik kart:
+/// - **Büyük sayı = boş yer** ("196 GB boş") — panoya bakan kişinin sorusu.
+/// - Doluluk yüzdesi halkanın ORTASINDA; halka kategori renkleriyle dilimli.
+/// - Altında kalın, yuvarlak uçlu kategori çubuğu.
+/// - Altta üç eşit eylem: **Göz at · Analiz · Yer aç** — bellekle ilgili her
+///   şey bir dokunuş uzakta, ayrı bir kutu aramaya gerek yok. Bellek %90'ı
+///   geçince "Yer aç" vurgulanır (dolu telefonda asıl yapılacak iş o).
+class _StorageHero extends StatelessWidget {
+  final StorageVolume volume;
+  final StorageIndex index;
+  final VoidCallback onBrowse;
+  final VoidCallback onAnalysis;
+  final VoidCallback onFreeSpace;
+  final VoidCallback? onLongPress;
+
+  const _StorageHero({
+    required this.volume,
+    required this.index,
+    required this.onBrowse,
+    required this.onAnalysis,
+    required this.onFreeSpace,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final radius = context.fmCardRadius;
+    final has = volume.hasStats;
+    final capacity = volume.capacityBytes <= 0 ? 1 : volume.capacityBytes;
+    final ratio = has ? (volume.usedBytes / capacity).clamp(0.0, 1.0) : 0.0;
+    final full = ratio >= 0.9;
+    final parts = has
+        ? _volumeBreakdown(context, volume, index)
+            .where((p) => p.bytes > 0)
+            .toList()
+        : const <({Color color, String label, int bytes})>[];
+    return Material(
+      type: MaterialType.transparency,
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: scheme.outlineVariant),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [scheme.primaryContainer, scheme.surfaceContainerLow],
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: onBrowse,
+              onLongPress: onLongPress,
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(radius)),
+              child: Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.sm, Gap.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox.square(
+                          dimension: 68,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CustomPaint(
+                                size: const Size.square(68),
+                                painter: _RingPainter(
+                                  slices: [
+                                    for (final p in parts)
+                                      (color: p.color, bytes: p.bytes),
+                                  ],
+                                  total: has ? volume.capacityBytes : 1,
+                                  trackColor: scheme.surfaceContainerHighest,
+                                  strokeWidth: 7,
+                                ),
+                              ),
+                              has
+                                  ? Text(
+                                      context.t('fm.hero_percent',
+                                          {'n': (ratio * 100).round()}),
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: full
+                                            ? scheme.error
+                                            : scheme.onSurface,
+                                      ),
+                                    )
+                                  : Icon(volumeIcon(volume),
+                                      size: 24,
+                                      color: scheme.onSurfaceVariant),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: Gap.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(volumeIcon(volume),
+                                      size: 16,
+                                      color: scheme.onSurfaceVariant),
+                                  const SizedBox(width: Gap.xs),
+                                  Flexible(
+                                    child: Text(
+                                      volume.displayLabel(context.t),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.labelLarge
+                                          ?.copyWith(
+                                              color:
+                                                  scheme.onSurfaceVariant),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                has
+                                    ? context.t('fm.free_bytes', {
+                                        'v': FsPaths.humanCapacity(
+                                            volume.freeBytes),
+                                      })
+                                    : volume.path,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: (has
+                                        ? theme.textTheme.headlineSmall
+                                        : theme.textTheme.bodySmall)
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              if (has)
+                                Text(
+                                  context.t('fm.hero_used', {
+                                    'used': FsPaths.humanCapacity(
+                                        volume.usedBytes),
+                                    'total': FsPaths.humanCapacity(
+                                        volume.capacityBytes),
+                                  }),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Paper.faint(context)),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right,
+                            color: scheme.onSurfaceVariant),
+                      ],
+                    ),
+                    if (has) ...[
+                      const SizedBox(height: Gap.sm + 4),
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: SizedBox(
+                            height: 8,
+                            child: Row(
+                              children: [
+                                for (final part in parts)
+                                  Expanded(
+                                    flex: part.bytes,
+                                    child: ColoredBox(color: part.color),
+                                  ),
+                                if (volume.freeBytes > 0)
+                                  Expanded(
+                                    flex: volume.freeBytes,
+                                    child: ColoredBox(
+                                        color:
+                                            scheme.surfaceContainerHighest),
+                                  ),
+                                if (parts.isEmpty && volume.freeBytes <= 0)
+                                  Expanded(
+                                    child: ColoredBox(
+                                        color: scheme.outlineVariant),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.sm, 0, Gap.sm, Gap.sm),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _HeroAction(
+                      icon: Icons.folder_open_rounded,
+                      label: context.t('fm.hero_browse'),
+                      onTap: onBrowse,
+                    ),
+                  ),
+                  const SizedBox(width: Gap.xs + 2),
+                  Expanded(
+                    child: _HeroAction(
+                      icon: Icons.donut_large_rounded,
+                      label: context.t('fm.hero_analysis'),
+                      onTap: onAnalysis,
+                    ),
+                  ),
+                  const SizedBox(width: Gap.xs + 2),
+                  Expanded(
+                    child: _HeroAction(
+                      icon: Icons.cleaning_services_rounded,
+                      label: context.t('fm.free_space'),
+                      onTap: onFreeSpace,
+                      highlight: full,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bellek panosunun alt sırasındaki eylem hapı.
+class _HeroAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool highlight;
+
+  const _HeroAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.highlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final radius = AppSkinData.of(context).metrics.radiusControl;
+    final fg = highlight ? scheme.onPrimary : scheme.primary;
+    return Material(
+      color: highlight
+          ? scheme.primary
+          : scheme.surface.withValues(alpha: 0.75),
+      borderRadius: BorderRadius.circular(radius),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(radius),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: fg),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: highlight ? scheme.onPrimary : scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _VolumeCard extends StatelessWidget {
   final StorageVolume volume;
 
@@ -2523,49 +2821,8 @@ class _VolumeCard extends StatelessWidget {
   /// olmayan fotoğrafları USB'de varmış gibi çizerdi. Harici bellekte tek
   /// pay: "kullanılan" — doluluk doğru, uydurma kırılım yok.
   List<({Color color, String label, int bytes})> _breakdown(
-      BuildContext context) {
-    if (!volume.isPrimary) {
-      return [
-        (
-          color: FmColors.other,
-          label: context.t('fm.used'),
-          bytes: volume.usedBytes,
-        ),
-      ];
-    }
-    final image = index.stat(FmCategory.image).bytes;
-    final video = index.stat(FmCategory.video).bytes;
-    final document = index.stat(FmCategory.document).bytes;
-    final audio = index.stat(FmCategory.audio).bytes;
-    final rest = volume.usedBytes - image - video - document - audio;
-    return [
-      (
-        color: FmColors.image,
-        label: FmCategory.image.label,
-        bytes: image,
-      ),
-      (
-        color: FmColors.video,
-        label: FmCategory.video.label,
-        bytes: video,
-      ),
-      (
-        color: OfficeColors.neutral,
-        label: FmCategory.document.label,
-        bytes: document,
-      ),
-      (
-        color: FmColors.audio,
-        label: FmCategory.audio.label,
-        bytes: audio,
-      ),
-      (
-        color: FmColors.other,
-        label: FmCategory.other.label,
-        bytes: rest < 0 ? 0 : rest,
-      ),
-    ];
-  }
+          BuildContext context) =>
+      _volumeBreakdown(context, volume, index);
 
   @override
   Widget build(BuildContext context) {

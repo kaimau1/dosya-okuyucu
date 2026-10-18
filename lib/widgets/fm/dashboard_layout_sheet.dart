@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../core/safe_insets.dart';
+import 'nav_tabs_sheet.dart';
 
 /// Düzen sayfasındaki bir satırın görünümü.
 typedef LayoutRowInfo = ({String label, IconData icon, Color color});
@@ -97,6 +98,15 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                 selected: {_tilesTab},
                 onSelectionChanged: (v) => setState(() => _tilesTab = v.first),
               ),
+            ),
+            // Alt çubuk da ana ekranın parçası (2026-10-18): kullanıcı onu
+            // "ana ekranı düzenle"de de arar.
+            ListTile(
+              leading: const Icon(Icons.space_dashboard_outlined),
+              title: Text(context.t('nav.edit_title')),
+              subtitle: Text(context.t('nav.settings_sub')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => showNavTabsSheet(context),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),

@@ -526,6 +526,14 @@ const Map<String, (String, String, String)> _table = {
     'Downloads folder not found.',
     'لم يُعثر على مجلد التنزيلات.',
   ),
+  'fm.hero_percent': ('%{n}', '{n}%', '{n}%'),
+  'fm.hero_used': (
+    '{used} / {total} kullanılıyor',
+    '{used} of {total} used',
+    'مستخدم {used} من {total}',
+  ),
+  'fm.hero_browse': ('Göz at', 'Browse', 'تصفح'),
+  'fm.hero_analysis': ('Analiz', 'Analysis', 'تحليل'),
   'fm.free_space': ('Yer aç', 'Free up space', 'تحرير مساحة'),
   'fm.similar_images': ('Benzer görsel', 'Similar images', 'صور متشابهة'),
   'fm.apk_files': ('APK dosyaları', 'APK files', 'ملفات APK'),
@@ -5920,6 +5928,46 @@ const Map<String, (String, String, String)> _table = {
     'لم يُعثر على حافة الورقة — اسحب الحواف يدويًا.',
   ),
   'se.apply_crop': ('Kırp', 'Crop', 'قصّ'),
+  'sf.tips_title': ('Nasıl taranır?', 'How to scan', 'كيفية المسح'),
+  'sf.tips_sub': (
+    'Birazdan açılacak tarama ekranında üç düğme önemli:',
+    'Three buttons matter on the scanner screen that opens next:',
+    'ثلاثة أزرار مهمة في شاشة المسح التي ستفتح الآن:',
+  ),
+  'sf.tip1_title': ('1 · Sayfayı çek', '1 · Capture the page', '١ · التقط الصفحة'),
+  'sf.tip1_body': (
+    'Belgeyi düz bir zemine koy; kenarlar kendiliğinden bulunur.',
+    'Lay the document flat; edges are found automatically.',
+    'ضع المستند على سطح مستوٍ؛ تُكتشف الحواف تلقائياً.',
+  ),
+  'sf.tip2_title': (
+    '2 · Yeni sayfa için ➕ sayfa düğmesi',
+    '2 · Use the ➕ page button for more pages',
+    '٢ · استخدم زر ➕ الصفحة لصفحات أخرى',
+  ),
+  'sf.tip2_body': (
+    'Sağ alttaki mavi, artılı sayfa simgesine bas: kamera yeniden açılır ve sonraki sayfayı çekersin. Her sayfa için tekrarla.',
+    'Tap the blue page-with-plus icon at the bottom right: the camera reopens for the next page. Repeat for each page.',
+    'اضغط أيقونة الصفحة الزرقاء ذات علامة الزائد أسفل اليمين: تُفتح الكاميرا للصفحة التالية. كرر لكل صفحة.',
+  ),
+  'sf.tip_next_label': ('Sonraki', 'Next', 'التالي'),
+  'sf.tip3_title': (
+    '3 · "Sonraki" taramayı BİTİRİR',
+    '3 · "Next" FINISHES the scan',
+    '٣ · "التالي" يُنهي المسح',
+  ),
+  'sf.tip3_body': (
+    'Tüm sayfaları çektikten sonra bas. Yine de unuttuğun sayfa olursa belge stüdyosundaki "Sayfa ekle" ile eklersin.',
+    'Tap it once all pages are captured. Forgot one? Add it later with "Add pages" in the document studio.',
+    'اضغطه بعد التقاط كل الصفحات. نسيت صفحة؟ أضفها لاحقاً عبر "إضافة صفحات" في الاستوديو.',
+  ),
+  'sf.tips_start': ('Taramaya başla', 'Start scanning', 'ابدأ المسح'),
+  'sf.tips_never': ('Anladım, bir daha gösterme', 'Got it, don\'t show again', 'فهمت، لا تعرض مجدداً'),
+  'scr.add_pages_hint': (
+    'Kamera ya da galeri',
+    'Camera or gallery',
+    'الكاميرا أو المعرض',
+  ),
   'sf.title': ('Belge hazırlanıyor', 'Preparing the document', 'جارٍ تجهيز المستند'),
   'sf.job_name': ('Belge tarama', 'Document scan', 'مسح المستند'),
 
@@ -6998,6 +7046,36 @@ const Map<String, (String, String, String)> _table = {
   'set.kw_days': ('gün süre otomatik days', 'days auto period', 'أيام تلقائي'),
   'set.sec_theme': ('Tema', 'Theme', 'السمة'),
 
+  // ── alt çubuk kısayolları (2026-10-18) ─────────────────────────────────
+  'nav.edit_title': ('Alt çubuk kısayolları', 'Bottom bar shortcuts', 'اختصارات الشريط السفلي'),
+  'nav.edit_sub': (
+    '{n}/{max} kısayol · basılı tutup sürükleyerek sırala. Çubuğa basılı tutarak da bu sayfayı açabilirsin.',
+    '{n}/{max} shortcuts · press and drag to reorder. You can also open this page by long-pressing the bar.',
+    '{n}/{max} اختصارات · اضغط مطولاً واسحب لإعادة الترتيب. يمكنك أيضاً فتح هذه الصفحة بالضغط المطول على الشريط.',
+  ),
+  'nav.home_locked': (
+    'Dosyalar her zaman ilk sırada kalır',
+    'Files always stays first',
+    'تبقى الملفات دائماً في المقدمة',
+  ),
+  'nav.section': ('Gezinme', 'Navigation', 'التنقل'),
+  'nav.addable': ('Eklenebilecekler', 'Available', 'المتاح للإضافة'),
+  'nav.full': (
+    'Çubuk dolu (en fazla {max}) — eklemek için önce birini çıkar',
+    'Bar is full (max {max}) — remove one to add another',
+    'الشريط ممتلئ (الحد {max}) — أزل واحداً لإضافة آخر',
+  ),
+  'nav.add': ('Çubuğa ekle', 'Add to bar', 'أضف إلى الشريط'),
+  'nav.remove': ('Çubuktan çıkar', 'Remove from bar', 'أزل من الشريط'),
+  'nav.reset': ('Varsayılana dön', 'Reset to default', 'استعادة الافتراضي'),
+  'nav.important': ('Önemli', 'Important', 'مهم'),
+  'nav.ai': ('AI', 'AI', 'الذكاء'),
+  'nav.settings_sub': (
+    'Alttaki hızlı erişim düğmelerini seç ve sırala (en fazla 6)',
+    'Choose and order the bottom shortcuts (up to 6)',
+    'اختر ورتب الاختصارات السفلية (حتى 6)',
+  ),
+
   // ── tema aileleri (2026-08-25) ──────────────────────────────────────────
   'skin.title': ('Tema ailesi', 'Theme style', 'نمط السمة'),
   'skin.paper': ('Kağıt', 'Paper', 'ورقي'),
@@ -7029,6 +7107,36 @@ const Map<String, (String, String, String)> _table = {
     'Saf siyah zemin — pil dostu, gece okunur',
     'Pure black ground: battery friendly, easy at night',
     'خلفية سوداء نقية موفرة للبطارية ومريحة ليلاً',
+  ),
+  'skin.ocean': ('Okyanus', 'Ocean', 'محيط'),
+  'skin.ocean_sub': (
+    'Camgöbeği vurgu, halkalı çift ton simgeler, turkuaz klasörler',
+    'Cyan accent, two-tone ringed icons, teal folders',
+    'لون سماوي وأيقونات ثنائية اللون ومجلدات فيروزية',
+  ),
+  'skin.sunset': ('Gün batımı', 'Sunset', 'غروب'),
+  'skin.sunset_sub': (
+    'Sıcak mercan vurgu, renkli rozet simgeler, turuncu klasörler',
+    'Warm coral accent, colourful badge icons, orange folders',
+    'لون مرجاني دافئ وأيقونات شارات ملونة ومجلدات برتقالية',
+  ),
+  'skin.forest': ('Orman', 'Forest', 'غابة'),
+  'skin.forest_sub': (
+    'Doğal yeşil vurgu, degrade simgeler, yaprak yeşili klasörler',
+    'Natural green accent, gradient icons, leaf-green folders',
+    'لون أخضر طبيعي وأيقونات متدرجة ومجلدات خضراء',
+  ),
+  'skin.rose': ('Gül', 'Rose', 'وردي'),
+  'skin.rose_sub': (
+    'Gül pembesi, çok yuvarlak köşeler, çift ton büyük simgeler',
+    'Rose pink, very round corners, large two-tone icons',
+    'وردي وزوايا دائرية جداً وأيقونات كبيرة ثنائية اللون',
+  ),
+  'skin.graphite': ('Grafit', 'Graphite', 'غرافيت'),
+  'skin.graphite_sub': (
+    'Siyah-beyaz minimal, tek renk çizgi simgeler, gri klasörler',
+    'Minimal black and white, single-colour line icons, grey folders',
+    'أبيض وأسود بسيط وأيقونات خطية أحادية اللون ومجلدات رمادية',
   ),
   'skin.forces_dark': (
     'Bu tema her zaman koyu çalışır',

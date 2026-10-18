@@ -990,21 +990,50 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               ),
             ),
           ),
+          // **Yazılı, vurgulu "Sayfa ekle" kutusu** (2026-10-18, kullanıcı:
+          // *"sayfa ekle daha açıklayıcı olmalı"*). Eskiden yalnız "+" olan
+          // 54 dp'lik çerçeveli bir kareydi; ML Kit'te Sonraki'ye erken basan
+          // kullanıcı buradan sayfa ekleyebileceğini anlamıyordu.
           footer: Padding(
             padding: const EdgeInsetsDirectional.only(start: 4),
             child: Tooltip(
-              message: context.t('scr.add_pages'),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: _busy ? null : _addPages,
-                child: Container(
-                  width: 54,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: scheme.outline, width: 1.2),
-                    color: scheme.surfaceContainerLow,
+              message: context.t('scr.add_pages_hint'),
+              child: Material(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: _busy ? null : _addPages,
+                  child: Container(
+                    width: 84,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: scheme.primary, width: 1.4),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.note_add_outlined,
+                            color: scheme.onPrimaryContainer, size: 24),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.t('scr.add_pages'),
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                                height: 1.1,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Icon(Icons.add_rounded, color: scheme.primary),
                 ),
               ),
             ),

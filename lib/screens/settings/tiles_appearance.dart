@@ -6,6 +6,8 @@ import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
+import '../../widgets/fm/fm_category_tile.dart' show FmTintedIcon;
+import '../../widgets/fm/nav_tabs_sheet.dart';
 import 'settings_widgets.dart';
 
 /// Tema: sistem / açık / koyu.
@@ -248,35 +250,45 @@ class _SkinSwatch extends StatelessWidget {
     final palette = SkinPalette.of(
         skin, dark ? Brightness.dark : Brightness.light);
     final metrics = SkinMetrics.of(skin);
+    // Önizleme ailenin SİMGE DİLİNİ de gösterir (2026-10-18): tema artık
+    // simgeleri de değiştiriyor; seçmeden önce görülmeli.
+    final folder = metrics.folderColor ?? const Color(0xFFE39B2E);
     return Container(
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
         color: palette.bg,
         borderRadius: BorderRadius.circular(metrics.radiusCard * 0.6),
         border: Border.all(color: palette.edge),
       ),
-      child: Center(
-        child: Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            color: palette.card,
-            borderRadius: BorderRadius.circular(metrics.radiusControl * 0.5),
-            border: Border.all(color: palette.rule),
+      child: Stack(
+        children: [
+          Center(
+            child: FmTintedIcon(
+              icon: metrics.outlinedIcons
+                  ? Icons.folder_outlined
+                  : Icons.folder_rounded,
+              color: folder,
+              size: 26,
+              style: metrics.iconStyle,
+              monoColor: palette.inkSoft,
+            ),
           ),
-          child: Center(
+          // Vurgu rengi köşede küçük bir nokta.
+          PositionedDirectional(
+            end: 4,
+            bottom: 4,
             child: Container(
-              width: 9,
-              height: 9,
+              width: 8,
+              height: 8,
               decoration: BoxDecoration(
                 color: palette.accent,
-                borderRadius:
-                    BorderRadius.circular(metrics.radiusControl * 0.4),
+                shape: BoxShape.circle,
+                border: Border.all(color: palette.bg, width: 1.2),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -372,4 +384,18 @@ class _BackgroundDot extends StatelessWidget {
       ),
     );
   }
+}
+
+/// **Alt çubuk kısayolları** (2026-10-18) — çubuğa basılı tutmanın Ayarlar'daki
+/// karşılığı; basılı tutmayı bilmeyen de bulabilsin.
+class NavTabsTile extends StatelessWidget {
+  const NavTabsTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: Icons.space_dashboard_outlined,
+        title: context.t('nav.edit_title'),
+        subtitle: context.t('nav.settings_sub'),
+        onTap: () => showNavTabsSheet(context),
+      );
 }

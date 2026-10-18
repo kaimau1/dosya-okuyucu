@@ -218,7 +218,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       leading:
-                          const Icon(Icons.folder, color: FmColors.folder),
+                          Icon(Icons.folder, color: context.fmFolderColor ?? FmColors.folder),
                       title: Text(entry.key),
                       trailing: Text(
                           context.t('count.files', {'n': entry.value})),
