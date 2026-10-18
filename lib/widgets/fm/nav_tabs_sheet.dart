@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
+import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -71,6 +72,26 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
           icon: Icons.auto_awesome_outlined,
           selected: Icons.auto_awesome,
           label: context.t('nav.ai'),
+        ),
+      'smart' => (
+          icon: Icons.folder_special_outlined,
+          selected: Icons.folder_special_rounded,
+          label: context.t('smart.title'),
+        ),
+      'bills' => (
+          icon: Icons.receipt_long_outlined,
+          selected: Icons.receipt_long_rounded,
+          label: context.t('nav.bills'),
+        ),
+      'vault' => (
+          icon: Icons.enhanced_encryption_outlined,
+          selected: Icons.enhanced_encryption_rounded,
+          label: context.t('nav.vault'),
+        ),
+      'memories' => (
+          icon: Icons.auto_awesome_mosaic_outlined,
+          selected: Icons.auto_awesome_mosaic_rounded,
+          label: context.t('mem.title'),
         ),
       'jobs' => (
           icon: Icons.playlist_add_check_outlined,
@@ -243,7 +264,9 @@ class _NavTabsEditor extends StatelessWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.all(Gap.md),
+              // Son düğme ("Varsayılana dön") gezinme çubuğunun altında
+              // kalmasın — `useSafeArea` alt kenarı korumuyor.
+              padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
               sliver: SliverToBoxAdapter(
                 child: Align(
                   alignment: AlignmentDirectional.centerStart,

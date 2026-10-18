@@ -21,6 +21,7 @@ import '../widgets/fm/nav_tabs_sheet.dart';
 import '../services/fm/fm_env.dart';
 import '../services/fm/home_shortcuts.dart';
 import 'fm/ai_hub_screen.dart';
+import 'fm/bills_screen.dart';
 import 'fm/browser_screen.dart';
 import 'fm/category_screen.dart';
 import 'fm/dashboard_screen.dart';
@@ -30,11 +31,14 @@ import 'fm/drive_screen.dart';
 import 'fm/important_screen.dart';
 import 'fm/installed_apps_screen.dart';
 import 'fm/jobs_screen.dart';
+import 'fm/memories_screen.dart';
 import 'fm/new_files_screen.dart';
 import 'fm/open_history_screen.dart';
 import 'fm/photos_screen.dart';
 import 'fm/search_screen.dart';
+import 'fm/smart_folders_screen.dart';
 import 'fm/trash_screen.dart';
+import 'fm/vault_screen.dart';
 
 /// Uygulama kabuğu: alt gezinme çubuğuyla üç bölme —
 /// **Dosyalar** (dosya yöneticisi panosu), **İndirilenler**, **Yeni Dosyalar**.
@@ -346,6 +350,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return const AiHubScreen();
       case 'jobs':
         return const JobsScreen();
+      case 'smart':
+        return const SmartFoldersScreen();
+      case 'bills':
+        return const BillsScreen();
+      case 'vault':
+        return const VaultScreen();
+      case 'memories':
+        return const MemoriesScreen();
       case 'trash':
         return const TrashScreen();
       case 'drive':

@@ -25,6 +25,7 @@ import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/media_library.dart';
 import '../../services/fm/search_index.dart';
+import '../../services/fm/smart_folders.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
@@ -57,6 +58,7 @@ import 'remote/remote_connections_screen.dart';
 import '../settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
+import 'memories_screen.dart';
 import 'new_files_screen.dart';
 import 'sd_union_screen.dart';
 import 'swipe_pager.dart';
@@ -71,9 +73,12 @@ import 'open_history_screen.dart';
 import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
+import 'bills_screen.dart';
 import 'similar_screen.dart';
+import 'smart_folders_screen.dart';
 import 'tools_screen.dart';
 import 'trash_screen.dart';
+import 'vault_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 
@@ -187,6 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Kullanıcının pano düzeni (sıra + göster/gizle).
     DashboardLayout.instance.addListener(_onLayoutChanged);
     unawaited(DashboardLayout.instance.ensureLoaded());
+    unawaited(SmartFolders.instance.ensureLoaded());
     _boot();
     unawaited(_loadAppsSize());
     _startVolumeWatch();
@@ -1531,6 +1537,48 @@ class _DashboardScreenState extends State<DashboardScreen>
           _ => '',
         },
         onTap: () => _push(CleanupScreen(index: _index)),
+      ),
+      // Anılar (2026-10-18): bu gün, yerler, insanlar — cihazda.
+      FmTileData(
+        icon: Icons.auto_awesome_mosaic_rounded,
+        color: const Color(0xFFE0668F),
+        id: 'memories',
+        label: context.t('mem.title'),
+        subtitle: '',
+        onTap: () => _push(const MemoriesScreen()),
+      ),
+      // Şifreli kasa (2026-10-18): PIN/parmak iziyle açılan, içeriği
+      // şifreli klasör — kimlik, tapu, sözleşme taramaları için.
+      FmTileData(
+        icon: Icons.enhanced_encryption_rounded,
+        color: const Color(0xFF37474F),
+        id: 'vault',
+        label: context.t('vault.title'),
+        subtitle: '',
+        onTap: () => _push(const VaultScreen()),
+      ),
+      // Faturalar ve giderler (2026-10-18): AI'nın tanıdığı faturalardan
+      // tutar/son ödeme/kurum, aylık özet, son günden önce hatırlatma.
+      FmTileData(
+        icon: Icons.receipt_long_rounded,
+        color: const Color(0xFFD9472B),
+        id: 'bills',
+        label: context.t('bills.title'),
+        subtitle: context.t('bills.tile_sub'),
+        onTap: () => _push(const BillsScreen()),
+      ),
+      // Akıllı klasörler (2026-10-18): kayıtlı AI aramaları — "faturalar"
+      // bir kez sorulur, sonra yeni gelenler kendiliğinden içeri girer.
+      FmTileData(
+        icon: Icons.folder_special_rounded,
+        color: const Color(0xFF6246EA),
+        id: 'smart_folders',
+        label: context.t('smart.title'),
+        subtitle: SmartFolders.instance.folders.isEmpty
+            ? ''
+            : context.t('smart.count_folders',
+                {'n': SmartFolders.instance.folders.length}),
+        onTap: () => _push(const SmartFoldersScreen()),
       ),
       // Sohbet yığını ayrı bir kutu: telefonu dolduran şey çoğu kullanıcıda
       // WhatsApp klasörü oluyor ve orada "gereksiz" ölçütü genel yer açmadan

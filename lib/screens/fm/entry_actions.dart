@@ -42,6 +42,7 @@ import 'folder_picker_screen.dart';
 import 'remote/peer_share_screen.dart';
 import 'important_screen.dart';
 import 'resize_actions.dart';
+import 'vault_screen.dart';
 import '../../core/snack.dart';
 
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
@@ -75,6 +76,7 @@ enum _EntryAction {
   join,
   shortcut,
   hide,
+  vault,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -246,6 +248,11 @@ Future<bool> showEntryActions(
               _act(ctx, Icons.visibility_off_outlined, ctx.t('ea.hide'),
                   _EntryAction.hide,
                   hint: ctx.t('ea.hide_hint')),
+              // Şifreli kasa (2026-10-18): gizlemenin ötesi — içerik şifrelenir.
+              if (!entry.isDir)
+                _act(ctx, Icons.enhanced_encryption_outlined,
+                    ctx.t('vault.move'), _EntryAction.vault,
+                    hint: ctx.t('vault.move_hint')),
               _act(ctx, Icons.info_outline, ctx.t('fm.properties'),
                   _EntryAction.properties),
             ]),
@@ -376,6 +383,9 @@ Future<bool> showEntryActions(
 
     case _EntryAction.hide:
       return hideEntries(context, [entry.path]);
+
+    case _EntryAction.vault:
+      return addToVault(context, [entry.path]);
 
     case _EntryAction.properties:
       await showProperties(context, entry);

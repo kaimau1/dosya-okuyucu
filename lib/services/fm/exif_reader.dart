@@ -240,6 +240,87 @@ abstract final class ExifReader {
     );
   }
 
+  /// **Konum (GPS) — yalnız cihaz üstünde gruplama için** (2026-10-18,
+  /// "Anılar → Yerler"). Yukarıdaki kapsam kararı (konum ekranda
+  /// gösterilmez) DEĞİŞMEDİ: bu değer [ExifData]'ya girmez, özellikler
+  /// ekranında yazmaz; yalnız fotoğrafları şehir/semt adına göre toplamak
+  /// için okunur ve koordinat hiçbir yere gönderilmez (yer adı cihazın kendi
+  /// `Geocoder`ından gelir).
+  static Future<({double lat, double lon})?> readGps(String path) async {
+    try {
+      final file = File(path);
+      final length = await file.length();
+      final take = length < headerBytes ? length : headerBytes;
+      final chunks = await file.openRead(0, take).toList();
+      return parseGps(Uint8List.fromList(chunks.expand((c) => c).toList()));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static ({double lat, double lon})? parseGps(Uint8List b) {
+    try {
+      final tiff = _findApp1(b);
+      if (tiff == null || tiff + 8 > b.length) return null;
+      final little = b[tiff] == 0x49 && b[tiff + 1] == 0x49;
+      final data = ByteData.sublistView(b);
+      final endian = little ? Endian.little : Endian.big;
+      int u16(int at) => data.getUint16(at, endian);
+      int u32(int at) => data.getUint32(at, endian);
+
+      // IFD0'da GPS alt dizininin konumu (etiket 0x8825).
+      final ifd0 = tiff + u32(tiff + 4);
+      if (ifd0 + 2 > b.length) return null;
+      int? gpsAt;
+      for (var i = 0; i < u16(ifd0) && i < 512; i++) {
+        final e = ifd0 + 2 + i * 12;
+        if (e + 12 > b.length) break;
+        if (u16(e) == 0x8825) gpsAt = tiff + u32(e + 8);
+      }
+      if (gpsAt == null || gpsAt + 2 > b.length) return null;
+      String? latRef, lonRef;
+      List<double>? lat, lon;
+      List<double> rationals(int at, int n) => [
+            for (var k = 0; k < n; k++)
+              if (u32(at + k * 8 + 4) == 0)
+                0.0
+              else
+                u32(at + k * 8) / u32(at + k * 8 + 4),
+          ];
+      for (var i = 0; i < u16(gpsAt) && i < 64; i++) {
+        final e = gpsAt + 2 + i * 12;
+        if (e + 12 > b.length) break;
+        final tag = u16(e);
+        if (tag == 1 || tag == 3) {
+          final ref = String.fromCharCode(b[e + 8]);
+          if (tag == 1) {
+            latRef = ref;
+          } else {
+            lonRef = ref;
+          }
+        } else if ((tag == 2 || tag == 4) && u16(e + 2) == 5 && u32(e + 4) == 3) {
+          final at = tiff + u32(e + 8);
+          if (at + 24 > b.length) continue;
+          if (tag == 2) {
+            lat = rationals(at, 3);
+          } else {
+            lon = rationals(at, 3);
+          }
+        }
+      }
+      if (lat == null || lon == null) return null;
+      var la = lat[0] + lat[1] / 60 + lat[2] / 3600;
+      var lo = lon[0] + lon[1] / 60 + lon[2] / 3600;
+      if (latRef == 'S') la = -la;
+      if (lonRef == 'W') lo = -lo;
+      // 0,0 = "konum yok" yazan kameralar; geçersiz aralık da atılır.
+      if ((la == 0 && lo == 0) || la.abs() > 90 || lo.abs() > 180) return null;
+      return (lat: la, lon: lo);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static int _typeSize(int type) => switch (type) {
         1 || 2 || 6 || 7 => 1,
         3 || 8 => 2,

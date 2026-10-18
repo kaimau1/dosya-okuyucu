@@ -23,22 +23,22 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
-import '../../models/fs_entry.dart';
 import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_apply.dart';
 import '../../services/fm/ai_ask.dart';
 import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/ai_report.dart';
-import '../../services/fm/entry_opener.dart';
+import '../../services/fm/smart_folders.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/ai_file_list.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/ai_preview_card.dart';
 import '../settings_screen.dart';
 import '../chat_screen.dart';
 import 'ai_files_screen.dart';
+import 'smart_folders_screen.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
@@ -81,6 +81,14 @@ class _AiHubScreenState extends State<AiHubScreen>
       appBar: AppBar(
         title: Text(context.t('aih.title')),
         actions: [
+          // Akıllı klasörler (2026-10-18): kayıtlı AI aramaları.
+          IconButton(
+            tooltip: context.t('smart.title'),
+            icon: const Icon(Icons.folder_special_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SmartFoldersScreen()),
+            ),
+          ),
           // Serbest sohbet (eskiden alt çubuğun AI sekmesiydi, 2026-09-27).
           IconButton(
             tooltip: context.t('chat.title'),
@@ -568,6 +576,31 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  /// Bir AI cevabının sorusu (kaynağı olan cevaplarda): akıllı klasöre
+  /// kaydedilecek sorgu.
+  String? _questionFor(int i) {
+    final m = _messages[i];
+    if (m.fromUser || m.error || m.sources.isEmpty || i == 0) return null;
+    final q = _messages[i - 1];
+    return q.fromUser ? q.text : null;
+  }
+
+  /// **Akıllı klasör olarak kaydet** (2026-10-18): soru kalıcı bir klasöre
+  /// döner; yeni analiz edilen eşleşen dosyalar kendiliğinden eklenir.
+  Future<void> _saveSmart(String question) async {
+    final folder = await SmartFolders.instance.add(question);
+    if (!mounted) return;
+    showSnack(
+      context,
+      context.t('smart.saved', {'name': folder.name}),
+      action: SnackBarAction(
+        label: context.t('common.open'),
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => SmartFolderScreen(folderId: folder.id))),
+      ),
+    );
+  }
+
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
@@ -596,7 +629,12 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
                   itemCount: _messages.length + (_busy ? 1 : 0),
                   itemBuilder: (context, i) => i == _messages.length
                       ? const _TypingBubble()
-                      : _Bubble(message: _messages[i]),
+                      : _Bubble(
+                          message: _messages[i],
+                          onSaveSmart: _questionFor(i) == null
+                              ? null
+                              : () => _saveSmart(_questionFor(i)!),
+                        ),
                 ),
         ),
         SafeArea(
@@ -742,7 +780,10 @@ class _TypingBubble extends StatelessWidget {
 
 class _Bubble extends StatelessWidget {
   final _ChatMsg message;
-  const _Bubble({required this.message});
+
+  /// Cevabın sorusunu akıllı klasöre kaydeder (yalnız kaynaklı cevaplarda).
+  final VoidCallback? onSaveSmart;
+  const _Bubble({required this.message, this.onSaveSmart});
 
   @override
   Widget build(BuildContext context) {
@@ -807,9 +848,22 @@ class _Bubble extends StatelessWidget {
                   itemCount: message.sources.length,
                   separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
                   itemBuilder: (context, i) =>
-                      _SourcePreview(record: message.sources[i]),
+                      AiPreviewCard(record: message.sources[i]),
                 ),
               ),
+              if (onSaveSmart != null)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero),
+                    onPressed: onSaveSmart,
+                    icon: const Icon(Icons.create_new_folder_outlined,
+                        size: 18),
+                    label: Text(context.t('smart.save')),
+                  ),
+                ),
             ],
           ],
         ),
@@ -1386,79 +1440,6 @@ class _EmptyHint extends StatelessWidget {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// AI cevabındaki bir kaynak dosyanın önizleme kartı.
-class _SourcePreview extends StatelessWidget {
-  final AiRecord record;
-  const _SourcePreview({required this.record});
-
-  static const _thumb = 104.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final entry = AiBuckets.entryOf(record);
-    final isVideo = entry.category == FmCategory.video;
-    return SizedBox(
-      width: _thumb,
-      child: Material(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => EntryOpener.open(context, record.path),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: _thumb,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned.fill(
-                      child: ColoredBox(
-                        color: scheme.surfaceContainerHigh,
-                        child: Center(
-                          child: FmEntryIcon(
-                            entry: entry,
-                            size: _thumb,
-                            radius: 0,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (isVideo)
-                      Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0x88000000),
-                          shape: BoxShape.circle,
-                        ),
-                        padding: const EdgeInsets.all(4),
-                        child: const Icon(Icons.play_arrow_rounded,
-                            color: Colors.white, size: 26),
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
-                  child: Text(
-                    record.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(height: 1.15),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

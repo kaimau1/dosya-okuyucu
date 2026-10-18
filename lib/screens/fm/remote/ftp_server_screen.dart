@@ -8,6 +8,7 @@ import '../../../core/theme.dart';
 import '../../../services/fm/remote/ftp_service.dart';
 import '../../../services/fm/remote/ftp_tree.dart';
 import '../../../services/fm/remote/share_scope.dart';
+import '../../../widgets/qr_code.dart';
 import 'share_folders_screen.dart';
 import '../../../core/snack.dart';
 import '../../../core/safe_insets.dart';
@@ -304,6 +305,27 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
               color: accent,
               primary: true,
             ),
+            const SizedBox(height: Gap.md),
+            // **QR** (2026-10-18): adresi yazmak yerine başka bir telefonun
+            // ya da bilgisayarın kamerasıyla okut.
+            QrCode(data: webAddresses.first),
+            const SizedBox(height: Gap.xs),
+            Text(
+              context.t('ftpd.qr_hint'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (_service.allowWrite) ...[
+              const SizedBox(height: Gap.xs),
+              Text(
+                context.t('ftpd.upload_hint'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: accent),
+              ),
+            ],
             const SizedBox(height: Gap.md),
           ],
           if (addresses.isNotEmpty)

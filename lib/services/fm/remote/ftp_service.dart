@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/l10n/app_strings.dart';
 import '../fm_env.dart';
+import '../fs_events.dart';
 import '../notification_hub.dart';
 import 'ftp_server.dart';
 import 'http_share_server.dart';
@@ -268,7 +270,13 @@ class FtpService extends ChangeNotifier {
       // HTTP kapısı FTP'den SONRA ve **kırılgan olmayan** biçimde açılıyor:
       // 8080 başka bir uygulamada doluysa (yaygın) paylaşımın tamamı
       // başarısız olmamalı — FTP çalışır, tarayıcı adresi görünmez.
-      final http = HttpShareServer(share: server);
+      // Yazma izni açıksa tarayıcıdan telefona gönderme de açık (2026-10-18):
+      // gelenler yalnız "İndirilenler/Bilgisayardan"a yazılır.
+      final http = HttpShareServer(
+        share: server,
+        uploadDir: _allowWrite ? uploadDirIn(FmEnv.primaryRoot) : null,
+        onUploaded: (_) => FsEvents.changed(),
+      );
       try {
         await http.start();
         _http = http;
@@ -289,6 +297,10 @@ class FtpService extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Tarayıcıdan gönderilen dosyaların klasörü.
+  static String uploadDirIn(String root) =>
+      p.join(root, 'Download', 'Bilgisayardan');
 
   /// Paylaşımı kapatır (bildirim ve ön plan sahipliği de bırakılır).
   Future<void> stop() async {

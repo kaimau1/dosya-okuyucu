@@ -12659,3 +12659,95 @@ graphify bu bulut oturumunda kurulu değildi → `graphify update .` koşturulma
 panoda nasıl duruyor; bellek panosu dar telefonda kırpılmadan sığıyor mu; alt çubuğa 6 sekme
 ekleyip basılı tutma ile düzenleme.
 **Derleme:** `90be53b` → **v1.0.378**, "APK Derle & Release" #378 yeşil (~13 dk).
+
+## 2026-10-18 (2. tur) — Önerilen 8 özellik: akıllı klasör, fatura, sınıflandırma, widget, haftalık bildirim, şifreli kasa, QR/yükleme, anılar
+
+**İstek:** *"önerilerinin hepsi doğru, yap ve main'e merge et"* (bir önceki turun "neler
+yapılabilir" listesi). Tur sırasında ek bulgu (ekran görüntüsü): tarama rehberinin "Anladım,
+bir daha gösterme" düğmesi gezinme çubuğunun altında kalıyordu.
+
+### A) Akıllı klasörler (`services/fm/smart_folders.dart`, `screens/fm/smart_folders_screen.dart`)
+- Klasör = kayıtlı SORGU, dizin değil: her açılışta `AiAsk.rank` ile cihazda yeniden aranır
+  (ağ yok). AI sohbetindeki kaynaklı cevabın altında "Akıllı klasör olarak kaydet". `seenMs`
+  sonrası değişen dosyalar "Yeni" rozetli. Önizleme kartı ortak: `widgets/fm/ai_preview_card.dart`.
+- **Bug-kök (testle yakalandı):** yinelenen sorgu kontrolü `toLowerCase()` ile yapılıyordu —
+  Dart Türkçe I/ı bilmiyor ("FATURALARIM" ≠ "faturalarım") ve iç boşluklar farklıydı → aynı
+  klasör ikinci kez açılıyordu. Artık boşluk teke + `asciiFold` karşılaştırma.
+
+### B) Faturalar ve giderler (`services/fm/bills.dart`, `screens/fm/bills_screen.dart`)
+- Adaylar: AI türü fatura/makbuz + adında fatur/makbuz/invoice/receipt. Anahtar varsa Gemini
+  (kurum/tutar/para birimi/son ödeme/dönem şeması), yoksa cihazda tahmin (`guessFromText`:
+  "toplam/ödenecek/tutar"ı izleyen EN BÜYÜK sayı — ara toplam/KDV küçük kalır; "son ödeme"yi
+  izleyen ilk tarih). Önbellek yol+mod anahtarlı (`bills_v1`). Aylık toplam para birimi başına
+  (TL ile EUR toplanmaz). "Ödendi" kutusu hatırlatmayı susturur.
+
+### C) Tarama sonrası sınıflandırma (`scan_result_screen._classBanner`)
+- OCR metni `classifyDocumentText` ile; güvenliyse "Fatura gibi görünüyor — Önemli
+  Dosyalar/Faturalar'a taşınsın mı? [Taşı]". Taşıma `_changeLocation`la ortak `_moveTo`.
+
+### D) Yerel Android ekleri (`ci/Extras.kt` + `lib/services/fm/native_extras.dart`, kanal `dosya/extras`)
+- **Günlük iş** (`DailyJob`, JobScheduler 12 sa, persisted): fatura hatırlatması (0..3 gün kala
+  günde bir, geçmişse BİR kez) + **haftalık temizlik** (doluluk ≥%80 ya da son "Yer aç"
+  çözümlemesinin bulduğu ≥500 MB; 7 günde bir; Ayarlar → Depolama'da kapatılabilir). Dart yalnız
+  veri + çevrilmiş metin yazar (`configureDaily`), karar Kotlin'de — uygulama kapalıyken çalışsın.
+- **Widget'lar:** `StorageWidget` (boş yer, doluluk çubuğu, Tara/Ara/Yer aç), `RecentWidget`
+  (son açılan 4 dosya). Kaynaklar `ci/res/**` (gece renkleri `values-night`), workflow `cp -r
+  ci/res/. android/app/src/main/res/`. Dokunuş = `EXTRA_LINK` (`app:scan|search|clean|bills|files`,
+  `file:/yol`) → MainActivity → Dart `openAppLink` (`screens/app_links.dart`).
+- **Biyometri:** çerçevenin `android.hardware.biometrics.BiometricPrompt`ı (API 28+) —
+  `local_auth` KULLANILMADI: FlutterFragmentActivity'ye geçiş isterdi. Keystore AES-GCM ile
+  anahtar sarma (`wrapKey/unwrapKey`). **Geocoder** ile yer adı.
+- **Doğrulama YOLU (yeni, önemli):** bu bulut oturumunda kotlinc 2.2.0 (GitHub) + Robolectric
+  `android-all` (Maven Central) indirildi; `tool/check_kotlin.sh` artık Extras.kt'yi de
+  derleyip saf karar işlevlerini JVM'de deniyor (`tool/kotlin_tests/ExtrasHarness.kt`, `R`
+  taslağı `ExtrasR.kt`). Ayrıca **bütün `ci/*.kt` (MainActivity dahil)** Flutter motorunun
+  `bin/cache/artifacts/engine/android-arm64/flutter.jar`ı + tek satırlık androidx
+  `LifecycleOwner` taslağıyla derlendi — temiz. TUZAK: dl.google.com (Google Maven) proxy'de
+  403; androidx jar'ı indirilemiyor, taslak şart.
+
+### E) Şifreli kasa (`services/fm/vault_crypto.dart`, `secure_vault.dart`, `screens/fm/vault_screen.dart`)
+- Gizlemeden ([HiddenVault]) farkı: içerik ŞİFRELİ. Ana anahtar rastgele 32 bayt; PIN →
+  PBKDF2-HMAC-SHA256 120k tur → AES-GCM ile sarılı `vault.json` (kasa klasöründe: uygulama
+  silinse de PIN'le açılır). Dosyalar **AES-256-CTR + HMAC-SHA256** (`DVK1|iv|ct|mac`),
+  1 MB parça akış — GCM bütün dosyayı bellekte isterdi. Açarken ÖNCE mac doğrulanır, sonra
+  çözülür (bozuk dosyanın yarısı diske yazılmaz). İşler `Isolate.run`.
+- Parmak izi: ana anahtarın Keystore sarılı kopyası prefs'te (yalnız bu telefon).
+- Kasa ekrandan çıkınca/uygulama arka plana geçince kilitlenir; açılan düz kopyalar önbellekte,
+  kilitte + açılışta silinir. **PIN unutulursa kurtarma YOK** — ekranda açıkça yazıyor.
+- Ekleme: önce şifreli kopya + boy doğrulama, SONRA aslı silinir. Sistem dosya seçicisi
+  KULLANILMADI (Android önbellek kopyası veriyor → aslı açıkta kalırdı); kasanın kendi basit
+  seçicisi + gezgin/seçim çubuğunda "Şifreli kasaya taşı".
+- pubspec: `pointycastle ^3.9.1` (zaten ağaçtaydı).
+
+### F) QR + tarayıcıdan telefona gönderme (`http_share_server.dart`, `widgets/qr_code.dart`)
+- QR: `barcode` paketinin matrisi + kendi CustomPainter (beyaz zemin — ters QR'ı okuyucular
+  tanımıyor). Yükleme: `POST /__yukle` (multipart, `mime` paketi), YALNIZ paylaşımda yazma izni
+  açıkken; dosyalar YALNIZ `Download/Bilgisayardan`a, asla üzerine yazmadan (`ad (1)`); dosya
+  adındaki yol ayırıcıları atılır (`uploadFileName`, testli).
+
+### G) Anılar (`services/fm/photo_insights.dart`, `screens/fm/memories_screen.dart`)
+- Bu gün (geçmiş yıllar, aynı ay-gün), Yerler (EXIF GPS ~5 km kümeleri, Geocoder adı; aynı adı
+  alan komşu hücreler birleşir), İnsanlar (ML Kit yüz ALGILAMA: kişili/tek/grup — kimlik
+  TANIMA yok; ücretsiz cihaz-içi tanıma yok ve KVKK). GPS `ExifReader.readGps/parseGps` ayrı
+  işlev: `ExifData`'ya girmez, özelliklerde gösterilmez (2026-09 KVKK kararı korunuyor).
+  Artımlı dizin `photo_insights.json`; GPS/tarih için dosya başına yalnız 64 KB okunur.
+- `google_mlkit_face_detection: 0.13.1` SABİT (0.13.0 commons ^0.10 → çakışma; 0.14+ Dart 3.8).
+  CI gömülü `com.google.mlkit:face-detection`ı `play-services-mlkit-face-detection:17.1.0`a
+  ikame ediyor (OCR ile aynı blok), manifest `DEPENDENCIES` = `ocr,face`.
+
+### H) Alt boşluk bulgusu
+- Kök: `showModalBottomSheet(useSafeArea: true)` yalnız ÜST kenarı korur; açık `padding` veren
+  kaydırılabilir içerik alt payı kendiliğinden almaz. Tarama rehberi, alt çubuk düzenleyici ve
+  kasa ekranının iki listesi `withNavInset`e alındı. Var olan `icon_button_tooltip_test` kasa
+  "⋮" düğmesindeki eksik ipucunu yakaladı (düzeltildi).
+
+**Doğrulama:** Flutter 3.29.3 `analyze lib test` 0 sorun; tam takım yeşil (2600 test, 9 atlanan
+canlı sunucu). Yeni testler: `new_features_test` (akıllı klasör, fatura ayrıştırma/özet/
+hatırlatma, günlük iş JSON'u, bu gün, kümeleme, EXIF GPS, QR), `vault_crypto_test` (gidiş-dönüş,
+yanlış anahtar, oynanmış dosya, PIN), `http_share_server_test` (+yükleme). Kotlin: `check_kotlin.sh`
+(Extras derleme + JVM denemesi) ve tüm `ci/*.kt` flutter.jar'a karşı derleme temiz.
+graphify bu ortamda yok → `graphify update .` yerelde koşturulmalı.
+**Cihazda bakılacak:** widget'ları ana ekrana ekleme (iki boy, gece modu), widget "Tara" →
+tarama açılıyor mu; günlük işin bildirimi (test için son ödemesi 2 gün sonra olan bir fatura);
+parmak iziyle kasa; QR'ı bilgisayarın/başka telefonun kamerasıyla okutup tarayıcıdan dosya
+gönderme; Anılar → İnsanlar taraması süresi; ML Kit yüz modelinin Play Hizmetleri'nden inmesi.

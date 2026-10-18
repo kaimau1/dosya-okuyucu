@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
@@ -9,6 +11,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
+import '../../services/fm/native_extras.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'trash_screen.dart';
 import '../../core/safe_insets.dart';
@@ -180,6 +183,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
           trashCount: trash.length,
         );
         handle.result = CleanupScanResult(list);
+        // Haftalık temizlik bildirimi bu sayıyı söyler (bkz. NativeExtras).
+        unawaited(NativeExtras.rememberRecoverable(cleanupTotal(list)));
         handle.report(
           detail: list.isEmpty
               ? strings.t('clean.nothing')

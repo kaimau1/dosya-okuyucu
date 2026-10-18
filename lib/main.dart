@@ -13,12 +13,15 @@ import 'core/l10n/app_language.dart';
 import 'core/l10n/app_strings.dart';
 import 'core/theme.dart';
 import 'core/snack.dart';
+import 'screens/app_links.dart';
 import 'screens/fm/job_navigation.dart';
 import 'screens/fm/jobs_screen.dart';
 import 'screens/fm/remote/ftp_server_screen.dart';
 import 'screens/fm/resize_actions.dart';
 import 'screens/fm/pick_file_screen.dart';
 import 'screens/home_screen.dart';
+import 'services/fm/native_extras.dart';
+import 'services/fm/secure_vault.dart';
 import 'services/fm/disk_housekeeping.dart';
 import 'services/fm/file_tags.dart';
 import 'services/fm/fm_env.dart';
@@ -134,6 +137,15 @@ Future<void> main() async {
     WidgetsBinding.instance.addPostFrameCallback(
         (_) => _openFromNotification(pending));
   }));
+  // Widget'lar ve yerel iş bildirimleri (2026-10-18): bağlantıyla açılış.
+  NativeExtras.install();
+  NativeExtras.onLink = _openLink;
+  unawaited(NativeExtras.takeLaunchLink().then((link) {
+    if (link == null || link.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openLink(link));
+  }));
+  // Uygulama arka plana geçince widget'ın "son dosyalar"ı tazelenir.
+  AppLifecycleListener(onPause: () => unawaited(NativeExtras.updateWidgets()));
   JobQueue.instance.reporter = jobNotifications;
   // Dosya taşınınca/adı değişince YOL ANAHTARLI yan kayıtlar da taşınmalı:
   // etiketler ve açılma geçmişi dosyayı yolundan tanıyor. Bu kanca bağlı
@@ -182,10 +194,17 @@ Future<void> _restoreJobs() async {
     // Yarıda kalmış PDF düzenlemesini geri yükle + eski geçici dosyaları
     // süpür (bkz. PdfEditJournal, TempSweep). Beklenmez.
     unawaited(TempSweep.runOnce());
+    // Şifreli kasadan açılmış düz kopyalar önceki oturumda kalmış olabilir
+    // (süreç öldürüldü, kilit çalışmadı) — açılışta silinir.
+    unawaited(SecureVault.clearTemp());
     // SD kartla birleşik depolama açıksa şarj işi yeniden kurulur (güncelleme
     // sonrası da sürsün, bildirim metni geçerli dilde olsun). Beklenmez.
     unawaited(SdUnion.syncOnLaunch());
     JobQueue.instance.restore(await JobStore.load());
+    // Fatura hatırlatması + haftalık temizlik işini kur/tazele, widget'ları
+    // güncelle (dil değişmiş olabilir). Beklenmez.
+    unawaited(NativeExtras.syncDailyJob());
+    unawaited(NativeExtras.updateWidgets());
     // "Kaldığın yerden devam" kaydı da burada yükleniyor: oynatıcı açılana
     // kadar zaman var ve açılışta diskten okumak ilk kareyi geciktirmesin.
     await PlaybackPositions.ensureLoaded();
@@ -243,6 +262,17 @@ void _openFromNotification(String payload) {
     return;
   }
   unawaited(openJobTarget(context, job));
+}
+
+/// Widget/yerel bildirim bağlantısını açar (bkz. `openAppLink`). Navigator
+/// henüz hazır değilse bir kare sonra yeniden denenir.
+void _openLink(String link) {
+  final context = navigatorKey.currentContext;
+  if (context == null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openLink(link));
+    return;
+  }
+  unawaited(openAppLink(context, link));
 }
 
 /// `PickerActivity`nin Flutter'a verdiği başlangıç yolu. Tek yerde tanımlı:

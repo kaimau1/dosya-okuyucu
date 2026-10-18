@@ -213,6 +213,15 @@ jobs:
           # `SdUnion` bunu arar; kopyalanmazsa derleme "unresolved reference"
           # ile kırılır.
           cp ci/SdUnion.kt "$DIR/SdUnion.kt"
+          # Yerel ekler (2026-10-18): widget'lar, günlük iş (fatura/temizlik
+          # bildirimi), biyometri, Keystore, Geocoder. Manifest'teki
+          # `.StorageWidget`, `.RecentWidget`, `.DailyJob` ve MainActivity'deki
+          # `Extras` bunu arar; kopyalanmazsa derleme kırılır.
+          cp ci/Extras.kt "$DIR/Extras.kt"
+          # Widget kaynakları (yerleşim, simge, renk, gece renkleri, tanım).
+          # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.
+          cp -r ci/res/. android/app/src/main/res/
+          ls -R android/app/src/main/res/layout android/app/src/main/res/xml
           # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
           # kalırsa "duplicate class" hatası verir.
           rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java
@@ -345,6 +354,10 @@ jobs:
           import pathlib, re
           OCR_FROM = 'com.google.mlkit:text-recognition'
           OCR_TO = 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
+          # Yüz algılama da aynı yoldan (2026-10-18, "Anılar → İnsanlar"):
+          # gömülü model yerine Play Hizmetleri'nin ortak modeli.
+          FACE_FROM = 'com.google.mlkit:face-detection'
+          FACE_TO = 'com.google.android.gms:play-services-mlkit-face-detection:17.1.0'
           patched = False
           for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
               path = pathlib.Path(name)
@@ -367,6 +380,9 @@ jobs:
                       f'        substitute(module("{OCR_FROM}"))\n'
                       f'            .using(module("{OCR_TO}"))\n'
                       '            .because("OCR model comes from Google Play services, not the APK")\n'
+                      f'        substitute(module("{FACE_FROM}"))\n'
+                      f'            .using(module("{FACE_TO}"))\n'
+                      '            .because("Face model comes from Google Play services, not the APK")\n'
                       '    }\n'
                       '}\n')
               else:
@@ -374,6 +390,7 @@ jobs:
                       '\nconfigurations.all {\n'
                       '    resolutionStrategy.dependencySubstitution {\n'
                       f"        substitute module('{OCR_FROM}') using module('{OCR_TO}')\n"
+                      f"        substitute module('{FACE_FROM}') using module('{FACE_TO}')\n"
                       '    }\n'
                       '}\n')
               path.write_text(text.rstrip() + '\n' + block)

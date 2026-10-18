@@ -88,6 +88,12 @@ class MainActivity : FlutterActivity() {
     /** Yüzen oynatıcı kanalı (pencere → Dart olayları). */
     private var floatingChannel: MethodChannel? = null
 
+    /** Widget/bildirimden gelen, Dart'ın henüz almadığı bağlantı. */
+    private var pendingLink: String? = null
+
+    /** Yerel eklerin kanalı (bkz. `Extras`). */
+    private var extrasChannel: MethodChannel? = null
+
     /** Açık ham USB belleği (varsa) — bkz. `UsbMass`. */
     private var usbMass: UsbMass? = null
 
@@ -100,6 +106,7 @@ class MainActivity : FlutterActivity() {
         launchAction = intent?.action
         launchReferrer = callerPackage()
         MediaBridge.rememberPayload(intent?.getStringExtra(MediaBridge.EXTRA_PAYLOAD))
+        pendingLink = intent?.getStringExtra(Extras.EXTRA_LINK)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -123,6 +130,13 @@ class MainActivity : FlutterActivity() {
         if (!mediaPayload.isNullOrEmpty()) {
             MediaBridge.rememberPayload(mediaPayload)
             mediaChannel?.invokeMethod("open", mediaPayload)
+        }
+        // Widget/yerel bildirim bağlantısı (2026-10-18): uygulama açıkken
+        // Dart'a it; kanal henüz yoksa `takeLink` ile alınır.
+        val link = intent.getStringExtra(Extras.EXTRA_LINK)
+        if (!link.isNullOrEmpty()) {
+            val ch = extrasChannel
+            if (ch != null) ch.invokeMethod("link", link) else pendingLink = link
         }
         // **Dart'a HABER VER (kullanıcı hatası 2026-09-02: "basıyorum tepki
         // vermiyor").** Uygulama zaten ön plandayken seçiciden bizi seçmek
@@ -302,6 +316,50 @@ class MainActivity : FlutterActivity() {
      * içinde; burası yalnız kanal. Ayar Dart'ta tutulur, `configure` ile JSON
      * olarak gelir; şarjdayken koşan dönemsel iş uygulama kapalıyken de çalışır.
      */
+    /**
+     * **Yerel ekler kanalı** (2026-10-18) — widget'lar, günlük iş, biyometri,
+     * Keystore, Geocoder. İşin kendisi `Extras.kt`te; burası yalnız köprü.
+     */
+    private fun setupExtrasChannel(flutterEngine: FlutterEngine) {
+        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, Extras.CHANNEL)
+        extrasChannel = ch
+        ch.setMethodCallHandler { call, result ->
+            val ctx = applicationContext
+            when (call.method) {
+                "takeLink" -> {
+                    result.success(pendingLink)
+                    pendingLink = null
+                }
+                "configureDaily" -> result.success(
+                    Extras.configureDaily(ctx, call.arguments as? String ?: "{}")
+                )
+                "updateWidgets" -> result.success(
+                    Extras.saveWidgetData(ctx, call.arguments as? String ?: "{}")
+                )
+                "canAuthenticate" -> result.success(Extras.canAuthenticate(ctx))
+                "authenticate" -> Extras.authenticate(
+                    this,
+                    call.argument<String>("title") ?: "",
+                    call.argument<String>("subtitle") ?: "",
+                    call.argument<String>("cancel") ?: "",
+                ) { ok -> result.success(ok) }
+                "wrapKey" -> result.success(
+                    (call.arguments as? ByteArray)?.let { Extras.wrap(it) }
+                )
+                "unwrapKey" -> result.success(
+                    (call.arguments as? ByteArray)?.let { Extras.unwrap(it) }
+                )
+                "geocode" -> Extras.geocode(
+                    ctx,
+                    call.argument<Double>("lat") ?: 0.0,
+                    call.argument<Double>("lon") ?: 0.0,
+                    call.argument<String>("lang") ?: "",
+                ) { name -> result.success(name) }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
     private fun setupSdUnionChannel(flutterEngine: FlutterEngine) {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SD_UNION_CHANNEL)
             .setMethodCallHandler { call, result ->
@@ -411,6 +469,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         setupShortcutChannel(flutterEngine)
         setupSdUnionChannel(flutterEngine)
+        setupExtrasChannel(flutterEngine)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel!!
             .setMethodCallHandler { call, result ->

@@ -412,6 +412,43 @@
             </intent-filter>
         </provider>
 
+        <!-- ── YEREL EKLER (2026-10-18, ci/Extras.kt) ───────────────────────
+             Ana ekran widget'ları: depolama + hızlı eylemler, son dosyalar.
+             Dokunuşlar uygulamayı bir bağlantı ekiyle açar (MainActivity →
+             Dart `openAppLink`). Widget yalnız sistemin AppWidgetManager'ı
+             tarafından tetiklenir; `exported="true"` alıcı için zorunlu
+             (APPWIDGET_UPDATE yayını sistemden gelir). -->
+        <receiver
+            android:name=".StorageWidget"
+            android:label="Depolama ve hızlı eylemler"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_storage_info"/>
+        </receiver>
+        <receiver
+            android:name=".RecentWidget"
+            android:label="Son dosyalar"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_recent_info"/>
+        </receiver>
+
+        <!-- Günlük iş: fatura son ödeme hatırlatması + haftalık temizlik
+             önerisi (uygulama kapalıyken de). JobScheduler, setPersisted →
+             RECEIVE_BOOT_COMPLETED izni yukarıda zaten var (SD kart işi). -->
+        <service
+            android:name=".DailyJob"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
+
         <!-- ── İş kuyruğunun ÖN PLAN SERVİSİ ───────────────────────────────
              Kullanıcı hatası 2026-07-30: "arka plana alınca uygulamayı
              duraklıyor işlem". Android, ön planda olmayan süreci (özellikle
@@ -486,7 +523,7 @@
              bildirirse birleştirme hata vermesin, bizimki geçerli olsun. -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="ocr"
+            android:value="ocr,face"
             tools:replace="android:value" />
 
         <!-- Flutter v2 gömme (embedding) işareti. -->

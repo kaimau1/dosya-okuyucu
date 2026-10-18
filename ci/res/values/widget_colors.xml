@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ana ekran widget'larının renkleri (2026-10-18). Gece kipi values-night'ta. -->
+<resources>
+    <color name="w_bg">#F7FFFFFF</color>
+    <color name="w_ink">#FF1B1D21</color>
+    <color name="w_ink_soft">#FF5A5F69</color>
+    <color name="w_accent">#FF1F6FEB</color>
+    <color name="w_pill">#FFE1ECFD</color>
+    <color name="w_track">#FFE2E4E9</color>
+</resources>

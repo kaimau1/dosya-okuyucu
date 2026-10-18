@@ -496,6 +496,14 @@ List<SettingsCategory> settingsCategories() => [
                 altKeys: ['sdu.kw'],
                 builder: _sdUnionTile),
           ]),
+          // Haftalık temizlik bildirimi (2026-10-18).
+          SettingsSection('nx.weekly', [
+            SettingRow(
+                id: 'weekly_cleanup',
+                titleKey: 'nx.weekly',
+                subtitleKey: 'nx.weekly_sub',
+                builder: _weeklyCleanupTile),
+          ]),
           SettingsSection('fmset.sec_delete', [
             SettingRow(
                 id: 'use_trash',
@@ -635,6 +643,7 @@ Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
 Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
+Widget _weeklyCleanupTile(BuildContext _) => const WeeklyCleanupTile();
 Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _settingsRestoreTile(BuildContext _) => const SettingsRestoreTile();

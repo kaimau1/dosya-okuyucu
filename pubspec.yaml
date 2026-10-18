@@ -28,6 +28,17 @@ dependencies:
   # bir gün ağaçtan düşmesi derlemeyi kırardı. Saf Dart, eklenti yok.
   crypto: ^3.0.0
 
+  # **Şifreli kasa** (2026-10-18): AES-256 (GCM/CTR) + PBKDF2. Saf Dart, eklenti
+  # yok; zaten `pdf`/`syncfusion` üzerinden ağaçtaydı (3.9.1), doğrudan
+  # kullandığımız için açıkça yazılıyor. Bkz. lib/services/fm/vault_crypto.dart.
+  pointycastle: ^3.9.1
+  # Tarayıcıdan telefona yükleme (2026-10-18): çok parçalı form ayrıştırıcı.
+  # `http` paketinin bağımlılığı olarak zaten ağaçta (2.1.0), saf Dart.
+  mime: ^2.0.0
+  # Paylaşım adresinin QR kodu (2026-10-18). `pdf` paketi zaten çekiyor
+  # (2.2.9), saf Dart; QR matrisi kendi CustomPainter'ımızla çiziliyor.
+  barcode: ^2.2.9
+
   # Dosya seçme / yol
   file_picker: ^8.1.2
   path_provider: ^2.1.4
@@ -66,6 +77,13 @@ dependencies:
   # (commons 0.11.1 de Dart >=3.8 ister; CI'da pub otomatik 0.11.0'a düşer —
   # pubspec.lock gitignore'da olduğu için CI kendi çözümlemesini yapar.)
   google_mlkit_translation: 0.13.0
+  # Yüz ALGILAMA (kimlik tanıma DEĞİL) — "Anılar → İnsanlar" (2026-10-18):
+  # kişi içeren fotoğrafları, grup fotoğraflarını ve portreleri ayırır.
+  # 0.13.1 SABİT: commons ^0.11.0 ister (text_recognition/translation ile
+  # aynı); 0.13.0 commons ^0.10.0 ister → çözümleme çakışır, 0.14+ Dart 3.8.
+  # CI gömülü modeli (`com.google.mlkit:face-detection`) Play Hizmetleri
+  # sürümüne çeviriyor (OCR ile aynı ikame, APK büyümesin) — bkz. workflow.
+  google_mlkit_face_detection: 0.13.1
   # Word'ü gerçek sayfa düzeniyle çizmek için (assets/word içindeki docx-preview
   # motoru gömülü çalışır — internet gerekmez)
   webview_flutter: ^4.10.0

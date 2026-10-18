@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/busy_dialog.dart';
+import '../core/safe_insets.dart';
 import '../core/l10n/app_strings.dart';
 import '../screens/scan_result_screen.dart';
 import '../services/document_scanner.dart';
@@ -276,8 +277,11 @@ class _ScanTipsSheet extends StatelessWidget {
             ],
           ),
         );
+    // **Alt boşluk gezinme çubuğunu aşar** (kullanıcı ekran görüntüsü
+    // 2026-10-18: "Anladım, bir daha gösterme" sistem çubuğunun altında
+    // kalıyordu). `useSafeArea` yalnız ÜST kenarı korur; alt kenar burada.
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: withNavInset(context, const EdgeInsets.fromLTRB(20, 0, 20, 16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

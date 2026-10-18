@@ -62,3 +62,21 @@ if ! "$KOTLIN_RUN" -cp "$OUT2:$ANDROID_JAR" SdUnionHarnessKt; then
   echo "SdUnion DENEMESİ BAŞARISIZ."
   exit 1
 fi
+
+# ── Yerel ekler (widget'lar, günlük iş, biyometri, Keystore, Geocoder) ──
+# `ci/Extras.kt` (2026-10-18): gerçek jar'a karşı derlenir (+ `R` taslağı,
+# gerçeğini CI'da Gradle üretir) ve saf karar işlevleri JVM'de denenir.
+OUT3="$OUT/extras"
+mkdir -p "$OUT3"
+"$KOTLINC" -nowarn -cp "$ANDROID_JAR" -d "$OUT3" \
+  "$ROOT/ci/Extras.kt" \
+  "$ROOT/tool/kotlin_tests/ExtrasR.kt" \
+  "$ROOT/tool/kotlin_tests/ExtrasHarness.kt" 2>&1 | tee "$OUT/log3"
+if grep -qE "^e: |: error: " "$OUT/log3"; then
+  echo "KOTLIN HATASI (Extras) — yukarıya bakın."
+  exit 1
+fi
+if ! "$KOTLIN_RUN" -cp "$OUT3:$ANDROID_JAR" com.dosyaokuyucu.dosya_okuyucu.ExtrasHarnessKt; then
+  echo "Extras DENEMESİ BAŞARISIZ."
+  exit 1
+fi

@@ -15,7 +15,9 @@ import '../core/theme.dart';
 import '../services/document_scanner.dart';
 import '../services/fm/activity_log.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/doc_classifier.dart';
 import '../services/fm/file_ops.dart';
+import '../services/fm/fm_env.dart';
 import '../services/fm/fs_events.dart';
 import '../services/fm/safe_write.dart';
 import '../services/ocr_service.dart';
@@ -25,6 +27,7 @@ import '../services/scan_page_ops.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/translate_flow.dart';
 import 'fm/folder_picker_screen.dart';
+import 'fm/important_screen.dart';
 import 'scan_edit_screen.dart';
 
 /// PDF'i [pages]'ten AYNI YOLDA yeniden yazan iş. [ocr] sayfanın KAYNAĞINA
@@ -157,6 +160,26 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     for (var i = 0; i < widget.pages.length && i < widget.ocrLines.length; i++) {
       _ocr[widget.pages[i].source] = widget.ocrLines[i];
     }
+    // **Otomatik sınıflandırma** (2026-10-18): taranan metin bir türe
+    // (fatura, kimlik, sözleşme…) güvenle uyuyorsa ilgili klasör önerilir.
+    // Cihazda anahtar sözcükle — metin hiçbir yere gönderilmez.
+    final text = widget.textPages.map((page) => page.text).join('\n');
+    if (text.trim().isNotEmpty) {
+      final guess = classifyDocumentText(text);
+      if (guess.isConfident) _classGuess = guess;
+    }
+  }
+
+  /// Tarama sonrası tür tahmini (yalnız güvenliyse); kullanıcı kapatınca null.
+  DocGuess? _classGuess;
+
+  /// Önerilen klasör: Önemli Dosyalar / <tür klasörü>.
+  String? get _suggestedFolder {
+    final guess = _classGuess;
+    if (guess == null) return null;
+    final target = p.join(
+        ImportantScreen.pathIn(FmEnv.primaryRoot), guess.type.folder);
+    return p.equals(target, _folder) ? null : target;
   }
 
   @override
@@ -650,6 +673,23 @@ class _ScanResultScreenState extends State<ScanResultScreen>
       ),
     );
     if (target == null || !mounted || target == _folder) return;
+    await _moveTo(target);
+  }
+
+  /// Önerilen tür klasörüne taşır (yoksa kurulur).
+  Future<void> _acceptClassFolder() async {
+    final target = _suggestedFolder;
+    if (target == null) return;
+    await _flush();
+    try {
+      await Directory(target).create(recursive: true);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _classGuess = null);
+    await _moveTo(target);
+  }
+
+  Future<void> _moveTo(String target) async {
     setState(() => _work = context.t('ss.moving'));
     final old = _pdfPath;
     final result = await FileOps.moveAll([_pdfPath], target);
@@ -765,12 +805,49 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               ),
             ),
             Divider(height: 1, color: scheme.outlineVariant),
+            if (_suggestedFolder != null) _classBanner(context),
             Expanded(child: _tab == 0 ? _pagesView(context) : _textView()),
             if (_tab == 0) _thumbStrip(context),
           ],
         ),
         bottomNavigationBar:
             _tab == 0 ? _toolBar(context) : _textBar(context),
+      ),
+    );
+  }
+
+  /// "Fatura gibi görünüyor → Faturalar klasörüne taşı" önerisi.
+  Widget _classBanner(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final guess = _classGuess!;
+    return Material(
+      color: scheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome, size: 20, color: scheme.onPrimaryContainer),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                context.t('scr.class_hint', {
+                  'type': context.t(guess.type.labelKey),
+                  'folder': guess.type.folder,
+                }),
+                style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 13),
+              ),
+            ),
+            TextButton(
+              onPressed: _busy ? null : _acceptClassFolder,
+              child: Text(context.t('scr.class_move')),
+            ),
+            IconButton(
+              tooltip: context.t('common.close'),
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => setState(() => _classGuess = null),
+            ),
+          ],
+        ),
       ),
     );
   }

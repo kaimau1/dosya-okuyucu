@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
 import '../../core/display_mode.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../services/fm/native_extras.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
@@ -351,3 +353,38 @@ Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
         ],
       ),
     );
+
+/// **Haftalık temizlik önerisi** (2026-10-18): depolama dolmaya başlayınca
+/// haftada bir bildirim — uygulama kapalıyken de (yerel günlük iş).
+class WeeklyCleanupTile extends StatefulWidget {
+  const WeeklyCleanupTile({super.key});
+
+  @override
+  State<WeeklyCleanupTile> createState() => _WeeklyCleanupTileState();
+}
+
+class _WeeklyCleanupTileState extends State<WeeklyCleanupTile> {
+  bool _on = true;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((p) {
+      if (mounted) {
+        setState(() => _on = p.getBool(NativeExtras.kWeeklyCleanup) ?? true);
+      }
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingSwitch(
+        icon: Icons.cleaning_services_outlined,
+        title: context.t('nx.weekly'),
+        subtitle: context.t('nx.weekly_sub'),
+        value: _on,
+        onChanged: (v) {
+          setState(() => _on = v);
+          NativeExtras.setWeeklyCleanup(v);
+        },
+      );
+}

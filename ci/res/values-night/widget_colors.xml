@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_bg">#F21D2025</color>
+    <color name="w_ink">#FFE7E9EC</color>
+    <color name="w_ink_soft">#FFB0B5BD</color>
+    <color name="w_accent">#FF6EA8FF</color>
+    <color name="w_pill">#FF1E3252</color>
+    <color name="w_track">#FF343943</color>
+</resources>

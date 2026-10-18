@@ -270,5 +270,85 @@ void main() {
       await response.drain<void>();
       expect(File(p.join(root.path, 'fatura.pdf')).existsSync(), isTrue);
     });
+      test('yükleme kapalıyken (yazma izni yok) POST reddedilir', () async {
+      final request = await client.postUrl(Uri.parse(
+          'http://127.0.0.1:${server.boundPort}${HttpShareServer.uploadPath}'));
+      request.headers.set(HttpHeaders.authorizationHeader,
+          'Basic ${base64.encode(utf8.encode('pc:123456'))}');
+      request.headers.contentType =
+          ContentType('multipart', 'form-data', parameters: {'boundary': 'x'});
+      request.write('--x--\r\n');
+      final response = await request.close();
+      expect(response.statusCode, HttpStatus.forbidden);
+      await response.drain<void>();
+    });
   });
+
+  group('tarayıcıdan telefona gönderme (2026-10-18)', () {
+    test('dosya adı: yol ayırıcıları atılır, UTF-8 ad çözülür', () {
+      expect(
+          HttpShareServer.uploadFileName(
+              'form-data; name="f"; filename="C:\\Users\\a\\rapor.pdf"'),
+          'rapor.pdf');
+      expect(
+          HttpShareServer.uploadFileName(
+              "form-data; name=\"f\"; filename*=UTF-8''%C5%9Eubat.docx"),
+          'Şubat.docx');
+      expect(HttpShareServer.uploadFileName('form-data; name="f"'), isNull);
+      expect(
+          HttpShareServer.uploadFileName('form-data; filename="../.."'),
+          isNull);
+    });
+
+    test('yüklenen dosyalar yalnız gelen klasörüne, üzerine yazmadan', () async {
+      final root = Directory.systemTemp.createTempSync('http_up');
+      final inbox = p.join(root.path, 'Gelen');
+      Directory(inbox).createSync();
+      File(p.join(inbox, 'not.txt')).writeAsStringSync('eski');
+      final share = FtpServer(
+        rootDirectory: root.path,
+        username: 'pc',
+        password: '1',
+        collectCategory: (_) async => const [],
+      );
+      final uploaded = <String>[];
+      final server = HttpShareServer(
+          share: share, port: 0, uploadDir: inbox, onUploaded: uploaded.addAll);
+      await server.start();
+      final client = HttpClient();
+      try {
+        // Listeleme formu gösteriyor.
+        final get = await client
+            .getUrl(Uri.parse('http://127.0.0.1:${server.boundPort}/'));
+        get.headers.set(HttpHeaders.authorizationHeader,
+            'Basic ${base64.encode(utf8.encode('pc:1'))}');
+        final page = await (await get.close()).transform(utf8.decoder).join();
+        expect(page, contains(HttpShareServer.uploadPath));
+
+        final request = await client.postUrl(Uri.parse(
+            'http://127.0.0.1:${server.boundPort}${HttpShareServer.uploadPath}'));
+        request.headers.set(HttpHeaders.authorizationHeader,
+            'Basic ${base64.encode(utf8.encode('pc:1'))}');
+        request.headers.contentType = ContentType('multipart', 'form-data',
+            parameters: {'boundary': 'SINIR'});
+        request.write('--SINIR\r\n'
+            'Content-Disposition: form-data; name="f"; filename="not.txt"\r\n'
+            'Content-Type: text/plain\r\n\r\n'
+            'yeni icerik\r\n'
+            '--SINIR--\r\n');
+        final response = await request.close();
+        final body = await response.transform(utf8.decoder).join();
+        expect(response.statusCode, 200);
+        expect(body, contains('1 dosya'));
+        expect(File(p.join(inbox, 'not.txt')).readAsStringSync(), 'eski');
+        expect(File(p.join(inbox, 'not (1).txt')).readAsStringSync(),
+            'yeni icerik');
+        expect(uploaded, hasLength(1));
+      } finally {
+        client.close(force: true);
+        await server.stop();
+        removeTempDir(root);
+      }
+    });
+});
 }

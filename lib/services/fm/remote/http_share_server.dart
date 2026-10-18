@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../models/fs_entry.dart';
+import '../file_ops.dart';
 import '../fs_scan.dart';
 import '../mime_types.dart';
 import 'ftp_server.dart';
@@ -55,7 +57,24 @@ class HttpShareServer {
   /// alınamaz. Tarayıcıya `:8080` yazmak alışılmış bir şey.
   final int port;
 
-  HttpShareServer({required this.share, this.port = 8080});
+  /// **Bilgisayardan telefona gönderme** (2026-10-18): doluysa listeleme
+  /// sayfalarında bir yükleme formu çıkar ve gelen dosyalar YALNIZ bu klasöre
+  /// yazılır (var olan dosyanın üstüne asla yazılmaz — `ad (1).pdf`). Null =
+  /// yükleme kapalı (paylaşımda yazma izni yok).
+  final String? uploadDir;
+
+  /// Yüklenen her dosya yazılınca (pano/gezgin tazelensin, bildirim çıksın).
+  final void Function(List<String> paths)? onUploaded;
+
+  HttpShareServer({
+    required this.share,
+    this.port = 8080,
+    this.uploadDir,
+    this.onUploaded,
+  });
+
+  /// Yükleme formunun gönderildiği adres (gerçek bir klasör adıyla çakışmaz).
+  static const uploadPath = '/__yukle';
 
   HttpServer? _server;
 
@@ -114,6 +133,10 @@ class HttpShareServer {
         await response.close();
         return;
       }
+      if (request.method == 'POST' && request.uri.path == uploadPath) {
+        await _receiveUpload(request);
+        return;
+      }
       if (request.method != 'GET' && request.method != 'HEAD') {
         response.statusCode = HttpStatus.methodNotAllowed;
         await response.close();
@@ -157,6 +180,73 @@ class HttpShareServer {
     }
   }
 
+  /// Yükleme formunu alır: her dosya [uploadDir]e, aynı ad varsa `ad (1)`.
+  Future<void> _receiveUpload(HttpRequest request) async {
+    final response = request.response;
+    final dir = uploadDir;
+    final type = request.headers.contentType;
+    final boundary = type?.parameters['boundary'];
+    if (dir == null || type?.mimeType != 'multipart/form-data' ||
+        boundary == null) {
+      response.statusCode = HttpStatus.forbidden;
+      response.write('403');
+      await response.close();
+      return;
+    }
+    await Directory(dir).create(recursive: true);
+    final saved = <String>[];
+    await for (final part
+        in MimeMultipartTransformer(boundary).bind(request)) {
+      final name = uploadFileName(part.headers['content-disposition']);
+      if (name == null) {
+        await part.drain<void>();
+        continue;
+      }
+      final target = FileOps.uniquePath(p.join(dir, name));
+      final sink = File(target).openWrite();
+      try {
+        await sink.addStream(part);
+        await sink.close();
+        saved.add(target);
+      } catch (_) {
+        await sink.close();
+        try {
+          await File(target).delete();
+        } catch (_) {}
+      }
+    }
+    if (saved.isNotEmpty) onUploaded?.call(saved);
+    final back = request.headers.value('referer') ?? '/';
+    await _sendHtml(
+      response,
+      '<!doctype html><html lang="tr"><head><meta charset="utf-8">'
+      '<meta name="viewport" content="width=device-width,initial-scale=1">'
+      '<style>$_css</style></head><body><div class="ok"><h1>&#10004; '
+      '${saved.length} dosya telefona gönderildi</h1>'
+      '<p>${escapeHtml(p.basename(dir))} klasörüne kaydedildi.</p>'
+      '<p><a href="${escapeHtml(back)}">&#8592; Geri</a></p></div></body></html>',
+    );
+  }
+
+  /// Çok parçalı form başlığından güvenli dosya adı (yol ayırıcıları atılır).
+  /// Saf fonksiyon — testli.
+  static String? uploadFileName(String? disposition) {
+    if (disposition == null) return null;
+    String? raw;
+    final star = RegExp(r"filename\*=UTF-8''([^;]+)", caseSensitive: false)
+        .firstMatch(disposition);
+    if (star != null) {
+      try {
+        raw = Uri.decodeComponent(star[1]!.trim());
+      } catch (_) {}
+    }
+    raw ??= RegExp(r'filename="([^"]*)"').firstMatch(disposition)?[1];
+    if (raw == null) return null;
+    final name = raw.split(RegExp(r'[\\/]')).last.trim();
+    if (name.isEmpty || name == '.' || name == '..') return null;
+    return name.replaceAll(RegExp(r'[\x00-\x1f]'), '');
+  }
+
   /// Parola varsa HTTP Basic. Anonim paylaşımda herkes girebilir (kullanıcı
   /// bunu ekranda bilerek seçiyor).
   bool _authorized(HttpRequest request) {
@@ -170,6 +260,7 @@ class HttpShareServer {
   String _rootPage(String virtual) => listingHtml(
         title: FtpTree.storageFolder,
         virtualPath: virtual,
+        uploadAction: uploadDir == null ? null : uploadPath,
         rows: [
           for (final item in share.tree.rootItems())
             HttpShareRow(name: item.name, isDir: true),
@@ -180,6 +271,7 @@ class HttpShareServer {
       listingHtml(
         title: p.posix.basename(virtual),
         virtualPath: virtual,
+        uploadAction: uploadDir == null ? null : uploadPath,
         rows: [
           for (final entry in files.entries)
             HttpShareRow(
@@ -212,6 +304,7 @@ class HttpShareServer {
     return listingHtml(
       title: p.posix.basename(virtual),
       virtualPath: virtual,
+      uploadAction: uploadDir == null ? null : uploadPath,
       rows: rows,
     );
   }
@@ -280,6 +373,7 @@ class HttpShareServer {
     required String title,
     required String virtualPath,
     required List<HttpShareRow> rows,
+    String? uploadAction,
   }) {
     final sorted = [...rows]..sort((a, b) {
         if (a.isDir != b.isDir) return a.isDir ? -1 : 1;
@@ -294,7 +388,15 @@ class HttpShareServer {
       ..write('<title>${escapeHtml(title)}</title>')
       ..write('<style>$_css</style>')
       ..write('</head><body><header><h1>${escapeHtml(title)}</h1>')
-      ..write('<p class="path">${escapeHtml(virtualPath)}</p></header><ul>');
+      ..write('<p class="path">${escapeHtml(virtualPath)}</p>');
+    if (uploadAction != null) {
+      // Bilgisayardan telefona: çoklu dosya seçip "Telefona gönder".
+      buffer.write('<form class="up-form" method="post" '
+          'action="$uploadAction" enctype="multipart/form-data">'
+          '<input type="file" name="f" multiple required>'
+          '<button type="submit">&#128241; Telefona gönder</button></form>');
+    }
+    buffer.write('</header><ul>');
     if (virtualPath != '/') {
       buffer.write('<li><a class="up" href="${encodePath(parent)}">'
           '&#8593; ..</a></li>');
@@ -339,6 +441,10 @@ white-space:nowrap}
 .dl{flex:0 0 auto;padding:12px 20px;font-size:18px}
 .up{opacity:.7}
 .empty{padding:20px;opacity:.6}
+.up-form{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.up-form button{padding:8px 16px;border:0;border-radius:18px;background:#1f6feb;
+color:#fff;font:inherit;cursor:pointer}
+.ok{padding:24px 20px}
 ''';
 }
 
