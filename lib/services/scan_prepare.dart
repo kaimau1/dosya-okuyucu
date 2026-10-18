@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'scan_dewarp.dart';
 import 'scan_enhance.dart';
+import 'scan_page_ops.dart' show ScanPageOps;
 
 /// Taranan TEK sayfanın durumu: filtrenin uygulandığı kaynak, ekranda/PDF'te
 /// görünen görsel ve seçili filtre.
@@ -65,32 +66,27 @@ class ScanPrepareRequest {
   });
 }
 
-/// **Tarayıcıdan gelen sayfayı TEK geçişte hazırlama** (2026-10-17).
+/// **Sayfa hazırlığı** — filtre ve (istenirse) düzleştirme, TEK geçişte.
 ///
-/// Kullanıcı: *"belge taramada kesme sorunu ve direk kaydetmesi gerekli,
-/// baştan sona incelenmeli tüm akış"*. İki kök neden vardı:
+/// ## 2026-10-18: tarayıcı çıktısı OLDUĞU GİBİ kaydedilir
+/// Kullanıcı: *"belge tarandıktan ve onaylandıktan sonra arka planda yapılan
+/// iyileştirmeler resmin patlamasına ve bozulmasına sebep oluyor"* ve
+/// *"resimli sayfalarda yanlış kesiyor"*. Önceki turda tarayıcıdan dönen her
+/// sayfa burada KENDİLİĞİNDEN düzleştirilip ([ScanDewarp]) netleştiriliyordu
+/// ([ScanFilter.auto]). İkisi de yazılı kâğıt için tasarlanmıştı; sayfada bir
+/// fotoğraf varsa netleştirme onu beyaz bir lekeye çeviriyor, düzleştirme de
+/// fotoğrafın dokusunu "satır" sanıp sayfayı çeviriyor ya da fotoğrafı dikey
+/// şeritlere bölüp kaydırıyordu. Kullanıcı ML Kit ekranında sayfanın son
+/// hâlini görüp ONAYLIYOR; onaydan sonra sessizce değiştirmek, onayladığı
+/// şeyi bozmaktı. Artık:
+/// * [pages]/[page] varsayılanı hiçbir şey yapmamak: görsel yeniden
+///   kodlanmaz, PDF'e tarayıcının verdiği JPEG girer.
+/// * Filtre (Otomatik/Gri/S-B) ve düzleştirme yalnız kullanıcı tarama
+///   ekranında seçerse uygulanır — ikisi de artık resim bölgelerini koruyor
+///   (bkz. `ScanEnhance.pictureMask`).
 ///
-/// 1. **Çifte kırpma.** ML Kit tarayıcısı (`SCANNER_MODE_FULL`) sayfayı
-///    ZATEN kâğıdın kenarından kırpıp perspektifini açarak veriyor. Önizleme
-///    ekranı açılırken bunun üstüne bir de kendi kenar bulucumuz
-///    (`ScanDeskew` → `DocEdges`) koşuyordu. Kırpılmış sayfada kâğıt kenarı
-///    artık görselin sınırı olduğu için bulunamıyor; bulucu onun yerine
-///    sayfanın İÇİNDEKİ en güçlü dörtgeni — tablo çerçevesi, antet çizgisi,
-///    kimlik kartının iç çerçevesi — "kâğıt" sanıyor ve alanı %45–98 arasında
-///    olduğu için uyguluyordu. Çerçevenin dışında kalan yazı (başlık, imza,
-///    sayfa altı) PDF'ten KESİLİYORDU. Kâğıt kenarına bakan otomatik
-///    düzeltme bu yüzden tarayıcı çıktısında artık koşmaz; elle "Kenarları
-///    kırp" yolu duruyor.
-/// 2. **Gereksiz ara ekran.** Kullanıcı ML Kit'te "Kaydet"e bastıktan sonra
-///    bir de önizleme ekranında "Devam"a basmak zorundaydı. Artık sayfalar
-///    burada hazırlanıp doğrudan kaydediliyor; düzenleme sonuç ekranında
-///    isteğe bağlı.
-///
-/// Kalan otomatik adımlar kırpmaz: yazıya bakan düzleştirme ([ScanDewarp],
-/// tuvali BÜYÜTEREK döndürür ve kıvrımı açarken içeriği taşırmaz) ve
-/// netleştirme ([ScanEnhance]). Görsel bir kez çözülür, bir kez (düzleşme
-/// olduysa iki kez) kodlanır — eskiden her adım dosyayı yeniden okuyup
-/// yeniden JPEG'e yazıyordu (sayfa başına üç çözme, iki kodlama).
+/// (2026-10-17'nin dersi de geçerli: kâğıt kenarına bakan otomatik kırpma
+/// tarayıcı çıktısında koşmaz — ML Kit sayfayı zaten kırptı.)
 abstract final class ScanPrepare {
   /// [request]'i uygular — `compute` ile izolatta çağrılır. Görsel
   /// çözülemezse sayfa OLDUĞU GİBİ döner (hazırlık süs, kayıp sebebi değil).
@@ -133,15 +129,19 @@ abstract final class ScanPrepare {
   }
 
   /// Tek sayfayı izolatta hazırlar; hata olursa sayfa işlenmeden döner.
+  /// Yapılacak bir şey yoksa (özgün + düzleştirme yok) izolat açılmaz.
   static Future<ScanPage> page(
     String path, {
-    ScanFilter filter = ScanFilter.auto,
-    bool straighten = true,
+    ScanFilter filter = ScanFilter.original,
+    bool straighten = false,
   }) async {
+    if (filter == ScanFilter.original && !straighten) {
+      return ScanPage.raw(path);
+    }
     try {
       final dir = (await getTemporaryDirectory()).path;
       final stamp = DateTime.now().microsecondsSinceEpoch;
-      final base = p.basenameWithoutExtension(path);
+      final base = ScanPageOps.shortBase(path);
       return await compute(
         runRequest,
         ScanPrepareRequest(
@@ -161,13 +161,14 @@ abstract final class ScanPrepare {
   /// paralel izolatlar düşük bellekli telefonda süreci öldürtebilirdi).
   static Future<List<ScanPage>> pages(
     List<String> paths, {
-    ScanFilter filter = ScanFilter.auto,
+    ScanFilter filter = ScanFilter.original,
+    bool straighten = false,
     void Function(int done, int total)? onProgress,
   }) async {
     final out = <ScanPage>[];
     for (var i = 0; i < paths.length; i++) {
       onProgress?.call(i, paths.length);
-      out.add(await page(paths[i], filter: filter));
+      out.add(await page(paths[i], filter: filter, straighten: straighten));
     }
     onProgress?.call(paths.length, paths.length);
     return out;

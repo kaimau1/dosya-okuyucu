@@ -32,6 +32,7 @@ import 'organize_screen.dart';
 import 'search_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 /// Klasör gözatıcısı: listeleme, çoklu seçim, kopyala/kes/yapıştır, yeni
 /// klasör/dosya, sıralama, ızgara/liste, favoriler.
@@ -808,7 +809,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   Widget _list(List<FsEntry> entries, FmLayout layout) => ListView.builder(
         controller: _scroll,
-        padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 96),
+        padding: withNavInset(
+            context, const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 96)),
         itemCount: entries.length,
         itemBuilder: (context, i) {
           final e = entries[i];
@@ -838,7 +840,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
           const pad = Gap.sm;
           return GridView.builder(
             controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(pad, pad, pad, 96),
+            padding: withNavInset(
+                context, const EdgeInsets.fromLTRB(pad, pad, pad, 96)),
             gridDelegate:
                 fmGridDelegate(layout, constraints.maxWidth - pad * 2),
             itemCount: entries.length,

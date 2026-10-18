@@ -10,6 +10,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/search_index.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
+import '../../core/safe_insets.dart';
 
 /// **Klasör haritası** — "57 GB nerede?" sorusunun cevabı.
 ///
@@ -134,7 +135,7 @@ class _FolderMapScreenState extends State<FolderMapScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.only(bottom: Gap.xl),
+          padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 3),
             if (!_loading && _data.children.isEmpty)

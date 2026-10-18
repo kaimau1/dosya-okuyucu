@@ -73,6 +73,7 @@ import 'pdf_sign_screen.dart';
 import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
 import '../core/snack.dart';
+import '../core/safe_insets.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
 /// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
@@ -2950,7 +2951,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   controller: scroll,
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: withNavInset(
+                      ctx, const EdgeInsets.only(top: 12)),
                   child: SelectableText(text,
                       style: const TextStyle(fontSize: 14, height: 1.4)),
                 ),

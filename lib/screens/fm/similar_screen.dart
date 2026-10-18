@@ -19,6 +19,7 @@ import '../../services/fm/thumbnail_cache.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 /// **Benzer fotoğraf/videolar** — algısal parmak iziyle bulunan kümeler.
 ///
@@ -116,7 +117,11 @@ class _SimilarScreenState extends State<SimilarScreen> {
 
   void _start() {
     // Kuyruk işi ekran kapansa da sürer → metinler ŞİMDİ çözülür.
-    final strings = AppStrings.of(context);
+    // `AppStrings.current` (bağlamsız): bu yöntem `initState`ten de
+    // çağrılıyor ve orada `AppStrings.of(context)` = `Localizations`a
+    // bağımlılık kurmak yasak (hata ayıklamada kırmızı ekran). Kuyruk işinin
+    // metinleri zaten uygulama dilinde (bildirim de aynı tabloyu okur).
+    final strings = AppStrings.current;
     final level = _level;
     _levelByScope[widget.scopeId] = level;
     final loader = widget.loadAll;
@@ -124,6 +129,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
       id: _jobId,
       title: strings.t('sim.scanning_title',
           {'level': strings.t(level.labelKey)}),
+      name: strings
+          .t('sim.scanning_name', {'level': strings.t(level.labelKey)}),
       total: widget.files.length,
       // Sonuç bu kapsamın ekranında duruyor; hedef onu geri açar (tarama
       // baştan başlamaz, sonuç kuyrukta kayıtlı).
@@ -321,7 +328,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 96),
+                        padding: withNavInset(
+                            context, const EdgeInsets.only(bottom: 96)),
                         itemCount: groups.length,
                         itemBuilder: (context, i) => _groupCard(groups[i]),
                       ),

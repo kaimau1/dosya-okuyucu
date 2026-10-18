@@ -6,6 +6,7 @@ import '../../../core/l10n/app_strings.dart';
 import '../../../models/remote_connection.dart';
 import '../../../services/fm/remote/remote_fs.dart';
 import '../../../services/fm/remote/remote_fs_factory.dart';
+import '../../../core/safe_insets.dart';
 
 /// Uzak bağlantı ekleme/düzenleme formu.
 class RemoteEditScreen extends StatefulWidget {
@@ -138,7 +139,7 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: withNavInset(context, const EdgeInsets.all(16)),
         children: [
           DropdownButtonFormField<RemoteProtocol>(
             value: _protocol,

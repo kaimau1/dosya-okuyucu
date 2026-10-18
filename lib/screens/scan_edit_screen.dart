@@ -2,56 +2,103 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter/foundation.dart' show compute, listEquals;
 import 'package:flutter/material.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../core/snack.dart';
+import '../core/theme.dart' show OverlayBar;
 import '../services/doc_edges.dart';
 import '../services/perspective.dart';
-import '../core/snack.dart';
 
-/// Taranan bir sayfanın **köşelerini elle ayarlama** ekranı.
+/// **Sayfayı kırpma** ekranı — dörtgeni ayarlar, kırpmayı ÇAĞIRANA bırakır.
 ///
-/// İstek (2026-07-26): "belge tarandıktan sonra çıkan ekranda sayfanın
-/// köşelerini seçebilme seçeneği olsun, çıkan mavi dikdörtgenin köşelerinden
-/// tutup ayarlayarak." ML Kit tarayıcısı kenarı çoğu zaman doğru buluyor ama
-/// gölgeli/desenli masada kaçırıyor; o durumda sayfa yamuk kalıyordu.
+/// Döndürdüğü şey bir DÖRTGEN (görsel pikseli; sol-üst, sağ-üst, sağ-alt,
+/// sol-alt); iptalde ve çerçeve görselin TAMAMIYKEN `null` (kırpılacak bir
+/// şey yok — görsel yeniden örneklenmez). Görseli açıp yeniden kodlamak (`ScanPageOps`)
+/// çağıranın işi — böylece ekran tek bir şey yapar ve kırpılan dosyanın
+/// biçimi (JPEG) tek yerde belirlenir.
 ///
-/// Burada dörtgen kullanıcının dediği yere getirilir ve [Perspective] ile
-/// **düz bir dikdörtgene açılır** (perspektif düzeltme) — yalnız kırpma değil:
-/// eğik çekilmiş sayfa da düzelir.
+/// ## 2026-10-18 — baştan tasarım
+/// Kullanıcı: *"manuel kırpma daha kolay olmalı, şu an görülmüyor, basit
+/// olmalı"*. Eski ekranın sorunları:
+/// * Kırpmaya giden yol gömülüydü: sonuç ekranı → "Sayfaları düzenle" →
+///   "Köşeleri ayarla". Artık tarama ekranında her sayfanın altında
+///   doğrudan "Kırp" var.
+/// * Yalnız dört köşe sürüklenebiliyordu; bir kenarı içeri almak iki köşeyi
+///   ayrı ayrı ve aynı miktarda sürüklemek demekti. Artık her kenarın
+///   ortasında bir tutamaç var: kenarı topluca taşır (çoğu kırpma budur).
+/// * Ne yapılacağı belli değildi ("Uygula" + üstte simgeler). Artık altta
+///   tek büyük "Kırp" düğmesi, iki yardımcı ("Tam sayfa", "Kenarları bul")
+///   ve tek satırlık ipucu.
 ///
-/// Sonuç yeni bir PNG dosyasına yazılır ve yolu döndürülür (iptalde `null`).
-///
-/// ## Açılışta HİÇBİR ŞEY KESİLMEZ (2026-10-17)
-/// Kullanıcı: *"belge taramada kesme sorunu"*. İki yol sayfayı kullanıcı
-/// istemeden kırpıyordu:
-/// * Başlangıç çerçevesi görselin %2 İÇİNDEN başlıyordu (tutamaçlar ekran
-///   dışına taşmasın diye). Köşelere dokunmadan "Uygula" diyen kullanıcı her
-///   kenardan %2 kaybediyordu. Artık çerçeve görselin tam sınırında; tutamaçlar
-///   editörün iç payı sayesinde yine yakalanabiliyor.
-/// * Kenar bulucu açılışta kendiliğinden UYGULANIYORDU. ML Kit sayfayı zaten
-///   kâğıdın kenarından kırpıp getirdiği için bulucu çoğu zaman sayfanın
-///   içindeki bir tabloyu/çerçeveyi buluyor; "Uygula" o çerçevenin dışını
-///   kesiyordu. Bulucu yine açılışta koşar ama sonucu yalnız **öneri** olarak
-///   gösterilir ("Kenar bulundu — oturt"); dokunulmadıkça çerçeve değişmez.
+/// Açılışta HİÇBİR ŞEY KESİLMEZ (2026-10-17 dersi): çerçeve görselin tam
+/// sınırında başlar. Kâğıt kenarı araması yalnız [autoDetect] ile (galeriden
+/// gelen, hiç kırpılmamış FOTOĞRAF) ya da "Kenarları bul" dokunuşuyla
+/// uygulanır — tarayıcının kırptığı sayfada bulucu çoğu zaman sayfanın
+/// içindeki bir tabloyu "kâğıt" sanıyor.
 class ScanEditScreen extends StatefulWidget {
-  const ScanEditScreen({super.key, required this.imagePath});
+  const ScanEditScreen({
+    super.key,
+    required this.imagePath,
+    this.autoDetect = false,
+  });
 
   final String imagePath;
 
-  static Future<String?> open(BuildContext context, String imagePath) {
-    return Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => ScanEditScreen(imagePath: imagePath)),
+  /// Açılışta kâğıt kenarını bulup çerçeveyi oraya oturt (ham fotoğraf).
+  final bool autoDetect;
+
+  static Future<List<Offset>?> open(BuildContext context, String imagePath,
+      {bool autoDetect = false}) {
+    return Navigator.of(context).push<List<Offset>>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ScanEditScreen(imagePath: imagePath, autoDetect: autoDetect),
+      ),
     );
   }
 
-  /// Başlangıç dörtgeni: görselin TAMAMI — tam sınırda. "Uygula"ya dokunmadan
+  /// Başlangıç dörtgeni: görselin TAMAMI — tam sınırda. "Kırp"a dokunmadan
   /// basan kullanıcının sayfasından tek piksel bile gitmez.
   static List<Offset> fullFrame(int width, int height) {
     final w = width.toDouble();
     final h = height.toDouble();
     return [Offset.zero, Offset(w, 0), Offset(w, h), Offset(0, h)];
+  }
+
+  /// [quad] görselin tamamı mı (yarım pikselden az fark)?
+  static bool isFullFrame(List<Offset> quad, int width, int height) =>
+      sameQuad(quad, fullFrame(width, height));
+
+  static bool sameQuad(List<Offset> a, List<Offset> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if ((a[i] - b[i]).distance > 0.5) return false;
+    }
+    return true;
+  }
+
+  /// Kenar tutamacı sürüklemesi: [edge] (0 üst, 1 sağ, 2 alt, 3 sol)
+  /// kenarının iki ucu kenarın NORMALİ boyunca [delta]'nın izdüşümü kadar
+  /// taşınır; sonuç görsel sınırına kıstırılır. Saf → birim testli.
+  static List<Offset> dragEdge(
+      List<Offset> quad, int edge, Offset delta, Size bounds) {
+    final a = edge, b = (edge + 1) % 4;
+    final dir = quad[b] - quad[a];
+    final length = dir.distance;
+    if (length < 1e-6) return quad;
+    final normal = Offset(-dir.dy / length, dir.dx / length);
+    final along = delta.dx * normal.dx + delta.dy * normal.dy;
+    final move = normal * along;
+    Offset clampTo(Offset p) => Offset(
+          p.dx.clamp(0.0, bounds.width),
+          p.dy.clamp(0.0, bounds.height),
+        );
+    return [
+      for (var i = 0; i < 4; i++)
+        (i == a || i == b) ? clampTo(quad[i] + move) : quad[i],
+    ];
   }
 
   @override
@@ -61,32 +108,21 @@ class ScanEditScreen extends StatefulWidget {
 class _ScanEditScreenState extends State<ScanEditScreen> {
   ui.Image? _image;
   String? _error;
-  bool _busy = false;
 
-  /// Köşeler **görsel piksel** koordinatında: sol-üst, sağ-üst, sağ-alt, sol-alt.
-  /// Ekran koordinatında tutulmuyor: ekran döndüğünde/ölçek değiştiğinde
-  /// kullanıcının ayarı kaymasın.
+  /// Köşeler **görsel piksel** koordinatında. Ekran koordinatında
+  /// tutulmuyor: ekran dönerse/ölçek değişirse ayar kaymasın.
   late List<Offset> _corners;
-
-  /// Kâğıdın kenarları otomatik bulunabildi mi? (İpucu metni buna göre
-  /// değişiyor: bulunmadıysa kullanıcı köşeleri kendi taşımalı, bunu
-  /// söylemeden bırakmak "program çalışmadı" hissi veriyordu.)
-  bool _autoFound = false;
   bool _detecting = false;
 
-  /// Açılıştaki aramanın bulduğu, henüz UYGULANMAMIŞ dörtgen (öneri).
-  List<Offset>? _suggested;
+  /// Sürüklenen tutamaç: 0-3 köşe, 4-7 kenar ortası (yoksa null). Büyüteç
+  /// bunu izler — parmak köşeyi kapattığı için büyüteçsiz hassas ayar
+  /// yapılamıyor (2026-08-06 bulgusu).
+  int? _drag;
 
-  /// Tutamaçların ekran dışına taşmaması için editörün iç payı. Çerçeve artık
-  /// görselin tam sınırında başlıyor; pay olmasa kenardaki tutamacın yarısı
-  /// ekran dışında kalırdı.
-  static const _editorPad = 24.0;
+  /// Tutamaçların ekran dışına taşmaması için editörün iç payı.
+  static const _editorPad = 28.0;
 
-  /// Sürüklenmekte olan köşenin İNDEKSİ (yoksa null) — büyüteç bu köşeyi
-  /// izler. 2026-08-06 kullanıcı bulgusu: *"köşeleri ayarlarken eskiden ufak
-  /// bir zoom ekranı geliyordu, o kaybolmuş"* — parmak köşeyi kapattığı için
-  /// büyüteç olmadan hassas ayar yapılamıyor.
-  int? _dragCorner;
+  static const _accent = Color(0xFF4F8CF7);
 
   @override
   void initState() {
@@ -109,74 +145,56 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
       }
       setState(() {
         _image = image;
-        _corners = _fullFrame(image);
+        _corners = _full(image);
       });
-      // Ekran açılır açılmaz kenarlar aranır (istek 2026-07-30: kullanıcı dört
-      // köşeyi tek tek sürüklemek zorunda kalmasın) — ama sonuç yalnız ÖNERİ:
-      // bkz. sınıf notu, "Açılışta hiçbir şey kesilmez".
-      await _autoDetect(apply: false);
+      if (widget.autoDetect) await _findEdges(quiet: true);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     }
   }
 
-  /// Kâğıdın kenarlarını otomatik bulur; bulamazsa dörtgeni OLDUĞU GİBİ
-  /// bırakır (kullanıcının elle yaptığı ayarı bir tahminle ezmek, tahmin
-  /// yanlışsa geri alınamaz bir kayıp olurdu).
-  ///
-  /// Çözümleme **izolatta**: 12 MP bir fotoğrafta Sobel + Hough ana izleği
-  /// yarım saniye kilitler, ekran donuk açılırdı.
-  ///
-  /// [apply] false ise (açılış) bulunan dörtgen yalnız öneri olarak saklanır.
-  Future<void> _autoDetect({bool apply = true}) async {
+  List<Offset> _full(ui.Image img) =>
+      ScanEditScreen.fullFrame(img.width, img.height);
+
+  bool get _isFull {
+    final img = _image;
+    return img == null ||
+        ScanEditScreen.isFullFrame(_corners, img.width, img.height);
+  }
+
+  /// Kâğıdın kenarlarını bulup çerçeveyi oraya oturtur. Bulamazsa çerçeve
+  /// OLDUĞU GİBİ kalır (elle yapılan ayarı bir tahminle ezmek, tahmin
+  /// yanlışsa geri alınamaz bir kayıp olurdu). Çözümleme izolatta.
+  Future<void> _findEdges({bool quiet = false}) async {
     final img = _image;
     if (img == null || _detecting) return;
     setState(() => _detecting = true);
+    List<({double x, double y})>? found;
     try {
       final bytes = await File(widget.imagePath).readAsBytes();
-      final found = await compute(_detectCorners, bytes);
-      if (!mounted) return;
-      setState(() {
-        _detecting = false;
-        if (found == null) {
-          _autoFound = false;
-          _suggested = null;
-          return;
-        }
-        final corners = [
+      found = await compute(_detectCorners, bytes);
+    } catch (_) {
+      found = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _detecting = false;
+      if (found != null) {
+        _corners = [
           for (final c in found)
             Offset(
               c.x.clamp(0.0, img.width.toDouble()),
               c.y.clamp(0.0, img.height.toDouble()),
-            )
+            ),
         ];
-        if (apply) {
-          _autoFound = true;
-          _suggested = null;
-          _corners = corners;
-        } else {
-          _suggested = corners;
-        }
-      });
-    } catch (_) {
-      if (mounted) setState(() => _detecting = false);
+      }
+    });
+    if (found == null && !quiet) {
+      showSnack(context, context.t('se.not_found'));
     }
   }
 
-  void _useSuggestion() {
-    final suggested = _suggested;
-    if (suggested == null) return;
-    setState(() {
-      _corners = List.of(suggested);
-      _suggested = null;
-      _autoFound = true;
-    });
-  }
-
-  List<Offset> _fullFrame(ui.Image img) =>
-      ScanEditScreen.fullFrame(img.width, img.height);
-
-  /// Görselin ekrandaki (contain) yerleşimi: ölçek + sol-üst kayma.
+  /// Görselin ekrandaki (contain) yerleşimi.
   ({double scale, Offset origin}) _fit(Size viewport, ui.Image img) {
     final sx = viewport.width / img.width;
     final sy = viewport.height / img.height;
@@ -190,58 +208,26 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
     );
   }
 
-  Future<void> _apply() async {
-    final img = _image;
-    if (img == null || _busy) return;
-    // Çerçeveye dokunulmadıysa ortada düzeltilecek bir şey yok: görseli
-    // yeniden örneklemek yalnız kaliteyi düşürürdü.
-    if (_sameQuad(_corners, _fullFrame(img))) {
-      Navigator.of(context).pop(widget.imagePath);
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      final png = await Perspective.warpToPng(img, _corners);
-      final path = await writeTempPng(widget.imagePath, 'duzeltildi', png);
-      if (!mounted) return;
-      Navigator.of(context).pop(path);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      showSnack(context, AppStrings.current.t('se.failed', {'error': e}));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final img = _image;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0E0F12),
       appBar: AppBar(
-        title: Text(context.t('se.title')),
-        actions: [
-          if (img != null)
-            IconButton(
-              tooltip: context.t('se.auto_detect'),
-              icon: _detecting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.auto_fix_high),
-              onPressed: _busy || _detecting ? null : _autoDetect,
-            ),
-          if (img != null)
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => setState(() {
-                        _corners = _fullFrame(img);
-                        _autoFound = false;
-                      }),
-              child: Text(context.t('se.reset')),
-            ),
-        ],
+        backgroundColor: const Color(0xFF0E0F12),
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        // Temanın başlık stili KOYU renk taşır; koyu çubukta okunmazdı
+        // (bkz. `OverlayBar`). Temanın cetvel çizgisi de siyah zeminde beyaz
+        // bir şerit gibi duruyordu.
+        titleTextStyle: OverlayBar.title(context),
+        shape: const Border(),
+        leading: IconButton(
+          tooltip: context.t('common.cancel'),
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(context.t('se.crop_title')),
       ),
       body: _error != null
           ? Center(
@@ -256,73 +242,92 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
               : Column(
                   children: [
                     Expanded(child: _editor(img)),
-                    _hint(),
+                    _controls(img),
                   ],
                 ),
-      bottomNavigationBar: img == null
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: FilledButton.icon(
-                  onPressed: _busy ? null : _apply,
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.crop_free),
-                  label: Text(context.t(_busy ? 'se.working' : 'common.apply')),
-                ),
-              ),
-            ),
     );
   }
 
-  Widget _hint() {
-    final text = Text(
-      _detecting
-          ? context.t('se.detecting')
-          : context.t(_autoFound ? 'se.auto_found' : 'se.hint'),
-      textAlign: TextAlign.center,
-      style: const TextStyle(color: Colors.white70, fontSize: 12),
-    );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: _suggested == null || _detecting
-          ? text
-          : Column(
-              mainAxisSize: MainAxisSize.min,
+  /// Alt panel: ipucu · iki yardımcı · büyük "Kırp". Sistem gezinme
+  /// çubuğunun üstünde (SafeArea) — düğme hiçbir zaman çubuğun altında
+  /// kalmaz.
+  Widget _controls(ui.Image img) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.t('se.crop_hint'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Row(
               children: [
-                text,
-                const SizedBox(height: 6),
-                // Öneri: bulunan kâğıt kenarı, dokununca çerçeve oraya oturur.
-                FilledButton.tonalIcon(
-                  onPressed: _busy ? null : _useSuggestion,
-                  icon: const Icon(Icons.auto_fix_high, size: 18),
-                  label: Text(context.t('se.use_found')),
+                Expanded(
+                  child: _PillButton(
+                    icon: Icons.fit_screen_outlined,
+                    label: context.t('se.full_page'),
+                    selected: _isFull,
+                    onPressed: () => setState(() => _corners = _full(img)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PillButton(
+                    icon: Icons.auto_fix_high,
+                    label: context.t('se.find_edges'),
+                    busy: _detecting,
+                    onPressed: _detecting ? null : _findEdges,
+                  ),
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 52,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _accent,
+                  foregroundColor: Colors.white,
+                  // Temanın stilinden türetilir: düz `TextStyle` yazı
+                  // ailesini düşürüp düğmeyi Roboto'ya çeviriyordu.
+                  textStyle: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () => Navigator.of(context)
+                    .pop(_isFull ? null : List<Offset>.of(_corners)),
+                icon: const Icon(Icons.check_rounded),
+                label: Text(context.t('se.apply_crop')),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _editor(ui.Image img) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Görsel iç payla küçültülüp ortalanır: köşe tutamacı tam görsel
-        // sınırındayken bile 48 dp dokunma alanının tamamı ekranda kalır.
         final viewport = Size(
           (constraints.maxWidth - 2 * _editorPad).clamp(1.0, double.infinity),
           (constraints.maxHeight - 2 * _editorPad).clamp(1.0, double.infinity),
         );
         final inner = _fit(viewport, img);
-        final fit = (
-          scale: inner.scale,
-          origin: inner.origin + const Offset(_editorPad, _editorPad),
-        );
-        Offset toScreen(Offset imagePoint) =>
-            fit.origin + imagePoint * fit.scale;
+        final scale = inner.scale;
+        final origin = inner.origin + const Offset(_editorPad, _editorPad);
+        Offset toScreen(Offset p) => origin + p * scale;
+        final bounds = Size(img.width.toDouble(), img.height.toDouble());
+        final screen = [for (final c in _corners) toScreen(c)];
 
         return Stack(
           clipBehavior: Clip.none,
@@ -332,47 +337,53 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
                 painter: _QuadPainter(
                   image: img,
                   corners: _corners,
-                  scale: fit.scale,
-                  origin: fit.origin,
-                  color: const Color(0xFF64B5F6),
+                  scale: scale,
+                  origin: origin,
+                  color: _accent,
+                  showGrid: _drag != null,
                 ),
               ),
             ),
-            for (var i = 0; i < 4; i++)
-              _handle(i, toScreen(_corners[i]), fit.scale, img),
-            if (_dragCorner != null)
-              _buildMagnifier(toScreen(_corners[_dragCorner!])),
+            // Kenar tutamaçları önce (köşeler üstte kalsın: kısa kenarda
+            // iki tutamaç üst üste binerse köşe kazanır).
+            for (var e = 0; e < 4; e++)
+              _edgeHandle(e, screen, scale, bounds),
+            for (var i = 0; i < 4; i++) _cornerHandle(i, screen[i], scale, bounds),
+            if (_drag != null) _magnifier(_dragPoint(screen)),
           ],
         );
       },
     );
   }
 
-  /// Köşe sürüklenirken parmağın üstünde duran büyüteç — PDF seçim
-  /// katmanındakiyle aynı his (RawMagnifier, 1,8 kat). Parmağın 70 px
-  /// üstünde durur, odak parmaktadır; kenarda yatayda kıstırılır.
-  Widget _buildMagnifier(Offset at) {
-    const size = Size(120, 120);
-    const above = 70.0;
-    final left = at.dx - size.width / 2;
-    final top = at.dy - size.height / 2 - above;
+  Offset _dragPoint(List<Offset> screen) {
+    final d = _drag!;
+    if (d < 4) return screen[d];
+    final e = d - 4;
+    return (screen[e] + screen[(e + 1) % 4]) / 2;
+  }
+
+  /// Sürüklenirken parmağın üstünde duran büyüteç (1,8×). Parmağın 76 px
+  /// üstünde durur, odak parmaktadır.
+  Widget _magnifier(Offset at) {
+    const size = Size(112, 112);
+    const above = 76.0;
     return Positioned(
-      left: left,
-      top: top,
-      child: IgnorePointer(
+      left: at.dx - size.width / 2,
+      top: at.dy - size.height / 2 - above,
+      child: const IgnorePointer(
         child: RawMagnifier(
           size: size,
-          focalPointOffset: const Offset(0, above),
+          focalPointOffset: Offset(0, above),
           magnificationScale: 1.8,
           decoration: MagnifierDecoration(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(60),
-              side: const BorderSide(color: Colors.white70, width: 2),
+            shape: CircleBorder(
+              side: BorderSide(color: Colors.white, width: 2.5),
             ),
-            shadows: const [
+            shadows: [
               BoxShadow(
-                color: Color(0x66000000),
-                blurRadius: 10,
+                color: Color(0x88000000),
+                blurRadius: 12,
                 offset: Offset(0, 3),
                 blurStyle: BlurStyle.outer,
               ),
@@ -383,37 +394,91 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
     );
   }
 
-  /// 48 px dokunma alanı (Material en küçük hedef), ortasında 22 px halka.
-  Widget _handle(int index, Offset screenPoint, double scale, ui.Image img) {
-    const touch = 48.0;
+  /// Köşe: 52 px dokunma alanı, ortasında 24 px halka.
+  Widget _cornerHandle(int index, Offset at, double scale, Size bounds) {
+    const touch = 52.0;
+    final active = _drag == index;
     return Positioned(
-      left: screenPoint.dx - touch / 2,
-      top: screenPoint.dy - touch / 2,
+      left: at.dx - touch / 2,
+      top: at.dy - touch / 2,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onPanStart: (_) => setState(() => _dragCorner = index),
+        onPanStart: (_) => setState(() => _drag = index),
         onPanUpdate: (d) {
           final next = _corners[index] + d.delta / scale;
           setState(() {
             _corners[index] = Offset(
-              next.dx.clamp(0.0, img.width.toDouble()),
-              next.dy.clamp(0.0, img.height.toDouble()),
+              next.dx.clamp(0.0, bounds.width),
+              next.dy.clamp(0.0, bounds.height),
             );
           });
         },
-        onPanEnd: (_) => setState(() => _dragCorner = null),
-        onPanCancel: () => setState(() => _dragCorner = null),
+        onPanEnd: (_) => setState(() => _drag = null),
+        onPanCancel: () => setState(() => _drag = null),
         child: SizedBox(
           width: touch,
           height: touch,
           child: Center(
-            child: Container(
-              width: 22,
-              height: 22,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: active ? 28 : 24,
+              height: active ? 28 : 24,
               decoration: BoxDecoration(
-                color: const Color(0xFF64B5F6),
+                color: active ? _accent : Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
+                border: Border.all(
+                    color: active ? Colors.white : _accent, width: 3),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x66000000), blurRadius: 6),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Kenar ortası: kenarı topluca içeri/dışarı taşıyan hap tutamaç.
+  Widget _edgeHandle(int edge, List<Offset> screen, double scale, Size bounds) {
+    const touch = 48.0;
+    final a = screen[edge], b = screen[(edge + 1) % 4];
+    final mid = (a + b) / 2;
+    // Kenar çok kısaysa (köşeler üst üste) kenar tutamacı köşelerin
+    // dokunma alanını yemesin.
+    if ((a - b).distance < 96) return const SizedBox.shrink();
+    final angle = (b - a).direction;
+    final active = _drag == 4 + edge;
+    return Positioned(
+      left: mid.dx - touch / 2,
+      top: mid.dy - touch / 2,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (_) => setState(() => _drag = 4 + edge),
+        onPanUpdate: (d) => setState(() {
+          _corners =
+              ScanEditScreen.dragEdge(_corners, edge, d.delta / scale, bounds);
+        }),
+        onPanEnd: (_) => setState(() => _drag = null),
+        onPanCancel: () => setState(() => _drag = null),
+        child: SizedBox(
+          width: touch,
+          height: touch,
+          child: Center(
+            child: Transform.rotate(
+              angle: angle,
+              child: Container(
+                width: 30,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: active ? _accent : Colors.white,
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                      color: active ? Colors.white : _accent, width: 2),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x66000000), blurRadius: 5),
+                  ],
+                ),
               ),
             ),
           ),
@@ -423,17 +488,51 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
   }
 }
 
+/// Koyu zeminde yuvarlak hatlı yardımcı düğme ("Tam sayfa", "Kenarları bul").
+class _PillButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool selected;
+  final bool busy;
+
+  const _PillButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.selected = false,
+    this.busy = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(46),
+        foregroundColor: Colors.white,
+        backgroundColor:
+            selected ? Colors.white.withValues(alpha: 0.14) : Colors.transparent,
+        side: BorderSide(
+            color: Colors.white.withValues(alpha: selected ? 0.7 : 0.3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      onPressed: onPressed,
+      icon: busy
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white),
+            )
+          : Icon(icon, size: 20),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+  }
+}
+
 /// İzolat giriş noktası — üst düzey fonksiyon olmalı (`compute` kuralı).
 List<({double x, double y})>? _detectCorners(Uint8List bytes) =>
     DocEdges.detect(bytes);
-
-bool _sameQuad(List<Offset> a, List<Offset> b) {
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if ((a[i] - b[i]).distance > 0.5) return false;
-  }
-  return true;
-}
 
 class _QuadPainter extends CustomPainter {
   final ui.Image image;
@@ -441,6 +540,7 @@ class _QuadPainter extends CustomPainter {
   final double scale;
   final Offset origin;
   final Color color;
+  final bool showGrid;
 
   _QuadPainter({
     required this.image,
@@ -448,16 +548,13 @@ class _QuadPainter extends CustomPainter {
     required this.scale,
     required this.origin,
     required this.color,
+    required this.showGrid,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final dst = Rect.fromLTWH(
-      origin.dx,
-      origin.dy,
-      image.width * scale,
-      image.height * scale,
-    );
+        origin.dx, origin.dy, image.width * scale, image.height * scale);
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
@@ -468,14 +565,28 @@ class _QuadPainter extends CustomPainter {
     final pts = [for (final c in corners) origin + c * scale];
     final path = Path()..addPolygon(pts, true);
 
-    // Dörtgen DIŞI karartılır: kullanıcı neyin kalacağını bir bakışta görür.
-    final outside = Path.combine(
-      PathOperation.difference,
-      Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
-      path,
-    );
+    // Dörtgen DIŞI karartılır: neyin kalacağı bir bakışta görünür.
     canvas.drawPath(
-        outside, Paint()..color = Colors.black.withValues(alpha: 0.55));
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Offset.zero & size),
+        path,
+      ),
+      Paint()..color = Colors.black.withValues(alpha: 0.6),
+    );
+
+    // Sürüklerken üçte bir ızgarası: satırların düz durup durmadığı görülür.
+    if (showGrid) {
+      final grid = Paint()
+        ..color = Colors.white.withValues(alpha: 0.45)
+        ..strokeWidth = 1;
+      Offset lerp(Offset a, Offset b, double t) => a + (b - a) * t;
+      for (final t in const [1 / 3, 2 / 3]) {
+        canvas.drawLine(lerp(pts[0], pts[1], t), lerp(pts[3], pts[2], t), grid);
+        canvas.drawLine(lerp(pts[0], pts[3], t), lerp(pts[1], pts[2], t), grid);
+      }
+    }
+
     canvas.drawPath(
       path,
       Paint()
@@ -490,13 +601,6 @@ class _QuadPainter extends CustomPainter {
       old.image != image ||
       old.scale != scale ||
       old.origin != origin ||
-      !_sameCorners(old.corners, corners);
-
-  static bool _sameCorners(List<Offset> a, List<Offset> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
+      old.showGrid != showGrid ||
+      !listEquals(old.corners, corners);
 }

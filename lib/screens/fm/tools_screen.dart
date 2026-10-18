@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../widgets/fm/fm_category_tile.dart';
+import '../../core/safe_insets.dart';
 
 /// **Tüm araçlar** — panoda yalnız en çok kullanılanlar durur, gerisi burada.
 ///
@@ -31,7 +32,7 @@ class ToolsScreen extends StatelessWidget {
         body: AnimatedBuilder(
           animation: listenable,
           builder: (context, _) => ListView(
-            padding: const EdgeInsets.all(Gap.md),
+            padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
             children: [FmToolGrid(tools: tools())],
           ),
         ),

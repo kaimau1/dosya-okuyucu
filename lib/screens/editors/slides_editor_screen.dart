@@ -32,6 +32,7 @@ import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 /// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir; bir metin
 /// kutusuna dokunmak o kutunun yazılarını düzenlemeyi açar. Kaydederken orijinal
@@ -985,7 +986,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
       return Center(child: Text(context.t('ss.no_text')));
     }
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: withNavInset(context, const EdgeInsets.all(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

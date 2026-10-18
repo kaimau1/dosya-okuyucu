@@ -21,6 +21,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import 'browser_screen.dart';
 import 'folder_picker_screen.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 /// **İndirmeler** — bağlantıdan indirme kuyruğu ve geçmişi.
 ///
@@ -203,7 +204,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
 
   Widget _list(List<DownloadTask> tasks) => tasks.isEmpty
           ? ListView(
-              padding: const EdgeInsets.all(Gap.lg),
+              padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
               children: [
                 Text(context.t('dl.empty'),
                     style: Theme.of(context).textTheme.titleMedium,

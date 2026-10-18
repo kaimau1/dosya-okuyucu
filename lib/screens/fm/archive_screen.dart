@@ -18,6 +18,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 /// Arşiv görüntüleyici: RAR / 7z / ZIP / TAR içeriğini **çıkarmadan** listeler,
 /// tek dosyayı önizler, tamamını ya da seçilen dosyayı çıkarır.
@@ -237,7 +238,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                       child: items.isEmpty
                           ? FmEmptyState(icon: Icons.search_off, title: context.t('arc.no_match'))
                           : ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 96),
+                              padding: withNavInset(
+                                  context, const EdgeInsets.only(bottom: 96)),
                               itemCount: items.length,
                               itemBuilder: (context, i) => _row(items[i]),
                             ),

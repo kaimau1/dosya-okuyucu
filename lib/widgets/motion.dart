@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
+import '../core/safe_insets.dart';
 
 /// **Ortak hareket parçaları** — kullanıcı isteği 2026-10-17 (Notlar ile
 /// aynı tur): *"UI/UX çalışmaları; iPhone gibi akıcılık, premium his"*.
@@ -204,7 +205,8 @@ class _FmListSkeletonState extends State<FmListSkeleton>
           opacity: _opacity,
           child: ListView.builder(
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+            padding: withNavInset(
+                context, const EdgeInsets.symmetric(vertical: Gap.sm)),
             itemCount: widget.rows,
             itemBuilder: (context, i) => Padding(
               padding: const EdgeInsets.symmetric(
@@ -266,7 +268,7 @@ class FmEmptyState extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(Gap.lg),
+        padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
         child: PopIn(
           child: Column(
             mainAxisSize: MainAxisSize.min,

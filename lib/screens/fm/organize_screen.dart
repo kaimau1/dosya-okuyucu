@@ -15,6 +15,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 /// **Otomatik düzenle** — dağınık bir klasörü tek dokunuşla türe/tarihe/kaynağa
 /// göre alt klasörlere ayırır.
@@ -165,8 +166,8 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
       body: _loading
           ? const FmListSkeleton()
           : ListView(
-              padding:
-                  const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 120),
+              padding:withNavInset(
+                  context, const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 120)),
               children: [
                 Text(context.t('org.by_what'),
                     style: Theme.of(context).textTheme.titleMedium),

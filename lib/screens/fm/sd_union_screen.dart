@@ -15,6 +15,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../widgets/motion.dart';
 import '../settings/settings_group.dart';
 import '../settings/settings_widgets.dart';
+import '../../core/safe_insets.dart';
 
 /// **SD kartla birleşik depolama** ayar ve durum ekranı (2026-10-17).
 ///
@@ -166,7 +167,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
   Widget _body(SdUnionSettings settings) {
     final cardPresent = _cards.any((c) => c.path == settings.sdPath);
     return ListView(
-      padding: const EdgeInsets.only(bottom: Gap.xl),
+      padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
       children: [
         _hero(settings),
         if (!cardPresent && settings.sdPath.isNotEmpty)

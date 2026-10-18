@@ -11,6 +11,7 @@ import '../services/lang_detect.dart';
 import '../services/translate_service.dart';
 import 'markdown_text.dart';
 import 'translate_flow.dart';
+import '../core/safe_insets.dart';
 
 /// Belgenin üstünde açılan **kısa, yüzen kart** — hızlı çeviri ve "AI'ya
 /// sor" ortak kabı.
@@ -288,7 +289,8 @@ class _QuickTranslateState extends State<_QuickTranslate> {
         ),
         Flexible(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            padding: withNavInset(
+                context, const EdgeInsets.fromLTRB(16, 10, 16, 4)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -505,7 +507,8 @@ class _QuickAiState extends State<_QuickAi> {
             duration: const Duration(milliseconds: 200),
             alignment: Alignment.topCenter,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              padding: withNavInset(
+                  context, const EdgeInsets.fromLTRB(16, 10, 16, 4)),
               child: _busy
                   ? Row(
                       children: [

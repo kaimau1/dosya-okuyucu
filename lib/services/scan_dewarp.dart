@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'scan_enhance.dart' show ScanEnhance;
+import 'scan_page_ops.dart' show ScanPageOps;
 
 /// **Metne bakarak** sayfa düzleştirme: eğimi (skew) ve kitap kıvrımını
 /// (bombe) düzeltir.
@@ -60,6 +61,10 @@ abstract final class ScanDewarp {
   /// kayma — sayfa yüksekliğinin oranı olarak.
   static const minCurveRatio = 0.006;
 
+  /// Sayfanın bu orandan fazlası resimse kıvrım düzeltilmez: sütun sütun
+  /// dikey kaydırma bir fotoğrafı görünür biçimde dilimler.
+  static const maxCurvePictureShare = 0.06;
+
   // ── izolat girişi ────────────────────────────────────────────────────────
 
   /// `compute` ile çağrılmak üzere tek argümanlı giriş: [request.sourcePath]
@@ -82,8 +87,8 @@ abstract final class ScanDewarp {
   static Future<String> tempTarget(String sourcePath) async {
     final dir = await getTemporaryDirectory();
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    return p.join(dir.path,
-        '${p.basenameWithoutExtension(sourcePath)}_duzlestirildi_$stamp.jpg');
+    return p.join(
+        dir.path, '${ScanPageOps.shortBase(sourcePath)}_duzlestirildi_$stamp.jpg');
   }
 
   // ── ana boru hattı ───────────────────────────────────────────────────────
@@ -97,6 +102,22 @@ abstract final class ScanDewarp {
     final source = _cap(image, ScanEnhance.maxLongEdge);
     final measure = _downscaleGray(source, measureLongEdge);
     final ink = inkMap(measure.gray, measure.width, measure.height);
+
+    // **Resim bölgeleri ölçüme girmez** (2026-10-18, kullanıcı: *"resimli
+    // sayfalarda yanlış kesiyor"*). Fotoğrafın dokusu mürekkep haritasında
+    // yoğun bir leke bırakıyor; eğim taraması onu "satır" sanıp sayfayı
+    // birkaç derece çeviriyor, kıvrım adımı da fotoğrafı dikey şeritlere
+    // bölüp şerit şerit kaydırıyordu (resim dilimlenmiş görünüyordu). Artık
+    // resim pikselleri kâğıt sayılıyor; sayfanın kayda değer bir kısmı
+    // resimse kıvrım hiç düzeltilmiyor, çoğu resimse sayfaya dokunulmuyor.
+    final picture =
+        ScanEnhance.pictureMask(measure.gray, measure.width, measure.height);
+    final pictureShare = ScanEnhance.pictureShare(picture);
+    if (pictureShare > 0.5) return null;
+    for (var i = 0; i < ink.length; i++) {
+      if (picture[i] > 0) ink[i] = 255;
+    }
+
     // Mürekkep oranı çok düşük (boş sayfa) ya da çok yüksek (fotoğraf/koyu
     // zemin) ise satır kavramı yok demektir.
     final ratio = _inkRatio(ink);
@@ -116,6 +137,9 @@ abstract final class ScanDewarp {
 
     // Kıvrım, eğim düzeltildikten SONRA ölçülür: eğik sayfada şerit
     // profilleri zaten kaymış olur ve kıvrım varmış gibi görünür.
+    if (pictureShare > maxCurvePictureShare) {
+      return changed ? result : null;
+    }
     final second = _downscaleGray(result, measureLongEdge);
     final ink2 = changed
         ? inkMap(second.gray, second.width, second.height)

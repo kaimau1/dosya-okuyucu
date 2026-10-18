@@ -74,6 +74,7 @@ import 'similar_screen.dart';
 import 'tools_screen.dart';
 import 'trash_screen.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 /// Dosya yöneticisi panosu: depolama doluluğu, kategoriler, favoriler,
 /// hızlı klasörler ve çöp kutusu — tek ekranda.
@@ -823,7 +824,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           // Alt boşluk FAB yığınını (küçük düğme sırası + "Belge Tara") aşar:
           // 2026-08-06'da Gap.xl (32) yetmiyordu ve son satırdaki "Google
           // Drive" kartının yazısı düğmelerin altında kalıyordu.
-          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 136),
+          padding: withNavInset(
+              context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 136)),
           children: [
             // Çökme uyarısı EN ÜSTTE ve yalnız çökme olduysa (kendini gizler):
             // hata kaydını Ayarlar'da bırakmak kimsenin bakmayacağı bir yere
@@ -860,10 +862,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             if (_cachedAtMs > 0) ...[
               const SizedBox(height: Gap.lg),
               Center(
+                // Çeviri tablosundan (eskiden İngilizce/Arapça arayüzde de
+                // Türkçe "Son tarama: … dosya" yazıyordu).
                 child: Text(
-                  'Son tarama: ${FsPaths.humanDate(_cachedAtMs)} · '
-                  '${_index.totalFiles} dosya',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  context.t('fm.last_scan', {
+                    'date': FsPaths.humanDate(_cachedAtMs),
+                    'n': _index.totalFiles,
+                  }),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Paper.faint(context)),
                 ),
               ),
             ],
@@ -871,60 +880,24 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         ),
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Çöp kutusu ile klasör ekleme YAN YANA: ikisi de küçük, ikisi de
-          // "bir şey yap" düğmesi; alt alta dizilseler taramanın geniş
-          // düğmesini ekranın yarısına kadar iterlerdi.
-          AnimatedSlide(
-            offset: _fabsVisible ? Offset.zero : const Offset(0, 0.4),
-            duration: const Duration(milliseconds: 180),
-            child: AnimatedOpacity(
-              opacity: _fabsVisible ? 1 : 0,
-              duration: const Duration(milliseconds: 180),
-              child: IgnorePointer(
-                ignoring: !_fabsVisible,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _trashFab(),
-                    const SizedBox(width: Gap.sm),
-                    // Tonlu yüzey (2026-09-23 tasarım turu): asıl eylem
-                    // "Belge Tara"nın yanında ikinci bir dolu mavi düğme
-                    // göze iki "birincil" eylem gösteriyordu.
-                    FloatingActionButton.small(
-                      heroTag: 'fm_new_folder',
-                      onPressed: _newFolderFlow,
-                      tooltip: context.t('fm.new_folder'),
-                      backgroundColor: scheme.surfaceContainerHigh,
-                      foregroundColor: scheme.onSurface,
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: scheme.outlineVariant),
-                      ),
-                      child: const Icon(Icons.create_new_folder_rounded),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: Gap.sm),
-          // Aşağı kaydırılırken etiket katlanır, yalnız simge kalır: liste
-          // okunurken düğme içeriğin üstünü daha az kapatır.
-          FloatingActionButton.extended(
-            heroTag: 'fm_scan_doc',
-            onPressed: () => ScanFlow.run(context),
-            isExtended: _fabsVisible,
-            tooltip: context.t('fm.scan_document'),
-            elevation: 3,
-            icon: const Icon(Icons.document_scanner_rounded),
-            label: Text(context.t('fm.scan_document')),
-          ),
-        ],
+      // **Tek yüzen çubuk** (2026-10-18, kullanıcı ekran görüntüleriyle:
+      // *"ana ekran biraz daha toparlanmalı ve daha premium hâle gelmeli"*).
+      // Eskiden üç ayrı yüzen düğme vardı — iki küçük kare (çöp kutusu, yeni
+      // klasör) bir sıra, "Belge Tara" altında ikinci sıra: sağ alt köşede
+      // ~120 dp yükseklik kaplayıp "Araçlar" başlığının ve ızgaranın üstüne
+      // biniyordu; dolu çöp kutusu da tam turuncu bir kare olarak bağırıyordu.
+      // Artık üçü TEK bir kapsülde, tek sırada: çöp kutusu · yeni klasör |
+      // Belge Tara. Kaydırırken kapsül yalnız tarama simgesine katlanır.
+      floatingActionButton: _QuickDock(
+        expanded: _fabsVisible,
+        trashCount: _trashCount,
+        onTrash: () async {
+          await Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
+          _loadTrash();
+        },
+        onNewFolder: _newFolderFlow,
+        onScan: () => ScanFlow.run(context),
       ),
     );
   }
@@ -1125,7 +1098,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       case 'favorites':
         return [
         if (appState.bookmarks.isNotEmpty) ...[
-          SectionHeader('Favoriler',
+          SectionHeader(context.t('dash.sec_favorites'),
               count: '${appState.bookmarks.length}',
               padding:
                   const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
@@ -1383,41 +1356,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         );
       },
-    );
-  }
-
-  /// **Çöp kutusu — yüzen düğme** (kullanıcı isteği 2026-08-06: *"çöp kutusu
-  /// da grid kart yerine klasör eklenin yanında yüzen buton olsun"*).
-  ///
-  /// Yolculuğu: araç ızgarası (12 simge arasında kayboluyordu) → büyük kart
-  /// (ızgarada yer kaplıyordu) → klasör ekleme düğmesinin yanındaki küçük
-  /// yüzen düğme. Kaydırınca kaybolmaz. Doluyken turuncu ve dolu simgeli —
-  /// kutuyu açmadan durum görünsün diye.
-  Widget _trashFab() {
-    final full = _trashCount > 0;
-    return FloatingActionButton.small(
-      heroTag: 'fm_trash',
-      onPressed: () async {
-        await Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
-        _loadTrash();
-      },
-      tooltip: full
-          ? context.t('fm.trash_count', {'n': _trashCount})
-          : context.t('fm.trash_empty'),
-      backgroundColor: full
-          ? const Color(0xFFE65100)
-          : Theme.of(context).colorScheme.surfaceContainerHigh,
-      foregroundColor:
-          full ? Colors.white : Theme.of(context).colorScheme.onSurface,
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: full
-            ? BorderSide.none
-            : BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: Icon(full ? Icons.delete_rounded : Icons.delete_outline_rounded),
     );
   }
 
@@ -2831,4 +2769,120 @@ class _RingPainter extends CustomPainter {
       old.total != total ||
       old.trackColor != trackColor ||
       old.strokeWidth != strokeWidth;
+}
+
+/// **Panonun yüzen çubuğu**: çöp kutusu · yeni klasör | Belge Tara.
+///
+/// Çöp kutusu doluyken simgesi dolu ve turuncu, üstünde sayı rozeti var
+/// (2026-08-06 isteği: kutuyu açmadan durum görünsün) — ama artık koca
+/// turuncu bir kare değil. [expanded] false iken (liste aşağı kaydırılıyor)
+/// kapsül yalnız tarama simgesine katlanır; içeriğin üstünü daha az kapatır.
+class _QuickDock extends StatelessWidget {
+  final bool expanded;
+  final int trashCount;
+  final VoidCallback onTrash;
+  final VoidCallback onNewFolder;
+  final VoidCallback onScan;
+
+  const _QuickDock({
+    required this.expanded,
+    required this.trashCount,
+    required this.onTrash,
+    required this.onNewFolder,
+    required this.onScan,
+  });
+
+  static const _trashFull = Color(0xFFE65100);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final full = trashCount > 0;
+    final trashIcon = Icon(
+      full ? Icons.delete_rounded : Icons.delete_outline_rounded,
+      color: full ? _trashFull : scheme.onSurfaceVariant,
+    );
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      shape: StadiumBorder(side: BorderSide(color: scheme.outlineVariant)),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: expanded
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: full
+                              ? '${context.t('fm.trash')} · '
+                                  '${context.t('fm.trash_count', {'n': trashCount})}'
+                              : context.t('fm.trash'),
+                          onPressed: onTrash,
+                          icon: full
+                              ? Badge(
+                                  label: Text(trashCount > 99
+                                      ? '99+'
+                                      : '$trashCount'),
+                                  backgroundColor: _trashFull,
+                                  child: trashIcon,
+                                )
+                              : trashIcon,
+                        ),
+                        IconButton(
+                          tooltip: context.t('fm.new_folder'),
+                          onPressed: onNewFolder,
+                          icon: Icon(Icons.create_new_folder_outlined,
+                              color: scheme.onSurfaceVariant),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 26,
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          color: scheme.outlineVariant,
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            Tooltip(
+              message: context.t('fm.scan_document'),
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding: EdgeInsets.symmetric(horizontal: expanded ? 18 : 12),
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: onScan,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.document_scanner_rounded, size: 22),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      child: expanded
+                          ? Padding(
+                              padding: const EdgeInsetsDirectional.only(start: 8),
+                              child: Text(context.t('fm.scan_document'),
+                                  maxLines: 1),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

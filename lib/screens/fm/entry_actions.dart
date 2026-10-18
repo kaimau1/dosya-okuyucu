@@ -139,15 +139,36 @@ Future<bool> showEntryActions(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _sheetHeader(ctx, entry),
-            _section(ctx, ctx.t('ea.sec_open'), [
-              _act(ctx, Icons.open_in_new, ctx.t('common.open'),
+            // **Hızlı sıra** (2026-10-18, kullanıcı: *"bu tür menüler
+            // toparlanmalı"*): en sık dört işlem başlığın hemen altında büyük
+            // yuvarlak düğmeler — ızgarayı taramadan, tek bakışta. Izgaradan
+            // çıkarıldılar (aynı işlem iki yerde durmasın).
+            _quickRow(ctx, [
+              _quick(ctx, Icons.open_in_new_rounded, ctx.t('common.open'),
                   _EntryAction.open),
+              if (!entry.isDir)
+                _quick(ctx, Icons.share_outlined, ctx.t('common.share'),
+                    _EntryAction.share),
+              _quick(ctx, Icons.drive_file_move_outline, ctx.t('fm.move'),
+                  _EntryAction.moveTo),
+              _quick(ctx, Icons.drive_file_rename_outline, ctx.t('fm.rename'),
+                  _EntryAction.rename),
+              if (entry.isDir)
+                _quick(
+                  ctx,
+                  appState.isBookmarked(entry.path)
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  appState.isBookmarked(entry.path)
+                      ? ctx.t('fm.unfavorite')
+                      : ctx.t('fm.favorite'),
+                  _EntryAction.bookmark,
+                ),
+            ]),
+            _section(ctx, ctx.t('ea.sec_open'), [
               if (!entry.isDir)
                 _act(ctx, Icons.apps, ctx.t('fm.open_with_other'),
                     _EntryAction.openWith),
-              if (!entry.isDir)
-                _act(ctx, Icons.share_outlined, ctx.t('common.share'),
-                    _EntryAction.share),
               if (!entry.isDir)
                 _act(ctx, Icons.cloud_upload_outlined,
                     ctx.t('drive.upload_action'), _EntryAction.driveUpload),
@@ -165,9 +186,6 @@ Future<bool> showEntryActions(
             // Pano (kopyala/kes + git + yapıştır) arkasında, ileri kullanım
             // için — aynı bölümde ama ikinci satırda.
             _section(ctx, ctx.t('ea.sec_move'), [
-              _act(ctx, Icons.drive_file_move_outline, ctx.t('fm.move'),
-                  _EntryAction.moveTo,
-                  hint: ctx.t('ea.pick_folder')),
               _act(ctx, Icons.folder_copy_outlined, ctx.t('fm.copy'),
                   _EntryAction.copyTo,
                   hint: ctx.t('ea.pick_folder')),
@@ -197,8 +215,6 @@ Future<bool> showEntryActions(
                     hint: externalHint),
             ]),
             _section(ctx, ctx.t('ea.sec_file'), [
-              _act(ctx, Icons.drive_file_rename_outline, ctx.t('fm.rename'),
-                  _EntryAction.rename),
               if (isArchive)
                 _act(ctx, Icons.folder_zip_outlined, ctx.t('fm.show_archive'),
                     _EntryAction.openArchive),
@@ -212,17 +228,6 @@ Future<bool> showEntryActions(
                 _act(ctx, Icons.sell_outlined, ctx.t('ea.tag'),
                     _EntryAction.tag,
                     hint: ctx.t('ea.tag_hint')),
-              if (entry.isDir)
-                _act(
-                  ctx,
-                  appState.isBookmarked(entry.path)
-                      ? Icons.star
-                      : Icons.star_border,
-                  appState.isBookmarked(entry.path)
-                      ? ctx.t('fm.unfavorite')
-                      : ctx.t('fm.favorite'),
-                  _EntryAction.bookmark,
-                ),
               // **Döndür** (2026-09-06 denetim turu): yan çekilmiş bir
               // fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu.
               if (canRotate)
@@ -601,7 +606,7 @@ Widget _section(BuildContext ctx, String title, List<Widget> actions) {
       // Izgara ELLE satırlanıyor (GridView değil): `GridView` sabit bir
       // en-boy oranı ister, oysa hücre yüksekliği metne bağlı — büyük yazı
       // ölçeğinde sabit oran taşma demek. `IntrinsicHeight` iki hücreyi
-      // satırın en uzununa eşitliyor, tek hücreli satır tek sütun kalıyor.
+      // satırın en uzununa eşitliyor.
       for (var i = 0; i < items.length; i += 2)
         Padding(
           padding: const EdgeInsets.only(bottom: Gap.xs),
@@ -610,12 +615,12 @@ Widget _section(BuildContext ctx, String title, List<Widget> actions) {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: items[i]),
-                const SizedBox(width: Gap.xs),
-                Expanded(
-                  child: i + 1 < items.length
-                      ? items[i + 1]
-                      : const SizedBox.shrink(),
-                ),
+                // Tek kalan son işlem TAM genişlik: yanında yarım satırlık
+                // boş bir delik bırakmak menüyü dağınık gösteriyordu.
+                if (i + 1 < items.length) ...[
+                  const SizedBox(width: Gap.xs),
+                  Expanded(child: items[i + 1]),
+                ],
               ],
             ),
           ),
@@ -624,7 +629,57 @@ Widget _section(BuildContext ctx, String title, List<Widget> actions) {
   );
 }
 
-/// Izgaranın bir hücresi: simge + etiket (+ soluk ipucu satırı).
+/// Hızlı sıra: eşit genişlikte yuvarlak düğmeler.
+Widget _quickRow(BuildContext ctx, List<Widget> items) => Padding(
+      padding: const EdgeInsets.only(top: Gap.xs, bottom: Gap.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [for (final item in items) Expanded(child: item)],
+      ),
+    );
+
+/// Hızlı sıranın bir düğmesi: tonlu daire içinde simge + altında etiket.
+Widget _quick(
+    BuildContext ctx, IconData icon, String label, _EntryAction action) {
+  final scheme = Theme.of(ctx).colorScheme;
+  return InkWell(
+    onTap: () => Navigator.pop(ctx, action),
+    borderRadius: BorderRadius.circular(Radii.card),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: scheme.onPrimaryContainer, size: 24),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(ctx)
+                .textTheme
+                .labelMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Izgaranın bir hücresi: simge rozeti + etiket (+ soluk ipucu satırı).
+///
+/// Rozet (tonlu yuvarlatılmış kare) simgeleri aynı hizaya ve aynı ağırlığa
+/// oturtuyor; çıplak simgelerde ince/kalın glifler satırda dalgalanıyordu.
 Widget _act(
   BuildContext ctx,
   IconData icon,
@@ -634,39 +689,56 @@ Widget _act(
 }) {
   final scheme = Theme.of(ctx).colorScheme;
   return Material(
-    color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-    borderRadius: BorderRadius.circular(Radii.control),
+    color: scheme.surfaceContainerLow,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(Radii.control),
+      side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+    ),
+    clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: () => Navigator.pop(ctx, action),
-      borderRadius: BorderRadius.circular(Radii.control),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: Gap.sm, vertical: Gap.sm + 2),
-        child: Row(
-          children: [
-            Icon(icon, size: 22, color: scheme.primary),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(ctx).textTheme.bodyMedium),
-                  if (hint != null)
-                    Text(hint,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            )),
-                ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: Gap.sm, vertical: Gap.sm),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 19, color: scheme.primary),
               ),
-            ),
-          ],
+              const SizedBox(width: Gap.sm + 2),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(ctx)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(height: 1.15)),
+                    if (hint != null)
+                      Text(hint,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              )),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),

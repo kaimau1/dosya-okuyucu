@@ -9,6 +9,7 @@ import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 import 'markdown_text.dart';
 import '../core/snack.dart';
+import '../core/safe_insets.dart';
 
 /// Özetin ne kadar ayrıntılı olacağı.
 ///
@@ -193,7 +194,8 @@ class AiSummaryFlow {
               Expanded(
                 child: SingleChildScrollView(
                   controller: scroll,
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: withNavInset(
+                      ctx, const EdgeInsets.only(top: 12)),
                   child: MarkdownText(summary),
                 ),
               ),

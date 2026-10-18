@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../services/fm/remote/usb_fs.dart';
 import '../../services/fm/usb/usb_report.dart';
 import 'remote/remote_browser_screen.dart';
+import '../../core/safe_insets.dart';
 
 /// **USB teşhis ekranı** — tahmini bitiren ölçüm.
 ///
@@ -147,7 +148,7 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(Gap.md),
+              padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
               children: [
                 _verdictCard(report!),
                 // **Ham sürücüyü DENE.** Ölçüm "Android bağlamadı" diyorsa

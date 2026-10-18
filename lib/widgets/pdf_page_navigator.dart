@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../core/safe_insets.dart';
 
 /// **Sayfa rozeti** — belgenin altında yüzen "5 / 1272".
 ///
@@ -236,7 +237,8 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        padding: withNavInset(
+            context, const EdgeInsets.fromLTRB(20, 0, 20, 20)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

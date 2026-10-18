@@ -78,6 +78,7 @@ abstract final class AiApply {
     JobQueue.instance.enqueue(
       id: jobId,
       title: _str.t('aiap.job_title'),
+      name: _str.t('aiap.job_name'),
       total: targets.length,
       target: const FmJobTarget.aiHub(),
       run: (handle) async {

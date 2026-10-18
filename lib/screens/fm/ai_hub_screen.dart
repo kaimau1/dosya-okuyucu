@@ -39,6 +39,7 @@ import '../chat_screen.dart';
 import 'ai_files_screen.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 class AiHubScreen extends StatefulWidget {
   const AiHubScreen({super.key});
@@ -297,7 +298,7 @@ class _AnalysisTab extends StatelessWidget {
     final faint = Paper.faint(context);
     final state = context.watch<AppState>();
     return ListView(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
         // Ne işe yaradığı ÖNCE gelir: kullanıcı düğmeye basmadan önce ne
         // olacağını bilmeli (dosyaları okuyacağız, token harcayacağız).
@@ -589,7 +590,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
               ? _chatEmpty(context)
               : ListView.builder(
                   controller: _scroll,
-                  padding: const EdgeInsets.all(Gap.md),
+                  padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
                   itemCount: _messages.length + (_busy ? 1 : 0),
                   itemBuilder: (context, i) => i == _messages.length
                       ? const _TypingBubble()
@@ -654,7 +655,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
     final faint = Paper.faint(context);
     final noIndex = AiIndex.count == 0;
     return ListView(
-      padding: const EdgeInsets.all(Gap.lg),
+      padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
       children: [
         const SizedBox(height: Gap.lg),
         Icon(Icons.forum_outlined, size: 48, color: faint),
@@ -1024,7 +1025,8 @@ class _ReportTab extends StatelessWidget {
         final types = AiBuckets.typeCounts(analyzed);
 
         return ListView(
-          padding: const EdgeInsets.fromLTRB(0, Gap.sm, 0, Gap.xl),
+          padding: withNavInset(
+              context, const EdgeInsets.fromLTRB(0, Gap.sm, 0, Gap.xl)),
           children: [
             // ── Yapılacak işler ──────────────────────────────────────────
             if (suggestions.isNotEmpty)

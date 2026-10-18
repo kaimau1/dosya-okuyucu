@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import 'settings/settings_catalog.dart';
 import 'settings/settings_category_screen.dart';
 import 'settings/settings_group.dart';
+import '../core/safe_insets.dart';
 
 export 'settings/tiles_system.dart' show showOpenSourceLicenses;
 
@@ -103,7 +104,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// Kategori kartları — ana görünüm. En üstte hızlı tema seçici
   /// ([_QuickHeader]).
   Widget _categoryList(List<SettingsCategory> categories) => ListView.builder(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
+        padding: withNavInset(
+            context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
         itemCount: categories.length + 1,
         itemBuilder: (context, i) => i == 0
             ? const _QuickHeader()
@@ -145,7 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     hits.sort((a, b) => b.score.compareTo(a.score));
     return ListView(
-      padding: const EdgeInsets.only(bottom: Gap.xl),
+      padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(Gap.md + 4, Gap.md, Gap.md, 0),

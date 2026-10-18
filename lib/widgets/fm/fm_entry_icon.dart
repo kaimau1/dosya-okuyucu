@@ -729,10 +729,19 @@ class _VideoThumbState extends State<_VideoThumb> {
   /// yükleniyor: ikisi farklı native çağrı ve süre gelmeden küçük resmi
   /// bekletmek listeyi geciktirirdi.
   String? _duration;
+  bool _started = false;
 
+  /// İlk yükleme `initState`te DEĞİL: [_load] kaydırma hızını soruyor
+  /// (`Scrollable.recommendDeferredLoadingForContext` → `View.of`) ve
+  /// `initState` içinde kalıtılan widget'a bağımlılık kurmak yasak — hata
+  /// ayıklama derlemesinde kırmızı ekran, yayında sessizce eskiyen değer.
+  /// (2026-10-18 görsel denetimde dosya işlem menüsünün başlığındaki video
+  /// simgesiyle yakalandı.)
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
     _load();
   }
 

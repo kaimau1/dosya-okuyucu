@@ -12,6 +12,7 @@ import '../services/ocr_service.dart';
 import '../services/translate_service.dart';
 import 'pdf_save_dialog.dart';
 import '../core/snack.dart';
+import '../core/safe_insets.dart';
 
 /// Akış sırasında ilerlemeyi yazan ve **iptal isteğini taşıyan** tutamak.
 ///
@@ -479,7 +480,8 @@ class TranslateFlow {
               Expanded(
                 child: SingleChildScrollView(
                   controller: scroll,
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: withNavInset(
+                      ctx, const EdgeInsets.only(top: 12)),
                   child: SelectableText(text,
                       style: const TextStyle(fontSize: 14, height: 1.4)),
                 ),

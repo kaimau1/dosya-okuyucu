@@ -13,6 +13,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/pdf_edit_journal.dart';
 import '../../services/translate_service.dart';
 import '../fm/browser_screen.dart';
+import '../../core/safe_insets.dart';
 
 /// **"Uygulama neden bu kadar yer kaplıyor?"** sorusunun cevabı.
 ///
@@ -144,7 +145,7 @@ class _AppFootprintScreenState extends State<AppFootprintScreen> {
     ].fold(0, (a, b) => a + b);
 
     return ListView(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
         Text(FsPaths.humanSize(report.total),
             style: theme.textTheme.displaySmall

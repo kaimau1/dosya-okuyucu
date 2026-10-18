@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
+import '../../core/safe_insets.dart';
 
 /// Düzen sayfasındaki bir satırın görünümü.
 typedef LayoutRowInfo = ({String label, IconData icon, Color color});
@@ -107,7 +108,8 @@ class _LayoutSheetState extends State<_LayoutSheet> {
               child: ReorderableListView.builder(
                 scrollController: widget.scroll,
                 buildDefaultDragHandles: false,
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: withNavInset(
+                    context, const EdgeInsets.only(bottom: 24)),
                 itemCount: ids.length,
                 onReorder: (from, to) {
                   // Görünen alt kümede sürükleniyor; tam listedeki dizine çevir.

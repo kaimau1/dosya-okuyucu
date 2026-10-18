@@ -18,6 +18,7 @@ import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 enum _DlSort { oldest, newest, largest, name }
 
@@ -262,7 +263,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         }),
                         child: ListView.builder(
                           controller: _scroll,
-                          padding: const EdgeInsets.only(bottom: 96),
+                          padding: withNavInset(
+                              context, const EdgeInsets.only(bottom: 96)),
                           itemCount: files.length,
                           itemBuilder: (context, i) =>
                               DragSelectItem(index: i, child: _row(files[i])),

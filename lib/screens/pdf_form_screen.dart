@@ -9,6 +9,7 @@ import '../core/theme.dart';
 import '../services/pdf/pdf_form.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
+import '../core/safe_insets.dart';
 
 /// **PDF formu doldurma** — belgenin kendi alanları düzenlenebilir bir liste
 /// olarak açılır, doldurulur ve dosyaya yazılır.
@@ -201,7 +202,8 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
     }
     final ordered = pages.keys.toList()..sort();
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+      padding: withNavInset(
+          context, const EdgeInsets.symmetric(horizontal: Gap.md)),
       children: [
         for (final page in ordered) ...[
           Padding(

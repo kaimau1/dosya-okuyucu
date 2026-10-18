@@ -4,6 +4,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import 'settings_catalog.dart';
 import 'settings_group.dart';
+import '../../core/safe_insets.dart';
 
 /// Bir ayar kategorisinin kendi sayfası.
 ///
@@ -25,7 +26,7 @@ class SettingsCategoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(context.t(category.titleKey))),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: Gap.xl),
+        padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
         children: [
           // Kategorinin ne olduğu tek satır, sakin: sayfanın başında kullanıcı
           // "doğru yerde miyim" sorusunu bir bakışta cevaplayabilmeli.

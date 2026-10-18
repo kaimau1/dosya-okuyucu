@@ -10,6 +10,7 @@ import '../../../services/fm/remote/ftp_tree.dart';
 import '../../../services/fm/remote/share_scope.dart';
 import 'share_folders_screen.dart';
 import '../../../core/snack.dart';
+import '../../../core/safe_insets.dart';
 
 /// **Ağdan erişim** — telefondaki dosyalara ağdaki bilgisayardan ulaşma.
 ///
@@ -89,7 +90,7 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.t('ftpd.title'))),
       body: ListView(
-        padding: const EdgeInsets.all(Gap.md),
+        padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
         children: [
           _card(context, running ? _runningBody(context) : _idleBody(context)),
           const SizedBox(height: Gap.md),

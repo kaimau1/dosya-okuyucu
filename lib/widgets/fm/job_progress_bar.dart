@@ -68,7 +68,8 @@ class _RunningBar extends StatelessWidget {
                       children: [
                         Text(
                           queued > 0
-                              ? '${job.title} (+$queued sırada)'
+                              ? context.t('jp.title_queued',
+                                  {'title': job.title, 'n': queued})
                               : job.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -125,7 +126,7 @@ class _ResultBar extends StatelessWidget {
         job.detail.isEmpty
             ? context.t('jb.cancelled')
             : context.t('jb.cancelled_detail', {'detail': job.detail}),
-      _ => job.detail.isEmpty ? job.status.label : job.detail,
+      _ => job.detail.isEmpty ? context.t(job.status.labelKey) : job.detail,
     };
     return Material(
       color: failed
@@ -152,7 +153,7 @@ class _ResultBar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(job.title,
+                    Text(job.shownTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelLarge),

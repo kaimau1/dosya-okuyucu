@@ -30,6 +30,7 @@ import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 /// Klasör altında özyinelemeli dosya arama (Türkçe-duyarlı).
 ///
@@ -569,7 +570,7 @@ class _SearchScreenState extends State<SearchScreen> {
           : (_searching ? 'srch.searching' : 'srch.no_result'));
       final history = SearchHistory.queries;
       return ListView(
-        padding: const EdgeInsets.all(Gap.lg),
+        padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
         children: [
           Text(message, textAlign: TextAlign.center),
           // **Son aramalar** — sorgu kutusu boşken gösteriliyor: bir sonuç
@@ -637,7 +638,7 @@ class _SearchScreenState extends State<SearchScreen> {
         controller: _scroll,
         // Seçim çubuğu gövdenin ÜSTÜNE bindirmeli çizilir; son satır altında
         // kalmasın diye sabit boşluk (çubuk yokken de aynı → liste zıplamaz).
-        padding: const EdgeInsets.only(bottom: 88),
+        padding: withNavInset(context, const EdgeInsets.only(bottom: 88)),
         itemCount: results.length,
         itemBuilder: (context, i) {
           final e = results[i];

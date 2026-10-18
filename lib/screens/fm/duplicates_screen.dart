@@ -14,6 +14,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 /// Yinelenen dosyalar: birebir aynı içerikli dosyaları bulur, her gruptan
 /// birini bırakıp kalanları tek dokunuşla çöpe taşır.
@@ -117,11 +118,16 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
   /// Taramayı arka plan kuyruğuna verir.
   void _scan() {
     // Kuyruk işi ekran kapansa da sürer → metinler ŞİMDİ çözülür.
-    final strings = AppStrings.of(context);
+    // `AppStrings.current` (bağlamsız): bu yöntem `initState`ten de
+    // çağrılıyor ve orada `AppStrings.of(context)` = `Localizations`a
+    // bağımlılık kurmak yasak (hata ayıklamada kırmızı ekran). Kuyruk işinin
+    // metinleri zaten uygulama dilinde (bildirim de aynı tabloyu okur).
+    final strings = AppStrings.current;
     final roots = widget.roots;
     JobQueue.instance.enqueue(
       id: _jobId,
       title: strings.t('dup.scanning_title'),
+      name: strings.t('dup.scanning_name'),
       // İş bittikten sonra (bildirimden, şeritten, İşlemler kartından)
       // dokunulunca sonucu gösteren ekran bu — aynı köklerle.
       target: FmJobTarget.duplicates(roots),
@@ -267,7 +273,8 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                               child: Text(
                                   context.t('dup.no_match', {'query': _query})))
                           : ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 96),
+                              padding: withNavInset(
+                                  context, const EdgeInsets.only(bottom: 96)),
                               itemCount: _visibleGroups.length,
                               itemBuilder: (context, i) =>
                                   _groupTile(_visibleGroups[i], i),

@@ -49,6 +49,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/section_header.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 /// Ekranın hangi görünümde olduğu.
 enum _PickView { home, folder, category, search, matches }
@@ -624,7 +625,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
     }
     // Binlerce satır olabilir: başlık + satırlar TEMBEL kurulur.
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: Gap.xl),
+      padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
       itemCount: header.length + visible.length,
       itemBuilder: (context, i) =>
           i < header.length ? header[i] : _row(visible[i - header.length]),
@@ -666,7 +667,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
     final folders = StorageStats.standardFolders(FmEnv.primaryRoot);
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: Gap.xl),
+      padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
       children: [
         if (_recent.isNotEmpty) ...[
           SectionHeader(context.t('fm.recent_opened')),

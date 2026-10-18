@@ -830,6 +830,12 @@ const Map<String, (String, String, String)> _table = {
     'يتم إرسال {n} مجلد كملف ZIP',
   ),
   'peer.notify_title': ('Dosya alındı', 'File received', 'تم استلام ملف'),
+  'peer.channel_name': ('Yakındaki cihaz', 'Nearby device', 'جهاز قريب'),
+  'peer.channel_desc': (
+    'Yakındaki bir cihazdan dosya alındığında.',
+    'When a file is received from a nearby device.',
+    'عند استلام ملف من جهاز قريب.',
+  ),
   'peer.recent_devices': ('Son cihazlar', 'Recent devices', 'الأجهزة الأخيرة'),
 
   'backup.title': ('Ayarları yedekle', 'Back up settings', 'نسخ الإعدادات احتياطيًا'),
@@ -1329,6 +1335,11 @@ const Map<String, (String, String, String)> _table = {
     'أحدث الملفات',
   ),
   'fm.scan_document': ('Belge Tara', 'Scan a document', 'مسح مستند'),
+  'fm.last_scan': (
+    'Son tarama: {date} · {n} dosya',
+    'Last scan: {date} · {n} files',
+    'آخر فحص: {date} · {n} ملف',
+  ),
   'fm.duplicates_title': ('Yinelenen dosyalar', 'Duplicate files', 'ملفات مكررة'),
   'fm.enter_password': ('Parola gir', 'Enter password', 'أدخل كلمة المرور'),
   'fm.clear_finished': ('Bitenleri temizle', 'Clear finished', 'مسح المنتهية'),
@@ -1766,6 +1777,7 @@ const Map<String, (String, String, String)> _table = {
   'clean.confirm_title': ('Temizlensin mi?', 'Clean up?', 'هل تريد التنظيف؟'),
   'clean.title': ('Yer aç', 'Free up space', 'تحرير مساحة'),
   'clean.analyzing': ('Yer aç: depolama çözümleniyor', 'Free up space: analysing storage', 'تحرير مساحة: جارٍ تحليل التخزين'),
+  'clean.analyzing_name': ('Yer aç: depolama çözümlemesi', 'Free up space: storage analysis', 'تحرير مساحة: تحليل التخزين'),
   'clean.reading_trash': ('Çöp kutusu okunuyor…', 'Reading the trash…', 'جارٍ قراءة المهملات…'),
   'clean.reading_downloads': ('İndirilenler inceleniyor…', 'Inspecting downloads…', 'جارٍ فحص التنزيلات…'),
   'clean.finding_dupes': (
@@ -1797,7 +1809,12 @@ const Map<String, (String, String, String)> _table = {
         'ذلك في الإعدادات)، ويمكنك التراجع من سجل العمليات.',
   ),
   'clean.cleaning': ('Yer aç: {size} temizleniyor', 'Free up space: cleaning {size}', 'تحرير مساحة: جارٍ تنظيف {size}'),
-  'clean.cleaned': ('Temizlendi. Yeniden çözümleniyor…', 'Cleaned. Re-analysing…', 'تم التنظيف. جارٍ إعادة التحليل…'),
+  'clean.cleaning_name': ('Yer aç: {size} temizliği', 'Free up space: {size} clean-up', 'تحرير مساحة: تنظيف {size}'),
+  'clean.cleaned_detail': (
+    '{size} boşaltıldı · {n} öneri uygulandı',
+    '{size} freed · {n} suggestions applied',
+    'تم تحرير {size} · طُبّق {n} من الاقتراحات',
+  ),
   'clean.reanalyze': ('Yeniden çözümle', 'Re-analyse', 'إعادة التحليل'),
   'clean.open_trash': ('Çöp kutusunu aç', 'Open the trash', 'فتح المهملات'),
   'clean.see_files': ('{n} dosyayı gör', 'See {n} files', 'عرض {n} ملف'),
@@ -4802,6 +4819,11 @@ const Map<String, (String, String, String)> _table = {
     'Searching for similar images ({level})',
     'جارٍ البحث عن صور متشابهة ({level})',
   ),
+  'sim.scanning_name': (
+    'Benzer görüntü araması ({level})',
+    'Similar image search ({level})',
+    'البحث عن صور متشابهة ({level})',
+  ),
   'sim.preparing_list': (
     'Dosya listesi hazırlanıyor…',
     'Preparing the file list…',
@@ -5093,6 +5115,11 @@ const Map<String, (String, String, String)> _table = {
     'Yinelenen dosyalar aranıyor',
     'Searching for duplicate files',
     'جارٍ البحث عن ملفات مكررة',
+  ),
+  'dup.scanning_name': (
+    'Yinelenen dosya araması',
+    'Duplicate file search',
+    'البحث عن ملفات مكررة',
   ),
   'dup.comparing': (
     'Dosyalar bayt bayt karşılaştırılıyor…',
@@ -5638,6 +5665,11 @@ const Map<String, (String, String, String)> _table = {
     'Scanning chat media',
     'جارٍ فحص وسائط المحادثات',
   ),
+  'cj.job_name': (
+    'Sohbet medyası taraması',
+    'Chat media scan',
+    'فحص وسائط المحادثات',
+  ),
   'cj.rescan': ('Yeniden tara', 'Scan again', 'إعادة الفحص'),
   'cj.step_listing': (
     'Dosyalar listeleniyor…',
@@ -5807,6 +5839,77 @@ const Map<String, (String, String, String)> _table = {
     'الكومة التي لا تجدها المجموعات: خمس لقطات للحظة نفسها، ونسخ أُعيد '
         'ضغطها. يفكّ ترميز الصور، لذا يستغرق وقتًا.',
   ),
+
+  // ── Tarama stüdyosu + kırpma (2026-10-18: akış baştan) ───────────────────
+  'ss.pages_tab': ('Sayfalar ({n})', 'Pages ({n})', 'الصفحات ({n})'),
+  'ss.saved': ('Kaydedildi · {folder}', 'Saved · {folder}', 'تم الحفظ · {folder}'),
+  'ss.saving': ('Kaydediliyor…', 'Saving…', 'جارٍ الحفظ…'),
+  'ss.save_failed': (
+    'Kaydedilemedi — yeniden denemek için dokunun',
+    'Not saved — tap to try again',
+    'لم يُحفظ — اضغط لإعادة المحاولة',
+  ),
+  'ss.finishing': (
+    'Son değişiklikler kaydediliyor…',
+    'Saving the last changes…',
+    'جارٍ حفظ آخر التغييرات…',
+  ),
+  'ss.tool_crop': ('Kırp', 'Crop', 'قصّ'),
+  'ss.tool_rotate': ('Döndür', 'Rotate', 'تدوير'),
+  'ss.tool_filter': ('Filtre', 'Filter', 'تصفية'),
+  'ss.tool_retake': ('Yeniden çek', 'Retake', 'إعادة الالتقاط'),
+  'ss.tool_delete': ('Sil', 'Delete', 'حذف'),
+  'ss.page_deleted': ('Sayfa silindi', 'Page deleted', 'حُذفت الصفحة'),
+  'ss.working_crop': ('Kırpılıyor…', 'Cropping…', 'جارٍ القصّ…'),
+  'ss.working_rotate': ('Döndürülüyor…', 'Rotating…', 'جارٍ التدوير…'),
+  'ss.working_filter': ('Uygulanıyor…', 'Applying…', 'جارٍ التطبيق…'),
+  'ss.working_straighten': ('Düzleştiriliyor…', 'Straightening…', 'جارٍ التقويم…'),
+  'ss.moving': ('Taşınıyor…', 'Moving…', 'جارٍ النقل…'),
+  'ss.add_camera': ('Kamerayla tara', 'Scan with the camera', 'المسح بالكاميرا'),
+  'ss.add_camera_sub': (
+    'Sayfa kenarları otomatik bulunur',
+    'The page edges are found automatically',
+    'تُكتشف حواف الصفحة تلقائيًا',
+  ),
+  'ss.add_gallery': ('Fotoğraftan ekle', 'Add from a photo', 'إضافة من صورة'),
+  'ss.add_gallery_sub': (
+    'Galeriden seçin, kırpmayı siz ayarlayın',
+    'Pick from the gallery and set the crop yourself',
+    'اختر من المعرض واضبط القصّ بنفسك',
+  ),
+  'ss.filter_title': ('Sayfanın görünümü', 'Page look', 'مظهر الصفحة'),
+  'ss.filter_note': (
+    'Özgün: tarayıcıdan geldiği gibi. Netleştirme gölgeyi alır ve yazıyı '
+        'belirginleştirir; fotoğraflara dokunmaz.',
+    'Original: as it came from the scanner. Sharpen removes shadows and '
+        'darkens the text; photos are left untouched.',
+    'الأصل: كما جاء من الماسح. التوضيح يزيل الظلال ويُبرز النص؛ ولا يمسّ '
+        'الصور.',
+  ),
+  'ss.straighten_sub': (
+    'Eğik ya da kavisli satırları yazıya bakarak düzeltir',
+    'Fixes tilted or curved lines by looking at the text',
+    'يصحّح الأسطر المائلة أو المنحنية بالنظر إلى النص',
+  ),
+  'scan.short_original': ('Özgün', 'Original', 'الأصل'),
+  'scan.short_auto': ('Netleştir', 'Sharpen', 'توضيح'),
+  'scan.short_gray': ('Gri', 'Gray', 'رمادي'),
+  'scan.short_bw': ('S/B', 'B/W', 'أ/أ'),
+  'se.crop_title': ('Sayfayı kırp', 'Crop the page', 'قصّ الصفحة'),
+  'se.crop_hint': (
+    'Köşeleri ya da kenarları sürükleyin',
+    'Drag the corners or the edges',
+    'اسحب الزوايا أو الحواف',
+  ),
+  'se.full_page': ('Tam sayfa', 'Whole page', 'الصفحة كاملة'),
+  'se.find_edges': ('Kenarları bul', 'Find edges', 'اكتشاف الحواف'),
+  'se.not_found': (
+    'Kâğıt kenarı bulunamadı — kenarları elle sürükleyin.',
+    'No paper edge was found — drag the edges by hand.',
+    'لم يُعثر على حافة الورقة — اسحب الحواف يدويًا.',
+  ),
+  'se.apply_crop': ('Kırp', 'Crop', 'قصّ'),
+  'sf.title': ('Belge hazırlanıyor', 'Preparing the document', 'جارٍ تجهيز المستند'),
 
   // ── Tarama sonucu ekranı ──────────────────────────────────────────────────
   'scr.title': ('Tarama sonucu', 'Scan result', 'نتيجة المسح'),
@@ -6355,6 +6458,11 @@ const Map<String, (String, String, String)> _table = {
     '{n} suggestions · {size} will be freed.\n\n',
     '{n} اقتراح · سيتم تحرير {size}.\n\n',
   ),
+  'clean.confirm_tail': (
+    'Dosyalar çöp kutusuna taşınır; oradan geri alabilirsiniz.',
+    'The files are moved to the trash; you can restore them from there.',
+    'تُنقل الملفات إلى المهملات؛ ويمكنك استعادتها من هناك.',
+  ),
 
   // ── Bellek analizi ────────────────────────────────────────────────────────
   'an.trend_days': ('Son {n} günde ', 'In the last {n} days ', 'خلال آخر {n} يومًا '),
@@ -6406,6 +6514,7 @@ const Map<String, (String, String, String)> _table = {
   ),
 
   // ── İş şeridi ─────────────────────────────────────────────────────────────
+  'jp.title_queued': ('{title} (+{n} sırada)', '{title} (+{n} queued)', '{title} (+{n} في الانتظار)'),
   'jp.cancel': ('İptal', 'Cancel', 'إلغاء'),
   'rc.title': ('Eski ↔ yeni karşılaştır', 'Compare old ↔ new', 'مقارنة القديم ↔ الجديد'),
   'rc.old': ('Eski', 'Old', 'القديم'),
@@ -6474,6 +6583,16 @@ const Map<String, (String, String, String)> _table = {
     'Reducing the size of {n} files',
     'جارٍ تصغير حجم {n} ملف',
   ),
+  'ra.job_one_name': (
+    'Boyut düşürme: {name}',
+    'Size reduction: {name}',
+    'تقليل الحجم: {name}',
+  ),
+  'ra.job_many_name': (
+    '{n} dosyada boyut düşürme',
+    'Size reduction of {n} files',
+    'تقليل حجم {n} ملفات',
+  ),
   'ra.already_running': (
     'Bu işlem zaten sürüyor. Durumu alttaki şeritten ya da “İşlemler” '
         'ekranından izleyebilirsin.',
@@ -6534,6 +6653,16 @@ const Map<String, (String, String, String)> _table = {
   // ── Arka plandaki iş kuyruğu / bildirimler ────────────────────────────────
   'job.error_generic': ('Bir hata oluştu.', 'Something went wrong.', 'حدث خطأ.'),
   'job.finished': ('Tamamlandı.', 'Completed.', 'اكتمل.'),
+  // Biten işin başlığı (bkz. `FmJob.shownTitle`): süren işin "-iyor"
+  // başlığı bitince "tamamlandı" kipine döner.
+  'job.title_done': ('{name} tamamlandı', '{name} complete', 'اكتمل: {name}'),
+  'job.title_failed': ('{name} başarısız oldu', '{name} failed', 'فشل: {name}'),
+  'job.title_cancelled': ('{name} durduruldu', '{name} stopped', 'أُوقف: {name}'),
+  'job.title_interrupted': (
+    '{name} yarıda kaldı',
+    '{name} interrupted',
+    'انقطع: {name}',
+  ),
   'job.stopped_detail': (
     'Durduruldu · {detail}',
     'Stopped · {detail}',
@@ -7297,6 +7426,7 @@ const Map<String, (String, String, String)> _table = {
   ),
   'aih.card_junk_action': ('Listeyi aç', 'Open list', 'افتح القائمة'),
   'aiap.job_title': ('AI önerileri uygulanıyor', 'Applying AI suggestions', 'تطبيق اقتراحات الذكاء الاصطناعي'),
+  'aiap.job_name': ('AI önerilerinin uygulanması', 'Applying AI suggestions', 'تطبيق اقتراحات الذكاء الاصطناعي'),
   'aiap.started': (
     '{n} dosya arka planda düzenleniyor',
     'Updating {n} files in the background',

@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../services/crash_log.dart';
 import '../../core/snack.dart';
 import '../../core/app_version.dart';
+import '../../core/safe_insets.dart';
 
 /// **Hata kayıtları ekranı** — cihazda tutulan çökme/hata raporlarını AYNEN
 /// gösterir, kullanıcı isterse paylaşır ya da siler.
@@ -86,8 +87,8 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                      Gap.md, Gap.sm, Gap.md, Gap.xl),
+                  padding: withNavInset(context, const EdgeInsets.fromLTRB(
+                      Gap.md, Gap.sm, Gap.md, Gap.xl)),
                   itemCount: records.length + 1,
                   itemBuilder: (context, i) => i == 0
                       ? Padding(

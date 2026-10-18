@@ -16,6 +16,7 @@ import '../../services/fm/path_side_index.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 /// Boyut düşürme sonucu: bir (eski → yeni) çifti.
 class ResizePair {
@@ -246,7 +247,7 @@ class _PairPage extends StatelessWidget {
         : 0;
     final canCompare = !item.oldGone && !item.newGone;
     return ListView(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
         Text(p.basename(pair.newPath),
             maxLines: 1,

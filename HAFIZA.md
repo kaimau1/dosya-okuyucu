@@ -12404,3 +12404,127 @@ değiştirip kaydetme; (c) SD kart: "Şimdi taşı" ilerlemesi, şarja takınca 
 fotoğrafların görünmesi; Android 10 ve öncesinde `sd_readonly` uyarısı.
 **CI sonucu:** main #375 yeşil (analyze + test + Kotlin/`SdUnion.kt` dahil APK derlemesi +
 APK içeriği denetimi) → **v1.0.375** yayımlandı. arm64 APK 78,1 MB, 32-bit 85,7 MB.
+
+## 2026-10-18 — Tarama baştan (otomatik "iyileştirme" kalktı), alt çubuk altında kalanlar, menü/pano cilası, "bitti ama sürüyor" başlıkları
+Kullanıcı (3 ekran görüntüsüyle): *"resimli sayfalarda yanlış kesiyor · manuel kırpma
+daha kolay olmalı, şu an görülmüyor · belge tarandıktan ve onaylandıktan sonra arka
+planda yapılan iyileştirmeler resmin patlamasına ve bozulmasına sebep oluyor · tarama
+akışı, butonları, mantığı, görünümü tamamen yenilenmeli · ana ekran toparlanmalı, daha
+premium · altta kalan basılamayan şeyleri bul ve düzelt · bu tür menüler toparlanmalı ·
+bug taraması · Main'e merge et APK derlensin"* + tur ortasında: *"işlemler tamamlandı
+dahi hâlâ çalışıyormuş gibi görünüyor, olumsuz duygu oluşturur, tek tek düzelt"*.
+(Oturum dalı `ccr-22d3a4f9-wb3cwi`; kullanıcının açık isteği + tek-dal kuralıyla main'e.)
+
+### A) KÖK NEDEN — "patlama" ve "resimli sayfada yanlış kesme" BİZİM otomatik işlemimizdi
+- 2026-10-17 turu ML Kit'ten dönen her sayfaya onaydan SONRA kendiliğinden
+  `ScanDewarp.straighten` + `ScanFilter.auto` uyguluyordu.
+  * `ScanEnhance.flattenIllumination` her pikseli kendi çevresinin ortalamasına böler.
+    Kâğıtta gölgeyi siler; FOTOĞRAFIN içinde "çevrenin ortalaması" fotoğrafın kendisi →
+    fotoğraf beyaza yakın düz bir lekeye dönüyor; renkli modda oran ×3-4'e çıkıp üç kanal
+    255'e dayanıyordu (renk "patlaması").
+  * `ScanDewarp` fotoğrafın dokusunu mürekkep sanıyor: eğim taraması sayfayı birkaç
+    derece çeviriyor, kıvrım adımı fotoğrafı dikey şeritlere bölüp şerit şerit
+    kaydırıyordu (resim "yanlış kesilmiş/dilimlenmiş" görünür).
+- **KARAR — onaylanan sayfa OLDUĞU GİBİ kaydedilir.** `ScanPrepare.page/pages` varsayılanı
+  artık hiçbir şey yapmamak (izolat bile açılmaz, JPEG yeniden kodlanmaz). Netleştir/Gri/
+  S-B ve Düzleştir yalnız kullanıcı stüdyoda seçerse. **REDDEDİLEN yol:** onaydan sonra
+  kendiliğinden görüntü işleme (iki tur üst üste aynı sınıf şikâyet getirdi).
+- **Resim maskesi** `ScanEnhance.pictureMask` (saf, testli): blok başına kâğıt tonuna
+  yakın / koyu mürekkep / ara ton oranı; ara ton > %33 ya da (renkli + kâğıttan koyu)
+  ya da (çok koyu + yazısız) blok resim. Tek blok gürültü atılır, derli toplu bölge dış
+  dikdörtgenine tamamlanır (düz gök şeridi de korunur), bir blok genişletilir, yumuşak
+  geçiş. Sayfanın %90'lık dilimi < 110 ise sayfa kâğıt değil → hiç dokunulmaz.
+  Filtreler maskeyle karışır (fotoğraf özgün; S-B modunda fotoğraf GRİ kalır).
+  Renkli modda parlaklık tam düzeltilir, renk sapması en çok ×1,6 büyür (`maxChromaGain`).
+  TUZAK: düz oran sınırı (×2,2) derin gölgedeki kâğıdı beyazlatamıyordu (eski test
+  kırıldı) → sınır kanala değil SAPMAYA konmalı.
+- `ScanDewarp`: resim pikselleri ölçümden çıkar; resim payı > %6 ise kıvrım hiç
+  düzeltilmez, > %50 ise sayfaya dokunulmaz.
+
+### B) Tarama stüdyosu (`scan_result_screen.dart`, BAŞTAN) + kırpma ekranı (BAŞTAN)
+- Ara "Sayfaları düzenle" ekranı (`scan_review_screen.dart`) SİLİNDİ. Stüdyo: başlıkta ad +
+  CANLI kayıt durumu ("Kaydediliyor…" → "Kaydedildi · klasör"; hata → dokun-yeniden dene),
+  Sayfalar/Metin bölümlü düğme, sayfa + sayaç hapı, küçük resim şeridi (basılı tut-sürükle
+  = sıra, "+" = Kamerayla tara / Fotoğraftan ekle), altta 5 etiketli araç **Kırp · Döndür ·
+  Filtre · Yeniden çek · Sil**, altında Paylaş / PDF'i aç. Her değişiklik 500 ms sonra
+  kendiliğinden, sıralı ve bölünmez (`SafeWrite`) yazılır; uygulama arka plana giderken
+  hemen; geri tuşu bekleyen yazımı bitirip çıkar (yazım başarısızsa da ekranda HAPSETMEZ).
+  "Geri al" yığını (20). OCR satırları sayfanın KAYNAĞINA göre (filtre değişince geçerli,
+  kırp/döndür yeni kaynak → yalnız o sayfa yeniden tanınır). Test kancası `saver:`.
+- Filtre levhası: 4 görünümün CANLI küçük önizlemesi (`ScanEnhance.previews`, tek izolat),
+  "Tüm sayfalara uygula", "Düzleştir".
+- Kırpma (`scan_edit_screen.dart`): dörtgen DÖNDÜRÜR (dokunulmamışsa null), 4 köşe + 4
+  KENAR tutamacı (`dragEdge`, saf/testli: kenar normali boyunca topluca), büyüteç, sürüklerken
+  üçte bir ızgarası, "Tam sayfa" / "Kenarları bul", tek büyük "Kırp". Galeriden tek fotoğraf
+  eklenince kâğıt kenarı bulunmuş olarak açılır (`autoDetect`) — ML Kit'in resimli sayfayı
+  yanlış kırptığı durumda tam denetimli yol.
+- `ScanPageOps` (saf Dart, izolat): döndür/kırp çıktısı artık **JPEG** (eskiden GPU→PNG;
+  PNG PDF'e sıkıştırılmadan girip sayfa başına 10-20 MB şişiriyordu). Kaynak > 4096 px önce
+  küçültülür (50 MP fotoğraf izolatı taşırmasın). Geçici ad kökü ≤ 24 karakter
+  (`shortBase`): art arda düzenlemede ad uzayıp 255 sınırına dayanıyordu.
+- TUZAK (görsel denetimde yakalandı): koyu `AppBar` başlığı temanın KOYU `titleTextStyle`ını
+  alır → `OverlayBar.title(context)` + `shape: Border()` (temanın cetveli siyahta beyaz şerit).
+  `FilledButton.styleFrom(textStyle: const TextStyle(...))` yazı ailesini düşürür (Roboto) →
+  temadan `copyWith`.
+- Akış: `ScanFlow` ilerleme penceresi yeniden (simge, başlık, belirli çubuk). Yeni tarama
+  "Yaptıklarım"a da yazılıyor (eskiden yalnız düzenlenince yazılıyordu — hata).
+
+### C) "Altta kalan, basılamayan" — kök neden ve sınıf düzeltmesi (`core/safe_insets.dart`)
+- Uygulama kenardan kenara çiziyor (targetSdk 36 zaten dayatıyor). `ListView/GridView/
+  SingleChildScrollView` `padding` VERİLMEZSE gezinme çubuğu payını kendisi ekler; AÇIK
+  `padding` verilince eklemez → son öğe ("Android uygulama ayarlarını aç") 48 dp'lik üç
+  düğmeli çubuğun altında kalıyordu. Tarayıcı betikle 71 aday bulundu, `withNavInset(context,
+  base)` ile ~60'ı düzeltildi.
+- TUZAK: State'in `context`i Scaffold'un ÜSTÜNDE → alt çubuklu ekranda bile payı görür
+  (fazladan boşluk); `SafeArea` altındaki listede ÇİFT pay. Bu yüzden SafeArea altındaki 8
+  levha/liste ve alt çubuklu ekranlar (PDF araçları, görüntüleyici, stüdyo metni) GERİ
+  alındı; levha builder'larında `ctx` kullanıldı. Yeni liste yazarken: Scaffold'un alt çubuğu
+  ya da SafeArea yoksa `withNavInset`.
+- Seçim çubukları (`FmSelectionBar`) ve tüm modal levhalar zaten SafeArea'lı — denetlendi.
+
+### D) Ana ekran ve menüler
+- Pano: üç ayrı yüzen düğme (çöp kutusu + yeni klasör bir sıra, "Belge Tara" ikinci sıra;
+  ~120 dp, "Araçlar"ın üstüne biniyordu, dolu çöp tam turuncu kare) → TEK kapsül
+  `_QuickDock`: çöp (dolu: turuncu simge + sayı rozeti) · yeni klasör | Belge Tara; aşağı
+  kaydırınca yalnız tarama simgesine katlanır. Çevrilmemiş "Son tarama: … dosya" ve
+  "Favoriler" → `fm.last_scan`, `dash.sec_favorites`.
+- Dosya işlem menüsü: başlığın altında 4 büyük yuvarlak hızlı düğme (Aç · Paylaş · Taşı ·
+  Yeniden adlandır; klasörde Favori) — ızgaradan çıkarıldı; ızgara karoları tonlu simge
+  rozetli, ince çerçeveli, en az 56 dp; bölümde tek kalan son işlem TAM genişlik.
+
+### E) "Bitti ama sürüyor gibi" (`FmJob.name` + `shownTitle`)
+- KÖK NEDEN: iş başlığı kuyruğa konarken BİR KEZ yazılıyor ("Yer aç: depolama
+  çözümleniyor"); sonuç şeridi, sonuç BİLDİRİMİ ve İşlemler ekranı bitince de aynı "-iyor"
+  başlığı gösteriyordu (yanında yeşil tik). Artık işin ad hâli (`name`, diske yazılır)
+  saklanır; biten iş "… tamamlandı / başarısız oldu / durduruldu / yarıda kaldı" gösterir.
+  8 iş türünün hepsine ad hâli eklendi. "Yer aç" temizliğinin son satırı "Temizlendi.
+  Yeniden çözümleniyor…" idi (geçmişte sonsuza dek sürüyor gibi) → "X boşaltıldı · N öneri".
+  Sabit Türkçe "Tamamlandı" (`status.label`) ve "(+n sırada)" → çeviri.
+
+### F) Hata taraması bulguları
+- `_VideoThumbState.initState` → `Scrollable.recommendDeferredLoadingForContext` →
+  `View.of`: initState'te kalıtılan widget bağımlılığı (hata ayıklamada kırmızı ekran;
+  menü başlığındaki video simgesiyle görsel denetimde yakalandı) → `didChangeDependencies`.
+- Aynı sınıf: Yinelenenler / Benzer görüntüler / Yer aç `initState`ten `AppStrings.of(
+  context)` (= `Localizations` bağımlılığı) → `AppStrings.current`.
+- `await` sonrası `mounted`sız `setState` taraması: temiz (tek eşleşme switch yanlış alarmı).
+- Çeviri bekçisinin kaçırdığı (dize bir alt satırda / konumsal argüman) sabit Türkçe:
+  "Yer aç" onayının ikinci cümlesi (`clean.confirm_tail`; "ayarlarda kapatılmadıysa"
+  kısmı da yanlıştı — temizlik HER ZAMAN çöpe taşır), "Yakındaki cihaz" bildirim kanalı
+  adı/açıklaması (`peer.channel_*`). Açık kaynak lisans metni bilerek Türkçe kaldı.
+
+**Doğrulama:** Flutter 3.29.3 — `analyze lib test` 0 sorun; tam takım **2540 test yeşil** (9 atlanan:
+canlı sunucu). TUZAK: koşu sürerken kaynağı düzenlemek l10n bekçilerini yanıltır (derlenmiş
+tablo eski, taranan kaynak yeni) — iki sahte kırmızı yeniden koşuda yeşil. Yeni testler: `scan_picture_mask_test`
+(maske, fotoğraf korunur, S-B'de fotoğraf gri, koyu sayfaya dokunulmaz, renk patlamaz,
+yalnız-fotoğraf sayfası düzleştirilmez), `scan_page_ops_test` (JPEG, döndürme, kırpma,
+dev kaynak, ad kökü), `scan_screens_smoke_test` baştan (5 araç görünür + sistem çubuğunun
+üstünde, 1,4× yazıda taşma yok, sil→kendiliğinden kayıt→geri al, son sayfa silinmez, geri
+tuşu önce yazar, kenar tutamacı), `job_shown_title_test`. Görsel denetim: stüdyo (açık/koyu),
+kırpma, menü, pano kapsülü PNG'ye çizdirilip gözle bakıldı (yöntem 2026-10-17 (3) D; TUZAK:
+`FontLoader` `testWidgets` gövdesinde sahte saatte ASILI kalır → `setUpAll` ya da
+`tester.runAsync`; `precacheImage` da asılı kalıyor → `runAsync(delay)` + `pump` döngüsü).
+**Cihazda bakılacak:** resimli sayfa taranıp ML Kit'te onaylanınca fotoğraf BOZULMADAN mı
+kaydediliyor; stüdyoda Kırp (kenar tutamacı, büyüteç), Döndür, Filtre önizlemeleri, sıra
+sürükleme, Yeniden çek; "Fotoğraftan ekle" ile kırpma; "Uygulamanın kapladığı alan"
+ekranının en altındaki düğme artık basılabiliyor mu; dosya menüsünün yeni hâli; pano kapsülü.

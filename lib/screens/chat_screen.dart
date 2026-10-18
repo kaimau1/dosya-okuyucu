@@ -18,6 +18,7 @@ import '../widgets/markdown_text.dart';
 import 'fm/ai_hub_screen.dart';
 import 'settings_screen.dart';
 import '../core/snack.dart';
+import '../core/safe_insets.dart';
 
 class ChatScreen extends StatefulWidget {
   /// Açık dosyanın metni (opsiyonel bağlam).
@@ -289,7 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ? _ChatHint(hasContext: hasContext)
                 : ListView.builder(
                     controller: _scroll,
-                    padding: const EdgeInsets.all(12),
+                    padding: withNavInset(context, const EdgeInsets.all(12)),
                     itemCount: _turns.length,
                     itemBuilder: (_, i) => _Bubble(
                       turn: _turns[i],
@@ -426,7 +427,7 @@ class _ChatHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
+        padding: withNavInset(context, const EdgeInsets.all(32)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

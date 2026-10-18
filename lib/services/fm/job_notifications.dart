@@ -189,7 +189,9 @@ class JobNotifications implements JobReporter {
     // kendisi). Böylece sonuç, servis kapansa da ekranda kalır.
     await _hub.show(
       id,
-      job.title,
+      // Bitmiş işin başlığı "tamamlandı" kipinde (bkz. `FmJob.shownTitle`):
+      // "… çözümleniyor" yazan bir SONUÇ bildirimi işi sürüyor gösteriyordu.
+      job.shownTitle,
       body,
       AndroidNotificationDetails(
         _channelId,

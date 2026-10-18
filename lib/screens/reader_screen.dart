@@ -10,6 +10,7 @@ import '../services/read_aloud_ai.dart';
 import '../services/tts_service.dart';
 import '../widgets/tts_voice_sheet.dart';
 import '../core/snack.dart';
+import '../core/safe_insets.dart';
 
 /// **Okuma görünümü** — PDF'i (taranmış olsa bile) bir e-kitap gibi sunar
 /// (2026-08-06 kullanıcı isteği: *"tarandıktan sonra PDF'i okutmak
@@ -245,7 +246,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
         ],
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 48),
+        padding: withNavInset(
+            context, const EdgeInsets.fromLTRB(20, 8, 20, 48)),
         itemCount: pageCount,
         itemBuilder: (context, i) => _pageItem(context, i + 1, fg),
       ),

@@ -30,6 +30,7 @@ import 'duplicates_screen.dart';
 import 'folder_map_screen.dart';
 import 'installed_apps_screen.dart';
 import 'entry_actions.dart';
+import '../../core/safe_insets.dart';
 
 /// Bellek Analizi: neyin ne kadar yer kapladığı + en büyük dosyalar.
 /// Yer açmak isteyen kullanıcı için "büyük dosyayı bul ve sil" akışı.
@@ -365,8 +366,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               // Seçim çubuğu listenin ÜSTÜNE biniyor (Stack); alt boşluk onun
               // boyu kadar büyümezse son satırlar çubuğun altında kalıp
               // seçilemiyordu.
-              padding: EdgeInsets.fromLTRB(
-                  Gap.md, Gap.md, Gap.md, _selecting ? 96 : Gap.xl),
+              padding: withNavInset(context, EdgeInsets.fromLTRB(
+                  Gap.md, Gap.md, Gap.md, _selecting ? 96 : Gap.xl)),
               children: [
                 _searchField(),
                 if (_searching) ...[

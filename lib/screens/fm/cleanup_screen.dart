@@ -11,6 +11,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'trash_screen.dart';
+import '../../core/safe_insets.dart';
 
 /// **Yer açma asistanı** — "3 GB yer aç" isteğinin karşılığı.
 ///
@@ -132,10 +133,15 @@ class _CleanupScreenState extends State<CleanupScreen> {
   void _analyze() {
     // İş kuyruğu geri çağrısı ekran kapandıktan SONRA da koşabilir; metinler
     // bu yüzden şimdi alınıyor (`context` orada kullanılamaz).
-    final strings = AppStrings.of(context);
+    // `AppStrings.current` (bağlamsız): bu yöntem `initState`ten de
+    // çağrılıyor ve orada `AppStrings.of(context)` = `Localizations`a
+    // bağımlılık kurmak yasak (hata ayıklamada kırmızı ekran). Kuyruk işinin
+    // metinleri zaten uygulama dilinde (bildirim de aynı tabloyu okur).
+    final strings = AppStrings.current;
     JobQueue.instance.enqueue(
       id: _scanJobId,
       title: strings.t('clean.analyzing'),
+      name: strings.t('clean.analyzing_name'),
       target: const FmJobTarget.cleanup(),
       run: (handle) async {
         // İndeks yoksa (bildirimden/işlem kartından açıldı) burada kurulur:
@@ -197,8 +203,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 'n': chosen.length,
                 'size': FsPaths.humanSize(total),
               })}'
-          'Dosyalar çöp kutusuna taşınır (ayarlarda kapatılmadıysa), '
-          'oradan geri alabilirsiniz.',
+          '${context.t('clean.confirm_tail')}',
         ),
         actions: [
           TextButton(
@@ -219,6 +224,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
       id: _applyJobId,
       title: strings
           .t('clean.cleaning', {'size': FsPaths.humanSize(total)}),
+      name: strings
+          .t('clean.cleaning_name', {'size': FsPaths.humanSize(total)}),
       total: chosen.length,
       target: const FmJobTarget.cleanup(),
       run: (handle) async {
@@ -241,7 +248,13 @@ class _CleanupScreenState extends State<CleanupScreen> {
           handle.report(done: done);
         }
         FsEvents.changed();
-        handle.report(detail: strings.t('clean.cleaned'));
+        // BİTMİŞ işin özeti: eskiden "Temizlendi. Yeniden çözümleniyor…"
+        // yazıyordu — çözümleme ayrı bir iş olduğu için bu satır İşlemler
+        // geçmişinde sonsuza dek "sürüyor" gibi duruyordu (2026-10-18).
+        handle.report(detail: strings.t('clean.cleaned_detail', {
+          'size': FsPaths.humanSize(total),
+          'n': chosen.length,
+        }));
       },
     );
     // Temizlik bitince öneriler bayat: çözümleme kuyruğa arkasından eklenir
@@ -288,8 +301,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   ),
                 )
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                      Gap.md, Gap.md, Gap.md, 120),
+                  padding: withNavInset(context, const EdgeInsets.fromLTRB(
+                      Gap.md, Gap.md, Gap.md, 120)),
                   children: [
                     for (final s in _suggestions) _card(s),
                   ],

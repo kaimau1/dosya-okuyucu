@@ -20,6 +20,7 @@ import 'category_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 /// **Önemli Dosyalar** — kullanıcının kendi seçtiği dosyaların toplandığı
 /// klasör, ana sayfadaki kategorizasyonun aynısıyla.
@@ -237,7 +238,8 @@ class _ImportantScreenState extends State<ImportantScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.xl),
+          padding: withNavInset(
+              context, const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.xl)),
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 3),
             if (!_exists && !_loading) _emptyCard(),

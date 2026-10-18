@@ -19,11 +19,19 @@
 >    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
 >    (split-per-abi/AAB). Her biri kendi başına bir tur.
 
+- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-18 turu (tarama baştan).** (a) Resimli
+      sayfa taranıp ML Kit'te onaylanınca fotoğraf bozulmadan / dilimlenmeden mi
+      kaydediliyor; (b) stüdyo: Kırp (kenar ortası tutamaçları, büyüteç, "Kenarları bul"),
+      Döndür, Filtre önizlemeleri ve "Tüm sayfalara", sıra sürükleme, Yeniden çek, Sil →
+      "Geri al", başlıkta "Kaydediliyor… → Kaydedildi"; (c) "+" → "Fotoğraftan ekle" ile
+      kırpma; (d) "Uygulamanın kapladığı alan"ın en altındaki "Android uygulama
+      ayarlarını aç" ve öteki listelerin son satırı gezinme çubuğunun üstünde mi; (e) dosya
+      işlem menüsünün hızlı sırası; (f) pano kapsülü (kaydırınca katlanma); (g) biten işin
+      şeritte/bildirimde "… tamamlandı" yazması.
 - [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-17 (3) turu.** (a) Galeri/kategori
       ekranında seçim yaparken yana kaydırma sayfa DEĞİŞTİRMİYOR, seçim bitince
-      değiştiriyor mu; (b) tarama: ML Kit'te "Kaydet" → doğrudan sonuç ekranı mı,
-      tablolu/çerçeveli belgede başlık ve imza kesilmeden mi, "Sayfaları düzenle"de
-      sıra değişip kaydediliyor mu; (c) **SD kartla birleşik depolama**: "Şimdi taşı"
+      değiştiriyor mu; (b) tarama → 2026-10-18 turunda akış baştan yazıldı, aşağıdaki
+      maddeye bakın; (c) **SD kartla birleşik depolama**: "Şimdi taşı"
       ilerlemesi, şarja takınca UYGULAMA KAPALIYKEN çalışıyor mu, şarjdan çıkınca
       duruyor mu, bitiş bildirimi, taşınan fotoğraflar galeride görünüyor mu,
       Android 10 ve öncesinde "yazılamıyor" uyarısı çıkıyor mu.

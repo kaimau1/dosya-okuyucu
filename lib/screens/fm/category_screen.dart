@@ -26,6 +26,7 @@ import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/section_header.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
+import '../../core/safe_insets.dart';
 
 /// Bir kategorinin (Görüntüler / Videolar / Ses / Belgeler / Uygulamalar /
 /// Arşivler / Yeni dosyalar) tüm depolamadaki dosyaları.
@@ -554,7 +555,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         controller: _scroll,
         // Alt eylem çubuğu bindirmeli çizildiği için son satır onun altında
         // kalmasın diye sabit boşluk (çubuk yokken de aynı → zıplama olmaz).
-        padding: const EdgeInsets.only(bottom: 88),
+        padding: withNavInset(context, const EdgeInsets.only(bottom: 88)),
         itemCount: files.length,
         itemBuilder: (context, i) {
           final e = files[i];
@@ -595,7 +596,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
           const pad = Gap.sm;
           return GridView.builder(
             controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(pad, pad, pad, 88),
+            padding: withNavInset(
+                context, const EdgeInsets.fromLTRB(pad, pad, pad, 88)),
             gridDelegate:
                 fmGridDelegate(_layout, constraints.maxWidth - pad * 2),
             itemCount: files.length,

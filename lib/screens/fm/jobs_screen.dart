@@ -14,6 +14,7 @@ import '../../widgets/section_header.dart';
 import 'browser_screen.dart';
 import 'job_navigation.dart';
 import '../../core/snack.dart';
+import '../../core/safe_insets.dart';
 
 /// **İşlemler ekranı** — uzun süren her işin nerede olduğu, başarılı mı
 /// olduğu ve **ne ürettiği** tek yerde.
@@ -58,7 +59,8 @@ class JobsScreen extends StatelessWidget {
           builder: (context, _) {
             final jobs = JobQueue.instance.jobs;
             return ListView(
-              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
+              padding: withNavInset(
+                  context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
               children: [
                 // Dürüst sınır kullanıcının gözünün önünde: "arka planda
                 // çalışıyor" sözü ne kadarını kapsıyor?
@@ -107,7 +109,7 @@ class _JobCard extends StatelessWidget {
       JobStatus.interrupted => job.detail.isEmpty
           ? context.t('jb.interrupted')
           : context.t('jb.interrupted_detail', {'detail': job.detail}),
-      _ => job.detail.isEmpty ? job.status.label : job.detail,
+      _ => job.detail.isEmpty ? context.t(job.status.labelKey) : job.detail,
     };
     final elapsed = job.elapsed;
     // Kullanıcı isteği 2026-07-31: *"bir işlemin üzerine tıklayınca ilgili yere
@@ -141,7 +143,7 @@ class _JobCard extends StatelessWidget {
                 Icon(_icon, color: _color(scheme)),
                 const SizedBox(width: Gap.sm),
                 Expanded(
-                  child: Text(job.title, style: theme.textTheme.titleSmall),
+                  child: Text(job.shownTitle, style: theme.textTheme.titleSmall),
                 ),
                 if (job.status.isActive)
                   TextButton(

@@ -6,6 +6,7 @@ import '../core/app_state.dart';
 import '../services/conversion_service.dart';
 import '../services/gemini_service.dart';
 import '../widgets/pdf_save_dialog.dart';
+import '../core/safe_insets.dart';
 
 /// **PDF'i AI'a düzenletme.**
 ///
@@ -169,7 +170,8 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: withNavInset(
+                  context, const EdgeInsets.fromLTRB(16, 12, 16, 24)),
               children: [
                 Text(context.t('pa.what'),
                     style: Theme.of(context).textTheme.titleSmall),

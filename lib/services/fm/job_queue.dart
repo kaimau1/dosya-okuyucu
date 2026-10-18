@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/l10n/app_strings.dart';
+
 /// Bir işin durumu.
 enum JobStatus {
   queued,
@@ -109,8 +111,7 @@ class FmJobTarget {
   const FmJobTarget.aiHub() : this(FmJobTargetKind.aiHub);
 
   // `const` DEĞİL: yönlendiren const kurucu, parametreden liste kuramaz.
-  FmJobTarget.folder(String path)
-      : this(FmJobTargetKind.folder, paths: [path]);
+  FmJobTarget.folder(String path) : this(FmJobTargetKind.folder, paths: [path]);
 
   /// Tek dosya. `paths`in ilki açılır, kalanı kaydırmalı gezinmenin kardeşleri.
   const FmJobTarget.files(List<String> paths)
@@ -222,6 +223,10 @@ class FmJob {
   final String id;
   final String title;
 
+  /// İşin **ad hâli** ("Depolama çözümlemesi") — bitince başlık bundan
+  /// kurulur (bkz. [shownTitle]). Yoksa [title] olduğu gibi kalır.
+  final String? name;
+
   /// Alt satır: "1240 / 8300 dosya" gibi **gerçek** bilgi; dolgu metin yazılmaz.
   String detail;
 
@@ -285,6 +290,7 @@ class FmJob {
   FmJob({
     required this.id,
     required this.title,
+    this.name,
     this.detail = '',
     this.done = 0,
     this.total = 0,
@@ -306,6 +312,29 @@ class FmJob {
 
   bool get cancelRequested => _cancelRequested;
 
+  /// **Ekranda görünen başlık** — işin DURUMUNA göre.
+  ///
+  /// Kullanıcı 2026-10-18 (ekran görüntüsüyle): *"işlemler tamamlandı dahi
+  /// sanki hâlâ çalışıyormuş gibi görünüyor, bu kişide olumsuz duygu
+  /// oluşturur"*. Kök neden: başlık işi kuyruğa koyarken BİR KEZ yazılıyor
+  /// ("Yer aç: depolama çözümleniyor") ve iş bittiğinde de sonuç şeridi,
+  /// bildirim ve İşlemler ekranı aynı "-iyor" başlığını gösteriyordu —
+  /// yanında yeşil tik olsa da cümle "sürüyor" diyordu. Artık süren iş
+  /// [title]'ı, biten iş [name]'den kurulan "… tamamlandı / başarısız oldu /
+  /// durduruldu / yarıda kaldı" başlığını taşır.
+  String get shownTitle {
+    final n = name;
+    if (n == null || n.isEmpty || status.isActive) return title;
+    return AppStrings.current.t(
+        switch (status) {
+          JobStatus.failed => 'job.title_failed',
+          JobStatus.cancelled => 'job.title_cancelled',
+          JobStatus.interrupted => 'job.title_interrupted',
+          _ => 'job.title_done',
+        },
+        {'name': n});
+  }
+
   /// Diske yazılan hâli.
   ///
   /// [result] ve iş gövdesi **kaydedilmez**: biri rastgele bir Dart nesnesi
@@ -315,6 +344,7 @@ class FmJob {
   Map<String, Object?> toJson() => {
         'id': id,
         'title': title,
+        if (name != null) 'name': name,
         'detail': detail,
         'done': done,
         'total': total,
@@ -348,6 +378,7 @@ class FmJob {
     final job = FmJob(
       id: id,
       title: title,
+      name: raw['name'] as String?,
       detail: raw['detail'] as String? ?? '',
       done: (raw['done'] as num?)?.toInt() ?? 0,
       total: (raw['total'] as num?)?.toInt() ?? 0,
@@ -372,9 +403,8 @@ class FmJob {
   /// İşin süresi (sürüyorsa şu ana kadar geçen). Damga yoksa null.
   Duration? get elapsed {
     if (startedAtMs == 0) return null;
-    final end = finishedAtMs > 0
-        ? finishedAtMs
-        : DateTime.now().millisecondsSinceEpoch;
+    final end =
+        finishedAtMs > 0 ? finishedAtMs : DateTime.now().millisecondsSinceEpoch;
     final ms = end - startedAtMs;
     return ms < 0 ? null : Duration(milliseconds: ms);
   }
@@ -526,8 +556,7 @@ class JobQueue extends ChangeNotifier {
   /// Yeniden eskiye: en son eklenen üstte.
   List<FmJob> get jobs => List.unmodifiable(_jobs.reversed);
 
-  List<FmJob> get activeJobs =>
-      _jobs.where((j) => j.status.isActive).toList();
+  List<FmJob> get activeJobs => _jobs.where((j) => j.status.isActive).toList();
 
   FmJob? get currentJob {
     for (final j in _jobs) {
@@ -539,8 +568,10 @@ class JobQueue extends ChangeNotifier {
   bool get hasActive => activeJobs.isNotEmpty;
 
   /// Bitmiş işler, yeniden eskiye.
-  List<FmJob> get finishedJobs =>
-      [for (final j in _jobs.reversed) if (!j.status.isActive) j];
+  List<FmJob> get finishedJobs => [
+        for (final j in _jobs.reversed)
+          if (!j.status.isActive) j
+      ];
 
   /// **Kapatılmamış en son sonuç** — alt şerit bunu gösterir.
   ///
@@ -579,6 +610,7 @@ class JobQueue extends ChangeNotifier {
     required String id,
     required String title,
     required Future<void> Function(JobHandle handle) run,
+    String? name,
     String detail = '',
     int total = 0,
     FmJobTarget? target,
@@ -593,6 +625,7 @@ class JobQueue extends ChangeNotifier {
     final job = FmJob(
       id: id,
       title: title,
+      name: name,
       detail: detail,
       total: total,
       target: target,
@@ -630,6 +663,7 @@ class JobQueue extends ChangeNotifier {
     final resumed = enqueue(
       id: job.id,
       title: job.title,
+      name: job.name,
       total: totalBefore,
       target: job.target,
       recipe: JobRecipe(recipe.kind, recipe.params),

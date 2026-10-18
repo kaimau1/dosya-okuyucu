@@ -5,6 +5,7 @@ import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/policy_doc.dart';
 import '../../core/theme.dart';
+import '../../core/safe_insets.dart';
 
 /// **Gizlilik politikası — uygulamanın içinde, çevrimdışı.**
 ///
@@ -58,7 +59,8 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
       body: blocks == null
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
+              padding: withNavInset(
+                  context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
               itemCount: blocks.length,
               itemBuilder: (context, i) => _PolicyBlockView(blocks[i]),
             ),

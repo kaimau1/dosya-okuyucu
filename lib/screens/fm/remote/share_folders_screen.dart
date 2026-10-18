@@ -5,6 +5,7 @@ import '../../../core/theme.dart';
 import '../../../services/fm/remote/ftp_service.dart';
 import '../../../services/fm/remote/ftp_tree.dart';
 import '../../../services/fm/remote/share_scope.dart';
+import '../../../core/safe_insets.dart';
 
 /// **Paylaşılacak klasörler** — ağ paylaşımının kapsamını seçme ekranı.
 ///
@@ -128,7 +129,7 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.t('ftpd.folders_title'))),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: Gap.lg),
+        padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.lg)),
         children: [
           _modeTile(
             context,

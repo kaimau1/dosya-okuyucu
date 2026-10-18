@@ -10,6 +10,7 @@ import '../../services/fm/media_library.dart';
 import '../../services/fm/open_history.dart';
 import 'chat_junk_bucket_screen.dart';
 import 'similar_screen.dart';
+import '../../core/safe_insets.dart';
 
 /// **Sohbet medyası temizliği** — "WhatsApp'tan 10 bin fotoğraf var, %90'ı
 /// gereksiz" sorusunun karşılığı (kullanıcı 2026-07-31).
@@ -73,6 +74,7 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
     JobQueue.instance.enqueue(
       id: _jobId,
       title: strings.t('cj.job_title'),
+      name: strings.t('cj.job_name'),
       target: const FmJobTarget(FmJobTargetKind.chatCleanup),
       run: (handle) async {
         handle.report(detail: strings.t('cj.step_listing'));
@@ -139,7 +141,8 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
+        padding: withNavInset(
+            context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
         children: [
           if (_loading) ...[
             LinearProgressIndicator(value: _job?.progress),

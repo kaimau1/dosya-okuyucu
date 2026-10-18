@@ -10,6 +10,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/motion.dart';
+import '../../core/safe_insets.dart';
 
 /// **Yaptıklarım** — üretilen dosyaların türe göre gruplanmış defteri.
 ///
@@ -84,8 +85,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                        Gap.md, Gap.sm, Gap.md, Gap.lg),
+                    padding: withNavInset(context, const EdgeInsets.fromLTRB(
+                        Gap.md, Gap.sm, Gap.md, Gap.lg)),
                     children: [
                       _filterChips(groups),
                       for (final entry in shown.entries) ...[

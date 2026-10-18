@@ -188,6 +188,7 @@ abstract final class AiAnalyzer {
     JobQueue.instance.enqueue(
       id: jobId,
       title: _str.t('aiq.job_title'),
+      name: _str.t('aiq.job_title'),
       detail: _str.t('aiq.collecting'),
       target: const FmJobTarget.aiHub(),
       run: (handle) async {

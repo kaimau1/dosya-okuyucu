@@ -552,8 +552,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
     final scanned = await DocumentScanner.scanPages();
     if (scanned == null || scanned.isEmpty || !mounted) return;
     if (!await _confirmAnnotationLoss(_str.t('pt.op_scan_append'))) return;
-    // Ana tarama akışıyla aynı hazırlık (düzleştir + netleştir, KIRPMA YOK —
-    // ML Kit sayfayı zaten kırptı, bkz. `ScanPrepare`); ara onay ekranı yok.
+    // Ana tarama akışıyla aynı kural: tarayıcının verdiği sayfa OLDUĞU GİBİ
+    // eklenir (kendiliğinden kırpma/düzleştirme/netleştirme yok — kullanıcı
+    // sayfayı ML Kit ekranında onayladı, bkz. `ScanPrepare`).
     // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada görünür.
     await _apply(_str.t('pt.op_scan_append'), (b) async {
       final pages = ScanPage.displays(await ScanPrepare.pages(scanned));

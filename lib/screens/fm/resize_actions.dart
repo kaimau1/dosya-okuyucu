@@ -76,6 +76,9 @@ Future<bool> startResizeJob(
     title: media.length == 1
         ? str.t('ra.job_one', {'name': media.first.name})
         : str.t('ra.job_many', {'n': media.length}),
+    name: media.length == 1
+        ? str.t('ra.job_one_name', {'name': media.first.name})
+        : str.t('ra.job_many_name', {'n': media.length}),
     total: media.length,
     // Tarif KAYDEDİLİR: uygulama iş sürerken kapanırsa kullanıcı İşlemler
     // ekranından "Devam et" diyebilsin (2026-08-07 bulgusu).

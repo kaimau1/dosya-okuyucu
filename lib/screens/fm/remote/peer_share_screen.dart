@@ -19,6 +19,7 @@ import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/remote/peer_share.dart';
 import '../../../widgets/fm/fm_progress_dialog.dart';
 import '../folder_picker_screen.dart';
+import '../../../core/safe_insets.dart';
 
 /// **Yakındaki cihaz** — iki Dosya Okuyucu arasında doğrudan dosya aktarımı.
 ///
@@ -315,10 +316,10 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
           _receiveNotificationId,
           AppStrings.current.t('peer.notify_title'),
           '${p.basename(path)} · $from',
-          const AndroidNotificationDetails(
+          AndroidNotificationDetails(
             'fm_peer',
-            'Yakındaki cihaz',
-            channelDescription: 'Yakındaki bir cihazdan dosya alındığında.',
+            AppStrings.current.t('peer.channel_name'),
+            channelDescription: AppStrings.current.t('peer.channel_desc'),
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
           ),
@@ -438,7 +439,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
   Widget _sendBody() {
     final scheme = Theme.of(context).colorScheme;
     return ListView(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
         Text(
           context.t('peer.files_to_send', {'n': _files.length}),
@@ -579,7 +580,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
     final scheme = Theme.of(context).colorScheme;
     final running = _receiver?.running ?? false;
     return ListView(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
         Row(
           children: [
