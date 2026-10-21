@@ -137,11 +137,11 @@ class SettingsCategory {
   List<SettingRow> get rows => [for (final s in sections) ...s.rows];
 }
 
-/// Sekiz kategori. **Sıra bilinçli:** önce her açılışta göze çarpan şey
+/// Yedi kategori (+ [developer] açıksa Geliştirici). **Sıra bilinçli:** önce her açılışta göze çarpan şey
 /// (görünüm), sonra en çok kullanılan (dosya listeleri), sonra yetenek açan
 /// ayarlar (yapay zekâ, hesap), sonra koruma (gizlilik), sonra yer açma
 /// (silme), sonra pil, en sonda hakkında.
-List<SettingsCategory> settingsCategories() => [
+List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // ── 1. GÖRÜNÜM VE DİL ────────────────────────────────────────────────
       SettingsCategory(
         id: 'appearance',
@@ -480,16 +480,6 @@ List<SettingsCategory> settingsCategories() => [
                 altKeys: ['fmset.clear_thumbs', 'foot.kw_cache'],
                 builder: _appFootprintTile),
           ]),
-          // **SD kartla birleşik depolama** (2026-10-17): "ana bellek doldu"
-          // diyen kullanıcı çareyi depolama ayarlarında arar.
-          SettingsSection('sdu.section', [
-            SettingRow(
-                id: 'sd_union',
-                titleKey: 'sdu.title',
-                subtitleKey: 'sdu.tile_sub',
-                altKeys: ['sdu.kw'],
-                builder: _sdUnionTile),
-          ]),
           // Haftalık temizlik bildirimi (2026-10-18).
           SettingsSection('nx.weekly', [
             SettingRow(
@@ -554,13 +544,17 @@ List<SettingsCategory> settingsCategories() => [
               subtitleKey: 'backup.restore_sub',
               builder: _settingsRestoreTile,
             ),
-            // "Bellek takılı ama görünmüyor" sorununun ÖLÇÜMÜ; sorun yaşayan
-            // kullanıcı çareyi ayarlarda arar.
+          ], advanced: true),
+          // **Deneysel** (2026-10-21, K8): SD kartla birleşik depolama
+          // kullanıcı dosyalarını arka planda TAŞIYOR — varsayılan kapalı,
+          // Gelişmiş'in altında ve adı üstünde "deneysel".
+          SettingsSection('set.sec_experimental', [
             SettingRow(
-                id: 'usb_diagnostics',
-                titleKey: 'usb.diag_title',
-                subtitleKey: 'usb.diag_sub',
-                builder: _usbDiagnosticsTile),
+                id: 'sd_union',
+                titleKey: 'sdu.title',
+                subtitleKey: 'sdu.tile_sub',
+                altKeys: ['sdu.kw', 'set.sec_experimental'],
+                builder: _sdUnionTile),
           ], advanced: true),
         ],
       ),
@@ -586,6 +580,31 @@ List<SettingsCategory> settingsCategories() => [
           ]),
         ],
       ),
+
+      // ── 8. GELİŞTİRİCİ (gizli) ───────────────────────────────────────────
+      if (developer)
+        SettingsCategory(
+          id: 'developer',
+          color: const Color(0xFF5B6470),
+          icon: Icons.developer_mode_outlined,
+          titleKey: 'dev.title',
+          subtitleKey: 'dev.sub',
+          summary: (context) => context.t('dev.on'),
+          sections: const [
+            SettingsSection('dev.title', [
+              // "Bellek takılı ama görünmüyor" sorununun ÖLÇÜMÜ.
+              SettingRow(
+                  id: 'usb_diagnostics',
+                  titleKey: 'usb.diag_title',
+                  subtitleKey: 'usb.diag_sub',
+                  builder: _usbDiagnosticsTile),
+              SettingRow(
+                  id: 'developer_off',
+                  titleKey: 'dev.turn_off',
+                  builder: _developerOffTile),
+            ]),
+          ],
+        ),
     ];
 
 /// Tema modunun okunur adı (kategori kartındaki özet için).
@@ -642,6 +661,7 @@ Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _settingsRestoreTile(BuildContext _) => const SettingsRestoreTile();
 Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
+Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();

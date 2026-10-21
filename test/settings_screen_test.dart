@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_version.dart';
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/settings/settings_catalog.dart';
@@ -88,6 +89,41 @@ void main() {
     // ekranının içindeki alt sayfadan ulaşılabiliyordu).
     expect(ids, contains('tts_voice'));
     expect(ids, contains('tts_ai_read'));
+  });
+
+  test('geliştirici menüsü yalnız açılınca görünür (2026-10-21)', () {
+    List<String> ids(bool dev) => [
+          for (final c in settingsCategories(developer: dev))
+            for (final r in c.rows) r.id,
+        ];
+    expect(ids(false), isNot(contains('usb_diagnostics')));
+    expect(settingsCategories(developer: true).last.id, 'developer');
+    expect(ids(true), containsAll(['usb_diagnostics', 'developer_off']));
+    // SD birleşik depolama Deneysel'de, Gelişmiş işaretli bölümde.
+    final experimental = settingsCategories()
+        .expand((c) => c.sections)
+        .firstWhere((s) => s.titleKey == 'set.sec_experimental');
+    expect(experimental.advanced, isTrue);
+    expect(experimental.rows.map((r) => r.id), ['sd_union']);
+  });
+
+  testWidgets('sürüm satırına 7 dokunuş geliştirici menüsünü açar',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    await state.init();
+    await tester.pumpWidget(
+        _wrap(state, SettingsCategoryScreen(category: _category('about'))));
+    await tester.pump();
+    final version = find.textContaining(appVersionFull);
+    for (var i = 0; i < 6; i++) {
+      await tester.tap(version.first);
+      await tester.pump();
+    }
+    expect(state.developerMode, isFalse);
+    await tester.tap(version.first);
+    await tester.pump();
+    expect(state.developerMode, isTrue);
   });
 
   test('gelişmiş bölümler işaretli ve içleri dolu', () {

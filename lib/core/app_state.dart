@@ -77,6 +77,7 @@ class AppState extends ChangeNotifier {
   // Pil ve başarım
   static const _kHighRefresh = 'perf_high_refresh';
   static const _kAutoRescan = 'perf_auto_rescan';
+  static const _kDeveloperMode = 'developer_mode';
   // Sesli okuma tercihleri (ses/hız/perde + "AI ile oku")
   static const _kTtsPrefs = 'tts_prefs';
   static const _kTtsAiRead = 'tts_ai_read';
@@ -126,6 +127,11 @@ class AppState extends ChangeNotifier {
   /// gözle görülür pil kazancı budur. Varsayılan AÇIK: uygulamanın satır
   /// başlarından biri hız hissi.
   bool _highRefreshRate = true;
+
+  /// **Geliştirici menüsü** (2026-10-21, K8): teşhis araçları (USB teşhisi)
+  /// günlük kullanıcının ayar listesinde durmaz; Hakkında'daki sürüm satırına
+  /// 7 kez dokununca açılır, aynı yerden kapanır.
+  bool _developerMode = false;
 
   /// Arama dizini bayatlayınca (12 saat) pano kendiliğinden yeniden tarasın mı?
   ///
@@ -281,6 +287,14 @@ class AppState extends ChangeNotifier {
   Future<void> setFmStartFolder(String path) async {
     _fmStartFolder = path;
     await _prefs.setString(_kFmStartFolder, path);
+    notifyListeners();
+  }
+
+  bool get developerMode => _developerMode;
+
+  Future<void> setDeveloperMode(bool value) async {
+    _developerMode = value;
+    await _prefs.setBool(_kDeveloperMode, value);
     notifyListeners();
   }
 
@@ -598,6 +612,7 @@ class AppState extends ChangeNotifier {
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
     _highRefreshRate = _prefs.getBool(_kHighRefresh) ?? true;
     _autoRescan = _prefs.getBool(_kAutoRescan) ?? true;
+    _developerMode = _prefs.getBool(_kDeveloperMode) ?? false;
     _recents = (_prefs.getStringList(_kRecents) ?? [])
         .map(RecentFile.tryDecode)
         .whereType<RecentFile>()

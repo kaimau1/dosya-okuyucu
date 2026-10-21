@@ -217,6 +217,21 @@ class UsbDiagnosticsTile extends StatelessWidget {
       );
 }
 
+/// Geliştirici menüsünü kapatır (kategori listeden kalkar).
+class DeveloperOffTile extends StatelessWidget {
+  const DeveloperOffTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: Icons.close,
+        title: context.t('dev.turn_off'),
+        onTap: () async {
+          await context.read<AppState>().setDeveloperMode(false);
+          if (context.mounted) Navigator.of(context).maybePop();
+        },
+      );
+}
+
 /// Gizlilik politikası — uygulamanın İÇİNDE, üç dilde, çevrimdışı.
 ///
 /// (2026-08-28) Politika hem mağaza başvurusunun ön koşulu hem de bu
@@ -285,17 +300,42 @@ class _CrashLogTileState extends State<CrashLogTile> {
 }
 
 /// Uygulama hakkında + açık kaynak lisanslar.
-class AboutTile extends StatelessWidget {
+class AboutTile extends StatefulWidget {
   const AboutTile({super.key});
+
+  @override
+  State<AboutTile> createState() => _AboutTileState();
+}
+
+/// Sürüm satırına **7 dokunuş** geliştirici menüsünü açar (Android'in
+/// "Derleme numarası" alışkanlığı). Sayaç 3 sn dokunulmazsa sıfırlanır.
+class _AboutTileState extends State<AboutTile> {
+  int _taps = 0;
+  DateTime _lastTap = DateTime(0);
+
+  Future<void> _onVersionTap() async {
+    final now = DateTime.now();
+    _taps = now.difference(_lastTap) > const Duration(seconds: 3) ? 1 : _taps + 1;
+    _lastTap = now;
+    final state = context.read<AppState>();
+    if (state.developerMode || _taps < 7) return;
+    _taps = 0;
+    await state.setDeveloperMode(true);
+    if (mounted) showSnack(context, context.t('dev.enabled'));
+  }
 
   @override
   Widget build(BuildContext context) => Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
-            child: Text(
-                context.t('settings.about_body', {'version': appVersionFull}),
-                style: Theme.of(context).textTheme.bodySmall),
+          InkWell(
+            onTap: _onVersionTap,
+            child: Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
+              child: Text(
+                  context.t('settings.about_body', {'version': appVersionFull}),
+                  style: Theme.of(context).textTheme.bodySmall),
+            ),
           ),
           // LGPL v3 ATIF YÜKÜMLÜLÜĞÜ: uygulama FFmpeg kütüphanelerini
           // dağıtıyor; lisans atfın kullanıcıya erişilebilir olmasını istiyor.

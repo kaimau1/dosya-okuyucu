@@ -7029,6 +7029,12 @@ const Map<String, (String, String, String)> _table = {
     'يبدأ النطق فور وصول الإجابة',
   ),
   'set.sec_advanced': ('Gelişmiş', 'Advanced', 'إعدادات متقدمة'),
+  'set.sec_experimental': ('Deneysel', 'Experimental', 'تجريبي'),
+  'dev.title': ('Geliştirici', 'Developer', 'المطوّر'),
+  'dev.sub': ('Teşhis araçları', 'Diagnostic tools', 'أدوات التشخيص'),
+  'dev.on': ('Açık', 'On', 'مفعّل'),
+  'dev.enabled': ('Geliştirici menüsü açıldı — Ayarlar\'ın en altında', 'Developer menu enabled — at the bottom of Settings', 'تم تفعيل قائمة المطوّر — أسفل الإعدادات'),
+  'dev.turn_off': ('Geliştirici menüsünü kapat', 'Turn off developer menu', 'إيقاف قائمة المطوّر'),
   'set.advanced_hint': (
     'Nadiren gerekir — bir kez ayarlanır',
     'Rarely needed — set once',

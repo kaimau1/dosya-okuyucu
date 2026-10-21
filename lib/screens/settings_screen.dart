@@ -49,7 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = settingsCategories();
+    final categories = settingsCategories(
+        developer: context.select<AppState, bool>((s) => s.developerMode));
     final query = _query.trim();
 
     return Scaffold(
@@ -191,7 +192,10 @@ Future<void> openSettingsCategory(BuildContext context, String id) {
     'account': 'privacy',
   };
   final target = aliases[id] ?? id;
-  final match = settingsCategories().where((c) => c.id == target).toList();
+  final developer = context.read<AppState>().developerMode;
+  final match = settingsCategories(developer: developer)
+      .where((c) => c.id == target)
+      .toList();
   return Navigator.of(context).push(MaterialPageRoute(
     builder: (_) => match.isEmpty
         ? const SettingsScreen()
