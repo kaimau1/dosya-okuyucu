@@ -25,10 +25,12 @@ import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
 import 'folder_map_screen.dart';
 import 'installed_apps_screen.dart';
+import 'similar_screen.dart';
 import 'entry_actions.dart';
 import '../../core/safe_insets.dart';
 
@@ -57,6 +59,27 @@ class AnalysisScreen extends StatefulWidget {
 }
 
 class _AnalysisScreenState extends State<AnalysisScreen> {
+  /// Benzer görseller: panonun önbelleğiyle anında açılır, kilitli klasörler
+  /// hariç eksiksiz liste arka planda gelir (eski pano kutusuyla aynı yol).
+  void _openSimilar() {
+    final locked = context.read<AppState>().fmLockedFolders;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SimilarScreen(
+        scopeId: 'tum-medya',
+        files: [
+          ...widget.index.files(FmCategory.image),
+          ...widget.index.files(FmCategory.video),
+        ],
+        loadAll: () async => [
+          ...await MediaLibrary.categoryFiles(FmCategory.image,
+              lockedFolders: locked),
+          ...await MediaLibrary.categoryFiles(FmCategory.video,
+              lockedFolders: locked),
+        ],
+      ),
+    ));
+  }
+
   /// Kategori → o kategorinin en büyükleri; `null` anahtarı genel liste.
   ///
   /// Taramadan gelen listeler kopyalanır çünkü silme sonrası
@@ -427,6 +450,25 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             builder: (_) =>
                                 DuplicatesScreen(roots: FmEnv.volumeRoots),
                           )),
+                        ),
+                        // **Depolama merkezi** (2026-10-21, Faz 2): benzer
+                        // görseller ve sohbet medyası panoda ayrı kutulardı;
+                        // ikisi de "yer aç" sorusunun parçası, burada durur.
+                        const Divider(height: 1),
+                        _ToolRow(
+                          icon: Icons.auto_awesome_motion_outlined,
+                          color: const Color(0xFF00897B),
+                          title: context.t('fm.similar_images'),
+                          note: context.t('ana.similar_note'),
+                          onTap: _openSimilar,
+                        ),
+                        const Divider(height: 1),
+                        _ToolRow(
+                          icon: Icons.forum_outlined,
+                          color: const Color(0xFF2E7D32),
+                          title: context.t('cj.title'),
+                          note: context.t('ana.chat_note'),
+                          onTap: () => openChatCleanupScreen(context),
                         ),
                         const Divider(height: 1),
                         // **Klasör haritası** (kullanıcı isteği 2026-08-17,

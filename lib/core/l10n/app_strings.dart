@@ -542,6 +542,8 @@ const Map<String, (String, String, String)> _table = {
   'fm.hero_analysis': ('Analiz', 'Analysis', 'تحليل'),
   'fm.free_space': ('Yer aç', 'Free up space', 'تحرير مساحة'),
   'fm.similar_images': ('Benzer görsel', 'Similar images', 'صور متشابهة'),
+  'ana.similar_note': ('Seri çekimler, neredeyse aynı kareler', 'Bursts and near-identical shots', 'اللقطات المتتالية والصور شبه المتطابقة'),
+  'ana.chat_note': ('WhatsApp ve Telegram medyası', 'WhatsApp and Telegram media', 'وسائط واتساب وتيليجرام'),
   'fm.apk_files': ('APK dosyaları', 'APK files', 'ملفات APK'),
   'fm.network_storage': ('Ağ depolama', 'Network storage', 'التخزين الشبكي'),
   // "Çöp" yerine "Çöp kutusu": büyük kutuya taşınınca (2026-07-31) tek

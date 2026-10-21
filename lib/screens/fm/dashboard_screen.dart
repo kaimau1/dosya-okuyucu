@@ -47,7 +47,6 @@ import 'analysis_screen.dart';
 import 'history_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
-import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
@@ -69,7 +68,6 @@ import '../../widgets/fm/ai_status_icon.dart';
 import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
-import 'similar_screen.dart';
 import 'tools_screen.dart';
 import 'trash_screen.dart';
 import 'vault_screen.dart';
@@ -1543,45 +1541,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       // (Faturalar ve Akıllı klasörler 2026-10-21'de AI Merkezi'ne indi —
       // K8: "ayrı pano kutusu değil, AI Merkezi'nin alt bölümü".)
-      // Sohbet yığını ayrı bir kutu: telefonu dolduran şey çoğu kullanıcıda
-      // WhatsApp klasörü oluyor ve orada "gereksiz" ölçütü genel yer açmadan
-      // farklı (çıkartma, iletilmiş mem, gönderilenin kopyası…).
-      FmTileData(
-        icon: Icons.forum_outlined,
-        color: const Color(0xFF2E7D32),
-        id: 'chat_cleanup',
-        label: context.t('cj.title'),
-        subtitle: '',
-        onTap: () => openChatCleanupScreen(context),
-      ),
-      // Benzer görüntüler: "yer aç"ın yanında duruyor çünkü aynı işi yapıyor
-      // (yer kazandırıyor) ama farklı bir ölçütle — birebir değil, GÖRSEL
-      // olarak aynı olanlar (WhatsApp'ın yeniden sıkıştırdığı kopyalar).
-      FmTileData(
-        icon: Icons.auto_awesome_motion_outlined,
-        color: const Color(0xFF00897B),
-        id: 'similar_images',
-        label: context.t('fm.similar_images'),
-        subtitle: '',
-        onTap: () {
-          final locked = context.read<AppState>().fmLockedFolders;
-          _push(SimilarScreen(
-            // Pano kutucuğu tüm medyayı tarar; kategori ekranlarından açılan
-            // tarama kendi kapsamında durur (bkz. SimilarFinder.jobIdFor).
-            scopeId: 'tum-medya',
-            files: [
-              ..._index.files(FmCategory.image),
-              ..._index.files(FmCategory.video),
-            ],
-            loadAll: () async => [
-              ...await MediaLibrary.categoryFiles(FmCategory.image,
-                  lockedFolders: locked),
-              ...await MediaLibrary.categoryFiles(FmCategory.video,
-                  lockedFolders: locked),
-            ],
-          ));
-        },
-      ),
+      // (Sohbet medyası ve Benzer görseller 2026-10-21'de Depolama
+      // analizine — "Depolama merkezi" — taşındı.)
       FmTileData(
         icon: Icons.auto_awesome_motion,
         color: const Color(0xFF5E35B1),
