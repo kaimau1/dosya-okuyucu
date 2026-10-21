@@ -1,6 +1,9 @@
 part of '../browser_screen.dart';
 
 extension _BrowserScreenViewsPart on _BrowserScreenState {
+  /// Üst çubuk: başlık + yalnız `Ara` · `Görünüm` · `⋮` (Faz 6 / U2).
+  /// Sıralama ve filtre artık listenin üstündeki araç şeridinde
+  /// ([FmListToolbar]); ⋮ menüsü 13 → 8 madde.
   PreferredSizeWidget _normalBar(BuildContext context) {
     final appState = context.watch<AppState>();
     final starred = appState.isBookmarked(widget.path);
@@ -10,7 +13,7 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
       actions: [
         IconButton(
           tooltip: context.t('fm.search_here'),
-          icon: const Icon(Icons.search),
+          icon: const Icon(AppIcons.search),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => SearchScreen(root: widget.path),
           )),
@@ -26,19 +29,9 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
         ),
         PopupMenuButton<String>(
           tooltip: context.t('fm.other'),
+          icon: const Icon(AppIcons.more),
           onSelected: (value) async {
             switch (value) {
-              case 'sort_name':
-                appState.setFmSort(FmSort.name);
-              case 'sort_date':
-                appState.setFmSort(FmSort.date, descending: true);
-              case 'sort_size':
-                appState.setFmSort(FmSort.size, descending: true);
-              case 'sort_type':
-                appState.setFmSort(FmSort.type);
-              case 'sort_dir':
-                appState.setFmSort(appState.fmSort,
-                    descending: !appState.fmSortDesc);
               case 'hidden':
                 await appState.setFmShowHidden(!appState.fmShowHidden);
                 _load();
@@ -70,63 +63,64 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
             }
           },
           itemBuilder: (ctx) => [
-            PopupMenuItem(
-                value: 'sort_name', child: Text(context.t('fm.sort_name'))),
-            PopupMenuItem(
-                value: 'sort_date', child: Text(context.t('fm.sort_date'))),
-            PopupMenuItem(
-                value: 'sort_size', child: Text(context.t('fm.sort_size'))),
-            PopupMenuItem(
-                value: 'sort_type', child: Text(context.t('fm.sort_type'))),
-            PopupMenuItem(
-              value: 'sort_dir',
-              child:
-                  Text(appState.fmSortDesc ? context.t('fm.sort_asc') : context.t('fm.sort_desc')),
-            ),
+            _menuItem('hidden',
+                appState.fmShowHidden ? AppIcons.hiddenOff : AppIcons.hidden,
+                appState.fmShowHidden
+                    ? context.t('fm.hide_hidden')
+                    : context.t('fm.show_hidden')),
+            _menuItem(
+                'star',
+                starred ? AppIcons.star : AppIcons.starEmpty,
+                starred
+                    ? context.t('fm.unfavorite')
+                    : context.t('fm.favorite')),
+            _menuItem(
+                'lock',
+                appState.isFolderLocked(widget.path)
+                    ? AppIcons.unlock
+                    : AppIcons.lock,
+                appState.isFolderLocked(widget.path)
+                    ? context.t('fm.unlock_folder')
+                    : context.t('fm.lock_folder')),
+            _menuItem('select_all', AppIcons.selectAll, context.t('fm.select_all')),
             const PopupMenuDivider(),
-            PopupMenuItem(
-              value: 'hidden',
-              child: Text(appState.fmShowHidden
-                  ? context.t('fm.hide_hidden')
-                  : context.t('fm.show_hidden')),
-            ),
-            PopupMenuItem(
-              value: 'star',
-              child: Text(starred
-                  ? context.t('fm.unfavorite')
-                  : context.t('fm.favorite')),
-            ),
-            PopupMenuItem(
-              value: 'lock',
-              child: Text(appState.isFolderLocked(widget.path)
-                  ? context.t('fm.unlock_folder')
-                  : context.t('fm.lock_folder')),
-            ),
-            PopupMenuItem(
-                value: 'organize', child: Text(context.t('fm.auto_organize'))),
-            PopupMenuItem(value: 'select_all', child: Text(context.t('fm.select_all'))),
-            const PopupMenuDivider(),
-            PopupMenuItem(
-                value: 'empty_folders',
-                child: Text(context.t('fm.empty_folders'))),
-            PopupMenuItem(
-                value: 'export_list', child: Text(context.t('fm.export_list'))),
-            PopupMenuItem(
-                value: 'refresh', child: Text(context.t('common.refresh'))),
+            _menuItem('organize', AppIcons.organize, context.t('fm.auto_organize')),
+            _menuItem('empty_folders', AppIcons.cleanEmpty,
+                context.t('fm.empty_folders')),
+            _menuItem('export_list', AppIcons.exportList,
+                context.t('fm.export_list')),
+            _menuItem('refresh', AppIcons.refresh, context.t('common.refresh')),
           ],
         ),
       ],
     );
   }
 
-  /// Seçim üst çubuğu **sade**: sayaç + seçme yardımcıları. Eylemler
-  /// (Taşı/Kopyala/Paylaş/Sil/…) alttaki [FmSelectionBar]'da — proje kuralı:
-  /// üstte yalnız altta karşılığı OLMAYAN durur (HAFIZA 2026-07-28 D).
+  PopupMenuItem<String> _menuItem(String value, IconData icon, String text) =>
+      PopupMenuItem(
+        value: value,
+        child: Row(
+          children: [
+            Icon(icon, size: AppIcons.small),
+            const SizedBox(width: Gap.md),
+            Expanded(child: Text(text)),
+          ],
+        ),
+      );
+
+  /// Seçim üst çubuğu **sade**: sayaç + toplam boyut + **metinli** seçim
+  /// menüsü (Faz 6 / U8). Eylemler (Taşı/Kopyala/Paylaş/Sil/…) alttaki
+  /// [FmSelectionBar]'da — proje kuralı: üstte yalnız altta karşılığı
+  /// OLMAYAN durur (HAFIZA 2026-07-28 D).
+  ///
+  /// KÖK NEDEN: "yukarısını seç / aşağısını seç / tersini seç" üç çıplak
+  /// simgeydi (`expand_less`, `expand_more`, `swap_horiz`) — anlamlarını
+  /// yalnız uzun basınca çıkan ipucu söylüyordu.
   PreferredSizeWidget _selectionBar(BuildContext context, List<FsEntry> visible) {
     return AppBar(
       leading: IconButton(
         tooltip: context.t('common.clear_selection'),
-        icon: const Icon(Icons.close),
+        icon: const Icon(AppIcons.close),
         onPressed: () => _partSetState(_selected.clear),
       ),
       // **Seçimin toplam boyutu** (2026-09-04): "12 dosya seçtim, USB'ye
@@ -146,229 +140,165 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
         ],
       ),
       actions: [
-        if (_selected.length == 1) ...[
-          IconButton(
-            tooltip: context.t('fm.select_above'),
-            icon: const Icon(Icons.expand_less),
-            onPressed: () => _selectFromAnchor(visible, above: true),
-          ),
-          IconButton(
-            tooltip: context.t('fm.select_below'),
-            icon: const Icon(Icons.expand_more),
-            onPressed: () => _selectFromAnchor(visible, above: false),
-          ),
-        ],
-        IconButton(
-          tooltip: _allSelected ? context.t('fm.select_none') : context.t('fm.select_all'),
-          icon: Icon(_allSelected ? Icons.deselect : Icons.select_all),
-          onPressed: _toggleSelectAll,
-        ),
-        IconButton(
-          tooltip: context.t('fm.select_invert'),
-          icon: const Icon(Icons.swap_horiz),
-          onPressed: () => _partSetState(() {
+        FmSelectionActions(
+          allSelected: _allSelected,
+          single: _selected.length == 1,
+          onToggleAll: _toggleSelectAll,
+          onInvert: () => _partSetState(() {
             final all = _entries.map((e) => e.path).toSet();
             final inverted = all.difference(_selected);
             _selected
               ..clear()
               ..addAll(inverted);
           }),
+          onAbove: () => _selectFromAnchor(visible, above: true),
+          onBelow: () => _selectFromAnchor(visible, above: false),
         ),
       ],
     );
   }
 
-  Widget _pasteBar(AppState appState) {
-    final count = appState.clipboard.length;
-    return Material(
-      color: Theme.of(context).colorScheme.secondaryContainer,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
-          child: Row(
-            children: [
-              Icon(appState.clipboardCut
-                  ? Icons.content_cut
-                  : Icons.copy_outlined),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Text(
-                  context.t('fm.clipboard_ready', {
-                    'n': count,
-                    'verb': context.t(appState.clipboardCut
-                        ? 'fm.verb_move'
-                        : 'fm.verb_copy'),
-                  }),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              TextButton(
-                onPressed: appState.clearClipboard,
-                child: Text(context.t('common.cancel')),
-              ),
-              FilledButton.icon(
-                onPressed: _paste,
-                icon: const Icon(Icons.content_paste),
-                label: Text(context.t('fm.paste')),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _body(List<FsEntry> entries) {
-    if (_loading) return const FmListSkeleton();
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.lock_outline,
-                  size: 56, color: Theme.of(context).colorScheme.outline),
-              const SizedBox(height: Gap.md),
-              Text(context.t(_error!), textAlign: TextAlign.center),
-              const SizedBox(height: Gap.md),
-              FilledButton.tonal(
-                  onPressed: _load, child: Text(context.t('common.retry'))),
-            ],
-          ),
-        ),
-      );
-    }
-    if (entries.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          children: [
-            const SizedBox(height: 120),
-            Icon(Icons.folder_open,
-                size: 64, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: Gap.md),
-            Center(child: Text(context.t('fm.empty_folder'))),
-          ],
-        ),
+  /// Geniş ekranın sol bölmesi: birimler + favori klasörler.
+  Widget _sidePane(BuildContext context, AppState appState) {
+    final scheme = Theme.of(context).colorScheme;
+    final here = p.normalize(widget.path);
+    Widget tile(IconData icon, String label, String path) {
+      final active = FsPaths.isInside(path, here);
+      return ListTile(
+        dense: true,
+        leading: Icon(icon, size: AppIcons.medium),
+        title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        selected: active,
+        selectedTileColor: scheme.secondaryContainer.withValues(alpha: 0.6),
+        shape: const StadiumBorder(),
+        onTap: () => BrowserScreen.jumpTo(context, path),
       );
     }
 
-    final layout = context.watch<AppState>().fmLayout;
-    return RefreshIndicator(
-      onRefresh: _load,
-      // Uzun basış artık öğelerde değil BURADA yakalanır (çocuk uzun basışı
-      // jest arenasını kazanıp sürüklemeyi öldürürdü) → basılı tutup kaydırınca
-      // çapa ile parmağın altındaki öğe arasındaki tüm dosyalar seçilir.
-      child: DragSelectArea(
-        scrollController: _scroll,
-        isSelected: (i) =>
-            i >= 0 && i < entries.length && _selected.contains(entries[i].path),
-        onSelectRange: (a, b, sel) => _selectRange(entries, a, b, sel),
-        child: layout.isGrid ? _grid(entries, layout) : _list(entries, layout),
-      ),
-    );
-  }
-
-  Widget _list(List<FsEntry> entries, FmLayout layout) => ListView.builder(
-        controller: _scroll,
-        padding: withNavInset(
-            context, const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 96)),
-        itemCount: entries.length,
-        itemBuilder: (context, i) {
-          final e = entries[i];
-          return DragSelectItem(
-            index: i,
-            child: FmEntryListTile(
-              entry: e,
-              layout: layout,
-              selected: _selected.contains(e.path),
-              selecting: _selecting,
-              subtitle: e.isDir
-                  ? _folderSubtitle(e)
-                  : '${FsPaths.humanSize(e.sizeBytes)} · '
-                      '${FsPaths.humanDate(e.modifiedMs)}',
-              onTap: () => _openEntry(e),
-              onCheck: () => _toggle(e),
-              onMore: () async {
-                if (await showEntryActions(context, e)) _load();
-              },
-            ),
-          );
-        },
-      );
-
-  Widget _grid(List<FsEntry> entries, FmLayout layout) => LayoutBuilder(
-        builder: (context, constraints) {
-          const pad = Gap.sm;
-          return GridView.builder(
-            controller: _scroll,
-            padding: withNavInset(
-                context, const EdgeInsets.fromLTRB(pad, pad, pad, 96)),
-            gridDelegate:
-                fmGridDelegate(layout, constraints.maxWidth - pad * 2),
-            itemCount: entries.length,
-            itemBuilder: (context, i) {
-              final e = entries[i];
-              return DragSelectItem(
-                index: i,
-                child: FmEntryGridTile(
-                  entry: e,
-                  layout: layout,
-                  selected: _selected.contains(e.path),
-                  selecting: _selecting,
-                  onTap: () => _openEntry(e),
-                ),
-              );
+    return ListView(
+      padding: const EdgeInsets.all(Gap.sm),
+      children: [
+        _paneHeader(context, context.t('pane.places')),
+        for (final v in FmEnv.volumes)
+          tile(
+            switch (v.kind) {
+              StorageKind.usb => AppIcons.external,
+              StorageKind.sdCard => AppIcons.sdCard,
+              _ => AppIcons.device,
             },
-          );
-        },
+            v.displayLabel(context.t),
+            v.path,
+          ),
+        if (appState.bookmarks.isNotEmpty) ...[
+          _paneHeader(context, context.t('pane.favorites')),
+          for (final b in appState.bookmarks)
+            tile(AppIcons.star, p.basename(b), b),
+        ],
+      ],
+    );
+  }
+
+  Widget _paneHeader(BuildContext context, String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.xs),
+        child: Text(text,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant)),
       );
 
+  Widget _body(List<FsEntry> entries, AppState appState) {
+    if (_error != null) {
+      return FmEmptyState(
+        icon: AppIcons.unreadable,
+        title: context.t(_error!),
+        hint: context.t('list.unreadable_hint'),
+        action: FilledButton.tonal(
+            onPressed: _load, child: Text(context.t('common.retry'))),
+      );
+    }
+    final layout = appState.fmLayout;
+    return FmFileListView(
+      entries: entries,
+      layout: layout,
+      selected: _selected,
+      controller: _scroll,
+      loading: _loading,
+      groupBy: appState.fmSort,
+      onRefresh: _load,
+      onOpen: _openEntry,
+      onToggle: _toggle,
+      onSelectRange: (a, b, sel) => _selectRange(entries, a, b, sel),
+      onMore: (e) async {
+        if (await showEntryActions(context, e)) _load();
+      },
+      subtitle: (e) => e.isDir
+          ? _folderSubtitle(e)
+          : '${FsPaths.humanSize(e.sizeBytes)} · '
+              '${FsPaths.humanDate(e.modifiedMs)}',
+      empty: _entries.isEmpty
+          ? FmEmptyState(
+              icon: AppIcons.emptyFolder,
+              title: context.t('fm.empty_folder'),
+              hint: context.t('list.empty_hint'),
+            )
+          : FmEmptyState(
+              icon: AppIcons.noMatch,
+              title: context.t('list.no_match'),
+              hint: context.t('list.no_match_hint'),
+              action: TextButton(
+                onPressed: () => _partSetState(() {
+                  _kind = null;
+                  _filter = FmFilter.none;
+                }),
+                child: Text(context.t('list.filter_clear')),
+              ),
+            ),
+    );
+  }
+
+  /// "+" levhası (Faz 6 / U7): yeni klasör · yeni belge · **buraya tara** ·
+  /// **buraya içe aktar**.
   void _showCreateSheet() {
+    Widget item(IconData icon, String text, VoidCallback onTap) => ListTile(
+          leading: Icon(icon),
+          title: Text(text),
+          onTap: onTap,
+        );
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.create_new_folder_outlined),
-              title: Text(context.t('fm.new_folder')),
-              onTap: () {
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              item(AppIcons.newFolder, context.t('fm.new_folder'), () {
                 Navigator.pop(ctx);
                 _newFolder();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.description_outlined),
-              title: Text(context.t('fm.new_word_doc')),
-              onTap: () {
+              }),
+              item(AppIcons.newWord, context.t('fm.new_word_doc'), () {
                 Navigator.pop(ctx);
                 _newDocument('docx');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.table_chart_outlined),
-              title: Text(context.t('fm.new_xlsx')),
-              onTap: () {
+              }),
+              item(AppIcons.newSheet, context.t('fm.new_xlsx'), () {
                 Navigator.pop(ctx);
                 _newDocument('xlsx');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.article_outlined),
-              title: Text(context.t('fm.new_text_file')),
-              onTap: () {
+              }),
+              item(AppIcons.newText, context.t('fm.new_text_file'), () {
                 Navigator.pop(ctx);
                 _newDocument('txt');
-              },
-            ),
-            const SizedBox(height: Gap.sm),
-          ],
+              }),
+              const Divider(),
+              item(AppIcons.scanHere, context.t('create.scan'), () {
+                Navigator.pop(ctx);
+                _scanHere();
+              }),
+              item(AppIcons.importHere, context.t('create.import'), () {
+                Navigator.pop(ctx);
+                _importHere();
+              }),
+              const SizedBox(height: Gap.sm),
+            ],
+          ),
         ),
       ),
     );

@@ -271,7 +271,7 @@ class _JobCard extends StatelessWidget {
             ),
             TextButton.icon(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => BrowserScreen(path: dir)),
+                browserRoute(BrowserScreen(path: dir)),
               ),
               icon: const Icon(Icons.folder_open, size: 18),
               label: Text(context.t('jb.open_folder')),

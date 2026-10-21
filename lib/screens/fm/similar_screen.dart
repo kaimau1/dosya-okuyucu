@@ -484,7 +484,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                     // kullanıcı silmeden önce videoyu GÖRMEDEN karar veriyordu.
                     // İçteki düğme kendi dokunuşunu yakalar, dıştaki
                     // GestureDetector'ın seçim davranışını tetiklemez (aynı
-                    // desen `FmEntryListTile`'daki iç-içe "⋮" düğmesinde de var).
+                    // desen `FmEntryRow`'daki iç-içe "⋮" düğmesinde de var).
                     if (isVideo)
                       Center(
                         child: Material(

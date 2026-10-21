@@ -88,8 +88,9 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
     _partSetState(() => _folderSizes[download] = size);
   }
 
+  // `browserRoute`: gezgin sayfası yol hapı atlaması için işaretlenir.
   Future<void> _push(Widget screen) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+      Navigator.of(context).push(browserRoute(screen));
 
   Widget _categoryScreen(FmCategory category, {bool grid = false}) {
     // Pano önbelleği kategori başına en yeni 800 dosyayı tutar (hız için);

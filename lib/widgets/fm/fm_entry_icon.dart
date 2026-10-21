@@ -413,7 +413,7 @@ ImageFrameBuilder _placeholder(double size) => (
 /// kayboluyor ve geriye yalnız ad kalıyordu. Aynı adlı iki dosyada (bir `.pdf`
 /// bir `.doc`) hangisinin seçildiği gözle doğrulanamıyordu.
 ///
-/// Rozet ızgara hücresindekiyle ([FmEntryGridTile]) aynı dili konuşur: seçili
+/// Rozet ızgara hücresindekiyle ([FmEntryCard]) aynı dili konuşur: seçili
 /// dolu daire, seçilmemiş boş halka; ikisi de gölgeli çünkü altında koyu bir
 /// fotoğraf olabilir.
 class FmSelectableIcon extends StatelessWidget {

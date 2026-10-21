@@ -11,14 +11,12 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
-import '../../widgets/fm/drag_select.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
-import '../../core/safe_insets.dart';
 
 enum _DlSort { oldest, newest, largest, name }
 
@@ -206,8 +204,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       tooltip: context.t('downloads.folder_view'),
                       icon: const Icon(Icons.account_tree_outlined),
                       onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BrowserScreen(
+                        browserRoute(BrowserScreen(
                               path: widget.path, title: context.t('downloads.title')),
                         ),
                       ),
@@ -245,12 +242,16 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     _summary(total, ancient),
                     const Divider(height: 1),
                     Expanded(
-                      child: DragSelectArea(
-                        scrollController: _scroll,
-                        isSelected: (i) =>
-                            i >= 0 &&
-                            i < files.length &&
-                            _selected.contains(files[i].path),
+                      child: FmFileListView(
+                        entries: files,
+                        layout: FmLayout.list,
+                        selected: _selected,
+                        controller: _scroll,
+                        onOpen: (e) => EntryOpener.open(context, e.path,
+                            siblings: _files.map((e) => e.path).toList()),
+                        onToggle: (e) => setState(() {
+                          if (!_selected.remove(e.path)) _selected.add(e.path);
+                        }),
                         onSelectRange: (a, b, sel) => setState(() {
                           for (var i = a; i <= b; i++) {
                             if (i < 0 || i >= files.length) continue;
@@ -261,14 +262,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                             }
                           }
                         }),
-                        child: ListView.builder(
-                          controller: _scroll,
-                          padding: withNavInset(
-                              context, const EdgeInsets.only(bottom: 96)),
-                          itemCount: files.length,
-                          itemBuilder: (context, i) =>
-                              DragSelectItem(index: i, child: _row(files[i])),
-                        ),
+                        subtitle: _subtitle,
+                        badge: _ageBadge,
+                        // Menü YOKTU: kullanıcı "içerisinde pek bir şey
+                        // yapamıyorum" dedi (2026-07-29) — açma ve toplu
+                        // silme dışında hiçbir işleme yol yoktu.
+                        onMore: (entry) async {
+                          await showEntryActions(context, entry,
+                              allowReveal: true,
+                              onReveal: (path) => Navigator.of(context).push(
+                                    browserRoute(BrowserScreen(path: path)),
+                                  ));
+                          await _load();
+                        },
                       ),
                     ),
                   ],
@@ -348,92 +354,37 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     );
   }
 
-  Widget _row(FsEntry entry) {
-    final selected = _selected.contains(entry.path);
+  /// Satırın alt yazısı: boyut · (alt klasör) · indirilme · son açılma.
+  String _subtitle(FsEntry entry) => [
+        FsPaths.humanSize(entry.sizeBytes),
+        // Liste alt klasörleri de kapsıyor; dosyanın hangi alt klasörde
+        // olduğu yazılmazsa aynı adlı iki dosya ayırt edilemiyordu.
+        if (p.dirname(entry.path) != widget.path)
+          '📁 ${p.basename(p.dirname(entry.path))}',
+        context.t('dls.downloaded_at',
+            {'when': FsPaths.humanDate(entry.modifiedMs)}),
+        if (entry.hasAccessInfo)
+          context.t('dls.last_opened', {
+            'when': relativeDays(daysBetween(entry.accessedMs, _now)),
+          }),
+      ].join(' · ');
+
+  /// Yaş rozeti ("3 ay") — renk yaşla koyulaşır.
+  Widget _ageBadge(FsEntry entry) {
     final days = _ageDays(entry);
-    final level = ageLevelFor(days);
-    final color = switch (level) {
+    final color = switch (ageLevelFor(days)) {
       AgeLevel.fresh => const Color(0xFF2E7D32),
       AgeLevel.recent => const Color(0xFF827717),
       AgeLevel.old => const Color(0xFFEF6C00),
       AgeLevel.ancient => Theme.of(context).colorScheme.error,
       AgeLevel.unknown => Theme.of(context).colorScheme.onSurfaceVariant,
     };
-
-    return ListTile(
-      selected: selected,
-      // Simge ölçüsü liste düzeniyle AYNI kaynaktan: bu ekran düzen
-      // seçicisi taşımıyor ve varsayılan 44'te kalmıştı — 2026-08-17'de
-      // simgeler büyütülünce (68) burası geride kaldı, indirilenler
-      // listesindeki APK/PDF kapakları ötekilerin yarısı kadar görünüyordu.
-      //
-      // Seçim açıkken önizleme KAYBOLMAZ (2026-08-17, ikinci ekran görüntüsü):
-      // onay rozeti kapağın köşesine biner (bkz. [FmSelectableIcon]).
-      leading: FmSelectableIcon(
-        entry: entry,
-        size: FmLayout.list.iconSizeFor(0) * context.fmIconScale,
-        selecting: _selecting,
-        selected: selected,
-        onCheck: () => setState(() {
-          if (!_selected.remove(entry.path)) _selected.add(entry.path);
-        }),
-      ),
-      title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        [
-          FsPaths.humanSize(entry.sizeBytes),
-          // Liste alt klasörleri de kapsıyor; dosyanın hangi alt klasörde
-          // olduğu yazılmazsa aynı adlı iki dosya ayırt edilemiyordu.
-          if (p.dirname(entry.path) != widget.path)
-            '📁 ${p.basename(p.dirname(entry.path))}',
-          'indirilme: ${FsPaths.humanDate(entry.modifiedMs)}',
-          if (entry.hasAccessInfo)
-            context.t('dls.last_opened', {
-              'when': relativeDays(daysBetween(entry.accessedMs, _now)),
-            }),
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      // Yaş rozeti + ⋮ menü. Menü YOKTU: kullanıcı "içerisinde pek bir şey
-      // yapamıyorum" dedi (2026-07-29) — açma ve toplu silme dışında hiçbir
-      // işleme (taşı/kopyala/yeniden adlandır/paylaş) yol yoktu.
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            relativeDays(days),
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: color, fontWeight: FontWeight.w600),
-          ),
-          if (!_selecting)
-            IconButton(
-              tooltip: context.t('fm.jobs'),
-              icon: const Icon(Icons.more_vert),
-              onPressed: () async {
-                await showEntryActions(context, entry,
-                    allowReveal: true,
-                    onReveal: (path) => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => BrowserScreen(path: path)),
-                        ));
-                await _load();
-              },
-            ),
-        ],
-      ),
-      onTap: () {
-        if (_selecting) {
-          setState(() {
-            if (!_selected.remove(entry.path)) _selected.add(entry.path);
-          });
-          return;
-        }
-        EntryOpener.open(context, entry.path,
-            siblings: _files.map((e) => e.path).toList());
-      },
+    return Text(
+      relativeDays(days),
+      style: Theme.of(context)
+          .textTheme
+          .bodySmall
+          ?.copyWith(color: color, fontWeight: FontWeight.w600),
     );
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
-import '../section_header.dart';
 import 'fm_entry_icon.dart';
 import '../motion.dart';
 
@@ -14,8 +14,18 @@ import '../motion.dart';
 /// seçim rozeti biri değişince diğerleri geride kalıyordu (2026-07-24
 /// tutarsızlık bulgusunun aynısı). Yerleşim ([FmLayout]) tek yerden okunur.
 
-/// Liste satırı. [layout] `detail` ise satır yükselir ve önizleme büyür.
-class FmEntryListTile extends StatelessWidget {
+/// Liste satırı — **kendi `Row`umuz** (Faz 6 / U4, 2026-10-21).
+///
+/// KÖK NEDEN (KALANLAR maddesi): `ListTile` `leading` yuvasını 56 dp ile
+/// sınırlıyordu; 68 dp'lik önizleme (kullanıcı 2026-08-17: *"simgeleri
+/// olabildiğince büyüt"*) bu tavana çarpıp sıkışıyor, alt satır da tek
+/// aralıklı yazıyla "teknik" görünüyordu. Şimdi:
+/// * önizleme boyu yerleşimden gelir ([FmLayout.iconSizeFor] × tema ölçeği),
+///   satır boyu ondan türer — tavan yok;
+/// * ad tek satır, alt satır **orantılı** yazıyla "boyut · tarih";
+/// * sağda 48 dp dokunma alanlı ⋮ (erişilebilirlik);
+/// * seçimde önizleme durur, üstüne onay rozeti biner ([FmSelectableIcon]).
+class FmEntryRow extends StatelessWidget {
   final FsEntry entry;
   final bool selected;
   final bool selecting;
@@ -30,7 +40,11 @@ class FmEntryListTile extends StatelessWidget {
   /// Klasörlerde satır sonundaki "›" oku gösterilsin mi?
   final bool showChevron;
 
-  const FmEntryListTile({
+  /// ⋮'dan önce satır sonuna konan ekrana özel rozet (ör. indirilenlerde
+  /// "3 ay" yaş etiketi).
+  final Widget? badge;
+
+  const FmEntryRow({
     super.key,
     required this.entry,
     required this.selected,
@@ -41,55 +55,104 @@ class FmEntryListTile extends StatelessWidget {
     this.onCheck,
     this.onMore,
     this.showChevron = false,
+    this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     // Tema ailesi simge ölçeğini de belirler (2026-08-25): "İş programı"nda
     // %22 küçük, "Modern"de %12 büyük — kullanıcı temayı seçerken boyutu da
     // seçmiş oluyor.
     final iconSize = layout.iconSizeFor(0) * context.fmIconScale;
-    return ListTile(
+    final vPad = layout == FmLayout.detail ? Gap.sm : 6.0;
+    final more = _trailing(context, scheme);
+    return Semantics(
       selected: selected,
-      selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.4),
-      contentPadding:
-          layout == FmLayout.detail
-              ? const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs)
-              : null,
-      // Seçim açıkken de ÖNİZLEME durur (onay rozeti üstüne biner) — bkz.
-      // [FmSelectableIcon]: "yanlış seçim yaparken önizlemeler görülmeli".
-      leading: FmSelectableIcon(
-        entry: entry,
-        size: iconSize,
-        selecting: selecting,
-        selected: selected,
-        onCheck: onCheck,
+      button: true,
+      label: entry.name,
+      child: Material(
+        color: selected
+            ? scheme.primaryContainer.withValues(alpha: 0.4)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(Radii.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  Gap.md, vPad, more == null && badge == null ? Gap.md : Gap.xs, vPad),
+              child: Row(
+                children: [
+                  FmSelectableIcon(
+                    entry: entry,
+                    size: iconSize,
+                    selecting: selecting,
+                    selected: selected,
+                    onCheck: onCheck,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          entry.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: selected ? scheme.primary : null,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (badge != null) ...[
+                    const SizedBox(width: Gap.sm),
+                    badge!,
+                  ],
+                  if (more != null) more,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
-      title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      // Boyut + yol monospace: alt alta gelen boyutlar hizalanıyor ve uzun
-      // yollarda rakam/eğik çizgi karışmıyor (2026-08-04 kağıt teması).
-      subtitle: MonoText(subtitle),
-      trailing: _trailing(context, scheme),
-      onTap: onTap,
     );
   }
 
   Widget? _trailing(BuildContext context, ColorScheme scheme) {
-    final more =
-        onMore == null
-            ? null
-            : IconButton(
-              icon: const Icon(Icons.more_vert),
-              tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-              onPressed: onMore,
-            );
+    final more = onMore == null
+        ? null
+        : IconButton(
+            icon: const Icon(AppIcons.more),
+            tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+            // 48 dp dokunma alanı (erişilebilirlik, Faz 6 / 7. madde).
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            onPressed: onMore,
+          );
     if (showChevron && entry.isDir && !selecting) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (more != null) more,
-          Icon(Icons.chevron_right, size: 20, color: scheme.onSurfaceVariant),
+          Icon(AppIcons.chevron,
+              size: AppIcons.small, color: scheme.onSurfaceVariant),
         ],
       );
     }
@@ -103,7 +166,7 @@ class FmEntryListTile extends StatelessWidget {
 /// hesaplanmış bir en-boy oranından değil: yazı tipi ölçeği büyütülmüş bir
 /// telefonda ad iki satıra çıkınca sabit oran `RenderFlex overflowed` verirdi
 /// (Excel bölme sınırında yaşanan taşmanın aynısı — bkz. HAFIZA).
-class FmEntryGridTile extends StatelessWidget {
+class FmEntryCard extends StatelessWidget {
   final FsEntry entry;
   final bool selected;
   final bool selecting;
@@ -113,7 +176,7 @@ class FmEntryGridTile extends StatelessWidget {
   /// Ad şeridinin yüksekliği (iki satır `bodySmall`).
   static const _labelHeight = 34.0;
 
-  const FmEntryGridTile({
+  const FmEntryCard({
     super.key,
     required this.entry,
     required this.selected,
@@ -127,7 +190,11 @@ class FmEntryGridTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     // Basınca hafifçe çöker; seçim kipinde değil (sürükleyerek seçerken
     // hücreler "nefes almasın").
-    return PressScale(
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: entry.name,
+      child: PressScale(
       enabled: !selecting,
       scale: 0.96,
       child: InkWell(
@@ -183,7 +250,7 @@ class FmEntryGridTile extends StatelessWidget {
                       top: 0,
                       right: 0,
                       child: Icon(
-                        selected ? Icons.check_circle : Icons.circle_outlined,
+                        selected ? AppIcons.checkCircle : AppIcons.circle,
                         size: 20,
                         color: selected ? scheme.primary : scheme.outline,
                       ),
@@ -194,6 +261,7 @@ class FmEntryGridTile extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

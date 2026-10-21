@@ -290,9 +290,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
               if (mounted) await EntryOpener.open(context, task.destPath);
             case 'folder':
               if (mounted) {
-                await Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) =>
-                      BrowserScreen(path: p.dirname(task.destPath)),
+                await Navigator.of(context).push(browserRoute(BrowserScreen(path: p.dirname(task.destPath)),
                 ));
               }
             case 'verify':

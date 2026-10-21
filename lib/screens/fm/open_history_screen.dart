@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
-import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
-import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../core/app_icons.dart';
+import '../../models/fm_layout.dart';
+import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
@@ -107,6 +108,10 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
     if (mounted) setState(() => _entries = const []);
   }
 
+  /// Yol → son açılma zamanı (alt yazı için).
+  Map<String, int> get _openedAt =>
+      {for (final item in _entries) item.entry.path: item.openedAtMs};
+
   @override
   Widget build(BuildContext context) {
     final entries = _filtered;
@@ -145,40 +150,31 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const FmListSkeleton()
-          : entries.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Gap.lg),
-                    child: Text(
-                      _query.isEmpty
-                          ? context.t('oh.empty')
-                          : context.t('oh.no_match', {'query': _query}),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: entries.length,
-                  itemBuilder: (context, i) {
-                    final item = entries[i];
-                    return FmEntryListTile(
-                      entry: item.entry,
-                      selected: false,
-                      selecting: false,
-                      subtitle: '${context.t('oh.last_opened')}'
-                          '${FsPaths.humanDate(item.openedAtMs)} · '
-                          '${FsPaths.humanSize(item.entry.sizeBytes)}',
-                      onTap: () => EntryOpener.open(context, item.entry.path),
-                      onMore: () async {
-                        await showEntryActions(context, item.entry,
-                            allowReveal: false);
-                        _load();
-                      },
-                    );
-                  },
-                ),
+      body: FmFileListView(
+        entries: [for (final item in entries) item.entry],
+        layout: FmLayout.list,
+        // Bu listede çoklu seçim yok: dokunuş daima açar.
+        selected: const {},
+        loading: _loading,
+        onOpen: (e) => EntryOpener.open(context, e.path),
+        onToggle: (e) => EntryOpener.open(context, e.path),
+        subtitle: (e) {
+          final at = _openedAt[e.path] ?? 0;
+          return '${context.t('oh.last_opened')}'
+              '${FsPaths.humanDate(at)} · '
+              '${FsPaths.humanSize(e.sizeBytes)}';
+        },
+        onMore: (e) async {
+          await showEntryActions(context, e, allowReveal: false);
+          _load();
+        },
+        empty: FmEmptyState(
+          icon: _query.isEmpty ? AppIcons.emptyFolder : AppIcons.noMatch,
+          title: _query.isEmpty
+              ? context.t('oh.empty')
+              : context.t('oh.no_match', {'query': _query}),
+        ),
+      ),
     );
   }
 }

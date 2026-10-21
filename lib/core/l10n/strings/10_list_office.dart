@@ -1,0 +1,55 @@
+part of '../app_strings.dart';
+
+/// Çeviri tablosunun 10. bölümü: ortak liste bileşeni (Faz 6), lisans
+/// sayfası (Faz 7), PDF tek çatı (Faz 8), Office ve metin akışları (Faz 9).
+const Map<String, (String, String, String)> _t10 = {
+  // ── Ortak liste (Faz 6) ───────────────────────────────────────────────────
+  'list.summary': ('{n} öğe', '{n} items', '{n} عنصر'),
+  'list.summary_size': ('{n} öğe · {size}', '{n} items · {size}', '{n} عنصر · {size}'),
+  'list.sort_by': ('Sırala: {name}', 'Sort: {name}', 'الترتيب: {name}'),
+  'list.sort_dir_asc': ('Artan (A→Z, eski→yeni)', 'Ascending (A→Z, old→new)', 'تصاعدي (أ←ي، قديم←جديد)'),
+  'list.sort_dir_desc': ('Azalan (Z→A, yeni→eski)', 'Descending (Z→A, new→old)', 'تنازلي (ي←أ، جديد←قديم)'),
+  'list.filter': ('Filtre', 'Filter', 'تصفية'),
+  'list.filter_n': ('Filtre ({n})', 'Filter ({n})', 'تصفية ({n})'),
+  'list.filter_clear': ('Filtreyi temizle', 'Clear filter', 'مسح التصفية'),
+  'list.no_match': ('Filtreye uyan öğe yok', 'Nothing matches the filter', 'لا شيء يطابق التصفية'),
+  'list.no_match_hint': (
+    'Farklı bir tür ya da tarih seçin veya filtreyi temizleyin.',
+    'Pick another type or date, or clear the filter.',
+    'اختر نوعًا أو تاريخًا آخر أو امسح التصفية.',
+  ),
+  'list.empty_hint': (
+    'Buraya dosya kopyalamak ya da yeni klasör açmak için + düğmesine dokunun.',
+    'Tap + to create a folder or bring files here.',
+    'اضغط + لإنشاء مجلد أو إحضار ملفات إلى هنا.',
+  ),
+  'list.unreadable_hint': (
+    'Android bu klasörü uygulamalara göstermiyor olabilir (ör. Android/data).',
+    'Android may hide this folder from apps (e.g. Android/data).',
+    'قد يخفي أندرويد هذا المجلد عن التطبيقات (مثل Android/data).',
+  ),
+  'list.folders': ('Klasörler', 'Folders', 'المجلدات'),
+  'list.date': ('Tarih', 'Date', 'التاريخ'),
+  'list.size': ('Boyut', 'Size', 'الحجم'),
+  'list.more_filters': ('Diğer filtreler', 'More filters', 'تصفيات أخرى'),
+  'grp.today': ('Bugün', 'Today', 'اليوم'),
+  'grp.week': ('Bu hafta', 'This week', 'هذا الأسبوع'),
+  'grp.month': ('Bu ay', 'This month', 'هذا الشهر'),
+  'grp.older': ('Daha eski', 'Older', 'أقدم'),
+  'sel.menu': ('Seçim', 'Selection', 'التحديد'),
+  'sel.all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'sel.none': ('Seçimi kaldır', 'Select none', 'إلغاء التحديد'),
+  'sel.invert': ('Ters çevir', 'Invert', 'عكس'),
+  'sel.above': ('Bunun üstündekileri seç', 'Select everything above', 'تحديد كل ما فوقه'),
+  'sel.below': ('Bunun altındakileri seç', 'Select everything below', 'تحديد كل ما تحته'),
+  'create.title': ('Buraya ekle', 'Add here', 'إضافة هنا'),
+  'create.doc': ('Yeni belge', 'New document', 'مستند جديد'),
+  'create.scan': ('Buraya tara', 'Scan into this folder', 'مسح ضوئي إلى هذا المجلد'),
+  'create.import': ('Buraya içe aktar', 'Import into this folder', 'استيراد إلى هذا المجلد'),
+  'create.paste_n': ('Yapıştır ({n})', 'Paste ({n})', 'لصق ({n})'),
+  'create.imported': ('{n} dosya içe aktarıldı', '{n} files imported', 'تم استيراد {n} ملف'),
+  'create.scanned': ('Tarama bu klasöre kaydedildi', 'Scan saved to this folder', 'حُفظ المسح في هذا المجلد'),
+  'dls.downloaded_at': ('indirilme: {when}', 'downloaded: {when}', 'التنزيل: {when}'),
+  'pane.places': ('Konumlar', 'Places', 'الأماكن'),
+  'pane.favorites': ('Favoriler', 'Favorites', 'المفضلة'),
+};

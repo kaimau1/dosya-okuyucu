@@ -100,21 +100,21 @@ Future<bool> showEntryActions(
             // yuvarlak düğmeler — ızgarayı taramadan, tek bakışta. Izgaradan
             // çıkarıldılar (aynı işlem iki yerde durmasın).
             _quickRow(ctx, [
-              _quick(ctx, Icons.open_in_new_rounded, ctx.t('common.open'),
+              _quick(ctx, AppIcons.open, ctx.t('common.open'),
                   _EntryAction.open),
               if (!entry.isDir)
-                _quick(ctx, Icons.share_outlined, ctx.t('common.share'),
+                _quick(ctx, AppIcons.share, ctx.t('common.share'),
                     _EntryAction.share),
-              _quick(ctx, Icons.drive_file_move_outline, ctx.t('fm.move'),
+              _quick(ctx, AppIcons.move, ctx.t('fm.move'),
                   _EntryAction.moveTo),
-              _quick(ctx, Icons.drive_file_rename_outline, ctx.t('fm.rename'),
+              _quick(ctx, AppIcons.rename, ctx.t('fm.rename'),
                   _EntryAction.rename),
               if (entry.isDir)
                 _quick(
                   ctx,
                   appState.isBookmarked(entry.path)
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
+                      ? AppIcons.star
+                      : AppIcons.starEmpty,
                   appState.isBookmarked(entry.path)
                       ? ctx.t('fm.unfavorite')
                       : ctx.t('fm.favorite'),
@@ -123,17 +123,17 @@ Future<bool> showEntryActions(
             ]),
             _section(ctx, ctx.t('ea.sec_open'), [
               if (!entry.isDir)
-                _act(ctx, Icons.apps, ctx.t('fm.open_with_other'),
+                _act(ctx, AppIcons.openWith, ctx.t('fm.open_with_other'),
                     _EntryAction.openWith),
               if (!entry.isDir)
-                _act(ctx, Icons.cloud_upload_outlined,
+                _act(ctx, AppIcons.upload,
                     ctx.t('drive.upload_action'), _EntryAction.driveUpload),
               if (allowReveal)
-                _act(ctx, Icons.my_location, ctx.t('fm.reveal'),
+                _act(ctx, AppIcons.reveal, ctx.t('fm.reveal'),
                     _EntryAction.reveal),
               // Ana ekran kısayolu (kullanıcı isteği 2026-09-27).
               if (Platform.isAndroid)
-                _act(ctx, Icons.add_to_home_screen_rounded,
+                _act(ctx, AppIcons.homeShortcut,
                     ctx.t('ea.shortcut'), _EntryAction.shortcut,
                     hint: ctx.t('ea.shortcut_hint')),
             ]),
@@ -142,21 +142,21 @@ Future<bool> showEntryActions(
             // Pano (kopyala/kes + git + yapıştır) arkasında, ileri kullanım
             // için — aynı bölümde ama ikinci satırda.
             _section(ctx, ctx.t('ea.sec_move'), [
-              _act(ctx, Icons.folder_copy_outlined, ctx.t('fm.copy'),
+              _act(ctx, AppIcons.copy, ctx.t('fm.copy'),
                   _EntryAction.copyTo,
                   hint: ctx.t('ea.pick_folder')),
-              _act(ctx, Icons.copy_outlined, ctx.t('fm.clip_copy'),
+              _act(ctx, AppIcons.clipCopy, ctx.t('fm.clip_copy'),
                   _EntryAction.copy,
                   hint: ctx.t('ea.clip_hint')),
-              _act(ctx, Icons.content_cut, ctx.t('fm.clip_cut'),
+              _act(ctx, AppIcons.cut, ctx.t('fm.clip_cut'),
                   _EntryAction.cut,
                   hint: ctx.t('ea.clip_hint')),
-              _act(ctx, Icons.star_outline, ctx.t('fm.copy_to_important'),
+              _act(ctx, AppIcons.important, ctx.t('fm.copy_to_important'),
                   _EntryAction.important),
               // "Paylaşılan"a kopyala (kullanıcı isteği 2026-08-31): ağ
               // paylaşımının dar kapsamlı kutusu. Taşımak değil KOPYALAMAK —
               // dosya kullanıcının bildiği yerde kalmalı.
-              _act(ctx, Icons.folder_shared_outlined,
+              _act(ctx, AppIcons.shareFolder,
                   ctx.t('fm.copy_to_shared'), _EntryAction.sharedFolder,
                   hint: ctx.t('ea.shared_hint')),
               // **Harici belleğe kopyala** (kullanıcı isteği 2026-09-01:
@@ -166,45 +166,45 @@ Future<bool> showEntryActions(
               // bir birim varken görünür: yokken çıkması, dokunup "hedef yok"
               // yemek demekti.
               if (hasExternal)
-                _act(ctx, Icons.usb, ctx.t('fm.copy_to_external'),
+                _act(ctx, AppIcons.external, ctx.t('fm.copy_to_external'),
                     _EntryAction.externalDrive,
                     hint: externalHint),
             ]),
             _section(ctx, ctx.t('ea.sec_file'), [
               if (isArchive)
-                _act(ctx, Icons.folder_zip_outlined, ctx.t('fm.show_archive'),
+                _act(ctx, AppIcons.archiveView, ctx.t('fm.show_archive'),
                     _EntryAction.openArchive),
               if (isArchive)
-                _act(ctx, Icons.unarchive_outlined, ctx.t('fm.extract_here'),
+                _act(ctx, AppIcons.extract, ctx.t('fm.extract_here'),
                     _EntryAction.extract),
-              _act(ctx, Icons.archive_outlined, ctx.t('ea.compress'),
+              _act(ctx, AppIcons.compress, ctx.t('ea.compress'),
                   _EntryAction.zip,
                   hint: ctx.t('ea.compress_hint')),
               if (!entry.isDir)
-                _act(ctx, Icons.sell_outlined, ctx.t('ea.tag'),
+                _act(ctx, AppIcons.tag, ctx.t('ea.tag'),
                     _EntryAction.tag,
                     hint: ctx.t('ea.tag_hint')),
               // **Döndür** (2026-09-06 denetim turu): yan çekilmiş bir
               // fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu.
               if (canRotate)
-                _act(ctx, Icons.rotate_90_degrees_cw_outlined,
+                _act(ctx, AppIcons.rotate,
                     ctx.t('ea.rotate'), _EntryAction.rotate,
                     hint: ctx.t('ea.rotate_hint')),
               // **Böl / birleştir**: FAT32 biçimli USB bellek ve SD kartlar
               // 4 GB'tan büyük tek dosya kabul etmiyor; kullanıcının
               // yapabileceği hiçbir şey yoktu.
               if (canSplit)
-                _act(ctx, Icons.call_split, ctx.t('ea.split'),
+                _act(ctx, AppIcons.split, ctx.t('ea.split'),
                     _EntryAction.split, hint: ctx.t('ea.split_hint')),
               if (isPart)
-                _act(ctx, Icons.merge, ctx.t('ea.join'), _EntryAction.join,
+                _act(ctx, AppIcons.join, ctx.t('ea.join'), _EntryAction.join,
                     hint: ctx.t('ea.join_hint')),
               // Gizle = şifreli kasaya taşı (2026-10-21, tek Kasa): iki ayrı
               // satır ("Gizle" ve "Şifreli kasaya taşı") birleşti.
-              _act(ctx, Icons.enhanced_encryption_outlined, ctx.t('ea.hide'),
+              _act(ctx, AppIcons.vault, ctx.t('ea.hide'),
                   _EntryAction.hide,
                   hint: ctx.t('vault.move_hint')),
-              _act(ctx, Icons.info_outline, ctx.t('fm.properties'),
+              _act(ctx, AppIcons.info, ctx.t('fm.properties'),
                   _EntryAction.properties),
             ]),
             // AI/tanıma ve dönüştürme: belgede özet, görselde metin tanıma,
@@ -216,14 +216,14 @@ Future<bool> showEntryActions(
                   entry.category != FmCategory.image &&
                   entry.category != FmCategory.video &&
                   entry.category != FmCategory.audio)
-                _act(ctx, Icons.auto_awesome, ctx.t('fm.ai_summary'),
+                _act(ctx, AppIcons.ai, ctx.t('fm.ai_summary'),
                     _EntryAction.aiSummary),
               if (entry.category == FmCategory.image)
-                _act(ctx, Icons.document_scanner_outlined,
+                _act(ctx, AppIcons.ocr,
                     ctx.t('ea.image_insight'), _EntryAction.imageInsight,
                     hint: ctx.t('ea.image_insight_hint')),
               if (!entry.isDir && isMedia)
-                _act(ctx, Icons.photo_size_select_large, ctx.t('ea.resize'),
+                _act(ctx, AppIcons.resize, ctx.t('ea.resize'),
                     _EntryAction.resize,
                     hint: ctx.t('ea.resize_hint')),
             ]),
@@ -435,7 +435,7 @@ Future<bool> splitEntry(BuildContext context, FsEntry entry) async {
           ),
           for (final preset in FileSplit.presets.entries)
             ListTile(
-              leading: const Icon(Icons.call_split),
+              leading: const Icon(AppIcons.split),
               title: Text(preset.key),
               // Dosyadan BÜYÜK bir parça boyutu tek parça üretirdi: seçeneği
               // sunmak yerine sönükleştiriyoruz.
@@ -722,7 +722,7 @@ Widget _deleteButton(BuildContext ctx, bool useTrash) {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.delete_outline, color: scheme.error),
+            Icon(AppIcons.delete, color: scheme.error),
             const SizedBox(width: Gap.sm),
             Flexible(
               child: Text(

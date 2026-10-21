@@ -88,7 +88,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
                     itemCount: _files.length,
                     itemBuilder: (_, i) {
                       final entry = _files[i];
-                      return FmEntryGridTile(
+                      return FmEntryCard(
                         entry: entry,
                         selected: _selected.contains(entry.path),
                         // Her zaman "seçim kipi": bu ekrana silmek için

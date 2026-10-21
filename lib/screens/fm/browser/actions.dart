@@ -77,8 +77,11 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     }
   }
 
-  List<FsEntry> get _sorted {
-    final appState = context.watch<AppState>();
+  /// Sıralı liste. [appState] ÇAĞIRANDAN gelir (Faz 6 / B1): eskiden
+  /// getter kendi içinde `context.watch` çağırıyordu ve dokunma geri
+  /// çağrısından (`_openEntry`) da okunuyordu → hata ayıklama derlemesinde
+  /// Provider iddia hatası.
+  List<FsEntry> _sorted(AppState appState) {
     final key = (_entries, appState.fmSort, appState.fmSortDesc);
     final cached = _sortedCache;
     final last = _sortedKey;
@@ -100,8 +103,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
       return;
     }
     if (entry.isDir) {
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => BrowserScreen(path: entry.path),
+      await Navigator.of(context).push(browserRoute(BrowserScreen(path: entry.path),
       ));
       if (mounted) _load(); // alt klasörde yapılan değişiklikler yansısın
       return;
@@ -119,7 +121,10 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     await EntryOpener.open(
       context,
       entry.path,
-      siblings: _sorted.where((e) => !e.isDir).map((e) => e.path).toList(),
+      siblings: _visible(_sorted(context.read<AppState>()))
+          .where((e) => !e.isDir)
+          .map((e) => e.path)
+          .toList(),
     );
   }
 
@@ -278,12 +283,12 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.description_outlined),
+              leading: const Icon(AppIcons.newText),
               title: Text(ctx.t('fm.export_text')),
               onTap: () => Navigator.pop(ctx, false),
             ),
             ListTile(
-              leading: const Icon(Icons.table_chart_outlined),
+              leading: const Icon(AppIcons.newSheet),
               title: Text(ctx.t('fm.export_csv')),
               onTap: () => Navigator.pop(ctx, true),
             ),
@@ -328,7 +333,8 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
       'xlsx' => 'Yeni Tablo.xlsx',
       _ => 'Yeni Metin.txt',
     };
-    final name = await _askName('Yeni dosya', context.t('fm.file_name'), suggestion);
+    final name = await _askName(
+        context.t('create.doc'), context.t('fm.file_name'), suggestion);
     if (name == null) return;
     try {
       final target =
@@ -345,6 +351,51 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     } catch (e) {
       _snack(fileCreateFailed.replaceAll('{error}', userErrorText(e)));
     }
+  }
+
+  /// **Buraya tara** (Faz 6 / U7): ortak tarama akışı PDF'i Belgeler'e
+  /// yazar; sonuç bu klasöre TAŞINIR (aynı ad varsa yeni ad alır).
+  Future<void> _scanHere() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final made = await ScanFlow.run(context, open: false);
+    if (made == null || !mounted) return;
+    final result = await FileOps.moveAll([made], widget.path);
+    if (!mounted) return;
+    showSnackOn(
+        messenger,
+        result.hasError
+            ? strings.t('fm.transfer_partial', {'error': result.errors.first})
+            : strings.t('create.scanned'));
+    _load();
+  }
+
+  /// **Buraya içe aktar** (Faz 6 / U7): sistem dosya seçicisinden (Drive,
+  /// başka uygulamalar, indirilenler) seçilen dosyalar bu klasöre KOPYALANIR.
+  Future<void> _importHere() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await FilePicker.platform
+        .pickFiles(allowMultiple: true, withData: false);
+    final paths = [
+      for (final f in res?.files ?? const <PlatformFile>[])
+        if (f.path != null) f.path!,
+    ];
+    if (paths.isEmpty || !mounted) return;
+    final result = await showFmProgress<FmOpResult>(
+      context,
+      title: strings.t('fm.copying'),
+      name: strings.t('fm.copying_name'),
+      task: (report, isCancelled) => FileOps.copyAll(paths, widget.path,
+          onProgress: report, isCancelled: isCancelled),
+    );
+    if (!mounted) return;
+    showSnackOn(
+        messenger,
+        result.hasError
+            ? strings.t('fm.transfer_partial', {'error': result.errors.first})
+            : strings.t('create.imported', {'n': paths.length}));
+    _load();
   }
 
   Future<String?> _askName(String title, String label, String initial) async {

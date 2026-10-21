@@ -160,7 +160,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
       action: SnackBarAction(
         label: openText,
         onPressed: () => unawaited(Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => BrowserScreen(path: dir)))),
+            browserRoute(BrowserScreen(path: dir)))),
       ),
     );
   }

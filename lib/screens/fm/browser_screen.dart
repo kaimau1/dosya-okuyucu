@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -18,9 +19,14 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/folder_size_cache.dart';
 import '../../services/fm/folder_report.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/storage_stats.dart' show StorageKind;
 import '../../services/fm/paste_conflict.dart';
-import '../../widgets/fm/drag_select.dart';
-import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../core/app_icons.dart';
+import '../../models/fm_filter.dart';
+import '../../models/fm_list_groups.dart';
+import '../../widgets/fm/fm_file_list_view.dart';
+import '../../widgets/fm/fm_path_bar.dart';
+import '../../widgets/scan_flow.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
@@ -32,17 +38,29 @@ import 'organize_screen.dart';
 import 'search_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
-import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
 
 part 'browser/actions.dart';
 part 'browser/views.dart';
 
+/// Gezgin sayfası yolu: [screen] bir [BrowserScreen] ise rota, yol hapı
+/// atlamasının ([BrowserScreen.jumpTo]) tanıyabilmesi için klasör yoluyla
+/// işaretlenir. Başka ekranlar düz `MaterialPageRoute` olarak açılır.
+Route<T> browserRoute<T>(Widget screen) => MaterialPageRoute<T>(
+      settings: screen is BrowserScreen
+          ? RouteSettings(
+              name: BrowserScreen.routeName,
+              arguments: p.normalize(screen.path))
+          : null,
+      builder: (_) => screen,
+    );
+
 /// Klasör gözatıcısı: listeleme, çoklu seçim, kopyala/kes/yapıştır, yeni
-/// klasör/dosya, sıralama, ızgara/liste, favoriler.
+/// klasör/dosya, sıralama, filtre, ızgara/liste, favoriler.
 ///
 /// Gezinme **push tabanlı**: her alt klasör yeni bir sayfadır → Android geri
-/// tuşu doğal olarak bir üst klasöre çıkar, kaydırma konumu korunur.
+/// tuşu doğal olarak bir üst klasöre çıkar, kaydırma konumu korunur. Yol
+/// haplarına dokunmak ise yeni sayfa açmaz, yığında GERİ gider ([jumpTo]).
 class BrowserScreen extends StatefulWidget {
   final String path;
 
@@ -50,6 +68,49 @@ class BrowserScreen extends StatefulWidget {
   final String? title;
 
   const BrowserScreen({super.key, required this.path, this.title});
+
+  /// [browserRoute] ile açılan gezgin rotalarının adı.
+  static const routeName = 'fm.browser';
+
+  /// Yol hapına dokunuş (Faz 6 / B2, 2026-10-21): yığında [target]
+  /// klasörüne kadar **geri** gider.
+  ///
+  /// KÖK NEDEN: hap `push` ediyordu — yığın her dokunuşta büyüyor, geri tuşu
+  /// kullanıcıyı az önce çıktığı derin klasöre götürüyordu. Şimdi [target]'ın
+  /// İÇİNDEKİ gezgin sayfaları kapatılır; [target]'ın kendisi yığında varsa
+  /// orada durulur (kaydırma konumu da korunur), yoksa (ör. derin bir klasör
+  /// doğrudan "Göster" ile açıldıysa) kapatılan sayfaların YERİNE açılır —
+  /// yığın hiçbir durumda büyümez.
+  static void jumpTo(BuildContext context, String target) {
+    final nav = Navigator.of(context);
+    final want = p.normalize(target);
+    var found = false;
+    var popped = 0;
+    nav.popUntil((route) {
+      final s = route.settings;
+      if (s.name != routeName || s.arguments is! String) return true;
+      final at = s.arguments as String;
+      if (at == want) {
+        found = true;
+        return true;
+      }
+      // Hedefin altındaki (daha derin) sayfa kapanır; hedefin dışındaki
+      // bir sayfaya (üst klasör ya da başka birim) gelince durulur.
+      if (FsPaths.isInside(want, at)) {
+        popped++;
+        return false;
+      }
+      return true;
+    });
+    if (found) return;
+    if (popped > 0) {
+      nav.push(browserRoute(BrowserScreen(path: want)));
+    } else {
+      // Hiçbir sayfa kapanmadı (hedef başka bir dalda) → bulunulan sayfanın
+      // YERİNE aç: geri tuşu yine bir öncekine döner, yığın büyümez.
+      nav.pushReplacement(browserRoute(BrowserScreen(path: want)));
+    }
+  }
 
   @override
   State<BrowserScreen> createState() => _BrowserScreenState();
@@ -67,11 +128,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
   String? _error;
   final Set<String> _selected = {};
 
+  /// Gezgin süzgeci (Faz 6 / U3): tür çipi + tarih/boyut. Sayfaya özel —
+  /// alt klasöre geçince sıfırdan başlar (süzgeç bir bakış, ayar değil).
+  FmCategory? _kind;
+  FmFilter _filter = FmFilter.none;
+
+  /// Çip satırı açık mı? Süzgeç etkinse her zaman açık kalır (aksi hâlde
+  /// liste "neden eksik" belli olmazdı).
+  bool _showFilters = false;
+
   /// Liste ve ızgara aynı anda mount edilmediği için tek denetleyici yeterli;
   /// sürükleyerek seçimde kenara gelince otomatik kaydırma bunu kullanır.
   final ScrollController _scroll = ScrollController();
 
   bool get _selecting => _selected.isNotEmpty;
+
+  int get _filterCount => (_kind == null ? 0 : 1) + _filter.activeCount;
 
   /// Görünen tüm girdiler seçili mi? ("Tümünü seç" düğmesinin durumu.)
   bool get _allSelected =>
@@ -101,14 +173,67 @@ class _BrowserScreenState extends State<BrowserScreen> {
     if (mounted) setState(() {});
   }
 
-  // ── işlemler ──────────────────────────────────────────────────────────────
+  /// Süzgeçten geçen girdiler (sıralı).
+  List<FsEntry> _visible(List<FsEntry> sorted) {
+    if (_kind == null && !_filter.isActive) return sorted;
+    return [
+      for (final e in sorted)
+        if (matchesCategory(e, _kind) && _passesFilter(e)) e,
+    ];
+  }
+
+  bool _passesFilter(FsEntry e) {
+    if (!_filter.isActive) return true;
+    if (!e.isDir) return _filter.matches(e);
+    // Klasörün "boyutu" yok: boyut süzgeci açıkken klasörler gizlenir,
+    // tarih süzgeci klasörün değiştirilme zamanına bakar.
+    if (_filter.sizeRange != FmSizeRange.any) return false;
+    return _filter.matches(e);
+  }
 
   // ── arayüz ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final entries = _sorted;
+    final sorted = _sorted(appState);
+    final entries = _visible(sorted);
+    final wide = MediaQuery.sizeOf(context).width >= 840;
+
+    final listColumn = Column(
+      children: [
+        FmPathBar(
+          path: widget.path,
+          onTap: (target) => BrowserScreen.jumpTo(context, target),
+        ),
+        if (!_locked && _error == null && (!_loading || _entries.isNotEmpty))
+          FmListToolbar(
+            count: entries.length,
+            totalBytes: _bytesOf(entries),
+            sort: appState.fmSort,
+            descending: appState.fmSortDesc,
+            onSort: (s, d) => appState.setFmSort(s, descending: d),
+            filterCount: _filterCount,
+            onFilter: () => _partSetState(() => _showFilters = !_showFilters),
+          ),
+        if (!_locked && (_showFilters || _filterCount > 0) && _entries.isNotEmpty)
+          FmTypeChips(
+            source: _entries,
+            category: _kind,
+            onCategory: (c) => _partSetState(() => _kind = c),
+            filter: _filter,
+            onFilter: (f) => _partSetState(() => _filter = f),
+          ),
+        Expanded(
+          child: _locked
+              ? FmEmptyState(
+                  icon: AppIcons.locked,
+                  title: context.t('fm.locked_prompt'),
+                )
+              : _body(entries, appState),
+        ),
+      ],
+    );
 
     return Scaffold(
       appBar: _selecting ? _selectionBar(context, entries) : _normalBar(context),
@@ -116,34 +241,18 @@ class _BrowserScreenState extends State<BrowserScreen> {
       // hâlde liste zıplıyor — 2026-07-29 hatası).
       body: Stack(
         children: [
-          Column(
-        children: [
-          _Breadcrumb(
-            path: widget.path,
-            onTap: (target) {
-              // Üst klasöre atlamak = yığında oraya kadar geri gitmek yerine
-              // yeni sayfa açmak; geri tuşu yine çalışır, kod basit kalır.
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => BrowserScreen(path: target),
-              ));
-            },
-          ),
-          Expanded(
-            child: _locked
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(Gap.lg),
-                      child: Text(
-                        context.t('fm.locked_prompt'),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : _body(entries),
-          ),
-          if (appState.hasClipboard && !_selecting) _pasteBar(appState),
-        ],
-          ),
+          // ≥ 840 dp (tablet, açık katlanabilir — Faz 6 / U11): solda
+          // birimler + favoriler, sağda liste.
+          if (wide)
+            Row(
+              children: [
+                SizedBox(width: 280, child: _sidePane(context, appState)),
+                const VerticalDivider(width: 1),
+                Expanded(child: listColumn),
+              ],
+            )
+          else
+            listColumn,
           // Seçim varken alt eylem çubuğu: Taşı · Kopyala · Paylaş · Sil.
           // (Üst çubuktaki küçük simgeler başparmakla zor ve taşıma orada yoktu.)
           if (_selecting)
@@ -167,128 +276,49 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
         ],
       ),
-      floatingActionButton: _selecting
-          ? null
-          : FloatingActionButton(
-              onPressed: _showCreateSheet,
-              tooltip: context.t('fm.new_folder_or_file'),
-              child: const Icon(Icons.add),
-            ),
+      floatingActionButton: _selecting ? null : _fab(appState),
     );
   }
 
+  /// Bağlamsal "+" (Faz 6 / U7): panoda öğe varsa düğme **"Yapıştır (3)"**
+  /// olur (yanında küçük "vazgeç"); yoksa oluşturma levhasını açar.
+  Widget _fab(AppState appState) {
+    if (appState.hasClipboard) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'fm.paste_cancel',
+            tooltip: context.t('common.cancel'),
+            onPressed: appState.clearClipboard,
+            child: const Icon(AppIcons.close),
+          ),
+          const SizedBox(width: Gap.sm),
+          FloatingActionButton.extended(
+            heroTag: 'fm.paste',
+            onPressed: _paste,
+            icon: Icon(appState.clipboardCut ? AppIcons.cut : AppIcons.paste),
+            label: Text(context.t(
+                'create.paste_n', {'n': appState.clipboard.length})),
+          ),
+        ],
+      );
+    }
+    return FloatingActionButton(
+      onPressed: _showCreateSheet,
+      tooltip: context.t('fm.new_folder_or_file'),
+      child: const Icon(AppIcons.add),
+    );
+  }
+
+  int _bytesOf(List<FsEntry> entries) {
+    var total = 0;
+    for (final e in entries) {
+      if (!e.isDir) total += e.sizeBytes;
+    }
+    return total;
+  }
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
-}
-
-/// Yol çubuğu: her parçaya dokununca o klasöre gider.
-class _Breadcrumb extends StatelessWidget {
-  final String path;
-  final void Function(String) onTap;
-  const _Breadcrumb({required this.path, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final segments = <({String label, String path})>[];
-    // Kök olarak birim köklerini kullan: kullanıcıya "/storage/emulated/0"
-    // yerine "Ana bellek" gösterilir.
-    var remainder = p.normalize(path);
-    String? rootPath;
-    String rootLabel = context.t('fm.root');
-    for (final v in FmEnv.volumes) {
-      if (FsPaths.isInside(v.path, remainder)) {
-        rootPath = p.normalize(v.path);
-        // `label` birincil bellekte BOŞ (ad çeviriden gelir): kökte yol
-        // çubuğu boş bir şerit olarak görünüyordu (kullanıcı ekran
-        // görüntüsü 2026-09-23). Panodaki kartla aynı ad kaynağı.
-        rootLabel = v.displayLabel(context.t);
-        break;
-      }
-    }
-    rootPath ??= '/';
-    segments.add((label: rootLabel, path: rootPath));
-    if (remainder.length > rootPath.length) {
-      final rest = remainder
-          .substring(rootPath.length)
-          .split('/')
-          .where((s) => s.isNotEmpty);
-      var acc = rootPath;
-      for (final s in rest) {
-        acc = p.join(acc, s);
-        segments.add((label: s, path: acc));
-      }
-    }
-
-    // Birimin KÖKÜNDE yol çubuğu gösterilmez: tek parçası başlıkla aynı
-    // ("Ana bellek") — 45 dp'lik bir şerit yalnız tekrar ediyordu.
-    if (segments.length < 2) return const SizedBox.shrink();
-
-    // Hap biçimli yol parçaları (2026-09-23 tasarım turu): üst klasörler
-    // dokunulabilir haplar, bulunulan klasör dolgulu hap.
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-      ),
-      alignment: Alignment.centerLeft,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        reverse: true, // uzun yolda son klasör görünür kalsın
-        shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 8),
-        itemCount: segments.length,
-        itemBuilder: (context, i) {
-          final seg = segments[segments.length - 1 - i];
-          final isLast = i == 0;
-          final isRoot = i == segments.length - 1;
-          return Row(
-            children: [
-              if (!isRoot)
-                Icon(Icons.chevron_right,
-                    size: 18, color: scheme.onSurfaceVariant),
-              Material(
-                color: isLast
-                    ? scheme.primaryContainer
-                    : scheme.surfaceContainerHigh,
-                shape: const StadiumBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: isLast ? null : () => onTap(seg.path),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isRoot) ...[
-                          Icon(Icons.smartphone_rounded,
-                              size: 15,
-                              color: isLast
-                                  ? scheme.onPrimaryContainer
-                                  : scheme.onSurfaceVariant),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(
-                          seg.label,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight:
-                                isLast ? FontWeight.w700 : FontWeight.w500,
-                            color: isLast
-                                ? scheme.onPrimaryContainer
-                                : scheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 }

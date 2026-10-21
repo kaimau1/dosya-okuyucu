@@ -159,8 +159,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
           IconButton(
             tooltip: context.t('org.open_folder'),
             icon: const Icon(Icons.folder_open),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => BrowserScreen(path: widget.path),
+            onPressed: () => Navigator.of(context).push(browserRoute(BrowserScreen(path: widget.path),
             )),
           ),
         ],

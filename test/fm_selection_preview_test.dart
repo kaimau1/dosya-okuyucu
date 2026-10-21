@@ -36,7 +36,7 @@ void main() {
           home: Scaffold(
             body: ListView(
               children: [
-                FmEntryListTile(
+                FmEntryRow(
                   entry: entry,
                   selected: selected,
                   selecting: selecting,

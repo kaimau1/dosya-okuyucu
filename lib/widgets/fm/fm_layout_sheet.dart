@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
+
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
@@ -51,12 +53,13 @@ Future<FmLayout?> showFmLayoutSheet(
 
 /// Yerleşimin simgesi (AppBar düğmesi ve seçim listesi aynı simgeyi kullanır).
 IconData fmLayoutIcon(FmLayout layout) => switch (layout) {
-      FmLayout.list => Icons.view_list,
-      FmLayout.detail => Icons.view_agenda_outlined,
-      FmLayout.grid2 => Icons.grid_view,
-      FmLayout.grid3 => Icons.grid_on,
-      FmLayout.grid4 => Icons.apps,
-      FmLayout.grid5 => Icons.blur_on,
+      FmLayout.list => AppIcons.layoutList,
+      FmLayout.detail => AppIcons.layoutDetail,
+      FmLayout.grid2 ||
+      FmLayout.grid3 ||
+      FmLayout.grid4 ||
+      FmLayout.grid5 =>
+        AppIcons.layoutGrid,
     };
 
 /// Yerleşimin ızgara delegesi. Sütun sayısı SABİTTİR (maxCrossAxisExtent
@@ -64,10 +67,17 @@ IconData fmLayoutIcon(FmLayout layout) => switch (layout) {
 /// sütun görmeli — eski `maxCrossAxisExtent: 120` telefonda 3, tablette 5
 /// sütun üretiyordu.
 SliverGridDelegate fmGridDelegate(FmLayout layout, double width) {
-  final spacing = layout.columns >= 4 ? Gap.xs : Gap.sm;
-  final cell = (width - spacing * (layout.columns - 1)) / layout.columns;
+  // Telefonda sütun sayısı yerleşimin kendisi; GENİŞ ekranda (≥ 600 dp,
+  // tablet/katlanabilir — Faz 6 / U11) hücre ~150 dp'yi aşmasın diye sütun
+  // genişlikten türer: 3 sütun tablette 140 dp yerine 300 dp'lik kareler
+  // çiziyordu.
+  final columns = width >= 600
+      ? (width / 150).floor().clamp(layout.columns, 12)
+      : layout.columns;
+  final spacing = columns >= 4 ? Gap.xs : Gap.sm;
+  final cell = (width - spacing * (columns - 1)) / columns;
   return SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: layout.columns,
+    crossAxisCount: columns,
     childAspectRatio: layout.aspectFor(cell),
     mainAxisSpacing: spacing,
     crossAxisSpacing: spacing,

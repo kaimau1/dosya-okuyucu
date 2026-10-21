@@ -23,8 +23,8 @@ import '../../services/fm/search_index.dart';
 import '../../services/fm/smart_query.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
-import '../../widgets/fm/drag_select.dart';
-import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../models/fm_layout.dart';
+import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
@@ -401,11 +401,12 @@ class _SearchScreenState extends State<SearchScreen> {
         title: Text(context.t('ph.selected_of',
             {'n': selected.length, 'total': results.length})),
         actions: [
-          IconButton(
-            tooltip: context
-                .t(allSelected ? 'ph.clear_selection' : 'ph.select_all'),
-            icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
-            onPressed: () => _toggleSelectAll(results),
+          FmSelectionActions(
+            allSelected: allSelected,
+            single: _selected.length == 1,
+            onToggleAll: () => _toggleSelectAll(results),
+            onAbove: () => _selectAnchor(results, above: true),
+            onBelow: () => _selectAnchor(results, above: false),
           ),
         ],
       ),
@@ -516,17 +517,25 @@ class _SearchScreenState extends State<SearchScreen> {
   /// (Sessizce kırpılmış bir liste "dosyam yok" sanılır.)
   Widget _resultSummary(int shown) {
     final capped = _results.length >= 1000;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
-      child: Text(
-        context.t('srch.summary', {
-          'n': shown,
-          'sort': context.t(_sort.labelKey),
-          'dir': context.t(_desc ? 'fmset.desc' : 'fmset.asc'),
-          'capped': capped ? context.t('srch.capped') : '',
-        }),
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FmListToolbar(
+          count: shown,
+          sort: _sort,
+          descending: _desc,
+          onSort: (sort, desc) => setState(() {
+            _sort = sort;
+            _desc = desc;
+          }),
+        ),
+        if (capped)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
+            child: Text(context.t('srch.capped').replaceFirst('·', '').trim(),
+                style: Theme.of(context).textTheme.bodySmall),
+          ),
+      ],
     );
   }
 
@@ -618,11 +627,15 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
     // Uzun basış seçimi açar, basılı tutup kaydırmak aralık seçer — kategori
-    // ve galeri ekranlarındaki jestin AYNISI (kullanıcı bir kez öğrenir).
-    return DragSelectArea(
-      scrollController: _scroll,
-      isSelected: (i) =>
-          i >= 0 && i < results.length && _selected.contains(results[i].path),
+    // ve galeri ekranlarındaki jestin AYNISI (ortak [FmFileListView], Faz 6).
+    return FmFileListView(
+      entries: results,
+      layout: FmLayout.list,
+      selected: _selected,
+      controller: _scroll,
+      bottomPadding: 88,
+      onOpen: _open,
+      onToggle: _toggle,
       onSelectRange: (a, b, sel) => setState(() {
         for (var i = a; i <= b; i++) {
           if (i < 0 || i >= results.length) continue;
@@ -633,47 +646,19 @@ class _SearchScreenState extends State<SearchScreen> {
           }
         }
       }),
-      child: ListView.builder(
-        controller: _scroll,
-        // Seçim çubuğu gövdenin ÜSTÜNE bindirmeli çizilir; son satır altında
-        // kalmasın diye sabit boşluk (çubuk yokken de aynı → liste zıplamaz).
-        padding: withNavInset(context, const EdgeInsets.only(bottom: 88)),
-        itemCount: results.length,
-        itemBuilder: (context, i) {
-          final e = results[i];
-          return DragSelectItem(
-            index: i,
-            child: FmEntryListTile(
-              entry: e,
-              selected: _selected.contains(e.path),
-              selecting: _selecting,
-              // İçerik aramasında alt satır **eşleşmeyi** gösteriyor:
-              // "3 eşleşme · 12. satır · …fatura no: 2024/17…". Boyut ve
-              // klasör orada işe yaramaz; kullanıcı METNİ arıyor.
-              subtitle: _subtitleFor(e),
-              onTap: () {
-                if (_selecting) {
-                  _toggle(e);
-                } else {
-                  _open(e);
-                }
-              },
-              onCheck: () => _toggle(e),
-              onMore: _selecting
-                  ? null
-                  : () async {
-                      await showEntryActions(
-                        context,
-                        e,
-                        allowReveal: true,
-                        onReveal: _reveal,
-                      );
-                      if (mounted) _run(_controller.text);
-                    },
-            ),
-          );
-        },
-      ),
+      // İçerik aramasında alt satır **eşleşmeyi** gösteriyor:
+      // "3 eşleşme · 12. satır · …fatura no: 2024/17…". Boyut ve
+      // klasör orada işe yaramaz; kullanıcı METNİ arıyor.
+      subtitle: _subtitleFor,
+      onMore: (e) async {
+        await showEntryActions(
+          context,
+          e,
+          allowReveal: true,
+          onReveal: _reveal,
+        );
+        if (mounted) _run(_controller.text);
+      },
     );
   }
 
@@ -693,8 +678,19 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _reveal(String path) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => BrowserScreen(path: path),
-    ));
+    Navigator.of(context).push(browserRoute(BrowserScreen(path: path)));
+  }
+
+  /// Tek sonuç seçiliyken üstündekileri/altındakileri de seçer (kategori
+  /// ekranındaki "buraya kadar seç" jestinin aynısı).
+  void _selectAnchor(List<FsEntry> visible, {required bool above}) {
+    if (_selected.length != 1) return;
+    final i = visible.indexWhere((e) => e.path == _selected.first);
+    if (i < 0) return;
+    setState(() {
+      for (var k = above ? 0 : i; k <= (above ? i : visible.length - 1); k++) {
+        _selected.add(visible[k].path);
+      }
+    });
   }
 }

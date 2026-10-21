@@ -101,7 +101,7 @@ extension FmLayoutInfo on FmLayout {
   /// Izgara hücresinin en-boy oranı: ikon karesi + ad şeridi (~34 dp).
   ///
   /// Hücre bu orana göre YÜKSEKLİK alır; ikonun kendisi hücrenin gerçek
-  /// yüksekliğinden ölçülür (bkz. `FmEntryGridTile`) — böylece büyük yazı
+  /// yüksekliğinden ölçülür (bkz. `FmEntryCard`) — böylece büyük yazı
   /// tipi ölçeğinde taşma yerine ikon küçülür.
   double aspectFor(double cellWidth) {
     if (!isGrid) return 1;

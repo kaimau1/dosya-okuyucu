@@ -134,8 +134,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
       final path = await FileOps.createFolder(_root, name);
       await _load();
       if (!mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => BrowserScreen(path: path),
+      await Navigator.of(context).push(browserRoute(BrowserScreen(path: path),
       ));
       await _load();
     } catch (e) {
@@ -176,7 +175,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
   }
 
   Future<void> _push(Widget screen) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    await Navigator.of(context).push(browserRoute(screen));
     await _load();
   }
 

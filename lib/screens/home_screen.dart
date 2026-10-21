@@ -117,8 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openShortcut(String path) async {
     if (!mounted) return;
     if (Directory(path).existsSync()) {
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => BrowserScreen(path: path),
+      await Navigator.of(context).push(browserRoute(BrowserScreen(path: path),
       ));
     } else if (File(path).existsSync()) {
       await EntryOpener.open(context, path);
@@ -137,8 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _startFolderOpened = true;
     final path = context.read<AppState>().fmStartFolder;
     if (path.isEmpty || !Directory(path).existsSync()) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => BrowserScreen(path: path),
+    await Navigator.of(context).push(browserRoute(BrowserScreen(path: path),
     ));
   }
 

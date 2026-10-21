@@ -33,7 +33,7 @@ void main() {
                 builder: (context, constraints) => GridView.builder(
                   gridDelegate: fmGridDelegate(layout, constraints.maxWidth),
                   itemCount: 12,
-                  itemBuilder: (_, __) => FmEntryGridTile(
+                  itemBuilder: (_, __) => FmEntryCard(
                     entry: entry,
                     layout: layout,
                     selected: false,
@@ -51,7 +51,7 @@ void main() {
     testWidgets('${layout.label} ızgarası taşmadan çizilir', (tester) async {
       await tester.pumpWidget(harness(layout));
       expect(tester.takeException(), isNull);
-      expect(find.byType(FmEntryGridTile), findsWidgets);
+      expect(find.byType(FmEntryCard), findsWidgets);
     });
 
     testWidgets('${layout.label} büyük yazı tipinde de taşmaz', (tester) async {
@@ -62,7 +62,7 @@ void main() {
 
   testWidgets('ikon hücrenin büyük bölümünü kaplar (3 sütun)', (tester) async {
     await tester.pumpWidget(harness(FmLayout.grid3));
-    final tileSize = tester.getSize(find.byType(FmEntryGridTile).first);
+    final tileSize = tester.getSize(find.byType(FmEntryCard).first);
     // 2026-08-29: düz Material glifi yerine ÇİZİLEN simge ([FmGlyph]);
     // ölçülen şey değişmedi — simgenin hücreye göre büyüklüğü.
     final iconBox = tester.getSize(find.byType(FmGlyph).first);

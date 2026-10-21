@@ -32,8 +32,7 @@ Future<void> runDownloadAction(
           {'name': name}),
       action: SnackBarAction(
         label: strings.t('dl.show'),
-        onPressed: () => navigator.push(MaterialPageRoute(
-          builder: (_) => BrowserScreen(path: p.dirname(saved.path)),
+        onPressed: () => navigator.push(browserRoute(BrowserScreen(path: p.dirname(saved.path)),
         )),
       ),
     );

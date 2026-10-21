@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -74,7 +75,7 @@ class FmSelectionBar extends StatelessWidget {
               children: [
                 _action(
                   context,
-                  Icons.drive_file_move_outline,
+                  AppIcons.move,
                   context.t('fm.move'),
                   () async {
                     if (await moveOrCopyEntries(context, _paths, move: true)) {
@@ -84,7 +85,7 @@ class FmSelectionBar extends StatelessWidget {
                 ),
                 _action(
                   context,
-                  Icons.folder_copy_outlined,
+                  AppIcons.copy,
                   context.t('fm.copy'),
                   () async {
                     if (await moveOrCopyEntries(context, _paths, move: false)) {
@@ -95,13 +96,13 @@ class FmSelectionBar extends StatelessWidget {
                 if (!_anyDir)
                   _action(
                     context,
-                    Icons.share_outlined,
+                    AppIcons.share,
                     context.t('common.share'),
                     () => shareEntriesFrom(context, _paths),
                   ),
                 _action(
                   context,
-                  Icons.delete_outline,
+                  AppIcons.delete,
                   context.t('common.delete'),
                   () async {
                     if (await deleteEntries(context, selected)) {
@@ -248,7 +249,7 @@ class FmSelectionBar extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.more_horiz),
+              const Icon(AppIcons.moreHoriz),
               const SizedBox(height: 2),
               Text(context.t('fm.more'),
                   maxLines: 1,

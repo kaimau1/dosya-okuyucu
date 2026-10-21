@@ -453,9 +453,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                 e,
                                 allowReveal: true,
                                 onReveal: (path) => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                      builder: (_) =>
-                                          BrowserScreen(path: path)),
+                                  browserRoute(BrowserScreen(path: path)),
                                 ),
                               );
                               await _refreshAlive();

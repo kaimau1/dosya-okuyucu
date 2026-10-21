@@ -50,7 +50,7 @@ void main() {
     // Kullanıcı 2026-08-30: *"solda çok boşluk kalıyor klasörlerin"*.
     //
     // KÖK NEDEN: boyayıcı `size.shortestSide` alıp KARE çiziyordu. Liste
-    // satırında kutu kare değil — `FmEntryListTile` 68 dp istiyor ama
+    // satırında kutu kare değil — `FmEntryRow` 68 dp istiyor ama
     // Material'in `ListTile`ı `leading` yüksekliğini 56 dp'de kesiyor, yani
     // kutu 68 × 56. Kısa kenar alınınca klasör 56'lık kareye inip ortalanıyor
     // ve iki yanda 6'şar dp ölü alan kalıyordu.

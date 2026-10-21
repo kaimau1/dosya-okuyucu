@@ -114,8 +114,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         content: Text(context.t('fm.extracted_to', {'name': p.basename(target)})),
         action: SnackBarAction(
           label: context.t('common.open'),
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => BrowserScreen(path: target),
+          onPressed: () => Navigator.of(context).push(browserRoute(BrowserScreen(path: target),
           )),
         ),
       ));

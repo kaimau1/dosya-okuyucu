@@ -147,8 +147,7 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
       ),
       onTap: dest == null
           ? null
-          : () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => BrowserScreen(path: dest),
+          : () => Navigator.of(context).push(browserRoute(BrowserScreen(path: dest),
               )),
       trailing: record.canUndo
           ? (busy

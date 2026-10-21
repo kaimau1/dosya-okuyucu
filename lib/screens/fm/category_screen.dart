@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
-import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
@@ -16,17 +15,16 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fm_location.dart';
 import '../../services/fm/open_history.dart';
-import '../../widgets/fm/drag_select.dart';
-import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../core/app_icons.dart';
+import '../../widgets/fm/fm_file_list_view.dart';
+import '../../widgets/motion.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
-import '../../widgets/section_header.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
-import '../../core/safe_insets.dart';
 
 /// Bir kategorinin (Görüntüler / Videolar / Ses / Belgeler / Uygulamalar /
 /// Arşivler / Yeni dosyalar) tüm depolamadaki dosyaları.
@@ -335,31 +333,48 @@ class _CategoryScreenState extends State<CategoryScreen> {
             onChanged: (f) => setState(() => _filter = f),
             leading: widget.showDocKinds ? _docKindChips() : const [],
           ),
+          FmListToolbar(
+            count: files.length,
+            sort: _sort,
+            descending: _desc,
+            onSort: (sort, desc) => setState(() {
+              _sort = sort;
+              _desc = desc;
+            }),
+            filterCount: _filter.activeCount,
+            onFilter: _openFilterSheet,
+          ),
           Expanded(
-            child: files.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(Gap.lg),
-                      child: Text(
-                        context.t(_loadingAll
-                            ? 'ph.loading'
-                            : (_query.trim().isEmpty && !_filter.isActive
-                                ? 'ph.cat_empty'
-                                : 'ph.no_match')),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : DragSelectArea(
-                    scrollController: _scroll,
-                    isSelected: (i) =>
-                        i >= 0 &&
-                        i < files.length &&
-                        _selected.contains(files[i].path),
-                    onSelectRange: (a, b, sel) =>
-                        _selectRange(files, a, b, sel),
-                    child: _layout.isGrid ? _gridView(files) : _listView(files),
-                  ),
+            child: FmFileListView(
+              entries: files,
+              layout: _layout,
+              selected: _selected,
+              controller: _scroll,
+              loading: _loadingAll,
+              groupBy: _sort,
+              bottomPadding: 88,
+              onOpen: _open,
+              onToggle: _toggle,
+              onSelectRange: (a, b, sel) => _selectRange(files, a, b, sel),
+              // Tam yol yerine kaynak adı ("WhatsApp", "İndirilenler") —
+              // bkz. [FmLocation] (2026-09-23 tasarım turu).
+              subtitle: (e) => FmLocation.subtitle(
+                  e.path, e.sizeBytes, e.modifiedMs, context.t,
+                  volumes: FmEnv.volumes),
+              onMore: (e) async {
+                await showEntryActions(context, e,
+                    allowReveal: true, onReveal: _reveal);
+                _dropMissing();
+              },
+              empty: FmEmptyState(
+                icon: _query.trim().isEmpty && !_filter.isActive
+                    ? AppIcons.emptyFolder
+                    : AppIcons.noMatch,
+                title: context.t(_query.trim().isEmpty && !_filter.isActive
+                    ? 'ph.cat_empty'
+                    : 'ph.no_match'),
+              ),
+            ),
           ),
         ],
           ),
@@ -387,30 +402,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   PreferredSizeWidget _normalBar() => AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.title),
-            // Sıralamanın ne olduğu yalnız süzgeç sayfası açılınca
-            // görülüyordu — özet satıra alındı ("… · Tarihe göre ↓").
-            MonoText(
-              context.t('cat.summary', {
-                'n': _sorted.length,
-                'total': _files.length,
-                'sort': '${context.t(_sort.labelKey)} ${_desc ? '↓' : '↑'}',
-              }),
-              size: 11,
-            ),
-          ],
-        ),
+        // Sayı ve sıralama artık listenin üstündeki araç şeridinde
+        // ([FmListToolbar], Faz 6) — başlık altındaki özet satırı kalktı.
+        title: Text(widget.title),
         actions: [
           IconButton(
             tooltip: context.t('ph.search_in', {'title': widget.title}),
-            icon: const Icon(Icons.search),
+            icon: const Icon(AppIcons.search),
             onPressed: () => setState(() => _searching = true),
           ),
-          FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           IconButton(
             tooltip: context.t('ph.layout', {'name': context.t(_layout.labelKey)}),
             icon: Icon(fmLayoutIcon(_layout)),
@@ -485,30 +485,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
         title: Text(context.t('ph.selected_of',
             {'n': selectedEntries.length, 'total': files.length})),
         actions: [
-          if (_selected.length == 1) ...[
-            IconButton(
-              tooltip: context.t('ph.select_above'),
-              icon: const Icon(Icons.expand_less),
-              onPressed: () => _selectFromAnchor(files, above: true),
-            ),
-            IconButton(
-              tooltip: context.t('ph.select_below'),
-              icon: const Icon(Icons.expand_more),
-              onPressed: () => _selectFromAnchor(files, above: false),
-            ),
-          ],
-          IconButton(
-            tooltip: context.t(files.every((e) => _selected.contains(e.path))
-                ? 'ph.clear_selection'
-                : 'ph.select_all'),
-            icon: Icon(files.every((e) => _selected.contains(e.path))
-                ? Icons.deselect
-                : Icons.select_all),
-            onPressed: () => _toggleSelectAll(files),
+          FmSelectionActions(
+            allSelected: files.every((e) => _selected.contains(e.path)),
+            single: _selected.length == 1,
+            onToggleAll: () => _toggleSelectAll(files),
+            onAbove: () => _selectFromAnchor(files, above: true),
+            onBelow: () => _selectFromAnchor(files, above: false),
           ),
         ],
       );
-
 
   /// Belge türü çipleri (PDF / Word / Excel / Slayt / Metin / Diğer).
   /// Boş tür gösterilmez; sayılar gerçek dosya sayısıdır.
@@ -551,79 +536,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
     ];
   }
 
-  Widget _listView(List<FsEntry> files) => ListView.builder(
-        controller: _scroll,
-        // Alt eylem çubuğu bindirmeli çizildiği için son satır onun altında
-        // kalmasın diye sabit boşluk (çubuk yokken de aynı → zıplama olmaz).
-        padding: withNavInset(context, const EdgeInsets.only(bottom: 88)),
-        itemCount: files.length,
-        itemBuilder: (context, i) {
-          final e = files[i];
-          return DragSelectItem(
-            index: i,
-            child: FmEntryListTile(
-              entry: e,
-              layout: _layout,
-              selected: _selected.contains(e.path),
-              selecting: _selecting,
-              // Tam yol yerine kaynak adı ("WhatsApp", "İndirilenler") —
-              // bkz. [FmLocation] (2026-09-23 tasarım turu).
-              subtitle: FmLocation.subtitle(
-                  e.path, e.sizeBytes, e.modifiedMs, context.t,
-                  volumes: FmEnv.volumes),
-              onTap: () {
-                if (_selecting) {
-                  _toggle(e);
-                } else {
-                  _open(e);
-                }
-              },
-              onCheck: () => _toggle(e),
-              onMore: _selecting
-                  ? null
-                  : () async {
-                      await showEntryActions(context, e,
-                          allowReveal: true, onReveal: _reveal);
-                      _dropMissing();
-                    },
-            ),
-          );
-        },
-      );
-
-  Widget _gridView(List<FsEntry> files) => LayoutBuilder(
-        builder: (context, constraints) {
-          const pad = Gap.sm;
-          return GridView.builder(
-            controller: _scroll,
-            padding: withNavInset(
-                context, const EdgeInsets.fromLTRB(pad, pad, pad, 88)),
-            gridDelegate:
-                fmGridDelegate(_layout, constraints.maxWidth - pad * 2),
-            itemCount: files.length,
-            itemBuilder: (context, i) {
-              final e = files[i];
-              return DragSelectItem(
-                index: i,
-                child: FmEntryGridTile(
-                  entry: e,
-                  layout: _layout,
-                  selected: _selected.contains(e.path),
-                  selecting: _selecting,
-                  onTap: () {
-                    if (_selecting) {
-                      _toggle(e);
-                    } else {
-                      _open(e);
-                    }
-                  },
-                ),
-              );
-            },
-          );
-        },
-      );
-
   Future<void> _open(FsEntry e) => EntryOpener.open(
         context,
         e.path,
@@ -631,8 +543,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
       );
 
   void _reveal(String path) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => BrowserScreen(path: path),
-    ));
+    Navigator.of(context).push(browserRoute(BrowserScreen(path: path)));
   }
 }

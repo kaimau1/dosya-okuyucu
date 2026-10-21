@@ -119,8 +119,7 @@ class _FolderMapScreenState extends State<FolderMapScreen> {
             tooltip: context.t('important.open_in_browser'),
             icon: const Icon(Icons.folder_open),
             onPressed: () async {
-              await Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => BrowserScreen(path: widget.path),
+              await Navigator.of(context).push(browserRoute(BrowserScreen(path: widget.path),
               ));
               if (mounted) await _load();
             },

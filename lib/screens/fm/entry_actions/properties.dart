@@ -265,7 +265,7 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
         alignment: AlignmentDirectional.centerStart,
         child: TextButton.icon(
           onPressed: _computeDigest,
-          icon: const Icon(Icons.tag, size: 18),
+          icon: const Icon(AppIcons.hashtag, size: 18),
           label: Text(context.t('prop.compute_digest')),
         ),
       ),
@@ -389,7 +389,7 @@ Future<bool> hideEntries(BuildContext context, List<String> paths) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      icon: const Icon(Icons.enhanced_encryption_outlined),
+      icon: const Icon(AppIcons.vault),
       title: Text(ctx.t('hv.confirm_title', {'n': paths.length})),
       content: Text(ctx.t('hv.confirm_body')),
       actions: [

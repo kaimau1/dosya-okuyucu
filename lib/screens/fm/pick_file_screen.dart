@@ -45,7 +45,7 @@ import '../../services/fm/picker_bridge.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/section_header.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
@@ -746,30 +746,24 @@ class _PickFileScreenState extends State<PickFileScreen> {
         _ => Icons.description_outlined,
       };
 
+  /// Ortak satır ([FmEntryRow], Faz 6): seçici de gezginle AYNI satırı
+  /// çizer; çoklu seçimde onay rozeti önizlemenin köşesine biner.
   Widget _row(FsEntry entry) {
     final picked = _selected.contains(entry.path);
-    return ListTile(
-      leading: FmEntryIcon(entry: entry),
-      title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: entry.isDir
-          ? null
-          : Text(
-              // Ana sayfada ve arama sonucunda dosyanın NEREDE olduğu kritik:
-              // aynı adlı iki dosyayı ayırt etmenin tek yolu bu.
-              _view == _PickView.folder
-                  ? FsPaths.humanSize(entry.sizeBytes)
-                  : '${FsPaths.humanSize(entry.sizeBytes)} · '
-                      '${p.basename(p.dirname(entry.path))}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: Paper.faint(context)),
-            ),
-      trailing: entry.isDir
-          ? const Icon(Icons.chevron_right)
-          : (_request.allowMultiple
-              ? Checkbox(value: picked, onChanged: (_) => _onTapEntry(entry))
-              : null),
+    return FmEntryRow(
+      entry: entry,
       selected: picked,
+      selecting: _request.allowMultiple && !entry.isDir,
+      showChevron: true,
+      // Ana sayfada ve arama sonucunda dosyanın NEREDE olduğu kritik:
+      // aynı adlı iki dosyayı ayırt etmenin tek yolu bu.
+      subtitle: entry.isDir
+          ? FsPaths.humanDate(entry.modifiedMs)
+          : (_view == _PickView.folder
+              ? FsPaths.humanSize(entry.sizeBytes)
+              : '${FsPaths.humanSize(entry.sizeBytes)} · '
+                  '${p.basename(p.dirname(entry.path))}'),
+      onCheck: () => _onTapEntry(entry),
       onTap: () => _onTapEntry(entry),
     );
   }

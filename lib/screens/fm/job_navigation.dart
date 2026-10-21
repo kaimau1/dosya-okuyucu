@@ -81,7 +81,7 @@ Future<bool> _openTarget(BuildContext context, FmJobTarget target) async {
       final path = target.paths.isEmpty ? null : target.paths.first;
       if (path == null || !Directory(path).existsSync()) return false;
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => BrowserScreen(path: path)),
+        browserRoute(BrowserScreen(path: path)),
       );
       return true;
     case FmJobTargetKind.aiHub:
@@ -102,7 +102,7 @@ Future<bool> _openOutputs(BuildContext context, FmJob job) async {
   final dir = p.dirname(outputs.first);
   if (!Directory(dir).existsSync()) return false;
   await Navigator.of(context).push(
-    MaterialPageRoute(builder: (_) => BrowserScreen(path: dir)),
+    browserRoute(BrowserScreen(path: dir)),
   );
   return true;
 }
@@ -115,7 +115,7 @@ Future<bool> _openFiles(BuildContext context, List<String> paths) async {
     final dir = p.dirname(paths.first);
     if (!Directory(dir).existsSync()) return false;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BrowserScreen(path: dir)),
+      browserRoute(BrowserScreen(path: dir)),
     );
     return true;
   }

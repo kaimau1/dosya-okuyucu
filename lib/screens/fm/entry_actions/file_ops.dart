@@ -415,7 +415,7 @@ Future<bool> copyToExternal(BuildContext context, List<String> paths) async {
             for (final v in targets)
               ListTile(
                 leading: Icon(
-                    v.kind == StorageKind.usb ? Icons.usb : Icons.sd_card),
+                    v.kind == StorageKind.usb ? AppIcons.external : AppIcons.sdCard),
                 title: Text(v.displayLabel(ctx.t)),
                 subtitle: Text(v.path),
                 onTap: () => Navigator.pop(ctx, v),

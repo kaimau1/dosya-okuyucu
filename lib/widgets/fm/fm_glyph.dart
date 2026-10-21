@@ -158,7 +158,7 @@ class _FmGlyphPainter extends CustomPainter {
     // *"solda çok boşluk kalıyor klasörlerin"*).
     //
     // KÖK NEDEN: burada `size.shortestSide` alınıp KARE çiziliyordu. Liste
-    // satırında kutu kare DEĞİL: `FmEntryListTile` 68 dp istiyor ama
+    // satırında kutu kare DEĞİL: `FmEntryRow` 68 dp istiyor ama
     // Material'in `ListTile`ı `leading` yuvasının yüksekliğini 56 dp'de
     // (yoğun satırda 48) kesiyor — yani kutu 68 × 56. Kısa kenar alınınca
     // çizim 56 × 56'lık bir kareye iniyor ve 68'lik kutunun ORTASINA
