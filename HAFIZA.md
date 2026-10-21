@@ -12752,3 +12752,51 @@ tarama açılıyor mu; günlük işin bildirimi (test için son ödemesi 2 gün 
 parmak iziyle kasa; QR'ı bilgisayarın/başka telefonun kamerasıyla okutup tarayıcıdan dosya
 gönderme; Anılar → İnsanlar taraması süresi; ML Kit yüz modelinin Play Hizmetleri'nden inmesi.
 **Derleme:** `4d4ba1d` → **v1.0.379**, "APK Derle & Release" #379 yeşil (~13 dk) — yerel ekler (Extras.kt, widget kaynakları, yüz modeli ikamesi) ilk denemede derlendi.
+
+## 2026-10-21 — Kapsamlı inceleme ve faz planı (kod değişikliği YOK)
+Kullanıcı: *"performans (en düşük telefonda akıcı), klasör içi görünümlerin baştan tasarımı, ölü
+kod / uzun dosyalar, yarım kalanlar, fazla özelliklerin sadeleştirilmesi, yeni gerekli özellikler,
+son kullanıcı uyarıları, CI hızlandırma, APK boyutu, format akışları, bug taraması, ticari yayın
+için lisans/telif — detaylı rapor + fazlar, ben ayrı oturumlarda sırayla yaparım"*.
+**Çıktı: `docs/FAZ_PLANI.md`** — 13 faz (0-12), her fazda kabul ölçütü ve "açılış istemi";
+§4'te kullanıcının vereceği 12 karar (K1-K12). Sonraki oturumlar işe oradan başlar.
+
+### Ölçülen taban çizgisi (bulut oturumu, Flutter 3.29.3)
+- `flutter analyze` 0 sorun; tam takım **2600 yeşil / 9 atlanan**, yerelde 4 dk 34 sn.
+- `lib/` 155.585 satır, 404 dosya — main'den erişilemeyen dosya YOK; 21 dosya > 800 satır.
+- CI #379: 12 dk 36 sn (test 3:46 ve derleme 5:24 SIRALI; önbellek geri yükle/kaydet ~1:48).
+- APK arm64 ~78 MB; en büyük iki kalem ML Kit çeviri 16,4 MB + FFmpeg 15,5 MB.
+
+### Yeni bulgular (önceki turlarda yazılmamıştı)
+- **LİSANS — Syncfusion** (`syncfusion_flutter_pdf/_core`) ticari ya da Community License
+  şartlı; 7 dosyada kullanılıyor. Uygulama içi lisans penceresi (`tiles_system.dart`
+  `showOpenSourceLicenses`) onu "ticari kullanıma açık" diye YANLIŞ yazıyor → K1.
+- **LİSANS — Lato ve Merriweather** OFL "Reserved Font Name" taşıyor; `tool/fetch_ui_fonts.py`
+  bunları altkümeleyip AYNI adla dağıtıyor (`--name-IDs=*`) → OFL §3 ihlali. Carlito/Tinos/
+  Arimo/Inter/Nunito/EB Garamond/JetBrains Mono'da RFN yok (font `name` tablosu okundu);
+  FONTS-NOTICE Carlito için RFN yazıyor, dosyada yok.
+- Uygulama içinde `showLicensePage` hiç yok → BSD/MIT/Apache atıfları gösterilmiyor.
+- **Drive `drive` tam kapsamı = restricted** → yayın için yıllık ücretli CASA denetimi (K5).
+- **16 KB sayfa hizası ÖLÇÜLDÜ:** `libflutter.so` (motor cf56914b…, LOAD 0x10000), FFmpeg
+  `ffmpeg-kit-min:2.2.2`'nin 9 `.so`'su ve pdfrx 1.3.5'in `libpdfium.so`'su (chromium/7202)
+  0x4000 → uyumlu. `libapp.so` ve `libtranslate_jni.so` derlenmiş APK'da denetlenmeli
+  (Google Maven bu ortamda 403).
+- Performans: cihaz sınıfı hiç algılanmıyor; görsel önbelleği sabit 160 MB; kök `MaterialApp`
+  bütün `AppState`'i izliyor (her `addRecent`'te iki ThemeData); PDF her açılışta tüm metni
+  çıkarıyor (`viewer_screen.dart` `_extractPdfText`); pano her açılışta yüklü uygulama
+  boyutlarını sorguluyor; `VolumeWatcher` 5 sn yoklama; `HomeScreen` `IndexedStack`'te
+  `TickerMode` yok (gizli sekmede animasyon sürer).
+- Hata: `browser_screen.dart` `_sorted` getter'ı `context.watch` çağırıyor ve `_openEntry`
+  geri çağrısından kullanılıyor (debug'da Provider iddiası); yol çubuğu `push` ile yeni sayfa
+  açıyor (geri tuşu ters yöne). `entry_opener.dart` iki yerde sabit Türkçe `'Dosya açılamadı: $e'`.
+  Ekran kodunda 103 yerde ham hata metni (`'$e'`, `{'error': e}`).
+- Süreç: bu dosya 848 KB'a ulaştı (her oturumda ~250 bin token) → Faz 0'da dizin + aylık arşiv
+  önerildi (silme yok, taşıma).
+
+### TUZAK (bu oturumda yaşandı)
+- Sembol tarama betiği (her ad için tüm kaynakta regex) 8 MB metinde 2 dk'yı aştı — arka
+  planda koşturmak gerekti; Dart'ta `extension` üyeleri adla çağrılmadığı için "kullanılmıyor"
+  diye YANLIŞ çıkar, listeden ayıklanmalı.
+- `flutter test | tail` arka planda koşunca çıktı yalnız sonda gelir; ara ilerleme görünmez.
+
+**Doğrulama:** yalnız belge değişti (`**.md` → CI APK derlemez). graphify bu ortamda yok.

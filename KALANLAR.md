@@ -1,5 +1,8 @@
 # KALANLAR — canlı kalan-iş listesi (biten madde silinir)
 
+> **2026-10-21:** Kalan işler fazlara bağlandı → `docs/FAZ_PLANI.md`. Bu liste Faz 0'da
+> "gerçek iş" ve "cihaz doğrulaması" (`docs/CIHAZ_TESTI.md`) olarak ikiye ayrılacak.
+
 > **Bu liste nasıl okunur (2026-08-08 sınıflandırması).** Açık maddelerin
 > çoğunluğu benim kapatabileceğim işler DEĞİL; hangisinin kimde olduğu
 > karışmasın diye üç kümeye ayrılıyor:

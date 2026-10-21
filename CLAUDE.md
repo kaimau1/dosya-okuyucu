@@ -16,6 +16,8 @@ masaüstü (tek Flutter kod tabanı). Gemini AI entegrasyonu, format dönüştü
 paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasadaki yavaş/pahalı programlara alternatif.
 
 > Sabit kararlar, build geçmişi, açık durum ve reddedilen yollar → **HAFIZA.md**
+> **Faz planı (2026-10-21) → `docs/FAZ_PLANI.md`** — sıradaki iş, kararlar (K1–K12) ve her fazın
+> açılış istemi orada; yeni bir oturum işe oradaki durum tablosundan başlar.
 
 ## 2) Mimari / Dosya Haritası
 `graphify-out/GRAPH_REPORT.md` — 953 düğüm, 1740 kenar, 49 topluluk (App State Management,
