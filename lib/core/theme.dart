@@ -38,23 +38,11 @@ abstract final class Paper {
 
   // Koyu tema — aynı kağıt, gece mürekkebi
   static const bgDark = Color(0xFF1A1712); // sayfa
-  static const cardDark = Color(0xFF221E17); // kart
-  static const bandDark = Color(0xFF2C2720); // yükseltilmiş
-  static const wellDark = Color(0xFF332D24);
-  static const ruleDark = Color(0xFF3A342A); // kenarlık
-  static const edgeDark = Color(0xFF6B6455);
   static const inkDark = Color(0xFFE8E1D3); // mürekkep
-  static const inkSoftDark = Color(0xFFB5AB98); // ikincil
-  static const inkFaintDark = Color(0xFF8C8271); // üçüncül
-  static const accentDark = Color(0xFF7FA3E0);
-  static const accentWellDark = Color(0xFF26364D);
-  static const dangerDark = Color(0xFFD9756B);
-  static const okDark = Color(0xFF7FA98A);
 
   /// Belge sayfasının kendisi — koyu temada da AÇIK kalır (okunan metin ters
-  /// çevrilmez, yalnız çevresi koyar). Kenarlığı [pageEdge].
+  /// çevrilmez, yalnız çevresi koyar).
   static const page = Color(0xFFFEFEFC);
-  static const pageEdge = Color(0xFFE4DFD2);
 
   /// **Belgenin kendi yüzeyi** — Excel hücresi, düz metin sayfası.
   ///

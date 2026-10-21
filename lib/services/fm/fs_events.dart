@@ -56,8 +56,4 @@ abstract final class FsEvents {
     if (gone.isEmpty) return;
     changed();
   }
-
-  /// Yalnız test için: biriken bildirimleri hemen işler.
-  @visibleForTesting
-  static void flushUnreadableNow() => _flush();
 }

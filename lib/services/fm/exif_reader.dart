@@ -246,18 +246,6 @@ abstract final class ExifReader {
   /// ekranında yazmaz; yalnız fotoğrafları şehir/semt adına göre toplamak
   /// için okunur ve koordinat hiçbir yere gönderilmez (yer adı cihazın kendi
   /// `Geocoder`ından gelir).
-  static Future<({double lat, double lon})?> readGps(String path) async {
-    try {
-      final file = File(path);
-      final length = await file.length();
-      final take = length < headerBytes ? length : headerBytes;
-      final chunks = await file.openRead(0, take).toList();
-      return parseGps(Uint8List.fromList(chunks.expand((c) => c).toList()));
-    } catch (_) {
-      return null;
-    }
-  }
-
   static ({double lat, double lon})? parseGps(Uint8List b) {
     try {
       final tiff = _findApp1(b);

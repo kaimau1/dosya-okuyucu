@@ -161,10 +161,6 @@ abstract final class PdfPageEdit {
           List<int> bytes, int pageIndex, double x, double y) =>
       Isolate.run(() => textStyleAt(bytes, pageIndex, x, y));
 
-  static Future<double?> pointSizeAtInBackground(
-          List<int> bytes, int pageIndex, double x, double y) =>
-      Isolate.run(() => pointSizeAt(bytes, pageIndex, x, y));
-
   /// Arka planda — büyük belgede ayrıştırma ana izleği kilitlemesin.
   static Future<PdfPageOutline> outlineInBackground(
           List<int> bytes, int pageIndex) =>

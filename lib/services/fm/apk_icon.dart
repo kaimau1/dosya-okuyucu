@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
-import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:image/image.dart' as img;
 import 'package:installed_apps/installed_apps.dart';
 import 'package:path/path.dart' as p;
@@ -230,6 +230,7 @@ abstract final class ApkIcon {
     return _squareIconFallback(archive);
   }
 
+  @visibleForTesting
   static Uint8List? readIconBytes(String path) {
     if (!File(path).existsSync()) return null;
     // `InputFileStream`: APK'nın tamamı belleğe ALINMAZ, yalnız zip dizini ve

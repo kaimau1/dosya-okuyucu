@@ -15,7 +15,6 @@
 ///   tamamını yollamak katbekat pahalı, karşılığında neredeyse aynı özet.
 library;
 
-import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
@@ -102,20 +101,5 @@ abstract final class AiExtract {
     final d = DateTime.fromMillisecondsSinceEpoch(ms);
     String two(int n) => n.toString().padLeft(2, '0');
     return '${d.year}-${two(d.month)}-${two(d.day)}';
-  }
-
-  /// Dosya gerçekten okunabiliyor mu? (İzin verilmeyen yollarda analiz
-  /// başlamadan elenir — 500 dosyalık bir turun ortasında yığınla hata
-  /// toplamaktansa baştan atlamak iyi.)
-  static bool isReadable(String path) {
-    try {
-      final file = File(path);
-      if (!file.existsSync()) return false;
-      final handle = file.openSync();
-      handle.closeSync();
-      return true;
-    } catch (_) {
-      return false;
-    }
   }
 }

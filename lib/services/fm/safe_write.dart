@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 /// **Kullanıcı dosyasının üzerine YARIDA KALAMAYAN yazma** (2026-09-27).
@@ -176,6 +177,7 @@ abstract final class PdfBytesCheck {
   }
 
   /// Dosya için aynı denetim (yalnız baş ve son okunur).
+  @visibleForTesting
   static Future<bool> fileLooksValid(String path) async {
     RandomAccessFile? raf;
     try {

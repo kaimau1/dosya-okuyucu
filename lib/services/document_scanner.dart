@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
@@ -43,6 +44,7 @@ class DocumentScanner {
   /// [searchable] ise her sayfa OCR'lanıp görünmez metin katmanı eklenir —
   /// belge hem aranabilir hem kopyalanabilir olur (görüntü değişmez).
   /// [onProgress] sayfa sayfa ilerlemeyi bildirir (OCR uzun sürebilir).
+  @visibleForTesting
   static Future<String> buildPdf(
     List<String> imagePaths, {
     bool searchable = false,

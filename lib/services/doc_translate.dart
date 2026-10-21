@@ -118,7 +118,4 @@ abstract final class DocTranslate {
     return out;
   }
 
-  /// Sayfaların toplam karakter sayısı (ilerleme metninde "≈ 40 bin karakter").
-  static int charCount(List<OcrPage> pages) =>
-      pages.fold<int>(0, (sum, p) => sum + p.text.length);
 }

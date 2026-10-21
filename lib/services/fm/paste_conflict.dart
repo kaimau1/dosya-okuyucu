@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 /// Yapıştırmadan önce hedefte çakışan adları bulur.
@@ -31,6 +32,7 @@ abstract final class PasteConflict {
   }
 
   /// Saf sürüm: var olan adlar zaten biliniyorsa (test, uzak depolama).
+  @visibleForTesting
   static List<String> collisionsIn(
     List<String> sources,
     Set<String> existingNames,

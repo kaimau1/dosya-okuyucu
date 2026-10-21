@@ -709,10 +709,6 @@ abstract final class AiAnalyzer {
     return left < 0 ? 0 : left;
   }
 
-  /// Bugün kalan bütçe (arayüz gösterir).
-  static Future<int> remainingBudget(int dailyLimit) =>
-      _remainingBudget(dailyLimit);
-
   static Future<void> _spendBudget(int files) async {
     final prefs = await SharedPreferences.getInstance();
     final today = _todayKey();

@@ -3,9 +3,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/painting.dart' show BlendMode, Offset, Paint, Rect;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 /// Dörtgen → dikdörtgen **perspektif düzeltme** (belge tarayıcıda köşe ayarı).
 ///
@@ -30,6 +29,7 @@ class Perspective {
   ///
   /// Hedef boyut dörtgenin kenar uzunluklarından türetilir (karşılıklı
   /// kenarların ortalaması) → belge ne uzar ne sıkışır.
+  @visibleForTesting
   static Future<Uint8List> warpToPng(
     ui.Image image,
     List<Offset> corners,
@@ -119,6 +119,7 @@ class Perspective {
   ///
   /// Tarayıcı çoğu zaman yönü doğru buluyor ama yatay çekilmiş bir sayfayı
   /// bazen ters bırakıyor; kullanıcı PDF'e girmeden çevirebilsin diye.
+  @visibleForTesting
   static Future<Uint8List> rotateToPng(ui.Image image, int quarterTurns) async {
     final turns = quarterTurns % 4;
     final swap = turns.isOdd;
@@ -171,20 +172,6 @@ Future<ui.Image> decodeImageFile(String path) async {
   final bytes = await File(path).readAsBytes();
   final codec = await ui.instantiateImageCodec(bytes);
   return (await codec.getNextFrame()).image;
-}
-
-/// [bytes]'ı geçici dizine benzersiz adla PNG olarak yazar, yolunu döndürür.
-///
-/// Her düzeltme YENİ dosyaya yazılır: aynı yolun üstüne yazsaydık Flutter'ın
-/// görsel önbelleği eski kareyi göstermeye devam ederdi.
-Future<String> writeTempPng(String sourcePath, String suffix, Uint8List bytes,
-    {int? stamp}) async {
-  final dir = await getTemporaryDirectory();
-  final name = '${p.basenameWithoutExtension(sourcePath)}_$suffix'
-      '_${stamp ?? DateTime.now().millisecondsSinceEpoch}.png';
-  final file = File(p.join(dir.path, name));
-  await file.writeAsBytes(bytes, flush: true);
-  return file.path;
 }
 
 /// 4 nokta çiftinden **homografi** katsayıları (a,b,c,d,e,f,g,h).

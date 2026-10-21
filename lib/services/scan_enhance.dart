@@ -553,7 +553,7 @@ abstract final class ScanEnhance {
   }
 
   /// Sonuç için benzersiz geçici dosya yolu (aynı yola yazmak Flutter'ın
-  /// görsel önbelleğini eski kareyle bırakırdı — bkz. `writeTempPng`).
+  /// görsel önbelleğini eski kareyle bırakırdı).
   static Future<String> tempTarget(String sourcePath, ScanFilter filter) async {
     final dir = await getTemporaryDirectory();
     final stamp = DateTime.now().microsecondsSinceEpoch;

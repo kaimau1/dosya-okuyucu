@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
@@ -176,6 +177,7 @@ abstract final class FfmpegVideo {
   /// uydurma yok; ilk saniyelerde (kodlayıcı ısınırken) ölçüm yanıltıcı olduğu
   /// için boş dönülür — yanlış süre yazmak hiç yazmamaktan kötü.
   /// Saf fonksiyon → birim testli.
+  @visibleForTesting
   static String remainingText(Duration elapsed, double ratio) =>
       etaText(elapsed, ratio);
 

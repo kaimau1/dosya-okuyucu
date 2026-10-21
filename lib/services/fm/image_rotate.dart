@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
@@ -69,6 +70,7 @@ abstract final class ImageRotate {
   ///
   /// Galeri fotoğrafı zaten yönelime göre çeviriyor; kullanıcı "düzelt"
   /// dediğinde asıl istediği, **çevrilmiş hâlin dosyaya işlenmesi**.
+  @visibleForTesting
   static int turnsForOrientation(int? orientation) => switch (orientation) {
         3 || 4 => 2,
         5 || 6 => 1,

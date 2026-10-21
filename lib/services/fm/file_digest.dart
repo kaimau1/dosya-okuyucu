@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:crypto/crypto.dart';
 
 /// **Dosya özeti (SHA-256 / MD5)** — "indirdiğim dosya bozuk mu?" sorusunun
@@ -22,11 +23,6 @@ import 'package:crypto/crypto.dart';
 /// **Akış hâlinde okur.** 4 GB'lık bir video için `readAsBytes` demek
 /// belleğe 4 GB almak, yani çökmek demekti; `openRead` parça parça besliyor.
 abstract final class FileDigest {
-  /// Bir seferde okunan blok. 1 MB, iki uç arasında bilinçli bir orta yol:
-  /// daha küçüğü sistem çağrısı sayısını, daha büyüğü bellek tepe noktasını
-  /// artırıyor.
-  static const chunkBytes = 1 << 20;
-
   /// [path]'in SHA-256 özeti (küçük harf onaltılık).
   static Future<String> sha256Of(String path,
           {void Function(int done, int total)? onProgress,
@@ -34,6 +30,7 @@ abstract final class FileDigest {
       _digest(path, sha256, onProgress: onProgress, isCancelled: isCancelled);
 
   /// [path]'in MD5 özeti (küçük harf onaltılık).
+  @visibleForTesting
   static Future<String> md5Of(String path,
           {void Function(int done, int total)? onProgress,
           bool Function()? isCancelled}) =>

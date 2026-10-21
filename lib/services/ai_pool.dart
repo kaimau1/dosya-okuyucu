@@ -227,9 +227,6 @@ abstract final class AiPool {
   /// tükenmiş modelleri denemek gecikme üretirdi).
   static AiSlot? _lastGood;
 
-  /// Arayüzün "şu an hangi model kullanılıyor" göstergesi.
-  static String get activeModel => _lastGood?.model ?? '';
-
   /// Şu an soğumada olan ikili sayısı.
   static int get coolingCount {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -296,14 +293,6 @@ abstract final class AiPool {
   static bool _isCooling(AiSlot slot, int now) {
     final entry = _cooldowns[slot.id];
     return entry != null && entry.untilMs > now;
-  }
-
-  /// [slot]un ne zaman açılacağı (0 = soğumada değil).
-  static int cooldownUntil(AiSlot slot) {
-    final entry = _cooldowns[slot.id];
-    if (entry == null) return 0;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    return entry.untilMs > now ? entry.untilMs : 0;
   }
 
   static Future<void> _cool(AiSlot slot, {int? fixedMs}) async {

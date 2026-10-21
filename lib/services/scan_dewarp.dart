@@ -83,7 +83,7 @@ abstract final class ScanDewarp {
   }
 
   /// Sonuç için benzersiz geçici dosya yolu (aynı yola yazmak Flutter'ın
-  /// görsel önbelleğini eski kareyle bırakır — `writeTempPng` ile aynı gerekçe).
+  /// görsel önbelleğini eski kareyle bırakır).
   static Future<String> tempTarget(String sourcePath) async {
     final dir = await getTemporaryDirectory();
     final stamp = DateTime.now().microsecondsSinceEpoch;

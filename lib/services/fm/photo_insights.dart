@@ -68,7 +68,7 @@ class PhotoPlace {
 ///   (EXIF çekim tarihi, yoksa dosya tarihi).
 /// - **Yerler**: EXIF GPS'i ~5 km'lik kümelere toplanır, kümenin adı cihazın
 ///   `Geocoder`ından ("Çankaya, Ankara"). Koordinat bir yere gönderilmez,
-///   ekranda gösterilmez (bkz. [ExifReader.readGps]).
+///   ekranda gösterilmez (bkz. [ExifReader.parseGps]).
 /// - **İnsanlar**: ML Kit yüz ALGILAMA — kim olduğunu tanımaz (ücretsiz
 ///   cihaz-içi bir yüz tanıma yok, kimlik kümesi de KVKK açısından ayrı bir
 ///   konu). Fotoğrafları "kişili / tek kişi / grup" diye ayırır.

@@ -30,6 +30,7 @@ abstract final class ScreenAwake {
   static Future<void> Function(bool enable)? debugOverride;
 
   /// Şu an kilit tutuluyor mu (test ve tanılama için).
+  @visibleForTesting
   static bool get isHeld => _holders > 0;
 
   /// Kaç sahip var (test için).

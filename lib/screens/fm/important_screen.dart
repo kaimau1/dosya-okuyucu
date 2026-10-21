@@ -50,12 +50,6 @@ class ImportantScreen extends StatefulWidget {
 
   static String pathIn(String root) => p.join(root, folderName);
 
-  /// Klasör varsa yolu, yoksa null (pano alt yazısı için).
-  static String? existingPath(String root) {
-    final path = pathIn(root);
-    return Directory(path).existsSync() ? path : null;
-  }
-
   @override
   State<ImportantScreen> createState() => _ImportantScreenState();
 }

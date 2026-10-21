@@ -6,6 +6,8 @@
 /// test edilebiliyor.
 library;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 /// Bir metin operatörü çalışırken geçerli olan **metin durumu**.
 ///
 /// Bunları izlemek şart: bir dizenin sayfada kapladığı yatay yer yalnız glif
@@ -418,6 +420,7 @@ PdfContentScan scanContent(List<int> content, {PdfMeasure? measure}) {
 }
 
 /// Yalnız metin gösteren operatörler (eski çağrı yerleri için kısayol).
+@visibleForTesting
 List<PdfTextOp> scanTextOps(List<int> content, {PdfMeasure? measure}) =>
     scanContent(content, measure: measure).textOps;
 

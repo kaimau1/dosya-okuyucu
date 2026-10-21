@@ -23,19 +23,6 @@ abstract final class StoragePermission {
     }
   }
 
-  /// En az medya (görsel/video/ses) okunabiliyor mu?
-  static Future<bool> hasMediaAccess() async {
-    if (!Platform.isAndroid) return true;
-    try {
-      if (await Permission.storage.isGranted) return true;
-      final photos = await Permission.photos.isGranted;
-      final videos = await Permission.videos.isGranted;
-      return photos || videos;
-    } catch (_) {
-      return false;
-    }
-  }
-
   /// İzin ister. Sırayla: klasik depolama izni (Android ≤12'de gerçek erişim
   /// verir) → tüm dosyalara erişim (Android 11+ ayar sayfası).
   /// Kullanıcı reddederse `false` döner; uygulama kilitlenmez, yalnızca

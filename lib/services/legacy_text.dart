@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'ole_cfb.dart';
 
 /// Eski **.doc / .ppt** ikili dosyalarından metin çıkarır.
@@ -233,6 +234,7 @@ class LegacyText {
       b >= 0x80 && b <= 0x9F ? _cp1252Hi[b - 0x80] : b;
 
   /// Testler / genel kullanım: bir ham stream'den metin çıkarır.
+  @visibleForTesting
   static String? extractFromStream(Uint8List stream) => _best(stream);
 
   static String? _best(Uint8List b) {

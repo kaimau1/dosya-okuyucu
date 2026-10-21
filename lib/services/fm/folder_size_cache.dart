@@ -58,10 +58,6 @@ abstract final class FolderSizeCache {
   /// [path] için bilinen boyut; henüz ölçülmediyse null.
   static int? sizeOf(String path) => _sizes[path];
 
-  /// Bu klasör ölçülmeyi bekliyor mu / ölçülüyor mu?
-  static bool isPending(String path) =>
-      _queue.contains(path) || _running.contains(path);
-
   /// Ölçümü ister (zaten biliniyorsa/sırada ise hiçbir şey yapmaz).
   static void request(String path) {
     if (path.isEmpty) return;
@@ -127,5 +123,6 @@ abstract final class FolderSizeCache {
   }
 
   /// Yalnız test: bekleyen ölçüm sayısı.
+  @visibleForTesting
   static int get pendingCount => _queue.length + _running.length;
 }

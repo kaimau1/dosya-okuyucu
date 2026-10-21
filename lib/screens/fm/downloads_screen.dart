@@ -438,9 +438,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   }
 }
 
-/// İndirilenler klasörü diskte var mı?
-bool downloadsExists(String path) => Directory(path).existsSync();
-
 /// Standart İndirilenler yolu (varsa) — `Download`, bazı cihazlarda `Downloads`.
 String? downloadsPathIn(String root) {
   // DİKKAT: bunlar DOSYA SİSTEMİ klasör adları, arayüz metni DEĞİL —

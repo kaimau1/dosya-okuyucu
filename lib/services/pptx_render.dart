@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/painting.dart';
 import 'package:xml/xml.dart';
 
@@ -1153,6 +1154,7 @@ class PptxRender {
   }
 
   /// Testler için: bir `a:gradFill` içeren XML parçasını gradient'e çevirir.
+  @visibleForTesting
   static Gradient? debugParseGradient(String xmlFragment) {
     final doc = XmlDocument.parse(xmlFragment);
     final render = PptxRender(Archive());

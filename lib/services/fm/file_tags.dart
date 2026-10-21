@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
@@ -160,6 +161,7 @@ abstract final class FileTags {
   }
 
   /// Bir dosyanın etiket kümesini tümüyle yazar.
+  @visibleForTesting
   static Future<void> setTags(String path, Set<String> tags) async {
     await ensureLoaded();
     final clean = {
@@ -175,6 +177,7 @@ abstract final class FileTags {
   }
 
   /// Etiketi her yerden siler (etiket yönetimi).
+  @visibleForTesting
   static Future<void> deleteTag(String tag) async {
     await ensureLoaded();
     for (final path in _byPath.keys.toList()) {
@@ -185,6 +188,7 @@ abstract final class FileTags {
   }
 
   /// Etiketi yeniden adlandırır.
+  @visibleForTesting
   static Future<void> renameTag(String from, String to) async {
     final clean = to.trim();
     if (clean.isEmpty || clean == from) return;

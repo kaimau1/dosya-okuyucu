@@ -1,6 +1,7 @@
 import 'dart:isolate';
 import 'dart:ui' show Rect;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pdfrx/pdfrx.dart' show PdfRect;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
@@ -113,6 +114,7 @@ class PdfAnnotator {
   /// döndürür. [colorArgb] = Flutter renk değeri (0xAARRGGBB); alfa yok sayılır.
   ///
   /// Seçim boşsa dosya değiştirilmeden aynı baytlar döner.
+  @visibleForTesting
   static Future<List<int>> addHighlight({
     required List<int> bytes,
     required int pageIndex,

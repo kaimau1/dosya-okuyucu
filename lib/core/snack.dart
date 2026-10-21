@@ -200,9 +200,6 @@ ToastHandle showStickyToast(
   );
 }
 
-/// Görünen kısa bildirimi hemen kaldırır (ör. ekran değişirken).
-void hideToast() => _ToastCenter.transient.value = null;
-
 /// Uygulamanın en üst katmanı: [child] + ekranın altında bildirim kartları.
 ///
 /// `MaterialApp.builder`'da bir kez kurulur; böylece kart her rotanın,

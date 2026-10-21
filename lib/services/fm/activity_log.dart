@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
@@ -178,5 +179,6 @@ abstract final class ActivityLog {
   }
 
   /// Yalnız testlerde: bellekteki kopyayı düşürür.
+  @visibleForTesting
   static void resetCache() => _cache = null;
 }

@@ -21,7 +21,6 @@ abstract final class OfficeIcons {
   static const textColor = Icons.format_color_text;
   static const fillColor = Icons.format_color_fill;
   static const highlight = Icons.border_color_outlined;
-  static const clearFormat = Icons.format_clear;
 
   // Hizalama ve akış
   static const alignLeft = Icons.format_align_left;
@@ -47,7 +46,6 @@ abstract final class OfficeIcons {
   static const sortDesc = Icons.arrow_downward;
   static const filter = Icons.filter_alt_outlined;
   static const freeze = Icons.push_pin_outlined;
-  static const gridlines = Icons.grid_on;
   static const sheetAdd = Icons.post_add;
 
   // Pano

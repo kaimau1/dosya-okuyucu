@@ -24,7 +24,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../models/fs_entry.dart';
@@ -204,10 +204,6 @@ abstract final class AiIndex {
   /// Bekleyen ad/klasör önerisi olan kayıt sayısı (önbellekli).
   static int get suggestionCount => _suggestionCount;
 
-  /// AI'dan geçmiş (yalnız yerel meta olmayan) kayıt sayısı.
-  static int get analyzedCount =>
-      _records.values.where((r) => r.analyzedMs > 0).length;
-
   /// Diskten okur (uygulama başına bir kez; eşzamanlı çağrılar aynı işi bekler).
   static Future<void> ensureLoaded() {
     if (_loaded) return Future.value();
@@ -287,6 +283,7 @@ abstract final class AiIndex {
       ];
 
   /// Tür → adet (rapor ve süzgeç çipleri).
+  @visibleForTesting
   static Map<String, int> docTypeCounts() {
     final out = <String, int>{};
     for (final r in _records.values) {
@@ -345,18 +342,6 @@ abstract final class AiIndex {
       analyzedMs: old.analyzedMs,
       source: old.source,
     );
-    await _rewrite();
-    _recount();
-    revision.value++;
-  }
-
-  /// Bir kaydın önerisini düşürür ("bu öneriyi yok say").
-  static Future<void> clearSuggestion(String filePath) async {
-    await ensureLoaded();
-    final record = _records[filePath];
-    if (record == null || !record.hasSuggestion) return;
-    _records[filePath] =
-        record.copyWith(suggestedName: '', suggestedFolder: '');
     await _rewrite();
     _recount();
     revision.value++;
