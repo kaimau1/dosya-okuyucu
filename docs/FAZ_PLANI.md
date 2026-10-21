@@ -489,18 +489,18 @@ sütununa yaz.
 
 | # | Soru | Seçenekler | Öneri | Etkilediği faz | Karar |
 |---|---|---|---|---|---|
-| K1 | Syncfusion PDF | (a) Community License başvurusu, kod değişmez · (b) kaldır, kendi PDF motorumuz + `pdf` paketi + pdfrx 2.x | **Kısa vadede (a)** (şartları sağlıyorsan bugün ücretsiz ve risksiz); Faz 8'de (b)'nin maliyeti yeniden ölçülür | 7, 8 | |
-| K2 | Video motoru | (a) FFmpeg kalsın (15,5 MB, LGPL yükümlülüğü) · (b) Android Media3 Transformer (Apache 2.0, donanım kodlayıcı, ~1-2 MB) | **(b)** — boyut + lisans + patent sadeliği. *Not: 2026-09-26'da "ffmpeg kalsın" kararı verilmişti; ticari hedef ve boyut isteğiyle yeniden soruluyor* | 7, 10 | |
-| K3 | Cihaz-içi çeviri (ML Kit, 16,4 MB) | (a) kalsın (çevrimdışı) · (b) kaldır → Gemini çevirisi + "Google Çeviri'de aç" | **(b)** — APK'nın %21'i tek özellik için | 7 | |
-| K4 | AI erişimi | (a) kullanıcı kendi Gemini anahtarı (bugün) · (b) bizim sunucumuz üzerinden (ücretli, Pro'ya bağlı) · (c) cihaz-içi Gemini Nano (yalnız yeni amiral gemisi telefonlar) | **(a) + anahtarsız temiz deneyim** (N3); gelir modeli netleşince (b) | 5, 11 | |
-| K5 | Google Drive | (a) tam `drive` kapsamı (CASA denetimi şart) · (b) `drive.file` (yalnız uygulamanın dosyaları) · (c) Drive ekranı kalkar, sistem belge seçicisi + "Drive'a gönder" paylaşımı | **(c)** — `google_sign_in` ve 1.900+ satır kalkar, yayın engeli kalmaz | 2, 7 | |
-| K6 | Gelir modeli | ücretsiz · reklam · tek seferlik Pro · abonelik | **Reklamsız + tek seferlik Pro** (Play Billing). Reklam SDK'sı APK'yı, gizliliği ve "hızlı/sade" ilkesini bozar | 11 | |
-| K7 | Depo görünürlüğü | public (Actions ücretsiz) · private (2.000 dk/ay) | **Ticari yayından önce private** (Faz 1 sonrası dakika yeter) | 1, 11 | |
-| K8 | Çıkarılacak/gizlenecek özellikler (§3.5 aday tablosu) | her satır için Kaldır / Deneysel / Kalsın | Tablodaki öneriler | 2 | |
-| K9 | En düşük Android | 24 (7.0, bugün) · 26 (8.0) | **24 kalsın** (düşük donanım hedefi) | — | |
-| K10 | Masaüstü / iOS | şimdi · yayından sonra · hiç | **Yayından sonra** — şimdilik yalnız Android | 0 | |
-| K11 | Dağıtım kanalı | yalnız Play · Play + GitHub Releases | **Play (AAB)**; GitHub Releases yalnız iç test (nightly) | 1, 11 | |
-| K12 | Eski PDF kelime-bazlı düzenleme yolu | cihazda paragraf motoru doğrulanınca sil · hemen sil | **Faz 8'de**: paragraf motorunun reddettiği belgelerde "sayfaya yazı ekle" yedeğiyle değiştirilip silinir | 8 | |
+| K1 | Syncfusion PDF | (a) Community License başvurusu, kod değişmez · (b) kaldır, kendi PDF motorumuz + `pdf` paketi + pdfrx 2.x | **Kısa vadede (a)** (şartları sağlıyorsan bugün ücretsiz ve risksiz); Faz 8'de (b)'nin maliyeti yeniden ölçülür | 7, 8 |  **(a)** Community License — 2026-10-21 |
+| K2 | Video motoru | (a) FFmpeg kalsın (15,5 MB, LGPL yükümlülüğü) · (b) Android Media3 Transformer (Apache 2.0, donanım kodlayıcı, ~1-2 MB) | **(b)** — boyut + lisans + patent sadeliği. *Not: 2026-09-26'da "ffmpeg kalsın" kararı verilmişti; ticari hedef ve boyut isteğiyle yeniden soruluyor* | 7, 10 |  **(b)** Media3 Transformer (Faz 10) — 2026-10-21 |
+| K3 | Cihaz-içi çeviri (ML Kit, 16,4 MB) | (a) kalsın (çevrimdışı) · (b) kaldır → Gemini çevirisi + "Google Çeviri'de aç" | **(b)** — APK'nın %21'i tek özellik için | 7 |  **(a) kalsın** — çevrimdışı çeviri sürer — 2026-10-21 |
+| K4 | AI erişimi | (a) kullanıcı kendi Gemini anahtarı (bugün) · (b) bizim sunucumuz üzerinden (ücretli, Pro'ya bağlı) · (c) cihaz-içi Gemini Nano (yalnız yeni amiral gemisi telefonlar) | **(a) + anahtarsız temiz deneyim** (N3); gelir modeli netleşince (b) | 5, 11 |  **(a)** kendi anahtarı + anahtarsız temiz deneyim — 2026-10-21 |
+| K5 | Google Drive | (a) tam `drive` kapsamı (CASA denetimi şart) · (b) `drive.file` (yalnız uygulamanın dosyaları) · (c) Drive ekranı kalkar, sistem belge seçicisi + "Drive'a gönder" paylaşımı | **(c)** — `google_sign_in` ve 1.900+ satır kalkar, yayın engeli kalmaz | 2, 7 |  **(a) tam kapsam kalsın** — Drive ekranı kalır; yayından önce CASA — 2026-10-21 |
+| K6 | Gelir modeli | ücretsiz · reklam · tek seferlik Pro · abonelik | **Reklamsız + tek seferlik Pro** (Play Billing). Reklam SDK'sı APK'yı, gizliliği ve "hızlı/sade" ilkesini bozar | 11 |  **Reklamsız + tek seferlik Pro** — 2026-10-21 |
+| K7 | Depo görünürlüğü | public (Actions ücretsiz) · private (2.000 dk/ay) | **Ticari yayından önce private** (Faz 1 sonrası dakika yeter) | 1, 11 |  **Ticari yayından önce private** (şimdilik public) — 2026-10-21 |
+| K8 | Çıkarılacak/gizlenecek özellikler (§3.5 aday tablosu) | her satır için Kaldır / Deneysel / Kalsın | Tablodaki öneriler | 2 |  SD birleşik → **Deneysel, varsayılan kapalı** · ham USB yazma → **kalsın + sağlamlaştır** (güvenli yazma sırası, geri-okuma doğrulaması, yarıda kalanı onarma; Faz 4/10) · yüzen oynatıcı → **PiP** (Faz 10) · Faturalar → **AI Merkezi içine** · Anılar→İnsanlar → **kaldır** · USB teşhis → **geliştirici menüsü** · son kullanım (app_usage) → **kalsın** · görünüm → **sadeleştir** (4 tema/3 font/3 yerleşim) — 2026-10-21 |
+| K9 | En düşük Android | 24 (7.0, bugün) · 26 (8.0) | **24 kalsın** (düşük donanım hedefi) | — |  **24 kalsın** — 2026-10-21 |
+| K10 | Masaüstü / iOS | şimdi · yayından sonra · hiç | **Yayından sonra** — şimdilik yalnız Android | 0 |  **Hiç** — yalnız Android (CLAUDE.md hedefi güncellendi) — 2026-10-21 |
+| K11 | Dağıtım kanalı | yalnız Play · Play + GitHub Releases | **Play (AAB)**; GitHub Releases yalnız iç test (nightly) | 1, 11 |  **Play (AAB) + GitHub nightly** — 2026-10-21 |
+| K12 | Eski PDF kelime-bazlı düzenleme yolu | cihazda paragraf motoru doğrulanınca sil · hemen sil | **Faz 8'de**: paragraf motorunun reddettiği belgelerde "sayfaya yazı ekle" yedeğiyle değiştirilip silinir | 8 |  **Faz 8'de sil** — 2026-10-21 |
 
 ---
 

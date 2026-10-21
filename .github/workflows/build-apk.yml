@@ -1,24 +1,40 @@
 name: APK Derle & Release
 
-# LİMİT POLİTİKASI (2026-07-21): Her push'ta APK derlemek GitHub Actions
-# dakikasını ve depolamayı (release/artifact) dolduruyordu. Artık:
-#   • test  → her push'ta çalışır (yalnızca `flutter test`; hızlı, APK üretmez).
-#   • apk   → SADECE commit mesajı özel işareti içerince, elle dispatch ile ya
-#             da main dalında. İşaret bilinçli: normal/açıklama metninde ASLA
-#             yazma (bkz. HAFIZA 2026-07-21 — düz "apk" kelimesi kazara tetikledi).
-#             İşaret için HAFIZA'daki nota bak (prompt'ta açıkça yazılmaz).
+# ── FAZ 1 DÜZENİ (2026-10-21, docs/FAZ_PLANI.md §3.8) ─────────────────────
+#
+#   changes ─┬─ verify  (pub get → analyze → test [+ Kotlin denetimi])  her dalda
+#            └─ apk     (Android iskeleti → derle → imzala → denetle)   main/etiket/elle/[release-apk]
+#                  └─ release (needs: verify + apk)                       main ve v* etiketi
+#
+# • verify ∥ apk PARALEL koşar (eskiden test, derlemeden önce sıralıydı:
+#   ~4 dk duvar süresi). Release ikisi de yeşilse çıkar.
+# • main push'u → tek bir "nightly" sürüm (her seferinde ÜZERİNE yazılır,
+#   etiket yeni commit'e taşınır). `releases/latest/download/dosya-okuyucu.apk`
+#   adresi bozulmasın diye nightly "en son" işaretli kalır.
+# • `v*` etiketi → kalıcı, gerçek Release (arm + arm64 + AAB).
+# • Eski sürümler budanır: nightly hariç en yeni 10 sürüm kalır (kullanıcı
+#   onayı 2026-10-21). Hız sınırına takılmamak için koşu başına ≤ 100 silme.
+# • `[release-apk]` işaretli commit: özellik dalında APK'yı artifact olarak
+#   üretir, Release basmaz (2026-07-21 politikası).
 
 on:
   push:
     branches:
       - main
       - 'claude/**'
+      - 'ccr-*'
+    tags:
+      - 'v*'
     paths-ignore:
       - '**.md'
+      - 'docs/**'
+      - 'graphify-out/**'
+      - '.claude/**'
+      - 'hooks/**'
   workflow_dispatch:
     inputs:
       aab:
-        description: 'Play için AAB da üret (imzalı, yalnız artifact)'
+        description: 'Play için AAB + 32-bit APK da üret'
         type: boolean
         default: false
       flutter_version:
@@ -29,71 +45,110 @@ on:
 permissions:
   contents: write
 
-# SÜRÜM DUVARI DENEMESİ (2026-08-28): Flutter sürümü artık tek yerde ve elle
-# tetiklemede DEĞİŞTİRİLEBİLİR. Amaç, targetSdk 36'ya (Play'in şartı) geçişi
-# main'i kırmadan ölçmek: `Run workflow` > "Denenecek Flutter sürümü" =
-# 3.44.9 ile deneme derlemesi yapılır, yeşilse varsayılan buraya taşınır.
-# Push'ta `inputs` boştur → varsayılan 3.29.3 kullanılır, davranış değişmez.
-#
-# Ölçüldü (bulut oturumu, 2026-08-28): 3.44.9 ile `pub get` bağımlılıkların
-# HİÇBİRİNİ değiştirmeden çözülüyor ve **1730 testin tamamı yeşil**; kalan
-# 24 uyarının hepsi kullanımdan kaldırma (Radio/DropdownButtonFormField/
-# Matrix4.translate). Yani duvar sanıldığı kadar yüksek değil — belirsiz olan
-# tek şey Android derleme zinciri (AGP 9.0.1, Gradle 9.1, Kotlin 2.3.20).
+# Art arda iki push → ilki iptal (C2). Etiketler ref'e göre ayrı gruptadır,
+# yani bir sürüm etiketi main'deki derlemeyi iptal etmez.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# SÜRÜM DUVARI DENEMESİ (2026-08-28): Flutter sürümü tek yerde ve elle
+# tetiklemede DEĞİŞTİRİLEBİLİR (targetSdk/Flutter yükseltmesini main'i
+# kırmadan ölçmek için). Push'ta `inputs` boştur → 3.29.3.
 env:
   FLUTTER_VERSION: ${{ inputs.flutter_version || '3.29.3' }}
 
 jobs:
-  # ── Ucuz doğrulama: yalnızca feature dallarında (main'de apk işi zaten test
-  #    koşuyor; ayrı iş main'de sadece tekrar + APK'yı ~4 dk bekletme demekti). ──
-  test:
-    name: Testler (hızlı doğrulama)
+  # ── Ne değişti? (C8/C11) ─────────────────────────────────────────────────
+  # `paths-ignore` yalnız "hiç koşma"yı bilir. Burada daha ince karar:
+  #   • yalnız test/** ve tool/** değiştiyse APK derlenmez (verify yeter);
+  #   • ci/** değiştiyse verify Kotlin denetimini de koşar.
+  # Kıyas yapılamıyorsa (yeni dal, zorla push, elle tetikleme) her şey koşar.
+  changes:
+    name: Değişiklik süzgeci
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/main'
+    timeout-minutes: 5
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+      kotlin: ${{ steps.diff.outputs.kotlin }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -e
+          APP=true; KOTLIN=true
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "branch" ] \
+             && [ -n "$BEFORE" ] && ! echo "$BEFORE" | grep -qE '^0+$' \
+             && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            FILES=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+            echo "Değişen dosyalar:"; echo "$FILES"
+            if [ -n "$FILES" ] && ! echo "$FILES" | grep -qvE '^(test|tool)/'; then
+              APP=false
+            fi
+            echo "$FILES" | grep -qE '^ci/' || KOTLIN=false
+          fi
+          echo "app=$APP" >> "$GITHUB_OUTPUT"
+          echo "kotlin=$KOTLIN" >> "$GITHUB_OUTPUT"
+          echo "app=$APP kotlin=$KOTLIN"
 
-      - name: Flutter kurulumu
+  # ── Doğrulama: her dalda (main dahil) ───────────────────────────────────
+  verify:
+    name: Doğrulama (analyze + test)
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter kurulumu (önbellekli)
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
 
       - name: Bağımlılıklar
         run: flutter pub get
 
-      # KAPI (2026-08-28): analyze artık CI'nin durduğu bir adım. Daha önce
-      # yalnız yerelde koşuyordu ve 41 uyarı birikmişti (hepsi eski test
-      # dosyalarında); temizlendi ve kapı kondu ki bir daha birikmesin.
-      # `flutter analyze` info seviyesinde de sıfır dışı çıkar — yani bu adım
-      # "hiç uyarı yok" demektir, "hata yok" değil.
+      # KAPI (2026-08-28): `flutter analyze` info seviyesinde de sıfır dışı
+      # çıkar — bu adım "hiç uyarı yok" demektir. Başka bir Flutter sürümü
+      # denenirken kullanımdan kaldırma uyarıları BEKLENİR → bağlayıcı değil.
       - name: Statik çözümleme (analyze)
+        continue-on-error: ${{ env.FLUTTER_VERSION != '3.29.3' }}
         run: flutter analyze
 
-      - name: Testler
+      - name: Birim ve widget testleri
         run: flutter test
 
-  # ── Pahalı: imzalı APK + Release. Yalnızca istendiğinde çalışır. ────────────
+      # C11: `ci/*.kt` yalnız APK derlemesinde derleniyordu; tek satırlık bir
+      # tür hatası 13 dk'lık turun SONUNDA çıkıyordu (HAFIZA 2026-09-02).
+      # kotlinc runner imajında yoksa betik sessizce atlar.
+      - name: Kotlin tür denetimi (ci/ değiştiyse)
+        if: needs.changes.outputs.kotlin == 'true'
+        run: bash tool/check_kotlin.sh
+
+  # ── Derleme: imzalı APK (+ istenirse AAB) ───────────────────────────────
   apk:
     name: Android APK
+    needs: changes
     runs-on: ubuntu-latest
-    # Takılma koruması: build #53'te `flutter build apk` bir Gradle/ağ stall'ında
-    # 55 dk asılı kalıp job'ı çökertti (aynı kod bir sonraki koşuda 12 dk'da derlendi).
-    # Bu sınır, olası bir takılmanın bir daha ~1 saat CI dakikası yakmasını önler.
+    # Takılma koruması: build #53'te bir Gradle/ağ stall'ı 55 dk asılı kaldı.
     timeout-minutes: 30
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.ref == 'refs/heads/main' ||
-      contains(github.event.head_commit.message, '[release-apk]')
+      needs.changes.outputs.app == 'true' && (
+        github.event_name == 'workflow_dispatch' ||
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/tags/v') ||
+        contains(github.event.head_commit.message, '[release-apk]'))
+    outputs:
+      name: ${{ steps.version.outputs.name }}
+      number: ${{ steps.version.outputs.number }}
+      full: ${{ steps.version.outputs.full }}
     steps:
-      # `fetch-depth: 20` — sürüm notundaki "bu derlemedeki değişiklikler"
-      # listesi `git log`dan geliyor; varsayılan sığ kopyada (derinlik 1)
-      # yalnız tek commit görünürdü.
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 20
+      - uses: actions/checkout@v4
 
       - name: Java kurulumu
         uses: actions/setup-java@v4
@@ -101,40 +156,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Flutter kurulumu
+      - name: Flutter kurulumu (önbellekli)
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
 
-      # Gradle/pub bağımlılıklarını koşular arası önbelleğe al: ilk build sonrası
-      # indirmeler diskten gelir → hem ~2-4 dk hızlanır hem de ağ stall'ına (build
-      # #53'ün 55 dk takılmasının olası kök nedeni) daha az maruz kalınır.
-      - name: Gradle & pub önbelleği
-        uses: actions/cache@v4
+      # C3: Gradle önbelleği. main dışındaki dallar SALT OKUNUR kullanır →
+      # özellik dalları main'in önbelleğini kirletmez.
+      - name: Gradle önbelleği
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ~/.pub-cache
-          key: gradle-pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: |
-            gradle-pub-${{ runner.os }}-
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      # ── SÜRÜM NUMARASI ────────────────────────────────────────────────
-      #
-      # Kullanıcı isteği 2026-09-04: *"sürüm numaramız sürekli 0.1, bunu
-      # değiştir ve her güncellemede ilerlesin"*. Numara üç yerde ayrı ayrı
-      # elle yazılıydı (`pubspec.yaml`, `CrashLog.appVersion`, Hakkında
-      # metni) ve hiçbiri güncellenmediği için uygulama 340 derlemedir
-      # "0.1.0" diyordu — kullanıcı hangi APK'yı kurduğunu bilemiyordu.
-      #
-      # Artık TEK kaynak `lib/core/app_version.dart`: ana/ara numara orada
-      # elle duruyor, YAMA numarası CI'nın koşu sayacından geliyor. Aynı
-      # numara `versionName`, `versionCode`, Release etiketi ve uygulamanın
-      # içinde yazan sürüm — dördü birden aynı. Depodaki dosyaya
-      # DOKUNULMUYOR (yalnız derleme kopyası `sed`leniyor), yani main'e
-      # geri yazan bir adım ve sonsuz döngü riski yok.
+      # ── SÜRÜM NUMARASI (dokunulmadı, yalnız taşındı) ─────────────────────
+      # TEK kaynak `lib/core/app_version.dart`: ana/ara numara orada elle,
+      # YAMA numarası koşu sayacından. versionName, versionCode, Release
+      # başlığı ve uygulama içi sürüm dördü birden aynı. Depodaki dosyaya
+      # DOKUNULMUYOR (yalnız derleme kopyası `sed`leniyor).
       - name: Sürüm numarasını belirle
         id: version
         run: |
@@ -147,400 +187,46 @@ jobs:
           sed -i -E "s/^const appVersionPatch = [0-9]+;/const appVersionPatch = $PATCH;/" "$F"
           sed -i -E "s/^const appBuildNumber = [0-9]+;/const appBuildNumber = $PATCH;/" "$F"
           sed -i -E "s/^version: [0-9]+\.[0-9]+\.[0-9]+\+[0-9]+/version: $NAME+$PATCH/" pubspec.yaml
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          # Etiket ya da elle AAB isteği → tam derleme (arm + arm64 + AAB).
+          FULL=false
+          if [[ "$GITHUB_REF" == refs/tags/v* ]] || [ "${{ inputs.aab }}" = "true" ]; then FULL=true; fi
+          {
+            echo "name=$NAME"; echo "number=$PATCH"; echo "full=$FULL"
+          } >> "$GITHUB_OUTPUT"
           echo "BUILD_NAME=$NAME" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=$PATCH" >> "$GITHUB_ENV"
-          echo "Sürüm: $NAME (build $PATCH)"
+          echo "FULL_BUILD=$FULL" >> "$GITHUB_ENV"
+          echo "Sürüm: $NAME (build $PATCH), tam derleme: $FULL"
           grep -n "appVersion" "$F"
 
-      - name: Platform iskeletini üret (android)
+      # C7: 9 ayrı yama adımı tek betikte — yerelde de koşar.
+      - name: Android iskeleti + yamalar (ci/prepare_android.sh)
+        run: bash ci/prepare_android.sh
+
+      # C4: push'ta yalnız arm64 (pratikte her telefon). 32-bit yalnız tam
+      # derlemede. `--split-per-abi` her mimariye ayrı versionCode verir.
+      # C9: `--obfuscate --split-debug-info` → libapp.so küçülür; çökme
+      # izlerini çözmek için semboller artifact olarak saklanır
+      # (`flutter symbolize -i iz.txt -d app.android-arm64.symbols`).
+      - name: APK derle (release, karartılmış)
         run: |
           set -e
-          mkdir -p .backup
-          cp -r lib pubspec.yaml .backup/
-          [ -d assets ] && cp -r assets .backup/ || true
-          [ -f analysis_options.yaml ] && cp analysis_options.yaml .backup/ || true
-          flutter create --org com.dosyaokuyucu --project-name dosya_okuyucu --platforms=android .
-          cp -r .backup/lib .
-          cp .backup/pubspec.yaml .
-          [ -d .backup/assets ] && cp -r .backup/assets . || true
-          [ -f .backup/analysis_options.yaml ] && cp .backup/analysis_options.yaml . || true
-          rm -f test/widget_test.dart   # flutter create'in ürettiği örnek test projeyle uyumsuz
-
-      - name: AndroidManifest'i değiştir (izin + ad + "Birlikte aç"/paylaş)
-        run: |
-          set -e
-          # Elle bakımlı tam manifest'i kopyala: INTERNET izni, uygulama adı,
-          # singleTask ve VIEW/SEND intent-filter'ları (başka uygulamalardan
-          # gelen dosyaları açmak için). Kırılgan sed yerine tek kaynak.
-          cp ci/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          echo "--- Kullanılan AndroidManifest ---"
-          grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
-            android/app/src/main/AndroidManifest.xml || true
-
-      - name: MainActivity'yi değiştir (uygulama boyutu platform kanalı)
-        run: |
-          set -e
-          # `flutter create` boş bir MainActivity üretiyor; elle bakımlı
-          # sürümde `StorageStatsManager` köprüsü var (uygulama başına kapladığı
-          # alan — Dart tarafından okunamıyor). Manifest'le aynı desen.
-          DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
-          mkdir -p "$DIR"
-          cp ci/MainActivity.kt "$DIR/MainActivity.kt"
-          # Belge sağlayıcı (SAF): "Şuradan aç" listesinde görünmemizi sağlar.
-          # Manifest'teki <provider android:name=".DosyaProvider"> bunu arar;
-          # kopyalanmazsa derleme "class not found" ile kırılır.
-          cp ci/DosyaProvider.kt "$DIR/DosyaProvider.kt"
-          # Seçici kipi aktivitesi ("Şuradan aç" çekmecesindeki ok işareti).
-          # Manifest'teki <activity android:name=".PickerActivity"> bunu arar.
-          cp ci/PickerActivity.kt "$DIR/PickerActivity.kt"
-          # Ham USB yığın depolama sürücüsü (SCSI Bulk-Only Transport).
-          # MainActivity ondan `UsbMass(...)` diye örnek üretiyor; kopyalanmazsa
-          # derleme "unresolved reference" ile kırılır.
-          cp ci/UsbMass.kt "$DIR/UsbMass.kt"
-          # Medya oturumu + ön plan servisi (bildirimdeki ilerleme çubuğu).
-          # Manifest'teki <service android:name=".MediaService"> bunu arar ve
-          # MainActivity `MediaBridge`i çağırıyor; kopyalanmazsa derleme
-          # "unresolved reference" ile kırılır.
-          cp ci/MediaSession.kt "$DIR/MediaSession.kt"
-          # Ekran üstünde yüzen video oynatıcı (WindowManager penceresi +
-          # MediaPlayer). Manifest'teki <service android:name=
-          # ".FloatingPlayerService"> ve MainActivity'deki `FloatingBridge`
-          # bunu arar; kopyalanmazsa derleme "unresolved reference" ile kırılır.
-          cp ci/FloatingPlayer.kt "$DIR/FloatingPlayer.kt"
-          # SD kartla birleşik depolama (şarjdayken koşan JobScheduler işi).
-          # Manifest'teki <service android:name=".SdUnionJob"> ve MainActivity'deki
-          # `SdUnion` bunu arar; kopyalanmazsa derleme "unresolved reference"
-          # ile kırılır.
-          cp ci/SdUnion.kt "$DIR/SdUnion.kt"
-          # Yerel ekler (2026-10-18): widget'lar, günlük iş (fatura/temizlik
-          # bildirimi), biyometri, Keystore, Geocoder. Manifest'teki
-          # `.StorageWidget`, `.RecentWidget`, `.DailyJob` ve MainActivity'deki
-          # `Extras` bunu arar; kopyalanmazsa derleme kırılır.
-          cp ci/Extras.kt "$DIR/Extras.kt"
-          # Widget kaynakları (yerleşim, simge, renk, gece renkleri, tanım).
-          # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.
-          cp -r ci/res/. android/app/src/main/res/
-          ls -R android/app/src/main/res/layout android/app/src/main/res/xml
-          # `flutter create` java/ altına da üretmiş olabilir — ikisi birden
-          # kalırsa "duplicate class" hatası verir.
-          rm -f android/app/src/main/java/com/dosyaokuyucu/dosya_okuyucu/MainActivity.java
-          echo "--- MainActivity ---"; head -5 "$DIR/MainActivity.kt"
-          find android/app/src/main -name 'MainActivity.*'
-
-      - name: USB OTG süzgeci (res/xml) — "USB takıldı, açayım mı?" penceresi
-        run: |
-          set -e
-          # Manifest'teki
-          #   <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-          #              android:resource="@xml/usb_device_filter"/>
-          # bu dosyayı arar; kopyalanmazsa derleme "resource xml/usb_device_filter
-          # not found" ile KIRILIR. `flutter create` res/xml üretmiyor.
-          mkdir -p android/app/src/main/res/xml
-          cp ci/usb_device_filter.xml android/app/src/main/res/xml/usb_device_filter.xml
-          echo "--- usb_device_filter.xml ---"
-          grep -c "usb-device" android/app/src/main/res/xml/usb_device_filter.xml
-
-      - name: Proguard kuralları (ML Kit R8 "missing class" düzeltmesi)
-        run: |
-          set -e
-          # Flutter'ın Gradle eklentisi app/proguard-rules.pro'yu release
-          # küçültmede otomatik dahil eder — build.gradle patch'i gerekmez.
-          cp ci/proguard-rules.pro android/app/proguard-rules.pro
-          echo "--- proguard-rules.pro ---"; cat android/app/proguard-rules.pro
-
-      - name: minSdk 24 (video küçük resmi) + NDK sürümü
-        run: |
-          set -e
-          # Runner'da kurulu NDK sürümlerinden en yenisini seç.
-          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          NDK_VERSION=$(ls "$SDK/ndk" 2>/dev/null | sort -V | tail -1)
-          if [ -z "$NDK_VERSION" ]; then
-            NDK_VERSION=27.0.12077973
-            echo "::warning::Runner'da kurulu NDK yok; $NDK_VERSION indirilecek."
-          fi
-          echo "Kullanılacak NDK: $NDK_VERSION"
-          for f in android/app/build.gradle.kts android/app/build.gradle; do
-            [ -f "$f" ] || continue
-            # 2026-07-25: 23 → 24. fc_native_video_thumbnail (video küçük
-            # resmi) minSdk 24 ister; manifest birleştirici 23'te derlemeyi
-            # kesiyordu. Android 6 payı bugün ihmal edilebilir.
-            sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 24/' "$f"
-            # NDK sürümü: **runner'da KURULU olan** kullanılır.
-            #
-            # Build 152 kırmızı: sabit "27.0.12077973" runner'da yoktu, Gradle
-            # indirmeye çalıştı ve indirme bozuk geldi
-            # ("java.util.zip.ZipException: Archive is not a ZIP archive").
-            # Kurulu sürümü seçmek hem bu kırılganlığı kaldırıyor hem de her
-            # derlemede ~500 MB indirmeyi atlıyor. Hiç NDK yoksa eski sabit
-            # sürüme düşülür (o zaman indirme kaçınılmaz).
-            # 2026-08-28: yeni şablonlar (3.44.9) satırı `ndkVersion =
-            # flutter.ndkVersion` olarak YAZIYOR — eski `grep -q ndkVersion`
-            # kontrolü "zaten var" deyip geçiyordu ve Gradle, runner'da
-            # kurulu OLMAYAN bir NDK'yı (28.2.x) indirmeye kalkıyordu (build
-            # 152'yi kıran hatanın aynısı). Önce sembolik değeri değiştir,
-            # satır hiç yoksa ekle.
-            sed -i -E "s/ndkVersion[[:space:]]*=?[[:space:]]*flutter\.ndkVersion/ndkVersion = \"$NDK_VERSION\"/" "$f"
-            grep -q 'ndkVersion' "$f" || \
-              sed -i "0,/android {/s//android {\n    ndkVersion = \"$NDK_VERSION\"/" "$f"
-          done
-          echo "--- minSdk/ndk sonrası ---"; grep -R -E "minSdk|ndkVersion" android/app/build.gradle* || true
-
-      - name: Core library desugaring (flutter_local_notifications java.time ister)
-        run: |
-          set -e
-          # flutter_local_notifications java.time API'lerini kullanıyor; minSdk
-          # 24 (< 26) olduğu için bu sınıflar UYGULAMA modülünde de desugar
-          # edilmeli, yoksa derleme "Cannot find annotation method / missing
-          # java.time" ile kırılır. Kütüphane kendi modülünde açıyor ama
-          # desugaring modül başınadır.
-          #
-          # Eklenti dosyaya sonradan yamalanıyor çünkü `flutter create` her
-          # koşuda android/ klasörünü yeniden üretiyor (elle düzenleme silinir).
-          python3 - <<'PY'
-          import re, pathlib
-          patched = False
-          for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
-              path = pathlib.Path(name)
-              if not path.exists():
-                  continue
-              text = path.read_text()
-              kts = name.endswith('.kts')
-              flag = ('isCoreLibraryDesugaringEnabled = true' if kts
-                      else 'coreLibraryDesugaringEnabled true')
-              if 'oreLibraryDesugaring' not in text:
-                  # compileOptions bloğunun açılışına bayrağı ekle.
-                  new_text, count = re.subn(
-                      r'(compileOptions\s*\{)', r'\1\n        ' + flag, text, count=1)
-                  if count == 0:
-                      raise SystemExit(f'compileOptions bloğu bulunamadı: {name}')
-                  dep = ('dependencies {\n    coreLibraryDesugaring('
-                         '"com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
-                         if kts else
-                         'dependencies {\n    coreLibraryDesugaring '
-                         "'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n")
-                  new_text = new_text.rstrip() + '\n\n' + dep
-                  path.write_text(new_text)
-                  patched = True
-                  print(f'{name}: desugaring açıldı')
-          if not patched:
-              raise SystemExit('Desugaring yamalanamadı — build.gradle bulunamadı')
-          PY
-          echo "--- desugaring sonrası ---"
-          grep -R -A3 -E "compileOptions|coreLibraryDesugaring" android/app/build.gradle* || true
-
-      - name: targetSdk/compileSdk 36 + OCR modeli Play Hizmetleri'nden
-        run: |
-          set -e
-          # ── targetSdk 36 (2026-09-26) ─────────────────────────────────────
-          # Google Play 31 Ağustos 2026'dan beri yeni sürümlerde targetSdk 36
-          # (Android 16) istiyor. Flutter 3.29.3 şablonu 35 yazıyor; Flutter'ı
-          # yükseltmek (AGP 9 / Gradle 9 / Kotlin 2.3 zinciri) ayrı ve büyük bir
-          # tur olduğu için sayı burada yamalanıyor. AGP 8.7 compileSdk 36'yı
-          # "test edilmedi" diye uyarıyla derliyor; uyarı özelliği aşağıda
-          # susturuluyor. Davranış değişikliklerinden tahminli geri
-          # (`onBackPressed` artık çağrılmıyor) manifestte kapalı tutuluyor
-          # (`enableOnBackInvokedCallback="false"`, bkz. ci/AndroidManifest.xml).
-          #
-          # ── OCR: gömülü model yerine Play Hizmetleri ──────────────────────
-          # `google_mlkit_text_recognition` gömülü `com.google.mlkit:
-          # text-recognition` çekiyor: APK'ya ~11 MB yerel kütüphane + ~1,5 MB
-          # model. Aynı API'yi veren `play-services-mlkit-text-recognition`
-          # modeli Google Play Hizmetleri'nden (cihazdaki uygulamalar arasında
-          # ORTAK) indiriyor. Belge tarayıcı zaten Play Hizmetleri'ne bağlı.
-          # Eklentinin kendi derlemesi gömülü sürüme karşı derlenir (aynı
-          # sınıf adları); ikame yalnız uygulamanın çalışma sınıf yolunda olur.
-          python3 - <<'PY'
-          import pathlib, re
-          OCR_FROM = 'com.google.mlkit:text-recognition'
-          OCR_TO = 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
-          # Yüz algılama da aynı yoldan (2026-10-18, "Anılar → İnsanlar"):
-          # gömülü model yerine Play Hizmetleri'nin ortak modeli.
-          FACE_FROM = 'com.google.mlkit:face-detection'
-          FACE_TO = 'com.google.android.gms:play-services-mlkit-face-detection:17.1.0'
-          patched = False
-          for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
-              path = pathlib.Path(name)
-              if not path.exists():
-                  continue
-              kts = name.endswith('.kts')
-              text = path.read_text()
-              text, n1 = re.subn(
-                  r'targetSdk(Version)?\s*=?\s*flutter\.targetSdkVersion',
-                  'targetSdk = 36' if kts else 'targetSdkVersion 36', text)
-              text, n2 = re.subn(
-                  r'compileSdk(Version)?\s*=?\s*flutter\.compileSdkVersion',
-                  'compileSdk = 36' if kts else 'compileSdkVersion 36', text)
-              if n1 != 1 or n2 != 1:
-                  raise SystemExit(f'{name}: targetSdk/compileSdk satırı bulunamadı ({n1}, {n2})')
-              if kts:
-                  block = (
-                      '\nconfigurations.all {\n'
-                      '    resolutionStrategy.dependencySubstitution {\n'
-                      f'        substitute(module("{OCR_FROM}"))\n'
-                      f'            .using(module("{OCR_TO}"))\n'
-                      '            .because("OCR model comes from Google Play services, not the APK")\n'
-                      f'        substitute(module("{FACE_FROM}"))\n'
-                      f'            .using(module("{FACE_TO}"))\n'
-                      '            .because("Face model comes from Google Play services, not the APK")\n'
-                      '    }\n'
-                      '}\n')
-              else:
-                  block = (
-                      '\nconfigurations.all {\n'
-                      '    resolutionStrategy.dependencySubstitution {\n'
-                      f"        substitute module('{OCR_FROM}') using module('{OCR_TO}')\n"
-                      f"        substitute module('{FACE_FROM}') using module('{FACE_TO}')\n"
-                      '    }\n'
-                      '}\n')
-              path.write_text(text.rstrip() + '\n' + block)
-              patched = True
-              print(f'{name}: targetSdk/compileSdk 36, OCR ikamesi eklendi')
-          if not patched:
-              raise SystemExit('build.gradle bulunamadı')
-          PY
-          echo "android.suppressUnsupportedCompileSdk=36" >> android/gradle.properties
-          echo "--- sdk/ikame sonrası ---"
-          grep -R -n -E "targetSdk|compileSdk|dependencySubstitution|play-services-mlkit" android/app/build.gradle* || true
-
-      - name: Kotlin eklenti sürümünü yükselt (flutter_tts + ffmpeg-kit metadata)
-        run: |
-          set -e
-          # flutter_tts 4.2.5 Kotlin 2.x ile derlenmiş kotlin-stdlib çekiyor;
-          # Flutter 3.29.3 şablonunun Kotlin eklentisi 1.8.22 bu metadata'yı
-          # OKUYAMIYOR ("compiled with an incompatible version of Kotlin",
-          # build 119 kırmızı). Yeni derleyici eski metadata'yı okuyabildiği
-          # için sürümü yükseltmek güvenli yön; düşürmek değil.
-          #
-          # 2026-07-29: 2.1.0 → **2.2.0**. ffmpeg_kit_flutter_new_min_gpl
-          # kotlin-stdlib 2.2.0 çekiyor; 2.1.0 derleyicisi 2.2 metadata'sını
-          # okuyamaz (aynı hata sınıfı, ters yön). Kotlin 2.2 Gradle eklentisi
-          # Gradle 7.6.3+ ve AGP 7.3+ istiyor — şablonda Gradle 8.10.2 /
-          # AGP 8.7.0 var, ikisi de fazlasıyla karşılıyor.
-          #
-          # 2026-08-28: yama artık **SADECE YÜKSELTİYOR**. Yeni Flutter
-          # şablonları (3.44.9 → Kotlin 2.3.20) zaten 2.2.0'ın üstünde;
-          # koşulsuz `sed` orada sürümü DÜŞÜRÜR ve yukarıdaki hatanın aynısını
-          # ters yönden geri getirirdi. Karşılaştırma `sort -V` ile yapılır.
-          MIN_KOTLIN=2.2.0
-          for f in android/settings.gradle android/settings.gradle.kts; do
-            [ -f "$f" ] || continue
-            CUR=$(sed -nE 's/.*id[( ]"org\.jetbrains\.kotlin\.android"\)? version "([0-9.]+)".*/\1/p' "$f" | head -1)
-            if [ -z "$CUR" ]; then
-              echo "$f: kotlin.android sürümü bulunamadı, atlanıyor"; continue
-            fi
-            LOWEST=$(printf '%s\n%s\n' "$CUR" "$MIN_KOTLIN" | sort -V | head -1)
-            if [ "$CUR" = "$MIN_KOTLIN" ] || [ "$LOWEST" = "$MIN_KOTLIN" ]; then
-              echo "$f: Kotlin $CUR zaten >= $MIN_KOTLIN, dokunulmuyor"
-            else
-              echo "$f: Kotlin $CUR → $MIN_KOTLIN"
-              sed -i -E 's/(id[( ]"org\.jetbrains\.kotlin\.android"\)? version )"[0-9.]+"/\1"'"$MIN_KOTLIN"'"/' "$f"
-            fi
-          done
-          echo "--- kotlin eklenti sürümü ---"
-          grep -R "kotlin.android" android/settings.gradle* || true
-
-      - name: Kotlin/Java JVM hedef uyum kontrolünü yumuşat
-        run: |
-          set -e
-          # Eklentiler Kotlin'i 17'ye, Java'yı 8/11'e derliyor (modül-içi uyumsuzluk).
-          # Hedefleri DSL/görev ile zorla hizalamak AGP finalization'ıyla çakışıyor
-          # ve zaten tutarlı modülleri bozuyor. En sağlam yol: uyum kontrolünü ERROR
-          # yerine WARNING yapmak — karışık JVM bytecode Android'de sorun değil.
-          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-          # Ağ dayanıklılığı: bir bağımlılık indirmesi asılırsa Gradle sonsuza kadar
-          # beklemesin — 120 sn'de zaman aşımına uğrayıp yeniden denesin. Böylece
-          # geçici bir stall dakikalarca (build #53'te ~55 dk) asılı kalmaz.
-          echo "systemProp.org.gradle.internal.http.connectionTimeout=120000" >> android/gradle.properties
-          echo "systemProp.org.gradle.internal.http.socketTimeout=120000" >> android/gradle.properties
-          echo "--- gradle.properties ---"; tail -8 android/gradle.properties
-
-      - name: Bağımlılıklar
-        run: flutter pub get
-
-      # `pdfrx` web sürümü için pdfium'un WebAssembly derlemesini (`pdfium.wasm`,
-      # 4 MB; APK'da sıkıştırılmış 2 MB) `assets/` klasörü olarak bildiriyor ve
-      # Flutter bunu Android APK'sına da koyuyordu — Android yerel
-      # `libpdfium.so`yu kullanır, wasm HİÇ yüklenmez. Flutter 3.29 bir paketin
-      # varlığını dışarıda bırakmanın yolunu vermiyor; paket önbelleğindeki
-      # dosya derlemeden önce siliniyor. Klasör bildirildiği için yerinde
-      # kalan küçük `.js` dosyaları klasörü boş bırakmıyor (boş/olmayan
-      # varlık klasörü derlemeyi durdururdu). Aşağıdaki "APK içeriği
-      # denetimi" adımı wasm'ın gerçekten çıktığını doğruluyor.
-      - name: PDF motorunun web derlemesini çıkar (pdfium.wasm)
-        run: |
-          set -e
-          python3 - <<'PY'
-          import json, pathlib, urllib.parse
-          cfg = json.loads(pathlib.Path('.dart_tool/package_config.json').read_text())
-          roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'pdfrx']
-          if not roots:
-              print('::warning::pdfrx paketi bulunamadı, wasm silinmedi'); raise SystemExit(0)
-          root = pathlib.Path(urllib.parse.urlparse(roots[0]).path)
-          wasm = root / 'assets' / 'pdfium.wasm'
-          if wasm.exists():
-              size = wasm.stat().st_size
-              wasm.unlink()
-              print(f'silindi: {wasm} ({size / 1048576:.1f} MB)')
-          else:
-              print(f'zaten yok: {wasm}')
-          PY
-
-      - name: Uygulama ikonunu üret (launcher + adaptive)
-        run: |
-          set -e
-          dart run flutter_launcher_icons
-          echo "--- üretilen mipmap'ler ---"
-          ls -R android/app/src/main/res/mipmap-* 2>/dev/null | head -40 || true
-
-      # main'de ayrı bir `test` işi koşmuyor (bkz. yukarıdaki `if`), bu yüzden
-      # kapı burada da duruyor — yoksa main'e analyze'sız kod girerdi.
-      #
-      # **DENEME SÜRÜMÜNDE BAĞLAYICI DEĞİL:** başka bir Flutter sürümü
-      # denenirken (`flutter_version` girdisi) kullanımdan kaldırma uyarıları
-      # BEKLENEN şeydir — 3.44.9'da 24 tane var ve hepsi uyarı, hata değil.
-      # Kapı orada da bağlasaydı deneme, asıl merak edilen yere (Android
-      # derleme zinciri: AGP/Gradle/Kotlin/NDK) hiç ulaşamadan dururdu.
-      - name: Statik çözümleme (analyze)
-        continue-on-error: ${{ env.FLUTTER_VERSION != '3.29.3' }}
-        run: flutter analyze
-
-      - name: Testler (pptx render)
-        run: flutter test
-
-      # ABI'ye göre BÖLÜNMÜŞ derleme (2026-07-29): tek şişko APK 200 MB'tı
-      # çünkü üç mimarinin yerel kütüphaneleri (ML Kit, PDFium, syncfusion,
-      # video/ses, Firebase) aynı dosyaya giriyordu. Bölme AOT derlemesini
-      # ÇOĞALTMAZ — zaten her mimari için ayrı snapshot üretiliyordu — yalnız
-      # çıktıyı ayırır, yani süre uzamaz. x86_64 bilinçli olarak DIŞARIDA:
-      # yalnız emülatörde işe yarar, gerçek telefonda kimse kullanmaz (ve bir
-      # AOT derlemesi eksildiği için süre biraz kısalır).
-      #
-      # SÜRÜM NUMARASI: `BUILD_NAME`/`BUILD_NUMBER` yukarıdaki "Sürüm
-      # numarasını belirle" adımında hesaplanıp `$GITHUB_ENV`e yazıldı
-      # (`<ana>.<ara>.<koşu numarası>`). Android bir güncellemeyi ancak
-      # versionCode ARTARSA kabul eder; koşu sayacı tekdüze artıyor ve
-      # yayınlanan Release etiketiyle BİREBİR aynı.
-      # `--split-per-abi` ile Flutter'ın Gradle eklentisi her mimariye ayrı bir
-      # versionCode (abi*1000 + numara) verir; mimariler birbirini ezmez.
-      - name: APK derle (release, ABI'ye göre bölünmüş)
-        run: |
+          PLATFORMS=android-arm64
+          [ "$FULL_BUILD" = "true" ] && PLATFORMS=android-arm,android-arm64
           flutter build apk --release --split-per-abi \
+            --obfuscate --split-debug-info=build/symbols \
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
-            --target-platform android-arm,android-arm64
-          echo "--- üretilen APK'lar ---"
+            --target-platform "$PLATFORMS"
           ls -lh build/app/outputs/flutter-apk/*.apk
 
-      - name: İmza anahtarını hazırla (secret varsa kalıcı, yoksa üret)
+      - name: İmza anahtarını hazırla (secret varsa kalıcı, yoksa geçici)
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          # Repo public olduğu için parola artık workflow'da düz metin DEĞİL.
-          # Secret yoksa (fork/ilk kurulum) geçici anahtar bu yedek parolayla üretilir.
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
         run: |
           set -e
           if [ -n "$KS_B64" ]; then
-            # tr: secret'a yapışan CR/boşluk/satır sonu base64'ü bozar ("invalid input")
+            # tr: secret'a yapışan CR/boşluk/satır sonu base64'ü bozar.
             printf '%s' "$KS_B64" | tr -d '\r\n \t' | base64 -d > release.jks
             echo "İmza anahtarı repo secret'ından yüklendi (kalıcı)."
           else
@@ -548,15 +234,11 @@ jobs:
               -keyalg RSA -keysize 2048 -validity 10000 -alias dosyaokuyucu \
               -storepass "$KS_PASS" -keypass "$KS_PASS" \
               -dname "CN=Dosya Okuyucu, O=DosyaOkuyucu, C=TR"
-            # **ANAHTAR ARTIK LOG'A BASILMIYOR** (2026-08-28). Depo public;
-            # base64 keystore'u iş akışı loguna yazmak, o logu gören herkese
-            # uygulamayı BİZİM İMZAMIZLA güncelleme yetkisi vermek demekti
-            # (parola da yedek değerdi). Anahtar üretmek zaten yerelde iki
-            # komut — bkz. SIGNING.md. Buradaki geçici anahtar YALNIZ bu
-            # derlemenin imzalanması içindir, dışarı çıkmaz.
-            echo "::warning::Bu derleme GEÇİCİ bir anahtarla imzalandı; sürümler arası imza DEĞİŞİR (güncelleme kurulamaz). Kalıcı imza için SIGNING.md'deki adımlarla anahtarı YERELDE üretip ANDROID_KEYSTORE_B64 ve ANDROID_KEYSTORE_PASSWORD secret'larını ekleyin."
+            # Anahtar LOG'A BASILMAZ (depo public — bkz. SIGNING.md).
+            echo "::warning::Bu derleme GEÇİCİ bir anahtarla imzalandı; sürümler arası imza DEĞİŞİR (güncelleme kurulamaz). Kalıcı imza için SIGNING.md'deki adımlarla ANDROID_KEYSTORE_B64 ve ANDROID_KEYSTORE_PASSWORD secret'larını ekleyin."
           fi
 
+      # Bölünmüş derlemedeki tüm APK'lar AYNI anahtarla imzalanır.
       - name: APK'yı imzala ve doğrula
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
@@ -564,10 +246,6 @@ jobs:
           set -e
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           APKSIGNER=$(ls "$SDK"/build-tools/*/apksigner | sort -V | tail -1)
-          echo "apksigner: $APKSIGNER"
-          # Bölünmüş derlemede birden çok APK var; hepsi AYNI anahtarla
-          # imzalanmalı, yoksa kullanıcı mimari değiştirdiğinde "imza uyuşmuyor"
-          # hatasıyla güncelleyemez.
           shopt -s nullglob
           APKS=(build/app/outputs/flutter-apk/app-*-release.apk)
           if [ ${#APKS[@]} -eq 0 ]; then
@@ -575,255 +253,264 @@ jobs:
           fi
           for APK in "${APKS[@]}"; do
             echo "imzalanıyor: $APK"
-            "$APKSIGNER" sign \
-              --ks release.jks \
-              --ks-key-alias dosyaokuyucu \
-              --ks-pass "pass:$KS_PASS" \
-              --key-pass "pass:$KS_PASS" \
-              "$APK"
+            "$APKSIGNER" sign --ks release.jks --ks-key-alias dosyaokuyucu \
+              --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" "$APK"
           done
           echo "--- imza sertifikası (arm64) ---"
           "$APKSIGNER" verify --print-certs \
             build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
-            | grep -iE "SHA-256|SHA-1|Signer #1 cert" | head -5
+            | grep -iE "SHA-256|SHA-1|Signer #1 cert" | head -5 | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # ── PLAY İÇİN AAB (isteğe bağlı, elle tetiklemede) ──────────────────
-      # Google Play yeni uygulamalarda APK KABUL ETMİYOR; yükleme birimi
-      # `.aab`. Bunu her push'ta üretmek ikinci bir AOT derlemesi (~5 dk)
-      # demek — mağaza başvurusu henüz yapılmadığı için İSTEK ÜZERİNE
-      # üretiliyor: Actions > Run workflow > "Play için AAB da üret".
-      #
-      # İmza `jarsigner` ile: `apksigner` yalnız APK imzalar, AAB bir jar'dır.
-      # Aynı keystore kullanılır — Play App Signing'e verilecek YÜKLEME
-      # anahtarı ile APK'ların imzası aynı kalsın (ileride mağaza ve GitHub
-      # sürümleri arasında imza karmaşası çıkmasın).
-      #
-      # NOT: AAB Release'e EKLENMİYOR, yalnız artifact olarak kalıyor —
-      # kullanıcı bir `.aab` dosyasını telefonuna kuramaz, indirenlerin
-      # kafasını karıştırırdı.
-      - name: AAB derle ve imzala (Play yükleme birimi)
-        if: ${{ inputs.aab }}
+      # Play yükleme birimi. `jarsigner` (AAB bir jar'dır), APK ile AYNI
+      # keystore. Release'e EKLENMEZ — telefona kurulamaz, kafa karıştırır.
+      - name: AAB derle ve imzala (tam derlemede)
+        if: steps.version.outputs.full == 'true'
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
         run: |
           set -e
           flutter build appbundle --release \
+            --obfuscate --split-debug-info=build/symbols-aab \
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
             --target-platform android-arm,android-arm64,android-x64
           AAB=build/app/outputs/bundle/release/app-release.aab
-          jarsigner -keystore release.jks \
-            -storepass "$KS_PASS" -keypass "$KS_PASS" \
-            -sigalg SHA256withRSA -digestalg SHA-256 \
-            "$AAB" dosyaokuyucu
+          jarsigner -keystore release.jks -storepass "$KS_PASS" -keypass "$KS_PASS" \
+            -sigalg SHA256withRSA -digestalg SHA-256 "$AAB" dosyaokuyucu
           jarsigner -verify "$AAB" > /dev/null && echo "AAB imzası doğrulandı"
-          mkdir -p dist
-          cp "$AAB" dist/dosya-okuyucu.aab
-          ls -lh dist/dosya-okuyucu.aab
+          mkdir -p dist-aab
+          cp "$AAB" dist-aab/dosya-okuyucu.aab
 
-      - name: AAB'yi yükle (artifact)
-        if: ${{ inputs.aab }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: dosya-okuyucu-aab
-          path: dist/dosya-okuyucu.aab
-          retention-days: 14
-
-      # arm64 SADE adı alır (`dosya-okuyucu.apk`): 2016 sonrası pratikte her
-      # telefon arm64-v8a. Kullanıcı her zamanki dosyayı indirmeye devam etsin,
-      # mimari seçmek zorunda kalmasın. 32-bit cihazlar için ayrı dosya durur.
+      # arm64 SADE adı alır (`dosya-okuyucu.apk`) — kullanıcı her zamanki
+      # dosyayı indirir; `releases/latest/download/dosya-okuyucu.apk` sabit.
       - name: APK'ları adlandır
         run: |
           set -e
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
-            dist/dosya-okuyucu.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
-            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/dosya-okuyucu.apk
+          if [ -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ]; then
+            cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+              dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+          fi
           ls -lh dist/
 
-      # Ölçüm (tahmin değil): APK içinde neyin kaç MB tuttuğu. Boyut küçültme
-      # turlarında hangi kalemin uğraşmaya değdiği buradan okunur.
-      - name: Boyut raporu (APK içi en büyük dosyalar)
+      # Ölçüm: APK içinde neyin kaç MB tuttuğu (boyut turlarının pusulası).
+      - name: Boyut raporu
         run: |
           set -e
-          echo "## APK boyutları" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          ls -lh dist/ | awk '{print $5, $9}' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "## arm64 APK içindeki en büyük 25 dosya (sıkıştırılmamış)" \
-            >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          # NF==4 süzmesi: `unzip -l`in başlık ve "toplam" satırları listeye
-          # karışmasın (toplam satırı en büyük sayı olduğu için başa geçerdi).
-          unzip -l dist/dosya-okuyucu.apk \
-            | awk 'NF==4 && $1 ~ /^[0-9]+$/' \
-            | sort -k1 -n -r | head -25 \
-            | awk '{printf "%8.1f MB  %s\n", $1/1048576, $4}' \
-            >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## APK boyutları"
+            echo '```'; ls -l dist/ | awk 'NR>1 {printf "%6.1f MB  %s\n", $5/1048576, $9}'; echo '```'
+            echo "## arm64 APK içindeki en büyük 25 dosya (sıkıştırılmamış)"
+            echo '```'
+            unzip -l dist/dosya-okuyucu.apk | awk 'NF==4 && $1 ~ /^[0-9]+$/' \
+              | sort -k1 -n -r | head -25 \
+              | awk '{printf "%8.1f MB  %s\n", $1/1048576, $4}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # 2026-09-26 boyut/hedef turu: yapılan üç değişiklik APK'da GERÇEKTEN
-      # gerçekleşti mi — derleme yeşil diye varsayılmıyor, ölçülüyor.
-      - name: APK içeriği denetimi (wasm yok, gömülü OCR yok, targetSdk 36)
+      # C10 + 2026-09-26 denetimleri — derleme yeşil diye VARSAYILMAZ, ölçülür:
+      #   • pdfium.wasm ve gömülü OCR APK'da yok, targetSdk 36;
+      #   • 16 KB sayfa hizası (Play şartı, Kasım 2025'ten beri): zip hizası
+      #     (`zipalign -P 16`) + her .so'nun ELF LOAD hizası ≥ 0x4000;
+      #   • arm64 APK boyut bütçesi (Faz 7'de düşürülecek).
+      - name: APK denetimi (içerik, 16 KB hiza, boyut bütçesi)
+        env:
+          BUDGET_MB: 80
         run: |
           set -e
           APK=dist/dosya-okuyucu.apk
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
           if unzip -l "$APK" | grep -q 'pdfium.wasm'; then
             echo "::error::pdfium.wasm hâlâ APK'da"; exit 1
           fi
           if unzip -l "$APK" | grep -q 'libmlkit_google_ocr_pipeline.so'; then
             echo "::error::Gömülü OCR kütüphanesi hâlâ APK'da (ikame çalışmadı)"; exit 1
           fi
-          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          AAPT2=$(ls "$SDK"/build-tools/*/aapt2 | sort -V | tail -1)
-          TARGET=$("$AAPT2" dump badging "$APK" | sed -nE "s/.*targetSdkVersion:'([0-9]+)'.*/\1/p")
-          echo "targetSdk: $TARGET"
+          TARGET=$("$BT/aapt2" dump badging "$APK" | sed -nE "s/.*targetSdkVersion:'([0-9]+)'.*/\1/p")
           if [ "$TARGET" != "36" ]; then
             echo "::error::targetSdk 36 değil ($TARGET)"; exit 1
           fi
+          for f in dist/*.apk; do
+            if ! "$BT/zipalign" -c -P 16 -v 4 "$f" > zipalign.log 2>&1; then
+              grep -v "(OK" zipalign.log | tail -20
+              echo "::error::$f 16 KB zip hizasında değil"; exit 1
+            fi
+          done
+          python3 - "$APK" <<'PY'
+          import struct, sys, zipfile
+          bad = []
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              for n in z.namelist():
+                  if not (n.startswith('lib/arm64-v8a/') and n.endswith('.so')):
+                      continue
+                  d = z.read(n)
+                  if d[:4] != b'\x7fELF' or d[4] != 2:
+                      continue
+                  phoff, = struct.unpack_from('<Q', d, 0x20)
+                  phentsize, phnum = struct.unpack_from('<HH', d, 0x36)
+                  aligns = [struct.unpack_from('<Q', d, phoff + i * phentsize + 0x30)[0]
+                            for i in range(phnum)
+                            if struct.unpack_from('<I', d, phoff + i * phentsize)[0] == 1]
+                  low = min(aligns) if aligns else 0
+                  print(f'{n}: LOAD hizası 0x{low:x}')
+                  if low < 0x4000:
+                      bad.append(n)
+          if bad:
+              print('::error::16 KB ELF hizası tutmayan kütüphaneler: ' + ', '.join(bad))
+              raise SystemExit(1)
+          PY
+          SIZE=$(stat -c %s "$APK")
+          SIZE_MB=$(python3 -c "print(f'{$SIZE/1048576:.1f}')")
+          if [ "$SIZE" -gt $((BUDGET_MB * 1048576)) ]; then
+            echo "::error::arm64 APK $SIZE_MB MB — bütçe $BUDGET_MB MB"; exit 1
+          fi
+          LIBAPP=$(unzip -l "$APK" | awk '$4=="lib/arm64-v8a/libapp.so"{printf "%.1f", $1/1048576}')
           {
             echo "## İçerik denetimi"
             echo "- pdfium.wasm: yok ✔"
-            echo "- gömülü OCR (libmlkit_google_ocr_pipeline.so): yok ✔"
+            echo "- gömülü OCR: yok ✔"
             echo "- targetSdk: $TARGET ✔"
-          } >> $GITHUB_STEP_SUMMARY
+            echo "- 16 KB hiza (zip + ELF): ✔"
+            echo "- arm64 APK: $SIZE_MB MB / bütçe $BUDGET_MB MB ✔"
+            echo "- libapp.so (karartılmış): $LIBAPP MB"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # Artifact'lar mimariye göre AYRI (2026-08-17). Release adımı GitHub
-      # kesintisinde düşebiliyor (bkz. aşağıdaki üç denemenin notu) ve o zaman
-      # tek indirme yolu artifact kalıyor. Tek artifact'te iki APK birleşince
-      # telefonda 101 MB'lık bir zip indirip içinden doğru dosyayı seçmek
-      # gerekiyordu; ayrı olunca herkes yalnız kendi APK'sını (91 MB) indiriyor.
-      - name: Artifact yükle (64-bit — herkesin indireceği)
+      - name: Artifact — APK (64-bit)
         uses: actions/upload-artifact@v4
         with:
           name: dosya-okuyucu-apk
           path: dist/dosya-okuyucu.apk
           if-no-files-found: error
 
-      - name: Artifact yükle (32-bit — yalnız çok eski cihazlar)
+      - name: Artifact — APK (32-bit, tam derlemede)
+        if: steps.version.outputs.full == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dosya-okuyucu-apk-32bit
           path: dist/dosya-okuyucu-32bit-armeabi-v7a.apk
           if-no-files-found: error
 
-      # Sürüm notu DOSYAYA yazılır: aşağıdaki üç deneme aynı metni
-      # `body_path` ile paylaşsın diye. (Metni her adımda tekrarlamak, biri
-      # güncellenip diğerleri unutulduğunda sessizce ayrışırdı.)
+      - name: Artifact — AAB (tam derlemede)
+        if: steps.version.outputs.full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dosya-okuyucu-aab
+          path: dist-aab/dosya-okuyucu.aab
+          retention-days: 14
+
+      - name: Artifact — Dart sembolleri (çökme izi çözmek için)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-symbols-${{ steps.version.outputs.name }}
+          path: build/symbols*
+          retention-days: 90
+
+  # ── Yayın: nightly (main) ya da gerçek sürüm (v* etiketi) ────────────────
+  release:
+    name: GitHub Release
+    needs: [verify, apk]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_NAME: ${{ needs.apk.outputs.name }}
+      BUILD_NUMBER: ${{ needs.apk.outputs.number }}
+    steps:
+      # `fetch-depth: 20` — sürüm notundaki son değişiklikler `git log`dan.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dosya-okuyucu-apk*
+          path: dist
+          merge-multiple: true
+
       - name: Sürüm notunu hazırla
         run: |
           set -e
-          # Sürüm başlığı ve BU derlemeye giren commit'ler (2026-09-04):
-          # not metni aylardır aynıydı, yani iki release'i birbirinden
-          # ayırmanın hiçbir yolu yoktu. Artık her sürüm kendi numarasını ve
-          # son değişikliklerini taşıyor.
           {
-            echo "**Sürüm ${BUILD_NAME}** (derleme ${BUILD_NUMBER}) —"
-            echo "\`$(git rev-parse --short HEAD)\`"
+            echo "**Sürüm ${BUILD_NAME}** (derleme ${BUILD_NUMBER}) — \`$(git rev-parse --short HEAD)\`"
             echo
             echo "**Bu derlemedeki son değişiklikler:**"
-            git log -8 --pretty='- %s' | sed 's/Co-Authored-By.*//'
+            git log -8 --pretty='- %s'
             echo
-          } > dist/RELEASE_NOTES.md
-          cat >> dist/RELEASE_NOTES.md <<'NOTES'
-          Otomatik derlenen, imzalı Android APK.
+            echo "**Hangi dosyayı indirmeliyim?** → \`dosya-okuyucu.apk\` (64-bit / arm64-v8a)."
+            if [ -f dist/dosya-okuyucu-32bit-armeabi-v7a.apk ]; then
+              echo "Yalnız çok eski 32-bit bir cihazda kurulmuyorsa \`dosya-okuyucu-32bit-armeabi-v7a.apk\`."
+            else
+              echo "32-bit APK yalnız sürüm etiketli (v*) derlemelerde üretilir."
+            fi
+            echo
+            echo "Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir."
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
 
-          **Uygulama neler yapıyor:**
-          - “Birlikte aç” / paylaş: WhatsApp/Gmail/Dosyalar’dan gelen dosyayı doğrudan açar
-          - Dosya yöneticisi: pano, gezgin, arama, USB/SD bellek, çöp kutusu
-          - Geniş dosya türü desteği + içerik tanıma (uzantısız metin dosyaları dahil)
-          - Belge içi arama (Bul), metinde yazı boyutu, PDF sayfa göstergesi
-          - Office düzenleme: Word biçim, Excel satır/sütun + formül + sayı biçimleri, PowerPoint slayt işlemleri
-          - Ses/video oynatıcı: bildirim denetimi, ekran altı çubuk, kaldığın yerden devam
-          - AI hızlı komutlar (Özetle / Ana noktalar / Basit anlat)
+      # C5 + C6: tek adım, üstel bekleme (30/90/240 sn). 2026-08-17'de
+      # Releases API dakikalarca 503 verdi; eylemin kendi 2 sn'lik yeniden
+      # denemesi yetmiyordu. Son deneme de düşerse iş KIRMIZI yanar.
+      #   • main → `nightly`: varsa etiket yeni commit'e taşınır, dosyalar
+      #     üzerine yazılır; yoksa oluşturulur. "En son" işaretli kalır ki
+      #     kullanıcının bildiği indirme adresi çalışsın.
+      #   • v* → o etiketle kalıcı sürüm.
+      - name: Release yayımla (3 deneme)
+        run: |
+          set -u
+          publish() {
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              TAG="${GITHUB_REF#refs/tags/}"
+              if gh release view "$TAG" >/dev/null 2>&1; then
+                gh release upload "$TAG" dist/*.apk --clobber
+              else
+                gh release create "$TAG" dist/*.apk --verify-tag \
+                  --title "Dosya Okuyucu $TAG (${BUILD_NAME})" \
+                  --notes-file RELEASE_NOTES.md --latest
+              fi
+            else
+              TAG=nightly
+              TITLE="Dosya Okuyucu nightly v${BUILD_NAME}"
+              if gh release view "$TAG" >/dev/null 2>&1; then
+                gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" \
+                  -f sha="$GITHUB_SHA" -F force=true >/dev/null &&
+                gh release edit "$TAG" --title "$TITLE" \
+                  --notes-file RELEASE_NOTES.md --prerelease=false --latest &&
+                gh release upload "$TAG" dist/*.apk --clobber
+              else
+                gh release create "$TAG" dist/*.apk --target "$GITHUB_SHA" \
+                  --title "$TITLE" --notes-file RELEASE_NOTES.md --latest
+              fi
+            fi
+          }
+          for WAIT in 30 90 240 0; do
+            if publish; then echo "Release yayımlandı."; exit 0; fi
+            [ "$WAIT" -eq 0 ] && break
+            echo "::warning::Release denemesi düştü; $WAIT sn sonra yeniden."
+            sleep "$WAIT"
+          done
+          echo "::error::Release 4 denemede de yayımlanamadı (APK artifact'te duruyor)."
+          exit 1
 
-          Çok formatlı görüntüleme (PDF, Word, Excel, Slayt, metin, görsel), PDF/Slayt
-          dönüştürme, paylaşım, Gemini AI sohbet.
-
-          **Hangi dosyayı indirmeliyim?** → `dosya-okuyucu.apk`
-          (2016 sonrası tüm telefonlar; 64-bit / arm64-v8a).
-          Yalnızca çok eski 32-bit bir cihazda kurulmuyorsa
-          `dosya-okuyucu-32bit-armeabi-v7a.apk` dosyasını deneyin.
-
-          APK'lar bu sürümden itibaren mimariye göre **ayrı** derleniyor:
-          tek dosyada üç mimarinin kütüphaneleri taşındığı için boyut
-          gereksiz yere ~3 katıydı. İşlev aynı, indirme çok daha küçük.
-
-          Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir.
-          NOTES
-
-      # ── Release: GERİ ÇEKİLMELİ üç deneme ────────────────────────────────
-      #
-      # 2026-08-17 (build 288 ve 290): APK derlendi, imzalandı ve artifact'e
-      # yüklendi ama Release adımı ÜÇ kez 503 aldı ("No server is currently
-      # available") ve iş kırmızı yandı. Sorun bizde değil, GitHub'ın Releases
-      # API'sindeydi. `softprops/action-gh-release` kendi içinde üç kez dener
-      # ama toplam ~2 SANİYE içinde — dakikalarca süren bir kesintiye karşı
-      # hiçbir işe yaramıyor.
-      #
-      # İlk iki deneme `continue-on-error` ile sessizce geçilir, aralarında
-      # gerçek bir bekleme vardır. ÜÇÜNCÜ deneme geçilmez: kesinti kalıcıysa
-      # iş yine kırmızı yanar — sürümün yayımlanmadığını gizlemek istemiyoruz.
-      # **Release YALNIZ main'de** (2026-09-26; asıl politika 2026-07-21'de
-      # böyleydi, koşul sonradan kaybolmuştu). Özellik dalındaki doğrulama
-      # derlemesi (`[release-apk]` işaretli commit) APK'yı artifact olarak
-      # üretir ama herkese açık, "en son" işaretli bir sürüm BASMAZ.
-      # release1 atlanınca ikinci/üçüncü deneme de atlanır (koşulları
-      # release1'in `failure` sonucuna bağlı).
-      - name: GitHub Release oluştur
-        id: release1
-        if: github.ref == 'refs/heads/main'
+      # C5 budama (kullanıcı onayı 2026-10-21): nightly hariç en yeni 10
+      # sürüm kalır; eskiler etiketleriyle silinir. GITHUB_TOKEN saatlik API
+      # sınırına takılmamak için koşu başına en çok 100 silme — birikmiş
+      # ~370 sürüm birkaç main push'unda erir. Budama başarısızsa sürüm
+      # yayımlanmış olduğundan iş kırılmaz.
+      - name: Eski sürümleri buda (son 10 kalsın)
         continue-on-error: true
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.name }}
-          name: Dosya Okuyucu v${{ steps.version.outputs.name }}
-          make_latest: true
-          body_path: dist/RELEASE_NOTES.md
-          files: |
-            dist/dosya-okuyucu.apk
-            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
-          generate_release_notes: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Release 503 aldı — bekle ve yeniden dene
-        if: steps.release1.outcome == 'failure'
-        run: sleep 90
-
-      - name: GitHub Release oluştur (2. deneme)
-        id: release2
-        if: steps.release1.outcome == 'failure'
-        continue-on-error: true
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.name }}
-          name: Dosya Okuyucu v${{ steps.version.outputs.name }}
-          make_latest: true
-          body_path: dist/RELEASE_NOTES.md
-          files: |
-            dist/dosya-okuyucu.apk
-            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
-          generate_release_notes: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Release hâlâ olmadı — son kez bekle
-        if: steps.release1.outcome == 'failure' && steps.release2.outcome == 'failure'
-        run: sleep 240
-
-      # Son deneme: burada başarısızlık İŞİ KIRAR (bilinçli).
-      - name: GitHub Release oluştur (son deneme)
-        if: steps.release1.outcome == 'failure' && steps.release2.outcome == 'failure'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.name }}
-          name: Dosya Okuyucu v${{ steps.version.outputs.name }}
-          make_latest: true
-          body_path: dist/RELEASE_NOTES.md
-          files: |
-            dist/dosya-okuyucu.apk
-            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
-          generate_release_notes: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP: 10
+          MAX_DELETE: 100
+        run: |
+          set -e
+          gh release list --limit 1000 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[].tagName' \
+            | grep -vx nightly | tail -n +$((KEEP + 1)) | head -n "$MAX_DELETE" > old.txt || true
+          echo "Silinecek: $(wc -l < old.txt) sürüm"
+          while read -r TAG; do
+            [ -n "$TAG" ] || continue
+            gh release delete "$TAG" --yes --cleanup-tag || echo "::warning::$TAG silinemedi"
+          done < old.txt

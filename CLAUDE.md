@@ -11,8 +11,8 @@ iş bitmeden HAFIZA.md'ye yaz. KVKK: hasta verisi / TC / ölçüm / token yazma.
 ## 1) Amaç
 Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici + dosya yöneticisi**
 (2026-07-25: telefondaki tüm dosyalar için pano/gezgin/işlemler — `lib/services/fm/`,
-`lib/screens/fm/`; ayrıntı ve kararlar HAFIZA.md). Hem mobil hem
-masaüstü (tek Flutter kod tabanı). Gemini AI entegrasyonu, format dönüştürme,
+`lib/screens/fm/`; ayrıntı ve kararlar HAFIZA.md). **Yalnız Android**
+(K10, 2026-10-21: masaüstü/iOS hedefi kaldırıldı). Gemini AI entegrasyonu, format dönüştürme,
 paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasadaki yavaş/pahalı programlara alternatif.
 
 > Sabit kararlar, build geçmişi, açık durum ve reddedilen yollar → **HAFIZA.md**
@@ -24,11 +24,15 @@ paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasada
 Gemini AI Service, Firebase Auth, PPTX Render/Slide Canvas/Slideshow, Word DocxView, Excel Grid …).
 Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 
-## 3) CI/CD (.github/workflows/build-apk.yml)
-Push'ta (main / feature dalı, `**.md` hariç): Flutter kur → `flutter create` ile
-android iskeleti → AndroidManifest'e INTERNET izni + app adı → minSdk 23 patch →
-`flutter pub get` → `flutter build apk --release` → **sabit anahtarla imzala (apksigner)**
-→ artifact yükle → **GitHub Release** oluştur (tag `v0.1.0-build-<run_number>`).
+## 3) CI/CD (.github/workflows/build-apk.yml — Faz 1 düzeni, 2026-10-21)
+`changes` → **`verify`** (pub get → analyze → test [+ `ci/` değiştiyse Kotlin denetimi]; her dalda)
+∥ **`apk`** (sürüm no → `ci/prepare_android.sh` [iskelet + tüm yamalar, yerelde de koşar] →
+`flutter build apk --obfuscate` → apksigner → içerik/16 KB/boyut bütçesi denetimi → artifact + Dart sembolleri)
+→ **`release`** (ikisi yeşilse): main → tek **`nightly`** sürüm (üzerine yazılır, "en son" işaretli,
+`releases/latest/download/dosya-okuyucu.apk` sabit); **`v*` etiketi** → kalıcı sürüm (arm + arm64 + AAB).
+Eski sürümler budanır (nightly hariç son 10). Push'ta yalnız arm64; 32-bit + AAB etikette/elle.
+Yalnız `test/**`/`tool/**` değişen push APK derlemez; `**.md`, `docs/**`, `graphify-out/**` hiç koşturmaz.
+Art arda push → önceki koşu iptal.
 
 ## 4) Çalışma Kuralları
 - **Dal:** **TEK DAL — `main`.** (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi
