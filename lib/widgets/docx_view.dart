@@ -103,6 +103,18 @@ class DocxViewState extends State<DocxView> {
   /// bulanıklaştırıyordu (2026-08-01 kullanıcı bulgusu).
   void _zoomBy(double f) => _controller.runJavaScript('zoomBy($f)');
 
+  /// Belge baytları değişti (resim ekleme gibi yapısal bir iş sonrası):
+  /// yeniden çiz. Canlı düzenlemedeki yazı zaten Dart modelinde olduğu için
+  /// yeniden çizim bir şey kaybettirmez.
+  @override
+  void didUpdateWidget(covariant DocxView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.bytes, widget.bytes) && !_loading) {
+      setState(() => _loading = true);
+      _render();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -255,6 +267,19 @@ class DocxViewState extends State<DocxView> {
   }
 
   /// Canlı düzenlemeyi açar/kapatır (sayfa contenteditable olur).
+  /// İmlecin bulunduğu paragrafın indeksi (`DocxEditor.paragraphs`le aynı
+  /// sıra); imleç belgede değilse -1.
+  Future<int> caretParagraph() async {
+    try {
+      final r = await _controller
+          .runJavaScriptReturningResult('caretParaIndex()');
+      return int.tryParse('$r'.split('.').first) ?? -1;
+    } catch (_) {
+      // Köprü hazır değil (çizim sürüyor): "imleç yok" demekle aynı.
+      return -1;
+    }
+  }
+
   void setEditing(bool on) =>
       _controller.runJavaScript('setEditable($on)');
 

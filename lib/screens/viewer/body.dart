@@ -71,9 +71,6 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
                         // tercihi artık geçerli değil.
                         onInteractionStart: (_) => _pdfJumpTarget = null,
-                        // Klavye açılınca düzenlenen satır görünür kalsın
-                        // (tear-off: params eşitliği her karede bozulmasın).
-                        onViewSizeChanged: _onPdfViewSizeChanged,
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
@@ -141,31 +138,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                             }
                           }
                         },
-                        // Yerinde düzenleme açıkken seçim katmanı kurulmaz: kutunun
-                        // içindeki dokunuşları yutar, imleç konumlandırılamazdı.
                         pageOverlaysBuilder: (context, pageRect, page) => [
                           if (_bookmarkRibbon(page, pageRect) case final r?) r,
-                          if (_pdfEdit != null &&
-                              _pdfEdit!.page == page.pageNumber &&
-                              _pdfEditCtl != null &&
-                              _pdfEditFocus != null)
-                            PdfInlineEditor(
-                              page: page,
-                              pageSize: pageRect.size,
-                              rects: _pdfEdit!.rects,
-                              original: _pdfEdit!.original,
-                              controller: _pdfEditCtl!,
-                              focusNode: _pdfEditFocus!,
-                              busy: _pdfEditBusy,
-                              onSubmit: _submitInlineEdit,
-                              fieldKey: _pdfEditFieldKey,
-                              family: _pdfEditFont?.previewFamily ??
-                                  PdfInlineEditor.fontFamily,
-                              bold: _pdfEditFont?.bold ?? false,
-                              italic: _pdfEditFont?.italic ?? false,
-                            )
-                          else if (_pdfEdit == null)
-                            PdfSelectLayer(
+                          PdfSelectLayer(
                               page: page,
                               pageSize: pageRect.size,
                               // Tek etkin seçim: seçim hangi sayfadaysa öbür
@@ -173,7 +148,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               activeSelectionPage:
                                   _pdfSelection.isEmpty ? 0 : _pdfSelPage,
                               onSelected:
-                                  (t, rects, pageNo, preceding, fromOcr) {
+                                  (t, rects, pageNo, _, __) {
                                 if (mounted) {
                                   _partSetState(() {
                                     // Yeni seçim: çubuk vurgu kipinden çıkar.
@@ -181,8 +156,6 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                     _pdfSelection = t;
                                     _pdfSelRects = rects;
                                     _pdfSelPage = t.isEmpty ? 0 : pageNo;
-                                    _pdfSelPreceding = preceding;
-                                    _pdfSelFromOcr = fromOcr;
                                   });
                                 }
                               },
@@ -222,19 +195,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       child: _pageBadge(),
                     ),
                   ),
-                if (_pdfEdit == null && _pdfSelection.trim().isNotEmpty)
+                if (_pdfSelection.trim().isNotEmpty)
                   Positioned(
                     bottom: 16,
                     left: 8,
                     right: 8,
                     child: Center(child: _selectionBar()),
-                  ),
-                if (_pdfEdit != null)
-                  Positioned(
-                    bottom: 16,
-                    left: 8,
-                    right: 8,
-                    child: Center(child: _editBar()),
                   ),
               ],
             ),
@@ -275,10 +241,18 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
       case DocKind.spreadsheet:
         return _SpreadsheetView(table: doc.table ?? const []);
 
+      case DocKind.text when doc.largeText:
+        return LargeTextView(
+          path: doc.path,
+          fontSize: _fontSize,
+          fontFamily: _fontFamily,
+          lineNumbers: _lineNumbers,
+        );
+
       case DocKind.text:
       case DocKind.word:
       case DocKind.slides:
-        return _TextEditor(
+        final editor = _TextEditor(
           controller: _textController!,
           focusNode: _textFocus,
           editable: doc.isEditableText,
@@ -289,6 +263,21 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
           onChanged: () {
             if (!_dirty) _partSetState(() => _dirty = true);
           },
+        );
+        // Eski .doc/.ppt: salt okunur rozeti + "dönüştür ve düzenle" (Faz 9).
+        final legacy = doc.legacyExt;
+        final target = legacy == null ? null : LegacyConvert.targetExt(legacy);
+        if (legacy == null || target == null) return editor;
+        return Column(
+          children: [
+            LegacyBanner(
+              ext: legacy,
+              target: target,
+              busy: _legacyBusy,
+              onConvert: _convertLegacy,
+            ),
+            Expanded(child: editor),
+          ],
         );
 
       case DocKind.unknown:

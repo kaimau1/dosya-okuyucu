@@ -786,9 +786,9 @@ const Map<String, (String, String, String)> _t4 = {
   ),
   'pe.discard_leave': ('Kaydetme, çık', 'Don’t save, leave', 'اخرج دون حفظ'),
   'pe.hint_text_none': (
-    'Bu sayfada düzenlenebilir metin bulunamadı (taranmış sayfa olabilir).',
-    'No editable text found on this page (it may be a scanned page).',
-    'لم يُعثر على نص قابل للتحرير في هذه الصفحة (قد تكون صفحة ممسوحة ضوئيًا).',
+    'Bu sayfada düzenlenebilir metin bulunamadı. Yeni yazı için “Yazı ekle”ye dokunun.',
+    'No editable text on this page. Tap “Add text” to write on it.',
+    'لا يوجد نص قابل للتحرير في هذه الصفحة. اضغط «إضافة نص» للكتابة عليها.',
   ),
   'pe.hint_text_scanned': (
     'Taranmış sayfa: dokunduğunuz satırın üstüne yazılır (satır tanınıyor…).',

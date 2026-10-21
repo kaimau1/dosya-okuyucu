@@ -349,6 +349,10 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
         DocMoreItem(Icons.rule, context.t('excel.cond_format'),
             _showCondFormat),
       ]),
+      DocMoreGroup(context.t('chart.group_insert'), [
+        DocMoreItem(
+            Icons.insert_chart_outlined, context.t('chart.insert'), _insertChart),
+      ]),
       DocMoreGroup(context.t('excel.row'), [
         DocMoreItem(Icons.keyboard_arrow_up,
             context.t('excel.insert_row_above'), () => _insertRow(below: false)),
@@ -373,4 +377,70 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
       ]),
     ]);
   }
+
+  /// **Grafik ekle** (Faz 9 / Y2): seçili aralıktan (ilk satır başlık, ilk
+  /// sütun kategori) önizlemeli pencere → grafik modele eklenir, kaydedince
+  /// dosyaya yazılır (bkz. [XlsxChartWriter]). Geri alınabilir.
+  Future<void> _insertChart() async {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    _endEdit();
+    final r = _range;
+    if (r.bottom <= r.top) {
+      _snack(context.t('chart.select_range'));
+      return;
+    }
+    final engine = _engineFor(sheet);
+    final spec = await showChartInsertDialog(
+      context,
+      (kind, title) => XlsxChartSpec.fromRange(
+        sheetName: sheet.name,
+        kind: kind,
+        top: r.top,
+        left: r.left,
+        bottom: r.bottom,
+        right: r.right,
+        display: engine.displayValue,
+        title: title,
+      ),
+    );
+    if (spec == null || !mounted) return;
+    editor.addChart(spec);
+    _recordStep('chart.undo_add', () => editor.charts.add(spec),
+        () => editor.charts.remove(spec));
+    _partSetState(() => _dirty = true);
+    _snack(context.t('chart.added'));
+  }
+
+  /// Çevir: birden çok hücre seçiliyse seçimin görünen metni (sekme/satır
+  /// düzeniyle), değilse belgenin tamamı.
+  void _translate() {
+    final sheet = _sheet;
+    if (sheet == null || !_hasRange) {
+      TranslateFlow.run(context, widget.plainText, title: widget.name);
+      return;
+    }
+    _endEdit();
+    final engine = _engineFor(sheet);
+    final r = _range;
+    final text = rangeText(r, engine.displayValue);
+    if (text.trim().isEmpty) {
+      _snack(context.t('tf.no_text'));
+      return;
+    }
+    QuickTranslateSheet.show(context, text, title: widget.name);
+  }
+}
+
+/// Aralığın metni: sütunlar sekmeyle, satırlar satır sonuyla; tamamen boş
+/// satırlar atlanır (Excel'den kopyalanan biçimin aynısı).
+String rangeText(CellRange r, String Function(int row, int col) value) {
+  final lines = <String>[];
+  for (var row = r.top; row <= r.bottom; row++) {
+    final cells = [for (var c = r.left; c <= r.right; c++) value(row, c)];
+    if (cells.every((v) => v.trim().isEmpty)) continue;
+    lines.add(cells.join('\t').trimRight());
+  }
+  return lines.join('\n');
 }

@@ -58,7 +58,6 @@ const Map<String, (String, String, String)> _t1 = {
   'shell.sheets': ('{n} sayfa', '{n} sheets', '{n} أوراق'),
   'dm.view': ('Görünüm', 'View', 'العرض'),
   'dm.page': ('Sayfa', 'Page', 'الصفحة'),
-  'dm.edit_sign': ('Düzenle ve imzala', 'Edit & sign', 'التحرير والتوقيع'),
   'dm.text': ('Metin', 'Text', 'النص'),
   'dm.convert': ('Dönüştür ve dinle', 'Convert & listen', 'التحويل والاستماع'),
   'dm.file': ('Dosya', 'File', 'الملف'),

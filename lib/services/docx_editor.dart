@@ -346,6 +346,167 @@ class DocxEditor {
     return para;
   }
 
+  // ── resim (Faz 9 / Y1) ─────────────────────────────────────────────────
+
+  /// Resim ekleme/silmenin değiştirdiği metin parçaları (ilişkiler, içerik
+  /// türleri) ve yeni medya dosyaları — kaydetmede pakete yazılır.
+  final Map<String, String> _partEdits = {};
+  final Map<String, List<int>> _newMedia = {};
+
+  static const _nsW =
+      'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  static const _nsWp =
+      'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+  static const _nsA = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+  static const _nsPic =
+      'http://schemas.openxmlformats.org/drawingml/2006/picture';
+  static const _nsR =
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+  /// En geniş resim: A4 metin genişliği (~16 cm). Telefon fotoğrafı
+  /// (4000 px) sayfadan taşmasın; oran korunur.
+  static const maxImageWidthEmu = 5760000;
+
+  /// [ref]'ten SONRA, içinde yalnız resim olan yeni bir paragraf ekler
+  /// (satır içi — `wp:inline`; Word'de "metinle aynı hizada"). [ref] null ise
+  /// belge sonuna. [ext] `png` | `jpg` | `jpeg` | `gif`.
+  ///
+  /// Neden ayrı paragraf: canlı görünümde paragraf eşlemesi `<p>` sayısına
+  /// bağlı; mevcut paragrafın içine çizim koymak yerine yeni paragraf
+  /// eklemek ekleme sonrası yeniden çizimle eşlemeyi kendiliğinden kurar.
+  DocxParagraph insertImageAfter(
+    DocxParagraph? ref,
+    List<int> bytes, {
+    required String ext,
+    required int widthPx,
+    required int heightPx,
+  }) {
+    final e = ext.toLowerCase().replaceFirst('.', '');
+    final mime = switch (e) {
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'gif' => 'image/gif',
+      _ => throw ArgumentError('Desteklenmeyen resim türü: $ext'),
+    };
+    // Medya adı: pakette ve bu oturumda kullanılmayan ilk numara.
+    final names = {
+      for (final f in _archive.files) f.name,
+      ..._newMedia.keys,
+    };
+    var n = 1;
+    while (names.contains('word/media/fkimage$n.$e')) {
+      n++;
+    }
+    final media = 'word/media/fkimage$n.$e';
+    _newMedia[media] = bytes;
+
+    final rid = _addDocRel(
+        '$_nsR/image', 'media/fkimage$n.$e');
+    _ensureDefaultContentType(e, mime);
+
+    // Boyut: piksel → EMU (96 dpi), sayfa genişliğine sığdırılır.
+    var cx = (widthPx <= 0 ? 400 : widthPx) * 9525;
+    var cy = (heightPx <= 0 ? 300 : heightPx) * 9525;
+    if (cx > maxImageWidthEmu) {
+      cy = (cy * maxImageWidthEmu / cx).round();
+      cx = maxImageWidthEmu;
+    }
+    var docPrId = 0;
+    for (final el in _doc.findAllElements('wp:docPr')) {
+      final v = int.tryParse(el.getAttribute('id') ?? '') ?? 0;
+      if (v > docPrId) docPrId = v;
+    }
+    docPrId++;
+
+    final para = addParagraphAfter(ref);
+    final run = XmlDocumentFragment.parse(
+      '<w:r xmlns:w="$_nsW"><w:drawing>'
+      '<wp:inline xmlns:wp="$_nsWp" distT="0" distB="0" distL="0" distR="0">'
+      '<wp:extent cx="$cx" cy="$cy"/>'
+      '<wp:docPr id="$docPrId" name="Resim $docPrId"/>'
+      '<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="$_nsA" '
+      'noChangeAspect="1"/></wp:cNvGraphicFramePr>'
+      '<a:graphic xmlns:a="$_nsA">'
+      '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+      '<pic:pic xmlns:pic="$_nsPic"><pic:nvPicPr>'
+      '<pic:cNvPr id="0" name="fkimage$n.$e"/><pic:cNvPicPr/></pic:nvPicPr>'
+      '<pic:blipFill><a:blip xmlns:r="$_nsR" r:embed="$rid"/>'
+      '<a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+      '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="$cx" cy="$cy"/>'
+      '</a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+      '</pic:pic></a:graphicData></a:graphic></wp:inline>'
+      '</w:drawing></w:r>',
+    ).firstElementChild!.copy();
+    final el = para._element;
+    el.children
+      ..clear()
+      ..add(run);
+    para.rich = true;
+    return para;
+  }
+
+  /// Paragraftaki resim sayısı (`w:drawing` + eski `w:pict`).
+  int imageCount(int index) {
+    if (index < 0 || index >= paragraphs.length) return 0;
+    final el = paragraphs[index]._element;
+    return el.findAllElements('w:drawing').length +
+        el.findAllElements('w:pict').length;
+  }
+
+  /// Paragraftaki resimleri siler; silinen sayıyı döner. Medya dosyası
+  /// pakette kalır (Word kullanılmayan ilişkiyi sorun etmez) — silme geri
+  /// alınırsa yeniden bağlanabilsin.
+  int removeImages(int index) {
+    if (index < 0 || index >= paragraphs.length) return 0;
+    final el = paragraphs[index]._element;
+    var removed = 0;
+    for (final run in el.findAllElements('w:r').toList()) {
+      final pics = run.findAllElements('w:drawing').length +
+          run.findAllElements('w:pict').length;
+      if (pics == 0) continue;
+      removed += pics;
+      run.parent?.children.remove(run);
+    }
+    return removed;
+  }
+
+  String _addDocRel(String type, String target) {
+    const name = 'word/_rels/document.xml.rels';
+    final doc = XmlDocument.parse(_partText(name) ??
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
+    final rels = doc.rootElement.findElements('Relationship').toList();
+    final used = rels.map((e) => e.getAttribute('Id')).toSet();
+    var n = rels.length + 1;
+    while (used.contains('rId$n')) {
+      n++;
+    }
+    doc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
+      XmlAttribute(XmlName('Id'), 'rId$n'),
+      XmlAttribute(XmlName('Type'), type),
+      XmlAttribute(XmlName('Target'), target),
+    ]));
+    _partEdits[name] = doc.toXmlString();
+    return 'rId$n';
+  }
+
+  void _ensureDefaultContentType(String ext, String mime) {
+    const name = '[Content_Types].xml';
+    final text = _partText(name);
+    if (text == null) return;
+    final doc = XmlDocument.parse(text);
+    final has = doc.rootElement.findElements('Default').any(
+        (e) => (e.getAttribute('Extension') ?? '').toLowerCase() == ext);
+    if (has) return;
+    doc.rootElement.children.insert(
+        0,
+        XmlElement(XmlName('Default'), [
+          XmlAttribute(XmlName('Extension'), ext),
+          XmlAttribute(XmlName('ContentType'), mime),
+        ]));
+    _partEdits[name] = doc.toXmlString();
+  }
+
   /// Paragrafı belgeden ve modelden siler.
   void deleteParagraph(DocxParagraph p) {
     p._element.parent?.children.remove(p._element);
@@ -405,18 +566,25 @@ class DocxEditor {
       written.add(name);
     }
 
+    // Resim işlerinin değiştirdiği parçalar; numaralandırma aynı parçayı
+    // (ilişkiler / içerik türleri) değiştirdiyse onun sürümü zaten bunların
+    // üstüne kuruldu (`_partText` önce `_partEdits`e bakar).
+    final parts = {..._partEdits, ...extra};
     for (final f in _archive.files) {
       if (f.name == 'word/document.xml') {
         put(f.name, newXml);
-      } else if (extra.containsKey(f.name)) {
-        put(f.name, extra[f.name]!);
+      } else if (parts.containsKey(f.name)) {
+        put(f.name, parts[f.name]!);
       } else {
         out.addFile(f);
       }
     }
     // Dosyada hiç bulunmayan parçalar (ör. numbering.xml yoksa) sona eklenir.
-    extra.forEach((name, text) {
+    parts.forEach((name, text) {
       if (!written.contains(name)) put(name, text);
+    });
+    _newMedia.forEach((name, data) {
+      out.addFile(ArchiveFile(name, data.length, data));
     });
 
     final List<int>? encoded = ZipEncoder().encode(out);
@@ -573,6 +741,8 @@ class DocxEditor {
   }
 
   String? _partText(String name) {
+    final edited = _partEdits[name];
+    if (edited != null) return edited;
     for (final f in _archive.files) {
       if (f.name != name) continue;
       return utf8.decode(f.content as List<int>, allowMalformed: true);

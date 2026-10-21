@@ -28,6 +28,7 @@ import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_canvas.dart';
 import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';
+import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';

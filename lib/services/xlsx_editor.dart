@@ -7,10 +7,12 @@ import '../core/excel_format.dart';
 import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
+import 'xlsx_chart.dart';
 
 // Görünüm modelinin tamamı (aralık, kenarlık, hizalama, koşullu biçim…)
 // ekranlara buradan açılır — ad çakışması yok.
 export 'xlsx_reader.dart';
+export 'xlsx_chart.dart';
 
 /// Bir hücrenin Excel'deki görünümü.
 ///
@@ -609,6 +611,14 @@ class XlsxEditor {
 
   XlsxEditor._(this._source, this.sheets, this.workbook);
 
+  /// Bu oturumda eklenen grafikler (Faz 9 / Y2). Kaydetme her seferinde
+  /// özgün paketin üstüne kurulduğu için liste MODEL durumudur: kaydetmeden
+  /// önce geri alınabilir, iki kez kaydetmek grafiği iki kez eklemez.
+  final List<XlsxChartSpec> charts = [];
+
+  /// Grafik ekler (sayfa adı modeldeki adla eşleşmeli).
+  void addChart(XlsxChartSpec spec) => charts.add(spec);
+
   /// Boş bir çalışma kitabı (tek sayfa).
   factory XlsxEditor.blank({String sheetName = 'Sayfa1'}) {
     final wb = XlsxWorkbook(
@@ -1160,6 +1170,25 @@ class XlsxEditor {
     if (hasSheet(clean)) return false;
     model.name = clean;
     model.layout.name = clean;
+    // Eklenen grafiklerin sayfa adı da (formül başvuruları adla yazılır).
+    for (var i = 0; i < charts.length; i++) {
+      final c = charts[i];
+      if (c.sheetName != oldName) continue;
+      charts[i] = XlsxChartSpec(
+        sheetName: clean,
+        kind: c.kind,
+        title: c.title,
+        top: c.top,
+        left: c.left,
+        bottom: c.bottom,
+        right: c.right,
+        hasCategoryColumn: c.hasCategoryColumn,
+        categories: c.categories,
+        series: c.series,
+        anchorRow: c.anchorRow,
+        anchorCol: c.anchorCol,
+      );
+    }
     return true;
   }
 
@@ -1216,7 +1245,7 @@ class XlsxEditor {
           hidden: s.layout.hidden,
         ),
     ]);
-    return XlsxSavePatch.apply(bytes, [
+    final patched = XlsxSavePatch.apply(bytes, [
       for (final s in sheets)
         XlsxSheetPatch(
           name: s.name,
@@ -1239,6 +1268,12 @@ class XlsxEditor {
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
         ),
+    ]);
+    // Grafikler en son: sayfa XML'ine `<drawing>` ekler, öncekiler onu
+    // korur ama yazmaz.
+    return XlsxChartWriter.apply(patched, [
+      for (final c in charts)
+        if (hasSheet(c.sheetName)) c,
     ]);
   }
 

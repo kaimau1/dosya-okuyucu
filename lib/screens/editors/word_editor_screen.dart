@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show instantiateImageCodec;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -60,6 +62,10 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   /// true → yedek düz metin editörü (sayfa görünümü açılamadı veya kullanıcı seçti).
   bool _plainMode = false;
   bool _editing = false;
+
+  /// Yapısal bir değişiklikten (resim ekle/sil) sonra belge yeniden çiziliyor;
+  /// çizim bitince düzenleme yeniden açılsın mı?
+  bool _resumeEditing = false;
 
   /// Mobil akış görünümü açık mı? (SAYFA görünümü varsayılan — 2026-08-06
   /// ikinci karar: aynı gün akış varsayılan yapılmıştı, kullanıcı *"mobil

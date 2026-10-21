@@ -43,11 +43,13 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             onPressed: () =>
                 _partSetState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
           ),
-        if (_textController != null)
+        if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
             tooltip: context.t('vw.reading_settings'),
             icon: const Icon(Icons.text_format),
-            onPressed: _showReadingSettings,
+            onPressed: doc.kind == DocKind.pdf
+                ? _showPdfReadingSettings
+                : _showReadingSettings,
           ),
         IconButton(
           tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
@@ -84,10 +86,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     );
   }
 
-  /// PDF'in üstünde seçim ya da düzenleme çubuğu açık mı?
+  /// PDF'in üstünde seçim çubuğu açık mı?
   bool get _pdfBarShown =>
-      widget.doc.kind == DocKind.pdf &&
-      (_pdfEdit != null || _pdfSelection.trim().isNotEmpty);
+      widget.doc.kind == DocKind.pdf && _pdfSelection.trim().isNotEmpty;
 
   /// **"Daha fazla" sayfası** — eskiden 15 satırlık düz bir açılır menüydü
   /// (simgesiz, grupsuz; "Gece modu" ile "Gece modunu kapat" gibi aynı
@@ -124,28 +125,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
               selected: PdfBookmarks.isMarked(widget.doc.path, _pdfPage,
                   size: _docSize),
             ),
-            // E-kitap okuma görünümü (2026-08-06): taranmış PDF'te bile
-            // sayfanın METNİ akar.
-            DocMoreItem(
-              Icons.chrome_reader_mode_outlined,
-              context.t('reader.open'),
-              _pdfDoc == null
-                  ? null
-                  : () => ReaderScreen.open(context,
-                      document: _pdfDoc!, title: widget.doc.name),
-            ),
-            DocMoreItem(Icons.dark_mode_outlined, context.t('vw.night_on'),
-                () => _partSetState(() => _pdfNight = !_pdfNight),
-                selected: _pdfNight),
-            DocMoreItem(Icons.view_agenda_outlined, context.t('vw.one_column'),
-                () => _setPdfColumns(1),
-                selected: _pdfColumns == 1),
-            DocMoreItem(Icons.view_column_outlined, context.t('vw.two_columns'),
-                () => _setPdfColumns(2),
-                selected: _pdfColumns == 2),
-            DocMoreItem(Icons.grid_view_outlined, context.t('vw.four_columns'),
-                () => _setPdfColumns(4),
-                selected: _pdfColumns == 4),
+            // Okuma görünümü, gece modu ve sütun düzeni Faz 8'de tek "Aa"
+            // levhasında (bkz. [_showPdfReadingSettings]).
           ]),
         if (isPdf)
           DocMoreGroup(context.t('dm.page'), [
@@ -154,16 +135,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             DocMoreItem(Icons.rotate_right, context.t('vw.rotate_right'),
                 _pdfBusy ? null : () => _rotateCurrentPage(1)),
           ]),
-        if (isPdf)
-          DocMoreGroup(context.t('dm.edit_sign'), [
-            DocMoreItem(
-                Icons.auto_fix_high, context.t('vw.ai_edit'), _aiEditPdf),
-            DocMoreItem(Icons.draw_outlined, context.t('vw.sign'), _signPdf),
-            DocMoreItem(Icons.assignment_outlined, context.t('vw.fill_form'),
-                _fillPdfForm),
-            DocMoreItem(
-                Icons.document_scanner_outlined, context.t('vw.ocr'), _runOcr),
-          ]),
+        // "Düzenle ve imzala" grubu Faz 8'de kalktı: AI düzenleme, imza ve
+        // form artık alt çubuktaki TEK "Düzenle" kapısında (bkz.
+        // [showPdfEditModes]). Metin tanıma (OCR) düzenleme değil, dönüşüm.
         if (isImage)
           DocMoreGroup(context.t('dm.view'), [
             DocMoreItem(
@@ -209,6 +183,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           if (!isImage)
             DocMoreItem(Icons.picture_as_pdf_outlined, context.t('vw.to_pdf'),
                 _exportPdf),
+          if (isPdf)
+            DocMoreItem(
+                Icons.document_scanner_outlined, context.t('vw.ocr'), _runOcr),
           DocMoreItem(Icons.slideshow_outlined, context.t('vw.to_slides'),
               _exportSlides),
           if (_hasText && !isTextLike)
@@ -389,9 +366,10 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     final isImage = doc.kind == DocKind.image;
     return DocActionBar([
       if (doc.kind == DocKind.pdf) ...[
-        // Kalem: elle çiz, fosforlu, yazı, silgi (bkz. [PdfInkScreen]).
-        DocAction(Icons.draw_outlined, context.t('ink.pen'), _openInk),
-        DocAction(Icons.edit_document, context.t('vw.editor'), _openPdfEditor),
+        // Faz 8 — tek düzenleme kapısı: Metin · Kalem · İmza · Form ·
+        // Sayfalar · AI (bkz. [showPdfEditModes]).
+        DocAction(Icons.edit_document, context.t('common.edit'),
+            _showPdfEditModes),
         DocAction(Icons.construction, context.t('vw.tools'), _openPdfTools),
       ],
       if (isImage) ...[
@@ -416,5 +394,137 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       if (!isImage)
         DocAction(Icons.print_outlined, context.t('vw.print'), _print),
     ]);
+  }
+
+  /// Alt çubuktaki "Düzenle": kipi sorar, seçilen ekranı açar.
+  void _showPdfEditModes() {
+    showPdfEditModes(context, (mode) {
+      switch (mode) {
+        case PdfEditMode.text:
+          _openPdfEditor();
+        case PdfEditMode.pen:
+          _openInk();
+        case PdfEditMode.sign:
+          _signPdf();
+        case PdfEditMode.form:
+          _fillPdfForm();
+        case PdfEditMode.pages:
+          _openPdfTools();
+        case PdfEditMode.ai:
+          _aiEditPdf();
+      }
+    });
+  }
+
+  /// **PDF'in "Aa" levhası** (Faz 8): okuma görünümü, gece modu, sütun düzeni
+  /// ve "kaldığım yerden aç" tek yerde. Eskiden bunlar "Daha fazla"
+  /// sayfasının Görünüm grubuna dağılmıştı; metin belgelerindeki "Aa" ile
+  /// aynı yerde, aynı simgeyle duruyor.
+  void _showPdfReadingSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      barrierColor: Colors.black12,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheet) {
+          void apply(VoidCallback f) {
+            _partSetState(f);
+            setSheet(() {});
+          }
+
+          final theme = Theme.of(context);
+          final scheme = theme.colorScheme;
+          final app = context.read<AppState>();
+          Widget label(String text) => Padding(
+                padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                child: Text(
+                  text,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+          return SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(context.t('vw.reading_settings'),
+                      style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  // E-kitap okuma görünümü (2026-08-06): taranmış PDF'te
+                  // bile sayfanın METNİ akar.
+                  FilledButton.tonalIcon(
+                    onPressed: _pdfDoc == null
+                        ? null
+                        : () {
+                            Navigator.of(sheetContext).pop();
+                            ReaderScreen.open(this.context,
+                                document: _pdfDoc!, title: widget.doc.name);
+                          },
+                    icon: const Icon(Icons.chrome_reader_mode_outlined),
+                    label: Text(context.t('reader.open')),
+                  ),
+                  label(context.t('vw.layout')),
+                  SegmentedButton<int>(
+                    segments: [
+                      ButtonSegment(
+                          value: 1,
+                          icon: const Icon(Icons.view_agenda_outlined),
+                          label: Text(context.t('vw.one_column'))),
+                      ButtonSegment(
+                          value: 2,
+                          icon: const Icon(Icons.view_column_outlined),
+                          label: Text(context.t('vw.two_columns'))),
+                      ButtonSegment(
+                          value: 4,
+                          icon: const Icon(Icons.grid_view_outlined),
+                          label: Text(context.t('vw.four_columns'))),
+                    ],
+                    selected: {_pdfColumns},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (v) {
+                      _setPdfColumns(v.first);
+                      setSheet(() {});
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        SwitchListTile(
+                          secondary: const Icon(Icons.dark_mode_outlined),
+                          title: Text(context.t('vw.night_on')),
+                          value: _pdfNight,
+                          onChanged: (v) => apply(() => _pdfNight = v),
+                        ),
+                        SwitchListTile(
+                          secondary: const Icon(Icons.bookmark_outline),
+                          title: Text(context.t('pdfm.resume')),
+                          value: app.resumePosition,
+                          onChanged: (v) async {
+                            await app.setResumePosition(v);
+                            setSheet(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

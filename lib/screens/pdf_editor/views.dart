@@ -29,7 +29,9 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     _loadOutline();
                   },
                   onViewerReady: (doc, _) {
-                    if (mounted) _partSetState(() => _pageCount = doc.pages.length);
+                    if (mounted) {
+                      _partSetState(() => _pageCount = doc.pages.length);
+                    }
                   },
                   pageOverlaysBuilder: (context, pageRect, page) => [
                     if (page.pageNumber == _page &&
@@ -41,8 +43,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                         textMode: _mode == _EditMode.text,
                         selectedObject: _selectedObject,
                         onParagraphTap: _editParagraph,
-                        onObjectTap: (i) => _partSetState(
-                            () => _selectedObject = _selectedObject == i ? null : i),
+                        onObjectTap: (i) => _partSetState(() =>
+                            _selectedObject = _selectedObject == i ? null : i),
                         onObjectChanged: _moveObject,
                       ),
                     // Taranmış sayfa: OCR satır kutuları da düzenlenebilir
@@ -72,6 +74,25 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                           onLineTap: _editScannedLine,
                         );
                       }),
+                    // "Sayfaya yazı ekle" (Faz 8, K12 yedeği): yerleştirme
+                    // kipinde sayfanın tamamı tek dokunuş alanıdır; en ÜSTTE
+                    // durur ki paragraf/OCR kutuları dokunuşu yutmasın.
+                    if (page.pageNumber == _page &&
+                        _mode == _EditMode.text &&
+                        _placingText)
+                      SizedBox.expand(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (d) => _placeTextAt(
+                              page, pageRect.size, d.localPosition),
+                          child: ColoredBox(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.06),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -82,15 +103,17 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   bottom: 12,
                   child: _objectToolbar(),
                 ),
-              // Taranmış sayfada tüm satırları bir geçişte onaran ikili.
-              if (_mode == _EditMode.text &&
-                  _scannedPages.contains(_page) &&
-                  _scannedLines.isNotEmpty)
+              // Taranmış sayfada tüm satırları bir geçişte onaran ikili
+              // (+ "Yazı ekle"); öteki sayfalarda yalnız "Yazı ekle".
+              if (_mode == _EditMode.text)
                 Positioned(
                   left: 12,
                   right: 12,
                   bottom: 12,
-                  child: _scannedToolbar(),
+                  child:
+                      _scannedPages.contains(_page) && _scannedLines.isNotEmpty
+                          ? _scannedToolbar()
+                          : _addTextToolbar(),
                 ),
               if (_mode == _EditMode.page)
                 Positioned(
@@ -113,26 +136,28 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
     final failure = _outlineError;
     // Çözümleme reddedildiyse "burada bir şey yok" DEMEK yanlış olur: sebebi
     // yazıyoruz (2026-09-04).
-    final text = failure != null &&
-            (_mode == _EditMode.text || _mode == _EditMode.image)
-        ? context.t('pe.hint_failed', {'error': failure})
-        : context.t(switch (_mode) {
-            _EditMode.text => _outline.paragraphs.isEmpty
-                ? (_scannedPages.contains(_page) && PdfOcrText.isSupported
-                    ? 'pe.hint_text_scanned'
-                    : 'pe.hint_text_none')
-                : 'pe.hint_text',
-            _EditMode.image => switch (_outline.objects) {
-                [] => 'pe.hint_image_none',
-                // Görselin hepsi kilitliyse "dokunup seçin" demek boşuna bir
-                // davet olurdu.
-                final list when list.every((o) => !o.editable) =>
-                  'pe.hint_image_locked',
-                _ => 'pe.hint_image',
-              },
-            _EditMode.background => 'pe.hint_background',
-            _EditMode.page => 'pe.hint_page',
-          });
+    final text = _placingText && _mode == _EditMode.text
+        ? context.t('pe.hint_place_text')
+        : failure != null &&
+                (_mode == _EditMode.text || _mode == _EditMode.image)
+            ? context.t('pe.hint_failed', {'error': failure})
+            : context.t(switch (_mode) {
+                _EditMode.text => _outline.paragraphs.isEmpty
+                    ? (_scannedPages.contains(_page) && PdfOcrText.isSupported
+                        ? 'pe.hint_text_scanned'
+                        : 'pe.hint_text_none')
+                    : 'pe.hint_text',
+                _EditMode.image => switch (_outline.objects) {
+                    [] => 'pe.hint_image_none',
+                    // Görselin hepsi kilitliyse "dokunup seçin" demek boşuna bir
+                    // davet olurdu.
+                    final list when list.every((o) => !o.editable) =>
+                      'pe.hint_image_locked',
+                    _ => 'pe.hint_image',
+                  },
+                _EditMode.background => 'pe.hint_background',
+                _EditMode.page => 'pe.hint_page',
+              });
     return Container(
       width: double.infinity,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -144,7 +169,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
           Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
           if (_pageCount > 0)
             Text('$_page / $_pageCount',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -216,13 +242,14 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
         ),
       );
     }
-    Widget turn(IconData icon, String key, {int turns = 0, bool h = false, bool v = false}) =>
+    Widget turn(IconData icon, String key,
+            {int turns = 0, bool h = false, bool v = false}) =>
         IconButton(
           tooltip: context.t(key),
           onPressed: _busy
               ? null
-              : () => _turnObject(index,
-                  quarterTurns: turns, flipH: h, flipV: v),
+              : () =>
+                  _turnObject(index, quarterTurns: turns, flipH: h, flipV: v),
           icon: Icon(icon),
           visualDensity: VisualDensity.compact,
         );
@@ -284,7 +311,28 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                 icon: const Icon(Icons.auto_awesome),
                 label: Text(context.t('pe.fix_page_ai')),
               ),
+              _addTextButton(),
             ],
+          ),
+        ),
+      );
+
+  /// "Yazı ekle" düğmesi — yerleştirme kipindeyken "Vazgeç"e döner.
+  Widget _addTextButton() => TextButton.icon(
+        onPressed: _busy
+            ? null
+            : () => _partSetState(() => _placingText = !_placingText),
+        icon: Icon(_placingText ? Icons.close : Icons.post_add),
+        label: Text(context.t(_placingText ? 'common.cancel' : 'pe.add_text')),
+      );
+
+  Widget _addTextToolbar() => Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: Card(
+          elevation: 4,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: _addTextButton(),
           ),
         ),
       );
@@ -319,8 +367,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(context.t('pe.no_background'),
-              textAlign: TextAlign.center),
+          child:
+              Text(context.t('pe.no_background'), textAlign: TextAlign.center),
         ),
       );
     }
@@ -343,8 +391,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                 }),
                 secondary:
                     Icon(item.isImage ? Icons.image_outlined : Icons.title),
-                title: Text(item.label, maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                title: Text(item.label,
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(item.detail),
               );
             },
@@ -357,8 +405,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             child: FilledButton.icon(
               onPressed: _busy ? null : _removeBackground,
               icon: const Icon(Icons.layers_clear),
-              label: Text(context.t(
-                  'pe.remove_picked', {'n': _backgroundPicked.length})),
+              label: Text(context
+                  .t('pe.remove_picked', {'n': _backgroundPicked.length})),
             ),
           ),
         ),
@@ -377,9 +425,13 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
   /// onu da değiştirebilir (kullanıcı isteği 2026-09-01: *"yazı puntosu
   /// tutmadı… ufacık yazdı"*). Verilmezse (taranmış sayfa satırı) yalnız
   /// metin sorulur ve dönen `size` null olur.
+  ///
+  /// [original] boşsa (sayfaya YENİ yazı — Faz 8 yedeği) "şu anki metin"
+  /// kutusu çizilmez ve başlık [titleKey] olur.
   Future<({String text, double? size})?> _askParagraphText(
     String original, {
     double? pointSize,
+    String titleKey = 'pe.edit_paragraph',
   }) {
     final controller = TextEditingController(text: original);
     // Punto kutusu: ölçülen değer bir tık yuvarlanır (9.9998 → 10).
@@ -390,29 +442,31 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
     return showDialog<({String text, double? size})>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('pe.edit_paragraph')),
+        title: Text(ctx.t(titleKey)),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(ctx.t('pe.current_text'),
-                  style: Theme.of(ctx).textTheme.labelMedium),
-              const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(6),
+              if (original.isNotEmpty) ...[
+                Text(ctx.t('pe.current_text'),
+                    style: Theme.of(ctx).textTheme.labelMedium),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(original,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      )),
                 ),
-                child: Text(original,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                    )),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               TextField(
                 controller: controller,
                 autofocus: true,
@@ -510,10 +564,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
   /// Uzun açıklamalar (reddetme gerekçeleri) kaybolmadan okunabilsin.
   void _longSnack(String message) {
     if (!mounted) return;
-    showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
-      content: Text(message),
-      duration: const Duration(seconds: 8),
-      showCloseIcon: true,
-    ));
+    showSnackBarReplacing(
+        ScaffoldMessenger.of(context),
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 8),
+          showCloseIcon: true,
+        ));
   }
 }

@@ -439,4 +439,22 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     final dot = name.lastIndexOf('.');
     return dot == -1 ? name : name.substring(0, dot);
   }
+
+  /// Eski `.doc`/`.ppt` metnini `.docx`/`.pptx` olarak yanına yazar ve
+  /// düzenleyicide açar (özgün dosya değişmez — bkz. [LegacyConvert]).
+  Future<void> _convertLegacy() async {
+    if (_legacyBusy) return;
+    _partSetState(() => _legacyBusy = true);
+    try {
+      final path =
+          await LegacyConvert.convert(widget.doc.path, widget.doc.plainText);
+      if (!mounted) return;
+      _snack(context.t('legacy.done', {'name': p.basename(path)}));
+      await EntryOpener.open(context, path);
+    } catch (e) {
+      if (mounted) showUserError(context, e);
+    } finally {
+      if (mounted) _partSetState(() => _legacyBusy = false);
+    }
+  }
 }

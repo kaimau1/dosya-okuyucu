@@ -152,6 +152,13 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                             if (ok && _flow) {
                               _viewKey.currentState?.setFlow(true);
                             }
+                            // Resim ekle/sil sonrası yeniden çizim bitti:
+                            // düzenleme kaldığı yerden sürer.
+                            if (ok && _resumeEditing) {
+                              _resumeEditing = false;
+                              _viewKey.currentState?.setEditing(true);
+                              _partSetState(() => _editing = true);
+                            }
                           },
                         ),
                         // Sayfa rozeti (2026-08-01 isteği: toplam sayfa sayısı
@@ -247,6 +254,15 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             _listBtn(OfficeIcons.bullets, context.t('word.bullets'), 'bullet'),
             _listBtn(
                 OfficeIcons.numbering, context.t('word.numbering'), 'number'),
+            const RibbonSep(),
+            // Resim (Faz 9 / Y1): imlecin altına satır içi resim; imleçteki
+            // paragrafın resimlerini sil.
+            RibbonButton(Icons.add_photo_alternate_outlined,
+                context.t('word.insert_image'),
+                onTap: _insertImage),
+            RibbonButton(Icons.hide_image_outlined,
+                context.t('word.delete_image'),
+                onTap: _deleteImage),
           ]),
         ],
         // "Bitti" kaydırmanın DIŞINDA kalır — dar ekranda düzenlemeden çıkış

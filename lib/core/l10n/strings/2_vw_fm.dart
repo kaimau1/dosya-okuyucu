@@ -175,7 +175,6 @@ const Map<String, (String, String, String)> _t2 = {
 
   // ── Görüntüleyici (PDF / metin / görsel / tablo) ──────────────────────────
   'vw.tools': ('Araçlar', 'Tools', 'الأدوات'),
-  'vw.editor': ('Düzenleyici', 'Editor', 'المحرر'),
   'vw.rotate': ('Döndür', 'Rotate', 'تدوير'),
   'vw.rotate_right': ('90° sağa döndür', 'Rotate 90° right', 'تدوير 90° لليمين'),
   'vw.rotate_left': ('90° sola döndür', 'Rotate 90° left', 'تدوير 90° لليسار'),
@@ -271,7 +270,6 @@ const Map<String, (String, String, String)> _t2 = {
   'vw.speaking': ('Sesli okuma  {n} / {total}', 'Reading aloud  {n} / {total}', 'قراءة صوتية  {n} / {total}'),
   'vw.toc': ('İçindekiler', 'Contents', 'المحتويات'),
   'vw.no_toc': ('Bu belgede içindekiler yok', 'This document has no contents', 'لا يحتوي هذا المستند على فهرس'),
-  'vw.sign': ('İmzala', 'Sign', 'توقيع'),
   'vw.fill_form': ('Formu doldur', 'Fill form', 'تعبئة النموذج'),
   'vw.form_detected': (
     'Bu belge doldurulabilir bir form.',
@@ -369,15 +367,6 @@ const Map<String, (String, String, String)> _t2 = {
     'لا يوجد تمييز في المكان الذي حددته.',
   ),
   'vw.highlight_hint': ('Vurgula', 'Highlight', 'تمييز'),
-  'vw.ai_fix': ('AI ile düzelt', 'Fix with AI', 'تصحيح بالذكاء الاصطناعي'),
-  'vw.inline_edit_title': ('Metni düzenle', 'Edit text', 'تحرير النص'),
-  'vw.caret_left': ('İmleci sola al', 'Move caret left', 'تحريك المؤشر لليسار'),
-  'vw.caret_right': (
-    'İmleci sağa al',
-    'Move caret right',
-    'تحريك المؤشر لليمين'
-  ),
-  'vw.select_all_text': ('Tümünü seç', 'Select all', 'تحديد الكل'),
   'vw.highlight_failed': ('Vurgulama başarısız: {error}', 'Highlighting failed: {error}', 'فشل التمييز: {error}'),
   'vw.word_count': ('Sözcük sayısı / bilgi', 'Word count / info', 'عدد الكلمات / معلومات'),
   'vw.word': ('Sözcük', 'Words', 'كلمات'),
@@ -437,7 +426,6 @@ const Map<String, (String, String, String)> _t2 = {
     'تعذّر الانتقال إلى الصفحة {target}؛ بقيت على الصفحة {landed}.',
   ),
   'vw.searching': ('aranıyor…', 'searching…', 'جارٍ البحث…'),
-  'vw.change_failed': ('Değiştirilemedi: {error}', 'Could not change: {error}', 'تعذّر التغيير: {error}'),
   'vw.no_readable_text': (
     'Okunacak metin bulunamadı. Taranmış belgede önce “Metni tanı (OCR)”.',
     'No readable text found. On a scanned document, run “Recognize text (OCR)” first.',

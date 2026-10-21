@@ -650,6 +650,10 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                           _fSize = (_fSize + 2).clamp(6.0, 96.0).toDouble();
                           _tSize = true;
                         })),
+                const RibbonSep(),
+                // Seçili metni çevir (Faz 9 / Y4 — Word ve PDF'te vardı).
+                RibbonButton(Icons.translate, context.t('common.translate'),
+                    onTap: _translateEditing),
               ]),
             ],
             trailing: Padding(
@@ -664,4 +668,26 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       ),
     );
   }
+
+  /// Düzenlenen kutuda SEÇİLİ metni (seçim yoksa kutunun tamamını) çevirir.
+  void _translateEditing() {
+    final text = selectedEditText(_editCtrls);
+    if (text.trim().isEmpty) return;
+    QuickTranslateSheet.show(context, text, title: widget.name);
+  }
+}
+
+/// Kutunun denetleyicilerinden çevrilecek metin: seçimi olan ilk paragrafın
+/// seçimi; hiçbirinde seçim yoksa bütün paragraflar (satır satır).
+@visibleForTesting
+String selectedEditText(List<TextEditingController?> ctrls) {
+  for (final c in ctrls) {
+    if (c == null) continue;
+    final sel = c.selection;
+    if (sel.isValid && !sel.isCollapsed) return sel.textInside(c.text);
+  }
+  return [
+    for (final c in ctrls)
+      if (c != null) c.text,
+  ].join('\n');
 }

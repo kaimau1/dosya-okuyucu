@@ -12951,3 +12951,96 @@ analyze 0 + tam test yeşil (Faz 3: 2613, Faz 4: 2626, Faz 5: 2641).
   bileşen olmadı: `UserErrorKind.offline` ortak mesajı tüm ağ hatalarında aynı dili veriyor.
 - Bekçiler (`user_communication_test`): ekran kodunda ham hata deseni 0, gerekçesiz boş
   catch 0; her izin için reddedildi senaryosu; "izin yok / yer yok / dosya yok" birim testi.
+
+## 2026-10-21 (4) — Faz 8 (PDF tek çatı) · Faz 9 (Office ve metin akışları)
+
+Bulut oturumunda Flutter 3.29.3 ile; analyze 0, tam takım yeşil. Faz 6 ve 7 önceki
+oturumda commit'lenmiş ama HAFIZA'ya yazılmamıştı (commit mesajları: `583f5a3`, `dc9e613`);
+durum tablosuna commit mesajlarından işlendi.
+
+### Faz 8 — yapılanlar
+- **Tek kapı:** PDF alt çubuğu *Düzenle · Araçlar · Çevir · Paylaş · Yazdır*. "Düzenle"
+  → `widgets/pdf_edit_modes.dart` (Metin · Kalem · İmza · Form · Sayfalar · AI ile).
+  "Daha fazla"daki "Düzenle ve imzala" grubu kalktı (OCR "Dönüştür"e). Altı kipin ekranı
+  da zaten ortak `savePdfWithChoice`'ı kullanıyordu (denetlendi).
+- **K12:** eski kelime-bazlı yol silindi — `pdf_edit_flow`, `pdf_content_editor`,
+  `pdf/pdf_text_replace`, `widgets/pdf_inline_editor`, görüntüleyicideki
+  `_startInlineEdit` zinciri, `PdfEditBar`, 6 test dosyası (~2.900 satır). Seçim
+  çubuğundaki "Düzenle" artık `PdfEditorScreen`i SEÇİMİN SAYFASINDA açıyor.
+  Değerli testler (Type0/Identity-H, izin kilitli belge) paragraf motoruna taşındı
+  (`test/support/pdf_edit_helper.dart` → `replaceInParagraph`).
+- **TUZAK — bölme aracının artığı:** Faz 3'ün `split_state.py`si `viewer/pdf_inline_edit.dart`
+  içine yerinde düzenlemeyle İLGİSİZ yöntemleri de koymuştu (sayfa döndür, vurgula,
+  vurgu rengi/geri al, seçimi temizle, bekleyen vurguları çiz). Dosyayı silince 12 tanımsız
+  ad çıktı; `viewer/pdf_marks.dart`a taşındı. Bölünmüş bir part dosyasını silmeden önce
+  İÇİNDEKİ HER yöntemi say.
+- **Yedek = "Sayfaya yazı ekle"** (`services/pdf/pdf_text_stamp.dart`): paragraf motorunun
+  reddettiği/metinsiz sayfada dokunulan noktaya Carlito ile yazı. Görünen (döndürülmüş)
+  noktayı ham uzaya `viewToRaw` çevirir, yazı `rotateTransform(-90 × çeyrek tur)` ile döner.
+  **Ölçüldü:** Syncfusion'ın çizim kökeni CropBox'ın SOL-ÜSTÜ (MediaBox değil) — iki
+  bağımsız okuyucuyla (Syncfusion satır kutusu + bizim ayrıştırıcı) sabitlendi; KALANLAR'daki
+  CropBox maddesi "yazı ekle" için kapandı, VURGU için açık (pdfium testte yok).
+- **Y3'ün iki maddesi zaten kapalıymış:** `/ToUnicode`suz belge (`/Differences` + AGL,
+  `pdf_glyph_names`) ve iki yana yaslama (`pdf_paragraph_layout` boşluk dağıtımı) paragraf
+  motorunda vardı; açık görünmelerinin sebebi maddelerin ESKİ yol için yazılmış olmasıydı.
+- **Aa levhası (PDF):** okuma görünümü, 1/2/4 sütun, gece modu, "kaldığım yerden aç" tek
+  sayfada; "Daha fazla > Görünüm"den kalktılar.
+- **Örnek set kod olarak:** `test/support/pdf_fixtures.dart` (elle kurulan PDF: WinAnsi +
+  `/Differences` Türkçe, `/Rotate`, CropBox, 320 sayfa, görsel-tek "taranmış"; Syncfusion
+  ile parolalı ve formlu). `test/pdf_fixture_smoke_test.dart` aç→düzenle→kaydet→yeniden aç;
+  doğrulama iki okuyucuyla. `tool/write_fixtures_test.dart` dosyaları `test/fixtures/pdf/`e
+  yazar (Poppler'da hepsi açıldı).
+
+### Faz 9 — yapılanlar
+- **KÖK NEDEN — Word'de yazılan metin Flutter'a hiç gitmiyordu:** `viewer.html`in `input`
+  işleyicisi paragrafı `e.target.closest('p')` ile arıyordu; contentEditable'da `input`
+  olayının hedefi DÜZENLENEBİLİR KABIN kendisi (`<article>`), yani `closest('p')` hep null.
+  Playwright + Chromium'da ölçüldü: yazılan metin DOM'da var, Kalem kanalında yok. Biçim
+  düğmeleri (`sendPara` doğrudan) çalıştığı için fark edilmemiş olabilir. Düzeltme: hedef
+  `<p>` değilse imlecin paragrafı (`paraAtCaret`). **Cihazda doğrulanmalı** (Android
+  WebView aynı Chromium kuralını uygular, beklenen: eskiden kayboluyordu).
+- **Denetim aracı:** `tool/check_word_bridge.js` (Playwright, `test/fixtures/office/tablo.docx`):
+  paragraf sayısı, normal paragraf + TABLO HÜCRESİ yazımı, seçime punto, imleç indeksi.
+  Bulut oturumunda `/opt/node-tools/node_modules/playwright` + `/opt/pw-browsers/chromium`.
+- **Tablo hücresi (Y1):** hücre `<p>`leri hem DOM'da hem `DocxEditor`de belge sırasıyla
+  sayılıyordu — eşleme zaten doğruydu, düzenlemeyi engelleyen yukarıdaki hataydı.
+- **Seçime punto/yazı tipi (Y1):** `execCommand('fontSize', 7)` geçici işaret → oluşan
+  span'lar `data-fk-size` + gerçek pt; yazı tipi `fontName` + `data-fk-font`. `segsOf`
+  işareti en içteki düğümden alır. `<p>` sayısı değişmez (renk/vurguyla aynı yöntem).
+  Seçim yoksa eski paragraf yolu.
+- **Resim ekle/sil (Y1):** `DocxEditor.insertImageAfter` (yeni paragraf + `wp:inline`,
+  `word/media/fkimageN`, ilişki, `Default` içerik türü; en geniş 16 cm, oran korunur),
+  `removeImages`. Değişen parçalar `_partEdits`te — numaralandırma aynı ilişki dosyasına
+  yazarsa ikisi birleşir (test). Ekleme sonrası belge yeniden çizilir (`DocxView.didUpdateWidget`),
+  düzenleme `onStatus`ta kaldığı yerden açılır; geri alma yığını temizlenir (eski modele bağlı).
+  **Bilinçli kısıt:** resim TAŞIMA yok.
+- **Excel grafik (Y2):** `services/xlsx_chart.dart` — `chartN.xml` ← `drawingN.xml`
+  (`twoCellAnchor`) ← sayfanın `<drawing>`i; sayfada çizim varsa ona eklenir. Grafik
+  `XlsxEditor.charts` MODEL durumu (her kaydetme özgün paket + grafikler; iki kaydetme
+  çift eklemez; sayfa adı değişince izler). **TUZAK (LibreOffice'te ölçüldü):** `spPr`siz
+  seri DOLGUSUZ çiziliyor (eksenler var, çubuk yok) — Office paleti açıkça yazılıyor.
+  Önizleme penceresi `ChartPainter`la (`widgets/chart_insert_dialog.dart`).
+  **Bilinçli kısıt:** uygulama ızgarası grafikleri çizmiyor (dosyadaki eski grafikler de
+  çizilmiyordu); grafik Excel/E-Tablolar/LibreOffice'te görünür.
+- **Köşegen doldurma (Y2):** `sheet_edit.dart` `fillDiagonal` — önce satır ekseni, sonra
+  UZAMIŞ blok sütun ekseninde. Sayfa taşı: sekme menüsünde Sola/Sağa taşı.
+- **Seçili metin çevirisi (Y4):** Excel'de aralık seçiliyse yalnız seçim (`rangeText`),
+  slayt şeridinde "Çevir" (`selectedEditText`). Word'de zaten vardı.
+- **Büyük metin:** > 5 MB metin dosyası `LargeTextFile` (izolatta satır başı dizini,
+  UTF-16'da parça sınırına düşen iki baytlık satır sonu dahil) + `LargeTextView` (200
+  satırlık bloklar, en çok 40 blok bellekte, sürüklenebilir kaydırma çubuğu); salt okunur.
+- **Eski .doc/.ppt:** metnin başına gömülü Türkçe cümle kalktı; `LegacyBanner` "SALT
+  OKUNUR" + "DOCX/PPTX yap ve düzenle" → `LegacyConvert` özgünün yanına (yazılamıyorsa
+  Belgeler'e) çakışmasız ad (`ad (2).docx`) yazar ve düzenleyicide açar.
+- **Örnek set + duman:** `test/support/office_fixtures.dart`, `test/office_fixture_smoke_test.dart`;
+  dosyalar `test/fixtures/office/`. **YENİ OLANAK:** bulut oturumunda LibreOffice
+  (`soffice --headless --convert-to pdf`), Poppler (`pdftotext`, `pdftoppm`) ve openpyxl
+  var — üretilen Office dosyası masaüstü bir ofis programında GERÇEKTEN açılıyor mu
+  bulutta sınanabiliyor. 7 Office dosyasının hepsi açıldı. Microsoft Office'in kendisi
+  yok → `docs/CIHAZ_TESTI.md`.
+
+### Yapılmayan / açık
+- Faz 9 kabul ölçütü "10 bin satırlık Excel'de Faz 4 metrikleri korunmuş": cihaz yok,
+  ölçülmedi (Faz 4'ün kendi ölçümü de bekliyor).
+- Word resim taşıma; Excel ızgarasında grafik çizimi; vurgu + CropBox doğrulaması.
+- graphify bu ortamda kurulu değil — `graphify update .` yapılmadı.

@@ -55,16 +55,25 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
     );
   }
 
-  /// Sekmeye uzun basınca: yeniden adlandır / sil.
+  /// Sekmeye uzun basınca: sola/sağa taşı, yeniden adlandır, sil.
   ///
-  /// Sayfa **taşıma** bilinçli olarak yok: `excel 4.0.6` sayfa sırasını kendi
-  /// haritasının ekleme sırasından yazıyor ve sırayı değiştirecek bir API
-  /// sunmuyor; sıralamayı zorlamak sayfaları kopyala-sil ile yeniden kurmak
-  /// demek olurdu ve her sayfanın biçim tablosu bağını riske atardı.
+  /// Sayfa **taşıma** Faz 9'da geldi (Y2): `excel` paketi çıkınca sıra
+  /// kendi yazıcımızın elinde (`XlsxEditor.moveSheet` → `<sheets>` sırası ve
+  /// yerel adların `localSheetId`si).
   void _sheetActions(XlsxSheet sheet) {
     _endEdit();
+    final index = _editor?.sheets.indexOf(sheet) ?? -1;
+    final count = _editor?.sheets.length ?? 0;
     DocMoreSheet.show(context, [
       DocMoreGroup(sheet.name, [
+        DocMoreItem(Icons.arrow_back_rounded, context.t('excel.move_sheet_left'),
+            index > 0 ? () => _moveSheet(sheet, index - 1) : null),
+        DocMoreItem(
+            Icons.arrow_forward_rounded,
+            context.t('excel.move_sheet_right'),
+            index >= 0 && index < count - 1
+                ? () => _moveSheet(sheet, index + 1)
+                : null),
         DocMoreItem(Icons.drive_file_rename_outline,
             context.t('excel.rename_sheet'), () => _renameSheet(sheet)),
         DocMoreItem(Icons.delete_outline, context.t('excel.delete_sheet'),
@@ -102,6 +111,15 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
       _gridVersion++;
     });
     _syncField();
+  }
+
+  void _moveSheet(XlsxSheet sheet, int to) {
+    final editor = _editor;
+    if (editor == null || !editor.moveSheet(sheet.name, to)) return;
+    _partSetState(() {
+      _sheetIndex = editor.sheets.indexOf(sheet);
+      _dirty = true;
+    });
   }
 
   Future<void> _renameSheet(XlsxSheet sheet) async {

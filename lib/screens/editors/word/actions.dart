@@ -254,4 +254,83 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       _viewKey.currentState?.goToPage(value.clamp(1, total));
     }
   }
+
+  /// **Resim ekle** (Faz 9 / Y1): galeriden/dosyadan seçilen resim imlecin
+  /// bulunduğu paragrafın ALTINA satır içi eklenir. Yapısal bir değişiklik
+  /// olduğu için belge yeniden çizilir ve düzenleme kaldığı yerden sürer.
+  Future<void> _insertImage() async {
+    final editor = _editor;
+    if (editor == null) return;
+    final at = await _viewKey.currentState?.caretParagraph() ?? -1;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif'],
+      withData: true,
+    );
+    final file = picked?.files.single;
+    final data = file?.bytes;
+    if (file == null || data == null || !mounted) return;
+    final size = await _imageSize(data);
+    final ext = (file.extension ?? 'png').toLowerCase();
+    try {
+      editor.insertImageAfter(
+        at >= 0 && at < editor.paragraphs.length ? editor.paragraphs[at] : null,
+        data,
+        ext: ext,
+        widthPx: size.$1,
+        heightPx: size.$2,
+      );
+    } catch (e) {
+      if (mounted) showUserError(context, e);
+      return;
+    }
+    _rerender();
+  }
+
+  /// İmlecin bulunduğu paragraftaki resimleri siler.
+  Future<void> _deleteImage() async {
+    final editor = _editor;
+    if (editor == null) return;
+    final at = await _viewKey.currentState?.caretParagraph() ?? -1;
+    if (!mounted) return;
+    if (at < 0 || editor.imageCount(at) == 0) {
+      _snack(context.t('word.no_image_here'));
+      return;
+    }
+    editor.removeImages(at);
+    _rerender();
+  }
+
+  /// Model → bayt → yeniden çizim; düzenleme açıksa çizim bitince yeniden
+  /// açılır (`onStatus`).
+  void _rerender() {
+    final editor = _editor;
+    if (editor == null) return;
+    final bytes = editor.save();
+    // Geri alma adımları ESKİ modelin paragraflarına bağlı; yeni modelde
+    // anlamsızlar (yanlış paragrafa dokunurlardı).
+    _undo.clear();
+    _partSetState(() {
+      _editor = DocxEditor.parse(bytes);
+      _bytes = bytes;
+      _dirty = true;
+      _resumeEditing = _editing;
+      _editing = false;
+    });
+  }
+
+  /// Resmin piksel ölçüsü (çözülemezse 0 → servis varsayılanı kullanır).
+  Future<(int, int)> _imageSize(Uint8List data) async {
+    try {
+      final codec = await instantiateImageCodec(data);
+      final frame = await codec.getNextFrame();
+      final size = (frame.image.width, frame.image.height);
+      frame.image.dispose();
+      codec.dispose();
+      return size;
+    } catch (_) {
+      // Bilinçli en iyi çaba: ölçü bilinmezse makul varsayılan.
+      return (0, 0);
+    }
+  }
 }

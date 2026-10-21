@@ -13,14 +13,14 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   }
 
   /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
-  Future<void> _openPdfEditor() async {
+  Future<void> _openPdfEditor({int? page}) async {
     // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
     // önce kaydedilmezse sessizce kaybolurdu.
     if (!await _confirmLeavePending() || !mounted) return;
     final saved = await PdfEditorScreen.open(
       context,
       path: widget.doc.path,
-      initialPage: _livePdfPage() ?? _pdfPage,
+      initialPage: (page != null && page > 0) ? page : (_livePdfPage() ?? _pdfPage),
     );
     if (saved && mounted) {
       _partSetState(() => _pdfText = '');
@@ -71,11 +71,11 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       onUndoHighlight: _undoLastMark,
       onDone: _clearPdfSelection,
       onCopy: _copyPdfSelection,
-      // Yerinde düzenleme: yalnız bu satırlar değişir, sayfa düzeni korunur
-      // (tam belge AI düzenlemesinden farkı bu). OCR seçiminde PDF
-      // düzenleyicisine gider — orada OCR satırının üstüne yazılır
-      // (2026-08-06: "taranmış belge deyip düzenleme yaptırmıyor").
-      onEdit: _pdfSelFromOcr ? _openPdfEditor : _startInlineEdit,
+      // Faz 8 (K12): tek düzenleme yolu — seçimin sayfasında PDF
+      // düzenleyicisi açılır (paragraf motoru; taranmış sayfada OCR satırı,
+      // ikisi de olmazsa "sayfaya yazı ekle"). Eski kelime-bazlı yerinde
+      // düzenleme kalktı.
+      onEdit: () => _openPdfEditor(page: _pdfSelPage),
       onTranslate: _translateSelection,
       moreItems: [
         PdfBarMenuItem(
@@ -114,60 +114,6 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       onClose: _clearPdfSelection,
       closeTooltip: context.t('common.close'),
     );
-  }
-
-  /// Yerinde düzenleme çubuğu — bkz. [PdfEditBar] (niye ekranın altında
-  /// olduğu da orada yazılı).
-  Widget _editBar() => PdfEditBar(
-        busy: _pdfEditBusy,
-        onCancel: _cancelInlineEdit,
-        onRewrite: _rewriteInlineEdit,
-        onApply: _submitInlineEdit,
-        onCaretLeft: () => _moveCaret(-1),
-        onCaretRight: () => _moveCaret(1),
-        onSelectAll: _selectAllInlineEdit,
-        cancelLabel: context.t('common.cancel'),
-        aiLabel: context.t('vw.ai_fix'),
-        applyLabel: context.t('common.apply'),
-        caretLeftLabel: context.t('vw.caret_left'),
-        caretRightLabel: context.t('vw.caret_right'),
-        selectAllLabel: context.t('vw.select_all_text'),
-        title: context.t('vw.inline_edit_title'),
-      );
-
-  /// İmleci [delta] karakter kaydırır (çubuktaki ◀ ▶).
-  ///
-  /// Seçim varsa önce **daraltılır**: kullanıcı bir kelimeyi seçmişken sağ oka
-  /// bastığında beklenen şey seçimin ucuna gitmek, seçimin silinmesi değil —
-  /// masaüstü klavye davranışının aynısı.
-  void _moveCaret(int delta) {
-    final ctl = _pdfEditCtl;
-    if (ctl == null) return;
-    final selection = ctl.selection;
-    final length = ctl.text.length;
-    final int from;
-    if (!selection.isValid) {
-      from = delta < 0 ? 0 : length;
-    } else if (!selection.isCollapsed) {
-      from = delta < 0 ? selection.start : selection.end;
-      ctl.selection = TextSelection.collapsed(offset: from);
-      _focusInlineEdit();
-      return;
-    } else {
-      from = selection.baseOffset;
-    }
-    ctl.selection =
-        TextSelection.collapsed(offset: (from + delta).clamp(0, length));
-    _focusInlineEdit();
-  }
-
-  /// Kutudaki metnin tamamını seçer — "hepsini silip baştan yaz" en sık
-  /// yapılan düzeltme ve minik yazıda üç kez dokunmak zor.
-  void _selectAllInlineEdit() {
-    final ctl = _pdfEditCtl;
-    if (ctl == null) return;
-    ctl.selection = TextSelection(baseOffset: 0, extentOffset: ctl.text.length);
-    _focusInlineEdit();
   }
 
   Future<void> _copyPdfSelection() async {
@@ -511,5 +457,38 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     if (!await _confirmLeavePending() || !mounted) return;
     final signed = await PdfSignScreen.open(context, widget.doc.path);
     if (signed == true && mounted) await _reloadPdf();
+  }
+
+  /// Seçim (ya da düzenlenen satır) alttaki çubuğun ARKASINDA kalmasın.
+  ///
+  /// Kullanıcı: *"alt alanda bir yazı seçtiğimde düzenleme alanı açılınca
+  /// yazı altta kalıyor, ona göre sayfa odağı değişmeli."* Çubuk sayfanın
+  /// üstünde yüzüyor; seçilen satır ekranın alt ~yarısındaysa çubuğun altında
+  /// kalıyordu. [barHeight] kadar pay bırakılarak satır görünür alana
+  /// kaydırılır (yakınlaştırma değişmez, en az kaydırma).
+  void _revealAboveBar(int page, List<PdfRect> rects,
+      {double barHeight = 190}) {
+    if (rects.isEmpty || page < 1) return;
+    try {
+      Rect? area;
+      for (final r in rects) {
+        final rect =
+            _pdfController.calcRectForRectInsidePage(pageNumber: page, rect: r);
+        area = area == null ? rect : area.expandToInclude(rect);
+      }
+      if (area == null) return;
+      final zoom =
+          _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
+      final visible = _pdfController.visibleRect;
+      final want = Rect.fromLTRB(area.left, area.top - 24 / zoom, area.right,
+          area.bottom + (barHeight + 24) / zoom);
+      // Çok uzun seçim (ekrandan büyük) için kaydırma anlamsız; pdfrx o
+      // durumda yakınlaştırmayı değiştirirdi.
+      if (want.height >= visible.height) return;
+      if (want.bottom <= visible.bottom && want.top >= visible.top) return;
+      _pdfController.ensureVisible(want);
+    } catch (_) {
+      // Görüntüleyici henüz hazır değilse sessizce atla.
+    }
   }
 }

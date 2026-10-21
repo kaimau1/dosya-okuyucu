@@ -124,4 +124,23 @@ void main() {
       expect(decoded, table);
     });
   });
+
+  // Faz 9 — Türkçe Excel'in "CSV (noktalı virgül)" çıktısı: ondalık ayırıcı
+  // VİRGÜL olduğu için satırda virgül de bolca geçer; ayraç yine `;` olmalı.
+  group('ayraç tespiti — Türkçe yerel ayar', () {
+    test('ondalık virgüllü sayılar ayracı şaşırtmaz', () {
+      const csv = 'Ürün;Fiyat;Adet\nElma;12,50;3\nArmut;7,25;10';
+      expect(CsvCodec.detectDelimiter(csv), ';');
+      expect(CsvCodec.parse(csv)[1], ['Elma', '12,50', '3']);
+    });
+
+    test('tırnak içindeki ayraçlar sayılmaz', () {
+      const csv = 'ad,adres\n"Ali","Kızılay; Ankara"\n"Ayşe","Alsancak; İzmir"';
+      expect(CsvCodec.detectDelimiter(csv), ',');
+    });
+
+    test('tek sütunlu dosya virgüle düşer (bozulmaz)', () {
+      expect(CsvCodec.parse('başlık\nbir\niki')[2], ['iki']);
+    });
+  });
 }

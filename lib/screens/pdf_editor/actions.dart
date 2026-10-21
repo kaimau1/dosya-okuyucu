@@ -203,6 +203,36 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     ];
   }
 
+  /// **Sayfaya yazı ekle** (Faz 8, K12): dokunulan noktaya yeni yazı basılır.
+  ///
+  /// Paragraf motorunun reddettiği ya da metni hiç olmayan sayfalarda tek
+  /// düzenleme yolu budur; eski kelime-bazlı yerinde düzenleme kalktı.
+  /// [local] sayfa katmanındaki dokunuş, [pageSize] o katmanın ölçüsü —
+  /// görünen sayfa noktasına (sol-üst, PDF noktası) oranla çevrilir; döndürme
+  /// ve CropBox'ı [PdfTextStamp] hesaba katar.
+  Future<void> _placeTextAt(PdfPage page, Size pageSize, Offset local) async {
+    if (pageSize.width <= 0 || pageSize.height <= 0) return;
+    final x = local.dx * page.width / pageSize.width;
+    final y = local.dy * page.height / pageSize.height;
+    final answer = await _askParagraphText('',
+        pointSize: 12, titleKey: 'pe.add_text_title');
+    if (!mounted) return;
+    _partSetState(() => _placingText = false);
+    if (answer == null || answer.text.trim().isEmpty) return;
+    await _run(() async {
+      final out = await PdfTextStamp.add(
+        bytes: await _workBytes(),
+        pageIndex: page.pageNumber - 1,
+        x: x,
+        y: y,
+        text: answer.text,
+        size: answer.size ?? 12,
+      );
+      _docRev++;
+      await _apply(out, _str.t('pe.text_added'));
+    });
+  }
+
   /// OCR satırına dokunuldu: tanınan metin ön-dolu pencerede düzenlenir,
   /// satır beyaz kapakla örtülüp yeni metin AYNI yere yazılır (bkz.
   /// [PdfScannedRetype]). Boş bırakmak satırı siler.

@@ -115,4 +115,37 @@ void main() {
       expect(TextDecode.decode('merhaba'.codeUnits), 'merhaba');
     });
   });
+
+  // Faz 9 — kodlama algılama seti: dört gerçek kaynak, aynı Türkçe cümle.
+  group('kodlama algılama (UTF-8 / UTF-16 / Windows-1254 / ISO-8859-9)', () {
+    const sentence = 'Işık, çiğ süt ve İğne — Şubat';
+
+    test('UTF-8', () {
+      expect(TextDecode.decode(utf8.encode(sentence)), sentence);
+      expect(TextDecode.describeEncoding(utf8.encode(sentence)), 'UTF-8');
+    });
+
+    test('UTF-16 LE ve BE (BOM ile)', () {
+      final units = sentence.codeUnits;
+      final le = [0xFF, 0xFE, for (final u in units) ...[u & 0xFF, u >> 8]];
+      final be = [0xFE, 0xFF, for (final u in units) ...[u >> 8, u & 0xFF]];
+      expect(TextDecode.decode(le), sentence);
+      expect(TextDecode.decode(be), sentence);
+    });
+
+    test('Windows-1254', () {
+      final bytes = TextDecode.encodeCp1254('Işık, çiğ süt ve İğne Şubat');
+      expect(TextDecode.decode(bytes), 'Işık, çiğ süt ve İğne Şubat');
+      expect(TextDecode.describeEncoding(bytes), 'Windows-1254');
+    });
+
+    test('ISO-8859-9 (Latin-5): Türkçe harfler cp1254 ile AYNI baytlar', () {
+      // ISO-8859-9 ile Windows-1254 yalnız 0x80-0x9F aralığında ayrışır
+      // (cp1254'te tipografik tırnak/€, ISO'da denetim kodları). Türkçe
+      // harflerin hepsi 0xC0 üstünde → cp1254 çözümü ISO dosyasını da doğru
+      // okur; ayrı bir kodlama dalına gerek yok.
+      const iso = <int>[0xDD, 0xF0, 0xFE, 0xFD, 0xDE, 0xD0, 0xE7, 0xF6, 0xFC];
+      expect(TextDecode.decode(iso), 'İğşıŞĞçöü');
+    });
+  });
 }

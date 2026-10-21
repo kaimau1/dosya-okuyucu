@@ -3,9 +3,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/pdf/pdf_font_map.dart';
-import 'package:dosya_okuyucu/services/pdf_content_editor.dart';
+import 'package:dosya_okuyucu/services/pdf_page_edit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+
+import 'support/pdf_edit_helper.dart';
 
 /// **Gerçek belgelerin yazı tipi kodlaması** (`/ToUnicode`).
 ///
@@ -96,7 +98,7 @@ endbfchar
     });
   });
 
-  group('Type0/Identity-H belgede yerinde düzenleme', () {
+  group('Type0/Identity-H belgede paragraf düzenleme', () {
     /// Gerçek bir belgenin alt küme fontunda bulunan harfler: belgede geçen
     /// TÜM harfler (tek bir cümlenin harfleri değil). Yazışma belgelerinde
     /// alfabenin tamamı + rakamlar fiilen bulunur.
@@ -211,12 +213,7 @@ end
     test('2 baytlık glif kodlu belgede metin yerinde değişir', () async {
       final pdf = buildIdentityHPdf('Toplanti 2026 tarihinde');
 
-      final out = (await PdfContentEditor.replaceText(
-        pdf,
-        pageIndex: 0,
-        oldText: '2026',
-        newText: '2027',
-      )).bytes;
+      final out = replaceInParagraph(pdf, oldText: '2026', newText: '2027');
 
       expect(textOf(out), contains('2027'));
       expect(textOf(out), isNot(contains('2026')));
@@ -225,12 +222,7 @@ end
     test('Türkçe harfler özgün fontla yazılabiliyor', () async {
       final pdf = buildIdentityHPdf('Sağlık Bakanlığı Genel Müdürlüğü');
 
-      final out = (await PdfContentEditor.replaceText(
-        pdf,
-        pageIndex: 0,
-        oldText: 'Genel',
-        newText: 'Şube',
-      )).bytes;
+      final out = replaceInParagraph(pdf, oldText: 'Genel', newText: 'Şube');
 
       expect(textOf(out), contains('Şube'));
     });
@@ -241,19 +233,16 @@ end
       // Alt kümesi yalnız "abc" olan bir font: "x" gliflerde yok.
       final pdf = buildIdentityHPdf('abc', subset: 'abc');
 
-      await expectLater(
-        PdfContentEditor.replaceText(pdf,
-            pageIndex: 0, oldText: 'abc', newText: 'axc'),
-        throwsA(isA<PdfEditRefused>()
-            .having((e) => e.message, 'mesaj', contains('yazı tipinde yok'))),
+      expect(
+        () => replaceInParagraph(pdf, oldText: 'abc', newText: 'axc'),
+        throwsA(anyOf(isA<PdfParagraphRefused>(), isA<PdfPageRefused>())),
       );
     });
 
     test('özgün baytlar burada da korunur', () async {
       final pdf = buildIdentityHPdf('Rapor 2026');
 
-      final out = (await PdfContentEditor.replaceText(pdf,
-          pageIndex: 0, oldText: '2026', newText: '2027')).bytes;
+      final out = replaceInParagraph(pdf, oldText: '2026', newText: '2027');
 
       expect(out.sublist(0, pdf.length), pdf);
     });

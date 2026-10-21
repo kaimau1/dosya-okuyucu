@@ -60,6 +60,16 @@ class LoadedDoc {
   /// demek ve son belgeler kaydını doğru tutmak için).
   final String? sourcePath;
 
+  /// Metin dosyası [LargeTextFile.threshold]'u aşıyor: içerik parça parça,
+  /// salt okunur gösterilir; [plainText] yalnız baştaki bir önizlemedir
+  /// (AI/çeviri bağlamı için). Bkz. `services/large_text.dart`.
+  final bool largeText;
+
+  /// Eski ikili Office dosyasından (`doc`, `ppt`…) çıkarılmış metin mi?
+  /// Öyleyse uzantısı; görüntüleyici "salt okunur" rozetini ve "DOCX/PPTX'e
+  /// dönüştür ve düzenle" kapısını gösterir (bkz. `LegacyConvert`).
+  final String? legacyExt;
+
   const LoadedDoc({
     required this.path,
     required this.name,
@@ -69,6 +79,8 @@ class LoadedDoc {
     this.readOnly = false,
     this.savePath,
     this.sourcePath,
+    this.largeText = false,
+    this.legacyExt,
   });
 
   bool get isEditableText =>

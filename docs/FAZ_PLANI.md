@@ -56,10 +56,10 @@
 | 3 | Sadeleştirme II — uzun dosyaları bölme + durum yönetimi | 2 | ✅ 2026-10-21 — 19 ekran + çeviri tablosu + formül motoru bölündü (800+ satırlı ekran yok); kök yalnız `AppearanceState`i izliyor; Browse/Clipboard/Remotes/AI bildiricileri ayrılmadı (bkz. HAFIZA) |
 | 4 | Performans — düşük donanım profili ve ölçüm | 3 | 🟡 2026-10-21 — profil + bütçeler + açılış kuyruğu + P2-P9/P11/P12 kodda; **cihaz ölçümü bekliyor** (`docs/perf/2026-10-21.md`), P10 yapılmadı |
 | 5 | Son kullanıcı iletişimi altyapısı (hata dili, izin/boş/çevrimdışı durumları) | 3 | ✅ 2026-10-21 — `UserError`, `PermissionGate`, `ensureAiKey`, Yardım iskeleti, bekçiler; servis içi boş catch'ler sınıflandırılmadı (bkz. HAFIZA) |
-| 6 | Klasör içi / gezgin / filtre / simge yeniden tasarımı | 4, 5 | ⬜ |
-| 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | ⬜ |
-| 8 | PDF akışı (tek çatı) | 6, 7 | ⬜ |
-| 9 | Office ve metin akışları (Word, Excel, Slayt, Metin/CSV/MD) | 6, 7 | ⬜ |
+| 6 | Klasör içi / gezgin / filtre / simge yeniden tasarımı | 4, 5 | ✅ 2026-10-21 — `583f5a3`: FmFileListView, yol hapları geri gider (B1/B2), simge tablosu, tablet iki bölme (HAFIZA kaydı yazılmamıştı — commit mesajından) |
+| 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | 🟡 2026-10-21 — `dc9e613`: `excel` paketi çıktı, lisans sayfası, belge font altkümesi + RFN bekçisi; Media3 (K2) ve Flutter yükseltmesi bu committe yok (commit mesajından) |
+| 8 | PDF akışı (tek çatı) | 6, 7 | ✅ 2026-10-21 — tek "Düzenle" kapısı (6 kip), eski yol silindi (K12), "yazı ekle" yedeği, Aa levhası, örnek set + duman; vurgu+CropBox cihazda (bkz. HAFIZA (4)) |
+| 9 | Office ve metin akışları (Word, Excel, Slayt, Metin/CSV/MD) | 6, 7 | ✅ 2026-10-21 — Y1 (tablo hücresi, seçime punto, resim ekle/sil), Y2 (grafik, köşegen, sayfa taşı), Y4, büyük metin, eski Office dönüştür; Word yazım köprüsü hatası bulundu-düzeltildi; 10 bin satır ölçümü cihazda |
 | 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | ⬜ |
 | 11 | Ticari yayın hazırlığı (Play politikaları, ilk açılış, gelir modeli, mağaza) | 8–10 | ⬜ |
 | 12 | Kapanış — uçtan uca hata avı, cihaz doğrulama turu, sürüm adayı | 11 | ⬜ |
@@ -923,6 +923,13 @@ setin tamamında duman testi yeşil · Faz 4 PDF açılış ölçümü kötüle�
 > K1 kararına göre Syncfusion'ı koru ya da taşı. Örnek PDF setini ve duman
 > testlerini kur. HAFIZA'ya yaz, main'e birleştir.
 
+**Sonuç (2026-10-21):** kabul ölçütleri — düzenleme giriş noktası 1 (alt çubukta
+"Düzenle"; seçim çubuğundaki "Düzenle" de aynı düzenleyiciye gider) ✅ · eski yol silindi
+✅ · örnek setin tamamında duman testi yeşil (`pdf_fixture_smoke_test`, 18 test) ✅ ·
+PDF açılış ölçümü: cihaz yok, ölçülmedi (Faz 4'ün kendisi de bekliyor). K1 (a) → Syncfusion
+kaldı. Y3: AGL ve iki yana yaslama paragraf motorunda zaten vardı; CropBox "yazı ekle"
+için ölçüldü, vurgu için cihazda (`docs/CIHAZ_TESTI.md`).
+
 ---
 
 ### Faz 9 — Office ve metin akışları
@@ -955,6 +962,13 @@ yeşil · 10 bin satırlık Excel'de Faz 4 metrikleri korunmuş.
 > **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 9'u uygula. §3.10'daki Word, Excel,
 > Slayt ve metin satırlarını ve Y1/Y2/Y4'ü kapat; örnek dosya setini ve duman
 > testlerini kur. HAFIZA'ya yaz, main'e birleştir.
+
+**Sonuç (2026-10-21):** Y1 ✅ (tablo hücre metni, seçime punto/yazı tipi, resim ekle/sil
+— taşıma yok) · Y2 ✅ (grafik ekleme, köşegen doldurma, sayfa taşıma; hizalama okuma
+Faz 7'de) · Y4 ✅ (Excel aralığı, slayt kutusu) · metin: > 5 MB parçalı okuma, kodlama ve
+CSV testleri ✅ · eski Office rozeti + dönüştür ✅ · örnek set + duman testleri ✅; Office
+çıktıları LibreOffice'te açıldı, Microsoft Office ve 10 bin satır ölçümü cihaz listesinde.
+Ek bulgu: Word canlı yazımı Flutter'a hiç gitmiyordu (HAFIZA 2026-10-21 (4)).
 
 ---
 

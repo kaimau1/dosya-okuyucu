@@ -315,23 +315,3 @@ class _PendingMark {
     return false;
   }
 }
-
-class _InlineEdit {
-  /// 1-tabanlı sayfa numarası.
-  final int page;
-
-  /// Düzenlenen metnin PDF-koordinat dikdörtgenleri.
-  final List<PdfRect> rects;
-
-  final String original;
-
-  /// Seçimden önceki metin — aynı kelimenin doğru geçişini bulmak için.
-  final String preceding;
-
-  const _InlineEdit({
-    required this.page,
-    required this.rects,
-    required this.original,
-    required this.preceding,
-  });
-}

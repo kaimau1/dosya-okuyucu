@@ -529,103 +529,12 @@ const Map<String, (String, String, String)> _t5 = {
   ),
 
   // ── PDF yerinde metin düzenleme akışı ─────────────────────────────────────
-  'pf.unlock_failed': (
-    'Belgenin şifre koruması kaldırılamadı: {error}\n\n'
-        'Parolayı biliyorsanız PDF araçlarından kaldırıp yeniden deneyin.',
-    'Could not remove the document’s password protection: {error}\n\n'
-        'If you know the password, remove it from PDF tools and try again.',
-    'تعذّرت إزالة حماية كلمة المرور من المستند: {error}\n\n'
-        'إن كنت تعرف كلمة المرور فأزلها من أدوات PDF ثم أعد المحاولة.',
-  ),
   'pf.replaced_reflow': (
     'Değiştirildi — satırın kalanı yeniden hizalandı.',
     'Replaced — the rest of the line was re-aligned.',
     'تم الاستبدال — أُعيدت محاذاة بقية السطر.',
   ),
   'pf.replaced': ('Değiştirildi.', 'Replaced.', 'تم الاستبدال.'),
-  'pf.overflow': (
-    '⚠ Yeni metin satıra sığmadı, satır sayfanın metin alanının dışına taşıyor.',
-    '⚠ The new text did not fit the line; it overflows the page’s text area.',
-    '⚠ لم يتّسع النص الجديد للسطر، وهو يتجاوز منطقة النص في الصفحة.',
-  ),
-  'pf.unlocked_note': (
-    'Belgenin şifre koruması kaldırıldı.',
-    'The document’s password protection was removed.',
-    'أُزيلت حماية كلمة المرور من المستند.',
-  ),
-  'pf.stamped': (
-    'Metin ÜSTE yazıldı (yerinde düzenleme yapılamadı).',
-    'The text was stamped ON TOP (in-place editing was not possible).',
-    'كُتب النص فوق القديم (تعذّر التحرير في المكان).',
-  ),
-  'pf.locked_title': (
-    'Belge şifre korumalı',
-    'The document is password-protected',
-    'المستند محمي بكلمة مرور',
-  ),
-  'pf.locked_body': (
-    'Bu belgede şifre koruması var; açılırken parola sorulmadığına göre bu bir '
-        'izin kilidi (yazdırma/kopyalama kısıtı).\n\n'
-        'Koruma kaldırılırsa metin, belgenin KENDİ yazı tipi ve puntosuyla '
-        'yerinde düzenlenebilir — görüntü hiç bozulmaz.\n\n'
-        '• Özgün dosyanız değişmez: koruma yalnız düzenlenen kopyada kalkar, '
-        'kaydetme biçimini çıkarken siz seçersiniz.\n'
-        '• Belge bu sırada yeniden yazılır (artımlı güncelleme değil).\n\n'
-        'Kaldırılmasın derseniz eski yazının üstüne yazma yolu önerilir; orada '
-        'yazı tipi belgenin fontu OLMAZ.',
-    'This document has password protection; since no password is asked when '
-        'opening it, this is a permissions lock (printing/copying restriction).'
-        '\n\nIf the protection is removed, the text can be edited in place '
-        'using the document’s OWN font and size — the appearance is not '
-        'affected at all.\n\n'
-        '• Your original file is untouched: the protection is only removed on '
-        'the edited copy, and you choose how to save when you leave.\n'
-        '• The document is rewritten in the process (not an incremental '
-        'update).\n\nIf you decline, stamping over the old text is offered '
-        'instead; there the font will NOT be the document’s own.',
-    'يحتوي هذا المستند على حماية بكلمة مرور؛ وبما أنه لا يطلب كلمة مرور عند '
-        'الفتح فهذا قفل أذونات (تقييد الطباعة/النسخ).\n\n'
-        'إذا أُزيلت الحماية فيمكن تحرير النص في مكانه بخط المستند وحجمه '
-        'نفسيهما — دون أي تأثير على المظهر.\n\n'
-        '• ملفك الأصلي لا يتغيّر: تُزال الحماية من النسخة المحرَّرة فقط، وأنت '
-        'تختار طريقة الحفظ عند الخروج.\n'
-        '• يُعاد كتابة المستند أثناء ذلك (وليس تحديثًا تزايديًا).\n\n'
-        'إن رفضت فسيُقترح الكتابة فوق النص القديم؛ وهناك لن يكون الخط هو خط '
-        'المستند.',
-  ),
-  'pf.dont_remove': ('Kaldırma', 'Don’t remove', 'لا تُزلها'),
-  'pf.inplace_failed_title': (
-    'Yerinde düzenleme yapılamadı',
-    'In-place editing was not possible',
-    'تعذّر التحرير في المكان',
-  ),
-  'pf.stamp_body': (
-    'Bunun yerine eski yazının ÜSTÜ kapatılıp yenisi çizilebilir. '
-        'Bu durumda:\n'
-        '• yazı tipi belgenin kendi fontu olmaz,\n'
-        '• iki yana yaslı metinde satır hizası bozulur,\n'
-        '• arka plan düz renk varsayılır (desenli zeminde kutu görünür),\n'
-        '• eski metin belgenin içinde aranabilir hâlde KALIR.\n\n'
-        'Kısacası görüntü bozulabilir. Belgeyi korumak istiyorsanız “Vazgeç” '
-        'deyip kaydederken “Kopyasını kaydet”i seçin.',
-    'Instead, the old text can be covered and the new one drawn over it. '
-        'In that case:\n'
-        '• the font will not be the document’s own,\n'
-        '• line alignment breaks in justified text,\n'
-        '• the background is assumed to be a flat colour (a box shows on a '
-        'patterned background),\n'
-        '• the old text REMAINS searchable inside the document.\n\n'
-        'In short, the appearance may suffer. To keep the document intact, tap '
-        '“Cancel” and choose “Save a copy” when saving.',
-    'بدلًا من ذلك يمكن تغطية النص القديم ورسم الجديد فوقه. لكن:\n'
-        '• لن يكون الخط هو خط المستند،\n'
-        '• تختلّ محاذاة الأسطر في النص المضبوط،\n'
-        '• تُفترض الخلفية لونًا مسطحًا (يظهر مربع فوق خلفية منقوشة)،\n'
-        '• يبقى النص القديم قابلًا للبحث داخل المستند.\n\n'
-        'باختصار قد يتضرّر المظهر. للحفاظ على المستند اضغط «إلغاء» واختر «حفظ '
-        'نسخة» عند الحفظ.',
-  ),
-  'pf.stamp_over': ('Üste yaz', 'Stamp over', 'اكتب فوقه'),
 
   // ── Benzer görüntüler ─────────────────────────────────────────────────────
   'sim.title': ('Benzer görüntüler', 'Similar images', 'صور متشابهة'),

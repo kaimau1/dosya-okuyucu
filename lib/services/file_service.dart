@@ -14,6 +14,7 @@ import 'legacy_text.dart';
 import 'office_reader.dart';
 import 'text_decode.dart';
 import 'xls_legacy.dart';
+import 'large_text.dart';
 import 'xlsx_editor.dart' show XlsxCell, XlsxReader, generalNumberRaw;
 
 /// Dosya seçme, tür tespiti ve içerik yükleme.
@@ -136,6 +137,18 @@ class FileService {
 
     switch (kind) {
       case DocKind.text:
+        // Büyük dosya: tek seferde belleğe alınmaz, parça parça gösterilir
+        // (Faz 9). Önizleme AI/çeviri bağlamı için yeter.
+        if (await file.length() > LargeTextFile.threshold) {
+          return LoadedDoc(
+            path: path,
+            name: name,
+            kind: kind,
+            plainText: await _readPreview(file),
+            readOnly: true,
+            largeText: true,
+          );
+        }
         final text = await _readTextSafely(file);
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
@@ -238,13 +251,16 @@ class FileService {
     }
     if (text == null || text.trim().isEmpty) return null;
 
+    // "Eski biçim, salt okunur" bilgisi artık metnin içine gömülü Türkçe bir
+    // başlık değil: görüntüleyici rozet + "dönüştür ve düzenle" gösteriyor
+    // (Faz 9) — metin AI/çeviri/dönüştürmeye temiz gidiyor.
     return LoadedDoc(
       path: path,
       name: name,
       kind: DocKind.text,
-      plainText: 'Eski $ext dosyası — basit metin görünümü (biçim korunmaz):\n\n'
-          '$text',
+      plainText: text,
       readOnly: true,
+      legacyExt: ext,
     );
   }
 
@@ -424,6 +440,18 @@ class FileService {
     final bytes = await file.readAsBytes();
     // BOM temizleme + UTF-8 → Windows-1254 (Türkçe) düşüşü (bkz. TextDecode).
     return TextDecode.decode(bytes);
+  }
+
+  /// Büyük metnin baştaki ~256 KB'ı (son tam satıra kadar), çözülmüş.
+  Future<String> _readPreview(File file) async {
+    final raf = await file.open();
+    try {
+      final head = await raf.read(256 * 1024);
+      final nl = head.lastIndexOf(0x0A);
+      return TextDecode.decode(nl > 0 ? head.sublist(0, nl) : head);
+    } finally {
+      await raf.close();
+    }
   }
 
   Future<void> saveText(String path, String content) async {

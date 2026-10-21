@@ -68,29 +68,6 @@ void main() {
         moreTooltip: 'Daha fazla',
       );
 
-  PdfEditBar editBar({
-    bool busy = false,
-    VoidCallback? onApply,
-    VoidCallback? onCaretLeft,
-    VoidCallback? onCaretRight,
-    VoidCallback? onSelectAll,
-    bool caret = true,
-  }) =>
-      PdfEditBar(
-        busy: busy,
-        onCancel: () {},
-        onRewrite: () {},
-        onApply: onApply ?? () {},
-        onCaretLeft: caret ? (onCaretLeft ?? () {}) : null,
-        onCaretRight: caret ? (onCaretRight ?? () {}) : null,
-        onSelectAll: caret ? (onSelectAll ?? () {}) : null,
-        cancelLabel: 'Vazgeç',
-        aiLabel: 'AI ile düzelt',
-        applyLabel: 'Uygula',
-        caretLeftLabel: 'İmleci sola al',
-        caretRightLabel: 'İmleci sağa al',
-        selectAllLabel: 'Tümünü seç',
-      );
 
   group('taşma', () {
     // 320 = küçük telefon, 360 = en yaygın, 412 = Pixel/Xiaomi.
@@ -103,15 +80,6 @@ void main() {
         await tester.pumpWidget(harness(selectionBar(), width: width));
         expect(tester.takeException(), isNull);
       });
-
-      testWidgets('düzenleme çubuğu ${width.toInt()} dp\'de taşmaz',
-          (tester) async {
-        tester.view.physicalSize = Size(width, 720);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        await tester.pumpWidget(harness(editBar(), width: width));
-        expect(tester.takeException(), isNull);
-      });
     }
 
     testWidgets('BÜYÜK yazı ölçeğinde de taşmaz', (tester) async {
@@ -121,8 +89,6 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
           harness(selectionBar(), width: 320, textScale: 1.4));
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(harness(editBar(), width: 320, textScale: 1.4));
       expect(tester.takeException(), isNull);
     });
 
@@ -198,59 +164,6 @@ void main() {
       expect(find.text('Kopyala'), findsOneWidget);
       expect(find.text('Düzenle'), findsOneWidget);
       expect(find.text('Çevir'), findsOneWidget);
-    });
-
-    testWidgets('Uygula DOLU düğme — asıl eylem ayırt ediliyor',
-        (tester) async {
-      await tester.pumpWidget(harness(editBar()));
-      // `FilledButton.icon` bir ALT SINIF döndürüyor (`_FilledButtonWithIcon`);
-      // `find.byType` tam tür eşlediği için yakalamıyor.
-      expect(
-        find.ancestor(
-          of: find.text('Uygula'),
-          matching: find.byWidgetPredicate((w) => w is FilledButton),
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('kaydederken düğmeler kilitli, ilerleme dönüyor',
-        (tester) async {
-      await tester.pumpWidget(harness(editBar(busy: true)));
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Uygula'), findsNothing);
-      // Vazgeç/AI pasif: yarım kalmış kayıt sırasında iptal edilemez.
-      final cancel = tester.widget<PdfBarAction>(
-          find.widgetWithText(PdfBarAction, 'Vazgeç'));
-      expect(cancel.onPressed, isNull);
-    });
-
-    // ── imleç satırı (kullanıcı 2026-08-30: "imleç zor hareket ediyor") ──
-    testWidgets('imleç okları ve tümünü seç geri çağrıyı ateşliyor',
-        (tester) async {
-      var left = 0, right = 0, all = 0;
-      await tester.pumpWidget(harness(editBar(
-        onCaretLeft: () => left++,
-        onCaretRight: () => right++,
-        onSelectAll: () => all++,
-      )));
-      await tester.tap(find.byTooltip('İmleci sola al'));
-      await tester.tap(find.byTooltip('İmleci sağa al'));
-      await tester.tap(find.byTooltip('Tümünü seç'));
-      expect([left, right, all], [1, 1, 1]);
-    });
-
-    testWidgets('imleç satırı verilmezse çubuk eski hâlinde', (tester) async {
-      await tester.pumpWidget(harness(editBar(caret: false)));
-      expect(find.byTooltip('İmleci sola al'), findsNothing);
-      expect(find.text('Uygula'), findsOneWidget);
-    });
-
-    testWidgets('kaydederken imleç okları da kilitli', (tester) async {
-      await tester.pumpWidget(harness(editBar(busy: true)));
-      final button = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.keyboard_arrow_left));
-      expect(button.onPressed, isNull);
     });
   });
 }

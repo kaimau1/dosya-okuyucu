@@ -269,12 +269,12 @@
   // bir kapsayıcının içindeyse) taşınır. Hesaplanmış rengi koşulsuz göndermek
   // temadan/stilden gelen rengi her düzenlemede satır içi bir w:color'a
   // dondururdu — yazı tipiyle aynı gerekçe.
+  // Faz 9: yazı tipi/punto artık SEÇİME de verilebiliyor — işaret
+  // (data-fk-font / data-fk-size) paragrafta olabileceği gibi seçimi saran bir
+  // <span>'da da olabilir; en içteki işaret geçerlidir.
   function segsOf(p) {
     var out = [];
-    var font = p.getAttribute('data-fk-font') || null;
-    var sizeAttr = p.getAttribute('data-fk-size');
-    var size = sizeAttr ? parseFloat(sizeAttr) : null;
-    function walk(node, b, i, u, col, hl) {
+    function walk(node, b, i, u, col, hl, font, size) {
       if (node.nodeType === 3) {
         if (node.textContent) {
           out.push([node.textContent, b, i, u, font, size, col, hl]);
@@ -293,11 +293,14 @@
                        .indexOf('underline') >= 0);
       var nc = node.getAttribute('data-fk-color') || col;
       var nh = node.getAttribute('data-fk-hl') || hl;
+      var nf = node.getAttribute('data-fk-font') || font;
+      var sa = node.getAttribute('data-fk-size');
+      var ns = sa ? parseFloat(sa) : size;
       for (var c = node.firstChild; c; c = c.nextSibling) {
-        walk(c, nb, ni, nu, nc, nh);
+        walk(c, nb, ni, nu, nc, nh, nf, ns);
       }
     }
-    walk(p, false, false, false, null, null);
+    walk(p, false, false, false, null, null, null, null);
     return out;
   }
 
@@ -442,8 +445,49 @@
     return out;
   }
 
+  // **Seçime uygulanan yazı tipi/punto** (Faz 9 — KALANLAR "punto PARAGRAF
+  // düzeyinde"). Renkteki yöntemin aynısı: `execCommand` seçimi <span>'larla
+  // sarar, <p> sayısı DEĞİŞMEZ (eşleme güvende). `fontSize` yalnız 1-7
+  // ölçeğini bilir: önce geçici olarak 7 (xxx-large) verilir, oluşan
+  // span'lar bulunup gerçek punto + işaretle değiştirilir. Seçim yoksa
+  // false döner ve çağıran eski paragraf yolunu kullanır.
+  function applyToSelection(kind, value) {
+    var s = window.getSelection();
+    if (!EDIT || !s || !s.rangeCount || s.isCollapsed) return false;
+    var paras = selectedParas();
+    if (!paras.length) return false;
+    document.execCommand('styleWithCSS', false, true);
+    if (kind === 'size') {
+      document.execCommand('fontSize', false, '7');
+    } else {
+      document.execCommand('fontName', false, value);
+    }
+    paras.forEach(function (e) {
+      var els = [e.p].concat([].slice.call(e.p.querySelectorAll('span,font')));
+      els.forEach(function (el) {
+        if (kind === 'size') {
+          if (el.style.fontSize === 'xxx-large' || el.getAttribute('size') === '7') {
+            el.style.fontSize = value + 'pt';
+            el.removeAttribute('size');
+            el.setAttribute('data-fk-size', '' + value);
+          }
+        } else {
+          var fam = (el.style.fontFamily || el.getAttribute('face') || '')
+            .replace(/["']/g, '');
+          if (fam && fam.split(',')[0].trim() === value) {
+            el.setAttribute('data-fk-font', value);
+          }
+        }
+      });
+      sendPara(e.i, e.p);
+    });
+    syncSelectionState();
+    return true;
+  }
+
   window.setFontFamily = function (name) {
     if (!EDIT) return;
+    if (applyToSelection('font', name)) return;
     selectedParas().forEach(function (e) {
       e.p.style.fontFamily = name;
       e.p.setAttribute('data-fk-font', name);
@@ -454,6 +498,7 @@
 
   window.setFontSize = function (pt) {
     if (!EDIT) return;
+    if (applyToSelection('size', pt)) return;
     selectedParas().forEach(function (e) {
       e.p.style.fontSize = pt + 'pt';
       e.p.setAttribute('data-fk-size', '' + pt);
@@ -470,7 +515,7 @@
     while (n && n.nodeType !== 1) n = n.parentNode;
     var p = n && n.closest ? n.closest('p') : null;
     if (!p) return {};
-    var cs = window.getComputedStyle(p);
+    var cs = window.getComputedStyle(n);
     // İlk aile adı yeter ("Calibri, sans-serif" → "Calibri"); tırnaklar atılır.
     var fam = (cs.fontFamily || '').split(',')[0].replace(/["']/g, '').trim();
     var px = parseFloat(cs.fontSize);
@@ -489,11 +534,32 @@
     }
   }
 
+  // KÖK NEDEN (Faz 9, Chromium'da ölçüldü): `input` olayının hedefi yazılan
+  // <p> DEĞİL, düzenlenebilir kabın kendisidir (<article>, spec gereği).
+  // Eskiden yalnız `e.target`a bakılıyordu → `closest('p')` hep null, yazılan
+  // metin Flutter'a HİÇ gönderilmiyordu (yalnız biçim düğmeleri gönderiyordu).
+  // Paragraf artık imlecin bulunduğu yerden bulunur.
+  function paraAtCaret() {
+    var s = window.getSelection();
+    var n = s && s.anchorNode;
+    while (n && n.nodeType !== 1) n = n.parentNode;
+    return n && n.closest ? n.closest('p') : null;
+  }
+
+  // İmlecin bulunduğu paragrafın indeksi (resim ekle/sil — Faz 9). Eşleme
+  // `cachedParas` ile aynı sırada; imleç belgede değilse -1.
+  window.caretParaIndex = function () {
+    var p = paraAtCaret();
+    var list = cachedParas || paraList();
+    return p ? list.indexOf(p) : -1;
+  };
+
   document.addEventListener('input', function (e) {
     if (!EDIT || !cachedParas) return;
     var n = e.target;
     while (n && n.nodeType !== 1) n = n.parentNode;
     var p = n && n.closest ? n.closest('p') : null;
+    if (!p) p = paraAtCaret();
     if (!p) return;
     var idx = cachedParas.indexOf(p);
     if (idx < 0) { structureChanged(); return; }

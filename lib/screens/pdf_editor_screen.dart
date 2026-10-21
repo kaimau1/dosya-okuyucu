@@ -10,6 +10,7 @@ import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
+import '../services/pdf/pdf_text_stamp.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
@@ -123,6 +124,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   /// Her başarılı düzenlemede artar — OCR kutuları yeniden yüklensin.
   int _docRev = 0;
+
+  /// "Yazı ekle" yerleştirme kipi: sıradaki dokunuş yazının yeridir.
+  bool _placingText = false;
 
   @override
   void initState() {

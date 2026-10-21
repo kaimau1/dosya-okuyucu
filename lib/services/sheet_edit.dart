@@ -735,3 +735,58 @@ bool _looksLikeDateTimeCode(String code) {
   }
   return false;
 }
+
+/// Doldurma tutamağının yazacağı değerler — tek eksen ya da **köşegen**
+/// (Faz 9 / Y2; KALANLAR "köşegen doldurma yok").
+///
+/// [src] seçili blok, ([toRow], [toCol]) tutamağın bırakıldığı hücre,
+/// [rawAt] sayfanın ham değeri (formül `=` ile). Köşegende önce satır ekseni
+/// uzatılır, sonra uzamış blok sütun ekseninde uzatılır: köşedeki hücreler
+/// hem aşağı hem sağa devam eden serinin değerini alır (ör. 1,2 / 10,20
+/// bloğu sağ-alta çekilince sağ alt köşe 40 değil satır serisinin sağa
+/// devamıdır). Excel'in kendisi köşegen doldurmaz; bu sıra kullanıcının
+/// "önce aşağı, sonra sağa çekseydim ne olurdu" beklentisiyle aynı sonucu
+/// verir.
+Map<CellRef, String> fillDiagonal(
+  CellRange src,
+  int toRow,
+  int toCol,
+  String Function(int row, int col) rawAt,
+) {
+  final values = <CellRef, String>{};
+  String read(int r, int c) => values[CellRef(r, c)] ?? rawAt(r, c);
+
+  var block = src;
+  if (toRow < src.top || toRow > src.bottom) {
+    final backwards = toRow < src.top;
+    final count = backwards ? src.top - toRow : toRow - src.bottom;
+    for (var col = src.left; col <= src.right; col++) {
+      final source = [
+        for (var row = src.top; row <= src.bottom; row++) read(row, col),
+      ];
+      final out = FillSeries.extend(source, count, backwards: backwards);
+      for (var i = 0; i < out.length; i++) {
+        final row = backwards ? toRow + i : src.bottom + 1 + i;
+        values[CellRef(row, col)] = out[i];
+      }
+    }
+    block = CellRange(math.min(src.top, toRow), src.left,
+        math.max(src.bottom, toRow), src.right);
+  }
+  if (toCol < block.left || toCol > block.right) {
+    final backwards = toCol < block.left;
+    final count = backwards ? block.left - toCol : toCol - block.right;
+    for (var row = block.top; row <= block.bottom; row++) {
+      final source = [
+        for (var col = block.left; col <= block.right; col++) read(row, col),
+      ];
+      final out = FillSeries.extend(source, count,
+          backwards: backwards, horizontal: true);
+      for (var i = 0; i < out.length; i++) {
+        final col = backwards ? toCol + i : block.right + 1 + i;
+        values[CellRef(row, col)] = out[i];
+      }
+    }
+  }
+  return values;
+}

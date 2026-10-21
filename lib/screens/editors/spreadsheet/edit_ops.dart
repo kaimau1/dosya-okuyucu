@@ -308,21 +308,22 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     return _fillPreview?.contains(r, c) ?? false;
   }
 
-  /// Sürükleme sırasında doldurulacak aralık (yoksa null). Yalnız TEK eksende
-  /// büyür — Excel de köşegen doldurma yapmaz.
+  /// Sürükleme sırasında doldurulacak aralık (yoksa null). Tutamaç iki
+  /// eksende de dışarı çekilirse alan KÖŞEGEN büyür (Faz 9 / Y2: önce
+  /// satırlar, sonra sütunlar doldurulur — bkz. [_applyFill]).
   CellRange? get _fillPreview {
     final toRow = _fillToRow, toCol = _fillToCol;
     if (toRow == null || toCol == null) return null;
     final src = _range;
-    if (toRow < src.top || toRow > src.bottom) {
-      return CellRange(math.min(src.top, toRow), src.left,
-          math.max(src.bottom, toRow), src.right);
-    }
-    if (toCol < src.left || toCol > src.right) {
-      return CellRange(src.top, math.min(src.left, toCol), src.bottom,
-          math.max(src.right, toCol));
-    }
-    return null;
+    final vertical = toRow < src.top || toRow > src.bottom;
+    final horizontal = toCol < src.left || toCol > src.right;
+    if (!vertical && !horizontal) return null;
+    return CellRange(
+      vertical ? math.min(src.top, toRow) : src.top,
+      horizontal ? math.min(src.left, toCol) : src.left,
+      vertical ? math.max(src.bottom, toRow) : src.bottom,
+      horizontal ? math.max(src.right, toCol) : src.right,
+    );
   }
 
   bool get _hasRange => _anchorRow != _selRow || _anchorCol != _selCol;
@@ -622,8 +623,10 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
 
   /// Doldurma tutamağı bırakıldığında seriyi yazar.
   ///
-  /// Yalnız TEK eksende doldurma yapılır (Excel de öyle): sürükleme daha çok
-  /// hangi yönde ilerlediyse o eksen seçilir.
+  /// Tek eksende sürüklemede o eksen doldurulur. **İki eksende birden**
+  /// (köşegen — Faz 9 / Y2) önce satırlar aşağı/yukarı uzatılır, sonra
+  /// UZAMIŞ blok sağa/sola uzatılır; böylece köşedeki hücreler de iki serinin
+  /// devamıyla dolar. Hesap saf işlevde ([fillDiagonal]) ve testli.
   void _applyFill(int toRow, int toCol) {
     final sheet = _sheet;
     if (sheet == null) return;
@@ -632,42 +635,15 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final horizontal = toCol < src.left || toCol > src.right;
     if (!vertical && !horizontal) return;
 
-    final values = <CellRef, String>{};
-    if (vertical) {
-      final backwards = toRow < src.top;
-      final count = backwards ? src.top - toRow : toRow - src.bottom;
-      for (var col = src.left; col <= src.right; col++) {
-        final source = [
-          for (var row = src.top; row <= src.bottom; row++) sheet.rawAt(row, col),
-        ];
-        final out = FillSeries.extend(source, count, backwards: backwards);
-        for (var i = 0; i < out.length; i++) {
-          final row = backwards ? toRow + i : src.bottom + 1 + i;
-          values[CellRef(row, col)] = out[i];
-        }
-      }
-    } else {
-      final backwards = toCol < src.left;
-      final count = backwards ? src.left - toCol : toCol - src.right;
-      for (var row = src.top; row <= src.bottom; row++) {
-        final source = [
-          for (var col = src.left; col <= src.right; col++) sheet.rawAt(row, col),
-        ];
-        final out = FillSeries.extend(source, count,
-            backwards: backwards, horizontal: true);
-        for (var i = 0; i < out.length; i++) {
-          final col = backwards ? toCol + i : src.right + 1 + i;
-          values[CellRef(row, col)] = out[i];
-        }
-      }
-    }
+    final values = fillDiagonal(src, toRow, toCol, sheet.rawAt);
     _editCells('excel.undo_fill', values);
     // Doldurulan alan Excel'de seçili kalır.
     _partSetState(() {
       if (vertical) {
         _anchorRow = math.min(src.top, toRow);
         _selRow = math.max(src.bottom, toRow);
-      } else {
+      }
+      if (horizontal) {
         _anchorCol = math.min(src.left, toCol);
         _selCol = math.max(src.right, toCol);
       }

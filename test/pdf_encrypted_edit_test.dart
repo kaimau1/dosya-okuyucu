@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:dosya_okuyucu/services/pdf_content_editor.dart';
+import 'package:dosya_okuyucu/services/pdf_page_edit.dart';
 import 'package:dosya_okuyucu/services/pdf_tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+
+import 'support/pdf_edit_helper.dart';
 
 /// **İzin kilitli (sahip parolalı) belgede yerinde düzenleme.**
 ///
@@ -75,10 +77,9 @@ void main() {
       () async {
     final locked = await lockPermissions(buildPdf());
 
-    await expectLater(
-      PdfContentEditor.replaceText(locked,
-          pageIndex: 0, oldText: 'Genel', newText: 'Sube'),
-      throwsA(isA<PdfEditRefused>()
+    expect(
+      () => replaceInParagraph(locked, oldText: 'Genel', newText: 'Sube'),
+      throwsA(isA<PdfPageRefused>()
           .having((e) => e.encrypted, 'encrypted', isTrue)),
     );
   });
@@ -87,11 +88,11 @@ void main() {
     final locked = await lockPermissions(buildPdf());
 
     final unlocked = await PdfTools.removePassword(locked, currentPassword: '');
-    final result = await PdfContentEditor.replaceText(unlocked,
-        pageIndex: 0, oldText: 'Genel', newText: 'Sube');
+    final result =
+        replaceInParagraph(unlocked, oldText: 'Genel', newText: 'Sube');
 
     final text = PdfTextExtractor(
-      PdfDocument(inputBytes: Uint8List.fromList(result.bytes)),
+      PdfDocument(inputBytes: Uint8List.fromList(result)),
     ).extractText(startPageIndex: 0);
     expect(text, contains('Sube'));
     expect(text, isNot(contains('Genel')));
@@ -100,12 +101,10 @@ void main() {
   test('şifresiz belgede red şifre sebebiyle DEĞİLDİR', () async {
     // Kurtarma yolunun yanlış yerde tetiklenmediğinin denetimi: metin yoksa
     // red gelir ama `encrypted` false olmalı.
-    final result = PdfContentEditor.replaceText(buildPdf(),
-        pageIndex: 0, oldText: 'BöyleBirMetinYok', newText: 'X');
-
-    await expectLater(
-      result,
-      throwsA(isA<PdfEditRefused>()
+    expect(
+      () => replaceInParagraph(buildPdf(),
+          oldText: 'BöyleBirMetinYok', newText: 'X'),
+      throwsA(isA<PdfPageRefused>()
           .having((e) => e.encrypted, 'encrypted', isFalse)),
     );
   });

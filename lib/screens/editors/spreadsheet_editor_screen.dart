@@ -31,11 +31,13 @@ import '../../services/xlsx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
+import '../../widgets/chart_insert_dialog.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/sheet_cell.dart';
 import '../../widgets/translate_flow.dart';
+import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
@@ -375,8 +377,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             DocAction(
               Icons.translate,
               context.t('common.translate'),
-              () => TranslateFlow.run(context, widget.plainText,
-                  title: widget.name),
+              // Aralık seçiliyse YALNIZ seçim çevrilir (Faz 9 / Y4), yoksa
+              // belgenin tamamı.
+              _translate,
             ),
           ]),
         ],

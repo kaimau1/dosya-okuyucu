@@ -3,6 +3,11 @@
 > **2026-10-21:** Kalan işler fazlara bağlandı → `docs/FAZ_PLANI.md`. Bu liste Faz 0'da
 > "gerçek iş" ve "cihaz doğrulaması" (`docs/CIHAZ_TESTI.md`) olarak ikiye ayrılacak.
 
+- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-21 Faz 8/9:** `docs/CIHAZ_TESTI.md` §Faz 8
+      (PDF "Düzenle" kip sayfası, "Yazı ekle", Aa levhası) ve §Faz 9 (Word canlı yazma +
+      tablo hücresi + seçime punto + resim ekle/sil, Excel grafik/köşegen/sayfa taşı,
+      büyük metin, eski .doc dönüştür). Örnek dosyalar `test/fixtures/{pdf,office}/`.
+
 - [ ] **Ham USB yazmayı sağlamlaştır (K8 kararı, 2026-10-21 — Faz 4/10).** Kullanıcı:
       *"kişi rahatlıkla USB'ye yazabilmeli ve güvenli olmalı"*. Android'in bağlamadığı
       bellekte FAT/exFAT'a kendi sürücümüz yazıyor (`lib/services/fm/usb/`); günlük yok.
@@ -28,12 +33,11 @@
 >    gerekçesi maddenin içinde yazılı olanlar (`excel 4.0.6` sayfa taşıma
 >    API'si yok, `smb_connect` portu yok sayıyor, cihazda JPEG kodlayıcı yok,
 >    graphify bu ortamda kurulu değil, Firebase config kullanıcının).
-> 3. **Gerçek kalan iş** — Word tablo/resim düzenleme, Word'de karakter
->    düzeyinde punto, Excel grafik ekleme ve köşegen doldurma, çift bölme,
->    dosya seçici intent'i, SAF ile SD karta yazma, listede klasör boyutu,
->    `/ToUnicode`suz PDF'lerde AGL tablosu, iki yana yaslı satırın yeniden
->    dağıtımı, ses için bildirim/kilit ekranı kontrolleri, APK boyutu
->    (split-per-abi/AAB). Her biri kendi başına bir tur.
+> 3. **Gerçek kalan iş** — çift bölme, dosya seçici intent'i, SAF ile SD
+>    karta yazma, listede klasör boyutu, ses için bildirim/kilit ekranı
+>    kontrolleri, APK boyutu (split-per-abi/AAB). Her biri kendi başına bir
+>    tur. (Word tablo/resim/karakter punto, Excel grafik/köşegen/sayfa taşıma,
+>    PDF AGL/iki yana/CropBox Faz 8-9'da kapandı — HAFIZA 2026-10-21 (4).)
 
 - [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-18 turu (tarama baştan).** (a) Resimli
       sayfa taranıp ML Kit'te onaylanınca fotoğraf bozulmadan / dilimlenmeden mi
@@ -198,15 +202,11 @@
       köprüsü (`findAll`/`findGo`/`replaceHit`/`replaceAll`). Arama DOM'a hiç
       dokunmuyor (eşleşme `Range` ile seçiliyor) → düzenleme kapalıyken de
       çalışıyor. Katlama Türkçe duyarlı.
-- [ ] **Yazı tipi/punto PARAGRAF düzeyinde** — seçimin ortasındaki üç kelimeye
-      ayrı punto verilemiyor (aşağıdaki "Bilinen eksik-risk" maddesi).
 - [x] ~~**Metin rengi / vurgu / madde işareti / numaralandırma** düğmeleri yok~~
       → **YAPILDI 2026-08-04:** renk/vurgu seçime (`execCommand` + `data-fk-*`
       işaretleri), liste PARAGRAF ÖZELLİĞİ olarak (`w:numPr` + üretilen
       `numbering.xml`). `insertUnorderedList` bilinçli kullanılmadı: `<p>`yi
       `<li>`ye çevirip paragraf eşlemesini bozuyordu (HAFIZA 2026-08-04 §D).
-- [ ] **Tablo düzenleme yok** (tablolar görüntüleniyor, düzenlenemiyor).
-- [ ] **Resim ekleme/taşıma yok.**
 - [x] ~~**Seçili metin çevirisi yok**~~ → **YAPILDI 2026-08-04:**
       `sendSelectionText` köprüsü; "Seçimi çevir" ve "Seçimi AI ile düzelt"
       alt çubukta.
@@ -246,10 +246,6 @@ göre sıralı**:
 - [ ] **Sayı sığmayınca `###` gösterilmiyor** (bilinçli): Excel sığmayan sayıyı
       `###` yapar, biz kırpıyoruz. Ölçümümüz Excel'inkiyle birebir aynı
       olmadığı için yanlış yerde `###` göstermektense kırpmak seçildi.
-- [ ] **Sayfa TAŞIMA yok (bilinçli).** `excel 4.0.6` sayfa sırasını kendi
-      haritasının ekleme sırasından yazıyor ve sırayı değiştirecek API
-      sunmuyor; zorlamak her sayfayı kopyala-sil ile yeniden kurmak demek.
-- [ ] **Grafik EKLEME yok** (PPTX tarafında grafik çizimi var, Excel'de yok).
 - [x] ~~**Hücre notu/açıklaması** okunmuyor~~ → **OKUNUYOR 2026-08-04:**
       `comments*.xml` (klasik biçim) sayfanın `_rels`i üzerinden çözülüp
       okunuyor; hücrenin sağ üst köşesinde Excel'inki gibi kırmızı üçgen,
@@ -275,7 +271,6 @@ göre sıralı**:
       Excel'in kuralı, o boşsa sağdaki). İkisi de boşsa uyarı veriliyor:
       nereye kadar dolduracağı bilinemez, tahmin binlerce boş satır yazmak
       olurdu.
-- [ ] **Köşegen doldurma** yok — tek eksende doldurma var.
 
 - [ ] **2026-08-02 (2. tur) cihaz doğrulaması (kullanıcı) — Excel düzenleme.**
       Bir .xlsx aç: (a) bir hücreye yaz → üstteki **geri al** oku eski değeri
@@ -548,12 +543,6 @@ göre sıralı**:
 - [ ] Excel pinch: kaydırma sürerken başlayan pinch ilk denemede tutmayabilir
       (ilk parmağın sahipliği scrollable'da kalır); cihazda rahatsız ederse iyileştirilecek
 - [ ] Koyu temada Word WebView kanvası açık kalıyor (sayfa zaten beyaz; bilinçli erteleme)
-- [ ] **Word'de yazı tipi/punto PARAGRAF düzeyinde** (2026-08-01): seçimin
-      ortasındaki üç kelimeye ayrı punto verilemiyor. Bilinçli sınır — seçimi
-      `<span>`la sarmak `<p>` sayısını değiştirip canlı düzenlemenin paragraf
-      eşlemesini bozabiliyor (sigorta düzenlemeyi tamamen kapatır). Gerekirse
-      yol: seçimi paragraf sınırında BÖLÜP her parçayı ayrı sarmak ve eşlemeyi
-      `data-p-index` gibi bir kimlikle indeksten bağımsız hale getirmek.
 
 ## Dosya yöneticisi (2026-07-25) — cihaz doğrulaması gereken/ertelenen işler
 - [ ] **İzin akışı (kullanıcı, cihaz):** ilk açılışta "Tüm dosyalara erişim" kartı →
@@ -629,6 +618,11 @@ göre sıralı**:
       = vazgeç (sessizce bir varsayılana düşmek, kapatılan pencerenin yine de
       dosya yazması olurdu). Klasör çakışması da sayılıyor. `PasteConflict`
       saf ve testli.
+- [ ] **Kırpılmış (CropBox'ı kaydırılmış) PDF'te VURGU koordinatı doğrulanmadı.**
+      Faz 8'de "yazı ekle" ölçüldü (Syncfusion'ın çizim kökeni CropBox'ın sol-üstü,
+      `pdf_fixture_smoke_test`); vurgu ise pdfium'un karakter kutularından geliyor ve
+      testte pdfium yok. Örnek: `test/fixtures/pdf/cropbox.pdf` — telefonda vurgula,
+      başka okuyucuda yerinde mi bak.
 - [ ] **graphify güncellemesi:** yeni `lib/services/fm/*` ve `lib/screens/fm/*`
       düğümleri graf raporunda yok. 2026-08-04 turunun getirdikleri de eksik:
       `XlsxStyleEdit`, `XlsxCondRuleWrite`, `_ColumnFilterSheet`,
@@ -680,24 +674,10 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       gömülü ve Type0/Identity-H fontlar artık çalışıyor, yeni metin belgenin
       ÖZGÜN yazı tipiyle yazılıyor. Kalan sınır: alt küme fontta HİÇ geçmemiş
       bir harf yazılamaz (glif yok) — reddediliyor.
-- [ ] **`/ToUnicode` taşımayan belgeler** (eski üreticiler, bazı taranmış+OCR
-      çıktıları) hâlâ tek baytlık tahmine kalıyor; tutmazsa yedek yola düşer.
-      Çözüm: `/Encoding /Differences` + glif adı→Unicode tablosu (AGL).
 - [x] ~~Yeni metin uzunsa satırın kalanı sağa kayar (PDF metni yeniden
       akıtmaz)~~ → **YAPILDI (5. tur):** belgenin kendi glif genişlikleriyle
       ölçülüp satırın kalanı kaydırılıyor (`pdf_font_metrics` + `scanContent`).
       Taşarsa kaydetmeden önce uyarı veriliyor.
-- [ ] **İki yana yaslı satır yeniden YASLANMIYOR.** Satırın kalanı doğru kadar
-      kayıyor ama sağ kenar artık düz değil (Word paragrafı yeniden dağıtır,
-      biz tek satıra dokunuyoruz). Çözüm için paragraf sınırlarını ve `Tw`
-      dağıtımını yeniden hesaplamak gerekir — ayrı ve büyük iş.
-- [ ] **Yerinde düzenleme cihaz doğrulaması (kullanıcı)** — 5. tur: PDF aç →
-      yazıya uzun bas → "Düzenle" → (a) kutu metnin TAM ÜSTÜNDE mi açılıyor,
-      punto/konum oturuyor mu, (b) klavye kendiliğinden geliyor ve metin baştan
-      seçili mi, (c) kelimeyi uzatıp uygula → satırın kalanı KAYIYOR mu,
-      kısaltınca boşluk kalmıyor mu, (d) yakınlaştırılmış sayfada kutu doğru
-      yerde mi, (e) "AI ile düzelt" kutuyu kaybetmeden metni değiştiriyor mu,
-      (f) taşma uyarısı çıkan belgede sonuç gerçekten taşıyor mu.
 - [x] ~~Arka plana alınan iş için kalıcı gösterge yok~~ → **YAPILDI:** kalıcı
       alt şerit (iş adı + sayaç + Durdur), sayfa değişse de kalıyor.
 - [x] ~~Taramada döndürme yok~~ → **YAPILDI:** önizlemede 90° çevirme.
@@ -707,9 +687,6 @@ parolalı üretme), medya oynatıcı, galeri, favoriler, arama. Kalanlar:
       Gerekirse `image` paketi (yeni bağımlılık, yavaş) veya platform kanalı.
       Yapılırsa metin katmanı kaybolacağı için AYRI ve açıkça uyaran bir
       seçenek olmalı, sessizce değil.
-- [ ] **Kırpılmış (CropBox'ı MediaBox'tan kaydırılmış) PDF'te vurgu/yerinde
-      düzenleme koordinatı doğrulanmadı.** Syncfusion kutu ölçüsünü alırken
-      köşe konumunu (c0/c1) atıyor; böyle bir dosya elimizde yok, ölçülemedi.
 - [ ] **graphify güncellemesi:** araç bu ortamda kurulu değil; yeni düğümler
       (`pdf_reload`, `pdf_save`, `perspective`, `scan_edit/review`,
       `pdf_ai_edit`, `pdf_dict`, `pdf_font_metrics`, `pdf_edit_flow`,

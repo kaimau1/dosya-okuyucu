@@ -37,12 +37,9 @@ import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/current_page.dart';
 import '../services/pdf/page_arrival.dart';
-import '../services/pdf/pdf_font_class.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
 import '../services/pdf_annotator.dart';
-import '../services/pdf_edit_flow.dart';
-import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
@@ -50,7 +47,6 @@ import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
 import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
-import '../widgets/ai_rewrite_sheet.dart';
 import '../widgets/ai_slides_flow.dart';
 import '../widgets/doc_action_bar.dart';
 import '../widgets/doc_find_bar.dart';
@@ -58,7 +54,10 @@ import '../widgets/doc_more_sheet.dart';
 import '../widgets/office_shell.dart';
 import 'fm/entry_actions.dart';
 import '../widgets/pdf_action_bars.dart';
-import '../widgets/pdf_inline_editor.dart';
+import '../widgets/pdf_edit_modes.dart';
+import '../widgets/large_text_view.dart';
+import '../widgets/legacy_banner.dart';
+import '../services/legacy_convert.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/quick_sheets.dart';
 import '../widgets/pdf_page_navigator.dart';
@@ -81,7 +80,7 @@ part 'viewer/find_replace.dart';
 part 'viewer/doc_actions.dart';
 part 'viewer/shell_menus.dart';
 part 'viewer/pdf_selection.dart';
-part 'viewer/pdf_inline_edit.dart';
+part 'viewer/pdf_marks.dart';
 part 'viewer/pdf_navigation.dart';
 part 'viewer/body.dart';
 part 'viewer/widgets.dart';
@@ -154,15 +153,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   List<PdfRect> _pdfSelRects = const [];
   int _pdfSelPage = 0;
 
-  /// Seçimden önceki metin — yerinde düzenlemede aynı kelimenin doğru geçişini
-  /// bulmak için (bkz. `PdfContentEditor.replaceText`).
-  String _pdfSelPreceding = '';
-
-  /// Seçim taranmış sayfadan OCR ile mi geldi? OCR metni sayfada GERÇEKTEN
-  /// yazılı değildir: kopyalama/vurgu/çeviri çalışır ama yerinde düzenleme
-  /// çalışamaz (değiştirilecek içerik akışı yok) — Düzenle düğmesi gizlenir.
-  bool _pdfSelFromOcr = false;
-
   /// Sürükleyerek seçim ŞU AN sürüyor mu? (Uzun basış sonrası parmak yerde ya
   /// da fare metin üzerinde basılı.) True iken pdfrx'in pan'ı kilitlenir ki
   /// sürükleme sayfayı kaydırmasın; işaretçi kalkar kalkmaz katman false
@@ -179,39 +169,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// doğrulandı) — kilitli pan'dan bağımsız çalışır (programatik).
   Offset? _pdfSelDragPos;
   Timer? _pdfEdgeScrollTimer;
-
-  /// Sayfa üzerinde açık olan yerinde düzenleme kutusu (yoksa null).
-  _InlineEdit? _pdfEdit;
-
-  /// Düzenleme kaydediliyor mu (kutunun düğmeleri kilitlensin).
-  bool _pdfEditBusy = false;
-
-  /// Düzenlenen satırın yazı tipi sınıfı (belgeden arka planda yoklanır;
-  /// gelene dek Arimo). Kutudaki yazı belgenin ailesinde görünsün diye.
-  PdfFontClass? _pdfEditFont;
-
-  /// Yerinde düzenleme kutusunun metni. Kutu sayfanın üzerinde, düğme çubuğu
-  /// ekranın altında; ikisi de aynı denetleyiciyi okusun diye burada.
-  TextEditingController? _pdfEditCtl;
-
-  /// Yerinde düzenleme kutusunun **kalıcı** odak düğümü.
-  ///
-  /// Kullanıcı hatası (2026-08-29): *"pdf'de düzenle deyince klavye
-  /// açılmıyor."* Kök neden: kutu pdfrx'in SAYFA KATMANI üzerinde çiziliyor
-  /// ve o katman kaydırma/yakınlaştırma/sayfa yeniden çiziminde yeniden
-  /// kuruluyor. `autofocus` yalnız widget'ın İLK kurulumunda çalışır; katman
-  /// hemen ardından yeniden kurulunca odak düşüyor ve klavye ya hiç
-  /// açılmıyor ya da açılıp kapanıyordu.
-  ///
-  /// Odak düğümü artık burada — yani yeniden kurulan ağacın DIŞINDA — ve
-  /// düzenleme açılırken ilk kareden sonra açıkça isteniyor. Aynı düğüm
-  /// hangi `TextField` çizilirse ona bağlanıyor, klavye ayakta kalıyor.
-  FocusNode? _pdfEditFocus;
-
-  /// Yerinde düzenleme alanının anahtarı: imleç düğmeleri ve AI dönüşünden
-  /// sonra klavyeyi odak zaten kutudayken de yeniden açabilmek için
-  /// (bkz. [PdfInlineEditor.showKeyboard]).
-  final GlobalKey _pdfEditFieldKey = GlobalKey(debugLabel: 'pdf-inline-field');
 
   /// **Özgün baytların yedeği** — düzenleme sürerken tutulan geçici dosya.
   ///
@@ -412,6 +369,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Sesli okuma. Yalnız kullanıcı başlatınca kurulur (motor uyandırmayalım).
   TtsService? _tts;
+  /// Eski Office dosyası dönüştürülüyor mu (şeritteki düğme kilitlensin).
+  bool _legacyBusy = false;
+
   int _ttsIndex = 0;
   int _ttsTotal = 0;
   bool _ttsPlaying = false;
@@ -591,8 +551,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
         ?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _ocrSearch?.dispose();
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
-    _pdfEditCtl?.dispose();
-    _pdfEditFocus?.dispose();
     // Geri yazma ARTIK BEKLENMEZ ve ana izleği dondurmaz: eskiden burada
     // büyük dosya eşzamanlı kopyalanıyordu (bkz. [SafeWrite]). İş kuyrukta
     // sürer; aynı dosya yeniden açılırsa görüntüleyici onu bekler.
