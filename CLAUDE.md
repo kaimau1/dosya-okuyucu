@@ -3,6 +3,7 @@
 ## Hafıza (usta koordineli — 3 katman)
 - Kod yapısı        → `graphify-out/`   (oku: `GRAPH_REPORT.md` · güncelle: `graphify update .` — API maliyeti yok)
 - Proje ne/niye     → `HAFIZA.md`       (oku: iş başı · yaz: iş sonu karar/bug-kök/tuzak, tarihli append-only)
+  (HAFIZA.md = dizin; eski tarihli kayıtlar `docs/hafiza/YYYY-MM.md` — gerekince ara; ~600 satırı geçince `python tool/hafiza_arsivle.py`)
 - Kullanıcı tercihi → `.claude memory/` (otomatik, projeler-arası — proje bilgisi buraya YAZILMAZ)
 
 Yaz kuralı: usta rule 12 / YAZ — kalıcı karar, bug kök nedeni veya yanlış çıkan yol oluştuysa
@@ -20,7 +21,7 @@ paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasada
 > açılış istemi orada; yeni bir oturum işe oradaki durum tablosundan başlar.
 
 ## 2) Mimari / Dosya Haritası
-`graphify-out/GRAPH_REPORT.md` — 953 düğüm, 1740 kenar, 49 topluluk (App State Management,
+`graphify-out/GRAPH_REPORT.md` — 16.323 düğüm, 23.141 kenar, 573 topluluk (2026-10-21) (App State Management,
 Gemini AI Service, Firebase Auth, PPTX Render/Slide Canvas/Slideshow, Word DocxView, Excel Grid …).
 Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 
@@ -38,6 +39,7 @@ Art arda push → önceki koşu iptal.
 - **Dal:** **TEK DAL — `main`.** (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi
   main'in gerisindeydi, hiçbirinde main'de olmayan iş yoktu.) Yeni dal AÇMA;
   iş doğrudan main'e commit edilir. Push: `git push`.
+  Bulut oturumu (`claude/*`, `ccr-*`) dal açtıysa iş main'e girince o uzak dal silinir.
   APK yalnız **main**'e push'ta derlenir (feature dalında sadece `flutter test`).
 - **Doğrulama döngüsü:** önce yerelde `C:\src\flutter\bin\flutter.bat test` + `analyze`
   (sürüm 3.44 — uyarılar CI'nin 3.29.3'üyle farklı, bkz. HAFIZA), sonra push → Actions

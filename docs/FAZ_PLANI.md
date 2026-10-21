@@ -50,7 +50,7 @@
 
 | Faz | Konu | Ön koşul | Durum |
 |---|---|---|---|
-| 0 | Kararlar + proje hijyeni (HAFIZA/KALANLAR/README/graphify) | — | 🟡 2026-10-21 kararlar ✅ (K1–K12); hijyen adımları (HAFIZA bölme, KALANLAR, README, graphify) bekliyor |
+| 0 | Kararlar + proje hijyeni (HAFIZA/KALANLAR/README/graphify) | — | ✅ 2026-10-21 — K1–K12; HAFIZA 13.046 → 330 satırlık dizin + `docs/hafiza/` arşivi (içerik birebir, `tool/hafiza_arsivle.py`); 37 cihaz maddesi → `CIHAZ_TESTI.md`; README/CLAUDE.md; graphify güncel. Uzak dal silme izinle engellendi — kullanıcıda |
 | 1 | CI/CD hızlandırma ve sürüm hattı | 0 | ✅ 2026-10-21 — C1–C12; verify 4,5 dk; main süresi Gradle önbelleği dolduktan sonra yeniden ölçülecek (bkz. HAFIZA) |
 | 2 | Sadeleştirme I — ölü kod, eski yollar, özellik birleştirme/çıkarma | 0, 1 | ✅ 2026-10-21 — ölü kod, İnsanlar, görünüm 10/10/6→4/3/3, Geçmiş/Aktar/Depolama/AI/tek Kasa; satır ölçütü K5/K8 kararlarıyla tutmadı (bkz. Faz 2 notu) |
 | 3 | Sadeleştirme II — uzun dosyaları bölme + durum yönetimi | 2 | ✅ 2026-10-21 — 19 ekran + çeviri tablosu + formül motoru bölündü (800+ satırlı ekran yok); kök yalnız `AppearanceState`i izliyor; Browse/Clipboard/Remotes/AI bildiricileri ayrılmadı (bkz. HAFIZA) |
