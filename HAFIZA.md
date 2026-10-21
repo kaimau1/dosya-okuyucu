@@ -12800,3 +12800,76 @@ için lisans/telif — detaylı rapor + fazlar, ben ayrı oturumlarda sırayla y
 - `flutter test | tail` arka planda koşunca çıktı yalnız sonda gelir; ara ilerleme görünmez.
 
 **Doğrulama:** yalnız belge değişti (`**.md` → CI APK derlemez). graphify bu ortamda yok.
+
+## 2026-10-21 (2) — Faz 0 kararları + Faz 1 (CI/CD) + Faz 2 (sadeleştirme I)
+
+### Kararlar (K1–K12, kullanıcıyla tek tek — tablo `docs/FAZ_PLANI.md` §4)
+K1 Syncfusion Community License · K2 Media3 (Faz 10) · **K3 ML Kit çeviri KALSIN** ·
+K4 kendi anahtarı + temiz deneyim · **K5 Drive tam kapsam KALSIN** (yayından önce CASA) ·
+K6 reklamsız + tek seferlik Pro · K7 yayından önce private · K8: SD birleşik → Deneysel,
+**ham USB yazma KALSIN + sağlamlaştır** (kullanıcı: "kişi rahatlıkla USB'ye yazabilmeli ve
+güvenli olmalı"), yüzen oynatıcı → PiP (Faz 10), Faturalar → AI Merkezi, İnsanlar → kaldır,
+USB teşhis → geliştirici menüsü, **app_usage KALSIN**, görünüm sadeleşsin · K9 minSdk 24 ·
+**K10 masaüstü/iOS HİÇ** · K11 Play (AAB) + GitHub nightly · K12 eski PDF yolu Faz 8'de.
+
+### Faz 1 — CI/CD (build-apk.yml baştan)
+- `changes` → `verify` ∥ `apk` → `release`. `verify` her dalda (main dahil); `ci/` değişince
+  `tool/check_kotlin.sh`. Yalnız `test/**`/`tool/**` değişen push APK derlemez.
+- Android yamaları `ci/prepare_android.sh` (davranış birebir; yerelde de koşar).
+  `ci/build-trigger.txt` silindi.
+- Push'ta yalnız arm64; `v*` etiketi / elle `aab` → arm + arm64 + AAB.
+- `--obfuscate --split-debug-info`; semboller `dart-symbols-<sürüm>` artifact'i (90 gün).
+- Denetimler: pdfium.wasm/gömülü OCR yok, targetSdk 36, `zipalign -c -P 16`, her arm64 `.so`
+  için ELF LOAD ≥ 0x4000, arm64 APK ≤ 80 MB.
+- Release: main → tek **`nightly`** sürüm (etiket `gh api PATCH git/refs/tags/nightly` ile yeni
+  commit'e taşınır, dosyalar `--clobber`, **"latest" işaretli** — kullanıcının bildiği
+  `releases/latest/download/dosya-okuyucu.apk` adresi bozulmasın diye; planın
+  `make_latest:false` önerisi bu yüzden UYGULANMADI). `v*` → kalıcı sürüm. 4 deneme
+  (30/90/240 sn). Budama: nightly hariç son 10 kalır, koşu başına ≤100 silme (kullanıcı onayı).
+- **Ölçüm (dal koşusu #380, ilk koşu):** verify 4 dk 31 sn; apk 11 dk 20 sn (Gradle önbelleği
+  `setup-gradle`'e geçince BOŞ başladı ve dalda salt okunur — ilk main koşusu önbelleği
+  yazar, süre hedefi (≤ 8 dk) ikinci main koşusunda ölçülmeli). 16 KB: `libapp.so` 0x10000,
+  `libtranslate_jni.so` dahil tüm `.so`'lar ≥ 0x4000 ✔. arm64 APK artifact zip 38,6 MB.
+- TUZAK: dal adı `ccr-*` iş akışının `branches` listesinde yoktu → bulut oturumu dalında CI hiç
+  koşmazdı; eklendi.
+
+### Faz 2 — yapılanlar
+- Ölü kod: Ek C'nin 19 sembolü + 12 renk sabiti silindi; 25 test-yalnız sembol
+  `@visibleForTesting`; `cupertino_icons` kalktı. **Manifest (D9) bilinçli DOKUNULMADI:**
+  `requestLegacyExternalStorage` Android 10 cihazlarda hâlâ etkili (targetSdk 36 olsa da API 29
+  cihazda okunur), `INSTALL_SHORTCUT` Android 7'de (minSdk 24) kısayol için gerekli.
+- İnsanlar (yüz algılama) + `google_mlkit_face_detection` + CI yüz modeli ikamesi kalktı.
+- Görünüm: tema 10 → 4 (Kağıt/Açık/Modern/Gece), eski ad `AppSkin.byName` ile göçer
+  (office/graphite → Açık, renkliler → Modern); arayüz fontu 10 → 3 (Carlito/Tinos/JetBrains
+  Mono — üçü de zaten belge için gömülü), `AppTheme.migrateUiFont`; Lato/Merriweather vb.
+  dosyaları silindi (8,27 → 6,15 MB, L2 kapandı); dosya listesi yerleşimi 6 → 3
+  (`FmLayoutInfo.fileListChoices`, eski 2/4/5 sütun → 3 sütun). **FmLayout enum'u KALDI:**
+  Fotoğraflar'ın iki parmak yakınlaştırması 2–5 sütunu kullanıyor.
+- Geliştirici menüsü: Hakkında'daki sürüm satırına 7 dokunuş (`AppState.developerMode`);
+  USB teşhisi ve anahtar havuzu durumu orada. SD birleşik → Depolama > Gelişmiş > Deneysel.
+- Birleştirmeler: **Geçmiş** (`HistoryScreen`, 4 bölüm, alt gezinme; bölümler kendi AppBar'ını
+  korur) · **Aktar** (`TransferScreen`) · Depolama analizi = merkez (Benzerler + Sohbet
+  medyası eklendi) · Faturalar AI Merkezi başlığında · **tek Kasa**.
+  Pano araçlarından 9 kutu kalktı (activity, recent_ops, hidden, ftp_server, peer_share,
+  network_storage, download, bills, smart_folders, chat_cleanup, similar_images → 2 yeni).
+  Kullanım sayaçları `ToolUsage.merged` ile yeni kapıya toplanır.
+- **Kasa göçü (veri):** `SecureVault.importHidden` — kopyala → çöz + SHA-256 karşılaştır →
+  dizine yaz → aslını sil. `add` artık klasör alır (alt ağaç `originalDir`'de), `restore` ağacı
+  yeniden kurar. Tekrar çalıştırma kopya üretmez.
+  **KÖK NEDEN/TUZAK:** "zaten kasada mı" kısayolunu yalnız ad+klasör+boya bakarak yazmak, aynı
+  adlı FARKLI bir dosyayı şifrelemeden silerdi → içerik özetiyle doğrulanıyor (testli).
+- **Güvenlik hatası (eski):** PIN değiştirmek mevcut PIN'i SORMUYORDU — telefonu alan biri PIN'i
+  değiştirip kilitli klasörleri açabiliyordu. `setupPin` artık önce mevcut PIN'i ister;
+  `syncVaultPin` kasa anahtarını yeni PIN'le yeniden sarar (eski sürümde ayrı PIN'le kurulmuş
+  kasa açılamazsa kasanın PIN'i değişmez). Yeni kasa klasör/uygulama kilidinin PIN'ini kullanır.
+- Ayarlar 50 → 47 görünür satır (+3 geliştirici). Yedekle/geri yükle tek satır.
+
+### Faz 2 kabul ölçütleri — DÜRÜST durum
+- `lib/` 155.585 → 155.475 satır (−0,1 %), ekran dosyası 69 → 71. Plan "−%12, ≤ 60 ekran"
+  diyordu; o hedef Drive'ın (~1.900 satır), SD birleşik depolamanın (~1.250) ve ham USB
+  yazmanın (~1.600) KALKACAĞI varsayımıyla yazılmıştı — K5/K8 kararları bunları tuttu. Asıl
+  satır düşüşü Faz 3 (bölme) ve Faz 8 (eski PDF yolu, K12) ile gelecek.
+- analyze 0, **2608+ test yeşil**; göç testleri: tema/font/yerleşim/ToolUsage/kasa (gidiş-
+  dönüş, klasör, yarıda kesilme, aynı ad farklı içerik, PIN eşitleme).
+- TUZAK: kasa testleri PBKDF2 (120 bin tur) yüzünden yavaş — PIN eşitleme testi 7 türetme,
+  varsayılan 30 sn zaman aşımını aşıyor; testte `Timeout(3 dk)`.

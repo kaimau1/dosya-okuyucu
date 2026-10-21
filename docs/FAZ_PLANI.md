@@ -50,9 +50,9 @@
 
 | Faz | Konu | Ön koşul | Durum |
 |---|---|---|---|
-| 0 | Kararlar + proje hijyeni (HAFIZA/KALANLAR/README/graphify) | — | ⬜ |
-| 1 | CI/CD hızlandırma ve sürüm hattı | 0 | ⬜ |
-| 2 | Sadeleştirme I — ölü kod, eski yollar, özellik birleştirme/çıkarma | 0, 1 | ⬜ |
+| 0 | Kararlar + proje hijyeni (HAFIZA/KALANLAR/README/graphify) | — | 🟡 2026-10-21 kararlar ✅ (K1–K12); hijyen adımları (HAFIZA bölme, KALANLAR, README, graphify) bekliyor |
+| 1 | CI/CD hızlandırma ve sürüm hattı | 0 | ✅ 2026-10-21 — C1–C12; verify 4,5 dk; main süresi Gradle önbelleği dolduktan sonra yeniden ölçülecek (bkz. HAFIZA) |
+| 2 | Sadeleştirme I — ölü kod, eski yollar, özellik birleştirme/çıkarma | 0, 1 | ✅ 2026-10-21 — ölü kod, İnsanlar, görünüm 10/10/6→4/3/3, Geçmiş/Aktar/Depolama/AI/tek Kasa; satır ölçütü K5/K8 kararlarıyla tutmadı (bkz. Faz 2 notu) |
 | 3 | Sadeleştirme II — uzun dosyaları bölme + durum yönetimi | 2 | ⬜ |
 | 4 | Performans — düşük donanım profili ve ölçüm | 3 | ⬜ |
 | 5 | Son kullanıcı iletişimi altyapısı (hata dili, izin/boş/çevrimdışı durumları) | 3 | ⬜ |
@@ -658,6 +658,14 @@ testi (gidiş-dönüş, yarıda kesilme) · analyze 0, test yeşil · APK boyutu
 adım özetinde düşüş gösteriyor.
 
 **Bölünürse:** 2a = 1, 2, 4, 5, 6 (silme ağırlıklı) · 2b = 3 (birleştirmeler).
+
+> **Sonuç notu (2026-10-21):** K5 (Drive kalsın), K8 (SD birleşik Deneysel, USB yazma ve
+> app_usage kalsın) ve K12 (eski PDF yolu Faz 8'de) en büyük silme adaylarını tuttu; bu yüzden
+> `lib/` yalnız 155.585 → 155.475 satıra indi ve ekran dosyası sayısı (iki merkez eklendiği
+> için) 69 → 71 oldu. Kullanıcının gördüğü kapı sayısı ise azaldı: panodan 11 ayrı araç kutusu
+> 2 merkeze, 5 geçmiş ekranı 1'e, 2 gizlilik yolu 1 kasaya indi. Manifest temizliği (D9)
+> bilinçli yapılmadı (Android 10 ve 7 için gerekli). Yeni iş: **ham USB yazmayı sağlamlaştır**
+> (K8) — güvenli yazma sırası, geri-okuma doğrulaması, kirli bayrakla onarım → Faz 4 ya da 10.
 
 **Risk:** orta — kullanıcı verisi taşıyan göçler. Her göç önce kopyala →
 doğrula → sonra sil; geri alınabilir.
