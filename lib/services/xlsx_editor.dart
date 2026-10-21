@@ -1,11 +1,10 @@
 import 'dart:typed_data';
 import 'dart:ui' show Color;
 
-import 'package:excel/excel.dart';
 import 'package:flutter/painting.dart' show TextAlign;
 
 import '../core/excel_format.dart';
-import 'xlsx_compat.dart';
+import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 
@@ -140,9 +139,6 @@ class XlsxSheet {
   /// yoksa `=A1*2` gibi formüller "₺1.234,50"yi sayı sanıp bozulurdu.
   final List<List<String>> rows;
 
-  /// `excel` paketindeki karşılık. Yeniden adlandırmada paket kopya+sil
-  /// yaptığı için YENİ bir nesneyle değişir (bkz. [XlsxEditor.renameSheet]).
-  Sheet _sheet;
   final XlsxSheetLayout layout;
   final XlsxStyles styles;
   final bool date1904;
@@ -168,13 +164,10 @@ class XlsxSheet {
   XlsxSheet({
     required this.name,
     required this.rows,
-    required Sheet sheet,
     required this.layout,
     required this.styles,
     this.date1904 = false,
-  }) : _sheet = sheet;
-
-  Sheet get excelSheet => _sheet;
+  });
 
   int get maxCols {
     final fromCells = layout.colCount;
@@ -338,15 +331,12 @@ class XlsxSheet {
     } else {
       layout.hiddenCols.remove(c);
     }
-    _sheet.setColumnWidth(c, v);
   }
 
   /// Satır yüksekliğini punto olarak ayarlar (varsayılan 15). 0 = gizle.
   ///
-  /// ponytail: TAMAMEN BOŞ bir satırın yüksekliği kaydedilmez — `excel`
-  /// paketi `<row>` etiketini yalnız hücresi olan satırlar için yazıyor
-  /// (`save_file.dart` `_setRows`). Ekranda doğru görünür, dosyada kaybolur.
-  /// Gerekirse çözüm: o satıra boş bir hücre yazmak.
+  /// Boş satırın yüksekliği de kaydedilir: `XlsxPackageWriter` yüksekliği
+  /// ya da gizliliği olan her satır için `<row>` yazar.
   void setRowHeightPt(int r, double pt) {
     if (r < 0 || r >= 1048576) return;
     final v = pt.clamp(0.0, 409.0).toDouble();
@@ -356,7 +346,6 @@ class XlsxSheet {
     } else {
       layout.hiddenRows.remove(r);
     }
-    _sheet.setRowHeight(r, v);
   }
 
   // ── stil ──────────────────────────────────────────────────────────────────
@@ -612,107 +601,62 @@ class SheetLineSnapshot {
 }
 
 class XlsxEditor {
-  final Excel _excel;
+  /// Özgün dosya baytları — kaydetme bunun ÜSTÜNE yazar ([XlsxPackageWriter]):
+  /// grafikler, resimler, notlar, tema ve stiller dokunulmadan taşınır.
+  final Uint8List _source;
   final List<XlsxSheet> sheets;
   final XlsxWorkbook workbook;
 
-  XlsxEditor._(this._excel, this.sheets, this.workbook);
+  XlsxEditor._(this._source, this.sheets, this.workbook);
 
-  static XlsxEditor parse(Uint8List bytes) {
-    // `excel` paketi bazı GEÇERLİ dosyaları reddediyor (yerleşik sayı biçimi
-    // kimliğinin yeniden tanımı → "custom numFmtId starts at 164…"). Hata
-    // alınca dosya onarılmış bir KOPYAYLA yeniden denenir; onarım da tutmazsa
-    // özgün hata yükselir (bkz. `XlsxCompat`).
-    Excel excel;
-    try {
-      excel = Excel.decodeBytes(bytes);
-    } catch (_) {
-      final repaired = XlsxCompat.repair(bytes);
-      if (repaired == null) rethrow;
-      excel = Excel.decodeBytes(repaired);
-    }
-    XlsxWorkbook wb;
-    try {
-      wb = XlsxReader.read(bytes);
-    } catch (_) {
-      wb = XlsxWorkbook(
-        sheets: const [],
-        styles: XlsxStyles(
-            numFmts: const {}, formats: [XlsxFormat.fallback()], dxfs: const [], theme: const []),
-        theme: const [],
-        date1904: false,
-      );
-    }
-    final sheets = _buildSheets(excel, wb);
-    _seedSizes(sheets);
-    return XlsxEditor._(excel, sheets, wb);
+  /// Boş bir çalışma kitabı (tek sayfa).
+  factory XlsxEditor.blank({String sheetName = 'Sayfa1'}) {
+    final wb = XlsxWorkbook(
+      sheets: [XlsxSheetLayout(name: sheetName)],
+      styles: XlsxStyles(
+          numFmts: const {},
+          formats: [XlsxFormat.fallback()],
+          dxfs: const [],
+          theme: const []),
+      theme: const [],
+      date1904: false,
+    );
+    return XlsxEditor._(Uint8List(0), _buildSheets(wb), wb);
   }
 
-  /// Ölçüleri `excel` paketinin haritasına aktarır — SADAKAT için şart.
+  /// Dosyayı KENDİ okuyucumuzla açar (Faz 7: `excel` paketi çıktı).
   ///
-  /// Paket `<col min="1" max="10" width="20"/>` aralığının YALNIZ `min`ini
-  /// okuyor (excel 4.0.6 `parse.dart`), kaydederken de `<cols>`u kendi
-  /// haritasından baştan yazıyor (`save_file.dart` `_setColumns`). Sonuç:
-  /// tek bir hücre düzenlenip kaydedilince B–J sütunları varsayılan 8.43'e
-  /// düşüyordu. Bizim okuyucumuz aralığı doğru açıyor; paketin haritasını
-  /// ondan doldurunca kaydetme genişlikleri koruyor.
-  static void _seedSizes(List<XlsxSheet> sheets) {
-    for (final s in sheets) {
-      s.layout.colWidths.forEach(s.excelSheet.setColumnWidth);
-      s.layout.rowHeights.forEach(s.excelSheet.setRowHeight);
+  /// Okuyucu çözemezse istisna yükselir — eskiden paket reddedince
+  /// `XlsxCompat` onarımıyla yeniden deneniyordu; o onarım yalnız paketin
+  /// sayı biçimi kimliği takıntısı içindi, bizim okuyucumuzda o kısıt yok.
+  static XlsxEditor parse(Uint8List bytes) {
+    final wb = XlsxReader.read(bytes);
+    if (wb.sheets.isEmpty) {
+      throw const FormatException('xlsx: sayfa bulunamadı');
     }
+    return XlsxEditor._(bytes, _buildSheets(wb), wb);
   }
 
-  static List<XlsxSheet> _buildSheets(Excel excel, XlsxWorkbook wb) {
-    final sheets = <XlsxSheet>[];
-    for (final entry in excel.tables.entries) {
-      XlsxSheetLayout? layout;
-      for (final l in wb.sheets) {
-        if (l.name == entry.key) {
-          layout = l;
-          break;
-        }
-      }
-      layout ??= XlsxSheetLayout(name: entry.key);
-      sheets.add(XlsxSheet(
-        name: entry.key,
-        rows: _rowsFrom(layout, entry.value),
-        sheet: entry.value,
-        layout: layout,
-        styles: wb.styles,
-        date1904: wb.date1904,
-      ));
-    }
-    // excel paketinin okuyamadığı sayfa varsa (nadir) modelden ekle.
-    for (final l in wb.sheets) {
-      if (sheets.any((s) => s.name == l.name)) continue;
-      final table = excel[l.name];
-      sheets.add(XlsxSheet(
-        name: l.name,
-        rows: _rowsFrom(l, table),
-        sheet: table,
-        layout: l,
-        styles: wb.styles,
-        date1904: wb.date1904,
-      ));
-    }
-    return sheets;
-  }
+  static List<XlsxSheet> _buildSheets(XlsxWorkbook wb) => [
+        for (final l in wb.sheets)
+          XlsxSheet(
+            name: l.name,
+            rows: _rowsFrom(l),
+            layout: l,
+            styles: wb.styles,
+            date1904: wb.date1904,
+          ),
+      ];
 
   /// Ham hücre metinleri: sayı → `1234.5`, formül → `=SUM(A1:A3)`,
   /// metin → olduğu gibi. (Gösterim biçimi UYGULANMAZ, bkz. XlsxSheet.rows.)
-  static List<List<String>> _rowsFrom(XlsxSheetLayout layout, Sheet fallback) {
-    if (layout.cells.isEmpty) {
-      // Okuyucu bir şey bulamadıysa excel paketinin verisine düş (bozuk dosya).
-      return [
-        for (final row in fallback.rows) [for (final c in row) _legacyText(c)],
-      ];
-    }
+  static List<List<String>> _rowsFrom(XlsxSheetLayout layout) {
     final rows = <List<String>>[];
     for (var r = 0; r <= layout.maxRow; r++) {
       var last = -1;
       for (var c = layout.maxCol; c >= 0; c--) {
-        if (layout.cells.containsKey(cellKey(r, c))) {
+        final cell = layout.cells[cellKey(r, c)];
+        if (cell != null && !cell.isEmpty) {
           last = c;
           break;
         }
@@ -742,23 +686,6 @@ class XlsxEditor {
     return cell.text ?? '';
   }
 
-  static String _legacyText(Data? cell) {
-    final v = cell?.value;
-    return switch (v) {
-      null => '',
-      TextCellValue() => v.value.toString(),
-      IntCellValue() => '${v.value}',
-      DoubleCellValue() => generalNumberRaw(v.value),
-      BoolCellValue() => v.value ? 'DOĞRU' : 'YANLIŞ',
-      DateCellValue() => '${v.year}-${_p2(v.month)}-${_p2(v.day)}',
-      TimeCellValue() => '${_p2(v.hour)}:${_p2(v.minute)}',
-      DateTimeCellValue() =>
-        '${v.year}-${_p2(v.month)}-${_p2(v.day)} ${_p2(v.hour)}:${_p2(v.minute)}',
-      FormulaCellValue() => '=${v.formula}',
-    };
-  }
-
-  static String _p2(int n) => n.toString().padLeft(2, '0');
 
   XlsxSheet? _modelSheet(String name) {
     for (final s in sheets) {
@@ -767,7 +694,7 @@ class XlsxEditor {
     return null;
   }
 
-  /// Bir hücreyi günceller (hem görünüm modeli hem excel nesnesi).
+  /// Bir hücreyi günceller (ham değer + görünüm modeli).
   void setCell(String sheetName, int rowIndex, int colIndex, String value) {
     final sheet = _modelSheet(sheetName);
     if (sheet == null) return;
@@ -809,6 +736,11 @@ class XlsxEditor {
       styleIndex: styleIndex,
       number: (value.startsWith('=') || number == null) ? null : number,
       text: (value.startsWith('=') || number != null) ? null : value,
+      // Mantıksal hücre DOĞRU/YANLIŞ kalırsa kaydetmede yine `t="b"` yazılır.
+      boolean: old?.boolean != null &&
+              (value == 'DOĞRU' || value == 'YANLIŞ')
+          ? value == 'DOĞRU'
+          : null,
       formula: value.length > 1 && value.startsWith('=')
           ? value.substring(1)
           : null,
@@ -816,33 +748,6 @@ class XlsxEditor {
     if (rowIndex > layout.maxRow) layout.maxRow = rowIndex;
     if (colIndex > layout.maxCol) layout.maxCol = colIndex;
 
-    _excel.updateCell(
-      sheetName,
-      CellIndex.indexByColumnRow(columnIndex: colIndex, rowIndex: rowIndex),
-      _cellValueFor(value),
-    );
-  }
-
-  /// Kullanıcının yazdığı metni uygun Excel hücre tipine çevirir.
-  static CellValue _cellValueFor(String value) {
-    if (value.isEmpty) return TextCellValue('');
-    if (value.length > 1 && value.startsWith('=')) {
-      return FormulaCellValue(value.substring(1));
-    }
-    final intVal = int.tryParse(value);
-    if (intVal != null && !_looksLikeCode(value)) return IntCellValue(intVal);
-    final dbl = double.tryParse(value);
-    if (dbl != null && dbl.isFinite && !_looksLikeCode(value)) {
-      return DoubleCellValue(dbl);
-    }
-    return TextCellValue(value);
-  }
-
-  /// "007", "0123" gibi baştaki sıfırı önemli olan diziler metin kalır.
-  static bool _looksLikeCode(String v) {
-    if (v.length > 1 && v.startsWith('0') && !v.startsWith('0.')) return true;
-    if (v.length > 15) return true;
-    return false;
   }
 
   // ── anlık görüntü (geri alma) ─────────────────────────────────────────────
@@ -933,64 +838,29 @@ class XlsxEditor {
   }
 
   // ── yapısal işlemler ──────────────────────────────────────────────────────
-  // Hücreler (değer + stil) elle kaydırılır. *Niye:* excel 4.0.6'nın
-  // Excel-seviye insertRow/insertColumn'u no-op çıktı (bkz. HAFIZA).
+  // Model (ham değerler + hücre kayıtları + ölçüler) kaydırılır; kaydetme
+  // modeli baştan yazdığı için başka bir kopya tutulmaz.
 
   void insertRow(String sheetName, int rowIndex) {
-    final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
-    if (table == null || model == null) return;
+    if (model == null) return;
     final at = rowIndex.clamp(0, model.rows.length);
-    final maxR = table.maxRows;
-    final maxC = table.maxColumns;
-    for (var r = maxR; r > at; r--) {
-      for (var c = 0; c < maxC; c++) {
-        _copyCell(table, r - 1, c, r, c);
-      }
-    }
-    for (var c = 0; c < maxC; c++) {
-      _clearCell(table, at, c);
-    }
     model.rows.insert(at, <String>[]);
     _shiftLayoutRows(model.layout, at, 1);
   }
 
   void deleteRow(String sheetName, int rowIndex) {
-    final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
-    if (table == null || model == null) return;
+    if (model == null) return;
     if (rowIndex < 0 || rowIndex >= model.rows.length) return;
-    final maxR = table.maxRows;
-    final maxC = table.maxColumns;
-    for (var r = rowIndex; r < maxR - 1; r++) {
-      for (var c = 0; c < maxC; c++) {
-        _copyCell(table, r + 1, c, r, c);
-      }
-    }
-    if (maxR > 0) {
-      for (var c = 0; c < maxC; c++) {
-        _clearCell(table, maxR - 1, c);
-      }
-    }
     model.rows.removeAt(rowIndex);
     _shiftLayoutRows(model.layout, rowIndex, -1);
   }
 
   void insertColumn(String sheetName, int colIndex) {
-    final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
-    if (table == null || model == null) return;
+    if (model == null) return;
     final at = colIndex.clamp(0, model.maxCols);
-    final maxR = table.maxRows;
-    final maxC = table.maxColumns;
-    for (var c = maxC; c > at; c--) {
-      for (var r = 0; r < maxR; r++) {
-        _copyCell(table, r, c - 1, r, c);
-      }
-    }
-    for (var r = 0; r < maxR; r++) {
-      _clearCell(table, r, at);
-    }
     for (final row in model.rows) {
       if (at <= row.length) row.insert(at, '');
     }
@@ -998,22 +868,9 @@ class XlsxEditor {
   }
 
   void deleteColumn(String sheetName, int colIndex) {
-    final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
-    if (table == null || model == null) return;
+    if (model == null) return;
     if (colIndex < 0 || colIndex >= model.maxCols) return;
-    final maxR = table.maxRows;
-    final maxC = table.maxColumns;
-    for (var c = colIndex; c < maxC - 1; c++) {
-      for (var r = 0; r < maxR; r++) {
-        _copyCell(table, r, c + 1, r, c);
-      }
-    }
-    if (maxC > 0) {
-      for (var r = 0; r < maxR; r++) {
-        _clearCell(table, r, maxC - 1);
-      }
-    }
     for (final row in model.rows) {
       if (colIndex < row.length) row.removeAt(colIndex);
     }
@@ -1117,41 +974,28 @@ class XlsxEditor {
   }
 
   /// Seçili hücrenin yazı biçimini değiştirir. Verilmeyen alanlar korunur.
-  /// (Dolgu rengi bilinçli olarak YOK: excel 4.0.6'nın renk yazma API'si bu
-  /// ortamda derlenip doğrulanamıyor — kanıtlanmamış API kullanılmaz.)
   void setCellStyle(String sheetName, int r, int c,
       {bool? bold, bool? italic, TextAlign? align}) {
-    final table = _excel.tables[sheetName];
     final model = _modelSheet(sheetName);
-    if (table == null || model == null || r < 0 || c < 0) return;
-    final cell =
-        table.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r));
-    final base = cell.cellStyle ?? CellStyle();
-    HorizontalAlign? ha;
+    if (model == null || r < 0 || c < 0) return;
     XlsxHAlign? modelAlign;
+    String? fileAlign;
     if (align != null) {
-      ha = switch (align) {
-        TextAlign.center => HorizontalAlign.Center,
-        TextAlign.right => HorizontalAlign.Right,
-        _ => HorizontalAlign.Left,
-      };
       modelAlign = switch (align) {
         TextAlign.center => XlsxHAlign.center,
         TextAlign.right => XlsxHAlign.right,
         _ => XlsxHAlign.left,
       };
+      fileAlign = modelAlign.name;
     }
-    cell.cellStyle = base.copyWith(
-      boldVal: bold,
-      italicVal: italic,
-      horizontalAlignVal: ha,
-    );
     final current = model.styleAt(r, c) ?? const XlsxCellStyle();
     model.patchStyle(
       r,
       c,
       current.copyWith(bold: bold, italic: italic, hAlign: modelAlign),
     );
+    model.recordStyleEdit(
+        r, c, XlsxStyleEdit(bold: bold, italic: italic, hAlign: fileAlign));
   }
 
   /// Hücrenin **dolgu rengi**. [color] null ise dolgu kaldırılır.
@@ -1205,15 +1049,6 @@ class XlsxEditor {
     final value = size ?? current.fontSize ?? 11;
     model.patchStyle(r, c, current.copyWith(fontSize: value));
     model.recordStyleEdit(r, c, XlsxStyleEdit(fontSize: value));
-    // `excel` paketinin kendi stili de güncellenir: kaydetmede paket önce
-    // kendi tablosunu yazar, yama onun üstüne biner.
-    final table = _excel.tables[sheetName];
-    if (table != null) {
-      final cell =
-          table.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r));
-      cell.cellStyle = (cell.cellStyle ?? CellStyle())
-          .copyWith(fontSizeVal: value.round());
-    }
   }
 
   /// Hücrenin **yazı tipi ailesi** (Arial, Calibri…).
@@ -1225,13 +1060,6 @@ class XlsxEditor {
     final current = model.styleAt(r, c) ?? const XlsxCellStyle();
     model.patchStyle(r, c, current.copyWith(fontFamily: family));
     model.recordStyleEdit(r, c, XlsxStyleEdit(fontName: family));
-    final table = _excel.tables[sheetName];
-    if (table != null) {
-      final cell =
-          table.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r));
-      cell.cellStyle =
-          (cell.cellStyle ?? CellStyle()).copyWith(fontFamilyVal: family);
-    }
   }
 
   /// Hücrede **metin kaydırma**.
@@ -1300,12 +1128,9 @@ class XlsxEditor {
   XlsxSheet? addSheet(String name) {
     final clean = name.trim();
     if (clean.isEmpty || hasSheet(clean)) return null;
-    // `excel[ad]` sayfayı yoksa yaratır.
-    final table = _excel[clean];
     final sheet = XlsxSheet(
       name: clean,
       rows: <List<String>>[],
-      sheet: table,
       layout: XlsxSheetLayout(name: clean),
       styles: workbook.styles,
       date1904: workbook.date1904,
@@ -1314,49 +1139,48 @@ class XlsxEditor {
     return sheet;
   }
 
-  /// Sayfayı siler. **Son sayfa silinemez** — `excel` paketi de reddediyor,
-  /// sayfasız bir çalışma kitabı geçersiz.
+  /// Sayfayı siler. **Son sayfa silinemez** — sayfasız bir çalışma kitabı
+  /// geçersiz.
   bool deleteSheet(String name) {
     if (sheets.length <= 1) return false;
     final model = _modelSheet(name);
     if (model == null) return false;
-    _excel.delete(name);
     sheets.remove(model);
     return true;
   }
 
-  /// Sayfayı yeniden adlandırır.
-  ///
-  /// `excel` paketinin `rename`i kopyala+sil olduğu için **yeni bir `Sheet`
-  /// nesnesi** üretiyor; model o nesneye yeniden bağlanır. Model nesnesinin
-  /// KENDİSİ korunur, yoksa bu oturumda verilen biçimler (örtmeler, sayı
-  /// biçimleri, yapıştırılan biçim izleri) kaybolurdu.
+  /// Sayfayı yeniden adlandırır. Model nesnesinin KENDİSİ korunur — bu
+  /// oturumda verilen biçimler (örtmeler, sayı biçimleri, yapıştırılan biçim
+  /// izleri) ona bağlı. Dosyadaki parça aynı kalır, yalnız `workbook.xml`deki
+  /// ad değişir.
   bool renameSheet(String oldName, String newName) {
     final clean = newName.trim();
     final model = _modelSheet(oldName);
     if (model == null || clean.isEmpty || oldName == clean) return false;
     if (hasSheet(clean)) return false;
-    _excel.rename(oldName, clean);
-    final table = _excel.tables[clean];
-    if (table == null) return false;
     model.name = clean;
     model.layout.name = clean;
-    model._sheet = table;
-    // Ölçüler kopyalanan nesneye taşınmamış olabilir; yeniden tohumlanır
-    // (kaydetmede sütun genişlikleri paketin haritasından yazılıyor).
-    model.layout.colWidths.forEach(table.setColumnWidth);
-    model.layout.rowHeights.forEach(table.setRowHeight);
     return true;
   }
 
-  /// Hücre aralığını **birleştirir** (`excel` paketi `<mergeCells>` yazabiliyor).
+  /// Sayfayı [to] sırasına taşır (Faz 9 / Y2: sayfa taşıma). Dosyada
+  /// `workbook.xml`in `<sheets>` sırası ve yerel adların `localSheetId`si
+  /// buna göre yeniden yazılır.
+  bool moveSheet(String name, int to) {
+    final model = _modelSheet(name);
+    if (model == null) return false;
+    final from = sheets.indexOf(model);
+    final target = to.clamp(0, sheets.length - 1);
+    if (from == target) return false;
+    sheets
+      ..removeAt(from)
+      ..insert(target, model);
+    return true;
+  }
+
+  /// Hücre aralığını **birleştirir** (kaydetmede `<mergeCells>`).
   void mergeCells(String sheetName, int r1, int c1, int r2, int c2) {
     if (r1 == r2 && c1 == c2) return;
-    _excel.merge(
-      sheetName,
-      CellIndex.indexByColumnRow(columnIndex: c1, rowIndex: r1),
-      CellIndex.indexByColumnRow(columnIndex: c2, rowIndex: r2),
-    );
     _modelSheet(sheetName)?.addMerge(XlsxMerge(r1, c1, r2, c2));
   }
 
@@ -1365,22 +1189,7 @@ class XlsxEditor {
     final model = _modelSheet(sheetName);
     final merge = model?.mergeAt(r, c);
     if (model == null || merge == null) return;
-    _excel.unMerge(
-      sheetName,
-      '${_colName(merge.colStart)}${merge.rowStart + 1}:'
-      '${_colName(merge.colEnd)}${merge.rowEnd + 1}',
-    );
     model.removeMerge(merge);
-  }
-
-  static String _colName(int index) {
-    var n = index + 1;
-    final out = <int>[];
-    while (n > 0) {
-      out.add(65 + (n - 1) % 26);
-      n = (n - 1) ~/ 26;
-    }
-    return String.fromCharCodes(out.reversed);
   }
 
   static int _argbOf(Color c) =>
@@ -1389,26 +1198,25 @@ class XlsxEditor {
       ((c.g * 255).round() << 8) |
       (c.b * 255).round();
 
-  static void _copyCell(Sheet t, int sr, int sc, int dr, int dc) {
-    final src =
-        t.cell(CellIndex.indexByColumnRow(columnIndex: sc, rowIndex: sr));
-    final dst =
-        t.cell(CellIndex.indexByColumnRow(columnIndex: dc, rowIndex: dr));
-    dst.value = src.value;
-    dst.cellStyle = src.cellStyle;
-  }
-
-  static void _clearCell(Sheet t, int r, int c) {
-    t.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r)).value = null;
-  }
-
   Uint8List save() {
-    final bytes = _excel.encode();
-    if (bytes == null || bytes.isEmpty) return Uint8List(0);
-    // `excel` paketinin yazamadıklarını (gizli satır/sütun, boş satır
-    // yüksekliği, sayfa yönü, dondurulmuş bölme, ızgara çizgisi, otomatik
-    // süzgeç) zip üretildikten SONRA XML yamasıyla geri koy.
-    return XlsxSavePatch.apply(Uint8List.fromList(bytes), [
+    // Önce değerler ve yapı (özgün paket korunarak), sonra görünüm
+    // düzenlemeleri, dondurulmuş bölme, sayfa yönü, ızgara çizgisi, süzgeç
+    // (XML yaması — `styles.xml` yalnız değişen biçimler için genişler).
+    final bytes = XlsxPackageWriter.write(_source, [
+      for (final s in sheets)
+        XlsxPackageSheet(
+          name: s.name,
+          partPath: s.layout.partPath,
+          rows: s.rows,
+          layout: s.layout,
+          merges: [
+            for (final m in s.merges)
+              XlsxRange(m.rowStart, m.colStart, m.rowEnd, m.colEnd),
+          ],
+          hidden: s.layout.hidden,
+        ),
+    ]);
+    return XlsxSavePatch.apply(bytes, [
       for (final s in sheets)
         XlsxSheetPatch(
           name: s.name,

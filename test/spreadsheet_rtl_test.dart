@@ -7,21 +7,16 @@ import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/editors/spreadsheet_editor_screen.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
-import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'support/temp_dir.dart';
+import 'support/xlsx_fixture.dart';
 
 /// Arapça bir tablo üretir; [rtl] ise `<sheetView rightToLeft="1"/>` yazılır.
 Uint8List _book({required bool rtl}) {
-  final excel = Excel.createExcel();
-  final s = excel['Sheet1'];
-  s.updateCell(CellIndex.indexByString('A1'), TextCellValue('الاسم'));
-  s.updateCell(CellIndex.indexByString('B1'), TextCellValue('المبلغ'));
-  s.updateCell(CellIndex.indexByString('A2'), TextCellValue('أحمد'));
-  s.updateCell(CellIndex.indexByString('B2'), const DoubleCellValue(120));
-  final bytes = Uint8List.fromList(excel.encode()!);
+  final bytes =
+      xlsxFrom({'A1': 'الاسم', 'B1': 'المبلغ', 'A2': 'أحمد', 'B2': 120});
   if (!rtl) return bytes;
 
   final archive = ZipDecoder().decodeBytes(bytes);

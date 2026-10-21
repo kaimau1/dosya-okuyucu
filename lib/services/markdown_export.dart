@@ -1,7 +1,7 @@
+import 'xlsx_writer.dart';
 import 'dart:convert';
 
 import 'package:archive/archive.dart';
-import 'package:excel/excel.dart' as xls;
 
 import '../core/markdown.dart';
 import 'csv_codec.dart';
@@ -107,30 +107,23 @@ class MarkdownExport {
     });
   }
 
-  /// Markdown → .xlsx bayt listesi (`excel` paketiyle).
+  /// Markdown → .xlsx bayt listesi (kendi yazıcımız, `XlsxWriter`).
   ///
   /// Markdown tabloları gerçek satır/sütunlara açılır; tablo dışı içerik
   /// (başlık/paragraf/liste) tek sütunlu satırlar olarak yazılır — hiçbir şey
   /// kaybolmaz. Sayısal hücreler gerçek sayı olur (metin değil), böylece
   /// Excel'de toplama/formül çalışır.
   static List<int> toXlsx(String markdown) {
-    final excel = xls.Excel.createExcel();
-    // `Excel.createExcel()` varsayılan olarak "Sheet1" üretir; `[]` operatörü o
-    // sayfayı döndürür (yoksa oluşturur). `cell(...).value =` ve `encode()` bu
-    // projede kanıtlı API (bkz. xlsx_editor).
-    final sheet = excel['Sheet1'];
-
     final rows = _rows(markdown);
+    final cells = <int, Map<int, XlsxWriteCell>>{};
     for (var r = 0; r < rows.length; r++) {
-      final cells = rows[r];
-      for (var c = 0; c < cells.length; c++) {
-        sheet
-            .cell(xls.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r))
-            .value = _xlsxCell(cells[c]);
+      final row = <int, XlsxWriteCell>{};
+      for (var c = 0; c < rows[r].length; c++) {
+        row[c] = _xlsxCell(rows[r][c]);
       }
+      cells[r] = row;
     }
-
-    return excel.encode() ?? const <int>[];
+    return XlsxWriter.build([XlsxWriteSheet(name: 'Sheet1', cells: cells)]);
   }
 
   /// Markdown → CSV metni (Türkçe Excel uyumu için `;` ayracı). AI tablosu
@@ -180,19 +173,19 @@ class MarkdownExport {
 
   /// Metni uygun hücre tipine çevirir: baştaki sıfır/uzun diziler ve `=` ile
   /// başlayanlar metin; diğer sayılar gerçek sayı hücresi.
-  static xls.CellValue _xlsxCell(String value) {
+  static XlsxWriteCell _xlsxCell(String value) {
     final v = value.trim();
-    if (v.isEmpty) return xls.TextCellValue('');
+    if (v.isEmpty) return const XlsxWriteCell(text: '');
     final code = v.length > 15 ||
         (v.length > 1 && v.startsWith('0') && !v.startsWith('0.') &&
             !v.startsWith('0,'));
     if (!code) {
       final i = int.tryParse(v);
-      if (i != null) return xls.IntCellValue(i);
+      if (i != null) return XlsxWriteCell(number: i.toDouble());
       final d = double.tryParse(v.replaceAll(',', '.'));
-      if (d != null && d.isFinite) return xls.DoubleCellValue(d);
+      if (d != null && d.isFinite) return XlsxWriteCell(number: d);
     }
-    return xls.TextCellValue(value);
+    return XlsxWriteCell(text: value);
   }
 
   /// Bir paragrafı OOXML olarak üretir.

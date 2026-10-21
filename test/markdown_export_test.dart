@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/markdown_export.dart';
-import 'package:excel/excel.dart';
+import 'package:dosya_okuyucu/services/xlsx_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Üretilen .docx paketinden `word/document.xml`i çıkarır.
@@ -70,46 +71,46 @@ void main() {
   });
 
   group('MarkdownExport.toXlsx', () {
-    Sheet sheetOf(List<int> bytes) {
-      final excel = Excel.decodeBytes(bytes);
-      return excel.tables[excel.tables.keys.first]!;
-    }
+    XlsxSheetLayout sheetOf(List<int> bytes) =>
+        XlsxReader.read(Uint8List.fromList(bytes)).sheets.first;
 
-    // Hücrenin düz metnini üretir (xlsx_editor'daki kanıtlı dönüşüm deseni).
-    String txt(Data? d) {
-      final v = d?.value;
-      if (v is TextCellValue) return v.value.toString();
-      if (v is IntCellValue) return '${v.value}';
-      if (v is DoubleCellValue) return '${v.value}';
-      return v?.toString() ?? '';
+    // Hücrenin düz metni (sayı tam sayıysa ondalıksız).
+    String txt(XlsxSheetLayout s, int r, int c) {
+      final cell = s.cellAt(r, c);
+      if (cell == null) return '';
+      if (cell.number != null) {
+        final n = cell.number!;
+        return n == n.roundToDouble() ? n.toInt().toString() : '$n';
+      }
+      return cell.text ?? '';
     }
 
     test('Markdown tablosu gerçek satır/sütuna açılır', () {
       const md = '| Ad | Yaş |\n| --- | --- |\n| Ali | 30 |\n| Ay | 25 |';
       final sheet = sheetOf(MarkdownExport.toXlsx(md));
-      expect(sheet.rows.length, 3); // başlık + 2 satır
-      expect(txt(sheet.rows[0][0]), 'Ad');
-      expect(txt(sheet.rows[2][0]), 'Ay');
+      expect(sheet.rowCount, 3); // başlık + 2 satır
+      expect(txt(sheet, 0, 0), 'Ad');
+      expect(txt(sheet, 2, 0), 'Ay');
     });
 
     test('sayısal hücre gerçek sayı olur (metin değil)', () {
       const md = '| Ürün | Adet |\n| --- | --- |\n| Kalem | 12 |';
       final sheet = sheetOf(MarkdownExport.toXlsx(md));
-      final adet = sheet.rows[1][1]!.value;
-      expect(adet, isA<IntCellValue>());
-      expect((adet as IntCellValue).value, 12);
+      final adet = sheet.cellAt(1, 1)!;
+      expect(adet.isNumeric, isTrue);
+      expect(adet.number, 12);
     });
 
     test('baştaki sıfırlı dizi metin kalır', () {
       const md = '| Kod |\n| --- |\n| 007 |';
       final sheet = sheetOf(MarkdownExport.toXlsx(md));
-      expect(sheet.rows[1][0]!.value, isA<TextCellValue>());
-      expect(txt(sheet.rows[1][0]), '007');
+      expect(sheet.cellAt(1, 0)!.isNumeric, isFalse);
+      expect(txt(sheet, 1, 0), '007');
     });
 
     test('tablo dışı içerik tek sütunlu satır olur', () {
       final sheet = sheetOf(MarkdownExport.toXlsx('# Başlık\n\n- madde bir'));
-      final texts = sheet.rows.map((r) => r.isNotEmpty ? txt(r[0]) : '').toList();
+      final texts = [for (var r = 0; r < sheet.rowCount; r++) txt(sheet, r, 0)];
       expect(texts, contains('Başlık'));
       expect(texts, contains('madde bir'));
     });
@@ -117,7 +118,7 @@ void main() {
     test('boş girdi bile geçerli xlsx üretir', () {
       final bytes = MarkdownExport.toXlsx('');
       expect(bytes, isNotEmpty);
-      expect(() => Excel.decodeBytes(bytes), returnsNormally);
+      expect(XlsxReader.read(Uint8List.fromList(bytes)).sheets, hasLength(1));
     });
   });
 

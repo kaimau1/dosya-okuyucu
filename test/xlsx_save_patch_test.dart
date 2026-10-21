@@ -4,22 +4,25 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:dosya_okuyucu/services/xlsx_save_patch.dart';
-import 'package:excel/excel.dart';
+import 'package:dosya_okuyucu/services/xlsx_writer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
 
-/// `excel` paketiyle küçük bir çalışma kitabı üretir (A1, C3 dolu; A ve B
-/// sütunlarının genişliği, 1. satırın yüksekliği ayarlı).
-Uint8List _sampleBook() {
-  final excel = Excel.createExcel();
-  final s = excel['Sheet1'];
-  s.updateCell(CellIndex.indexByString('A1'), TextCellValue('a'));
-  s.updateCell(CellIndex.indexByString('C3'), TextCellValue('c'));
-  s.setColumnWidth(0, 20);
-  s.setColumnWidth(1, 12);
-  s.setRowHeight(0, 30);
-  return Uint8List.fromList(excel.encode()!);
-}
+import 'support/xlsx_fixture.dart';
+
+/// Küçük bir çalışma kitabı (A1, C3 dolu; A ve B sütunlarının genişliği,
+/// 1. satırın yüksekliği ayarlı).
+Uint8List _sampleBook() => XlsxWriter.build([
+      XlsxWriteSheet(
+        name: 'Sheet1',
+        cells: {
+          0: {0: const XlsxWriteCell(text: 'a')},
+          2: {2: const XlsxWriteCell(text: 'c')},
+        },
+        colWidths: {0: 20, 1: 12},
+        rowHeights: {0: 30},
+      ),
+    ]);
 
 XmlElement _sheetXml(Uint8List bytes, [String path = 'xl/worksheets/sheet1.xml']) {
   final archive = ZipDecoder().decodeBytes(bytes);
@@ -67,7 +70,7 @@ void main() {
       final cols = _all(_sheetXml(out), 'col');
       final b = cols.firstWhere((c) => c.getAttribute('min') == '2');
       expect(b.getAttribute('hidden'), '1');
-      expect(b.getAttribute('width'), '12.00', reason: 'genişlik korunmalı');
+      expect(double.parse(b.getAttribute('width')!), 12, reason: 'genişlik korunmalı');
       // A sütununa dokunulmamalı.
       final a = cols.firstWhere((c) => c.getAttribute('min') == '1');
       expect(a.getAttribute('hidden'), isNull);
@@ -86,19 +89,17 @@ void main() {
     test('aralıklı <col min=1 max=10> gizlemede ÜÇE bölünür', () {
       // Gerçek dosyalarda tek <col> onlarca sütunu kapsar; bölmeden hidden
       // eklemek 10 sütunu birden gizlerdi (veri "kayboldu" hatası).
-      final excel = Excel.createExcel();
-      excel['Sheet1']
-          .updateCell(CellIndex.indexByString('A1'), TextCellValue('a'));
+      final single = xlsxFrom({'A1': 'a'});
       var xml = utf8.decode(
         ZipDecoder()
-            .decodeBytes(Uint8List.fromList(excel.encode()!))
+            .decodeBytes(single)
             .files
             .firstWhere((f) => f.name == 'xl/worksheets/sheet1.xml')
             .content as List<int>,
       );
       xml = xml.replaceFirst('<sheetData>',
           '<cols><col min="1" max="10" width="20.00" customWidth="1"/></cols><sheetData>');
-      final rebuilt = _rebuild(Uint8List.fromList(excel.encode()!), xml);
+      final rebuilt = _rebuild(single, xml);
 
       final out = XlsxSavePatch.apply(rebuilt, const [
         XlsxSheetPatch(name: 'Sheet1', hiddenCols: {4}), // E sütunu
@@ -120,7 +121,7 @@ void main() {
       final row = _all(_sheetXml(out), 'row')
           .firstWhere((r) => r.getAttribute('r') == '1');
       expect(row.getAttribute('hidden'), '1');
-      expect(row.getAttribute('ht'), '30.00', reason: 'yükseklik korunmalı');
+      expect(double.parse(row.getAttribute('ht')!), 30, reason: 'yükseklik korunmalı');
     });
 
     test('hücresiz satırın yüksekliği ve gizliliği <row> ÜRETİLEREK yazılır', () {
@@ -151,11 +152,9 @@ void main() {
     });
 
     test('<cols> hiç yoksa şema sırasına göre <sheetData> ÖNÜNE eklenir', () {
-      final excel = Excel.createExcel();
-      excel['Sheet1']
-          .updateCell(CellIndex.indexByString('A1'), TextCellValue('a'));
+      final single = xlsxFrom({'A1': 'a'});
       final out = XlsxSavePatch.apply(
-        Uint8List.fromList(excel.encode()!),
+        single,
         const [XlsxSheetPatch(name: 'Sheet1', hiddenCols: {0})],
       );
       final root = _sheetXml(out);
@@ -495,13 +494,19 @@ Uint8List _bookWithView() {
         .firstWhere((f) => f.name == 'xl/worksheets/sheet1.xml')
         .content as List<int>,
   );
-  xml = xml.replaceFirst(
-    RegExp(r'<sheetView[^>]*/>|<sheetView[^>]*>.*?</sheetView>', dotAll: true),
-    '<sheetView showGridLines="0" workbookViewId="0">'
-        '<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" '
-        'state="frozen"/>'
-        '</sheetView>',
-  );
+  const view = '<sheetView showGridLines="0" workbookViewId="0">'
+      '<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" '
+      'state="frozen"/>'
+      '</sheetView>';
+  final viewRe =
+      RegExp(r'<sheetView(?=[\s/>])[^>]*/>|<sheetView(?=[\s/>])[^>]*>.*?</sheetView>',
+          dotAll: true);
+  xml = viewRe.hasMatch(xml)
+      ? xml.replaceFirst(viewRe, view)
+      // Yazıcımız varsayılan görünümde <sheetViews> yazmıyor: şema sırasıyla
+      // (sheetPr/dimension'dan sonra) eklenir.
+      : xml.replaceFirstMapped(RegExp(r'<(sheetFormatPr|cols|sheetData)\b'),
+          (m) => '<sheetViews>$view</sheetViews><${m[1]}');
   xml = xml.replaceFirst(
       '</worksheet>', '<autoFilter ref="A1:C3"/></worksheet>');
   return _rebuild(book, xml);

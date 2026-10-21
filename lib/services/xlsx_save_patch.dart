@@ -151,6 +151,10 @@ class XlsxStyleEdit {
   /// Metin kaydırma (`<alignment wrapText="1"/>`).
   final bool? wrap;
 
+  /// Yatay hizalama (`<alignment horizontal="center"/>`): `left`, `center`,
+  /// `right`. Eskiden `excel` paketinin hücre stiliyle yazılıyordu (Faz 7).
+  final String? hAlign;
+
   /// Kenarlık: kenar adı (`left`/`right`/`top`/`bottom`) → çizgi biçimi
   /// (`thin`, `medium`, `thick`, `double`…). Değer `null` ise o kenar SİLİNİR.
   /// Haritada olmayan kenara dokunulmaz.
@@ -169,6 +173,7 @@ class XlsxStyleEdit {
     this.fontSize,
     this.fontName,
     this.wrap,
+    this.hAlign,
     this.borders = const {},
   });
 
@@ -181,6 +186,7 @@ class XlsxStyleEdit {
       fontSize == null &&
       fontName == null &&
       wrap == null &&
+      hAlign == null &&
       borders.isEmpty;
 
   /// Aynı hücreye art arda verilen düzenlemeleri birleştirir (sonraki kazanır).
@@ -193,6 +199,7 @@ class XlsxStyleEdit {
         fontSize: other.fontSize ?? fontSize,
         fontName: other.fontName ?? fontName,
         wrap: other.wrap ?? wrap,
+        hAlign: other.hAlign ?? hAlign,
         borders: {...borders, ...other.borders},
       );
 }
@@ -1061,6 +1068,11 @@ class _StyleTable {
       } else {
         align.removeAttribute('wrapText');
       }
+      wanted.setAttribute('applyAlignment', '1');
+    }
+    if (edit.hAlign != null) {
+      _childOrAppend(wanted, 'alignment')
+          .setAttribute('horizontal', edit.hAlign!);
       wanted.setAttribute('applyAlignment', '1');
     }
 

@@ -1,3 +1,4 @@
+// ignore_for_file: invalid_use_of_visible_for_testing_member
 // Faz 6 tasarım görüntüleri: `flutter test tool/design_shots_test.dart`
 // → docs/design/*.png. Normal test takımında KOŞMAZ (test/ altında değil).
 //

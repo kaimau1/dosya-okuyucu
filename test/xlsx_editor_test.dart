@@ -3,33 +3,30 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
-import 'package:excel/excel.dart';
-import 'package:excel/excel.dart' as xl show Border, BorderStyle;
+import 'package:dosya_okuyucu/services/xlsx_save_patch.dart';
+import 'package:dosya_okuyucu/services/xlsx_writer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/xlsx_fixture.dart';
+
 /// Gerçek bir .xlsx üretir: metin, sayı, tarih, kalın+renkli başlık,
 /// özel sütun genişliği ve birleştirilmiş hücre.
-Uint8List _sampleXlsx() {
-  final excel = Excel.createExcel();
-  final sheet = excel[excel.getDefaultSheet()!];
-
-  sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue('Başlık');
-  sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
-    bold: true,
-    fontColorHex: ExcelColor.red,
-    horizontalAlign: HorizontalAlign.Center,
-  );
-  sheet.cell(CellIndex.indexByString('A2')).value = const IntCellValue(42);
-  sheet.cell(CellIndex.indexByString('B2')).value = const DoubleCellValue(3.50);
-  sheet.cell(CellIndex.indexByString('C2')).value =
-      const DateCellValue(year: 2026, month: 7, day: 21);
-
-  sheet.setColumnWidth(0, 25);
-  sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('C1'));
-
-  return Uint8List.fromList(excel.encode()!);
-}
+Uint8List _sampleXlsx() => xlsxFrom(
+      {
+        'A1': 'Başlık',
+        'A2': 42,
+        'B2': 3.5,
+        'C2': 46224, // 2026-07-21
+      },
+      styles: {
+        'A1': const XlsxWriteStyle(
+            bold: true, fontArgb: 0xFFFF0000, hAlign: 'center'),
+        'C2': const XlsxWriteStyle(numFmtCode: 'dd.mm.yyyy'),
+      },
+      colWidths: {0: 25},
+      merges: [const XlsxWriteMerge(0, 0, 0, 2)],
+    );
 
 void main() {
   group('sayfa yönetimi', () {
@@ -336,21 +333,26 @@ void main() {
   /// kuruyordu — kenarlık, yazı tipi, dolgu hepsi sıfırlanıyordu.
   group('yeni yazılan hücre biçimi komşusundan devralır', () {
     Uint8List borderedColumn() {
-      final excel = Excel.createExcel();
-      final sheet = excel[excel.getDefaultSheet()!];
-      final style = CellStyle(
+      const edit = XlsxStyleEdit(
         bold: true,
-        fontFamily: getFontFamily(FontFamily.Courier_New),
-        leftBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
-        rightBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
-        topBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
-        bottomBorder: xl.Border(borderStyle: xl.BorderStyle.Thin),
+        fontName: 'Courier New',
+        borders: {
+          'left': 'thin',
+          'right': 'thin',
+          'top': 'thin',
+          'bottom': 'thin',
+        },
       );
-      for (final ref in ['A1', 'A2', 'A3']) {
-        sheet.cell(CellIndex.indexByString(ref)).value = TextCellValue(ref);
-        sheet.cell(CellIndex.indexByString(ref)).cellStyle = style;
-      }
-      return Uint8List.fromList(excel.encode()!);
+      return XlsxSavePatch.apply(
+        xlsxFrom({'A1': 'A1', 'A2': 'A2', 'A3': 'A3'}),
+        const [
+          XlsxSheetPatch(name: 'Sheet1', styleEdits: {
+            (0, 0): edit,
+            (1, 0): edit,
+            (2, 0): edit,
+          }),
+        ],
+      );
     }
 
     test('sütunun boş gözüne yazınca kenarlık ve yazı tipi KORUNUR', () {
@@ -444,14 +446,8 @@ void main() {
 /// bu biçim ancak XML'e elle enjekte edilerek üretilebiliyor — gerçek Excel
 /// dosyaları ise genelde böyle aralıklar taşır.
 Uint8List _rangedColsXlsx() {
-  final excel = Excel.createExcel();
-  final sheet = excel[excel.getDefaultSheet()!];
-  for (var c = 0; c < 10; c++) {
-    sheet
-        .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
-        .value = TextCellValue('h$c');
-  }
-  final archive = ZipDecoder().decodeBytes(Uint8List.fromList(excel.encode()!));
+  final base = xlsxFrom({for (var c = 0; c < 10; c++) '${String.fromCharCode(65 + c)}1': 'h$c'});
+  final archive = ZipDecoder().decodeBytes(base);
   final out = Archive();
   for (final f in archive.files) {
     if (f.name.startsWith('xl/worksheets/') && f.name.endsWith('.xml')) {

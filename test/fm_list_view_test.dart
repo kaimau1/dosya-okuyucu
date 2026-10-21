@@ -210,7 +210,7 @@ void main() {
 
     testWidgets('sıralama ve öğe sayısı ekranda; tür çipi süzer',
         (tester) async {
-      final (_, __, nav) = await pump(tester);
+      final (_, _, nav) = await pump(tester);
       nav.currentState!.push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa')));
       await settle(tester);
       expect(find.byType(FmListToolbar), findsOneWidget);
@@ -227,7 +227,7 @@ void main() {
 
     testWidgets('360 dp ve 1,4× yazıda taşma yok (liste + seçim)',
         (tester) async {
-      final (_, __, nav) = await pump(tester, textScale: 1.4);
+      final (_, _, nav) = await pump(tester, textScale: 1.4);
       nav.currentState!.push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa')));
       await settle(tester);
       expect(tester.takeException(), isNull);
@@ -238,7 +238,7 @@ void main() {
     });
 
     testWidgets('tablet (≥ 840 dp) iki bölme', (tester) async {
-      final (_, __, nav) =
+      final (_, _, nav) =
           await pump(tester, size: const Size(1200, 800));
       nav.currentState!.push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa')));
       await settle(tester);
@@ -247,7 +247,7 @@ void main() {
     });
 
     testWidgets('boş klasörde FmEmptyState', (tester) async {
-      final (_, __, nav) = await pump(tester);
+      final (_, _, nav) = await pump(tester);
       nav.currentState!
           .push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa/Beta')));
       await settle(tester);

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:excel/excel.dart' as xls;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
@@ -15,7 +14,7 @@ import 'legacy_text.dart';
 import 'office_reader.dart';
 import 'text_decode.dart';
 import 'xls_legacy.dart';
-import 'xlsx_compat.dart';
+import 'xlsx_editor.dart' show XlsxCell, XlsxReader, generalNumberRaw;
 
 /// Dosya seçme, tür tespiti ve içerik yükleme.
 class FileService {
@@ -304,23 +303,18 @@ class FileService {
     final table = <List<String>>[];
     final buffer = StringBuffer();
     try {
-      xls.Excel excel;
-      try {
-        excel = xls.Excel.decodeBytes(bytes);
-      } catch (_) {
-        // Paketin reddettiği (ama Excel'in açtığı) dosyalar onarılmış kopyayla
-        // yeniden denenir — bkz. `XlsxCompat`. Ekranda "okunamadı" yazmak
-        // yerine önizleme/CSV/AI yolları da bu dosyalarda çalışsın.
-        final repaired = XlsxCompat.repair(bytes);
-        if (repaired == null) rethrow;
-        excel = xls.Excel.decodeBytes(repaired);
-      }
-      for (final entry in excel.tables.entries) {
-        buffer.writeln('# Sayfa: ${entry.key}');
-        for (final row in entry.value.rows) {
-          final cells = row
-              .map((c) => c?.value == null ? '' : c!.value.toString())
-              .toList();
+      // Kendi okuyucumuz (Faz 7: `excel` paketi çıktı) — biçimli gösterim
+      // değil HAM değer: önizleme, CSV ve AI yolları metni ister.
+      final wb = XlsxReader.read(bytes);
+      for (final sheet in wb.sheets) {
+        buffer.writeln('# Sayfa: ${sheet.name}');
+        for (var r = 0; r <= sheet.maxRow; r++) {
+          final cells = <String>[
+            for (var c = 0; c <= sheet.maxCol; c++) _cellText(sheet.cellAt(r, c)),
+          ];
+          while (cells.isNotEmpty && cells.last.isEmpty) {
+            cells.removeLast();
+          }
           table.add(cells);
           buffer.writeln(cells.join('\t'));
         }
@@ -330,6 +324,16 @@ class FileService {
       buffer.writeln('(Elektronik tablo okunamadı: $e)');
     }
     return (buffer.toString().trimRight(), table);
+  }
+
+  static String _cellText(XlsxCell? cell) {
+    if (cell == null) return '';
+    if (cell.text != null) return cell.text!;
+    if (cell.number != null) return generalNumberRaw(cell.number!);
+    if (cell.boolean != null) return cell.boolean! ? 'TRUE' : 'FALSE';
+    if (cell.error != null) return cell.error!;
+    if (cell.formula != null) return '=${cell.formula}';
+    return '';
   }
 
   /// Dosyanın imza baytlarına (magic bytes) bakarak türünü belirler. Uzantı

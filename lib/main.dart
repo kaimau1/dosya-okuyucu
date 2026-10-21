@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/third_party_licenses.dart';
 import 'core/app_navigator.dart';
 import 'core/navigator_guard.dart';
 import 'core/app_state.dart';
@@ -65,6 +66,9 @@ Future<void> main() async {
   // uygulamayı öldürmek zorunda kalır. Yerine ne olduğunu söyleyen ve GERİ
   // DÖNME yolu veren bir kart konuyor (hata yine `CrashLog`a yazılıyor).
   ErrorWidget.builder = (details) => AppErrorScreen(details: details);
+  // Paket dışı gömülü bileşenlerin lisansları (fontlar, JS, FFmpeg…) —
+  // "Tüm lisanslar" sayfasında görünsün (Faz 7 / N2).
+  registerThirdPartyLicenses();
   // **Görsel önbelleği 100 → 160 MB** (2026-09-26 galeri turu). Galeride
   // bir fotoğraf açılınca tam ekran çözüm (≈12 MB) önbellekteki küçük
   // resimleri itiyordu; geri dönünce ızgara boş hücrelerle yeniden

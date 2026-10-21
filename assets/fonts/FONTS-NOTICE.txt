@@ -15,11 +15,16 @@ Eşleme services/pptx_render.dart içindeki _mapFamily'de; bilinmeyen sans ->
 Carlito, bilinen serif -> Tinos.
 
 Lisans: hepsi SIL Open Font License 1.1 (tam metin: OFL.txt).
-  - Carlito: Copyright (c) tyPoland Lukasz Dziedzic (Reserved Font Name "Carlito")
+  - Carlito: Copyright 2013 The Carlito Project Authors (github.com/googlefonts/carlito)
   - Arimo:   Copyright The Arimo Project Authors (github.com/googlefonts/arimo)
   - Tinos:   Copyright The Tinos Project Authors (github.com/googlefonts/tinos)
 
 Kaynak: github.com/google/fonts (ofl/carlito, ofl/arimo, ofl/tinos).
+Hiçbirinin name tablosunda "Reserved Font Name" yoktur (test/font_license_test).
+
+DEĞİŞTİRİLMİŞ SÜRÜM (OFL §3/§4): üçü de Latin + Yunan + Kiril ve tipografik
+işaretlerle sınırlı bir ALTKÜMEYE indirilmiştir (tool/subset_doc_fonts.py,
+2026-10-21). Glif çizimleri ve OpenType özellikleri değiştirilmedi.
 Arimo yalnızca değişken (variable) font olarak geliyor; ağırlık (kalın) wght
 ekseninden uygulanır.
 

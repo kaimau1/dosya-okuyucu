@@ -1,8 +1,8 @@
-﻿import 'dart:convert';
+﻿import 'xlsx_writer.dart';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
-import 'package:excel/excel.dart' as xls;
 import 'package:path/path.dart' as p;
 
 import 'docs_home.dart';
@@ -46,11 +46,8 @@ class BlankDocs {
     return '${d.year}${two(d.month)}${two(d.day)}-${two(d.hour)}${two(d.minute)}${two(d.second)}';
   }
 
-  /// Boş ama geçerli .xlsx (excel paketi üretir; tek sayfa).
-  static List<int> blankXlsx() {
-    final excel = xls.Excel.createExcel();
-    return excel.encode() ?? const <int>[];
-  }
+  /// Boş ama geçerli .xlsx (kendi yazıcımız; tek sayfa).
+  static List<int> blankXlsx() => XlsxWriter.build([XlsxWriteSheet(name: 'Sheet1')]);
 
   /// Boş ama geçerli .docx (tek boş paragraf). Minimal OOXML paket.
   ///

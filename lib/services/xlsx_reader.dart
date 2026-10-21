@@ -75,6 +75,7 @@ class XlsxReader {
         final ws = target == null ? null : doc(target);
         final layout = _readSheet(ws, name, shared, styles);
         layout.hidden = state == 'hidden' || state == 'veryHidden';
+        if (ws != null) layout.partPath = target;
         if (target != null) _readComments(layout, target, doc);
         sheets.add(layout);
       }
@@ -83,7 +84,8 @@ class XlsxReader {
       // workbook.xml okunamadıysa: sheet1'i doğrudan dene.
       final ws = doc('xl/worksheets/sheet1.xml');
       if (ws != null) {
-        sheets.add(_readSheet(ws, 'Sayfa1', shared, styles));
+        sheets.add(_readSheet(ws, 'Sayfa1', shared, styles)
+          ..partPath = 'xl/worksheets/sheet1.xml');
       }
     }
 
@@ -1379,6 +1381,10 @@ class XlsxSheetLayout {
   /// Sayfa adı — yeniden adlandırmada modelle birlikte güncellenir.
   String name;
   bool hidden = false;
+
+  /// Paketteki parça yolu (`xl/worksheets/sheet2.xml`) — kaydetme özgün
+  /// parçanın ÜSTÜNE yazar (bkz. `XlsxPackageWriter`). Yeni sayfada null.
+  String? partPath;
   int? tabColorArgb;
 
   /// Excel varsayılanları: sütun 8.43 karakter, satır 15 punto.
