@@ -3,6 +3,19 @@
 > **2026-10-21:** Kalan işler fazlara bağlandı → `docs/FAZ_PLANI.md`. Bu liste Faz 0'da
 > "gerçek iş" ve "cihaz doğrulaması" (`docs/CIHAZ_TESTI.md`) olarak ikiye ayrılacak.
 
+- [ ] **Ham USB yazmayı sağlamlaştır (K8 kararı, 2026-10-21 — Faz 4/10).** Kullanıcı:
+      *"kişi rahatlıkla USB'ye yazabilmeli ve güvenli olmalı"*. Android'in bağlamadığı
+      bellekte FAT/exFAT'a kendi sürücümüz yazıyor (`lib/services/fm/usb/`); günlük yok.
+      Yapılacak: güvenli yazma sırası (veri → FAT → dizin girdisi), yazma sonrası geri-okuma
+      doğrulaması, "kirli" bayrağıyla bir sonraki takışta onarım, çekmeden önce "Güvenle
+      çıkar" uyarısı + yarıda kesilme testleri.
+- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-21 Faz 2:** (a) eski "Gizli dosyalar"ı olan
+      telefonda Kasa açılınca taşıma kartı çıkıyor mu, "Kasaya taşı" sonrası dosyalar Kasa'da
+      açılıyor ve "Geri çıkar" özgün klasöre (alt klasörleriyle) döndürüyor mu; (b) Ayarlar >
+      PIN değiştir önce eski PIN'i soruyor mu, sonra Kasa yeni PIN'le açılıyor mu; (c) Geçmiş
+      ekranının alt çubuğu ve geri tuşu; (d) Aktar ekranı; (e) seçilmiş eski tema/yazı tipi
+      (ör. Okyanus, Merriweather) güncellemeden sonra Modern/Tinos'a dönmüş mü.
+
 > **Bu liste nasıl okunur (2026-08-08 sınıflandırması).** Açık maddelerin
 > çoğunluğu benim kapatabileceğim işler DEĞİL; hangisinin kimde olduğu
 > karışmasın diye üç kümeye ayrılıyor:
