@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'core/app_navigator.dart';
 import 'core/navigator_guard.dart';
 import 'core/app_state.dart';
+import 'core/state/appearance_state.dart';
 import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
 import 'core/l10n/app_strings.dart';
@@ -80,8 +81,8 @@ Future<void> main() async {
     final pickerState = AppState();
     await pickerState.init();
     runApp(
-      ChangeNotifierProvider<AppState>.value(
-        value: pickerState,
+      AppProviders(
+        appState: pickerState,
         child: const DosyaOkuyucuApp(picker: true),
       ),
     );
@@ -173,8 +174,8 @@ Future<void> main() async {
   // 60 Hz'de kalmayı seçebiliyor — bkz. AppState.highRefreshRate.)
   unawaited(applyRefreshRate(appState.highRefreshRate));
   runApp(
-    ChangeNotifierProvider<AppState>.value(
-      value: appState,
+    AppProviders(
+      appState: appState,
       child: const DosyaOkuyucuApp(),
     ),
   );
@@ -275,6 +276,28 @@ void _openLink(String link) {
   unawaited(openAppLink(context, link));
 }
 
+/// Uygulama durumunu ve ondan ayrılmış odaklı bildiricileri ağaca koyar
+/// (Faz 3): kök yalnız [AppearanceState]i izler, son belgeler listesi
+/// [RecentsState] ile bildirilir.
+class AppProviders extends StatelessWidget {
+  final AppState appState;
+  final Widget child;
+
+  const AppProviders({super.key, required this.appState, required this.child});
+
+  @override
+  Widget build(BuildContext context) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AppState>.value(value: appState),
+          ChangeNotifierProvider<AppearanceState>.value(
+              value: appState.appearance),
+          ChangeNotifierProvider<RecentsState>.value(
+              value: appState.recentsState),
+        ],
+        child: child,
+      );
+}
+
 /// `PickerActivity`nin Flutter'a verdiği başlangıç yolu. Tek yerde tanımlı:
 /// Kotlin tarafındaki değerle birebir aynı olmalı (bkz. ci/PickerActivity.kt).
 const pickerRoute = '/picker';
@@ -301,7 +324,9 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
   @override
   Widget build(BuildContext context) {
     final picker = widget.picker;
-    final appState = context.watch<AppState>();
+    // **Yalnız görünüm izlenir** (Faz 3): dosya açmak, panoya kopyalamak,
+    // bağlantı kaydetmek artık iki `ThemeData`yı baştan üretmiyor.
+    final look = context.watch<AppearanceState>();
     return MaterialApp(
       title: 'Dosya Okuyucu',
       navigatorKey: navigatorKey,
@@ -310,20 +335,20 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
       navigatorObservers: [_stackGuard],
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(
-        bodyFont: appState.uiFont,
-        skin: appState.appSkin,
-        background: appState.background,
+        bodyFont: look.uiFont,
+        skin: look.skin,
+        background: look.background,
       ),
       darkTheme: AppTheme.dark(
-        bodyFont: appState.uiFont,
-        skin: appState.appSkin,
-        background: appState.background,
+        bodyFont: look.uiFont,
+        skin: look.skin,
+        background: look.background,
       ),
       // "Gece (OLED)" ailesinin açık karşılığı yok: seçiliyken sistem açık
       // modda olsa da koyu kalır, yoksa kullanıcı OLED temayı seçtiği hâlde
       // gündüz beyaz ekran görürdü.
       themeMode:
-          appState.appSkin.forcesDark ? ThemeMode.dark : appState.themeMode,
+          look.skin.forcesDark ? ThemeMode.dark : look.themeMode,
       // **Yazı boyutu her telefonda AYNI** (kullanıcı isteği 2026-08-07):
       // Android'in "Yazı tipi boyutu" ayarı normalde her uygulamayı büyütür;
       // aynı ekran bir telefonda ferah, ötekinde taşmış görünüyordu. Sistem
@@ -337,7 +362,7 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
         // `copyWith(textScaler:)` sistemden gelen ölçeğin YERİNE geçer —
         // ayrıca `withNoTextScaling` sarmaya gerek yok.
         data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(appState.uiTextScale),
+          textScaler: TextScaler.linear(look.uiTextScale),
         ),
         // **Bildirim kartları** her rotanın üstünde, ekranın en altında
         // (2026-09-27, bkz. core/snack.dart).
@@ -355,7 +380,7 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
       // dilini `supportedLocales` ile eşleştirir, tutmazsa listenin İLKİNE
       // (Türkçe) düşer. Arapça seçilince `GlobalWidgetsLocalizations`
       // yönü rtl'e çevirdiği için ayrıca `Directionality` sarmaya gerek yok.
-      locale: appState.language.locale,
+      locale: look.language.locale,
       supportedLocales: AppLanguageInfo.supportedLocales,
       localizationsDelegates: const [
         AppStrings.delegate,

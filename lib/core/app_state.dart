@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_language.dart';
 import 'skin.dart';
+import 'state/appearance_state.dart';
 import 'theme.dart';
 import '../models/fm_layout.dart';
 import '../models/fs_entry.dart';
@@ -90,6 +91,30 @@ class AppState extends ChangeNotifier {
   static const _kAiBudgetFreed = 'ai_budget_freed';
 
   late SharedPreferences _prefs;
+
+  /// Kökün izlediği görünüm parçası (bkz. [AppearanceState]). Görünüm
+  /// ayarlarının setter'ları bunu da günceller.
+  final AppearanceState appearance = AppearanceState();
+
+  /// Son belgeler listesinin bildiricisi: `addRecent`/`removeRecent` YALNIZ
+  /// bunu uyandırır, `AppState` dinleyicilerini değil (bkz. [RecentsState]).
+  final RecentsState recentsState = RecentsState();
+
+  void _syncAppearance() => appearance.apply(
+        themeMode: _themeMode,
+        skin: _appSkin,
+        background: _background,
+        language: _language,
+        uiFont: _uiFont,
+        uiTextScale: _uiTextScale,
+      );
+
+  /// Görünüm ayarı değişimi: hem görünüm parçası hem (ayar ekranları için)
+  /// `AppState` dinleyicileri bilgilenir.
+  void _notifyAppearance() {
+    _syncAppearance();
+    notifyListeners();
+  }
 
   String _apiKey = '';
   String _model = defaultAiModel;
@@ -231,7 +256,7 @@ class AppState extends ChangeNotifier {
   Future<void> setUiFont(String family) async {
     _uiFont = family;
     await _prefs.setString(_kUiFont, family);
-    notifyListeners();
+    _notifyAppearance();
   }
 
   /// Yüksek tazeleme hızı tercihi (bkz. [_highRefreshRate]).
@@ -315,7 +340,7 @@ class AppState extends ChangeNotifier {
   Future<void> setUiTextScale(double value) async {
     _uiTextScale = value.clamp(0.85, 1.4);
     await _prefs.setDouble(_kUiTextScale, _uiTextScale);
-    notifyListeners();
+    _notifyAppearance();
   }
 
   List<RecentFile> get recents => List.unmodifiable(_recents);
@@ -666,6 +691,7 @@ class AppState extends ChangeNotifier {
         .toList();
     _ttsPrefs = TtsPrefs.decode(_prefs.getString(_kTtsPrefs));
     _ttsAiRead = _prefs.getBool(_kTtsAiRead) ?? false;
+    _syncAppearance();
     notifyListeners();
   }
 
@@ -760,19 +786,19 @@ class AppState extends ChangeNotifier {
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     await _prefs.setString(_kThemeMode, mode.name);
-    notifyListeners();
+    _notifyAppearance();
   }
 
   Future<void> setAppSkin(AppSkin skin) async {
     _appSkin = skin;
     await _prefs.setString(_kAppSkin, skin.name);
-    notifyListeners();
+    _notifyAppearance();
   }
 
   Future<void> setBackground(String id) async {
     _background = AppBackground.byId(id).id;
     await _prefs.setString(_kBackground, _background);
-    notifyListeners();
+    _notifyAppearance();
   }
 
   Future<void> _persistRemotes() => _prefs.setStringList(
@@ -799,7 +825,7 @@ class AppState extends ChangeNotifier {
   Future<void> setLanguage(AppLanguage language) async {
     _language = language;
     await _prefs.setString(_kLanguage, language.code);
-    notifyListeners();
+    _notifyAppearance();
   }
 
   Future<void> _persistRecents() =>
@@ -810,13 +836,13 @@ class AppState extends ChangeNotifier {
     _recents.insert(0, file);
     if (_recents.length > 40) _recents = _recents.sublist(0, 40);
     await _persistRecents();
-    notifyListeners();
+    recentsState.changed();
   }
 
   Future<void> removeRecent(String path) async {
     _recents.removeWhere((r) => r.path == path);
     await _persistRecents();
-    notifyListeners();
+    recentsState.changed();
   }
 
   Future<void> addMemory(String note) async {
