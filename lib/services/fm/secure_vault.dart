@@ -8,9 +8,11 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'file_digest.dart';
 import 'file_ops.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
+import 'hidden_vault.dart';
 import 'native_extras.dart';
 import 'vault_crypto.dart';
 
@@ -248,10 +250,68 @@ class SecureVault extends ChangeNotifier {
     await tmp.rename(_index.path);
   }
 
-  /// Dosyaları kasaya ŞİFRELEYEREK taşır: önce şifreli kopya yazılır ve
-  /// doğrulanır, ancak sonra aslı silinir.
+  /// Dosyaları (ve klasörlerin içindeki dosyaları) kasaya ŞİFRELEYEREK
+  /// taşır. Her dosya için sıra: şifreli kopya → **çözüp özetini aslıyla
+  /// karşılaştır** → dizine yaz → aslını sil. Herhangi bir adım tutmazsa
+  /// aslına dokunulmaz.
+  ///
+  /// Klasörler (2026-10-21, gizleme kasaya katılınca): içindeki her dosya
+  /// kendi alt klasörüyle kaydedilir ([VaultItem.originalDir]), geri
+  /// çıkarırken aynı ağaç kurulur; boşalan klasörler silinir.
   Future<FmOpResult> add(
     List<String> paths, {
+    void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    if (_master == null) return const FmOpResult(errors: ['locked']);
+    final files = <String>[];
+    final dirs = <String>[];
+    var skipped = 0;
+    for (final path in paths) {
+      if (FileSystemEntity.isFileSync(path)) {
+        files.add(path);
+      } else if (FileSystemEntity.isDirectorySync(path)) {
+        dirs.add(path);
+        await for (final e
+            in Directory(path).list(recursive: true, followLinks: false)) {
+          if (e is File) files.add(e.path);
+        }
+      } else {
+        skipped++;
+      }
+    }
+    final result = await _addFiles(
+      [for (final f in files) (src: f, name: p.basename(f), dir: p.dirname(f))],
+      onProgress: onProgress,
+      isCancelled: isCancelled,
+    );
+    for (final d in dirs) {
+      await _deleteIfNoFiles(d);
+    }
+    return FmOpResult(
+      succeeded: result.succeeded,
+      skipped: skipped,
+      errors: result.errors,
+      cancelled: result.cancelled,
+      transfers: result.transfers,
+    );
+  }
+
+  /// İçinde DOSYA kalmamışsa klasör ağacını siler (yarıda kalan bir taşıma
+  /// dosya kaybettirmesin diye önce sayılır).
+  static Future<void> _deleteIfNoFiles(String dir) async {
+    try {
+      final d = Directory(dir);
+      if (!d.existsSync()) return;
+      final hasFile = await d
+          .list(recursive: true, followLinks: false)
+          .any((e) => e is File);
+      if (!hasFile) await d.delete(recursive: true);
+    } catch (_) {}
+  }
+
+  Future<FmOpResult> _addFiles(
+    List<({String src, String name, String dir})> files, {
     void Function(FmProgress)? onProgress,
     bool Function()? isCancelled,
   }) async {
@@ -260,49 +320,56 @@ class SecureVault extends ChangeNotifier {
     var ok = 0;
     final errors = <String>[];
     final transfers = <FmTransfer>[];
-    final files = [
-      for (final path in paths)
-        if (FileSystemEntity.isFileSync(path)) path,
-    ];
-    final skipped = paths.length - files.length;
+    var cancelled = false;
     for (var i = 0; i < files.length; i++) {
       if (isCancelled?.call() ?? false) {
-        return FmOpResult(
-            succeeded: ok,
-            skipped: skipped,
-            errors: errors,
-            cancelled: true,
-            transfers: transfers);
+        cancelled = true;
+        break;
       }
-      final src = files[i];
-      onProgress?.call(FmProgress(i, files.length, p.basename(src)));
+      final f = files[i];
+      onProgress?.call(FmProgress(i, files.length, f.name));
       final id = base64Url
           .encode(VaultCrypto.randomBytes(12))
           .replaceAll('=', '');
       final dst = p.join(dir, '$id.dvk');
       try {
-        final size = await File(src).length();
-        await Isolate.run(() => VaultCrypto.encryptFile(src, dst, master));
-        // Doğrulama: şifreli dosya beklenen boyda mı (başlık + içerik + mac).
-        if (await File(dst).length() != size + 4 + 16 + 32) {
-          throw const VaultCorrupt();
+        final size = await File(f.src).length();
+        // Yarıda kesilmiş bir göçün tekrarı: aynı dosya dizine zaten
+        // yazılmışsa yeniden şifrelenmez, yalnız aslı silinir. "Aynı" =
+        // ad + klasör + boy tutan kaydın İÇERİĞİ de tutuyor (çözülüp özet
+        // karşılaştırılır) — yalnız ada bakmak, aynı adlı başka bir dosyayı
+        // şifrelemeden silerdi.
+        var already = false;
+        for (final it in _items) {
+          if (it.name != f.name || it.originalDir != f.dir || it.size != size) {
+            continue;
+          }
+          try {
+            await _verify(f.src, p.join(dir, '${it.id}.dvk'), master);
+            already = true;
+            break;
+          } catch (_) {}
         }
-        _items = [
-          VaultItem(
-            id: id,
-            name: p.basename(src),
-            size: size,
-            addedMs: DateTime.now().millisecondsSinceEpoch,
-            originalDir: p.dirname(src),
-          ),
-          ..._items,
-        ];
-        await _saveIndex();
-        await File(src).delete();
-        transfers.add(FmTransfer(src, dst));
+        if (!already) {
+          await Isolate.run(() => VaultCrypto.encryptFile(f.src, dst, master));
+          await _verify(f.src, dst, master);
+          _items = [
+            VaultItem(
+              id: id,
+              name: f.name,
+              size: size,
+              addedMs: DateTime.now().millisecondsSinceEpoch,
+              originalDir: f.dir,
+            ),
+            ..._items,
+          ];
+          await _saveIndex();
+        }
+        await File(f.src).delete();
+        transfers.add(FmTransfer(f.src, dst));
         ok++;
       } catch (e) {
-        errors.add('${p.basename(src)}: $e');
+        errors.add('${f.name}: $e');
         try {
           if (File(dst).existsSync()) await File(dst).delete();
         } catch (_) {}
@@ -312,7 +379,77 @@ class SecureVault extends ChangeNotifier {
     notifyListeners();
     FsEvents.changed();
     return FmOpResult(
-        succeeded: ok, skipped: skipped, errors: errors, transfers: transfers);
+        succeeded: ok,
+        errors: errors,
+        cancelled: cancelled,
+        transfers: transfers);
+  }
+
+  /// Şifreli kopya gerçekten aslının aynısı mı? Çözülüp SHA-256 özetleri
+  /// karşılaştırılır (MAC da bu sırada doğrulanır). Tutmazsa [VaultCorrupt].
+  static Future<void> _verify(String src, String enc, Uint8List master) async {
+    final check = '$enc.check';
+    try {
+      await Isolate.run(() => VaultCrypto.decryptFile(enc, check, master));
+      final a = await FileDigest.sha256Of(src);
+      final b = await FileDigest.sha256Of(check);
+      if (a != b) throw const VaultCorrupt();
+    } finally {
+      try {
+        if (File(check).existsSync()) await File(check).delete();
+      } catch (_) {}
+    }
+  }
+
+  /// **Gizli dosyalar → şifreli kasa göçü** (2026-10-21, Faz 2 "tek Kasa").
+  ///
+  /// Eski [HiddenVault] dosyaları yalnız saklıyordu (bilgisayara takınca
+  /// görünüyorlardı). Kasa açıkken bir kez çağrılır: her öğe [add]'deki
+  /// kopyala → doğrula → sil sırasıyla şifrelenir ve gizlenmeden önceki
+  /// yerine geri çıkarılabilecek şekilde ([VaultItem.originalDir]) kaydedilir.
+  /// Tamamı taşınan öğenin gizli dizin kaydı düşer; yarıda kalan öğe gizli
+  /// kasada kalır ve sonraki çağrıda kaldığı yerden devam edilir (zaten
+  /// şifrelenmiş dosyalar ikinci kez eklenmez).
+  Future<FmOpResult> importHidden({
+    void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    if (_master == null) return const FmOpResult(errors: ['locked']);
+    final hidden = await HiddenVault.list();
+    final files = <({String src, String name, String dir})>[];
+    for (final item in hidden) {
+      if (FileSystemEntity.isFileSync(item.path)) {
+        files.add((
+          src: item.path,
+          name: p.basename(item.original),
+          dir: p.dirname(item.original),
+        ));
+      } else if (FileSystemEntity.isDirectorySync(item.path)) {
+        await for (final e
+            in Directory(item.path).list(recursive: true, followLinks: false)) {
+          if (e is! File) continue;
+          final rel = p.relative(p.dirname(e.path), from: item.path);
+          files.add((
+            src: e.path,
+            name: p.basename(e.path),
+            dir: rel == '.' ? item.original : p.join(item.original, rel),
+          ));
+        }
+      }
+    }
+    final result = await _addFiles(files,
+        onProgress: onProgress, isCancelled: isCancelled);
+    final done = <HiddenItem>[];
+    for (final item in hidden) {
+      if (FileSystemEntity.isDirectorySync(item.path)) {
+        await _deleteIfNoFiles(item.path);
+      }
+      final gone = !File(item.path).existsSync() &&
+          !Directory(item.path).existsSync();
+      if (gone) done.add(item);
+    }
+    if (done.isNotEmpty) await HiddenVault.forget(done);
+    return result;
   }
 
   /// Görüntülemek için geçici düz kopya (kilitlenince silinir).
@@ -334,8 +471,13 @@ class SecureVault extends ChangeNotifier {
   Future<String> restore(VaultItem item) async {
     final master = _master;
     if (master == null) throw StateError('locked');
+    // Özgün klasör yoksa yeniden kurulur (klasörüyle gizlenen dosyalar
+    // ağacına dönsün); kurulamıyorsa (SD kart çıkarılmış) İndirilenler'e.
     var targetDir = item.originalDir;
-    if (targetDir.isEmpty || !Directory(targetDir).existsSync()) {
+    try {
+      if (targetDir.isEmpty) throw const FileSystemException();
+      await Directory(targetDir).create(recursive: true);
+    } catch (_) {
       targetDir = p.join(FmEnv.primaryRoot, 'Download');
       await Directory(targetDir).create(recursive: true);
     }

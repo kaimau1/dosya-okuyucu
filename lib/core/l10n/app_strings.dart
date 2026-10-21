@@ -7105,6 +7105,13 @@ const Map<String, (String, String, String)> _table = {
   'mem.n_photos': ('{n} fotoğraf', '{n} photos', '{n} صورة'),
   // ── şifreli kasa (2026-10-18) ───────────────────────────────────────────
   'vault.title': ('Şifreli kasa', 'Encrypted vault', 'الخزنة المشفرة'),
+  'vault.pin_use_lock': ('Klasör kilidinin PIN\'ini girin — kasa aynı PIN\'i kullanır', 'Enter your folder lock PIN — the vault uses the same PIN', 'أدخل رمز قفل المجلدات — الخزنة تستخدم الرمز نفسه'),
+  'vault.pin_same_existing': ('Kasa, klasör ve uygulama kilidiyle aynı PIN\'i kullanır: mevcut PIN\'inizi girin.', 'The vault uses the same PIN as folder and app lock: enter your current PIN.', 'تستخدم الخزنة رمز قفل المجلدات والتطبيق نفسه: أدخل رمزك الحالي.'),
+  'vault.pin_same_new': ('Bu PIN klasör ve uygulama kilidi için de kullanılır.', 'This PIN is also used for folder and app lock.', 'يُستخدم هذا الرمز أيضًا لقفل المجلدات والتطبيق.'),
+  'vault.legacy_title': ('{n} gizli öğe şifresiz duruyor', '{n} hidden items are not encrypted', '{n} عنصرًا مخفيًا غير مشفّر'),
+  'vault.legacy_body': ('Eski "Gizli dosyalar" yalnız saklıyordu; telefon bilgisayara bağlanınca görünürler. Kasaya taşıyınca şifrelenirler — her dosya önce şifrelenip doğrulanır, sonra aslı silinir.', 'Old "Hidden files" were only tucked away; they show up when the phone is connected to a computer. Moving them into the vault encrypts them — each file is encrypted and verified before the original is deleted.', 'كانت "الملفات المخفية" القديمة مخفية فقط وتظهر عند توصيل الهاتف بحاسوب. نقلها إلى الخزنة يشفّرها — يُشفَّر كل ملف ويُتحقق منه قبل حذف الأصل.'),
+  'vault.legacy_move': ('Kasaya taşı', 'Move into vault', 'انقل إلى الخزنة'),
+  'vault.legacy_show': ('Listeyi gör', 'See the list', 'اعرض القائمة'),
   'vault.move': ('Şifreli kasaya taşı', 'Move to encrypted vault', 'انقل إلى الخزنة المشفرة'),
   'vault.move_hint': (
     'İçerik şifrelenir; PIN ya da parmak izi olmadan açılmaz',
@@ -8214,9 +8221,9 @@ const Map<String, (String, String, String)> _table = {
     'إخفاء {n} عنصر؟',
   ),
   'hv.confirm_body': (
-    'Öğeler gizli klasöre taşınacak. Panodaki “Gizli dosyalar”dan geri yükleyebilirsiniz.',
-    'The items will be moved to the hidden folder. Restore them from “Hidden files” on the home screen.',
-    'ستُنقل العناصر إلى المجلد المخفي. يمكنك استعادتها من «الملفات المخفية» في الشاشة الرئيسية.',
+    'Öğeler şifrelenip Kasa\'ya taşınacak; telefon bilgisayara bağlansa da okunamazlar. Kasa\'dan geri çıkarabilirsiniz.',
+    'The items will be encrypted and moved into the Vault; they stay unreadable even when the phone is connected to a computer. Take them out from the Vault.',
+    'ستُشفَّر العناصر وتُنقل إلى الخزنة، فلا تُقرأ حتى عند توصيل الهاتف بحاسوب. يمكنك إخراجها من الخزنة.',
   ),
   'dash.reset': (
     'Varsayılan',

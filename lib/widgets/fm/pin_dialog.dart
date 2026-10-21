@@ -6,6 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../services/fm/folder_lock.dart';
+import '../../services/fm/secure_vault.dart';
 
 /// PIN sorar ve doğruysa true döner.
 ///
@@ -23,22 +24,56 @@ Future<bool> askPin(BuildContext context, {String? title}) async {
 }
 
 /// PIN kurar/değiştirir (iki kez sorar). Başarılıysa true.
+///
+/// 2026-10-21 (tek Kasa): PIN kuruluysa önce **mevcut PIN** sorulur —
+/// eskiden sorulmuyordu, telefonu eline alan biri PIN'i değiştirip kilitli
+/// klasörleri açabiliyordu. Şifreli kasa aynı PIN'i kullandığı için kasanın
+/// ana anahtarı yeni PIN'le yeniden sarılır ([SecureVault.changePin]).
 Future<bool> setupPin(BuildContext context) async {
   final appState = context.read<AppState>();
-  final ok = await showDialog<bool>(
+  String? oldPin;
+  if (appState.fmHasLockPin) {
+    oldPin = await showDialog<String>(
+      context: context,
+      builder: (_) => _PinDialog(
+          title: AppStrings.of(context).t('fm.pin_enter'), returnPin: true),
+    );
+    if (oldPin == null || !context.mounted) return false;
+  }
+  final newPin = await showDialog<String>(
     context: context,
     builder: (_) => _PinDialog(
         title: AppStrings.of(context).t('fm.pin_new'), setup: true),
   );
-  if (ok != true) return false;
-  if (!context.mounted) return false;
+  if (newPin == null) return false;
+  await syncVaultPin(oldPin, newPin);
   return appState.fmHasLockPin;
+}
+
+/// Kasa varsa ana anahtarını [newPin]le yeniden sarar. Kasa kilitliyse
+/// [oldPin]le açılıp işten sonra yeniden kilitlenir. Kasa eski bir sürümde
+/// AYRI bir PIN'le kurulduysa (eski PIN onu açmaz) kasanın PIN'i değişmez.
+Future<bool> syncVaultPin(String? oldPin, String newPin) async {
+  final vault = SecureVault.instance;
+  if (!vault.exists) return false;
+  final wasLocked = !vault.unlocked;
+  if (wasLocked) {
+    if (oldPin == null || !await vault.unlockWithPin(oldPin)) return false;
+  }
+  final ok = await vault.changePin(newPin);
+  if (wasLocked) await vault.lock();
+  return ok;
 }
 
 class _PinDialog extends StatefulWidget {
   final String title;
   final bool setup;
-  const _PinDialog({required this.title, this.setup = false});
+
+  /// Doğrulanan PIN'i `true` yerine kendisi olarak döndür (kasa anahtarını
+  /// yeniden sarmak için gerekli).
+  final bool returnPin;
+  const _PinDialog(
+      {required this.title, this.setup = false, this.returnPin = false});
 
   @override
   State<_PinDialog> createState() => _PinDialogState();
@@ -77,11 +112,11 @@ class _PinDialogState extends State<_PinDialog> {
         return;
       }
       await appState.setFmLockPin(pin);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, pin);
       return;
     }
     if (FolderLock.verify(pin, appState.fmLockPinHash)) {
-      Navigator.pop(context, true);
+      Navigator.pop(context, widget.returnPin ? pin : true);
     } else {
       setState(() => _error = context.t('pin.wrong'));
     }

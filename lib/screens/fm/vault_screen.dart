@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
@@ -11,12 +13,15 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/folder_lock.dart';
+import '../../services/fm/hidden_vault.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/native_extras.dart';
 import '../../services/fm/secure_vault.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import 'hidden_files_screen.dart';
 
 /// **Şifreli kasa** ekranı (bkz. [SecureVault]): kurulum → kilit → içerik.
 ///
@@ -41,11 +46,41 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
   bool _canBio = false;
   bool _bioOn = false;
 
+  /// Eski (şifresiz) gizli dosya sayısı — kasa açılınca taşıma kartı için.
+  int _legacyHidden = 0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initBio();
+    _countLegacy();
+  }
+
+  Future<void> _countLegacy() async {
+    final n = (await HiddenVault.list()).length;
+    if (mounted) setState(() => _legacyHidden = n);
+  }
+
+  /// **Tek Kasa göçü** (2026-10-21): eski gizli dosyalar şifrelenip kasaya
+  /// taşınır (kopyala → doğrula → sil; bkz. [SecureVault.importHidden]).
+  Future<void> _importLegacy() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await showFmProgress<FmOpResult>(
+      context,
+      title: strings.t('vault.adding'),
+      name: strings.t('vault.legacy_move'),
+      task: (report, isCancelled) => SecureVault.instance
+          .importHidden(onProgress: report, isCancelled: isCancelled),
+    );
+    await _countLegacy();
+    showSnackOn(
+      messenger,
+      result.hasError
+          ? result.errors.first
+          : strings.t('vault.added_n', {'n': result.succeeded}),
+    );
   }
 
   Future<void> _initBio() async {
@@ -87,11 +122,21 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
       setState(() => _error = context.t('vault.pin_mismatch'));
       return;
     }
+    // **Tek PIN** (2026-10-21): kasa, klasör kilidi ve uygulama kilidiyle
+    // AYNI PIN'i kullanır. PIN zaten kuruluysa o girilmeli; değilse kasanın
+    // PIN'i klasör/uygulama kilidinin de PIN'i olur.
+    final appState = context.read<AppState>();
+    if (appState.fmHasLockPin &&
+        !FolderLock.verify(pin, appState.fmLockPinHash)) {
+      setState(() => _error = context.t('vault.pin_use_lock'));
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     await SecureVault.instance.create(pin);
+    if (!appState.fmHasLockPin) await appState.setFmLockPin(pin);
     _pin.clear();
     _pin2.clear();
     if (_canBio) await _toggleBio(true);
@@ -290,6 +335,14 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
         children: [
           _hero(context, context.t('vault.setup_title'),
               context.t('vault.setup_body')),
+          const SizedBox(height: Gap.sm),
+          Text(
+            context.t(context.read<AppState>().fmHasLockPin
+                ? 'vault.pin_same_existing'
+                : 'vault.pin_same_new'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: Gap.lg),
           _pinField(_pin, context.t('vault.pin')),
           const SizedBox(height: Gap.sm),
@@ -369,6 +422,43 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
+        if (_legacyHidden > 0) ...[
+          const SizedBox(height: Gap.sm),
+          Card(
+            color: theme.colorScheme.tertiaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(Gap.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.t('vault.legacy_title', {'n': _legacyHidden}),
+                      style: theme.textTheme.titleSmall),
+                  const SizedBox(height: Gap.xs),
+                  Text(context.t('vault.legacy_body'),
+                      style: theme.textTheme.bodySmall),
+                  const SizedBox(height: Gap.sm),
+                  Wrap(
+                    spacing: Gap.sm,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: _importLegacy,
+                        icon: const Icon(Icons.enhanced_encryption_outlined),
+                        label: Text(context.t('vault.legacy_move')),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await HiddenFilesScreen.open(context);
+                          await _countLegacy();
+                        },
+                        child: Text(context.t('vault.legacy_show')),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: Gap.sm),
         if (items.isEmpty)
           Padding(

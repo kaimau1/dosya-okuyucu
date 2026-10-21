@@ -76,7 +76,6 @@ enum _EntryAction {
   join,
   shortcut,
   hide,
-  vault,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -245,14 +244,11 @@ Future<bool> showEntryActions(
               if (isPart)
                 _act(ctx, Icons.merge, ctx.t('ea.join'), _EntryAction.join,
                     hint: ctx.t('ea.join_hint')),
-              _act(ctx, Icons.visibility_off_outlined, ctx.t('ea.hide'),
+              // Gizle = şifreli kasaya taşı (2026-10-21, tek Kasa): iki ayrı
+              // satır ("Gizle" ve "Şifreli kasaya taşı") birleşti.
+              _act(ctx, Icons.enhanced_encryption_outlined, ctx.t('ea.hide'),
                   _EntryAction.hide,
-                  hint: ctx.t('ea.hide_hint')),
-              // Şifreli kasa (2026-10-18): gizlemenin ötesi — içerik şifrelenir.
-              if (!entry.isDir)
-                _act(ctx, Icons.enhanced_encryption_outlined,
-                    ctx.t('vault.move'), _EntryAction.vault,
-                    hint: ctx.t('vault.move_hint')),
+                  hint: ctx.t('vault.move_hint')),
               _act(ctx, Icons.info_outline, ctx.t('fm.properties'),
                   _EntryAction.properties),
             ]),
@@ -383,9 +379,6 @@ Future<bool> showEntryActions(
 
     case _EntryAction.hide:
       return hideEntries(context, [entry.path]);
-
-    case _EntryAction.vault:
-      return addToVault(context, [entry.path]);
 
     case _EntryAction.properties:
       await showProperties(context, entry);
@@ -1760,16 +1753,15 @@ Future<void> addHomeShortcut(BuildContext context, FsEntry entry) async {
           : strings.t('ea.shortcut_failed'));
 }
 
-/// Öğeleri gizli kasaya taşır (bkz. [HiddenVault]). Onay sorulur; bir şey
-/// gizlendiyse true (liste tazelensin).
+/// Öğeleri gizler = **şifreli kasaya taşır** (2026-10-21, Faz 2 "tek Kasa";
+/// eskiden şifresiz [HiddenVault]'a taşıyordu). Onay sorulur; kasa kilitliyse
+/// kilit ekranı açılır. Bir şey taşındıysa true (liste tazelensin).
 Future<bool> hideEntries(BuildContext context, List<String> paths) async {
   if (paths.isEmpty) return false;
-  final strings = AppStrings.of(context);
-  final messenger = ScaffoldMessenger.of(context);
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      icon: const Icon(Icons.visibility_off_outlined),
+      icon: const Icon(Icons.enhanced_encryption_outlined),
       title: Text(ctx.t('hv.confirm_title', {'n': paths.length})),
       content: Text(ctx.t('hv.confirm_body')),
       actions: [
@@ -1782,22 +1774,6 @@ Future<bool> hideEntries(BuildContext context, List<String> paths) async {
       ],
     ),
   );
-  if (ok != true) return false;
-  if (!context.mounted) return false;
-  // İlerleme penceresiyle (SD karttan kasaya taşımak bir kopyalama — büyük
-  // videoda dakikalar; eskiden hiçbir şey görünmüyordu).
-  final result = await showFmProgress<FmOpResult>(
-    context,
-    title: strings.t('hv.hiding'),
-    name: strings.t('hv.hide_name'),
-    task: (report, isCancelled) => HiddenVault.hide(paths,
-        onProgress: report, isCancelled: isCancelled),
-  );
-  if (result.transfers.isNotEmpty) {
-    showSnackOn(messenger,
-        strings.t('hv.hidden_n', {'n': result.transfers.length}));
-  } else if (result.hasError) {
-    showSnackOn(messenger, result.errors.first);
-  }
-  return result.transfers.isNotEmpty;
+  if (ok != true || !context.mounted) return false;
+  return addToVault(context, paths);
 }

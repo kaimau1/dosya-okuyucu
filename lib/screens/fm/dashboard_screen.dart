@@ -58,7 +58,6 @@ import 'installed_apps_screen.dart';
 import 'memories_screen.dart';
 import 'new_files_screen.dart';
 import 'swipe_pager.dart';
-import 'hidden_files_screen.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../widgets/fm/dashboard_layout_sheet.dart';
 import 'ai_hub_screen.dart';
@@ -1419,15 +1418,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       // (Yaptıklarım ve Son işlemler 2026-10-21'de Geçmiş'e katıldı: İşlemler
       // kutusu Geçmiş'in İşlemler bölümünü açar.)
-      // **Gizli dosyalar** (2026-09-27, kullanıcı: "dosyaları seçip gizleme").
-      FmTileData(
-        icon: Icons.visibility_off_outlined,
-        color: const Color(0xFF546E7A),
-        id: 'hidden',
-        label: context.t('hv.title'),
-        subtitle: '',
-        onTap: () => HiddenFilesScreen.open(context),
-      ),
+      // (Gizli dosyalar 2026-10-21'de Kasa'ya katıldı: gizlemek = şifreli
+      // kasaya taşımak; eski gizliler Kasa ekranından taşınır.)
       // **Aktar** (2026-10-21, Faz 2): Ağdan erişim, Yakındaki cihaz, Ağ
       // depolama ve İndir dört ayrı kutuydu; tek kapı oldu. Alt yazı canlı:
       // paylaşım açıksa ya da indirme sürüyorsa yazar.

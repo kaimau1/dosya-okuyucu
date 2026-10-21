@@ -6,7 +6,6 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../screens/fm/entry_actions.dart';
-import '../../screens/fm/vault_screen.dart';
 import '../../screens/fm/resize_actions.dart';
 import '../../screens/fm/swipe_pager.dart';
 import 'batch_rename_sheet.dart';
@@ -201,8 +200,6 @@ class FmSelectionBar extends StatelessWidget {
               if (await showTagPicker(context, _paths)) await onChanged();
             case 'hide':
               if (await hideEntries(context, _paths)) await onChanged();
-            case 'vault':
-              if (await addToVault(context, _paths)) await onChanged();
             case 'properties':
               if (selected.length == 1 && context.mounted) {
                 await showProperties(context, selected.first);
@@ -225,7 +222,6 @@ class FmSelectionBar extends StatelessWidget {
             PopupMenuItem(value: 'resize', child: Text(context.t('fm.resize'))),
           PopupMenuItem(value: 'tag', child: Text(context.t('fm.tag'))),
           PopupMenuItem(value: 'hide', child: Text(context.t('ea.hide'))),
-          PopupMenuItem(value: 'vault', child: Text(context.t('vault.move'))),
           PopupMenuItem(
               value: 'important',
               child: Text(context.t('fm.copy_to_important'))),
