@@ -44,7 +44,7 @@ import '../../widgets/new_document_sheet.dart';
 import '../../widgets/scan_flow.dart';
 import '../../widgets/section_header.dart';
 import 'analysis_screen.dart';
-import 'activity_screen.dart';
+import 'history_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'chat_cleanup_screen.dart';
@@ -66,9 +66,6 @@ import '../../services/fm/dashboard_layout.dart';
 import '../../widgets/fm/dashboard_layout_sheet.dart';
 import 'ai_hub_screen.dart';
 import '../../widgets/fm/ai_status_icon.dart';
-import 'jobs_screen.dart';
-import 'op_history_screen.dart';
-import 'open_history_screen.dart';
 import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
@@ -1243,13 +1240,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       // insanların panoya dönme sebeplerinden biri (istek 2026-08-09:
       // *"... kolay erişilebilir olmalı"*). Çöp kutusu ve Drive ile aynı
       // terfi hikâyesi.
+      // 2026-10-21: kutu artık **Geçmiş**in kapısı (Açılanlar · Üretilenler
+      // · İşlemler · Yeni gelenler). Kimlik 'recent' KALDI — kullanıcının
+      // kaydettiği pano sırası bu kimlikle duruyor.
       FmTileData(
         id: 'recent',
         icon: Icons.history_rounded,
         color: const Color(0xFF5A5FD6),
-        label: context.t('fm.recent_opened'),
-        subtitle: context.t('fm.recent_opened_note'),
-        onTap: () => _push(const OpenHistoryScreen()),
+        label: context.t('hist.title'),
+        subtitle: context.t('hist.tile_sub'),
+        onTap: () => HistoryScreen.open(context),
       ),
       // **Google Drive — büyük kutulardan biri** (kullanıcı isteği 2026-08-05:
       // *"Drive daha kolay erişilebilmeli, şu an zor bulunuyor"*). Çöp
@@ -1419,14 +1419,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ? context.t('fm.jobs_finished', {'n': finishedJobs})
                 : ''),
         onTap: () async {
-          await openJobsScreen(context);
+          await HistoryScreen.open(context, HistorySection.jobs);
           if (mounted) setState(() {});
         },
       ),
-      // **Yaptıklarım** — İşlemler'in hemen yanında, bilinçli (istek
-      // 2026-08-07: *"benim yaptıklarım kartı lazım … her şey kategorize
-      // olmalı"*). İşlemler "şu an ne oluyor"u, bu kutu "ne ürettim"i
-      // gösterir: küçültülen video, düzenlenen PDF, taranan belge.
+      // (Yaptıklarım ve Son işlemler 2026-10-21'de Geçmiş'e katıldı: İşlemler
+      // kutusu Geçmiş'in İşlemler bölümünü açar.)
       // **Gizli dosyalar** (2026-09-27, kullanıcı: "dosyaları seçip gizleme").
       FmTileData(
         icon: Icons.visibility_off_outlined,
@@ -1435,17 +1433,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         label: context.t('hv.title'),
         subtitle: '',
         onTap: () => HiddenFilesScreen.open(context),
-      ),
-      FmTileData(
-        icon: Icons.history_edu_outlined,
-        color: const Color(0xFF6A4C93),
-        id: 'activity',
-        label: context.t('act.title'),
-        // Alt yazı KALKTI (2026-08-29): "Ürettiğiniz dosyalar" bir sayaç
-        // değil, dört sütunda "Üretiğiniz dosyal…" diye kırpılan bir dolgu
-        // metindi. Araç ızgarasının kuralı: alt satır yalnız CANLI bilgi.
-        subtitle: '',
-        onTap: () => _push(const ActivityScreen()),
       ),
       // Ağ depolama (NAS): Drive'ın yanında — ikisi de "telefonun dışındaki
       // dosyalar". FTP/FTPS/SFTP/SMB/WebDAV bağlantıları burada.
@@ -1634,14 +1621,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       // gösterildi. Gerekçe Drive/Çöp kutusu/Son açılanlarla aynı: yüklü
       // uygulamalar hem yer analizinin hem de "neyi kaldırsam" sorusunun
       // kapısı, 12 küçük simgenin arasında kayboluyordu.)
-      FmTileData(
-        icon: Icons.history_toggle_off,
-        color: const Color(0xFF6D4C41),
-        id: 'recent_ops',
-        label: context.t('fm.recent_ops'),
-        subtitle: '',
-        onTap: () => _push(const OpHistoryScreen()),
-      ),
       // NOT: "Son açılanlar" buradan YUKARI, büyük kutulara taşındı (bkz.
       // `_categoryGrid`). "Son işlemler" taşı/kopyala/sil gibi İŞLEMLERİ
       // tutar; o, hangi DOSYALARIN ne zaman AÇILDIĞINI — ikisi ayrı veri,

@@ -6,6 +6,7 @@ import 'package:dosya_okuyucu/screens/fm/category_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/dashboard_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/downloads_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/duplicates_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/history_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/image_gallery_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/installed_apps_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/jobs_screen.dart';
@@ -54,6 +55,7 @@ void main() {
       for (final category in settingsCategories())
         SettingsCategoryScreen(category: category),
       const JobsScreen(),
+      for (final s in HistorySection.values) HistoryScreen(initial: s),
     ];
     expect(widgets, everyElement(isA<Widget>()));
   });

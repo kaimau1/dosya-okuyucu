@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dosya_okuyucu/screens/fm/history_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/jobs_screen.dart';
 import 'package:dosya_okuyucu/services/fm/job_queue.dart';
 import 'package:dosya_okuyucu/widgets/fm/job_progress_bar.dart';
@@ -131,5 +132,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Biten iş'), findsNothing);
     expect(JobQueue.instance.find('ui_bar'), isNotNull);
+  });
+
+  testWidgets('Geçmiş: dört bölüm tek ekranda, İşlemler geri alı da taşır',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+        home: HistoryScreen(initial: HistorySection.jobs)));
+    await tester.pump();
+    for (final label in ['Açılanlar', 'Üretilenler', 'İşlemler', 'Yeni gelenler']) {
+      expect(find.text(label), findsWidgets, reason: label);
+    }
+    // İşlemler bölümü açık: kendi başlığı ve eski "Son işlemler" kapısı.
+    expect(find.byType(JobsScreen), findsOneWidget);
+    expect(find.byTooltip('Son işlemler'), findsOneWidget);
+    // Diğer bölümler seçilmeden kurulmaz (açılışta disk taranmasın).
+    expect(find.byType(NavigationBar), findsOneWidget);
   });
 }

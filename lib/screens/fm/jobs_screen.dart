@@ -13,6 +13,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/section_header.dart';
 import 'browser_screen.dart';
 import 'job_navigation.dart';
+import 'op_history_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 
@@ -42,6 +43,14 @@ class JobsScreen extends StatelessWidget {
         appBar: AppBar(
           title: Text(context.t('jb.title')),
           actions: [
+            // Geri alınabilir taşıma/kopyalama geçmişi (eski "Son işlemler"
+            // kutusu, 2026-10-21'de Geçmiş > İşlemler'e katıldı).
+            IconButton(
+              tooltip: context.t('oph.title'),
+              icon: const Icon(Icons.undo_rounded),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const OpHistoryScreen())),
+            ),
             AnimatedBuilder(
               animation: JobQueue.instance,
               builder: (context, _) =>
