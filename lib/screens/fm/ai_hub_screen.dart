@@ -38,6 +38,7 @@ import '../../widgets/fm/ai_preview_card.dart';
 import '../settings_screen.dart';
 import '../chat_screen.dart';
 import 'ai_files_screen.dart';
+import 'bills_screen.dart';
 import 'smart_folders_screen.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
@@ -87,6 +88,15 @@ class _AiHubScreenState extends State<AiHubScreen>
             icon: const Icon(Icons.folder_special_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SmartFoldersScreen()),
+            ),
+          ),
+          // Faturalar ve giderler (2026-10-21, K8): ayrı pano kutusu değil,
+          // AI Merkezi'nin bir bölümü — veri zaten AI analizinden geliyor.
+          IconButton(
+            tooltip: context.t('bills.title'),
+            icon: const Icon(Icons.receipt_long_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BillsScreen()),
             ),
           ),
           // Serbest sohbet (eskiden alt çubuğun AI sekmesiydi, 2026-09-27).

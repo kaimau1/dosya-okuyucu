@@ -69,9 +69,7 @@ import '../../widgets/fm/ai_status_icon.dart';
 import 'organize_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
-import 'bills_screen.dart';
 import 'similar_screen.dart';
-import 'smart_folders_screen.dart';
 import 'tools_screen.dart';
 import 'trash_screen.dart';
 import 'vault_screen.dart';
@@ -1543,29 +1541,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         subtitle: '',
         onTap: () => _push(const VaultScreen()),
       ),
-      // Faturalar ve giderler (2026-10-18): AI'nın tanıdığı faturalardan
-      // tutar/son ödeme/kurum, aylık özet, son günden önce hatırlatma.
-      FmTileData(
-        icon: Icons.receipt_long_rounded,
-        color: const Color(0xFFD9472B),
-        id: 'bills',
-        label: context.t('bills.title'),
-        subtitle: context.t('bills.tile_sub'),
-        onTap: () => _push(const BillsScreen()),
-      ),
-      // Akıllı klasörler (2026-10-18): kayıtlı AI aramaları — "faturalar"
-      // bir kez sorulur, sonra yeni gelenler kendiliğinden içeri girer.
-      FmTileData(
-        icon: Icons.folder_special_rounded,
-        color: const Color(0xFF6246EA),
-        id: 'smart_folders',
-        label: context.t('smart.title'),
-        subtitle: SmartFolders.instance.folders.isEmpty
-            ? ''
-            : context.t('smart.count_folders',
-                {'n': SmartFolders.instance.folders.length}),
-        onTap: () => _push(const SmartFoldersScreen()),
-      ),
+      // (Faturalar ve Akıllı klasörler 2026-10-21'de AI Merkezi'ne indi —
+      // K8: "ayrı pano kutusu değil, AI Merkezi'nin alt bölümü".)
       // Sohbet yığını ayrı bir kutu: telefonu dolduran şey çoğu kullanıcıda
       // WhatsApp klasörü oluyor ve orada "gereksiz" ölçütü genel yer açmadan
       // farklı (çıkartma, iletilmiş mem, gönderilenin kopyası…).
