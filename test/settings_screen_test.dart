@@ -74,7 +74,7 @@ void main() {
       'skin', 'theme', 'background', 'ui_font', 'ui_text_size', 'language',
       'list_layout', 'default_sort', 'show_hidden', 'thumbnails',
       'photo_grid', 'photo_group', 'media_open_with', 'start_folder',
-      'api_key', 'ai_backup_keys', 'ai_model_chain', 'ai_pool_status',
+      'api_key', 'ai_backup_keys', 'ai_model_chain',
       'ai_excluded', 'ai_types', 'ai_privacy', 'ai_budget', 'memory',
       // 'account' 2026-09-26'da BİLİNÇLİ kalktı: Firebase giriş/senkronu
       // hiçbir derlemede yapılandırılmamıştı (kullanıcı onaylı sadeleştirme).

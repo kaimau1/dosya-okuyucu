@@ -26,13 +26,48 @@ class SettingsBackupTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Yedekle ve geri yükle TEK satır (2026-10-21, Faz 2 ayar sadeleşmesi):
+    // iki satır aynı dosyanın iki yönüydü.
     return SettingTile(
       icon: Icons.backup_outlined,
       title: context.t('backup.title'),
       subtitle: context.t('backup.sub'),
       wrapSubtitle: true,
-      onTap: () => _export(context),
+      onTap: () => _choose(context),
     );
+  }
+
+  Future<void> _choose(BuildContext context) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.backup_outlined),
+              title: Text(ctx.t('backup.title')),
+              subtitle: Text(ctx.t('backup.sub')),
+              onTap: () => Navigator.pop(ctx, 'export'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_backup_restore),
+              title: Text(ctx.t('backup.restore')),
+              subtitle: Text(ctx.t('backup.restore_sub')),
+              onTap: () => Navigator.pop(ctx, 'restore'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    switch (action) {
+      case 'export':
+        await _export(context);
+      case 'restore':
+        await _restore(context);
+    }
   }
 
   Future<void> _export(BuildContext context) async {
@@ -56,23 +91,8 @@ class SettingsBackupTile extends StatelessWidget {
       showSnackOn(messenger, strings.t('backup.failed', {'error': e}));
     }
   }
-}
 
-/// Yedekten geri yükleme. Dosya seçici ile bir `.json` seçtirir.
-class SettingsRestoreTile extends StatelessWidget {
-  const SettingsRestoreTile({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingTile(
-      icon: Icons.settings_backup_restore,
-      title: context.t('backup.restore'),
-      subtitle: context.t('backup.restore_sub'),
-      wrapSubtitle: true,
-      onTap: () => _restore(context),
-    );
-  }
-
+  /// Yedekten geri yükleme. Dosya seçici ile bir `.json` seçtirir.
   Future<void> _restore(BuildContext context) async {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);

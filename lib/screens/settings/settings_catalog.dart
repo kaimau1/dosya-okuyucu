@@ -377,11 +377,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               builder: _aiModelChainTile,
             ),
             SettingRow(
-              id: 'ai_pool_status',
-              titleKey: 'aipool.status',
-              builder: _aiPoolStatusTile,
-            ),
-            SettingRow(
               id: 'ai_budget',
               titleKey: 'aiset.budget',
               subtitleKey: 'aiset.budget_sub',
@@ -536,13 +531,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               id: 'settings_backup',
               titleKey: 'backup.title',
               subtitleKey: 'backup.sub',
+              altKeys: ['backup.restore'],
               builder: _settingsBackupTile,
-            ),
-            SettingRow(
-              id: 'settings_restore',
-              titleKey: 'backup.restore',
-              subtitleKey: 'backup.restore_sub',
-              builder: _settingsRestoreTile,
             ),
           ], advanced: true),
           // **Deneysel** (2026-10-21, K8): SD kartla birleşik depolama
@@ -598,6 +588,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                   titleKey: 'usb.diag_title',
                   subtitleKey: 'usb.diag_sub',
                   builder: _usbDiagnosticsTile),
+              // Anahtar havuzunun canlı durumu — teşhis bilgisi.
+              SettingRow(
+                  id: 'ai_pool_status',
+                  titleKey: 'aipool.status',
+                  builder: _aiPoolStatusTile),
               SettingRow(
                   id: 'developer_off',
                   titleKey: 'dev.turn_off',
@@ -659,7 +654,6 @@ Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
 Widget _weeklyCleanupTile(BuildContext _) => const WeeklyCleanupTile();
 Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
-Widget _settingsRestoreTile(BuildContext _) => const SettingsRestoreTile();
 Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
