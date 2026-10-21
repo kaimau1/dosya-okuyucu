@@ -133,6 +133,7 @@ class _SearchScreenState extends State<SearchScreen> {
     // Ekran açılırken dizin hazırlanır; kullanıcı yazana kadar çoğu zaman
     // hazır olur, olmazsa canlı taramaya düşülür.
     SearchIndex.ensureBuilt();
+    SearchIndex.openSession(); // P10: dizin ekran açıkken bellekte
     // Geçmiş, kullanıcı yazmaya başlamadan önce (boş ekranda) gösteriliyor.
     SearchHistory.ensureLoaded().then((_) {
       if (mounted) setState(() {});
@@ -142,6 +143,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     SearchIndex.revision.removeListener(_onIndexChanged);
+    SearchIndex.closeSession();
     _debounce?.cancel();
     _controller.dispose();
     _scroll.dispose();

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart' show ValueNotifier, compute;
 import 'package:path/path.dart' as p;
@@ -32,6 +33,10 @@ export 'fs_scan.dart' show encodeIndexRow, decodeIndexRow;
 ///   ana izlekte kare atlatırdı. Dizin ana izlekte BELLEKTE TUTULMAZ —
 ///   100 bin yolu RAM'de tutmak (~15 MB) ucuz telefonlarda pahalı; dosyayı
 ///   okumak işletim sistemi önbelleğiyle zaten hızlı.
+/// - **Arama ekranı açıkken** ([openSession]/[closeSession]) dizin uzun
+///   ömürlü bir isolate'te bellekte durur (ad katlamaları önceden hesaplı):
+///   her harfte yeni isolate + diski baştan okuma + ayrıştırma kalkar (P10,
+///   Faz 4). Ekran kapanınca isolate öldürülür, bellek geri verilir.
 /// - Sonuçlar dönerken diskte gerçekten var mı diye süzülür → dizin bayatsa
 ///   bile silinmiş dosya sonuçta görünmez.
 /// - Dosya sistemi değişince ([FsEvents]) dizin "bayat" işaretlenir; bir
@@ -49,6 +54,22 @@ abstract final class SearchIndex {
   static bool _stale = false;
   static Future<int>? _building;
   static int _seenFsVersion = FsEvents.version.value;
+  static _SearchWorker? _worker;
+  static int _sessions = 0;
+
+  /// Arama ekranı açılışında çağrılır: dizin, ekran açık kaldıkça bir
+  /// isolate'te bellekte tutulur. Her [openSession] bir [closeSession] ister.
+  static void openSession() {
+    if (_sessions++ == 0) _worker = _SearchWorker();
+  }
+
+  static void closeSession() {
+    if (_sessions == 0) return;
+    if (--_sessions == 0) {
+      _worker?.dispose();
+      _worker = null;
+    }
+  }
 
   /// Dizin ne zaman kuruldu (0 = hiç kurulmadı).
   static int get builtAtMs => _builtAtMs;
@@ -254,17 +275,18 @@ abstract final class SearchIndex {
       return _postFilter(hits, category, includeDirs);
     }
     try {
-      final rows = await compute(
-        _querySync,
-        _QueryArgs(
-          indexPath: indexPath,
-          query: matchAll && q.isEmpty ? '' : q,
-          root: root,
-          categoryName: category?.name,
-          includeDirs: includeDirs,
-          limit: limit,
-        ),
+      final args = _QueryArgs(
+        indexPath: indexPath,
+        query: matchAll && q.isEmpty ? '' : q,
+        root: root,
+        categoryName: category?.name,
+        includeDirs: includeDirs,
+        limit: limit,
       );
+      final worker = _worker;
+      final rows = worker != null
+          ? await worker.query(args)
+          : await compute(_querySync, args);
       // Dizin bayat olabilir: diskte kalmayanları düşür (en çok `limit`
       // kadar stat çağrısı — göz açıp kapayıncaya kadar).
       return rows.where((e) => e.exists).toList();
@@ -369,15 +391,36 @@ int _buildSync(_BuildArgs args) {
   return count;
 }
 
+/// Sorgu süzgeci — tek seferlik [_querySync] ile uzun ömürlü [_SearchWorker]
+/// aynı kuralı kullanır.
+class _Matcher {
+  final String needle;
+  final String? rootPrefix;
+  final FmCategory? category;
+  final bool includeDirs;
+  _Matcher(_QueryArgs a)
+      : needle = turkishFold(a.query),
+        rootPrefix = a.root == null ? null : p.normalize(a.root!),
+        category = FmCategory.values
+            .where((c) => c.name == a.categoryName)
+            .firstOrNull,
+        includeDirs = a.includeDirs;
+
+  /// [folded] yalnız ad karşılaştırması gerektiğinde çağrılır.
+  bool test(FsEntry e, String Function() folded) {
+    if (!includeDirs && e.isDir) return false;
+    if (rootPrefix != null && !FsPaths.isInside(rootPrefix!, e.path)) {
+      return false;
+    }
+    if (category != null && e.category != category) return false;
+    return needle.isEmpty || folded().contains(needle);
+  }
+}
+
 List<FsEntry> _querySync(_QueryArgs args) {
   final file = File(args.indexPath);
   if (!file.existsSync()) return const [];
-  final needle = turkishFold(args.query);
-  FmCategory? category;
-  for (final c in FmCategory.values) {
-    if (c.name == args.categoryName) category = c;
-  }
-  final rootPrefix = args.root == null ? null : p.normalize(args.root!);
+  final m = _Matcher(args);
   final hits = <FsEntry>[];
 
   // **Parça parça okunur** (64 KB): 100 bin satırlık dizini tek String'e
@@ -398,13 +441,7 @@ List<FsEntry> _querySync(_QueryArgs args) {
             utf8.decode(pending.sublist(start, i), allowMalformed: true);
         start = i + 1;
         final entry = decodeIndexRow(line);
-        if (entry == null) continue;
-        if (!args.includeDirs && entry.isDir) continue;
-        if (rootPrefix != null && !FsPaths.isInside(rootPrefix, entry.path)) {
-          continue;
-        }
-        if (category != null && entry.category != category) continue;
-        if (needle.isNotEmpty && !turkishFold(entry.name).contains(needle)) {
+        if (entry == null || !m.test(entry, () => turkishFold(entry.name))) {
           continue;
         }
         hits.add(entry);
@@ -468,4 +505,95 @@ int _forgetSync(_ForgetArgs args) {
     } catch (_) {}
     return -1;
   }
+}
+
+/// **Uzun ömürlü arama isolate'i** (P10). Dizini bir kez okuyup (ad
+/// katlamalarıyla) bellekte tutar; dosyanın değişiklik zamanı/boyutu
+/// değişirse (yeniden kurulum, [SearchIndex.forget]) bir sonraki sorguda
+/// kendiliğinden yeniden okur.
+class _SearchWorker {
+  final _rx = ReceivePort();
+  final _tx = Completer<SendPort>();
+  final _pending = <int, Completer<List<FsEntry>>>{};
+  Isolate? _isolate;
+  var _next = 0;
+  var _closed = false;
+
+  _SearchWorker() {
+    _rx.listen((msg) {
+      if (msg is SendPort) {
+        _tx.complete(msg);
+        return;
+      }
+      final (int id, Object result) = msg as (int, Object);
+      final c = _pending.remove(id);
+      if (result is List<FsEntry>) {
+        c?.complete(result);
+      } else {
+        c?.completeError(StateError('$result'));
+      }
+    });
+    Isolate.spawn(_searchWorkerMain, _rx.sendPort).then((iso) {
+      if (_closed) {
+        iso.kill(priority: Isolate.immediate);
+      } else {
+        _isolate = iso;
+      }
+    });
+  }
+
+  Future<List<FsEntry>> query(_QueryArgs args) async {
+    if (_closed) throw StateError('closed');
+    final id = _next++;
+    final c = _pending[id] = Completer<List<FsEntry>>();
+    (await _tx.future).send((id, args));
+    return c.future;
+  }
+
+  void dispose() {
+    _closed = true;
+    _isolate?.kill(priority: Isolate.immediate);
+    _rx.close();
+    for (final c in _pending.values) {
+      c.completeError(StateError('closed'));
+    }
+    _pending.clear();
+  }
+}
+
+void _searchWorkerMain(SendPort out) {
+  final rx = ReceivePort();
+  out.send(rx.sendPort);
+  var rows = <(FsEntry, String)>[];
+  String? stamp;
+  rx.listen((msg) {
+    final (int id, _QueryArgs args) = msg as (int, _QueryArgs);
+    try {
+      final file = File(args.indexPath);
+      if (!file.existsSync()) {
+        out.send((id, const <FsEntry>[]));
+        return;
+      }
+      final st = file.statSync();
+      final now = '${st.modified.microsecondsSinceEpoch}:${st.size}';
+      if (now != stamp) {
+        rows = [
+          for (final line in file.readAsLinesSync(
+              encoding: const Utf8Codec(allowMalformed: true)))
+            if (decodeIndexRow(line) case final e?) (e, turkishFold(e.name)),
+        ];
+        stamp = now;
+      }
+      final m = _Matcher(args);
+      final hits = <FsEntry>[];
+      for (final (e, folded) in rows) {
+        if (!m.test(e, () => folded)) continue;
+        hits.add(e);
+        if (hits.length >= args.limit) break;
+      }
+      out.send((id, hits));
+    } catch (e) {
+      out.send((id, '$e'));
+    }
+  });
 }
