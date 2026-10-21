@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'app_storage_service.dart';
 import 'fm_env.dart';
 import 'storage_stats.dart';
+import '../../core/device_profile.dart';
 
 /// Android'in BİLDİĞİ ama gezilemeyen bir harici birim.
 ///
@@ -72,7 +73,11 @@ class VolumeWatcher {
   Set<String>? _mountNames;
   var _scanning = false;
 
-  VolumeWatcher({this.pollInterval = const Duration(seconds: 5)});
+  /// Varsayılan aralık profile bağlı (Faz 4, P6): asıl haber kök dizin
+  /// izleme ve USB yayınından gelir, yoklama yalnız yedek — eskiden 5 sn'de
+  /// bir boşuna uyanıyordu.
+  VolumeWatcher({Duration? pollInterval})
+      : pollInterval = pollInterval ?? DeviceProfile.budget.volumePoll;
 
   /// Şu an bilinen birim yolları (test ve ilk kurulum için).
   Set<String> get knownPaths => _known;

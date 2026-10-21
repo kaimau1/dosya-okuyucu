@@ -136,8 +136,11 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
   /// Metin `_documentText`ten geliyor: eski hâli `_textController?.text ??
   /// doc.plainText` idi ve PDF'te ikisi de BOŞTU (PDF metin türü değil, metni
   /// `_pdfText`te durur) — yani asıl hedef olan PDF'te boş deste üretiyordu.
-  Future<void> _exportSlides() =>
-      AiSlidesFlow.run(context, _documentText, fileName: widget.doc.name);
+  Future<void> _exportSlides() async {
+    await _ensurePdfText();
+    if (!mounted) return;
+    await AiSlidesFlow.run(context, _documentText, fileName: widget.doc.name);
+  }
 
   /// Paylaş / yazdır: PDF'te GÖRÜLEN hâli gönderilir — bekleyen düzenlemeler
   /// çalışma kopyasındadır, özgün dosya henüz eski hâlindedir.
@@ -168,7 +171,16 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     }
   }
 
-  /// PDF sayfalarının metnini arka planda çıkarır (AI sohbet bağlamı için).
+  /// PDF'in metin katmanını GEREKİNCE çıkarır (Faz 4, P4) — AI sohbeti,
+  /// sunuma çevirme, çeviri örneği, sesli okuma ve AI düzenleme bunu
+  /// `_documentText`i okumadan önce bekler. Bir kez çıkarılır.
+  Future<void> _ensurePdfText() async {
+    final doc = _pdfDoc;
+    if (!_isPdf || doc == null || _pdfText.isNotEmpty) return;
+    await _extractPdfText(doc);
+  }
+
+  /// PDF sayfalarının metnini çıkarır (AI sohbet bağlamı için).
   /// Taranmış/metinsiz PDF'te sessizce boş kalır — görüntüleme etkilenmez.
   ///
   Future<void> _extractPdfText(PdfDocument document) async {
@@ -210,6 +222,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
         focus = text.fullText;
       } catch (_) {}
     }
+    await _ensurePdfText();
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ChatScreen(
@@ -253,6 +266,8 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
       // Hangisinin istendiği belgeden anlaşılamaz — soruyoruz.
       final inPlace = await _askTranslateMode();
       if (inPlace == null || !mounted) return;
+      await _ensurePdfText();
+      if (!mounted) return;
       if (inPlace) {
         // Bekleyen düzenleme varsa önce çözülür: çeviri DİSKTEKİ baytları
         // okuyor, kaydedilmemiş bir düzeltme sessizce kaybolmasın.

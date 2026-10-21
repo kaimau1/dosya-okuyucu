@@ -532,7 +532,8 @@ class _SniffedImageState extends State<_SniffedImage> {
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
         image: FmFileImage(widget.path,
-            cacheWidth: (widget.size * 3).round()),
+            cacheWidth: fmThumbWidth(widget.size,
+                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
         width: widget.size,
         height: widget.size,
         fit: BoxFit.cover,
@@ -597,7 +598,8 @@ class _ApkIconImageState extends State<_ApkIconImage> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
-        image: FmFileImage(icon, cacheWidth: (widget.size * 3).round()),
+        image: FmFileImage(icon, cacheWidth: fmThumbWidth(widget.size,
+                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
         width: widget.size,
         height: widget.size,
         // `contain`: uygulama simgeleri kare ama kenar boşluklu olabiliyor;
@@ -691,7 +693,8 @@ class _PdfThumbState extends State<_PdfThumb> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(3.5),
             child: Image(
-              image: FmFileImage(thumb, cacheWidth: (widget.size * 3).round()),
+              image: FmFileImage(thumb, cacheWidth: fmThumbWidth(widget.size,
+                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
               fit: BoxFit.contain,
               filterQuality: FilterQuality.low,
               gaplessPlayback: true,
@@ -803,7 +806,8 @@ class _VideoThumbState extends State<_VideoThumb> {
         fit: StackFit.passthrough,
         children: [
           Image(
-            image: FmFileImage(thumb, cacheWidth: (widget.size * 3).round()),
+            image: FmFileImage(thumb, cacheWidth: fmThumbWidth(widget.size,
+                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
             width: widget.size,
             height: widget.size,
             fit: BoxFit.cover,

@@ -265,6 +265,8 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   /// görüntü tazelenir.
   Future<void> _aiEditPdf() async {
     if (!await _confirmLeavePending() || !mounted) return;
+    await _ensurePdfText();
+    if (!mounted) return;
     final overwritten = await PdfAiEditScreen.open(
       context,
       path: widget.doc.path,
@@ -381,6 +383,8 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       await tts.resume();
       return;
     }
+    await _ensurePdfText();
+    if (!mounted) return;
     final text = _documentText;
     if (text.trim().isEmpty) {
       _snack(_isPdf ? context.t('vw.no_readable_text') : 'Okunacak metin yok');

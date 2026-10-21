@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'core/app_navigator.dart';
 import 'core/navigator_guard.dart';
 import 'core/app_state.dart';
+import 'core/device_profile.dart';
+import 'core/startup_queue.dart';
 import 'core/state/appearance_state.dart';
 import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
@@ -67,7 +69,12 @@ Future<void> main() async {
   // resimleri itiyordu; geri dönünce ızgara boş hücrelerle yeniden
   // çözülüyordu. Sınır yalnız bir tavan: sistem bellek baskısı bildirince
   // Flutter önbelleği kendisi boşaltır (`PaintingBinding.handleMemoryPressure`).
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 160 << 20;
+  //
+  // **Faz 4 (P2):** tavan artık cihaz profiline bağlı — hafifte 56 MB, ortada
+  // 100 MB, güçlüde 160 MB (bkz. `PerfBudget.imageCacheBytes`). İlk değer
+  // orta profil; cihaz bilgisi okununca [_applyPerfBudget] günceller.
+  _applyPerfBudget();
+  DeviceProfile.tier.addListener(_applyPerfBudget);
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -80,6 +87,7 @@ Future<void> main() async {
       pickerRoute) {
     final pickerState = AppState();
     await pickerState.init();
+    await DeviceProfile.load(pickerState.perfMode);
     runApp(
       AppProviders(
         appState: pickerState,
@@ -169,16 +177,30 @@ Future<void> main() async {
   unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();
+  // Cihaz sınıfı (Faz 4, P1): yerel kanaldan tek kısa çağrı; tazeleme hızı
+  // varsayılanı buna bağlı olduğu için ondan ÖNCE okunur.
+  await DeviceProfile.load(appState.perfMode);
   // Tazeleme hızı tercihi AYARLARDAN okunur → `init()` sonrasında uygulanır.
   // (Eskiden koşulsuz "en yüksek" isteniyordu; artık kullanıcı pil için
   // 60 Hz'de kalmayı seçebiliyor — bkz. AppState.highRefreshRate.)
   unawaited(applyRefreshRate(appState.highRefreshRate));
+  // **Açılış bütçesi** (Faz 4, P11): kritik olmayan açılış işleri ilk
+  // kareden sonra, TEK sırada (bkz. StartupQueue).
+  StartupQueue.instance.start(delay: DeviceProfile.budget.startupDelay);
   runApp(
     AppProviders(
       appState: appState,
       child: const DosyaOkuyucuApp(),
     ),
   );
+}
+
+/// Görsel önbelleği tavanını etkin başarım profiline göre ayarlar.
+void _applyPerfBudget() {
+  final budget = DeviceProfile.budget;
+  PaintingBinding.instance.imageCache
+    ..maximumSizeBytes = budget.imageCacheBytes
+    ..maximumSize = budget.imageCacheCount;
 }
 
 /// Önceki oturumun iş listesini geri yükler.
@@ -194,18 +216,19 @@ Future<void> _restoreJobs() async {
     await FmEnv.ensureInit();
     // Yarıda kalmış PDF düzenlemesini geri yükle + eski geçici dosyaları
     // süpür (bkz. PdfEditJournal, TempSweep). Beklenmez.
-    unawaited(TempSweep.runOnce());
+    StartupQueue.instance.add('temp-sweep', TempSweep.runOnce);
     // Şifreli kasadan açılmış düz kopyalar önceki oturumda kalmış olabilir
     // (süreç öldürüldü, kilit çalışmadı) — açılışta silinir.
-    unawaited(SecureVault.clearTemp());
+    StartupQueue.instance.add('vault-temp', SecureVault.clearTemp);
     // SD kartla birleşik depolama açıksa şarj işi yeniden kurulur (güncelleme
     // sonrası da sürsün, bildirim metni geçerli dilde olsun). Beklenmez.
-    unawaited(SdUnion.syncOnLaunch());
+    StartupQueue.instance.add('sd-union', SdUnion.syncOnLaunch);
     JobQueue.instance.restore(await JobStore.load());
     // Fatura hatırlatması + haftalık temizlik işini kur/tazele, widget'ları
     // güncelle (dil değişmiş olabilir). Beklenmez.
-    unawaited(NativeExtras.syncDailyJob());
-    unawaited(NativeExtras.updateWidgets());
+    StartupQueue.instance
+      ..add('daily-job', NativeExtras.syncDailyJob)
+      ..add('widgets', NativeExtras.updateWidgets);
     // "Kaldığın yerden devam" kaydı da burada yükleniyor: oynatıcı açılana
     // kadar zaman var ve açılışta diskten okumak ilk kareyi geciktirmesin.
     await PlaybackPositions.ensureLoaded();

@@ -19,6 +19,7 @@ import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
 import '../../core/snack.dart';
 import '../../core/app_version.dart';
+import '../../core/device_profile.dart';
 
 /// Ekranın yüksek tazeleme hızı (90/120 Hz).
 ///
@@ -41,6 +42,50 @@ class HighRefreshTile extends StatelessWidget {
         await appState.setHighRefreshRate(v);
         await applyRefreshRate(v);
       },
+    );
+  }
+}
+
+/// **Başarım kipi** (Faz 4): Otomatik (cihaz sınıfından) / Hafif / Tam.
+/// Görsel önbelleği, küçük resim eşzamanlılığı ve 120 Hz / otomatik tarama
+/// varsayılanları buna bağlı (bkz. `PerfBudget`).
+class PerfModeTile extends StatelessWidget {
+  const PerfModeTile({super.key});
+
+  static String _label(BuildContext context, PerfMode mode) => switch (mode) {
+        PerfMode.auto => context.t('perf.auto'),
+        PerfMode.light => context.t('perf.light'),
+        PerfMode.full => context.t('perf.full'),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final mode = appState.perfMode;
+    final detected = switch (DeviceProfile.detected) {
+      DeviceTier.low => context.t('perf.tier_low'),
+      DeviceTier.mid => context.t('perf.tier_mid'),
+      DeviceTier.high => context.t('perf.tier_high'),
+    };
+    return SettingTile(
+      icon: Icons.memory_outlined,
+      title: context.t('perf.mode'),
+      subtitle: context.t('perf.mode_sub'),
+      value: mode == PerfMode.auto
+          ? context.t('perf.auto_is', {'tier': detected})
+          : _label(context, mode),
+      trailing: PopupMenuButton<PerfMode>(
+        icon: const Icon(Icons.arrow_drop_down),
+        tooltip: context.t('perf.mode'),
+        onSelected: (m) async {
+          await appState.setPerfMode(m);
+          await applyRefreshRate(appState.highRefreshRate);
+        },
+        itemBuilder: (ctx) => [
+          for (final m in PerfMode.values)
+            PopupMenuItem(value: m, child: Text(_label(ctx, m))),
+        ],
+      ),
     );
   }
 }

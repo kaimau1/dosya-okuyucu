@@ -5,10 +5,28 @@ extension _DashboardScreenVolumeWatchPart on _DashboardScreenState {
   /// o yüzden panonun açılışını beklemez: arka planda gelir, gelince kutunun
   /// alt yazısı dolar. Sonuç `InstalledAppsService` içinde 5 dakika saklandığı
   /// için Bellek Analizi ekranı da bundan sonra anında açılır.
+  ///
+  /// **Faz 4 (P5):** sonuç prefs'te 6 saat saklanır — soğuk açılışta önce
+  /// kayıtlı değer anında gösterilir; bayatsa yeniden hesap açılış
+  /// kuyruğuna (StartupQueue) girer. Hafif profilde yalnız kayıtlı değer
+  /// gösterilir; hesap, kullanıcı Uygulamalar ekranını açınca yapılır.
   Future<void> _loadAppsSize() async {
-    final summary = await InstalledAppsService.summary();
-    if (!mounted || !summary.hasData) return;
-    _partSetState(() => _appsBytes = summary.totalBytes);
+    const kBytes = 'dash_apps_bytes';
+    const kAt = 'dash_apps_at';
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getInt(kBytes);
+    final at = prefs.getInt(kAt) ?? 0;
+    if (saved != null && mounted) _partSetState(() => _appsBytes = saved);
+    final age = DateTime.now().millisecondsSinceEpoch - at;
+    final fresh = saved != null && age >= 0 && age < 6 * 3600 * 1000;
+    if (fresh || DeviceProfile.budget.isLight) return;
+    StartupQueue.instance.add('apps-size', () async {
+      final summary = await InstalledAppsService.summary();
+      if (!summary.hasData) return;
+      await prefs.setInt(kBytes, summary.totalBytes);
+      await prefs.setInt(kAt, DateTime.now().millisecondsSinceEpoch);
+      if (mounted) _partSetState(() => _appsBytes = summary.totalBytes);
+    });
   }
 
   void _onLayoutChanged() {

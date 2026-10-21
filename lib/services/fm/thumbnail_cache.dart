@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'disk_housekeeping.dart';
+import '../../core/device_profile.dart';
 
 /// Video küçük resimlerini üretir ve **diskte** önbelleğe alır.
 ///
@@ -72,7 +73,9 @@ abstract final class ThumbnailCache {
   /// kaydırılırken bütün çekirdekler kare çözmeye gidiyor, çizim izleği
   /// sıkışıp kaydırma takılıyordu; her çözücü de kendi belleğini (onlarca
   /// MB) ayırıyordu. Artık en çok [maxParallel] üretim, gerisi sırada.
-  static const maxParallel = 2;
+  ///
+  /// Faz 4: hafif profilde 1 (bkz. `PerfBudget.thumbConcurrency`).
+  static int get maxParallel => DeviceProfile.budget.thumbConcurrency;
   static int _running = 0;
 
   /// Sırada bekleyen üretimler — SONDAN alınır (en yeni istek önce): parmak

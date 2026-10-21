@@ -250,7 +250,13 @@ class _HomeScreenState extends State<HomeScreen> {
           for (final id in tabs)
             KeyedSubtree(
               key: ValueKey('tab-$id'),
-              child: _built.contains(id) ? _tabBody(id) : const SizedBox(),
+              // **Gizli sekme durur** (Faz 4, P7): `IndexedStack` görünmeyen
+              // çocukları ayakta tutar; `TickerMode` olmadan nabız/iskelet
+              // animasyonları arka planda kare planlamaya devam ediyordu.
+              child: TickerMode(
+                enabled: id == tabs[index < 0 ? 0 : index],
+                child: _built.contains(id) ? _tabBody(id) : const SizedBox(),
+              ),
             ),
         ],
       ),

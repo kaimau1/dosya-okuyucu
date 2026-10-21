@@ -11,6 +11,7 @@ part 'strings/5_ph_rs.dart';
 part 'strings/6_sdu_cj.dart';
 part 'strings/7_set_vault.dart';
 part 'strings/8_enum_aih.dart';
+part 'strings/9_perf_err.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -121,4 +122,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t6,
   ..._t7,
   ..._t8,
+  ..._t9,
 };

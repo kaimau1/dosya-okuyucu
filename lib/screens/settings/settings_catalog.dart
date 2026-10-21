@@ -505,6 +505,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           ]),
           SettingsSection('set.sec_speed', [
             SettingRow(
+                id: 'perf_mode',
+                titleKey: 'perf.mode',
+                subtitleKey: 'perf.mode_sub',
+                builder: _perfModeTile),
+            SettingRow(
                 id: 'high_refresh',
                 titleKey: 'settings.perf_high_refresh',
                 subtitleKey: 'settings.perf_high_refresh_sub',
@@ -646,6 +651,7 @@ Widget _useTrashTile(BuildContext _) => const UseTrashTile();
 Widget _confirmDeleteTile(BuildContext _) => const ConfirmDeleteTile();
 Widget _trashAutoTile(BuildContext _) => const TrashAutoTile();
 Widget _emptyTrashTile(BuildContext _) => const EmptyTrashTile();
+Widget _perfModeTile(BuildContext _) => const PerfModeTile();
 Widget _highRefreshTile(BuildContext _) => const HighRefreshTile();
 Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();

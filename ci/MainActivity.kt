@@ -336,6 +336,7 @@ class MainActivity : FlutterActivity() {
                 "updateWidgets" -> result.success(
                     Extras.saveWidgetData(ctx, call.arguments as? String ?: "{}")
                 )
+                "deviceClass" -> result.success(Extras.deviceClass(ctx))
                 "canAuthenticate" -> result.success(Extras.canAuthenticate(ctx))
                 "authenticate" -> Extras.authenticate(
                     this,

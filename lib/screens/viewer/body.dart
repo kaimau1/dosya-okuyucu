@@ -113,7 +113,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           if (mounted) {
                             _partSetState(() => _pdfCount = document.pages.length);
                           }
-                          _extractPdfText(document);
+                          // Metin katmanı açılışta ÇIKARILMAZ (Faz 4, P4): yalnız
+                          // AI / çeviri / sesli okuma istenince
+                          // (`_ensurePdfText`). Büyük PDF'te açılışı ve pili
+                          // yiyordu.
                           // Belge çizildikten SONRA haber ver: açılışta gösterilen
                           // şerit ilk kareyle birlikte kayboluyordu.
                           WidgetsBinding.instance

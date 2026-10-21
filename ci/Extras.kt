@@ -1,6 +1,7 @@
 package com.dosyaokuyucu.dosya_okuyucu
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.KeyguardManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -57,6 +58,29 @@ import javax.crypto.spec.GCMParameterSpec
  */
 object Extras {
     const val CHANNEL = "dosya/extras"
+
+    /**
+     * **Cihaz sınıfı** (Faz 4, 2026-10-21): Dart tarafı bütçeleri (görsel
+     * önbelleği, küçük resim eşzamanlılığı, 120 Hz varsayılanı) buna göre
+     * seçer — bkz. `lib/core/device_profile.dart`.
+     */
+    fun deviceClass(ctx: Context): Map<String, Any> {
+        val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val info = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(info)
+        val perfClass = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Build.VERSION.MEDIA_PERFORMANCE_CLASS
+        } else {
+            0
+        }
+        return mapOf(
+            "totalRamMb" to (info.totalMem / (1024L * 1024L)),
+            "lowRam" to am.isLowRamDevice,
+            "cores" to Runtime.getRuntime().availableProcessors(),
+            "perfClass" to perfClass,
+            "sdk" to Build.VERSION.SDK_INT,
+        )
+    }
     const val EXTRA_LINK = "dosya_link"
     const val JOB_ID = 0x5E01
     private const val PREFS = "dosya_extras"

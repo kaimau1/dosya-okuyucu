@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
 import '../motion.dart';
+import '../../core/device_profile.dart';
 
 /// Pano kutusunun verisi (ikon, renk, başlık, alt satır, dokunma).
 class FmTileData {
@@ -205,7 +206,9 @@ class _PulsingIconState extends State<_PulsingIcon>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    // Hafif profilde süs nabzı kapalı (Faz 4).
+    final reduced = (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ||
+        !DeviceProfile.budget.decorativeAnimations;
     if (reduced) {
       _stop?.cancel();
       _controller.stop();

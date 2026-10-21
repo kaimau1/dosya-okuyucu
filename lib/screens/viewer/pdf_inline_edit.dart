@@ -270,9 +270,11 @@ extension _ViewerScreenPdfInlineEditPart on _ViewerScreenState {
   }
 
   /// Seçim hakkında AI'ya sor (açıkla / basitleştir / özetle / terimler).
-  void _askAiAboutSelection() {
+  Future<void> _askAiAboutSelection() async {
     final text = cleanPdfCopyText(_pdfSelection);
     if (text.isEmpty) return;
+    await _ensurePdfText();
+    if (!mounted) return;
     QuickAiSheet.show(
       context,
       selection: text,

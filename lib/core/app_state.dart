@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_language.dart';
+import 'device_profile.dart';
 import 'skin.dart';
 import 'state/appearance_state.dart';
 import 'theme.dart';
@@ -78,6 +79,7 @@ class AppState extends ChangeNotifier {
   // Pil ve başarım
   static const _kHighRefresh = 'perf_high_refresh';
   static const _kAutoRescan = 'perf_auto_rescan';
+  static const _kPerfMode = 'perf_mode';
   static const _kDeveloperMode = 'developer_mode';
   // Sesli okuma tercihleri (ses/hız/perde + "AI ile oku")
   static const _kTtsPrefs = 'tts_prefs';
@@ -151,7 +153,13 @@ class AppState extends ChangeNotifier {
   /// 60 Hz'de kalır ve **GPU'nun karesi yarıya iner** — uzun belge okurken en
   /// gözle görülür pil kazancı budur. Varsayılan AÇIK: uygulamanın satır
   /// başlarından biri hız hissi.
-  bool _highRefreshRate = true;
+  ///
+  /// **Faz 4:** kullanıcı hiç seçmediyse (null) varsayılan cihaz profilinden
+  /// gelir — hafif profilde 60 Hz (P12).
+  bool? _highRefreshRate;
+
+  /// Başarım kipi: Otomatik / Hafif / Tam (bkz. [DeviceProfile]).
+  PerfMode _perfMode = PerfMode.auto;
 
   /// **Geliştirici menüsü** (2026-10-21, K8): teşhis araçları (USB teşhisi)
   /// günlük kullanıcının ayar listesinde durmaz; Hakkında'daki sürüm satırına
@@ -163,7 +171,7 @@ class AppState extends ChangeNotifier {
   /// Tarama tüm depolamayı gezer: on binlerce dosyada dakikalarca CPU + disk.
   /// Kapatan kullanıcı listeleri kendisi tazeler (aşağı çekme) — sık dosya
   /// eklemeyen telefonlarda saf kazanç.
-  bool _autoRescan = true;
+  bool? _autoRescan;
 
   /// Uygulama açılınca doğrudan girilecek klasör (boş = pano).
   ///
@@ -260,10 +268,22 @@ class AppState extends ChangeNotifier {
   }
 
   /// Yüksek tazeleme hızı tercihi (bkz. [_highRefreshRate]).
-  bool get highRefreshRate => _highRefreshRate;
+  bool get highRefreshRate =>
+      _highRefreshRate ?? DeviceProfile.budget.highRefreshDefault;
+
+  /// Başarım kipi (Ayarlar > Depolama ve hız).
+  PerfMode get perfMode => _perfMode;
+
+  Future<void> setPerfMode(PerfMode value) async {
+    _perfMode = value;
+    await _prefs.setString(_kPerfMode, value.name);
+    DeviceProfile.setMode(value);
+    notifyListeners();
+  }
 
   /// Otomatik arka plan taraması tercihi (bkz. [_autoRescan]).
-  bool get autoRescan => _autoRescan;
+  bool get autoRescan =>
+      _autoRescan ?? DeviceProfile.budget.autoRescanDefault;
 
   /// Açılışta girilecek klasör; boş ise pano gösterilir.
   String get fmStartFolder => _fmStartFolder;
@@ -635,8 +655,12 @@ class AppState extends ChangeNotifier {
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = AppTheme.migrateUiFont(_prefs.getString(_kUiFont));
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
-    _highRefreshRate = _prefs.getBool(_kHighRefresh) ?? true;
-    _autoRescan = _prefs.getBool(_kAutoRescan) ?? true;
+    _highRefreshRate = _prefs.getBool(_kHighRefresh);
+    _autoRescan = _prefs.getBool(_kAutoRescan);
+    _perfMode = PerfMode.values.firstWhere(
+      (m) => m.name == _prefs.getString(_kPerfMode),
+      orElse: () => PerfMode.auto,
+    );
     _developerMode = _prefs.getBool(_kDeveloperMode) ?? false;
     _recents = (_prefs.getStringList(_kRecents) ?? [])
         .map(RecentFile.tryDecode)

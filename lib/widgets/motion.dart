@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 import '../core/safe_insets.dart';
+import '../core/device_profile.dart';
 
 /// **Ortak hareket parçaları** — kullanıcı isteği 2026-10-17 (Notlar ile
 /// aynı tur): *"UI/UX çalışmaları; iPhone gibi akıcılık, premium his"*.
@@ -167,7 +168,19 @@ class _FmListSkeletonState extends State<FmListSkeleton>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // Hafif profilde nabız YOK (Faz 4): sabit, orta saydamlıkta kutular —
+    // aynı yer tutma, sıfır kare.
+    if (DeviceProfile.budget.decorativeAnimations) {
+      _pulse.repeat(reverse: true);
+    } else {
+      _pulse.value = 0.5;
+    }
+  }
 
   late final Animation<double> _opacity = Tween<double>(
     begin: 0.45,

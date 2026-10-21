@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/device_profile.dart';
+import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/download_service.dart';
