@@ -44,6 +44,7 @@ import 'important_screen.dart';
 import 'resize_actions.dart';
 import 'vault_screen.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
 
 part 'entry_actions/sheet.dart';
 part 'entry_actions/file_ops.dart';

@@ -39,7 +39,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
         );
       }
     } catch (e) {
-      error = '$e';
+      error = userErrorText(e);
     }
     if (error != null) {
       await busy.failed(error);
@@ -438,7 +438,9 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     var size = -1;
     try {
       size = File(widget.doc.path).lengthSync();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: boyut yalnız hata kartındaki teşhis satırı için; okunamazsa "bilinmiyor" (-1) kalır.
+    }
     final canRecover = PdfEditJournal.hasStale(widget.doc.path);
     final reason = size == 0
         ? context.t('vw.pdf_error_empty')
@@ -498,7 +500,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                 ],
               ),
               const SizedBox(height: 16),
-              Text('$error',
+              Text(userErrorText(error),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,

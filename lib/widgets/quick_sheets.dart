@@ -12,6 +12,7 @@ import '../services/translate_service.dart';
 import 'markdown_text.dart';
 import 'translate_flow.dart';
 import '../core/safe_insets.dart';
+import '../core/user_error.dart';
 
 /// Belgenin üstünde açılan **kısa, yüzen kart** — hızlı çeviri ve "AI'ya
 /// sor" ortak kabı.
@@ -192,7 +193,7 @@ class _QuickTranslateState extends State<_QuickTranslate> {
     } catch (e) {
       if (!mounted || run != _run) return;
       setState(() {
-        _error = str.t('tf.failed', {'error': e});
+        _error = str.t('tf.failed', {'error': userErrorText(e)});
         _status = null;
       });
     }
@@ -429,7 +430,7 @@ class _QuickAiState extends State<_QuickAi> {
       setState(() => _answer = reply);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = '$e');
+      setState(() => _error = userErrorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

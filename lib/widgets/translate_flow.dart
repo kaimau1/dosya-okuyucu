@@ -14,6 +14,7 @@ import 'pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
 import '../services/fm/tracked_task.dart';
+import '../core/user_error.dart';
 
 /// Akış sırasında ilerlemeyi yazan ve **iptal isteğini taşıyan** tutamak.
 ///
@@ -159,7 +160,7 @@ class TranslateFlow {
         }
       }
     } catch (e) {
-      error = '$e';
+      error = userErrorText(e);
     }
 
     busy.close(); // ilerleme penceresi
@@ -283,7 +284,7 @@ class TranslateFlow {
         );
       }
     } catch (e) {
-      error = '$e';
+      error = userErrorText(e);
     }
 
     busy.close(); // ilerleme penceresi

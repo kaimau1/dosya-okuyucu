@@ -33,6 +33,7 @@ import 'search_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
 
 part 'browser/actions.dart';
 part 'browser/views.dart';

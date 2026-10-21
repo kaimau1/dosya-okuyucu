@@ -17,6 +17,7 @@ import 'downloads_screen.dart' show downloadsPathIn;
 import 'entry_actions.dart' show shareEntries;
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
+import '../../core/user_error.dart';
 
 part 'installed_apps/views.dart';
 

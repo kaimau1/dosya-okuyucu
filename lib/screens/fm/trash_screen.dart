@@ -14,6 +14,7 @@ import '../../widgets/section_header.dart';
 import '../settings_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
+import '../../core/user_error.dart';
 
 /// Geri Dönüşüm Kutusu: silinen dosyaları geri yükle ya da kalıcı sil.
 class TrashScreen extends StatefulWidget {
@@ -66,7 +67,7 @@ class _TrashScreenState extends State<TrashScreen> {
       _snack(context.t('tr.restored',
           {'name': item.name, 'folder': target.split('/').last}));
     } catch (e) {
-      _snack(context.t('trash.restore_failed', {'error': e}));
+      _snack(context.t('trash.restore_failed', {'error': userErrorText(e)}));
     }
     _load();
   }
@@ -175,7 +176,7 @@ class _TrashScreenState extends State<TrashScreen> {
             await FmEnv.trash.restore(item);
             done++;
           } catch (e) {
-            errors.add('$e');
+            errors.add(userErrorText(e));
           }
         }
         return FmOpResult(succeeded: done, errors: errors);

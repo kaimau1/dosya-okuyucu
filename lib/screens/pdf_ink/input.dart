@@ -191,7 +191,7 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
       _marks = const [];
       Navigator.of(context).pop(outcome.overwritten);
     } catch (e) {
-      showSnackOn(messenger, strings.t('ink.failed', {'error': '$e'}));
+      showSnackOn(messenger, strings.t('ink.failed', {'error': userErrorText(e)}));
       if (mounted) _partSetState(() => _busy = false);
     }
   }

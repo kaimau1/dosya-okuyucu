@@ -46,10 +46,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
     final question = (preset ?? _controller.text).trim();
     if (question.isEmpty || _busy) return;
     final state = context.read<AppState>();
-    if (!state.hasApiKey) {
-      _snack(context.t('aih.need_key'));
-      return;
-    }
+    if (!await ensureAiKey(context) || !mounted) return;
     setState(() {
       _messages.add(_ChatMsg(true, question));
       _busy = true;
@@ -74,7 +71,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
       setState(() => _messages.add(_ChatMsg(false, e.message, error: true)));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _messages.add(_ChatMsg(false, '$e', error: true)));
+      setState(() => _messages.add(_ChatMsg(false, userErrorText(e), error: true)));
     } finally {
       if (mounted) setState(() => _busy = false);
       _scrollToEnd();
@@ -116,8 +113,6 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
       );
     });
   }
-
-  void _snack(String message) => showSnack(context, message);
 
   @override
   Widget build(BuildContext context) {

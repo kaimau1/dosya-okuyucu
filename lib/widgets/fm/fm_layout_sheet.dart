@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 
@@ -11,7 +12,7 @@ import '../../models/fm_layout.dart';
 Future<FmLayout?> showFmLayoutSheet(
   BuildContext context, {
   required FmLayout current,
-  String title = 'Görünüm',
+  String? title,
 
   /// Fotoğraf ızgarasında liste düzenleri anlamsız (her şey kare önizleme).
   bool allowLists = true,
@@ -30,7 +31,7 @@ Future<FmLayout?> showFmLayoutSheet(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
-            child: Text(title, style: Theme.of(ctx).textTheme.titleMedium),
+            child: Text(title ?? ctx.t('uix.view'), style: Theme.of(ctx).textTheme.titleMedium),
           ),
           for (final l in options)
             RadioListTile<FmLayout>(

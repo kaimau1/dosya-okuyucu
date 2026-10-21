@@ -6,6 +6,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/batch_rename.dart';
 import '../../services/fm/file_ops.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
 
 /// **Toplu yeniden adlandırma** sayfası: kalıp yaz → **canlı önizleme** → uygula.
 ///
@@ -70,7 +71,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
         await FileOps.rename(item.entry.path, item.newName);
         ok++;
       } catch (e) {
-        errors.add('${item.entry.name}: $e');
+        errors.add('${item.entry.name}: ${userErrorText(e)}');
       }
     }
     if (!mounted) return;

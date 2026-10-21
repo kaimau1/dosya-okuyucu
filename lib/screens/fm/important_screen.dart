@@ -21,6 +21,7 @@ import 'photos_screen.dart';
 import 'search_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
 
 /// **Önemli Dosyalar** — kullanıcının kendi seçtiği dosyaların toplandığı
 /// klasör, ana sayfadaki kategorizasyonun aynısıyla.
@@ -113,7 +114,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
       FsEvents.changed();
       await _load();
     } catch (e) {
-      _snack(createFailed.replaceAll('{error}', '$e'));
+      _snack(createFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 
@@ -138,7 +139,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
       ));
       await _load();
     } catch (e) {
-      _snack(createFailed.replaceAll('{error}', '$e'));
+      _snack(createFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 

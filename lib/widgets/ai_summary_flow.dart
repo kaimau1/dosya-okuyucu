@@ -10,6 +10,7 @@ import 'markdown_text.dart';
 import 'tracked_busy.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
+import '../core/user_error.dart';
 
 /// Özetin ne kadar ayrıntılı olacağı.
 ///
@@ -78,7 +79,7 @@ class AiSummaryFlow {
         fileContext: trimmed,
       );
     } catch (e) {
-      error = '$e';
+      error = userErrorText(e);
     }
 
     if (error != null || summary == null) {

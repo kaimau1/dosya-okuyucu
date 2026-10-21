@@ -90,7 +90,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       }
       _syncField();
     } catch (e) {
-      _error = '$e';
+      _error = userErrorText(e);
     }
     if (mounted) _partSetState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());

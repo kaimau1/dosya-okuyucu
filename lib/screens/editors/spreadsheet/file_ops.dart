@@ -26,7 +26,8 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
         _partSetState(() {});
       }
     } catch (e) {
-      _snack('Kaydedilemedi: $e');
+      _snack(AppStrings.current
+          .t('common.save_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -103,7 +104,7 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
       await f.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(f.path)], text: '$base.csv');
     } catch (e) {
-      _snack(csvFailed.replaceAll('{error}', '$e'));
+      _snack(csvFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 

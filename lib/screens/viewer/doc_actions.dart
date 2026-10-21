@@ -37,7 +37,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
         await _exportPdf();
       }
     } catch (e) {
-      _snack(str.t('common.save_failed', {'error': e}));
+      _snack(str.t('common.save_failed', {'error': userErrorText(e)}));
     }
     if (mounted) _partSetState(() {});
   }
@@ -105,7 +105,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
       path =
           await _conversion.writeToTemp('${_stem(widget.doc.name)}.pdf', bytes);
     } catch (e) {
-      error = '$e';
+      error = userErrorText(e);
     }
     if (error != null) {
       await busy.failed(error);
@@ -196,7 +196,9 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
         if (sb.length > 100000) break; // AI bağlamı için fazlası gereksiz
       }
       _pdfText = sb.toString().trim();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: metin katmanı okunamayan (taranmış/bozuk) PDF'te AI bağlamı boş kalır; ilgili eylem "okunacak metin yok" der.
+    }
   }
 
   /// Belgenin okunabilir metni: PDF'te metin katmanı, görselde OCR sonucu,
@@ -220,7 +222,9 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
       try {
         final text = await doc.pages[_pdfPage - 1].loadText();
         focus = text.fullText;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: sayfa metni yalnız ek odak bağlamı; okunamazsa sohbet belgenin tamamıyla açılır.
+      }
     }
     await _ensurePdfText();
     if (!mounted) return;

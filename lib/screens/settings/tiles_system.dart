@@ -15,6 +15,7 @@ import '../fm/sd_union_screen.dart';
 import '../fm/usb_diagnostics_screen.dart';
 import 'app_footprint_screen.dart';
 import 'crash_log_screen.dart';
+import 'help_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
 import '../../core/snack.dart';
@@ -283,6 +284,22 @@ class DeveloperOffTile extends StatelessWidget {
 /// uygulamanın en çok soru doğuran yönünün ("AI dosyalarımı okuyor mu?",
 /// "tüm dosyalara erişim niye?") yazılı cevabı. Metin `assets/privacy/`
 /// altında, depodaki kopyayla aynı dosyadır.
+/// Yardım / SSS (Faz 5): izinler, kasa PIN'i, ağ paylaşımı, AI anahtarı.
+class HelpTile extends StatelessWidget {
+  const HelpTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: Icons.help_outline,
+        title: context.t('help.title'),
+        subtitle: context.t('help.tile_sub'),
+        wrapSubtitle: true,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+        ),
+      );
+}
+
 class PrivacyPolicyTile extends StatelessWidget {
   const PrivacyPolicyTile({super.key});
 
@@ -407,30 +424,17 @@ Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.t('settings.oss')),
-        content: const SingleChildScrollView(
-          child: Text(
-            'FFmpeg 8.1.2 — GNU Lesser General Public License v3.0 (LGPL v3)\n'
-            'Video boyut düşürme, çözünürlük ve kare sayısı değiştirme '
-            'işlemlerinde kullanılır.\n\n'
-            'Kaynak kodu:\n'
-            '• https://ffmpeg.org/download.html\n'
-            '• https://github.com/arthenica/ffmpeg-kit\n\n'
-            'Kütüphane değiştirilmeden, dinamik bağlı paylaşımlı kütüphane '
-            '(.so) olarak dağıtılır; APK içinden çıkarılıp uyumlu başka bir '
-            'sürümle değiştirilebilir.\n\n'
-            'GPL lisanslı kodlayıcılar (x264, x265, xvidcore) bilinçli olarak '
-            'DAĞITILMIYOR. Bu yüzden H.264 çıktısı cihazın donanım '
-            'kodlayıcısıyla üretilir; donanım kodlayıcısı olmayan cihazlarda '
-            'FFmpeg’in mpeg4 kodlayıcısına düşülür.\n\n'
-            'Diğer bileşenler (Flutter, PDFium/pdfrx, Syncfusion Flutter PDF, '
-            'Google ML Kit, excel, archive, koni_archive, image, '
-            'video_player, audioplayers, video_compress, '
-            'flutter_local_notifications …) izin verici (BSD/MIT/Apache 2.0) '
-            'ya da ticari kullanıma açık lisanslarla dağıtılır. Tam liste: '
-            'depodaki LICENSES.md ve pubspec.yaml.',
-          ),
-        ),
+        content: SingleChildScrollView(child: Text(context.t('oss.body'))),
         actions: [
+          // Paketlerin tam lisans metinleri (Flutter'ın kayıt defteri) —
+          // BSD/MIT/Apache atıf yükümlülüğü (FAZ_PLANI N2).
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              showLicensePage(context: context, applicationName: 'Dosya Okuyucu');
+            },
+            child: Text(context.t('oss.all')),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(context.t('common.close')),

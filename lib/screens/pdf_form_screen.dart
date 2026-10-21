@@ -10,6 +10,7 @@ import '../services/pdf/pdf_form.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
+import '../core/user_error.dart';
 
 /// **PDF formu doldurma** — belgenin kendi alanları düzenlenebilir bir liste
 /// olarak açılır, doldurulur ve dosyaya yazılır.
@@ -78,7 +79,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
         }
       });
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userErrorText(e));
     }
   }
 
@@ -113,7 +114,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      showSnack(context, context.t('pf.failed', {'error': e}));
+      showSnack(context, context.t('pf.failed', {'error': userErrorText(e)}));
     }
   }
 

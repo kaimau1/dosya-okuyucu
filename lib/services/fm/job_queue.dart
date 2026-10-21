@@ -688,6 +688,18 @@ class JobQueue extends ChangeNotifier {
 
   static final JobQueue instance = JobQueue._();
 
+  /// Bu süreçte ilk uzun iş başlayınca BİR KEZ çağrılır (Faz 5, I6): `main`
+  /// bildirim izni kapalıysa kullanıcıya bir kez söyler — eskiden işler
+  /// sessizce bildirimsiz koşuyordu.
+  static void Function()? onFirstJob;
+  static bool _firstJobSeen = false;
+
+  static void _noteJobStarted() {
+    if (_firstJobSeen) return;
+    _firstJobSeen = true;
+    onFirstJob?.call();
+  }
+
   /// Sistem bildirimi kancası (üretimde `main` takar; null ise sessiz çalışır).
   JobReporter? reporter;
 
@@ -817,6 +829,7 @@ class JobQueue extends ChangeNotifier {
     _trimHistory();
     notifyListeners();
     _persist();
+    _noteJobStarted();
     unawaited(_pump());
     return job;
   }
@@ -847,6 +860,7 @@ class JobQueue extends ChangeNotifier {
     int? startedAtMs,
     bool ownNotification = false,
   }) {
+    _noteJobStarted();
     final jobId = id ?? 'tracked_${DateTime.now().microsecondsSinceEpoch}';
     _jobs.removeWhere((j) => j.id == jobId && !j.status.isActive);
     final job = FmJob(

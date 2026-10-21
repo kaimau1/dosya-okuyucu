@@ -46,7 +46,7 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
     return true;
   } catch (e) {
     if (context.mounted) {
-      _snack(context, context.t('fm.rename_failed', {'error': e}));
+      _snack(context, context.t('fm.rename_failed', {'error': userErrorText(e)}));
     }
     return false;
   }
@@ -357,7 +357,7 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
     if (!dir.existsSync()) await dir.create(recursive: true);
   } catch (e) {
     if (context.mounted) {
-      _snack(context, context.t('fm.folder_create_failed', {'error': e}));
+      _snack(context, context.t('fm.folder_create_failed', {'error': userErrorText(e)}));
     }
     return false;
   }
@@ -433,7 +433,7 @@ Future<bool> copyToExternal(BuildContext context, List<String> paths) async {
     if (!dir.existsSync()) await dir.create(recursive: true);
   } catch (e) {
     if (context.mounted) {
-      _snack(context, context.t('fm.folder_create_failed', {'error': e}));
+      _snack(context, context.t('fm.folder_create_failed', {'error': userErrorText(e)}));
     }
     return false;
   }
@@ -532,7 +532,7 @@ Future<bool> zipEntries(
     return true;
   } catch (e) {
     if (context.mounted) {
-      _snack(context, context.t('fm.zip_failed', {'error': e}));
+      _snack(context, context.t('fm.zip_failed', {'error': userErrorText(e)}));
     }
     return false;
   }
@@ -575,7 +575,7 @@ Future<bool> extractArchive(
     return false;
   } catch (e) {
     if (context.mounted) {
-      _snack(context, context.t('fm.extract_failed', {'error': e}));
+      _snack(context, context.t('fm.extract_failed', {'error': userErrorText(e)}));
     }
     return false;
   }

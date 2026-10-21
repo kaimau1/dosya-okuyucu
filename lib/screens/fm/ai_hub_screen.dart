@@ -43,6 +43,8 @@ import 'smart_folders_screen.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
+import '../../widgets/ai_key_gate.dart';
 
 part 'ai_hub/analysis.dart';
 part 'ai_hub/chat.dart';

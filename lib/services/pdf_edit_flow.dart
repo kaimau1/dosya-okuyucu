@@ -8,6 +8,7 @@ import 'pdf/pdf_font_class.dart';
 import 'pdf_content_editor.dart';
 import 'pdf_page_edit.dart';
 import 'pdf_tools.dart';
+import '../core/user_error.dart';
 
 /// Uygulanmış (ama HENÜZ KAYDEDİLMEMİŞ) bir metin değişikliği.
 class PdfEditApplied {
@@ -122,7 +123,7 @@ class PdfEditFlow {
           // Gerçek bir kullanıcı parolası var (belge boş parolayla açılmıyor)
           // ya da Syncfusion bu şifrelemeyi çözemedi. Yedek yola düşülür.
           throw PdfEditRefused(
-              strings.t('pf.unlock_failed', {'error': e}));
+              strings.t('pf.unlock_failed', {'error': userErrorText(e)}));
         }
         unlocked = true;
         result = await attempt();

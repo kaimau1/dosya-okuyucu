@@ -16,9 +16,10 @@ import '../services/gemini_service.dart';
 import '../services/markdown_export.dart';
 import '../widgets/markdown_text.dart';
 import 'fm/ai_hub_screen.dart';
-import 'settings_screen.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
+import '../core/user_error.dart';
+import '../widgets/ai_key_gate.dart';
 
 class ChatScreen extends StatefulWidget {
   /// Açık dosyanın metni (opsiyonel bağlam).
@@ -78,7 +79,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      showSnack(context, s.t('home.open_error', {'error': e}));
+      showSnack(context, s.t('home.open_error', {'error': userErrorText(e)}));
     }
   }
 
@@ -111,10 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty || _busy) return;
     final appState = context.read<AppState>();
 
-    if (!appState.hasApiKey) {
-      _promptForKey();
-      return;
-    }
+    if (!await ensureAiKey(context) || !mounted) return;
 
     setState(() {
       _turns.add(ChatTurn(fromUser: true, text: text));
@@ -139,7 +137,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _turns.add(ChatTurn(fromUser: false, text: reply)));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _turns.add(ChatTurn(fromUser: false, text: '⚠️ $e')));
+      setState(() => _turns.add(ChatTurn(fromUser: false, text: '⚠️ ${userErrorText(e)}')));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -158,30 +156,6 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
-  }
-
-  void _promptForKey() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(context.t('chat.key_required')),
-        content: Text(context.t('chat.key_required_body')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.t('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const SettingsScreen()));
-            },
-            child: Text(context.t('common.settings')),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _saveToMemory(String text) async {
@@ -225,7 +199,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     } catch (e) {
       if (mounted) {
-        showSnack(context, str.t('chat.export_failed', {'error': e}));
+        showSnack(context, str.t('chat.export_failed', {'error': userErrorText(e)}));
       }
     }
   }

@@ -53,9 +53,9 @@
 | 0 | Kararlar + proje hijyeni (HAFIZA/KALANLAR/README/graphify) | — | 🟡 2026-10-21 kararlar ✅ (K1–K12); hijyen adımları (HAFIZA bölme, KALANLAR, README, graphify) bekliyor |
 | 1 | CI/CD hızlandırma ve sürüm hattı | 0 | ✅ 2026-10-21 — C1–C12; verify 4,5 dk; main süresi Gradle önbelleği dolduktan sonra yeniden ölçülecek (bkz. HAFIZA) |
 | 2 | Sadeleştirme I — ölü kod, eski yollar, özellik birleştirme/çıkarma | 0, 1 | ✅ 2026-10-21 — ölü kod, İnsanlar, görünüm 10/10/6→4/3/3, Geçmiş/Aktar/Depolama/AI/tek Kasa; satır ölçütü K5/K8 kararlarıyla tutmadı (bkz. Faz 2 notu) |
-| 3 | Sadeleştirme II — uzun dosyaları bölme + durum yönetimi | 2 | ⬜ |
-| 4 | Performans — düşük donanım profili ve ölçüm | 3 | ⬜ |
-| 5 | Son kullanıcı iletişimi altyapısı (hata dili, izin/boş/çevrimdışı durumları) | 3 | ⬜ |
+| 3 | Sadeleştirme II — uzun dosyaları bölme + durum yönetimi | 2 | ✅ 2026-10-21 — 19 ekran + çeviri tablosu + formül motoru bölündü (800+ satırlı ekran yok); kök yalnız `AppearanceState`i izliyor; Browse/Clipboard/Remotes/AI bildiricileri ayrılmadı (bkz. HAFIZA) |
+| 4 | Performans — düşük donanım profili ve ölçüm | 3 | 🟡 2026-10-21 — profil + bütçeler + açılış kuyruğu + P2-P9/P11/P12 kodda; **cihaz ölçümü bekliyor** (`docs/perf/2026-10-21.md`), P10 yapılmadı |
+| 5 | Son kullanıcı iletişimi altyapısı (hata dili, izin/boş/çevrimdışı durumları) | 3 | ✅ 2026-10-21 — `UserError`, `PermissionGate`, `ensureAiKey`, Yardım iskeleti, bekçiler; servis içi boş catch'ler sınıflandırılmadı (bkz. HAFIZA) |
 | 6 | Klasör içi / gezgin / filtre / simge yeniden tasarımı | 4, 5 | ⬜ |
 | 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | ⬜ |
 | 8 | PDF akışı (tek çatı) | 6, 7 | ⬜ |

@@ -226,7 +226,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
         _snack(context.t('vw.highlight_removed', {'n': removed}));
       }
     } catch (e) {
-      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
+      if (mounted) _snack(context.t('vw.highlight_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -312,7 +312,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
       if (!ok) _snack(linkFailed);
     } catch (e) {
-      _snack(linkFailedE.replaceAll('{error}', '$e'));
+      _snack(linkFailedE.replaceAll('{error}', userErrorText(e)));
     }
   }
 
@@ -387,7 +387,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     if (!mounted) return;
     final text = _documentText;
     if (text.trim().isEmpty) {
-      _snack(_isPdf ? context.t('vw.no_readable_text') : 'Okunacak metin yok');
+      _snack(_isPdf ? context.t('vw.no_readable_text') : context.t('uix.no_text'));
       return;
     }
     final service = TtsService(prefs: context.read<AppState>().ttsPrefs)

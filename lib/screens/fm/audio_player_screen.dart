@@ -19,6 +19,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
 
 /// Çalma sırası davranışı.
 
@@ -480,7 +481,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       showSnackOn(messenger,
           strings.t('mp.playlist_saved', {'name': p.basename(target)}));
     } catch (e) {
-      showSnackOn(messenger, '$e');
+      showSnackOn(messenger, userErrorText(e));
     }
   }
 
@@ -515,7 +516,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         }),
       );
     } catch (e) {
-      showSnackOn(messenger, '$e');
+      showSnackOn(messenger, userErrorText(e));
     }
   }
 

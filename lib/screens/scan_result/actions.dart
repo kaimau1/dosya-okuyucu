@@ -46,7 +46,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         _dirty = true;
         if (mounted) {
           _partSetState(() => _saveState = _SaveState.failed);
-          showSnack(context, context.t('sf.save_failed', {'error': e}),
+          showSnack(context, context.t('sf.save_failed', {'error': userErrorText(e)}),
               copyable: true);
         }
       }
@@ -108,7 +108,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       }
     } catch (e) {
       if (mounted) {
-        showSnack(context, context.t('scr.add_failed', {'error': e}),
+        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
             copyable: true);
       }
     } finally {
@@ -202,7 +202,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     try {
       shot = await DocumentScanner.scanPages(maxPages: 1);
     } catch (e) {
-      if (mounted) _snack(context.t('sf.scanner_failed', {'error': e}));
+      if (mounted) _snack(context.t('sf.scanner_failed', {'error': userErrorText(e)}));
       return;
     }
     if (shot == null || shot.isEmpty || !mounted) return;
@@ -295,7 +295,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       try {
         more = await DocumentScanner.scanPages();
       } catch (e) {
-        if (mounted) _snack(context.t('sf.scanner_failed', {'error': e}));
+        if (mounted) _snack(context.t('sf.scanner_failed', {'error': userErrorText(e)}));
         return;
       }
       if (more == null || more.isEmpty || !mounted) return;
@@ -332,7 +332,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         try {
           added = [ScanPage.raw(await ScanPageOps.warp(paths.first, quad))];
         } catch (e) {
-          if (mounted) _snack(context.t('se.failed', {'error': e}));
+          if (mounted) _snack(context.t('se.failed', {'error': userErrorText(e)}));
         } finally {
           if (mounted) _partSetState(() => _work = null);
         }
@@ -369,7 +369,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       _scheduleSave(); // görünmez metin katmanı PDF'e de girsin
       if (_text.isEmpty) _snack(context.t('vw.ocr_none'));
     } catch (e) {
-      if (mounted) _snack(context.t('vw.ocr_failed', {'error': e}));
+      if (mounted) _snack(context.t('vw.ocr_failed', {'error': userErrorText(e)}));
     } finally {
       if (mounted) _partSetState(() => _work = null);
     }
@@ -434,7 +434,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       // bağlantıya dönerdi.
       await EntryOpener.rememberFile(context, newPath, previousPath: old);
     } catch (e) {
-      if (mounted) _snack(context.t('scr.rename_failed', {'error': e}));
+      if (mounted) _snack(context.t('scr.rename_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -461,7 +461,13 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     await _flush();
     try {
       await Directory(target).create(recursive: true);
-    } catch (_) {}
+    } catch (e) {
+      // Kullanıcı eylemi: klasör kurulamadıysa taşıma DENENMEZ ve nedeni
+      // söylenir (eskiden hata yutuluyor, ardından taşıma boşuna deneniyordu
+      // — FAZ_PLANI I5).
+      if (mounted) showUserError(context, e);
+      return;
+    }
     if (!mounted) return;
     _partSetState(() => _classGuess = null);
     await _moveTo(target);

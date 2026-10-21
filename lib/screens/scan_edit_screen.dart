@@ -10,6 +10,7 @@ import '../core/snack.dart';
 import '../core/theme.dart' show OverlayBar;
 import '../services/doc_edges.dart';
 import '../services/perspective.dart';
+import '../core/user_error.dart';
 
 /// **Sayfayı kırpma** ekranı — dörtgeni ayarlar, kırpmayı ÇAĞIRANA bırakır.
 ///
@@ -149,7 +150,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
       });
       if (widget.autoDetect) await _findEdges(quiet: true);
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userErrorText(e));
     }
   }
 

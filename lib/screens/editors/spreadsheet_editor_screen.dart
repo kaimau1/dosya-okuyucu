@@ -39,6 +39,7 @@ import '../../widgets/translate_flow.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
 
 part 'spreadsheet/edit_ops.dart';
 part 'spreadsheet/file_ops.dart';

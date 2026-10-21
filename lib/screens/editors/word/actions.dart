@@ -7,7 +7,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       _bytes = bytes;
       _editor = DocxEditor.parse(bytes);
     } catch (e) {
-      _error = '$e';
+      _error = userErrorText(e);
     }
     if (mounted) _partSetState(() {});
   }
@@ -32,7 +32,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
         _partSetState(() {});
       }
     } catch (e) {
-      _snack(saveFailed.replaceAll('{error}', '$e'));
+      _snack(saveFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 

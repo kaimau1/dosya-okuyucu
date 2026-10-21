@@ -22,6 +22,7 @@ import '../../services/fm/secure_vault.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'hidden_files_screen.dart';
+import '../../core/user_error.dart';
 
 /// **Şifreli kasa** ekranı (bkz. [SecureVault]): kurulum → kilit → içerik.
 ///
@@ -192,7 +193,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
       final path = await SecureVault.instance.openTemp(item);
       if (mounted) await EntryOpener.open(context, path);
     } catch (e) {
-      if (mounted) showSnack(context, context.t('vault.open_failed', {'error': e}));
+      if (mounted) showSnack(context, context.t('vault.open_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -234,7 +235,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           final path = await SecureVault.instance.restore(item);
           if (mounted) showSnack(context, context.t('vault.restored', {'path': path}));
         } catch (e) {
-          if (mounted) showSnack(context, context.t('vault.open_failed', {'error': e}));
+          if (mounted) showSnack(context, context.t('vault.open_failed', {'error': userErrorText(e)}));
         }
       case 'delete':
         final ok = await showDialog<bool>(

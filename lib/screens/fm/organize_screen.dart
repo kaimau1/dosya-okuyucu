@@ -16,6 +16,7 @@ import 'browser_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
 
 /// **Otomatik düzenle** — dağınık bir klasörü tek dokunuşla türe/tarihe/kaynağa
 /// göre alt klasörlere ayırır.
@@ -108,7 +109,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
           try {
             await Directory(dest).create(recursive: true);
           } catch (e) {
-            errors.add('${entry.key}: $e');
+            errors.add('${entry.key}: ${userErrorText(e)}');
             continue;
           }
           final result = await FileOps.moveAll(

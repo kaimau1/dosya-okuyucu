@@ -50,6 +50,7 @@ import '../../widgets/section_header.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
 
 /// Ekranın hangi görünümde olduğu.
 enum _PickView { home, folder, category, search, matches }
@@ -180,7 +181,9 @@ class _PickFileScreenState extends State<PickFileScreen> {
         for (final entry in await FsScan.statPaths(paths))
           if (!entry.isDir && _request.acceptsEntry(entry)) entry
       ].take(5).toList();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: "son dosyalar" kısayolu yalnız kolaylık; geçmiş okunamazsa liste boş gösterilir, seçim yine gezinerek yapılır.
+    }
     if (!mounted) return;
     final matches = [
       for (final entry in hits)
@@ -243,7 +246,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = userErrorText(e);
       });
     }
   }

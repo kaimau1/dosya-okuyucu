@@ -29,6 +29,7 @@ import '../widgets/translate_flow.dart';
 import 'fm/folder_picker_screen.dart';
 import 'fm/important_screen.dart';
 import 'scan_edit_screen.dart';
+import '../core/user_error.dart';
 
 part 'scan_result/actions.dart';
 part 'scan_result/views.dart';

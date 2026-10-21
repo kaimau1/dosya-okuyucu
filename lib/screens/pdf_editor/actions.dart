@@ -16,7 +16,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       await _loadOutline();
     } catch (e) {
       if (mounted) {
-        _partSetState(() => _error = _str.t('pe.prepare_failed', {'error': e}));
+        _partSetState(() => _error = _str.t('pe.prepare_failed', {'error': userErrorText(e)}));
       }
     }
   }
@@ -57,10 +57,10 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       if (mounted) {
         _partSetState(() {
           _outline = PdfPageOutline.empty;
-          _outlineError = '$e';
+          _outlineError = userErrorText(e);
         });
       }
-      _snack(_str.t('pe.outline_failed', {'error': e}));
+      _snack(_str.t('pe.outline_failed', {'error': userErrorText(e)}));
     } finally {
       if (mounted) _partSetState(() => _busy = false);
     }
@@ -79,7 +79,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     } on PdfPageRefused catch (e) {
       _snack(e.message);
     } catch (e) {
-      _snack(_str.t('pe.background_failed', {'error': e}));
+      _snack(_str.t('pe.background_failed', {'error': userErrorText(e)}));
     } finally {
       if (mounted) _partSetState(() => _busy = false);
     }
@@ -167,7 +167,9 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
           for (final f in ocr?.fragments ?? const <PdfPageTextFragment>[])
             if (f.text.trim().isNotEmpty) ScannedLine(f.text.trim(), f.bounds),
         ];
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli en iyi çaba: OCR yoksa/başarısızsa satır listesi boş kalır ve kullanıcı taranmış sayfa yerine normal düzenlemeyi görür.
+      }
       if (!mounted) return;
       _partSetState(() {
         _scannedKey = key;
@@ -241,10 +243,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     GeminiService? gemini;
     if (withAi) {
       final state = context.read<AppState>();
-      if (!state.hasApiKey) {
-        _longSnack(_str.t('pe.fix_needs_key'));
-        return;
-      }
+      if (!await ensureAiKey(context) || !mounted) return;
       gemini = state.gemini;
     }
 
@@ -376,7 +375,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     } on GeminiException catch (e) {
       _longSnack(e.message);
     } catch (e) {
-      _longSnack(_str.t('pe.op_failed', {'error': e}));
+      _longSnack(_str.t('pe.op_failed', {'error': userErrorText(e)}));
     } finally {
       if (mounted) _partSetState(() => _busy = false);
     }
@@ -414,7 +413,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       await body();
       return true;
     } catch (e) {
-      _longSnack(_str.t('pe.unlock_failed', {'error': e}));
+      _longSnack(_str.t('pe.unlock_failed', {'error': userErrorText(e)}));
       return true; // mesaj verildi; çağıran ikinci kez göstermesin
     }
   }

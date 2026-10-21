@@ -300,7 +300,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
       _load();
     } catch (e) {
       if (!mounted) return;
-      showSnackOn(messenger, '$e');
+      showSnackOn(messenger, userErrorText(e));
     }
   }
 
@@ -314,7 +314,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
       await FileOps.createFolder(widget.path, name);
       _load();
     } catch (e) {
-      _snack(createFailed.replaceAll('{error}', '\$e'));
+      _snack(createFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 
@@ -343,7 +343,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
       _load();
       await EntryOpener.open(context, target);
     } catch (e) {
-      _snack(fileCreateFailed.replaceAll('{error}', '\$e'));
+      _snack(fileCreateFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 

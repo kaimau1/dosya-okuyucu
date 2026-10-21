@@ -20,6 +20,7 @@ import '../../../services/fm/remote/peer_share.dart';
 import '../../../widgets/fm/fm_progress_dialog.dart';
 import '../folder_picker_screen.dart';
 import '../../../core/safe_insets.dart';
+import '../../../core/user_error.dart';
 
 /// **Yakındaki cihaz** — iki Dosya Okuyucu arasında doğrudan dosya aktarımı.
 ///
@@ -179,7 +180,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               archiveName: p.basename(folder)));
         }
       } catch (e) {
-        showSnackOn(messenger, '$e');
+        showSnackOn(messenger, userErrorText(e));
       }
     }
     if (payload.isEmpty) return;
@@ -234,7 +235,9 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
     if (tempDir != null) {
       try {
         await tempDir.delete(recursive: true);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: geçici ZIP temizliği; kalırsa açılıştaki TempSweep süpürür.
+      }
     }
     if (!mounted) return;
     // Başarılı gönderimden sonra cihaz hatırlanıyor: aynı iki telefon

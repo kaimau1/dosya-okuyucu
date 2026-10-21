@@ -18,7 +18,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
       final bytes = await File(widget.path).readAsBytes();
       _editor = PptxEditor.parse(bytes);
     } catch (e) {
-      _error = '$e';
+      _error = userErrorText(e);
     }
     if (mounted) _partSetState(() {});
   }
@@ -36,7 +36,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
         _partSetState(() {});
       }
     } catch (e) {
-      _snack(AppStrings.current.t('common.save_failed', {'error': e}));
+      _snack(AppStrings.current.t('common.save_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -134,7 +134,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
           text: context.t('sl.pdf_share'));
     } catch (e) {
       close();
-      _snack(AppStrings.current.t('sl.pdf_failed', {'error': e}));
+      _snack(AppStrings.current.t('sl.pdf_failed', {'error': userErrorText(e)}));
     } finally {
       close();
       progress.dispose();

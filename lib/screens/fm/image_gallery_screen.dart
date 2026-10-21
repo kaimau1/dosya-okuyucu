@@ -184,7 +184,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       final stat = File(path).statSync();
       size = stat.size;
       modified = stat.modified.millisecondsSinceEpoch;
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bilgi satırı (boyut/tarih) için; dosya o an silindiyse 0 gösterilir, galeri sonraki tazelemede düşürür.
+    }
     final entry = FsEntry(
       path: path,
       name: p.basename(path),

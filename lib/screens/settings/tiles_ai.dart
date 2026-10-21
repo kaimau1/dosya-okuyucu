@@ -7,6 +7,7 @@ import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/gemini_service.dart';
+import '../../core/user_error.dart';
 
 /// Gemini erişimi: **anahtar + doğrulama + model** tek blokta.
 ///
@@ -100,7 +101,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
       if (!mounted) return;
       setState(() {
         _loadingModels = false;
-        _modelsError = '$e';
+        _modelsError = userErrorText(e);
       });
     }
   }

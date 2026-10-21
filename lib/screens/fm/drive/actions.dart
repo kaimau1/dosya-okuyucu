@@ -60,7 +60,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
       if (path == null || !mounted) return;
       await EntryOpener.open(context, path);
     } catch (e) {
-      if (mounted) _snack('$failed $e');
+      if (mounted) _snack('$failed ${userErrorText(e)}');
     }
   }
 
@@ -106,7 +106,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
       _partSetState(() {
         _busy = false;
         _error = 'drive.error_unknown';
-        _errorDetail = '$e';
+        _errorDetail = userErrorText(e);
       });
     }
   }

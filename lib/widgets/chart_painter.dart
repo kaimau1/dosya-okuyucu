@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/l10n/app_strings.dart';
 import '../services/pptx_render.dart';
 
 /// [ChartVM]'i çizer: sütun/çubuk/pasta/çizgi + lejant. Veri, seri renkleri ve
@@ -75,7 +76,8 @@ class ChartPainter extends CustomPainter {
     if (chart.type == ChartType.pie && chart.series.isNotEmpty) {
       final s = chart.series.first;
       for (var i = 0; i < s.values.length; i++) {
-        final l = i < chart.categories.length ? chart.categories[i] : 'Öğe ${i + 1}';
+        final l = i < chart.categories.length ? chart.categories[i] :
+            AppStrings.current.t('uix.item_n', {'n': i + 1});
         items.add((l, s.pointColors[i] ?? const Color(0xFF888888)));
       }
     } else {

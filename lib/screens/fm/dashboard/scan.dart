@@ -154,7 +154,7 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
       await _push(BrowserScreen(path: path));
       await _scan();
     } catch (e) {
-      _snack(createFailed.replaceAll('{error}', '\$e'));
+      _snack(createFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 }

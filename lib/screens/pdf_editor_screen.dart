@@ -18,6 +18,8 @@ import '../services/scan_text_fix.dart';
 import '../widgets/pdf_edit_overlay.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
+import '../core/user_error.dart';
+import '../widgets/ai_key_gate.dart';
 
 part 'pdf_editor/actions.dart';
 part 'pdf_editor/views.dart';

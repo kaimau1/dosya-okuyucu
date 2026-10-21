@@ -11,6 +11,7 @@ import '../services/pptx_writer.dart';
 import '../services/text_to_slides.dart';
 import 'tracked_busy.dart';
 import '../core/snack.dart';
+import '../core/user_error.dart';
 
 /// Çıktı biçimi.
 enum SlidesFormat {
@@ -79,7 +80,7 @@ class AiSlidesFlow {
               : str.language.nativeLabel,
         );
       } catch (e) {
-        error = '$e';
+        error = userErrorText(e);
       }
       if (error != null || plan == null) {
         await busy.failed(error ?? '-');
@@ -118,7 +119,7 @@ class AiSlidesFlow {
       }
     } catch (e) {
       if (!context.mounted) return;
-      _snack(context, str.t('ais.failed', {'error': e}));
+      _snack(context, str.t('ais.failed', {'error': userErrorText(e)}));
     }
   }
 

@@ -27,6 +27,7 @@ import 'archive_ops.dart';
 import 'fs_events.dart';
 import 'open_history.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
 
 /// Bir dosyanın hangi ekranda açılacağı. Saf karar fonksiyonu
 /// ([EntryOpener.routeFor]) olduğu için birim testiyle sabitlenir.
@@ -204,7 +205,10 @@ abstract final class EntryOpener {
       doc = await _fileService.load(path);
     } catch (e) {
       busy.close(); // yükleniyor penceresini kapat
-      if (context.mounted) _snack(context, 'Dosya açılamadı: $e');
+      if (context.mounted) {
+        _snack(context,
+            AppStrings.current.t('common.open_failed', {'error': userErrorText(e)}));
+      }
       return;
     }
     busy.close();
@@ -264,7 +268,7 @@ abstract final class EntryOpener {
     if (saved != MediaOpenWith.ask) return saved;
 
     final kind = switch (route) {
-      OpenRoute.player => 'Video',
+      OpenRoute.player => context.t('uix.video'),
       OpenRoute.audio => context.t('open.kind_audio'),
       _ => context.t('open.kind_image'),
     };
@@ -290,7 +294,10 @@ abstract final class EntryOpener {
             : context.t('home.open_error', {'error': result.message}),
       );
     } catch (e) {
-      if (context.mounted) _snack(context, 'Dosya açılamadı: $e');
+      if (context.mounted) {
+        _snack(context,
+            AppStrings.current.t('common.open_failed', {'error': userErrorText(e)}));
+      }
     }
   }
 

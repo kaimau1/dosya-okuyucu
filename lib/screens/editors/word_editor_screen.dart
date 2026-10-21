@@ -26,6 +26,7 @@ import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
 
 part 'word/actions.dart';
 part 'word/shell.dart';

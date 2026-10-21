@@ -16,6 +16,7 @@ import '../services/ocr_service.dart';
 import '../services/scan_prepare.dart' show ScanPage;
 import '../services/scan_title.dart';
 import '../core/snack.dart';
+import '../core/user_error.dart';
 
 /// Belge tarama akışı: tarayıcı → OCR (hep) → akıllı ad → tek PDF →
 /// Belgeler dizinine **doğrudan kaydet** → tarama stüdyosu.
@@ -47,7 +48,7 @@ class ScanFlow {
     } catch (e) {
       if (context.mounted) {
         _snack(
-            context, AppStrings.current.t('sf.scanner_failed', {'error': e}));
+            context, AppStrings.current.t('sf.scanner_failed', {'error': userErrorText(e)}));
       }
       return null;
     }
@@ -99,7 +100,7 @@ class ScanFlow {
           fileName: scanFileName(title, DateTime.now()));
       progress.value = (text: AppStrings.current.t('sf.building_pdf'), value: 1);
     } catch (e) {
-      error = '$e';
+      error = userErrorText(e);
     }
 
     busy.close();
@@ -166,14 +167,18 @@ class ScanFlow {
     try {
       final prefs = await SharedPreferences.getInstance();
       shown = prefs.getInt(_kTipsShown) ?? 0;
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: ipucu sayacı okunamazsa ipucu yine gösterilir (zararsız).
+    }
     if (shown >= tipsAutoShowLimit || !context.mounted) return true;
     final result = await _showScanTips(context);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(
           _kTipsShown, result == _TipsResult.never ? 999 : shown + 1);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: sayaç yazılamazsa ipucu bir dahaki taramada yeniden gösterilir.
+    }
     return result != null;
   }
 

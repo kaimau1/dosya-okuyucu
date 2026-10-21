@@ -15,6 +15,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
 
 /// **Hedef klasör seçici** — "şu dosyaları nereye koyayım?" sorusunun tek
 /// ekranlık cevabı.
@@ -121,7 +122,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     } catch (e) {
       if (!mounted) return;
       showSnack(context,
-          AppStrings.current.t('fp.create_failed', {'error': e}));
+          AppStrings.current.t('fp.create_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -192,7 +193,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       } catch (e) {
         if (!mounted) return;
         showSnack(context,
-            AppStrings.current.t('fp.create_failed', {'error': e}));
+            AppStrings.current.t('fp.create_failed', {'error': userErrorText(e)}));
         return;
       }
     }

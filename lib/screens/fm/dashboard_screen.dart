@@ -72,6 +72,7 @@ import 'trash_screen.dart';
 import 'vault_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
 
 part 'dashboard/volume_watch.dart';
 part 'dashboard/scan.dart';
@@ -151,7 +152,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_scanDurationKey, ms);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: tarama süresi yalnız ilerleme tahmini için; yazılamazsa tahmin bir sonraki taramada yapılır.
+    }
   }
 
   static Future<void> _recallScanDuration() async {
@@ -159,7 +162,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     try {
       final prefs = await SharedPreferences.getInstance();
       _lastScanDurationMs = prefs.getInt(_scanDurationKey);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kayıt okunamazsa ilerleme çubuğu belirsiz kipte gösterilir.
+    }
   }
   bool _hasAccess = true;
   int _trashCount = 0;

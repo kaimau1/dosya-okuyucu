@@ -6,6 +6,7 @@ import '../core/snack.dart';
 import '../screens/fm/browser_screen.dart';
 import '../services/fm/fm_env.dart';
 import '../services/fm/save_to_downloads.dart';
+import '../core/user_error.dart';
 
 /// "İndir" düğmesi gösterilsin mi? Yalnız dosya kullanıcının göremediği bir
 /// yerdeyse (başka uygulamadan açılmış önbellek kopyası) — bkz.
@@ -37,6 +38,6 @@ Future<void> runDownloadAction(
       ),
     );
   } catch (e) {
-    showSnackOn(messenger, strings.t('dl.save_failed', {'error': '$e'}));
+    showSnackOn(messenger, strings.t('dl.save_failed', {'error': userErrorText(e)}));
   }
 }

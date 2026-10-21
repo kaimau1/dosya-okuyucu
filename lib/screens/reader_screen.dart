@@ -159,7 +159,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
         final ocr = await PdfOcrText.forPage(page);
         if (ocr != null) text = ocr.fullText;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: sayfa metni okunamazsa okuma görünümü o sayfayı boş gösterir; diğer sayfalar etkilenmez.
+    }
     final clean = cleanPdfCopyText(text);
     final result = clean.isEmpty ? null : clean;
     _texts[pageNumber] = result;

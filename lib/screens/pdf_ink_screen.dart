@@ -13,6 +13,7 @@ import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/pdf_markup.dart';
 import '../widgets/download_action.dart';
 import '../widgets/pdf_save_dialog.dart';
+import '../core/user_error.dart';
 
 part 'pdf_ink/input.dart';
 part 'pdf_ink/views.dart';

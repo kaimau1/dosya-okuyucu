@@ -33,6 +33,7 @@ import '../chat_screen.dart';
 import 'slideshow_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
 
 part 'slides/actions.dart';
 part 'slides/views.dart';

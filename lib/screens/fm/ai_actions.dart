@@ -19,6 +19,8 @@ import '../../services/ocr_service.dart';
 import '../../widgets/tracked_busy.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
+import '../../core/user_error.dart';
+import '../../widgets/ai_key_gate.dart';
 
 /// Dosya üzerinde **AI ve tanıma** işlemleri: belge özeti, görselden metin
 /// tanıma + otomatik sınıflandırma.
@@ -38,10 +40,8 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
   final appState = context.read<AppState>();
   // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
   final str = AppStrings.of(context);
-  if (!appState.hasApiKey) {
-    _snack(context, str.t('aia.need_key'));
-    return;
-  }
+  // Anahtar yoksa tek "AI'yı etkinleştir" penceresi (Faz 5, N3).
+  if (!await ensureAiKey(context) || !context.mounted) return;
 
   // Pencere KİMLİĞİYLE kapatılır (bkz. `core/busy_dialog.dart`): düz
   // `Navigator.pop(context)`, kullanıcı bu sırada geri tuşuna bastıysa
@@ -63,8 +63,8 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
       text = await OcrService.recognizeImageFile(entry.path);
     }
   } catch (e) {
-    await busy.failed(str.t('aia.read_failed', {'error': e}));
-    if (context.mounted) _snack(context, str.t('aia.read_failed', {'error': e}));
+    await busy.failed(str.t('aia.read_failed', {'error': userErrorText(e)}));
+    if (context.mounted) _snack(context, str.t('aia.read_failed', {'error': userErrorText(e)}));
     return;
   }
 
@@ -93,9 +93,9 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry) async {
       fileContext: trimmed,
     );
   } catch (e) {
-    await busy.failed(str.t('aia.summary_failed', {'error': e}));
+    await busy.failed(str.t('aia.summary_failed', {'error': userErrorText(e)}));
     if (context.mounted) {
-      _snack(context, str.t('aia.summary_failed', {'error': e}));
+      _snack(context, str.t('aia.summary_failed', {'error': userErrorText(e)}));
     }
     return;
   }
@@ -130,7 +130,7 @@ Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
     text = await OcrService.recognizeImageFile(entry.path);
   } catch (e) {
     busy.close();
-    if (context.mounted) _snack(context, str.t('aia.ocr_failed', {'error': e}));
+    if (context.mounted) _snack(context, str.t('aia.ocr_failed', {'error': userErrorText(e)}));
     return;
   }
   busy.close();
@@ -177,7 +177,7 @@ Future<bool> fileIntoSuggestedFolder(
     );
     return result.succeeded > 0;
   } catch (e) {
-    if (context.mounted) _snack(context, str.t('aia.move_failed', {'error': e}));
+    if (context.mounted) _snack(context, str.t('aia.move_failed', {'error': userErrorText(e)}));
     return false;
   }
 }

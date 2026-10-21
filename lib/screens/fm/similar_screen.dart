@@ -20,6 +20,8 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
+import '../../widgets/ai_key_gate.dart';
 
 /// **Benzer fotoğraf/videolar** — algısal parmak iziyle bulunan kümeler.
 ///
@@ -222,10 +224,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
     final messenger = ScaffoldMessenger.of(context);
     // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final str = AppStrings.of(context);
-    if (!appState.hasApiKey) {
-      showSnackOn(messenger, str.t('sim.need_key'));
-      return;
-    }
+    if (!await ensureAiKey(context) || !mounted) return;
     // En çok 6 görsel: daha fazlası hem pahalı hem yanıtı bulanıklaştırır.
     final chosen = group.files.take(6).toList();
     showSnackOn(messenger, str.t('sim.sending'));
@@ -262,7 +261,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
       );
     } catch (e) {
       if (mounted) {
-        showSnackOn(messenger, 'Gemini: $e');
+        showSnackOn(messenger, 'Gemini: ${userErrorText(e)}');
       }
     }
   }

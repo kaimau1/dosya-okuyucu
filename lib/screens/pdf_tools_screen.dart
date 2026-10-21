@@ -20,6 +20,7 @@ import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../services/fm/tracked_task.dart';
+import '../core/user_error.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';

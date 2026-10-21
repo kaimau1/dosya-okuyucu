@@ -31,6 +31,8 @@ import 'browser_screen.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
+import '../../widgets/ai_key_gate.dart';
 
 /// Klasör altında özyinelemeli dosya arama (Türkçe-duyarlı).
 ///
@@ -486,10 +488,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final appState = context.read<AppState>();
     // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final str = AppStrings.of(context);
-    if (!appState.hasApiKey) {
-      showSnack(context, str.t('srch.need_key'));
-      return;
-    }
+    if (!await ensureAiKey(context) || !mounted) return;
     setState(() => _aiBusy = true);
     try {
       final gemini =
@@ -509,7 +508,7 @@ class _SearchScreenState extends State<SearchScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _aiBusy = false);
-      showSnack(context, str.t('srch.ai_error', {'error': e}));
+      showSnack(context, str.t('srch.ai_error', {'error': userErrorText(e)}));
     }
   }
 

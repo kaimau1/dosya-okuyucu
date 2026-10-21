@@ -79,7 +79,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
               kind: doc.kind,
               onPressed: _openChat,
               tooltip:
-                  hasApiKey ? context.t('common.ai') : 'AI (anahtar gerekli)',
+                  hasApiKey ? context.t('common.ai') : context.t('aikey.button_off'),
             ),
     );
   }

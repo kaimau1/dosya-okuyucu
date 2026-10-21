@@ -20,7 +20,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       if (!mounted) return;
       _partSetState(() => _bytes = bytes);
     } catch (e) {
-      if (mounted) _partSetState(() => _error = '$e');
+      if (mounted) _partSetState(() => _error = userErrorText(e));
     }
   }
 
@@ -62,7 +62,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       if (mounted) {
         // Hata metni KOPYALANABİLİR: kullanıcı ekran görüntüsü almadan
         // aktarabilsin (2026-09-04).
-        _snackError(_str.t('pt.op_failed', {'label': label, 'error': e}));
+        _snackError(_str.t('pt.op_failed', {'label': label, 'error': userErrorText(e)}));
       }
     } finally {
       if (mounted) _partSetState(() => _busyLabel = '');
@@ -209,7 +209,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     } catch (e) {
       if (mounted) {
         _snack(_str.t('pt.op_failed',
-            {'label': _str.t('pt.op_export_images'), 'error': e}));
+            {'label': _str.t('pt.op_export_images'), 'error': userErrorText(e)}));
       }
     } finally {
       if (mounted) _partSetState(() => _busyLabel = '');
@@ -256,7 +256,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       await Share.shareXFiles([XFile(path)],
           text: str.t('pt.extracted'));
     } catch (e) {
-      if (mounted) _snack(str.t('pt.extract_failed', {'error': e}));
+      if (mounted) _snack(str.t('pt.extract_failed', {'error': userErrorText(e)}));
     } finally {
       if (mounted) _partSetState(() => _busyLabel = '');
     }
@@ -400,7 +400,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     } catch (e) {
       if (mounted) {
         _snack(_str.t('pt.op_failed',
-            {'label': _str.t('pt.op_split'), 'error': e}));
+            {'label': _str.t('pt.op_split'), 'error': userErrorText(e)}));
       }
     } finally {
       if (mounted) _partSetState(() => _busyLabel = '');

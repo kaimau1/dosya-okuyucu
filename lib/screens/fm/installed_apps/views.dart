@@ -357,7 +357,9 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
       try {
         final dir = Directory(destDir);
         if (dir.existsSync()) dir.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: eski paylaşım kopyasının temizliği; silinemezse bir sonraki dışa aktarmada yeniden denenir.
+      }
     }
     try {
       final path = await showFmProgress<String>(
@@ -380,7 +382,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
         _snack(context.t('apk.saved', {'name': p.basename(path)}));
       }
     } catch (e) {
-      if (mounted) _snack(context.t('apk.failed', {'error': e}));
+      if (mounted) _snack(context.t('apk.failed', {'error': userErrorText(e)}));
     }
   }
 

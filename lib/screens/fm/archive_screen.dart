@@ -19,6 +19,7 @@ import 'browser_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../core/user_error.dart';
 
 /// Arşiv görüntüleyici: RAR / 7z / ZIP / TAR içeriğini **çıkarmadan** listeler,
 /// tek dosyayı önizler, tamamını ya da seçilen dosyayı çıkarır.
@@ -86,7 +87,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = context.t('arc.open_failed', {'error': e});
+        _error = context.t('arc.open_failed', {'error': userErrorText(e)});
       });
     }
   }
@@ -121,7 +122,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     } on ArchiveError catch (e) {
       _snack(e.userMessage);
     } catch (e) {
-      _snack(context.t('fm.extract_failed', {'error': e}));
+      _snack(context.t('fm.extract_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -148,7 +149,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     } on ArchiveError catch (e) {
       _snack(e.userMessage);
     } catch (e) {
-      _snack(context.t('fm.extract_failed', {'error': e}));
+      _snack(context.t('fm.extract_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -183,7 +184,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     } on ArchiveError catch (e) {
       _snack(e.userMessage);
     } catch (e) {
-      _snack(openFailed.replaceAll('{error}', '$e'));
+      _snack(openFailed.replaceAll('{error}', userErrorText(e)));
     }
   }
 

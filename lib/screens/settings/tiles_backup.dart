@@ -12,6 +12,7 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/settings_backup.dart';
 import 'settings_widgets.dart';
+import '../../core/user_error.dart';
 
 /// **Ayar yedeği** — dışa aktar / geri yükle.
 ///
@@ -88,7 +89,7 @@ class SettingsBackupTile extends StatelessWidget {
       showSnackOn(messenger,
           strings.t('backup.saved', {'name': p.basename(target)}));
     } catch (e) {
-      showSnackOn(messenger, strings.t('backup.failed', {'error': e}));
+      showSnackOn(messenger, strings.t('backup.failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -108,7 +109,7 @@ class SettingsBackupTile extends StatelessWidget {
       showSnackOn(messenger, strings.t('backup.restored', {'n': count}));
     } catch (e) {
       showSnackOn(
-          messenger, strings.t('backup.restore_failed', {'error': e}));
+          messenger, strings.t('backup.restore_failed', {'error': userErrorText(e)}));
     }
   }
 }

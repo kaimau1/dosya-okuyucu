@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../services/gemini_service.dart';
+import '../core/user_error.dart';
 
 /// Seçili parça üzerinde en sık istenen düzeltmeler.
 ///
@@ -84,7 +85,7 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = '$e';
+          _error = userErrorText(e);
         });
       }
     }

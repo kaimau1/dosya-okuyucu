@@ -298,7 +298,9 @@ Future<void> _run(
           try {
             final useless = File(result.outputPath);
             if (useless.existsSync()) useless.deleteSync();
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: işe yaramayan çıktının temizliği; kalırsa kullanıcı onu "Üretilenler"de görür, özgün dosyaya dokunulmaz.
+          }
           failed++;
         } else {
           savedBytes += result.savedBytes;
@@ -346,7 +348,9 @@ Future<void> _run(
       }
       try {
         await FmEnv.trash.moveToTrash([for (final r in replaced) r.original]);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: özgün çöpe taşınamazsa YERİNDE kalır (veri kaybı yok); küçültülmüş kopya zaten yazıldı.
+      }
     }
     FsEvents.changed();
 

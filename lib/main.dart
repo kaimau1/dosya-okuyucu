@@ -10,6 +10,7 @@ import 'core/navigator_guard.dart';
 import 'core/app_state.dart';
 import 'core/device_profile.dart';
 import 'core/startup_queue.dart';
+import 'widgets/permission_gate.dart';
 import 'core/state/appearance_state.dart';
 import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
@@ -170,6 +171,8 @@ Future<void> main() async {
   // alta alıp geri aldığımda diğer tüm işlemler kayboluyor"). Kanca hemen
   // takılır; okuma ilk kareyi BEKLETMEZ (bkz. [_restoreJobs]).
   JobQueue.instance.store = JobStore();
+  // Bildirim izni kapalıyken ilk uzun işte bir kez söylenir (Faz 5, I6).
+  JobQueue.onFirstJob = () => unawaited(tellIfNotificationsOff());
   // Yarıda kalan işlerin nasıl yeniden kurulacağı KAYITLI olmalı — kullanıcı
   // "Devam et" dediğinde tarifin türünü çalıştıracak üretici bulunamazsa
   // düğme yine ölü kalırdı (bkz. JobRecipes).

@@ -74,6 +74,7 @@ import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
+import '../core/user_error.dart';
 
 part 'viewer/pending_save.dart';
 part 'viewer/find_replace.dart';
@@ -469,7 +470,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _restoreReadingPage() async {
     try {
       _docSize = File(widget.doc.path).lengthSync();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: boyut yalnız okuma konumu anahtarı için; okunamazsa konum hatırlanmaz.
+    }
     unawaited(PdfBookmarks.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     }));

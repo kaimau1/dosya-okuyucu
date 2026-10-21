@@ -13,6 +13,7 @@ import 'fm_env.dart';
 import 'media_session.dart';
 import 'playback_positions.dart';
 import 'notification_hub.dart';
+import '../../core/user_error.dart';
 
 /// Tekrar kipi (kapalı / tek parça / liste).
 enum RepeatMode { off, one, all }
@@ -220,7 +221,7 @@ class AudioPlayback extends ChangeNotifier {
           // ikinci deneme de olmadı — aşağıdaki mesaja düş
         }
       }
-      error = AppStrings.current.t('mp.audio_failed', {'error': e});
+      error = AppStrings.current.t('mp.audio_failed', {'error': userErrorText(e)});
       notifyListeners();
     }
   }
@@ -295,7 +296,7 @@ class AudioPlayback extends ChangeNotifier {
           // aşağıdaki mesaja düş
         }
       }
-      error = AppStrings.current.t('mp.audio_failed', {'error': e});
+      error = AppStrings.current.t('mp.audio_failed', {'error': userErrorText(e)});
       notifyListeners();
     }
   }

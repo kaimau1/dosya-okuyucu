@@ -12873,3 +12873,81 @@ USB teşhis → geliştirici menüsü, **app_usage KALSIN**, görünüm sadeleş
   dönüş, klasör, yarıda kesilme, aynı ad farklı içerik, PIN eşitleme).
 - TUZAK: kasa testleri PBKDF2 (120 bin tur) yüzünden yavaş — PIN eşitleme testi 7 türetme,
   varsayılan 30 sn zaman aşımını aşıyor; testte `Timeout(3 dk)`.
+
+## 2026-10-21 (3) — Faz 3 (bölme + durum) · Faz 4 (düşük donanım) · Faz 5 (kullanıcı iletişimi)
+
+Bulut (Linux) oturumunda Flutter 3.29.3 ile yapıldı; her faz ayrı commit, her committe
+analyze 0 + tam test yeşil (Faz 3: 2613, Faz 4: 2626, Faz 5: 2641).
+
+### Faz 3 — yapılanlar
+- **Bölme aracı `tool/split_state.py`:** State sınıfının yöntemlerini `part` dosyalarına
+  `extension _XPart on _XState { … }` olarak taşır (aynı kütüphane → özel üyeler erişilir,
+  sınıf içinden örtük `this` çağrısı ve koparma aynen çalışır). Alanlar, `@override`,
+  `static` ve kurucu sınıfta kalır; `#a-b` ham üst düzey sınıf/işlev taşır.
+  **TUZAK 1:** `setState` `@protected` → uzantıdan çağrılamaz (analiz uyarısı); araç
+  `setState(` → `_partSetState(` yapar ve sınıfa tek satırlık köprü ekler.
+  **TUZAK 2:** uzantı içinden sınıfın `static` üyesi NİTELİKSİZ çağrılamaz
+  (`unqualified_reference_to_static_member_of_extended_type`) → araç `Sınıf.ad` yazar.
+  **TUZAK 3:** `@override` satırı üye başlığının değil yorum/annotasyon bloğunun içinde —
+  ilk sürüm `dispose/didChangeAppLifecycleState`'i uzantıya taşıdı (analiz yakaladı);
+  denetim artık annotasyon satırlarına bakıyor.
+- 19 ekran dosyası bölündü (viewer 4065→638, spreadsheet 4025→499, dashboard 3140→472 …);
+  **800 satırı aşan ekran dosyası yok.** `app_strings` tablosu 8 `part` dosyasına
+  (`const _table = {..._t1, … ..._t9}`): sabit yayılımda yinelenen anahtar YİNE derleme
+  hatası (`equal_keys_in_const_map`, denendi). `formula_engine` 2580 → 805 + parser /
+  functions / lookup_stats / date_finance.
+- **P3:** `AppearanceState` (tema/dil/yazı/ölçek; yalnız değişince bildirir) ve
+  `RecentsState` (son belgeler) `AppState`ten ayrıldı, `AppProviders` ağaca koyar. Kök
+  `MaterialApp` yalnız `AppearanceState`i izler; `addRecent` artık AppState
+  dinleyicilerini HİÇ uyandırmıyor (listeyi gösteren ekran yoktu — `OpenHistory` kullanılıyor).
+  Prefs anahtarları aynı. Testi: `root_rebuild_test`.
+  **Bilinçli kısıt:** planın 6 bildiricisinin (Browse/Clipboard/Remotes/AiSettings) geri
+  kalanı yapılmadı — 66 izleme noktası; sıcak yol (her dosya açılışı) zaten kapandı.
+- P8: gezgin sıralı liste önbelleği (liste kimliği + ölçüt + yön anahtarlı).
+
+### Faz 4 — yapılanlar (ayrıntı: docs/perf/2026-10-21.md)
+- `Extras.deviceClass` (RAM, `isLowRamDevice`, çekirdek, `MEDIA_PERFORMANCE_CLASS`) →
+  `DeviceProfile` low/mid/high (`classifyDevice` saf, testli; bilgi yoksa mid = eski
+  davranış). Ayarlar > Depolama ve hız > **Başarım: Otomatik/Hafif/Tam** (`perf_mode`).
+- Bütçeler `PerfBudget`te tek yerde: görsel önbelleği 56/100/160 MB, küçük resim üretimi
+  hafifte 1, iskelet/kutu nabzı hafifte kapalı, birim yoklaması 15/30 sn (eskiden 5).
+- **120 Hz ve otomatik tarama tercihleri artık `bool?`:** kullanıcı hiç seçmediyse
+  varsayılan profilden gelir (hafifte kapalı); açıkça seçilmiş değer korunur (göç gerekmez).
+- `StartupQueue`: geçici süpürme, kasa geçici temizliği, SD işi, günlük iş, widget,
+  uygulama boyutu → ilk kareden 2 sn (hafif 3) sonra TEK sırada. **TUZAK:** ilk sürüm
+  `start()` çağrıldıktan sonra eklenen işi bekleme dolmadan koşturuyordu; `_ready` bayrağı.
+- PDF metni açılışta çıkarılmıyor (`_ensurePdfText`: AI/çeviri/sunum/sesli okuma/AI düzenle).
+- Gizli sekmeler `TickerMode(false)`; küçük resim çözme genişliği `fmThumbWidth(size, dpr)`.
+- **DÜRÜST durum:** cihaz ölçümü (Ek D) bu oturumda YAPILAMADI (cihaz/emülatör yok);
+  `tool/make_test_tree.py` veri üreticisi + protokol tablosu hazır, sayılar boş. P10 (uzun
+  ömürlü arama izolatı) ölçümsüz birleştirilmedi.
+
+### Faz 5 — yapılanlar
+- `core/user_error.dart`: `UserError.from(e)` → errno (13/1 izin, 28 yer, 2 yok, 30 salt
+  okunur, 17 var), ağ, Gemini 401/403/429, pdfrx (tür ADIYLA — paket bağımlılığı yok);
+  bilinmeyen → "Beklenmeyen hata" + otomatik `CrashLog`. `userErrorText(e)`,
+  `showUserError(context, e)` ("Ayrıntı" ham metni gösterir/kopyalar, "Yeniden dene").
+- 48 dosyada ham hata gösterimi (`'$e'`, `{'error': e}`, `'⚠️ $e'`) → `userErrorText`.
+  Sabit Türkçe hata metinleri ('Kaydedilemedi: $e', 'Dosya açılamadı: $e', 'AI (anahtar
+  gerekli)', 'Görünüm', 'Öğe N', 'Video', 'Okunacak metin yok') çeviriye alındı.
+  **Bulunan eski hata:** gezgin/pano "klasör oluşturulamadı" bildirimi `'\$e'` yazıyordu —
+  kullanıcı hata yerine düz "$e" görüyordu.
+- Lisans penceresi çevrildi; Syncfusion'un "izin verici lisans" diye yanlış anlatılması
+  düzeltildi (Community License); "Tüm lisanslar" → `showLicensePage` (N2'nin ilk adımı).
+- Ekran kodundaki 19 boş `catch (_) {}`: 18'i gerekçe yorumuyla "bilinçli en iyi çaba";
+  1'i (tarama sonrası klasör kurulamazsa taşımayı yine de denemek — I5'teki örnek)
+  kullanıcıya söylenir ve taşıma denenmez. `lib/` genelindeki ~140 servis içi boş catch
+  sınıflandırılmadı (bekçi yalnız `lib/screens` + `lib/widgets`).
+- `PermissionGate` / `PermissionCard` / `PermissionStatusRow` (tüm dosyalar, bildirim,
+  kamera, konum, üstte gösterme): neden + olmazsa ne olur + İzin ver / Ayarlara git;
+  dönüşte (`resumed`) kendini tazeler. Yardım ekranındaki "izinler" maddesinde canlı durum.
+  Bildirim izni kapalıysa ilk uzun işte BİR KEZ söylenir (`JobQueue.onFirstJob`).
+  **Bilinçli kısıt:** pano üstündeki eski "tüm dosyalar" kartı ve seçici ekranı kendi
+  akışlarıyla kaldı (testleri ve metinleri ona bağlı) — Faz 6 tasarımında kapıya geçer.
+- **Anahtarsız AI (N3):** `ensureAiKey(context)` — 7 çıkmaz sokak ("anahtar gerekli"
+  bildirimi) tek "AI'yı etkinleştir" penceresine bağlandı → "Anahtar ekle" AI ayarlarını açar.
+- Yardım/SSS iskeleti (Ayarlar > Hakkında > Yardım): izinler, kasa PIN'i, ağ paylaşımı,
+  AI anahtarı, hafif kip, hatalar (içerik Faz 11'de genişler). Çevrimdışı durum ayrı bir
+  bileşen olmadı: `UserErrorKind.offline` ortak mesajı tüm ağ hatalarında aynı dili veriyor.
+- Bekçiler (`user_communication_test`): ekran kodunda ham hata deseni 0, gerekçesiz boş
+  catch 0; her izin için reddedildi senaryosu; "izin yok / yer yok / dosya yok" birim testi.

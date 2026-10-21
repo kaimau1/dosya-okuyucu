@@ -52,7 +52,9 @@ extension _ViewerScreenPdfInlineEditPart on _ViewerScreenState {
           (r.left + r.right) / 2, (r.top + r.bottom) / 2);
       if (!mounted || _pdfEdit == null || probe.font.isEmpty) return;
       _partSetState(() => _pdfEditFont = PdfFontClass.of(probe.font));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli en iyi çaba: yazı tipi sezilemezse düzenleme varsayılan yazı tipiyle sürer.
+    }
   }
 
   void _cancelInlineEdit() {
@@ -187,7 +189,7 @@ extension _ViewerScreenPdfInlineEditPart on _ViewerScreenState {
     } catch (e) {
       if (!mounted) return;
       _partSetState(() => _pdfEditBusy = false);
-      _snack(context.t('vw.change_failed', {'error': e}));
+      _snack(context.t('vw.change_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -218,7 +220,7 @@ extension _ViewerScreenPdfInlineEditPart on _ViewerScreenState {
             {'n': page}));
       }
     } catch (e) {
-      if (mounted) _snack(context.t('vw.rotate_failed', {'error': e}));
+      if (mounted) _snack(context.t('vw.rotate_failed', {'error': userErrorText(e)}));
     } finally {
       if (mounted) _partSetState(() => _pdfBusy = false);
     }

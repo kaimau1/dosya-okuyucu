@@ -111,7 +111,7 @@ extension _ViewerScreenPendingSavePart on _ViewerScreenState {
         }
       }
     } catch (e) {
-      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
+      if (mounted) _snack(context.t('vw.highlight_failed', {'error': userErrorText(e)}));
       return false;
     }
     if (!mounted) return false;
@@ -169,7 +169,7 @@ extension _ViewerScreenPendingSavePart on _ViewerScreenState {
       }
       return true;
     } catch (e) {
-      if (mounted) _snack(context.t('vw.highlight_failed', {'error': e}));
+      if (mounted) _snack(context.t('vw.highlight_failed', {'error': userErrorText(e)}));
       return false;
     }
   }

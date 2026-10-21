@@ -412,7 +412,7 @@ Future<bool> rotateImageEntry(BuildContext context, FsEntry entry) async {
   } catch (e) {
     showSnackBarReplacing(
       messenger,
-      SnackBar(content: Text(strings.t('rotate.failed', {'error': e}))),
+      SnackBar(content: Text(strings.t('rotate.failed', {'error': userErrorText(e)}))),
     );
     return false;
   }
@@ -506,7 +506,7 @@ Future<bool> joinEntry(BuildContext context, FsEntry entry) async {
   } catch (e) {
     showSnackBarReplacing(
       messenger,
-      SnackBar(content: Text(strings.t('join.failed', {'error': e}))),
+      SnackBar(content: Text(strings.t('join.failed', {'error': userErrorText(e)}))),
     );
     return false;
   }

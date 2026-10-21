@@ -11,6 +11,7 @@ import 'floating_video.dart';
 import 'media_session.dart';
 import 'playback_positions.dart';
 import 'thumbnail_cache.dart';
+import '../../core/user_error.dart';
 
 /// **Video oynatma servisi** — oynatıcı artık ekranın değil, uygulamanın.
 ///
@@ -164,7 +165,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
       await old?.dispose();
       _controller = null;
       loading = false;
-      error = AppStrings.current.t('mp.video_failed', {'error': e});
+      error = AppStrings.current.t('mp.video_failed', {'error': userErrorText(e)});
       notifyListeners();
       return;
     }
@@ -293,7 +294,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await action();
     } catch (e) {
-      error = AppStrings.current.t('mp.video_failed', {'error': e});
+      error = AppStrings.current.t('mp.video_failed', {'error': userErrorText(e)});
       notifyListeners();
     }
   }

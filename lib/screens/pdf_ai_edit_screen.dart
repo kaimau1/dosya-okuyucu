@@ -7,6 +7,8 @@ import '../services/conversion_service.dart';
 import '../services/gemini_service.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/safe_insets.dart';
+import '../core/user_error.dart';
+import '../widgets/ai_key_gate.dart';
 
 /// **PDF'i AI'a düzenletme.**
 ///
@@ -85,10 +87,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
 
   Future<void> _run() async {
     final state = context.read<AppState>();
-    if (!state.hasApiKey) {
-      setState(() => _error = context.t('pa.need_key'));
-      return;
-    }
+    if (!await ensureAiKey(context) || !mounted) return;
     final task = _instruction.text.trim();
     if (task.isEmpty) {
       setState(() => _error = context.t('pa.need_task'));
@@ -115,7 +114,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
       if (!mounted) return;
       setState(() => _result.text = answer.trim());
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userErrorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -143,7 +142,8 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Kaydedilemedi: $e';
+        _error = AppStrings.current
+            .t('common.save_failed', {'error': userErrorText(e)});
       });
     }
   }

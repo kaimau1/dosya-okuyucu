@@ -10,6 +10,7 @@ import '../services/fm/entry_opener.dart';
 import '../services/fm/activity_log.dart';
 import '../services/pdf_save.dart';
 import '../core/snack.dart';
+import '../core/user_error.dart';
 
 /// Kaydetme sonucunun çağırana söylediği şey.
 class PdfSaveOutcome {
@@ -59,7 +60,8 @@ Future<PdfSaveOutcome?> savePdfWithChoice(
     }
   } catch (e) {
     if (context.mounted) {
-      showSnack(context, 'Kaydedilemedi: $e');
+      showSnack(context,
+          context.t('common.save_failed', {'error': userErrorText(e)}));
     }
     return null;
   }
