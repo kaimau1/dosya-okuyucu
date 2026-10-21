@@ -10,7 +10,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/photo_insights.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 
-/// **Anılar**: Bu gün · Yerler · İnsanlar (bkz. [PhotoInsights]).
+/// **Anılar**: Bu gün · Yerler (bkz. [PhotoInsights]).
 class MemoriesScreen extends StatefulWidget {
   const MemoriesScreen({super.key});
 
@@ -20,9 +20,6 @@ class MemoriesScreen extends StatefulWidget {
 
 class _MemoriesScreenState extends State<MemoriesScreen> {
   bool _cancel = false;
-
-  /// İnsanlar sekmesindeki süzgeç: 0 = kişili, 1 = tek kişi, 2 = grup.
-  int _people = 0;
 
   @override
   void initState() {
@@ -43,14 +40,13 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: Text(context.t('mem.title')),
           bottom: TabBar(tabs: [
             Tab(text: context.t('mem.tab_day')),
             Tab(text: context.t('mem.tab_places')),
-            Tab(text: context.t('mem.tab_people')),
           ]),
         ),
         body: ListenableBuilder(
@@ -68,10 +64,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          context.t(
-                              progress.step == 'faces'
-                                  ? 'mem.scanning_faces'
-                                  : 'mem.scanning',
+                          context.t('mem.scanning',
                               {'n': progress.done, 'total': progress.total}),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -89,7 +82,6 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                     children: [
                       _dayTab(context, ins),
                       _placesTab(context, ins),
-                      _peopleTab(context, ins),
                     ],
                   ),
                 ),
@@ -214,58 +206,6 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _peopleTab(BuildContext context, PhotoInsights ins) {
-    final pending = ins.facesPending;
-    final list = switch (_people) {
-      1 => ins.withFaces(1, 1),
-      2 => ins.withFaces(3),
-      _ => ins.withFaces(1),
-    };
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.all(Gap.md),
-          sliver: SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(context.t('mem.people_note'),
-                    style: Theme.of(context).textTheme.bodySmall),
-                if (pending > 0 && !ins.busy) ...[
-                  const SizedBox(height: Gap.sm),
-                  FilledButton.tonalIcon(
-                    onPressed: () => ins.scanFaces(isCancelled: () => _cancel),
-                    icon: const Icon(Icons.face_retouching_natural),
-                    label: Text(context.t('mem.scan_faces', {'n': pending})),
-                  ),
-                ],
-                const SizedBox(height: Gap.sm),
-                SegmentedButton<int>(
-                  segments: [
-                    ButtonSegment(value: 0, label: Text(context.t('mem.people_any'))),
-                    ButtonSegment(value: 1, label: Text(context.t('mem.people_one'))),
-                    ButtonSegment(value: 2, label: Text(context.t('mem.people_group'))),
-                  ],
-                  selected: {_people},
-                  onSelectionChanged: (v) => setState(() => _people = v.first),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (list.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: _empty(context, Icons.people_outline,
-                context.t(pending > 0 ? 'mem.people_scan_first' : 'mem.people_empty')),
-          )
-        else
-          _grid(list),
-        SliverPadding(padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.lg))),
-      ],
     );
   }
 }

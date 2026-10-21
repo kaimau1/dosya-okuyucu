@@ -7066,9 +7066,7 @@ const Map<String, (String, String, String)> _table = {
   'mem.title': ('Anılar', 'Memories', 'الذكريات'),
   'mem.tab_day': ('Bu gün', 'On this day', 'في مثل هذا اليوم'),
   'mem.tab_places': ('Yerler', 'Places', 'الأماكن'),
-  'mem.tab_people': ('İnsanlar', 'People', 'الأشخاص'),
   'mem.scanning': ('Fotoğraflar okunuyor… {n}/{total}', 'Reading photos… {n}/{total}', 'جارٍ قراءة الصور… {n}/{total}'),
-  'mem.scanning_faces': ('Yüzler aranıyor… {n}/{total}', 'Looking for faces… {n}/{total}', 'جارٍ البحث عن الوجوه… {n}/{total}'),
   'mem.loading': ('Fotoğraflar inceleniyor…', 'Looking through photos…', 'جارٍ فحص الصور…'),
   'mem.day_empty': (
     'Geçmiş yıllarda bugün çekilmiş fotoğraf yok. Yarın yeniden bak!',
@@ -7083,21 +7081,6 @@ const Map<String, (String, String, String)> _table = {
   ),
   'mem.place_unknown': ('Yer {n}', 'Place {n}', 'مكان {n}'),
   'mem.n_photos': ('{n} fotoğraf', '{n} photos', '{n} صورة'),
-  'mem.people_note': (
-    'Yüzler cihazda ALGILANIR, kim oldukları tanınmaz ve hiçbir yere gönderilmez.',
-    'Faces are DETECTED on the device; nobody is identified and nothing is uploaded.',
-    'تُكتشف الوجوه على الجهاز فقط؛ لا يُتعرَّف على أحد ولا يُرفع شيء.',
-  ),
-  'mem.scan_faces': ('{n} fotoğrafta yüz ara', 'Look for faces in {n} photos', 'ابحث عن وجوه في {n} صورة'),
-  'mem.people_any': ('Kişili', 'With people', 'بها أشخاص'),
-  'mem.people_one': ('Tek kişi', 'One person', 'شخص واحد'),
-  'mem.people_group': ('Grup', 'Group', 'مجموعة'),
-  'mem.people_empty': ('Bu grupta fotoğraf yok', 'No photos in this group', 'لا صور في هذه المجموعة'),
-  'mem.people_scan_first': (
-    'Önce yukarıdaki düğmeyle fotoğraflarda yüz aransın (cihazda, birkaç dakika sürebilir).',
-    'First look for faces with the button above (on device, may take a few minutes).',
-    'ابحث أولاً عن الوجوه بالزر أعلاه (على الجهاز، قد يستغرق دقائق).',
-  ),
   // ── şifreli kasa (2026-10-18) ───────────────────────────────────────────
   'vault.title': ('Şifreli kasa', 'Encrypted vault', 'الخزنة المشفرة'),
   'vault.move': ('Şifreli kasaya taşı', 'Move to encrypted vault', 'انقل إلى الخزنة المشفرة'),

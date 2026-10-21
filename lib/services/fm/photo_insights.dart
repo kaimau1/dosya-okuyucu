@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:path/path.dart' as p;
 
 import '../../models/fs_entry.dart';
@@ -21,24 +20,17 @@ class PhotoInfo {
   final double? lat;
   final double? lon;
 
-  /// Yüz sayısı; null = henüz bakılmadı.
-  final int? faces;
-
   const PhotoInfo({
     required this.modifiedMs,
     this.takenMs,
     this.lat,
     this.lon,
-    this.faces,
   });
 
   int dateMs() => takenMs ?? modifiedMs;
 
-  PhotoInfo withFaces(int n) => PhotoInfo(
-      modifiedMs: modifiedMs, takenMs: takenMs, lat: lat, lon: lon, faces: n);
-
   Map<String, Object?> toJson() =>
-      {'m': modifiedMs, 't': takenMs, 'la': lat, 'lo': lon, 'f': faces};
+      {'m': modifiedMs, 't': takenMs, 'la': lat, 'lo': lon};
 
   static PhotoInfo? fromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -47,7 +39,6 @@ class PhotoInfo {
       takenMs: (raw['t'] as num?)?.toInt(),
       lat: (raw['la'] as num?)?.toDouble(),
       lon: (raw['lo'] as num?)?.toDouble(),
-      faces: (raw['f'] as num?)?.toInt(),
     );
   }
 }
@@ -61,7 +52,10 @@ class PhotoPlace {
 }
 
 /// **Anılar** (2026-10-18, kullanıcının onayladığı öneri: *"fotoğraflarda
-/// yüz ve konuma göre gruplama, 'bu tarihte bir yıl önce' anıları"*).
+/// konuma göre gruplama, 'bu tarihte bir yıl önce' anıları"*).
+/// "İnsanlar" (ML Kit yüz algılama) 2026-10-21'de KALDIRILDI (K8: KVKK
+/// hassasiyeti + düşük cihazda ağır tarama). Eski dizindeki `'f'` alanı
+/// okunurken yok sayılır, ilk kayıtta düşer.
 ///
 /// Her şey CİHAZDA:
 /// - **Bu gün**: geçmiş yıllarda bugünün tarihinde çekilmiş fotoğraflar
@@ -69,9 +63,6 @@ class PhotoPlace {
 /// - **Yerler**: EXIF GPS'i ~5 km'lik kümelere toplanır, kümenin adı cihazın
 ///   `Geocoder`ından ("Çankaya, Ankara"). Koordinat bir yere gönderilmez,
 ///   ekranda gösterilmez (bkz. [ExifReader.parseGps]).
-/// - **İnsanlar**: ML Kit yüz ALGILAMA — kim olduğunu tanımaz (ücretsiz
-///   cihaz-içi bir yüz tanıma yok, kimlik kümesi de KVKK açısından ayrı bir
-///   konu). Fotoğrafları "kişili / tek kişi / grup" diye ayırır.
 ///
 /// Sonuçlar artımlı bir dizinde (`photo_insights.json`): dosya değişmedikçe
 /// ikinci kez okunmaz.
@@ -157,14 +148,11 @@ class PhotoInsights extends ChangeNotifier {
         final head = await _head(e.path);
         final exif = head == null ? ExifData.empty : ExifReader.parse(head);
         final gps = head == null ? null : ExifReader.parseGps(head);
-        final old = _info[e.path];
         _info[e.path] = PhotoInfo(
           modifiedMs: e.modifiedMs,
           takenMs: exif.taken?.millisecondsSinceEpoch,
           lat: gps?.lat,
           lon: gps?.lon,
-          // Dosya değiştiyse yüz sayısı yeniden bakılır.
-          faces: old?.modifiedMs == e.modifiedMs ? old?.faces : null,
         );
         if (i % 500 == 499) await _save();
       }
@@ -217,47 +205,6 @@ class PhotoInsights extends ChangeNotifier {
     if (changed) await _save();
   }
 
-  /// Yüz sayısı bilinmeyen fotoğraf sayısı.
-  int get facesPending =>
-      _photos.where((e) => _info[e.path]?.faces == null).length;
-
-  /// ML Kit ile yüz sayılarını bulur (yavaş: fotoğraf başına ~0,1 sn).
-  Future<void> scanFaces({bool Function()? isCancelled}) async {
-    if (_busy) return;
-    _busy = true;
-    notifyListeners();
-    final detector = FaceDetector(
-        options: FaceDetectorOptions(minFaceSize: 0.08));
-    try {
-      final todo = [
-        for (final e in _photos)
-          if (_info[e.path] != null && _info[e.path]!.faces == null) e,
-      ];
-      for (var i = 0; i < todo.length; i++) {
-        if (isCancelled?.call() ?? false) break;
-        _progress = (done: i, total: todo.length, step: 'faces');
-        if (i % 5 == 0) notifyListeners();
-        final e = todo[i];
-        var n = 0;
-        try {
-          final faces =
-              await detector.processImage(InputImage.fromFilePath(e.path));
-          n = faces.length;
-        } catch (_) {
-          n = 0;
-        }
-        _info[e.path] = _info[e.path]!.withFaces(n);
-        if (i % 100 == 99) await _save();
-      }
-      await _save();
-    } finally {
-      await detector.close();
-      _busy = false;
-      _progress = null;
-      notifyListeners();
-    }
-  }
-
   PhotoInfo? infoOf(String path) => _info[path];
 
   /// Geçmiş yıllarda bugünün (ay+gün) tarihli fotoğraflar, yıla göre.
@@ -305,13 +252,6 @@ class PhotoInsights extends ChangeNotifier {
     ]..sort((a, b) => b.photos.length.compareTo(a.photos.length));
     return out;
   }
-
-  /// Yüz sayısına göre süzülmüş fotoğraflar ([min]..[max] dahil).
-  List<FsEntry> withFaces(int min, [int? max]) => [
-        for (final e in _photos)
-          if (_info[e.path]?.faces case final f?)
-            if (f >= min && (max == null || f <= max)) e,
-      ];
 
   @visibleForTesting
   void debugReset() {

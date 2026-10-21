@@ -76,13 +76,6 @@ dependencies:
   # (commons 0.11.1 de Dart >=3.8 ister; CI'da pub otomatik 0.11.0'a düşer —
   # pubspec.lock gitignore'da olduğu için CI kendi çözümlemesini yapar.)
   google_mlkit_translation: 0.13.0
-  # Yüz ALGILAMA (kimlik tanıma DEĞİL) — "Anılar → İnsanlar" (2026-10-18):
-  # kişi içeren fotoğrafları, grup fotoğraflarını ve portreleri ayırır.
-  # 0.13.1 SABİT: commons ^0.11.0 ister (text_recognition/translation ile
-  # aynı); 0.13.0 commons ^0.10.0 ister → çözümleme çakışır, 0.14+ Dart 3.8.
-  # CI gömülü modeli (`com.google.mlkit:face-detection`) Play Hizmetleri
-  # sürümüne çeviriyor (OCR ile aynı ikame, APK büyümesin) — bkz. workflow.
-  google_mlkit_face_detection: 0.13.1
   # Word'ü gerçek sayfa düzeniyle çizmek için (assets/word içindeki docx-preview
   # motoru gömülü çalışır — internet gerekmez)
   webview_flutter: ^4.10.0

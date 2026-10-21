@@ -122,15 +122,13 @@ PY
 
 # ── 6) targetSdk/compileSdk 36 + ML Kit modelleri Play Hizmetleri'nden ────
 # Play 31 Ağustos 2026'dan beri targetSdk 36 istiyor; Flutter 3.29.3 şablonu
-# 35 yazıyor. OCR ve yüz algılama gömülü model yerine Play Hizmetleri'nin
-# ortak modelini kullanır (APK'dan ~12 MB çıkar).
+# 35 yazıyor. OCR gömülü model yerine Play Hizmetleri'nin ortak modelini
+# kullanır (APK'dan ~12 MB çıkar).
 say "targetSdk/compileSdk 36 + ML Kit ikamesi"
 python3 - <<'PY'
 import pathlib, re
 OCR_FROM = 'com.google.mlkit:text-recognition'
 OCR_TO = 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
-FACE_FROM = 'com.google.mlkit:face-detection'
-FACE_TO = 'com.google.android.gms:play-services-mlkit-face-detection:17.1.0'
 patched = False
 for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
     path = pathlib.Path(name)
@@ -153,9 +151,6 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
             f'        substitute(module("{OCR_FROM}"))\n'
             f'            .using(module("{OCR_TO}"))\n'
             '            .because("OCR model comes from Google Play services, not the APK")\n'
-            f'        substitute(module("{FACE_FROM}"))\n'
-            f'            .using(module("{FACE_TO}"))\n'
-            '            .because("Face model comes from Google Play services, not the APK")\n'
             '    }\n'
             '}\n')
     else:
@@ -163,7 +158,6 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
             '\nconfigurations.all {\n'
             '    resolutionStrategy.dependencySubstitution {\n'
             f"        substitute module('{OCR_FROM}') using module('{OCR_TO}')\n"
-            f"        substitute module('{FACE_FROM}') using module('{FACE_TO}')\n"
             '    }\n'
             '}\n')
     path.write_text(text.rstrip() + '\n' + block)
