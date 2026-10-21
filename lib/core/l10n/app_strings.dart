@@ -7289,47 +7289,11 @@ const Map<String, (String, String, String)> _table = {
     'Vivid purple accent, round corners, large icons',
     'لون بنفسجي زاهٍ وزوايا دائرية وأيقونات كبيرة',
   ),
-  'skin.office': ('İş programı', 'Business', 'برنامج عمل'),
-  'skin.office_sub': (
-    'Keskin köşeler, küçük simgeler, sıkı satırlar',
-    'Sharp corners, small icons, dense rows',
-    'زوايا حادة وأيقونات صغيرة وصفوف مكثفة',
-  ),
   'skin.night': ('Gece (OLED)', 'Night (OLED)', 'ليلي (OLED)'),
   'skin.night_sub': (
     'Saf siyah zemin — pil dostu, gece okunur',
     'Pure black ground: battery friendly, easy at night',
     'خلفية سوداء نقية موفرة للبطارية ومريحة ليلاً',
-  ),
-  'skin.ocean': ('Okyanus', 'Ocean', 'محيط'),
-  'skin.ocean_sub': (
-    'Camgöbeği vurgu, halkalı çift ton simgeler, turkuaz klasörler',
-    'Cyan accent, two-tone ringed icons, teal folders',
-    'لون سماوي وأيقونات ثنائية اللون ومجلدات فيروزية',
-  ),
-  'skin.sunset': ('Gün batımı', 'Sunset', 'غروب'),
-  'skin.sunset_sub': (
-    'Sıcak mercan vurgu, renkli rozet simgeler, turuncu klasörler',
-    'Warm coral accent, colourful badge icons, orange folders',
-    'لون مرجاني دافئ وأيقونات شارات ملونة ومجلدات برتقالية',
-  ),
-  'skin.forest': ('Orman', 'Forest', 'غابة'),
-  'skin.forest_sub': (
-    'Doğal yeşil vurgu, degrade simgeler, yaprak yeşili klasörler',
-    'Natural green accent, gradient icons, leaf-green folders',
-    'لون أخضر طبيعي وأيقونات متدرجة ومجلدات خضراء',
-  ),
-  'skin.rose': ('Gül', 'Rose', 'وردي'),
-  'skin.rose_sub': (
-    'Gül pembesi, çok yuvarlak köşeler, çift ton büyük simgeler',
-    'Rose pink, very round corners, large two-tone icons',
-    'وردي وزوايا دائرية جداً وأيقونات كبيرة ثنائية اللون',
-  ),
-  'skin.graphite': ('Grafit', 'Graphite', 'غرافيت'),
-  'skin.graphite_sub': (
-    'Siyah-beyaz minimal, tek renk çizgi simgeler, gri klasörler',
-    'Minimal black and white, single-colour line icons, grey folders',
-    'أبيض وأسود بسيط وأيقونات خطية أحادية اللون ومجلدات رمادية',
   ),
   'skin.forces_dark': (
     'Bu tema her zaman koyu çalışır',

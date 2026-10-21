@@ -24,23 +24,16 @@ Arimo yalnızca değişken (variable) font olarak geliyor; ağırlık (kalın) w
 ekseninden uygulanır.
 
 
-Arayüz yazı tipi seçenekleri (2026-08-07)
-==========================================
+Arayüz yazı tipi seçenekleri (2026-10-21'den beri)
+====================================================
 
-Ayarlar > Görünüm ve dil > Yazı tipi listesi. Hepsi APK'ya GÖMÜLÜ: cihazın
-kendi fontlarına düşen bir seçenek "her telefonda aynı görünsün" kuralını
-bozardı. Boyut için Latin + Latin Ext-A/B'ye (Türkçe dahil) altkümelendiler ve
-değişken eksenlerden yalnız `wght` bırakıldı — üretici betik:
+Ayarlar > Görünüm ve dil > Yazı tipi: Carlito (sans), Tinos (serif) —
+yukarıdaki belge fontlarının kendisi — ve JetBrains Mono (tek aralıklı).
+Inter, Lato, Nunito, Merriweather, EB Garamond ve Roboto Slab 2026-10-21'de
+kaldırıldı (sadeleşme + Lato/Merriweather'ın altkümelenmiş hâlinin OFL
+"Reserved Font Name" maddesiyle çakışması). JetBrains Mono altkümesi:
 tool/fetch_ui_fonts.py
 
-  Inter, Lato, Nunito                 — sans (modern / hümanist / yuvarlak)
-  Merriweather, EB Garamond,
-  Roboto Slab                         — serif (ekran / kitap / slab)
-  JetBrains Mono                      — tek aralıklı
-
 Lisans:
-  - Inter, Lato, Nunito, Merriweather, EB Garamond, JetBrains Mono:
-    SIL Open Font License 1.1 (tam metin: OFL.txt), kaynak
-    github.com/google/fonts (ofl/…).
-  - Roboto Slab: Apache License 2.0, kaynak github.com/google/fonts
-    (apache/robotoslab).
+  - JetBrains Mono: SIL Open Font License 1.1 (tam metin: OFL.txt), kaynak
+    github.com/google/fonts (ofl/jetbrainsmono). Reserved Font Name YOK.

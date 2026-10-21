@@ -56,9 +56,29 @@ void main() {
     // olmamasına bağlı bir aile "her telefonda aynı" olmazdı.
     // Seçenekler APK'da GÖMÜLÜ ailelerle sınırlı; cihazın kendi 'monospace'i
     // telefondan telefona değiştiği için listede yok — yerine JetBrains Mono.
+    // 2026-10-21: sans + serif + tek aralıklı — üçü de belge sadakati için
+    // zaten gömülü aileler.
     expect(AppTheme.uiFonts.map((f) => f.$2),
-        containsAll(<String>['Carlito', 'Inter', 'Merriweather', 'JetBrains Mono']));
-    expect(AppTheme.uiFonts.length, greaterThanOrEqualTo(8));
+        ['Carlito', 'Tinos', 'JetBrains Mono']);
+  });
+
+  test('kaldırılan yazı tipi seçimi en yakın aileye taşınır', () {
+    expect(AppTheme.migrateUiFont(null), 'Carlito');
+    expect(AppTheme.migrateUiFont('Tinos'), 'Tinos');
+    expect(AppTheme.migrateUiFont('JetBrains Mono'), 'JetBrains Mono');
+    for (final sans in ['Inter', 'Lato', 'Nunito', 'Arimo']) {
+      expect(AppTheme.migrateUiFont(sans), 'Carlito', reason: sans);
+    }
+    for (final serif in ['Merriweather', 'EB Garamond', 'Roboto Slab']) {
+      expect(AppTheme.migrateUiFont(serif), 'Tinos', reason: serif);
+    }
+  });
+
+  test('AppState eski yazı tipi tercihini göç ettirerek yükler', () async {
+    SharedPreferences.setMockInitialValues({'ui_font': 'Merriweather'});
+    final state = AppState();
+    await state.init();
+    expect(state.uiFont, 'Tinos');
   });
 
   test('varsayılan seçim BAŞLIK dahil her yere Carlito koyar', () {

@@ -165,23 +165,27 @@ class AppTheme {
   static const String uiFontDefault = fontBody;
 
   /// Seçilebilir arayüz yazı tipleri — hepsi APK'da **GÖMÜLÜ**: cihazda kurulu
-  /// olup olmamasına bağlı değil, her telefonda birebir aynı görünür (sistem
-  /// fontuna düşen bir seçenek "her telefonda sabit" olmazdı).
+  /// olup olmamasına bağlı değil, her telefonda birebir aynı görünür.
   ///
-  /// Etiketler yazı tipinin karakterini söylüyor: kullanıcı adı bilmese de
-  /// ne seçtiğini anlasın.
+  /// 2026-10-21 (Faz 2): 10 → 3. Sans ve serif, belge sadakati için ZATEN
+  /// gömülü olan Carlito/Tinos; arayüz için ayrıca font taşınmıyor.
   static const List<(String label, String family)> uiFonts = [
     ('Carlito', fontBody),
-    ('Inter', 'Inter'),
-    ('Lato', 'Lato'),
-    ('Nunito', 'Nunito'),
-    ('Arimo', 'Arimo'),
-    ('Merriweather', 'Merriweather'),
     ('Tinos', 'Tinos'),
-    ('EB Garamond', 'EB Garamond'),
-    ('Roboto Slab', 'Roboto Slab'),
     ('JetBrains Mono', 'JetBrains Mono'),
   ];
+
+  /// Kaldırılan arayüz yazı tiplerinin **en yakın** karşılığı — kullanıcının
+  /// seçimi sıfırlanmaz, aynı karakterdeki aileye taşınır (sans → Carlito,
+  /// serif → Tinos). Bilinmeyen ad varsayılana düşer.
+  static String migrateUiFont(String? family) {
+    if (family == null) return uiFontDefault;
+    if (uiFonts.any((f) => f.$2 == family)) return family;
+    return switch (family) {
+      'Merriweather' || 'EB Garamond' || 'Roboto Slab' => 'Tinos',
+      _ => uiFontDefault,
+    };
+  }
 
   /// Yazı boyutu hazır kademeleri (kullanıcı isteği 2026-08-07: *"küçük orta
   /// büyük çok büyük şeklinde kolay seçimde olsun"*). Kaydırıcı ince ayar

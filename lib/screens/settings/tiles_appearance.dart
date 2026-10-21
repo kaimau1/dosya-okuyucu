@@ -271,7 +271,6 @@ class _SkinSwatch extends StatelessWidget {
               color: folder,
               size: 26,
               style: metrics.iconStyle,
-              monoColor: palette.inkSoft,
             ),
           ),
           // Vurgu rengi köşede küçük bir nokta.

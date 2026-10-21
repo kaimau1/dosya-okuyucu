@@ -218,7 +218,7 @@ void main() {
     await tester.tap(find.text('Yazı tipi'));
     await tester.pumpAndSettle();
     // Her seçenek KENDİ yazı tipiyle + Türkçe örnek satırla listeleniyor.
-    expect(find.text('Merriweather'), findsOneWidget);
+    expect(find.text('Tinos'), findsOneWidget);
     expect(find.textContaining('Örnek:'), findsWidgets);
   });
 

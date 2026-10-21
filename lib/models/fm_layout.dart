@@ -109,6 +109,16 @@ extension FmLayoutInfo on FmLayout {
     return cellWidth / (icon + 34);
   }
 
+  /// **Dosya listelerinde** seçilebilen yerleşimler (2026-10-21, Faz 2:
+  /// 6 → 3). 2/4/5 sütun yalnız Fotoğraflar ızgarasında (iki parmakla
+  /// yakınlaştırma) yaşar; dosya listesinde ayrı bir bakım yükü getiriyordu.
+  static const fileListChoices = [FmLayout.list, FmLayout.detail, FmLayout.grid3];
+
+  /// Dosya listesi için en yakın seçilebilir yerleşim — eski 2/4/5 sütun
+  /// tercihi 3 sütun ızgaraya taşınır, ızgara kalır.
+  FmLayout get fileListNearest =>
+      fileListChoices.contains(this) ? this : FmLayout.grid3;
+
   static FmLayout byName(String? name, {FmLayout fallback = FmLayout.list}) {
     for (final l in FmLayout.values) {
       if (l.name == name) return l;

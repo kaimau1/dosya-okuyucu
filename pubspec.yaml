@@ -328,32 +328,12 @@ flutter:
         - asset: assets/fonts/Arimo-Variable.ttf
         - asset: assets/fonts/Arimo-Italic-Variable.ttf
           style: italic
-    # ── Arayüz yazı tipi seçenekleri (2026-08-07 kullanıcı: "daha fazla yazı
-    # tipi lazım"). Hepsi OFL; APK'yı şişirmemek için Latin + Latin Ext-A/B'ye
-    # (Türkçe dahil) ALTKÜMELENDİ ve değişken eksenlerden yalnız `wght`
-    # bırakıldı — 8,2 MB'lık ham set 2,2 MB'a indi (tool/fetch_ui_fonts.py).
-    # Eğik (italik) kesitleri YOK: arayüzde kullanılmıyor, boyutu ikiye
-    # katlardı.
-    - family: Inter # modern arayüz sans'ı
-      fonts:
-        - asset: assets/fonts/Inter-Variable.ttf
-    - family: Lato # hümanist sans, yumuşak
-      fonts:
-        - asset: assets/fonts/Lato-Regular.ttf
-        - asset: assets/fonts/Lato-Bold.ttf
-          weight: 700
-    - family: Nunito # yuvarlak uçlu, sıcak
-      fonts:
-        - asset: assets/fonts/Nunito-Variable.ttf
-    - family: Merriweather # ekranda uzun metin için tasarlanmış serif
-      fonts:
-        - asset: assets/fonts/Merriweather-Variable.ttf
-    - family: Roboto Slab # tırnaklı-blok (slab) serif
-      fonts:
-        - asset: assets/fonts/RobotoSlab-Variable.ttf
-    - family: EB Garamond # klasik kitap serifi
-      fonts:
-        - asset: assets/fonts/EBGaramond-Variable.ttf
+    # ── Arayüz yazı tipleri (2026-10-21, Faz 2 sadeleşmesi): Carlito (sans),
+    # Tinos (serif) belge sadakati için zaten gömülü; arayüz yalnız bunlara
+    # + tek aralıklı JetBrains Mono'ya yaslanıyor. Inter/Lato/Nunito/
+    # Merriweather/Roboto Slab/EB Garamond ÇIKTI (~1,9 MB; Lato ve
+    # Merriweather'ın altkümelenmiş hâli OFL "Reserved Font Name" maddesine
+    # aykırıydı — FAZ_PLANI L2).
     - family: JetBrains Mono # GERÇEK gömülü tek aralıklı (cihazın 'monospace'i
       fonts:                 # telefondan telefona değişiyor)
         - asset: assets/fonts/JetBrainsMono-Variable.ttf

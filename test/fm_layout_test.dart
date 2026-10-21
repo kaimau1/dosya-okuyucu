@@ -35,6 +35,13 @@ void main() {
     test('byName bilinmeyen adda yedeğe düşer', () {
       expect(FmLayoutInfo.byName('grid4'), FmLayout.grid4);
       expect(FmLayoutInfo.byName(null), FmLayout.list);
+    // Dosya listesinde 3 seçenek (2026-10-21); eski 2/4/5 sütun ızgara kalır.
+    expect(FmLayoutInfo.fileListChoices,
+        [FmLayout.list, FmLayout.detail, FmLayout.grid3]);
+    for (final g in [FmLayout.grid2, FmLayout.grid4, FmLayout.grid5]) {
+      expect(g.fileListNearest, FmLayout.grid3);
+    }
+    expect(FmLayout.detail.fileListNearest, FmLayout.detail);
       expect(
           FmLayoutInfo.byName('yok', fallback: FmLayout.grid3), FmLayout.grid3);
     });

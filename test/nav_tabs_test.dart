@@ -90,11 +90,9 @@ void main() {
   });
 
   group('tema simge dilleri', () {
-    test('yeni ailelerin her biri kendi simge dilini getirir', () {
-      expect(SkinMetrics.of(AppSkin.sunset).iconStyle, SkinIconStyle.badge);
-      expect(SkinMetrics.of(AppSkin.ocean).iconStyle, SkinIconStyle.duotone);
-      expect(SkinMetrics.of(AppSkin.graphite).iconStyle, SkinIconStyle.mono);
-      expect(SkinMetrics.of(AppSkin.graphite).outlinedIcons, isTrue);
+    test('her simge dili en az bir ailede kullanılır', () {
+      expect(SkinMetrics.of(AppSkin.night).outlinedIcons, isTrue);
+      expect(SkinMetrics.of(AppSkin.modern).outlinedIcons, isFalse);
       expect(SkinMetrics.of(AppSkin.paper).folderColor, isNull,
           reason: 'kağıt ailesinin kehribar klasörü değişmedi');
       final styles = {

@@ -29,18 +29,10 @@ GOOGLE = 'https://raw.githubusercontent.com/google/fonts/main/'
 
 # hedef dosya adı -> (depo yolu, sabitlenecek eksenler)
 FONTS = {
-    'Inter-Variable.ttf': ('ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf', {'opsz': 16}),
-    'Nunito-Variable.ttf': ('ofl/nunito/Nunito%5Bwght%5D.ttf', {}),
-    'Merriweather-Variable.ttf': (
-        'ofl/merriweather/Merriweather%5Bopsz%2Cwdth%2Cwght%5D.ttf',
-        {'opsz': 18, 'wdth': 100},
-    ),
-    'RobotoSlab-Variable.ttf': ('apache/robotoslab/RobotoSlab%5Bwght%5D.ttf', {}),
-    'EBGaramond-Variable.ttf': ('ofl/ebgaramond/EBGaramond%5Bwght%5D.ttf', {}),
+    # 2026-10-21: arayüz fontları 10 → 3; sans/serif belge fontları
+    # (Carlito/Tinos) kullanılıyor, burada yalnız tek aralıklı kaldı.
     'JetBrainsMono-Variable.ttf': (
         'ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf', {}),
-    'Lato-Regular.ttf': ('ofl/lato/Lato-Regular.ttf', {}),
-    'Lato-Bold.ttf': ('ofl/lato/Lato-Bold.ttf', {}),
 }
 
 # Yunan/Kiril bilerek YOK: arayüz dillerimiz tr/en/ar.

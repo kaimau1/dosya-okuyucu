@@ -594,7 +594,7 @@ class AppState extends ChangeNotifier {
     _appSkin = AppSkin.byName(_prefs.getString(_kAppSkin));
     _background = AppBackground.byId(_prefs.getString(_kBackground)).id;
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
-    _uiFont = _prefs.getString(_kUiFont) ?? AppTheme.uiFontDefault;
+    _uiFont = AppTheme.migrateUiFont(_prefs.getString(_kUiFont));
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
     _highRefreshRate = _prefs.getBool(_kHighRefresh) ?? true;
     _autoRescan = _prefs.getBool(_kAutoRescan) ?? true;
@@ -612,7 +612,7 @@ class AppState extends ChangeNotifier {
         // Eski sürümün iki durumlu tercihi korunur: ızgara açıksa 3 sütun.
         fallback: (_prefs.getBool('fm_grid') ?? false)
             ? FmLayout.grid3
-            : FmLayout.list);
+            : FmLayout.list).fileListNearest;
     _fmPhotoLayout = FmLayoutInfo.byName(_prefs.getString(_kFmPhotoLayout),
         fallback: FmLayout.grid3);
     _fmPhotoGroup = PhotoGroupLabel.byName(_prefs.getString(_kFmPhotoGroup));

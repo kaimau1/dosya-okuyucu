@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 
-/// Yerleşim seçici: liste / büyük liste / 2-3-4-5 sütun.
+/// Yerleşim seçici: dosya listelerinde liste / büyük liste / ızgara
+/// ([FmLayoutInfo.fileListChoices]); Fotoğraflar'da 2-3-4-5 sütun.
 ///
 /// Tek yerde tanımlı olması bilinçli — gözatıcı, kategori ve Fotoğraflar
 /// ekranları aynı sayfayı açar, seçenekler birbirinden ayrışmaz.
@@ -15,9 +16,9 @@ Future<FmLayout?> showFmLayoutSheet(
   /// Fotoğraf ızgarasında liste düzenleri anlamsız (her şey kare önizleme).
   bool allowLists = true,
 }) {
-  final options = FmLayout.values
-      .where((l) => allowLists || l.isGrid)
-      .toList(growable: false);
+  final options = allowLists
+      ? FmLayoutInfo.fileListChoices
+      : FmLayout.values.where((l) => l.isGrid).toList(growable: false);
 
   return showModalBottomSheet<FmLayout>(
     context: context,

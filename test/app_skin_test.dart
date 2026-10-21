@@ -64,13 +64,34 @@ void main() {
   });
 
   group('ölçüler', () {
-    test('iş programı sıkı ve küçük, modern rahat ve büyük', () {
-      final office = SkinMetrics.of(AppSkin.office);
+    test('modern rahat ve büyük, kağıt ölçüsü değişmedi', () {
+      final paper = SkinMetrics.of(AppSkin.paper);
       final modern = SkinMetrics.of(AppSkin.modern);
-      expect(office.iconScale, lessThan(1));
+      expect(paper.iconScale, 1);
       expect(modern.iconScale, greaterThan(1));
-      expect(office.radiusCard, lessThan(modern.radiusCard));
-      expect(office.rowPadding, lessThan(modern.rowPadding));
+      expect(paper.radiusCard, lessThan(modern.radiusCard));
+      expect(paper.rowPadding, lessThan(modern.rowPadding));
+    });
+  });
+
+  group('sadeleşme göçü (2026-10-21)', () {
+    test('dört aile kalır', () {
+      expect(AppSkin.values, [
+        AppSkin.paper,
+        AppSkin.light,
+        AppSkin.modern,
+        AppSkin.night,
+      ]);
+    });
+
+    test('kaldırılan aile en yakın karşılığa taşınır, seçim sıfırlanmaz', () {
+      expect(AppSkin.byName('office'), AppSkin.light);
+      expect(AppSkin.byName('graphite'), AppSkin.light);
+      for (final colorful in ['ocean', 'sunset', 'forest', 'rose']) {
+        expect(AppSkin.byName(colorful), AppSkin.modern, reason: colorful);
+      }
+      expect(AppSkin.byName('night'), AppSkin.night);
+      expect(AppSkin.byName('bilinmeyen'), AppSkin.paper);
     });
   });
 
