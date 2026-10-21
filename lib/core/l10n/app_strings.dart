@@ -546,6 +546,14 @@ const Map<String, (String, String, String)> _table = {
   'ana.chat_note': ('WhatsApp ve Telegram medyası', 'WhatsApp and Telegram media', 'وسائط واتساب وتيليجرام'),
   'fm.apk_files': ('APK dosyaları', 'APK files', 'ملفات APK'),
   'fm.network_storage': ('Ağ depolama', 'Network storage', 'التخزين الشبكي'),
+  'xfer.title': ('Aktar', 'Transfer', 'نقل'),
+  'xfer.computer': ('Bilgisayarla', 'With a computer', 'مع حاسوب'),
+  'xfer.computer_note': ('Tarayıcıdan ya da FTP ile, QR kodla bağlan', 'From a browser or FTP, connect with a QR code', 'من المتصفح أو FTP، اتصل برمز QR'),
+  'xfer.phone': ('Telefonla', 'With a phone', 'مع هاتف'),
+  'xfer.phone_note': ('Aynı ağdaki başka bir telefona gönder', 'Send to another phone on the same network', 'أرسل إلى هاتف آخر على نفس الشبكة'),
+  'xfer.nas_note': ('FTP, SFTP, SMB, WebDAV bağlantıları', 'FTP, SFTP, SMB, WebDAV connections', 'اتصالات FTP وSFTP وSMB وWebDAV'),
+  'xfer.downloads': ('İndirmeler', 'Downloads', 'التنزيلات'),
+  'xfer.downloads_note': ('Bağlantıdan dosya indir', 'Download a file from a link', 'نزّل ملفًا من رابط'),
   // "Çöp" yerine "Çöp kutusu": büyük kutuya taşınınca (2026-07-31) tek
   // heceli "Çöp" neyi kastettiğini anlatmıyordu.
   'fm.trash': ('Çöp kutusu', 'Trash', 'المهملات'),

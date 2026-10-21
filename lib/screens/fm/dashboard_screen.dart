@@ -45,15 +45,13 @@ import '../../widgets/scan_flow.dart';
 import '../../widgets/section_header.dart';
 import 'analysis_screen.dart';
 import 'history_screen.dart';
+import 'remote/ftp_server_screen.dart';
+import 'transfer_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'cleanup_screen.dart';
-import 'download_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
-import 'remote/ftp_server_screen.dart';
-import 'remote/peer_share_screen.dart';
-import 'remote/remote_connections_screen.dart';
 import '../settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
@@ -1430,65 +1428,23 @@ class _DashboardScreenState extends State<DashboardScreen>
         subtitle: '',
         onTap: () => HiddenFilesScreen.open(context),
       ),
-      // Ağ depolama (NAS): Drive'ın yanında — ikisi de "telefonun dışındaki
-      // dosyalar". FTP/FTPS/SFTP/SMB/WebDAV bağlantıları burada.
-      FmTileData(
-        icon: Icons.dns_outlined,
-        color: const Color(0xFF5E35B1),
-        id: 'network_storage',
-        label: context.t('fm.network_storage'),
-        subtitle: '',
-        onTap: () => _push(const RemoteConnectionsScreen()),
-      ),
-      // **Ağdan erişim — panoda kendi kutusu** (kullanıcı isteği 2026-08-29:
-      // *"kolay erişilebilir, pratik olmalı"*). Eskiden Ağ depolama ekranının
-      // SAĞ ÜST KÖŞESİNDEKİ bir simgenin arkasındaydı: panodan üç dokunuş ve
-      // hiçbir yerde adı geçmiyordu. Ters yön de önemli: paylaşım açıkken alt
-      // yazı bunu söylüyor, kullanıcı telefonunun ağa açık olduğunu panoya
-      // bakınca görüyor.
+      // **Aktar** (2026-10-21, Faz 2): Ağdan erişim, Yakındaki cihaz, Ağ
+      // depolama ve İndir dört ayrı kutuydu; tek kapı oldu. Alt yazı canlı:
+      // paylaşım açıksa ya da indirme sürüyorsa yazar.
       FmTileData(
         icon: FtpService.instance.running
             ? Icons.wifi_tethering
-            : Icons.phonelink_outlined,
-        color: FtpService.instance.running
-            ? const Color(0xFF00796B)
-            : const Color(0xFF00897B),
-        id: 'ftp_server',
-        label: context.t('ftpd.title'),
+            : Icons.swap_horiz_rounded,
+        color: const Color(0xFF00897B),
+        id: 'transfer',
+        label: context.t('xfer.title'),
         subtitle: FtpService.instance.running
             ? context.t('ftpd.running')
-            : '',
+            : (downloading > 0
+                ? context.t('fm.jobs_running', {'n': downloading})
+                : ''),
         onTap: () async {
-          await _push(const FtpServerScreen());
-          if (mounted) setState(() {});
-        },
-      ),
-      // **Yakındaki cihaz** (kullanıcı isteği 2026-09-06: *"iki dosya
-      // okuyucusu arasında hızlı dosya paylaşımı"*). Gönderme "Paylaş"
-      // düğmesinin içinde; buradaki kutu ALICI taraf için: dosyayı bekleyen
-      // kişinin "Al" ekranını açabileceği tek yer burası. Ağ kutularının
-      // yanında duruyor, çünkü aynı ailedendir.
-      FmTileData(
-        icon: Icons.send_to_mobile_outlined,
-        color: const Color(0xFF00838F),
-        id: 'peer_share',
-        label: context.t('peer.title'),
-        subtitle: '',
-        onTap: () => _push(const PeerShareScreen()),
-      ),
-      // (Google Drive 2026-08-05'te buradan yukarıdaki BÜYÜK kart ızgarasına
-      // terfi etti — çöp kutusuyla aynı gerekçe: küçük simge kalabalığında
-      // bulunamıyordu.)
-      FmTileData(
-        icon: Icons.download_for_offline_outlined,
-        color: const Color(0xFF1565C0),
-        id: 'download',
-        label: context.t('fm.download'),
-        subtitle: downloading > 0
-            ? context.t('fm.jobs_running', {'n': downloading})
-            : '',
-        onTap: () async {
-          await _push(const DownloadManagerScreen());
+          await _push(const TransferScreen());
           if (mounted) setState(() {});
         },
       ),

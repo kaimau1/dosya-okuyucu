@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
@@ -53,11 +54,32 @@ abstract final class ToolUsage {
         if (n == null || n <= 0) continue;
         _counts['${entry.key}'] = n;
       }
+      _foldMerged(_counts);
     } catch (_) {
       // Bozuk dosya sessizce yok sayılır: bu bir kolaylık kaydı, sıralama
       // bozulur ama uygulama çalışmaya devam eder.
     } finally {
       revision++;
+    }
+  }
+
+  /// Birleşen araçlar (2026-10-21, Faz 2): eski kutuların sayaçları yeni
+  /// kapıya toplanır — sık kullanılan "Ağdan erişim" kutusu "Aktar" olunca
+  /// sıralamanın dibine düşmesin. Eski kimlikler haritadan düşer.
+  static const merged = {
+    'ftp_server': 'transfer',
+    'peer_share': 'transfer',
+    'network_storage': 'transfer',
+    'download': 'transfer',
+  };
+
+  @visibleForTesting
+  static void foldMergedForTest(Map<String, int> counts) => _foldMerged(counts);
+
+  static void _foldMerged(Map<String, int> counts) {
+    for (final e in merged.entries) {
+      final n = counts.remove(e.key);
+      if (n != null) counts[e.value] = (counts[e.value] ?? 0) + n;
     }
   }
 
