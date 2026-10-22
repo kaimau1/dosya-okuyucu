@@ -134,6 +134,7 @@ const Map<String, (String, String, String)> _t8 = {
   'enum.imgfmt_keep': ('Aynı kalsın', 'Keep the same', 'إبقاء كما هو'),
   'enum.imgfmt_jpeg': ('JPEG (küçük)', 'JPEG (small)', 'JPEG (صغير)'),
   'enum.imgfmt_png': ('PNG (kayıpsız)', 'PNG (lossless)', 'PNG (بلا فقد)'),
+  'enum.imgfmt_webp': ('WebP (en küçük)', 'WebP (smallest)', 'WebP (الأصغر)'),
 
   'enum.vq_very_low': ('En küçük dosya', 'Smallest file', 'أصغر ملف'),
   'enum.vq_low': ('Küçük', 'Small', 'صغير'),

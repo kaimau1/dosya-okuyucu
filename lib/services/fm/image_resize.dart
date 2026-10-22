@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../../models/media_resize.dart';
 import 'exif_reader.dart';
 import 'file_ops.dart';
+import 'native_extras.dart';
 
 /// Boyut düşürme sonucu.
 class ResizeResult {
@@ -62,11 +63,47 @@ abstract final class ImageResizer {
       p.join(p.dirname(path), '${base}_${options.suffix}.$ext'),
     );
 
-    final result = await _runInIsolate(_ResizeArgs(
-      sourcePath: path,
-      outputPath: target,
-      options: options,
-    ));
+    // Faz 14b (K15): Dart'ın çözemediği kaynak (HEIC/HEIF) Android'in
+    // çözücüsüyle JPEG ara dosyaya açılır; WebP çıktı önce PNG üretilip
+    // Android'in kodlayıcısıyla yazılır. Boyutlandırma her durumda Dart'ta.
+    final tmpDir = Directory.systemTemp;
+    String source = path;
+    String? tmpIn;
+    if (needsNativeDecode(path)) {
+      tmpIn = p.join(tmpDir.path, 'rs_in_${DateTime.now().microsecondsSinceEpoch}.jpg');
+      if (!Platform.isAndroid ||
+          !await NativeExtras.decodeImageToJpeg(path, tmpIn)) {
+        throw _ResizeFailure('Görüntü çözülemedi: ${p.basename(path)}');
+      }
+      source = tmpIn;
+    }
+    final webp = ext == 'webp';
+    final dartOut = webp
+        ? p.join(tmpDir.path, 'rs_out_${DateTime.now().microsecondsSinceEpoch}.png')
+        : target;
+    final ({int width, int height}) result;
+    try {
+      result = await _runInIsolate(_ResizeArgs(
+        sourcePath: source,
+        outputPath: dartOut,
+        options: options,
+      ));
+      if (webp &&
+          !await NativeExtras.encodeWebp(dartOut, target,
+              quality: options.imageQuality)) {
+        throw _ResizeFailure('WebP yazılamadı: ${p.basename(target)}');
+      }
+    } finally {
+      for (final tmp in [tmpIn, if (webp) dartOut]) {
+        if (tmp == null) continue;
+        try {
+          final f = File(tmp);
+          if (f.existsSync()) f.deleteSync();
+        } catch (_) {
+          // Geçici dosya: sistem temizler.
+        }
+      }
+    }
 
     return ResizeResult(
       sourcePath: path,
@@ -98,8 +135,14 @@ abstract final class ImageResizer {
   /// "foto_720p." adlı bir dosya hiçbir uygulamada açılmaz.
   static String keepExtension(String path) {
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    // Android'de WebP yazılabiliyor (Faz 14b): duruk WebP WebP kalır.
+    if (ext == 'webp' && Platform.isAndroid) return 'webp';
     return encodableExtensions.contains(ext) ? ext : 'jpg';
   }
+
+  /// Dart'ın `image` paketinin çözemediği, Android'in çözebildiği kaynaklar.
+  static bool needsNativeDecode(String path) => const {'heic', 'heif'}
+      .contains(p.extension(path).replaceFirst('.', '').toLowerCase());
 
   /// `image` paketiyle **yazabildiğimiz** uzantılar ([_resizeSync]'teki switch
   /// ile birebir aynı küme olmalı).

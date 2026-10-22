@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../models/media_resize.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart' show humanDuration;
+import 'dart:io' show Platform;
 
 /// Boyut düşürme ayarları sayfası.
 ///
@@ -301,6 +302,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       spacing: Gap.sm,
                       children: [
                         for (final f in ImageOutputFormat.values)
+                          if (f != ImageOutputFormat.webp || Platform.isAndroid)
                           ChoiceChip(
                             label: Text(context.t(f.labelKey)),
                             selected: _options.imageFormat == f,

@@ -130,7 +130,9 @@ const List<int> fileSizeChoicesKb = [100, 200, 500, 1024, 2048];
 
 /// Görüntü çıktı biçimi. WebP yok: `image` paketi WebP **yazamıyor** (yalnız
 /// okuyor); seçeneği göstermek dokunulduğunda hata veren bir düğme olurdu.
-enum ImageOutputFormat { keep, jpeg, png }
+/// `webp` (Faz 14b, K15): Android'in kodlayıcısıyla yazılır — JPEG'den ~%25-35
+/// küçük, saydamlık korunur. Yalnız Android'de listelenir.
+enum ImageOutputFormat { keep, jpeg, png, webp }
 
 extension ImageOutputFormatLabel on ImageOutputFormat {
   /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
@@ -138,18 +140,21 @@ extension ImageOutputFormatLabel on ImageOutputFormat {
         ImageOutputFormat.keep => 'enum.imgfmt_keep',
         ImageOutputFormat.jpeg => 'enum.imgfmt_jpeg',
         ImageOutputFormat.png => 'enum.imgfmt_png',
+        ImageOutputFormat.webp => 'enum.imgfmt_webp',
       };
 
   String get label => switch (this) {
         ImageOutputFormat.keep => 'Aynı kalsın',
         ImageOutputFormat.jpeg => 'JPEG (küçük)',
         ImageOutputFormat.png => 'PNG (kayıpsız)',
+        ImageOutputFormat.webp => 'WebP (en küçük)',
       };
 
   String? get extension => switch (this) {
         ImageOutputFormat.keep => null,
         ImageOutputFormat.jpeg => 'jpg',
         ImageOutputFormat.png => 'png',
+        ImageOutputFormat.webp => 'webp',
       };
 }
 
@@ -627,7 +632,9 @@ class MediaSourceInfo {
     // dayanak yine kendi boyutu.
     final factor = jpegBytesPerPixel(options.imageQuality) /
         jpegBytesPerPixel(85);
-    return (sizeBytes * ratio * factor).round();
+    // WebP aynı kalitede JPEG'in ~%70'i (kaba ama yönü doğru).
+    final webp = outExt == 'webp' ? 0.7 : 1.0;
+    return (sizeBytes * ratio * factor * webp).round();
   }
 
   /// Ayarlar bu dosyada **hiçbir şeyi küçültmüyor** mu? (Çözünürlük aynı

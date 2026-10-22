@@ -200,6 +200,21 @@ abstract final class NativeExtras {
     }
   }
 
+  /// Görseli Android'in kendi çözücüsüyle açıp (HEIC dahil, EXIF yönü
+  /// uygulanmış) JPEG'e yazar (Faz 14b). Kanal yoksa false.
+  static Future<bool> decodeImageToJpeg(String path, String target,
+          {int maxEdge = 4096}) async =>
+      await _call<bool>('decodeImage',
+          {'path': path, 'target': target, 'maxEdge': maxEdge}) ??
+      false;
+
+  /// PNG/JPEG → WebP (Android kodlayıcısı, Faz 14b). Kanal yoksa false.
+  static Future<bool> encodeWebp(String source, String target,
+          {int quality = 85}) async =>
+      await _call<bool>('encodeWebp',
+          {'source': source, 'target': target, 'quality': quality}) ??
+      false;
+
   /// Başlatıcı simgesinin dinamik kısayolları: son açılan iki dosya (Faz 19).
   static Future<void> setRecentShortcuts(List<String> paths) =>
       _call<bool>('setRecentShortcuts', paths.take(2).toList());

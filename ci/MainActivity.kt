@@ -435,6 +435,77 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
+                // Faz 14b (K15): HEIC/HEIF ve diğer biçimleri Android'in kendi
+                // çözücüsüyle açıp (EXIF yönü uygulanır) JPEG ara dosyaya yazar;
+                // WebP'yi Android'in kodlayıcısıyla yazar. Boyutlandırma Dart'ta.
+                "decodeImage" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    val target = call.argument<String>("target") ?: ""
+                    val maxEdge = call.argument<Int>("maxEdge") ?: 4096
+                    Thread {
+                        val ok = try {
+                            val bounds = android.graphics.BitmapFactory.Options()
+                            bounds.inJustDecodeBounds = true
+                            android.graphics.BitmapFactory.decodeFile(path, bounds)
+                            var sample = 1
+                            while (maxOf(bounds.outWidth, bounds.outHeight) / sample > maxEdge) sample *= 2
+                            val opts = android.graphics.BitmapFactory.Options()
+                            opts.inSampleSize = sample
+                            var bmp = android.graphics.BitmapFactory.decodeFile(path, opts)
+                            if (bmp == null) {
+                                false
+                            } else {
+                                val orient = try {
+                                    android.media.ExifInterface(path).getAttributeInt(
+                                        android.media.ExifInterface.TAG_ORIENTATION,
+                                        android.media.ExifInterface.ORIENTATION_NORMAL)
+                                } catch (e: Exception) {
+                                    android.media.ExifInterface.ORIENTATION_NORMAL
+                                }
+                                val deg = when (orient) {
+                                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                                    else -> 0f
+                                }
+                                if (deg != 0f) {
+                                    val m = android.graphics.Matrix()
+                                    m.postRotate(deg)
+                                    bmp = android.graphics.Bitmap.createBitmap(
+                                        bmp, 0, 0, bmp.width, bmp.height, m, true)
+                                }
+                                java.io.FileOutputStream(target).use {
+                                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, it)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            false
+                        }
+                        runOnUiThread { result.success(ok) }
+                    }.start()
+                }
+                "encodeWebp" -> {
+                    val source = call.argument<String>("source") ?: ""
+                    val target = call.argument<String>("target") ?: ""
+                    val quality = call.argument<Int>("quality") ?: 85
+                    Thread {
+                        val ok = try {
+                            val bmp = android.graphics.BitmapFactory.decodeFile(source)
+                            if (bmp == null) {
+                                false
+                            } else {
+                                @Suppress("DEPRECATION")
+                                val fmt = if (Build.VERSION.SDK_INT >= 30)
+                                    android.graphics.Bitmap.CompressFormat.WEBP_LOSSY
+                                else android.graphics.Bitmap.CompressFormat.WEBP
+                                java.io.FileOutputStream(target).use { bmp.compress(fmt, quality, it) }
+                            }
+                        } catch (e: Exception) {
+                            false
+                        }
+                        runOnUiThread { result.success(ok) }
+                    }.start()
+                }
                 "geocode" -> Extras.geocode(
                     ctx,
                     call.argument<Double>("lat") ?: 0.0,
