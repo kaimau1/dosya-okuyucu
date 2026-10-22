@@ -228,10 +228,6 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     final text = editor.notesOf(slide);
     if (text.trim().isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
-    final expanded = _openNotes.contains(slide.fileName);
-    // Kapalıyken tek satır, açıkken en çok altı satır (uzun not kartı
-    // ezmesin — devamı kaydırılarak okunur).
-    final lines = expanded ? 6 : 1;
     final height = _notesHeight(slide);
 
     return SizedBox(
@@ -243,36 +239,34 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
           width: baseW,
           height: height,
           child: InkWell(
-            onTap: () => _partSetState(() {
-              expanded
-                  ? _openNotes.remove(slide.fileName)
-                  : _openNotes.add(slide.fileName);
-            }),
+            key: ValueKey('notes-strip-${slide.fileName}'),
+            // Dokunuş notun TAMAMINI okunur bir levhada açar (bkz. _showNotes).
+            onTap: () => _showNotes(slide),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,
-                border: Border(
-                  left: BorderSide(color: scheme.outlineVariant, width: 3),
+                border: BorderDirectional(
+                  start: BorderSide(color: scheme.primary, width: 3),
                 ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.sticky_note_2_rounded,
-                      size: 14, color: scheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
+                  Icon(AppIcons.notes, size: 16, color: scheme.primary),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       text,
-                      maxLines: lines,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12, color: scheme.onSurfaceVariant),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: scheme.onSurface, height: 1.3),
                     ),
                   ),
-                  Icon(expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                      size: 16, color: scheme.onSurfaceVariant),
+                  Icon(AppIcons.openFull, size: 18, color: scheme.onSurfaceVariant),
                 ],
               ),
             ),
@@ -397,19 +391,22 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   /// Tam ekran sunum modunu [index]. slayttan başlatır.
   void _play(int index) {
     final views = <SlideVM>[];
+    final notes = <String>[];
     var start = 0;
     for (var i = 0; i < (_editor?.slides.length ?? 0); i++) {
       final v = _editor!.slides[i].view;
       if (v == null) continue;
       if (i <= index) start = views.length;
       views.add(v);
+      notes.add(_editor!.notesOf(_editor!.slides[i]));
     }
     if (views.isEmpty) {
       _snack(context.t('sl.nothing_to_play'));
       return;
     }
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => SlideshowScreen(slides: views, initialIndex: start),
+      builder: (_) =>
+          SlideshowScreen(slides: views, initialIndex: start, notes: notes),
     ));
   }
 

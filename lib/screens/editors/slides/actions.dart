@@ -185,7 +185,91 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     final editor = _editor;
     if (editor == null) return 0;
     if (editor.notesOf(slide).trim().isEmpty) return 0;
-    return _openNotes.contains(slide.fileName) ? 30 + 18.0 * 5 : 30;
+    return 58;
+  }
+
+  /// **Notlar levhası** (2026-10-22, kullanıcı: *"sunumlarda açıklama ve
+  /// notlar bölümünü düzgünce görme"*). Şerit kanvasla birlikte ölçekleniyor
+  /// ve tek satırda kesiliyordu — uzun not okunamıyordu. Levha notu normal
+  /// punto, kaydırılabilir ve seçilebilir gösterir; notlu slaytlar arasında
+  /// ileri/geri gezilir, metin kopyalanır.
+  Future<void> _showNotes(PptxSlide start) async {
+    final editor = _editor;
+    if (editor == null) return;
+    final withNotes = [
+      for (final s in editor.slides)
+        if (editor.notesOf(s).trim().isNotEmpty) s,
+    ];
+    if (withNotes.isEmpty) return;
+    var i = withNotes.indexOf(start).clamp(0, withNotes.length - 1);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final slide = withNotes[i];
+          final text = editor.notesOf(slide);
+          final theme = Theme.of(ctx);
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.6,
+            minChildSize: 0.3,
+            maxChildSize: 0.95,
+            builder: (ctx, scroll) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 8, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          ctx.t('sl.notes_title', {'n': slide.index}),
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: ctx.t('common.copy'),
+                        icon: const Icon(AppIcons.copy),
+                        onPressed: () =>
+                            Clipboard.setData(ClipboardData(text: text)),
+                      ),
+                      IconButton(
+                        key: const ValueKey('notes-prev'),
+                        tooltip: ctx.t('sl.notes_prev'),
+                        icon: const Icon(AppIcons.arrowUp),
+                        onPressed: i == 0 ? null : () => setSheet(() => i--),
+                      ),
+                      IconButton(
+                        key: const ValueKey('notes-next'),
+                        tooltip: ctx.t('sl.notes_next'),
+                        icon: const Icon(AppIcons.arrowDown),
+                        onPressed: i >= withNotes.length - 1
+                            ? null
+                            : () => setSheet(() => i++),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scroll,
+                    padding: const EdgeInsets.all(16),
+                    child: SelectableText(
+                      text,
+                      key: const ValueKey('notes-text'),
+                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   /// [i]. slaydın (0 tabanlı) liste içindeki kaydırma konumu.

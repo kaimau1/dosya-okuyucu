@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:share_plus/share_plus.dart';
 
@@ -84,7 +85,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   /// Konuşmacı notu şeridi AÇIK olan slaytların dosya adları. Slayt sırası
   /// değişebildiği için indeks değil dosya adı tutulur.
-  final _openNotes = <String>{};
 
   // ── Konum / gezinme ────────────────────────────────────────────────────────
   // Slaytlar tek bir akışta olduğu için "kaçıncı slayttayım" bilgisi ancak

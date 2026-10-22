@@ -14,10 +14,16 @@ import '../../widgets/slide_canvas.dart';
 class SlideshowScreen extends StatefulWidget {
   final List<SlideVM> slides;
   final int initialIndex;
+
+  /// Her slaytın konuşmacı notu (aynı sıra; boş = not yok). Verilirse sunum
+  /// sırasında "Notlar" düğmesi alt panelde gösterir (sunucu görünümü).
+  final List<String> notes;
+
   const SlideshowScreen({
     super.key,
     required this.slides,
     this.initialIndex = 0,
+    this.notes = const [],
   });
 
   @override
@@ -30,6 +36,12 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
   final TransformationController _zoom = TransformationController();
   late int _index = widget.initialIndex;
   bool _zoomed = false;
+
+  /// Konuşmacı notu paneli açık mı?
+  bool _showNotes = false;
+
+  String get _note =>
+      _index < widget.notes.length ? widget.notes[_index].trim() : '';
 
   /// Geçerli slaytta kaçıncı animasyon adımındayız (0 = sadece sabit içerik).
   int _step = 0;
@@ -147,6 +159,52 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
               ),
             ),
           ),
+          if (widget.notes.any((n) => n.trim().isNotEmpty))
+            Positioned(
+              top: 8,
+              left: 8,
+              child: SafeArea(
+                child: IconButton(
+                  key: const ValueKey('ss-notes'),
+                  isSelected: _showNotes,
+                  icon: Icon(AppIcons.notes,
+                      color: _showNotes
+                          ? AppColors.onMedia
+                          : AppColors.onMediaSoft),
+                  tooltip: context.t('sl.notes_toggle'),
+                  onPressed: () => setState(() => _showNotes = !_showNotes),
+                ),
+              ),
+            ),
+          if (_showNotes && _note.isNotEmpty)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 40,
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  key: const ValueKey('ss-notes-panel'),
+                  constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.35),
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.mediaChrome,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      _note,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(color: AppColors.onMedia, height: 1.4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             bottom: 10,
             left: 0,

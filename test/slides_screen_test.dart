@@ -68,8 +68,28 @@ Uint8List _deck() {
   add('ppt/slides/slide2.xml', slide('Bütçe 2026'));
   add('ppt/slides/slide3.xml', slide('Sonuç'));
   for (var i = 1; i <= 3; i++) {
-    add('ppt/slides/_rels/slide$i.xml.rels', '<Relationships xmlns="$pkgRel"/>');
+    // 2. slaytın uzun bir konuşmacı notu var (notlar levhası testi).
+    add(
+        'ppt/slides/_rels/slide$i.xml.rels',
+        i == 2
+            ? '<Relationships xmlns="$pkgRel"><Relationship Id="rIdN" '
+                'Type="$rel/notesSlide" Target="../notesSlides/notesSlide1.xml"/>'
+                '</Relationships>'
+            : '<Relationships xmlns="$pkgRel"/>');
   }
+  add('ppt/notesSlides/notesSlide1.xml', '''
+<p:notes xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+ <p:cSld><p:spTree>
+  <p:sp><p:nvSpPr><p:cNvPr id="2" name="n"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr>
+   <p:txBody><a:bodyPr/>
+    <a:p><a:r><a:t>Bütçe notu birinci satır.</a:t></a:r></a:p>
+    <a:p><a:r><a:t>İkinci satır: giderler yüzde on azaldı.</a:t></a:r></a:p>
+    <a:p><a:r><a:t>Üçüncü satır: yatırımlar ertelendi.</a:t></a:r></a:p>
+    <a:p><a:r><a:t>Dördüncü satır sonu.</a:t></a:r></a:p>
+   </p:txBody>
+  </p:sp>
+ </p:spTree></p:cSld>
+</p:notes>''');
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
@@ -182,5 +202,28 @@ void main() {
   testWidgets('AI özet düğmesi alt çubukta', (tester) async {
     await pump(tester);
     expect(find.text('AI özet'), findsOneWidget);
+  });
+
+  testWidgets('konuşmacı notu şeride dokununca TAMAMI okunur levhada açılır',
+      (tester) async {
+    await pump(tester);
+    final strip = find.byWidgetPredicate((w) =>
+        w.key is ValueKey<String> &&
+        (w.key! as ValueKey<String>).value.startsWith('notes-strip-'));
+    await tester.scrollUntilVisible(strip, 200,
+        scrollable: find
+            .byWidgetPredicate((w) =>
+                w is Scrollable && w.axisDirection == AxisDirection.down)
+            .first);
+    expect(strip, findsOneWidget);
+    // Şerit alt çubuğun altına denk gelebiliyor (test ekranı kısa):
+    // dokunuş geri çağrısı doğrudan çağrılır.
+    tester.widget<InkWell>(strip).onTap!();
+    await settle(tester);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Slayt 2 · notlar'), findsOneWidget);
+    final text = tester.widget<SelectableText>(
+        find.byKey(const ValueKey('notes-text')));
+    expect(text.data, contains('Dördüncü satır sonu.'));
   });
 }

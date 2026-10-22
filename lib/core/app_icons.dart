@@ -39,6 +39,8 @@ abstract final class AppIcons {
   static const IconData circle = Icons.radio_button_unchecked_rounded;
   static const IconData dropDown = Icons.arrow_drop_down_rounded;
   static const IconData history = Icons.history_rounded;
+  static const IconData notes = Icons.sticky_note_2_rounded;
+  static const IconData openFull = Icons.open_in_full_rounded;
   static const IconData slideshow = Icons.slideshow_rounded;
   static const IconData fullscreen = Icons.fullscreen_rounded;
   static const IconData brightness = Icons.brightness_6_rounded;
