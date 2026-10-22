@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/painting.dart';
 import 'package:xml/xml.dart';
 
+import '../core/symbol_fonts.dart';
 import 'pptx_geometry.dart';
 
 export 'pptx_geometry.dart'
@@ -1020,7 +1021,10 @@ class PptxRender {
       if (pPr == null || _first(pPr, 'a:buNone') == null) {
         final buChar = _first(pPr, 'a:buChar')?.getAttribute('char');
         if (buChar != null) {
-          bullet = buChar;
+          // "§" + Wingdings = ▪, "" + Symbol = • (bkz. core/symbol_fonts).
+          bullet = mapSymbolFont(buChar,
+              _first(pPr, 'a:buFont')?.getAttribute('typeface'),
+              bullet: true);
         } else if (pPr != null && _first(pPr, 'a:buAutoNum') != null) {
           bullet = '${++autoNum}.';
         } else if (wantsBullet) {

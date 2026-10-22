@@ -507,6 +507,40 @@ Uint8List _spacingPptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// Madde imleri Wingdings/Symbol kodlamasıyla: PowerPoint "§" + Wingdings
+/// (= ▪) ve Word'den yapıştırılmış özel kod noktası + Symbol (= •) yazar.
+Uint8List _symbolBulletPptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="2" name="Metin"/><p:nvPr/></p:nvSpPr>
+   <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4000000" cy="2000000"/></a:xfrm></p:spPr>
+   <p:txBody><a:bodyPr/>
+    <a:p><a:pPr><a:buFont typeface="Wingdings"/><a:buChar char="\u00A7"/></a:pPr>
+     <a:r><a:t>Kare</a:t></a:r></a:p>
+    <a:p><a:pPr><a:buFont typeface="Symbol"/><a:buChar char="\uF0B7"/></a:pPr>
+     <a:r><a:t>Nokta</a:t></a:r></a:p>
+   </p:txBody>
+  </p:sp>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 /// Tablo: 1 hücre, yalnız sol (kırmızı 1pt) ve alt (mavi 2pt) kenarlık tanımlı.
 Uint8List _tablePptx() {
   final archive = Archive();
@@ -827,6 +861,14 @@ void main() {
     final para = view.shapes.single.paragraphs.single;
     expect(para.lineHeight, closeTo(2.0, 0.001)); // 30pt / 15pt yazı
     expect(para.spaceAfterPt, closeTo(6.0, 0.001)); // 600 / 100
+  });
+
+  test('Wingdings/Symbol madde imi Unicode karşılığıyla çizilir', () {
+    // Kullanıcı 2026-10-22: Office madde imleri ▯ ya da "§" görünüyordu.
+    final view = PptxEditor.parse(_symbolBulletPptx()).slides.single.view!;
+    final paras = view.shapes.single.paragraphs;
+    expect(paras[0].bullet, '\u25AA');
+    expect(paras[1].bullet, '\u2022');
   });
 
   test('tablo hücresi kenar-başına kenarlık taşır (yalnız tanımlı kenarlar)', () {

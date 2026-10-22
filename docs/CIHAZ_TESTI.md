@@ -184,6 +184,11 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
       çıkıyor mu; 360 dp'lik telefonda gezgin, Son açılanlar, ayarlar, arama,
       çöp kutusu taşma şeridi göstermeden kullanılabiliyor mu.
 
+- [ ] **Word/slayt madde imleri (kullanıcı bildirimi 2026-10-22):** ekran görüntüsündeki
+      ESNEKLİK-REZİLYANS belgesinde "Yastıkların üzerinden atlama…" maddelerinin başında
+      ▯ yerine • görünüyor mu; ok (➢), onay (✓), kare (▪) imli listeler; PowerPoint'te
+      "§"/"Ø" yerine ▪/➢. Düzenleyip kaydedince Word'de madde imleri bozulmuyor mu.
+
 ## KALANLAR'dan taşınanlar (Faz 0, 2026-10-21 — kelimesi kelimesine)
 
 ### (başlıksız)

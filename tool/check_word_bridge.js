@@ -71,6 +71,34 @@ const fail = (msg) => { console.error('HATA: ' + msg); process.exitCode = 1; };
   const caret = await page.evaluate(() => window.caretParaIndex());
   if (caret !== 0) fail('imleç paragrafı 0 değil: ' + caret);
 
+  // 4. Symbol/Wingdings madde imleri ve w:sym Unicode'a çevrilir (kullanıcı
+  //    2026-10-22: "nokta simgesi görülmüyor"); düzenlemede Flutter'a ÖZGÜN
+  //    karakter gider. Belge: python3 tool/make_symbol_bullets_docx.py
+  const sym = fs.readFileSync(
+      path.join(root, 'test/fixtures/office/madde_imleri.docx'));
+  await page.evaluate((b) => window.renderDocx(b), sym.toString('base64'));
+  await page.waitForTimeout(1500);
+  const marks = await page.evaluate(() => [...document.querySelectorAll('#container p')]
+    .map((p) => getComputedStyle(p, '::before').content));
+  for (const ch of ['•', '▪', '➢', '✓']) {
+    if (!marks.some((m) => m.includes(ch))) fail(`madde imi ${ch} yok: ` + JSON.stringify(marks));
+  }
+  if (marks.some((m) => /[\uF000-\uF0FF]/.test(m))) fail('özel kod noktası kaldı');
+  const line = await page.evaluate(() => [...document.querySelectorAll('#container p')]
+    .pop().textContent);
+  if (line !== 'Simge: → ve α') fail('w:sym çevrilmedi: ' + line);
+  await page.evaluate(() => window.setEditable(true));
+  take();
+  await page.getByText('Simge:', { exact: false }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type('!');
+  await page.waitForTimeout(400);
+  const symSeg = (await take()).find((m) => m.segs);
+  const joined = symSeg ? symSeg.segs.map((x) => x[0]).join('') : '';
+  if (joined !== 'Simge: \uF0E0 ve \uF061!') {
+    fail('düzenlemede özgün simge gitmedi: ' + JSON.stringify(joined));
+  }
+
   await browser.close();
   if (!process.exitCode) console.log('Word köprüsü: tamam');
 })();

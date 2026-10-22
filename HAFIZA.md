@@ -329,6 +329,9 @@
   `createShader` çöker) · `ScrollController.animateTo` sıfır süre kabul etmez →
   `Motion.scrollTo/toPage` · yeni ekran kodu tokenları kullanır (`design_tokens_test`
   cırcırı), fiziksel sol/sağ yazmaz (`rtl_guard_test`).
+- **2026-10-22 (7):** Office Symbol/Wingdings madde imleri (U+F0B7, "§"+Wingdings) Android'de ▯ —
+  Word `viewer.html` `fixSymbolFonts`, slayt `core/symbol_fonts.dart`; `viewer.html`'de charset
+  YOK → betikte `\uXXXX`.
 
 ## Yol Haritası (öncelik kullanıcıyla netleşecek)
 

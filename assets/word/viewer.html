@@ -167,6 +167,7 @@
         experimental: true,
         useBase64URL: true
       }).then(function () {
+        fixSymbolFonts();
         fitPage();
         reportPages();
         // Görseller/yerleşim geciken sayfalar için ikinci tur — sayfa sayısı
@@ -185,6 +186,118 @@
       showError(e);
     }
   };
+
+  // ---- Symbol / Wingdings karakterleri -------------------------------------
+  // KÖK NEDEN (kullanıcı 2026-10-22, ekran görüntüsüyle: "Word'te normalde
+  // nokta simgesi var ama bizde görülmüyor"): Word madde imlerini ve w:sym
+  // simgelerini Symbol / Wingdings yazı tiplerinin ÖZEL kod noktalarıyla
+  // yazar (madde imi = Symbol U+F0B7, ok = Wingdings U+F0D8, onay =
+  // Wingdings U+F0FC…). Bu yazı tipleri Android'de yok; yedek yazı tipinde
+  // de U+F0xx glifi olmadığı için ▯ kutusu çiziliyordu. Burada karakterler
+  // gerçek Unicode karşılıklarına çevrilir ve yazı tipi bildirimi kaldırılır.
+  // Bilinmeyen özel karakter madde imi yerindeyse "•" olur.
+  var SYMBOL_MAP = {
+    0xB7: '\u2022', 0xD7: '\u22C5', 0xA7: '\u2663', 0xA8: '\u2666',
+    0xA9: '\u2665', 0xAA: '\u2660', 0xAB: '\u2194', 0xAC: '\u2190',
+    0xAD: '\u2191', 0xAE: '\u2192', 0xAF: '\u2193', 0xB0: '\u00B0',
+    0xB1: '\u00B1', 0xB3: '\u2265', 0xA3: '\u2264', 0xB4: '\u00D7',
+    0xB8: '\u00F7', 0xB9: '\u2260', 0xBB: '\u2248', 0xA5: '\u221E',
+    0xD6: '\u221A', 0xE0: '\u25CA', 0xDE: '\u21D2', 0xDB: '\u21D4',
+    0x2D: '\u2212', 0x2A: '\u2217', 0x22: '\u2200', 0x24: '\u2203'
+  };
+  // Yunan harfleri (Symbol'de a = α …).
+  'abgdezhqiklmnxoprstufcyw'.split('').forEach(function (ch, k) {
+    var lo = '\u03B1\u03B2\u03B3\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9\u03BA\u03BB\u03BC\u03BD\u03BE\u03BF\u03C0\u03C1\u03C3\u03C4\u03C5\u03C6\u03C7\u03C8\u03C9'.charAt(k);
+    var LAT = 'abgdezhqiklmnxoprstufcyw';
+    SYMBOL_MAP[LAT.charCodeAt(k)] = lo;
+    SYMBOL_MAP[LAT.toUpperCase().charCodeAt(k)] = lo.toUpperCase();
+  });
+  SYMBOL_MAP[0x6A] = '\u03D5'; SYMBOL_MAP[0x76] = '\u03D6'; SYMBOL_MAP[0x56] = '\u03C2';
+  SYMBOL_MAP[0x4A] = '\u03D1';
+  var WINGDINGS_MAP = {
+    0x6C: '\u25CF', 0x6E: '\u25A0', 0x6F: '\u25A1', 0x71: '\u2751',
+    0x72: '\u2752', 0x73: '\u2B27', 0x74: '\u29EB', 0x75: '\u25C6',
+    0x76: '\u2756', 0x77: '\u2B25', 0xA7: '\u25AA', 0xA8: '\u25FB',
+    0x9F: '\u2022', 0xA1: '\u25CB', 0xA4: '\u25C9', 0xD8: '\u27A2',
+    0xD7: '\u27A4', 0xE0: '\u2192', 0xE8: '\u2794', 0xF0: '\u21E8',
+    0xFC: '\u2713', 0xFB: '\u2717', 0xFE: '\u2611', 0xFD: '\u2612',
+    0x4A: '\u263A', 0x4B: '\u2610', 0x4C: '\u2639', 0x46: '\u261E',
+    0x2A: '\u2709', 0x28: '\u260E', 0x3F: '\u270D', 0x41: '\u270C',
+    0x43: '\u261D', 0x44: '\u261F', 0x50: '\u2690', 0x51: '\u2708',
+    0x52: '\u263C', 0x54: '\u2744', 0x58: '\u2720', 0x5B: '\u262F',
+    0xAB: '\u2605', 0xB2: '\u2727', 0xA2: '\u25CE', 0x6D: '\u274D',
+    0x70: '\u25FC', 0xF6: '\u2B60', 0xF7: '\u2B62', 0xEF: '\u21E6',
+    0xE7: '\u2794', 0xD5: '\u232B', 0xFA: '\u25FC'
+  };
+
+  function symTable(font) {
+    var f = (font || '').toLowerCase();
+    // Wingdings 2/3 ve Webdings'in tabloları başka: yanlış simge çizmektense
+    // madde iminde "•", metinde dokunma.
+    if (/wingdings\s*[23]|webdings/.test(f)) return {};
+    if (f.indexOf('wingdings') >= 0) return WINGDINGS_MAP;
+    if (f.indexOf('symbol') >= 0) return SYMBOL_MAP;
+    return null;
+  }
+
+  // [text] → Unicode; değişmediyse null. [bullet]: madde imi bağlamı.
+  function mapSymbols(text, table, bullet) {
+    var out = '', changed = false;
+    for (var k = 0; k < text.length; k++) {
+      var c = text.charCodeAt(k);
+      var pua = c >= 0xF000 && c <= 0xF0FF;
+      var code = pua ? c - 0xF000 : c;
+      var rep = null;
+      if (table && (pua || table === SYMBOL_MAP || table === WINGDINGS_MAP)) {
+        rep = table[code] || null;
+      } else if (pua) {
+        // Yazı tipi bilinmiyor: madde iminde en olası Symbol/Wingdings.
+        rep = SYMBOL_MAP[code] && code >= 0xA0 ? SYMBOL_MAP[code]
+            : (WINGDINGS_MAP[code] || null);
+      }
+      if (!rep && pua) rep = bullet ? '\u2022' : null;
+      if (rep) { out += rep; changed = true; } else { out += text.charAt(k); }
+    }
+    return changed ? out : null;
+  }
+
+  function fixSymbolFonts() {
+    // 1) Madde imleri: docx-preview `p.docx-num-X-Y:before { content: "…";
+    //    font-family: Symbol }` kuralları üretir.
+    document.querySelectorAll('style').forEach(function (st) {
+      var css = st.textContent;
+      if (css.indexOf(':before') < 0) return;
+      var next = css.replace(/([^{}]*:before\s*)\{([^{}]*)\}/g, function (all, sel, body) {
+        var fm = /font-family:\s*([^;]+);?/i.exec(body);
+        var table = fm ? symTable(fm[1]) : null;
+        var changed = false;
+        var nb = body.replace(/content:\s*"((?:[^"\\]|\\.)*)"/, function (m, txt) {
+          var r = mapSymbols(txt, table, true);
+          if (r === null) return m;
+          changed = true;
+          return 'content: "' + r + '"';
+        });
+        if (!changed) return all;
+        if (fm && table) nb = nb.replace(fm[0], '');
+        return sel + '{' + nb + '}';
+      });
+      if (next !== css) st.textContent = next;
+    });
+    // 2) Metin içindeki w:sym ve Symbol/Wingdings yazı tipli parçalar.
+    document.querySelectorAll('#container span').forEach(function (sp) {
+      if (sp.children.length) return;
+      var table = symTable(sp.style.fontFamily);
+      var txt = sp.textContent;
+      var hasPua = /[\uF000-\uF0FF]/.test(txt);
+      if (!table && !hasPua) return;
+      var r = mapSymbols(txt, table, false);
+      if (r === null) return;
+      sp.setAttribute('data-fk-sym', txt);
+      sp.setAttribute('data-fk-sym-shown', r);
+      sp.textContent = r;
+      if (table) sp.style.fontFamily = 'inherit';
+    });
+  }
 
   // ---- Canlı düzenleme köprüsü -------------------------------------------
   // Sayfa contenteditable yapılır; değişen paragraf 250ms sonra Flutter'a
@@ -282,6 +395,19 @@
         return;
       }
       if (node.nodeType !== 1) return;
+      // Ekranda Unicode'a çevrilmiş Symbol/Wingdings karakteri: Flutter'a
+      // belgedeki ÖZGÜN karakter gider (bkz. fixSymbolFonts).
+      // İmleç simgenin hemen sonundaysa yazılan metin aynı <span>'e girer:
+      // gösterilen simge başta durdukça özgünü + eklenen metin gider.
+      var sym = node.getAttribute('data-fk-sym');
+      var shown = node.getAttribute('data-fk-sym-shown');
+      if (sym !== null && shown !== null &&
+          node.textContent.indexOf(shown) === 0) {
+        out.push([sym, b, i, u, font, size, col, hl]);
+        var rest = node.textContent.substring(shown.length);
+        if (rest) out.push([rest, b, i, u, font, size, col, hl]);
+        return;
+      }
       if (node.nodeName === 'BR') {
         out.push(['\n', b, i, u, font, size, col, hl]);
         return;
