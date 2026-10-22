@@ -54,13 +54,13 @@
 | 1 | CI/CD hızlandırma ve sürüm hattı | 0 | ✅ 2026-10-21 — C1–C12; verify 4,5 dk; main süresi Gradle önbelleği dolduktan sonra yeniden ölçülecek (bkz. HAFIZA) |
 | 2 | Sadeleştirme I — ölü kod, eski yollar, özellik birleştirme/çıkarma | 0, 1 | ✅ 2026-10-21 — ölü kod, İnsanlar, görünüm 10/10/6→4/3/3, Geçmiş/Aktar/Depolama/AI/tek Kasa; satır ölçütü K5/K8 kararlarıyla tutmadı (bkz. Faz 2 notu) |
 | 3 | Sadeleştirme II — uzun dosyaları bölme + durum yönetimi | 2 | ✅ 2026-10-21 — 19 ekran + çeviri tablosu + formül motoru bölündü (800+ satırlı ekran yok); kök yalnız `AppearanceState`i izliyor; Browse/Clipboard/Remotes/AI bildiricileri ayrılmadı (bkz. HAFIZA) |
-| 4 | Performans — düşük donanım profili ve ölçüm | 3 | 🟡 2026-10-21 — profil + bütçeler + açılış kuyruğu + P2-P9/P11/P12 kodda; **cihaz ölçümü bekliyor** (`docs/perf/2026-10-21.md`), P10 yapılmadı |
+| 4 | Performans — düşük donanım profili ve ölçüm | 3 | 🟡 2026-10-21 — profil + bütçeler + açılış kuyruğu + P2-P12 kodda (P10: arama isolate'i, 2026-10-21 (5)); **cihaz kaydırma/RSS ölçümü bekliyor** (`docs/perf/2026-10-21.md`; soğuk açılış 1.0.379'da ~620 ms ölçüldü) |
 | 5 | Son kullanıcı iletişimi altyapısı (hata dili, izin/boş/çevrimdışı durumları) | 3 | ✅ 2026-10-21 — `UserError`, `PermissionGate`, `ensureAiKey`, Yardım iskeleti, bekçiler; servis içi boş catch'ler sınıflandırılmadı (bkz. HAFIZA) |
 | 6 | Klasör içi / gezgin / filtre / simge yeniden tasarımı | 4, 5 | ✅ 2026-10-21 — `583f5a3`: FmFileListView, yol hapları geri gider (B1/B2), simge tablosu, tablet iki bölme (HAFIZA kaydı yazılmamıştı — commit mesajından) |
-| 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | 🟡 2026-10-21 — `dc9e613`: `excel` paketi çıktı, lisans sayfası, belge font altkümesi + RFN bekçisi; Media3 (K2) ve Flutter yükseltmesi bu committe yok (commit mesajından) |
+| 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | ✅ 2026-10-21 — `dc9e613` excel/lisans/font + (5): **Flutter 3.44.6** (CI varsayılanı), kullanımdan kaldırmalar, AGP 9 yamaları, `receive_sharing_intent` 1.8.1; K2 Media3 → Faz 10'da yapıldı |
 | 8 | PDF akışı (tek çatı) | 6, 7 | ✅ 2026-10-21 — tek "Düzenle" kapısı (6 kip), eski yol silindi (K12), "yazı ekle" yedeği, Aa levhası, örnek set + duman; vurgu+CropBox cihazda (bkz. HAFIZA (4)) |
 | 9 | Office ve metin akışları (Word, Excel, Slayt, Metin/CSV/MD) | 6, 7 | ✅ 2026-10-21 — Y1 (tablo hücresi, seçime punto, resim ekle/sil), Y2 (grafik, köşegen, sayfa taşı), Y4, büyük metin, eski Office dönüştür; Word yazım köprüsü hatası bulundu-düzeltildi; 10 bin satır ölçümü cihazda |
-| 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | ⬜ |
+| 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | 🟡 2026-10-21 — görsel düzenleyici, PiP (`SYSTEM_ALERT_WINDOW` kalktı), tek motor (`audioplayers` kalktı), Media3 Transformer (FFmpeg + `video_compress` kalktı); örnek medya seti ve cihaz turu bekliyor (bkz. HAFIZA (5)) |
 | 11 | Ticari yayın hazırlığı (Play politikaları, ilk açılış, gelir modeli, mağaza) | 8–10 | ⬜ |
 | 12 | Kapanış — uçtan uca hata avı, cihaz doğrulama turu, sürüm adayı | 11 | ⬜ |
 

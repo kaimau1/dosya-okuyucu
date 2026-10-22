@@ -80,6 +80,23 @@ okuyor. Word köprüsü: `node tool/check_word_bridge.js` (Playwright + Chromium
 **Gerçek Microsoft Office'te açılış bulutta denenemedi** — yukarıdaki masaüstü maddeleri
 bunun için.
 
+## Faz 10 — medya (2026-10-21)
+
+- [ ] **Görsel düzenleyici:** galeride bir JPEG → "Düzenle" → Kırp (4:3 seç, köşeyi
+      çek), Döndür, Çevir, Ayarla (parlaklık +), İşaretle (kalem, ok, yazı "Şğİ") →
+      Kaydet → "Kopya olarak kaydet" → yanına `ad (1).jpg`; açınca önizlemedekiyle aynı,
+      özgün dokunulmamış. EXIF'li (yan çekilmiş) fotoğrafta önizleme dik mi.
+- [ ] **HEIC/WebP:** düzenle → kaydet seçeneğinde "JPEG kopya" notu, çıktı `.jpg`.
+- [ ] **PiP:** video oynat → "Küçük pencerede oynat" → video küçük pencerede sürüyor;
+      oynatırken ana ekrana kaydır → kendiliğinden PiP; pencereyi büyüt → oynatıcıya döner.
+      Ayarlar > Uygulamalar'da "diğer uygulamaların üzerinde göster" izni ARTIK yok.
+- [ ] **Ses (yeni motor):** müzik klasörü → çal, ekranı kilitle → çalmaya devam; bildirimden
+      sonraki/önceki; parça bitince sıradaki; tekrar/karışık; hız 1.5x; telefon çalınca
+      susuyor mu (ses odağı).
+- [ ] **Video küçültme (Media3):** 1080p video → 720p, 30 fps, "Dengeli" → ilerleme yüzdesi
+      akıyor, çıktı 1280x720 (dikey videoda 720x1280), süre aynı; "sesi çıkar" sessiz;
+      serbest ölçü 1234x568 birebir; iptal → yarım dosya kalmıyor.
+
 ## KALANLAR'dan taşınanlar (Faz 0, 2026-10-21 — kelimesi kelimesine)
 
 ### (başlıksız)

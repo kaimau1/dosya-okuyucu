@@ -333,3 +333,80 @@
 4. AI: PDF'den otomatik slayt üretimi (genişletilmiş), kaynakları bağlama alma.
 5. Masaüstü (Windows/macOS/Linux) build hedefleri + iOS.
 
+
+## 2026-10-21 (5) — Faz 0 hijyen · P10 · Faz 7b (Flutter 3.44.6) · Faz 10 (medya)
+
+Yerel Windows oturumu (Flutter 3.44.6), telefon USB'de (Xiaomi 13T, Android 14+).
+
+### Faz 0
+- HAFIZA → 330 satırlık dizin + `docs/hafiza/YYYY-MM.md` (satır kümesi
+  karşılaştırmasıyla birebir); `tool/hafiza_arsivle.py` tekrar kullanılabilir.
+  37 cihaz maddesi KALANLAR → `docs/CIHAZ_TESTI.md`. README yalnız Android.
+- **Uzak dal silme ve graphify'ı GitHub'dan yükseltme izin sınıflandırıcısınca
+  ENGELLENDİ** (git destructive / untrusted code). 42 dal main'e squash'la
+  girmiş (cherry + konu eşleşmesiyle denetlendi) — kullanıcı elle silebilir.
+
+### Faz 7b — Flutter 3.29.3 → 3.44.6 (CI varsayılanı da 3.44.6)
+- **TUZAK — push kancası Windows'ta HİÇ geçemiyordu:** `hooks/pre-push` tam
+  `flutter test` koşuyor; yerel 3.44'te iki DERLEME hatası (`RepeatMode` adı
+  Flutter'ın `repeating_animation_builder`ıyla çakışıyor; `CupertinoPageTransitionsBuilder`
+  artık material'dan dışa verilmiyor) + 8 test `/` ile yol bekliyordu. Bulut
+  oturumları 3.29/Linux'ta yazdığı için görünmüyordu. Düzeltildi: `AudioRepeatMode`,
+  iOS geçişleri silindi (K10), testler `p.join/normalize`, M3U `path.posix`.
+- Kullanımdan kaldırmalar: Radio→`RadioGroup` (5 dosya), Dropdown `initialValue`
+  (model sonradan değişen yerde `ValueKey`), Matrix4 `*ByDouble`, `fontWeight.value`,
+  tarama `onReorderItem`. Pano/sekme sıralaması `onReorder`da kaldı (dizin anlamı
+  değişiyor — ignore + KALANLAR).
+- **TUZAK — 3.44 assert:** boyalı `DecoratedBox` içindeki `ListTile` hata.
+  `SettingsGroup` kartı `Material` oldu (tek yerden, 11 test).
+- **TUZAK — kilitsiz çözüm:** `pubspec.lock` gitignore'da; 3.44'ün Dart'ı
+  `receive_sharing_intent` 1.9.0'ı çözüyor, o da compileSdk 37 istiyor (AGP 9.0.1
+  en çok 36). **1.8.1'e sabitlendi.**
+- AGP 9 yamaları (`ci/prepare_android.sh` 6b): bütün eklentiler compileSdk 36
+  (`cunning_document_scanner` 33 ile geliyordu; blok `evaluationDependsOn`dan ÖNCE),
+  `kotlin.jvm.target.validation.mode=warning` (1.8.1'in Java 11/Kotlin 21 hedefi).
+- Yerel APK reçetesi: temiz kopya + `bash ci/prepare_android.sh` + `flutter build apk`.
+  **Git Bash'te `python3` yok** (Windows mağaza takma adı exit 49) → `python`a
+  yönlendiren betik PATH'e; PATH'e `C:/` DEĞİL `/c/` biçimi yazılmalı.
+  **Sürüm numarası:** yerel derlemede CI'ın sıradakinden KÜÇÜK ama telefondakinden
+  büyük `--build-number` (yoksa sonraki CI APK'sı "sürüm düşürme" ile kurulmaz).
+
+### P10 (Faz 4)
+- Arama ekranı açıkken dizin uzun ömürlü isolate'te (`SearchIndex.openSession`),
+  ad katlamaları önceden; dosya değişince (mtime+boyut) kendiliğinden yeniden okur.
+
+### Faz 10
+- **Görsel düzenleyici** (`image_edit_screen.dart` + `services/image_edit.dart`):
+  kırp (oranlı), döndür/çevir, parlaklık/kontrast/doygunluk, kalem/ok/yazı. Önizleme
+  ve kayıt AYNI `paintEdits`ten (Türkçe yazı Flutter tuvalinde; `image` paketinin
+  bitmap fontunda ş/ğ yok). Varsayılan kopya; HEIC/WebP → JPEG kopya. Galeride
+  "Döndür" yerine "Düzenle".
+  **TUZAK:** çizimde çevirme döndürmeden sonra (F·R) → çevrilmişken saat yönü
+  adım TERSİNE (`rotated()`); piksel testi sabitliyor.
+- **PiP:** `FloatingPlayer.kt` (671 satır) + `floating_video.dart` + yüzen servis
+  + `SYSTEM_ALERT_WINDOW` silindi. Etkinlik `supportsPictureInPicture`; oynatıcı
+  ekranı açıkken video oynuyorsa çıkışta kendiliğinden PiP (12+ `setAutoEnterEnabled`,
+  eskisinde `onUserLeaveHint`); PiP'te yalnız video çizilir, yaşam döngüsü duraklatmaz.
+- **Tek oynatma motoru:** `audioplayers` kalktı; ses de `video_player`/ExoPlayer
+  (`allowBackgroundPlayback`), `AudioPlayback` içinde ince `_AudioEngine`.
+- **Media3 Transformer (K2 b):** `ci/MediaTranscode.kt` (probe + start/progress/cancel),
+  Gradle'a media3-transformer/effect/common **1.5.1** (video_player_android'in
+  ExoPlayer'ıyla AYNI sürüm şart). FFmpeg (LGPL) + `video_compress` + lisans
+  ekranındaki LGPL metni kalktı; çıktı süre doğrulaması korundu.
+
+### 2026-10-22 — telefonda doğrulama (1.0.389, yerel derleme)
+- **TUZAK — AGP 9 R8 yansımalı sınıfları kırıyor:** önce açılışta ÇÖKME (WorkManager
+  Room `_Impl`), koruma kuralı eklenince SİYAH EKRAN (flutter_local_notifications Gson
+  `TypeToken` "Missing type parameter" → Dart açılışı takıldı; logcat'te Dart hatası
+  YOK), sonra ML Kit kayıt sınıfı. Skia ile de siyah olduğu görülünce çizim değil
+  Dart/eklenti sorunu ayrıldı. **Çözüm: R8 küçültme kapalı** (`prepare_android.sh` 6c);
+  kurallar `proguard-rules.pro`da duruyor. APK 57 → 63-66 MB (bütçe 80).
+- Ölçümler `docs/perf/2026-10-21.md` sonunda: açılış 628 ms, boşta 0 kare, aşağı
+  kaydırma p99 8,5 ms; **yukarı kaydırma p99 50 ms** (KALANLAR).
+- Görsel düzenleyici telefonda: 4:3 + döndür + kalem → kopya `ad (1).jpg` 810×1080 (3:4 ✔).
+- Telefon ölçüm araçları: SurfaceFlinger katman adının başında kimlik öneki var
+  (`662e22f SurfaceView[...]`); `uiautomator dump` Flutter'da bayat kalabiliyor →
+  dökümden önce ~2,5 sn bekle. Xiaomi'de `input` için "USB hata ayıklama (Güvenlik
+  ayarları)" açık olmalı. Git Bash'te adb'ye `/sdcard` yolu için `MSYS_NO_PATHCONV=1`.
+- **Sürüm numarası tuzağı:** kullanıcı arada CI nightly'yi (388) kurmuştu; yerel 380
+  "sürüm düşürme" olurdu → 389 verildi. Kurmadan önce telefondaki sürüme bak.

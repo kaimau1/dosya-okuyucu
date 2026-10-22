@@ -11,6 +11,26 @@
       doğrulaması, "kirli" bayrağıyla bir sonraki takışta onarım, çekmeden önce "Güvenle
       çıkar" uyarısı + yarıda kesilme testleri.
 
+- [ ] **onReorder → onReorderItem (Flutter 3.44 kullanımdan kaldırma, 2026-10-21):**
+      `dashboard_layout_sheet.dart` (alt küme → tam liste eşlemesi) ve `nav_tabs_sheet.dart`
+      (`nav.move`) `// ignore` ile bırakıldı; yeni API `newIndex`i önceden düzeltiyor —
+      eşleme ve `move` mantığı buna göre değiştirilip testle sabitlenmeli.
+- [ ] **Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
+      MP4/MKV/altyazı, MP3/FLAC/M4A); galeride 2.000 fotoğraf RSS ölçümü (telefon).
+
+- [ ] **R8 kod küçültmeyi geri aç (2026-10-22):** Flutter 3.44 / AGP 9'da R8 yansımalı
+      sınıfları kırdı (WorkManager Room `_Impl` → açılışta çökme; Gson TypeToken →
+      flutter_local_notifications → siyah ekran; ML Kit kayıt sınıfı). Şimdilik
+      `prepare_android.sh` 6c'de kapalı (APK +~6-9 MB). Yapılacak: kütüphanelerin
+      consumer kurallarının neden uygulanmadığını bul (AGP 9 `android.newDsl=false`?),
+      `proguard-rules.pro` ile aç, telefonda soğuk açılış + bildirim + OCR dene.
+- [ ] **Yukarı kaydırmada takılma (Faz 4, 2026-10-22 telefonda ölçüldü):** 5.000 öğeli
+      klasörde AŞAĞI kaydırma kusursuz (p99 8,5 ms, 120 Hz), listenin ortasında YUKARI
+      kaydırmada p90 33 ms / p99 50 ms. Hipotez: `FmFileListView` `ListView.builder`ı
+      sabit yükseklik vermiyor, yukarıdan giren satırlar ölçülüyor. Ayıracak ölçüm:
+      `flutter run --profile` + DevTools zaman çizelgesi (build/layout payı). Düzeltme
+      adayı `itemExtentBuilder` (başlık/satır yüksekliği).
+
 > **Bu liste nasıl okunur (2026-08-08 sınıflandırması).** Açık maddelerin
 > çoğunluğu benim kapatabileceğim işler DEĞİL; hangisinin kimde olduğu
 > karışmasın diye üç kümeye ayrılıyor:
