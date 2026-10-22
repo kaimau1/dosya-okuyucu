@@ -7,6 +7,7 @@ import 'package:dosya_okuyucu/services/audiobook/wav.dart';
 import 'package:dosya_okuyucu/services/fm/fm_env.dart';
 import 'package:dosya_okuyucu/services/tts_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as pth;
 
 Uint8List _tone(int samples, {int rate = 24000}) {
   final pcm = Uint8List(samples * 2);
@@ -128,7 +129,7 @@ void main() {
         const AudioChapter('Sonuç: bitti', 'Son söz.'),
       ];
       final out = await maker.make(docName: 'Rapor', chapters: chapters);
-      expect(out.map((e) => e.split('/').last),
+      expect(out.map((e) => pth.basename(e)),
           ['01 - Giriş.wav', '02 - Sonuç bitti.wav']);
       expect(File(out.first).existsSync(), isTrue);
       expect(
@@ -147,7 +148,7 @@ void main() {
           docName: 'Kitap',
           chapters: const [AudioChapter('Üçüncü', 'Metin.')],
           numbers: const [2]);
-      expect(out.single.split('/').last, '03 - Üçüncü.wav');
+      expect(pth.basename(out.single), '03 - Üçüncü.wav');
     });
 
     test('parçalar sınıra kadar birleşir', () {

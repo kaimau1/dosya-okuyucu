@@ -35,9 +35,6 @@
 - [ ] **[📱] Açılışın ilk 0,5 sn'si:** ilk kare raster 218–309 ms (Impeller ve Skia), sonra pano
       build 45–49 ms. `_logSlowStartupFrames` logcat'e yazıyor; pano ilk kurulumunda ertelenebilecek
       iş var mı bakılacak.
-- [ ] **[Windows] `audiobook_test` iki test yalnız Windows'ta kırmızı** (yol ayırıcısı `\` —
-      beklenen ad yerine tam yol); Linux CI yeşil.
-
 > **Bu liste nasıl okunur (2026-08-08 sınıflandırması).** Açık maddelerin
 > çoğunluğu benim kapatabileceğim işler DEĞİL; hangisinin kimde olduğu
 > karışmasın diye üç kümeye ayrılıyor:
