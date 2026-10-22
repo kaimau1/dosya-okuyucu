@@ -635,7 +635,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 for (final q in history)
                   InputChip(
                     label: Text(q),
-                    avatar: const Icon(Icons.history_rounded, size: 18),
+                    avatar: const Icon(AppIcons.history, size: 18),
                     onPressed: () {
                       _controller.text = q;
                       unawaited(SearchHistory.record(q));

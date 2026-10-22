@@ -120,7 +120,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             DocMoreItem(Icons.numbers_rounded, context.t('vw.goto_page'), _askGoToPage),
             // Bu sayfayı yıldızla (2026-09-27) — rozete basılı tutmakla aynı.
             DocMoreItem(
-              Icons.bookmark_add_rounded,
+              AppIcons.important,
               context.t('pn.star'),
               () => _toggleBookmark(_pdfPage),
               selected: PdfBookmarks.isMarked(widget.doc.path, _pdfPage,
@@ -187,7 +187,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           if (isPdf)
             DocMoreItem(
                 AppIcons.ocr, context.t('vw.ocr'), _runOcr),
-          DocMoreItem(Icons.slideshow_rounded, context.t('vw.to_slides'),
+          DocMoreItem(AppIcons.slideshow, context.t('vw.to_slides'),
               _exportSlides),
           if (_hasText && !isTextLike)
             DocMoreItem(Icons.analytics_rounded, context.t('vw.word_count'),
@@ -202,7 +202,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           // Telefonun ana ekranına kısayol (2026-09-27).
           if (Platform.isAndroid)
             DocMoreItem(
-              Icons.add_to_home_screen_rounded,
+              AppIcons.homeShortcut,
               context.t('ea.shortcut'),
               () => addHomeShortcut(
                   context, FsEntry.fromEntity(File(widget.doc.path))),
@@ -487,7 +487,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                     segments: [
                       ButtonSegment(
                           value: 1,
-                          icon: const Icon(Icons.view_agenda_rounded),
+                          icon: const Icon(AppIcons.layoutDetail),
                           label: Text(context.t('vw.one_column'))),
                       ButtonSegment(
                           value: 2,
@@ -495,7 +495,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           label: Text(context.t('vw.two_columns'))),
                       ButtonSegment(
                           value: 4,
-                          icon: const Icon(Icons.grid_view_rounded),
+                          icon: const Icon(AppIcons.layoutGrid),
                           label: Text(context.t('vw.four_columns'))),
                     ],
                     selected: {_pdfColumns},

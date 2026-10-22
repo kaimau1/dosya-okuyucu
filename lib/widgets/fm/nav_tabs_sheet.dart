@@ -16,7 +16,7 @@ typedef NavTabSpec = ({IconData icon, IconData selected, String label});
 NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
       'downloads' => (
           icon: Icons.download_outlined,
-          selected: Icons.download_rounded,
+          selected: AppIcons.download,
           label: context.t('fm.downloads'),
         ),
       'new' => (
@@ -26,27 +26,27 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       'image' => (
           icon: Icons.image_outlined,
-          selected: Icons.image_rounded,
+          selected: AppIcons.image,
           label: FmCategory.image.label,
         ),
       'video' => (
           icon: Icons.movie_outlined,
-          selected: Icons.movie_rounded,
+          selected: AppIcons.video,
           label: FmCategory.video.label,
         ),
       'document' => (
           icon: Icons.description_outlined,
-          selected: Icons.description_rounded,
+          selected: AppIcons.newWord,
           label: FmCategory.document.label,
         ),
       'audio' => (
           icon: Icons.music_note_outlined,
-          selected: Icons.music_note_rounded,
+          selected: AppIcons.audio,
           label: FmCategory.audio.label,
         ),
       'archive' => (
           icon: Icons.folder_zip_outlined,
-          selected: Icons.folder_zip_rounded,
+          selected: AppIcons.archiveView,
           label: FmCategory.archive.label,
         ),
       'apk' => (
@@ -61,7 +61,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       'recent' => (
           icon: Icons.history_outlined,
-          selected: Icons.history_rounded,
+          selected: AppIcons.history,
           label: context.t('fm.recent_opened'),
         ),
       'search' => (
@@ -71,7 +71,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       'ai' => (
           icon: Icons.auto_awesome_outlined,
-          selected: Icons.auto_awesome_rounded,
+          selected: AppIcons.ai,
           label: context.t('nav.ai'),
         ),
       'smart' => (
@@ -86,7 +86,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       'vault' => (
           icon: Icons.enhanced_encryption_outlined,
-          selected: Icons.enhanced_encryption_rounded,
+          selected: AppIcons.vault,
           label: context.t('nav.vault'),
         ),
       'memories' => (
@@ -95,7 +95,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
           label: context.t('mem.title'),
         ),
       'jobs' => (
-          icon: Icons.playlist_add_check_rounded,
+          icon: AppIcons.exportList,
           selected: Icons.playlist_add_check_circle_rounded,
           label: context.t('fm.jobs'),
         ),
@@ -116,7 +116,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       _ => (
           icon: Icons.folder_outlined,
-          selected: Icons.folder_rounded,
+          selected: AppIcons.folder,
           label: context.t('home.tab_files'),
         ),
     };

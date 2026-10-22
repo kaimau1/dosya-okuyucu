@@ -62,15 +62,15 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
   };
 
   static const _icons = <String, IconData>{
-    ShareScope.sharedBox: Icons.folder_shared_rounded,
-    FtpTree.storageFolder: Icons.smartphone_rounded,
+    ShareScope.sharedBox: AppIcons.shareFolder,
+    FtpTree.storageFolder: AppIcons.device,
     'Indirilenler': AppIcons.download,
     'Kamera': Icons.photo_camera_rounded,
     'Ekran Goruntuleri': Icons.screenshot_rounded,
     'Resimler': AppIcons.image,
     'Videolar': AppIcons.video,
     'Ses': Icons.audiotrack_rounded,
-    'Belgeler': Icons.description_rounded,
+    'Belgeler': AppIcons.newWord,
     'Arsivler': AppIcons.archiveView,
     'Uygulamalar': Icons.android_rounded,
   };

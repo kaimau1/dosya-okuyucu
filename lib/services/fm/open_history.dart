@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
+import 'native_extras.dart';
 import 'path_side_index.dart';
 
 /// **"Son açılma tarihi"** — bir dosyanın en son ne zaman açıldığı, TÜM dosya
@@ -116,6 +118,8 @@ abstract final class OpenHistory {
     await ensureLoaded();
     _byPath[path] = DateTime.now().millisecondsSinceEpoch;
     await _saveNow();
+    // Başlatıcı simgesinde "son açılan 2 dosya" (Faz 19).
+    unawaited(NativeExtras.setRecentShortcuts(pathsByRecency()));
   }
 
   /// [path]'in son açılma zamanı (ms); hiç açılmadıysa null.

@@ -190,7 +190,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             ),
             IconButton(
               tooltip: context.t('mp.open_with'),
-              icon: const Icon(Icons.apps_rounded),
+              icon: const Icon(AppIcons.openWith),
               onPressed: () => EntryOpener.openExternally(context, _current),
             ),
             // İzlerken "bunu Önemli'ye taşıyayım" demek için oynatıcıyı
@@ -229,7 +229,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               const SizedBox(height: Gap.md),
               FilledButton.tonalIcon(
                 onPressed: () => EntryOpener.openExternally(context, _current),
-                icon: const Icon(Icons.apps_rounded),
+                icon: const Icon(AppIcons.openWith),
                 label: Text(context.t('mp.open_with')),
               ),
             ],
@@ -396,7 +396,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                     tooltip: context.t(_landscape ? 'mp.portrait' : 'mp.fullscreen'),
                     color: AppColors.onMedia,
                     icon: Icon(
-                        _landscape ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded),
+                        _landscape ? Icons.fullscreen_exit_rounded : AppIcons.fullscreen),
                     onPressed: _toggleLandscape,
                   ),
                 ),

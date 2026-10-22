@@ -288,7 +288,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   value: 'move',
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.drive_file_move_rounded),
+                    leading: const Icon(AppIcons.move),
                     title: Text(ctx.t('scr.change_location')),
                   ),
                 ),
@@ -309,7 +309,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                     segments: [
                       ButtonSegment(
                         value: 0,
-                        icon: const Icon(Icons.description_rounded, size: 18),
+                        icon: const Icon(AppIcons.newWord, size: 18),
                         label: Text(
                             context.t('ss.pages_tab', {'n': _pages.length})),
                       ),

@@ -148,7 +148,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         for (final f in folders)
           ActionChip(
             avatar: Icon(
-                f.volume.isEmpty ? AppIcons.folder : Icons.sd_storage_rounded,
+                f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
                 size: 18),
             label: Text(
               [

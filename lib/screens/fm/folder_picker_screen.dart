@@ -153,7 +153,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       if (out.any((s) => s.path == path)) continue;
       if (!Directory(path).existsSync()) continue;
       out.add((
-        icon: Icons.history_rounded,
+        icon: AppIcons.history,
         label: p.basename(path),
         path: path,
         create: false,
@@ -174,7 +174,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
 
   static IconData _iconForShortcut(String key) => switch (key) {
         'download' => AppIcons.download,
-        'document' => Icons.description_rounded,
+        'document' => AppIcons.newWord,
         'camera' => Icons.photo_camera_rounded,
         'image' => AppIcons.image,
         'audio' => AppIcons.audio,
@@ -344,7 +344,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         final allowed = _allowed(dir.path);
         return ListTile(
           enabled: allowed,
-          leading: Icon(Icons.folder_rounded, color: context.fmFolderColor ?? FmColors.folder),
+          leading: Icon(AppIcons.folder, color: context.fmFolderColor ?? FmColors.folder),
           title: Text(dir.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: allowed ? null : Text(context.t('picker.source_itself')),
           trailing: const Icon(AppIcons.chevron),

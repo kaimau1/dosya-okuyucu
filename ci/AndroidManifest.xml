@@ -121,6 +121,11 @@
             <meta-data
               android:name="flutter_deeplinking_enabled"
               android:value="false"/>
+            <!-- Başlatıcı kısayolları (Faz 19): Ara · Tara · İndirilenler ·
+                 Son açılanlar; son açılan iki dosya dinamik (Extras). -->
+            <meta-data
+              android:name="android.app.shortcuts"
+              android:resource="@xml/shortcuts"/>
 
             <!-- Uygulama başlatıcı -->
             <intent-filter>

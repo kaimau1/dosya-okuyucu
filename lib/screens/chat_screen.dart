@@ -358,7 +358,7 @@ class _QuickBar extends StatelessWidget {
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                 child: ActionChip(
-                  avatar: const Icon(Icons.article_rounded, size: 18),
+                  avatar: const Icon(AppIcons.newText, size: 18),
                   label: Text(context.t('chat.quick_page_summary')),
                   onPressed: enabled
                       ? () => onQuick(context.t('chat.quick_page_summary_prompt',
@@ -500,7 +500,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.description_rounded),
+                            leading: Icon(AppIcons.newWord),
                             title: Text('Word (.docx)'),
                           ),
                         ),
@@ -509,7 +509,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.table_chart_rounded),
+                            leading: Icon(AppIcons.newSheet),
                             title: Text('Excel (.xlsx)'),
                           ),
                         ),
@@ -527,7 +527,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.slideshow_rounded),
+                            leading: const Icon(AppIcons.slideshow),
                             title: Text(context.t('chat.export_slides')),
                           ),
                         ),
@@ -558,7 +558,7 @@ class _Bubble extends StatelessWidget {
                       style: _actionStyle,
                       // Hafızaya düz metin yaz (işaretsiz).
                       onPressed: () => onSaveMemory(stripMarkdown(turn.text)),
-                      icon: const Icon(Icons.bookmark_add_rounded, size: 16),
+                      icon: const Icon(AppIcons.important, size: 16),
                       label: Text(context.t('chat.save_to_memory')),
                     ),
                   ],

@@ -206,7 +206,7 @@ class AiPrivacyTile extends StatelessWidget {
               .setAiScope(scope.copyWith(sendImages: v)),
         ),
         SettingSwitch(
-          icon: Icons.visibility_off_rounded,
+          icon: AppIcons.hiddenOff,
           title: context.t('aiset.hidden'),
           subtitle: context.t('aiset.hidden_sub'),
           value: scope.includeHidden,

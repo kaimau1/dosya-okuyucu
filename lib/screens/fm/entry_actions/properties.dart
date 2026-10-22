@@ -354,10 +354,10 @@ Future<void> addHomeShortcut(BuildContext context, FsEntry entry) async {
       color = OfficeColors.forKind(kind);
       icon = switch (ext) {
         'pdf' => AppIcons.pdf,
-        'doc' || 'docx' || 'odt' || 'rtf' => Icons.article_rounded,
-        'xls' || 'xlsx' || 'csv' || 'ods' => Icons.table_chart_rounded,
-        'ppt' || 'pptx' || 'odp' => Icons.slideshow_rounded,
-        _ => Icons.description_rounded,
+        'doc' || 'docx' || 'odt' || 'rtf' => AppIcons.newText,
+        'xls' || 'xlsx' || 'csv' || 'ods' => AppIcons.newSheet,
+        'ppt' || 'pptx' || 'odp' => AppIcons.slideshow,
+        _ => AppIcons.newWord,
       };
     } else {
       icon = FmColors.iconFor(entry.category);

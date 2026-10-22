@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Başlatıcı kısayolları (Faz 19): simgeye uzun basınca. -->
+<resources>
+    <string name="sc_search">Ara</string>
+    <string name="sc_scan">Belge tara</string>
+    <string name="sc_downloads">İndirilenler</string>
+    <string name="sc_recent">Son açılanlar</string>
+</resources>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Başlatıcı kısayolları (Faz 19 / G21). Dokunuş MainActivity'yi
+     `dosya_link` ekiyle açar (Extras.EXTRA_LINK → Dart openAppLink). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="search"
+        android:enabled="true"
+        android:icon="@drawable/ic_w_search"
+        android:shortcutShortLabel="@string/sc_search">
+        <intent
+            android:action="com.dosyaokuyucu.dosya_okuyucu.SHORTCUT"
+            android:targetPackage="com.dosyaokuyucu.dosya_okuyucu"
+            android:targetClass="com.dosyaokuyucu.dosya_okuyucu.MainActivity">
+            <extra android:name="dosya_link" android:value="app:search" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="scan"
+        android:enabled="true"
+        android:icon="@drawable/ic_w_scan"
+        android:shortcutShortLabel="@string/sc_scan">
+        <intent
+            android:action="com.dosyaokuyucu.dosya_okuyucu.SHORTCUT"
+            android:targetPackage="com.dosyaokuyucu.dosya_okuyucu"
+            android:targetClass="com.dosyaokuyucu.dosya_okuyucu.MainActivity">
+            <extra android:name="dosya_link" android:value="app:scan" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="downloads"
+        android:enabled="true"
+        android:icon="@drawable/ic_w_file"
+        android:shortcutShortLabel="@string/sc_downloads">
+        <intent
+            android:action="com.dosyaokuyucu.dosya_okuyucu.SHORTCUT"
+            android:targetPackage="com.dosyaokuyucu.dosya_okuyucu"
+            android:targetClass="com.dosyaokuyucu.dosya_okuyucu.MainActivity">
+            <extra android:name="dosya_link" android:value="app:downloads" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="recent"
+        android:enabled="true"
+        android:icon="@drawable/ic_w_file"
+        android:shortcutShortLabel="@string/sc_recent">
+        <intent
+            android:action="com.dosyaokuyucu.dosya_okuyucu.SHORTCUT"
+            android:targetPackage="com.dosyaokuyucu.dosya_okuyucu"
+            android:targetClass="com.dosyaokuyucu.dosya_okuyucu.MainActivity">
+            <extra android:name="dosya_link" android:value="app:recent" />
+        </intent>
+    </shortcut>
+</shortcuts>

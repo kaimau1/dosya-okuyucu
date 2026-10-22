@@ -129,7 +129,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
               hintText: 'AIza...',
               suffixIcon: IconButton(
                 tooltip: context.t('settings.api_key'),
-                icon: Icon(_obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+                icon: Icon(_obscure ? AppIcons.hidden : AppIcons.hiddenOff),
                 onPressed: () => setState(() => _obscure = !_obscure),
               ),
             ),

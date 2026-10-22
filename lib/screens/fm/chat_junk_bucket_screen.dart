@@ -75,7 +75,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
           const Divider(height: 1),
           Expanded(
             child: _files.isEmpty
-                ? FmEmptyState(icon: Icons.cleaning_services_rounded, title: context.t('cj.bucket_empty'))
+                ? FmEmptyState(icon: AppIcons.cleanEmpty, title: context.t('cj.bucket_empty'))
                 : GridView.builder(
                     padding: withNavInset(
                         context, const EdgeInsets.all(Gap.sm)),

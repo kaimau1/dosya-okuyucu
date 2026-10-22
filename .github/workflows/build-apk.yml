@@ -327,6 +327,14 @@ jobs:
           if unzip -l "$APK" | grep -q 'libmlkit_google_ocr_pipeline.so'; then
             echo "::error::Gömülü OCR kütüphanesi hâlâ APK'da (ikame çalışmadı)"; exit 1
           fi
+          # Faz 19: başlatıcı kısayolları, uygulama başına dil ve açılış ekranı
+          # kaynakları APK'da olmalı (ci/res kopyalaması sessizce düşerse).
+          RES=$("$BT/aapt2" dump resources "$APK")
+          for r in xml/shortcuts xml/locales_config color/splash_bg; do
+            if ! grep -q "$r" <<<"$RES"; then
+              echo "::error::$r kaynağı APK'da yok"; exit 1
+            fi
+          done
           TARGET=$("$BT/aapt2" dump badging "$APK" | sed -nE "s/.*targetSdkVersion:'([0-9]+)'.*/\1/p")
           if [ "$TARGET" != "36" ]; then
             echo "::error::targetSdk 36 değil ($TARGET)"; exit 1

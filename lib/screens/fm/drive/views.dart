@@ -234,7 +234,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _openViaSystemPicker,
-                icon: const Icon(Icons.folder_open_rounded),
+                icon: const Icon(AppIcons.emptyFolder),
                 label: Text(context.t('drive.open_via_system')),
               ),
             ],

@@ -232,7 +232,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           ),
           IconButton(
             tooltip: context.t('mp.open_with'),
-            icon: const Icon(Icons.apps_rounded),
+            icon: const Icon(AppIcons.openWith),
             onPressed: () => EntryOpener.openExternally(context, _current),
           ),
           // Dinlerken dosyayı taşımak/kopyalamak için ekranı terk etmek

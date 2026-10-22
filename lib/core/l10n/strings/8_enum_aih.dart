@@ -21,6 +21,18 @@ const Map<String, (String, String, String)> _t8 = {
     'Vivid purple accent, round corners, large icons',
     'لون بنفسجي زاهٍ وزوايا دائرية وأيقونات كبيرة',
   ),
+  'set.haptics': ('Dokunsal geri bildirim', 'Haptic feedback', 'الاهتزاز عند اللمس'),
+  'set.haptics_sub': (
+    'Seçimde ve kaydırırken hafif titreşim',
+    'A light vibration when selecting and scrolling',
+    'اهتزاز خفيف عند التحديد والتمرير',
+  ),
+  'skin.system': ('Sistem rengi', 'System colour', 'لون النظام'),
+  'skin.system_sub': (
+    'Duvar kâğıdınızın rengini alır (Android 12+)',
+    'Takes the colour of your wallpaper (Android 12+)',
+    'يأخذ لون خلفية الشاشة (Android 12+)',
+  ),
   'skin.night': ('Gece (OLED)', 'Night (OLED)', 'ليلي (OLED)'),
   'skin.night_sub': (
     'Saf siyah zemin — pil dostu, gece okunur',

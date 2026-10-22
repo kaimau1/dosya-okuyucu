@@ -274,6 +274,7 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
     ),
   );
   if (confirmed != true || !context.mounted) return false;
+  AppHaptics.destructive();
   final result = await showFmProgress(
     context,
     title: context.t('common.deleting'),

@@ -146,7 +146,7 @@ Future<_SaveChoice?> _askSaveChoice(
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.folder_open_rounded),
+            leading: const Icon(AppIcons.emptyFolder),
             title: Text(ctx.t('ps.pick_folder')),
             subtitle: Text(ctx.t('ps.pick_folder_sub')),
             onTap: () => Navigator.pop(ctx, _SaveChoice.chooseFolder),

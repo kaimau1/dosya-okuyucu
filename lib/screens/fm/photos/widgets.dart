@@ -122,7 +122,7 @@ class _PackedLabel extends StatelessWidget {
         children: [
           if (selecting) ...[
             Icon(
-              allSelected ? AppIcons.checkCircle : Icons.radio_button_unchecked_rounded,
+              allSelected ? AppIcons.checkCircle : AppIcons.circle,
               size: 18,
               color: allSelected ? scheme.primary : scheme.onSurfaceVariant,
             ),

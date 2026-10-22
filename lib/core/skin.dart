@@ -36,7 +36,12 @@ enum AppSkin {
 
   /// **Gece (OLED):** saf siyah zemin. Koyu temadan farkı, `#000000` pikselin
   /// OLED ekranda kapalı olması — hem pil hem gece okunurluğu.
-  night;
+  night,
+
+  /// **Sistem rengi** (Faz 19 / K13 (a), 2026-10-22): Android 12+ duvar
+  /// kâğıdından türeyen vurgu (`system_accent1`), yüzeyler Açık ailesinden.
+  /// Android 11 ve altında listelenmez; renk okunamazsa Açık gibi görünür.
+  system;
 
   // 2026-10-21 (Faz 2, K8): 10 aile → 4. İş programı, Okyanus, Gün batımı,
   // Orman, Gül ve Grafit KALDIRILDI — her biri ayrı palet + ölçü + simge dili
@@ -48,6 +53,7 @@ enum AppSkin {
         AppSkin.light => 'skin.light',
         AppSkin.modern => 'skin.modern',
         AppSkin.night => 'skin.night',
+        AppSkin.system => 'skin.system',
       };
 
   String get descriptionKey => switch (this) {
@@ -55,7 +61,11 @@ enum AppSkin {
         AppSkin.light => 'skin.light_sub',
         AppSkin.modern => 'skin.modern_sub',
         AppSkin.night => 'skin.night_sub',
+        AppSkin.system => 'skin.system_sub',
       };
+
+  /// Bu cihazda seçilebilir mi? (Sistem rengi yalnız Android 12+.)
+  bool get available => this != AppSkin.system || SystemAccent.available;
 
   /// Aile yalnız koyu çalışıyor mu? (Gece/OLED'in açık karşılığı yok.)
   bool get forcesDark => this == AppSkin.night;
@@ -170,6 +180,8 @@ class SkinPalette {
       AppSkin.light => dark ? _neutralDark : _neutralLight,
       AppSkin.modern => dark ? _modernDark : _modernLight,
       AppSkin.night => _nightDark,
+      AppSkin.system => SystemAccent.apply(
+          dark ? _neutralDark : _neutralLight, dark: dark),
     };
   }
 
@@ -383,7 +395,7 @@ class SkinMetrics {
             iconStyle: SkinIconStyle.gradient,
             folderColor: Color(0xFF7C5CFA),
           ),
-        AppSkin.night => const SkinMetrics(
+        AppSkin.night || AppSkin.system => const SkinMetrics(
             radiusControl: 12,
             radiusCard: 16,
             radiusSheet: 28,
@@ -437,5 +449,38 @@ class AppBackground {
       if (b.id == id) return b;
     }
     return values.first;
+  }
+}
+
+/// Android 12+ sistem vurgu rengi (duvar kâğıdından). Açılışta yerel
+/// kanaldan bir kez okunur (`NativeExtras.systemAccent`); okunamazsa null ve
+/// [AppSkin.system] listelenmez.
+abstract final class SystemAccent {
+  static Color? light;
+  static Color? dark;
+
+  static bool get available => light != null && dark != null;
+
+  static SkinPalette apply(SkinPalette base, {required bool dark}) {
+    final accent = dark ? SystemAccent.dark : light;
+    if (accent == null) return base;
+    final onAccent =
+        accent.computeLuminance() > 0.45 ? const Color(0xFF1B1B1F) : Colors.white;
+    return SkinPalette(
+      bg: base.bg,
+      card: base.card,
+      band: base.band,
+      well: base.well,
+      rule: base.rule,
+      edge: base.edge,
+      ink: base.ink,
+      inkSoft: base.inkSoft,
+      inkFaint: base.inkFaint,
+      accent: accent,
+      accentWell: Color.lerp(base.bg, accent, dark ? 0.28 : 0.16) ?? accent,
+      onAccent: onAccent,
+      danger: base.danger,
+      ok: base.ok,
+    );
   }
 }

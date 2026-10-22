@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+import '../../core/skin.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -186,6 +188,21 @@ abstract final class NativeExtras {
       await _call<bool>(
           'attachData', {'path': path, 'mime': mime, 'title': title}) ??
       false;
+
+  /// Android 12+ sistem vurgu rengini [SystemAccent]a yükler (Faz 19 / K13).
+  static Future<void> loadSystemAccent() async {
+    final v = await _call<List<Object?>>('systemAccent');
+    if (v == null || v.length < 2) return;
+    final light = v[0], dark = v[1];
+    if (light is int && dark is int) {
+      SystemAccent.light = Color(light & 0xFFFFFFFF);
+      SystemAccent.dark = Color(dark & 0xFFFFFFFF);
+    }
+  }
+
+  /// Başlatıcı simgesinin dinamik kısayolları: son açılan iki dosya (Faz 19).
+  static Future<void> setRecentShortcuts(List<String> paths) =>
+      _call<bool>('setRecentShortcuts', paths.take(2).toList());
 
   // ── 4. konum adı ───────────────────────────────────────────────────────
 

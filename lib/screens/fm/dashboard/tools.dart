@@ -138,7 +138,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // ızgarasına, ilk sıraya taşındı. Buradaki "İndir" kutusu farklı bir
       // şey: indirme YÖNETİCİSİ — süren indirmeler ve kuyruk.)
       FmTileData(
-        icon: Icons.cleaning_services_rounded,
+        icon: AppIcons.cleanEmpty,
         color: AppHues.cyan,
         id: 'free_space',
         label: context.t('fm.free_space'),
@@ -162,7 +162,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // Şifreli kasa (2026-10-18): PIN/parmak iziyle açılan, içeriği
       // şifreli klasör — kimlik, tapu, sözleşme taramaları için.
       FmTileData(
-        icon: Icons.enhanced_encryption_rounded,
+        icon: AppIcons.vault,
         color: AppHues.slate,
         id: 'vault',
         label: context.t('vault.title'),
@@ -238,7 +238,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
     return FmTileData(
       icon: !anything
           ? Icons.sd_card_outlined
-          : (usb > 0 || externals.isEmpty ? AppIcons.external : Icons.sd_card_rounded),
+          : (usb > 0 || externals.isEmpty ? AppIcons.external : AppIcons.sdCard),
       color: !anything
           ? AppHues.silver
           : AppHues.orange,

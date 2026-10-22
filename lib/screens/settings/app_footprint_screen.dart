@@ -192,7 +192,7 @@ class _AppFootprintScreenState extends State<AppFootprintScreen> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.cleaning_services_rounded),
+              : const Icon(AppIcons.cleanEmpty),
           label: Text(context.t(
               'foot.clean', {'size': FsPaths.humanSize(cleanable)})),
         ),

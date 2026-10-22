@@ -136,7 +136,7 @@ class _CompressSheetState extends State<_CompressSheet> {
                             hideNames: _hideNames,
                           ),
                         ),
-                icon: const Icon(Icons.archive_rounded),
+                icon: const Icon(AppIcons.compress),
                 label: Text(context.t('cmp.title')),
               ),
             ),

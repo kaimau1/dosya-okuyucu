@@ -5,6 +5,7 @@ import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../services/gemini_service.dart';
 import '../core/user_error.dart';
+import '../core/app_icons.dart';
 
 /// Seçili parça üzerinde en sık istenen düzeltmeler.
 ///
@@ -153,7 +154,7 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.auto_fix_high_rounded),
+                      : const Icon(AppIcons.organize),
                   label: Text(
                       context.t(_busy ? 'aw.working' : 'common.apply')),
                 ),

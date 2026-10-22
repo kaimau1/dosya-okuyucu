@@ -11,7 +11,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
         padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
         child: Row(
           children: [
-            Icon(Icons.auto_awesome_rounded, size: 20, color: scheme.onPrimaryContainer),
+            Icon(AppIcons.ai, size: 20, color: scheme.onPrimaryContainer),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Text(
@@ -341,7 +341,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     highlight: true,
                   ),
                   _ToolButton(
-                    icon: Icons.rotate_90_degrees_cw_rounded,
+                    icon: AppIcons.rotate,
                     label: context.t('ss.tool_rotate'),
                     onTap: enabled ? _rotate : null,
                   ),

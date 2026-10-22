@@ -118,7 +118,7 @@ class _FolderMapScreenState extends State<FolderMapScreen> {
         actions: [
           IconButton(
             tooltip: context.t('important.open_in_browser'),
-            icon: const Icon(Icons.folder_open_rounded),
+            icon: const Icon(AppIcons.emptyFolder),
             onPressed: () async {
               await Navigator.of(context).push(browserRoute(BrowserScreen(path: widget.path),
               ));

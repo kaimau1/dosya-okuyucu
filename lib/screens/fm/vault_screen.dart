@@ -424,7 +424,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.enhanced_encryption_rounded),
+                leading: const Icon(AppIcons.vault),
                 title: Text(context.t('vault.summary', {'n': all.length})),
                 subtitle: Text(context.t('vault.encrypted_note')),
               ),
@@ -458,7 +458,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
                     children: [
                       FilledButton.icon(
                         onPressed: _importLegacy,
-                        icon: const Icon(Icons.enhanced_encryption_rounded),
+                        icon: const Icon(AppIcons.vault),
                         label: Text(context.t('vault.legacy_move')),
                       ),
                       TextButton(
@@ -657,7 +657,7 @@ class _VaultFilePickerState extends State<_VaultFilePicker> {
             ? null
             : FloatingActionButton.extended(
                 onPressed: () => Navigator.pop(context, _picked.toList()),
-                icon: const Icon(Icons.enhanced_encryption_rounded),
+                icon: const Icon(AppIcons.vault),
                 label: Text(context.t('vault.move_n', {'n': _picked.length})),
               ),
         body: _loading

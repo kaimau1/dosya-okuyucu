@@ -75,7 +75,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
             if (_selected.length == 1)
               IconButton(
                 tooltip: context.t('nas.rename'),
-                icon: const Icon(Icons.drive_file_rename_outline_rounded),
+                icon: const Icon(AppIcons.rename),
                 onPressed: _busy
                     ? null
                     : () => _rename(_entryOf(_selected.first)!),

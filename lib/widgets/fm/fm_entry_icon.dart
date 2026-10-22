@@ -65,13 +65,13 @@ abstract final class FmColors {
   /// yalnız çizim ağırlığı değişiyor.
   static IconData iconFor(FmCategory c, {bool outlined = false}) =>
       outlined ? _outlined(c) : switch (c) {
-        FmCategory.folder => Icons.folder_rounded,
-        FmCategory.image => Icons.image_rounded,
-        FmCategory.video => Icons.movie_rounded,
-        FmCategory.audio => Icons.music_note_rounded,
-        FmCategory.archive => Icons.folder_zip_rounded,
+        FmCategory.folder => AppIcons.folder,
+        FmCategory.image => AppIcons.image,
+        FmCategory.video => AppIcons.video,
+        FmCategory.audio => AppIcons.audio,
+        FmCategory.archive => AppIcons.archiveView,
         FmCategory.apk => Icons.android_rounded,
-        FmCategory.document => Icons.description_rounded,
+        FmCategory.document => AppIcons.newWord,
         FmCategory.other => Icons.insert_drive_file_rounded,
       };
 
@@ -108,11 +108,11 @@ abstract final class FmColors {
         'apk' || 'xapk' || 'apks' || 'aab' => (Icons.android_rounded, apk),
         // Arşivler biçime göre renk alır (2026-09-27): hepsi aynı toprak
         // rengindeydi, ZIP ile RAR ayırt edilmiyordu.
-        'zip' => (Icons.folder_zip_rounded, zip),
-        'rar' => (Icons.folder_zip_rounded, rar),
-        '7z' => (Icons.folder_zip_rounded, sevenZip),
+        'zip' => (AppIcons.archiveView, zip),
+        'rar' => (AppIcons.archiveView, rar),
+        '7z' => (AppIcons.archiveView, sevenZip),
         'tar' || 'gz' || 'tgz' || 'bz2' || 'xz' || 'zst' =>
-          (Icons.folder_zip_rounded, tarball),
+          (AppIcons.archiveView, tarball),
         'epub' || 'mobi' || 'azw' || 'azw3' || 'fb2' =>
           (Icons.menu_book_rounded, const Color(0xFF8D5524)),
         'ttf' || 'otf' || 'woff' || 'woff2' =>
@@ -142,7 +142,7 @@ abstract final class FmColors {
           AppIcons.download,
         'dcim' || 'camera' || 'kamera' => Icons.photo_camera_rounded,
         'pictures' || 'images' || 'resimler' || 'görüntüler' =>
-          Icons.photo_library_rounded,
+          AppIcons.layoutGallery,
         'movies' || 'video' || 'videos' || 'videolar' =>
           Icons.video_library_rounded,
         'music' || 'müzik' || 'audio' || 'ses' => Icons.library_music_rounded,
@@ -903,7 +903,7 @@ class _VideoBadge extends StatelessWidget {
 /// bir USB bellek SD kart simgesiyle görünüyordu (kullanıcı bulgusu
 /// 2026-09-01).
 IconData volumeIcon(StorageVolume volume) => switch (volume.iconName) {
-      'smartphone' => Icons.smartphone_rounded,
+      'smartphone' => AppIcons.device,
       'usb' => AppIcons.external,
       _ => AppIcons.sdCard,
     };

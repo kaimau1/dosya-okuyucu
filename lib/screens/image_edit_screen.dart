@@ -507,7 +507,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
               Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                 _toolButton(Icons.rotate_right_rounded, 'ied.rotate',
                     () => _push(_e.rotated())),
-                _toolButton(Icons.flip_rounded, 'ied.flip', () => _push(_e.flipped())),
+                _toolButton(AppIcons.selectInvert, 'ied.flip', () => _push(_e.flipped())),
                 _toolButton(Icons.restart_alt_rounded, 'ied.reset', () {
                   setState(() => _ratio = null);
                   _push(const ImageEdits());

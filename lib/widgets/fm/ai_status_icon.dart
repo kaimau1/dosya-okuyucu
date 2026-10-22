@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_index.dart';
+import '../../core/app_icons.dart';
 
 /// AI simgesi — **canlı durum taşır** (panonun üst çubuğunda).
 ///
@@ -17,7 +18,7 @@ class AiStatusIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon =
-        Icon(selected ? Icons.auto_awesome_rounded : Icons.auto_awesome_outlined);
+        Icon(selected ? AppIcons.ai : Icons.auto_awesome_outlined);
     return ValueListenableBuilder<AiProgress>(
       valueListenable: AiAnalyzer.progress,
       builder: (context, progress, _) => ValueListenableBuilder<int>(

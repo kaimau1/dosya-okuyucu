@@ -35,7 +35,7 @@ abstract final class OfficeIcons {
   // Tablo / hücre
   static const borders = Icons.border_all_rounded;
   static const merge = Icons.merge_type_rounded;
-  static const numberFormat = Icons.tag_rounded;
+  static const numberFormat = AppIcons.hashtag;
   static const autoSum = Icons.functions_rounded;
   static const condFormat = Icons.rule_rounded;
   static const insertRow = Icons.table_rows_rounded;
@@ -65,7 +65,7 @@ abstract final class OfficeIcons {
   static const ai = AppIcons.ai;
   static const zoomIn = Icons.zoom_in_rounded;
   static const zoomOut = Icons.zoom_out_rounded;
-  static const goTo = Icons.my_location_rounded;
+  static const goTo = AppIcons.reveal;
   static const more = AppIcons.moreHoriz;
   static const done = AppIcons.check;
 }

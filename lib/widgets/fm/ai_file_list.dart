@@ -231,7 +231,7 @@ class _AiFileListState extends State<AiFileList> {
                   children: [
                     if (widget.onApply != null)
                       _barButton(
-                        Icons.auto_fix_high_rounded,
+                        AppIcons.organize,
                         context.t('aif.apply'),
                         () async {
                           await widget.onApply!(selected);
@@ -241,7 +241,7 @@ class _AiFileListState extends State<AiFileList> {
                     _barButton(AppIcons.share, context.t('aif.share'),
                         () => shareEntriesFrom(context, _selected.toList())),
                     _barButton(
-                      Icons.drive_file_move_rounded,
+                      AppIcons.move,
                       context.t('aif.move'),
                       () async => _afterFileOp(await moveOrCopyEntries(
                           context, _selected.toList(),

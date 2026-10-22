@@ -171,7 +171,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                       IconButton(
                         tooltip: context.t('sl.fullscreen'),
                         visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.fullscreen_rounded, size: 20),
+                        icon: const Icon(AppIcons.fullscreen, size: 20),
                         onPressed: () => _play(i),
                       ),
                       _slideMenu(slide),

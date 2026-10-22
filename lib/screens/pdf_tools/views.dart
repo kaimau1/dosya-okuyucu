@@ -238,7 +238,7 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
                   _busy ? null : _rotate),
               _barButton(AppIcons.delete, context.t('common.delete'),
                   has && !_busy ? _deleteSelected : null),
-              _barButton(Icons.call_split_rounded, context.t('pt.extract'),
+              _barButton(AppIcons.split, context.t('pt.extract'),
                   has && !_busy ? _extractSelected : null),
               _barButton(AppIcons.arrowUp, context.t('pt.forward'),
                   single && !_busy ? () => _move(-1) : null),

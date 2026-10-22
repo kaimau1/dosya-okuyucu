@@ -145,7 +145,7 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     final empty = scope.isEmpty;
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.folder_shared_rounded),
+      leading: const Icon(AppIcons.shareFolder),
       title: Text(context.t('ftpd.folders_title')),
       subtitle: Text(
         _scopeSummary(context, scope),

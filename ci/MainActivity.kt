@@ -366,6 +366,18 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "getBrightness" -> result.success(window.attributes.screenBrightness.toDouble())
+                // Faz 19 / K13: Material You vurgu rengi (duvar kâğıdından).
+                // Android 12 altında null → "Sistem rengi" listelenmez.
+                "systemAccent" -> {
+                    if (Build.VERSION.SDK_INT >= 31) {
+                        result.success(listOf(
+                            getColor(android.R.color.system_accent1_600).toLong(),
+                            getColor(android.R.color.system_accent1_200).toLong(),
+                        ))
+                    } else {
+                        result.success(null)
+                    }
+                }
                 // Faz 18 / G19: galeride "Farklı kullan" (duvar kâğıdı, kişi
                 // fotoğrafı). Medya taramasının verdiği content:// adresiyle —
                 // FileProvider bağımlılığı gerekmez.
@@ -390,6 +402,37 @@ class MainActivity : FlutterActivity() {
                                 }
                             }
                         }
+                    }
+                }
+                // Faz 19: başlatıcı simgesine uzun basınca son açılan iki dosya
+                // (statik kısayollar xml/shortcuts.xml'de). Dokunuş ana ekran
+                // kısayoluyla AYNI yolu izler (ACTION_OPEN_PATH).
+                "setRecentShortcuts" -> {
+                    if (Build.VERSION.SDK_INT >= 25) {
+                        val manager = getSystemService(ShortcutManager::class.java)
+                        val items = (call.arguments as? List<*>)?.mapNotNull { it as? String }
+                            ?: emptyList()
+                        val infos = items.take(2).map { path ->
+                            val label = path.substringAfterLast('/').take(40).ifEmpty { path }
+                            val open = Intent(this, MainActivity::class.java).apply {
+                                action = ACTION_OPEN_PATH
+                                putExtra(EXTRA_SHORTCUT_PATH, path)
+                            }
+                            ShortcutInfo.Builder(this, "recent" + Integer.toHexString(path.hashCode()))
+                                .setShortLabel(label)
+                                .setLongLabel(label)
+                                .setIcon(Icon.createWithResource(this, R.drawable.ic_w_file))
+                                .setIntent(open)
+                                .build()
+                        }
+                        val ok = try {
+                            manager?.setDynamicShortcuts(infos) ?: false
+                        } catch (e: Exception) {
+                            false
+                        }
+                        result.success(ok)
+                    } else {
+                        result.success(false)
                     }
                 }
                 "geocode" -> Extras.geocode(

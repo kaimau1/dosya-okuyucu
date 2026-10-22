@@ -11,6 +11,7 @@ import '../../core/theme.dart';
 import '../../widgets/fm/fm_category_tile.dart' show FmTintedIcon;
 import '../../widgets/fm/nav_tabs_sheet.dart';
 import 'settings_widgets.dart';
+import '../../core/app_haptics.dart';
 
 /// Tema: sistem / açık / koyu.
 class ThemeTile extends StatelessWidget {
@@ -142,8 +143,7 @@ class UiTextSizeTile extends StatelessWidget {
                 ),
               ),
               Text('%${(appState.uiTextScale * 100).round()}',
-                  style:
-                      TextStyle(fontSize: 12, color: Paper.faint(context))),
+                  style: TextStyle(fontSize: 12, color: Paper.faint(context))),
             ],
           ),
         ),
@@ -218,20 +218,21 @@ class AppSkinTile extends StatelessWidget {
                       style: Theme.of(ctx).textTheme.titleMedium),
                 ),
                 for (final skin in AppSkin.values)
-                  ListTile(
-                    leading: _SkinSwatch(skin: skin),
-                    title: Text(ctx.t(skin.labelKey)),
-                    subtitle: Text(
-                      skin.forcesDark
-                          ? '${ctx.t(skin.descriptionKey)} · '
-                              '${ctx.t('skin.forces_dark')}'
-                          : ctx.t(skin.descriptionKey),
+                  if (skin.available || skin == appState.appSkin)
+                    ListTile(
+                      leading: _SkinSwatch(skin: skin),
+                      title: Text(ctx.t(skin.labelKey)),
+                      subtitle: Text(
+                        skin.forcesDark
+                            ? '${ctx.t(skin.descriptionKey)} · '
+                                '${ctx.t('skin.forces_dark')}'
+                            : ctx.t(skin.descriptionKey),
+                      ),
+                      trailing: skin == appState.appSkin
+                          ? const Icon(AppIcons.check)
+                          : null,
+                      onTap: () => Navigator.pop(ctx, skin),
                     ),
-                    trailing: skin == appState.appSkin
-                        ? const Icon(AppIcons.check)
-                        : null,
-                    onTap: () => Navigator.pop(ctx, skin),
-                  ),
               ],
             ),
           ),
@@ -252,8 +253,8 @@ class _SkinSwatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final palette = SkinPalette.of(
-        skin, dark ? Brightness.dark : Brightness.light);
+    final palette =
+        SkinPalette.of(skin, dark ? Brightness.dark : Brightness.light);
     final metrics = SkinMetrics.of(skin);
     // Önizleme ailenin SİMGE DİLİNİ de gösterir (2026-10-18): tema artık
     // simgeleri de değiştiriyor; seçmeden önce görülmeli.
@@ -272,7 +273,7 @@ class _SkinSwatch extends StatelessWidget {
             child: FmTintedIcon(
               icon: metrics.outlinedIcons
                   ? Icons.folder_outlined
-                  : Icons.folder_rounded,
+                  : AppIcons.folder,
               color: folder,
               size: 26,
               style: metrics.iconStyle,
@@ -392,6 +393,23 @@ class _BackgroundDot extends StatelessWidget {
 
 /// **Alt çubuk kısayolları** (2026-10-18) — çubuğa basılı tutmanın Ayarlar'daki
 /// karşılığı; basılı tutmayı bilmeyen de bulabilsin.
+/// Dokunsal geri bildirim anahtarı (Faz 19 — `AppHaptics`).
+class HapticsTile extends StatelessWidget {
+  const HapticsTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: AppHaptics.enabled,
+        builder: (context, on, _) => SettingSwitch(
+          icon: Icons.vibration_rounded,
+          title: context.t('set.haptics'),
+          subtitle: context.t('set.haptics_sub'),
+          value: on,
+          onChanged: AppHaptics.setEnabled,
+        ),
+      );
+}
+
 class NavTabsTile extends StatelessWidget {
   const NavTabsTile({super.key});
 

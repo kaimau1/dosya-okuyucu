@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Açılış ekranı zemini (Faz 19, 2026-10-22). Gece kipi values-night'ta:
+     koyu temada beyaz parlama olmasın. Android 12+ SplashScreen API ve
+     11 ve öncesindeki launch_background aynı rengi kullanır. -->
+<resources>
+    <color name="splash_bg">#FFF7F6F2</color>
+</resources>

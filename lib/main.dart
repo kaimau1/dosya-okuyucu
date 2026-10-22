@@ -25,6 +25,7 @@ import 'screens/fm/jobs_screen.dart';
 import 'screens/fm/remote/ftp_server_screen.dart';
 import 'screens/fm/resize_actions.dart';
 import 'screens/fm/pick_file_screen.dart';
+import 'core/app_haptics.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'services/fm/native_extras.dart';
@@ -88,6 +89,10 @@ Future<void> main() async {
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // Sistem rengi (Material You) ilk temadan ÖNCE: sonradan gelseydi açılışta
+  // bir kare eski renk görünürdü. Tek kanal çağrısı (milisaniye).
+  await NativeExtras.loadSystemAccent();
+  await AppHaptics.load();
   // **Seçici kipi** (başka bir uygulama bizden dosya istedi — `PickerActivity`).
   // Ayrı ve KISA bir açılış: iş kuyruğu, bildirim köprüsü, yarım kalan işlerin
   // geri yüklenmesi burada çalıştırılmaz. Çağıran uygulama beklerken saniyeler

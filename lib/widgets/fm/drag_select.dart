@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
-import 'package:flutter/services.dart' show HapticFeedback;
+import '../../core/app_haptics.dart';
 
 /// Basılı tutup **kaydırarak** çoklu seçim (dosya yöneticilerindeki tanıdık his).
 ///
@@ -116,7 +116,7 @@ class _DragSelectAreaState extends State<DragSelectArea> {
     _mode = !widget.isSelected(idx);
     _pointer = d.globalPosition;
     widget.onSelectRange(idx, idx, _mode);
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
   }
 
   void _move(LongPressMoveUpdateDetails d) {

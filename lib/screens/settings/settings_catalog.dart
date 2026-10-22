@@ -209,6 +209,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'nav.edit_title',
                 altKeys: ['nav.settings_sub'],
                 builder: _navTabsTile),
+            SettingRow(
+                id: 'haptics',
+                titleKey: 'set.haptics',
+                subtitleKey: 'set.haptics_sub',
+                builder: _hapticsTile),
           ]),
         ],
       ),
@@ -217,7 +222,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       SettingsCategory(
         id: 'browsing',
         color: AppHues.honey,
-        icon: Icons.view_list_rounded,
+        icon: AppIcons.layoutList,
         titleKey: 'set.cat_browsing',
         subtitleKey: 'set.cat_browsing_sub',
         summary: (context) {
@@ -627,6 +632,7 @@ Widget _themeTile(BuildContext _) => const ThemeTile();
 Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
 Widget _navTabsTile(BuildContext _) => const NavTabsTile();
+Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _fontTile(BuildContext _) => const UiFontTile();
 Widget _textSizeTile(BuildContext _) => const UiTextSizeTile();
 Widget _languageTile(BuildContext _) => const LanguageTile();

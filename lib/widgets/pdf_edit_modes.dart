@@ -33,7 +33,7 @@ List<DocMoreItem> pdfEditModeItems(
     item(PdfEditMode.sign, Icons.history_edu_rounded, 'pdfm.sign'),
     item(PdfEditMode.form, Icons.assignment_rounded, 'pdfm.form'),
     item(PdfEditMode.pages, Icons.auto_stories_rounded, 'pdfm.pages'),
-    item(PdfEditMode.ai, Icons.auto_fix_high_rounded, 'pdfm.ai'),
+    item(PdfEditMode.ai, AppIcons.organize, 'pdfm.ai'),
   ];
 }
 

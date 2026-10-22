@@ -61,13 +61,13 @@ class FileTypeIcon extends StatelessWidget {
       case DocKind.pdf:
         return (AppIcons.pdf, OfficeColors.pdf);
       case DocKind.word:
-        return (Icons.description_rounded, OfficeColors.word);
+        return (AppIcons.newWord, OfficeColors.word);
       case DocKind.spreadsheet:
-        return (Icons.table_chart_rounded, OfficeColors.excel);
+        return (AppIcons.newSheet, OfficeColors.excel);
       case DocKind.slides:
-        return (Icons.slideshow_rounded, OfficeColors.slides);
+        return (AppIcons.slideshow, OfficeColors.slides);
       case DocKind.text:
-        return (Icons.article_rounded, const Color(0xFF6D4C41));
+        return (AppIcons.newText, const Color(0xFF6D4C41));
       case DocKind.image:
         return (AppIcons.image, const Color(0xFF8E24AA));
       case DocKind.unknown:

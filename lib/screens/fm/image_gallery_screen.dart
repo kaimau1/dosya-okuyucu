@@ -540,7 +540,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             // eylem sayfasındaydı; "fotoğrafı küçült" galerinin
                             // en sık işlerinden biri.
                             _GalleryAction(
-                              icon: Icons.photo_size_select_large_rounded,
+                              icon: AppIcons.resize,
                               label: context.t('gal.resize'),
                               onTap: () =>
                                   startResizeJob(context, [_currentEntry]),

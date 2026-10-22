@@ -43,7 +43,7 @@ extension _ViewerScreenPdfMarksPart on _ViewerScreenState {
     final rects = _pdfSelRects;
     final page = _pdfSelPage;
     if (rects.isEmpty || page < 1) return;
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
     _partSetState(() {
       final mark = _PendingMark(page, List.of(rects), _highlightColor);
       _pendingMarks.add(mark);

@@ -487,7 +487,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
           Card(
             margin: const EdgeInsets.only(bottom: Gap.xs),
             child: ListTile(
-              leading: const Icon(Icons.smartphone_rounded),
+              leading: const Icon(AppIcons.device),
               title: Text(peer.name),
               subtitle: Text('${peer.host}:${peer.port}'),
               trailing: Icon(peer.needsCode ? Icons.password_rounded : AppIcons.send),
@@ -504,7 +504,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               Card(
                 margin: const EdgeInsets.only(bottom: Gap.xs),
                 child: ListTile(
-                  leading: const Icon(Icons.history_rounded),
+                  leading: const Icon(AppIcons.history),
                   title: Text(peer.name),
                   subtitle: Text('${peer.host}:${peer.port}'),
                   trailing: const Icon(AppIcons.send),

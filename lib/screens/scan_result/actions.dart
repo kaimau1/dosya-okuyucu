@@ -277,7 +277,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
                 onTap: () => Navigator.pop(ctx, 'camera'),
               ),
               ListTile(
-                leading: const _SheetIcon(Icons.photo_library_rounded),
+                leading: const _SheetIcon(AppIcons.layoutGallery),
                 title: Text(ctx.t('ss.add_gallery')),
                 subtitle: Text(ctx.t('ss.add_gallery_sub')),
                 onTap: () => Navigator.pop(ctx, 'gallery'),

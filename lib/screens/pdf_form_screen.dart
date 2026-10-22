@@ -182,7 +182,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.article_rounded,
+              Icon(AppIcons.newText,
                   size: 48, color: Paper.faint(context)),
               const SizedBox(height: Gap.md),
               Text(context.t('pf.no_fields'), textAlign: TextAlign.center),

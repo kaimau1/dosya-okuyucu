@@ -87,12 +87,12 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                 segments: [
                   ButtonSegment(
                     value: true,
-                    icon: const Icon(Icons.grid_view_rounded),
+                    icon: const Icon(AppIcons.layoutGrid),
                     label: Text(context.t('dash.tiles')),
                   ),
                   ButtonSegment(
                     value: false,
-                    icon: const Icon(Icons.view_agenda_rounded),
+                    icon: const Icon(AppIcons.layoutDetail),
                     label: Text(context.t('dash.sections')),
                   ),
                 ],

@@ -253,6 +253,9 @@ class JobNotifications implements JobReporter {
         // Ne kadar sürdüğü başlık şeridinde: "2 dk 10 sn sürdü".
         subText: took == null ? null : str.t('job.took', {'time': took}),
         styleInformation: BigTextStyleInformation(body),
+        // Faz 19: art arda biten işlerin sonuçları tek grupta toplanır
+        // (bildirim gölgesi beş ayrı kartla dolmasın).
+        groupKey: 'fm_jobs_done',
       ),
       payload: job.id,
     );

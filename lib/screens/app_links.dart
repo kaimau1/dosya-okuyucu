@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../widgets/scan_flow.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/fm_env.dart';
 import 'fm/bills_screen.dart';
+import 'fm/downloads_screen.dart';
+import 'fm/open_history_screen.dart';
 import 'fm/cleanup_screen.dart';
 import 'fm/search_screen.dart';
 import '../core/l10n/app_strings.dart';
@@ -11,6 +15,8 @@ import '../core/l10n/app_strings.dart';
 /// iş bildirimleri uygulamayı bir bağlantıyla açar. Biçim:
 /// - `app:scan` belge tara · `app:search` ara · `app:clean` yer aç ·
 ///   `app:bills` faturalar
+/// - `app:downloads` İndirilenler · `app:recent` Son açılanlar (başlatıcı
+///   kısayolları, Faz 19)
 /// - `file:/tam/yol` o dosyayı açar.
 ///
 /// Tanınmayan bağlantı sessizce yok sayılır (eski bir widget sürümü).
@@ -31,5 +37,12 @@ Future<void> openAppLink(BuildContext context, String link) async {
       await push(const CleanupScreen());
     case 'app:bills':
       await push(const BillsScreen());
+    // Başlatıcı kısayolları (Faz 19).
+    case 'app:downloads':
+      await FmEnv.ensureInit();
+      if (!context.mounted) return;
+      await push(DownloadsScreen(path: p.join(FmEnv.primaryRoot, 'Download')));
+    case 'app:recent':
+      await push(const OpenHistoryScreen());
   }
 }

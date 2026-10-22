@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 ve öncesi açılış zemini (Faz 19): flutter create'in
+     ?android:colorBackground'ı yerine markanın rengi (gece kipinde koyu).
+     Simge bilerek YOK: uyarlanabilir simge burada maskesiz kare çizilirdi. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_bg" />
+</layer-list>

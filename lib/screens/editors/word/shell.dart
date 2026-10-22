@@ -76,7 +76,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                     editor == null ? null : _toggleEdit),
               if (!_plainMode)
                 DocAction(
-                  _flow ? Icons.description_rounded : Icons.smartphone_rounded,
+                  _flow ? AppIcons.newWord : AppIcons.device,
                   context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
                   editor == null ? null : _toggleFlow,
                 ),
@@ -100,7 +100,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               // editöründe seçim Flutter'da olduğu için bu yol kapalı.
               if (!_plainMode)
                 DocAction(
-                  Icons.auto_fix_high_rounded,
+                  AppIcons.organize,
                   context.t('word.rewrite_selection'),
                   editor == null ? null : _rewriteSelection,
                 ),

@@ -252,7 +252,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                       padding: const EdgeInsets.all(Gap.md),
                       child: Row(
                         children: [
-                          const Icon(Icons.cleaning_services_rounded),
+                          const Icon(AppIcons.cleanEmpty),
                           const SizedBox(width: Gap.sm),
                           Expanded(
                             child: Text(

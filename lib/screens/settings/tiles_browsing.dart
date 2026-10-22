@@ -21,7 +21,7 @@ class ListLayoutTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.view_list_rounded,
+      icon: AppIcons.layoutList,
       title: context.t('fmset.list_layout'),
       subtitle: context.t(appState.fmLayout.descriptionKey),
       value: context.t(appState.fmLayout.labelKey),
@@ -42,7 +42,7 @@ class PhotoGridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.grid_view_rounded,
+      icon: AppIcons.layoutGrid,
       title: context.t('fmset.photo_grid'),
       subtitle: context.t('fmset.grid_density'),
       value: context.t(appState.fmPhotoLayout.labelKey),
@@ -123,7 +123,7 @@ class ShowHiddenTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.visibility_rounded,
+      icon: AppIcons.hidden,
       title: context.t('fmset.show_hidden'),
       subtitle: context.t('fmset.show_hidden_sub'),
       value: appState.fmShowHidden,
@@ -161,7 +161,7 @@ class FolderSizesTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.folder_open_rounded,
+      icon: AppIcons.emptyFolder,
       title: context.t('fmset.folder_sizes'),
       subtitle: context.t('fmset.folder_sizes_sub'),
       value: appState.fmFolderSizes,

@@ -101,7 +101,7 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
                 IconButton(
                   tooltip: context.t('aipool.show_keys'),
                   icon: Icon(
-                      _obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+                      _obscure ? AppIcons.hidden : AppIcons.hiddenOff),
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
                 IconButton(

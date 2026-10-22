@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
+import '../../core/app_icons.dart';
 
 /// Çakışan adlar için "ne yapayım?" sayfası.
 ///
@@ -53,7 +54,7 @@ Future<FmConflict?> showPasteConflictSheet(
               const SizedBox(height: Gap.md),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.drive_file_rename_outline_rounded),
+                leading: const Icon(AppIcons.rename),
                 title: Text(ctx.t('paste.keep_both')),
                 subtitle: Text(ctx.t('paste.keep_both_sub')),
                 onTap: () => Navigator.pop(ctx, FmConflict.rename),

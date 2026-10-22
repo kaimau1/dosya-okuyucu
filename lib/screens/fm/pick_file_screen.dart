@@ -384,7 +384,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
               TextButton.icon(
                 key: const ValueKey('pick-other-sources'),
                 onPressed: PickerBridge.otherSources,
-                icon: const Icon(Icons.apps_rounded, size: 18),
+                icon: const Icon(AppIcons.openWith, size: 18),
                 label: Text(context.t('pick.other_sources')),
               ),
           ],
@@ -587,7 +587,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
             ),
             _chip(
               label: context.t('pick.browse_folders'),
-              icon: Icons.folder_open_rounded,
+              icon: AppIcons.emptyFolder,
               onTap: () {
                 _search.clear();
                 _loadHome();
@@ -620,7 +620,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
                 _search.clear();
                 _loadHome();
               },
-              icon: const Icon(Icons.folder_open_rounded),
+              icon: const Icon(AppIcons.emptyFolder),
               label: Text(context.t('pick.browse_folders')),
             ),
           ),
@@ -710,7 +710,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
                 ),
               for (final root in FmEnv.volumeRoots)
                 ActionChip(
-                  avatar: const Icon(Icons.sd_storage_rounded, size: 18),
+                  avatar: const Icon(AppIcons.storage, size: 18),
                   label: Text(p.basename(root)),
                   onPressed: () => _openFolder(root),
                 ),
@@ -744,7 +744,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
         FmCategory.image => AppIcons.image,
         FmCategory.video => AppIcons.video,
         FmCategory.audio => Icons.audiotrack_rounded,
-        _ => Icons.description_rounded,
+        _ => AppIcons.newWord,
       };
 
   /// Ortak satır ([FmEntryRow], Faz 6): seçici de gezginle AYNI satırı

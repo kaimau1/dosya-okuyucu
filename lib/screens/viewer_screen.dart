@@ -7,7 +7,6 @@ import 'package:flutter/services.dart'
     show
         Clipboard,
         ClipboardData,
-        HapticFeedback,
         LogicalKeyboardKey,
         SystemChrome,
         SystemUiMode;
@@ -84,6 +83,7 @@ import '../core/snack.dart';
 import '../core/safe_insets.dart';
 import '../core/user_error.dart';
 
+import '../core/app_haptics.dart';
 part 'viewer/pending_save.dart';
 part 'viewer/find_replace.dart';
 part 'viewer/doc_actions.dart';

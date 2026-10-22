@@ -278,7 +278,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      Icon(Icons.sd_card_rounded,
+                      Icon(AppIcons.sdCard,
                           size: 28, color: scheme.primary),
                       Positioned(
                         right: 8,
@@ -431,7 +431,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                                 !_cards.any((c) => c.path == settings.sdPath)
                             ? null
                             : _runNow,
-                        icon: const Icon(Icons.drive_file_move_rounded),
+                        icon: const Icon(AppIcons.move),
                         label: Text(context.t(settings.mode == SdUnionMode.move
                             ? 'sdu.run_now_move'
                             : 'sdu.run_now_copy')),
@@ -602,7 +602,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
         'Movies' => AppIcons.video,
         'Music' => AppIcons.audio,
         'Download' => AppIcons.download,
-        'Documents' => Icons.description_rounded,
+        'Documents' => AppIcons.newWord,
         'Recordings' => Icons.mic_none_rounded,
         'Podcasts' => Icons.podcasts_rounded,
         'Audiobooks' => Icons.menu_book_rounded,

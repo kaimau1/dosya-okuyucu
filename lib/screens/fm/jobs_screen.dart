@@ -245,7 +245,7 @@ class _JobCard extends StatelessWidget {
         JobStatus.queued => Icons.schedule_rounded,
         JobStatus.done => AppIcons.checkCircle,
         JobStatus.failed => AppIcons.error,
-        JobStatus.cancelled => Icons.block_rounded,
+        JobStatus.cancelled => AppIcons.unreadable,
         JobStatus.interrupted => Icons.power_settings_new_rounded,
       };
 
@@ -274,7 +274,7 @@ class _JobCard extends StatelessWidget {
               onPressed: () => Navigator.of(context).push(
                 browserRoute(BrowserScreen(path: dir)),
               ),
-              icon: const Icon(Icons.folder_open_rounded, size: 18),
+              icon: const Icon(AppIcons.emptyFolder, size: 18),
               label: Text(context.t('jb.open_folder')),
             ),
           ],

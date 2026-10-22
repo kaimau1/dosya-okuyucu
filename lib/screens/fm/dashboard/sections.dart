@@ -200,7 +200,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           for (final path in appState.bookmarks)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.star_rounded, color: FmColors.folder),
+              leading: const Icon(AppIcons.star, color: FmColors.folder),
               title: Text(p.basename(path)),
               subtitle:
                   Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -265,7 +265,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // Kullanıcının kendi seçtiği dosyalar — en sık dönülecek ikinci yer.
       FmTileData(
         id: 'important',
-        icon: Icons.star_rounded,
+        icon: AppIcons.star,
         color: AppHues.amber,
         label: ImportantScreen.folderName,
         subtitle: importantStat == null
@@ -319,7 +319,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // kaydettiği pano sırası bu kimlikle duruyor.
       FmTileData(
         id: 'recent',
-        icon: Icons.history_rounded,
+        icon: AppIcons.history,
         color: AppHues.indigo,
         label: context.t('hist.title'),
         subtitle: context.t('hist.tile_sub'),
@@ -373,7 +373,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       sections: {
         'storage': (
           label: context.t('dash.sec_storage'),
-          icon: Icons.sd_storage_rounded,
+          icon: AppIcons.storage,
           color: AppHues.steel,
         ),
         'recent': (
@@ -383,7 +383,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         ),
         'categories': (
           label: context.t('dash.sec_categories'),
-          icon: Icons.grid_view_rounded,
+          icon: AppIcons.layoutGrid,
           color: AppHues.blue,
         ),
         'tools': (
@@ -393,7 +393,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         ),
         'favorites': (
           label: context.t('dash.sec_favorites'),
-          icon: Icons.star_rounded,
+          icon: AppIcons.star,
           color: AppHues.amber,
         ),
         'quick': (

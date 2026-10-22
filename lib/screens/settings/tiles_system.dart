@@ -463,7 +463,7 @@ class _WeeklyCleanupTileState extends State<WeeklyCleanupTile> {
 
   @override
   Widget build(BuildContext context) => SettingSwitch(
-        icon: Icons.cleaning_services_rounded,
+        icon: AppIcons.cleanEmpty,
         title: context.t('nx.weekly'),
         subtitle: context.t('nx.weekly_sub'),
         value: _on,

@@ -201,7 +201,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       ? context.t('fm.select_none')
                       : context.t('fm.select_all'),
                   icon: Icon(files.every((e) => _selected.contains(e.path))
-                      ? Icons.deselect_rounded
+                      ? AppIcons.selectNone
                       : AppIcons.selectAll),
                   onPressed: () => setState(() {
                     if (files.every((e) => _selected.contains(e.path))) {

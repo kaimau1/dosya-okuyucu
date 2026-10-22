@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
+import '../../core/app_haptics.dart';
 
 /// Kaydırma çubuğundaki bir işaret (ör. yıl başlangıcı): [offset] kaydırma
 /// ekseninde (ScrollPosition.pixels cinsinden) nerede başladığı.
@@ -128,7 +128,7 @@ class _FmFastScrollerState extends State<FmFastScroller> {
     p.jumpTo(frac * p.maxScrollExtent);
     final label = widget.labelFor(p.pixels);
     if (label != null && label != _lastLabel) {
-      if (_lastLabel != null) HapticFeedback.selectionClick();
+      if (_lastLabel != null) AppHaptics.step();
       _lastLabel = label;
     }
   }

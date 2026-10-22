@@ -5,6 +5,7 @@ import 'activity_screen.dart';
 import 'jobs_screen.dart';
 import 'new_files_screen.dart';
 import 'open_history_screen.dart';
+import '../../core/app_icons.dart';
 
 /// Geçmiş ekranının bölümleri (sıra = alt çubuktaki sıra).
 enum HistorySection { opened, produced, jobs, incoming }
@@ -67,7 +68,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }),
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.history_rounded),
+            icon: const Icon(AppIcons.history),
             label: context.t('hist.opened'),
           ),
           NavigationDestination(

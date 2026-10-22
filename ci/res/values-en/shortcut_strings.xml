@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_search">Search</string>
+    <string name="sc_scan">Scan document</string>
+    <string name="sc_downloads">Downloads</string>
+    <string name="sc_recent">Recently opened</string>
+</resources>

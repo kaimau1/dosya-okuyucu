@@ -222,7 +222,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
           if (_exists)
             IconButton(
               tooltip: context.t('important.open_in_browser'),
-              icon: const Icon(Icons.folder_open_rounded),
+              icon: const Icon(AppIcons.emptyFolder),
               onPressed: () => _push(BrowserScreen(
                 path: _root,
                 title: ImportantScreen.folderName,

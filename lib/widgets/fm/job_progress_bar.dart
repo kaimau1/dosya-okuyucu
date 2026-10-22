@@ -187,7 +187,7 @@ class _ResultBar extends StatelessWidget {
               Icon(
                 switch (job.status) {
                   JobStatus.failed => AppIcons.error,
-                  JobStatus.cancelled => Icons.block_rounded,
+                  JobStatus.cancelled => AppIcons.unreadable,
                   _ => AppIcons.checkCircle,
                 },
                 size: 20,

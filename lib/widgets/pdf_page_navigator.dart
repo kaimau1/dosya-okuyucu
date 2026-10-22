@@ -7,6 +7,7 @@ import 'package:pdfrx/pdfrx.dart';
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/safe_insets.dart';
+import '../core/app_haptics.dart';
 
 /// **Sayfa rozeti** — belgenin altında yüzen "5 / 1272".
 ///
@@ -212,7 +213,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
   }
 
   void _go(int page) {
-    HapticFeedback.selectionClick();
+    AppHaptics.step();
     Navigator.pop(context, page.clamp(1, widget.count));
   }
 
@@ -265,7 +266,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                   tooltip: context.t(marked ? 'pn.unstar' : 'pn.star'),
                   isSelected: marked,
                   onPressed: _toggle,
-                  icon: const Icon(Icons.bookmark_add_rounded),
+                  icon: const Icon(AppIcons.important),
                   selectedIcon: const Icon(Icons.bookmark_rounded),
                 ),
               ],
@@ -347,7 +348,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: InputDecoration(
                       isDense: true,
-                      prefixIcon: const Icon(Icons.tag_rounded, size: 20),
+                      prefixIcon: const Icon(AppIcons.hashtag, size: 20),
                       hintText: context.t('pn.field_hint', {'total': count}),
                       suffixText: '/ $count',
                     ),

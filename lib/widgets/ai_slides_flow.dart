@@ -162,7 +162,7 @@ class AiSlidesFlow {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.slideshow_rounded),
+              leading: const Icon(AppIcons.slideshow),
               title: Text(ctx.t('ais.as_pptx')),
               subtitle: Text(ctx.t('ais.as_pptx_hint')),
               onTap: () => Navigator.pop(ctx, SlidesFormat.pptx),

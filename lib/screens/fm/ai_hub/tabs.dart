@@ -142,7 +142,7 @@ class _SuggestionsTab extends StatelessWidget {
                     ),
                   ),
                   FilledButton.icon(
-                    icon: const Icon(Icons.auto_fix_high_rounded),
+                    icon: const Icon(AppIcons.organize),
                     label: Text(
                         context.t('aih.apply_all', {'n': suggestions.length})),
                     onPressed: () => _applyAll(context, suggestions),
@@ -218,7 +218,7 @@ class _ReportTab extends StatelessWidget {
             // ── Yapılacak işler ──────────────────────────────────────────
             if (suggestions.isNotEmpty)
               _ActionCard(
-                icon: Icons.auto_fix_high_rounded,
+                icon: AppIcons.organize,
                 title:
                     context.t('aih.card_sug_title', {'n': suggestions.length}),
                 body: context.t('aih.card_sug_body'),
@@ -228,7 +228,7 @@ class _ReportTab extends StatelessWidget {
               ),
             if (disposable.isNotEmpty)
               _ActionCard(
-                icon: Icons.cleaning_services_rounded,
+                icon: AppIcons.cleanEmpty,
                 title: context.t('aih.card_junk_title', {
                   'n': disposable.length,
                   'size': FsPaths.humanSize(AiBuckets.totalBytes(disposable)),
@@ -242,7 +242,7 @@ class _ReportTab extends StatelessWidget {
             const SizedBox(height: Gap.sm),
             // ── Kovalar (hepsi tıklanabilir) ─────────────────────────────
             _ReportRow(
-              icon: Icons.folder_open_rounded,
+              icon: AppIcons.emptyFolder,
               label: context.t('aih.report_analyzed'),
               value: '${analyzed.length}',
               sub: FsPaths.humanSize(AiBuckets.totalBytes(analyzed)),
@@ -357,7 +357,7 @@ class _AnalysisStats extends StatelessWidget {
         onTap: () => onOpenTab(4),
       ),
       _StatTile(
-        icon: Icons.auto_fix_high_rounded,
+        icon: AppIcons.organize,
         color: AppHues.purple,
         value: '${suggestions.length}',
         label: context.t('aih.report_suggestions'),

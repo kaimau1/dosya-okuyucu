@@ -4,13 +4,13 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart'
     show PointerDeviceKind, PointerHoverEvent, kPrimaryButton;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../services/pdf/ocr_page_text.dart' show OcrPageText;
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/selection_rects.dart';
+import '../core/app_haptics.dart';
 
 // Seçim geometrisi 2026-08-05'te servise taşındı (OCR araması da kullanıyor);
 // eski adresten içe aktaran dosyalar/testler kırılmasın diye yeniden sunulur.
@@ -436,7 +436,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       b = _dragAnchorEnd;
     }
     if (a != _selStart || b != _selEnd) {
-      HapticFeedback.selectionClick();
+      AppHaptics.selection();
       setState(() {
         _anchor = a;
         _extent = b;
@@ -717,7 +717,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     while (b + 1 < s.length && _isWordChar(s[b + 1])) {
       b++;
     }
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
     setState(() {
       _anchor = a;
       _extent = b;

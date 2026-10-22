@@ -74,7 +74,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
             index >= 0 && index < count - 1
                 ? () => _moveSheet(sheet, index + 1)
                 : null),
-        DocMoreItem(Icons.drive_file_rename_outline_rounded,
+        DocMoreItem(AppIcons.rename,
             context.t('excel.rename_sheet'), () => _renameSheet(sheet)),
         DocMoreItem(AppIcons.delete, context.t('excel.delete_sheet'),
             () => _deleteSheet(sheet),

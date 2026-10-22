@@ -326,7 +326,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 padding: const EdgeInsets.all(Gap.md),
                 child: FilledButton.icon(
                   onPressed: chosen.isEmpty ? null : _apply,
-                  icon: const Icon(Icons.cleaning_services_rounded),
+                  icon: const Icon(AppIcons.cleanEmpty),
                   label: Text(chosen.isEmpty
                       ? context.t('clean.pick_one')
                       : context.t('clean.free_amount', {

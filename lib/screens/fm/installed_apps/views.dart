@@ -25,7 +25,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
         children: [
           Expanded(
             child: _StatBox(
-              icon: Icons.apps_rounded,
+              icon: AppIcons.openWith,
               color: AppHues.leaf,
               value: total > 0 ? FsPaths.humanSize(total) : '${_apps.length}',
               label: total > 0
@@ -36,7 +36,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
           const SizedBox(width: Gap.sm),
           Expanded(
             child: _StatBox(
-              icon: Icons.cleaning_services_rounded,
+              icon: AppIcons.cleanEmpty,
               color: AppHues.sea,
               value: cache > 0 ? FsPaths.humanSize(cache) : '—',
               label: context.t('apps.stat_cache'),

@@ -231,7 +231,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.folder_open_rounded),
+              leading: const Icon(AppIcons.emptyFolder),
               title: Text(ctx.t('common.open')),
               onTap: () => Navigator.pop(ctx, 'open'),
             ),

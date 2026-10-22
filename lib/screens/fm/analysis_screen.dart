@@ -164,7 +164,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 IconButton(
                   tooltip: context.t('ph.select_all'),
                   icon: Icon(_selected.length >= visible.length
-                      ? Icons.deselect_rounded
+                      ? AppIcons.selectNone
                       : AppIcons.selectAll),
                   onPressed: () => _toggleSelectAll(visible),
                 ),
@@ -228,7 +228,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     child: Column(
                       children: [
                         _ToolRow(
-                          icon: Icons.auto_fix_high_rounded,
+                          icon: AppIcons.organize,
                           color: AppHues.cyan,
                           title: context.t('ana.free_space'),
                           note: context.t('ana.free_space_note'),
@@ -239,7 +239,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         ),
                         const Divider(height: 1),
                         _ToolRow(
-                          icon: Icons.cleaning_services_rounded,
+                          icon: AppIcons.cleanEmpty,
                           color: AppHues.green,
                           title: context.t('ana.find_dupes'),
                           note: context.t('ana.find_dupes_note'),

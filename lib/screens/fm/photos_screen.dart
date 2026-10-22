@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
@@ -36,6 +35,7 @@ import 'image_gallery_screen.dart' show fmMediaHeroTag;
 import 'similar_screen.dart';
 import '../../core/snack.dart';
 
+import '../../core/app_haptics.dart';
 part 'photos/data.dart';
 part 'photos/toolbar.dart';
 part 'photos/grid.dart';
@@ -418,9 +418,9 @@ class _PhotosScreenState extends State<PhotosScreen>
   // ── Üst çubuk ─────────────────────────────────────────────────────────────
 
   static IconData _columnsIcon(int columns) => switch (columns) {
-        2 => Icons.grid_view_rounded,
+        2 => AppIcons.layoutGrid,
         3 => Icons.grid_on_rounded,
-        4 => Icons.apps_rounded,
+        4 => AppIcons.openWith,
         _ => Icons.view_comfy_rounded,
       };
 

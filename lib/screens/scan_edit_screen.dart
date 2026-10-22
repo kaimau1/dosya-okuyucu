@@ -283,7 +283,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _PillButton(
-                    icon: Icons.auto_fix_high_rounded,
+                    icon: AppIcons.organize,
                     label: context.t('se.find_edges'),
                     busy: _detecting,
                     onPressed: _detecting ? null : _findEdges,

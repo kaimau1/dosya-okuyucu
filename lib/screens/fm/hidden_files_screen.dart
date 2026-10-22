@@ -109,7 +109,7 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.visibility_off_rounded,
+                          Icon(AppIcons.hiddenOff,
                               color: scheme.onSecondaryContainer),
                           const SizedBox(width: Gap.sm),
                           Expanded(

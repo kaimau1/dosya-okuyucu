@@ -217,7 +217,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         actions: [
           IconButton(
             tooltip: context.t('fm.open_with_other'),
-            icon: const Icon(Icons.apps_rounded),
+            icon: const Icon(AppIcons.openWith),
             onPressed: () => EntryOpener.openExternally(context, widget.path),
           ),
         ],
@@ -226,7 +226,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           ? null
           : FloatingActionButton.extended(
               onPressed: _extractAll,
-              icon: const Icon(Icons.unarchive_rounded),
+              icon: const Icon(AppIcons.extract),
               label: Text(context.t('arc.extract_all')),
             ),
       body: _loading

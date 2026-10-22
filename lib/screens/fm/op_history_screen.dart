@@ -135,7 +135,7 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
         OpKind.move => Icons.drive_file_move_outline,
         OpKind.copy => Icons.folder_copy_rounded,
         OpKind.delete => AppIcons.delete,
-        OpKind.rename => Icons.drive_file_rename_outline_rounded,
+        OpKind.rename => AppIcons.rename,
         OpKind.organize => Icons.auto_awesome_motion_rounded,
       }),
       title: Text(record.summary,

@@ -395,7 +395,7 @@ class _StorageHero extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _HeroAction(
-                      icon: Icons.folder_open_rounded,
+                      icon: AppIcons.emptyFolder,
                       label: context.t('fm.hero_browse'),
                       onTap: onBrowse,
                     ),
@@ -411,7 +411,7 @@ class _StorageHero extends StatelessWidget {
                   const SizedBox(width: Gap.xs + 2),
                   Expanded(
                     child: _HeroAction(
-                      icon: Icons.cleaning_services_rounded,
+                      icon: AppIcons.cleanEmpty,
                       label: context.t('fm.free_space'),
                       onTap: onFreeSpace,
                       highlight: full,

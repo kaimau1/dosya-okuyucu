@@ -526,7 +526,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
 
   /// Sayfayı yıldızlar / yıldızını kaldırır.
   Future<bool> _toggleBookmark(int page) async {
-    HapticFeedback.selectionClick();
+    AppHaptics.step();
     final now =
         await PdfBookmarks.toggle(widget.doc.path, page, size: _docSize);
     if (!mounted) return now;

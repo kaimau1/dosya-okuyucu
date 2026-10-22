@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_search">بحث</string>
+    <string name="sc_scan">مسح مستند</string>
+    <string name="sc_downloads">التنزيلات</string>
+    <string name="sc_recent">المفتوحة مؤخرًا</string>
+</resources>

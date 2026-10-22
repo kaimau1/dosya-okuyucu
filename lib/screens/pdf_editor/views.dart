@@ -199,7 +199,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               icon: const Icon(Icons.layers_clear_rounded),
               label: context.t('pe.mode_watermark')),
           NavigationDestination(
-              icon: const Icon(Icons.rotate_90_degrees_cw_rounded),
+              icon: const Icon(AppIcons.rotate),
               label: context.t('pe.mode_page')),
         ],
       );
@@ -264,8 +264,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 turn(Icons.rotate_90_degrees_ccw_rounded, 'pe.rot_left', turns: -1),
-                turn(Icons.rotate_90_degrees_cw_rounded, 'pe.rot_right', turns: 1),
-                turn(Icons.flip_rounded, 'pe.mirror_h', h: true),
+                turn(AppIcons.rotate, 'pe.rot_right', turns: 1),
+                turn(AppIcons.selectInvert, 'pe.mirror_h', h: true),
                 turn(Icons.flip_camera_android_rounded, 'pe.mirror_v',
                     v: true),
               ],
@@ -303,7 +303,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             children: [
               TextButton.icon(
                 onPressed: _busy ? null : () => _fixScannedPage(withAi: false),
-                icon: const Icon(Icons.auto_fix_high_rounded),
+                icon: const Icon(AppIcons.organize),
                 label: Text(context.t('pe.fix_page')),
               ),
               TextButton.icon(
@@ -351,7 +351,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               ),
               TextButton.icon(
                 onPressed: _busy ? null : () => _rotate(1),
-                icon: const Icon(Icons.rotate_90_degrees_cw_rounded),
+                icon: const Icon(AppIcons.rotate),
                 label: Text(context.t('pe.rot_right')),
               ),
             ],

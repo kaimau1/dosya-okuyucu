@@ -172,7 +172,7 @@ class PermissionCard extends StatelessWidget {
       };
 
   static IconData iconOf(AppPermission p) => switch (p) {
-        AppPermission.allFiles => Icons.folder_open_rounded,
+        AppPermission.allFiles => AppIcons.emptyFolder,
         AppPermission.notifications => Icons.notifications_none_rounded,
         AppPermission.camera => Icons.photo_camera_rounded,
         AppPermission.location => Icons.place_rounded,

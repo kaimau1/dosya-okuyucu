@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ açılış ekranı (SplashScreen API, Faz 19). Simge başlatıcı
+     simgesinin kendisi (sistem maskeler); zemin splash_bg. NormalTheme
+     values/styles.xml'den (flutter create) gelir, burada yeniden tanımlanmaz. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+</resources>

@@ -48,7 +48,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                 ? 'ph.clear_selection'
                 : 'ph.select_all'),
             icon: Icon(visible.every((e) => _selected.contains(e.path))
-                ? Icons.deselect_rounded
+                ? AppIcons.selectNone
                 : AppIcons.selectAll),
             onPressed: () => _toggleSelectAll(visible),
           ),
@@ -142,7 +142,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
             }
           },
           itemBuilder: (ctx) => [
-            _menuItem(ctx, 'view', Icons.grid_view_rounded, ctx.t('ph.view')),
+            _menuItem(ctx, 'view', AppIcons.layoutGrid, ctx.t('ph.view')),
             _menuItem(ctx, 'similar', Icons.auto_awesome_motion_rounded,
                 ctx.t('ph.similar_short')),
             if (visible.isNotEmpty)
