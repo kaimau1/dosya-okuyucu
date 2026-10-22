@@ -107,11 +107,11 @@ class NavTabs extends ChangeNotifier {
   }
 
   /// Dosyalar dışındaki sekmeleri yeniden sıralar ([from]/[to] Dosyalar
-  /// HARİÇ listedeki konumlardır — `ReorderableListView` sözleşmesi).
+  /// HARİÇ listedeki konumlardır; [to] öğenin varacağı son dizin —
+  /// `onReorderItem` sözleşmesi).
   Future<void> move(int from, int to) async {
     final rest = _tabs.skip(1).toList();
     if (from < 0 || from >= rest.length) return;
-    if (to > from) to -= 1;
     final item = rest.removeAt(from);
     rest.insert(to.clamp(0, rest.length), item);
     await setTabs([home, ...rest]);

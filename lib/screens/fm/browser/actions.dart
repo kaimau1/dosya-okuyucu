@@ -82,7 +82,8 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
   /// çağrısından (`_openEntry`) da okunuyordu → hata ayıklama derlemesinde
   /// Provider iddia hatası.
   List<FsEntry> _sorted(AppState appState) {
-    final key = (_entries, appState.fmSort, appState.fmSortDesc);
+    final eff = _sortOf(appState);
+    final key = (_entries, eff.$1, eff.$2);
     final cached = _sortedCache;
     final last = _sortedKey;
     if (cached != null &&
@@ -94,7 +95,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     }
     _sortedKey = key;
     return _sortedCache =
-        FsScan.sort(_entries, appState.fmSort, descending: appState.fmSortDesc);
+        FsScan.sort(_entries, eff.$1, descending: eff.$2);
   }
 
   Future<void> _openEntry(FsEntry entry) async {

@@ -107,6 +107,11 @@ Future<bool> showEntryActions(
                     _EntryAction.share),
               _quick(ctx, AppIcons.move, ctx.t('fm.move'),
                   _EntryAction.moveTo),
+              // Faz 17 / G16: hızlı sıra beşli — Kopyala da burada
+              // (aşağıdaki "Taşı/kopyala" bölümünden çıktı). Sil bilerek
+              // ayrı, en altta (yanlış dokunuşa uzak — yukarıdaki not).
+              _quick(ctx, AppIcons.copy, ctx.t('fm.copy'),
+                  _EntryAction.copyTo),
               _quick(ctx, AppIcons.rename, ctx.t('fm.rename'),
                   _EntryAction.rename),
               if (entry.isDir)
@@ -121,6 +126,30 @@ Future<bool> showEntryActions(
                   _EntryAction.bookmark,
                 ),
             ]),
+            // **Türe göre ilk grup** (Faz 17 / G16): arşivde Çıkar, görselde
+            // Boyut/Döndür/Tanı, videoda Boyut — dosyanın asıl işi ızgarada
+            // aranmasın. Bu eylemler aşağıdaki bölümlerden buraya taşındı.
+            if (isArchive || canRotate || (!entry.isDir && isMedia))
+              _section(ctx, ctx.t('ea.sec_this'), [
+                if (isArchive)
+                  _act(ctx, AppIcons.archiveView, ctx.t('fm.show_archive'),
+                      _EntryAction.openArchive),
+                if (isArchive)
+                  _act(ctx, AppIcons.extract, ctx.t('fm.extract_here'),
+                      _EntryAction.extract),
+                if (!entry.isDir && isMedia)
+                  _act(ctx, AppIcons.resize, ctx.t('ea.resize'),
+                      _EntryAction.resize,
+                      hint: ctx.t('ea.resize_hint')),
+                if (canRotate)
+                  _act(ctx, AppIcons.rotate,
+                      ctx.t('ea.rotate'), _EntryAction.rotate,
+                      hint: ctx.t('ea.rotate_hint')),
+                if (entry.category == FmCategory.image)
+                  _act(ctx, AppIcons.ocr,
+                      ctx.t('ea.image_insight'), _EntryAction.imageInsight,
+                      hint: ctx.t('ea.image_insight_hint')),
+              ]),
             _section(ctx, ctx.t('ea.sec_open'), [
               if (!entry.isDir)
                 _act(ctx, AppIcons.openWith, ctx.t('fm.open_with_other'),
@@ -142,9 +171,6 @@ Future<bool> showEntryActions(
             // Pano (kopyala/kes + git + yapıştır) arkasında, ileri kullanım
             // için — aynı bölümde ama ikinci satırda.
             _section(ctx, ctx.t('ea.sec_move'), [
-              _act(ctx, AppIcons.copy, ctx.t('fm.copy'),
-                  _EntryAction.copyTo,
-                  hint: ctx.t('ea.pick_folder')),
               _act(ctx, AppIcons.clipCopy, ctx.t('fm.clip_copy'),
                   _EntryAction.copy,
                   hint: ctx.t('ea.clip_hint')),
@@ -171,12 +197,6 @@ Future<bool> showEntryActions(
                     hint: externalHint),
             ]),
             _section(ctx, ctx.t('ea.sec_file'), [
-              if (isArchive)
-                _act(ctx, AppIcons.archiveView, ctx.t('fm.show_archive'),
-                    _EntryAction.openArchive),
-              if (isArchive)
-                _act(ctx, AppIcons.extract, ctx.t('fm.extract_here'),
-                    _EntryAction.extract),
               _act(ctx, AppIcons.compress, ctx.t('ea.compress'),
                   _EntryAction.zip,
                   hint: ctx.t('ea.compress_hint')),
@@ -186,10 +206,6 @@ Future<bool> showEntryActions(
                     hint: ctx.t('ea.tag_hint')),
               // **Döndür** (2026-09-06 denetim turu): yan çekilmiş bir
               // fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu.
-              if (canRotate)
-                _act(ctx, AppIcons.rotate,
-                    ctx.t('ea.rotate'), _EntryAction.rotate,
-                    hint: ctx.t('ea.rotate_hint')),
               // **Böl / birleştir**: FAT32 biçimli USB bellek ve SD kartlar
               // 4 GB'tan büyük tek dosya kabul etmiyor; kullanıcının
               // yapabileceği hiçbir şey yoktu.
@@ -218,14 +234,6 @@ Future<bool> showEntryActions(
                   entry.category != FmCategory.audio)
                 _act(ctx, AppIcons.ai, ctx.t('fm.ai_summary'),
                     _EntryAction.aiSummary),
-              if (entry.category == FmCategory.image)
-                _act(ctx, AppIcons.ocr,
-                    ctx.t('ea.image_insight'), _EntryAction.imageInsight,
-                    hint: ctx.t('ea.image_insight_hint')),
-              if (!entry.isDir && isMedia)
-                _act(ctx, AppIcons.resize, ctx.t('ea.resize'),
-                    _EntryAction.resize,
-                    hint: ctx.t('ea.resize_hint')),
             ]),
             const SizedBox(height: Gap.md),
             _deleteButton(ctx, appState.fmUseTrash),

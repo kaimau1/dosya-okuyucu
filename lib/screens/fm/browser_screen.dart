@@ -17,6 +17,7 @@ import '../../services/fm/empty_folders.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/folder_size_cache.dart';
+import '../../services/fm/folder_sort_memory.dart';
 import '../../services/fm/folder_report.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart' show StorageKind;
@@ -159,12 +160,26 @@ class _BrowserScreenState extends State<BrowserScreen> {
     // Kilit denetimi ilk kareden sonra (context.read için mount gerekir).
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkLock());
     FolderSizeCache.revision.addListener(_onFolderSize);
+    FolderSortMemory.instance.addListener(_onFolderSort);
+    FolderSortMemory.instance.ensureLoaded();
     _load();
   }
+
+  void _onFolderSort() {
+    if (mounted) setState(() {});
+  }
+
+  /// Bu klasörün kendi sıralaması (yoksa null — global ayar).
+  (FmSort, bool)? get _folderSort => FolderSortMemory.instance.of(widget.path);
+
+  /// Geçerli sıralama: klasörün kendisi, yoksa global.
+  (FmSort, bool) _sortOf(AppState appState) =>
+      _folderSort ?? (appState.fmSort, appState.fmSortDesc);
 
   @override
   void dispose() {
     FolderSizeCache.revision.removeListener(_onFolderSize);
+    FolderSortMemory.instance.removeListener(_onFolderSort);
     _scroll.dispose();
     super.dispose();
   }
@@ -211,9 +226,16 @@ class _BrowserScreenState extends State<BrowserScreen> {
           FmListToolbar(
             count: entries.length,
             totalBytes: _bytesOf(entries),
-            sort: appState.fmSort,
-            descending: appState.fmSortDesc,
-            onSort: (s, d) => appState.setFmSort(s, descending: d),
+            sort: _sortOf(appState).$1,
+            descending: _sortOf(appState).$2,
+            onSort: (s, d) => _folderSort != null
+                ? FolderSortMemory.instance.set(widget.path, s, d)
+                : appState.setFmSort(s, descending: d),
+            folderOnly: _folderSort != null,
+            onFolderOnly: (on) => on
+                ? FolderSortMemory.instance.set(
+                    widget.path, appState.fmSort, appState.fmSortDesc)
+                : FolderSortMemory.instance.clear(widget.path),
             filterCount: _filterCount,
             onFilter: () => _partSetState(() => _showFilters = !_showFilters),
           ),

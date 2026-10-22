@@ -312,6 +312,9 @@ class _SearchScreenState extends State<SearchScreen> {
                           : p.basename(widget.root!))
                 }),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
             filled: false,
           ),
           onChanged: _onChanged,

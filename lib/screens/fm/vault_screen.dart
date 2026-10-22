@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
@@ -490,27 +491,22 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
                 textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
           ),
         for (final item in items)
-          ListTile(
-            leading: FmEntryIcon(
-              // Küçük resim ÇIKARILMAZ (düz içerik yok) — türün simgesi.
-              entry: FsEntry(
-                path: item.name,
-                name: item.name,
-                isDir: false,
-                sizeBytes: item.size,
-                modifiedMs: item.addedMs,
-              ),
-              thumbnails: false,
+          FmEntryRow(
+            // Küçük resim ÇIKARILMAZ (düz içerik yok) — türün simgesi.
+            entry: FsEntry(
+              path: item.name,
+              name: item.name,
+              isDir: false,
+              sizeBytes: item.size,
+              modifiedMs: item.addedMs,
             ),
-            title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-                '${FsPaths.humanSize(item.size)} · ${FsPaths.humanDate(item.addedMs)}'),
+            thumbnails: false,
+            selected: false,
+            selecting: false,
+            subtitle: '${FsPaths.humanSize(item.size)} · '
+                '${FsPaths.humanDate(item.addedMs)}',
             onTap: () => _open(item),
-            trailing: IconButton(
-              tooltip: context.t('common.more'),
-              icon: const Icon(AppIcons.more),
-              onPressed: () => _itemMenu(item),
-            ),
+            onMore: () => _itemMenu(item),
           ),
       ],
     );

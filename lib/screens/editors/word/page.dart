@@ -300,6 +300,10 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
           decoration: const InputDecoration(
             isDense: true,
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            filled: false,
             contentPadding: EdgeInsets.zero,
           ),
         ),

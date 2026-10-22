@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -14,7 +15,6 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import '../../core/snack.dart';
@@ -349,20 +349,20 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       sizeBytes: item.size,
       modifiedMs: item.modifiedMs,
     );
-    return ListTile(
-      leading: FmEntryIcon(entry: pseudo, thumbnails: false),
-      title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        [
-          FsPaths.humanSize(item.size),
-          if (item.parent.isNotEmpty) item.parent,
-          if (item.compression.isNotEmpty && item.compression != 'stored')
-            item.compression,
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: item.isEncrypted
+    // Arşiv içindeki girdinin diskte dosyası yok → küçük resim istenmez
+    // (FmEntryRow yalnız yerel yollarda küçük resim üretir).
+    return FmEntryRow(
+      entry: pseudo,
+      thumbnails: false,
+      selected: false,
+      selecting: false,
+      subtitle: [
+        FsPaths.humanSize(item.size),
+        if (item.parent.isNotEmpty) item.parent,
+        if (item.compression.isNotEmpty && item.compression != 'stored')
+          item.compression,
+      ].join(' · '),
+      badge: item.isEncrypted
           ? const Icon(AppIcons.lock, size: 18)
           : IconButton(
               tooltip: context.t('arc.extract_one'),
@@ -370,7 +370,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
               onPressed: () => _extractOne(item),
             ),
       onTap: () => _preview(item),
-      onLongPress: () => _extractOne(item),
+      onMore: () => _extractOne(item),
     );
   }
 }

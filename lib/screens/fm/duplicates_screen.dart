@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -11,7 +12,6 @@ import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
@@ -334,39 +334,19 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
   Widget _fileRow(FsEntry file, {required bool keep}) {
     final selected = _selected.contains(file.path);
-    return ListTile(
-      dense: true,
-      leading: Checkbox(
-        value: selected,
-        onChanged: (v) => setState(() {
-          if (v ?? false) {
-            _selected.add(file.path);
-          } else {
-            _selected.remove(file.path);
-          }
-        }),
-      ),
-      title: Row(
-        children: [
-          Flexible(
-            child: Text(file.name,
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
-          if (keep && !selected)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(start: Gap.sm),
-              child: Text(context.t('common.oldest'),
-                  style: Theme.of(context).textTheme.bodySmall),
-            ),
-        ],
-      ),
-      subtitle: Text(p.dirname(file.path),
-          maxLines: 1, overflow: TextOverflow.ellipsis),
-      // Önizleme 32 → 44: hangi kopyanın silineceğine bakarken ayırt edici
-      // olan tek şey bu kare (adlar ve boyutlar zaten birebir aynı).
-      trailing: FmEntryIcon(entry: file, size: 44),
+    return FmEntryRow(
+      entry: file,
+      selected: selected,
+      // Bu ekranda onay kutusu HEP görünür: kullanıcı kopyaları işaretliyor.
+      selecting: true,
+      subtitle: keep && !selected
+          ? '${context.t('common.oldest')} · ${p.dirname(file.path)}'
+          : p.dirname(file.path),
       onTap: () => EntryOpener.open(context, file.path),
-      onLongPress: () async {
+      onCheck: () => setState(() {
+        if (!_selected.remove(file.path)) _selected.add(file.path);
+      }),
+      onMore: () async {
         await showEntryActions(context, file);
         if (mounted) _scan();
       },

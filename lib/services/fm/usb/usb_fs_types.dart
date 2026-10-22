@@ -90,6 +90,11 @@ abstract class UsbFileSystem {
   /// [entry]'yi yeniden adlandırır (veri taşınmaz, yalnız girdi değişir).
   Future<void> renameEntry(Object dirId, UsbEntry entry, String newName) =>
       throw const UsbFsException('Bu biçimde yazma desteklenmiyor');
+
+  /// Önceki bir yazma **yarıda kesildiyse** (kirli bayrak) birimi onarır:
+  /// hiçbir girdinin göstermediği "kayıp" kümeleri boşaltır. Kaç küme
+  /// geri kazanıldığını döner; onarım gerekmediyse ya da desteklenmiyorsa 0.
+  Future<int> checkAndRepair() async => 0;
 }
 
 /// Dosya sistemi tanınamadığında/bozuk olduğunda.

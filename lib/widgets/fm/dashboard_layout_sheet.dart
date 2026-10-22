@@ -122,16 +122,13 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                 padding: withNavInset(
                     context, const EdgeInsets.only(bottom: 24)),
                 itemCount: ids.length,
-                // onReorderItem'a geçiş: dizin anlamı değişiyor, ayrı iş (KALANLAR).
-                // ignore: deprecated_member_use
-                onReorder: (from, to) {
-                  // Görünen alt kümede sürükleniyor; tam listedeki dizine çevir.
+                onReorderItem: (from, to) {
+                  // Görünen alt kümede sürükleniyor; [to] alt kümedeki son
+                  // dizin → tam listede yerini aldığı öğenin dizinine çevir.
                   final full =
                       _tilesTab ? layout.tileOrder : layout.sectionOrder;
-                  final fromId = ids[from];
-                  final fromFull = full.indexOf(fromId);
-                  final toFull =
-                      to >= ids.length ? full.length : full.indexOf(ids[to]);
+                  final fromFull = full.indexOf(ids[from]);
+                  final toFull = full.indexOf(ids[to]);
                   _tilesTab
                       ? layout.moveTile(fromFull, toFull)
                       : layout.moveSection(fromFull, toFull);

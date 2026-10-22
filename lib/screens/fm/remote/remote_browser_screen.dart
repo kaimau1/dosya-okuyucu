@@ -128,6 +128,10 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
                   autofocus: true,
                   decoration: InputDecoration(
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    filled: false,
                     hintText: context.t('nas.filter_hint'),
                   ),
                   onChanged: (v) => setState(() => _filter = v),

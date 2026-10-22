@@ -108,6 +108,9 @@ class _TextEditor extends StatelessWidget {
               maxLines: null,
               decoration: const InputDecoration(
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
                 filled: false,
@@ -134,6 +137,9 @@ class _TextEditor extends StatelessWidget {
         maxLines: null,
         decoration: const InputDecoration(
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
           isDense: true,
           contentPadding: EdgeInsets.zero,
           filled: false,
@@ -170,6 +176,9 @@ class _TextEditor extends StatelessWidget {
           textAlignVertical: TextAlignVertical.top,
           decoration: InputDecoration(
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
             hintText: editable ? context.t('vw.doc_content') : null,
             filled: false,
           ),

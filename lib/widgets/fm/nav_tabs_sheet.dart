@@ -197,9 +197,7 @@ class _NavTabsEditor extends StatelessWidget {
             ),
             SliverReorderableList(
               itemCount: rest.length,
-              // onReorderItem'a geçiş: dizin anlamı değişiyor, ayrı iş (KALANLAR).
-              // ignore: deprecated_member_use
-              onReorder: (from, to) => nav.move(from, to),
+              onReorderItem: (from, to) => nav.move(from, to),
               itemBuilder: (context, i) => ReorderableDelayedDragStartListener(
                 key: ValueKey('nav-${rest[i]}'),
                 index: i,

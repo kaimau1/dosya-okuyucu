@@ -405,6 +405,10 @@ class _ShapeBody extends StatelessWidget {
             decoration: const InputDecoration(
               isCollapsed: true,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              filled: false,
               contentPadding: EdgeInsets.zero,
             ),
           );

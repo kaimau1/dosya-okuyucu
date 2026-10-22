@@ -21,7 +21,7 @@ void main() {
 
   test('taşı + gizle + kalıcı + varsayılana dön', () async {
     await layout.ensureLoaded();
-    // "video"yu en başa al (ReorderableListView kuralı).
+    // "video"yu en başa al.
     await layout.moveTile(DashboardLayout.tiles.indexOf('video'), 0);
     await layout.setTileVisible('apk', false);
     await layout.setSectionVisible('favorites', false);
@@ -54,8 +54,8 @@ void main() {
     expect(layout.tileOrder.toSet(), DashboardLayout.tiles.toSet());
   });
 
-  test('aşağı taşıma ReorderableListView dizin kuralına uyar', () async {
-    await layout.moveSection(0, 3); // storage → tools'tan sonra
+  test('aşağı taşıma onReorderItem dizin kuralına uyar', () async {
+    await layout.moveSection(0, 2); // storage → son dizini 2 (tools'tan sonra)
     expect(layout.sectionOrder,
         ['categories', 'tools', 'storage', 'favorites', 'quick']);
   });

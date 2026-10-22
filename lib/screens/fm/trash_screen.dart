@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../models/fs_entry.dart';
+import '../../services/fm/entry_opener.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
@@ -14,7 +17,6 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_search_field.dart';
-import '../../widgets/section_header.dart';
 import '../settings_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
@@ -292,17 +294,22 @@ class _TrashScreenState extends State<TrashScreen> {
                         separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final item = shown[i];
-                          return ListTile(
-                            leading: Icon(item.isDir
-                                ? AppIcons.folder
-                                : Icons.insert_drive_file_rounded),
-                            title: Text(item.name,
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: MonoText(
-                              '${FsPaths.humanDate(item.deletedAtMs)} · '
-                              '${item.originalPath}',
+                          return FmEntryRow(
+                            entry: FsEntry(
+                              path: item.storedPath,
+                              name: item.name,
+                              isDir: item.isDir,
+                              sizeBytes: item.sizeBytes,
+                              modifiedMs: item.deletedAtMs,
                             ),
-                            trailing: Row(
+                            selected: false,
+                            selecting: false,
+                            subtitle: '${FsPaths.humanDate(item.deletedAtMs)} · '
+                                '${item.originalPath}',
+                            onTap: () => item.isDir
+                                ? null
+                                : EntryOpener.open(context, item.storedPath),
+                            badge: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _rowAction(

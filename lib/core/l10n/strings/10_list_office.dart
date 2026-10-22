@@ -9,6 +9,7 @@ const Map<String, (String, String, String)> _t10 = {
   'list.sort_by': ('Sırala: {name}', 'Sort: {name}', 'الترتيب: {name}'),
   'list.sort_dir_asc': ('Artan (A→Z, eski→yeni)', 'Ascending (A→Z, old→new)', 'تصاعدي (أ←ي، قديم←جديد)'),
   'list.sort_dir_desc': ('Azalan (Z→A, yeni→eski)', 'Descending (Z→A, new→old)', 'تنازلي (ي←أ، جديد←قديم)'),
+  'list.sort_folder_only': ('Yalnız bu klasör için', 'This folder only', 'لهذا المجلد فقط'),
   'list.filter': ('Filtre', 'Filter', 'تصفية'),
   'list.filter_n': ('Filtre ({n})', 'Filter ({n})', 'تصفية ({n})'),
   'list.filter_clear': ('Filtreyi temizle', 'Clear filter', 'مسح التصفية'),

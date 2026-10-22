@@ -139,7 +139,9 @@ class SheetCell extends StatelessWidget {
       content = TextField(
         controller: controller,
         autofocus: true,
-        maxLines: 1,
+        // Kaydırılan (wrap) hücrede düzenleme de satır kaydırır — tek satırda
+        // uzun metnin başı sola kayıp görünmüyordu (kullanıcı 2026-10-22).
+        maxLines: (s?.wrap ?? false) ? null : 1,
         onSubmitted: (_) => onSubmitted(),
         onTapOutside: (_) => onEditingComplete(),
         textInputAction: TextInputAction.done,
@@ -148,6 +150,10 @@ class SheetCell extends StatelessWidget {
         decoration: const InputDecoration(
           isDense: true,
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          filled: false,
           contentPadding: EdgeInsets.zero,
         ),
       );

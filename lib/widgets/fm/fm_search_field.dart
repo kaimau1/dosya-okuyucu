@@ -29,6 +29,9 @@ class FmSearchField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hint,
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
           filled: false,
         ),
         onChanged: onChanged,

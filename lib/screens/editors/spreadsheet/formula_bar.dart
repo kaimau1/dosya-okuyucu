@@ -99,6 +99,8 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                filled: false,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 hintText: context.t('excel.cell_content'),

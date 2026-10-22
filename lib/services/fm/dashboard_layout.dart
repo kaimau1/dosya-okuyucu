@@ -130,11 +130,11 @@ class DashboardLayout extends ChangeNotifier {
     return _save();
   }
 
-  /// `ReorderableListView` kuralı: aşağı taşırken hedef dizin bir fazladır.
+  /// [to] öğenin VARACAĞI son dizindir (`onReorderItem` sözleşmesi —
+  /// eski `onReorder`'daki "aşağı taşırken bir fazla" düzeltmesi yok).
   static void _move(List<String> list, int from, int to) {
     if (from < 0 || from >= list.length) return;
-    var target = to > from ? to - 1 : to;
-    target = target.clamp(0, list.length - 1);
+    final target = to.clamp(0, list.length - 1);
     final item = list.removeAt(from);
     list.insert(target, item);
   }

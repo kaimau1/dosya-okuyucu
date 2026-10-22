@@ -222,7 +222,7 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
       selected: _selected,
       controller: _scroll,
       loading: _loading,
-      groupBy: appState.fmSort,
+      groupBy: _sortOf(appState).$1,
       onRefresh: _load,
       onOpen: _openEntry,
       onToggle: _toggle,

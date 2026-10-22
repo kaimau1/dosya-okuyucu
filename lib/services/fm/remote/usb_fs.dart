@@ -111,6 +111,15 @@ class UsbFs extends RemoteFs {
         ));
         final wanted = partitionIndex == null ? chosen == null : partitionIndex == i;
         if (wanted && chosen == null) {
+          // Önceki yazma yarıda kesildiyse (bellek yazarken çekildi) kayıp
+          // kümeleri geri ver — K8 sağlamlaştırma. Onarım başarısızsa
+          // okuma yine açılır; yalnız günlüğe düşer.
+          try {
+            final freed = await fs.checkAndRepair();
+            if (freed > 0) steps.add('onarım: $freed kayıp küme boşaltıldı');
+          } catch (e) {
+            steps.add('onarım yapılamadı: $e');
+          }
           chosen = UsbFs(fs: fs, device: device, label: name);
         }
       }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
@@ -11,7 +12,6 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/hidden_vault.dart';
-import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
@@ -133,29 +133,18 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
                         style: TextStyle(color: scheme.onSurfaceVariant)),
                   ),
                 for (final item in items)
-                  ListTile(
-                    leading: SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: FmEntryIcon(
-                        entry: FsEntry.fromEntity(item.isDir
-                            ? Directory(item.path)
-                            : File(item.path)),
-                        size: 44,
-                      ),
-                    ),
-                    title: Text(item.name,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(
-                      context.t(
-                          'hv.from', {'path': File(item.original).parent.path}),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  FmEntryRow(
+                    entry: FsEntry.fromEntity(item.isDir
+                        ? Directory(item.path)
+                        : File(item.path)),
+                    selected: false,
+                    selecting: false,
+                    subtitle: context.t(
+                        'hv.from', {'path': File(item.original).parent.path}),
                     onTap: () => item.isDir
                         ? null
                         : EntryOpener.open(context, item.path),
-                    trailing: Row(
+                    badge: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(

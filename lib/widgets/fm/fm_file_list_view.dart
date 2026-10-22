@@ -275,6 +275,10 @@ class FmListToolbar extends StatelessWidget {
   /// Filtre düğmesi; `null` ise düğme çizilmez.
   final VoidCallback? onFilter;
 
+  /// "Yalnız bu klasör" anahtarı (Faz 17 / G3) — `null` ise menüde yok.
+  final bool? folderOnly;
+  final ValueChanged<bool>? onFolderOnly;
+
   const FmListToolbar({
     super.key,
     required this.count,
@@ -285,6 +289,8 @@ class FmListToolbar extends StatelessWidget {
     this.sortOptions = FmSort.values,
     this.filterCount = 0,
     this.onFilter,
+    this.folderOnly,
+    this.onFolderOnly,
   });
 
   @override
@@ -346,6 +352,16 @@ class FmListToolbar extends StatelessWidget {
                   value: (sort, true),
                   child: Text(context.t('list.sort_dir_desc')),
                 ),
+                if (folderOnly != null) ...[
+                  const PopupMenuDivider(),
+                  CheckedPopupMenuItem(
+                    key: const ValueKey('sort-folder-only'),
+                    checked: folderOnly!,
+                    // Değer döndürmez: anahtar kendi geri çağrısıyla çalışır.
+                    onTap: () => onFolderOnly?.call(!folderOnly!),
+                    child: Text(context.t('list.sort_folder_only')),
+                  ),
+                ],
               ],
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),

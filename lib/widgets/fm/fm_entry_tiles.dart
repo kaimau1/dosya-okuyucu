@@ -48,6 +48,9 @@ class FmEntryRow extends StatelessWidget {
   /// "3 ay" yaş etiketi).
   final Widget? badge;
 
+  /// Küçük resim (bkz. [FmSelectableIcon.thumbnails]).
+  final bool thumbnails;
+
   const FmEntryRow({
     super.key,
     required this.entry,
@@ -60,6 +63,7 @@ class FmEntryRow extends StatelessWidget {
     this.onMore,
     this.showChevron = false,
     this.badge,
+    this.thumbnails = true,
   });
 
   @override
@@ -100,6 +104,7 @@ class FmEntryRow extends StatelessWidget {
                     selecting: selecting,
                     selected: selected,
                     onCheck: onCheck,
+                    thumbnails: thumbnails,
                   ),
                   const SizedBox(width: 14),
                   Expanded(

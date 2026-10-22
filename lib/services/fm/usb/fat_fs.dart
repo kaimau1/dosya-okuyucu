@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'block_device.dart';
 import 'usb_fs_types.dart';
 
@@ -463,7 +465,17 @@ class FatFileSystem extends UsbFileSystem {
     final full = Uint8List(clusterSize);
     full.setRange(0, data.length > clusterSize ? clusterSize : data.length,
         data);
-    await device.writeBlocks(_clusterToSector(cluster), full);
+    final sector = _clusterToSector(cluster);
+    await device.writeBlocks(sector, full);
+    // **Geri-okuma doğrulaması** (K8): ucuz USB denetleyicileri yazmayı
+    // "tamam" deyip düşürebiliyor. Çok sektörlü okuma önbelleğe girmediği
+    // için bu gerçekten aygıttan okunur.
+    final back = await device.readBlocks(sector, sectorsPerCluster);
+    for (var i = 0; i < full.length; i++) {
+      if (back[i] != full[i]) {
+        throw const UsbFsException('Yazma doğrulanamadı (bellek arızalı olabilir)');
+      }
+    }
   }
 
   @override
@@ -473,6 +485,14 @@ class FatFileSystem extends UsbFileSystem {
 
   @override
   Future<UsbEntry> writeFileStream(
+    Object dirId,
+    String name,
+    Stream<List<int>> data,
+    int totalLength,
+  ) =>
+      _tx(() => _writeFileStream(dirId, name, data, totalLength));
+
+  Future<UsbEntry> _writeFileStream(
     Object dirId,
     String name,
     Stream<List<int>> data,
@@ -551,7 +571,10 @@ class FatFileSystem extends UsbFileSystem {
   }
 
   @override
-  Future<UsbEntry> createDirectory(Object dirId, String name) async {
+  Future<UsbEntry> createDirectory(Object dirId, String name) =>
+      _tx(() => _createDirectory(dirId, name));
+
+  Future<UsbEntry> _createDirectory(Object dirId, String name) async {
     _requireWritable();
     final chain = await _allocate(1);
     final cluster = chain.first;
@@ -576,7 +599,10 @@ class FatFileSystem extends UsbFileSystem {
   }
 
   @override
-  Future<void> deleteEntry(Object dirId, UsbEntry entry) async {
+  Future<void> deleteEntry(Object dirId, UsbEntry entry) =>
+      _tx(() => _deleteEntry(dirId, entry));
+
+  Future<void> _deleteEntry(Object dirId, UsbEntry entry) async {
     _requireWritable();
     final raw = await _readDirectoryBytes(dirId as int);
     final slots = _slotsOf(raw, entry.name);
@@ -594,7 +620,10 @@ class FatFileSystem extends UsbFileSystem {
   }
 
   @override
-  Future<void> renameEntry(
+  Future<void> renameEntry(Object dirId, UsbEntry entry, String newName) =>
+      _tx(() => _renameEntry(dirId, entry, newName));
+
+  Future<void> _renameEntry(
       Object dirId, UsbEntry entry, String newName) async {
     _requireWritable();
     // Veri yerinde kalıyor: yalnız girdi siliniyor ve yeni adla yeniden
@@ -608,6 +637,133 @@ class FatFileSystem extends UsbFileSystem {
     await _writeDirectoryBytes(dirId, raw);
     await _addDirectoryEntry(dirId, newName,
         isDir: entry.isDir, cluster: entry.id as int, size: entry.sizeBytes);
+  }
+
+  // ── Kirli bayrak + onarım (K8 sağlamlaştırma, 2026-10-22) ─────────────
+  //
+  // FAT16/32'nin FAT[1] girdisinde "temiz kapanış" biti var (Windows da
+  // kullanır: bit yoksa açılışta chkdsk önerir). Her yazma işleminden ÖNCE
+  // bit silinir, işlem başarıyla bitince geri konur. Bellek yazma ortasında
+  // çekilirse bit silik kalır → bir sonraki takışta [checkAndRepair] kayıp
+  // kümeleri boşaltır. Sıra "veri → FAT zinciri → dizin girdisi" olduğu
+  // için yarıda kalmanın tek izi kayıp küme; görünür bozuk dosya kalmaz.
+
+  int _txDepth = 0;
+
+  int? get _cleanBit => switch (kind) {
+        FatKind.fat12 => null, // FAT12'de bayrak yok
+        FatKind.fat16 => 0x8000,
+        FatKind.fat32 => 0x08000000,
+      };
+
+  /// Birim kirli mi (önceki yazma yarıda mı kaldı)?
+  Future<bool> isDirty() async {
+    final bit = _cleanBit;
+    if (bit == null) return false;
+    return (await nextRawEntry(1)) & bit == 0;
+  }
+
+  Future<void> _setClean(bool clean) async {
+    final bit = _cleanBit;
+    if (bit == null || !writable) return;
+    final raw = await nextRawEntry(1);
+    final next = clean ? raw | bit : raw & ~bit;
+    if (next != raw) await _setFatEntry(1, next);
+  }
+
+  /// İç içe çağrılabilen yazma işlemi: ilk girişte kirli, son çıkışta
+  /// (yalnız BAŞARIYLA) temiz. Hata olursa kirli kalır — onarım sonraki
+  /// açılışta.
+  Future<T> _tx<T>(Future<T> Function() body) async {
+    _requireWritable();
+    if (_txDepth++ == 0) await _setClean(false);
+    var ok = false;
+    try {
+      final r = await body();
+      ok = true;
+      return r;
+    } finally {
+      if (--_txDepth == 0 && ok) await _setClean(true);
+    }
+  }
+
+  @override
+  Future<int> checkAndRepair() async {
+    if (!writable || !await isDirty()) return 0;
+    final freed = await repairLostClusters();
+    await _setClean(true);
+    return freed;
+  }
+
+  /// Hiçbir dizin girdisinin (ya da kök zincirinin) göstermediği ama FAT'ta
+  /// dolu görünen kümeleri boşaltır; boşaltılan küme sayısını döner.
+  @visibleForTesting
+  Future<int> repairLostClusters() async {
+    final reachable = <int>{};
+    final pending = <int>[];
+    if (kind == FatKind.fat32) {
+      reachable.addAll(await clusterChain(rootCluster));
+      pending.add(rootCluster);
+    } else {
+      pending.add(0);
+    }
+    final visited = <int>{};
+    while (pending.isNotEmpty) {
+      final dir = pending.removeLast();
+      if (!visited.add(dir)) continue;
+      final List<UsbEntry> entries;
+      try {
+        entries = await listDir(dir);
+      } catch (_) {
+        continue;
+      }
+      for (final e in entries) {
+        final c = e.id as int;
+        if (c < 2) continue;
+        reachable.addAll(await clusterChain(c));
+        if (e.isDir) pending.add(c);
+      }
+    }
+    final bad = switch (kind) {
+      FatKind.fat12 => 0xFF7,
+      FatKind.fat16 => 0xFFF7,
+      FatKind.fat32 => 0x0FFFFFF7,
+    };
+    final lost = <int>[];
+    final last = clusterCount + 1;
+    final perSector = switch (kind) {
+      FatKind.fat12 => 0,
+      FatKind.fat16 => bytesPerSector ~/ 2,
+      FatKind.fat32 => bytesPerSector ~/ 4,
+    };
+    if (perSector == 0) {
+      for (var c = 2; c <= last; c++) {
+        if (reachable.contains(c)) continue;
+        final raw = await nextRawEntry(c);
+        if (raw != 0 && raw != bad) lost.add(c);
+      }
+    } else {
+      // FAT toplu okunur ([_allocate] ile aynı gerekçe: milyonlarca küme).
+      const batch = 64;
+      for (var s = 0; s < fatSize; s += batch) {
+        final take = s + batch > fatSize ? fatSize - s : batch;
+        final view = ByteData.sublistView(
+            await device.readBlocks(reservedSectors + s, take));
+        for (var i = 0; i < take * perSector; i++) {
+          final c = s * perSector + i;
+          if (c < 2 || reachable.contains(c)) continue;
+          if (c > last) break;
+          final raw = kind == FatKind.fat32
+              ? view.getUint32(i * 4, Endian.little) & 0x0FFFFFFF
+              : view.getUint16(i * 2, Endian.little);
+          if (raw != 0 && raw != bad) lost.add(c);
+        }
+      }
+    }
+    for (final c in lost) {
+      await _setFatEntry(c, 0);
+    }
+    return lost.length;
   }
 
   void _requireWritable() {

@@ -64,6 +64,10 @@ void main() {
       await nav.add('image'); // files, downloads, new, image
       await nav.move(2, 0); // image en öne (Dosyalar'dan sonra)
       expect(nav.tabs, ['files', 'image', 'downloads', 'new']);
+      // Aşağı: [to] son dizindir (onReorderItem sözleşmesi).
+      await nav.move(0, 2);
+      expect(nav.tabs, ['files', 'downloads', 'new', 'image']);
+      await nav.move(2, 0);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('nav_tabs'), nav.tabs);
       await nav.reset();

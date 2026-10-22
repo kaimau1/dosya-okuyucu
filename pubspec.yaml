@@ -104,6 +104,14 @@ dependencies:
 
   # Depolama / ayarlar
   shared_preferences: ^2.3.2
+  # Android alt paketi 2.4.28'e SABİT (çökme 2026-10-22, 1.0.39x): 2.5.0'dan
+  # beri "Pigeon JNI" — kayıt motor başına değil SÜREÇ başına tek statik
+  # tablo ve HER motorun `onDetachedFromEngine`i onu siliyor. Seçici
+  # (`PickerActivity`, ikinci FlutterEngine) kapanınca ana uygulamanın
+  # kaydı da gidiyor → "No instance with no name has been registered".
+  # 2.5.0/2.5.1 ayrıca R8'de `getAll` silinip NoSuchMethodError veriyordu.
+  # 2.4.x yöntem kanalı (motor başına BinaryMessenger) kullanıyor.
+  shared_preferences_android: 2.4.28
 
   # Dönüştürme (PDF üretimi) & paylaşım / yazdırma
   pdf: ^3.11.1

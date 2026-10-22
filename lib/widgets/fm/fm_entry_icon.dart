@@ -427,6 +427,10 @@ class FmSelectableIcon extends StatelessWidget {
   final VoidCallback? onCheck;
   final double radius;
 
+  /// Küçük resim çıkarılsın mı? Diskte düz içeriği olmayan girdilerde
+  /// (arşiv içi, şifreli kasa) kapalı — tür simgesi gösterilir.
+  final bool thumbnails;
+
   const FmSelectableIcon({
     super.key,
     required this.entry,
@@ -435,11 +439,13 @@ class FmSelectableIcon extends StatelessWidget {
     this.size = 44,
     this.onCheck,
     this.radius = Radii.control,
+    this.thumbnails = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final icon = FmEntryIcon(entry: entry, size: size, radius: radius);
+    final icon = FmEntryIcon(
+        entry: entry, size: size, radius: radius, thumbnails: thumbnails);
     if (!selecting) return icon;
     final scheme = Theme.of(context).colorScheme;
     // Rozet önizlemenin en çok %42'sini kaplar ve köşede durur: ortada
