@@ -20,6 +20,7 @@ import '../services/fm/playback_positions.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/ai_pool.dart';
 import '../services/gemini_service.dart';
+import '../services/key_vault.dart';
 import '../services/fm/ai_scope.dart';
 import '../services/fm/folder_lock.dart';
 import '../services/fm/storage_stats.dart' show StorageStats;
@@ -42,6 +43,10 @@ class AppState extends ChangeNotifier {
   // Eski tekil anahtarlar KORUNUYOR: güncelleme sonrası kullanıcının girdiği
   // anahtar kaybolmamalı — listeler boşsa onlardan tohumlanır.
   static const _kApiKeys = 'gemini_api_keys';
+
+  /// Anahtar listesi Keystore'la sarılmış (base64, `KeyVault`). Varsa düz
+  /// [_kApiKeys]/[_kApiKey] yazılmaz (Faz 11a).
+  static const _kApiKeysSealed = 'gemini_api_keys_sealed';
   static const _kModels = 'gemini_models';
   static const _kThemeMode = 'theme_mode';
   static const _kAppSkin = 'app_skin';
@@ -227,10 +232,7 @@ class AppState extends ChangeNotifier {
     final clean = AiCredentials(keys: keys).normalized.keys;
     _apiKeys = clean;
     _apiKey = clean.isEmpty ? '' : clean.first;
-    await _prefs.setStringList(_kApiKeys, clean);
-    // Eski anahtar da güncel kalsın: sürüm geri alınırsa kullanıcı anahtarsız
-    // kalmasın (ve tekil anahtarı okuyan yerler doğru değeri görsün).
-    await _prefs.setString(_kApiKey, _apiKey);
+    await _storeApiKeys(clean);
     notifyListeners();
   }
 
@@ -635,14 +637,48 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-    _apiKey = _prefs.getString(_kApiKey) ?? '';
-    _model = _prefs.getString(_kModel) ?? defaultAiModel;
+  /// Anahtarları yazar: Keystore varsa SARILI (düz kopyalar silinir), yoksa
+  /// eski düz yol. (Bilinçli ödün: sarılı anahtar eski bir sürüme geri
+  /// dönülürse okunamaz — kullanıcı anahtarı yeniden girer.)
+  Future<void> _storeApiKeys(List<String> keys) async {
+    final sealed = keys.isEmpty ? null : await KeyVault.seal(jsonEncode(keys));
+    if (sealed != null) {
+      await _prefs.setString(_kApiKeysSealed, sealed);
+      await _prefs.remove(_kApiKeys);
+      await _prefs.remove(_kApiKey);
+      return;
+    }
+    await _prefs.remove(_kApiKeysSealed);
+    await _prefs.setStringList(_kApiKeys, keys);
+    await _prefs.setString(_kApiKey, keys.isEmpty ? '' : keys.first);
+  }
+
+  /// Kayıtlı anahtarlar: önce sarılı kayıt; açılamazsa düz kayıt (göç
+  /// öncesi kurulum ya da Keystore'suz ortam). Düz kayıt bulunup Keystore
+  /// çalışıyorsa hemen sarılı biçime GÖÇ edilir.
+  Future<List<String>> _loadApiKeys() async {
+    final sealed = _prefs.getString(_kApiKeysSealed);
+    if (sealed != null) {
+      final json = await KeyVault.open(sealed);
+      if (json != null) {
+        try {
+          return [for (final k in jsonDecode(json) as List) '$k'];
+        } catch (_) {}
+      }
+    }
+    final single = _prefs.getString(_kApiKey) ?? '';
     // Liste yoksa (bu sürümden önce kurulmuş uygulama) tekil değerlerden
     // tohumlanır — kullanıcı ayarlarını yeniden girmek zorunda kalmaz.
-    _apiKeys = _prefs.getStringList(_kApiKeys) ??
-        (_apiKey.trim().isEmpty ? const [] : [_apiKey.trim()]);
+    final plain = _prefs.getStringList(_kApiKeys) ??
+        (single.trim().isEmpty ? const <String>[] : [single.trim()]);
+    if (plain.isNotEmpty) await _storeApiKeys(plain);
+    return plain;
+  }
+
+  Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
+    _model = _prefs.getString(_kModel) ?? defaultAiModel;
+    _apiKeys = await _loadApiKeys();
     _models = _prefs.getStringList(_kModels) ?? [_model];
     final normalized = AiCredentials(keys: _apiKeys, models: _models).normalized;
     _apiKeys = normalized.keys;

@@ -65,8 +65,12 @@ class DocxView extends StatefulWidget {
   /// (indeks + 'bullet'|'number'|'none') — kaydetmede `w:numPr` olur.
   final void Function(int index, String kind)? onListStyle;
 
+  /// Sayfa kaydı (CSS piksel; artı = aşağı) ve en üstte mi — okuma kipi.
+  final void Function(double dy, bool atTop)? onScroll;
+
   const DocxView({
     super.key,
+    this.onScroll,
     required this.bytes,
     this.rightToLeft = false,
     this.onEdited,
@@ -257,6 +261,10 @@ class DocxViewState extends State<DocxView> {
     if (data is! Map) return;
     if (data['pages'] is int) widget.onPageCount?.call(data['pages'] as int);
     if (data['page'] is int) widget.onPage?.call(data['page'] as int);
+    if (data['scroll'] is num) {
+      widget.onScroll
+          ?.call((data['scroll'] as num).toDouble(), data['top'] == true);
+    }
     if (data['zoom'] is num) {
       final z = (data['zoom'] as num).toDouble();
       if ((z - _zoom).abs() > 0.001) {

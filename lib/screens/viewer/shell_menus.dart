@@ -7,6 +7,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       title: doc.name,
       dirty: _dirty || _hasUnsaved,
       tabBar: _findOpen ? _findBar() : null,
+      readingBars: _readingBars,
       subtitle: _isPdf && _pageCount > 0
           ? context.t('shell.pages', {'n': _pageCount})
           : null,
@@ -342,6 +343,17 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           value: _wrapLines,
                           onChanged: (v) => apply(() => _wrapLines = v),
                         ),
+                        SwitchListTile(
+                          key: const ValueKey('reading-fullscreen'),
+                          secondary: const Icon(AppIcons.fullscreen),
+                          title: Text(context.t('vw.fullscreen')),
+                          subtitle: Text(context.t('vw.fullscreen_hint')),
+                          value: _fullscreen,
+                          onChanged: (v) {
+                            _setFullscreen(v);
+                            setSheet(() {});
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -513,6 +525,17 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           value: app.resumePosition,
                           onChanged: (v) async {
                             await app.setResumePosition(v);
+                            setSheet(() {});
+                          },
+                        ),
+                        SwitchListTile(
+                          key: const ValueKey('reading-fullscreen'),
+                          secondary: const Icon(AppIcons.fullscreen),
+                          title: Text(context.t('vw.fullscreen')),
+                          subtitle: Text(context.t('vw.fullscreen_hint')),
+                          value: _fullscreen,
+                          onChanged: (v) {
+                            _setFullscreen(v);
                             setSheet(() {});
                           },
                         ),

@@ -140,6 +140,7 @@ abstract final class CrashLog {
         error: _clip(error.toString(), 1000),
         stack: _trimStack(stack),
         context: context == null ? null : _clip(context, 200),
+        version: appVersionFull,
       );
       // Aynı hata art arda tekrarlıyorsa (çizim döngüsü) yeni satır açmak
       // yerine sayacı artır — 20 kaydın hepsi aynı hatayla dolmasın.
@@ -296,6 +297,11 @@ class CrashRecord {
   /// Aynı hatanın kaç kez üst üste geldiği (1 = bir kez).
   final int count;
 
+  /// Kaydın oluştuğu uygulama sürümü (2026-10-22'den önceki kayıtlarda yok).
+  /// Paylaşılan metnin başlığı GÜNCEL sürümü yazıyor; eski kayıtlar o sürüme
+  /// aitmiş gibi okunuyordu (kullanıcının 1.0.397 kaydında Eylül hataları).
+  final String? version;
+
   const CrashRecord({
     required this.time,
     required this.kind,
@@ -303,6 +309,7 @@ class CrashRecord {
     required this.stack,
     this.context,
     this.count = 1,
+    this.version,
   });
 
   CrashRecord repeated(DateTime at) => CrashRecord(
@@ -312,6 +319,7 @@ class CrashRecord {
         stack: stack,
         context: context,
         count: count + 1,
+        version: version,
       );
 
   Map<String, dynamic> toJson() => {
@@ -321,6 +329,7 @@ class CrashRecord {
         's': stack,
         if (context != null) 'c': context,
         if (count > 1) 'n': count,
+        if (version != null) 'v': version,
       };
 
   static CrashRecord fromJson(Map<String, dynamic> json) => CrashRecord(
@@ -330,12 +339,14 @@ class CrashRecord {
         stack: '${json['s'] ?? ''}',
         context: json['c'] as String?,
         count: json['n'] is int ? json['n'] as int : 1,
+        version: json['v'] as String?,
       );
 
   String asText() {
     final buffer = StringBuffer()
       ..writeln('[$kind] ${time.toIso8601String()}'
-          '${count > 1 ? ' (×$count)' : ''}');
+          '${count > 1 ? ' (×$count)' : ''}'
+          ' · sürüm ${version ?? 'eski (bilinmiyor)'}');
     if (context != null) buffer.writeln('Bağlam: $context');
     buffer.writeln(error);
     if (stack.isNotEmpty) buffer.writeln(stack);

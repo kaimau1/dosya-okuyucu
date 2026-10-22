@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,9 @@ import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/native_extras.dart';
+import '../../core/snack.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
@@ -80,6 +84,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   late int _index = widget.initialIndex.clamp(0, widget.paths.length - 1);
   bool _chromeVisible = true;
 
+  /// **Slayt gösterisi** (Faz 18 / G19): 3/5/10 sn'de bir sonraki fotoğraf;
+  /// dokunuşla ya da son fotoğrafta durur. Çubuklar gösteri boyunca gizli.
+  Timer? _slideTimer;
+  bool get _slideshow => _slideTimer != null;
+
   /// Yakınlaştırılmış sayfa varken sayfa geçişi kilitlenir.
   bool _zoomed = false;
 
@@ -108,6 +117,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   @override
   void dispose() {
+    _slideTimer?.cancel();
     _snap.dispose();
     _pages.dispose();
     super.dispose();
@@ -245,6 +255,65 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (mounted) setState(() {});
   }
 
+  Future<void> _pickSlideshow() async {
+    final secs = await showAppSheet<int>(
+      context,
+      title: context.t('gal.slideshow'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final s in const [3, 5, 10])
+            ListTile(
+              key: ValueKey('slideshow-$s'),
+              leading: const Icon(AppIcons.slideshow),
+              title: Text(ctx.t('gal.slideshow_every', {'n': s})),
+              onTap: () => Navigator.pop(ctx, s),
+            ),
+        ],
+      ),
+    );
+    if (secs != null && mounted) _startSlideshow(Duration(seconds: secs));
+  }
+
+  void _startSlideshow(Duration every) {
+    _slideTimer?.cancel();
+    setState(() {
+      _chromeVisible = false;
+      _slideTimer = Timer.periodic(every, (_) {
+        if (!mounted) return;
+        if (_index >= _paths.length - 1) {
+          _stopSlideshow();
+          return;
+        }
+        Motion.toPage(context, _pages, _index + 1, duration: Motion.long);
+      });
+    });
+  }
+
+  void _stopSlideshow() {
+    _slideTimer?.cancel();
+    setState(() {
+      _slideTimer = null;
+      _chromeVisible = true;
+    });
+  }
+
+  /// "Farklı kullan" — duvar kâğıdı, kişi fotoğrafı (sistem seçicisi).
+  Future<void> _attachAs() async {
+    final ok = await NativeExtras.attachData(
+        _current, _mimeOf(_current), context.t('gal.use_as'));
+    if (!ok && mounted) showSnack(context, context.t('gal.use_as_failed'));
+  }
+
+  static String _mimeOf(String path) =>
+      switch (p.extension(path).toLowerCase()) {
+        '.png' => 'image/png',
+        '.webp' => 'image/webp',
+        '.gif' => 'image/gif',
+        '.heic' || '.heif' => 'image/heif',
+        _ => 'image/jpeg',
+      };
+
   void _jumpTo(int i) {
     if (i == _index) return;
     _pages.jumpToPage(i);
@@ -330,8 +399,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       itemBuilder: (context, i) => _ZoomableImage(
                         path: _paths[i],
                         heroTag: fmMediaHeroTag(_paths[i]),
-                        onTap: () =>
-                            setState(() => _chromeVisible = !_chromeVisible),
+                        onTap: () => _slideshow
+                            ? _stopSlideshow()
+                            : setState(() => _chromeVisible = !_chromeVisible),
                         onZoomChanged: (zoomed) {
                           if (zoomed != _zoomed) {
                             setState(() => _zoomed = zoomed);
@@ -393,12 +463,31 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                 _openInViewer();
                               case 'actions':
                                 await _otherActions();
+                              case 'slideshow':
+                                await _pickSlideshow();
+                              case 'important':
+                                if (mounted) {
+                                  await copyToImportant(context, [_current]);
+                                }
+                              case 'attach':
+                                await _attachAs();
                             }
                           },
                           itemBuilder: (_) => [
                             PopupMenuItem(
                                 value: 'viewer',
                                 child: Text(context.t('gal.open_in_viewer'))),
+                            if (_paths.length > 1)
+                              PopupMenuItem(
+                                  value: 'slideshow',
+                                  child: Text(context.t('gal.slideshow'))),
+                            PopupMenuItem(
+                                value: 'important',
+                                child: Text(context.t('fm.copy_to_important'))),
+                            if (Platform.isAndroid)
+                              PopupMenuItem(
+                                  value: 'attach',
+                                  child: Text(context.t('gal.use_as'))),
                             PopupMenuItem(
                                 value: 'actions',
                                 child: Text(context.t('gal.other_actions'))),

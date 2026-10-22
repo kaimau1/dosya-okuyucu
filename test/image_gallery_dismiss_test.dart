@@ -68,4 +68,24 @@ void main() {
     expect(find.text('3/3 · 0 B · c.jpg'), findsOneWidget);
     expect(find.byType(ImageGalleryScreen), findsOneWidget);
   });
+
+  testWidgets('Faz 18: slayt gösterisi ilerler ve sonda durur',
+      (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.tap(find.byKey(const Key('hucre')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slayt gösterisi'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('slideshow-3')));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('3/3 · 0 B · c.jpg'), findsOneWidget);
+    // Son fotoğrafta gösteri kendiliğinden durur (zamanlayıcı kalmaz).
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('3/3 · 0 B · c.jpg'), findsOneWidget);
+  });
 }

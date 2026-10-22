@@ -6,6 +6,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
       kind: DocKind.word,
       title: widget.name,
       dirty: _dirty,
+      // Okuma kipi yalnız düzenleme KAPALIYKEN: yazarken çubuk kaybolmamalı.
+      readingBars: _editing || _plainMode ? null : _readingBars,
       subtitle:
           _pageCount > 0 ? context.t('shell.pages', {'n': _pageCount}) : null,
       // Üst çubukta yalnız ALTTA KARŞILIĞI OLMAYANLAR kalır (2026-07-28
@@ -129,6 +131,11 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                           onSelection: _onSelection,
                           onAlign: _onAlignChanged,
                           onListStyle: _onListStyle,
+                          onScroll: (dy, top) {
+                            if (!_editing) {
+                              _readingBars.scrolled(dy, atTop: top);
+                            }
+                          },
                           onParagraphCount: _onParagraphCount,
                           onFindCount: _onFindCount,
                           onReplacedCount: _onReplaced,

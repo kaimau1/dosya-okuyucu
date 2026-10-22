@@ -1108,9 +1108,22 @@
   }
 
   var pageTimer = null;
+  // Okuma kipi (Faz 18): kaydirma farki kare basina bir kez Flutter'a gider;
+  // cubuklar asagi kaydirinca cekilir, yukari kaydirinca gelir.
+  var lastScrollY = window.pageYOffset, scrollRaf = false;
   window.addEventListener('scroll', function () {
     clearTimeout(pageTimer);
     pageTimer = setTimeout(updateCurrentPage, 80);
+    if (scrollRaf) return;
+    scrollRaf = true;
+    requestAnimationFrame(function () {
+      scrollRaf = false;
+      var y = window.pageYOffset, dy = y - lastScrollY;
+      lastScrollY = y;
+      if (dy !== 0 && window.Sayfa) {
+        window.Sayfa.postMessage(JSON.stringify({ scroll: dy, top: y <= 0 }));
+      }
+    });
   }, { passive: true });
 
   // 1 tabanlı sayfaya kaydırır.

@@ -4,7 +4,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
-    show Clipboard, ClipboardData, HapticFeedback, LogicalKeyboardKey;
+    show
+        Clipboard,
+        ClipboardData,
+        HapticFeedback,
+        LogicalKeyboardKey,
+        SystemChrome,
+        SystemUiMode;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
@@ -326,6 +333,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// bulur, sayfada vurgular (pageTextMatchPaintCallback) ve goToNext/PrevMatch
   /// ile o sayfaya kaydırır. Yalnız PDF belgesinde kurulur.
   final PdfViewerController _pdfController = PdfViewerController();
+
+  /// Okuma kipi (Faz 18 / G20): kaydırınca çubuklar çekilir.
+  final ReadingBars _readingBars = ReadingBars();
+
+  /// "Tam ekran" (Aa levhası): sistem çubukları gizli okur. Tercih
+  /// kalıcı (`reading_fullscreen`); ekrandan çıkınca sistem çubukları döner.
+  bool _fullscreen = false;
+  static const _kFullscreen = 'reading_fullscreen';
+
+  Future<void> _loadFullscreen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final on = prefs.getBool(_kFullscreen) ?? false;
+      if (on && mounted) _setFullscreen(true, save: false);
+    } catch (_) {
+      // Tercih okunamadı: tam ekran kapalı başlar (zararsız varsayılan).
+    }
+  }
+
+  void _setFullscreen(bool on, {bool save = true}) {
+    setState(() => _fullscreen = on);
+    SystemChrome.setEnabledSystemUIMode(
+        on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
+    if (save) {
+      SharedPreferences.getInstance()
+          .then((p) => p.setBool(_kFullscreen, on))
+          .catchError((_) => false);
+    }
+  }
   PdfTextSearcher? _pdfSearcher;
 
   /// Taranmış sayfalarda arama (Faz 2, 2026-08-05): pdfrx arayıcısı yalnız
@@ -381,6 +417,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   void initState() {
     super.initState();
+    unawaited(_loadFullscreen());
     final doc = widget.doc;
     if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
@@ -542,6 +579,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Bekleyen okuma konumu diske yazılsın: uygulama kapansa da "kaldığın
     // sayfa" çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
     unawaited(ReadingPositions.save());
+    _readingBars.dispose();
+    if (_fullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     _pdfEdgeScrollTimer?.cancel();
     _textController?.dispose();
     _imgTx.removeListener(_onImgTransform);

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
@@ -25,7 +26,44 @@ import 'file_type_icon.dart';
 ///
 /// Alt sistem çubuğu (geri/ana menü) çakışmaları yine tek yerden çözülür;
 /// ekranlar kendi Scaffold'unu kurmaz.
-class OfficeShell extends StatelessWidget {
+/// **Okuma kipi** çubuk durumu (Faz 18 / G20, 2026-10-22).
+///
+/// Belge aşağı kaydırılınca üst/alt çubuklar çekilir, yukarı kaydırınca ya
+/// da tek dokunuşla geri gelir (Acrobat/Drive dili). Kaydırma kaynağı ya
+/// [OfficeShell]'in yakaladığı `ScrollUpdateNotification` (metin, slayt,
+/// Excel) ya da görüntüleyicinin kendi jest geri çağrısıdır (PDF —
+/// pdfrx kaydırma bildirimi yaymıyor: [scrolled] elle çağrılır).
+class ReadingBars extends ValueNotifier<bool> {
+  ReadingBars() : super(true);
+
+  /// Yön değişmeden biriken kaydırma; eşik aşılınca karar verilir (titreyen
+  /// parmakta çubuklar yanıp sönmesin).
+  double _acc = 0;
+
+  /// [delta] > 0: içerik aşağı kaydı (okumaya devam) → gizle.
+  void scrolled(double delta, {bool atTop = false}) {
+    if (atTop) {
+      _acc = 0;
+      value = true;
+      return;
+    }
+    if (delta == 0) return;
+    if ((delta > 0) != (_acc > 0)) _acc = 0;
+    _acc += delta;
+    if (_acc > 32) {
+      value = false;
+    } else if (_acc < -32) {
+      value = true;
+    }
+  }
+
+  void show() {
+    _acc = 0;
+    value = true;
+  }
+}
+
+class OfficeShell extends StatefulWidget {
   final DocKind kind;
   final String title;
   final bool dirty;
@@ -39,6 +77,10 @@ class OfficeShell extends StatelessWidget {
   /// ("28 sayfa", "3 sayfa · Sayfa1"). Null ise yalnız tür adı yazar.
   final String? subtitle;
 
+  /// Okuma kipi: verilirse çubuklar kaydırmayla gizlenir/gelir. Düzenleyici
+  /// ekranlarında null — yazarken çubuk kaybolmamalı.
+  final ReadingBars? readingBars;
+
   const OfficeShell({
     super.key,
     required this.kind,
@@ -50,42 +92,161 @@ class OfficeShell extends StatelessWidget {
     this.bottomBar,
     this.fab,
     this.subtitle,
+    this.readingBars,
   });
+
+  @override
+  State<OfficeShell> createState() => _OfficeShellState();
+}
+
+class _OfficeShellState extends State<OfficeShell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shown;
+
+  // Tek dokunuşu (çubukları geri getirmek için) jest arenasına girmeden
+  // ölçeriz: belge kendi dokunuşlarını (köprü, seçim) aynen alır.
+  Offset? _downAt;
+  DateTime? _downTime;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tembel (late) ilklendirme OLMAZ: hiç kaydırılmayan ekranda denetleyici
+    // ilk kez dispose içinde kurulur ve ticker o anda ataya bakıp çöker.
+    _shown = AnimationController(vsync: this, value: 1);
+    widget.readingBars?.addListener(_onBars);
+  }
+
+  @override
+  void didUpdateWidget(OfficeShell old) {
+    super.didUpdateWidget(old);
+    if (old.readingBars != widget.readingBars) {
+      old.readingBars?.removeListener(_onBars);
+      widget.readingBars?.addListener(_onBars);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.readingBars?.removeListener(_onBars);
+    _shown.dispose();
+    super.dispose();
+  }
+
+  void _onBars() {
+    final target = widget.readingBars!.value ? 1.0 : 0.0;
+    final d = Motion.of(context, Motion.medium);
+    if (d == Duration.zero) {
+      _shown.value = target;
+    } else {
+      _shown.animateTo(target, duration: d, curve: Motion.standard);
+    }
+  }
+
+  bool _onScroll(ScrollUpdateNotification n) {
+    final bars = widget.readingBars;
+    if (bars != null &&
+        n.metrics.axis == Axis.vertical &&
+        n.dragDetails != null) {
+      bars.scrolled(n.scrollDelta ?? 0,
+          atTop: n.metrics.pixels <= n.metrics.minScrollExtent);
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: OfficeColors.canvas(context),
-      appBar: AppBar(
-        backgroundColor: scheme.surface,
-        foregroundColor: scheme.onSurface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleSpacing: 0,
-        title: DocTitle(
-          kind: kind,
-          title: title,
-          dirty: dirty,
-          subtitle: subtitle,
-        ),
-        actions: [...actions, const SizedBox(width: 4)],
-        bottom: tabBar,
+    final appBar = AppBar(
+      backgroundColor: scheme.surface,
+      foregroundColor: scheme.onSurface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      titleSpacing: 0,
+      title: DocTitle(
+        kind: widget.kind,
+        title: widget.title,
+        dirty: widget.dirty,
+        subtitle: widget.subtitle,
       ),
-      body: body,
-      bottomNavigationBar: bottomBar == null
-          ? null
-          // Bildirim kartı dock'un üstüne kalksın (bkz. ToastAvoider).
-          : ToastAvoider(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  border: Border(top: BorderSide(color: scheme.outlineVariant)),
-                ),
-                child: SafeArea(top: false, child: bottomBar!),
+      actions: [...widget.actions, const SizedBox(width: 4)],
+      bottom: widget.tabBar,
+    );
+    final bottom = widget.bottomBar == null
+        ? null
+        // Bildirim kartı dock'un üstüne kalksın (bkz. ToastAvoider).
+        : ToastAvoider(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                border: Border(top: BorderSide(color: scheme.outlineVariant)),
+              ),
+              child: SafeArea(top: false, child: widget.bottomBar!),
+            ),
+          );
+    if (widget.readingBars == null) {
+      return Scaffold(
+        backgroundColor: OfficeColors.canvas(context),
+        appBar: appBar,
+        body: widget.body,
+        bottomNavigationBar: bottom,
+        floatingActionButton: widget.fab,
+      );
+    }
+    final full = appBar.preferredSize.height;
+    final body = Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (e) {
+        _downAt = e.position;
+        _downTime = DateTime.now();
+      },
+      onPointerUp: (e) {
+        final at = _downAt, time = _downTime;
+        _downAt = null;
+        if (at == null || time == null) return;
+        if ((e.position - at).distance < 12 &&
+            DateTime.now().difference(time) < kLongPressTimeout &&
+            !widget.readingBars!.value) {
+          widget.readingBars!.show();
+        }
+      },
+      child: NotificationListener<ScrollUpdateNotification>(
+        onNotification: _onScroll,
+        child: widget.body,
+      ),
+    );
+    return AnimatedBuilder(
+      animation: _shown,
+      builder: (context, _) {
+        final t = _shown.value;
+        return Scaffold(
+          backgroundColor: OfficeColors.canvas(context),
+          appBar: PreferredSize(
+            preferredSize: Size.fromHeight(full * t),
+            child: ClipRect(
+              // Üstten hizalı: gizliyken kalan şerit çubuğun durum çubuğu
+              // dolgusudur (yüzey rengi) — simgeler yarım görünmez.
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: 0,
+                maxHeight: double.infinity,
+                child: appBar,
               ),
             ),
-      floatingActionButton: fab,
+          ),
+          body: body,
+          bottomNavigationBar: bottom == null
+              ? null
+              : ClipRect(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    heightFactor: t,
+                    child: bottom,
+                  ),
+                ),
+          floatingActionButton: t < 0.5 ? null : widget.fab,
+        );
+      },
     );
   }
 }

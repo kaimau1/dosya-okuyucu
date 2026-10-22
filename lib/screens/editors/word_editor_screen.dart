@@ -64,6 +64,9 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   bool _plainMode = false;
   bool _editing = false;
 
+  /// Okuma kipi (Faz 18 / G20) — düzenleme kapalıyken.
+  final ReadingBars _readingBars = ReadingBars();
+
   /// Yapısal bir değişiklikten (resim ekle/sil) sonra belge yeniden çiziliyor;
   /// çizim bitince düzenleme yeniden açılsın mı?
   bool _resumeEditing = false;
@@ -133,6 +136,12 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _readingBars.dispose();
+    super.dispose();
   }
 
   // ── belge içi bul / değiştir ───────────────────────────────────────────

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/app_version.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../services/crash_log.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../widgets/permission_gate.dart';
 
 /// **Yardım / SSS** (Faz 5 iskeleti, 2026-10-21 — FAZ_PLANI N11).
@@ -20,7 +23,24 @@ class HelpScreen extends StatelessWidget {
     'ai_key',
     'light_mode',
     'errors',
+    // Faz 11a: içerik genişletmesi.
+    'open_with',
+    'reading',
+    'resize',
+    'trash',
+    'usb',
+    'video',
   ];
+
+  /// "Sorun bildir": sürüm + cihaz + son hata kayıtları, paylaşım
+  /// sayfasıyla (e-posta, mesajlaşma — kullanıcı seçer; adres gömülü değil).
+  static Future<void> reportProblem(BuildContext context) async {
+    final ask = AppStrings.of(context).t('help.report_body');
+    final records = await CrashLog.load();
+    final text =
+        '${CrashLog.asShareText(records.take(5).toList())}\n$ask';
+    await Share.share(text, subject: 'Dosya Okuyucu $appVersionFull');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +64,15 @@ class HelpScreen extends StatelessWidget {
                 ],
               ],
             ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: FilledButton.tonalIcon(
+              key: const ValueKey('help-report'),
+              onPressed: () => reportProblem(context),
+              icon: const Icon(AppIcons.send),
+              label: Text(context.t('help.report')),
+            ),
+          ),
         ],
       ),
     );

@@ -18,7 +18,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
         // Chrome'un PDF görüntüleyicisiyle aynı). Focus çevresi klavye
         // olayını alabilmek için; arama kutusu gibi alanlar açılınca odağı
         // onlar devralır, kısayol da doğal olarak onlara akar.
-        return CallbackShortcuts(
+        return _withPdfSidePanel(CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyC, control: true):
                 _copyPdfSelection,
@@ -71,6 +71,14 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
                         // tercihi artık geçerli değil.
                         onInteractionStart: (_) => _pdfJumpTarget = null,
+                        // Okuma kipi: pdfrx kaydırma bildirimi yaymıyor; tek
+                        // parmak dikey hareketi çubuklara elle iletilir
+                        // (parmak yukarı = belge aşağı akar = gizle).
+                        onInteractionUpdate: (d) {
+                          if (d.pointerCount == 1) {
+                            _readingBars.scrolled(-d.focalPointDelta.dy);
+                          }
+                        },
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
@@ -205,7 +213,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
               ],
             ),
           ),
-        );
+        ));
 
       case DocKind.image:
         return Container(
@@ -317,5 +325,64 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
           ),
         );
     }
+  }
+
+  /// **Geniş ekranda sayfa küçük resimleri** (Faz 18 / G17): ≥ 840 dp'de
+  /// solda dikey şerit; dokunuş o sayfaya gider, güncel sayfa vurgulu.
+  /// Telefonda belge tam genişlik (değişmedi).
+  Widget _withPdfSidePanel(Widget viewer) {
+    final doc = _pdfDoc;
+    if (doc == null || MediaQuery.sizeOf(context).width < 840) return viewer;
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          key: const ValueKey('pdf-side-panel'),
+          width: 148,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(Gap.sm),
+            itemCount: doc.pages.length,
+            itemBuilder: (context, i) {
+              final page = i + 1;
+              final current = page == _pdfPage;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: Gap.sm),
+                child: InkWell(
+                  onTap: () => _goToPdfPage(page, doc.pages.length),
+                  child: Column(
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: current
+                                ? scheme.primary
+                                : scheme.outlineVariant,
+                            width: current ? 2 : 1,
+                          ),
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: doc.pages[i].width /
+                              (doc.pages[i].height == 0
+                                  ? 1
+                                  : doc.pages[i].height),
+                          child: PdfPageView(
+                              document: doc, pageNumber: page, maximumDpi: 48),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text('$page',
+                          style: Theme.of(context).textTheme.labelSmall),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(child: viewer),
+      ],
+    );
   }
 }

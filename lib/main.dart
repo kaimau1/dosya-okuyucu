@@ -26,6 +26,7 @@ import 'screens/fm/remote/ftp_server_screen.dart';
 import 'screens/fm/resize_actions.dart';
 import 'screens/fm/pick_file_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'services/fm/native_extras.dart';
 import 'services/fm/secure_vault.dart';
 import 'services/fm/disk_housekeeping.dart';
@@ -429,7 +430,7 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
       // dosya için açılıyor).
       home: picker
           ? const PickFileScreen()
-          : const AppLockGate(child: HomeScreen()),
+          : const AppLockGate(child: OnboardingGate(child: HomeScreen())),
     );
   }
 }

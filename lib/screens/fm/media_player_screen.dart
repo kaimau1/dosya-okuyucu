@@ -13,6 +13,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/native_extras.dart';
 import '../../services/fm/pip.dart';
 import '../../services/fm/playback_positions.dart';
 import '../../services/fm/subtitles.dart';
@@ -87,6 +88,30 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
 
   /// Oynatıcının o anki sesi (0-1). `VideoPlayerValue.volume` başlangıçta 1.
   double _volume = 1;
+
+  // ── Faz 18 / G18 jestleri ─────────────────────────────────────────────
+  /// Dikey kaydırma ekranın SOL yarısında başladıysa parlaklık, sağda ses.
+  bool _dragBrightness = false;
+
+  /// Pencere parlaklığı (0-1); ilk kaydırmada sistemden okunur. Ekrandan
+  /// çıkınca sistemin ayarına dönülür (`setBrightness(-1)`).
+  double? _brightness;
+  double? _brightnessHint;
+  bool _brightnessTouched = false;
+
+  /// Uzun basışta geçici 2× — bırakınca [_speedBeforeBoost]'a döner.
+  double? _speedBeforeBoost;
+
+  /// **Kontrol kilidi**: cepte/yatarken yanlış dokunuş videoyu
+  /// sarmasın/kapatmasın. Kilitliyken yalnız kilit düğmesi görünür.
+  bool _locked = false;
+  bool _lockHintVisible = false;
+  Timer? _lockTimer;
+
+  /// Yatay kaydırmayla sarma: başlangıç konumu + biriken fark.
+  Duration? _scrubFrom;
+  double _scrubDx = 0;
+  Duration? _scrubTarget;
 
   /// Servis her durum değişiminde haber veriyor; ekran o an yeniden çizilir.
   void _onService() {
@@ -180,6 +205,8 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _p.armAutoPip(false);
     _hideTimer?.cancel();
     _volumeTimer?.cancel();
+    _lockTimer?.cancel();
+    if (_brightnessTouched) unawaited(NativeExtras.setBrightness(-1));
     // **Oynatıcı KAPATILMIYOR** — ekran altı mini çubuk onu sürdürüyor.
     // Ekranı serbest bırak (tam ekranda yatay kilitlemiş olabiliriz).
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
@@ -244,18 +271,38 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
         // testi bunu yakaladı). Onun yerine ikinci dokunuş elle ölçülüyor —
         // her dokunuş anında iş görüyor. İki dokunuş kontrolleri iki kez
         // çevirdiği için görüntü de yerinde kalıyor (aç-kapa = değişmedi).
-        onTapUp: _handleTap,
-        // Sağa/sola kaydırma: çalma listesinde önceki/sonraki dosya.
-        onHorizontalDragEnd: (details) {
-          final v = details.primaryVelocity ?? 0;
-          if (v < -250) _skip(1);
-          if (v > 250) _skip(-1);
-        },
-        // **Dikey kaydırma = ses** (oynatıcının kendi sesi; sistem sesi bir
-        // eklenti ister ve tek bir kaydırma için derleme zincirini oynatmak
-        // yasak — bkz. HAFIZA). Gösterge kaydırma boyunca ekranda.
-        onVerticalDragUpdate: _isAudio ? null : _handleVolumeDrag,
+        onTapUp: _locked ? (_) => _showLockHint() : _handleTap,
+        // **Yatay kaydırma** (Faz 18): yavaş sürükleme SARAR (zaman balonu),
+        // hızlı fiske çalma listesinde önceki/sonraki dosyaya geçer.
+        onHorizontalDragStart: _locked || _isAudio ? null : _scrubStart,
+        onHorizontalDragUpdate: _locked || _isAudio ? null : _scrubUpdate,
+        onHorizontalDragEnd: _locked
+            ? null
+            : (details) {
+                final v = details.primaryVelocity ?? 0;
+                if (_scrubFrom != null && _scrubDx.abs() >= 40) {
+                  _scrubCommit();
+                  return;
+                }
+                _scrubCancel();
+                if (v < -250) _skip(1);
+                if (v > 250) _skip(-1);
+              },
+        // **Dikey kaydırma**: sağ yarıda ses (oynatıcının kendi sesi), sol
+        // yarıda pencere parlaklığı (Faz 18). Gösterge kaydırma boyunca.
+        onVerticalDragStart: _locked || _isAudio
+            ? null
+            : (d) => _dragBrightness = d.localPosition.dx <
+                MediaQuery.sizeOf(context).width / 2,
+        onVerticalDragUpdate: _locked || _isAudio
+            ? null
+            : (d) => _dragBrightness
+                ? _handleBrightnessDrag(d)
+                : _handleVolumeDrag(d),
         onVerticalDragEnd: (_) => _hideVolumeSoon(),
+        // **Uzun basış = 2× hız** (bırakınca eski hız).
+        onLongPressStart: _locked || _isAudio ? null : (_) => _boostStart(),
+        onLongPressEnd: _locked || _isAudio ? null : (_) => _boostEnd(),
         child: Stack(
           children: [
             Positioned.fill(child: _surface(c, value)),
@@ -279,9 +326,30 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 top: 80,
                 child: IgnorePointer(child: _volumeBadge()),
               ),
-            if (_controlsVisible)
+            if (_brightnessHint != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 80,
+                child: IgnorePointer(child: _brightnessBadge()),
+              ),
+            if (_speedBeforeBoost != null || _scrubTarget != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 80,
+                child: IgnorePointer(child: _gestureBubble()),
+              ),
+            if (!_isAudio && (_locked ? _lockHintVisible : _controlsVisible))
+              PositionedDirectional(
+                start: Gap.md,
+                top: 0,
+                bottom: 0,
+                child: Center(child: _lockButton()),
+              ),
+            if (_controlsVisible && !_locked)
               Positioned(left: 0, right: 0, top: 0, child: _topBar()),
-            if (_controlsVisible && c != null && value != null)
+            if (_controlsVisible && !_locked && c != null && value != null)
               Positioned(
                 left: 0,
                 right: 0,

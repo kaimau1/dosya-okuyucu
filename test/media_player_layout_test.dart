@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/screens/fm/media_player_screen.dart';
 import 'package:dosya_okuyucu/services/fm/video_playback.dart';
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_player/video_player.dart';
@@ -182,6 +183,75 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
+  testWidgets('Faz 18: uzun basış 2× hız, bırakınca eski hız; kilitliyken '
+      'jestler ve kontroller kapalı', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(home: MediaPlayerScreen(path: video.path)),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final center = tester.getCenter(find.byType(VideoPlayer));
+    final g = await tester.startGesture(center);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    expect(platform.speeds.last, 2.0);
+    expect(find.text('2×'), findsOneWidget);
+    await g.up();
+    await tester.pump();
+    expect(platform.speeds.last, 1.0);
+
+    // Kilit: kontroller (üst bar) gider, kilit düğmesi kısa süre görünür.
+    await tester.tap(find.byKey(const ValueKey('mp-lock')));
+    await tester.pump();
+    expect(find.byType(AppBar), findsNothing);
+    final before = platform.speeds.length;
+    final g2 = await tester.startGesture(center);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await g2.up();
+    expect(platform.speeds.length, before, reason: 'kilitliyken 2× yok');
+    // Kilidi aç.
+    await tester.tap(find.byType(VideoPlayer), warnIfMissed: false);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('mp-lock')));
+    await tester.pump();
+    expect(find.byType(AppBar), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+
+    VideoPlayback.instance.debugReset();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('Faz 18: yavaş yatay sürükleme sarar (zaman balonu)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(home: MediaPlayerScreen(path: video.path)),
+    );
+    await tester.pump();
+    await tester.pump();
+    final center = tester.getCenter(find.byType(VideoPlayer));
+    final g = await tester.startGesture(center);
+    for (var i = 0; i < 10; i++) {
+      await g.moveBy(const Offset(12, 0));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.textContaining('sn ·'), findsOneWidget);
+    final seeks = platform.seeks.length;
+    await g.up();
+    await tester.pump();
+    expect(platform.seeks.length, greaterThan(seeks));
+    await tester.pump(const Duration(seconds: 4));
+
+    VideoPlayback.instance.debugReset();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }
 
 /// Gerçek ExoPlayer yerine testte kullanılan sahte oynatma motoru:
@@ -244,8 +314,12 @@ class _FakeVideoPlayerPlatform extends VideoPlayerPlatform {
     seeks.add(position);
   }
 
+  final List<double> speeds = <double>[];
+
   @override
-  Future<void> setPlaybackSpeed(int playerId, double speed) async {}
+  Future<void> setPlaybackSpeed(int playerId, double speed) async {
+    speeds.add(speed);
+  }
 
   @override
   Future<void> setMixWithOthers(bool mixWithOthers) async {}

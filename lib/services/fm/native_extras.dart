@@ -171,6 +171,22 @@ abstract final class NativeExtras {
   static Future<Uint8List?> unwrapKey(Uint8List wrapped) =>
       _call<Uint8List>('unwrapKey', wrapped);
 
+  // ── 5. pencere parlaklığı + "Farklı kullan" (Faz 18) ─────────────────
+
+  /// Pencere parlaklığı 0..1; -1 = sistemin ayarına dön. Sistem ayarı
+  /// DEĞİŞMEZ (izin gerekmez), ekrandan çıkınca -1 ile geri alınır.
+  static Future<void> setBrightness(double value) =>
+      _call<bool>('setBrightness', value);
+
+  /// Pencerenin o anki parlaklığı; sistem ayarı izleniyorsa negatif.
+  static Future<double?> brightness() => _call<double>('getBrightness');
+
+  /// Sistemin "Farklı kullan" seçicisi (duvar kâğıdı, kişi fotoğrafı…).
+  static Future<bool> attachData(String path, String mime, String title) async =>
+      await _call<bool>(
+          'attachData', {'path': path, 'mime': mime, 'title': title}) ??
+      false;
+
   // ── 4. konum adı ───────────────────────────────────────────────────────
 
   /// Koordinatın semt/şehir adı ("Çankaya, Ankara"); bulunamazsa null.

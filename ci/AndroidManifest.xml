@@ -83,19 +83,20 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions"/>
 
-    <!-- `enableOnBackInvokedCallback="false"` (2026-09-26, targetSdk 36):
-         Android 16'yı hedefleyen uygulamada "tahminli geri" VARSAYILAN açılır
-         ve `onBackPressed` hiç çağrılmaz. Uygulamanın geri davranışı (açık
-         pencereyi kapatma, düzenlemeden çıkarken sorma, kararan ekran
-         düzeltmesi — HAFIZA 2026-09-06) eski yola göre kuruldu;
-         targetSdk yükseltmesi bu davranışı DEĞİŞTİRMESİN diye
-         geçici olarak kapalı tutuluyor. Tahminli geriye geçiş ayrı bir tur. -->
+    <!-- **Tahminli geri AÇIK** (Faz 11a, 2026-10-22). 2026-09-26'da
+         targetSdk 36 geçişinde geçici olarak kapatılmıştı (`false`). Dart
+         tarafında `WillPopScope` kalmadı — bütün geri davranışı `PopScope`
+         ile (açık pencereyi kapatma, düzenlemeden çıkarken sorma) ve
+         kararan ekran düzeltmesi rota kimliğiyle kapatmaya dayanıyor
+         (`busy_dialog`, `NavigatorStackGuard`), `onBackPressed`e değil;
+         Kotlin'de `onBackPressed` geçersiz kılınmıyor. API 37'de kaçış yolu
+         kalmıyor. Cihazda doğrulama: docs/CIHAZ_TESTI.md (Faz 11a). -->
     <application
         android:label="Dosya Okuyucu"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:localeConfig="@xml/locales_config"
-        android:enableOnBackInvokedCallback="false"
+        android:enableOnBackInvokedCallback="true"
         android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"

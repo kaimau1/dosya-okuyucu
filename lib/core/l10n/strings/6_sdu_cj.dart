@@ -202,6 +202,10 @@ const Map<String, (String, String, String)> _t6 = {
     'Open in the viewer (OCR, translation, PDF)',
     'افتح في العارض (OCR، ترجمة، PDF)',
   ),
+  'gal.slideshow': ('Slayt gösterisi', 'Slideshow', 'عرض الشرائح'),
+  'gal.slideshow_every': ('{n} saniyede bir', 'Every {n} seconds', 'كل {n} ثوانٍ'),
+  'gal.use_as': ('Farklı kullan…', 'Use as…', 'استخدام كـ…'),
+  'gal.use_as_failed': ('Bu fotoğraf için uygulama bulunamadı.', 'No app can use this photo.', 'لا يوجد تطبيق يمكنه استخدام هذه الصورة.'),
   'gal.other_actions': ('Diğer işlemler', 'Other actions', 'إجراءات أخرى'),
 
   // ── Sıkıştırma ────────────────────────────────────────────────────────────

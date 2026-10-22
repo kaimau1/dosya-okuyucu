@@ -42,6 +42,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _search = TextEditingController();
   String _query = '';
 
+  /// Geniş ekranda (≥ 840 dp) sağ bölmede açık kategori (Faz 18 / G17:
+  /// liste-ayrıntı). Telefonda kullanılmaz — kart dokunuşu sayfa açar.
+  String? _wideSelected;
+
   @override
   void dispose() {
     _search.dispose();
@@ -97,21 +101,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      body: query.isEmpty
-          ? _categoryList(categories)
-          : _searchResults(categories, query),
+      body: query.isNotEmpty
+          ? _searchResults(categories, query)
+          : MediaQuery.sizeOf(context).width >= 840 && categories.isNotEmpty
+              ? _wideLayout(categories)
+              : _categoryList(categories),
+    );
+  }
+
+  /// Liste-ayrıntı: solda kategoriler, sağda seçili kategorinin sayfası.
+  Widget _wideLayout(List<SettingsCategory> categories) {
+    final selected = categories.firstWhere((c) => c.id == _wideSelected,
+        orElse: () => categories.first);
+    return Row(
+      key: const ValueKey('settings-list-detail'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 380,
+          child: _categoryList(categories,
+              selectedId: selected.id,
+              onPick: (c) => setState(() => _wideSelected = c.id)),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(
+          child: SettingsCategoryScreen(
+              key: ValueKey('settings-detail-${selected.id}'),
+              category: selected),
+        ),
+      ],
     );
   }
 
   /// Kategori kartları — ana görünüm. En üstte hızlı tema seçici
   /// ([_QuickHeader]).
-  Widget _categoryList(List<SettingsCategory> categories) => ListView.builder(
+  Widget _categoryList(List<SettingsCategory> categories,
+          {String? selectedId, ValueChanged<SettingsCategory>? onPick}) =>
+      ListView.builder(
         padding: withNavInset(
             context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
         itemCount: categories.length + 1,
         itemBuilder: (context, i) => i == 0
             ? const _QuickHeader()
-            : _CategoryCard(category: categories[i - 1]),
+            : _CategoryCard(
+                category: categories[i - 1],
+                selected: categories[i - 1].id == selectedId,
+                onTap: onPick == null ? null : () => onPick(categories[i - 1]),
+              ),
       );
 
   /// **Arama sonuçları — 2026-08-29.**
@@ -214,7 +250,12 @@ Future<void> openSettingsCategory(BuildContext context, String id) {
 class _CategoryCard extends StatelessWidget {
   final SettingsCategory category;
 
-  const _CategoryCard({required this.category});
+  /// Geniş ekranda seçili kart vurgulanır; [onTap] verilirse sayfa AÇILMAZ.
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _CategoryCard(
+      {required this.category, this.selected = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -223,13 +264,16 @@ class _CategoryCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.sm + 2),
       child: Material(
-        color: scheme.surfaceContainerLow,
+        color: selected
+            ? scheme.secondaryContainer
+            : scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Radii.card + 2),
         child: InkWell(
           borderRadius: BorderRadius.circular(Radii.card + 2),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => SettingsCategoryScreen(category: category),
-          )),
+          onTap: onTap ??
+              () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => SettingsCategoryScreen(category: category),
+                  )),
           child: Padding(
             padding: const EdgeInsets.all(Gap.md),
             child: Row(

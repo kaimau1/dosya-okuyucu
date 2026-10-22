@@ -67,6 +67,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
 
   void _toggleEdit() {
     final on = !_editing;
+    _readingBars.show();
     _viewKey.currentState?.setEditing(on);
     _partSetState(() => _editing = on);
   }

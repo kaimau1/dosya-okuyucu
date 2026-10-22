@@ -176,11 +176,160 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     _partSetState(() => _volumeHint = next);
   }
 
+  /// Sol yarıda dikey kaydırma: PENCERE parlaklığı (Faz 18 / G18).
+  Future<void> _handleBrightnessDrag(DragUpdateDetails details) async {
+    if (_brightness == null) {
+      final now = await NativeExtras.brightness();
+      // Negatif = sistem ayarı izleniyor (gerçek değer bilinmiyor) → orta.
+      _brightness = (now == null || now < 0) ? 0.5 : now;
+    }
+    if (!mounted) return;
+    final height = MediaQuery.sizeOf(context).height;
+    final next =
+        (_brightness! - details.delta.dy / (height * 0.6)).clamp(0.01, 1.0);
+    _brightness = next;
+    _brightnessTouched = true;
+    unawaited(NativeExtras.setBrightness(next));
+    _volumeTimer?.cancel();
+    _partSetState(() => _brightnessHint = next);
+  }
+
+  void _boostStart() {
+    if (_speedBeforeBoost != null) return;
+    _speedBeforeBoost = _speed;
+    unawaited(_p.setSpeed(2.0));
+    _partSetState(() {});
+  }
+
+  void _boostEnd() {
+    final back = _speedBeforeBoost;
+    if (back == null) return;
+    _speedBeforeBoost = null;
+    unawaited(_p.setSpeed(back));
+    _partSetState(() {});
+  }
+
+  void _scrubStart(DragStartDetails _) {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    _scrubFrom = c.value.position;
+    _scrubDx = 0;
+  }
+
+  /// Ekran genişliği kadar sürükleme = 90 sn (uzun filmde de ince ayar
+  /// yapılabilsin diye süreye değil sabite bağlı).
+  void _scrubUpdate(DragUpdateDetails d) {
+    final from = _scrubFrom;
+    final c = _controller;
+    if (from == null || c == null) return;
+    _scrubDx += d.delta.dx;
+    if (_scrubDx.abs() < 40) return; // fiske ile karışmasın
+    final width = MediaQuery.sizeOf(context).width;
+    final ms = from.inMilliseconds + (_scrubDx / width * 90000).round();
+    final max = c.value.duration.inMilliseconds;
+    _partSetState(() => _scrubTarget =
+        Duration(milliseconds: ms.clamp(0, max > 0 ? max : ms.abs())));
+  }
+
+  void _scrubCommit() {
+    final target = _scrubTarget;
+    _scrubCancel();
+    if (target != null) unawaited(_p.seek(target));
+    _scheduleHide();
+  }
+
+  void _scrubCancel() {
+    _scrubFrom = null;
+    _scrubDx = 0;
+    if (_scrubTarget != null) _partSetState(() => _scrubTarget = null);
+  }
+
+  void _toggleLock() {
+    _partSetState(() {
+      _locked = !_locked;
+      _controlsVisible = !_locked;
+      _lockHintVisible = _locked;
+    });
+    if (_locked) _showLockHint();
+  }
+
+  /// Kilitliyken dokunuş: kilit düğmesi 2 sn görünür.
+  void _showLockHint() {
+    _lockTimer?.cancel();
+    _partSetState(() => _lockHintVisible = true);
+    _lockTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) _partSetState(() => _lockHintVisible = false);
+    });
+  }
+
+  Widget _lockButton() => Material(
+        color: AppColors.mediaSurface.withValues(alpha: 0.5),
+        shape: const CircleBorder(),
+        child: IconButton(
+          key: const ValueKey('mp-lock'),
+          tooltip: context.t(_locked ? 'mp.unlock' : 'mp.lock'),
+          icon: Icon(_locked ? AppIcons.lock : AppIcons.unlock,
+              color: AppColors.onMedia),
+          onPressed: _toggleLock,
+        ),
+      );
+
+  Widget _brightnessBadge() => _hudPill(
+        AppIcons.brightness,
+        '${((_brightnessHint ?? 0) * 100).round()}%',
+        value: _brightnessHint,
+      );
+
+  Widget _gestureBubble() {
+    final target = _scrubTarget;
+    if (target != null) {
+      final from = _scrubFrom ?? Duration.zero;
+      final diff = (target - from).inSeconds;
+      return _hudPill(diff < 0 ? AppIcons.rewind : AppIcons.fastForward,
+          '${diff >= 0 ? '+' : '−'}${diff.abs()} sn · ${_MediaPlayerScreenState._fmt(target)}');
+    }
+    return _hudPill(AppIcons.fastForward, '2×');
+  }
+
+  Widget _hudPill(IconData icon, String text, {double? value}) => Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.mediaSurface.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(Radii.sheet),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: AppColors.onMedia),
+              if (value != null) ...[
+                const SizedBox(width: Gap.sm),
+                SizedBox(
+                  width: 90,
+                  child: LinearProgressIndicator(
+                    value: value,
+                    backgroundColor: AppColors.onMediaFaint,
+                    color: AppColors.onMedia,
+                  ),
+                ),
+              ],
+              const SizedBox(width: Gap.sm),
+              Text(text, style: const TextStyle(color: AppColors.onMedia)),
+            ],
+          ),
+        ),
+      );
+
   /// Göstergeyi kısa süre sonra gizler (kaydırma bitti).
   void _hideVolumeSoon() {
     _volumeTimer?.cancel();
     _volumeTimer = Timer(const Duration(milliseconds: 900), () {
-      if (mounted) _partSetState(() => _volumeHint = null);
+      if (mounted) {
+        _partSetState(() {
+          _volumeHint = null;
+          _brightnessHint = null;
+        });
+      }
     });
   }
 

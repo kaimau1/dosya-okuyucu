@@ -5,6 +5,8 @@ part of '../app_strings.dart';
 const Map<String, (String, String, String)> _t2 = {
   'ea.sec_move': ('Taşı ve kopyala', 'Move & copy', 'نقل ونسخ'),
   'ea.sec_file': ('Dosya işlemleri', 'File actions', 'إجراءات الملف'),
+  'vw.fullscreen': ('Tam ekran', 'Full screen', 'ملء الشاشة'),
+  'vw.fullscreen_hint': ('Durum ve gezinme çubukları gizlenir', 'Hides the status and navigation bars', 'يخفي شريطي الحالة والتنقل'),
   'ea.sec_this': ('Bu dosya', 'This file', 'هذا الملف'),
   'ea.sec_ai': ('AI ve dönüştür', 'AI & convert', 'الذكاء الاصطناعي والتحويل'),
   'ea.pick_folder': ('klasör seç', 'pick folder', 'اختر مجلدًا'),

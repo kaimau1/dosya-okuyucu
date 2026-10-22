@@ -356,6 +356,42 @@ class MainActivity : FlutterActivity() {
                 "unwrapKey" -> result.success(
                     (call.arguments as? ByteArray)?.let { Extras.unwrap(it) }
                 )
+                // Faz 18 / G18: video oynatıcıda sol yarıda kaydırma = PENCERE
+                // parlaklığı (sistem ayarı değişmez, izin gerekmez). -1 → sistem.
+                "setBrightness" -> {
+                    val v = (call.arguments as? Number)?.toFloat() ?: -1f
+                    val lp = window.attributes
+                    lp.screenBrightness = if (v < 0f) -1f else v.coerceIn(0.01f, 1f)
+                    window.attributes = lp
+                    result.success(true)
+                }
+                "getBrightness" -> result.success(window.attributes.screenBrightness.toDouble())
+                // Faz 18 / G19: galeride "Farklı kullan" (duvar kâğıdı, kişi
+                // fotoğrafı). Medya taramasının verdiği content:// adresiyle —
+                // FileProvider bağımlılığı gerekmez.
+                "attachData" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    val mime = call.argument<String>("mime") ?: "image/*"
+                    val title = call.argument<String>("title") ?: ""
+                    MediaScannerConnection.scanFile(ctx, arrayOf(path), arrayOf(mime)) { _, uri ->
+                        runOnUiThread {
+                            if (uri == null) {
+                                result.success(false)
+                            } else {
+                                try {
+                                    val i = Intent(Intent.ACTION_ATTACH_DATA)
+                                        .setDataAndType(uri, mime)
+                                        .putExtra("mimeType", mime)
+                                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    startActivity(Intent.createChooser(i, title))
+                                    result.success(true)
+                                } catch (e: Exception) {
+                                    result.success(false)
+                                }
+                            }
+                        }
+                    }
+                }
                 "geocode" -> Extras.geocode(
                     ctx,
                     call.argument<Double>("lat") ?: 0.0,

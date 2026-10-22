@@ -159,6 +159,70 @@ const Map<String, (String, String, String)> _t9 = {
   'aikey.add': ('Anahtar ekle', 'Add key', 'إضافة مفتاح'),
   'aikey.button_off': ('AI (kapalı)', 'AI (off)', 'الذكاء الاصطناعي (متوقف)'),
   // ── Yardım / SSS (Faz 5 iskeleti) ─────────────────────────────────────────
+  // ── İlk açılış rehberi (Faz 11a) ─────────────────────────────────────────
+  'onb.skip': ('Atla', 'Skip', 'تخطٍّ'),
+  'onb.next': ('İleri', 'Next', 'التالي'),
+  'onb.start': ('Başla', 'Get started', 'ابدأ'),
+  'onb.p1_title': ('Tüm dosyaların tek yerde', 'All your files in one place', 'كل ملفاتك في مكان واحد'),
+  'onb.p1_body': (
+    'PDF, Word, Excel, slayt, fotoğraf, video ve arşivleri açar, düzenler ve dönüştürür. Telefondaki dosyaları gezer, temizler, taşır — internet gerekmez.',
+    'Opens, edits and converts PDF, Word, Excel, slides, photos, videos and archives. Browses, cleans up and moves the files on your phone — no internet needed.',
+    'يفتح ملفات PDF وWord وExcel والعروض والصور والفيديو والأرشيفات ويحررها ويحوّلها. يتصفح ملفات هاتفك وينظّفها وينقلها — دون الحاجة إلى الإنترنت.',
+  ),
+  'onb.p2_title': ('İzinler — neden ve ne zaman', 'Permissions — why and when', 'الأذونات — لماذا ومتى'),
+  'onb.p2_body': (
+    'Her izin tek bir iş için, o işi ilk kullandığınızda istenir. Dosyalara erişim gezgin ve temizlik için; bildirim uzun işlerin ilerlemesi için; kamera belge tarama için. Vermezseniz yalnız o özellik kısıtlanır.',
+    'Each permission serves one feature and is asked the first time you use it. File access is for browsing and cleanup; notifications show progress of long tasks; the camera is for scanning documents. If you decline, only that feature is limited.',
+    'كل إذن يخدم ميزة واحدة ويُطلب عند أول استخدام لها. الوصول إلى الملفات للتصفح والتنظيف؛ والإشعارات لعرض تقدم المهام الطويلة؛ والكاميرا لمسح المستندات. إذا رفضت تُقيَّد تلك الميزة فقط.',
+  ),
+  'onb.p3_title': ('Gizlilik ve AI', 'Privacy and AI', 'الخصوصية والذكاء الاصطناعي'),
+  'onb.p3_body': (
+    'Dosyalarınız telefonda kalır; reklam ve takip yok. AI özellikleri isteğe bağlıdır: yalnız siz bir AI işi başlattığınızda, seçtiğiniz içerik kendi Gemini anahtarınızla Google\'a gönderilir. Anahtarınız bu telefonda şifreli saklanır.',
+    'Your files stay on the phone; no ads and no tracking. AI features are optional: only when you start an AI task is the content you chose sent to Google with your own Gemini key. Your key is stored encrypted on this phone.',
+    'تبقى ملفاتك على الهاتف؛ لا إعلانات ولا تتبّع. ميزات الذكاء الاصطناعي اختيارية: فقط عندما تبدأ مهمة ذكاء اصطناعي يُرسَل المحتوى الذي اخترته إلى Google بمفتاح Gemini الخاص بك. ويُحفظ مفتاحك مشفّرًا على هذا الهاتف.',
+  ),
+  'help.report': ('Sorun bildir', 'Report a problem', 'الإبلاغ عن مشكلة'),
+  'help.report_body': (
+    'Sorunu kısaca anlatın (ne yaptınız, ne bekliyordunuz, ne oldu):',
+    'Briefly describe the problem (what you did, what you expected, what happened):',
+    'صِف المشكلة باختصار (ماذا فعلت، وماذا توقعت، وماذا حدث):',
+  ),
+  'help.open_with_q': ('Dosyalar neden başka uygulamada açılıyor / açılmıyor?', 'Why do files open (or not) in another app?', 'لماذا تُفتح الملفات (أو لا تُفتح) في تطبيق آخر؟'),
+  'help.open_with_a': (
+    'Uygulama PDF, Office, metin, fotoğraf, video, ses ve arşivleri kendisi açar. Başka biçimler için dosyanın ⋮ menüsünde "Başka uygulamayla aç" vardır. Fotoğraf ve videonun nerede açılacağını Ayarlar > Gezinme\'den seçebilirsiniz.',
+    'The app opens PDF, Office, text, photos, video, audio and archives itself. For other formats use "Open with another app" in the file\'s ⋮ menu. Choose where photos and videos open in Settings > Browsing.',
+    'يفتح التطبيق ملفات PDF وOffice والنصوص والصور والفيديو والصوت والأرشيفات بنفسه. للصيغ الأخرى استخدم "فتح بتطبيق آخر" من قائمة ⋮ للملف. اختر مكان فتح الصور والفيديو من الإعدادات > التصفح.',
+  ),
+  'help.reading_q': ('Okurken çubuklar neden kayboluyor?', 'Why do the bars disappear while reading?', 'لماذا تختفي الأشرطة أثناء القراءة؟'),
+  'help.reading_a': (
+    'Okuma kipi: belgeyi aşağı kaydırınca üst ve alt çubuk çekilir, yukarı kaydırınca ya da ekrana bir kez dokununca geri gelir. "Aa" düğmesindeki "Tam ekran" sistem çubuklarını da gizler.',
+    'Reading mode: scrolling down hides the top and bottom bars; scrolling up or a single tap brings them back. "Full screen" under the "Aa" button also hides the system bars.',
+    'وضع القراءة: التمرير لأسفل يخفي الشريطين العلوي والسفلي، والتمرير لأعلى أو نقرة واحدة يعيدهما. و"ملء الشاشة" في زر "Aa" يخفي أشرطة النظام أيضًا.',
+  ),
+  'help.resize_q': ('Fotoğrafı istediğim boyuta nasıl küçültürüm?', 'How do I resize a photo exactly?', 'كيف أغيّر حجم صورة بدقة؟'),
+  'help.resize_a': (
+    'Galeride "Boyut"a ya da dosyanın ⋮ menüsünde "Boyutlandır"a dokunun: yüzde, piksel (oran kilitli), uzun kenar, en-boy oranı ya da hedef dosya boyutu ("en çok 200 KB") seçilebilir. Özgün dosya korunur.',
+    'Tap "Resize" in the gallery or "Resize" in the file\'s ⋮ menu: choose a percentage, pixels (aspect locked), long edge, aspect ratio or a target file size ("at most 200 KB"). The original is kept.',
+    'اضغط "الحجم" في المعرض أو "تغيير الحجم" من قائمة ⋮ للملف: اختر نسبة مئوية أو بكسلات (مع قفل النسبة) أو الضلع الأطول أو نسبة العرض إلى الارتفاع أو حجم ملف مستهدفًا ("200 ك.ب كحد أقصى"). يُحتفَظ بالأصل.',
+  ),
+  'help.trash_q': ('Sildiğim dosyayı geri alabilir miyim?', 'Can I get a deleted file back?', 'هل يمكنني استعادة ملف محذوف؟'),
+  'help.trash_a': (
+    'Evet: silinen dosyalar önce Çöp kutusuna gider; silme bildirimindeki "Geri al" ya da Çöp kutusu > Geri yükle ile geri gelir. Çöp kutusu ayarladığınız günden sonra kendini boşaltır.',
+    'Yes: deleted files go to the Trash first; "Undo" on the delete notice or Trash > Restore brings them back. The Trash empties itself after the number of days you set.',
+    'نعم: تذهب الملفات المحذوفة أولًا إلى سلة المهملات؛ ويعيدها "تراجع" في إشعار الحذف أو سلة المهملات > استعادة. وتُفرَّغ السلة تلقائيًا بعد عدد الأيام الذي تحدده.',
+  ),
+  'help.usb_q': ('USB belleği güvenle nasıl çıkarırım?', 'How do I safely remove a USB drive?', 'كيف أُخرج ذاكرة USB بأمان؟'),
+  'help.usb_a': (
+    'Yazma bitmeden belleği çekmeyin; USB ekranının ⋮ menüsünden "Güvenle çıkar"ı kullanın. Yazma yarıda kesilirse uygulama bir sonraki takışta belleği kendiliğinden onarır (kayıp alanı geri verir).',
+    'Do not unplug before writing finishes; use "Safely remove" in the USB screen\'s ⋮ menu. If a write is interrupted, the app repairs the drive automatically the next time it is plugged in (lost space is recovered).',
+    'لا تنزع الذاكرة قبل انتهاء الكتابة؛ استخدم "إزالة آمنة" من قائمة ⋮ في شاشة USB. وإذا انقطعت الكتابة يُصلح التطبيق الذاكرة تلقائيًا عند توصيلها مرة أخرى (تُستعاد المساحة المفقودة).',
+  ),
+  'help.video_q': ('Video oynatıcıda hangi jestler var?', 'Which gestures does the video player have?', 'ما الإيماءات المتاحة في مشغّل الفيديو؟'),
+  'help.video_a': (
+    'Sağ yarıda yukarı/aşağı kaydırma ses, sol yarıda parlaklık; yavaş yatay kaydırma sarar; çift dokunuş 10 sn ileri/geri; basılı tutmak 2× hız. Soldaki kilit düğmesi yanlış dokunuşları engeller.',
+    'Swipe up/down on the right half for volume, on the left half for brightness; a slow horizontal drag seeks; double-tap skips 10 s; press and hold for 2× speed. The lock button on the left blocks accidental touches.',
+    'اسحب لأعلى/لأسفل في النصف الأيمن للصوت وفي الأيسر للسطوع؛ والسحب الأفقي البطيء للتقديم؛ والنقر المزدوج للتقديم أو الإرجاع 10 ث؛ والضغط المطوّل لسرعة 2×. وزر القفل على اليسار يمنع اللمسات الخاطئة.',
+  ),
   'help.title': ('Yardım ve sık sorulanlar', 'Help & FAQ', 'المساعدة والأسئلة الشائعة'),
   'help.tile_sub': (
     'İzinler, kasa PIN\'i, ağ paylaşımı, AI anahtarı',

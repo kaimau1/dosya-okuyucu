@@ -313,4 +313,16 @@ void main() {
         'privacy', 'storage', 'about']));
     expect(ids.contains('trash'), isFalse);
   });
+
+  testWidgets('Faz 18: geniş ekranda (1280×800) liste-ayrıntı, taşma yok',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('settings-list-detail')), findsOneWidget);
+    expect(find.byType(SettingsCategoryScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

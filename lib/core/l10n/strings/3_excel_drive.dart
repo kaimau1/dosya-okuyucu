@@ -914,6 +914,8 @@ const Map<String, (String, String, String)> _t3 = {
     'تكرار A-B مفعّل — يتكرر المقطع باستمرار.',
   ),
   'mp.loop_cleared': ('A-B tekrar kapatıldı', 'A-B repeat cleared', 'أُلغي تكرار A-B'),
+  'mp.lock': ('Kontrolleri kilitle', 'Lock controls', 'قفل عناصر التحكم'),
+  'mp.unlock': ('Kilidi aç', 'Unlock', 'إلغاء القفل'),
   'mp.float_window': (
     'Küçük pencerede oynat',
     'Play in picture-in-picture',

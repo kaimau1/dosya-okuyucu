@@ -298,6 +298,44 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// (galeri, WhatsApp…) biriken dosyalar sonsuza dek görünmez kalmasın.
   static const _maxIndexAge = Duration(hours: 12);
 
+  /// Bölümler, kullanıcının sırasıyla. **Geniş ekranda iki sütun**
+  /// (Faz 18 / G17): ≥ 600 dp yatay ya da ≥ 840 dp — kutu ızgaraları ve
+  /// araçlar sağda, bellek/son açılanlar/favoriler/hızlı klasörler solda.
+  /// Telefonda tek sütun (eski düzen).
+  List<Widget> _sectionsLaidOut(List<StorageVolume> volumes, AppState appState) {
+    final layout = DashboardLayout.instance;
+    final ids = [
+      for (final id in layout.sectionOrder)
+        if (layout.sectionVisible(id)) id,
+    ];
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width >= 840 ||
+        (size.width >= 600 && size.width > size.height);
+    const rightIds = {'categories', 'tools'};
+    final left = [for (final id in ids) if (!rightIds.contains(id)) id];
+    final right = [for (final id in ids) if (rightIds.contains(id)) id];
+    if (!wide || left.isEmpty || right.isEmpty) {
+      return [for (final id in ids) ..._dashSection(id, volumes, appState)];
+    }
+    Widget column(List<String> part) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final id in part) ..._dashSection(id, volumes, appState),
+          ],
+        );
+    return [
+      Row(
+        key: const ValueKey('dash-two-columns'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: column(left)),
+          const SizedBox(width: Gap.lg),
+          Expanded(child: column(right)),
+        ],
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
@@ -414,9 +452,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             // **Bölümler kullanıcının sırasıyla** (2026-09-27, bkz.
             // DashboardLayout): bellek kartları, kutular, araçlar, favoriler,
             // hızlı klasörler — her biri gizlenebilir.
-            for (final id in DashboardLayout.instance.sectionOrder)
-              if (DashboardLayout.instance.sectionVisible(id))
-                ..._dashSection(id, volumes, appState),
+            ..._sectionsLaidOut(volumes, appState),
             const SizedBox(height: Gap.lg),
             Center(
               child: TextButton.icon(
