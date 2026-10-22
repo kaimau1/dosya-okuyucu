@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
-import '../../models/document.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
-import '../../services/file_service.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fm_location.dart';
+import '../../services/fm/list_memory.dart';
 import '../../services/fm/open_history.dart';
 import '../../core/app_icons.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
@@ -23,6 +22,7 @@ import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 
@@ -39,11 +39,16 @@ class CategoryScreen extends StatefulWidget {
   /// Kategori ızgarada görsel ise küçük resimli ızgara varsayılan olur.
   final bool gridDefault;
 
-
-  /// Belge türü süzgeci (PDF / Word / Excel / Slayt / Metin) gösterilsin mi?
-  /// Kullanıcı isteği: "belgelerde filtre olmalı, PDF slayt text word vs
-  /// ayırt edilebilmeli".
-  final bool showDocKinds;
+  /// [ListMemory] anahtarı (ör. `new_files`): verilirse sıralama/yerleşim
+  /// kalıcı, tür süzgeci oturum boyunca hatırlanır (K17). `null` = hafızasız
+  /// (aynı ekran farklı kategorilerle açılıyor; başlığa göre anahtar dil
+  /// değişince kayardı).
+  ///
+  /// **Belge türü çipleri artık bayrak değil** (Faz 13): eski `showDocKinds`
+  /// yalnız Belgeler kutusunda açıktı ve aynı ekranı açan *Yeni gelenler*
+  /// PDF çipini kaybediyordu. Tür çipleri listede iki ya da daha çok tür
+  /// varsa kendiliğinden çıkar ([FmTypeChips]).
+  final String? memoryId;
 
   /// **Eksiksiz** listeyi getiren yükleyici (bkz. `MediaLibrary`). Pano
   /// önbelleği kategori başına en yeni 800 dosyayla sınırlıdır; ekran anında
@@ -76,7 +81,7 @@ class CategoryScreen extends StatefulWidget {
     required this.title,
     required this.files,
     this.gridDefault = false,
-    this.showDocKinds = false,
+    this.memoryId,
     this.loadAll,
     this.replaceOnLoad = false,
     this.initialSort = FmSort.date,
@@ -98,11 +103,26 @@ class _CategoryScreenState extends State<CategoryScreen> {
   late FmSort _sort = widget.initialSort;
   late bool _desc = widget.initialDescending;
 
-  /// Tarih/boyut/kaynak/tür süzgeci (kaynak çipleriyle aynı alanı yazar).
-  FmFilter _filter = FmFilter.none;
+  /// Tarih/boyut/kaynak/tür süzgeci (kaynak ve tür çipleriyle aynı alanı
+  /// yazar).
+  late FmFilter _filter = widget.memoryId == null
+      ? FmFilter.none
+      : ListMemory.filterOf(widget.memoryId!);
 
-  /// Seçili belge türü (null = tümü).
-  DocKind? _docKind;
+  void _setFilter(FmFilter f) => setState(() {
+        _filter = f;
+        final id = widget.memoryId;
+        if (id != null) ListMemory.rememberFilter(id, f);
+      });
+
+  void _setSort(FmSort sort, bool desc) {
+    setState(() {
+      _sort = sort;
+      _desc = desc;
+    });
+    final id = widget.memoryId;
+    if (id != null) ListMemory.saveSort(id, sort, desc);
+  }
 
   final _searchController = TextEditingController();
   bool _searching = false;
@@ -151,6 +171,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
     OpenHistory.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
+    final id = widget.memoryId;
+    if (id != null) {
+      ListMemory.load(id).then((saved) {
+        if (!mounted) return;
+        setState(() {
+          _sort = saved.sort ?? _sort;
+          _desc = saved.descending ?? _desc;
+          _layout = saved.layout ?? _layout;
+        });
+      });
+    }
     _loadAll();
   }
 
@@ -200,13 +231,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
     // Açılış geçmişi ekran çizildikten SONRA diskten gelir; anahtara girmezse
     // önbellek eski (geçmişsiz) sonucu döndürüp donardı.
     final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
-        '${_filter.signature}|${_docKind?.name}|${_sort.name}|$_desc|'
+        '${_filter.signature}|${_sort.name}|$_desc|'
         '${OpenHistory.revision}';
     final cached = _sortedCache;
     if (cached != null && _sortedKey == key) return cached;
     final sorted =
         FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
-    var filtered = _filter.apply(
+    final filtered = _filter.apply(
       sorted,
       query: _query,
       tagsOf: FileTags.forPath,
@@ -214,11 +245,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
       // kendi açılış kaydını da sayar (bkz. `FmFilter.lastSeenMs`).
       openedAtOf: OpenHistory.forPath,
     );
-    if (_docKind != null) {
-      filtered = filtered
-          .where((f) => FileService.kindForExtension(f.extension) == _docKind)
-          .toList();
-    }
     _sortedCache = filtered;
     _sortedKey = key;
     return filtered;
@@ -327,20 +353,28 @@ class _CategoryScreenState extends State<CategoryScreen> {
           // belgelerde WhatsApp süzgeci kodda vardı ama ekranda yoktu.
           // **TEK çip satırı** (2026-08-09): belge türü çipleri eskiden ikinci
           // bir satırdaydı; iki satır birlikte listeden 92 dp çalıyordu.
+          // **Tür çipleri EN BAŞTA** (Faz 13): "yalnız PDF'ler" tek dokunuş;
+          // kaynak/birim/açılma çipleri aynı satırda, türlerden SONRA.
           FmQuickFilters(
             source: _files,
             filter: _filter,
-            onChanged: (f) => setState(() => _filter = f),
-            leading: widget.showDocKinds ? _docKindChips() : const [],
+            onChanged: _setFilter,
+            leading: FmTypeChips.forEntries(
+              context,
+              source: _files,
+              filter: _filter,
+              onChanged: _setFilter,
+              query: _query,
+              tagsOf: FileTags.forPath,
+              openedAtOf: OpenHistory.forPath,
+              cacheSalt: '${OpenHistory.revision}',
+            ),
           ),
           FmListToolbar(
             count: files.length,
             sort: _sort,
             descending: _desc,
-            onSort: (sort, desc) => setState(() {
-              _sort = sort;
-              _desc = desc;
-            }),
+            onSort: _setSort,
             filterCount: _filter.activeCount,
             onFilter: _openFilterSheet,
           ),
@@ -373,6 +407,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 title: context.t(_query.trim().isEmpty && !_filter.isActive
                     ? 'ph.cat_empty'
                     : 'ph.no_match'),
+                // "Bu süzgeçle dosya yok" → tek dokunuşla temizle (Faz 13).
+                action: _filter.isActive
+                    ? TextButton(
+                        key: const ValueKey('clear-filter'),
+                        onPressed: () => _setFilter(FmFilter.none),
+                        child: Text(context.t('list.filter_clear')),
+                      )
+                    : null,
               ),
             ),
           ),
@@ -416,7 +458,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
             icon: Icon(fmLayoutIcon(_layout)),
             onPressed: () async {
               final picked = await showFmLayoutSheet(context, current: _layout);
-              if (picked != null) setState(() => _layout = picked);
+              if (picked == null) return;
+              setState(() => _layout = picked);
+              final id = widget.memoryId;
+              if (id != null) ListMemory.saveLayout(id, picked);
             },
           ),
         ],
@@ -437,11 +482,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
       showDuplicateSwitch: true,
     );
     if (result == null || !mounted) return;
-    setState(() {
-      _filter = result.filter;
-      _sort = result.sort;
-      _desc = result.descending;
-    });
+    _setFilter(result.filter);
+    _setSort(result.sort, result.descending);
   }
 
   PreferredSizeWidget _searchBar() => AppBar(
@@ -494,47 +536,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
         ],
       );
-
-  /// Belge türü çipleri (PDF / Word / Excel / Slayt / Metin / Diğer).
-  /// Boş tür gösterilmez; sayılar gerçek dosya sayısıdır.
-  ///
-  /// [FmQuickFilters.leading]'e verilir — kendi satırında değil, süzgeç
-  /// çipleriyle AYNI yatay satırda çizilir (bkz. oradaki not).
-  List<Widget> _docKindChips() {
-    final counts = <DocKind, int>{};
-    for (final f in _files) {
-      final kind = FileService.kindForExtension(f.extension);
-      counts[kind] = (counts[kind] ?? 0) + 1;
-    }
-    // Sabit sıra: kullanıcı çiplerin yerini ezberleyebilsin (sayıya göre
-    // sıralamak her açılışta yer değiştirmesine yol açardı).
-    const order = [
-      DocKind.pdf,
-      DocKind.word,
-      DocKind.spreadsheet,
-      DocKind.slides,
-      DocKind.text,
-      DocKind.unknown,
-    ];
-    final kinds = order.where((k) => (counts[k] ?? 0) > 0).toList();
-    if (kinds.length < 2) return const [];
-
-    return [
-      FmChip(
-        label: context.t('flt.all'),
-        count: _files.length,
-        selected: _docKind == null,
-        onTap: () => setState(() => _docKind = null),
-      ),
-      for (final k in kinds)
-        FmChip(
-          label: context.t(k.labelKey),
-          count: counts[k],
-          selected: _docKind == k,
-          onTap: () => setState(() => _docKind = k),
-        ),
-    ];
-  }
 
   Future<void> _open(FsEntry e) => EntryOpener.open(
         context,

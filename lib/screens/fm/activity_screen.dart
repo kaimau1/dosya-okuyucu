@@ -3,11 +3,14 @@ import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
@@ -37,6 +40,13 @@ class _ActivityScreenState extends State<ActivityScreen> {
   /// Seçili tür süzgeci (null = hepsi).
   ActivityKind? _filter;
 
+  /// Dosya türü süzgeci (Faz 13 — PDF/Video/Görsel…; boş = tümü). İşlem
+  /// türü çiplerinden ([_filter]) bağımsız: "sıkıştırdıklarımdan yalnız
+  /// videolar" gibi.
+  Set<FmType> _types = const {};
+
+  static FmType _typeOf(ActivityRecord r) => FmType.ofName(r.name);
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +64,13 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final groups = ActivityLog.group(_records);
+    final typed = _types.isEmpty
+        ? _records
+        : [
+            for (final r in _records)
+              if (_types.contains(_typeOf(r))) r,
+          ];
+    final groups = ActivityLog.group(typed);
     final shown = _filter == null
         ? groups
         : {
@@ -88,6 +104,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     padding: withNavInset(context, const EdgeInsets.fromLTRB(
                         Gap.md, Gap.sm, Gap.md, Gap.lg)),
                     children: [
+                      FmFilterBar(
+                        children: FmTypeChips.build(
+                          context,
+                          counts: fmTypeCounts(_records.map(_typeOf)),
+                          selected: _types,
+                          onChanged: (t) => setState(() => _types = t),
+                        ),
+                      ),
                       _filterChips(groups),
                       for (final entry in shown.entries) ...[
                         SectionHeader(

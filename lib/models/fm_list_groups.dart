@@ -58,13 +58,19 @@ final class FmEntryItem extends FmListItem {
 ///
 /// Tek grup çıkıyorsa başlık eklenmez: "Daha eski" diye tek bir başlık bilgi
 /// taşımaz, yalnız yer kaplar.
+///
+/// [timeOf] tarih gruplamasının zamanı (varsayılan değiştirilme zamanı).
+/// *Son açılanlar* AÇILMA zamanını verir (Faz 13): "Bugün" orada "bugün
+/// açtıklarım" demek.
 List<FmListItem> groupEntries(
   List<FsEntry> entries,
   FmSort sort, {
   required DateTime now,
+  int Function(FsEntry e)? timeOf,
 }) {
   String? keyOf(FsEntry e) => switch (sort) {
-        FmSort.date => dateGroupOf(e.modifiedMs, now).labelKey,
+        FmSort.date =>
+          dateGroupOf(timeOf?.call(e) ?? e.modifiedMs, now).labelKey,
         FmSort.type => e.category.labelKey,
         _ => null,
       };

@@ -38,7 +38,7 @@ void main() {
       const TrashScreen(),
       const SearchScreen(root: '/tmp'),
       const CategoryScreen(title: 'Görüntüler', files: []),
-      const CategoryScreen(title: 'Belgeler', files: [], showDocKinds: true),
+      const CategoryScreen(title: 'Belgeler', files: []),
       const PhotosScreen(title: 'Görüntüler', files: []),
       const AnalysisScreen(index: StorageIndex.empty, volumes: []),
       const MediaPlayerScreen(path: '/tmp/a.mp4'),

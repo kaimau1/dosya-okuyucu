@@ -4,7 +4,6 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
-import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fm_list_groups.dart';
 import '../../models/fs_entry.dart';
@@ -14,7 +13,6 @@ import 'drag_select.dart';
 import 'fm_entry_tiles.dart';
 import 'fm_fast_scroller.dart';
 import 'fm_layout_sheet.dart';
-import 'fm_quick_filters.dart';
 
 /// **Ortak dosya listesi** (Faz 6 / U10, 2026-10-21).
 ///
@@ -48,6 +46,9 @@ class FmFileListView extends StatelessWidget {
 
   /// Gruplama ölçütü (genelde sıralama ölçütü). `null` = başlık yok.
   final FmSort? groupBy;
+
+  /// Tarih gruplamasının zamanı (bkz. `groupEntries.timeOf`).
+  final int Function(FsEntry e)? groupTimeOf;
   final Future<void> Function()? onRefresh;
 
   /// Liste boşken gösterilen yüz (genelde [FmEmptyState]).
@@ -71,6 +72,7 @@ class FmFileListView extends StatelessWidget {
     this.onSelectRange,
     this.onMore,
     this.groupBy,
+    this.groupTimeOf,
     this.onRefresh,
     this.empty,
     this.loading = false,
@@ -102,11 +104,10 @@ class FmFileListView extends StatelessWidget {
     }
     final items = groupBy == null
         ? [for (var i = 0; i < entries.length; i++) FmEntryItem(entries[i], i)]
-        : groupEntries(entries, groupBy!, now: DateTime.now());
+        : groupEntries(entries, groupBy!,
+            now: DateTime.now(), timeOf: groupTimeOf);
 
-    Widget view = layout.isGrid
-        ? _grid(context, items)
-        : _list(context, items);
+    Widget view = layout.isGrid ? _grid(context, items) : _list(context, items);
     if (onSelectRange != null) {
       view = DragSelectArea(
         scrollController: controller,
@@ -130,7 +131,8 @@ class FmFileListView extends StatelessWidget {
             controller: controller!,
             padding: EdgeInsets.only(bottom: bottomPadding),
             labelFor: (offset) {
-              final i = (offset / rowExtent).floor().clamp(0, entries.length - 1);
+              final i =
+                  (offset / rowExtent).floor().clamp(0, entries.length - 1);
               final name = entries[i].name;
               return name.isEmpty ? null : name.characters.first.toUpperCase();
             },
@@ -141,8 +143,8 @@ class FmFileListView extends StatelessWidget {
     return view;
   }
 
-  EdgeInsets _pad(BuildContext context, double h) => withNavInset(
-      context, EdgeInsets.fromLTRB(h, Gap.xs, h, bottomPadding));
+  EdgeInsets _pad(BuildContext context, double h) =>
+      withNavInset(context, EdgeInsets.fromLTRB(h, Gap.xs, h, bottomPadding));
 
   Widget _list(BuildContext context, List<FmListItem> items) =>
       ListView.builder(
@@ -164,9 +166,8 @@ class FmFileListView extends StatelessWidget {
                 badge: badge?.call(entry),
                 onTap: () => _tap(entry),
                 onCheck: () => onToggle(entry),
-                onMore: onMore == null || _selecting
-                    ? null
-                    : () => onMore!(entry),
+                onMore:
+                    onMore == null || _selecting ? null : () => onMore!(entry),
               ),
             ),
         },
@@ -239,7 +240,8 @@ class FmGroupHeader extends StatelessWidget {
     return Semantics(
       header: true,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.md, Gap.md, Gap.xs),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+            Gap.md, Gap.md, Gap.md, Gap.xs),
         child: Text(
           '$label · $count',
           style: theme.textTheme.labelLarge?.copyWith(
@@ -312,55 +314,63 @@ class FmListToolbar extends StatelessWidget {
               ),
             ),
           ),
-          PopupMenuButton<(FmSort, bool)>(
-            tooltip: context.t('list.sort_by', {'name': sortName}),
-            onSelected: (v) => onSort(v.$1, v.$2),
-            itemBuilder: (_) => [
-              for (final s in sortOptions)
-                CheckedPopupMenuItem(
-                  checked: s == sort,
-                  // Aynı ölçüte yeniden dokunmak yönü çevirir; yeni ölçüt
-                  // kendi doğal yönüyle başlar (tarih/boyut: yeni/büyük üstte).
-                  value: (
-                    s,
-                    s == sort
-                        ? !descending
-                        : (s == FmSort.date || s == FmSort.size),
+          // Flexible: 360 dp + 2,0× yazıda "Tarihe göre ↓" sığmayınca kısalır
+          // (Faz 13 taşma testi) — özet metni zaten Expanded.
+          Flexible(
+            child: PopupMenuButton<(FmSort, bool)>(
+              tooltip: context.t('list.sort_by', {'name': sortName}),
+              onSelected: (v) => onSort(v.$1, v.$2),
+              itemBuilder: (_) => [
+                for (final s in sortOptions)
+                  CheckedPopupMenuItem(
+                    checked: s == sort,
+                    // Aynı ölçüte yeniden dokunmak yönü çevirir; yeni ölçüt
+                    // kendi doğal yönüyle başlar (tarih/boyut: yeni/büyük üstte).
+                    value: (
+                      s,
+                      s == sort
+                          ? !descending
+                          : (s == FmSort.date || s == FmSort.size),
+                    ),
+                    child: Text(context.t(s.labelKey)),
                   ),
-                  child: Text(context.t(s.labelKey)),
+                const PopupMenuDivider(),
+                CheckedPopupMenuItem(
+                  checked: !descending,
+                  value: (sort, false),
+                  child: Text(context.t('list.sort_dir_asc')),
                 ),
-              const PopupMenuDivider(),
-              CheckedPopupMenuItem(
-                checked: !descending,
-                value: (sort, false),
-                child: Text(context.t('list.sort_dir_asc')),
-              ),
-              CheckedPopupMenuItem(
-                checked: descending,
-                value: (sort, true),
-                child: Text(context.t('list.sort_dir_desc')),
-              ),
-            ],
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(AppIcons.sort, size: 18, color: scheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      sortName,
-                      style: theme.textTheme.labelLarge
-                          ?.copyWith(color: scheme.primary),
-                    ),
-                    Icon(
-                      descending ? AppIcons.arrowDown : AppIcons.arrowUp,
-                      size: 16,
-                      color: scheme.primary,
-                    ),
-                  ],
+                CheckedPopupMenuItem(
+                  checked: descending,
+                  value: (sort, true),
+                  child: Text(context.t('list.sort_dir_desc')),
+                ),
+              ],
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(AppIcons.sort, size: 18, color: scheme.primary),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          sortName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge
+                              ?.copyWith(color: scheme.primary),
+                        ),
+                      ),
+                      Icon(
+                        descending ? AppIcons.arrowDown : AppIcons.arrowUp,
+                        size: 16,
+                        color: scheme.primary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -384,104 +394,6 @@ class FmListToolbar extends StatelessWidget {
   }
 }
 
-/// Gezginin **tür + tarih + boyut** çip satırı (Faz 6 / U3).
-///
-/// Kategori ekranlarındaki [FmChip] dilini kullanır; tür çipleri listede
-/// GERÇEKTEN bulunan türlerden türetilir. Tarih ve boyut açılır çiptir —
-/// [FmFilter]'ın kendi aralıkları (kategori ekranlarıyla aynı mantık).
-class FmTypeChips extends StatelessWidget {
-  final List<FsEntry> source;
-  final FmCategory? category;
-  final ValueChanged<FmCategory?> onCategory;
-  final FmFilter filter;
-  final ValueChanged<FmFilter> onFilter;
-
-  const FmTypeChips({
-    super.key,
-    required this.source,
-    required this.category,
-    required this.onCategory,
-    required this.filter,
-    required this.onFilter,
-  });
-
-  static const _order = [
-    FmCategory.folder,
-    FmCategory.document,
-    FmCategory.image,
-    FmCategory.video,
-    FmCategory.audio,
-    FmCategory.archive,
-    FmCategory.apk,
-    FmCategory.other,
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final counts = categoryCounts(source);
-    final kinds = _order.where((c) => (counts[c] ?? 0) > 0).toList();
-    // Tek türlü klasörde tür çipi bilgi taşımaz; tarih/boyut yine durur.
-    final showKinds = kinds.length > 1 || category != null;
-    return FmFilterBar(children: [
-      if (showKinds) ...[
-        FmChip(
-          label: context.t('flt.all'),
-          count: source.length,
-          selected: category == null,
-          onTap: () => onCategory(null),
-        ),
-        for (final c in kinds)
-          FmChip(
-            label: c == FmCategory.folder
-                ? context.t('list.folders')
-                : context.t(c.labelKey),
-            count: counts[c],
-            selected: category == c,
-            onTap: () => onCategory(category == c ? null : c),
-          ),
-      ],
-      PopupMenuButton<FmDateRange>(
-        tooltip: context.t('list.date'),
-        onSelected: (v) => onFilter(filter.withDateRange(v)),
-        itemBuilder: (_) => [
-          for (final r in FmDateRange.values.where((r) => r != FmDateRange.custom))
-            CheckedPopupMenuItem(
-              value: r,
-              checked: filter.dateRange == r,
-              child: Text(context.t(r.labelKey)),
-            ),
-        ],
-        child: FmPill(
-          label: filter.dateRange == FmDateRange.any
-              ? context.t('list.date')
-              : context.t(filter.dateRange.labelKey),
-          dropdown: true,
-          highlighted: filter.dateRange != FmDateRange.any,
-        ),
-      ),
-      PopupMenuButton<FmSizeRange>(
-        tooltip: context.t('list.size'),
-        onSelected: (v) => onFilter(filter.withSizeRange(v)),
-        itemBuilder: (_) => [
-          for (final r in FmSizeRange.values)
-            CheckedPopupMenuItem(
-              value: r,
-              checked: filter.sizeRange == r,
-              child: Text(context.t(r.labelKey)),
-            ),
-        ],
-        child: FmPill(
-          label: filter.sizeRange == FmSizeRange.any
-              ? context.t('list.size')
-              : context.t(filter.sizeRange.labelKey),
-          dropdown: true,
-          highlighted: filter.sizeRange != FmSizeRange.any,
-        ),
-      ),
-    ]);
-  }
-}
-
 /// Seçim üst çubuğunun **metinli** menüsü (Faz 6 / U8): görünür "Tümünü
 /// seç / Seçimi kaldır" düğmesi + ⋮ içinde "Ters çevir", (tek öğe seçiliyken)
 /// "Bunun üstündekileri / altındakileri seç".
@@ -496,6 +408,11 @@ class FmSelectionActions extends StatelessWidget {
   final VoidCallback onAbove;
   final VoidCallback onBelow;
 
+  /// Ekrana özel ek eylemler (⋮ menüsünün başında, metinli) — ör. Son
+  /// açılanlar'da "Geçmişten kaldır". Simge düğmesi olarak çubuğa eklemek
+  /// 360 dp + büyük yazıda başlığı taşırıyordu (Faz 13 taşma testi).
+  final List<({IconData icon, String label, VoidCallback onTap})> extra;
+
   const FmSelectionActions({
     super.key,
     required this.allSelected,
@@ -504,6 +421,7 @@ class FmSelectionActions extends StatelessWidget {
     required this.onAbove,
     required this.onBelow,
     this.onInvert,
+    this.extra = const [],
   });
 
   @override
@@ -518,6 +436,8 @@ class FmSelectionActions extends StatelessWidget {
           ]),
         );
     final menu = [
+      for (var i = 0; i < extra.length; i++)
+        item('extra$i', extra[i].icon, extra[i].label),
       if (onInvert != null)
         item('invert', AppIcons.selectInvert, context.t('sel.invert')),
       if (single) ...[
@@ -530,13 +450,16 @@ class FmSelectionActions extends StatelessWidget {
       children: [
         TextButton(
           onPressed: onToggleAll,
-          child: Text(allSelected ? context.t('sel.none') : context.t('sel.all')),
+          child:
+              Text(allSelected ? context.t('sel.none') : context.t('sel.all')),
         ),
         if (menu.isNotEmpty)
           PopupMenuButton<String>(
             tooltip: context.t('sel.menu'),
             icon: const Icon(AppIcons.more),
             onSelected: (v) => switch (v) {
+              _ when v.startsWith('extra') =>
+                extra[int.parse(v.substring(5))].onTap(),
               'invert' => onInvert?.call(),
               'above' => onAbove(),
               _ => onBelow(),

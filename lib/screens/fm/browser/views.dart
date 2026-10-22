@@ -246,7 +246,6 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
               hint: context.t('list.no_match_hint'),
               action: TextButton(
                 onPressed: () => _partSetState(() {
-                  _kind = null;
                   _filter = FmFilter.none;
                 }),
                 child: Text(context.t('list.filter_clear')),

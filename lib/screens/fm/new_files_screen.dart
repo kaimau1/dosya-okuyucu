@@ -159,6 +159,7 @@ class _NewFilesScreenState extends State<NewFilesScreen>
       files: files,
       loadAll: _scan,
       replaceOnLoad: true,
+      memoryId: 'new_files',
     );
   }
 }

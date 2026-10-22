@@ -194,7 +194,6 @@ class _ImportantScreenState extends State<ImportantScreen> {
     _push(CategoryScreen(
       title: category.label,
       files: files,
-      showDocKinds: category == FmCategory.document,
     ));
   }
 

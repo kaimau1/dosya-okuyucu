@@ -23,12 +23,13 @@ import '../../services/fm/storage_stats.dart' show StorageKind;
 import '../../services/fm/paste_conflict.dart';
 import '../../core/app_icons.dart';
 import '../../models/fm_filter.dart';
-import '../../models/fm_list_groups.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_path_bar.dart';
 import '../../widgets/scan_flow.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/paste_conflict_sheet.dart';
 import '../../widgets/fm/pin_dialog.dart';
@@ -128,9 +129,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
   String? _error;
   final Set<String> _selected = {};
 
-  /// Gezgin süzgeci (Faz 6 / U3): tür çipi + tarih/boyut. Sayfaya özel —
-  /// alt klasöre geçince sıfırdan başlar (süzgeç bir bakış, ayar değil).
-  FmCategory? _kind;
+  /// Gezgin süzgeci (Faz 6 / U3; Faz 13'ten beri ortak tür modeliyle — PDF,
+  /// Word… ayrı çip): tür + tarih/boyut. Sayfaya özel — alt klasöre geçince
+  /// sıfırdan başlar (süzgeç bir bakış, ayar değil).
   FmFilter _filter = FmFilter.none;
 
   /// Çip satırı açık mı? Süzgeç etkinse her zaman açık kalır (aksi hâlde
@@ -143,7 +144,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   bool get _selecting => _selected.isNotEmpty;
 
-  int get _filterCount => (_kind == null ? 0 : 1) + _filter.activeCount;
+  int get _filterCount => _filter.activeCount;
 
   /// Görünen tüm girdiler seçili mi? ("Tümünü seç" düğmesinin durumu.)
   bool get _allSelected =>
@@ -175,10 +176,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   /// Süzgeçten geçen girdiler (sıralı).
   List<FsEntry> _visible(List<FsEntry> sorted) {
-    if (_kind == null && !_filter.isActive) return sorted;
+    if (!_filter.isActive) return sorted;
     return [
       for (final e in sorted)
-        if (matchesCategory(e, _kind) && _passesFilter(e)) e,
+        if (_passesFilter(e)) e,
     ];
   }
 
@@ -217,13 +218,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
             onFilter: () => _partSetState(() => _showFilters = !_showFilters),
           ),
         if (!_locked && (_showFilters || _filterCount > 0) && _entries.isNotEmpty)
-          FmTypeChips(
-            source: _entries,
-            category: _kind,
-            onCategory: (c) => _partSetState(() => _kind = c),
-            filter: _filter,
-            onFilter: (f) => _partSetState(() => _filter = f),
-          ),
+          FmFilterBar(children: [
+            ...FmTypeChips.forEntries(
+              context,
+              source: _entries,
+              filter: _filter,
+              onChanged: (f) => _partSetState(() => _filter = f),
+            ),
+            ...fmDateSizePills(
+              context,
+              filter: _filter,
+              onChanged: (f) => _partSetState(() => _filter = f),
+            ),
+          ]),
         Expanded(
           child: _locked
               ? FmEmptyState(

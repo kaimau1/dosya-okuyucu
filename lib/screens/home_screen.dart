@@ -341,7 +341,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return CategoryScreen(
           title: id == 'apk' ? context.t('fm.apk_files') : category.label,
           files: DashboardScreen.cachedFiles(category),
-          showDocKinds: category == FmCategory.document,
           loadAll: () => _loadAll(category),
         );
       case 'important':

@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../models/fm_type.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/trash_service.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/section_header.dart';
 import '../settings_screen.dart';
@@ -32,10 +35,21 @@ class _TrashScreenState extends State<TrashScreen> {
   bool _searching = false;
   String _query = '';
 
+  /// Tür süzgeci (Faz 13): boş = tümü; çoklu seçim.
+  Set<FmType> _types = const {};
+
+  static FmType _typeOf(TrashItem i) => FmType.ofName(i.name, isDir: i.isDir);
+
+  bool _matchesQuery(TrashItem i) =>
+      _query.trim().isEmpty || fmMatches(i.name, _query);
+
   /// Çöpteki kayıtlar bellektedir → arama anlıktır, disk okunmaz.
-  List<TrashItem> get _filtered => _query.trim().isEmpty
-      ? _items
-      : _items.where((i) => fmMatches(i.name, _query)).toList();
+  List<TrashItem> get _filtered => [
+        for (final i in _items)
+          if (_matchesQuery(i) &&
+              (_types.isEmpty || _types.contains(_typeOf(i))))
+            i,
+      ];
 
   @override
   void dispose() {
@@ -258,6 +272,17 @@ class _TrashScreenState extends State<TrashScreen> {
                   children: [
                     _summaryBand(total, shown.length),
                     const Divider(height: 1),
+                    FmFilterBar(
+                      children: FmTypeChips.build(
+                        context,
+                        counts: fmTypeCounts([
+                          for (final i in _items)
+                            if (_matchesQuery(i)) _typeOf(i),
+                        ]),
+                        selected: _types,
+                        onChanged: (t) => setState(() => _types = t),
+                      ),
+                    ),
                     Expanded(
                       // Kart yerine 1px ayraç: liste ekranlarında kağıt
                       // temasının kuralı (kart yalnız pano ve son belgelerde).
@@ -321,7 +346,7 @@ class _TrashScreenState extends State<TrashScreen> {
               const Icon(Icons.delete_sweep_outlined, size: 20),
               const SizedBox(width: Gap.sm),
               Expanded(
-                child: Text(_query.trim().isEmpty
+                child: Text(_query.trim().isEmpty && _types.isEmpty
                     ? context.t('tr.count_size', {
                         'n': _items.length,
                         'size': FsPaths.humanSize(total),

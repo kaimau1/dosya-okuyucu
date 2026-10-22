@@ -6,12 +6,17 @@ import 'package:path/path.dart' as p;
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/file_age.dart';
+import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/list_memory.dart';
+import '../../core/app_icons.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
@@ -54,6 +59,37 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   /// (ve "çok eski" uyarısı zaten ayrı gösteriliyor).
   _DlSort _sort = _DlSort.newest;
 
+  static const _memoryId = 'downloads';
+
+  /// Tür süzgeci (Faz 13) — oturum boyunca hatırlanır, sıralama kalıcı (K17).
+  FmFilter _filter = ListMemory.filterOf(_memoryId);
+
+  void _setFilter(FmFilter f) => setState(() {
+        _filter = f;
+        ListMemory.rememberFilter(_memoryId, f);
+      });
+
+  /// Sıralama [ListMemory]'de ortak [FmSort] diliyle saklanır.
+  static (FmSort, bool) _toFmSort(_DlSort s) => switch (s) {
+        _DlSort.newest => (FmSort.date, true),
+        _DlSort.oldest => (FmSort.date, false),
+        _DlSort.largest => (FmSort.size, true),
+        _DlSort.name => (FmSort.name, false),
+      };
+
+  static _DlSort? _fromFmSort(FmSort? sort, bool? desc) => switch (sort) {
+        FmSort.date => desc == false ? _DlSort.oldest : _DlSort.newest,
+        FmSort.size => _DlSort.largest,
+        FmSort.name => _DlSort.name,
+        _ => null,
+      };
+
+  void _setSort(_DlSort v) {
+    setState(() => _sort = v);
+    final (sort, desc) = _toFmSort(v);
+    ListMemory.saveSort(_memoryId, sort, desc);
+  }
+
   final _searchController = TextEditingController();
   bool _searching = false;
   String _query = '';
@@ -64,6 +100,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   void initState() {
     super.initState();
     FsEvents.version.addListener(_load);
+    ListMemory.load(_memoryId).then((saved) {
+      final restored = _fromFmSort(saved.sort, saved.descending);
+      if (restored != null && mounted) setState(() => _sort = restored);
+    });
     _load();
   }
 
@@ -93,11 +133,20 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
   int? _ageDays(FsEntry e) => daysBetween(e.lastTouchedMs, _now);
 
+  List<FsEntry>? _sortedCache;
+  String? _sortedKey;
+
+  /// Süzülmüş + sıralı liste — **önbellekli** (G13): eskiden her `build`'de
+  /// (her seçim dokunuşunda) bütün liste yeniden süzülüp sıralanıyordu.
   List<FsEntry> get _sorted {
+    final key = '${identityHashCode(_files)}|$_query|${_filter.signature}|'
+        '${_sort.name}';
+    final cached = _sortedCache;
+    if (cached != null && key == _sortedKey) return cached;
     // Arama bellekte süzer: bu ekranın listesi zaten yüklü, disk okunmaz.
-    final list = _query.trim().isEmpty
-        ? [..._files]
-        : _files.where((e) => fmMatches(e.name, _query)).toList();
+    final list = _filter.apply(_files)
+        .where((e) => _query.trim().isEmpty || fmMatches(e.name, _query))
+        .toList();
     switch (_sort) {
       case _DlSort.oldest:
         list.sort((a, b) => a.lastTouchedMs.compareTo(b.lastTouchedMs));
@@ -108,6 +157,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       case _DlSort.name:
         list.sort((a, b) => FsScan.compareNames(a.name, b.name));
     }
+    _sortedCache = list;
+    _sortedKey = key;
     return list;
   }
 
@@ -212,7 +263,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     PopupMenuButton<_DlSort>(
                       tooltip: context.t('downloads.sort'),
                       icon: const Icon(Icons.sort),
-                      onSelected: (v) => setState(() => _sort = v),
+                      onSelected: _setSort,
                       itemBuilder: (_) => [
                         PopupMenuItem(
                             value: _DlSort.oldest,
@@ -232,15 +283,22 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       body: Stack(children: [
         _loading
           ? const FmListSkeleton()
-          : files.isEmpty
+          : _files.isEmpty
               ? Center(
-                  child: Text(_query.trim().isEmpty
-                      ? context.t('downloads.empty')
-                      : context.t('downloads.no_result', {'q': _query})))
+                  child: Text(context.t('downloads.empty')))
               : Column(
                   children: [
                     _summary(total, ancient),
                     const Divider(height: 1),
+                    FmFilterBar(
+                      children: FmTypeChips.forEntries(
+                        context,
+                        source: _files,
+                        filter: _filter,
+                        onChanged: _setFilter,
+                        query: _query,
+                      ),
+                    ),
                     Expanded(
                       child: FmFileListView(
                         entries: files,
@@ -264,6 +322,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         }),
                         subtitle: _subtitle,
                         badge: _ageBadge,
+                        empty: FmEmptyState(
+                          icon: AppIcons.noMatch,
+                          title: _query.trim().isEmpty
+                              ? context.t('list.no_match')
+                              : context.t('downloads.no_result', {'q': _query}),
+                          action: _filter.isActive
+                              ? TextButton(
+                                  key: const ValueKey('clear-filter'),
+                                  onPressed: () => _setFilter(FmFilter.none),
+                                  child: Text(context.t('list.filter_clear')),
+                                )
+                              : null,
+                        ),
                         // Menü YOKTU: kullanıcı "içerisinde pek bir şey
                         // yapamıyorum" dedi (2026-07-29) — açma ve toplu
                         // silme dışında hiçbir işleme yol yoktu.

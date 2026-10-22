@@ -98,7 +98,6 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
         files: _largest[category] ?? widget.index.files(category),
         loadAll: () =>
             MediaLibrary.categoryFiles(category, lockedFolders: locked),
-        showDocKinds: category == FmCategory.document,
         initialSort: FmSort.size,
         initialDescending: true,
       ),

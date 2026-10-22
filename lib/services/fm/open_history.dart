@@ -152,6 +152,25 @@ abstract final class OpenHistory {
     await _saveNow();
   }
 
+  /// Birden çok kaydı TEK yazmayla düşürür (Son açılanlar → "Geçmişten
+  /// kaldır"; dosyaların kendisine dokunulmaz).
+  static Future<void> removeAll(Iterable<String> paths) async {
+    await ensureLoaded();
+    var changed = false;
+    for (final path in paths) {
+      if (_byPath.remove(path) != null) changed = true;
+    }
+    if (changed) await _saveNow();
+  }
+
+  /// "Geri al": kaldırılan kayıtları ESKİ açılma zamanlarıyla geri koyar
+  /// (yeni damga basılsaydı geri alınan dosya listenin başına zıplardı).
+  static Future<void> restoreAll(Map<String, int> openedAt) async {
+    await ensureLoaded();
+    _byPath.addAll(openedAt);
+    await _saveNow();
+  }
+
   /// Dosya **ya da klasör** uygulama içinden taşındı/adlandırıldı → kaydı yeni
   /// yola taşı. Klasörde alt kayıtlar da taşınır (bkz. [movedPathFor] ve
   /// `FileTags.movePath`).

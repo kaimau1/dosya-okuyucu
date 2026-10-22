@@ -23,6 +23,7 @@ import '../../services/fm/search_index.dart';
 import '../../services/fm/smart_query.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import '../../models/fm_layout.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
@@ -62,7 +63,6 @@ class _SearchScreenState extends State<SearchScreen> {
   List<FsEntry> _results = const [];
   bool _searching = false;
   bool _searched = false;
-  FmCategory? _category;
 
   /// Tarih/boyut/kaynak/tür süzgeci ve sıralama (kullanıcı isteği 2026-07-29:
   /// "aramada sıralama seçenekleri lazım · aranan şeyler arama filtresi de
@@ -262,12 +262,11 @@ class _SearchScreenState extends State<SearchScreen> {
     final smartCategory = smart?.category;
     final list = [
       for (final e in _results)
-        if (_category == null || e.category == _category)
-          if (smartCategory == null || e.category == smartCategory)
-            if (smart == null || smart.filter.matches(e))
-              if (_filter.matches(e,
-                  tagsOf: FileTags.forPath, openedAtOf: OpenHistory.forPath))
-                e,
+        if (smartCategory == null || e.category == smartCategory)
+          if (smart == null || smart.filter.matches(e))
+            if (_filter.matches(e,
+                tagsOf: FileTags.forPath, openedAtOf: OpenHistory.forPath))
+              e,
     ];
     // Klasörler üstte KALMAZ: arama sonucunda kullanıcı ölçüte (tarih/boyut)
     // göre sıralı tek bir liste bekler.
@@ -561,15 +560,18 @@ class _SearchScreenState extends State<SearchScreen> {
               _run(_controller.text);
             },
           ),
-          for (final entry in <(String, FmCategory?)>[
-            ('flt.all', null),
-            for (final c in FmCategory.values) (c.labelKey, c),
-          ])
-            FmChip(
-              label: context.t(entry.$1),
-              selected: _category == entry.$2,
-              onTap: () => setState(() => _category = entry.$2),
-            ),
+          // Tür çipleri **sonuçlardan** türer (Faz 13): yalnız bulunan türler,
+          // PDF/Word… ayrı, sayılar "dokununca kalan". Eskiden sabit sekiz
+          // kategori çipiydi; "Belgeler" içinde PDF'i ayırmak mümkün değildi.
+          ...FmTypeChips.forEntries(
+            context,
+            source: _results,
+            filter: _filter,
+            onChanged: (f) => setState(() => _filter = f),
+            tagsOf: FileTags.forPath,
+            openedAtOf: OpenHistory.forPath,
+            cacheSalt: '${OpenHistory.revision}',
+          ),
         ],
       );
 

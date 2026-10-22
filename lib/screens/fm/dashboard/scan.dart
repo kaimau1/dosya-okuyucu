@@ -117,7 +117,6 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
       files: _index.files(category),
       gridDefault: grid,
       // Belgelerde PDF/Word/Excel/Slayt/Metin süzgeci.
-      showDocKinds: category == FmCategory.document,
       loadAll: loadAll,
     );
   }

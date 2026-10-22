@@ -12,6 +12,7 @@ library;
 
 import '../core/text_search.dart';
 import 'chat_media.dart';
+import 'fm_type.dart';
 import 'fs_entry.dart';
 import 'media_bucket.dart';
 
@@ -169,6 +170,11 @@ class FmFilter {
   /// için bu kesin sonuç verir.
   final Set<String> volumeRoots;
 
+  /// **Tür süzgeci** (Faz 13): PDF / Word / Görsel… — çoklu seçim, **boş =
+  /// tümü**. "PDF + Word" birlikte seçilince ikisinden biri olan dosyalar
+  /// kalır. Bkz. [FmType] (tek tür modeli).
+  final Set<FmType> types;
+
   const FmFilter({
     this.buckets = const {},
     this.extensions = const {},
@@ -183,6 +189,7 @@ class FmFilter {
     this.untouchedDays,
     this.openedWithinDays,
     this.volumeRoots = const {},
+    this.types = const {},
   });
 
   static const none = FmFilter();
@@ -207,6 +214,7 @@ class FmFilter {
     int? openedWithinDays,
     bool clearOpenedWithin = false,
     Set<String>? volumeRoots,
+    Set<FmType>? types,
   }) =>
       FmFilter(
         buckets: buckets ?? this.buckets,
@@ -227,7 +235,17 @@ class FmFilter {
             ? null
             : (openedWithinDays ?? this.openedWithinDays),
         volumeRoots: volumeRoots ?? this.volumeRoots,
+        types: types ?? this.types,
       );
+
+  FmFilter withTypes(Set<FmType> value) => _copy(types: value);
+
+  /// Türü ekler/çıkarır (çip dokunuşu; çoklu seçim).
+  FmFilter toggleType(FmType type) {
+    final next = {...types};
+    if (!next.remove(type)) next.add(type);
+    return withTypes(next);
+  }
 
   FmFilter withVolumeRoots(Set<String> value) => _copy(volumeRoots: value);
 
@@ -328,7 +346,8 @@ class FmFilter {
       (tags.isEmpty ? 0 : 1) +
       (untouchedDays == null ? 0 : 1) +
       (openedWithinDays == null ? 0 : 1) +
-      (volumeRoots.isEmpty ? 0 : 1);
+      (volumeRoots.isEmpty ? 0 : 1) +
+      (types.isEmpty ? 0 : 1);
 
   bool get isActive => activeCount > 0;
 
@@ -351,6 +370,7 @@ class FmFilter {
         untouchedDays,
         openedWithinDays,
         volumeRoots.toList()..sort(),
+        types.map((t) => t.name).toList()..sort(),
       ].join('|');
 
   /// Tarih ölçütünün gerçek zaman penceresi.
@@ -422,6 +442,7 @@ class FmFilter {
     final q = turkishFold(query.trim());
     if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
     if (!matchesVolume(entry.path)) return false;
+    if (types.isNotEmpty && !types.contains(FmType.of(entry))) return false;
     if (buckets.isNotEmpty && !buckets.contains(bucketForPath(entry.path))) {
       return false;
     }

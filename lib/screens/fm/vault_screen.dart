@@ -10,6 +10,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
@@ -21,6 +22,8 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/secure_vault.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import 'hidden_files_screen.dart';
 import '../../core/user_error.dart';
 
@@ -49,6 +52,10 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
 
   /// Eski (şifresiz) gizli dosya sayısı — kasa açılınca taşıma kartı için.
   int _legacyHidden = 0;
+
+  /// Tür süzgeci (Faz 13; boş = tümü). Ad kasada düz tutulduğu için türü
+  /// addan çıkar — içerik çözülmez.
+  Set<FmType> _types = const {};
 
   @override
   void initState() {
@@ -399,7 +406,13 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
       );
 
   Widget _content(BuildContext context) {
-    final items = SecureVault.instance.items;
+    final all = SecureVault.instance.items;
+    final items = _types.isEmpty
+        ? all
+        : [
+            for (final i in all)
+              if (_types.contains(FmType.ofName(i.name))) i,
+          ];
     final theme = Theme.of(context);
     return ListView(
       padding: withNavInset(
@@ -410,7 +423,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
             children: [
               ListTile(
                 leading: const Icon(Icons.enhanced_encryption_outlined),
-                title: Text(context.t('vault.summary', {'n': items.length})),
+                title: Text(context.t('vault.summary', {'n': all.length})),
                 subtitle: Text(context.t('vault.encrypted_note')),
               ),
               if (_canBio)
@@ -461,7 +474,15 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           ),
         ],
         const SizedBox(height: Gap.sm),
-        if (items.isEmpty)
+        FmFilterBar(
+          children: FmTypeChips.build(
+            context,
+            counts: fmTypeCounts(all.map((i) => FmType.ofName(i.name))),
+            selected: _types,
+            onChanged: (t) => setState(() => _types = t),
+          ),
+        ),
+        if (all.isEmpty)
           Padding(
             padding: const EdgeInsets.all(Gap.xl),
             child: Text(context.t('vault.empty'),
