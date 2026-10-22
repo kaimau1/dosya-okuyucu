@@ -32,6 +32,7 @@ enum _EntryAction {
   shortcut,
   hide,
   audiobook,
+  qrShare,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -70,6 +71,13 @@ Future<bool> showEntryActions(
   final isPart = !entry.isDir && FileSplit.baseNameOf(entry.path) != null;
   final isMedia =
       entry.category == FmCategory.image || entry.category == FmCategory.video;
+  // Not/metin dosyası QR kodla paylaşılabilir (2026-10-22) — çok büyükse
+  // onlarca kod okutmak anlamsız: 30 KB sınırı (~30 kod).
+  final canQr = !entry.isDir &&
+      const {'.txt', '.md', '.markdown'}
+          .contains(p.extension(entry.path).toLowerCase()) &&
+      entry.sizeBytes > 0 &&
+      entry.sizeBytes <= 30 * 1024;
 
   // Takılı harici bellekler (USB / SD). Menü kurulmadan ÖNCE okunuyor:
   // `isWritable` diske dokunuyor ve build içinde çağrılmamalı.
@@ -133,8 +141,13 @@ Future<bool> showEntryActions(
             if (isArchive ||
                 canRotate ||
                 (!entry.isDir && isMedia) ||
-                (!entry.isDir && canMakeAudiobook(entry.path)))
+                (!entry.isDir && canMakeAudiobook(entry.path)) ||
+                canQr)
               _section(ctx, ctx.t('ea.sec_this'), [
+                if (canQr)
+                  _act(ctx, AppIcons.qr, ctx.t('qr.as_qr'),
+                      _EntryAction.qrShare,
+                      hint: ctx.t('qr.as_qr_sub')),
                 if (!entry.isDir && canMakeAudiobook(entry.path))
                   _act(ctx, AppIcons.audiobook, ctx.t('ab.make'),
                       _EntryAction.audiobook,
@@ -260,6 +273,13 @@ Future<bool> showEntryActions(
       } else {
         await EntryOpener.open(context, entry.path);
       }
+      return false;
+
+    case _EntryAction.qrShare:
+      final text = await File(entry.path).readAsString();
+      if (!context.mounted) return false;
+      await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => QrShareScreen(title: entry.name, text: text)));
       return false;
 
     case _EntryAction.audiobook:

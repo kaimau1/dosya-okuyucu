@@ -316,6 +316,31 @@ const Map<String, (String, String, String)> _t9 = {
   'sa.why_copyNamed': ('"rapor (1).pdf" gibi — aynı klasörde aynı boyutta aslı duran ikinci indirmeler.', 'Like "report (1).pdf" — second downloads whose original, same size, is in the same folder.', 'مثل "تقرير (1).pdf" — تنزيلات ثانية أصلها بالحجم نفسه في المجلد نفسه.'),
   'sa.kind_oldUnopened': ('Bir yıldır açılmamış indirilen belgeler', 'Downloaded documents unopened for a year', 'مستندات منزّلة لم تُفتح منذ سنة'),
   'sa.why_oldUnopened': ('İndirilenler\'deki, bir yıldan eski ve uygulamada hiç açılmamış belgeler.', 'Documents in Downloads older than a year and never opened in the app.', 'مستندات في التنزيلات أقدم من سنة ولم تُفتح في التطبيق.'),
+  // ── QR ile paylaş (2026-10-22) ─────────────────────────────────────────────
+  'qr.title': ('QR kodla paylaş', 'Share as QR code', 'المشاركة برمز QR'),
+  'qr.hint_one': (
+    'Karşı taraf telefonunun kamerasıyla okutsun — notun tamamı ekranında görünür, kopyalayabilir.',
+    'Let the other person scan it with their phone camera — the whole note appears on their screen and can be copied.',
+    'دع الطرف الآخر يمسحه بكاميرا هاتفه — تظهر الملاحظة كاملة على شاشته ويمكنه نسخها.',
+  ),
+  'qr.hint_many': (
+    'Not uzun: {n} QR kodu sırayla okutulur (her birinin başında 1/{n}, 2/{n}… yazar). "Otomatik"te kodlar kendiliğinden ilerler.',
+    'The note is long: scan the {n} QR codes in order (each starts with 1/{n}, 2/{n}…). With "Auto" they advance by themselves.',
+    'الملاحظة طويلة: امسح رموز QR البالغ عددها {n} بالترتيب (يبدأ كل منها بـ 1/{n}، 2/{n}…). مع "تلقائي" تتقدم الرموز وحدها.',
+  ),
+  'qr.privacy': (
+    'İnternet, ortak ağ ya da uygulama gerekmez; not hiçbir sunucuya yüklenmez.',
+    'No internet, shared network or app needed; the note is not uploaded anywhere.',
+    'لا حاجة إلى الإنترنت أو شبكة مشتركة أو تطبيق؛ لا تُرفع الملاحظة إلى أي خادم.',
+  ),
+  'qr.prev': ('Önceki kod', 'Previous code', 'الرمز السابق'),
+  'qr.next': ('Sonraki kod', 'Next code', 'الرمز التالي'),
+  'qr.auto': ('Otomatik', 'Auto', 'تلقائي'),
+  'qr.stop': ('Durdur', 'Stop', 'إيقاف'),
+  'qr.as_file': ('Dosya olarak paylaş', 'Share as a file', 'المشاركة كملف'),
+  'qr.as_file_sub': ('WhatsApp, e-posta, Bluetooth…', 'WhatsApp, e-mail, Bluetooth…', 'واتساب، البريد، البلوتوث…'),
+  'qr.as_qr': ('QR kodla paylaş', 'Share as QR code', 'المشاركة برمز QR'),
+  'qr.as_qr_sub': ('Karşı tarafın kamerası yeter — uygulama ve internet gerekmez', 'Their camera is enough — no app or internet needed', 'تكفي كاميرا الطرف الآخر — دون تطبيق أو إنترنت'),
   'help.title': ('Yardım ve sık sorulanlar', 'Help & FAQ', 'المساعدة والأسئلة الشائعة'),
   'help.tile_sub': (
     'İzinler, kasa PIN\'i, ağ paylaşımı, AI anahtarı',

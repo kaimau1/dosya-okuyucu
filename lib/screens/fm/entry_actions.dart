@@ -48,6 +48,7 @@ import 'vault_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
 import '../audiobook/audiobook_screen.dart';
+import '../qr_share_screen.dart' show QrShareScreen;
 
 part 'entry_actions/sheet.dart';
 part 'entry_actions/file_ops.dart';
