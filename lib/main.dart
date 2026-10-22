@@ -83,8 +83,8 @@ Future<void> main() async {
   // çözülüyordu. Sınır yalnız bir tavan: sistem bellek baskısı bildirince
   // Flutter önbelleği kendisi boşaltır (`PaintingBinding.handleMemoryPressure`).
   //
-  // **Faz 4 (P2):** tavan artık cihaz profiline bağlı — hafifte 56 MB, ortada
-  // 100 MB, güçlüde 160 MB (bkz. `PerfBudget.imageCacheBytes`). İlk değer
+  // **Faz 4 (P2):** tavan artık cihaz profiline bağlı — hafifte 56 MB, orta ve
+  // güçlüde 64 MB (2026-10-23 GPU belleği A/B'si; bkz. `PerfBudget.imageCacheBytes`). İlk değer
   // orta profil; cihaz bilgisi okununca [_applyPerfBudget] günceller.
   _applyPerfBudget();
   DeviceProfile.tier.addListener(_applyPerfBudget);

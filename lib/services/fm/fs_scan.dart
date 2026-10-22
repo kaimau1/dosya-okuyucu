@@ -56,6 +56,12 @@ abstract final class FsScan {
     bool foldersFirst = true,
   }) {
     final list = [...entries];
+    // Ad anahtarı öğe başına BİR kez (2026-10-23): her karşılaştırmada
+    // yeniden katlanıyordu — 2.764 fotoğraflı klasör açılırken ana izlekte
+    // 242 ms'lik kare (telefonda ölçüldü), ~64 bin `nameKey` çağrısı.
+    final keys = <String, String>{};
+    int compareNames(String a, String b) => naturalCompare(
+        keys[a] ??= nameKey(a), keys[b] ??= nameKey(b));
     int cmp(FsEntry a, FsEntry b) {
       if (foldersFirst && a.isDir != b.isDir) return a.isDir ? -1 : 1;
       final r = switch (by) {

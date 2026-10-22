@@ -61,7 +61,7 @@ void main() {
     const high = PerfBudget(DeviceTier.high);
     expect(low.imageCacheBytes < mid.imageCacheBytes, isTrue);
     expect(mid.imageCacheBytes <= high.imageCacheBytes, isTrue);
-    expect(high.imageCacheBytes, 160 << 20);
+    expect(high.imageCacheBytes, 64 << 20); // 2026-10-23 telefonda A/B
     expect(low.thumbConcurrency, 1);
     expect(high.thumbConcurrency, 2);
     expect(low.highRefreshDefault, isFalse);

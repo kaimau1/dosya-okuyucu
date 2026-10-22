@@ -379,4 +379,12 @@
   okunur) ama aynı oturumda Windows yolları `C:/` biçiminde verilmeli; SF `--latency`
   katman adı `#id` ekiyle. İndirilenlerde göster: `BrowserScreen(focusPath:)` — oranla atla,
   satır kurulunca `getOffsetToReveal`; `ensureVisible` satırı alt çubuğun arkasında bıraktı.
+- **2026-10-23 (11) — foto klasörü ölçüm turu:** **TUZAK — SF `--latency` aralığı takılma
+  değildir:** `adb input swipe` arasındaki boşluklar >33 ms "takılma" gibi görünüyor; önceki
+  turun "kaydırmada 180–250 ms / yukarı p99 50 ms" sonucu bu yüzden YANLIŞTI. Doğrusu
+  `FrameTiming` (`main.dart` yavaş kare kancası, logcat `KARE`). Gerçek donma büyük klasör
+  AÇILIŞINDA: `FsScan.sort` her karşılaştırmada `nameKey` (242 ms → 45 ms, anahtar sıralama
+  başına bir kez). GPU belleği görsel önbelleği tavanının ~2-3 katı, ön planda geri verilmiyor
+  (Impeller+Skia) → orta/güçlü tavan 160 MB/1000 → 64 MB/300 (GL 496 → 237 MB). Ölçüm
+  betikleri: yan yana `.r8test` APK + tek senaryo betiği (A/B aynı adımlar).
 

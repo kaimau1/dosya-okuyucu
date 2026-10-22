@@ -78,17 +78,23 @@ class PerfBudget {
 
   /// Görsel önbelleği tavanı (P2). Sistem bellek baskısında Flutter zaten
   /// boşaltır; bu yalnız tavan.
+  ///
+  /// **2026-10-23 telefonda A/B (Xiaomi 13T, 2.764 fotoğraflı klasör):** GPU
+  /// belleği bu tavanın ~2-3 katına çıkıyor ve uygulama ön plandayken GERİ
+  /// VERİLMİYOR (bellek baskısı sinyali düşürmüyor; Impeller ve Skia'da
+  /// aynı). 160 MB / 1000 → GL 496 MB, PSS 696 MB; 64 MB / 300 → GL 233 MB,
+  /// PSS 441 MB — kaydırmada ek takılma YOK (Flutter kare ölçümü).
   int get imageCacheBytes => switch (tier) {
         DeviceTier.low => 56 << 20,
-        DeviceTier.mid => 100 << 20,
-        DeviceTier.high => 160 << 20,
+        DeviceTier.mid => 64 << 20,
+        DeviceTier.high => 64 << 20,
       };
 
   /// Önbellekteki en çok görsel sayısı (varsayılan 1000).
   int get imageCacheCount => switch (tier) {
         DeviceTier.low => 300,
-        DeviceTier.mid => 700,
-        DeviceTier.high => 1000,
+        DeviceTier.mid => 300,
+        DeviceTier.high => 300,
       };
 
   /// Aynı anda çözülen video/PDF küçük resmi (yerel kanal işleri).

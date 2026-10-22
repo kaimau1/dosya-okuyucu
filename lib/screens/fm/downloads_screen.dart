@@ -145,7 +145,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final cached = _sortedCache;
     if (cached != null && key == _sortedKey) return cached;
     // Arama bellekte süzer: bu ekranın listesi zaten yüklü, disk okunmaz.
-    final list = _filter.apply(_files)
+    var list = _filter.apply(_files)
         .where((e) => _query.trim().isEmpty || fmMatches(e.name, _query))
         .toList();
     switch (_sort) {
@@ -156,7 +156,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       case _DlSort.largest:
         list.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
       case _DlSort.name:
-        list.sort((a, b) => FsScan.compareNames(a.name, b.name));
+        // Ortak sıralama: ad anahtarı öğe başına bir kez hesaplanır.
+        list = FsScan.sort(list, FmSort.name, foldersFirst: false);
     }
     _sortedCache = list;
     _sortedKey = key;

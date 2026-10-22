@@ -24,14 +24,6 @@
 - [ ] **[Sıra 2 ☁️ = Faz 10b] Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
       MP4/MKV/altyazı, MP3/FLAC/M4A). (Galeri RSS 2026-10-22 ölçüldü: PSS 948 MB → aşağıdaki GPU maddesi.)
 
-- [ ] **[📱 ölçüm turu] Foto klasörlerinde kaydırma takılması + GPU belleği (2026-10-22 ölçüldü,
-      `docs/perf/2026-10-21.md` sonu):** sabit satır yüksekliği (G14) geldi ama foto ağırlıklı
-      listede yukarı p99 50 ms, iki yönde ara ara 180–250 ms kare; galeride GL mtrack 500–580 MB
-      ve uygulama ön plandayken GERİ VERİLMİYOR (bellek-baskısı sinyali GL'i düşürmüyor; Skia'da
-      da 326 MB). Hipotezler (tahmin): (a) küçük resim yüklemeleri raster izleğinde, (b) sürücü/
-      çizim motoru doku havuzu tepe kullanımı tutuyor, (c) görsel önbelleği sayı tavanı (1000)
-      çok yüksek. Ayıracak ölçüm: `flutter run --profile` (ayrı paket adıyla, bkz. HAFIZA) +
-      DevTools; önbellek tavanı 1000 → 300 A/B'si GL'i orantılı düşürüyor mu.
 - [ ] **[📱] Açılışın ilk 0,5 sn'si:** ilk kare raster 218–309 ms (Impeller ve Skia), sonra pano
       build 45–49 ms. `_logSlowStartupFrames` logcat'e yazıyor; pano ilk kurulumunda ertelenebilecek
       iş var mı bakılacak.
