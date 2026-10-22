@@ -13,7 +13,8 @@
   "font_size": 1
  },
  "lib/screens/editors/slides/actions.dart": {
-  "dialogs": 1
+  "dialogs": 1,
+  "sheets": 1
  },
  "lib/screens/editors/slides/views.dart": {
   "icons": 5,
