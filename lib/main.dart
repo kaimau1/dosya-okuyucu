@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/route_guard.dart';
 import 'core/third_party_licenses.dart';
 import 'core/app_navigator.dart';
 import 'core/navigator_guard.dart';
@@ -59,6 +60,9 @@ Future<void> main() async {
   // öğrenmenin başka yolu yoktu; kayıt cihazda kalır, kullanıcı Ayarlar >
   // Hata kayıtları'ndan görüp isterse paylaşır (bkz. services/crash_log.dart).
   CrashLog.install();
+  // Platformun `content://…` adresini sayfa adı diye itmesi çökertiyordu
+  // (1.0.393) — `WidgetsApp`ten önce kayıtlı olmalı (bkz. route_guard.dart).
+  RouteInformationGuard.install();
   // **Kararan ekranın ikinci savunma hattı** (kullanıcı hatası 2026-09-06).
   // Bir `build` hatasında Flutter o widget'ın yerine `ErrorWidget` koyar ve
   // release derlemesinde bu, yazısız düz bir dikdörtgendir. Hata ağacın

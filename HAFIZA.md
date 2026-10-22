@@ -332,6 +332,9 @@
 - **2026-10-22 (7):** Office Symbol/Wingdings madde imleri (U+F0B7, "§"+Wingdings) Android'de ▯ —
   Word `viewer.html` `fixSymbolFonts`, slayt `core/symbol_fonts.dart`; `viewer.html`'de charset
   YOK → betikte `\uXXXX`.
+- **2026-10-22 (8):** Flutter 3.27+ derin bağlantı varsayılan açık → "Birlikte aç" `content://`
+  adresini sayfa adı diye itip çökertiyordu: manifest `flutter_deeplinking_enabled=false` +
+  `core/route_guard.dart`. Flutter yükseltmesinde platform varsayılanlarını da gözden geçir.
 
 ## Yol Haritası (öncelik kullanıcıyla netleşecek)
 

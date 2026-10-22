@@ -110,6 +110,16 @@
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"/>
+            <!-- Flutter'ın derin bağlantısı KAPALI (çökme 2026-10-22, 1.0.393:
+                 "Null check … didPushRouteInformation"). Flutter 3.27'den beri
+                 varsayılan açık: uygulama açıkken "Birlikte aç" ile gelen
+                 content://… adresini SAYFA ADI sanıp Navigator'a itiyordu;
+                 öyle bir sayfa yok → release'de `onUnknownRoute!` çöküşü.
+                 Gelen dosyaları zaten MainActivity.asViewIntent + Dart
+                 karşılıyor; adresin sayfa adı olarak bir anlamı yok. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"/>
 
             <!-- Uygulama başlatıcı -->
             <intent-filter>

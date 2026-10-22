@@ -26,3 +26,10 @@
 -keep class com.dexterous.** { *; }
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
+
+# shared_preferences_android 2.5+: SharedPreferencesAsync yolu Kotlin sınıfını
+# Dart'tan JNI ile ADIYLA çağırıyor; R8 açıkken `getAll` silinip/yeniden
+# adlandırılınca "NoSuchMethodError … SharedPreferencesApiRegistrar.getAll"
+# (kullanıcı hata kaydı 2026-10-22, R8'li yerel derleme). R8 şu an kapalı
+# (prepare_android.sh 6c) — yeniden açılınca gerekli.
+-keep class io.flutter.plugins.sharedpreferences.** { *; }
