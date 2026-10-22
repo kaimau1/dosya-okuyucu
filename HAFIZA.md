@@ -416,3 +416,46 @@ Yerel Windows oturumu (Flutter 3.44.6), telefon USB'de (Xiaomi 13T, Android 14+)
   ölçüm dosyası" diye fark etti. Silindi + `content call --uri content://media --method
   scan_volume` + uygulamada "Yeniden tara". Bir dahaki sefere: içine `.nomedia` koy (galeri
   görmesin), ölçüm biter bitmez sil ve kullanıcıya ÖNCEDEN söyle.
+
+## 2026-10-22 (2) — Görsel/kullanım araştırması → Faz 13–19 + bulut-önce yürütme sırası
+
+Bulut oturumu, **kod değişikliği yok** (kullanıcı: *"bu tur kod değiştirme"*). Kullanıcı
+isteği: *"faz 11, 12 ve kalanlar dışında tamamen görsele ve kullanım deneyimine yönelik
+yeni fazlar; uzak ortamda yapabileceklerin en başta. Son dosyalarda PDF vs ayrı
+filtreleyemiyorum; kolay biçimde ve istediğim oranda görüntü boyutlarını değiştiremiyorum."*
+
+- **Plan:** `docs/FAZ_PLANI.md` §3.14 (bulgular G1–G21), K13–K17, Faz 13–19, **§0.1
+  yürütme sırası** (☁️ bulut → 📱 tek cihaz turu = 12b → 👤 Play/Billing/RC). Faz 10'un
+  kalanı **10b** (örnek medya seti, ☁️), Faz 11 → 11a ☁️ / 11b 👤, Faz 12 → 12a ☁️ /
+  12b 📱 / 12c 👤. Faz 11a bilinçli olarak UX fazlarından SONRA: mağaza görselleri ve
+  ilk açılış son görünümü göstersin.
+- **Kök neden — "PDF'i ayrı süzemiyorum":** tür süzgeci üç ayrı yerde üç ayrı biçimde
+  yazılmış (gezgin `FmTypeChips` = `FmCategory` düzeyi; kategori ekranında DocKind
+  çipleri yalnız `showDocKinds` = Belgeler kutusu; arama `FmCategory` çipleri). *Yeni
+  gelenler* aynı `CategoryScreen`i bayraksız açıyor; *Son açılanlar*, *İndirilenler*,
+  *Önemli*, *Üretilenler*, *Çöp*, *Kasa*'da tür süzgeci hiç yok. Çözüm yönü (Faz 13):
+  tek tür modeli (uzantı → üst tür + belge alt türü tek tablodan) + tek bileşen + 10 ekran.
+- **Kök neden — "istediğim oranda boyutlandıramıyorum":** yüzde %10–95; serbest en×boy'da
+  oran kilidi yok (ikisi yazılınca esniyor, `targetSize` custom dalı); büyütme sessizce
+  kaynağa kırpılıyor; oran değiştirme/kenar boşluğu/hedef KB yok; fotoğrafa da video
+  çift-sayı yuvarlaması; ayar hatırlanmıyor; WebP yazılamıyor, HEIC `image` paketiyle
+  çözülemiyor; videoda Media3 `LAYOUT_STRETCH_TO_FIT` her zaman esnetiyor. **Şüphe
+  (B11, doğrulanmadı):** `image` paketi EXIF yönünü uygulamadan ölçüyor → dikey
+  fotoğrafta genişlik ham kenara gidebilir; Faz 10b örnek setiyle test edilecek.
+- **Ölçüm (tutarlılık):** ham `Icons.*` 1.344 / `AppIcons` 93; `_outlined` 373 ·
+  `_rounded` 189 · eksiz 744; sabit renk 150 + `Colors.*` 188; sabit punto 114; sabit
+  süre 95; `disableAnimations` 2 yer; `meetsGuideline` testi 0; RTL'de aynalanmayan
+  ~150 kullanım. Komutlar FAZ_PLANI Ek E — faz başında yeniden ölçülür.
+- **Dış gerçek (web, Ek E):** Android 16'da hedef API 36 → `onBackPressed` çağrılmıyor,
+  `enableOnBackInvokedCallback="false"` yalnız GEÇİCİ kaçış; sw ≥ 600 dp ekranda yön/
+  boyut kısıtları yok sayılıyor (API 37'de çıkış yok, Play Ağu 2027) → geniş ekran
+  düzeni artık "güzel olur" değil zorunluluk (Faz 18). Material 3 Expressive Flutter
+  çekirdeğinde yok (yalnız üçüncü taraf paket) → eklenmedi.
+- **KALANLAR temizliği:** "Liste simgesi 68 dp — ListTile tavanı" maddesi silindi
+  (Faz 6'da `FmEntryRow` kendi `Row`umuzla kapandı, `fm_entry_tiles.dart:17-27`);
+  "Flutter 3.44.9 deneme derlemesi" silindi (Faz 7b 3.44.6'ya taşıdı, uyarılar
+  temizlendi). Kalan maddelere §0.1 sıra numarası yazıldı.
+- **Ders:** kategori ekranı gibi ORTAK bir ekran bir bayrakla (`showDocKinds`) ek
+  özellik açıyorsa, onu yeniden kullanan ekranlar (Yeni gelenler) özelliği sessizce
+  kaybeder — özellik bayrağı değil, veriden türeyen davranış olmalı (Faz 13: alt tür
+  çipleri listede birden çok alt tür varsa kendiliğinden çıkar).

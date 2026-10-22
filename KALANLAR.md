@@ -2,29 +2,35 @@
 
 > **2026-10-21:** Kalan işler fazlara bağlandı → `docs/FAZ_PLANI.md`. Faz 0'da ayrıldı:
 > telefonda bakılacak maddeler (37) → `docs/CIHAZ_TESTI.md`; burada yalnız gerçek iş kalır.
+>
+> **2026-10-22:** Yürütme sırası artık `docs/FAZ_PLANI.md` **§0.1** (bulutta yapılabilenler
+> önce, telefon gerektirenler tek cihaz turunda). Yeni görsel/kullanım fazları 13–19
+> (tür süzgeci, görsel boyutlandırma, görsel dil, erişilebilirlik/RTL, liste/gezinme,
+> görüntüleyici, sistem entegrasyonu) orada; aşağıdaki maddelerin sıra numarası
+> köşeli parantezde.
 
 
-- [ ] **Ham USB yazmayı sağlamlaştır (K8 kararı, 2026-10-21 — Faz 4/10).** Kullanıcı:
+- [ ] **[Sıra 8 ☁️ + 12 📱] Ham USB yazmayı sağlamlaştır (K8 kararı, 2026-10-21).** Kullanıcı:
       *"kişi rahatlıkla USB'ye yazabilmeli ve güvenli olmalı"*. Android'in bağlamadığı
       bellekte FAT/exFAT'a kendi sürücümüz yazıyor (`lib/services/fm/usb/`); günlük yok.
       Yapılacak: güvenli yazma sırası (veri → FAT → dizin girdisi), yazma sonrası geri-okuma
       doğrulaması, "kirli" bayrağıyla bir sonraki takışta onarım, çekmeden önce "Güvenle
       çıkar" uyarısı + yarıda kesilme testleri.
 
-- [ ] **onReorder → onReorderItem (Flutter 3.44 kullanımdan kaldırma, 2026-10-21):**
+- [ ] **[Sıra 8 ☁️] onReorder → onReorderItem (Flutter 3.44 kullanımdan kaldırma, 2026-10-21):**
       `dashboard_layout_sheet.dart` (alt küme → tam liste eşlemesi) ve `nav_tabs_sheet.dart`
       (`nav.move`) `// ignore` ile bırakıldı; yeni API `newIndex`i önceden düzeltiyor —
       eşleme ve `move` mantığı buna göre değiştirilip testle sabitlenmeli.
-- [ ] **Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
+- [ ] **[Sıra 2 ☁️ = Faz 10b; RSS ölçümü sıra 12 📱] Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
       MP4/MKV/altyazı, MP3/FLAC/M4A); galeride 2.000 fotoğraf RSS ölçümü (telefon).
 
-- [ ] **R8 kod küçültmeyi geri aç (2026-10-22):** Flutter 3.44 / AGP 9'da R8 yansımalı
+- [ ] **[Sıra 8 ☁️ kurallar + 12 📱 açılış denemesi] R8 kod küçültmeyi geri aç (2026-10-22):** Flutter 3.44 / AGP 9'da R8 yansımalı
       sınıfları kırdı (WorkManager Room `_Impl` → açılışta çökme; Gson TypeToken →
       flutter_local_notifications → siyah ekran; ML Kit kayıt sınıfı). Şimdilik
       `prepare_android.sh` 6c'de kapalı (APK +~6-9 MB). Yapılacak: kütüphanelerin
       consumer kurallarının neden uygulanmadığını bul (AGP 9 `android.newDsl=false`?),
       `proguard-rules.pro` ile aç, telefonda soğuk açılış + bildirim + OCR dene.
-- [ ] **Yukarı kaydırmada takılma (Faz 4, 2026-10-22 telefonda ölçüldü):** 5.000 öğeli
+- [ ] **[Faz 17 madde 4 ☁️ + ölçüm sıra 12 📱] Yukarı kaydırmada takılma (Faz 4, 2026-10-22 telefonda ölçüldü):** 5.000 öğeli
       klasörde AŞAĞI kaydırma kusursuz (p99 8,5 ms, 120 Hz), listenin ortasında YUKARI
       kaydırmada p90 33 ms / p99 50 ms. Hipotez: `FmFileListView` `ListView.builder`ı
       sabit yükseklik vermiyor, yukarıdan giren satırlar ölçülüyor. Ayıracak ölçüm:
@@ -55,19 +61,7 @@
       standart ortak klasörleri). Kullanıcı "birlik olarak kullan"dan başka bir şey
       kastettiyse ekran/kip buna göre genişletilecek.
 
-- [ ] **Liste simgesi 68 dp'ye YÜKSELEMİYOR — `ListTile` tavanı** (2026-08-30).
-      `FmEntryListTile` 68 dp istiyor; Material'in `ListTile`'ı `leading`
-      yuvasını `maxHeight: 56` ile kesiyor (yoğun satırda 48). Şekil artık
-      kutuya kendi oranıyla sığıyor (klasör genişliği 51 → 68 dp, yan boşluk
-      sıfır) ama YÜKSEKLİK hâlâ 56'da duruyor. Aşmak için `leading` yuvası
-      bırakılıp satır kendi `Row`'umuzla kurulmalı (seçili zemin, şekil, ink,
-      başlık/alt satır stilleri ve trailing elle taşınacak) — gözatıcı,
-      kategori, arama ve "son açılanlar" listelerinin hepsini etkiliyor,
-      o yüzden ayrı tur.
-
-
-
-- [ ] **MAĞAZA YOLU (2026-08-28 durum değerlendirmesi) — sırayla, her biri
+- [ ] **[Faz 11a ☁️ / 11b 👤 — sıra 9 ve 13] MAĞAZA YOLU (2026-08-28 durum değerlendirmesi) — sırayla, her biri
       kendi turu.** Dört temel bu turda yapıldı (artan versionCode, imza
       sızıntısının kapatılması, hata kaydı, gizlilik politikası). Kalanlar:
       (a) ~~**targetSdk 36**~~ → **YAPILDI 2026-09-26** CI yamasıyla
@@ -86,28 +80,11 @@
       (e) **boyut:** ~91 MB/ABI. 2026-09-26: OCR Play Hizmetleri'ne
       (unbundled, ~12 MB), pdfium.wasm çıkarıldı (2 MB), Firebase kaldırıldı.
       ffmpeg (15,5 MB/ABI) KULLANICI KARARIYLA KALIYOR (video küçültmenin ana
-      motoru). Kalan aday: font altkümesi;
+      motoru). Kalan aday: font altkümesi; → *2026-10-21 K2 (b): FFmpeg kalktı,
+      Media3 Transformer geldi (Faz 10); R8 kapalıyken APK 63-66 MB*;
       (f) **Veri Güvenliği formu** `assets/privacy/tr.md`in 1-2. bölümünden
       doldurulacak;
       (g) ~~`flutter analyze` CI kapısı~~ **BİTTİ** (2026-08-28).
-
-- [ ] **Flutter 3.44.9 DENEME DERLEMESİ (kullanıcı tetikleyecek)** —
-      2026-08-28: Actions > **Run workflow** > "Denenecek Flutter sürümü" =
-      `3.44.9`. Ölçüldü: bağımlılıklar değişmeden çözülüyor, 1730 test yeşil,
-      yalnız 24 kullanımdan-kaldırma uyarısı var; belirsiz olan **Android
-      derleme zinciri** (AGP 9.0.1 / Gradle 9.1 / Kotlin 2.3.20 / NDK 28).
-      Yeşil çıkarsa `FLUTTER_VERSION` varsayılanı 3.44.9'a taşınır → targetSdk
-      **36** (Play'in 31 Ağu 2026 şartı) kendiliğinden gelir ve yereldeki
-      sürümle CI aynı olur. Ardından 24 uyarının temizlenmesi ayrı bir tur
-      (`RadioGroup`, `DropdownButtonFormField.initialValue`,
-      `Matrix4.translateByDouble/scaleByDouble`) — bunlar 3.29.3'te DERLENMEZ,
-      yani ancak varsayılan taşındıktan sonra yapılabilir.
-
-
-
-
-
-
 
 ## Word "gerçek mobil Word gibi olsun" — kalan yol haritası
 2026-08-02'de yapısal geri al/yinele geldi. Kalanlar:

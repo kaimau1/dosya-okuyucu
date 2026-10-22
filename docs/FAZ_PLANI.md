@@ -11,27 +11,37 @@
 > **Bu belge bir PLANDIR — kod değişikliği içermez.** Her faz ayrı bir oturumda,
 > sırayla uygulanmak üzere yazıldı. Fazlar tamamlandıkça §0'daki durum tablosu
 > güncellenir.
+>
+> **Ek (2026-10-22) — görsel ve kullanım deneyimi turu:** `main` @ `0772995`
+> üzerinde ikinci bir tarama (liste/süzgeç/boyutlandırma akışları satır satır,
+> simge/renk/yazı/RTL kullanım sayımları, erişilebilirlik testleri, Android 16
+> davranış değişiklikleri ve rakip uygulama araştırması). Bulgular **§3.14**
+> (G1–G21), yeni kararlar **K13–K17**, yeni fazlar **Faz 13–19** ve kalan
+> fazlarla birlikte **bulutta yapılabilenleri öne alan yürütme sırası §0.1**.
 
 ---
 
 ## İçindekiler
 
 0. [Bu belge nasıl kullanılır + durum tablosu](#0-bu-belge-nasıl-kullanılır)
+   — [0.1 Yürütme sırası (2026-10-22, bulut önce)](#01-yürütme-sırası-2026-10-22--bulutta-yapılabilenler-önce)
 1. [Yönetici özeti](#1-yönetici-özeti)
 2. [Mevcut durum — ölçümler](#2-mevcut-durum--ölçümler)
-3. [Bulgular (alan alan)](#3-bulgular)
-4. [Senin vermen gereken kararlar (K1–K12)](#4-kararlar)
+3. [Bulgular (alan alan)](#3-bulgular) — [3.14 Görsel ve kullanım deneyimi (G1–G21)](#314-görsel-ve-kullanım-deneyimi-2026-10-22)
+4. [Senin vermen gereken kararlar (K1–K17)](#4-kararlar)
 5. [Hedef bilgi mimarisi (sadeleşmiş menü ağacı)](#5-hedef-bilgi-mimarisi)
-6. [Fazlar (Faz 0 – Faz 12)](#6-fazlar)
+6. [Fazlar (Faz 0 – Faz 19)](#6-fazlar)
 7. [Ekler](#7-ekler)
 
 ---
 
 ## 0. Bu belge nasıl kullanılır
 
-- **Sıra:** Faz 0 → Faz 12. Her faz bir oturum; büyük olanlar (Faz 2, 6, 8, 9)
-  gerekirse iki oturuma bölünür — fazın içinde "Bölünürse" satırı nerede
-  kesileceğini söyler.
+- **Sıra:** Faz 0 → Faz 10 bu sırayla yapıldı. **2026-10-22'den itibaren sıra
+  §0.1'deki yürütme tablosudur** (faz numarası değil): bulut oturumunda
+  bitirilebilen işler önce, telefon gerektirenler tek bir cihaz turunda, hesap/
+  karar gerektirenler en sonda. Her faz bir oturum; büyük olanlar gerekirse iki
+  oturuma bölünür — fazın içinde "Bölünürse" satırı nerede kesileceğini söyler.
 - **Oturum açılışı:** fazın sonundaki **"Açılış istemi"** kutusunu yeni oturuma
   aynen yapıştır. İstem; bu belgenin ilgili bölümünü okumayı, kabul ölçütlerini
   sağlamayı, HAFIZA'ya yazmayı ve main'e birleştirmeyi zaten içeriyor.
@@ -42,9 +52,10 @@
   3. HAFIZA.md'ye tarihli kayıt (karar + kök neden + tuzak);
   4. bu belgede durum satırı ✅ + tarih + sürüm numarası;
   5. main'e birleştirilmiş, CI yeşil.
-- **Kararlar:** §4'teki K1–K12 Faz 0'da cevaplanır ve cevap §4 tablosuna
-  yazılır. Sonraki fazlar bu cevaplara göre dallanır; cevap yoksa fazdaki
-  "varsayılan" uygulanır.
+- **Kararlar:** §4'teki K1–K12 Faz 0'da cevaplandı; K13–K17 (2026-10-22)
+  ilgili fazın başında sorulur ve cevap §4 tablosuna yazılır. Sonraki fazlar
+  bu cevaplara göre dallanır; cevap yoksa fazdaki "varsayılan" (öneri)
+  uygulanır.
 
 ### Durum tablosu
 
@@ -60,9 +71,60 @@
 | 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | ✅ 2026-10-21 — `dc9e613` excel/lisans/font + (5): **Flutter 3.44.6** (CI varsayılanı), kullanımdan kaldırmalar, AGP 9 yamaları, `receive_sharing_intent` 1.8.1; K2 Media3 → Faz 10'da yapıldı |
 | 8 | PDF akışı (tek çatı) | 6, 7 | ✅ 2026-10-21 — tek "Düzenle" kapısı (6 kip), eski yol silindi (K12), "yazı ekle" yedeği, Aa levhası, örnek set + duman; vurgu+CropBox cihazda (bkz. HAFIZA (4)) |
 | 9 | Office ve metin akışları (Word, Excel, Slayt, Metin/CSV/MD) | 6, 7 | ✅ 2026-10-21 — Y1 (tablo hücresi, seçime punto, resim ekle/sil), Y2 (grafik, köşegen, sayfa taşı), Y4, büyük metin, eski Office dönüştür; Word yazım köprüsü hatası bulundu-düzeltildi; 10 bin satır ölçümü cihazda |
-| 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | 🟡 2026-10-21 — görsel düzenleyici, PiP (`SYSTEM_ALERT_WINDOW` kalktı), tek motor (`audioplayers` kalktı), Media3 Transformer (FFmpeg + `video_compress` kalktı); örnek medya seti ve cihaz turu bekliyor (bkz. HAFIZA (5)) |
-| 11 | Ticari yayın hazırlığı (Play politikaları, ilk açılış, gelir modeli, mağaza) | 8–10 | ⬜ |
-| 12 | Kapanış — uçtan uca hata avı, cihaz doğrulama turu, sürüm adayı | 11 | ⬜ |
+| 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | 🟡 2026-10-21 — görsel düzenleyici, PiP (`SYSTEM_ALERT_WINDOW` kalktı), tek motor (`audioplayers` kalktı), Media3 Transformer (FFmpeg + `video_compress` kalktı); örnek medya seti ve cihaz turu bekliyor (bkz. HAFIZA (5)) → **10b** (☁️, yürütme sırası 2) + cihaz turu |
+| 11 | Ticari yayın hazırlığı (Play politikaları, ilk açılış, gelir modeli, mağaza) — 2026-10-22: **11a** bulut kısmı · **11b** hesap/cihaz kısmı | 8–10 | ⬜ |
+| 12 | Kapanış — uçtan uca hata avı, cihaz doğrulama turu, sürüm adayı — 2026-10-22: **12a** betikli hata avı (bulut) · **12b** cihaz turu · **12c** RC | 11 | ⬜ |
+| 13 | **Ortak tür süzgeci** — her listede PDF/Word/Excel… ayrı seçilir; Son açılanlar'a süzgeç, sıralama, gruplama, çoklu seçim | 6 | ⬜ |
+| 14 | **Görsel boyutlandırma 2.0** — oran kilidi; yüzde/piksel/uzun kenar/en-boy oranı/hedef dosya boyutu; ön ayarlar; WebP/HEIC; düzenleyicide "Boyut" | 10b | ⬜ |
+| 15 | **Görsel dil birliği** — simge, renk, yazı, hareket tokenları + bekçi testler + kontrast | 6 | ⬜ |
+| 16 | **Erişilebilirlik + Arapça (RTL) + büyük yazı** | 15 | ⬜ |
+| 17 | **Liste ve gezinme cilası** — kalan ~10 liste ekranı ortak bileşene, klasör başına hafıza, iki parmakla sütun, panoda "Son açılanlar" şeridi, eylem sayfası | 13, 15 | ⬜ |
+| 18 | **Görüntüleyici ve medya deneyimi** — okuma kipi, video jestleri, galeri, geniş ekran | 15 | ⬜ |
+| 19 | **Sistem entegrasyonu ve ilk izlenim** — açılış ekranı, başlatıcı kısayolları, pencere öğeleri, sistem rengi (K13), dokunsal geri bildirim | 15 | ⬜ |
+
+### 0.1 Yürütme sırası (2026-10-22) — bulutta yapılabilenler önce
+
+Kullanıcı isteği (2026-10-22): *"faz 11, 12 ve kalanlar var; onun dışında tamamen
+görsele ve kullanım deneyimine yönelik yeni fazlar yap; kalanlarla beraber uzak
+ortamda yapabileceklerini en başta olmak üzere."*
+
+**Ortam işaretleri:** ☁️ = bulut (uzak) oturumunda baştan sona bitirilebilir ·
+📱 = telefon gerekir (yerel Windows oturumu + USB'li telefon) · 👤 = kullanıcının
+hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
+
+| Sıra | İş | Ortam | Neden bu sırada |
+|---|---|---|---|
+| 1 | **Faz 13** — Ortak tür süzgeci + Son açılanlar | ☁️ | Kullanıcının doğrudan şikâyeti (*"son dosyalarda PDF vs ayrı filtreleyemiyorum"*); tamamı birim + widget testiyle doğrulanır |
+| 2 | **Faz 10b** — örnek medya seti + duman testleri (Faz 10'un kalanı) | ☁️ | Faz 14'ün test zemini: EXIF yönlü JPEG, PNG, WebP, (HEIC), MP4/MKV + altyazı, MP3/FLAC/M4A etiketli — bulutta Python/ffmpeg ile üretilir |
+| 3 | **Faz 14** — Görsel boyutlandırma 2.0 | ☁️ (+📱) | İkinci doğrudan şikâyet (*"istediğim oranda görüntü boyutlarını değiştiremiyorum"*). Dart motoru, arayüz, testler bulutta; yerel kodlayıcı (WebP/HEIC) ve video kipleri cihaz turunda doğrulanır |
+| 4 | **Faz 15** — Görsel dil birliği | ☁️ | Sonraki UX fazları aynı tokenlarla yazılsın diye erken; tasarım PNG'leri bulutta üretilir (`tool/design_shots_test.dart`) |
+| 5 | **Faz 16** — Erişilebilirlik + RTL + büyük yazı | ☁️ (+📱 TalkBack) | Faz 15'in tokenlarına dayanır |
+| 6 | **Faz 17** — Liste ve gezinme cilası | ☁️ (+📱 kaydırma ölçümü) | Faz 13'ün süzgecini kalan ekranlara taşır |
+| 7 | **Faz 18** — Görüntüleyici ve medya deneyimi | ☁️ (+📱 jest hissi) | |
+| 8 | **KALANLAR (bulut kısmı)** — `onReorder → onReorderItem` göçü; ham USB yazmayı sağlamlaştırma (bellek içi FAT/exFAT görüntüsüyle yarıda-kesilme testleri); R8 koruma kurallarının yazılması | ☁️ (+📱) | Kod + test bulutta; USB takma ve R8'li APK'nın açılışı cihaz turunda |
+| 9 | **Faz 11a** — yayın hazırlığının bulut kısmı | ☁️ | İlk açılış rehberi, tahminli geri (`PopScope`), gizlilik + Play beyan metinleri, Gemini anahtarı Keystore, Yardım/SSS, "Sorun bildir", mağaza metinleri ve ekran görüntüleri. **UX fazlarından SONRA**: mağaza görselleri ve ilk açılış son görünümü göstersin |
+| 10 | **Faz 19** — Sistem entegrasyonu ve ilk izlenim | ☁️ + 📱 | XML/Kotlin bulutta yazılır; başlatıcıda/ana ekranda görünüş ancak telefonda görülür |
+| 11 | **Faz 12a** — betikli hata avı | ☁️ | Bütün kod değişikliklerinden sonra, cihaz turundan önce |
+| 12 | **Cihaz turu (= Faz 12b)** — Faz 4 ölçümleri, Faz 10 cihaz turu, Faz 13–19 cihaz maddeleri, R8, USB, `docs/CIHAZ_TESTI.md` | 📱 | Telefon gerektiren her şey TEK oturumda; kırmızılar aynı oturumda düzeltilir |
+| 13 | **Faz 11b** — Play Console, Billing ürünleri, iç test kanalı, depo private (K7), CASA (K5) | 👤📱 | Hesap ve ödeme kararları |
+| 14 | **Faz 12c** — sürüm adayı, `v1.x.0` etiketi, Play kapalı test → üretim | 👤 | |
+
+**Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
+
+- **Yapabilir:** Flutter **3.44.6** Linux sürümünü indirip `flutter pub get /
+  analyze / test` (CI ile aynı sürüm; `git config --global --add safe.directory`
+  gerekir); tasarım PNG'leri (`flutter test tool/design_shots_test.dart` →
+  `docs/design/`) üretip kullanıcıya göstermek; örnek dosya setleri
+  (`tool/write_fixtures_test.dart`, Python, ffmpeg, Poppler); main'e push → CI
+  APK + nightly (kullanıcı telefona kurar); `tool/check_kotlin.sh` (kotlinc
+  yoksa sessizce atlar — o zaman Kotlin değişikliği küçük tutulur, CI derlemesi
+  beklenir).
+- **Yapamaz:** telefona kurma, kare süresi/RSS/pil ölçümü, kamera/OCR/Play
+  Hizmetleri, gerçek USB/SD/NAS, TalkBack, başlatıcı/pencere öğesi görünüşü,
+  Play Console; `graphify update .` (bulutta kurulu değil — yerelde koşturulur).
+- **Kural:** bir faz bulutta bittiğinde cihazla doğrulanacak maddeleri
+  `docs/CIHAZ_TESTI.md`'ye ekler; faz "✅ (cihaz maddeleri bekliyor)" diye
+  işaretlenir ve sıra 12'deki turda kapanır.
 
 ---
 
@@ -123,6 +185,29 @@ koda performans ve tasarım emeği harcanmasın diye. Kullanıcı iletişimi
 altyapısı (Faz 5) tasarım fazından önce gelir ki yeni ekranlar onu kullanarak
 yazılsın. Bağımlılık/lisans (Faz 7) format fazlarından önce gelir çünkü PDF ve
 medya fazlarının yolu K1/K2 kararlarına bağlı.
+
+**2026-10-22 eki — görsel ve kullanım deneyimi.** Faz 0–10'dan sonra kod
+sağlam ama **"kolay ve tutarlı"** sınıfında boşluklar var (§3.14):
+
+1. **Süzgeç her ekranda başka:** tür süzgeci üç ayrı yerde üç ayrı biçimde
+   yazılmış; PDF'i ayrı seçmek yalnız *Belgeler* kutusunda mümkün. **Son
+   açılanlar**'da hiç süzgeç, sıralama ve çoklu seçim yok; *Yeni gelenler*,
+   *İndirilenler*, *Önemli*, *Üretilenler*, *Çöp kutusu*, *Kasa*'da tür süzgeci
+   yok (G1–G3).
+2. **Boyutlandırma "istenen oranda" yapılamıyor:** yüzde %10–95 ile sınırlı,
+   en×boy alanlarında oran kilidi yok (ikisi birden yazılınca görüntü esniyor),
+   büyütme sessizce engelleniyor, en-boy oranı değiştirme/kenar boşluğu ve
+   "en çok 200 KB" gibi hedef boyut yok, ayar hatırlanmıyor, WebP/HEIC yok (G4).
+3. **Görsel dil yarım birleşmiş:** 1.344 ham simge kullanımına karşılık 93
+   `AppIcons`; üç glif ailesi karışık; 338 sabit renk, 114 sabit punto, 95 sabit
+   süre (G5–G8).
+4. **Erişilebilirlik ve Arapça doğrulanmıyor:** `meetsGuideline` testi 0;
+   Arapça arayüzde aynalanmayan ~150 boşluk/hizalama/ok kullanımı (G9–G10).
+5. **Büyük ekran:** geniş düzen yalnız gezginde; Android 16 (hedef API 36,
+   Play'de Ağustos 2026'dan beri zorunlu) büyük ekranda yön kilidini yok sayıyor
+   (G17).
+
+Bunlar yedi yeni fazda (13–19) toplandı; sıra §0.1'de — **önce bulutta bitenler**.
 
 ---
 
@@ -480,12 +565,98 @@ ve **duman testi** ister: aç → kaydet → yeniden aç → içerik aynı mı.
 | H4 | CLAUDE.md "TEK DAL main" diyor; bulut oturumları her seferinde `claude/*` dalı açıyor (uzak depoda 30+ dal birikti) | CLAUDE.md'ye kural: "oturum dalı main'e birleştirildikten sonra uzak dal silinir" |
 | H5 | README bayat (B9) | Faz 0'da güncelle |
 
+### 3.14 Görsel ve kullanım deneyimi (2026-10-22)
+
+> **Yöntem:** `main` @ `0772995` (Flutter 3.44.6). Liste, süzgeç, boyutlandırma,
+> düzenleyici, galeri, oynatıcı ve pano akışları satır satır okundu; simge/renk/
+> yazı/hareket/RTL kullanımları `grep` ile sayıldı (sayımlar aşağıda, komutlar
+> Ek E); Android 16 davranış değişiklikleri, Material You, Material 3 Expressive
+> ve rakip görsel boyutlandırma uygulamaları web'de araştırıldı (kaynaklar Ek E).
+> Bulgu kimliği **G** (görsel/kullanım). Zaten iyi olanlar — yeniden ele
+> alınmasın: Faz 6'nın `FmEntryRow` satırı (56 dp tavanı kalktı), yol hapları,
+> `FmListToolbar` sıralama şeridi; galerideki Hero geçişi, aşağı çekip kapatma ve
+> çift dokunuşla yakınlaştırma; Fotoğraflar'da iki parmakla sütun; PDF sayfa
+> rozeti + `PdfPageNavigator`; ses oynatıcıda uyku zamanlayıcısı/hız/çalma
+> listesi; boyutlandırmada "şu an → sonra" kartı ve tahmini boyut.
+
+#### 3.14.1 Süzgeçler — "son dosyalarda PDF'i ayrı süzemiyorum"
+
+| # | Bulgu | Kanıt |
+|---|---|---|
+| G1 | **Son açılanlar'da süzgeç yok.** Yalnız ad araması var; tür/tarih/boyut çipi, sıralama (sabit: son açılma), gruplama, ızgara ve **çoklu seçim** yok (`selected: const {}` — her dokunuş açar). Toplu "geçmişten kaldır" yok; yalnız "tümünü temizle". | `screens/fm/open_history_screen.dart:150-178` |
+| G2 | **Tür süzgeci üç ayrı yerde, üç ayrı biçimde; PDF yalnız birinde ayrı.** (a) Gezgin: `FmTypeChips` — `FmCategory` düzeyinde, "Belgeler" tek çip (`fm_file_list_view.dart:392`, yalnız `browser_screen.dart:220`'de kullanılıyor). (b) Kategori ekranı: PDF/Word/Excel/Slayt/Metin çipleri **yalnız Belgeler kutusunda** (`showDocKinds`, `category_screen.dart:503`). *Yeni gelenler* aynı ekranı bu bayrak olmadan açıyor (`new_files_screen.dart:156`) → karışık listede PDF'i ayırmanın tek yolu süzgeç sayfasında uzantı işaretlemek (3 dokunuş). (c) Arama: `FmCategory` çipleri, alt tür yok (`search_screen.dart:564`). (d) İndirilenler, Önemli, Üretilenler, Çöp kutusu, Kasa: **tür süzgeci hiç yok**. | dosyalar solda |
+| G3 | **Süzgeç/sıralama hafızası yok.** Ekrandan çıkınca süzgeç sıfırlanıyor; gezginde sıralama tek global ayar (`appState.setFmSort`), klasör başına değil ("İndirilenler tarihe, Müzik ada göre" yapılamıyor). | `browser_screen.dart:215` |
+
+> Karşılaştırma: Google Drive'ın tür süzgeci PDF'i Belgeler'den **ayrı** bir
+> seçenek olarak sunuyor ve çipler birlikte kullanılabiliyor (Ek E). Bizim
+> `FmQuickFilters`'ın "sayı = dokununca kalan dosya" ilkesi bundan iyi; eksik
+> olan tek şey alt tür düzeyi ve her ekranda aynı bileşen.
+
+#### 3.14.2 Görsel boyutlandırma — "istediğim oranda değiştiremiyorum"
+
+| # | Bulgu | Kanıt |
+|---|---|---|
+| G4a | Yüzde kaydırıcısı **%10–95**, 5'er adım; elle sayı girilemiyor; %100 üstü yok. | `widgets/fm/media_resize_sheet.dart:164-165` |
+| G4b | **Serbest en × boy'da oran kilidi yok.** İki alan bağımsız; ikisi birden yazılınca görüntü **esniyor** (oran bozulur). Biri yazılınca öteki alanda görünmüyor (yalnız "sonra" satırında). | `models/media_resize.dart:504-531` |
+| G4c | Kaynaktan büyük değer **sessizce kaynağa kırpılıyor** (büyütme yasak); kullanıcı istediği ölçüyü alamıyor, nedeni alanın altındaki küçük notta. | aynı yer |
+| G4d | **En-boy oranı değiştirme yok** (1:1, 4:5, 16:9, A4…); kırpma ayrı ekranda, **kenar boşluğu (dolgu)** seçeneği hiç yok. Videoda oran değişince Media3 `LAYOUT_STRETCH_TO_FIT` ile görüntü esniyor. | `ci/MediaTranscode.kt:129` |
+| G4e | **Hedef dosya boyutu yok** ("en çok 200 KB / 1 MB" — resmî başvuru/form yüklemelerinin tipik şartı); yalnız JPEG kalite kaydırıcısı. Rakip boyutlandırıcılar yüzde + piksel + oran + toplu işi birlikte sunuyor (Ek E). | — |
+| G4f | Fotoğraf kademeleri **video dilinde** (480p/540p/720p/1080p = kısa kenar); fotoğrafta beklenen "uzun kenar 1280/1600/2048 px". | `models/media_resize.dart:12` |
+| G4g | **Son ayar hatırlanmıyor**, kayıtlı ön ayar (preset) yok — her seferinde 1080p varsayılanı. | `screens/fm/resize_actions.dart:54` (`initial` verilmiyor) |
+| G4h | Çıktı JPEG/PNG(/BMP/TGA); **WebP yok** (`image` paketi yazamıyor). **HEIC kaynak** `image` paketiyle çözülemiyor → küçültme "Görüntü çözülemedi" ile başarısız (kod okuması — cihazda doğrulanacak); oysa görsel düzenleyici HEIC'i platform çözücüsüyle açıyor (iki ayrı motor). Saf Dart çözme 12 MP'de düşük cihazda yavaş ve tüm bitmap'i belleğe alıyor. | `services/fm/image_resize.dart:39-50, 194-230` |
+| G4i | **Giriş noktası gizli:** galeri alt çubuğunda "Boyut" yok (yalnız ⋮ → eylem sayfası); görsel düzenleyicide boyut sekmesi yok — kırp ve boyutlandır iki ayrı akış. | `image_gallery_screen.dart:434-460` |
+| G4j | Kırpma oranları 6 tane (serbest, 1:1, 4:3, 3:4, 16:9, 9:16): **Orijinal, 4:5, 5:4, 3:2, 2:3, 21:9, A4, özel a:b yok**; kırpma kutusunun piksel ölçüsü yazmıyor. | `screens/image_edit_screen.dart:52-59` |
+| G4k | **Fotoğrafa da çift sayı yuvarlaması** uygulanıyor (`even()` video kodlayıcı şartı): 1081 yazan 1080 alıyor. | `models/media_resize.dart:493` |
+| G4l | **Şüphe — doğrulanacak (B11):** `image` paketi EXIF yönünü uygulamadan ölçüyor; dikey çekilmiş (Orientation = 6/8) fotoğrafta "genişlik 1080" ham (yatay) kenara uygulanabilir → çıktı beklenenden küçük/yan. Faz 10b örnek setindeki EXIF yönlü JPEG ile test edilecek. | `image_resize.dart` `_resizeSync` |
+
+#### 3.14.3 Görsel dil tutarlılığı (ölçüldü)
+
+| # | Ölçü | Değer | Not |
+|---|---|---|---|
+| G5 | Ham `Icons.*` (`app_icons.dart` dışında) | **1.344** | `AppIcons.*` yalnız 93 kez; Faz 6'nın simge sistemi yalnız gezgine uygulandı |
+| G5 | Glif ailesi karışımı | `_outlined` 373 · `_rounded` 189 · eksiz 744 | aynı ekranda üç aile |
+| G6 | Sabit `Color(0x…)` (tema/görünüm dosyaları dışında) | **150** | koyu temada kontrast riski |
+| G6 | Doğrudan `Colors.black/white/grey/red/…` | **188** | |
+| G7 | Sabit `fontSize:` | **114** | `TextTheme` rollerini atlıyor; yazı ölçeği ayarı her yere eşit yansımıyor |
+| G8 | Sabit `Duration(milliseconds:` | 95 | hareket tokenı yok |
+| G8 | Cihazın "animasyonları kaldır" ayarını (`disableAnimations`) dikkate alan yer | **2** | |
+| G9 | Erişilebilirlik kılavuz testi (`meetsGuideline`: 48 dp hedef, etiketli hedef, metin kontrastı) | **0** | Flutter'ın hazır kılavuzları hiç koşturulmuyor |
+
+#### 3.14.4 Arapça (RTL) ve büyük yazı
+
+| # | Bulgu | Sayı |
+|---|---|---|
+| G10 | Arapça arayüzde aynalanmayan yerleşim: `EdgeInsets.only(left:/right:)` 27 · asimetrik `EdgeInsets.fromLTRB` 24 · `Alignment.*Left/*Right` 36 · `TextAlign.left/right` 21 · yöne duyarsız ok simgeleri (`arrow_back/forward`, `chevron_left/right`) 43. `EdgeInsetsDirectional` yalnız 22 yerde. | ~150 |
+| G10 | Yazı ölçeği testleri 1,4×'te; Android 14+ **doğrusal olmayan ölçek 2,0×'e** kadar çıkıyor. | — |
+
+#### 3.14.5 Listeler, gezinme, ana ekran
+
+| # | Bulgu | Kanıt |
+|---|---|---|
+| G11 | `FmFileListView`'i 5 ekran kullanıyor (gezgin, kategori, arama, indirilenler, son açılanlar). **Dosya gösterip kullanmayanlar:** Çöp kutusu, Arşiv içi, Kasa, Gizli dosyalar, Yinelenenler, Benzerler, Sohbet temizliği, Önemli, Üretilenler (+ İşlemler listesi) — sıralama/süzgeç/boş durum her birinde farklı ya da yok (U10'un devamı). | `grep FmFileListView` |
+| G12 | Izgarada iki parmakla sütun değiştirme yalnız Fotoğraflar'da; gezgin ve kategoride yok. | `photos/grid.dart:234` |
+| G13 | İndirilenler'in `_sorted` getter'ı **her `build`'de** süzüp sıralıyor (B1'in kardeşi). | `downloads_screen.dart:96` |
+| G14 | 5.000 öğede **yukarı** kaydırmada p99 50 ms (KALANLAR); satır yüksekliği sabitlenmemiş. | `docs/perf/2026-10-21.md` |
+| G15 | **Panoda son açılan dosyalar görünmüyor** — "az önce açtığım dosya" iki dokunuş (Geçmiş kutusu → Açılanlar). | `services/fm/dashboard_layout.dart:21` |
+| G16 | Dosya eylem sayfası ~27 eylem, 4 grup; en sık 5 eylem için üstte hızlı sıra yok. | `entry_actions/sheet.dart:124-240` |
+| G17 | **Geniş ekran düzeni yalnız gezginde** (≥ 840 dp). Pano, görüntüleyiciler, düzenleyiciler, ayarlar telefona göre. Android 16'da hedef API 36 olan uygulama **sw ≥ 600 dp ekranda yön/yeniden boyut kısıtlarını yok sayar**; Play hedef API 36'yı Ağustos 2026'dan beri istiyor, API 37'de bu davranıştan çıkış yolu kalmıyor (Ek E). | `browser_screen.dart:201` |
+
+#### 3.14.6 Görüntüleyici, medya, sistem
+
+| # | Bulgu | Kanıt |
+|---|---|---|
+| G18 | Video oynatıcıda **parlaklık kaydırması, uzun basışta 2× hız, kontrol kilidi** yok (ses kaydırması, çift dokunuşla ±10 sn, hız, altyazı var). | `media_player/actions.dart:138-229` |
+| G19 | Galeride slayt gösterisi, "Önemli"ye ekle, "Farklı kullan" (duvar kâğıdı/kişi fotoğrafı — `ACTION_ATTACH_DATA`) yok. | `image_gallery_screen.dart:434-460` |
+| G20 | Okurken üst/alt çubukları gizleyen **tam ekran okuma kipi** PDF/metin/Word görüntüleyicisinde bulunamadı (kod taraması — Faz 18'de cihazda doğrulanır). | `screens/viewer/` |
+| G21 | **Sistem entegrasyonu eksikleri:** Material You (duvar kâğıdı rengi) seçeneği yok (`ColorScheme.fromSeed` sabit tohumla); başlatıcı simgesine uzun basınca kısayol yok (yalnız sabitlenmiş kısayol var); Android 12 açılış ekranı varsayılan (`flutter create`); ana ekran pencere öğeleri Android 12 görünüm kurallarına göre gözden geçirilmedi; `HapticFeedback` 13 yerde dağınık, ayarla kapatılamıyor; Android 13 uygulama başına dil (`localeConfig`) yok. | `core/theme.dart:244`, `ci/Extras.kt:396,445`, `ci/res/` |
+
 ---
 
 ## 4. Kararlar
 
 Faz 0'da cevaplanacak. **"Öneri"** sütunu benim tavsiyem; cevabını **"Karar"**
-sütununa yaz.
+sütununa yaz. **K13–K17 (2026-10-22)** ilgili fazın başında sorulur; cevap
+yoksa "Öneri" uygulanır.
 
 | # | Soru | Seçenekler | Öneri | Etkilediği faz | Karar |
 |---|---|---|---|---|---|
@@ -501,6 +672,11 @@ sütununa yaz.
 | K10 | Masaüstü / iOS | şimdi · yayından sonra · hiç | **Yayından sonra** — şimdilik yalnız Android | 0 |  **Hiç** — yalnız Android (CLAUDE.md hedefi güncellendi) — 2026-10-21 |
 | K11 | Dağıtım kanalı | yalnız Play · Play + GitHub Releases | **Play (AAB)**; GitHub Releases yalnız iç test (nightly) | 1, 11 |  **Play (AAB) + GitHub nightly** — 2026-10-21 |
 | K12 | Eski PDF kelime-bazlı düzenleme yolu | cihazda paragraf motoru doğrulanınca sil · hemen sil | **Faz 8'de**: paragraf motorunun reddettiği belgelerde "sayfaya yazı ekle" yedeğiyle değiştirilip silinir | 8 |  **Faz 8'de sil** — 2026-10-21 |
+| K13 | **Sistem rengi (Material You)** (2026-10-22) | (a) 5. görünüm "Sistem rengi" — Android 12+'da duvar kâğıdından (`dynamic_color`, BSD-3) · (b) ekleme (K8'deki 4 tema sadeliği korunur) | **(a)**, yalnız Android 12+'da listelenir; ana ekran pencere öğeleri de aynı renkleri alır | 19 |  |
+| K14 | **Boyutlandırmada büyütme** (2026-10-22) | (a) yasak (bugün; sessizce kaynağa kırpılıyor) · (b) izinli + "büyütmek netlik eklemez" uyarısı | **(b)** — kullanıcı "istediğim oranda" diyor; uyarı dürüstlüğü korur | 14 |  |
+| K15 | **Görsel çıktı motoru** (2026-10-22) | (a) saf Dart `image` paketi (bugün) · (b) Android yerel (BitmapFactory + ExifInterface + `Bitmap.compress`) birincil, Dart yedek | **(b)** — HEIC okuma (Android 9+), WebP yazma, EXIF'i koruma, `inSampleSize` ile düşük cihazda hız ve bellek; Dart yolu test referansı ve yedek kalır | 14 |  |
+| K16 | **Panoya "Son açılanlar" şeridi** (2026-10-22) | (a) varsayılan görünür · (b) eklenir ama varsayılan gizli ("Ana ekranı düzenle"den açılır) · (c) eklenmez | **(b)** — pano tasarımı 2026-10-18 kararıyla korunuyor; mevcut kullanıcının ekranı kendiliğinden değişmez (`DashboardLayout` "yeni kimlik görünür eklenir" kuralına bilinçli istisna) | 17 |  |
+| K17 | **Süzgeç/sıralama hafızası** (2026-10-22) | (a) her ekran son süzgecini kalıcı hatırlar · (b) her açılışta temiz · (c) karışık | **(c)** sıralama + yerleşim ekran başına **kalıcı**; tür/tarih süzgeci **oturum boyunca** (uygulama yeniden açılınca temiz) — "liste neden boş?" şaşkınlığı olmasın | 13, 17 |  |
 
 ---
 
@@ -1004,6 +1180,22 @@ dokunmadan kopya üretiyor · PiP'te uygulamadan çıkınca video sürüyor ·
 > teke indir; örnek medya setini ve duman testlerini kur. HAFIZA'ya yaz, main'e
 > birleştir.
 
+**Faz 10b — kalan (2026-10-22, ☁️ bulut, yürütme sırası 2):** madde 6 — örnek
+medya seti `test/fixtures/media/` (üreteci `tool/write_fixtures_test.dart`'a ya
+da `tool/make_media_fixtures.py`'ye): EXIF Orientation 1/3/6/8 JPEG (aynı sahne,
+yönü belli olsun diye köşede renkli işaret), PNG (saydam), WebP, GIF (hareketli),
+HEIC (bulutta üretilemezse küçük, lisansı açık bir örnek ya da cihaz maddesi),
+MP4 (H.264/AAC, 3 sn) + MKV + `.srt`, MP3/FLAC/M4A (etiket + kapak). Duman
+testleri: görsel düzenleyici (kırp/döndür → kopya → yön doğru), boyutlandırma
+(her biçimde çıktı açılıyor, **B11 EXIF yönü şüphesi**), ses etiket okuyucu,
+altyazı ayrıştırıcı. Galeride 2.000 fotoğraf RSS ölçümü 📱 cihaz turunda.
+
+> **Açılış istemi (10b):** `docs/FAZ_PLANI.md` Faz 10b'yi uygula (bulut). Örnek
+> medya setini üreten aracı yaz, seti `test/fixtures/media/`a koy, duman
+> testlerini kur; §3.14 G4l (B11, EXIF yönü) şüphesini bu setle test et ve
+> sonucu yaz (düzeltme Faz 14'te). Cihaz maddelerini `docs/CIHAZ_TESTI.md`ye
+> ekle. HAFIZA'ya yaz, main'e birleştir.
+
 ---
 
 ### Faz 11 — Ticari yayın hazırlığı
@@ -1044,6 +1236,29 @@ senaryoları test edilmiş · satın alma ve geri yükleme test hesabında çal�
 > belgelerini hazırla. Depoyu private yapmadan ve Billing ürün kimliklerini
 > belirlemeden önce bana sor. HAFIZA'ya yaz, main'e birleştir.
 
+**Bölünme (2026-10-22):**
+
+- **11a — ☁️ bulut (yürütme sırası 9, UX fazlarından sonra):** madde 1 (ilk
+  açılış — Faz 15'in tokenlarıyla, Faz 16'nın erişilebilirlik testleriyle),
+  madde 3 (tahminli geri: `WillPopScope`/`onBackPressed` → `PopScope`; Android
+  16'da hedef API 36 olan uygulamada `onBackPressed` hiç çağrılmıyor, manifest
+  kaçışı **geçici** — Ek E), madde 2 ve 6'nın metinleri (`docs/play/`, politika
+  3 dil), madde 7 (Keystore — Kotlin + `check_kotlin.sh`), madde 8'in metinleri
+  ve **ekran görüntüleri** (`tool/design_shots_test.dart` yöntemiyle, son
+  görünümden), madde 10 (Yardım/SSS içeriği — bugün 50 satırlık iskelet;
+  "Sorun bildir"). Billing kodu `ProGate` arayüzüyle yazılabilir ama ürün
+  kimlikleri olmadan **kapalı bayrakla** birleşir.
+- **11b — 👤📱 (yürütme sırası 13):** madde 4'ün ürün kimlikleri ve test
+  hesabında satın alma/geri yükleme, madde 5, madde 9 (depo private + LICENSE),
+  Play Console iç test yüklemesi, K5 CASA denetimi.
+
+> **Açılış istemi (11a):** `docs/FAZ_PLANI.md` Faz 11a'yı uygula (bulut).
+> İlk açılış rehberini, `PopScope` geçişini (manifest kaçışını kaldır, geri
+> davranışı testleri), Keystore'lu anahtar saklamayı, Yardım/SSS + "Sorun
+> bildir"i, gizlilik ve Play beyan metinlerini, mağaza metinlerini ve ekran
+> görüntülerini hazırla. Billing'i kapalı bayrakla bırak. Cihaz maddelerini
+> `docs/CIHAZ_TESTI.md`ye ekle, HAFIZA'ya yaz, main'e birleştir.
+
 ---
 
 ### Faz 12 — Kapanış: hata avı, cihaz doğrulama turu, sürüm adayı
@@ -1071,6 +1286,410 @@ senaryoları test edilmiş · satın alma ve geri yükleme test hesabında çal�
 > **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 12'yi uygula. §Faz 12'deki hata
 > sınıflarını betikle tara ve düzelt; `docs/CIHAZ_TESTI.md`'yi benimle telefonda
 > tek tek geçelim. Sürüm adayını etiketlemeden önce bana sor.
+
+**Bölünme (2026-10-22):**
+
+- **12a — ☁️ bulut (yürütme sırası 11):** madde 1 (betikli hata avı). Taramaya
+  eklenenler: Faz 13–19'un yeni bekçi testleri (simge/renk/RTL/`meetsGuideline`)
+  tüm `lib/`'de yeşil mi; `setState` sonrası `mounted`; yeni süzgeç/boyutlandırma
+  prefs anahtarlarının göç testi.
+- **12b — 📱 cihaz turu (yürütme sırası 12):** madde 2 + bekleyen bütün cihaz
+  işleri tek oturumda: Faz 4 ölçümleri (Ek D), Faz 10 cihaz turu (galeri RSS),
+  Faz 13–19 cihaz maddeleri, R8'li APK açılışı, ham USB yazma, TalkBack,
+  başlatıcı kısayolları/pencere öğeleri/açılış ekranı görünüşü. En az iki cihaz
+  (biri düşük donanımlı).
+- **12c — 👤 (yürütme sırası 14):** madde 3-4 (48 saat iç test, Vitals, RC
+  etiketi, Play kapalı test → üretim).
+
+> **Açılış istemi (12a):** `docs/FAZ_PLANI.md` Faz 12a'yı uygula (bulut).
+> §Faz 12 madde 1'deki hata sınıflarını ve 12a'daki ek taramaları betikle tara,
+> bulgu listesini yaz, düzelt. HAFIZA'ya yaz, main'e birleştir.
+>
+> **Açılış istemi (12b):** `docs/FAZ_PLANI.md` cihaz turunu (12b) yapalım:
+> `docs/CIHAZ_TESTI.md`'yi ve Ek D ölçümlerini benimle telefonda tek tek geç;
+> ölçüm verisini telefona koymadan önce bana söyle (`.nomedia`, iş bitince sil —
+> HAFIZA 2026-10-22 tuzağı). Kırmızıları aynı oturumda düzelt, main'e birleştir.
+
+---
+
+> **Faz 13–19 (2026-10-22) — görsel ve kullanım deneyimi.** Hepsinin ortak
+> kuralları: (1) önce **tasarım PNG'leri** (açık/koyu, 360 dp; gerekiyorsa
+> Arapça) `tool/design_shots_test.dart` yöntemiyle üretilip kullanıcıya
+> gösterilir, onay beklenirken model ve testlerle ilerlenir; (2) yeni ekran/
+> bileşen Faz 5 (`UserError`, `PermissionGate`) ve Faz 15 tokenlarıyla yazılır;
+> (3) cihazla doğrulanacak her şey `docs/CIHAZ_TESTI.md`'ye madde olarak girer
+> (sıra 12'deki turda kapanır); (4) prefs anahtarı değişen her yerde eski
+> değeri yeni değere eşleyen göç testi.
+
+### Faz 13 — Ortak tür süzgeci ve "Son açılanlar" yenilemesi
+
+**Amaç:** Hangi listede olursa olsun **"yalnız PDF'ler"** (ya da yalnız Word,
+yalnız videolar…) tek dokunuşla süzülebilsin; süzgeç her ekranda aynı yerde,
+aynı görünüşte ve aynı mantıkla çalışsın. Son açılanlar gerçek bir liste ekranı
+olsun.
+
+**Kanıt:** G1, G2, G3, G13. **Ön koşul:** Faz 6. **Ortam:** ☁️ tamamı
+(yürütme sırası 1). **Karar:** K17.
+
+**Yapılacaklar:**
+1. **Tek tür modeli** (saf Dart, `models/fm_type.dart`): üst türler (Klasör,
+   Belge, Görsel, Video, Ses, Arşiv, APK, Diğer) + belge alt türleri (**PDF**,
+   Word, Excel, Sunum, Metin/Kod, E-kitap, Eski Office). Uzantı → tür eşlemesi
+   **tek kaynaktan**: bugün `FsEntry.category` ve `FileService.kindForExtension`
+   (DocKind) ayrı tablolar — birleşir. `FmFilter`'a `types` (çoklu) alanı;
+   `signature`, `matches`, JSON ve birim testleri.
+2. **Tek bileşen** — `FmTypeChips` baştan: tek yatay satır
+   `Tümü · PDF 12 · Word 3 · Excel 2 · Görsel 40 · Video 5 · … · Tarih ▾ · Boyut ▾ · ✕ Temizle`.
+   Yalnız listede **bulunan** türler; sayılar öteki ölçütlere bağlı ("dokununca
+   kaç dosya kalır" — `FmQuickFilters` ilkesi); çoklu seçim (PDF + Word);
+   belgeler tek alt türdeyse "Belgeler" tek çip, birden çok alt türdeyse alt
+   türler düz çip. `FmQuickFilters`'ın kaynak/birim/açılma çipleri aynı satırda,
+   tür çiplerinden SONRA (tek satır kuralı, `kFmFilterBarHeight`).
+3. **Uygulanacak ekranlar (hepsi aynı bileşen):** Son açılanlar · Yeni
+   gelenler · İndirilenler · Arama (bugünkü kategori çipleri yerine) · Gezgin ·
+   Kategori ekranları (Belgeler'deki `_docKindChips` kalkar) · Önemli ·
+   Üretilenler · Çöp kutusu · Kasa. (Fotoğraflar/galeri kendi kaynak satırını
+   korur; orada yalnız Görsel/Video/GIF/Ekran görüntüsü alt türleri.)
+4. **Son açılanlar yenilemesi (G1):** `FmListToolbar` (sırala: Son açılma ↓ ·
+   Ad · Boyut · Tür), tarih grupları (Bugün · Dün · Bu hafta · Bu ay · Daha
+   eski — `FmGroupHeader`), liste/ızgara, **çoklu seçim** + toplu eylemler
+   (Paylaş · Taşı · Sil · **Geçmişten kaldır**), satırda "geçmişten kaldır",
+   arama korunur. "Tümünü temizle" ⋮ menüsüne iner.
+5. **Hafıza (K17, G3):** sıralama + yerleşim ekran başına kalıcı
+   (`list.<ekran>.sort|layout`); tür/tarih süzgeci oturum boyunca.
+6. **Boş sonuç:** "Bu süzgeçle dosya yok" + **"Süzgeci temizle"** düğmesi
+   (`FmEmptyState`).
+7. G13: İndirilenler'in sıralı/süzülmüş listesi alanda, yalnız veri/süzgeç
+   değişince hesaplanır.
+
+**Kabul ölçütleri:** madde 3'teki 10 ekranın her birinde, liste PDF içeriyorsa
+"PDF" çipi tek dokunuşla yalnız PDF'leri gösteriyor (ekran başına widget testi)
+· PDF + Word çoklu seçim testi · çip sayısı = dokununca kalan dosya testi ·
+Son açılanlarda sıralama/gruplama/çoklu seçim/"geçmişten kaldır" testleri ·
+360 dp'de ve 2,0× yazıda taşma yok · analyze 0, test yeşil · PNG'ler
+`docs/design/faz13/` (Son açılanlar: süzgeçsiz, PDF seçili, seçim; Yeni
+gelenler: PDF seçili; açık/koyu).
+
+**Bölünürse:** 13a = 1-3 (model + bileşen + ekranlar) · 13b = 4-7.
+
+**Risk:** düşük. Süzgeç mantığı saf Dart ve testli; ekranlar tek bileşene
+geçtiği için davranış farkı testte görünür.
+
+> **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 13'ü uygula (bulut oturumu:
+> Flutter 3.44.6'yı indir, HAFIZA 2026-07-25 §F tuzaklarına bak). §3.14 G1–G3
+> ve G13'ü kapat: tek tür modelini ve `FmTypeChips` bileşenini kur, Faz 13
+> madde 3'teki 10 ekrana uygula, Son açılanlar'ı yenile (K17 cevabı yoksa
+> öneriyi uygula). Önce Son açılanlar ve Yeni gelenler için PNG taslağı üretip
+> bana göster; onay beklerken model ve testlerle ilerle. HAFIZA'ya yaz, durum
+> tablosunu güncelle, main'e birleştir.
+
+---
+
+### Faz 14 — Görsel boyutlandırma 2.0: kolay ve istenen oranda
+
+**Amaç:** Bir fotoğrafı (ya da 50 fotoğrafı) **istenen ölçüye, orana ya da dosya
+boyutuna** iki dokunuşta getirmek; sonucu başlamadan önce görmek; aynı ayarı bir
+dahaki sefere hazır bulmak.
+
+**Kanıt:** G4a–G4l, G19 (galeri giriş noktası). **Ön koşul:** Faz 10b (örnek
+set + B11 sonucu). **Ortam:** ☁️ model, arayüz, Dart motoru, testler, PNG'ler;
+Kotlin (`ci/ImageCodec.kt`) bulutta yazılır, **yerel kodlayıcı ve video kipleri
+📱 cihaz turunda** doğrulanır (yürütme sırası 3). **Kararlar:** K14, K15.
+
+**Yapılacaklar:**
+1. **Model** (saf Dart, `models/media_resize.dart` genişler; eski JSON iş
+   tarifleri açılmaya devam eder):
+   - **Yüzde:** %1–400 (K14: %100 üstü uyarıyla), kaydırıcı + elle sayı + hızlı
+     çipler (%25 · %50 · %75 · %150 · %200).
+   - **Piksel:** genişlik × yükseklik + **🔗 oran kilidi (varsayılan açık)** —
+     biri yazılınca öteki alanda **anında** hesaplanır. Kilit kapalıyken
+     "kutuya nasıl sığsın": **Sığdır** (oran korunur, kutunun içinde) ·
+     **Doldur ve kırp** (kutuyu doldurur, taşanı keser; çapa orta/üst/alt/sol/
+     sağ) · **Kenar boşluğu ekle** (beyaz · siyah · bulanık arka plan · saydam
+     (PNG/WebP)) · **Esnet** (oranı bilerek bozar — açık etiketle).
+   - **Uzun kenar:** 720 · 1080 · 1280 · 1600 · 2048 · 3840 px + özel
+     (fotoğrafın doğal dili; video kademeleri videoda kalır — G4f).
+   - **En-boy oranı:** Orijinal · 1:1 · 4:5 · 5:4 · 3:2 · 2:3 · 4:3 · 3:4 ·
+     16:9 · 9:16 · 21:9 · A4 (1:√2) · özel a:b — kırp ya da boşluk ekle.
+   - **Dosya boyutu hedefi:** ≤ 100 KB · 200 KB · 500 KB · 1 MB · 2 MB · özel.
+     Algoritma: kalite ikili araması (95 → 40), yetmezse %85'lik adımlarla
+     ölçek; en çok 8 kodlama; ulaşılamazsa "en yakın 230 KB" raporu. PNG
+     hedefinde JPEG/WebP'ye geçme önerisi.
+   - **Çift sayı kuralı yalnız videoda** (G4k); fotoğraf tek sayı alabilir.
+   - **Ölçüler görünen yönde** (EXIF Orientation uygulanmış) — B11 düzeltmesi.
+2. **Arayüz** — levha baştan: üstte **canlı önizleme kartı** (küçük resim; oran/
+   kırp/boşluk kipinde kesik çizgili çerçeve) + "Şu an 4000×3000 · 4,2 MB →
+   Sonra 1600×1200 · ≈ 380 KB"; kip seçici (segmentli: Yüzde · Piksel · Uzun
+   kenar · Oran · Dosya boyutu); altta biçim (Aynı · JPEG · PNG · **WebP**),
+   kalite, **meta veri** ("Tarih ve kamera bilgisi korunur" · "Konumu kaldır"
+   anahtarı). Toplu seçimde "kaynaktan küçük 3 dosya atlanacak" önceden
+   söylenir; ad deseni `ad_1600x1200.jpg`.
+3. **Ön ayarlar (G4g):** "Son kullanılan" kendiliğinden + kullanıcının
+   kaydettikleri (ör. "Profil 640×640", "Başvuru ≤ 200 KB", "Paylaşım 4:5 ·
+   1080"); 3-4 hazır öneri; levhanın en üstünde tek dokunuşluk çipler.
+4. **Motor (K15):** `ci/ImageCodec.kt` (MethodChannel): `BitmapFactory`
+   (`inSampleSize` ile bellek dostu çözme; HEIC Android 9+), ölçek/kırp/boşluk
+   `Canvas`, `Bitmap.compress` (JPEG · PNG · WEBP lossy/lossless),
+   `ExifInterface` ile EXIF kopyası (tarih, kamera; yön sıfırlanır çünkü
+   pikseller döndürüldü; konum isteğe göre silinir). Saf Dart `image` yolu
+   **yedek ve test referansı** olarak kalır (yerel kanal yoksa/başarısızsa).
+5. **Video (Media3):** aynı kip dili (yüzde · piksel kilitli · uzun kenar ·
+   oran); `Presentation` düzeni **`LAYOUT_SCALE_TO_FIT`** (boşluk) /
+   **`LAYOUT_SCALE_TO_FIT_WITH_CROP`** (kırp); `LAYOUT_STRETCH_TO_FIT` yalnız
+   "Esnet" seçilince (bugün her zaman — G4d). Hedef dosya boyutu videoda bit
+   hızından (hedef × 8 / süre − ses).
+6. **Giriş noktaları (G4i):** galeri alt çubuğuna **"Boyut"**; görsel
+   düzenleyiciye **"Boyut" sekmesi** (kırp → boyut → kaydet tek akış);
+   düzenleyicide kırpma oranları madde 1'deki listeye genişler, kırpma kutusunda
+   canlı "1080 × 1350" etiketi, özel oran girişi, **basılı tut → özgünü gör**.
+7. **Testler:** her kip için `targetSize` tablo testleri (yatay/dikey/kare,
+   EXIF 1/3/6/8, tek sayı); kilit davranışı ve canlı karşı alan widget testi;
+   dosya boyutu hedefi arama testi (Dart motoruyla); eski iş tarifi JSON'u göç
+   testi; ön ayar kaydet/sil testi.
+
+**Kabul ölçütleri:** "1600" yazınca yükseklik alanı anında doluyor · kilit kapalı
++ 1080×1080 → Sığdır/Doldur/Boşluk/Esnet dört farklı ve doğru çıktı (piksel
+testi) · %150 uyarıyla çalışıyor (K14) · 3 MB örnek "≤ 200 KB" ile ≤ 200 KB
+çıkıyor ya da en yakın değer raporlanıyor · dikey EXIF'li fotoğrafta genişlik
+doğru kenara uygulanıyor · son ayar ve ön ayarlar hatırlanıyor · özgün dosyaya
+dokunulmuyor (varsayılan kopya) · WebP/HEIC/video kip maddeleri
+`docs/CIHAZ_TESTI.md`'de · PNG'ler `docs/design/faz14/`.
+
+**Bölünürse:** 14a = 1-3, 6-7 (Dart; mevcut motorla — kullanıcının şikâyeti
+burada kapanır) · 14b = 4-5 (yerel motor + video).
+
+**Risk:** orta. Yerel kodlayıcı cihaz farklılıkları → Dart yedeği + çıktı
+doğrulaması (dosya açılıyor mu, ölçü doğru mu) her işte; özgün dosya varsayılan
+korunur.
+
+> **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 14'ü uygula (bulut; önce 14a).
+> §3.14 G4a–G4l'yi kapat: boyutlandırma modelini beş kiple ve oran kilidiyle
+> genişlet, levhayı canlı önizlemeli yeniden kur, ön ayarları ekle, galeri ve
+> düzenleyiciye "Boyut" girişini koy. K14/K15 cevabı yoksa öneriyi uygula. Önce
+> levhanın PNG taslağını göster. 14b'de `ci/ImageCodec.kt` ve Media3 düzen
+> kiplerini yaz, `tool/check_kotlin.sh` koştur, cihaz maddelerini
+> `docs/CIHAZ_TESTI.md`ye ekle. HAFIZA'ya yaz, main'e birleştir.
+
+---
+
+### Faz 15 — Görsel dil birliği: simge, renk, yazı, hareket
+
+**Amaç:** Uygulamanın her ekranı aynı simge ailesini, aynı renk rollerini, aynı
+yazı ölçeğini ve aynı hareket hızını kullansın; bir sonraki tasarım değişikliği
+tek dosyadan yapılabilsin.
+
+**Kanıt:** G5–G8 (sayımlar §3.14.3). **Ön koşul:** Faz 6. **Ortam:** ☁️
+(yürütme sırası 4).
+
+**Yapılacaklar:**
+1. **Simge:** `AppIcons` bütün uygulamaya — 1.344 ham `Icons.*` → anlamsal ad
+   (`AppIcons.share`, `AppIcons.trash`…); tek aile `_rounded`; üç boy (20/24/
+   32). Bekçi test: `Icons.` yalnız `core/app_icons.dart`'ta (bilinçli
+   istisnalar izin listesinde, faz boyunca küçülür).
+2. **Renk:** anlamsal tokenlar `ThemeExtension<AppColors>` — `success`,
+   `warning`, `danger`, `info`, dosya türü renkleri (`FmColors` buraya bağlanır),
+   `scrim`, `mediaChrome` (medya üstü siyah perde), `selection`. 150
+   `Color(0x…)` + 188 `Colors.*` → token; bilinçli sabitler (görsel düzenleyici
+   kalem paleti, belge içi renkler) izin listesinde. Bekçi test.
+3. **Yazı:** 114 sabit `fontSize` → `TextTheme` rolleri (gerekirse 2 ek rol:
+   `labelTiny`, `dataMono`); `ui_font_scale_test` tüm rollere genişler.
+4. **Hareket:** `core/motion.dart` — kısa 120 · orta 220 · uzun 320 ms +
+   eğriler; 95 sabit süre → token; **`MediaQuery.disableAnimations` açıkken
+   süreler 0** (bugün 2 yer).
+5. **Kontrast testi:** 4 tema (+ K13 sistem rengi) × açık/koyu: metin ≥ 4,5:1,
+   simge/kenar ≥ 3:1 (WCAG) birim testi; tutmayan çiftler düzeltilir.
+6. **Bileşen tutarlılığı:** levhalar tek `AppSheet` (tutamaç, başlık, alt
+   düğme satırı, `SafeArea`), iletişim pencereleri tek `AppDialog` (birincil
+   eylem sağda/sonda, yıkıcı eylem `danger` rengi), boş/yükleniyor/hata tek
+   aile (`FmEmptyState`, iskelet, `UserError`).
+7. **Önce/sonra PNG'leri:** 12 ana ekran (pano, gezgin, kategori, Son
+   açılanlar, arama, galeri, PDF, Word, Excel, ayarlar, eylem sayfası,
+   boyutlandırma) açık/koyu → `docs/design/faz15/`.
+
+**Kabul ölçütleri:** üç bekçi test (simge/renk/punto) yeşil, §3.14.3
+sayımları izin listesi dışında 0 · kontrast testi yeşil · animasyonları kaldır
+açıkken geçiş testi 0 ms · PNG onayı · analyze 0, test yeşil.
+
+**Bölünürse:** 15a = 1, 4, 7 (simge + hareket) · 15b = 2, 3, 5, 6.
+
+**Risk:** düşük-orta (geniş ama mekanik). Ekran ekran ayrı commit; her commitde
+testler yeşil.
+
+> **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 15'i uygula (bulut). §3.14.3
+> sayımlarını yeniden ölç, simge/renk/yazı/hareket tokenlarını kur, ekranları
+> taşı, bekçi testleri ve kontrast testini ekle. Önce 12 ekranın "önce" PNG'lerini
+> çıkar, taşımadan sonra "sonra"larını göster. HAFIZA'ya yaz, main'e birleştir.
+
+---
+
+### Faz 16 — Erişilebilirlik, Arapça (RTL) ve büyük yazı
+
+**Amaç:** Görme/motor güçlüğü olan kullanıcı ve Arapça arayüz kullanıcısı
+uygulamayı Türkçe kullanıcı kadar rahat kullansın; bu **testle** güvence altına
+alınsın.
+
+**Kanıt:** G9, G10. **Ön koşul:** Faz 15. **Ortam:** ☁️ (+📱 TalkBack turu,
+sistem dil seçimi) (yürütme sırası 5).
+
+**Yapılacaklar:**
+1. **Kılavuz testleri:** `meetsGuideline(androidTapTargetGuideline)`,
+   `labeledTapTargetGuideline`, `textContrastGuideline` — 15 ana ekranda
+   (bugün 0).
+2. **RTL:** G10 listesi → `EdgeInsetsDirectional`, `AlignmentDirectional`,
+   `TextAlign.start/end`, `PositionedDirectional`; yön oklarına
+   `matchTextDirection`/yönlü `AppIcons` (Faz 15). Bekçi test: ekran/bileşen
+   kodunda `EdgeInsets.only(left:|right:)` ve `TextAlign.left|right` yok
+   (bilinçli istisna: belge içeriği çizimi). Arapça PNG'ler (5 ekran).
+3. **Büyük yazı:** 1,0×–**2,0×** (Android 14+ doğrusal olmayan ölçek) taşma
+   testleri 360 dp'de; satırlar 2,0×'te iki satıra iner, kesilmez.
+4. **TalkBack anlamları:** simge düğme etiketleri; küçük resim → "PDF, Kira
+   sözleşmesi, 120 KB, dün"; seçim durumu `selected`; iş ilerlemesi
+   `liveRegion`; sürükleyerek seçimin erişilebilir karşılığı (uzun bas →
+   "Seç" eylemi).
+5. **Animasyonları kaldır:** Faz 15 tokenlarıyla her yerde.
+6. **Uygulama başına dil (Android 13+):** `res/xml/locales_config.xml` (tr, en,
+   ar) + manifest `android:localeConfig` (`ci/prepare_android.sh`); Dart
+   tarafı sistem dilini izliyor — sistem ayarlarından seçilen dil uygulamaya
+   yansısın.
+
+**Kabul ölçütleri:** kılavuz testleri 15 ekranda yeşil · RTL bekçi testi
+yeşil · 2,0× yazıda taşma 0 · Arapça PNG onayı · TalkBack ve sistem dil
+seçimi maddeleri `docs/CIHAZ_TESTI.md`'de.
+
+> **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 16'yı uygula (bulut). §3.14 G9–G10'u
+> kapat: kılavuz testleri, RTL dönüşümü + bekçi, 2,0× yazı testleri, TalkBack
+> anlamları, uygulama başına dil. Arapça PNG'leri göster. Cihaz maddelerini
+> ekle, HAFIZA'ya yaz, main'e birleştir.
+
+---
+
+### Faz 17 — Liste ve gezinme cilası
+
+**Amaç:** Dosya gösteren her ekran aynı liste gibi davransın; sık yapılan şeyler
+(az önce açılan dosya, sık kullanılan eylem, klasöre özel sıralama) bir dokunuş
+yakın olsun.
+
+**Kanıt:** G3, G11, G12, G14, G15, G16. **Ön koşul:** Faz 13, 15. **Ortam:** ☁️
+(+📱 kaydırma ölçümü) (yürütme sırası 6). **Karar:** K16.
+
+**Yapılacaklar:**
+1. **Ortak liste (G11):** Çöp kutusu, Arşiv içi, Kasa, Gizli dosyalar,
+   Yinelenenler, Benzerler, Sohbet temizliği, Önemli, Üretilenler →
+   `FmFileListView` + `FmListToolbar` + Faz 13 süzgeci (ekranın doğasına göre:
+   Yinelenenlerde grup başlıkları korunur). İşlemler (dosya değil iş listesi)
+   yalnız ortak boş durum ve başlık dili.
+2. **Klasör başına hafıza (G3):** sıralama menüsünde "Yalnız bu klasör"
+   anahtarı; varsayılan global ayar sürer.
+3. **İki parmakla sütun (G12):** Fotoğraflar'daki mantık ortak bileşene →
+   gezgin ve kategori ızgaraları.
+4. **Yukarı kaydırma (G14, KALANLAR):** satır/başlık yüksekliği
+   `itemExtentBuilder` ile sabit; ölçüm 📱 (Ek D) — p99 ≤ 16 ms hedefi.
+5. **Panoda "Son açılanlar" şeridi (G15, K16):** yatay, küçük resimli 10 öğe +
+   "Tümü →" (Faz 13'ün ekranına); `DashboardLayout`'a `recent` bölümü — K16 (b)
+   ise varsayılan gizli (birleştirme kuralına testli istisna).
+6. **Eylem sayfası (G16):** üstte 5'li **hızlı sıra** (Paylaş · Taşı · Kopyala
+   · Yeniden adlandır · Sil); altında gruplar; dosya türüne göre ilk grup
+   (görselde Düzenle/Boyut, PDF'te Düzenle/Araçlar, arşivde Çıkar).
+7. **"Geri al" tutarlılığı:** silme, taşıma, yeniden adlandırma, geçmişten
+   kaldırma, kasaya taşıma — hepsinde aynı snackbar (süre, metin, eylem);
+   eksik olanlar listelenip tamamlanır.
+8. **Arama:** Faz 13 tür çipleri + "bu klasörde / her yerde" kapsam çipi; son
+   aramalar korunur.
+
+**Kabul ölçütleri:** madde 1'deki ekranlar ortak bileşeni kullanıyor (bekçi:
+`lib/screens/fm` içinde dosya satırı için `ListTile` yok) · klasör başına
+sıralama testi · iki parmak testi · pano şeridi testi (K16'ya göre görünürlük) ·
+eylem sayfası hızlı sıra testi · yukarı kaydırma ölçümü cihaz listesinde ·
+PNG'ler `docs/design/faz17/`.
+
+**Bölünürse:** 17a = 1, 4, 7 · 17b = 2, 3, 5, 6, 8.
+
+> **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 17'yi uygula (bulut). §3.14 G11–G16'yı
+> kapat; K16 cevabı yoksa öneriyi uygula. Pano şeridi ve eylem sayfası için önce
+> PNG göster. Kaydırma ölçümünü cihaz listesine ekle, HAFIZA'ya yaz, main'e
+> birleştir.
+
+---
+
+### Faz 18 — Görüntüleyici ve medya deneyimi
+
+**Amaç:** Okurken ve izlerken arayüz geri çekilsin, alışılmış jestler çalışsın;
+tablet ve yatay ekranda alan boşa gitmesin.
+
+**Kanıt:** G17–G20. **Ön koşul:** Faz 15. **Ortam:** ☁️ (+📱 jest hissi,
+parlaklık, geniş ekran) (yürütme sırası 7).
+
+**Yapılacaklar:**
+1. **Okuma kipi (G20):** PDF, metin, Word, slayt görüntüleyicisinde aşağı
+   kaydırınca üst/alt çubuk gizlenir, yukarı kaydırma ya da dokunuşla geri gelir;
+   Aa levhasında "Tam ekran" (sistem çubukları gizli) anahtarı; alt çubuk sırası
+   biçimler arasında aynı (Ara · Düzenle · Paylaş · Aa · ⋮).
+2. **Video (G18):** sol yarıda parlaklık kaydırması (pencere parlaklığı, çıkışta
+   geri), uzun basışta 2× hız (bırakınca eski hız), **kontrol kilidi**, yatay
+   kaydırmayla sarma + zaman balonu, yön kilidi düğmesi; çift dokunuş
+   (±10 sn) ve ses kaydırması korunur.
+3. **Galeri (G19):** slayt gösterisi (3/5/10 sn), "Önemli"ye ekle (yıldız),
+   **"Farklı kullan"** (duvar kâğıdı/kişi — `ACTION_ATTACH_DATA`), "Boyut"
+   (Faz 14), yukarı kaydırınca bilgi paneli (EXIF, konum varsa harita
+   bağlantısı).
+4. **Geniş ekran (G17):** ≥ 600 dp yatayda pano iki sütun; ≥ 840 dp
+   görüntüleyicide yan panel (içindekiler / sayfa küçük resimleri / AI sohbet);
+   düzenleyici şeritleri geniş ekranda tek satır; ayarlar liste-ayrıntı.
+   Android 16 büyük ekran kuralı (yön kilidi yok sayılır) için her ekranın
+   yatayda testi (1280×800).
+5. **Ses:** mini çubuk ve tam ekran Faz 15 tokenlarıyla; kilit ekranı kapak
+   görseli (📱).
+
+**Kabul ölçütleri:** okuma kipi 4 biçimde aynı davranış (widget testi) · video
+jest testleri (sahte motorla — `media_player_layout_test` deseni) · galeri slayt
+gösterisi testi · 1280×800 ve 600 dp yatayda taşma yok, iki bölme PNG'leri ·
+jest hissi/parlaklık/kapak cihaz listesinde.
+
+**Bölünürse:** 18a = 1, 4 · 18b = 2, 3, 5.
+
+> **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 18'i uygula (bulut). §3.14 G17–G20'yi
+> kapat: okuma kipi, video jestleri, galeri eylemleri, geniş ekran düzenleri.
+> Geniş ekran PNG'lerini göster, cihaz maddelerini ekle, HAFIZA'ya yaz, main'e
+> birleştir.
+
+---
+
+### Faz 19 — Sistem entegrasyonu ve ilk izlenim
+
+**Amaç:** Uygulama Android'in bir parçası gibi görünsün: açılırken, başlatıcıda,
+ana ekranda ve bildirimde aynı kimlik; dokunsal geri bildirim ölçülü ve tutarlı.
+
+**Kanıt:** G21. **Ön koşul:** Faz 15. **Ortam:** ☁️ kod/XML/Kotlin + 📱 görünüş
+(yürütme sırası 10). **Karar:** K13.
+
+**Yapılacaklar:**
+1. **Açılış ekranı (Android 12 SplashScreen API):** marka simgesi + temaya uygun
+   zemin; koyu modda beyaz parlama yok (`values-night`); Android ≤ 11'de aynı
+   renk (`ci/prepare_android.sh` + `ci/res/`).
+2. **Başlatıcı kısayolları:** simgeye uzun basınca *Ara · Tara · İndirilenler ·
+   Son açılanlar* (statik `shortcuts.xml`) + son açılan 2 dosya (dinamik).
+3. **Pencere öğeleri** (`StorageWidget`, `RecentWidget`): Android 12 köşe
+   yarıçapı, `previewLayout`, boyutlandırılabilir, koyu tema, K13 (a) ise
+   sistem renkleri.
+4. **Sistem rengi (K13):** (a) ise 5. görünüm "Sistem rengi" (`dynamic_color`);
+   Android 12 altında listelenmez; Faz 15 kontrast testine girer.
+5. **Dokunsal geri bildirim:** 13 dağınık `HapticFeedback` → `AppHaptics`
+   (seçim başlangıcı, sürükleyerek seçim adımı, yıkıcı onay, iş bitti);
+   Ayarlar'da kapatılabilir.
+6. **Bildirimler:** iş bildirimlerinde ilerleme stili tutarlı; bitince "Aç /
+   Klasörde göster" eylemleri; çoklu işte gruplama.
+7. *(İsteğe bağlı)* Hızlı Ayarlar kutucuğu: "Bilgisayara aktar" (FTP) aç/kapa.
+
+**Kabul ölçütleri:** `check_kotlin.sh` yeşil (kotlinc varsa) · CI APK'sında
+`shortcuts.xml`, `locales_config`, splash kaynakları var (APK içerik denetimine
+eklenir) · `AppHaptics` bekçi testi (ham `HapticFeedback` yok) · görünüş
+maddeleri (splash açık/koyu, kısayollar, pencere öğeleri, sistem rengi)
+`docs/CIHAZ_TESTI.md`'de.
+
+> **Açılış istemi:** `docs/FAZ_PLANI.md` Faz 19'u uygula (bulut). §3.14 G21'i
+> kapat: açılış ekranı, başlatıcı kısayolları, pencere öğeleri, K13 kararına göre
+> sistem rengi, `AppHaptics`, bildirim eylemleri. APK içerik denetimine yeni
+> kaynakları ekle. Cihaz maddelerini yaz, HAFIZA'ya yaz, main'e birleştir.
 
 ---
 
@@ -1181,3 +1800,53 @@ Faz 6'da zaten yeniden yazılıyor.)
   sayısı), 1 saat müzik çalma (pil %), ekran kapalı 1 saat (uyanma sayısı —
   `adb shell dumpsys batterystats`).
 - **Kayıt:** her ölçüm öncesi/sonrası `docs/perf/<tarih>.md`'ye.
+
+### Ek E — 2026-10-22 görsel/kullanım taramasının yöntemi ve kaynakları
+
+**Sayım komutları** (depo kökünde; §3.14.3–3.14.4 değerleri `main` @ `0772995`):
+
+```bash
+grep -rn "Icons\.[a-z_]*" lib --include=*.dart | grep -v lib/core/app_icons.dart | wc -l   # 1344
+grep -rn "AppIcons\.[a-zA-Z]*" lib | wc -l                                                 # 93
+grep -rno "Icons\.[a-z_]*_outlined" lib | grep -v app_icons | wc -l                        # 373
+grep -rno "Icons\.[a-z_]*_rounded"  lib | grep -v app_icons | wc -l                        # 189
+grep -rn "Color(0x" lib --include=*.dart \
+  | grep -v "lib/core/theme.dart\|lib/core/skin.dart\|lib/core/fm_colors\|palette" | wc -l # 150
+grep -rn "Colors\.\(black\|white\|grey\|red\|blue\|green\|orange\|amber\)" lib | wc -l     # 188
+grep -rn "fontSize: [0-9]" lib | wc -l                                                      # 114
+grep -rn "Duration(milliseconds" lib | wc -l                                                # 95
+grep -rn "disableAnimations\|reduceMotion\|accessibleNavigation" lib | wc -l               # 2
+grep -rln "meetsGuideline" test | wc -l                                                     # 0
+grep -rnE "EdgeInsets\.only\([^)]*(left|right):" lib | wc -l                                # 27
+grep -rn "EdgeInsetsDirectional" lib | wc -l                                                # 22
+grep -rn "Alignment\.center\(Left\|Right\)\|Alignment\.\(top\|bottom\)\(Left\|Right\)" lib | wc -l  # 36
+grep -rn "TextAlign\.\(left\|right\)" lib | wc -l                                           # 21
+grep -rn "Icons.arrow_back\b\|Icons.arrow_forward\b\|Icons.chevron_right\|Icons.chevron_left" lib | wc -l  # 43
+grep -rln "FmFileListView" lib/screens                                                      # 5 ekran
+```
+
+Asimetrik `EdgeInsets.fromLTRB` (24) sol ve sağ değeri farklı olanlar sayılarak
+bulundu. Sayılar faz başında yeniden ölçülür; kabul ölçütleri bu tabloya göre.
+
+**Web kaynakları (2026-10-22'de okundu):**
+
+- Android 16 davranış değişiklikleri — hedef API 36'da kenardan kenara çıkış
+  özniteliği devre dışı; tahminli geri animasyonları varsayılan açık,
+  `onBackPressed` çağrılmıyor, `enableOnBackInvokedCallback="false"` geçici
+  kaçış: <https://developer.android.com/about/versions/16/behavior-changes-16>
+- Android 16'da yön ve yeniden boyut değişiklikleri — sw ≥ 600 dp'de
+  `screenOrientation`/`resizeableActivity`/en-boy kısıtları yok sayılır; Play
+  hedef API 36'yı Ağustos 2026'da, 37'yi Ağustos 2027'de ister, API 37'de çıkış
+  yolu yok: <https://android-developers.googleblog.com/2025/01/orientation-and-resizability-changes-in-android-16.html>,
+  <https://developer.android.com/develop/adaptive-apps/guides/app-orientation-aspect-ratio-resizability>
+- Material You / dinamik renk — `dynamic_color` paketi (`DynamicColorBuilder`,
+  Android 12+): <https://pub.dev/documentation/dynamic_color/latest/>
+- Material 3 Expressive — Flutter çekirdeğinde resmî destek bulunamadı; yalnız
+  üçüncü taraf paketler (ör. `material_3_expressive`, Flutter ≥ 3.44 ister).
+  **Öneri: şimdilik eklenmez**, yalnız hareket/şekil fikirleri Faz 15
+  tokenlarına alınır: <https://pub.dev/documentation/material_3_expressive/1.0.8/>
+- Google Drive tür süzgeci (PDF, Belgeler'den ayrı bir tür; çipler birlikte
+  kullanılır, tek tek ya da toptan temizlenir):
+  <https://support.google.com/drive/answer/2375114?hl=en>
+- Görsel boyutlandırıcılarda beklenen kipler (yüzde, piksel, en-boy oranı,
+  toplu iş, kırpma, PNG/JPEG çıktı): <https://androidauthority.com/best-photo-resizer-apps-android-1076507>

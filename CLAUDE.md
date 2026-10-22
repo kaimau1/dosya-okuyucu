@@ -17,8 +17,9 @@ Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici + dosya y�
 paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasadaki yavaş/pahalı programlara alternatif.
 
 > Sabit kararlar, build geçmişi, açık durum ve reddedilen yollar → **HAFIZA.md**
-> **Faz planı (2026-10-21) → `docs/FAZ_PLANI.md`** — sıradaki iş, kararlar (K1–K12) ve her fazın
-> açılış istemi orada; yeni bir oturum işe oradaki durum tablosundan başlar.
+> **Faz planı (2026-10-21; 2026-10-22 ek: görsel/UX Faz 13–19) → `docs/FAZ_PLANI.md`** —
+> sıradaki iş, kararlar (K1–K17) ve her fazın açılış istemi orada; yeni bir oturum işe
+> **§0.1 yürütme sırası**ndan başlar (bulutta yapılabilenler önce, telefon işleri tek cihaz turunda).
 
 ## 2) Mimari / Dosya Haritası
 `graphify-out/GRAPH_REPORT.md` — 16.323 düğüm, 23.141 kenar, 573 topluluk (2026-10-21) (App State Management,
