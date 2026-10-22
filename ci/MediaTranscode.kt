@@ -63,6 +63,8 @@ object MediaTranscodeBridge {
                     }
                 }
                 "start" -> result.success(start(app, call.arguments as Map<*, *>))
+                // Sesli kitap (2026-10-22): üretilen WAV → AAC/M4A (~10 kat küçük).
+                "startAudio" -> result.success(startAudio(app, call.arguments as Map<*, *>))
                 "cancel" -> {
                     transformer?.cancel()
                     transformer = null
@@ -145,6 +147,46 @@ object MediaTranscodeBridge {
                     .setEnableFallback(true)
                     .build()
             )
+            .addListener(object : Transformer.Listener {
+                override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+                    transformer = null
+                    send("done", mapOf("target" to target))
+                }
+
+                override fun onError(
+                    composition: Composition,
+                    exportResult: ExportResult,
+                    exportException: ExportException
+                ) {
+                    transformer = null
+                    File(target).delete()
+                    send("failed", mapOf(
+                        "code" to exportException.errorCodeName,
+                        "message" to (exportException.message ?: "")
+                    ))
+                }
+            })
+            .build()
+        transformer = t
+        return try {
+            t.start(item, target)
+            pollProgress(t)
+            true
+        } catch (e: Exception) {
+            transformer = null
+            false
+        }
+    }
+
+    private fun startAudio(context: Context, a: Map<*, *>): Boolean {
+        val path = a["path"] as? String ?: return false
+        val target = a["target"] as? String ?: return false
+        transformer?.cancel()
+        val item = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(File(path))))
+            .setRemoveVideo(true)
+            .build()
+        val t = Transformer.Builder(context)
+            .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     transformer = null

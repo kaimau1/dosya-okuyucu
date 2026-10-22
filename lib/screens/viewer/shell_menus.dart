@@ -179,6 +179,12 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           if (_ttsTotal == 0)
             DocMoreItem(Icons.record_voice_over_rounded, context.t('vw.speak'),
                 _toggleSpeech),
+          // Sesli kitap (2026-10-22): başlıklı bölüm dosyaları, kaydedilir.
+          if (canMakeAudiobook(doc.path))
+            DocMoreItem(AppIcons.audiobook, context.t('ab.make'), () {
+              Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => AudiobookScreen(path: doc.path)));
+            }),
           // "Çevir" burada YOK: alt eylem çubuğunda etiketli duruyor
           // (2026-07-31 — "tek butonla" isteği).
           if (!isImage)

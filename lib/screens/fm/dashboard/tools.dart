@@ -159,6 +159,15 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         subtitle: '',
         onTap: () => _push(const MemoriesScreen()),
       ),
+      // Sesli kitaplar (2026-10-22): belgeden üretilmiş, kayıtlı ses dosyaları.
+      FmTileData(
+        icon: AppIcons.audiobook,
+        color: AppHues.sea,
+        id: 'audiobooks',
+        label: context.t('ab.library'),
+        subtitle: '',
+        onTap: () => _push(const AudiobookLibraryScreen()),
+      ),
       // Şifreli kasa (2026-10-18): PIN/parmak iziyle açılan, içeriği
       // şifreli klasör — kimlik, tapu, sözleşme taramaları için.
       FmTileData(

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_tts/flutter_tts.dart';
@@ -179,6 +181,21 @@ class TtsService {
         (defaultTargetPlatform == TargetPlatform.iOS ||
             defaultTargetPlatform == TargetPlatform.macOS);
     return isApple ? (m * 0.5).clamp(0.0, 1.0) : m;
+  }
+
+  /// [text]i cihazın motoruyla **WAV dosyasına** yazar (sesli kitap,
+  /// 2026-10-22). Motorun tek seferlik sınırı ~4000 karakter: çağıran
+  /// parçalar. Dosya oluştuysa true.
+  Future<bool> synthesizeToFile(String text, String path) async {
+    await _applyPrefs();
+    try {
+      await _tts.awaitSynthCompletion(true);
+      final r = await _tts.synthesizeToFile(text, path, true);
+      final file = File(path);
+      return r == 1 && file.existsSync() && file.lengthSync() > 44;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Seçilen sesi kısa bir cümleyle dinletir (ayar sayfasındaki "Dene").

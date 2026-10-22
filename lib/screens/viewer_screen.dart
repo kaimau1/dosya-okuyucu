@@ -84,6 +84,7 @@ import '../core/safe_insets.dart';
 import '../core/user_error.dart';
 
 import '../core/app_haptics.dart';
+import 'audiobook/audiobook_screen.dart';
 part 'viewer/pending_save.dart';
 part 'viewer/find_replace.dart';
 part 'viewer/doc_actions.dart';

@@ -31,6 +31,7 @@ enum _EntryAction {
   join,
   shortcut,
   hide,
+  audiobook,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -129,8 +130,15 @@ Future<bool> showEntryActions(
             // **Türe göre ilk grup** (Faz 17 / G16): arşivde Çıkar, görselde
             // Boyut/Döndür/Tanı, videoda Boyut — dosyanın asıl işi ızgarada
             // aranmasın. Bu eylemler aşağıdaki bölümlerden buraya taşındı.
-            if (isArchive || canRotate || (!entry.isDir && isMedia))
+            if (isArchive ||
+                canRotate ||
+                (!entry.isDir && isMedia) ||
+                (!entry.isDir && canMakeAudiobook(entry.path)))
               _section(ctx, ctx.t('ea.sec_this'), [
+                if (!entry.isDir && canMakeAudiobook(entry.path))
+                  _act(ctx, AppIcons.audiobook, ctx.t('ab.make'),
+                      _EntryAction.audiobook,
+                      hint: ctx.t('ab.make_hint')),
                 if (isArchive)
                   _act(ctx, AppIcons.archiveView, ctx.t('fm.show_archive'),
                       _EntryAction.openArchive),
@@ -252,6 +260,11 @@ Future<bool> showEntryActions(
       } else {
         await EntryOpener.open(context, entry.path);
       }
+      return false;
+
+    case _EntryAction.audiobook:
+      await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => AudiobookScreen(path: entry.path)));
       return false;
 
     case _EntryAction.openWith:

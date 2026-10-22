@@ -20,6 +20,9 @@ import 'tiles_reading.dart';
 import 'tiles_system.dart';
 import 'tiles_trash.dart';
 import '../../core/app_version.dart';
+import '../audiobook/voices_screen.dart';
+import '../audiobook/audiobook_library_screen.dart';
+import 'settings_widgets.dart';
 
 /// **Ayarların tek kaynağı.**
 ///
@@ -315,6 +318,16 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 subtitleKey: 'set.tts_ai_read_sub',
                 altKeys: ['set.kw_speak'],
                 builder: _ttsAiReadTile),
+            SettingRow(
+                id: 'neural_voices',
+                titleKey: 'voice.title',
+                altKeys: ['set.kw_speak', 'ab.library'],
+                builder: _neuralVoicesTile),
+            SettingRow(
+                id: 'audiobooks',
+                titleKey: 'ab.library',
+                altKeys: ['set.kw_speak'],
+                builder: _audiobooksTile),
           ]),
         ],
       ),
@@ -633,6 +646,19 @@ Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
 Widget _navTabsTile(BuildContext _) => const NavTabsTile();
 Widget _hapticsTile(BuildContext _) => const HapticsTile();
+Widget _neuralVoicesTile(BuildContext context) => SettingTile(
+      icon: AppIcons.voice,
+      title: context.t('voice.title'),
+      subtitle: 'Antalia-2 Mini · EMA Lightning',
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const VoicesScreen())),
+    );
+Widget _audiobooksTile(BuildContext context) => SettingTile(
+      icon: AppIcons.audiobook,
+      title: context.t('ab.library'),
+      onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AudiobookLibraryScreen())),
+    );
 Widget _fontTile(BuildContext _) => const UiFontTile();
 Widget _textSizeTile(BuildContext _) => const UiTextSizeTile();
 Widget _languageTile(BuildContext _) => const LanguageTile();

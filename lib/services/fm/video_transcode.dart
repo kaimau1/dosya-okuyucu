@@ -249,6 +249,26 @@ abstract final class VideoTranscoder {
     } catch (_) {}
   }
 
+  /// Yalnız ses: [path] (WAV) → [target] (AAC/M4A). Sesli kitap üretimi
+  /// kullanır; yerel kodlayıcı yoksa ya da başarısızsa `false` (çağıran WAV'ı
+  /// tutar). Aynı kanal, aynı tek-iş kuralı.
+  static Future<bool> audioToAac(String path, String target) async {
+    _wire();
+    final done = _running = Completer<void>();
+    try {
+      final started = await _channel
+          .invokeMethod<bool>('startAudio', {'path': path, 'target': target});
+      if (started != true) return false;
+      await done.future;
+      return File(target).existsSync() && File(target).lengthSync() > 0;
+    } catch (_) {
+      _cleanup(target);
+      return false;
+    } finally {
+      _running = null;
+    }
+  }
+
   /// Süren kodlamayı iptal eder (iş kuyruğundaki iptal düğmesi çağırır).
   static Future<void> cancel() async {
     try {

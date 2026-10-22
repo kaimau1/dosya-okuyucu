@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Yalnız CİHAZIN KENDİSİNE (127.0.0.1) şifresiz HTTP izni (2026-10-22):
+     yapay zekâ sesleri uygulama içi WebView'da çalışıyor ve dosyalarını
+     uygulamanın kendi yerel sunucusundan alıyor (ES modülleri/Worker
+     file://'dan yüklenemiyor). Dışarıya giden her bağlantı için kural
+     DEĞİŞMEDİ (hedef API 36 varsayılanı: şifresiz yasak). -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

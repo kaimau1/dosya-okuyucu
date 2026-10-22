@@ -40,6 +40,9 @@ abstract final class AppIcons {
   static const IconData dropDown = Icons.arrow_drop_down_rounded;
   static const IconData history = Icons.history_rounded;
   static const IconData notes = Icons.sticky_note_2_rounded;
+  static const IconData voice = Icons.record_voice_over_rounded;
+  static const IconData audiobook = Icons.headphones_rounded;
+  static const IconData qr = Icons.qr_code_2_rounded;
   static const IconData openFull = Icons.open_in_full_rounded;
   static const IconData slideshow = Icons.slideshow_rounded;
   static const IconData fullscreen = Icons.fullscreen_rounded;
