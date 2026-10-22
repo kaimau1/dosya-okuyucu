@@ -681,6 +681,8 @@ const Map<String, (String, String, String)> _t1 = {
   'vw.wrap_on': ('Satırları kaydır', 'Wrap lines', 'التفاف الأسطر'),
   'vw.wrap_off': ('Satırları kaydırma', "Don't wrap lines", 'عدم التفاف الأسطر'),
 
+  'srch.scope_here': ('Bu klasörde', 'In this folder', 'في هذا المجلد'),
+  'srch.scope_everywhere': ('Her yerde', 'Everywhere', 'في كل مكان'),
   'srch.in_content': ('Dosya içinde ara', 'Search inside files', 'البحث داخل الملفات'),
   'srch.content_running': ('Dosyaların içine bakılıyor…', 'Looking inside files…', 'جارٍ البحث داخل الملفات…'),
   'srch.content_hits': ('{n} eşleşme · {line}. satır', '{n} matches · line {line}', '{n} تطابق · السطر {line}'),

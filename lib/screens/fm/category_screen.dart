@@ -100,6 +100,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
   /// anda mount edilmez → tek denetleyici yeter).
   final ScrollController _scroll = ScrollController();
   late FmLayout _layout = widget.gridDefault ? FmLayout.grid3 : FmLayout.list;
+
+  void _setLayout(FmLayout layout) {
+    setState(() => _layout = layout);
+    final id = widget.memoryId;
+    if (id != null) ListMemory.saveLayout(id, layout);
+  }
   late FmSort _sort = widget.initialSort;
   late bool _desc = widget.initialDescending;
 
@@ -382,6 +388,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
             child: FmFileListView(
               entries: files,
               layout: _layout,
+              onLayoutChange: _setLayout,
               selected: _selected,
               controller: _scroll,
               loading: _loadingAll,
@@ -458,10 +465,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
             icon: Icon(fmLayoutIcon(_layout)),
             onPressed: () async {
               final picked = await showFmLayoutSheet(context, current: _layout);
-              if (picked == null) return;
-              setState(() => _layout = picked);
-              final id = widget.memoryId;
-              if (id != null) ListMemory.saveLayout(id, picked);
+              if (picked != null) _setLayout(picked);
             },
           ),
         ],

@@ -14,6 +14,7 @@ import 'drag_select.dart';
 import 'fm_entry_tiles.dart';
 import 'fm_fast_scroller.dart';
 import 'fm_layout_sheet.dart';
+import 'pinch_layout.dart';
 
 /// **Ortak dosya listesi** (Faz 6 / U10, 2026-10-21).
 ///
@@ -61,6 +62,9 @@ class FmFileListView extends StatelessWidget {
   final double bottomPadding;
   final bool showChevron;
 
+  /// İki parmakla sütun değiştirme (Faz 17 / G12); `null` ise kapalı.
+  final ValueChanged<FmLayout>? onLayoutChange;
+
   const FmFileListView({
     super.key,
     required this.entries,
@@ -80,6 +84,7 @@ class FmFileListView extends StatelessWidget {
     this.bottomPadding = 96,
     this.showChevron = false,
     this.badge,
+    this.onLayoutChange,
   });
 
   bool get _selecting => selected.isNotEmpty;
@@ -121,6 +126,10 @@ class FmFileListView extends StatelessWidget {
     if (onRefresh != null) {
       view = RefreshIndicator(onRefresh: onRefresh!, child: view);
     }
+    if (onLayoutChange != null) {
+      view = PinchLayoutSwitcher(
+          layout: layout, onChanged: onLayoutChange!, child: view);
+    }
     // Ada göre sıralı uzun listede hızlı kaydırıcı baş harfi gösterir.
     if (controller != null && groupBy == FmSort.name && !layout.isGrid) {
       final rowExtent = layout.iconSizeFor(0) * context.fmIconScale +
@@ -147,32 +156,46 @@ class FmFileListView extends StatelessWidget {
   EdgeInsets _pad(BuildContext context, double h) =>
       withNavInset(context, EdgeInsets.fromLTRB(h, Gap.xs, h, bottomPadding));
 
-  Widget _list(BuildContext context, List<FmListItem> items) =>
-      ListView.builder(
+  Widget _list(BuildContext context, List<FmListItem> items) {
+    // **Sabit satır yüksekliği** (Faz 17 / G14): 5.000 öğede YUKARI
+    // kaydırmada p99 50 ms ölçülmüştü — yukarıdan giren her satır ölçülüyor,
+    // kaydırma ofseti tahminle düzeltiliyordu. Başlıksız listede bütün
+    // satırlar aynı yükseklikte → ilk satır prototip olur, liste hiçbir
+    // satırı ölçmeden konumlar. (Başlıklı listede yükseklik karışık; orada
+    // eski yol.) Prototip GERÇEK satır: yazı ölçeği/tema ne olursa olsun
+    // yükseklik birebir aynı, tahmin yok.
+    final uniform = items.isNotEmpty && items.every((it) => it is FmEntryItem);
+    return ListView.builder(
         controller: controller,
         padding: _pad(context, Gap.xs),
         itemCount: items.length,
+        prototypeItem: uniform ? _row(items.first as FmEntryItem) : null,
         itemBuilder: (context, i) => switch (items[i]) {
           FmHeaderItem(:final labelKey, :final count) =>
             FmGroupHeader(label: context.t(labelKey), count: count),
-          FmEntryItem(:final entry, :final index) => DragSelectItem(
-              index: index,
-              child: FmEntryRow(
-                entry: entry,
-                layout: layout,
-                selected: selected.contains(entry.path),
-                selecting: _selecting,
-                subtitle: subtitle(entry),
-                showChevron: showChevron,
-                badge: badge?.call(entry),
-                onTap: () => _tap(entry),
-                onCheck: () => onToggle(entry),
-                onMore:
-                    onMore == null || _selecting ? null : () => onMore!(entry),
-              ),
-            ),
+          FmEntryItem() => _row(items[i] as FmEntryItem),
         },
       );
+  }
+
+  Widget _row(FmEntryItem item) {
+    final entry = item.entry;
+    return DragSelectItem(
+      index: item.index,
+      child: FmEntryRow(
+        entry: entry,
+        layout: layout,
+        selected: selected.contains(entry.path),
+        selecting: _selecting,
+        subtitle: subtitle(entry),
+        showChevron: showChevron,
+        badge: badge?.call(entry),
+        onTap: () => _tap(entry),
+        onCheck: () => onToggle(entry),
+        onMore: onMore == null || _selecting ? null : () => onMore!(entry),
+      ),
+    );
+  }
 
   Widget _grid(BuildContext context, List<FmListItem> items) {
     // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür.

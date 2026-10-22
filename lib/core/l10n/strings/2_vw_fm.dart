@@ -91,6 +91,8 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'fm.delete_permanent_action': ('{what} kalıcı sil', 'Delete {what} permanently', 'حذف {what} نهائيًا'),
   'fm.delete_trash_action': ('{what} çöpe taşı', 'Move {what} to trash', 'نقل {what} إلى المهملات'),
+  'fm.renamed': ('Yeni ad: {name}', 'Renamed to {name}', 'الاسم الجديد: {name}'),
+  'fm.trashed_n': ('{n} öğe çöp kutusuna taşındı', '{n} item(s) moved to trash', 'نُقل {n} عنصر إلى سلة المهملات'),
   'fm.undo': ('Geri alındı.', 'Undone.', 'تم التراجع.'),
   'fm.undo_action': ('Geri al', 'Undo', 'تراجع'),
   'fm.deleting': ('Siliniyor', 'Deleting', 'جارٍ الحذف'),

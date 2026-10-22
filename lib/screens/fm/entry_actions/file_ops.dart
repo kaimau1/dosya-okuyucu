@@ -41,8 +41,15 @@ Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
   if (!entry.isDir && !await _confirmExtensionChange(context, entry.name, newName)) {
     return false;
   }
+  if (!context.mounted) return false;
+  final messenger = ScaffoldMessenger.of(context);
+  final strings = AppStrings.of(context);
   try {
-    await FileOps.rename(entry.path, newName);
+    final target = await FileOps.rename(entry.path, newName);
+    if (target != entry.path) {
+      showUndoToast(messenger, strings, strings.t('fm.renamed', {'name': p.basename(target)}),
+          () => FileOps.rename(target, entry.name));
+    }
     return true;
   } catch (e) {
     if (context.mounted) {
@@ -204,8 +211,48 @@ Future<bool> deleteEntries(
           'fail': result.errors.length,
           'error': result.errors.first,
         }));
+  } else if (context.mounted && result.succeeded > 0) {
+    // Faz 17 / madde 7: çöpe atmanın da "Geri al"ı var (taşıma, yeniden
+    // adlandırma ve geçmişten kaldırmayla aynı kart).
+    final strings = AppStrings.of(context);
+    final startedAt = DateTime.now().millisecondsSinceEpoch - 60000;
+    showUndoToast(ScaffoldMessenger.of(context), strings,
+        strings.t('fm.trashed_n', {'n': result.succeeded}), () async {
+      final wanted = paths.toSet();
+      for (final item in await FmEnv.trash.list()) {
+        if (wanted.contains(item.originalPath) &&
+            item.deletedAtMs >= startedAt) {
+          await FmEnv.trash.restore(item);
+        }
+      }
+    });
   }
   return result.succeeded > 0;
+}
+
+/// **Ortak "Geri al" kartı** (Faz 17 / madde 7, 2026-10-22): çöpe atma,
+/// taşıma ve yeniden adlandırma aynı metin dili, aynı süre ([kSnackAction])
+/// ve aynı sonuç bildirimiyle geri alınır. Eskiden yalnız taşımada vardı.
+void showUndoToast(ScaffoldMessengerState messenger, AppStrings strings,
+    String message, Future<void> Function() undo) {
+  showSnackBarReplacing(
+    messenger,
+    SnackBar(
+      content: Text(message),
+      action: SnackBarAction(
+        label: strings.t('fm.undo_action'),
+        onPressed: () async {
+          try {
+            await undo();
+            showSnackOn(messenger, strings.t('fm.undo'));
+          } catch (e) {
+            showSnackOn(messenger,
+                strings.t('fm.undo_failed', {'error': userErrorText(e)}));
+          }
+        },
+      ),
+    ),
+  );
 }
 
 /// Kalıcı silme (çöp kutusunu atlar) — çöp ekranında kullanılır.

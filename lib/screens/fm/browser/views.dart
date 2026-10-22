@@ -219,6 +219,7 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
     return FmFileListView(
       entries: entries,
       layout: layout,
+      onLayoutChange: appState.setFmLayout,
       selected: _selected,
       controller: _scroll,
       loading: _loading,

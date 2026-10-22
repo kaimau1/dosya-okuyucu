@@ -20,6 +20,9 @@ class DashboardLayout extends ChangeNotifier {
 
   static const sections = [
     'storage',
+    // Faz 17 / K16 (b): panoda "Son açılanlar" şeridi — VARSAYILAN GİZLİ
+    // (aşağıdaki [defaultHiddenSections]); "Ana ekranı düzenle"den açılır.
+    'recent',
     'categories',
     'tools',
     'favorites',
@@ -41,13 +44,17 @@ class DashboardLayout extends ChangeNotifier {
     'apps',
   ];
 
+  /// "Yeni kimlik görünür eklenir" kuralının BİLİNÇLİ istisnası (K16 (b)):
+  /// mevcut kullanıcının panosu güncellemeyle kendiliğinden değişmesin.
+  static const defaultHiddenSections = {'recent'};
+
   static const _kSections = 'dash_sections';
   static const _kHiddenSections = 'dash_hidden_sections';
   static const _kTiles = 'dash_tiles';
   static const _kHiddenTiles = 'dash_hidden_tiles';
 
   List<String> _sectionOrder = List.of(sections);
-  Set<String> _hiddenSections = {};
+  Set<String> _hiddenSections = {...defaultHiddenSections};
   List<String> _tileOrder = List.of(tiles);
   Set<String> _hiddenTiles = {};
   bool _loaded = false;
@@ -59,7 +66,7 @@ class DashboardLayout extends ChangeNotifier {
 
   /// Varsayılandan farklı mı? ("Varsayılana dön" düğmesi için.)
   bool get isCustomized =>
-      _hiddenSections.isNotEmpty ||
+      !setEquals(_hiddenSections, defaultHiddenSections) ||
       _hiddenTiles.isNotEmpty ||
       !listEquals(_sectionOrder, sections) ||
       !listEquals(_tileOrder, tiles);
@@ -69,8 +76,14 @@ class DashboardLayout extends ChangeNotifier {
       for (final id in saved ?? const <String>[])
         if (known.contains(id)) id,
     ];
-    for (final id in known) {
-      if (!out.contains(id)) out.add(id);
+    // Yeni kimlik varsayılan sıradaki KOMŞUSUNUN arkasına girer (sona
+    // değil): "Son açılanlar" bellek kartlarının hemen altında doğar ve
+    // düzeni hiç değiştirmemiş kullanıcı "özelleştirilmiş" sayılmaz.
+    for (var i = 0; i < known.length; i++) {
+      final id = known[i];
+      if (out.contains(id)) continue;
+      final prev = i == 0 ? -1 : out.indexOf(known[i - 1]);
+      out.insert(prev + 1, id);
     }
     return out;
   }
@@ -80,9 +93,15 @@ class DashboardLayout extends ChangeNotifier {
     _loaded = true;
     try {
       final p = await SharedPreferences.getInstance();
-      _sectionOrder = _merge(p.getStringList(_kSections), sections);
+      final saved = p.getStringList(_kSections);
+      _sectionOrder = _merge(saved, sections);
       _hiddenSections = {...?p.getStringList(_kHiddenSections)}
         ..retainAll(sections);
+      // Kayıtta hiç geçmeyen (yeni gelen) varsayılan-gizli bölüm gizli başlar;
+      // kullanıcı bir kez açtıysa kayıtta vardır ve dokunulmaz.
+      for (final id in defaultHiddenSections) {
+        if (saved == null || !saved.contains(id)) _hiddenSections.add(id);
+      }
       _tileOrder = _merge(p.getStringList(_kTiles), tiles);
       _hiddenTiles = {...?p.getStringList(_kHiddenTiles)}..retainAll(tiles);
       notifyListeners();
@@ -125,7 +144,7 @@ class DashboardLayout extends ChangeNotifier {
   Future<void> reset() {
     _sectionOrder = List.of(sections);
     _tileOrder = List.of(tiles);
-    _hiddenSections = {};
+    _hiddenSections = {...defaultHiddenSections};
     _hiddenTiles = {};
     return _save();
   }
@@ -155,7 +174,7 @@ class DashboardLayout extends ChangeNotifier {
   void debugReset() {
     _sectionOrder = List.of(sections);
     _tileOrder = List.of(tiles);
-    _hiddenSections = {};
+    _hiddenSections = {...defaultHiddenSections};
     _hiddenTiles = {};
     _loaded = false;
   }

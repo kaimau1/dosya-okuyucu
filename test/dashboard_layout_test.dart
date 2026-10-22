@@ -55,8 +55,26 @@ void main() {
   });
 
   test('aşağı taşıma onReorderItem dizin kuralına uyar', () async {
-    await layout.moveSection(0, 2); // storage → son dizini 2 (tools'tan sonra)
+    await layout.moveSection(0, 2); // storage → son dizini 2
     expect(layout.sectionOrder,
-        ['categories', 'tools', 'storage', 'favorites', 'quick']);
+        ['recent', 'categories', 'storage', 'tools', 'favorites', 'quick']);
+  });
+
+  test('K16 (b): "Son açılanlar" şeridi varsayılan GİZLİ, açılınca kalıcı',
+      () async {
+    // Eski sürümden gelen kullanıcı: kayıtlı sırada 'recent' yok.
+    SharedPreferences.setMockInitialValues({
+      'dash_sections': ['storage', 'categories', 'tools', 'favorites', 'quick'],
+      'dash_hidden_sections': <String>[],
+    });
+    layout.debugReset();
+    await layout.ensureLoaded();
+    expect(layout.sectionVisible('recent'), isFalse);
+    expect(layout.isCustomized, isFalse);
+
+    await layout.setSectionVisible('recent', true);
+    layout.debugReset();
+    await layout.ensureLoaded();
+    expect(layout.sectionVisible('recent'), isTrue);
   });
 }

@@ -953,6 +953,16 @@ const Map<String, (String, String, String)> _t8 = {
     'Storage cards',
     'بطاقات التخزين',
   ),
+  'dash.sec_recent': (
+    'Son açılanlar',
+    'Recently opened',
+    'المفتوحة مؤخرًا',
+  ),
+  'dash.recent_all': (
+    'Tümü →',
+    'All →',
+    'الكل ←',
+  ),
   'dash.sec_categories': (
     'Kategori kutuları',
     'Category tiles',

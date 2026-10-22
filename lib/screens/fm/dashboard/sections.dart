@@ -213,6 +213,13 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             ),
         ],
         ];
+      case 'recent':
+        return [
+          RecentStrip(
+            onOpen: (e) => EntryOpener.open(context, e.path),
+            onAll: () => _push(const OpenHistoryScreen()),
+          ),
+        ];
       case 'quick':
         return [
         SectionHeader(context.t('fm.quick_folders'),
@@ -368,6 +375,11 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           label: context.t('dash.sec_storage'),
           icon: Icons.sd_storage_rounded,
           color: AppHues.steel,
+        ),
+        'recent': (
+          label: context.t('dash.sec_recent'),
+          icon: AppIcons.history,
+          color: AppHues.violet,
         ),
         'categories': (
           label: context.t('dash.sec_categories'),

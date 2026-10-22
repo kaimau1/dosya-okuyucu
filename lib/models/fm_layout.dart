@@ -126,3 +126,22 @@ extension FmLayoutInfo on FmLayout {
     return fallback;
   }
 }
+
+/// **İki parmakla sütun** merdiveni (Faz 17 / G12): parmakları açmak
+/// büyütür (daha az sütun → liste → ayrıntılı), sıkıştırmak küçültür.
+/// Fotoğraflar'daki mantığın gezgin/kategori karşılığı.
+const fmPinchLadder = [
+  FmLayout.detail,
+  FmLayout.list,
+  FmLayout.grid2,
+  FmLayout.grid3,
+  FmLayout.grid4,
+  FmLayout.grid5,
+];
+
+/// [dir] -1: yaklaş (parmaklar açıldı), +1: uzaklaş. Uçta aynı düzen döner.
+FmLayout fmPinchStep(FmLayout current, int dir) {
+  final i = fmPinchLadder.indexOf(current);
+  final next = (i + dir).clamp(0, fmPinchLadder.length - 1);
+  return fmPinchLadder[next];
+}

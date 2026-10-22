@@ -38,6 +38,7 @@ abstract final class AppIcons {
   static const IconData checkCircle = Icons.check_circle_rounded;
   static const IconData circle = Icons.radio_button_unchecked_rounded;
   static const IconData dropDown = Icons.arrow_drop_down_rounded;
+  static const IconData history = Icons.history_rounded;
 
   // ── görünüm ───────────────────────────────────────────────────────────
   static const IconData layoutList = Icons.view_list_rounded;
@@ -130,4 +131,5 @@ abstract final class AppIcons {
   static const IconData locked = Icons.lock_rounded;
   static const IconData device = Icons.smartphone_rounded;
   static const IconData folder = Icons.folder_rounded;
+  static const IconData storage = Icons.sd_storage_rounded;
 }

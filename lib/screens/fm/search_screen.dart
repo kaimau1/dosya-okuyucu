@@ -70,6 +70,11 @@ class _SearchScreenState extends State<SearchScreen> {
   /// olmalı").
   FmFilter _filter = FmFilter.none;
 
+  /// **Kapsam** (Faz 17 / madde 8): klasörden açılan aramada "bu klasörde /
+  /// her yerde" çipi. Her yerde = kök null (tüm birimler).
+  bool _everywhere = false;
+  String? get _root => _everywhere ? null : widget.root;
+
   /// **Dosya içinde arama** açık mı (2026-09-06 denetim turu).
   ///
   /// Ayrı bir kip, ad aramasının yanında bir seçenek değil: içeri bakmak
@@ -197,8 +202,8 @@ class _SearchScreenState extends State<SearchScreen> {
     // Sınır 500 değil 1000: sonuçlar burada ayrıca süzülüyor (tarih/boyut/tür)
     // — dar bir ham liste, süzgeçten sonra haksız yere boş kalırdı.
     final hits = needle.length >= 2
-        ? await SearchIndex.query(needle, root: widget.root, limit: 1000)
-        : await SearchIndex.query('', root: widget.root, limit: 1000,
+        ? await SearchIndex.query(needle, root: _root, limit: 1000)
+        : await SearchIndex.query('', root: _root, limit: 1000,
             matchAll: true);
     if (!mounted || token != _queryToken) return;
     setState(() {
@@ -216,7 +221,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _smart = null;
     });
     final hits = await ContentSearch.search(
-      widget.root ?? FmEnv.primaryRoot,
+      _root ?? FmEnv.primaryRoot,
       query,
       // Sorgu değişirse tarama kendini durdursun: kullanıcı yazmaya devam
       // ederken eski taramanın diski okumaya devam etmesi hem yavaş hem
@@ -306,8 +311,8 @@ class _SearchScreenState extends State<SearchScreen> {
           decoration: InputDecoration(
             hintText: context.t('srch.in_hint',
                 {
-                  'name': widget.rootLabel ??
-                      (widget.root == null
+                  'name': (_everywhere ? null : widget.rootLabel) ??
+                      (_root == null
                           ? context.t('fm.all_files')
                           : p.basename(widget.root!))
                 }),
@@ -550,6 +555,19 @@ class _SearchScreenState extends State<SearchScreen> {
   /// biçimi olması da bunun bir parçasıydı.
   Widget _filterChips() => FmFilterBar(
         children: [
+          if (widget.root != null)
+            FmChip(
+              key: const ValueKey('search-scope'),
+              icon: _everywhere ? AppIcons.storage : AppIcons.folder,
+              label: _everywhere
+                  ? context.t('srch.scope_everywhere')
+                  : context.t('srch.scope_here'),
+              selected: _everywhere,
+              onTap: () {
+                setState(() => _everywhere = !_everywhere);
+                _run(_controller.text);
+              },
+            ),
           // **Dosya içinde ara** çipi en başta: kullanıcı adı bulamayınca
           // ilk buraya bakıyor.
           FmChip(
